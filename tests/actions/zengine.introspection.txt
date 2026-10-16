@@ -1,8 +1,8 @@
 # The action census's rows for zengine.introspection; the form is tests/actions.txt's. ASCII only.
-zengine.introspection - powers.view tab - - switch view
-zengine.introspection - powers.up up - - row up
-zengine.introspection - powers.down down - - row down
-zengine.introspection - powers.sample return - - sample
-zengine.introspection - powers.sources unbound - - show sources
-zengine.introspection - powers.operators unbound - - show operators
-zengine.introspection - powers.composite unbound - - composite only, on or off
+zengine.introspection - powers.view tab FindPowers/2,DescribePower/1 - switch view
+zengine.introspection - powers.up up DescribePower/1 - row up
+zengine.introspection - powers.down down DescribePower/1 - row down
+zengine.introspection - powers.sample return SampleRequested/1 - sample
+zengine.introspection - powers.sources unbound FindPowers/2,DescribePower/1 - show sources
+zengine.introspection - powers.operators unbound FindPowers/2,DescribePower/1 - show operators
+zengine.introspection - powers.composite unbound FindPowers/2 - composite only, on or off

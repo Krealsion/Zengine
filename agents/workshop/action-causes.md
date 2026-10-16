@@ -53,6 +53,7 @@ WHY — `agents/decisions/a-press-says-what-it-may-cause.md`
 LAW — The census holds each row's causes and mode entered, a press of each action sends nothing beside the pane protocol its row does not declare, and each manual command's Answers line links its causes.
 
 MEANS
+- every row each office's census pins is pressed, on a pane of its own in the state its suite drives;
 - a declared cause no driven state sent is listed beside the build, never failed: "may";
 - the manual check reads only which shapes a line links, never its words.
 
@@ -112,10 +113,13 @@ their keymap file: the key says the button's intent, the keymap says what it cau
 the action's"
 
 ### WL-CAUSE-04
-`tests/test_workshop_panes_builder.cpp` pane_protocol SendsOf list_unreached "the action census: the
-rows the Builder declares in each mode, with what each press causes and the mode it enters, and the
-desk's, are tests/actions.txt" "the press witness: each action the Builder declares, pressed in each
-mode it is driven into, sends nothing beside the pane protocol that its row does not declare" "the
-press witness: each row the desktop declares, pressed, sends nothing beside the pane protocol that
-the row does not declare -- the application's, the Pane Manager's and the Manual's"
+`tests/census.hpp` pane_protocol SendsOf PressWitness PressDriverOf press_each_state
+`tests/test_workshop_panes_builder.cpp` list_unreached witness_presses "the action census: the rows the Builder declares in each
+mode, with what each press causes and the mode it enters, and the desk's, are tests/actions.txt"
+"the press witness: each action the Builder declares, pressed in each mode it is driven into, sends
+nothing beside the pane protocol that its row does not declare" "the press witness: each row the
+desktop declares, pressed, sends nothing beside the pane protocol that the row does not declare --
+the application's, the Pane Manager's and the Manual's" "the press witness: every other office in
+the census, each row its panes declare pressed in each mode its suite drives, sends nothing beside
+the pane protocol that the row does not declare"
 `tests/check_manual.cmake` zen_manual_census zen_manual_answers

@@ -59,9 +59,10 @@ and another out, is among them). Which view a power is in is read off its defini
   `Sources` or `Operators` in the first row does [`powers.sources`](#powerssources) or
   [`powers.operators`](#powersoperators).
 - **Answers:** the brackets move, `[Sources] Operators` or `Sources [Operators]`, and the list is
-  asked again of the discovery door (`FindPowers`, [zengine.powers](zengine.powers.md#findpowers)),
-  with the selected power's description (`DescribePower`). Each view keeps its own selection, by
-  identity: leave a view and come back, and your power is still selected there.
+  asked again of the discovery door ([`FindPowers`](zengine.powers.md#findpowers)), with the
+  selected power's description ([`DescribePower`](zengine.powers.md#describepower)). Each view keeps
+  its own selection, by identity: leave a view and come back, and your power is still selected
+  there.
 - **Refuses:** nothing.
 - **Example:** press <!-- key powers.view -->`tab`<!-- /key --> and read `Sources [Operators]  -/3`.
 
@@ -73,7 +74,7 @@ short pane hides is still held; moving starts again from the list's first row.
 - **Takes:** the list on screen. Default key <!-- key powers.up -->`up`<!-- /key -->; the wheel moves
   a row a notch.
 - **Answers:** the `> ` mark and the position, `2/3`, move, and the discovery door is asked about
-  the power now selected (`DescribePower`, [zengine.powers](zengine.powers.md#describepower)); its
+  the power now selected ([`DescribePower`](zengine.powers.md#describepower)); its
   detail shows under the list ([`yields`](#yields), [`active`](#active)).
 - **Refuses:** nothing; at the first row, or in an empty list, nothing moves.
 - **Example:** press <!-- key powers.up -->`up`<!-- /key -->.
@@ -84,7 +85,7 @@ Moves the selection to the next power the list shows. Otherwise as [`powers.up`]
 
 - **Takes:** the list on screen. Default key <!-- key powers.down -->`down`<!-- /key -->.
 - **Answers:** the mark moves down one, and the door is asked about the power now selected
-  (`DescribePower`, [zengine.powers](zengine.powers.md#describepower)).
+  ([`DescribePower`](zengine.powers.md#describepower)).
 - **Refuses:** nothing; at the last row nothing moves.
 - **Example:** in a cold pane, press <!-- key powers.down -->`down`<!-- /key --> to select the first
   power, `1/3`.
@@ -95,8 +96,8 @@ Samples the selected Source: the host runs it once, now, and the pane keeps what
 
 - **Takes:** the selected power, in the Sources view. Default key
   <!-- key powers.sample -->`return`<!-- /key -->; the control `[ Sample ]`, under a selected Source.
-- **Answers:** asks the sample door to run it (`SampleRequested`,
-  [zengine.sources](zengine.sources.md#samplerequested)). Its answer shows under the detail as
+- **Answers:** asks the sample door to run it
+  ([`SampleRequested`](zengine.sources.md#samplerequested)). Its answer shows under the detail as
   `sampled when asked  zengine.project.anchor` and the value's lines, or `sample refused when asked`
   and the refusal in its owner's words. What a sample said is history: it stays through view
   switches, searches, a new selection and its provider unloading, and nothing refreshes it. Each
@@ -112,7 +113,9 @@ Samples the selected Source: the host runs it once, now, and the pane keeps what
 Shows the Sources view. Otherwise as [`powers.view`](#powersview).
 
 - **Takes:** the view shown. No default key; a press on `Sources` in the first row.
-- **Answers:** `[Sources] Operators`, and the list asked again; nothing when Sources is shown.
+- **Answers:** `[Sources] Operators`, and the list asked again
+  ([`FindPowers`](zengine.powers.md#findpowers)) with the selected power's description
+  ([`DescribePower`](zengine.powers.md#describepower)); nothing when Sources is shown.
 - **Refuses:** nothing.
 - **Example:** press `Sources`.
 
@@ -121,7 +124,9 @@ Shows the Sources view. Otherwise as [`powers.view`](#powersview).
 Shows the Operators view. Otherwise as [`powers.view`](#powersview).
 
 - **Takes:** the view shown. No default key; a press on `Operators` in the first row.
-- **Answers:** `Sources [Operators]`, and the list asked again; nothing when Operators is shown.
+- **Answers:** `Sources [Operators]`, and the list asked again
+  ([`FindPowers`](zengine.powers.md#findpowers)) with the selected power's description
+  ([`DescribePower`](zengine.powers.md#describepower)); nothing when Operators is shown.
 - **Refuses:** nothing.
 - **Example:** press `Operators`.
 
@@ -134,7 +139,7 @@ power can be opened or edited.
 - **Takes:** the filter, in both views at once. No default key; the control `[ ] Composite`, drawn
   in the first row when the pane is wide enough.
 - **Answers:** the control reads `[x] Composite` or `[ ] Composite`, and the list is asked again of
-  the discovery door (`FindPowers`, [zengine.powers](zengine.powers.md#findpowers)). A composite
+  the discovery door ([`FindPowers`](zengine.powers.md#findpowers)). A composite
   power's row ends ` (composite)`.
 - **Refuses:** nothing; a filter nothing passes shows `none here match the current search`.
 - **Example:** press `[ ] Composite` in the Operators view.

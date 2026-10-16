@@ -13,6 +13,7 @@
 #include "message-draft/transfer.hpp"
 #include "workshop/actor_scope.hpp"
 #include "workshop/pane_carry.hpp"
+#include "workshop/pane_causes.hpp"
 #include "workshop/pane_document.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_operation.hpp"
@@ -65,20 +66,20 @@ std::pair<std::shared_ptr<const loom::Schema>, std::optional<std::string>> label
 }
 
 class ViewBuilderPane final
-    : public loom::WeaveBase<
+    : public zengine::With<ws::PaneManualFacet<
+          vb::kPane, zengine::manual::pages::zengine_view_builder::kManual>>::Weave<
           ViewBuilderPane, vb::ViewBuilderState,
           loom::Accept<loom::Activated, ws::PaneCatalogRequested, ws::PaneRoom, ws::PaneCanvasRoom,
                        ws::PaneCanvasPointer, ws::PaneCanvasHover, ws::PaneCanvasRejected, ws::PaneKey,
                        ws::PaneTextInput, ws::PaneActionRequested, ws::ActionsJudged, ws::PaneQuitRequested,
                        ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
                        ws::PaneCarryAnswered, vb::ViewEdit, view::ViewAnswer, loom::DispatchRefused,
-                       ws::ProjectRoot, ws::PaneDocumentRequested>,
-          loom::Emit<ws::v3::PaneOffered, ws::PaneContent, ws::v4::PaneCanvasContent, ws::PaneActions,
-                     ws::PaneEscapeUnspent, ws::PanePassRequested, ws::PaneMenuRequested,
+                       ws::ProjectRoot>,
+          loom::Emit<ws::v3::PaneOffered, ws::PaneContent, ws::v4::PaneCanvasContent,
+                     ws::v3::PaneActions, ws::PaneEscapeUnspent, ws::PanePassRequested, ws::PaneMenuRequested,
                      ws::PaneQuitAnswered, ws::PaneOperationRequested, ws::v2::PaneOperationRequested,
                      ws::PaneValueCarryRequested, vb::ViewEdited, view::ViewRun, view::ViewResume,
-                     view::ViewApply, view::ViewStop, ws::ProjectRootRequested,
-                     ws::PaneDocumentShown>> {
+                     view::ViewApply, view::ViewStop, ws::ProjectRootRequested>> {
 public:
     loom::Value snapshot() const override {
         vb::ViewBuilderState saved;
@@ -150,11 +151,6 @@ public:
     }
     void on(const ws::PaneCatalogRequested&, loom::Mail& mail) {
         if (mail.authored_from_role(workshop_role)) offer(mail);
-    }
-    /// THIS PANE'S MANUAL, TO THE ONE WHO ASKED: from the page this image was built with, so a
-    /// reloaded image answers its own words.
-    void on(const ws::PaneDocumentRequested& ask, loom::Mail& mail) {
-        (void)mail.answer(ws::pane_document(ask, vb::kPane, zengine::manual::pages::zengine_view_builder::kManual));
     }
     void on(const ws::PaneRoom& room, loom::Mail& mail) {
         if (!host(mail, room.pane)) return;
@@ -896,16 +892,20 @@ private:
         (void)mail.as_role(vb::kRole).send_to_role(
             workshop_role, ws::v3::PaneOffered{vb::kPane, "View Builder", "make a view by hand, then run it beside Flow", 880, 540, 0});
         (void)mail.as_role(vb::kRole).send_to_role(
-            workshop_role, ws::PaneActions{vb::kPane,
-                                           {{"save", "Save the view", input::scan::kS, input::mod::kCtrl},
-                                            {"open", "Open a view", input::scan::kO, input::mod::kCtrl},
-                                            {"run", "Run the view", input::scan::kR, input::mod::kCtrl},
-                                            {"new", "Start a new view", input::scan::kUnknown, input::mod::kNone},
-                                            {"apply", "Apply to the running view", input::scan::kUnknown,
-                                             input::mod::kNone},
-                                            {"stop", "Stop the running view", input::scan::kUnknown, input::mod::kNone},
-                                            {"choices", "More field choices", input::scan::kUnknown,
-                                             input::mod::kNone}}});
+            workshop_role,
+            ws::v3::PaneActions{vb::kPane, {},
+                                {{"save", "Save the view", input::scan::kS, input::mod::kCtrl},
+                                 {"open", "Open a view", input::scan::kO, input::mod::kCtrl},
+                                 {"run", "Run the view", input::scan::kR, input::mod::kCtrl, {},
+                                  {ws::cause_of<view::ViewRun>()}},
+                                 {"new", "Start a new view", input::scan::kUnknown,
+                                  input::mod::kNone},
+                                 {"apply", "Apply to the running view", input::scan::kUnknown,
+                                  input::mod::kNone, {}, {ws::cause_of<view::ViewApply>()}},
+                                 {"stop", "Stop the running view", input::scan::kUnknown,
+                                  input::mod::kNone, {}, {ws::cause_of<view::ViewStop>()}},
+                                 {"choices", "More field choices", input::scan::kUnknown,
+                                  input::mod::kNone}}});
     }
     /// MORE'S ACTION: the next field choices, as a press on `[More]` in the picture shown turns
     /// them; nothing while that picture shows no More.

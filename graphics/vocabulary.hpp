@@ -141,11 +141,11 @@ struct ElementPressed {
               ZEN_FIELD(x), ZEN_FIELD(y));
 };
 
-/// Window -> the area's owner: a press landed in an element naming this action.
-struct ActionIssued {
+/// Window -> the area's owner: perform this action, named by the element a press landed in.
+struct ActionRequested {
     std::string area;
     std::string action;
-    ZEN_SHAPE(ActionIssued, 1, ZEN_FIELD(area), ZEN_FIELD(action));
+    ZEN_SHAPE(ActionRequested, 1, ZEN_FIELD(area), ZEN_FIELD(action));
 };
 
 // ---- the directory ------------------------------------------------------------------------

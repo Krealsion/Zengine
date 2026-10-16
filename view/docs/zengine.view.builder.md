@@ -95,7 +95,7 @@ its pane opens.
   `[Run]`.
 - **Answers:** `run asked of the view host`, then the host's answer, as `registered tally.panel; it
   waits until told tally.Total`. The bar then says `[Running]`, and `view-builder.json` records
-  that it runs. The asks are `ViewRun` and `ViewAnswer`
+  that it runs. The ask is [`ViewRun`](view.md#the-view-host), answered `ViewAnswer`
   ([view/vocabulary.hpp](../vocabulary.hpp)).
 - **Refuses:** `run refused: ` and the host's reason, as `this session already runs a view; apply a
   change or stop it first`, or `` `tally.panel` is already held by a running participant ``;
@@ -122,8 +122,9 @@ Changes the running view to the one you have.
 - **Answers:** `apply asked of the view host`, then the host's answer. With the same shapes it is
   `applied in place: tally.panel tells and says the same shapes`, and what was typed into the
   running view stays; with other shapes, a label bound to a new field say, it is `registered
-  tally.panel afresh: its shapes changed` and what it waits for, and its fields start again from the description. The ask
-  is `ViewApply` ([view/vocabulary.hpp](../vocabulary.hpp)).
+  tally.panel afresh: its shapes changed` and what it waits for, and its fields start again from the
+  description. The ask is [`ViewApply`](view.md#the-view-host)
+  ([view/vocabulary.hpp](../vocabulary.hpp)).
 - **Refuses:** `apply refused: ` and the host's reason, as `no view runs in this session for this
   participant`, or Loom's words when the changed view cannot register beside the one running, which
   goes on as it was; `apply was not delivered: <the reason>`.
@@ -135,8 +136,8 @@ Stops the running view: its pane says it stopped, then the participant is gone.
 
 - **Takes:** the view running. No default key; the control `[Stop]`.
 - **Answers:** `stop asked of the view host`, then `stopped tally.panel`; the bar says `[Run]`
-  again, and `view-builder.json` records that it does not run. The ask is `ViewStop`
-  ([view/vocabulary.hpp](../vocabulary.hpp)).
+  again, and `view-builder.json` records that it does not run. The ask is
+  [`ViewStop`](view.md#the-view-host) ([view/vocabulary.hpp](../vocabulary.hpp)).
 - **Refuses:** `stop refused: no view runs in this session for this participant`; `stop was not
   delivered: <the reason>`.
 - **Example:** press `[Stop]`.

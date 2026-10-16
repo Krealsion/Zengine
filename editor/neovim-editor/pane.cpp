@@ -43,6 +43,7 @@
 #include "workshop/open_seam_vocabulary.hpp"
 #include "workshop/pane_canvas_rows.hpp"
 #include "workshop/pane_carry.hpp"
+#include "workshop/pane_causes.hpp"
 #include "workshop/pane_document.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_operation.hpp"
@@ -346,7 +347,7 @@ using NeovimEditorBase = loom::WeaveBase<
                  nve::NeovimStartRequested, nve::NeovimStopRequested, nve::NeovimStatusRequested,
                  ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
                  ws::PaneCarryAnswered, ws::PaneDocumentRequested>,
-    loom::Emit<PaneOffered, ws::v2::PaneActions, ws::v5::PaneCanvasContent, ws::v4::PaneContent,
+    loom::Emit<PaneOffered, ws::v3::PaneActions, ws::v5::PaneCanvasContent, ws::v4::PaneContent,
                ws::v2::PaneCaret,
                ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
                PaneQuitAnswered, SourceOpened, SourcePrepared, ws::v2::SourcePrepared,
@@ -2810,20 +2811,23 @@ private:
     /// file's location has no default key, every plain ctrl+letter being Neovim's or the
     /// desktop's (WL-NVIM-12).
     void declare(loom::Mail& mail) {
-        ws::v2::PaneActions actions;
+        ws::v3::PaneActions actions;
         actions.pane = nve::kEditorPane;
-        actions.rows.push_back(ws::v2::PaneActionRow{nve::kActionWrite, "write (:w)", zengine::input::scan::kS,
+        actions.rows.push_back(ws::v3::PaneActionRow{nve::kActionWrite, "write (:w)", zengine::input::scan::kS,
                                                      zengine::input::mod::kCtrl, ws::kOwnableDocumentSave});
-        actions.rows.push_back(ws::v2::PaneActionRow{nve::kActionJumpOlder, "jump back (<C-o>)",
+        actions.rows.push_back(ws::v3::PaneActionRow{nve::kActionJumpOlder, "jump back (<C-o>)",
                                                      zengine::input::scan::kO, zengine::input::mod::kCtrl,
                                                      ws::kOwnableDocumentOpen});
-        actions.rows.push_back(ws::v2::PaneActionRow{nve::kActionLocation, "carry this file's location",
+        // The two carries' rows say what their press may send: the carry, once Workshop allows it.
+        const std::vector<ws::ActionCause> carried{ws::cause_of<ws::PaneValueCarryRequested>()};
+        actions.rows.push_back(ws::v3::PaneActionRow{nve::kActionLocation, "carry this file's location",
                                                      zengine::input::scan::kUnknown, zengine::input::mod::kNone,
-                                                     ""});
+                                                     "", carried});
         declared_selection_ = carries_selection();
         if (declared_selection_) {
-            actions.rows.push_back(ws::v2::PaneActionRow{nve::kActionExtract, "carry the selection",
-                                                         zengine::input::scan::kR, zengine::input::mod::kCtrl, ""});
+            actions.rows.push_back(ws::v3::PaneActionRow{nve::kActionExtract, "carry the selection",
+                                                         zengine::input::scan::kR, zengine::input::mod::kCtrl, "",
+                                                         carried});
         }
         (void)mail.as_role(nve::kEditorOffice).send_to_role(kWorkshopRole, actions);
     }

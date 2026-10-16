@@ -91,7 +91,7 @@ using WindowBase = zengine::With<
           loom::Accept<Drawn, ElementPut, ElementChange, AreaIntroduced, AreaWithdrawn,
                        ElementCodeOffered, GraphicsReady, WindowShowAsked>,
           loom::Emit<DrawnRefused, WindowOffered, AreaRoom, zengine::input::KeyPressed,
-                     ElementPressed, ActionIssued, WindowShown>,
+                     ElementPressed, ActionRequested, WindowShown>,
           zengine::timer::TimedWeave>;
 
 template <class Terminal>
@@ -319,7 +319,8 @@ private:
         }
         const ElementRecord* r = record_of(*a, l.path);
         if (p == nullptr && r != nullptr && !r->action.empty()) {
-            (void)mail.as_role(office()).send_to_role(a->owner, ActionIssued{a->area, r->action});
+            (void)mail.as_role(office()).send_to_role(a->owner,
+                                                      ActionRequested{a->area, r->action});
             return;
         }
         (void)mail.as_role(office()).send_to_role(

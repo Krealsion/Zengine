@@ -50,12 +50,12 @@ class SnakeWorld
     : public gfx::With<gfx::DrawingFacet>::Weave<
           SnakeWorld, State,
 #if defined(SNAKE_WORLD_V2)
-          loom::Accept<SnakeTick, SnakeTurn, input::KeyPressed, gfx::ActionIssued,
+          loom::Accept<SnakeTick, SnakeTurn, input::KeyPressed, gfx::ActionRequested,
                        gfx::ElementPressed, loom::PrepareShutdown, loom::Bequest, loom::Refused>,
           loom::Emit<SnakeVisual, FoodEaten, SnakeDied, gfx::ElementPut, gfx::ElementChange,
                      loom::Bequest, loom::ClaimBequest>,
 #else
-          loom::Accept<SnakeTick, SnakeTurn, input::KeyPressed, gfx::ActionIssued,
+          loom::Accept<SnakeTick, SnakeTurn, input::KeyPressed, gfx::ActionRequested,
                        gfx::ElementPressed, loom::PrepareShutdown>,
           loom::Emit<SnakeVisual, FoodEaten, SnakeDied, gfx::ElementPut, gfx::ElementChange,
                      loom::Bequest>,
@@ -100,7 +100,7 @@ public:
     }
 
     /// The new-game button, pressed in the window: a new game, sent to the board as a change.
-    void on(const gfx::ActionIssued& a, loom::Mail& mail) {
+    void on(const gfx::ActionRequested& a, loom::Mail& mail) {
         if (!mail.authored_from_role(canvas().window_office()) || a.action != kNewGame) {
             return;
         }

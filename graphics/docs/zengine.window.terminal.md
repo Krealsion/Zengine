@@ -34,7 +34,7 @@ message the window handles shows what it changed.
 `zengine.window.pump` every `window::kPumpBeatMs` milliseconds, with Zengine's parser. A key goes to
 the owner of each area placed to hear keys, front to back. A left press lands on the top node
 painted at its cell: an element presented there whose code takes the press handles it; else the
-action of the record it lies in goes to the area's owner (`ActionIssued`); else the press itself
+action of the record it lies in goes to the area's owner (`ActionRequested`); else the press itself
 goes to the owner (`ElementPressed`).
 
 ## Use
@@ -165,8 +165,8 @@ Nothing the window says is published: each message goes to one office. To the di
 `WindowOffered` v1 on each activation and after `GraphicsReady`: its name, its size in cells, its
 incarnation. To an area's owner, `AreaRoom` v2 for each introduction: the area, this window, its
 incarnation, the area's size, and the references of the owner's elements it still presents there;
-`DrawnRefused` v1 for a drawing refused; `ElementPressed` v1 and `ActionIssued` v1 for a press; and
-`KeyPressed` v2 to each owner placed to hear keys. To the Timer, its beat's order. An observer
+`DrawnRefused` v1 for a drawing refused; `ElementPressed` v1 and `ActionRequested` v1 for a press;
+and `KeyPressed` v2 to each owner placed to hear keys. To the Timer, its beat's order. An observer
 reads what it shows with `WindowShowAsked`.
 
 ## Files

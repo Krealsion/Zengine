@@ -46,7 +46,7 @@ public:
     std::vector<ws::v4::PaneCanvasContent> named; ///< ...as said, with the parts each names
     std::vector<std::string> rows; ///< the ids of the rows last declared, the ones in force
     std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
-        return {loom::schema_of<ws::PaneOffered>(), loom::schema_of<ws::PaneActions>(),
+        return {loom::schema_of<ws::PaneOffered>(), loom::schema_of<ws::v3::PaneActions>(),
             loom::schema_of<ws::PaneContent>(), loom::schema_of<ws::PaneCanvasContent>(),
             loom::schema_of<ws::v4::PaneCanvasContent>(),
             loom::schema_of<ws::PaneEscapeUnspent>(), loom::schema_of<ws::PaneQuitAnswered>(),
@@ -63,9 +63,9 @@ public:
             REQUIRE(message.provenance.authored_from_role(fp::kRole));
             pictures.push_back(loom::from_value<ws::PaneCanvasContent>(message.payload));
         }
-        if (loom::same_identity(message.payload.schema(), *loom::schema_of<ws::PaneActions>())) {
+        if (loom::same_identity(message.payload.schema(), *loom::schema_of<ws::v3::PaneActions>())) {
             rows.clear();
-            for (const auto& row : loom::from_value<ws::PaneActions>(message.payload).rows) rows.push_back(row.id);
+            for (const auto& row : loom::from_value<ws::v3::PaneActions>(message.payload).rows) rows.push_back(row.id);
         }
         if (loom::same_identity(message.payload.schema(), *loom::schema_of<ws::v4::PaneCanvasContent>())) {
             REQUIRE(message.provenance.authored_from_role(fp::kRole));
@@ -134,7 +134,7 @@ struct Rig {
         loom::Grant pane_grant;
         fh::allow_flow_requests(pane_grant);
         ws::allow_finding_powers(pane_grant);
-        for (const auto& schema : {loom::schema_of<ws::PaneOffered>(), loom::schema_of<ws::PaneActions>(),
+        for (const auto& schema : {loom::schema_of<ws::PaneOffered>(), loom::schema_of<ws::v3::PaneActions>(),
                 loom::schema_of<ws::PaneContent>(), loom::schema_of<ws::PaneCanvasContent>(),
                 loom::schema_of<ws::v4::PaneCanvasContent>(),
                 loom::schema_of<ws::PaneEscapeUnspent>(), loom::schema_of<ws::PanePassRequested>(),

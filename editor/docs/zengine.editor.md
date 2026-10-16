@@ -113,8 +113,9 @@ Inventory**, does the same.
 
 - **Takes:** the selection as it stands, unsaved edits included. Default key
   <!-- key editor.extract -->`ctrl+e`<!-- /key -->.
-- **Answers:** Workshop is asked to approve the carry for your press, then carries the copy; the
-  notice says `carrying a copy of <how much> of <the file> -- click a receiving pane, or Escape;
+- **Answers:** Workshop is asked to approve the carry for your press, then carries the copy
+  ([`PaneValueCarryRequested`](../../workshop/docs/zengine.workshop.md#panevaluecarryrequested));
+  the notice says `carrying a copy of <how much> of <the file> -- click a receiving pane, or Escape;
   this document is unchanged`. A click on a receiving pane puts it down;
   <!-- key desktop.deselect -->`escape`<!-- /key --> puts it away.
 - **Refuses:** each beginning `nothing was carried -- `: `select text first; nothing else is carried
@@ -132,9 +133,10 @@ the caret line's text beside them. A drag that starts on the `status` row, or a 
 
 - **Takes:** the open file and the caret. Default key
   <!-- key editor.location -->`ctrl+l`<!-- /key -->.
-- **Answers:** as [`editor.extract`](#editorextract), the notice naming `the location of <the file>
-  at line <n>`. Dropped on an Editor later, the location opens its file and, where the saved line
-  still reads as it did, moves the caret to it.
+- **Answers:** as [`editor.extract`](#editorextract), a carry
+  ([`PaneValueCarryRequested`](../../workshop/docs/zengine.workshop.md#panevaluecarryrequested)),
+  the notice naming `the location of <the file> at line <n>`. Dropped on an Editor later, the
+  location opens its file and, where the saved line still reads as it did, moves the caret to it.
 - **Refuses:** as [`editor.extract`](#editorextract): `nothing was carried -- no source is open`,
   `nothing was carried -- the document changed after you pointed at it`, and Workshop's reason.
 - **Example:** press <!-- key editor.location -->`ctrl+l`<!-- /key -->, click an Inventory folder.
@@ -172,9 +174,10 @@ it in your keymap file; a drag from the `status` row, or a right press there, **
 location**, carries it meanwhile.
 
 - **Takes:** Neovim's current buffer and cursor, asked of Neovim when you press. No default key.
-- **Answers:** as [`editor.extract`](#editorextract): the notice says `carrying a copy of the
-  location of <the file> at line <n> -- click a receiving pane, or Escape; Neovim's buffer is
-  unchanged`.
+- **Answers:** as [`editor.extract`](#editorextract), a carry
+  ([`PaneValueCarryRequested`](../../workshop/docs/zengine.workshop.md#panevaluecarryrequested)):
+  the notice says `carrying a copy of the location of <the file> at line <n> -- click a receiving
+  pane, or Escape; Neovim's buffer is unchanged`.
 - **Refuses:** each beginning `nothing was carried -- `: `Neovim's current buffer names no file`;
   `Neovim could not say where its cursor is (<why>)`; `a copy is already on its way to Workshop`;
   and Workshop's reason.
@@ -188,9 +191,10 @@ Neovim's own (redo, or Insert's register).
 
 - **Takes:** the selection Neovim holds when you press, unsaved changes included. Default key
   <!-- key neovim.extract -->`ctrl+r`<!-- /key -->.
-- **Answers:** as [`editor.extract`](#editorextract), the notice ending `Neovim's buffer is
-  unchanged`. A drag from inside the highlight, or a right press on it, **Extract selection to
-  Inventory**, does the same.
+- **Answers:** as [`editor.extract`](#editorextract), a carry
+  ([`PaneValueCarryRequested`](../../workshop/docs/zengine.workshop.md#panevaluecarryrequested)),
+  the notice ending `Neovim's buffer is unchanged`. A drag from inside the highlight, or a right
+  press on it, **Extract selection to Inventory**, does the same.
 - **Refuses:** `nothing was carried -- ` and Neovim's reason, such as a selection holding a NUL
   byte; `nothing was carried -- a copy is already on its way to Workshop`; and Workshop's reason.
   When Neovim has left Visual mode since the row was declared, the key reaches Neovim instead.

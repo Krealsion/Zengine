@@ -46,8 +46,8 @@ namespace ws = zengine::workshop;
 namespace pane = zengine::attention_pane;
 
 using ws::PaneActionRequested;
-using ws::PaneActionRow;
-using ws::PaneActions;
+using ws::v3::PaneActionRow;
+using ws::v3::PaneActions;
 using ws::PaneCatalogRequested;
 using ws::v2::PaneOffered;
 using ws::PaneRoom;
@@ -133,26 +133,20 @@ std::string stamp_of(const StandingCondition& c) {
 // =============================================================================
 
 class AttentionPaneWeave
-    : public loom::WeaveBase<
-          AttentionPaneWeave, pane::AttentionPaneState,
-          loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, ws::PaneCanvasRoom,
-                       ws::PaneCanvasPointer, ws::PaneCanvasRejected, PaneActionRequested,
-                       StandingConditions, ws::PaneDocumentRequested>,
-          loom::Emit<PaneOffered, PaneActions, ws::v4::PaneContent, ws::v5::PaneCanvasContent,
-                     ws::PanePassRequested, ws::PaneDocumentShown>> {
+    : public zengine::With<ws::PaneManualFacet<
+          pane::kAttentionPane, zengine::manual::pages::zengine_attention::kManual>>::
+          Weave<AttentionPaneWeave, pane::AttentionPaneState,
+                loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, ws::PaneCanvasRoom,
+                             ws::PaneCanvasPointer, ws::PaneCanvasRejected, PaneActionRequested,
+                             StandingConditions>,
+                loom::Emit<PaneOffered, PaneActions, ws::v4::PaneContent,
+                           ws::v5::PaneCanvasContent, ws::PanePassRequested>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail, a)) {
             return;
         }
         announce(mail);
-    }
-
-    /// THIS PANE'S MANUAL, TO THE ONE WHO ASKED: from the page this image was built with, so a
-    /// reloaded image answers its own words.
-    void on(const ws::PaneDocumentRequested& ask, loom::Mail& mail) {
-        (void)mail.answer(ws::pane_document(ask, pane::kAttentionPane,
-                                            zengine::manual::pages::zengine_attention::kManual));
     }
 
     void on(const PaneCatalogRequested&, loom::Mail& mail) {
