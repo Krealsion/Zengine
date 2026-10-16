@@ -24,8 +24,21 @@ source for a fresh one, or fill one of its fields by dragging a field from anoth
 |---|---|
 | `pane.cpp` | the pane itself, built as a weave Workshop loads (`zengine-info-pane`) |
 | `value_view.hpp` | one value view: the value it holds, your unsaved edits, and what it is waiting for |
+| `value_watch.hpp` | a value view's watch: Workshop's permission to keep reading a linked entry, and how it ends |
+| `value_picture.hpp` | how a value view is drawn: its rows, buttons and field list, fitted to the room it has |
 | `vocabulary.hpp` | the names it is known by (`zengine.info`), the actions your keymap file can move, and what it keeps when reloaded |
 | `CMakeLists.txt` | how the pane is built |
 | `docs/` | these pages |
+
+## The three parts of a value view
+
+| part | owns | does not own |
+|---|---|---|
+| `value_view.hpp` | every press, key and answer that reaches the view; the value and your edits; saves, refreshes, links, samples and field pickups, and what each is waiting for | the watch's requests; the layout of its rows |
+| `value_watch.hpp` | the watch's requests to Workshop and the permission they hold: asking, reading again on a change, and ending it, here and at Workshop | the value: what it reads goes back to the view, which decides whether your draft takes it |
+| `value_picture.hpp` | the rows, buttons and field list, laid out from what the view says it shows, and what a press on each place means | which buttons can act, and anything the view holds |
+
+The view passes the watch its pane name and the message it is answering, and takes back what the
+watch has to say; it gives the picture a description of itself and takes back the rows to publish.
 
 Working on it: [AGENTS.md](AGENTS.md).
