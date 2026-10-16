@@ -110,6 +110,19 @@ void on(const ws::PaneDocumentRequested& ask, loom::Mail& mail) {
 }
 ```
 
+An office offering one pane composes that line instead: `workshop::PaneManualFacet<Pane, Page>`
+(`workshop/pane_document.hpp`, with `zengine::With`) accepts `PaneDocumentRequested`, emits
+`PaneDocumentShown` and answers as above, so the weave lists neither shape and writes no handler:
+
+```cpp
+class MyPane : public zengine::With<ws::PaneManualFacet<kMyPane,
+                                        manual::pages::my_office::kManual>>::Weave<
+                   MyPane, MyState, loom::Accept<...>, loom::Emit<...>> { ... };
+```
+
+An office offering several panes, and so choosing which one an ask is about, answers in its own
+handler.
+
 - A pane the office does not offer, or a section its page does not have, is refused in `refusal`,
   naming what is missing, with no sections.
 - Nothing holds the answer: not Workshop, not the host. An image answers from the page it was built
@@ -138,7 +151,7 @@ shapes the gate lets in.
 | the build itself | official | a page out of form: the title, the order of its headings, a command without its four lines, a section past its bound, a key twice |
 | `manual` ([`tests/check_manual.cmake`](../../tests/check_manual.cmake)) | documentation | the same form; a manual named other than its office, or carried by no target; a pane's manual whose commands are not exactly the ids the action census holds for its office; a command whose Answers line links a shape its rows do not declare a press causes, or leaves out one they do; a key marker, in a manual or a tutorial, whose key is not a default the census holds for its id |
 | the action census (`tests/actions.txt`, and `tests/actions/<office>.txt` for each further office) | official | a shipped pane whose declared rows -- their keys, causes and the mode each enters -- in every mode its suite drives, differ from the committed census, or a mode whose word of the other modes' causes is not theirs there; the census as it stands is written beside the build to diff |
-| the press witness | official | a declared action that, pressed in a mode its suite drives, sends a shape beside the pane protocol its row does not declare; a declared cause no driven state sent is listed beside the build, not refused |
+| the press witness | official | a declared action that, pressed in a mode its suite drives, sends a shape beside the pane protocol its row does not declare; a row the census pins that no press reached; a declared cause no driven state sent is listed beside the build, not refused |
 | the manual witnesses | official | a pane whose answered manual lacks a command it declares; an office whose accepted shapes its page does not describe |
 | `doc_links` | documentation | a broken link or anchor |
 | `tutorial_walks` | official, `session` gate | a tutorial whose `tutorial` walk no longer plays from an installed prefix: a key that moved, a part renamed, a step that no longer leads where the page says, named at its step |

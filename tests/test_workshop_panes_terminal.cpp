@@ -279,6 +279,22 @@ const CensusDriverOf kTerminalCensus{pane::kTerminalPaneRole, [] {
     return census;
 }};
 
+/// THE TERMINAL'S PRESSES: each of its rows, the line empty and then holding a command.
+const PressDriverOf kTerminalPresses{pane::kTerminalPaneRole, [](PressWitness& w) {
+    press_each_state<TerminalRig>(
+        w,
+        [] {
+            auto t = std::make_unique<TerminalRig>();
+            t->open();
+            return t;
+        },
+        [](TerminalRig& t, const std::function<void(const RuntimePane&)>& at) {
+            at(*t.row());
+            t.r.text("help");
+            at(*t.row());
+        });
+}};
+
 } // namespace
 
 // ============================================================================

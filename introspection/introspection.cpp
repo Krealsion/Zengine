@@ -28,6 +28,7 @@
 #include "workshop/arrangement_vocabulary.hpp"
 #include "workshop/pane_canvas_rows.hpp"
 #include "workshop/pane_carry.hpp"
+#include "workshop/pane_causes.hpp"
 #include "workshop/pane_document.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_operation.hpp"
@@ -85,8 +86,8 @@ using zengine::workshop::kArrangementRole;
 using zengine::workshop::kPowersRole;
 using zengine::workshop::kSampleRole;
 using zengine::workshop::PaneActionRequested;
-using zengine::workshop::PaneActionRow;
-using zengine::workshop::PaneActions;
+using zengine::workshop::v3::PaneActionRow;
+using zengine::workshop::v3::PaneActions;
 using zengine::workshop::PaneCatalogRequested;
 using zengine::workshop::PaneKey;
 using zengine::workshop::v2::PaneOffered;
@@ -633,23 +634,28 @@ private:
                                 kArrangementPaneSummary, 9, 64});
         offer(mail, PaneOffered{kPowersPane, kPowersPaneName, kPowersPaneSummary, 8, 58});
         // ...and the Powers pane's actions with their shipped defaults (`input::scan` and
-        // `input::mod` numbers); applying a weaver's keymap is Workshop's.
+        // `input::mod` numbers), each with what its press may ask the door or the sampler;
+        // applying a weaver's keymap is Workshop's.
+        const zengine::workshop::ActionCause found{
+            zengine::workshop::find_powers_schema()->name(),
+            static_cast<std::int64_t>(zengine::workshop::find_powers_schema()->version()), {}};
+        const zengine::workshop::ActionCause described =
+            zengine::workshop::cause_of<DescribePower>();
         PaneActions rows;
         rows.pane = kPowersPane;
-        rows.rows.push_back(
-            PaneActionRow{kPowersActionView, "switch view", input::scan::kTab, input::mod::kNone});
-        rows.rows.push_back(
-            PaneActionRow{kPowersActionUp, "row up", input::scan::kUp, input::mod::kNone});
-        rows.rows.push_back(
-            PaneActionRow{kPowersActionDown, "row down", input::scan::kDown, input::mod::kNone});
-        rows.rows.push_back(PaneActionRow{kPowersActionSample, "sample", input::scan::kReturn,
-                                          input::mod::kNone});
-        rows.rows.push_back(PaneActionRow{kPowersActionSources, "show sources",
-                                          input::scan::kUnknown, input::mod::kNone});
-        rows.rows.push_back(PaneActionRow{kPowersActionOperators, "show operators",
-                                          input::scan::kUnknown, input::mod::kNone});
-        rows.rows.push_back(PaneActionRow{kPowersActionComposite, "composite only, on or off",
-                                          input::scan::kUnknown, input::mod::kNone});
+        const auto row = [&rows](const char* id, const char* label, std::int64_t sc,
+                                 std::vector<zengine::workshop::ActionCause> causes) {
+            rows.rows.push_back(
+                PaneActionRow{id, label, sc, input::mod::kNone, {}, std::move(causes)});
+        };
+        row(kPowersActionView, "switch view", input::scan::kTab, {found, described});
+        row(kPowersActionUp, "row up", input::scan::kUp, {described});
+        row(kPowersActionDown, "row down", input::scan::kDown, {described});
+        row(kPowersActionSample, "sample", input::scan::kReturn,
+            {zengine::workshop::cause_of<SampleRequested>()});
+        row(kPowersActionSources, "show sources", input::scan::kUnknown, {found, described});
+        row(kPowersActionOperators, "show operators", input::scan::kUnknown, {found, described});
+        row(kPowersActionComposite, "composite only, on or off", input::scan::kUnknown, {found});
         (void)mail.as_role(kIntrospectionRole).send_to_role(kWorkshopRole, rows);
     }
 

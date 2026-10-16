@@ -16,6 +16,7 @@
 #include "workshop/actor_scope.hpp" // the class an act that opens or writes is judged as
 #include "workshop/open_seam_vocabulary.hpp" // the opening office the open is asked of
 #include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_causes.hpp"
 #include "workshop/pane_document.hpp"
 #include "workshop/pane_operation.hpp"
 #include "workshop/pane_parts.hpp"
@@ -73,8 +74,8 @@ using ws::LocationMarks;
 using ws::MarkedPlace;
 using ws::OpenSourceRequested;
 using ws::PaneActionRequested;
-using ws::PaneActionRow;
-using ws::PaneActions;
+using ws::v3::PaneActionRow;
+using ws::v3::PaneActions;
 using ws::PaneCatalogRequested;
 using ws::PaneContent;
 using ws::PaneKey;
@@ -267,15 +268,16 @@ struct FilesMeaning {
 // =============================================================================
 
 class FilesWeave
-    : public loom::WeaveBase<
-          FilesWeave, files::FilesState,
+    : public zengine::With<ws::PaneManualFacet<files::kProjectFilesPane,
+                                               zengine::manual::pages::zengine_files::kManual>>::
+          Weave<FilesWeave, files::FilesState,
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, ws::PaneCanvasRoom,
                        ws::PaneCanvasPointer, ws::PaneCanvasRejected, PaneKey, PaneTextInput,
                        PaneMenuAnswered, PaneActionRequested, ProjectRoot,
                        RecipeOutcome, SourceOpened, ws::PaneOperationAnswered,
                        loom::DispatchRefused, zengine::builder::BuildStatus,
-                       surface::ClipboardCopy, surface::ClipboardText, ws::PaneDocumentRequested>,
-          loom::Emit<PaneOffered, PaneActions, ws::PaneDocumentShown, ws::v4::PaneContent,
+                       surface::ClipboardCopy, surface::ClipboardText>,
+          loom::Emit<PaneOffered, PaneActions, ws::v4::PaneContent,
                      ws::v5::PaneCanvasContent,
                      ws::PaneCaret, ProjectRootRequested, ws::v2::PaneOperationRequested,
                      RecipeUseRequested, RecipeAuthorRequested, OpenSourceRequested,
@@ -288,13 +290,6 @@ public:
             return;
         }
         announce(mail);
-    }
-
-    /// THIS PANE'S MANUAL, TO THE ONE WHO ASKED: from the page this image was built with, so a
-    /// reloaded image answers its own words.
-    void on(const ws::PaneDocumentRequested& ask, loom::Mail& mail) {
-        (void)mail.answer(ws::pane_document(ask, files::kProjectFilesPane,
-                                            zengine::manual::pages::zengine_files::kManual));
     }
 
     void on(const PaneCatalogRequested&, loom::Mail& mail) {
@@ -1162,13 +1157,18 @@ private:
     }
 
     /// THE ROWS OF THE MODE THIS PANE IS IN -- what `declare` tells Workshop, and what `answers`
-    /// reads, so what the pane acts on and what it said it acts on are one list.
+    /// reads, so what the pane acts on and what it said it acts on are one list -- each with what
+    /// its press may send once Workshop allows it: a file to open, the recipes to use or a recipe
+    /// to write, and the Builder asked to say what it now holds.
     std::vector<PaneActionRow> action_rows() const {
         std::vector<PaneActionRow> rows;
         const auto row = [&rows](const char* id, const char* label, std::int64_t sc,
-                                 std::int64_t mods = input::mod::kNone) {
-            rows.push_back(PaneActionRow{id, label, sc, mods});
+                                 std::int64_t mods = input::mod::kNone,
+                                 std::vector<ws::ActionCause> causes = {}) {
+            rows.push_back(PaneActionRow{id, label, sc, mods, {}, std::move(causes)});
         };
+        const ws::ActionCause status = ws::cause_of<zengine::builder::StatusRequested>();
+        const std::vector<ws::ActionCause> authored{ws::cause_of<RecipeAuthorRequested>(), status};
         // The authoring line owns the keyboard except for these rows. The two arrows are the
         // field walk, free because a single line has no row above or below; `files.write-recipe`
         // declares no default key (`kUnknown`, WL-KEY-13), reachable from its control and the
@@ -1176,9 +1176,11 @@ private:
         if (authoring_.open) {
             row(files::kActionUp, "previous field", input::scan::kUp);
             row(files::kActionDown, "next field", input::scan::kDown);
-            row(files::kActionCommitField, "commit this field", input::scan::kReturn);
+            row(files::kActionCommitField, "commit this field", input::scan::kReturn,
+                input::mod::kNone, authored);
             row(files::kActionNextField, "keep this field and step", input::scan::kUnknown);
-            row(files::kActionWriteRecipe, "write the recipe", input::scan::kUnknown);
+            row(files::kActionWriteRecipe, "write the recipe", input::scan::kUnknown,
+                input::mod::kNone, authored);
             // And the menu declares no default key while a line is open: Workshop resolves a key
             // transition before the character it produced arrives, so `Shift+M` would open the
             // menu and lose the `M` of `Main`. The `[menu]` control, first in every strip, and the
@@ -1199,10 +1201,12 @@ private:
         // ---- Browsing: the ids and default keys a weaver's keymap already names -----------
         row(files::kActionUp, "row up", input::scan::kUp);
         row(files::kActionDown, "row down", input::scan::kDown);
-        row(files::kActionOpen, "enter or edit", input::scan::kReturn);
+        row(files::kActionOpen, "enter or edit", input::scan::kReturn, input::mod::kNone,
+            {ws::cause_of<OpenSourceRequested>()});
         row(files::kActionParent, "up a directory", input::scan::kBackspace);
         row(files::kActionRefresh, "look again", input::scan::kR);
-        row(files::kActionUseRecipes, "use as recipes", input::scan::kU);
+        row(files::kActionUseRecipes, "use as recipes", input::scan::kU, input::mod::kNone,
+            {ws::cause_of<RecipeUseRequested>(), status});
         row(files::kActionMark, "mark this place", input::scan::kM);
         row(files::kActionNextMark, "next mark", input::scan::kN);
         row(files::kActionPreviousMark, "previous mark", input::scan::kN, input::mod::kShift);

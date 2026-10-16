@@ -7,6 +7,7 @@
 #include "toolbox.hpp"
 #include "workshop/pane_canvas_rows.hpp"
 #include "workshop/pane_carry.hpp"
+#include "workshop/pane_causes.hpp"
 #include "workshop/pane_escape.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_parts.hpp"
@@ -44,7 +45,7 @@ class InventoryPane : public loom::WeaveBase<InventoryPane, InventoryPaneState,
         inv::v2::InventorySnapshot, inv::InventoryRestored,
         slots::InventoryToolboxSave, slots::InventoryToolboxRestore,
         loom::Ack, loom::Refused, loom::DispatchRefused, ws::PaneDocumentRequested>,
-    loom::Emit<ws::v2::PaneOffered, ws::PaneActions, ws::PaneDocumentShown, ws::v4::PaneContent,
+    loom::Emit<ws::v2::PaneOffered, ws::v3::PaneActions, ws::PaneDocumentShown, ws::v4::PaneContent,
         ws::v5::PaneCanvasContent, ws::PaneCaret,
         ws::PaneMenuRequested, ws::PaneEscapeUnspent,
         ws::PanePassRequested, ws::PaneKeyboardRequested, ws::PaneOperationRequested,
@@ -853,7 +854,7 @@ private:
         declare(pane,m,candidate); for(const auto& v:state_.layout.views) declare(v.id,m,candidate);
     }
     void declare(const std::string& id,loom::Mail& m,const slots::InventoryViews* candidate) {
-        using namespace input; std::vector<ws::PaneActionRow> rows;
+        using namespace input; std::vector<ws::v3::PaneActionRow> rows;
         if(editing_!=Editing::none && id==current_) rows={
             {"inventory.name.save","save",scan::kReturn,mod::kNone},{"inventory.name.cancel","cancel",scan::kEscape,mod::kNone}};
         else {
@@ -873,7 +874,27 @@ private:
             if(pick_) rows.push_back({"inventory.move.cancel","cancel the move",scan::kEscape,mod::kNone});
         }
         if(id==pane) for(const auto& b:(candidate?*candidate:state_.layout).bindings) rows.push_back({slots::action(b),"run inventory command",0,0});
-        m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,ws::PaneActions{id,std::move(rows)});
+        for(auto& row:rows) row.causes=causes_of(row.id);
+        m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,ws::v3::PaneActions{id,{},std::move(rows)});
+    }
+    /// WHAT A PRESS OF ONE ROW MAY SEND BESIDE THE PANE PROTOCOL, its asks' answers followed: the
+    /// owner's read and the carry a pickup ends in, the owner's change and the listing after it,
+    /// and for a name line the toolbox's snapshot, restore and shortcut reset. A command row reads
+    /// its entry; the message the entry holds goes to its target, a shape no row can name ahead.
+    static std::vector<ws::ActionCause> causes_of(const std::string& id) {
+        using ws::cause_of;
+        const ws::ActionCause listed=cause_of<inv::v2::InventoryList>();
+        if(id=="inventory.copy") return {cause_of<inv::InventoryRead>(),cause_of<ws::PaneValueCarryRequested>()};
+        if(id=="inventory.live") return {cause_of<inv::InventoryRead>(),cause_of<ws::PaneCarryRequested>()};
+        if(id=="inventory.refresh") return {listed};
+        if(id=="inventory.remove") return {cause_of<inv::InventoryRemove>(),cause_of<inv::InventoryFolderRemove>(),listed};
+        if(id=="inventory.move.here") return {cause_of<inv::InventoryFolderMove>(),cause_of<inv::InventoryFile>(),listed};
+        if(id=="inventory.name.save") return {cause_of<inv::InventoryRename>(),cause_of<inv::InventoryFolderCreate>(),
+            cause_of<inv::InventoryFolderRename>(),cause_of<inv::InventoryRead>(),cause_of<inv::v2::InventoryAdd>(),
+            cause_of<inv::v2::InventorySnapshotRequested>(),cause_of<inv::v2::InventoryRestore>(),
+            cause_of<ws::PaneShortcuts>(),listed};
+        if(slots::is_action(id)) return {cause_of<inv::InventoryRead>()};
+        return {};
     }
     void refresh(loom::Mail& m) {
         if(list_.valid()) {refresh_again_=true; return;}

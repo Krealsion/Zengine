@@ -2049,6 +2049,23 @@ const CensusDriverOf kIntrospectionCensus{kIntroOffice, [] {
     return census;
 }};
 
+/// THE INTROSPECTION OFFICE'S PRESSES: each row its panes declare, with the Powers pane open.
+const PressDriverOf kIntrospectionPresses{kIntroOffice, [](PressWitness& w) {
+    press_each_state<PaneRig>(
+        w,
+        [] {
+            auto r = std::make_unique<PaneRig>();
+            (void)open_powers(*r);
+            return r;
+        },
+        [](PaneRig& r, const std::function<void(const RuntimePane&)>& at) {
+            for (const char* pane :
+                 {intro::kLoadedPane, intro::kArrangementPane, intro::kPowersPane}) {
+                at(*intro_row(r, pane));
+            }
+        });
+}};
+
 } // namespace
 
 TEST_CASE("the manual the introspection office answers for each of its panes is the page its build "

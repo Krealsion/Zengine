@@ -78,6 +78,8 @@ inline InventoryViews edited(InventoryViews s, const InventoryViewEdit& op) {
     return s;
 }
 inline std::string action(const SlotBinding& b) { return "slot." + std::to_string(b.serial); }
+/// Whether an action id is a binding's, as `action` spells it.
+inline bool is_action(const std::string& id) { return id.rfind("slot.", 0) == 0; }
 inline std::vector<workshop::PaneShortcut> shortcuts(const InventoryViews& s) {
     std::vector<workshop::PaneShortcut> out;
     for (const auto& b : s.bindings) {

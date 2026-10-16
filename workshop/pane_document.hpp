@@ -102,4 +102,29 @@ inline PaneDocumentShown pane_document(const PaneDocumentRequested& ask, std::st
 
 } // namespace zengine::workshop
 
+namespace loom {
+template <class... S>
+struct Accept;
+template <class... S>
+struct Emit;
+} // namespace loom
+
+namespace zengine::workshop {
+
+/// THE FACET A PANE OFFERING ONE PANE ANSWERS ITS MANUAL BY, composed with `zengine::With`
+/// (activation/activation.hpp): it accepts `PaneDocumentRequested` and answers the asker from
+/// `Page` about the pane offered as `Pane`, so the weave lists neither shape and writes no handler.
+template <const char* const& Pane, const manual::Manual& Page>
+struct PaneManualFacet {
+    using Accept = loom::Accept<PaneDocumentRequested>;
+    using Emit = loom::Emit<PaneDocumentShown>;
+
+    template <class MailT>
+    void on(const PaneDocumentRequested& ask, MailT& mail) {
+        (void)mail.answer(pane_document(ask, Pane, Page));
+    }
+};
+
+} // namespace zengine::workshop
+
 #endif // ZENGINE_WORKSHOP_PANE_DOCUMENT_HPP

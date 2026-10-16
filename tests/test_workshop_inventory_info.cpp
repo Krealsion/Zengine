@@ -88,6 +88,15 @@ const CensusDriverOf kInventoryPaneCensus{slots::kRole, [] {
     census.lines = std::move(once);
     return census;
 }};
+
+/// THE INVENTORY PANE'S PRESSES: each row of each state the census drives, replayed for each press.
+const PressDriverOf kInventoryPanePresses{slots::kRole, [](PressWitness& w) {
+    press_each_state<InventoryStory>(
+        w, [] { return std::make_unique<InventoryStory>(); },
+        [](InventoryStory& s, const std::function<void(const RuntimePane&)>& at) {
+            each_inventory_pane_state(s, at);
+        });
+}};
 }
 
 TEST_CASE("the Inventory pane answers its manual for main Inventory and each view, a section for "

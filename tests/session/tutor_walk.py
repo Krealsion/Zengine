@@ -316,7 +316,8 @@ def main():
         term.key(b"\x1b")
 
         # ---- a message no control causes, and the scope ---------------------------------------
-        state, said = run("desk-whole/resolve", {"shape": "StatusRequested", "office": "zengine.builder",
+        state, said = run("desk-whole/resolve", {"shape": "BuildStatusRequested",
+                                                 "office": "zengine.builder",
                                                  "why": "the lesson asks where the Builder stands"})
         check("R5 a message no control causes is drafted as the case for a tool, four claims, filed nowhere",
               state == "passed" and "a case for a tool" in said and all(
