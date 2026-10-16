@@ -22,9 +22,10 @@ selected element's values sit in boxes on the right in a wide pane, below the li
 Beneath the canvas a row says the view's name, `running` or `stopped`, and its file; the last two
 rows are the notice, where every answer and refusal is said.
 
-The pane runs nothing itself. It asks the view host, `zengine.view.host`, to run your view, change
-it or stop it, and shows the host's answer on the notice. The running view is a participant of its
-own, under the view's name, in a pane of its own. Reloaded in place, the pane keeps your view, its
+The pane runs nothing itself. It asks the view host,
+[`zengine.view.host`](zengine.view.host.md), to run your view, change it or stop it, and shows the
+host's answer on the notice. The running view is a participant of its own, under the view's name,
+in a pane of its own. Reloaded in place, the pane keeps your view, its
 file and whether it ran, and asks the host again about a view it ran: `The view host still runs
 tally.panel`; or, when the view stopped meanwhile, it runs again, `The view had stopped; registered
 tally.panel`. A save asks Workshop first whether the hand that pressed it may write a file. A pane
@@ -195,6 +196,7 @@ its own, publishing its intents' shapes to whoever accepts them
   joined to Flow by dragging its shapes.
 - [Described views](view.md): the description and its file format, the view host, and the
   renderer a running view is drawn by.
+- [`zengine.view.host`](zengine.view.host.md): the view host's manual, every ask it answers.
 - The shapes: the view host's asks in [view/vocabulary.hpp](../vocabulary.hpp); the builder's own in
   [view/view-builder/vocabulary.hpp](../view-builder/vocabulary.hpp); the pane protocol's in
   [workshop/pane_vocabulary.hpp](../../workshop/pane_vocabulary.hpp),

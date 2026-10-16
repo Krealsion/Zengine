@@ -3,11 +3,18 @@
 #ifndef ZENGINE_FLOW_HOST_RUNTIME_HPP
 #define ZENGINE_FLOW_HOST_RUNTIME_HPP
 
+// The Flow host: interpreted Flow projects run as ordinary maker participants on the host's own
+// bus and catalog, each in a session of its asker's. Reference: flow/docs/flow-runtime.md; its
+// office's manual is flow/docs/zengine.flow.host.md.
+
 #include "flow/flow-host/vocabulary.hpp"
 #include "flow/project.hpp"
 #include "maker/weave.hpp"
+#include "manual/vocabulary.hpp"
 #include "operator/host.hpp"
 #include "timer/binding.hpp"
+
+#include "manuals/zengine.flow.host.hpp" // this office's manual, compiled in from its page
 
 #include <algorithm>
 #include <deque>
@@ -282,10 +289,11 @@ public:
     std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
         return {loom::schema_of<FlowRun>(), loom::schema_of<FlowApply>(), loom::schema_of<FlowSend>(),
             loom::schema_of<FlowInspect>(), loom::schema_of<FlowStop>(), loom::schema_of<FlowCatalog>(),
-            loom::schema_of<detail::FlowHostPulse>()};
+            loom::schema_of<detail::FlowHostPulse>(), loom::schema_of<manual::ShapeDocumentRequested>()};
     }
     std::vector<std::shared_ptr<const loom::Schema>> emitted_schemas() const override {
-        return {loom::schema_of<FlowAnswer>(), loom::schema_of<FlowCatalogAnswer>(), loom::schema_of<FlowChanged>()};
+        return {loom::schema_of<FlowAnswer>(), loom::schema_of<FlowCatalogAnswer>(), loom::schema_of<FlowChanged>(),
+            loom::schema_of<manual::ShapeDocumentShown>()};
     }
     void handle(const loom::Message& request, loom::Bus& bus) override {
         const auto& schema = request.payload.schema();
@@ -299,6 +307,16 @@ public:
                 if (record.office.empty()) bus.office_send(kFlowHostRole, record.owner, std::move(message));
                 else bus.office_send_to_role(kFlowHostRole, record.office, std::move(message));
             }
+            return;
+        }
+        // What a shape this office accepts does, from its page, to the asker alone.
+        if (is(loom::schema_of<manual::ShapeDocumentRequested>())) {
+            if (!request.sender.valid()) return;
+            (void)bus.answer(loom::Message(
+                loom::to_value(manual::shape_document(
+                    loom::from_value<manual::ShapeDocumentRequested>(request.payload),
+                    accepted_schemas(), manual::pages::zengine_flow_host::kManual)),
+                self_));
             return;
         }
         if (is(loom::schema_of<FlowCatalog>())) {
@@ -411,6 +429,7 @@ inline loom::WeaveId RuntimeHost::mount() {
     grant.allow_to_any(FlowAnswer::zen_name, FlowAnswer::zen_version);
     grant.allow_to_any(FlowCatalogAnswer::zen_name, FlowCatalogAnswer::zen_version);
     grant.allow_to_any(FlowChanged::zen_name, FlowChanged::zen_version);
+    grant.allow_to_any(manual::ShapeDocumentShown::zen_name, manual::ShapeDocumentShown::zen_version);
     grant.allow_to_role(detail::FlowHostPulse::zen_name, detail::FlowHostPulse::zen_version, kFlowHostRole);
     auto manager = std::make_unique<Manager>(*this);
     auto* raw = manager.get();

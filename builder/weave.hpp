@@ -11,6 +11,7 @@
 // and judges the artifact. One build at a time is this tool's policy, not the runner's limit.
 // Builder law: agents/realization.md
 
+#include "activation/activation.hpp"
 #include "builder/recipe.hpp"
 #include "builder/vocabulary.hpp"
 #include "manual/vocabulary.hpp"
@@ -241,16 +242,19 @@ struct BuilderState {
               ZEN_FIELD(default_image));
 };
 
-class BuilderWeave
-    : public loom::WeaveBase<BuilderWeave, BuilderState,
-                             loom::Accept<BuildRequested, StatusRequested, BuildStatusRequested,
-                                          BuildStarted, BuildOutput, BuildFinished,
-                                          BuildNotStarted, ArtifactRealized, ArtifactPromoted,
-                                          BuildOutputRequested,
-                                          manual::ShapeDocumentRequested>,
-                             loom::Emit<RunBuild, BuildStatus, BuildAsked, RecipeCatalog,
-                                        OfferArtifact, BuildOutputSaid,
-                                        manual::ShapeDocumentShown>> {
+class BuilderWeave;
+
+/// The tool's base: its gate, and its page, which answers what a shape it accepts does.
+using BuilderBase =
+    zengine::With<manual::ManualFacet<manual::pages::zengine_builder::kManual>>::Weave<
+        BuilderWeave, BuilderState,
+        loom::Accept<BuildRequested, StatusRequested, BuildStatusRequested, BuildStarted,
+                     BuildOutput, BuildFinished, BuildNotStarted, ArtifactRealized,
+                     ArtifactPromoted, BuildOutputRequested>,
+        loom::Emit<RunBuild, BuildStatus, BuildAsked, RecipeCatalog, OfferArtifact,
+                   BuildOutputSaid>>;
+
+class BuilderWeave : public BuilderBase {
 public:
     /// The recipe views and the file they came from are read from their owner, the host
     /// (`CurrentRecipes`), never copied and never state: a poke that could write an artifact
@@ -264,6 +268,9 @@ public:
     BuilderWeave(std::vector<RecipeView>&&, const std::string&) = delete;
     BuilderWeave(const std::vector<RecipeView>&, std::string&&) = delete;
     BuilderWeave(std::vector<RecipeView>&&, std::string&&) = delete;
+
+    /// This weave has its own `on` handlers, which would otherwise hide the page's.
+    using BuilderBase::on;
 
     /// Say what you are: the catalog and the status, the two shapes a presentation needs when
     /// it opens -- two, because the catalog changes only when one is installed and the status
@@ -284,13 +291,6 @@ public:
     /// published to nobody -- the baseline an observer that came late or came back joins
     /// (vocabulary.hpp, `BuildStatusRequested`). Read-only: it moves no build and no counter.
     void on(const BuildStatusRequested&, loom::Mail& mail) { (void)mail.answer(status()); }
-
-    /// WHAT A SHAPE I ACCEPT DOES, TO THE ASKER ALONE: my page's section for it, said against the
-    /// content id the asker holds. The gate's own list says which shapes are mine to describe.
-    void on(const manual::ShapeDocumentRequested& ask, loom::Mail& mail) {
-        (void)mail.answer(manual::shape_document(ask, accepted_schemas(),
-                                                 manual::pages::zengine_builder::kManual));
-    }
 
     /// Build the recipe you know by this name. A name this tool does not hold is refused, which
     /// is why a `BuildRequested` from anywhere cannot widen what this program builds.

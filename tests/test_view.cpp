@@ -4,6 +4,7 @@
 #include "flow/shape.hpp"
 #include "maker/weave.hpp"
 #include "maker_fixture.hpp"
+#include "office_manual.hpp"
 #include "view/host.hpp"
 #include "workshop/pane_canvas.hpp"
 
@@ -994,4 +995,30 @@ TEST_CASE("a view hands back a right press and an Escape it has no use for") {
     CHECK(std::count_if(rig.desk->heard.begin(), rig.desk->heard.end(), [](const auto& m) {
         return loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneEscapeUnspent>());
     }) == 1);
+}
+
+TEST_CASE("the view host answers a shape's section from its own page, and its page covers every shape it accepts") {
+    namespace manual = zengine::manual;
+    Rig rig;
+    const manual::Manual& page = manual::pages::zengine_view_host::kManual;
+    {
+        ShapeDocumentReader reader(rig.bus, view::kViewHostRole);
+        const manual::Section* section = page.find(view::ViewRun::zen_name);
+        REQUIRE(section != nullptr);
+        const manual::ShapeDocumentShown run = reader.ask(view::ViewRun::zen_name, view::ViewRun::zen_version);
+        CHECK(run.refusal.empty());
+        CHECK(run.group == "Commands");
+        CHECK(run.page == std::string(page.content_id));
+        CHECK(run.text == std::string(section->text));
+        CHECK(reader.ask(view::detail::ViewRetire::zen_name, view::detail::ViewRetire::zen_version).group == "Hears");
+        CHECK(reader.ask(view::ViewAnswer::zen_name, view::ViewAnswer::zen_version).refusal ==
+              "zengine.view.host does not accept `ViewAnswer` v1");
+    }
+    // Four asks and the host's note to itself, each described; the page names no other.
+    CHECK(check_office_manual(rig.bus, view::kViewHostRole) >= 5);
+    check_page_names_accepted(page, described_shapes_of(rig.bus, rig.bus.role_holder(view::kViewHostRole)));
+    // ...and asking is not a session: no view answer, and nothing on the desk.
+    rig.pump();
+    CHECK(rig.client->heard.empty());
+    CHECK(rig.desk->heard.empty());
 }

@@ -14,6 +14,8 @@ for example `#include "flow/graph_edit.hpp"` or `#include "flow/flow-host/vocabu
 
 - [`zengine.flow`](docs/zengine.flow.md): the Flow pane's manual, every command it declares, what
   each answers and refuses, and the pages it shows.
+- [`zengine.flow.host`](docs/zengine.flow.host.md): the Flow host's manual, each request that runs,
+  changes, feeds, inspects or stops a project, and what it answers.
 - [Author a running graph in Workshop](docs/flow.md): drawing, running and changing a graph in
   the Flow pane, step by step.
 - [Make and run a Flow definition](docs/flow-guide.md): the standalone workbench, step by step.
