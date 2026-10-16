@@ -20,6 +20,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace zengine::editor_pane {
 
@@ -53,12 +54,24 @@ inline constexpr const char* kActionDiscard = "editor.discard"; ///< back to the
 inline constexpr const char* kActionExtract = "editor.extract";
 inline constexpr const char* kActionLocation = "editor.location";
 
+/// ONE STEP OF THE UNDO HISTORY a reload carries: the document before an edit, its lines joined
+/// by a newline byte whatever the file's convention, and the caret and anchor then.
+struct EditorUndoStep {
+    std::string text;
+    std::int64_t caret_row = 0;
+    std::int64_t caret_byte = 0;
+    std::int64_t anchor_row = 0;
+    std::int64_t anchor_byte = 0;
+    ZEN_SHAPE(EditorUndoStep, 1, ZEN_FIELD(text), ZEN_FIELD(caret_row), ZEN_FIELD(caret_byte),
+              ZEN_FIELD(anchor_row), ZEN_FIELD(anchor_byte));
+};
+
 /// The state a same-shape reload keeps, and the pane's declared read surface (WL-EDIT-15): the
-/// one source document, whole -- identity, current bytes, saved comparison, convention, epoch,
-/// caret, anchor and viewport. Not the undo history, a paste or open in flight, or the wheel
-/// fraction. The document crosses as one Text, since a list of lines would exceed Loom's decode
-/// cell budget at the size the editor admits; why the mirror is eager and what it costs:
-/// agents/decisions/the-editor-is-the-custodian.md.
+/// one source document, whole -- identity, bytes, saved comparison, convention, epoch, caret,
+/// anchor, viewport -- and its undo history, within the buffer's two bounds; never the redo
+/// steps, a paste or open in flight, or the wheel fraction. The document and each undo step cross
+/// as one Text, since a list of lines would exceed Loom's decode cell budget at the size the
+/// editor admits; the mirror's cost: agents/decisions/the-editor-is-the-custodian.md.
 struct EditorPaneState {
     std::string path;       ///< the normalized source identity; empty = no source open
     std::string text;       ///< the document as file bytes (`source_text`)
@@ -91,13 +104,15 @@ struct EditorPaneState {
     /// document's claim (`EditorDocument`) reads the same after a reload. Bookkeeping, never
     /// authority.
     std::int64_t opened_by = 0;
-    ZEN_SHAPE(EditorPaneState, 1, ZEN_FIELD(path), ZEN_FIELD(text), ZEN_FIELD(saved_text),
+    /// The undo history, oldest first, written when its steps move and not at each keystroke.
+    std::vector<EditorUndoStep> undo;
+    ZEN_SHAPE(EditorPaneState, 2, ZEN_FIELD(path), ZEN_FIELD(text), ZEN_FIELD(saved_text),
               ZEN_FIELD(convention), ZEN_FIELD(doc_epoch), ZEN_FIELD(caret_row),
               ZEN_FIELD(caret_byte), ZEN_FIELD(anchor_row), ZEN_FIELD(anchor_byte),
               ZEN_FIELD(first_row), ZEN_FIELD(first_col), ZEN_FIELD(last_rows),
               ZEN_FIELD(last_cols), ZEN_FIELD(notice), ZEN_FIELD(notice_bad),
               ZEN_FIELD(project_dir), ZEN_FIELD(project_known), ZEN_FIELD(text_builds),
-              ZEN_FIELD(opened_by));
+              ZEN_FIELD(opened_by), ZEN_FIELD(undo));
 };
 
 } // namespace zengine::editor_pane
