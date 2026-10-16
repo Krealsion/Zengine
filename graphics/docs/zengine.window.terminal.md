@@ -126,8 +126,8 @@ path counts as itself, so an area at its bound still takes a change.
 
 `AreaIntroduced` v2, from the directory: an area, its owner, place, order, keys, pointer and skin.
 The window keeps it, paints it again where it moved or another skin paints it, empties it when
-another owner draws in it, and tells the owner its room (`AreaRoom`). Past `kMaxAreas` it is not shown, and
-`WindowShown` reports `the window shows <bound> areas: '<area>' is not shown`.
+another owner draws in it, and tells the owner its room (`AreaRoom`). Past `kMaxAreas` it is not
+shown, and `WindowShown` reports `the window shows <bound> areas: '<area>' is not shown`.
 
 ### `AreaWithdrawn`
 
