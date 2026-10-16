@@ -29,6 +29,7 @@
 #include "session_persist.hpp"
 #include "setup_persist.hpp"
 
+#include "activation/activation.hpp" // zengine::With, which composes the facets below
 #include "input/vocabulary.hpp"
 #include "manual/vocabulary.hpp"
 #include "manuals/zengine.workshop.hpp" // this office's manual, compiled in from its page
@@ -41,6 +42,7 @@
 #include "pane_causes.hpp" // the form a declaration's causes and modes are admitted in
 #include "operator/catalog.hpp" // the conversions this run has, looked up at a load
 #include "surface/vocabulary.hpp"
+#include "terminal_door_facet.hpp" // the door onto the terminal participant, composed below
 
 #include <zen/terminal/input_lex.hpp> // ONE command grammar, Loom's -- never a second one here
 #include <zen/terminal/session.hpp>
@@ -293,9 +295,11 @@ bool holder_emits_on(const loom::Switchboard& bus, std::string_view role,
 /// registry.
 std::vector<Destination> bus_destinations(const loom::Switchboard& bus, loom::WeaveId self);
 
-/// The Workshop weave.
+/// The Workshop weave: its own doors, the terminal door and its page's answers composed beside them.
 class WorkshopWeave
-    : public loom::WeaveBase<WorkshopWeave, WorkshopState,
+    : public zengine::With<TerminalDoorFacet,
+                           manual::ManualFacet<manual::pages::zengine_workshop::kManual>>::
+          Weave<WorkshopWeave, WorkshopState,
                              loom::Accept<PaneShortcutInvoked, PaneViewRequested, PanePointRequested, DeskViewRequested, v2::DeskViewRequested, v2::PaneViewRequested, v2::PanePointRequested, v3::PaneViewRequested, v3::PanePointRequested, v4::PaneViewRequested, v5::PaneViewRequested, v6::PaneViewRequested, DeskReadRequested, v2::DeskReadRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::workshop::v2::PaneCanvasContent, zengine::workshop::v4::PaneCanvasContent, zengine::workshop::v5::PaneCanvasContent, zengine::workshop::v6::PaneCanvasContent, v2::PaneOperationRequested, ActorScopeRequested, zengine::input::KeyPressed, zengine::input::TextEntered,
                                           zengine::input::PointerButton,
                                           zengine::input::PointerMoved,
@@ -351,8 +355,6 @@ class WorkshopWeave
                                           zengine::workshop::PaneInventoryRequested,
                                           zengine::workshop::KeymapRequested,
                                           zengine::workshop::TerminalValueRequested,
-                                          zengine::workshop::TerminalActRequested,
-                                          zengine::workshop::TerminalCompletionRequested,
                                           zengine::workshop::PresentationTrialRequested,
                                           zengine::workshop::PresentationAdmitRequested,
                                           zengine::workshop::v2::PresentationAdmitRequested,
@@ -374,9 +376,7 @@ class WorkshopWeave
                                           // ...and the host's own fence behind a menu it
                                           // withdrew, whose requester may still be owed
                                           zengine::workshop::WithdrawalFence,
-                                          loom::DispatchRefused,
-                                          // what a shape this office accepts does, from its page
-                                          zengine::manual::ShapeDocumentRequested>,
+                                          loom::DispatchRefused>,
                              loom::Emit<loom::Ack, loom::Refused, GuideAnswered, PaneView, PanePoint, DeskView, v2::DeskView, v2::PaneView, v2::PanePoint, v3::PaneView, v4::PaneView, v5::PaneView, v6::PaneView, DeskRead, v2::DeskRead, DeskStamps, v2::DeskStamps, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, PaneCanvasValueDrop, v1::PaneCanvasValueDrop, PaneCanvasDrop, zengine::workshop::PaneCanvasRoom,
                                         zengine::workshop::v2::PaneCanvasRoom,
                                         zengine::workshop::PaneCanvasPointer,
@@ -416,10 +416,7 @@ class WorkshopWeave
                                         zengine::workshop::StandingConditions,
                                         zengine::workshop::PaneSubjectShown,
                                         zengine::workshop::PaneSubjectActed,
-                                        zengine::workshop::TranscriptShown,
                                         zengine::workshop::TerminalValueAnswered,
-                                        zengine::workshop::TerminalActed,
-                                        zengine::workshop::TerminalCompletionOffered,
                                         zengine::workshop::PresentationTrial,
                                         zengine::workshop::v2::PresentationTrial,
                                         zengine::workshop::PresentationAdmitted,
@@ -429,11 +426,13 @@ class WorkshopWeave
                                         zengine::workshop::MenuGranted,
                                         zengine::workshop::MenuInput,
                                         zengine::workshop::MenuWithdrawn,
-                                        zengine::workshop::WithdrawalFence,
-                                        zengine::manual::ShapeDocumentShown>,
+                                        zengine::workshop::WithdrawalFence>,
+                             loom::WeaveBase,
                              // the one latest claim
                              // this host makes -- the managed pane's presentation.
                              loom::Claims<zengine::workshop::PanePresentation>> {
+    friend class TerminalDoorFacet; // the door repaints the desk after the line it authored
+
 public:
     /// Whose hand an input moment is: the platform's (`local`), a participant that injected it, or
     /// unknown when no producer attributed it.
@@ -483,13 +482,6 @@ public:
     /// THE SURFACE WAS ASKED TO CLOSE -- by the window manager, the close box,
     /// the platform. Workshop applies the quit policy it already has.
     void on(const zengine::surface::SurfaceCloseRequested&, loom::Mail&);
-
-    /// WHAT A SHAPE I ACCEPT DOES, TO THE ASKER ALONE: my page's section for it, said against the
-    /// content id the asker holds. The gate's own list says which shapes are mine to describe.
-    void on(const zengine::manual::ShapeDocumentRequested& ask, loom::Mail& mail) {
-        (void)mail.answer(zengine::manual::shape_document(
-            ask, accepted_schemas(), zengine::manual::pages::zengine_workshop::kManual));
-    }
 
     void on(const input::AttributedInput& event, loom::Mail& mail);
     void on(const PaneViewRequested& asked, loom::Mail& mail);
@@ -923,14 +915,6 @@ public:
         "the inspected pane, its desk or its rows changed before it arrived, so nothing was "
         "written";
 
-    /// Author one line as the terminal participant, answered at this office: the party holding
-    /// the participant answers for it.
-    void on(const TerminalActRequested& asked, loom::Mail& mail);
-
-    /// What could be said next, given a line the asker holds. It reads and never authors: every
-    /// method on the path is const.
-    void on(const TerminalCompletionRequested& asked, loom::Mail& mail);
-
     /// An office says what its pane says: judged whole against the room last granted -- authorship,
     /// identity, room, every row -- and copied only then. An application retention bound, not a
     /// decode-memory one.
@@ -1146,18 +1130,9 @@ private:
     /// the list does not hold answers the empty record.
     PendingPaste take_pending_paste(std::uint64_t ask);
 
-    // ---- The terminal participant, behind a door ------------------------------
+    // ---- Command mode ---------------------------------------------------------
 
-    /// WHAT THE PARTICIPANT'S RECORD HOLDS, TO WHOEVER IS PRESENTING IT -- derived on the
-    /// repaint, compared against the last utterance, and said only when it changed.
-    void say_transcript(loom::Mail& mail);
-
-    /// Compose and author one line through the participant, in Loom's own grammar: the one path
-    /// that speaks as the terminal, stamped with its identity and judged against its grant -- why
-    /// the participant stayed this host's (WL-TERM-02).
-    void submit_terminal_line(const std::string& line);
-
-    /// Command mode.
+    /// A key in command mode, as the keymap binds it there.
     void command(const zengine::input::KeyPressed& k, loom::Mail& mail);
 
     // ---- The setup: name it, save it, restore it ------------------------------
@@ -1657,11 +1632,6 @@ private:
     static constexpr const char* kNoSetupFile =
         "no setup file -- start Workshop with --setup <path>";
 
-    /// The versions a `Shape v<N>` can name. `parse_u64` answers in 64 bits and
-    /// a schema version is 32, so a wider number is REFUSED rather than
-    /// truncated -- `send @x Foo 4294967297` must not quietly become version 1.
-    static constexpr std::uint64_t kMaxVersion = 0xFFFFFFFFull;
-
     HostContext* host_;
     Session session_;
 
@@ -1892,10 +1862,6 @@ private:
     /// The wire shape, not `Condition`: what is compared must be what was said.
     std::vector<StandingCondition> said_conditions_;
     bool conditions_said_ = false;
-
-    /// ...and the same pair for the terminal participant's record.
-    TranscriptShown said_transcript_;
-    bool transcript_said_ = false;
 
     /// WHETHER THIS RUN'S MEDIUM HAS REPORTED A DESKTOP PLACEMENT.
     // WL-SESSION-09 -- agents/workshop/session-restore.md

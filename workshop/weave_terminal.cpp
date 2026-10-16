@@ -11,7 +11,7 @@
 namespace zengine::workshop {
 
 // WL-TERM-03 -- agents/workshop/terminal.md
-void WorkshopWeave::say_transcript(loom::Mail& mail) {
+void TerminalDoorFacet::say_transcript(loom::Mail& mail) {
     TranscriptShown now = transcript_shown(host_->terminal);
     if (transcript_said_ && same_transcript(now, said_transcript_)) {
         return; // no news is silence, and silence is what makes this seam terminate
@@ -23,8 +23,9 @@ void WorkshopWeave::say_transcript(loom::Mail& mail) {
     (void)mail.as_role(kWorkshopProvider).publish(std::move(now));
 }
 
-// WL-TERM-02 -- agents/workshop/terminal.md
-void WorkshopWeave::on(const TerminalActRequested& asked, loom::Mail& mail) {
+// THE ONE ACT THAT AUTHORS, answered at this office; `self` is the desk repainted behind it.
+void TerminalDoorFacet::on(WorkshopWeave& self, const TerminalActRequested& asked,
+                           loom::Mail& mail) {
     // AN OFFICE MAY ASK; ANONYMOUS SPEECH MAY NOT -- `on(DocumentActRequested)`'s rule, and
     // the reason it names nobody: a second presentation of this participant asks with no
     // edit here.
@@ -49,7 +50,7 @@ void WorkshopWeave::on(const TerminalActRequested& asked, loom::Mail& mail) {
     // participant, so the reading HAS changed and `say_transcript` will publish it on the
     // repaint this ends in -- which is how the pane learns what its own line came to
     // without this door telling it twice.
-    repaint(mail);
+    self.repaint(mail);
 }
 
 void WorkshopWeave::on(const TerminalValueRequested& asked, loom::Mail& mail) {
@@ -93,7 +94,7 @@ void WorkshopWeave::on(const TerminalValueRequested& asked, loom::Mail& mail) {
 }
 
 // WL-TERM-05 -- agents/workshop/terminal.md
-void WorkshopWeave::on(const TerminalCompletionRequested& asked, loom::Mail& mail) {
+void TerminalDoorFacet::on(const TerminalCompletionRequested& asked, loom::Mail& mail) {
     if (mail.authored_role().empty()) {
         return;
     }
@@ -165,7 +166,7 @@ const char* slot_name(LineSlot slot) noexcept {
 }
 
 // WL-TERM-02, WL-TERM-04 -- agents/workshop/terminal.md
-void WorkshopWeave::submit_terminal_line(const std::string& line) {
+void TerminalDoorFacet::submit_terminal_line(const std::string& line) {
     if (line.empty()) {
         return;
     }

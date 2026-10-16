@@ -80,7 +80,8 @@ void WorkshopWeave::accept_pane_offer(const PaneOffered& offer, loom::Mail& mail
     // repaint: `say_conditions` is silent while the reading is unchanged (WL-ATTN-12), and an offer
     // is the one moment a new listener certainly exists.
     conditions_said_ = false;
-    transcript_said_ = false; // ...and the terminal participant's record, for the same reason
+    // ...and the terminal participant's record, for the same reason
+    facet<TerminalDoorFacet>().say_again();
     inventory_published_ = false; // ...and the inventory, which a presenter reads (WL-DESK-04)
     keymap_published_ = false;    // ...and the effective keymap, for the same reason (WL-DESK-11)
     subject_published_ = false;   // ...and the inspector's subject (WL-INFO-14)
