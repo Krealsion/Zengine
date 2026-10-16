@@ -506,9 +506,21 @@ void WorkshopWeave::admit_caret(std::string_view office, const PaneCaret& caret,
         // the rows' own refusal rule, one shape over. It does NOT clear the rows: the
         // sentences a weaver is reading were judged on their own and are still true.
         pane->clear_caret();
+        // ...AND SAID, in `judge_caret`'s words after the pane's name, once per pane until one of
+        // its carets is admitted: a pane saying the same caret again is not told twice, and the
+        // repaint that could ask it again is not owed.
+        std::string& said = caret_refusals_said_[row->kind];
+        if (said != judged.refusal) {
+            said = judged.refusal;
+            say(row->name + " @" + row->provider + ": " + judged.refusal, true);
+            repaint(mail);
+            return;
+        }
     } else if (caret.row == surface::kNoCaret && caret.sel_begin_row == surface::kNoSelection) {
         pane->clear_caret(); // the pane saying it has none: ordinary, and not a refusal
+        caret_refusals_said_.erase(row->kind);
     } else {
+        caret_refusals_said_.erase(row->kind);
         // A SELECTION MAY STAND WITH NO CARET (WL-CARET-03): a document whose caret has
         // scrolled out of the window still shows the range it belongs to, and the pane says
         // exactly that -- `kNoCaret` on the row, a range beside it. `judge_caret` has

@@ -35,7 +35,7 @@ LAW — `judge_caret` answers against the rows the pane last had ACCEPTED, never
 
 MEANS
 - one past the last byte is legal: an insertion point sits there at a line's end;
-- the rows survive a refused caret, because they were judged on their own;
+- the rows survive a refused caret, judged on their own; the notice band says `judge_caret`'s words;
 - content and caret are two messages, so shorter rows drop a caret admitted against the old.
 
 DOES NOT MEAN — that a stale caret is kept the way stale `PaneActions` rows are. Rows are
@@ -61,6 +61,6 @@ outgrew"
 
 ### WL-CARET-03
 `workshop/weave.hpp` judge_caret
-`workshop/weave_seam.cpp` judge_caret on(PaneCaret)
+`workshop/weave_seam.cpp` judge_caret on(PaneCaret) admit_caret
 `tests/test_workshop_panes_seam.cpp` "a caret naming a row the content does not have is refused
 WHOLE" "`kNoCaret` is a sentence, and shorter content drops a caret it outgrew"
