@@ -6,6 +6,7 @@
 #include "operator/primitives.hpp"
 #include "timer/timer_weave.hpp"
 #include "lifecycle_door.hpp"
+#include "office_manual.hpp"
 
 namespace {
 namespace fh = zengine::flow_host;
@@ -363,4 +364,32 @@ TEST_CASE("Flow input identity is target scoped and foreign outputs cannot imper
     rig.bus.publish_as(foreign, loom::Message(std::move(fabricated), foreign, {}, 700));
     rig.pump();
     CHECK(rig.inspect().last_sequence == before);
+}
+
+TEST_CASE("the Flow host answers a shape's section from its own page, and its page covers every shape it accepts") {
+    namespace manual = zengine::manual;
+    Rig rig;
+    REQUIRE(rig.run().ok);
+    const auto heard = rig.reader->messages.size();
+    const manual::Manual& page = manual::pages::zengine_flow_host::kManual;
+    {
+        ShapeDocumentReader reader(rig.bus, fh::kFlowHostRole);
+        const manual::Section* section = page.find(fh::FlowRun::zen_name);
+        REQUIRE(section != nullptr);
+        const manual::ShapeDocumentShown run = reader.ask(fh::FlowRun::zen_name, fh::FlowRun::zen_version);
+        CHECK(run.refusal.empty());
+        CHECK(run.group == "Commands");
+        CHECK(run.page == std::string(page.content_id));
+        CHECK(run.text == std::string(section->text));
+        CHECK(reader.ask(fh::detail::FlowHostPulse::zen_name, fh::detail::FlowHostPulse::zen_version).group == "Hears");
+        CHECK(reader.ask(fh::FlowAnswer::zen_name, fh::FlowAnswer::zen_version).refusal ==
+              "zengine.flow.host does not accept `FlowAnswer` v1");
+    }
+    // Six requests and the host's pulse to itself, each described; the page names no other.
+    CHECK(check_office_manual(rig.bus, fh::kFlowHostRole) >= 7);
+    check_page_names_accepted(page, described_shapes_of(rig.bus, rig.bus.role_holder(fh::kFlowHostRole)));
+    // ...and asking touched no session: the running one is where it was, and its owner heard nothing.
+    rig.pump();
+    CHECK(rig.reader->messages.size() == heard);
+    CHECK(rig.inspect().ok);
 }
