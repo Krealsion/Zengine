@@ -15,10 +15,10 @@ messages it emits after that write. The pane keeps the definition you are editin
 with its layout, your examples and your unfinished forms, in one *workspace*.
 
 The pane runs nothing itself. A run, an apply, a send, a stop, an inspection and a catalog read
-are each asked of the Flow host, the office `zengine.flow.host`, as one request answered once
-([its vocabulary](../flow-host/vocabulary.hpp), [the Flow host](flow-runtime.md)); the pane shows
-what it answered. The pane always names one session there, `workshop`. The operators you can
-add are found through the host's discovery door, `zengine.powers`
+are each asked of the Flow host, the office [`zengine.flow.host`](zengine.flow.host.md), as one
+request answered once ([its vocabulary](../flow-host/vocabulary.hpp),
+[the Flow host](flow-runtime.md)); the pane shows what it answered. The pane always names one
+session there, `workshop`. The operators you can add are found through the host's discovery door, `zengine.powers`
 ([its manual](../../introspection/docs/zengine.powers.md)), which answers Flow, the Powers pane and
 the Terminal alike. It asks only for what a contributor offers, with a port selected only for what
 yields its type, and with a fold's body slot open only for what a fold can spend; it asks again when
@@ -611,5 +611,6 @@ open dialog's words; it keeps no wait on the host, no search, preview or selecte
 
 - [Author a running graph in Workshop](flow.md), the walk through it.
 - [Make and run a Flow definition](flow-guide.md), the standalone workbench.
-- [The Flow host](flow-runtime.md) and [the Flow reference](flow-reference.md).
+- [The Flow host](flow-runtime.md), its manual [`zengine.flow.host`](zengine.flow.host.md), and
+  [the Flow reference](flow-reference.md).
 - The pane protocol's shapes: [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp).

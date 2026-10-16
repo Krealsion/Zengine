@@ -785,8 +785,9 @@ zengine_test_definitions(zengine-flow-tests
     "FLOW_BOUNDARIES=\"$<TARGET_FILE:zengine-flow-boundaries>\""
     "FLOW_HIGH_WATER=\"$<TARGET_FILE:zengine-flow-high_water>\""
     "FLOW_EMPTY=\"$<TARGET_FILE:zengine-flow-empty>\"")
-# test_flow_runtime.cpp mounts the Timer, which answers from its office's manual.
+# test_flow_runtime.cpp mounts the Timer and the Flow host, each answering from its office's manual.
 zengine_manual(zengine-flow-tests PRIVATE ${PROJECT_SOURCE_DIR}/timer/docs/zengine.timer.md)
+zengine_manual(zengine-flow-tests PRIVATE ${PROJECT_SOURCE_DIR}/flow/docs/zengine.flow.host.md)
 add_dependencies(zengine-flow-tests zengine-flow-thermostat zengine-flow-boundaries
     zengine-flow-high_water zengine-flow-empty)
 zengine_doctest_test(flow zengine-flow-tests)
