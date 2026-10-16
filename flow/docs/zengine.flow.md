@@ -331,7 +331,7 @@ start toward a limit by a step, threading an answer through.
   open body slot shut, so the discovery door is asked again
   ([`FindPowers`](../../introspection/docs/zengine.powers.md#findpowers)). Press its body row to
   choose the body ([`graph`](#graph)).
-- **Refuses:** with no trigger yet, the standard library's words for a place out of range.
+- **Refuses:** `add a trigger before adding a node`, with no trigger yet.
 - **Example:** type `count`, press the fold's row, press `[Add]`.
 
 ### `ask-state-field`
