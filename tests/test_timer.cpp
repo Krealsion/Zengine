@@ -688,16 +688,35 @@ struct Rig {
         seen.stop_id.clear();
     }
 
-    /// Poke under a live chain: the answer arrives within the first beats;
-    /// the stopwatch bounds the pump.
+    /// Run the live chain in short stopwatch steps until `done()` holds, at least one step and at
+    /// most `bound_ms` of real time: a wait for something that arrives, not a measure of time
+    /// passing, so a slow machine takes more steps rather than missing it. Fails naming `what`.
+    template <class Done>
+    void wait_until(loom::WeaveId service, Done done, const char* what,
+                    std::int64_t bound_ms = 5000) {
+        constexpr std::int64_t kStepMs = 20;
+        std::int64_t waited = 0;
+        do {
+            pump_for(service, kStepMs);
+            waited += kStepMs;
+        } while (!done() && waited < bound_ms);
+        REQUIRE_MESSAGE(done(), what, " did not arrive within ", bound_ms, " ms");
+    }
+
+    /// The answer correlated `corr`, waited for under the live chain (`wait_until`); a copy, since
+    /// the ledger grows under every later pump.
+    Seen::Answer wait_answer(loom::WeaveId service, std::uint64_t corr, const char* what,
+                             std::int64_t bound_ms = 5000) {
+        wait_until(service, [&] { return seen.find(corr) != nullptr; }, what, bound_ms);
+        return *seen.find(corr);
+    }
+
+    /// Poke under a live chain and wait for its answer (`wait_answer`).
     template <class Poke>
     Seen::Answer poke_timed(loom::WeaveId service, loom::WeaveId target, const Poke& p) {
         const std::uint64_t corr = next_corr++;
         bus.send(target, loom::Message(loom::to_value(p), loom::WeaveId{}, witness, corr));
-        pump_for(service, 25);
-        const Seen::Answer* a = seen.find(corr);
-        REQUIRE(a != nullptr);
-        return *a;
+        return wait_answer(service, corr, "timed poke");
     }
 };
 
@@ -1702,11 +1721,12 @@ TEST_CASE("a swapped-in skin asks from its own activation and does NOT double th
                                     zengine::surface::kSkinRole, "zengine-skin-tui-block",
                                     SKIN_SO_TUI_BLOCK, /*graceful=*/false}),
                                 r.witness, r.witness, corr));
-    r.pump_for(timer_so, 80);
-    const Seen::Answer* swapped = r.seen.find(corr);
-    REQUIRE(swapped != nullptr);
-    REQUIRE_MESSAGE(swapped->kind == 0, "skin swap refused: ", swapped->text);
-    const loom::WeaveId block{static_cast<std::uint64_t>(std::stoll(swapped->text))};
+    // Unloading one library and loading the other takes what the machine gives it: wait for the
+    // answer rather than a fixed window, then give the successor beats of its own.
+    const Seen::Answer swapped = r.wait_answer(timer_so, corr, "skin swap");
+    REQUIRE_MESSAGE(swapped.kind == 0, "skin swap refused: ", swapped.text);
+    const loom::WeaveId block{static_cast<std::uint64_t>(std::stoll(swapped.text))};
+    r.pump_for(timer_so, 60); // due after at least one skin beat (`kPumpBeatMs`)
 
     // The successor is serviced...
     const Seen::Answer pumps = r.poke_timed(timer_so, block, loom::PokeRead{"pumps"});
@@ -4512,9 +4532,11 @@ TEST_CASE("keystone pilot: the SHIPPED real-clock Timer crosses a prepared repla
     REQUIRE(k.begin(candidate).ok);
 
     // A 400ms one-shot, then roughly half of it spent on the real clock.
+    const std::size_t receipts_asked = k.r.seen.receipts.size();
     k.r.ask_role(EnsureTimer{"pilot.oneshot", 400, false, kRestartDelay, ""});
-    k.r.pump_for(k.incumbent, 20);
-    REQUIRE_FALSE(k.r.seen.receipts.empty());
+    k.r.wait_until(
+        k.incumbent, [&k, receipts_asked] { return k.r.seen.receipts.size() > receipts_asked; },
+        "the one-shot's receipt");
     CHECK(k.r.seen.receipts.back().id == "pilot.oneshot");
     CHECK(k.r.seen.receipts.back().resolved == kResolutionRestarted);
     k.r.pump_for(k.incumbent, 200);

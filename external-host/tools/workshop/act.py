@@ -49,6 +49,9 @@ GESTURES = ("press", "type", "open", "select", "into", "click", "part", "at", "r
             "control", "menu")
 MANAGER = ("zengine.desktop", "launcher")
 BUTTONS = {"left": 1, "right": 3}
+#: How many readings a step aims a press from while Workshop refuses the point because the pane's
+#: picture moved between the reading and the point; past it the step fails naming the pane.
+POINT_TRIES = 3
 
 
 def run(ctx):
@@ -249,6 +252,22 @@ def wait_rows(hand, provider, pane, text, seconds, present=True):
         pause(hand, end, (provider, pane))
 
 
+def aimed(ctx, verb, provider, pane, read, aim):
+    """`(reading, point)`: `read()` reads the pane, `aim(reading)` asks Workshop where to press on
+    that reading. A point Workshop refuses because the pane's picture moved since the reading is
+    read and aimed again, at most POINT_TRIES times; then the step fails naming the pane and the
+    count. Any other refusal is the step's."""
+    for _ in range(POINT_TRIES):
+        reading = read()
+        try:
+            return reading, aim(reading)
+        except Refused as refused:
+            if "picture moved" not in str(refused):
+                raise
+    ctx.fail("%s: %s/%s kept redrawing while it was read (%d times)"
+             % (verb, provider, pane, POINT_TRIES))
+
+
 def press_at(ctx, hand, where, button="left"):
     hand.inject([moment(ctx, "PointerButton", button=BUTTONS[button], pressed=p, x=where["x"],
                         y=where["y"], space=where["space"]) for p in (True, False)])
@@ -274,17 +293,24 @@ def act(ctx, hand, verb, step):
         # the text); CLICK presses where the text itself is painted, in a text pane or a canvas
         # pane alike. Both press only what Workshop says is painted now, located by Workshop: a
         # character by its point, and a blank row, which has no character to name, at the point
-        # its word gives.
+        # its word gives. A pane that redrew between the reading and the point is read again.
         provider, pane = spelled(arg, verb, 2)[:2]
         text = arg[2] if len(arg) > 2 else ""
         ctx.check(verb == "into" or text, "click names the text to press on")
         seconds = float(step.get("seconds", 10))
-        view, words = wait_words(hand, provider, pane, text, seconds, pressing=True)
-        ctx.check(words, "%s: %s/%s paints no word holding %r" % (verb, provider, pane, text))
-        no_press_yet(ctx, view, verb, provider, pane, seconds)
-        at = words[0]
-        where = at if not at["text"] else hand.word_point(
-            provider, pane, at["word"], max(0, at["text"].find(text)), view["picture"])
+
+        def read():
+            view, words = wait_words(hand, provider, pane, text, seconds, pressing=True)
+            ctx.check(words, "%s: %s/%s paints no word holding %r" % (verb, provider, pane, text))
+            no_press_yet(ctx, view, verb, provider, pane, seconds)
+            return view, words[0]
+
+        def aim(reading):
+            view, at = reading
+            return at if not at["text"] else hand.word_point(
+                provider, pane, at["word"], max(0, at["text"].find(text)), view["picture"])
+
+        (_, at), where = aimed(ctx, verb, provider, pane, read, aim)
         press_at(ctx, hand, where, step.get("button", "left"))
         return {"word": at["text"], "x": where["x"], "y": where["y"]}
     if verb == "part":
@@ -320,17 +346,12 @@ def act(ctx, hand, verb, step):
             and all(isinstance(v, int) for v in arg[2:])
         ctx.check(ok, "at names [provider, pane, row, column]")
         provider, pane, row, column = arg
-        for _ in range(3):
-            view = press_view(ctx, hand, verb, provider, pane, float(step.get("seconds", 10)))
-            try:
-                where = hand.point(provider, pane, row, column, view["picture"])
-            except Refused as refused:
-                if "picture moved" not in str(refused):
-                    raise
-                continue  # the pane redrew between the reading and the point: read it again
-            press_at(ctx, hand, where, step.get("button", "left"))
-            return {"x": where["x"], "y": where["y"]}
-        ctx.fail("at: %s/%s kept redrawing while it was read" % (provider, pane))
+        _, where = aimed(
+            ctx, verb, provider, pane,
+            lambda: press_view(ctx, hand, verb, provider, pane, float(step.get("seconds", 10))),
+            lambda view: hand.point(provider, pane, row, column, view["picture"]))
+        press_at(ctx, hand, where, step.get("button", "left"))
+        return {"x": where["x"], "y": where["y"]}
     if verb == "control":
         provider, pane, label = spelled(arg, verb, 3)[:3]
         return press_control(ctx, hand, provider, pane, label, float(step.get("seconds", 10)))
@@ -423,17 +444,25 @@ def turn_wheel(ctx, hand, step):
 
 def press_control(ctx, hand, provider, pane, label, seconds):
     """Press a visible `[label]` control, in a text pane's rows or a canvas pane's words: the
-    column comes from the painted word, the screen position from Workshop."""
-    view = press_view(ctx, hand, "control", provider, pane, seconds)
+    column comes from the painted word, the screen position from Workshop. A pane that redrew
+    between the reading and the point is read again."""
     word = "[" + label + "]"
-    for w in view["words"]:
-        at = w["text"].find(word)
-        if at >= 0:
-            where = hand.word_point(provider, pane, w["word"], at + 1, view["picture"])
-            press_at(ctx, hand, where)
-            return {"word": w["text"], "x": where["x"], "y": where["y"]}
-    ctx.produce("failed-step-rows.json", json.dumps(texts(view), indent=1).encode())
-    ctx.fail("control: no visible %s in %s/%s" % (word, provider, pane))
+
+    def read():
+        view = press_view(ctx, hand, "control", provider, pane, seconds)
+        found = [(w, w["text"].find(word)) for w in view["words"] if word in w["text"]]
+        if not found:
+            ctx.produce("failed-step-rows.json", json.dumps(texts(view), indent=1).encode())
+            ctx.fail("control: no visible %s in %s/%s" % (word, provider, pane))
+        return view, found[0]
+
+    def aim(reading):
+        view, (w, at) = reading
+        return hand.word_point(provider, pane, w["word"], at + 1, view["picture"])
+
+    (_, (w, _)), where = aimed(ctx, "control", provider, pane, read, aim)
+    press_at(ctx, hand, where)
+    return {"word": w["text"], "x": where["x"], "y": where["y"]}
 
 
 def choose(ctx, hand, text, seconds, button):
@@ -625,9 +654,28 @@ def open_pane(ctx, hand, name, seconds):
     if part_of(view, name) is None:
         # THE ROW IS OUT OF THE LIST'S WINDOW: the keys to the Pane Manager by a press on its top
         # line's first word, then Down to the list's end and Up, until the window draws it. Bounded.
-        first = lines(view)[0]["words"][0]
-        press_at(ctx, hand, first if not first["text"] else
-                 hand.word_point(*MANAGER, first["word"], 0, view["picture"]))
+        # A Pane Manager that redrew between the reading and the point is read again, and a
+        # redraw that brought the row into the window needs no press here.
+        readings = [view]
+
+        def read():
+            if readings:
+                return readings.pop()
+            again, words = wait_words(hand, *MANAGER, "PANES", seconds)
+            ctx.check(words, "open: the Pane Manager stopped painting its list")
+            seen.update(names(again))
+            return again
+
+        def aim(reading):
+            if part_of(reading, name) is not None:
+                return None
+            first = lines(reading)[0]["words"][0]
+            return first if not first["text"] else hand.word_point(
+                *MANAGER, first["word"], 0, reading["picture"])
+
+        view, first = aimed(ctx, "open", *MANAGER, read, aim)
+        if first is not None:
+            press_at(ctx, hand, first)
         for key in ("down", "up"):
             previous = None
             for _ in range(64):

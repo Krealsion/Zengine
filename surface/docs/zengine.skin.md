@@ -2,10 +2,12 @@
 
 **Manual.** The Skin: the weave that owns the screen, answering to the office `zengine.skin` (an
 office is the name a weave answers to). It takes the pictures and lines other weaves publish and
-paints them, in a terminal or in a window. Three Skins ship, and a load plan loads one of them into
-the office: `zengine-skin-tui-classic` and `zengine-skin-tui-block` paint a terminal, and
-`zengine-skin-sdl`, built unless the build sets `ZENGINE_SDL_SKIN=OFF`, paints a window.
-Everything on this page is true of all three unless it names one.
+paints them, in a terminal or in a window. Two Skins ship, in three libraries, and a load plan
+loads one library into the office: `zengine-skin-tui-classic` paints a terminal;
+`zengine-skin-tui-block` is that same terminal Skin built as a second library, so a running Skin
+has another library to be replaced by, and it looks no different; and `zengine-skin-sdl`, built
+unless the build sets `ZENGINE_SDL_SKIN=OFF`, paints a window. Everything on this page is true of
+all three libraries unless it names one.
 
 ## About
 
@@ -16,13 +18,14 @@ loading a second into it is refused, and replacing the one there (Loom's swap) u
 its successor claims the medium. Workshop's default plan loads `zengine-skin-tui-classic`, and its
 graphical plan `zengine-skin-sdl` ([the two shipped plans](../../workshop/docs/load-plans.md#the-two-shipped-plans)).
 
-**The two terminal Skins are the same Skin in two libraries**, so a terminal Skin replaced while
-running has another to be replaced by; they paint the same bytes. Each takes the terminal's output
-side: the alternate screen, a hidden cursor, pointer reporting where the pointer arrives in band
-(not on a Windows console, which hands the pointer to the Input weave's reader), and on Windows the
-console's VT processing and UTF-8 output; it puts every one back when it is unloaded. With no
-terminal (redirected, piped, a suite) it claims nothing and still writes each frame to its output.
-Rows 1 and 2 are the `status` and `score` lines; the picture starts at row 3.
+**The two terminal libraries are the same Skin**, so a terminal Skin replaced while running has
+another library to be replaced by; they paint the same bytes, and neither is a look of its own.
+Each takes the terminal's output side: the alternate screen, a hidden cursor, pointer reporting
+where the pointer arrives in band (not on a Windows console, which hands the pointer to the Input
+weave's reader), and on Windows the console's VT processing and UTF-8 output; it puts every one
+back when it is unloaded. With no terminal (redirected, piped, a suite) it claims nothing and
+still writes each frame to its output. Rows 1 and 2 are the `status` and `score` lines; the
+picture starts at row 3.
 
 **The SDL Skin is a window**, opened by the first picture. It sets labels in a small bitmap face
 and text regions in a real typeface, JetBrains Mono, compiled in
