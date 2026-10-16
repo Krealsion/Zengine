@@ -103,7 +103,8 @@ mode, with what each press causes and the mode it enters, and the desk's, are te
 `workshop/panes.hpp` picture_fingerprint
 `workshop/weave_seam.cpp` on(PaneContent)
 `workshop/weave_canvas.cpp` on(PaneCanvasContent)
-`workshop/weave_inspection.cpp` on(PaneViewRequested) canvas_part_on fifth_version
+`workshop/weave_desk_read.cpp` on(PaneViewRequested)
+`workshop/desk_read.hpp` canvas_part_on fifth_version
 `builder/builder-pane/pane.cpp` BuilderMeaning::available
 `tests/test_workshop_panes_builder.cpp` "WL-CAUSE-03: a control the Builder draws in brackets reads
 available in its reading, and one drawn in parentheses reads unavailable -- the pane's word, not the

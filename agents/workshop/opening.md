@@ -246,7 +246,7 @@ v2::SourcePrepared v2::PresentationAdmitRequested
 show_presentation after_delivery
 `workshop/weave_opening.cpp` trialled prepared
 `workshop/weave_canvas.cpp` canvas_takes_press
-`workshop/weave_inspection.cpp` visible_words visible_parts
+`workshop/weave_desk_read.cpp` visible_words visible_parts
 `editor/editor-pane/pane.cpp` on(v2::PrepareSourceRequested) prepare activate
 `tests/test_workshop_panes_opening.cpp` "an open through the managed door shows the opened
 document's picture at the commitment, in a room reserved for it, and a picture of the document it

@@ -11,6 +11,8 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `menu-presenter/` | shows a pane's menu: `zengine-menu-presenter`, a loadable weave; its law: pane-menu, and the second button in `agents/panes.md` |
 | `workshop.cpp` | the host's `main`: `zengine-workshop` |
 | `weave.hpp`, `weave_*.cpp` | Workshop's own weave: the session, input bound to gestures; it composes the Terminal's door, `terminal/door.hpp` |
+| `desk_read.hpp`, `weave_desk_read.cpp` | the desk read by message: where words and parts stand and how a reading pages (the header); the weave's answers; its law: desk-read |
+| `weave_inspection.cpp` | a pane as an inspector's subject, and one write through its rows' owner; its law: info-body |
 | `screen.hpp`, `screen_*.cpp` | the screen: session facts and gestures, composed into a canvas |
 | `panes.hpp`, `keymap.hpp`, `setup.hpp` | pane catalog; action catalog and keymap; the setup |
 | `pane_vocabulary.hpp` | the pane protocol, installed: `zengine-pane-vocabulary`, `zengine::pane` |
