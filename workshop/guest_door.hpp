@@ -48,20 +48,18 @@ struct GuestDoorState {
     ZEN_SHAPE(GuestDoorState, 1, ZEN_FIELD(services), ZEN_FIELD(said));
 };
 
-class GuestDoor final
-    : public zengine::timer::TimedWeave<GuestDoor, GuestDoorState,
-                                        loom::Accept<GuestConnectionsRequested,
-                                                     v2::GuestConnectionsRequested,
-                                                     v3::GuestConnectionsRequested,
-                                                     GuestRowDescribedRequested,
-                                                     v2::GuestRowDescribedRequested,
-                                                     GuestPlanRequested,
-                                                     manual::ShapeDocumentRequested>,
-                                        loom::Emit<GuestConnections, v2::GuestConnections, v3::GuestConnections,
-                                                   GuestRowDescribed, v2::GuestRowDescribed,
-                                                   GuestPlanSaid, loom::Refused,
-                                                   input::InputSessionClosed,
-                                                   manual::ShapeDocumentShown>> {
+class GuestDoor;
+using GuestDoorBase =
+    zengine::With<manual::ManualFacet<manual::pages::zengine_guests::kManual>>::Weave<
+    GuestDoor, GuestDoorState,
+    loom::Accept<GuestConnectionsRequested, v2::GuestConnectionsRequested,
+                 v3::GuestConnectionsRequested, GuestRowDescribedRequested,
+                 v2::GuestRowDescribedRequested, GuestPlanRequested>,
+    loom::Emit<GuestConnections, v2::GuestConnections, v3::GuestConnections, GuestRowDescribed,
+               v2::GuestRowDescribed, GuestPlanSaid, loom::Refused, input::InputSessionClosed>,
+    zengine::timer::TimedWeave>;
+
+class GuestDoor final : public GuestDoorBase {
 public:
     /// `listener` is a listening socket the host opened (bridge_listen_tcp); `listen` is how
     /// the host spells where it listens, for the inventory; `file` is the guests file whose rows
@@ -77,26 +75,7 @@ public:
                                               kGuestsRole, &GuestDoor::on_beat);
     }
 
-    using zengine::timer::TimedWeave<GuestDoor, GuestDoorState,
-                                     loom::Accept<GuestConnectionsRequested,
-                                                  v2::GuestConnectionsRequested,
-                                                  v3::GuestConnectionsRequested,
-                                                  GuestRowDescribedRequested,
-                                                  v2::GuestRowDescribedRequested,
-                                                  GuestPlanRequested,
-                                                  manual::ShapeDocumentRequested>,
-                                     loom::Emit<GuestConnections, v2::GuestConnections, v3::GuestConnections,
-                                                GuestRowDescribed, v2::GuestRowDescribed,
-                                                GuestPlanSaid, loom::Refused,
-                                                input::InputSessionClosed,
-                                                manual::ShapeDocumentShown>>::on;
-
-    /// WHAT A SHAPE I ACCEPT DOES, TO THE ASKER ALONE: my page's section for it, said against the
-    /// content id the asker holds. The gate's own list says which shapes are mine to describe.
-    void on(const manual::ShapeDocumentRequested& ask, loom::Mail& mail) {
-        (void)mail.answer(manual::shape_document(ask, this->accepted_schemas(),
-                                                 manual::pages::zengine_guests::kManual));
-    }
+    using GuestDoorBase::on;
 
     /// A presenter that just arrived asks; it is answered with the inventory as it stands.
     void on(const GuestConnectionsRequested&, loom::Mail& mail) {
@@ -449,20 +428,7 @@ private:
     guests::GuestsFile file_;
     std::shared_ptr<guests::AdmittedRows> admitted_;
     std::unique_ptr<loom::BridgeServer> server_;
-    typename zengine::timer::TimedWeave<GuestDoor, GuestDoorState,
-                                        loom::Accept<GuestConnectionsRequested,
-                                                     v2::GuestConnectionsRequested,
-                                                     v3::GuestConnectionsRequested,
-                                                     GuestRowDescribedRequested,
-                                                     v2::GuestRowDescribedRequested,
-                                                     GuestPlanRequested,
-                                                     manual::ShapeDocumentRequested>,
-                                        loom::Emit<GuestConnections, v2::GuestConnections, v3::GuestConnections,
-                                                   GuestRowDescribed, v2::GuestRowDescribed,
-                                                   GuestPlanSaid, loom::Refused,
-                                                   input::InputSessionClosed,
-                                                   manual::ShapeDocumentShown>>::Handle
-        beat_;
+    GuestDoorBase::Handle beat_;
     bool dirty_ = true; ///< the first beat says the inventory once, empty or not
     std::vector<loom::WeaveId> gone_;
     std::function<void(loom::WeaveId)> when_gone_;

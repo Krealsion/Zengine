@@ -509,18 +509,19 @@ TEST_CASE("inventory Info: read permission does not authorize a save through Inf
     CHECK(t.shown(t.info).find("count: 42") != std::string::npos);
 }
 
-TEST_CASE("inventory Info: an owner reload keeps the pair but invalidates old references") {
+TEST_CASE("inventory Info: an owner reload keeps the pair and every reference held to it") {
     InventoryStory t;
     t.acquire(); t.place(); t.edit("42");
     t.r.enqueue_reload("zengine-inventory", WORKSHOP_SO_INVENTORY);
     t.r.bus.drain_until_idle();
     REQUIRE(t.r.load_refusals.empty());
+    // THE DRAFT'S REFERENCE STILL NAMES ITS ENTRY: the save lands on the reloaded owner.
     t.key(input::scan::kS, input::mod::kCtrl);
-    CHECK_MESSAGE(t.shown(t.info).find("no longer here") != std::string::npos, t.shown(t.info));
-    CHECK(t.stored().item.get("count")->as_int() == 7);
+    CHECK_MESSAGE(t.shown(t.info).find("no longer here") == std::string::npos, t.shown(t.info));
+    CHECK(t.stored().item.get("count")->as_int() == 42);
     t.key(input::scan::kD, input::mod::kCtrl);
     t.acquire(); t.place();
-    CHECK(t.shown(t.info).find("count: 7") != std::string::npos);
+    CHECK(t.shown(t.info).find("count: 42") != std::string::npos);
 }
 
 TEST_CASE("inventory Info: a concurrent writer wins and the stale draft remains readable") {

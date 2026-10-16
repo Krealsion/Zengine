@@ -30,10 +30,10 @@ the two weaves differ:
   reads nothing, and says so once on standard error:
   `zengine-input-sdl: SDL_Init(SDL_INIT_VIDEO) failed: <SDL's reason>`.
 
-A session belongs to the weave's incarnation: a reload or an unload ends it without releasing what
-it held, and a successor numbers its sessions from 1 again. A reload in place keeps only the two
-counters a poke reads, `pumped` (how often it polled) and `emitted` (how many moments the platform
-gave it).
+A reload in place keeps the open session, which its holder goes on using and whose held keys are
+released when it closes; the last session number, so none is given twice; and the counters a poke
+reads, `pumped` (polls) and `emitted` (moments the platform gave). A timed pointer move in flight is
+not kept: its asker is never answered. An unload ends the session without releasing what it held.
 
 ## Use
 

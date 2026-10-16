@@ -63,9 +63,13 @@ struct InventoryWeaveState {
     std::vector<StoredEntry> entries;
     std::string folder; // the legacy slot's folder; a replacement starts at the root
     std::vector<StoredFolder> folders;
-    ZEN_SHAPE(InventoryWeaveState, 4, ZEN_FIELD(occupied), ZEN_FIELD(pair), ZEN_FIELD(entry),
+    // Whose collection this is and how far it has changed, carried so a reload in place keeps every
+    // reference and listing; a restore draws a new owner and counts again from 0.
+    std::string owner;
+    std::int64_t collection_revision = 0;
+    ZEN_SHAPE(InventoryWeaveState, 5, ZEN_FIELD(occupied), ZEN_FIELD(pair), ZEN_FIELD(entry),
               ZEN_FIELD(revision), ZEN_FIELD(label), ZEN_FIELD(entries), ZEN_FIELD(folder),
-              ZEN_FIELD(folders));
+              ZEN_FIELD(folders), ZEN_FIELD(owner), ZEN_FIELD(collection_revision));
 };
 
 class InventoryWeave final
@@ -86,7 +90,12 @@ class InventoryWeave final
                      InventoryCaptured, loom::Ack, loom::Refused,
                      loom::PokeDescribe>> {
 public:
-    InventoryWeave() : book_(1) {}
+    InventoryWeave() : book_(1) { state_.owner = new_identity(); }
+    /// The revived state's owner stays the owner; a state that names none is given one.
+    void revive(const loom::Value& v) override {
+        state_ = loom::from_value<InventoryWeaveState>(v);
+        if (state_.owner.empty()) state_.owner = new_identity();
+    }
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (activation_.accept(mail, a)) changed(mail);
     }
@@ -194,7 +203,7 @@ public:
         } catch (const std::exception& e) { (void)mail.answer(loom::Refused{e.what()}); }
     }
     void on(const v2::InventoryList&, loom::Mail& mail) {
-        v2::InventoryListed out{owner_identity_, collection_revision_, {}, {}};
+        v2::InventoryListed out{state_.owner, state_.collection_revision, {}, {}};
         const auto append = [&](const InventoryEntry& entry, const std::string& label, bool slot,
                                 const std::string& folder) {
             const auto pair = decode_pair(view(entry.pair));
@@ -274,7 +283,7 @@ public:
         auto* entry = find(req.reference);
         if (!entry && !matches(req.reference)) { missing(mail); return; }
         auto& folder = entry ? entry->folder : state_.folder;
-        if (req.from.owner != owner_identity_ || req.from.folder != folder) {
+        if (req.from.owner != state_.owner || req.from.folder != folder) {
             (void)mail.answer(loom::Refused{"the entry is no longer in that folder; look again"});
             return;
         }
@@ -334,7 +343,7 @@ public:
             (void)mail.answer(loom::Refused{"this inventory has folders; ask for a version 2 snapshot"});
             return;
         }
-        InventorySnapshot out{owner_identity_, collection_revision_, {}};
+        InventorySnapshot out{state_.owner, state_.collection_revision, {}};
         if (state_.occupied) out.archive.entries.push_back({state_.entry, state_.label, state_.pair, true});
         for (const auto& row : state_.entries)
             out.archive.entries.push_back({row.entry, row.label, row.pair, false});
@@ -344,7 +353,7 @@ public:
         } catch (const std::exception& e) { (void)mail.answer(loom::Refused{e.what()}); }
     }
     void on(const v2::InventorySnapshotRequested&, loom::Mail& mail) {
-        v2::InventorySnapshot out{owner_identity_, collection_revision_, {}};
+        v2::InventorySnapshot out{state_.owner, state_.collection_revision, {}};
         if (state_.occupied)
             out.archive.entries.push_back({state_.entry, state_.label, state_.pair, true, state_.folder});
         for (const auto& row : state_.entries)
@@ -367,8 +376,8 @@ public:
                  bool replace, loom::Mail& mail) {
         try {
             if (book_.awaiting()) throw std::invalid_argument("finish the pending capture before restoring a toolbox");
-            if (owner != owner_identity_ || revision != collection_revision_ ||
-                collection_revision_ == std::numeric_limits<std::int64_t>::max())
+            if (owner != state_.owner || revision != state_.collection_revision ||
+                state_.collection_revision == std::numeric_limits<std::int64_t>::max())
                 throw std::invalid_argument("inventory changed while preparing restore; request restore again");
             if (!replace && (state_.occupied || !state_.entries.empty() || !state_.folders.empty()))
                 throw std::invalid_argument("inventory is not empty; explicitly choose replace to restore this toolbox");
@@ -381,11 +390,11 @@ public:
                 } else candidate.entries.push_back({row.key, 1, row.pair, row.label, row.folder});
             }
             for (const auto& row : archive.folders) candidate.folders.push_back({row.key, 1, row.name, row.parent});
-            auto fresh = new_identity();
             // Allocate and validate everything before replacing the authoritative collection.
-            InventoryRestored answer{fresh, static_cast<std::int64_t>(archive.entries.size())};
+            candidate.owner = new_identity();
+            InventoryRestored answer{candidate.owner,
+                                     static_cast<std::int64_t>(archive.entries.size())};
             state_ = std::move(candidate);
-            owner_identity_.swap(fresh); collection_revision_ = 0;
             (void)mail.answer(answer); changed(mail);
         } catch (const std::exception& e) { (void)mail.answer(loom::Refused{e.what()}); }
     }
@@ -499,16 +508,17 @@ private:
         (void)mail.answer(loom::Refused{"this inventory entry is no longer here"});
     }
     void changed(loom::Mail& mail) {
-        if (collection_revision_ < std::numeric_limits<std::int64_t>::max()) ++collection_revision_;
+        if (state_.collection_revision < std::numeric_limits<std::int64_t>::max())
+            ++state_.collection_revision;
         (void)mail.as_role(kInventoryRole).publish(InventoryChanged{});
     }
     StoredEntry* find(const InventoryReference& ref) {
-        if (ref.owner != owner_identity_) return nullptr;
+        if (ref.owner != state_.owner) return nullptr;
         for (auto& row : state_.entries) if (row.entry == ref.entry) return &row;
         return nullptr;
     }
     InventoryEntry stored_snapshot(const StoredEntry& row) const {
-        return {{owner_identity_, row.entry}, row.revision, row.pair};
+        return {{state_.owner, row.entry}, row.revision, row.pair};
     }
     InventoryEntry add(loom::Bytes pair, std::string label, std::string folder = {}) {
         if (state_.entries.size() >= kMaxSavedEntries)
@@ -539,12 +549,12 @@ private:
     }
     /// The root or a folder of this owner's current collection.
     bool folder_here(const InventoryFolderReference& ref) const {
-        return ref.owner == owner_identity_ && (ref.folder.empty() ||
+        return ref.owner == state_.owner && (ref.folder.empty() ||
             std::any_of(state_.folders.begin(), state_.folders.end(), [&](const auto& row) { return row.folder == ref.folder; }));
     }
     StoredFolder* current_folder(const InventoryFolderReference& ref, std::int64_t revision, bool increment = true) {
         StoredFolder* found = nullptr;
-        if (ref.owner == owner_identity_ && !ref.folder.empty())
+        if (ref.owner == state_.owner && !ref.folder.empty())
             for (auto& row : state_.folders) if (row.folder == ref.folder) found = &row;
         if (!found) throw std::invalid_argument("that folder is no longer here");
         if (found->revision != revision || (increment && revision == std::numeric_limits<std::int64_t>::max()))
@@ -552,7 +562,7 @@ private:
         return found;
     }
     InventoryFolderState folder_snapshot(const StoredFolder& row) const {
-        return {{owner_identity_, row.folder}, row.revision, row.name, row.parent};
+        return {{state_.owner, row.folder}, row.revision, row.name, row.parent};
     }
 
     static std::string new_identity() {
@@ -569,11 +579,11 @@ private:
     }
 
     bool matches(const InventoryReference& ref) const {
-        return state_.occupied && ref.owner == owner_identity_ && ref.entry == state_.entry;
+        return state_.occupied && ref.owner == state_.owner && ref.entry == state_.entry;
     }
 
     InventoryEntry entry_snapshot() const {
-        return {{owner_identity_, state_.entry}, state_.revision, state_.pair};
+        return {{state_.owner, state_.entry}, state_.revision, state_.pair};
     }
 
     // Role asks cannot pre-bind a respondent. AskBook matches bookkeeping; Loom's
@@ -593,8 +603,6 @@ private:
         (void)loom::answer_deferred(due, mail, answer);
     }
 
-    std::string owner_identity_ = new_identity();
-    std::int64_t collection_revision_ = 0;
     zengine::ActivationCursor activation_;
     loom::AskBook book_;
     loom::DeferredAnswer pending_answer_;

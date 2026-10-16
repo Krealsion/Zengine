@@ -9,9 +9,9 @@ neovim                            doctest           always  22
 neovim_live                       doctest           neovim  21
 # Tripwires in this suite read examples/snake/play.cpp and examples/snake/world.cpp as text (VM-WALL-11).
 snake                             doctest           always  26
-timer                             doctest           always  84
+timer                             doctest           always  85
 # Tripwires in this suite read input/input_sdl.cpp and input/translate_sdl.hpp as text (VM-WALL-11).
-input                             doctest           always  53
+input                             doctest           always  54
 # A case rides a gate only when it cannot exist without what the gate opens: arithmetic about a
 # medium counts in `always`, where every lane proves it.
 input                             doctest           sdl     4
@@ -55,7 +55,7 @@ workshop_host                   doctest           always  77
 # workshop/arrangement.hpp, workshop/powers_door.hpp, the Introspection, Builder, Info, Terminal
 # and Editor panes' sources and CMake files, and tests/weavelib/legacy_pane.cpp as text
 # (VM-WALL-11).
-workshop_panes                    doctest           always  1075
+workshop_panes                    doctest           always  1076
 # The shapes this tree publishes, and their census against tests/shapes.txt.
 workshop_shapes                   doctest           always  4
 # Tripwires in this suite read workshop/workshop.cpp and workshop/session_persist.hpp as text
@@ -94,7 +94,7 @@ flow                              doctest           always  60
 message_draft                     doctest           always  11
 source_transfer                   doctest           always  11
 source_transfer_cpp               program           always
-inventory                         doctest           always  40
+inventory                         doctest           always  41
 flow_pane                         doctest           always  27
 view                              doctest           always  18
 view_builder                      doctest           always  32

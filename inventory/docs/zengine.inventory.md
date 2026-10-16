@@ -21,14 +21,17 @@ added, renamed, filed and removed one by one, at most `kMaxSavedEntries`
 they are never stored in a pair, and they grant and run nothing.
 
 An entry is named by a *reference*, `{owner, entry}`: `owner` is a random identity of this
-Inventory image, `entry` a random identity of one stored entry. A reference is a locator in this
-process, not a pointer, a secret, a grant or a name that survives a restart: a reload or a restore
-rotates `owner`, and every reference from before refuses. Each entry has a *revision*; a change
-that names an old one refuses and changes nothing. A refusal always changes nothing.
+Inventory's collection, `entry` a random identity of one stored entry. A reference is a locator in
+this process, not a pointer, a secret, a grant or a name that survives a restart: a reload in place
+keeps `owner`, so every reference from before still reads and writes; a restore draws a new one,
+and every reference from before refuses. Each entry has a *revision*; a change that names an old one
+refuses and changes nothing. A refusal always changes nothing.
 
-The collection lasts as long as this Inventory: a reload in place keeps it, under a new `owner`;
-unloading and loading again starts empty, and a toolbox file restores it. Every value is copied as
-it crosses in or out, so a later edit of a caller's bytes, or an answer's, reaches nothing here.
+The collection lasts as long as this Inventory: a reload in place keeps it, under the same `owner`;
+unloading and loading again starts empty, and a toolbox file restores it. A capture in flight
+belongs to the image: after a reload its asker is never answered, and may ask again. Every value
+is copied as it crosses in or out, so a later edit of a caller's bytes, or an answer's, reaches
+nothing here.
 
 ## Use
 
@@ -274,7 +277,8 @@ snapshot you name. v1 restores a flat archive at the root.
 Inventory publishes `InventoryChanged` v1 from `zengine.inventory` after every change it makes and
 when it starts. It carries nothing: it says the collection moved, and a follower asks
 [`InventoryList`](#inventorylist) again. The v2 list's `revision` counts the changes since this
-image started or last restored, and its `owner` says which image answered.
+Inventory was loaded or last restored, a reload in place counting on, and its `owner` says which
+collection answered.
 
 ## See also
 

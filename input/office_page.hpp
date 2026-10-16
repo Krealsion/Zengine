@@ -4,7 +4,7 @@
 #ifndef ZENGINE_INPUT_OFFICE_PAGE_HPP
 #define ZENGINE_INPUT_OFFICE_PAGE_HPP
 
-// The `zengine.input` office's page, as the two loadable weaves carry it: an `InputWeaveT` built
+// The `zengine.input` office's page, as the two loadable weaves carry it: an `InputWeaveT` composed
 // with `OfficePage` answers `ShapeDocumentRequested` from the manual compiled into its artifact
 // (`MANUAL` in input/CMakeLists.txt). Not installed: a weave built over another reader names its
 // own page, or none. Reference: input/docs/zengine.input.md.
@@ -14,14 +14,7 @@
 
 namespace zengine::input {
 
-struct OfficePage {
-    using Asked = manual::ShapeDocumentRequested;
-    using Shown = manual::ShapeDocumentShown;
-    template <class Schemas>
-    static Shown shown(const Asked& ask, const Schemas& accepted) {
-        return manual::shape_document(ask, accepted, manual::pages::zengine_input::kManual);
-    }
-};
+using OfficePage = manual::ManualFacet<manual::pages::zengine_input::kManual>;
 
 } // namespace zengine::input
 

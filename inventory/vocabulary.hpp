@@ -147,8 +147,8 @@ struct InventoryRestored {
 
 // Named folders organize the collection. Folder identity and membership belong to this owner,
 // beside entry names; neither is stored in pair bytes or metadata. A folder reference is a
-// current-process locator like an entry reference: `folder` empty names the root, and a
-// restore or reload rotates `owner`. Names and paths describe; they never identify.
+// current-process locator like an entry reference: `folder` empty names the root, a restore
+// rotates `owner` and a reload in place keeps it. Names and paths describe; they never identify.
 struct InventoryFolderReference {
     std::string owner;
     std::string folder;

@@ -42,6 +42,7 @@ CancelTimer v1 0x451bc055de8192d7
 CaptureAddRequest v1 0xdcb9437b6935db91
 CaptureContext v1 0x251e344e208da1c8
 CaptureRequest v1 0xa4b51a4d6a996fac
+CarriedInputSession v1 0x75b7c5ff213fc089
 ClipboardCopy v1 0x8337bbbb720ac461
 ClipboardText v1 0x3eafa2dd0dbf73ac
 ClipboardTextRequested v1 0x9d7f1ee84c7858bf
@@ -170,7 +171,7 @@ InputInjected v1 0x0adb8445b9edd033
 InputSessionClosed v1 0xcec4c650dd70beb7
 InputSessionOpened v1 0xa104795692bb284c
 InputSessionRequested v1 0xaf701ad829b30da6
-InputState v1 0x1ba3cc458bd33909
+InputState v2 0x89e64f2b05ffaed6
 InspectPaneRequested v1 0xa470ee412be5a6a2
 IntrospectionState v3 0xb5945eee1faff1f5
 InventoryAdd v1 0x05aa45c606013210
@@ -223,7 +224,7 @@ InventoryToolboxSave v1 0x028cf539100359fd
 InventoryViewEdit v1 0xfbf1fffa056fb8a4
 InventoryViews v1 0x74b30cca23ac202d
 InventoryViewsRequested v1 0x9ce389452ddaae8b
-InventoryWeaveState v4 0x02ab800d894d8719
+InventoryWeaveState v5 0x13facb2ceba33bb3
 InventoryWrite v1 0x87f8fccc914daac2
 KeptNode v1 0x0a794c568e22cd28
 KeyPressed v2 0x9809b0e961ac1b5a
@@ -521,7 +522,7 @@ TimerHandoff v1 0x975d9409baeb32e6
 TimerHandoffEntry v1 0x0dd1c73b59596c5f
 TimerReady v1 0xfd706b8cd362b054
 TimerResolution v1 0x15ac3e359e6be7cf
-TimerState v2 0xc3da0b2d84cfe512
+TimerState v3 0xf033d33722423255
 TranscriptShown v2 0x88ee053776cd190a
 ViewAnswer v1 0x8806809e6456d821
 ViewApply v1 0x5c8a6ecdfd45251e
