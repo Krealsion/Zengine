@@ -215,7 +215,7 @@ the press opens it"
 `workshop/weave_external.cpp` refresh_external_rooms
 `workshop/panes.hpp` ExternalPane::Canvas::title_waits ExternalPane::Canvas::title_rows
 `workshop/screen_canvas.hpp` shown_canvas_place
-`workshop/weave_inspection.cpp` WorkshopWeave::visible_body
+`workshop/weave_desk_read.cpp` WorkshopWeave::visible_body
 `workshop/prefs_persist.hpp` kTitlesDefaultValue kTitlesDefault
 `workshop/weave.hpp` HostContext::prefs_path WorkshopWeave::prefs_loaded_ WorkshopWeave::prefs_bad_
 `workshop/weave_handlers.cpp` load_prefs

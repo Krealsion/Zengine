@@ -158,7 +158,7 @@ ExternalPane::clear_refusal
 `workshop/weave_canvas.cpp` admit_canvas_content WorkshopWeave::canvas_press
 WorkshopWeave::on_refused_mark
 `workshop/screen_external.cpp` paint_external refused_mark_cover
-`workshop/weave_inspection.cpp` WorkshopWeave::visible_body
+`workshop/weave_desk_read.cpp` WorkshopWeave::visible_body
 `workshop/weave_operation.cpp` WorkshopWeave::drop_on_canvas WorkshopWeave::release_value_drag
 `workshop/screen.hpp` kExternalPictureRefused kExternalRefusedMark
 `tests/test_workshop_host.cpp` "a derived condition enters and leaves attention with its subject"

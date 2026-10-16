@@ -175,7 +175,7 @@ WHY — `agents/decisions/the-desk-is-read-in-workshops-numbers.md`
 `workshop/weave_external.cpp` external_drag external_release
 `workshop/screen_gestures.cpp` prose_at
 `surface/pointing.hpp` prose_column_of_pixel prose_row_of_pixel floor_to_grain
-`workshop/weave_inspection.cpp` cell_point cell_center
+`workshop/weave_desk_read.cpp` cell_point cell_center
 `tests/test_workshop_panes_terminal.cpp` "a press on the input row places the caret where the weaver
 aimed"
 `tests/test_workshop_screen.cpp` "what a pane is painted at and what it occupies are one resolved
@@ -276,8 +276,8 @@ actually is"
 `tests/test_workshop_screen.cpp` "which parts of a pane's window the weaver has not authored"
 
 ### WL-GEO-13
-`workshop/weave_inspection.cpp` desk_view visible_words word_on glyph_point
-on(v3::PanePointRequested)
+`workshop/weave_desk_read.cpp` desk_view visible_words on(v3::PanePointRequested)
+`workshop/desk_read.hpp` word_on glyph_point
 `workshop/weave_canvas.cpp` canvas_takes_press
 `tests/test_workshop_desk.cpp` "every place the desk and the words give is where the medium draws
 it, in a window and in a terminal" "a canvas pane's words are its labels and text runs, each where
