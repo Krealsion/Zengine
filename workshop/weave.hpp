@@ -1850,6 +1850,9 @@ private:
     std::string keymap_word_;
     /// Each pane's gap sentences this run has said, by the pane's runtime handle (`unsaid_gaps`).
     std::map<std::int64_t, std::vector<std::string>> gaps_said_;
+    /// Each pane's caret refusal last said, by its runtime handle (`admit_caret`): said once, until
+    /// a caret of that pane is admitted again.
+    std::map<std::int64_t, std::string> caret_refusals_said_;
     /// The application rows the desktop last declared, retained so a keymap file read later applies
     /// the weaver's overrides to them too (WL-DESK-07); `app_declaration_` numbers them (0: none).
     std::vector<v2::AppActionRow> app_actions_;
