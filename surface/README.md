@@ -8,12 +8,15 @@ Each element names a role, such as accent or alert, rather than a colour, so one
 a monochrome terminal and in a window alike. A program spells the messages with
 `#include "surface/vocabulary.hpp"` and links `zengine::surface`. An installed Zengine also
 carries `surface/region.hpp`, `surface/cells.hpp`, `surface/pointing.hpp` and
-`surface/terminal_size.hpp`, and the two terminal Skins.
+`surface/terminal_size.hpp`, and the terminal Skin in its two libraries:
+`zengine-skin-tui-classic`, and `zengine-skin-tui-block`, the same Skin built a second time so a
+running Skin has another library to be replaced by.
 
 ## Manuals
 
-- [The Skin](docs/zengine.skin.md), `zengine.skin`: the office that paints, what each of the three
-  Skins does, and every message it takes and says
+- [The Skin](docs/zengine.skin.md), `zengine.skin`: the office that paints, what the terminal Skin
+  and the window Skin each do (the terminal Skin ships in two libraries, the second there to replace
+  a running one), and every message it takes and says
 
 ## Pages
 
@@ -30,7 +33,7 @@ carries `surface/region.hpp`, `surface/cells.hpp`, `surface/pointing.hpp` and
 | `pointing.hpp` | where a pointer lands on the canvas ([Pointer spaces](../workshop/docs/pointer-spaces.md)) |
 | `terminal_size.hpp` | how big the terminal is |
 | `skin.hpp` | what every Skin has in common |
-| `skin_tui.hpp`, `skin_tui_classic.cpp`, `skin_tui_block.cpp` | the two terminal Skins, `zengine-skin-tui-classic` and `zengine-skin-tui-block` |
+| `skin_tui.hpp`, `skin_tui_classic.cpp`, `skin_tui_block.cpp` | the terminal Skin, `zengine-skin-tui-classic`, and `zengine-skin-tui-block`, the same Skin built as a second library for live replacement |
 | `skin_sdl.cpp`, `skin_sdl_plan.hpp`, `skin_sdl_text.hpp`, `skin_sdl_glyphs.hpp` | the window Skin, `zengine-skin-sdl`, built where SDL is available |
 | `fonts/` | the typeface the window Skin carries, with its licence and where it came from |
 | `CMakeLists.txt` | how it is built |

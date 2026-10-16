@@ -15,7 +15,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `skin.hpp` | `SkinT`, the Skin weave shell over an injected Medium |
 | `skin_tui.hpp` | the terminal medium: `TuiMedium` |
 | `skin_tui_classic.cpp` | loadable weave `zengine-skin-tui-classic` |
-| `skin_tui_block.cpp` | loadable weave `zengine-skin-tui-block` |
+| `skin_tui_block.cpp` | loadable weave `zengine-skin-tui-block`: the classic terminal Skin built as a second library, for live replacement |
 | `skin_sdl.cpp` | loadable weave `zengine-skin-sdl`, where SDL is built |
 | `skin_sdl_plan.hpp`, `skin_sdl_text.hpp`, `skin_sdl_glyphs.hpp` | its plan; real, bitmap faces |
 | `fonts/` | JetBrains Mono, embedded in the SDL Skin; `PROVENANCE.md`, `OFL.txt` |

@@ -487,7 +487,7 @@ all. The package names the physical things, because one list holds both kinds:
 |---|---|
 | `zengine-timer` | weave — the Timer service you loaded above |
 | `zengine-input` | weave — the sole producer of key, text and pointer moments |
-| `zengine-skin-tui-classic`, `zengine-skin-tui-block` | weave — terminal skins that paint drawing intent |
+| `zengine-skin-tui-classic`, `zengine-skin-tui-block` | weave — `zengine-skin-tui-classic` is the terminal Skin that paints drawing intent; `zengine-skin-tui-block` is that same Skin built as a second library, so a live Skin can be replaced by another library |
 | `zengine-operators-basic` | **provider** — typed operator definitions, mounted by a host, never loaded onto the bus |
 
 An artifact could expose both surfaces, or a surface that does not exist yet; `zengine::operator`
