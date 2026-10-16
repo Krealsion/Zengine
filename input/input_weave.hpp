@@ -9,14 +9,15 @@
 // feeds scripted batches). It publishes whatever a poll hands back, by shape, and its Emit set
 // is derived from V. It declares a repeating beat on `kPumpTimerId`, addressed to `kInputRole`
 // so a successor inherits it, and the timer binding keeps it established; `PumpInput` is the
-// same hands on direct request, for suites and timer-less hosts. A `Page` (office_page.hpp) adds
-// the door that answers what each accepted shape does; with none the weave has no such door.
-// Reference: input/docs/zengine.input.md.
+// same hands on direct request, for suites and timer-less hosts. Facets compose onto it: the
+// office's page (office_page.hpp) adds the door that answers what each accepted shape does; with
+// none the weave has no such door. Reference: input/docs/zengine.input.md.
 
 #include "component/motion.hpp"
 #include "translate.hpp"
 #include "vocabulary.hpp"
 
+#include "activation/activation.hpp"
 #include "timer/binding.hpp"
 
 #include <zen/weave.hpp>
@@ -35,18 +36,34 @@
 
 namespace zengine::input {
 
-/// Two honest counters, poke-inspectable like any state: how often the weave
-/// was given hands, and how many events it has spoken.
+/// The open session as a reload carries it: filled only in a snapshot and read only at revival,
+/// never the live session. `id` 0 is none open.
+struct CarriedInputSession {
+    std::int64_t id = 0;
+    std::int64_t holder = 0; ///< the holder's weave id
+    std::string purpose;
+    std::int64_t seq = 0;
+    std::vector<std::int64_t> keys_down;
+    std::vector<std::int64_t> buttons_down;
+    std::int64_t last_x = 0;
+    std::int64_t last_y = 0;
+    std::int64_t last_space = space::kUnknown;
+    ZEN_SHAPE(CarriedInputSession, 1, ZEN_FIELD(id), ZEN_FIELD(holder), ZEN_FIELD(purpose),
+              ZEN_FIELD(seq), ZEN_FIELD(keys_down), ZEN_FIELD(buttons_down), ZEN_FIELD(last_x),
+              ZEN_FIELD(last_y), ZEN_FIELD(last_space));
+};
+
+/// Two honest counters, poke-inspectable and writable: how often the weave was given hands, and how
+/// many events it has spoken. Read-only beside them: the last session number it gave, so no number
+/// is given twice, and the open session a reload in place keeps.
 struct InputState {
     std::int64_t pumped = 0;
     std::int64_t emitted = 0;
-    ZEN_EXPOSE();
-    ZEN_SHAPE(InputState, 1, ZEN_FIELD(pumped), ZEN_FIELD(emitted));
+    std::int64_t last_session = 0;
+    CarriedInputSession session;
+    ZEN_SHAPE(InputState, 2, ZEN_EXPOSE(pumped), ZEN_EXPOSE(emitted), ZEN_FIELD(last_session),
+              ZEN_FIELD(session));
 };
-
-/// NO PAGE: the weave answers for no shape it accepts. A Page names the ask it answers (`Asked`),
-/// its answer (`Shown`) and `static Shown shown(const Asked&, accepted schemas)`.
-struct NoPage {};
 
 namespace detail {
 
@@ -54,54 +71,35 @@ namespace detail {
 template <class Reader>
 using ReaderEvent = typename std::decay_t<decltype(std::declval<Reader&>().poll())>::value_type;
 
-/// What a Page adds to the gate and to the Emit set: its one ask and its one answer, or nothing.
-template <class Page>
-struct PageDoor {
-    using Accepts = loom::Accept<typename Page::Asked>;
-    using Emits = loom::Emit<typename Page::Shown>;
-};
-template <>
-struct PageDoor<NoPage> {
-    using Accepts = loom::Accept<>;
-    using Emits = loom::Emit<>;
-};
-
 /// That variant's alternatives, as the weave's Emit set: derived, not spelled, so each weave
 /// declares exactly what its reader can hand it -- the SDL reader adds the surface close request
 /// without the Input package depending on Surface -- plus the answers the session doors give,
-/// which are this weave's own for every backend, and its page's answer.
-template <class V, class PageEmits>
+/// which are this weave's own for every backend.
+template <class V>
 struct EmitsOf;
-template <class... Ts, class... P>
-struct EmitsOf<std::variant<Ts...>, loom::Emit<P...>> {
+template <class... Ts>
+struct EmitsOf<std::variant<Ts...>> {
     using type = loom::Emit<Ts..., InputSessionOpened, InputInjected, AttributedInput, loom::Ack,
-                            loom::Refused, P...>;
+                            loom::Refused>;
 };
 
-/// The doors every Input weave accepts, and its page's ask.
-template <class PageAccepts>
-struct AcceptsOf;
-template <class... P>
-struct AcceptsOf<loom::Accept<P...>> {
-    using type = loom::Accept<PumpInput, InputSessionRequested, InputSessionClosed, InjectInput,
-                              PointerMotionRequested, P...>;
-};
+/// The doors every Input weave accepts.
+using Accepts = loom::Accept<PumpInput, InputSessionRequested, InputSessionClosed, InjectInput,
+                             PointerMotionRequested>;
 
 } // namespace detail
 
-template <class Reader, class Page = NoPage>
+template <class Reader, class... Facets>
 class InputWeaveT;
 
-/// The base, named once.
-template <class Reader, class Page = NoPage>
-using InputWeaveBase = zengine::timer::TimedWeave<
-    InputWeaveT<Reader, Page>, InputState,
-    typename detail::AcceptsOf<typename detail::PageDoor<Page>::Accepts>::type,
-    typename detail::EmitsOf<detail::ReaderEvent<Reader>,
-                             typename detail::PageDoor<Page>::Emits>::type>;
+/// The base, named once: the timer binding beneath, and the facets a build composes on.
+template <class Reader, class... Facets>
+using InputWeaveBase = typename zengine::With<Facets...>::template Weave<
+    InputWeaveT<Reader, Facets...>, InputState, detail::Accepts,
+    typename detail::EmitsOf<detail::ReaderEvent<Reader>>::type, zengine::timer::TimedWeave>;
 
-template <class Reader, class Page>
-class InputWeaveT : public InputWeaveBase<Reader, Page> {
+template <class Reader, class... Facets>
+class InputWeaveT : public InputWeaveBase<Reader, Facets...> {
 public:
     InputWeaveT() { declare_pump(); }
     using Clock = std::chrono::steady_clock;
@@ -112,18 +110,48 @@ public:
     /// The one line of ceremony the binding cannot remove: this weave has its
     /// own `on` handler, which would otherwise HIDE the binding layer's three.
     /// (WeaveBase dispatches via self->on(...) on the derived type.)
-    using InputWeaveBase<Reader, Page>::on;
+    using InputWeaveBase<Reader, Facets...>::on;
 
     /// The direct door: the same hands, on request, for suites, diagnostics and
     /// timer-less hosts.
     void on(const PumpInput&, loom::Mail& mail) { pump(mail); }
 
-    /// WHAT A SHAPE I ACCEPT DOES, TO THE ASKER ALONE: the page's section for it, said against the
-    /// gate's own list. Only a weave built with a page has this door.
-    template <class Asked>
-        requires(!std::is_same_v<Page, NoPage>) && std::is_same_v<Asked, typename Page::Asked>
-    void on(const Asked& ask, loom::Mail& mail) {
-        (void)mail.answer(Page::shown(ask, this->accepted_schemas()));
+    /// The state a reload carries: the counters, the last number given, and the open session --
+    /// its holder, its count and what it holds down -- so a reloaded weave keeps serving its holder
+    /// and releases those keys when the session closes. A pointer motion in flight is not carried:
+    /// its answer belongs to the image that took the ask.
+    loom::Value snapshot() const override {
+        InputState carried = this->state_;
+        carried.session = CarriedInputSession{};
+        if (session_.open) {
+            carried.session = CarriedInputSession{
+                session_.id, static_cast<std::int64_t>(session_.holder.value), session_.purpose,
+                session_.seq, session_.keys_down, session_.buttons_down, session_.last_x,
+                session_.last_y, session_.last_space};
+        }
+        return loom::to_value(carried);
+    }
+
+    void revive(const loom::Value& v) override {
+        InputState revived = loom::from_value<InputState>(v);
+        CarriedInputSession carried;
+        std::swap(carried, revived.session);
+        this->state_ = std::move(revived);
+        session_ = Session{};
+        motion_ = {};
+        if (carried.id > 0) {
+            session_.open = true;
+            session_.id = carried.id;
+            session_.holder = loom::WeaveId{static_cast<std::uint64_t>(carried.holder)};
+            session_.purpose = std::move(carried.purpose);
+            session_.seq = carried.seq;
+            session_.keys_down = std::move(carried.keys_down);
+            session_.buttons_down = std::move(carried.buttons_down);
+            session_.last_x = carried.last_x;
+            session_.last_y = carried.last_y;
+            session_.last_space = carried.last_space;
+        }
+        if (this->state_.last_session < session_.id) this->state_.last_session = session_.id;
     }
 
     // ---- the session doors (vocabulary.hpp says what a session is and is not) ----------
@@ -138,7 +166,7 @@ public:
         }
         session_ = Session{};
         session_.open = true;
-        session_.id = ++last_session_;
+        session_.id = ++this->state_.last_session;
         session_.holder = mail.sender();
         session_.purpose = asked.purpose;
         (void)mail.answer(InputSessionOpened{session_.id});
@@ -248,8 +276,9 @@ public:
     loom::WeaveId session_holder() const noexcept { return session_.holder; }
 
 private:
-    /// ONE SESSION, plain members and never state: a session belongs to an incarnation, and a
-    /// successor that inherited a held key it never heard pressed would release nothing.
+    /// ONE SESSION, plain members: a snapshot carries it into the state and a revival takes it
+    /// out (`CarriedInputSession`), so a reload in place keeps it whole -- its holder, its count
+    /// and the keys and buttons it holds, which the same producer releases at the close.
     struct Session {
         bool open = false;
         std::int64_t id = 0;
@@ -460,12 +489,11 @@ private:
         }
     }
 
-    typename InputWeaveBase<Reader, Page>::Handle pump_;
+    typename InputWeaveBase<Reader, Facets...>::Handle pump_;
     Reader reader_;
     Session session_;
     Now now_ = [] { return Clock::now(); };
     Motion motion_;
-    std::int64_t last_session_ = 0;
 };
 
 } // namespace zengine::input

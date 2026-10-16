@@ -115,16 +115,18 @@ inline void let_terminal_switch_editors(loom::TerminalVocabulary& vocab, loom::G
 
 class EditorSwitchCoordinator;
 
-using EditorSwitchBase = zengine::timer::TimedWeave<
+using EditorSwitchBase = zengine::With<
+    zengine::manual::ManualFacet<zengine::manual::pages::zengine_editor_switch::kManual>>::Weave<
     EditorSwitchCoordinator, EditorSwitchState,
     loom::Accept<EditorSwitchRequested, EditorSwitchConfirmed, EditorSwitchCancelled,
                  EditorSwitchStatusRequested, EditorHandoffJudged, EditorWarmed,
                  EditorHandoffOffered, EditorAdopted, EditorLive, EditorRetired,
-                 loom::DispatchRefused, zengine::manual::ShapeDocumentRequested>,
+                 loom::DispatchRefused>,
     loom::Emit<EditorSwitchAnswered, EditorSwitchProgress, EditorHandoffJudgeRequested,
                EditorWarmRequested, EditorPreparationTick, EditorHandoffRequested,
                EditorHandoffEnded, EditorAdoptRequested, EditorLiveRequested,
-               EditorRetireRequested, zengine::manual::ShapeDocumentShown>>;
+               EditorRetireRequested>,
+    zengine::timer::TimedWeave>;
 
 /// How often a warming or adopting candidate is handed a beat (the Timer's own floor).
 inline constexpr std::int64_t kSwitchBeatMs = 10;
@@ -159,13 +161,6 @@ public:
 
     Stage stage() const noexcept { return op_.stage; }
     std::int64_t op() const noexcept { return op_.id; }
-
-    /// WHAT A SHAPE I ACCEPT DOES, TO THE ASKER ALONE: my page's section for it, said against the
-    /// content id the asker holds. The gate's own list says which shapes are mine to describe.
-    void on(const zengine::manual::ShapeDocumentRequested& ask, loom::Mail& mail) {
-        (void)mail.answer(zengine::manual::shape_document(
-            ask, accepted_schemas(), zengine::manual::pages::zengine_editor_switch::kManual));
-    }
 
     // ---- the four doors a weaver's asker uses -------------------------------------------------
 

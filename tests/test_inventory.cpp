@@ -20,7 +20,9 @@
 
 #include "manuals/zengine.inventory.hpp"
 
+#include <zen/kernel/control.hpp>
 #include <zen/kernel/kernel.hpp>
+#include <zen/kernel/manager.hpp>
 #include <zen/switchboard.hpp>
 #include <zen/weave.hpp>
 #include <zen/weave/standard_shapes.hpp>
@@ -658,6 +660,76 @@ TEST_CASE("weave: inventory loads unloads and loads fresh through the ordinary k
     r.get();
     CHECK_FALSE(r.caller->states.back().occupied);
     CHECK_FALSE(r.caller->captures.front().pair.empty());
+}
+
+namespace {
+
+/// The Weave Manager's caller, as Workshop's plan booter is: it loads and reloads the inventory
+/// through the Manager, so the image is told it is live (`zen.Activated`) as in a running Workshop.
+class Booter final : public loom::WeaveBase<Booter, PumpState,
+                                            loom::Accept<loom::Result, loom::Ack, loom::Refused>,
+                                            loom::Emit<loom::LoadWeave, loom::ReloadWeave>> {
+public:
+    std::vector<std::string> said;
+    void on(const loom::Result& r, loom::Mail&) { said.push_back(r.value); }
+    void on(const loom::Ack&, loom::Mail&) { said.push_back("ack"); }
+    void on(const loom::Refused& r, loom::Mail&) { said.push_back("refused: " + r.reason); }
+};
+
+} // namespace
+
+TEST_CASE("weave: a reference held across an in-place reload still reads and writes, under the "
+          "same owner, and the collection's revision carries on") {
+    Rig r;
+    r.bus.unregister_weave(r.inventory_id).reset();
+    loom::Kernel kernel(r.bus, zengine::workshop::artifact_admission());
+    const loom::WeaveId control = loom::mount_control(kernel, r.bus);
+    const loom::WeaveId manager = loom::mount_manager(control, r.bus);
+    loom::Grant reach;
+    reach.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
+    reach.allow(loom::ReloadWeave::zen_name, loom::ReloadWeave::zen_version, manager);
+    const loom::WeaveId booter_id = loom::mount_granted<Booter>(r.bus, std::move(reach));
+    auto* booter = static_cast<Booter*>(r.bus.weave(booter_id));
+    const auto boot = [&](const auto& command) {
+        (void)r.bus.send_as(booter_id, manager,
+                            loom::Message(loom::to_value(command), booter_id, booter_id, 1));
+        r.bus.drain_until_idle();
+        REQUIRE_FALSE(booter->said.empty());
+        return booter->said.back();
+    };
+    const std::string loaded =
+        boot(loom::LoadWeave{"inventory", INVENTORY_SO, inv::kInventoryRole});
+    REQUIRE_MESSAGE(loaded.rfind("refused", 0) != 0, loaded);
+
+    const auto pair = as_bytes(inv::encode_pair(make_sample(7, "kept", {"a"}), {}));
+    const auto ask = [&](const auto& request) {
+        r.act([&](loom::Mail& mail) { (void)mail.send_to_role(inv::kInventoryRole, request); });
+    };
+    ask(inv::InventoryAdd{pair, "kept"});
+    REQUIRE(r.caller->entries.size() == 1);
+    const inv::InventoryEntry held = r.caller->entries.back();
+    ask(inv::v2::InventoryList{});
+    REQUIRE(r.caller->listings.size() == 1);
+    const inv::v2::InventoryListed before = r.caller->listings.back();
+    CHECK(before.owner == held.reference.owner);
+
+    CHECK(boot(loom::ReloadWeave{"inventory", INVENTORY_SO}) == "ack");
+
+    // THE SAME OWNER: the reference reads the entry it named, and a write at its revision lands.
+    ask(inv::InventoryRead{held.reference});
+    REQUIRE(r.caller->refusals.empty());
+    REQUIRE(r.caller->entries.size() == 2);
+    CHECK(r.caller->entries.back().reference.owner == held.reference.owner);
+    CHECK(r.caller->entries.back().pair == pair);
+    const auto rewritten = as_bytes(inv::encode_pair(make_sample(8, "rewritten", {}), {}));
+    ask(inv::InventoryWrite{held.reference, held.revision, rewritten});
+    REQUIRE(r.caller->refusals.empty());
+    CHECK(r.caller->entries.back().revision == held.revision + 1);
+    // ...and the listing an asker compares against moved on from where it was, never back.
+    ask(inv::v2::InventoryList{});
+    REQUIRE(r.caller->listings.size() == 2);
+    CHECK(r.caller->listings.back().owner == before.owner);
+    CHECK(r.caller->listings.back().revision > before.revision);
 }
 
 TEST_CASE("weave: a saved capture survives removal of its actual source") {

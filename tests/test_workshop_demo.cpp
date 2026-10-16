@@ -18,7 +18,8 @@ class DemoHand final : public loom::WeaveBase<DemoHand, DemoTestPump,
                  v2::PaneOffered>,
     loom::Emit<demo::DemoServiceOpened, demo::DemoServiceClosed, demo::DemoWorkRequested,
                demo::DemoWorkFinished, demo::DemoResetRequested, demo::DemoReadyRequested,
-               PanePressed, PaneRoom, PaneCanvasRoom, PaneCanvasPointer, SetupApplyRequested,
+               demo::DemoStatusRequested, PanePressed, PaneRoom, PaneCanvasRoom, PaneCanvasPointer,
+               SetupApplyRequested,
                v2::PaneOffered, PaneActionRequested, PaneCatalogRequested>> {
 public:
     std::function<void(loom::Mail&)> action;
@@ -266,6 +267,80 @@ TEST_CASE("demo ready wait before attachment completes once after the initial pr
     CHECK(r.visitor.hand->status.back().state == "ready");
     r.visitor.say(demo::kRole, demo::DemoServiceOpened{"another"});
     CHECK(r.visitor.hand->refused.size() == 1);
+}
+
+namespace {
+/// The Weave Manager's caller, as Workshop's plan booter is.
+struct DemoBooterState { std::int64_t said = 0; ZEN_SHAPE(DemoBooterState, 1, ZEN_FIELD(said)); };
+class DemoBooter final : public loom::WeaveBase<DemoBooter, DemoBooterState,
+    loom::Accept<loom::Result, loom::Ack, loom::Refused>,
+    loom::Emit<loom::LoadWeave, loom::ReloadWeave>> {
+public:
+    std::vector<std::string> said;
+    void on(const loom::Result& r, loom::Mail&) { said.push_back(r.value); }
+    void on(const loom::Ack&, loom::Mail&) { said.push_back("ack"); }
+    void on(const loom::Refused& r, loom::Mail&) { said.push_back("refused: " + r.reason); }
+};
+}
+
+TEST_CASE("a reloaded demo office never stands working with no service: it says the service must "
+          "start again, and the next one carries the generations on") {
+    loom::Switchboard bus;
+    loom::Kernel kernel{bus, loom::trust_every_artifact(
+        "Zengine's test harness: it loads only this build tree's output")};
+    const loom::WeaveId control = loom::mount_control(kernel, bus);
+    const loom::WeaveId manager = loom::mount_manager(control, bus);
+    loom::Grant reach;
+    reach.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
+    reach.allow(loom::ReloadWeave::zen_name, loom::ReloadWeave::zen_version, manager);
+    const loom::WeaveId booter_id = loom::mount_granted<DemoBooter>(bus, std::move(reach));
+    auto* booter = static_cast<DemoBooter*>(bus.weave(booter_id));
+    const auto boot = [&](const auto& command) {
+        (void)bus.send_as(booter_id, manager,
+                          loom::Message(loom::to_value(command), booter_id, booter_id, 1));
+        bus.drain_until_idle();
+        REQUIRE_FALSE(booter->said.empty());
+        return booter->said.back();
+    };
+    DemoActor desk{bus, "zengine.workshop"}, worker{bus}, visitor{bus}, next{bus};
+    const std::string loaded =
+        boot(loom::LoadWeave{"zengine-demo-control", WORKSHOP_SO_DEMO_CONTROL, demo::kRole});
+    REQUIRE_MESSAGE(loaded.rfind("refused", 0) != 0, loaded);
+    const auto status = [&] {
+        visitor.say(demo::kRole, demo::DemoStatusRequested{});
+        REQUIRE_FALSE(visitor.hand->status.empty());
+        return visitor.hand->status.back();
+    };
+    worker.say(demo::kRole, demo::DemoServiceOpened{"Example"});
+    worker.say(demo::kRole, demo::DemoWorkRequested{});
+    REQUIRE(worker.hand->work.size() == 1);
+    REQUIRE(status().state == "working");
+
+    // RELOADED THROUGH THE MANAGER, MID-WORK: the service it served is not this image's.
+    CHECK(boot(loom::ReloadWeave{"zengine-demo-control", WORKSHOP_SO_DEMO_CONTROL}) == "ack");
+    demo::DemoStatus now = status();
+    CHECK(now.state == "unavailable");
+    CHECK(now.note.find("reloaded") != std::string::npos);
+    CHECK(now.generation == 1);
+    // ...so the old service's word is refused out loud, never taken as this image's work...
+    worker.say(demo::kRole, demo::DemoWorkFinished{1, true, "ready"});
+    REQUIRE_FALSE(worker.hand->refused.empty());
+    CHECK(status().state == "unavailable");
+    // ...and a service started again attaches, its work numbered after the reload's.
+    next.say(demo::kRole, demo::DemoServiceOpened{"Example"});
+    next.say(demo::kRole, demo::DemoWorkRequested{});
+    REQUIRE(next.hand->work.size() == 1);
+    CHECK(next.hand->work.back().generation == 2);
+    REQUIRE(status().state == "working");
+
+    // RELOADED BY THE KERNEL ITSELF, with no activation to follow: the same, said at revival.
+    const loom::ReloadResult direct =
+        kernel.reload_from("zengine-demo-control", WORKSHOP_SO_DEMO_CONTROL);
+    REQUIRE_MESSAGE(direct.reloaded, direct.error);
+    now = status();
+    CHECK(now.state == "unavailable");
+    CHECK(now.note.find("reloaded") != std::string::npos);
+    CHECK(now.generation == 2);
 }
 
 TEST_CASE("pane comfort survives offer refresh and rejects malformed preferences") {
