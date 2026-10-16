@@ -114,7 +114,7 @@ list holds both kinds:
 |---|---|
 | `zengine-timer` | weave — the Timer service, loaded by the Kernel |
 | `zengine-input` | weave |
-| `zengine-skin-tui-classic`, `zengine-skin-tui-block` | weave |
+| `zengine-skin-tui-classic`, `zengine-skin-tui-block` | weave — the terminal Skin; `zengine-skin-tui-block` is the classic one built as a second library, for live replacement |
 | `zengine-operators-basic` | **provider** — opened by a host, never loaded onto the bus |
 | `zengine-guest-vocabulary` | weave — booted by *another* Loom host (a session) so its tools speak Workshop's guest shapes; [external host](external-host/docs/external-host.md#3-from-a-loom-session-journeys-as-python-tools) |
 
