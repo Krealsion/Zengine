@@ -9,7 +9,9 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 |---|---|
 | `CMakeLists.txt` | target `zengine-info-pane`, a loadable weave; needs `loom::kernel` |
 | `pane.cpp` | the weave: the panes list, one pane's properties, and the value views it offers |
-| `value_view.hpp` | one value view: its draft, field selection, watch, sample and pending asks |
+| `value_view.hpp` | one value view, the one entry point for its acts and answers: its draft, field selection, sample, pickup and pending asks |
+| `value_watch.hpp` | a value view's watch: the observation lease on its linked entry, and the requests that ask for, continue and end it |
+| `value_picture.hpp` | a value view's picture: rows, controls and field window laid out from what the view shows, and their press map |
 | `vocabulary.hpp` | office `zengine.info`, pane keys, stem, action ids, `InfoPaneState` |
 | `docs/zengine.info.md` | the weave's manual, compiled in and answered for each of its panes |
 | `docs/info-views.md` | the workbench story; its pictures are under `docs/images/` |

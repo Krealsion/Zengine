@@ -15,9 +15,12 @@
 // replace a draft the weaver agreed to replace, so it is frozen until they answer, are refused,
 // or the weaver stops waiting. Every way out of a watch ends it at Workshop.
 
+// The view is the one entry point for its acts and answers: its watch's lease custody is
+// `value_watch.hpp`, and the layout of its picture `value_picture.hpp`.
+
 #include "vocabulary.hpp"
-#include "component/list_window.hpp"
-#include "component/row_map.hpp"
+#include "value_picture.hpp"
+#include "value_watch.hpp"
 #include "component/text_box.hpp"
 #include "input/vocabulary.hpp"
 #include "inventory/codec.hpp"
@@ -29,62 +32,24 @@
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_operation.hpp"
 #include "workshop/pane_parts.hpp"
-#include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
 #include <zen/weave/poke.hpp>
 #include <zen/weave/role_request.hpp>
 
 #include <algorithm>
-#include <chrono>
 #include <cmath>
 #include <cstdlib>
-#include <ctime>
 #include <optional>
 #include <vector>
 
 namespace zengine::info_pane {
-
-/// A FIELD BY STRUCTURE, never by row number: `metadata` is -1 for the item, else the index of a
-/// read-only metadata value; `path` is the draft's structural path inside it.
-struct FieldRef {
-    std::int64_t metadata = -1;
-    message_draft::Path path;
-    bool operator==(const FieldRef&) const = default;
-    /// Is this field `outer` or inside it?
-    bool within(const FieldRef& outer) const {
-        return metadata == outer.metadata && path.size() >= outer.path.size() &&
-               std::equal(outer.path.begin(), outer.path.end(), path.begin());
-    }
-};
-
-/// WHAT ONE PLACE OF THE PICTURE MEANS: a control (by action id) or a field.
-struct Meaning {
-    enum Kind { kNone, kField, kControl } kind = kNone;
-    std::string control;
-    FieldRef field;
-    bool operator==(const Meaning&) const = default;
-};
-
-/// WHAT AN ACT MAY SPEND BEYOND ITS VIEW: the delivery that brought it and the weave's one
-/// correlation counter.
-struct ViewContext {
-    loom::Mail& mail;
-    std::uint64_t& asks;
-};
 
 /// WHAT AN ACT ASKS THE WEAVE TO DO THAT NO VIEW OWNS.
 struct ActResult {
     bool reoffer = false; ///< the title changed: the slot's offer names it
     bool leave = false;   ///< the default view returns to pane properties
 };
-
-inline std::string clock_text() {
-    const std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-    char out[16] = {};
-    if (const std::tm* local = std::localtime(&now)) std::strftime(out, sizeof out, "%H:%M:%S", local);
-    return out;
-}
 
 class ValueView {
 public:
@@ -101,7 +66,7 @@ public:
     bool has_entry() const noexcept { return item_.has_value(); }
     bool dirty() const noexcept { return dirty_; }
     bool editing() const noexcept { return editing_ || renaming_; }
-    bool watching() const noexcept { return watch_.state != Watch::State::off; }
+    bool watching() const noexcept { return watch_.watching(); }
     bool saving() const noexcept {
         return op_ && op_->purpose != Operation::Purpose::refresh && op_->purpose != Operation::Purpose::link;
     }
@@ -147,8 +112,8 @@ public:
         const bool renamed = title_ != default_title();
         ValueView fresh(key_, slot_);
         fresh.incarnation_ = incarnation_ + 1;
-        fresh.ending_ = std::move(ending_);
-        fresh.map_ = std::move(map_);
+        fresh.watch_ = watch_.retire();
+        fresh.picture_ = std::move(picture_);
         fresh.rows_ = rows_; fresh.columns_ = columns_; fresh.granted_ = granted_;
         fresh.on_desk_ = on_desk_;
         fresh.offered = offered;
@@ -310,7 +275,7 @@ public:
     std::string press(std::int64_t row, std::int64_t column, bool current, std::uint64_t gesture) {
         press_ = {};
         if (!current) { notice_ = "This view changed -- press again"; return {}; }
-        const Meaning* at = map_.at(row, column);
+        const Meaning* at = picture_.at(row, column);
         if (!at) return {};
         if (at->kind == Meaning::kControl) return at->control;
         if (at->kind == Meaning::kField && !editing()) {
@@ -376,7 +341,7 @@ public:
         if (id == kActionWatch) {
             if (watching()) return {};
             if (op_ && op_->purpose == Operation::Purpose::link) return frozen(doing());
-            if (ending_.pending()) return "wait: Workshop has not yet answered this view's last watch request";
+            if (watch_.ending()) return "wait: Workshop has not yet answered this view's last watch request";
             if (!linked) return "an independent copy has no linked entry to watch; link one (right-click Grab live)";
             if (stale_) return "this link is stale: its entry is no longer here";
             return {};
@@ -514,57 +479,17 @@ public:
     }
 
     bool hear(const workshop::PaneObservationAnswered& answer, ViewContext& c) {
-        if (ending_.matches_answer(c.mail)) {
-            // A WATCH STOPPED BEFORE WORKSHOP ANSWERED IT: a lease granted now is ended now, and
-            // nothing here starts watching again.
-            ending_.forget();
-            if (answer.allowed && answer.lease)
-                (void)c.mail.as_role(kInfoPaneRole).send_to_role("zengine.workshop",
-                    workshop::PaneObservationEnded{key_, answer.lease});
-            return true;
-        }
-        if (!watch_.ask.matches_answer(c.mail)) return false;
-        watch_.ask.forget();
-        if (!answer.allowed) {
-            const bool started = watch_.state == Watch::State::requesting;
-            stop_watch(c, (started ? "Watch refused: " : "Watch ended: ") + answer.reason, false);
-            return true;
-        }
-        if (watch_.state == Watch::State::requesting) {
-            watch_.state = Watch::State::on;
-            watch_.lease = answer.lease;
-            notice_ = "Watching rev " + std::to_string(saved_.revision) + "; changes appear here, your edits are never replaced";
-        }
-        // THE CONTINUATION IS APPROVED: one read, under this view's own number.
-        const auto correlation = ++c.asks;
-        if (!watch_.read.send_to_role(c.mail.as_role(kInfoPaneRole), inventory::kInventoryRole,
-                                      inventory::InventoryRead{watch_.reference}, correlation))
-            stop_watch(c, "Watch ended: the read could not be queued", true);
-        return true;
+        return heard(watch_.hear(answer, key_, saved_.revision, c));
     }
 
     bool hear(const inventory::InventoryEntry& entry, ViewContext& c) {
-        if (watch_.read.matches_answer(c.mail)) {
-            watch_.read.forget();
-            if (entry.reference.owner != watch_.reference.owner || entry.reference.entry != watch_.reference.entry) {
-                stop_watch(c, "Watch ended: inventory answered about a different entry", true);
-                return true;
-            }
-            ++watch_.observations;
-            watch_.last_good = clock_text();
-            watch_.last_failure.clear();
-            observe(entry);
-            if (watch_.again) { watch_.again = false; cycle(c); }
-            return true;
-        }
+        if (heard(watch_.hear(entry, key_, c, [this](const inventory::InventoryEntry& e) { observe(e); }))) return true;
         if (!client_.hear(entry, c.mail)) return false;
         return after_client(c);
     }
 
     bool hear(const loom::Refused& refused, ViewContext& c) {
-        if (watch_.read.matches_answer(c.mail)) {
-            watch_.read.forget();
-            watch_.last_failure = clock_text() + " " + refused.reason;
+        if (watch_.read_refused(refused, c.mail)) {
             if (refused.reason.find("no longer here") != std::string::npos) stale_ = true;
             stop_watch(c, "Watch ended: " + refused.reason + (stale_ ? " -- the draft is kept; Save copy stores it" : ""));
             return true;
@@ -589,16 +514,7 @@ public:
             finish_pickup("Field pickup was not delivered: " + refused.reason);
             return true;
         }
-        if (ending_.matches_refusal(refused, c.mail)) { ending_.forget(); return true; } // it granted nothing
-        if (watch_.ask.matches_refusal(refused, c.mail) || watch_.read.matches_refusal(refused, c.mail)) {
-            // AN UNDELIVERED CONTINUATION OR READ: the lease Workshop approved is still in its book,
-            // so it is ended there too. A request refused before it arrived holds no lease.
-            if (watch_.state == Watch::State::requesting) watch_.ask.forget();
-            watch_.read.forget();
-            watch_.last_failure = clock_text() + " not delivered: " + refused.reason;
-            stop_watch(c, "Watch ended: its request was not delivered (" + refused.reason + ")");
-            return true;
-        }
+        if (heard(watch_.hear(refused, key_, c))) return true;
         if (sample_.permission.matches_refusal(refused, c.mail)) {
             sample_.permission.forget(); sample_.phase = Sample::Phase::idle;
             notice_ = "Sample permission request was not delivered: " + refused.reason;
@@ -655,13 +571,9 @@ public:
         return true;
     }
 
-    /// INVENTORY SAID SOMETHING CHANGED -- an invalidation, not a value. A watching view runs one
-    /// observation cycle; a trigger during a cycle is remembered once, never queued.
-    void changed(ViewContext& c) {
-        if (watch_.state != Watch::State::on) return;
-        if (watch_.ask.pending() || watch_.read.pending()) { watch_.again = true; return; }
-        cycle(c);
-    }
+    /// INVENTORY SAID SOMETHING CHANGED -- an invalidation, not a value: the watch decides whether
+    /// a cycle runs (`ValueWatch::changed`).
+    void changed(ViewContext& c) { note(watch_.changed(key_, c)); }
 
     // ---- presentation ------------------------------------------------------------------
 
@@ -727,7 +639,7 @@ public:
     /// means. `can_create` says whether the weave has a free slot, which only the weave knows.
     workshop::v4::PaneContent draw(bool can_create) {
         workshop::v4::PaneContent out = compose(can_create);
-        out.parts = workshop::row_parts(map_, columns_, [](const Meaning& m) { return part_name(m); });
+        out.parts = workshop::row_parts(picture_.map(), columns_, [](const Meaning& m) { return part_name(m); });
         return out;
     }
 
@@ -741,83 +653,10 @@ public:
         return "field:" + meta + message_draft::path_label(m.field.path);
     }
 
-    workshop::v4::PaneContent compose(bool can_create) {
-        workshop::v4::PaneContent out;
-        out.pane = key_;
-        map_.begin();
-        caret_ = {};
-        const auto width = columns_;
-        const auto push = [&](std::string text, std::int64_t role, std::int64_t ground = surface::role::kNone) {
-            if (static_cast<std::int64_t>(out.rows.size()) < rows_)
-                out.rows.push_back({workshop::pane_text::drawable(workshop::pane_text::fit(std::move(text), width)), role, ground});
-        };
-        can_create_ = can_create;
-        if (!allocated_) {
-            push(default_title() + " -- unused view slot", surface::role::kAccent, surface::role::kMuted);
-            controls({{kActionViewUse, "Use this view"}}, out, 1);
-            push("Or drop an Inventory value here. Views close with Close; data stays in Inventory.", surface::role::kMuted);
-            out.picture = map_.settle();
-            return out;
-        }
-        push(title_ + " | " + subject_text(), surface::role::kAccent, surface::role::kMuted);
-        if (rows_ >= 4) push(state_text(), attention() ? surface::role::kAlert : surface::role::kMuted);
-        if (editing_ || renaming_) {
-            if (!notice_.empty()) push(notice_, surface::role::kAlert);
-            push(editing_ ? "Edit " + message_draft::path_label(field_) : std::string("View title"), surface::role::kFill);
-            const std::int64_t room = std::max<std::int64_t>(0, width - 2);
-            line_.keep_caret_visible(room);
-            if (room > 0 && static_cast<std::int64_t>(out.rows.size()) < rows_) {
-                const auto row = static_cast<std::int64_t>(out.rows.size());
-                caret_.row = row;
-                caret_.column = 2 + static_cast<std::int64_t>(line_.caret_column());
-                if (const auto span = line_.visible_selection(room); span.present()) {
-                    caret_.sel_begin_row = caret_.sel_end_row = row;
-                    caret_.sel_begin_col = 2 + span.begin;
-                    caret_.sel_end_col = 2 + span.end;
-                }
-            }
-            push("> " + line_.visible(room), surface::role::kAccent);
-            push("Enter keeps it; Escape cancels", surface::role::kMuted);
-            out.picture = map_.settle();
-            return out;
-        }
-        const std::int64_t control_rows = rows_ >= 10 ? 2 : 1;
-        controls(control_list(), out, control_rows);
-        if (!notice_.empty()) push(notice_, surface::role::kAlert);
-        if (rows_ >= 12) {
-            const auto detail = detail_text();
-            if (!detail.empty()) push(detail, surface::role::kMuted);
-        }
-        const auto fields = field_list();
-        if (!item_) {
-            push("Drag an Inventory entry here for a copy; right-click an entry, Grab live, then click here to link it.",
-                 surface::role::kMuted);
-            out.picture = map_.settle();
-            return out;
-        }
-        const auto budget = static_cast<std::size_t>(std::max<std::int64_t>(0, rows_ - static_cast<std::int64_t>(out.rows.size())));
-        const std::size_t at = selected_index(fields);
-        const auto window = component::cursor_window(fields.size(), at, hint_, budget);
-        hint_ = window.first;
-        if (window.before && window.marker_rows())
-            push(workshop::pane_text::omitted_text(window.before, "earlier"), surface::role::kMuted);
-        for (std::size_t i = window.first; i < window.end(); ++i) {
-            const auto& f = fields[i];
-            const bool here = !lost_ && f.ref == selected_;
-            const char mark = edited(f.ref) ? '*' : observed(f.ref) ? '~' : ' ';
-            map_.row(static_cast<std::int64_t>(out.rows.size()), Meaning{Meaning::kField, {}, f.ref});
-            push(std::string(here ? ">" : " ") + mark + f.label + ": " + f.row.summary +
-                     (!f.row.present && f.row.required ? " (required)" : ""),
-                 f.metadata ? surface::role::kMuted : surface::role::kFill);
-        }
-        if (window.after && window.marker_rows())
-            push(workshop::pane_text::omitted_text(window.after, "more"), surface::role::kMuted);
-        out.picture = map_.settle();
-        return out;
-    }
+    workshop::v4::PaneContent compose(bool can_create) { return picture_.compose(key_, shown(can_create), line_, hint_); }
 
     /// WHERE THE LINE BEING TYPED HAS ITS CARET AND SELECTION in the rows last composed, or none.
-    const workshop::RowsCaret& caret() const noexcept { return caret_; }
+    const workshop::RowsCaret& caret() const noexcept { return picture_.caret(); }
     static std::string label_of(const std::string& id) {
         static const std::vector<std::pair<std::string, std::string>> names = {
             {kActionSave, "Save"}, {kActionSaveCopy, "Save copy"}, {kActionRefresh, "Refresh"},
@@ -833,10 +672,10 @@ public:
     void arm_close() { close_armed_ = true; }
 
     // Evidence doors for loaded tests: read-only views of what this view holds.
-    std::int64_t lease() const noexcept { return watch_.lease; }
-    std::uint64_t observations() const noexcept { return watch_.observations; }
-    bool cycle_pending() const noexcept { return watch_.ask.pending() || watch_.read.pending(); }
-    bool again() const noexcept { return watch_.again; }
+    std::int64_t lease() const noexcept { return watch_.lease(); }
+    std::uint64_t observations() const noexcept { return watch_.observations(); }
+    bool cycle_pending() const noexcept { return watch_.cycle_pending(); }
+    bool again() const noexcept { return watch_.again(); }
     std::int64_t base_revision() const noexcept { return saved_.revision; }
     const std::optional<message_draft::Draft>& draft() const noexcept { return item_; }
 
@@ -854,17 +693,6 @@ private:
         std::string label;
         bool metadata = false;
         FieldRef ref;
-    };
-    struct Watch {
-        enum class State { off, requesting, on } state = State::off;
-        std::int64_t lease = 0;
-        std::string subject;
-        inventory::InventoryReference reference;
-        loom::RoleRequest ask;  ///< PaneObservationRequested, then each PaneObservationContinued
-        loom::RoleRequest read; ///< the approved InventoryRead
-        bool again = false;     ///< a change during a cycle: one more cycle, never a queue
-        std::uint64_t observations = 0;
-        std::string last_good, last_failure;
     };
     struct Sample {
         enum class Phase { idle, authorizing, asking } phase = Phase::idle;
@@ -1172,42 +1000,18 @@ private:
 
     // ---- watch ---------------------------------------------------------------------------
 
-    std::string subject() const { return saved_.reference.owner + ":" + saved_.reference.entry; }
-    void start_watch(ViewContext& c) {
-        // ONE OBSERVATION REQUEST PER SLOT, live or being ended, so the book stays one record deep.
-        if (watch_.ask.pending() || ending_.pending()) { notice_ = "Watch is already being approved"; return; }
-        watch_ = Watch{};
-        watch_.reference = saved_.reference;
-        watch_.subject = subject();
-        const auto correlation = ++c.asks;
-        const bool queued = watch_.ask.send_to_role(c.mail.as_role(kInfoPaneRole), "zengine.workshop",
-            workshop::PaneObservationRequested{key_, inventory::kInventoryRole, inventory::InventoryRead::zen_name,
-                inventory::InventoryRead::zen_version, static_cast<std::int64_t>(c.mail.correlation()), watch_.subject},
-            correlation);
-        if (!queued) { watch_ = Watch{}; notice_ = "Watch request could not be queued"; return; }
-        watch_.state = Watch::State::requesting;
-        notice_ = "Asking to watch this entry";
+    /// What the watch says becomes this view's notice; an empty sentence leaves the notice.
+    void note(std::string said) {
+        if (!said.empty()) notice_ = std::move(said);
     }
-    void cycle(ViewContext& c) {
-        const auto correlation = ++c.asks;
-        if (!watch_.ask.send_to_role(c.mail.as_role(kInfoPaneRole), "zengine.workshop",
-                workshop::PaneObservationContinued{key_, watch_.lease, watch_.subject}, correlation))
-            stop_watch(c, "Watch ended: its observation could not be queued", true);
+    bool heard(ValueWatch::Heard h) {
+        note(std::move(h.notice));
+        return h.mine;
     }
-    /// END THE WATCH, AT WORKSHOP TOO. A known lease is ended now; a request Workshop has not yet
-    /// answered moves to `ending_`, so a lease it grants later is ended on arrival and restarts
-    /// nothing. Forgetting the read here is what keeps a late answer off whatever comes next.
-    /// `tell` is false only where Workshop has already forgotten the lease (it refused).
+    void start_watch(ViewContext& c) { notice_ = watch_.start(key_, saved_.reference, c); }
+    /// END THE WATCH, AT WORKSHOP TOO (`ValueWatch::stop`).
     void stop_watch(ViewContext& c, std::string reason, bool tell = true) {
-        if (watch_.state == Watch::State::off && !watch_.ask.pending()) return;
-        if (watch_.state == Watch::State::requesting && watch_.ask.pending()) ending_ = watch_.ask;
-        else if (tell && watch_.lease)
-            (void)c.mail.as_role(kInfoPaneRole).send_to_role("zengine.workshop",
-                workshop::PaneObservationEnded{key_, watch_.lease});
-        const auto kept_good = watch_.last_good, kept_failure = watch_.last_failure;
-        watch_ = Watch{};
-        watch_.last_good = kept_good; watch_.last_failure = kept_failure;
-        if (!reason.empty()) notice_ = std::move(reason);
+        note(watch_.stop(key_, c, std::move(reason), tell));
     }
 
     // ---- sample --------------------------------------------------------------------------
@@ -1282,7 +1086,7 @@ private:
             notice_ = "Field drop refused, nothing changed: " + frozen(what);
             return;
         }
-        const Meaning* at = map_.at(row, column);
+        const Meaning* at = picture_.at(row, column);
         if (!at || at->kind != Meaning::kField) { notice_ = "Drop a field onto a field row of this view"; return; }
         if (at->field.metadata >= 0) { notice_ = "Capture metadata is read-only; drop onto an item field"; return; }
         try {
@@ -1299,64 +1103,49 @@ private:
         }
     }
 
-    // ---- composition ---------------------------------------------------------------------
+    // ---- what the picture shows ----------------------------------------------------------
 
-    struct ControlItem { std::string id; std::string label; };
-    std::vector<ControlItem> control_list() const {
-        std::vector<ControlItem> out;
-        // WHILE A REPLACEMENT WAITS, the way out of waiting comes first: it is the one act that
-        // matters until the answer arrives, and a narrow room must not wrap it away.
-        if (!replacing().empty()) out.push_back({kActionStop, "Stop"});
-        for (const ControlItem& item : std::vector<ControlItem>{{kActionSave, "Save"}, {kActionSaveCopy, "Save copy"},
-                                                                {kActionRefresh, "Refresh"},
-                                                                {kActionWatch, watching() ? "Pause" : "Watch"},
-                                                                {kActionViewNew, "New"}, {kActionViewFork, "Fork"},
-                                                                {kActionSample, "Sample"}, {kActionViewRename, "Rename"}})
-            out.push_back(item);
-        if (!is_default()) out.push_back({kActionViewClose, "Close"});
-        else out.push_back({kActionPanes, "Panes"});
+    /// WHAT THIS VIEW SHOWS NOW, for `ValuePicture` to lay out. `can_create` says whether the
+    /// weave has a free slot, which New and Fork need.
+    Shown shown(bool can_create) const {
+        Shown s;
+        s.rows = rows_; s.columns = columns_;
+        s.used = allocated_;
+        if (!allocated_) {
+            s.title = default_title();
+            s.controls = controls(can_create);
+            return s;
+        }
+        s.title = title_;
+        s.subject = subject_text();
+        s.state = state_text();
+        s.alert = attention();
+        s.notice = notice_;
+        if (editing_ || renaming_) {
+            s.typing = editing_ ? "Edit " + message_draft::path_label(field_) : std::string("View title");
+            return s;
+        }
+        s.controls = controls(can_create);
+        s.detail = detail_text();
+        s.holds_value = item_.has_value();
+        if (!item_) return s;
+        const auto fields = field_list();
+        for (const Field& f : fields)
+            s.fields.push_back({f.ref, f.label, f.row.summary, !f.row.present && f.row.required, f.metadata,
+                                !lost_ && f.ref == selected_, edited(f.ref) ? '*' : observed(f.ref) ? '~' : ' '});
+        s.selected = selected_index(fields);
+        return s;
+    }
+    /// THE CONTROLS, each drawn available as its act answers (`unavailable`), so a control and its
+    /// key never disagree; New needs a free slot, and Fork a free slot and a value.
+    std::vector<Control> controls(bool can_create) const {
+        auto out = control_row(allocated_, !replacing().empty(), watching(), is_default());
+        for (Control& control : out) {
+            if (control.id == kActionViewNew) control.on = can_create;
+            else if (control.id == kActionViewFork) control.on = can_create && item_.has_value();
+            else control.on = unavailable(control.id).empty();
+        }
         return out;
-    }
-    bool control_available(const std::string& id) const {
-        if (id == kActionViewNew) return can_create_;
-        if (id == kActionViewFork) return can_create_ && item_.has_value();
-        return unavailable(id).empty();
-    }
-    /// LAY OUT CONTROLS GREEDILY OVER `lines` ROWS, keeping `[...]` last so every act stays one
-    /// press away. A control the width cannot hold whole is not drawn, so it is never a target.
-    void controls(const std::vector<ControlItem>& items, workshop::v4::PaneContent& out, std::int64_t lines) {
-        const bool menu = items.size() > 1;
-        const std::int64_t reserve = menu ? 6 : 0; // room for " [...]" on whichever line is last
-        std::size_t next = 0;
-        std::int64_t last_row = -1;
-        std::string last_text;
-        for (std::int64_t line = 0; line < lines && static_cast<std::int64_t>(out.rows.size()) < rows_; ++line) {
-            std::string text;
-            const auto row = static_cast<std::int64_t>(out.rows.size());
-            while (next < items.size()) {
-                const bool on = control_available(items[next].id);
-                std::string word = on ? "[" + items[next].label + "]" : "(" + items[next].label + ")";
-                const auto start = static_cast<std::int64_t>(text.size()) + (text.empty() ? 0 : 1);
-                if (start + static_cast<std::int64_t>(word.size()) > columns_ - reserve) break;
-                if (!text.empty()) text += ' ';
-                map_.span(row, start, static_cast<std::int64_t>(word.size()), columns_, Meaning{Meaning::kControl, items[next].id, {}});
-                text += word;
-                ++next;
-            }
-            out.rows.push_back({workshop::pane_text::drawable(text), surface::role::kFill, surface::role::kNone});
-            last_row = row; last_text = text;
-            if (next >= items.size()) break;
-        }
-        if (menu && last_row >= 0) {
-            // EVERY ACT, ONE PRESS AWAY: the menu lists what the width could not show.
-            const auto start = static_cast<std::int64_t>(last_text.size()) + (last_text.empty() ? 0 : 1);
-            if (start + 5 <= columns_) {
-                if (!last_text.empty()) last_text += ' ';
-                map_.span(last_row, start, 5, columns_, Meaning{Meaning::kControl, kActionViewMenu, {}});
-                last_text += "[...]";
-                out.rows[static_cast<std::size_t>(last_row)].text = workshop::pane_text::drawable(last_text);
-            }
-        }
     }
     std::string subject_text() const {
         if (!item_) return "empty";
@@ -1382,11 +1171,7 @@ private:
         else if (detached_) parts.push_back("not stored");
         else parts.push_back("saved rev " + std::to_string(saved_.revision));
         if (newer_) parts.push_back("NEWER rev " + std::to_string(newer_->revision) + " waiting (Refresh accepts)");
-        if (item_ && !detached_) {
-            if (watch_.state == Watch::State::on) parts.push_back("watch ON" + (watch_.last_good.empty() ? std::string() : " read " + watch_.last_good));
-            else if (watch_.state == Watch::State::requesting) parts.push_back("watch: asking");
-            else parts.push_back("watch off");
-        }
+        if (item_ && !detached_) parts.push_back(watch_.status());
         if (stale_) parts.push_back("entry no longer here");
         if (sample_.unavailable) parts.push_back("source unavailable");
         std::string out;
@@ -1407,7 +1192,7 @@ private:
         }
         if (!sample_.last_good.empty()) parts.push_back("last sample " + sample_.last_good);
         if (!sample_.last_attempt.empty()) parts.push_back("latest sample attempt " + sample_.last_attempt);
-        if (!watch_.last_failure.empty()) parts.push_back("last watch attempt " + watch_.last_failure);
+        if (!watch_.last_failure().empty()) parts.push_back("last watch attempt " + watch_.last_failure());
         std::string out;
         for (const auto& p : parts) out += (out.empty() ? "" : " | ") + p;
         return out;
@@ -1416,12 +1201,11 @@ private:
     std::string key_;
     std::size_t slot_ = 1;
     std::string title_;
-    bool allocated_ = false, on_desk_ = false, can_create_ = false;
+    bool allocated_ = false, on_desk_ = false;
     std::uint64_t incarnation_ = 0;
     std::int64_t rows_ = 0, columns_ = 0;
     bool granted_ = false;
-    component::RowMap<Meaning> map_;
-    workshop::RowsCaret caret_;
+    ValuePicture picture_;
     std::string notice_;
 
     inventory::PaneClient client_;
@@ -1450,10 +1234,7 @@ private:
     loom::Bytes pickup_bytes_;
     std::string pickup_label_;
     Press press_;
-    Watch watch_;
-    /// A WATCH REQUEST STOPPED BEFORE WORKSHOP ANSWERED IT. Kept by the slot across retirement,
-    /// at most one: its approval, if any, is ended on arrival (`hear(PaneObservationAnswered)`).
-    loom::RoleRequest ending_;
+    ValueWatch watch_;
     Sample sample_;
 };
 
