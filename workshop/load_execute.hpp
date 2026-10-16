@@ -261,9 +261,10 @@ private:
     std::uint64_t current_ = 0;
 };
 
-/// The plan booter's own state. It holds nothing: what it hears goes into the host's
-/// `BootAnswers`, which the executor and the host both read.
+/// The plan booter's own state: a count. What it hears goes into the host's `BootAnswers`, which
+/// the executor and the host both read.
 struct BootState {
+    /// Realization asks taken, ever: the last number a taken `RealizationAsked` named.
     std::int64_t asked = 0;
     ZEN_EXPOSE();
     ZEN_SHAPE(BootState, 1, ZEN_FIELD(asked));
@@ -356,7 +357,7 @@ private:
     /// when taken, minted here and never reused in this booter's life; 0 and why when not.
     std::int64_t heard(const std::string& artifact, const char* act, bool taken,
                        const std::string& refusal, loom::Mail& mail) {
-        const std::int64_t number = taken ? ++asks_ : 0;
+        const std::int64_t number = taken ? ++state_.asked : 0;
         (void)mail.publish(zengine::builder::RealizationAsked{artifact, act, number, taken, refusal});
         return number;
     }
@@ -372,7 +373,6 @@ private:
     BootAnswers* answers_;
     /// The host-side owner this booter speaks for, or null (a rig that wants only the payload).
     PlanExecutor* owner_ = nullptr;
-    std::int64_t asks_ = 0;     ///< realization asks taken, ever
     std::int64_t in_flight_ = 0; ///< the taken ask whose answer is still owed; 0 when none is
 };
 

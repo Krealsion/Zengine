@@ -5264,17 +5264,25 @@ TEST_CASE("the realization owner numbers each ask it takes, and every answer nam
             std::ofstream out(rig.products() / "rebuilt.tmp", std::ios::binary | std::ios::app);
             out << '\0';
         }
+        // THE BOOTER'S OWN COUNT IS THE NUMBER IT LAST NAMED: one more for each ask taken, and
+        // none for an ask refused.
+        const auto asked = [&rig] { return rig.voice.snapshot().get("asked")->as_int(); };
+        CHECK(asked() == 0);
         rig.product("zengine-plain-weave", (rig.products() / "rebuilt.tmp").string().c_str());
         rig.offer("zengine-plain-weave");
+        CHECK(asked() == 1);
         // A PROMOTION, answered in the same delivery: ask 2.
         rig.promote("zengine-plain-weave");
+        CHECK(asked() == 2);
         // A REVERT, taken as ask 3 and answered only when its reload settles -- and an offer heard
         // while that reload is open, refused, whose answer comes first and names no ask.
         (void)rig.bus.publish(
             loom::Message(loom::to_value(zengine::builder::RevertArtifact{"zengine-plain-weave"})));
         rig.bus.pump_pending(); // the owner heard the revert and opened its reload; nothing settled
         REQUIRE(rig.executor.state_of("zengine-plain-weave") == load::RowState::Reloading);
+        CHECK(asked() == 3);
         rig.offer("zengine-plain-weave");
+        CHECK(asked() == 3);
         const std::vector<std::string> said = rig.ears->order;
         INFO("heard, in order: " << [&] {
             std::string all;
