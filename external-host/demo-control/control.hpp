@@ -30,8 +30,13 @@ class Control final
 public:
     void on(const loom::Activated& a, loom::Mail& m) {
         if (!activation_.accept(m, a)) return;
-        state_.state = "unavailable"; state_.note = "Start the demo's ELH service";
+        unserved();
         offer(m);
+    }
+    /// A revived state names no service of this image's: a kernel reload sends no activation.
+    void revive(const loom::Value& v) override {
+        state_ = loom::from_value<DemoStatus>(v);
+        unserved();
     }
     void on(const ws::PaneCatalogRequested&, loom::Mail& m) {
         if (m.authored_from_role("zengine.workshop")) offer(m);
@@ -117,6 +122,16 @@ public:
         (void)m.answer(loom::Ack{}); paint(m);
     }
 private:
+    /// WITH NO SERVICE ATTACHED TO THIS IMAGE, THE DEMO IS UNAVAILABLE, whatever a revived state
+    /// said: a service attached to the image before a reload is not this one's, its waits and its
+    /// work end with that image, and it must start again. The generation carries on.
+    void unserved() {
+        if (worker_.valid() || state_.state == "unavailable") return;
+        state_.note = state_.state.empty()
+            ? "Start the demo's ELH service"
+            : "The demo's office was reloaded; start the demo's ELH service again";
+        state_.state = "unavailable";
+    }
     void reset(loom::Mail& m, bool answering) {
         if (!worker_.valid() || doing_ || offered_) {
             if (answering) (void)m.answer(loom::Refused{"demo reset service is busy or unavailable"});

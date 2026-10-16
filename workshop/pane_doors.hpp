@@ -12,6 +12,7 @@
 #include "pane_seam_vocabulary.hpp"
 #include "weave.hpp"
 
+#include "activation/activation.hpp"
 #include "manual/vocabulary.hpp"
 #include "manuals/zengine.plan.hpp"     // each office's manual, compiled in from its page
 #include "manuals/zengine.project.hpp"
@@ -43,12 +44,11 @@ struct ProjectDoorState {
 /// the plan names an artifact, and which file a recipe names. None of the four runs anybody's
 /// code; an answer that changed the project would belong at an acting office.
 class ProjectDoor
-    : public loom::WeaveBase<
+    : public zengine::With<manual::ManualFacet<manual::pages::zengine_project::kManual>>::Weave<
           ProjectDoor, ProjectDoorState,
           loom::Accept<ProjectRootRequested, ProjectFrontierRequested, PlanNamesRequested,
-                       RecipeSourceRequested, manual::ShapeDocumentRequested>,
-          loom::Emit<ProjectRoot, ProjectFrontierSaid, PlanNames, RecipeSourceSaid,
-                     manual::ShapeDocumentShown>> {
+                       RecipeSourceRequested>,
+          loom::Emit<ProjectRoot, ProjectFrontierSaid, PlanNames, RecipeSourceSaid>> {
 public:
     using Frontier = std::function<ProjectFrontier()>;
     using Names = std::function<bool(const std::string&)>;
@@ -58,13 +58,6 @@ public:
                 Frontier frontier = {}, Names names = {}, Source source = {})
         : project_dir_(&project_dir), marks_path_(&marks_path), frontier_(std::move(frontier)),
           names_(std::move(names)), source_(std::move(source)) {}
-
-    /// WHAT A SHAPE I ACCEPT DOES, TO THE ASKER ALONE, from my page: words, never an answer that
-    /// reads the project, so anyone may ask.
-    void on(const manual::ShapeDocumentRequested& ask, loom::Mail& mail) {
-        (void)mail.answer(manual::shape_document(ask, accepted_schemas(),
-                                                 manual::pages::zengine_project::kManual));
-    }
 
     void on(const ProjectRootRequested&, loom::Mail& mail) {
         if (mail.authored_role().empty()) {
@@ -159,21 +152,14 @@ struct RecipesDoorState {
 
 /// WHICH RECIPES THIS PROJECT MEANS -- the one office that may change them.
 class RecipesDoor
-    : public loom::WeaveBase<RecipesDoor, RecipesDoorState,
-                             loom::Accept<RecipeUseRequested, RecipeAuthorRequested,
-                                          manual::ShapeDocumentRequested>,
-                             loom::Emit<RecipeOutcome, manual::ShapeDocumentShown>> {
+    : public zengine::With<manual::ManualFacet<manual::pages::zengine_recipes::kManual>>::Weave<
+          RecipesDoor, RecipesDoorState, loom::Accept<RecipeUseRequested, RecipeAuthorRequested>,
+          loom::Emit<RecipeOutcome>> {
 public:
     using Use = std::function<HostContext::RecipeSwap(const std::string&)>;
     using Author = std::function<HostContext::RecipeSwap(const HostContext::RecipeDraft&)>;
 
     RecipesDoor(Use use, Author author) : use_(std::move(use)), author_(std::move(author)) {}
-
-    /// WHAT A SHAPE I ACCEPT DOES, TO THE ASKER ALONE, from my page.
-    void on(const manual::ShapeDocumentRequested& ask, loom::Mail& mail) {
-        (void)mail.answer(manual::shape_document(ask, accepted_schemas(),
-                                                 manual::pages::zengine_recipes::kManual));
-    }
 
     /// USE THIS FILE AS THE CATALOG. Every judgement about the bytes is the recipe owner's;
     /// this door reads none of them and re-words no refusal.
@@ -253,21 +239,14 @@ struct PlanDoorState {
 /// catalog says how an artifact is produced and a plan which ones run, and one office writing
 /// both would make one act two. It spends `authoring::append_plan_row` at the ask, and does
 /// nothing else.
-class PlanDoor : public loom::WeaveBase<PlanDoor, PlanDoorState,
-                                        loom::Accept<PlanRowRequested,
-                                                     manual::ShapeDocumentRequested>,
-                                        loom::Emit<PlanRowWritten, manual::ShapeDocumentShown>> {
+class PlanDoor
+    : public zengine::With<manual::ManualFacet<manual::pages::zengine_plan::kManual>>::Weave<
+          PlanDoor, PlanDoorState, loom::Accept<PlanRowRequested>, loom::Emit<PlanRowWritten>> {
 public:
     using Append = std::function<HostContext::PlanAppend(
         const std::string&, const std::string&, const std::string&)>;
 
     explicit PlanDoor(Append append) : append_(std::move(append)) {}
-
-    /// WHAT A SHAPE I ACCEPT DOES, TO THE ASKER ALONE, from my page.
-    void on(const manual::ShapeDocumentRequested& ask, loom::Mail& mail) {
-        (void)mail.answer(manual::shape_document(ask, accepted_schemas(),
-                                                 manual::pages::zengine_plan::kManual));
-    }
 
     void on(const PlanRowRequested& asked, loom::Mail& mail) {
         if (mail.authored_role().empty()) {

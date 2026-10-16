@@ -282,6 +282,7 @@ struct Rig {
     loom::WeaveId mount_witness() {
         loom::Grant reach;
         reach.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
+        reach.allow(loom::ReloadWeave::zen_name, loom::ReloadWeave::zen_version, manager);
         return loom::mount_granted<Witness>(bus, std::move(reach), seen);
     }
 
@@ -2573,4 +2574,61 @@ TEST_CASE("session motion rejects unknown starts invalid paths and wrong session
     move({r.agent->session + 1, 10, 0, 100, 0});
     CHECK(r.last().find("held input session") != std::string::npos);
     CHECK(r.heard.size() == 1);
+}
+
+TEST_CASE("session: an in-place reload keeps the open session, its held keys and its number, and "
+          "the next session is numbered after it") {
+    Rig r;
+    const loom::WeaveId input_id = r.load("zengine-input", INPUT_SO, kInputRole);
+    std::vector<InputEvent> heard;
+    (void)loom::mount<Ears>(r.bus, heard);
+    const loom::WeaveId agent_id = loom::mount<Agent>(r.bus);
+    auto* agent = static_cast<Agent*>(r.bus.weave(agent_id));
+    const auto act = [&](std::function<void(loom::Mail&)> f) {
+        agent->next_ = std::move(f);
+        r.bus.send(agent_id, loom::Message(loom::to_value(PumpInput{})));
+        r.bus.drain_until_idle();
+        agent->next_ = nullptr;
+        return agent->answers.empty() ? std::string("(no answer)") : agent->answers.back();
+    };
+    const auto inject = [&](std::vector<InjectedEvent> events) {
+        return act([&](loom::Mail& m) {
+            InjectInput batch;
+            batch.session = agent->session;
+            batch.events = events;
+            (void)m.send_to_role(kInputRole, batch);
+        });
+    };
+    const auto open = [&] {
+        return act([](loom::Mail& m) {
+            (void)m.send_to_role(kInputRole, InputSessionRequested{"a reload's hand"});
+        });
+    };
+    REQUIRE(open() == "opened 1");
+    REQUIRE(inject({key_down(scan::kLeftBracket), button(1, true, 5, 6)}) == "injected 1..2 (2)");
+
+    r.bus.send_as(r.witness, r.manager,
+                  loom::Message(loom::to_value(loom::ReloadWeave{"zengine-input", INPUT_SO}),
+                                r.witness, r.witness, 99));
+    r.bus.drain_until_idle();
+    const Seen::Answer* reloaded = r.seen.find(99);
+    REQUIRE(reloaded != nullptr);
+    REQUIRE_MESSAGE(reloaded->kind == 1, "reload refused: ", reloaded->text);
+    CHECK(r.bus.role_holder(kInputRole) == input_id);
+
+    // THE SESSION STANDS: its holder injects under its number, and the moments continue its count.
+    CHECK(inject({typed("still")}) == "injected 3..3 (1)");
+    // ...a second asker is told it is held...
+    CHECK(open().rfind("refused: busy: input session 1", 0) == 0);
+    // ...and closing lets go of what was held before the reload, from the same producer.
+    heard.clear();
+    CHECK(act([&](loom::Mail& m) {
+              (void)m.send_to_role(kInputRole, InputSessionClosed{agent->session, 0});
+          }) == "ack");
+    REQUIRE(heard.size() == 2);
+    CHECK(as<KeyReleased>(heard, 0).scancode == scan::kLeftBracket);
+    CHECK(as<PointerButton>(heard, 1).button == 1);
+    CHECK_FALSE(as<PointerButton>(heard, 1).pressed);
+    // A NUMBER IS NEVER GIVEN TWICE: the next session is numbered after the one the reload kept.
+    CHECK(open() == "opened 2");
 }

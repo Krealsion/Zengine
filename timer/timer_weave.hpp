@@ -20,8 +20,9 @@
 
 // When the service goes: unloaded or swapped, its parked Drive fails on its dead sender
 // (CapabilityDenied); reloaded, the same WeaveId's parked Drive is inert, and the new instance
-// keeps TimerState's counters but not the table -- so it republishes TimerReady. For continuity
-// a reload is a fresh service: no PrepareShutdown, no letter.
+// keeps TimerState -- its counters, and the table as remaining durations (`standing`), written at
+// one clock read into the snapshot and installed at revival -- and republishes TimerReady. A
+// reload writes no letter: PrepareShutdown is a replacement's.
 
 // Cleanup is told truthfully, not seen: a dead requester's timer fires into a clean NoSuchTarget
 // (weave ids are never reused), a repeating one until cancelled or the service is replaced;
@@ -60,8 +61,10 @@ inline constexpr bool can_advance_serial(std::int64_t serial) {
 }
 
 /// Six honest counters, poke-inspectable: beats, firings, timers standing, asks dropped for
-/// having nobody to answer, operations dropped from a full bootstrap hold, and entries restored
-/// from a predecessor's letter at the last bootstrap (`inherited`: 0 means it started fresh).
+/// having nobody to answer, operations dropped from a full bootstrap hold, and entries this
+/// incarnation began with (`inherited`: restored from a predecessor's letter or carried through a
+/// reload in place; 0 means it started fresh). `standing` is the table as a reload carries it: the
+/// letter's records, filled only in a snapshot and read only at revival, never the live table.
 struct TimerState {
     std::int64_t beats = 0;
     std::int64_t fired = 0;
@@ -69,9 +72,11 @@ struct TimerState {
     std::int64_t dropped = 0;
     std::int64_t deferred_dropped = 0;
     std::int64_t inherited = 0;
+    std::vector<TimerHandoffEntry> standing;
     ZEN_EXPOSE();
-    ZEN_SHAPE(TimerState, 2, ZEN_FIELD(beats), ZEN_FIELD(fired), ZEN_FIELD(active),
-              ZEN_FIELD(dropped), ZEN_FIELD(deferred_dropped), ZEN_FIELD(inherited));
+    ZEN_SHAPE(TimerState, 3, ZEN_FIELD(beats), ZEN_FIELD(fired), ZEN_FIELD(active),
+              ZEN_FIELD(dropped), ZEN_FIELD(deferred_dropped), ZEN_FIELD(inherited),
+              ZEN_FIELD(standing));
 };
 
 template <class Clock>
@@ -128,7 +133,7 @@ public:
         // would re-anchor the very schedule the letter carried.
         bootstrap_ = Bootstrap::Awaiting;
         bootstrap_beats_ = 0;
-        this->state_.inherited = 0;
+        this->state_.inherited = revived_;
         // WHERE THIS INCARNATION LOOKS FOR ITS LETTER, decided by what it was
         // TOLD before it was admitted and never by what it can see. Anything
         // already held stays held in every mode: an operation that arrived
@@ -265,16 +270,9 @@ public:
     /// the one thing a re-ask cannot rebuild. One clock read for the whole letter; nothing fires,
     /// cancels or advances. Answered to the stamped sender, with its correlation.
     void on(const loom::PrepareShutdown&, loom::Mail& mail) {
-        const std::int64_t now = clock_.now_ms();
         TimerHandoff handoff;
-        for (const Entry& e : entries_) {
-            if (handoff.entries.size() >= kMaxHandoffEntries) {
-                break; // the published bound, from the writing side
-            }
-            handoff.entries.push_back(TimerHandoffEntry{std::to_string(e.requester.value), e.id,
-                                                        e.role, e.delay_ms, e.repeat,
-                                                        remaining_from(e.next_due, now)});
-        }
+        // The published bound, from the writing side.
+        handoff.entries = describe_table(clock_.now_ms(), kMaxHandoffEntries);
         loom::Bequest letter;
         letter.role = kTimerRole;
         letter.items.push_back(loom::bequeath_item(handoff));
@@ -299,6 +297,27 @@ public:
     }
 
     Clock& clock() { return clock_; }
+
+    /// The state a reload carries: the counters, and every standing timer as the letter describes
+    /// one -- its remaining duration at one clock read, since a deadline in this clock's epoch
+    /// means nothing in the next instance's.
+    loom::Value snapshot() const override {
+        TimerState carried = this->state_;
+        carried.standing = describe_table(clock_.now_ms(), entries_.size());
+        return loom::to_value(carried);
+    }
+
+    /// Revival installs what the snapshot carried, the table whole or not at all, as a letter is
+    /// adopted; the next activation counts it as `inherited`.
+    void revive(const loom::Value& v) override {
+        TimerState revived = loom::from_value<TimerState>(v);
+        std::vector<TimerHandoffEntry> standing;
+        standing.swap(revived.standing);
+        this->state_ = std::move(revived);
+        entries_.clear();
+        revived_ = static_cast<std::int64_t>(table_from(standing, entries_));
+        this->state_.active = static_cast<std::int64_t>(entries_.size());
+    }
 
 private:
     /// One standing timer. `role` empty = requester-addressed. `next_due` is
@@ -433,24 +452,45 @@ private:
         if (handoff.entries.size() > kMaxHandoffEntries) {
             return;
         }
-        const std::int64_t now = clock_.now_ms();
         // A member buffer, reserved at preparation, so the step after "ready" does not grow it.
         restoring_.clear();
-        for (const TimerHandoffEntry& t : handoff.entries) {
-            const std::optional<loom::WeaveId> who = parse_weave_id(t.requester);
-            if (!who) {
-                restoring_.clear();
-                return; // malformed: adopt nothing
-            }
-            const std::int64_t remaining = std::max<std::int64_t>(t.remaining_ms, 0);
-            restoring_.push_back(Entry{t.id, t.role, *who, effective_delay(t.delay_ms, t.repeat),
-                                       t.repeat, add_clamped(now, remaining), false});
-        }
-        this->state_.inherited = static_cast<std::int64_t>(restoring_.size());
+        this->state_.inherited = static_cast<std::int64_t>(table_from(handoff.entries, restoring_));
         for (Entry& e : restoring_) {
             install(std::move(e));
         }
         restoring_.clear();
+    }
+
+    /// The table as letter records, in table order, at most `bound` of them, all at `now`.
+    std::vector<TimerHandoffEntry> describe_table(std::int64_t now, std::size_t bound) const {
+        std::vector<TimerHandoffEntry> out;
+        for (const Entry& e : entries_) {
+            if (out.size() >= bound) {
+                break;
+            }
+            out.push_back(TimerHandoffEntry{std::to_string(e.requester.value), e.id, e.role,
+                                            e.delay_ms, e.repeat, remaining_from(e.next_due, now)});
+        }
+        return out;
+    }
+
+    /// Letter records as entries due from now, appended to `out`: all of them, or none when one
+    /// requester is not a lossless decimal weave id. Returns how many were appended.
+    std::size_t table_from(const std::vector<TimerHandoffEntry>& records,
+                           std::vector<Entry>& out) const {
+        const std::int64_t now = clock_.now_ms();
+        const std::size_t first = out.size();
+        for (const TimerHandoffEntry& t : records) {
+            const std::optional<loom::WeaveId> who = parse_weave_id(t.requester);
+            if (!who) {
+                out.resize(first);
+                return 0; // malformed: adopt nothing
+            }
+            const std::int64_t remaining = std::max<std::int64_t>(t.remaining_ms, 0);
+            out.push_back(Entry{t.id, t.role, *who, effective_delay(t.delay_ms, t.repeat), t.repeat,
+                                add_clamped(now, remaining), false});
+        }
+        return out.size() - first;
     }
 
     /// Put a restored entry in the table under its own key — replacing rather
@@ -785,8 +825,10 @@ private:
     Preparation prepared_ = Preparation::None; ///< one ask, one answer
     loom::WeaveId preparer_{};                 ///< read off the ask; whose letter to claim
     std::vector<Entry> restoring_;             ///< adopt()'s buffer; reserved at preparation
+    std::int64_t revived_ = 0;                 ///< entries the last revival installed
 
-    Clock clock_{};
+    /// Reading the clock changes nothing the service owns, so a snapshot may read it.
+    mutable Clock clock_{};
     /// Which semantic truth this service executes: the operator surface of a host that offered
     /// one, for this Timer's whole life, or the vocabulary this repository authors. Both resolve
     /// `timer.normalize_delay` at every spend and hold no resolution, so execution and a preview

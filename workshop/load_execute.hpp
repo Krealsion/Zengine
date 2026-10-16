@@ -13,6 +13,7 @@
 #include "load_plan.hpp"
 
 #include "builder/vocabulary.hpp"
+#include "activation/activation.hpp"
 #include "manual/vocabulary.hpp"
 #include "manuals/zengine.realization.hpp" // this office's manual, compiled in from its page
 
@@ -274,17 +275,13 @@ struct BootState {
 /// owner. The bus outlives the owner, so the owner wires `wakes` and clears it. An offered
 /// artifact's announced path is never used, and the owner decides whether a stem is eligible.
 class PlanBooter
-    : public loom::WeaveBase<PlanBooter, BootState,
-                             loom::Accept<loom::Result, loom::Ack, loom::Refused,
-                                          zengine::builder::OfferArtifact,
-                                          zengine::builder::PromoteArtifact,
-                                          zengine::builder::RevertArtifact,
-                                          zengine::manual::ShapeDocumentRequested>,
-                             loom::Emit<loom::LoadWeave, loom::ReloadWeave,
-                                        zengine::builder::ArtifactRealized,
-                                        zengine::builder::ArtifactPromoted,
-                                        zengine::builder::RealizationAsked,
-                                        zengine::manual::ShapeDocumentShown>> {
+    : public zengine::With<zengine::manual::ManualFacet<
+          zengine::manual::pages::zengine_realization::kManual>>::Weave<
+          PlanBooter, BootState,
+          loom::Accept<loom::Result, loom::Ack, loom::Refused, zengine::builder::OfferArtifact,
+                       zengine::builder::PromoteArtifact, zengine::builder::RevertArtifact>,
+          loom::Emit<loom::LoadWeave, loom::ReloadWeave, zengine::builder::ArtifactRealized,
+                     zengine::builder::ArtifactPromoted, zengine::builder::RealizationAsked>> {
 public:
     explicit PlanBooter(BootAnswers& answers) : answers_(&answers) {}
 
@@ -297,12 +294,6 @@ public:
     /// The weaver asked for the image before the last reload to run again; a refusal is published
     /// now, an acceptance answered later, as a load is.
     void on(const zengine::builder::RevertArtifact& ask, loom::Mail& mail);
-
-    /// What a shape it accepts does, from its own page, to the one who asked.
-    void on(const zengine::manual::ShapeDocumentRequested& ask, loom::Mail& mail) {
-        (void)mail.answer(zengine::manual::shape_document(
-            ask, accepted_schemas(), zengine::manual::pages::zengine_realization::kManual));
-    }
 
     /// Whose unfinished work an answer to this booter wakes, or nobody. Called only by
     /// `PlanExecutor`'s constructor and destructor.

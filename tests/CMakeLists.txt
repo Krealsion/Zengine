@@ -1141,8 +1141,10 @@ zengine_workshop_suite(panes
             test_workshop_panes_guests.cpp
             test_workshop_panes_guide.cpp
     NEEDS zengine-composer zengine-inventory zengine-inventory-pane zengine-builder-pane-reworded
-          zengine-editor-pane zengine-neovim-editor zengine-neovim-fixture
+          zengine-editor-pane zengine-neovim-editor zengine-neovim-fixture zengine-demo-control
     DEFINITIONS "WORKSHOP_SO_INVENTORY_PANE=\"$<TARGET_FILE:zengine-inventory-pane>\""
+                # The demo controls as a plan loads them, reloaded in place under a service.
+                "WORKSHOP_SO_DEMO_CONTROL=\"$<TARGET_FILE:zengine-demo-control>\""
                 # The action census: what every shipped pane declares, pinned, and the census
                 # as it stands written beside the build; and the Builder pane built with other
                 # words, the image a reload in place swaps in.

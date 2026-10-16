@@ -17,6 +17,12 @@ The pane shows the setup's name, the `[ Reset demo ]` button and where the demo 
 (no service is attached), `working`, `ready` or `failed`, with its note. It keeps nothing of the
 setup itself: what a reset does is the service's.
 
+A reload in place keeps the name, where the demo stood and its generation, but no service: the one
+attached before belongs to the image that was replaced, and its waits and its work end with it.
+The demo stands `unavailable: The demo's office was reloaded; start the demo's ELH service again`,
+the old service's next word is refused, and a service started again attaches, its work numbered
+after the last generation. A program waiting on the replaced image is never answered.
+
 ## Use
 
 Press `[ Reset demo ]` to prepare the setup again, and wait for `ready`. Its line in the pane's menu

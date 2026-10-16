@@ -14,6 +14,7 @@
 #include "sample_presentation.hpp"
 #include "sample_vocabulary.hpp"
 
+#include "activation/activation.hpp"
 #include "manual/vocabulary.hpp"
 #include "manuals/zengine.sources.hpp" // this office's manual, compiled in from its page
 #include "operator/catalog.hpp"
@@ -38,10 +39,9 @@ struct SampleDoorState {
 };
 
 /// THE HOST'S ONE EVALUATION DOOR.
-class SampleDoor : public loom::WeaveBase<SampleDoor, SampleDoorState,
-                                          loom::Accept<SampleRequested,
-                                                       manual::ShapeDocumentRequested>,
-                                          loom::Emit<SourceSampled, manual::ShapeDocumentShown>> {
+class SampleDoor
+    : public zengine::With<manual::ManualFacet<manual::pages::zengine_sources::kManual>>::Weave<
+          SampleDoor, SampleDoorState, loom::Accept<SampleRequested>, loom::Emit<SourceSampled>> {
 public:
     explicit SampleDoor(const op::Catalog& catalog) : catalog_(&catalog) {}
 
@@ -72,13 +72,6 @@ public:
         // AND THE VALUE GOES OUT OF SCOPE HERE, which is what makes "this door
         // caches no answer" a fact about this function rather than a promise about
         // the class.
-    }
-
-    /// WHAT A SHAPE I ACCEPT DOES, TO THE ASKER ALONE: my page's section for it. Words, which run
-    /// nothing, so anyone who can be answered may ask.
-    void on(const manual::ShapeDocumentRequested& ask, loom::Mail& mail) {
-        (void)mail.answer(manual::shape_document(ask, accepted_schemas(),
-                                                 manual::pages::zengine_sources::kManual));
     }
 
 private:
