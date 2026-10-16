@@ -1345,13 +1345,13 @@ TEST_CASE("the state a same-shape reload keeps is the DOCUMENT, and the shape sa
           "it is not") {
     // The decision is the shape, so the shape is pinned: path, bytes, the saved comparison, the
     // convention, the epoch, the caret, the anchor, the window and `opened_by` ride a reload as
-    // two Texts and nine Ints -- a four-megabyte source is eleven decoded cells against Loom's
-    // budget, not a list of lines. No undo history, paste in flight, candidate, wheel fraction
-    // or follow flag rides: each belongs to the old incarnation. The reload itself is driven in
-    // `test_workshop_load.cpp`.
+    // Texts and Ints -- a four-megabyte source is one decoded cell, not a list of lines -- and the
+    // undo history as the one list, a Text and four Ints a step. No redo step, paste in flight,
+    // candidate, wheel fraction or follow flag rides. The reload is driven in
+    // `test_workshop_load.cpp`, and the history's below.
     const std::shared_ptr<const loom::Schema> shape = loom::schema_of<pane::EditorPaneState>();
     REQUIRE(shape != nullptr);
-    REQUIRE(shape->fields().size() == 19);
+    REQUIRE(shape->fields().size() == 20);
     CHECK(shape->fields()[0].name == "path");
     CHECK(shape->fields()[0].type.kind == loom::Kind::Text);
     CHECK(shape->fields()[1].name == "text");
@@ -1363,8 +1363,67 @@ TEST_CASE("the state a same-shape reload keeps is the DOCUMENT, and the shape sa
         CHECK(shape->fields()[i].type.kind == loom::Kind::Int);
     }
     for (const auto& f : shape->fields()) {
-        CHECK(f.type.kind != loom::Kind::List);
+        CHECK((f.type.kind != loom::Kind::List) == (f.name != "undo"));
     }
+    const std::shared_ptr<const loom::Schema> step = loom::schema_of<pane::EditorUndoStep>();
+    REQUIRE(step->fields().size() == 5);
+    CHECK(step->fields()[0].type.kind == loom::Kind::Text);
+}
+
+TEST_CASE("a reload in place carries the undo history, so an undo after it takes back an edit made before it") {
+    EditorRig e("edit-undo-reload");
+    e.open();
+    e.open_file("a.cpp", "one\ntwo\n");
+    e.press_doc(1, 3);
+    e.type("!");
+    e.key(input::scan::kReturn);
+    e.type("three");
+    REQUIRE(e.dirty());
+    e.enqueue_reload();
+    e.settle();
+    REQUIRE_MESSAGE(e.r.load_refusals.empty(), "the reload was refused: ", e.r.load_refusals.back());
+    REQUIRE(e.row() != nullptr);
+    e.kind = e.row()->kind;
+    CHECK(e.doc_row(2) == "three");
+    e.focus();
+    // EACH UNDO TAKES BACK ONE STEP THE OLD IMAGE MADE: the typing, the line, the mark...
+    e.key(input::scan::kZ, input::mod::kCtrl);
+    CHECK(e.doc_row(2).empty());
+    CHECK(e.doc_row(1) == "two!");
+    e.key(input::scan::kZ, input::mod::kCtrl);
+    e.key(input::scan::kZ, input::mod::kCtrl);
+    CHECK(e.doc_row(1) == "two");
+    CHECK(e.clean());
+    // ...and no further: the history held nothing before the file was opened.
+    e.key(input::scan::kZ, input::mod::kCtrl);
+    CHECK(e.doc_row(1) == "two");
+    CHECK(e.clean());
+}
+
+TEST_CASE("a carried undo history is put back within the buffer's two bounds: past either the oldest steps go and the newest stays") {
+    namespace w = zengine::workshop;
+    using Step = w::EditorBuffer::HistoryStep;
+    w::EditorBuffer b;
+    std::vector<Step> steps;
+    for (std::size_t i = 0; i < w::kEditorUndoDepth + 5; ++i) {
+        steps.push_back(Step{{"step " + std::to_string(i)}, {}, {}});
+    }
+    b.restore_history(steps);
+    REQUIRE(b.history().size() == w::kEditorUndoDepth);
+    CHECK(b.history().front().lines.front() == "step 5");
+    CHECK(b.history().back().lines.front() == "step " + std::to_string(w::kEditorUndoDepth + 4));
+    // BY BYTES: two steps each over half the budget leave the newest alone.
+    const std::string half(w::kEditorUndoBudgetBytes / 2 + 1, 'x');
+    b.restore_history({Step{{half}, {}, {}}, Step{{half + "y"}, {}, {}}});
+    REQUIRE(b.history().size() == 1);
+    CHECK(b.history().back().lines.front().back() == 'y');
+    // A STEP WHOSE CARET OUTRAN ITS BYTES lands inside them when undo reaches it.
+    b.restore_history({Step{{"ab"}, {7, 9}, {7, 9}}});
+    REQUIRE(b.undo());
+    CHECK(b.line(0) == "ab");
+    CHECK(b.caret_row() == 0);
+    CHECK(b.caret_byte() == 2);
+    CHECK_FALSE(b.can_undo());
 }
 
 // ============================================================================
@@ -2358,11 +2417,12 @@ TEST_CASE("every field the pane advertises reports what it is holding now") {
     // from. One truth, read two ways.
     EditorRig e("edit-poke");
     e.open();
-    // NO SECRET STATE: the describe door lists every field, and every one of them reads.
+    // NO SECRET STATE: the describe door lists every field, and every scalar one reads; `undo`,
+    // the one list, is Loom's to refuse by kind, as it refuses every list.
     const std::vector<std::string> fields = e.described();
-    CHECK(fields.size() == 19);
+    CHECK(fields.size() == 20);
     for (const std::string& f : fields) {
-        (void)e.read(f.c_str());
+        if (f != "undo") (void)e.read(f.c_str());
     }
     CHECK(std::find(fields.begin(), fields.end(), "path") != fields.end());
     CHECK(std::find(fields.begin(), fields.end(), "saved_text") != fields.end());

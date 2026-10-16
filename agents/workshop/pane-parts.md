@@ -133,7 +133,7 @@ and every place a press means something"
 `flow/flow-pane/pane.cpp` declare
 `view/view-builder/picture.hpp` part_name
 `view/view-builder/pane.cpp` more_choices
-`external-host/demo-control/control.hpp` offer
+`external-host/demo-control/control.hpp` offered
 `tests/test_workshop_panes_builder.cpp` "the action census: the rows the Builder declares in each
 mode, with what each press causes and the mode it enters, and the desk's, are tests/actions.txt"
 `tests/test_workshop_panes_actions.cpp` "Powers declares its actions, acts on the resolved id, and

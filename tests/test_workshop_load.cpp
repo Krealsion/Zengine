@@ -6298,9 +6298,12 @@ TEST_CASE("a four-megabyte dirty document rides a reload in place, and the reloa
     CHECK(w.host->carets.back().column == 3);
     CHECK(w.host->carets.back().sel_begin_col == 2);
     CHECK(w.host->carets.back().sel_end_col == 3);
-    // ...AND THE HISTORY DID NOT RIDE: an undo after the reload has nothing to take back,
-    // which is the decision the shape records by omission.
+    // ...AND THE HISTORY RODE WITH IT: an undo after the reload takes back the byte typed before
+    // it, and a redo puts it back, so what follows is judged on the document that survived.
     w.key(zengine::input::scan::kZ, zengine::input::mod::kCtrl);
+    CHECK(w.host->rows()[1].rfind("yyy", 0) == 0);
+    CHECK(w.status().rfind("saved", 0) == 0);
+    w.key(zengine::input::scan::kY, zengine::input::mod::kCtrl);
     CHECK(w.host->rows()[1].rfind("Zyy", 0) == 0);
     CHECK(w.status().rfind("UNSAVED", 0) == 0);
     // AND THE EXIT IS STILL JUDGED ON THE DOCUMENT THAT SURVIVED.

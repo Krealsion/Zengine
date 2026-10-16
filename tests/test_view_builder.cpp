@@ -250,8 +250,8 @@ TEST_CASE("WL-HAND-06: the View Builder names its controls, kinds, boxes, list r
                 if (p.name == name) return &p;
             return nullptr;
         };
-        for (const char* name : {"control:new", "control:open", "control:save", "control:run",
-                                 "control:apply", "control:stop", "kind:label", "kind:number",
+        for (const char* name : {"control:view.new", "control:view.open", "control:view.save", "control:view.run",
+                                 "control:view.apply", "control:view.stop", "kind:label", "kind:number",
                                  "kind:button", "box:name", "box:width", "box:height", "canvas"}) {
             CAPTURE(name);
             CHECK(part(name) != nullptr);
@@ -657,6 +657,36 @@ TEST_CASE("the View Builder runs its view through the view host, applies a label
     // A second stop is the host's refusal, said by the builder.
     REQUIRE(rig.edit("stop").ok);
     CHECK(rig.notice().find("stop refused: no view runs") == 0);
+}
+
+TEST_CASE("a reload in place asks the view host again whether the view it ran still runs: still running, it runs on; stopped meanwhile, it runs again") {
+    Rig rig;
+    for (const auto& e : panel_edits()) {
+        const auto answer = rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end()));
+        REQUIRE_MESSAGE(answer.ok, answer.reason);
+    }
+    REQUIRE(rig.edit("run").ok);
+    const auto first = rig.bus.role_holder("tally.panel");
+    REQUIRE(first.valid());
+    rig.reload();
+    CHECK(rig.says("The view host still runs tally.panel"));
+    CHECK(rig.text("tally.panel / running") != nullptr);
+    CHECK(rig.bus.role_holder("tally.panel") == first);
+    CHECK(rig.state().running);
+    // STOPPED WHILE THE BUILDER WAS NOT ASKING: the host hears a stop as this office's, and the
+    // builder, which asked nothing, still holds that its view runs...
+    REQUIRE(rig.bus.office_send_to_role_as(rig.pane, vb::kRole, view::kViewHostRole,
+                                           loom::Message(loom::to_value(view::ViewStop{"builder"}), rig.pane, {}, 977))
+                .valid());
+    rig.pump();
+    REQUIRE_FALSE(rig.bus.role_holder("tally.panel").valid());
+    CHECK(rig.state().running);
+    // ...until its successor asks the host, and the view runs again.
+    rig.reload();
+    CHECK(rig.says("The view had stopped; registered tally.panel"));
+    CHECK(rig.bus.role_holder("tally.panel").valid());
+    CHECK(rig.text("tally.panel / running") != nullptr);
+    CHECK(rig.state().running);
 }
 
 TEST_CASE("a right press on what a button says offers to carry its intent, and the choice carries the shape as a description") {
@@ -1567,7 +1597,7 @@ TEST_CASE("every field a label could show can be chosen: the choice wraps within
             choose("More");
         } else {
             const std::string before = first_offered();
-            rig.host(ws::PaneActionRequested{vb::kPane, "choices"});
+            rig.host(ws::PaneActionRequested{vb::kPane, "view.choices"});
             CHECK(first_offered() != before);
         }
     }

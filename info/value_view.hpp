@@ -178,6 +178,70 @@ public:
         return changed;
     }
 
+    // ---- a reload in place ---------------------------------------------------------------
+
+    /// WHAT A RELOAD IN PLACE KEEPS OF THIS VIEW (`InfoViewState`), or none for a free slot.
+    std::optional<InfoViewState> carried() const {
+        if (!allocated_) return std::nullopt;
+        InfoViewState s;
+        s.slot = static_cast<std::int64_t>(slot_);
+        s.title = title_;
+        s.active = active;
+        if (item_) {
+            try {
+                const auto stored = message_draft::store_draft(preset_title_.empty() ? title_ : preset_title_, *item_);
+                const auto encoded = inventory::encode_pair(stored, metadata_);
+                s.draft.assign(encoded.begin(), encoded.end());
+            } catch (const std::exception&) {
+            }
+        }
+        s.preset = preset_;
+        s.preset_title = preset_title_;
+        s.owner = saved_.reference.owner;
+        s.entry = saved_.reference.entry;
+        s.revision = saved_.revision;
+        s.saved = saved_.pair;
+        s.label = label_;
+        s.detached = detached_; s.dirty = dirty_; s.sampled = sampled_; s.stale = stale_;
+        const auto fields = field_list();
+        for (std::size_t i = 0; i < fields.size(); ++i) {
+            if (fields[i].ref == selected_) s.selected = static_cast<std::int64_t>(i);
+            if (std::find(edited_.begin(), edited_.end(), fields[i].ref) != edited_.end())
+                s.edited.push_back(static_cast<std::int64_t>(i));
+        }
+        s.watched = watching();
+        return s;
+    }
+    /// ...PUT BACK IN THE IMAGE THAT FOLLOWS: allocated and offered again, its draft, entry and
+    /// marks as they were. A watch that was on ended with the old image's lease, and says so; a
+    /// read or a watch again is the weaver's next press.
+    void carry_in(const InfoViewState& s) {
+        if (!allocated_) allocate();
+        offered = !is_default();
+        (void)set_title(s.title);
+        active = s.active;
+        if (!s.draft.empty()) {
+            try {
+                load(inventory::decode_pair(view(s.draft)), true);
+            } catch (const std::exception& e) {
+                notice_ = std::string("The draft could not be kept across a reload of Info: ") + e.what();
+            }
+        }
+        preset_ = s.preset;
+        preset_title_ = s.preset_title;
+        saved_ = inventory::InventoryEntry{{s.owner, s.entry}, s.revision, s.saved};
+        label_ = s.label;
+        detached_ = s.detached; dirty_ = s.dirty; sampled_ = s.sampled; stale_ = s.stale;
+        const auto fields = field_list();
+        if (s.selected >= 0 && static_cast<std::size_t>(s.selected) < fields.size())
+            selected_ = fields[static_cast<std::size_t>(s.selected)].ref;
+        else
+            select_first();
+        for (const std::int64_t i : s.edited)
+            if (i >= 0 && static_cast<std::size_t>(i) < fields.size()) edited_.push_back(fields[static_cast<std::size_t>(i)].ref);
+        if (s.watched) notice_ = "Watch ended when Info was reloaded; Watch follows the entry again";
+    }
+
     // ---- the room, and whether the desk shows it -------------------------------------------
 
     void room(std::int64_t rows, std::int64_t columns) { rows_ = rows; columns_ = columns; granted_ = true; }

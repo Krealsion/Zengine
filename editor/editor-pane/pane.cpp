@@ -2207,6 +2207,15 @@ private:
         e_.saved_lines = std::move(saved.lines);
         ++saved_stamp_;
         e_.buffer.set_lines(std::move(text.lines));
+        // THE UNDO HISTORY THE SNAPSHOT CARRIED, under the document it was taken from.
+        std::vector<EditorBuffer::HistoryStep> history;
+        history.reserve(state_.undo.size());
+        for (const pane::EditorUndoStep& step : state_.undo) {
+            history.push_back(EditorBuffer::HistoryStep{
+                split_lines(step.text), EditorPos{as_index(step.caret_row), as_index(step.caret_byte)},
+                EditorPos{as_index(step.anchor_row), as_index(step.anchor_byte)}});
+        }
+        e_.buffer.restore_history(std::move(history));
         e_.convention = state_.convention;
         e_.doc_epoch = static_cast<std::uint64_t>(state_.doc_epoch);
         e_.buffer.restore_selection(as_index(state_.anchor_row), as_index(state_.anchor_byte),
@@ -2586,8 +2595,10 @@ private:
             state_.anchor_byte = 0;
             state_.first_row = 0;
             state_.first_col = 0;
+            state_.undo.clear();
             mirrored_content_ = 0;
             mirrored_saved_ = 0;
+            mirrored_history_.reset();
             return;
         }
         state_.path = e_.path;
@@ -2612,6 +2623,43 @@ private:
             state_.saved_text = ws::source_text(e_.saved_lines, e_.convention);
             mirrored_saved_ = saved_stamp_;
         }
+        // THE HISTORY, written when its steps move -- a new group, an undo, a redo, an eviction, a
+        // new document -- and never while typing grows the group its newest step began.
+        const std::pair<std::uint64_t, std::uint64_t> history{e_.buffer.history_revision(), e_.doc_epoch};
+        if (mirrored_history_ != history) {
+            state_.undo.clear();
+            for (const EditorBuffer::HistoryStep& step : e_.buffer.history()) {
+                state_.undo.push_back(pane::EditorUndoStep{
+                    joined_lines(step.lines), static_cast<std::int64_t>(step.caret.row),
+                    static_cast<std::int64_t>(step.caret.byte), static_cast<std::int64_t>(step.anchor.row),
+                    static_cast<std::int64_t>(step.anchor.byte)});
+            }
+            mirrored_history_ = history;
+        }
+    }
+
+    /// A history step's lines as one Text, a newline byte between them, and back: no line holds
+    /// one, so the two are exact inverses whatever the file's convention.
+    static std::string joined_lines(const std::vector<std::string>& lines) {
+        std::string out;
+        for (std::size_t i = 0; i < lines.size(); ++i) {
+            if (i > 0) {
+                out += '\n';
+            }
+            out += lines[i];
+        }
+        return out;
+    }
+    static std::vector<std::string> split_lines(const std::string& text) {
+        std::vector<std::string> out(1);
+        for (const char c : text) {
+            if (c == '\n') {
+                out.emplace_back();
+            } else {
+                out.back() += c;
+            }
+        }
+        return out;
     }
 
     // ---- State not in the shape ----------------------------------------------------------
@@ -2679,6 +2727,8 @@ private:
     std::uint64_t mirrored_content_ = 0;
     std::uint64_t mirrored_epoch_ = 0;
     std::uint64_t mirrored_saved_ = 0;
+    /// ...and the history revision and epoch `undo` was written at; none before the first.
+    std::optional<std::pair<std::uint64_t, std::uint64_t>> mirrored_history_;
 
     /// THE MANAGED OPERATION THAT INSTALLED THE CURRENT DOCUMENT, or 0 -- carried in the
     /// claim so the publication hook can match the identity it is shown to the candidate.

@@ -161,7 +161,7 @@ Removes the selected entry, or an empty folder: the first press asks, the second
 - **Takes:** the selected row. Default key <!-- key inventory.remove -->`delete`<!-- /key -->; any
   other key in between disarms it.
 - **Answers:** `Press Delete again to remove Sample`, then the owner removes it
-  ([`InventoryRemove`](zengine.inventory.md#inventoryremove)): `Entry updated`. On a folder, `Press
+  ([`InventoryRemove`](zengine.inventory.md#inventoryremove)): `Removed Sample`. On a folder, `Press
   Delete again to remove the empty folder 'Drafts'`, then `Removed empty folder 'Drafts'`
   ([`InventoryFolderRemove`](zengine.inventory.md#inventoryfolderremove)). The rows are listed again
   ([`InventoryList`](zengine.inventory.md#inventorylist)).

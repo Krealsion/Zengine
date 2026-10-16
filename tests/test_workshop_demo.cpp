@@ -14,7 +14,7 @@ namespace demo = zengine::demo;
 struct DemoTestPump { ZEN_SHAPE(DemoTestPump, 1); };
 class DemoHand final : public loom::WeaveBase<DemoHand, DemoTestPump,
     loom::Accept<DemoTestPump, loom::Ack, loom::Refused, demo::DemoWork, demo::DemoStatus,
-                 v4::PaneContent, v5::PaneCanvasContent, PanePassRequested, v3::PaneActions,
+                 v5::PaneContent, v6::PaneCanvasContent, PanePassRequested, v3::PaneActions,
                  v2::PaneOffered>,
     loom::Emit<demo::DemoServiceOpened, demo::DemoServiceClosed, demo::DemoWorkRequested,
                demo::DemoWorkFinished, demo::DemoResetRequested, demo::DemoReadyRequested,
@@ -25,8 +25,8 @@ public:
     std::function<void(loom::Mail&)> action;
     std::vector<demo::DemoWork> work;
     std::vector<demo::DemoStatus> status;
-    std::vector<v4::PaneContent> painted;
-    std::vector<v5::PaneCanvasContent> pictures;
+    std::vector<v5::PaneContent> painted;
+    std::vector<v6::PaneCanvasContent> pictures;
     std::vector<std::string> rows; ///< the ids of the rows last declared, the ones in force
     std::vector<std::string> refused;
     int passed = 0;
@@ -42,11 +42,11 @@ public:
         for (const v3::PaneActionRow& row : a.rows) rows.push_back(row.id);
     }
     // EVERY PICTURE THE CONTROLS DRAW NAMES ONLY CONTROLS THEIR ROWS IN FORCE DECLARE (WL-HAND-07).
-    void on(const v4::PaneContent& c, loom::Mail&) {
+    void on(const v5::PaneContent& c, loom::Mail&) {
         held_to_rows(c.parts);
         painted.push_back(c);
     }
-    void on(const v5::PaneCanvasContent& c, loom::Mail&) {
+    void on(const v6::PaneCanvasContent& c, loom::Mail&) {
         held_to_rows(c.parts);
         pictures.push_back(c);
     }
@@ -225,10 +225,10 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
     // ON ITS CANVAS, the picture Workshop shows: each name over the row it names.
     r.desk.say(demo::kRole, demo_room, "zengine.workshop");
     REQUIRE_FALSE(r.desk.hand->pictures.empty());
-    const v5::PaneCanvasContent& drawn = r.desk.hand->pictures.back();
+    const v6::PaneCanvasContent& drawn = r.desk.hand->pictures.back();
     CHECK(canvas_parts_problem(drawn.parts).empty());
     REQUIRE(drawn.parts.size() == 2);
-    const auto run_at = [&drawn](const PaneCanvasPart& part) {
+    const auto run_at = [&drawn](const v2::PaneCanvasPart& part) {
         for (const v2::PaneCanvasText& t : drawn.texts) {
             if (t.y == part.y) return t.text;
         }
@@ -250,7 +250,7 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
     DemoRig prose; prose.ready();
     prose.desk.say(demo::kRole, PaneRoom{"controls", 4, 56}, "zengine.workshop");
     REQUIRE_FALSE(prose.desk.hand->painted.empty());
-    const v4::PaneContent& said = prose.desk.hand->painted.back();
+    const v5::PaneContent& said = prose.desk.hand->painted.back();
     REQUIRE(said.parts.size() == 2);
     CHECK(said.parts[0].name == "control:reset");
     CHECK(said.rows[static_cast<std::size_t>(said.parts[0].row)].text.find("Reset demo") != std::string::npos);

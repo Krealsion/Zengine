@@ -3144,6 +3144,41 @@ TEST_CASE("a composed message reaches a target whose shape nobody shipped") {
     CHECK(r.delivered("Curious"));
 }
 
+TEST_CASE("a reload in place keeps Compose's target and the form being written, asks the target again, and the kept form submits") {
+    ComposeRig r;
+    r.with_stranger();
+    r.select("zengine.stranger", "a-stranger");
+    r.watch();
+    r.focus();
+    r.choose("Curious v2");
+    r.go_to("gamma");
+    r.key(input::scan::kTab); // absent -> present
+    r.type("2.5");
+    r.go_to("delta");
+    r.key(input::scan::kTab);
+    r.key(input::scan::kTab); // unset -> false -> true
+    REQUIRE(r.shows("delta:Bool  [true]"));
+    const std::int64_t asked = r.asks;
+    TempDir dir("compose-reload");
+    const std::filesystem::path copy = dir.path() / "composer-rebuilt.so";
+    std::error_code ec;
+    std::filesystem::copy_file(PaneRig::artifact_path(zengine::composer::kComposerStem), copy,
+                               std::filesystem::copy_options::overwrite_existing, ec);
+    REQUIRE_MESSAGE(!ec, "cannot copy the image: ", ec.message());
+    r.r.enqueue_reload(zengine::composer::kComposerStem, copy.generic_string());
+    r.r.bus.drain_until_idle();
+    REQUIRE_MESSAGE(r.r.load_refusals.empty(), "the reload was refused: ", r.r.load_refusals.back());
+    // THE TARGET IS ASKED AGAIN, and the form opens on its answer as it was left.
+    CHECK(r.asks == asked + 1);
+    CHECK(r.shows("Curious v2 -> @zengine.stranger"));
+    CHECK(r.shows("kept across a reload"));
+    CHECK(r.shows("2.5"));
+    CHECK(r.shows("delta:Bool  [true]"));
+    r.act("[ Submit ]");
+    CHECK(r.shows("SUBMITTED"));
+    CHECK(r.delivered("Curious"));
+}
+
 TEST_CASE("a structural field is shown, refused, and blocks the send") {
     // The schema is visible, the field's own structure is visible, the Composer says
     // it cannot compose it, there is no fake scalar editor, and nothing goes.
