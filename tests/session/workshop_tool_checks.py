@@ -977,8 +977,9 @@ class ActWorkshop(Context):
     a character no word shows and a cell past the rows, a Pane Manager when `manager` is one -- a
     `Manager` as text rows, or a `CanvasManager` drawing a picture -- and a desk with a menu open
     whose lines are named. A pane drawing a picture refuses version 1 of either reading. A part or
-    a line `unreached` names has no point, as Workshop says one no press reaches on its own. Every
-    injected moment is kept, as `Context` keeps them."""
+    a line `unreached` names has no point, as Workshop says one no press reaches on its own. While
+    `redraws` counts down, a point is refused as one asked of a picture that moved since it was
+    read. Every injected moment is kept, as `Context` keeps them."""
     COLUMNS = 40
 
     def __init__(self, steps, act_steps, rows, panes=None, named=None, manager=None, unreached=()):
@@ -989,6 +990,7 @@ class ActWorkshop(Context):
         self.panes, self.named, self.said = dict(panes or {}), dict(named or {}), {}
         self.manager, self.unreached = manager, set(unreached)
         self.points, self.cells, self.kept = [], [], {}
+        self.redraws = 0  # points to refuse as a pane that redrew since it was read
 
     def draws_picture(self, pane):
         """Whether the pane draws its own picture: the View Builder, or a `CanvasManager`."""
@@ -1039,6 +1041,9 @@ class ActWorkshop(Context):
         if (shape in ("PaneViewRequested", "PanePointRequested") and
                 options.get("version", 1) == 1 and self.draws_picture(fields["pane"])):
             raise Refused("pane view unavailable: the pane draws a picture, not text rows")
+        if shape == "PanePointRequested" and self.redraws:
+            self.redraws -= 1
+            raise Refused("pane point unavailable: the pane's picture moved; read it again")
         if shape == "PanePointRequested" and options.get("version") == 3:
             if self.draws_picture(fields["pane"]):
                 if fields["pane"] != "launcher":
@@ -1484,6 +1489,54 @@ def run_checks(tools, runtime):
                     with self.assertRaisesRegex(ValueError, "pane:<office>/<pane>"):
                         self.act(ctx)
                     self.assertEqual(ctx.contacts, [])
+
+        def test_a_press_aimed_on_a_picture_that_moved_reads_again_and_fails_past_the_bound(self):
+            # THE PANE MANAGER REDRAWS ONCE between the reading of its words and the point of its
+            # top line's first word, the row out of its window: `open` reads it again and opens
+            # the row exactly as with no redraw.
+            manager = Manager(self.LISTED)
+            ctx = ActWorkshop(steps, [{"open": "pane:zengine.files/project-files"}], [], manager=manager)
+            ctx.redraws = 1
+            self.act(ctx)
+            self.assertEqual(ctx.redraws, 0)
+            self.assertEqual(manager.open, {("zengine.files", "project-files")})
+            presses = [(e["x"], e["y"]) for e in ctx.events if e["kind"] == "PointerButton" and e["pressed"]]
+            self.assertEqual(presses, [(400, 6), (450, 42)])
+            # REDRAWN UNDER EVERY READING: the step fails naming the pane and how many readings it
+            # aimed from, and presses nothing.
+            manager = Manager(self.LISTED)
+            ctx = ActWorkshop(steps, [{"open": "pane:zengine.files/project-files"}], [], manager=manager)
+            ctx.redraws = act.POINT_TRIES
+            with self.assertRaises(CheckFailed) as failed:
+                self.act(ctx)
+            self.assertEqual(str(failed.exception), "open: zengine.desktop/launcher kept redrawing "
+                             "while it was read (%d times)" % act.POINT_TRIES)
+            self.assertEqual(ctx.redraws, 0)
+            self.assertFalse([e for e in ctx.events if e["kind"] == "PointerButton"])
+            self.assertEqual(manager.open, set())
+            # Every other step that aims a press at a word or a cell, the same way.
+            for step, rows, panes, where in (
+                    ({"click": ["zengine.view.builder", "view-builder", "Label"]}, [], None, (101, 1)),
+                    ({"control": ["zengine.view.builder", "view-builder", "Label"]}, [], None, (101, 1)),
+                    ({"into": ["zengine.editor", "editor"]}, [], {"editor": ["notes"]}, (100, 0)),
+                    ({"at": ["zengine.info", "info", 1, 3]}, self.INFO_ROWS, None, (203, 18))):
+                verb = next(iter(step))
+                for redraws in (1, act.POINT_TRIES):
+                    with self.subTest(verb=verb, redraws=redraws):
+                        ctx = ActWorkshop(steps, [step], rows, panes=panes)
+                        ctx.redraws = redraws
+                        if redraws < act.POINT_TRIES:
+                            self.act(ctx)
+                            presses = [(e["x"], e["y"]) for e in ctx.events if e["kind"] == "PointerButton"]
+                            self.assertEqual(presses, [where] * 2)
+                        else:
+                            with self.assertRaises(CheckFailed) as failed:
+                                self.act(ctx)
+                            self.assertEqual(str(failed.exception), "%s: %s/%s kept redrawing while it "
+                                             "was read (%d times)" % (verb, step[verb][0], step[verb][1],
+                                                                      act.POINT_TRIES))
+                            self.assertFalse([e for e in ctx.events if e["kind"] == "PointerButton"])
+                        self.assertEqual(ctx.redraws, 0)
 
         # ---- panes that draw a picture, read by their words and their names --------------------
         # Each stand-in below answers PaneView version 3 and PanePointRequested versions 2 and 3
