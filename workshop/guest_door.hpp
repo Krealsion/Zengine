@@ -11,6 +11,8 @@
 
 #include "guest_seam_vocabulary.hpp"
 #include "guests.hpp"
+#include "pane_menu.hpp"      // the office Workshop answers to, the one asker of a scope here
+#include "pane_operation.hpp" // the question about a sender's scope, and its answer
 
 #include "input/vocabulary.hpp"
 #include "manual/vocabulary.hpp"
@@ -54,9 +56,10 @@ using GuestDoorBase =
     GuestDoor, GuestDoorState,
     loom::Accept<GuestConnectionsRequested, v2::GuestConnectionsRequested,
                  v3::GuestConnectionsRequested, GuestRowDescribedRequested,
-                 v2::GuestRowDescribedRequested, GuestPlanRequested>,
+                 v2::GuestRowDescribedRequested, GuestPlanRequested, ActorScopeRequested>,
     loom::Emit<GuestConnections, v2::GuestConnections, v3::GuestConnections, GuestRowDescribed,
-               v2::GuestRowDescribed, GuestPlanSaid, loom::Refused, input::InputSessionClosed>,
+               v2::GuestRowDescribed, GuestPlanSaid, ActorScopeJudged, loom::Refused,
+               input::InputSessionClosed>,
     zengine::timer::TimedWeave>;
 
 class GuestDoor final : public GuestDoorBase {
@@ -160,6 +163,25 @@ public:
             return;
         }
         held_.push_back(HeldPlanAsk{mail.sender(), std::move(reply)});
+    }
+
+    /// WHETHER A SENDER'S HAND MAY ACT IN THE CLASSES `asked` NAMES, asked by Workshop's office:
+    /// judged against the row this door admitted the session under and the file's host, as
+    /// Workshop judges it. A participant this door never admitted, the weaver's own, is not
+    /// narrowed; nothing is remembered.
+    // WL-GUEST-04 -- agents/workshop/guests.md
+    void on(const ActorScopeRequested& asked, loom::Mail& mail) {
+        if (!mail.authored_from_role(pane_menu::kWorkshopRole)) {
+            return;
+        }
+        const scope::GuestRowFacts row =
+            asked.session > 0 ? facts(loom::WeaveId{static_cast<std::uint64_t>(asked.session)})
+                              : scope::GuestRowFacts{};
+        const std::string refusal =
+            asked.classes.empty()
+                ? std::string("the question names no action class")
+                : scope::judge_all(row, guests::host_fact_of(file_), asked.classes);
+        (void)mail.answer(ActorScopeJudged{refusal.empty(), refusal});
     }
 
     /// The host's reading of its realization owner, read at every ask and on every beat that
@@ -443,8 +465,9 @@ private:
     std::vector<HeldPlanAsk> held_; ///< asks for the plan at rest, at most `kGuestPlanHeld`
 };
 
-/// THE DOOR'S GRANT: its beat, its inventory, an asker's own row, where the plan is, a refusal,
-/// what a shape it accepts does, and one word to the Input office. Nothing else.
+/// THE DOOR'S GRANT: its beat, its inventory, an asker's own row, where the plan is, a sender's
+/// scope judged, a refusal, what a shape it accepts does, and one word to the Input office.
+/// Nothing else.
 inline loom::Grant guest_door_grant() {
     loom::Grant g;
     g.allow_to_role(zengine::timer::EnsureRoleTimer::zen_name,
@@ -459,6 +482,7 @@ inline loom::Grant guest_door_grant() {
     g.allow_to_any(GuestRowDescribed::zen_name, GuestRowDescribed::zen_version);
     g.allow_to_any(v2::GuestRowDescribed::zen_name, v2::GuestRowDescribed::zen_version);
     g.allow_to_any(GuestPlanSaid::zen_name, GuestPlanSaid::zen_version);
+    g.allow_to_any(ActorScopeJudged::zen_name, ActorScopeJudged::zen_version);
     g.allow_to_any(loom::Refused::zen_name, loom::Refused::zen_version);
     g.allow_to_any(manual::ShapeDocumentShown::zen_name, manual::ShapeDocumentShown::zen_version);
     g.allow_to_role(input::InputSessionClosed::zen_name, input::InputSessionClosed::zen_version,
