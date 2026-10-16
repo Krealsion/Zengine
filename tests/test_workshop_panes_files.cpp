@@ -786,6 +786,31 @@ TEST_CASE("Return walks into a directory, Backspace walks out") {
     CHECK(any_row(f.shown(), f.root.generic_string()));
 }
 
+TEST_CASE("Files reloaded in place keeps the place it shows and the row the weaver was on") {
+    // WHAT A SAME-SHAPE RELOAD KEEPS IS WHAT A WEAVER IS BROWSING (`FilesState`): the place and
+    // the row in it. The new image asks the host where this run began, as every image does, and
+    // that answer seeds only a place nothing carried -- it never moves the weaver to the top.
+    FilesRig f("files-reload-cursor");
+    std::filesystem::create_directory(f.root / "src");
+    put_file(f.root / "src" / "alpha.cpp", "int a;\n");
+    put_file(f.root / "src" / "beta.cpp", "int b;\n");
+    put_file(f.root / "src" / "gamma.cpp", "int c;\n");
+    put_file(f.root / "top.cpp", "int t;\n");
+    f.open();
+    f.point_at("src/");
+    f.r.key(input::scan::kReturn);
+    f.r.key(input::scan::kDown);
+    f.r.key(input::scan::kDown);
+    REQUIRE(f.at_cursor().rfind("gamma.cpp", 0) == 0);
+
+    f.r.enqueue_reload(files::kFilesStem, WORKSHOP_SO_FILES);
+    f.r.bus.drain_until_idle();
+    REQUIRE(f.r.load_refusals.empty());
+    CHECK(any_row(f.shown(), (f.root / "src").generic_string()));
+    CHECK(f.at_cursor().rfind("gamma.cpp", 0) == 0);
+    CHECK(cursor_said(f.shown()) == 2);
+}
+
 TEST_CASE("a linked directory is marked, entered through its own spelling, and left the way it came") {
     // A DIRECTORY THAT LEAVES THE TREE, AS A WEAVER MEETS IT. Its row says `(link)`, and on
     // Windows that is the host's reparse attribute: the link made there is a junction, for which
