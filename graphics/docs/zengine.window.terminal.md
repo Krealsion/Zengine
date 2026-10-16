@@ -34,8 +34,8 @@ message the window handles shows what it changed.
 `zengine.window.pump` every `window::kPumpBeatMs` milliseconds, with Zengine's parser. A key goes to
 the owner of each area placed to hear keys, front to back. A left press lands on the top node
 painted at its cell: an element presented there whose code takes the press handles it; else the
-action of the record it lies in goes to the area's owner (`ActionRequested`); else the press itself
-goes to the owner (`ElementPressed`).
+action of the record it lies in goes to the area's owner (`ActionRequested`); else the press, in
+the area's pixels, to an owner placed to hear the pointer (`PointerButton`); else nothing.
 
 ## Use
 
@@ -124,9 +124,9 @@ path counts as itself, so an area at its bound still takes a change.
 
 ### `AreaIntroduced`
 
-`AreaIntroduced` v1, from the directory: an area, its owner, place, order, keys and skin. The window
-keeps it, paints it again where it moved or another skin paints it, empties it when another owner
-draws in it, and tells the owner its room (`AreaRoom`). Past `kMaxAreas` it is not shown, and
+`AreaIntroduced` v2, from the directory: an area, its owner, place, order, keys, pointer and skin.
+The window keeps it, paints it again where it moved or another skin paints it, empties it when
+another owner draws in it, and tells the owner its room (`AreaRoom`). Past `kMaxAreas` it is not shown, and
 `WindowShown` reports `the window shows <bound> areas: '<area>' is not shown`.
 
 ### `AreaWithdrawn`
@@ -165,8 +165,9 @@ Nothing the window says is published: each message goes to one office. To the di
 `WindowOffered` v1 on each activation and after `GraphicsReady`: its name, its size in cells, its
 incarnation. To an area's owner, `AreaRoom` v2 for each introduction: the area, this window, its
 incarnation, the area's size, and the references of the owner's elements it still presents there;
-`DrawnRefused` v1 for a drawing refused; `ElementPressed` v1 and `ActionRequested` v1 for a press;
-and `KeyPressed` v2 to each owner placed to hear keys. To the Timer, its beat's order. An observer
+`DrawnRefused` v1 for a drawing refused; `ActionRequested` v1 for a press on an action, and
+`PointerButton` v1 for any other press to an owner placed to hear the pointer; and `KeyPressed` v2
+to each owner placed to hear keys. To the Timer, its beat's order. An observer
 reads what it shows with `WindowShowAsked`.
 
 ## Files

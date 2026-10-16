@@ -57,7 +57,7 @@ struct WindowState {
     std::vector<ElementCodeOffered> codes;
     std::int64_t next_handle = 1;
     std::int64_t refusals = 0;
-    ZEN_SHAPE(WindowState, 1, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
+    ZEN_SHAPE(WindowState, 2, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
               ZEN_FIELD(next_handle), ZEN_FIELD(refusals));
 };
 
@@ -91,7 +91,7 @@ using WindowBase = zengine::With<
           loom::Accept<Drawn, ElementPut, ElementChange, AreaIntroduced, AreaWithdrawn,
                        ElementCodeOffered, GraphicsReady, WindowShowAsked>,
           loom::Emit<DrawnRefused, WindowOffered, AreaRoom, zengine::input::KeyPressed,
-                     ElementPressed, ActionRequested, WindowShown>,
+                     ActionRequested, zengine::input::PointerButton, WindowShown>,
           zengine::timer::TimedWeave>;
 
 template <class Terminal>
@@ -171,6 +171,7 @@ public:
         a->h = i.h;
         a->order = i.order;
         a->keys = i.keys;
+        a->pointer = i.pointer;
         a->skin = i.skin;
         a->library = i.library;
         if (repaint) {
@@ -296,7 +297,7 @@ private:
                 }
             } else if (const auto* b = std::get_if<zengine::input::PointerButton>(&e)) {
                 if (b->pressed && b->button == 1) {
-                    press(mail, b->x, b->y);
+                    press(mail, *b);
                 }
             }
         }
@@ -304,9 +305,10 @@ private:
     }
 
     /// A press at a cell of the window: the element presented there, if its code takes it; else
-    /// the action its record names, to the area's owner; else the press itself, to the drawer.
-    void press(loom::Mail& mail, std::int64_t col, std::int64_t row) {
-        const Landed l = land(this->state_.areas, cache_, col, row);
+    /// the action its record names, to the area's owner; else, to an owner whose area was placed
+    /// to hear the pointer, the press itself at the area's own point; else nothing.
+    void press(loom::Mail& mail, const zengine::input::PointerButton& b) {
+        const Landed l = land(this->state_.areas, cache_, b.x, b.y);
         if (l.area == nullptr) {
             return;
         }
@@ -323,9 +325,12 @@ private:
                                                       ActionRequested{a->area, r->action});
             return;
         }
-        (void)mail.as_role(office()).send_to_role(
-            a->owner, ElementPressed{a->area, p != nullptr ? p->path : (r != nullptr ? r->path : ""),
-                                     l.path, l.x, l.y});
+        if (a->pointer) {
+            zengine::input::PointerButton at = b;
+            at.x = l.x;
+            at.y = l.y;
+            (void)mail.as_role(office()).send_to_role(a->owner, at);
+        }
     }
 
     // ---- elements -----------------------------------------------------------------------------

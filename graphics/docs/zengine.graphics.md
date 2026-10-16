@@ -46,12 +46,13 @@ the area's owner.
 
 ### `AreaPlaced`
 
-`AreaPlaced` v1 says where an area stands, in which window, and who draws in it.
+`AreaPlaced` v2 says where an area stands, in which window, and who draws in it.
 
 - **Takes:** `area`, the area's name; `window`, the window's name (`terminal`); `owner`, the
   office that draws in it; `x`, `y`, `w`, `h`, its place and size in the window's pixels; `order`,
   its place among the window's areas, a higher order in front; `keys`, true for the window to give
-  the owner its keys.
+  the owner its keys; `pointer`, true for the window to give the owner a press that nothing drawn
+  in the area takes (else such a press sends nothing).
 - **Answers:** nothing to the sender. Once the window has offered itself and the area's chosen
   skin is offered, `AreaIntroduced` goes to the window's office, and the window tells the owner its
   room. An area already placed in another window is first withdrawn from it (`AreaWithdrawn`). An
@@ -122,7 +123,7 @@ from any other office is ignored.
 
 The directory publishes `GraphicsReady` v1 as `zengine.graphics` each time it starts: everyone
 offers, places and chooses again. Everything else it says goes to one window's office alone:
-`AreaIntroduced` v1 (an area, its owner, place, order, keys, skin and the skin's library),
+`AreaIntroduced` v2 (an area, its owner, place, order, keys, pointer, skin and the skin's library),
 `AreaWithdrawn` v1 (an area no longer that window's) and `ElementCodeOffered` v1. It never
 answers its senders; an owner learns its area is shown when its window tells it its room.
 

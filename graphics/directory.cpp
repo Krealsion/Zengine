@@ -30,7 +30,7 @@ namespace gfx = zengine::graphics;
 struct DirectoryArea {
     gfx::AreaPlaced placed;
     std::string skin;
-    ZEN_SHAPE(DirectoryArea, 1, ZEN_FIELD(placed), ZEN_FIELD(skin));
+    ZEN_SHAPE(DirectoryArea, 2, ZEN_FIELD(placed), ZEN_FIELD(skin));
 };
 
 struct DirectoryState {
@@ -38,7 +38,7 @@ struct DirectoryState {
     std::vector<DirectoryArea> areas;
     std::vector<gfx::SkinOffered> skins;
     std::vector<gfx::ElementCodeOffered> codes;
-    ZEN_SHAPE(DirectoryState, 1, ZEN_FIELD(windows), ZEN_FIELD(areas), ZEN_FIELD(skins),
+    ZEN_SHAPE(DirectoryState, 2, ZEN_FIELD(windows), ZEN_FIELD(areas), ZEN_FIELD(skins),
               ZEN_FIELD(codes));
 };
 
@@ -193,7 +193,7 @@ private:
         (void)mail.as_role(gfx::kGraphicsRole)
             .send_to_role(office_of(p.window),
                           gfx::AreaIntroduced{p.area, p.owner, p.x, p.y, p.w, p.h, p.order,
-                                              p.keys, skin->skin, skin->library});
+                                              p.keys, p.pointer, skin->skin, skin->library});
     }
 
     zengine::ActivationCursor activation_;
