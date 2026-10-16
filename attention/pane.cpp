@@ -14,10 +14,7 @@
 #include "attention/vocabulary.hpp"
 
 #include "workshop/attention_seam_vocabulary.hpp"
-#include "workshop/pane_canvas_rows.hpp"
-#include "workshop/pane_document.hpp"
-#include "workshop/pane_menu.hpp"
-#include "workshop/pane_parts.hpp"
+#include "workshop/pane_facets.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
@@ -48,9 +45,7 @@ namespace pane = zengine::attention_pane;
 using ws::PaneActionRequested;
 using ws::v3::PaneActionRow;
 using ws::v3::PaneActions;
-using ws::PaneCatalogRequested;
 using ws::v2::PaneOffered;
-using ws::PaneRoom;
 using ws::StandingCondition;
 using ws::StandingConditions;
 
@@ -132,68 +127,26 @@ std::string stamp_of(const StandingCondition& c) {
 // The weave
 // =============================================================================
 
+/// The pane's room, its rows and their presses; a condition's row means its key.
+using Rows = ws::PaneRowsFacet<pane::kAttentionPane, pane::kAttentionPaneRole,
+                               zengine::manual::pages::zengine_attention::kManual, std::string>;
+
 class AttentionPaneWeave
-    : public zengine::With<ws::PaneManualFacet<
-          pane::kAttentionPane, zengine::manual::pages::zengine_attention::kManual>>::
-          Weave<AttentionPaneWeave, pane::AttentionPaneState,
-                loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, ws::PaneCanvasRoom,
-                             ws::PaneCanvasPointer, ws::PaneCanvasRejected, PaneActionRequested,
-                             StandingConditions>,
-                loom::Emit<PaneOffered, PaneActions, ws::v4::PaneContent,
-                           ws::v5::PaneCanvasContent, ws::PanePassRequested>> {
+    : public zengine::With<Rows>::Weave<AttentionPaneWeave, pane::AttentionPaneState,
+                                        loom::Accept<PaneActionRequested, StandingConditions>,
+                                        loom::Emit<PaneActions>> {
 public:
-    void on(const loom::Activated& a, loom::Mail& mail) {
-        if (!activation_.accept(mail, a)) {
-            return;
-        }
-        announce(mail);
+    PaneOffered offering() const {
+        return PaneOffered{pane::kAttentionPane, pane::kAttentionPaneName,
+                           pane::kAttentionPaneSummary, 7, 62};
     }
 
-    void on(const PaneCatalogRequested&, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole)) {
-            return;
-        }
-        announce(mail);
-    }
+    void offered(loom::Mail& mail) { declare(mail); }
 
     /// Workshop grants the pane its room: the one beat on which this view draws. It asks for
     /// nothing here: what it shows arrives when it changes, so a pane granted a room before the
     /// host has said anything shows "waiting" rather than an empty list reading as "all is well".
-    void on(const PaneRoom& room, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || room.pane != pane::kAttentionPane) {
-            return;
-        }
-        prose_rows_ = room.rows;
-        prose_columns_ = room.columns;
-        granted_ = true;
-        fit_room();
-        say(mail);
-    }
-
-    /// THE PANE'S OWN CANVAS: while it holds a room there it draws its rows as its picture, the
-    /// lattice's rows and columns its room, and says them as prose only to a host granting none.
-    void on(const ws::PaneCanvasRoom& room, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || room.pane != pane::kAttentionPane) {
-            return;
-        }
-        canvas_ = room;
-        granted_ = true;
-        fit_room();
-        say(mail);
-    }
-
-    /// A press means nothing here but the keys Workshop gives the pane; a right press is handed
-    /// back, so Workshop's own pane menu opens where it was made.
-    void on(const ws::PaneCanvasPointer& press, loom::Mail& mail) {
-        if (mail.authored_from_role(kWorkshopRole) && press.pane == pane::kAttentionPane &&
-            press.grant == canvas_.grant && press.phase == ws::canvas_pointer::kPress &&
-            press.button == 3) {
-            (void)ws::pane_menu::pass_back(mail, pane::kAttentionPaneRole, pane::kAttentionPane);
-        }
-    }
-
-    /// A refused picture leaves the last good one showing, and the next reading draws again.
-    void on(const ws::PaneCanvasRejected&, loom::Mail&) {}
+    void on_room(loom::Mail& mail) { say(mail); }
 
     /// ONE OF THE PANE'S DECLARED ACTIONS, ASKED FOR BY NAME (WL-KEY-15). Workshop resolved
     /// the keystroke against the effective keymap -- the weaver's override where one is
@@ -260,14 +213,6 @@ public:
 
 private:
     // ---- Offering and declaring ---------------------------------------------------------
-
-    void announce(loom::Mail& mail) {
-        (void)mail.as_role(pane::kAttentionPaneRole)
-            .send_to_role(kWorkshopRole,
-                          PaneOffered{pane::kAttentionPane, pane::kAttentionPaneName,
-                                      pane::kAttentionPaneSummary, 7, 62});
-        declare(mail);
-    }
 
     /// What this pane answers to: three rows in every state, `attention.up`, `attention.down` and
     /// `attention.dismiss` (Up, Down, `d`), the ids a weaver's keymap names. No modes, so one
@@ -355,24 +300,17 @@ private:
 
     // ---- Saying what the pane shows ------------------------------------------------------
 
-    bool on_canvas() const {
-        return canvas_.grant > 0 && canvas_.width > 0 && canvas_.height > 0;
-    }
-
-    /// The rows and columns the pane composes for: its canvas's lattice while it holds one.
-    void fit_room() {
-        const ws::CanvasRows lattice = ws::canvas_rows(canvas_);
-        rows_ = on_canvas() ? lattice.rows : prose_rows_;
-        columns_ = on_canvas() ? lattice.columns : prose_columns_;
-    }
+    Rows& room() { return this->template facet<Rows>(); }
+    const Rows& room() const { return this->template facet<Rows>(); }
 
     void say(loom::Mail& mail) {
-        if (!granted_ || rows_ <= 0 || columns_ <= 0) {
+        const std::int64_t rows = room().rows(), columns = room().columns();
+        if (!room().granted() || rows <= 0 || columns <= 0) {
             return;
         }
         std::vector<surface::SurfaceTextRow> out;
-        const auto push = [&out, this](const std::string& text, std::int64_t role) {
-            out.push_back(surface::SurfaceTextRow{drawable(fit(text, columns_)), role});
+        const auto push = [&out, columns](const std::string& text, std::int64_t role) {
+            out.push_back(surface::SurfaceTextRow{drawable(fit(text, columns)), role});
         };
         // THE ROW EACH CONDITION IS SAID ON, recorded as it is pushed.
         std::vector<std::pair<std::int64_t, std::string>> conditions;
@@ -383,46 +321,42 @@ private:
         // A notice, when there is one, leads: a pane has only its own room, so its first row
         // carries it, and it is cleared by the weaver's next act rather than by being said
         // (`agents/panes.md`).
-        if (!notice_.empty() && rows_ > 1) {
-            if (static_cast<std::int64_t>(out.size()) > rows_ - 1) {
-                out.resize(static_cast<std::size_t>(rows_ - 1));
+        if (!notice_.empty() && rows > 1) {
+            if (static_cast<std::int64_t>(out.size()) > rows - 1) {
+                out.resize(static_cast<std::size_t>(rows - 1));
             }
-            out.insert(out.begin(), surface::SurfaceTextRow{drawable(fit(notice_, columns_)),
+            out.insert(out.begin(), surface::SurfaceTextRow{drawable(fit(notice_, columns)),
                                                             surface::role::kAccent});
             for (auto& [row, key] : conditions) {
                 ++row;
             }
         }
-        if (static_cast<std::int64_t>(out.size()) > rows_) {
-            out.resize(static_cast<std::size_t>(rows_));
+        if (static_cast<std::int64_t>(out.size()) > rows) {
+            out.resize(static_cast<std::size_t>(rows));
         }
         // A CONDITION IS NAMED BY ITS KEY, `condition:<key>`, on the row that says it.
-        ws::PartNames<ws::PaneRowPart> named;
+        room().begin();
         for (const auto& [row, key] : conditions) {
             if (row < static_cast<std::int64_t>(out.size())) {
-                (void)named.add(ws::PaneRowPart{"condition:" + key, row, 0, columns_});
+                room().map().row(row, key);
             }
         }
-        if (on_canvas()) {
-            (void)mail.as_role(pane::kAttentionPaneRole)
-                .send_to_role(kWorkshopRole, ws::rows_picture(canvas_, pictures_.next(canvas_, 0),
-                                                              out, named.take()));
-            return;
-        }
-        (void)mail.as_role(pane::kAttentionPaneRole)
-            .send_to_role(kWorkshopRole,
-                          ws::v4::PaneContent{pane::kAttentionPane, std::move(out), 0, 0, named.take()});
+        room().composing() = std::move(out);
+        room().publish(
+            mail, [](const std::string& key) { return "condition:" + key; },
+            [](const std::string&) { return true; }, /*with_caret=*/false);
     }
 
     /// HOW MANY ROWS THE LIST MAY SPEND: the room, less the glance, less the notice row `say`
     /// puts in front of it.
     std::int64_t body_budget() const {
-        return rows_ - 1 - (notice_.empty() ? 0 : 1);
+        return room().rows() - 1 - (notice_.empty() ? 0 : 1);
     }
 
     // WL-ATTN-06 -- agents/workshop/attention.md
     template <class Push, class Mark>
     void say_view(Push&& push, Mark&& mark) {
+        const std::int64_t columns = room().columns();
         // NO ROW SPELLS THE PANE'S OWN KEYS: a pane's declared rows are in the band's legend and
         // in the hotkey view under this pane's own heading, resolved through the weaver's
         // effective keymap. Saying them here would put this pane in the business of reading a
@@ -467,7 +401,7 @@ private:
         // and the next publication, and every question below spends the same answer.
         const std::size_t cursor = cursor_ < shown.size() ? cursor_ : shown.size() - 1;
         const StandingCondition& at = shown[cursor];
-        std::vector<std::string> block = wrap(at.detail, columns_ - kWrapIndent);
+        std::vector<std::string> block = wrap(at.detail, columns - kWrapIndent);
         if (!at.suggestion.empty()) {
             // WHAT A WEAVER COULD PRESS SOMEWHERE ELSE, in the host's own words. Nothing here
             // can press it, which is WL-ATTN-10 unchanged: the row is a sentence, and this
@@ -506,8 +440,6 @@ private:
 
     // ---- State not in the shape ----------------------------------------------------------
 
-    zengine::ActivationCursor activation_;
-
     /// THE HOST'S LAST READING, held between publications and owned by nobody here. Replaced
     /// whole; never merged; never persisted; deliberately NOT in the state shape, because a
     /// reloaded image that carried it would present a picture derived before it existed.
@@ -515,12 +447,6 @@ private:
     bool heard_ = false;
 
     std::size_t cursor_ = 0;
-    std::int64_t rows_ = 0;    ///< the room composed for: the canvas lattice's, else the prose room's
-    std::int64_t columns_ = 0;
-    std::int64_t prose_rows_ = 0, prose_columns_ = 0;
-    ws::PaneCanvasRoom canvas_;
-    ws::CanvasPictures pictures_;
-    bool granted_ = false;
     std::string notice_;
 };
 
