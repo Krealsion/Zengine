@@ -8,7 +8,8 @@
 
 namespace zengine::workshop {
 
-WorkshopWeave::WorkshopWeave(HostContext& host) : host_(&host) {}
+// The terminal door reads the same host this weave does.
+WorkshopWeave::WorkshopWeave(HostContext& host) : Weave(host), host_(&host) {}
 
 // WL-KEY-07, WL-KEY-08 -- agents/workshop/keyboard.md
 void WorkshopWeave::load_keymap(loom::Mail& mail) {
