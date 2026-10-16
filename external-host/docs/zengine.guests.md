@@ -32,7 +32,8 @@ Then any admitted session may ask for its own row
 ([`GuestRowDescribedRequested`](#guestrowdescribedrequested)) and where the plan is
 ([`GuestPlanRequested`](#guestplanrequested)); a row with `inspect` may ask for the inventory
 ([`GuestConnectionsRequested`](#guestconnectionsrequested)), as Workshop's own participants do. A
-guest without the power is refused by the bus, before the door hears it.
+guest without the power is refused by the bus, before the door hears it. Workshop's office may ask
+what an admitted session's row lets it do ([`ActorScopeRequested`](#actorscoperequested)).
 
 ## Commands
 
@@ -82,6 +83,25 @@ run never declares is refused in. The answer tells the two apart.
   answered`; and `the bus could not hold this ask for the plan at rest; ask again without wait`. A
   held ask whose guest goes is let go, unanswered.
 - **Example:** `workshop/connections` with `wait_plan` asks `{"wait": true}` before its first read.
+
+### `ActorScopeRequested`
+
+`ActorScopeRequested` v1 asks what one sender may do, for a message an owner received directly,
+past any gesture: the question Workshop answers at `zengine.workshop`, judged here from the rows
+this door admitted. Only Workshop's office asks it here; the door answers no one else.
+
+- **Takes:** `session`, the sender's weave; `pane`; `classes`, the action classes the act is
+  (`build`, `write`, `open`); `id`, the act.
+- **Answers:** `ActorScopeJudged{allowed, refusal}`, to the asker alone: a session this door
+  admitted is judged by the row it was admitted under, even after its connection has gone, and the
+  file's `host`; any other participant, the weaver's own included, is not narrowed. Nothing is
+  remembered.
+- **Refuses:** `the question names no action class`, and each class's refusal: `` guest '<name>'
+  may not build here: its row has no `build`, ... ``, `this is a weaver's host: only the weaver's
+  hand writes a file here, ...`, `this Workshop knows no action class '<class>'`.
+- **Example:** asked as `zengine.workshop` about a guest on a weaver's host, `{session: 14, pane:
+  "inventory", classes: ["write"], id: "toolbox.save"}` answers `allowed` false and the write's
+  refusal.
 
 ## Hears
 

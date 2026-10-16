@@ -49,7 +49,7 @@ WHY — `agents/decisions/a-guests-hand-is-judged-by-its-row-and-its-host.md`
 LAW — An owner sent a classed act a guest's grant names, directly past Workshop's dispatch, asks `ActorScopeRequested` about its sender before it acts, and acts only as `ActorScopeJudged` allows.
 
 MEANS
-- the sender is judged as a gesture's hand is: its admitted row, the file's host;
+- the sender is judged as a gesture's hand is, by its admitted row and the file's host: by Workshop, or by the guest door when Workshop's office asks it;
 - the toolbox save sent to the Inventory pane asks it; a refusal answers the sender in words;
 - a send a pane relays as its own office is judged at its approval, as the classes its shape is.
 
@@ -182,13 +182,17 @@ through Files is refused, and another file opens"
 ### WL-GUEST-04
 `workshop/pane_operation.hpp` ActorScopeRequested ActorScopeJudged
 `workshop/weave_operation.cpp` on(ActorScopeRequested) approve_gesture
+`workshop/guest_door.hpp` on(ActorScopeRequested) guest_door_grant
+`workshop/grant.cpp` workshop_grant
 `workshop/actor_scope.hpp` classes_of_send judge_send
 `inventory/inventory-pane/toolbox.hpp` Toolbox::begin_sent_save
 `tests/test_workshop_panes_guests.cpp` "on a weaver's host a guest's toolbox save sent to the
 Inventory pane is refused through ActorScopeRequested, and no file is written" "on a weaver's host a
 guest's Submit of a toolbox save in the Composer is refused, and no file is written"
 `tests/test_workshop_guests.cpp` "action classes: a guest's send is its shape's classes -- a toolbox
-save and a quit write, and an open shows no path"
+save and a quit write, and an open shows no path" "door: asked by Workshop's office, the door judges
+a sender by the row it admitted it under, and narrows neither the weaver nor a participant it never
+admitted"
 
 ### WL-GUEST-05
 `workshop/weave.hpp` WorkshopWeave::Hand hand_of count_gesture keep_act drop_kept

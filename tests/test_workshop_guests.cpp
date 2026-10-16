@@ -2013,6 +2013,128 @@ TEST_CASE("door: a session asks its own row and hears its name, powers, observe 
           std::vector<std::string>{"only a session this door admitted has a row to describe"});
 }
 
+namespace {
+
+struct ScopeTurn {
+    ZEN_SHAPE(ScopeTurn, 1);
+};
+
+/// WORKSHOP'S OFFICE, as far as asking the door about a sender goes: on each turn it asks the one
+/// question it holds, as `zengine.workshop` or, when `anonymous`, as no office, and keeps every
+/// answer Loom says is the answer to its ask.
+class ScopeAsker
+    : public loom::WeaveBase<ScopeAsker, EarsState, loom::Accept<ScopeTurn, ws::ActorScopeJudged>,
+                             loom::Emit<ws::ActorScopeRequested>> {
+public:
+    explicit ScopeAsker(std::vector<ws::ActorScopeJudged>& told) : told_(&told) {}
+    void on(const ScopeTurn&, loom::Mail& mail) {
+        if (anonymous) {
+            (void)mail.send_to_role(ws::kGuestsRole, question);
+        } else {
+            (void)mail.as_role("zengine.workshop").send_to_role(ws::kGuestsRole, question);
+        }
+    }
+    void on(const ws::ActorScopeJudged& judged, loom::Mail& mail) {
+        if (mail.answers_ask()) {
+            told_->push_back(judged);
+        }
+    }
+
+    ws::ActorScopeRequested question;
+    bool anonymous = false;
+
+private:
+    std::vector<ws::ActorScopeJudged>* told_;
+};
+
+} // namespace
+
+TEST_CASE("door: asked by Workshop's office, the door judges a sender by the row it admitted it under, and narrows neither the weaver nor a participant it never admitted") {
+    Scratch f("scope");
+    f.write(R"({"version":"2","guests":[)"
+            R"({"name":"plain","credential":"one","may":["input"]},)"
+            R"({"name":"builder","credential":"two","may":["input","build"]}]})");
+    guests::GuestsFile file;
+    std::string why;
+    REQUIRE_MESSAGE(guests::read_guests_file(f.path, &file, &why), why);
+    Rig r(file);
+    Guest plain(r.port, "plain", "one");
+    Guest builder(r.port, "builder", "two");
+    REQUIRE(r.beat_until([&] {
+        plain.poll();
+        builder.poll();
+        return plain.client->admitted() && builder.client->admitted();
+    }));
+    // THE ASKER HOLDS WORKSHOP'S OFFICE and the one rule Workshop's grant carries for this question.
+    std::vector<ws::ActorScopeJudged> told;
+    auto made = std::make_unique<ScopeAsker>(told);
+    ScopeAsker* asker = made.get();
+    loom::Grant grant;
+    grant.allow_to_role(ws::ActorScopeRequested::zen_name, ws::ActorScopeRequested::zen_version,
+                        ws::kGuestsRole);
+    const loom::WeaveId asker_id =
+        r.bus.register_weave(std::move(made), std::move(grant), std::string("zengine.workshop"));
+    asker->zen_set_self(asker_id);
+    // ONE QUESTION IN FLIGHT AT A TIME, so each answer is the one to the question just asked.
+    const auto ask = [&](std::int64_t session, std::vector<std::string> classes) {
+        asker->question = ws::ActorScopeRequested{session, "inventory", std::move(classes), "toolbox.save"};
+        const std::size_t before = told.size();
+        (void)r.bus.send(asker_id, loom::Message(loom::to_value(ScopeTurn{})));
+        r.bus.drain_until_idle();
+        REQUIRE(told.size() == before + 1);
+        return told.back();
+    };
+    const auto session_of = [](const Guest& g) { return static_cast<std::int64_t>(g.client->session()); };
+
+    // The weaver's own hand, session 0, is not narrowed, whatever its classes.
+    ws::ActorScopeJudged judged = ask(0, {zengine::workshop::scope::kWrite, zengine::workshop::scope::kBuild});
+    CHECK(judged.allowed);
+    CHECK(judged.refusal.empty());
+    // An admitted guest within its row: `build` is the builder's.
+    judged = ask(session_of(builder), {zengine::workshop::scope::kBuild});
+    CHECK(judged.allowed);
+    CHECK(judged.refusal.empty());
+    // ...and outside it: the plain row has no `build`, and on a weaver's host no guest writes.
+    judged = ask(session_of(plain), {zengine::workshop::scope::kBuild});
+    CHECK_FALSE(judged.allowed);
+    CHECK(judged.refusal.find("guest 'plain' may not build here: its row has no `build`") != std::string::npos);
+    judged = ask(session_of(builder), {zengine::workshop::scope::kBuild, zengine::workshop::scope::kWrite});
+    CHECK_FALSE(judged.allowed);
+    CHECK(judged.refusal.find("this is a weaver's host: only the weaver's hand writes a file here") !=
+          std::string::npos);
+    // A session this door never admitted -- one of this host's own, or no weave at all -- is not
+    // narrowed.
+    judged = ask(static_cast<std::int64_t>(r.input_id.value), {zengine::workshop::scope::kWrite});
+    CHECK(judged.allowed);
+    judged = ask(999999, {zengine::workshop::scope::kWrite});
+    CHECK(judged.allowed);
+    // A question naming no class is refused in words, as Workshop refuses it.
+    judged = ask(session_of(plain), {});
+    CHECK_FALSE(judged.allowed);
+    CHECK(judged.refusal == "the question names no action class");
+    // A GUEST WHOSE CONNECTION HAS GONE IS STILL ITS ROW'S: an ask already on its way about it is
+    // judged as that guest's, never as no guest's.
+    const std::int64_t gone = session_of(plain);
+    plain.client.reset();
+    REQUIRE(r.beat_until([&] { return !r.door->guest_session(loom::WeaveId{static_cast<std::uint64_t>(gone)}); }));
+    judged = ask(gone, {zengine::workshop::scope::kBuild});
+    CHECK_FALSE(judged.allowed);
+    CHECK(judged.refusal.find("has no `build`") != std::string::npos);
+    // ONLY WORKSHOP'S OFFICE IS ANSWERED: the same question in no office's name hears nothing.
+    asker->anonymous = true;
+    asker->question = ws::ActorScopeRequested{session_of(builder), "inventory", {"build"}, "toolbox.save"};
+    const std::size_t before = told.size();
+    (void)r.bus.send(asker_id, loom::Message(loom::to_value(ScopeTurn{})));
+    r.bus.drain_until_idle();
+    CHECK(told.size() == before);
+    // ...and no guest's grant asks it at all, whatever its row's powers.
+    guests::GuestRow every;
+    every.may = {"input", "capture", "inspect", "inventory", "toolbox", "demo", "build", "open"};
+    CHECK_FALSE(guests::grant_for(every).permits_role(ws::ActorScopeRequested::zen_name,
+                                                      ws::ActorScopeRequested::zen_version,
+                                                      ws::kGuestsRole));
+}
+
 TEST_CASE("door: of two rows of one name, the session admitted under the one without capture is refused a capture read and observation") {
     const std::string canvas = std::string(R"({"producer":"zengine.workshop","shape":")") +
                                surface::SurfaceCanvas::zen_name + R"(","version":")" +
