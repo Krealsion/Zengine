@@ -147,7 +147,8 @@ delivery it caused has settled, and a later press opens gamma"
 `workshop/pane_vocabulary.hpp` PanePressed keys_went_here
 `workshop/pane_canvas_vocabulary.hpp` PaneCanvasPointer
 `workshop/weave_canvas.cpp` WorkshopWeave::canvas_press
-`files/files.cpp` pressed open
+`files/files.cpp` press open
+`workshop/pane_facets.hpp` RowPress::keys_went_here
 `tests/test_workshop_panes_files.cpp` "a press on Files' selected row after its open moved the keys
 to the Editor selects that row and takes the keys back, and opens nothing" "the keys leave Files by
 a press into the Editor and Files is told nothing, so only Workshop can say a later press on Files'

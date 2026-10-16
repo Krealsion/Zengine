@@ -14,18 +14,14 @@
 #include "workshop/actor_scope.hpp" // the action classes each act asks Workshop about
 #include "workshop/builder_seam_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp" // the opening office the open is asked of
-#include "workshop/pane_canvas_rows.hpp"
 #include "workshop/pane_causes.hpp"
-#include "workshop/pane_document.hpp"
-#include "workshop/pane_operation.hpp"
-#include "workshop/pane_parts.hpp"
+#include "workshop/pane_facets.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/pane_text.hpp"
 
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_escape.hpp"
 
-#include "activation/activation.hpp"
 #include "builder/vocabulary.hpp"
 #include "component/control_strip.hpp"
 #include "component/list_window.hpp"
@@ -63,14 +59,11 @@ namespace pane_menu = zengine::workshop::pane_menu;
 using ws::PaneActionRequested;
 using ws::v3::PaneActionRow;
 using ws::v3::PaneActions;
-using ws::PaneCatalogRequested;
-using ws::PaneContent;
 using ws::PaneKey;
 using ws::PaneMenuAnswered;
 using ws::PaneMenuRequested;
 using ws::v2::PaneOffered;
 using ws::PanePassRequested;
-using ws::PaneRoom;
 using ws::PaneTextInput;
 using ws::PlanNames;
 using ws::PlanNamesRequested;
@@ -188,88 +181,87 @@ struct BuilderMeaning {
     }
 };
 
+// ---- What the pane asked and still waits on (`AskFacet`) -----------------------------------
+
+/// WHAT A GESTURE ASKS WORKSHOP ABOUT, and goes on to do once Workshop says its actor may; and
+/// what the pane asks an office: the frontier its row paints and the frontier action's own, the
+/// plan's names, a plan row, a recipe's source, its opening, a build sent, and the reader's page.
+enum class Act {
+    kBuild, kLoadBuilt, kPromote, kRevert, kFrontier, kRow, kOpen,
+    kPaint, kFrontierAsk, kNames, kPlanRow, kSource, kOpening, kBuildSent, kPage
+};
+
+/// ONE ASK, AND THE ACT OR ANSWER IT WAITS ON, captured when it was asked: the answer does what
+/// the weaver aimed at, never whatever the pane holds when it lands.
+struct BuilderAsk {
+    Act act = Act::kBuild;
+    std::string subject;   ///< the recipe the ask was about, for the sentence a refusal needs
+    bool realize = false;  ///< whether a build is offered for loading when it works
+    std::string artifact;  ///< what a load, a promote or a revert names
+    std::int64_t op = 0;   ///< the build operation that artifact was true of
+    std::string stem;      ///< the role line's artifact
+    std::string role;      ///< the role typed for it
+    std::string path;      ///< the source an open opens: the ask's subject
+    std::string undone;    ///< what did not happen, the sentence a refusal opens with
+    /// THE MENU CHOICE THAT BEGAN A NAMES ASK, or zero. A chosen row that opens a text line owes
+    /// that line the keyboard, and the line opens only once the ask is answered -- so the
+    /// choice's own number crosses the round trip with it (`chose`).
+    std::uint64_t choice = 0;
+    std::uint64_t gesture = 0; ///< the gesture that began a source ask: `e` asks Workshop there
+};
+
+/// An ask of `act`, nothing captured yet.
+inline BuilderAsk asking(Act act) {
+    BuilderAsk a;
+    a.act = act;
+    return a;
+}
+
+/// Which asks an act is: the matcher every lookup in the table reads.
+inline auto of_kind(Act act) {
+    return [act](const BuilderAsk& a) { return a.act == act; };
+}
+
 // =============================================================================
 // The weave
 // =============================================================================
 
+using Rows = ws::PaneRowsFacet<pane::kBuilderPane, pane::kBuilderPaneRole,
+                               zengine::manual::pages::zengine_builder_pane::kManual,
+                               BuilderMeaning>;
+using Asks = ws::AskFacet<pane::kBuilderPane, pane::kBuilderPaneRole, BuilderAsk>;
+
 class BuilderPaneWeave
-    : public zengine::With<ws::PaneManualFacet<
-          pane::kBuilderPane, zengine::manual::pages::zengine_builder_pane::kManual>>::Weave<
+    : public zengine::With<Rows, Asks>::Weave<
           BuilderPaneWeave, pane::BuilderPaneState,
-          loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PaneKey, PaneTextInput,
-                       PaneActionRequested, builder::BuildStatus, builder::RecipeCatalog,
-                       ProjectFrontierSaid, PlanNames, PlanRowWritten, RecipeSourceSaid,
-                       SourceOpened, loom::DispatchRefused, surface::ClipboardCopy,
+          loom::Accept<PaneKey, PaneTextInput, PaneActionRequested, builder::BuildStatus,
+                       builder::RecipeCatalog, ProjectFrontierSaid, PlanNames, PlanRowWritten,
+                       RecipeSourceSaid, SourceOpened, surface::ClipboardCopy,
                        surface::ClipboardText, PaneSourceOpened, builder::BuildOutputSaid,
-                       ws::PaneCanvasRoom, ws::PaneCanvasPointer, ws::PaneCanvasRejected,
-                       PaneMenuAnswered, ws::PaneOperationAnswered>,
-          loom::Emit<PaneOffered, PaneActions, ws::v5::PaneContent,
-                     ws::v6::PaneCanvasContent,
-                     ws::PaneCaret, builder::StatusRequested,
-                     builder::BuildRequested, builder::PromoteArtifact, builder::RevertArtifact,
-                     ProjectFrontierRequested, PlanNamesRequested, PlanRowRequested,
-                     RecipeSourceRequested, OpenSourceRequested, PaneMenuRequested,
-                     PanePassRequested, ws::PaneKeyboardRequested, ws::PaneEscapeUnspent,
-                     surface::ClipboardCopy, surface::ClipboardTextRequested,
-                     builder::BuildOutputRequested, ws::v2::PaneOperationRequested>> {
+                       PaneMenuAnswered>,
+          loom::Emit<PaneActions, builder::StatusRequested, builder::BuildRequested,
+                     builder::PromoteArtifact, builder::RevertArtifact, ProjectFrontierRequested,
+                     PlanNamesRequested, PlanRowRequested, RecipeSourceRequested,
+                     OpenSourceRequested, PaneMenuRequested, ws::PaneKeyboardRequested,
+                     ws::PaneEscapeUnspent, surface::ClipboardCopy,
+                     surface::ClipboardTextRequested, builder::BuildOutputRequested>> {
 public:
-    void on(const loom::Activated& a, loom::Mail& mail) {
-        if (!activation_.accept(mail, a)) {
-            return;
-        }
-        announce(mail);
+    PaneOffered offering() const {
+        return PaneOffered{pane::kBuilderPane, pane::kBuilderPaneName, pane::kBuilderPaneSummary,
+                           14, 70};
     }
 
-    void on(const PaneCatalogRequested&, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole)) {
-            return;
-        }
-        announce(mail);
-    }
+    void offered(loom::Mail& mail) { declare(mail); }
 
-    /// Workshop grants the pane its room: the one beat on which this tool draws, and when the pane
-    /// asks the two questions whose answers it deliberately does not keep -- what the tool is
-    /// (`StatusRequested`, answered with both its catalog and its status) and what the project
-    /// is waiting on. It asks every time: each grant is a moment at which a picture this pane
-    /// did not derive may be stale, and asking is one message.
-    void on(const PaneRoom& room, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || room.pane != pane::kBuilderPane) {
-            return;
-        }
-        prose_rows_ = room.rows;
-        prose_columns_ = room.columns;
-        if (on_canvas()) {
-            return; // the canvas room, granted first, was this beat
-        }
-        granted(mail);
-    }
-
-    /// THE PANE'S OWN CANVAS: while it holds a room there it draws its rows as its picture, the
-    /// lattice's rows and columns its room, and says them as prose only to a host granting none.
-    /// A canvas room is the beat a prose room is.
-    void on(const ws::PaneCanvasRoom& room, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || room.pane != pane::kBuilderPane) {
-            return;
-        }
-        canvas_ = room;
-        granted(mail);
-    }
-
-    /// A refused picture leaves the last good one showing, and the next beat draws again.
-    void on(const ws::PaneCanvasRejected&, loom::Mail&) {}
-
-    void granted(loom::Mail& mail) {
-        const ws::CanvasRows lattice = ws::canvas_rows(canvas_);
-        rows_ = on_canvas() ? lattice.rows : prose_rows_;
-        columns_ = on_canvas() ? lattice.columns : prose_columns_;
-        granted_ = true;
+    /// Workshop grants the pane its room, prose or canvas: the one beat on which this tool draws,
+    /// and when the pane asks the two questions whose answers it deliberately does not keep --
+    /// what the tool is (`StatusRequested`, answered with both its catalog and its status) and
+    /// what the project is waiting on. It asks every time: each grant is a moment at which a
+    /// picture this pane did not derive may be stale, and asking is one message.
+    void on_room(loom::Mail& mail) {
         ask_status(mail);
-        ask_frontier(mail, frontier_);
+        ask_frontier(mail, Act::kPaint);
         say(mail);
-    }
-
-    bool on_canvas() const {
-        return canvas_.grant > 0 && canvas_.width > 0 && canvas_.height > 0;
     }
 
     /// ONLY THE ROLE LINE READS RAW KEYS. Everything else this pane does arrives as a
@@ -335,10 +327,10 @@ public:
         // act that spent it. So when a notice stood and the act published nothing, the rows are
         // said here, once, without it.
         const bool spent = !notice_.empty();
-        const std::uint64_t published = published_;
+        const std::uint64_t published = room().published();
         notice_.clear();
         act(asked, mail);
-        if (spent && published_ == published) {
+        if (spent && room().published() == published) {
             say(mail);
         }
     }
@@ -492,13 +484,13 @@ public:
         shown_ = said;
         if (ended) {
             awaiting_ = false;
-            build_ = Ask{};
+            (void)asks().forget(of_kind(Act::kBuildSent));
         }
         // THE FRONTIER MOVES WHEN REALIZATION DOES, and realization moves behind a settled
         // build. Asking here is what keeps the `project` row honest without a publication
         // nobody asked the owner for.
         if (ended) {
-            ask_frontier(mail, frontier_);
+            ask_frontier(mail, Act::kPaint);
         }
         const bool build_news = watching && ended;
         if (build_news) {
@@ -535,11 +527,9 @@ public:
     /// ask outstanding, and nothing else: a stale answer, or one for a reader since closed or
     /// rebound, settles nothing (WL-OUT-04).
     void on(const builder::BuildOutputSaid& said, loom::Mail& mail) {
-        if (!mail.answers_ask() || !output_.ask.awaiting ||
-            mail.correlation() != output_.ask.pending) {
+        if (!asks().answered(mail, of_kind(Act::kPage))) {
             return;
         }
-        output_.ask = Ask{};
         if (!output_.open || said.op != output_.op) {
             return;
         }
@@ -599,15 +589,13 @@ public:
     /// paint answer is news only when the frontier moved; a build answer is the gesture's own
     /// decision, made whether or not the picture moved. Each is matched to its own record.
     void on(const ProjectFrontierSaid& said, loom::Mail& mail) {
-        if (!mail.answers_ask()) {
+        const std::optional<BuilderAsk> asked = asks().answered(mail, [](const BuilderAsk& a) {
+            return a.act == Act::kFrontierAsk || a.act == Act::kPaint;
+        });
+        if (!asked) {
             return;
         }
-        const bool build =
-            frontier_build_.awaiting && mail.correlation() == frontier_build_.pending;
-        if (!build && (!frontier_.awaiting || mail.correlation() != frontier_.pending)) {
-            return;
-        }
-        (build ? frontier_build_ : frontier_).awaiting = false;
+        const bool build = asked->act == Act::kFrontierAsk;
         const bool moved = !frontier_known_ || waiting_ != said.waiting ||
                            frontier_artifact_ != said.artifact ||
                            frontier_blocked_ != said.blocked;
@@ -625,32 +613,32 @@ public:
     }
 
     void on(const PlanNames& said, loom::Mail& mail) {
-        if (!mail.answers_ask() || !names_.awaiting || mail.correlation() != names_.pending) {
+        const std::optional<BuilderAsk> names = asks().answered(mail, of_kind(Act::kNames));
+        if (!names) {
             return;
         }
-        names_.awaiting = false;
         if (said.named) {
             notice_ = "`" + said.stem + "` is already in this project's plan -- " +
                       "build-and-load it instead";
             say(mail);
             return;
         }
-        open_role(said.stem, names_.recipe);
+        open_role(said.stem, names->subject);
         declare(mail);
         say(mail);
         // THE LINE IS OPEN: if a menu row began this, the keys it left behind are asked for
         // now, continuing THAT choice and no other (`chose`, `take_keys`).
-        if (names_.choice != 0) {
-            take_keys(mail, names_.choice);
-            names_.choice = 0;
+        if (names->choice != 0) {
+            take_keys(mail, names->choice);
         }
     }
 
     void on(const PlanRowWritten& said, loom::Mail& mail) {
-        if (!mail.answers_ask() || !row_.awaiting || mail.correlation() != row_.pending) {
+        const std::optional<BuilderAsk> asked = asks().answered(mail, of_kind(Act::kPlanRow));
+        if (!asked) {
             return;
         }
-        row_.awaiting = false;
+        const BuilderAsk& row = *asked;
         const std::string written = said.path.empty() ? std::string() : "; written to " + said.path;
         if (!said.accepted) {
             notice_ = "not loaded: " + said.refusal;
@@ -660,23 +648,23 @@ public:
             // with the second intention aboard, to the same office, under the same grant.
             // No new route: the tool confirms the build, offers, and the owner decides.
             // Workshop approved the commit as a build and a write before the row was asked
-            // for, and `row_` carries that approval here: this send asks nothing more.
-            if (send_build(mail, row_.recipe, /*realize=*/true)) {
-                notice_ = "loading `" + row_.stem + "` now -- loaded as " + row_.role + ", " +
+            // for, and the row's ask carries that approval here: this send asks nothing more.
+            if (send_build(mail, row.subject, /*realize=*/true)) {
+                notice_ = "loading `" + row.stem + "` now -- loaded as " + row.role + ", " +
                           said.detail + "; Workshop stays live while the incremental build "
                           "confirms it" + written;
             } else {
-                notice_ += "; the row was written as " + row_.role + written;
+                notice_ += "; the row was written as " + row.role + written;
             }
         } else {
-            notice_ = "loaded `" + row_.stem + "` as " + row_.role + " -- " + said.detail +
+            notice_ = "loaded `" + row.stem + "` as " + row.role + " -- " + said.detail +
                       (said.frontier ? "; nothing is built yet -- the frontier action builds "
                                        "and loads it"
                                      : std::string()) +
                       written;
         }
         // THE PLAN MOVED, SO WHAT THE PROJECT IS WAITING ON MAY HAVE MOVED WITH IT.
-        ask_frontier(mail, frontier_);
+        ask_frontier(mail, Act::kPaint);
         say(mail);
     }
 
@@ -685,12 +673,12 @@ public:
     /// spent at the opening office once Workshop approves it, and held no longer. It is read
     /// against the recipe it asked about, which the notice names, even if the choice has moved.
     void on(const RecipeSourceSaid& said, loom::Mail& mail) {
-        if (!mail.answers_ask() || !source_.awaiting || mail.correlation() != source_.pending) {
+        const std::optional<BuilderAsk> source = asks().answered(mail, of_kind(Act::kSource));
+        if (!source) {
             return;
         }
-        const std::string recipe = source_.subject;
-        const std::uint64_t gesture = source_.gesture;
-        source_ = SourceAsk{};
+        const std::string recipe = source->subject;
+        const std::uint64_t gesture = source->gesture;
         if (!said.accepted) {
             notice_ = said.refusal;
             say(mail);
@@ -699,7 +687,7 @@ public:
         // WHAT OPENS IS KNOWN ONLY NOW, so here `e` asks Workshop its one question -- class
         // `open`, about this path, under the gesture that began it -- and the open is sent on
         // Workshop's word (`open_approved`). The only act whose ask lands at its second beat.
-        Approval a;
+        BuilderAsk a;
         a.act = Act::kOpen;
         a.subject = recipe;
         a.path = said.source;
@@ -708,119 +696,78 @@ public:
     }
 
     /// WORKSHOP'S WORD ON WHETHER THIS GESTURE'S ACTOR MAY DO THE ACT ASKED ABOUT -- Loom's
-    /// answer to one of this pane's own asks, or nothing. Refused, nothing of the act happens and
-    /// Workshop's reason is said in the pane's row; allowed, the act captured at the gesture is
-    /// done (`carry_out`).
-    void on(const ws::PaneOperationAnswered& answer, loom::Mail& mail) {
-        if (!mail.answers_ask()) {
-            return;
-        }
-        const std::uint64_t number = mail.correlation();
-        const std::optional<Approval> a =
-            take_approval([number](const Approval& held) { return held.pending == number; });
-        if (!a) {
-            return;
-        }
+    /// answer to one of this pane's own asks, matched by `AskFacet`. Refused, nothing of the act
+    /// happens and Workshop's reason is said in the pane's row; allowed, the act captured at the
+    /// gesture is done (`carry_out`).
+    void on_approval(const BuilderAsk& a, const ws::PaneOperationAnswered& answer,
+                     loom::Mail& mail) {
         if (!answer.allowed) {
-            say_undone(*a, answer.reason, mail);
+            say_undone(a, answer.reason, mail);
             return;
         }
-        carry_out(*a, mail);
+        carry_out(a, mail);
     }
 
     /// The bus's word that one of this pane's attempts was refused before any handler ran
-    /// (WL-OPEN-07). Provenance first, then the exact attempt against the asks it may name --
-    /// `e`'s lookup, `o`'s plan names and the frontier action's ask at the project office, `e`'s
-    /// open, the role line's row, the build, the reader's page and each ask for Workshop's word on
-    /// a gesture -- and only the matched one is cleared and named. A paint ask's refusal is no
-    /// act's and says nothing; delivered silence is not a refusal.
-    void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
-        if (!mail.dispatch_refused()) {
-            return;
-        }
-        const loom::Ticket attempt = refused.refused_attempt();
-        if (!attempt.valid()) {
-            return;
-        }
-        if (source_.awaiting && source_.attempt.valid() && attempt.seq == source_.attempt.seq) {
-            const std::string recipe = source_.subject;
-            source_ = SourceAsk{};
-            notice_ = "`" + recipe + "`: the source could not be looked up -- it could not reach " +
-                      ws::kProjectRole + " (" + refused.reason + ")";
-            say(mail);
-            return;
-        }
-        if (open_.awaiting && open_.attempt.valid() && attempt.seq == open_.attempt.seq) {
-            const std::string recipe = open_.subject;
-            open_ = Ask{};
-            notice_ = "`" + recipe + "`: the source was not opened -- the open could not reach " +
-                      ws::kOpeningRole + " (" + refused.reason + ")";
-            say(mail);
-            return;
-        }
-        if (names_.awaiting && names_.attempt.valid() && attempt.seq == names_.attempt.seq) {
-            const std::string recipe = names_.recipe;
-            names_ = NamesAsk{};
-            notice_ = "`" + recipe + "`: nothing was added to the plan -- the ask could not reach " +
-                      ws::kProjectRole + " (" + refused.reason + ")";
-            say(mail);
-            return;
-        }
-        if (frontier_build_.awaiting && frontier_build_.attempt.valid() &&
-            attempt.seq == frontier_build_.attempt.seq) {
-            frontier_build_ = Ask{};
+    /// (WL-OPEN-07), matched by `AskFacet` to the exact ask it ended -- `e`'s lookup, `o`'s plan
+    /// names and the frontier action's ask at the project office, `e`'s open, the role line's
+    /// row, the build, the reader's page and each ask for Workshop's word on a gesture -- which
+    /// is named. A paint ask's refusal is no act's and says nothing; delivered silence is not a
+    /// refusal.
+    void on_refused(const BuilderAsk& a, const loom::DispatchRefused& refused, loom::Mail& mail) {
+        const std::string why = " (" + refused.reason + ")";
+        switch (a.act) {
+        case Act::kPaint: return;
+        case Act::kSource:
+            notice_ = "`" + a.subject +
+                      "`: the source could not be looked up -- it could not reach " +
+                      ws::kProjectRole + why;
+            break;
+        case Act::kOpening:
+            notice_ = "`" + a.subject +
+                      "`: the source was not opened -- the open could not reach " +
+                      ws::kOpeningRole + why;
+            break;
+        case Act::kNames:
+            notice_ = "`" + a.subject +
+                      "`: nothing was added to the plan -- the ask could not reach " +
+                      ws::kProjectRole + why;
+            break;
+        case Act::kFrontierAsk:
             notice_ = std::string("nothing was asked for -- the ask could not reach ") +
-                      ws::kProjectRole + " (" + refused.reason + ")";
-            say(mail);
-            return;
-        }
-        if (row_.awaiting && row_.attempt.valid() && attempt.seq == row_.attempt.seq) {
-            const std::string stem = row_.stem;
-            row_ = RowAsk{};
-            notice_ = "`" + stem + "`: nothing was loaded and nothing was written -- the row could "
-                      "not reach " + ws::kPlanRole + " (" + refused.reason + ")";
-            say(mail);
-            return;
-        }
-        if (build_.awaiting && build_.attempt.valid() && attempt.seq == build_.attempt.seq) {
-            notice_ = not_built(build_.subject, awaiting_realization_) +
-                      " -- the ask could not reach " + builder::kBuilderRole + " (" +
-                      refused.reason + ")";
-            build_ = Ask{};
+                      ws::kProjectRole + why;
+            break;
+        case Act::kPlanRow:
+            notice_ = "`" + a.stem +
+                      "`: nothing was loaded and nothing was written -- the row could not reach " +
+                      ws::kPlanRole + why;
+            break;
+        case Act::kBuildSent:
+            notice_ = not_built(a.subject, awaiting_realization_) + " -- the ask could not reach " +
+                      builder::kBuilderRole + why;
             awaiting_ = false;
             awaiting_realization_ = false;
-            say(mail);
-            return;
-        }
-        if (output_.ask.awaiting && output_.ask.attempt.valid() &&
-            attempt.seq == output_.ask.attempt.seq) {
-            output_.ask = Ask{};
+            break;
+        case Act::kPage:
             notice_ = "output #" + std::to_string(output_.op) +
                       ": the page was not read -- the ask could not reach " + builder::kBuilderRole +
-                      " (" + refused.reason + ")";
-            say(mail);
+                      why;
+            break;
+        default:
+            // AN ASK WORKSHOP NEVER HEARD IS AN ACT NOT DONE: nothing of it happens, said in words.
+            say_undone(a, std::string("the ask could not reach ") + kWorkshopRole + why, mail);
             return;
         }
-        // AN ASK WORKSHOP NEVER HEARD IS AN ACT NOT DONE: nothing of it happens, said in words.
-        const std::optional<Approval> a = take_approval([&attempt](const Approval& held) {
-            return held.attempt.valid() && attempt.seq == held.attempt.seq;
-        });
-        if (a) {
-            say_undone(*a,
-                       std::string("the ask could not reach ") + kWorkshopRole + " (" +
-                           refused.reason + ")",
-                       mail);
-        }
+        say(mail);
     }
 
     /// The opening office's answer -- the second door. An accepted open says nothing here: the
     /// document and its pane are shown together, and that is what a weaver reads. A refusal (a
     /// missing file, bytes the editor cannot carry, a dirty buffer) belongs beside its row.
     void on(const SourceOpened& said, loom::Mail& mail) {
-        if (!mail.answers_ask() || !open_.awaiting || mail.correlation() != open_.pending) {
+        if (!asks().answered(mail, of_kind(Act::kOpening))) {
             return;
         }
-        open_ = Ask{};
         if (!said.accepted) {
             notice_ = said.refusal;
             say(mail);
@@ -862,44 +809,23 @@ public:
 
     // ---- The mouse: a press names a picture, a right press offers the pane's own rows ----
 
-    /// A PRESS, THE WHEEL AND THE SECOND BUTTON ON THE CANVAS. A place reads back to the row and
-    /// column a prose press named; a press about a picture the row map has replaced since, or
-    /// another room's, is refused in words, never resolved against whatever row has since moved
-    /// into its place (WL-DESK-14, one pane over). Motion, release and loss mean nothing here.
-    void on(const ws::PaneCanvasPointer& event, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || event.pane != pane::kBuilderPane ||
-            !on_canvas()) {
-            return;
-        }
-        if (event.phase == ws::canvas_pointer::kWheel) {
-            if (event.grant == canvas_.grant) wheel(event.dy, mail);
-            return;
-        }
-        if (event.phase != ws::canvas_pointer::kPress) {
-            return;
-        }
-        const ws::RowCell at = ws::row_cell_at(ws::canvas_rows(canvas_), event.x, event.y);
-        const bool current = pictures_.current(event.grant, event.picture);
-        if (event.button == 1 && at.shown) {
-            press(at.row, at.column, event.keys_went_here, current, mail);
-        } else if (event.button == 3) {
-            right_press(at, current, mail);
-        }
+    /// A PRESS ABOUT A PICTURE THE ROW MAP HAS REPLACED SINCE, or another room's, is refused in
+    /// words, never resolved against whatever row has since moved into its place (WL-DESK-14,
+    /// one pane over). A place reads back to the row and column a prose press named.
+    void fenced(loom::Mail& mail) {
+        notice_ = kMovedSentence;
+        say(mail);
     }
 
-    void press(std::int64_t row, std::int64_t column, bool keys_went_here, bool current,
-               loom::Mail& mail) {
-        if (!current) {
-            notice_ = kMovedSentence;
-            say(mail);
-            return;
-        }
-        const BuilderMeaning* m = map_.at(row, column);
+    void press(const ws::RowPress& at, loom::Mail& mail) {
+        const std::int64_t column = at.column;
+        const bool keys_went_here = at.keys_went_here;
+        const BuilderMeaning* m = room().map().at(at.row, column);
         if (m == nullptr || m->kind == builder_row::kNone) {
             return; // a fact row, a heading, a build's own words: pointing, and nothing more
         }
         const bool spent = !notice_.empty();
-        const std::uint64_t published = published_;
+        const std::uint64_t published = room().published();
         notice_.clear();
         if (m->kind == builder_row::kControl) {
             perform_on(m->id, m->subject, m->op, mail);
@@ -928,7 +854,7 @@ public:
                 shown, column - static_cast<std::int64_t>(prompt.size()))));
             say(mail);
         }
-        if (spent && published_ == published) {
+        if (spent && room().published() == published) {
             say(mail);
         }
     }
@@ -937,23 +863,17 @@ public:
     /// the press, continuing it; a right press on anything else is handed back to the host,
     /// whose own pane menu answers (WL-CTX-08). A middle press means nothing here and is
     /// consumed.
-    void right_press(const ws::RowCell& at, bool current, loom::Mail& mail) {
-        if (!current) {
-            notice_ = kMovedSentence;
-            say(mail);
-            return;
-        }
-        const BuilderMeaning* m = at.shown ? map_.at(at.row, at.column) : nullptr;
-        if (m == nullptr || m->kind == builder_row::kNone) {
-            (void)pane_menu::pass_back(mail, pane::kBuilderPaneRole, pane::kBuilderPane);
-            return;
+    bool right_press(const BuilderMeaning& m, const ws::RowPress& at, loom::Mail& mail) {
+        if (m.kind == builder_row::kNone) {
+            return false;
         }
         notice_.clear();
-        if (m->kind == builder_row::kRecipe && choosing_.open) {
-            choosing_.name = m->subject;
+        if (m.kind == builder_row::kRecipe && choosing_.open) {
+            choosing_.name = m.subject;
         }
         offer_menu(at.row, at.column, mail.correlation(), mail);
         say(mail);
+        return true;
     }
 
     /// WHAT A MENU CAME TO -- if it answers one of THIS image's own asks. `Asked::take` is the
@@ -1103,7 +1023,7 @@ public:
         std::int64_t row = 0;
         if (choosing_.open) {
             const std::int64_t at =
-                map_.row_of(BuilderMeaning{builder_row::kRecipe, 0, {}, choosing_.name});
+                room().map().row_of(BuilderMeaning{builder_row::kRecipe, 0, {}, choosing_.name});
             row = at < 0 ? 0 : at;
         }
         offer_menu(row, 0, correlation, mail);
@@ -1273,7 +1193,7 @@ public:
                 // weaver's other acts and every build that settles under it, so `load the built
                 // `a` now` loads `a` or refuses. A choice that begins an edit carries its number
                 // to where the edit opens: the role line opens only after the plan office
-                // answers, so the number rides in `names_.choice` and the grab is spent there
+                // answers, so the number rides in its ask's `choice` and the grab is spent there
                 // (`on(PlanNames)`), still judged by the host as a continuation of this choice.
                 const Offered offered = offered_as(id);
                 choice_ = mail.correlation();
@@ -1322,13 +1242,6 @@ public:
 
 private:
     // ---- Announcing -----------------------------------------------------------------
-
-    void announce(loom::Mail& mail) {
-        (void)mail.as_role(pane::kBuilderPaneRole)
-            .send_to_role(kWorkshopRole, PaneOffered{pane::kBuilderPane, pane::kBuilderPaneName,
-                                                     pane::kBuilderPaneSummary, 14, 70});
-        declare(mail);
-    }
 
     /// What this pane answers to right now, re-declared whenever the mode changes. A pane is one
     /// keyboard context and a mode is not a second one (WL-FILES-16): while a weaver types a role,
@@ -1464,36 +1377,21 @@ private:
 
     // ---- The asks -------------------------------------------------------------------
 
-    struct Ask {
-        std::uint64_t pending = 0;
-        bool awaiting = false;
-        /// THE QUEUED ATTEMPT (Loom's sequence), kept so the bus's later word that exactly
-        /// this send was refused before any handler ran is matched to it, and only to it.
-        loom::Ticket attempt{};
-        std::string subject; ///< the recipe the ask was about, for the sentence a refusal needs
-    };
-
     void ask_status(loom::Mail& mail) {
         (void)mail.as_role(pane::kBuilderPaneRole)
             .send_to_role(builder::kBuilderRole, builder::StatusRequested{});
     }
 
-    /// ASK WHAT THE PROJECT IS WAITING ON, under `into`'s own number. One shape answers two
-    /// gestures -- the row this pane paints, and the one action whose whole decision is the
-    /// answer -- so each keeps its own record: a paint ask (every grant, every settled build,
-    /// every written row asks one) never replaces the action's, nor is either answer read as
-    /// the other.
-    void ask_frontier(loom::Mail& mail, Ask& into) {
-        into.pending = ++asked_;
-        into.awaiting = true;
-        into.attempt = mail.as_role(pane::kBuilderPaneRole)
-                           .send_to_role(ws::kProjectRole, ProjectFrontierRequested{}, into.pending);
+    /// ASK WHAT THE PROJECT IS WAITING ON, as `kind`'s own ask. One shape answers two gestures
+    /// -- the row this pane paints, and the one action whose whole decision is the answer -- so
+    /// each keeps its own record: a paint ask (every grant, every settled build, every written
+    /// row asks one) never replaces the action's, nor is either answer read as the other.
+    Asks::Asked ask_frontier(loom::Mail& mail, Act kind) {
+        (void)asks().forget(of_kind(kind));
+        return asks().ask(mail, ws::kProjectRole, ProjectFrontierRequested{}, asking(kind));
     }
 
     // ---- Workshop's word on a gesture ------------------------------------------------
-
-    /// WHAT A GESTURE ASKS WORKSHOP ABOUT, and goes on to do once Workshop says its actor may.
-    enum class Act { kBuild, kLoadBuilt, kPromote, kRevert, kFrontier, kRow, kOpen };
 
     /// THE ACTION CLASSES EACH ACT IS (`workshop/actor_scope.hpp`): every build, load, promote and
     /// revert is `build`; the role line's commit writes a plan row and builds, so it is both, in
@@ -1509,63 +1407,31 @@ private:
         return {ws::scope::kBuild};
     }
 
-    /// ONE GESTURE'S ASK FOR WORKSHOP'S WORD, AND THE ACT IT WAITS ON, captured at the gesture:
-    /// the answer does what the weaver aimed at, never whatever the pane holds when it lands.
-    struct Approval : Ask {
-        Act act = Act::kBuild;
-        bool realize = false;  ///< whether a build is offered for loading when it works
-        std::string artifact;  ///< what a load, a promote or a revert names
-        std::int64_t op = 0;   ///< the build operation that artifact was true of
-        std::string stem;      ///< the role line's artifact
-        std::string role;      ///< the role typed for it
-        std::string path;      ///< the source an open opens: the ask's subject
-        std::string undone;    ///< what did not happen, the sentence a refusal opens with
-    };
-
     /// ASK WORKSHOP WHETHER THIS GESTURE'S ACTOR MAY DO THE ACT, and hold the act until it
     /// answers. The ask names the act's classes and no send: the pane sends the act as its own
     /// office, so the actor is judged by the classes alone. `gesture` is the delivery that
     /// brought the act -- a key's action, a press, a menu choice -- and this one ask spends it,
     /// so an act of several beats asks once and carries the approval to its later sends.
-    void ask_approval(loom::Mail& mail, Approval a, std::uint64_t gesture) {
+    void ask_approval(loom::Mail& mail, BuilderAsk a, std::uint64_t gesture) {
         // A FULL BOOK REFUSES THE NEWEST ACT IN WORDS and drops none it holds: an answer Workshop
         // owes an act already asked about still finds it.
-        if (approvals_.size() >= kMaxApprovals) {
-            say_undone(a, std::to_string(kMaxApprovals) + " acts are already waiting on Workshop", mail);
+        const BuilderAsk act = a;
+        switch (asks().approve(mail, std::move(a), gesture, classes_of(act.act), act.path)) {
+        case Asks::Asked::kHeld: return;
+        case Asks::Asked::kFull:
+            say_undone(act,
+                       std::to_string(Asks::kApprovals) + " acts are already waiting on Workshop",
+                       mail);
+            return;
+        case Asks::Asked::kUnqueued:
+            say_undone(act, std::string("nothing was queued to ") + kWorkshopRole, mail);
             return;
         }
-        a.pending = ++asked_;
-        a.awaiting = true;
-        a.attempt = mail.as_role(pane::kBuilderPaneRole)
-                        .send_to_role(kWorkshopRole,
-                                      ws::v2::PaneOperationRequested{
-                                          pane::kBuilderPane, std::string(), std::string(), 0,
-                                          static_cast<std::int64_t>(gesture), classes_of(a.act),
-                                          a.path},
-                                      a.pending);
-        if (!a.attempt.valid()) {
-            say_undone(a, std::string("nothing was queued to ") + kWorkshopRole, mail);
-            return;
-        }
-        approvals_.push_back(std::move(a));
-    }
-
-    /// THE HELD ASK A WORD FROM THE BUS SETTLES, taken out of the book; none when it names no
-    /// ask this image holds.
-    template <class Match>
-    std::optional<Approval> take_approval(Match matches) {
-        const auto at = std::find_if(approvals_.begin(), approvals_.end(), matches);
-        if (at == approvals_.end()) {
-            return std::nullopt;
-        }
-        Approval taken = std::move(*at);
-        approvals_.erase(at);
-        return taken;
     }
 
     /// AN ACT WORKSHOP REFUSED, OR NEVER HEARD, DID NOT HAPPEN AT ALL: nothing was sent and
     /// nothing the pane holds moved, and the row says what did not happen, then why.
-    void say_undone(const Approval& a, const std::string& why, loom::Mail& mail) {
+    void say_undone(const BuilderAsk& a, const std::string& why, loom::Mail& mail) {
         notice_ = a.undone + " -- " + why;
         say(mail);
     }
@@ -1573,7 +1439,7 @@ private:
     /// WORKSHOP SAID YES: the act captured at the gesture, done now. Each is judged once more
     /// against what the pane holds, since an answer lands after any number of other deliveries,
     /// and one that no longer makes sense is refused in words and sends nothing.
-    void carry_out(const Approval& a, loom::Mail& mail) {
+    void carry_out(const BuilderAsk& a, loom::Mail& mail) {
         switch (a.act) {
         case Act::kBuild:
             if (named_row(a.subject) == known_.recipes.size()) {
@@ -1608,9 +1474,7 @@ private:
         case Act::kFrontier:
             // THE FIRST BEAT'S APPROVAL, CARRIED: the frontier is asked into the action's own
             // record, and its answer builds without asking again (`finish_frontier_build`).
-            ask_frontier(mail, frontier_build_);
-            if (!frontier_build_.attempt.valid()) {
-                frontier_build_ = Ask{};
+            if (ask_frontier(mail, Act::kFrontierAsk) != Asks::Asked::kHeld) {
                 say_undone(a, std::string("nothing was queued to ") + ws::kProjectRole, mail);
             }
             return;
@@ -1619,6 +1483,8 @@ private:
             return;
         case Act::kOpen:
             open_approved(a, mail);
+            return;
+        default:
             return;
         }
     }
@@ -1629,18 +1495,20 @@ private:
     /// word that exactly this send was refused (WL-OPEN-07); a send that queued nothing arms
     /// nothing, says so in the notice, and answers false.
     bool send_build(loom::Mail& mail, const std::string& recipe, bool realize) {
-        const loom::Ticket attempt =
-            mail.as_role(pane::kBuilderPaneRole)
-                .send_to_role(builder::kBuilderRole, builder::BuildRequested{recipe, realize});
-        if (!attempt.valid()) {
+        (void)asks().forget(of_kind(Act::kBuildSent));
+        BuilderAsk sent = asking(Act::kBuildSent);
+        sent.subject = recipe;
+        const Asks::Asked held = asks().ask_with(
+            builder::kBuilderRole, builder::BuildRequested::zen_name,
+            builder::BuildRequested::zen_version, std::move(sent), [&](std::uint64_t) {
+                return mail.as_role(pane::kBuilderPaneRole)
+                    .send_to_role(builder::kBuilderRole, builder::BuildRequested{recipe, realize});
+            });
+        if (held != Asks::Asked::kHeld) {
             notice_ = not_built(recipe, realize) + " -- nothing was queued to " +
                       builder::kBuilderRole;
             return false;
         }
-        build_ = Ask{};
-        build_.awaiting = true;
-        build_.attempt = attempt;
-        build_.subject = recipe;
         awaiting_ = true;
         awaiting_realization_ = realize;
         loading_op_ = 0;
@@ -1698,7 +1566,7 @@ private:
             say(mail);
             return;
         }
-        Approval a;
+        BuilderAsk a;
         a.act = Act::kBuild;
         a.subject = known_.recipes[cursor_row()].recipe;
         a.realize = realize;
@@ -1722,7 +1590,7 @@ private:
     /// WHAT IS BUILT AND WAITING, ASKED FOR AS CLASS `build`: the finished build's recipe, its
     /// artifact and its operation are captured now, and the load is sent on Workshop's word.
     void ask_load_built(loom::Mail& mail) {
-        Approval a;
+        BuilderAsk a;
         a.act = Act::kLoadBuilt;
         a.subject = shown_.recipe;
         a.artifact = shown_.artifact;
@@ -1781,7 +1649,7 @@ private:
     /// and a revert loads the previous image. The artifact and the operation that built it are
     /// captured now, and the offer is said on Workshop's word.
     void ask_image(loom::Mail& mail, Act kind, const char* done) {
-        Approval a;
+        BuilderAsk a;
         a.act = kind;
         a.artifact = shown_.artifact;
         a.op = shown_.op;
@@ -1841,7 +1709,7 @@ private:
             say(mail);
             return;
         }
-        Approval a;
+        BuilderAsk a;
         a.act = Act::kFrontier;
         a.undone = "nothing was asked for";
         ask_approval(mail, std::move(a), mail.correlation());
@@ -1910,15 +1778,12 @@ private:
             return;
         }
         const builder::RecipeSummary& row = known_.recipes[cursor_row()];
-        names_.pending = ++asked_;
-        names_.awaiting = true;
-        names_.recipe = row.recipe;
-        names_.choice = choice_; // nonzero only when a menu row began this
-        names_.attempt = mail.as_role(pane::kBuilderPaneRole)
-                             .send_to_role(ws::kProjectRole, PlanNamesRequested{row.artifact},
-                                           names_.pending);
-        if (!names_.attempt.valid()) {
-            names_ = NamesAsk{};
+        (void)asks().forget(of_kind(Act::kNames));
+        BuilderAsk names = asking(Act::kNames);
+        names.subject = row.recipe;
+        names.choice = choice_; // nonzero only when a menu row began this
+        if (asks().ask(mail, ws::kProjectRole, PlanNamesRequested{row.artifact},
+                       std::move(names)) != Asks::Asked::kHeld) {
             notice_ = "`" + row.recipe + "`: nothing was added to the plan -- nothing was queued "
                       "to " + ws::kProjectRole;
             say(mail);
@@ -1950,7 +1815,7 @@ private:
             say(mail);
             return;
         }
-        Approval a;
+        BuilderAsk a;
         a.act = Act::kRow;
         a.subject = role_.recipe;
         a.stem = role_.stem;
@@ -1959,24 +1824,19 @@ private:
         ask_approval(mail, std::move(a), mail.correlation());
     }
 
-    /// THE COMMIT, APPROVED: the row captured at the gesture is asked of the plan office, and
-    /// `row_` carries the approval to the build its answer may finish with (`on(PlanRowWritten)`).
+    /// THE COMMIT, APPROVED: the row captured at the gesture is asked of the plan office, and its
+    /// ask carries the approval to the build its answer may finish with (`on(PlanRowWritten)`).
     /// A line closed while Workshop was asked is no commit any more, and writes nothing.
-    void commit_approved(const Approval& a, loom::Mail& mail) {
+    void commit_approved(const BuilderAsk& a, loom::Mail& mail) {
         if (!role_.open || role_.stem != a.stem || role_.recipe != a.subject) {
             say_undone(a, "the line was closed before Workshop answered", mail);
             return;
         }
-        row_.pending = ++asked_;
-        row_.awaiting = true;
-        row_.stem = a.stem;
-        row_.role = a.role;
-        row_.recipe = a.subject;
-        row_.attempt = mail.as_role(pane::kBuilderPaneRole)
-                           .send_to_role(ws::kPlanRole, PlanRowRequested{a.stem, a.role, a.subject},
-                                         row_.pending);
-        if (!row_.attempt.valid()) {
-            row_ = RowAsk{};
+        (void)asks().forget(of_kind(Act::kPlanRow));
+        BuilderAsk row = a;
+        row.act = Act::kPlanRow;
+        if (asks().ask(mail, ws::kPlanRole, PlanRowRequested{a.stem, a.role, a.subject},
+                       std::move(row)) != Asks::Asked::kHeld) {
             say_undone(a, std::string("nothing was queued to ") + ws::kPlanRole, mail);
             return;
         }
@@ -2006,15 +1866,12 @@ private:
             return;
         }
         const std::string recipe = known_.recipes[at].recipe;
-        source_.pending = ++asked_;
-        source_.awaiting = true;
-        source_.subject = recipe;
-        source_.gesture = mail.correlation();
-        source_.attempt = mail.as_role(pane::kBuilderPaneRole)
-                              .send_to_role(ws::kProjectRole, RecipeSourceRequested{recipe},
-                                            source_.pending);
-        if (!source_.attempt.valid()) {
-            source_ = SourceAsk{};
+        (void)asks().forget(of_kind(Act::kSource));
+        BuilderAsk source = asking(Act::kSource);
+        source.subject = recipe;
+        source.gesture = mail.correlation();
+        if (asks().ask(mail, ws::kProjectRole, RecipeSourceRequested{recipe}, std::move(source)) !=
+            Asks::Asked::kHeld) {
             notice_ = "`" + recipe + "`: the source could not be looked up -- nothing was queued "
                       "to " + ws::kProjectRole;
             say(mail);
@@ -2024,15 +1881,12 @@ private:
     /// THE SECOND DOOR, APPROVED: the opening office, which arranges the document and the desk
     /// together (WL-OPEN-01). The ticket is kept for the bus's later word that exactly this
     /// attempt was refused (WL-OPEN-07); nothing queued is refused now, in words.
-    void open_approved(const Approval& a, loom::Mail& mail) {
-        open_.pending = ++asked_;
-        open_.awaiting = true;
-        open_.subject = a.subject;
-        open_.attempt = mail.as_role(pane::kBuilderPaneRole)
-                            .send_to_role(ws::kOpeningRole, OpenSourceRequested{a.path},
-                                          open_.pending);
-        if (!open_.attempt.valid()) {
-            open_ = Ask{};
+    void open_approved(const BuilderAsk& a, loom::Mail& mail) {
+        (void)asks().forget(of_kind(Act::kOpening));
+        BuilderAsk opening = asking(Act::kOpening);
+        opening.subject = a.subject;
+        if (asks().ask(mail, ws::kOpeningRole, OpenSourceRequested{a.path}, std::move(opening)) !=
+            Asks::Asked::kHeld) {
             notice_ = "`" + a.subject + "`: the source was not opened -- nothing was queued to "
                       "the opening office";
             say(mail);
@@ -2077,6 +1931,7 @@ private:
 
     void bind_output(std::int64_t op, loom::Mail& mail) {
         const bool was_open = output_.open;
+        (void)asks().forget(of_kind(Act::kPage));
         output_ = Output{};
         output_.open = true;
         output_.op = op;
@@ -2089,6 +1944,7 @@ private:
     }
 
     void close_output(loom::Mail& mail) {
+        (void)asks().forget(of_kind(Act::kPage));
         output_ = Output{};
         declare(mail);
         say(mail);
@@ -2112,7 +1968,7 @@ private:
             ask_page(mail);
             say(mail);
         } else if (id == pane::kActionOutputLeft || id == pane::kActionOutputRight) {
-            const std::int64_t step = columns_ > 8 ? columns_ / 2 : 4;
+            const std::int64_t step = columns() > 8 ? columns() / 2 : 4;
             if (id == pane::kActionOutputLeft) {
                 output_.pan = output_.pan > step ? output_.pan - step : 0;
             } else {
@@ -2168,15 +2024,10 @@ private:
     /// outstanding: a newer one replaces the older, whose answer then settles nothing.
     void ask_page(loom::Mail& mail) {
         const std::int64_t lines = output_body_rows() > 0 ? output_body_rows() : 1;
-        output_.ask.pending = ++asked_;
-        output_.ask.awaiting = true;
-        output_.ask.attempt =
-            mail.as_role(pane::kBuilderPaneRole)
-                .send_to_role(builder::kBuilderRole,
-                              builder::BuildOutputRequested{output_.op, output_.top, lines},
-                              output_.ask.pending);
-        if (!output_.ask.attempt.valid()) {
-            output_.ask = Ask{};
+        (void)asks().forget(of_kind(Act::kPage));
+        if (asks().ask(mail, builder::kBuilderRole,
+                       builder::BuildOutputRequested{output_.op, output_.top, lines},
+                       asking(Act::kPage)) != Asks::Asked::kHeld) {
             notice_ = "output #" + std::to_string(output_.op) +
                       ": the page was not read -- nothing was queued to " + builder::kBuilderRole;
         }
@@ -2185,7 +2036,7 @@ private:
     /// The rows the reader's lines may spend: the room, less its header, less a notice, less
     /// the control strip the reader draws under them.
     std::int64_t output_body_rows() const {
-        return rows_ - 1 - (notice_.empty() ? 0 : 1) - strip_rows_for(output_controls());
+        return rows() - 1 - (notice_.empty() ? 0 : 1) - strip_rows_for(output_controls());
     }
 
     /// THE READER'S ROWS. One header naming the operation, how it ended and which lines show;
@@ -2200,8 +2051,9 @@ private:
         const std::string number = "#" + std::to_string(output_.op);
         std::string head = "output " + number;
         if (!output_.heard) {
-            push_row(head + (output_.ask.awaiting ? " -- asking the Builder" : " -- no page read"),
-                     output_.ask.awaiting ? surface::role::kAccent : surface::role::kAlert);
+            const bool asking_page = asks().holds(of_kind(Act::kPage));
+            push_row(head + (asking_page ? " -- asking the Builder" : " -- no page read"),
+                     asking_page ? surface::role::kAccent : surface::role::kAlert);
             say_controls(output_controls());
             return;
         }
@@ -2296,14 +2148,12 @@ private:
     /// canvas cannot draw refuses the pane's whole picture (`canvas_content_problem`).
     void push_row(const std::string& text, std::int64_t role,
                   BuilderMeaning meaning = BuilderMeaning{}) {
-        if (static_cast<std::int64_t>(composing_.size()) >= rows_) {
-            return; // the room ran out: a row nobody can see names nothing
-        }
+        std::optional<BuilderMeaning> means;
         if (meaning.kind != builder_row::kNone) {
-            map_.row(static_cast<std::int64_t>(composing_.size()), std::move(meaning));
+            means = std::move(meaning);
         }
-        composing_.push_back(
-            surface::SurfaceTextRow{fit(ascii_spelling(text), columns_), role});
+        (void)room().push(surface::SurfaceTextRow{fit(ascii_spelling(text), columns()), role},
+                          std::move(means)); // a row past the room names nothing
     }
 
     /// The whole picture. The notice leads and is composed first, since the row map records
@@ -2312,15 +2162,12 @@ private:
     /// in one drain, Workshop keeps the last picture, and a notice cleared by the first `say`
     /// would be one no weaver ever reads -- it is the answer to their last act.
     void say(loom::Mail& mail) {
-        map_.begin();
-        composing_.clear();
-        caret_row_ = surface::kNoCaret;
-        caret_col_ = 0;
-        if (!granted_ || rows_ <= 0 || columns_ <= 0) {
-            map_.settle();
+        room().begin();
+        if (!room().granted() || rows() <= 0 || columns() <= 0) {
+            room().hold();
             return;
         }
-        if (!notice_.empty() && rows_ > 1) {
+        if (!notice_.empty() && rows() > 1) {
             push_row(notice_, surface::role::kAccent);
         }
         if (role_.open) {
@@ -2332,32 +2179,10 @@ private:
         } else {
             say_builder();
         }
-        ++published_;
-        const std::int64_t picture = map_.settle();
-        std::vector<ws::v2::PaneRowPart> parts =
-            ws::row_parts(map_, columns_, [](const BuilderMeaning& m) { return part_name(m); },
-                          [](const BuilderMeaning& m) { return m.available; });
-        if (on_canvas()) {
-            ws::RowsCaret caret;
-            caret.row = caret_row_;
-            caret.column = caret_col_;
-            (void)mail.as_role(pane::kBuilderPaneRole)
-                .send_to_role(kWorkshopRole, ws::rows_picture(canvas_, pictures_.next(canvas_, picture),
-                                                              composing_, parts, caret));
-            composing_.clear();
-            return;
-        }
-        ws::v5::PaneContent said;
-        said.pane = pane::kBuilderPane;
-        said.rows = std::move(composing_);
-        composing_.clear();
-        said.picture = picture;
-        said.parts = std::move(parts);
-        (void)mail.as_role(pane::kBuilderPaneRole).send_to_role(kWorkshopRole, said);
         // The role line's caret beside the rows, said every time, so a caret that went goes.
-        (void)mail.as_role(pane::kBuilderPaneRole)
-            .send_to_role(kWorkshopRole,
-                          ws::PaneCaret{std::string(pane::kBuilderPane), caret_row_, caret_col_});
+        room().publish(
+            mail, [](const BuilderMeaning& m) { return part_name(m); },
+            [](const BuilderMeaning& m) { return m.available; });
     }
 
     /// WHAT THE BUILDER CALLS ITS PARTS: a recipe's row by the recipe, `recipe:<name>`; a control
@@ -2491,10 +2316,10 @@ private:
     /// third of the room; what does not fit is counted and reachable through `[menu]`, and a room
     /// too small for one strip row leaves the right press.
     std::int64_t strip_budget() const {
-        if (rows_ < 2) {
+        if (rows() < 2) {
             return 0;
         }
-        const std::int64_t want = (rows_ - 2) / 3;
+        const std::int64_t want = (rows() - 2) / 3;
         return want < 1 ? 1 : (want > kMaxControlRows ? kMaxControlRows : want);
     }
 
@@ -2504,7 +2329,7 @@ private:
         for (const ControlRow& control : controls) {
             faces.push_back(component::Control{control.label, control.available});
         }
-        return component::pack_controls(faces, columns_, strip_budget());
+        return component::pack_controls(faces, columns(), strip_budget());
     }
 
     /// HOW MANY ROWS A STRIP OF THESE CONTROLS WOULD TAKE -- asked before the body is laid out,
@@ -2524,13 +2349,13 @@ private:
             if (i + 1 == strip.rows.size() && strip.dropped > 0) {
                 text += "  +" + std::to_string(strip.dropped) + " in menu";
             }
-            const std::int64_t row = static_cast<std::int64_t>(composing_.size());
+            const std::int64_t row = static_cast<std::int64_t>(room().composing().size());
             push_row(text, surface::role::kFill);
-            if (static_cast<std::int64_t>(composing_.size()) == row) {
+            if (static_cast<std::int64_t>(room().composing().size()) == row) {
                 return; // the room ran out before this strip row
             }
             const std::int64_t solid = component::solid_columns(
-                composing_[static_cast<std::size_t>(row)].text, text.size());
+                room().composing()[static_cast<std::size_t>(row)].text, text.size());
             for (const component::PlacedControl& placed : strip.placed) {
                 if (placed.row != static_cast<std::int64_t>(i)) {
                     continue;
@@ -2539,7 +2364,7 @@ private:
                 // equal-width faces about different artifacts, or two builds sharing a stem, are
                 // different spans: the picture moves when the promise does, and a press queued
                 // against the older one is refused by the fence (`perform_on`).
-                map_.span(row, placed.first, placed.width, solid,
+                room().map().span(row, placed.first, placed.width, solid,
                           BuilderMeaning{builder_row::kControl, 0, controls[placed.index].id,
                                          controls[placed.index].subject,
                                          controls[placed.index].subject_op,
@@ -2558,13 +2383,13 @@ private:
     /// disagree about where the value begins (`files/files.cpp`'s `active_prompt`, the same
     /// repair for the same construction).
     std::string active_role_prompt() const {
-        return fitted_label(role_prompt(), columns_, kMinRoleValueColumns);
+        return fitted_label(role_prompt(), columns(), kMinRoleValueColumns);
     }
 
     /// The columns the role line's value is drawn in beside `prompt`: one is kept for the caret.
     std::int64_t role_value_columns(const std::string& prompt) const {
-        return columns_ > static_cast<std::int64_t>(prompt.size()) + 1
-                   ? columns_ - static_cast<std::int64_t>(prompt.size()) - 1
+        return columns() > static_cast<std::int64_t>(prompt.size()) + 1
+                   ? columns() - static_cast<std::int64_t>(prompt.size()) - 1
                    : 1;
     }
 
@@ -2589,11 +2414,11 @@ private:
         const std::int64_t cols = role_value_columns(prompt);
         role_.line.keep_caret_visible(cols);
         const std::string shown = role_.line.visible(cols);
-        if (static_cast<std::int64_t>(composing_.size()) < rows_) {
+        if (static_cast<std::int64_t>(room().composing().size()) < rows()) {
             // THE CARET STANDS AFTER WHAT IS DRAWN BEFORE IT: the row is spelled in what a canvas
             // draws, so its column is counted in the spelled characters, not the typed bytes.
-            caret_row_ = static_cast<std::int64_t>(composing_.size());
-            caret_col_ = static_cast<std::int64_t>(
+            room().caret().row = static_cast<std::int64_t>(room().composing().size());
+            room().caret().column = static_cast<std::int64_t>(
                 ascii_spelling(prompt + shown.substr(0, role_.line.caret_column())).size());
         }
         push_row(prompt + shown, surface::role::kAccent,
@@ -2617,7 +2442,7 @@ private:
         }
         push_row(head, surface::role::kAccent);
         const std::vector<ControlRow> controls = list_controls();
-        const std::int64_t body_rows = rows_ - 1 - (notice_.empty() ? 0 : 1) -
+        const std::int64_t body_rows = rows() - 1 - (notice_.empty() ? 0 : 1) -
                                        strip_rows_for(controls);
         if (body_rows > 0 && held > 0) {
             const component::ListWindow win = component::cursor_window(
@@ -2833,7 +2658,7 @@ private:
     void publish(Facts facts, const std::string& said_detail,
                  const std::vector<ControlRow>& controls) {
         const std::int64_t budget =
-            rows_ - (notice_.empty() ? 0 : 1) - strip_rows_for(controls);
+            rows() - (notice_.empty() ? 0 : 1) - strip_rows_for(controls);
         if (budget <= 0) {
             say_controls(controls); // the controls outrank the facts: they are the only route
             return;
@@ -2858,7 +2683,7 @@ private:
             said = labelled_block("said",
                                said_detail.empty() ? std::string("--")
                                                    : ascii_spelling(said_detail),
-                               said_kept, columns_);
+                               said_kept, columns());
         }
         std::size_t said_at = 0;
         for (auto& f : facts) {
@@ -2873,17 +2698,13 @@ private:
 
     // ---- What this pane is ------------------------------------------------------------
 
-    zengine::ActivationCursor activation_;
-    std::int64_t rows_ = 0; ///< the room composed for: the canvas lattice's, else the prose room's
-    std::int64_t columns_ = 0;
-    std::int64_t prose_rows_ = 0, prose_columns_ = 0;
-    ws::PaneCanvasRoom canvas_;
-    /// Numbers every picture within its grant, and says which were drawn under the row map's
-    /// number now.
-    ws::CanvasPictures pictures_;
-    /// Where the role line's caret stands in the rows being said; none outside the role line.
-    std::int64_t caret_row_ = surface::kNoCaret, caret_col_ = 0;
-    bool granted_ = false;
+    Rows& room() { return this->template facet<Rows>(); }
+    const Rows& room() const { return this->template facet<Rows>(); }
+    /// The rows and columns the pane composes for (`PaneFacet`).
+    std::int64_t rows() const { return room().rows(); }
+    std::int64_t columns() const { return room().columns(); }
+    Asks& asks() { return this->template facet<Asks>(); }
+    const Asks& asks() const { return this->template facet<Asks>(); }
 
     /// THE TOOL'S PICTURE, HELD ONLY WHILE THIS PANE IS SHOWING IT (WL-PROJ-11, WL-PROJ-12).
     /// `heard_` tells "the tool has not answered" from "the tool never built anything";
@@ -2895,8 +2716,6 @@ private:
     /// The operation whose load `awaiting_realization_` waits on once its build has ended; 0
     /// while the build runs.
     std::int64_t loading_op_ = 0;
-    /// The build send's ticket and recipe, held until the build it asked for ends.
-    Ask build_{};
     builder::BuildStatus shown_{};
     builder::RecipeCatalog known_{};
     /// WHICH RECIPE THE WEAVER LAST PICKED WITH `c`, by name -- empty when they never have, or when
@@ -2914,41 +2733,6 @@ private:
     std::int64_t frontier_blocked_ = 0;
 
     std::string notice_;
-    /// HOW MANY PICTURES THIS PANE HAS PUBLISHED -- counted by `say` at the send, so a handler
-    /// can tell whether the act it ran already said its rows.
-    std::uint64_t published_ = 0;
-    std::uint64_t asked_ = 0;
-
-    Ask frontier_; ///< the frontier the row this pane paints is drawn from
-    /// THE FRONTIER ACTION'S OWN ASK, sent only once Workshop approved its gesture as class
-    /// `build`: its answer builds without asking again, and no paint ask ever replaces it.
-    Ask frontier_build_;
-    struct NamesAsk : Ask {
-        std::string recipe; ///< what the answer will open the role line for
-        /// THE MENU CHOICE THAT BEGAN THIS, or zero. A chosen row that opens a text line owes
-        /// that line the keyboard, and the line here opens only once this ask is answered --
-        /// so the choice's own number crosses the round trip with it (`chose`).
-        std::uint64_t choice = 0;
-    } names_;
-    /// THE ROW ASKED OF THE PLAN OFFICE, written only once Workshop approved the commit as a
-    /// build and a write: that approval rides here to the build its answer may finish with.
-    struct RowAsk : Ask {
-        std::string stem;
-        std::string role;
-        std::string recipe;
-    } row_;
-    /// THE RESOLUTION, AT THE PROJECT OFFICE, and the gesture that began it: what `e` opens is
-    /// known only from the answer, so Workshop is asked about that gesture there.
-    struct SourceAsk : Ask {
-        std::uint64_t gesture = 0;
-    } source_;
-    Ask open_; ///< the opening, at the opening office
-    /// THE GESTURES WORKSHOP IS BEING ASKED ABOUT, each with the act it waits on. A book, not one
-    /// record: an act one hand asked is never dropped because another hand's act was asked
-    /// behind it. Workshop answers every ask, so it holds only the asks still crossing; at its
-    /// bound a new act is refused in words, and none it holds is dropped.
-    std::vector<Approval> approvals_;
-    static constexpr std::size_t kMaxApprovals = 8;
 
     struct Role {
         bool open = false;
@@ -2967,13 +2751,6 @@ private:
         std::size_t hint = 0; ///< where the window began last time, for least motion
     } choosing_;
 
-    /// WHAT EACH ROW AND EACH RUN OF COLUMNS IN THE LAST PICTURE MEANS, and the number of that
-    /// picture -- replaced whole by every `say`. A press is answered from this record and from
-    /// nowhere else; which pictures drawn under it a press may name is `pictures_`'s to say.
-    component::RowMap<BuilderMeaning> map_;
-    /// THE ROWS BEING COMPOSED, held while `say` runs so each mode's composer and the control
-    /// strip write into one list and the map records the row each of them landed on.
-    std::vector<surface::SurfaceTextRow> composing_;
     /// NOTCHES NOT YET WORTH A WHOLE ROW -- one accumulator for the one list in force.
     double wheel_ = 0.0;
     /// THIS IMAGE'S ONE OUTSTANDING MENU. Deliberately not reload-kept state: a successor that
@@ -2995,7 +2772,6 @@ private:
         std::int64_t top = 1;   ///< the first line number in view; 0 follows the last line
         std::int64_t pan = 0;   ///< the first column in view
         bool heard = false;     ///< the tool has answered a page for this binding
-        Ask ask;                ///< the page asked for and not yet answered
         builder::BuildOutputSaid page{};
     } output_;
 

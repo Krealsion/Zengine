@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
-#include "activation/activation.hpp"
 #include "flow/flow-host/vocabulary.hpp"
 #include "flow/flow-pane/view.hpp"
 #include "flow/flow-pane/vocabulary.hpp"
@@ -9,7 +8,7 @@
 #include "workshop/actor_scope.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_causes.hpp"
-#include "workshop/pane_document.hpp"
+#include "workshop/pane_facets.hpp"
 #include "input/vocabulary.hpp"
 #include "operator/host.hpp"
 #include "workshop/pane_menu.hpp"
@@ -37,25 +36,50 @@ namespace ws = zengine::workshop;
 namespace input = zengine::input;
 constexpr const char *workshop_role = "zengine.workshop";
 
+/// ONE THING FLOW ASKED AND STILL WAITS ON (`AskFacet`): a request of the Flow host, by its action;
+/// the question to the discovery door; a file write a dialog confirmed, waiting on Workshop's word
+/// for the confirming actor, with the verb and values as confirmed; or a declared message's shape
+/// being carried out, with the gesture it continues and the bytes Workshop will carry.
+struct FlowAsk {
+  enum class Kind { kHost, kFind, kWrite, kCarry };
+  Kind kind = Kind::kHost;
+  std::string action;              ///< the host request's action, or the write's verb
+  std::uint64_t state_epoch = 0;   ///< the state a host request was asked about
+  std::uint64_t request = 0;       ///< which host request this is, for an Add waiting on it
+  std::vector<std::string> values; ///< the write's values, as confirmed
+  std::uint64_t gesture = 0;       ///< the gesture a carry continues
+  std::string label;               ///< what a carry carries, by name
+  loom::Bytes bytes;               ///< ...and its bytes
+  bool drag = false;               ///< a release places the carry, not a click
+};
+
+inline FlowAsk asking(FlowAsk::Kind kind) {
+  FlowAsk a;
+  a.kind = kind;
+  return a;
+}
+
+inline auto of_kind(FlowAsk::Kind kind) {
+  return [kind](const FlowAsk &a) { return a.kind == kind; };
+}
+
+using Room = ws::PaneFacet<pane::kPane, pane::kRole, zengine::manual::pages::zengine_flow::kManual,
+                           ws::v3::PaneOffered>;
+using Asks = ws::AskFacet<pane::kPane, pane::kRole, FlowAsk>;
+
 class FlowPane final
-    : public zengine::With<ws::PaneManualFacet<pane::kPane,
-                                               zengine::manual::pages::zengine_flow::kManual>>::
-          Weave<FlowPane, pane::FlowPaneState,
-          loom::Accept<loom::Activated, ws::PaneCatalogRequested, ws::PaneRoom,
-                       ws::PaneCanvasRoom, ws::PaneCanvasPointer,
-                       ws::PaneCanvasRejected, ws::PaneKey, ws::PaneTextInput,
-                       ws::PaneActionRequested, ws::ActionsJudged,
-                       ws::PaneQuitRequested, pane::FlowEdit, fh::FlowAnswer,
-                       fh::FlowCatalogAnswer, fh::FlowChanged, ws::PowersFound,
-                       ws::PaneCanvasValueDrop, ws::PaneMenuAnswered,
-                       ws::PaneOperationAnswered, ws::PaneCarryAnswered,
-                       loom::DispatchRefused>,
-          loom::Emit<ws::v3::PaneOffered, ws::PaneContent, ws::v4::PaneCanvasContent,
-                     ws::v3::PaneActions, ws::PaneEscapeUnspent, ws::PanePassRequested,
-                     ws::PaneQuitAnswered, pane::FlowEdited, fh::FlowRun,
-                     fh::FlowApply, fh::FlowSend, fh::FlowInspect, fh::FlowStop,
-                     fh::FlowCatalog, ws::PaneMenuRequested, ws::PaneOperationRequested,
-                     ws::v2::PaneOperationRequested, ws::PaneValueCarryRequested>> {
+    : public zengine::With<Room, Asks>::Weave<
+          FlowPane, pane::FlowPaneState,
+          loom::Accept<ws::PaneCanvasPointer, ws::PaneKey, ws::PaneTextInput,
+                       ws::PaneActionRequested, ws::ActionsJudged, ws::PaneQuitRequested,
+                       pane::FlowEdit, fh::FlowAnswer, fh::FlowCatalogAnswer, fh::FlowChanged,
+                       ws::PowersFound, ws::PaneCanvasValueDrop, ws::PaneMenuAnswered,
+                       ws::PaneCarryAnswered>,
+          loom::Emit<ws::PaneContent, ws::v4::PaneCanvasContent, ws::v3::PaneActions,
+                     ws::PaneEscapeUnspent, ws::PanePassRequested, ws::PaneQuitAnswered,
+                     pane::FlowEdited, fh::FlowRun, fh::FlowApply, fh::FlowSend, fh::FlowInspect,
+                     fh::FlowStop, fh::FlowCatalog, ws::PaneMenuRequested,
+                     ws::PaneOperationRequested, ws::PaneValueCarryRequested>> {
 public:
   loom::Value snapshot() const override {
     pane::FlowPaneState saved;
@@ -78,13 +102,13 @@ public:
     }
     return loom::to_value(saved);
   }
-  void on(const loom::Activated &activated, loom::Mail &mail) {
-    if (!activation_.accept(mail, activated))
-      return;
+  void on_activated(loom::Mail &mail) {
     // AN ACTIVATION ENDS A WRITE STILL ASKED: a successor's ask numbers start again, so an
     // earlier answer could be read as a new ask's. Its dialog stays, to be confirmed again.
-    if (const auto ended = std::exchange(writing_, std::nullopt))
-      model_.notice = pane::Model::writing(ended->verb) + " was not done: confirm it again";
+    if (const FlowAsk *ended = asks().find(of_kind(FlowAsk::Kind::kWrite))) {
+      model_.notice = pane::Model::writing(ended->action) + " was not done: confirm it again";
+      (void)asks().forget(of_kind(FlowAsk::Kind::kWrite));
+    }
     if (!restored_) {
       restored_ = true;
       if (!state_.workspace.empty())
@@ -124,26 +148,18 @@ public:
           model_.notice = std::string("Could not restore Flow: ") + e.what();
         }
     }
-    offer(mail);
+    room().announce(*this, mail);
     request(fh::FlowCatalog{}, "catalog", mail);
     request(fh::FlowInspect{"workshop", 0}, "inspect", mail);
     find(mail, true);
   }
-  void on(const ws::PaneCatalogRequested &, loom::Mail &mail) {
-    if (mail.authored_from_role(workshop_role))
-      offer(mail);
+  ws::v3::PaneOffered offering() const {
+    return ws::v3::PaneOffered{pane::kPane, "Flow", "author and exercise message-driven graphs",
+                               704, 396, 0};
   }
-  void on(const ws::PaneRoom &room, loom::Mail &mail) {
-    if (!host(mail, room.pane))
-      return;
-    rows_ = room.rows;
-    columns_ = room.columns;
-    show(mail);
-  }
-  void on(const ws::PaneCanvasRoom &room, loom::Mail &mail) {
-    if (!host(mail, room.pane))
-      return;
-    room_ = room;
+  void offered(loom::Mail &mail) { declare(mail, true); }
+  void on_room(loom::Mail &mail) { show(mail); }
+  void on_canvas_room(loom::Mail &mail) {
     pictures_.clear();
     drag_.reset();
     picture_number_ = 0;
@@ -151,8 +167,8 @@ public:
     find(mail, true);
     show(mail);
   }
-  void on(const ws::PaneCanvasRejected &answer, loom::Mail &mail) {
-    if (!host(mail, answer.pane) || answer.grant != room_.grant)
+  void on_rejected(const ws::PaneCanvasRejected &answer, loom::Mail &) {
+    if (answer.grant != canvas_room().grant)
       return;
     model_.notice = "Drawing rejected: " + answer.reason;
   }
@@ -172,7 +188,7 @@ public:
     if (!mail.authored_from_role(workshop_role))
       return;
     const std::string why =
-        (!pending_.empty() || observed_pending_ > 0)
+        (asks().holds(of_kind(FlowAsk::Kind::kHost)) || observed_pending_ > 0)
             ? "Flow is waiting for its host to settle work. Quit again after the result arrives."
         : model_.dialog ? "Flow has an unfinished dialog. Confirm or cancel it "
                          "before quitting."
@@ -250,7 +266,7 @@ public:
     show(mail);
   }
   void on(const ws::PaneCanvasPointer &event, loom::Mail &mail) {
-    if (!host(mail, event.pane) || event.grant != room_.grant)
+    if (!host(mail, event.pane) || event.grant != canvas_room().grant)
       return;
     try {
       if (event.phase == ws::canvas_pointer::kLost ||
@@ -268,7 +284,7 @@ public:
                                    std::int64_t{100000000});
         const auto ey = std::clamp(event.y, std::int64_t{-100000000},
                                    std::int64_t{100000000});
-        const pane::GridProjection grid(room_);
+        const pane::GridProjection grid(canvas_room());
         const auto dx = grid.grid_x(ex - drag_->x), dy = grid.grid_y(ey - drag_->y);
         if (drag_->node_id == 0) {
           model_.workspace.pan_x =
@@ -303,7 +319,7 @@ public:
         const auto dy =
             static_cast<std::int64_t>(std::clamp(event.dy, -100.0, 100.0));
         if (model_.page == pane::Page::Graph &&
-            event.x > pane::GridProjection(room_).x(22 * pane::unit)) {
+            event.x > pane::GridProjection(canvas_room()).x(22 * pane::unit)) {
           model_.workspace.pan_y =
               std::clamp(model_.workspace.pan_y + dy * 2 * pane::unit,
                          std::int64_t{-10000000}, std::int64_t{10000000});
@@ -381,7 +397,7 @@ public:
   /// or where it was released -- and a stale one is refused; any other value is held on its own
   /// page until the maker says what it becomes. Carrying it granted nothing.
   void on(const ws::PaneCanvasValueDrop &drop, loom::Mail &mail) {
-    if (!host(mail, drop.pane) || drop.grant != room_.grant)
+    if (!host(mail, drop.pane) || drop.grant != canvas_room().grant)
       return;
     try {
       if (model_.dialog)
@@ -427,25 +443,24 @@ public:
     }
     carry(shape, mail.correlation(), false, mail);
   }
-  void on(const ws::PaneOperationAnswered &answer, loom::Mail &mail) {
-    if (!mail.answers_ask())
-      return;
-    if (writing_ && mail.correlation() == writing_->ask) {
-      settle_write(answer, mail);
+  /// WORKSHOP'S WORD ON A CONFIRMED WRITE, or on a carry: each is the exact ask `AskFacet` held.
+  void on_approval(const FlowAsk &asked, const ws::PaneOperationAnswered &answer,
+                   loom::Mail &mail) {
+    if (asked.kind == FlowAsk::Kind::kWrite) {
+      settle_write(asked, answer, mail);
       return;
     }
-    if (!carry_ || mail.correlation() != carry_->ask)
+    if (asked.kind != FlowAsk::Kind::kCarry)
       return;
-    auto carry = std::exchange(carry_, std::nullopt);
     if (!answer.allowed) {
-      model_.notice = "Carrying " + carry->label + " was refused: " + answer.reason;
+      model_.notice = "Carrying " + asked.label + " was refused: " + answer.reason;
       show(mail);
       return;
     }
     (void)mail.as_role(pane::kRole).send_to_role(
         workshop_role,
-        ws::PaneValueCarryRequested{pane::kPane, carry->label, carry->bytes, carry->drag},
-        carry->gesture);
+        ws::PaneValueCarryRequested{pane::kPane, asked.label, asked.bytes, asked.drag},
+        asked.gesture);
   }
   void on(const ws::PaneCarryAnswered &answer, loom::Mail &mail) {
     if (!answer.carried) {
@@ -464,8 +479,8 @@ public:
       if (edit.action == "add-node" || edit.action == "add-node-into" ||
           edit.action == "add-fold" || edit.action == "fold-body")
         reveal();
-      if ((edit.action == "open" || edit.action == "import-project") && room_.grant > 0)
-        pane::reveal_graph(model_, room_);
+      if ((edit.action == "open" || edit.action == "import-project") && canvas_room().grant > 0)
+        pane::reveal_graph(model_, canvas_room());
     } catch (const std::exception &e) {
       ok = false;
       model_.notice = e.what();
@@ -485,11 +500,12 @@ public:
     show(mail);
   }
   void on(const fh::FlowCatalogAnswer &answer, loom::Mail &mail) {
-    if (!settle(mail, "catalog"))
+    const std::optional<FlowAsk> catalog = settle(mail, "catalog");
+    if (!catalog)
       return;
     // An Add waiting on this request is settled by its answer, whatever the answer says.
     std::optional<Adding> adding;
-    if (adding_ && adding_->correlation == mail.correlation())
+    if (adding_ && adding_->request == catalog->request)
       adding = std::exchange(adding_, std::nullopt);
     try {
       if (!answer.ok)
@@ -528,9 +544,8 @@ public:
   /// answer provenance and the correlation, so an answer the maker has typed past is dropped.
   /// Kept whole until the next, and never read as what the catalog holds now.
   void on(const ws::PowersFound &said, loom::Mail &mail) {
-    if (!finding_.awaiting || !mail.answers_ask() || mail.correlation() != finding_.pending)
+    if (!asks().answered(mail, of_kind(FlowAsk::Kind::kFind)))
       return;
-    finding_.awaiting = false;
     model_.discovered = said;
     model_.discovered_read = true;
     show(mail);
@@ -615,47 +630,35 @@ public:
     if (!mail.authored_from_role(fh::kFlowHostRole) ||
         changed.session != "workshop")
       return;
-    for (const auto &[correlation, p] : pending_) {
-      (void)correlation;
-      if (p.action == "inspect")
-        return;
-    }
+    if (asks().holds([](const FlowAsk &a) {
+          return a.kind == FlowAsk::Kind::kHost && a.action == "inspect";
+        }))
+      return;
     request(fh::FlowInspect{"workshop", 0}, "inspect", mail);
   }
-  void on(const loom::DispatchRefused &refused, loom::Mail &mail) {
-    if (!mail.dispatch_refused())
-      return;
-    if (finding_.awaiting && finding_.attempt.seq == refused.refused_attempt().seq) {
-      finding_.awaiting = false;
+  /// LOOM'S WORD THAT EXACTLY ONE OF FLOW'S ASKS WAS REFUSED BEFORE ANY HANDLER RAN, matched by
+  /// `AskFacet`: the question to the door, a write Workshop never heard, or a host request -- and
+  /// an Add waiting on that request, which will never be answered. A carry's refusal says nothing.
+  void on_refused(const FlowAsk &asked, const loom::DispatchRefused &refused, loom::Mail &mail) {
+    switch (asked.kind) {
+    case FlowAsk::Kind::kFind:
       model_.notice = "finding powers was not delivered: " + refused.reason;
-      show(mail);
-      return;
-    }
-    if (writing_ && writing_->attempt.seq == refused.refused_attempt().seq) {
-      model_.notice = pane::Model::writing(writing_->verb) +
+      break;
+    case FlowAsk::Kind::kWrite:
+      model_.notice = pane::Model::writing(asked.action) +
                       " was not done: Workshop could not be asked (" + refused.reason + ")";
-      writing_.reset();
-      show(mail);
-      return;
+      break;
+    case FlowAsk::Kind::kHost:
+      model_.notice = asked.action + " was not delivered: " + refused.reason;
+      if (adding_ && adding_->request == asked.request)
+        adding_.reset(); // the Add waited on this request, which will never be answered
+      break;
+    case FlowAsk::Kind::kCarry: return;
     }
-    for (auto it = pending_.begin(); it != pending_.end(); ++it)
-      if (it->second.attempt.seq == refused.refused_attempt().seq) {
-        model_.notice =
-            it->second.action + " was not delivered: " + refused.reason;
-        if (adding_ && adding_->correlation == it->first)
-          adding_.reset(); // the Add waited on this request, which will never be answered
-        pending_.erase(it);
-        show(mail);
-        return;
-      }
+    show(mail);
   }
 
 private:
-  struct Pending {
-    std::string action;
-    loom::Ticket attempt;
-    std::uint64_t state_epoch = 0;
-  };
   struct Drag {
     std::int64_t gesture = 0, node_id = 0, revision = 0, x = 0, y = 0,
                  base_x = 0, base_y = 0;
@@ -685,13 +688,17 @@ private:
   void carry(const std::shared_ptr<const loom::Schema> &shape, std::uint64_t gesture, bool drag,
              loom::Mail &mail) {
     const auto bytes = zengine::inventory::encode_pair(flow::shape::carried(shape), {});
-    carry_ = Carry{++correlation_, gesture, shape->name(),
-                   loom::Bytes(bytes.begin(), bytes.end()), drag};
-    (void)mail.as_role(pane::kRole).send_to_role(
-        workshop_role,
+    FlowAsk carrying = asking(FlowAsk::Kind::kCarry);
+    carrying.gesture = gesture;
+    carrying.label = shape->name();
+    carrying.bytes = loom::Bytes(bytes.begin(), bytes.end());
+    carrying.drag = drag;
+    (void)asks().forget(of_kind(FlowAsk::Kind::kCarry));
+    (void)asks().ask(
+        mail, workshop_role,
         ws::PaneOperationRequested{pane::kPane, workshop_role, ws::PaneValueCarryRequested::zen_name,
-                                   1, static_cast<std::int64_t>(carry_->gesture)},
-        carry_->ask);
+                                   1, static_cast<std::int64_t>(gesture)},
+        std::move(carrying));
   }
   /// ASK WHETHER THE CONFIRMING GESTURE'S ACTOR MAY WRITE, before any byte: class `write` alone,
   /// since Flow writes the file itself. The verb and its values are kept as confirmed, and the
@@ -705,31 +712,27 @@ private:
           pane::Model::writing(verb) +
           " waits: the confirm came as a raw key, which Workshop cannot approve -- confirm "
           "with the dialog's `dialog-confirm` row");
-    const auto ask = ++correlation_;
-    const auto ticket = mail.as_role(pane::kRole).send_to_role(
-        workshop_role,
-        ws::v2::PaneOperationRequested{pane::kPane, "", "", 0,
-                                       static_cast<std::int64_t>(mail.correlation()),
-                                       {ws::scope::kWrite}, ""},
-        ask);
-    if (!ticket.valid())
+    FlowAsk writing = asking(FlowAsk::Kind::kWrite);
+    writing.action = verb;
+    writing.values = std::move(values);
+    if (asks().approve(mail, std::move(writing), mail.correlation(), {ws::scope::kWrite}) !=
+        Asks::Asked::kHeld)
       throw std::invalid_argument(pane::Model::writing(verb) +
                                   " was not done: Workshop could not be asked");
-    writing_ = Writing{ask, ticket, verb, std::move(values)};
     model_.notice = pane::Model::writing(verb) + " is waiting for Workshop's approval";
   }
   /// WORKSHOP'S WORD ON A CONFIRMED WRITE. Allowed, the verb runs with the values as confirmed
   /// and the dialog closes; refused, or failed, nothing is written and the dialog keeps its text
   /// for repair.
-  void settle_write(const ws::PaneOperationAnswered &answer, loom::Mail &mail) {
-    const auto writing = *std::exchange(writing_, std::nullopt);
-    const auto doing = pane::Model::writing(writing.verb);
+  void settle_write(const FlowAsk &writing, const ws::PaneOperationAnswered &answer,
+                    loom::Mail &mail) {
+    const auto doing = pane::Model::writing(writing.action);
     try {
       if (!answer.allowed)
         throw std::invalid_argument(doing + " was refused: " + answer.reason);
-      if (!model_.dialog || model_.dialog->action != writing.verb)
+      if (!model_.dialog || model_.dialog->action != writing.action)
         throw std::invalid_argument(doing + " was not done: its dialog is no longer open");
-      effect(model_.command(writing.verb, writing.values), mail);
+      effect(model_.command(writing.action, writing.values), mail);
       model_.dialog.reset();
       pictures_.clear();
       drag_.reset();
@@ -740,8 +743,10 @@ private:
   }
   /// A dialog put down puts down the write it asked for: its answer, when it comes, finds none.
   void drop_writing() {
-    if (const auto dropped = std::exchange(writing_, std::nullopt))
-      model_.notice = pane::Model::writing(dropped->verb) + " was cancelled with its dialog";
+    if (const FlowAsk *dropped = asks().find(of_kind(FlowAsk::Kind::kWrite))) {
+      model_.notice = pane::Model::writing(dropped->action) + " was cancelled with its dialog";
+      (void)asks().forget(of_kind(FlowAsk::Kind::kWrite));
+    }
   }
   std::shared_ptr<const loom::Schema> declared(const std::string &name) const {
     const auto &def = model_.workspace.graph.project.definition;
@@ -753,34 +758,29 @@ private:
   }
   /// Bring the selected node into view in the room this pane holds.
   void reveal() {
-    if (room_.grant > 0)
-      pane::reveal_selected(model_, room_);
+    if (canvas_room().grant > 0)
+      pane::reveal_selected(model_, canvas_room());
   }
   bool host(const loom::Mail &mail, const std::string &which) const {
     return which == pane::kPane && mail.authored_from_role(workshop_role);
   }
-  std::optional<Pending> settle(loom::Mail &mail, const std::string &action) {
-    if (!mail.answers_ask())
-      return {};
-    const auto it = pending_.find(mail.correlation());
-    if (it == pending_.end() || it->second.action != action)
-      return {};
-    auto result = it->second;
-    pending_.erase(it);
-    return result;
+  /// The host request of `action` this answer settles, taken from the table; none for another.
+  std::optional<FlowAsk> settle(loom::Mail &mail, const std::string &action) {
+    return asks().answered(mail, [&action](const FlowAsk &a) {
+      return a.kind == FlowAsk::Kind::kHost && a.action == action;
+    });
   }
   template <class T>
   void request(const T &value, const std::string &action, loom::Mail &mail) {
-    if (pending_.size() >= 16)
+    if (asks().count(of_kind(FlowAsk::Kind::kHost)) >= 16)
       throw std::invalid_argument(
           "Flow has 16 unanswered requests; inspect the host before retrying");
-    const auto correlation = ++correlation_;
-    const auto ticket =
-        mail.as_role(pane::kRole)
-            .send_to_role(fh::kFlowHostRole, value, correlation);
-    if (!ticket.valid())
+    FlowAsk asked = asking(FlowAsk::Kind::kHost);
+    asked.action = action;
+    asked.state_epoch = model_.state_epoch;
+    asked.request = ++requests_;
+    if (asks().ask(mail, fh::kFlowHostRole, value, std::move(asked)) != Asks::Asked::kHeld)
       throw std::invalid_argument(action + " could not be queued");
-    pending_.emplace(correlation, Pending{action, ticket, model_.state_epoch});
     model_.notice = action + " queued";
   }
   void effect(const pane::Action &action, loom::Mail &mail) {
@@ -807,15 +807,6 @@ private:
       request(fh::FlowInspect{"workshop", 0}, "inspect", mail);
       break;
     }
-  }
-  void offer(loom::Mail &mail) {
-
-    (void)mail.as_role(pane::kRole)
-        .send_to_role(
-            workshop_role,
-            ws::v3::PaneOffered{pane::kPane, "Flow",
-                                "author and exercise message-driven graphs", 704, 396, 0});
-    declare(mail, true);
   }
   /// THE ROWS IN FORCE FOLLOW THE DIALOG: while one is open, Return is also its confirm, so the
   /// confirm arrives as an action under a gesture Workshop can approve, beside its cancel; Tab,
@@ -1000,8 +991,8 @@ private:
       if (!model_.dialog)
         return;
       // ONE WRITE IN FLIGHT: a second confirm waits for the first one's answer.
-      if (writing_)
-        throw std::invalid_argument(pane::Model::writing(writing_->verb) +
+      if (const FlowAsk *writing = asks().find(of_kind(FlowAsk::Kind::kWrite)))
+        throw std::invalid_argument(pane::Model::writing(writing->action) +
                                     " is already waiting for Workshop's approval");
       const auto saved = *model_.dialog;
       std::vector<std::string> values;
@@ -1018,8 +1009,8 @@ private:
       else
         effect(model_.command(saved.action, values), mail);
       model_.dialog.reset();
-      if ((saved.action == "open" || saved.action == "import-project") && room_.grant > 0)
-        pane::reveal_graph(model_, room_);
+      if ((saved.action == "open" || saved.action == "import-project") && canvas_room().grant > 0)
+        pane::reveal_graph(model_, canvas_room());
       drag_.reset();
     } else if (action == "page-graph") {
       model_.page = pane::Page::Graph;
@@ -1129,8 +1120,8 @@ private:
       model_.workspace.pan_x = 0;
       model_.workspace.pan_y = -3 * pane::unit;
       model_.workspace.zoom = 75;
-      if (room_.grant > 0)
-        pane::reveal_graph(model_, room_);
+      if (canvas_room().grant > 0)
+        pane::reveal_graph(model_, canvas_room());
       model_.touched();
     } else if (action == "zoom-in" || action == "zoom-out") {
       model_.workspace.zoom =
@@ -1155,11 +1146,15 @@ private:
     if (!again && bytes == asked_)
       return;
     asked_ = std::move(bytes);
-    finding_.pending = ++correlation_;
-    finding_.awaiting = true;
-    finding_.attempt = mail.bus().office_send_to_role(
-        pane::kRole, ws::kPowersRole,
-        loom::Message(std::move(question), self_, loom::WeaveId{}, finding_.pending));
+    (void)asks().forget(of_kind(FlowAsk::Kind::kFind));
+    const auto shape = ws::find_powers_schema();
+    (void)asks().ask_with(ws::kPowersRole, shape->name(), shape->version(),
+                          asking(FlowAsk::Kind::kFind), [&](std::uint64_t correlation) {
+                            return mail.bus().office_send_to_role(
+                                pane::kRole, ws::kPowersRole,
+                                loom::Message(std::move(question), self_, loom::WeaveId{},
+                                              correlation));
+                          });
   }
   bool described(const std::string &identity) const {
     return std::any_of(model_.palette.begin(), model_.palette.end(),
@@ -1190,7 +1185,7 @@ private:
       return;
     }
     request(fh::FlowCatalog{}, "catalog", mail);
-    adding_ = Adding{identity, command, std::move(arguments), correlation_,
+    adding_ = Adding{identity, command, std::move(arguments), requests_,
                      flow::workspace_bytes(model_.workspace)};
     model_.notice = "Reading the ports of " + identity + " from the host";
   }
@@ -1230,14 +1225,14 @@ private:
       arguments.push_back(hit->args[0]);
       arguments.push_back(hit->args[1]);
     } else if (pictured.graph_top) {
-      const pane::GridProjection grid(room_);
+      const pane::GridProjection grid(canvas_room());
       const auto zoom = std::max<std::int64_t>(1, pictured.zoom);
       landing = std::pair{(grid.grid_x(drop.x) - pictured.pan_x) * 100 / zoom,
                           (grid.grid_y(drop.y) - *pictured.graph_top - pictured.pan_y) * 100 / zoom};
     }
     if (!described(ref.identity)) {
       request(fh::FlowCatalog{}, "catalog", mail);
-      adding_ = Adding{ref.identity, command, std::move(arguments), correlation_,
+      adding_ = Adding{ref.identity, command, std::move(arguments), requests_,
                        flow::workspace_bytes(model_.workspace)};
       model_.notice = "Reading the ports of " + ref.identity + " from the host";
       return;
@@ -1300,8 +1295,8 @@ private:
   void show(loom::Mail &mail) {
     find(mail);
     declare(mail);
-    if (room_.grant > 0 && room_.width > 0 && room_.height > 0) {
-      auto current = pane::picture(model_, room_, ++picture_number_);
+    if (canvas_room().grant > 0 && canvas_room().width > 0 && canvas_room().height > 0) {
+      auto current = pane::picture(model_, canvas_room(), ++picture_number_);
       const auto ticket = mail.as_role(pane::kRole)
                               .send_to_role(workshop_role, pane::named(current));
       if (ticket.valid()) {
@@ -1309,7 +1304,7 @@ private:
         while (pictures_.size() > 8)
           pictures_.pop_front();
       }
-    } else if (rows_ > 0 && columns_ > 0) {
+    } else if (room().prose_rows() > 0 && room().prose_columns() > 0) {
       std::vector<zengine::surface::SurfaceTextRow> rows;
       auto lines = flow::graph_lines(model_.workspace.graph.project.definition);
       lines.insert(lines.begin(),
@@ -1317,9 +1312,9 @@ private:
                    "Use FlowEdit or the standalone workbench.");
       lines.push_back(model_.notice);
       for (const auto &line : lines) {
-        if (static_cast<std::int64_t>(rows.size()) >= rows_)
+        if (static_cast<std::int64_t>(rows.size()) >= room().prose_rows())
           break;
-        rows.push_back({ws::pane_text::fit(pane::clean(line), columns_)});
+        rows.push_back({ws::pane_text::fit(pane::clean(line), room().prose_columns())});
       }
       (void)mail.as_role(pane::kRole)
           .send_to_role(workshop_role,
@@ -1327,53 +1322,32 @@ private:
     }
   }
   pane::Model model_;
-  zengine::ActivationCursor activation_;
+  Room &room() { return this->template facet<Room>(); }
+  const Room &room() const { return this->template facet<Room>(); }
+  /// The canvas room this pane holds, or the last one granted (`PaneFacet`).
+  const ws::PaneCanvasRoom &canvas_room() const { return room().canvas_room(); }
+  Asks &asks() { return this->template facet<Asks>(); }
   bool restored_ = false;
-  ws::PaneCanvasRoom room_;
-  std::int64_t rows_ = 0, columns_ = 0, picture_number_ = 0;
-  std::uint64_t correlation_ = 0;
-  std::map<std::uint64_t, Pending> pending_;
+  std::int64_t picture_number_ = 0;
+  /// The number of the last host request asked, which an Add names to wait on its answer.
+  std::uint64_t requests_ = 0;
   std::int64_t observed_pending_ = 0;
   std::optional<zengine::message_draft::Draft> live_state_;
   std::deque<pane::Picture> pictures_;
   std::optional<Drag> drag_;
   zengine::component::Clipboard clipboard_;
-  /// The one outstanding question to the discovery door, the bytes of the last one asked, and an
-  /// Add waiting on the catalog request that will describe what it adds.
-  struct Finding {
-    std::uint64_t pending = 0;
-    bool awaiting = false;
-    loom::Ticket attempt;
-  };
-  /// An Add waiting on the host, its node and port numbers meaning what they meant in `draft`.
+  /// An Add waiting on the host request numbered `request` -- the catalog request that will
+  /// describe what it adds -- its node and port numbers meaning what they meant in `draft`.
   struct Adding {
     std::string identity, command;
     std::vector<std::string> arguments;
-    std::uint64_t correlation = 0;
+    std::uint64_t request = 0;
     std::string draft;
   };
-  /// A declared message's shape being carried out: the acquisition's own ask, the gesture it
-  /// continues, the bytes Workshop will carry, and whether a release or a click places them.
-  struct Carry {
-    std::uint64_t ask = 0, gesture = 0;
-    std::string label;
-    loom::Bytes bytes;
-    bool drag = false;
-  };
-  /// A file write a dialog confirmed, waiting on Workshop's word for the confirming actor: the
-  /// ask and its attempt, and the verb and values as confirmed. Never saved with the pane.
-  struct Writing {
-    std::uint64_t ask = 0;
-    loom::Ticket attempt;
-    std::string verb;
-    std::vector<std::string> values;
-  };
-  Finding finding_;
+  /// The bytes of the last question asked of the discovery door.
   std::string asked_;
   std::optional<Adding> adding_;
   ws::pane_menu::Asked menu_;
-  std::optional<Carry> carry_;
-  std::optional<Writing> writing_;
   /// Whether the rows last declared held the dialog's confirm; none before the offer's.
   std::optional<bool> declared_;
 };

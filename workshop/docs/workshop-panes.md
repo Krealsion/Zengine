@@ -649,6 +649,46 @@ v2::PaneCaret   provider -> Workshop   the same, naming the generation of the ro
   or, past a full row's end, the row's last cell. A press on that row reaches the pane as the
   column of the character the pressed cell shows, the caret's own cell included.
 
+## The pane facets
+
+A pane office here writes what its pane shows and what its acts mean; the conversations every
+pane holds with Workshop are facets it composes with `zengine::With`
+([`workshop/pane_facets.hpp`](../pane_facets.hpp)), and the shapes they carry are the facets'
+`Accept` and `Emit` lists, never the weave's. What each facet calls on the weave is a public member
+of the weave; a member the facet calls only when present is optional.
+
+- **`PaneFacet<Pane, Office, Page, Offer>`: the offer, the room and the manual.** It holds the
+  activation the office lives under; offers `Pane` from `Office` on each accepted `zen.Activated`
+  and on each `PaneCatalogRequested` Workshop's office sends; answers the manual from `Page`, as
+  `PaneManualFacet` does; and keeps the room -- `PaneRoom` and `PaneCanvasRoom`, each taken only as
+  Workshop's own word about this pane -- with the rows and columns the pane composes for: the
+  canvas lattice's while a canvas room is held, else the prose room's (`rows()`, `columns()`,
+  `on_canvas()`, `canvas_room()`). The weave supplies `offering()`, its `Offer` (`v2::PaneOffered`
+  for a pane of rows, `v3::PaneOffered` for a picture of a given size), and `on_room(mail)`, where
+  it draws. Optional: `offered(mail)`, after each offer (its rows, its settings);
+  `on_activated(mail)`, which then offers by `announce` where it chooses; `on_canvas_room(mail)`, a
+  canvas grant in place of `on_room`; `on_rejected(rejected, mail)`, a refused picture's words.
+- **`PaneRowsFacet<Pane, Office, Page, Meaning, Offer>`: a pane that says rows.** `PaneFacet`, the
+  rows being composed (`begin`, `push`), what each row and run of columns means
+  (`component::RowMap<Meaning>`, `map()`), the caret (`caret()`), and `publish`: the pane's canvas
+  picture (`v6::PaneCanvasContent`) while it holds a canvas room, numbered by what its rows mean,
+  else `v5::PaneContent` with `PaneCaret` beside it. It reads `PaneCanvasPointer`: the wheel is the
+  weave's `wheel(dy, mail)`; a press about a picture whose rows have moved since, or another
+  room's, is `fenced(mail)`; the first button on a shown row is `press(RowPress, mail)`; the third
+  button on a row that means something is `right_press(meaning, RowPress, mail)`, and one the
+  weave does not take is passed back (`PanePassRequested`), so Workshop's own pane menu opens.
+- **`AskFacet<Pane, Office, Act, Approvals, Capacity>`: the asks a pane still waits on.** One
+  bounded table (`loom::AskBook`) numbered from the pane's one correlation sequence, each entry the
+  pane's own record of the act, `Act`, captured when it was asked. `approve` asks Workshop whether
+  a gesture's actor may do an act (`v2::PaneOperationRequested`); `ask` and `ask_with` send a
+  request to an office; `answered(mail, which)` takes the ask an answer settles, by Loom's answer
+  provenance and its correlation. Workshop's `PaneOperationAnswered` is the weave's
+  `on_approval(act, answer, mail)`, and Loom's `zen.DispatchRefused` for exactly one held send --
+  its attempt, office, shape and version -- is `on_refused(act, refused, mail)`; a forged, stale
+  or unmatched one settles nothing. A full table refuses the new ask (`Asked::kFull`), a send that
+  queued nothing is never held (`Asked::kUnqueued`), and the weave says either in its own words.
+  The table is the image's alone: a reloaded pane asked nothing, so no earlier answer settles it.
+
 ## Optional pane-local canvas
 
 `workshop/pane_canvas_vocabulary.hpp` defines a bounded drawing capability beside prose.
