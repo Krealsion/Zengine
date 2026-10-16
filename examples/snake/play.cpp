@@ -7,16 +7,18 @@
 // the directory introduces the two; and the operator weave arranges the window, chooses its skins,
 // speaks the status line and sends every lifecycle command (examples/snake/README.md).
 
-// The moments are keys, which the window gives the world and the operator alike: 1 chooses the
-// other skin (painter code the window opens mid-game; nothing is drawn again on the bus), 2 loads
-// the score weave into the running game, 3 grows the world (a graceful swap: the v1 world writes
-// its letter and the v2 heir migrates it), 4 says no window weave draws an OS window; r reloads
-// the world in place, n starts a new game through the poke-reset door, l lists, q quits.
+// The moments are keys, which the window gives the world and the operator alike, and the
+// operator's buttons beneath its status line, each making its key's gesture: 1 chooses the other
+// skin (painter code the window opens mid-game; nothing is drawn again on the bus), 2 loads the
+// score weave into the running game, 3 grows the world (a graceful swap: the v1 world writes its
+// letter and the v2 heir migrates it), 4 says no window weave draws an OS window; r reloads the
+// world in place, n starts a new game through the poke-reset door, l lists, q quits.
 
 #include "play_state.hpp"
 #include "vocabulary.hpp"
 
 #include "graphics/drawing.hpp"
+#include "graphics/elements/button.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "timer/vocabulary.hpp"
@@ -27,6 +29,7 @@
 #include <zen/kernel/manager.hpp>
 #include <zen/switchboard.hpp>
 #include <zen/weave.hpp>
+#include <zen/weave/ask_book.hpp>
 
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
@@ -46,7 +49,9 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 namespace {
@@ -74,6 +79,25 @@ constexpr SkinChoice kSkins[] = {
     {"zengine-paint-block", "block"},
 };
 
+/// The operator's buttons, in the row beneath its status line: the action each asks of the
+/// operator, and its words, which name the key that makes the same gesture.
+constexpr const char* kSkinAction = "skin";
+constexpr const char* kScoreAction = "score";
+constexpr const char* kGrowAction = "grow";
+constexpr const char* kReloadAction = "reload";
+constexpr const char* kNewAction = "new";
+constexpr const char* kListAction = "list";
+constexpr const char* kQuitAction = "quit";
+struct Control {
+    const char* action;
+    const char* label;
+};
+constexpr Control kControls[] = {
+    {kSkinAction, "1 skin"},     {kScoreAction, "2 score"}, {kGrowAction, "3 grow"},
+    {kReloadAction, "r reload"}, {kNewAction, "n new"},     {kListAction, "l list"},
+    {kQuitAction, "q quit"},
+};
+
 /// What the host remembers about a command in flight, so an answer can be reported in the words
 /// of the question, and so a success can flip the operator's own trackers.
 struct Pending {
@@ -83,9 +107,12 @@ struct Pending {
 constexpr int kWorldGrown = 2;
 constexpr int kScoreLoaded = 3;
 
+/// How many commands the operator keeps in flight at once; one more is refused out loud.
+constexpr std::size_t kAsksInFlight = 32;
+
 struct OperatorContext {
-    std::map<std::uint64_t, Pending> pending;
-    std::uint64_t next_corr = 1;
+    loom::AskBook asks{kAsksInFlight};        ///< the commands in flight, each settled once
+    std::map<std::uint64_t, Pending> pending; ///< what each open ask was, by its local id
     bool quit = false;         ///< the q key; the loop reads it after the pump returns
     int skin = 0;              ///< which skin paints the window's areas
     bool world_is_v2 = false;  ///< which world generation holds the role
@@ -99,16 +126,39 @@ struct OperatorContext {
     std::function<void()> request_stop;
 
     std::string so(const char* stem) const;
+
+    /// An ask of the manager, opened and remembered: the correlation the command carries, or
+    /// refused while the book is full.
+    template <class Cmd>
+    loom::AskOpened ask_manager(std::string label, int action) {
+        return remember(asks.open(manager, Cmd::zen_name, Cmd::zen_version), std::move(label),
+                        action);
+    }
+
+    /// An ask of the world's reset door, by role: whoever holds the world when it arrives answers.
+    loom::AskOpened ask_world_reset(std::string label) {
+        return remember(asks.open_to_role(kWorldRole, loom::PokeResetState::zen_name,
+                                          loom::PokeResetState::zen_version),
+                        std::move(label), 0);
+    }
+
+    loom::AskOpened remember(loom::AskOpened opened, std::string label, int action) {
+        if (opened) {
+            pending[opened.id] = Pending{std::move(label), action};
+        }
+        return opened;
+    }
 };
 
 /// The host's hand on the bus and the window's arranger: it places the areas, offers the skins
-/// and the board's code, chooses the skins, draws the status line, holds the reach (the manager,
-/// target-scoped, and the world's poke-reset door by role), and hears every answer.
+/// and the board's code, chooses the skins, draws the status line and its buttons, holds the
+/// reach (the manager, target-scoped, and the world's poke-reset door by role), and hears every
+/// answer.
 class OperatorWeave
     : public gfx::With<gfx::DrawingFacet>::Weave<
           OperatorWeave, OperatorState,
           loom::Accept<loom::Result, loom::Ack, loom::Refused, input::KeyPressed,
-                       gfx::GraphicsReady>,
+                       gfx::ActionRequested, gfx::GraphicsReady>,
           loom::Emit<loom::LoadWeave, loom::SwapWeave, loom::ReloadWeave, loom::ListLoaded,
                      loom::PokeResetState, gfx::AreaPlaced, gfx::SkinOffered, gfx::SkinChosen,
                      gfx::ElementCodeOffered>> {
@@ -141,42 +191,16 @@ public:
             return;
         }
         switch (k.scancode) {
-        case scan::k1:
-            ctx_->skin = 1 - ctx_->skin;
-            choose_skins(mail);
-            status(std::string("skin -> ") + kSkins[ctx_->skin].label);
-            break;
+        case scan::k1: flip_skin(mail); break;
         case scan::k4:
             status("no window weave draws an OS window: this one is the terminal");
             break;
-        case scan::k2:
-            command(mail, "load score weave (late)", kScoreLoaded,
-                    loom::LoadWeave{"snake-score", ctx_->so("snake-score"), kScoreRole});
-            break;
-        case scan::k3:
-            command(mail, "grow the world (graceful v1->v2)", kWorldGrown,
-                    loom::SwapWeave{kWorldRole, "snake-world-v2", ctx_->so("snake-world-v2"),
-                                    /*graceful=*/true});
-            break;
-        case scan::kR: {
-            const char* stem = ctx_->world_is_v2 ? "snake-world-v2" : "snake-world-v1";
-            command(mail, "reload world in place (state rides the gate)", 0,
-                    loom::ReloadWeave{stem, ctx_->so(stem)});
-            break;
-        }
-        case scan::kL:
-            command(mail, "loaded", 0, loom::ListLoaded{});
-            break;
-        case scan::kN: {
-            const std::uint64_t corr = ctx_->next_corr++;
-            ctx_->pending[corr] = Pending{"new game (poke reset)", 0};
-            mail.send_to_role(kWorldRole, loom::PokeResetState{}, corr);
-            status("new game (poke reset) ...");
-            break;
-        }
-        case scan::kQ:
-            quit();
-            break;
+        case scan::k2: load_score(mail); break;
+        case scan::k3: grow_world(mail); break;
+        case scan::kR: reload_world(mail); break;
+        case scan::kL: list_loaded(mail); break;
+        case scan::kN: reset_world(mail); break;
+        case scan::kQ: quit(); break;
         case scan::kC:
             // Ctrl is measured, not inferred from a name: the modifier rides the transition it
             // was held for (input/docs/input.md).
@@ -188,15 +212,92 @@ public:
         }
     }
 
-    /// The status line, plain ASCII: how it looks is the skin's business.
+    /// A button pressed in the window: the gesture of the key it names.
+    void on(const gfx::ActionRequested& a, loom::Mail& mail) {
+        if (!mail.authored_from_role(canvas().window_office())) {
+            return;
+        }
+        if (a.action == kSkinAction) {
+            flip_skin(mail);
+        } else if (a.action == kScoreAction) {
+            load_score(mail);
+        } else if (a.action == kGrowAction) {
+            grow_world(mail);
+        } else if (a.action == kReloadAction) {
+            reload_world(mail);
+        } else if (a.action == kNewAction) {
+            reset_world(mail);
+        } else if (a.action == kListAction) {
+            list_loaded(mail);
+        } else if (a.action == kQuitAction) {
+            quit();
+        }
+    }
+
+    /// The status line, plain ASCII: how it looks is the skin's business. Beneath it, a button
+    /// for each gesture.
     void picture(gfx::Sketch& f) const {
+        const std::int64_t c = gfx::kCellPx;
         f.text("status", 0, 0, ctx_->status, gfx::by_role(gfx::role::kFill));
+        std::int64_t x = 0;
+        for (const Control& k : kControls) {
+            const auto cells = static_cast<std::int64_t>(std::string(k.label).size()) + 2;
+            gfx::Button button(k.action, k.label);
+            button.set_bounds(x, c, cells * c, c);
+            button.sketch(f, k.action);
+            x += (cells + 1) * c;
+        }
     }
 
 private:
+    // ---- the gestures, made alike by a key and by its button ----
+
+    void flip_skin(loom::Mail& mail) {
+        ctx_->skin = 1 - ctx_->skin;
+        choose_skins(mail);
+        status(std::string("skin -> ") + kSkins[ctx_->skin].label);
+    }
+
+    void load_score(loom::Mail& mail) {
+        command(mail, "load score weave (late)", kScoreLoaded,
+                loom::LoadWeave{"snake-score", ctx_->so("snake-score"), kScoreRole});
+    }
+
+    void grow_world(loom::Mail& mail) {
+        command(mail, "grow the world (graceful v1->v2)", kWorldGrown,
+                loom::SwapWeave{kWorldRole, "snake-world-v2", ctx_->so("snake-world-v2"),
+                                /*graceful=*/true});
+    }
+
+    void reload_world(loom::Mail& mail) {
+        const char* stem = ctx_->world_is_v2 ? "snake-world-v2" : "snake-world-v1";
+        command(mail, "reload world in place (state rides the gate)", 0,
+                loom::ReloadWeave{stem, ctx_->so(stem)});
+    }
+
+    void reset_world(loom::Mail& mail) {
+        const std::string label = "new game (poke reset)";
+        if (const loom::AskOpened opened = ctx_->ask_world_reset(label)) {
+            mail.send_to_role(kWorldRole, loom::PokeResetState{}, opened.correlation);
+            status(label + " ...");
+        } else {
+            not_sent(label);
+        }
+    }
+
+    void list_loaded(loom::Mail& mail) { command(mail, "loaded", 0, loom::ListLoaded{}); }
+
+    /// The one exit: mark the wish for the loop and stop the bus so the loop gets to read it.
+    void quit() {
+        ctx_->quit = true;
+        if (ctx_->request_stop) {
+            ctx_->request_stop();
+        }
+    }
+
     /// The window as the operator arranges it: the skins and the board's code offered, the status
-    /// line across the top, the world beneath it, the score beside it once loaded; every area
-    /// hears the keys, and each wears the chosen skin.
+    /// line and its buttons across the top, the world beneath them, the score beside it once
+    /// loaded; every area hears the keys, and each wears the chosen skin.
     void arrange(loom::Mail& mail) {
         const auto to_directory = [&](const auto& m) {
             (void)mail.as_role(kOperatorRole).send_to_role(gfx::kGraphicsRole, m);
@@ -207,8 +308,8 @@ private:
         to_directory(gfx::ElementCodeOffered{"SnakeBoardData", ctx_->so("snake-board")});
         const std::int64_t c = gfx::kCellPx;
         to_directory(gfx::AreaPlaced{kStatusArea, gfx::kTerminalWindow, kOperatorRole, 0,
-                                     0, 200 * c, c, 1, true});
-        to_directory(gfx::AreaPlaced{kWorldArea, gfx::kTerminalWindow, kWorldRole, 0, c,
+                                     0, 200 * c, 2 * c, 1, true});
+        to_directory(gfx::AreaPlaced{kWorldArea, gfx::kTerminalWindow, kWorldRole, 0, 2 * c,
                                      50 * c, 28 * c, 0, true});
         if (ctx_->score_loaded) {
             place_score(mail);
@@ -221,7 +322,7 @@ private:
         (void)mail.as_role(kOperatorRole)
             .send_to_role(gfx::kGraphicsRole,
                           gfx::AreaPlaced{kScoreRole, gfx::kTerminalWindow, kScoreRole,
-                                          52 * c, c, 50 * c, c, 0, false});
+                                          52 * c, 2 * c, 50 * c, c, 0, false});
     }
 
     void choose_skins(loom::Mail& mail) {
@@ -232,23 +333,38 @@ private:
     }
 
     template <class Cmd>
-    void command(loom::Mail& mail, std::string label, int action, const Cmd& cmd) {
-        const std::uint64_t corr = ctx_->next_corr++;
-        ctx_->pending[corr] = Pending{label, action};
-        mail.send(ctx_->manager, cmd, corr);
-        status(label + " ...");
+    void command(loom::Mail& mail, const std::string& label, int action, const Cmd& cmd) {
+        if (const loom::AskOpened opened = ctx_->ask_manager<Cmd>(label, action)) {
+            mail.send(ctx_->manager, cmd, opened.correlation);
+            status(label + " ...");
+        } else {
+            not_sent(label);
+        }
+    }
+
+    /// A command the book has no room for: never sent, and said so.
+    void not_sent(const std::string& label) {
+        status(label + " not sent: " + std::to_string(ctx_->asks.outstanding()) +
+               " commands still wait for an answer");
     }
 
     /// The status line's words, drawn at the end of the delivery that said them.
     void status(const std::string& text) {
-        ctx_->status = "[zen] " + text +
-                       "   (wasd | 1 skin | 2 score | 3 grow | 4 sdl | r reload | n new | l list | "
-                       "q quit)";
+        ctx_->status = "[zen] " + text + "   (wasd | 4 sdl)";
     }
 
     void answered(loom::Mail& mail, const std::string& outcome, bool refused) {
         ++state_.answers;
-        const auto it = ctx_->pending.find(mail.correlation());
+        // An ask of the manager settles by its correlation and the manager's stamp; an ask by
+        // role, whose respondent was unknown when asking, also needs Loom's attested answer. The
+        // manager relays its control door's answers as ordinary speech, so only the role's
+        // answer is asked for that attestation.
+        const loom::PendingAsk* open = ctx_->asks.match(mail.correlation(), mail.sender());
+        const std::optional<loom::PendingAsk> settled =
+            open != nullptr && (!open->to_role() || mail.answers_ask())
+                ? ctx_->asks.settle(mail.correlation(), mail.sender())
+                : std::nullopt;
+        const auto it = settled ? ctx_->pending.find(settled->id) : ctx_->pending.end();
         if (it == ctx_->pending.end()) {
             status("unsolicited answer from weave " + std::to_string(mail.sender().value) + " " +
                    outcome);
@@ -267,14 +383,6 @@ private:
         }
         status(it->second.label + " " + outcome);
         ctx_->pending.erase(it);
-    }
-
-    /// The one exit: mark the wish for the loop and stop the bus so the loop gets to read it.
-    void quit() {
-        ctx_->quit = true;
-        if (ctx_->request_stop) {
-            ctx_->request_stop();
-        }
     }
 
     OperatorContext* ctx_;
@@ -370,11 +478,13 @@ int main() {
     const loom::WeaveId op = bus.register_weave(std::move(weave), std::move(reach), kOperatorRole);
     raw->zen_set_self(op);
 
-    // Startup commands are sent AS the operator, with the same bookkeeping its key commands use.
+    // Startup commands are sent AS the operator, asked in the same book its key commands use.
     const auto boot = [&](std::string label, const auto& cmd) {
-        const std::uint64_t corr = ctx.next_corr++;
-        ctx.pending[corr] = Pending{std::move(label), 0};
-        bus.send_as(op, manager, loom::Message(loom::to_value(cmd), op, op, corr));
+        using Cmd = std::decay_t<decltype(cmd)>;
+        if (const loom::AskOpened opened = ctx.ask_manager<Cmd>(std::move(label), 0)) {
+            bus.send_as(op, manager,
+                        loom::Message(loom::to_value(cmd), op, op, opened.correlation));
+        }
     };
 
     // Birth of the game: the directory first (its hello is what has the operator arrange the

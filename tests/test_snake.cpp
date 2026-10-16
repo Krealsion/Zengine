@@ -17,6 +17,7 @@
 
 #include "graphics_rig.hpp"
 
+#include "graphics/elements/button.hpp"
 #include "surface/vocabulary.hpp" // a Skin's role: the negative control that does paint stdout
 #include "timer/vocabulary.hpp"
 
@@ -935,6 +936,86 @@ TEST_CASE("the world's beat uses the timer binding, not hand-written ceremony") 
     // And its doors stay open beside the beat: world time and steering from anyone.
     CHECK(source.find("on(const SnakeTick&") != std::string::npos);
     CHECK(source.find("on(const SnakeTurn&") != std::string::npos);
+}
+
+// ============================================================================
+// The world's new-game button is a part its window holds
+// ============================================================================
+
+namespace {
+
+/// A source's code with its line comments stripped, so a tripwire reads code, not prose.
+std::string code_of(const char* path) {
+    std::ifstream in(path);
+    REQUIRE_MESSAGE(in.is_open(), "cannot read the source: ", std::string(path));
+    std::string code;
+    std::string line;
+    while (std::getline(in, line)) {
+        bool quoted = false;
+        for (std::size_t i = 0; i < line.size(); ++i) {
+            if (line[i] == '"' && (i == 0 || line[i - 1] != '\\')) {
+                quoted = !quoted;
+            } else if (!quoted && line.compare(i, 2, "//") == 0) {
+                line.resize(i);
+                break;
+            }
+        }
+        code += line + '\n';
+    }
+    return code;
+}
+
+} // namespace
+
+TEST_CASE("the world draws its new-game button as a part: a ButtonFace at new-game, naming the "
+          "world's action") {
+    namespace rig = zengine::testing::graphics_rig;
+    namespace gfx = zengine::graphics;
+    rig::Rig r;
+    REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
+    REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, rig::window_office()).valid());
+    REQUIRE(r.load("snake-world-v1", SNAKE_SO_WORLD_V1, kWorldRole).valid());
+    r.arrange(PAINT_CLASSIC_SO, PAINT_BLOCK_SO, SNAKE_SO_BOARD, kWorldArea, kWorldRole, "classic");
+    r.tick();
+
+    // The world's drawing as its window received it, the record at new-game read back as the
+    // shape it was said as.
+    std::vector<gfx::ElementRecord> said;
+    for (const gfx::Drawn& d : r.read<gfx::Drawn>(0, kWorldRole)) {
+        for (const gfx::ElementRecord& e : d.said) {
+            if (e.path == "new-game") {
+                said.push_back(e);
+            }
+        }
+    }
+    REQUIRE(!said.empty());
+    const gfx::ElementRecord& record = said.back();
+    CHECK(record.type == schema_of<gfx::ButtonFace>()->name());
+    CHECK(record.action == "new-game");
+    const auto face = loom::claim_item<gfx::ButtonFace>(record.data);
+    REQUIRE(face.has_value());
+    CHECK(face->label == " new game ");
+    CHECK(face->enabled);
+    // Beneath the score's row, the board's border and its rows, and the border under them.
+    const std::int64_t row = v1::SnakeWorldState{}.height + 3;
+    CHECK(face->y == row * kBoardCellPx);
+    CHECK(face->w == 12 * kBoardCellPx);
+
+    // ...and the window shows it as its words, on that row.
+    const std::vector<std::string> rows = r.shown().rows;
+    REQUIRE(rows.size() > static_cast<std::size_t>(row));
+    CHECK(rows[static_cast<std::size_t>(row)] == "[ new game ]");
+}
+
+TEST_CASE("the world's new-game button is a gfx::Button, not a hand-written text and action") {
+    // WHY THIS READS THE SOURCE: defence in depth beside the case above, which reads the button's
+    // face back from the window's drawing. A second, hand-written action elsewhere in the world
+    // would draw and press as well, and only the file says it is there.
+    const std::string code = code_of(WORLD_CPP);
+    REQUIRE(code.size() > 2000); // we really read the world, not an empty path
+    CHECK(code.find("#include \"graphics/elements/button.hpp\"") != std::string::npos);
+    CHECK(code.find("gfx::Button ") != std::string::npos);
+    CHECK(code.find(".action(") == std::string::npos);
 }
 
 // ============================================================================
