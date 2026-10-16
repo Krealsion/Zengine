@@ -2,7 +2,7 @@
 # ones included, as `<name> v<version> <content id>`. A changed shape is a new version, and so is
 # every shape enclosing it; the census as it stands is written beside the build to diff against.
 ActionCause v1 0x0e8ac43167eee1f6
-ActionIssued v1 0x049dae0c2c9f02b6
+ActionRequested v1 0x6aed99e79a4b826c
 ActionsJudged v1 0xeb0998f48ba3335b
 ActionsWithdrawn v1 0x7aaceb7e61c4a2df
 ActorScopeJudged v1 0x44b57fa39b52a9fb

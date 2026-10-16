@@ -63,11 +63,11 @@ message it says. On a recalled command it keeps that line for editing instead, a
 
 - **Takes:** the line. Default key <!-- key terminal.submit -->`return`<!-- /key -->.
 - **Answers:** the line empties and the view follows the newest output again. Workshop is asked to
-  author it ([the terminal seam](../../workshop/terminal_seam_vocabulary.hpp)), and what it came to
-  is on the record: `> ` your line, then `^ ... SUBMITTED`, or the participant's notice when it
-  authored nothing, such as `` this pane speaks two verbs, and `ask` takes the same form as `send`:
-  send <addr> <Shape> <version> [args] -- an address is #12 for one weave, @office for whoever
-  holds a role, or * for everyone ``. An `ask`'s answer arrives later, as a `v` row.
+  author it ([`TerminalActRequested`](../../workshop/terminal_seam_vocabulary.hpp)), and what it
+  came to is on the record: `> ` your line, then `^ ... SUBMITTED`, or the participant's notice when
+  it authored nothing, such as `` this pane speaks two verbs, and `ask` takes the same form as
+  `send`: send <addr> <Shape> <version> [args] -- an address is #12 for one weave, @office for
+  whoever holds a role, or * for everyone ``. An `ask`'s answer arrives later, as a `v` row.
 - **Refuses:** an empty line authors nothing. Over the top row, beside the line: `no terminal
   participant is mounted on this bus -- nothing was authored`. A send the participant may not make,
   or to an address nothing holds now, is refused by Loom, and its outcome and detail are a notice on
@@ -83,14 +83,14 @@ Typing asks too: the list follows the word you are in.
 
 - **Takes:** the line, at its end. Default key <!-- key terminal.complete -->`tab`<!-- /key -->.
 - **Answers:** Workshop is asked what can follow the line
-  ([the terminal seam](../../workshop/terminal_seam_vocabulary.hpp)), read at the moment you ask
-  and kept by nobody; the list stands above the line ([`candidate`](#candidate)). At the verb,
-  `send` and `ask`. At the address, under `where it goes -- on this bus now; not permission, nor a
-  promise at send`: `*`, each office held now, `@zengine.skin   held by #4 now; reaches whoever
-  holds it when sent`, then each weave by id, `#4   @zengine.skin; accepts SurfaceText,
+  ([`TerminalCompletionRequested`](../../workshop/terminal_seam_vocabulary.hpp)), read at the moment
+  you ask and kept by nobody; the list stands above the line ([`candidate`](#candidate)). At the
+  verb, `send` and `ask`. At the address, under `where it goes -- on this bus now; not permission,
+  nor a promise at send`: `*`, each office held now, `@zengine.skin   held by #4 now; reaches
+  whoever holds it when sent`, then each weave by id, `#4   @zengine.skin; accepts SurfaceText,
   SurfaceCanvas +3`. Then the shapes the participant knows, under `shapes this terminal KNOWS --
-  knowing one is not authority to send it`, their versions, and field names, never values; over
-  the arguments, the verdict on the line, `SurfaceText v1 -- ready; Return submits it` or what is
+  knowing one is not authority to send it`, their versions, and field names, never values; over the
+  arguments, the verdict on the line, `SurfaceText v1 -- ready; Return submits it` or what is
   missing. Taking a candidate replaces the word you were typing.
 - **Refuses:** with the caret inside the line, `completion follows the END of the line -- this
   caret is inside it`, and no candidate. A heading with no candidates is an answer:

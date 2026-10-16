@@ -7,6 +7,8 @@
 #include <string>
 namespace zengine::demo {
 inline constexpr const char* kRole = "zengine.demo";
+/// The one pane the demo's office offers: its controls.
+inline constexpr const char* kControlsPane = "controls";
 struct DemoServiceOpened {
     std::string name;
     ZEN_SHAPE(DemoServiceOpened, 1, ZEN_FIELD(name));

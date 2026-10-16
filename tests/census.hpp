@@ -4,11 +4,12 @@
 #ifndef ZENGINE_TESTS_CENSUS_HPP
 #define ZENGINE_TESTS_CENSUS_HPP
 
-// The action census and the manual witness, shared by the pane suites: each suite registers one
-// driver per office (`CensusDriverOf`) that walks its panes through their modes, and the census
-// case in tests/test_workshop_panes_builder.cpp holds each office's lines to its pinned ones,
-// `tests/actions.txt` or `tests/actions/<office>.txt`. A pane's manual is asked as any weave asks
-// it and held to the ids its rows declare. Reference: manual/docs/manual.md.
+// The action census, the press witness and the manual witness, shared by the pane suites: each
+// suite registers per office a census driver (`CensusDriverOf`) walking its panes through their
+// modes and a press driver (`PressDriverOf`) pressing each row. The Builder's suite holds each
+// office's lines to `tests/actions.txt` or `tests/actions/<office>.txt`, and each press to its
+// row's causes. A pane's manual is asked as any weave asks it and held to the ids its rows declare.
+// Reference: manual/docs/manual.md.
 
 #include "workshop_support.hpp"
 
@@ -20,6 +21,7 @@
 #include <fstream>
 #include <functional>
 #include <map>
+#include <memory>
 #include <set>
 #include <sstream>
 #include <string>
@@ -297,6 +299,166 @@ inline std::set<std::string> census_ids(const std::vector<std::string>& lines) {
         out.insert(id);
     }
     return out;
+}
+
+// ---- The press witness: each declared action, pressed, sends nothing its row does not declare
+
+/// THE PANE PROTOCOL, by name in every version: what a pane says to Workshop about itself -- its
+/// offer, rows, content, caret, menus, its answer to a manual's ask, and the approval it asks
+/// before an act. A press's causes are every other send.
+inline bool pane_protocol(const std::string& shape) {
+    static const std::set<std::string> kSaid{
+        PaneOffered::zen_name,           PaneActions::zen_name,
+        PaneContent::zen_name,           PaneCanvasContent::zen_name,
+        PaneCaret::zen_name,             PaneMenuRequested::zen_name,
+        PanePassRequested::zen_name,     PaneKeyboardRequested::zen_name,
+        PaneEscapeUnspent::zen_name,     PaneRevealRequested::zen_name,
+        PaneManageRequested::zen_name,   PaneOperationRequested::zen_name,
+        PaneDocumentShown::zen_name,     PaneSettingsDeclared::zen_name};
+    return kSaid.count(shape) == 1;
+}
+
+/// EVERY SEND ONE PARTICIPANT MAKES OUTSIDE THE PANE PROTOCOL while this is held, as
+/// `<shape>/<version>`: delivered or refused, to an office, a weave or anyone.
+class SendsOf {
+public:
+    SendsOf(loom::Switchboard& bus, loom::WeaveId who) : bus_(bus) {
+        tap_ = bus_.add_observer([this, who](const loom::BusEvent& ev) {
+            if ((ev.kind == loom::EventKind::Delivered || ev.kind == loom::EventKind::Refused) &&
+                ev.sender == who && !pane_protocol(ev.schema_name)) {
+                sent.insert(ev.schema_name + "/" + std::to_string(ev.schema_version));
+            }
+        });
+    }
+    ~SendsOf() { bus_.remove_observer(tap_); }
+    SendsOf(const SendsOf&) = delete;
+    SendsOf& operator=(const SendsOf&) = delete;
+    std::set<std::string> sent;
+
+private:
+    loom::Switchboard& bus_;
+    loom::ObserverId tap_ = 0;
+};
+
+/// WHAT A ROW DECLARES, AS A SEND IS SEEN: each cause's shape and version.
+inline std::set<std::string> declared_sends(const std::vector<ActionCause>& causes) {
+    std::set<std::string> out;
+    for (const ActionCause& c : causes) out.insert(c.shape + "/" + std::to_string(c.version));
+    return out;
+}
+
+/// ONE OFFICE'S PRESSES, JUDGED: every press `judge` is handed is held to its row's causes, and
+/// the rows pressed, what each declares and what each sent are kept, by `<mode> <id>`.
+class PressWitness {
+public:
+    explicit PressWitness(std::string office) : office_(std::move(office)) {}
+
+    /// ONE PRESS OF THE ROW `id` IN `mode` (empty for a pane that declares none): `press` presses
+    /// it, and every send `who` makes outside the pane protocol meanwhile is one `causes` declares.
+    void judge(loom::Switchboard& bus, loom::WeaveId who, const std::string& mode,
+               const std::string& id, const std::vector<ActionCause>& causes,
+               const std::function<void()>& press) {
+        const std::string key = (mode.empty() ? std::string("-") : mode) + " " + id;
+        CAPTURE(office_);
+        CAPTURE(key);
+        REQUIRE(who.valid());
+        declared[key] = causes;
+        pressed.insert(key);
+        SendsOf sends(bus, who);
+        press();
+        const std::set<std::string> said = declared_sends(causes);
+        for (const std::string& s : sends.sent) {
+            reached[key].insert(s);
+            CHECK_MESSAGE(said.count(s) == 1, "`" << id << "` in `" << key.substr(0, key.find(' '))
+                                                  << "` sent " << s
+                                                  << ", which its row does not declare");
+        }
+    }
+
+    /// ...PRESSED AS WORKSHOP SAYS A RESOLVED KEY: the row's id, to `pane` of this office, as
+    /// Workshop's own office -- the press a pane hears whatever gesture made it.
+    void judge(PaneRig& r, const std::string& pane, const std::string& mode,
+               const v3::PaneActionRow& row) {
+        judge(r.bus, r.bus.role_holder(office_), mode, row.id, row.causes, [&] {
+            CHECK(r.workshop_action(office_, pane, row.id).delivered);
+        });
+    }
+
+    std::map<std::string, std::vector<ActionCause>> declared;
+    std::map<std::string, std::set<std::string>> reached;
+    std::set<std::string> pressed;
+
+private:
+    std::string office_;
+};
+
+/// THE PRESS DRIVERS, one per office, registered beside its census driver by the suite that drives
+/// its panes: each presses every row its panes declare in every mode, a pane made afresh for each
+/// press, so no press is judged by what an earlier one left.
+using PressDriver = std::function<void(PressWitness&)>;
+inline std::map<std::string, PressDriver>& press_drivers() {
+    static std::map<std::string, PressDriver> drivers;
+    return drivers;
+}
+inline std::vector<std::string>& press_registered_twice() {
+    static std::vector<std::string> twice;
+    return twice;
+}
+struct PressDriverOf {
+    PressDriverOf(const std::string& office, PressDriver drive) {
+        if (!press_drivers().emplace(office, std::move(drive)).second) {
+            press_registered_twice().push_back(office);
+        }
+    }
+};
+
+/// THE HOST A SUITE'S RIG DRIVES: the rig itself, or the `PaneRig` it holds as `r`.
+inline PaneRig& pane_rig(PaneRig& r) { return r; }
+template <class Rig>
+    requires requires(Rig& rig) { rig.r.bus; }
+PaneRig& pane_rig(Rig& rig) {
+    return rig.r;
+}
+
+/// A WALK THROUGH A PANE'S STATES: it drives `Rig` from its first state to its last, handing each
+/// state's pane, as Workshop holds it there, to `at`.
+template <class Rig>
+using StateWalk = std::function<void(Rig&, const std::function<void(const RuntimePane&)>&)>;
+
+/// EACH ROW OF EACH STATE A WALK REACHES, PRESSED ON A RIG OF ITS OWN: `make` makes a fresh rig,
+/// `walk` drives it to the state, the row is pressed as Workshop says a resolved key, and the walk
+/// goes no further, so no press is judged by what another left.
+template <class Rig>
+void press_each_state(PressWitness& w, const std::function<std::unique_ptr<Rig>()>& make,
+                      const StateWalk<Rig>& walk) {
+    struct Pressed {};
+    std::vector<std::size_t> rows;
+    {
+        const std::unique_ptr<Rig> rig = make();
+        walk(*rig, [&](const RuntimePane& held) { rows.push_back(held.actions.size()); });
+    }
+    REQUIRE_FALSE(rows.empty());
+    for (std::size_t state = 0; state < rows.size(); ++state) {
+        for (std::size_t i = 0; i < rows[state]; ++i) {
+            const std::unique_ptr<Rig> rig = make();
+            std::size_t at = 0;
+            bool pressed = false;
+            try {
+                walk(*rig, [&](const RuntimePane& held) {
+                    if (at++ != state) return;
+                    REQUIRE(held.actions.size() == rows[state]);
+                    const v3::PaneActionRow row = held.actions[i];
+                    const std::string pane = held.pane;
+                    const std::string mode = held.mode;
+                    w.judge(pane_rig(*rig), pane, mode, row);
+                    pressed = true;
+                    throw Pressed{};
+                });
+            } catch (const Pressed&) {
+            }
+            CHECK_MESSAGE(pressed, "the walk did not reach its state " << state << " again");
+        }
+    }
 }
 
 #endif // ZENGINE_TESTS_CENSUS_HPP

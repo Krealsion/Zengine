@@ -16,6 +16,7 @@
 #include "terminal/vocabulary.hpp"
 
 #include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_causes.hpp"
 #include "workshop/pane_document.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
@@ -55,8 +56,8 @@ namespace ws = zengine::workshop;
 namespace pane = zengine::terminal_pane;
 
 using ws::PaneActionRequested;
-using ws::PaneActionRow;
-using ws::PaneActions;
+using ws::v3::PaneActionRow;
+using ws::v3::PaneActions;
 using ws::PaneCaret;
 using ws::PaneCatalogRequested;
 using ws::PaneContent;
@@ -213,22 +214,23 @@ std::size_t first_shown(std::size_t selected, std::size_t total, std::size_t roo
 // =============================================================================
 
 class TerminalPaneWeave
-    : public loom::WeaveBase<
-          TerminalPaneWeave, pane::TerminalPaneState,
+    : public zengine::With<ws::PaneManualFacet<pane::kTerminalPane,
+                                               zengine::manual::pages::zengine_terminal::kManual>>::
+          Weave<TerminalPaneWeave, pane::TerminalPaneState,
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, ws::PaneSettings,
                        ws::PaneCanvasRoom,
                        ws::PaneCanvasPointer, ws::PaneCanvasRejected, ws::PaneMenuAnswered,
                        ws::TerminalValueAnswered, ws::PaneCarryAnswered, loom::DispatchRefused, PaneKey,
                        PaneTextInput, PaneActionRequested, TranscriptShown,
                        TerminalActed, TerminalCompletionOffered, surface::ClipboardCopy,
-                       surface::ClipboardText, ws::PaneDocumentRequested>,
+                       surface::ClipboardText>,
           loom::Emit<PaneOffered, PaneActions, ws::PaneSettingsDeclared, PaneContent,
                      ws::v4::PaneContent, PaneCaret,
                      ws::v5::PaneCanvasContent, PaneEscapeUnspent,
                      ws::TerminalValueRequested, ws::PaneValueCarryRequested, ws::PaneMenuRequested,
                      ws::PanePassRequested,
                      TerminalActRequested, TerminalCompletionRequested, surface::ClipboardCopy,
-                     surface::ClipboardTextRequested, ws::PaneDocumentShown>> {
+                     surface::ClipboardTextRequested>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail, a)) {
@@ -238,13 +240,6 @@ public:
         // completer requires it and where a weaver about to keep typing wants it.
         line_.set(state_.line, state_.line.size());
         announce(mail);
-    }
-
-    /// THIS PANE'S MANUAL, TO THE ONE WHO ASKED: from the page this image was built with, so a
-    /// reloaded image answers its own words.
-    void on(const ws::PaneDocumentRequested& ask, loom::Mail& mail) {
-        (void)mail.answer(ws::pane_document(ask, pane::kTerminalPane,
-                                            zengine::manual::pages::zengine_terminal::kManual));
     }
 
     void on(const PaneCatalogRequested&, loom::Mail& mail) {
@@ -794,14 +789,18 @@ private:
     }
 
     /// THE ROWS -- what `declare` tells Workshop, and what `answers` reads, so what the pane
-    /// acts on and what it said it acts on are one list.
+    /// acts on and what it said it acts on are one list -- each with what its press may send
+    /// beside the pane protocol: the line, to be acted on, and the ask for what could follow it.
     static std::vector<PaneActionRow> action_rows() {
         std::vector<PaneActionRow> rows;
-        const auto row = [&rows](const char* id, const char* label, std::int64_t sc) {
-            rows.push_back(PaneActionRow{id, label, sc, input::mod::kNone});
+        const auto row = [&rows](const char* id, const char* label, std::int64_t sc,
+                                 std::vector<ws::ActionCause> causes = {}) {
+            rows.push_back(PaneActionRow{id, label, sc, input::mod::kNone, {}, std::move(causes)});
         };
-        row(pane::kActionSubmit, "run the line / keep a recall", input::scan::kReturn);
-        row(pane::kActionComplete, "what can this terminal say?", input::scan::kTab);
+        row(pane::kActionSubmit, "run the line / keep a recall", input::scan::kReturn,
+            {ws::cause_of<TerminalActRequested>()});
+        row(pane::kActionComplete, "what can this terminal say?", input::scan::kTab,
+            {ws::cause_of<TerminalCompletionRequested>()});
         row(pane::kActionUp, "older command / list up", input::scan::kUp);
         row(pane::kActionDown, "newer command / list down", input::scan::kDown);
         row(pane::kActionBack, "back: recall, list, line, desk", input::scan::kEscape);

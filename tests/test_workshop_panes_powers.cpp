@@ -354,6 +354,15 @@ const CensusDriverOf kFlowCensus{zengine::flow_pane::kRole, [] {
     return census;
 }};
 
+/// FLOW'S PRESSES: each row with no dialog open and with one open, the walk replayed for each.
+const PressDriverOf kFlowPresses{zengine::flow_pane::kRole, [](PressWitness& w) {
+    press_each_state<FindingRig>(
+        w, [] { return std::make_unique<FindingRig>(plan_with_flow()); },
+        [](FindingRig& s, const std::function<void(const RuntimePane&)>& at) {
+            each_flow_state(s, at);
+        });
+}};
+
 } // namespace
 
 TEST_CASE("the manual Flow answers names exactly the commands it declares, with and without a "

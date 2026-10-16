@@ -6,6 +6,7 @@
 #include "activation/activation.hpp"
 #include "input/vocabulary.hpp"
 #include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_causes.hpp"
 #include "workshop/pane_document.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_vocabulary.hpp"
@@ -16,15 +17,16 @@
 
 namespace zengine::demo {
 namespace ws = zengine::workshop;
-class Control final : public loom::WeaveBase<Control, DemoStatus,
+class Control final
+    : public zengine::With<ws::PaneManualFacet<kControlsPane, manual::pages::zengine_demo::kManual>,
+                           manual::ManualFacet<manual::pages::zengine_demo::kManual>>::
+    Weave<Control, DemoStatus,
     loom::Accept<loom::Activated, ws::PaneCatalogRequested, ws::PaneRoom, ws::PaneCanvasRoom,
                  ws::PaneCanvasPointer, ws::PaneCanvasRejected, ws::PaneActionRequested,
                  DemoServiceOpened, DemoServiceClosed, DemoWorkRequested, DemoWorkFinished,
-                 DemoResetRequested, DemoStatusRequested, DemoReadyRequested,
-                 ws::PaneDocumentRequested, manual::ShapeDocumentRequested>,
-    loom::Emit<ws::v2::PaneOffered, ws::PaneActions, ws::v4::PaneContent, ws::v5::PaneCanvasContent,
-               ws::PanePassRequested, DemoWork, DemoStatus, loom::Ack, loom::Refused,
-               ws::PaneDocumentShown, manual::ShapeDocumentShown>> {
+                 DemoResetRequested, DemoStatusRequested, DemoReadyRequested>,
+    loom::Emit<ws::v2::PaneOffered, ws::v3::PaneActions, ws::v4::PaneContent, ws::v5::PaneCanvasContent,
+               ws::PanePassRequested, DemoWork, DemoStatus, loom::Ack, loom::Refused>> {
 public:
     void on(const loom::Activated& a, loom::Mail& m) {
         if (!activation_.accept(m, a)) return;
@@ -35,22 +37,22 @@ public:
         if (m.authored_from_role("zengine.workshop")) offer(m);
     }
     void on(const ws::PaneRoom& r, loom::Mail& m) {
-        if (!m.authored_from_role("zengine.workshop") || r.pane != "controls") return;
+        if (!m.authored_from_role("zengine.workshop") || r.pane != kControlsPane) return;
         rows_ = r.rows; columns_ = r.columns; paint(m);
     }
     /// THE PANE DRAWS ITS ROWS ON ITS CANVAS while it holds a room there, and says them as prose
     /// only to a host that grants none.
     void on(const ws::PaneCanvasRoom& r, loom::Mail& m) {
-        if (!m.authored_from_role("zengine.workshop") || r.pane != "controls") return;
+        if (!m.authored_from_role("zengine.workshop") || r.pane != kControlsPane) return;
         room_ = r; paint(m);
     }
     /// A primary press anywhere on the reset row resets; a right press is handed back, so
     /// Workshop's own pane menu opens there.
     void on(const ws::PaneCanvasPointer& p, loom::Mail& m) {
-        if (!m.authored_from_role("zengine.workshop") || p.pane != "controls" ||
+        if (!m.authored_from_role("zengine.workshop") || p.pane != kControlsPane ||
             p.grant != room_.grant || p.phase != ws::canvas_pointer::kPress) return;
         if (p.button == 3) {
-            (void)ws::pane_menu::pass_back(m, kRole, "controls");
+            (void)ws::pane_menu::pass_back(m, kRole, kControlsPane);
             return;
         }
         const ws::RowCell at = ws::row_cell_at(ws::canvas_rows(room_), p.x, p.y);
@@ -58,19 +60,10 @@ public:
     }
     /// ITS ONE ACTION, `reset`: what a primary press on the reset row does.
     void on(const ws::PaneActionRequested& a, loom::Mail& m) {
-        if (m.authored_from_role("zengine.workshop") && a.pane == "controls" && a.id == "reset") reset(m, false);
+        if (m.authored_from_role("zengine.workshop") && a.pane == kControlsPane && a.id == "reset") reset(m, false);
     }
     /// A refused picture leaves the last good one showing; a later paint draws again.
     void on(const ws::PaneCanvasRejected&, loom::Mail&) {}
-    /// THE PANE'S MANUAL, AND WHAT A SHAPE IT ACCEPTS DOES, to the one who asked: one page, the
-    /// one this image was built with; the gate's own list says which shapes are its to describe.
-    void on(const ws::PaneDocumentRequested& ask, loom::Mail& m) {
-        (void)m.answer(ws::pane_document(ask, "controls", manual::pages::zengine_demo::kManual));
-    }
-    void on(const manual::ShapeDocumentRequested& ask, loom::Mail& m) {
-        (void)m.answer(manual::shape_document(ask, accepted_schemas(),
-                                              manual::pages::zengine_demo::kManual));
-    }
     void on(const DemoStatusRequested&, loom::Mail& m) { (void)m.answer(state_); }
     void on(const DemoReadyRequested& r, loom::Mail& m) {
         if (r.generation < 0 || waiters_.size() >= 8) {
@@ -143,10 +136,12 @@ private:
     }
     void offer(loom::Mail& m) {
         m.as_role(kRole).send_to_role("zengine.workshop",
-            ws::v2::PaneOffered{"controls", "Demo", "Repeat this demo through its attached ELH recipe", 4, 56});
-        // ...and the reset its row performs, with no key: the row's part is `control:reset`.
+            ws::v2::PaneOffered{kControlsPane, "Demo", "Repeat this demo through its attached ELH recipe", 4, 56});
+        // ...and the reset its row performs, with no key: the row's part is `control:reset`. Its
+        // press answers the attached service's wait with the work.
         m.as_role(kRole).send_to_role("zengine.workshop",
-            ws::PaneActions{"controls", {{"reset", "reset the demo", input::scan::kUnknown, input::mod::kNone}}});
+            ws::v3::PaneActions{kControlsPane, {}, {{"reset", "reset the demo", input::scan::kUnknown,
+                                                     input::mod::kNone, {}, {ws::cause_of<DemoWork>()}}}});
     }
     void paint(loom::Mail& m) {
         if (state_.state == "ready" || state_.state == "failed") {
@@ -178,7 +173,7 @@ private:
             return;
         }
         m.as_role(kRole).send_to_role("zengine.workshop",
-                                      ws::v4::PaneContent{"controls", std::move(rows), 0, 0, std::move(parts)});
+                                      ws::v4::PaneContent{kControlsPane, std::move(rows), 0, 0, std::move(parts)});
     }
     zengine::ActivationCursor activation_;
     loom::WeaveId worker_{};

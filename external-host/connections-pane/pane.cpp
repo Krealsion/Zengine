@@ -59,14 +59,13 @@ using zengine::workshop::pane_text::fit;
 using zengine::workshop::pane_text::omitted_text;
 
 class ConnectionsPaneWeave
-    : public loom::WeaveBase<ConnectionsPaneWeave, pane::ConnectionsPaneState,
-                             loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom,
-                                          ws::PaneCanvasRoom, ws::PaneCanvasPointer,
-                                          ws::PaneCanvasRejected, GuestConnections,
-                                          ws::PaneDocumentRequested>,
-                             loom::Emit<PaneOffered, PaneContent, ws::v5::PaneCanvasContent,
-                                        ws::PanePassRequested, GuestConnectionsRequested,
-                                        ws::PaneDocumentShown>> {
+    : public zengine::With<ws::PaneManualFacet<
+          pane::kConnectionsPane, zengine::manual::pages::zengine_connections::kManual>>::Weave<
+          ConnectionsPaneWeave, pane::ConnectionsPaneState,
+          loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, ws::PaneCanvasRoom,
+                       ws::PaneCanvasPointer, ws::PaneCanvasRejected, GuestConnections>,
+          loom::Emit<PaneOffered, PaneContent, ws::v5::PaneCanvasContent, ws::PanePassRequested,
+                     GuestConnectionsRequested>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (!activation_.accept(mail, a)) {
@@ -81,12 +80,6 @@ public:
             return;
         }
         announce(mail);
-    }
-
-    /// THIS PANE'S MANUAL, TO THE ONE WHO ASKED: from the page this image was built with.
-    void on(const ws::PaneDocumentRequested& ask, loom::Mail& mail) {
-        (void)mail.answer(ws::pane_document(ask, pane::kConnectionsPane,
-                                            zengine::manual::pages::zengine_connections::kManual));
     }
 
     void on(const PaneRoom& room, loom::Mail& mail) {

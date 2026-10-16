@@ -520,6 +520,92 @@ const CensusDriverOf kDesktopCensus{kDesktopRole, [] {
     return census;
 }};
 
+/// THE HOTKEYS PANE IN `mode`: its table, or a binding's menu having chosen a capture or a
+/// spelling for `desktop.terminal`.
+const RuntimePane* hotkeys_in(Keys& k, const char* mode) {
+    if (mode != std::string(dp::kKeysTableMode)) {
+        k.right(k.row_of("desktop.terminal"));
+        k.choose(mode == std::string(dp::kKeysCaptureMode) ? "Modify (press a key)"
+                                                           : "Modify (type a spelling)");
+    }
+    const RuntimePane* held = k.r.session().panes.runtime.find(kDesktopRole, dp::kHotkeysPane);
+    REQUIRE(held != nullptr);
+    REQUIRE(held->mode == mode);
+    return held;
+}
+
+/// THE DESK'S PRESSES: the application's rows by their keys; the Pane Manager's and the Manual's
+/// rows by their keys, with that pane shown and holding the keys, brought there by its own row;
+/// and the Hotkeys pane's rows in each of its modes, as Workshop says a resolved key.
+const PressDriverOf kDesktopPresses{kDesktopRole, [](PressWitness& w) {
+    const auto rig = [](PaneRig& r) {
+        r.mount_workshop();
+        r.ready();
+        r.extent(160, 48);
+        REQUIRE(r.load(dp::kDesktopStem, WORKSHOP_SO_DESKTOP_PANE, kDesktopRole).valid());
+    };
+    const auto judge = [&](PaneRig& r, const std::string& mode, const std::string& id,
+                           std::int64_t sc, std::int64_t mods,
+                           const std::vector<ActionCause>& causes) {
+        REQUIRE(is_bound(Gesture{sc, mods}));
+        w.judge(r.bus, r.bus.role_holder(kDesktopRole), mode, id, causes,
+                [&] { r.key(sc, mods); });
+    };
+    std::size_t app_rows = 0;
+    {
+        PaneRig r;
+        rig(r);
+        app_rows = r.session().keymap.app.size();
+    }
+    REQUIRE(app_rows > 0);
+    for (std::size_t i = 0; i < app_rows; ++i) {
+        PaneRig r;
+        rig(r);
+        const AppRow row = r.session().keymap.app[i];
+        judge(r, "desk", row.id, row.gesture.scancode, row.gesture.modifiers, row.causes);
+    }
+    struct Shown {
+        const char* pane;
+        std::int64_t scancode;
+        std::int64_t modifiers;
+    };
+    for (const Shown& shown : {Shown{dp::kLauncherPane, input::scan::kP, input::mod::kCtrl},
+                               Shown{dp::kManualPane, input::scan::kF, input::mod::kCtrl}}) {
+        std::size_t rows = 0;
+        {
+            PaneRig r;
+            rig(r);
+            const RuntimePane* held = r.session().panes.runtime.find(kDesktopRole, shown.pane);
+            REQUIRE(held != nullptr);
+            rows = held->actions.size();
+        }
+        REQUIRE(rows > 0);
+        for (std::size_t i = 0; i < rows; ++i) {
+            PaneRig r;
+            rig(r);
+            r.key(shown.scancode, shown.modifiers);
+            const RuntimePane* held = r.session().panes.runtime.find(kDesktopRole, shown.pane);
+            REQUIRE(held != nullptr);
+            REQUIRE(r.session().panes.keyboard == held->kind);
+            const v3::PaneActionRow row = held->actions[i];
+            judge(r, held->mode, row.id, row.scancode, row.modifiers, row.causes);
+        }
+    }
+    for (const char* mode : {dp::kKeysTableMode, dp::kKeysCaptureMode, dp::kKeysSpellMode}) {
+        std::size_t rows = 0;
+        {
+            Keys k("desktop-press");
+            rows = hotkeys_in(k, mode)->actions.size();
+        }
+        REQUIRE(rows > 0);
+        for (std::size_t i = 0; i < rows; ++i) {
+            Keys k("desktop-press");
+            const v3::PaneActionRow row = hotkeys_in(k, mode)->actions[i];
+            w.judge(k.r, dp::kHotkeysPane, mode, row);
+        }
+    }
+}};
+
 } // namespace
 
 TEST_CASE("the manual the desk answers for each of its panes names exactly the commands it "

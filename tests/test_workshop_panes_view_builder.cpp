@@ -44,6 +44,15 @@ const CensusDriverOf kViewBuilderCensus{vb::kRole, [] {
     return census;
 }};
 
+/// THE VIEW BUILDER'S PRESSES: each of its rows, on a new view.
+const PressDriverOf kViewBuilderPresses{vb::kRole, [](PressWitness& w) {
+    press_each_state<PaneRig>(
+        w, [] { return std::make_unique<PaneRig>(); },
+        [](PaneRig& r, const std::function<void(const RuntimePane&)>& at) {
+            at(*load_view_builder(r));
+        });
+}};
+
 } // namespace
 
 TEST_CASE("the View Builder answers the manual its build embedded, a section for every action it "

@@ -682,6 +682,21 @@ const CensusDriverOf kFilesCensus{files::kFilesRole, [] {
     return census;
 }};
 
+/// THE FILES PANE'S PRESSES: each row of each step, over a project holding one source.
+const PressDriverOf kFilesPresses{files::kFilesRole, [](PressWitness& w) {
+    press_each_state<FilesRig>(
+        w,
+        [] {
+            auto f = std::make_unique<FilesRig>("files-press");
+            put_file(f->root / "oven.cpp", "// a weaver's weave\n");
+            f->open();
+            return f;
+        },
+        [](FilesRig& f, const std::function<void(const RuntimePane&)>& at) {
+            each_files_step(f, [&](const char*) { at(*f.row()); });
+        });
+}};
+
 } // namespace
 
 TEST_CASE("the manual Files answers names exactly the commands it declares in each step, and no "

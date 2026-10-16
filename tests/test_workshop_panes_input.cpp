@@ -2400,6 +2400,29 @@ const CensusDriverOf kComposerCensus{kComposerOffice, [] {
     return census;
 }};
 
+/// COMPOSE'S PRESSES: each row with the Timer's catalog listed, with its `StartTimer` form open,
+/// and with that form filled.
+const PressDriverOf kComposerPresses{kComposerOffice, [](PressWitness& w) {
+    press_each_state<ComposeRig>(
+        w,
+        [] {
+            auto r = std::make_unique<ComposeRig>();
+            r->with_timer();
+            r->select(kTimerOffice, "zengine-timer");
+            r->focus();
+            return r;
+        },
+        [](ComposeRig& r, const std::function<void(const RuntimePane&)>& at) {
+            at(compose_held(r));
+            r.choose("StartTimer v1");
+            REQUIRE(r.shows("StartTimer v1 -> @zengine.timer"));
+            at(compose_held(r));
+            r.fill("id", "tick");
+            r.fill("delay_ms", "1000");
+            at(compose_held(r));
+        });
+}};
+
 } // namespace
 
 TEST_CASE("the manual Compose answers names exactly the commands it declares, with no target, in "

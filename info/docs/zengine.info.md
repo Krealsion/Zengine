@@ -78,9 +78,11 @@ inspects it too, and a press on a property's row puts the cursor there.
 
 - **Takes:** the cursor's row. Default key <!-- key info.edit -->`return`<!-- /key -->; its label
   says `inspect` or `edit`.
-- **Answers:** to inspect, asks Workshop to make that pane the subject (`InspectPaneRequested`);
-  the properties then show its rows under `PANE <its name>`, and `*` marks it in the list. A draft
-  holds the row's value, the caret at its end.
+- **Answers:** to inspect, asks Workshop to make that pane the subject
+  ([`InspectPaneRequested`](../../workshop/docs/zengine.workshop.md#inspectpanerequested)), and
+  answers an ask this pane was still holding with [`PaneSubjectActed`](#inspectpanerequested),
+  replaced; the properties then show its rows under `PANE <its name>`, and `*` marks it in the list.
+  A draft holds the row's value, the caret at its end.
 - **Refuses:** `Return inspected nothing -- choose a row first`, when the pane the cursor held left
   the list; `inspect not submitted -- nothing was queued`; `inspect not delivered -- nothing changed
   (<the bus's reason>)`; Workshop's own words for a pane it will not inspect. In the properties:
@@ -119,10 +121,11 @@ Opens the lowest unused value view, shown on the desk, empty. From the lists and
 
 - **Takes:** a free view. Default key <!-- key info.view.new -->`ctrl+n`<!-- /key -->; in a value
   view the control `[New]`; in the lists' menu, `New value view`.
-- **Answers:** asks Workshop to show the view (`PaneLaunchRequested`). The view that asked says
-  `Opened Info 2`; the new one says `New view: drag an Inventory entry here, or a field onto a field`.
-  A view is offered to Workshop the first time it is used and kept after, so the Pane Manager lists
-  only views that were used.
+- **Answers:** asks Workshop to show the view
+  ([`PaneLaunchRequested`](../../workshop/docs/zengine.workshop.md#panelaunchrequested)). The view
+  that asked says `Opened Info 2`; the new one says `New view: drag an Inventory entry here, or a
+  field onto a field`. A view is offered to Workshop the first time it is used and kept after, so
+  the Pane Manager lists only views that were used.
 - **Refuses:** `All four Info views are in use -- close one first`, ending ` (hidden: Info 3; the
   Pane Manager reopens them)` when some are only hidden; `New view not shown: <Workshop's reason>`.
   While a draft is open in the lists it is not declared.
@@ -143,12 +146,13 @@ Asks for the draft's text to be written into its property.
 
 - **Takes:** the draft: the rows it was opened on, its row and its text. Default key
   <!-- key info.commit -->`return`<!-- /key -->.
-- **Answers:** asks Workshop to write it into the desk (`PaneCommitRequested`), which it does only
-  while its rows are still the ones the draft was opened on. Written, the draft closes and the row
-  shows the value. Refused, the draft stays, beside the owner's words. An answer that comes after
-  you typed more, or after the draft closed, says `earlier commit written -- later edits not sent`,
-  `earlier commit refused -- <the words>`, `commit written -- it was sent before the draft closed`
-  or `commit refused -- <the words>`.
+- **Answers:** asks Workshop to write it into the desk
+  ([`PaneCommitRequested`](../../workshop/docs/zengine.workshop.md#panecommitrequested)), which it
+  does only while its rows are still the ones the draft was opened on. Written, the draft closes and
+  the row shows the value. Refused, the draft stays, beside the owner's words. An answer that comes
+  after you typed more, or after the draft closed, says `earlier commit written -- later edits not
+  sent`, `earlier commit refused -- <the words>`, `commit written -- it was sent before the draft
+  closed` or `commit refused -- <the words>`.
 - **Refuses:** `commit not sent -- an earlier commit is still unanswered`, keeping the draft; `commit
   not submitted -- nothing was queued or written`; `commit not delivered -- nothing was written (<the
   bus's reason>)`. The draft and its text stand for the next press.
@@ -224,9 +228,11 @@ was read at; a copy is stored as a new entry, which the view then links.
 - **Takes:** the draft. Default key <!-- key inventory.save -->`ctrl+s`<!-- /key -->; the control
   `[Save]`.
 - **Answers:** asks Workshop whether you may (`PaneOperationRequested`), `Checking this operation's
-  authority`, then Inventory (`InventoryWrite` or `InventoryAdd`), `Waiting for inventory`; then
-  `Saved rev 2`, `Saved as a new inventory entry; this view now links it`, or, after more typing,
-  `Saved the submitted draft as rev 2; newer edits remain unsaved`.
+  authority`, then Inventory
+  ([`InventoryWrite`](../../inventory/docs/zengine.inventory.md#inventorywrite) or
+  [`InventoryAdd`](../../inventory/docs/zengine.inventory.md#inventoryadd)), `Waiting for
+  inventory`; then `Saved rev 2`, `Saved as a new inventory entry; this view now links it`, or,
+  after more typing, `Saved the submitted draft as rev 2; newer edits remain unsaved`.
 - **Refuses:** `Save unavailable: nothing to save: this draft matches rev 1`; `Save unavailable:
   wait: a save is waiting for its answer`; `Save refused: <the reason>`, and for an entry another
   view changed, `... -- your text is kept. Refresh replaces it; Save copy stores it as a new entry`.
@@ -239,9 +245,10 @@ edits unsaved.
 
 - **Takes:** the draft. Default key <!-- key inventory.save-copy -->`ctrl+shift+s`<!-- /key -->; the
   control `[Save copy]`.
-- **Answers:** asks Workshop, then Inventory (`InventoryAdd`), under the entry's name and ` copy`;
-  `Saved a new entry 'Note copy'; this view still holds its link to rev 2` (or `its independent
-  copy`).
+- **Answers:** asks Workshop, then Inventory
+  ([`InventoryAdd`](../../inventory/docs/zengine.inventory.md#inventoryadd)), under the entry's name
+  and ` copy`; `Saved a new entry 'Note copy'; this view still holds its link to rev 2` (or `its
+  independent copy`).
 - **Refuses:** `Save copy refused: <the reason>; nothing was stored`; `Save copy unavailable: wait:
   ...`.
 - **Example:** <!-- key inventory.save-copy -->`ctrl+shift+s`<!-- /key -->.
@@ -254,8 +261,9 @@ For a copy, restores the value as it was received.
 - **Takes:** the linked entry. Default key <!-- key inventory.fresh -->`ctrl+r`<!-- /key -->; the
   control `[Refresh]`.
 - **Answers:** with unsaved edits, first `Unsaved draft: press Refresh again to discard it and read
-  the entry again`; then asks Workshop and Inventory (`InventoryRead`), `Read rev 3 from inventory`.
-  A copy: `Restored the received copy; the source entry is independent`.
+  the entry again`; then asks Workshop and Inventory
+  ([`InventoryRead`](../../inventory/docs/zengine.inventory.md#inventoryread)), `Read rev 3 from
+  inventory`. A copy: `Restored the received copy; the source entry is independent`.
 - **Refuses:** `Read refused: <the reason>; the draft is kept`; `Refresh unavailable: wait: ...`.
 - **Example:** after `NEWER rev 3 waiting`, press <!-- key inventory.fresh -->`ctrl+r`<!-- /key -->
   twice.
@@ -269,11 +277,15 @@ every character and says `NEWER rev 3 waiting (Refresh accepts)`.
 
 - **Takes:** the linked entry. Default key <!-- key inventory.watch -->`ctrl+l`<!-- /key -->; the
   control `[Watch]`, `[Pause]` while watching.
-- **Answers:** asks Workshop for leave to read the entry on each change (`PaneObservationRequested`),
-  `Asking to watch this entry`, then `Watching rev 2; changes appear here, your edits are never
-  replaced`. Again: `Watch paused; nothing is read until Watch is pressed again`. Hiding the view,
-  closing it, opening another value in it or leaving for the lists ends the watch, at Workshop too:
-  `Watch ended: the view was hidden`.
+- **Answers:** asks Workshop for leave to read the entry on each change
+  ([`PaneObservationRequested`](../../workshop/docs/zengine.workshop.md#paneobservationrequested)),
+  `Asking to watch this entry`, then reads it
+  ([`InventoryRead`](../../inventory/docs/zengine.inventory.md#inventoryread)), `Watching rev 2;
+  changes appear here, your edits are never replaced`. Again: `Watch paused; nothing is read until
+  Watch is pressed again`, and the watch ends at Workshop
+  ([`PaneObservationEnded`](../../workshop/docs/zengine.workshop.md#paneobservationended)). Hiding
+  the view, closing it, opening another value in it or leaving for the lists ends the watch, at
+  Workshop too: `Watch ended: the view was hidden`.
 - **Refuses:** `Watch unavailable: an independent copy has no linked entry to watch; link one
   (right-click Grab live)`; `...: this link is stale: its entry is no longer here`; `...: wait:
   Workshop has not yet answered this view's last watch request`; `Watch refused: <the reason>`.
@@ -287,9 +299,11 @@ replaces the draft, unsaved; what is stored changes only when you save.
 - **Takes:** a value whose capture records the role that described itself. Default key
   <!-- key inventory.sample -->`ctrl+e`<!-- /key -->; the control `[Sample]`.
 - **Answers:** asks Workshop whether you may ask that role for `zen.PokeDescribe`, `Checking
-  authority to ask zengine.input to describe its structure again`, then the role; `Sampled
-  zengine.input: #12 answered now; unsaved`, or `Different incarnation: #14 answered zengine.input
-  (stored capture: #12); unsaved`. An equal id proves nothing across a restart, and the words say so.
+  authority to ask zengine.input to describe its structure again`, then the role
+  ([`zen.PokeDescribe`](https://github.com/Krealsion/Loom/blob/main/include/zen/weave/poke.hpp));
+  `Sampled zengine.input: #12 answered now; unsaved`, or `Different incarnation: #14 answered
+  zengine.input (stored capture: #12); unsaved`. An equal id proves nothing across a restart, and
+  the words say so.
 - **Refuses:** `Sample source unavailable: no supported source is recorded (only captured structure
   descriptions can be sampled again)`; `...: this is a stored command; sampling never runs commands`;
   `...: a preset is a draft to finish, not an observation of a source`; `...: unsaved edits: save,
@@ -305,7 +319,8 @@ can be unset. A linked view's watch ends.
 - **Takes:** the draft. Default key <!-- key inventory.preset -->`ctrl+b`<!-- /key -->; in the menu,
   `Make preset copy`.
 - **Answers:** `Independent preset copy; Ctrl+U unsets a field, Save stores it`; the title row reads
-  `PRESET COPY`.
+  `PRESET COPY`. A watch the view held ends, at Workshop too
+  ([`PaneObservationEnded`](../../workshop/docs/zengine.workshop.md#paneobservationended)).
 - **Refuses:** `Make preset copy unavailable: wait: ...`.
 - **Example:** <!-- key inventory.preset -->`ctrl+b`<!-- /key -->.
 
@@ -328,7 +343,8 @@ press on a field row that moves with the button down picks it up the same way.
 - **Takes:** the selected field. Default key <!-- key inventory.grab -->`ctrl+g`<!-- /key -->; in the
   menu, `Pick up field`.
 - **Answers:** asks Workshop whether you may carry a value (`PaneOperationRequested`), `Checking
-  field acquisition authority`, then hands Workshop the copy to carry (`PaneValueCarryRequested`).
+  field acquisition authority`, then hands Workshop the copy to carry
+  ([`PaneValueCarryRequested`](../../workshop/docs/zengine.workshop.md#panevaluecarryrequested)).
 - **Refuses:** `Choose a field first`; `Field pickup refused: <the reason>`; `Wait for the inventory
   operation before picking up a field`; `Field copy exceeds the carry limit`; `Field pickup was not
   delivered: <the bus's reason>`.
@@ -351,8 +367,10 @@ ask, no watch. A linked draft stays linked to the same entry.
 
 - **Takes:** this view's draft. Default key <!-- key info.view.fork -->`ctrl+shift+n`<!-- /key -->;
   the control `[Fork]`.
-- **Answers:** `Forked into Info 2 fork`, the new view's title; the new view says `Forked from
-  Info 2: an independent local draft; watch is off`. Nothing is stored.
+- **Answers:** asks Workshop to show the new view
+  ([`PaneLaunchRequested`](../../workshop/docs/zengine.workshop.md#panelaunchrequested)): `Forked
+  into Info 2 fork`, the new view's title; the new view says `Forked from Info 2: an independent
+  local draft; watch is off`. Nothing is stored.
 - **Refuses:** `Fork view unavailable: this view holds no value`; as
   [`info.view.new`](#infoviewnew) when no view is free.
 - **Example:** <!-- key info.view.fork -->`ctrl+shift+n`<!-- /key -->.
@@ -388,7 +406,9 @@ The default pane's way back to its lists. The value stays, for
 
 - **Takes:** the default pane. Default key <!-- key inventory.panes -->`ctrl+i`<!-- /key -->; the
   control `[Panes]`.
-- **Answers:** the lists; `Watch ended: this view left for pane properties` when it was watching.
+- **Answers:** the lists; `Watch ended: this view left for pane properties` when it was watching,
+  and the watch ends at Workshop
+  ([`PaneObservationEnded`](../../workshop/docs/zengine.workshop.md#paneobservationended)).
 - **Refuses:** nothing.
 - **Example:** <!-- key inventory.panes -->`ctrl+i`<!-- /key -->.
 
@@ -399,8 +419,12 @@ one [`info.view.new`](#infoviewnew) opens. The default pane has none.
 
 - **Takes:** a value view. Default key <!-- key info.view.close -->`ctrl+shift+w`<!-- /key -->; the
   control `[Close]`.
-- **Answers:** asks Workshop to close the pane (`PaneCloseRequested`); an answer to the retired
-  view's asks lands nowhere. Closing it from the desk or the Pane Manager only hides it.
+- **Answers:** asks Workshop to close the pane
+  ([`PaneCloseRequested`](../../workshop/docs/zengine.workshop.md#panecloserequested)), and a watch
+  the view held ends there
+  ([`PaneObservationEnded`](../../workshop/docs/zengine.workshop.md#paneobservationended)); an
+  answer to the retired view's asks lands nowhere. Closing it from the desk or the Pane Manager only
+  hides it.
 - **Refuses:** `Close waits: a save is waiting for its answer`; `Unsaved edits in this view: press
   Close again to discard and close (Inventory data stays)`, or `Pending work in this view: ...`,
   until the second press.

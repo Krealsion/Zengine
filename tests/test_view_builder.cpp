@@ -392,7 +392,7 @@ public:
     loom::WeaveId self{};
     std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
         return {loom::schema_of<ws::v2::PaneOffered>(), loom::schema_of<ws::v3::PaneOffered>(),
-                loom::schema_of<ws::PaneActions>(),
+                loom::schema_of<ws::v3::PaneActions>(),
                 loom::schema_of<ws::PaneContent>(), loom::schema_of<ws::PaneCanvasContent>(),
                 loom::schema_of<ws::v4::PaneCanvasContent>(),
                 loom::schema_of<ws::PaneEscapeUnspent>(), loom::schema_of<ws::PanePassRequested>(),
@@ -417,10 +417,10 @@ public:
             const std::string problem = control_parts_problem("zengine.view.builder/view-builder", names, rows);
             CHECK_MESSAGE(problem.empty(), problem);
         }
-        if (loom::same_identity(in.payload.schema(), *loom::schema_of<ws::PaneActions>()) &&
+        if (loom::same_identity(in.payload.schema(), *loom::schema_of<ws::v3::PaneActions>()) &&
             in.provenance.authored_role() == vb::kRole) {
             rows.clear();
-            for (const auto& row : loom::from_value<ws::PaneActions>(in.payload).rows) rows.push_back(row.id);
+            for (const auto& row : loom::from_value<ws::v3::PaneActions>(in.payload).rows) rows.push_back(row.id);
         }
         heard.push_back(in);
     }

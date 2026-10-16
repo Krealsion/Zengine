@@ -166,6 +166,20 @@ const CensusDriverOf kAttentionCensus{pane::kAttentionPaneRole, [] {
     return census;
 }};
 
+/// THE ATTENTION PANE'S PRESSES: each of its rows, two conditions listed to move over and hide.
+const PressDriverOf kAttentionPresses{pane::kAttentionPaneRole, [](PressWitness& w) {
+    press_each_state<AttentionRig>(
+        w,
+        [] {
+            auto f = std::make_unique<AttentionRig>();
+            f->open();
+            f->establish(thing("press.one", "first standing condition", "it stands"));
+            f->establish(thing("press.two", "second standing condition", "it stands too"));
+            return f;
+        },
+        [](AttentionRig& f, const std::function<void(const RuntimePane&)>& at) { at(*f.row()); });
+}};
+
 } // namespace
 
 // ============================================================================

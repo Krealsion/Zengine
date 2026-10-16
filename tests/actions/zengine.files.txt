@@ -1,10 +1,10 @@
 # The action census's rows for zengine.files; the form is tests/actions.txt's. ASCII only.
 zengine.files - files.up up - - row up
 zengine.files - files.down down - - row down
-zengine.files - files.open return - - enter or edit
+zengine.files - files.open return OpenSourceRequested/1 - enter or edit
 zengine.files - files.parent backspace - - up a directory
 zengine.files - files.refresh r - - look again
-zengine.files - files.use-recipes u - - use as recipes
+zengine.files - files.use-recipes u RecipeUseRequested/1,StatusRequested/1 - use as recipes
 zengine.files - files.mark m - - mark this place
 zengine.files - files.next-mark n - - next mark
 zengine.files - files.previous-mark shift+n - - previous mark
@@ -17,8 +17,8 @@ zengine.files - files.menu shift+m - - this pane's menu
 zengine.files - files.cancel escape - - cancel
 zengine.files - files.up up - - previous field
 zengine.files - files.down down - - next field
-zengine.files - files.commit-field return - - commit this field
+zengine.files - files.commit-field return RecipeAuthorRequested/2,StatusRequested/1 - commit this field
 zengine.files - files.next-field unbound - - keep this field and step
-zengine.files - files.write-recipe unbound - - write the recipe
+zengine.files - files.write-recipe unbound RecipeAuthorRequested/2,StatusRequested/1 - write the recipe
 zengine.files - files.menu unbound - - this pane's menu
 zengine.files - files.cancel escape - - abandon
