@@ -10,7 +10,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `desktop-pane/` | the Pane Manager and Hotkeys: `zengine-desktop-pane`, a loadable weave; its law: desktop, desktop-presenting, keymap-edit, keyboard |
 | `menu-presenter/` | shows a pane's menu: `zengine-menu-presenter`, a loadable weave; its law: pane-menu, and the second button in `agents/panes.md` |
 | `workshop.cpp` | the host's `main`: `zengine-workshop` |
-| `weave.hpp`, `weave_*.cpp` | Workshop's own weave: the session, input bound to gestures |
+| `weave.hpp`, `weave_*.cpp` | Workshop's own weave: the session, input bound to gestures; it composes the Terminal's door, `terminal/door.hpp` |
 | `screen.hpp`, `screen_*.cpp` | the screen: session facts and gestures, composed into a canvas |
 | `panes.hpp`, `keymap.hpp`, `setup.hpp` | pane catalog; action catalog and keymap; the setup |
 | `pane_vocabulary.hpp` | the pane protocol, installed: `zengine-pane-vocabulary`, `zengine::pane` |

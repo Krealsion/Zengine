@@ -156,7 +156,7 @@ never by a plan row's authored role"
 `workshop/keymap.hpp` kEditCode kActionCatalog
 `workshop/weave_arrange.cpp` spend_pane_action
 `workshop/weave_pointer.cpp` spend_context_choice
-`workshop/weave_terminal.cpp` command
+`workshop/weave_input.cpp` command
 `tests/test_workshop_panes_code.cpp` "Edit Code opens the pointed pane's one source through the
 opening office, and the Builder follows its recipe" "Edit Code acts on the pane that was pointed at,
 not the selection, and a later selection redirects nothing" "a pointed pane that left the setup

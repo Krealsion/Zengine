@@ -515,7 +515,7 @@ TEST_CASE("a pane that loaded after the last publication still hears the reading
     t.r.pick(pane_terminal_ref());
     REQUIRE(t.r.session().panes.has(t.kind));
 
-    // ⚔ MUTATION: dropping `transcript_said_ = false` from `on(PaneOffered)` puts
+    // ⚔ MUTATION: dropping `say_again()` from `accept_pane_offer` puts
     // "no participant was mounted on this bus" here, which is the sentence a weaver read.
     CHECK(t.text().find("TERMINAL -- weave #") != std::string::npos);
     CHECK(t.text().find("no participant was mounted") == std::string::npos);
@@ -534,10 +534,15 @@ TEST_CASE("the image that presents a participant cannot reach one") {
     buffer << in.rdbuf();
     const std::string source = buffer.str();
     REQUIRE_FALSE(source.empty());
-    for (const char* forbidden : {"#include <zen/terminal", "#include \"workshop/complete.hpp\"",
-                                  "#include <zen/host/terminal_wiring.hpp>",
+    // The host's door, completer and record picture stand beside the pane in its folder, so each
+    // is forbidden by both spellings that would reach it from here.
+    for (const char* forbidden : {"#include <zen/terminal", "#include <zen/host/terminal_wiring.hpp>",
                                   "#include \"workshop/weave.hpp\"",
-                                  "#include \"workshop/screen.hpp\""}) {
+                                  "#include \"workshop/screen.hpp\"",
+                                  "#include \"terminal/complete.hpp\"", "#include \"complete.hpp\"",
+                                  "#include \"terminal/door.hpp\"", "#include \"door.hpp\"",
+                                  "#include \"terminal/transcript.hpp\"",
+                                  "#include \"transcript.hpp\""}) {
         CAPTURE(forbidden);
         CHECK(source.find(forbidden) == std::string::npos);
     }

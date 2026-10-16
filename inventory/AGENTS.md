@@ -55,7 +55,7 @@ driven by `kInventoryPaneCensus` in `tests/test_workshop_inventory_info.cpp`.
   `workshop/desktop_seam_vocabulary.hpp` (opening a portable view); `workshop/actor_scope.hpp`
   classes a toolbox save as a write.
 - `workshop/guests.hpp`, `workshop/guests.cpp`: a guest's `inventory` and `toolbox` powers.
-- `workshop/weave_terminal.cpp` answers `TerminalValueRequested`
+- `workshop/weave_operation.cpp` answers `TerminalValueRequested`
   (`workshop/terminal_seam_vocabulary.hpp`) with a pair.
 - `external-host/vocabulary_weave.hpp` declares both vocabularies for an external Loom host;
   `external-host/tools/workshop/inventory_*.py` drive Inventory from a session.
