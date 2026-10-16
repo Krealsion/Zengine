@@ -56,10 +56,11 @@ only arrive because a Skin asked. The two packages need no coordination surface 
 
 ## The weave over a reader
 
-`InputWeaveT<Reader, Page>` (`input/input_weave.hpp`) is the whole Input weave around a reader:
-anything with `poll()` returning a vector of a variant of the shapes it publishes. Its Emit set is
-derived from that variant, so a reader that can hand it a further shape (the SDL reader's
+`InputWeaveT<Reader, Facets...>` (`input/input_weave.hpp`) is the whole Input weave around a
+reader: anything with `poll()` returning a vector of a variant of the shapes it publishes. Its Emit
+set is derived from that variant, so a reader that can hand it a further shape (the SDL reader's
 `SurfaceCloseRequested`) declares it and no other weave does. It keeps the office's beat, its
-sessions and its timed motion, as [the manual](zengine.input.md) says. `Page` adds the door that
-answers what each accepted shape does: the two shipped weaves name their office's page, and the
-default, `NoPage`, adds no door, as a suite's weave over a scripted reader is built.
+sessions and its timed motion, as [the manual](zengine.input.md) says. `Facets` compose onto it:
+the two shipped weaves name their office's page, `OfficePage`, a `manual::ManualFacet` that adds
+the door answering what each accepted shape does; with none there is no such door, as a suite's
+weave over a scripted reader is built.

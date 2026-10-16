@@ -26,14 +26,16 @@ refuses the load, its reason on stderr after `zengine-timer: `.
 
 What it keeps is its table of standing timers, and six counters a poke reads (`TimerState`):
 `beats`, `fired`, `active`, `dropped` (asks with nobody to answer), `deferred_dropped` (asks lost
-from a full hold) and `inherited` (timers restored from a predecessor, 0 for a fresh start).
+from a full hold) and `inherited` (timers it began with, from a predecessor or a reload, 0 for a
+fresh start).
 
 When the Timer is replaced, its standing timers cross to its successor as remaining durations in
 a letter, `TimerHandoff`, written at one clock read: two seconds left when it was written is two
 seconds left when it lands, and the time between is paused. A letter carries at most
 `kMaxHandoffEntries` timers, the first in table order; the rest start as after a hard replacement.
-Reloaded in place, the Timer keeps its counters and starts with an empty table. Unloaded, its
-timers end with it.
+Reloaded in place, it keeps its counters and every standing timer, carried in its state as
+remaining durations, and announces `TimerReady` again: an ask to preserve finds its timer there.
+Unloaded, its timers end with it.
 
 ## Use
 

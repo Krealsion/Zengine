@@ -10,7 +10,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `vocabulary.hpp` | the contract: moments, `scan::`, `mod::`, `space::`, sessions, `kInputRole` |
 | `translate.hpp` | POSIX terminal and Win32 console events to moments, as pure code |
 | `translate_sdl.hpp` | SDL events to moments, pure; the one file using the Surface vocabulary |
-| `input_weave.hpp` | the weave over an injected reader: publish, own beat, sessions, timed motion, a page |
+| `input_weave.hpp` | the weave over an injected reader: publish, beat, sessions, motion, facets |
 | `office_page.hpp` | `OfficePage`: the office manual both loadable weaves answer from; not installed |
 | `terminal_reader.hpp` | the terminal and console readers, the platform's input edge |
 | `input.cpp` | loadable weave `zengine-input` over the platform's reader |

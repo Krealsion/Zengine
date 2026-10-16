@@ -16,6 +16,7 @@
 #include "load_persist.hpp" // `mode_word` -- ONE spelling of `normal`/`overlay`
 #include "load_plan.hpp"
 
+#include "activation/activation.hpp"
 #include "manual/vocabulary.hpp"
 #include "manuals/zengine.arrangement.hpp" // this office's manual, compiled in from its page
 #include "operator/host_surface.hpp"         // `op::OfferOutcome`, the handoff a row reports
@@ -190,10 +191,9 @@ struct ArrangementDoorState {
 /// non-const reference a controller. It reads a live owner, so it answers mid-realization. Only an
 /// office may ask; that rule names nobody and is not containment.
 class ArrangementDoor
-    : public loom::WeaveBase<ArrangementDoor, ArrangementDoorState,
-                             loom::Accept<ArrangementRequested, manual::ShapeDocumentRequested>,
-                             loom::Emit<ResolvedArrangement, v2::ResolvedArrangement,
-                                        manual::ShapeDocumentShown>> {
+    : public zengine::With<manual::ManualFacet<manual::pages::zengine_arrangement::kManual>>::Weave<
+          ArrangementDoor, ArrangementDoorState, loom::Accept<ArrangementRequested>,
+          loom::Emit<ResolvedArrangement, v2::ResolvedArrangement>> {
 public:
     /// DOES THE OFFICE THAT ASKED ACCEPT THIS SHAPE NOW? The host's `holder_accepts_on`, wired
     /// by whoever mounts the door. Empty answers no, and every answer crosses in version 1.
@@ -218,13 +218,6 @@ public:
             return;
         }
         (void)mail.answer(in_version_one(said));
-    }
-
-    /// WHAT A SHAPE I ACCEPT DOES, TO THE ASKER ALONE: my page's section for it. Words, not the
-    /// arrangement, so anyone who can be answered may ask.
-    void on(const manual::ShapeDocumentRequested& ask, loom::Mail& mail) {
-        (void)mail.answer(manual::shape_document(ask, accepted_schemas(),
-                                                 manual::pages::zengine_arrangement::kManual));
     }
 
 private:

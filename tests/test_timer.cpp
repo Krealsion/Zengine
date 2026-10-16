@@ -525,6 +525,7 @@ struct Rig {
         loom::Grant reach;
         reach.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, manager);
         reach.allow(loom::SwapWeave::zen_name, loom::SwapWeave::zen_version, manager);
+        reach.allow(loom::ReloadWeave::zen_name, loom::ReloadWeave::zen_version, manager);
         reach.allow_to_any(StartTimer::zen_name, StartTimer::zen_version);
         reach.allow_to_any(StartRoleTimer::zen_name, StartRoleTimer::zen_version);
         reach.allow_to_any(EnsureTimer::zen_name, EnsureTimer::zen_version);
@@ -807,17 +808,20 @@ TEST_CASE("contract: the ordered continuity shapes are frozen the same way, and 
               ->content_id());
     CHECK(schema_of<TimerHandoff>()->version() == 1);
 
-    // The service's counters grew, honestly: v1 meant four and still does.
-    CHECK(schema_of<TimerState>()->version() == 2);
-    CHECK(schema_of<TimerState>()->content_id() == SchemaBuilder("TimerState", 2)
-                                                       .field("beats", Kind::Int)
-                                                       .field("fired", Kind::Int)
-                                                       .field("active", Kind::Int)
-                                                       .field("dropped", Kind::Int)
-                                                       .field("deferred_dropped", Kind::Int)
-                                                       .field("inherited", Kind::Int)
-                                                       .build()
-                                                       ->content_id());
+    // The service's state: six counters, and the table as a reload carries it, in the letter's own
+    // records -- one description of schedule progress, not two.
+    CHECK(schema_of<TimerState>()->version() == 3);
+    CHECK(schema_of<TimerState>()->content_id() ==
+          SchemaBuilder("TimerState", 3)
+              .field("beats", Kind::Int)
+              .field("fired", Kind::Int)
+              .field("active", Kind::Int)
+              .field("dropped", Kind::Int)
+              .field("deferred_dropped", Kind::Int)
+              .field("inherited", Kind::Int)
+              .list("standing", loom::type_message(schema_of<TimerHandoffEntry>()))
+              .build()
+              ->content_id());
 
     // The stable spellings. These travel on the wire and appear in receipts a
     // stranger reads, so a rename is a contract change and a red test.
@@ -891,7 +895,7 @@ TEST_CASE("contract: the handover's preparation conversation is frozen too, and 
     CHECK(schema_of<TimerHandoff>()->version() == 1);
     CHECK(schema_of<TimerHandoffEntry>()->version() == 1);
     // ...and the service's own state did not have to grow to carry a preparation.
-    CHECK(schema_of<TimerState>()->version() == 2);
+    CHECK(schema_of<TimerState>()->version() == 3);
 }
 
 // ============================================================================
@@ -2645,6 +2649,66 @@ TEST_CASE("continuity, hard: no letter exists, so the declared fallback restarts
     // of "restarted".
     r.pump_beats(3000 / kBeatCapMs + 10);
     CHECK(r.ask_probe(probe).fires == 1);
+}
+
+TEST_CASE("continuity, reload: an in-place reload keeps every standing timer, one-shot and "
+          "repeating, with the time it had left") {
+    Rig r;
+    const loom::WeaveId timer = r.load("zengine-timer-virtual", TIMER_VIRTUAL_SO, kTimerRole);
+    const loom::WeaveId probe = r.load("zengine-probe-oneshot", PROBE_ONESHOT_SO, "");
+    anchor_probe(r, probe, timer);
+    // ...and a raw repeating timer nobody re-asks for: only the service can carry it.
+    r.ask(timer, StartTimer{"suite.repeat", 1000, true});
+    r.pump_beats(3000 / kBeatCapMs);
+    const auto repeats = [&] {
+        return std::count(r.seen.fired.begin(), r.seen.fired.end(), "suite.repeat");
+    };
+    const auto repeats_before = repeats();
+    REQUIRE(repeats_before >= 2);
+
+    const std::uint64_t corr =
+        r.command(loom::ReloadWeave{"zengine-timer-virtual", TIMER_VIRTUAL_SO});
+    r.pump_until(TimerResolution::zen_name); // the probe re-asks on the reloaded Timer's notice
+    const Seen::Answer* reloaded = r.seen.find(corr);
+    REQUIRE(reloaded != nullptr);
+    REQUIRE_MESSAGE(reloaded->kind == 1, "reload refused: ", reloaded->text);
+    CHECK(r.kernel.weave_id("zengine-timer-virtual") == timer);
+    CHECK(r.letters.empty()); // nothing crossed as a letter: the state carried it
+
+    // THE CONSUMER ASKED TO PRESERVE, AND THE RELOADED TIMER HAD SOMETHING TO PRESERVE.
+    zengine::probe::ProbeReport rep = r.ask_probe(probe);
+    CHECK(rep.resolved == kResolutionPreserved);
+    CHECK(rep.fires == 0);
+    CHECK(r.poke_int(timer, "active") == 2);
+    CHECK(r.poke_int(timer, "inherited") == 2);
+
+    // THE RULER: the reloaded table, read off its own letter, holds both, the one-shot with at
+    // most the two seconds it had left -- not a fresh five.
+    r.ask(timer, loom::PrepareShutdown{});
+    r.pump_until(loom::Bequest::zen_name);
+    REQUIRE(r.letters.size() == 1);
+    const std::vector<TimerHandoffEntry> held = Rig::handoff_of(r.letters[0]);
+    REQUIRE(held.size() == 2);
+    const auto oneshot = std::find_if(held.begin(), held.end(), [](const TimerHandoffEntry& e) {
+        return e.id == zengine::probe::kProbeTimerId;
+    });
+    REQUIRE(oneshot != held.end());
+    CHECK(oneshot->requester == std::to_string(probe.value));
+    CHECK(oneshot->delay_ms == 5000);
+    CHECK(oneshot->remaining_ms > 0);
+    CHECK(oneshot->remaining_ms <= 2000);
+    const std::int64_t left = oneshot->remaining_ms / kBeatCapMs;
+
+    // IT FIRES WHEN ITS OWN TIME RUNS OUT, ONCE; THE REPEATING ONE KEEPS BEATING. Each ask and the
+    // ruler spend a beat or two of their own, so the boundary is held to a few beats either side.
+    REQUIRE(left > 6);
+    r.pump_beats(left - 6);
+    CHECK(r.ask_probe(probe).fires == 0);
+    r.pump_beats(8);
+    rep = r.ask_probe(probe);
+    CHECK(rep.fires == 1);
+    CHECK(rep.lifecycle == "spent");
+    CHECK(repeats() > repeats_before);
 }
 
 TEST_CASE("continuity, required preservation: an order with no acceptable fallback is REFUSED, "
