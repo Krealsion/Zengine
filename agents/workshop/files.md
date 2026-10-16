@@ -188,10 +188,10 @@ WHY — `agents/decisions/files-is-a-weave.md`
 ### WL-FILES-01
 `files/files.hpp` FileRow
 `files/vocabulary.hpp` FilesState
-`files/files.cpp` open
+`files/files.cpp` open on(ProjectRoot)
 `tests/test_files.cpp` "a FilesState is a shape a same-shape reload keeps"
 `tests/test_workshop_panes_files.cpp` "Return on a source opens it in the Editor, through the one
-door"
+door" "Files reloaded in place keeps the place it shows and the row the weaver was on"
 
 ### WL-FILES-02
 `workshop/weave.hpp` HostContext::project_dir

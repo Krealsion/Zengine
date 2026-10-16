@@ -333,7 +333,8 @@ public:
 
     /// THE HOST'S ANSWER ABOUT WHERE THIS RUN BEGAN AND WHERE ITS MARKS LIVE (the seam's
     /// read-only door). Settled once; the origin becomes a mark, `current_dir` seeds to it
-    /// when this run has nowhere else, and the durable marks are read.
+    /// when this run has nowhere else, and the durable marks are read. A place a reload carried
+    /// keeps the row the weaver was on: only a seeded place starts at its top.
     void on(const ProjectRoot& said, loom::Mail& mail) {
         if (!asks().answered(mail, of_kind(FilesAsk::Kind::kRoot))) {
             return;
@@ -342,10 +343,15 @@ public:
         marks_path_ = said.marks_path;
         marks_.origin = ws::admit_location(said.project_dir);
         load_marks();
-        if (state_.current_dir.empty()) {
+        const bool carried = !state_.current_dir.empty();
+        const std::int64_t cursor = state_.cursor;
+        if (!carried) {
             state_.current_dir = marks_.origin;
         }
         refresh();
+        if (carried) {
+            state_.cursor = cursor;
+        }
         say(mail);
     }
 
