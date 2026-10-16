@@ -53,7 +53,7 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     publish_pane_subject(mail);
     // ...and what the terminal participant's record holds, to whoever is presenting it.
     // Same beat, same rule, same silence when nothing changed.
-    say_transcript(mail);
+    facet<TerminalDoorFacet>().say_transcript(mail);
     auto canvas = paint(session_);
     if (carried_.drag && value_drag_.moved && !value_drag_.released && drag_pointer_.understood) {
         surface::SurfaceLayer overlay;
