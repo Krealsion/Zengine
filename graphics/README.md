@@ -9,6 +9,14 @@ A program spells the messages with `#include "graphics/vocabulary.hpp"` and draw
 (`examples/snake/`) is the worked example: its frame drawn as nodes, its board an element of the
 game's own.
 
+The common parts of a user interface come ready to draw, with `#include "graphics/elements.hpp"`:
+a button, a checkbox, a list, a grid, an icon, an image, a scroll view and a text box. Each is a
+small class the owner keeps and changes, and draws into its `Sketch`: its nodes at its path, and
+its face (`ButtonFace`, `ListRowFace`, ...) as the record there, so a reader reads what the part is
+and shows. A press on a part asks the owner for the action the owner named when it drew the part,
+and sends nothing when it named none or the part is disabled. A part is drawn by its owner, unlike
+an element the window presents from the owner's data (`element_export.hpp`).
+
 ## Pages
 
 - [`zengine.window.terminal`](docs/zengine.window.terminal.md), the terminal window's manual: what
@@ -28,6 +36,11 @@ game's own.
 | `ops.hpp` | the seven operators and their operands, and a `Paint` |
 | `implied.hpp` | a value's body without its envelope, where an operator or a type implies its shape |
 | `canvas.hpp` | what an owner draws with: a `Sketch`, a `Canvas`, `difference` |
+| `elements.hpp` | every part below, in one include |
+| `elements/button.hpp`, `elements/checkbox.hpp` | a `Button` and a `Checkbox`, each with an action while enabled |
+| `elements/list.hpp`, `elements/grid.hpp` | a `List` of the owner's rows, one chosen, a window of them shown; a `Grid` of the owner's cells, only the filled ones drawn; an action a row or a cell |
+| `elements/icon.hpp`, `elements/image.hpp` | an `Icon` drawn by name from its table of outlines; an `Image`, a rectangle of a sheet of pixels, tinted |
+| `elements/scroll_view.hpp`, `elements/text_box.hpp` | a `ScrollView`, a clipped box the owner draws in, and its bar; a one-line `TextBox` with its cursor |
 | `drawing.hpp` | a drawing weave: the room's handshake and the showing, so a drawer writes its picture |
 | `painting.hpp` | what crosses the two seams: a paint task and its result, an element's event and its outcome |
 | `painter_abi.h`, `painter_export.hpp`, `term_paint.hpp` | the skin seam, its export, and the painter for a medium of characters |
