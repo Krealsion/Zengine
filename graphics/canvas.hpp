@@ -170,15 +170,17 @@ public:
     explicit Canvas(std::string office, std::string area = {})
         : office_(std::move(office)), area_(area.empty() ? office_ : std::move(area)) {}
 
-    /// The room the window that shows the area told. True when the window or its incarnation
-    /// changed: it holds none of this canvas's nodes, so the next drawing goes whole, and of its
-    /// elements only those the room names.
+    /// The room the window that shows the area told. True when the window, its incarnation, or
+    /// its size changed: it holds none of this canvas's nodes, so the next drawing goes whole,
+    /// and of its elements only those the room names.
     bool room(const AreaRoom& r) {
-        if (r.window == window_ && r.epoch == epoch_) {
+        if (r.window == window_ && r.epoch == epoch_ && r.w == w_ && r.h == h_) {
             return false;
         }
         window_ = r.window;
         epoch_ = r.epoch;
+        w_ = r.w;
+        h_ = r.h;
         held_ = std::set<std::int64_t>(r.elements.begin(), r.elements.end());
         known_ = false;
         return true;
@@ -187,6 +189,8 @@ public:
     bool holds(std::int64_t ref) const { return held_.count(ref) != 0; }
     const std::string& window() const { return window_; }
     std::int64_t epoch() const { return epoch_; }
+    std::int64_t width() const { return w_; }
+    std::int64_t height() const { return h_; }
     const std::string& office() const { return office_; }
     const std::string& area() const { return area_; }
     std::string window_office() const { return std::string(kWindowOfficePrefix) + window_; }
@@ -290,6 +294,8 @@ private:
     std::string area_;
     std::string window_;
     std::int64_t epoch_ = 0;
+    std::int64_t w_ = 0;
+    std::int64_t h_ = 0;
     std::set<std::int64_t> held_;
     bool known_ = false;
     Sketch sent_;

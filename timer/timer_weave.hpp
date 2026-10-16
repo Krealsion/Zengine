@@ -76,15 +76,13 @@ struct TimerState {
 
 template <class Clock>
 class TimerServiceT
-    : public loom::WeaveBase<
+    : public zengine::With<manual::ManualFacet<manual::pages::zengine_timer::kManual>>::Weave<
           TimerServiceT<Clock>, TimerState,
           loom::Accept<loom::Activated, Drive, StartTimer, StartRoleTimer, EnsureTimer,
                        EnsureRoleTimer, CancelTimer, CancelAllMyTimers, loom::PrepareShutdown,
-                       loom::Bequest, loom::Refused, PrepareTimerHandover,
-                       manual::ShapeDocumentRequested>,
+                       loom::Bequest, loom::Refused, PrepareTimerHandover>,
           loom::Emit<TimerFired, TimerReady, Drive, TimerResolution, loom::Bequest,
-                     loom::ClaimBequest, TimerCandidatePrepared, TimerCandidateDeclined,
-                     manual::ShapeDocumentShown>> {
+                     loom::ClaimBequest, TimerCandidatePrepared, TimerCandidateDeclined>> {
 public:
     TimerServiceT() = default;
     explicit TimerServiceT(Clock clock) : clock_(std::move(clock)) {}
@@ -298,14 +296,6 @@ public:
             return;
         }
         resolve_bootstrap(mail, /*letter=*/nullptr);
-    }
-
-    /// What a shape I accept does, to the asker alone: my page's section for it, said against the
-    /// content id the asker holds. The gate's own list says which shapes are mine to describe,
-    /// and an incarnation answers whether or not it is activated: the words are the image's.
-    void on(const manual::ShapeDocumentRequested& ask, loom::Mail& mail) {
-        (void)mail.answer(manual::shape_document(ask, this->accepted_schemas(),
-                                                 manual::pages::zengine_timer::kManual));
     }
 
     Clock& clock() { return clock_; }

@@ -69,7 +69,7 @@ struct InventoryWeaveState {
 };
 
 class InventoryWeave final
-    : public loom::WeaveBase<
+    : public zengine::With<manual::ManualFacet<manual::pages::zengine_inventory::kManual>>::Weave<
           InventoryWeave, InventoryWeaveState,
           loom::Accept<loom::Activated, InventorySet, InventoryGet, InventoryLocate, InventoryRead, InventoryWrite,
                        InventoryAdd, v2::InventoryAdd, InventoryList, v2::InventoryList,
@@ -79,23 +79,16 @@ class InventoryWeave final
                        InventorySnapshotRequested, v2::InventorySnapshotRequested,
                        InventoryRestore, v2::InventoryRestore,
                        InventoryCaptureAdd, InventoryCaptureDescribe, loom::PokeStructure,
-                       loom::DispatchRefused, manual::ShapeDocumentRequested>,
+                       loom::DispatchRefused>,
           loom::Emit<InventoryState, InventoryEntry, InventoryListed, v2::InventoryListed,
                      InventoryFolderState, InventoryChanged,
                      InventorySnapshot, v2::InventorySnapshot, InventoryRestored,
                      InventoryCaptured, loom::Ack, loom::Refused,
-                     loom::PokeDescribe, manual::ShapeDocumentShown>> {
+                     loom::PokeDescribe>> {
 public:
     InventoryWeave() : book_(1) {}
     void on(const loom::Activated& a, loom::Mail& mail) {
         if (activation_.accept(mail, a)) changed(mail);
-    }
-
-    /// WHAT A SHAPE I ACCEPT DOES, TO THE ASKER ALONE: my page's section for it, said against the
-    /// content id the asker holds. The gate's own list says which shapes are mine to describe.
-    void on(const manual::ShapeDocumentRequested& ask, loom::Mail& mail) {
-        (void)mail.answer(manual::shape_document(ask, accepted_schemas(),
-                                                 manual::pages::zengine_inventory::kManual));
     }
 
     // ---- the generic, schema-opaque doors -------------------------------------------------
