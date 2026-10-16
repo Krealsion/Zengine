@@ -84,7 +84,8 @@ WHY — `agents/decisions/a-panes-manual-is-shown-by-the-application.md`
 `workshop/weave.hpp` on(PaneInventoryRequested) inventory_published_
 `workshop/weave_desktop.cpp` on(PaneInventoryRequested)
 `workshop/weave_seam.cpp` on(PaneOffered)
-`workshop/desktop-pane/pane.cpp` DesktopWeave from_workshop
+`workshop/desktop-pane/desktop_common.hpp` from_workshop
+`workshop/desktop-pane/pane.cpp` DesktopWeave
 `tests/test_workshop_panes_actions.cpp` "a desktop reloaded in place is not left waiting: its new
 image asks for the inventory and shows it, though nothing about the inventory changed" "an arriving
 presenter is answered the inventory as it is now, to itself alone, and an offer makes the next
@@ -93,7 +94,7 @@ reading be said again"
 ### WL-DESK-10
 `workshop/desktop-pane/vocabulary.hpp` DesktopState DesktopState::cursor_office
 DesktopState::cursor_pane
-`workshop/desktop-pane/pane.cpp` find_cursor write_choice launch_cursor close_cursor
+`workshop/desktop-pane/launcher_view.hpp` find_cursor write_choice launch_cursor close_cursor
 `component/held_choice.hpp` HeldChoice
 `component/list_window.hpp` ListWindow cursor_window
 `tests/test_workshop_panes_actions.cpp` "the launcher keeps the row it will open in view, and its
@@ -110,10 +111,12 @@ neighbour, and a row chosen then is obeyed"
 PictureStamp
 `workshop/weave_canvas.cpp` admit_canvas_content on(v5::PaneCanvasContent) canvas_press canvas_wheel
 `workshop/weave_seam.cpp` fence_pictures on(PictureFence)
-`workshop/desktop-pane/pane.cpp` PanePress launcher_press keys_press second_button wheel
-publish_launcher publish_keys fit_rooms offer_launcher_row offer_keys_row launcher_chose keys_chose
-LauncherMeaning LauncherMeaning::ref KeysMeaning KeysMeaning::ref launcher_ref keys_line_ref
-kMovedSentence take_notches
+`workshop/desktop-pane/desktop_common.hpp` PanePress kMovedSentence take_notches
+`workshop/desktop-pane/launcher_view.hpp` launcher_press publish_launcher offer_launcher_row
+launcher_chose LauncherMeaning LauncherMeaning::ref launcher_ref second_button wheel
+`workshop/desktop-pane/hotkeys_view.hpp` keys_press publish_keys offer_keys_row keys_chose
+KeysMeaning KeysMeaning::ref keys_line_ref second_button wheel
+`workshop/desktop-pane/pane.cpp` second_button wheel fit_rooms
 `component/row_map.hpp` RowMap RowMap::settle solid_columns
 `component/columns.hpp` layout_columns table_line
 `tests/test_workshop_panes_canvas.cpp` "a pane's canvas pictures fence a press by the meaning each
@@ -141,6 +144,7 @@ notice"
 `workshop/weave.hpp` publish_keymap on(KeymapRequested)
 `workshop/weave_desktop.cpp` publish_keymap on(KeymapRequested)
 `workshop/desktop-pane/pane.cpp` DesktopWeave
+`workshop/desktop-pane/hotkeys_view.hpp` HotkeysView keymap_said say_keys
 `workshop/desktop-pane/vocabulary.hpp` kHotkeysPane kActionHotkeys
 `tests/test_workshop_panes_actions.cpp` "the band and the Hotkeys pane teach the application's keys
 as they are in force: a moved row where it moved, a disabled one as having no key"
@@ -154,6 +158,8 @@ the action's"
 `workshop/desktop-pane/manual_reader.hpp` keys_of with_keys manual_lines
 `workshop/desktop-pane/vocabulary.hpp` kManualPane kActionManual
 `workshop/desktop-pane/pane.cpp` DesktopWeave
+`workshop/desktop-pane/manual_view.hpp` ManualView show_manual document_shown inventory_said
+say_manual
 `workshop/desktop_seam_vocabulary.hpp` AppActionRequested KeymapShown
 `workshop/pane_document.hpp` PaneDocumentKey
 `cmake/ZengineManual.cmake` zengine_manual_marks
