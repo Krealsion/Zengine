@@ -341,6 +341,12 @@ TEST_CASE("a fold is placed with its step bound to 1, its body chosen by referen
     author.command("message", {"tally.panel.Count"});
     for (const char* field : {"start", "limit", "step"})
         author.command("message-field", {"0", field, "Int", "required"});
+    // A NODE NEEDS A TRIGGER TO STAND IN: before one, a fold or a step is refused in words.
+    CHECK_THROWS_WITH_AS(author.command("add-fold"), "add a trigger before adding a node",
+                         std::invalid_argument);
+    CHECK_THROWS_WITH_AS(author.command("add-node", ref_of(author, add.identity())),
+                         "add a trigger before adding a node", std::invalid_argument);
+    CHECK(author.workspace.graph.project.definition.on.empty());
     author.command("trigger", {"0", "total"});
 
     author.command("add-fold");
