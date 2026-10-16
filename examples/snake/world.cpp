@@ -17,6 +17,7 @@
 #include "vocabulary.hpp"
 
 #include "graphics/drawing.hpp"
+#include "graphics/elements/button.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "timer/binding.hpp"
@@ -172,9 +173,9 @@ public:
             f.text("dead", 10 * c, 0, "DEAD", gfx::by_role(gfx::role::kAlert));
         }
         f.group("board", 0, c);
-        f.text("new-game", 0, (state_.height + 3) * c, "[ new game ]",
-               gfx::by_role(gfx::role::kAccent));
-        f.action("new-game", kNewGame);
+        gfx::Button new_game("new-game", " new game ");
+        new_game.set_bounds(0, (state_.height + 3) * c, 12 * c, c);
+        new_game.sketch(f, kNewGame);
     }
 
     /// A window that does not hold the board: the board said there, whole.
