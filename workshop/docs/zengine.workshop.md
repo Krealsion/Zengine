@@ -314,7 +314,7 @@ one role, about one subject.
   only, and no timer, invalidation or old correlation makes one.
 - **Refuses:** as `PaneOperationRequested`; `the observation must name its subject`; `too many
   observations are active; pause one first`; with `lease` 0.
-- **Example:** an [Info view](../../info/docs/zengine.info.md#inventorywatch) watching an Inventory entry
+- **Example:** an [Info view](../../info/docs/zengine.info.md#infovaluewatch) watching an Inventory entry
   asks on the press that opened it.
 
 ### `PaneObservationContinued`

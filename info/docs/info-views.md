@@ -50,13 +50,13 @@ preset whose command changed shape is refused by Compose, which tells you to reg
 ## What the story shows
 
 **A preset finished from a sample, field by field.** The Preset view's `target_role` is filled by
-dragging the Sample view's recorded source role onto it ([`inventory.grab`](zengine.info.md#inventorygrab)
+dragging the Sample view's recorded source role onto it ([`info.value.grab`](zengine.info.md#infovaluegrab)
 picks a field up from the keys). Only that field changes; every other field, present or absent,
 stays as it was.
 
 ![The Preset view's target_role filled from the Sample view's recorded source role](images/info-views-filled.png)
 
-**A watched note.** The Watch view follows the note ([`inventory.watch`](zengine.info.md#inventorywatch))
+**A watched note.** The Watch view follows the note ([`info.value.watch`](zengine.info.md#infovaluewatch))
 and takes the save the Preset view made, marking the changed field `~`. A view holding unsaved
 edits would keep them, and say newer data is waiting.
 
@@ -68,7 +68,7 @@ copy, and the watch on the note ends, at Workshop too.
 ![The Watch view after the sample was dropped on it while watching: an independent copy now, its watch ended](images/info-views-custody.png)
 
 **A fresh sample.** The Sample view asks `zengine.input` to describe itself again
-([`inventory.sample`](zengine.info.md#inventorysample)): the answer stands beside the stored original,
+([`info.value.sample`](zengine.info.md#infovaluesample)): the answer stands beside the stored original,
 unsaved, saying who answered and when, until it is saved. Inventory's entries outlive the run in
 [toolboxes](../../inventory/docs/toolboxes.md); the views do not.
 

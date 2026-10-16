@@ -1927,6 +1927,40 @@ TEST_CASE("info views: a reloaded Info holds no observation and its predecessor'
     CHECK(s.r.w->observation_leases() == 0);
 }
 
+TEST_CASE("info views: a reload in place keeps each view's draft, link and selection, ends its watch out loud, and the kept link saves") {
+    TempDir copy("info-views-kept");
+    const std::string image = copy.file(("zengine-info-views-kept" +
+        std::filesystem::path(WORKSHOP_SO_INFO_PANE).extension().string()).c_str());
+    std::filesystem::copy_file(WORKSHOP_SO_INFO_PANE, image);
+    Views s;
+    s.append(5, "Shared");
+    const auto [a, b] = s.two_views();
+    s.link_into(a, "Shared");
+    s.copy_into(b, "Shared");
+    s.button(a, "Watch");
+    REQUIRE(s.r.w->observation_leases() == 1);
+    s.edit_field(a, "count", "6");
+    REQUIRE(s.shows(a, "UNSAVED"));
+    s.r.enqueue_reload(info::kInfoPaneStem, image);
+    s.r.bus.drain_until_idle();
+    REQUIRE(s.r.load_refusals.empty());
+    CHECK(s.r.w->observation_leases() == 0);
+    const auto linked = s.kind_of("info.2"), copied = s.kind_of("info.3");
+    REQUIRE(linked >= 0);
+    REQUIRE(copied >= 0);
+    // THE DRAFT, ITS LINK AND ITS EDITS ARE THE WEAVER'S, AND STAY; THE WATCH WAS A LEASE, AND IS SAID ENDED.
+    CHECK_MESSAGE(s.shows(linked, "count: 6"), s.shown(linked));
+    CHECK(s.shows(linked, "UNSAVED"));
+    CHECK(s.shows(linked, "LINKED 'Shared'"));
+    CHECK(s.shows(linked, "Watch ended when Info was reloaded"));
+    CHECK_MESSAGE(s.shows(copied, "count: 5"), s.shown(copied));
+    // THE KEPT LINK WRITES WHERE IT READ: the entry at the revision the old image read.
+    s.button(linked, "Save");
+    CHECK_MESSAGE(s.shows(linked, "saved rev 2"), s.shown(linked));
+    REQUIRE(s.saved_entries().size() == 1);
+    CHECK(s.saved_entries()[0].item.get("count")->as_int() == 6);
+}
+
 namespace {
 /// THE KERNEL'S TWO DOORS BESIDE A REALIZED PLAN. The rig's `Booter` publishes the plan booter's
 /// state shape again, which a realized plan refuses; this seat's state is its own.
