@@ -137,6 +137,16 @@ struct FacetEmit<F, std::void_t<typename F::Emit>> {
     using type = typename F::Emit;
 };
 
+template <class F, class = void>
+struct FacetClaims {
+    using type = loom::Claims<>;
+};
+
+template <class F>
+struct FacetClaims<F, std::void_t<typename F::Claims>> {
+    using type = typename F::Claims;
+};
+
 template <class T>
 struct IsEmitList : std::false_type {};
 
@@ -154,16 +164,18 @@ struct BaseHandlers<loom::WeaveBase<S, St, Ac, Em, Cl>> : loom::WeaveBase<S, St,
 };
 
 template <template <class...> class Base, class Self, class Dispatch, class State, class AcceptList,
-          class EmitList, class = void>
+          class EmitList, class ClaimList, class = void>
 struct SelectBase {
-    using type = Base<Dispatch, State, AcceptList, EmitList>;
+    using type = Base<Dispatch, State, AcceptList, EmitList, ClaimList>;
 };
 
 template <template <class...> class Base, class Self, class Dispatch, class State, class AcceptList,
-          class EmitList>
+          class EmitList, class ClaimList>
 struct SelectBase<
-    Base, Self, Dispatch, State, AcceptList, EmitList,
+    Base, Self, Dispatch, State, AcceptList, EmitList, ClaimList,
     std::void_t<typename Base<Self, State, AcceptList, EmitList, Dispatch>::Bindings>> {
+    static_assert(std::is_same_v<ClaimList, loom::Claims<>>,
+                  "zengine::With: a weave over timer::TimedWeave declares no claims");
     using type = Base<Self, State, AcceptList, EmitList, Dispatch>;
 };
 
@@ -193,24 +205,29 @@ decltype(auto) find_canvas(Tuple& t) {
 }
 
 /// A weave composed with `Facets...` over `Base` (`loom::WeaveBase` or `timer::TimedWeave`).
-/// Unites the weave's and each facet's `Accept`/`Emit` sets at mount, routes each facet's
-/// messages alongside the weave's own `on(...)`, and runs `self->after_delivery(mail)` before
-/// each facet's `after_delivery` in facet declaration order.
+/// Unites the weave's and each facet's `Accept`/`Emit` sets, and over `loom::WeaveBase` its and
+/// each facet's `Claims` set, at mount; routes each facet's messages alongside the weave's own
+/// `on(...)`, and runs `self->after_delivery(mail)` before each facet's `after_delivery` in facet
+/// declaration order.
 template <class Self, class State, class AcceptList, class EmitList,
-          template <class...> class Base, class... Facets>
+          template <class...> class Base, class ClaimList, class... Facets>
 class FacetWeave
     : public BaseHandlers<typename SelectBase<
-          Base, Self, FacetWeave<Self, State, AcceptList, EmitList, Base, Facets...>, State,
+          Base, Self, FacetWeave<Self, State, AcceptList, EmitList, Base, ClaimList, Facets...>,
+          State,
           typename UnionLists<loom::Accept<>, typename FacetAccept<Facets>::type...,
                               AcceptList>::type,
-          typename UnionLists<loom::Emit<>, typename FacetEmit<Facets>::type...,
-                              EmitList>::type>::type> {
+          typename UnionLists<loom::Emit<>, typename FacetEmit<Facets>::type..., EmitList>::type,
+          typename UnionLists<loom::Claims<>, typename FacetClaims<Facets>::type...,
+                              ClaimList>::type>::type> {
     using MergedAccept = typename UnionLists<loom::Accept<>, typename FacetAccept<Facets>::type...,
                                              AcceptList>::type;
     using MergedEmit =
         typename UnionLists<loom::Emit<>, typename FacetEmit<Facets>::type..., EmitList>::type;
-    using SelectedBase =
-        typename SelectBase<Base, Self, FacetWeave, State, MergedAccept, MergedEmit>::type;
+    using MergedClaims = typename UnionLists<loom::Claims<>, typename FacetClaims<Facets>::type...,
+                                             ClaimList>::type;
+    using SelectedBase = typename SelectBase<Base, Self, FacetWeave, State, MergedAccept,
+                                             MergedEmit, MergedClaims>::type;
     using Handlers = BaseHandlers<SelectedBase>;
 
 public:
@@ -260,11 +277,30 @@ public:
         }
     }
 
+    /// A claim the bus published, to the weave's own handler as Loom reads one: `void` applied,
+    /// `bool` applied or declined, or `loom::Weave::PublishedClaim`; with none, applied as it
+    /// stands. Unconstrained, so asking whether a weave has a handler never asks this one.
     template <class S>
-    decltype(auto) on_claim_published(const S& claim)
-        requires (requires(Self& s, const S& c) { s.on_claim_published(c); })
-    {
-        return static_cast<Self*>(this)->on_claim_published(claim);
+    loom::Weave::PublishedClaim on_claim_published(const S& claim) {
+        Self* self = static_cast<Self*>(this);
+        if constexpr (requires {
+                          static_cast<bool (Self::*)(const S&)>(&Self::on_claim_published);
+                      }) {
+            return self->on_claim_published(claim) ? loom::Weave::PublishedClaim::Applied
+                                                   : loom::Weave::PublishedClaim::Declined;
+        } else if constexpr (requires {
+                                 static_cast<void (Self::*)(const S&)>(&Self::on_claim_published);
+                             }) {
+            self->on_claim_published(claim);
+            return loom::Weave::PublishedClaim::Applied;
+        } else if constexpr (requires {
+                                 static_cast<loom::Weave::PublishedClaim (Self::*)(const S&)>(
+                                     &Self::on_claim_published);
+                             }) {
+            return self->on_claim_published(claim);
+        } else {
+            return loom::Weave::PublishedClaim::Applied;
+        }
     }
 
     template <class S>
@@ -359,21 +395,24 @@ private:
 
 } // namespace detail
 
-/// Composes `Facets...` onto a weave (`With<Facets...>::Weave<Self, State, Accept, Emit, Base>`
-/// or directly `With<Self, State, Accept, Emit, Facets...>`).
+/// Composes `Facets...` onto a weave (`With<Facets...>::Weave<Self, State, Accept, Emit, Base,
+/// Claims>` or directly `With<Self, State, Accept, Emit, Facets...>`); a weave that claims names
+/// its `loom::Claims<...>` after `loom::WeaveBase`.
 template <class... Facets>
 struct With {
     template <class Self, class State, class AcceptList, class EmitList = loom::Emit<>,
-              template <class...> class Base = loom::WeaveBase>
-    using Weave = detail::FacetWeave<Self, State, AcceptList, EmitList, Base, Facets...>;
+              template <class...> class Base = loom::WeaveBase,
+              class ClaimList = loom::Claims<>>
+    using Weave =
+        detail::FacetWeave<Self, State, AcceptList, EmitList, Base, ClaimList, Facets...>;
 };
 
 template <class Self, class State, class... A, class... E, class... Facets>
 struct With<Self, State, loom::Accept<A...>, loom::Emit<E...>, Facets...>
     : detail::FacetWeave<Self, State, loom::Accept<A...>, loom::Emit<E...>, loom::WeaveBase,
-                         Facets...> {
+                         loom::Claims<>, Facets...> {
     using Base = detail::FacetWeave<Self, State, loom::Accept<A...>, loom::Emit<E...>,
-                                    loom::WeaveBase, Facets...>;
+                                    loom::WeaveBase, loom::Claims<>, Facets...>;
     using Base::Base;
     using Base::on;
 };
@@ -382,9 +421,9 @@ template <class Self, class State, class... A, class FirstFacet, class... RestFa
     requires (!detail::IsEmitList<FirstFacet>::value)
 struct With<Self, State, loom::Accept<A...>, FirstFacet, RestFacets...>
     : detail::FacetWeave<Self, State, loom::Accept<A...>, loom::Emit<>, loom::WeaveBase,
-                         FirstFacet, RestFacets...> {
+                         loom::Claims<>, FirstFacet, RestFacets...> {
     using Base = detail::FacetWeave<Self, State, loom::Accept<A...>, loom::Emit<>,
-                                    loom::WeaveBase, FirstFacet, RestFacets...>;
+                                    loom::WeaveBase, loom::Claims<>, FirstFacet, RestFacets...>;
     using Base::Base;
     using Base::on;
 };

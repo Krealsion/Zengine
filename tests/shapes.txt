@@ -12,8 +12,8 @@ AppActionRow v1 0x22b5f069b3060f7a
 AppActionRow v2 0xc22ff4c6b4f5b155
 AppActions v1 0x8ed795b4ebd1f55e
 AppActions v2 0xaa9bfdae36d5f9ed
-AreaIntroduced v1 0x63687eb5ae251d58
-AreaPlaced v1 0xeb0e9cdd7a484845
+AreaIntroduced v2 0x20411f136f3ab34c
+AreaPlaced v2 0xdc6d0878fcd494bf
 AreaRoom v2 0x3fc97c2c6fbb468c
 AreaWithdrawn v1 0x124e9db05dd3b253
 ArrangementDoorState v2 0x84aaa708082f869a
@@ -75,8 +75,8 @@ DeskView v3 0xf6a8009114039b81
 DeskViewRequested v1 0xfe21c7047dbe8893
 DeskViewRequested v2 0x112785ac447f3fd0
 DesktopState v2 0x99a86d2ff5d2ed90
-DirectoryArea v1 0x435b077af1ef9005
-DirectoryState v1 0x8d47382031e48dbd
+DirectoryArea v2 0x58b1b239cf99908d
+DirectoryState v2 0x2ee74dc6319f38d1
 Dismissal v1 0x2ef46c30c9e25ec4
 Drawn v1 0x74e64abe6e86fc07
 DrawnRefused v1 0x7475c98771250027
@@ -111,7 +111,6 @@ ElementCodeOffered v1 0x23282614162dbf06
 ElementDescribed v1 0x9b314314d98e7c03
 ElementEvent v1 0xb3dc069aafefcd2c
 ElementOutcome v1 0x4b0a60291bfde0fd
-ElementPressed v1 0x56bcb5758c7fac72
 ElementPut v1 0x7635164e539fe9ef
 ElementRecord v1 0xd92207515bccaaa7
 EllipseArgs v1 0x92af4694ab9b1b3b
@@ -536,11 +535,11 @@ ViewRetire v1 0x6a71f8f583882355
 ViewRun v1 0xed2c4ab0b0598981
 ViewStart v2 0x89d8495312d2c751
 ViewStop v1 0x1e90d056a56b777c
-WinArea v1 0x132c3c0bc1906cba
+WinArea v2 0x0b52ed53e93966e6
 WindowOffered v1 0xe79139f039479d52
 WindowShowAsked v1 0x9ae7f3bd1654e34e
 WindowShown v1 0x67d34473f44e6144
-WindowState v1 0x886f0c0d7f6f1c10
+WindowState v2 0xec5010a377148599
 WithdrawalFence v1 0x84f263bbb46b652c
 WorkshopCMakeTarget v1 0x9e240d00291fccca
 WorkshopCMakeTarget v2 0x7d80363632515662

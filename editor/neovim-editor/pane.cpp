@@ -333,7 +333,8 @@ std::string default_listen(std::int64_t n) {
 
 // =============================================================================
 
-using NeovimEditorBase = loom::WeaveBase<
+using NeovimEditorBase = zengine::With<ws::PaneManualFacet<
+    nve::kEditorPane, zengine::manual::pages::zengine_editor::kManual>>::Weave<
     class NeovimEditorWeave, nve::NeovimEditorState,
     loom::Accept<loom::Activated, timer::TimerReady, timer::TimerFired, timer::TimerResolution,
                  PaneCatalogRequested, PaneRoom, ws::PaneCanvasRoom, ws::PaneCanvasPointer,
@@ -346,7 +347,7 @@ using NeovimEditorBase = loom::WeaveBase<
                  EditorAdoptRequested, EditorLiveRequested, EditorRetireRequested,
                  nve::NeovimStartRequested, nve::NeovimStopRequested, nve::NeovimStatusRequested,
                  ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
-                 ws::PaneCarryAnswered, ws::PaneDocumentRequested>,
+                 ws::PaneCarryAnswered>,
     loom::Emit<PaneOffered, ws::v3::PaneActions, ws::v5::PaneCanvasContent, ws::v4::PaneContent,
                ws::v2::PaneCaret,
                ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
@@ -355,9 +356,8 @@ using NeovimEditorBase = loom::WeaveBase<
                ProjectRootRequested, surface::ClipboardCopy, surface::ClipboardTextRequested,
                EditorHandoffJudged, EditorWarmed, EditorHandoffOffered, EditorAdopted, EditorLive,
                EditorRetired, timer::EnsureTimer, timer::CancelTimer, loom::Result, loom::Refused,
-               ws::PaneMenuRequested, ws::PaneOperationRequested, ws::PaneValueCarryRequested,
-               ws::PaneDocumentShown>,
-    loom::Claims<EditorDocument>>;
+               ws::PaneMenuRequested, ws::PaneOperationRequested, ws::PaneValueCarryRequested>,
+    loom::WeaveBase, loom::Claims<EditorDocument>>;
 
 // WL-NVIM-01 -- agents/workshop/neovim.md
 class NeovimEditorWeave : public NeovimEditorBase {
@@ -585,13 +585,6 @@ public:
                    ") -- Neovim's screen is redrawn here only when a key reaches it",
                true);
         say(mail);
-    }
-
-    /// THE EDITOR'S MANUAL, TO THE ONE WHO ASKED: the office's page as this image was built with
-    /// it, whether or not a Neovim runs; asking it asks Neovim nothing.
-    void on(const ws::PaneDocumentRequested& ask, loom::Mail& mail) {
-        (void)mail.answer(ws::pane_document(ask, nve::kEditorPane,
-                                            zengine::manual::pages::zengine_editor::kManual));
     }
 
     void on(const PaneCatalogRequested&, loom::Mail& mail) {

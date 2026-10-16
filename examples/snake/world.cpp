@@ -51,12 +51,12 @@ class SnakeWorld
           SnakeWorld, State,
 #if defined(SNAKE_WORLD_V2)
           loom::Accept<SnakeTick, SnakeTurn, input::KeyPressed, gfx::ActionRequested,
-                       gfx::ElementPressed, loom::PrepareShutdown, loom::Bequest, loom::Refused>,
+                       loom::PrepareShutdown, loom::Bequest, loom::Refused>,
           loom::Emit<SnakeVisual, FoodEaten, SnakeDied, gfx::ElementPut, gfx::ElementChange,
                      loom::Bequest, loom::ClaimBequest>,
 #else
           loom::Accept<SnakeTick, SnakeTurn, input::KeyPressed, gfx::ActionRequested,
-                       gfx::ElementPressed, loom::PrepareShutdown>,
+                       loom::PrepareShutdown>,
           loom::Emit<SnakeVisual, FoodEaten, SnakeDied, gfx::ElementPut, gfx::ElementChange,
                      loom::Bequest>,
 #endif
@@ -116,9 +116,6 @@ public:
         mail.publish(visual_of(state_));
         new_board();
     }
-
-    /// A press on the board, which takes none, or on the world's own words: nothing to do.
-    void on(const gfx::ElementPressed&, loom::Mail&) {}
 
     /// "You are being replaced. Say what you want your heir to know": the whole state, as one
     /// item, to the steward that asked, echoing its correlation.
