@@ -151,6 +151,13 @@ function(zengine_manual_split_text text prefix)
     # Control bytes a page may not carry (a tab among them); a line break is the one allowed.
     string(ASCII 1 2 3 4 5 6 7 8 9 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31
                  127 controls)
+    # ...and every byte past 0x7F: a page is ASCII, since the build embeds it in a `char[]` that a
+    # compiler refuses such a byte in, and an em dash in UTF-8 is three of them.
+    set(high_codes "")
+    foreach(code RANGE 128 255)
+        list(APPEND high_codes ${code})
+    endforeach()
+    string(ASCII ${high_codes} high)
 
     set(refusals "")
     set(count 0)
@@ -237,6 +244,10 @@ function(zengine_manual_split_text text prefix)
         string(REGEX MATCH "[${controls}]" control "${line}")
         if(NOT control STREQUAL "")
             list(APPEND refusals "line ${line_no}: a control character, which a page may not carry")
+        endif()
+        string(REGEX MATCH "[${high}]" past_ascii "${line}")
+        if(NOT past_ascii STREQUAL "")
+            list(APPEND refusals "line ${line_no}: a byte past 0x7F (UTF-8 such as an em dash), which a page may not carry -- write it in ASCII, `--` for a dash")
         endif()
 
         if(line_no EQUAL 1)

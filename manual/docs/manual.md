@@ -88,7 +88,8 @@ name, the page's content id (the SHA-256 of its bytes with line endings as LF) a
 each a key, the `##` heading it stands under, its words, and where each key marker stands in them:
 the one grammar finds the markers when it splits the page, so a reader of the words puts a key in a
 marker's place without reading the page again. The words are compiled in as numbers, so no
-character of the page meets a compiler's source encoding.
+character of the page meets a compiler's source encoding; a page is ASCII, and a byte past 0x7F
+(UTF-8, such as an em dash) is refused by its line, since a `char` holds none.
 
 An edit to a manual is therefore an edit to the weave that carries it: the documentation lane's
 change check calls a page `<folder>/docs/<office>.md` compiled, by its name and place, and the
@@ -153,7 +154,7 @@ automatically, so the page describes exactly the shapes the gate lets in.
 
 | check | lane | refuses |
 |---|---|---|
-| the build itself | official | a page out of form: the title, the order of its headings, a command without its four lines, a section past its bound, a key twice |
+| the build itself | official | a page out of form: the title, the order of its headings, a command without its four lines, a section past its bound, a key twice, a control byte or a byte past 0x7F |
 | `manual` ([`tests/check_manual.cmake`](../../tests/check_manual.cmake)) | documentation | the same form; a manual named other than its office, or carried by no target; a pane's manual whose commands are not exactly the ids the action census holds for its office; a command whose Answers line links a shape its rows do not declare a press causes, or leaves out one they do; a key marker, in a manual or a tutorial, whose key is not a default the census holds for its id |
 | the action census (`tests/actions.txt`, and `tests/actions/<office>.txt` for each further office) | official | a shipped pane whose declared rows -- their keys, causes and the mode each enters -- in every mode its suite drives, differ from the committed census, or a mode whose word of the other modes' causes is not theirs there; the census as it stands is written beside the build to diff |
 | the press witness | official | a declared action that, pressed in a mode its suite drives, sends a shape beside the pane protocol its row does not declare; a row the census pins that no press reached; a declared cause no driven state sent is listed beside the build, not refused |
