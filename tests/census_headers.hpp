@@ -22,6 +22,7 @@
 #include "manual/vocabulary.hpp"
 #include "examples/snake/board.hpp"
 #include "examples/snake/play_state.hpp"
+#include "graphics/elements.hpp"
 #include "graphics/ops.hpp"
 #include "graphics/painting.hpp"
 #include "editor/source-transfer/vocabulary.hpp"
@@ -246,6 +247,15 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::graphics::PathArgs>(), // PathArgs v1
         shape<::zengine::graphics::TextArgs>(), // TextArgs v1
         shape<::zengine::graphics::ImageArgs>(), // ImageArgs v1
+        // The faces the parts an owner draws record beside their nodes (graphics/elements.hpp).
+        shape<::zengine::graphics::ButtonFace>(), // ButtonFace v1
+        shape<::zengine::graphics::CheckboxFace>(), // CheckboxFace v1
+        shape<::zengine::graphics::ListRowFace>(), // ListRowFace v1
+        shape<::zengine::graphics::GridCellFace>(), // GridCellFace v1
+        shape<::zengine::graphics::IconFace>(), // IconFace v1
+        shape<::zengine::graphics::ImageFace>(), // ImageFace v1
+        shape<::zengine::graphics::ScrollBarFace>(), // ScrollBarFace v1
+        shape<::zengine::graphics::TextBoxFace>(), // TextBoxFace v1
         // The snake's board: its data, changes and state, bytes its world and its code exchange.
         shape<::zengine::snake::SnakeBoardData>(), // SnakeBoardData v1
         shape<::zengine::snake::SnakeStep>(), // SnakeStep v1

@@ -19,6 +19,7 @@
 
 #include "graphics/canvas.hpp"
 #include "graphics/drawing.hpp"
+#include "graphics/elements.hpp"
 #include "graphics/implied.hpp"
 #include "graphics/ops.hpp"
 #include "graphics/painting.hpp"
@@ -238,13 +239,13 @@ private:
 
 using FakeWindow = gfx::window::WindowT<FakeTerminal>;
 
-/// The snake in a window whose terminal is the suite's: the window mounted in process at its
-/// office and activated as Loom's control door activates.
-struct Typed {
+/// A window whose terminal is the suite's, beside the directory: the window mounted in process at
+/// its office and activated as Loom's control door activates.
+struct TypedWindow {
     Rig r;
     TermLog term;
     loom::WeaveId window;
-    Typed() {
+    TypedWindow() {
         REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
         auto w = std::make_unique<FakeWindow>(FakeTerminal{&term});
         FakeWindow* raw = w.get();
@@ -254,9 +255,6 @@ struct Typed {
         const loom::WeaveId door = zengine::testing::mount_door(r.bus);
         zengine::testing::order_activation(r.bus, door, window, 1);
         r.drain();
-        REQUIRE(r.load("snake-world-v1", WORLD_V1_SO, snake::kWorldRole).valid());
-        r.arrange(PAINT_CLASSIC_SO, PAINT_BLOCK_SO, SNAKE_SO_BOARD, kArea, snake::kWorldRole,
-                  "classic");
     }
     /// The window reads what was typed, on its own beat.
     void type(const std::string& bytes) {
@@ -268,6 +266,15 @@ struct Typed {
     /// A left press at a cell of the terminal, 0-based, as an SGR report.
     void press(int col, int row) {
         type("\x1b[<0;" + std::to_string(col + 1) + ";" + std::to_string(row + 1) + "M");
+    }
+};
+
+/// The snake in a window whose terminal is the suite's.
+struct Typed : TypedWindow {
+    Typed() {
+        REQUIRE(r.load("snake-world-v1", WORLD_V1_SO, snake::kWorldRole).valid());
+        r.arrange(PAINT_CLASSIC_SO, PAINT_BLOCK_SO, SNAKE_SO_BOARD, kArea, snake::kWorldRole,
+                  "classic");
     }
 };
 
@@ -1329,4 +1336,899 @@ TEST_CASE("a weave composed with facets declares its own claims and each facet's
     CHECK(raw->claim_published(loom::to_value(GraphicsTestFacetClaimed{8})) ==
           loom::Weave::PublishedClaim::Applied);
     CHECK(raw->published.size() == 1);
+}
+
+// ============================================================================
+// The parts an owner draws (graphics/elements.hpp): as arithmetic, then pressed through the window
+// ============================================================================
+
+namespace {
+
+using Paths = std::vector<std::string>;
+
+/// The classic skin's look, a glyph for every role a part paints: the ground a blank.
+gfx::term::Look parts_look() {
+    gfx::term::Look l;
+    l.fill = {{gfx::role::kFill, 'o'},
+              {gfx::role::kAccent, 'O'},
+              {gfx::role::kMuted, '.'},
+              {gfx::role::kAlert, '*'},
+              {gfx::role::kGround, ' '}};
+    return l;
+}
+
+Paths node_paths(const gfx::Sketch& s) {
+    Paths out;
+    for (const gfx::Node& n : s.nodes()) {
+        out.push_back(n.path);
+    }
+    return out;
+}
+
+Paths put_paths(const gfx::Drawn& d) {
+    Paths out;
+    for (const gfx::Node& n : d.put) {
+        out.push_back(n.path);
+    }
+    return out;
+}
+
+Paths said_paths(const gfx::Drawn& d) {
+    Paths out;
+    for (const gfx::ElementRecord& r : d.said) {
+        out.push_back(r.path);
+    }
+    return out;
+}
+
+Paths record_paths(const gfx::Sketch& s) {
+    Paths out;
+    for (const gfx::ElementRecord& r : s.records()) {
+        out.push_back(r.path);
+    }
+    return out;
+}
+
+const gfx::ElementRecord& record_at(const gfx::Sketch& s, const std::string& path) {
+    for (const gfx::ElementRecord& r : s.records()) {
+        if (r.path == path) {
+            return r;
+        }
+    }
+    FAIL("no record at " << path);
+    return s.records().front();
+}
+
+const gfx::Node& node_at(const gfx::Sketch& s, const std::string& path) {
+    for (const gfx::Node& n : s.nodes()) {
+        if (n.path == path) {
+            return n;
+        }
+    }
+    FAIL("no node at " << path);
+    return s.nodes().front();
+}
+
+/// The face recorded at `path`, read back as the shape it was said as.
+template <class Face>
+Face face_at(const gfx::Sketch& s, const std::string& path) {
+    const gfx::ElementRecord& r = record_at(s, path);
+    CHECK(r.type == loom::schema_of<Face>()->name());
+    const auto f = loom::claim_item<Face>(r.data);
+    REQUIRE(f.has_value());
+    return *f;
+}
+
+constexpr std::int64_t kCell = gfx::kCellPx;
+
+} // namespace
+
+TEST_CASE("a button draws its face and its label at its path, its face the record there with the "
+          "action its owner named, and none while disabled or when named none") {
+    gfx::Button b("save", "save");
+    b.set_bounds(2 * kCell, kCell, 10 * kCell, kCell);
+    gfx::Sketch s;
+    b.sketch(s, "file.save");
+    CHECK(node_paths(s) == Paths{"save", "save/face", "save/label"});
+    CHECK(record_paths(s) == Paths{"save"});
+    CHECK(record_at(s, "save").action == "file.save");
+    const auto f = face_at<gfx::ButtonFace>(s, "save");
+    CHECK(f.x == 2 * kCell);
+    CHECK(f.y == kCell);
+    CHECK(f.w == 10 * kCell);
+    CHECK(f.h == kCell);
+    CHECK(f.label == "save");
+    CHECK(f.enabled);
+    CHECK_FALSE(f.pressed);
+    CHECK_FALSE(f.hovered);
+    CHECK(f.fill.role == gfx::role::kGround);
+    CHECK(f.ink.role == gfx::role::kFill);
+    // ITS WORDS CENTRED ON A FACE AS WIDE AS ITS BOX, so a press anywhere on the box lands on it.
+    const auto rows = painted(s, parts_look());
+    REQUIRE(rows.size() == 2);
+    CHECK(rows[0].empty());
+    CHECK(rows[1] == "    [save]  ");
+
+    // NAMED NONE: a press on it sends nothing.
+    gfx::Sketch quiet;
+    b.sketch(quiet);
+    CHECK(record_at(quiet, "save").action.empty());
+
+    // DISABLED: muted, in round brackets, never pressed, and silent whatever its owner names.
+    b.set_enabled(false);
+    b.press();
+    CHECK_FALSE(b.pressed());
+    gfx::Sketch off;
+    b.sketch(off, "file.save");
+    CHECK(record_at(off, "save").action.empty());
+    CHECK(face_at<gfx::ButtonFace>(off, "save").ink.role == gfx::role::kMuted);
+    CHECK_FALSE(face_at<gfx::ButtonFace>(off, "save").enabled);
+    CHECK(painted(off, parts_look())[1] == "    (save)  ");
+
+    // PRESSED: its face in the accent. HOVERED: its words in the accent. Disabled while pressed:
+    // released.
+    b.set_enabled(true);
+    b.press();
+    CHECK(b.pressed());
+    gfx::Sketch down;
+    b.sketch(down, "file.save");
+    CHECK(painted(down, parts_look())[1] == "  OO[save]OO");
+    CHECK(face_at<gfx::ButtonFace>(down, "save").pressed);
+    b.set_enabled(false);
+    CHECK_FALSE(b.pressed());
+    b.set_enabled(true);
+    b.hover(true);
+    CHECK(b.face().ink.role == gfx::role::kAccent);
+    CHECK(b.face().fill.role == gfx::role::kGround);
+    CHECK(b.face().hovered);
+}
+
+TEST_CASE("a part drawn again sends only the nodes and the record its change touched") {
+    gfx::Button b("ok", "ok");
+    b.set_bounds(0, 0, 6 * kCell, kCell);
+    gfx::Sketch before;
+    b.sketch(before, "ok");
+    b.hover(true);
+    gfx::Sketch hovered;
+    b.sketch(hovered, "ok");
+    gfx::Drawn d = gfx::difference(before, hovered);
+    CHECK(put_paths(d) == Paths{"ok/label"}); // its ink alone
+    CHECK(said_paths(d) == Paths{"ok"});
+    CHECK(d.removed.empty());
+    CHECK(d.unsaid.empty());
+
+    b.hover(false);
+    b.press();
+    gfx::Sketch pressed;
+    b.sketch(pressed, "ok");
+    d = gfx::difference(hovered, pressed);
+    CHECK(put_paths(d) == Paths{"ok/face", "ok/label"});
+
+    // Unchanged: nothing. The action alone changed: the record, and no node.
+    gfx::Sketch same;
+    b.sketch(same, "ok");
+    d = gfx::difference(pressed, same);
+    CHECK(d.put.empty());
+    CHECK(d.said.empty());
+    gfx::Sketch other;
+    b.sketch(other, "ok.again");
+    d = gfx::difference(same, other);
+    CHECK(d.put.empty());
+    CHECK(said_paths(d) == Paths{"ok"});
+
+    gfx::Checkbox c("agree", "I agree");
+    c.set_bounds(0, kCell, 12 * kCell, kCell);
+    gfx::Sketch unchecked;
+    c.sketch(unchecked, "agree.toggle");
+    c.toggle();
+    gfx::Sketch checked;
+    c.sketch(checked, "agree.toggle");
+    d = gfx::difference(unchecked, checked);
+    CHECK(put_paths(d) == Paths{"agree/mark"});
+    CHECK(said_paths(d) == Paths{"agree"});
+}
+
+TEST_CASE("a checkbox says its state in its mark, keeps that state its owner's, and asks its "
+          "action only while enabled") {
+    gfx::Checkbox c("wrap", "wrap lines");
+    c.set_bounds(0, 0, 14 * kCell, kCell);
+    CHECK_FALSE(c.checked());
+    CHECK(c.label() == "wrap lines");
+    gfx::Sketch s;
+    c.sketch(s, "view.wrap");
+    CHECK(node_paths(s) == Paths{"wrap", "wrap/face", "wrap/mark", "wrap/label"});
+    CHECK(painted(s, parts_look())[0] == "[ ] wrap lines");
+    CHECK(record_at(s, "wrap").action == "view.wrap");
+    CHECK_FALSE(face_at<gfx::CheckboxFace>(s, "wrap").checked);
+
+    c.toggle();
+    CHECK(c.checked());
+    gfx::Sketch on;
+    c.sketch(on, "view.wrap");
+    CHECK(painted(on, parts_look())[0] == "[x] wrap lines");
+    CHECK(face_at<gfx::CheckboxFace>(on, "wrap").checked);
+    CHECK(gfx::Checkbox("pre", "", true).checked());
+
+    // DISABLED: muted and silent; its state is still the owner's to change.
+    c.set_enabled(false);
+    c.set_checked(false);
+    CHECK_FALSE(c.checked());
+    c.toggle();
+    CHECK(c.checked());
+    gfx::Sketch off;
+    c.sketch(off, "view.wrap");
+    CHECK(record_at(off, "wrap").action.empty());
+    const auto f = face_at<gfx::CheckboxFace>(off, "wrap");
+    CHECK_FALSE(f.enabled);
+    CHECK(f.box_fill.role == gfx::role::kGround);
+    CHECK(f.check_ink.role == gfx::role::kMuted);
+    CHECK(f.label_ink.role == gfx::role::kMuted);
+    c.set_enabled(true);
+    c.hover(true);
+    CHECK(c.face().label_ink.role == gfx::role::kAccent);
+    CHECK(c.face().hovered);
+}
+
+TEST_CASE("a list chooses within its rows, keeps the chosen row in its window, and holds its "
+          "scroll between the first row and the last full window") {
+    gfx::List<std::string> l("rows");
+    CHECK(l.empty());
+    l.select_next(); // no rows: nothing to choose
+    CHECK(l.selected() == -1);
+    l.set_rows({"a", "b", "c", "d", "e"});
+    l.set_visible_rows(2);
+    CHECK(l.size() == 5);
+    CHECK(l.at(3) == "d");
+    CHECK(l.selected() == -1);
+    l.select_next(); // none chosen: the first
+    CHECK(l.selected() == 0);
+    CHECK(l.scroll_offset() == 0);
+    l.select_next();
+    l.select_next();
+    CHECK(l.selected() == 2);
+    CHECK(l.scroll_offset() == 1); // kept in the window
+    l.select(4);
+    CHECK(l.scroll_offset() == 3);
+    l.select_next(); // held at the last
+    CHECK(l.selected() == 4);
+    l.select(0);
+    CHECK(l.scroll_offset() == 0);
+    l.select_prev(); // held at the first
+    CHECK(l.selected() == 0);
+
+    l.scroll_to(99);
+    CHECK(l.scroll_offset() == 3);
+    l.scroll_to(-5);
+    CHECK(l.scroll_offset() == 0);
+
+    l.select(9); // names no row: none
+    CHECK(l.selected() == -1);
+    l.select_prev(); // none chosen: the last
+    CHECK(l.selected() == 4);
+    CHECK(l.scroll_offset() == 3);
+
+    l.hover(3);
+    CHECK(l.hovered() == 3);
+    l.hover(7);
+    CHECK(l.hovered() == -1);
+    l.hover(4);
+    // FEWER ROWS: the choice held at the last row, the pointed row dropped, the scroll held.
+    l.set_rows({"a", "b"});
+    CHECK(l.selected() == 1);
+    CHECK(l.hovered() == -1);
+    CHECK(l.scroll_offset() == 0);
+    l.set_rows({});
+    CHECK(l.selected() == -1);
+
+    // EVERY ROW SHOWN: no scroll at all.
+    l.set_rows({"a", "b", "c"});
+    l.set_visible_rows(0);
+    l.scroll_to(2);
+    CHECK(l.scroll_offset() == 0);
+}
+
+TEST_CASE("a list draws its shown rows each at its index with its own record and action, and a "
+          "scroll removes the row scrolled out and puts the row scrolled in") {
+    gfx::List<std::string> l("rows");
+    l.set_origin(0, kCell);
+    l.set_row_size(8 * kCell, kCell);
+    l.set_rows({"alpha", "beta", "gamma"});
+    l.set_visible_rows(2);
+    l.select(0);
+    const auto words = [](const std::string& r) { return r; };
+    const auto open = [](std::size_t i, const std::string& r) {
+        return "open." + std::to_string(i) + "." + r;
+    };
+    gfx::Sketch a;
+    l.sketch(a, words, open);
+    CHECK(record_paths(a) == Paths{"rows/0", "rows/1"}); // the shown rows alone
+    CHECK(record_at(a, "rows/0").action == "open.0.alpha");
+    CHECK(record_at(a, "rows/1").action == "open.1.beta");
+    const auto chosen = face_at<gfx::ListRowFace>(a, "rows/0");
+    CHECK(chosen.text == "alpha");
+    CHECK(chosen.selected);
+    CHECK(chosen.ink.role == gfx::role::kAccent);
+    CHECK(chosen.y == 0);
+    CHECK(chosen.w == 8 * kCell);
+    const auto next = face_at<gfx::ListRowFace>(a, "rows/1");
+    CHECK_FALSE(next.selected);
+    CHECK(next.ink.role == gfx::role::kFill);
+    CHECK(next.y == kCell);
+    // The chosen row says so in its words too, for a medium without colour.
+    const auto rows = painted(a, parts_look());
+    REQUIRE(rows.size() == 3);
+    CHECK(rows[1] == "> alpha ");
+    CHECK(rows[2] == "  beta  ");
+
+    // The last row chosen: the window scrolls one row down.
+    l.select(2);
+    gfx::Sketch b;
+    l.sketch(b, words, open);
+    const gfx::Drawn d = gfx::difference(a, b);
+    CHECK(d.removed == Paths{"rows/0"}); // its subtree with it
+    CHECK(put_paths(d) == Paths{"rows/1", "rows/2", "rows/2/face", "rows/2/text"});
+    CHECK(said_paths(d) == Paths{"rows/1", "rows/2"});
+    CHECK(d.unsaid.empty());
+
+    // No action named: every row silent.
+    gfx::Sketch quiet;
+    l.sketch(quiet, words);
+    CHECK(record_at(quiet, "rows/1").action.empty());
+    CHECK(record_at(quiet, "rows/2").action.empty());
+}
+
+TEST_CASE("a grid draws only the cells that hold something, each at its own path with its record; "
+          "a cell emptied is removed") {
+    gfx::Grid<int> g("board", 4, 3);
+    CHECK(g.width() == 4);
+    CHECK(g.height() == 3);
+    CHECK(g.in_bounds(3, 2));
+    CHECK_FALSE(g.in_bounds(4, 0));
+    CHECK_FALSE(g.in_bounds(0, -1));
+    CHECK(g.set(1, 2, 7));
+    CHECK_FALSE(g.set(4, 0, 1)); // off the board: nothing changes
+    CHECK_FALSE(g.set(-1, 0, 1));
+    CHECK(g.at(1, 2) == 7);
+    CHECK(g.at(9, 9) == 0);
+    CHECK(g.cell_path(1, 2) == "board/c.1.2");
+
+    const auto face = [](std::int64_t, std::int64_t, int v) {
+        gfx::GridCellFace f;
+        f.fill = gfx::by_role(v == 7 ? gfx::role::kAccent : gfx::role::kMuted);
+        f.glyph = v == 7 ? "#" : "";
+        return f;
+    };
+    gfx::Sketch a;
+    g.sketch(a, face);
+    CHECK(node_paths(a) ==
+          Paths{"board", "board/c.1.2", "board/c.1.2/fill", "board/c.1.2/glyph"});
+    const auto f = face_at<gfx::GridCellFace>(a, "board/c.1.2");
+    CHECK(f.x == kCell);
+    CHECK(f.y == 2 * kCell);
+    CHECK(f.w == kCell);
+    CHECK(f.h == kCell);
+    CHECK(f.glyph == "#");
+    CHECK(record_at(a, "board/c.1.2").action.empty()); // no action named: silent
+    const auto rows = painted(a, parts_look());
+    REQUIRE(rows.size() == 3);
+    CHECK(rows[2] == " #");
+
+    // A cell set: only it is put.
+    g.set(0, 0, 1);
+    gfx::Sketch b;
+    g.sketch(b, face);
+    gfx::Drawn d = gfx::difference(a, b);
+    CHECK(put_paths(d) == Paths{"board/c.0.0", "board/c.0.0/fill"});
+    CHECK(said_paths(d) == Paths{"board/c.0.0"});
+    CHECK(d.removed.empty());
+    // A cell emptied: removed, its subtree and record with it.
+    CHECK(g.clear(1, 2));
+    gfx::Sketch c;
+    g.sketch(c, face);
+    d = gfx::difference(b, c);
+    CHECK(d.removed == Paths{"board/c.1.2"});
+    CHECK(d.put.empty());
+    CHECK(d.said.empty());
+
+    g.fill(3);
+    gfx::Sketch full;
+    g.sketch(full, face);
+    CHECK(full.records().size() == 12);
+    g.clear_all();
+    gfx::Sketch none;
+    g.sketch(none, face);
+    CHECK(node_paths(none) == Paths{"board"});
+
+    // AN ACTION A CELL, named by the owner from the cell.
+    g.set(2, 1, 5);
+    gfx::Sketch acting;
+    g.sketch(acting, face, [](std::int64_t col, std::int64_t row, int v) {
+        return "dig." + std::to_string(col) + "." + std::to_string(row) + "." +
+               std::to_string(v);
+    });
+    CHECK(record_at(acting, "board/c.2.1").action == "dig.2.1.5");
+
+    // A board of yes and no.
+    gfx::Grid<bool> life("life", 2, 2, 2 * kCell, 2 * kCell);
+    life.fill(true);
+    life.clear(0, 1);
+    gfx::Sketch lit;
+    life.sketch(lit, [](std::int64_t, std::int64_t, bool) { return gfx::GridCellFace{}; });
+    CHECK(record_paths(lit) == Paths{"life/c.0.0", "life/c.1.0", "life/c.1.1"});
+    CHECK(face_at<gfx::GridCellFace>(lit, "life/c.1.1").x == 2 * kCell);
+}
+
+TEST_CASE("an icon draws its named outline scaled into its square, a name its table lacks as a "
+          "muted frame, and its record names it either way") {
+    CHECK(gfx::Icon::path_data("6 2 11 10 1 10", 24) == "M 12 4 L 22 20 L 2 20 Z");
+    CHECK(gfx::Icon::path_data("", 24).empty());
+    CHECK_FALSE(gfx::Icon::outline("check").empty());
+    CHECK(gfx::Icon::outline("sparkle").empty());
+
+    gfx::Icon i("ok", "check");
+    i.set_position(kCell, 0);
+    i.set_size(2 * kCell);
+    i.set_role(gfx::role::kAlert);
+    CHECK(i.name() == "check");
+    CHECK(i.size() == 2 * kCell);
+    CHECK(i.role() == gfx::role::kAlert);
+    gfx::Sketch s;
+    i.sketch(s, "confirm");
+    CHECK(node_paths(s) == Paths{"ok", "ok/shape"});
+    CHECK(node_at(s, "ok/shape").op == gfx::op::kPath);
+    const auto shape = gfx::from_body<gfx::PathArgs>(node_at(s, "ok/shape").args);
+    REQUIRE(shape.has_value());
+    CHECK(shape->d == gfx::Icon::path_data(gfx::Icon::outline("check"), 2 * kCell));
+    CHECK(shape->fill.role == gfx::role::kAlert);
+    const auto f = face_at<gfx::IconFace>(s, "ok");
+    CHECK(f.name == "check");
+    CHECK(f.x == kCell);
+    CHECK(f.size == 2 * kCell);
+    CHECK(f.ink.role == gfx::role::kAlert);
+    CHECK(record_at(s, "ok").action == "confirm");
+
+    // Every outline the table holds fills its one cell in a terminal: an icon a cell large shows.
+    for (const gfx::IconOutline& o : gfx::kIconOutlines) {
+        CAPTURE(o.name);
+        gfx::Icon each("e", std::string(o.name), kCell);
+        gfx::Sketch e;
+        each.sketch(e);
+        CHECK(painted(e, parts_look()) == Paths{"o"});
+    }
+
+    i.set_name("sparkle");
+    gfx::Sketch unknown;
+    i.sketch(unknown);
+    CHECK(node_at(unknown, "ok/shape").op == gfx::op::kRect);
+    CHECK(face_at<gfx::IconFace>(unknown, "ok").name == "sparkle");
+    CHECK(record_at(unknown, "ok").action.empty());
+}
+
+TEST_CASE("an image shows the rectangle of its sheet its uv corners choose, tinted by an exact "
+          "colour, and with no pixels its frame and the words of its source") {
+    const loom::Bytes sheet{255, 0,   0,   255, 0,   255, 0,   255,  // red, green
+                            0,   0,   255, 255, 255, 255, 255, 255}; // blue, white
+    gfx::Image im("sprite", "sheet.png");
+    CHECK_FALSE(im.set_pixels(2, 2, loom::Bytes(15, 0))); // not 2 x 2 x 4 bytes: none kept
+    CHECK_FALSE(im.has_pixels());
+    REQUIRE(im.set_pixels(2, 2, sheet));
+    CHECK(im.slice().rgba == sheet); // the whole sheet by default
+
+    im.set_uv(0.5, 0.0, 1.0, 0.5);
+    gfx::Image::Slice sl = im.slice();
+    CHECK(sl.pw == 1);
+    CHECK(sl.ph == 1);
+    CHECK(sl.rgba == loom::Bytes{0, 255, 0, 255}); // green, alone
+    im.set_uv(0.0, 0.5, 1.0, 1.0);
+    CHECK(im.slice().rgba == loom::Bytes{0, 0, 255, 255, 255, 255, 255, 255});
+    im.set_uv(-1.0, -1.0, 2.0, 2.0); // held between 0 and 1
+    CHECK(im.slice().rgba == sheet);
+
+    im.set_tint(gfx::exact(gfx::role::kFill, 0x80ff00));
+    sl = im.slice();
+    CHECK(sl.rgba[0] == 128); // red by 0x80
+    CHECK(sl.rgba[5] == 255); // green by 0xff
+    CHECK(sl.rgba[14] == 0);  // blue by 0x00
+    CHECK(sl.rgba[3] == 255); // alpha untouched
+    im.set_tint(gfx::by_role(gfx::role::kAccent)); // a role alone: no tint
+    CHECK(im.slice().rgba == sheet);
+
+    im.set_bounds(0, 0, 4 * kCell, 2 * kCell);
+    gfx::Sketch s;
+    im.sketch(s, "zoom");
+    CHECK(node_paths(s) == Paths{"sprite", "sprite/pixels"});
+    const auto px = gfx::from_body<gfx::ImageArgs>(node_at(s, "sprite/pixels").args);
+    REQUIRE(px.has_value());
+    CHECK(px->pw == 2);
+    CHECK(px->w == 4 * kCell);
+    const auto f = face_at<gfx::ImageFace>(s, "sprite");
+    CHECK(f.source == "sheet.png");
+    CHECK(f.u1 == 1.0);
+    CHECK(f.tint.role == gfx::role::kAccent);
+    CHECK(record_at(s, "sprite").action == "zoom");
+
+    // AN EMPTY RECTANGLE, or no pixels: a frame and the words.
+    im.set_uv(0.6, 0.0, 0.4, 1.0);
+    CHECK(im.slice().rgba.empty());
+    gfx::Sketch none;
+    im.sketch(none);
+    CHECK(node_paths(none) == Paths{"sprite", "sprite/frame", "sprite/words"});
+    const auto rows = painted(none, parts_look());
+    REQUIRE(rows.size() == 2);
+    CHECK(rows[0] == "shee"); // the words over the frame's top edge, clipped to the box
+    CHECK(rows[1] == "+--+");
+}
+
+TEST_CASE("a scroll view holds its offset in range, sizes and places its thumb by what shows, and "
+          "says which items it shows") {
+    gfx::ScrollView v("view");
+    v.set_bounds(0, 0, 10 * kCell, 4 * kCell);
+    v.set_content_size(12 * kCell);
+    CHECK(v.viewport_size() == 4 * kCell);
+    CHECK(v.content_size() == 12 * kCell);
+    CHECK(v.max_scroll() == 8 * kCell);
+    CHECK(v.content_width() == 9 * kCell);
+    v.scroll_to(500 * kCell);
+    CHECK(v.scroll_offset() == 8 * kCell);
+    v.scroll_by(-1000 * kCell);
+    CHECK(v.scroll_offset() == 0);
+
+    CHECK(v.thumb_size() == 4 * kCell * 4 * kCell / (12 * kCell)); // a third of the track
+    CHECK(v.thumb_offset() == 0);
+    v.scroll_to(8 * kCell);
+    CHECK(v.thumb_offset() == 4 * kCell - v.thumb_size()); // at the track's end
+    v.scroll_to(4 * kCell);
+    CHECK(v.thumb_offset() == (4 * kCell - v.thumb_size()) / 2);
+    CHECK(v.visible_range(kCell) == std::pair<std::int64_t, std::int64_t>{4, 8});
+    v.scroll_by(2);
+    CHECK(v.visible_range(kCell) == std::pair<std::int64_t, std::int64_t>{4, 9}); // in part
+    CHECK(v.visible_range(0) == std::pair<std::int64_t, std::int64_t>{0, 0});
+
+    // THE CONTENT SHRINKS: the offset held, the thumb the whole track.
+    v.set_content_size(2 * kCell);
+    CHECK(v.scroll_offset() == 0);
+    CHECK(v.max_scroll() == 0);
+    CHECK(v.thumb_size() == 4 * kCell);
+    CHECK(v.visible_range(kCell) == std::pair<std::int64_t, std::int64_t>{0, 2});
+    // A great deal of content: the thumb never smaller than one cell.
+    v.set_content_size(10000 * kCell);
+    CHECK(v.thumb_size() == kCell);
+    // A shorter box: the offset held in its new range.
+    v.scroll_to(v.max_scroll());
+    v.set_bounds(0, 0, 10 * kCell, 8 * kCell);
+    CHECK(v.scroll_offset() == v.max_scroll());
+}
+
+TEST_CASE("a scroll view clips the content drawn under it, moved up by its offset, and records "
+          "its bar alone, where its action is") {
+    gfx::ScrollView v("view");
+    v.set_bounds(0, 0, 8 * kCell, 4 * kCell);
+    v.set_content_size(8 * kCell);
+    v.scroll_to(2 * kCell);
+    gfx::Sketch s;
+    v.sketch(s, "view.page");
+    CHECK(node_paths(s) == Paths{"view", "view/content", "view/bar", "view/bar/track",
+                                 "view/bar/thumb"});
+    CHECK(record_paths(s) == Paths{"view/bar"}); // a press on the content is the content's
+    CHECK(record_at(s, "view/bar").action == "view.page");
+    const auto f = face_at<gfx::ScrollBarFace>(s, "view/bar");
+    CHECK(f.x == 7 * kCell);
+    CHECK(f.w == kCell);
+    CHECK(f.content_size == 8 * kCell);
+    CHECK(f.viewport_size == 4 * kCell);
+    CHECK(f.scroll_offset == 2 * kCell);
+    CHECK(f.thumb_size == 2 * kCell);
+    CHECK(f.thumb_offset == kCell);
+    CHECK(f.track_fill.role == gfx::role::kMuted);
+    CHECK(f.thumb_fill.role == gfx::role::kFill);
+    for (int i = 0; i < 8; ++i) {
+        s.text(v.content_path() + "/l" + std::to_string(i), 0, i * kCell,
+               "line " + std::to_string(i), gfx::by_role(gfx::role::kFill));
+    }
+    const auto rows = painted(s, parts_look());
+    CHECK(rows == Paths{"line 2 .", "line 3 o", "line 4 o", "line 5 ."});
+}
+
+TEST_CASE("a text box edits whole characters at its cursor, and a disabled one takes no key and "
+          "no focus") {
+    gfx::TextBox t("name", "your name");
+    CHECK(t.placeholder() == "your name");
+    t.insert("abc");
+    CHECK(t.text() == "abc");
+    CHECK(t.cursor() == 3);
+    t.move_left();
+    t.insert("X");
+    CHECK(t.text() == "abXc");
+    CHECK(t.cursor() == 3);
+    t.move_home();
+    t.delete_forward();
+    CHECK(t.text() == "bXc");
+    CHECK(t.cursor() == 0);
+    t.backspace(); // at the start: nothing before it
+    CHECK(t.text() == "bXc");
+    t.move_end();
+    t.backspace();
+    CHECK(t.text() == "bX");
+    CHECK(t.cursor() == 2);
+    t.move_right(); // at the end: it stays
+    CHECK(t.cursor() == 2);
+    t.delete_forward(); // nothing after it
+    CHECK(t.text() == "bX");
+
+    // UTF-8: the cursor steps over a character's every byte, and an edit takes them all.
+    t.set_text("h\xC3\xA9!");
+    CHECK(t.cursor() == 4);
+    t.move_left();
+    CHECK(t.cursor() == 3);
+    t.move_left();
+    CHECK(t.cursor() == 1);
+    t.move_right();
+    CHECK(t.cursor() == 3);
+    t.move_left();
+    t.delete_forward();
+    CHECK(t.text() == "h!");
+    t.set_text("a\xC3\xA9");
+    t.backspace();
+    CHECK(t.text() == "a");
+    t.clear();
+    CHECK(t.text().empty());
+    CHECK(t.cursor() == 0);
+
+    // FOCUS, and a disabled box: no key, no focus, the focus it had dropped.
+    t.set_focused(true);
+    CHECK(t.focused());
+    t.set_enabled(false);
+    CHECK_FALSE(t.focused());
+    t.set_focused(true);
+    CHECK_FALSE(t.focused());
+    t.insert("z");
+    t.backspace();
+    CHECK(t.text().empty());
+    t.set_text("set");
+    t.move_home();
+    CHECK(t.cursor() == 3); // keys move nothing
+    t.delete_forward();
+    CHECK(t.text() == "set"); // ...and the owner's own text still lands
+}
+
+TEST_CASE("a text box shows its placeholder while empty and unfocused, the part of its text "
+          "around its cursor, its cursor while focused, and asks its action only while enabled") {
+    gfx::TextBox t("q", "search");
+    t.set_bounds(0, 0, 8 * kCell, kCell);
+    gfx::Sketch a;
+    t.sketch(a, "focus.q");
+    CHECK(node_paths(a) == Paths{"q", "q/box", "q/text"});
+    CHECK(painted(a, parts_look())[0] == "+search+");
+    CHECK(record_at(a, "q").action == "focus.q");
+    const auto f = face_at<gfx::TextBoxFace>(a, "q");
+    CHECK(f.placeholder == "search");
+    CHECK(f.text.empty());
+    CHECK(f.border.role == gfx::role::kMuted);
+
+    t.set_focused(true);
+    t.insert("abcdefghij");
+    gfx::Sketch b;
+    t.sketch(b, "focus.q");
+    CHECK(node_paths(b) == Paths{"q", "q/box", "q/text", "q/cursor"});
+    CHECK(painted(b, parts_look())[0] == "+fghij|+"); // the cursor at the end, in view
+    const auto typed = face_at<gfx::TextBoxFace>(b, "q");
+    CHECK(typed.text == "abcdefghij"); // the record holds it whole
+    CHECK(typed.cursor == 10);
+    CHECK(typed.focused);
+    CHECK(typed.border.role == gfx::role::kAccent);
+    t.move_home();
+    gfx::Sketch c;
+    t.sketch(c, "focus.q");
+    CHECK(painted(c, parts_look())[0] == "+|bcdef+");
+
+    // DISABLED: unfocused, muted, its cursor removed, and silent.
+    t.set_enabled(false);
+    gfx::Sketch d;
+    t.sketch(d, "focus.q");
+    CHECK(record_at(d, "q").action.empty());
+    CHECK(face_at<gfx::TextBoxFace>(d, "q").ink.role == gfx::role::kMuted);
+    CHECK(gfx::difference(c, d).removed == Paths{"q/cursor"});
+}
+
+namespace {
+
+constexpr const char* kParts = "test.parts";
+
+struct PartsHeard {
+    std::vector<std::string> refused;
+    std::vector<std::string> actions;
+};
+
+/// AN OWNER THAT DRAWS PARTS: it keeps the refusals and the actions the window asks of it.
+class PartsOwner
+    : public loom::WeaveBase<PartsOwner, GraphicsTestOwner,
+                             loom::Accept<gfx::AreaRoom, gfx::DrawnRefused, gfx::ActionRequested>,
+                             loom::Emit<gfx::Drawn>> {
+public:
+    explicit PartsOwner(PartsHeard& heard) : heard_(&heard) {}
+    void on(const gfx::AreaRoom&, loom::Mail&) { ++state_.heard; }
+    void on(const gfx::DrawnRefused& r, loom::Mail&) { heard_->refused.push_back(r.reason); }
+    void on(const gfx::ActionRequested& a, loom::Mail& mail) {
+        if (mail.authored_from_role(window_office())) heard_->actions.push_back(a.action);
+    }
+
+private:
+    PartsHeard* heard_;
+};
+
+/// Parts drawn into a window whose terminal is the suite's, by an owner the suite speaks for, its
+/// area placed at the window's corner and not to hear the pointer.
+struct Parts : TypedWindow {
+    PartsHeard heard;
+    loom::WeaveId owner;
+    Parts() {
+        auto o = std::make_unique<PartsOwner>(heard);
+        PartsOwner* raw = o.get();
+        loom::Grant g = loom::emit_default_grant(*raw);
+        owner = r.bus.register_weave(std::move(o), std::move(g), kParts);
+        raw->zen_set_self(owner);
+        r.arrange(PAINT_CLASSIC_SO, PAINT_BLOCK_SO, SNAKE_SO_BOARD, kParts, kParts, "classic");
+    }
+    /// The owner's picture, sent as its canvas sends one: whole first, then what changed.
+    void draw(const gfx::Sketch& s) {
+        gfx::Drawn d;
+        if (drawn_) {
+            d = gfx::difference(last_, s);
+        } else {
+            d.whole = true;
+            d.put = s.nodes();
+            d.said = s.records();
+        }
+        d.area = kParts;
+        last_ = s;
+        drawn_ = true;
+        r.bus.office_send_to_role_as(owner, kParts, window_office(),
+                                     loom::Message(loom::to_value(d)));
+        r.drain();
+    }
+    /// What a press at a cell made the window send, and the actions the owner heard from it.
+    std::vector<std::string> press_sent(int col, int row) {
+        SentBy sent(r.bus, window);
+        heard.actions.clear();
+        press(col, row);
+        return sent.sent;
+    }
+
+private:
+    gfx::Sketch last_;
+    bool drawn_ = false;
+};
+
+/// One of every part, cell by cell: the actions named, one button named none, one disabled.
+struct Board {
+    gfx::Button ok{"ok", "ok"};
+    gfx::Button quiet{"quiet", "quiet"};
+    gfx::Button off{"off", "off"};
+    gfx::Checkbox agree{"agree", "agree"};
+    gfx::List<std::string> colours{"colours"};
+    gfx::Grid<int> grid{"grid", 3, 3};
+    gfx::TextBox name{"name", "name"};
+    gfx::Icon icon{"icon", "square", 2 * kCell};
+    gfx::Image image{"image", "sheet"};
+    gfx::ScrollView view{"view"};
+    Board() {
+        ok.set_bounds(0, 0, 8 * kCell, kCell);
+        quiet.set_bounds(0, 2 * kCell, 8 * kCell, kCell);
+        off.set_bounds(0, 4 * kCell, 8 * kCell, kCell);
+        off.set_enabled(false);
+        agree.set_bounds(0, 6 * kCell, 12 * kCell, kCell);
+        colours.set_origin(0, 8 * kCell);
+        colours.set_row_size(10 * kCell, kCell);
+        colours.set_rows({"red", "green", "blue"});
+        colours.set_visible_rows(2);
+        grid.set_origin(20 * kCell, 0);
+        grid.set(1, 1, 1);
+        name.set_bounds(20 * kCell, 5 * kCell, 10 * kCell, kCell);
+        icon.set_position(20 * kCell, 8 * kCell);
+        image.set_bounds(24 * kCell, 8 * kCell, 6 * kCell, 2 * kCell);
+        view.set_bounds(32 * kCell, 0, 8 * kCell, 4 * kCell);
+        view.set_content_size(8 * kCell);
+    }
+    gfx::Sketch picture() const {
+        gfx::Sketch s;
+        ok.sketch(s, "test.ok");
+        quiet.sketch(s);
+        off.sketch(s, "test.off");
+        agree.sketch(s, "test.agree");
+        colours.sketch(
+            s, [](const std::string& c) { return c; },
+            [](std::size_t i, const std::string&) { return "test.row." + std::to_string(i); });
+        grid.sketch(
+            s,
+            [](std::int64_t, std::int64_t, int) {
+                return gfx::GridCellFace{0, 0, 0, 0, gfx::by_role(gfx::role::kAccent), ""};
+            },
+            [](std::int64_t col, std::int64_t row, int) {
+                return "test.cell." + std::to_string(col) + "." + std::to_string(row);
+            });
+        name.sketch(s, "test.focus");
+        icon.sketch(s, "test.icon");
+        image.sketch(s, "test.image");
+        view.sketch(s, "test.bar");
+        for (int i = 0; i < 8; ++i) {
+            s.text(view.content_path() + "/l" + std::to_string(i), 0, i * kCell,
+                   "line " + std::to_string(i), gfx::by_role(gfx::role::kFill));
+        }
+        return s;
+    }
+};
+
+} // namespace
+
+TEST_CASE("a part pressed in the window asks its owner for the action the owner named; a part "
+          "named none, a disabled part and a part's empty ground send nothing") {
+    Parts p;
+    Board b;
+    p.draw(b.picture());
+    REQUIRE(p.heard.refused.empty()); // every record stands on a node, within every bound
+    const std::vector<std::string> rows = p.r.shown().rows;
+    REQUIRE(rows.size() > 9);
+    CHECK(rows[0].substr(0, 6) == "  [ok]");
+    CHECK(rows[4].substr(0, 6) == " (off)");
+    CHECK(rows[6].substr(0, 9) == "[ ] agree");
+
+    const Paths asked{"ActionRequested"};
+    CHECK(p.press_sent(3, 0) == asked); // the button
+    CHECK(p.heard.actions == Paths{"test.ok"});
+    CHECK(p.press_sent(7, 0) == asked); // its face's far edge
+    CHECK(p.heard.actions == Paths{"test.ok"});
+    CHECK(p.press_sent(9, 6) == asked); // the checkbox's face, past its label
+    CHECK(p.heard.actions == Paths{"test.agree"});
+    CHECK(p.press_sent(1, 9) == asked); // the list's second row
+    CHECK(p.heard.actions == Paths{"test.row.1"});
+    CHECK(p.press_sent(21, 1) == asked); // the grid's filled cell
+    CHECK(p.heard.actions == Paths{"test.cell.1.1"});
+    CHECK(p.press_sent(22, 5) == asked); // the text box
+    CHECK(p.heard.actions == Paths{"test.focus"});
+    CHECK(p.press_sent(21, 9) == asked); // the icon
+    CHECK(p.heard.actions == Paths{"test.icon"});
+    CHECK(p.press_sent(24, 8) == asked); // the image's frame
+    CHECK(p.heard.actions == Paths{"test.image"});
+    CHECK(p.press_sent(39, 1) == asked); // the scroll view's bar
+    CHECK(p.heard.actions == Paths{"test.bar"});
+
+    // SILENT: a button named none, a disabled button, the grid's empty cell, the scroll view's
+    // content, which records nothing of its own.
+    CHECK(p.press_sent(3, 2).empty());
+    CHECK(p.press_sent(3, 4).empty());
+    CHECK(p.press_sent(20, 0).empty());
+    CHECK(p.press_sent(33, 0).empty());
+    CHECK(p.heard.actions.empty());
+    CHECK(p.heard.refused.empty());
+}
+
+TEST_CASE("a part changed and sent as what changed lands in the window: a scrolled list's rows "
+          "show their new words and answer with their own actions") {
+    Parts p;
+    Board b;
+    p.draw(b.picture());
+    REQUIRE(p.heard.refused.empty());
+    CHECK(p.press_sent(1, 9) == Paths{"ActionRequested"});
+    CHECK(p.heard.actions == Paths{"test.row.1"});
+
+    // The last row chosen: the list scrolls one row, its first row removed, its last put.
+    b.colours.select(2);
+    b.agree.toggle();
+    p.draw(b.picture());
+    REQUIRE(p.heard.refused.empty());
+    const std::vector<std::string> rows = p.r.shown().rows;
+    REQUIRE(rows.size() > 9);
+    CHECK(rows[6].substr(0, 9) == "[x] agree");
+    CHECK(rows[8].substr(0, 10) == "  green   ");
+    CHECK(rows[9].substr(0, 10) == "> blue    ");
+    CHECK(p.press_sent(1, 8) == Paths{"ActionRequested"});
+    CHECK(p.heard.actions == Paths{"test.row.1"});
+    CHECK(p.press_sent(1, 9) == Paths{"ActionRequested"});
+    CHECK(p.heard.actions == Paths{"test.row.2"});
+
+    // The button disabled: drawn again, and silent where it asked before.
+    b.ok.set_enabled(false);
+    p.draw(b.picture());
+    CHECK(p.press_sent(3, 0).empty());
+    CHECK(p.heard.refused.empty());
 }

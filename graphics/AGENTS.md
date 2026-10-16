@@ -10,6 +10,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `vocabulary.hpp` | messages: `Node`, `ElementRecord`, `Drawn`, `ElementPut`, `ElementChange`, the directory's, `WindowShown`; `kGraphicsRole` |
 | `ops.hpp`, `implied.hpp` | the seven operators' operands, a `Paint`; a body without its envelope |
 | `canvas.hpp` | `Sketch`, `Canvas`, `difference`: an owner's drawing, sent as what changed |
+| `elements.hpp`, `elements/*.hpp` | the parts an owner draws into a `Sketch`: `Button`, `Checkbox`, `List`, `Grid`, `Icon`, `Image`, `ScrollView`, `TextBox`; each its nodes and its `*Face` record, the action the owner names riding the record |
 | `drawing.hpp` | `DrawingWeave`: a drawer's authoring base, the room's handshake and the showing |
 | `painting.hpp` | `PaintTask`/`PaintResult`, `ElementEvent`/`ElementOutcome`/`ElementDescribed` |
 | `painter_abi.h`, `painter_export.hpp`, `term_paint.hpp` | the skin seam (`zengine_painter`), `ZENGINE_EXPORT_PAINTER`, the character painter |
@@ -30,7 +31,8 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
   directory, the skins and the snake's board through the real kernel: said once, one change a
   tick shown once, a skin chosen, each participant replaced or reloaded, the room naming what the
   window holds, a drawing weave shown once a beat, presses and keys, every bound refused in words,
-  and each office's manual answering for every shape it accepts;
+  and each office's manual answering for every shape it accepts; every part in `elements/` drawn,
+  changed and painted, and pressed through the window, its action asked or nothing sent;
   `tests/test_graphics.cpp`, `tests/graphics_rig.hpp`
 - `graphics_change_outside_list_refused` — an element's change outside its code's list does not
   compile (`tests/compile_negative/drawing_walls.cpp`, case 1)
@@ -61,4 +63,6 @@ rows; it shares the rig.
 ## Practices
 
 - An element's code draws what it is told; a game's or a pane's rules stay with its owner.
+- A part in `elements/` draws the state its owner set and asks for no action of its own: a press
+  on it reaches the owner only as the action the owner named when it drew the part.
 - A value a page quotes is marked and registered in `tests/code_values.txt`.
