@@ -740,7 +740,7 @@ public:
         case Act::kPlanRow:
             notice_ = "`" + a.stem +
                       "`: nothing was loaded and nothing was written -- the row could not reach " +
-                      ws::kPlanRole + why;
+                      ws::kProjectRole + why;
             break;
         case Act::kBuildSent:
             notice_ = not_built(a.subject, awaiting_realization_) + " -- the ask could not reach " +
@@ -1192,7 +1192,7 @@ public:
                 // The row's own promise, established again: a menu stands open across the
                 // weaver's other acts and every build that settles under it, so `load the built
                 // `a` now` loads `a` or refuses. A choice that begins an edit carries its number
-                // to where the edit opens: the role line opens only after the plan office
+                // to where the edit opens: the role line opens only after the project office
                 // answers, so the number rides in its ask's `choice` and the grab is spent there
                 // (`on(PlanNames)`), still judged by the host as a continuation of this choice.
                 const Offered offered = offered_as(id);
@@ -1824,9 +1824,10 @@ private:
         ask_approval(mail, std::move(a), mail.correlation());
     }
 
-    /// THE COMMIT, APPROVED: the row captured at the gesture is asked of the plan office, and its
-    /// ask carries the approval to the build its answer may finish with (`on(PlanRowWritten)`).
-    /// A line closed while Workshop was asked is no commit any more, and writes nothing.
+    /// THE COMMIT, APPROVED: the row captured at the gesture is asked of the project office, and
+    /// its ask carries the approval to the build its answer may finish with
+    /// (`on(PlanRowWritten)`). A line closed while Workshop was asked is no commit any more, and
+    /// writes nothing.
     void commit_approved(const BuilderAsk& a, loom::Mail& mail) {
         if (!role_.open || role_.stem != a.stem || role_.recipe != a.subject) {
             say_undone(a, "the line was closed before Workshop answered", mail);
@@ -1835,9 +1836,9 @@ private:
         (void)asks().forget(of_kind(Act::kPlanRow));
         BuilderAsk row = a;
         row.act = Act::kPlanRow;
-        if (asks().ask(mail, ws::kPlanRole, PlanRowRequested{a.stem, a.role, a.subject},
+        if (asks().ask(mail, ws::kProjectRole, PlanRowRequested{a.stem, a.role, a.subject},
                        std::move(row)) != Asks::Asked::kHeld) {
-            say_undone(a, std::string("nothing was queued to ") + ws::kPlanRole, mail);
+            say_undone(a, std::string("nothing was queued to ") + ws::kProjectRole, mail);
             return;
         }
         close_role();

@@ -391,7 +391,6 @@ PaneWheel v1 0xf6d1debe710aafeb
 PaneWord v1 0x821f0e413965418f
 PathArgs v1 0x54684353c5f4eb52
 PictureFence v1 0x5ca5c125376c4d60
-PlanDoorState v1 0xf054b8ced95c59bd
 PlanNames v1 0x1ddfffbffb2b5ae8
 PlanNamesRequested v1 0xa9378174047506d0
 PlanRowRequested v1 0xe5d37bbb8ab79820
@@ -417,7 +416,7 @@ PresentationTrial v2 0x76a837ef10fcbd24
 PresentationTrialRequested v1 0x0ae10dbe80da1094
 Presented v1 0x21b27b2e436288c8
 PresenterReady v1 0xc273f6cd91765040
-ProjectDoorState v2 0xd8e1fecfc903d2d8
+ProjectDoorState v3 0x40c2add35ab4c114
 ProjectFrontierRequested v1 0x7c2d16789661efb2
 ProjectFrontierSaid v1 0xde7418af96b90f62
 ProjectRoot v1 0x7e1b326679bedc98
@@ -434,7 +433,6 @@ RecipeSourceRequested v1 0x0efbf681ea62ed54
 RecipeSourceSaid v1 0xd1c5496297b65e48
 RecipeSummary v1 0xc57c76411ae945b5
 RecipeUseRequested v1 0x108b5165edff0466
-RecipesDoorState v1 0x7786d640bfbac373
 RectArgs v1 0x0570daedd308e414
 ResolvedArrangement v1 0x5a3bf0842ec15703
 ResolvedArrangement v2 0x62fe1651f7efa6c4

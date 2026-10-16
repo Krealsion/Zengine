@@ -62,7 +62,7 @@ WHY — `agents/decisions/a-weaver-authors-the-two-files.md`
 `files/files.cpp` pick_buildable cache_is_multi_config chooser_choose record_field compose_recipe
 field_at field_count
 `workshop/pane_seam_vocabulary.hpp` RecipeAuthorRequested RecipeOutcome
-`workshop/pane_doors.hpp` RecipesDoor
+`workshop/pane_doors.hpp` ProjectDoor
 `workshop/weave.hpp` HostContext::RecipeDraft HostContext::author_recipe
 `workshop/authoring.hpp` RecipeAuthor author_recipe
 `workshop/recipe_persist.hpp` kProjectRecipesName
@@ -72,9 +72,9 @@ in-pane, and the host writes it" "the authoring line takes raw keys, and Escape 
 "deliberate keys in Files still choose, refuse a blank field, write one recipe and cancel, and
 Return then opens the file" "an ordinary configured tree is authored in four fields, config empty"
 "a tree with several configurations asks a fifth field, and keeps it"
-`tests/test_workshop_files.cpp` "the recipes door spends this host's one writer and re-words
-nothing" "a row authored while the shipped catalog is in force goes into a project catalog, which is
-installed, and the shipped file keeps its bytes"
+`tests/test_workshop_files.cpp` "the project door spends this host's one recipe writer and
+re-words nothing" "a row authored while the shipped catalog is in force goes into a project
+catalog, which is installed, and the shipped file keeps its bytes"
 `tests/test_builder.cpp` (`--config` spent against a `cmake_target` recipe, unchanged by this law
 — `builder/generate.hpp` `prepare`)
 
@@ -82,7 +82,7 @@ installed, and the shipped file keeps its bytes"
 `builder/builder-pane/vocabulary.hpp` kActionLoadIt kActionCommit kActionCancel
 `builder/builder-pane/pane.cpp` begin_load_it open_role commit_role say_role
 `workshop/builder_seam_vocabulary.hpp` PlanNamesRequested PlanNames PlanRowRequested PlanRowWritten
-`workshop/pane_doors.hpp` PlanDoor
+`workshop/pane_doors.hpp` ProjectDoor
 `workshop/weave.hpp` HostContext::PlanAppend HostContext::append_plan_row HostContext::plan_names
 `workshop/authoring.hpp` PlanAuthor plan_names append_plan_row
 `workshop/staging.hpp` product_of
@@ -93,8 +93,8 @@ keeps working" "`o` asks for a role in the pane's own room, and authors it" "Esc
 line, and nothing is written" "an artifact the plan already names is refused before the line" "a
 refused row is said in the owner's own words" "a row whose product is built finishes with the
 button's act" "`o` and the frontier action asked of a project office nobody holds are each refused
-at dispatch, in words" "a role line's row refused at dispatch by the plan office is said, and
-nothing is written or built"
+at dispatch, in words" "a role line's row refused at dispatch by the project office is said,
+and nothing is written or built"
 `tests/test_workshop_load.cpp` "the minimum row is written as authored, the plan round-trips byte
 for byte, and a duplicate stem is refused by the plan's own law" "the writer says where the frontier
 row's product is, through the staging rule: present when the chosen recipe's file is on disk, absent

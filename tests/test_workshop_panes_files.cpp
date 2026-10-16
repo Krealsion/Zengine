@@ -249,7 +249,6 @@ struct FilesRig {
             r.mount_opening();
         }
         mount_project_door();
-        mount_recipes_door();
         load::LoadPlan plan;
         load::ArtifactIntent tool;
         tool.stem = files::kFilesStem;
@@ -543,17 +542,23 @@ struct FilesRig {
         }
     }
 
+    /// The project office, with the host's recipe acts wired as `workshop.cpp` wires them.
     void mount_project_door() {
-        auto door = std::make_unique<ProjectDoor>(r.host.project_dir, marks_path);
+        wire_recipes();
+        auto door = std::make_unique<ProjectDoor>(r.host.project_dir, marks_path,
+                                                  ProjectDoor::Frontier{}, ProjectDoor::Names{},
+                                                  ProjectDoor::Source{}, r.host.use_recipes,
+                                                  r.host.author_recipe);
         ProjectDoor* raw = door.get();
         loom::Grant say;
         say.allow_to_any(ProjectRoot::zen_name, ProjectRoot::zen_version);
+        say.allow_to_any(RecipeOutcome::zen_name, RecipeOutcome::zen_version);
         const loom::WeaveId id =
             r.bus.register_weave(std::move(door), std::move(say), std::string(kProjectRole));
         raw->zen_set_self(id);
     }
 
-    void mount_recipes_door() {
+    void wire_recipes() {
         r.host.use_recipes = [this](const std::string& path) {
             HostContext::RecipeSwap done;
             const Written read = install_recipes(recipes, path, root.generic_string(),
@@ -571,13 +576,6 @@ struct FilesRig {
         r.host.author_recipe = [author](const HostContext::RecipeDraft& draft) {
             return authoring::author_recipe(*author, draft);
         };
-        auto door = std::make_unique<RecipesDoor>(r.host.use_recipes, r.host.author_recipe);
-        RecipesDoor* raw = door.get();
-        loom::Grant say;
-        say.allow_to_any(RecipeOutcome::zen_name, RecipeOutcome::zen_version);
-        const loom::WeaveId id =
-            r.bus.register_weave(std::move(door), std::move(say), std::string(kRecipesRole));
-        raw->zen_set_self(id);
     }
 };
 
@@ -1448,7 +1446,7 @@ TEST_CASE("Files takes a canvas press only from Workshop's office and about its 
 }
 
 // ============================================================================
-// FILES-WEAVE — the three doors, from the pane's side
+// FILES-WEAVE — the two doors, from the pane's side
 // ============================================================================
 
 TEST_CASE("Return on a source opens it in the Editor, through the one door") {
@@ -1530,7 +1528,7 @@ TEST_CASE("a dirty Editor's refusal comes back and the pane says it") {
 
 TEST_CASE("`u` moves the recipe catalog, and the pane says which and how much") {
     // THE ACTING DOOR, FROM THE ASKING SIDE, AND THE WHOLE LOOP IN ONE GESTURE. The pane
-    // resolves the row to a path, asks `zengine.recipes`, and the host's one install seam
+    // resolves the row to a path, asks `zengine.project`, and the host's one install seam
     // does the rest -- then the pane reads the answer back and says both halves of it.
     FilesRig f("files-userecipes");
     put_catalog(f.root / "recipes.json", {authored_recipe("alpha", "src/alpha.cpp"),
@@ -2458,7 +2456,6 @@ TEST_CASE("a setup naming the retired reference opens the loaded pane") {
     put_file(f.root / "alpha.cpp", "int a;\n");
     f.r.mount_workshop();
     f.mount_project_door();
-    f.mount_recipes_door();
     load::LoadPlan plan;
     load::ArtifactIntent tool;
     tool.stem = files::kFilesStem;
@@ -2522,7 +2519,7 @@ TEST_CASE("an open the desk cannot show opens nothing, and Files says why") {
 // ============================================================================
 
 TEST_CASE("a catalog refusal carrying a non-ASCII byte is still admitted") {
-    // `u` on a file that is not JSON asks the recipes door, whose `from_text` answers with Loom's
+    // `u` on a file that is not JSON asks the project door, whose `from_text` answers with Loom's
     // `Error::message()`, and that message carries a UTF-8 em dash in its `detail`. The seam
     // refuses a WHOLE publication over one such byte, hiding the refusal behind the generic room
     // banner, so `push_row` spells it through `ascii_spelling` (`workshop/pane_text.hpp`). The
