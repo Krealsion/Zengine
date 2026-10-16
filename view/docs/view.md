@@ -36,8 +36,8 @@ reach, and is written again as the current version. `view::save_description` and
 
 ## The view host
 
-`view::Host` mounts in the office `zengine.view.host` over the host's own bus. A participant
-asks it, as its office or as itself:
+`view::Host` mounts in the office [`zengine.view.host`](zengine.view.host.md) over the host's own
+bus. A participant asks it, as its office or as itself:
 
 | ask | answer |
 |---|---|

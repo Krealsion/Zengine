@@ -1095,9 +1095,10 @@ foreach(weave IN LISTS zengine_census_weaves)
 endforeach()
 file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/census-weaves-$<CONFIG>.txt"
      CONTENT "${zengine_census_lines}")
-# It links the guests library, whose door tests/census_headers.hpp includes.
+# It links the guests library and the view package, whose door and host tests/census_headers.hpp
+# includes, each with the manual its office answers from.
 zengine_workshop_suite(shapes SOURCES test_workshop_shapes.cpp test_shapes_census.cpp
-    LINKS zengine-workshop-guests
+    LINKS zengine-workshop-guests zengine-view
     DEFINITIONS "ZENGINE_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\""
                 "ZENGINE_CENSUS_WEAVES=\"${CMAKE_CURRENT_BINARY_DIR}/census-weaves-$<CONFIG>.txt\""
                 "ZENGINE_CENSUS_NOW=\"${CMAKE_CURRENT_BINARY_DIR}/shapes-now-$<CONFIG>.txt\""
