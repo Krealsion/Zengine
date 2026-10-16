@@ -77,21 +77,25 @@ sends only the nodes that changed. A beat queues its picture (`draw`), an elemen
 elements: every message but the last says `more` follows, and the window shows once, after the
 last. A tick that changes the snake's board and its score is one showing.
 
-A canvas draws whole when its window is new or started again. The window tells the room
-(`AreaRoom`): its name, its incarnation, and the references of the owner's elements it still
-presents there. `room` answers whether the window or its incarnation changed, and `holds` whether
-the window presents an element, so an owner says again only what the window does not hold.
+A canvas draws whole when its window is new, started again, or resized. The window tells the room
+(`AreaRoom`): its name, its incarnation, its width and height (`width()`, `height()`), and the
+references of the owner's elements it still presents there. `room` answers whether the window, its
+incarnation, or its size changed, and `holds` whether the window presents an element, so an owner
+says again only what the window does not hold.
 
 ## A drawing weave
 
 `graphics/drawing.hpp` owns what every drawer would otherwise repeat, so a drawer writes its
-picture and what it reacts to. A weave opts in as it opts into the Timer's `TimedWeave`:
+picture and what it reacts to. A weave attaches `graphics::DrawingFacet` through `With` (or uses
+the single-facet shorthand `DrawingWeave`):
 
 ```cpp
-class ScoreWeave : public graphics::DrawingWeave<ScoreWeave, ScoreState, loom::Accept<FoodEaten>> {
+class ScoreWeave
+    : public graphics::With<graphics::DrawingFacet>::Weave<ScoreWeave, ScoreState,
+                                                           loom::Accept<FoodEaten>> {
 public:
-    using DrawingWeave::on;
-    ScoreWeave() : DrawingWeave("snake.score") {} // the office it draws as; its area by default
+    using Weave::on;
+    ScoreWeave() : Weave("snake.score") {} // the office it draws as; its area by default
     void on(const FoodEaten&, loom::Mail&) { ++state_.eaten; }
     void picture(graphics::Sketch& f) const {
         f.text("eaten", 0, 0, std::to_string(state_.eaten),
@@ -100,19 +104,17 @@ public:
 };
 ```
 
-The drawing weave takes the room from the window it names, asks its room after the first message
+The drawing facet takes the room from the window it names, asks its room after the first message
 each life delivers it while no room has come (a loaded weave's activation, where it hears one),
 and takes a refusal and does nothing with it. At the end of every delivery, and of every poke that
-wrote the state, it draws the drawer's `picture`, so only what changed is sent, and shows the beat:
-a drawer never calls `show`. An optional `on_room` runs when the window or its incarnation
-changed, where an element the window does not hold is said again (`canvas().holds`): a drawer
-reloaded in place asks its room, draws its picture whole once, and says an element again only
-where the window does not hold it. A drawer that presents elements emits `ElementPut` and
-`ElementChange` itself and accepts the presses it wants.
-Over the Timer, a drawer derives
-`DrawingWeave<Self, State, Accept<...>, Emit<...>, zengine::timer::TimedWeave>`. A drawer that
-keeps a handshake of its own derives `loom::WeaveBase` and draws with a `Canvas`; one that defines
-its own `after_delivery` is refused at build time, since nothing it drew would show.
+wrote the state, `With` runs the weave's own `after_delivery` (when present) and then each facet's
+`after_delivery` in declaration order, where `DrawingFacet` draws the drawer's `picture` and shows
+the beat: a drawer never calls `show`. An optional `on_room` runs when the window, its incarnation,
+or its size changed, where an element the window does not hold is said again (`canvas().holds`).
+A drawer that presents elements emits `ElementPut` and `ElementChange` itself and accepts the
+presses it wants. Over the Timer, a drawer passes `zengine::timer::TimedWeave` as the `Base`
+parameter to `Weave`; the single-facet `DrawingWeave` shorthand keeps the compile-time wall on a
+derived `after_delivery`.
 
 ## An element of your own
 

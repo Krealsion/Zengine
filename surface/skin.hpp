@@ -41,21 +41,17 @@ struct SkinState {
 };
 
 template <class Medium>
-class SkinT : public loom::WeaveBase<SkinT<Medium>, SkinState,
-                                     loom::Accept<SurfaceCanvas, SurfaceText, ClipboardCopy,
-                                                  ClipboardTextRequested,
-                                                  SurfacePlacementRemembered, PumpSurface,
-                                                  SurfaceCaptureRequested,
-                                                  SurfaceCaptureChunkRequested,
-                                                  loom::Activated,
-                                                  zengine::timer::TimerReady,
-                                                  zengine::timer::TimerFired,
-                                                  zengine::manual::ShapeDocumentRequested>,
-                                     loom::Emit<SurfaceReady, SurfaceExtent, SurfacePlacement,
-                                                ClipboardText, SurfaceCaptured,
-                                                SurfaceCaptureChunk, loom::Refused,
-                                                zengine::timer::StartRoleTimer,
-                                                zengine::manual::ShapeDocumentShown>> {
+class SkinT
+    : public zengine::With<
+          zengine::manual::ManualFacet<zengine::manual::pages::zengine_skin::kManual>>::
+          Weave<SkinT<Medium>, SkinState,
+                loom::Accept<SurfaceCanvas, SurfaceText, ClipboardCopy, ClipboardTextRequested,
+                             SurfacePlacementRemembered, PumpSurface, SurfaceCaptureRequested,
+                             SurfaceCaptureChunkRequested, loom::Activated,
+                             zengine::timer::TimerReady, zengine::timer::TimerFired>,
+                loom::Emit<SurfaceReady, SurfaceExtent, SurfacePlacement, ClipboardText,
+                           SurfaceCaptured, SurfaceCaptureChunk, loom::Refused,
+                           zengine::timer::StartRoleTimer>> {
 public:
     SkinT() = default;
     explicit SkinT(Medium medium) : medium_(std::move(medium)) {}
@@ -189,12 +185,6 @@ public:
         // hear the state before the size.
         report_placement(mail);
         report_extent(mail);
-    }
-
-    /// What a shape this Skin accepts does, from its own page, to the one who asked.
-    void on(const zengine::manual::ShapeDocumentRequested& ask, loom::Mail& mail) {
-        (void)mail.answer(zengine::manual::shape_document(
-            ask, this->accepted_schemas(), zengine::manual::pages::zengine_skin::kManual));
     }
 
     Medium& medium() { return medium_; }

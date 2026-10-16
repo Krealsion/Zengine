@@ -29,11 +29,11 @@ struct ScoreState {
 };
 
 class ScoreWeave
-    : public gfx::DrawingWeave<ScoreWeave, ScoreState, loom::Accept<FoodEaten>> {
+    : public gfx::With<gfx::DrawingFacet>::Weave<ScoreWeave, ScoreState, loom::Accept<FoodEaten>> {
 public:
-    using DrawingWeave::on;
+    using Weave::on;
 
-    ScoreWeave() : DrawingWeave(kScoreRole) {}
+    ScoreWeave() : Weave(kScoreRole) {}
 
     void on(const FoodEaten&, loom::Mail&) { ++state_.eaten; }
 
