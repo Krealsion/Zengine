@@ -11,9 +11,7 @@
 #include "attention.hpp" // what is true right now, held and dismissed
 #include "attention_seam_vocabulary.hpp" // ...and how it crosses to the pane that shows it
 #include "inspection_seam_vocabulary.hpp" // ...and how a pane as an inspector's subject does
-#include "terminal_seam_vocabulary.hpp"   // ...and how the terminal participant's record does
 #include "desktop_seam_vocabulary.hpp"    // ...and the effective keymap a presenter shows
-#include "complete.hpp"
 #include "context.hpp" // what can be done with a pointed subject
 #include "keymap.hpp"
 #include "panes.hpp"
@@ -1175,16 +1173,6 @@ std::vector<StandingCondition> standing_conditions(const Session& s,
 /// stays silent when there is not.
 bool same_conditions(const std::vector<StandingCondition>& a,
                      const std::vector<StandingCondition>& b);
-
-/// THE PARTICIPANT'S RECORD, AS THE SEAM CARRIES IT: derived at the moment of the ask, holding
-/// no `loom::TerminalSession`, no `Transcript` and no entry the renderer could not read.
-TranscriptShown transcript_shown(const loom::TerminalSession* me);
-
-/// ...and the comparison that decides whether saying it again would be news.
-bool same_transcript(const TranscriptShown& a, const TranscriptShown& b);
-
-/// `LineSlot` AS THE SEAM SPELLS IT.
-const char* slot_name(LineSlot slot) noexcept;
 
 // ---- WHAT CAN I DO WITH THIS, PRESENTED --------------------------------------------------
 

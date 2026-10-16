@@ -143,7 +143,7 @@ WHY — `agents/decisions/a-pane-declares-its-actions.md`
 
 ### WL-KEY-01
 `workshop/keymap.hpp` kActionCatalog Act Keymap ActionRow
-`workshop/weave_terminal.cpp` command
+`workshop/weave_input.cpp` command
 `tests/test_workshop_document.cpp` "an authored override changes dispatch AND every displayed
 spelling" "an override survives restart, and deleting the file restores defaults"
 

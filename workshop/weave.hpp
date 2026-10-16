@@ -12,7 +12,7 @@
 
 
 
-#include "complete.hpp" // the completer's values, and where a line can go
+#include "terminal/complete.hpp" // the completer's values, and where a line can go
 #include "persist.hpp"
 #include "host_pump.hpp" // the boundary this weave's publication hook runs inside
 #include "quit_delivery.hpp" // the host's book of quit deliveries Loom refused, and its wake-up
@@ -42,7 +42,7 @@
 #include "pane_causes.hpp" // the form a declaration's causes and modes are admitted in
 #include "operator/catalog.hpp" // the conversions this run has, looked up at a load
 #include "surface/vocabulary.hpp"
-#include "terminal_door_facet.hpp" // the door onto the terminal participant, composed below
+#include "terminal/door.hpp" // the door onto the terminal participant, composed below
 
 #include <zen/terminal/input_lex.hpp> // ONE command grammar, Loom's -- never a second one here
 #include <zen/terminal/session.hpp>
@@ -290,10 +290,8 @@ bool holder_accepts_on(const loom::Switchboard& bus, std::string_view role,
 bool holder_emits_on(const loom::Switchboard& bus, std::string_view role,
                      const loom::Schema& shape);
 
-/// The host's answer to `destinations`, read off `bus` at the call: every weave that is not a
-/// sealed candidate, its office, accepted shapes and liveness, and `self` marked. A reading, not a
-/// registry.
-std::vector<Destination> bus_destinations(const loom::Switchboard& bus, loom::WeaveId self);
+/// The door onto the terminal participant, as this host composes it: over its own context.
+using TerminalDoorFacet = TerminalDoor<HostContext>;
 
 /// The Workshop weave: its own doors, the terminal door and its page's answers composed beside them.
 class WorkshopWeave
@@ -431,7 +429,7 @@ class WorkshopWeave
                              // the one latest claim
                              // this host makes -- the managed pane's presentation.
                              loom::Claims<zengine::workshop::PanePresentation>> {
-    friend class TerminalDoorFacet; // the door repaints the desk after the line it authored
+    friend TerminalDoorFacet; // the door repaints the desk after the line it authored
 
 public:
     /// Whose hand an input moment is: the platform's (`local`), a participant that injected it, or

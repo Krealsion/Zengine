@@ -59,7 +59,7 @@ shift+letter binding swallows the capital its keystroke produced"
 `workshop/screen.hpp` Session::band_keys
 `workshop/prefs_persist.hpp` kKeysDefault
 `workshop/screen_hotkeys.cpp` shown_as
-`workshop/weave_terminal.cpp` WorkshopWeave::state_presentation
+`workshop/weave_input.cpp` WorkshopWeave::state_presentation
 `workshop/desktop_seam_vocabulary.hpp` ShownBinding
 `tests/test_workshop_panes_builder.cpp` "WL-KEY-16: the band's spelling and the Hotkeys view's are
 set apart from a pane's gear, each changing only its own surface, the `?` spelling as the Hotkeys
