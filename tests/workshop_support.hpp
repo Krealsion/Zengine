@@ -1723,11 +1723,11 @@ struct SeatDo {
 };
 
 /// A TOOL THAT ASKS THIS HOST'S DOORS, in an office of its own: what the Files weave is, reduced
-/// to the sentences a case needs. It asks `zengine.project` where this run began, asks
-/// `zengine.recipes` to install or author a catalog, and asks `zengine.workshop` to open one source
-/// in the Editor, recording every answer -- the party each door was built for. It authors AS AN
-/// OFFICE, because all three doors refuse anonymous speech; a rig that asked personally would be
-/// proving the refusal rather than the answer.
+/// to the sentences a case needs. It asks `zengine.project` where this run began and to install or
+/// author a catalog, and asks `zengine.workshop` to open one source in the Editor, recording every
+/// answer -- the party each door was built for. It authors AS AN OFFICE, because both doors
+/// refuse anonymous speech; a rig that asked personally would be proving the refusal rather than
+/// the answer.
 struct DoorAskerState {
     std::int64_t asks = 0;
     std::int64_t answers = 0;

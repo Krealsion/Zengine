@@ -20,13 +20,10 @@ namespace zengine::workshop {
 /// where it lives and answers it through `ProjectRoot`; the pane owns the file.
 inline constexpr const char* kDefaultMarksFileName = "workshop-marks.json";
 
-/// The office that answers where this run began and which places file it owns. A host that
-/// mounts no such door holds no such office, and an ask reaches nobody.
+/// The project office: it answers where this run began and which places file it owns, and it is
+/// the one office that may change which recipes this project means and which artifacts it loads.
+/// A host that mounts no such door holds no such office, and an ask reaches nobody.
 inline constexpr const char* kProjectRole = "zengine.project";
-
-/// The office that may change which recipes this project means -- separate from
-/// `zengine.project` because answering it writes.
-inline constexpr const char* kRecipesRole = "zengine.recipes";
 
 /// The office that holds the one source document. A literal rather than
 /// `editor/editor-pane/vocabulary.hpp`'s constant: neither asker links the weave, and a case checks the

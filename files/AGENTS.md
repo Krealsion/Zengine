@@ -41,7 +41,7 @@ the doors it asks). Its marks file's shapes are counted by `workshop_shapes`
   staged beside the host, and listed as a development pane weave, by `workshop/CMakeLists.txt`.
 - Seam vocabulary: `workshop/pane_seam_vocabulary.hpp` (its asks, the marks file's name) and
   `workshop/open_seam_vocabulary.hpp` (`zengine.opening`, where an open goes).
-- Doors: `ProjectDoor` (`zengine.project`) and `RecipesDoor` (`zengine.recipes`) in
+- Door: `ProjectDoor` (`zengine.project`, where the project is and the recipe acts) in
   `workshop/pane_doors.hpp`, mounted in `workshop/workshop.cpp`, which resolves the marks path;
   the open is answered in `workshop/weave_opening.cpp`.
 - The pure half includes `workshop/path_admission.hpp` and `workshop/persist.hpp`.

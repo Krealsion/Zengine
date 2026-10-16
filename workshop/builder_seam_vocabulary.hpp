@@ -5,10 +5,10 @@
 #define ZENGINE_WORKSHOP_BUILDER_SEAM_VOCABULARY_HPP
 
 // What the Builder pane asks the host, and what it hears back: `pane_seam_vocabulary.hpp`'s seam
-// with a second tenant. Reads go to the read-only `zengine.project`; appending a plan row goes to
-// `zengine.plan`, which writes the load plan (which artifacts run) and is not `zengine.recipes`
-// (how one is produced). A frontier is a reading, not a power: realizing an artifact still goes
-// through `BuildRequested` to the Builder office.
+// with a second tenant. Every ask goes to `zengine.project`: the readings, and appending a plan
+// row, which writes the load plan (which artifacts run) through its own owner, apart from the
+// recipes (how one is produced). A frontier is a reading, not a power: realizing an artifact still
+// goes through `BuildRequested` to the Builder office.
 
 // `kProjectRole` and `SourceOpened` are the files seam's, included and never respelled.
 #include "pane_seam_vocabulary.hpp"
@@ -19,10 +19,6 @@
 #include <string>
 
 namespace zengine::workshop {
-
-/// The office that may change which artifacts this project loads. A host that mounts no such door
-/// holds no such office.
-inline constexpr const char* kPlanRole = "zengine.plan";
 
 // ---- What the project is waiting on, read ---------------------------------------
 

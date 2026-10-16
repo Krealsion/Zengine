@@ -1085,34 +1085,22 @@ int main(int argc, char** argv) {
                              manual::ShapeDocumentShown::zen_version);
     mount_in_office<SampleDoor>(bus, std::move(say_sampled), kSampleRole, operators);
 
-    // ---- ...and the three doors the pane weaves ask (workshop/pane_doors.hpp) -------------------
-    // Three, because answering `zengine.project` reads while `zengine.recipes` and `zengine.plan`
-    // write; each acting door holds a closure already wired (WL-PROJ-04, WL-AUTH-01, WL-AUTH-02).
-    // The read-only door captures `host.frontier`, `host.plan_names` and `host.recipe_source` by
-    // value, so it is mounted after they are wired.
+    // ---- ...and the project door the pane weaves ask (workshop/pane_doors.hpp) -----------------
+    // One office: its readings derive at the ask, and each act spends a closure already wired
+    // (WL-PROJ-04, WL-AUTH-01, WL-AUTH-02). It captures `host.frontier`, `host.plan_names`,
+    // `host.recipe_source` and the acts' closures by value, so it is mounted after they are wired.
     loom::Grant say_project;
     say_project.allow_to_any(ProjectRoot::zen_name, ProjectRoot::zen_version);
     say_project.allow_to_any(ProjectFrontierSaid::zen_name, ProjectFrontierSaid::zen_version);
     say_project.allow_to_any(PlanNames::zen_name, PlanNames::zen_version);
     say_project.allow_to_any(RecipeSourceSaid::zen_name, RecipeSourceSaid::zen_version);
+    say_project.allow_to_any(RecipeOutcome::zen_name, RecipeOutcome::zen_version);
+    say_project.allow_to_any(PlanRowWritten::zen_name, PlanRowWritten::zen_version);
     say_project.allow_to_any(manual::ShapeDocumentShown::zen_name,
                              manual::ShapeDocumentShown::zen_version);
     mount_in_office<ProjectDoor>(bus, std::move(say_project), kProjectRole, host.project_dir,
-                                 marks_path, host.frontier, host.plan_names,
-                                 host.recipe_source);
-
-    loom::Grant say_recipes;
-    say_recipes.allow_to_any(RecipeOutcome::zen_name, RecipeOutcome::zen_version);
-    say_recipes.allow_to_any(manual::ShapeDocumentShown::zen_name,
-                             manual::ShapeDocumentShown::zen_version);
-    mount_in_office<RecipesDoor>(bus, std::move(say_recipes), kRecipesRole, host.use_recipes,
-                                 host.author_recipe);
-
-    loom::Grant say_plan;
-    say_plan.allow_to_any(PlanRowWritten::zen_name, PlanRowWritten::zen_version);
-    say_plan.allow_to_any(manual::ShapeDocumentShown::zen_name,
-                          manual::ShapeDocumentShown::zen_version);
-    mount_in_office<PlanDoor>(bus, std::move(say_plan), kPlanRole, host.append_plan_row);
+                                 marks_path, host.frontier, host.plan_names, host.recipe_source,
+                                 host.use_recipes, host.author_recipe, host.append_plan_row);
 
     // ---- The editor switch (WL-SWITCH-03, WL-SWITCH-07) -----------------------------------------
     // One native coordinator in its own office, switching the managed pane's office between the

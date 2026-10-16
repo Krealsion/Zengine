@@ -19,16 +19,17 @@ the one whose seam is worth designing carefully.
 Four facts the browser read straight off `HostContext` cannot travel into a loaded image as
 anything but values, so each became an ask to an office and an answer back:
 
-    zengine.project    read-only    ProjectRootRequested  -> ProjectRoot
-    zengine.recipes    ACTS         RecipeUseRequested     -> RecipeOutcome
+    zengine.project    reads, ACTS  ProjectRootRequested  -> ProjectRoot
+                                    RecipeUseRequested     -> RecipeOutcome
                                     RecipeAuthorRequested  -> RecipeOutcome
     zengine.workshop   ACTS         OpenSourceRequested    -> SourceOpened
 
-THE SPLIT IS BY WHETHER ANSWERING ACTS, which is the observation door's own division: a
-question whose answer runs nobody's code lives apart from one whose whole purpose is to change
-a weaver's files, so "which office can write a recipe catalog" keeps a one-word answer. The
-Editor's door is addressed at `zengine.workshop` because Workshop still holds the Editor; when
-the Editor migrates, the same sentence goes to `zengine.editor` and only the address moves.
+ONE OFFICE FOR THE PROJECT, AND ONE OWNER PER ACT: where the project is and which recipes it
+means answer at `zengine.project`, and each act there spends the one closure the host wired for
+it, so "which office can write a recipe catalog" keeps a one-word answer and the reading still
+runs nobody's code. The Editor's door is addressed at `zengine.workshop` because Workshop still
+holds the Editor; when the Editor migrates, the same sentence goes to `zengine.editor` and only
+the address moves.
 
 No `Session&`, no `HostContext&`, no `CurrentRecipes&` and no host address crosses. Every field
 is Text, Int, Bool or a List of those. And knowledge is not authority: a weave that hears where
@@ -77,7 +78,7 @@ did not come across
 
 One fewer exception. A weaver can remove the row and have no Files pane, or write their own and
 have a different one, and neither is a change to Workshop. Every remaining built-in has a
-worked example of what its migration costs — and the three doors here are the shape the next
+worked example of what its migration costs — and the doors here are the shape the next
 one will take, because what a pane needs from a host is nearly always a fact it used to reach
 through a reference.
 

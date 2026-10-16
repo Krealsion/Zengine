@@ -160,7 +160,7 @@ MEANS
 
 WHY — `agents/decisions/files-is-a-weave.md`
 
-## WL-FILES-17 — Three doors, and what crosses them is a value
+## WL-FILES-17 — Two doors, and what crosses them is a value
 
 LAW — The four facts the browser read off `HostContext` cross as asks to offices and answers back: where this run began, which file the recipes come from, one authored row, one source opened (the Editor's).
 
@@ -179,7 +179,7 @@ WHY — `agents/decisions/files-is-a-weave.md`
 - That a marked place is part of the project, trusted, or buildable (WL-FILES-05).
 - That entering a dangling junction on libstdc++/Windows has been measured — it has not
   (WL-FILES-04, UNWITNESSED).
-- That this host can present the browser, or knows anything about it — it holds three doors and
+- That this host can present the browser, or knows anything about it — it holds two doors and
   the plan row that loads it (WL-FILES-17).
 - That a pane's declared rows are fixed for its life (WL-FILES-16).
 
@@ -301,9 +301,9 @@ the next" "each Files mode's Return is its own id, and a keymap moves each alone
 ### WL-FILES-17
 `workshop/pane_seam_vocabulary.hpp` ProjectRootRequested ProjectRoot RecipeUseRequested
 RecipeAuthorRequested RecipeOutcome OpenSourceRequested SourceOpened kEditorRole
-`workshop/pane_doors.hpp` ProjectDoor RecipesDoor
+`workshop/pane_doors.hpp` ProjectDoor
 `editor/editor-pane/pane.cpp` on(OpenSourceRequested)
 `tests/test_workshop_files.cpp` "the project door answers the weave that asked, and nobody else" "a
-door answers an office, and refuses speech with no author" "the recipes door spends this host's one
-writer and re-words nothing"
+door answers an office, and refuses speech with no author" "the project door spends this host's one
+recipe writer and re-words nothing"
 `tests/test_workshop_panes_editor.cpp` "the door refuses speech with no author, and answers nobody"
