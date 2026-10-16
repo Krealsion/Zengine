@@ -116,7 +116,7 @@ its bottom" "when the entry being read is evicted the view moves to the oldest k
 composing"
 
 ### WL-TERM-19
-`terminal/pane.cpp` on(ws::PaneSettings) legend_setting announce legend_shown_ legend_problem_
+`terminal/pane.cpp` on(ws::PaneSettings) legend_setting offered legend_shown_ legend_problem_
 named_rows say
 `terminal/vocabulary.hpp` kSettingLegend
 `tests/test_workshop_panes_legend.cpp` "a layout keeps the Terminal's legend hidden while another

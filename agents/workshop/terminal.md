@@ -236,7 +236,8 @@ runs it"
 `tests/test_workshop_panes_terminal.cpp` "the image that presents a participant cannot reach one"
 
 ### WL-TERM-09
-`terminal/pane.cpp` on(ws::PaneCanvasPointer) press caret
+`workshop/pane_facets.hpp` PaneRowsFacet::on(PaneCanvasPointer)
+`terminal/pane.cpp` press caret
 `workshop/terminal_seam_vocabulary.hpp` TerminalCompletionOffered
 `tests/test_workshop_panes_terminal.cpp` "a press on the input row places the caret where the weaver
 aimed" "the pane draws its caret in its own picture, and the medium draws it there"

@@ -108,8 +108,9 @@ and closed by hand"
 `component/row_map.hpp` RowMap::begin RowMap::settle RowMap::picture RowMap::current
 `workshop/pane_vocabulary.hpp` v3::PaneContent v3::PanePressed
 `workshop/pane_canvas_rows.hpp` CanvasPictures
-`files/files.cpp` kMovedSentence pressed say_entries
-`builder/builder-pane/pane.cpp` kMovedSentence
+`workshop/pane_facets.hpp` PaneRowsFacet
+`files/files.cpp` kMovedSentence fenced say_entries
+`builder/builder-pane/pane.cpp` kMovedSentence fenced
 `tests/test_workshop_panes_canvas.cpp` "a pane's canvas pictures fence a press by the meaning each
 was drawn under"
 `tests/test_workshop_panes_files.cpp` "two queued presses on the row painted as one entry open THAT
