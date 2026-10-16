@@ -536,8 +536,8 @@ loom::WeaveId mount_plain(loom::Switchboard& bus, loom::Grant grant, Weave** out
 }
 
 /// THE RUNNER'S WHOLE REACH, written once so the suite and the host say the same
-/// thing: four observations to the Builder office, and two sentences to the
-/// Timer. Nothing else, to nobody else.
+/// thing: four observations to the Builder office, two sentences to the Timer, and
+/// its page's answer to whoever asks what a shape it accepts does. Nothing else.
 loom::Grant runner_grant() {
     loom::Grant g;
     g.allow_to_role(BuildStarted::zen_name, BuildStarted::zen_version, kBuilderRole);
@@ -548,6 +548,8 @@ loom::Grant runner_grant() {
                     timer::kTimerRole);
     g.allow_to_role(timer::CancelTimer::zen_name, timer::CancelTimer::zen_version,
                     timer::kTimerRole);
+    g.allow_to_any(zengine::manual::ShapeDocumentShown::zen_name,
+                   zengine::manual::ShapeDocumentShown::zen_version);
     return g;
 }
 
@@ -1827,6 +1829,49 @@ TEST_CASE("the office answers a shape's section from its own page, said against 
     CHECK(check_office_manual(live.bus, kBuilderRole) >= accepted.size());
     check_page_names_accepted(page,
                               described_shapes_of(live.bus, live.bus.role_holder(kBuilderRole)));
+}
+
+TEST_CASE("the runner answers a shape's section from its own page, and its page covers every "
+          "shape it accepts, the Timer's among them") {
+    namespace manual = zengine::manual;
+    Live live({cmake_recipe("alpha", "fixture-slow5")});
+    ShapeDocumentReader reader(live.bus, kBuildRunnerRole);
+    const manual::Manual& page = manual::pages::zengine_build_runner::kManual;
+    const manual::Section* section = page.find(RunBuild::zen_name);
+    REQUIRE(section != nullptr);
+    const std::string held = manual::content_id_text(schema_of<RunBuild>()->content_id());
+
+    // BY THE CONTENT ID THE ASKER HOLDS: the section, from the page this build embedded.
+    const manual::ShapeDocumentShown named =
+        reader.ask(RunBuild::zen_name, RunBuild::zen_version, held);
+    CHECK(named.refusal.empty());
+    CHECK(named.current);
+    CHECK(named.content_id == held);
+    CHECK(named.page == std::string(page.content_id));
+    CHECK(named.group == "Commands");
+    CHECK(named.text == std::string(section->text));
+
+    // ANOTHER ID IS ANOTHER DEFINITION: the words are said, and said to be out of date for it.
+    const manual::ShapeDocumentShown other =
+        reader.ask(RunBuild::zen_name, RunBuild::zen_version, "0x0000000000000001");
+    CHECK_FALSE(other.current);
+    CHECK(other.said.find("out of date") != std::string::npos);
+    CHECK(other.text == named.text);
+
+    // A VERSION THE GATE DOES NOT ACCEPT, and a shape it never does, are refused with no words.
+    const manual::ShapeDocumentShown old = reader.ask(RunBuild::zen_name, 1);
+    CHECK(old.refusal == "zengine.build-runner does not accept `RunBuild` v1");
+    CHECK(old.text.empty());
+    CHECK_FALSE(reader.ask(BuildRequested::zen_name, BuildRequested::zen_version).refusal.empty());
+    // ...and the beat it hears is answered from `Hears`.
+    CHECK(reader.ask(timer::TimerFired::zen_name, timer::TimerFired::zen_version).group == "Hears");
+
+    // Two commands and the Timer's three shapes; asking moved no build.
+    CHECK(check_office_manual(live.bus, kBuildRunnerRole) >= 5);
+    check_page_names_accepted(page,
+                              described_shapes_of(live.bus, live.bus.role_holder(kBuildRunnerRole)));
+    CHECK(live.runner->ran() == 0);
+    CHECK(live.runner->refused() == 0);
 }
 
 TEST_CASE("a presentation opened mid-build learns from the TOOL that one is running") {
