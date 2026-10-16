@@ -3,12 +3,9 @@
 #ifndef ZENGINE_DEMO_CONTROL_CONTROL_HPP
 #define ZENGINE_DEMO_CONTROL_CONTROL_HPP
 #include "vocabulary.hpp"
-#include "activation/activation.hpp"
 #include "input/vocabulary.hpp"
-#include "workshop/pane_canvas_rows.hpp"
 #include "workshop/pane_causes.hpp"
-#include "workshop/pane_document.hpp"
-#include "workshop/pane_menu.hpp"
+#include "workshop/pane_facets.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/pane_text.hpp"
 #include "manual/vocabulary.hpp"
@@ -17,58 +14,48 @@
 
 namespace zengine::demo {
 namespace ws = zengine::workshop;
+/// The controls' room and rows: the reset row means `control:reset`, by its action, and the state
+/// beneath it `status`. A right press is handed back, so Workshop's own pane menu opens there.
+using ControlRows = ws::PaneRowsFacet<kControlsPane, kRole, manual::pages::zengine_demo::kManual,
+                                      std::string>;
 class Control final
-    : public zengine::With<ws::PaneManualFacet<kControlsPane, manual::pages::zengine_demo::kManual>,
-                           manual::ManualFacet<manual::pages::zengine_demo::kManual>>::
+    : public zengine::With<ControlRows, manual::ManualFacet<manual::pages::zengine_demo::kManual>>::
     Weave<Control, DemoStatus,
-    loom::Accept<loom::Activated, ws::PaneCatalogRequested, ws::PaneRoom, ws::PaneCanvasRoom,
-                 ws::PaneCanvasPointer, ws::PaneCanvasRejected, ws::PaneActionRequested,
-                 DemoServiceOpened, DemoServiceClosed, DemoWorkRequested, DemoWorkFinished,
-                 DemoResetRequested, DemoStatusRequested, DemoReadyRequested>,
-    loom::Emit<ws::v2::PaneOffered, ws::v3::PaneActions, ws::v4::PaneContent, ws::v5::PaneCanvasContent,
-               ws::PanePassRequested, DemoWork, DemoStatus, loom::Ack, loom::Refused>> {
+    loom::Accept<ws::PaneActionRequested, DemoServiceOpened, DemoServiceClosed, DemoWorkRequested,
+                 DemoWorkFinished, DemoResetRequested, DemoStatusRequested, DemoReadyRequested>,
+    loom::Emit<ws::v3::PaneActions, DemoWork, DemoStatus, loom::Ack, loom::Refused>> {
 public:
-    void on(const loom::Activated& a, loom::Mail& m) {
-        if (!activation_.accept(m, a)) return;
+    void on_activated(loom::Mail& m) {
         unserved();
-        offer(m);
+        rows().announce(*this, m);
+    }
+    ws::v2::PaneOffered offering() const {
+        return ws::v2::PaneOffered{kControlsPane, "Demo", "Repeat this demo through its attached ELH recipe", 4, 56};
+    }
+    /// ...and the reset its row performs, with no key: the row's part is `control:reset`. Its
+    /// press answers the attached service's wait with the work.
+    void offered(loom::Mail& m) {
+        m.as_role(kRole).send_to_role("zengine.workshop",
+            ws::v3::PaneActions{kControlsPane, {}, {{"reset", "reset the demo", input::scan::kUnknown,
+                                                     input::mod::kNone, {}, {ws::cause_of<DemoWork>()}}}});
+    }
+    /// THE PANE DRAWS ITS ROWS ON ITS CANVAS while it holds a room there, and says them as prose
+    /// only to a host that grants none. A refused picture leaves the last good one showing; a
+    /// later paint draws again.
+    void on_room(loom::Mail& m) { paint(m); }
+    /// A primary press anywhere on the reset row resets.
+    void press(const ws::RowPress& at, loom::Mail& m) {
+        if (at.row == 1) reset(m, false);
     }
     /// A revived state names no service of this image's: a kernel reload sends no activation.
     void revive(const loom::Value& v) override {
         state_ = loom::from_value<DemoStatus>(v);
         unserved();
     }
-    void on(const ws::PaneCatalogRequested&, loom::Mail& m) {
-        if (m.authored_from_role("zengine.workshop")) offer(m);
-    }
-    void on(const ws::PaneRoom& r, loom::Mail& m) {
-        if (!m.authored_from_role("zengine.workshop") || r.pane != kControlsPane) return;
-        rows_ = r.rows; columns_ = r.columns; paint(m);
-    }
-    /// THE PANE DRAWS ITS ROWS ON ITS CANVAS while it holds a room there, and says them as prose
-    /// only to a host that grants none.
-    void on(const ws::PaneCanvasRoom& r, loom::Mail& m) {
-        if (!m.authored_from_role("zengine.workshop") || r.pane != kControlsPane) return;
-        room_ = r; paint(m);
-    }
-    /// A primary press anywhere on the reset row resets; a right press is handed back, so
-    /// Workshop's own pane menu opens there.
-    void on(const ws::PaneCanvasPointer& p, loom::Mail& m) {
-        if (!m.authored_from_role("zengine.workshop") || p.pane != kControlsPane ||
-            p.grant != room_.grant || p.phase != ws::canvas_pointer::kPress) return;
-        if (p.button == 3) {
-            (void)ws::pane_menu::pass_back(m, kRole, kControlsPane);
-            return;
-        }
-        const ws::RowCell at = ws::row_cell_at(ws::canvas_rows(room_), p.x, p.y);
-        if (p.button == 1 && at.shown && at.row == 1) reset(m, false);
-    }
     /// ITS ONE ACTION, `reset`: what a primary press on the reset row does.
     void on(const ws::PaneActionRequested& a, loom::Mail& m) {
         if (m.authored_from_role("zengine.workshop") && a.pane == kControlsPane && a.id == "reset") reset(m, false);
     }
-    /// A refused picture leaves the last good one showing; a later paint draws again.
-    void on(const ws::PaneCanvasRejected&, loom::Mail&) {}
     void on(const DemoStatusRequested&, loom::Mail& m) { (void)m.answer(state_); }
     void on(const DemoReadyRequested& r, loom::Mail& m) {
         if (r.generation < 0 || waiters_.size() >= 8) {
@@ -149,15 +136,7 @@ private:
         } else offered_ = true;
         paint(m);
     }
-    void offer(loom::Mail& m) {
-        m.as_role(kRole).send_to_role("zengine.workshop",
-            ws::v2::PaneOffered{kControlsPane, "Demo", "Repeat this demo through its attached ELH recipe", 4, 56});
-        // ...and the reset its row performs, with no key: the row's part is `control:reset`. Its
-        // press answers the attached service's wait with the work.
-        m.as_role(kRole).send_to_role("zengine.workshop",
-            ws::v3::PaneActions{kControlsPane, {}, {{"reset", "reset the demo", input::scan::kUnknown,
-                                                     input::mod::kNone, {}, {ws::cause_of<DemoWork>()}}}});
-    }
+    ControlRows& rows() { return this->template facet<ControlRows>(); }
     void paint(loom::Mail& m) {
         if (state_.state == "ready" || state_.state == "failed") {
             for (auto it = waiters_.begin(); it != waiters_.end();) {
@@ -167,38 +146,25 @@ private:
                 } else ++it;
             }
         }
-        const bool canvas = room_.grant > 0 && room_.width > 0 && room_.height > 0;
-        const ws::CanvasRows lattice = ws::canvas_rows(room_);
-        const std::int64_t budget = canvas ? lattice.rows : rows_;
-        const std::int64_t columns = canvas ? lattice.columns : columns_;
-        if (budget <= 0 || columns <= 0) return;
-        std::vector<surface::SurfaceTextRow> rows;
-        for (const auto& text : {state_.name, std::string("[ Reset demo ]"),
-                                 state_.state + ": " + state_.note}) {
-            if (static_cast<std::int64_t>(rows.size()) == budget) break;
-            rows.push_back({ws::pane_text::drawable(ws::pane_text::fit(text, columns)), surface::role::kFill});
-        }
-        // THE RESET ROW IS NAMED `control:reset`, by its action, and the state beneath it `status`.
-        std::vector<ws::PaneRowPart> parts;
-        if (rows.size() > 1) parts.push_back(ws::PaneRowPart{"control:reset", 1, 0, columns});
-        if (rows.size() > 2) parts.push_back(ws::PaneRowPart{"status", 2, 0, columns});
-        if (canvas) {
-            m.as_role(kRole).send_to_role("zengine.workshop",
-                ws::rows_picture(room_, pictures_.next(room_, 0), rows, parts));
-            return;
-        }
-        m.as_role(kRole).send_to_role("zengine.workshop",
-                                      ws::v4::PaneContent{kControlsPane, std::move(rows), 0, 0, std::move(parts)});
+        ControlRows& room = rows();
+        const std::int64_t columns = room.columns();
+        if (!room.granted() || room.rows() <= 0 || columns <= 0) return;
+        room.begin();
+        const auto fitted = [columns](const std::string& text) {
+            return surface::SurfaceTextRow{ws::pane_text::drawable(ws::pane_text::fit(text, columns)),
+                                           surface::role::kFill};
+        };
+        (void)(room.push(fitted(state_.name)) && room.push(fitted("[ Reset demo ]"), "control:reset") &&
+               room.push(fitted(state_.state + ": " + state_.note), "status"));
+        room.publish(
+            m, [](const std::string& name) { return name; }, [](const std::string&) { return true; },
+            /*with_caret=*/false);
     }
-    zengine::ActivationCursor activation_;
     loom::WeaveId worker_{};
     loom::DeferredAnswer next_, request_;
     struct Waiter { std::int64_t generation; loom::DeferredAnswer reply; };
     std::vector<Waiter> waiters_;
     bool offered_ = false, doing_ = false;
-    std::int64_t rows_ = 0, columns_ = 0;
-    ws::PaneCanvasRoom room_;
-    ws::CanvasPictures pictures_;
 };
 } // namespace zengine::demo
 #endif
