@@ -134,13 +134,13 @@ Lists where you are again, the cursor back on the first row.
 ### `files.use-recipes`
 
 Makes the file under the cursor the recipe file the Builder builds from, until Workshop quits.
-Nothing judges the file by its name: the recipes office reads it, and answers
+Nothing judges the file by its name: the project office reads it, and answers
 ([choosing another recipe file](../../builder/docs/recipes.md#choosing-another-recipe-file-while-workshop-runs)).
 
 - **Takes:** the selected file. Default key <!-- key files.use-recipes -->`u`<!-- /key -->; the
   control `[use as recipes]`.
-- **Answers:** asked of Workshop as a `write`, then sent to the recipes office, `zengine.recipes`
-  ([`RecipeUseRequested`](../../workshop/docs/zengine.recipes.md#recipeuserequested)). Its answer is
+- **Answers:** asked of Workshop as a `write`, then sent to the project office, `zengine.project`
+  ([`RecipeUseRequested`](../../workshop/docs/zengine.project.md#recipeuserequested)). Its answer is
   the notice, `build recipes: recipes.json (3 recipes) in /home/you/game`, and Files then asks the
   Builder to say its recipes again
   ([`StatusRequested`](../../builder/docs/zengine.builder.md#statusrequested)), so the Builder pane
@@ -281,7 +281,7 @@ recipe, as [`files.write-recipe`](#fileswrite-recipe).
   of its own.
 - **Answers:** the next field's line, `artifact stem> oven`; from the last field, as
   [`files.write-recipe`](#fileswrite-recipe): the recipe written
-  ([`RecipeAuthorRequested`](../../workshop/docs/zengine.recipes.md#recipeauthorrequested)) and the
+  ([`RecipeAuthorRequested`](../../workshop/docs/zengine.project.md#recipeauthorrequested)) and the
   Builder asked again ([`StatusRequested`](../../builder/docs/zengine.builder.md#statusrequested)).
 - **Refuses:** `recipe name is required -- nothing was written`, for an empty required field.
 - **Example:** type `oven`, press <!-- key files.commit-field -->`return`<!-- /key -->.
@@ -303,8 +303,8 @@ Writes the whole draft from whichever field you stand on.
 
 - **Takes:** the draft. No default key; the control `[write the recipe]`, drawn `(write the
   recipe)` while a required field is empty; the menu line `` write the recipe for `oven.cpp` ``.
-- **Answers:** asked of Workshop as a `write`, then sent to the recipes office, `zengine.recipes`
-  ([`RecipeAuthorRequested`](../../workshop/docs/zengine.recipes.md#recipeauthorrequested)), and the
+- **Answers:** asked of Workshop as a `write`, then sent to the project office, `zengine.project`
+  ([`RecipeAuthorRequested`](../../workshop/docs/zengine.project.md#recipeauthorrequested)), and the
   fields close. Its answer is the notice, `` authored recipe `oven` -> zengine-oven in
   /home/you/game/build-recipes.json (2 recipes) ``, and Files then asks the Builder to say its
   recipes again ([`StatusRequested`](../../builder/docs/zengine.builder.md#statusrequested)).
@@ -371,7 +371,7 @@ brackets. A strip too narrow for all of them ends `+3 in menu`.
   an absolute location this Workshop can carry, and `docs` is not one ``.
 - **What is not kept.** Where you browsed lasts through a reload of the pane, not through a restart:
   a new Workshop starts at its origin. A reload drops a recipe half written.
-- **The recipe file** is written by the recipes office, never by Files:
+- **The recipe file** is written by the project office, never by Files:
   [`files.write-recipe`](#fileswrite-recipe) appends to the file in force, or, while the shipped
   default is in force, to a new `build-recipes.json` in your project
   ([the recipe file](../../builder/docs/recipes.md)).

@@ -989,21 +989,21 @@ TEST_CASE("`o` and the frontier action asked of a project office nobody holds ar
     CHECK_MESSAGE(a.text().find("role for zengine-snake") != std::string::npos, a.text());
 }
 
-TEST_CASE("a role line's row refused at dispatch by the plan office is said, and nothing is written "
-          "or built") {
-    // THE OFFICE GOES BEFORE DELIVERY: Workshop approves the commit, the row is queued to the plan
-    // office with a valid ticket, and the office is gone when Loom would deliver it.
+TEST_CASE("a role line's row refused at dispatch by the project office is said, and nothing is "
+          "written or built") {
+    // THE OFFICE GOES BEFORE DELIVERY: Workshop approves the commit, the row is queued to the
+    // project office with a valid ticket, and the office is gone when Loom would deliver it.
     BuilderRig b("bld-row-refused");
     b.tool->catalog = catalog_of({{"snake", "zengine-snake"}});
     b.open();
     b.letter(input::scan::kO, "o");
     REQUIRE_MESSAGE(b.text().find("role for zengine-snake") != std::string::npos, b.text());
     b.r.text("zengine.oven");
-    REQUIRE(b.plan_id.valid());
-    b.r.bus.kill(b.plan_id);
+    REQUIRE(b.project_id.valid());
+    b.r.bus.kill(b.project_id);
     b.r.key(input::scan::kReturn);
     CHECK_MESSAGE(b.text().find("`zengine-snake`: nothing was loaded and nothing was written -- the "
-                                "row could not reach zengine.plan (TargetUnavailable)") !=
+                                "row could not reach zengine.project (TargetUnavailable)") !=
                       std::string::npos,
                   b.text());
     CHECK(b.authored.empty());
@@ -2270,8 +2270,8 @@ TEST_CASE("the role line keeps typed text visible in a narrow room") {
 TEST_CASE("a Builder menu choice that opens the role line takes the keyboard across the door "
           "it waits on") {
     // A CHOSEN ROW THAT BEGINS AN EDIT TAKES THE KEYS, as in Files, one delivery later: the role
-    // line opens only once the plan office has answered, so the choice's number rides across that
-    // round trip and the grab is spent there. ⚔ MUTATIONS: `names_.choice` never set leaves the
+    // line opens only once the project office has answered, so the choice's number rides across
+    // that round trip and the grab is spent there. ⚔ MUTATIONS: `names_.choice` never set leaves the
     // typed role reaching nothing; `take_keys` in `chose` spends the grab before the line exists.
     BuilderRig b("bld-menu-takes-keys");
     b.tool->catalog = catalog_of({{"one", "a"}});
@@ -2595,7 +2595,7 @@ TEST_CASE("a guest with build builds the catalog in force, and on a weaver's hos
     // `build` IS A ROW'S POWER, AND A PLAN ROW IS A FILE. A guest whose row holds `build` builds
     // the recipe the catalog in force names, as the weaver's `b` would. The role line's commit
     // writes the plan before it builds, so it asks `build` and `write` in one ask, and on a weaver's
-    // host only the weaver's hand writes: the plan office hears nothing, and the role the weaver
+    // host only the weaver's hand writes: the project office hears nothing, and the role the weaver
     // typed stands on the line for the weaver to commit.
     BuilderRig b("bld-guest-build");
     b.tool->catalog =
@@ -2704,7 +2704,7 @@ TEST_CASE("the weaver's f, and the role line's commit then build, stand with a k
         REQUIRE(beats.asked_at != 0);
         REQUIRE(beats.typed_at != 0);
         REQUIRE(beats.answered_at != 0);
-        // THE PLAN OFFICE ANSWERS INSIDE THE DELIVERY THAT ASKED, so the key lands between the
+        // THE PROJECT OFFICE ANSWERS INSIDE THE DELIVERY THAT ASKED, so the key lands between the
         // answer's send and its arrival.
         CHECK(beats.asked_at < beats.typed_at);
         CHECK(beats.typed_at < beats.answered_at);
@@ -2851,7 +2851,7 @@ TEST_CASE("the weaver's b stands when the weaver's own next key lands before the
 TEST_CASE("on a development host a guest with build commits the role line, and its row is "
           "written and built") {
     // THE SAME COMMIT ON THE AGENT'S OWN HOST: there a guest's typed text rests in the line and its
-    // hand writes, so the guest opens the line, types the role and commits it, the plan office
+    // hand writes, so the guest opens the line, types the role and commits it, the project office
     // writes the row, and the row's built product finishes with the button's act -- the build the
     // commit's one ask approved, carried to the second beat.
     BuilderRig b("bld-guest-row-dev");

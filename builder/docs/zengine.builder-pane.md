@@ -18,7 +18,7 @@ shows both: a build can succeed and its load still be refused.
 
 The pane runs nothing itself. It asks the Builder office to build, and to offer a build to the
 project; the project's realization owner, `zengine.realization`, decides whether to load it. It asks
-the project which file a recipe names, the plan office to add a row to the project's plan, and the
+the project office which file a recipe names and to add a row to the project's plan, and the
 opening office to open a source. It publishes a promotion or a revert for the realization owner. It
 shows what those offices say.
 
@@ -430,9 +430,9 @@ project waits on and the artifact is already built, it loads it now.
 
 - **Takes:** the role typed. Default key <!-- key authoring.commit -->`return`<!-- /key -->; the
   control `[load it with this role]`.
-- **Answers:** asks the plan office to write the row
-  ([`PlanRowRequested`](../../workshop/builder_seam_vocabulary.hpp)), and once it is written asks
-  the project what it is waiting on
+- **Answers:** asks the project office to write the row
+  ([`PlanRowRequested`](../../workshop/docs/zengine.project.md#planrowrequested)), and once it is
+  written asks the project what it is waiting on
   ([`ProjectFrontierRequested`](../../workshop/builder_seam_vocabulary.hpp)). The notice is the
   project's answer and where the row was written: `` loaded `tally` as example.tally -- pending --
   the project is waiting on it; nothing is built yet -- the frontier action builds and loads it ``,
@@ -501,7 +501,7 @@ The last lines the build said; [`builder.output`](#builderoutput) reads all of t
 
 The pane reads no file. The recipe file it shows is the Builder office's
 ([Files](zengine.builder.md#files)); [`authoring.commit`](#authoringcommit) writes the plan through
-the project's plan office. A built artifact is kept beside Workshop, as `<stem>.so` or `<stem>.dll`,
+the project office. A built artifact is kept beside Workshop, as `<stem>.so` or `<stem>.dll`,
 with each reload's copy under `<stem>.reloads/`; [`builder.load`](#builderload) loads one an earlier
 run built.
 

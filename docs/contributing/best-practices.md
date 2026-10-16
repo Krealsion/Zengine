@@ -223,7 +223,7 @@ Its law, pages and suites: [`editor/AGENTS.md`](../../editor/AGENTS.md).
 
 Its law, pages and suites: [`files/AGENTS.md`](../../files/AGENTS.md).
 
-- **The host holds three doors and the plan row that loads the browser, and knows nothing else of
+- **The host holds two doors and the plan row that loads the browser, and knows nothing else of
   it.** [Do not assume](../../agents/workshop/files.md#do-not-assume)
 - **A pane's rows are its mode's, and an id is one operation.**
   [WL-FILES-16](../../agents/workshop/files.md#wl-files-16--a-panes-rows-are-its-modes-and-an-id-is-one-operation)

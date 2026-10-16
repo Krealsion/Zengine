@@ -3,7 +3,7 @@
 #ifndef ZENGINE_TESTS_BUILDER_RIG_HPP
 #define ZENGINE_TESTS_BUILDER_RIG_HPP
 // A LIVE WORKSHOP WITH THE REAL BUILDER PANE LOADED INTO IT: a stand-in for the Builder tool in its
-// office, the read-only project door and the plan door, and the real `zengine-builder-pane` image
+// office, the project door, and the real `zengine-builder-pane` image
 // over the real pane protocol, with the shipped presenter, desktop or Editor beside it when a case
 // asks. The Builder suite's cases and every case about a guest teaching on the Builder start here.
 #include "workshop_support.hpp"
@@ -353,9 +353,8 @@ struct BuilderRig {
         tool = raw;
     }
 
-    /// The read-only project office `mount_doors` seated, when it seated one, and the plan office.
+    /// The project office `mount_doors` seated, when it seated one.
     loom::WeaveId project_id{};
-    loom::WeaveId plan_id{};
 
     void mount_doors(bool with_project_door = true) {
         r.host.frontier = [this] { return frontier; };
@@ -386,27 +385,20 @@ struct BuilderRig {
             return;
         }
 
-        auto project = std::make_unique<ProjectDoor>(r.host.project_dir, marks_, r.host.frontier,
-                                                     r.host.plan_names, r.host.recipe_source);
+        auto project = std::make_unique<ProjectDoor>(
+            r.host.project_dir, marks_, r.host.frontier, r.host.plan_names, r.host.recipe_source,
+            ProjectDoor::Use{}, ProjectDoor::Author{}, r.host.append_plan_row);
         ProjectDoor* praw = project.get();
         loom::Grant say_project;
         say_project.allow_to_any(ProjectRoot::zen_name, ProjectRoot::zen_version);
         say_project.allow_to_any(ProjectFrontierSaid::zen_name, ProjectFrontierSaid::zen_version);
         say_project.allow_to_any(PlanNames::zen_name, PlanNames::zen_version);
         say_project.allow_to_any(RecipeSourceSaid::zen_name, RecipeSourceSaid::zen_version);
+        say_project.allow_to_any(PlanRowWritten::zen_name, PlanRowWritten::zen_version);
         const loom::WeaveId pid = r.bus.register_weave(std::move(project), std::move(say_project),
                                                        std::string(kProjectRole));
         praw->zen_set_self(pid);
         project_id = pid;
-
-        auto plan = std::make_unique<PlanDoor>(r.host.append_plan_row);
-        PlanDoor* draw = plan.get();
-        loom::Grant say_plan;
-        say_plan.allow_to_any(PlanRowWritten::zen_name, PlanRowWritten::zen_version);
-        const loom::WeaveId did =
-            r.bus.register_weave(std::move(plan), std::move(say_plan), std::string(kPlanRole));
-        draw->zen_set_self(did);
-        plan_id = did;
     }
 
 private:

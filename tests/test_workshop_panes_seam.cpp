@@ -1821,6 +1821,20 @@ TEST_CASE("a caret naming a row the content does not have is refused WHOLE") {
     // AND THE ROWS SURVIVE A REFUSED CARET: they were judged on their own and are still true.
     CHECK(t.pane()->shown.size() == 2);
     CHECK(t.pane()->refusal.empty());
+
+    // A REFUSAL IS SAID, in `judge_caret`'s own words after the pane's name and office...
+    t.say_caret(PaneCaret{"hello", 7, 0});
+    CHECK(t.r.last_notice() ==
+          std::string("Hello @") + kHelloOffice + ": put a caret on row 7 of a pane showing 2 rows");
+    CHECK(t.r.session().notice_is_bad);
+    t.say_caret(PaneCaret{"hello", 0, 0, 0, 3, 0, 1});
+    CHECK(t.r.last_notice() == std::string("Hello @") + kHelloOffice +
+                                   ": selected backwards -- the end precedes the begin");
+    // ...ONCE: the same caret again, as a pane answering a repaint would say it, paints nothing.
+    const std::size_t painted = t.r.canvases.size();
+    t.say_caret(PaneCaret{"hello", 0, 0, 0, 3, 0, 1});
+    CHECK(t.r.canvases.size() == painted);
+    CHECK(t.pane()->caret_row == surface::kNoCaret);
 }
 
 TEST_CASE("`kNoCaret` is a sentence, and shorter content drops a caret it outgrew") {
