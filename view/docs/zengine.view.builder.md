@@ -24,8 +24,11 @@ rows are the notice, where every answer and refusal is said.
 
 The pane runs nothing itself. It asks the view host, `zengine.view.host`, to run your view, change
 it or stop it, and shows the host's answer on the notice. The running view is a participant of its
-own, under the view's name, in a pane of its own. A save asks Workshop first whether the hand that
-pressed it may write a file. A pane with no canvas shows one row,
+own, under the view's name, in a pane of its own. Reloaded in place, the pane keeps your view, its
+file and whether it ran, and asks the host again about a view it ran: `The view host still runs
+tally.panel`; or, when the view stopped meanwhile, it runs again, `The view had stopped; registered
+tally.panel`. A save asks Workshop first whether the hand that pressed it may write a file. A pane
+with no canvas shows one row,
 `View Builder: making a view needs a canvas-capable Workshop`.
 
 ## Use
@@ -49,17 +52,17 @@ while it holds your keys.
 - **Carry** what a button says: drag its `says` words out, or right-press them and choose `Carry`.
   Drop a shape or a field on a label, on the canvas or its row, and the label shows it.
 
-Then [`run`](#run) it, [`apply`](#apply) each change, and [`save`](#save) it. Each command but
-[`choices`](#choices) is a control on the bar. A value being typed is kept before any command acts; if it is refused, the
+Then [`view.run`](#viewrun) it, [`view.apply`](#viewapply) each change, and [`view.save`](#viewsave) it. Each command but
+[`view.choices`](#viewchoices) is a control on the bar. A value being typed is kept before any command acts; if it is refused, the
 command does nothing.
 
 ## Commands
 
-### `save`
+### `view.save`
 
 Writes the view to the file named in `File`, and remembers it for the next launch.
 
-- **Takes:** the view and the `File` box. Default key <!-- key save -->`ctrl+s`<!-- /key -->; the
+- **Takes:** the view and the `File` box. Default key <!-- key view.save -->`ctrl+s`<!-- /key -->; the
   control `[Save]`.
 - **Answers:** asks Workshop to allow a write for the hand that pressed it, and writes nothing until
   it answers; then `Saved tally.view`, and the project's `view-builder.json` names that file
@@ -70,28 +73,28 @@ Writes the view to the file named in `File`, and remembers it for the next launc
   guest's on a weaver's host; `Not saved: File no longer names <the file>; save again`;
   `Not saved: Workshop could not be asked to allow it`; `The save waiting for Workshop was dropped;
   save again`, when the pane was reloaded meanwhile; and the file door's reason when it cannot write.
-- **Example:** type `tally.view` under `File`, press <!-- key save -->`ctrl+s`<!-- /key -->.
+- **Example:** type `tally.view` under `File`, press <!-- key view.save -->`ctrl+s`<!-- /key -->.
 
-### `open`
+### `view.open`
 
 Reads the view in the file named in `File`, in place of the one you have; it is shown from its top
 left corner.
 
-- **Takes:** the `File` box. Default key <!-- key open -->`ctrl+o`<!-- /key -->; the control
+- **Takes:** the `File` box. Default key <!-- key view.open -->`ctrl+o`<!-- /key -->; the control
   `[Open]`.
 - **Answers:** `Opened tally.view`.
 - **Refuses:** over an unsaved view, the first press says `The view is unsaved: Save it, or press
   Open again to discard it`, and the bar says `[Open: discard?]`; `Type the view's file under File,
   then Open`; `stop the running view before opening another`; and the reason the file could not be
   read or is not a view ([the description](view.md#the-description)).
-- **Example:** type `tally.view` under `File`, press <!-- key open -->`ctrl+o`<!-- /key -->.
+- **Example:** type `tally.view` under `File`, press <!-- key view.open -->`ctrl+o`<!-- /key -->.
 
-### `run`
+### `view.run`
 
 Asks the view host to run the view: it becomes a participant of its own, under the view's name, and
 its pane opens.
 
-- **Takes:** the view as it stands. Default key <!-- key run -->`ctrl+r`<!-- /key -->; the control
+- **Takes:** the view as it stands. Default key <!-- key view.run -->`ctrl+r`<!-- /key -->; the control
   `[Run]`.
 - **Answers:** `run asked of the view host`, then the host's answer, as `registered tally.panel; it
   waits until told tally.Total`. The bar then says `[Running]`, and `view-builder.json` records
@@ -101,9 +104,9 @@ its pane opens.
   change or stop it first`, or `` `tally.panel` is already held by a running participant ``;
   `run was not delivered: <the reason>`; `run could not be queued`; `16 asks are unanswered; wait
   for the view host`.
-- **Example:** after making the tally panel, press <!-- key run -->`ctrl+r`<!-- /key -->.
+- **Example:** after making the tally panel, press <!-- key view.run -->`ctrl+r`<!-- /key -->.
 
-### `new`
+### `view.new`
 
 Starts a new view, `my.view`, empty, with no file.
 
@@ -114,7 +117,7 @@ Starts a new view, `my.view`, empty, with no file.
   starting another`.
 - **Example:** press `[New]`, then type the view's name under `View`.
 
-### `apply`
+### `view.apply`
 
 Changes the running view to the one you have.
 
@@ -130,7 +133,7 @@ Changes the running view to the one you have.
   goes on as it was; `apply was not delivered: <the reason>`.
 - **Example:** move a label, press `[Apply]`.
 
-### `stop`
+### `view.stop`
 
 Stops the running view: its pane says it stopped, then the participant is gone.
 
@@ -142,7 +145,7 @@ Stops the running view: its pane says it stopped, then the participant is gone.
   delivered: <the reason>`.
 - **Example:** press `[Stop]`.
 
-### `choices`
+### `view.choices`
 
 Shows the next of the fields a label could show, when a shape carried onto it has more than the
 pane's rows hold.
