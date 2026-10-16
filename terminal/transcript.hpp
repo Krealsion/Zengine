@@ -1,19 +1,30 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The host's derived reading of the terminal participant: the picture the Terminal pane is shown,
-// and the comparison that decides whether it is worth saying.
-// Workshop law: agents/workshop/terminal.md (+1 registers; agents/workshop.md routes)
+#ifndef ZENGINE_TERMINAL_TRANSCRIPT_HPP
+#define ZENGINE_TERMINAL_TRANSCRIPT_HPP
 
-#include "screen.hpp"
+// The host's derived reading of the terminal participant: the picture the Terminal pane is shown,
+// and the comparison that decides whether it is worth saying. Workshop's terminal door reads it;
+// the pane's image includes none of it (WL-TERM-08).
+// Workshop law: agents/workshop/terminal.md
+
+#include "workshop/terminal_seam_vocabulary.hpp"
+
+#include <zen/terminal/session.hpp>
+
+#include <cstddef>
+#include <cstdint>
+#include <utility>
+#include <vector>
 
 namespace zengine::workshop {
 
-namespace {
+namespace detail {
 
 /// `loom::TranscriptKind` AS THE SEAM SPELLS IT. One switch, and no default arm: a kind
 /// added to the core arrives here as a compiler error rather than as a silent `notice`.
-const char* entry_kind(loom::TranscriptKind kind) noexcept {
+inline const char* entry_kind(loom::TranscriptKind kind) noexcept {
     switch (kind) {
     case loom::TranscriptKind::LocalCommand: return kEntryCommand;
     case loom::TranscriptKind::LocalRefusal: return kEntryRefusal;
@@ -26,7 +37,7 @@ const char* entry_kind(loom::TranscriptKind kind) noexcept {
 }
 
 /// ...and `loom::Addressing`, the same way.
-const char* entry_addressing(loom::Addressing addressing) noexcept {
+inline const char* entry_addressing(loom::Addressing addressing) noexcept {
     switch (addressing) {
     case loom::Addressing::Weave: return kAddressWeave;
     case loom::Addressing::Role: return kAddressRole;
@@ -35,10 +46,12 @@ const char* entry_addressing(loom::Addressing addressing) noexcept {
     return kAddressWeave;
 }
 
-} // namespace
+} // namespace detail
 
+/// THE PARTICIPANT'S RECORD, AS THE SEAM CARRIES IT: derived at the moment of the ask, holding
+/// no `loom::TerminalSession`, no `Transcript` and no entry the renderer could not read.
 // WL-TERM-02, WL-TERM-03 -- agents/workshop/terminal.md
-TranscriptShown transcript_shown(const loom::TerminalSession* me) {
+inline TranscriptShown transcript_shown(const loom::TerminalSession* me) {
     TranscriptShown shown;
     if (me == nullptr) {
         // NO PARTICIPANT IS A READING, NOT AN ABSENCE. The pane says "no participant was
@@ -57,11 +70,11 @@ TranscriptShown transcript_shown(const loom::TerminalSession* me) {
     for (const loom::TranscriptEntry& e : entries) {
         ShownEntry out;
         out.observation = static_cast<std::int64_t>(e.seq);
-        out.kind = entry_kind(e.kind);
+        out.kind = detail::entry_kind(e.kind);
         out.text = e.text;
         out.shape = e.shape;
         out.version = static_cast<std::int64_t>(e.version);
-        out.addressing = entry_addressing(e.addressing);
+        out.addressing = detail::entry_addressing(e.addressing);
         out.target = static_cast<std::int64_t>(e.target.value);
         out.role = e.role;
         out.recipients = static_cast<std::int64_t>(e.recipients);
@@ -73,8 +86,9 @@ TranscriptShown transcript_shown(const loom::TerminalSession* me) {
     return shown;
 }
 
+/// ...and the comparison that decides whether saying it again would be news.
 // WL-TERM-03 -- agents/workshop/terminal.md
-bool same_transcript(const TranscriptShown& a, const TranscriptShown& b) {
+inline bool same_transcript(const TranscriptShown& a, const TranscriptShown& b) {
     if (a.attached != b.attached || a.participant != b.participant || a.dropped != b.dropped ||
         a.entries.size() != b.entries.size()) {
         return false;
@@ -98,3 +112,5 @@ bool same_transcript(const TranscriptShown& a, const TranscriptShown& b) {
 }
 
 } // namespace zengine::workshop
+
+#endif // ZENGINE_TERMINAL_TRANSCRIPT_HPP

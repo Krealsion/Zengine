@@ -242,7 +242,7 @@ its role and doors beneath its connection"
 
 ### WL-GUEST-09
 `workshop/weave_session.cpp` save_setup
-`workshop/weave_terminal.cpp` command
+`workshop/weave_input.cpp` command
 `workshop/weave_run.cpp` quit on(WorkshopQuitRequested)
 `workshop/weave_code.cpp` edit_code
 `tests/test_workshop_panes_guests.cpp` "on a weaver's host a guest's s, t and quit are refused, and

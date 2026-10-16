@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-#ifndef ZENGINE_WORKSHOP_COMPLETE_HPP
-#define ZENGINE_WORKSHOP_COMPLETE_HPP
+#ifndef ZENGINE_TERMINAL_COMPLETE_HPP
+#define ZENGINE_TERMINAL_COMPLETE_HPP
 
-// What this terminal can say next: the pane's discovery model, apart from its picture.
+// What this terminal can say next: the pane's discovery model, apart from its picture. Workshop's
+// terminal door reads it; the pane's image includes none of it (WL-TERM-08).
 // Workshop law: agents/workshop/terminal.md
 
 #include <zen/terminal/input_lex.hpp>
@@ -518,4 +519,4 @@ inline Completion complete_line(const loom::TerminalSession& me, const std::stri
 
 } // namespace zengine::workshop
 
-#endif // ZENGINE_WORKSHOP_COMPLETE_HPP
+#endif // ZENGINE_TERMINAL_COMPLETE_HPP

@@ -94,7 +94,10 @@ WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
 ## WL-TERM-08 — The image that presents a participant cannot reach one
 
-LAW — `terminal/` includes no header declaring `loom::TerminalSession` or its transcript, links neither this host's logic nor Loom's terminal, and keeps no copy of the record.
+LAW — The pane's image, `zengine-terminal-pane`, includes no header declaring `loom::TerminalSession` or its transcript, links neither this host's logic nor Loom's terminal, and keeps no copy of the record.
+
+DOES NOT MEAN — that `terminal/` holds the pane alone. The host's door, its completer and the
+picture of the record stand beside it, and Workshop compiles them; the pane includes none of them.
 
 WHY — `agents/decisions/the-terminal-is-a-participant.md`
 
@@ -184,25 +187,25 @@ it, and no key acts on it from anywhere else" "a weaver presses in, types a line
 participant runs it"
 
 ### WL-TERM-02
-`workshop/weave_terminal.cpp` submit_terminal_line on(TerminalActRequested)
+`terminal/door.hpp` submit_terminal_line on(TerminalActRequested)
 `workshop/weave.hpp` HostContext::terminal
 `workshop/terminal_seam_vocabulary.hpp` TerminalActRequested TerminalActed kTerminalSubmitAct
-`workshop/screen_terminal.cpp` transcript_shown
+`terminal/transcript.hpp` transcript_shown
 `tests/test_workshop_panes_terminal.cpp` "a typed send leaves through the PARTICIPANT's door, not
 the pane's" "a Workshop with no participant says so, and authors nothing"
 
 ### WL-TERM-03
-`workshop/screen_terminal.cpp` transcript_shown same_transcript entry_kind entry_addressing
-`workshop/weave_terminal.cpp` say_transcript
+`terminal/transcript.hpp` transcript_shown same_transcript entry_kind entry_addressing
+`terminal/door.hpp` say_transcript
 `workshop/terminal_seam_vocabulary.hpp` TranscriptShown ShownEntry kEntryCommand kEntrySubmitted
 kAddressWeave
 `tests/test_workshop_panes_terminal.cpp` "the record crosses as a picture, said only when the
 reading changed" "the pane says what it is not showing, in the two senses that differ"
 
 ### WL-TERM-04
-`workshop/complete.hpp` read_command_line LineSlot TerminalVerb kTerminalVerbCount complete_line
+`terminal/complete.hpp` read_command_line LineSlot TerminalVerb kTerminalVerbCount complete_line
 Completion Candidate kTerminalVerbs CommandLine::said starts_with named_already
-`workshop/weave_terminal.cpp` submit_terminal_line slot_name
+`terminal/door.hpp` submit_terminal_line slot_name
 `tests/test_workshop_host.cpp` "a half-typed line says which part of it the weaver is standing in"
 "the verbs a weaver is offered are the verbs the submitter runs" "an address offers the three forms
 and never pretends to know the values" "arguments offer field NAMES, never values, and the heading
@@ -210,7 +213,7 @@ is compose()'s verdict" "a quoted token is left alone, because the quote is not 
 completer sees"
 
 ### WL-TERM-05
-`workshop/weave_terminal.cpp` on(TerminalCompletionRequested)
+`terminal/door.hpp` on(TerminalCompletionRequested)
 `workshop/terminal_seam_vocabulary.hpp` TerminalCompletionRequested TerminalCompletionOffered
 ShownCandidate kSlotVerb kSlotArguments
 `tests/test_workshop_panes_terminal.cpp` "what could be said next is an ASK, and browsing authors
@@ -226,7 +229,7 @@ belongs to"
 ### WL-TERM-07
 `terminal/pane.cpp` entry_line entry_wrapped wrap_record legend_text omission_text
 `workshop/pane_text.hpp` wrap
-`workshop/weave_terminal.cpp` submit_terminal_line
+`terminal/door.hpp` submit_terminal_line
 `tests/test_workshop_panes_terminal.cpp` "a weaver presses in, types a line, and the participant
 runs it"
 
@@ -255,8 +258,8 @@ accept_candidate
 shown nor taken" "an answer for a caret that has since moved does not reopen the list"
 
 ### WL-TERM-16
-`workshop/complete.hpp` Destination destination_detail complete_line CandidateKind
-`workshop/weave_terminal.cpp` bus_destinations on(TerminalCompletionRequested)
+`terminal/complete.hpp` Destination destination_detail complete_line CandidateKind
+`terminal/door.hpp` bus_destinations on(TerminalCompletionRequested)
 `workshop/weave.hpp` HostContext::destinations
 `tests/test_workshop_host.cpp` "with the bus read the address offers everyone then each office held
 now then each weave registered now with what it is"
@@ -266,8 +269,7 @@ line is sent leaves the participant's refusal and reaches no other weave" "an of
 list reaches whoever holds it at delivery and a vacated office is refused not retargeted"
 
 ### WL-TERM-17
-`workshop/weave_terminal.cpp` on(TerminalValueRequested)
-`workshop/weave_operation.cpp` authorize_pane_operation
+`workshop/weave_operation.cpp` on(TerminalValueRequested) authorize_pane_operation
 `terminal/pane.cpp` acquire
 `tests/test_workshop_inventory_info.cpp` "terminal capture: primary drag stores exact authored
 content and names the new copy" "terminal capture: retrieval and Inventory storage need separate
