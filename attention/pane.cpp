@@ -31,6 +31,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -56,8 +57,8 @@ constexpr const char* kWorkshopRole = "zengine.workshop";
 
 // ---- The text helpers the composition spends ------------------------------------------
 //
-// `fit`, `wrap`, `omitted_text` and `list_window` come from `workshop/pane_text.hpp`, since
-// `screen.hpp` is the host's presentation and not a header a loaded image may include.
+// `fit`, `wrap` and `omitted_text` come from `workshop/pane_text.hpp`; `list_window` is carried
+// below, since `screen.hpp` is the host's presentation and not a header a loaded image may include.
 
 using zengine::workshop::pane_text::drawable;
 using zengine::workshop::pane_text::fit;
@@ -308,40 +309,21 @@ private:
         if (!room().granted() || rows <= 0 || columns <= 0) {
             return;
         }
-        std::vector<surface::SurfaceTextRow> out;
-        const auto push = [&out, columns](const std::string& text, std::int64_t role) {
-            out.push_back(surface::SurfaceTextRow{drawable(fit(text, columns)), role});
-        };
-        // THE ROW EACH CONDITION IS SAID ON, recorded as it is pushed.
-        std::vector<std::pair<std::int64_t, std::string>> conditions;
-        const auto mark = [&out, &conditions](const std::string& key) {
-            conditions.emplace_back(static_cast<std::int64_t>(out.size()), key);
-        };
-        say_view(push, mark);
+        room().begin();
         // A notice, when there is one, leads: a pane has only its own room, so its first row
         // carries it, and it is cleared by the weaver's next act rather than by being said
         // (`agents/panes.md`).
         if (!notice_.empty() && rows > 1) {
-            if (static_cast<std::int64_t>(out.size()) > rows - 1) {
-                out.resize(static_cast<std::size_t>(rows - 1));
-            }
-            out.insert(out.begin(), surface::SurfaceTextRow{drawable(fit(notice_, columns)),
-                                                            surface::role::kAccent});
-            for (auto& [row, key] : conditions) {
-                ++row;
-            }
+            (void)room().push(surface::SurfaceTextRow{drawable(fit(notice_, columns)),
+                                                      surface::role::kAccent});
         }
-        if (static_cast<std::int64_t>(out.size()) > rows) {
-            out.resize(static_cast<std::size_t>(rows));
-        }
-        // A CONDITION IS NAMED BY ITS KEY, `condition:<key>`, on the row that says it.
-        room().begin();
-        for (const auto& [row, key] : conditions) {
-            if (row < static_cast<std::int64_t>(out.size())) {
-                room().map().row(row, key);
-            }
-        }
-        room().composing() = std::move(out);
+        // A CONDITION IS NAMED BY ITS KEY, `condition:<key>`, on the row that says it; a row the
+        // room has no place for is neither said nor named.
+        say_view([this, columns](const std::string& text, std::int64_t role,
+                                 std::optional<std::string> key = std::nullopt) {
+            (void)room().push(surface::SurfaceTextRow{drawable(fit(text, columns)), role},
+                              std::move(key));
+        });
         room().publish(
             mail, [](const std::string& key) { return "condition:" + key; },
             [](const std::string&) { return true; }, /*with_caret=*/false);
@@ -354,8 +336,8 @@ private:
     }
 
     // WL-ATTN-06 -- agents/workshop/attention.md
-    template <class Push, class Mark>
-    void say_view(Push&& push, Mark&& mark) {
+    template <class Push>
+    void say_view(Push&& push) {
         const std::int64_t columns = room().columns();
         // NO ROW SPELLS THE PANE'S OWN KEYS: a pane's declared rows are in the band's legend and
         // in the hotkey view under this pane's own heading, resolved through the weaver's
@@ -420,8 +402,7 @@ private:
         for (std::size_t i = win.first; i < win.first + win.count; ++i) {
             const StandingCondition& c = shown[i];
             const bool here = i == cursor;
-            mark(c.key);
-            push(std::string(here ? "> " : "  ") + c.compact, c.role);
+            push(std::string(here ? "> " : "  ") + c.compact, c.role, c.key);
             if (!here || reserve == 0) {
                 continue;
             }
