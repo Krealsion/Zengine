@@ -17,9 +17,9 @@ the running project, whose realization owner, `zengine.realization`, decides whe
 Builder shows that second answer beside the first, never merged into it.
 
 The Builder is two weaves Workshop mounts: this office, which answers for recipes and outcomes, and
-a runner, `zengine.build-runner`, the one weave in Workshop that starts a process. A build is an
-ordinary child process of Workshop, exactly as privileged as Workshop, run with the CMake fixed when
-Workshop was built. A build runs one at a time, and there is no cancel and no time limit: it runs
+a runner, [`zengine.build-runner`](zengine.build-runner.md), the one weave in Workshop that starts
+a process. A build is an ordinary child process of Workshop, exactly as privileged as Workshop, run
+with the CMake fixed when Workshop was built. A build runs one at a time, and there is no cancel and no time limit: it runs
 until it ends.
 
 ## Use
@@ -157,5 +157,6 @@ published on `StatusRequested`, and `OfferArtifact` v1 when a build asked to be 
 ## See also
 
 - [`zengine.builder-pane`](zengine.builder-pane.md), the pane.
+- [`zengine.build-runner`](zengine.build-runner.md), the runner that starts and holds a build.
 - [The recipe file](recipes.md).
 - [Build your first pane](tutorials/build-your-first-pane/README.md).

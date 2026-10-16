@@ -16,14 +16,16 @@
 // newly observed facts -- nothing upstream asks "is it done yet?". `op` means something within
 // this incarnation: the runner is mounted natively, so no successor can inherit a number (a
 // loadable one would need a surviving high-water mark). Destroying it terminates and reaps every
-// child and publishes nothing. Reference: builder/docs/zengine.builder.md.
+// child and publishes nothing. Reference: builder/docs/zengine.build-runner.md.
 
 #include "builder/generate.hpp"
 #include "builder/recipe.hpp"
 #include "builder/run.hpp"
 #include "builder/vocabulary.hpp"
-
+#include "manual/vocabulary.hpp"
 #include "timer/binding.hpp"
+
+#include "manuals/zengine.build-runner.hpp" // this office's manual, compiled in from its page
 
 #include <zen/weave.hpp>
 
@@ -89,10 +91,10 @@ class BuildRunnerWeave;
 /// Named once, because three spellings of it is what `using ...::on` would
 /// otherwise cost.
 using BuildRunnerBase =
-    zengine::timer::TimedWeave<BuildRunnerWeave, RunnerState,
-                               loom::Accept<RunBuild, LookAtBuilds>,
-                               loom::Emit<BuildStarted, BuildOutput, BuildFinished,
-                                          BuildNotStarted>>;
+    zengine::With<manual::ManualFacet<manual::pages::zengine_build_runner::kManual>>::Weave<
+        BuildRunnerWeave, RunnerState, loom::Accept<RunBuild, LookAtBuilds>,
+        loom::Emit<BuildStarted, BuildOutput, BuildFinished, BuildNotStarted>,
+        zengine::timer::TimedWeave>;
 
 class BuildRunnerWeave : public BuildRunnerBase {
 public:

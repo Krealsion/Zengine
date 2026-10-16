@@ -62,6 +62,8 @@ Its cases in shared suites: `workshop_panes` (`tests/test_workshop_panes_builder
   (`MANUAL` in `builder-pane/CMakeLists.txt`) and answered on ask (`PaneDocumentRequested`)
 - [The Builder](docs/zengine.builder.md), a manual, compiled into whatever mounts the office
   (`zengine_manual` in `CMakeLists.txt`); the office answers a shape's section from it
+- [The build runner](docs/zengine.build-runner.md), a manual, compiled in beside it; the runner
+  answers a shape's section from it
 - [The recipe file](docs/recipes.md)
 - [Build your first pane](docs/tutorials/build-your-first-pane/README.md), a tutorial
 - [Edit a running pane](docs/edit-a-running-pane.md)

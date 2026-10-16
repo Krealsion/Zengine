@@ -22,6 +22,8 @@ one run of CMake. The Builder is part of Workshop; nothing here is installed for
   key: choosing, building, loading, promoting and reverting, reading what a build said
 - [The Builder](docs/zengine.builder.md), `zengine.builder`: the office that builds, and the
   messages another weave sends it
+- [The build runner](docs/zengine.build-runner.md), `zengine.build-runner`: the weave that starts
+  and holds a build's process, and what it tells the Builder
 
 ## Pages
 
