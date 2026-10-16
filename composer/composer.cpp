@@ -24,6 +24,7 @@
 #include "inventory/codec.hpp"
 #include "inventory/pane_client.hpp"
 #include "manual/vocabulary.hpp"
+#include "message-draft/library.hpp"
 #include "manuals/zengine.composer.hpp" // this pane's manual, compiled in from its page
 #include "workshop/pane_document.hpp"
 
@@ -37,6 +38,7 @@
 #include <zen/weave/lifecycle.hpp>
 #include <zen/weave/standard_shapes.hpp>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -72,6 +74,19 @@ constexpr const char* kWorkshopRole = "zengine.workshop";
 
 using zengine::composer::ComposerCommandContext;
 
+/// ONE FIELD OF THE OPEN FORM, at its place in the shape: whether it is present, and a typed
+/// field's text as the weaver left it, valid or not.
+struct ComposerFieldState {
+    bool present = false;
+    std::string text;
+    ZEN_SHAPE(ComposerFieldState, 1, ZEN_FIELD(present), ZEN_FIELD(text));
+};
+
+/// The counters, and what a reload in place keeps: the target (the library pressed and the office
+/// addressed) and the form open on it -- its message by name and version, each field's presence
+/// and text, the values only a drop gives (a message, bytes, a list) as a draft library, and the
+/// cursor -- and what the reload ended before it was answered, a submission or a store. Never the
+/// target's accepted shapes, which are asked again, nor a paste in flight.
 struct ComposerState {
     std::int64_t offers = 0;
     std::int64_t rooms = 0;
@@ -80,9 +95,20 @@ struct ComposerState {
     std::int64_t described = 0; ///< answers that became a decoded snapshot
     std::int64_t refused = 0;   ///< asks, rooms, presses and keys not authored by Workshop
     std::int64_t submitted = 0; ///< messages handed to the bus -- NOT messages delivered
+    std::string library;
+    std::string role;
+    std::string form_shape; ///< empty while no form is open
+    std::int64_t form_version = 0;
+    std::vector<ComposerFieldState> form_fields;
+    loom::Bytes form_values;
+    std::int64_t form_cursor = 0;
+    std::string dropped;
     ZEN_EXPOSE();
-    ZEN_SHAPE(ComposerState, 1, ZEN_FIELD(offers), ZEN_FIELD(rooms), ZEN_FIELD(targets),
-              ZEN_FIELD(asked), ZEN_FIELD(described), ZEN_FIELD(refused), ZEN_FIELD(submitted));
+    ZEN_SHAPE(ComposerState, 2, ZEN_FIELD(offers), ZEN_FIELD(rooms), ZEN_FIELD(targets),
+              ZEN_FIELD(asked), ZEN_FIELD(described), ZEN_FIELD(refused), ZEN_FIELD(submitted),
+              ZEN_FIELD(library), ZEN_FIELD(role), ZEN_FIELD(form_shape), ZEN_FIELD(form_version),
+              ZEN_FIELD(form_fields), ZEN_FIELD(form_values), ZEN_FIELD(form_cursor),
+              ZEN_FIELD(dropped));
 };
 
 class ComposerWeave final : public loom::Weave {
@@ -208,7 +234,7 @@ public:
                 send_value_.reset(); send_attempt_ = {};
                 complain("Submission was not delivered: " + refusal.reason); say(mail);
             } else if (discovery_.valid() && refusal.refused_attempt().seq == discovery_.seq) {
-                awaiting_ = false; discovery_ = {};
+                awaiting_ = false; discovery_ = {}; restoring_ = false;
                 complain("Discovery was not delivered: " + refusal.reason); say(mail);
             }
             return;
@@ -240,12 +266,60 @@ public:
         }
     }
 
-    loom::Value snapshot() const override { return loom::to_value(state_); }
+    /// The counters and the work a reload keeps (`ComposerState`), read from the pane as it
+    /// stands; a form a reload carried, while its target has not yet answered, as it came.
+    loom::Value snapshot() const override {
+        ComposerState saved = state_;
+        saved.dropped = send_value_ ? "submission" : storage_.busy() ? "store" : "";
+        if (restoring_) {
+            if (saved.dropped.empty()) saved.dropped = state_.dropped;
+            return loom::to_value(saved);
+        }
+        saved.library = composing_.library;
+        saved.role = composing_.role;
+        saved.form_shape.clear();
+        saved.form_version = 0;
+        saved.form_fields.clear();
+        saved.form_values.clear();
+        saved.form_cursor = 0;
+        if (composing_.stage == stage::kForm && composing_.draft.valid()) {
+            const MessageDraft& draft = composing_.draft;
+            saved.form_shape = draft.schema->name();
+            saved.form_version = static_cast<std::int64_t>(draft.schema->version());
+            saved.form_cursor = composing_.cursor;
+            zengine::message_draft::Draft values(draft.schema);
+            bool any = false;
+            for (std::size_t i = 0; i < draft.size(); ++i) {
+                const zengine::composer::FieldDraft& field = draft.fields[i];
+                saved.form_fields.push_back({field.present, field.typed ? std::string() : field.value.text()});
+                if (field.present && field.typed) {
+                    try {
+                        values.set({draft.field(i).name}, *field.typed);
+                        any = true;
+                    } catch (const std::exception&) {
+                    }
+                }
+            }
+            if (any) {
+                try {
+                    zengine::message_draft::Library library;
+                    library.put("value", std::move(values));
+                    const std::string bytes = zengine::message_draft::library_bytes(library);
+                    saved.form_values.assign(bytes.begin(), bytes.end());
+                } catch (const std::exception&) {
+                }
+            }
+        }
+        return loom::to_value(saved);
+    }
 
+    /// Reloaded in place as Loom's default policy allows, the pane keeping what `ComposerState`
+    /// carries.
     loom::Value policy() const override {
+        const loom::LifecyclePolicy p{};
         loom::Value v(loom::lifecycle_policy_schema());
-        v.set("max_reloads", loom::Cell::integer(0));
-        v.set("revive_from_last_good", loom::Cell::boolean(false));
+        v.set("max_reloads", loom::Cell::integer(p.max_reloads));
+        v.set("revive_from_last_good", loom::Cell::boolean(p.revive_from_last_good));
         return v;
     }
 
@@ -257,9 +331,89 @@ private:
     // ---- lifecycle and the pane protocol ------------------------------------
 
     void on_activated(const loom::Activated& a, loom::Mail& mail) {
-        if (activation_.accept(mail, a)) {
-            announce(mail);
+        if (!activation_.accept(mail, a)) {
+            return;
         }
+        announce(mail);
+        if (!std::exchange(restored_, true)) {
+            restore(mail);
+        }
+    }
+
+    /// A RELOAD IN PLACE KEEPS THE TARGET AND ITS FORM: the target is asked again what it
+    /// accepts, and the form opens again once it answers (`reopen`). What the old image was still
+    /// waiting on is said as dropped.
+    void restore(loom::Mail& mail) {
+        if (state_.library.empty() && state_.role.empty()) {
+            return;
+        }
+        composing_.library = state_.library;
+        composing_.role = state_.role;
+        carried_notice_ = state_.dropped.empty()
+            ? std::string()
+            : "The " + state_.dropped + " waiting when Compose was reloaded was dropped; " +
+                  (state_.dropped == "store" ? "store it again" : "submit again");
+        if (composing_.role.empty()) {
+            composing_.stage = stage::kNoRole;
+            say(mail);
+            return;
+        }
+        composing_.stage = stage::kAsking;
+        restoring_ = !state_.form_shape.empty();
+        ask(mail);
+        if (!carried_notice_.empty() && !restoring_) complain(carried_notice_);
+        say(mail);
+    }
+
+    /// THE FORM A RELOAD CARRIED, opened again on the target's fresh answer: its message by name
+    /// and version among the shapes the target accepts now, its fields as they were left. A
+    /// message the target no longer accepts drops the form, and says so.
+    void reopen() {
+        const std::string named = state_.form_shape + " v" + std::to_string(state_.form_version);
+        std::shared_ptr<const loom::Schema> root;
+        for (const auto& accepted : composing_.snapshot.roots) {
+            if (accepted->name() == state_.form_shape &&
+                static_cast<std::int64_t>(accepted->version()) == state_.form_version) {
+                root = accepted;
+            }
+        }
+        if (root == nullptr) {
+            complain("The form for " + named + " was dropped: @" + composing_.role +
+                     " no longer accepts it");
+            return;
+        }
+        try {
+            MessageDraft draft = zengine::composer::begin_draft(root);
+            if (!state_.form_values.empty()) {
+                const zengine::message_draft::Library library = zengine::message_draft::read_library(
+                    std::string_view(reinterpret_cast<const char*>(state_.form_values.data()),
+                                     state_.form_values.size()));
+                if (const auto* values = library.find("value")) {
+                    for (std::size_t i = 0; i < draft.size(); ++i) {
+                        if (const auto* cell = values->value().get(draft.field(i).name)) {
+                            zengine::composer::put_field(draft, i, *cell);
+                        }
+                    }
+                }
+            }
+            for (std::size_t i = 0; i < draft.size() && i < state_.form_fields.size(); ++i) {
+                zengine::composer::FieldDraft& field = draft.fields[i];
+                if (field.typed) continue;
+                field.present = state_.form_fields[i].present;
+                field.value.set(state_.form_fields[i].text, state_.form_fields[i].text.size());
+            }
+            composing_.draft = std::move(draft);
+        } catch (const std::exception& e) {
+            complain("The form for " + named + " could not be opened again: " + e.what());
+            return;
+        }
+        ++draft_generation_;
+        composing_.stage = stage::kForm;
+        composing_.cursor = std::clamp<std::int64_t>(state_.form_cursor, 0,
+                                                     zengine::composer::form_items(composing_.draft) - 1);
+        composing_.notice = carried_notice_.empty() ? "The form was kept across a reload -- review, then Submit"
+                                                    : carried_notice_;
+        composing_.notice_role = carried_notice_.empty() ? surface::role::kAccent : surface::role::kAlert;
     }
 
     void on_catalog_requested(loom::Mail& mail) {
@@ -436,6 +590,7 @@ private:
         }
         composing_.library = sel.library;
         composing_.role = sel.role;
+        restoring_ = false; // the weaver chose another target: the carried form goes with the old one
         composing_.cursor = 0;
         composing_.notice.clear();
         composing_.notice_role = surface::role::kMuted;
@@ -499,6 +654,7 @@ private:
         composing_.stage = stage::kCatalog;
         composing_.notice = "up/down move, enter chooses";
         composing_.notice_role = surface::role::kMuted;
+        if (std::exchange(restoring_, false)) reopen();
         say(mail);
     }
 
@@ -511,6 +667,7 @@ private:
             return;
         }
         awaiting_ = false;
+        restoring_ = false; // a form a reload carried has no shapes to open on
         complain("the discovery request was refused");
         say(mail);
     }
@@ -915,6 +1072,11 @@ private:
     loom::AskBook clip_asks_{2};
     std::vector<PendingPaste> pending_pastes_;
     std::uint64_t draft_generation_ = 0; ///< bumped by open_form/back_to_catalog
+    /// The first activation of this image has restored what a reload carried; a form it carried
+    /// waits on the target's answer; and what to say of a conversation the reload ended.
+    bool restored_ = false;
+    bool restoring_ = false;
+    std::string carried_notice_;
     zengine::composer::Composing composing_;
     double wheel_ = 0.0;
     zengine::component::Clipboard clip_;
