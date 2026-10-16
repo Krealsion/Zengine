@@ -18,7 +18,9 @@ title says which holder you are in, `Editor @zengine.editor` or `Neovim @zengine
 
 The document is the holder's own. Its file's bytes, your unsaved edits, the caret, the selection,
 the undo history and the scroll live in the weave, and Workshop holds none of them. Closing,
-covering or moving the pane changes nothing in the document. The standard Editor holds the
+covering or moving the pane changes nothing in the document. Reloaded in place, the standard
+Editor keeps all of them, its undo history too, as many steps and bytes as it holds while you
+edit; what you undid and could redo starts again empty. The standard Editor holds the
 document itself; the Neovim-backed Editor starts a Neovim and holds the document in it, so every
 key it does not declare is Neovim's own.
 
@@ -244,7 +246,8 @@ lose them`, unless `discard` is true; answered `Neovim ended (status 0)`.
 The Editor publishes nothing of its own; its pane is its account. A probe reads the holder's
 declared fields with `zen.PokeRead`: the standard Editor's `EditorPaneState`
 ([`editor/editor-pane/vocabulary.hpp`](../editor-pane/vocabulary.hpp)), the document whole, with
-`path`, `caret_row` and `notice`; the Neovim-backed Editor's `NeovimEditorState`
+`path`, `caret_row` and `notice` (its `undo`, the history a reload in place carries, is a list,
+which a poke does not read); the Neovim-backed Editor's `NeovimEditorState`
 ([`editor/neovim-editor/vocabulary.hpp`](../neovim-editor/vocabulary.hpp)), with `running`,
 `ready`, `profile`, `path`, `modified` and `mode`, written from what Neovim last said. A switch's
 own account is the switch's ([Follow](zengine.editor-switch.md#follow)).

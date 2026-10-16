@@ -138,17 +138,17 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/the-editor-is-the-custodian.md`
 
-## WL-EDIT-15 — A same-shape reload carries the document, not its history
+## WL-EDIT-15 — A same-shape reload carries the document and its undo history
 
 LAW — `EditorPaneState` is one truth: the pane mirrors its live document into it at each composition, so Loom's `snapshot` carries a reload and `zen.PokeRead` answers what the weaver sees.
 
 MEANS
 - every advertised field reads live; the mirror is written, never refreshed at a poke;
-- the Texts are rebuilt when the BYTES move (`content_revision`), never on a gesture;
-- the room last composed for rides too: an unchanged room after a reload is no resize.
+- the Texts are rebuilt when the BYTES move (`content_revision`), the undo steps when they move (`history_revision`), never on a gesture or a keystroke within a group;
+- the room last composed for and the undo history, within the buffer's two bounds, ride too: an unchanged room after a reload is no resize.
 
 DOES NOT MEAN
-- that the undo history, an operation in flight or the wheel fraction ride.
+- that the redo steps, an operation in flight or the wheel fraction ride.
 
 WHY — `agents/decisions/the-editor-is-the-custodian.md`
 
@@ -273,11 +273,14 @@ forged quit answer moves nothing -- only Loom's answer to the host's ask decides
 the exit check is judged at the answer, and a refused quit costs no keystroke"
 
 ### WL-EDIT-15
-`editor/editor-pane/vocabulary.hpp` EditorPaneState EditorPaneState::text_builds
-`editor/editor-pane/pane.cpp` mirror_state revive restore_from_state saved_stamp_
+`editor/editor-pane/vocabulary.hpp` EditorPaneState EditorPaneState::text_builds EditorUndoStep
+`editor/editor-pane/pane.cpp` mirror_state revive restore_from_state saved_stamp_ mirrored_history_
 `editor/editor-pane/editor.hpp` EditorBuffer::restore_selection EditorBuffer::content_revision
+EditorBuffer::history_revision EditorBuffer::restore_history
 `tests/test_workshop_panes_editor.cpp` "the mirror is rebuilt when the bytes move and at no other
-time"
+time" "a reload in place carries the undo history, so an undo after it takes back an edit made
+before it" "a carried undo history is put back within the buffer's two bounds: past either the
+oldest steps go and the newest stays"
 `tests/test_workshop_load.cpp` "an unchanged room after a reload is not a resize, and the view it
 was scrolled to stands" "the reloaded pane reads live, not out of the snapshot it revived from"
 
