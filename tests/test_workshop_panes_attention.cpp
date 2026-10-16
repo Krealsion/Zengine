@@ -293,6 +293,30 @@ TEST_CASE("WL-HAND-06: Attention names each condition's row by its key") {
           std::string::npos);
 }
 
+TEST_CASE("WL-HAND-06: a notice leading the Attention pane moves each condition's name down with the row that says it") {
+    // THE NOTICE TAKES THE PANE'S FIRST ROW, so every row of the list lands one lower than it would
+    // alone -- and a condition's name lands with it, never on the row above.
+    AttentionRig f;
+    f.open();
+    f.establish(thing("a.one", "the first thing", "a sentence its owner already had"));
+    f.establish(thing("b.two", "the second thing", "and one for the second"));
+    f.establish(thing("c.three", "the third thing", "and one for the third"));
+    f.r.key(input::scan::kUp); // each establishing repaint walked the cursor down
+    f.r.key(input::scan::kUp);
+    f.letter(input::scan::kD, "d"); // hide the first: the notice about it leads
+    REQUIRE(f.shown().front().find("hidden -- the first thing is still true") == 0);
+    const auto parts = held_parts(f.r.session(), f.kind);
+    CHECK(parts.count("condition:a.one") == 0); // hidden: no row says it, so none is named for it
+    for (const auto& [name, compact] :
+         {std::pair<std::string, std::string>{"condition:b.two", "the second thing"},
+          std::pair<std::string, std::string>{"condition:c.three", "the third thing"}}) {
+        REQUIRE(parts.count(name) == 1);
+        const std::size_t row = static_cast<std::size_t>(parts.at(name).row);
+        REQUIRE(row < f.shown().size());
+        CHECK(f.shown()[row].find(compact) != std::string::npos);
+    }
+}
+
 TEST_CASE("a pane that arrives after the host has spoken is told again") {
     // A PANE LOADED AFTER THE HOST LAST SPOKE HEARS WHAT IS TRUE: `say_conditions` is quiet when
     // the reading has not changed -- or the seam would not terminate -- so an OFFER, the one moment
