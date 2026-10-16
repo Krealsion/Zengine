@@ -2278,14 +2278,39 @@ TEST_CASE("the host mounts a door and injects no host-owned object into an artif
     }
 }
 
+namespace {
+
+/// EVERY SOURCE OF THE INTROSPECTION PACKAGE, walked: each `.hpp` and `.cpp` in the folder that
+/// holds `powers.hpp`, so a part split out of a file a tripwire reads is read with it.
+std::vector<std::string> introspection_sources() {
+    std::vector<std::string> out;
+    const std::filesystem::path folder =
+        std::filesystem::path(INTROSPECTION_POWERS_HPP).parent_path();
+    for (const std::filesystem::directory_entry& entry :
+         std::filesystem::directory_iterator(folder)) {
+        const std::string ext = entry.path().extension().string();
+        if (ext == ".hpp" || ext == ".cpp") {
+            out.push_back(entry.path().generic_string());
+        }
+    }
+    std::sort(out.begin(), out.end());
+    return out;
+}
+
+} // namespace
+
 TEST_CASE("neither projection names a power, a provider or an artifact") {
     // THE GENERICITY CLAIM, READ OFF THE SOURCE. A test may name `math.max` because it verifies
     // known production state; a projection or a door may not, because a provider added later must
     // appear without an edit. Quoted literals and identifiers, for the tripwire above's reason:
-    // these files EXPLAIN what they refuse to branch on.
-    for (const char* path : {INTROSPECTION_RESOLVED_HPP, INTROSPECTION_POWERS_HPP,
-                             WORKSHOP_ARRANGEMENT_HPP, WORKSHOP_POWERS_DOOR_HPP}) {
-        const std::string source = file_source(path);
+    // these files EXPLAIN what they refuse to branch on. The package is walked, so the parts a
+    // projection is split into, and the weave that spends them, are read with it.
+    std::vector<std::string> sources = introspection_sources();
+    REQUIRE(sources.size() >= 4);
+    sources.push_back(WORKSHOP_ARRANGEMENT_HPP);
+    sources.push_back(WORKSHOP_POWERS_DOOR_HPP);
+    for (const std::string& path : sources) {
+        const std::string source = file_source(path.c_str());
         for (const char* forbidden : {"\"math.max\"", "\"logic.select_int\"",
                                       "\"timer.normalize_delay\"", "\"zengine.operators",
                                       "\"zengine.timer\"", "\"zengine-timer\"",
@@ -2293,7 +2318,28 @@ TEST_CASE("neither projection names a power, a provider or an artifact") {
                                       "kNormalizeDelay", "timer/normalize.hpp",
                                       "operator/primitives.hpp"}) {
             CHECK_MESSAGE(source.find(forbidden) == std::string::npos, path, " names '",
-                          forbidden, "'");
+                          std::string(forbidden), "'");
+        }
+    }
+}
+
+TEST_CASE("no source of the introspection package includes an operator but its reference, or a host source") {
+    // THE IMAGE CANNOT EVALUATE, read as includes over every source the package holds: a part split
+    // out of the weave or of `powers.hpp` is compiled into the same image, so it is held to the
+    // same edge. Only `operator/reference.hpp`, a value, is let in.
+    const std::vector<std::string> sources = introspection_sources();
+    REQUIRE(sources.size() >= 4);
+    const std::string allowed = "#include \"operator/reference.hpp\"";
+    for (const std::string& path : sources) {
+        std::string source = file_source(path.c_str());
+        for (std::size_t at = source.find(allowed); at != std::string::npos;
+             at = source.find(allowed)) {
+            source.erase(at, allowed.size());
+        }
+        for (const char* forbidden : {"#include \"operator/", "#include <operator/",
+                                      "#include \"workshop/host_sources"}) {
+            CHECK_MESSAGE(source.find(forbidden) == std::string::npos, path, " ",
+                          std::string(forbidden));
         }
     }
 }

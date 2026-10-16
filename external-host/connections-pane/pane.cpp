@@ -27,7 +27,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
-#include <utility>
 #include <vector>
 
 namespace {
@@ -101,9 +100,10 @@ private:
         if (!room().granted() || rows <= 0 || columns <= 0) {
             return;
         }
-        std::vector<surface::SurfaceTextRow> out;
-        const auto push = [&out, columns](const std::string& text, std::int64_t role) {
-            out.push_back(surface::SurfaceTextRow{drawable(fit(text, columns)), role});
+        // A ROW PAST THE ROOM IS NOT SAID: `push` keeps what the room holds and refuses the rest.
+        room().begin();
+        const auto push = [this, columns](const std::string& text, std::int64_t role) {
+            (void)room().push(surface::SurfaceTextRow{drawable(fit(text, columns)), role});
         };
         if (!heard_) {
             push("CONNECTIONS (waiting for the guest door)", surface::role::kMuted);
@@ -149,12 +149,7 @@ private:
                      surface::role::kMuted);
             }
         }
-        if (static_cast<std::int64_t>(out.size()) > rows) {
-            out.resize(static_cast<std::size_t>(rows));
-        }
         ++state_.said;
-        room().begin();
-        room().composing() = std::move(out);
         room().publish(
             mail, [](const std::string&) { return std::string(); },
             [](const std::string&) { return true; }, /*with_caret=*/false);

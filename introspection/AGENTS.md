@@ -7,11 +7,13 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 
 | part | what it is |
 |---|---|
-| `introspection.cpp` | the loadable weave `zengine-introspection`: office `zengine.introspection` |
+| `introspection.cpp` | the loadable weave `zengine-introspection`: office `zengine.introspection`, each delivery routed to its pane's seat |
+| `seats.hpp` | the weave's three panes: `PaneSeat` (a room, its question, its pictures), `LoadedSeat`, `ArrangementSeat`, `PowersSeat` |
 | `vocabulary.hpp` | durable names: office, pane keys, Powers action ids, stem, `LoadedSelected` |
 | `loaded.hpp` | the Loaded pane's pure view: `parse_loaded`, `project_loaded`, `mark_selected` |
 | `resolved.hpp` | the Project pane's pure view, `project_arrangement`; the budget Powers shares |
 | `powers.hpp` | the Powers pane's pure half: `PowersUi`, `powers_question`, `project_powers_ui` |
+| `powers_detail.hpp` | the Powers pane's words and row geometry: the chrome fit, the list's window, a power's line, the detail and sample rows |
 | `CMakeLists.txt` | `zengine-introspection-view` (INTERFACE, the pure headers) and the weave, carrying its manual |
 | `docs/zengine.introspection.md` | the weave's manual, answered for each of its panes; `docs/images/` holds its picture |
 | `docs/zengine.arrangement.md`, `docs/zengine.powers.md`, `docs/zengine.sources.md` | the manuals of the three Workshop doors the panes ask, carried by `workshop/CMakeLists.txt`'s targets |

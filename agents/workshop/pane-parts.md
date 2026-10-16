@@ -56,7 +56,7 @@ words_inside no_point desk_menu
 `inventory/inventory-pane/pane.cpp` part_name
 `terminal/pane.cpp` named_rows
 `composer/view.hpp` part_name
-`introspection/introspection.cpp` loaded_parts powers_parts
+`introspection/seats.hpp` loaded_parts powers_parts
 `editor/neovim-editor/pane.cpp` status_part
 `view/view.hpp` named
 `view/view-builder/picture.hpp` part_name named
@@ -128,7 +128,7 @@ and every place a press means something"
 `tests/workshop_support.hpp` held_control_parts_problem held_parts
 `composer/view.hpp` part_name
 `introspection/vocabulary.hpp` kPowersActionSources kPowersActionOperators kPowersActionComposite
-`introspection/introspection.cpp` powers_parts show_view toggle_composite
+`introspection/seats.hpp` powers_parts show_view toggle_composite
 `inventory/inventory-pane/pane.cpp` part_name
 `flow/flow-pane/pane.cpp` declare
 `view/view-builder/picture.hpp` part_name
