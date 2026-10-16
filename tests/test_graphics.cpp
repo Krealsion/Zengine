@@ -781,17 +781,82 @@ TEST_CASE("an area given another owner starts empty, its room naming none of the
     CHECK(b.r.shown().elements == 0);
 }
 
-TEST_CASE("a press the board does not take reaches the world that drew it") {
+/// EVERYTHING ONE PARTICIPANT SENDS while this is held, delivered or refused: its shape's name.
+struct SentBy {
+    loom::Switchboard& bus;
+    loom::ObserverId tap = 0;
+    std::vector<std::string> sent;
+    SentBy(loom::Switchboard& b, loom::WeaveId who) : bus(b) {
+        tap = bus.add_observer([this, who](const loom::BusEvent& e) {
+            if ((e.kind == loom::EventKind::Delivered || e.kind == loom::EventKind::Refused) &&
+                e.sender == who) {
+                sent.push_back(e.schema_name);
+            }
+        });
+    }
+    ~SentBy() { bus.remove_observer(tap); }
+    SentBy(const SentBy&) = delete;
+    SentBy& operator=(const SentBy&) = delete;
+};
+
+TEST_CASE("a press nothing drawn there takes, in an area not placed to hear the pointer, sends "
+          "nothing") {
     Typed t;
     t.r.tick();
     const std::size_t mark = t.r.log.size();
+    SentBy window(t.r.bus, t.window);
     t.press(13, 10); // the head's cell: board cell (12,8), one cell in from the border, below row 0
-    const auto pressed = t.r.read<gfx::ElementPressed>(mark);
-    REQUIRE(pressed.size() == 1);
-    CHECK(pressed[0].area == kArea);
-    CHECK(pressed[0].element == "board/grid");
-    CHECK(pressed[0].path == "board/grid/c." + std::to_string(8 * 24 + 12));
-    CHECK(t.r.log[t.r.log.size() - 1].addressed_role == snake::kWorldRole);
+    CHECK(window.sent.empty()); // no press, no pointer event, and so no refusal either
+    CHECK(t.r.read<zengine::input::PointerButton>(mark).empty());
+    for (std::size_t i = mark; i < t.r.log.size(); ++i) {
+        CHECK(t.r.log[i].addressed_role != snake::kWorldRole);
+    }
+}
+
+/// AN OWNER OF AN AREA PLACED TO HEAR THE POINTER: it keeps each press the window gives it.
+struct PointerHeard {
+    std::vector<zengine::input::PointerButton> pressed;
+};
+
+class PointerOwner
+    : public loom::WeaveBase<PointerOwner, GraphicsTestOwner,
+                             loom::Accept<gfx::AreaRoom, zengine::input::PointerButton>,
+                             loom::Emit<>> {
+public:
+    explicit PointerOwner(PointerHeard& heard) : heard_(&heard) {}
+    void on(const gfx::AreaRoom&, loom::Mail&) { ++state_.heard; }
+    void on(const zengine::input::PointerButton& b, loom::Mail& mail) {
+        if (mail.authored_from_role(window_office())) heard_->pressed.push_back(b);
+    }
+
+private:
+    PointerHeard* heard_;
+};
+
+TEST_CASE("a press nothing drawn there takes reaches the owner of an area placed to hear the "
+          "pointer, at the area's own point") {
+    Typed t;
+    PointerHeard heard;
+    auto owner = std::make_unique<PointerOwner>(heard);
+    PointerOwner* raw = owner.get();
+    loom::Grant g = loom::emit_default_grant(*raw);
+    raw->zen_set_self(t.r.bus.register_weave(std::move(owner), std::move(g), "test.pointer"));
+    // BESIDE THE BOARD, EMPTY: nothing is drawn there, so nothing there takes a press.
+    gfx::AreaPlaced placed{"test.pointer", gfx::kTerminalWindow, "test.pointer", 52 * gfx::kCellPx,
+                           0, 10 * gfx::kCellPx, 2 * gfx::kCellPx, 1, false};
+    placed.pointer = true;
+    t.r.to_role(gfx::kGraphicsRole, placed);
+    t.r.to_role(gfx::kGraphicsRole, gfx::SkinChosen{"test.pointer", "classic"});
+    t.r.drain();
+    t.press(54, 1);
+    REQUIRE(heard.pressed.size() == 1);
+    CHECK(heard.pressed[0].button == 1);
+    CHECK(heard.pressed[0].pressed);
+    CHECK(heard.pressed[0].x == 2 * gfx::kCellPx + gfx::kCellPx / 2);
+    CHECK(heard.pressed[0].y == gfx::kCellPx + gfx::kCellPx / 2);
+    // ...AND THE SAME PRESS ON THE BOARD, PLACED WITHOUT IT, STILL REACHES NO ONE.
+    t.press(13, 10);
+    CHECK(heard.pressed.size() == 1);
 }
 
 TEST_CASE("the new-game button is the world's action, and a new game reaches the board as a change") {
@@ -1191,3 +1256,62 @@ TEST_CASE("a facet on Activated composed over TimedWeave deduplicates zen.Activa
 }
 
 
+
+namespace {
+
+struct GraphicsTestClaimed {
+    std::int64_t n = 0;
+    ZEN_SHAPE(GraphicsTestClaimed, 1, ZEN_FIELD(n));
+};
+
+struct GraphicsTestFacetClaimed {
+    std::int64_t n = 0;
+    ZEN_SHAPE(GraphicsTestFacetClaimed, 1, ZEN_FIELD(n));
+};
+
+struct GraphicsTestUnclaimed {
+    std::int64_t n = 0;
+    ZEN_SHAPE(GraphicsTestUnclaimed, 1, ZEN_FIELD(n));
+};
+
+/// A facet that claims a shape of its own.
+struct ClaimingFacet {
+    using Claims = loom::Claims<GraphicsTestFacetClaimed, GraphicsTestClaimed>;
+};
+
+/// A weave that claims, composed with a facet that claims too: its claim-set is the union, each
+/// shape once.
+class Claimer
+    : public zengine::With<ClaimingFacet>::Weave<Claimer, GraphicsTestDrawer,
+                                                 loom::Accept<GraphicsTestBeat>, loom::Emit<>,
+                                                 loom::WeaveBase,
+                                                 loom::Claims<GraphicsTestClaimed>> {
+public:
+    void on(const GraphicsTestBeat&, loom::Mail& mail) {
+        own = mail.claim(GraphicsTestClaimed{1});
+        facets = mail.claim(GraphicsTestFacetClaimed{2});
+        undeclared = mail.claim(GraphicsTestUnclaimed{3});
+    }
+    loom::SenseClaimResult own, facets, undeclared;
+};
+
+} // namespace
+
+TEST_CASE("a weave composed with facets declares its own claims and each facet's, once each, and "
+          "claims them; an undeclared shape is refused") {
+    Rig r;
+    auto c = std::make_unique<Claimer>();
+    Claimer* raw = c.get();
+    loom::Grant g = loom::emit_default_grant(*raw);
+    const loom::WeaveId id = r.bus.register_weave(std::move(c), std::move(g), "test.claimer");
+    raw->zen_set_self(id);
+    std::vector<std::string> claimed;
+    for (const auto& s : raw->claimed_schemas()) claimed.push_back(s->name());
+    CHECK(claimed == std::vector<std::string>{"GraphicsTestFacetClaimed", "GraphicsTestClaimed"});
+    r.bus.send(id, loom::Message(loom::to_value(GraphicsTestBeat{})));
+    r.drain();
+    CHECK(raw->own.accepted);
+    CHECK(raw->facets.accepted);
+    CHECK_FALSE(raw->undeclared.accepted);
+    CHECK(raw->undeclared.why == loom::SenseRefusal::Undeclared);
+}

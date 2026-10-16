@@ -24,7 +24,7 @@ worked example: it draws its frame as nodes and its board as an element of its o
 ```text
 owner -> its window          Drawn (nodes and records), ElementPut once, then ElementChange
 window -> the owner          AreaRoom (this window, its incarnation, the room, what it holds)
-window -> the owner          DrawnRefused (why, in words), ElementPressed, ActionRequested, KeyPressed
+window -> the owner          DrawnRefused (why, in words), ActionRequested, KeyPressed, PointerButton
 arranger -> directory        AreaPlaced, SkinOffered, SkinChosen, ElementCodeOffered
 window -> directory          WindowOffered (as its own office, with its incarnation)
 directory -> window          AreaIntroduced, AreaWithdrawn, ElementCodeOffered
@@ -114,7 +114,10 @@ or its size changed, where an element the window does not hold is said again (`c
 A drawer that presents elements emits `ElementPut` and `ElementChange` itself and accepts the
 presses it wants. Over the Timer, a drawer passes `zengine::timer::TimedWeave` as the `Base`
 parameter to `Weave`; the single-facet `DrawingWeave` shorthand keeps the compile-time wall on a
-derived `after_delivery`.
+derived `after_delivery`. A weave that claims names its `loom::Claims<...>` after `loom::WeaveBase`
+(`Weave<Self, State, Accept, Emit, loom::WeaveBase, loom::Claims<...>>`); a facet may declare
+`Claims` of its own, and the weave declares the union, each shape once. Over the Timer a weave
+claims nothing.
 
 ## An element of your own
 
@@ -122,8 +125,9 @@ An element is presented by code the window opens, as it opens a skin. Its owner 
 (`ElementPut`: the area, the path, the type, the owner's reference for it, and its data, whole)
 and then sends each change by that reference and the change's index among the changes the code
 takes (`ElementChange`); the type implies each change's shape, so a change is its body alone. The
-code draws what it is told -- the rules stay the owner's -- and a press it does not take reaches
-the owner as `ElementPressed`.
+code draws what it is told -- the rules stay the owner's. A press it does not take reaches the
+owner as the action its record names (`ActionRequested`), or, where the area was placed with
+`pointer` true, as the press itself (`PointerButton`); otherwise it sends nothing.
 
 `graphics/element_export.hpp` exports one with a struct and a macro:
 
