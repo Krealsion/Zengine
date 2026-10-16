@@ -56,8 +56,9 @@ browsing still works.
 On a folder, opens it. On an entry, picks up a copy to place in another pane.
 
 - **Takes:** the selected row. Default key <!-- key inventory.copy -->`return`<!-- /key -->.
-- **Answers:** a folder opens, `In Root > Workbench`. For an entry the pane reads it from the
-  owner ([`InventoryRead`](zengine.inventory.md#inventoryread)) and asks Workshop to carry the copy ([`PaneValueCarryRequested`](../../workshop/docs/zengine.workshop.md#panevaluecarryrequested)):
+- **Answers:** a folder opens, `In Root > Workbench`. For an entry the pane reads it from the owner
+  ([`InventoryRead`](zengine.inventory.md#inventoryread)) and asks Workshop to carry the copy
+  ([`PaneValueCarryRequested`](../../workshop/docs/zengine.workshop.md#panevaluecarryrequested)):
   `Entry acquired; finish the gesture to place it`, then `Click a receiving pane; Escape cancels`.
 - **Refuses:** `That folder is no longer here`; the owner's
   `this inventory entry is no longer here`; Workshop's reason when it carries nothing.
@@ -69,8 +70,10 @@ Picks up a live reference to the selected entry: a receiver such as Info then ed
 itself, not a copy.
 
 - **Takes:** the selected entry. Default key <!-- key inventory.live -->`ctrl+return`<!-- /key -->.
-- **Answers:** as [`inventory.copy`](#inventorycopy), the entry read ([`InventoryRead`](zengine.inventory.md#inventoryread)); what is carried
-  ([`PaneCarryRequested`](../../workshop/docs/zengine.workshop.md#panecarryrequested)) is the entry's reference, with the name it had and its revision as metadata.
+- **Answers:** as [`inventory.copy`](#inventorycopy), the entry read
+  ([`InventoryRead`](zengine.inventory.md#inventoryread)); what is carried
+  ([`PaneCarryRequested`](../../workshop/docs/zengine.workshop.md#panecarryrequested)) is the
+  entry's reference, with the name it had and its revision as metadata.
 - **Refuses:** `A folder is not a value; Enter opens it` on a folder; as
   [`inventory.copy`](#inventorycopy).
 - **Example:** press <!-- key inventory.live -->`ctrl+return`<!-- /key -->, then press Info.
@@ -128,8 +131,9 @@ selection stays on the same entry.
 Asks the owner for the collection again.
 
 - **Takes:** nothing. Default key <!-- key inventory.refresh -->`ctrl+r`<!-- /key -->.
-- **Answers:** the rows are drawn from the owner's new list ([`InventoryList`](zengine.inventory.md#inventorylist)).
-  The pane asks on its own whenever the owner says the collection changed.
+- **Answers:** the rows are drawn from the owner's new list
+  ([`InventoryList`](zengine.inventory.md#inventorylist)). The pane asks on its own whenever the
+  owner says the collection changed.
 - **Refuses:** `Inventory list unavailable: ` and Loom's reason; `Inventory list request could not
   be queued`.
 - **Example:** <!-- key inventory.refresh -->`ctrl+r`<!-- /key -->.
@@ -157,8 +161,9 @@ Removes the selected entry, or an empty folder: the first press asks, the second
 - **Takes:** the selected row. Default key <!-- key inventory.remove -->`delete`<!-- /key -->; any
   other key in between disarms it.
 - **Answers:** `Press Delete again to remove Sample`, then the owner removes it
-  ([`InventoryRemove`](zengine.inventory.md#inventoryremove)): `Entry updated`. On a folder, `Press Delete again to remove the empty folder
-  'Drafts'`, then `Removed empty folder 'Drafts'` ([`InventoryFolderRemove`](zengine.inventory.md#inventoryfolderremove)). The rows are listed again
+  ([`InventoryRemove`](zengine.inventory.md#inventoryremove)): `Entry updated`. On a folder, `Press
+  Delete again to remove the empty folder 'Drafts'`, then `Removed empty folder 'Drafts'`
+  ([`InventoryFolderRemove`](zengine.inventory.md#inventoryfolderremove)). The rows are listed again
   ([`InventoryList`](zengine.inventory.md#inventorylist)).
 - **Refuses:** `'Drafts' still holds 2 items; move them out first. Removing a folder never removes
   entries`; the owner's `the entry changed or its revision is exhausted; fetch a fresh copy`.
@@ -255,9 +260,11 @@ Places the picked entry or folder in the folder main Inventory shows.
 
 - **Takes:** the pick; main Inventory's folder. Default key
   <!-- key inventory.move.here -->`ctrl+v`<!-- /key -->; the `[Move here]` control.
-- **Answers:** an entry is filed ([`InventoryFile`](zengine.inventory.md#inventoryfile)) from the folder it was picked in, `Filed 'Sample'
-  in Root > Drafts`, with `; it stays placed in its view` for one in a view; a folder is moved
-  ([`InventoryFolderMove`](zengine.inventory.md#inventoryfoldermove)), `Moved 'Drafts' into Root > Workbench`. The rows are listed again ([`InventoryList`](zengine.inventory.md#inventorylist)).
+- **Answers:** an entry is filed ([`InventoryFile`](zengine.inventory.md#inventoryfile)) from the
+  folder it was picked in, `Filed 'Sample' in Root > Drafts`, with `; it stays placed in its view`
+  for one in a view; a folder is moved
+  ([`InventoryFolderMove`](zengine.inventory.md#inventoryfoldermove)), `Moved 'Drafts' into Root >
+  Workbench`. The rows are listed again ([`InventoryList`](zengine.inventory.md#inventorylist)).
 - **Refuses:** `Pick an entry or folder to move first (Ctrl+X)`; `'Sample' is already in Root >
   Drafts`; `A folder cannot move into itself or a folder inside it`; `The item picked to move is no
   longer here`; the owner's `the entry is no longer in that folder; look again`.
@@ -284,12 +291,18 @@ Commits the line.
 - **Takes:** the text typed. Default key <!-- key inventory.name.save -->`return`<!-- /key -->.
 - **Answers:** what the command that opened the line does with it. A hotkey's line, `Target Key: `,
   takes an office and a chord, `zengine.inventory alt+1`, and asks Workshop to change the
-  arrangement: `Inventory arrangement saved`, its shortcuts said to the desk ([`PaneShortcuts`](../../workshop/docs/zengine.desktop.md#paneshortcuts)). A
-  duplicate's name reads the entry ([`InventoryRead`](zengine.inventory.md#inventoryread)) and stores the copy ([`InventoryAdd`](zengine.inventory.md#inventoryadd)): `Independent copy
-  saved; copied hotkey is OFF`. A rename's ([`InventoryRename`](zengine.inventory.md#inventoryrename)) and a folder's, new ([`InventoryFolderCreate`](zengine.inventory.md#inventoryfoldercreate)) or renamed
-  ([`InventoryFolderRename`](zengine.inventory.md#inventoryfolderrename)), ask the owner, and the rows are listed again ([`InventoryList`](zengine.inventory.md#inventorylist)). A toolbox file's line
-  takes the collection's snapshot ([`InventorySnapshotRequested`](zengine.inventory.md#inventorysnapshotrequested)) and, to restore, replaces it
-  ([`InventoryRestore`](zengine.inventory.md#inventoryrestore)), clearing the desk's shortcuts ([`PaneShortcuts`](../../workshop/docs/zengine.desktop.md#paneshortcuts)).
+  arrangement: `Inventory arrangement saved`, its shortcuts said to the desk
+  ([`PaneShortcuts`](../../workshop/docs/zengine.desktop.md#paneshortcuts)). A duplicate's name
+  reads the entry ([`InventoryRead`](zengine.inventory.md#inventoryread)) and stores the copy
+  ([`InventoryAdd`](zengine.inventory.md#inventoryadd)): `Independent copy saved; copied hotkey is
+  OFF`. A rename's ([`InventoryRename`](zengine.inventory.md#inventoryrename)) and a folder's, new
+  ([`InventoryFolderCreate`](zengine.inventory.md#inventoryfoldercreate)) or renamed
+  ([`InventoryFolderRename`](zengine.inventory.md#inventoryfolderrename)), ask the owner, and the
+  rows are listed again ([`InventoryList`](zengine.inventory.md#inventorylist)). A toolbox file's
+  line takes the collection's snapshot
+  ([`InventorySnapshotRequested`](zengine.inventory.md#inventorysnapshotrequested)) and, to restore,
+  replaces it ([`InventoryRestore`](zengine.inventory.md#inventoryrestore)), clearing the desk's
+  shortcuts ([`PaneShortcuts`](../../workshop/docs/zengine.desktop.md#paneshortcuts)).
 - **Refuses:** for a hotkey, `Use: target-office alt+1`, `Choose a bound key`, the keymap's word on
   the chord, `Choose a key and modifiers the Workshop keymap can name`; otherwise the opening
   command's refusals. A line refused before anything is asked stays open.

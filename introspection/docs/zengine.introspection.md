@@ -59,9 +59,10 @@ and another out, is among them). Which view a power is in is read off its defini
   `Sources` or `Operators` in the first row does [`powers.sources`](#powerssources) or
   [`powers.operators`](#powersoperators).
 - **Answers:** the brackets move, `[Sources] Operators` or `Sources [Operators]`, and the list is
-  asked again of the discovery door ([`FindPowers`](zengine.powers.md#findpowers)), with the selected power's description
-  ([`DescribePower`](zengine.powers.md#describepower)). Each view keeps its own selection, by
-  identity: leave a view and come back, and your power is still selected there.
+  asked again of the discovery door ([`FindPowers`](zengine.powers.md#findpowers)), with the
+  selected power's description ([`DescribePower`](zengine.powers.md#describepower)). Each view keeps
+  its own selection, by identity: leave a view and come back, and your power is still selected
+  there.
 - **Refuses:** nothing.
 - **Example:** press <!-- key powers.view -->`tab`<!-- /key --> and read `Sources [Operators]  -/3`.
 
@@ -112,8 +113,9 @@ Samples the selected Source: the host runs it once, now, and the pane keeps what
 Shows the Sources view. Otherwise as [`powers.view`](#powersview).
 
 - **Takes:** the view shown. No default key; a press on `Sources` in the first row.
-- **Answers:** `[Sources] Operators`, and the list asked again ([`FindPowers`](zengine.powers.md#findpowers)) with the selected power's
-  description ([`DescribePower`](zengine.powers.md#describepower)); nothing when Sources is shown.
+- **Answers:** `[Sources] Operators`, and the list asked again
+  ([`FindPowers`](zengine.powers.md#findpowers)) with the selected power's description
+  ([`DescribePower`](zengine.powers.md#describepower)); nothing when Sources is shown.
 - **Refuses:** nothing.
 - **Example:** press `Sources`.
 
@@ -122,8 +124,9 @@ Shows the Sources view. Otherwise as [`powers.view`](#powersview).
 Shows the Operators view. Otherwise as [`powers.view`](#powersview).
 
 - **Takes:** the view shown. No default key; a press on `Operators` in the first row.
-- **Answers:** `Sources [Operators]`, and the list asked again ([`FindPowers`](zengine.powers.md#findpowers)) with the selected power's
-  description ([`DescribePower`](zengine.powers.md#describepower)); nothing when Operators is shown.
+- **Answers:** `Sources [Operators]`, and the list asked again
+  ([`FindPowers`](zengine.powers.md#findpowers)) with the selected power's description
+  ([`DescribePower`](zengine.powers.md#describepower)); nothing when Operators is shown.
 - **Refuses:** nothing.
 - **Example:** press `Operators`.
 

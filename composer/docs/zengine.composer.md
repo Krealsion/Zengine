@@ -92,7 +92,9 @@ it was written for. Nothing is sent to the target.
 
 - **Takes:** the open form, complete. Default key <!-- key compose.store -->`ctrl+s`<!-- /key -->.
 - **Answers:** `Checking this operation's authority` while Workshop judges the store, `Waiting for
-  inventory` while the Inventory adds it ([`InventoryAdd`](../../inventory/docs/zengine.inventory.md#inventoryadd)), then `Stored as a new inventory entry`.
+  inventory` while the Inventory adds it
+  ([`InventoryAdd`](../../inventory/docs/zengine.inventory.md#inventoryadd)), then `Stored as a new
+  inventory entry`.
 - **Refuses:** `Complete the command before storing it`; Workshop's reason, as `the input actor has
   no authority for this operation`; `The permission request could not be queued`; `The inventory
   request could not be queued`; `Inventory operation was not delivered: ` and Loom's reason;
@@ -109,7 +111,8 @@ or unset is not in it.
 
 - **Takes:** the open form. Default key <!-- key compose.preset -->`ctrl+b`<!-- /key -->.
 - **Answers:** as [`compose.store`](#composestore): `Checking this operation's authority`, `Waiting
-  for inventory` ([`InventoryAdd`](../../inventory/docs/zengine.inventory.md#inventoryadd)), `Stored as a new inventory entry`.
+  for inventory` ([`InventoryAdd`](../../inventory/docs/zengine.inventory.md#inventoryadd)), `Stored
+  as a new inventory entry`.
 - **Refuses:** the refusals of [`compose.store`](#composestore) after its first, and a value that
   cannot be kept in its own words. With no form open, nothing happens.
 - **Example:** fill `id` only, press <!-- key compose.preset -->`ctrl+b`<!-- /key -->; drop the preset

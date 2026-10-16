@@ -1044,8 +1044,8 @@ private:
         } else if (state_.on_panes) {
             row(pane::kActionUp, "pane up", input::scan::kUp);
             row(pane::kActionDown, "pane down", input::scan::kDown);
-            // ...an inspection Workshop is asked for, and the answer owed to whoever asked this
-            // pane to act on its subject, now replaced.
+            // An inspection asks Workshop for the pane, and answers whoever was waiting on this
+            // pane to act on its subject that the subject was replaced.
             row(pane::kActionEdit, "inspect", input::scan::kReturn,
                 {ws::cause_of<InspectPaneRequested>(), ws::cause_of<PaneSubjectActed>()});
             row(pane::kActionSwitch, "properties", input::scan::kTab);
