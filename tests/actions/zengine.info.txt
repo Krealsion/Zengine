@@ -11,44 +11,44 @@ zengine.info - info.switch tab - - panes
 zengine.info - info.view.new ctrl+n PaneLaunchRequested/1 - new value view
 zengine.info - info.commit return PaneCommitRequested/1 - commit
 zengine.info - info.cancel escape - - cancel
-zengine.info - inventory.up up - - previous field
-zengine.info - inventory.down down - - next field
-zengine.info - inventory.edit return - - edit field
-zengine.info - inventory.save ctrl+s InventoryWrite/1,InventoryAdd/1 - save entry
-zengine.info - inventory.save-copy ctrl+shift+s InventoryAdd/1 - save a new copy
-zengine.info - inventory.fresh ctrl+r InventoryRead/1 - refresh from inventory
-zengine.info - inventory.watch ctrl+l PaneObservationRequested/1,InventoryRead/1,PaneObservationEnded/1 - watch or pause
-zengine.info - inventory.sample ctrl+e zen.PokeDescribe/1 - sample the source
-zengine.info - inventory.preset ctrl+b PaneObservationEnded/1 - make independent preset copy
-zengine.info - inventory.unset ctrl+u - - unset preset field
-zengine.info - inventory.grab ctrl+g PaneValueCarryRequested/1 - pick up typed field copy
-zengine.info - inventory.discard ctrl+d - - discard local edits
+zengine.info - info.value.up up - - previous field
+zengine.info - info.value.down down - - next field
+zengine.info - info.value.edit return - - edit field
+zengine.info - info.value.save ctrl+s InventoryWrite/1,InventoryAdd/1 - save entry
+zengine.info - info.value.save-copy ctrl+shift+s InventoryAdd/1 - save a new copy
+zengine.info - info.value.fresh ctrl+r InventoryRead/1 - refresh from inventory
+zengine.info - info.value.watch ctrl+l PaneObservationRequested/1,InventoryRead/1,PaneObservationEnded/1 - watch or pause
+zengine.info - info.value.sample ctrl+e zen.PokeDescribe/1 - sample the source
+zengine.info - info.value.preset ctrl+b PaneObservationEnded/1 - make independent preset copy
+zengine.info - info.value.unset ctrl+u - - unset preset field
+zengine.info - info.value.grab ctrl+g PaneValueCarryRequested/1 - pick up typed field copy
+zengine.info - info.value.discard ctrl+d - - discard local edits
 zengine.info - info.view.new ctrl+n PaneLaunchRequested/1 - new Info view
 zengine.info - info.view.fork ctrl+shift+n PaneLaunchRequested/1 - fork this view
 zengine.info - info.view.rename ctrl+m - - rename this view
 zengine.info - info.view.menu ctrl+. - - all view actions
-zengine.info - inventory.panes ctrl+i PaneObservationEnded/1 - pane properties
-zengine.info - inventory.field.accept return - - keep field edit
-zengine.info - inventory.field.cancel escape - - cancel field edit
+zengine.info - info.value.panes ctrl+i PaneObservationEnded/1 - pane properties
+zengine.info - info.value.field.accept return - - keep field edit
+zengine.info - info.value.field.cancel escape - - cancel field edit
 zengine.info - info.view.rename.accept return - - rename view
 zengine.info - info.view.rename.cancel escape - - cancel rename
-zengine.info - inventory.up up - - previous field
-zengine.info - inventory.down down - - next field
-zengine.info - inventory.edit return - - edit field
-zengine.info - inventory.save ctrl+s InventoryWrite/1,InventoryAdd/1 - save entry
-zengine.info - inventory.save-copy ctrl+shift+s InventoryAdd/1 - save a new copy
-zengine.info - inventory.fresh ctrl+r InventoryRead/1 - refresh from inventory
-zengine.info - inventory.watch ctrl+l PaneObservationRequested/1,InventoryRead/1,PaneObservationEnded/1 - watch or pause
-zengine.info - inventory.sample ctrl+e zen.PokeDescribe/1 - sample the source
-zengine.info - inventory.preset ctrl+b PaneObservationEnded/1 - make independent preset copy
-zengine.info - inventory.unset ctrl+u - - unset preset field
-zengine.info - inventory.grab ctrl+g PaneValueCarryRequested/1 - pick up typed field copy
-zengine.info - inventory.discard ctrl+d - - discard local edits
+zengine.info - info.value.up up - - previous field
+zengine.info - info.value.down down - - next field
+zengine.info - info.value.edit return - - edit field
+zengine.info - info.value.save ctrl+s InventoryWrite/1,InventoryAdd/1 - save entry
+zengine.info - info.value.save-copy ctrl+shift+s InventoryAdd/1 - save a new copy
+zengine.info - info.value.fresh ctrl+r InventoryRead/1 - refresh from inventory
+zengine.info - info.value.watch ctrl+l PaneObservationRequested/1,InventoryRead/1,PaneObservationEnded/1 - watch or pause
+zengine.info - info.value.sample ctrl+e zen.PokeDescribe/1 - sample the source
+zengine.info - info.value.preset ctrl+b PaneObservationEnded/1 - make independent preset copy
+zengine.info - info.value.unset ctrl+u - - unset preset field
+zengine.info - info.value.grab ctrl+g PaneValueCarryRequested/1 - pick up typed field copy
+zengine.info - info.value.discard ctrl+d - - discard local edits
 zengine.info - info.view.new ctrl+n PaneLaunchRequested/1 - new Info view
 zengine.info - info.view.fork ctrl+shift+n PaneLaunchRequested/1 - fork this view
 zengine.info - info.view.rename ctrl+m - - rename this view
 zengine.info - info.view.menu ctrl+. - - all view actions
-zengine.info - inventory.panes ctrl+i PaneObservationEnded/1 - pane properties
+zengine.info - info.value.panes ctrl+i PaneObservationEnded/1 - pane properties
 zengine.info - info.view.stop escape - - stop waiting
 zengine.info - info.up up - - row up
 zengine.info - info.down down - - row down
@@ -56,18 +56,18 @@ zengine.info - info.edit return - - edit
 zengine.info - info.switch tab - - panes
 zengine.info - info.inventory ctrl+i - - inventory entry
 zengine.info - info.view.new ctrl+n PaneLaunchRequested/1 - new value view
-zengine.info - inventory.up up - - previous field
-zengine.info - inventory.down down - - next field
-zengine.info - inventory.edit return - - edit field
-zengine.info - inventory.save ctrl+s InventoryWrite/1,InventoryAdd/1 - save entry
-zengine.info - inventory.save-copy ctrl+shift+s InventoryAdd/1 - save a new copy
-zengine.info - inventory.fresh ctrl+r InventoryRead/1 - refresh from inventory
-zengine.info - inventory.watch ctrl+l PaneObservationRequested/1,InventoryRead/1,PaneObservationEnded/1 - watch or pause
-zengine.info - inventory.sample ctrl+e zen.PokeDescribe/1 - sample the source
-zengine.info - inventory.preset ctrl+b PaneObservationEnded/1 - make independent preset copy
-zengine.info - inventory.unset ctrl+u - - unset preset field
-zengine.info - inventory.grab ctrl+g PaneValueCarryRequested/1 - pick up typed field copy
-zengine.info - inventory.discard ctrl+d - - discard local edits
+zengine.info - info.value.up up - - previous field
+zengine.info - info.value.down down - - next field
+zengine.info - info.value.edit return - - edit field
+zengine.info - info.value.save ctrl+s InventoryWrite/1,InventoryAdd/1 - save entry
+zengine.info - info.value.save-copy ctrl+shift+s InventoryAdd/1 - save a new copy
+zengine.info - info.value.fresh ctrl+r InventoryRead/1 - refresh from inventory
+zengine.info - info.value.watch ctrl+l PaneObservationRequested/1,InventoryRead/1,PaneObservationEnded/1 - watch or pause
+zengine.info - info.value.sample ctrl+e zen.PokeDescribe/1 - sample the source
+zengine.info - info.value.preset ctrl+b PaneObservationEnded/1 - make independent preset copy
+zengine.info - info.value.unset ctrl+u - - unset preset field
+zengine.info - info.value.grab ctrl+g PaneValueCarryRequested/1 - pick up typed field copy
+zengine.info - info.value.discard ctrl+d - - discard local edits
 zengine.info - info.view.new ctrl+n PaneLaunchRequested/1 - new Info view
 zengine.info - info.view.fork ctrl+shift+n PaneLaunchRequested/1 - fork this view
 zengine.info - info.view.rename ctrl+m - - rename this view

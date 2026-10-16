@@ -413,6 +413,7 @@ public:
         undo_.clear();
         redo_.clear();
         undo_bytes_ = 0;
+        ++history_revision_;
         last_edit_ = EditKind::kNone;
         ++revision_;
     }
@@ -777,6 +778,7 @@ public:
         anchor_ = undo_.back().anchor;
         undo_bytes_ -= undo_.back().bytes();
         undo_.pop_back();
+        ++history_revision_;
         last_edit_ = EditKind::kNone;
         preferred_ = -1;
         settle();
@@ -801,6 +803,43 @@ public:
 
     bool can_undo() const noexcept { return !undo_.empty(); }
     bool can_redo() const noexcept { return !redo_.empty(); }
+
+    /// ONE STEP OF THE UNDO HISTORY as a reload carries it: the document before an edit, and
+    /// where its caret and anchor stood.
+    struct HistoryStep {
+        std::vector<std::string> lines;
+        EditorPos caret;
+        EditorPos anchor;
+    };
+    /// The undo history, oldest first.
+    std::vector<HistoryStep> history() const {
+        std::vector<HistoryStep> out;
+        out.reserve(undo_.size());
+        for (const Memory& m : undo_) {
+            out.push_back(HistoryStep{m.lines, m.caret, m.anchor});
+        }
+        return out;
+    }
+    /// A number that moves whenever the undo history's steps do, and at no other time: typing
+    /// into the group a step already holds moves it not.
+    std::uint64_t history_revision() const noexcept { return history_revision_; }
+    /// PUT A CARRIED HISTORY BACK under the document now open, oldest first, through the one
+    /// growth door, so its two bounds hold as they do for every edit: past either, the oldest
+    /// steps go and the newest stays. Redo starts empty, and the next edit begins a group of
+    /// its own. A step's caret is clamped when undo reaches it, as every restored position is.
+    void restore_history(std::vector<HistoryStep> steps) {
+        undo_.clear();
+        redo_.clear();
+        undo_bytes_ = 0;
+        for (HistoryStep& step : steps) {
+            if (step.lines.empty()) {
+                step.lines.emplace_back();
+            }
+            push_undo(Memory{std::move(step.lines), step.caret, step.anchor});
+        }
+        last_edit_ = EditKind::kNone;
+        ++history_revision_;
+    }
 
     // ---- The editing-key vocabulary -----------------------------------------------------
 
@@ -983,6 +1022,7 @@ private:
     /// history's honest failure mode is forgetting the far past, never refusing the
     /// present.
     void push_undo(Memory m) {
+        ++history_revision_;
         undo_bytes_ += m.bytes();
         undo_.push_back(std::move(m));
         while (undo_.size() > kEditorUndoDepth ||
@@ -1037,6 +1077,7 @@ private:
     std::vector<Memory> undo_;
     std::vector<Memory> redo_;
     std::size_t undo_bytes_ = 0;
+    std::uint64_t history_revision_ = 0;
     EditKind last_edit_ = EditKind::kNone;
     std::uint64_t revision_ = 0;
     std::uint64_t content_revision_ = 0;

@@ -955,7 +955,7 @@ inventory and the keymap -- and Workshop says so beside each such row, at launch
 
 ![A 1440 by 900 window after a walk read by messages: the View Builder, at 96,102 and 840 by 240 as the desk says, made label1 when its [Label] was pressed by what it says; Info, holding the keys, has Height chosen by select and shows the 240 px written through it](images/desk-read-by-message.png)
 
-![A 1440 by 900 window after a walk by names: the View Builder, opened by its Pane Manager row's name, made button1 when kind:button was pressed, and selected it when element:button1 was pressed where the redraw had moved it; control:run ran the view my.view, in front, and element:button1 pressed in it says button1 says nothing yet](images/parts-pressed-by-name.png)
+![A 1440 by 900 window after a walk by names: the View Builder, opened by its Pane Manager row's name, made button1 when kind:button was pressed, and selected it when element:button1 was pressed where the redraw had moved it; control:view.run ran the view my.view, in front, and element:button1 pressed in it says button1 says nothing yet](images/parts-pressed-by-name.png)
 
 ![Two overlapping buttons pressed by name in a 1440 by 900 window, each where its pane gives it the press: above, button2 lies over button1's centre and the View Builder selects button1 when element:button1 is pressed, on the part of it button2 leaves; below, the running view my.view says button1 says nothing yet when its element:button1 is pressed](images/overlapping-parts-pressed-by-name.png)
 

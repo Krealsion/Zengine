@@ -681,7 +681,7 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
 }
 
 /// WHAT THE BUILDER CALLS A PLACE IT ANSWERS A PRESS AT: the bar's controls and a label's More by
-/// the action each performs, `control:<action>`; a kind, `kind:<kind>`; the view's values,
+/// the action each performs, `control:view.<action>`, its row's id; a kind, `kind:<kind>`; the view's values,
 /// `box:<field>`, an element's, `box:<id>.<field>`; an element's list row, `list:<id>`, and on the
 /// design canvas `element:<id>`, its handles `handle:<id>.<sx>,<sy>`; the view's size handles
 /// `size:<sx>,<sy>`, the canvas `canvas`; the selected element's controls by what they do and which
@@ -698,7 +698,7 @@ inline std::string part_name(const Hit& hit, const view::Description& d) {
     const std::string& a = hit.action;
     if (a == "new" || a == "open" || a == "save" || a == "run" || a == "apply" || a == "stop" ||
         a == "choices")
-        return "control:" + a;
+        return "control:view." + a;
     if (a == "canvas") return "canvas";
     if (a == "kind" && !hit.args.empty()) return "kind:" + hit.args[0];
     if (a == "size" && hit.args.size() == 2) return "size:" + hit.args[0] + "," + hit.args[1];

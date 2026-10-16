@@ -275,6 +275,25 @@ public:
         views_.front().allocate();
     }
 
+    /// THE WEAVER'S POSITION AND EVERY ALLOCATED VIEW, as a reload in place carries them
+    /// (`InfoPaneState`), read from the views as they stand.
+    loom::Value snapshot() const override {
+        pane::InfoPaneState saved = state_;
+        saved.views.clear();
+        for (const auto& v : views_)
+            if (auto kept = v.carried()) saved.views.push_back(std::move(*kept));
+        return loom::to_value(saved);
+    }
+    /// ...and put back in this image before its first delivery: its activation offers each view
+    /// again, and ends every lease the old image held.
+    void revive(const loom::Value& v) override {
+        state_ = loom::from_value<pane::InfoPaneState>(v);
+        for (const auto& kept : state_.views)
+            if (kept.slot >= 1 && static_cast<std::size_t>(kept.slot) <= views_.size())
+                views_[static_cast<std::size_t>(kept.slot) - 1].carry_in(kept);
+        state_.views.clear();
+    }
+
     /// THE DEMO AND TEST RESET DOOR: the default view drops its drafts; a slot view is retired.
     /// Refused while any owner operation of that view is pending.
     void on(const ws::PaneResetRequested& request, loom::Mail& mail) {

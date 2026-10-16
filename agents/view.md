@@ -83,7 +83,9 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
   presentation: never saved, kept across a reload or offered to the host; no pan, grid or snap is
   in a description. A reload in place keeps the draft, the name in its File box and, apart from
   it, the file the view was saved to or opened from (`view_builder::ViewBuilderState::file`), and
-  whether its view runs. So does a relaunch: the builder writes that file (inside the project,
+  whether its view ran, which the successor asks the view host again by `view::ViewResume`:
+  refused because this office's session runs a view, it runs; resumed, it runs again. So does a
+  relaunch: the builder writes that file (inside the project,
   named relative to it, so a project moved whole still finds it) and whether its view runs to the
   project's `view-builder.json` (`view_builder::ViewBuilderRun`) when either differs from what the
   file holds, and counts it held only once the write succeeds, so a write that failed is made at

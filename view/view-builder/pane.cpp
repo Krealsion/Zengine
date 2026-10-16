@@ -7,16 +7,13 @@
 #include "view/view-builder/vocabulary.hpp"
 #include "view/vocabulary.hpp"
 
-#include "activation/activation.hpp"
 #include "input/vocabulary.hpp"
 #include "inventory/codec.hpp"
 #include "message-draft/transfer.hpp"
 #include "workshop/actor_scope.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_causes.hpp"
-#include "workshop/pane_document.hpp"
-#include "workshop/pane_menu.hpp"
-#include "workshop/pane_operation.hpp"
+#include "workshop/pane_facets.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
@@ -26,7 +23,6 @@
 #include <zen/kernel/schema_codec.hpp>
 #include <zen/registry.hpp>
 #include <zen/weave.hpp>
-#include <zen/weave/dispatch_refusal.hpp>
 #include <zen/weave/lifecycle.hpp>
 
 #include <algorithm>
@@ -35,9 +31,9 @@
 #include <cstdlib>
 #include <deque>
 #include <filesystem>
-#include <map>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 
 namespace {
@@ -65,21 +61,51 @@ std::pair<std::shared_ptr<const loom::Schema>, std::optional<std::string>> label
     return {value.schema_ptr(), std::nullopt};
 }
 
+/// ONE THING THE BUILDER ASKED AND STILL WAITS ON (`AskFacet`): where the project is; a request
+/// of the view host, by its action, and whether it asks again what a reload carried; a save, with
+/// the file File named when it was asked; or an intent's shape being carried out, with the gesture
+/// it continues and the bytes Workshop will carry.
+struct ViewBuilderAsk {
+    enum class Kind { kRoot, kHost, kSave, kCarry };
+    Kind kind = Kind::kHost;
+    std::string action; ///< the host request's action
+    bool again = false; ///< a resume asking whether the view a reload carried as running still runs
+    std::string path;   ///< the file a save writes
+    std::uint64_t gesture = 0;
+    std::string label;
+    loom::Bytes bytes;
+    bool drag = false;
+};
+
+ViewBuilderAsk asking(ViewBuilderAsk::Kind kind) {
+    ViewBuilderAsk a;
+    a.kind = kind;
+    return a;
+}
+
+auto of_kind(ViewBuilderAsk::Kind kind) {
+    return [kind](const ViewBuilderAsk& a) { return a.kind == kind; };
+}
+
+/// The view host's words when this office's session already runs a view: a resume asked to learn
+/// whether it still runs hears them as yes.
+constexpr std::string_view kAlreadyRuns = "this session already runs a view";
+
+using Room = ws::PaneFacet<vb::kPane, vb::kRole, zengine::manual::pages::zengine_view_builder::kManual,
+                           ws::v3::PaneOffered>;
+using Asks = ws::AskFacet<vb::kPane, vb::kRole, ViewBuilderAsk>;
+
 class ViewBuilderPane final
-    : public zengine::With<ws::PaneManualFacet<
-          vb::kPane, zengine::manual::pages::zengine_view_builder::kManual>>::Weave<
+    : public zengine::With<Room, Asks>::Weave<
           ViewBuilderPane, vb::ViewBuilderState,
-          loom::Accept<loom::Activated, ws::PaneCatalogRequested, ws::PaneRoom, ws::PaneCanvasRoom,
-                       ws::PaneCanvasPointer, ws::PaneCanvasHover, ws::PaneCanvasRejected, ws::PaneKey,
-                       ws::PaneTextInput, ws::PaneActionRequested, ws::ActionsJudged, ws::PaneQuitRequested,
-                       ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
-                       ws::PaneCarryAnswered, vb::ViewEdit, view::ViewAnswer, loom::DispatchRefused,
-                       ws::ProjectRoot>,
-          loom::Emit<ws::v3::PaneOffered, ws::PaneContent, ws::v4::PaneCanvasContent,
-                     ws::v3::PaneActions, ws::PaneEscapeUnspent, ws::PanePassRequested, ws::PaneMenuRequested,
-                     ws::PaneQuitAnswered, ws::PaneOperationRequested, ws::v2::PaneOperationRequested,
-                     ws::PaneValueCarryRequested, vb::ViewEdited, view::ViewRun, view::ViewResume,
-                     view::ViewApply, view::ViewStop, ws::ProjectRootRequested>> {
+          loom::Accept<ws::PaneCanvasPointer, ws::PaneCanvasHover, ws::PaneKey, ws::PaneTextInput,
+                       ws::PaneActionRequested, ws::ActionsJudged, ws::PaneQuitRequested,
+                       ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneCarryAnswered, vb::ViewEdit,
+                       view::ViewAnswer, ws::ProjectRoot>,
+          loom::Emit<ws::PaneContent, ws::v4::PaneCanvasContent, ws::v3::PaneActions, ws::PaneEscapeUnspent,
+                     ws::PanePassRequested, ws::PaneMenuRequested, ws::PaneQuitAnswered,
+                     ws::PaneOperationRequested, ws::PaneValueCarryRequested, vb::ViewEdited, view::ViewRun,
+                     view::ViewResume, view::ViewApply, view::ViewStop, ws::ProjectRootRequested>> {
 public:
     loom::Value snapshot() const override {
         vb::ViewBuilderState saved;
@@ -96,11 +122,10 @@ public:
         return loom::to_value(saved);
     }
 
-    void on(const loom::Activated& activated, loom::Mail& mail) {
-        if (!activation_.accept(mail, activated)) return;
+    void on_activated(loom::Mail& mail) {
         // A SAVE STILL WAITING ON WORKSHOP ends with this activation, and is said: its answer finds
         // nothing waiting, and a successor never holds one.
-        if (std::exchange(saving_, std::nullopt))
+        if (asks().forget(of_kind(ViewBuilderAsk::Kind::kSave)) > 0)
             model_.notice = "The save waiting for Workshop was dropped; save again";
         if (!restored_) {
             restored_ = true;
@@ -121,16 +146,41 @@ public:
                     model_.notice = "Could not restore the View Builder: " + read.reason;
                 }
             }
-            root_ask_ = ++correlation_;
-            (void)mail.as_role(vb::kRole).send_to_role(ws::kProjectRole, ws::ProjectRootRequested{}, root_ask_);
+            (void)asks().ask(mail, ws::kProjectRole, ws::ProjectRootRequested{},
+                             asking(ViewBuilderAsk::Kind::kRoot));
+            // A VIEW A RELOAD CARRIED AS RUNNING IS THE VIEW HOST'S FACT, asked again: still
+            // running, the host refuses to resume it; stopped meanwhile, it runs again, as a launch
+            // runs what the builder ran.
+            if (model_.running) ask_running(mail);
         }
-        offer(mail);
+        room().announce(*this, mail);
+    }
+    ws::v3::PaneOffered offering() const {
+        return ws::v3::PaneOffered{vb::kPane, "View Builder", "make a view by hand, then run it beside Flow",
+                                   880, 540, 0};
+    }
+    void offered(loom::Mail& mail) { declare(mail); }
+    void on_room(loom::Mail& mail) { show(mail); }
+    void on_canvas_room(loom::Mail& mail) {
+        // A fresh room ends whatever the old one held: a drag, a hover, a mark. The pan stays,
+        // held within what the new room reaches.
+        pictures_.clear();
+        held_.reset();
+        shown_.hovered.reset();
+        shown_.landing.reset();
+        shown_.ghost.reset();
+        shown_.met_x.reset();
+        shown_.met_y.reset();
+        show(mail);
+    }
+    void on_rejected(const ws::PaneCanvasRejected& answer, loom::Mail&) {
+        if (answer.grant == canvas_room().grant) model_.notice = "Drawing rejected: " + answer.reason;
     }
     /// WHERE THE PROJECT IS: where this builder's own file lives, what that file holds, read
     /// rather than assumed, and, at a launch, what it runs. A successor writes there at once what
     /// its predecessor could not.
     void on(const ws::ProjectRoot& said, loom::Mail& mail) {
-        if (!mail.answers_ask() || mail.correlation() != root_ask_) return;
+        if (!asks().answered(mail, of_kind(ViewBuilderAsk::Kind::kRoot))) return;
         project_dir_ = said.project_dir;
         const bool launch = std::exchange(launch_, false);
         if (project_dir_.empty()) {
@@ -149,33 +199,6 @@ public:
         }
         show(mail);
     }
-    void on(const ws::PaneCatalogRequested&, loom::Mail& mail) {
-        if (mail.authored_from_role(workshop_role)) offer(mail);
-    }
-    void on(const ws::PaneRoom& room, loom::Mail& mail) {
-        if (!host(mail, room.pane)) return;
-        rows_ = room.rows;
-        columns_ = room.columns;
-        show(mail);
-    }
-    void on(const ws::PaneCanvasRoom& room, loom::Mail& mail) {
-        if (!host(mail, room.pane)) return;
-        // A fresh room ends whatever the old one held: a drag, a hover, a mark. The pan stays,
-        // held within what the new room reaches.
-        room_ = room;
-        pictures_.clear();
-        held_.reset();
-        shown_.hovered.reset();
-        shown_.landing.reset();
-        shown_.ghost.reset();
-        shown_.met_x.reset();
-        shown_.met_y.reset();
-        show(mail);
-    }
-    void on(const ws::PaneCanvasRejected& answer, loom::Mail& mail) {
-        if (host(mail, answer.pane) && answer.grant == room_.grant)
-            model_.notice = "Drawing rejected: " + answer.reason;
-    }
     void on(const ws::ActionsJudged& answer, loom::Mail& mail) {
         if (host(mail, answer.pane) && !answer.accepted) {
             model_.notice = "View Builder actions: " + answer.refusal;
@@ -188,14 +211,18 @@ public:
             show(mail);
             return;
         }
-        if (action.id == "save") ask_save(mail);
-        else if (action.id == "choices") more_choices();
-        else perform(action.id, {}, mail);
+        // A row's id is `view.` and the control it presses.
+        const std::string control = action.id.rfind("view.", 0) == 0 ? action.id.substr(5) : std::string();
+        if (control == "save") ask_save(mail);
+        else if (control == "choices") more_choices();
+        else if (control == "open" || control == "run" || control == "new" || control == "apply" || control == "stop")
+            perform(control, {}, mail);
         show(mail);
     }
     void on(const ws::PaneQuitRequested&, loom::Mail& mail) {
         if (!mail.authored_from_role(workshop_role)) return;
-        const std::string why = !pending_.empty() ? "The View Builder is waiting for the view host. Quit again after it answers."
+        const std::string why = asks().holds(of_kind(ViewBuilderAsk::Kind::kHost))
+                                    ? "The View Builder is waiting for the view host. Quit again after it answers."
                                 : model_.dirty    ? "The View Builder has an unsaved view. Save it before quitting."
                                                   : "";
         (void)mail.answer(ws::PaneQuitAnswered{vb::kPane, why.empty(), why});
@@ -230,7 +257,7 @@ public:
         show(mail);
     }
     void on(const ws::PaneCanvasPointer& event, loom::Mail& mail) {
-        if (!host(mail, event.pane) || event.grant != room_.grant) return;
+        if (!host(mail, event.pane) || event.grant != canvas_room().grant) return;
         const bool ours = held_ && held_->gesture == event.gesture;
         if (event.phase == ws::canvas_pointer::kMove) {
             if (ours) drag(event, mail);
@@ -249,7 +276,7 @@ public:
     /// WHERE THE POINTER RESTS: the element under it is marked, and while a value is carried, the
     /// label it would land on. Nothing else moves.
     void on(const ws::PaneCanvasHover& hover, loom::Mail& mail) {
-        if (!host(mail, hover.pane) || hover.grant != room_.grant) return;
+        if (!host(mail, hover.pane) || hover.grant != canvas_room().grant) return;
         std::optional<std::size_t> over, landing;
         if (hover.over && !pictures_.empty()) {
             const auto pictured = std::find_if(pictures_.begin(), pictures_.end(),
@@ -270,7 +297,7 @@ public:
     /// it. Placed anywhere else it is refused in words, whatever is selected. Carrying it granted
     /// nothing, and nothing else in the builder changes.
     void on(const ws::PaneCanvasValueDrop& drop, loom::Mail& mail) {
-        if (!host(mail, drop.pane) || drop.grant != room_.grant) return;
+        if (!host(mail, drop.pane) || drop.grant != canvas_room().grant) return;
         try {
             const auto pictured = std::find_if(pictures_.begin(), pictures_.end(),
                                                [&](const auto& p) { return p.content.picture == drop.picture; });
@@ -305,30 +332,28 @@ public:
         }
         carry(intent->shape, mail.correlation(), false, mail);
     }
-    void on(const ws::PaneOperationAnswered& answer, loom::Mail& mail) {
-        if (!mail.answers_ask()) return;
-        if (saving_ && mail.correlation() == saving_->ask) {
+    /// WORKSHOP'S WORD ON A SAVE, or on a carry: each is the exact ask `AskFacet` held.
+    void on_approval(const ViewBuilderAsk& asked, const ws::PaneOperationAnswered& answer, loom::Mail& mail) {
+        if (asked.kind == ViewBuilderAsk::Kind::kSave) {
             // ALLOWED, THE SAVE WRITES THE FILE NAMED WHEN IT WAS ASKED, and is remembered as any
             // save is, while File still names that file; refused, the refusal is said, and nothing
             // is written or remembered.
-            const auto saving = *std::exchange(saving_, std::nullopt);
             if (!answer.allowed) model_.notice = "Saving was refused: " + answer.reason;
-            else if (model_.path != saving.path)
-                model_.notice = "Not saved: File no longer names " + saving.path + "; save again";
-            else perform("save", {saving.path}, mail);
+            else if (model_.path != asked.path)
+                model_.notice = "Not saved: File no longer names " + asked.path + "; save again";
+            else perform("save", {asked.path}, mail);
             show(mail);
             return;
         }
-        if (!carry_ || mail.correlation() != carry_->ask) return;
-        auto carry = std::exchange(carry_, std::nullopt);
+        if (asked.kind != ViewBuilderAsk::Kind::kCarry) return;
         if (!answer.allowed) {
-            model_.notice = "Carrying " + carry->label + " was refused: " + answer.reason;
+            model_.notice = "Carrying " + asked.label + " was refused: " + answer.reason;
             show(mail);
             return;
         }
         (void)mail.as_role(vb::kRole).send_to_role(
-            workshop_role, ws::PaneValueCarryRequested{vb::kPane, carry->label, carry->bytes, carry->drag},
-            carry->gesture);
+            workshop_role, ws::PaneValueCarryRequested{vb::kPane, asked.label, asked.bytes, asked.drag},
+            asked.gesture);
     }
     void on(const ws::PaneCarryAnswered& answer, loom::Mail& mail) {
         if (!answer.carried) {
@@ -360,11 +385,19 @@ public:
         show(mail);
     }
     void on(const view::ViewAnswer& answer, loom::Mail& mail) {
-        if (!mail.answers_ask()) return;
-        const auto found = pending_.find(mail.correlation());
-        if (found == pending_.end() || found->second.action != answer.action) return;
-        pending_.erase(found);
-        if (answer.ok) {
+        const auto asked = asks().answered(mail, [&](const ViewBuilderAsk& a) {
+            return a.kind == ViewBuilderAsk::Kind::kHost && a.action == answer.action;
+        });
+        if (!asked) return;
+        if (asked->again) {
+            // WHETHER THE VIEW A RELOAD CARRIED STILL RUNS, as the host says it: refused because
+            // it runs, it runs; resumed, it runs again; refused otherwise, it does not run.
+            const bool runs = !answer.ok && answer.reason.rfind(kAlreadyRuns, 0) == 0;
+            model_.running = answer.ok || runs;
+            model_.notice = runs        ? "The view host still runs " + model_.description.name
+                            : answer.ok ? "The view had stopped; " + answer.reason
+                                        : "The view had stopped and could not run again: " + answer.reason;
+        } else if (answer.ok) {
             model_.running = answer.action != "stop";
             model_.notice = answer.reason;
         } else {
@@ -373,42 +406,21 @@ public:
         remember();
         show(mail);
     }
-    void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
-        if (!mail.dispatch_refused()) return;
-        if (saving_ && saving_->ticket.seq == refused.refused_attempt().seq) {
-            saving_.reset();
+    /// LOOM'S WORD THAT EXACTLY ONE OF THE BUILDER'S ASKS WAS REFUSED BEFORE ANY HANDLER RAN,
+    /// matched by `AskFacet`: a save Workshop never heard, or a request of the view host. The
+    /// project's and a carry's refusals say nothing.
+    void on_refused(const ViewBuilderAsk& asked, const loom::DispatchRefused& refused, loom::Mail& mail) {
+        if (asked.kind == ViewBuilderAsk::Kind::kSave)
             model_.notice = "Not saved: Workshop could not be asked to allow it (" + refused.reason + ")";
-            show(mail);
+        else if (asked.kind == ViewBuilderAsk::Kind::kHost)
+            model_.notice = asked.action + " was not delivered: " + refused.reason;
+        else
             return;
-        }
-        for (auto it = pending_.begin(); it != pending_.end(); ++it)
-            if (it->second.attempt.seq == refused.refused_attempt().seq) {
-                model_.notice = it->second.action + " was not delivered: " + refused.reason;
-                pending_.erase(it);
-                show(mail);
-                return;
-            }
+        show(mail);
     }
 
 private:
     static constexpr std::size_t kMaxTyped = 4096;
-    struct Pending {
-        std::string action;
-        loom::Ticket attempt;
-    };
-    struct Carry {
-        std::uint64_t ask = 0, gesture = 0;
-        std::string label;
-        loom::Bytes bytes;
-        bool drag = false;
-    };
-    /// A SAVE ASKED OF WORKSHOP and not yet answered: the ask's number, its attempt, and the file
-    /// File named when it was asked.
-    struct Saving {
-        std::uint64_t ask = 0;
-        loom::Ticket ticket;
-        std::string path;
-    };
     /// A PRESS THE BUILDER HOLDS while the button is down: a kind dragged from the palette, an
     /// element moved or resized on the design canvas, or the canvas panned. Only a release keeps
     /// what a drag did to the view.
@@ -469,7 +481,7 @@ private:
         }
         if (event.button == 2) {
             // A MIDDLE PRESS ON THE DESIGN CANVAS pans it while the hand holds it.
-            if (pictured != pictures_.end() && pictured->design.contains(event.x, event.y, room_.grain))
+            if (pictured != pictures_.end() && pictured->design.contains(event.x, event.y, canvas_room().grain))
                 held_ = Held{.gesture = event.gesture, .what = Held::What::pan, .x = event.x, .y = event.y,
                              .design = pictured->design, .pan_x = shown_.pan_x,
                              .pan_y = shown_.pan_y};
@@ -539,7 +551,7 @@ private:
         const auto dx = event.x - h.x, dy = event.y - h.y;
         if (h.what == Held::What::pan) {
             // The view follows the hand, within the pan's reach.
-            const auto [reach_x, reach_y] = vb::pan_reach(model_.description, h.design, view::notice_band(room_));
+            const auto [reach_x, reach_y] = vb::pan_reach(model_.description, h.design, view::notice_band(canvas_room()));
             const auto x = std::clamp<std::int64_t>(h.pan_x - dx, 0, reach_x);
             const auto y = std::clamp<std::int64_t>(h.pan_y - dy, 0, reach_y);
             if (x == shown_.pan_x && y == shown_.pan_y) return;
@@ -548,14 +560,14 @@ private:
             show(mail);
             return;
         }
-        const auto threshold = std::max<std::int64_t>(room_.grain, 4);
+        const auto threshold = std::max<std::int64_t>(canvas_room().grain, 4);
         if (!h.moved && std::abs(dx) < threshold && std::abs(dy) < threshold) return;
         h.moved = true;
         if (h.what == Held::What::make) {
             shown_.ghost.reset();
             shown_.met_x.reset();
             shown_.met_y.reset();
-            if (h.design.contains(event.x, event.y, room_.grain)) {
+            if (h.design.contains(event.x, event.y, canvas_room().grain)) {
                 const auto at = made_at(h, event);
                 shown_.ghost = vb::Presentation::Ghost{h.kind, at.x, at.y};
                 shown_.met_x = at.met_x;
@@ -654,7 +666,7 @@ private:
         if (h.what == Held::What::make) {
             if (released && !h.moved) {
                 perform("add", {view::kind_word(h.kind)}, mail);
-            } else if (released && h.design.contains(event.x, event.y, room_.grain)) {
+            } else if (released && h.design.contains(event.x, event.y, canvas_room().grain)) {
                 const auto at = made_at(h, event);
                 perform("add", {view::kind_word(h.kind), std::to_string(at.x), std::to_string(at.y)}, mail);
             } else if (released) {
@@ -752,7 +764,7 @@ private:
     /// The caret where the box was pressed, at the medium's measured advance, counted from the
     /// scroll the picture drew the box at.
     void place_caret(const vb::Hit& hit, const ws::PaneCanvasPointer& event) {
-        const auto metrics = ws::canvas_text_metrics(room_);
+        const auto metrics = ws::canvas_text_metrics(canvas_room());
         const auto column = (event.x - hit.at.x - metrics.inset) / std::max<std::int64_t>(1, metrics.advance);
         auto& text = shown_.box->text;
         text.place(text.position_at_column(column));
@@ -835,13 +847,28 @@ private:
 
     // ---- edits and their effects -------------------------------------------------------------
 
-    template <class T> void request(const T& value, const std::string& action, loom::Mail& mail) {
-        if (pending_.size() >= 16) throw std::invalid_argument("16 asks are unanswered; wait for the view host");
-        const auto correlation = ++correlation_;
-        const auto ticket = mail.as_role(vb::kRole).send_to_role(view::kViewHostRole, value, correlation);
-        if (!ticket.valid()) throw std::invalid_argument(action + " could not be queued");
-        pending_.emplace(correlation, Pending{action, ticket});
+    template <class T>
+    void request(const T& value, const std::string& action, loom::Mail& mail, bool again = false) {
+        if (asks().count(of_kind(ViewBuilderAsk::Kind::kHost)) >= 16)
+            throw std::invalid_argument("16 asks are unanswered; wait for the view host");
+        ViewBuilderAsk asked = asking(ViewBuilderAsk::Kind::kHost);
+        asked.action = action;
+        asked.again = again;
+        if (asks().ask(mail, view::kViewHostRole, value, std::move(asked)) != Asks::Asked::kHeld)
+            throw std::invalid_argument(action + " could not be queued");
         model_.notice = action + " asked of the view host";
+    }
+    /// ASK THE VIEW HOST WHETHER THE VIEW STILL RUNS, by resuming it: until it answers, the
+    /// builder says it asked.
+    void ask_running(loom::Mail& mail) {
+        try {
+            const auto bytes = view::description_bytes(model_.description);
+            request(view::ViewResume{"builder", loom::Bytes(bytes.begin(), bytes.end())}, "resume", mail, true);
+            model_.notice = "Asking the view host whether " + model_.description.name + " still runs";
+        } catch (const std::exception& e) {
+            model_.running = false;
+            model_.notice = "Could not ask the view host whether the view still runs: " + std::string(e.what());
+        }
     }
     void effect(const vb::Action& action, loom::Mail& mail) {
         switch (action.effect) {
@@ -856,19 +883,23 @@ private:
     /// placed by a click.
     void carry(const std::shared_ptr<const loom::Schema>& shape, std::uint64_t gesture, bool drag, loom::Mail& mail) {
         const auto bytes = zengine::inventory::encode_pair(zengine::flow::shape::carried(shape), {});
-        carry_ = Carry{++correlation_, gesture, shape->name(), loom::Bytes(bytes.begin(), bytes.end()), drag};
-        (void)mail.as_role(vb::kRole).send_to_role(
-            workshop_role,
-            ws::PaneOperationRequested{vb::kPane, workshop_role, ws::PaneValueCarryRequested::zen_name, 1,
-                                       static_cast<std::int64_t>(carry_->gesture)},
-            carry_->ask);
+        ViewBuilderAsk carrying = asking(ViewBuilderAsk::Kind::kCarry);
+        carrying.gesture = gesture;
+        carrying.label = shape->name();
+        carrying.bytes = loom::Bytes(bytes.begin(), bytes.end());
+        carrying.drag = drag;
+        (void)asks().forget(of_kind(ViewBuilderAsk::Kind::kCarry));
+        (void)asks().ask(mail, workshop_role,
+                         ws::PaneOperationRequested{vb::kPane, workshop_role, ws::PaneValueCarryRequested::zen_name,
+                                                    1, static_cast<std::int64_t>(gesture)},
+                         std::move(carrying));
     }
     /// ASK BEFORE A HAND'S SAVE WRITES: a save is class `write`, judged for the actor of the
     /// gesture that delivered it, a key's row or a press, and that gesture's approval is spent on
     /// this save alone. Nothing is written until Workshop allows it, and one save waits at a time.
     /// A File naming nothing is said at once, with nothing asked.
     void ask_save(loom::Mail& mail) {
-        if (saving_) {
+        if (asks().holds(of_kind(ViewBuilderAsk::Kind::kSave))) {
             model_.notice = "A save is waiting for Workshop's answer; save again once it comes";
             return;
         }
@@ -876,35 +907,26 @@ private:
             perform("save", {}, mail);
             return;
         }
-        Saving asked{++correlation_, {}, model_.path};
-        asked.ticket = mail.as_role(vb::kRole).send_to_role(
-            workshop_role,
-            ws::v2::PaneOperationRequested{vb::kPane, {}, {}, 0, static_cast<std::int64_t>(mail.correlation()),
-                                           {ws::scope::kWrite}, {}},
-            asked.ask);
-        if (!asked.ticket.valid()) {
+        ViewBuilderAsk saving = asking(ViewBuilderAsk::Kind::kSave);
+        saving.path = model_.path;
+        if (asks().approve(mail, std::move(saving), mail.correlation(), {ws::scope::kWrite}) != Asks::Asked::kHeld)
             model_.notice = "Not saved: Workshop could not be asked to allow it";
-            return;
-        }
-        saving_ = std::move(asked);
     }
-    void offer(loom::Mail& mail) {
-        (void)mail.as_role(vb::kRole).send_to_role(
-            workshop_role, ws::v3::PaneOffered{vb::kPane, "View Builder", "make a view by hand, then run it beside Flow", 880, 540, 0});
+    void declare(loom::Mail& mail) {
         (void)mail.as_role(vb::kRole).send_to_role(
             workshop_role,
             ws::v3::PaneActions{vb::kPane, {},
-                                {{"save", "Save the view", input::scan::kS, input::mod::kCtrl},
-                                 {"open", "Open a view", input::scan::kO, input::mod::kCtrl},
-                                 {"run", "Run the view", input::scan::kR, input::mod::kCtrl, {},
+                                {{"view.save", "Save the view", input::scan::kS, input::mod::kCtrl},
+                                 {"view.open", "Open a view", input::scan::kO, input::mod::kCtrl},
+                                 {"view.run", "Run the view", input::scan::kR, input::mod::kCtrl, {},
                                   {ws::cause_of<view::ViewRun>()}},
-                                 {"new", "Start a new view", input::scan::kUnknown,
+                                 {"view.new", "Start a new view", input::scan::kUnknown,
                                   input::mod::kNone},
-                                 {"apply", "Apply to the running view", input::scan::kUnknown,
+                                 {"view.apply", "Apply to the running view", input::scan::kUnknown,
                                   input::mod::kNone, {}, {ws::cause_of<view::ViewApply>()}},
-                                 {"stop", "Stop the running view", input::scan::kUnknown,
+                                 {"view.stop", "Stop the running view", input::scan::kUnknown,
                                   input::mod::kNone, {}, {ws::cause_of<view::ViewStop>()}},
-                                 {"choices", "More field choices", input::scan::kUnknown,
+                                 {"view.choices", "More field choices", input::scan::kUnknown,
                                   input::mod::kNone}}});
     }
     /// MORE'S ACTION: the next field choices, as a press on `[More]` in the picture shown turns
@@ -1051,46 +1073,45 @@ private:
         }
     }
     void show(loom::Mail& mail) {
-        if (room_.grant > 0 && room_.width > 0 && room_.height > 0) {
-            auto current = vb::picture(model_, shown_, room_, ++picture_number_);
+        if (room().on_canvas()) {
+            auto current = vb::picture(model_, shown_, canvas_room(), ++picture_number_);
             const auto ticket =
                 mail.as_role(vb::kRole).send_to_role(workshop_role, vb::named(current, model_.description));
             if (ticket.valid()) {
                 pictures_.push_back(std::move(current));
                 while (pictures_.size() > 8) pictures_.pop_front();
             }
-        } else if (rows_ > 0 && columns_ > 0) {
+        } else if (room().prose_rows() > 0 && room().prose_columns() > 0) {
             std::string row = "View Builder: making a view needs a canvas-capable Workshop";
-            if (static_cast<std::int64_t>(row.size()) > columns_) row.resize(static_cast<std::size_t>(columns_));
+            if (static_cast<std::int64_t>(row.size()) > room().prose_columns())
+                row.resize(static_cast<std::size_t>(room().prose_columns()));
             (void)mail.as_role(vb::kRole).send_to_role(workshop_role, ws::PaneContent{vb::kPane, {{row}}});
         }
     }
 
+    Room& room() { return this->template facet<Room>(); }
+    const Room& room() const { return this->template facet<Room>(); }
+    /// The canvas room this pane holds, or the last one granted (`PaneFacet`).
+    const ws::PaneCanvasRoom& canvas_room() const { return room().canvas_room(); }
+    Asks& asks() { return this->template facet<Asks>(); }
+
     vb::Model model_;
     vb::Presentation shown_;
     std::optional<Held> held_;
-    zengine::ActivationCursor activation_;
     bool restored_ = false;
-    /// WHERE THE PROJECT IS, as `zengine.project` answered the ask numbered `root_ask_`; whether
-    /// that answer is a launch's; the file the draft was saved to or opened from, never a name only
-    /// typed into File; what the project file holds, as last read or written, none while that is
-    /// not known; and whether it stands as a launch found it, naming a view file this builder
-    /// could not open.
+    /// WHERE THE PROJECT IS, as `zengine.project` answered; whether that answer is a launch's; the
+    /// file the draft was saved to or opened from, never a name only typed into File; what the
+    /// project file holds, as last read or written, none while that is not known; and whether it
+    /// stands as a launch found it, naming a view file this builder could not open.
     std::string project_dir_;
-    std::uint64_t root_ask_ = 0;
     bool launch_ = false;
     std::string file_;
     std::optional<std::pair<std::string, bool>> remembered_;
     bool kept_ = false;
-    ws::PaneCanvasRoom room_;
-    std::int64_t rows_ = 0, columns_ = 0, picture_number_ = 0;
-    std::uint64_t correlation_ = 0;
-    std::map<std::uint64_t, Pending> pending_;
+    std::int64_t picture_number_ = 0;
     std::deque<vb::Picture> pictures_;
     zengine::component::Clipboard clipboard_;
     ws::pane_menu::Asked menu_;
-    std::optional<Carry> carry_;
-    std::optional<Saving> saving_;
 };
 } // namespace
 ZEN_EXPORT_WEAVE(ViewBuilderPane)

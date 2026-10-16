@@ -33,10 +33,10 @@ struct ViewEdited {
 };
 
 /// The draft; the name in its File box, which a weaver may have typed and not saved, and the file
-/// it was saved to or opened from; whether it is saved; whether the view host runs it for this
-/// office, which a reload in place cannot ask again; and whether the project file is kept as a
-/// launch found it, naming a view file the builder could not open. Never a dialog, a grant or a
-/// gesture.
+/// it was saved to or opened from; whether it is saved; whether the view host ran it for this
+/// office, which the successor of a reload in place asks the host again; and whether the project
+/// file is kept as a launch found it, naming a view file the builder could not open. Never a
+/// dialog, a grant or a gesture.
 struct ViewBuilderState {
     loom::Bytes description;
     std::string path, file;

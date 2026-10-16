@@ -198,9 +198,9 @@ TEST_CASE("inventory folders: an actor without the organizing grant is refused a
     // The press that began the drag left Victim selected. Removing it next is reported as itself,
     // never with the refused filing's words.
     s.key(input::scan::kDelete); s.key(input::scan::kDelete);
-    CHECK_MESSAGE(s.shown(s.source).find("Entry updated") != std::string::npos, s.shown(s.source));
+    CHECK_MESSAGE(s.shown(s.source).find("Removed Victim") != std::string::npos, s.shown(s.source));
     CHECK(s.shown(s.source).find("Filed") == std::string::npos);
-    CHECK(s.row_of(s.source, "Victim") < 0);
+    CHECK(s.row_of(s.source, "Victim") == s.row_of(s.source, "Removed Victim")); // the notice alone names it
     (void)workbench;
 }
 

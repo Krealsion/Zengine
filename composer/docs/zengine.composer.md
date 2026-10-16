@@ -23,8 +23,13 @@ Workshop has said the gesture's actor may send that shape to that office. Compos
 is the receiving weave's to say. A finished command, or an unfinished preset, can be kept in
 Inventory and dropped back onto Compose; a drop fills the form, and only Submit sends it.
 
-The form you are writing, its target and any question still open do not survive the pane being
-replaced: a new image keeps only Compose's counters, and starts with no weave selected.
+Reloaded in place, Compose keeps the weave you selected and the form you are writing: each
+field's presence and text, valid or not, and the values a drop gave it. It asks the weave again
+what it accepts, and opens the form on the answer, saying `The form was kept across a reload --
+review, then Submit`; a message the weave no longer accepts drops the form, `The form for Curious
+v2 was dropped: @zengine.stranger no longer accepts it`. A submission or a store still waiting is
+dropped, `The submission waiting when Compose was reloaded was dropped; submit again`, and a paste
+in flight is not carried.
 
 ## Use
 
@@ -207,9 +212,10 @@ in the field that asked, and nowhere once that form or field has changed.
 Compose publishes one thing: `ClipboardCopy` when you copy or cut inside a field, so the rest of
 Workshop can paste it. Everything else it says goes to Workshop, as its rows, or to one office as a
 question. What a submitted message did is its receiver's to say: follow that office. Compose's own
-state is counters only: how often it offered its pane, was given room, took a target, asked, heard
-an answer, refused a sender, and handed a message to the bus (`submitted` counts messages queued,
-not delivered).
+state, `ComposerState`, is its counters -- how often it offered its pane, was given room, took a
+target, asked, heard an answer, refused a sender, and handed a message to the bus (`submitted`
+counts messages queued, not delivered) -- and what a reload in place keeps: the target, the form
+open on it, and what the reload ended before it was answered.
 
 ## Shows
 

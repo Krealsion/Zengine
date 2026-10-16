@@ -47,7 +47,8 @@ ClipboardCopy v1 0x8337bbbb720ac461
 ClipboardText v1 0x3eafa2dd0dbf73ac
 ClipboardTextRequested v1 0x9d7f1ee84c7858bf
 ComposerCommandContext v1 0x50d30a1f2e258fc9
-ComposerState v1 0x810affa4308d3e1b
+ComposerFieldState v1 0xb308cce02ecc3dad
+ComposerState v2 0xa220f1db53259959
 ConnectionsPaneState v1 0x62852853b8c3881f
 DemoReadyRequested v1 0x03fff41d95cc66d6
 DemoResetRequested v1 0xe46fbaa5eb051d22
@@ -92,7 +93,7 @@ EditorHandoffOffered v1 0x889654112c46d3af
 EditorHandoffRequested v1 0x9aed34acb52a2876
 EditorLive v1 0xf8e05086720d592c
 EditorLiveRequested v1 0x04b20cfdf43c8f71
-EditorPaneState v1 0xd13d2d3cd50651c0
+EditorPaneState v2 0xc1de7cf9eb58d0dd
 EditorPreparationTick v1 0xd90620a1041064e1
 EditorRetireRequested v1 0x3f37e82db1f9b57c
 EditorRetired v1 0x143ba66844307e38
@@ -104,6 +105,7 @@ EditorSwitchRequested v1 0x3f06f5830ea04fc5
 EditorSwitchState v1 0x33143293dedd54d0
 EditorSwitchStatusRequested v1 0xd3b1f5bca6c45598
 EditorTransfer v1 0xc59b87afc2ba10c3
+EditorUndoStep v1 0x91f059f2dc12bd3e
 EditorWarmRequested v1 0xbd96667f90fab804
 EditorWarmed v1 0xcc54756fc31a15f7
 Element v2 0xb18dc0cb6fec75b9
@@ -164,7 +166,8 @@ GuideAnswered v1 0x3387378ec94f6332
 GuideRequested v1 0x449d827435acac26
 HeldMenu v2 0x25a83fd1db508fa4
 ImageArgs v1 0x8085ca3e3649508e
-InfoPaneState v2 0x56acb99997ef8e41
+InfoPaneState v3 0x269f11b8220995ca
+InfoViewState v1 0x88fdee458cc3c79a
 InjectInput v1 0xba1df87065468101
 InjectedEvent v1 0x719ab21c82df56a2
 InputInjected v1 0x0adb8445b9edd033

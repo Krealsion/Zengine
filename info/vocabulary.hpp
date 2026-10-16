@@ -21,6 +21,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace zengine::info_pane {
 
@@ -64,8 +65,8 @@ inline constexpr const char* kActionCancel = "info.cancel";
 //
 // The default pane `info` plus three fixed slots, `info.2`..`info.4`, each offered on first use
 // and re-offered at every announce; offers have no withdrawal, so views are reused and the
-// catalog never grows. Only `info` keeps the pane-property view. The value-view ids keep the
-// `inventory.*` spellings a weaver's keymap overrides name.
+// catalog never grows. Only `info` keeps the pane-property view. The value views' ids are
+// `info.value.*`, so none is the Inventory pane's.
 
 inline constexpr std::size_t kMaxInfoViews = 4;
 inline constexpr std::size_t kMaxViewTitle = 24;
@@ -75,21 +76,21 @@ inline std::string view_key(std::size_t slot) {
 }
 
 inline constexpr const char* kActionInventory = "info.inventory"; ///< pane properties -> value
-inline constexpr const char* kValueUp = "inventory.up";
-inline constexpr const char* kValueDown = "inventory.down";
-inline constexpr const char* kValueEdit = "inventory.edit";
-inline constexpr const char* kActionSave = "inventory.save";
-inline constexpr const char* kActionSaveCopy = "inventory.save-copy";
-inline constexpr const char* kActionRefresh = "inventory.fresh";
-inline constexpr const char* kActionWatch = "inventory.watch";
-inline constexpr const char* kActionSample = "inventory.sample";
-inline constexpr const char* kActionPreset = "inventory.preset";
-inline constexpr const char* kActionUnset = "inventory.unset";
-inline constexpr const char* kActionGrab = "inventory.grab";
-inline constexpr const char* kActionDiscard = "inventory.discard";
-inline constexpr const char* kActionPanes = "inventory.panes";
-inline constexpr const char* kActionFieldAccept = "inventory.field.accept";
-inline constexpr const char* kActionFieldCancel = "inventory.field.cancel";
+inline constexpr const char* kValueUp = "info.value.up";
+inline constexpr const char* kValueDown = "info.value.down";
+inline constexpr const char* kValueEdit = "info.value.edit";
+inline constexpr const char* kActionSave = "info.value.save";
+inline constexpr const char* kActionSaveCopy = "info.value.save-copy";
+inline constexpr const char* kActionRefresh = "info.value.fresh";
+inline constexpr const char* kActionWatch = "info.value.watch";
+inline constexpr const char* kActionSample = "info.value.sample";
+inline constexpr const char* kActionPreset = "info.value.preset";
+inline constexpr const char* kActionUnset = "info.value.unset";
+inline constexpr const char* kActionGrab = "info.value.grab";
+inline constexpr const char* kActionDiscard = "info.value.discard";
+inline constexpr const char* kActionPanes = "info.value.panes";
+inline constexpr const char* kActionFieldAccept = "info.value.field.accept";
+inline constexpr const char* kActionFieldCancel = "info.value.field.cancel";
 inline constexpr const char* kActionViewNew = "info.view.new";
 inline constexpr const char* kActionViewFork = "info.view.fork";
 inline constexpr const char* kActionViewRename = "info.view.rename";
@@ -101,19 +102,48 @@ inline constexpr const char* kActionStop = "info.view.stop";
 inline constexpr const char* kActionRenameAccept = "info.view.rename.accept";
 inline constexpr const char* kActionRenameCancel = "info.view.rename.cancel";
 
-/// The state a same-shape reload keeps: the weaver's position, and nothing shown -- what this
-/// pane shows is the host's reading (`agents/decisions/a-presentation-owns-no-facts.md`), and the
-/// host records the subject. The list cursor is an identity, and a chosen pane that left the list
-/// keeps its keys, so a reloaded image still knows the choice is lost; the property cursor is an
-/// index over a stable list. The draft is work in flight a reload may drop. Version 2: a live
-/// reload from version 1 is refused.
+/// ONE VALUE VIEW A RELOAD KEEPS, by its slot: its title; whether the default view shows its value;
+/// the draft it holds, as a stored-draft Inventory pair with its metadata, whether it is a preset
+/// and the preset's title; the entry it was read from or last saved, by reference and revision,
+/// and that entry's pair; its label and its marks; the selected field and the fields edited, each
+/// by its place among the view's fields; and whether a watch was on. Never a request in flight, a
+/// lease, a sample or a pickup.
+struct InfoViewState {
+    std::int64_t slot = 0;
+    std::string title;
+    bool active = false;
+    loom::Bytes draft; ///< empty while the view holds no value
+    bool preset = false;
+    std::string preset_title;
+    std::string owner, entry; ///< the entry's reference, both empty for none
+    std::int64_t revision = 0;
+    loom::Bytes saved;
+    std::string label;
+    bool detached = false, dirty = false, sampled = false, stale = false;
+    std::int64_t selected = -1;
+    std::vector<std::int64_t> edited;
+    bool watched = false;
+    ZEN_SHAPE(InfoViewState, 1, ZEN_FIELD(slot), ZEN_FIELD(title), ZEN_FIELD(active), ZEN_FIELD(draft),
+              ZEN_FIELD(preset), ZEN_FIELD(preset_title), ZEN_FIELD(owner), ZEN_FIELD(entry),
+              ZEN_FIELD(revision), ZEN_FIELD(saved), ZEN_FIELD(label), ZEN_FIELD(detached),
+              ZEN_FIELD(dirty), ZEN_FIELD(sampled), ZEN_FIELD(stale), ZEN_FIELD(selected),
+              ZEN_FIELD(edited), ZEN_FIELD(watched));
+};
+
+/// The state a same-shape reload keeps: the weaver's position and work, one `views` row an
+/// allocated view (at most `kMaxInfoViews`). What the default pane shows is the host's reading
+/// (`agents/decisions/a-presentation-owns-no-facts.md`). The list cursor is an identity, so a
+/// reloaded image still knows a lost choice; the property cursor is an index over a stable list;
+/// a pane-property draft is work in flight a reload may drop. Version 3: a live reload from
+/// version 2 is refused.
 struct InfoPaneState {
     std::int64_t cursor = 0; ///< which property row the weaver is on
     std::string list_office; ///< which pane the list cursor holds, by identity -- kept when it
     std::string list_pane;   ///< leaves the list; both empty until a row is first held
     bool on_panes = true;    ///< the keys are in the pane list (true) or the properties
-    ZEN_SHAPE(InfoPaneState, 2, ZEN_FIELD(cursor), ZEN_FIELD(list_office), ZEN_FIELD(list_pane),
-              ZEN_FIELD(on_panes));
+    std::vector<InfoViewState> views;
+    ZEN_SHAPE(InfoPaneState, 3, ZEN_FIELD(cursor), ZEN_FIELD(list_office), ZEN_FIELD(list_pane),
+              ZEN_FIELD(on_panes), ZEN_FIELD(views));
 };
 
 } // namespace zengine::info_pane
