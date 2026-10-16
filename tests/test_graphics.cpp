@@ -854,6 +854,7 @@ TEST_CASE("a press nothing drawn there takes reaches the owner of an area placed
     CHECK(heard.pressed[0].pressed);
     CHECK(heard.pressed[0].x == 2 * gfx::kCellPx + gfx::kCellPx / 2);
     CHECK(heard.pressed[0].y == gfx::kCellPx + gfx::kCellPx / 2);
+    CHECK(heard.pressed[0].space == zengine::input::space::kPixels); // the area's pixels
     // ...AND THE SAME PRESS ON THE BOARD, PLACED WITHOUT IT, STILL REACHES NO ONE.
     t.press(13, 10);
     CHECK(heard.pressed.size() == 1);
@@ -1280,7 +1281,8 @@ struct ClaimingFacet {
 };
 
 /// A weave that claims, composed with a facet that claims too: its claim-set is the union, each
-/// shape once.
+/// shape once. It declines its own shape when the bus publishes it, and has no handler for the
+/// facet's.
 class Claimer
     : public zengine::With<ClaimingFacet>::Weave<Claimer, GraphicsTestDrawer,
                                                  loom::Accept<GraphicsTestBeat>, loom::Emit<>,
@@ -1292,13 +1294,18 @@ public:
         facets = mail.claim(GraphicsTestFacetClaimed{2});
         undeclared = mail.claim(GraphicsTestUnclaimed{3});
     }
+    bool on_claim_published(const GraphicsTestClaimed& c) {
+        published.push_back(c.n);
+        return false;
+    }
+    std::vector<std::int64_t> published;
     loom::SenseClaimResult own, facets, undeclared;
 };
 
 } // namespace
 
-TEST_CASE("a weave composed with facets declares its own claims and each facet's, once each, and "
-          "claims them; an undeclared shape is refused") {
+TEST_CASE("a weave composed with facets declares its own claims and each facet's, once each, "
+          "claims them and hears them published; an undeclared shape is refused") {
     Rig r;
     auto c = std::make_unique<Claimer>();
     Claimer* raw = c.get();
@@ -1314,4 +1321,12 @@ TEST_CASE("a weave composed with facets declares its own claims and each facet's
     CHECK(raw->facets.accepted);
     CHECK_FALSE(raw->undeclared.accepted);
     CHECK(raw->undeclared.why == loom::SenseRefusal::Undeclared);
+    // PUBLISHED BY THE BUS: its own handler answers for its shape, and a shape with none is
+    // applied as it stands, as Loom answers a weave with no handler.
+    CHECK(raw->claim_published(loom::to_value(GraphicsTestClaimed{7})) ==
+          loom::Weave::PublishedClaim::Declined);
+    CHECK(raw->published == std::vector<std::int64_t>{7});
+    CHECK(raw->claim_published(loom::to_value(GraphicsTestFacetClaimed{8})) ==
+          loom::Weave::PublishedClaim::Applied);
+    CHECK(raw->published.size() == 1);
 }

@@ -329,6 +329,7 @@ private:
             zengine::input::PointerButton at = b;
             at.x = l.x;
             at.y = l.y;
+            at.space = zengine::input::space::kPixels;
             (void)mail.as_role(office()).send_to_role(a->owner, at);
         }
     }

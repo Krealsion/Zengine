@@ -283,7 +283,9 @@ public:
     template <class S>
     loom::Weave::PublishedClaim on_claim_published(const S& claim) {
         Self* self = static_cast<Self*>(this);
-        if constexpr (requires { static_cast<bool (Self::*)(const S&)>(&Self::on_claim_published); }) {
+        if constexpr (requires {
+                          static_cast<bool (Self::*)(const S&)>(&Self::on_claim_published);
+                      }) {
             return self->on_claim_published(claim) ? loom::Weave::PublishedClaim::Applied
                                                    : loom::Weave::PublishedClaim::Declined;
         } else if constexpr (requires {
