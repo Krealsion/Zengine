@@ -24,7 +24,7 @@ worked example: it draws its frame as nodes and its board as an element of its o
 ```text
 owner -> its window          Drawn (nodes and records), ElementPut once, then ElementChange
 window -> the owner          AreaRoom (this window, its incarnation, the room, what it holds)
-window -> the owner          DrawnRefused (why, in words), ElementPressed, ActionIssued, KeyPressed
+window -> the owner          DrawnRefused (why, in words), ElementPressed, ActionRequested, KeyPressed
 arranger -> directory        AreaPlaced, SkinOffered, SkinChosen, ElementCodeOffered
 window -> directory          WindowOffered (as its own office, with its incarnation)
 directory -> window          AreaIntroduced, AreaWithdrawn, ElementCodeOffered

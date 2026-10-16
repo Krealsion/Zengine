@@ -5551,6 +5551,38 @@ const CensusDriverOf kEditorCensus{pane::kEditorPaneRole, [] {
     return census;
 }};
 
+/// THE NEOVIM-BACKED EDITOR, SELECTING, ON THE FAKE NEOVIM, for one press.
+struct NeovimPressRig {
+    EditorRig e{"edit-press-neovim"};
+    NeovimEnvironment env{e.root, NEOVIM_FIXTURE, "visual"};
+    PaneRig& r = e.r;
+    NeovimPressRig() { open_neovim_selecting(e); }
+};
+
+/// THE EDITOR'S PRESSES: the standard Editor's rows with no document and with an edited one open,
+/// then the Neovim-backed Editor's with a selection standing.
+const PressDriverOf kEditorPresses{pane::kEditorPaneRole, [](PressWitness& w) {
+    press_each_state<EditorRig>(
+        w,
+        [] {
+            auto e = std::make_unique<EditorRig>("edit-press");
+            e->open();
+            return e;
+        },
+        [](EditorRig& e, const std::function<void(const RuntimePane&)>& at) {
+            at(*e.row());
+            put_bytes(e.root / "hello.cpp", "one\ntwo\nthree\n");
+            REQUIRE(e.ask_open(spelled(e.root / "hello.cpp")).accepted);
+            e.r.text("x");
+            at(*e.row());
+        });
+    press_each_state<NeovimPressRig>(
+        w, [] { return std::make_unique<NeovimPressRig>(); },
+        [](NeovimPressRig& n, const std::function<void(const RuntimePane&)>& at) {
+            at(*n.e.row());
+        });
+}};
+
 } // namespace
 
 TEST_CASE("the manual the standard Editor answers is the office's page, naming exactly the commands "

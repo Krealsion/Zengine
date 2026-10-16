@@ -25,6 +25,7 @@
 #include "workshop/open_seam_vocabulary.hpp"
 #include "workshop/pane_canvas_rows.hpp"
 #include "workshop/pane_carry.hpp"
+#include "workshop/pane_causes.hpp"
 #include "workshop/pane_document.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_operation.hpp"
@@ -137,7 +138,7 @@ class EditorPaneWeave
                        EditorAdoptRequested, EditorLiveRequested, EditorRetireRequested,
                        ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
                        ws::PaneCarryAnswered, ws::PaneDocumentRequested>,
-          loom::Emit<PaneOffered, ws::v2::PaneActions, ws::v5::PaneCanvasContent,
+          loom::Emit<PaneOffered, ws::v3::PaneActions, ws::v5::PaneCanvasContent,
                      ws::v4::PaneContent, ws::v2::PaneCaret,
                      ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
                      PaneQuitAnswered, SourceOpened, SourcePrepared, ws::v2::SourcePrepared,
@@ -306,7 +307,7 @@ public:
                      EditorAdoptRequested, EditorLiveRequested, EditorRetireRequested,
                      ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
                      ws::PaneCarryAnswered, ws::PaneDocumentRequested>,
-        loom::Emit<PaneOffered, ws::v2::PaneActions, ws::v5::PaneCanvasContent,
+        loom::Emit<PaneOffered, ws::v3::PaneActions, ws::v5::PaneCanvasContent,
                    ws::v4::PaneContent, ws::v2::PaneCaret,
                    ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
                    PaneQuitAnswered, SourceOpened, SourcePrepared, ws::v2::SourcePrepared,
@@ -1976,14 +1977,17 @@ private:
     /// presses reaches the buffer as an ordinary `PaneKey`, so Backspace erases and ctrl+z undoes
     /// without being anybody's row.
     void declare(loom::Mail& mail) {
-        // The declaration's second version, because this pane owns one of Workshop's actions and
-        // version one has no field to say so; a pane owning nothing declares version one.
-        ws::v2::PaneActions actions;
+        // Each row says what it stands in for among Workshop's own actions, and what its press may
+        // send beside the pane protocol: a carry, once Workshop allows the acquisition.
+        ws::v3::PaneActions actions;
         actions.pane = pane::kEditorPane;
         const auto row = [&actions](const char* id, const char* label, std::int64_t sc,
-                                    std::int64_t mods, const char* stands_for = "") {
-            actions.rows.push_back(ws::v2::PaneActionRow{id, label, sc, mods, stands_for});
+                                    std::int64_t mods, const char* stands_for = "",
+                                    std::vector<ws::ActionCause> causes = {}) {
+            actions.rows.push_back(
+                ws::v3::PaneActionRow{id, label, sc, mods, stands_for, std::move(causes)});
         };
+        const std::vector<ws::ActionCause> carried{ws::cause_of<ws::PaneValueCarryRequested>()};
         // The save row still names `document.save` as what it stands in for (WL-KEY-15): a host
         // after that row retired admits a name standing in for nothing, and a host from before
         // still declares it, where the name keeps `ctrl+s` this pane's -- one image loads in both.
@@ -1994,8 +1998,10 @@ private:
         row(pane::kActionDiscard, "discard source edits", input::scan::kD, input::mod::kCtrl);
         // Plain ctrl+letters, which every medium can say (a POSIX terminal cannot say alt or
         // ctrl+shift on a letter, and no terminal backend names a function key).
-        row(pane::kActionExtract, "carry the selection", input::scan::kE, input::mod::kCtrl);
-        row(pane::kActionLocation, "carry this file's location", input::scan::kL, input::mod::kCtrl);
+        row(pane::kActionExtract, "carry the selection", input::scan::kE, input::mod::kCtrl, "",
+            carried);
+        row(pane::kActionLocation, "carry this file's location", input::scan::kL, input::mod::kCtrl,
+            "", carried);
         (void)mail.as_role(pane::kEditorPaneRole).send_to_role(kWorkshopRole, actions);
     }
 

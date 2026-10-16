@@ -68,8 +68,9 @@ function(zen_manual_census text out)
 endfunction()
 
 # A command's Answers line, held to what its rows declare: the shapes it links (a link whose words are
-# one backticked name opening with a capital, `[`BuildRequested`](...)`) are exactly the shapes the
-# census says a press of `id` may cause, in any mode. Only which shapes it links is read; its words
+# one backticked name opening with a capital, `[`BuildRequested`](...)`, or with a lowercase
+# namespace before it, `[`zen.PokeDescribe`](...)`) are exactly the shapes the census says a press
+# of `id` may cause, in any mode. Only which shapes it links is read; its words
 # are the page's.
 function(zen_manual_answers page stem id body census out)
     set(problems "")
@@ -88,10 +89,10 @@ function(zen_manual_answers page stem id body census out)
     if(body MATCHES "- \\*\\*Answers:\\*\\*(.*)- \\*\\*Refuses:\\*\\*")
         set(answers "${CMAKE_MATCH_1}")
     endif()
-    string(REGEX MATCHALL "\\[`[A-Z][A-Za-z0-9_]*`\\]\\(" links "${answers}")
+    string(REGEX MATCHALL "\\[`([a-z][a-z0-9_]*\\.)*[A-Z][A-Za-z0-9_]*`\\]\\(" links "${answers}")
     set(linked "")
     foreach(link IN LISTS links)
-        string(REGEX REPLACE "^\\[`([A-Za-z0-9_]+)`\\]\\($" "\\1" shape "${link}")
+        string(REGEX REPLACE "^\\[`([A-Za-z0-9_.]+)`\\]\\($" "\\1" shape "${link}")
         list(APPEND linked "${shape}")
     endforeach()
     if(linked)
@@ -227,6 +228,18 @@ string(REPLACE "sends [`StopRequested`](x.md#stop)" "sends [`StopRequested`](x.m
 zen_manual_judge("twice" "t.pane" "${st_twice}" "${st_census}" ON st_problems)
 if(st_problems)
     message(FATAL_ERROR "manual: SELF-TEST FAILED -- a cause linked twice was refused: '${st_problems}'")
+endif()
+# A shape Loom names under a namespace is linked by that whole name, and refused when it is not.
+string(REPLACE "GoRequested" "zen.GoRequested" st_spaced_census_text "${st_census_text}")
+zen_manual_census("${st_spaced_census_text}" st_spaced_census)
+string(REPLACE "[`GoRequested`]" "[`zen.GoRequested`]" st_spaced "${st_good}")
+zen_manual_judge("spaced" "t.pane" "${st_spaced}" "${st_spaced_census}" ON st_problems)
+if(st_problems)
+    message(FATAL_ERROR "manual: SELF-TEST FAILED -- a namespaced shape linked by its name was refused: '${st_problems}'")
+endif()
+zen_manual_judge("spaced-unlinked" "t.pane" "${st_good}" "${st_spaced_census}" ON st_problems)
+if(NOT st_problems MATCHES "`t.go` declares a press of it causes `zen.GoRequested`, and its Answers line does not link it")
+    message(FATAL_ERROR "manual: SELF-TEST FAILED -- a namespaced cause left unlinked passed: '${st_problems}'")
 endif()
 zen_manual_judge("missing" "t.pane" "${st_head}" "${st_census}" ON st_problems)
 if(NOT st_problems MATCHES "`t.stop` is an action t.pane declares, and its manual has no section for it")

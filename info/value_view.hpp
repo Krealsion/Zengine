@@ -26,6 +26,7 @@
 #include "message-draft/transfer.hpp"
 #include "workshop/pane_canvas_rows.hpp"
 #include "workshop/pane_carry.hpp"
+#include "workshop/pane_causes.hpp"
 #include "workshop/pane_operation.hpp"
 #include "workshop/pane_parts.hpp"
 #include "workshop/pane_text.hpp"
@@ -600,32 +601,46 @@ public:
 
     // ---- presentation ------------------------------------------------------------------
 
-    std::vector<workshop::PaneActionRow> actions() const {
+    /// THE ROWS IN FORCE, each with what its press may send beside the pane protocol: the
+    /// Inventory's read and writes, the observation a watch holds and ends, the description a
+    /// sample asks, a field carried, and a view launched or closed.
+    std::vector<workshop::v3::PaneActionRow> actions() const {
         using namespace input;
+        using workshop::cause_of;
         if (!allocated_) return {{kActionViewUse, "use this view", scan::kReturn, mod::kNone}};
         if (editing_) return {{kActionFieldAccept, "keep field edit", scan::kReturn, mod::kNone},
                               {kActionFieldCancel, "cancel field edit", scan::kEscape, mod::kNone}};
         if (renaming_) return {{kActionRenameAccept, "rename view", scan::kReturn, mod::kNone},
                                {kActionRenameCancel, "cancel rename", scan::kEscape, mod::kNone}};
-        std::vector<workshop::PaneActionRow> rows = {
+        const workshop::ActionCause ended = cause_of<workshop::PaneObservationEnded>();
+        const workshop::ActionCause launched = cause_of<workshop::PaneLaunchRequested>();
+        std::vector<workshop::v3::PaneActionRow> rows = {
             {kValueUp, "previous field", scan::kUp, mod::kNone},
             {kValueDown, "next field", scan::kDown, mod::kNone},
             {kValueEdit, "edit field", scan::kReturn, mod::kNone},
-            {kActionSave, "save entry", scan::kS, mod::kCtrl},
-            {kActionSaveCopy, "save a new copy", scan::kS, mod::kCtrl | mod::kShift},
-            {kActionRefresh, "refresh from inventory", scan::kR, mod::kCtrl},
-            {kActionWatch, "watch or pause", scan::kL, mod::kCtrl},
-            {kActionSample, "sample the source", scan::kE, mod::kCtrl},
-            {kActionPreset, "make independent preset copy", scan::kB, mod::kCtrl},
+            {kActionSave, "save entry", scan::kS, mod::kCtrl, {},
+             {cause_of<inventory::InventoryWrite>(), cause_of<inventory::InventoryAdd>()}},
+            {kActionSaveCopy, "save a new copy", scan::kS, mod::kCtrl | mod::kShift, {},
+             {cause_of<inventory::InventoryAdd>()}},
+            {kActionRefresh, "refresh from inventory", scan::kR, mod::kCtrl, {},
+             {cause_of<inventory::InventoryRead>()}},
+            {kActionWatch, "watch or pause", scan::kL, mod::kCtrl, {},
+             {cause_of<workshop::PaneObservationRequested>(), cause_of<inventory::InventoryRead>(),
+              ended}},
+            {kActionSample, "sample the source", scan::kE, mod::kCtrl, {},
+             {cause_of<loom::PokeDescribe>()}},
+            {kActionPreset, "make independent preset copy", scan::kB, mod::kCtrl, {}, {ended}},
             {kActionUnset, "unset preset field", scan::kU, mod::kCtrl},
-            {kActionGrab, "pick up typed field copy", scan::kG, mod::kCtrl},
+            {kActionGrab, "pick up typed field copy", scan::kG, mod::kCtrl, {},
+             {cause_of<workshop::PaneValueCarryRequested>()}},
             {kActionDiscard, "discard local edits", scan::kD, mod::kCtrl},
-            {kActionViewNew, "new Info view", scan::kN, mod::kCtrl},
-            {kActionViewFork, "fork this view", scan::kN, mod::kCtrl | mod::kShift},
+            {kActionViewNew, "new Info view", scan::kN, mod::kCtrl, {}, {launched}},
+            {kActionViewFork, "fork this view", scan::kN, mod::kCtrl | mod::kShift, {}, {launched}},
             {kActionViewRename, "rename this view", scan::kM, mod::kCtrl},
             {kActionViewMenu, "all view actions", scan::kPeriod, mod::kCtrl}};
-        if (is_default()) rows.push_back({kActionPanes, "pane properties", scan::kI, mod::kCtrl});
-        else rows.push_back({kActionViewClose, "close this view", scan::kW, mod::kCtrl | mod::kShift});
+        if (is_default()) rows.push_back({kActionPanes, "pane properties", scan::kI, mod::kCtrl, {}, {ended}});
+        else rows.push_back({kActionViewClose, "close this view", scan::kW, mod::kCtrl | mod::kShift, {},
+                             {cause_of<workshop::PaneCloseRequested>(), ended}});
         if (!replacing().empty()) rows.push_back({kActionStop, "stop waiting", scan::kEscape, mod::kNone});
         return rows;
     }

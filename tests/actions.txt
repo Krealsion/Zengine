@@ -11,8 +11,9 @@
 # tests/test_workshop_panes_builder.cpp runs the driver each pane's suite registers (tests/census.hpp)
 # and holds every office's rows to what its panes declare, each mode's `elsewhere` to the union of
 # the pane's other modes' causes here, and writes the census as it stands beside the build to diff;
-# its press witness holds each Builder and desk action's sends to its causes. tests/check_manual.cmake
-# holds every manual's commands, their Answers links and key markers to it. A pane is listed once a
+# the press witness presses every row of every office, on a pane of its own in the state its suite
+# drives, and holds each press's sends to the row's causes. tests/check_manual.cmake holds every
+# manual's commands, their Answers links and key markers to it. A pane is listed once a
 # manual or a tutorial names its keys. ASCII only.
 zengine.builder-pane browse builder.build b BuildRequested/2 - build
 zengine.builder-pane browse builder.build-realize shift+b BuildRequested/2 - load after build

@@ -20,6 +20,7 @@
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/inspection_seam_vocabulary.hpp"
 #include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_causes.hpp"
 #include "workshop/pane_document.hpp"
 #include "workshop/pane_parts.hpp"
 #include "workshop/pane_text.hpp"
@@ -61,8 +62,8 @@ namespace pane = zengine::info_pane;
 using ws::InspectPaneRequested;
 using ws::InventoryPane;
 using ws::PaneActionRequested;
-using ws::PaneActionRow;
-using ws::PaneActions;
+using ws::v3::PaneActionRow;
+using ws::v3::PaneActions;
 using ws::PaneCatalogRequested;
 using ws::PaneCommitRequested;
 using ws::PaneInventory;
@@ -1033,16 +1034,20 @@ private:
     std::vector<PaneActionRow> action_rows() const {
         std::vector<PaneActionRow> rows;
         const auto row = [&rows](const char* id, const char* label, std::int64_t sc,
-                                 std::int64_t mods = input::mod::kNone) {
-            rows.push_back(PaneActionRow{id, label, sc, mods});
+                                 std::vector<ws::ActionCause> causes = {}) {
+            rows.push_back(PaneActionRow{id, label, sc, input::mod::kNone, {}, std::move(causes)});
         };
         if (draft_.open) {
-            row(pane::kActionCommit, "commit", input::scan::kReturn);
+            row(pane::kActionCommit, "commit", input::scan::kReturn,
+                {ws::cause_of<PaneCommitRequested>()});
             row(pane::kActionCancel, "cancel", input::scan::kEscape);
         } else if (state_.on_panes) {
             row(pane::kActionUp, "pane up", input::scan::kUp);
             row(pane::kActionDown, "pane down", input::scan::kDown);
-            row(pane::kActionEdit, "inspect", input::scan::kReturn);
+            // ...an inspection Workshop is asked for, and the answer owed to whoever asked this
+            // pane to act on its subject, now replaced.
+            row(pane::kActionEdit, "inspect", input::scan::kReturn,
+                {ws::cause_of<InspectPaneRequested>(), ws::cause_of<PaneSubjectActed>()});
             row(pane::kActionSwitch, "properties", input::scan::kTab);
         } else {
             row(pane::kActionUp, "row up", input::scan::kUp);
@@ -1052,7 +1057,8 @@ private:
         }
         if (!draft_.open && views_.front().has_entry()) rows.push_back({pane::kActionInventory, "inventory entry",
             input::scan::kI, input::mod::kCtrl});
-        if (!draft_.open) rows.push_back({pane::kActionViewNew, "new value view", input::scan::kN, input::mod::kCtrl});
+        if (!draft_.open) rows.push_back({pane::kActionViewNew, "new value view", input::scan::kN, input::mod::kCtrl,
+            {}, {ws::cause_of<ws::PaneLaunchRequested>()}});
         return rows;
     }
 

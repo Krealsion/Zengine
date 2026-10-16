@@ -3073,71 +3073,11 @@ TEST_CASE("the action census: the rows the Builder declares in each mode, with w
 
 namespace {
 
-/// THE PANE PROTOCOL, by name in every version: what a pane says to Workshop about itself -- its
-/// offer, rows, content, caret, menus, its answer to a manual's ask, and the approval it asks
-/// before an act. A press's causes are every other send.
-bool pane_protocol(const std::string& shape) {
-    static const std::set<std::string> kSaid{
-        PaneOffered::zen_name,           PaneActions::zen_name,
-        PaneContent::zen_name,           PaneCanvasContent::zen_name,
-        PaneCaret::zen_name,             PaneMenuRequested::zen_name,
-        PanePassRequested::zen_name,     PaneKeyboardRequested::zen_name,
-        PaneEscapeUnspent::zen_name,     PaneRevealRequested::zen_name,
-        PaneManageRequested::zen_name,   PaneOperationRequested::zen_name,
-        PaneDocumentShown::zen_name,     PaneSettingsDeclared::zen_name};
-    return kSaid.count(shape) == 1;
-}
-
-/// EVERY SEND ONE PARTICIPANT MAKES OUTSIDE THE PANE PROTOCOL while this is held, as
-/// `<shape>/<version>`: delivered or refused, to an office, a weave or anyone.
-class SendsOf {
-public:
-    SendsOf(loom::Switchboard& bus, loom::WeaveId who) : bus_(bus) {
-        tap_ = bus_.add_observer([this, who](const loom::BusEvent& ev) {
-            if ((ev.kind == loom::EventKind::Delivered || ev.kind == loom::EventKind::Refused) &&
-                ev.sender == who && !pane_protocol(ev.schema_name)) {
-                sent.insert(ev.schema_name + "/" + std::to_string(ev.schema_version));
-            }
-        });
-    }
-    ~SendsOf() { bus_.remove_observer(tap_); }
-    SendsOf(const SendsOf&) = delete;
-    SendsOf& operator=(const SendsOf&) = delete;
-    std::set<std::string> sent;
-
-private:
-    loom::Switchboard& bus_;
-    loom::ObserverId tap_ = 0;
-};
-
-/// WHAT A ROW DECLARES, AS A SEND IS SEEN: each cause's shape and version.
-std::set<std::string> declared_sends(const std::vector<ActionCause>& causes) {
-    std::set<std::string> out;
-    for (const ActionCause& c : causes) out.insert(c.shape + "/" + std::to_string(c.version));
-    return out;
-}
-
-/// WHAT ONE PRESS SENT THAT ITS ROW DOES NOT DECLARE -- the witness's red -- and what it declares
-/// that this press did not send, kept to be listed.
-struct Pressed {
-    std::set<std::string> undeclared;
-};
-Pressed judge_press(const std::set<std::string>& sent, const std::vector<ActionCause>& causes,
-                    std::set<std::string>& reached) {
-    Pressed out;
-    const std::set<std::string> declared = declared_sends(causes);
-    for (const std::string& s : sent) {
-        if (declared.count(s) == 0) out.undeclared.insert(s);
-        reached.insert(s);
-    }
-    return out;
-}
-
 /// LIST WHAT NO DRIVEN STATE SENT: a declared cause the suite never reached, said and written beside
 /// the build, never failed -- "may" is what a row declares.
 void list_unreached(const std::map<std::string, std::vector<ActionCause>>& declared,
-                    const std::map<std::string, std::set<std::string>>& reached,
-                    const std::string& title) {
+                           const std::map<std::string, std::set<std::string>>& reached,
+                           const std::string& title) {
     std::string path = ZENGINE_ACTIONS_NOW;
     const std::size_t at = path.find("actions-now");
     if (at != std::string::npos) path.replace(at, std::string("actions-now").size(), title);
@@ -3151,6 +3091,26 @@ void list_unreached(const std::map<std::string, std::vector<ActionCause>>& decla
             }
         }
     }
+}
+
+/// ONE OFFICE'S PRESS WITNESS, RUN: its driver presses every row, each press is held to its row,
+/// every row the census pins for the office is pressed, and what no press sent is listed beside
+/// the build as `causes-unsent-<office>`.
+void witness_presses(const std::string& office) {
+    CAPTURE(office);
+    const auto driver = press_drivers().find(office);
+    REQUIRE_MESSAGE(driver != press_drivers().end(), "no suite registers a press driver for "
+                                                         << office);
+    PressWitness w(office);
+    driver->second(w);
+    for (const std::string& line : census_pinned_of(office)) {
+        std::istringstream in(line);
+        std::string who, mode, id;
+        in >> who >> mode >> id;
+        CHECK_MESSAGE(w.pressed.count(mode + " " + id) == 1,
+                      "pinned and never pressed by the press witness: `" << line << "`");
+    }
+    list_unreached(w.declared, w.reached, "causes-unsent-" + office);
 }
 
 /// THE STATE A BUILDER IS DRIVEN INTO BEFORE A PRESS: a build waiting to be loaded, or a
@@ -3197,12 +3157,9 @@ bool press_action(BuilderRig& b, const v3::PaneActionRow& row) {
     return true;
 }
 
-} // namespace
-
-TEST_CASE("the press witness: each action the Builder declares, pressed in each mode it is driven "
-          "into, sends nothing beside the pane protocol that its row does not declare") {
-    std::map<std::string, std::vector<ActionCause>> declared;
-    std::map<std::string, std::set<std::string>> reached;
+/// THE BUILDER'S PRESSES: each row it declares in each mode, standing on a build or a realization,
+/// pressed by its key or its control.
+const PressDriverOf kBuilderPresses{pane::kBuilderPaneRole, [](PressWitness& w) {
     struct Drive {
         const char* mode;
         Standing standing;
@@ -3220,91 +3177,50 @@ TEST_CASE("the press witness: each action the Builder declares, pressed in each 
             rows = count.row()->actions.size();
         }
         REQUIRE(rows > 0);
-        // A PANE OF ITS OWN FOR EVERY PRESS, so no press is judged by what an earlier one left.
         for (std::size_t i = 0; i < rows; ++i) {
             BuilderRig b("bld-press");
             builder_in(b, drive.mode, drive.standing);
             const v3::PaneActionRow row = b.row()->actions[i];
-            const std::string key = std::string(drive.mode) + " " + row.id;
-            declared[key] = row.causes;
-            CAPTURE(key);
-            SendsOf sends(b.r.bus, b.r.bus.role_holder(pane::kBuilderPaneRole));
-            REQUIRE_MESSAGE(press_action(b, row), "`" << row.id << "` has no key and no control");
-            const Pressed judged = judge_press(sends.sent, row.causes, reached[key]);
-            for (const std::string& s : judged.undeclared) {
-                CHECK_MESSAGE(false, "`" << row.id << "` in `" << std::string(drive.mode) << "` sent " << s
-                                         << ", which its row does not declare");
-            }
+            w.judge(b.r.bus, b.r.bus.role_holder(pane::kBuilderPaneRole), drive.mode, row.id,
+                    row.causes, [&] {
+                        REQUIRE_MESSAGE(press_action(b, row),
+                                        "`" << row.id << "` has no key and no control");
+                    });
         }
     }
-    list_unreached(declared, reached, "causes-unsent-builder");
+}};
+
+} // namespace
+
+TEST_CASE("the press witness: each action the Builder declares, pressed in each mode it is driven "
+          "into, sends nothing beside the pane protocol that its row does not declare") {
+    witness_presses(pane::kBuilderPaneRole);
 }
 
 TEST_CASE("the press witness: each row the desktop declares, pressed, sends nothing beside the pane "
           "protocol that the row does not declare -- the application's, the Pane Manager's and the "
           "Manual's") {
-    namespace dp = zengine::desktop_pane;
-    std::map<std::string, std::vector<ActionCause>> declared;
-    std::map<std::string, std::set<std::string>> reached;
-    const auto rig = [](PaneRig& r) {
-        r.mount_workshop();
-        r.ready();
-        r.extent(160, 48);
-        REQUIRE(r.load(dp::kDesktopStem, WORKSHOP_SO_DESKTOP_PANE, kDesktopRole).valid());
-    };
-    const auto judge = [&](PaneRig& r, const std::string& key, std::int64_t sc,
-                           std::int64_t mods, const std::vector<ActionCause>& causes) {
-        declared[key] = causes;
-        CAPTURE(key);
-        SendsOf sends(r.bus, r.bus.role_holder(kDesktopRole));
-        REQUIRE(is_bound(Gesture{sc, mods}));
-        r.key(sc, mods);
-        for (const std::string& s : judge_press(sends.sent, causes, reached[key]).undeclared) {
-            CHECK_MESSAGE(false, "`" << key << "` sent " << s << ", which its row does not declare");
-        }
-    };
-    std::size_t app_rows = 0;
-    {
-        PaneRig r;
-        rig(r);
-        app_rows = r.session().keymap.app.size();
+    witness_presses(kDesktopRole);
+}
+
+TEST_CASE("the press witness: every other office in the census, each row its panes declare pressed "
+          "in each mode its suite drives, sends nothing beside the pane protocol that the row "
+          "does not declare") {
+    CHECK_MESSAGE(press_registered_twice().empty(),
+                  "an office's presses are registered twice: " << press_registered_twice().front());
+    std::set<std::string> offices;
+    for (const std::string& line : census_pinned()) offices.insert(census_office(line));
+    for (const std::string& office : offices) {
+        CHECK_MESSAGE(press_drivers().count(office) == 1,
+                      "no suite registers a press driver for " << office);
     }
-    REQUIRE(app_rows > 0);
-    for (std::size_t i = 0; i < app_rows; ++i) {
-        PaneRig r;
-        rig(r);
-        const AppRow row = r.session().keymap.app[i];
-        judge(r, "desk " + row.id, row.gesture.scancode, row.gesture.modifiers, row.causes);
+    for (const auto& [office, drive] : press_drivers()) {
+        (void)drive;
+        CHECK_MESSAGE(offices.count(office) == 1,
+                      "a press driver for " << office << ", which the census does not hold");
+        if (office == pane::kBuilderPaneRole || office == kDesktopRole) continue;
+        witness_presses(office);
     }
-    // ...EACH PANE'S ROWS WITH THAT PANE SHOWN AND HOLDING THE KEYS, brought there by its own row.
-    struct Shown {
-        const char* pane;
-        std::int64_t scancode;
-        std::int64_t modifiers;
-    };
-    for (const Shown& shown : {Shown{dp::kLauncherPane, input::scan::kP, input::mod::kCtrl},
-                               Shown{dp::kManualPane, input::scan::kF, input::mod::kCtrl}}) {
-        std::size_t rows = 0;
-        {
-            PaneRig r;
-            rig(r);
-            const RuntimePane* held = r.session().panes.runtime.find(kDesktopRole, shown.pane);
-            REQUIRE(held != nullptr);
-            rows = held->actions.size();
-        }
-        REQUIRE(rows > 0);
-        for (std::size_t i = 0; i < rows; ++i) {
-            PaneRig r;
-            rig(r);
-            r.key(shown.scancode, shown.modifiers);
-            const RuntimePane* held = r.session().panes.runtime.find(kDesktopRole, shown.pane);
-            REQUIRE(held != nullptr);
-            REQUIRE(r.session().panes.keyboard == held->kind);
-            const v3::PaneActionRow row = held->actions[i];
-            judge(r, held->mode + " " + row.id, row.scancode, row.modifiers, row.causes);
-        }
-    }
-    list_unreached(declared, reached, "causes-unsent-desktop");
 }
 
 // ============================================================================

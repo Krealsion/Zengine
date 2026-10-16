@@ -1,6 +1,6 @@
 # The action census's rows for zengine.terminal; the form is tests/actions.txt's. ASCII only.
-zengine.terminal - terminal.submit return - - run the line / keep a recall
-zengine.terminal - terminal.complete tab - - what can this terminal say?
+zengine.terminal - terminal.submit return TerminalActRequested/1 - run the line / keep a recall
+zengine.terminal - terminal.complete tab TerminalCompletionRequested/1 - what can this terminal say?
 zengine.terminal - terminal.previous up - - older command / list up
 zengine.terminal - terminal.next down - - newer command / list down
 zengine.terminal - terminal.back escape - - back: recall, list, line, desk

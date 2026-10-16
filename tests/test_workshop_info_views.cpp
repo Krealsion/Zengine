@@ -467,6 +467,17 @@ const CensusDriverOf kInfoCensus{info::kInfoPaneRole, [] {
     return census;
 }};
 
+/// INFO'S PRESSES: each row of each state the census walks, the walk replayed to it for each press.
+const PressDriverOf kInfoPresses{info::kInfoPaneRole, [](PressWitness& w) {
+    press_each_state<ScriptedViews>(
+        w, [] { return std::make_unique<ScriptedViews>(); },
+        [](ScriptedViews& s, const std::function<void(const RuntimePane&)>& at) {
+            each_info_state(s, [&](const std::string& key, const char* id) {
+                at(*info_rows(s, key, id));
+            });
+        });
+}};
+
 } // namespace
 
 TEST_CASE("info views: a new view is its own pane with visible controls, subject and state") {

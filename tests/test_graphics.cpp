@@ -801,9 +801,9 @@ TEST_CASE("the new-game button is the world's action, and a new game reaches the
     }
     const std::size_t mark = t.r.log.size();
     t.press(3, 19); // "[ new game ]"
-    const auto issued = t.r.read<gfx::ActionIssued>(mark);
-    REQUIRE(issued.size() == 1);
-    CHECK(issued[0].action == "new-game");
+    const auto requested = t.r.read<gfx::ActionRequested>(mark);
+    REQUIRE(requested.size() == 1);
+    CHECK(requested[0].action == "new-game");
     const auto changes = t.r.read<gfx::ElementChange>(mark, snake::kWorldRole);
     REQUIRE(changes.size() == 1);
     CHECK(changes[0].kind == 1); // SnakeNewGame, the board's second change

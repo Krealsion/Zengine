@@ -93,9 +93,10 @@ Runs the definition: the Flow host makes a fresh participant from it, with the d
 
 - **Takes:** the draft, checked first. Default key <!-- key run -->`ctrl+r`<!-- /key -->; the bar's
   `[Run]`, `[Running]` once it runs.
-- **Answers:** asks the Flow host (`FlowRun`); the notice says `run queued`, which means only that
+- **Answers:** asks the Flow host ([`FlowRun`](flow-runtime.md#conversation)); the notice says `run queued`, which means only that
   the request went. The answer then says `run: observed`, or its reason, the bar reads `[Running]`,
-  and the discovery door is asked again, since running mounts the definition's operators.
+  and the discovery door is asked again ([`FindPowers`](../../introspection/docs/zengine.powers.md#findpowers)), since running mounts the definition's
+  operators.
 - **Refuses:** the draft's first problem, such as an unwired port or `incompatible type`, naming
   the place; `run refused: <the host's reason>`; `run was not delivered: <the bus's reason>`;
   `Flow has 16 unanswered requests; inspect the host before retrying`.
@@ -174,8 +175,8 @@ Changes the running participant's behaviour to the draft's, keeping its state.
 
 - **Takes:** the draft, checked first; a running participant. No default key; the bar's
   `[Apply]`.
-- **Answers:** asks the Flow host (`FlowApply`): `apply queued`, then `apply: observed`, and the
-  discovery door is asked again. The participant keeps its state and its accepted, emitted and
+- **Answers:** asks the Flow host ([`FlowApply`](flow-runtime.md#conversation)): `apply queued`, then `apply: observed`, and the
+  discovery door is asked again ([`FindPowers`](../../introspection/docs/zengine.powers.md#findpowers)). The participant keeps its state and its accepted, emitted and
   state shapes; a change to any of those needs [`stop`](#stop) and [`run`](#run).
 - **Refuses:** the draft's first problem; `apply refused: <the host's reason>`, such as a changed
   shape; `apply was not delivered: <the bus's reason>`.
@@ -186,8 +187,8 @@ Changes the running participant's behaviour to the draft's, keeping its state.
 Stops the running participant; its last state comes back as the draft's.
 
 - **Takes:** the session. No default key; the bar's `[Stop]`.
-- **Answers:** asks the Flow host (`FlowStop`): `stop queued`, then `stop: observed`; the bar
-  reads `[Run]` again and the discovery door is asked again.
+- **Answers:** asks the Flow host ([`FlowStop`](flow-runtime.md#conversation)): `stop queued`, then `stop: observed`; the bar
+  reads `[Run]` again and the discovery door is asked again ([`FindPowers`](../../introspection/docs/zengine.powers.md#findpowers)).
 - **Refuses:** `stop refused: <the host's reason>`, such as while a send is still being
   delivered; `stop was not delivered: <the bus's reason>`.
 - **Example:** press `[Stop]` before a schema change.
@@ -197,7 +198,7 @@ Stops the running participant; its last state comes back as the draft's.
 Reads the running participant again: its state and what it did.
 
 - **Takes:** the session. No default key; the bar's `[Inspect]`.
-- **Answers:** asks the Flow host (`FlowInspect`): `inspect queued`, then the Events page's rows
+- **Answers:** asks the Flow host ([`FlowInspect`](flow-runtime.md#conversation)): `inspect queued`, then the Events page's rows
   ([`events`](#events)), and, unless you have edited the state since, the draft's state becomes
   the observed one. The pane inspects by itself when it starts and whenever the host says the
   session changed ([Hears](#flowchanged)).
@@ -210,8 +211,8 @@ Reads the running participant again: its state and what it did.
 Reads the host's operators again: the ports the graph checks its wiring against.
 
 - **Takes:** nothing. No default key; the bar's `[Catalog]`.
-- **Answers:** asks the Flow host (`FlowCatalog`) and the discovery door again: `catalog queued`,
-  then `Host operators refreshed`.
+- **Answers:** asks the Flow host ([`FlowCatalog`](flow-runtime.md#conversation)) and the discovery door again ([`FindPowers`](../../introspection/docs/zengine.powers.md#findpowers)):
+  `catalog queued`, then `Host operators refreshed`.
 - **Refuses:** the host's reason; `operator descriptor identity disagrees`; `catalog was not
   delivered: <the bus's reason>`.
 - **Example:** after a provider is loaded, press `[Catalog]`.
@@ -321,8 +322,9 @@ Adds a fold at the end of the active trigger: the form that runs one operator fo
 start toward a limit by a step, threading an answer through.
 
 - **Takes:** the active trigger. No default key; a fold row's `[Add]` under Forms on the Graph page.
-- **Answers:** a node `body = [choose]`, its `step` bound to `1`: `add-fold complete`. Press its
-  body row to choose the body ([`graph`](#graph)).
+- **Answers:** a node `body = [choose]`, its `step` bound to `1`: `add-fold complete`, and a fold's
+  open body slot shut, so the discovery door is asked again ([`FindPowers`](../../introspection/docs/zengine.powers.md#findpowers)). Press its body row to
+  choose the body ([`graph`](#graph)).
 - **Refuses:** with no trigger yet, the standard library's words for a place out of range.
 - **Example:** type `count`, press the fold's row, press `[Add]`.
 
@@ -437,7 +439,7 @@ Sends the open message form's value to the running participant.
 
 - **Takes:** an open message or example form, complete; a running participant. No default key; a
   form's `[Send]`.
-- **Answers:** asks the Flow host (`FlowSend`): `send queued`, then `send: <the host's word>`,
+- **Answers:** asks the Flow host ([`FlowSend`](flow-runtime.md#conversation)): `send queued`, then `send: <the host's word>`,
   which says the message was queued, not what it did. What it did is on the Events page
   ([`events`](#events)).
 - **Refuses:** `open a message or reusable value to send`; Loom's words for an incomplete value;
@@ -450,7 +452,7 @@ Sends a value you dropped on the pane as an example, when the definition accepts
 
 - **Takes:** the dropped value ([`dropped`](#dropped)). No default key; its page's
   `[Send as example]`.
-- **Answers:** asks the Flow host (`FlowSend`), as [`send`](#send); the value is put down.
+- **Answers:** asks the Flow host ([`FlowSend`](flow-runtime.md#conversation)), as [`send`](#send); the value is put down.
 - **Refuses:** `Nothing dropped is waiting`; as [`send`](#send).
 - **Example:** drop a `water.Reading` value, press `[Send as example]`.
 
@@ -500,9 +502,10 @@ to repair.
 
 - **Takes:** the open dialog. Default key <!-- key dialog-confirm -->`return`<!-- /key -->; the
   dialog's `[Confirm]`.
-- **Answers:** the dialog's own outcome, in its command's section. A save, an export, a generate
-  and a library export ask Workshop first whether the confirming hand may write a file, `<Saving>
-  is waiting for Workshop's approval`, and write only when it allows.
+- **Answers:** the dialog's own outcome, in its command's section; one that replaces the draft or
+  binds a port changes what the discovery door is asked, and it is asked again ([`FindPowers`](../../introspection/docs/zengine.powers.md#findpowers)). A save,
+  an export, a generate and a library export ask Workshop first whether the confirming hand may
+  write a file, `<Saving> is waiting for Workshop's approval`, and write only when it allows.
 - **Refuses:** `<Saving> was refused: <Workshop's reason>`; `<Saving> is already waiting for
   Workshop's approval`; `` <Saving> waits: the confirm came as a raw key, which Workshop cannot
   approve -- confirm with the dialog's `dialog-confirm` row ``; `<Saving> was not done: Workshop

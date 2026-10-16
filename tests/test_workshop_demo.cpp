@@ -14,7 +14,7 @@ namespace demo = zengine::demo;
 struct DemoTestPump { ZEN_SHAPE(DemoTestPump, 1); };
 class DemoHand final : public loom::WeaveBase<DemoHand, DemoTestPump,
     loom::Accept<DemoTestPump, loom::Ack, loom::Refused, demo::DemoWork, demo::DemoStatus,
-                 v4::PaneContent, v5::PaneCanvasContent, PanePassRequested, PaneActions,
+                 v4::PaneContent, v5::PaneCanvasContent, PanePassRequested, v3::PaneActions,
                  v2::PaneOffered>,
     loom::Emit<demo::DemoServiceOpened, demo::DemoServiceClosed, demo::DemoWorkRequested,
                demo::DemoWorkFinished, demo::DemoResetRequested, demo::DemoReadyRequested,
@@ -36,9 +36,9 @@ public:
     void on(const demo::DemoWork& w, loom::Mail& m) { CHECK(m.answers_ask()); work.push_back(w); }
     void on(const demo::DemoStatus& s, loom::Mail& m) { CHECK(m.answers_ask()); status.push_back(s); }
     void on(const v2::PaneOffered&, loom::Mail&) {}
-    void on(const PaneActions& a, loom::Mail&) {
+    void on(const v3::PaneActions& a, loom::Mail&) {
         rows.clear();
-        for (const PaneActionRow& row : a.rows) rows.push_back(row.id);
+        for (const v3::PaneActionRow& row : a.rows) rows.push_back(row.id);
     }
     // EVERY PICTURE THE CONTROLS DRAW NAMES ONLY CONTROLS THEIR ROWS IN FORCE DECLARE (WL-HAND-07).
     void on(const v4::PaneContent& c, loom::Mail&) {
@@ -118,6 +118,13 @@ const CensusDriverOf kDemoCensus{demo::kRole, [] {
     REQUIRE(held != nullptr);
     census_take(census, demo::kRole, *held);
     return census;
+}};
+
+/// THE DEMO CONTROLS' PRESSES: their one row, with no demo service attached.
+const PressDriverOf kDemoPresses{demo::kRole, [](PressWitness& w) {
+    press_each_state<DemoDesk>(
+        w, [] { return std::make_unique<DemoDesk>(); },
+        [](DemoDesk& d, const std::function<void(const RuntimePane&)>& at) { at(*d.held()); });
 }};
 }
 

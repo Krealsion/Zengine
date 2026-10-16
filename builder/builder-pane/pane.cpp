@@ -193,7 +193,8 @@ struct BuilderMeaning {
 // =============================================================================
 
 class BuilderPaneWeave
-    : public loom::WeaveBase<
+    : public zengine::With<ws::PaneManualFacet<
+          pane::kBuilderPane, zengine::manual::pages::zengine_builder_pane::kManual>>::Weave<
           BuilderPaneWeave, pane::BuilderPaneState,
           loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PaneKey, PaneTextInput,
                        PaneActionRequested, builder::BuildStatus, builder::RecipeCatalog,
@@ -201,8 +202,8 @@ class BuilderPaneWeave
                        SourceOpened, loom::DispatchRefused, surface::ClipboardCopy,
                        surface::ClipboardText, PaneSourceOpened, builder::BuildOutputSaid,
                        ws::PaneCanvasRoom, ws::PaneCanvasPointer, ws::PaneCanvasRejected,
-                       PaneMenuAnswered, ws::PaneOperationAnswered, ws::PaneDocumentRequested>,
-          loom::Emit<PaneOffered, PaneActions, ws::PaneDocumentShown, ws::v5::PaneContent,
+                       PaneMenuAnswered, ws::PaneOperationAnswered>,
+          loom::Emit<PaneOffered, PaneActions, ws::v5::PaneContent,
                      ws::v6::PaneCanvasContent,
                      ws::PaneCaret, builder::StatusRequested,
                      builder::BuildRequested, builder::PromoteArtifact, builder::RevertArtifact,
@@ -217,13 +218,6 @@ public:
             return;
         }
         announce(mail);
-    }
-
-    /// THIS PANE'S MANUAL, TO THE ONE WHO ASKED: from the page this image was built with, so a
-    /// reloaded image answers its own words.
-    void on(const ws::PaneDocumentRequested& ask, loom::Mail& mail) {
-        (void)mail.answer(ws::pane_document(ask, pane::kBuilderPane,
-                                            zengine::manual::pages::zengine_builder_pane::kManual));
     }
 
     void on(const PaneCatalogRequested&, loom::Mail& mail) {

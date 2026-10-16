@@ -1,2 +1,2 @@
 # The action census's rows for zengine.demo; the form is tests/actions.txt's. ASCII only.
-zengine.demo - reset unbound - - reset the demo
+zengine.demo - reset unbound DemoWork/1 - reset the demo

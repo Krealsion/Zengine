@@ -63,7 +63,7 @@ message it says. On a recalled command it keeps that line for editing instead, a
 
 - **Takes:** the line. Default key <!-- key terminal.submit -->`return`<!-- /key -->.
 - **Answers:** the line empties and the view follows the newest output again. Workshop is asked to
-  author it ([the terminal seam](../../workshop/terminal_seam_vocabulary.hpp)), and what it came to
+  author it ([`TerminalActRequested`](../../workshop/terminal_seam_vocabulary.hpp)), and what it came to
   is on the record: `> ` your line, then `^ ... SUBMITTED`, or the participant's notice when it
   authored nothing, such as `` this pane speaks two verbs, and `ask` takes the same form as `send`:
   send <addr> <Shape> <version> [args] -- an address is #12 for one weave, @office for whoever
@@ -83,7 +83,7 @@ Typing asks too: the list follows the word you are in.
 
 - **Takes:** the line, at its end. Default key <!-- key terminal.complete -->`tab`<!-- /key -->.
 - **Answers:** Workshop is asked what can follow the line
-  ([the terminal seam](../../workshop/terminal_seam_vocabulary.hpp)), read at the moment you ask
+  ([`TerminalCompletionRequested`](../../workshop/terminal_seam_vocabulary.hpp)), read at the moment you ask
   and kept by nobody; the list stands above the line ([`candidate`](#candidate)). At the verb,
   `send` and `ask`. At the address, under `where it goes -- on this bus now; not permission, nor a
   promise at send`: `*`, each office held now, `@zengine.skin   held by #4 now; reaches whoever

@@ -32,8 +32,9 @@ Resets the demo: the next generation's work goes to the service, which prepares 
 
 - **Takes:** the attached service, idle. No default key; the `[ Reset demo ]` row, the part
   `control:reset`; the menu line `reset the demo`.
-- **Answers:** the status row reads `working: Resetting demo`, then the service's outcome, `ready:
-  <its note>` or `failed: <its note>`.
+- **Answers:** answers the attached service's wait with [`DemoWork`](#demoworkrequested); the status
+  row reads `working: Resetting demo`, then the service's outcome, `ready: <its note>` or `failed:
+  <its note>`.
 - **Refuses:** with no service attached, or while one is working, the status row's note reads `Reset
   service is busy or unavailable`, and nothing else changes.
 - **Example:** press `[ Reset demo ]`, then wait for the status row to read `ready`.

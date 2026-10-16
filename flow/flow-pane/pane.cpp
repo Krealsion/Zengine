@@ -8,6 +8,7 @@
 #include "operator/reference.hpp"
 #include "workshop/actor_scope.hpp"
 #include "workshop/pane_carry.hpp"
+#include "workshop/pane_causes.hpp"
 #include "workshop/pane_document.hpp"
 #include "input/vocabulary.hpp"
 #include "operator/host.hpp"
@@ -37,8 +38,9 @@ namespace input = zengine::input;
 constexpr const char *workshop_role = "zengine.workshop";
 
 class FlowPane final
-    : public loom::WeaveBase<
-          FlowPane, pane::FlowPaneState,
+    : public zengine::With<ws::PaneManualFacet<pane::kPane,
+                                               zengine::manual::pages::zengine_flow::kManual>>::
+          Weave<FlowPane, pane::FlowPaneState,
           loom::Accept<loom::Activated, ws::PaneCatalogRequested, ws::PaneRoom,
                        ws::PaneCanvasRoom, ws::PaneCanvasPointer,
                        ws::PaneCanvasRejected, ws::PaneKey, ws::PaneTextInput,
@@ -47,14 +49,13 @@ class FlowPane final
                        fh::FlowCatalogAnswer, fh::FlowChanged, ws::PowersFound,
                        ws::PaneCanvasValueDrop, ws::PaneMenuAnswered,
                        ws::PaneOperationAnswered, ws::PaneCarryAnswered,
-                       loom::DispatchRefused, ws::PaneDocumentRequested>,
+                       loom::DispatchRefused>,
           loom::Emit<ws::v3::PaneOffered, ws::PaneContent, ws::v4::PaneCanvasContent,
-                     ws::PaneActions, ws::PaneEscapeUnspent, ws::PanePassRequested,
+                     ws::v3::PaneActions, ws::PaneEscapeUnspent, ws::PanePassRequested,
                      ws::PaneQuitAnswered, pane::FlowEdited, fh::FlowRun,
                      fh::FlowApply, fh::FlowSend, fh::FlowInspect, fh::FlowStop,
                      fh::FlowCatalog, ws::PaneMenuRequested, ws::PaneOperationRequested,
-                     ws::v2::PaneOperationRequested, ws::PaneValueCarryRequested,
-                     ws::PaneDocumentShown>> {
+                     ws::v2::PaneOperationRequested, ws::PaneValueCarryRequested>> {
 public:
   loom::Value snapshot() const override {
     pane::FlowPaneState saved;
@@ -127,12 +128,6 @@ public:
     request(fh::FlowCatalog{}, "catalog", mail);
     request(fh::FlowInspect{"workshop", 0}, "inspect", mail);
     find(mail, true);
-  }
-  /// THIS PANE'S MANUAL, TO THE ONE WHO ASKED: from the page this image was built with, so a
-  /// reloaded image answers its own words.
-  void on(const ws::PaneDocumentRequested &ask, loom::Mail &mail) {
-    (void)mail.answer(ws::pane_document(ask, pane::kPane,
-                                        zengine::manual::pages::zengine_flow::kManual));
   }
   void on(const ws::PaneCatalogRequested &, loom::Mail &mail) {
     if (mail.authored_from_role(workshop_role))
@@ -833,7 +828,7 @@ private:
     if (!again && (!declared_ || *declared_ == dialog))
       return;
     declared_ = dialog;
-    std::vector<ws::PaneActionRow> rows{
+    std::vector<ws::v3::PaneActionRow> rows{
         {"ask-save", "Save Flow workspace", input::scan::kS, input::mod::kCtrl},
         {"ask-open", "Open Flow workspace", input::scan::kO, input::mod::kCtrl},
         {"run", "Run Flow", input::scan::kR, input::mod::kCtrl},
@@ -878,8 +873,29 @@ private:
       rows.push_back({"dialog-confirm", "Confirm the dialog", input::scan::kReturn, 0});
       rows.push_back({"dialog-cancel", "Cancel the dialog", 0, 0});
     }
+    // WHAT A PRESS MAY SEND BESIDE THE PANE PROTOCOL: the host's ask its effect makes (`effect`),
+    // and the door's question again where the press, or the host's answer to it, can change what
+    // Flow asks (`find`).
+    const ws::ActionCause found{ws::find_powers_schema()->name(),
+                                static_cast<std::int64_t>(ws::find_powers_schema()->version()), {}};
+    for (auto &row : rows) {
+      if (row.id == "run")
+        row.causes = {ws::cause_of<fh::FlowRun>(), found};
+      else if (row.id == "apply")
+        row.causes = {ws::cause_of<fh::FlowApply>(), found};
+      else if (row.id == "stop")
+        row.causes = {ws::cause_of<fh::FlowStop>(), found};
+      else if (row.id == "inspect")
+        row.causes = {ws::cause_of<fh::FlowInspect>()};
+      else if (row.id == "send" || row.id == "drop-send")
+        row.causes = {ws::cause_of<fh::FlowSend>()};
+      else if (row.id == "catalog")
+        row.causes = {ws::cause_of<fh::FlowCatalog>(), found};
+      else if (row.id == "add-fold" || row.id == "dialog-confirm")
+        row.causes = {found};
+    }
     (void)mail.as_role(pane::kRole)
-        .send_to_role(workshop_role, ws::PaneActions{pane::kPane, std::move(rows)});
+        .send_to_role(workshop_role, ws::v3::PaneActions{pane::kPane, {}, std::move(rows)});
   }
   void perform(const std::string &action, const std::vector<std::string> &args,
                loom::Mail &mail) {

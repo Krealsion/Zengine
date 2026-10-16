@@ -19,6 +19,7 @@
 #include "workshop/pane_parts.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/pane_carry.hpp"
+#include "workshop/pane_causes.hpp"
 #include "workshop/pane_escape.hpp"
 #include "inventory/codec.hpp"
 #include "inventory/pane_client.hpp"
@@ -112,7 +113,8 @@ public:
     std::vector<std::shared_ptr<const loom::Schema>> emitted_schemas() const override {
         return {loom::schema_of<PaneOffered>(), loom::schema_of<ws::v4::PaneContent>(),
                 loom::schema_of<ws::v5::PaneCanvasContent>(), loom::schema_of<ws::PaneCaret>(),
-                loom::schema_of<ws::PaneActions>(), loom::schema_of<ws::PaneOperationRequested>(),
+                loom::schema_of<ws::v3::PaneActions>(),
+                loom::schema_of<ws::PaneOperationRequested>(),
                 loom::schema_of<ws::PaneEscapeUnspent>(), loom::schema_of<ws::PanePassRequested>(),
                 loom::schema_of<ws::PaneDocumentShown>(),
                 loom::schema_of<zengine::manual::ShapeDocumentShown>()};
@@ -860,11 +862,15 @@ private:
                 ws::PaneCaret{kComposePane, shown_.caret_row, shown_.caret_col});
         }
         const bool in_form = composing_.stage == stage::kForm;
-        (void)mail.as_role(kComposerRole).send_to_role(kWorkshopRole, ws::PaneActions{kComposePane, {
+        (void)mail.as_role(kComposerRole).send_to_role(kWorkshopRole, ws::v3::PaneActions{kComposePane, {}, {
             {"compose.enter", "choose", input::scan::kReturn, input::mod::kNone},
             {"compose.submit", "submit", input::scan::kReturn, input::mod::kCtrl},
-            {"compose.store", "store command", input::scan::kS, input::mod::kCtrl},
-            {"compose.preset", "store preset (may be incomplete)", input::scan::kB, input::mod::kCtrl},
+            // Storing adds the command to the Inventory once Workshop allows it; a submit sends the
+            // command composed, a shape no row can name before the weaver fills the form.
+            {"compose.store", "store command", input::scan::kS, input::mod::kCtrl, {},
+             {ws::cause_of<inv::InventoryAdd>()}},
+            {"compose.preset", "store preset (may be incomplete)", input::scan::kB, input::mod::kCtrl, {},
+             {ws::cause_of<inv::InventoryAdd>()}},
             {"compose.unset", "unset field and discard value", input::scan::kU, input::mod::kCtrl},
             // Escape leaves a form; at the catalog it is unbound, so a bare one puts the pane down.
             {"compose.back", "back to the catalog",
