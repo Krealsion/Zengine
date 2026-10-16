@@ -244,7 +244,7 @@ nothing stays armed"
 
 ### WL-PROJ-12
 `builder/builder-pane/vocabulary.hpp` BuilderPaneState
-`builder/builder-pane/pane.cpp` on(PaneRoom) ask_status
+`builder/builder-pane/pane.cpp` on_room ask_status
 `tests/test_workshop_panes_builder.cpp` "closing the pane forgets its copy; the TOOL keeps its own
 count"
 

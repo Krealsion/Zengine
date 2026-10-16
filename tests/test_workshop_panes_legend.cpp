@@ -49,10 +49,10 @@ struct TerminalTap {
                                                  ev.schema_name == PaneRoom::zen_name)) {
                 heard.push_back("room");
             } else if (ev.authored_role == tp::kTerminalPaneRole &&
-                       ev.schema_name == v5::PaneCanvasContent::zen_name &&
-                       ev.schema_version == v5::PaneCanvasContent::zen_version) {
-                const v5::PaneCanvasContent picture =
-                    loom::from_value<v5::PaneCanvasContent>(*ev.payload);
+                       ev.schema_name == v6::PaneCanvasContent::zen_name &&
+                       ev.schema_version == v6::PaneCanvasContent::zen_version) {
+                const v6::PaneCanvasContent picture =
+                    loom::from_value<v6::PaneCanvasContent>(*ev.payload);
                 bool legend = false;
                 for (const v2::PaneCanvasText& t : picture.texts) {
                     legend = legend || t.text.find(kLegendText) != std::string::npos;
