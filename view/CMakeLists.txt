@@ -9,3 +9,6 @@ target_compile_features(zengine-view INTERFACE cxx_std_20)
 target_link_libraries(zengine-view INTERFACE zengine-maker zengine-pane-vocabulary
     zengine-component zengine-input-vocabulary zengine-surface-vocabulary
     loom::core loom::switchboard)
+# ...and the view host's manual, compiled into whatever mounts the host: its office answers a
+# shape's section from this page (`ShapeDocumentRequested`, manual/vocabulary.hpp).
+zengine_manual(zengine-view INTERFACE docs/zengine.view.host.md)

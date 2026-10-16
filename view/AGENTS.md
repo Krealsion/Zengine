@@ -50,6 +50,8 @@ The builder is also named in `workshop_load` (`tests/test_workshop_load.cpp`), `
 
 - [zengine.view.builder](docs/zengine.view.builder.md) — the View Builder's manual, carried by
   `zengine-view-builder` and answered by it
+- [zengine.view.host](docs/zengine.view.host.md) — the view host's manual, carried by `zengine-view`
+  (`zengine_manual` in `CMakeLists.txt`) and answered by the host's office
 - [Make a small panel by hand in the View Builder](docs/view-builder.md)
 - [Described views](docs/view.md)
 
