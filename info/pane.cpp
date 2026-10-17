@@ -22,6 +22,7 @@
 #include "workshop/pane_canvas_rows.hpp"
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_document.hpp"
+#include "workshop/pane_seat.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
 #include "activation/activation.hpp"
@@ -62,7 +63,6 @@ using ws::InspectPaneRequested;
 using ws::PaneActionRequested;
 using ws::v3::PaneActionRow;
 using ws::v3::PaneActions;
-using ws::PaneCatalogRequested;
 using ws::PaneCommitRequested;
 using ws::PaneInventory;
 using ws::PaneInventoryRequested;
@@ -82,18 +82,22 @@ using pane::kWorkshopRole;
 // The weave
 // =============================================================================
 
+/// THE OFFICE OF THE FOUR VIEWS: its activation, its offers on Workshop's catalog request, and
+/// the manual of any view it offers, the whole page the weave's.
+using Office = ws::MultiPaneFacet<pane::kInfoPaneRole, pane::kInfoPane,
+                                  zengine::manual::pages::zengine_info::kManual>;
+
 class InfoPaneWeave
-    : public loom::WeaveBase<
+    : public zengine::With<Office>::Weave<
           InfoPaneWeave, pane::InfoPaneState,
           loom::Accept<ws::PaneCarryAnswered, ws::PaneResetRequested, ws::PaneCanvasDrop, ws::PaneCanvasValueDrop, PaneOperationAnswered, zengine::inventory::InventoryEntry,
                        InspectPaneRequested,
-                       loom::Refused, loom::Activated, PaneCatalogRequested, PaneRoom, ws::PaneCanvasRoom, PaneKey,
+                       loom::Refused, PaneRoom, ws::PaneCanvasRoom, PaneKey,
                        PaneTextInput, PaneActionRequested, PaneInventory, PaneSubjectShown,
                        PaneSubjectActed, loom::DispatchRefused, surface::ClipboardCopy,
                        surface::ClipboardText, ws::PaneCanvasPointer, ws::PaneCanvasRejected,
                        ws::PaneMenuAnswered, ws::PaneObservationAnswered, zengine::inventory::InventoryChanged,
-                       loom::PokeStructure, ws::PaneLaunchAnswered, ws::PaneCloseAnswered,
-                       ws::PaneDocumentRequested>,
+                       loom::PokeStructure, ws::PaneLaunchAnswered, ws::PaneCloseAnswered>,
           loom::Emit<ws::PaneValueCarryRequested, PaneOperationRequested, zengine::inventory::InventoryRead, zengine::inventory::InventoryAdd,
                      zengine::inventory::InventoryWrite, PaneOffered, PaneActions, PaneInventoryRequested,
                      PaneSubjectRequested, InspectPaneRequested, PaneSubjectActed, PaneCommitRequested,
@@ -102,10 +106,13 @@ class InfoPaneWeave
                      ws::PaneMenuRequested, ws::PaneObservationRequested, ws::PaneObservationContinued,
                      ws::PaneEscapeUnspent,
                      ws::PaneObservationEnded, loom::PokeDescribe, ws::PaneLaunchRequested,
-                     ws::PaneCloseRequested, ws::PaneDocumentShown>> {
+                     ws::PaneCloseRequested>> {
 public:
     InfoPaneWeave() {
-        for (std::size_t slot = 1; slot <= pane::kMaxInfoViews; ++slot) views_.emplace_back(pane::view_key(slot), slot);
+        for (std::size_t slot = 1; slot <= pane::kMaxInfoViews; ++slot) {
+            views_.emplace_back(pane::view_key(slot), slot);
+            canvases_[slot - 1] = ws::PaneCanvasSeat(pane::view_key(slot), pane::kInfoPaneRole);
+        }
         views_.front().allocate();
     }
 
@@ -168,8 +175,8 @@ public:
             if (reference) {
                 v->drop_reference(data, c);
             } else {
-                const Canvas& canvas = canvas_of(*v);
-                const ws::RowCell at = ws::row_cell_at(ws::canvas_rows(canvas.room), x, y);
+                const ws::PaneCanvasSeat& canvas = canvas_of(*v);
+                const ws::RowCell at = ws::row_cell_at(ws::canvas_rows(canvas.room()), x, y);
                 v->drop_value(data, at.row, at.column, shows_value(*v, grant, picture), c);
             }
             if (v->is_default() && !v->active) properties_.tell(v->notice());
@@ -216,13 +223,9 @@ public:
     }
     void on(const ws::PaneCloseAnswered&, loom::Mail&) {}
 
-    /// THIS WEAVE'S MANUAL, TO THE ONE WHO ASKED, for any of its four panes: the whole page is the
+    /// THE PANES WHOSE MANUAL IS THIS WEAVE'S, any of its four views: the whole page is the
     /// weave's, from the page this image was built with, so a reloaded image answers its own words.
-    void on(const ws::PaneDocumentRequested& ask, loom::Mail& mail) {
-        const pane::ValueView* v = view_of(ask.pane);
-        (void)mail.answer(ws::pane_document(ask, v != nullptr ? v->key() : pane::kInfoPane,
-                                            zengine::manual::pages::zengine_info::kManual));
-    }
+    bool known_pane(const std::string& key) { return view_of(key) != nullptr; }
 
     /// A PRESS, ITS MOTION, THE WHEEL AND A RIGHT PRESS ON A VIEW'S CANVAS. A place reads back to
     /// the row and column a prose press would have named. A value view acts only on the picture
@@ -232,14 +235,14 @@ public:
     void on(const ws::PaneCanvasPointer& event, loom::Mail& mail) {
         pane::ValueView* v = view_of(event.pane);
         if (!mail.authored_from_role(kWorkshopRole) || !v) return;
-        Canvas& canvas = canvas_of(*v);
-        if (!canvas.on()) return;
-        const ws::RowCell at = ws::row_cell_at(ws::canvas_rows(canvas.room), event.x, event.y);
+        const ws::PaneCanvasSeat& canvas = canvas_of(*v);
+        if (!canvas.on_canvas()) return;
+        const ws::RowCell at = ws::row_cell_at(ws::canvas_rows(canvas.room()), event.x, event.y);
         if (event.phase == ws::canvas_pointer::kWheel || event.phase == ws::canvas_pointer::kMove) {
-            if (event.grant != canvas.room.grant || !value_mode(*v)) return;
+            if (event.grant != canvas.room().grant || !value_mode(*v)) return;
             if (event.phase == ws::canvas_pointer::kWheel) {
                 if (v->wheel(event.dy)) say(*v, mail);
-            } else if (event.gesture == canvas.held) {
+            } else if (event.gesture == held_of(*v)) {
                 pane::ViewContext c{mail, asked_};
                 v->dragged(at.row, at.column, c);
             }
@@ -251,7 +254,7 @@ public:
         } else if (event.button == 1) {
             // Only the motion of the press a field pickup is armed under may begin it, and only a
             // value view's press arms one: a press on the properties leaves no earlier press armed.
-            canvas.held = at.shown && value_mode(*v) ? event.gesture : 0;
+            held_of(*v) = at.shown && value_mode(*v) ? event.gesture : 0;
             if (at.shown) press(*v, at, event.grant, event.picture, mail);
         }
     }
@@ -287,10 +290,8 @@ public:
             return;
         }
     }
-    void on(const loom::Activated& a, loom::Mail& mail) {
-        if (!activation_.accept(mail, a)) {
-            return;
-        }
+    /// AN ACCEPTED ACTIVATION offers the views (`announce`) and ends each lease no view here holds.
+    void on_activated(loom::Mail& mail) {
         announce(mail);
         // AN ARRIVING IMAGE HOLDS NO OBSERVATION. A reload keeps this office's WeaveId, so
         // Workshop cannot tell a predecessor's leases from ours; lease 0 ends every one this
@@ -301,22 +302,12 @@ public:
                     .send_to_role(kWorkshopRole, ws::PaneObservationEnded{v.key(), 0});
     }
 
-    void on(const PaneCatalogRequested&, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole)) {
-            return;
-        }
-        announce(mail);
-    }
-
     void on(const PaneRoom& room, loom::Mail& mail) {
         pane::ValueView* v = view_of(room.pane);
         if (!mail.authored_from_role(kWorkshopRole) || !v) {
             return;
         }
-        Canvas& canvas = canvas_of(*v);
-        canvas.prose_rows = room.rows;
-        canvas.prose_columns = room.columns;
-        if (canvas.on()) {
+        if (!canvas_of(*v).prose_room(room)) {
             return; // the canvas room, granted first, already drew
         }
         fit_room(*v);
@@ -330,7 +321,7 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || !v) {
             return;
         }
-        canvas_of(*v).room = room;
+        canvas_of(*v).canvas_room(room);
         fit_room(*v);
         say(*v, mail);
     }
@@ -406,7 +397,7 @@ public:
     void press(pane::ValueView& v, const ws::RowCell& at, std::int64_t grant, std::int64_t picture,
                loom::Mail& mail) {
         if (!value_mode(v)) {
-            if (grant == canvas_of(v).room.grant) {
+            if (grant == canvas_of(v).room().grant) {
                 properties_.press(at.row);
                 settle(mail);
             }
@@ -509,6 +500,7 @@ private:
         return mail.authored_from_role(kWorkshopRole) || mail.answers_ask();
     }
 
+public:
     // ---- Offering and declaring ---------------------------------------------------------
 
     /// THE DEFAULT PANE, AND EVERY SLOT THIS IMAGE HAS OFFERED BEFORE. A slot is offered on first
@@ -530,6 +522,7 @@ private:
             .send_to_role(kWorkshopRole, PaneSubjectRequested{});
     }
 
+private:
     /// WHAT THIS PANE ANSWERS TO RIGHT NOW -- re-declared whenever the mode changes.
     void declare(pane::ValueView& v, loom::Mail& mail) {
         PaneActions actions;
@@ -574,35 +567,26 @@ private:
     /// The slots show typed values always; the default view only while its value is shown.
     static bool value_mode(const pane::ValueView& v) { return !v.is_default() || v.active; }
 
-    /// ONE VIEW'S CANVAS: the room Workshop granted it there, the pictures numbered in that room,
-    /// and the prose room it keeps for a host granting none. Kept here, per slot, so a view's
-    /// retirement keeps the room and its numbering.
-    struct Canvas {
-        ws::PaneCanvasRoom room;
-        ws::CanvasPictures pictures;
-        std::int64_t prose_rows = 0, prose_columns = 0;
-        std::int64_t held = 0; ///< the last primary press's gesture, if on a value view's rows
-        bool on() const { return room.grant > 0 && room.width > 0 && room.height > 0; }
-    };
-    Canvas& canvas_of(const pane::ValueView& v) { return canvases_[v.slot() - 1]; }
+    /// ONE VIEW'S ROOMS (`ws::PaneCanvasSeat`): the canvas room Workshop granted it, the pictures
+    /// numbered there, and the prose room it keeps for a host granting none. Kept here, per slot,
+    /// so a view's retirement keeps the room and its numbering.
+    ws::PaneCanvasSeat& canvas_of(const pane::ValueView& v) { return canvases_[v.slot() - 1]; }
+    /// The gesture of the last primary press on a view, while it was on a value view's rows.
+    std::int64_t& held_of(const pane::ValueView& v) { return held_[v.slot() - 1]; }
 
-    /// The rows and columns a view composes for: its canvas's lattice while it holds one -- and,
-    /// for the default view, the property view's too.
+    /// The rows and columns a view composes for, as its seat measured them: its canvas's lattice
+    /// while it holds one -- and, for the default view, the property view's too.
     void fit_room(pane::ValueView& v) {
-        const Canvas& canvas = canvas_of(v);
-        const ws::CanvasRows lattice = ws::canvas_rows(canvas.room);
-        const std::int64_t rows = canvas.on() ? lattice.rows : canvas.prose_rows;
-        const std::int64_t columns = canvas.on() ? lattice.columns : canvas.prose_columns;
-        v.room(rows, columns);
-        if (v.is_default()) properties_.room(rows, columns);
+        const ws::PaneCanvasSeat& canvas = canvas_of(v);
+        v.room(canvas.rows(), canvas.columns());
+        if (v.is_default()) properties_.room(canvas.rows(), canvas.columns());
     }
 
     /// WHETHER A PLACE ON `picture` OF `grant` IS ONE THE VIEW STILL SHOWS AS A VALUE VIEW: the
     /// pane-property view numbers no meaning of its own, so a place on it is never a field or a
     /// control.
     bool shows_value(pane::ValueView& v, std::int64_t grant, std::int64_t picture) {
-        const Canvas& canvas = canvas_of(v);
-        return value_mode(v) && canvas.on() && canvas.pictures.current(grant, picture);
+        return value_mode(v) && canvas_of(v).shows(grant, picture);
     }
 
     /// THE ROWS SENT: as the view's own picture while it holds a canvas, numbered by what they
@@ -610,19 +594,7 @@ private:
     /// them, said every time so a caret that went goes, to a host granting none.
     void send(pane::ValueView& v, ws::v4::PaneContent said, std::int64_t meaning,
               const ws::RowsCaret& caret, loom::Mail& mail) {
-        Canvas& canvas = canvas_of(v);
-        if (canvas.on()) {
-            (void)mail.as_role(pane::kInfoPaneRole)
-                .send_to_role(kWorkshopRole, ws::rows_picture(canvas.room,
-                                                              canvas.pictures.next(canvas.room, meaning),
-                                                              said.rows, said.parts, caret));
-            return;
-        }
-        (void)mail.as_role(pane::kInfoPaneRole).send_to_role(kWorkshopRole, std::move(said));
-        (void)mail.as_role(pane::kInfoPaneRole)
-            .send_to_role(kWorkshopRole,
-                          ws::PaneCaret{v.key(), caret.row, caret.column, caret.sel_begin_row,
-                                        caret.sel_begin_col, caret.sel_end_row, caret.sel_end_col});
+        canvas_of(v).say(mail, std::move(said), meaning, caret, /*always_caret=*/true);
     }
     bool can_create() const {
         return std::any_of(views_.begin() + 1, views_.end(), [](const pane::ValueView& v) { return !v.allocated(); });
@@ -776,8 +748,9 @@ private:
     pane::PropertyView properties_;
     /// Each view's one outstanding menu -- image-local, so a reload cancels them.
     std::array<ws::pane_menu::Asked, pane::kMaxInfoViews> menus_{};
-    /// Each view's canvas -- image-local: a reload waits for a fresh room.
-    std::array<Canvas, pane::kMaxInfoViews> canvases_{};
+    /// Each view's rooms -- image-local: a reload waits for a fresh room -- and its held press.
+    std::array<ws::PaneCanvasSeat, pane::kMaxInfoViews> canvases_{};
+    std::array<std::int64_t, pane::kMaxInfoViews> held_{};
     /// Launches this image asked for, so a refused one can report to the view that asked.
     struct Launch {
         std::uint64_t correlation = 0;
@@ -785,7 +758,6 @@ private:
         std::uint64_t incarnation = 0;
     };
     std::vector<Launch> launches_;
-    zengine::ActivationCursor activation_;
 
     Paste paste_;
     component::Clipboard clip_;

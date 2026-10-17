@@ -11,10 +11,12 @@
 #include "workshop/pane_escape.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_parts.hpp"
+#include "workshop/pane_seat.hpp"
 #include "workshop/setup_control.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/pane_document.hpp"
 #include "manuals/zengine.inventory-pane.hpp" // this pane's manual, compiled in from its page
+#include "component/list_window.hpp"
 #include "component/text_box.hpp"
 #include "input/vocabulary.hpp"
 #include <zen/kernel/export.hpp>
@@ -34,8 +36,12 @@ struct InventoryPaneState {
     slots::InventoryViews layout;
     ZEN_SHAPE(InventoryPaneState, 2, ZEN_FIELD(layout));
 };
-class InventoryPane : public loom::WeaveBase<InventoryPane, InventoryPaneState,
-    loom::Accept<ws::PaneResetRequested, loom::Activated, ws::PaneCatalogRequested, ws::PaneRoom, ws::PaneCanvasRoom,
+/// THE OFFICE OF MAIN INVENTORY AND EVERY VIEW IT MADE: its activation, its offers on Workshop's
+/// catalog request, and the manual of any pane it offers, one page for all of them.
+using Office =
+    ws::MultiPaneFacet<office, pane, zengine::manual::pages::zengine_inventory_pane::kManual>;
+class InventoryPane : public zengine::With<Office>::Weave<InventoryPane, InventoryPaneState,
+    loom::Accept<ws::PaneResetRequested, ws::PaneRoom, ws::PaneCanvasRoom,
         ws::PaneCanvasPointer, ws::PaneCanvasRejected, ws::PaneKey, ws::PaneTextInput,
         ws::PaneCanvasValueDrop, ws::PaneActionRequested, ws::PaneMenuAnswered,
         ws::PaneOperationAnswered, ws::ActorScopeJudged, ws::PaneCarryAnswered, ws::PaneShortcutsAnswered,
@@ -44,8 +50,8 @@ class InventoryPane : public loom::WeaveBase<InventoryPane, InventoryPaneState,
         inv::v2::InventoryListed, inv::InventoryFolderState, inv::InventoryChanged,
         inv::v2::InventorySnapshot, inv::InventoryRestored,
         slots::InventoryToolboxSave, slots::InventoryToolboxRestore,
-        loom::Ack, loom::Refused, loom::DispatchRefused, ws::PaneDocumentRequested>,
-    loom::Emit<ws::v2::PaneOffered, ws::v3::PaneActions, ws::PaneDocumentShown, ws::v4::PaneContent,
+        loom::Ack, loom::Refused, loom::DispatchRefused>,
+    loom::Emit<ws::v2::PaneOffered, ws::v3::PaneActions, ws::v4::PaneContent,
         ws::v5::PaneCanvasContent, ws::PaneCaret,
         ws::PaneMenuRequested, ws::PaneEscapeUnspent,
         ws::PanePassRequested, ws::PaneKeyboardRequested, ws::PaneOperationRequested,
@@ -79,12 +85,9 @@ class InventoryPane : public loom::WeaveBase<InventoryPane, InventoryPaneState,
         std::uint64_t correlation; loom::Ticket ticket; std::string launch;
     };
 public:
-    /// THIS WEAVE'S MANUAL, TO THE ONE WHO ASKED, for main Inventory or any view it offers: one page
-    /// for every pane, from the page this image was built with.
-    void on(const ws::PaneDocumentRequested& ask, loom::Mail& m) {
-        (void)m.answer(ws::pane_document(ask, known(ask.pane) ? ask.pane : std::string(pane),
-                                         zengine::manual::pages::zengine_inventory_pane::kManual));
-    }
+    /// THE PANES WHOSE MANUAL IS THIS WEAVE'S, main Inventory and any view it offers: one page for
+    /// every pane, from the page this image was built with.
+    bool known_pane(const std::string& id) const { return known(id); }
     // SENT STRAIGHT HERE, past Workshop's dispatch: no gesture crossed, so Workshop judges the
     // sender's class `write` before the toolbox reads or writes anything.
     void on(const slots::InventoryToolboxSave& request, loom::Mail& m) {
@@ -121,26 +124,23 @@ public:
         if(request.pane==pane) browser_.open({},listing_,v.selected);
         notice_.clear(); declare_all(m); refresh(m); (void)m.answer(loom::Ack{});
     }
-    void on(const loom::Activated& a, loom::Mail& m) { if (activation_.accept(m,a)) announce(m); }
-    void on(const ws::PaneCatalogRequested&, loom::Mail& m) { if (host(m)) announce(m); }
     void on(const ws::PaneRoom& room, loom::Mail& m) {
         if (!host(m) || !known(room.pane)) return;
-        auto& c=canvases_[room.pane]; c.prose_rows=room.rows; c.prose_columns=room.columns;
-        if(c.on()) return; // the canvas room, granted first, already drew
+        if(!seat_of(room.pane).prose_room(room)) return; // the canvas room, granted first, already drew
         fit(room.pane); refresh(m); draw(m);
     }
     /// A VIEW'S OWN CANVAS: while it holds a room there it draws its rows as its picture, the
     /// lattice's rows and columns its room, and says them as prose only to a host granting none.
     void on(const ws::PaneCanvasRoom& room, loom::Mail& m) {
         if (!host(m) || !known(room.pane)) return;
-        canvases_[room.pane].room=room; fit(room.pane); refresh(m); draw(m);
+        seat_of(room.pane).canvas_room(room); fit(room.pane); refresh(m); draw(m);
     }
     /// A refused picture leaves the last good one showing, and the next draw sends that view again:
     /// a picture refused in the room the view holds, not one from a room before it.
     void on(const ws::PaneCanvasRejected& r, loom::Mail& m) {
         if(!host(m)) return;
         const auto c=canvases_.find(r.pane);
-        if(c!=canvases_.end() && r.grant==c->second.room.grant) sent_.erase(r.pane);
+        if(c!=canvases_.end() && r.grant==c->second.room().grant) sent_.erase(r.pane);
     }
     void on(const inv::InventoryChanged&, loom::Mail& m) { if (m.authored_from_role(inv::kInventoryRole)) refresh(m); }
     void on(const inv::v2::InventoryListed& a, loom::Mail& m) {
@@ -167,12 +167,12 @@ public:
     void on(const ws::PaneCanvasPointer& p, loom::Mail& m) {
         if (!host(m) || !known(p.pane)) return;
         const auto found=canvases_.find(p.pane);
-        if(found==canvases_.end() || !found->second.on()) return;
+        if(found==canvases_.end() || !found->second.on_canvas()) return;
         const auto& c=found->second;
-        const auto at=ws::row_cell_at(ws::canvas_rows(c.room),p.x,p.y);
-        if(p.phase==ws::canvas_pointer::kWheel) { if(p.grant==c.room.grant) wheel(p.pane,p.dy,m); return; }
+        const auto at=ws::row_cell_at(ws::canvas_rows(c.room()),p.x,p.y);
+        if(p.phase==ws::canvas_pointer::kWheel) { if(p.grant==c.room().grant) wheel(p.pane,p.dy,m); return; }
         if(p.phase!=ws::canvas_pointer::kPress) return;
-        const bool current=c.pictures.current(p.grant,p.picture);
+        const bool current=c.shows(p);
         if(p.button==3) right_press(p.pane,at,current,m);
         else if(p.button==1 && at.shown) press(p.pane,at.row,at.column,current,p.keys_went_here,m);
     }
@@ -244,10 +244,13 @@ private:
     void wheel(const std::string& view,double dy,loom::Mail& m) {
         if(editing_!=Editing::none) return;
         pressed_folder_.clear();
-        auto& v=views_[view]; v.wheel+=dy; if(!std::isfinite(v.wheel)) v.wheel=0;
+        auto& v=views_[view];
+        // A turn that is no number is none, and the carry starts again; a turn past any count
+        // reaches as far as one does.
+        if(!std::isfinite(v.wheel+dy)) { v.wheel=0; dy=0; }
+        const auto whole=component::take_wheel_notches(v.wheel,std::clamp(dy,-0x1p53,0x1p53));
         // No turn walks further than the view holds rows, however far the wheel went.
-        const double whole=std::trunc(v.wheel); v.wheel-=whole;
-        const double reach=static_cast<double>(row_keys(view).size());
+        const auto reach=static_cast<std::int64_t>(row_keys(view).size());
         step(view,-static_cast<int>(std::clamp(whole,-reach,reach))); remove_armed_=false; draw(m);
     }
 public:
@@ -366,9 +369,9 @@ public:
     void on(const ws::PaneCanvasValueDrop& v, loom::Mail& m) {
         if(!host(m) || !known(v.pane) || editing_!=Editing::none) return;
         const auto found=canvases_.find(v.pane);
-        if(found==canvases_.end() || !found->second.on()) return;
-        const auto at=ws::row_cell_at(ws::canvas_rows(found->second.room),v.x,v.y);
-        const bool current=found->second.pictures.current(v.grant,v.picture);
+        if(found==canvases_.end() || !found->second.on_canvas()) return;
+        const auto at=ws::row_cell_at(ws::canvas_rows(found->second.room()),v.x,v.y);
+        const bool current=found->second.shows(v.grant,v.picture);
         if(busy()) { notice_=waiting(); draw(m); return; }
         if(v.source_office!=office || v.token.empty()) { copy_drop(v.pane,at.row,at.column,current,v.data,m); return; }
         const auto it=transfers_.find(v.token);
@@ -837,10 +840,14 @@ private:
         if(id.empty()) return;
         launch_ask_=++asks_; m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,ws::PaneLaunchRequested{office,id},launch_ask_);
     }
+public:
+    /// EVERY PANE OFFERED AND DECLARED, the listing asked for and the hotkeys proposed: at each
+    /// activation and each catalog request of Workshop's.
     void announce(loom::Mail& m) {
         announce_views(m,true); declare_all(m); refresh(m);
         if(!registration_ && !toolbox_.busy()) propose(state_.layout,m,{}, {},true);
     }
+private:
     /// EACH PANE OFFERED WHEN WORKSHOP HAS NOT HEARD IT, OR HEARD IT OTHERWISE: every one on an
     /// activation or a catalog request, and after a change only a view it made or altered.
     /// Workshop takes a re-offer as a reloaded image arriving and starts that pane's picture over,
@@ -953,21 +960,13 @@ private:
             sent_[id]=Sent{rows,picture,caret};
             const bool editing=editing_!=Editing::none;
             auto parts=ws::row_parts(v.map,v.columns,[editing](const std::string& meaning) { return part_name(meaning,editing); });
-            if(auto& c=canvases_[id]; c.on()) {
-                m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,
-                    ws::rows_picture(c.room,c.pictures.next(c.room,picture),rows,parts,caret));
-                continue;
-            }
-            m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,ws::v4::PaneContent{id,std::move(rows),0,picture,std::move(parts)});
-            m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,ws::PaneCaret{id,caret.row,caret.column,
-                caret.sel_begin_row,caret.sel_begin_col,caret.sel_end_row,caret.sel_end_col});
+            seat_of(id).publish_rows(m,picture,std::move(rows),std::move(parts),caret,/*always_caret=*/true);
         }
     }
     /// The rows and columns a view composes for: its canvas's lattice while it holds one, else the
     /// prose room's. A new room starts the view's picture over.
     void fit(const std::string& id) {
-        auto& v=views_[id]; const auto& c=canvases_[id]; const auto lattice=ws::canvas_rows(c.room);
-        v.rows=c.on()?lattice.rows:c.prose_rows; v.columns=c.on()?lattice.columns:c.prose_columns;
+        auto& v=views_[id]; const auto& c=seat_of(id); v.rows=c.rows(); v.columns=c.columns();
         v.map.clear(); sent_.erase(id);
     }
     /// WHAT INVENTORY CALLS ITS PARTS: an entry by its reference, `entry:<owner>:<entry>`; a folder,
@@ -989,7 +988,6 @@ private:
         return true;
     }
     static std::string nonce() { std::random_device rng; std::ostringstream s; s<<std::hex<<rng()<<rng()<<rng()<<rng(); return s.str(); }
-    zengine::ActivationCursor activation_;
     ws::pane_menu::Asked menu_;
     inv::PaneClient client_;
     slots::Command command_;
@@ -1001,13 +999,13 @@ private:
         return a.row==b.row && a.column==b.column && a.sel_begin_row==b.sel_begin_row && a.sel_begin_col==b.sel_begin_col &&
             a.sel_end_row==b.sel_end_row && a.sel_end_col==b.sel_end_col;
     }
-    /// ONE VIEW'S CANVAS: the room Workshop granted it there, the pictures numbered in that room,
-    /// and the prose room kept for a host granting none.
-    struct Canvas {
-        ws::PaneCanvasRoom room; ws::CanvasPictures pictures; std::int64_t prose_rows=0,prose_columns=0;
-        bool on() const { return room.grant>0 && room.width>0 && room.height>0; }
-    };
-    std::map<std::string,Canvas> canvases_; // each view's, image-local: a reload waits for fresh rooms
+    /// ONE VIEW'S ROOMS: the canvas room Workshop granted it, the pictures numbered there, and the
+    /// prose room kept for a host granting none -- each view's, image-local: a reload waits for
+    /// fresh rooms.
+    std::map<std::string,ws::PaneCanvasSeat> canvases_;
+    ws::PaneCanvasSeat& seat_of(const std::string& id) {
+        return canvases_.try_emplace(id,id,office).first->second;
+    }
     std::map<std::string,Sent> sent_; // each view's picture as sent since its room was granted
     std::map<std::string,Transfer> transfers_;
     component::TextBox line_;

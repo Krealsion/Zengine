@@ -170,7 +170,7 @@ inline std::vector<surface::SurfaceTextRow> render(const InventoryViews& s, cons
         const auto fixed = static_cast<std::int64_t>(rows.size()) + (v.rows > 2 ? 1 : 0);
         const auto budget = static_cast<std::size_t>(std::max<std::int64_t>(0, v.rows - fixed));
         const auto window = component::cursor_window(total, at, at, budget);
-        if (window.before && window.marker_rows()) push("... " + std::to_string(window.before) + " earlier", role::kMuted);
+        if (const auto earlier = component::earlier_marker(window); earlier > 0) push("... " + std::to_string(earlier) + " earlier", role::kMuted);
         for (std::size_t i = window.first; i < window.end(); ++i) {
             if (i < nf) {
                 const auto& [folder, members] = browse.folders[i];
@@ -187,7 +187,7 @@ inline std::vector<surface::SurfaceTextRow> render(const InventoryViews& s, cons
                  (e.capture_slot ? " [capture slot]" : "") + (kind == "single" ? "" : " : " + e.schema) +
                  (key(e.reference) == browse.moving ? " [moving]" : ""), role::kFill);
         }
-        if (window.after && window.marker_rows()) push("... " + std::to_string(window.after) + " later", role::kMuted);
+        if (const auto more = component::more_marker(window); more > 0) push("... " + std::to_string(more) + " later", role::kMuted);
         if (total == 0) push(folders && browse.crumbs.size() > 1 ? "Empty folder: drop entries here; Ctrl+D new folder"
                                                                  : "Drop entries here; right-click view actions", role::kMuted);
         push(!notice.empty() ? notice : folders ? "Enter opens | Backspace up | right-click actions"

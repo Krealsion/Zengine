@@ -156,16 +156,16 @@ public:
         const auto budget = static_cast<std::size_t>(std::max<std::int64_t>(0, s.rows - static_cast<std::int64_t>(out.rows.size())));
         const auto window = component::cursor_window(s.fields.size(), s.selected, first, budget);
         first = window.first;
-        if (window.before && window.marker_rows())
-            push(workshop::pane_text::omitted_text(window.before, "earlier"), surface::role::kMuted);
+        if (const std::size_t earlier = component::earlier_marker(window); earlier > 0)
+            push(workshop::pane_text::omitted_text(earlier, "earlier"), surface::role::kMuted);
         for (std::size_t i = window.first; i < window.end(); ++i) {
             const FieldLine& f = s.fields[i];
             map_.row(static_cast<std::int64_t>(out.rows.size()), Meaning{Meaning::kField, {}, f.ref});
             push(std::string(f.here ? ">" : " ") + f.mark + f.label + ": " + f.summary + (f.missing ? " (required)" : ""),
                  f.metadata ? surface::role::kMuted : surface::role::kFill);
         }
-        if (window.after && window.marker_rows())
-            push(workshop::pane_text::omitted_text(window.after, "more"), surface::role::kMuted);
+        if (const std::size_t more = component::more_marker(window); more > 0)
+            push(workshop::pane_text::omitted_text(more, "more"), surface::role::kMuted);
         out.picture = map_.settle();
         return out;
     }
