@@ -99,14 +99,14 @@ Shape: [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp).
 
 ### `PaneCanvasRoom`
 
-`PaneCanvasRoom` v3, from Workshop: the pane's canvas, where it draws its rows, naming the reset row
-`control:reset` and the row beneath it `status`.
+`PaneCanvasRoom` v3, from Workshop: the pane's canvas, where it draws its rows, naming the reset
+button `control:reset` and the line beneath it `status`.
 Shape: [`workshop/pane_canvas_vocabulary.hpp`](../../workshop/pane_canvas_vocabulary.hpp).
 
 ### `PaneCanvasPointer`
 
-`PaneCanvasPointer` v2, from Workshop: a press on the canvas. A primary press on the reset row is
-[`reset`](#reset); a right press is handed back, so Workshop's own menu for the pane opens.
+`PaneCanvasPointer` v2, from Workshop: a press on the canvas. A primary press on the reset button
+is [`reset`](#reset); a right press is handed back, so Workshop's own menu for the pane opens.
 Shape: [`workshop/pane_canvas_vocabulary.hpp`](../../workshop/pane_canvas_vocabulary.hpp).
 
 ### `PaneCanvasRejected`
@@ -123,6 +123,24 @@ From anyone else it does nothing. Shape: [`workshop/pane_vocabulary.hpp`](../../
 
 `PaneDocumentRequested` v1: answered `PaneDocumentShown` from this page, to the asker alone.
 Shape: [`workshop/pane_document.hpp`](../../workshop/pane_document.hpp).
+
+### `AreaRoom`
+
+`AreaRoom` v2, from the graphics window that shows the area `zengine.demo`, as that window's
+office: the pane's room there. When the window, its incarnation or its size changed, the pane draws
+the lines the room holds there whole (`Drawn`), the reset button the part `control:reset`, and after
+that sends the window only what changed. Shape: [`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp).
+
+### `DrawnRefused`
+
+`DrawnRefused` v1, from that window: a drawing it refused, and why. What it shows stays as it was,
+and the pane's next drawing goes whole. Shape: [`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp).
+
+### `ActionRequested`
+
+`ActionRequested` v1, from that window: a press on the reset button there asks `reset`, which is
+[`reset`](#reset). An action the pane's last drawing there does not name does nothing.
+Shape: [`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp).
 
 ## Follow
 

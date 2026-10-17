@@ -12,6 +12,7 @@
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 #include "census.hpp"
+#include "window_stand_in.hpp"
 
 #include "terminal/vocabulary.hpp"
 #include "workshop/terminal_seam_vocabulary.hpp"
@@ -39,9 +40,9 @@ struct TerminalRig {
 
     /// LOAD THE IMAGE, MOUNT THE PARTICIPANT, AND PICK THE PANE. ⚠ THE `pick` IS THE CLAIM: no
     /// setup names the Terminal, so it arrives the way Files, the Builder and Attention do -- a
-    /// stranger a weaver opens from the Pane Manager.
+    /// stranger a weaver opens from the Pane Manager. Unpicked, Workshop seats it nowhere.
     void open(std::int64_t width = 160, std::int64_t height = 48, int shapes = 0,
-              bool participant = true, bool widen = false) {
+              bool participant = true, bool widen = false, bool pick = true) {
         r.mount_workshop();
         if (participant) {
             me = r.mount_terminal(shapes, widen);
@@ -57,6 +58,9 @@ struct TerminalRig {
         r.extent(width, height);
         REQUIRE_MESSAGE(row() != nullptr, "the loaded image offered no `terminal` pane");
         kind = row()->kind;
+        if (!pick) {
+            return;
+        }
         r.pick(pane_terminal_ref());
         REQUIRE(r.session().panes.has(kind));
     }
@@ -375,6 +379,60 @@ TEST_CASE("the manual the Terminal answers names exactly the commands it declare
 }
 
 TEST_CASE("nothing global opens it, and no key acts on it from anywhere else") {
+    SUBCASE("a graphics window that shows its area shows it with Workshop seating it nowhere: "
+            "drawn for the window's room, Workshop told none of it, the room asked once a life, "
+            "and only the window's own word heard") {
+        namespace gfx = zengine::graphics;
+        const char* area = pane::kTerminalPaneRole;
+        std::size_t to_workshop = 0, room_asked = 0; // outlive the rig, whose bus the tap is on
+        TerminalRig u;
+        const loom::ObserverId tap = u.r.bus.add_observer([&](const loom::BusEvent& ev) {
+            if (ev.authored_role != area || (ev.kind != loom::EventKind::Delivered &&
+                                             ev.kind != loom::EventKind::Refused)) {
+                return;
+            }
+            if (ev.schema_name == v5::PaneContent::zen_name ||
+                ev.schema_name == v6::PaneCanvasContent::zen_name ||
+                ev.schema_name == PaneCaret::zen_name) {
+                ++to_workshop;
+            }
+            if (ev.schema_name == gfx::RoomAsked::zen_name) ++room_asked;
+        });
+        u.open(160, 48, 0, true, false, /*pick=*/false);
+        REQUIRE_FALSE(u.r.session().panes.has(u.kind));
+        zengine::testing::WindowStandIn window(u.r.bus);
+        window.room(area, 40 * gfx::kCellPx, 10 * gfx::kCellPx);
+        REQUIRE(window.seat().drawn.size() == 1);
+        CHECK(window.seat().drawn[0].whole);
+        const std::vector<std::string> shown = window.shown(area);
+        REQUIRE(shown.size() == 10);
+        CHECK(shown[9].rfind(">", 0) == 0); // the line, on the last row of the window's room
+        CHECK(window.action_at(area, 9, 0) == "line");
+
+        // A CHANGE IS DRAWN AS WHAT CHANGED; after a refusal, whole.
+        std::size_t mark = window.seat().drawn.size();
+        window.ask(area, pane::kActionComplete);
+        REQUIRE(window.seat().drawn.size() > mark);
+        CHECK_FALSE(window.seat().drawn.back().whole);
+        window.refuse(area, "the suite refuses it");
+        mark = window.seat().drawn.size();
+        window.ask(area, pane::kActionBack);
+        REQUIRE(window.seat().drawn.size() > mark);
+        CHECK(window.seat().drawn[mark].whole);
+
+        // A ROOM OR A PRESS ANYONE BUT THE WINDOW SAYS IS NOTHING: the rows stay this window's.
+        mark = window.seat().drawn.size();
+        u.r.publish(loom::to_value(gfx::AreaRoom{area, "elsewhere", 1, 480, 120, {}}));
+        u.r.publish(loom::to_value(gfx::ActionRequested{area, pane::kActionComplete}));
+        CHECK(window.seat().drawn.size() == mark);
+        window.ask(area, pane::kActionComplete);
+        CHECK(window.seat().drawn.size() > mark);
+
+        CHECK(to_workshop == 0);
+        CHECK(room_asked == 1);
+        CHECK(window.seat().refused.empty());
+        u.r.bus.remove_observer(tap);
+    }
     // NO GLOBAL CHORD OPENS IT: the Terminal is opened from the Pane Manager, and its keys reach
     // it only after a weaver has pressed into it.
     TerminalRig t;
@@ -754,6 +812,79 @@ TEST_CASE("WL-HAND-06: the Terminal names the line being typed and each candidat
     // A PRESS WHERE ONE IS NAMED CHOOSES IT.
     t.press_row(parts.at("candidate:send").row, 3);
     CHECK(t.shown()[static_cast<std::size_t>(parts.at("candidate:send").row)].rfind("> send", 0) == 0);
+
+    SUBCASE("a graphics window shows the same rows under the same names, and a press there is the "
+            "press Workshop's canvas makes, but never a pickup") {
+        const char* area = pane::kTerminalPaneRole;
+        const auto row_at = [](const std::vector<std::string>& rows, std::int64_t row) {
+            const auto at = static_cast<std::size_t>(row);
+            std::string text = at < rows.size() ? rows[at] : std::string();
+            text.erase(text.find_last_not_of(' ') + 1);
+            return text;
+        };
+        zengine::testing::WindowStandIn window(t.r.bus);
+        window.room(area, 160 * zengine::graphics::kCellPx, 48 * zengine::graphics::kCellPx);
+        REQUIRE_FALSE(window.seat().drawn.empty());
+        CHECK(window.seat().drawn.front().whole);
+        CHECK(window.seat().refused.empty());
+        // THE ROWS WORKSHOP HOLDS, since it seats the pane and the pane composes for its room.
+        const std::vector<std::string> held = t.shown();
+        REQUIRE_FALSE(held.empty());
+        for (std::size_t i = 0; i < held.size(); ++i) {
+            CAPTURE(i);
+            CHECK(row_at(window.shown(area), static_cast<std::int64_t>(i)) ==
+                  row_at(held, static_cast<std::int64_t>(i)));
+        }
+        // ...UNDER THE SAME NAMES: a press on the line's row or a candidate's asks for it by name.
+        parts = held_parts(t.r.session(), t.kind);
+        CHECK(window.action_at(area, parts.at("line").row, 0) == "line");
+        CHECK(window.action_at(area, parts.at("candidate:send").row, 3) == "candidate:send");
+
+        // A DECLARED ID ASKED THERE IS THE PANE'S ACT: on an empty line, completion lists every verb.
+        t.clear_line();
+        window.ask(area, pane::kActionComplete);
+        parts = held_parts(t.r.session(), t.kind);
+        std::string other;
+        for (const auto& [name, part] : parts) {
+            if (name.rfind("candidate:", 0) == 0 && name != "candidate:send") other = name;
+        }
+        REQUIRE_FALSE(other.empty());
+        const std::int64_t at = parts.at(other).row;
+        CHECK(window.action_at(area, at, 3) == other);
+
+        // A CANDIDATE PRESSED THERE IS CHOSEN, in both media.
+        window.ask(area, other);
+        CHECK(row_at(t.shown(), at).rfind("> " + other.substr(10), 0) == 0);
+        CHECK(row_at(window.shown(area), at) == row_at(t.shown(), at));
+
+        // ...and asked again, takes the candidate chosen into the line.
+        window.ask(area, pane::kActionComplete);
+        CHECK(t.input_text().find(other.substr(10)) != std::string::npos);
+        CHECK(row_at(window.shown(area), t.input_row()) == row_at(t.shown(), t.input_row()));
+
+        // AN ID IT NEITHER DREW NOR DECLARED is no act, and nothing is drawn.
+        std::size_t drawn = window.seat().drawn.size();
+        window.ask(area, "terminal.no-such-action");
+        CHECK(window.seat().drawn.size() == drawn);
+
+        // A VALUE IN THE RECORD, PRESSED THERE, PICKS NOTHING UP: no carry begins in a window. The
+        // line is run as the window asks it.
+        (void)t.r.mount_skin_seat();
+        t.clear_line();
+        t.type("send @zengine.skin SurfaceText 1 slot=hello text=there");
+        window.ask(area, pane::kActionSubmit);
+        REQUIRE(t.text().find("SUBMITTED") != std::string::npos);
+        std::string entry;
+        for (const auto& [name, part] : held_parts(t.r.session(), t.kind)) {
+            if (name.rfind("entry:", 0) == 0) entry = name;
+        }
+        REQUIRE_FALSE(entry.empty());
+        drawn = window.seat().drawn.size();
+        const std::string before = t.text();
+        window.ask(area, entry);
+        CHECK(t.text() == before); // no pickup asked, and no refusal of one said
+        CHECK(window.seat().drawn.size() == drawn);
+    }
 }
 
 TEST_CASE("the selection survives a recomputation and not a change of question") {
