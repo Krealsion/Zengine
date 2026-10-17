@@ -187,7 +187,8 @@ groups typing, treats joins and pastes as one edit, and redo returns" "set_lines
 -- undo cannot resurrect another document"
 
 ### WL-EDIT-03
-`editor/editor-pane/pane.cpp` judge_source discard_source_edits on(PaneQuitRequested)
+`editor/editor-pane/pane.cpp` discard_source_edits on(PaneQuitRequested)
+`editor/editor-pane/opening_switch.hpp` judge_source
 `editor/editor-pane/editor.hpp` EditorBuffer::revert_to EditorState
 `workshop/weave_run.cpp` quit on(PaneQuitAnswered)
 `tests/test_workshop_panes_editor.cpp` "removing and reopening the pane cannot lose a byte, a caret,
@@ -195,8 +196,9 @@ or a step of history" "a dirty buffer refuses a different source, and a save ope
 orderly quit refuses while source is unsaved, and proceeds once it is not"
 
 ### WL-EDIT-05
-`editor/editor-pane/pane.cpp` on(OpenSourceRequested) on(SourceOpened) on(PrepareSourceRequested)
-on_claim_published judge_source Candidate Relay activate
+`editor/editor-pane/opening_switch.hpp` on(OpenSourceRequested) on(SourceOpened)
+on(PrepareSourceRequested) on_claim_published judge_source activate
+`editor/editor-pane/common.hpp` Candidate Relay
 `editor/editor-pane/editor.hpp` source_in EditorState
 `workshop/pane_seam_vocabulary.hpp` OpenSourceRequested SourceOpened kEditorRole
 `workshop/open_seam_vocabulary.hpp` PrepareSourceRequested SourcePrepared kOpeningRole
@@ -204,7 +206,8 @@ on_claim_published judge_source Candidate Relay activate
 keeps its paste" "the old door still opens and shows, or refuses truthfully, by a kept answer right"
 
 ### WL-EDIT-06
-`editor/editor-pane/pane.cpp` resolve project_dir_ project_known_ on(ProjectRoot)
+`editor/editor-pane/pane.cpp` project_dir_ project_known_ on(ProjectRoot)
+`editor/editor-pane/opening_switch.hpp` resolve
 `workshop/persist.hpp` resolved_against
 `editor/editor-pane/editor.hpp` EditorState::path
 `tests/test_workshop_panes_editor.cpp` "a relative path is the project's file, and means nothing
@@ -221,7 +224,8 @@ non-ASCII is refused with a sentence"
 ### WL-EDIT-08
 `editor/editor-pane/editor.hpp` EditorState::first_col visual_col_of byte_of_visual_col
 expanded_slice kEditorTabStop
-`editor/editor-pane/pane.cpp` kCaretCols press_at
+`editor/editor-pane/common.hpp` kCaretCols
+`editor/editor-pane/transfers.hpp` press_at
 `tests/test_editor.cpp` "tab geometry maps bytes and displayed columns both ways, exactly"
 `tests/test_workshop_panes_editor.cpp` "a press places the caret through the same tab geometry the
 paint used, and the caret stands in its picture where the press put it"
@@ -233,7 +237,9 @@ paint used, and the caret stands in its picture where the press put it"
 leaves it" "asking for the open source again moves the pane, never the view"
 
 ### WL-EDIT-11
-`editor/editor-pane/pane.cpp` begin_paste on(ClipboardText) Paste activate
+`editor/editor-pane/pane.cpp` begin_paste on(ClipboardText)
+`editor/editor-pane/common.hpp` Paste
+`editor/editor-pane/opening_switch.hpp` activate
 `editor/editor-pane/editor.hpp` EditorState::doc_epoch EditorBuffer::revision
 EditorBuffer::paste_lines EditorBuffer::set_lines
 `tests/test_workshop_panes_editor.cpp` "a late paste answer may not land at a caret that has since
@@ -241,7 +247,8 @@ moved" "a paste retires with the document it was asked for" "a dirty document wi
 flight still refuses the exit"
 
 ### WL-EDIT-12
-`editor/editor-pane/pane.cpp` say compose caret_of rows_caret parts_of status_text kNoticeNeedsRows
+`editor/editor-pane/pane.cpp` say compose caret_of status_text
+`editor/editor-pane/common.hpp` rows_caret parts_of kNoticeNeedsRows
 `workshop/pane_canvas_rows.hpp` rows_picture
 `workshop/screen_external.cpp` external_header external_body_place
 `tests/test_workshop_panes_editor.cpp` "a selection that runs above the window is clipped, and one
@@ -267,7 +274,8 @@ change" "the real desk, shown a presentation it holds no trial for, answers that
 `workshop/weave_run.cpp` quit finish_quit on(PaneQuitAnswered) hold_input replay_held
 `workshop/weave.hpp` HeldInput kMaxHeldInput quitting_
 `workshop/pane_vocabulary.hpp` PaneQuitRequested PaneQuitAnswered
-`editor/editor-pane/pane.cpp` on(PaneQuitRequested) kPasteInFlight
+`editor/editor-pane/pane.cpp` on(PaneQuitRequested)
+`editor/editor-pane/common.hpp` kPasteInFlight
 `tests/test_workshop_panes_editor.cpp` "a Workshop with no custodian in the room quits at once" "a
 forged quit answer moves nothing -- only Loom's answer to the host's ask decides" "an edit racing
 the exit check is judged at the answer, and a refused quit costs no keystroke"
@@ -285,7 +293,8 @@ oldest steps go and the newest stays"
 was scrolled to stands" "the reloaded pane reads live, not out of the snapshot it revived from"
 
 ### WL-EDIT-16
-`editor/editor-pane/pane.cpp` on(PaneCanvasPointer) press_at dragged Drag
+`editor/editor-pane/transfers.hpp` on(PaneCanvasPointer) press_at dragged
+`editor/editor-pane/common.hpp` Drag
 `editor/editor-pane/editor.hpp` EditorBuffer::drag_to
 `workshop/pane_canvas_vocabulary.hpp` PaneCanvasPointer
 `tests/test_workshop_panes_editor.cpp` "a press that only focuses begins no sweep, and a gesture
