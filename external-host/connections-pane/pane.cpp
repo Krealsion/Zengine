@@ -16,6 +16,7 @@
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
+#include "graphics/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 
 #include "manuals/zengine.connections.hpp" // this pane's manual, compiled in from its page
@@ -31,6 +32,7 @@
 
 namespace {
 
+namespace gfx = zengine::graphics;
 namespace surface = zengine::surface;
 namespace ws = zengine::workshop;
 namespace pane = zengine::connections_pane;
@@ -47,16 +49,17 @@ using zengine::workshop::pane_text::drawable;
 using zengine::workshop::pane_text::fit;
 using zengine::workshop::pane_text::omitted_text;
 
-/// The pane's room and its rows, on its canvas while it holds one and as prose to a host granting
-/// none. No row means anything: a press is nothing here, and a right press is handed back, so
-/// Workshop's own pane menu opens where it was made.
-using Rows = ws::PaneRowsFacet<pane::kConnectionsPane, pane::kConnectionsPaneRole,
-                               zengine::manual::pages::zengine_connections::kManual, std::string>;
+/// The pane's room and its one picture: in a graphics window, and in Workshop on its canvas while
+/// it holds one and as prose to a host granting none. Nothing in it is a part: a press is nothing
+/// here, and a right press in Workshop is handed back, so Workshop's own pane menu opens where it
+/// was made.
+using Drawing = ws::PaneDrawingFacet<pane::kConnectionsPane, pane::kConnectionsPaneRole,
+                                     zengine::manual::pages::zengine_connections::kManual>;
 
 class ConnectionsPaneWeave
-    : public zengine::With<Rows>::Weave<ConnectionsPaneWeave, pane::ConnectionsPaneState,
-                                        loom::Accept<GuestConnections>,
-                                        loom::Emit<GuestConnectionsRequested>> {
+    : public zengine::With<Drawing>::Weave<ConnectionsPaneWeave, pane::ConnectionsPaneState,
+                                           loom::Accept<GuestConnections>,
+                                           loom::Emit<GuestConnectionsRequested>> {
 public:
     PaneOffered offering() const {
         return PaneOffered{pane::kConnectionsPane, pane::kConnectionsPaneName,
@@ -69,8 +72,9 @@ public:
         ask(mail);
     }
 
-    /// The room granted, prose or canvas: the pane says its rows in it. A refused picture leaves
-    /// the last good one showing, and the next reading draws again.
+    /// The room granted -- Workshop's, prose or canvas, or a graphics window's: the pane says its
+    /// rows in it. A refused picture leaves the last good one showing, and the next reading draws
+    /// again.
     void on_room(loom::Mail& mail) { say(mail); }
 
     /// THE INVENTORY, SAID BY THE DOOR. Replaced whole; an answer to this pane's own ask and
@@ -92,68 +96,88 @@ private:
             .send_to_role(ws::kGuestsRole, GuestConnectionsRequested{});
     }
 
-    Rows& room() { return this->template facet<Rows>(); }
-    const Rows& room() const { return this->template facet<Rows>(); }
+    Drawing& room() { return this->template facet<Drawing>(); }
+    const Drawing& room() const { return this->template facet<Drawing>(); }
 
+    /// The picture shown, wherever the pane stands, once it holds a room.
     void say(loom::Mail& mail) {
-        const std::int64_t rows = room().rows(), columns = room().columns();
-        if (!room().granted() || rows <= 0 || columns <= 0) {
+        if (!room().granted() || room().rows() <= 0 || room().columns() <= 0) {
             return;
         }
-        // A ROW PAST THE ROOM IS NOT SAID: `push` keeps what the room holds and refuses the rest.
-        room().begin();
-        const auto push = [this, columns](const std::string& text, std::int64_t role) {
-            (void)room().push(surface::SurfaceTextRow{drawable(fit(text, columns)), role});
+        ++state_.said;
+        room().show(*this, mail);
+    }
+
+public:
+    /// WHAT THE PANE SHOWS, one line a cell high, each named for what it says; a connection's
+    /// lines stand under `rows/<n>`, the n-th connection said. A row past the room is not drawn.
+    void picture(gfx::Sketch& f) const {
+        const std::int64_t rows = room().rows(), columns = room().columns();
+        std::int64_t row = 0;
+        const auto line = [&](const std::string& path, const std::string& text,
+                              std::int64_t role) {
+            if (row < rows) {
+                f.text(path, 0, row * gfx::kCellPx, drawable(fit(text, columns)),
+                       gfx::by_role(role));
+                ++row;
+            }
         };
         if (!heard_) {
-            push("CONNECTIONS (waiting for the guest door)", surface::role::kMuted);
-        } else if (known_.listen.empty()) {
-            push("CONNECTIONS -- this Workshop accepts no guests", surface::role::kAccent);
-            push("  launch with --guests <file> to listen", surface::role::kMuted);
-        } else {
-            push("CONNECTIONS -- " + std::to_string(known_.rows.size()) +
-                     (known_.rows.size() == 1 ? " connection" : " connections") + " at " +
-                     known_.listen + (development_host() ? " -- a development host" : ""),
-                 surface::role::kAccent);
-            const std::size_t budget = rows > 1 ? static_cast<std::size_t>(rows - 1) : 0;
-            if (known_.rows.empty() && budget > 0) {
-                push("  nobody is connected", surface::role::kMuted);
-            }
-            // A CONNECTION IS SAID WHOLE OR COUNTED: one a guests-file row admitted brings its
-            // version line, and its reach line when it names a role or doors; they stand together
-            // or not at all.
-            std::size_t shown = 0; // connections said
-            std::size_t used = 0;  // the lines they and the count took
-            for (const GuestConnection& c : known_.rows) {
-                const std::size_t need = 1u + (c.version > 0 ? 1u : 0u) + (c.scopes.empty() ? 0u : 1u);
-                const bool last = known_.rows.size() - shown == 1;
-                if (last ? used + need > budget : used + need >= budget) {
-                    push("  " + omitted_text(known_.rows.size() - shown, "more"),
-                         surface::role::kMuted);
-                    ++used;
-                    break;
-                }
-                push("  " + row_text(c), role_of(c));
-                if (c.version > 0) {
-                    push("    " + version_text(c), role_of(c));
-                }
-                if (!c.scopes.empty()) {
-                    push("    " + scopes_text(c), role_of(c));
-                }
-                used += need;
-                ++shown;
-            }
-            if (budget > used + 1 && (known_.refused > 0 || known_.shed > 0)) {
-                push("  refused " + std::to_string(known_.refused) + ", shed " +
-                         std::to_string(known_.shed) + " (all time)",
-                     surface::role::kMuted);
-            }
+            line("waiting", "CONNECTIONS (waiting for the guest door)", surface::role::kMuted);
+            return;
         }
-        ++state_.said;
-        room().publish(
-            mail, [](const std::string&) { return std::string(); },
-            [](const std::string&) { return true; }, /*with_caret=*/false);
+        if (known_.listen.empty()) {
+            line("header", "CONNECTIONS -- this Workshop accepts no guests",
+                 surface::role::kAccent);
+            line("listen", "  launch with --guests <file> to listen", surface::role::kMuted);
+            return;
+        }
+        line("header",
+             "CONNECTIONS -- " + std::to_string(known_.rows.size()) +
+                 (known_.rows.size() == 1 ? " connection" : " connections") + " at " +
+                 known_.listen + (development_host() ? " -- a development host" : ""),
+             surface::role::kAccent);
+        const std::size_t budget = rows > 1 ? static_cast<std::size_t>(rows - 1) : 0;
+        if (known_.rows.empty() && budget > 0) {
+            line("nobody", "  nobody is connected", surface::role::kMuted);
+        }
+        // A CONNECTION IS SAID WHOLE OR COUNTED: one a guests-file row admitted brings its
+        // version line, and its reach line when it names a role or doors; they stand together
+        // or not at all.
+        std::size_t shown = 0; // connections said
+        std::size_t used = 0;  // the lines they and the count took
+        for (const GuestConnection& c : known_.rows) {
+            const std::size_t need = 1u + (c.version > 0 ? 1u : 0u) + (c.scopes.empty() ? 0u : 1u);
+            const bool last = known_.rows.size() - shown == 1;
+            if (last ? used + need > budget : used + need >= budget) {
+                line("more", "  " + omitted_text(known_.rows.size() - shown, "more"),
+                     surface::role::kMuted);
+                ++used;
+                break;
+            }
+            if (shown == 0) {
+                f.group("rows", 0, 0);
+            }
+            const std::string at = "rows/" + std::to_string(shown);
+            line(at, "  " + row_text(c), role_of(c));
+            if (c.version > 0) {
+                line(at + "/version", "    " + version_text(c), role_of(c));
+            }
+            if (!c.scopes.empty()) {
+                line(at + "/scopes", "    " + scopes_text(c), role_of(c));
+            }
+            used += need;
+            ++shown;
+        }
+        if (budget > used + 1 && (known_.refused > 0 || known_.shed > 0)) {
+            line("refused",
+                 "  refused " + std::to_string(known_.refused) + ", shed " +
+                     std::to_string(known_.shed) + " (all time)",
+                 surface::role::kMuted);
+        }
     }
+
+private:
 
     /// ONE ROW: the host's word first, the peer's claim beside it, then where it stands.
     static std::string row_text(const GuestConnection& c) {

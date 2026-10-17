@@ -19,6 +19,8 @@
 #include "workshop/pane_vocabulary.hpp"
 
 #include "activation/activation.hpp"
+#include "component/list_window.hpp"
+#include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 
@@ -38,6 +40,7 @@
 
 namespace {
 
+namespace gfx = zengine::graphics;
 namespace input = zengine::input;
 namespace surface = zengine::surface;
 namespace ws = zengine::workshop;
@@ -55,63 +58,28 @@ constexpr const char* kWorkshopRole = "zengine.workshop";
 
 // ---- The text helpers the composition spends ------------------------------------------
 //
-// `fit`, `wrap` and `omitted_text` come from `workshop/pane_text.hpp`; `list_window` is carried
-// below, since `screen.hpp` is the host's presentation and not a header a loaded image may include.
+// `fit`, `wrap` and `omitted_text` come from `workshop/pane_text.hpp`; the list's window is
+// `component/list_window.hpp`'s.
 
+using zengine::component::ListWindow;
 using zengine::workshop::pane_text::drawable;
 using zengine::workshop::pane_text::fit;
 using zengine::workshop::pane_text::omitted_text;
 using zengine::workshop::pane_text::wrap;
 constexpr std::int64_t kWrapIndent = zengine::workshop::pane_text::kWrapIndent;
 
+/// WHAT A PRESS ON A CONDITION'S ROW ASKS: `condition:<key>`, the key as the host said it.
+constexpr const char* kConditionAction = "condition:";
 
-/// WHAT A WINDOW OVER A LIST LOOKS LIKE -- `screen.hpp`'s `ListWindow`, carried.
-struct ListWindow {
-    std::size_t first = 0;
-    std::size_t count = 0;
-    std::size_t before = 0;
-    std::size_t after = 0;
-};
-
-/// THE THREE RULES, CARRIED: everything fits or nothing is hidden quietly; the selection is
-/// always inside the window; a wall that exists is said. `screen_gestures.cpp`'s body.
-ListWindow list_window(std::size_t total, std::size_t selected_at, std::size_t rows) {
-    ListWindow w;
-    if (total == 0 || rows == 0) {
-        w.after = total; // no room at all: everything there is, is missing
-        return w;
+/// THE NAME OF A CONDITION'S ROW, `condition:<key>`, with `/` and `%` spelled `%2F` and `%25` so
+/// the key stays one segment of the drawing's path; empty when the name is longer than a path may
+/// be, and the row is then drawn unnamed.
+std::string condition_path(const std::string& key) {
+    std::string out = kConditionAction;
+    for (const char c : key) {
+        out += c == '/' ? std::string("%2F") : c == '%' ? std::string("%25") : std::string(1, c);
     }
-    if (total <= rows) {
-        w.count = total;
-        return w;
-    }
-    if (rows < 3) {
-        // Too few lines to seat one row between two markers, so it spends what it has on
-        // the omission: the one thing this view may not do is drop conditions quietly.
-        w.after = total;
-        return w;
-    }
-    if (selected_at >= total) {
-        selected_at = 0;
-    }
-    const std::size_t one_marker = rows - 1;
-    if (selected_at < one_marker) {
-        w.count = one_marker;
-        w.after = total - w.count;
-        return w;
-    }
-    const std::size_t tail = total - one_marker;
-    if (selected_at >= tail) {
-        w.first = tail;
-        w.count = one_marker;
-        w.before = tail;
-        return w;
-    }
-    w.count = rows - 2;
-    w.first = selected_at + 1 - w.count;
-    w.before = w.first;
-    w.after = total - w.first - w.count;
-    return w;
+    return out.size() <= gfx::kMaxPathBytes ? out : std::string();
 }
 
 /// WHAT A DISMISSAL IS MEASURED AGAINST -- the condition's content, as one opaque token.
@@ -126,14 +94,15 @@ std::string stamp_of(const StandingCondition& c) {
 // The weave
 // =============================================================================
 
-/// The pane's room, its rows and their presses; a condition's row means its key.
-using Rows = ws::PaneRowsFacet<pane::kAttentionPane, pane::kAttentionPaneRole,
-                               zengine::manual::pages::zengine_attention::kManual, std::string>;
+/// The pane's room and its one picture, shown in Workshop and in a graphics window; a press on a
+/// condition's row asks `condition:<key>`.
+using Drawing = ws::PaneDrawingFacet<pane::kAttentionPane, pane::kAttentionPaneRole,
+                                     zengine::manual::pages::zengine_attention::kManual>;
 using Actions = ws::PaneActionFacet<pane::kAttentionPane, pane::kAttentionPaneRole>;
 
 class AttentionPaneWeave
-    : public zengine::With<Rows, Actions>::Weave<AttentionPaneWeave, pane::AttentionPaneState,
-                                                 loom::Accept<StandingConditions>> {
+    : public zengine::With<Drawing, Actions>::Weave<AttentionPaneWeave, pane::AttentionPaneState,
+                                                    loom::Accept<StandingConditions>> {
 public:
     PaneOffered offering() const {
         return PaneOffered{pane::kAttentionPane, pane::kAttentionPaneName,
@@ -142,23 +111,32 @@ public:
 
     void offered(loom::Mail& mail) { declare(mail); }
 
-    /// Workshop grants the pane its room: the one beat on which this view draws. It asks for
-    /// nothing here: what it shows arrives when it changes, so a pane granted a room before the
-    /// host has said anything shows "waiting" rather than an empty list reading as "all is well".
+    /// Workshop, or the graphics window that shows the pane's area, grants it a room: the one beat
+    /// on which this view draws unasked. It asks for nothing here: what it shows arrives when it
+    /// changes, so a pane granted a room before the host has said anything shows "waiting" rather
+    /// than an empty list reading as "all is well".
     void on_room(loom::Mail& mail) { say(mail); }
 
-    /// ONE OF THE PANE'S DECLARED ACTIONS, ASKED FOR BY NAME (WL-KEY-15). Workshop resolved
-    /// the keystroke against the effective keymap -- the weaver's override where one is
-    /// authored, this office's declared default otherwise -- so what arrives is the id, one
-    /// `answers` admits. Every id the pane declares says its rows below, so what an act spends is
-    /// always published.
+    /// ONE OF THE PANE'S DECLARED ACTIONS, ASKED FOR BY NAME (WL-KEY-15), OR A PRESS ON A
+    /// CONDITION'S ROW. Workshop resolved the keystroke against the effective keymap -- the
+    /// weaver's override where one is authored, this office's declared default otherwise -- so
+    /// what arrives is the id, one `answers` admits; a press on a row, in Workshop or in a window,
+    /// asks `condition:<key>`, which puts the cursor on it. Every act says its rows below, so what
+    /// an act spends is always published.
     void on_action(const std::string& id, loom::Mail& mail) {
         notice_.clear(); // the weaver has acted; the last act's answer is spent
         const std::vector<StandingCondition> shown = visible();
         if (cursor_ >= shown.size()) {
             cursor_ = shown.empty() ? 0 : shown.size() - 1;
         }
-        if (id == pane::kActionUp) {
+        if (id.rfind(kConditionAction, 0) == 0) {
+            const std::string key = id.substr(std::string(kConditionAction).size());
+            for (std::size_t i = 0; i < shown.size(); ++i) {
+                if (shown[i].key == key) {
+                    cursor_ = i;
+                }
+            }
+        } else if (id == pane::kActionUp) {
             if (cursor_ > 0) {
                 --cursor_;
             }
@@ -289,36 +267,60 @@ private:
 
     // ---- Saying what the pane shows ------------------------------------------------------
 
-    Rows& room() { return this->template facet<Rows>(); }
-    const Rows& room() const { return this->template facet<Rows>(); }
+    Drawing& room() { return this->template facet<Drawing>(); }
+    const Drawing& room() const { return this->template facet<Drawing>(); }
 
-    void say(loom::Mail& mail) {
+    /// The picture shown, wherever the pane stands.
+    void say(loom::Mail& mail) { room().show(*this, mail); }
+
+public:
+    /// WHAT THE PANE SHOWS, one row a cell high: the notice, the glance, and the list `say_view`
+    /// composes. A row the room has no place for is neither drawn nor named.
+    void picture(gfx::Sketch& f) {
         const std::int64_t rows = room().rows(), columns = room().columns();
-        if (!room().granted() || rows <= 0 || columns <= 0) {
-            return;
-        }
-        room().begin();
+        std::int64_t row = 0;
+        const auto line = [&](const std::string& path, const std::string& text,
+                              std::int64_t role) {
+            f.text(path, 0, row * gfx::kCellPx, drawable(fit(text, columns)), gfx::by_role(role));
+            ++row;
+        };
         // A notice, when there is one, leads: a pane has only its own room, so its first row
         // carries it, and it is cleared by the weaver's next act rather than by being said
         // (`agents/panes.md`).
         if (!notice_.empty() && rows > 1) {
-            (void)room().push(surface::SurfaceTextRow{drawable(fit(notice_, columns)),
-                                                      surface::role::kAccent});
+            line("notice", notice_, surface::role::kAccent);
         }
-        // A CONDITION IS NAMED BY ITS KEY, `condition:<key>`, on the row that says it; a row the
-        // room has no place for is neither said nor named.
-        say_view([this, columns](const std::string& text, std::int64_t role,
-                                 std::optional<std::string> key = std::nullopt) {
-            (void)room().push(surface::SurfaceTextRow{drawable(fit(text, columns)), role},
-                              std::move(key));
+        // A CONDITION IS NAMED BY ITS KEY, `condition:<key>`, on the row that says it, and a
+        // press there asks for it; the notice and the glance are named for what they are, and
+        // every other row for its place.
+        bool glance = true, lines = false;
+        say_view([&](const std::string& text, std::int64_t role,
+                     std::optional<std::string> key = std::nullopt) {
+            if (row >= rows) {
+                return;
+            }
+            if (glance) {
+                glance = false;
+                line("glance", text, role);
+                return;
+            }
+            const std::string named = key ? condition_path(*key) : std::string();
+            if (!named.empty()) {
+                line(named, text, role);
+                f.action(named, kConditionAction + *key);
+                return;
+            }
+            if (!lines) {
+                lines = true;
+                f.group("line", 0, 0);
+            }
+            line("line/" + std::to_string(row), text, role);
         });
-        room().publish(
-            mail, [](const std::string& key) { return "condition:" + key; },
-            [](const std::string&) { return true; }, /*with_caret=*/false);
     }
 
-    /// HOW MANY ROWS THE LIST MAY SPEND: the room, less the glance, less the notice row `say`
-    /// puts in front of it.
+private:
+    /// HOW MANY ROWS THE LIST MAY SPEND: the room, less the glance, less the notice row
+    /// `picture` puts in front of it.
     std::int64_t body_budget() const {
         return room().rows() - 1 - (notice_.empty() ? 0 : 1);
     }
@@ -378,16 +380,24 @@ private:
             // pane could not resolve an action id even if it were given one.
             block.push_back(at.suggestion);
         }
-        // THE LIST KEEPS `list_window`'S OWN FLOOR OF THREE, so the cursor's row is always
-        // in the window it is being explained inside of. Below four rows there is no
-        // explanation at all rather than an explanation with no statement over it.
+        // THE LIST KEEPS A FLOOR OF THREE ROWS, so the cursor's row is always in the window it is
+        // being explained inside of. Below four rows there is no explanation at all rather than
+        // an explanation with no statement over it, and below three no row is seated between two
+        // markers: the list says only how many it leaves out, since it never drops a condition
+        // quietly. At three and more the window is the cursor's, nearest the list's top.
         const std::size_t reserve =
             budget >= 4 ? (block.size() < budget - 3 ? block.size() : budget - 3) : 0;
-        const ListWindow win = list_window(shown.size(), cursor, budget - reserve);
+        const std::size_t list_rows = budget - reserve;
+        ListWindow win = zengine::component::cursor_window(shown.size(), cursor, 0, list_rows);
+        if (list_rows < 3 && shown.size() > list_rows) {
+            win = ListWindow{};
+            win.after = shown.size();
+            win.markers = 1;
+        }
         if (win.before > 0) {
             push("  " + omitted_text(win.before, "earlier"), surface::role::kMuted);
         }
-        for (std::size_t i = win.first; i < win.first + win.count; ++i) {
+        for (std::size_t i = win.first; i < win.end(); ++i) {
             const StandingCondition& c = shown[i];
             const bool here = i == cursor;
             push(std::string(here ? "> " : "  ") + c.compact, c.role, c.key);

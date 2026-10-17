@@ -21,7 +21,8 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 ## Suites
 
 No entry of its own. Its cases in shared suites: `workshop_panes`
-(`tests/test_workshop_panes_attention.cpp`, the loaded pane against the host's real publication).
+(`tests/test_workshop_panes_attention.cpp`, the loaded pane against the host's real publication),
+and `graphics` (`tests/test_graphics.cpp`, the loaded pane drawn, pressed and reloaded in a window).
 The conditions it shows are the host's, witnessed in `workshop_host`
 (`tests/test_workshop_host.cpp`).
 The rig in `tests/workshop_support.hpp` resolves its stem to `WORKSHOP_SO_ATTENTION_PANE`; its stem
@@ -39,7 +40,8 @@ and `attention/pane.cpp` are also sample artifact and source in `workshop_load`
 - The conditions: `workshop/attention.hpp`, `workshop/screen_attention.cpp`, published by
   `WorkshopWeave::say_conditions` in `workshop/weave_run.cpp`.
 - The pane protocol it speaks: `workshop/pane_vocabulary.hpp`, with `workshop/pane_text.hpp`,
-  `pane_parts.hpp`, `pane_menu.hpp` and `pane_canvas_rows.hpp`.
+  `pane_parts.hpp`, `pane_menu.hpp` and `pane_canvas_rows.hpp`; its facets, `pane_facets.hpp` with
+  `pane_drawing.hpp`, and the drawing it makes, `graphics/vocabulary.hpp`.
 
 ## Pages
 

@@ -37,8 +37,9 @@ performs nothing.
 Open it from the Pane Manager, <!-- key desktop.panes -->`ctrl+p`<!-- /key -->, and put it where you
 want it on the desk. Only you put it there: no condition, however loud, opens it, arranges it or
 takes your keys. Its keys act only while it holds your keys: press into it first. Move the
-cursor with [`attention.up`](#attentionup) and [`attention.down`](#attentiondown); the row under it
-opens its explanation. Hide the one you have read with [`attention.dismiss`](#attentiondismiss).
+cursor with [`attention.up`](#attentionup) and [`attention.down`](#attentiondown), or press a
+[condition](#condition)'s row to put it there; the row under it opens its explanation. Hide the one
+you have read with [`attention.dismiss`](#attentiondismiss).
 
 The [glance](#glance) leads the pane, under a [notice](#notice) when there is one, and a pane one
 row tall is the glance alone. A right press on the pane opens Workshop's menu for it. Each command is a row a weaver's keymap file can move
@@ -111,8 +112,9 @@ Workshop has said anything it reads `ATTENTION (waiting)`; when nothing is true,
 ### `condition`
 
 One row per condition you have not hidden, its short line in its owner's words and colour, `> `
-before the cursor's; the row is named `condition:<key>`, by the condition's key. A list taller
-than the room says what it left out, `... 3 earlier` and `... 4 more`.
+before the cursor's; the row is named `condition:<key>`, by the condition's key, a `/` in it
+spelled `%2F` and a `%` spelled `%25`, and a press on it puts the cursor there. A list taller than
+the room says what it left out, `... 3 earlier` and `... 4 more`.
 
 ### `explanation`
 
@@ -123,7 +125,7 @@ there is none.
 ### `notice`
 
 What your last [`attention.dismiss`](#attentiondismiss) did, on the first row above the glance,
-until your next press of a command here.
+until your next command here, or your next press on a condition's row.
 
 ## See also
 

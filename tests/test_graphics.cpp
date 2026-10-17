@@ -17,6 +17,8 @@
 
 #include "board.hpp"
 
+#include "attention/vocabulary.hpp"
+#include "external-host/connections-pane/vocabulary.hpp"
 #include "graphics/canvas.hpp"
 #include "graphics/drawing.hpp"
 #include "graphics/elements.hpp"
@@ -29,10 +31,14 @@
 #include "input/translate.hpp"
 #include "manuals/zengine.graphics.hpp"
 #include "manuals/zengine.window.terminal.hpp"
+#include "workshop/attention_seam_vocabulary.hpp"
+#include "workshop/guest_seam_vocabulary.hpp"
+#include "workshop/pane_facets.hpp"
 
 #include <zen/switchboard.hpp>
 #include <zen/weave.hpp>
 
+#include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -2246,4 +2252,337 @@ TEST_CASE("a part changed and sent as what changed lands in the window: a scroll
     p.draw(b.picture());
     CHECK(p.press_sent(3, 0).empty());
     CHECK(p.heard.refused.empty());
+}
+
+// ============================================================================
+// A pane Workshop loads, drawn in a window: Attention and Connections, the libraries themselves
+// ============================================================================
+
+namespace {
+
+namespace ws = zengine::workshop;
+namespace apane = zengine::attention_pane;
+namespace cpane = zengine::connections_pane;
+
+/// THE OFFICES A PANE HEARS ITS READING FROM, as far as the window's suite needs them: each holds
+/// its office and says what the suite gives it, and hears nothing.
+class WorkshopSpeaker
+    : public loom::WeaveBase<WorkshopSpeaker, GraphicsTestOwner, loom::Accept<>,
+                             loom::Emit<ws::StandingConditions>> {};
+class DoorSpeaker
+    : public loom::WeaveBase<DoorSpeaker, GraphicsTestOwner, loom::Accept<>,
+                             loom::Emit<ws::v3::GuestConnections>> {};
+
+template <class W>
+loom::WeaveId mount_as(Rig& r, const std::string& office) {
+    auto w = std::make_unique<W>();
+    W* raw = w.get();
+    loom::Grant g = loom::emit_default_grant(*raw);
+    const loom::WeaveId id = r.bus.register_weave(std::move(w), std::move(g), office);
+    raw->zen_set_self(id);
+    return id;
+}
+
+/// An area of the terminal window for a pane's office, at its corner, 62 cells by 10, painted by
+/// the classic skin.
+void place_pane(Rig& r, const std::string& office) {
+    r.to_role(gfx::kGraphicsRole, gfx::SkinOffered{"classic", PAINT_CLASSIC_SO});
+    r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{office, gfx::kTerminalWindow, office, 0, 0,
+                                                  62 * gfx::kCellPx, 10 * gfx::kCellPx, 0});
+    r.to_role(gfx::kGraphicsRole, gfx::SkinChosen{office, "classic"});
+    r.drain();
+}
+
+/// Whether the window's row `row` begins with `words`.
+bool row_says(const std::vector<std::string>& rows, std::size_t row, const std::string& words) {
+    return row < rows.size() && rows[row].rfind(words, 0) == 0;
+}
+
+/// Whether any of the window's rows holds `words`.
+bool shows(const std::vector<std::string>& rows, const std::string& words) {
+    for (const std::string& row : rows) {
+        if (row.find(words) != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
+ws::StandingCondition condition(const char* key, const char* compact, const char* detail) {
+    return ws::StandingCondition{key, compact, detail, zengine::surface::role::kAlert, ""};
+}
+
+/// THE ATTENTION PANE, the library Workshop loads, in a window whose terminal is the suite's: its
+/// area placed for its office, and the host's office the suite speaks as.
+struct AttentionWindow : TypedWindow {
+    loom::WeaveId workshop;
+    AttentionWindow() {
+        workshop = mount_as<WorkshopSpeaker>(r, "zengine.workshop");
+        REQUIRE(r.load(apane::kAttentionPaneStem, ATTENTION_PANE_SO, apane::kAttentionPaneRole)
+                    .valid());
+        place_pane(r, apane::kAttentionPaneRole);
+    }
+    /// The host says what is true, as its own office.
+    void say(std::vector<ws::StandingCondition> rows) {
+        r.bus.office_send_to_role_as(
+            workshop, "zengine.workshop", apane::kAttentionPaneRole,
+            loom::Message(loom::to_value(ws::StandingConditions{std::move(rows)})));
+        r.drain();
+    }
+    /// The window asks the pane's area for an action, as the window's office.
+    void ask(const std::string& action) {
+        r.bus.office_send_to_role_as(
+            window, window_office(), apane::kAttentionPaneRole,
+            loom::Message(loom::to_value(gfx::ActionRequested{apane::kAttentionPaneRole, action})));
+        r.drain();
+    }
+    /// What the pane drew since `mark`, as its office.
+    std::vector<gfx::Drawn> drawn(std::size_t mark) const {
+        return r.read<gfx::Drawn>(mark, apane::kAttentionPaneRole);
+    }
+};
+
+constexpr const char* kTestPane = "test.pane";
+
+struct GraphicsTestPaneTurn {
+    bool broken = false;
+    ZEN_SHAPE(GraphicsTestPaneTurn, 1, ZEN_FIELD(broken));
+};
+
+/// A PANE ON THE DRAWING FACET, as a stranger writes one, shown in a window alone: each turn draws
+/// again, and a broken turn draws a node in a parent it never drew, which the window refuses. Its
+/// manual is any page; nothing asks for it.
+using TestDrawing = ws::PaneDrawingFacet<kTestPane, kTestPane,
+                                         zengine::manual::pages::zengine_window_terminal::kManual>;
+
+class TestPane
+    : public zengine::With<TestDrawing>::Weave<TestPane, GraphicsTestOwner,
+                                               loom::Accept<GraphicsTestPaneTurn>> {
+public:
+    ws::v2::PaneOffered offering() const {
+        return ws::v2::PaneOffered{kTestPane, "test", "a pane the suite draws", 1, 10};
+    }
+    void on_room(loom::Mail& mail) { this->template facet<TestDrawing>().show(*this, mail); }
+    void on(const GraphicsTestPaneTurn& turn, loom::Mail& mail) {
+        broken_ = turn.broken;
+        ++state_.heard;
+        on_room(mail);
+    }
+    void picture(gfx::Sketch& f) const {
+        f.text("words", 0, 0, "turn " + std::to_string(state_.heard),
+               gfx::by_role(gfx::role::kFill));
+        if (broken_) {
+            f.text("nowhere/words", 0, gfx::kCellPx, "orphan", gfx::by_role(gfx::role::kFill));
+        }
+    }
+
+private:
+    bool broken_ = false;
+};
+
+} // namespace
+
+TEST_CASE("a pane's drawing its window refused leaves the window as it was, and the pane's next "
+          "drawing goes whole, never as a change from a picture the window does not hold") {
+    Rig r;
+    REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
+    REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_office()).valid());
+    (void)mount_as<TestPane>(r, kTestPane);
+    place_pane(r, kTestPane);
+    REQUIRE(r.read<gfx::Drawn>(0, kTestPane).size() == 1);
+    CHECK(row_says(r.shown().rows, 0, "turn 0"));
+    const auto turn = [&](bool broken) {
+        r.to_role(kTestPane, GraphicsTestPaneTurn{broken});
+        r.drain();
+    };
+
+    std::size_t mark = r.log.size();
+    turn(true);
+    std::vector<gfx::Drawn> drawn = r.read<gfx::Drawn>(mark, kTestPane);
+    REQUIRE(drawn.size() == 1);
+    CHECK_FALSE(drawn[0].whole);
+    REQUIRE(r.read<gfx::DrawnRefused>(mark, window_office()).size() == 1);
+    CHECK(row_says(r.shown().rows, 0, "turn 0")); // what the window showed stays
+
+    mark = r.log.size();
+    turn(false);
+    drawn = r.read<gfx::Drawn>(mark, kTestPane);
+    REQUIRE(drawn.size() == 1);
+    CHECK(drawn[0].whole);
+    CHECK(put_paths(drawn[0]) == Paths{"words"});
+    CHECK(r.read<gfx::DrawnRefused>(mark, window_office()).empty());
+    CHECK(row_says(r.shown().rows, 0, "turn 2"));
+}
+
+TEST_CASE("the Attention pane draws in a graphics window: whole on its room, then only what "
+          "changed; a press on a condition's row moves the cursor there, a dismissal the window "
+          "asks removes the row, and a reload asks its room and draws whole with the hiding kept") {
+    AttentionWindow a;
+    // ITS ROOM: the picture whole, the host not heard yet.
+    std::vector<gfx::Drawn> drawn = a.drawn(0);
+    REQUIRE(drawn.size() == 1);
+    CHECK(drawn[0].whole);
+    CHECK(put_paths(drawn[0]) == Paths{"glance"});
+    CHECK(drawn[0].said.empty());
+    CHECK(row_says(a.r.shown().rows, 0, "ATTENTION (waiting)"));
+
+    // THE HOST SPEAKS: what changed, each condition's row named by its key, a press there asking
+    // for it.
+    std::size_t mark = a.r.log.size();
+    const std::vector<ws::StandingCondition> two{
+        condition("a.one", "the first thing", "why the first"),
+        condition("b.two", "the second thing", "why the second")};
+    a.say(two);
+    drawn = a.drawn(mark);
+    REQUIRE(drawn.size() == 1);
+    CHECK_FALSE(drawn[0].whole);
+    CHECK(put_paths(drawn[0]) ==
+          Paths{"glance", "condition:a.one", "line", "line/2", "condition:b.two"});
+    CHECK(drawn[0].removed.empty());
+    CHECK(said_paths(drawn[0]) == Paths{"condition:a.one", "condition:b.two"});
+    for (const gfx::ElementRecord& record : drawn[0].said) {
+        CHECK(record.action == record.path);
+    }
+    std::vector<std::string> rows = a.r.shown().rows;
+    CHECK(row_says(rows, 0, "the first thing (+1 more)"));
+    CHECK(row_says(rows, 1, "> the first thing"));
+    CHECK(row_says(rows, 2, "    why the first"));
+    CHECK(row_says(rows, 3, "  the second thing"));
+
+    // A PRESS ON THE SECOND CONDITION'S ROW: the window asks for it by name, the cursor moves
+    // there, and only the rows that moved are drawn again -- the glance is not.
+    mark = a.r.log.size();
+    a.press(4, 3);
+    const auto asked = a.r.read<gfx::ActionRequested>(mark, window_office());
+    REQUIRE(asked.size() == 1);
+    CHECK(asked[0].area == apane::kAttentionPaneRole);
+    CHECK(asked[0].action == "condition:b.two");
+    drawn = a.drawn(mark);
+    REQUIRE(drawn.size() == 1);
+    CHECK_FALSE(drawn[0].whole);
+    CHECK(put_paths(drawn[0]) == Paths{"condition:a.one", "condition:b.two", "line/3"});
+    CHECK(drawn[0].removed == Paths{"line/2"});
+    CHECK(drawn[0].said.empty());
+    rows = a.r.shown().rows;
+    CHECK(row_says(rows, 1, "  the first thing"));
+    CHECK(row_says(rows, 2, "> the second thing"));
+    CHECK(row_says(rows, 3, "    why the second"));
+
+    // A DECLARED ID THE WINDOW ASKS: the condition under the cursor is hidden, its row and its
+    // name go, and the notice about it leads.
+    mark = a.r.log.size();
+    a.ask(apane::kActionDismiss);
+    drawn = a.drawn(mark);
+    REQUIRE(drawn.size() == 1);
+    CHECK_FALSE(drawn[0].whole);
+    CHECK(drawn[0].removed == Paths{"condition:b.two"});
+    const Paths put = put_paths(drawn[0]);
+    CHECK(std::find(put.begin(), put.end(), "notice") != put.end());
+    rows = a.r.shown().rows;
+    CHECK(row_says(rows, 0, "hidden -- the second thing is still true"));
+    CHECK(row_says(rows, 1, "the first thing (+1 more)"));
+    CHECK(row_says(rows, 2, "> the first thing"));
+    CHECK_FALSE(shows(rows, "  the second thing"));
+
+    // AN ID THE PANE NEITHER DECLARED NOR DREW, ASKED BY THE WINDOW, AND A DECLARED ONE ASKED BY
+    // ANYONE BUT THE WINDOW: no act, so the notice stands and nothing is drawn.
+    mark = a.r.log.size();
+    a.ask("attention.no-such-action");
+    a.r.to_role(apane::kAttentionPaneRole,
+                gfx::ActionRequested{apane::kAttentionPaneRole, apane::kActionUp});
+    a.r.drain();
+    CHECK(a.drawn(mark).empty());
+    CHECK(row_says(a.r.shown().rows, 0, "hidden -- the second thing is still true"));
+
+    // RELOADED: the new image holds no room, so it asks, and its picture goes whole once; the
+    // hiding is the pane's own state, so the same reading said again still hides the second.
+    mark = a.r.log.size();
+    const auto reloaded =
+        a.r.command(loom::ReloadWeave{apane::kAttentionPaneStem, ATTENTION_PANE_SO});
+    REQUIRE_MESSAGE(reloaded.kind == 1, reloaded.text);
+    CHECK(a.r.count(mark, "RoomAsked", apane::kAttentionPaneRole) == 1);
+    drawn = a.drawn(mark);
+    REQUIRE(drawn.size() == 1);
+    CHECK(drawn[0].whole);
+    CHECK(row_says(a.r.shown().rows, 0, "ATTENTION (waiting)"));
+    a.say(two);
+    rows = a.r.shown().rows;
+    CHECK(row_says(rows, 0, "the first thing (+1 more)"));
+    CHECK(row_says(rows, 1, "> the first thing"));
+    CHECK_FALSE(shows(rows, "the second thing"));
+
+    // A KEY WITH A `/` IN IT IS ONE NAME: its row is drawn and named, and a press there asks for
+    // the key as the host said it.
+    std::vector<ws::StandingCondition> three = two;
+    three.push_back(condition("load.unavailable/x.y", "a third thing", "why the third"));
+    mark = a.r.log.size();
+    a.say(three);
+    CHECK(a.r.read<gfx::DrawnRefused>(mark, window_office()).empty());
+    drawn = a.drawn(mark);
+    REQUIRE(drawn.size() == 1);
+    CHECK(said_paths(drawn[0]) == Paths{"condition:load.unavailable%2Fx.y"});
+    REQUIRE(row_says(a.r.shown().rows, 3, "  a third thing"));
+    mark = a.r.log.size();
+    a.press(4, 3);
+    const auto third = a.r.read<gfx::ActionRequested>(mark, window_office());
+    REQUIRE(third.size() == 1);
+    CHECK(third[0].action == "condition:load.unavailable/x.y");
+    CHECK(row_says(a.r.shown().rows, 2, "> a third thing"));
+}
+
+TEST_CASE("the Connections pane draws in a graphics window: whole on its room, each new reading "
+          "as what changed, and nothing named for a press") {
+    Rig r;
+    REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
+    REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_office()).valid());
+    const loom::WeaveId door = mount_as<DoorSpeaker>(r, ws::kGuestsRole);
+    REQUIRE(r.load(cpane::kConnectionsPaneStem, CONNECTIONS_PANE_SO, cpane::kConnectionsPaneRole)
+                .valid());
+    place_pane(r, cpane::kConnectionsPaneRole);
+    const auto say = [&](const ws::v3::GuestConnections& said) {
+        r.bus.office_send_to_role_as(door, ws::kGuestsRole, cpane::kConnectionsPaneRole,
+                                     loom::Message(loom::to_value(said)));
+        r.drain();
+    };
+
+    std::vector<gfx::Drawn> drawn = r.read<gfx::Drawn>(0, cpane::kConnectionsPaneRole);
+    REQUIRE(drawn.size() == 1);
+    CHECK(drawn[0].whole);
+    CHECK(put_paths(drawn[0]) == Paths{"waiting"});
+    CHECK(row_says(r.shown().rows, 0, "CONNECTIONS (waiting for the guest door)"));
+
+    ws::v3::GuestConnections said;
+    said.listen = "127.0.0.1:4242";
+    said.rows.push_back(ws::v3::GuestConnection{1, "admitted", "tool", "tool", "127.0.0.1:5000", 7,
+                                                "", {}, "", 0, {}, "", {}});
+    std::size_t mark = r.log.size();
+    say(said);
+    drawn = r.read<gfx::Drawn>(mark, cpane::kConnectionsPaneRole);
+    REQUIRE(drawn.size() == 1);
+    CHECK_FALSE(drawn[0].whole);
+    CHECK(put_paths(drawn[0]) == Paths{"header", "rows", "rows/0"});
+    CHECK(drawn[0].removed == Paths{"waiting"});
+    std::vector<std::string> rows = r.shown().rows;
+    CHECK(row_says(rows, 0, "CONNECTIONS -- 1 connection at 127.0.0.1:4242"));
+    CHECK(row_says(rows, 1, "  #1 tool  admitted  weave 7  from 127.0.0.1:5000"));
+
+    said.rows.push_back(ws::v3::GuestConnection{2, "awaiting-decision", "stranger", "", "", 0, "",
+                                                {}, "", 0, {}, "", {}});
+    mark = r.log.size();
+    say(said);
+    drawn = r.read<gfx::Drawn>(mark, cpane::kConnectionsPaneRole);
+    REQUIRE(drawn.size() == 1);
+    CHECK_FALSE(drawn[0].whole);
+    CHECK(put_paths(drawn[0]) == Paths{"header", "rows/1"}); // the first connection stands
+    CHECK(drawn[0].removed.empty());
+    rows = r.shown().rows;
+    CHECK(row_says(rows, 0, "CONNECTIONS -- 2 connections at 127.0.0.1:4242"));
+    CHECK(row_says(rows, 1, "  #1 tool  admitted  weave 7  from 127.0.0.1:5000"));
+    CHECK(row_says(rows, 2, "  #2 'stranger' (unverified)  awaiting-decision"));
+
+    // NOTHING IN IT IS ACTED ON: no drawing it sent names a part.
+    for (const gfx::Drawn& d : r.read<gfx::Drawn>(0, cpane::kConnectionsPaneRole)) {
+        CHECK(d.said.empty());
+        CHECK(d.unsaid.empty());
+    }
 }
