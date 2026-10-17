@@ -20,7 +20,8 @@ it runs. Down the left: the view's name in `View`, its file in `File`, `Add` wit
 `[Number]` `[Button]`, its `Size` and the `Grid` in boxes, and the list of its elements. The
 selected element's values sit in boxes on the right in a wide pane, below the list in a narrow one.
 Beneath the canvas a row says the view's name, `running` or `stopped`, and its file; the last two
-rows are the notice, where every answer and refusal is said.
+rows are the notice, where every answer and refusal is said. It draws in a graphics window too
+([Hears](#arearoom)).
 
 The pane runs nothing itself. It asks the view host,
 [`zengine.view.host`](zengine.view.host.md), to run your view, change it or stop it, and shows the
@@ -166,6 +167,29 @@ by name, `action` and its `arguments`, as the controls make them; the edit `desc
 grammar on the notice. Answered to the asker with `ViewEdited` v1: whether it was taken, the
 notice, and the view's bytes. An edit is taken whole or refused whole. Its `save` writes at once:
 only a hand's save asks Workshop.
+
+### `AreaRoom`
+
+`AreaRoom` v2, from the graphics window that shows the area `zengine.view.builder`, as that
+window's office ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): the pane's room there.
+It draws the picture a terminal Workshop of that size would show, whole when the window, its
+incarnation or its size changed, and after that only what changed. Each time it starts it asks the graphics directory, `zengine.graphics`, for
+this room (`RoomAsked` v1).
+
+### `DrawnRefused`
+
+`DrawnRefused` v1, from that window: a drawing it refused, and why. What it shows stays as it was.
+A refused change is drawn again whole at once; a refused whole picture is said on the notice, `The
+graphics window refused the View Builder's picture: <the reason>`, and the pane draws there again
+at its next change.
+
+### `ActionRequested`
+
+`ActionRequested` v1, from that window: a press on one of the pane's places there, by the name its
+Workshop picture gives that place -- `control:view.<action>`, `kind:<kind>`, `list:<id>`,
+`element:<id>`, `box:<field>` -- which is a click there, let go where it was pressed: a kind
+makes one below the last, an element or its row is selected, a box opens with the caret after its
+value. It begins no drag and carries nothing; Workshop refuses a save it asks, numbering no gesture.
 
 ## Follow
 

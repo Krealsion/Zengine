@@ -3,6 +3,8 @@
 #include "flow/flow-host/vocabulary.hpp"
 #include "flow/flow-pane/view.hpp"
 #include "flow/flow-pane/vocabulary.hpp"
+#include "graphics/canvas.hpp"
+#include "graphics/vocabulary.hpp"
 #include "inventory/codec.hpp"
 #include "operator/reference.hpp"
 #include "workshop/actor_scope.hpp"
@@ -34,6 +36,7 @@ namespace flow = zengine::flow;
 namespace fh = zengine::flow_host;
 namespace ws = zengine::workshop;
 namespace input = zengine::input;
+namespace gfx = zengine::graphics;
 constexpr const char *workshop_role = "zengine.workshop";
 
 /// ONE THING FLOW ASKED AND STILL WAITS ON (`AskFacet`): a request of the Flow host, by its action;
@@ -75,11 +78,13 @@ class FlowPane final
           loom::Accept<ws::PaneCanvasPointer, ws::PaneKey, ws::PaneTextInput, ws::ActionsJudged,
                        ws::PaneQuitRequested, pane::FlowEdit, fh::FlowAnswer,
                        fh::FlowCatalogAnswer, fh::FlowChanged, ws::PowersFound,
-                       ws::PaneCanvasValueDrop, ws::PaneCarryAnswered>,
+                       ws::PaneCanvasValueDrop, ws::PaneCarryAnswered, gfx::AreaRoom,
+                       gfx::DrawnRefused, gfx::ActionRequested>,
           loom::Emit<ws::PaneContent, ws::v4::PaneCanvasContent, ws::PaneEscapeUnspent,
                      ws::PanePassRequested, ws::PaneQuitAnswered, pane::FlowEdited, fh::FlowRun,
                      fh::FlowApply, fh::FlowSend, fh::FlowInspect, fh::FlowStop, fh::FlowCatalog,
-                     ws::PaneOperationRequested, ws::PaneValueCarryRequested>> {
+                     ws::PaneOperationRequested, ws::PaneValueCarryRequested, gfx::Drawn,
+                     gfx::RoomAsked>> {
 public:
   loom::Value snapshot() const override {
     pane::FlowPaneState saved;
@@ -152,6 +157,12 @@ public:
     request(fh::FlowCatalog{}, "catalog", mail);
     request(fh::FlowInspect{"workshop", 0}, "inspect", mail);
     find(mail, true);
+    // ...and its area's room, once a life: a pane started again draws in its window again.
+    if (!room_asked_ && window_.window().empty()) {
+      room_asked_ = true;
+      (void)mail.as_role(pane::kRole).send_to_role(gfx::kGraphicsRole,
+                                                   gfx::RoomAsked{window_.area()});
+    }
   }
   ws::v3::PaneOffered offering() const {
     return ws::v3::PaneOffered{pane::kPane, "Flow", "author and exercise message-driven graphs",
@@ -386,6 +397,59 @@ public:
       model_.notice = e.what();
       show(mail);
     }
+  }
+  /// THE ROOM, from the graphics window that shows Flow's area, as that window's office: a window,
+  /// an incarnation or a size it has not drawn in holds none of its picture, so it goes whole.
+  void on(const gfx::AreaRoom &r, loom::Mail &mail) {
+    if (r.area != window_.area() ||
+        !mail.authored_from_role(std::string(gfx::kWindowOfficePrefix) + r.window))
+      return;
+    if (window_.room(r)) {
+      window_whole_ = true;
+      window_parts_.clear();
+      show_window(mail);
+    }
+  }
+  /// A REFUSED CHANGE is drawn again whole at once, against nothing the window lacks; a refused
+  /// whole picture is said in the notice and waits for the next change, so a window that keeps
+  /// refusing starts no loop.
+  void on(const gfx::DrawnRefused &refused, loom::Mail &mail) {
+    if (refused.area != window_.area() || window_.window().empty() ||
+        !mail.authored_from_role(window_.window_office()))
+      return;
+    window_.forget();
+    window_whole_ = true;
+    if (!window_drew_whole_) {
+      show_window(mail);
+      return;
+    }
+    model_.notice = "The graphics window refused Flow's picture: " + refused.reason;
+    show_workshop(mail);
+  }
+  /// A PRESS IN THE WINDOW on a part the picture last drawn there names, asked by that window's
+  /// office: what a first-button press on that place of Workshop's canvas does, a node selected and
+  /// anything else performed. No drag begins and nothing is carried, since no hand holds a press
+  /// Workshop numbered there.
+  void on(const gfx::ActionRequested &asked, loom::Mail &mail) {
+    if (asked.area != window_.area() || window_.window().empty() ||
+        !mail.authored_from_role(window_.window_office()))
+      return;
+    const auto part = window_parts_.find(asked.action);
+    if (part == window_parts_.end())
+      return;
+    const pane::Hit chosen = part->second;
+    try {
+      if (chosen.action == "node") {
+        model_.node = flow::index_of(chosen.args.at(0));
+        show(mail);
+        return;
+      }
+    } catch (const std::exception &e) {
+      model_.notice = e.what();
+      show(mail);
+      return;
+    }
+    perform(chosen.action, chosen.args, mail);
   }
   /// A VALUE A PERSON CARRIED HERE, placed on the picture Flow drew. An operator reference
   /// becomes a node -- into the port it landed on, as the body of the fold whose slot it landed on,
@@ -700,13 +764,14 @@ private:
   /// dialog stays open until Workshop answers.
   void ask_to_write(const std::string &verb, std::vector<std::string> values,
                     loom::Mail &mail) {
-    // A RAW KEY IS NO GESTURE WORKSHOP NUMBERED: a confirm that came as one cannot be approved,
-    // so it writes nothing, keeps the dialog, and says which row confirms.
+    // A RAW KEY OR A WINDOW'S PRESS IS NO GESTURE WORKSHOP NUMBERED: a confirm that came as one
+    // cannot be approved, so it writes nothing, keeps the dialog, and says which row confirms.
     if (mail.correlation() == 0)
       throw std::invalid_argument(
           pane::Model::writing(verb) +
-          " waits: the confirm came as a raw key, which Workshop cannot approve -- confirm "
-          "with the dialog's `dialog-confirm` row");
+          " waits: the confirm came under no gesture Workshop numbered, as a raw key or a press "
+          "in a graphics window, which Workshop cannot approve -- confirm with the dialog's "
+          "`dialog-confirm` row in Workshop");
     FlowAsk writing = asking(FlowAsk::Kind::kWrite);
     writing.action = verb;
     writing.values = std::move(values);
@@ -1286,9 +1351,26 @@ private:
       return std::to_string(cell.as_float());
     return zengine::message_draft::summary(&cell);
   }
+  /// SHOW WHAT IT HOLDS NOW, wherever it stands: Workshop's pane and its area's graphics window.
   void show(loom::Mail &mail) {
     find(mail);
     declare(mail);
+    show_workshop(mail);
+    show_window(mail);
+  }
+  /// The window that shows Flow's area is sent what changed there (nothing when nothing did), or
+  /// the picture whole.
+  void show_window(loom::Mail &mail) {
+    if (window_.window().empty() || window_.width() <= 0 || window_.height() <= 0)
+      return;
+    auto drawn = pane::window_picture(model_, window_.width(), window_.height());
+    window_parts_ = std::move(drawn.parts);
+    window_.draw(drawn.sketch);
+    window_drew_whole_ = window_whole_;
+    window_whole_ = false;
+    window_.show(mail);
+  }
+  void show_workshop(loom::Mail &mail) {
     if (canvas_room().grant > 0 && canvas_room().width > 0 && canvas_room().height > 0) {
       auto current = pane::picture(model_, canvas_room(), ++picture_number_);
       const auto ticket = mail.as_role(pane::kRole)
@@ -1331,6 +1413,11 @@ private:
   std::optional<zengine::message_draft::Draft> live_state_;
   std::deque<pane::Picture> pictures_;
   std::optional<Drag> drag_;
+  gfx::Canvas window_{pane::kRole, pane::kRole}; ///< its area in the window that shows it
+  std::map<std::string, pane::Hit> window_parts_; ///< the parts the picture last sent there names
+  bool window_whole_ = false;      ///< the next picture sent there goes whole
+  bool window_drew_whole_ = false; ///< the last one sent there went whole
+  bool room_asked_ = false;        ///< its area's room asked in this life
   zengine::component::Clipboard clipboard_;
   /// An Add waiting on the host request numbered `request` -- the catalog request that will
   /// describe what it adds -- its node and port numbers meaning what they meant in `draft`.

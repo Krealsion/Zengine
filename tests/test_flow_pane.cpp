@@ -17,6 +17,7 @@
 #include "workshop/pane_canvas_vocabulary.hpp"
 #include "workshop/powers_door.hpp"
 #include "lifecycle_door.hpp"
+#include "pane_window.hpp"
 #include <zen/kernel/kernel.hpp>
 #include <algorithm>
 #include <chrono>
@@ -33,6 +34,8 @@ namespace flow = zengine::flow;
 namespace ws = zengine::workshop;
 namespace in = zengine::input;
 namespace op = zengine::op;
+namespace gfx = zengine::graphics;
+namespace pw = zengine::testing::pane_window;
 constexpr const char* workshop_role = "zengine.workshop";
 constexpr auto unit = ws::kPaneCanvasUnit;
 
@@ -91,6 +94,7 @@ struct Rig {
     loom::Kernel kernel{bus, loom::trust_every_artifact("the fixture selects one Flow pane artifact")};
     fh::RuntimeHost runtime{bus, catalog};
     Presenter* presenter = nullptr;
+    pw::PaneDirectory* directory = nullptr; ///< the graphics directory, asked the area's room
     loom::WeaveId workshop{}, pane{}, door{}, finder{}, menus{};
     std::uint64_t correlation = 0;
     std::int64_t activation = 0, grant = 1, gesture = 0;
@@ -145,6 +149,10 @@ struct Rig {
         // authorize mail.answer(), even when that requester holds Workshop.
         pane_grant.allow(ws::PaneQuitAnswered::zen_name, ws::PaneQuitAnswered::zen_version, workshop);
         pane_grant.allow_to_any(fp::FlowEdited::zen_name, fp::FlowEdited::zen_version);
+        // ...and its drawing, to the window that shows its area, and its room, asked of the directory.
+        pane_grant.allow_to_any(gfx::Drawn::zen_name, gfx::Drawn::zen_version);
+        pane_grant.allow_to_role(gfx::RoomAsked::zen_name, gfx::RoomAsked::zen_version, gfx::kGraphicsRole);
+        directory = pw::mount_directory(bus);
         const auto loaded = kernel.load("flow-pane", FLOW_PANE_ARTIFACT, fp::kRole, std::move(pane_grant));
         INFO(loaded.error);
         REQUIRE(loaded.ok);
@@ -320,6 +328,34 @@ op::OperatorDef answer_source() {
                            op::Description{"forty-two, whenever it is asked"});
 }
 
+/// THE PICTURE A WINDOW KEEPS FOR `area`, in the order it paints it: the nodes under its
+/// `picture` group, read as Workshop's picture reads -- each rectangle, then each run of text.
+void same_picture(const gfx::window::WinArea& area, const ws::PaneCanvasContent& workshop) {
+    const auto at = gfx::window::index_of(area);
+    std::vector<const gfx::window::KeptNode*> kept;
+    for (const auto& k : area.nodes)
+        if (k.node.path.rfind("picture/", 0) == 0 && k.node.path.find('/', 8) == std::string::npos)
+            kept.push_back(&k);
+    std::stable_sort(kept.begin(), kept.end(), [&](const auto* x, const auto* y) {
+        return gfx::window::key_of(at, x->node.path) < gfx::window::key_of(at, y->node.path);
+    });
+    REQUIRE(kept.size() == workshop.rects.size() + workshop.texts.size());
+    for (std::size_t i = 0; i < workshop.rects.size(); ++i) {
+        CAPTURE(i);
+        const auto r = gfx::from_body<gfx::RectArgs>(kept[i]->node.args);
+        REQUIRE(r);
+        const auto& w = workshop.rects[i];
+        CHECK((r->x == w.x && r->y == w.y && r->w == w.w && r->h == w.h && r->fill.role == w.role));
+    }
+    for (std::size_t i = 0; i < workshop.texts.size(); ++i) {
+        CAPTURE(i);
+        const auto t = gfx::from_body<gfx::TextArgs>(kept[workshop.rects.size() + i]->node.args);
+        REQUIRE(t);
+        const auto& w = workshop.texts[i];
+        CHECK((t->x == w.x && t->y == w.y && t->text == w.text && t->ink.role == w.role));
+    }
+}
+
 std::size_t escapes_unspent(const Presenter& presenter) {
     return static_cast<std::size_t>(std::count_if(presenter.messages.begin(), presenter.messages.end(),
         [](const auto& m) { return loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneEscapeUnspent>()); }));
@@ -453,6 +489,132 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
         CHECK(listed.parts[i].h == hit.h);
         const std::string name = fp::part_name(hit);
         CHECK(listed.parts[i].name == (taken.insert(name).second ? name : std::string()));
+    }
+
+    SUBCASE("in a graphics window: its room asked once a life, its picture drawn there whole and "
+            "then as what changed, under the names Workshop's parts carry; a press there is the "
+            "first-button press on Workshop's canvas, and a refused change is drawn whole again "
+            "once while a refused whole picture is only said") {
+        std::string node, port;
+        for (const auto& p : said.parts) {
+            if (p.name.rfind("node:", 0) == 0) node = p.name;
+            if (p.name.rfind("port:", 0) == 0) port = p.name;
+        }
+        REQUIRE_FALSE(node.empty());
+        REQUIRE_FALSE(port.empty());
+        CHECK(rig.directory->times(fp::kRole, fp::kRole) == 1);
+        pw::Window window(rig.bus, "flowtest");
+        const auto& seen = window.weave();
+        // A ROOM OF WORKSHOP'S SIZE, so the window's picture is Workshop's, one for one.
+        window.room(fp::kRole, fp::kRole, 170, 65);
+        rig.pump();
+        REQUIRE(seen.heard.size() == 1);
+        const gfx::Drawn first = seen.heard.front();
+        CHECK(first.whole);
+        CHECK(seen.refusals.empty());
+        gfx::window::WinArea fresh;
+        fresh.area = fp::kRole;
+        CHECK(gfx::window::judge(fresh, gfx::window::Drawer{}, first).empty());
+        same_picture(*window.weave().find(fp::kRole), rig.picture());
+        std::set<std::string> names, recorded;
+        for (const auto& p : said.parts)
+            if (!p.name.empty()) names.insert(p.name);
+        for (const auto& r : first.said) recorded.insert(r.action);
+        CHECK(recorded == names);
+        const auto pressed = window.actions(fp::kRole);
+        CHECK(pressed.count("control:page-state") == 1);
+        CHECK(pressed.count(node) == 1);
+        CHECK(pressed.count(port) == 1); // a port over its node, as a press on Workshop's reads them
+        for (const auto& action : pressed) CHECK(names.count(action) == 1);
+
+        // A PRESS ON A CONTROL performs it, and both Workshop and the window show what it did.
+        REQUIRE(window.press(fp::kRole, "control:page-state"));
+        rig.pump();
+        (void)rig.label("[Add state field]");
+        REQUIRE(seen.heard.size() == 2);
+        CHECK_FALSE(seen.heard.back().whole);
+        CHECK(seen.refusals.empty());
+        same_picture(*window.weave().find(fp::kRole), rig.picture()); // what a change adds paints in its place
+        const auto rows = window.rows(fp::kRole);
+        CHECK(std::any_of(rows.begin(), rows.end(),
+                          [](const std::string& row) { return row.find("[Add state field]") != std::string::npos; }));
+        // ...A PRESS ON A NODE selects it and begins no drag, so Delete removes that node.
+        REQUIRE(window.press(fp::kRole, "control:page-graph"));
+        rig.pump();
+        REQUIRE(window.press(fp::kRole, node));
+        rig.pump();
+        rig.key(in::scan::kDelete);
+        const auto& after = rig.presenter->named.back().parts;
+        CHECK(std::none_of(after.begin(), after.end(), [&](const auto& p) { return p.name == node; }));
+        CHECK(window.actions(fp::kRole).count(node) == 0);
+        // ...ANOTHER WINDOW, or an action the picture shown there does not name, does nothing.
+        const auto heard = seen.heard.size();
+        loom::Grant forging;
+        forging.allow_to_role(gfx::AreaRoom::zen_name, gfx::AreaRoom::zen_version, fp::kRole);
+        const auto forger = rig.bus.register_weave(std::make_unique<Presenter>(), std::move(forging));
+        rig.bus.send_as_to_role(forger, fp::kRole,
+            loom::Message(loom::to_value(gfx::AreaRoom{fp::kRole, "flowtest", 9, 170 * unit, 65 * unit, {}}), forger));
+        rig.pump();
+        pw::Window other(rig.bus, "other");
+        other.ask(fp::kRole, "control:page-state", fp::kRole);
+        window.ask(fp::kRole, "control:no-such");
+        rig.pump();
+        CHECK_FALSE(rig.shows("[Add state field]"));
+        CHECK(seen.heard.size() == heard);
+        CHECK(other.weave().heard.empty());
+        // ...A CONFIRMED WRITE asked from the window waits, since no Workshop gesture made the press.
+        REQUIRE(window.press(fp::kRole, "control:ask-save"));
+        rig.pump();
+        REQUIRE(window.press(fp::kRole, "control:dialog-confirm"));
+        rig.pump();
+        CHECK(rig.shows_part("came under no gesture Workshop numbered, as a raw key or a press"));
+        REQUIRE(window.press(fp::kRole, "control:dialog-cancel"));
+        rig.pump();
+
+        // A REFUSED CHANGE IS DRAWN AGAIN WHOLE AT ONCE...
+        const auto before = seen.heard.size();
+        window.weave().refuse_next = true;
+        REQUIRE(window.press(fp::kRole, "control:page-messages"));
+        rig.pump();
+        REQUIRE(seen.heard.size() == before + 2);
+        CHECK_FALSE(seen.heard[before].whole);
+        CHECK(seen.heard[before + 1].whole);
+        CHECK(seen.refusals.size() == 1);
+        // ...AND A REFUSED WHOLE PICTURE IS SAID, drawing nothing more until the next change.
+        window.weave().refuse_next = true;
+        window.room(fp::kRole, fp::kRole, 170, 65, 2);
+        rig.pump();
+        REQUIRE(seen.heard.size() == before + 3);
+        CHECK(seen.heard.back().whole);
+        CHECK(seen.refusals.size() == 2);
+        CHECK(rig.shows_part("The graphics window refused Flow's picture: the case refused this drawing"));
+        rig.pump();
+        CHECK(seen.heard.size() == before + 3);
+        rig.click("[Graph]");
+        REQUIRE(seen.heard.size() == before + 4);
+        CHECK(seen.heard.back().whole);
+        CHECK(seen.refusals.size() == 2);
+
+        // THE WINDOW ALONE: with Workshop's room taken back, a press there still acts and is drawn.
+        rig.host(ws::PaneCanvasRoom{fp::kPane, ++rig.grant, 0, 0, unit, true});
+        const auto pictures = rig.presenter->pictures.size();
+        const auto alone = seen.heard.size();
+        REQUIRE(window.press(fp::kRole, "control:page-state"));
+        rig.pump();
+        CHECK(seen.heard.size() == alone + 1);
+        CHECK(rig.presenter->pictures.size() == pictures);
+        const auto shown = window.rows(fp::kRole);
+        CHECK(std::any_of(shown.begin(), shown.end(),
+                          [](const std::string& row) { return row.find("[Add state field]") != std::string::npos; }));
+
+        // ONCE A LIFE: an activation asks no room again; a reloaded pane asks it afresh.
+        rig.activate();
+        CHECK(rig.directory->times(fp::kRole, fp::kRole) == 1);
+        const auto reload = rig.kernel.reload_from("flow-pane", FLOW_PANE_ARTIFACT);
+        INFO(reload.error);
+        REQUIRE(reload.ok);
+        rig.activate();
+        CHECK(rig.directory->times(fp::kRole, fp::kRole) == 2);
     }
 }
 

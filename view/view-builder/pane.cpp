@@ -7,10 +7,13 @@
 #include "view/view-builder/vocabulary.hpp"
 #include "view/vocabulary.hpp"
 
+#include "graphics/canvas.hpp"
+#include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "inventory/codec.hpp"
 #include "message-draft/transfer.hpp"
 #include "workshop/actor_scope.hpp"
+#include "workshop/pane_canvas_drawing.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_facets.hpp"
@@ -31,7 +34,9 @@
 #include <cstdlib>
 #include <deque>
 #include <filesystem>
+#include <map>
 #include <optional>
+#include <set>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -42,6 +47,7 @@ namespace view = zengine::view;
 namespace ws = zengine::workshop;
 namespace input = zengine::input;
 namespace surface = zengine::surface;
+namespace gfx = zengine::graphics;
 constexpr const char* workshop_role = "zengine.workshop";
 
 /// The shape a carried value names, and the field when the carry was one field: a description's
@@ -102,11 +108,13 @@ class ViewBuilderPane final
           ViewBuilderPane, vb::ViewBuilderState,
           loom::Accept<ws::PaneCanvasPointer, ws::PaneCanvasHover, ws::PaneKey, ws::PaneTextInput,
                        ws::ActionsJudged, ws::PaneQuitRequested, ws::PaneCanvasValueDrop,
-                       ws::PaneCarryAnswered, vb::ViewEdit, view::ViewAnswer, ws::ProjectRoot>,
+                       ws::PaneCarryAnswered, vb::ViewEdit, view::ViewAnswer, ws::ProjectRoot,
+                       gfx::AreaRoom, gfx::DrawnRefused, gfx::ActionRequested>,
           loom::Emit<ws::PaneContent, ws::v4::PaneCanvasContent, ws::PaneEscapeUnspent,
                      ws::PanePassRequested, ws::PaneQuitAnswered, ws::PaneOperationRequested,
                      ws::PaneValueCarryRequested, vb::ViewEdited, view::ViewRun, view::ViewResume,
-                     view::ViewApply, view::ViewStop, ws::ProjectRootRequested>> {
+                     view::ViewApply, view::ViewStop, ws::ProjectRootRequested, gfx::Drawn,
+                     gfx::RoomAsked>> {
 public:
     loom::Value snapshot() const override {
         vb::ViewBuilderState saved;
@@ -155,6 +163,11 @@ public:
             if (model_.running) ask_running(mail);
         }
         room().announce(*this, mail);
+        // ...and its area's room, once a life: a builder started again draws in its window again.
+        if (!room_asked_ && window_.window().empty()) {
+            room_asked_ = true;
+            (void)mail.as_role(vb::kRole).send_to_role(gfx::kGraphicsRole, gfx::RoomAsked{window_.area()});
+        }
     }
     ws::v3::PaneOffered offering() const {
         return ws::v3::PaneOffered{vb::kPane, "View Builder", "make a view by hand, then run it beside Flow",
@@ -292,6 +305,45 @@ public:
         shown_.hovered = over;
         shown_.landing = landing;
         show(mail);
+    }
+    /// THE ROOM, from the graphics window that shows the builder's area, as that window's office: a
+    /// window, an incarnation or a size it has not drawn in holds none of its picture, so it goes
+    /// whole.
+    void on(const gfx::AreaRoom& r, loom::Mail& mail) {
+        if (r.area != window_.area() || !mail.authored_from_role(std::string(gfx::kWindowOfficePrefix) + r.window))
+            return;
+        if (window_.room(r)) {
+            window_whole_ = true;
+            window_parts_.clear();
+            show_window(mail);
+        }
+    }
+    /// A REFUSED CHANGE is drawn again whole at once, against nothing the window lacks; a refused
+    /// whole picture is said in the notice and waits for the next change, so a window that keeps
+    /// refusing starts no loop.
+    void on(const gfx::DrawnRefused& refused, loom::Mail& mail) {
+        if (refused.area != window_.area() || window_.window().empty() ||
+            !mail.authored_from_role(window_.window_office()))
+            return;
+        window_.forget();
+        window_whole_ = true;
+        if (!window_drew_whole_) {
+            show_window(mail);
+            return;
+        }
+        model_.notice = "The graphics window refused the View Builder's picture: " + refused.reason;
+        show_workshop(mail);
+    }
+    /// A PRESS IN THE WINDOW on a part the picture last drawn there names, asked by that window's
+    /// office: what a first-button press on that place of Workshop's canvas does, let go without
+    /// moving (`choose`).
+    void on(const gfx::ActionRequested& asked, loom::Mail& mail) {
+        if (asked.area != window_.area() || window_.window().empty() ||
+            !mail.authored_from_role(window_.window_office()))
+            return;
+        const auto part = window_parts_.find(asked.action);
+        if (part == window_parts_.end()) return;
+        choose(part->second, nullptr, {}, {}, mail);
     }
     /// A SHAPE OR A FIELD CARRIED HERE, placed on a label on the canvas or its row: the label shows
     /// it. Placed anywhere else it is refused in words, whatever is selected. Carrying it granted
@@ -492,8 +544,16 @@ private:
             return;
         }
         if (!hit) return;
-        const auto chosen = *hit; // acting clears the pictures the hit points into
-        const auto design = pictured->design, placed = pictured->view;
+        choose(*hit, &event, pictured->design, pictured->view, mail);
+    }
+
+    /// A FIRST-BUTTON PRESS ON A PLACE THE BUILDER ANSWERS: on Workshop's canvas, `event`, which
+    /// may begin a drag; in a graphics window, none, so what a press there does is what the same
+    /// press let go without moving does -- a kind made, an element selected -- and a size handle,
+    /// which only a drag moves, does nothing.
+    void choose(const vb::Hit& hit, const ws::PaneCanvasPointer* event, const vb::Area& design,
+                const vb::Area& placed, loom::Mail& mail) {
+        const auto chosen = hit; // acting clears the pictures the hit points into
         // A value being typed is kept before anything else is pressed; a refusal keeps its box.
         if (shown_.box && !(chosen.action == "box" && same_box(chosen)) && !commit()) {
             show(mail);
@@ -502,29 +562,35 @@ private:
         if (chosen.action != "new" && chosen.action != "open") shown_.armed.clear();
         const auto index = element_of(chosen);
         if (chosen.action == "box") {
-            if (!shown_.box || !same_box(chosen)) focus(chosen, event);
-            else place_caret(chosen, event);
+            if (!shown_.box || !same_box(chosen)) focus(chosen);
+            if (event) place_caret(chosen, *event);
         } else if (chosen.action == "kind") {
-            held_ = Held{.gesture = event.gesture, .what = Held::What::make, .kind = *view::kind_of(chosen.args.at(0)),
-                         .x = event.x, .y = event.y, .dirty = model_.dirty, .design = design, .placed = placed};
+            const auto kind = *view::kind_of(chosen.args.at(0));
+            if (!event) perform("add", {view::kind_word(kind)}, mail);
+            else
+                held_ = Held{.gesture = event->gesture, .what = Held::What::make, .kind = kind, .x = event->x,
+                             .y = event->y, .dirty = model_.dirty, .design = design, .placed = placed};
         } else if (chosen.action == "element" || chosen.action == "handle") {
             perform("select", {std::to_string(*index)}, mail);
             const bool handle = chosen.action == "handle";
-            held_ = Held{.gesture = event.gesture, .what = handle ? Held::What::resize : Held::What::move,
-                         .element = *index, .sx = handle ? std::stoi(chosen.args.at(1)) : 0,
-                         .sy = handle ? std::stoi(chosen.args.at(2)) : 0, .x = event.x, .y = event.y,
-                         .before = model_.description.elements[*index], .dirty = model_.dirty, .design = design,
-                         .placed = placed};
+            if (event)
+                held_ = Held{.gesture = event->gesture, .what = handle ? Held::What::resize : Held::What::move,
+                             .element = *index, .sx = handle ? std::stoi(chosen.args.at(1)) : 0,
+                             .sy = handle ? std::stoi(chosen.args.at(2)) : 0, .x = event->x, .y = event->y,
+                             .before = model_.description.elements[*index], .dirty = model_.dirty,
+                             .design = design, .placed = placed};
         } else if (chosen.action == "size") {
-            held_ = Held{.gesture = event.gesture, .what = Held::What::size, .sx = std::stoi(chosen.args.at(0)),
-                         .sy = std::stoi(chosen.args.at(1)), .x = event.x, .y = event.y, .dirty = model_.dirty,
-                         .design = design, .placed = placed, .width = model_.description.width,
-                         .height = model_.description.height};
+            if (event)
+                held_ = Held{.gesture = event->gesture, .what = Held::What::size, .sx = std::stoi(chosen.args.at(0)),
+                             .sy = std::stoi(chosen.args.at(1)), .x = event->x, .y = event->y,
+                             .dirty = model_.dirty, .design = design, .placed = placed,
+                             .width = model_.description.width, .height = model_.description.height};
         } else if (chosen.action == "says") {
             // A PRESS ON WHAT A BUTTON SAYS may drag its intent's shape out: asked under the press,
             // carried only if the hand moves before it lets go.
             perform("select", {std::to_string(*index)}, mail);
-            if (const auto* intent = model_.description.intent(model_.description.elements[*index].id))
+            if (const auto* intent = model_.description.intent(model_.description.elements[*index].id);
+                intent && event)
                 carry(intent->shape, mail.correlation(), true, mail);
         } else if (chosen.action == "select" || chosen.action == "shows") {
             perform("select", {std::to_string(*index)}, mail);
@@ -750,14 +816,14 @@ private:
         }
         return vb::value_of(e, box.field);
     }
-    void focus(const vb::Hit& hit, const ws::PaneCanvasPointer& event) {
+    /// A box opened on its value as it stands, the caret after its last character.
+    void focus(const vb::Hit& hit) {
         vb::Box box;
         box.field = hit.args.at(0);
         if (!hit.args.at(1).empty()) box.element = std::stoul(hit.args.at(1));
         const auto value = value_now(box);
         box.text.set(value, value.size());
         shown_.box = std::move(box);
-        place_caret(hit, event);
     }
     /// The caret where the box was pressed, at the medium's measured advance, counted from the
     /// scroll the picture drew the box at.
@@ -1067,7 +1133,32 @@ private:
             kept_ = !opened;
         }
     }
+    /// SHOW WHAT IT HOLDS NOW, wherever it stands: Workshop's pane and its area's graphics window.
     void show(loom::Mail& mail) {
+        show_workshop(mail);
+        show_window(mail);
+    }
+    /// The window that shows the builder's area is sent what changed there (nothing when nothing
+    /// did), or the picture whole: drawn for the window's room from a copy of the presentation, so
+    /// the window never moves what Workshop's pane shows.
+    void show_window(loom::Mail& mail) {
+        if (window_.window().empty() || window_.width() <= 0 || window_.height() <= 0) return;
+        const auto room = ws::canvas_window_room(vb::kPane, window_.width(), window_.height());
+        auto shown = shown_;
+        const auto drawn = vb::picture(model_, shown, room, 0);
+        const auto said = ws::canvas_sketch(vb::named(drawn, model_.description), room);
+        std::set<std::string> named;
+        for (const auto& record : said.sketch.records()) named.insert(record.action);
+        window_parts_.clear();
+        for (const auto& hit : drawn.hits)
+            if (const auto name = vb::part_name(hit, model_.description); named.count(name) != 0)
+                window_parts_.emplace(name, hit);
+        window_.draw(said.sketch);
+        window_drew_whole_ = window_whole_;
+        window_whole_ = false;
+        window_.show(mail);
+    }
+    void show_workshop(loom::Mail& mail) {
         if (room().on_canvas()) {
             auto current = vb::picture(model_, shown_, canvas_room(), ++picture_number_);
             const auto ticket =
@@ -1107,6 +1198,11 @@ private:
     bool kept_ = false;
     std::int64_t picture_number_ = 0;
     std::deque<vb::Picture> pictures_;
+    gfx::Canvas window_{vb::kRole, vb::kRole};    ///< its area in the window that shows it
+    std::map<std::string, vb::Hit> window_parts_; ///< the parts the picture last sent there names
+    bool window_whole_ = false;                   ///< the next picture sent there goes whole
+    bool window_drew_whole_ = false;              ///< the last one sent there went whole
+    bool room_asked_ = false;                     ///< its area's room asked in this life
     zengine::component::Clipboard clipboard_;
 };
 } // namespace
