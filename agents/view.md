@@ -140,7 +140,7 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
   `tests/test_view_builder.cpp` the one renderer, the palette, the drags, the snap,
   the side handles, the pan, the size, nothing outside it, the grid, the boxes, the marks and the
   terminal floor, the builder in a graphics window, the run again at a launch, and the launch
-  record across a reload, a failed write and a missing view file; `tests/test_view.cpp` also the size, a version 1 description, a
-  view asking for its size,
+  record across a reload, a failed write and a missing view file; `tests/test_view.cpp` also the
+  size, a version 1 description, a view asking for its size,
   and a resumed view; the panes suite the view and the builder through Workshop's real seat,
   pointer route, drag carry and canvas admission.
