@@ -398,21 +398,19 @@ const RuntimePane* info_rows(ScriptedViews& s, const std::string& key, const cha
 }
 
 /// EVERY STATE INFO'S PANES DECLARE ROWS IN, walked by a weaver's own gestures through the real
-/// Info, Workshop and Inventory pane over a scripted Inventory office: the default pane's two
-/// lists and a property draft, its value view with a field edit, a rename and an entry it waits
-/// on, the lists again holding a value, then a value view of its own and that view closed. `at`
-/// is called once in each, with the pane and one id that state alone declares.
+/// Info, Workshop and Inventory pane over a scripted Inventory office: the default pane's
+/// properties and a property draft, its value view with a field edit, a rename and an entry it
+/// waits on, the properties again holding a value, then a value view of its own and that view
+/// closed. `at` is called once in each, with the pane and one id that state alone declares.
 template <class At>
 void each_info_state(ScriptedViews& s, At&& at) {
-    at(info::kInfoPane, info::kActionSwitch); // the pane list: nothing inspected yet
-    // THE PROPERTIES OF THE PANE THE LIST'S CURSOR HOLDS, inspected by Return, the keys sent there.
-    s.click(s.info);
-    s.key(input::scan::kReturn);
+    at(info::kInfoPane, info::kActionEdit); // the properties: nothing inspected yet
+    // THE PROPERTIES OF A PANE THE PANE MANAGER'S `inspect in Info` NAMED, the keys sent there.
+    REQUIRE(hand_inspect_in_info(s.r, PaneRef{info::kInfoPaneRole, info::kInfoPane}).accepted);
     REQUIRE_FALSE(s.r.said_subjects.empty());
     const PaneSubjectShown subject = s.r.said_subjects.back();
     REQUIRE(subject.subject != 0);
-    s.key(input::scan::kTab);
-    at(info::kInfoPane, info::kActionEdit);
+    s.click(s.info);
     // ...AND A DRAFT ON ITS FIRST EDITABLE ROW: the cursor walks the rows that hold a value.
     std::int64_t downs = -1;
     for (const ShownProperty& p : subject.properties) {
@@ -446,7 +444,7 @@ void each_info_state(ScriptedViews& s, At&& at) {
     s.key(input::scan::kEscape);
     s.inventory->hold.clear();
     s.release(0);
-    // THE LISTS AGAIN, the value kept for the way back.
+    // THE PROPERTIES AGAIN, the value kept for the way back.
     s.button(s.info, "Panes");
     at(info::kInfoPane, info::kActionInventory);
     // A VALUE VIEW OF ITS OWN, then closed: its slot stays offered, unused.
@@ -1371,7 +1369,7 @@ TEST_CASE("info views: a right press aimed at a picture drawn before the view's 
     CHECK(s.sends(PaneMenuRequested::zen_name) == 0);
 }
 
-TEST_CASE("info views: a field copy placed on Info's pane-property lists fills no field of the value its "
+TEST_CASE("info views: a field copy placed on Info's pane-property view fills no field of the value its "
           "default view still holds") {
     Views s(255); // the field pickup is the actor's to make
     add_records(s);
@@ -1381,15 +1379,15 @@ TEST_CASE("info views: a field copy placed on Info's pane-property lists fills n
     s.copy_into(s.info, "Target record"); // the default view holds a value...
     REQUIRE_MESSAGE(s.shows(s.info, "name: dst"), s.shown(s.info));
     const auto name = s.field_at(s.info, "name");
-    s.button(s.info, "Panes"); // ...and shows the pane-property lists again
-    REQUIRE_MESSAGE(s.shows(s.info, "PANES"), s.shown(s.info));
+    s.button(s.info, "Panes"); // ...and shows the pane-property view again
+    REQUIRE_MESSAGE(s.shows(s.info, "PROPERTIES"), s.shown(s.info));
     // A field copy picked up in another view, placed where the default view drew its `name` row.
     const auto source = s.field_at(a, "name");
     s.press_at(a, source.first, source.second);
     s.key(input::scan::kG, input::mod::kCtrl);
     REQUIRE_MESSAGE(s.r.last_notice().rfind("Carrying ", 0) == 0, s.r.last_notice());
     s.click_at(s.info, name.first, name.second);
-    // The lists number no meaning of their own: the place is not a field of the value held.
+    // The properties number no meaning of their own: the place is not a field of the value held.
     s.key(input::scan::kI, input::mod::kCtrl); // back to the value
     CHECK_MESSAGE(s.shows(s.info, "name: dst"), s.shown(s.info));
     CHECK_FALSE(s.shows(s.info, "name: src"));
@@ -1441,7 +1439,7 @@ TEST_CASE("info views: with pane titles hidden, a field dragged out of a view th
     CHECK_MESSAGE(s.shows(b, "name: src"), s.shown(b));
 }
 
-TEST_CASE("info views: a press on Info's pane-property lists arms no field pickup, so its motion asks "
+TEST_CASE("info views: a press on Info's pane-property view arms no field pickup, so its motion asks "
           "nothing once the value it held is shown again") {
     Views s(255); // the field pickup is the actor's to make
     add_records(s);
@@ -1449,8 +1447,8 @@ TEST_CASE("info views: a press on Info's pane-property lists arms no field picku
     REQUIRE_MESSAGE(s.shows(s.info, "name: dst"), s.shown(s.info));
     const auto name = s.field_at(s.info, "name");
     s.press_at(s.info, name.first, name.second); // a field press, released where it was: armed
-    s.key(input::scan::kI, input::mod::kCtrl);   // the lists again, by key: no press disarms it
-    REQUIRE_MESSAGE(s.shows(s.info, "PANES"), s.shown(s.info));
+    s.key(input::scan::kI, input::mod::kCtrl);   // the properties again, by key: no press disarms it
+    REQUIRE_MESSAGE(s.shows(s.info, "PROPERTIES"), s.shown(s.info));
     const ExternalPane held = *s.r.session().panes.external_pane(s.info);
     REQUIRE(shows_canvas(held));
     const CanvasRows lattice = held_canvas_rows(held);
@@ -1460,7 +1458,7 @@ TEST_CASE("info views: a press on Info's pane-property lists arms no field picku
                 held.canvas.content.picture, 88, phase, 1, x, y})));
         s.r.bus.drain_until_idle();
     };
-    // A press held on a row of the lists; the value shown again by key while it is held; then
+    // A press held on a row of the properties; the value shown again by key while it is held; then
     // that press's motion across the rows: the earlier field press's pickup stays unasked.
     send(canvas_pointer::kPress, lattice.column_x(3), lattice.row_y(2));
     s.key(input::scan::kI, input::mod::kCtrl);
@@ -2027,7 +2025,7 @@ TEST_CASE("info views: the default view's watch ends when it returns to pane pro
     s.button(s.info, "Watch");
     REQUIRE(s.r.w->observation_leases() == 1);
     s.button(s.info, "Panes");
-    CHECK_MESSAGE(s.shows(s.info, "PANES"), s.shown(s.info));
+    CHECK_MESSAGE(s.shows(s.info, "PROPERTIES"), s.shown(s.info));
     CHECK(s.r.w->observation_leases() == 0);
     s.watch();
     s.write(ref, 1, 6);

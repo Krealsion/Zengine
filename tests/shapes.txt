@@ -171,7 +171,7 @@ HeldMenu v2 0x25a83fd1db508fa4
 IconFace v1 0xb017239cc19ae603
 ImageArgs v1 0x8085ca3e3649508e
 ImageFace v1 0x8eb8210b11c0bd26
-InfoPaneState v3 0x269f11b8220995ca
+InfoPaneState v4 0x615391464046a541
 InfoViewState v1 0x88fdee458cc3c79a
 InjectInput v1 0xba1df87065468101
 InjectedEvent v1 0x719ab21c82df56a2

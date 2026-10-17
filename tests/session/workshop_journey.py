@@ -373,8 +373,8 @@ def main():
             check("J7 the pictures are the window's pixels, and the chord changed them",
                   after[:2] == b"BM" and before[:2] == b"BM" and after != before)
         else:
-            # The Info pane LISTS "Pane Manager -- closed" before the chord; the pane's own title
-            # row, "Pane Manager @zengine.desktop", is on the desk only once the chord opened it.
+            # The pane's own title row, "Pane Manager @zengine.desktop", is on the desk only once
+            # the chord opened it.
             check("J7 the picture after the chord shows the Pane Manager it opened",
                   PANE_MANAGER in after and PANE_MANAGER not in before)
         note("look_pictures", dict((n, arts[n]["path"]) for n in stems if n))

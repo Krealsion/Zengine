@@ -187,12 +187,9 @@ struct LegendRig {
         REQUIRE_MESSAGE(row >= 0, "no such row in Info:\n", all);
         press_pane(r, info(), row, 3);
     }
-    /// NAME THE TERMINAL AS INFO'S SUBJECT: into Info, a press on its row of the list.
+    /// NAME THE TERMINAL AS INFO'S SUBJECT, as the Pane Manager's `inspect in Info` row does.
     void inspect_terminal() {
-        const ui::Rect body = external_body_rect(r.session(), info());
-        r.press_cell(body.x, body.y);
-        press_info(info_row([](const std::string& row) { return row.compare(2, 12, "Terminal -- ") == 0; },
-                            false));
+        REQUIRE(hand_inspect_in_info(r, terminal_ref()).accepted);
         REQUIRE(r.session().inspected.ref == terminal_ref());
     }
     /// A DRAFT ON A SETTINGS ROW, its text replaced by `typed`.

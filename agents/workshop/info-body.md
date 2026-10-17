@@ -1,15 +1,19 @@
 # Workshop law — the Info body
 
-Register `WL-INFO`: Info's pane-property view in `info/pane.cpp`. Cite laws by ID.
-Router: [`../workshop.md`](../workshop.md). The separate value views are owned by
+Register `WL-INFO`: Info's pane-property view, `info/property_view.hpp` in the weave `info/pane.cpp`.
+Cite laws by ID. Router: [`../workshop.md`](../workshop.md). The separate value views are owned by
 `info/value_view.hpp`; see [inventory](../inventory.md).
+
+Retired: WL-INFO-07, WL-INFO-09.
 
 ## WL-INFO-01 — The Info body is composed once, by the pane, into the room it was granted
 
-LAW — `say` publishes Info’s body: one composition of both lists in the pane-property view, or the inventory editor’s rows in the inventory-entry view.
+LAW — `compose` makes Info’s body: one composition of one pane’s properties under one heading in the pane-property view, or a value view’s own rows while the default pane holds a value.
 
 MEANS
-- one pass composes rows and their press map.
+- one pass composes rows and their press map;
+- the heading is `PANE <name>` for the subject an office named (`InspectPaneRequested`, as the Pane Manager's `inspect in Info` asks it), and `PROPERTIES` before one is named;
+- the desk's panes are the Pane Manager's to list: no row here lists them.
 
 WHY — `agents/decisions/one-body-two-lists.md`
 
@@ -27,7 +31,7 @@ WHY — `agents/decisions/one-body-two-lists.md`
 LAW — `list_window`: a population that fits is shown whole, the focused row is always in the window, every omission is counted on its own side and spends a row; derived every publication, stored nowhere.
 
 MEANS
-- there is no scroll offset, no pane state field and no scroll gesture on either list.
+- there is no scroll offset, no pane state field and no scroll gesture on the list.
 
 WHY — `agents/decisions/one-body-two-lists.md`
 
@@ -64,41 +68,21 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/one-body-two-lists.md`
 
-## WL-INFO-07 — `share_body_rows` is max-min fair sharing
+## WL-INFO-08 — The heading is reserved before the list is offered anything
 
-LAW — `share_body_rows` is max-min fair: each list gets what it needs, spare stays spare, what both cannot have is shared equally with an unneeded half going to the other; 50/50 is a consequence.
-
-MEANS
-- growing the pane never shrinks either list.
-
-WHY — `agents/decisions/one-body-two-lists.md`
-
-## WL-INFO-08 — The headings are reserved before either list is offered anything
-
-LAW — The two headings and a front sentence are subtracted from the granted rows before the share is computed; a bound that grows when it is exceeded is not a bound, and `finish` truncates the rest.
+LAW — The heading and a front sentence are subtracted from the granted rows before the list is windowed; a bound that grows when it is exceeded is not a bound, and `finish` truncates the rest.
 
 MEANS
 - the press inverse is measured from the same lead, so a sentence cannot move a press off its row.
 
 WHY — `agents/decisions/one-body-two-lists.md`
 
-## WL-INFO-09 — A pane row names the pane, and a press on it asks the host to inspect it
+## WL-INFO-10 — An empty list says it is empty, whatever its room
 
-LAW — A pane row is its name and what the inventory says of it, cut at the granted columns; a press on one, or Return on the list cursor, ASKS the host to make it the subject unless a draft is live.
-
-MEANS
-- `*` marks the subject, `>` the list cursor where the keys are, `?` a cursor holding nothing;
-- the list cursor is an identity, reloads too: a pane that left is said; Return inspects nothing;
-- another subject takes a draft's rows, so a live draft refuses the press before asking.
-
-WHY — `agents/decisions/one-body-two-lists.md`
-
-## WL-INFO-10 — An empty list says it is empty, whatever its share
-
-LAW — An empty list says so in its own words, and neither sentence is behind the share: an empty list is offered nothing, so a guarded row would be missing in the one state the sentence exists for.
+LAW — With nothing inspected the list says so in its own words, behind no budget: the list is offered nothing then, so a guarded row would be missing in the one state the sentence exists for.
 
 MEANS
-- blankness cannot distinguish empty from broken;
+- blankness cannot distinguish empty from broken, so the sentence says where a subject is named: the Pane Manager's `inspect in Info`;
 - the granted room is still the wall: `finish` truncates and cannot be talked past.
 
 WHY — `agents/decisions/one-body-two-lists.md`
@@ -146,9 +130,9 @@ WHY — `agents/decisions/an-undelivered-ask-is-released.md`
 LAW — Info names its pane-property subject; the host holds its rows. Selection, focus, Escape and switching views preserve it. Info may inspect itself.
 
 MEANS
+- an office asks Info to inspect a pane (the Pane Manager's `inspect in Info`); Info asks the host and answers the office, and a live draft holds the ask back, refused in Info's words;
 - row identity covers the pane, the desk, whether it holds the row, and the settings rows; changing any renames the rows;
-- an absent pane is refused without movement; an arriving inspector is answered;
-- nothing is published about a subject until one is named.
+- an absent pane is refused without movement; an arriving inspector is answered; nothing is published about a subject until one is named.
 
 DOES NOT MEAN
 - that two inspectors each hold a subject: there is one slot, and an office that asks moves it.
@@ -172,44 +156,49 @@ WHY — `agents/decisions/an-inspector-names-its-subject.md`
 ## Proven by
 
 ### WL-INFO-01
-`info/pane.cpp` say finish lead
+`info/property_view.hpp` compose finish lead
+`info/pane.cpp` say say_properties
 `info/vocabulary.hpp` InfoPaneState
 `workshop/pane_vocabulary.hpp` PaneRoom PaneContent
-`tests/test_workshop_panes_info.cpp` "the two headings and both lists are the pane's rows, over the
-host's inventory and subject" "a room too short for the body invents none of it"
+`tests/test_workshop_panes_info.cpp` "the heading and the subject's properties are the pane's rows,
+over the host's subject, and the panes are the Pane Manager's to list" "a room too short for the
+body invents none of it"
 
 ### WL-INFO-02
-`info/pane.cpp` rows_ columns_ granted_ fit_room
+`info/property_view.hpp` rows_ columns_ granted_ room
+`info/pane.cpp` fit_room
 `workshop/pane_canvas_rows.hpp` canvas_rows
 `workshop/pane_vocabulary.hpp` PaneRoom::rows PaneRoom::columns
 `workshop/weave_external.cpp` refresh_external_rooms
 `tests/test_workshop_panes_info.cpp` "a room too short for the body invents none of it"
 
 ### WL-INFO-03
-`info/pane.cpp` list_window ListWindow say_panes say_properties
+`info/property_view.hpp` list_window ListWindow say_properties
 `workshop/screen_gestures.cpp` list_window omitted_text
 `workshop/screen.hpp` ListWindow
 `tests/test_workshop_panes_info.cpp` "what the body cannot show, it counts -- on the side it left it
 out"
 
 ### WL-INFO-04
-`info/pane.cpp` placed Placed composed_ lead say_properties press
+`info/property_view.hpp` placed Placed composed_ lead say_properties press press_placed
+`info/pane.cpp` press
 `workshop/pane_canvas_rows.hpp` row_cell_at
-`tests/test_workshop_panes_info.cpp` "a press on a pane row inspects it, through the host's own
-door" "a press on an Info row while a notice stands names the row painted there, and a full room
-keeps its last row under the notice"
+`tests/test_workshop_panes_info.cpp` "a press on an Info row while a notice stands names the row
+painted there, and a full room keeps its last row under the notice" "a press on Info's properties
+aimed at the room they stood in before a new one was granted names nothing, and one aimed at the
+room they stand in now moves the cursor"
 
 ### WL-INFO-05
-`info/pane.cpp` say_properties begin_draft close_draft
+`info/property_view.hpp` say_properties begin_draft close_draft
 `workshop/pane_text.hpp` fit pad
 `component/text_box.hpp` TextBox::visible TextBox::keep_caret_visible
 `tests/test_workshop_panes_info.cpp` "a draft on a value the weaver owns is written to the desk"
-"Info draws its lists on its canvas on the medium's own ground, and a draft's caret and selection
-stand in its row where the weaver types, moving no character, and go with it"
+"Info draws its properties on its canvas on the medium's own ground, and a draft's caret and
+selection stand in its row where the weaver types, moving no character, and go with it"
 
 ### WL-INFO-06
-`info/pane.cpp` on(PaneSubjectShown) on(PaneRoom) shows_draft_subject end_draft close_draft
-Draft::subject draft_
+`info/property_view.hpp` shown shows_draft_subject end_draft close_draft Draft::subject draft_
+`info/pane.cpp` on(PaneSubjectShown) on(PaneRoom)
 `workshop/inspection_seam_vocabulary.hpp` PaneSubjectShown::subject
 `tests/test_workshop_panes_info.cpp` "a picture that names other rows abandons the Info draft and
 says so, even where they have the same property on the same row, and writes nothing into either
@@ -217,30 +206,15 @@ desk" "an Info commit queued behind a restore of the desk from its file is refus
 restore keeps the draft" "an Info draft outlives a new room and its pane's window moving, and its
 commit is written"
 
-### WL-INFO-07
-`info/pane.cpp` share_body_rows BodyShare
-`tests/test_workshop_panes_info.cpp` "what the body cannot show, it counts -- on the side it left it
-out"
-
 ### WL-INFO-08
-`info/pane.cpp` say lead finish front_sentence
+`info/property_view.hpp` compose lead finish front_sentence
 `workshop/weave.hpp` WorkshopWeave::judge_content
 `tests/test_workshop_panes_info.cpp` "a room too short for the body invents none of it" "a press on
 an Info row while a notice stands names the row painted there, and a full room keeps its last row
 under the notice"
 
-### WL-INFO-09
-`info/pane.cpp` say_panes ask_inspect inspect_cursor find_list_cursor hold_list pane_property_press
-press_placed kFinishTheEdit
-`workshop/pane_text.hpp` drawable
-`tests/test_workshop_panes_info.cpp` "a press on a pane row inspects it, through the host's own
-door" "a live draft holds another subject back, and the reason is the weaver's" "a press on a pane
-while an Info draft is live is refused, keeping the draft, its text, the subject and the desk
-through a new room, and inspecting resumes once the draft ends" "Info's lost list choice survives
-its own reload: Return inspects nothing until a row is chosen"
-
 ### WL-INFO-10
-`info/pane.cpp` say_panes say_properties finish kNoSubject
+`info/property_view.hpp` say_properties finish kNoSubject kNoSubjectRow
 `tests/test_workshop_panes_info.cpp` "with nothing inspected, the properties say so and say what to
 do next"
 
@@ -251,8 +225,9 @@ do next"
 `tests/test_workshop_panes_info.cpp` "a Workshop with no Info OFFICE keeps the row and says so"
 
 ### WL-INFO-12
-`info/pane.cpp` on(PaneSubjectActed) act answered_commit ask_commit end_draft Asked SentCommit
+`info/property_view.hpp` acted act answered_commit ask_commit end_draft Asked SentCommit
 SentCommit::draft SentCommit::text SentCommit::promise acting_ committing_ kCommitNotSent
+`info/pane.cpp` on(PaneSubjectActed)
 `component/text_box.hpp` TextBox::draft_epoch
 `tests/test_workshop_panes_info.cpp` "a commit and a cancel resolved in one poll: the cancel says
 the commit was already sent, the answer's account takes that sentence's place, and no row says
@@ -265,25 +240,33 @@ apart from the unsent text, a refusal is not said of the newer text, and the new
 normally"
 
 ### WL-INFO-13
-`info/pane.cpp` on(DispatchRefused) refused_ask undelivered_commit ask_inspect ask_commit
+`info/property_view.hpp` refused refused_ask undelivered_commit ask_inspect ask_commit
 Asked::attempt kCommitNotQueued kCommitUndelivered
+`info/pane.cpp` on(DispatchRefused)
 `tests/test_workshop_panes_info.cpp` "an Info commit Loom refuses at dispatch is released: the draft
 and its text stand, the next Return is written, and a cancel's promise is replaced" "an Info commit
 a doorless office refuses at dispatch: the draft stands, the next commit tries again, and it is
 written once the door is back" "a refusal notice anyone could send, naming the Info pane's
 outstanding commit exactly, settles nothing" "an Info inspect Loom refuses at dispatch releases its
-own record, and the next press inspects"
+own record, answers the office that asked, and the next ask inspects"
 
 ### WL-INFO-14
+`info/property_view.hpp` inspect_asked ask_inspect settle_relay relay_ kFinishTheEdit
+`info/pane.cpp` on(InspectPaneRequested)
 `workshop/inspection_seam_vocabulary.hpp` InspectPaneRequested PaneSubjectRequested PaneSubjectShown
 `workshop/screen.hpp` InspectedPane pane_subject_rows pane_subject_shown
 `workshop/screen_pane_subject.cpp` pane_subject_shown pane_subject_rows
 `workshop/setup.hpp` SetupState::put_live
 `workshop/weave_inspection.cpp` refresh_inspected on(InspectPaneRequested) on(PaneSubjectRequested)
 publish_pane_subject
-`tests/test_workshop_panes_info.cpp` "the subject is Info's to name: the keys leaving, Escape and a
-press elsewhere leave it standing" "Info may inspect itself, and an edit to its own place is written
-by the desk, reseats it and keeps the subject" "a subject naming a pane in neither this build's
+`tests/test_workshop_panes_info.cpp` "an office's ask inspects a pane through the host's own door,
+and the office is answered what the host said" "a live draft holds another subject back, and the
+reason is the weaver's" "an inspect asked while an Info draft is live is refused, keeping the
+draft, its text, the subject and the desk through a new room, and inspecting resumes once the draft
+ends" "the subject is Info's to name: the keys leaving, Escape and a press elsewhere leave it
+standing" "Info may inspect itself, and an edit to its own place is written by the desk, reseats it
+and keeps the subject" "Info's property cursor survives its own reload, the subject stands, and
+Return opens a draft where the cursor stood" "a subject naming a pane in neither this build's
 vocabulary nor this desk is refused in words with nothing moved, and an inspector that arrives is
 answered the picture as it is now"
 `tests/test_workshop_panes_settings.cpp` "the subject is named anew when its pane's row leaves the

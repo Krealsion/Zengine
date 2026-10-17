@@ -225,7 +225,7 @@ when the two differ. The shipped walks:
 
 | setup | walk | checks |
 |---|---|---|
-| `values` | `layouts` | the Layouts row taken off the desk from the Pane Manager and brought back, as Info lists it |
+| `values` | `layouts` | the Layouts row taken off the desk from the Pane Manager and brought back, as the desk says it |
 | `presets` | `escape` | Escape in Inventory, Loaded, Compose, Info and the Demo controls: a selection let go first, then the pane put down |
 | `editor-materials` | `escape` | Escape in Files and the Terminal puts each down; the Editor keeps Escape for itself |
 | `build-your-first-pane` | `tutorial` | the tutorial's every step, its pictures the page's; `tutorial_walks` replays each tutorial's `tutorial` walk from an installed prefix |

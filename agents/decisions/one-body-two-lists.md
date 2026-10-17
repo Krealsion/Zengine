@@ -55,16 +55,14 @@ picture that stops showing the draft's property — the object and its row's lab
 the draft and says so. The desk row a weaver never authored is the other half of the migration,
 which is why this record now supports one more law than it did.
 
-**Since.** The subject changed and the body did not: the OBJECTS list is the PANES list (the one
-inventory), the properties are one pane's, and a pane row's press asks the host to inspect it
-rather than to select. What a subject is, and who names it, is
-[an inspector names its subject](an-inspector-names-its-subject.md). The list cursor keeps a
-chosen pane that left the list in `InfoPaneState`, as the desktop's launcher does: cleared keys
-once crossed Info's own reload, and Return inspected the first row over the weaver's subject.
+**Since.** The subject changed and the body holds one list: the properties are one pane's, and
+the pane is named by an office -- the Pane Manager's `inspect in Info` -- which lists the desk's
+panes itself. The windowing, the inverse row maps, the fitted value and the windowed draft hold
+over that one list, and the room is reserved for its heading and the front sentence alone. What a
+subject is, and who names it, is [an inspector names its subject](an-inspector-names-its-subject.md).
 
 **Laws supported.** [WL-INFO-01](../workshop/info-body.md),
 [WL-INFO-02](../workshop/info-body.md), [WL-INFO-03](../workshop/info-body.md),
 [WL-INFO-04](../workshop/info-body.md), [WL-INFO-05](../workshop/info-body.md),
-[WL-INFO-06](../workshop/info-body.md), [WL-INFO-07](../workshop/info-body.md),
-[WL-INFO-08](../workshop/info-body.md), [WL-INFO-09](../workshop/info-body.md),
+[WL-INFO-06](../workshop/info-body.md), [WL-INFO-08](../workshop/info-body.md),
 [WL-INFO-10](../workshop/info-body.md), [WL-INFO-11](../workshop/info-body.md).

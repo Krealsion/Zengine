@@ -176,14 +176,31 @@
      "picture": "compose-3-down"
     },
     {
-     "click": [
-      "zengine.info",
-      "info",
-      "Loaded -- open"
-     ]
+     "press": "ctrl+p"
+    },
+    {
+     "part": [
+      "zengine.desktop",
+      "launcher",
+      "pane:zengine.introspection/loaded"
+     ],
+     "button": "right"
+    },
+    {
+     "menu": "launcher.inspect"
+    },
+    {
+     "press": "ctrl+p"
     },
     {
      "expect": [
+      "zengine.info",
+      "info",
+      "PANE Loaded"
+     ]
+    },
+    {
+     "click": [
       "zengine.info",
       "info",
       "PANE Loaded"

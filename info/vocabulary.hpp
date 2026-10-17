@@ -5,8 +5,8 @@
 #define ZENGINE_INFO_PANE_VOCABULARY_HPP
 
 // The Info pane's durable names: the office it holds, the panes it offers, the action ids its
-// keys answer to, and the state a same-shape reload keeps. It inspects panes -- the host's one
-// inventory, and one pane as a subject -- with property edits written by the pane's owner
+// keys answer to, and the state a same-shape reload keeps. It inspects one pane as a subject,
+// named by an office, with property edits written by the pane's owner
 // (`workshop/inspection_seam_vocabulary.hpp`). The office is not the host's `zengine.workshop`,
 // whose holder admission refuses as a pane's offerer (WL-CAT-03); the key stays `info`, so a
 // desk saved as `zengine.workshop/info` converts at load by moving the office only.
@@ -35,10 +35,9 @@ inline constexpr const char* kInfoPaneRole = "zengine.info";
 inline constexpr const char* kInfoPane = "info";
 
 /// THE TWO LINES A WEAVER READS ABOUT THIS PANE -- its name in the Pane Manager's list, its
-/// summary in Info -- and what Workshop's pane header says after the office. They are the
-/// built-in's own two lines, unchanged.
+/// summary in Info -- and what Workshop's pane header says after the office.
 inline constexpr const char* kInfoPaneName = "Info";
-inline constexpr const char* kInfoPaneSummary = "the panes, and one pane's properties";
+inline constexpr const char* kInfoPaneSummary = "one pane's properties";
 
 /// THE LIBRARY STEM A HOST BOOTS. Not part of the pane protocol and not durable the way the
 /// office is -- it is a file name, here because the host's boot plan and the suite's loader
@@ -47,13 +46,10 @@ inline constexpr const char* kInfoPaneStem = "zengine-info-pane";
 
 // ---- THE ACTIONS THE PANE DECLARES (`PaneActions`, workshop/pane_vocabulary.hpp) ---------
 
-inline constexpr const char* kActionUp = "info.up";     ///< the cursor of the list with the keys, up
+inline constexpr const char* kActionUp = "info.up";     ///< the property cursor, up
 inline constexpr const char* kActionDown = "info.down"; ///< ...and down
-/// RETURN: on the pane list, inspect the pane under the cursor; on the properties, open a
-/// draft on the cursor's row. One id, labelled for the list it answers in.
+/// RETURN: open a draft on the cursor's property row.
 inline constexpr const char* kActionEdit = "info.edit";
-/// TAB: move the keys between the pane list and the subject's properties.
-inline constexpr const char* kActionSwitch = "info.switch";
 
 /// THE DRAFT'S TWO, DECLARED ONLY WHILE ONE IS OPEN (WL-FILES-16's rule): a pane is ONE
 /// keyboard context, so while a weaver is typing, these two are the only rows this pane
@@ -132,18 +128,13 @@ struct InfoViewState {
 
 /// The state a same-shape reload keeps: the weaver's position and work, one `views` row an
 /// allocated view (at most `kMaxInfoViews`). What the default pane shows is the host's reading
-/// (`agents/decisions/a-presentation-owns-no-facts.md`). The list cursor is an identity, so a
-/// reloaded image still knows a lost choice; the property cursor is an index over a stable list;
-/// a pane-property draft is work in flight a reload may drop. Version 3: a live reload from
-/// version 2 is refused.
+/// (`agents/decisions/a-presentation-owns-no-facts.md`). The property cursor is an index over a
+/// stable list; a pane-property draft is work in flight a reload may drop. Version 4: a live
+/// reload from version 3 is refused.
 struct InfoPaneState {
     std::int64_t cursor = 0; ///< which property row the weaver is on
-    std::string list_office; ///< which pane the list cursor holds, by identity -- kept when it
-    std::string list_pane;   ///< leaves the list; both empty until a row is first held
-    bool on_panes = true;    ///< the keys are in the pane list (true) or the properties
     std::vector<InfoViewState> views;
-    ZEN_SHAPE(InfoPaneState, 3, ZEN_FIELD(cursor), ZEN_FIELD(list_office), ZEN_FIELD(list_pane),
-              ZEN_FIELD(on_panes), ZEN_FIELD(views));
+    ZEN_SHAPE(InfoPaneState, 4, ZEN_FIELD(cursor), ZEN_FIELD(views));
 };
 
 } // namespace zengine::info_pane

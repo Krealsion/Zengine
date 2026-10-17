@@ -116,9 +116,9 @@ zengine-workshop - recipe: skin-tui-block -> .../zengine-skin-tui-block.so
  | Layouts: >Default< +                                    setup: none |
  +--------------------------------------------+------------------------+
  |                                            |                        |
- |   the room: the panes you open,            |   Info: the panes,     |
- |   stacked here                             |   and the one you      |
- |                                            |   inspect              |
+ |   the room: the panes you open,            |   Info: the one pane   |
+ |   stacked here                             |   you inspect, and     |
+ |                                            |   the values you open  |
  |                                            |                        |
  +--------------------------------------------+------------------------+
  | notice: what just happened, or a refusal                            |
@@ -189,10 +189,11 @@ how to open one: `^t terminal | ^p panes | ^k hotkeys`.
    and `Ctrl`+`k` come from the **desktop**, a tool you can edit and rebuild like any other, so
    you can move them, switch them off, or change what they do — see
    [hotkeys](hotkeys.md#keys-the-application-supplies--and-how-to-take-them-away).
-3. **Press into Info**, then **`↑` `↓`** to choose a pane and **`Enter`** to inspect it. Its
-   rows say what it is, what you authored for it (`X` `Y` `Width` `Height`, each `-` until you
-   say something) and what this screen makes of that. **`Tab`** moves you to those rows;
-   **`Enter`** on `X` `Y` `Width` or `Height` opens a draft. Type a whole number in the face's
+3. **Inspect a pane in Info**: in the Pane Manager choose its row, press **`m`** for the row's
+   menu and choose **`inspect in Info`**. Info's rows say what the pane is, what you authored for
+   it (`X` `Y` `Width` `Height`, each `-` until you say something) and what this screen makes of
+   that. **Press into Info**, then **`↑` `↓`** step through those rows; **`Enter`** on `X` `Y`
+   `Width` or `Height` opens a draft. Type a whole number in the face's
    unit (cells in a terminal, pixels in a window), then `Enter` to write it or `Esc` to
    abandon; `-` gives the axis back to Workshop's default. A pane's keys reach it only while it
    holds the keyboard — press somewhere else and `↑` `↓` are Workshop's again.
@@ -237,7 +238,7 @@ how to open one: `^t terminal | ^p panes | ^k hotkeys`.
 | anything | right-click, or `a` — what can I do with this ([context menu](panes.md#the-context-menu--what-can-i-do-with-this)) |
 | layouts | `s` save · `r` restore · `=` new · `.` `,` next / previous · `Ctrl`+`w` remove ([setups](setups.md)) — the **last** session needs neither |
 | quit | `q` · `Ctrl`+`c` where nothing takes text |
-| in a pane | its own rows, while it holds the keyboard — press into it first: **Info**'s `↑` `↓` `Enter` `Tab`, the [Builder](../../builder/docs/zengine.builder-pane.md)'s `b` `c` `f` `o`, the [browser](../../files/README.md)'s `u` `m` `a`, [Attention](../../attention/README.md)'s `↑` `↓` `d`, the [Terminal](../../terminal/README.md)'s `Enter` `Tab` `↑` `↓` `Esc` and `Ctrl`+`↑` `Ctrl`+`↓` `Ctrl`+`Home` `Ctrl`+`End` |
+| in a pane | its own rows, while it holds the keyboard — press into it first: **Info**'s `↑` `↓` `Enter`, the [Builder](../../builder/docs/zengine.builder-pane.md)'s `b` `c` `f` `o`, the [browser](../../files/README.md)'s `u` `m` `a`, [Attention](../../attention/README.md)'s `↑` `↓` `d`, the [Terminal](../../terminal/README.md)'s `Enter` `Tab` `↑` `↓` `Esc` and `Ctrl`+`↑` `Ctrl`+`↓` `Ctrl`+`Home` `Ctrl`+`End` |
 | leaving a pane | `Esc`: the pane first lets go of what you chose in it (a row in Loaded or Powers), Compose leaves its form and the [Terminal](../../terminal/README.md) sheds its list and its line; the next `Esc` puts the pane down. Or a press elsewhere. Both editors keep every `Esc`; a press elsewhere is the way out of those |
 
 These are the defaults; every binding can be remapped through the keymap file, and the

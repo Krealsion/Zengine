@@ -632,67 +632,13 @@ def marked(hand, view, part):
 
 def open_pane(ctx, hand, name, seconds):
     """Open, or go to, the pane whose Pane Manager row is named `name` -- `pane:<office>/<pane>`,
-    the pane's reference: the Pane Manager put on the desk (Ctrl+P) when it is not there, the row
-    brought into its window with Down and Up when the window leaves it out, then pressed where
+    the pane's reference: its row drawn where a press reaches it (`manager_row`), then pressed where
     Workshop says its name is. A press on a row not yet marked chooses it and gives the Pane Manager
     the keys; a press on the marked row with the keys already there opens the pane, or focuses it.
     The step ends when the desk says the pane is selected -- what a launch makes it, opened or not --
     and says the state it is in; it fails with the names the list said when none is `name`."""
     office, pane = pane_ref(name)
-    view = words_now(hand, *MANAGER)
-    if view is None or not view["words"]:
-        # Ctrl+P toggles: it opens a closed Pane Manager and closes an open one -- including one
-        # that is open but covered, which Workshop does not describe. So when the first press
-        # brings no describable Pane Manager it may have hidden a covered one: press it again.
-        hand.inject(chord_moments(ctx, "ctrl+p"))
-        view, words = wait_words(hand, *MANAGER, "PANES", 1.5)
-        if not words:
-            hand.inject(chord_moments(ctx, "ctrl+p"))
-            view, words = wait_words(hand, *MANAGER, "PANES", seconds)
-        ctx.check(words, "the Pane Manager did not open")
-    seen = set(names(view))
-    if part_of(view, name) is None:
-        # THE ROW IS OUT OF THE LIST'S WINDOW: the keys to the Pane Manager by a press on its top
-        # line's first word, then Down to the list's end and Up, until the window draws it. Bounded.
-        # A Pane Manager that redrew between the reading and the point is read again, and a
-        # redraw that brought the row into the window needs no press here.
-        readings = [view]
-
-        def read():
-            if readings:
-                return readings.pop()
-            again, words = wait_words(hand, *MANAGER, "PANES", seconds)
-            ctx.check(words, "open: the Pane Manager stopped painting its list")
-            seen.update(names(again))
-            return again
-
-        def aim(reading):
-            if part_of(reading, name) is not None:
-                return None
-            first = lines(reading)[0]["words"][0]
-            return first if not first["text"] else hand.word_point(
-                *MANAGER, first["word"], 0, reading["picture"])
-
-        view, first = aimed(ctx, "open", *MANAGER, read, aim)
-        if first is not None:
-            press_at(ctx, hand, first)
-        for key in ("down", "up"):
-            previous = None
-            for _ in range(64):
-                view = words_now(hand, *MANAGER)
-                seen.update(names(view))
-                if part_of(view, name) is not None or texts(view) == previous:
-                    break
-                previous = texts(view)
-                hand.inject(chord_moments(ctx, key))
-            if part_of(view, name) is not None:
-                break
-    part = part_of(view, name)
-    if part is None:
-        ctx.produce("failed-step-parts.json", json.dumps(sorted(seen), indent=1).encode())
-        ctx.fail("open: the Pane Manager names no row %r" % name)
-    ctx.check(not unreached(part), "open: no press reaches the Pane Manager's row %r on its own: "
-              "the parts over it take every place of it" % name)
+    view, part = manager_row(ctx, hand, name, seconds)
     presses = 1
     if not marked(hand, view, part):
         # THE FIRST PRESS CHOOSES THE ROW and brings the keys; the second, once the Pane Manager
@@ -724,3 +670,65 @@ def open_pane(ctx, hand, name, seconds):
                 on[0]["state"], "selected" if on[0]["selected"] else "not selected")
                 if on else "not on the desk", seconds))
         pause(hand, end)
+
+
+def manager_row(ctx, hand, name, seconds, verb="open"):
+    """The Pane Manager's view and its row named `name`, drawn where a press reaches it: the Pane
+    Manager put on the desk (Ctrl+P) when it is not there, the row brought into its window with Down
+    and Up when the window leaves it out. Fails, as `verb`, with the names the list said when none
+    is `name`."""
+    view = words_now(hand, *MANAGER)
+    if view is None or not view["words"]:
+        # Ctrl+P toggles: it opens a closed Pane Manager and closes an open one -- including one
+        # that is open but covered, which Workshop does not describe. So when the first press
+        # brings no describable Pane Manager it may have hidden a covered one: press it again.
+        hand.inject(chord_moments(ctx, "ctrl+p"))
+        view, words = wait_words(hand, *MANAGER, "PANES", 1.5)
+        if not words:
+            hand.inject(chord_moments(ctx, "ctrl+p"))
+            view, words = wait_words(hand, *MANAGER, "PANES", seconds)
+        ctx.check(words, "the Pane Manager did not open")
+    seen = set(names(view))
+    if part_of(view, name) is None:
+        # THE ROW IS OUT OF THE LIST'S WINDOW: the keys to the Pane Manager by a press on its top
+        # line's first word, then Down to the list's end and Up, until the window draws it. Bounded.
+        # A Pane Manager that redrew between the reading and the point is read again, and a
+        # redraw that brought the row into the window needs no press here.
+        readings = [view]
+
+        def read():
+            if readings:
+                return readings.pop()
+            again, words = wait_words(hand, *MANAGER, "PANES", seconds)
+            ctx.check(words, "%s: the Pane Manager stopped painting its list" % verb)
+            seen.update(names(again))
+            return again
+
+        def aim(reading):
+            if part_of(reading, name) is not None:
+                return None
+            first = lines(reading)[0]["words"][0]
+            return first if not first["text"] else hand.word_point(
+                *MANAGER, first["word"], 0, reading["picture"])
+
+        view, first = aimed(ctx, verb, *MANAGER, read, aim)
+        if first is not None:
+            press_at(ctx, hand, first)
+        for key in ("down", "up"):
+            previous = None
+            for _ in range(64):
+                view = words_now(hand, *MANAGER)
+                seen.update(names(view))
+                if part_of(view, name) is not None or texts(view) == previous:
+                    break
+                previous = texts(view)
+                hand.inject(chord_moments(ctx, key))
+            if part_of(view, name) is not None:
+                break
+    part = part_of(view, name)
+    if part is None:
+        ctx.produce("failed-step-parts.json", json.dumps(sorted(seen), indent=1).encode())
+        ctx.fail("%s: the Pane Manager names no row %r" % (verb, name))
+    ctx.check(not unreached(part), "%s: no press reaches the Pane Manager's row %r on its own: "
+              "the parts over it take every place of it" % (verb, name))
+    return view, part
