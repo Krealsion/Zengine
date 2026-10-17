@@ -7,6 +7,7 @@
 // bus and catalog, each in a session of its asker's. Reference: flow/docs/flow-runtime.md; its
 // office's manual is flow/docs/zengine.flow.host.md.
 
+#include "activation/activation.hpp"
 #include "flow/flow-host/vocabulary.hpp"
 #include "flow/project.hpp"
 #include "maker/weave.hpp"
@@ -42,6 +43,9 @@ struct FlowHostPulse {
     std::string subject;
     ZEN_SHAPE(FlowHostPulse, 1, ZEN_FIELD(subject));
 };
+/// The state of the host's own weaves, its office and its clock: none. Their sessions and beat
+/// are the host's, never reload-kept state.
+struct FlowHostClockState { ZEN_SHAPE(FlowHostClockState, 1); };
 struct Observation {
     std::deque<FlowEvent> events;
     std::int64_t next = 1;
@@ -282,129 +286,128 @@ private:
     }
 };
 
-class Manager final : public loom::Weave {
+// The office `zengine.flow.host`: each request for the asker's own session, the catalog, and the
+// host's own pulse; what a shape it accepts does is answered from its page.
+class Manager final
+    : public zengine::With<manual::ManualFacet<manual::pages::zengine_flow_host::kManual>>::Weave<
+          Manager, detail::FlowHostClockState,
+          loom::Accept<FlowRun, FlowApply, FlowSend, FlowInspect, FlowStop, FlowCatalog,
+                       detail::FlowHostPulse>,
+          loom::Emit<FlowAnswer, FlowCatalogAnswer, FlowChanged>> {
 public:
     explicit Manager(RuntimeHost& host) : host_(host) {}
-    void set_self(loom::WeaveId id) { self_ = id; }
-    std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
-        return {loom::schema_of<FlowRun>(), loom::schema_of<FlowApply>(), loom::schema_of<FlowSend>(),
-            loom::schema_of<FlowInspect>(), loom::schema_of<FlowStop>(), loom::schema_of<FlowCatalog>(),
-            loom::schema_of<detail::FlowHostPulse>(), loom::schema_of<manual::ShapeDocumentRequested>()};
+
+    void on(const FlowRun& run, loom::Mail& mail) {
+        serve(mail, run.session, "run", [&](FlowAnswer& answer, const Key& key, const std::string& office) {
+            if (owned_.find(key) != owned_.end()) throw std::invalid_argument("session already runs; apply behavior or explicitly stop it before running a fresh project");
+            if (owned_.size() >= kMaxSessions) throw std::invalid_argument("Flow already owns eight running sessions");
+            if (run.project.size() > maker::kMaxFileBytes) throw std::invalid_argument("project exceeds 1 MiB");
+            const auto id = host_.create(flow::read_project(view(run.project)));
+            owned_.emplace(key, Owned{id, mail.sender(), office});
+            host_.fill(answer, id);
+        });
     }
-    std::vector<std::shared_ptr<const loom::Schema>> emitted_schemas() const override {
-        return {loom::schema_of<FlowAnswer>(), loom::schema_of<FlowCatalogAnswer>(), loom::schema_of<FlowChanged>(),
-            loom::schema_of<manual::ShapeDocumentShown>()};
+    void on(const FlowApply& apply, loom::Mail& mail) {
+        serve(mail, apply.session, "apply", [&](FlowAnswer& answer, const Key& key, const std::string&) {
+            const auto id = owned(key)->second.subject;
+            if (apply.definition.size() > maker::kMaxFileBytes) throw std::invalid_argument("definition exceeds 1 MiB");
+            auto definition = maker::read_definition(view(apply.definition));
+            if (!definition) throw std::invalid_argument(definition.reason);
+            host_.apply(id, std::move(definition.definition));
+            host_.fill(answer, id);
+        });
     }
-    void handle(const loom::Message& request, loom::Bus& bus) override {
-        const auto& schema = request.payload.schema();
-        auto is = [&schema](const auto& shape) { return loom::same_identity(schema, *shape); };
-        if (is(loom::schema_of<detail::FlowHostPulse>())) {
-            if (request.sender != self_) return;
-            const auto pulse = loom::from_value<detail::FlowHostPulse>(request.payload);
-            for (const auto& [key, record] : owned_) {
-                if (std::to_string(record.subject) != pulse.subject) continue;
-                auto message = loom::Message(loom::to_value(FlowChanged{key.second}), self_);
-                if (record.office.empty()) bus.office_send(kFlowHostRole, record.owner, std::move(message));
-                else bus.office_send_to_role(kFlowHostRole, record.office, std::move(message));
-            }
-            return;
+    void on(const FlowSend& send, loom::Mail& mail) {
+        serve(mail, send.session, "send", [&](FlowAnswer& answer, const Key& key, const std::string&) {
+            const auto id = owned(key)->second.subject;
+            host_.send(id, send.payload, mail.correlation());
+            host_.fill(answer, id);
+            answer.reason = "queued; inspect subsequent dispatch, outputs and state";
+        });
+    }
+    void on(const FlowInspect& inspect, loom::Mail& mail) {
+        serve(mail, inspect.session, "inspect", [&](FlowAnswer& answer, const Key& key, const std::string&) {
+            const auto id = owned(key)->second.subject;
+            if (inspect.after < 0) throw std::invalid_argument("event cursor cannot be negative");
+            host_.fill(answer, id, inspect.after);
+        });
+    }
+    void on(const FlowStop& stop, loom::Mail& mail) {
+        serve(mail, stop.session, "stop", [&](FlowAnswer& answer, const Key& key, const std::string&) {
+            const auto found = owned(key);
+            const auto id = found->second.subject;
+            if (host_.pending(host_.session(id)) != 0) throw std::invalid_argument("inputs still have pending dispatch; stop after they settle");
+            host_.fill(answer, id);
+            host_.remove(id);
+            owned_.erase(found);
+            answer.reason = "stopped; answer contains the final project snapshot";
+        });
+    }
+    void on(const FlowCatalog&, loom::Mail& mail) {
+        FlowCatalogAnswer answer;
+        try { answer = host_.catalog(); }
+        catch (const std::exception& error) { answer.reason = error.what(); }
+        mail.answer(answer);
+    }
+    // The host's own beat: each session that moved tells its owner, as this office. A pulse from
+    // any other sender is ignored.
+    void on(const detail::FlowHostPulse& pulse, loom::Mail& mail) {
+        if (mail.sender() != self_) return;
+        for (const auto& [key, record] : owned_) {
+            if (std::to_string(record.subject) != pulse.subject) continue;
+            const FlowChanged changed{key.second};
+            if (record.office.empty()) mail.as_role(kFlowHostRole).send(record.owner, changed);
+            else mail.as_role(kFlowHostRole).send_to_role(record.office, changed);
         }
-        // What a shape this office accepts does, from its page, to the asker alone.
-        if (is(loom::schema_of<manual::ShapeDocumentRequested>())) {
-            if (!request.sender.valid()) return;
-            (void)bus.answer(loom::Message(
-                loom::to_value(manual::shape_document(
-                    loom::from_value<manual::ShapeDocumentRequested>(request.payload),
-                    accepted_schemas(), manual::pages::zengine_flow_host::kManual)),
-                self_));
-            return;
-        }
-        if (is(loom::schema_of<FlowCatalog>())) {
-            FlowCatalogAnswer answer;
-            try { answer = host_.catalog(); }
-            catch (const std::exception& error) { answer.reason = error.what(); }
-            bus.answer(loom::Message(loom::to_value(answer), self_));
-            return;
-        }
-        FlowAnswer answer;
-        try {
-            if (!request.sender.valid()) throw std::invalid_argument("a live requesting participant is required");
-            answer.session = request.payload.get("session")->as_text();
-            if (answer.session.empty() || answer.session.size() > 128)
-                throw std::invalid_argument("session name must be between 1 and 128 bytes");
-            const std::string office(request.provenance.authored_role());
-            if (!office.empty() && host_.bus_.role_holder(office) != request.sender)
-                throw std::invalid_argument("the request's authored office has moved to another participant");
-            const std::string principal = office.empty()
-                ? "id/" + std::to_string(request.sender.value) : "office/" + office;
-            const auto key = std::make_pair(principal, answer.session);
-            if (is(loom::schema_of<FlowRun>())) answer.action = "run";
-            else if (is(loom::schema_of<FlowApply>())) answer.action = "apply";
-            else if (is(loom::schema_of<FlowSend>())) answer.action = "send";
-            else if (is(loom::schema_of<FlowInspect>())) answer.action = "inspect";
-            else if (is(loom::schema_of<FlowStop>())) answer.action = "stop";
-            if (is(loom::schema_of<FlowRun>())) {
-                answer.action = "run";
-                if (owned_.find(key) != owned_.end()) throw std::invalid_argument("session already runs; apply behavior or explicitly stop it before running a fresh project");
-                if (owned_.size() >= kMaxSessions) throw std::invalid_argument("Flow already owns eight running sessions");
-                const auto run = loom::from_value<FlowRun>(request.payload);
-                if (run.project.size() > maker::kMaxFileBytes) throw std::invalid_argument("project exceeds 1 MiB");
-                const auto id = host_.create(flow::read_project(view(run.project)));
-                owned_.emplace(key, Owned{id, request.sender, office});
-                host_.fill(answer, id);
-            } else {
-                const auto found = owned_.find(key);
-                if (found == owned_.end()) throw std::invalid_argument("no session by this name belongs to this requesting participant");
-                const auto id = found->second.subject;
-                if (is(loom::schema_of<FlowStop>())) {
-                    answer.action = "stop";
-                    if (host_.pending(host_.session(id)) != 0) throw std::invalid_argument("inputs still have pending dispatch; stop after they settle");
-                    host_.fill(answer, id);
-                    host_.remove(id);
-                    owned_.erase(found);
-                    answer.reason = "stopped; answer contains the final project snapshot";
-                } else if (is(loom::schema_of<FlowApply>())) {
-                    answer.action = "apply";
-                    const auto apply = loom::from_value<FlowApply>(request.payload);
-                    if (apply.definition.size() > maker::kMaxFileBytes) throw std::invalid_argument("definition exceeds 1 MiB");
-                    auto definition = maker::read_definition(view(apply.definition));
-                    if (!definition) throw std::invalid_argument(definition.reason);
-                    host_.apply(id, std::move(definition.definition));
-                    host_.fill(answer, id);
-                } else if (is(loom::schema_of<FlowSend>())) {
-                    answer.action = "send";
-                    host_.send(id, loom::from_value<FlowSend>(request.payload).payload, request.correlation);
-                    host_.fill(answer, id);
-                    answer.reason = "queued; inspect subsequent dispatch, outputs and state";
-                } else if (is(loom::schema_of<FlowInspect>())) {
-                    answer.action = "inspect";
-                    const auto inspect = loom::from_value<FlowInspect>(request.payload);
-                    if (inspect.after < 0) throw std::invalid_argument("event cursor cannot be negative");
-                    host_.fill(answer, id, inspect.after);
-                } else throw std::invalid_argument("unknown Flow request");
-            }
-            answer.ok = true;
-        } catch (const std::exception& error) { answer.reason = error.what(); }
-        bus.answer(loom::Message(loom::to_value(answer), self_));
     }
-    loom::Value snapshot() const override {
-        return loom::Value(loom::make_schema("zengine.flow.Manager", 1, {}));
-    }
-    loom::Value policy() const override { return maker::default_value(loom::lifecycle_policy_schema()); }
+
+    // No crash revival and no fall back to a last good state: the office is the host's own,
+    // mounted once, and its sessions are the host's to keep.
+    loom::LifecyclePolicy policy_config() const { return {0, false}; }
     void revive(const loom::Value&) override {}
+
 private:
-    RuntimeHost& host_;
-    loom::WeaveId self_{};
+    using Key = std::pair<std::string, std::string>;
     struct Owned {
         std::uint64_t subject = 0;
         loom::WeaveId owner{};
         std::string office;
     };
-    std::map<std::pair<std::string, std::string>, Owned> owned_;
+
+    // ONE REQUEST FOR THE ASKER'S OWN SESSION, answered once, to the asker alone. The asker and
+    // the session's name are judged here, in this order, and the rest by `act`; a refusal is the
+    // answer's reason. A session is keyed by the office the ask was authored as, while its holder
+    // asks, or else by the asker's own identity.
+    template <class Act>
+    void serve(loom::Mail& mail, const std::string& session, const char* action, Act&& act) {
+        FlowAnswer answer;
+        try {
+            if (!mail.sender().valid()) throw std::invalid_argument("a live requesting participant is required");
+            answer.session = session;
+            if (answer.session.empty() || answer.session.size() > 128)
+                throw std::invalid_argument("session name must be between 1 and 128 bytes");
+            const std::string office(mail.authored_role());
+            if (!office.empty() && host_.bus_.role_holder(office) != mail.sender())
+                throw std::invalid_argument("the request's authored office has moved to another participant");
+            const Key key{office.empty() ? "id/" + std::to_string(mail.sender().value) : "office/" + office,
+                          answer.session};
+            answer.action = action;
+            act(answer, key, office);
+            answer.ok = true;
+        } catch (const std::exception& error) { answer.reason = error.what(); }
+        mail.answer(answer);
+    }
+    std::map<Key, Owned>::iterator owned(const Key& key) {
+        const auto found = owned_.find(key);
+        if (found == owned_.end()) throw std::invalid_argument("no session by this name belongs to this requesting participant");
+        return found;
+    }
+
+    RuntimeHost& host_;
+    std::map<Key, Owned> owned_;
 };
 
 namespace detail {
-struct FlowHostClockState { ZEN_SHAPE(FlowHostClockState, 1); };
 struct FlowHostClockStart { ZEN_SHAPE(FlowHostClockStart, 1); };
 class Clock final : public timer::TimedWeave<Clock, FlowHostClockState, loom::Accept<FlowHostClockStart>> {
 public:
@@ -431,10 +434,14 @@ inline loom::WeaveId RuntimeHost::mount() {
     grant.allow_to_any(FlowChanged::zen_name, FlowChanged::zen_version);
     grant.allow_to_any(manual::ShapeDocumentShown::zen_name, manual::ShapeDocumentShown::zen_version);
     grant.allow_to_role(detail::FlowHostPulse::zen_name, detail::FlowHostPulse::zen_version, kFlowHostRole);
+    // ...and Loom's own doors, which every woven weave answers: its accept set, and its state,
+    // which holds nothing, so an asker is answered rather than left waiting.
+    loom::allow_describe_answers(grant);
+    loom::allow_poke_answers(grant);
     auto manager = std::make_unique<Manager>(*this);
     auto* raw = manager.get();
     manager_ = bus_.register_weave(std::move(manager), std::move(grant), kFlowHostRole);
-    raw->set_self(manager_);
+    raw->zen_set_self(manager_);
     loom::Grant tick;
     tick.allow_to_role(timer::EnsureTimer::zen_name, timer::EnsureTimer::zen_version, timer::kTimerRole);
     tick.allow_to_role(timer::CancelTimer::zen_name, timer::CancelTimer::zen_version, timer::kTimerRole);

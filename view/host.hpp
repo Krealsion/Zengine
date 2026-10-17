@@ -9,6 +9,7 @@
 // Kernel, rendering policy or file policy. Law: agents/view.md. Reference: view/docs/view.md;
 // its office's manual is view/docs/zengine.view.host.md.
 
+#include "activation/activation.hpp"
 #include "manual/vocabulary.hpp"
 #include "view/view.hpp"
 #include "view/vocabulary.hpp"
@@ -33,6 +34,12 @@ namespace detail {
 struct ViewRetire {
     std::int64_t subject = 0;
     ZEN_SHAPE(ViewRetire, 1, ZEN_FIELD(subject));
+};
+
+/// The state of the host's office: none. Its sessions and views are the host's, never reload-kept
+/// state.
+struct ViewHostState {
+    ZEN_SHAPE(ViewHostState, 1);
 };
 } // namespace detail
 
@@ -138,123 +145,119 @@ private:
 
 /// THE VIEW HOST'S OFFICE: run, resume, apply and stop, each for the asker's own session; and
 /// what a shape it accepts does, from its page.
-class Manager final : public loom::Weave {
+class Manager final
+    : public zengine::With<manual::ManualFacet<manual::pages::zengine_view_host::kManual>>::Weave<
+          Manager, detail::ViewHostState,
+          loom::Accept<ViewRun, ViewResume, ViewApply, ViewStop, detail::ViewRetire>,
+          loom::Emit<ViewAnswer>> {
 public:
     explicit Manager(Host& host) : host_(host) {}
-    void set_self(loom::WeaveId id) { self_ = id; }
 
-    std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
-        return {loom::schema_of<ViewRun>(), loom::schema_of<ViewResume>(), loom::schema_of<ViewApply>(),
-                loom::schema_of<ViewStop>(), loom::schema_of<detail::ViewRetire>(),
-                loom::schema_of<manual::ShapeDocumentRequested>()};
+    void on(const ViewRun& run, loom::Mail& mail) {
+        register_view(mail, "run", run.session, run.description, false);
     }
-    std::vector<std::shared_ptr<const loom::Schema>> emitted_schemas() const override {
-        return {loom::schema_of<ViewAnswer>(), loom::schema_of<manual::ShapeDocumentShown>()};
+    void on(const ViewResume& resume, loom::Mail& mail) {
+        register_view(mail, "resume", resume.session, resume.description, true);
+    }
+    void on(const ViewApply& apply, loom::Mail& mail) {
+        serve(mail, "apply", apply.session, [&](ViewAnswer& answer, const Key&, Owned::iterator found) {
+            View* live = running(answer, found);
+            auto next = read(apply.description);
+            if (same_shapes(live->description(), next)) {
+                host_.apply(found->second, std::move(next));
+                answer.reason = "applied in place: " + answer.office + " tells and says the same shapes";
+                return;
+            }
+            // A NEW SURFACE IS A NEW PARTICIPANT: Loom fixes what a weave accepts and emits when it
+            // registers, so a change of shapes registers afresh, and the running view retires only
+            // once its successor stands.
+            const bool renamed = next.name != live->description().name;
+            const auto told = told_words(next);
+            answer.office = next.name;
+            const auto successor = host_.create(std::move(next), found->second);
+            if (renamed) host_.stop(found->second, "was renamed " + answer.office);
+            else host_.remove(found->second);
+            found->second = successor;
+            host_.start(successor);
+            answer.fresh = true;
+            answer.reason = "registered " + answer.office + " afresh: its shapes changed" + told;
+        });
+    }
+    void on(const ViewStop& stop, loom::Mail& mail) {
+        serve(mail, "stop", stop.session, [&](ViewAnswer& answer, const Key&, Owned::iterator found) {
+            running(answer, found);
+            host_.stop(found->second, "stopped; run it again from the View Builder");
+            owned_.erase(found);
+            answer.reason = "stopped " + answer.office;
+        });
+    }
+    /// The host's note to itself; one from any other sender is ignored.
+    void on(const detail::ViewRetire& retire, loom::Mail& mail) {
+        if (mail.sender() == self_) host_.retire(static_cast<std::uint64_t>(retire.subject));
     }
 
-    void handle(const loom::Message& request, loom::Bus& bus) override {
-        const auto& schema = request.payload.schema();
-        const auto is = [&schema](const auto& shape) { return loom::same_identity(schema, *shape); };
-        if (is(loom::schema_of<detail::ViewRetire>())) {
-            if (request.sender == self_)
-                host_.retire(static_cast<std::uint64_t>(loom::from_value<detail::ViewRetire>(request.payload).subject));
-            return;
-        }
-        // What a shape this office accepts does, from its page, to the asker alone.
-        if (is(loom::schema_of<manual::ShapeDocumentRequested>())) {
-            if (!request.sender.valid()) return;
-            (void)bus.answer(loom::Message(
-                loom::to_value(manual::shape_document(
-                    loom::from_value<manual::ShapeDocumentRequested>(request.payload),
-                    accepted_schemas(), manual::pages::zengine_view_host::kManual)),
-                self_));
-            return;
-        }
+    /// No crash revival and no fall back to a last good state: the office is the host's own,
+    /// mounted once, and its views are the host's to keep.
+    loom::LifecyclePolicy policy_config() const { return {0, false}; }
+    void revive(const loom::Value&) override {}
+
+private:
+    using Key = std::pair<std::string, std::string>;
+    using Owned = std::map<Key, std::uint64_t>;
+
+    /// ONE ASK FOR THE ASKER'S OWN SESSION, answered once, to the asker alone. The asker and the
+    /// session's name are judged here, in this order, and the rest by `act`, given the view the
+    /// session runs if any; a refusal is the answer's reason.
+    template <class Act>
+    void serve(loom::Mail& mail, const char* action, const std::string& session, Act&& act) {
         ViewAnswer answer;
-        const bool resume = is(loom::schema_of<ViewResume>());
-        answer.action = is(loom::schema_of<ViewRun>()) ? "run"
-                        : resume                        ? "resume"
-                        : is(loom::schema_of<ViewApply>()) ? "apply"
-                                                           : "stop";
+        answer.action = action;
         try {
-            if (!request.sender.valid()) throw std::invalid_argument("a live requesting participant is required");
-            answer.session = request.payload.get("session")->as_text();
+            if (!mail.sender().valid()) throw std::invalid_argument("a live requesting participant is required");
+            answer.session = session;
             if (answer.session.empty() || answer.session.size() > 128)
                 throw std::invalid_argument("a session name is 1 to 128 bytes");
-            const std::string office(request.provenance.authored_role());
-            if (!office.empty() && host_.bus_.role_holder(office) != request.sender)
+            const std::string office(mail.authored_role());
+            if (!office.empty() && host_.bus_.role_holder(office) != mail.sender())
                 throw std::invalid_argument("the request's authored office has moved to another participant");
-            const auto key = std::make_pair(office.empty() ? "id/" + std::to_string(request.sender.value)
-                                                           : "office/" + office,
-                                            answer.session);
-            const auto found = owned_.find(key);
-            if (is(loom::schema_of<ViewRun>()) || resume) {
-                if (found != owned_.end())
-                    throw std::invalid_argument("this session already runs a view; apply a change or stop it first");
-                auto admitted = read(resume ? loom::from_value<ViewResume>(request.payload).description
-                                            : loom::from_value<ViewRun>(request.payload).description);
-                const auto told = told_words(admitted);
-                answer.office = admitted.name;
-                const auto id = host_.create(std::move(admitted));
-                owned_.emplace(key, id);
-                // A RESUMED VIEW ASKS NOTHING OF THE DESK: the desk a weaver left says where its
-                // pane stands, or that it is hidden.
-                host_.start(id, !resume);
-                answer.fresh = true;
-                answer.reason = "registered " + answer.office + told;
-            } else {
-                if (found == owned_.end())
-                    throw std::invalid_argument("no view runs in this session for this participant");
-                View* live = host_.view(found->second);
-                if (!live) throw std::invalid_argument("the view is no longer running");
-                answer.office = live->description().name;
-                if (is(loom::schema_of<ViewStop>())) {
-                    host_.stop(found->second, "stopped; run it again from the View Builder");
-                    owned_.erase(found);
-                    answer.reason = "stopped " + answer.office;
-                } else if (is(loom::schema_of<ViewApply>())) {
-                    auto next = read(loom::from_value<ViewApply>(request.payload).description);
-                    if (same_shapes(live->description(), next)) {
-                        host_.apply(found->second, std::move(next));
-                        answer.reason = "applied in place: " + answer.office + " tells and says the same shapes";
-                    } else {
-                        // A NEW SURFACE IS A NEW PARTICIPANT: Loom fixes what a weave accepts and
-                        // emits when it registers, so a change of shapes registers afresh, and
-                        // the running view retires only once its successor stands.
-                        const bool renamed = next.name != live->description().name;
-                        const auto told = told_words(next);
-                        answer.office = next.name;
-                        const auto successor = host_.create(std::move(next), found->second);
-                        if (renamed) host_.stop(found->second, "was renamed " + answer.office);
-                        else host_.remove(found->second);
-                        found->second = successor;
-                        host_.start(successor);
-                        answer.fresh = true;
-                        answer.reason = "registered " + answer.office + " afresh: its shapes changed" + told;
-                    }
-                } else {
-                    throw std::invalid_argument("unknown view request");
-                }
-            }
+            const Key key{office.empty() ? "id/" + std::to_string(mail.sender().value) : "office/" + office,
+                          answer.session};
+            act(answer, key, owned_.find(key));
             answer.ok = true;
         } catch (const std::exception& error) {
             answer.reason = error.what();
         }
-        (void)bus.answer(loom::Message(loom::to_value(answer), self_));
+        (void)mail.answer(answer);
     }
 
-    loom::Value snapshot() const override {
-        return loom::Value(loom::make_schema("zengine.view.Manager", 1, {}));
+    /// RUN OR RESUME: a session that runs no view registers one from its description.
+    void register_view(loom::Mail& mail, const char* action, const std::string& session,
+                       const loom::Bytes& description, bool resume) {
+        serve(mail, action, session, [&](ViewAnswer& answer, const Key& key, Owned::iterator found) {
+            if (found != owned_.end())
+                throw std::invalid_argument("this session already runs a view; apply a change or stop it first");
+            auto admitted = read(description);
+            const auto told = told_words(admitted);
+            answer.office = admitted.name;
+            const auto id = host_.create(std::move(admitted));
+            owned_.emplace(key, id);
+            // A RESUMED VIEW ASKS NOTHING OF THE DESK: the desk a weaver left says where its pane
+            // stands, or that it is hidden.
+            host_.start(id, !resume);
+            answer.fresh = true;
+            answer.reason = "registered " + answer.office + told;
+        });
     }
-    loom::Value policy() const override {
-        loom::Value v(loom::lifecycle_policy_schema());
-        v.set("max_reloads", loom::Cell::integer(0));
-        v.set("revive_from_last_good", loom::Cell::boolean(false));
-        return v;
-    }
-    void revive(const loom::Value&) override {}
 
-private:
+    /// APPLY OR STOP: the view the session runs, still running, named in the answer.
+    View* running(ViewAnswer& answer, Owned::iterator found) {
+        if (found == owned_.end()) throw std::invalid_argument("no view runs in this session for this participant");
+        View* live = host_.view(found->second);
+        if (!live) throw std::invalid_argument("the view is no longer running");
+        answer.office = live->description().name;
+        return live;
+    }
+
     static Description read(const loom::Bytes& bytes) {
         if (bytes.size() > maker::kMaxFileBytes) throw std::invalid_argument("a description exceeds the file limit");
         auto admitted = read_description(std::string_view(reinterpret_cast<const char*>(bytes.data()), bytes.size()));
@@ -268,8 +271,7 @@ private:
     }
 
     Host& host_;
-    loom::WeaveId self_{};
-    std::map<std::pair<std::string, std::string>, std::uint64_t> owned_;
+    Owned owned_;
 };
 
 inline loom::WeaveId Host::mount() {
@@ -279,10 +281,14 @@ inline loom::WeaveId Host::mount() {
     grant.allow_to_any(ViewAnswer::zen_name, ViewAnswer::zen_version);
     grant.allow_to_any(manual::ShapeDocumentShown::zen_name, manual::ShapeDocumentShown::zen_version);
     grant.allow_to_role(detail::ViewRetire::zen_name, detail::ViewRetire::zen_version, kViewHostRole);
+    // ...and Loom's own doors, which every woven weave answers: its accept set, and its state,
+    // which holds nothing, so an asker is answered rather than left waiting.
+    loom::allow_describe_answers(grant);
+    loom::allow_poke_answers(grant);
     auto manager = std::make_unique<Manager>(*this);
     auto* raw = manager.get();
     manager_ = bus_.register_weave(std::move(manager), std::move(grant), kViewHostRole);
-    raw->set_self(manager_);
+    raw->zen_set_self(manager_);
     return manager_;
 }
 

@@ -111,6 +111,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::ui::Extent>(), // Extent v1
         shape<::zengine::view_builder::ViewBuilderRun>(), // ViewBuilderRun v1
         shape<::zengine::view::detail::ViewRetire>(), // ViewRetire v1
+        shape<::zengine::view::detail::ViewHostState>(), // ViewHostState v1
         shape<::zengine::view::detail::ViewRedraw>(), // ViewRedraw v1
         shape<::zengine::view::detail::ViewStart>(), // ViewStart v2
         shape<::zengine::workshop::ArrangementDoorState>(), // ArrangementDoorState v2
