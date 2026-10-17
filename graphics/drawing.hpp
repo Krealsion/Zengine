@@ -4,11 +4,12 @@
 #ifndef ZENGINE_GRAPHICS_DRAWING_HPP
 #define ZENGINE_GRAPHICS_DRAWING_HPP
 
-// A drawing facet (`DrawingFacet`, composed with `With<DrawingFacet>`) and its single-facet
-// shorthand `DrawingWeave`: the room's handshake and the showing, owned here so that a drawer
-// writes its picture and what it reacts to. With `With<DrawingFacet>`, a drawer's own
-// `after_delivery` runs before the facet shows; `DrawingWeave` keeps the single-base wall.
-// Reference: graphics/docs/graphics.md, "A drawing weave".
+// A drawing facet (`DrawingFacet`, composed with `With<DrawingFacet>`), the same facet taking the
+// actions its parts name (`ActionFacet`), and the single-facet shorthand `DrawingWeave`: the room's
+// handshake and the showing, owned here so that a drawer writes its picture and what it reacts
+// to. Composed with `With`, a drawer's own `after_delivery` runs before the facet shows;
+// `DrawingWeave` keeps the single-base wall. Reference: graphics/docs/graphics.md, "A drawing
+// weave".
 
 #include "activation/activation.hpp"
 #include "graphics/canvas.hpp"
@@ -82,6 +83,24 @@ public:
 private:
     Canvas canvas_;
     bool asked_ = false; ///< the room asked in this life
+};
+
+/// `DrawingFacet` for a drawer whose parts name actions, composed in its place: a press on one of
+/// them, which the window that shows the drawer's area asks of it as that window's office, is the
+/// drawer's `on_action(action, mail)`. An action asked about another area, or by anyone else,
+/// does nothing.
+class ActionFacet : public DrawingFacet {
+public:
+    using Accept = loom::Accept<AreaRoom, DrawnRefused, ActionRequested>;
+    using DrawingFacet::DrawingFacet;
+    using DrawingFacet::on;
+
+    template <class Self>
+    void on(Self& self, const ActionRequested& a, loom::Mail& mail) {
+        if (a.area == canvas().area() && mail.authored_from_role(canvas().window_office())) {
+            self.on_action(a.action, mail);
+        }
+    }
 };
 
 /// Single-facet shorthand over `With<DrawingFacet>::Weave` that keeps the compile-time refusal on

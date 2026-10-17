@@ -116,18 +116,18 @@ struct ComposerState {
 using Rows = ws::PaneRowsFacet<kComposePane, kComposerRole,
                                zengine::manual::pages::zengine_composer::kManual, RowMeaning>;
 using Manual = zengine::manual::ManualFacet<zengine::manual::pages::zengine_composer::kManual>;
+using Actions = ws::PaneActionFacet<kComposePane, kComposerRole>;
 
-/// What this weave says to Workshop beside its rows. A submitted command is whatever shape the
-/// weaver filled, so it is not listed.
+/// What this weave says to Workshop beside its rows and actions. A submitted command is whatever
+/// shape the weaver filled, so it is not listed.
 class ComposerWeave final
-    : public zengine::With<Rows, Manual>::Weave<
+    : public zengine::With<Rows, Manual, Actions>::Weave<
           ComposerWeave, ComposerState,
           loom::Accept<ws::PaneResetRequested, ws::PaneCanvasValueDrop, ws::PaneCanvasDrop,
-                       ws::PaneActionRequested, ws::PaneOperationAnswered, inv::InventoryEntry,
-                       loom::DispatchRefused, PaneKey, PaneTextInput, LoadedSelected,
-                       surface::ClipboardCopy, surface::ClipboardText, AcceptedShapes,
-                       loom::Refused>,
-          loom::Emit<ws::v3::PaneActions, ws::PaneOperationRequested, ws::PaneEscapeUnspent>> {
+                       ws::PaneOperationAnswered, inv::InventoryEntry, loom::DispatchRefused,
+                       PaneKey, PaneTextInput, LoadedSelected, surface::ClipboardCopy,
+                       surface::ClipboardText, AcceptedShapes, loom::Refused>,
+          loom::Emit<ws::PaneOperationRequested, ws::PaneEscapeUnspent>> {
 public:
     // ---- the pane protocol: the facets call these ---------------------------
 
@@ -215,17 +215,17 @@ public:
         on_drop(d.pane, d.grant, d.picture, d.x, d.y, d.data, true, mail);
     }
 
-    void on(const ws::PaneActionRequested& a, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || a.pane != kComposePane) return;
-        if (a.id == "compose.enter") enter(mail);
-        else if (a.id == "compose.submit") submit(mail);
-        else if (a.id == "compose.store") store(mail);
-        else if (a.id == "compose.preset") store(mail, true);
-        else if (a.id == "compose.back") back_to_catalog(mail);
-        else if (a.id == "compose.up" && !busy()) { move_cursor(-1); say(mail); }
-        else if (a.id == "compose.down" && !busy()) { move_cursor(+1); say(mail); }
-        else if (a.id == "compose.include" && !busy()) { cycle_field(); say(mail); }
-        else if (a.id == "compose.unset" && !busy()) {
+    /// One of the rows `say` declares, asked for by id from Workshop (`PaneActionFacet`).
+    void on_action(const std::string& id, loom::Mail& mail) {
+        if (id == "compose.enter") enter(mail);
+        else if (id == "compose.submit") submit(mail);
+        else if (id == "compose.store") store(mail);
+        else if (id == "compose.preset") store(mail, true);
+        else if (id == "compose.back") back_to_catalog(mail);
+        else if (id == "compose.up" && !busy()) { move_cursor(-1); say(mail); }
+        else if (id == "compose.down" && !busy()) { move_cursor(+1); say(mail); }
+        else if (id == "compose.include" && !busy()) { cycle_field(); say(mail); }
+        else if (id == "compose.unset" && !busy()) {
             if (auto* field = field_under_cursor()) {
                 *field = {}; ++draft_generation_;
                 composing_.notice = "Field unset; its old value was discarded"; say(mail);
@@ -861,7 +861,7 @@ private:
         rows.publish(
             mail, [](const RowMeaning& m) { return m.part; }, [](const RowMeaning&) { return true; });
         const bool in_form = composing_.stage == stage::kForm;
-        (void)mail.as_role(kComposerRole).send_to_role(kWorkshopRole, ws::v3::PaneActions{kComposePane, {}, {
+        this->template facet<Actions>().declare(mail, {
             {"compose.enter", "choose", input::scan::kReturn, input::mod::kNone},
             {"compose.submit", "submit", input::scan::kReturn, input::mod::kCtrl},
             // Storing adds the command to the Inventory once Workshop allows it; a submit sends the
@@ -877,7 +877,7 @@ private:
             {"compose.up", "row up", input::scan::kUp, input::mod::kNone},
             {"compose.down", "row down", input::scan::kDown, input::mod::kNone},
             {"compose.include", "include or leave out the field",
-             in_form ? input::scan::kTab : input::scan::kUnknown, input::mod::kNone}}});
+             in_form ? input::scan::kTab : input::scan::kUnknown, input::mod::kNone}});
     }
 
     std::uint64_t send_correlation_ = 0, storage_asks_ = 1000000;

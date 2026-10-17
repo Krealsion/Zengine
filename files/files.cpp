@@ -68,14 +68,10 @@ using ws::Listing;
 using ws::LocationMarks;
 using ws::MarkedPlace;
 using ws::OpenSourceRequested;
-using ws::PaneActionRequested;
 using ws::v3::PaneActionRow;
-using ws::v3::PaneActions;
 using ws::PaneCatalogRequested;
 using ws::PaneContent;
 using ws::PaneKey;
-using ws::PaneMenuAnswered;
-using ws::PaneMenuRequested;
 using ws::v2::PaneOffered;
 using ws::PanePassRequested;
 using ws::PaneRoom;
@@ -201,15 +197,17 @@ inline auto of_kind(FilesAsk::Kind kind) {
 using Rows = ws::PaneRowsFacet<files::kProjectFilesPane, files::kFilesRole,
                                zengine::manual::pages::zengine_files::kManual, FilesMeaning>;
 using Asks = ws::AskFacet<files::kProjectFilesPane, files::kFilesRole, FilesAsk>;
+using Actions = ws::PaneActionFacet<files::kProjectFilesPane, files::kFilesRole>;
+using Menu = ws::PaneMenuFacet<files::kProjectFilesPane, files::kFilesRole>;
 
 class FilesWeave
-    : public zengine::With<Rows, Asks>::Weave<
+    : public zengine::With<Rows, Asks, Actions, Menu>::Weave<
           FilesWeave, files::FilesState,
-          loom::Accept<PaneKey, PaneTextInput, PaneMenuAnswered, PaneActionRequested, ProjectRoot,
-                       RecipeOutcome, SourceOpened, zengine::builder::BuildStatus,
-                       surface::ClipboardCopy, surface::ClipboardText>,
-          loom::Emit<PaneActions, ProjectRootRequested, RecipeUseRequested, RecipeAuthorRequested,
-                     OpenSourceRequested, zengine::builder::StatusRequested, PaneMenuRequested,
+          loom::Accept<PaneKey, PaneTextInput, ProjectRoot, RecipeOutcome, SourceOpened,
+                       zengine::builder::BuildStatus, surface::ClipboardCopy,
+                       surface::ClipboardText>,
+          loom::Emit<ProjectRootRequested, RecipeUseRequested, RecipeAuthorRequested,
+                     OpenSourceRequested, zengine::builder::StatusRequested,
                      ws::PaneKeyboardRequested, ws::PaneEscapeUnspent, surface::ClipboardCopy,
                      surface::ClipboardTextRequested>> {
 public:
@@ -278,47 +276,47 @@ public:
             return; // the notice, the header, a marker row, or blank space names nothing
         }
         // THE WEAVER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- in the rows Workshop holds,
-        // too (`on(PaneActionRequested)` says why an open needs the saying).
-        const bool spent = !notice_.empty();
-        const std::uint64_t published = room().published();
-        notice_.clear();
-        if (m->kind == files_row::kControl) {
-            perform(m->id, mail);
-        } else if (m->kind == files_row::kEntry && !chooser_.open && !authoring_.open) {
-            // A PRESS ON THE ALREADY-SELECTED ROW ACTIVATES IT, AND ONLY WHERE THE KEYS ALREADY
-            // WERE: the press that brings the keys to this pane is a weaver pointing at it, not an
-            // act in it.
-            if (keys_went_here && m->index == static_cast<std::size_t>(state_.cursor)) {
-                open(mail);
-            } else {
-                state_.cursor = static_cast<std::int64_t>(m->index);
-                say(mail);
-            }
-        } else if (m->kind == files_row::kCandidate && chooser_.open) {
-            // THE CHOOSER'S OWN SECOND PRESS: the first names the candidate, the second authors
-            // it -- the browser's rule, one mode over, so no press means two things at once.
-            // And only where the keys already were (WL-FOCUS-04): the press that brings them
-            // here is a weaver pointing at the pane, not a weaver choosing a candidate in it.
-            if (keys_went_here && m->index == chooser_.cursor) {
-                chooser_choose(mail);
-            } else {
-                chooser_.cursor = m->index;
-                say(mail);
-            }
-        } else if (m->kind == files_row::kField && authoring_.open) {
-            edit_field(m->index, mail);
-        } else if (m->kind == files_row::kLine && authoring_.open) {
-            // THE CARET GOES WHERE THE HAND IS. The prompt is drawn in front of the text, so the
-            // column a press names is measured from the first column the text occupies -- the
-            // prompt AS DRAWN (`active_prompt`), which a narrow room may have shortened from
-            // `authoring_.prompt`'s full label.
-            const std::int64_t prompt = static_cast<std::int64_t>(active_prompt().size());
-            authoring_.line.place(authoring_.line.position_at_column(column - prompt));
-            say(mail);
-        }
-        if (spent && room().published() == published) {
-            say(mail);
-        }
+        // too (`on_action` says why an open needs the saying).
+        room().spend_notice(
+            notice_,
+            [&] {
+                if (m->kind == files_row::kControl) {
+                    perform(m->id, mail);
+                } else if (m->kind == files_row::kEntry && !chooser_.open && !authoring_.open) {
+                    // A PRESS ON THE ALREADY-SELECTED ROW ACTIVATES IT, AND ONLY WHERE THE KEYS
+                    // ALREADY WERE: the press that brings the keys to this pane is a weaver
+                    // pointing at it, not an act in it.
+                    if (keys_went_here && m->index == static_cast<std::size_t>(state_.cursor)) {
+                        open(mail);
+                    } else {
+                        state_.cursor = static_cast<std::int64_t>(m->index);
+                        say(mail);
+                    }
+                } else if (m->kind == files_row::kCandidate && chooser_.open) {
+                    // THE CHOOSER'S OWN SECOND PRESS: the first names the candidate, the second
+                    // authors it -- the browser's rule, one mode over, so no press means two
+                    // things at once. And only where the keys already were (WL-FOCUS-04): the
+                    // press that brings them here is a weaver pointing at the pane, not a weaver
+                    // choosing a candidate in it.
+                    if (keys_went_here && m->index == chooser_.cursor) {
+                        chooser_choose(mail);
+                    } else {
+                        chooser_.cursor = m->index;
+                        say(mail);
+                    }
+                } else if (m->kind == files_row::kField && authoring_.open) {
+                    edit_field(m->index, mail);
+                } else if (m->kind == files_row::kLine && authoring_.open) {
+                    // THE CARET GOES WHERE THE HAND IS. The prompt is drawn in front of the text,
+                    // so the column a press names is measured from the first column the text
+                    // occupies -- the prompt AS DRAWN (`active_prompt`), which a narrow room may
+                    // have shortened from `authoring_.prompt`'s full label.
+                    const std::int64_t prompt = static_cast<std::int64_t>(active_prompt().size());
+                    authoring_.line.place(authoring_.line.position_at_column(column - prompt));
+                    say(mail);
+                }
+            },
+            [&] { say(mail); });
     }
 
     /// THE SECOND BUTTON. A right press on a row this pane owns OFFERS that row's menu, beside
@@ -335,18 +333,13 @@ public:
         return true;
     }
 
-    /// WHAT A MENU CAME TO -- if it answers one of THIS image's own asks. `Asked::take` is the
-    /// whole of what makes an answer safe to act on: a choice counts only from the presenter's
-    /// office, under the number of an ask this image sent and has not heard answered, about the
-    /// pane and subject it asked about, once. A reloaded browser asked nothing, so its
-    /// predecessor's menus act on nothing. What the row MEANS is judged here, against what this
-    /// pane holds now -- the listing may have been walked again while the menu was open.
-    void on(const PaneMenuAnswered& a, loom::Mail& mail) {
-        chosen_id_ = asked_menu_.take(mail, a);
-        if (chosen_id_.empty()) {
-            return;
-        }
-        chose(a.subject, mail);
+    /// WHAT A MENU CAME TO -- one of THIS image's own asks, settled by `PaneMenuFacet`: a choice
+    /// counts only from the presenter's office, under the number of an ask this image sent and
+    /// has not heard answered, about the pane and subject it asked about, once. What the row
+    /// MEANS is judged here, against what this pane holds now -- the listing may have been walked
+    /// again while the menu was open.
+    void on_menu(const std::string& id, const std::string& subject, loom::Mail& mail) {
+        chose(id, subject, mail);
     }
 
     void on(const PaneKey& key, loom::Mail& mail) {
@@ -359,8 +352,8 @@ public:
             return;
         }
         // ONLY THE AUTHORING LINE READS RAW KEYS. Everything else this pane does arrives as
-        // a resolved id (`on(PaneActionRequested)`); a component's editing gestures are the
-        // component's, not the pane's commands.
+        // a resolved id (`on_action`); a component's editing gestures are the component's, not
+        // the pane's commands.
         if (!authoring_.open) {
             return;
         }
@@ -427,52 +420,44 @@ public:
         }
     }
 
-    /// ONE OF THE PANE'S DECLARED ACTIONS, ASKED FOR BY NAME (WL-KEY-15). Workshop resolved
-    /// the keystroke against the effective keymap -- the weaver's override where one is
-    /// authored, this office's declared default otherwise -- so what arrives is the id.
-    void on(const PaneActionRequested& asked, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || asked.pane != files::kProjectFilesPane) {
-            return;
-        }
-        // A MODE OWNS THE PANE'S ACTIONS FIRST, AND AN ID IT DOES NOT ANSWER TO IS NO ACT. The
-        // declaration and the keystroke race across two messages -- Escape twice in one poll
-        // resolves to two cancels against the authoring line's rows, and the second arrives when
-        // the browser declares none -- so a stale id, or one nobody declared, spends nothing: no
-        // act, and the notice stands (`agents/panes.md`).
-        if (!answers(asked.id)) {
-            return;
-        }
-        // THE WEAVER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- and spent means gone from the
-        // rows Workshop holds, which are the rows a weaver reads. Most acts say their own picture;
-        // one whose answer is still on its way (Workshop's word on an act that opens or writes,
-        // then the opening or project office's) or that meant nothing says none, and the spent
-        // notice would stand beside the act that spent it. So when a notice stood and the act
-        // published nothing, the rows are said here, once, without it.
-        const bool spent = !notice_.empty();
-        const std::uint64_t published = room().published();
-        notice_.clear();
-        act(asked, mail);
-        if (spent && room().published() == published) {
-            say(mail);
-        }
+    /// ONE OF THE PANE'S DECLARED ACTIONS, ASKED FOR BY NAME (WL-KEY-15): the id Workshop resolved
+    /// the keystroke to against the effective keymap, admitted by `answers` in the pane's current
+    /// mode. Each mode's operations have ids of their own (Return is `files.choose`,
+    /// `files.commit-field` or `files.open`), so an id resolved in one mode and delivered in the
+    /// next is refused, never the next mode's operation.
+    void on_action(const std::string& id, loom::Mail& mail) {
+        // A key and a control reach one operation through the same `perform`, against the subject
+        // `subject_of` names, so a remapped key and the button beside it cannot mean two things.
+        // THE LAST ACT'S ANSWER IS SPENT, and gone from the rows Workshop holds: an act whose
+        // answer is still on its way (Workshop's word on an act that opens or writes, then the
+        // opening or project office's), or that meant nothing, says no picture, and the rows are
+        // said once without the notice.
+        room().spend_notice(
+            notice_,
+            [&] {
+                if (id == files::kActionUp) {
+                    step(-1, mail);
+                } else if (id == files::kActionDown) {
+                    step(1, mail);
+                } else {
+                    perform(id, mail);
+                }
+            },
+            [&] { say(mail); });
     }
 
-    /// What one action does, by id: with the notice already spent, and only for an id `answers`
-    /// admitted in the pane's current mode. Each mode's operations have ids of their own (Return
-    /// is `files.choose`, `files.commit-field` or `files.open`), so an id resolved in one mode and
-    /// delivered in the next is refused, never the next mode's operation. A key and a control
-    /// reach one operation through the same `perform`, against the subject `subject_of` names,
-    /// so a remapped key and the button beside it cannot mean two things.
-    void act(const PaneActionRequested& asked, loom::Mail& mail) {
-        if (asked.id == files::kActionUp) {
-            step(-1, mail);
-            return;
+    /// A MODE OWNS THE PANE'S ACTIONS FIRST, AND AN ID IT DOES NOT ANSWER TO IS NO ACT. The
+    /// declaration and the keystroke race across two messages -- Escape twice in one poll
+    /// resolves to two cancels against the authoring line's rows, and the second arrives when
+    /// the browser declares none -- so a stale id, or one nobody declared, spends nothing: no
+    /// act, and the notice stands (`agents/panes.md`).
+    bool answers(const std::string& id) const {
+        for (const PaneActionRow& row : action_rows()) {
+            if (row.id == id) {
+                return true;
+            }
         }
-        if (asked.id == files::kActionDown) {
-            step(1, mail);
-            return;
-        }
-        perform(asked.id, mail);
+        return false;
     }
 
     /// WHAT AN ID ACTS ON, RIGHT NOW -- the one place that says so, read when a control is
@@ -694,7 +679,7 @@ public:
         offer.row(files::kMenuRefresh, "look at this directory again");
         offer.row(files::kMenuPreviousMark, "go to the previous mark");
         offer.row(files::kMenuNextMark, "go to the next mark");
-        asked_menu_ = offer.continuing(mail, files::kFilesRole, correlation);
+        menu().send_continuing(mail, offer, correlation);
     }
 
     // The chooser's and the recipe form's menus, defined in `files/recipe_authoring.hpp`.
@@ -703,17 +688,16 @@ public:
     void offer_field(std::size_t which, std::int64_t row, std::int64_t column,
                      std::uint64_t correlation, loom::Mail& mail);
 
-    /// WHAT A CHOSEN ROW MEANS -- judged here, against what this pane holds NOW. The subject
+    /// WHAT A CHOSEN ROW `id` MEANS -- judged here, against what this pane holds NOW. The subject
     /// the presenter echoed is the place or the candidate the menu was opened about; a menu
     /// answered after the browser walked somewhere else acts on nothing.
-    void chose(const std::string& said, loom::Mail& mail) {
+    void chose(const std::string& id, const std::string& said, loom::Mail& mail) {
         const std::vector<std::string> parts = split_subject(said);
         if (parts.size() != 2) {
             return; // not a subject this pane ever wrote
         }
         const std::string& place = parts[0];
         const std::string& subject = parts[1];
-        const std::string id = chosen_id_;
         std::size_t field = 0;
         if (files::is_menu_edit_field(id, &field)) {
             if (authoring_.open && field < field_count() && subject == authoring_.chosen.name &&
@@ -927,12 +911,7 @@ private:
     /// declares what is true now. While a weaver types into the authoring line, every key the mode
     /// leaves unclaimed reaches the line as a `PaneKey` (Backspace deletes a character).
     /// `PaneActions` is a replacement (WL-KEY-15), and an id is one operation in every mode.
-    void declare(loom::Mail& mail) {
-        PaneActions actions;
-        actions.pane = files::kProjectFilesPane;
-        actions.rows = action_rows();
-        (void)mail.as_role(files::kFilesRole).send_to_role(kWorkshopRole, actions);
-    }
+    void declare(loom::Mail& mail) { this->template facet<Actions>().declare(mail, action_rows()); }
 
     /// THE ROWS OF THE MODE THIS PANE IS IN -- what `declare` tells Workshop, and what `answers`
     /// reads, so what the pane acts on and what it said it acts on are one list -- each with what
@@ -993,15 +972,6 @@ private:
         // mark, so the menu takes the shifted one rather than moving a key a weaver has.
         row(files::kActionMenu, "this pane's menu", input::scan::kM, input::mod::kShift);
         return rows;
-    }
-
-    bool answers(const std::string& id) const {
-        for (const PaneActionRow& row : action_rows()) {
-            if (row.id == id) {
-                return true;
-            }
-        }
-        return false;
     }
 
     // ---- The doors ----------------------------------------------------------------------
@@ -1444,6 +1414,8 @@ private:
     std::int64_t rows() const { return room().rows(); }
     std::int64_t columns() const { return room().columns(); }
     Asks& asks() { return this->template facet<Asks>(); }
+    /// This image's one outstanding menu (`PaneMenuFacet`).
+    Menu& menu() { return this->template facet<Menu>(); }
 
     static constexpr std::int64_t kHeaderRows = 1;
 
@@ -1466,12 +1438,6 @@ private:
     /// ...and where the authoring fields' window began, for the same reason: a short pane
     /// re-laying its field rows under a typing hand would move the line on every character.
     std::size_t field_hint_ = 0;
-    /// THIS IMAGE'S ONE OUTSTANDING MENU. Deliberately not reload-kept state: a successor that
-    /// inherited it would accept its predecessor's menu as its own (`pane_menu::Asked`).
-    pane_menu::Asked asked_menu_;
-    /// THE ROW A SETTLED MENU ANSWER NAMED, read by `chose` -- held for the length of one
-    /// delivery and never longer.
-    std::string chosen_id_;
 
     struct Chooser {
         bool open = false;

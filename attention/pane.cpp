@@ -43,9 +43,7 @@ namespace surface = zengine::surface;
 namespace ws = zengine::workshop;
 namespace pane = zengine::attention_pane;
 
-using ws::PaneActionRequested;
 using ws::v3::PaneActionRow;
-using ws::v3::PaneActions;
 using ws::v2::PaneOffered;
 using ws::StandingCondition;
 using ws::StandingConditions;
@@ -131,11 +129,11 @@ std::string stamp_of(const StandingCondition& c) {
 /// The pane's room, its rows and their presses; a condition's row means its key.
 using Rows = ws::PaneRowsFacet<pane::kAttentionPane, pane::kAttentionPaneRole,
                                zengine::manual::pages::zengine_attention::kManual, std::string>;
+using Actions = ws::PaneActionFacet<pane::kAttentionPane, pane::kAttentionPaneRole>;
 
 class AttentionPaneWeave
-    : public zengine::With<Rows>::Weave<AttentionPaneWeave, pane::AttentionPaneState,
-                                        loom::Accept<PaneActionRequested, StandingConditions>,
-                                        loom::Emit<PaneActions>> {
+    : public zengine::With<Rows, Actions>::Weave<AttentionPaneWeave, pane::AttentionPaneState,
+                                                 loom::Accept<StandingConditions>> {
 public:
     PaneOffered offering() const {
         return PaneOffered{pane::kAttentionPane, pane::kAttentionPaneName,
@@ -151,31 +149,24 @@ public:
 
     /// ONE OF THE PANE'S DECLARED ACTIONS, ASKED FOR BY NAME (WL-KEY-15). Workshop resolved
     /// the keystroke against the effective keymap -- the weaver's override where one is
-    /// authored, this office's declared default otherwise -- so what arrives is the id.
-    void on(const PaneActionRequested& asked, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || asked.pane != pane::kAttentionPane) {
-            return;
-        }
-        // AN ID THIS PANE NEVER DECLARED IS NO ACT (`agents/panes.md`), so it spends nothing: the
-        // notice, the cursor and every dismissal stay as they were. Every id the pane does
-        // declare says its rows below, so what an act spends is always published.
-        if (!answers(asked.id)) {
-            return;
-        }
+    /// authored, this office's declared default otherwise -- so what arrives is the id, one
+    /// `answers` admits. Every id the pane declares says its rows below, so what an act spends is
+    /// always published.
+    void on_action(const std::string& id, loom::Mail& mail) {
         notice_.clear(); // the weaver has acted; the last act's answer is spent
         const std::vector<StandingCondition> shown = visible();
         if (cursor_ >= shown.size()) {
             cursor_ = shown.empty() ? 0 : shown.size() - 1;
         }
-        if (asked.id == pane::kActionUp) {
+        if (id == pane::kActionUp) {
             if (cursor_ > 0) {
                 --cursor_;
             }
-        } else if (asked.id == pane::kActionDown) {
+        } else if (id == pane::kActionDown) {
             if (cursor_ + 1 < shown.size()) {
                 ++cursor_;
             }
-        } else if (asked.id == pane::kActionDismiss) {
+        } else if (id == pane::kActionDismiss) {
             if (cursor_ < shown.size()) {
                 // AN EVENT, SAID AS ONE. What just happened is that a weaver hid a
                 // presentation; what remains true is the condition, which is why the
@@ -187,6 +178,17 @@ public:
             }
         }
         say(mail);
+    }
+
+    /// AN ID THIS PANE NEVER DECLARED IS NO ACT (`agents/panes.md`), so it spends nothing: the
+    /// notice, the cursor and every dismissal stay as they were.
+    static bool answers(const std::string& id) {
+        for (const PaneActionRow& row : action_rows()) {
+            if (row.id == id) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /// WHAT IS TRUE RIGHT NOW, SAID BY THE HOST. Replaced WHOLE, never merged: the host
@@ -218,12 +220,7 @@ private:
     /// What this pane answers to: three rows in every state, `attention.up`, `attention.down` and
     /// `attention.dismiss` (Up, Down, `d`), the ids a weaver's keymap names. No modes, so one
     /// declaration: nothing in this pane takes text, which is also why a bare letter is legal.
-    void declare(loom::Mail& mail) {
-        PaneActions actions;
-        actions.pane = pane::kAttentionPane;
-        actions.rows = action_rows();
-        (void)mail.as_role(pane::kAttentionPaneRole).send_to_role(kWorkshopRole, actions);
-    }
+    void declare(loom::Mail& mail) { this->template facet<Actions>().declare(mail, action_rows()); }
 
     /// THE THREE ROWS -- what `declare` tells Workshop, and what `answers` reads, so what the
     /// pane acts on and what it said it acts on are one list.
@@ -233,15 +230,6 @@ private:
                               input::mod::kNone},
                 PaneActionRow{pane::kActionDismiss, "hide this one", input::scan::kD,
                               input::mod::kNone}};
-    }
-
-    static bool answers(const std::string& id) {
-        for (const PaneActionRow& row : action_rows()) {
-            if (row.id == id) {
-                return true;
-            }
-        }
-        return false;
     }
 
     // ---- The weaver's own half: what they have chosen not to look at ----------------------
