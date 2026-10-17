@@ -10,7 +10,8 @@ holders' manual. New to it? Start with [The source editor](editor.md) or
 
 ## About
 
-The office has one pane, `editor`, and whichever weave holds the office draws it. The load plan
+The office has one pane, `editor`, and whichever weave holds the office draws it: in Workshop, and
+in a graphics window that shows the area `zengine.editor` (`AreaRoom`, below). The load plan
 names the weave that starts and the choices a weaver may switch to, `standard` and `neovim` in
 both shipped plans; the switch is the office [`zengine.editor-switch`](zengine.editor-switch.md),
 which moves the document across: its bytes, unsaved edits, caret, selection and scroll. The pane's
@@ -240,6 +241,27 @@ not running` and why.
 `NeovimStopRequested` v1: end the Neovim this weave runs. Refused while a buffer holds unsaved
 changes, `Neovim holds unsaved changes to <files> -- write them first, or stop with discard=true to
 lose them`, unless `discard` is true; answered `Neovim ended (status 0)`.
+
+### `AreaRoom`
+
+`AreaRoom` v2, from the graphics window that shows the area `zengine.editor`, as that window's
+office ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): the Editor's room there. The
+holder draws the pane Workshop is shown, the caret a bar, the selection in the accent role: whole
+when the room changed, then only what changed. Seated nowhere, it composes for this room, Neovim
+sized to it. A holder asks for it (`RoomAsked`) each time it is activated.
+
+### `DrawnRefused`
+
+`DrawnRefused` v1, from that window: a drawing it refused, and why. What it shows stays as it was.
+A refused change is followed at once by the pane whole; a refused whole drawing by nothing until
+the pane changes.
+
+### `ActionRequested`
+
+`ActionRequested` v1, from that window: a press on a part of the pane there, by its name, `status`
+or `line:<n>`. It is the press Workshop's canvas makes at that part's first column: on a line the
+caret moves to the line's first shown column, and on `status` nothing moves. It leaves no sweep
+and begins no carry. The Neovim-backed Editor names only `status`.
 
 ## Follow
 
