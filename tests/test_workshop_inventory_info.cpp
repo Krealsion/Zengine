@@ -495,7 +495,7 @@ TEST_CASE("inventory Info: right-click acquisition and metadata inspection share
     t.key(input::scan::kReturn);
     CHECK(t.shown(t.info).find("metadata is read-only") != std::string::npos);
     t.key(input::scan::kI, input::mod::kCtrl);
-    CHECK(t.shown(t.info).find("PANES") != std::string::npos);
+    CHECK(t.shown(t.info).find("PROPERTIES") != std::string::npos);
     t.key(input::scan::kI, input::mod::kCtrl);
     CHECK(t.shown(t.info).find("story.RuntimeItem") != std::string::npos);
 }

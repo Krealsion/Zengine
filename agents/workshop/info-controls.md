@@ -1,13 +1,13 @@
 # Workshop law — the Info controls
 
-Register `WL-CTRL`: the grounds Info's structural rows sit on, and a property view that carries
-no controls of its own. Info inspects panes (WL-INFO-14), and a pane is launched and closed from
-the Pane Manager, never from here. One law per heading; cite by ID. Router:
+Register `WL-CTRL`: the grounds Info's structural rows sit on, and a property view that carries no
+controls of its own. Info inspects the one pane an office names (WL-INFO-14), and a pane is listed,
+launched and closed from the Pane Manager, never from here. One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md).
 
-## WL-CTRL-01 — Info's property view is two headings, two lists and a front sentence
+## WL-CTRL-01 — Info's property view is one heading, one list and a front sentence
 
-LAW — Info’s pane-property view has no object controls: two headings, two lists and a front sentence, reserved and shared as WL-INFO-08 and WL-INFO-07 say.
+LAW — Info’s pane-property view has no object controls: one heading, one list and a front sentence, reserved as WL-INFO-08 says.
 
 WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
@@ -19,7 +19,7 @@ WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
 ## WL-CTRL-03 — The draft's refusal is Info's own; every other refusal is the owner's
 
-LAW — The draft's refusal is the pane's own, made before asking, and now holds back another subject (WL-INFO-09); every other refusal is the owner's, answered to the ask.
+LAW — The draft's refusal is the pane's own, made before asking, and now holds back another subject (WL-INFO-14); every other refusal is the owner's, answered to the ask.
 
 WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
@@ -37,11 +37,11 @@ WHY — `agents/decisions/a-component-is-earned.md`
 
 ## WL-CTRL-06 — The subject's heading sits on a ground
 
-LAW — The subject's heading is accent on muted and every other row sits on none; the ground is the row's own background, and it marks where the subject's rows begin under the pane list.
+LAW — The subject's heading is accent on muted and every other row sits on none; the ground is the row's own background, and it marks where the subject's rows begin, under the front sentence.
 
 MEANS
 - the ground crosses the seam as a row's own field, so the pane names it and the host draws it;
-- accent ink alone would not do: the pane row above it is the accent-marked subject.
+- accent ink alone would not do: a section's label inside the list is accent ink too.
 
 WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
@@ -58,41 +58,43 @@ WHY — `agents/decisions/a-footer-not-a-third-list.md`
 ## Proven by
 
 ### WL-CTRL-01
-`info/pane.cpp` say
+`info/property_view.hpp` compose
 `tests/test_workshop_panes_info.cpp` "a room too short for the body invents none of it"
 
 ### WL-CTRL-02
-`info/pane.cpp` placed finish composed_
+`info/property_view.hpp` placed finish composed_
 `tests/test_workshop_panes_info.cpp` "a press on an Info row while a notice stands names the row
 painted there, and a full room keeps its last row under the notice"
 
 ### WL-CTRL-03
-`info/pane.cpp` kFinishTheEdit press_placed
+`info/property_view.hpp` kFinishTheEdit inspect_asked
 `tests/test_workshop_panes_info.cpp` "a live draft holds another subject back, and the reason is the
-weaver's"
+weaver's" "an inspect asked while an Info draft is live is refused, keeping the draft, its text, the
+subject and the desk through a new room, and inspecting resumes once the draft ends"
 
 ### WL-CTRL-04
-`info/pane.cpp` say_properties not_authored
+`info/property_view.hpp` say_properties not_authored
 `tests/test_workshop_panes_info.cpp` "a row the screen makes is refused by the pane, in its own
 words"
 
 ### WL-CTRL-05
-`info/pane.cpp` ask_inspect ask_commit
+`info/property_view.hpp` ask_inspect ask_commit
 `workshop/weave_inspection.cpp` on(InspectPaneRequested) on(PaneCommitRequested)
-`tests/test_workshop_panes_info.cpp` "a press on a pane row inspects it, through the host's own
-door"
+`tests/test_workshop_panes_info.cpp` "an office's ask inspects a pane through the host's own door,
+and the office is answered what the host said"
 
 ### WL-CTRL-06
-`info/pane.cpp` say
+`info/property_view.hpp` compose
 `surface/vocabulary.hpp` kAccent kMuted kNone SurfaceTextRow SurfaceTextRow::background
-`tests/test_workshop_panes_info.cpp` "the two headings and both lists are the pane's rows, over the
-host's inventory and subject"
+`tests/test_workshop_panes_info.cpp` "the heading and the subject's properties are the pane's rows,
+over the host's subject, and the panes are the Pane Manager's to list"
 
 ### WL-CTRL-07
 `workshop/pane_canvas_rows.hpp` rows_picture canvas_rows row_cell_at CanvasRows::row_y
-`info/pane.cpp` on(PaneCanvasPointer) fit_room pane_property_press
-`tests/test_workshop_panes_info.cpp` "Info draws its lists on its canvas on the medium's own ground,
-and a draft's caret and selection stand in its row where the weaver types, moving no character, and
-go with it" "a press on a pane row inspects it, through the host's own door" "a host that grants
-Info no canvas is shown its lists and a draft's caret as prose, its presses reach nothing there, and
-its keys still inspect and edit"
+`info/pane.cpp` on(PaneCanvasPointer) fit_room press
+`tests/test_workshop_panes_info.cpp` "Info draws its properties on its canvas on the medium's own
+ground, and a draft's caret and selection stand in its row where the weaver types, moving no
+character, and go with it" "a press on Info's properties aimed at the room they stood in before a
+new one was granted names nothing, and one aimed at the room they stand in now moves the cursor" "a
+host that grants Info no canvas is shown its properties and a draft's caret as prose, its presses
+reach nothing there, and its keys still move and edit"

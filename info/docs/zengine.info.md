@@ -1,31 +1,32 @@
 # zengine.info -- Info
 
-**Manual.** The pane for looking closely at things: the panes on your desk and the properties of the
-one you pick, and typed values kept in Inventory, several at once. It is a *weave*: a piece of
-Workshop that is loaded, replaced and spoken to by messages, built as `zengine-info-pane`. Other
-weaves reach it by its *office*, the name it answers to, `zengine.info`. Its panes are `info`, the
-default, and the value views `info.2`, `info.3` and on, up to `kMaxInfoViews` in all
-([`info/vocabulary.hpp`](../vocabulary.hpp)). New to it? Start with
+**Manual.** The pane for looking closely at things: the properties of one pane on your desk, the one
+you name from the Pane Manager, and typed values kept in Inventory, several at once. It is a
+*weave*: a piece of Workshop that is loaded, replaced and spoken to by messages, built as
+`zengine-info-pane`. Other weaves reach it by its *office*, the name it answers to, `zengine.info`.
+Its panes are `info`, the default, and the value views `info.2`, `info.3` and on, up to
+`kMaxInfoViews` in all ([`info/vocabulary.hpp`](../vocabulary.hpp)). New to it? Start with
 [Independent Info views and the inspection workbench](info-views.md).
 
 ## About
 
-The default pane, `info`, holds two lists: `PANES`, every pane Workshop knows, and the properties of
-the one you chose to inspect, where you can change a value. A *value view* holds one value instead:
+The default pane, `info`, shows the properties of the one pane you chose to inspect, where you can
+change a value; you choose it in the Pane Manager, with `inspect in Info` on that pane's row. The
+panes themselves are listed there, not here. A *value view* holds one value instead:
 a sample captured into Inventory, an unfinished command, a stored note. Each view keeps its own
 value, edits, selection and the asks it waits on, so nothing you do in one view, or in another
 pane, replaces what another shows. The default pane becomes a value view while it holds a value.
 
-Info owns nothing it shows. The list of panes and the inspected pane's rows are Workshop's
-reading, told to Info whole each time they change
-([`PaneInventory`](../../workshop/desktop_seam_vocabulary.hpp),
-[`PaneSubjectShown`](../../workshop/inspection_seam_vocabulary.hpp)). Info names the pane to inspect
-by asking Workshop, and a property you change is written into the desk by Workshop, whose rows they
-are. A value is Inventory's: every read, save and copy asks Workshop first whether you may, then
-asks Inventory, and a refusal is said in the owner's words.
+Info owns nothing it shows. The inspected pane's rows are Workshop's reading, told to Info whole
+each time they change ([`PaneSubjectShown`](../../workshop/inspection_seam_vocabulary.hpp)), and
+Workshop's list of panes ([`PaneInventory`](../../workshop/desktop_seam_vocabulary.hpp)) tells Info
+which of its views are on the desk. Info names the pane to inspect by asking Workshop, when the Pane
+Manager or another office asks it to, and a property you change is written into the desk by
+Workshop, whose rows they are. A value is Inventory's: every read, save and copy asks Workshop
+first whether you may, then asks Inventory, and a refusal is said in the owner's words.
 
-A reload of Info keeps where you were in the default pane: the pane the list's cursor holds, the
-property row, which list has the keys. It keeps every value view too, as `InfoPaneState` carries
+A reload of Info keeps where you were in the default pane: the property row, over the pane
+inspected, which Workshop holds. It keeps every value view too, as `InfoPaneState` carries
 it: its title, the value or draft it holds with your unsaved edits, the entry it is linked to at
 the revision it read, and the field selected. Nothing is watched after it: a view that was watching
 says `Watch ended when Info was reloaded; Watch follows the entry again`, and `Refresh` or `Watch`
@@ -35,10 +36,11 @@ asks again at your press. A restart of Workshop shows only the default pane.
 
 Workshop's default desk shows Info in its right column; the Pane Manager,
 <!-- key desktop.panes -->`ctrl+p`<!-- /key -->, opens any of its panes. Its keys act only while it
-holds your keys: press into it first. In the lists, press a pane's row to inspect it, then a
-property's row and <!-- key info.edit -->`return`<!-- /key --> to change its value. To open a value,
-drag an Inventory entry onto a view for a copy, or grab it live in Inventory and press the view to
-link it; <!-- key info.view.new -->`ctrl+n`<!-- /key --> opens another view.
+holds your keys: press into it first. Choose `inspect in Info` on a pane's row in the Pane Manager
+to inspect it here, then press a property's row and <!-- key info.edit -->`return`<!-- /key --> to
+change its value. To open a value, drag an Inventory entry onto a view for a copy, or grab it live
+in Inventory and press the view to link it; <!-- key info.view.new -->`ctrl+n`<!-- /key --> opens
+another view.
 
 A value view draws a control for each of its commands: `[Save]` acts, `(Save)` cannot act now and
 still answers when pressed, with its reason, `` Save unavailable: <the reason> ``. `[...]` opens
@@ -49,70 +51,50 @@ from an owner is said in the owner's words.
 
 ## Commands
 
-These are the default pane's while it shows its lists. The same keys mean the list's act or the
-properties' act, by the list that holds the keys.
+These are the default pane's while it shows pane properties.
 
 ### `info.up`
 
-Moves the cursor of the list that holds the keys up one row.
+Moves the property cursor up one row.
 
-- **Takes:** the list with the keys. In the properties it steps over a section's heading, which holds
-  no value. Default key <!-- key info.up -->`up`<!-- /key -->; its label says `pane up` or `row up`.
-- **Answers:** the `>` moves. The pane list's cursor holds a pane by identity, so a pane added above
-  moves the cursor with it.
+- **Takes:** the properties. It steps over a section's heading, which holds no value. Default key
+  <!-- key info.up -->`up`<!-- /key -->; its label says `row up`.
+- **Answers:** the `>` moves. The cursor is a row of the inspected pane's properties, and a reload
+  of Info keeps it.
 - **Refuses:** nothing; at the first row nothing moves.
 - **Example:** <!-- key info.up -->`up`<!-- /key -->.
 
 ### `info.down`
 
-Moves the cursor of the list that holds the keys down one row.
+Moves the property cursor down one row.
 
-- **Takes:** the list with the keys. Default key <!-- key info.down -->`down`<!-- /key -->; its
-  label says `pane down` or `row down`.
+- **Takes:** the properties. Default key <!-- key info.down -->`down`<!-- /key -->; its label says
+  `row down`.
 - **Answers:** the `>` moves, as [`info.up`](#infoup).
 - **Refuses:** nothing; at the last row nothing moves.
 - **Example:** <!-- key info.down -->`down`<!-- /key -->.
 
 ### `info.edit`
 
-In the pane list, inspects the pane under the cursor; in the properties, opens a draft on the
-cursor's row ([commands in a property draft](#commands-in-a-property-draft)). A press on a pane's row
-inspects it too, and a press on a property's row puts the cursor there.
+Opens a draft on the cursor's property row
+([commands in a property draft](#commands-in-a-property-draft)). A press on a property's row puts
+the cursor there.
 
 - **Takes:** the cursor's row. Default key <!-- key info.edit -->`return`<!-- /key -->; its label
-  says `inspect` or `edit`.
-- **Answers:** to inspect, asks Workshop to make that pane the subject
-  ([`InspectPaneRequested`](../../workshop/docs/zengine.workshop.md#inspectpanerequested)), and
-  answers an ask this pane was still holding with [`PaneSubjectActed`](#inspectpanerequested),
-  replaced; the properties then show its rows under `PANE <its name>`, and `*` marks it in the list.
-  A draft holds the row's value, the caret at its end.
-- **Refuses:** `Return inspected nothing -- choose a row first`, when the pane the cursor held left
-  the list; `inspect not submitted -- nothing was queued`; `inspect not delivered -- nothing changed
-  (<the bus's reason>)`; Workshop's own words for a pane it will not inspect. In the properties:
-  `nothing is inspected yet -- Return on a pane inspects it`, and `` Window is not authored -- it is
-  what the screen makes of the authored value `` for a row the screen makes, drawn dim.
-- **Example:** press <!-- key info.edit -->`return`<!-- /key --> on `Layouts`, then
-  <!-- key info.switch -->`tab`<!-- /key -->.
-
-### `info.switch`
-
-Moves the keys between the pane list and the properties.
-
-- **Takes:** the list with the keys. Default key <!-- key info.switch -->`tab`<!-- /key -->; its
-  label says `properties` or `panes`.
-- **Answers:** the `>` moves to the other list, and [`info.up`](#infoup),
-  [`info.down`](#infodown) and [`info.edit`](#infoedit) act there.
-- **Refuses:** `nothing is inspected yet -- Return on a pane inspects it`, from the pane list while
-  nothing is inspected. When the subject's rows go, the keys go back to the pane list.
-- **Example:** <!-- key info.switch -->`tab`<!-- /key -->.
+  says `edit`.
+- **Answers:** a draft holding the row's value, the caret at its end.
+- **Refuses:** `nothing is inspected yet -- choose 'inspect in Info' in the Pane Manager`, and
+  `` Window is not authored -- it is what the screen makes of the authored value `` for a row the
+  screen makes, drawn dim.
+- **Example:** press <!-- key info.edit -->`return`<!-- /key --> on `Width` of `Layouts`.
 
 ### `info.inventory`
 
-Shows the value the default pane holds again, in place of the lists. Declared only while it holds
-one and no draft is open.
+Shows the value the default pane holds again, in place of the properties. Declared only while it
+holds one and no draft is open.
 
 - **Takes:** the value the default pane last held. Default key
-  <!-- key info.inventory -->`ctrl+i`<!-- /key -->; in the lists' menu, `Show the value view`.
+  <!-- key info.inventory -->`ctrl+i`<!-- /key -->; in the properties' menu, `Show the value view`.
 - **Answers:** the default pane is a value view again, as it was
   ([commands in a value view](#commands-in-a-value-view)).
 - **Refuses:** nothing.
@@ -120,10 +102,11 @@ one and no draft is open.
 
 ### `info.view.new`
 
-Opens the lowest unused value view, shown on the desk, empty. From the lists and from any value view.
+Opens the lowest unused value view, shown on the desk, empty. From the properties and from any value
+view.
 
 - **Takes:** a free view. Default key <!-- key info.view.new -->`ctrl+n`<!-- /key -->; in a value
-  view the control `[New]`; in the lists' menu, `New value view`.
+  view the control `[New]`; in the properties' menu, `New value view`.
 - **Answers:** asks Workshop to show the view
   ([`PaneLaunchRequested`](../../workshop/docs/zengine.workshop.md#panelaunchrequested)). The view
   that asked says `Opened Info 2`; the new one says `New view: drag an Inventory entry here, or a
@@ -131,17 +114,18 @@ Opens the lowest unused value view, shown on the desk, empty. From the lists and
   the Pane Manager lists only views that were used.
 - **Refuses:** `All four Info views are in use -- close one first`, ending ` (hidden: Info 3; the
   Pane Manager reopens them)` when some are only hidden; `New view not shown: <Workshop's reason>`.
-  While a draft is open in the lists it is not declared.
+  While a property draft is open it is not declared.
 - **Example:** <!-- key info.view.new -->`ctrl+n`<!-- /key -->, then drag an entry onto `Info 2`.
 
 ## Commands in a property draft
 
 While a draft is open, the default pane declares these two and nothing else: every other key edits
 the line, as any text line does ([`component/text_box.hpp`](../../component/text_box.hpp)), its
-clipboard included. A press on another pane's row is refused, `finish the edit first -- commit it
-or cancel it`. When Workshop's picture no longer shows the row the draft was opened on (another
-pane, another desk put live, the rows' layout changed), the draft ends: `edit abandoned -- the
-inspected pane, its desk or its rows changed; unwritten changes discarded`.
+clipboard included. An ask to inspect another pane, from the Pane Manager or any office, is refused,
+`finish the edit first -- commit it or cancel it`. When Workshop's picture no longer shows the row
+the draft was opened on (another pane, another desk put live, the rows' layout changed), the draft
+ends: `edit abandoned -- the inspected pane, its desk or its rows changed; unwritten changes
+discarded`.
 
 ### `info.commit`
 
@@ -287,8 +271,8 @@ every character and says `NEWER rev 3 waiting (Refresh accepts)`.
   changes appear here, your edits are never replaced`. Again: `Watch paused; nothing is read until
   Watch is pressed again`, and the watch ends at Workshop
   ([`PaneObservationEnded`](../../workshop/docs/zengine.workshop.md#paneobservationended)). Hiding
-  the view, closing it, opening another value in it or leaving for the lists ends the watch, at
-  Workshop too: `Watch ended: the view was hidden`.
+  the view, closing it, opening another value in it or leaving for the properties ends the watch,
+  at Workshop too: `Watch ended: the view was hidden`.
 - **Refuses:** `Watch unavailable: an independent copy has no linked entry to watch; link one
   (right-click Grab live)`; `...: this link is stale: its entry is no longer here`; `...: wait:
   Workshop has not yet answered this view's last watch request`; `Watch refused: <the reason>`.
@@ -404,12 +388,12 @@ each marked ` (unavailable)` when it cannot act now.
 
 ### `info.value.panes`
 
-The default pane's way back to its lists. The value stays, for
+The default pane's way back to its pane properties. The value stays, for
 [`info.inventory`](#infoinventory). A watch ends, since the view no longer shows the value.
 
 - **Takes:** the default pane. Default key <!-- key info.value.panes -->`ctrl+i`<!-- /key -->; the
   control `[Panes]`.
-- **Answers:** the lists; `Watch ended: this view left for pane properties` when it was watching,
+- **Answers:** the properties; `Watch ended: this view left for pane properties` when it was watching,
   and the watch ends at Workshop
   ([`PaneObservationEnded`](../../workshop/docs/zengine.workshop.md#paneobservationended)).
 - **Refuses:** nothing.
@@ -510,7 +494,7 @@ Takes the view into use, empty.
 ### `PaneInventory`
 
 From Workshop alone: every pane it knows, whole, each time the list changes
-([`workshop/desktop_seam_vocabulary.hpp`](../../workshop/desktop_seam_vocabulary.hpp)). It also says
+([`workshop/desktop_seam_vocabulary.hpp`](../../workshop/desktop_seam_vocabulary.hpp)), read for
 which of Info's views are on the desk; a hidden view keeps its draft and ends its watch.
 
 ### `PaneSubjectShown`
@@ -528,42 +512,37 @@ once.
 ### `PaneResetRequested`
 
 A reset of one view ([`workshop/setup_control.hpp`](../../workshop/setup_control.hpp)), from a guest
-with the `demo` power: the default pane drops its drafts and goes back to its lists; another view is
-emptied. Refused, `Info reset needs its pane and no pending commit`, while that view waits on an ask.
+with the `demo` power: the default pane drops its drafts and goes back to its properties; another
+view is emptied. Refused, `Info reset needs its pane and no pending commit`, while that view waits
+on an ask.
 
 ### `InspectPaneRequested`
 
-From an office, as the Pane Manager's `inspect in Info` row asks: the default pane inspects that
-pane as [`info.edit`](#infoedit) does and answers with Workshop's `PaneSubjectActed`, or in its
-own words: `finish the edit first -- commit it or cancel it` while a draft is open; an inspect not
-submitted or not delivered, as `info.edit` says; `a newer inspect took its place -- nothing
-changed`.
+From an office, as the Pane Manager's `inspect in Info` row asks: the default pane asks Workshop to
+make that pane the subject, shown under `PANE <its name>`, and answers with Workshop's
+`PaneSubjectActed`, or in its own words: `finish the edit first -- commit it or cancel it` while a
+draft is open; `inspect not submitted -- nothing was queued`; `inspect not delivered -- nothing
+changed (<the bus's reason>)`; `a newer inspect took its place -- nothing changed`.
 
 ## Follow
 
 Info says nothing unasked but its own rows: it publishes no account of what it did. An observer
-follows the owners instead: Workshop's `PaneInventory` and `PaneSubjectShown` for the lists, and
-for a value, Inventory's `InventoryChanged` and the entry itself. What a view shows now is read from
+follows the owners instead: Workshop's `PaneSubjectShown` for the properties, and for a value,
+Inventory's `InventoryChanged` and the entry itself. What a view shows now is read from
 the rows Workshop holds for its pane, by their part names ([Shows](#shows)).
 
 ## Shows
 
-### `panes`
-
-`PANES -- 12`, then a row per pane, `>*Layouts -- open`: `>` the cursor, `?` where it holds a pane
-that left the list, `*` the pane inspected; `open`, `closed` or `gone`. Each row's part is
-`pane:<office>/<pane>`. What the room cannot hold is counted, `... 3 more`.
-
 ### `properties`
 
-`PANE Layouts` over the inspected pane's rows, a label then its value; a dim row is not yours to
-author, and the row a draft is open on is lit. Each row's part is `property:<label>`. With nothing
-inspected, `(no subject -- Return on a pane inspects it)`.
+`PANE Layouts` over the inspected pane's rows, a label then its value, `>` on the cursor's row; a
+dim row is not yours to author, and the row a draft is open on is lit. Each row's part is
+`property:<label>`. What the room cannot hold is counted, `... 3 more`. With nothing inspected,
+`PROPERTIES` over `(no subject -- 'inspect in Info' in the Pane Manager)`.
 
 ### `notice`
 
-Above the lists, the answer to the last act, or while the cursor holds a pane that left the list,
-`Layouts left the list -- choose a row before Return inspects anything`.
+Above the properties, the answer to the last act.
 
 ### `title`
 

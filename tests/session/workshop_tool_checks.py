@@ -539,28 +539,6 @@ class CanvasInfoView(CanvasPane):
         self.unavailable |= self.on_redraw
 
 
-class CanvasInfo(CanvasPane):
-    """Info's own pane drawing its rows on its canvas: its heading, its pane list -- a row a pane,
-    named `pane:<office>/<pane>` -- its subject, and the subject's properties, each named
-    `property:<label>`; `>` before the row the name `marked` names, on the list or among the
-    properties."""
-    PANES = [("zengine.info", "info", "Info"), ("zengine.inventory-pane", "inventory", "Inventory")]
-
-    def __init__(self, marked=None, **kw):
-        CanvasPane.__init__(self, **kw)
-        self.marked = marked
-
-    def drawn(self):
-        def row(name, text):
-            return {"runs": [(0, ("> " if name == self.marked else "  ") + text)],
-                    "parts": [(name, 0, self.columns())]}
-        return ([{"runs": [(0, "PANES -- %d" % len(self.PANES))], "parts": []}]
-                + [row("pane:%s/%s" % (office, pane), label + " -- open")
-                   for office, pane, label in self.PANES]
-                + [{"runs": [(0, "PANE Inventory")], "parts": []},
-                   row("property:Width", "Width: 480 px"), row("property:Height", "Height: 240 px")])
-
-
 class CanvasInventory(CanvasPane):
     """Inventory drawing its rows on its canvas while it browses its folders: its heading; its
     location -- `(Up) Root` at the root, else `[Up]` named `control:inventory.parent`, then each
@@ -1183,6 +1161,14 @@ def run_checks(tools, runtime):
             ctx = Context(steps, start="2,3@console", end="20,10")
             with self.assertRaisesRegex(ValueError, "same coordinate space"):
                 drag.run(ctx)
+            self.assertEqual(ctx.contacts, [])
+
+        def test_place_refuses_a_pane_not_named_by_its_row_before_contact(self):
+            # The Pane Manager's row names a pane by its reference, which is what the run presses.
+            ctx = Context(steps, panes=json.dumps([{"pane": "pane:zengine.workshop/layouts"},
+                                                   {"pane": "Layouts", "x": 0}]))
+            with self.assertRaisesRegex(ValueError, "pane:<office>/<pane>"):
+                place.run(ctx)
             self.assertEqual(ctx.contacts, [])
 
         def test_collection_readback_checks_reference_revision_and_bytes(self):
@@ -2211,24 +2197,6 @@ def run_checks(tools, runtime):
             finally:
                 held.close()
             self.assertFalse([e for e in ctx.events if e["kind"] == "PointerButton"])
-
-        def test_place_reads_infos_list_marker_by_the_row_a_canvas_run_stands_on(self):
-            # Each run set inside its row's rectangle, or below its top: the marker is on the list
-            # only where a `>` word stands on a `pane:` row.
-            for drop in (0, 3):
-                with self.subTest(drop=drop):
-                    marked = {}
-                    for name in ("pane:zengine.inventory-pane/inventory", "property:Width", None):
-                        ctx = CanvasWorkshop(steps, {self.SAMPLE: CanvasInfo(name, drop=drop)})
-                        held = hand.Hand(ctx, "workshop")
-                        try:
-                            marked[name] = place.list_marked(held.words(*self.SAMPLE))
-                        finally:
-                            held.close()
-                        self.assertEqual(set(ctx.asked), {("PaneViewRequested", 3)})
-                    self.assertEqual(marked, {"pane:zengine.inventory-pane/inventory": True,
-                                              "property:Width": False, None: False})
-            self.assertFalse(place.list_marked(None))
 
         # ---- the Editors drawing pictures: their lines, their status row, their lattice's cells -
         # An Editor's status row is its lattice's row 0; a blank document line is no word, so a

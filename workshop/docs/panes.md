@@ -458,17 +458,13 @@ reads the surface. That is not built, and it is not designed here.
 
 ## A pane as a subject — Info
 
-**Info** describes panes. Its upper list is every pane the Pane Manager lists; press into Info,
-choose one and press `Enter`, and that pane becomes Info's **subject**: its rows below say what
-it is, what you authored for it, and what this screen makes of that.
+**Info** describes one pane at a time. In the Pane Manager, open a pane's row menu (`m`, or a
+right press on the row) and choose `inspect in Info`: that pane becomes Info's **subject**, and
+Info's rows say what it is, what you authored for it, and what this screen makes of that.
 
 ```text
-PANES -- 8
-  Builder -- closed
->*Layouts -- open
-  ...
 PANE Layouts
- Name     Layouts
+>Name     Layouts
  Identity zengine.workshop/layouts
  Provider zengine.workshop (built in)
  Summary  layout tabs and setup
@@ -488,12 +484,12 @@ INTERIOR
 
 **The subject is Info's, and nothing else moves it.** Choosing a pane changes nothing about the
 desk: it does not open the pane, select it, or hand it the keys. Pressing into another pane,
-`Esc`, a press on the empty room — none of them moves the subject; only choosing another pane
-in Info does. Info may inspect itself, and a pane that closes or loses its tool stays the
-subject, reading `closed` or `unresolved` with what you can do about it. A pane you chose in
-Info's list that then leaves it is marked `?` and said, exactly as in the Pane Manager, and
-`Enter` inspects nothing — `Return inspected nothing -- choose a row first` — until you choose
-another row; the subject you had stays yours, and so does the choice when Info is reloaded.
+`Esc`, a press on the empty room — none of them moves the subject; only `inspect in Info` on
+another pane does. Info may inspect itself, and a pane that closes or loses its tool stays the
+subject, reading `closed` or `unresolved` with what you can do about it. While a draft is open in
+Info, `inspect in Info` is refused — `finish the edit first -- commit it or cancel it` — and the
+draft stays; the subject you had stays yours, and so does the row you were on when Info is
+reloaded.
 
 **Authored and resolved are two different truths**, and the rows keep them apart:
 
@@ -531,9 +527,9 @@ resolved body — where it is and how many rows of type it holds — and the pla
 it has no authored interior. Info edits no pane's inside: it does not decompose a compiled
 painter, infer its controls, or pretend a provider's rows are a definition.
 
-**Editing is a draft, written through the desk's own door.** `Tab` moves the keys between
-Info's list and the subject's rows; `↑` `↓` step; `Enter` on `X`, `Y`, `Width` or `Height`
-opens a draft on the current value. Type a whole number in the face's own unit — `10` or
+**Editing is a draft, written through the desk's own door.** Press into Info; `↑` `↓` step
+through the subject's rows; `Enter` on `X`, `Y`, `Width` or `Height` opens a draft on the
+current value. Type a whole number in the face's own unit — `10` or
 `10 cells` in a terminal, `120` or `120px` in a window — and `Enter` writes it, `Esc` abandons.
 Typing `-` gives that axis back to Workshop's default (X and Y are one place, so resetting
 either resets both). A value that is not a number, a unit the face did not report, a negative
