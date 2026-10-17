@@ -37,6 +37,7 @@
 #include "workshop/pane_document.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_escape.hpp"
+#include "workshop/pane_seat.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
 #include "activation/activation.hpp"
@@ -49,6 +50,7 @@
 #include <zen/weave/standard_shapes.hpp>
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -75,7 +77,6 @@ using ws::KeymapShown;
 using ws::PaneActionRequested;
 using ws::v3::PaneActionRow;
 using ws::v3::PaneActions;
-using ws::PaneCatalogRequested;
 using ws::PaneCloseAnswered;
 using ws::PaneCloseRequested;
 using ws::PaneInventory;
@@ -106,22 +107,26 @@ using pane::kWorkshopRole;
 // The weave
 // =============================================================================
 
-// (!) WHAT IT ACCEPTS IS ITS RELOAD CONTRACT. A reload replaces this weave only with an image
-// accepting exactly these shapes (Loom's accepted-contract match), so the doors added for the
-// mouse -- the canvas room and pointer, the menu and toggle answers, the edit answer -- make an
-// image built without them a relaunch from a runtime made from one build, never a reload
-// (workshop/docs/develop-workshop.md). Images that both accept them reload.
+/// THE OFFICE OF THE THREE PANES: its activation, its offers on Workshop's catalog request, and
+/// the manual of any of the three, the whole page the weave's.
+using Office = ws::MultiPaneFacet<pane::kDesktopRole, pane::kLauncherPane,
+                                  zengine::manual::pages::zengine_desktop::kManual>;
+
+// (!) WHAT IT ACCEPTS, ITS OFFICE'S DOORS WITH IT, IS ITS RELOAD CONTRACT. A reload replaces this
+// weave only with an image accepting exactly these shapes (Loom's accepted-contract match), so
+// the doors added for the mouse -- the canvas room and pointer, the menu and toggle answers, the
+// edit answer -- make an image built without them a relaunch from a runtime made from one build,
+// never a reload (workshop/docs/develop-workshop.md). Images that both accept them reload.
 class DesktopWeave
-    : public loom::WeaveBase<
+    : public zengine::With<Office>::Weave<
           DesktopWeave, pane::DesktopState,
-          loom::Accept<ws::PaneShortcuts, loom::Activated, PaneCatalogRequested, PaneRoom, PaneActionRequested,
+          loom::Accept<ws::PaneShortcuts, PaneRoom, PaneActionRequested,
                        AppActionRequested, PaneInventory, PaneLaunchAnswered,
                        PaneCloseAnswered, PaneToggleAnswered, ActionsJudged,
                        ActionsWithdrawn, KeymapShown, KeymapEditAnswered, PaneKey, PaneTextInput,
                        ws::PaneCanvasRoom, ws::PaneCanvasPointer, ws::PaneCanvasRejected,
                        PaneMenuAnswered, loom::DispatchRefused, surface::ClipboardCopy,
-                       surface::ClipboardText, ws::PaneDocumentShown, ws::PaneDocumentRequested,
-                       PaneSubjectActed>,
+                       surface::ClipboardText, ws::PaneDocumentShown, PaneSubjectActed>,
           loom::Emit<ws::PaneShortcutsAnswered, ws::PaneShortcutsRequested, ws::PaneShortcutsWithdrawn,
                      ws::PaneShortcutInvoked, PaneOffered, PaneActions, ws::v4::PaneContent,
                      ws::v5::PaneCanvasContent, ws::PaneCaret, AppActions,
@@ -129,31 +134,52 @@ class DesktopWeave
                      DeselectRequested, PaneInventoryRequested,
                      KeymapRequested, KeymapEditRequested, PaneMenuRequested, PanePassRequested,
                      PaneKeyboardRequested, PaneManageRequested, InspectPaneRequested,
-                     ws::PaneEscapeUnspent, ws::PaneDocumentRequested, ws::PaneDocumentShown,
+                     ws::PaneEscapeUnspent, ws::PaneDocumentRequested,
                      surface::ClipboardCopy, surface::ClipboardTextRequested>> {
 public:
-    void on(const loom::Activated& a, loom::Mail& mail) {
-        if (!activation_.accept(mail, a)) {
-            return;
-        }
-        announce(mail);
+    // ---- What its office calls --------------------------------------------------------------
+
+    /// THE THREE PANES IT OFFERS, any of whose manual is the one page this image was built with.
+    static bool known_pane(const std::string& pane_key) {
+        return pane_key == pane::kLauncherPane || pane_key == pane::kHotkeysPane ||
+               pane_key == pane::kManualPane;
     }
 
-    void on(const PaneCatalogRequested&, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole)) {
-            return;
+    /// THE THREE PANES OFFERED AND DECLARED, the application's rows with them, and what the host
+    /// holds now asked for: at each activation and each catalog request of Workshop's.
+    void announce(loom::Mail& mail) {
+        (void)mail.as_role(pane::kDesktopRole)
+            .send_to_role(kWorkshopRole, PaneOffered{pane::kLauncherPane, pane::kLauncherName,
+                                                     pane::kLauncherSummary, 8, 60});
+        declare_manager(mail);
+        (void)mail.as_role(pane::kDesktopRole)
+            .send_to_role(kWorkshopRole, PaneOffered{pane::kHotkeysPane, pane::kHotkeysName,
+                                                     pane::kHotkeysSummary, 10, 68});
+        declare_keys(mail);
+        (void)mail.as_role(pane::kDesktopRole)
+            .send_to_role(kWorkshopRole, PaneOffered{pane::kManualPane, pane::kManualName,
+                                                     pane::kManualSummary, 16, 72});
+        declare_manual(mail);
+        // ...AND THE APPLICATION'S OWN ROWS, WHICH ARE NOT THE PANE'S. The pane's rows act
+        // only while a weaver has pressed into the launcher; these act wherever the weaver is
+        // standing (WL-DESK-07).
+        if (!shortcuts_.pending()) {
+            AppActions app;
+            app.rows = app_rows(); shortcuts_.append(app.rows);
+            app_.attempt = ++attempts_;
+            (void)mail.as_role(pane::kDesktopRole).send_to_role(kWorkshopRole, app, app_.attempt);
         }
-        announce(mail);
+        mail.as_role(pane::kDesktopRole).publish(ws::PaneShortcutsRequested{});
+        // ...AND THE INVENTORY AS IT IS NOW. The publication is said when it changes; a new
+        // image arriving while nothing changes would otherwise wait for an unrelated change.
+        (void)mail.as_role(pane::kDesktopRole)
+            .send_to_role(kWorkshopRole, PaneInventoryRequested{});
+        // ...AND THE KEYMAP IN FORCE, for the same reason: what the Hotkeys pane prints is what
+        // the host resolved, never this image's own defaults.
+        (void)mail.as_role(pane::kDesktopRole).send_to_role(kWorkshopRole, KeymapRequested{});
     }
 
-    /// THIS WEAVE'S MANUAL, TO THE ONE WHO ASKED, about any of its three panes: the whole page is
-    /// the weave's, from the page this image was built with.
-    void on(const ws::PaneDocumentRequested& ask, loom::Mail& mail) {
-        const bool offered = ask.pane == pane::kLauncherPane || ask.pane == pane::kHotkeysPane ||
-                             ask.pane == pane::kManualPane;
-        (void)mail.answer(ws::pane_document(ask, offered ? ask.pane : pane::kLauncherPane,
-                                            zengine::manual::pages::zengine_desktop::kManual));
-    }
+    // ---- Its panes' rooms -------------------------------------------------------------------
 
     /// WORKSHOP GRANTS ONE OF THIS WEAVE'S THREE PANES ITS PROSE ROOM: kept for a host that grants
     /// no canvas, and the room composed for only while the pane holds no canvas room.
@@ -162,15 +188,15 @@ public:
             return;
         }
         if (room.pane == pane::kLauncherPane) {
-            launcher_.grant_prose(room.rows, room.columns);
+            launcher_.grant_prose(room);
             fit_rooms();
             say(mail);
         } else if (room.pane == pane::kHotkeysPane) {
-            hotkeys_.grant_prose(room.rows, room.columns);
+            hotkeys_.grant_prose(room);
             fit_rooms();
             say_keys(mail);
         } else if (room.pane == pane::kManualPane) {
-            manual_.grant_prose(room.rows, room.columns);
+            manual_.grant_prose(room);
             fit_rooms();
             say_manual(mail);
         }
@@ -436,12 +462,14 @@ public:
                                    : event.pane == pane::kHotkeysPane ? &hotkeys_.canvas()
                                    : event.pane == pane::kManualPane  ? &manual_.canvas()
                                                                        : nullptr;
-        if (canvas == nullptr || !canvas->on() || event.grant != canvas->room.grant) {
+        const std::optional<ws::RowCell> cell =
+            canvas == nullptr ? std::nullopt : canvas->cell_of(event);
+        if (!cell) {
             return;
         }
-        const ws::RowCell at = ws::row_cell_at(ws::canvas_rows(canvas->room), event.x, event.y);
+        const ws::RowCell at = *cell;
         const PanePress press{event.pane, at.row, at.column, event.keys_went_here,
-                              canvas->pictures.current(event.grant, event.picture)};
+                              canvas->shows(event)};
         if (event.phase == ws::canvas_pointer::kWheel) {
             wheel(event.pane, event.dy, mail);
         } else if (event.phase != ws::canvas_pointer::kPress) {
@@ -534,39 +562,7 @@ private:
         return pane_key == pane::kHotkeysPane ? keys_rows_ : pane_rows_;
     }
 
-    // ---- Offering, declaring and asking ---------------------------------------------------
-
-    void announce(loom::Mail& mail) {
-        (void)mail.as_role(pane::kDesktopRole)
-            .send_to_role(kWorkshopRole, PaneOffered{pane::kLauncherPane, pane::kLauncherName,
-                                                     pane::kLauncherSummary, 8, 60});
-        declare_manager(mail);
-        (void)mail.as_role(pane::kDesktopRole)
-            .send_to_role(kWorkshopRole, PaneOffered{pane::kHotkeysPane, pane::kHotkeysName,
-                                                     pane::kHotkeysSummary, 10, 68});
-        declare_keys(mail);
-        (void)mail.as_role(pane::kDesktopRole)
-            .send_to_role(kWorkshopRole, PaneOffered{pane::kManualPane, pane::kManualName,
-                                                     pane::kManualSummary, 16, 72});
-        declare_manual(mail);
-        // ...AND THE APPLICATION'S OWN ROWS, WHICH ARE NOT THE PANE'S. The pane's rows act
-        // only while a weaver has pressed into the launcher; these act wherever the weaver is
-        // standing (WL-DESK-07).
-        if (!shortcuts_.pending()) {
-            AppActions app;
-            app.rows = app_rows(); shortcuts_.append(app.rows);
-            app_.attempt = ++attempts_;
-            (void)mail.as_role(pane::kDesktopRole).send_to_role(kWorkshopRole, app, app_.attempt);
-        }
-        mail.as_role(pane::kDesktopRole).publish(ws::PaneShortcutsRequested{});
-        // ...AND THE INVENTORY AS IT IS NOW. The publication is said when it changes; a new
-        // image arriving while nothing changes would otherwise wait for an unrelated change.
-        (void)mail.as_role(pane::kDesktopRole)
-            .send_to_role(kWorkshopRole, PaneInventoryRequested{});
-        // ...AND THE KEYMAP IN FORCE, for the same reason: what the Hotkeys pane prints is what
-        // the host resolved, never this image's own defaults.
-        (void)mail.as_role(pane::kDesktopRole).send_to_role(kWorkshopRole, KeymapRequested{});
-    }
+    // ---- Declaring and asking ---------------------------------------------------------------
 
     /// THE APPLICATION ROWS, WHY EACH GESTURE, AND WHAT A PRESS CAUSES (`on(AppActionRequested)`).
     /// `Ctrl+t` -- the Terminal's own chord, restored as an application row.
@@ -650,8 +646,6 @@ private:
     }
 
     // ---- State not in the shape ----------------------------------------------------------
-
-    zengine::ActivationCursor activation_;
 
     /// THE THREE PANES, each holding its own room, picture, cursor and asks.
     pane::LauncherView launcher_;

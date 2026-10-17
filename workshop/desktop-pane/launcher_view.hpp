@@ -97,27 +97,16 @@ public:
     // ---- Its rooms ----------------------------------------------------------------------------
 
     /// THE PROSE ROOM WORKSHOP GRANTED IT, kept for a host that grants no canvas.
-    void grant_prose(std::int64_t rows, std::int64_t columns) {
-        launcher_canvas_.prose_rows = rows;
-        launcher_canvas_.prose_columns = columns;
-        granted_ = true;
-    }
+    void grant_prose(const ws::PaneRoom& room) { (void)launcher_canvas_.prose_room(room); }
 
     /// ...AND ITS OWN CANVAS, whose lattice is the room it composes for while it holds one.
-    void grant_canvas(const ws::PaneCanvasRoom& room) {
-        launcher_canvas_.room = room;
-        granted_ = true;
-    }
+    void grant_canvas(const ws::PaneCanvasRoom& room) { launcher_canvas_.canvas_room(room); }
 
     const PaneCanvas& canvas() const { return launcher_canvas_; }
 
     /// The rows and columns it composes for: its canvas's lattice while it holds one, its prose
     /// room otherwise.
-    void fit_room() {
-        const ws::CanvasRows launcher = ws::canvas_rows(launcher_canvas_.room);
-        rows_ = launcher_canvas_.on() ? launcher.rows : launcher_canvas_.prose_rows;
-        columns_ = launcher_canvas_.on() ? launcher.columns : launcher_canvas_.prose_columns;
-    }
+    void fit_room() { launcher_canvas_.fit(); }
 
     // ---- What the host and Info say to it -----------------------------------------------------
 
@@ -295,15 +284,18 @@ public:
     /// recorded in the row map as it is written, and the composition is numbered by it.
     void say(const DesktopState& state, const Declared& pane_rows_decl, const Declared& app,
              loom::Mail& mail) {
-        if (!granted_ || rows_ <= 0 || columns_ <= 0) {
+        const std::int64_t rows = launcher_canvas_.rows();
+        const std::int64_t columns = launcher_canvas_.columns();
+        if (!launcher_canvas_.granted() || rows <= 0 || columns <= 0) {
             return;
         }
         std::vector<surface::SurfaceTextRow> out;
         map_.begin();
-        const auto push = [&out, this](std::string text, std::int64_t role, LauncherMeaning m) {
-            if (static_cast<std::int64_t>(out.size()) < rows_) {
+        const auto push = [&out, rows, columns, this](std::string text, std::int64_t role,
+                                                      LauncherMeaning m) {
+            if (static_cast<std::int64_t>(out.size()) < rows) {
                 map_.row(static_cast<std::int64_t>(out.size()), m);
-                out.push_back(surface::SurfaceTextRow{fit(std::move(text), columns_), role});
+                out.push_back(surface::SurfaceTextRow{fit(std::move(text), columns), role});
             }
         };
         if (!heard_) {
@@ -338,7 +330,7 @@ public:
                 notes.push_back(drawable(*word));
             }
         }
-        std::int64_t budget = rows_ - 1;
+        std::int64_t budget = rows - 1;
         // AT LEAST ONE LIST ROW STAYS, so the marker is never the thing a notice pushed out.
         const std::int64_t room_for_notes = known_.empty() ? budget : budget - 1;
         const std::int64_t note_rows =
@@ -349,8 +341,8 @@ public:
         const component::ListWindow w = component::cursor_window(
             known_.size(), choice_.at, first_, budget > 0 ? static_cast<std::size_t>(budget) : 0);
         first_ = w.first;
-        if (w.before > 0 && w.markers > 0) {
-            push("  ^ " + std::to_string(w.before) + " more above", surface::role::kMuted,
+        if (const std::size_t earlier = component::earlier_marker(w); earlier > 0) {
+            push("  ^ " + std::to_string(earlier) + " more above", surface::role::kMuted,
                  LauncherMeaning{launcher_row::kMarker, 0, {}});
         }
         for (std::size_t i = w.first; i < w.end(); ++i) {
@@ -372,16 +364,16 @@ public:
             // A MARKER THAT HOLDS NOTHING (its pane left the list) is `?`, not `>`.
             const char* marker = here ? (choice_.lost ? "? " : "> ") : "  ";
             const std::int64_t at = static_cast<std::int64_t>(out.size());
-            const std::string text = fit(std::string(marker) + mark + " " + drawable(p.name), columns_);
+            const std::string text = fit(std::string(marker) + mark + " " + drawable(p.name), columns);
             const std::string ref = launcher_ref(i);
             push(text, role, LauncherMeaning{launcher_row::kName, i, ref});
             // THE MARK IS A CONTROL INSIDE THE ROW: recorded only where the cut left it whole.
             (void)map_.span(at, kMarkFirst, kMarkWidth,
-                            component::solid_columns(text, static_cast<std::size_t>(columns_)),
+                            component::solid_columns(text, static_cast<std::size_t>(columns)),
                             LauncherMeaning{launcher_row::kMark, i, ref});
         }
-        if (w.after > 0 && w.markers > 0) {
-            push("  v " + std::to_string(w.after) + " more below", surface::role::kMuted,
+        if (const std::size_t more = component::more_marker(w); more > 0) {
+            push("  v " + std::to_string(more) + " more below", surface::role::kMuted,
                  LauncherMeaning{launcher_row::kMarker, 1, {}});
         }
         for (std::int64_t i = 0; i < note_rows; ++i) {
@@ -568,23 +560,10 @@ private:
     /// map's own number, which fences a press -- and as prose to a host granting none.
     void publish_launcher(loom::Mail& mail, std::vector<surface::SurfaceTextRow> rows) {
         const std::int64_t meaning = map_.settle();
-        std::vector<ws::PaneRowPart> parts = ws::row_parts(
-            map_, columns_, [this](const LauncherMeaning& m) { return launcher_part(m); });
-        if (launcher_canvas_.on()) {
-            (void)mail.as_role(kDesktopRole)
-                .send_to_role(kWorkshopRole,
-                              ws::rows_picture(launcher_canvas_.room,
-                                               launcher_canvas_.pictures.next(launcher_canvas_.room,
-                                                                              meaning),
-                                               rows, parts));
-            return;
-        }
-        ws::v4::PaneContent said;
-        said.pane = kLauncherPane;
-        said.rows = std::move(rows);
-        said.picture = meaning;
-        said.parts = std::move(parts);
-        (void)mail.as_role(kDesktopRole).send_to_role(kWorkshopRole, said);
+        launcher_canvas_.publish_rows(
+            mail, meaning, std::move(rows),
+            ws::row_parts(map_, launcher_canvas_.columns(),
+                          [this](const LauncherMeaning& m) { return launcher_part(m); }));
     }
 
     // ---- State not in the shape ----------------------------------------------------------
@@ -593,10 +572,7 @@ private:
     std::vector<ws::InventoryPane> known_;
     bool heard_ = false;
 
-    std::int64_t rows_ = 0;    ///< the room composed for: the canvas lattice's, else the prose room's
-    std::int64_t columns_ = 0;
-    bool granted_ = false;
-    PaneCanvas launcher_canvas_;
+    PaneCanvas launcher_canvas_{kLauncherPane, kDesktopRole};
     /// WHERE THE LIST'S WINDOW BEGAN LAST TIME, so it scrolls by the least it can.
     std::size_t first_ = 0;
     std::string notice_;

@@ -12,10 +12,11 @@
 #include "workshop/desktop-pane/vocabulary.hpp"
 
 #include "workshop/desktop_seam_vocabulary.hpp"
-#include "workshop/pane_canvas_rows.hpp"
-#include "workshop/pane_canvas_vocabulary.hpp"
 #include "workshop/pane_menu.hpp"
+#include "workshop/pane_seat.hpp"
 #include "workshop/pane_text.hpp"
+
+#include "component/list_window.hpp"
 
 #include <zen/weave.hpp>
 
@@ -116,10 +117,7 @@ inline bool from_workshop(const loom::Mail& mail) {
 
 /// WHOLE NOTCHES OUT OF AN ACCUMULATED WHEEL, the remainder carried.
 inline std::int64_t take_notches(double& carried, double dy) {
-    carried += dy;
-    const std::int64_t notches = static_cast<std::int64_t>(carried);
-    carried -= static_cast<double>(notches);
-    return notches;
+    return zengine::component::take_wheel_notches(carried, dy);
 }
 
 /// DOES THIS NOTICE NAME THE ASK A RECORD IS WAITING ON -- the same queued attempt, under the
@@ -169,14 +167,9 @@ struct Declared {
     std::string word;
 };
 
-/// ONE PANE'S OWN CANVAS: the room it holds there and the numbers its pictures take, and the
-/// prose room a host granting no canvas gives it. Transient, as every room is.
-struct PaneCanvas {
-    ws::PaneCanvasRoom room;
-    ws::CanvasPictures pictures;
-    std::int64_t prose_rows = 0, prose_columns = 0;
-    bool on() const { return room.grant > 0 && room.width > 0 && room.height > 0; }
-};
+/// ONE PANE'S OWN ROOMS: the canvas room it holds and the numbers its pictures take there, the
+/// prose room a host granting no canvas gives it, and the rows and columns it composes for.
+using PaneCanvas = ws::PaneCanvasSeat;
 
 } // namespace zengine::desktop_pane
 

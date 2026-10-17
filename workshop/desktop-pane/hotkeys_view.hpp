@@ -115,27 +115,16 @@ public:
     // ---- Its rooms ----------------------------------------------------------------------------
 
     /// THE PROSE ROOM WORKSHOP GRANTED IT, kept for a host that grants no canvas.
-    void grant_prose(std::int64_t rows, std::int64_t columns) {
-        keys_canvas_.prose_rows = rows;
-        keys_canvas_.prose_columns = columns;
-        keys_granted_ = true;
-    }
+    void grant_prose(const ws::PaneRoom& room) { (void)keys_canvas_.prose_room(room); }
 
     /// ...AND ITS OWN CANVAS, whose lattice is the room it composes for while it holds one.
-    void grant_canvas(const ws::PaneCanvasRoom& room) {
-        keys_canvas_.room = room;
-        keys_granted_ = true;
-    }
+    void grant_canvas(const ws::PaneCanvasRoom& room) { keys_canvas_.canvas_room(room); }
 
     const PaneCanvas& canvas() const { return keys_canvas_; }
 
     /// The rows and columns it composes for: its canvas's lattice while it holds one, its prose
     /// room otherwise.
-    void fit_room() {
-        const ws::CanvasRows keys = ws::canvas_rows(keys_canvas_.room);
-        keys_room_rows_ = keys_canvas_.on() ? keys.rows : keys_canvas_.prose_rows;
-        keys_room_columns_ = keys_canvas_.on() ? keys.columns : keys_canvas_.prose_columns;
-    }
+    void fit_room() { keys_canvas_.fit(); }
 
     // ---- The keymap in force ------------------------------------------------------------------
 
@@ -363,16 +352,19 @@ public:
     /// what reading it came to, and the one line a weaver writes. Columns are laid out once for
     /// every row, and each cell is recorded so a press can be answered by the column it is in.
     void say_keys(const Declared& keys_rows_decl, loom::Mail& mail) {
-        if (!keys_granted_ || keys_room_rows_ <= 0 || keys_room_columns_ <= 0) {
+        const std::int64_t room_rows = keys_canvas_.rows();
+        const std::int64_t room_columns = keys_canvas_.columns();
+        if (!keys_canvas_.granted() || room_rows <= 0 || room_columns <= 0) {
             return;
         }
         std::vector<surface::SurfaceTextRow> out;
         keys_map_.begin();
-        const auto push = [&out, this](std::string text, std::int64_t role, KeysMeaning m) {
-            if (static_cast<std::int64_t>(out.size()) < keys_room_rows_) {
+        const auto push = [&out, room_rows, room_columns, this](std::string text,
+                                                                std::int64_t role, KeysMeaning m) {
+            if (static_cast<std::int64_t>(out.size()) < room_rows) {
                 keys_map_.row(static_cast<std::int64_t>(out.size()), m);
                 out.push_back(
-                    surface::SurfaceTextRow{fit(std::move(text), keys_room_columns_), role});
+                    surface::SurfaceTextRow{fit(std::move(text), room_columns), role});
             }
         };
         if (!keys_heard_) {
@@ -394,7 +386,7 @@ public:
         if (typing_.active) {
             const std::string prompt = "key for " + typing_.id + ": ";
             const std::int64_t room =
-                keys_room_columns_ - static_cast<std::int64_t>(prompt.size()) - 1;
+                room_columns - static_cast<std::int64_t>(prompt.size()) - 1;
             if (room > 0) {
                 typing_.line.keep_caret_visible(room);
                 const auto at = static_cast<std::int64_t>(out.size());
@@ -425,7 +417,7 @@ public:
         }
         footer.push_back("or write {\"action\": \"<id>\", \"gesture\": \"ctrl+q\"} in the file; "
                          "\"none\" disables; read at launch");
-        std::int64_t budget = keys_room_rows_ - 1 - (typing_.active ? 1 : 0);
+        std::int64_t budget = room_rows - 1 - (typing_.active ? 1 : 0);
         // AS MANY FOOTER ROWS AS THE ROOM ALLOWS while three list rows stay -- the notice first,
         // then the reading's word, the file and the grammar; a tiny room keeps the notice alone.
         std::int64_t footer_rows = budget - 3;
@@ -458,15 +450,15 @@ public:
                               4},
             component::Column{marks_want, marks_want == 0 ? std::size_t{0} : std::size_t{1}}};
         const std::size_t table_budget =
-            keys_room_columns_ > 2 ? static_cast<std::size_t>(keys_room_columns_ - 2) : 0;
+            room_columns > 2 ? static_cast<std::size_t>(room_columns - 2) : 0;
         const std::vector<std::size_t> widths = component::layout_columns(asks, table_budget);
         const std::vector<std::size_t> offsets = component::column_offsets(widths);
         const component::ListWindow w = component::cursor_window(
             lines_.size(), keys_choice_.at, keys_first_,
             budget > 0 ? static_cast<std::size_t>(budget) : 0);
         keys_first_ = w.first;
-        if (w.before > 0 && w.markers > 0) {
-            push("  ^ " + std::to_string(w.before) + " more above", surface::role::kMuted,
+        if (const std::size_t earlier = component::earlier_marker(w); earlier > 0) {
+            push("  ^ " + std::to_string(earlier) + " more above", surface::role::kMuted,
                  KeysMeaning{keys_row::kMarker, 0, {}});
         }
         for (std::size_t i = w.first; i < w.end(); ++i) {
@@ -484,7 +476,7 @@ public:
                 widths, [](const std::string& text, std::int64_t width) { return fit(text, width); },
                 [](std::string text, std::size_t width) { return pad(std::move(text), width); });
             const std::int64_t at = static_cast<std::int64_t>(out.size());
-            const std::string text = fit(std::string(here ? "> " : "  ") + cells, keys_room_columns_);
+            const std::string text = fit(std::string(here ? "> " : "  ") + cells, room_columns);
             const std::string ref = binding_key(b);
             push(text, here ? surface::role::kAccent : surface::role::kFill,
                  KeysMeaning{keys_row::kBinding, i, ref});
@@ -492,11 +484,11 @@ public:
             // the key is a press on the binding wherever the columns put it.
             (void)keys_map_.span(
                 at, 2 + static_cast<std::int64_t>(offsets[0]), static_cast<std::int64_t>(widths[0]),
-                component::solid_columns(text, static_cast<std::size_t>(keys_room_columns_)),
+                component::solid_columns(text, static_cast<std::size_t>(room_columns)),
                 KeysMeaning{keys_row::kBinding, i, ref});
         }
-        if (w.after > 0 && w.markers > 0) {
-            push("  v " + std::to_string(w.after) + " more below", surface::role::kMuted,
+        if (const std::size_t more = component::more_marker(w); more > 0) {
+            push("  v " + std::to_string(more) + " more below", surface::role::kMuted,
                  KeysMeaning{keys_row::kMarker, 1, {}});
         }
         for (std::int64_t i = 0; i < footer_rows; ++i) {
@@ -768,39 +760,23 @@ private:
         return marks;
     }
 
-    /// The table's rows, as the launcher's are, and the spelling line's caret beside them.
+    /// The table's rows, as the launcher's are, and the spelling line's caret beside them -- beside
+    /// prose rows every time, "none" included, so a caret the spelling line took with it is gone.
     void publish_keys(loom::Mail& mail, std::vector<surface::SurfaceTextRow> rows,
                       const ws::RowsCaret& caret = {}) {
         const std::int64_t meaning = keys_map_.settle();
-        std::vector<ws::PaneRowPart> parts = ws::row_parts(
-            keys_map_, keys_room_columns_, [this](const KeysMeaning& m) { return keys_part(m); });
-        if (keys_canvas_.on()) {
-            (void)mail.as_role(kDesktopRole)
-                .send_to_role(kWorkshopRole,
-                              ws::rows_picture(keys_canvas_.room,
-                                               keys_canvas_.pictures.next(keys_canvas_.room, meaning),
-                                               rows, parts, caret));
-            return;
-        }
-        ws::v4::PaneContent said;
-        said.pane = kHotkeysPane;
-        said.rows = std::move(rows);
-        said.picture = meaning;
-        said.parts = std::move(parts);
-        (void)mail.as_role(kDesktopRole).send_to_role(kWorkshopRole, said);
-        // Said every time, "none" included, so a caret the spelling line took with it is gone.
-        (void)mail.as_role(kDesktopRole)
-            .send_to_role(kWorkshopRole, ws::PaneCaret{kHotkeysPane, caret.row, caret.column});
+        keys_canvas_.publish_rows(
+            mail, meaning, std::move(rows),
+            ws::row_parts(keys_map_, keys_canvas_.columns(),
+                          [this](const KeysMeaning& m) { return keys_part(m); }),
+            caret, /*always_caret=*/true);
     }
 
     // ---- State not in the shape ----------------------------------------------------------
 
     /// ITS ROOM, the keymap the host last said, its lines, its cursor, its window, its picture,
     /// and what it is doing with the keys right now.
-    std::int64_t keys_room_rows_ = 0;
-    std::int64_t keys_room_columns_ = 0;
-    bool keys_granted_ = false;
-    PaneCanvas keys_canvas_;
+    PaneCanvas keys_canvas_{kHotkeysPane, kDesktopRole};
     ws::KeymapShown keymap_;
     bool keys_heard_ = false;
     std::vector<KeysLine> lines_;

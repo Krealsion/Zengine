@@ -4,7 +4,7 @@
 #ifndef ZENGINE_INTROSPECTION_SEATS_HPP
 #define ZENGINE_INTROSPECTION_SEATS_HPP
 
-// The three panes of the Introspection weave, each in a seat of its own: the room it holds, the
+// The three panes of the Introspection weave, each in a seat of its own: the rooms it holds, the
 // question it has outstanding and the pictures it says (`PaneSeat`), then what each pane knows and
 // does -- Loaded's selection and scroll, Project's reading, and Powers' search, cursor, sample,
 // carry and clipboard. The weave (introspection.cpp) checks who is speaking, routes each delivery
@@ -16,6 +16,7 @@
 #include "resolved.hpp"
 #include "vocabulary.hpp"
 
+#include "component/list_window.hpp"
 #include "component/text_box.hpp"
 #include "inventory/codec.hpp"
 #include "input/vocabulary.hpp"
@@ -27,6 +28,7 @@
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_operation.hpp"
 #include "workshop/pane_parts.hpp"
+#include "workshop/pane_seat.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/powers_vocabulary.hpp"
@@ -62,60 +64,38 @@ struct Voice {
     std::uint64_t next() { return ++asked; }
 };
 
-/// ONE PANE'S SEAT: its canvas room while it holds one, with the numbers its pictures take, and the
-/// prose room a host granting none gives it; the room its outstanding question is for; and that
-/// question. Transient, as every room is: the grant is re-sent whenever a valid offer refreshes
-/// the pane.
+/// ONE PANE'S SEAT: its rooms and the pictures numbered there (`workshop::PaneCanvasSeat`), what a
+/// press on its picture means now, and the question it has outstanding for the room it holds.
+/// Transient, as every room is: the grant is re-sent whenever a valid offer refreshes the pane.
 class PaneSeat {
 public:
     /// `always_caret`: the pane says its caret with every prose picture, "none" included, so a
     /// caret the rows lost is gone.
     explicit PaneSeat(const char* key, bool always_caret = false)
-        : pane_(key), always_caret_(always_caret) {}
+        : room_(key, kIntrospectionRole), always_caret_(always_caret) {}
 
-    bool on_canvas() const noexcept {
-        return canvas_.grant > 0 && canvas_.width > 0 && canvas_.height > 0;
-    }
+    bool on_canvas() const noexcept { return room_.on_canvas(); }
 
-    /// THE PROSE ROOM, kept for a host that grants no canvas: the room to grant now while the pane
-    /// holds no canvas room, whose lattice is the budget then; none otherwise.
-    std::optional<workshop::PaneRoom> prose_room(const workshop::PaneRoom& room) {
-        prose_rows_ = room.rows;
-        prose_columns_ = room.columns;
-        if (on_canvas()) {
-            return std::nullopt;
-        }
-        return room;
-    }
+    /// THE PROSE ROOM, kept for a host that grants no canvas: true when it is the room to grant
+    /// now, the pane holding no canvas room, and its rows and columns the budget then.
+    bool prose_room(const workshop::PaneRoom& room) { return room_.prose_room(room); }
 
-    /// THE PANE'S OWN CANVAS: while it holds a room there, the lattice's rows and columns are the
-    /// room to grant; a room of no extent leaves the pane to its prose room, if it has one.
-    std::optional<workshop::PaneRoom> canvas_room(const workshop::PaneCanvasRoom& room) {
-        canvas_ = room;
-        if (on_canvas()) {
-            const workshop::CanvasRows lattice = workshop::canvas_rows(room);
-            return workshop::PaneRoom{room.pane, lattice.rows, lattice.columns};
-        }
-        if (prose_rows_ > 0 && prose_columns_ > 0) {
-            return workshop::PaneRoom{room.pane, prose_rows_, prose_columns_};
-        }
-        return std::nullopt;
+    /// THE PANE'S OWN CANVAS: true when there is a room to grant -- the lattice's while it holds a
+    /// room there; a room of no extent leaves the pane to its prose room, if it has one.
+    bool canvas_room(const workshop::PaneCanvasRoom& room) {
+        room_.canvas_room(room);
+        return room_.on_canvas() || (room_.prose_rows() > 0 && room_.prose_columns() > 0);
     }
 
     /// WHERE A HAND ON THE PANE'S PICTURE LANDED, as the row and column of its lattice: none while
     /// the pane holds no canvas, or for a pointer naming a room since replaced.
     std::optional<workshop::RowCell> cell_of(const workshop::PaneCanvasPointer& event) const {
-        if (!on_canvas() || event.grant != canvas_.grant) {
-            return std::nullopt;
-        }
-        return workshop::row_cell_at(workshop::canvas_rows(canvas_), event.x, event.y);
+        return room_.cell_of(event);
     }
 
     /// Is the picture a press names the one drawn under the press map in force? A press on any
     /// other is dropped, never read against whatever row has since moved into its place.
-    bool shows(const workshop::PaneCanvasPointer& event) const {
-        return pictures_.current(event.grant, event.picture);
-    }
+    bool shows(const workshop::PaneCanvasPointer& event) const { return room_.shows(event); }
 
     /// The owner declined, or the ask reached nobody: the question is retired and nothing is said.
     void retire(std::uint64_t correlation) {
@@ -125,14 +105,9 @@ public:
     }
 
 protected:
-    std::int64_t rows() const noexcept { return rows_; }
-    std::int64_t columns() const noexcept { return columns_; }
-
-    /// The room the pane's next reading is projected into.
-    void take_room(const workshop::PaneRoom& room) {
-        rows_ = room.rows;
-        columns_ = room.columns;
-    }
+    /// The room the pane's next reading is projected into: the rows and columns it holds.
+    std::int64_t rows() const noexcept { return room_.rows(); }
+    std::int64_t columns() const noexcept { return room_.columns(); }
 
     /// A NEW QUESTION OUTSTANDING, numbered from the office's one counter: a newer grant replaces
     /// the correlation, so the answer to an older room is dropped.
@@ -142,13 +117,11 @@ protected:
         return pending_;
     }
 
-    /// Ask this pane's owner its question for `room`, by role (the addresses that survive their
-    /// holders), as this office, because the arrangement door answers offices
+    /// Ask this pane's owner its question for the room it holds, by role (the addresses that
+    /// survive their holders), as this office, because the arrangement door answers offices
     /// (workshop/arrangement.hpp).
     template <class Question>
-    void ask(Voice voice, const workshop::PaneRoom& room, const char* owner,
-             const Question& question) {
-        take_room(room);
+    void ask(Voice voice, const char* owner, const Question& question) {
         const std::uint64_t correlation = pose(voice);
         (void)voice.mail.as_role(kIntrospectionRole).send_to_role(owner, question, correlation);
     }
@@ -178,22 +151,13 @@ protected:
     void say_rows(loom::Mail& mail, std::vector<surface::SurfaceTextRow> shown,
                   std::vector<workshop::PaneRowPart> parts = {},
                   const workshop::RowsCaret& caret = {}, std::string press_map = {}) {
-        if (on_canvas()) {
-            const std::int64_t picture = pictures_.next(canvas_, meaning_of(std::move(press_map)));
-            (void)mail.as_role(kIntrospectionRole)
-                .send_to_role(kWorkshopRole,
-                              workshop::rows_picture(canvas_, picture, shown, parts, caret));
-            return;
-        }
+        // The press map numbers only the picture: prose rows go unnumbered.
+        const std::int64_t meaning = on_canvas() ? meaning_of(std::move(press_map)) : 0;
         workshop::v4::PaneContent said;
-        said.pane = pane_;
+        said.pane = room_.pane();
         said.rows = std::move(shown);
         said.parts = std::move(parts);
-        (void)mail.as_role(kIntrospectionRole).send_to_role(kWorkshopRole, said);
-        if (caret.row != surface::kNoCaret || always_caret_) {
-            (void)mail.as_role(kIntrospectionRole)
-                .send_to_role(kWorkshopRole, workshop::PaneCaret{pane_, caret.row, caret.column});
-        }
+        room_.say(mail, std::move(said), meaning, caret, always_caret_);
     }
 
 private:
@@ -207,14 +171,10 @@ private:
         return meaning_;
     }
 
-    const char* pane_;
+    workshop::PaneCanvasSeat room_;
     bool always_caret_ = false;
-    workshop::PaneCanvasRoom canvas_;
-    workshop::CanvasPictures pictures_;
     std::string press_map_;
     std::int64_t meaning_ = 0;
-    std::int64_t prose_rows_ = 0, prose_columns_ = 0;
-    std::int64_t rows_ = 0, columns_ = 0;
     std::uint64_t pending_ = 0;
     bool awaiting_ = false;
 };
@@ -237,9 +197,9 @@ public:
 
     /// A ROOM GRANTED: the projection goes with the old room, so no press is read against rows no
     /// longer shown; the selected identity stays, and the Manager is asked again.
-    void grant(Voice voice, const workshop::PaneRoom& room) {
+    void grant(Voice voice) {
         view_ = LoadedView{};
-        ask(voice, room, loom::kManagerRole, loom::ListLoaded{});
+        ask(voice, loom::kManagerRole, loom::ListLoaded{});
     }
 
     /// The Manager's answer, matched on the correlation this office minted and an open question --
@@ -293,17 +253,15 @@ public:
         if (awaiting() || !std::isfinite(dy)) {
             return;
         }
-        wheel_ += std::clamp(dy, -1000.0, 1000.0);
-        const auto steps = static_cast<std::int64_t>(wheel_);
-        wheel_ -= static_cast<double>(steps);
+        const std::int64_t steps =
+            component::take_wheel_notches(wheel_, std::clamp(dy, -1000.0, 1000.0));
         const auto next = std::clamp(origin_ - steps, std::int64_t{0},
                                      std::max(std::int64_t{0}, total_ - 1));
         if (next == origin_) {
             return;
         }
         origin_ = next;
-        ask(voice, workshop::PaneRoom{kLoadedPane, rows(), columns()}, loom::kManagerRole,
-            loom::ListLoaded{});
+        ask(voice, loom::kManagerRole, loom::ListLoaded{});
     }
 
     /// Escape's default: the chosen row is let go and the pane repainted; false when there was
@@ -357,8 +315,8 @@ public:
                                          kArrangementPaneSummary, 9, 64};
     }
 
-    void grant(Voice voice, const workshop::PaneRoom& room) {
-        ask(voice, room, workshop::kArrangementRole, workshop::ArrangementRequested{});
+    void grant(Voice voice) {
+        ask(voice, workshop::kArrangementRole, workshop::ArrangementRequested{});
     }
 
     /// The host's answer about its arrangement, in either version -- version 2 carries every row's
@@ -421,11 +379,10 @@ public:
     /// nothing to derive a view from or read a press against. What the weaver authored survives --
     /// the view, the query, the filter, both selections and the retained sample -- and the search
     /// they make is asked again, with the selected power's description.
-    void grant(Voice voice, const workshop::PaneRoom& room) {
+    void grant(Voice voice) {
         ui_.reading = workshop::PowersFound{};
         ui_.read = false;
         shown_ = PowersView{};
-        take_room(room);
         ask_powers(voice);
         ask_described(voice);
     }
@@ -557,12 +514,10 @@ public:
 
     /// The wheel walks the cursor a row a notch; fractional notches wait until they are worth one.
     void wheel(Voice voice, double dy) {
-        wheel_ += dy;
-        const std::int64_t steps = static_cast<std::int64_t>(wheel_);
+        const std::int64_t steps = component::take_wheel_notches(wheel_, dy);
         if (steps == 0) {
             return;
         }
-        wheel_ -= static_cast<double>(steps);
         const std::string was = ui_.selected();
         move_cursor(ui_, -steps);
         if (ui_.selected() == was) {
