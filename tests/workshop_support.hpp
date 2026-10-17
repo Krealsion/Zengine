@@ -1957,6 +1957,8 @@ inline DoorHand& door_hand(Rig& t) {
                             kWorkshopProvider);
         grant.allow_to_role(InspectPaneRequested::zen_name, InspectPaneRequested::zen_version,
                             kWorkshopProvider);
+        grant.allow_to_role(InspectPaneRequested::zen_name, InspectPaneRequested::zen_version,
+                            kInfoPaneProvider);
         grant.allow_to_role(PaneCommitRequested::zen_name, PaneCommitRequested::zen_version,
                             kWorkshopProvider);
         t.hand_id =
@@ -2029,6 +2031,23 @@ inline PaneSubjectActed hand_inspect(Rig& t, const PaneRef& ref) {
                                               loom::WeaveId{}, 0));
     t.bus.drain_until_idle();
     REQUIRE_MESSAGE(h.acted.size() == before + 1, "the inspection door did not answer");
+    return h.acted.back();
+}
+
+/// ...OR ASK INFO TO INSPECT IT, as the Pane Manager's `inspect in Info` row does: Info's own
+/// inspect, which a live draft there holds back, answered with what came of it.
+template <class Rig>
+inline PaneSubjectActed hand_inspect_in_info(Rig& t, const PaneRef& ref) {
+    DoorHand& h = door_hand(t);
+    const std::size_t before = h.acted.size();
+    h.next = [ref](DoorHand&, loom::Mail& m) {
+        (void)m.as_role(DoorHand::kOffice)
+            .send_to_role(kInfoPaneProvider, InspectPaneRequested{ref.provider, ref.pane});
+    };
+    (void)t.bus.send(t.hand_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{},
+                                              loom::WeaveId{}, 0));
+    t.bus.drain_until_idle();
+    REQUIRE_MESSAGE(h.acted.size() == before + 1, "Info did not answer the inspect it was asked");
     return h.acted.back();
 }
 

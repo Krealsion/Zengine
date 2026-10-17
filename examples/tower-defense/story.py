@@ -739,7 +739,8 @@ def s_toolbox(st):
     file them in a folder, bind them to keys in a portable row, and save the toolbox."""
     tb = load(STORY / "toolbox.json")
     st.act("toolbox-layout", [{"into": ["td.game", "td", "TOWER DEFENSE"]}, {"press": "escape"},
-                              {"press": "="}, {"expect": ["zengine.info", "info", "PANES"], "seconds": 5}])
+                              {"press": "="},
+                              {"desk": ["zengine.info", "info"], "is": {"state": "open"}, "seconds": 5}])
     st.arrange("toolbox", load(STORY / "workspace.json")["toolbox"])
     steps = [{"click": ["zengine.introspection", "loaded", tb["compose"]["weave"]]},
              {"expect": ["zengine.composer", "compose", tb["compose"]["shape"]], "seconds": 10},

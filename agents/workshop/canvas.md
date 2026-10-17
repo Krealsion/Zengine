@@ -190,8 +190,8 @@ medium's own ground beneath them, as a prose body does, in a window and in a ter
 prose, its presses reach nothing there, and Return still opens"
 `tests/test_workshop_panes_input.cpp` "a host that grants Compose no canvas is shown its rows and
 caret as prose, its presses reach nothing there, and its keys still compose"
-`tests/test_workshop_panes_info.cpp` "a host that grants Info no canvas is shown its lists and a
-draft's caret as prose, its presses reach nothing there, and its keys still inspect and edit"
+`tests/test_workshop_panes_info.cpp` "a host that grants Info no canvas is shown its properties
+and a draft's caret as prose, its presses reach nothing there, and its keys still move and edit"
 `tests/test_workshop_inventory_info.cpp` "a host that grants Inventory no canvas is shown its rows
 and a name line's caret as prose, its presses reach nothing there, and its keys still act"
 `tests/test_workshop_panes_editor.cpp` "a host that grants the Editor no canvas is shown its rows

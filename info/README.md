@@ -1,18 +1,18 @@
 # Info
 
-**A Workshop pane for looking closely at things: the panes on your desk and their properties, and
+**A Workshop pane for looking closely at things: the properties of a pane on your desk, and
 typed values kept in Inventory. Several Info views can stay open at once, and nothing you do
 elsewhere replaces what one shows.**
 
-The default view lists your panes and shows the properties of the one you pick, where you can
-change them. More views each hold one value, such as a captured sample, an unfinished
-command or a stored note: edit it, save it or a copy, watch it for changes, ask a sample's
-source for a fresh one, or fill one of its fields by dragging a field from another view.
+The default view shows the properties of the pane you pick with `inspect in Info` in the Pane
+Manager, where you can change them. More views each hold one value, such as a captured sample, an
+unfinished command or a stored note: edit it, save it or a copy, watch it for changes, ask a
+sample's source for a fresh one, or fill one of its fields by dragging a field from another view.
 
 ## Pages
 
-- [`zengine.info` -- Info](docs/zengine.info.md): the manual -- every command of the lists, a
-  property draft and a value view, what each says, and what the pane shows
+- [`zengine.info` -- Info](docs/zengine.info.md): the manual -- every command of the properties,
+  a property draft and a value view, what each says, and what the pane shows
 - [Independent Info views and the inspection workbench](docs/info-views.md): one story through
   several views at once, on a ready-made set of values to try it with
 
@@ -23,6 +23,7 @@ source for a fresh one, or fill one of its fields by dragging a field from anoth
 | | |
 |---|---|
 | `pane.cpp` | the pane itself, built as a weave Workshop loads (`zengine-info-pane`) |
+| `property_view.hpp` | the default view's pane properties: the pane inspected, its rows, and a property you are changing |
 | `value_view.hpp` | one value view: the value it holds, your unsaved edits, and what it is waiting for |
 | `value_watch.hpp` | a value view's watch: Workshop's permission to keep reading a linked entry, and how it ends |
 | `value_picture.hpp` | how a value view is drawn: its rows, buttons and field list, fitted to the room it has |
