@@ -77,16 +77,16 @@ WHY — `agents/decisions/a-setting-is-a-typed-value-its-row-keeps.md`
 ## Proven by
 
 ### WL-TERM-12
-`terminal/pane.cpp` recallable recall composing_nothing cancel_recall show_recalled history_heading
-Recall
+`terminal/pane.cpp` composing_nothing Recall
+`terminal/history_and_completion.hpp` recallable recall cancel_recall show_recalled history_heading
 `tests/test_workshop_panes_terminal.cpp` "history says where its ends are and past the newest is the
 line before the recall" "Escape on a recalled line goes back to the line before the recall and keeps
 the keys" "a command being composed keeps Up and Down for its completion list and its draft is
 untouched" "history is the participant's commands only and eviction bounds it"
 
 ### WL-TERM-13
-`terminal/pane.cpp` settle_recall moved offer_applies ask_completion on(PaneActionRequested)
-on(TerminalCompletionOffered)
+`terminal/pane.cpp` on(PaneActionRequested) on(TerminalCompletionOffered)
+`terminal/history_and_completion.hpp` settle_recall moved offer_applies ask_completion
 `tests/test_workshop_panes_terminal.cpp` "on an empty line Up Up Enter leaves the older command
 ready to edit and runs nothing until the next Enter runs it" "Tab on a recalled line locks it in
 with no candidate taken and no list asked and the next two Tabs ask and then accept" "any other key
@@ -97,7 +97,8 @@ completion answer asked before a recall is neither shown on the recalled line no
 though the bytes match"
 
 ### WL-TERM-14
-`terminal/pane.cpp` wrap_record WrappedRecord view_top scroll page Reading wheel press
+`terminal/pane.cpp` Reading wheel press
+`terminal/view.hpp` wrap_record WrappedRecord view_top scroll page
 `terminal/vocabulary.hpp` kActionScrollUp kActionScrollDown kActionOldest kActionNewest
 `tests/test_workshop_panes_terminal.cpp` "a long entry is read whole by scrolling and no row of it
 is clipped for good" "new output leaves a scrolled view where it is and counts itself below while a
@@ -108,7 +109,7 @@ submit away" "a resize re-wraps under the entry being read and the line and its 
 and the line as they were"
 
 ### WL-TERM-15
-`terminal/pane.cpp` omission_text below_text say
+`terminal/view.hpp` omission_text below_text say
 `tests/test_workshop_panes_terminal.cpp` "the pane says what it is not showing, in the two senses
 that differ" "a view scrolled into the middle says the rows above at its top and the rows below at
 its bottom" "when the entry being read is evicted the view moves to the oldest kept and says why"
@@ -117,7 +118,8 @@ composing"
 
 ### WL-TERM-19
 `terminal/pane.cpp` on(ws::PaneSettings) legend_setting offered legend_shown_ legend_problem_
-named_rows say
+named_rows
+`terminal/view.hpp` say
 `terminal/vocabulary.hpp` kSettingLegend
 `tests/test_workshop_panes_legend.cpp` "a layout keeps the Terminal's legend hidden while another
 shows it, written through Info's rows" "a Terminal seated again is handed its layout's legend before
