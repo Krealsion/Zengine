@@ -12,6 +12,7 @@
 #include "workshop_support.hpp"
 #include "census.hpp"
 #include "guest_hand.hpp"
+#include "window_stand_in.hpp"
 
 #include "files/vocabulary.hpp"
 #include "workshop/authoring.hpp"
@@ -888,6 +889,41 @@ TEST_CASE("WL-HAND-06: Files names its entries by name and its controls by opera
     parts = held_parts(f.r.session(), f.kind);
     REQUIRE(parts.count("entry:zulu.cpp") == 1);
     CHECK(parts.at("entry:zulu.cpp").row == zulu.row);
+
+    SUBCASE("in a graphics window, under the same names, a press selects an entry and never "
+            "activates it, since Workshop reported no keys there; its control does, and an open "
+            "Workshop must approve is refused, since no Workshop gesture made the press") {
+        const char* area = files::kFilesRole;
+        zengine::testing::WindowStandIn window(f.r.bus);
+        window.room(area, 160 * zengine::graphics::kCellPx, 48 * zengine::graphics::kCellPx);
+        REQUIRE_FALSE(window.seat().drawn.empty());
+        CHECK(window.seat().refused.empty());
+        const auto window_says = [&](const std::string& words) {
+            for (const std::string& row : window.shown(area)) {
+                if (row.find(words) != std::string::npos) return true;
+            }
+            return false;
+        };
+        CHECK(window.action_at(area, zulu.row, 2) == "entry:zulu.cpp");
+        // THE SELECTED FILE, PRESSED AGAIN: still only selected, and nothing asked.
+        REQUIRE(window.press(area, "zulu.cpp"));
+        CHECK(f.at_cursor().find("zulu.cpp") != std::string::npos);
+        CHECK_FALSE(any_row(f.shown(), "needs a current attributed input gesture"));
+        // ...ITS CONTROL OPENS IT, and the open is refused in Workshop's words.
+        REQUIRE(window.press(area, "[open]"));
+        CHECK(any_row(f.shown(), "needs a current attributed input gesture"));
+        CHECK(window_says("needs a current attributed input gesture"));
+        // A DIRECTORY: a press selects it, a second press does not walk in, and its control does.
+        REQUIRE(window.press(area, "src/"));
+        CHECK(f.at_cursor().rfind("src/", 0) == 0);
+        CHECK(window_says("> src/"));
+        REQUIRE(window.press(area, "src/"));
+        CHECK(any_row(f.shown(), "zulu.cpp"));
+        REQUIRE(window.press(area, "[enter]"));
+        CHECK_FALSE(any_row(f.shown(), "zulu.cpp"));
+        CHECK_FALSE(window_says("zulu.cpp"));
+        CHECK(window.seat().refused.empty());
+    }
 }
 
 TEST_CASE("the wheel moves the cursor, and a header press names no entry") {

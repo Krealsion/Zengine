@@ -7,10 +7,12 @@
 #include "workshop_support.hpp"
 #include "census.hpp"
 #include "office_manual.hpp"
+#include "window_stand_in.hpp"
 #include "external-host/demo-control/control.hpp"
 
 namespace {
 namespace demo = zengine::demo;
+namespace gfx = zengine::graphics;
 struct DemoTestPump { ZEN_SHAPE(DemoTestPump, 1); };
 class DemoHand final : public loom::WeaveBase<DemoHand, DemoTestPump,
     loom::Accept<DemoTestPump, loom::Ack, loom::Refused, demo::DemoWork, demo::DemoStatus,
@@ -20,7 +22,8 @@ class DemoHand final : public loom::WeaveBase<DemoHand, DemoTestPump,
                demo::DemoWorkFinished, demo::DemoResetRequested, demo::DemoReadyRequested,
                demo::DemoStatusRequested, PanePressed, PaneRoom, PaneCanvasRoom, PaneCanvasPointer,
                SetupApplyRequested,
-               v2::PaneOffered, PaneActionRequested, PaneCatalogRequested>> {
+               v2::PaneOffered, PaneActionRequested, PaneCatalogRequested,
+               gfx::ActionRequested>> {
 public:
     std::function<void(loom::Mail&)> action;
     std::vector<demo::DemoWork> work;
@@ -221,6 +224,45 @@ TEST_CASE("demo button trusts Workshop and service close settles outstanding wai
 }
 
 TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state beneath it") {
+    SUBCASE("rows drawn for a graphics window ask, cell by cell, for the part a press there "
+            "reaches: a control inside a named row is its own, and an unnamed run is no part") {
+        namespace surface = zengine::surface;
+        const std::vector<surface::SurfaceTextRow> rows{
+            {"[a] one   [x] [y]", surface::role::kFill}, {"plain", surface::role::kMuted}};
+        // IN THE ORDER A PRESS READS THEM: the row entire, then the runs inside it.
+        const std::vector<v2::PaneRowPart> parts{{"entry:one", 0, 0, 20, true},
+                                                 {"control:a", 0, 0, 3, true},
+                                                 {"control:x", 0, 10, 3, true},
+                                                 {"", 0, 14, 3, true}};
+        gfx::Sketch sketch;
+        const std::vector<SketchedPart> landed = rows_sketch(rows, parts, sketch);
+        zengine::component::RowMap<DrawnPart> map;
+        const std::vector<surface::SurfaceTextRow> shown = drawn_rows(sketch, 2, 20, map);
+        REQUIRE(shown.size() == 2);
+        CHECK(shown[0].text.rfind("[a] one   [x] [y]", 0) == 0);
+        CHECK(shown[1].text == "plain");
+        const auto asks = [&](std::int64_t column) {
+            const DrawnPart* part = map.at(0, column);
+            return part == nullptr ? std::string() : part->action;
+        };
+        for (std::int64_t c = 0; c < 20; ++c) {
+            CAPTURE(c);
+            const char* want = c < 3 ? "control:a"
+                               : c >= 10 && c < 13 ? "control:x"
+                               : c >= 14 && c < 17 ? ""
+                                                   : "entry:one";
+            CHECK(asks(c) == want);
+        }
+        CHECK(map.at(1, 0) == nullptr);
+        // ...AND A PRESS ON EACH LANDS ON A CELL IT OWNS, never on a run inside it.
+        REQUIRE(landed.size() == 3);
+        CHECK(landed[0].name == "control:a");
+        CHECK(landed[0].column == 0);
+        CHECK(landed[1].name == "entry:one");
+        CHECK(landed[1].column == 3);
+        CHECK(landed[2].name == "control:x");
+        CHECK(landed[2].column == 10);
+    }
     DemoRig r; r.ready();
     // ON ITS CANVAS, the picture Workshop shows: each name over the row it names.
     r.desk.say(demo::kRole, demo_room, "zengine.workshop");
@@ -256,6 +298,64 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
     CHECK(said.rows[static_cast<std::size_t>(said.parts[0].row)].text.find("Reset demo") != std::string::npos);
     CHECK(said.parts[1].name == "status");
     CHECK(row_parts_problem(said.parts, static_cast<std::int64_t>(said.rows.size()), 56).empty());
+
+    SUBCASE("in a graphics window, the same lines under the same names, and the window's press on "
+            "the button resets") {
+        // A WINDOW'S ROOM, the pane seated nowhere: its three lines, drawn whole.
+        DemoRig w; w.ready();
+        zengine::testing::WindowStandIn window(w.bus);
+        window.room(demo::kRole, 480, 120); // 40 cells by 10
+        REQUIRE(window.seat().drawn.size() == 1);
+        CHECK(window.seat().drawn[0].whole);
+        CHECK(window.seat().refused.empty());
+        std::vector<std::string> shown = window.shown(demo::kRole);
+        REQUIRE(shown.size() == 3);
+        CHECK(shown[0] == "Example");
+        CHECK(shown[1] == "[ Reset demo ]");
+        CHECK(shown[2] == "ready: ready");
+        CHECK(window.action_at(demo::kRole, 1, 3) == "reset");
+        CHECK(window.action_at(demo::kRole, 0, 0).empty());
+        CHECK(window.action_at(demo::kRole, 2, 0).empty());
+        CHECK(w.desk.hand->pictures.empty()); // Workshop seats it nowhere, so is shown nothing
+        CHECK(w.desk.hand->painted.empty());
+
+        // THE PRESS THERE ASKS `reset`, which resets as Workshop's press does, and the window is
+        // sent only the line that changed.
+        w.worker.say(demo::kRole, demo::DemoWorkRequested{});
+        REQUIRE(w.worker.hand->work.size() == 1);
+        REQUIRE(window.press(demo::kRole, "Reset demo"));
+        REQUIRE(w.worker.hand->work.size() == 2);
+        CHECK(w.worker.hand->work.back().generation == 2);
+        const gfx::Drawn& change = window.seat().drawn.back();
+        CHECK_FALSE(change.whole);
+        REQUIRE(change.put.size() == 1);
+        CHECK(change.put[0].path == "status");
+        CHECK(window.shown(demo::kRole)[2] == "working: Resetting demo");
+
+        // ...AND ONLY THE WINDOW'S OWN WORD, FOR AN ACTION ITS PICTURE NAMES, IS A PRESS: the same
+        // action from anyone else, and one the picture does not name, do nothing.
+        w.worker.say(demo::kRole, demo::DemoWorkFinished{2, true, "ready again"});
+        w.worker.say(demo::kRole, demo::DemoWorkRequested{});
+        const std::size_t drawings = window.seat().drawn.size();
+        w.visitor.say(demo::kRole, gfx::ActionRequested{demo::kRole, "reset"});
+        window.ask(demo::kRole, "status");
+        window.ask(demo::kRole, "control:reset");
+        CHECK(w.worker.hand->work.size() == 2);
+        CHECK(window.seat().drawn.size() == drawings);
+
+        // A REFUSED DRAWING LEAVES THE WINDOW AS IT WAS, and the next goes whole.
+        window.refuse(demo::kRole, "the suite refuses it");
+        REQUIRE(window.press(demo::kRole, "Reset demo"));
+        REQUIRE(w.worker.hand->work.size() == 3);
+        CHECK(window.seat().drawn.back().whole);
+        CHECK(window.shown(demo::kRole)[2] == "working: Resetting demo");
+
+        // A ROOM OF ONE ROW: the name alone, and no part recorded for a line not drawn.
+        window.room(demo::kRole, 480, 12, 2);
+        CHECK(window.seat().drawn.back().whole);
+        CHECK(window.seat().refused.empty());
+        CHECK(window.shown(demo::kRole) == std::vector<std::string>{"Example"});
+    }
 }
 
 TEST_CASE("demo ready wait before attachment completes once after the initial preparation") {
