@@ -4,8 +4,8 @@ A **view** is a small pane described as data rather than written in C++: its siz
 elements placed inside it in whole pixels, the fields its labels show, and the intents its
 buttons say. The view host
 registers each running view as a participant of its own, and the view renderer draws it on its
-pane's canvas. A view is made and run in the [View Builder](zengine.view.builder.md); this
-page is the contract beneath it.
+pane's canvas and in a graphics window. A view is made and run in the
+[View Builder](zengine.view.builder.md); this page is the contract beneath it.
 
 ## The description
 
@@ -43,18 +43,21 @@ bus. A participant asks it, as its office or as itself:
 |---|---|
 | `ViewRun{session, description}` | registers the view as a participant of its own, holding its name as its office, and tells it to offer its pane |
 | `ViewApply{session, description}` | the same name and shapes: adopted in place, the field text, focus and told values kept. Any other change: registered afresh, and `fresh` says so. The successor registers while the running view still runs, which retires only once it stands; a successor Loom refuses (a changed intent at the same name and version, say) changes nothing, and the answer says why. A rename counts as one view against `view::kMaxViews` |
-| `ViewStop{session}` | the view's last picture says it stopped, then the participant is unregistered; Workshop, seeing its provider gone, then shows the pane waiting for one |
+| `ViewStop{session}` | the view's last picture says it stopped, in Workshop and in the window that shows its area, then the participant is unregistered; Workshop, seeing its provider gone, then shows the pane waiting for one |
 
 `ViewAnswer{session, action, ok, reason, office, fresh}` is the one answer. A session belongs to
 the office that asked, or to the asker's bus identity, and a host runs at most `view::kMaxViews`.
-A view's grant is `view::view_grant(description)`: each intent to any accepter, and its pane
-conversation to `zengine.workshop` alone. It is derived from the description, never from the
-asker's grant or from the host's trust in its plan artifacts.
+A view's grant is `view::view_grant(description)`: each intent to any accepter, its pane
+conversation to `zengine.workshop` alone, and its drawing to a graphics window, which takes an
+area's drawing only from that area's owner, with the ask for its room to `zengine.graphics` alone.
+It is derived from the description, never from the asker's grant or from the host's trust in its
+plan artifacts.
 
 ## The view renderer
 
-`view::View` is the participant's behaviour. It accepts the shapes its labels show, `zen.Refused`
-and the pane conversation; it emits its intents and that conversation, its actions among it.
+`view::View` is the participant's behaviour. It accepts the shapes its labels show, `zen.Refused`,
+the pane conversation and a graphics window's; it emits its intents and those conversations, its
+actions among them.
 
 - It offers one pane, `view`, as its office, asking for its size in canvas pixels, never more
   than `workshop::kMaxPaneBodyPx` of either, and its notice rows of text beneath
@@ -88,8 +91,33 @@ and the pane conversation; it emits its intents and that conversation, its actio
   intent's correlation) is shown on its notice row; what it was told stays as it was. Anyone
   else's refusal, whatever correlation it carries, is not.
 - A prose room, from a host with no canvas, gets one row saying the view needs a canvas.
+- In a [graphics window](../../graphics/docs/graphics.md) whose area bears the view's name, it
+  draws the same picture. It asks its area's room when it starts (`graphics::RoomAsked`) and
+  draws in the room a window gives (`graphics::AreaRoom`) as a terminal does,
+  `graphics::kCellPx` pixels to a character (`view::sketch`): each rectangle and run of text a
+  node named by what drew it -- `ground`, `box:<id>`, `text:<id>`, and `notice` for the notice's
+  lines -- and each button's nodes asking its id. A press there (`graphics::ActionRequested`) on a
+  button the picture last sent there names uses it as a press in Workshop does. A change is sent
+  as what changed; a new window, incarnation or size gets the picture whole, a refused change is
+  sent again whole, and a refused whole drawing is said on the notice row. A caret is Workshop's.
 
 `view::picture(description, told, presentation, room, number)` is the one drawing of a view and
 is pure. The View Builder draws its design canvas with it too, in a room exactly the view's
 size and its notice rows, so a view is designed in the very picture it runs in, at its own
-pixels.
+pixels, and a graphics window is sent that picture through `view::sketch`.
+
+## A presenter
+
+`view::Presenter` is an owner's side of a view, for code in the process that runs it. `tell`
+gives the view a value of a shape its labels show, and `set(field, text)` reads `text` as that
+field's kind and tells the latest value of each shape a label shows it from; each answers why not,
+in words, when it cannot. `on_action(id, code)` runs code when the button `id` is used, in
+Workshop or in the window, before any intent the button says, so a button with no intent is the
+presenter's alone; code that throws is said on the notice row, and nothing is published.
+
+`view::Host::pair(name, presenter)` pairs a presenter with the view running under `name` and any
+registered afresh under it, and a null presenter unpairs it; `refresh(bus)`, from host code, has
+the view draw what the presenter told outside a press. A presenter holds code, so it never crosses
+into another participant: a loadable weave tells a view by its shapes and hears its intents, or
+keeps a presenter of its own description, drawing `Presenter::sketch` into the
+`graphics::Canvas` it keeps and answering a press there with `Presenter::act`.

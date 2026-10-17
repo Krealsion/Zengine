@@ -21,8 +21,10 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
   description is pure data and its participant publishes, so a name outside its namespace could
   speak for another participant. A label may show any scalar field of any shape: a view listens.
 - `view::Host` registers each view as its own participant, holding the view's name as its office,
-  granted `view::view_grant` alone: its intents to any accepter, and the pane conversation to
-  Workshop's office. Never `trust_every_artifact`, an allow-any, or the builder's grant.
+  granted `view::view_grant` alone: its intents to any accepter, the pane conversation to
+  Workshop's office, its drawing to any window (a window takes an area's drawing only from the
+  area's owner) and the ask for its room to the graphics directory. Never `trust_every_artifact`,
+  an allow-any, or the builder's grant.
 - Loom fixes a participant's accept-set and emit-set at registration. A change at the same name
   and shapes (`view::same_shapes`) is adopted in place, keeping field text, focus and what the
   view was told; any other change is a fresh registration, and the answer says so.
@@ -31,9 +33,10 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
   answer says why. At the same name the successor is registered unbound, sealed to the host's
   office and given the office by `commit_candidate`, with no delivery between; then the old view
   is removed. Renamed, the old view stops. The bound counts the pair as one view.
-- A stop queues the view's last picture as its office while it still holds it, then retires the
-  participant behind that delivery: the pane says the view stopped until Workshop sees the
-  provider gone and shows it waiting for one (WL-CANVAS-02). Neither picture has a control.
+- A stop queues the view's last picture as its office while it still holds it, to Workshop and,
+  drawn whole, to the window that shows its area, then retires the participant behind that
+  delivery: the pane says the view stopped until Workshop sees the provider gone and shows it
+  waiting for one (WL-CANVAS-02). No such picture has a control.
 - `view::View` keeps only presentation: field text, focus, caret, its notice, and the latest value
   of each shape it was told. It calls nothing current that it was not told: a label it was never
   told says `waiting`. An intent is published as the participant, by shape: whoever accepts it
@@ -57,6 +60,21 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
   moved there whole from a cell boundary less the pan, by whole grains, so the lattice holds on
   both media and what is designed is what runs. Nothing of the view is drawn outside the design
   area. Over it the builder draws marks alone, never an element.
+- A graphics window is sent that picture too: `view::sketch` sets it, drawn in the window's room as
+  a terminal draws it, as nodes named by what drew them (`box:<id>`, `text:<id>`) with no `/`, so
+  none waits for a parent, each button's nodes recorded with its id as their action. The view's
+  area is its name, its room is the window's word alone (`AreaRoom`, as that window's office), and
+  what changed goes as a change through `graphics::Canvas`. A refused change goes whole at once; a
+  refused whole drawing is said on the notice row and draws nothing more until the next change, so
+  a window that keeps refusing starts no loop. A window's press uses a button only when the
+  picture last sent there names it.
+- `view::Presenter` is an owner's side of a view in the view's own process: what it tells or `set`s
+  is taken as told, and its code for a button runs before the button's intent, a throw said on the
+  notice row and nothing published. `Host::pair` pairs it by name with the running view and with
+  any registered afresh under that name; a replacement that cannot register leaves it with the
+  view that runs. It holds code, so it never crosses a participant boundary: a loadable weave
+  reaches a view by its shapes and intents, or keeps a presenter of its own description and draws
+  it into its own `graphics::Canvas` (`Presenter::sketch`, `Presenter::act`).
 - Workshop composes the host beside the Flow host and holds no view behaviour. The View Builder
   is an ordinary pane in `zengine.view.builder`: it edits a description through
   `view_builder::Model`, every edit whole or refused whole, and asks the host to run, apply and
@@ -109,8 +127,10 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
   control in the values column (Remove, Unshow, an intent's box) is drawn whole inside it: the
   words before it give way, cut to end in `...`.
 - `tests/test_view.cpp` witnesses the format, the rules, registration and grant, publication,
-  refusal, in-place and fresh apply, a replacement that cannot register, stop, and the terminal
-  picture; `tests/test_view_builder.cpp` the one renderer, the palette, the drags, the snap,
+  refusal, in-place and fresh apply, a replacement that cannot register, stop, the terminal
+  picture, the picture in a window, its changes, refusals and presses, and the presenter, against
+  a window that admits by the window's own judge (`graphics/window/store.hpp`);
+  `tests/test_view_builder.cpp` the one renderer, the palette, the drags, the snap,
   the side handles, the pan, the size, nothing outside it, the grid, the boxes, the marks and the
   terminal floor, the run again at a launch, and the launch record across a reload, a failed
   write and a missing view file; `tests/test_view.cpp` also the size, a version 1 description, a
