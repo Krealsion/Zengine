@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Workshop panes suite -- what is true right now, as a loaded weave: the Info pane's PANES
-// and PROPERTIES columns, driven through the real `zengine-info-pane` image over the real pane
+// The Workshop panes suite -- what is true right now, as a loaded weave: the Info pane's
+// pane-property view, driven through the real `zengine-info-pane` image over the real pane
 // protocol against the host's real publications. The desk already names this pane, so its offer
-// resolves a row that was there. It is shown a picture of the host's rows over the pane it named
-// and asks back through two shapes, so cases drive the HOST and read what the PANE made of it;
-// most edit the Layouts pane's Width, a built-in whose room does not move this pane's.
+// resolves a row that was there. An office asks it to inspect a pane, as the Pane Manager does; it
+// is shown the host's rows over that pane and asks back through two shapes, so cases drive the HOST
+// and read what the PANE made of it; most edit the Layouts pane's Width, whose room is not Info's.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
@@ -33,8 +33,8 @@ inline PaneRef pane_info_ref() { return PaneRef{pane::kInfoPaneRole, pane::kInfo
 /// THE SUBJECT MOST CASES EDIT: the host's own Layouts pane, on every desk.
 inline PaneRef layouts_ref() { return pane_ref_of(pane_kind::kLayouts); }
 
-const std::vector<std::string> kResting{pane::kActionDown, pane::kActionEdit, pane::kActionSwitch,
-                                        pane::kActionUp, pane::kActionViewNew};
+const std::vector<std::string> kResting{pane::kActionDown, pane::kActionEdit, pane::kActionUp,
+                                        pane::kActionViewNew};
 const std::vector<std::string> kDrafting{pane::kActionCancel, pane::kActionCommit};
 
 /// A LIVE WORKSHOP WITH THE REAL INFO PANE LOADED INTO IT.
@@ -82,7 +82,7 @@ struct InfoRig {
     }
 
     /// PRESS INTO THE PANE: its rows are active only while it holds the keyboard. The first body
-    /// row is the `PANES` heading, or a sentence in front of it -- a row that means nothing.
+    /// row is the heading, or a sentence in front of it -- a row that means nothing.
     void focus() {
         const ui::Rect body = external_body_rect(r.session(), kind);
         r.press_cell(body.x, body.y);
@@ -118,30 +118,30 @@ struct InfoRig {
         return -1;
     }
 
-    /// THE ROW ONE PANE OF THE LIST IS PAINTED ON: a cursor mark, a subject mark, the name.
-    std::int64_t pane_row(const std::string& name) {
-        const std::vector<std::string> rows = shown();
-        const std::string want = name + " -- ";
-        for (std::size_t i = 0; i < rows.size(); ++i) {
-            if (rows[i].size() > 2 && rows[i].compare(2, want.size(), want) == 0) {
-                return static_cast<std::int64_t>(i);
-            }
-        }
-        return -1;
-    }
+    /// AN OFFICE ASKS THIS PANE TO INSPECT `ref`, as the Pane Manager's `inspect in Info` row
+    /// does, and is answered what came of it.
+    PaneSubjectActed ask_inspect(const PaneRef& ref) { return hand_inspect_in_info(r, ref); }
 
-    void press_pane_row(const std::string& name) {
-        const std::int64_t at = pane_row(name);
-        REQUIRE_MESSAGE(at >= 0, "no pane row for ", name, " in:\n", text());
-        press_pane(r, kind, at, 3);
-    }
-
-    /// NAME A PANE AS THE SUBJECT the way a weaver does: into the pane, a press on its row.
-    void inspect(const std::string& name) {
+    /// NAME A PANE AS THE SUBJECT the way a weaver does -- the Pane Manager asks this pane -- with
+    /// the keys pressed into the pane first, so the case's keys act on its rows.
+    void inspect(const PaneRef& ref) {
         focus();
-        press_pane_row(name);
-        REQUIRE_MESSAGE(picture().name == name, text());
+        const PaneSubjectActed said = ask_inspect(ref);
+        REQUIRE_MESSAGE(said.accepted, said.refusal);
+        REQUIRE_MESSAGE(r.session().inspected.ref == ref, text());
     }
+
+    /// ...QUEUED AND NOT DRAINED, so a case places the ask in a burst as `enqueue_action` places a
+    /// key; the office's answer reaches the rig's hand.
+    void enqueue_inspect(const PaneRef& ref) {
+        (void)door_hand(r);
+        const loom::Ticket sent = r.bus.office_send_to_role_as(
+            r.hand_id, DoorHand::kOffice, pane::kInfoPaneRole,
+            loom::Message(loom::to_value(InspectPaneRequested{ref.provider, ref.pane}), r.hand_id,
+                          r.hand_id, ++inspects_));
+        REQUIRE(sent.valid());
+    }
+    std::uint64_t inspects_ = 0;
 
     /// THE HOST'S LAST PICTURE OF THE SUBJECT -- what the pane was told, so a case asks the seam
     /// which rows are the weaver's rather than counting on an order.
@@ -187,8 +187,8 @@ struct InfoRig {
 
     /// OPEN A DRAFT ON ONE PROPERTY OF `subject`, the way a weaver does: the pane named, a press
     /// on the property's row, Return. The draft holds the property's value until the case types.
-    void draft_on(const std::string& label, const std::string& subject = "Layouts") {
-        if (r.said_subjects.empty() || picture().name != subject) {
+    void draft_on(const std::string& label, const PaneRef& subject = layouts_ref()) {
+        if (!(r.session().inspected.ref == subject)) {
             inspect(subject);
         } else {
             focus();
@@ -200,7 +200,7 @@ struct InfoRig {
 
     /// ...AND REPLACE WHAT IT HOLDS with `typed`.
     void draft_holding(const std::string& label, const std::string& typed,
-                       const std::string& subject = "Layouts") {
+                       const PaneRef& subject = layouts_ref()) {
         draft_on(label, subject);
         for (int i = 0; i < 16; ++i) {
             r.key(input::scan::kBackspace);
@@ -262,9 +262,9 @@ struct InfoRig {
     }
     bool wide_ = true;
 
-    /// A KEY, A PRESS OR TYPED TEXT QUEUED AND NOT DRAINED, so a case places a real gesture at an
-    /// exact interval of a conversation; `settle` drains. `r.key` and `r.text` drain, so a burst
-    /// built from them is several polls rather than one.
+    /// A KEY OR TYPED TEXT QUEUED AND NOT DRAINED, so a case places a real gesture at an exact
+    /// interval of a conversation; `settle` drains. `r.key` and `r.text` drain, so a burst built
+    /// from them is several polls rather than one.
     void enqueue_key(std::int64_t sc, std::int64_t mods = input::mod::kNone) {
         (void)r.bus.publish(loom::Message(loom::to_value(input::KeyPressed{sc, "", mods}),
                                           loom::WeaveId{}, loom::WeaveId{}, 0));
@@ -272,15 +272,6 @@ struct InfoRig {
     void enqueue_text(const std::string& typed) {
         (void)r.bus.publish(loom::Message(loom::to_value(input::TextEntered{typed}),
                                           loom::WeaveId{}, loom::WeaveId{}, 0));
-    }
-    void enqueue_press(std::int64_t at) {
-        const ui::Rect body = external_body_rect(r.session(), kind);
-        (void)r.bus.publish(loom::Message(
-            loom::to_value(input::PointerButton{1, true, body.x + 1,
-                                                body.y + kExternalHeaderRows + at +
-                                                    surface::kTuiCanvasTopRow,
-                                                input::space::kCells, input::mod::kNone}),
-            loom::WeaveId{}, loom::WeaveId{}, 0));
     }
     /// ...AND A PRESS ON THE BAND, queued: the keys leave the pane for command mode.
     void enqueue_unfocus() {
@@ -505,8 +496,7 @@ TEST_CASE("a Workshop with no Info OFFICE keeps the row and says so") {
 
 TEST_CASE("the pane declares the ids a weaver's keymap file already names") {
     // `info.up`, `info.down` and `info.edit` are the pane's, spelled as a keymap file names them,
-    // with their default gestures -- so an authored override keeps working. `info.switch` is the
-    // pane list's.
+    // with their default gestures -- so an authored override keeps working.
     InfoRig f;
     f.open();
     CHECK(f.declared() == kResting);
@@ -530,36 +520,31 @@ TEST_CASE("the pane declares the ids a weaver's keymap file already names") {
 }
 
 // ============================================================================
-// INFO-WEAVE — the two lists, said as rows
+// INFO-WEAVE — the properties, said as rows
 // ============================================================================
 
-TEST_CASE("the two headings and both lists are the pane's rows, over the host's "
-          "inventory and subject") {
+TEST_CASE("the heading and the subject's properties are the pane's rows, over the host's subject, "
+          "and the panes are the Pane Manager's to list") {
     InfoRig f;
     f.open();
     author_test_pane_room(f.r, f.kind, 35, 58);
     f.r.extent(161, 48);
-    const std::vector<CatalogRow> inventory =
-        inventory_rows(f.r.session().setup.active, f.r.session().panes);
-    REQUIRE(inventory.size() >= 2); // three while the host's Pane Manager was a built-in
 
+    // NOTHING IS INSPECTED UNTIL AN OFFICE NAMES SOMETHING, and the rows say so, first row first.
     std::string all = f.text();
-    CHECK(all.find("PANES -- " + std::to_string(inventory.size())) != std::string::npos);
-    // EVERY PANE OF THE ONE INVENTORY, BY ITS OWN NAME -- the host's reading, not a count.
-    for (const CatalogRow& row : inventory) {
-        INFO("pane ", row.name);
-        CHECK(f.pane_row(row.name) >= 0);
-    }
-    // NOTHING IS INSPECTED UNTIL THE WEAVER NAMES SOMETHING, and the rows say so.
-    CHECK(all.find("PROPERTIES") != std::string::npos);
+    CHECK(f.row_of("PROPERTIES") == 0);
     CHECK(all.find("(no subject") != std::string::npos);
+    // ...AND NO ROW LISTS THE DESK'S PANES: the Pane Manager does, and names Info's subject.
+    CHECK(all.find("PANES") == std::string::npos);
+    for (const CatalogRow& row : inventory_rows(f.r.session().setup.active, f.r.session().panes)) {
+        INFO("pane ", row.name);
+        CHECK(all.find(row.name + " -- ") == std::string::npos);
+    }
 
-    f.inspect("Layouts");
+    f.inspect(layouts_ref());
     all = f.text();
-    CHECK(all.find("PANE Layouts") != std::string::npos);
-    // ...AND THE SUBJECT IS MARKED IN THE LIST, which is the one thing the list says that the
-    // inventory does not.
-    CHECK(f.row_of(">*Layouts -- ") >= 0);
+    CHECK(f.row_of("PANE Layouts") == 0);
+    CHECK(all.find("PROPERTIES") == std::string::npos);
 
     // THE PROPERTIES ARE THE SUBJECT'S, in the host's own row order and with the host's own
     // values -- read back off the seam rather than composed here.
@@ -571,12 +556,27 @@ TEST_CASE("the two headings and both lists are the pane's rows, over the host's 
         INFO("property ", p.label);
         CHECK((f.row_of(" " + p.label) >= 0 || f.row_of(">" + p.label) >= 0));
     }
-    // ...AND EXACTLY ONE ROW WEARS THE KEYS' MARK: the list's, while the keys are in the list.
+    // ...AND EXACTLY ONE ROW WEARS THE CURSOR'S MARK: the property the keys move.
     std::size_t marked = 0;
     for (const std::string& row_text : f.shown()) {
         marked += (!row_text.empty() && row_text[0] == '>') ? 1u : 0u;
     }
     CHECK(marked == 1);
+    // THE HEADING SITS ON A GROUND, the row's own background, and no other row does.
+    const ExternalPane* seat = f.r.session().panes.external_pane(f.kind);
+    REQUIRE(seat != nullptr);
+    REQUIRE(shows_canvas(*seat));
+    const CanvasRows lattice = held_canvas_rows(*seat);
+    REQUIRE_FALSE(lattice.empty());
+    std::size_t grounded = 0;
+    for (const v2::PaneCanvasText& run : seat->canvas.content.texts) {
+        if (run.background == surface::role::kNone) continue;
+        ++grounded;
+        CHECK(run.y == lattice.y); // the heading's row, the lattice's first
+        CHECK(run.background == surface::role::kMuted);
+        CHECK(run.role == surface::role::kAccent);
+    }
+    CHECK(grounded == 1);
 }
 
 TEST_CASE("the picture is PUBLISHED, so a gesture that never touched the pane moves it") {
@@ -587,7 +587,7 @@ TEST_CASE("the picture is PUBLISHED, so a gesture that never touched the pane mo
     f.open();
     author_test_pane_room(f.r, f.kind, 35, 58);
     f.r.extent(161, 48);
-    f.inspect("Layouts");
+    f.inspect(layouts_ref());
     const std::int64_t named = f.picture().subject;
     const std::string window = f.picture().properties[f.property_index("Window")].value;
     const std::string painted = f.property_row("Window");
@@ -607,26 +607,27 @@ TEST_CASE("with nothing inspected, the properties say so and say what to do next
     // A PANE THAT MERELY GOES BLANK is indistinguishable from a tool that has broken.
     InfoRig f;
     f.open();
-    CHECK(f.text().find("(no subject") != std::string::npos);
-    // ...AND THE KEYS CANNOT BE SENT TO ROWS THAT DO NOT EXIST: said, not silently refused.
+    CHECK(f.row_of("(no subject -- 'inspect in Info' in the Pane Manager)") >= 0);
+    // ...AND RETURN HAS NO ROW TO OPEN A DRAFT ON: said, with where a subject is named, not
+    // silently refused.
     f.focus();
-    f.r.key(input::scan::kTab);
-    CHECK_MESSAGE(f.row_of("nothing is inspected") == 0, f.text());
+    f.r.key(input::scan::kReturn);
+    CHECK_MESSAGE(f.row_of("nothing is inspected yet -- choose 'inspect in Info'") == 0, f.text());
     CHECK(f.declared() == kResting);
+    CHECK_FALSE(f.r.session().inspected.addressed());
 }
 
 TEST_CASE("what the body cannot show, it counts -- on the side it left it out") {
     // THE OMISSION MARKERS, over a subject taller than the room. A list that silently stopped at
     // the last row it could draw would be a list a weaver cannot trust.
     InfoRig f;
-    f.open(160, 22); // the shortest room, so both lists are pressed
-    f.inspect("Layouts");
+    f.open(160, 22); // the shortest room, so the list is pressed
+    f.inspect(layouts_ref());
     std::string all = f.text();
     // THE CURSOR IS AT THE TOP, so what the window could not show is MORE, below.
     CHECK(all.find("... ") != std::string::npos);
     CHECK(all.find(" more") != std::string::npos);
     // ...AND WALKED TO THE BOTTOM, what it cannot show is EARLIER.
-    f.r.key(input::scan::kTab);
     for (int i = 0; i < 20; ++i) {
         f.r.key(input::scan::kDown);
     }
@@ -641,38 +642,50 @@ TEST_CASE("what the body cannot show, it counts -- on the side it left it out") 
 // INFO-WEAVE — the gestures, through the real seam
 // ============================================================================
 
-TEST_CASE("a press on a pane row inspects it, through the host's own door") {
+TEST_CASE("an office's ask inspects a pane through the host's own door, and the office is answered "
+          "what the host said") {
+    // THE PANE MANAGER'S `inspect in Info` ROW, AS AN OFFICE: it asks Info, and Info asks the host.
     InfoRig f;
     f.open();
     REQUIRE_FALSE(f.r.session().inspected.addressed());
-    f.focus();
-    f.press_pane_row("Layouts");
+    SubjectAskTap asks(f.r.bus, f.r.workshop_id);
+    const PaneSubjectActed said = f.ask_inspect(layouts_ref());
     // THE HOST HOLDS THE SUBJECT -- the pane asked and the host answered; nothing in the image can
     // name a subject for the host.
+    CHECK(said.accepted);
+    CHECK(asks.others == 1);
     CHECK(f.r.session().inspected.ref == layouts_ref());
     CHECK(f.picture().name == "Layouts");
-    CHECK(f.row_of(">*Layouts -- ") >= 0);
-    CHECK(f.text().find("PANE Layouts") != std::string::npos);
+    CHECK(f.row_of("PANE Layouts") == 0);
 
-    // ANOTHER PRESS NAMES ANOTHER PANE, UNDER ANOTHER NAME -- this pane itself included.
+    // ANOTHER ASK NAMES ANOTHER PANE, UNDER ANOTHER NAME -- this pane itself included.
     const std::int64_t first = f.picture().subject;
-    f.press_pane_row("Info");
+    CHECK(f.ask_inspect(pane_info_ref()).accepted);
     CHECK(f.r.session().inspected.ref == pane_info_ref());
     CHECK(f.picture().subject != first);
-    CHECK(f.row_of(">*Info -- ") >= 0);
+    CHECK(f.row_of("PANE Info") == 0);
+
+    // ...AND A PANE THE HOST WILL NOT INSPECT IS REFUSED IN ITS WORDS, TO THE OFFICE AND IN THE
+    // ROWS, with the subject where it was.
+    const PaneSubjectActed ghost = f.ask_inspect(PaneRef{"zengine.nowhere", "ghost"});
+    CHECK_FALSE(ghost.accepted);
+    CHECK(ghost.refusal.find("in neither this build's vocabulary nor this desk") != std::string::npos);
+    CHECK(f.row_of(ghost.refusal.substr(0, 20)) == 0);
+    CHECK(f.r.session().inspected.ref == pane_info_ref());
 }
 
 TEST_CASE("WL-HAND-06: Info names its panes by reference and its properties by label") {
     InfoRig f;
     f.open();
-    f.inspect("Layouts");
-    const std::string layouts = "pane:" + ref_text(layouts_ref());
-    const std::string info = "pane:" + ref_text(pane_info_ref());
+    f.inspect(layouts_ref());
     auto parts = held_parts(f.r.session(), f.kind);
-    REQUIRE(parts.count(layouts) == 1);
-    REQUIRE(parts.count(info) == 1);
-    CHECK(parts.at(layouts).row == f.pane_row("Layouts"));
-    CHECK(parts.at(info).row == f.pane_row("Info"));
+    // THE PANES ARE NAMED BY REFERENCE WHERE THEY ARE LISTED -- the Pane Manager's rows, never
+    // Info's: no row here is a pane's part, and the heading names nothing a hand acts on.
+    for (const auto& [name, part] : parts) {
+        INFO("part ", name);
+        CHECK(name.rfind("pane:", 0) != 0);
+        CHECK(part.row != f.row_of("PANE Layouts"));
+    }
     // EVERY PROPERTY THE SUBJECT SAYS, BY ITS LABEL, on the row that shows it; a section is no part.
     for (const ShownProperty& p : f.picture().properties) {
         CAPTURE(p.label);
@@ -702,101 +715,57 @@ TEST_CASE("WL-HAND-06: Info names its panes by reference and its properties by l
     CHECK(f.property_row("Width").find("300") != std::string::npos);
 }
 
-TEST_CASE("Info's lost list choice survives its own reload: Return inspects nothing until a row "
-          "is chosen") {
-    // ⚔ MUTATION: `find_list_cursor` clearing the keys of a lost choice -- the reloaded Info holds
-    // its first row, and Return inspects it over the weaver's subject.
-    TempDir copy("info-lost-choice");
+TEST_CASE("Info's property cursor survives its own reload, the subject stands, and Return opens a "
+          "draft where the cursor stood") {
+    // THE CURSOR IS `InfoPaneState`'s, AND THE SUBJECT THE HOST'S: a reload in place keeps the
+    // first and finds the second standing, so nothing is asked of the host and nothing moves.
+    TempDir copy("info-reload-cursor");
     InfoRig f;
     f.open();
-    Session& s = const_cast<Session&>(f.r.session());
-    // A SUBJECT OF THE WEAVER'S OWN -- not the list's first row, which a reload that forgot the
-    // choice would hold and inspect -- that nothing below may move.
-    f.inspect("Info");
-    const PaneRef ghost{"zengine.test.ghost", "removed-pane"};
-    REQUIRE(add_pane(s.setup.active, ghost)); // authored, and offered by nobody: unresolved
+    f.inspect(layouts_ref());
+    f.press_property("Width");
+    REQUIRE(f.property_row("Width").rfind(">Width", 0) == 0);
+    const std::int64_t named = f.picture().subject;
 
-    // THE LIST CURSOR ON THE UNRESOLVED ROW, by the list's own keys.
-    const std::vector<CatalogRow> rows = inventory_rows(s.setup.active, s.panes);
-    std::size_t at = rows.size();
-    for (std::size_t i = 0; i < rows.size(); ++i) {
-        at = rows[i].ref == ghost ? i : at;
-    }
-    REQUIRE(at < rows.size());
-    for (std::size_t i = 0; i < rows.size(); ++i) {
-        f.r.key(input::scan::kUp);
-    }
-    for (std::size_t i = 0; i < at; ++i) {
-        f.r.key(input::scan::kDown);
-    }
-    REQUIRE_MESSAGE(f.row_of("> removed-pane -- ") >= 0, f.text());
-
-    // THE ROW LEAVES THE DESK -- and, offered by nobody, the list.
-    REQUIRE(remove_pane(s.setup.active, ghost));
-    f.r.key(input::scan::kA); // a gesture: the changed inventory is said
-    REQUIRE_MESSAGE(f.row_of("?") >= 0, f.text());
-    REQUIRE(f.text().find("removed-pane left the l") != std::string::npos);
-
-    // INFO REPLACED IN PLACE FROM AN UNCHANGED COPY, THROUGH THE CONTROL DOOR -- then a publication.
+    // INFO REPLACED IN PLACE FROM AN UNCHANGED COPY, THROUGH THE CONTROL DOOR.
     const std::string image =
         copy.file(("info-again" +
                    std::filesystem::path(WORKSHOP_SO_INFO_PANE).extension().string())
                       .c_str());
     std::filesystem::copy_file(WORKSHOP_SO_INFO_PANE, image);
-    f.r.enqueue_reload(pane::kInfoPaneStem, image);
-    f.r.bus.drain_until_idle();
-    REQUIRE(f.r.load_refusals.empty());
-    CHECK_MESSAGE(f.row_of("?") >= 0, f.text());
-    CHECK(f.text().find("removed-pane left the l") != std::string::npos);
-    ProviderSeat* tools = f.r.mount_provider("zengine.test.tools");
-    f.r.drive(tools, [](ProviderSeat& p, loom::Mail& m) {
-        p.offer(m, PaneOffered{"tool", "Tool", "a publication after the replacement"});
-    });
-    CHECK_MESSAGE(f.row_of("?") >= 0, f.text());
-    CHECK(f.r.session().inspected.ref == pane_info_ref());
-
-    // RETURN, WITH INFO HOLDING THE KEYS: nothing is asked of the host, and the subject stands.
-    f.focus();
     {
         SubjectAskTap asks(f.r.bus, f.r.workshop_id);
-        f.r.key(input::scan::kReturn);
+        f.r.enqueue_reload(pane::kInfoPaneStem, image);
+        f.r.bus.drain_until_idle();
         CHECK(asks.others == 0);
     }
-    CHECK(f.r.session().inspected.ref == pane_info_ref());
-    CHECK(f.text().find("Return inspected no") != std::string::npos);
-
-    // A ROW CHOSEN NOW IS THE CHOICE -- Layouts -- and Return inspects it.
-    const std::vector<CatalogRow> now = inventory_rows(s.setup.active, s.panes);
-    std::size_t layouts_at = now.size();
-    for (std::size_t i = 0; i < now.size(); ++i) {
-        layouts_at = now[i].ref == layouts_ref() ? i : layouts_at;
-    }
-    REQUIRE(layouts_at < now.size());
-    for (std::size_t i = 0; i < now.size(); ++i) {
-        f.r.key(input::scan::kUp);
-    }
-    for (std::size_t i = 0; i < layouts_at; ++i) {
-        f.r.key(input::scan::kDown);
-    }
-    {
-        SubjectAskTap asks(f.r.bus, f.r.workshop_id);
-        f.r.key(input::scan::kReturn);
-        CHECK(asks.others == 1);
-    }
+    REQUIRE(f.r.load_refusals.empty());
     CHECK(f.r.session().inspected.ref == layouts_ref());
+    CHECK(f.picture().subject == named);
+    CHECK_MESSAGE(f.property_row("Width").rfind(">Width", 0) == 0, f.text());
+    CHECK(f.row_of("PANE Layouts") == 0);
+
+    // RETURN, WITH INFO HOLDING THE KEYS: a draft on the row the cursor kept.
+    f.focus();
+    f.r.key(input::scan::kReturn);
+    CHECK(f.declared() == kDrafting);
+    f.r.text("7");
+    CHECK(value_of(f.property_row("Width")) == "-7");
 }
 
 TEST_CASE("the Info pane's keys act only after the weaver has pressed into it") {
     // THE PANE'S ROWS REACH IT ONLY WHILE IT HOLDS THE KEYBOARD.
     InfoRig f;
     f.open();
+    f.inspect(layouts_ref());
+    f.unfocus();
     const std::string resting = f.text();
 
     // NOT FOCUSED: the arrows are command mode's and the pane does not move.
     f.r.key(input::scan::kDown);
     CHECK(f.text() == resting);
 
-    // FOCUSED: the same key moves the list cursor.
+    // FOCUSED: the same key moves the property cursor.
     f.focus();
     f.r.key(input::scan::kDown);
     CHECK(f.text() != resting);
@@ -858,7 +827,7 @@ TEST_CASE("a row the screen makes is refused by the pane, in its own words") {
     f.open();
     author_test_pane_room(f.r, f.kind, 35, 28);
     f.r.extent(161, 48);
-    f.inspect("Layouts");
+    f.inspect(layouts_ref());
     REQUIRE_FALSE(f.picture().properties[f.property_index("Window")].editable);
     f.press_property("Window");
     f.r.key(input::scan::kReturn);
@@ -876,8 +845,13 @@ TEST_CASE("a live draft holds another subject back, and the reason is the weaver
     f.open();
     f.draft_on("Width");
     const std::int64_t named = f.picture().subject;
-    f.press_pane_row("Info");
-    CHECK(f.text().find("finish the edit first") != std::string::npos);
+    SubjectAskTap asks(f.r.bus, f.r.workshop_id);
+    const PaneSubjectActed said = f.ask_inspect(pane_info_ref());
+    // THE OFFICE THAT ASKED IS TOLD WHY, IN THE PANE'S WORDS, and so is the weaver, in the rows.
+    CHECK_FALSE(said.accepted);
+    CHECK(said.refusal == "finish the edit first -- commit it or cancel it");
+    CHECK(f.row_of("finish the edit first") == 0);
+    CHECK(asks.others == 0); // nothing was asked of the host
     CHECK(f.r.session().inspected.ref == layouts_ref());
     CHECK(f.picture().subject == named);
     CHECK(f.declared() == kDrafting);
@@ -888,7 +862,7 @@ TEST_CASE("a room too short for the body invents none of it") {
     // when it is exceeded is not a bound.
     InfoRig f;
     f.open(160, 48);
-    f.inspect("Layouts");
+    f.inspect(layouts_ref());
     const std::int64_t tall = static_cast<std::int64_t>(f.shown().size());
     REQUIRE(tall > 0);
 
@@ -911,13 +885,13 @@ TEST_CASE("Info may inspect itself, and an edit to its own place is written by t
     // pane's own -- which is not a new subject.
     InfoRig f;
     f.open();
-    f.inspect("Info");
+    f.inspect(pane_info_ref());
     CHECK(f.picture().office == pane::kInfoPaneRole);
-    CHECK(f.row_of(">*Info -- ") >= 0);
+    CHECK(f.row_of("PANE Info") == 0);
     const std::int64_t named = f.picture().subject;
     const std::string window = f.picture().properties[f.property_index("Window")].value;
 
-    f.draft_holding("X", "12", "Info");
+    f.draft_holding("X", "12", pane_info_ref());
     f.r.key(input::scan::kReturn);
 
     CHECK(f.declared() == kResting);
@@ -938,7 +912,7 @@ TEST_CASE("the subject is Info's to name: the keys leaving, Escape and a press e
     // nothing the weaver does elsewhere reaches it.
     InfoRig f;
     f.open();
-    f.inspect("Layouts");
+    f.inspect(layouts_ref());
     const std::int64_t named = f.picture().subject;
 
     f.unfocus();                  // a press elsewhere: the keys leave, the selection moves
@@ -948,10 +922,7 @@ TEST_CASE("the subject is Info's to name: the keys leaving, Escape and a press e
 
     CHECK(f.r.session().inspected.ref == layouts_ref());
     CHECK(f.picture().subject == named);
-    CHECK(f.text().find("PANE Layouts") != std::string::npos);
-    const std::int64_t marked = f.pane_row("Layouts");
-    REQUIRE(marked >= 0);
-    CHECK(f.shown()[static_cast<std::size_t>(marked)][1] == '*');
+    CHECK(f.row_of("PANE Layouts") == 0);
 }
 
 // ============================================================================
@@ -967,8 +938,7 @@ TEST_CASE("a press on an Info row while a notice stands names the row painted th
     // body without the notice and `finish` puts it in front; the row map counts it the same way.
     InfoRig f;
     f.open(160, 22);
-    f.inspect("Layouts");
-    f.r.key(input::scan::kTab);    // the keys into the properties, on `Name`
+    f.inspect(layouts_ref());      // the cursor on `Name`, the first row holding a value
     f.r.key(input::scan::kReturn); // `info.edit` on a row nobody authors: the pane refuses
     REQUIRE_MESSAGE(f.row_of("Name is not autho") == 0, f.text());
 
@@ -978,22 +948,20 @@ TEST_CASE("a press on an Info row while a notice stands names the row painted th
     REQUIRE(seat != nullptr);
     REQUIRE(static_cast<std::int64_t>(rows.size()) == seat->rows);
     CHECK(rows.back().rfind("... ", 0) == 0);
-    // ...AND NOTHING BLANK UNDER THE PANE LIST: the row above the subject's heading is a pane.
-    const std::int64_t heading = f.row_of("PANE Layouts");
-    REQUIRE(heading > 1);
-    CHECK(rows[static_cast<std::size_t>(heading - 1)].find(" -- ") != std::string::npos);
+    // ...AND THE HEADING IS RIGHT UNDER THE NOTICE: nothing blank between them.
+    CHECK(f.row_of("PANE Layouts") == 1);
 
     // A PRESS ON A PROPERTY PAINTED UNDER THE NOTICE PUTS THE CURSOR ON THAT PROPERTY.
     f.press_property("Summary");
     CHECK(f.row_of(">Summary") >= 0);
     CHECK(f.row_of("Name is not autho") == -1); // ...and it was an act, so the notice is spent
 
-    // A PRESS ON A PANE PAINTED UNDER A NOTICE INSPECTS THAT PANE.
+    // A PRESS ON THE HEADING PAINTED UNDER A NOTICE NAMES NOTHING: the notice stands.
     f.r.key(input::scan::kReturn);
     REQUIRE(f.row_of("Summary is not autho") == 0);
-    f.press_pane_row("Info");
-    CHECK(f.r.session().inspected.ref == pane_info_ref());
-    CHECK(f.row_of(">*Info -- ") >= 0);
+    press_pane(f.r, f.kind, f.row_of("PANE Layouts"), 3);
+    CHECK(f.row_of("Summary is not autho") == 0);
+    CHECK(f.row_of(">Summary") >= 0);
 }
 
 TEST_CASE("a key the Info draft line does not take is no act: the notice stands through a new "
@@ -1002,7 +970,7 @@ TEST_CASE("a key the Info draft line does not take is no act: the notice stands 
     InfoRig f;
     f.open();
     f.draft_holding("Width", "77");
-    f.press_pane_row("Info"); // the pane's own refusal, beside the live draft
+    REQUIRE_FALSE(f.ask_inspect(pane_info_ref()).accepted); // the pane's own refusal, beside the draft
     REQUIRE(f.row_of("finish the edit") == 0);
     const std::string drafted = f.property_row("Width");
     REQUIRE(value_of(drafted) == "77");
@@ -1055,7 +1023,7 @@ TEST_CASE("an id the Info pane does not answer to in its mode is no act: a commi
     // THE SAME DOOR WITH AN ID THE PANE DOES ANSWER TO IS AN ACT.
     const auto cursor_row = [&f] { // the property row wearing the mark
         for (const std::string& one : f.shown()) {
-            if (one.rfind(">", 0) == 0 && one.find(" -- ") == std::string::npos) {
+            if (one.rfind(">", 0) == 0) {
                 return one;
             }
         }
@@ -1070,19 +1038,17 @@ TEST_CASE("an id the Info pane does not answer to in its mode is no act: a commi
     CHECK(cursor_row() != cursor_was); // the mark is on the next property now
 }
 
-TEST_CASE("a press on the pane Info already inspects spends the notice in the rows Workshop holds "
+TEST_CASE("an inspect of the pane Info already inspects spends the notice in the rows Workshop holds "
           "while its answer is still on its way, and needs no new picture to say so") {
-    // AN ACCEPTED ASK THAT CHANGES NO PICTURE: the press asks the host to inspect what is
-    // inspected; the host answers yes and has nothing new to publish.
+    // AN ACCEPTED ASK THAT CHANGES NO PICTURE: the Pane Manager asks Info to inspect what is
+    // inspected; Info asks the host, which answers yes and has nothing new to publish. The ask is
+    // the weaver's act on Info, so it spends Info's notice.
     InfoRig f;
     f.open();
-    f.inspect("Layouts");
-    f.r.key(input::scan::kTab);
+    f.inspect(layouts_ref());
     f.r.key(input::scan::kReturn); // `info.edit` on `Name`: the pane refuses
     REQUIRE(f.row_of("Name is not autho") == 0);
     const std::size_t pictures = f.r.said_subjects.size();
-    const std::int64_t at = f.pane_row("Layouts");
-    REQUIRE(at > 0);
 
     const loom::WeaveId pane_id = info_id(f);
     loom::Switchboard& bus = f.r.bus;
@@ -1093,14 +1059,14 @@ TEST_CASE("a press on the pane Info already inspects spends the notice in the ro
             if (ev.kind != loom::EventKind::Delivered || ev.target != pane_id) {
                 return;
             }
-            if (!pressed && ev.schema_name == PaneCanvasPointer::zen_name) {
+            if (!pressed && ev.schema_name == InspectPaneRequested::zen_name) {
                 pressed = true; // the turn ends where the pane has acted: its ask is queued
                 bus.stop();
             } else if (ev.schema_name == PaneSubjectActed::zen_name) {
                 answered = true;
             }
         });
-    f.enqueue_press(at);
+    f.enqueue_inspect(layouts_ref());
     for (int turns = 0; turns < 8 && !pressed; ++turns) {
         (void)bus.pump_pending();
     }
@@ -1123,9 +1089,9 @@ TEST_CASE("a press on the pane Info already inspects spends the notice in the ro
     f.regrant();
     CHECK(f.row_of("Name is not autho") == -1);
 
-    // A PRESS STILL MEANS WHAT THE PICTURE SAYS.
-    f.press_pane_row("Info");
-    CHECK(f.r.session().inspected.ref == pane_info_ref());
+    // A PRESS STILL MEANS WHAT THE PICTURE SAYS: the rows moved up when the notice went.
+    f.press_property("Summary");
+    CHECK(f.row_of(">Summary") >= 0);
 }
 
 TEST_CASE("an Info act that moves nothing still spends the notice before it, and a refusal the "
@@ -1159,8 +1125,8 @@ TEST_CASE("an Info act that moves nothing still spends the notice before it, and
     CHECK_FALSE(marked.empty());
 
     // ...AND THE NEXT PRESS READS THE PICTURE THAT SAYS SO.
-    f.press_pane_row("Info");
-    CHECK(f.r.session().inspected.ref == pane_info_ref());
+    f.press_property("Summary");
+    CHECK(f.row_of(">Summary") >= 0);
 }
 
 // ============================================================================
@@ -1170,29 +1136,31 @@ TEST_CASE("an Info act that moves nothing still spends the notice before it, and
 // request is the owner's once sent; an answer belongs to the ask, and a commit's to its draft.
 // Each case reads the desk beside the rows: a sentence claiming less than happened is the defect.
 
-TEST_CASE("a press on a pane while an Info draft is live is refused, keeping the draft, its text, "
+TEST_CASE("an inspect asked while an Info draft is live is refused, keeping the draft, its text, "
           "the subject and the desk through a new room, and inspecting resumes once the draft "
           "ends") {
     InfoRig f;
     f.open();
     f.draft_holding("Width", "77");
     const std::size_t pictures = f.r.said_subjects.size();
+    SubjectAskTap asks(f.r.bus, f.r.workshop_id);
     const auto draft_stands = [&] {
         CHECK(f.declared() == kDrafting);
         CHECK(value_of(f.property_row("Width")) == "77");
         CHECK(f.r.session().inspected.ref == layouts_ref());
         CHECK(f.layouts_width() == "-");
+        CHECK(asks.others == 0);
     };
 
     // THE PANE ALREADY INSPECTED: refused, and nothing was asked of the host.
-    f.press_pane_row("Layouts");
+    CHECK_FALSE(f.ask_inspect(layouts_ref()).accepted);
     CHECK(f.row_of("finish the edit first") == 0);
     CHECK(f.admitted_leads("finish the edit first"));
     draft_stands();
     CHECK(f.r.said_subjects.size() == pictures);
 
-    // ANOTHER PANE, PAINTED UNDER THE REFUSAL: refused the same way.
-    f.press_pane_row("Info");
+    // ANOTHER PANE: refused the same way.
+    CHECK_FALSE(f.ask_inspect(pane_info_ref()).accepted);
     CHECK(f.row_of("finish the edit first") == 0);
     draft_stands();
 
@@ -1201,12 +1169,12 @@ TEST_CASE("a press on a pane while an Info draft is live is refused, keeping the
     CHECK(f.row_of("finish the edit first") == 0);
     draft_stands();
 
-    // THE DRAFT ENDS, NOTHING WAS SENT, AND A PRESS INSPECTS AGAIN.
+    // THE DRAFT ENDS, NOTHING WAS SENT, AND AN ASK INSPECTS AGAIN.
     f.r.key(input::scan::kEscape);
     REQUIRE(f.row_of("edit cancelled -- unwri") == 0);
-    f.press_pane_row("Info");
+    CHECK(f.ask_inspect(pane_info_ref()).accepted);
     CHECK(f.r.session().inspected.ref == pane_info_ref());
-    CHECK(f.row_of(">*Info -- ") >= 0);
+    CHECK(f.row_of("PANE Info") == 0); // the inspect was the weaver's act: the notice is spent
     CHECK(f.layouts_width() == "-");
 }
 
@@ -1271,19 +1239,17 @@ TEST_CASE("a commit and a cancel resolved in one poll: the cancel says the commi
 TEST_CASE("an Info commit answered after a newer draft opened on the same field closes, alters and "
           "marks nothing on that draft, and a sentence a later act said stands") {
     // AN OLD ANSWER IS NOT THE NEW DRAFT'S. A commit, a cancel and a new edit delivered in one
-    // burst, then a press on another pane: the host answers the first draft's commit while the
-    // second draft is open on the same property.
+    // burst, then an office asking to inspect another pane: the host answers the first draft's
+    // commit while the second draft is open on the same property.
     const auto late_answer = [](const std::string& typed, const std::string& expected) {
         InfoRig f;
         f.open();
         f.draft_holding("Width", typed);
-        const std::int64_t other = f.pane_row("Info");
-        REQUIRE(other > 0);
         AnswerTap tap(f.r.bus, info_id(f));
         f.enqueue_action(pane::kActionCommit);
         f.enqueue_action(pane::kActionCancel);
         f.enqueue_action(pane::kActionEdit);
-        f.enqueue_press(other);
+        f.enqueue_inspect(pane_info_ref());
         f.settle();
         REQUIRE(tap.answered == 1);
 
@@ -1320,19 +1286,15 @@ TEST_CASE("an Info draft ended while an earlier draft's commit is still unanswer
           "was already sent, even when an act between them asked the host something else, and "
           "that commit's account replaces the sentence") {
     // WHETHER A COMMIT IS UNANSWERED IS WHAT DECIDES WHAT ENDING A DRAFT MAY SAY. A commit and its
-    // cancel, a press on the pane already inspected (an inspect of its own), a new draft and its
-    // cancel, delivered in one burst.
+    // cancel, an office's ask to inspect the pane already inspected (an inspect of Info's own), a
+    // new draft and its cancel, delivered in one burst.
     InfoRig f;
     f.open();
     f.draft_holding("Width", "77");
-    const std::int64_t layouts = f.pane_row("Layouts");
-    REQUIRE(layouts >= 0);
     AnswerTap tap(f.r.bus, info_id(f));
     f.enqueue_action(pane::kActionCommit);
     f.enqueue_action(pane::kActionCancel); // the first draft ends, its commit unanswered
-    // ...and the Layouts row is pressed on the rows that cancel said, under its one-row sentence.
-    f.enqueue_canvas_press(layouts + 1, 3);
-    f.enqueue_action(pane::kActionSwitch); // the keys back to the properties
+    f.enqueue_inspect(layouts_ref());
     f.enqueue_action(pane::kActionEdit);
     f.enqueue_action(pane::kActionCancel);
     f.settle();
@@ -1353,14 +1315,10 @@ TEST_CASE("an inspect asked before an Info draft opened, and answered while it i
     // AN ACCEPTED ASK THAT IS NOT THE DRAFT'S IS NOT THE DRAFT'S END.
     InfoRig f;
     f.open();
-    f.inspect("Layouts");
-    f.press_property("Width");  // the property cursor on Width...
-    f.r.key(input::scan::kTab); // ...and the keys back in the list
-    const std::int64_t at = f.pane_row("Layouts");
-    REQUIRE(at >= 0);
+    f.inspect(layouts_ref());
+    f.press_property("Width"); // the property cursor on Width
     AnswerTap tap(f.r.bus, info_id(f));
-    f.enqueue_canvas_press(at, 3);
-    f.enqueue_action(pane::kActionSwitch);
+    f.enqueue_inspect(layouts_ref());
     f.enqueue_action(pane::kActionEdit);
     f.settle();
     REQUIRE(tap.answered == 1);
@@ -1660,17 +1618,15 @@ TEST_CASE("text typed after an Info commit was sent outlives that commit's answe
 TEST_CASE("an Info commit's answer settles the sentence that said a second commit was not sent, "
           "and leaves a sentence a later act said standing") {
     // A SENTENCE ABOUT A PENDING COMMIT BELONGS TO THAT COMMIT, AND ONLY THAT ONE. Two commits and
-    // a press on another pane in one burst: the second commit is declined and the press says the
-    // draft comes first.
+    // an office's ask to inspect another pane in one burst: the second commit is declined and the
+    // ask is told the draft comes first.
     const auto burst = [](InfoRig& f, bool typed_between) {
-        const std::int64_t other = f.pane_row("Info");
-        REQUIRE(other > 0);
         f.enqueue_action(pane::kActionCommit);
         if (typed_between) {
             f.enqueue_as_workshop(loom::to_value(PaneTextInput{pane::kInfoPane, "8"}));
         }
         f.enqueue_action(pane::kActionCommit);
-        f.enqueue_canvas_press(other + 1, 3);
+        f.enqueue_inspect(pane_info_ref());
         f.settle();
     };
     const auto no_pending_sentence = [](InfoRig& f) {
@@ -1752,15 +1708,11 @@ TEST_CASE("a commit from a newer Info draft is not sent while an earlier draft's
     InfoRig f;
     f.open();
     f.draft_holding("Width", "77");
-    const std::int64_t chosen = f.pane_row("Layouts");
-    REQUIRE(chosen >= 0);
     SubjectAskTap asks(f.r.bus, f.r.workshop_id);
     AnswerTap tap(f.r.bus, info_id(f));
     f.enqueue_action(pane::kActionCommit);
     f.enqueue_action(pane::kActionCancel); // the first draft ends, its commit unanswered
-    // ...the pane already inspected is pressed on the rows that cancel said, under its sentence.
-    f.enqueue_canvas_press(chosen + 1, 3);
-    f.enqueue_action(pane::kActionSwitch);
+    f.enqueue_inspect(layouts_ref());      // ...the pane already inspected, asked again
     f.enqueue_action(pane::kActionEdit);
     f.enqueue_action(pane::kActionCommit);
     f.settle();
@@ -2394,16 +2346,15 @@ TEST_CASE("a refusal notice anyone could send, naming the Info pane's outstandin
     CHECK(f.row_of("commit not sent") == -1);
 }
 
-TEST_CASE("an Info inspect Loom refuses at dispatch releases its own record, and the next press "
-          "inspects") {
-    // THE SAME ACCOUNTING FOR THE OTHER ASK. A press on a pane row asks the host to inspect it; the
-    // turn stops where the pane has heard the press -- its inspect queued, not delivered -- and
-    // Workshop's weave is killed before that delivery and revived afterwards.
+TEST_CASE("an Info inspect Loom refuses at dispatch releases its own record, answers the office "
+          "that asked, and the next ask inspects") {
+    // THE SAME ACCOUNTING FOR THE OTHER ASK. An office asks Info to inspect a pane and Info asks
+    // the host; the turn stops where Info has heard the office -- its inspect queued, not
+    // delivered -- and Workshop's weave is killed before that delivery and revived afterwards.
     InfoRig f;
     f.open();
-    f.focus();
-    const std::int64_t at = f.pane_row("Info");
-    REQUIRE(at >= 0);
+    DoorHand& hand = door_hand(f.r);
+    const std::size_t answered_before = hand.acted.size();
     const loom::WeaveId pane_id = info_id(f);
     loom::Switchboard& bus = f.r.bus;
     bool stopped = false;
@@ -2412,7 +2363,7 @@ TEST_CASE("an Info inspect Loom refuses at dispatch releases its own record, and
     int notices = 0;
     const loom::ObserverId tap = bus.add_observer([&](const loom::BusEvent& ev) {
         if (!stopped && ev.kind == loom::EventKind::Delivered && ev.target == pane_id &&
-            (ev.schema_name == PaneCanvasPointer::zen_name)) {
+            (ev.schema_name == InspectPaneRequested::zen_name)) {
             stopped = true;
             bus.stop();
         }
@@ -2428,7 +2379,7 @@ TEST_CASE("an Info inspect Loom refuses at dispatch releases its own record, and
             ++notices;
         }
     });
-    f.enqueue_press(at);
+    f.enqueue_inspect(pane_info_ref());
     for (int turns = 0; turns < 16 && !stopped; ++turns) {
         (void)bus.pump_pending();
     }
@@ -2445,8 +2396,12 @@ TEST_CASE("an Info inspect Loom refuses at dispatch releases its own record, and
     CHECK(notices == 1);
     CHECK_FALSE(f.r.session().inspected.addressed());
     CHECK_MESSAGE(f.admitted_leads("inspect not delivered -"), f.text());
-    // ...AND THE NEXT PRESS IS AN INSPECT OF ITS OWN, answered.
-    f.press_pane_row("Info");
+    // THE OFFICE THAT ASKED IS ANSWERED ONCE, in the same words.
+    REQUIRE(hand.acted.size() == answered_before + 1);
+    CHECK_FALSE(hand.acted.back().accepted);
+    CHECK(hand.acted.back().refusal.rfind("inspect not delivered -- nothing changed (", 0) == 0);
+    // ...AND THE NEXT ASK IS AN INSPECT OF ITS OWN, answered.
+    CHECK(f.ask_inspect(pane_info_ref()).accepted);
     CHECK(f.r.session().inspected.ref == pane_info_ref());
     CHECK(f.row_of("inspect not delivered") == -1);
 }
@@ -2455,10 +2410,10 @@ TEST_CASE("a subject naming a pane in neither this build's vocabulary nor this d
           "words with nothing moved, and an inspector that arrives is answered the picture as it "
           "is now") {
     // THE HOST'S TWO SUBJECT DOORS, ASKED BY AN OFFICE OF ITS OWN: a reference nobody has, which
-    // no press on the Info pane can name, and the question an arriving inspector asks.
+    // no row of the Pane Manager can name, and the question an arriving inspector asks.
     InfoRig f;
     f.open();
-    f.inspect("Layouts");
+    f.inspect(layouts_ref());
     const std::int64_t named = f.picture().subject;
 
     auto held = std::make_unique<Inspector>();
@@ -2497,8 +2452,9 @@ TEST_CASE("a subject naming a pane in neither this build's vocabulary nor this d
     CHECK(inspector->pictures.size() == 1);
 }
 
-TEST_CASE("Info draws its lists on its canvas on the medium's own ground, and a draft's caret and "
-          "selection stand in its row where the weaver types, moving no character, and go with it") {
+TEST_CASE("Info draws its properties on its canvas on the medium's own ground, and a draft's caret "
+          "and selection stand in its row where the weaver types, moving no character, and go with "
+          "it") {
     InfoRig f;
     f.open();
     f.draft_holding("Width", "77");
@@ -2527,26 +2483,22 @@ TEST_CASE("Info draws its lists on its canvas on the medium's own ground, and a 
     CHECK(held_caret(held()).sel_begin_row == surface::kNoSelection);
 }
 
-TEST_CASE("a host that grants Info no canvas is shown its lists and a draft's caret as prose, its "
-          "presses reach nothing there, and its keys still inspect and edit") {
+TEST_CASE("a host that grants Info no canvas is shown its properties and a draft's caret as prose, "
+          "its presses reach nothing there, and its keys still move and edit") {
     InfoRig f;
     f.no_canvas = true;
     f.open();
     const ExternalPane* seat = f.r.session().panes.external_pane(f.kind);
     REQUIRE(seat != nullptr);
     REQUIRE_FALSE(shows_canvas(*seat));
-    REQUIRE(f.pane_row("Layouts") >= 0);
-    f.focus(); // the keys come here; the press itself reaches nothing
-    f.press_pane_row("Layouts");
-    CHECK_FALSE(f.r.session().inspected.ref == layouts_ref());
+    REQUIRE(f.row_of("PROPERTIES") == 0);
+    f.inspect(layouts_ref()); // the keys come here; the press itself reaches nothing
     const auto marked = [&f](std::int64_t at) {
         return at >= 0 && f.shown()[static_cast<std::size_t>(at)].rfind(">", 0) == 0;
     };
-    for (int i = 0; i < 32 && !marked(f.pane_row("Layouts")); ++i) f.r.key(input::scan::kDown);
-    REQUIRE(marked(f.pane_row("Layouts")));
-    f.r.key(input::scan::kReturn);
-    REQUIRE(f.r.session().inspected.ref == layouts_ref());
-    f.r.key(input::scan::kTab);
+    REQUIRE_FALSE(marked(f.property_at("Width")));
+    f.press_property("Width");
+    CHECK_FALSE(marked(f.property_at("Width")));
     for (int i = 0; i < 32 && !marked(f.property_at("Width")); ++i) f.r.key(input::scan::kDown);
     REQUIRE(marked(f.property_at("Width")));
     f.r.key(input::scan::kReturn);
@@ -2560,28 +2512,30 @@ TEST_CASE("a host that grants Info no canvas is shown its lists and a draft's ca
     CHECK(held_caret(*seat).column == 12);
 }
 
-TEST_CASE("a press on Info's lists aimed at the room they stood in before a new one was granted names "
-          "nothing, and one aimed at the room they stand in now inspects") {
+TEST_CASE("a press on Info's properties aimed at the room they stood in before a new one was granted "
+          "names nothing, and one aimed at the room they stand in now moves the cursor") {
     InfoRig f;
     f.open();
+    f.inspect(layouts_ref());
     const ExternalPane before = *f.r.session().panes.external_pane(f.kind);
     REQUIRE(shows_canvas(before));
     f.regrant(); // a room of another size: a new grant, the rows re-laid in it
     const ExternalPane& now = *f.r.session().panes.external_pane(f.kind);
     REQUIRE(now.canvas.grant != before.canvas.grant);
-    const std::int64_t at = f.pane_row("Layouts");
+    const std::int64_t at = f.property_at("Width");
     REQUIRE(at >= 0);
+    REQUIRE(f.property_row("Width").rfind(">", 0) != 0);
     const CanvasRows lattice = held_canvas_rows(now);
     f.enqueue_as_workshop(loom::to_value(PaneCanvasPointer{pane::kInfoPane, before.canvas.grant,
         before.canvas.content.picture, 900, canvas_pointer::kPress, 1, lattice.column_x(3), lattice.row_y(at)}));
     f.settle();
-    CHECK_FALSE(f.r.session().inspected.ref == layouts_ref());
+    CHECK(f.property_row("Width").rfind(">", 0) != 0);
     f.enqueue_canvas_press(at, 3);
     f.settle();
-    CHECK(f.r.session().inspected.ref == layouts_ref());
+    CHECK(f.property_row("Width").rfind(">Width", 0) == 0);
 }
 
-TEST_CASE("a right press on Info's lists asks for Info's own menu, and one beside them, where a "
+TEST_CASE("a right press on Info's properties asks for Info's own menu, and one beside them, where a "
           "prose press would have named no row, is handed back and Workshop's own pane menu opens") {
     InfoRig f;
     f.open();
@@ -2619,33 +2573,40 @@ TEST_CASE("a right press on Info's lists asks for Info's own menu, and one besid
 
 TEST_CASE("the image that inspects a pane holds no desk") {
     // A SOURCE READ, and the reason it is one: "this pane owns no facts" is a claim about what a
-    // translation unit NAMES, and only reading the file can keep it.
-    std::ifstream in(INFO_PANE_SOURCE);
-    REQUIRE(in.good());
-    std::stringstream buffer;
-    buffer << in.rdbuf();
-    const std::string source = buffer.str();
-    REQUIRE(source.size() > 4096);
+    // translation unit NAMES, and only reading its files can keep it -- the weave and the
+    // property view it composes, beside it.
+    const std::filesystem::path weave(INFO_PANE_SOURCE);
+    std::string sources;
+    for (const std::filesystem::path& file : {weave, weave.parent_path() / "property_view.hpp"}) {
+        std::ifstream in(file);
+        REQUIRE_MESSAGE(in.good(), file.string());
+        std::stringstream buffer;
+        buffer << in.rdbuf();
+        const std::string source = buffer.str();
+        INFO("file ", file.string());
+        REQUIRE(source.size() > 4096);
 
-    // THE HOST'S PRESENTATION AND ITS DESK ARE NOT REACHABLE FROM HERE, asked of the INCLUDE.
-    for (const char* forbidden : {"#include \"workshop/screen.hpp\"",
-                                  "#include \"workshop/panes.hpp\"",
-                                  "#include \"workshop/setup.hpp\"",
-                                  "#include \"workshop/screen_info", "#include \"ui/"}) {
-        INFO("includes ", forbidden);
-        CHECK(source.find(forbidden) == std::string::npos);
-    }
-    // ...AND NO DESK TYPE OR DESK DOOR IS NAMED IN ITS CODE AT ALL: what this image holds is the
-    // PICTURE it was shown.
-    for (const char* owned : {"SetupPane", "SetupState", "author_pane", "write_pane_axis"}) {
-        INFO("names ", owned);
-        CHECK(source.find(owned) == std::string::npos);
+        // THE HOST'S PRESENTATION AND ITS DESK ARE NOT REACHABLE FROM HERE, asked of the INCLUDE.
+        for (const char* forbidden : {"#include \"workshop/screen.hpp\"",
+                                      "#include \"workshop/panes.hpp\"",
+                                      "#include \"workshop/setup.hpp\"",
+                                      "#include \"workshop/screen_info", "#include \"ui/"}) {
+            INFO("includes ", forbidden);
+            CHECK(source.find(forbidden) == std::string::npos);
+        }
+        // ...AND NO DESK TYPE OR DESK DOOR IS NAMED IN ITS CODE AT ALL: what this image holds is
+        // the PICTURE it was shown.
+        for (const char* owned : {"SetupPane", "SetupState", "author_pane", "write_pane_axis"}) {
+            INFO("names ", owned);
+            CHECK(source.find(owned) == std::string::npos);
+        }
+        sources += source;
     }
     // ...AND WHAT IT DOES REACH IS THE PROTOCOL AND THE SEAM, both of which are values.
-    CHECK(source.find("workshop/pane_vocabulary.hpp") != std::string::npos);
-    CHECK(source.find("workshop/inspection_seam_vocabulary.hpp") != std::string::npos);
+    CHECK(sources.find("workshop/pane_vocabulary.hpp") != std::string::npos);
+    CHECK(sources.find("workshop/inspection_seam_vocabulary.hpp") != std::string::npos);
     // ...AND THE SHARED TEXT HELPERS RATHER THAN ANOTHER COPY OF THEM.
-    CHECK(source.find("workshop/pane_text.hpp") != std::string::npos);
+    CHECK(sources.find("workshop/pane_text.hpp") != std::string::npos);
 }
 
 TEST_CASE("Info answers its manual for each pane it offers from the page its build embedded, and "

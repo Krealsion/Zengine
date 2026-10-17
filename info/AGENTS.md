@@ -8,7 +8,8 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | path | what it is |
 |---|---|
 | `CMakeLists.txt` | target `zengine-info-pane`, a loadable weave; needs `loom::kernel` |
-| `pane.cpp` | the weave: the panes list, one pane's properties, and the value views it offers |
+| `pane.cpp` | the weave: its four panes, their canvases and the clipboard, routing each act and answer to the default pane's property view or a value view |
+| `property_view.hpp` | the default pane's pane-property view: the subject an office named, its properties, the cursor, a property draft and its commit, and the inspect it relays |
 | `value_view.hpp` | one value view, the one entry point for its acts and answers: its draft, field selection, sample, pickup and pending asks |
 | `value_watch.hpp` | a value view's watch: the observation lease on its linked entry, and the requests that ask for, continue and end it |
 | `value_picture.hpp` | a value view's picture: rows, controls and field window laid out from what the view shows, and their press map |
@@ -19,7 +20,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 ## Law
 
 - [info-body](../agents/workshop/info-body.md) `WL-INFO` — Info's pane-property view in
-  `info/pane.cpp`; witnessed by `workshop_panes` (info, settings)
+  `info/property_view.hpp`; witnessed by `workshop_panes` (info, settings)
 - [info-controls](../agents/workshop/info-controls.md) — the Info controls; witnessed by
   `workshop_panes` (info)
 

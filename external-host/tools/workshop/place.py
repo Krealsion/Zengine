@@ -1,12 +1,14 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Joshua DeMoss
 """workshop/place -- author where panes sit and how big they are by typing the numbers into Info,
-as a weaver would: choose the pane's row in Info's list, Return to make it Info's subject, Tab to
-its rows, and for each of X, Y, Width and Height: choose its row, Return, the value, Return.
-loom-tool.json describes the input.
+as a weaver would: a right press on the pane's row in the Pane Manager and its menu's `inspect in
+Info` to make it Info's subject, the keys into Info, and for each of X, Y, Width and Height: choose
+its row, Return, the value, Return. loom-tool.json describes the input.
 
-EVERY ROW IS CHOSEN BY THE NAME INFO GIVES IT: a pane's by its reference, `pane:<office>/<pane>`,
-and a property's by its label, `property:Width`. A row is read back by that name too.
+EVERY ROW IS CHOSEN BY THE NAME ITS PANE GIVES IT: a pane's Pane Manager row by its reference,
+`pane:<office>/<pane>`, the menu's line by its id, `launcher.inspect`, and Info's property by its
+label, `property:Width`. A row is read back by that name too. A Pane Manager the run put on the
+desk to choose a pane is taken off it again.
 
 WORKSHOP WRITES IT. Info sends the finished text; Workshop writes it through the desk's own door
 and reseats the desk. The tool then reads the AUTHORED row back and fails unless it shows the
@@ -19,12 +21,14 @@ before Y. The placement lands in the layout you are on and returns with the next
 import json
 import time
 
-from act import act as step, pane_ref, part_of, select_row, texts, words_now
-from hand import Hand, on_row
+from act import (MANAGER, act as step, choose as choose_line, manager_row, pane_ref, part_of,
+                 press_at, select_row, texts, words_now)
+from hand import Hand
 from workshop_steps import chord_moments, clear_moments, moment
 
 INFO = ("zengine.info", "info")
 INFO_ROW = "pane:zengine.info/info"
+INSPECT = "launcher.inspect"  # the Pane Manager's row menu line `inspect in Info`
 FIELDS = (("x", "X"), ("y", "Y"), ("width", "Width"), ("height", "Height"))
 
 
@@ -40,29 +44,28 @@ def listed_name(ctx, hand, name):
     return on[0]["name"]
 
 
-def list_marked(view):
-    """Whether Info marks a row of its pane list -- the keys are on the list, not on the subject: a
-    word starting with `>` stands on a row named `pane:`, as a text pane's row and its word share
-    one place and a canvas pane's run stands inside its row's rectangle."""
-    if not view:
-        return False
-    listed = [p for p in view.get("parts", []) if p["name"].startswith("pane:")]
-    return any(w["text"].startswith(">") and any(on_row(w, p) for p in listed)
-               for w in view["words"])
+def manager_shown(hand):
+    """Whether the desk shows the Pane Manager now, covered or not."""
+    on = [p for p in hand.desk()["panes"] if (p["provider"], p["pane"]) == MANAGER]
+    return bool(on) and on[0]["state"] != "closed"
 
 
 def choose(ctx, hand, name):
-    step(ctx, hand, "into", {"into": list(INFO) + ["PANES"]})
-    if not list_marked(words_now(hand, *INFO)):
-        hand.inject(chord_moments(ctx, "tab"))  # the keys were on the subject's rows
-    select_row(ctx, hand, *INFO, name)
-    hand.inject(chord_moments(ctx, "enter"))
+    """Make the pane `name` names Info's subject: its Pane Manager row pressed with the right
+    button, the menu's `inspect in Info` chosen, then -- once Info paints the subject's heading --
+    the keys pressed into Info on that heading, a row that means nothing there."""
+    shown = manager_shown(hand)
+    _, row = manager_row(ctx, hand, name, 10, "place")
+    press_at(ctx, hand, row, "right")
+    choose_line(ctx, hand, INSPECT, 10, "left")
+    if not shown:
+        hand.inject(chord_moments(ctx, "ctrl+p"))  # the Pane Manager this run put on the desk
     subject = "PANE " + listed_name(ctx, hand, name)
     end = time.monotonic() + 5
     while subject not in rows_now(hand):
         ctx.check(time.monotonic() < end, "Info did not take %s as its subject" % name)
         time.sleep(0.1)
-    hand.inject(chord_moments(ctx, "tab"))
+    step(ctx, hand, "into", {"into": list(INFO) + [subject]})
 
 
 def field(hand, label):

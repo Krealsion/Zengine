@@ -68,11 +68,13 @@
    "about": "the Layouts row taken off the desk from the Pane Manager, then brought back",
    "steps": [
     {
-     "expect": [
-      "zengine.info",
-      "info",
-      "Layouts -- open"
-     ]
+     "desk": [
+      "zengine.workshop",
+      "layouts"
+     ],
+     "is": {
+      "name": "Layouts"
+     }
     },
     {
      "picture": "layouts-1-on"
@@ -105,13 +107,6 @@
       "zengine.desktop",
       "launcher",
       "PANES"
-     ]
-    },
-    {
-     "expect": [
-      "zengine.info",
-      "info",
-      "Layouts -- closed"
      ]
     },
     {
@@ -148,11 +143,13 @@
      ]
     },
     {
-     "expect": [
-      "zengine.info",
-      "info",
-      "Layouts -- open"
-     ]
+     "desk": [
+      "zengine.workshop",
+      "layouts"
+     ],
+     "is": {
+      "name": "Layouts"
+     }
     },
     {
      "picture": "layouts-3-back"

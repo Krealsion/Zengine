@@ -1,13 +1,7 @@
 # The action census's rows for zengine.info; the form is tests/actions.txt's. ASCII only.
-zengine.info - info.up up - - pane up
-zengine.info - info.down down - - pane down
-zengine.info - info.edit return InspectPaneRequested/1,PaneSubjectActed/1 - inspect
-zengine.info - info.switch tab - - properties
-zengine.info - info.view.new ctrl+n PaneLaunchRequested/1 - new value view
 zengine.info - info.up up - - row up
 zengine.info - info.down down - - row down
 zengine.info - info.edit return - - edit
-zengine.info - info.switch tab - - panes
 zengine.info - info.view.new ctrl+n PaneLaunchRequested/1 - new value view
 zengine.info - info.commit return PaneCommitRequested/1 - commit
 zengine.info - info.cancel escape - - cancel
@@ -53,7 +47,6 @@ zengine.info - info.view.stop escape - - stop waiting
 zengine.info - info.up up - - row up
 zengine.info - info.down down - - row down
 zengine.info - info.edit return - - edit
-zengine.info - info.switch tab - - panes
 zengine.info - info.inventory ctrl+i - - inventory entry
 zengine.info - info.view.new ctrl+n PaneLaunchRequested/1 - new value view
 zengine.info - info.value.up up - - previous field
