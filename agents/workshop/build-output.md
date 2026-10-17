@@ -93,13 +93,15 @@ is said, not replaced"
 
 ### WL-OUT-03
 `workshop/pane_text.hpp` ascii_spelling
-`builder/builder-pane/pane.cpp` say publish say_output
+`builder/builder-pane/pane.cpp` say
+`builder/builder-pane/view.hpp` publish
+`builder/builder-pane/output_reader.hpp` say_output
 `tests/test_workshop_panes_output.cpp` "a compiler's non-ASCII words in a build's last lines leave
 the Builder's picture standing" "read output shows a failed build's own lines on rows Workshop
 takes, spelled in ASCII and said to be"
 
 ### WL-OUT-04
-`builder/builder-pane/pane.cpp` open_output say_output read_output scroll ask_page
+`builder/builder-pane/output_reader.hpp` open_output say_output read_output scroll ask_page
 `builder/builder-pane/vocabulary.hpp` kActionOutput kActionOutputClose
 `tests/test_workshop_panes_output.cpp` "read output shows a failed build's own lines on rows
 Workshop takes, spelled in ASCII and said to be" "the reader stays bound to its build: a newer build
