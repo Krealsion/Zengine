@@ -3,11 +3,12 @@
 #ifndef ZENGINE_WORKSHOP_PANE_DRAWING_HPP
 #define ZENGINE_WORKSHOP_PANE_DRAWING_HPP
 
-// A pane's drawing (`graphics::Sketch`) read onto Workshop's rows: its text painted cell by cell
-// as a window of characters paints it (graphics/term_paint.hpp), and each element record a part
-// of the row its text stands on, the action a press on it asks beside it. The pane draws one
-// picture; this is what Workshop's rows make of it. Reference: workshop/docs/workshop-panes.md,
-// "The pane facets".
+// Between a pane's drawing and Workshop's rows, both ways. A drawing (`graphics::Sketch`) read
+// onto rows: its text painted cell by cell as a window of characters paints it
+// (graphics/term_paint.hpp), each element record a part of the row its text stands on, the action
+// a press on it asks beside it. And rows drawn: a pane that says rows shows them in a graphics
+// window as a drawing, each run of columns a named part holds a node that asks for it by name.
+// Reference: workshop/docs/workshop-panes.md, "The pane facets".
 
 #include "component/row_map.hpp"
 #include "graphics/canvas.hpp"
@@ -16,6 +17,7 @@
 #include "graphics/term_paint.hpp"
 #include "graphics/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
+#include "workshop/pane_vocabulary.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -124,6 +126,75 @@ inline std::vector<surface::SurfaceTextRow> drawn_rows(const graphics::Sketch& s
         }
     }
     return out;
+}
+
+/// WHERE A PRESS ON A PART OF DRAWN ROWS LANDS: the part's name, the row it stands on and the
+/// first column of it that a press reaches.
+struct SketchedPart {
+    std::string name;
+    std::int64_t row = 0, column = 0;
+};
+
+/// ROWS AS A DRAWING, `graphics::kCellPx` pixels a cell: each row's text, its blanks after the last
+/// character left out, a node `rows/<i>` in the row's role; and, in front of them, each run of a
+/// row's columns a press reaches one part on -- the last of `parts`, in the order a press reads
+/// them, that covers it -- a node `parts/<row>.<run>` over the run, recorded, where the part is
+/// named, as asking its name. Past `graphics::kMaxElementsPerArea` runs the rest are their rows'
+/// text alone. Returns where a press on each part drawn so lands.
+inline std::vector<SketchedPart> rows_sketch(const std::vector<surface::SurfaceTextRow>& rows,
+                                             const std::vector<v2::PaneRowPart>& parts,
+                                             graphics::Sketch& out) {
+    out.group("rows", 0, 0);
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        const std::string& text = rows[i].text;
+        const std::size_t last = text.find_last_not_of(' ');
+        if (last != std::string::npos) {
+            out.text("rows/" + std::to_string(i), 0,
+                     static_cast<std::int64_t>(i) * graphics::kCellPx, text.substr(0, last + 1),
+                     graphics::by_role(rows[i].role));
+        }
+    }
+    out.group("parts", 0, 0);
+    std::vector<SketchedPart> landed;
+    std::size_t recorded = 0;
+    const auto limit = static_cast<std::int64_t>(graphics::kMaxArgsBytes);
+    for (std::size_t r = 0; r < rows.size(); ++r) {
+        const auto row = static_cast<std::int64_t>(r);
+        std::vector<std::int64_t> owner; // the part a press on each column reaches, or -1
+        for (std::size_t k = 0; k < parts.size(); ++k) {
+            const v2::PaneRowPart& p = parts[k];
+            if (p.row != row || p.column < 0 || p.columns <= 0 || p.column >= limit) continue;
+            const std::int64_t end = (std::min)(p.column + p.columns, limit);
+            if (static_cast<std::int64_t>(owner.size()) < end) {
+                owner.resize(static_cast<std::size_t>(end), -1);
+            }
+            for (std::int64_t c = p.column; c < end; ++c) {
+                owner[static_cast<std::size_t>(c)] = static_cast<std::int64_t>(k);
+            }
+        }
+        const std::string& text = rows[r].text;
+        std::size_t run = 0;
+        for (std::size_t c = 0; c < owner.size() && recorded < graphics::kMaxElementsPerArea;) {
+            std::size_t end = c + 1;
+            while (end < owner.size() && owner[end] == owner[c]) ++end;
+            if (owner[c] >= 0 && !parts[static_cast<std::size_t>(owner[c])].name.empty()) {
+                const std::string& name = parts[static_cast<std::size_t>(owner[c])].name;
+                std::string words = c < text.size() ? text.substr(c, end - c) : std::string();
+                words.resize(end - c, ' '); // a press reaches the run's blanks too
+                const std::string path = "parts/" + std::to_string(r) + "." + std::to_string(run++);
+                out.text(path, static_cast<std::int64_t>(c) * graphics::kCellPx,
+                         row * graphics::kCellPx, words, graphics::by_role(rows[r].role));
+                out.action(path, name);
+                ++recorded;
+                if (std::none_of(landed.begin(), landed.end(),
+                                 [&](const SketchedPart& l) { return l.name == name; })) {
+                    landed.push_back(SketchedPart{name, row, static_cast<std::int64_t>(c)});
+                }
+            }
+            c = end;
+        }
+    }
+    return landed;
 }
 
 } // namespace zengine::workshop

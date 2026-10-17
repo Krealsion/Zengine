@@ -680,7 +680,20 @@ of the weave; a member the facet calls only when present is optional.
   weave does not take is passed back (`PanePassRequested`), so Workshop's own pane menu opens.
   `spend_notice(notice, act, say)` spends a weaver's act: it clears the notice, runs the act, and
   says the rows once without the notice when one stood and the act published no picture of its
-  own.
+  own. The graphics window that shows the area named `Office` (`graphics::AreaRoom`, from that
+  window's office, runs `on_room` as Workshop's room does) is sent the same rows as a drawing
+  ([`workshop/pane_drawing.hpp`](../pane_drawing.hpp), `rows_sketch`): each row's text, and in
+  front of it each run of columns a press reaches one named part on, recorded as asking that
+  part's name. Only what changed goes, and the whole after the window's room changed or it refused
+  one (`graphics::DrawnRefused`). A pane Workshop seats nowhere composes for the window's room and
+  sends Workshop nothing. `graphics::ActionRequested` from that window naming a part of the rows
+  it was last sent is `press(RowPress, mail)` at the first column of the part a press there
+  reaches, with `window` set and `keys_went_here` not: Workshop saw no press, so it reported no
+  keys there, and no carry or other Workshop gesture begins there. A row a second press would
+  activate is reached there only through a control the pane draws for it. An id `answers(id)` admits is `on_action(id, mail)`;
+  any other is no act. An act Workshop must approve is refused from a window press, which is no
+  Workshop gesture. The room is asked once each life while no window has said it
+  (`graphics::RoomAsked`).
 - **`PaneDrawingFacet<Pane, Office, Page, Offer>`: a pane that draws one picture.** `PaneFacet`,
   and the weave's `picture(graphics::Sketch&)` -- named nodes and element records, as any drawer
   draws ([A drawing weave](../../graphics/docs/graphics.md#a-drawing-weave)) -- shown by

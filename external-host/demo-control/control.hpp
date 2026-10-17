@@ -3,6 +3,8 @@
 #ifndef ZENGINE_DEMO_CONTROL_CONTROL_HPP
 #define ZENGINE_DEMO_CONTROL_CONTROL_HPP
 #include "vocabulary.hpp"
+#include "graphics/canvas.hpp"
+#include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_facets.hpp"
@@ -14,13 +16,15 @@
 
 namespace zengine::demo {
 namespace ws = zengine::workshop;
-/// The controls' room and rows: the reset row means `control:reset`, by its action, and the state
-/// beneath it `status`. A right press is handed back, so Workshop's own pane menu opens there.
-using ControlRows = ws::PaneRowsFacet<kControlsPane, kRole, manual::pages::zengine_demo::kManual,
-                                      std::string>;
+/// The controls' room and their one picture, in Workshop and in a graphics window: the reset row
+/// is the part `control:reset`, whose press asks `reset`, and the state beneath it the part
+/// `status`, which asks nothing. A right press in Workshop is handed back, so its own pane menu
+/// opens there.
+using ControlDrawing =
+    ws::PaneDrawingFacet<kControlsPane, kRole, manual::pages::zengine_demo::kManual>;
 using Actions = ws::PaneActionFacet<kControlsPane, kRole>;
 class Control final
-    : public zengine::With<ControlRows, Actions,
+    : public zengine::With<ControlDrawing, Actions,
                            manual::ManualFacet<manual::pages::zengine_demo::kManual>>::
     Weave<Control, DemoStatus,
     loom::Accept<DemoServiceOpened, DemoServiceClosed, DemoWorkRequested, DemoWorkFinished,
@@ -29,7 +33,7 @@ class Control final
 public:
     void on_activated(loom::Mail& m) {
         unserved();
-        rows().announce(*this, m);
+        drawing().announce(*this, m);
     }
     ws::v2::PaneOffered offering() const {
         return ws::v2::PaneOffered{kControlsPane, "Demo", "Repeat this demo through its attached ELH recipe", 4, 56};
@@ -41,20 +45,32 @@ public:
             m, {{"reset", "reset the demo", input::scan::kUnknown, input::mod::kNone, {},
                  {ws::cause_of<DemoWork>()}}});
     }
-    /// THE PANE DRAWS ITS ROWS ON ITS CANVAS while it holds a room there, and says them as prose
-    /// only to a host that grants none. A refused picture leaves the last good one showing; a
-    /// later paint draws again.
+    /// THE PANE DRAWS ITS PICTURE wherever a room was granted: Workshop's canvas or prose room, or
+    /// a graphics window's. A refused picture leaves the last good one showing; a later paint
+    /// draws again.
     void on_room(loom::Mail& m) { paint(m); }
-    /// A primary press anywhere on the reset row resets.
-    void press(const ws::RowPress& at, loom::Mail& m) {
-        if (at.row == 1) reset(m, false);
+    /// WHAT THE CONTROLS SHOW, a line a cell high each: the setup's name, the reset button and
+    /// where the demo stands, each part recorded with what a press on it asks. A line past the
+    /// room is neither drawn nor recorded.
+    void picture(graphics::Sketch& f) const {
+        const ControlDrawing& room = drawing();
+        const auto line = [&](const std::string& path, std::int64_t row, const std::string& text) {
+            if (row >= room.rows()) return false;
+            f.text(path, 0, row * graphics::kCellPx,
+                   ws::pane_text::drawable(ws::pane_text::fit(text, room.columns())),
+                   graphics::by_role(surface::role::kFill));
+            return true;
+        };
+        (void)line("name", 0, state_.name);
+        if (line("control:reset", 1, "[ Reset demo ]")) f.action("control:reset", "reset");
+        if (line("status", 2, state_.state + ": " + state_.note)) f.action("status", "");
     }
     /// A revived state names no service of this image's: a kernel reload sends no activation.
     void revive(const loom::Value& v) override {
         state_ = loom::from_value<DemoStatus>(v);
         unserved();
     }
-    /// ITS ONE ACTION, `reset`: what a primary press on the reset row does.
+    /// ITS ONE ACTION, `reset`: what a press on the reset button asks, in Workshop or a window.
     void on_action(const std::string& id, loom::Mail& m) {
         if (id == "reset") reset(m, false);
     }
@@ -138,7 +154,8 @@ private:
         } else offered_ = true;
         paint(m);
     }
-    ControlRows& rows() { return this->template facet<ControlRows>(); }
+    ControlDrawing& drawing() { return this->template facet<ControlDrawing>(); }
+    const ControlDrawing& drawing() const { return this->template facet<ControlDrawing>(); }
     void paint(loom::Mail& m) {
         if (state_.state == "ready" || state_.state == "failed") {
             for (auto it = waiters_.begin(); it != waiters_.end();) {
@@ -148,19 +165,7 @@ private:
                 } else ++it;
             }
         }
-        ControlRows& room = rows();
-        const std::int64_t columns = room.columns();
-        if (!room.granted() || room.rows() <= 0 || columns <= 0) return;
-        room.begin();
-        const auto fitted = [columns](const std::string& text) {
-            return surface::SurfaceTextRow{ws::pane_text::drawable(ws::pane_text::fit(text, columns)),
-                                           surface::role::kFill};
-        };
-        (void)(room.push(fitted(state_.name)) && room.push(fitted("[ Reset demo ]"), "control:reset") &&
-               room.push(fitted(state_.state + ": " + state_.note), "status"));
-        room.publish(
-            m, [](const std::string& name) { return name; }, [](const std::string&) { return true; },
-            /*with_caret=*/false);
+        drawing().show(*this, m); // nothing until a room is granted
     }
     loom::WeaveId worker_{};
     loom::DeferredAnswer next_, request_;
