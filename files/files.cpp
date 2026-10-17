@@ -28,7 +28,6 @@
 #include "workshop/pane_escape.hpp"
 
 #include "builder/vocabulary.hpp"
-#include "component/control_strip.hpp"
 #include "component/list_window.hpp"
 #include "component/row_map.hpp"
 #include "component/text_box.hpp"
@@ -402,9 +401,8 @@ public:
         if (population == 0) {
             return;
         }
-        wheel_accum_ += dy * static_cast<double>(kFilesWheelRows);
-        const std::int64_t notches = static_cast<std::int64_t>(wheel_accum_);
-        wheel_accum_ -= static_cast<double>(notches);
+        const std::int64_t notches = component::take_wheel_notches(
+            wheel_accum_, dy * static_cast<double>(kFilesWheelRows));
         if (notches == 0) {
             return;
         }
@@ -1318,18 +1316,26 @@ private:
 
     // ---- Saying what the pane shows -----------------------------------------------------
 
+    /// One row's text as this pane draws it: spelled before it is fit (`ascii_spelling`,
+    /// `workshop/pane_text.hpp`), since a notice can relay another owner's diagnostic verbatim,
+    /// which may carry UTF-8, and `judge_content` admits a publication whole or not at all, so
+    /// one unspelled byte would refuse every row this pane sent.
+    std::string fitted(const std::string& text) const {
+        return fit(ascii_spelling(text), columns());
+    }
+    /// ...as the facet's strip and window take it (`PaneRowsFacet::push_controls`).
+    auto fit_row() const {
+        return [this](const std::string& text) { return fitted(text); };
+    }
+
     /// One row of the picture, with what it means recorded as it is written: a press is answered
-    /// from the record the composition made, never from a second calculation. Spelled before it
-    /// is fit (`ascii_spelling`, `workshop/pane_text.hpp`): a notice can relay another owner's
-    /// diagnostic verbatim, which may carry UTF-8, and `judge_content` admits a publication whole
-    /// or not at all, so one unspelled byte would refuse every row this pane sent.
+    /// from the record the composition made, never from a second calculation.
     void push_row(const std::string& text, std::int64_t role, FilesMeaning meaning = FilesMeaning{}) {
         std::optional<FilesMeaning> means;
         if (meaning.kind != files_row::kNone) {
             means = std::move(meaning);
         }
-        (void)room().push(surface::SurfaceTextRow{fit(ascii_spelling(text), columns()), role},
-                          std::move(means));
+        (void)room().push(surface::SurfaceTextRow{fitted(text), role}, std::move(means));
     }
 
     /// The whole picture. The notice leads and is composed first, since the row map records
@@ -1389,9 +1395,6 @@ private:
 
     std::int64_t body_budget(std::int64_t strip_rows) const;
     std::vector<ControlRow> browser_controls() const;
-    std::int64_t strip_budget() const;
-    component::ControlStrip packed(const std::vector<ControlRow>& controls) const;
-    std::int64_t strip_rows_for(const std::vector<ControlRow>& controls) const;
     void say_controls(const std::vector<ControlRow>& controls);
     void say_browser();
     void say_entries(std::size_t total, std::size_t body_rows);

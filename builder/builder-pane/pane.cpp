@@ -23,7 +23,7 @@
 #include "workshop/pane_escape.hpp"
 
 #include "builder/vocabulary.hpp"
-#include "component/control_strip.hpp"
+#include "component/list_window.hpp"
 #include "component/row_map.hpp"
 #include "component/text_box.hpp"
 #include "input/vocabulary.hpp"
@@ -502,9 +502,7 @@ public:
         if (!output_.open && !choosing_.open) {
             return; // the fact view is not a list: there is nothing for a notch to walk
         }
-        wheel_ += dy * 3.0;
-        const std::int64_t notches = static_cast<std::int64_t>(wheel_);
-        wheel_ -= static_cast<double>(notches);
+        const std::int64_t notches = component::take_wheel_notches(wheel_, dy * 3.0);
         if (notches == 0) {
             return;
         }
@@ -1591,17 +1589,26 @@ private:
 
     // ---- Saying what the pane shows ---------------------------------------------------
 
+    /// One row's text as this pane draws it: spelled in what a canvas draws (WL-OUT-03), since a
+    /// row may carry another owner's words, and one byte Workshop's canvas cannot draw refuses
+    /// the pane's whole picture (`canvas_content_problem`).
+    std::string fitted(const std::string& text) const {
+        return fit(ascii_spelling(text), columns());
+    }
+    /// ...as the facet's strip and window take it (`PaneRowsFacet::push_controls`).
+    auto fit_row() const {
+        return [this](const std::string& text) { return fitted(text); };
+    }
+
     /// One row of the picture, with what it means recorded as it is written: a press is answered
-    /// from the record the composition made, never from a second calculation. Spelled in what a
-    /// canvas draws (WL-OUT-03): a row may carry another owner's words, and one byte Workshop's
-    /// canvas cannot draw refuses the pane's whole picture (`canvas_content_problem`).
+    /// from the record the composition made, never from a second calculation.
     void push_row(const std::string& text, std::int64_t role,
                   BuilderMeaning meaning = BuilderMeaning{}) {
         std::optional<BuilderMeaning> means;
         if (meaning.kind != builder_row::kNone) {
             means = std::move(meaning);
         }
-        (void)room().push(surface::SurfaceTextRow{fit(ascii_spelling(text), columns()), role},
+        (void)room().push(surface::SurfaceTextRow{fitted(text), role},
                           std::move(means)); // a row past the room names nothing
     }
 
@@ -1669,9 +1676,6 @@ private:
 
     // The control strip and the fact view, defined in `view.hpp`.
     std::vector<ControlRow> builder_controls() const;
-    std::int64_t strip_budget() const;
-    component::ControlStrip packed(const std::vector<ControlRow>& controls) const;
-    std::int64_t strip_rows_for(const std::vector<ControlRow>& controls) const;
     void say_controls(const std::vector<ControlRow>& controls);
     template <class Facts>
     void publish(Facts facts, const std::string& said_detail,

@@ -135,20 +135,15 @@ inline void BuilderPaneWeave::say_recipes() {
     }
     push_row(head, surface::role::kAccent);
     const std::vector<ControlRow> controls = list_controls();
-    const std::int64_t body_rows = rows() - 1 - (notice_.empty() ? 0 : 1) -
-                                   strip_rows_for(controls);
+    const std::int64_t body_rows =
+        rows() - 1 - (notice_.empty() ? 0 : 1) - room().strip_rows(controls);
     if (body_rows > 0 && held > 0) {
         const component::ListWindow win = component::cursor_window(
             held, at, choosing_.hint, static_cast<std::size_t>(body_rows));
         choosing_.hint = win.first;
-        // A marker is a row of the same budget, said only where the window reserved one
-        // (`ListWindow::markers`): saying it anyway pushed the control strip, the one row a
-        // weaver with a mouse cannot lose, out of the room.
-        if (win.before > 0 && win.markers > 0) {
-            push_row("  ... " + std::to_string(win.before) + " earlier",
-                     surface::role::kMuted);
-        }
-        for (std::size_t i = win.first; i < win.end(); ++i) {
+        // A marker is a row of the same budget (`PaneRowsFacet::push_window`), so the control
+        // strip, the one row a weaver with a mouse cannot lose, keeps its place.
+        (void)room().push_window(win, fit_row(), [&](std::size_t i) {
             const builder::RecipeSummary& row = known_.recipes[i];
             const bool here = i == at;
             const bool chosen = row.recipe == state_.chosen;
@@ -156,10 +151,7 @@ inline void BuilderPaneWeave::say_recipes() {
                          (chosen ? "   (chosen)" : ""),
                      here ? surface::role::kAccent : surface::role::kFill,
                      BuilderMeaning{builder_row::kRecipe, i, {}, row.recipe});
-        }
-        if (win.after > 0 && win.markers > 0) {
-            push_row("  ... " + std::to_string(win.after) + " more", surface::role::kMuted);
-        }
+        });
     }
     say_controls(controls);
 }
