@@ -11,8 +11,10 @@
 
 #include "workshop_support.hpp"
 #include "census.hpp"
+#include "pane_window.hpp"
 
 #include "workshop/desktop-pane/vocabulary.hpp"
+#include "workshop/pane_seat.hpp"
 
 #include <filesystem>
 #include <fstream>
@@ -217,6 +219,133 @@ TEST_CASE("WL-HAND-06: the Pane Manager names each row and its mark by the pane'
     d.press(beta.row, kNameCol);
     CHECK(marked(d.rows()).find("Beta") != std::string::npos);
     CHECK(held_parts(d.r.session(), d.launcher).at("pane:zengine.test.tools/beta").row == beta.row);
+
+    SUBCASE("a graphics window shows the Pane Manager and the Hotkeys table by these names, and a "
+            "press there is the pane's own press") {
+        namespace pw = zengine::testing::pane_window;
+        const auto trimmed = [](std::vector<std::string> rows) {
+            for (std::string& row : rows) row.erase(row.find_last_not_of(' ') + 1);
+            return rows;
+        };
+        const std::string manager = std::string(kDesktopRole) + "." + dp::kLauncherPane;
+        const std::string keys = std::string(kDesktopRole) + "." + dp::kHotkeysPane;
+        const std::string manual = std::string(kDesktopRole) + "." + dp::kManualPane;
+        pw::Window w(d.r.bus);
+        // A PANE WORKSHOP SEATS keeps Workshop's composition, and the window is sent it whole.
+        w.room(manager, kDesktopRole, 100, 40);
+        REQUIRE_FALSE(w.weave().heard.empty());
+        CHECK(w.weave().heard.back().whole);
+        CHECK(w.rows(manager) == trimmed(d.rows()));
+        const std::set<std::string> asked = w.actions(manager);
+        for (const auto& [name, part] : held_parts(d.r.session(), d.launcher)) {
+            CAPTURE(name);
+            CHECK(asked.count(name) == (name.empty() ? 0u : 1u)); // a place named "" asks nothing
+        }
+        // A ROW'S NAME HOLDS THE WHOLE ROW, past its text, as a press on Workshop's row finds it.
+        const std::string alpha_row = "pane:zengine.test.tools/alpha";
+        const v2::PaneRowPart whole = held_parts(d.r.session(), d.launcher).at(alpha_row);
+        const std::string said = trimmed(d.rows())[static_cast<std::size_t>(whole.row)];
+        REQUIRE(whole.column + whole.columns > static_cast<std::int64_t>(said.size()));
+        CHECK(w.action_at(manager, whole.column + whole.columns - 1, whole.row) == alpha_row);
+        // A PRESS ON A MARK hides its pane, and the window is sent only what changed.
+        REQUIRE(d.open("alpha"));
+        CHECK(w.press(manager, std::string("mark:zengine.test.tools/alpha")));
+        CHECK_FALSE(d.open("alpha"));
+        CHECK_FALSE(w.weave().heard.back().whole);
+        CHECK(w.rows(manager) == trimmed(d.rows()));
+        // A NAME CHOOSES, and a second press on the chosen name shows its pane.
+        CHECK(w.press(manager, std::string("pane:zengine.test.tools/alpha")));
+        CHECK(marked(d.rows()).find("Alpha") != std::string::npos);
+        CHECK_FALSE(d.open("alpha"));
+        CHECK(w.press(manager, std::string("pane:zengine.test.tools/alpha")));
+        CHECK(d.open("alpha"));
+        // AN ACTION NO PART NAMES, or a press from a window that does not show the area, is no act.
+        REQUIRE(d.open("beta"));
+        const std::size_t drawn = w.weave().heard.size();
+        w.ask(manager, "mark:zengine.test.tools/nowhere");
+        w.ask(manager, "beta");
+        pw::Window other(d.r.bus, "other");
+        other.ask(manager, "mark:zengine.test.tools/beta", kDesktopRole);
+        CHECK(d.open("beta"));
+        CHECK(w.weave().heard.size() == drawn);
+        // A REFUSED CHANGE leaves the window as it was, and the rows go whole at once, so the
+        // changes sent after it were not read against a picture the window never held.
+        w.weave().refuse_next = true;
+        const std::size_t refused_at = w.weave().heard.size();
+        CHECK(w.press(manager, std::string("mark:zengine.test.tools/gamma")));
+        REQUIRE(w.weave().refusals.size() == 1);
+        CHECK_FALSE(d.open("gamma"));
+        REQUIRE(w.weave().heard.size() > refused_at + 1);
+        CHECK_FALSE(w.weave().heard[refused_at].whole);
+        CHECK(w.weave().heard.back().whole);
+        CHECK(w.rows(manager) == trimmed(d.rows()));
+        CHECK(w.press(manager, std::string("mark:zengine.test.tools/gamma")));
+        CHECK(d.open("gamma"));
+        CHECK(w.rows(manager) == trimmed(d.rows()));
+        // A PANE WORKSHOP SEATS NOWHERE is composed for the window's room, and Workshop hears none
+        // of it: not its rows, and not a press on them.
+        const PaneRef hotkeys{kDesktopRole, dp::kHotkeysPane};
+        REQUIRE_FALSE(has_pane(d.r.session().setup.active, hotkeys));
+        std::size_t to_workshop = 0;
+        const auto tap = d.r.bus.add_observer([&](const loom::BusEvent& e) {
+            if (e.kind == loom::EventKind::Delivered && e.sender == d.desktop &&
+                e.target == d.r.workshop_id) {
+                ++to_workshop;
+            }
+        });
+        w.room(keys, kDesktopRole, 100, 60);
+        REQUIRE(joined(w.rows(keys)).find("desktop.terminal") != std::string::npos);
+        std::string terminal, panes;
+        for (const std::string& name : w.actions(keys)) {
+            if (name.rfind("binding:", 0) != 0) continue;
+            if (name.find("/desktop.terminal/") != std::string::npos) terminal = name;
+            if (name.find("/desktop.panes/") != std::string::npos) panes = name;
+        }
+        REQUIRE_FALSE(terminal.empty());
+        REQUIRE_FALSE(panes.empty());
+        CHECK(w.press(keys, terminal));
+        CHECK(marked(w.rows(keys)).find("desktop.terminal") != std::string::npos);
+        CHECK(w.press(keys, panes));
+        CHECK(marked(w.rows(keys)).find("desktop.panes") != std::string::npos);
+        d.r.bus.remove_observer(tap);
+        CHECK(to_workshop == 0);
+        CHECK_FALSE(has_pane(d.r.session().setup.active, hotkeys));
+        // RELOADED, the desktop asks each pane's room once, and draws whole in the window again.
+        pw::PaneDirectory* directory = pw::mount_directory(d.r.bus);
+        d.r.enqueue_reload(dp::kDesktopStem, WORKSHOP_SO_DESKTOP_PANE);
+        d.r.bus.drain_until_idle();
+        REQUIRE(d.r.load_refusals.empty());
+        for (const std::string& area : {manager, keys, manual}) {
+            CAPTURE(area);
+            CHECK(directory->times(area, kDesktopRole) == 1);
+        }
+        const std::size_t before = w.weave().heard.size();
+        w.room(keys, kDesktopRole, 100, 60);
+        REQUIRE(w.weave().heard.size() > before);
+        CHECK(w.weave().heard.back().whole);
+        CHECK(joined(w.rows(keys)).find("desktop.terminal") != std::string::npos);
+        // ROWS PAST THE WINDOW'S BOUNDS are not drawn: the rows that fit go, never a picture the
+        // window refuses whole.
+        std::vector<surface::SurfaceTextRow> many;
+        std::vector<zengine::workshop::PaneRowPart> named;
+        for (std::int64_t i = 0; i < 3000; ++i) {
+            many.push_back(surface::SurfaceTextRow{"  [    ] row " + std::to_string(i),
+                                                   surface::role::kFill});
+            named.push_back({"pane:" + std::to_string(i), i, 0, 40});
+            named.push_back({"mark:" + std::to_string(i), i, 2, 6});
+        }
+        const zengine::workshop::RowsDrawing big = zengine::workshop::rows_drawing(many, named, 40);
+        zengine::graphics::Drawn all;
+        all.area = "bounds";
+        all.whole = true;
+        all.put = big.sketch.nodes();
+        all.said = big.sketch.records();
+        zengine::graphics::window::WinArea fits;
+        fits.area = "bounds";
+        CHECK(zengine::graphics::window::judge(fits, {}, all).empty());
+        CHECK(big.places.count("mark:0") == 1);
+        CHECK(big.places.count("pane:2999") == 0);
+    }
 }
 
 TEST_CASE("WL-DESK-14: a deliberate second press on the marked name, with the keys already here, opens it -- or focuses and lifts it when it is open and covered") {
