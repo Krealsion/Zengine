@@ -96,7 +96,8 @@ WHY — `agents/decisions/the-desk-says-when-it-moved.md`
 `workshop/pane_view.hpp` DeskReadRequested DeskRead
 `workshop/decoded_cells.hpp` kDecodedCellBudget decoded_cells
 `workshop/reply_bytes.hpp` kReplyByteBudget reply_bytes
-`workshop/weave_inspection.cpp` on(DeskReadRequested) page_of
+`workshop/weave_desk_read.cpp` on(DeskReadRequested)
+`workshop/desk_read.hpp` page_of
 `tests/test_workshop_desk_read.cpp` "the decode budget a reading is filled to is Loom's own: a value
 of exactly that many cells decodes, and one cell more is refused" "a desk past one value's budget
 reads whole: the panes past it are named by their stamps and read alone" "a picture at the canvas
@@ -107,7 +108,8 @@ page, and its connection answers the next ask"
 ### WL-READ-02
 `workshop/pane_view.hpp` PaneStamp v4::PaneViewRequested v4::PaneView
 `workshop/weave.hpp` HostContext::incarnation_of
-`workshop/weave_inspection.cpp` pane_reading stamp_of on(PaneViewRequested) answer_page page_of
+`workshop/weave_desk_read.cpp` pane_reading stamp_of on(PaneViewRequested) answer_page
+`workshop/desk_read.hpp` page_of
 `workshop/reply_bytes.hpp` kReplyByteBudget
 `tests/test_workshop_desk.cpp` "a stamp names holder, incarnation, room and picture: a reading after
 t or a reload in place is stale even at an equal picture number" "a pane whose newest picture is in
@@ -119,13 +121,14 @@ reply's bytes"
 
 ### WL-READ-03
 `workshop/weave.hpp` kDeskReadsPerSecond
-`workshop/weave_inspection.cpp` take_desk_read
+`workshop/weave_desk_read.cpp` take_desk_read
 `tests/test_workshop_desk.cpp` "past four desk reads in one second an asker is refused in words, and
 reads again a second later"
 
 ### WL-READ-04
 `workshop/pane_view.hpp` v3::DeskView
-`workshop/weave_inspection.cpp` desk_view_v3 layouts_reading layout_part_names
+`workshop/weave_desk_read.cpp` desk_view_v3 layouts_reading
+`workshop/desk_read.hpp` layout_part_names
 `tests/test_workshop_desk.cpp` "a desk read's words stand where the medium draws them, Workshop's
 own band words included, in a window and in a terminal" "a part's listed point presses that part,
 one in the middle of a row too, and Layouts' tabs press the layout they name" "Layouts and the band
@@ -134,7 +137,7 @@ number moves when anything the desk says moves, and holds while nothing does"
 
 ### WL-READ-05
 `workshop/pane_view.hpp` PaneCover
-`workshop/weave_inspection.cpp` covers_of pane_reading layouts_reading
+`workshop/weave_desk_read.cpp` covers_of pane_reading layouts_reading
 `tests/test_workshop_desk.cpp` "a covered pane says its visible words only, and what covers it: a
 pane in front, Workshop's menu, arranging -- and beside a menu nothing has a point" "Layouts and the
 band are read as Workshop draws them: tabs as named parts, the band's words with no point" "with
@@ -144,11 +147,11 @@ picture beside it takes a press as before, a press held or not"
 
 ### WL-READ-06
 `workshop/pane_view.hpp` v2::DeskStamps v2::StampedPane
-`workshop/weave_inspection.cpp` publish_desk_stamps aimed_now
+`workshop/weave_desk_read.cpp` publish_desk_stamps aimed_now
 `tests/test_workshop_desk_read.cpp` "the second notice names each pane's aimed picture: a picture
 looking like the last moves it once aimed at, while its stamp and the first notice hold"
 `workshop/pane_view.hpp` DeskStamps
-`workshop/weave_inspection.cpp` publish_desk_stamps presented_refs
+`workshop/weave_desk_read.cpp` publish_desk_stamps presented_refs
 `workshop/weave_managed.cpp` after_delivery
 `workshop/weave_seam.cpp` on(PictureFence)
 `tests/test_workshop_desk_read.cpp` "a keystroke gives at least one notice, the last naming the
@@ -161,7 +164,7 @@ it is aimed at: it is told after that picture's fence has come round twice"
 `workshop/fingerprint.hpp` Fingerprint
 `workshop/panes.hpp` picture_fingerprint PictureStamp
 `workshop/weave_seam.cpp` fence_pictures
-`workshop/weave_inspection.cpp` stamp_now pane_reading
+`workshop/weave_desk_read.cpp` stamp_now pane_reading
 `tests/test_workshop_desk_read.cpp` "a stamp names what a pane shows: the same picture sent again
 keeps it and sends no notice, and every change moves it, prose that numbers no picture included" "a
 canvas pane moved and drawn again the same ends on a notice naming its settled stamp, read with its
