@@ -1584,5 +1584,64 @@ foreach(zengine_text_check IN LISTS ZEN_TEXT_CHECKS)
                         ${CMAKE_CURRENT_SOURCE_DIR}/check_${zengine_text_check}.cmake)
 endforeach()
 
+# ---- longest first under a parallel CTest -----------------------------------------------
+# At -j<n> CTest starts entries in descending COST, and a declared COST outranks the one it
+# measures into Testing/Temporary/CTestCostData.txt, so this table orders every parallel run, a
+# fresh tree's too: the longest entries start at once and the rest pack in beside them. A value is
+# the seconds an entry took in its slowest CI build job at 289f50c, for every entry of 5 s or more;
+# an entry left out runs by the cost CTest measured for it, or after these while it has none.
+file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/test_population.txt zengine_cost_population
+     REGEX "^[A-Za-z0-9_]+[ \t]")
+foreach(zengine_cost_row IN ITEMS
+        "workshop_panes:1222"
+        "neovim_journey:275"
+        "workshop_desk:225"
+        "story_journey:183"
+        "graphics:149"
+        "workshop_neovim:103"
+        "workshop_shapes:72"
+        "workshop_persistence:50"
+        "workshop_journey:48"
+        "surface:47"
+        "builder:41"
+        "tutorial_walks:40"
+        "source_comments:40"
+        "workshop_load:34"
+        "inventory:32"
+        "law_register:31"
+        "code_values:24"
+        "tutor_walk:24"
+        "flow_pane:20"
+        "view_builder:20"
+        "operator:18"
+        "workshop_screen:16"
+        "workshop_files:15"
+        "workshop_host:12"
+        "timer:12"
+        "guest_journey:11"
+        "graphics_drawer_compiles:9"
+        "workshop_editor_switch:9"
+        "flow:8"
+        "timer_raw_activation_refused:7"
+        "timer_missing_using_refused:6"
+        "workshop_document:6"
+        "timer_activation_hook_compiles:6"
+        "doc_links:6"
+        "graphics_own_after_delivery_refused:6"
+        "graphics_change_outside_list_refused:6"
+        "neovim_live:6")
+    string(REPLACE ":" ";" zengine_cost_pair "${zengine_cost_row}")
+    list(GET zengine_cost_pair 0 zengine_cost_entry)
+    list(GET zengine_cost_pair 1 zengine_cost_value)
+    if(TEST ${zengine_cost_entry})
+        set_tests_properties(${zengine_cost_entry} PROPERTIES COST ${zengine_cost_value})
+    elseif(NOT ";${zengine_cost_population}" MATCHES ";${zengine_cost_entry}[ \t]")
+        # Only a gated entry may be missing: a misspelt or renamed one would lose its place quietly.
+        message(FATAL_ERROR
+            "tests/CMakeLists.txt: the COST table names '${zengine_cost_entry}', an entry "
+            "tests/test_population.txt does not declare. A cost is kept by its entry's exact name.")
+    endif()
+endforeach()
+
 # Every target's paths are known now: write each target's unit.
 zengine_write_tree_paths()
