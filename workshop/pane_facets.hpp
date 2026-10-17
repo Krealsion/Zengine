@@ -5,18 +5,21 @@
 
 // The conversations every pane office holds with Workshop, as facets composed with
 // `zengine::With` (activation/activation.hpp): its offer, room and manual (`PaneFacet`), its rows
-// and the presses on them (`PaneRowsFacet`), the asks it still waits on (`AskFacet`), its declared
-// actions (`PaneActionFacet`) and its own menu (`PaneMenuFacet`). The shapes they carry leave the
-// weave's own lists; what each calls on the weave, and when, is workshop/docs/workshop-panes.md,
-// "The pane facets".
+// (`PaneRowsFacet`) or its one drawing, in Workshop and a graphics window (`PaneDrawingFacet`),
+// and the presses on them, its asks (`AskFacet`), declared actions (`PaneActionFacet`) and menu
+// (`PaneMenuFacet`). The shapes they carry leave the weave's own lists; what each calls on the
+// weave, and when, is workshop/docs/workshop-panes.md, "The pane facets".
 
 #include "activation/activation.hpp"
 #include "component/control_strip.hpp"
 #include "component/list_window.hpp"
 #include "component/row_map.hpp"
+#include "graphics/canvas.hpp"
+#include "graphics/vocabulary.hpp"
 #include "pane_canvas_rows.hpp"
 #include "pane_canvas_vocabulary.hpp"
 #include "pane_document.hpp"
+#include "pane_drawing.hpp"
 #include "pane_menu.hpp"
 #include "pane_operation.hpp"
 #include "pane_parts.hpp"
@@ -33,6 +36,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -78,6 +82,7 @@ public:
         if (!from_workshop(mail, room.pane)) {
             return;
         }
+        seated_ = true;
         prose_rows_ = room.rows;
         prose_columns_ = room.columns;
         if (on_canvas()) {
@@ -94,6 +99,7 @@ public:
         if (!from_workshop(mail, room.pane)) {
             return;
         }
+        seated_ = true;
         canvas_ = room;
         fit();
         if constexpr (requires { self.on_canvas_room(mail); }) {
@@ -136,9 +142,12 @@ public:
     }
 
     const ActivationCursor& activation() const noexcept { return activation_; }
-    /// A room was granted in this life, prose or canvas.
+    /// A room was granted in this life: Workshop's, prose or canvas, or a graphics window's.
     bool granted() const noexcept { return granted_; }
-    /// The rows and columns the pane composes for: the canvas lattice's, else the prose room's.
+    /// Workshop granted the pane a room in this life, prose or canvas.
+    bool seated() const noexcept { return seated_; }
+    /// The rows and columns the pane composes for: the canvas lattice's, else the prose room's,
+    /// else, for a pane Workshop seats nowhere, the window room's.
     std::int64_t rows() const noexcept { return rows_; }
     std::int64_t columns() const noexcept { return columns_; }
     std::int64_t prose_rows() const noexcept { return prose_rows_; }
@@ -151,16 +160,27 @@ public:
     /// The room composed for, measured again: after a canvas room, or a setting that moves rows.
     void fit() {
         const CanvasRows lattice = canvas_rows(canvas_);
-        rows_ = on_canvas() ? lattice.rows : prose_rows_;
-        columns_ = on_canvas() ? lattice.columns : prose_columns_;
+        rows_ = on_canvas() ? lattice.rows : seated_ ? prose_rows_ : window_rows_;
+        columns_ = on_canvas() ? lattice.columns : seated_ ? prose_columns_ : window_columns_;
         granted_ = true;
+    }
+
+protected:
+    /// A graphics window's room, in cells: what the pane composes for while Workshop seats it
+    /// nowhere.
+    void window_room(std::int64_t rows, std::int64_t columns) {
+        window_rows_ = rows;
+        window_columns_ = columns;
+        fit();
     }
 
 private:
     ActivationCursor activation_;
     bool granted_ = false;
+    bool seated_ = false;
     std::int64_t rows_ = 0, columns_ = 0;
     std::int64_t prose_rows_ = 0, prose_columns_ = 0;
+    std::int64_t window_rows_ = 0, window_columns_ = 0;
     PaneCanvasRoom canvas_;
 };
 
@@ -395,6 +415,182 @@ private:
     CanvasPictures pictures_;
     RowsCaret caret_;
     std::uint64_t published_ = 0;
+};
+
+/// A PANE THAT DRAWS ONE PICTURE: `PaneFacet`, and the weave's `picture(graphics::Sketch&)` shown
+/// wherever the pane stands -- to the graphics window that shows the area named by its office, as
+/// what changed there, and to Workshop as rows (`drawn_rows`). Each element record is a part named
+/// by its path, and a press on one, in a window or in Workshop, asks the record's action of the
+/// weave's `on_action(id, mail)`: the owner never reads a place. A pane Workshop seats draws for
+/// Workshop's room; one it seats nowhere, for the window's.
+template <const char* const& Pane, const char* const& Office, const manual::Manual& Page,
+          class Offer = v2::PaneOffered>
+class PaneDrawingFacet : public PaneFacet<Pane, Office, Page, Offer> {
+    using Room = PaneFacet<Pane, Office, Page, Offer>;
+
+public:
+    using Accept = loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PaneCanvasRoom,
+                                PaneCanvasRejected, PaneDocumentRequested, PaneCanvasPointer,
+                                graphics::AreaRoom, graphics::DrawnRefused,
+                                graphics::ActionRequested>;
+    using Emit = loom::Emit<Offer, PaneDocumentShown, v5::PaneContent, v6::PaneCanvasContent,
+                            PanePassRequested, graphics::Drawn, graphics::RoomAsked>;
+    using Room::on;
+
+    /// The room, from the window that shows the area, as that window's office. When the window,
+    /// its incarnation or its size changed, the window holds none of the pane's drawing, so the
+    /// weave's `on_room` draws, and the window is sent the picture whole.
+    template <class Self>
+    void on(Self& self, const graphics::AreaRoom& r, loom::Mail& mail) {
+        if (r.area != canvas_.area() ||
+            !mail.authored_from_role(std::string(graphics::kWindowOfficePrefix) + r.window)) {
+            return;
+        }
+        if (canvas_.room(r)) {
+            this->window_room(r.h / graphics::kCellPx, r.w / graphics::kCellPx);
+            self.on_room(mail);
+        }
+    }
+
+    /// A drawing the window refused leaves what it shows as it was, so the next goes whole rather
+    /// than as a change from a picture the window does not hold.
+    template <class Self>
+    void on(Self&, const graphics::DrawnRefused& refused, loom::Mail& mail) {
+        if (refused.area == canvas_.area() && !canvas_.window().empty() &&
+            mail.authored_from_role(canvas_.window_office())) {
+            canvas_.forget();
+        }
+    }
+
+    /// A PRESS ON A PART IN THE WINDOW, asked by the window that shows the area as its office: the
+    /// weave's `on_action` for an action the picture last shown there names, or one the weave's
+    /// `answers(id)` admits where it has one. Any other is no act and spends nothing.
+    template <class Self>
+    void on(Self& self, const graphics::ActionRequested& asked, loom::Mail& mail) {
+        if (asked.area != canvas_.area() || canvas_.window().empty() ||
+            !mail.authored_from_role(canvas_.window_office())) {
+            return;
+        }
+        bool admitted = window_actions_.count(asked.action) != 0;
+        if constexpr (requires {
+                          { self.answers(asked.action) } -> std::convertible_to<bool>;
+                      }) {
+            admitted = admitted || self.answers(asked.action);
+        }
+        if (admitted) {
+            act(self, asked.action, mail);
+        }
+    }
+
+    /// A press, the wheel and the third button on Workshop's canvas: the wheel is the weave's
+    /// `wheel`; a press about a picture whose parts have moved since, or another room's, is its
+    /// `fenced`; the first button on a part asks the part's action; the third is passed back, so
+    /// Workshop's own pane menu opens where it was made. Motion, release and loss mean nothing.
+    template <class Self>
+    void on([[maybe_unused]] Self& self, const PaneCanvasPointer& event, loom::Mail& mail) {
+        if (!Room::from_workshop(mail, event.pane) || !this->on_canvas()) {
+            return;
+        }
+        const PaneCanvasRoom& room = this->canvas_room();
+        if (event.phase == canvas_pointer::kWheel) {
+            if constexpr (requires { self.wheel(event.dy, mail); }) {
+                if (event.grant == room.grant) {
+                    self.wheel(event.dy, mail);
+                }
+            }
+            return;
+        }
+        const RowCell at = row_cell_at(canvas_rows(room), event.x, event.y);
+        if (event.phase != canvas_pointer::kPress ||
+            ((event.button != 1 || !at.shown) && event.button != 3)) {
+            return;
+        }
+        if (!pictures_.current(event.grant, event.picture)) {
+            if constexpr (requires { self.fenced(mail); }) {
+                self.fenced(mail);
+            }
+            return;
+        }
+        if (event.button == 3) {
+            pass_back(mail);
+            return;
+        }
+        const DrawnPart* part = map_.at(at.row, at.column);
+        if (part != nullptr && !part->action.empty()) {
+            act(self, part->action, mail);
+        }
+    }
+
+    /// The room asked once in each life while no window has said it, after the first message the
+    /// life delivers: a pane reloaded into a window draws there again.
+    template <class Self>
+    void after_delivery(Self&, loom::Mail& mail) {
+        if (!asked_ && canvas_.window().empty()) {
+            asked_ = true;
+            (void)mail.as_role(Office).send_to_role(graphics::kGraphicsRole,
+                                                    graphics::RoomAsked{canvas_.area()});
+        }
+    }
+
+    /// THAT PRESS WAS NOT THE PANE'S: Workshop's own pane menu opens where it was made.
+    void pass_back(loom::Mail& mail) { (void)pane_menu::pass_back(mail, Office, Pane); }
+
+    /// SHOW THE PICTURE, once the pane holds a room: the weave's `picture` drawn, sent to the
+    /// window that shows the area as what changed there (nothing when nothing did), and to
+    /// Workshop, when it seats the pane, as rows numbered by the parts they name. Workshop hears
+    /// only a picture the weave shows, so a message the pane ignores repaints nothing.
+    template <class Self>
+    void show(Self& self, loom::Mail& mail) {
+        if (!this->granted() || this->rows() <= 0 || this->columns() <= 0) {
+            return;
+        }
+        graphics::Sketch sketch;
+        self.picture(sketch);
+        if (!canvas_.window().empty()) {
+            window_actions_.clear();
+            for (const graphics::ElementRecord& record : sketch.records()) {
+                if (!record.action.empty()) {
+                    window_actions_.insert(record.action);
+                }
+            }
+            canvas_.draw(sketch);
+            canvas_.show(mail);
+        }
+        if (!this->seated()) {
+            return;
+        }
+        map_.begin();
+        std::vector<surface::SurfaceTextRow> rows =
+            drawn_rows(sketch, this->rows(), this->columns(), map_);
+        const std::int64_t meaning = map_.settle();
+        std::vector<v2::PaneRowPart> parts = row_parts(
+            map_, this->columns(), [](const DrawnPart& part) { return part.path; },
+            [](const DrawnPart&) { return true; });
+        if (this->on_canvas()) {
+            const PaneCanvasRoom& room = this->canvas_room();
+            (void)mail.as_role(Office).send_to_role(
+                pane_menu::kWorkshopRole,
+                rows_picture(room, pictures_.next(room, meaning), rows, parts, RowsCaret{}));
+            return;
+        }
+        (void)mail.as_role(Office).send_to_role(
+            pane_menu::kWorkshopRole,
+            v5::PaneContent{Pane, std::move(rows), 0, meaning, std::move(parts)});
+    }
+
+private:
+    template <class Self>
+    static void act(Self& self, const std::string& id, loom::Mail& mail) {
+        if constexpr (requires { self.on_action(id, mail); }) {
+            self.on_action(id, mail);
+        }
+    }
+
+    graphics::Canvas canvas_{Office, Office};
+    std::set<std::string> window_actions_; ///< the actions the picture last sent the window names
+    bool asked_ = false;                   ///< the room asked in this life
+    component::RowMap<DrawnPart> map_;     ///< the parts of the picture Workshop last held
+    CanvasPictures pictures_;
 };
 
 /// ONE OF THE PANE'S DECLARED ACTIONS, ASKED FOR BY ID: Workshop resolved the keystroke against
