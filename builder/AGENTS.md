@@ -16,7 +16,10 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `CMakeLists.txt` | `zengine-builder-vocabulary`, one header-only INTERFACE target; no weave |
 | `builder-pane/` | the pane: `zengine-builder-pane`, a loadable weave (needs `loom::kernel`) |
 | `builder-pane/vocabulary.hpp` | its office `zengine.builder-pane`, pane key, action ids, state |
-| `builder-pane/pane.cpp` | `BuilderPaneWeave`: its rows, its keys, its asks of the tool and host |
+| `builder-pane/pane.cpp` | `BuilderPaneWeave`: its rows, its keys, its asks of the tool and host; it declares every member and includes the three parts below, which define the rest |
+| `builder-pane/output_reader.hpp` | the output reader: one build's lines, paged from the tool, and the controls under them |
+| `builder-pane/modes.hpp` | the pane's two modes: the recipe list, and the role line `load it` opens |
+| `builder-pane/view.hpp` | the fact view, the control strip every mode draws, and the pane's own menu |
 
 ## Law
 

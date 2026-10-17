@@ -90,7 +90,7 @@ WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
 ### WL-HAND-01
 `component/control_strip.hpp` Control PlacedControl ControlStrip control_face pack_controls
 `files/browser_view.hpp` browser_controls say_controls strip_budget
-`builder/builder-pane/pane.cpp` builder_controls say_controls strip_budget
+`builder/builder-pane/view.hpp` builder_controls say_controls strip_budget
 `tests/test_workshop_panes_files.cpp` "every control the browser draws is a target, and pressing it
 performs that operation" "in a room too short for every control the strip says how many are in the
 menu, and the menu keeps them"
@@ -98,7 +98,8 @@ menu, and the menu keeps them"
 ### WL-HAND-02
 `component/list_window.hpp` ListWindow::markers cursor_window
 `files/browser_view.hpp` body_budget say_entries strip_budget
-`builder/builder-pane/pane.cpp` publish output_body_rows strip_budget
+`builder/builder-pane/view.hpp` publish strip_budget
+`builder/builder-pane/output_reader.hpp` output_body_rows
 `tests/test_workshop_panes_files.cpp` "in a room too short for every control the strip says how many
 are in the menu, and the menu keeps them"
 `tests/test_workshop_panes_output.cpp` "WL-OUT-04: a build's own words are opened, stepped, panned
@@ -121,9 +122,10 @@ refused in words"
 
 ### WL-HAND-04
 `builder/builder-pane/vocabulary.hpp` kActionArm kActionLoadBuilt
-`builder/builder-pane/pane.cpp` BuilderMeaning::op target_of target_op_of perform_on offered_as
-Offered load_built arm_only ready_to_load standing builder_controls list_controls offer_menu
-say_controls
+`builder/builder-pane/pane.cpp` BuilderMeaning::op target_of target_op_of perform_on Offered
+load_built arm_only ready_to_load standing
+`builder/builder-pane/view.hpp` offered_as builder_controls offer_menu say_controls
+`builder/builder-pane/modes.hpp` list_controls
 `tests/test_workshop_panes_builder.cpp` "the control that loads what was built names the BUILT
 recipe, not the choice" "while an artifact stands built, arming the next build is a different answer
 and says so" "an open menu row naming an artifact loads THAT artifact or refuses" "a numbered
@@ -139,7 +141,9 @@ stem"
 ### WL-HAND-05
 `files/recipe_authoring.hpp` chooser_controls authoring_controls edit_field write_recipe next_field
 offer_field say_authoring
-`builder/builder-pane/pane.cpp` list_controls role_controls output_controls offer_menu
+`builder/builder-pane/modes.hpp` list_controls role_controls
+`builder/builder-pane/output_reader.hpp` output_controls
+`builder/builder-pane/view.hpp` offer_menu
 `files/vocabulary.hpp` kActionWriteRecipe kActionNextField kActionMenu menu_edit_field
 `builder/builder-pane/vocabulary.hpp` kActionRecipes kActionRecipesClose kActionMenu
 kMenuOutputOlder kMenuOutputRight

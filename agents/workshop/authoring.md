@@ -80,7 +80,7 @@ catalog, which is installed, and the shipped file keeps its bytes"
 
 ### WL-AUTH-02
 `builder/builder-pane/vocabulary.hpp` kActionLoadIt kActionCommit kActionCancel
-`builder/builder-pane/pane.cpp` begin_load_it open_role commit_role say_role
+`builder/builder-pane/modes.hpp` begin_load_it open_role commit_role say_role
 `workshop/builder_seam_vocabulary.hpp` PlanNamesRequested PlanNames PlanRowRequested PlanRowWritten
 `workshop/pane_doors.hpp` ProjectDoor
 `workshop/weave.hpp` HostContext::PlanAppend HostContext::append_plan_row HostContext::plan_names
