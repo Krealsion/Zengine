@@ -782,6 +782,22 @@ TEST_CASE("a view says it is waiting until told, says its intent as its own part
         REQUIRE(label != alone.nodes().end());
         CHECK(gfx::from_body<gfx::TextArgs>(label->args)->text == "Count: 7");
 
+        // A BUTTON THAT SAYS AN INTENT runs the presenter's code first, then says its intent, asked
+        // by its id as a keyed action is or pressed on the canvas.
+        int ran = 0;
+        auto tallying = std::make_shared<view::Presenter>();
+        tallying->on_action("count", [&] { ++ran; });
+        owned.views.pair("tally.panel", tallying);
+        REQUIRE(owned.ask(view::ViewRun{"tally", bytes_of(panel())}).ok);
+        owned.room("tally.panel");
+        owned.tell("tally.panel", ws::PaneActionRequested{view::kPane, "count"});
+        CHECK(ran == 1);
+        CHECK(owned.total() == 45);
+        CHECK(has(owned.words("tally.panel"), "Total: 45|"));
+        owned.press("tally.panel", panel().elements[3]);
+        CHECK(ran == 2);
+        owned.views.pair("tally.panel", nullptr);
+
         // BOUNDED, refused out loud past the bound: a presenter's code for `kMaxElements` buttons,
         // replacing one at the bound, and a host's pairings for `kMaxViews` names.
         view::Presenter many;
