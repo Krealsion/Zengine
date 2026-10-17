@@ -292,7 +292,7 @@ it"
 ### WL-FILES-16
 `files/files.cpp` declare action_rows answers
 `files/vocabulary.hpp` kActionOpen kActionChoose kActionCommitField
-`workshop/keymap.hpp` join_pane_rows
+`workshop/keymap_join.hpp` join_pane_rows
 `tests/test_workshop_panes_files.cpp` "the pane declares its rows with the ids a weaver's keymap
 already knows" "the authoring line takes raw keys, and Escape abandons it whole" "an id Files does
 not declare in the mode it is in is no act: an unknown one, a browsing id while the authoring line
