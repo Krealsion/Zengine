@@ -45,31 +45,13 @@ namespace ws = zengine::workshop;
 namespace surface = zengine::surface;
 namespace component = zengine::component;
 
-/// WHO GRANTS A MENU AND DRAWS IT, spelled as a stranger spells it.
-constexpr const char* kWorkshopRole = "zengine.workshop";
+/// WHO GRANTS A MENU AND DRAWS IT.
+constexpr const char* kWorkshopRole = ws::pane_menu::kWorkshopRole;
 
-/// WHAT THE OFFER MAY BE, judged by the presenter that has to show it: nullptr when it can be.
+/// WHAT THE OFFER MAY BE, judged by the presenter that has to show it: empty when it can be. A
+/// line spends two columns, "> ", before a row's label.
 // WL-CTX-10 -- agents/workshop/pane-menu.md
-const char* refusal_of(const ws::MenuGranted& g) {
-    if (g.rows.empty()) {
-        return "nothing to present -- the request offered no rows";
-    }
-    if (g.rows.size() > ws::kMaxPaneMenuRows || g.standard.size() > ws::kMaxPaneMenuRows) {
-        return "too many rows to present";
-    }
-    for (const std::vector<ws::PaneMenuRow>* run : {&g.rows, &g.standard}) {
-        for (const ws::PaneMenuRow& r : *run) {
-            if (r.id.empty() || r.id.size() > ws::kMaxPaneMenuIdLen ||
-                r.label.size() > ws::kMaxPaneMenuLabelLen) {
-                return "a row's id is empty or too long, or its label is too long";
-            }
-        }
-    }
-    if (g.room_rows <= 0 || g.room_columns <= 2) {
-        return "no room to present a menu here";
-    }
-    return nullptr;
-}
+std::string refusal_of(const ws::MenuGranted& g) { return ws::menu_refusal_of(g, 2); }
 
 /// THE RULE ABOVE THE STANDARD ROWS, naming the pane they act on -- "  -- Name --" -- and drawn
 /// out with dashes as far as the widest row's line, so it widens the popup only for a long name.
@@ -112,47 +94,18 @@ public:
         if (!activation_.accept(mail, activated)) {
             return;
         }
-        (void)mail.as_role(ws::kPresenterRole)
-            .send_to_role(kWorkshopRole, ws::PresenterReady{state_.menu});
+        ws::announce_presenter_ready(mail, state_);
         if (state_.menu != 0) {
             show(mail);
         }
     }
 
+    /// One menu at a time; one this image cannot show is answered and given straight back.
     void on(const ws::MenuGranted& g, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || g.menu <= 0) {
-            return;
+        if (ws::accept_menu_grant(g, mail, state_, refusal_of(g))) {
+            pictures_.first = 0;
+            show(mail);
         }
-        // ONE MENU AT A TIME. The host withdraws an older menu before it grants a newer one, so
-        // this is the unreachable case -- answered all the same, because an answer owed is owed.
-        if (state_.menu != 0 && state_.menu != g.menu) {
-            answer(mail, false, std::string(), "replaced by a newer menu");
-            state_ = ws::HeldMenu{};
-        }
-        if (const char* refused = refusal_of(g)) {
-            // NOTHING TO PRESENT: answered here, and the menu given straight back to the host.
-            (void)mail.as_role(ws::kPresenterRole)
-                .send_to_role(kWorkshopRole, ws::MenuClosed{g.menu, false, 0, std::string()});
-            (void)mail.as_role(ws::kPresenterRole)
-                .send_to_role(g.office,
-                              ws::PaneMenuAnswered{g.pane, g.subject, false, std::string(),
-                                                   refused},
-                              mail.correlation());
-            return;
-        }
-        state_ = ws::HeldMenu{g.menu,
-                              static_cast<std::int64_t>(mail.correlation()),
-                              g.office,
-                              g.pane,
-                              g.subject,
-                              g.rows,
-                              0,
-                              g.room_rows,
-                              g.room_columns,
-                              g.standard,
-                              g.pane_name};
-        first_ = 0;
-        show(mail);
     }
 
     void on(const ws::MenuInput& in, loom::Mail& mail) {
@@ -175,32 +128,15 @@ public:
         }
     }
 
-    /// THE HOST ENDED IT: answered unchosen in the host's words, and nothing more. One for a
-    /// menu this image does not hold is given back the same way an act for one is -- the weaver's
-    /// act and the host's cancellation are one interaction, and an image answers both or neither.
-    /// The give-back goes out from INSIDE this handler, which is the timing Workshop's record of
-    /// a withdrawn menu is guaranteed to still be there for (`presenter_vocabulary.hpp`).
+    /// THE HOST ENDED IT: answered unchosen in the host's words, and nothing more; one for a menu
+    /// this image does not hold is given back, from inside this handler.
     void on(const ws::MenuWithdrawn& w, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || w.menu <= 0) {
-            return;
-        }
-        if (w.menu != state_.menu) {
-            give_back(w.menu, mail);
-            return;
-        }
-        answer(mail, false, std::string(), w.why);
-        state_ = ws::HeldMenu{};
+        ws::settle_menu_withdrawn(w, mail, state_);
     }
 
 private:
-    /// AN INTERACTION THIS IMAGE CANNOT CARRY, HANDED BACK. It holds no such menu, so it has said
-    /// nothing to that requester and never will -- and the host, which knows who asked, settles
-    /// it. Never `MenuClosed`: that is this image's word that it finished the work and answered.
-    void give_back(std::int64_t menu, loom::Mail& mail) {
-        (void)mail.as_role(ws::kPresenterRole)
-            .send_to_role(kWorkshopRole,
-                          ws::MenuReturned{menu, "this image does not hold that menu"});
-    }
+    /// AN INTERACTION THIS IMAGE CANNOT CARRY, HANDED BACK (`workshop::give_back_menu`).
+    void give_back(std::int64_t menu, loom::Mail& mail) { ws::give_back_menu(mail, menu); }
 
     /// THE MENU AS SHOWN, ENTRY BY ENTRY: the requester's rows, then -- when the host granted
     /// standard rows -- the rule, then those rows. The cursor and a line name an entry.
@@ -251,7 +187,7 @@ private:
     }
 
     void press(const ws::MenuInput& in, loom::Mail& mail) {
-        if (in.button != 1 || in.picture != picture_) {
+        if (in.button != 1 || !pictures_.matches(in)) {
             return; // not the primary button, or aimed at lines this image has since replaced
         }
         const std::int64_t row = row_at_line(in.line);
@@ -273,36 +209,23 @@ private:
         close(mail, true, row->id, std::string(), input);
     }
 
-    /// END THE MENU: the host first (it closes the popup and, for a choice, records the act that
-    /// made it, or spends the standard row named), then the requester's one answer.
+    /// END THE MENU: the host first, then the requester's one answer (`workshop::close_held_menu`).
     void close(loom::Mail& mail, bool chosen, const std::string& id, const std::string& why,
                std::int64_t input, const std::string& standard = std::string()) {
-        (void)mail.as_role(ws::kPresenterRole)
-            .send_to_role(kWorkshopRole, ws::MenuClosed{state_.menu, chosen, input, standard});
-        answer(mail, chosen, id, why);
-        state_ = ws::HeldMenu{};
-    }
-
-    void answer(loom::Mail& mail, bool chosen, const std::string& id, const std::string& why) {
-        (void)mail.as_role(ws::kPresenterRole)
-            .send_to_role(state_.office,
-                          ws::PaneMenuAnswered{state_.pane, state_.subject, chosen,
-                                               chosen ? id : std::string(),
-                                               chosen ? std::string() : why},
-                          static_cast<std::uint64_t>(state_.correlation));
+        ws::close_held_menu(mail, state_, chosen, id, why, input, standard);
     }
 
     /// THE WINDOW THE ROOM HOLDS, moved by the least it can from the last one shown.
     component::ListWindow window() const {
         return component::cursor_window(static_cast<std::size_t>(entries()),
-                                        static_cast<std::size_t>(state_.cursor), first_,
+                                        static_cast<std::size_t>(state_.cursor), pictures_.first,
                                         static_cast<std::size_t>(state_.room_rows));
     }
 
     /// THE ENTRY A LINE CHOOSES, or -1 for a marker line or none.
     std::int64_t row_at_line(std::int64_t line) const {
         const component::ListWindow w = window();
-        const std::int64_t offset = line - (w.before > 0 && w.markers > 0 ? 1 : 0);
+        const std::int64_t offset = line - (component::earlier_marker(w) > 0 ? 1 : 0);
         if (line < 0 || offset < 0 || offset >= static_cast<std::int64_t>(w.count)) {
             return -1;
         }
@@ -311,27 +234,16 @@ private:
 
     void show(loom::Mail& mail) {
         const component::ListWindow w = window();
-        const bool earlier = w.before > 0 && w.markers > 0;
-        const bool more = w.after > 0 && w.markers > (earlier ? 1u : 0u);
-        // THE PICTURE MOVES EXACTLY WHEN A LINE WOULD NOW CHOOSE SOMETHING ELSE: a scrolled window
-        // or another menu. A cursor that moved inside the window is a highlight, not a new picture.
-        if (!shown_ || w.first != first_ || w.count != shown_count_ || earlier != shown_earlier_ ||
-            state_.menu != shown_menu_) {
-            ++picture_;
-        }
-        shown_ = true;
-        first_ = w.first;
-        shown_count_ = w.count;
-        shown_earlier_ = earlier;
-        shown_menu_ = state_.menu;
+        const std::size_t earlier = component::earlier_marker(w);
+        const std::size_t more = component::more_marker(w);
         const std::int64_t columns = state_.room_columns;
         ws::v2::MenuShown said;
         std::set<std::string> named;
         said.menu = state_.menu;
-        said.picture = picture_;
-        if (earlier) {
+        said.picture = pictures_.shown(w.first, w.count, earlier > 0, state_.menu);
+        if (earlier > 0) {
             said.lines.push_back(surface::SurfaceTextRow{
-                drawable("  ... " + std::to_string(w.before) + " earlier", columns),
+                drawable("  ... " + std::to_string(earlier) + " earlier", columns),
                 surface::role::kMuted});
         }
         // THE RULE NAMES THE PANE THE STANDARD ROWS ACT ON, as wide as the widest row's line.
@@ -363,9 +275,9 @@ private:
                     row->id, static_cast<std::int64_t>(said.lines.size()) - 1, 0, width});
             }
         }
-        if (more) {
+        if (more > 0) {
             said.lines.push_back(surface::SurfaceTextRow{
-                drawable("  ... " + std::to_string(w.after) + " more", columns),
+                drawable("  ... " + std::to_string(more) + " more", columns),
                 surface::role::kMuted});
         }
         (void)mail.as_role(ws::kPresenterRole).send_to_role(kWorkshopRole, said);
@@ -373,12 +285,7 @@ private:
 
     // NOT STATE, deliberately: how this image laid the menu out is its own, and a successor that
     // carries the menu lays it out afresh (and numbers its pictures afresh) in its own way.
-    std::size_t first_ = 0;
-    std::int64_t picture_ = 0;
-    bool shown_ = false;
-    std::size_t shown_count_ = 0;
-    bool shown_earlier_ = false;
-    std::int64_t shown_menu_ = 0;
+    ws::MenuPictureTracker pictures_;
     zengine::ActivationCursor activation_;
 };
 

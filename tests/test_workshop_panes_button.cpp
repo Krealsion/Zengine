@@ -1177,6 +1177,21 @@ TEST_CASE("WL-CTX-09: a menu with more rows than the room is windowed by the pre
     t.r.key(input::scan::kReturn);
     REQUIRE(t.guard->answers.size() == 2);
     CHECK(t.guard->answers[1].id == "seat.row-" + std::to_string(kMaxPaneMenuRows - 1));
+    // ...AND A PRESS IN THE SCROLLED WINDOW CHOOSES THE ROW ITS LINE SHOWS, beneath the marker that
+    // says how many rows the window left out above it.
+    t.right_in_guard();
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    for (std::size_t i = 0; i + 1 < kMaxPaneMenuRows; ++i) {
+        t.r.key(input::scan::kDown);
+    }
+    CHECK(presented_texts(t.r.session()).front().find("earlier") != std::string::npos);
+    const std::int64_t above = presented_line_of(t.r.session(), "Row " + std::to_string(kMaxPaneMenuRows - 2));
+    REQUIRE(above > 0);
+    t.r.press_cell(context_cell_x(t.r.session()),
+                   context_entry_cell_y(t.r.session(), static_cast<std::size_t>(above)));
+    REQUIRE(t.guard->answers.size() == 3);
+    CHECK(t.guard->answers[2].id == "seat.row-" + std::to_string(kMaxPaneMenuRows - 2));
 }
 
 TEST_CASE("WL-CTX-10: a requester's record of its ask settles on the presenter's answer or the host's refusal -- once, and on nothing another office says under its number") {
