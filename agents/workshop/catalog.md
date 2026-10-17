@@ -64,12 +64,12 @@ WHY — `agents/decisions/the-catalog-is-one-list.md`
 inside it" "an unknown runtime reference never becomes the Builder"
 
 ### WL-CAT-02
-`workshop/setup.hpp` check_pane_text kMaxPaneNameLen kMaxPaneSummaryLen
+`workshop/setup_reconcile.hpp` check_pane_text kMaxPaneNameLen kMaxPaneSummaryLen
 `tests/test_workshop_panes_seam.cpp` "a descriptor's name and summary are bounded, and a refusal
 keeps nothing"
 
 ### WL-CAT-03
-`workshop/setup.hpp` admit_pane_offer Admission
+`workshop/setup_reconcile.hpp` admit_pane_offer Admission
 `tests/test_workshop_panes_seam.cpp` "a valid offer is admitted under the office that stamped it"
 "an offer with no stamped office is refused, and retains nothing" "a runtime offer cannot shadow a
 built-in pane" "re-offering one reference refreshes it in place and grows nothing" "two offices
@@ -81,6 +81,6 @@ offering one pane key stay two panes, and neither can move the other"
 
 ### WL-CAT-05
 `workshop/panes.hpp` RuntimeCatalog RuntimeCatalog::entries RuntimeCatalog::next_kind
-`workshop/setup.hpp` combined_catalog
+`workshop/setup_reconcile.hpp` combined_catalog
 `tests/test_workshop_panes_seam.cpp` "the runtime catalog is beside the compile-time one and never
 inside it" "re-offering one reference refreshes it in place and grows nothing"

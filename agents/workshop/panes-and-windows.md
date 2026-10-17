@@ -178,7 +178,7 @@ placement_of
 `tests/test_workshop_screen.cpp` "authored geometry moves the Layouts pane, and the tabs with it"
 
 ### WL-PANE-03
-`workshop/setup.hpp` seat_panes StackCapacity Seating
+`workshop/setup_reconcile.hpp` seat_panes StackCapacity Seating
 `workshop/screen_chrome.cpp` bounds_of
 `workshop/screen.hpp` stack_slots_that_fit
 `workshop/weave_desktop.cpp` launch_pane
@@ -216,7 +216,8 @@ visible pane occupies the pointer space it covers"
 "opening an external pane grants exactly the fit_region room, authored as Workshop"
 
 ### WL-PANE-07
-`workshop/setup.hpp` seat_panes reconcile Reconciled Setup add_pane Seating
+`workshop/setup.hpp` Setup add_pane
+`workshop/setup_reconcile.hpp` seat_panes reconcile Reconciled Seating
 `workshop/screen_chrome.cpp` bounds_of
 `workshop/panes.hpp` Panes::open
 `tests/test_workshop_panes_window.cpp` "ordering changes paint order and NOTHING else"
@@ -265,7 +266,7 @@ default width still takes half the surplus after a place edit"
 row is untouched"
 
 ### WL-PANE-12
-`workshop/setup.hpp` inventory_rows CatalogRow
+`workshop/setup_reconcile.hpp` inventory_rows CatalogRow
 `workshop/weave_desktop.cpp` launch_pane close_pane
 `workshop/weave_arrange.cpp` arrangeable
 `workshop/panes.hpp` kNoPaneKind
@@ -290,7 +291,7 @@ pane and in Attention until a picture of the pane is admitted, and one that came
 its pane alone"
 
 ### WL-PANE-17
-`workshop/setup.hpp` preferred_extent admit_pane_offer PaneBody
+`workshop/setup_reconcile.hpp` preferred_extent admit_pane_offer PaneBody
 `workshop/pane_vocabulary.hpp` kMaxPaneBodyPx
 `workshop/screen.hpp` stack_capacity
 `workshop/screen_chrome.cpp` project_pane bounds_of
