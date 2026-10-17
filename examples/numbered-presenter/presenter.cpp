@@ -22,9 +22,7 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <initializer_list>
 #include <string>
-#include <vector>
 
 namespace {
 
@@ -33,7 +31,7 @@ namespace surface = zengine::surface;
 namespace component = zengine::component;
 namespace scan = zengine::input::scan;
 
-constexpr const char* kWorkshopRole = "zengine.workshop";
+constexpr const char* kWorkshopRole = ws::pane_menu::kWorkshopRole;
 
 // ---- CHANGE THIS FIRST -------------------------------------------------------------------------
 //
@@ -68,26 +66,9 @@ std::int64_t digit_row(std::int64_t scancode, std::int64_t modifiers) {
     return -1;
 }
 
-const char* refusal_of(const ws::MenuGranted& g) {
-    if (g.rows.empty()) {
-        return "nothing to present -- the request offered no rows";
-    }
-    if (g.rows.size() > ws::kMaxPaneMenuRows || g.standard.size() > ws::kMaxPaneMenuRows) {
-        return "too many rows to present";
-    }
-    for (const std::vector<ws::PaneMenuRow>* run : {&g.rows, &g.standard}) {
-        for (const ws::PaneMenuRow& r : *run) {
-            if (r.id.empty() || r.id.size() > ws::kMaxPaneMenuIdLen ||
-                r.label.size() > ws::kMaxPaneMenuLabelLen) {
-                return "a row's id is empty or too long, or its label is too long";
-            }
-        }
-    }
-    if (g.room_rows <= 0 || g.room_columns <= 4) {
-        return "no room to present a menu here";
-    }
-    return nullptr;
-}
+/// WHAT THE OFFER MAY BE: empty when it can be shown. A line spends four columns, "> 1 ", before
+/// a row's label.
+std::string refusal_of(const ws::MenuGranted& g) { return ws::menu_refusal_of(g, 4); }
 
 class NumberedPresenter
     : public loom::WeaveBase<NumberedPresenter, ws::HeldMenu,
@@ -102,45 +83,18 @@ public:
         }
         // WHAT THIS IMAGE CARRIES: after a reload in another presenter's place, that one's open
         // menu -- which is shown again, numbered, and answered by this image.
-        (void)mail.as_role(ws::kPresenterRole)
-            .send_to_role(kWorkshopRole, ws::PresenterReady{state_.menu});
+        ws::announce_presenter_ready(mail, state_);
         if (state_.menu != 0) {
             show(mail);
         }
     }
 
     void on(const ws::MenuGranted& g, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || g.menu <= 0) {
-            return;
+        if (ws::accept_menu_grant(g, mail, state_, refusal_of(g))) {
+            pictures_.first = 0;
+            pressed_row_ = -1;
+            show(mail);
         }
-        if (state_.menu != 0 && state_.menu != g.menu) {
-            answer(mail, false, std::string(), "replaced by a newer menu");
-            state_ = ws::HeldMenu{};
-        }
-        if (const char* refused = refusal_of(g)) {
-            (void)mail.as_role(ws::kPresenterRole)
-                .send_to_role(kWorkshopRole, ws::MenuClosed{g.menu, false, 0, std::string()});
-            (void)mail.as_role(ws::kPresenterRole)
-                .send_to_role(g.office,
-                              ws::PaneMenuAnswered{g.pane, g.subject, false, std::string(),
-                                                   refused},
-                              mail.correlation());
-            return;
-        }
-        state_ = ws::HeldMenu{g.menu,
-                              static_cast<std::int64_t>(mail.correlation()),
-                              g.office,
-                              g.pane,
-                              g.subject,
-                              g.rows,
-                              0,
-                              g.room_rows,
-                              g.room_columns,
-                              g.standard,
-                              g.pane_name};
-        first_ = 0;
-        pressed_row_ = -1;
-        show(mail);
     }
 
     void on(const ws::MenuInput& in, loom::Mail& mail) {
@@ -162,31 +116,15 @@ public:
         }
     }
 
-    /// ...AND THE HOST'S CANCELLATION OF ONE IT DOES NOT HOLD IS GIVEN BACK TOO: the same rule
-    /// as an act it cannot carry, because both are one interaction's, and this image keeps the
-    /// shipped presenter's answer discipline exactly -- including its timing, which is inside
-    /// this handler while the host still retains the withdrawn menu's record.
+    /// ...AND THE HOST'S CANCELLATION OF ONE IT DOES NOT HOLD IS GIVEN BACK TOO: this image keeps
+    /// the shipped presenter's answer discipline exactly, timing included, by the same helper.
     void on(const ws::MenuWithdrawn& w, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || w.menu <= 0) {
-            return;
-        }
-        if (w.menu != state_.menu) {
-            give_back(w.menu, mail);
-            return;
-        }
-        answer(mail, false, std::string(), w.why);
-        state_ = ws::HeldMenu{};
+        ws::settle_menu_withdrawn(w, mail, state_);
     }
 
 private:
-    /// AN INTERACTION THIS IMAGE CANNOT CARRY, HANDED BACK. It holds no such menu, so it has said
-    /// nothing to that requester and never will -- and the host, which knows who asked, settles
-    /// it. Never `MenuClosed`: that is this image's word that it finished the work and answered.
-    void give_back(std::int64_t menu, loom::Mail& mail) {
-        (void)mail.as_role(ws::kPresenterRole)
-            .send_to_role(kWorkshopRole,
-                          ws::MenuReturned{menu, "this image does not hold that menu"});
-    }
+    /// AN INTERACTION THIS IMAGE CANNOT CARRY, HANDED BACK (`workshop::give_back_menu`).
+    void give_back(std::int64_t menu, loom::Mail& mail) { ws::give_back_menu(mail, menu); }
 
     /// EVERY ROW SHOWN: the requester's, then the host's standard rows.
     std::int64_t count() const {
@@ -226,7 +164,7 @@ private:
     /// A PRESS PUTS THE CURSOR ON THE ROW AND WAITS FOR ITS RELEASE.
     void press(const ws::MenuInput& in, loom::Mail& mail) {
         pressed_row_ = -1;
-        if (in.button != 1 || in.picture != picture_) {
+        if (in.button != 1 || !pictures_.matches(in)) {
             return; // aimed at lines this image has since replaced: nothing is armed
         }
         const std::int64_t row = row_at_line(in.line);
@@ -269,20 +207,8 @@ private:
 
     void close(loom::Mail& mail, bool chosen, const std::string& id, const std::string& why,
                std::int64_t input, const std::string& standard = std::string()) {
-        (void)mail.as_role(ws::kPresenterRole)
-            .send_to_role(kWorkshopRole, ws::MenuClosed{state_.menu, chosen, input, standard});
-        answer(mail, chosen, id, why);
-        state_ = ws::HeldMenu{};
+        ws::close_held_menu(mail, state_, chosen, id, why, input, standard);
         pressed_row_ = -1;
-    }
-
-    void answer(loom::Mail& mail, bool chosen, const std::string& id, const std::string& why) {
-        (void)mail.as_role(ws::kPresenterRole)
-            .send_to_role(state_.office,
-                          ws::PaneMenuAnswered{state_.pane, state_.subject, chosen,
-                                               chosen ? id : std::string(),
-                                               chosen ? std::string() : why},
-                          static_cast<std::uint64_t>(state_.correlation));
     }
 
     std::string fitted(std::string text) const {
@@ -294,13 +220,13 @@ private:
 
     component::ListWindow window() const {
         return component::cursor_window(static_cast<std::size_t>(count()),
-                                        static_cast<std::size_t>(state_.cursor), first_,
+                                        static_cast<std::size_t>(state_.cursor), pictures_.first,
                                         static_cast<std::size_t>(state_.room_rows));
     }
 
     std::int64_t row_at_line(std::int64_t line) const {
         const component::ListWindow w = window();
-        const std::int64_t offset = line - (w.before > 0 && w.markers > 0 ? 1 : 0);
+        const std::int64_t offset = line - (component::earlier_marker(w) > 0 ? 1 : 0);
         if (line < 0 || offset < 0 || offset >= static_cast<std::int64_t>(w.count)) {
             return -1;
         }
@@ -309,23 +235,14 @@ private:
 
     void show(loom::Mail& mail) {
         const component::ListWindow w = window();
-        const bool earlier = w.before > 0 && w.markers > 0;
-        const bool more = w.after > 0 && w.markers > (earlier ? 1u : 0u);
-        if (!shown_ || w.first != first_ || w.count != shown_count_ || earlier != shown_earlier_ ||
-            state_.menu != shown_menu_) {
-            ++picture_;
-        }
-        shown_ = true;
-        first_ = w.first;
-        shown_count_ = w.count;
-        shown_earlier_ = earlier;
-        shown_menu_ = state_.menu;
+        const std::size_t earlier = component::earlier_marker(w);
+        const std::size_t more = component::more_marker(w);
         ws::MenuShown said;
         said.menu = state_.menu;
-        said.picture = picture_;
-        if (earlier) {
+        said.picture = pictures_.shown(w.first, w.count, earlier > 0, state_.menu);
+        if (earlier > 0) {
             said.lines.push_back(surface::SurfaceTextRow{
-                fitted("  ^ " + std::to_string(w.before) + " above"), surface::role::kMuted});
+                fitted("  ^ " + std::to_string(earlier) + " above"), surface::role::kMuted});
         }
         for (std::size_t i = w.first; i < w.end(); ++i) {
             const bool here = static_cast<std::int64_t>(i) == state_.cursor;
@@ -335,21 +252,16 @@ private:
                 surface::SurfaceTextRow{line_for(i, row.label, here, state_.room_columns),
                                         here ? surface::role::kAccent : surface::role::kFill});
         }
-        if (more) {
+        if (more > 0) {
             said.lines.push_back(surface::SurfaceTextRow{
-                fitted("  v " + std::to_string(w.after) + " below"), surface::role::kMuted});
+                fitted("  v " + std::to_string(more) + " below"), surface::role::kMuted});
         }
         (void)mail.as_role(ws::kPresenterRole).send_to_role(kWorkshopRole, said);
     }
 
     // NOT STATE: this image's layout, and a press it armed -- a successor lays the menu out afresh
     // and arms nothing a hand began under another image.
-    std::size_t first_ = 0;
-    std::int64_t picture_ = 0;
-    bool shown_ = false;
-    std::size_t shown_count_ = 0;
-    bool shown_earlier_ = false;
-    std::int64_t shown_menu_ = 0;
+    ws::MenuPictureTracker pictures_;
     std::int64_t pressed_row_ = -1;
     std::int64_t pressed_input_ = 0;
     zengine::ActivationCursor activation_;
