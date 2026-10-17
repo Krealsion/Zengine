@@ -48,16 +48,15 @@ using State = v1::SnakeWorldState;
 constexpr const char* kNewGame = "new-game";
 
 class SnakeWorld
-    : public gfx::With<gfx::DrawingFacet>::Weave<
+    : public gfx::With<gfx::ActionFacet>::Weave<
           SnakeWorld, State,
 #if defined(SNAKE_WORLD_V2)
-          loom::Accept<SnakeTick, SnakeTurn, input::KeyPressed, gfx::ActionRequested,
-                       loom::PrepareShutdown, loom::Bequest, loom::Refused>,
+          loom::Accept<SnakeTick, SnakeTurn, input::KeyPressed, loom::PrepareShutdown,
+                       loom::Bequest, loom::Refused>,
           loom::Emit<SnakeVisual, FoodEaten, SnakeDied, gfx::ElementPut, gfx::ElementChange,
                      loom::Bequest, loom::ClaimBequest>,
 #else
-          loom::Accept<SnakeTick, SnakeTurn, input::KeyPressed, gfx::ActionRequested,
-                       loom::PrepareShutdown>,
+          loom::Accept<SnakeTick, SnakeTurn, input::KeyPressed, loom::PrepareShutdown>,
           loom::Emit<SnakeVisual, FoodEaten, SnakeDied, gfx::ElementPut, gfx::ElementChange,
                      loom::Bequest>,
 #endif
@@ -101,8 +100,8 @@ public:
     }
 
     /// The new-game button, pressed in the window: a new game, sent to the board as a change.
-    void on(const gfx::ActionRequested& a, loom::Mail& mail) {
-        if (!mail.authored_from_role(canvas().window_office()) || a.action != kNewGame) {
+    void on_action(const std::string& action, loom::Mail& mail) {
+        if (action != kNewGame) {
             return;
         }
 #if defined(SNAKE_WORLD_V2)

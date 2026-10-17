@@ -59,9 +59,7 @@ namespace surface = zengine::surface;
 namespace ws = zengine::workshop;
 namespace pane = zengine::terminal_pane;
 
-using ws::PaneActionRequested;
 using ws::v3::PaneActionRow;
-using ws::v3::PaneActions;
 using ws::PaneCaret;
 using ws::PaneEscapeUnspent;
 using ws::PaneKey;
@@ -94,17 +92,19 @@ using Subject = std::pair<std::int64_t, std::int64_t>;
 /// The pane's room, its rows and their presses; a transcript row carrying a value means it.
 using Rows = ws::PaneRowsFacet<pane::kTerminalPane, pane::kTerminalPaneRole,
                                zengine::manual::pages::zengine_terminal::kManual, Subject>;
+using Actions = ws::PaneActionFacet<pane::kTerminalPane, pane::kTerminalPaneRole>;
+using Menu = ws::PaneMenuFacet<pane::kTerminalPane, pane::kTerminalPaneRole>;
 
 class TerminalPaneWeave
-    : public zengine::With<Rows>::Weave<
+    : public zengine::With<Rows, Actions, Menu>::Weave<
           TerminalPaneWeave, pane::TerminalPaneState,
-          loom::Accept<ws::PaneSettings, ws::PaneMenuAnswered, ws::TerminalValueAnswered,
-                       ws::PaneCarryAnswered, loom::DispatchRefused, PaneKey, PaneTextInput,
-                       PaneActionRequested, TranscriptShown, TerminalActed,
-                       TerminalCompletionOffered, surface::ClipboardCopy, surface::ClipboardText>,
-          loom::Emit<PaneActions, ws::PaneSettingsDeclared, PaneEscapeUnspent,
-                     ws::TerminalValueRequested, ws::PaneValueCarryRequested, ws::PaneMenuRequested,
-                     TerminalActRequested, TerminalCompletionRequested, surface::ClipboardCopy,
+          loom::Accept<ws::PaneSettings, ws::TerminalValueAnswered, ws::PaneCarryAnswered,
+                       loom::DispatchRefused, PaneKey, PaneTextInput, TranscriptShown,
+                       TerminalActed, TerminalCompletionOffered, surface::ClipboardCopy,
+                       surface::ClipboardText>,
+          loom::Emit<ws::PaneSettingsDeclared, PaneEscapeUnspent, ws::TerminalValueRequested,
+                     ws::PaneValueCarryRequested, TerminalActRequested,
+                     TerminalCompletionRequested, surface::ClipboardCopy,
                      surface::ClipboardTextRequested>> {
 public:
     /// THE LINE A RELOAD KEPT, PUT BACK -- with the caret at its end, which is where the
@@ -272,13 +272,13 @@ public:
             return false;
         }
         menu_subject_ = subject;
-        menu_ = ws::pane_menu::Offer(pane::kTerminalPane, "Transcript value")
-                    .at(at.row, at.column).row("copy", "Pick up a copy")
-                    .send(mail, pane::kTerminalPaneRole);
+        menu().send(mail, menu().offer("Transcript value")
+                              .at(at.row, at.column)
+                              .row("copy", "Pick up a copy"));
         return true;
     }
-    void on(const ws::PaneMenuAnswered& answer, loom::Mail& mail) {
-        if (menu_.take(mail, answer) == "copy") acquire(menu_subject_, false, mail);
+    void on_menu(const std::string& id, const std::string&, loom::Mail& mail) {
+        if (id == "copy") acquire(menu_subject_, false, mail);
     }
     void acquire(Subject subject, bool drag, loom::Mail& mail) {
         if (capture_.pending()) {
@@ -383,7 +383,7 @@ public:
 
     /// THE LINE'S OWN VOCABULARY: the editing keys, selection, clipboard and word movement,
     /// all through the one component call every consumer makes. A gesture this pane declared
-    /// a row for never reaches here -- it arrives as `PaneActionRequested` instead.
+    /// a row for never reaches here -- it arrives as its id instead (`on_action`).
     void on(const PaneKey& key, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || key.pane != pane::kTerminalPane) {
             return;
@@ -436,7 +436,18 @@ public:
     }
 
     // The rows it declared, acted on: defined at the end of this file, after `view.hpp`.
-    void on(const PaneActionRequested& asked, loom::Mail& mail);
+    void on_action(const std::string& id, loom::Mail& mail);
+
+    /// AN ID THIS PANE NEVER DECLARED IS NO ACT (`agents/panes.md`), so it spends nothing: not
+    /// the notice, and not the memory that lets a second press in a word select it.
+    static bool answers(const std::string& id) {
+        for (const PaneActionRow& row : action_rows()) {
+            if (row.id == id) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     void on(const surface::ClipboardCopy& said, loom::Mail&) {
         // WHAT THE PROCESS SAYS IT COPIED -- this pane's own copies included, which is why
@@ -494,12 +505,7 @@ private:
     /// Files': the line is always open (it is the pane), so each id names one gesture whose
     /// meaning the pane resolves against its state (a recall, a list, a line), and every other
     /// key reaches the line as a `PaneKey`.
-    void declare(loom::Mail& mail) {
-        PaneActions actions;
-        actions.pane = pane::kTerminalPane;
-        actions.rows = action_rows();
-        (void)mail.as_role(pane::kTerminalPaneRole).send_to_role(kWorkshopRole, actions);
-    }
+    void declare(loom::Mail& mail) { this->template facet<Actions>().declare(mail, action_rows()); }
 
     /// THE ROWS -- what `declare` tells Workshop, and what `answers` reads, so what the pane
     /// acts on and what it said it acts on are one list -- each with what its press may send
@@ -525,15 +531,6 @@ private:
         chord(pane::kActionOldest, "oldest kept output", input::scan::kHome);
         chord(pane::kActionNewest, "back to the newest output", input::scan::kEnd);
         return rows;
-    }
-
-    static bool answers(const std::string& id) {
-        for (const PaneActionRow& row : action_rows()) {
-            if (row.id == id) {
-                return true;
-            }
-        }
-        return false;
     }
 
     // ---- The one act and the one read ----------------------------------------------------
@@ -668,6 +665,8 @@ private:
     /// The rows and columns the pane composes for (`PaneFacet`).
     std::int64_t rows() const { return room().rows(); }
     std::int64_t columns() const { return room().columns(); }
+    /// This image's one outstanding menu (`PaneMenuFacet`).
+    Menu& menu() { return this->template facet<Menu>(); }
 
     /// THE HOST'S LAST READING OF THE PARTICIPANT'S RECORD. Replaced whole; owned by nobody
     /// here; deliberately NOT in the state shape.
@@ -759,7 +758,6 @@ private:
     bool word_press_ = false;
     std::size_t word_press_at_ = 0;
 
-    ws::pane_menu::Asked menu_;
     Subject menu_subject_{};
     loom::RoleRequest capture_;
     std::uint64_t capture_gesture_ = 0;
@@ -788,27 +786,19 @@ private:
 
 namespace {
 
-// THE ROWS THE PANE DECLARED, ACTED ON. Defined after the class and its headers because Ctrl+Home
-// measures the whole record as `view.hpp` wraps it.
-void TerminalPaneWeave::on(const PaneActionRequested& asked, loom::Mail& mail) {
-    if (!mail.authored_from_role(kWorkshopRole) || asked.pane != pane::kTerminalPane) {
-        return;
-    }
-    // AN ID THIS PANE NEVER DECLARED IS NO ACT (`agents/panes.md`), so it spends nothing: not
-    // the notice, and not the memory that lets a second press in a word select it. Every id
-    // the pane does declare says its rows below, so what an act spends is always published.
-    if (!answers(asked.id)) {
-        return;
-    }
+// THE ROWS THE PANE DECLARED, ACTED ON, each an id `answers` admitted. Defined after the class and
+// its headers because Ctrl+Home measures the whole record as `view.hpp` wraps it. Every id the
+// pane declares says its rows below, so what an act spends is always published.
+void TerminalPaneWeave::on_action(const std::string& id, loom::Mail& mail) {
     // THE READING KEYS MOVE THE VIEW AND NOTHING ELSE: not the line, a recall, a list, a
     // refusal beside the line or the memory that makes a second press select a word.
-    if (asked.id == pane::kActionScrollUp || asked.id == pane::kActionScrollDown ||
-        asked.id == pane::kActionOldest || asked.id == pane::kActionNewest) {
-        if (asked.id == pane::kActionScrollUp) {
+    if (id == pane::kActionScrollUp || id == pane::kActionScrollDown ||
+        id == pane::kActionOldest || id == pane::kActionNewest) {
+        if (id == pane::kActionScrollUp) {
             scroll(-page());
-        } else if (asked.id == pane::kActionScrollDown) {
+        } else if (id == pane::kActionScrollDown) {
             scroll(page());
-        } else if (asked.id == pane::kActionOldest) {
+        } else if (id == pane::kActionOldest) {
             scroll(-wrap_record(known_.entries, columns()).total());
         } else {
             reading_ = Reading{};
@@ -822,21 +812,21 @@ void TerminalPaneWeave::on(const PaneActionRequested& asked, loom::Mail& mail) {
     // (!) ENTER AND TAB ON A RECALLED LINE LOCK IT IN AND DO NOTHING ELSE. The press is spent
     // whole on ending the recall: no submission, no candidate taken, and no list asked for.
     // The next Enter or Tab has its ordinary meaning.
-    if (asked.id == pane::kActionSubmit || asked.id == pane::kActionComplete) {
+    if (id == pane::kActionSubmit || id == pane::kActionComplete) {
         if (settle_recall()) {
             remember_line();
             say(mail);
             return;
         }
     }
-    if (asked.id == pane::kActionSubmit) {
+    if (id == pane::kActionSubmit) {
         submit(mail);
         return;
     }
     // UP AND DOWN WALK THE HISTORY WHEN NO COMMAND IS BEING COMPOSED, and keep walking it
     // while a recalled line is browsed; on a command being composed they move the list.
-    if (asked.id == pane::kActionUp || asked.id == pane::kActionDown) {
-        const int by = asked.id == pane::kActionUp ? -1 : +1;
+    if (id == pane::kActionUp || id == pane::kActionDown) {
+        const int by = id == pane::kActionUp ? -1 : +1;
         if (recall_.active || composing_nothing()) {
             recall(by, mail);
             return;
@@ -845,7 +835,7 @@ void TerminalPaneWeave::on(const PaneActionRequested& asked, loom::Mail& mail) {
         say(mail);
         return;
     }
-    if (asked.id == pane::kActionComplete) {
+    if (id == pane::kActionComplete) {
         // ONE KEY, ONE MEANING: "help me here". With a list on screen that is taking the
         // selected candidate; with nothing on screen it is asking for one, which is the
         // only gesture discovery needs because every other entry point is typing.
@@ -863,7 +853,7 @@ void TerminalPaneWeave::on(const PaneActionRequested& asked, loom::Mail& mail) {
         say(mail);
         return;
     }
-    if (asked.id == pane::kActionBack) {
+    if (id == pane::kActionBack) {
         if (recall_.active) {
             // ESCAPE ON A RECALLED LINE GOES BACK TO THE LINE BEFORE THE RECALL, whole.
             cancel_recall();

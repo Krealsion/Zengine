@@ -94,18 +94,19 @@ constexpr std::string_view kAlreadyRuns = "this session already runs a view";
 using Room = ws::PaneFacet<vb::kPane, vb::kRole, zengine::manual::pages::zengine_view_builder::kManual,
                            ws::v3::PaneOffered>;
 using Asks = ws::AskFacet<vb::kPane, vb::kRole, ViewBuilderAsk>;
+using Actions = ws::PaneActionFacet<vb::kPane, vb::kRole>;
+using Menu = ws::PaneMenuFacet<vb::kPane, vb::kRole>;
 
 class ViewBuilderPane final
-    : public zengine::With<Room, Asks>::Weave<
+    : public zengine::With<Room, Asks, Actions, Menu>::Weave<
           ViewBuilderPane, vb::ViewBuilderState,
           loom::Accept<ws::PaneCanvasPointer, ws::PaneCanvasHover, ws::PaneKey, ws::PaneTextInput,
-                       ws::PaneActionRequested, ws::ActionsJudged, ws::PaneQuitRequested,
-                       ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneCarryAnswered, vb::ViewEdit,
-                       view::ViewAnswer, ws::ProjectRoot>,
-          loom::Emit<ws::PaneContent, ws::v4::PaneCanvasContent, ws::v3::PaneActions, ws::PaneEscapeUnspent,
-                     ws::PanePassRequested, ws::PaneMenuRequested, ws::PaneQuitAnswered,
-                     ws::PaneOperationRequested, ws::PaneValueCarryRequested, vb::ViewEdited, view::ViewRun,
-                     view::ViewResume, view::ViewApply, view::ViewStop, ws::ProjectRootRequested>> {
+                       ws::ActionsJudged, ws::PaneQuitRequested, ws::PaneCanvasValueDrop,
+                       ws::PaneCarryAnswered, vb::ViewEdit, view::ViewAnswer, ws::ProjectRoot>,
+          loom::Emit<ws::PaneContent, ws::v4::PaneCanvasContent, ws::PaneEscapeUnspent,
+                     ws::PanePassRequested, ws::PaneQuitAnswered, ws::PaneOperationRequested,
+                     ws::PaneValueCarryRequested, vb::ViewEdited, view::ViewRun, view::ViewResume,
+                     view::ViewApply, view::ViewStop, ws::ProjectRootRequested>> {
 public:
     loom::Value snapshot() const override {
         vb::ViewBuilderState saved;
@@ -205,14 +206,13 @@ public:
             show(mail);
         }
     }
-    void on(const ws::PaneActionRequested& action, loom::Mail& mail) {
-        if (!host(mail, action.pane)) return;
+    void on_action(const std::string& id, loom::Mail& mail) {
         if (shown_.box && !commit()) {
             show(mail);
             return;
         }
         // A row's id is `view.` and the control it presses.
-        const std::string control = action.id.rfind("view.", 0) == 0 ? action.id.substr(5) : std::string();
+        const std::string control = id.rfind("view.", 0) == 0 ? id.substr(5) : std::string();
         if (control == "save") ask_save(mail);
         else if (control == "choices") more_choices();
         else if (control == "open" || control == "run" || control == "new" || control == "apply" || control == "stop")
@@ -319,14 +319,13 @@ public:
         shown_.landing.reset();
         show(mail);
     }
-    void on(const ws::PaneMenuAnswered& answer, loom::Mail& mail) {
-        const auto chosen = menu_.take(mail, answer);
-        if (chosen != "carry") return;
+    void on_menu(const std::string& id, const std::string& subject, loom::Mail& mail) {
+        if (id != "carry") return;
         // The subject is still a shape this view says, or nothing is carried.
         const auto intent = std::find_if(model_.description.intents.begin(), model_.description.intents.end(),
-                                         [&](const auto& i) { return i.shape->name() == answer.subject; });
+                                         [&](const auto& i) { return i.shape->name() == subject; });
         if (intent == model_.description.intents.end()) {
-            model_.notice = answer.subject + " is no longer said here; nothing was carried";
+            model_.notice = subject + " is no longer said here; nothing was carried";
             show(mail);
             return;
         }
@@ -474,9 +473,8 @@ private:
                 (void)ws::pane_menu::pass_back(mail, vb::kRole, event.pane);
                 return;
             }
-            menu_ = ws::pane_menu::Offer(vb::kPane, intent->shape->name())
-                        .row("carry", "Carry " + intent->shape->name())
-                        .send(mail, vb::kRole);
+            menu().send(mail, menu().offer(intent->shape->name())
+                                  .row("carry", "Carry " + intent->shape->name()));
             return;
         }
         if (event.button == 2) {
@@ -913,21 +911,18 @@ private:
             model_.notice = "Not saved: Workshop could not be asked to allow it";
     }
     void declare(loom::Mail& mail) {
-        (void)mail.as_role(vb::kRole).send_to_role(
-            workshop_role,
-            ws::v3::PaneActions{vb::kPane, {},
-                                {{"view.save", "Save the view", input::scan::kS, input::mod::kCtrl},
-                                 {"view.open", "Open a view", input::scan::kO, input::mod::kCtrl},
-                                 {"view.run", "Run the view", input::scan::kR, input::mod::kCtrl, {},
-                                  {ws::cause_of<view::ViewRun>()}},
-                                 {"view.new", "Start a new view", input::scan::kUnknown,
-                                  input::mod::kNone},
-                                 {"view.apply", "Apply to the running view", input::scan::kUnknown,
-                                  input::mod::kNone, {}, {ws::cause_of<view::ViewApply>()}},
-                                 {"view.stop", "Stop the running view", input::scan::kUnknown,
-                                  input::mod::kNone, {}, {ws::cause_of<view::ViewStop>()}},
-                                 {"view.choices", "More field choices", input::scan::kUnknown,
-                                  input::mod::kNone}}});
+        this->template facet<Actions>().declare(
+            mail, {{"view.save", "Save the view", input::scan::kS, input::mod::kCtrl},
+                   {"view.open", "Open a view", input::scan::kO, input::mod::kCtrl},
+                   {"view.run", "Run the view", input::scan::kR, input::mod::kCtrl, {},
+                    {ws::cause_of<view::ViewRun>()}},
+                   {"view.new", "Start a new view", input::scan::kUnknown, input::mod::kNone},
+                   {"view.apply", "Apply to the running view", input::scan::kUnknown,
+                    input::mod::kNone, {}, {ws::cause_of<view::ViewApply>()}},
+                   {"view.stop", "Stop the running view", input::scan::kUnknown,
+                    input::mod::kNone, {}, {ws::cause_of<view::ViewStop>()}},
+                   {"view.choices", "More field choices", input::scan::kUnknown,
+                    input::mod::kNone}});
     }
     /// MORE'S ACTION: the next field choices, as a press on `[More]` in the picture shown turns
     /// them; nothing while that picture shows no More.
@@ -1094,6 +1089,8 @@ private:
     /// The canvas room this pane holds, or the last one granted (`PaneFacet`).
     const ws::PaneCanvasRoom& canvas_room() const { return room().canvas_room(); }
     Asks& asks() { return this->template facet<Asks>(); }
+    /// This image's one outstanding menu (`PaneMenuFacet`).
+    Menu& menu() { return this->template facet<Menu>(); }
 
     vb::Model model_;
     vb::Presentation shown_;
@@ -1111,7 +1108,6 @@ private:
     std::int64_t picture_number_ = 0;
     std::deque<vb::Picture> pictures_;
     zengine::component::Clipboard clipboard_;
-    ws::pane_menu::Asked menu_;
 };
 } // namespace
 ZEN_EXPORT_WEAVE(ViewBuilderPane)
