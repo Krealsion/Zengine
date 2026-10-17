@@ -89,19 +89,26 @@ WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
 
 ### WL-HAND-01
 `component/control_strip.hpp` Control PlacedControl ControlStrip control_face pack_controls
-`files/browser_view.hpp` browser_controls say_controls strip_budget
-`builder/builder-pane/view.hpp` builder_controls say_controls strip_budget
+`workshop/pane_facets.hpp` PaneRowsFacet::push_controls
+`files/browser_view.hpp` browser_controls say_controls
+`builder/builder-pane/view.hpp` builder_controls say_controls
 `tests/test_workshop_panes_files.cpp` "every control the browser draws is a target, and pressing it
 performs that operation" "in a room too short for every control the strip says how many are in the
 menu, and the menu keeps them"
 
 ### WL-HAND-02
-`component/list_window.hpp` ListWindow::markers cursor_window
-`files/browser_view.hpp` body_budget say_entries strip_budget
-`builder/builder-pane/view.hpp` publish strip_budget
+`component/list_window.hpp` ListWindow::markers cursor_window earlier_marker more_marker
+`component/control_strip.hpp` kMaxStripRows strip_budget strip_rows_for
+`workshop/pane_facets.hpp` PaneRowsFacet::strip_rows PaneRowsFacet::push_window
+`files/browser_view.hpp` body_budget say_entries
+`builder/builder-pane/view.hpp` publish
 `builder/builder-pane/output_reader.hpp` output_body_rows
+`tests/test_component.cpp` "ListWindow: a side's marker is said only where the window reserved that
+side a row of its own" "ControlStrip: a strip spends about a third of the room up to its cap, and a
+pane's own rows pack as their faces"
 `tests/test_workshop_panes_files.cpp` "in a room too short for every control the strip says how many
-are in the menu, and the menu keeps them"
+are in the menu, and the menu keeps them" "scrolled into a long listing, Files says on a row of each
+side how many entries the window left out"
 `tests/test_workshop_panes_output.cpp` "WL-OUT-04: a build's own words are opened, stepped, panned
 and closed by hand"
 

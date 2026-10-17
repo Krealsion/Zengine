@@ -25,6 +25,11 @@ component/list_window.hpp   ListWindow{first, count, before, after, markers}
                                           what a bounded place shows of a list, what it
                                           omitted (always conserved), and how many rows it
                                           reserved to say so; three anchorings, one accounting
+                            earlier_marker / more_marker
+                                          how many a side's marker row says were left out,
+                                          where the window reserved that side a row
+                            take_wheel_notches
+                                          a wheel's whole notches, the fraction carried
 component/row_map.hpp       RowMap<Meaning>: row / span / at / at_row / row_of
                             begin / settle / picture / current / press_order
                                           what each published row and control means, recorded
@@ -37,12 +42,14 @@ component/held_choice.hpp   HeldChoice<Key>: find / hold / step / actionable
                                           and still a choice while its row is gone
 component/control_strip.hpp Control{label, available}, pack_controls, control_face
                             ControlStrip{rows, placed, dropped}
+                            strip_budget / kMaxStripRows / strip_rows_for
                                           labelled controls packed into the width a pane has,
                                           one space apart, wrapped and capped; `[label]` when
                                           the pane believes the operation applies, `(label)`
                                           when it does not -- both PLACED, because a control
                                           a pane will refuse is still one it must answer for.
-                                          What did not fit is counted, never cut in half
+                                          What did not fit is counted, never cut in half; the
+                                          rows a strip may spend grow with the room, to a cap
 component/columns.hpp       Column, layout_columns, column_offsets, table_line, widest
                                           a table laid out once for every row, cut from the
                                           last column to the first, never silently

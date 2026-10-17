@@ -13,6 +13,7 @@
 #include "doctest.h"
 
 #include "component/columns.hpp"
+#include "component/control_strip.hpp"
 #include "component/held_choice.hpp"
 #include "component/list_window.hpp"
 #include "component/row_map.hpp"
@@ -1573,6 +1574,121 @@ TEST_CASE("ListWindow: the omitted counts are conserved and the reserved marker 
     CHECK(next.first == first.first);
     CHECK(zengine::component::scroll_by(9, 8, 5) == 8);
     CHECK(zengine::component::scroll_by(9, 2, -5) == 0);
+}
+
+TEST_CASE("ListWindow: a side's marker is said only where the window reserved that side a row of its own") {
+    using zengine::component::ListWindow;
+    for (std::size_t total = 0; total <= 9; ++total) {
+        for (std::size_t budget = 0; budget <= 6; ++budget) {
+            for (std::size_t at = 0; at < (total == 0 ? 1 : total); ++at) {
+                CAPTURE(total);
+                CAPTURE(budget);
+                CAPTURE(at);
+                const ListWindow c = zengine::component::cursor_window(total, at, 0, budget);
+                const ListWindow m = zengine::component::centred_window(total, at, budget);
+                const ListWindow s = zengine::component::scroll_window(total, at, budget);
+                for (const ListWindow& w : {c, m, s}) {
+                    const std::size_t earlier = earlier_marker(w);
+                    const std::size_t more = more_marker(w);
+                    CHECK((earlier == 0 || earlier == w.before));
+                    CHECK((more == 0 || more == w.after));
+                    CHECK((earlier > 0 ? 1u : 0u) + (more > 0 ? 1u : 0u) <= w.markers);
+                }
+                // A WINDOW RESERVING ONE ROW PER CUT SIDE says each cut it reserved a row for.
+                for (const ListWindow& w : {c, s}) {
+                    CHECK(earlier_marker(w) == (w.before > 0 && w.markers > 0 ? w.before : 0));
+                    CHECK(more_marker(w) == (w.after > 0 && w.markers > 0 ? w.after : 0));
+                }
+            }
+        }
+    }
+    const ListWindow middle = zengine::component::cursor_window(9, 4, 0, 5);
+    CHECK(middle.first == 2);
+    CHECK(earlier_marker(middle) == 2);
+    CHECK(more_marker(middle) == 4);
+    const ListWindow top = zengine::component::cursor_window(9, 0, 0, 5);
+    CHECK(earlier_marker(top) == 0);
+    CHECK(more_marker(top) == 5);
+    // A CUT NO ROW WAS RESERVED FOR is the consumer's to say elsewhere: no marker row here.
+    const ListWindow tiny = zengine::component::cursor_window(9, 4, 0, 1);
+    CHECK(tiny.unsaid_cut());
+    CHECK(earlier_marker(tiny) == 0);
+    CHECK(more_marker(tiny) == 0);
+    // ONE ROW FOR TWO CUT SIDES is neither side's own.
+    const ListWindow centred = zengine::component::centred_window(9, 4, 5);
+    CHECK(centred.markers == 1);
+    CHECK(earlier_marker(centred) == 0);
+    CHECK(more_marker(centred) == 0);
+    CHECK(more_marker(zengine::component::centred_window(9, 0, 5)) == 5);
+}
+
+TEST_CASE("ControlStrip: a strip spends about a third of the room up to its cap, and a pane's own rows pack as their faces") {
+    CHECK(strip_budget(-1) == 0);
+    CHECK(strip_budget(0) == 0);
+    CHECK(strip_budget(1) == 0);
+    for (std::int64_t rows = 2; rows < 8; ++rows) {
+        CHECK(strip_budget(rows) == 1);
+    }
+    for (std::int64_t rows = 8; rows < 11; ++rows) {
+        CHECK(strip_budget(rows) == 2);
+    }
+    for (std::int64_t rows = 11; rows < 40; ++rows) {
+        CHECK(strip_budget(rows) == kMaxStripRows);
+    }
+    CHECK(strip_budget(40, 5) == 5);
+    CHECK(strip_budget(40, 1) == 1);
+    CHECK(strip_budget(40, 0) == 0);
+
+    struct PaneControl {
+        const char* id;
+        std::string label;
+        bool available = true;
+    };
+    const std::vector<PaneControl> pane{
+        {"menu", "menu", true}, {"open", "open", false}, {"parent", "up a directory", true}};
+    const std::vector<Control> faces{{"menu", true}, {"open", false}, {"up a directory", true}};
+    for (std::int64_t columns = 0; columns <= 20; ++columns) {
+        for (std::int64_t budget = 0; budget <= 3; ++budget) {
+            CAPTURE(columns);
+            CAPTURE(budget);
+            const ControlStrip typed = pack_controls(pane, columns, budget);
+            const ControlStrip plain = pack_controls(faces, columns, budget);
+            CHECK(typed.rows == plain.rows);
+            CHECK(typed.dropped == plain.dropped);
+            REQUIRE(typed.placed.size() == plain.placed.size());
+            for (std::size_t i = 0; i < typed.placed.size(); ++i) {
+                CHECK(typed.placed[i].index == plain.placed[i].index);
+                CHECK(typed.placed[i].row == plain.placed[i].row);
+                CHECK(typed.placed[i].first == plain.placed[i].first);
+                CHECK(typed.placed[i].width == plain.placed[i].width);
+            }
+            CHECK(strip_rows_for(pane, columns, budget) ==
+                  static_cast<std::int64_t>(plain.rows.size()));
+        }
+    }
+    // The index is the pane's own row's: the face placed second is the pane's `open`.
+    const ControlStrip strip = pack_controls(pane, 14, 3);
+    REQUIRE(strip.rows.size() == 1);
+    CHECK(strip.rows[0] == "[menu] (open)");
+    CHECK(strip.dropped == 1); // `[up a directory]` is wider than the whole strip
+    REQUIRE(strip.placed.size() == 2);
+    CHECK(std::string(pane[strip.placed[1].index].id) == "open");
+    CHECK(strip.placed[1].first == 7);
+}
+
+TEST_CASE("take_wheel_notches: whole notches leave the carry, either way, and the fraction stays for the next turn") {
+    double carry = 0.0;
+    CHECK(take_wheel_notches(carry, 0.5) == 0);
+    CHECK(take_wheel_notches(carry, 0.75) == 1);
+    CHECK(carry == 0.25);
+    CHECK(take_wheel_notches(carry, 3.0) == 3);
+    CHECK(carry == 0.25);
+    CHECK(take_wheel_notches(carry, -1.0) == 0);
+    CHECK(carry == -0.75);
+    CHECK(take_wheel_notches(carry, -0.5) == -1);
+    CHECK(carry == -0.25);
+    CHECK(take_wheel_notches(carry, 0.25) == 0);
+    CHECK(carry == 0.0);
 }
 
 TEST_CASE("RowMap: a control inside a row answers before the row, a cut control is no target, and the picture number moves exactly when the map moves") {
