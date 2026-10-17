@@ -28,7 +28,8 @@ body. It answers a search with text its name or words match, or one for the kind
 catalog's rows: `fold`, kind `form`, construction `evaluator`, no provider.
 
 Anyone who can be answered may ask: an office, or a participant speaking for itself, as the
-Terminal does. A send with no sender has nobody to answer; the door counts it (`unanswered`).
+Terminal does. A search or a description sent with no sender has nobody to answer; the door
+counts it (`unanswered`).
 
 ## Use
 

@@ -77,6 +77,19 @@
 #include <windows.h>
 #endif
 
+// A schema built by hand, standing as a door (`zengine::ValueDoor`), registered as a weaver
+// registers one: at global scope, by its qualified name.
+namespace witness {
+inline std::shared_ptr<const loom::Schema> door_schema() {
+    static const auto s =
+        loom::SchemaBuilder("witness.Door", 1).field("said", loom::Kind::Text, false).build();
+    return s;
+}
+using Door = zengine::RawValueDoor<&door_schema>;
+} // namespace witness
+
+ZENGINE_VALUE_DOOR(::witness::Door)
+
 namespace {
 
 int failures = 0;
@@ -95,6 +108,16 @@ void activation_surface() {
     // There is no bus here, so what this asks is that the cursor exists, compiles against the
     // installed header, and starts in the honest state: nothing has activated it.
     check(!cursor.activated(), "a fresh ActivationCursor has accepted nothing");
+
+    // The door's schema is the one it builds, as the accept list and the dispatch read it, and a
+    // value admitted against it reads back as the door.
+    check(loom::same_identity(*loom::schema_of<witness::Door>(), *witness::door_schema()),
+          "a value door's schema is the one it builds");
+    loom::Value said(witness::door_schema());
+    said.set("said", loom::Cell::text("hello"));
+    const witness::Door door = loom::from_value<witness::Door>(said);
+    const loom::Cell* cell = door.value.get("said");
+    check(cell != nullptr && cell->as_text() == "hello", "a value door reads the value it was given");
 }
 
 // ---- zengine::timer --------------------------------------------------------------------
