@@ -12,12 +12,31 @@
 // control it will refuse. The first control is never dropped while a row can hold it.
 // Reference: component/docs/component.md.
 
+#include <algorithm>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
 
 namespace zengine::component {
+
+/// HOW MANY ROWS OF ITS OWN A STRIP MAY SPEND AT MOST. Three is what the widest strip needs at
+/// the narrowest room a weaver works in and still leaves a list its own rows; past that the rest
+/// of the controls are the pane menu's, which is what a first `[menu]` is for.
+inline constexpr std::int64_t kMaxStripRows = 3;
+
+/// HOW MANY ROWS A STRIP MAY SPEND IN A ROOM OF `rows`: none under two rows, else about a third
+/// of the room -- one row until the room has eight, two until eleven -- and never more than
+/// `max_rows`. The controls do not get to eat the pane: what does not fit is counted, and a room
+/// too small for one strip row leaves the pane's menu, which opens the same rows.
+inline std::int64_t strip_budget(std::int64_t rows,
+                                 std::int64_t max_rows = kMaxStripRows) noexcept {
+    if (rows < 2 || max_rows < 1) {
+        return 0;
+    }
+    return std::clamp<std::int64_t>((rows - 2) / 3, 1, max_rows);
+}
 
 /// ONE CONTROL A PANE OFFERS: what it reads as, and whether the pane believes the operation
 /// applies right now. Availability is a HINT drawn on the face; it is not permission, and the
@@ -95,6 +114,31 @@ inline ControlStrip pack_controls(const std::vector<Control>& controls, std::int
         strip.rows.push_back(std::move(row));
     }
     return strip;
+}
+
+/// ...A PANE'S OWN CONTROL ROWS, any type with a `label` and an `available`, read as faces: the
+/// index of each placed control is the row's own index, so its meaning stays the pane's.
+template <class Row>
+    requires requires(const Row& r) {
+        { r.label } -> std::convertible_to<std::string>;
+        { r.available } -> std::convertible_to<bool>;
+    }
+ControlStrip pack_controls(const std::vector<Row>& controls, std::int64_t columns,
+                           std::int64_t max_rows) {
+    std::vector<Control> faces;
+    faces.reserve(controls.size());
+    for (const Row& control : controls) {
+        faces.push_back(Control{control.label, control.available});
+    }
+    return pack_controls(faces, columns, max_rows);
+}
+
+/// HOW MANY ROWS A STRIP OF `controls` WOULD TAKE -- asked before the body is laid out, so the
+/// body is given what is genuinely left rather than losing its tail afterwards.
+template <class Row>
+std::int64_t strip_rows_for(const std::vector<Row>& controls, std::int64_t columns,
+                            std::int64_t max_rows) {
+    return static_cast<std::int64_t>(pack_controls(controls, columns, max_rows).rows.size());
 }
 
 } // namespace zengine::component

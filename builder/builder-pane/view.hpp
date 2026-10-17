@@ -16,7 +16,6 @@
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_text.hpp"
 
-#include "component/control_strip.hpp"
 #include "surface/vocabulary.hpp"
 
 #include <algorithm>
@@ -214,11 +213,6 @@ inline void BuilderPaneWeave::chose(const std::string& id, const std::string& su
 
 // ---- The controls a weaver can press ---------------------------------------------
 
-/// HOW MANY ROWS OF ITS OWN THE CONTROL STRIP MAY SPEND -- Files' number, for Files' reason:
-/// past three the rest of the controls are the pane menu's, which is what `[menu]` is first
-/// for.
-constexpr std::int64_t kMaxControlRows = 3;
-
 /// The Builder's controls, in the order a weaver reads them: choose, build, decide what
 /// happens to what was built, then the two that change what a restart loads, then the two
 /// that read. `build`, `add to the load plan` and `edit source` act on the weaver's choice,
@@ -269,69 +263,20 @@ inline std::vector<BuilderPaneWeave::ControlRow> BuilderPaneWeave::builder_contr
     return controls;
 }
 
-/// How many rows the strip may spend in the room this pane has. The controls do not get to
-/// eat the pane: in a six-row room two rows of buttons would cost the `realize` row, the one
-/// that says a loaded image is not the file a restart loads. So the strip is capped near a
-/// third of the room; what does not fit is counted and reachable through `[menu]`, and a room
-/// too small for one strip row leaves the right press.
-inline std::int64_t BuilderPaneWeave::strip_budget() const {
-    if (rows() < 2) {
-        return 0;
-    }
-    const std::int64_t want = (rows() - 2) / 3;
-    return want < 1 ? 1 : (want > kMaxControlRows ? kMaxControlRows : want);
-}
-
-inline component::ControlStrip BuilderPaneWeave::packed(
-    const std::vector<ControlRow>& controls) const {
-    std::vector<component::Control> faces;
-    faces.reserve(controls.size());
-    for (const ControlRow& control : controls) {
-        faces.push_back(component::Control{control.label, control.available});
-    }
-    return component::pack_controls(faces, columns(), strip_budget());
-}
-
-/// HOW MANY ROWS A STRIP OF THESE CONTROLS WOULD TAKE -- asked before the body is laid out,
-/// so each mode is given what is genuinely left rather than losing its tail afterwards.
-inline std::int64_t BuilderPaneWeave::strip_rows_for(
-    const std::vector<ControlRow>& controls) const {
-    return static_cast<std::int64_t>(packed(controls).rows.size());
-}
-
-/// DRAW THE STRIP AND RECORD EVERY FACE AS A TARGET. A face the width cut is not recorded
-/// (`RowMap::span` refuses it): a press on the `...` a cut left behind must not operate a
-/// control the weaver cannot read. What did not fit is counted on the last strip row, and
-/// the route to it is `[menu]`, never only a key.
+/// DRAW THE STRIP (`PaneRowsFacet::push_controls`), every face a target. The controls do not
+/// get to eat the pane (`component::strip_budget`): in a six-row room two rows of buttons would
+/// cost the `realize` row, the one that says a loaded image is not the file a restart loads.
+/// What does not fit is counted and reachable through `[menu]`, and a room too small for one
+/// strip row leaves the right press.
 inline void BuilderPaneWeave::say_controls(const std::vector<ControlRow>& controls) {
-    const component::ControlStrip strip = packed(controls);
-    for (std::size_t i = 0; i < strip.rows.size(); ++i) {
-        std::string text = strip.rows[i];
-        if (i + 1 == strip.rows.size() && strip.dropped > 0) {
-            text += "  +" + std::to_string(strip.dropped) + " in menu";
-        }
-        const std::int64_t row = static_cast<std::int64_t>(room().composing().size());
-        push_row(text, surface::role::kFill);
-        if (static_cast<std::int64_t>(room().composing().size()) == row) {
-            return; // the room ran out before this strip row
-        }
-        const std::int64_t solid = component::solid_columns(
-            room().composing()[static_cast<std::size_t>(row)].text, text.size());
-        for (const component::PlacedControl& placed : strip.placed) {
-            if (placed.row != static_cast<std::int64_t>(i)) {
-                continue;
-            }
-            // The advertised subject and its operation are part of the meaning, so two
-            // equal-width faces about different artifacts, or two builds sharing a stem, are
-            // different spans: the picture moves when the promise does, and a press queued
-            // against the older one is refused by the fence (`perform_on`).
-            room().map().span(row, placed.first, placed.width, solid,
-                      BuilderMeaning{builder_row::kControl, 0, controls[placed.index].id,
-                                     controls[placed.index].subject,
-                                     controls[placed.index].subject_op,
-                                     controls[placed.index].available});
-        }
-    }
+    // The advertised subject and its operation are part of the meaning, so two equal-width
+    // faces about different artifacts, or two builds sharing a stem, are different spans: the
+    // picture moves when the promise does, and a press queued against the older one is refused
+    // by the fence (`perform_on`).
+    room().push_controls(controls, fit_row(), [](const ControlRow& control) {
+        return BuilderMeaning{builder_row::kControl, 0, control.id, control.subject,
+                              control.subject_op, control.available};
+    });
 }
 
 // ---- The fact view: the facts, seated in the room's budget ------------------------------
@@ -360,7 +305,7 @@ template <class Facts>
 inline void BuilderPaneWeave::publish(Facts facts, const std::string& said_detail,
                                       const std::vector<ControlRow>& controls) {
     const std::int64_t budget =
-        rows() - (notice_.empty() ? 0 : 1) - strip_rows_for(controls);
+        rows() - (notice_.empty() ? 0 : 1) - room().strip_rows(controls);
     if (budget <= 0) {
         say_controls(controls); // the controls outrank the facts: they are the only route
         return;

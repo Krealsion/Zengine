@@ -511,27 +511,20 @@ inline void FilesWeave::say_chooser() {
                  (chooser_.candidates.size() == 1 ? " candidate" : " candidates"),
              surface::role::kAccent);
     const std::vector<ControlRow> controls = chooser_controls();
-    const std::int64_t body_rows = body_budget(strip_rows_for(controls));
+    const std::int64_t body_rows = body_budget(room().strip_rows(controls));
     if (body_rows > 0) {
         const component::ListWindow win =
             component::cursor_window(chooser_.candidates.size(), chooser_.cursor,
                                      chooser_hint_, static_cast<std::size_t>(body_rows));
         chooser_hint_ = win.first;
-        if (win.before > 0 && win.markers > 0) {
-            push_row("  ... " + std::to_string(win.before) + " earlier",
-                     surface::role::kMuted);
-        }
-        for (std::size_t i = win.first; i < win.end(); ++i) {
+        (void)room().push_window(win, fit_row(), [&](std::size_t i) {
             const bool here = i == chooser_.cursor;
             const BuildCandidate& c = chooser_.candidates[i];
             push_row(std::string(here ? "> " : "  ") + c.name +
                          (c.tree ? "/  (configured tree)" : ""),
                      here ? surface::role::kAccent : surface::role::kFill,
                      FilesMeaning{files_row::kCandidate, i, {}, c.name});
-        }
-        if (win.after > 0 && win.markers > 0) {
-            push_row("  ... " + std::to_string(win.after) + " more", surface::role::kMuted);
-        }
+        });
     }
     say_controls(controls);
 }
@@ -547,25 +540,14 @@ inline void FilesWeave::say_authoring() {
                  (authoring_.chosen.tree ? "a configured tree" : "a source file"),
              surface::role::kAccent);
     const std::vector<ControlRow> controls = authoring_controls();
-    const std::int64_t body_rows = body_budget(strip_rows_for(controls));
+    const std::int64_t body_rows = body_budget(room().strip_rows(controls));
     if (body_rows > 0) {
         const component::ListWindow win =
             component::cursor_window(field_count(), authoring_.step, field_hint_,
                                      static_cast<std::size_t>(body_rows));
         field_hint_ = win.first;
-        std::int64_t spent = 0;
-        if (win.before > 0 && win.markers > 0) {
-            push_row("  ... " + std::to_string(win.before) + " earlier", surface::role::kMuted);
-            ++spent;
-        }
-        for (std::size_t i = win.first; i < win.end(); ++i) {
-            say_field(i);
-            ++spent;
-        }
-        if (win.after > 0 && win.markers > 0) {
-            push_row("  ... " + std::to_string(win.after) + " more", surface::role::kMuted);
-            ++spent;
-        }
+        const std::int64_t spent =
+            room().push_window(win, fit_row(), [this](std::size_t i) { say_field(i); });
         // A cut the window could not reserve a marker for (`ListWindow::unsaid_cut`) still has
         // a row here, and it names the route: every field is in the menu. It wears no
         // control's face: brackets are the face vocabulary, and only `pack_controls` writes

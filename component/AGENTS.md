@@ -28,8 +28,8 @@ routes.
 
 ## Suites
 
-- `component` — `TextBox`, `ListWindow`, `RowMap`, `HeldChoice` and columns as values:
-  `tests/test_component.cpp`, its own executable linking only `zengine-component`
+- `component` — `TextBox`, `ListWindow`, `RowMap`, `HeldChoice`, columns and control strips as
+  values: `tests/test_component.cpp`, its own executable linking only `zengine-component`
 
 Its cases in shared suites: `workshop_panes` (`tests/test_workshop_panes_terminal.cpp`, `_info.cpp`
 and `_input.cpp` for the text box; `_builder.cpp`, `_files.cpp`, `_output.cpp` and `_canvas.cpp` for

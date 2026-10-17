@@ -3068,8 +3068,8 @@ TEST_CASE("a cut the window reserved no row for is not said, and the strip keeps
     // A MARKER IS A ROW OF THE SAME BUDGET the entries come out of, and `cursor_window` says how
     // many it RESERVED (`ListWindow::markers`). Saying `... N more` anyway overran the
     // composition, and the room cut the control strip -- a hand's only route. A cut nobody
-    // reserved a row for is left to the header's count. ⚔ MUTATION: `say_entries` on
-    // `if (win.after > 0)` alone ends the pane on `  ... N more` with no control on it at all.
+    // reserved a row for is left to the header's count. ⚔ MUTATION: `more_marker` answering
+    // `after` alone ends the pane on `  ... N more` with no control on it at all.
     FilesRig f("files-marker-budget");
     for (int i = 0; i < 6; ++i) {
         put_file(f.root / ("entry-0" + std::to_string(i) + ".txt"), "x");

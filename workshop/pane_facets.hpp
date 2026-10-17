@@ -10,6 +10,8 @@
 // workshop/docs/workshop-panes.md, "The pane facets".
 
 #include "activation/activation.hpp"
+#include "component/control_strip.hpp"
+#include "component/list_window.hpp"
 #include "component/row_map.hpp"
 #include "pane_canvas_rows.hpp"
 #include "pane_canvas_vocabulary.hpp"
@@ -17,6 +19,7 @@
 #include "pane_menu.hpp"
 #include "pane_operation.hpp"
 #include "pane_parts.hpp"
+#include "pane_text.hpp"
 #include "pane_vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 
@@ -258,6 +261,71 @@ public:
     const component::RowMap<Meaning>& map() const noexcept { return map_; }
     /// Where the caret and the selection stand in the rows being composed; none by default.
     RowsCaret& caret() noexcept { return caret_; }
+
+    /// HOW MANY ROWS A STRIP OF THESE CONTROLS WOULD TAKE in this room, at most `max_rows`
+    /// (`component::strip_budget`): asked before the body is laid out, so the body is given what
+    /// is genuinely left and the strip is never the row that falls off the end.
+    template <class Row>
+    std::int64_t strip_rows(const std::vector<Row>& controls,
+                            std::int64_t max_rows = component::kMaxStripRows) const {
+        return component::strip_rows_for(controls, this->columns(),
+                                         component::strip_budget(this->rows(), max_rows));
+    }
+
+    /// THE CONTROL STRIP, ITS FACES RECORDED AS TARGETS: each packed row fitted by `fit_row` and
+    /// pushed, and each face it seats a span meaning `meaning_of(control)`. What did not fit is
+    /// counted on the last strip row, and the route to it is the pane's menu, never only a key.
+    /// A face the fit cut is not recorded (`RowMap::span` refuses it), and nothing is once the
+    /// room runs out: a press on what a weaver cannot read must not operate a control.
+    template <class Row, class FitRow, class MeaningOf>
+    void push_controls(const std::vector<Row>& controls, FitRow&& fit_row, MeaningOf&& meaning_of,
+                       std::int64_t max_rows = component::kMaxStripRows) {
+        const component::ControlStrip strip = component::pack_controls(
+            controls, this->columns(), component::strip_budget(this->rows(), max_rows));
+        for (std::size_t i = 0; i < strip.rows.size(); ++i) {
+            std::string text = strip.rows[i];
+            if (i + 1 == strip.rows.size() && strip.dropped > 0) {
+                text += "  +" + std::to_string(strip.dropped) + " in menu";
+            }
+            const std::int64_t row = next_row();
+            if (!push(surface::SurfaceTextRow{fit_row(text), surface::role::kFill})) {
+                return;
+            }
+            const std::int64_t solid = component::solid_columns(
+                composing_[static_cast<std::size_t>(row)].text, text.size());
+            for (const component::PlacedControl& placed : strip.placed) {
+                if (placed.row == static_cast<std::int64_t>(i)) {
+                    map_.span(row, placed.first, placed.width, solid,
+                              meaning_of(controls[placed.index]));
+                }
+            }
+        }
+    }
+
+    /// A LIST THROUGH ITS WINDOW: the row saying what the window left out above, `emit_entry(i)`
+    /// for each member it shows, and the row saying what it left out below -- each marker said
+    /// only where the window reserved it a row (`component::earlier_marker`), fitted by
+    /// `fit_row`. Returns the rows it asked for, markers included.
+    template <class FitRow, class EmitEntry>
+    std::int64_t push_window(const component::ListWindow& win, FitRow&& fit_row,
+                             EmitEntry&& emit_entry) {
+        std::int64_t asked = 0;
+        const auto marker = [&](std::size_t omitted, const char* which) {
+            if (omitted > 0) {
+                (void)push(surface::SurfaceTextRow{
+                    fit_row("  " + pane_text::omitted_text(omitted, which)),
+                    surface::role::kMuted});
+                ++asked;
+            }
+        };
+        marker(component::earlier_marker(win), "earlier");
+        for (std::size_t i = win.first; i < win.end(); ++i) {
+            emit_entry(i);
+            ++asked;
+        }
+        marker(component::more_marker(win), "more");
+        return asked;
+    }
 
     /// NOTHING IS SAID THIS BEAT, so no row of it names anything.
     void hold() { (void)map_.settle(); }

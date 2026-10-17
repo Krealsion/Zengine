@@ -150,7 +150,7 @@ inline void BuilderPaneWeave::ask_page(loom::Mail& mail) {
 /// The rows the reader's lines may spend: the room, less its header, less a notice, less
 /// the control strip the reader draws under them.
 inline std::int64_t BuilderPaneWeave::output_body_rows() const {
-    return rows() - 1 - (notice_.empty() ? 0 : 1) - strip_rows_for(output_controls());
+    return rows() - 1 - (notice_.empty() ? 0 : 1) - room().strip_rows(output_controls());
 }
 
 /// THE READER'S ROWS. One header naming the operation, how it ended and which lines show;

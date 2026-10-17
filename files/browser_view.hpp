@@ -15,7 +15,6 @@
 #include "files/vocabulary.hpp"
 #include "workshop/path_admission.hpp"
 
-#include "component/control_strip.hpp"
 #include "component/list_window.hpp"
 #include "surface/vocabulary.hpp"
 
@@ -40,11 +39,6 @@ inline std::string row_text(const FileRow& row) {
     }
     return out;
 }
-
-/// HOW MANY ROWS OF ITS OWN THE CONTROL STRIP MAY SPEND. Three is what the widest strip needs
-/// at the narrowest room a weaver works in and still leaves the listing its own rows; past that
-/// the rest of the controls are the pane menu's, which is what `[menu]` is first for.
-constexpr std::int64_t kMaxControlRows = 3;
 
 // ---- The listing's budget, and the controls a weaver can press ----------------------------
 
@@ -89,61 +83,14 @@ inline std::vector<FilesWeave::ControlRow> FilesWeave::browser_controls() const 
     return controls;
 }
 
-/// How many rows the strip may spend in the room this pane has. The controls do not get to
-/// eat the pane: the strip grows with the room -- one row until the pane has eight, two until
-/// eleven, three after that -- and what does not fit is counted and reachable through
-/// `[menu]`. A room too small for one strip row leaves the right press, which opens the same
-/// rows wherever the hand is.
-inline std::int64_t FilesWeave::strip_budget() const {
-    if (rows() < 2) {
-        return 0;
-    }
-    const std::int64_t want = (rows() - 2) / 3;
-    return want < 1 ? 1 : (want > kMaxControlRows ? kMaxControlRows : want);
-}
-
-inline component::ControlStrip FilesWeave::packed(const std::vector<ControlRow>& controls) const {
-    std::vector<component::Control> faces;
-    faces.reserve(controls.size());
-    for (const ControlRow& control : controls) {
-        faces.push_back(component::Control{control.label, control.available});
-    }
-    return component::pack_controls(faces, columns(), strip_budget());
-}
-
-/// HOW MANY ROWS A STRIP OF THESE CONTROLS WOULD TAKE -- asked before the body is laid out,
-/// so the listing is given what is genuinely left rather than losing its tail afterwards.
-inline std::int64_t FilesWeave::strip_rows_for(const std::vector<ControlRow>& controls) const {
-    return static_cast<std::int64_t>(packed(controls).rows.size());
-}
-
-/// DRAW THE STRIP AND RECORD EVERY FACE AS A TARGET. A face the width cut is not recorded
-/// (`RowMap::span` refuses it): a press on the `...` a cut left behind must not operate a
-/// control the weaver cannot read. What did not fit is counted on the last strip row, and
-/// the route to it is `[menu]`, never only a key.
+/// DRAW THE STRIP (`PaneRowsFacet::push_controls`), every face a target naming the operation it
+/// asks for. The strip grows with the room (`component::strip_budget`), and what does not fit
+/// is counted and reachable through `[menu]`; a room too small for one strip row leaves the
+/// right press, which opens the same rows wherever the hand is.
 inline void FilesWeave::say_controls(const std::vector<ControlRow>& controls) {
-    const component::ControlStrip strip = packed(controls);
-    for (std::size_t i = 0; i < strip.rows.size(); ++i) {
-        std::string text = strip.rows[i];
-        if (i + 1 == strip.rows.size() && strip.dropped > 0) {
-            text += "  +" + std::to_string(strip.dropped) + " in menu";
-        }
-        const std::int64_t row = room().next_row();
-        push_row(text, surface::role::kFill);
-        if (room().next_row() == row) {
-            return; // the room ran out before this strip row: nothing below it is a target
-        }
-        const std::int64_t solid = component::solid_columns(
-            room().composing()[static_cast<std::size_t>(row)].text, text.size());
-        for (const component::PlacedControl& placed : strip.placed) {
-            if (placed.row != static_cast<std::int64_t>(i)) {
-                continue;
-            }
-            const ControlRow& control = controls[placed.index];
-            room().map().span(row, placed.first, placed.width, solid,
-                      FilesMeaning{files_row::kControl, 0, control.id, {}});
-        }
-    }
+    room().push_controls(controls, fit_row(), [](const ControlRow& control) {
+        return FilesMeaning{files_row::kControl, 0, control.id, {}};
+    });
 }
 
 // ---- The browser's picture ----------------------------------------------------------------
@@ -172,7 +119,7 @@ inline void FilesWeave::say_browser() {
     header += "  " + where();
     push_row(header, surface::role::kAccent);
     const std::vector<ControlRow> controls = browser_controls();
-    const std::int64_t body_rows = body_budget(strip_rows_for(controls));
+    const std::int64_t body_rows = body_budget(room().strip_rows(controls));
     if (body_rows > 0) {
         if (!listing_.known) {
             push_row(listing_.refusal.empty() ? "nothing has been listed yet"
@@ -190,28 +137,20 @@ inline void FilesWeave::say_browser() {
 /// The listing through a window that moves as little as it can (`component::cursor_window`).
 /// Least motion, not centring: a window re-laid on every selection scrolled the rows out from
 /// under the pressing hand, and the picture fence would refuse a double-click's second press.
-/// The markers are rows of the same budget, and one entry is always seated.
+/// The markers are rows of the same budget (`PaneRowsFacet::push_window`), and one entry is
+/// always seated.
 inline void FilesWeave::say_entries(std::size_t total, std::size_t body_rows) {
     const component::ListWindow win = component::cursor_window(
         total, static_cast<std::size_t>(state_.cursor), window_hint_, body_rows);
     window_hint_ = win.first;
-    // A marker is a row of the same budget, said only where the window reserved one
-    // (`ListWindow::markers`): saying it anyway overran the budget and pushed the control
-    // strip, the one row a weaver with a mouse cannot lose, out of the room.
-    if (win.before > 0 && win.markers > 0) {
-        push_row("  ... " + std::to_string(win.before) + " earlier", surface::role::kMuted);
-    }
-    for (std::size_t i = win.first; i < win.end(); ++i) {
+    (void)room().push_window(win, fit_row(), [&](std::size_t i) {
         const bool here = i == static_cast<std::size_t>(state_.cursor);
         const FileRow& row = listing_.rows[i];
         push_row(std::string(here ? "> " : "  ") + row_text(row),
                  here ? surface::role::kAccent
                       : (row.openable ? surface::role::kFill : surface::role::kMuted),
                  FilesMeaning{files_row::kEntry, i, {}, row.name});
-    }
-    if (win.after > 0 && win.markers > 0) {
-        push_row("  ... " + std::to_string(win.after) + " more", surface::role::kMuted);
-    }
+    });
 }
 
 } // namespace
