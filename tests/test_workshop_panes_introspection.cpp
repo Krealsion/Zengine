@@ -13,6 +13,7 @@
 
 #include "census.hpp"
 #include "office_manual.hpp"
+#include "pane_window.hpp"
 
 #include "manuals/zengine.arrangement.hpp"
 #include "manuals/zengine.introspection.hpp"
@@ -1919,6 +1920,84 @@ TEST_CASE("opening a pane asks ONCE, and a quiet bus asks nothing") {
     CHECK(asked.size() == after_open);
     r.bus.remove_observer(tap);
     CHECK(answered.size() == after_open);
+
+    SUBCASE("a graphics window's room asks a pane's owner once where Workshop seats it nowhere, "
+            "and a press there is the pane's own press") {
+        namespace pw = zengine::testing::pane_window;
+        const auto area = [](const char* pane) { return std::string(kIntroOffice) + "." + pane; };
+        const auto trimmed = [](std::vector<std::string> rows) {
+            for (std::string& row : rows) row.erase(row.find_last_not_of(' ') + 1);
+            return rows;
+        };
+        const loom::WeaveId office = r.bus.role_holder(kIntroOffice);
+        std::size_t questions = 0, carries = 0;
+        const loom::ObserverId watch = r.bus.add_observer([&](const loom::BusEvent& e) {
+            if (e.kind != loom::EventKind::Delivered || e.sender != office) return;
+            if (e.schema_name == "ArrangementRequested" ||
+                e.schema_name == loom::ListLoaded::zen_name ||
+                e.schema_name == ws::kFindPowersName || e.schema_name == "DescribePower") {
+                ++questions;
+            }
+            if (e.schema_name == ws::PaneOperationRequested::zen_name) ++carries;
+        });
+        pw::Window w(r.bus);
+        // A PANE WORKSHOP SEATS NOWHERE: the window's room asks its owner once, and the answer
+        // is drawn there whole.
+        w.room(area(intro::kArrangementPane), kIntroOffice, 90, 30);
+        CHECK(questions == 1);
+        REQUIRE_FALSE(w.weave().heard.empty());
+        CHECK(w.weave().heard.back().whole);
+        const std::vector<std::string> project = w.rows(area(intro::kArrangementPane));
+        REQUIRE_FALSE(project.empty());
+        CHECK(project[0].find("artifacts resolved") != std::string::npos);
+        CHECK(w.actions(area(intro::kArrangementPane)).empty()); // read-only: nothing to press
+        w.room(area(intro::kLoadedPane), kIntroOffice, 90, 30);
+        CHECK(questions == 2);
+        const std::vector<std::string> loaded = w.rows(area(intro::kLoadedPane));
+        REQUIRE_FALSE(loaded.empty());
+        CHECK(loaded[0].rfind("loaded weaves -- ", 0) == 0);
+        for (int turn = 0; turn < 40; ++turn) {
+            r.bus.drain_until_idle();
+        }
+        CHECK(questions == 2);
+        // A PANE WORKSHOP SEATS is drawn as Workshop holds it, and its room asks nothing.
+        make_taller(r, intro::kPowersPane, 16);
+        const std::int64_t powers = intro_row(r, intro::kPowersPane)->kind;
+        const std::size_t asked_before = questions;
+        w.room(area(intro::kPowersPane), kIntroOffice, 120, 40);
+        CHECK(questions == asked_before);
+        CHECK(w.rows(area(intro::kPowersPane)) == trimmed(pane_rows(r, powers)));
+        // A PRESS ON A LOADED WEAVE'S ROW selects it, as a press on Workshop's would: the row is
+        // drawn on its ground beneath its text, still asking the same weave.
+        const std::string self = std::string("weave:") + intro::kIntrospectionStem;
+        const auto grounds = [&] {
+            std::vector<std::string> out;
+            for (const auto& k : w.weave().find(area(intro::kLoadedPane))->nodes) {
+                if (k.node.path.rfind("ground", 0) == 0) out.push_back(k.node.path);
+            }
+            return out;
+        };
+        CHECK(grounds().empty());
+        const auto chosen = w.cell_of(area(intro::kLoadedPane), self);
+        REQUIRE(chosen.has_value());
+        CHECK(w.press(area(intro::kLoadedPane), self));
+        CHECK(grounds() == std::vector<std::string>{"ground" + std::to_string(chosen->second)});
+        CHECK(w.action_at(area(intro::kLoadedPane), chosen->first, chosen->second) == self);
+        // POWERS' CONTROLS AND ROWS: the Operators view shown, then a power chosen in it.
+        CHECK(w.press(area(intro::kPowersPane), std::string("control:powers.operators")));
+        REQUIRE(w.press(area(intro::kPowersPane), std::string("power:math.max")));
+        CHECK(w.rows(area(intro::kPowersPane)) == trimmed(pane_rows(r, powers)));
+        // A WINDOW CARRIES NO DRAG: Workshop's hand pressing a control and moving after the
+        // window's press carries no power.
+        const v2::PaneRowPart ops = held_parts(r.session(), powers).at("control:powers.operators");
+        const ui::Rect body = external_body_rect(r.session(), powers);
+        const std::int64_t x = body.x + ops.column, y = body.y + kExternalHeaderRows + ops.row;
+        r.press_cell(x, y);
+        r.motion_cell(x, y + 2);
+        r.release_cell(x, y + 2);
+        r.bus.remove_observer(watch);
+        CHECK(carries == 0);
+    }
 }
 
 TEST_CASE("all three panes may be open at once, each answering its own room") {

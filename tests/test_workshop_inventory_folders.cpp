@@ -6,6 +6,7 @@
 // own rules (names, bounds, trees, archives) are pinned in test_inventory.cpp.
 #include "workshop_support.hpp"
 #include "inventory_story.hpp"
+#include "pane_window.hpp"
 #include "inventory/inventory-pane/toolbox_file.hpp"
 
 #include <optional>
@@ -157,6 +158,68 @@ TEST_CASE("WL-HAND-06: Inventory names its entries, folders, crumbs and controls
     const auto crumb = named("crumb:", ":" + workbench);
     REQUIRE(crumb.has_value());
     CHECK(held_part_text(s.r.session(), s.source, *crumb) == "Workbench");
+
+    SUBCASE("a graphics window shows main Inventory by these names, and a press there is the "
+            "view's own press, picking nothing up") {
+        namespace pw = zengine::testing::pane_window;
+        const auto joined = [](const std::vector<std::string>& rows) {
+            std::string text;
+            for (const std::string& row : rows) {
+                text += row.substr(0, row.find_last_not_of(' ') + 1) + "\n";
+            }
+            return text;
+        };
+        const std::string area = std::string(slots::kRole) + ".inventory";
+        pw::Window w(s.r.bus);
+        // THE VIEW WORKSHOP SEATS is drawn as Workshop holds it, every part by its name.
+        w.room(area, slots::kRole, 120, 40);
+        REQUIRE_FALSE(w.weave().heard.empty());
+        CHECK(w.weave().heard.back().whole);
+        CHECK(joined(w.rows(area)) == joined(pane_rows(s.r, s.source)));
+        const std::set<std::string> asked = w.actions(area);
+        for (const auto& [name, part] : held_parts(s.r.session(), s.source)) {
+            CAPTURE(name);
+            CHECK(asked.count(name) == 1);
+        }
+        // [Up] CLIMBS; a folder's first press selects it and its second opens it.
+        CHECK(w.press(area, std::string("control:inventory.parent")));
+        CHECK_MESSAGE(s.row_of(s.source, "(Up) Root") == 1, s.shown(s.source));
+        CHECK(w.press(area, folder->name));
+        CHECK(s.row_of(s.source, "> Workbench/") >= 0);
+        CHECK(s.row_of(s.source, "Root > Workbench") < 0);
+        CHECK(w.press(area, folder->name));
+        CHECK_MESSAGE(s.row_of(s.source, "[Up] Root > Workbench") == 1, s.shown(s.source));
+        CHECK(joined(w.rows(area)) == joined(pane_rows(s.r, s.source)));
+        // AN ENTRY PRESSED IN A WINDOW is chosen, and no pickup begins -- no authority asked, no
+        // read, no carry: a window carries no drag.
+        CHECK(w.press(area, std::string("control:inventory.parent")));
+        std::optional<v2::PaneRowPart> entry;
+        for (const auto& [name, part] : held_parts(s.r.session(), s.source)) {
+            if (!entry && name.rfind("entry:", 0) == 0) entry = part;
+        }
+        REQUIRE(entry.has_value());
+        const loom::WeaveId office = s.r.bus.role_holder(slots::kRole);
+        std::size_t reads = 0;
+        const loom::ObserverId tap = s.r.bus.add_observer([&](const loom::BusEvent& e) {
+            if (e.kind == loom::EventKind::Delivered && e.sender == office &&
+                (e.schema_name == PaneOperationRequested::zen_name ||
+                 e.schema_name == inv::InventoryRead::zen_name ||
+                 e.schema_name == v2::PaneValueCarryRequested::zen_name)) {
+                ++reads;
+            }
+        });
+        CHECK(w.press(area, entry->name));
+        s.r.bus.remove_observer(tap);
+        CHECK(reads == 0);
+        const auto chosen = held_parts(s.r.session(), s.source).at(entry->name);
+        CHECK(pane_rows(s.r, s.source)[static_cast<std::size_t>(chosen.row)].rfind(">", 0) == 0);
+        // A PRESS FROM A WINDOW THAT DOES NOT SHOW THE VIEW is no act: the entry stays chosen.
+        const std::size_t drawn = w.weave().heard.size();
+        pw::Window other(s.r.bus, "other");
+        other.ask(area, folder->name, slots::kRole);
+        CHECK(pane_rows(s.r, s.source)[static_cast<std::size_t>(chosen.row)].rfind(">", 0) == 0);
+        CHECK(w.weave().heard.size() == drawn);
+    }
 }
 
 TEST_CASE("inventory folders: names conflict only among siblings, and a refused name changes nothing") {

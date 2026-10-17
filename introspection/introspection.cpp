@@ -174,10 +174,29 @@ public:
             (void)ws::pane_menu::pass_back(mail, kIntrospectionRole, event.pane);
         } else if (event.phase == cp::kPress && event.button == 1 && at->shown &&
                    seat->shows(event)) {
-            // `arrangement` is read-only: a press there gives it the keys and says nothing.
-            if (powers && powers_.press(speaking(mail), at->row, at->column)) ++state_.samples;
-            if (event.pane == kLoadedPane && loaded_.press(at->row, mail)) ++state_.selections;
+            primary_press(event.pane, at->row, at->column, mail);
         }
+    }
+
+    // ---- Its panes in graphics windows (its office's `MultiPaneFacet` calls these) ------------
+
+    /// EACH PANE'S SEAT, where a window that shows the pane's area finds it.
+    template <class F>
+    void each_seat(F&& visit) {
+        visit(loaded_.room());
+        visit(arrangement_.room());
+        visit(powers_.room());
+    }
+
+    /// A pane Workshop seats nowhere, granted the room a window gave it: its owner asked again.
+    void on_window_room(const std::string& pane, loom::Mail& mail) { grant(mail, pane); }
+
+    /// A PRESS ON A PART IN A WINDOW is a primary press on its place in the picture shown there,
+    /// and its release: a window carries no drag, so no carry stays armed.
+    void on_window_press(const std::string& pane, std::int64_t row, std::int64_t column,
+                         loom::Mail& mail) {
+        primary_press(pane, row, column, mail);
+        if (pane == kPowersPane) powers_.release();
     }
 
     void on(const loom::Result& r, loom::Mail& mail) {
@@ -258,6 +277,14 @@ private:
     }
 
     intro::Voice speaking(loom::Mail& mail) { return intro::Voice{mail, self_, asked_}; }
+
+    /// A PRIMARY PRESS on a pane's row. `arrangement` is read-only: a press there gives it the keys
+    /// and says nothing.
+    void primary_press(std::string_view pane, std::int64_t row, std::int64_t column,
+                       loom::Mail& mail) {
+        if (pane == kPowersPane && powers_.press(speaking(mail), row, column)) ++state_.samples;
+        if (pane == kLoadedPane && loaded_.press(row, mail)) ++state_.selections;
+    }
 
     /// WORKSHOP GRANTING ONE PANE ITS BUDGET, from either room. Each pane keeps its own room and
     /// outstanding question, or the last grant would decide how the others are drawn. The room is
