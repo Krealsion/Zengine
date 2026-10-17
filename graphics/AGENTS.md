@@ -32,8 +32,10 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
   tick shown once, a skin chosen, each participant replaced or reloaded, the room naming what the
   window holds, a drawing weave shown once a beat, presses and keys, every bound refused in words,
   and each office's manual answering for every shape it accepts; every part in `elements/` drawn,
-  changed and painted, and pressed through the window, its action asked or nothing sent;
-  `tests/test_graphics.cpp`, `tests/graphics_rig.hpp`
+  changed and painted, and pressed through the window, its action asked or nothing sent; the
+  Attention and Connections panes Workshop loads drawn, pressed and reloaded in a window, and a
+  pane's refused drawing followed by a whole one; `tests/test_graphics.cpp`,
+  `tests/graphics_rig.hpp`
 - `graphics_change_outside_list_refused` — an element's change outside its code's list does not
   compile (`tests/compile_negative/drawing_walls.cpp`, case 1)
 - `graphics_own_after_delivery_refused` — a drawing weave whose drawer replaces the

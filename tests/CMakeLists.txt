@@ -1554,8 +1554,8 @@ zengine_doctest_test(audit_probes zengine-audit-probes)
 add_executable(zengine-graphics-tests test_graphics.cpp doctest_main.cpp)
 target_link_libraries(zengine-graphics-tests
     PRIVATE loom::kernel loom::switchboard loom::core zengine-graphics-vocabulary
-            zengine-input-vocabulary zengine-timer-vocabulary zengine-activation
-            zengine-operator zengine-warnings zengine-sanitize)
+            zengine-workshop-vocabulary zengine-input-vocabulary zengine-timer-vocabulary
+            zengine-activation zengine-operator zengine-warnings zengine-sanitize)
 target_include_directories(zengine-graphics-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
     ${CMAKE_SOURCE_DIR}/examples/snake)
@@ -1566,7 +1566,9 @@ zengine_test_definitions(zengine-graphics-tests
     "PAINT_BLOCK_SO=\"$<TARGET_FILE:zengine-paint-block>\""
     "SNAKE_SO_BOARD=\"$<TARGET_FILE:snake-board>\""
     "WORLD_V1_SO=\"$<TARGET_FILE:snake-world-v1>\""
-    "WORLD_V2_SO=\"$<TARGET_FILE:snake-world-v2>\"")
+    "WORLD_V2_SO=\"$<TARGET_FILE:snake-world-v2>\""
+    "ATTENTION_PANE_SO=\"$<TARGET_FILE:zengine-attention-pane>\""
+    "CONNECTIONS_PANE_SO=\"$<TARGET_FILE:zengine-connections-pane>\"")
 # The suite mounts the window in process, and reads both offices' pages against what they accept.
 zengine_manual(zengine-graphics-tests PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.terminal.md)
 zengine_manual(zengine-graphics-tests PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.graphics.md)
