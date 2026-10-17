@@ -151,7 +151,7 @@ spelling" "an override survives restart, and deleting the file restores defaults
 `workshop/screen.hpp` Session::keymap
 `workshop/screen_bindings.cpp` hotkey_text
 `workshop/screen_layouts.cpp` setup_hints
-`workshop/keymap.hpp` gesture_text
+`workshop/gesture_grammar.hpp` gesture_text
 `tests/test_workshop_document.cpp` "an authored override changes dispatch AND every displayed
 spelling"
 `tests/test_workshop_panes_window.cpp` "the coarse step is ordinary action vocabulary, not pane
@@ -186,8 +186,9 @@ a pane"
 
 ### WL-KEY-06
 `workshop/keymap.hpp` kActionCatalog manage.arrange manage.next manage.previous workshop.manage
-AuthoredOverride contexts_intersect RenamedAction kRenamedActions renamed_to RetiredAction
-kRetiredActions retired_with join_app_rows
+AuthoredOverride contexts_intersect
+`workshop/keymap_join.hpp` RenamedAction kRenamedActions renamed_to RetiredAction kRetiredActions
+retired_with join_app_rows
 `workshop/weave_handlers.cpp` load_keymap
 `tests/test_workshop_document.cpp` "an override for an unknown action survives with its intent
 whole" "reusing one gesture across mutually exclusive contexts is legal" "a retired id in a weaver's
@@ -208,9 +209,11 @@ keymap_rows_in to_keymap from_text load_file
 defaults"
 
 ### WL-KEY-08
-`workshop/keymap.hpp` posix_gap gap_sentence PaneRows::gaps contexts_intersect component_owns_gesture
-apply_overrides AuthoredOverride AuthoredGestures authored_gestures_for Keymap::row_gestures
-Keymap::row_answers join_app_rows join_pane_rows
+`workshop/keymap.hpp` PaneRows::gaps contexts_intersect AuthoredOverride Keymap::row_gestures
+Keymap::row_answers
+`workshop/gesture_grammar.hpp` posix_gap gap_sentence
+`workshop/keymap_join.hpp` component_owns_gesture apply_overrides AuthoredGestures
+authored_gestures_for join_app_rows join_pane_rows
 `workshop/keymap_persist.hpp` from_text
 `workshop/screen_hotkeys.cpp` keymap_shown
 `workshop/weave_handlers.cpp` load_keymap
@@ -245,7 +248,7 @@ as they are in force: a moved row where it moved, a disabled one as having no ke
 marks the text box's keys as nobody's to move"
 
 ### WL-KEY-12
-`workshop/keymap.hpp` expected_text_of
+`workshop/gesture_grammar.hpp` expected_text_of
 `workshop/weave.hpp` WorkshopWeave::Hand::swallow_text
 `workshop/weave_seam.cpp` same_keystroke
 `workshop/weave_handlers.cpp` on(KeyPressed)
@@ -257,12 +260,13 @@ binding swallows the capital its keystroke produced"
 `workshop/pane_vocabulary.hpp` PaneActionRow PaneActions PaneActionRequested v2::PaneActionRow
 v2::PaneActions kOwnableDocumentSave
 `workshop/keymap.hpp` PaneRow PaneRows kMaxPaneActionRows collision_sentence Keymap::panes
-Keymap::pane_action_for check_pane_action_text join_pane_rows drop_pane_rows PaneRow::supersedes
-Keymap::pane_supersedes Keymap::row_active Keymap::owner_of superseded_here
+Keymap::pane_action_for PaneRow::supersedes Keymap::pane_supersedes Keymap::row_active
+Keymap::owner_of
+`workshop/keymap_join.hpp` check_pane_action_text join_pane_rows drop_pane_rows superseded_here
 `workshop/weave.hpp` declare_pane_actions on(PaneActions) rejoin_pane_rows
 `workshop/weave_seam.cpp` declare_pane_actions on(PaneActions) rejoin_pane_rows
 `workshop/panes.hpp` RuntimePane::actions
-`workshop/setup.hpp` admit_pane_actions
+`workshop/setup_reconcile.hpp` admit_pane_actions
 `workshop/weave_external.cpp` external_key
 `workshop/screen.hpp` help_pairs
 `workshop/screen_bindings.cpp` help_pairs

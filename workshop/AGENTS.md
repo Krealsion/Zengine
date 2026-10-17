@@ -14,7 +14,9 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `desk_read.hpp`, `weave_desk_read.cpp` | the desk read by message: where words and parts stand and how a reading pages (the header); the weave's answers; its law: desk-read |
 | `weave_inspection.cpp` | a pane as an inspector's subject, and one write through its rows' owner; its law: info-body |
 | `screen.hpp`, `screen_*.cpp` | the screen: session facts and gestures, composed into a canvas |
-| `panes.hpp`, `keymap.hpp`, `setup.hpp` | pane catalog; action catalog and keymap; the setup |
+| `panes.hpp` | the pane catalog |
+| `keymap.hpp`, with its parts `gesture_grammar.hpp` and `keymap_join.hpp` | the action catalog and the keymap; how a key is written and read; override admission and the joins of a pane's and an application's rows |
+| `setup.hpp`, with its parts `setup_reconcile.hpp` and `layout_shelf.hpp` | the setup: its value, its checks and its edits; what the live panes make of it; the layouts a session holds |
 | `pane_vocabulary.hpp` | the pane protocol, installed: `zengine-pane-vocabulary`, `zengine::pane` |
 | `*_seam_vocabulary.hpp`, `pane_doors.hpp` | the seams to loaded panes and guests; the doors |
 | `*_persist.hpp` | the files: setup, session, keymap, preferences, recipes, load plan |

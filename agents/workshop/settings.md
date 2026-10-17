@@ -102,7 +102,7 @@ maximal legal session is still one this build can read back" "the settings door 
 its bound, and a value moved on a full desk is kept"
 
 ### WL-SETTING-03
-`workshop/setup.hpp` admit_pane_settings
+`workshop/setup_reconcile.hpp` admit_pane_settings
 `workshop/weave_seam.cpp` on(PaneSettingsDeclared) counted_settings
 `workshop/panes.hpp` RuntimePane::settings_rows
 `workshop/pane_settings.hpp` PaneSettingsDeclared PaneSettingRow pane_settings_declared_problem
@@ -141,7 +141,7 @@ included, and `-` clears it" "a kept setting takes only `-`, and the rows are na
 goes" "the subject is named anew when the settings its rows are built from change"
 
 ### WL-SETTING-06
-`workshop/setup.hpp` discarded_settings settings_said
+`workshop/setup_reconcile.hpp` discarded_settings settings_said
 `workshop/weave_desktop.cpp` close_pane
 `workshop/weave_managed.cpp` show_presentation digest_of
 `tests/test_workshop_panes_settings.cpp` "a close discards a pane's settings with its row, and every

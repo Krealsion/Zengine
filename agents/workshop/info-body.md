@@ -219,7 +219,8 @@ under the notice"
 do next"
 
 ### WL-INFO-11
-`workshop/setup.hpp` default_setup unresolved_panes
+`workshop/setup.hpp` default_setup
+`workshop/setup_reconcile.hpp` unresolved_panes
 `workshop/panes.hpp` kInfoPaneProvider kInfoPaneKey
 `workshop/screen_layouts.cpp` setup_rest_text
 `tests/test_workshop_panes_info.cpp` "a Workshop with no Info OFFICE keeps the row and says so"
@@ -256,7 +257,7 @@ own record, answers the office that asked, and the next ask inspects"
 `workshop/inspection_seam_vocabulary.hpp` InspectPaneRequested PaneSubjectRequested PaneSubjectShown
 `workshop/screen.hpp` InspectedPane pane_subject_rows pane_subject_shown
 `workshop/screen_pane_subject.cpp` pane_subject_shown pane_subject_rows
-`workshop/setup.hpp` SetupState::put_live
+`workshop/layout_shelf.hpp` SetupState::put_live
 `workshop/weave_inspection.cpp` refresh_inspected on(InspectPaneRequested) on(PaneSubjectRequested)
 publish_pane_subject
 `tests/test_workshop_panes_info.cpp` "an office's ask inspects a pane through the host's own door,
