@@ -539,6 +539,7 @@ ViewBuilderRun v1 0x5516d8aa88fd219a
 ViewBuilderState v3 0x7d664ed46440765d
 ViewEdit v1 0x9f3187b96d1ef7b0
 ViewEdited v1 0x2d708dc91b685d98
+ViewHostState v1 0x17f98d35df075f9b
 ViewRedraw v1 0xca90deea98111ce2
 ViewResume v1 0xcdfe44aa9f265c80
 ViewRetire v1 0x6a71f8f583882355
