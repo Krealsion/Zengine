@@ -634,6 +634,11 @@ private:
         notice_bad_ = bad;
     }
 
+    /// `notice`, as the office's shared steps say one (`editor/office_seam.hpp`).
+    auto noticing() {
+        return [this](std::string text, bool bad) { notice(std::move(text), bad); };
+    }
+
     // ---- The document's latest claim (WL-OPEN-03) ------------------------------------------
 
     /// THE DOCUMENT'S IDENTITY AS THIS WEAVE CLAIMS IT: the durable facts a commitment is

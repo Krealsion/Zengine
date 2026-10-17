@@ -818,6 +818,11 @@ private:
         notice_bad_ = bad;
     }
 
+    /// `notice`, as the office's shared steps say one (`editor/office_seam.hpp`).
+    auto noticing() {
+        return [this](std::string text, bool bad) { notice(std::move(text), bad); };
+    }
+
     std::string status_text(std::int64_t columns) const {
         if (!running()) {
             return "Neovim is not running" +

@@ -21,5 +21,8 @@ feature's router, [`editor/AGENTS.md`](../AGENTS.md).
   `opening_switch.hpp` and `transfers.hpp` define the rest of them out of line and are included
   after the class, so neither compiles alone.
 - `common.hpp` stands alone, in `zengine::neovim_editor::detail`; `pane.cpp` reads it whole.
+- What the standard Editor keeps and says alike -- the relayed open, the hold, the carry and the
+  dropped location's steps -- is `editor/office_seam.hpp` (`zengine::editor_office`), which
+  `common.hpp` names into `detail` and the other files call as `office::`.
 - Neovim itself is `editor/neovim/` (`zengine-neovim`): its process, its RPC, its screen and the
   Lua module every question and change is asked through.
