@@ -260,7 +260,9 @@ own record, answers the office that asked, and the next ask inspects"
 `workshop/weave_inspection.cpp` refresh_inspected on(InspectPaneRequested) on(PaneSubjectRequested)
 publish_pane_subject
 `tests/test_workshop_panes_info.cpp` "an office's ask inspects a pane through the host's own door,
-and the office is answered what the host said" "a live draft holds another subject back, and the
+and the office is answered what the host said" "two inspects asked in one burst: the older office is
+told a newer took its place, the newer is answered what the host said, and the subject is the
+newer's" "a live draft holds another subject back, and the
 reason is the weaver's" "an inspect asked while an Info draft is live is refused, keeping the
 draft, its text, the subject and the desk through a new room, and inspecting resumes once the draft
 ends" "the subject is Info's to name: the keys leaving, Escape and a press elsewhere leave it
