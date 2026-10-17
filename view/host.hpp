@@ -68,12 +68,31 @@ public:
         return found == views_.end() ? nullptr : found->second;
     }
 
+    /// PAIR AN OWNER'S PRESENTER with the view named `name`: the one running now, drawn again
+    /// with what the presenter told, and every view that later runs under that name; a null
+    /// presenter unpairs it. At most `kMaxViews` names are paired.
+    void pair(const std::string& name, std::shared_ptr<Presenter> presenter) {
+        if (!presenter) {
+            presenters_.erase(name);
+        } else if (!presenters_.count(name) && presenters_.size() >= kMaxViews) {
+            throw std::invalid_argument("the view host pairs at most " + std::to_string(kMaxViews) + " views");
+        } else {
+            presenters_[name] = presenter;
+        }
+        for (const auto& [id, live] : views_)
+            if (live->description().name == name && !retiring_.count(id)) {
+                live->pair(presenter);
+                bus_.send(loom::WeaveId{id}, loom::Message(loom::to_value(detail::ViewRedraw{})));
+            }
+    }
+
 private:
     friend class Manager;
     loom::Switchboard& bus_;
     loom::WeaveId manager_{};
     std::map<std::uint64_t, View*> views_;
     std::map<std::uint64_t, bool> retiring_;
+    std::map<std::string, std::shared_ptr<Presenter>> presenters_; ///< by the name of the view
 
     /// REGISTER ONE VIEW from an admitted description: its own participant, holding its name as
     /// its office, granted what the description implies. `succeeding` names the running view it
@@ -90,7 +109,9 @@ private:
         if (!same_office && bus_.role_holder(name).valid())
             throw std::invalid_argument("`" + name + "` is already held by a running participant");
         auto grant = view_grant(description);
-        auto view = std::make_unique<View>(std::move(description));
+        const auto paired = presenters_.find(name);
+        auto view = std::make_unique<View>(std::move(description),
+                                           paired == presenters_.end() ? nullptr : paired->second);
         View* raw = view.get();
         const auto id = same_office ? bus_.register_weave(std::move(view), std::move(grant))
                                     : bus_.register_weave(std::move(view), std::move(grant), name);
@@ -117,14 +138,18 @@ private:
         bus_.send(loom::WeaveId{id}, loom::Message(loom::to_value(detail::ViewRedraw{})));
     }
 
-    /// STOP ONE VIEW: its last picture says why, queued as its office while it still holds it,
-    /// and the participant is unregistered once that picture has been delivered.
+    /// STOP ONE VIEW: its last picture says why, in Workshop and in its area's window, queued as
+    /// its office while it still holds it, and the participant is unregistered once that picture
+    /// has been delivered.
     void stop(std::uint64_t id, const std::string& why) {
         View* live = view(id);
         if (!live) return;
         if (auto last = live->farewell(why))
             (void)bus_.office_send_to_role_as(loom::WeaveId{id}, live->description().name,
                                               kWorkshopRole, loom::Message(loom::to_value(*last), loom::WeaveId{id}));
+        if (auto last = live->window_farewell(why))
+            (void)bus_.office_send_to_role_as(loom::WeaveId{id}, live->description().name, last->first,
+                                              loom::Message(loom::to_value(last->second), loom::WeaveId{id}));
         retiring_[id] = true;
         (void)bus_.send_as_to_role(manager_, kViewHostRole,
                                    loom::Message(loom::to_value(detail::ViewRetire{static_cast<std::int64_t>(id)}), manager_));
