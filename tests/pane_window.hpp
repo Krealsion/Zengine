@@ -4,9 +4,9 @@
 #ifndef ZENGINE_TESTS_PANE_WINDOW_HPP
 #define ZENGINE_TESTS_PANE_WINDOW_HPP
 
-// A graphics window as an office of several panes meets one, for the suites that drive such an
-// office: a participant in a `zengine.window.*` office that tells an area its room as that office,
-// keeps what the area's owner draws there by the real window's own judge and store
+// A graphics window as a pane's office meets one, for the suites that drive a pane in a window: a
+// participant in a `zengine.window.*` office that tells an area its room as that office, keeps what
+// the area's owner draws there by the real window's own judge and store
 // (graphics/window/store.hpp), refuses what that judge refuses or what a case tells it to, and
 // lands a press on a cell as the real window does (graphics/window/compose.hpp). It paints with the
 // character painter, not a skin library, and reads an area back as Workshop reads a drawing.
@@ -21,6 +21,8 @@
 #include <zen/switchboard.hpp>
 #include <zen/weave.hpp>
 
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -145,17 +147,25 @@ public:
         say(owner, gfx::AreaRoom{area, w_->window(), epoch, a->w, a->h, {}});
     }
 
-    /// WHAT `area` SHOWS, row by row, as Workshop reads a drawing (`workshop::drawn_rows`), each
-    /// row's trailing blanks cut.
+    /// WHAT `area` SHOWS, row by row, its nodes in the window's paint order read as Workshop reads
+    /// a drawing (`workshop::drawn_rows`), each row's trailing blanks cut.
     std::vector<std::string> rows(const std::string& area) {
         std::vector<std::string> out;
         const gw::WinArea* a = w_->find(area);
         if (a == nullptr) {
             return out;
         }
-        gfx::Sketch sketch;
+        const auto at = gw::index_of(*a);
+        std::vector<const gw::KeptNode*> order;
         for (const gw::KeptNode& k : a->nodes) {
-            sketch.put(k.node);
+            order.push_back(&k);
+        }
+        std::stable_sort(order.begin(), order.end(), [&](const auto* x, const auto* y) {
+            return gw::key_of(at, x->node.path) < gw::key_of(at, y->node.path);
+        });
+        gfx::Sketch sketch;
+        for (const gw::KeptNode* k : order) {
+            sketch.put(k->node);
         }
         for (const gfx::ElementRecord& r : a->records) {
             sketch.say(r);
@@ -219,6 +229,20 @@ public:
         return at.has_value() && press(area, at->first, at->second) == action;
     }
 
+    /// ...ON THE FIRST CELL SHOWING `words`, row by row: false, asking nothing, when no row shows
+    /// them or nothing drawn there asks anything.
+    bool press_words(const std::string& area, const std::string& words) {
+        const std::vector<std::string> shown = rows(area);
+        for (std::size_t r = 0; r < shown.size(); ++r) {
+            const std::size_t c = shown[r].find(words);
+            if (c != std::string::npos) {
+                return !press(area, static_cast<std::int64_t>(c), static_cast<std::int64_t>(r))
+                            .empty();
+            }
+        }
+        return false;
+    }
+
     /// ANY WORDS, asked of the area's owner -- or of `owner`, for an area this window does not
     /// show -- as this window's office, as no press would ask them.
     void ask(const std::string& area, const std::string& action, std::string owner = {}) {
@@ -227,6 +251,12 @@ public:
             owner = a->owner;
         }
         say(owner, gfx::ActionRequested{area, action});
+    }
+
+    /// A DRAWING OF `area` REFUSED, told its owner as this window's office, whatever it last drew.
+    void refuse(const std::string& area, const std::string& reason) {
+        const gw::WinArea* a = w_->find(area);
+        say(a == nullptr ? std::string() : a->owner, gfx::DrawnRefused{area, reason});
     }
 
 private:

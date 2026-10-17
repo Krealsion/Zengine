@@ -5,9 +5,9 @@
 
 // Between a pane's drawing and Workshop's rows, both ways. A drawing (`graphics::Sketch`) read
 // onto rows: its text painted cell by cell as a window of characters paints it
-// (graphics/term_paint.hpp), each element record a part of the row its text stands on, the action
-// a press on it asks beside it. And rows drawn: a pane that says rows shows them in a graphics
-// window as a drawing, each run of columns a named part holds a node that asks for it by name.
+// (graphics/term_paint.hpp), each record a part of the row its text stands on, the action a press
+// on it asks beside it. And rows drawn (`rows_drawing`), each run a named part holds a node asking
+// for it by name, for the window showing a pane's area as the pane keeps it (`WindowDrawing`).
 // Reference: workshop/docs/workshop-panes.md, "The pane facets".
 
 #include "component/row_map.hpp"
@@ -17,7 +17,10 @@
 #include "graphics/term_paint.hpp"
 #include "graphics/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
+#include "workshop/pane_canvas_rows.hpp"
 #include "workshop/pane_vocabulary.hpp"
+
+#include <zen/weave.hpp>
 
 #include <algorithm>
 #include <cstddef>
@@ -25,6 +28,7 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace zengine::workshop {
@@ -128,74 +132,181 @@ inline std::vector<surface::SurfaceTextRow> drawn_rows(const graphics::Sketch& s
     return out;
 }
 
-/// WHERE A PRESS ON A PART OF DRAWN ROWS LANDS: the part's name, the row it stands on and the
-/// first column of it that a press reaches.
-struct SketchedPart {
-    std::string name;
-    std::int64_t row = 0, column = 0;
+/// A PANE'S ROWS AS A GRAPHICS WINDOW DRAWS THEM, and where a press reaches each part they name.
+struct RowsDrawing {
+    graphics::Sketch sketch;
+    /// Each named part's place: a cell only it holds, else one where a press reaches it.
+    std::map<std::string, RowCell> places;
 };
 
-/// ROWS AS A DRAWING, `graphics::kCellPx` pixels a cell: each row's text, its blanks after the last
-/// character left out, a node `rows/<i>` in the row's role; and, in front of them, each run of a
-/// row's columns a press reaches one part on -- the last of `parts`, in the order a press reads
-/// them, that covers it -- a node `parts/<row>.<run>` over the run, recorded, where the part is
-/// named, as asking its name. Past `graphics::kMaxElementsPerArea` runs the rest are their rows'
-/// text alone. Returns where a press on each part drawn so lands.
-inline std::vector<SketchedPart> rows_sketch(const std::vector<surface::SurfaceTextRow>& rows,
-                                             const std::vector<v2::PaneRowPart>& parts,
-                                             graphics::Sketch& out) {
-    out.group("rows", 0, 0);
-    for (std::size_t i = 0; i < rows.size(); ++i) {
-        const std::string& text = rows[i].text;
-        const std::size_t last = text.find_last_not_of(' ');
-        if (last != std::string::npos) {
-            out.text("rows/" + std::to_string(i), 0,
-                     static_cast<std::int64_t>(i) * graphics::kCellPx, text.substr(0, last + 1),
-                     graphics::by_role(rows[i].role));
-        }
-    }
-    out.group("parts", 0, 0);
-    std::vector<SketchedPart> landed;
-    std::size_t recorded = 0;
-    const auto limit = static_cast<std::int64_t>(graphics::kMaxArgsBytes);
+/// ROWS AND THEIR PARTS DRAWN, in a room `columns` wide: each row's text where a window of
+/// characters paints it, in its role over its ground, cut where a part begins or ends; each run a
+/// part holds is a node whose record asks the part's name, held where parts overlap by the one a
+/// press on Workshop's rows reaches (the last the pane reads). A lit row's nodes are named apart,
+/// so its ground lies beneath them. Rows past the window's bounds on nodes or records are not
+/// drawn. The parts are `PaneRowPart`s or `v2::PaneRowPart`s; the row's text says availability.
+template <class Part>
+RowsDrawing rows_drawing(const std::vector<surface::SurfaceTextRow>& rows,
+                         const std::vector<Part>& parts, std::int64_t columns) {
+    struct Run {
+        std::string node, words, action;
+        std::int64_t x = 0;
+    };
+    RowsDrawing out;
+    std::size_t nodes = 0, records = 0;
     for (std::size_t r = 0; r < rows.size(); ++r) {
         const auto row = static_cast<std::int64_t>(r);
-        std::vector<std::int64_t> owner; // the part a press on each column reaches, or -1
+        const std::string& text = rows[r].text;
+        const auto said = static_cast<std::int64_t>(text.size());
+        std::vector<std::size_t> here;
+        std::int64_t extent = said;
         for (std::size_t k = 0; k < parts.size(); ++k) {
-            const v2::PaneRowPart& p = parts[k];
-            if (p.row != row || p.column < 0 || p.columns <= 0 || p.column >= limit) continue;
-            const std::int64_t end = (std::min)(p.column + p.columns, limit);
-            if (static_cast<std::int64_t>(owner.size()) < end) {
-                owner.resize(static_cast<std::size_t>(end), -1);
-            }
-            for (std::int64_t c = p.column; c < end; ++c) {
-                owner[static_cast<std::size_t>(c)] = static_cast<std::int64_t>(k);
+            if (parts[k].row == row && parts[k].column >= 0 && parts[k].columns > 0) {
+                here.push_back(k);
+                extent = (std::max)(extent, parts[k].column + parts[k].columns);
             }
         }
-        const std::string& text = rows[r].text;
-        std::size_t run = 0;
-        for (std::size_t c = 0; c < owner.size() && recorded < graphics::kMaxElementsPerArea;) {
-            std::size_t end = c + 1;
-            while (end < owner.size() && owner[end] == owner[c]) ++end;
-            if (owner[c] >= 0 && !parts[static_cast<std::size_t>(owner[c])].name.empty()) {
-                const std::string& name = parts[static_cast<std::size_t>(owner[c])].name;
-                std::string words = c < text.size() ? text.substr(c, end - c) : std::string();
-                words.resize(end - c, ' '); // a press reaches the run's blanks too
-                const std::string path = "parts/" + std::to_string(r) + "." + std::to_string(run++);
-                out.text(path, static_cast<std::int64_t>(c) * graphics::kCellPx,
-                         row * graphics::kCellPx, words, graphics::by_role(rows[r].role));
-                out.action(path, name);
-                ++recorded;
-                if (std::none_of(landed.begin(), landed.end(),
-                                 [&](const SketchedPart& l) { return l.name == name; })) {
-                    landed.push_back(SketchedPart{name, row, static_cast<std::int64_t>(c)});
-                }
+        extent = (std::min)(extent, (std::max)(said, columns));
+        std::vector<std::int64_t> owner(static_cast<std::size_t>(extent), -1);
+        std::vector<int> cover(owner.size(), 0);
+        for (const std::size_t k : here) {
+            const std::int64_t end = (std::min)(extent, parts[k].column + parts[k].columns);
+            for (std::int64_t c = parts[k].column; c < end; ++c) {
+                owner[static_cast<std::size_t>(c)] = static_cast<std::int64_t>(k);
+                ++cover[static_cast<std::size_t>(c)];
             }
-            c = end;
+        }
+        const bool lit = rows[r].background != surface::role::kNone;
+        const std::string prefix = (lit ? "lit" : "row") + std::to_string(r) + ".";
+        std::vector<Run> runs;
+        std::size_t asks = 0;
+        for (std::int64_t a = 0; a < extent;) {
+            const std::int64_t k = owner[static_cast<std::size_t>(a)];
+            std::int64_t b = a + 1;
+            while (b < extent && owner[static_cast<std::size_t>(b)] == k) {
+                ++b;
+            }
+            const std::int64_t end = k < 0 ? (std::min)(b, said) : b;
+            if (end > a) {
+                Run one;
+                one.node = prefix + std::to_string(runs.size());
+                one.x = a;
+                one.words = a < said ? text.substr(static_cast<std::size_t>(a),
+                                                   static_cast<std::size_t>(end - a))
+                                     : std::string();
+                one.words.resize(static_cast<std::size_t>(end - a), ' ');
+                one.action = k >= 0 ? parts[static_cast<std::size_t>(k)].name : std::string();
+                asks += one.action.empty() ? std::size_t{0} : std::size_t{1};
+                runs.push_back(std::move(one));
+            }
+            a = b;
+        }
+        const std::size_t drawn = runs.size() + (lit ? 1 : 0);
+        if (nodes + drawn > graphics::kMaxNodesPerArea ||
+            records + asks > graphics::kMaxElementsPerArea) {
+            break;
+        }
+        nodes += drawn;
+        records += asks;
+        if (lit) {
+            out.sketch.fill_rect("ground" + std::to_string(r), 0, row * graphics::kCellPx,
+                                 (std::max)(extent, columns) * graphics::kCellPx, graphics::kCellPx,
+                                 graphics::by_role(rows[r].background));
+        }
+        for (const Run& one : runs) {
+            out.sketch.text(one.node, one.x * graphics::kCellPx, row * graphics::kCellPx,
+                            one.words, graphics::by_role(rows[r].role));
+            if (!one.action.empty()) {
+                out.sketch.action(one.node, one.action);
+            }
+        }
+        for (const std::size_t k : here) {
+            if (parts[k].name.empty() || out.places.count(parts[k].name) != 0) {
+                continue;
+            }
+            std::optional<std::int64_t> alone, reached;
+            const std::int64_t end = (std::min)(extent, parts[k].column + parts[k].columns);
+            for (std::int64_t c = parts[k].column; c < end; ++c) {
+                const auto at = static_cast<std::size_t>(c);
+                if (!alone && cover[at] == 1) alone = c;
+                if (!reached && owner[at] == static_cast<std::int64_t>(k)) reached = c;
+            }
+            if (alone || reached) {
+                out.places[parts[k].name] = RowCell{row, alone ? *alone : *reached, true};
+            }
         }
     }
-    return landed;
+    return out;
 }
+
+/// THE GRAPHICS WINDOW THAT SHOWS A PANE'S AREA, as the office drawing there keeps it: the canvas
+/// it draws with (`graphics::Canvas`) and the drawing it last sent. A drawing the window refused
+/// leaves what it shows as it was. A refused change was read against a drawing the window does not
+/// hold, so the drawing last sent goes again at once, whole; a refused whole drawing, which the
+/// window would refuse again, does not, and the next drawing goes whole.
+class WindowDrawing {
+public:
+    WindowDrawing(std::string office, std::string area)
+        : canvas_(std::move(office), std::move(area)) {}
+
+    const std::string& area() const noexcept { return canvas_.area(); }
+    /// A graphics window shows the area.
+    bool shown() const noexcept { return !canvas_.window().empty(); }
+
+    /// THE ROOM A WINDOW TELLS OF THE AREA, as that window's office: true when the window, its
+    /// incarnation or its size changed, so it holds none of the drawing and the next goes whole.
+    bool room(const graphics::AreaRoom& r, const loom::Mail& mail) {
+        if (r.area != area() ||
+            !mail.authored_from_role(std::string(graphics::kWindowOfficePrefix) + r.window) ||
+            !canvas_.room(r)) {
+            return false;
+        }
+        fresh_ = true;
+        return true;
+    }
+
+    /// Whether `mail` is the word of the window that shows the area, about `about`.
+    bool from_window(const std::string& about, const loom::Mail& mail) const {
+        return about == area() && shown() && mail.authored_from_role(canvas_.window_office());
+    }
+
+    /// DRAW `sketch` IN THE WINDOW THAT SHOWS THE AREA: what changed since the drawing it holds,
+    /// nothing when nothing did, or the whole of it when it holds none. Nothing while no window
+    /// shows the area.
+    void draw(const graphics::Sketch& sketch, loom::Mail& mail) {
+        if (!shown()) {
+            return;
+        }
+        last_ = sketch;
+        send(mail);
+    }
+
+    /// A DRAWING THE WINDOW REFUSED, said by the window that shows the area: true when it was.
+    bool refused(const graphics::DrawnRefused& refusal, loom::Mail& mail) {
+        if (!from_window(refusal.area, mail)) {
+            return false;
+        }
+        canvas_.forget();
+        fresh_ = true;
+        if (!drew_whole_) {
+            send(mail);
+        }
+        return true;
+    }
+
+private:
+    void send(loom::Mail& mail) {
+        drew_whole_ = fresh_;
+        fresh_ = false;
+        canvas_.draw(last_);
+        canvas_.show(mail);
+    }
+
+    graphics::Canvas canvas_;
+    graphics::Sketch last_;
+    /// The window holds none of the drawing; the drawing last sent went whole, or none was sent.
+    bool fresh_ = true, drew_whole_ = true;
+};
 
 } // namespace zengine::workshop
 

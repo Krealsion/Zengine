@@ -2396,12 +2396,15 @@ TEST_CASE("a pane's drawing its window refused leaves the window as it was, and 
         r.drain();
     };
 
+    // A BROKEN CHANGE, REFUSED: the picture goes again at once, whole -- broken still, so the
+    // window refuses that too, and nothing more is sent.
     std::size_t mark = r.log.size();
     turn(true);
     std::vector<gfx::Drawn> drawn = r.read<gfx::Drawn>(mark, kTestPane);
-    REQUIRE(drawn.size() == 1);
+    REQUIRE(drawn.size() == 2);
     CHECK_FALSE(drawn[0].whole);
-    REQUIRE(r.read<gfx::DrawnRefused>(mark, window_office()).size() == 1);
+    CHECK(drawn[1].whole);
+    REQUIRE(r.read<gfx::DrawnRefused>(mark, window_office()).size() == 2);
     CHECK(row_says(r.shown().rows, 0, "turn 0")); // what the window showed stays
 
     mark = r.log.size();
