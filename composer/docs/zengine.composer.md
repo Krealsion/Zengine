@@ -207,6 +207,23 @@ in the field that asked, and nowhere once that form or field has changed.
 `InventoryEntry` v1, from `zengine.inventory`
 ([`inventory/vocabulary.hpp`](../../inventory/vocabulary.hpp)): the entry a store or a preset made.
 
+### `AreaRoom`
+
+`AreaRoom` v2, from the graphics window that shows the area `zengine.composer`, as that window's
+office ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): Compose's room there. Compose
+draws its rows in it, whole when the window, its incarnation or its size changed, and after that
+only what changed.
+
+### `DrawnRefused`
+
+`DrawnRefused` v1, from that window: rows it refused, and why. What it shows stays as it was, and
+Compose's next drawing goes whole.
+
+### `ActionRequested`
+
+`ActionRequested` v1, from that window: a press on one of Compose's rows there, by the row's name,
+which is the press Workshop's canvas makes on that row.
+
 ## Follow
 
 Compose publishes one thing: `ClipboardCopy` when you copy or cut inside a field, so the rest of
