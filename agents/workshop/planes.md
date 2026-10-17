@@ -78,7 +78,7 @@ WHY — `agents/decisions/the-selection-lift.md`
 `workshop/screen_compose.cpp` paint paint_panes band_region
 `workshop/screen_reveal.cpp` paint_pane_affordances
 `workshop/screen.hpp` on_own_layer
-`workshop/setup.hpp` effective_pane_order
+`workshop/setup_reconcile.hpp` effective_pane_order
 `tests/test_workshop_screen.cpp` "an overlapping pane is painted where it is hit, in both front
 orders" "a visible pane occupies the pointer space it covers" "nothing is painted behind the panes:
 where no pane stands, the room is the medium's own ground"
@@ -109,7 +109,7 @@ with one" "contextual Arrange lifts the pane it addressed, not the one in front"
 weaver can point at can be arranged, and the refusals are blind"
 
 ### WL-FRONT-05
-`workshop/setup.hpp` effective_pane_order presentation_order
+`workshop/setup_reconcile.hpp` effective_pane_order presentation_order
 `workshop/screen_compose.cpp` paint_panes
 `workshop/screen_chrome.cpp` occupied_at
 `workshop/screen_pane_state.cpp` pane_is_covered
@@ -120,7 +120,7 @@ once" "the arrangement desk's pointer takes what is visibly in front"
 `tests/test_workshop_panes_window.cpp` "hit order is the exact reverse of paint order"
 
 ### WL-FRONT-06
-`workshop/setup.hpp` effective_pane_order presentation_order
+`workshop/setup_reconcile.hpp` effective_pane_order presentation_order
 `workshop/keymap.hpp` manage.front
 `tests/test_workshop_screen.cpp` "the selection lift never reaches the file, and no session starts
 with one"

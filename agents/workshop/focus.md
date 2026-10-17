@@ -177,7 +177,8 @@ office, and nothing is sent again"
 "the keys that mean the same thing in every mode still outrank a pane"
 
 ### WL-FOCUS-08
-`workshop/keymap.hpp` KeyContext::kGlobal join_app_rows
+`workshop/keymap.hpp` KeyContext::kGlobal
+`workshop/keymap_join.hpp` join_app_rows
 `workshop/keymap_persist.hpp` from_text
 `tests/test_workshop_panes_input.cpp` "typing `a` into a focused pane does not open the contextual
 surface"

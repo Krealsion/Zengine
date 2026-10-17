@@ -174,7 +174,7 @@ was unspent" "an answer to an Escape that is over cannot borrow the next Escape'
 `workshop/desktop_seam_vocabulary.hpp` PaneLaunchRequested PaneLaunchAnswered
 `workshop/weave.hpp` launch_pane on(PaneLaunchRequested) provider_present
 `workshop/weave_desktop.cpp` launch_pane on(PaneLaunchRequested) provider_present
-`workshop/setup.hpp` inventory_rows
+`workshop/setup_reconcile.hpp` inventory_rows
 `workshop/desktop-pane/vocabulary.hpp` kActionTerminal kActionPanes kActionLaunch
 `tests/test_workshop_panes_actions.cpp` "a pane whose provider left is unavailable in the launcher
 and refused at launch, while its identity and the desk row naming it stay" "a pane the run is still
@@ -187,7 +187,7 @@ launch says it is not here yet"
 HostContext::office_pending
 `workshop/weave_desktop.cpp` publish_inventory inventory_reading provider_present
 `workshop/load_execute.hpp` office_pending
-`workshop/setup.hpp` inventory_rows
+`workshop/setup_reconcile.hpp` inventory_rows
 `tests/test_workshop_panes_actions.cpp` "a pane whose provider left is unavailable in the launcher
 and refused at launch, while its identity and the desk row naming it stay" "a pane the run is still
 loading is pending, not unavailable: the launcher marks it `[load]`, names nothing to build, and a
@@ -214,7 +214,8 @@ orders"
 ### WL-DESK-07
 `workshop/desktop_seam_vocabulary.hpp` AppActionRow AppActions AppActionRequested app_precedence
 `workshop/keymap.hpp` AppRow kMaxAppActionRows Keymap::app Keymap::app_action_for
-Keymap::app_row_active Keymap::app_row_of_id join_app_rows join_pane_rows
+Keymap::app_row_active Keymap::app_row_of_id
+`workshop/keymap_join.hpp` join_app_rows join_pane_rows
 `workshop/weave.hpp` on(AppActions)
 `workshop/weave_desktop.cpp` on(AppActions)
 `tests/test_workshop_panes_actions.cpp` "an application row is joined, is requested above the modes,
@@ -224,7 +225,8 @@ chord the text box owns, whoever wrote it" "a pane's row and an above-the-modes 
 collide unless the pane declares it stands in, in both arrival orders"
 
 ### WL-DESK-08
-`workshop/keymap.hpp` parse_gesture kNoGesture is_bound
+`workshop/keymap.hpp` kNoGesture is_bound
+`workshop/gesture_grammar.hpp` parse_gesture
 `tests/test_workshop_panes_actions.cpp` "a weaver's authored row moves an application row, and
 `none` disables it"
 
