@@ -2476,7 +2476,8 @@ TEST_CASE("Compose answers a shape it hears from its page's Hears, and refuses o
             heard.insert(name);
         }
     }
-    CHECK(heard == std::set<std::string>{"ClipboardCopy", "ClipboardText", "InventoryEntry",
+    CHECK(heard == std::set<std::string>{"ActionRequested", "AreaRoom", "ClipboardCopy",
+                                         "ClipboardText", "DrawnRefused", "InventoryEntry",
                                          "LoadedSelected"});
     const zengine::manual::ShapeDocumentShown none = reader.ask("NoSuchShapeRequested", 1);
     CHECK(none.refusal == "zengine.composer does not accept `NoSuchShapeRequested` v1");

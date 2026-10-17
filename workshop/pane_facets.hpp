@@ -5,7 +5,7 @@
 
 // The conversations every pane office holds with Workshop, as facets composed with
 // `zengine::With` (activation/activation.hpp): its offer, room and manual (`PaneFacet`), its rows
-// (`PaneRowsFacet`) or its one drawing, in Workshop and a graphics window (`PaneDrawingFacet`),
+// (`PaneRowsFacet`) or its one drawing (`PaneDrawingFacet`), in Workshop and a graphics window,
 // and the presses on them, its asks (`AskFacet`), declared actions (`PaneActionFacet`) and menu
 // (`PaneMenuFacet`). The shapes they carry leave the weave's own lists; what each calls on the
 // weave, and when, is workshop/docs/workshop-panes.md, "The pane facets".
@@ -185,18 +185,21 @@ private:
 };
 
 /// ONE FIRST-BUTTON PRESS ON A SHOWN ROW OF THE PANE'S CURRENT PICTURE, as a prose press names
-/// it, and whether the keys were already reaching the pane when it was made.
+/// it, and whether Workshop reported the keys were already reaching the pane when it was made. A
+/// press made in a graphics window (`window`) never says so, since Workshop saw no press there,
+/// and Workshop's own gestures, a carry among them, do not reach there.
 struct RowPress {
     std::int64_t row = 0, column = 0;
     bool keys_went_here = false;
+    bool window = false;
 };
 
-/// A PANE THAT SAYS ROWS: `PaneFacet`, the rows being composed, what each row and run of
-/// columns means (`component::RowMap<Meaning>`), the caret, and the presses on the picture. Its
-/// rows go as the pane's canvas picture, numbered by what they mean, while it holds a canvas
-/// room, and as prose rows with the caret beside them otherwise; a press is read against the
-/// picture it was aimed at, and a third-button press that means nothing to the pane is passed
-/// back to Workshop.
+/// A PANE THAT SAYS ROWS: `PaneFacet`, the rows being composed, what each row and run of columns
+/// means (`component::RowMap<Meaning>`), the caret, and the presses on them. Its rows go as its
+/// canvas picture, numbered by what they mean, while it holds a canvas room, else as prose with
+/// the caret beside them, and to the graphics window that shows the area named `Office` as a
+/// drawing (`rows_sketch`). A press is read against the picture it was aimed at; a third-button
+/// press that means nothing to the pane is passed back to Workshop.
 template <const char* const& Pane, const char* const& Office, const manual::Manual& Page,
           class Meaning, class Offer = v2::PaneOffered>
 class PaneRowsFacet : public PaneFacet<Pane, Office, Page, Offer> {
@@ -204,10 +207,78 @@ class PaneRowsFacet : public PaneFacet<Pane, Office, Page, Offer> {
 
 public:
     using Accept = loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PaneCanvasRoom,
-                                PaneCanvasRejected, PaneDocumentRequested, PaneCanvasPointer>;
+                                PaneCanvasRejected, PaneDocumentRequested, PaneCanvasPointer,
+                                graphics::AreaRoom, graphics::DrawnRefused,
+                                graphics::ActionRequested>;
     using Emit = loom::Emit<Offer, PaneDocumentShown, v5::PaneContent, v6::PaneCanvasContent,
-                            PaneCaret, PanePassRequested>;
+                            PaneCaret, PanePassRequested, graphics::Drawn, graphics::RoomAsked>;
     using Room::on;
+
+    /// The room, from the window that shows the area, as that window's office. When the window,
+    /// its incarnation or its size changed, the window holds none of the pane's rows, so the
+    /// weave's `on_room` says them, and the window is sent them whole.
+    template <class Self>
+    void on(Self& self, const graphics::AreaRoom& r, loom::Mail& mail) {
+        if (r.area != window_.area() ||
+            !mail.authored_from_role(std::string(graphics::kWindowOfficePrefix) + r.window)) {
+            return;
+        }
+        if (window_.room(r)) {
+            this->window_room(r.h / graphics::kCellPx, r.w / graphics::kCellPx);
+            self.on_room(mail);
+        }
+    }
+
+    /// Rows the window refused leave what it shows as it was, so the next go whole rather than as
+    /// a change from a drawing the window does not hold.
+    template <class Self>
+    void on(Self&, const graphics::DrawnRefused& refused, loom::Mail& mail) {
+        if (refused.area == window_.area() && !window_.window().empty() &&
+            mail.authored_from_role(window_.window_office())) {
+            window_.forget();
+        }
+    }
+
+    /// A PRESS ON A PART IN THE WINDOW, asked by the window that shows the area as its office: for a
+    /// part of the rows last sent there, the weave's `press` at the first column of it a press
+    /// reaches -- the press Workshop's canvas makes there -- else the weave's `on_action` for an id
+    /// its `answers(id)` admits. Any other is no act and spends nothing.
+    template <class Self>
+    void on(Self& self, const graphics::ActionRequested& asked, loom::Mail& mail) {
+        if (asked.area != window_.area() || window_.window().empty() ||
+            !mail.authored_from_role(window_.window_office())) {
+            return;
+        }
+        const auto part =
+            std::find_if(window_parts_.begin(), window_parts_.end(),
+                         [&](const SketchedPart& p) { return p.name == asked.action; });
+        if (part != window_parts_.end()) {
+            const RowPress press{part->row, part->column, false, true};
+            if constexpr (requires { self.press(press, mail); }) {
+                self.press(press, mail);
+            }
+            return;
+        }
+        if constexpr (requires {
+                          { self.answers(asked.action) } -> std::convertible_to<bool>;
+                          self.on_action(asked.action, mail);
+                      }) {
+            if (self.answers(asked.action)) {
+                self.on_action(asked.action, mail);
+            }
+        }
+    }
+
+    /// The room asked once in each life while no window has said it, after the first message the
+    /// life delivers: a pane reloaded into a window says its rows there again.
+    template <class Self>
+    void after_delivery(Self&, loom::Mail& mail) {
+        if (!asked_ && window_.window().empty()) {
+            asked_ = true;
+            (void)mail.as_role(Office).send_to_role(graphics::kGraphicsRole,
+                                                    graphics::RoomAsked{window_.area()});
+        }
+    }
 
     /// A press, the wheel and the third button on the canvas: `press`, `wheel` and `right_press`
     /// on the weave; a press about a picture whose rows have moved since, or another room's, is
@@ -366,10 +437,20 @@ public:
         send(mail, meaning, std::move(rows), std::move(parts), with_caret);
     }
 
-    /// ...or rows composed elsewhere, numbered `meaning`, with their parts.
+    /// ...or rows composed elsewhere, numbered `meaning`, with their parts: to the window that
+    /// shows the area as what changed there, and to Workshop, unless only a window granted a room.
     void send(loom::Mail& mail, std::int64_t meaning, std::vector<surface::SurfaceTextRow> rows,
               std::vector<v2::PaneRowPart> parts, bool with_caret = true) {
         ++published_;
+        if (!window_.window().empty()) {
+            graphics::Sketch sketch;
+            window_parts_ = rows_sketch(rows, parts, sketch);
+            window_.draw(sketch);
+            window_.show(mail);
+        }
+        if (this->granted() && !this->seated()) {
+            return;
+        }
         if (this->on_canvas()) {
             const PaneCanvasRoom& room = this->canvas_room();
             (void)mail.as_role(Office).send_to_role(
@@ -415,6 +496,9 @@ private:
     CanvasPictures pictures_;
     RowsCaret caret_;
     std::uint64_t published_ = 0;
+    graphics::Canvas window_{Office, Office};
+    std::vector<SketchedPart> window_parts_; ///< the parts of the rows last sent the window
+    bool asked_ = false;                     ///< the room asked in this life
 };
 
 /// A PANE THAT DRAWS ONE PICTURE: `PaneFacet`, and the weave's `picture(graphics::Sketch&)` shown
