@@ -8,6 +8,7 @@
 #include "workshop_support.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_seat.hpp"
 #include "workshop/screen_canvas.hpp"
 #include "view/host.hpp"
 #include "flow/shape.hpp"
@@ -1094,6 +1095,44 @@ TEST_CASE("a pane's canvas pictures fence a press by the meaning each was drawn 
     CHECK(pictures.next(next, 8) == 2);
     CHECK_FALSE(pictures.current(5, 1));
     CHECK(pictures.current(5, 2));
+
+    // ...AND AN OFFICE OF SEVERAL PANES FENCES EACH PANE BY THE SAME NUMBERS, in its seat: the
+    // canvas room is the room composed for while it stands, a hand about a room since replaced
+    // lands nowhere, and a picture drawn under a meaning since moved is no longer the one shown.
+    PaneCanvasSeat seat(canvas_pane, canvas_office);
+    CHECK_FALSE(seat.granted());
+    CHECK(seat.prose_room(PaneRoom{canvas_pane, 6, 30})); // no canvas: the prose room is the room
+    CHECK(seat.rows() == 6);
+    CHECK(seat.columns() == 30);
+    seat.canvas_room(room);
+    const CanvasRows lattice = canvas_rows(room);
+    REQUIRE(lattice.rows > 1);
+    REQUIRE(lattice.columns > 1);
+    CHECK(seat.rows() == lattice.rows);
+    CHECK(seat.columns() == lattice.columns);
+    CHECK_FALSE(seat.prose_room(PaneRoom{canvas_pane, 9, 40})); // the canvas room stands
+    CHECK(seat.rows() == lattice.rows);
+    CHECK(seat.prose_rows() == 9);
+    PaneCanvasPointer hand;
+    hand.pane = canvas_pane;
+    hand.grant = room.grant;
+    hand.x = lattice.column_x(1);
+    hand.y = lattice.row_y(1);
+    hand.picture = seat.pictures().next(room, 7);
+    const std::optional<RowCell> cell = seat.cell_of(hand);
+    REQUIRE(cell.has_value());
+    CHECK(cell->row == 1);
+    CHECK(cell->column == 1);
+    CHECK(cell->shown);
+    CHECK(seat.shows(hand));
+    (void)seat.pictures().next(room, 8); // what the rows mean moved
+    CHECK_FALSE(seat.shows(hand));
+    hand.grant = room.grant - 1; // a room since replaced
+    CHECK_FALSE(seat.cell_of(hand).has_value());
+    seat.canvas_room(PaneCanvasRoom{canvas_pane, 6, 0, 0, kPaneCanvasUnit, false, 0, 0});
+    CHECK_FALSE(seat.on_canvas()); // a room of no extent leaves the pane its prose room
+    CHECK(seat.rows() == 9);
+    CHECK(seat.columns() == 40);
 }
 
 TEST_CASE("pane canvas text metric changes renew the grant even when its body stays fixed") {
