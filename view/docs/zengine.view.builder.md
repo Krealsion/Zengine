@@ -173,8 +173,8 @@ only a hand's save asks Workshop.
 `AreaRoom` v2, from the graphics window that shows the area `zengine.view.builder`, as that
 window's office ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): the pane's room there.
 It draws the picture a terminal Workshop of that size would show, whole when the window, its
-incarnation or its size changed, and after that only what changed. Each time it starts it asks the graphics directory, `zengine.graphics`, for
-this room (`RoomAsked` v1).
+incarnation or its size changed, and after that only what changed. Each time it starts it asks
+the graphics directory, `zengine.graphics`, for this room (`RoomAsked` v1).
 
 ### `DrawnRefused`
 
@@ -189,7 +189,8 @@ at its next change.
 Workshop picture gives that place -- `control:view.<action>`, `kind:<kind>`, `list:<id>`,
 `element:<id>`, `box:<field>` -- which is a click there, let go where it was pressed: a kind
 makes one below the last, an element or its row is selected, a box opens with the caret after its
-value. It begins no drag and carries nothing; Workshop refuses a save it asks, numbering no gesture.
+value. It begins no drag and carries nothing, and Workshop refuses a save it asks, having
+numbered no gesture for it.
 
 ## Follow
 

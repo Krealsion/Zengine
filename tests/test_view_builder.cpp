@@ -384,8 +384,6 @@ TEST_CASE("a view saves and opens whole, and nothing running is saved") {
 }
 
 namespace {
-/// Workshop's office and its menu presenter, on the real bus: what the builder and its view say,
-/// and the answers the builder needs to carry.
 /// THE PICTURE A WINDOW KEEPS FOR `area`, in the order it paints it: the nodes under its
 /// `picture` group, read as Workshop's picture reads -- each rectangle, then each run of text.
 void same_picture(const gfx::window::WinArea& area, const ws::PaneCanvasContent& workshop) {
@@ -414,6 +412,8 @@ void same_picture(const gfx::window::WinArea& area, const ws::PaneCanvasContent&
     }
 }
 
+/// Workshop's office and its menu presenter, on the real bus: what the builder and its view say,
+/// and the answers the builder needs to carry.
 class Desk final : public loom::Weave {
 public:
     std::vector<loom::Message> heard;

@@ -550,10 +550,10 @@ private:
     /// A FIRST-BUTTON PRESS ON A PLACE THE BUILDER ANSWERS: on Workshop's canvas, `event`, which
     /// may begin a drag; in a graphics window, none, so what a press there does is what the same
     /// press let go without moving does -- a kind made, an element selected -- and a size handle,
-    /// which only a drag moves, does nothing.
-    void choose(const vb::Hit& hit, const ws::PaneCanvasPointer* event, const vb::Area& design,
-                const vb::Area& placed, loom::Mail& mail) {
-        const auto chosen = hit; // acting clears the pictures the hit points into
+    /// which only a drag moves, does nothing. Each is taken whole, since acting clears the pictures
+    /// the hit and its areas were read from.
+    void choose(vb::Hit chosen, const ws::PaneCanvasPointer* event, vb::Area design, vb::Area placed,
+                loom::Mail& mail) {
         // A value being typed is kept before anything else is pressed; a refusal keeps its box.
         if (shown_.box && !(chosen.action == "box" && same_box(chosen)) && !commit()) {
             show(mail);
