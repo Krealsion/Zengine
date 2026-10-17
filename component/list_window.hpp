@@ -219,6 +219,39 @@ inline std::size_t scroll_by(std::size_t total, std::size_t top, std::int64_t by
     return static_cast<std::size_t>(at);
 }
 
+namespace detail {
+
+/// Whether the window reserved one marker row for each side it cut, as `cursor_window` and
+/// `scroll_window` do; `centred_window`'s one row for two cut sides is not a side's own.
+inline bool marker_per_cut_side(const ListWindow& w) noexcept {
+    return w.markers > 0 &&
+           w.markers == (w.before > 0 ? 1u : 0u) + (w.after > 0 ? 1u : 0u);
+}
+
+} // namespace detail
+
+/// HOW MANY MEMBERS THE ROW ABOVE THE WINDOW SAYS IT LEFT OUT: `before`, when the window reserved
+/// that side a marker row of its own, else zero -- no row is said where none was reserved, since
+/// a marker that overran the budget would cut the last entry.
+inline std::size_t earlier_marker(const ListWindow& w) noexcept {
+    return detail::marker_per_cut_side(w) ? w.before : 0;
+}
+
+/// ...AND THE ROW BELOW IT: `after`, on the same terms.
+inline std::size_t more_marker(const ListWindow& w) noexcept {
+    return detail::marker_per_cut_side(w) ? w.after : 0;
+}
+
+/// THE WHOLE NOTCHES A WHEEL HAS TURNED, taken out of `carry`: `dy` is added to what earlier
+/// turns left over, the whole steps are returned (toward zero, so either direction), and the
+/// fraction stays for the next turn, so a slow wheel still moves a list.
+inline std::int64_t take_wheel_notches(double& carry, double dy) noexcept {
+    carry += dy;
+    const std::int64_t notches = static_cast<std::int64_t>(carry);
+    carry -= static_cast<double>(notches);
+    return notches;
+}
+
 } // namespace zengine::component
 
 #endif // ZENGINE_COMPONENT_LIST_WINDOW_HPP
