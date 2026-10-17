@@ -59,8 +59,8 @@ WHY — `agents/decisions/a-weaver-authors-the-two-files.md`
 
 ### WL-AUTH-01
 `files/vocabulary.hpp` kActionPickBuildable
-`files/files.cpp` pick_buildable cache_is_multi_config chooser_choose record_field compose_recipe
-field_at field_count
+`files/recipe_authoring.hpp` pick_buildable cache_is_multi_config chooser_choose record_field
+compose_recipe field_at field_count
 `workshop/pane_seam_vocabulary.hpp` RecipeAuthorRequested RecipeOutcome
 `workshop/pane_doors.hpp` ProjectDoor
 `workshop/weave.hpp` HostContext::RecipeDraft HostContext::author_recipe

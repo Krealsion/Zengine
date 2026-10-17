@@ -10,6 +10,8 @@ One part, the folder itself; the pure half keeps `namespace zengine::workshop`.
 | path | what it is |
 |---|---|
 | `files.cpp` | the loadable weave `zengine-files`: office `zengine.files`, pane `project-files` |
+| `browser_view.hpp` | part of `files.cpp`: the browser's picture, its listing window and control strip |
+| `recipe_authoring.hpp` | part of `files.cpp`: the buildable chooser and the recipe form, their menus and pictures |
 | `os.cpp` | the two platform bodies: static library `zengine-files-os`, shared by weave and suite |
 | `vocabulary.hpp` | the durable names: office, pane key, action ids, `FilesState` |
 | `files.hpp` | the listing: `FileRow`, its order and bound |
