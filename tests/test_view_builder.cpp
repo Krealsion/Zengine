@@ -2071,6 +2071,9 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
             "is that press let go without moving, and a refused change is drawn whole again once "
             "while a refused whole picture is only said") {
         CHECK(rig.directory->times(vb::kRole, vb::kRole) == 1);
+        zengine::testing::order_activation(rig.bus, rig.door, rig.pane, ++rig.activation);
+        rig.pump(); // activated again in the same life, before any window: no second ask
+        CHECK(rig.directory->times(vb::kRole, vb::kRole) == 1);
         pw::Window window(rig.bus, "builder");
         const auto& seen = window.weave();
         // A ROOM OF THE TERMINAL'S SIZE, so the window's picture is the terminal Workshop's.
@@ -2099,7 +2102,13 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
         REQUIRE(seen.heard.size() == 2);
         CHECK_FALSE(seen.heard.back().whole);
         CHECK(seen.refusals.empty());
-        same_picture(*window.weave().find(vb::kRole), rig.picture()); // what a change adds paints in its place
+        same_picture(*window.weave().find(vb::kRole), rig.picture());
+        // ...a button brings a rectangle more, painted in its place among the picture's.
+        REQUIRE(window.press(vb::kRole, "kind:button"));
+        rig.pump();
+        CHECK(rig.now().elements.size() == made + 2);
+        CHECK_FALSE(seen.heard.back().whole);
+        same_picture(*window.weave().find(vb::kRole), rig.picture());
         // ...ON AN ELEMENT selects it and begins no drag, and on its handle nothing moves.
         const auto element = rig.now().elements[0];
         REQUIRE(window.press(vb::kRole, "element:" + element.id));
@@ -2149,13 +2158,35 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
         CHECK(seen.heard.back().whole);
         CHECK(seen.refusals.size() == 2);
 
+        // THE WINDOW MOVES NOTHING WORKSHOP SHOWS: a pan Workshop's room reaches stays when a wider
+        // window, which reaches less of the view, draws it.
+        REQUIRE(rig.edit("size", {"1400", "700"}).ok);
+        REQUIRE(rig.edit("add", {"button"}).ok);
+        const auto far = std::to_string(rig.now().elements.size() - 1);
+        REQUIRE(rig.edit("element", {far, "far", "Far", "1200", "600", "96", "24"}).ok);
+        const auto canvas = rig.design();
+        rig.pointer(ws::canvas_pointer::kPress, canvas.x + 2 * unit, canvas.y + 2 * unit, 60, 2);
+        rig.pointer(ws::canvas_pointer::kMove, canvas.x + 2 * unit - 60 * unit, canvas.y + 2 * unit - 30 * unit, 60, 2);
+        rig.pointer(ws::canvas_pointer::kRelease, canvas.x + 2 * unit - 60 * unit, canvas.y + 2 * unit - 30 * unit, 60, 2);
+        const auto* panned = rig.drawn("Far");
+        REQUIRE(panned != nullptr);
+        const auto far_x = panned->x, far_y = panned->y;
+        window.room(vb::kRole, vb::kRole, 200, 100, 3);
+        rig.pump();
+        REQUIRE(rig.edit("select", {"0"}).ok);
+        const auto* still_far = rig.drawn("Far");
+        REQUIRE(still_far != nullptr);
+        CHECK(still_far->x == far_x);
+        CHECK(still_far->y == far_y);
+
         // THE WINDOW ALONE: with Workshop's room taken back, a press there still acts and is drawn.
         rig.host(ws::PaneCanvasRoom{vb::kPane, ++rig.grant, 0, 0, unit, false});
         const auto pictures = rig.desk->pictures.size();
         const auto alone = seen.heard.size();
+        const auto before_alone = rig.now().elements.size();
         REQUIRE(window.press(vb::kRole, "kind:button"));
         rig.pump();
-        CHECK(rig.now().elements.size() == elements + 2);
+        CHECK(rig.now().elements.size() == before_alone + 1);
         CHECK(seen.heard.size() == alone + 1);
         CHECK(rig.desk->pictures.size() == pictures);
 

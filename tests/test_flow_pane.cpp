@@ -503,6 +503,8 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
         REQUIRE_FALSE(node.empty());
         REQUIRE_FALSE(port.empty());
         CHECK(rig.directory->times(fp::kRole, fp::kRole) == 1);
+        rig.activate(); // activated again in the same life, before any window: no second ask
+        CHECK(rig.directory->times(fp::kRole, fp::kRole) == 1);
         pw::Window window(rig.bus, "flowtest");
         const auto& seen = window.weave();
         // A ROOM OF WORKSHOP'S SIZE, so the window's picture is Workshop's, one for one.
@@ -524,7 +526,7 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
         const auto pressed = window.actions(fp::kRole);
         CHECK(pressed.count("control:page-state") == 1);
         CHECK(pressed.count(node) == 1);
-        CHECK(pressed.count(port) == 1); // a port over its node, as a press on Workshop's reads them
+        CHECK(pressed.count(port) == 1);
         for (const auto& action : pressed) CHECK(names.count(action) == 1);
 
         // A PRESS ON A CONTROL performs it, and both Workshop and the window show what it did.
@@ -541,8 +543,13 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
         // ...A PRESS ON A NODE selects it and begins no drag, so Delete removes that node.
         REQUIRE(window.press(fp::kRole, "control:page-graph"));
         rig.pump();
+        same_picture(*window.weave().find(fp::kRole), rig.picture());
+        for (int put_down = 0; put_down < 4 && rig.shows_part("Delete node"); ++put_down)
+            rig.key(in::scan::kEscape);
+        REQUIRE_FALSE(rig.shows_part("Delete node"));
         REQUIRE(window.press(fp::kRole, node));
         rig.pump();
+        CHECK(rig.shows_part("Delete node"));
         rig.key(in::scan::kDelete);
         const auto& after = rig.presenter->named.back().parts;
         CHECK(std::none_of(after.begin(), after.end(), [&](const auto& p) { return p.name == node; }));
