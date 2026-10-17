@@ -15,13 +15,17 @@
 // right kept, or the managed door, where a candidate built beside the document becomes it only
 // when the bus publishes this weave's claim (WL-EDIT-05).
 
+// This file is the weave: its lifecycle and revival, the room, the keys, the clipboard and the
+// exit, save and discard, and the rows, caret and mirror it composes. It declares every member;
+// `transfers.hpp` defines the pointer's and the transfers' (WL-EDIT-16..21) and
+// `opening_switch.hpp` the open doors' and a switch's, both included after the class, over the
+// records and pure helpers of `common.hpp`.
+
+#include "editor/editor-pane/common.hpp"
 #include "editor/editor-pane/vocabulary.hpp"
 
 #include "editor/editor-pane/editor.hpp"
-#include "editor/source-transfer/cpp.hpp"
-#include "editor/source-transfer/material.hpp"
 #include "workshop/editor_handoff_vocabulary.hpp"
-#include "workshop/editor_switch_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
 #include "workshop/pane_canvas_rows.hpp"
 #include "workshop/pane_carry.hpp"
@@ -46,12 +50,9 @@
 #include <zen/weave/lifecycle.hpp>
 #include <zen/weave/standard_shapes.hpp>
 
-#include <algorithm>
 #include <cstddef>
-#include <filesystem>
 #include <cstdint>
 #include <optional>
-#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -60,67 +61,6 @@ namespace {
 
 namespace component = zengine::component;
 namespace input = zengine::input;
-namespace surface = zengine::surface;
-namespace ws = zengine::workshop;
-namespace pane = zengine::editor_pane;
-namespace st = zengine::source_transfer;
-
-using ws::EditorAdopted;
-using ws::EditorAdoptRequested;
-using ws::EditorBuffer;
-using ws::EditorDocument;
-using ws::EditorHandoffEnded;
-using ws::EditorHandoffJudged;
-using ws::EditorHandoffJudgeRequested;
-using ws::EditorHandoffOffered;
-using ws::EditorHandoffRequested;
-using ws::EditorLive;
-using ws::EditorLiveRequested;
-using ws::EditorPreparationTick;
-using ws::EditorRetired;
-using ws::EditorRetireRequested;
-using ws::EditorTransfer;
-using ws::EditorWarmed;
-using ws::EditorWarmRequested;
-using ws::EditorPos;
-using ws::EditorState;
-using ws::ManagedOpenProgress;
-using ws::ManagedOpenSettled;
-using ws::OpenSourceRequested;
-using ws::PaneActionRequested;
-using ws::PaneCatalogRequested;
-using ws::PaneKey;
-using ws::v2::PaneOffered;
-using ws::PaneQuitAnswered;
-using ws::PaneQuitRequested;
-using ws::PaneRoom;
-using ws::PaneTextInput;
-using ws::PrepareSourceRequested;
-using ws::ProjectRoot;
-using ws::ProjectRootRequested;
-using ws::SourceOpened;
-using ws::SourcePrepared;
-using ws::Written;
-using zengine::workshop::pane_text::drawable;
-using zengine::workshop::pane_text::fit;
-
-/// The office Workshop holds, named as a string rather than through `workshop/panes.hpp`: a
-/// provider is a stranger to Workshop's internals.
-constexpr const char* kWorkshopRole = "zengine.workshop";
-
-/// One column of every document row the text may not use: the caret's own, so a caret at the
-/// end of a full row stays inside the room (WL-EDIT-08).
-constexpr std::int64_t kCaretCols = 1;
-
-/// The fewest rows in which a refusal gets a row of its own: status, refusal, and one document
-/// row. In a smaller room the refusal replaces the status row, so the document keeps its rows
-/// (WL-EDIT-12).
-constexpr std::int64_t kNoticeNeedsRows = 3;
-
-/// The answer to a quit ask while a paste is arriving: a refusal, not a wait, since the host
-/// counts answers and a silent pane would hold every other pane's exit hostage.
-constexpr const char* kPasteInFlight =
-    "the Editor is still waiting for a clipboard answer -- quit again";
 
 // =============================================================================
 
@@ -150,150 +90,6 @@ class EditorPaneWeave
                      ws::PaneMenuRequested, ws::PanePassRequested, ws::PaneOperationRequested,
                      ws::PaneValueCarryRequested>,
           loom::WeaveBase, loom::Claims<EditorDocument>> {
-    /// One prepared candidate: the whole document a managed opening would install, built beside
-    /// the current one for one exact operation, and the identity offered for it. Nothing reads,
-    /// paints or edits it; it becomes the document only in `on_claim_published`. Nothing is held
-    /// for it: input applies to the current document, an edit moves the claim and the bus aborts
-    /// the operation, and a refused, superseded or aborted operation drops the candidate alone.
-    struct Candidate {
-        bool live = false;
-        std::uint64_t op = 0;
-        bool same_path = false; ///< the current document is the one asked for: only the desk moves
-        std::string path;
-        EditorState doc;        ///< the whole candidate (bytes, saved copy, convention, epoch)
-        /// The trial room the desk named and the geometry composed for it: the room the pane has
-        /// the instant the publication seats it, before the desk's own grant, which agrees.
-        std::int64_t rows = 0;
-        std::int64_t columns = 0;
-        std::int64_t chrome_rows = 0;
-        std::int64_t doc_rows = 0;
-        /// The canvas room the trial reserved, where the candidate was composed as this pane's
-        /// picture; no grant where it was composed as rows.
-        ws::PaneCanvasRoom room;
-    };
-
-    /// THE SWEEP A PRESS BEGAN, and the picture it began against (WL-EDIT-16).
-    struct Drag {
-        bool armed = false;
-        std::int64_t chrome_rows = 0;
-        std::int64_t doc_rows = 0;
-    };
-
-    /// THE WINDOW THE DOCUMENT IS LOOKED AT THROUGH, as one value `reconcile` moves -- so a
-    /// composition can be made for a room WITHOUT moving the live view (a candidate's, or a
-    /// re-request's, which moves the pane and never the view: WL-EDIT-09).
-    struct Viewport {
-        std::size_t first_row = 0;
-        std::int64_t first_col = 0;
-        bool follow_caret = false;
-        std::int64_t last_rows = 0;
-        std::int64_t last_cols = 0;
-    };
-
-    /// WHAT COMPOSING A DOCUMENT FOR A ROOM PRODUCED: the rows, where the document begins in
-    /// them, how many rows it got, the caret beside them, and the viewport it was made with.
-    struct Composition {
-        std::vector<surface::SurfaceTextRow> rows;
-        std::int64_t chrome_rows = 0;
-        std::int64_t doc_rows = 0;
-        bool status_row = false; ///< row 0 is the status row (not a notice standing in for it)
-        ws::v2::PaneCaret caret;
-        Viewport view;
-    };
-
-    // ---- What a transfer holds, between the gestures and the answers (WL-EDIT-17..21) -------
-
-    /// WHAT A HAND IS TAKING: the selection's text, or this file's location.
-    enum class Take : std::uint8_t { Selection, Location };
-
-    /// THE DOCUMENT AT ONE INSTANT (`mark_now`): equal marks mean nothing moved in between.
-    struct Mark {
-        std::uint64_t epoch = 0;
-        std::uint64_t content = 0;
-        std::uint64_t revision = 0;
-        friend bool operator==(const Mark& a, const Mark& b) {
-            return a.epoch == b.epoch && a.content == b.content && a.revision == b.revision;
-        }
-    };
-
-    /// A PRESS ON THE HIGHLIGHT OR ON THE STATUS ROW, remembered until the hand moves to another
-    /// cell (then it is a carry) or the next act comes (then it was only ever a press).
-    struct Grab {
-        bool armed = false;
-        bool started = false;
-        Take what = Take::Selection;
-        std::int64_t row = 0;
-        std::int64_t column = 0;
-        std::uint64_t gesture = 0; ///< the press's own correlation, echoed on the approval
-        Mark at;                   ///< the document when it was pressed
-        EditorPos anchor;          ///< Selection: the selection the press landed on...
-        EditorPos caret;
-        Mark after;                ///< ...and the document once the press had placed the caret
-    };
-
-    /// ONE ACQUISITION IN FLIGHT: Workshop's approval for the gesture, then the carry itself.
-    struct Pickup {
-        enum class Stage : std::uint8_t { Idle, Permission, Carry };
-        Stage stage = Stage::Idle;
-        std::uint64_t ask = 0;
-        std::uint64_t gesture = 0;
-        bool drag = false;
-        loom::Bytes bytes;
-        std::string label;
-        std::string what;
-        loom::Ticket ticket{};
-    };
-
-    /// WHERE A DROP LANDED: the character under it, and whether that is on the highlight.
-    struct Landing {
-        EditorPos pos;
-        bool inside = false;
-    };
-
-    /// A DROPPED COMMAND IN A C++ DOCUMENT, WAITING FOR THE WEAVER'S CHOICE.
-    struct Dropped {
-        bool pending = false;
-        st::Material material;
-        Landing at;
-        Mark mark;
-        ws::pane_menu::Asked menu;
-    };
-
-    /// A DROPPED LOCATION: Workshop's approval for the gesture, then the managed open.
-    struct Locate {
-        enum class Stage : std::uint8_t { Idle, Permission, Opening };
-        Stage stage = Stage::Idle;
-        std::uint64_t ask = 0;
-        loom::Ticket ticket{};
-        st::SourceLocation loc;
-        std::optional<st::SourceLocationContext> ctx;
-        bool same_path = false;
-        Mark mark;
-    };
-
-    /// THE PICTURE'S ROW-TO-MEANING MAP, as the facts it is made of (WL-EDIT-18).
-    struct PictureKey {
-        std::uint64_t epoch = 0;
-        std::uint64_t content = 0;
-        std::size_t first_row = 0;
-        std::int64_t first_col = 0;
-        std::int64_t chrome_rows = 0;
-        std::int64_t rows = 0;
-        std::int64_t columns = 0;
-        bool selection = false;
-        EditorPos from;
-        EditorPos to;
-        friend bool operator==(const PictureKey& a, const PictureKey& b) {
-            return a.epoch == b.epoch && a.content == b.content && a.first_row == b.first_row &&
-                   a.first_col == b.first_col && a.chrome_rows == b.chrome_rows && a.rows == b.rows &&
-                   a.columns == b.columns && a.selection == b.selection && a.from == b.from && a.to == b.to;
-        }
-    };
-
-    static constexpr const char* kDropSubject = "drop";
-    static constexpr const char* kInsertLine = "editor.insert-line";
-    static constexpr const char* kInsertCpp = "editor.insert-cpp";
-
 public:
     using Base = Weave;
 
@@ -398,326 +194,18 @@ public:
         project_known_ = true;
     }
 
-    // ---- THE TWO DOORS: open a source directly, or prepare it for a managed opening ------
+    // ---- THE TWO DOORS, defined in `opening_switch.hpp` -------------------------------------
 
-    /// The old door (WL-EDIT-05, WL-OPEN-07): the document and its presentation -- seated,
-    /// selected, holding the keys -- or a truthful refusal. This weave does not arrange the desk,
-    /// so it relays: the requester's answer right is kept here, the opening manager is asked in
-    /// this weave's own conversation, and its outcome is spent into the kept right. There is no
-    /// document-only install behind this door. An office may ask, but not the opening office,
-    /// which would be asking this weave to ask it back.
-    void on(const OpenSourceRequested& asked, loom::Mail& mail) {
-        if (mail.authored_role().empty()) {
-            return;
-        }
-        if (mail.authored_from_role(ws::kOpeningRole)) {
-            (void)mail.answer(SourceOpened{
-                false, "the opening office asks the Editor to prepare a source, not to open "
-                       "one -- nothing was relayed for " +
-                           asked.path});
-            return;
-        }
-        if (holding_.active) {
-            ++holding_.refused;
-            (void)mail.answer(SourceOpened{false, "the Editor is being switched -- " + asked.path +
-                                                      " was not opened; open it again once the "
-                                                      "switch has settled"});
-            return;
-        }
-        if (relays_.size() >= kMaxRelays) {
-            (void)mail.answer(SourceOpened{
-                false, "too many opens are already being relayed through the Editor -- " +
-                           asked.path + " was not opened; try again"});
-            return;
-        }
-        const std::uint64_t correlation = ++asked_;
-        const loom::Ticket attempt =
-            mail.as_role(pane::kEditorPaneRole)
-                .send_to_role(ws::kOpeningRole, OpenSourceRequested{asked.path}, correlation);
-        if (!attempt.valid()) {
-            // Nothing was queued: refused now, in words -- never silence, and never a
-            // document-only success standing in for the presentation.
-            (void)mail.answer(SourceOpened{
-                false, "nothing was queued: the Editor could not ask the opening office to show " +
-                           asked.path});
-            return;
-        }
-        Relay relay;
-        relay.path = asked.path;
-        relay.correlation = correlation;
-        relay.attempt = attempt;
-        relay.answer = mail.defer_answer();
-        relays_.push_back(std::move(relay));
-    }
-
-    /// The manager's answer to a relay, matched by this weave's own correlation and spent into
-    /// the requester's kept right. An answer to nothing asked is dropped; a right whose
-    /// requester was replaced spends into nobody, which the bus refuses.
-    void on(const SourceOpened& said, loom::Mail& mail) {
-        if (!mail.answers_ask()) {
-            return;
-        }
-        if (locate_.stage == Locate::Stage::Opening && mail.correlation() == locate_.ask) {
-            settle_location(said);
-            say(mail);
-            return;
-        }
-        for (auto it = relays_.begin(); it != relays_.end(); ++it) {
-            if (it->correlation == mail.correlation()) {
-                (void)loom::answer_deferred(it->answer, mail,
-                                            SourceOpened{said.accepted, said.refusal});
-                relays_.erase(it);
-                return;
-            }
-        }
-    }
-
-    /// The bus's word that a relay's attempt was refused before any handler ran -- no opening
-    /// office held, its holder does not accept, or it holds behind a claim it could not apply.
-    /// Matched by exact attempt, and the requester is told in words.
-    void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
-        if (!mail.dispatch_refused()) {
-            return;
-        }
-        const loom::Ticket attempt = refused.refused_attempt();
-        if (!attempt.valid()) {
-            return;
-        }
-        for (auto it = relays_.begin(); it != relays_.end(); ++it) {
-            if (it->attempt.seq == attempt.seq) {
-                (void)loom::answer_deferred(
-                    it->answer, mail,
-                    SourceOpened{false, std::string(ws::kOpeningRole) + " could not be reached (" +
-                                            refused.reason + ") -- " + it->path +
-                                            " was not opened"});
-                relays_.erase(it);
-                return;
-            }
-        }
-        // A PICKUP OR A DROPPED LOCATION'S ASK THAT NEVER ARRIVED, named by its exact attempt: known
-        // failure, said, and the record released. Delivered silence stays pending.
-        if (pickup_.stage != Pickup::Stage::Idle && pickup_.ticket.valid() &&
-            attempt.seq == pickup_.ticket.seq) {
-            pickup_ = Pickup{};
-            notice("nothing was carried -- Workshop could not be asked (" + refused.reason + ")", true);
-            say(mail);
-            return;
-        }
-        if (locate_.stage != Locate::Stage::Idle && locate_.ticket.valid() &&
-            attempt.seq == locate_.ticket.seq) {
-            const std::string path = locate_.loc.path;
-            locate_ = Locate{};
-            notice("nothing was opened -- " + path + " could not be asked for (" + refused.reason + ")", true);
-            say(mail);
-        }
-    }
-
-    /// The `apply` word: the bus showed this weave its published claim before this handler; the
-    /// hook did the work, and the end of the delivery says the rows.
-    void on(const ManagedOpenProgress& said, loom::Mail& mail) {
-        (void)said;
-        (void)mail;
-    }
-
-    /// The managed door (WL-OPEN-01, WL-OPEN-03): prepare this source for the room the desk's
-    /// trial would grant, and offer the document's identity for the exact operation. Judged with
-    /// nothing moved; the candidate is a whole document built beside the current one, and its
-    /// composition travels back as the trial's content: as rows and a caret here...
-    void on(const PrepareSourceRequested& asked, loom::Mail& mail) {
-        if (!mail.authored_from_role(ws::kOpeningRole)) {
-            return;
-        }
-        Preparation p = prepare(asked.op, asked.path, asked.rows, asked.columns, ws::PaneCanvasRoom{},
-                                mail);
-        if (!p.refusal.empty()) {
-            (void)mail.answer(not_prepared(asked.op, std::move(p.refusal)));
-            return;
-        }
-        SourcePrepared prepared;
-        prepared.op = asked.op;
-        prepared.ok = true;
-        prepared.generation = p.generation;
-        prepared.rows = std::move(p.shown.rows);
-        prepared.caret_row = p.shown.caret.row;
-        prepared.caret_col = p.shown.caret.column;
-        prepared.sel_begin_row = p.shown.caret.sel_begin_row;
-        prepared.sel_begin_col = p.shown.caret.sel_begin_col;
-        prepared.sel_end_row = p.shown.caret.sel_end_row;
-        prepared.sel_end_col = p.shown.caret.sel_end_col;
-        (void)mail.answer(prepared);
-    }
-
-    /// ...or as this pane's own picture in the canvas room the trial reserved, composed for the
-    /// rows and columns of its lattice and numbered as the first picture in that room.
-    void on(const ws::v2::PrepareSourceRequested& asked, loom::Mail& mail) {
-        if (!mail.authored_from_role(ws::kOpeningRole)) {
-            return;
-        }
-        const ws::CanvasRows lattice = ws::canvas_rows(asked.room);
-        Preparation p = prepare(asked.op, asked.path, lattice.rows, lattice.columns, asked.room, mail);
-        ws::v2::SourcePrepared prepared;
-        prepared.op = asked.op;
-        prepared.ok = p.refusal.empty();
-        prepared.refusal = std::move(p.refusal);
-        if (prepared.ok) {
-            prepared.generation = p.generation;
-            prepared.picture = ws::rows_picture(asked.room, 1, p.shown.rows,
-                                                parts_of(p.shown, lattice.columns),
-                                                rows_caret(p.shown.caret));
-        }
-        (void)mail.answer(prepared);
-    }
-
-    /// WHAT A PREPARATION CAME TO: refused in words, or the generation offered and the
-    /// candidate's composition for the room asked.
-    struct Preparation {
-        std::string refusal;
-        std::int64_t generation = 0;
-        Composition shown;
-    };
-
-    /// PREPARE THE CANDIDATE: judged with nothing moved, built beside the current document,
-    /// composed for `rows` by `columns`, and its identity offered for the exact operation. The bus
-    /// can refuse the offer (not this weave's operation, or the claim already moved); then no
-    /// candidate is kept.
+    void on(const OpenSourceRequested& asked, loom::Mail& mail);
+    void on(const SourceOpened& said, loom::Mail& mail);
+    void on(const loom::DispatchRefused& refused, loom::Mail& mail);
+    void on(const ManagedOpenProgress& said, loom::Mail& mail);
+    void on(const PrepareSourceRequested& asked, loom::Mail& mail);
+    void on(const ws::v2::PrepareSourceRequested& asked, loom::Mail& mail);
     Preparation prepare(std::int64_t asked_op, const std::string& asked_path, std::int64_t rows,
-                        std::int64_t columns, const ws::PaneCanvasRoom& room, loom::Mail& mail) {
-        Preparation out;
-        if (holding_.active) {
-            ++holding_.refused;
-            out.refusal = "the Editor is being switched -- " + asked_path +
-                          " was not prepared; open it again once the switch has settled";
-            return out;
-        }
-        candidate_ = Candidate{}; // a newer preparation supersedes an older candidate
-        const std::uint64_t op = static_cast<std::uint64_t>(asked_op);
-        Plan plan = judge_source(asked_path);
-        if (!plan.outcome.accepted) {
-            out.refusal = plan.outcome.refusal;
-            return out;
-        }
-        Candidate next;
-        next.live = true;
-        next.op = op;
-        next.path = plan.path;
-        next.same_path = plan.same_path;
-        EditorDocument offered;
-        if (plan.same_path) {
-            // THE DOCUMENT IS THIS ONE; what the operation changes is the desk. Composed for
-            // the trial room on a COPY of the view, because asking for the open source again
-            // moves the pane and never the view (WL-EDIT-09).
-            offered = identity_now();
-            offered.opened_by = asked_op;
-            out.shown = compose(e_, viewport_of(e_), rows, columns,
-                                (e_.dirty() ? "UNSAVED edits stand -- editing " : "editing ") +
-                                    tail_of_path(e_.path, columns > 24 ? columns - 24 : columns),
-                                false);
-        } else {
-            next.doc.path = plan.path;
-            next.doc.saved_lines = plan.admitted.lines;
-            next.doc.buffer.set_lines(std::move(plan.admitted.lines));
-            next.doc.convention = plan.admitted.convention;
-            next.doc.doc_epoch = e_.doc_epoch + 1;
-            next.doc.follow_caret = true;
-            offered.path = next.doc.path;
-            offered.doc_epoch = static_cast<std::int64_t>(next.doc.doc_epoch);
-            offered.convention = next.doc.convention;
-            offered.content_revision =
-                static_cast<std::int64_t>(next.doc.buffer.content_revision());
-            offered.dirty = false;
-            offered.opened_by = asked_op;
-            out.shown = compose(next.doc, viewport_of(next.doc), rows, columns,
-                                "editing " + tail_of_path(next.doc.path,
-                                                          columns > 24 ? columns - 24 : columns),
-                                false);
-            // The candidate keeps the viewport it was composed with, so what it shows at
-            // activation is what the desk admitted.
-            apply_viewport(next.doc, out.shown.view);
-        }
-        next.rows = rows;
-        next.columns = columns;
-        next.chrome_rows = out.shown.chrome_rows;
-        next.doc_rows = out.shown.doc_rows;
-        next.room = room;
-        const loom::JointResult offer = mail.offer(op, offered);
-        if (!offer.ok) {
-            out.refusal = offer_refusal(plan.path, offer.why);
-            return out;
-        }
-        candidate_ = std::move(next);
-        out.generation = offered.doc_epoch;
-        return out;
-    }
-
-    /// THE OPERATION ENDED, said by the manager AFTER the fact. On a commitment this weave
-    /// was already shown its published claim before this delivery (the hook below), so the
-    /// candidate is already the document; on a refusal the candidate is dropped and the
-    /// reason stands where the weaver reads. Neither is the commitment.
-    void on(const ManagedOpenSettled& said, loom::Mail& mail) {
-        if (!mail.authored_from_role(ws::kOpeningRole)) {
-            return;
-        }
-        if (!said.committed) {
-            if (candidate_.live && candidate_.op == static_cast<std::uint64_t>(said.op)) {
-                candidate_ = Candidate{};
-            }
-            if (!said.refusal.empty()) {
-                notice(said.refusal, true);
-            }
-        } else if (!said.applied && !said.refusal.empty()) {
-            // PUBLISHED, AND AN OWNER COULD NOT APPLY IT. This weave applied its half (a held
-            // weave would not be receiving this); the other owner is named in the sentence.
-            notice(said.refusal, true);
-        }
-        say(mail);
-    }
-
-    /// The hook (WL-OPEN-02; Loom's `Weave::claim_published`): the bus published this weave's
-    /// document claim by a joint operation, and this weave has not run since. Called before the
-    /// next delivery and snapshot, with no Mail: the candidate the published identity names
-    /// becomes the document here and the mirror is rebuilt here, so nothing queued behind the
-    /// commitment finds the old document. An identity this incarnation did not prepare (a
-    /// reloaded successor's) is not installed: it keeps its document and answers `false`.
-    bool on_claim_published(const EditorDocument& published) {
-#ifdef ZENGINE_EDITOR_TEST_THROW_ON_B_CPP
-        // Test instrumentation, compiled only into `zengine-editor-throwing`
-        // (tests/CMakeLists.txt): one deliberate throw before anything is activated, for a
-        // published path ending in `/b.cpp`: a real owner whose image cannot complete a showing.
-        if (published.path.size() >= 6 &&
-            published.path.compare(published.path.size() - 6, 6, "/b.cpp") == 0) {
-            throw std::runtime_error("test instrumentation: the Editor could not apply " +
-                                     published.path);
-        }
-#endif
-        // WHAT THE BUS HOLDS UNDER THIS WEAVE'S KEY IS `published` NOW, whichever branch
-        // follows: the identity the end of the next delivery compares the document against,
-        // so an activated candidate (which derives exactly it) claims nothing again and a
-        // kept document (which differs) claims its own truth.
-        claimed_ = published;
-        claimed_ever_ = true;
-        if (candidate_.live && published.opened_by == static_cast<std::int64_t>(candidate_.op)) {
-            activate();
-            mirror_state();
-            resay_ = true;
-            return true;
-        }
-        // A publication this incarnation did not prepare: keep the document and re-claim it at
-        // the end of the next delivery. Its generation moves past the published one first, since
-        // the desk drops projections of an older generation; a paste pinned to the old epoch
-        // retires with it. The answer is Declined -- not applied, not broken -- and the manager
-        // records it as not applied after repair.
-        const std::uint64_t published_epoch =
-            published.doc_epoch < 0 ? 0 : static_cast<std::uint64_t>(published.doc_epoch);
-        e_.doc_epoch = std::max(e_.doc_epoch, published_epoch) + 1;
-        paste_ = Paste{};
-        notice("the desk published " + published.path +
-                   " for an opening this Editor did not prepare -- " +
-                   (e_.open_document() ? "keeping " + shown_path() : "no source is open"),
-               true);
-        mirror_state();
-        resay_ = true;
-        return false;
-    }
+                        std::int64_t columns, const ws::PaneCanvasRoom& room, loom::Mail& mail);
+    void on(const ManagedOpenSettled& said, loom::Mail& mail);
+    bool on_claim_published(const EditorDocument& published);
 
     /// THE END OF EVERY DELIVERY (WL-OPEN-03; Loom's `after_delivery`): say what a
     /// publication owes, mirror the live document into the read surface, and claim the
@@ -737,370 +225,23 @@ public:
         claim_document(mail);
     }
 
-    // ---- A switch: this Editor as the incumbent (WL-SWITCH) ---------------------------------
+    // ---- A switch, as the incumbent and as the sealed candidate: `opening_switch.hpp` -------
 
-    /// WHAT WOULD A SWITCH AWAY COST? Nothing the transfer cannot carry -- the standard model IS
-    /// the transfer's model -- so there are no losses to consent to; the undo history and the
-    /// wheel's fraction are reset and said. A state no switch may begin in is refused in words.
-    // WL-SWITCH-04 -- agents/workshop/editor-switch.md
-    void on(const EditorHandoffJudgeRequested& asked, loom::Mail& mail) {
-        if (!mail.authored_from_role(ws::kEditorSwitchRole)) {
-            return;
-        }
-        EditorHandoffJudged judged;
-        judged.op = asked.op;
-        judged.refusal = handoff_refusal();
-        judged.ok = judged.refusal.empty();
-        if (judged.ok) {
-            judged.resets = handoff_resets();
-            judged.losses = handoff_losses();
-            judged.digest = ws::handoff_digest(judged.losses);
-            judged.rows = rows_;
-            judged.columns = columns_;
-            judged.project_dir = project_dir_;
-            judged.project_known = project_known_;
-        }
-        (void)mail.answer(judged);
-    }
+    void on(const EditorHandoffJudgeRequested& asked, loom::Mail& mail);
+    void on(const EditorHandoffRequested& asked, loom::Mail& mail);
+    void on(const EditorHandoffEnded& ended, loom::Mail& mail);
+    void on(const EditorRetireRequested& asked, loom::Mail& mail);
+    void on(const EditorWarmRequested& asked, loom::Mail& mail);
+    void on(const EditorPreparationTick&, loom::Mail&);
+    void on(const EditorAdoptRequested& asked, loom::Mail& mail);
+    void on(const EditorLiveRequested& asked, loom::Mail& mail);
 
-    /// THE BOUNDARY: the exact document, and this Editor holds still until it hears the outcome.
-    // WL-SWITCH-04 -- agents/workshop/editor-switch.md
-    void on(const EditorHandoffRequested& asked, loom::Mail& mail) {
-        if (!mail.authored_from_role(ws::kEditorSwitchRole)) {
-            return;
-        }
-        EditorHandoffOffered offered;
-        offered.op = asked.op;
-        offered.refusal = handoff_refusal();
-        if (!offered.refusal.empty()) {
-            (void)mail.answer(offered);
-            return;
-        }
-        holding_ = Holding{true, asked.op, 0};
-        offered.ok = true;
-        offered.losses = handoff_losses();
-        offered.digest = ws::handoff_digest(offered.losses);
-        offered.transfer = transfer_now();
-        offered.resets = handoff_resets();
-        (void)mail.answer(offered);
-    }
+    // ---- The pointer, defined in `transfers.hpp` --------------------------------------------
 
-    /// NOTHING MOVED: this Editor is still the Editor. It stops holding still and says what it
-    /// refused meanwhile.
-    void on(const EditorHandoffEnded& ended, loom::Mail& mail) {
-        if (!mail.authored_from_role(ws::kEditorSwitchRole) || !holding_.active ||
-            holding_.op != ended.op) {
-            return;
-        }
-        const std::int64_t refused = holding_.refused;
-        holding_ = Holding{};
-        std::string said = "the editor switch did not happen";
-        if (!ended.why.empty()) {
-            said += " (" + ended.why + ")";
-        }
-        if (refused > 0) {
-            said += " -- " + std::to_string(refused) +
-                    (refused == 1 ? " input was" : " inputs were") +
-                    " not applied while it was being prepared";
-        }
-        notice(said, refused > 0);
-        say(mail);
-    }
-
-    /// RETIRED: say what was refused while holding still. The coordinator unloads this image next.
-    void on(const EditorRetireRequested& asked, loom::Mail& mail) {
-        if (!holding_.active || holding_.op != asked.op) {
-            return;
-        }
-        (void)mail.answer(EditorRetired{asked.op, holding_.refused});
-    }
-
-    // ---- A switch: this Editor as the candidate, sealed --------------------------------------
-
-    /// READY AT ONCE: the standard Editor needs nothing started. What it keeps is the room it
-    /// will be seated in and where the project began.
-    void on(const EditorWarmRequested& asked, loom::Mail& mail) {
-        if (activation_.activated()) {
-            return; // a live Editor is not a candidate
-        }
-#ifdef ZENGINE_EDITOR_TEST_SILENT_WARM
-        // TEST INSTRUMENTATION, COMPILED ONLY INTO `zengine-editor-pane-silent`: a candidate that
-        // keeps its answer right and never spends it, so a switch waits on it for as long as a
-        // case likes. The normal image never defines this.
-        silent_warm_ = mail.defer_answer();
-        return;
-#endif
-        rows_ = asked.rows;
-        columns_ = asked.columns;
-        project_dir_ = asked.project_dir;
-        project_known_ = asked.project_known;
-        (void)mail.answer(EditorWarmed{asked.op, true, std::string(), "the standard Editor"});
-    }
-
-    void on(const EditorPreparationTick&, loom::Mail&) {}
-
-    /// ADOPT THE DOCUMENT, OR SAY EXACTLY WHY NOT. The bytes meet the law a file meets
-    /// (`source_in`), so a document this editor cannot carry truthfully is refused here, while
-    /// nothing has moved, naming the line; the caret and anchor are put back clamped, and the
-    /// generation goes past the incumbent's so no row it said can repaint this one.
-    // WL-SWITCH-05 -- agents/workshop/editor-switch.md
-    void on(const EditorAdoptRequested& asked, loom::Mail& mail) {
-        if (activation_.activated()) {
-            return;
-        }
-        EditorAdopted adopted;
-        adopted.op = asked.op;
-#ifdef ZENGINE_EDITOR_TEST_REFUSE_ADOPT
-        // TEST INSTRUMENTATION, COMPILED ONLY INTO `zengine-editor-pane-refusing`: a candidate that
-        // refuses every document, so a case sees a refusal at adoption with the incumbent holding
-        // still. The normal image never defines this.
-        adopted.refusal = "test instrumentation: this image refuses every adoption";
-        (void)mail.answer(adopted);
-        return;
-#endif
-        const EditorTransfer& t = asked.transfer;
-        project_dir_ = t.project_dir;
-        project_known_ = t.project_known;
-        if (t.path.empty()) {
-            e_ = EditorState{};
-            e_.doc_epoch = t.doc_epoch < 0 ? 1 : static_cast<std::uint64_t>(t.doc_epoch) + 1;
-            adopted_ = true;
-            adopted.ready = true;
-            (void)mail.answer(adopted);
-            return;
-        }
-        ws::SourceIn text = ws::source_in(t.text);
-        if (!text.outcome.accepted) {
-            adopted.refusal = "the standard Editor cannot carry " + t.path + ": " + text.outcome.refusal;
-            (void)mail.answer(adopted);
-            return;
-        }
-        ws::SourceIn saved = ws::source_in(t.saved_text);
-        if (!saved.outcome.accepted) {
-            adopted.refusal = "the standard Editor cannot carry the saved copy of " + t.path + ": " +
-                              saved.outcome.refusal;
-            (void)mail.answer(adopted);
-            return;
-        }
-        if (t.text.size() > ws::kMaxSourceBytes) {
-            adopted.refusal = t.path + " is larger than the standard Editor opens";
-            (void)mail.answer(adopted);
-            return;
-        }
-        EditorState next;
-        next.path = t.path;
-        next.saved_lines = std::move(saved.lines);
-        next.buffer.set_lines(std::move(text.lines));
-        next.convention = text.convention;
-        next.doc_epoch = t.doc_epoch < 0 ? 1 : static_cast<std::uint64_t>(t.doc_epoch) + 1;
-        next.buffer.restore_selection(as_index(t.anchor_row), as_index(t.anchor_byte),
-                                      as_index(t.caret_row), as_index(t.caret_byte));
-        next.first_row = as_index(t.first_row);
-        next.first_col = t.first_col < 0 ? 0 : t.first_col;
-        next.follow_caret = true;
-        if (next.buffer.caret_row() != as_index(t.caret_row) ||
-            next.buffer.caret_byte() != as_index(t.caret_byte) ||
-            next.buffer.anchor_row() != as_index(t.anchor_row) ||
-            next.buffer.anchor_byte() != as_index(t.anchor_byte)) {
-            adopted.notes.push_back("the caret or selection named a place the document does not "
-                                    "have, and was clamped into it");
-        }
-        if (next.dirty() != t.modified) {
-            adopted.notes.push_back(t.modified ? "the document was marked modified and matches its "
-                                                 "saved copy, so it is shown as saved"
-                                               : "the document differs from its saved copy, so it "
-                                                 "is shown as unsaved");
-        }
-        e_ = std::move(next);
-        ++saved_stamp_;
-        adopted_ = true;
-        adopted.ready = true;
-        (void)mail.answer(adopted);
-    }
-
-    /// SERVING? True once this Editor's admission activated it.
-    void on(const EditorLiveRequested& asked, loom::Mail& mail) {
-        if (!mail.authored_from_role(ws::kEditorSwitchRole)) {
-            return;
-        }
-#ifdef ZENGINE_EDITOR_TEST_NOT_LIVE
-        // TEST INSTRUMENTATION, COMPILED ONLY INTO `zengine-editor-pane-not-live`: a successor that
-        // holds the office and says it does not serve, so a case sees a failure after the
-        // commitment. The normal image never defines this.
-        (void)mail.answer(EditorLive{asked.op, false, "test instrumentation: this image never serves"});
-        return;
-#endif
-        (void)mail.answer(EditorLive{asked.op, activation_.activated(),
-                                     activation_.activated()
-                                         ? "the standard Editor holds " +
-                                               (e_.open_document() ? e_.path : std::string("no source"))
-                                         : "the standard Editor was not activated"});
-    }
-
-    // ---- The pointer ---------------------------------------------------------------------
-
-    /// THE POINTER ON THIS PANE'S CANVAS, each place read back to the row and column of the
-    /// lattice its rows stand on: a primary press places the caret or remembers what it landed
-    /// on, its motion sweeps or carries that, its release or loss ends the sweep, the wheel
-    /// scrolls, and a right press offers this pane's rows or hands the press back. A press beside
-    /// the rows, where a prose press named no row, begins nothing.
-    void on(const ws::PaneCanvasPointer& event, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || event.pane != pane::kEditorPane ||
-            !on_canvas()) {
-            return;
-        }
-        const ws::RowCell at = ws::row_cell_at(ws::canvas_rows(canvas_), event.x, event.y);
-        const bool same_room = event.grant == canvas_.grant;
-        const bool current = same_room && pictures_.current(event.grant, event.picture);
-        if (event.phase == ws::canvas_pointer::kPress && same_room && event.button == 1) {
-            held_ = at.shown ? event.gesture : 0;
-            if (at.shown) {
-                press_at(at.row, at.column, current, mail);
-            } else if (!holding_.active) {
-                end_grab();
-                drag_ = Drag{};
-            }
-        } else if (event.phase == ws::canvas_pointer::kPress && same_room && event.button == 3) {
-            right_press(at, current, mail);
-        } else if (event.phase == ws::canvas_pointer::kMove && event.button == 1 && held_ != 0 &&
-                   event.gesture == held_) {
-            dragged(at.row, at.column, mail);
-        } else if ((event.phase == ws::canvas_pointer::kRelease ||
-                    event.phase == ws::canvas_pointer::kLost) &&
-                   event.button == 1 && event.gesture == held_) {
-            held_ = 0;
-            drag_ = Drag{};
-        } else if (event.phase == ws::canvas_pointer::kWheel && same_room) {
-            wheel(event.dy, mail);
-        }
-    }
-
-    /// A press names a row of this pane's room. The rows above the document are a focus statement
-    /// that moves nothing, and begins no sweep (WL-EDIT-16); a document row places the caret through
-    /// the tab geometry its row was painted with (WL-EDIT-08), the notice row left alone. On a
-    /// picture still `current` it may mean one thing more once the hand moves: ON the highlight it
-    /// remembers the selection it landed on, and on the status row this file's location
-    /// (WL-EDIT-19).
-    // WL-EDIT-19 -- agents/workshop/editor-transfers.md
-    void press_at(std::int64_t prow, std::int64_t pcol, bool current, loom::Mail& mail) {
-        if (held_still()) {
-            return;
-        }
-        grab_ = Grab{};
-        drag_ = Drag{};
-        if (!e_.open_document()) {
-            return;
-        }
-        if (prow < chrome_rows_) {
-            // STILL A FOCUS STATEMENT THAT MOVES NOTHING: the status row names this file, so a
-            // press there is remembered in case the hand moves on, and changes no row.
-            if (prow == 0 && status_row_) {
-                grab_ = Grab{true, false, Take::Location, prow, pcol, mail.correlation(), mark_now(), {}, {}, {}};
-            }
-            return;
-        }
-        const std::size_t row = e_.first_row + static_cast<std::size_t>(prow - chrome_rows_);
-        const std::size_t target =
-            row < e_.buffer.line_count() ? row : e_.buffer.line_count() - 1;
-        const std::int64_t column = pcol < 0 ? 0 : pcol;
-        const EditorPos at{target, ws::byte_of_visual_col(e_.buffer.line(target), e_.first_col + column)};
-        if (current && row < e_.buffer.line_count() && on_highlight(at)) {
-            grab_ = Grab{true, false, Take::Selection, prow, pcol, mail.correlation(), mark_now(),
-                         EditorPos{e_.buffer.anchor_row(), e_.buffer.anchor_byte()},
-                         EditorPos{e_.buffer.caret_row(), e_.buffer.caret_byte()}, {}};
-        }
-        drag_.armed = true;
-        drag_.chrome_rows = chrome_rows_;
-        drag_.doc_rows = doc_rows_;
-        e_.buffer.place(at.row, at.byte);
-        e_.follow_caret = true;
-        grab_.after = mark_now();
-        say(mail);
-    }
-
-    /// The hand moved with the press held: the selection sweep. The row is unclamped on purpose:
-    /// past the body's top or bottom edge the caret steps one row per motion and the follow flag
-    /// pulls the viewport after it, enough to sweep a selection out of the window; a negative
-    /// column steps leftward the same way (`EditorBuffer::drag_to`).
-    void dragged(std::int64_t drow, std::int64_t dcol, loom::Mail& mail) {
-        if (held_still()) {
-            return;
-        }
-        // A REMEMBERED PRESS BECOMES A CARRY ON ITS FIRST MOTION TO ANOTHER CELL, and never a
-        // sweep (WL-EDIT-19): the pressed selection is put back exactly as it stood -- nothing but
-        // the press's own caret moved since, or nothing is carried -- and a copy of it is taken.
-        if (grab_.armed) {
-            if (!grab_.started && (drow != grab_.row || dcol != grab_.column)) {
-                grab_.started = true;
-                if (grab_.what == Take::Location) {
-                    acquire(Take::Location, true, grab_.gesture, grab_.at, mail);
-                } else if (e_.open_document() && grab_.after == mark_now()) {
-                    e_.buffer.restore_selection(grab_.anchor.row, grab_.anchor.byte, grab_.caret.row,
-                                                grab_.caret.byte);
-                    acquire(Take::Selection, true, grab_.gesture, mark_now(), mail);
-                } else {
-                    notice("nothing was carried -- the document changed after you pressed the highlight", true);
-                }
-                say(mail);
-            }
-            return;
-        }
-        if (!e_.open_document() || !drag_.armed) {
-            return; // no gesture to extend: this hand took hold of nothing that selects
-        }
-        // THE PICTURE THE GESTURE BEGAN AGAINST, not the one composed since: the weaver's
-        // hand measured this motion against the rows they could see when they pressed.
-        const std::int64_t brow = drow - drag_.chrome_rows;
-        std::size_t target;
-        if (brow < 0) {
-            target = e_.first_row > 0 ? e_.first_row - 1 : 0;
-        } else if (brow >= drag_.doc_rows) {
-            target = e_.first_row + static_cast<std::size_t>(drag_.doc_rows);
-        } else {
-            target = e_.first_row + static_cast<std::size_t>(brow);
-        }
-        e_.buffer.drag_to(target, dcol < 0 ? std::int64_t{-1} : e_.first_col + dcol);
-        e_.follow_caret = true;
-        say(mail);
-    }
-
-    /// THE WHEEL SCROLLS THE DOCUMENT AND MOVES NO CARET (WL-PTR-10): the notches accumulate
-    /// until they are worth whole lines, the window slides inside the document, and the
-    /// follow flag is deliberately NOT set -- the wheel's whole meaning is to look elsewhere
-    /// while the caret stays put. The next caret gesture brings the view back.
-    void wheel(double dy, loom::Mail& mail) {
-        if (held_still()) {
-            return;
-        }
-        if (!e_.open_document()) {
-            return;
-        }
-        end_grab();
-        e_.wheel_accum += dy * static_cast<double>(ws::kEditorWheelLines);
-        const std::int64_t lines = static_cast<std::int64_t>(e_.wheel_accum);
-        e_.wheel_accum -= static_cast<double>(lines);
-        if (lines == 0) {
-            return;
-        }
-        const std::size_t rows = static_cast<std::size_t>(doc_rows_ > 0 ? doc_rows_ : 0);
-        const std::size_t total = e_.buffer.line_count();
-        const std::size_t furthest = total > rows ? total - rows : 0;
-        std::size_t first = e_.first_row;
-        if (lines > 0) {
-            const std::size_t up = static_cast<std::size_t>(lines);
-            first = first > up ? first - up : 0;
-        } else {
-            first += static_cast<std::size_t>(-lines);
-        }
-        if (first > furthest) {
-            first = furthest;
-        }
-        if (first == e_.first_row) {
-            return; // already at the edge: nothing moved, nothing to say again
-        }
-        e_.first_row = first;
-        say(mail);
-    }
+    void on(const ws::PaneCanvasPointer& event, loom::Mail& mail);
+    void press_at(std::int64_t prow, std::int64_t pcol, bool current, loom::Mail& mail);
+    void dragged(std::int64_t drow, std::int64_t dcol, loom::Mail& mail);
+    void wheel(double dy, loom::Mail& mail);
 
     // ---- The keys ------------------------------------------------------------------------
 
@@ -1205,157 +346,13 @@ public:
         say(mail);
     }
 
-    // ---- Transfers: the highlight carried out, material dropped in, a location opened ----
-    //
-    // The pane's half of Workshop's value carry (`workshop/pane_carry.hpp`): Workshop carries owned
-    // bytes and interprets none of them; this pane decides what a drop means for its document
-    // (`editor/source-transfer/material.hpp`), and asks Workshop to approve every acquisition and every
-    // open for the gesture that caused it. Nothing here saves, builds, sends or runs.
+    // ---- Transfers, defined in `transfers.hpp` ----------------------------------------------
 
-    /// THE SECOND BUTTON, OFFERED ONLY FOR SELECTED MATERIAL: a right press on the painted
-    /// highlight of a picture still `current` offers Extract; on the status row, this file's
-    /// location (WL-EDIT-19). Every other one -- beside the rows too -- is handed back, so the
-    /// host's pane menu opens there.
-    void right_press(const ws::RowCell& at, bool current, loom::Mail& mail) {
-        // HELD STILL BY A SWITCH, the Editor offers nothing, and a press that changes no document
-        // is handed back rather than counted as refused.
-        if (holding_.active || !at.shown) {
-            (void)ws::pane_menu::pass_back(mail, pane::kEditorPaneRole, pane::kEditorPane);
-            return;
-        }
-        end_grab();
-        if (e_.open_document()) {
-            if (at.row < chrome_rows_) {
-                if (at.row == 0 && status_row_) {
-                    offer(Take::Location, at.row, at.column, mail);
-                    return;
-                }
-            } else {
-                const std::size_t row =
-                    e_.first_row + static_cast<std::size_t>(at.row - chrome_rows_);
-                if (current && row < e_.buffer.line_count() &&
-                    on_highlight(EditorPos{
-                        row, ws::byte_of_visual_col(e_.buffer.line(row),
-                                                    e_.first_col + (at.column < 0 ? 0 : at.column))})) {
-                    offer(Take::Selection, at.row, at.column, mail);
-                    return;
-                }
-            }
-        }
-        (void)ws::pane_menu::pass_back(mail, pane::kEditorPaneRole, pane::kEditorPane);
-    }
-
-    /// MATERIAL DROPPED ON THE DOCUMENT (WL-EDIT-17): text is inserted where it landed, or replaces
-    /// the selection when it landed ON the painted highlight; a location opens; a command is its
-    /// Terminal line, or -- in a C++ document, by a separate choice -- C++. One undo takes any
-    /// insertion back; nothing is saved. Refused material leaves the document, its selection and
-    /// its history exactly as they were. Its place on the canvas reads back to the row and column
-    /// of the lattice it fell on, on a picture still `current` or not.
-    void on(const ws::PaneCanvasValueDrop& drop, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || drop.pane != pane::kEditorPane) {
-            return;
-        }
-        if (held_still()) {
-            return;
-        }
-        end_grab();
-        notice_.clear();
-        const ws::RowCell at = ws::row_cell_at(ws::canvas_rows(canvas_), drop.x, drop.y);
-        const bool current = on_canvas() && drop.grant == canvas_.grant &&
-                             pictures_.current(drop.grant, drop.picture);
-        receive(drop.data, at, current, mail);
-        say(mail);
-    }
-
-    void on(const ws::PaneMenuAnswered& answer, loom::Mail& mail) {
-        if (drop_.pending && drop_.menu.pending() && answer.subject == kDropSubject) {
-            const std::string chosen = drop_.menu.take(mail, answer);
-            if (drop_.menu.pending()) {
-                return; // not settled: not this ask's answer, or from nobody who may give it
-            }
-            Dropped d = std::move(drop_);
-            drop_ = Dropped{};
-            choose_drop(d, chosen);
-            say(mail);
-            return;
-        }
-        const std::string chosen = menu_.take(mail, answer);
-        if (chosen == pane::kActionExtract || chosen == pane::kActionLocation) {
-            acquire(chosen == pane::kActionExtract ? Take::Selection : Take::Location, false,
-                    mail.correlation(), menu_mark_, mail);
-            say(mail);
-        }
-    }
-
-    /// WORKSHOP'S WORD ON WHETHER THIS GESTURE'S ACTOR MAY DO WHAT THIS PANE ASKED: carry a copy
-    /// (a pickup), or open a dropped location. Loom's answer to this pane's own ask, or nothing.
-    void on(const ws::PaneOperationAnswered& answer, loom::Mail& mail) {
-        if (!mail.answers_ask()) {
-            return;
-        }
-        if (pickup_.stage == Pickup::Stage::Permission && mail.correlation() == pickup_.ask) {
-            if (!answer.allowed) {
-                pickup_ = Pickup{};
-                notice("nothing was carried -- " + answer.reason, true);
-                say(mail);
-                return;
-            }
-            pickup_.stage = Pickup::Stage::Carry;
-            pickup_.ticket = mail.as_role(pane::kEditorPaneRole)
-                                 .send_to_role(kWorkshopRole,
-                                               ws::PaneValueCarryRequested{pane::kEditorPane, pickup_.label,
-                                                                           pickup_.bytes, pickup_.drag},
-                                               pickup_.gesture);
-            if (!pickup_.ticket.valid()) {
-                pickup_ = Pickup{};
-                notice("nothing was carried -- the copy could not be handed to Workshop", true);
-                say(mail);
-            }
-            return;
-        }
-        if (locate_.stage == Locate::Stage::Permission && mail.correlation() == locate_.ask) {
-            if (!answer.allowed) {
-                const std::string path = locate_.loc.path;
-                locate_ = Locate{};
-                notice("nothing was opened -- " + answer.reason, true);
-                say(mail);
-                return;
-            }
-            // THE OPEN IS THE MANAGED ONE, asked as this office (the relay's own route): the
-            // unsaved-work floor, the desk and a refusal's attribution are the opening's, unchanged.
-            locate_.stage = Locate::Stage::Opening;
-            locate_.same_path = e_.open_document() && e_.path == locate_.loc.path;
-            locate_.mark = mark_now();
-            locate_.ask = ++asked_;
-            locate_.ticket = mail.as_role(pane::kEditorPaneRole)
-                                 .send_to_role(ws::kOpeningRole, OpenSourceRequested{locate_.loc.path},
-                                               locate_.ask);
-            if (!locate_.ticket.valid()) {
-                const std::string path = locate_.loc.path;
-                locate_ = Locate{};
-                notice("nothing was opened -- the Editor could not ask the opening office for " + path, true);
-                say(mail);
-            }
-        }
-    }
-
-    /// WORKSHOP TOOK THE COPY, OR SAID WHY NOT. The document was never touched either way.
-    void on(const ws::PaneCarryAnswered& answer, loom::Mail& mail) {
-        if (pickup_.stage != Pickup::Stage::Carry || !mail.answers_ask() ||
-            mail.correlation() != pickup_.gesture) {
-            return;
-        }
-        const Pickup done = std::move(pickup_);
-        pickup_ = Pickup{};
-        if (!answer.carried) {
-            notice("nothing was carried -- " + answer.reason, true);
-        } else if (!done.drag) {
-            notice("carrying a copy of " + done.what +
-                       " -- click a receiving pane, or Escape; this document is unchanged",
-                   false);
-        }
-        say(mail);
-    }
+    void right_press(const ws::RowCell& at, bool current, loom::Mail& mail);
+    void on(const ws::PaneCanvasValueDrop& drop, loom::Mail& mail);
+    void on(const ws::PaneMenuAnswered& answer, loom::Mail& mail);
+    void on(const ws::PaneOperationAnswered& answer, loom::Mail& mail);
+    void on(const ws::PaneCarryAnswered& answer, loom::Mail& mail);
 
     // ---- The exit ------------------------------------------------------------------------
 
@@ -1444,496 +441,32 @@ public:
     }
 
 private:
-    // ---- The switch's helpers ----------------------------------------------------------------
+    // ---- The switch's helpers, defined in `opening_switch.hpp` ------------------------------
 
-    /// WHILE A SWITCH HOLDS THIS EDITOR STILL, an input that would change the document is counted
-    /// and not applied. True when it was refused.
-    bool held_still() {
-        if (!holding_.active) {
-            return false;
-        }
-        ++holding_.refused;
-        return true;
-    }
+    bool held_still();
+    std::string handoff_refusal() const;
+    std::vector<std::string> handoff_losses() const;
+    EditorTransfer transfer_now() const;
 
-    /// A STATE NO SWITCH MAY BEGIN IN, in words; empty when a switch may begin.
-    std::string handoff_refusal() const {
-        if (holding_.active) {
-            return "the Editor is already being switched";
-        }
-        if (candidate_.live) {
-            return "the Editor is still opening " + candidate_.path + " -- switch once it has settled";
-        }
-        if (paste_.awaiting) {
-            return "the Editor is still waiting for a clipboard answer -- switch once it has arrived";
-        }
-        if (!relays_.empty()) {
-            return "the Editor is still relaying an open -- switch once it has settled";
-        }
-        if (locate_.stage != Locate::Stage::Idle) {
-            return "the Editor is still opening a dropped location -- switch once it has settled";
-        }
-        if (drop_.pending) {
-            return "a dropped command is waiting for your choice -- choose or dismiss it, then switch";
-        }
-        return std::string();
-    }
+    // ---- Transfer helpers, defined in `transfers.hpp` ---------------------------------------
 
-    static std::vector<std::string> handoff_resets() {
-        return {"the standard Editor's undo history", "the wheel's unspent fraction of a line"};
-    }
-
-    /// WHAT A SWITCH AWAY WOULD LOSE: nothing. The standard model IS the transfer's model, so the
-    /// digest a switch away names is the digest of no losses, whatever the document holds.
-    std::vector<std::string> handoff_losses() const {
-#ifdef ZENGINE_EDITOR_TEST_LOSSES
-        // TEST INSTRUMENTATION, COMPILED ONLY INTO `zengine-editor-pane-losing`: an editor whose
-        // switch away loses something that moves with its document's line count, so a case can
-        // ask for consent and make a given consent stale by typing a line. The normal image never
-        // defines this.
-        if (e_.open_document()) {
-            return {"test instrumentation: " + std::to_string(e_.buffer.lines().size()) + " lines"};
-        }
-#endif
-        return {};
-    }
-
-    EditorTransfer transfer_now() const {
-        EditorTransfer t;
-        t.doc_epoch = static_cast<std::int64_t>(e_.doc_epoch);
-        t.project_dir = project_dir_;
-        t.project_known = project_known_;
-        t.source = "the standard Editor";
-        if (!e_.open_document()) {
-            return t;
-        }
-        t.path = e_.path;
-        t.text = ws::source_text(e_.buffer.lines(), e_.convention);
-        t.saved_text = ws::source_text(e_.saved_lines, e_.convention);
-        t.convention = e_.convention;
-        t.modified = e_.dirty();
-        t.caret_row = static_cast<std::int64_t>(e_.buffer.caret_row());
-        t.caret_byte = static_cast<std::int64_t>(e_.buffer.caret_byte());
-        t.anchor_row = static_cast<std::int64_t>(e_.buffer.anchor_row());
-        t.anchor_byte = static_cast<std::int64_t>(e_.buffer.anchor_byte());
-        t.first_row = static_cast<std::int64_t>(e_.first_row);
-        t.first_col = e_.first_col;
-        return t;
-    }
-
-    // ---- Transfer helpers ------------------------------------------------------------------
-
-    /// THE DOCUMENT AT THIS INSTANT: its generation, its bytes' revision, and the revision that
-    /// moves with every caret or selection change -- so a mark taken at a press says whether
-    /// anything at all moved since, and undo back to identical text still reads as moved.
-    Mark mark_now() const {
-        return Mark{e_.doc_epoch, e_.buffer.content_revision(), e_.buffer.revision()};
-    }
-
-    /// IS THIS POSITION ON THE HIGHLIGHT? The selection's characters, and the break of every line
-    /// the selection runs past -- exactly the cells the pane paints as selected.
-    bool on_highlight(EditorPos at) const {
-        if (!e_.buffer.has_selection()) {
-            return false;
-        }
-        const EditorPos from = e_.buffer.selection_begin();
-        const EditorPos to = e_.buffer.selection_end();
-        return !(at < from) && at < to;
-    }
-
-    /// A REMEMBERED PRESS ENDS at the next act that is not its own motion: it was only a press.
-    void end_grab() { grab_ = Grab{}; }
-
-    void offer(Take what, std::int64_t row, std::int64_t column, loom::Mail& mail) {
-        menu_mark_ = mark_now();
-        const bool selection = what == Take::Selection;
-        menu_ = ws::pane_menu::Offer(pane::kEditorPane, selection ? "selection" : "location")
-                    .at(row, column)
-                    .row(selection ? pane::kActionExtract : pane::kActionLocation,
-                         selection ? "Extract selection to Inventory" : "Carry this file's location")
-                    .send(mail, pane::kEditorPaneRole);
-    }
-
-    static std::string file_name(const std::string& path) {
-        const std::size_t slash = path.find_last_of('/');
-        return slash == std::string::npos ? path : path.substr(slash + 1);
-    }
-
-    std::string where_words(EditorPos p) const {
-        return "L" + std::to_string(p.row + 1) + ":C" +
-               std::to_string(ws::visual_col_of(e_.buffer.line(p.row), p.byte) + 1);
-    }
-
-    std::string project_root() const {
-        return project_known_ ? ws::persist::resolved_against(std::string(), project_dir_) : std::string();
-    }
-
-    /// ONE ACQUISITION, whichever hand asked -- the highlight's drag, the right-click menu, or the
-    /// key (WL-EDIT-19): an owned copy of what the mark still names, or a refusal in words. The
-    /// copy is the SELECTION'S OWN TEXT, unsaved edits included, never the file on disk and never
-    /// an implicit line or word; or this file's location. Then Workshop is asked to approve the
-    /// carry for the gesture that caused it; the carry itself follows the approval.
-    // WL-EDIT-19 -- agents/workshop/editor-transfers.md
-    void acquire(Take what, bool drag, std::uint64_t gesture, const Mark& at, loom::Mail& mail) {
-        const bool selection = what == Take::Selection;
-        if (!e_.open_document()) {
-            notice("nothing was carried -- no source is open", true);
-            return;
-        }
-        if (!(at == mark_now())) {
-            notice(selection ? "nothing was carried -- the selection changed after you pointed at it"
-                             : "nothing was carried -- the document changed after you pointed at it",
-                   true);
-            return;
-        }
-        if (pickup_.stage != Pickup::Stage::Idle) {
-            notice("nothing was carried -- a copy is already on its way to Workshop", true);
-            return;
-        }
-        st::Pair pair;
-        std::string label;
-        std::string what_words;
-        if (selection) {
-            if (!e_.buffer.has_selection()) {
-                notice("nothing was carried -- select text first; nothing else is carried in its place", true);
-                return;
-            }
-            const EditorPos from = e_.buffer.selection_begin();
-            const EditorPos to = e_.buffer.selection_end();
-            st::SourceSelection s;
-            s.editor = "the standard Editor";
-            s.path = e_.path;
-            s.project_root = project_root();
-            s.kind = st::kCharacters;
-            s.first_line = static_cast<std::int64_t>(from.row) + 1;
-            s.first_column = static_cast<std::int64_t>(from.byte) + 1;
-            s.end_line = static_cast<std::int64_t>(to.row) + 1;
-            s.end_column = static_cast<std::int64_t>(to.byte) + 1;
-            s.line_ending = e_.convention == ws::line_ending::kCRLF ? "CRLF" : "LF";
-            s.unsaved = e_.dirty();
-            s.captured_at_epoch_s = st::clock_now();
-            const std::string text = e_.buffer.selected_text();
-            pair = st::text_pair(text, s);
-            const st::Lines lines = st::standard_lines(text);
-            what_words = (lines.ok ? st::amount_words(lines.lines) : std::string("the selection")) +
-                         " of " + file_name(e_.path);
-            label = file_name(e_.path) + " " + where_words(from) + "-" + where_words(to);
-        } else {
-            const std::size_t row = e_.buffer.caret_row();
-            st::SourceLocation loc{e_.path, static_cast<std::int64_t>(row) + 1,
-                                   static_cast<std::int64_t>(e_.buffer.caret_byte()) + 1};
-            st::SourceLocationContext c;
-            c.editor = "the standard Editor";
-            c.project_root = project_root();
-            c.relative = st::relative_to(e_.path, c.project_root);
-            c.line_text = st::observe_line(e_.buffer.line(row));
-            c.unsaved = e_.dirty();
-            c.captured_at_epoch_s = st::clock_now();
-            pair = st::location_pair(loc, c);
-            what_words = "the location of " + file_name(e_.path) + " at line " + std::to_string(row + 1);
-            label = file_name(e_.path) + ":" + std::to_string(row + 1) + " (location)";
-        }
-        if (!pair.ok) {
-            notice("nothing was carried -- " + pair.refusal, true);
-            return;
-        }
-        pickup_.stage = Pickup::Stage::Permission;
-        pickup_.ask = ++asked_;
-        pickup_.gesture = gesture;
-        pickup_.drag = drag;
-        pickup_.bytes.assign(pair.bytes.begin(), pair.bytes.end());
-        pickup_.label = label.substr(0, ws::kMaxCarryLabelBytes);
-        pickup_.what = what_words;
-        pickup_.ticket = mail.as_role(pane::kEditorPaneRole)
-                             .send_to_role(kWorkshopRole,
-                                           ws::PaneOperationRequested{pane::kEditorPane, kWorkshopRole,
-                                                                      ws::PaneValueCarryRequested::zen_name,
-                                                                      ws::PaneValueCarryRequested::zen_version,
-                                                                      static_cast<std::int64_t>(gesture)},
-                                           pickup_.ask);
-        if (!pickup_.ticket.valid()) {
-            pickup_ = Pickup{};
-            notice("nothing was carried -- Workshop could not be asked", true);
-        }
-    }
-
-    /// WHY A DROP CANNOT INSERT INTO THIS DOCUMENT NOW, or empty.
-    std::string insertion_refusal() const {
-        if (!e_.open_document()) {
-            return "open a source first: a drop inserts into the open document";
-        }
-        if (candidate_.live) {
-            return "the Editor is opening " + candidate_.path + "; drop again once it has settled";
-        }
-        if (paste_.awaiting) {
-            return "a paste is still arriving; drop again once it has";
-        }
-        if (drop_.pending) {
-            return "a dropped command is still waiting for your choice";
-        }
-        return std::string();
-    }
-
-    /// WHERE A DROP LANDED, read through the picture it was aimed at (the caller checked the
-    /// number): the character under it, or the end of the text below the last line -- and whether
-    /// that character is on the highlight.
-    Landing landing(std::int64_t prow, std::int64_t pcol) const {
-        Landing l;
-        const std::size_t row = e_.first_row + static_cast<std::size_t>(prow - chrome_rows_);
-        if (row >= e_.buffer.line_count()) {
-            const std::size_t last = e_.buffer.line_count() - 1;
-            l.pos = EditorPos{last, e_.buffer.line(last).size()};
-            return l;
-        }
-        l.pos = EditorPos{row, ws::byte_of_visual_col(e_.buffer.line(row), e_.first_col + (pcol < 0 ? 0 : pcol))};
-        l.inside = on_highlight(l.pos);
-        return l;
-    }
-
-    void receive(const loom::Bytes& data, const ws::RowCell& drop, bool current, loom::Mail& mail) {
-        const std::string bytes(data.begin(), data.end());
-        st::Material m = st::read_material(bytes);
-        if (m.kind == st::MaterialKind::Location) {
-            open_location(m, mail);
-            return;
-        }
-        if (m.kind == st::MaterialKind::Unsupported) {
-            notice("nothing was inserted -- " + m.refusal, true);
-            return;
-        }
-        const std::string busy = insertion_refusal();
-        if (!busy.empty()) {
-            notice("nothing was inserted -- " + busy, true);
-            return;
-        }
-        if (!current) {
-            notice("nothing was inserted -- the text moved under the drop; drop it again", true);
-            return;
-        }
-        if (!drop.shown) {
-            notice("nothing was inserted -- drop onto the document's text", true);
-            return;
-        }
-        if (drop.row < chrome_rows_) {
-            notice("nothing was inserted -- drop onto the document's text, not its status row", true);
-            return;
-        }
-        const Landing at = landing(drop.row, drop.column);
-        if (m.kind == st::MaterialKind::Text) {
-            (void)insert_lines(m.text, at, "", false);
-            return;
-        }
-        const st::CppDocument cpp = st::cpp_document(e_.path);
-        if (cpp == st::CppDocument::No) {
-            insert_command(m, at);
-            return;
-        }
-        // IN A C++ DOCUMENT THE WEAVER CHOOSES, AND THE DROP ITSELF CHOOSES NOTHING (WL-EDIT-20): a
-        // menu at the drop, continuing its gesture; nothing is inserted until a row is chosen.
-        drop_.pending = true;
-        drop_.material = std::move(m);
-        drop_.at = at;
-        drop_.mark = mark_now();
-        drop_.menu = ws::pane_menu::Offer(pane::kEditorPane, kDropSubject)
-                         .at(drop.row, drop.column)
-                         .row(kInsertLine, "Insert its Terminal line")
-                         .row(kInsertCpp, cpp == st::CppDocument::Yes ? "Generate C++ that builds it"
-                                                                      : "Generate C++ (this .h is C++)")
-                         .send(mail, pane::kEditorPaneRole);
-        if (!drop_.menu.pending()) {
-            drop_ = Dropped{};
-            notice("nothing was inserted -- the choice for the dropped command could not be offered", true);
-            return;
-        }
-        notice("choose how the dropped " + drop_.material.what + " goes in -- nothing is inserted until you do", false);
-    }
-
-    /// TEXT INTO THE DOCUMENT AS ONE UNDOABLE EDIT, or a refusal that leaves it untouched. `select`
-    /// leaves the insertion selected (generated code, for review).
-    bool insert_lines(const std::string& text, const Landing& at, const std::string& note, bool select) {
-        const st::Lines lines = st::standard_lines(text);
-        if (!lines.ok) {
-            notice("nothing was inserted -- " + lines.refusal, true);
-            return false;
-        }
-        std::size_t size = text.size();
-        for (const std::string& l : e_.buffer.lines()) {
-            size += l.size() + 2;
-        }
-        if (size > ws::kMaxSourceBytes) {
-            notice("nothing was inserted -- the document would outgrow what the standard Editor holds", true);
-            return false;
-        }
-        const bool replacing = at.inside && e_.buffer.has_selection();
-        const EditorPos start = replacing ? e_.buffer.selection_begin() : at.pos;
-        e_.buffer.insert_at(at.pos, lines.lines, at.inside);
-        if (select) {
-            e_.buffer.restore_selection(start.row, start.byte, e_.buffer.caret_row(), e_.buffer.caret_byte());
-        }
-        e_.follow_caret = true;
-        const std::string what = note.empty() ? st::amount_words(lines.lines) : note;
-        notice((replacing ? "replaced the highlighted selection with " : "inserted ") + what + " at " +
-                   where_words(start) + " -- ctrl+z takes it back; nothing was saved",
-               false);
-        return true;
-    }
-
-    void insert_command(const st::Material& m, const Landing& at) {
-        const st::TerminalLine t = st::terminal_line(*m.command, m.address);
-        if (!t.ok) {
-            notice("nothing was inserted -- " + m.what + ": " + t.refusal, true);
-            return;
-        }
-        if (!insert_lines(t.line, at, "the Terminal line for " + m.what, false)) {
-            return; // refused: its sentence stands
-        }
-        std::string said = notice_ + "; text only -- nothing was sent";
-        if (!t.missing.empty()) {
-            said += "; INCOMPLETE: ";
-            for (std::size_t i = 0; i < t.missing.size(); ++i) {
-                said += (i > 0 ? ", " : "") + t.missing[i];
-            }
-            said += t.missing.size() == 1 ? " is not set" : " are not set";
-        }
-        if (!t.address_supplied) {
-            said += "; <address> marks a destination this value never named";
-        }
-        if (!m.address_note.empty()) {
-            said += " (" + m.address_note + ")";
-        }
-        notice(said, !t.missing.empty());
-    }
-
-    void choose_drop(const Dropped& d, const std::string& chosen) {
-        if (chosen.empty()) {
-            notice("the dropped " + d.material.what + " was not inserted", false);
-            return;
-        }
-        if (!(d.mark == mark_now())) {
-            notice("nothing was inserted -- the document changed after the drop; drop it again", true);
-            return;
-        }
-        if (chosen == kInsertLine) {
-            insert_command(d.material, d.at);
-        } else if (chosen == kInsertCpp) {
-            insert_cpp(d.material, d.at);
-        }
-    }
-
-    /// C++ THAT BUILDS THE DROPPED COMMAND (WL-EDIT-20), inserted as ONE undoable edit and left
-    /// selected: the insertion is the preview. Its includes are named, never written in.
-    // WL-EDIT-20 -- agents/workshop/editor-transfers.md
-    void insert_cpp(const st::Material& m, const Landing& at) {
-        const st::GeneratedCpp g = st::cpp_value_function(*m.command, e_.buffer.lines());
-        if (!g.ok) {
-            notice("no C++ was generated -- " + g.refusal, true);
-            return;
-        }
-        // GENERATED CODE IS WHOLE LINES: it goes in before the line the drop landed on and ends in
-        // a line break, so it never joins the text on either side of it.
-        Landing whole = at;
-        whole.pos.byte = 0;
-        whole.inside = false;
-        if (!insert_lines(st::join_lf(g.lines) + "\n", whole, "C++ for " + m.what, true)) {
-            return; // refused: its sentence stands
-        }
-        std::string said = "generated " + g.function + "() for " + m.what + ", selected for review; ";
-        if (g.missing_includes.empty()) {
-            said += "its includes are already here";
-        } else {
-            said += "add #include";
-            for (std::size_t i = 0; i < g.missing_includes.size(); ++i) {
-                said += (i > 0 ? " and " : " ") + g.missing_includes[i];
-            }
-        }
-        if (!g.holes.empty()) {
-            said += "; INCOMPLETE until you fill " + std::to_string(g.holes.size()) + " required field" +
-                    (g.holes.size() == 1 ? "" : "s");
-        }
-        notice(said + " -- ctrl+z removes it; nothing was sent, saved or built", !g.holes.empty());
-    }
-
-    /// A DROPPED LOCATION: ask Workshop whether this gesture's actor may open a file, then ask the
-    /// opening office as this Editor's office (WL-EDIT-21). A locator is never inserted as text.
-    // WL-EDIT-21 -- agents/workshop/editor-transfers.md
-    void open_location(const st::Material& m, loom::Mail& mail) {
-        const st::SourceLocation& loc = m.location;
-        if (loc.path.empty() || !std::filesystem::path(loc.path).is_absolute()) {
-            notice("nothing was opened -- this location names no absolute path; edit its path in Info", true);
-            return;
-        }
-        if (locate_.stage != Locate::Stage::Idle) {
-            notice("nothing was opened -- a dropped location is still being opened", true);
-            return;
-        }
-        locate_.stage = Locate::Stage::Permission;
-        locate_.loc = loc;
-        locate_.loc.path = ws::persist::resolved_against(std::string(), loc.path);
-        locate_.ctx = m.location_context;
-        locate_.ask = ++asked_;
-        locate_.ticket = mail.as_role(pane::kEditorPaneRole)
-                             .send_to_role(kWorkshopRole,
-                                           ws::PaneOperationRequested{pane::kEditorPane, ws::kOpeningRole,
-                                                                      OpenSourceRequested::zen_name,
-                                                                      OpenSourceRequested::zen_version,
-                                                                      static_cast<std::int64_t>(mail.correlation())},
-                                           locate_.ask);
-        if (!locate_.ticket.valid()) {
-            locate_ = Locate{};
-            notice("nothing was opened -- Workshop could not be asked", true);
-        }
-    }
-
-    /// THE OPEN CAME TO SOMETHING. A refusal is said with the location's own context; a success
-    /// places the caret only where the location says, in that same document, with nothing moved
-    /// since it was shown, and on a line that still reads as it did when saved.
-    void settle_location(const SourceOpened& said) {
-        Locate l = std::move(locate_);
-        locate_ = Locate{};
-        const std::string root = l.ctx ? l.ctx->project_root : std::string();
-        const std::string here = project_root();
-        const bool elsewhere = !root.empty() && !here.empty() && root != here;
-        if (!said.accepted) {
-            std::string why = "could not open " + l.loc.path + ": " + said.refusal;
-            if (elsewhere) {
-                why += " -- it was saved under " + root + ", and this run's project is " + here +
-                       "; a location never follows its name to another root (edit its path in Info to rebind it)";
-            }
-            notice(why, true);
-            return;
-        }
-        if (!e_.open_document() || e_.path != l.loc.path) {
-            notice("the location's file was shown, but the Editor holds another document now -- the caret was not moved", false);
-            return;
-        }
-        const std::string opened = "opened " + shown_path() +
-                                   (elsewhere ? " (saved under another project root, " + root + ")" : std::string());
-        if (l.loc.line <= 0) {
-            notice(opened, false);
-            return;
-        }
-        const bool untouched = l.same_path
-                                   ? e_.doc_epoch == l.mark.epoch && e_.buffer.revision() == l.mark.revision
-                                   : e_.doc_epoch == installed_epoch_ && e_.buffer.revision() == installed_revision_;
-        if (!untouched) {
-            notice(opened + " -- you moved in it before the location arrived, so the caret stays where you put it", false);
-            return;
-        }
-        const std::size_t row = static_cast<std::size_t>(l.loc.line - 1);
-        if (row >= e_.buffer.line_count()) {
-            notice(opened + " -- it has no line " + std::to_string(l.loc.line) + " now, so the caret was not moved", false);
-            return;
-        }
-        if (l.ctx && !st::still_reads(e_.buffer.line(row), l.ctx->line_text)) {
-            notice(opened + " -- line " + std::to_string(l.loc.line) +
-                       " no longer reads as it did when the location was saved, so the caret was not moved",
-                   false);
-            return;
-        }
-        e_.buffer.place(row, l.loc.column > 0 ? static_cast<std::size_t>(l.loc.column - 1) : 0);
-        e_.follow_caret = true;
-        notice(opened + " at line " + std::to_string(l.loc.line), false);
-    }
+    Mark mark_now() const;
+    bool on_highlight(EditorPos at) const;
+    void end_grab();
+    void offer(Take what, std::int64_t row, std::int64_t column, loom::Mail& mail);
+    std::string where_words(EditorPos p) const;
+    std::string project_root() const;
+    void acquire(Take what, bool drag, std::uint64_t gesture, const Mark& at, loom::Mail& mail);
+    std::string insertion_refusal() const;
+    Landing landing(std::int64_t prow, std::int64_t pcol) const;
+    void receive(const loom::Bytes& data, const ws::RowCell& drop, bool current, loom::Mail& mail);
+    bool insert_lines(const std::string& text, const Landing& at, const std::string& note,
+                      bool select);
+    void insert_command(const st::Material& m, const Landing& at);
+    void choose_drop(const Dropped& d, const std::string& chosen);
+    void insert_cpp(const st::Material& m, const Landing& at);
+    void open_location(const st::Material& m, loom::Mail& mail);
+    void settle_location(const SourceOpened& said);
 
     // ---- Offering and declaring ---------------------------------------------------------
 
@@ -1985,145 +518,10 @@ private:
 
     // ---- The document doors --------------------------------------------------------------
 
-    /// What this spelling means here, or why it means nothing (WL-EDIT-06): an absolute path is
-    /// itself; a relative one is the project's file, refused until the owner has answered, since
-    /// resolving it against the process directory would silently open, and save to, another
-    /// file. An owner that named no project root keeps its policy: the spelling is spent as is.
-    Written resolve(const std::string& requested, std::string& out) const {
-        if (!requested.empty() && !std::filesystem::path(requested).is_absolute() &&
-            !project_known_) {
-            // THE REASON FIRST, THE FILE AFTER IT, in every refusal of an open: a requester's
-            // row is cut at its width from the end, and the file is what a weaver can lose.
-            return Written::no("a relative path means nothing until this Editor is told where "
-                               "this run began -- open " +
-                               requested + " by its full path");
-        }
-        out = ws::persist::resolved_against(project_dir_, requested);
-        return Written::ok();
-    }
-
-    /// WHAT AN OPEN WOULD COME TO, JUDGED WITH NOTHING MOVED (WL-EDIT-05). The candidate it
-    /// carries is bytes and a name; it is not a document until it is installed.
-    struct Plan {
-        Written outcome = Written::ok();
-        bool same_path = false;
-        std::string path;
-        ws::SourceIn admitted;
-    };
-
-    Plan judge_source(const std::string& requested) {
-        Plan plan;
-        const Written meaning = resolve(requested, plan.path);
-        if (!meaning.accepted) {
-            plan.outcome = meaning;
-            return plan;
-        }
-        if (e_.open_document() && e_.path == plan.path) {
-            // RE-REQUESTING THE OPEN SOURCE REVEALS IT AND DESTROYS NOTHING: the buffer,
-            // its caret, its selection, its history and its viewport all stand; what
-            // moves is presence and the keyboard, and those are the host's to move.
-            plan.same_path = true;
-            return plan;
-        }
-        if (e_.dirty()) {
-            // THE UNSAVED-LOSS FLOOR: a different source must not silently replace a dirty
-            // buffer. The two ways out are this pane's own save and its one deliberate
-            // discard, named by their actions; the band spells their keys while the pane
-            // holds the keyboard.
-            plan.outcome = Written::no("the Editor holds unsaved changes to " + e_.path +
-                                       " -- save source or discard source edits in the "
-                                       "Editor first; nothing was opened");
-            return plan;
-        }
-        if (paste_.awaiting) {
-            // A PASTE STILL ARRIVING IS THE OPEN DOCUMENT'S, and its answer could still land
-            // in it: replacing the document under it would strand a weaver's own paste. The
-            // quit's rule (WL-EDIT-14), one operation over: refused in words, try again.
-            plan.outcome = Written::no("the Editor is still waiting for a clipboard answer "
-                                       "for " +
-                                       e_.path +
-                                       " -- try again once it has arrived; nothing was opened");
-            return plan;
-        }
-        // READ AND JUDGE BEFORE ANYTHING MOVES: a refused file costs the asker its refusal
-        // and nothing else -- the current document (if any) and the file itself are exactly
-        // as they were.
-        const ws::persist::FileText read =
-            ws::persist::read_file(plan.path, ws::kMaxSourceBytes, "a source file");
-        if (!read.outcome.accepted) {
-            plan.outcome = read.outcome;
-            return plan;
-        }
-        plan.admitted = ws::source_in(read.text);
-        if (!plan.admitted.outcome.accepted) {
-            plan.outcome =
-                Written::no(plan.admitted.outcome.refusal + " -- " + plan.path + " was not opened");
-        }
-        return plan;
-    }
-
-    /// THE WEAVER'S WORDS FOR AN OFFER THE BUS REFUSED: the document this weave claims moved
-    /// since the operation bound it (an edit, a paste), the operation was superseded, or a
-    /// participant was replaced. The diagnostic name stays in parentheses.
-    static std::string offer_refusal(const std::string& path, loom::JointRefusal why) {
-        switch (why) {
-        case loom::JointRefusal::StaleRevision:
-        case loom::JointRefusal::ParticipantChanged:
-        case loom::JointRefusal::WrongState:
-        case loom::JointRefusal::Cancelled:
-            return "the document changed while opening " + path + " -- try again";
-        default:
-            return "the opening was no longer arranged (" + std::string(loom::name_of(why)) +
-                   ") -- " + path + " was not prepared";
-        }
-    }
-
-    /// A REFUSED PREPARATION, as one value: the operation, no, and the sentence.
-    static SourcePrepared not_prepared(std::int64_t op, std::string refusal) {
-        SourcePrepared refused;
-        refused.op = op;
-        refused.ok = false;
-        refused.refusal = std::move(refusal);
-        return refused;
-    }
-
-    /// THE CANDIDATE BECOMES THE DOCUMENT -- inside the publication hook, and nowhere else.
-    /// A same-path candidate changes nothing but the notice; any other replaces the whole
-    /// document, retiring the old one's paste and sweep with it.
-    void activate() {
-        if (!candidate_.same_path) {
-            e_ = std::move(candidate_.doc);
-            ++saved_stamp_;
-            drag_ = Drag{};
-            paste_ = Paste{};
-            grab_ = Grab{};
-            installed_epoch_ = e_.doc_epoch;
-            installed_revision_ = e_.buffer.revision();
-        }
-        // THE ROOM IS THE TRIAL'S, NOW: the desk seated this pane as it published, so a gesture
-        // before the desk's own room grant is judged against the picture showing. A candidate
-        // composed as a picture brings the canvas room it was drawn for, numbered afresh; one
-        // composed as rows for a pane drawing on a canvas leaves its room, and the desk grants it
-        // another. Either way nothing aimed at the document it replaced counts.
-        granted_ = true;
-        if (candidate_.room.grant > 0) {
-            canvas_ = candidate_.room;
-            pictures_ = ws::CanvasPictures{};
-        } else {
-            pictures_.retire();
-        }
-        held_ = 0;
-        if (candidate_.room.grant > 0 || canvas_.grant <= 0) {
-            rows_ = candidate_.rows;
-            columns_ = candidate_.columns;
-        }
-        chrome_rows_ = candidate_.chrome_rows;
-        doc_rows_ = candidate_.doc_rows;
-        opened_by_ = candidate_.op;
-        candidate_ = Candidate{};
-        notice((e_.dirty() ? "UNSAVED edits stand -- editing " : "editing ") + shown_path(),
-               false);
-    }
+    // `resolve`, `judge_source` and `activate` are defined in `opening_switch.hpp`.
+    Written resolve(const std::string& requested, std::string& out) const;
+    Plan judge_source(const std::string& requested);
+    void activate();
 
     /// WRITE THE SOURCE TO ITS FILE -- the editor's save authority (WL-EDIT-01). Atomic
     /// through the family's safe writer; the saved comparison moves only after the write
@@ -2231,10 +629,6 @@ private:
         e_.last_cols = state_.last_cols;
     }
 
-    static std::size_t as_index(std::int64_t n) {
-        return n < 0 ? 0 : static_cast<std::size_t>(n);
-    }
-
     void notice(std::string text, bool bad) {
         notice_ = std::move(text);
         notice_bad_ = bad;
@@ -2264,12 +658,6 @@ private:
         return d;
     }
 
-    static bool same_identity(const EditorDocument& a, const EditorDocument& b) {
-        return a.path == b.path && a.doc_epoch == b.doc_epoch && a.convention == b.convention &&
-               a.content_revision == b.content_revision && a.dirty == b.dirty &&
-               a.opened_by == b.opened_by;
-    }
-
     /// CLAIM THE DOCUMENT'S IDENTITY IF IT MOVED. The claim is what a managed opening binds
     /// and what its commitment exchanges; claiming a moved identity is what aborts an
     /// operation that offered against the previous one. Unchanged identity, no claim.
@@ -2286,19 +674,6 @@ private:
     }
 
     // ---- The viewport ----------------------------------------------------------------------
-
-    static Viewport viewport_of(const EditorState& doc) {
-        return Viewport{doc.first_row, doc.first_col, doc.follow_caret, doc.last_rows,
-                        doc.last_cols};
-    }
-
-    static void apply_viewport(EditorState& doc, const Viewport& v) {
-        doc.first_row = v.first_row;
-        doc.first_col = v.first_col;
-        doc.follow_caret = v.follow_caret;
-        doc.last_rows = v.last_rows;
-        doc.last_cols = v.last_cols;
-    }
 
     /// Keep the viewport true against the room and the document it has now (WL-EDIT-09): clamp
     /// the offsets always, and follow the caret when a gesture asked or the granted room changed
@@ -2376,23 +751,6 @@ private:
     /// before the path so the fact survives whatever the path costs.
     std::string shown_path() const {
         return tail_of_path(e_.path, columns_ > 24 ? columns_ - 24 : columns_);
-    }
-
-    /// A PATH THAT KEEPS ITS END. Whole when it fits; otherwise `...` and the last `width - 3`
-    /// bytes, so the file's own name survives before its directories do; a width too small
-    /// for even that keeps the last bytes alone.
-    static std::string tail_of_path(const std::string& path, std::int64_t width) {
-        if (width <= 0) {
-            return std::string();
-        }
-        const std::size_t room = static_cast<std::size_t>(width);
-        if (path.size() <= room) {
-            return path;
-        }
-        if (room <= 4) {
-            return path.substr(path.size() - room);
-        }
-        return "..." + path.substr(path.size() - (room - 3));
     }
 
     /// Compose a document for a room: the status row, a standing notice where the room holds one,
@@ -2496,27 +854,6 @@ private:
             }
         }
         return caret;
-    }
-
-    /// THE PARTS A COMPOSITION NAMES: its first row `status` where the room has chrome, and each
-    /// document line by its number, `line:<n>`, across the room's columns.
-    static std::vector<ws::PaneRowPart> parts_of(const Composition& c, std::int64_t columns) {
-        std::vector<ws::PaneRowPart> parts;
-        if (c.chrome_rows > 0) {
-            parts.push_back(ws::PaneRowPart{"status", 0, 0, columns});
-        }
-        for (std::int64_t row = c.chrome_rows; row < static_cast<std::int64_t>(c.rows.size()); ++row) {
-            const std::size_t line = c.view.first_row + static_cast<std::size_t>(row - c.chrome_rows);
-            parts.push_back(ws::PaneRowPart{"line:" + std::to_string(line + 1), row, 0, columns});
-        }
-        return parts;
-    }
-
-    /// The caret and selection a composition says beside its rows, as its picture stands them in
-    /// them.
-    static ws::RowsCaret rows_caret(const ws::v2::PaneCaret& c) {
-        return ws::RowsCaret{c.row, c.column, c.sel_begin_row, c.sel_begin_col, c.sel_end_row,
-                             c.sel_end_col};
     }
 
     /// THE PANE, SAID: the live document composed for the granted room, its viewport moved as
@@ -2638,30 +975,6 @@ private:
         }
     }
 
-    /// A history step's lines as one Text, a newline byte between them, and back: no line holds
-    /// one, so the two are exact inverses whatever the file's convention.
-    static std::string joined_lines(const std::vector<std::string>& lines) {
-        std::string out;
-        for (std::size_t i = 0; i < lines.size(); ++i) {
-            if (i > 0) {
-                out += '\n';
-            }
-            out += lines[i];
-        }
-        return out;
-    }
-    static std::vector<std::string> split_lines(const std::string& text) {
-        std::vector<std::string> out(1);
-        for (const char c : text) {
-            if (c == '\n') {
-                out.emplace_back();
-            } else {
-                out.back() += c;
-            }
-        }
-        return out;
-    }
-
     // ---- State not in the shape ----------------------------------------------------------
 
     zengine::ActivationCursor activation_;
@@ -2675,17 +988,7 @@ private:
     Candidate candidate_;
     Drag drag_;
 
-    /// An open relayed through the old door: the requester's kept answer right, and this weave's
-    /// own conversation with the manager (its correlation and exact attempt), so the answer or
-    /// the bus's refusal finds its requester. Bounded, and not reload state: the rights die with
-    /// the incarnation that kept them (ANS-02), and an answer to a predecessor's relay is refused.
-    struct Relay {
-        std::string path;
-        std::uint64_t correlation = 0;
-        loom::Ticket attempt{};
-        loom::DeferredAnswer answer;
-    };
-    static constexpr std::size_t kMaxRelays = 4;
+    /// The opens relayed through the old door (`Relay`), at most `kMaxRelays` at once.
     std::vector<Relay> relays_;
 
     /// WHERE THIS RUN BEGAN, as the host said it -- what a relative spelling means. Empty
@@ -2697,12 +1000,6 @@ private:
     std::uint64_t root_pending_ = 0;
 
     component::Clipboard clip_;
-    struct Paste {
-        bool awaiting = false;
-        std::uint64_t pending = 0;
-        std::uint64_t doc = 0;      ///< the document epoch that asked (WL-EDIT-11)
-        std::uint64_t revision = 0; ///< ...and exactly where it stood
-    };
     Paste paste_;
 
     /// THE LAST THING THIS PANE HAD TO SAY -- a refusal, or what an act came to -- standing
@@ -2758,14 +1055,7 @@ private:
     std::int64_t held_ = 0;
     bool on_canvas() const { return canvas_.grant > 0 && canvas_.width > 0 && canvas_.height > 0; }
 
-    /// A SWITCH HOLDING THIS EDITOR STILL at its boundary: which operation, and how many inputs
-    /// it refused meanwhile. Not in the state shape -- a reload is not a switch, and the hold
-    /// belongs to the incarnation the coordinator is talking to.
-    struct Holding {
-        bool active = false;
-        std::int64_t op = 0;
-        std::int64_t refused = 0;
-    };
+    /// THE SWITCH HOLDING THIS EDITOR STILL, while one does (`Holding`).
     Holding holding_;
 
     /// THIS INCARNATION BEGAN AS A SWITCH'S CANDIDATE AND ADOPTED A DOCUMENT while sealed.
@@ -2795,5 +1085,8 @@ private:
 };
 
 } // namespace
+
+#include "editor/editor-pane/opening_switch.hpp"
+#include "editor/editor-pane/transfers.hpp"
 
 ZEN_EXPORT_WEAVE(EditorPaneWeave)

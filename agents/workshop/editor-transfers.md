@@ -80,7 +80,7 @@ WHY — `agents/decisions/editors-carry-copies-by-the-typed-carry.md`
 
 ### WL-EDIT-17
 `editor/editor-pane/editor.hpp` EditorBuffer::insert_at
-`editor/editor-pane/pane.cpp` receive insert_lines landing insertion_refusal
+`editor/editor-pane/transfers.hpp` receive insert_lines landing insertion_refusal
 `editor/source-transfer/text.hpp` standard_lines
 `tests/test_workshop_editor_transfers.cpp` "dropped text is inserted at the painted landing
 character as one undoable edit, replaces the highlight only when dropped onto it, and saves nothing"
@@ -92,7 +92,9 @@ refuses what it cannot hold whole" "a dropped pair is read as text, a location, 
 address its capture supplied, or refused in words"
 
 ### WL-EDIT-18
-`editor/editor-pane/pane.cpp` say PictureKey press_at receive
+`editor/editor-pane/pane.cpp` say
+`editor/editor-pane/common.hpp` PictureKey
+`editor/editor-pane/transfers.hpp` press_at receive
 `workshop/pane_canvas_rows.hpp` CanvasPictures
 `workshop/pane_carry.hpp` PaneCanvasValueDrop
 `tests/test_workshop_editor_transfers.cpp` "a drop aimed at a picture the text has since left is
@@ -102,7 +104,7 @@ selected begins no carry; the drag sweeps"
 was drawn under"
 
 ### WL-EDIT-19
-`editor/editor-pane/pane.cpp` press_at acquire mark_now on_highlight
+`editor/editor-pane/transfers.hpp` press_at acquire mark_now on_highlight
 `editor/source-transfer/material.hpp` text_pair kMaxCarryBytes
 `editor/source-transfer/vocabulary.hpp` SourceText SourceSelection
 `tests/test_workshop_editor_transfers.cpp` "a selection dragged from its highlight lands in a named
@@ -117,7 +119,7 @@ one without the open may carry a location but not open it"
 beside it, and a copy the carrier cannot hold is refused, never cut"
 
 ### WL-EDIT-20
-`editor/editor-pane/pane.cpp` insert_command choose_drop insert_cpp
+`editor/editor-pane/transfers.hpp` insert_command choose_drop insert_cpp
 `editor/source-transfer/command_line.hpp` terminal_line kAddressPlaceholder
 `editor/source-transfer/cpp.hpp` cpp_value_function cpp_document
 `tests/test_workshop_editor_transfers.cpp` "a saved Terminal command dropped on a text document
@@ -135,7 +137,8 @@ every string: a NUL is written as a std::string literal, a name is escaped in co
 and the compiled witness builds the same value"
 
 ### WL-EDIT-21
-`editor/editor-pane/pane.cpp` open_location settle_location handoff_refusal
+`editor/editor-pane/transfers.hpp` open_location settle_location
+`editor/editor-pane/opening_switch.hpp` handoff_refusal
 `editor/source-transfer/material.hpp` location_pair observe_line still_reads
 `workshop/guests.cpp` grant_for
 `workshop/guests.hpp` kPowerOpen
