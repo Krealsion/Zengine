@@ -9,6 +9,7 @@
 #include "maker/weave.hpp"
 #include "maker_fixture.hpp"
 #include "message-draft/transfer.hpp"
+#include "pane_window.hpp"
 #include "view/view-builder/model.hpp"
 #include "view/view-builder/picture.hpp"
 #include "view/view-builder/vocabulary.hpp"
@@ -32,6 +33,8 @@ namespace vb = zengine::view_builder;
 namespace view = zengine::view;
 namespace ws = zengine::workshop;
 namespace shape = zengine::flow::shape;
+namespace gfx = zengine::graphics;
+namespace pw = zengine::testing::pane_window;
 constexpr const char* workshop_role = "zengine.workshop";
 constexpr auto unit = ws::kPaneCanvasUnit;
 
@@ -383,10 +386,39 @@ TEST_CASE("a view saves and opens whole, and nothing running is saved") {
 namespace {
 /// Workshop's office and its menu presenter, on the real bus: what the builder and its view say,
 /// and the answers the builder needs to carry.
+/// THE PICTURE A WINDOW KEEPS FOR `area`, in the order it paints it: the nodes under its
+/// `picture` group, read as Workshop's picture reads -- each rectangle, then each run of text.
+void same_picture(const gfx::window::WinArea& area, const ws::PaneCanvasContent& workshop) {
+    const auto at = gfx::window::index_of(area);
+    std::vector<const gfx::window::KeptNode*> kept;
+    for (const auto& k : area.nodes)
+        if (k.node.path.rfind("picture/", 0) == 0 && k.node.path.find('/', 8) == std::string::npos)
+            kept.push_back(&k);
+    std::stable_sort(kept.begin(), kept.end(), [&](const auto* x, const auto* y) {
+        return gfx::window::key_of(at, x->node.path) < gfx::window::key_of(at, y->node.path);
+    });
+    REQUIRE(kept.size() == workshop.rects.size() + workshop.texts.size());
+    for (std::size_t i = 0; i < workshop.rects.size(); ++i) {
+        CAPTURE(i);
+        const auto r = gfx::from_body<gfx::RectArgs>(kept[i]->node.args);
+        REQUIRE(r);
+        const auto& w = workshop.rects[i];
+        CHECK((r->x == w.x && r->y == w.y && r->w == w.w && r->h == w.h && r->fill.role == w.role));
+    }
+    for (std::size_t i = 0; i < workshop.texts.size(); ++i) {
+        CAPTURE(i);
+        const auto t = gfx::from_body<gfx::TextArgs>(kept[workshop.rects.size() + i]->node.args);
+        REQUIRE(t);
+        const auto& w = workshop.texts[i];
+        CHECK((t->x == w.x && t->y == w.y && t->text == w.text && t->ink.role == w.role));
+    }
+}
+
 class Desk final : public loom::Weave {
 public:
     std::vector<loom::Message> heard;
     std::vector<ws::PaneCanvasContent> pictures;
+    std::vector<std::string> named; ///< the names of the parts of the picture said last
     std::vector<std::string> rows; ///< the ids of the rows the builder last declared, in force
     bool allow = true;
     loom::WeaveId self{};
@@ -416,6 +448,7 @@ public:
             for (const auto& part : c.parts) names.push_back(part.name);
             const std::string problem = control_parts_problem("zengine.view.builder/view-builder", names, rows);
             CHECK_MESSAGE(problem.empty(), problem);
+            named = std::move(names);
         }
         if (loom::same_identity(in.payload.schema(), *loom::schema_of<ws::v3::PaneActions>()) &&
             in.provenance.authored_role() == vb::kRole) {
@@ -466,6 +499,7 @@ struct Rig {
     loom::Kernel kernel{bus, loom::trust_every_artifact("the fixture loads one View Builder artifact")};
     view::Host views{bus};
     Desk* desk = nullptr;
+    pw::PaneDirectory* directory = nullptr; ///< the graphics directory, asked the area's room
     loom::WeaveId workshop{}, menus{}, pane{}, door{};
     zengine::maker::Registered tally;
     std::uint64_t correlation = 0;
@@ -494,6 +528,7 @@ struct Rig {
         REQUIRE(loaded.ok);
         pane = loaded.id;
         door = zengine::testing::mount_door(bus);
+        directory = pw::mount_directory(bus);
         zengine::testing::order_activation(bus, door, pane, activation);
         pump();
         host(window_room(grant));
@@ -2030,4 +2065,102 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
     rig.pointer(ws::canvas_pointer::kRelease, x + 2 * unit, y + unit, 40);
     CHECK(rig.now().elements[0].x == 2 * sp::kCanvasCellPx);
     CHECK(rig.now().elements[0].y == sp::kCanvasCellPx);
+
+    SUBCASE("in a graphics window: its room asked once a life, the terminal's picture drawn there "
+            "whole and then as what changed, under the names Workshop's parts carry; a press there "
+            "is that press let go without moving, and a refused change is drawn whole again once "
+            "while a refused whole picture is only said") {
+        CHECK(rig.directory->times(vb::kRole, vb::kRole) == 1);
+        pw::Window window(rig.bus, "builder");
+        const auto& seen = window.weave();
+        // A ROOM OF THE TERMINAL'S SIZE, so the window's picture is the terminal Workshop's.
+        window.room(vb::kRole, vb::kRole, 110, 30);
+        rig.pump();
+        REQUIRE(seen.heard.size() == 1);
+        const gfx::Drawn first = seen.heard.front();
+        CHECK(first.whole);
+        CHECK(seen.refusals.empty());
+        gfx::window::WinArea fresh;
+        fresh.area = vb::kRole;
+        CHECK(gfx::window::judge(fresh, gfx::window::Drawer{}, first).empty());
+        same_picture(*window.weave().find(vb::kRole), rig.picture());
+        std::set<std::string> names(rig.desk->named.begin(), rig.desk->named.end()), recorded;
+        names.erase(std::string());
+        for (const auto& r : first.said) recorded.insert(r.action);
+        CHECK(recorded == names);
+        for (const auto& action : window.actions(vb::kRole)) CHECK(names.count(action) == 1);
+
+        // A PRESS ON A KIND makes one, as a click on it does; Workshop and the window both show it.
+        const auto made = rig.now().elements.size();
+        REQUIRE(window.press(vb::kRole, "kind:label"));
+        rig.pump();
+        CHECK(rig.now().elements.size() == made + 1);
+        CHECK(rig.text("Elements (" + std::to_string(made + 1) + ")") != nullptr);
+        REQUIRE(seen.heard.size() == 2);
+        CHECK_FALSE(seen.heard.back().whole);
+        CHECK(seen.refusals.empty());
+        same_picture(*window.weave().find(vb::kRole), rig.picture()); // what a change adds paints in its place
+        // ...ON AN ELEMENT selects it and begins no drag, and on its handle nothing moves.
+        const auto element = rig.now().elements[0];
+        REQUIRE(window.press(vb::kRole, "element:" + element.id));
+        rig.pump();
+        const std::string handle = "handle:" + element.id + ".1,1";
+        REQUIRE(window.press(vb::kRole, handle));
+        rig.pump();
+        const auto still = rig.now().elements[0];
+        CHECK((still.x == element.x && still.y == element.y && still.w == element.w && still.h == element.h));
+        // ...ON A BOX opens it on its value with the caret after it, where Workshop's typing lands.
+        REQUIRE(window.press(vb::kRole, "box:name"));
+        rig.pump();
+        rig.host(ws::PaneTextInput{vb::kPane, "x"});
+        rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kReturn, 0});
+        CHECK(rig.now().name == "tally.panelx");
+        // ...ANOTHER WINDOW, or an action the picture shown there does not name, does nothing.
+        const auto heard = seen.heard.size();
+        const auto elements = rig.now().elements.size();
+        pw::Window other(rig.bus, "other");
+        other.ask(vb::kRole, "kind:label", vb::kRole);
+        window.ask(vb::kRole, "kind:nothing");
+        rig.pump();
+        CHECK(rig.now().elements.size() == elements);
+        CHECK(seen.heard.size() == heard);
+        CHECK(other.weave().heard.empty());
+
+        // A REFUSED CHANGE IS DRAWN AGAIN WHOLE AT ONCE...
+        window.weave().refuse_next = true;
+        REQUIRE(window.press(vb::kRole, "kind:number"));
+        rig.pump();
+        REQUIRE(seen.heard.size() == heard + 2);
+        CHECK_FALSE(seen.heard[heard].whole);
+        CHECK(seen.heard[heard + 1].whole);
+        CHECK(seen.refusals.size() == 1);
+        // ...AND A REFUSED WHOLE PICTURE IS SAID, drawing nothing more until the next change.
+        window.weave().refuse_next = true;
+        window.room(vb::kRole, vb::kRole, 110, 30, 2);
+        rig.pump();
+        REQUIRE(seen.heard.size() == heard + 3);
+        CHECK(seen.heard.back().whole);
+        CHECK(seen.refusals.size() == 2);
+        CHECK(rig.says("The graphics window refused the View Builder's picture"));
+        rig.pump();
+        CHECK(seen.heard.size() == heard + 3);
+        REQUIRE(rig.edit("select", {"0"}).ok);
+        REQUIRE(seen.heard.size() == heard + 4);
+        CHECK(seen.heard.back().whole);
+        CHECK(seen.refusals.size() == 2);
+
+        // THE WINDOW ALONE: with Workshop's room taken back, a press there still acts and is drawn.
+        rig.host(ws::PaneCanvasRoom{vb::kPane, ++rig.grant, 0, 0, unit, false});
+        const auto pictures = rig.desk->pictures.size();
+        const auto alone = seen.heard.size();
+        REQUIRE(window.press(vb::kRole, "kind:button"));
+        rig.pump();
+        CHECK(rig.now().elements.size() == elements + 2);
+        CHECK(seen.heard.size() == alone + 1);
+        CHECK(rig.desk->pictures.size() == pictures);
+
+        // ONCE A LIFE: a reloaded builder asks its room afresh.
+        rig.reload();
+        CHECK(rig.directory->times(vb::kRole, vb::kRole) == 2);
+    }
 }

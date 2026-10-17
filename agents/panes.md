@@ -246,6 +246,16 @@ same body: a canvas-capable room suppresses prose content. Keys, actions and men
 existing protocol. A secondary canvas press may continue into the existing menu presenter,
 echoing its correlation; no new context-menu owner is introduced.
 
+A canvas picture drawn in a graphics window too is projected by `workshop::canvas_sketch`
+(`workshop/pane_canvas_drawing.hpp`), composed for the window's room as a terminal Workshop's
+(`canvas_window_room`): its rectangles, labels and runs in Workshop's paint order under a `picture`
+group, then each named part painted again over its own place, clipped there, under a `parts` group
+whose record asks the part's name, a later part over an earlier one. A window lands a press only on
+what it painted, so a part is pressed wherever the picture shows it and an unnamed one nowhere.
+Every node is named by its place in its group, so a node a change adds goes after its siblings and
+paints where the picture paints it. A picture past an area's node or record bound is that bound said
+in words on the ground, never a drawing the window refuses.
+
 ## The keyboard crosses as two shapes
 
 `PaneKey v1` `{pane, scancode, modifiers}` (`input::scan` / `input::mod`, forwarded) and
