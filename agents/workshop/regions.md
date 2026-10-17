@@ -48,7 +48,7 @@ content" "the contextual surface is its actions, and its width is theirs"
 unresolved one is nothing to inspect"
 
 ### WL-RGN-02
-`builder/builder-pane/pane.cpp` say_builder publish labelled_block
+`builder/builder-pane/view.hpp` say_builder publish labelled_block
 `tests/test_workshop_panes_builder.cpp` "the pane asks the tool what it is on its own room grant,
 and shows it" "the frontier row comes from the host's read-only door" "after a plain build that
 worked, `B` is the button"
