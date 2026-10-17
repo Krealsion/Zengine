@@ -10,6 +10,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `editor-pane/` | the standard Editor: `zengine-editor-pane`, a loadable weave |
 | `editor-pane/editor.hpp` | the document: buffer, caret and selection, source bytes, tab geometry |
 | `editor-pane/vocabulary.hpp` | its office `zengine.editor`, pane key, action ids, reload state |
+| `office_seam.hpp` | what both Editors keep and say alike: the relayed open, a switch's hold, a carry's and a dropped location's steps, and their sentences; header-only, read by the two weaves |
 | `neovim-editor/` | the Neovim-backed Editor: `zengine-neovim-editor`, a loadable weave |
 | `neovim-editor/vocabulary.hpp` | its names and three asks; `zengine::neovim`, installed |
 | `neovim/` | `zengine-neovim`: header-only Neovim hosting library; not a weave, not installed |
