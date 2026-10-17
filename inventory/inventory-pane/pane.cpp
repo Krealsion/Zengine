@@ -174,10 +174,24 @@ public:
         if(p.phase!=ws::canvas_pointer::kPress) return;
         const bool current=c.shows(p);
         if(p.button==3) right_press(p.pane,at,current,m);
-        else if(p.button==1 && at.shown) press(p.pane,at.row,at.column,current,p.keys_went_here,m);
+        else if(p.button==1 && at.shown) press(p.pane,at.row,at.column,current,p.keys_went_here,true,m);
+    }
+    // ---- its views in graphics windows (its office's `MultiPaneFacet` calls these) ------------
+    /// EACH VIEW'S SEAT, main Inventory's and every view it made, where a window finds the view.
+    template<class F> void each_seat(F&& visit) {
+        visit(seat_of(pane));
+        for(const auto& v:state_.layout.views) visit(seat_of(v.id));
+    }
+    /// A view Workshop seats nowhere, composed again for the room a window gave it.
+    void on_window_room(const std::string& id,loom::Mail& m) { if(known(id)) { fit(id); refresh(m); draw(m); } }
+    /// A PRESS ON A PART IN A WINDOW is a primary press on its place in the picture shown there, the
+    /// view's current one; the window gives it to the area's owner alone, so a second press on a
+    /// folder opens it. A window carries no drag, so a press on an entry selects it and picks up nothing.
+    void on_window_press(const std::string& id,std::int64_t row,std::int64_t column,loom::Mail& m) {
+        if(known(id)) press(id,row,column,/*current=*/true,/*keys_went_here=*/true,/*carry=*/false,m);
     }
 private:
-    void press(const std::string& view,std::int64_t row,std::int64_t column,bool current,bool keys_went_here,loom::Mail& m) {
+    void press(const std::string& view,std::int64_t row,std::int64_t column,bool current,bool keys_went_here,bool carry,loom::Mail& m) {
         if (editing_!=Editing::none) return;
         remove_armed_=false;
         const auto pressed=std::exchange(pressed_folder_,std::string{});
@@ -202,7 +216,8 @@ private:
         if(busy()) { notice_=waiting(); draw(m); return; }
         const auto* e=pointed(view,row,column,current);
         if (!e) { notice_="Drag a current entry; right-click the heading for view actions"; draw(m); return; }
-        select(*e,view); acquire(Mode::drag,m);
+        select(*e,view);
+        if(carry) acquire(Mode::drag,m); else draw(m);
     }
     /// A RIGHT PRESS on the view's rows offers its menu; one beside them, where a prose press named
     /// no row, is handed back, as is one while an edit or an ask is in flight.
