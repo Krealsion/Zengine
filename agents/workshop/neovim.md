@@ -123,8 +123,9 @@ WHY — `agents/decisions/neovim-holds-the-editor-office.md`
 ## Proven by
 
 ### WL-NVIM-01
-`editor/neovim-editor/pane.cpp` NeovimEditorWeave on(PrepareSourceRequested) on_claim_published
-on(OpenSourceRequested) declare on(PaneActionRequested)
+`editor/neovim-editor/pane.cpp` NeovimEditorWeave declare on(PaneActionRequested)
+`editor/neovim-editor/opening_switch.hpp` on(PrepareSourceRequested) on_claim_published
+on(OpenSourceRequested)
 `editor/neovim-editor/vocabulary.hpp` kEditorOffice kEditorPane kActionWrite kActionJumpOlder
 `workshop/keymap.hpp` kActionCatalog
 `editor/neovim/lua.hpp` kModule
@@ -138,7 +139,9 @@ refusal writes nothing"
 
 ### WL-NVIM-02
 `editor/neovim/projection.hpp` project ascii_of
-`editor/neovim-editor/pane.cpp` compose say status_text take_room Preview on_claim_published
+`editor/neovim-editor/pane.cpp` compose say status_text take_room
+`editor/neovim-editor/common.hpp` Preview
+`editor/neovim-editor/opening_switch.hpp` on_claim_published
 `editor/neovim/host.hpp` Host::flushes_at_answer
 `tests/test_neovim.cpp` "an answer says the screen as it stood when the answer came, not the one
 drawn after it" "the projection: a block cursor is its cell, a bar is a caret, rows carry their
@@ -153,7 +156,7 @@ caret is"
 
 ### WL-NVIM-03
 `editor/neovim/document.hpp` place carry neovim_text file_bytes
-`editor/neovim-editor/pane.cpp` on(EditorAdoptRequested) judge_now
+`editor/neovim-editor/opening_switch.hpp` on(EditorAdoptRequested) judge_now
 `tests/test_workshop_neovim.cpp` "standard to Neovim and back carries the unsaved document and its
 caret exactly, with Neovim editing between" "a selection crosses to Neovim as Visual and comes back
 as the same range, in its direction"
@@ -161,7 +164,7 @@ as the same range, in its direction"
 adjusted"
 
 ### WL-NVIM-04
-`editor/neovim-editor/pane.cpp` judge_now wait_unblocked on(EditorHandoffJudgeRequested)
+`editor/neovim-editor/opening_switch.hpp` judge_now wait_unblocked on(EditorHandoffJudgeRequested)
 on(EditorHandoffRequested)
 `tests/test_workshop_neovim.cpp` "a switch away from Neovim names another modified buffer for
 consent, and carries the current one" "an unfinished command in Neovim is reset by a switch and
@@ -169,8 +172,8 @@ said, and a prompt refuses the switch until it is answered"
 
 ### WL-NVIM-05
 `editor/neovim/host.hpp` Host::call_now Host::start
-`editor/neovim-editor/pane.cpp` on(EditorWarmRequested) settle_warm lua_now ensure_running
-ensure_beat on(TimerResolution)
+`editor/neovim-editor/pane.cpp` lua_now ensure_running ensure_beat on(TimerResolution)
+`editor/neovim-editor/opening_switch.hpp` on(EditorWarmRequested) settle_warm
 `tests/test_workshop_neovim.cpp` "the Neovim editor orders its beat in words the Timer reads, and a
 refused beat is said on its pane" "a Neovim choice whose program is not there refuses the switch in
 words, and the standard Editor keeps editing" "a Neovim older than 0.11 refuses the switch naming
@@ -180,7 +183,8 @@ cancel" "the Neovim editor holding the office with no Neovim says so on its pane
 words, and permits the quit"
 
 ### WL-NVIM-06
-`editor/neovim-editor/pane.cpp` snapshot on(PaneQuitRequested) absorb judge_now
+`editor/neovim-editor/pane.cpp` snapshot on(PaneQuitRequested) absorb
+`editor/neovim-editor/opening_switch.hpp` judge_now
 `tests/test_workshop_neovim.cpp` "the orderly quit is refused while Neovim holds unsaved changes,
 naming the file, and permitted once written" "Neovim ended from inside leaves the office held with
 no document, said so, and switching back carries nothing" "a reload of the Neovim editor is refused
@@ -189,12 +193,13 @@ UNWITNESSED — the handed document carried back when Neovim ends before it serv
 
 ### WL-NVIM-07
 `editor/neovim/lua.hpp` kModule
-`editor/neovim-editor/pane.cpp` absorb on(ClipboardText) join_lines paste_lines
+`editor/neovim-editor/pane.cpp` absorb on(ClipboardText)
+`editor/neovim-editor/common.hpp` join_lines paste_lines
 `tests/test_workshop_neovim.cpp` "a copy in Neovim reaches the Skin, and a paste in Neovim asks the
 Skin"
 
 ### WL-NVIM-08
-`editor/neovim-editor/pane.cpp` on(NeovimStartRequested) on(NeovimStopRequested)
+`editor/neovim-editor/opening_switch.hpp` on(NeovimStartRequested) on(NeovimStopRequested)
 on(NeovimStatusRequested)
 `editor/neovim/launch.hpp` launch_spec
 `tests/test_workshop_neovim.cpp` "from a Loom with no Workshop, Neovim listens for a second

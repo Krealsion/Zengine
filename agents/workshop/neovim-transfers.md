@@ -67,8 +67,9 @@ WHY — `agents/decisions/a-held-change-is-owned-until-answered.md`
 ## Proven by
 
 ### WL-NVIM-10
-`editor/neovim-editor/pane.cpp` on(PaneCanvasPointer) press_at dragged right_press carry_snapshot
-snapshot_now carries_selection declare
+`editor/neovim-editor/pane.cpp` carries_selection declare
+`editor/neovim-editor/transfers.hpp` on(PaneCanvasPointer) press_at dragged right_press
+carry_snapshot snapshot_now
 `editor/neovim/lua.hpp` kSelection
 `tests/test_workshop_neovim_transfers.cpp` "a Visual selection dragged from its highlight lands in a
 named Inventory folder as exactly what Neovim's yank takes, unsaved edits included, and Neovim keeps
@@ -81,7 +82,9 @@ highlight is Neovim's own sweep and carries nothing"
 takes, for every kind of Visual selection, and taking it moves nothing"
 
 ### WL-NVIM-11
-`editor/neovim-editor/pane.cpp` receive insert_lines say fresh picture_hash insert_cpp
+`editor/neovim-editor/pane.cpp` say fresh
+`editor/neovim-editor/common.hpp` picture_hash
+`editor/neovim-editor/transfers.hpp` receive insert_lines insert_cpp
 `editor/neovim/lua.hpp` kDrop
 `tests/test_workshop_neovim_transfers.cpp` "dropped text lands in Neovim as data where the hand
 aimed, as one undo step, replaces the Visual highlight only when dropped onto it, and writes
@@ -94,7 +97,8 @@ it was; a stale buffer or screen refuses it" "a drop into a read-only or unmodif
 while Neovim waits for the rest of a command, is refused and changes nothing"
 
 ### WL-NVIM-12
-`editor/neovim-editor/pane.cpp` acquire_location open_location settle_location declare
+`editor/neovim-editor/pane.cpp` declare
+`editor/neovim-editor/transfers.hpp` acquire_location open_location settle_location
 `editor/neovim/lua.hpp` kLocate
 `editor/source-transfer/material.hpp` observe_line whole_line
 `tests/test_workshop_neovim_transfers.cpp` "the status row carries this file's location, which
@@ -110,8 +114,9 @@ nothing"
 
 ### WL-NVIM-13
 `editor/neovim/host.hpp` Host::ask Host::Asked Host::call_now
-`editor/neovim-editor/pane.cpp` change settle_held heard_of insert_lines settle_location judge_now
-status_text
+`editor/neovim-editor/pane.cpp` status_text
+`editor/neovim-editor/opening_switch.hpp` judge_now
+`editor/neovim-editor/transfers.hpp` change settle_held heard_of insert_lines settle_location
 `editor/neovim/lua.hpp` kDrop kLocate
 `tests/test_neovim_live.cpp` "a change asked while Neovim waits for input is outstanding, not
 refused: Neovim runs it when the wait ends, after the keys typed with its end, and its answer
