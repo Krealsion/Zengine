@@ -7,7 +7,9 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 
 | path | what it is |
 |---|---|
-| `pane.cpp` | `zengine-terminal-pane`, a loadable weave: record view, line, recall, completion |
+| `pane.cpp` | `zengine-terminal-pane`, a loadable weave: its offer, setting, keys, presses, pickup and act |
+| `view.hpp` | the record wrapped into rows, the view onto them, and the pane's rows and caret composed |
+| `history_and_completion.hpp` | the commands recalled from the record, and the completion ask and its list's cursor |
 | `vocabulary.hpp` | its durable names: office `zengine.terminal`, pane, stem, actions, `legend` |
 | `door.hpp` | the host's door onto the participant: its record's picture, `submit`, completion |
 | `complete.hpp` | the host's completer: what the participant can say next, read and never authored |
@@ -17,7 +19,9 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `docs/terminal.md` | the weaver's how-to; its screenshots in `docs/images/` |
 
 `door.hpp`, `complete.hpp` and `transcript.hpp` are the host's: Workshop's weave composes the door
-and compiles all three, and the pane includes none of them (WL-TERM-08).
+and compiles all three, and the pane includes none of them (WL-TERM-08). `view.hpp` and
+`history_and_completion.hpp` are the pane's: they define members of the class `pane.cpp` declares,
+and only `pane.cpp` includes them, after the class.
 
 ## Law
 

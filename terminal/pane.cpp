@@ -13,6 +13,12 @@
 // sweep is not a gesture here: a press places the caret, a second press in a word selects it, and
 // shift with the caret keys sweeps by keyboard.
 
+// This file is the weave: its offer, its setting, the record it is shown, its keys, text and
+// presses, the value pickup, the clipboard, the act and the rows it declares. It declares every
+// member; `view.hpp` defines the record's view and the rows composed from it, and
+// `history_and_completion.hpp` the recall and the completion ask and cursor, both included after
+// the class.
+
 #include "terminal/vocabulary.hpp"
 
 #include "workshop/pane_causes.hpp"
@@ -69,9 +75,6 @@ using ws::TerminalCompletionOffered;
 using ws::TerminalCompletionRequested;
 using ws::TranscriptShown;
 using zengine::workshop::pane_text::admissible;
-using zengine::workshop::pane_text::drawable;
-using zengine::workshop::pane_text::fit;
-using zengine::workshop::pane_text::wrap;
 
 constexpr const char* kWorkshopRole = "zengine.workshop";
 
@@ -79,134 +82,11 @@ constexpr const char* kWorkshopRole = "zengine.workshop";
 /// composes rather than about any screen.
 constexpr std::int64_t kPromptCols = 2;
 
-/// ONE COLUMN OF THE INPUT ROW THE TEXT MAY NOT USE -- the caret's own. A caret at the end
-/// of a full row would otherwise sit one past the room, and in a cell projection it stands on
-/// the blank cell after the last character.
-constexpr std::int64_t kCaretCols = 1;
-
-/// The chrome a pane spends on being this pane, whatever is in it: the header, the legend (where
-/// its layout shows it), the omission marker and the input row.
-constexpr std::int64_t kChromeRows = 4;
-
 /// ROWS OF THE RECORD A WHEEL NOTCH READS.
 constexpr std::int64_t kWheelRows = 3;
 
-// ---- Rendering one participant's record ---------------------------------------------
-//
-// EVERY FUNCTION HERE WAS `screen_terminal.cpp`'s, and every one of them is presentation:
-// what a sentence says, and how many rows of THIS pane it costs. They read a `ShownEntry`
-// instead of a `loom::TranscriptEntry`, which is the same ten facts.
-
-std::string entry_address(const ShownEntry& e) {
-    if (e.addressing == ws::kAddressWeave) {
-        return "#" + std::to_string(e.target);
-    }
-    if (e.addressing == ws::kAddressRole) {
-        return "@" + e.role;
-    }
-    if (e.addressing == ws::kAddressPublish) {
-        return "* (" + std::to_string(e.recipients) + " queued)";
-    }
-    return "?";
-}
-
-std::string entry_shape(const ShownEntry& e) {
-    return e.shape + " v" + std::to_string(e.version);
-}
-
-std::string entry_line(const ShownEntry& e) {
-    if (e.kind == ws::kEntryCommand) {
-        return "> " + e.text;
-    }
-    if (e.kind == ws::kEntryRefusal) {
-        return "!! " + e.text;
-    }
-    if (e.kind == ws::kEntryNotice) {
-        return "-- " + e.text;
-    }
-    if (e.kind == ws::kEntrySubmitted) {
-        return "^ " + entry_shape(e) + " -> " + entry_address(e) + "  SUBMITTED";
-    }
-    if (e.kind == ws::kEntryReceived) {
-        return "v " + entry_shape(e) + " from #" + std::to_string(e.sender);
-    }
-    if (e.kind == ws::kEntryAnswer) {
-        return "v " + entry_shape(e) + " from #" + std::to_string(e.sender) +
-               "  [Loom: answers ask " + std::to_string(e.answers) + "]";
-    }
-    return e.text;
-}
-
-/// WHAT `^` MEANS, said once, on a row the pane shows unless its layout keeps the legend off.
-std::string legend_text() { return "SUBMITTED = authored; a sender is not told its fate"; }
-
-std::vector<std::string> entry_wrapped(const ShownEntry& e, std::int64_t width) {
-    return wrap(entry_line(e), width);
-}
-
-/// THE RECORD AS ROWS OF ONE WIDTH: every entry wrapped, and the row each entry starts on. The
-/// unit a view scrolls by and a marker counts in is a ROW, because a wrapped entry cut at the top
-/// of a view is part of one entry and not one of a number of messages.
-struct WrappedRecord {
-    std::vector<std::string> rows;
-    std::vector<std::int64_t> starts;
-    std::vector<std::size_t> subjects;
-    std::int64_t total() const { return static_cast<std::int64_t>(rows.size()); }
-};
-
-WrappedRecord wrap_record(const std::vector<ShownEntry>& entries, std::int64_t width) {
-    WrappedRecord out;
-    out.starts.reserve(entries.size());
-    for (const ShownEntry& e : entries) {
-        out.starts.push_back(out.total());
-        for (std::string& one : entry_wrapped(e, width)) {
-            out.rows.push_back(std::move(one));
-            out.subjects.push_back(out.starts.size() - 1);
-        }
-    }
-    return out;
-}
-
-/// WHAT IS ABOVE THE VIEW, said at its top: retained rows scrolled past, and -- a different fact --
-/// entries the participant evicted for good, which no scroll reaches.
-std::string omission_text(std::int64_t above, std::int64_t below, std::int64_t dropped, bool lost) {
-    std::string text;
-    if (lost) {
-        text = "... what you were reading was dropped for good";
-    } else if (above > 0) {
-        text = "... " + std::to_string(above) + " more rows above";
-    } else if (dropped == 0) {
-        return below > 0 ? "[the start of this session's record]"
-                         : "[the whole of this session's record is on screen]";
-    } else {
-        text = "[the oldest kept]";
-    }
-    if (dropped > 0 && !lost) {
-        text += "; " + std::to_string(dropped) + " older entries dropped for good";
-    }
-    return text;
-}
-
-/// WHAT IS BELOW THE VIEW, said at its bottom, and the way back to the newest output.
-std::string below_text(std::int64_t below) {
-    return "... " + std::to_string(below) + " more rows below -- press here for the newest";
-}
-
-/// WHICH SLICE OF A LIST IS SHOWN, given the selection and the room: the window follows the
-/// selection and never scrolls past the end.
-std::size_t first_shown(std::size_t selected, std::size_t total, std::size_t room) {
-    if (room == 0 || total <= room) {
-        return 0;
-    }
-    if (selected < room) {
-        return 0;
-    }
-    const std::size_t last_first = total - room;
-    const std::size_t want = selected - room + 1;
-    return want < last_first ? want : last_first;
-}
-
-// =============================================================================
+/// The record wrapped into rows, which `view_top` reads: defined in `view.hpp`.
+struct WrappedRecord;
 
 /// A transcript value a row carries: the terminal instance and the observation.
 using Subject = std::pair<std::int64_t, std::int64_t>;
@@ -555,114 +435,8 @@ public:
         say(mail);
     }
 
-    void on(const PaneActionRequested& asked, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || asked.pane != pane::kTerminalPane) {
-            return;
-        }
-        // AN ID THIS PANE NEVER DECLARED IS NO ACT (`agents/panes.md`), so it spends nothing: not
-        // the notice, and not the memory that lets a second press in a word select it. Every id
-        // the pane does declare says its rows below, so what an act spends is always published.
-        if (!answers(asked.id)) {
-            return;
-        }
-        // THE READING KEYS MOVE THE VIEW AND NOTHING ELSE: not the line, a recall, a list, a
-        // refusal beside the line or the memory that makes a second press select a word.
-        if (asked.id == pane::kActionScrollUp || asked.id == pane::kActionScrollDown ||
-            asked.id == pane::kActionOldest || asked.id == pane::kActionNewest) {
-            if (asked.id == pane::kActionScrollUp) {
-                scroll(-page());
-            } else if (asked.id == pane::kActionScrollDown) {
-                scroll(page());
-            } else if (asked.id == pane::kActionOldest) {
-                scroll(-wrap_record(known_.entries, columns()).total());
-            } else {
-                reading_ = Reading{};
-            }
-            say(mail);
-            return;
-        }
-        word_press_ = false;
-        notice_.clear();
-        history_note_.clear();
-        // (!) ENTER AND TAB ON A RECALLED LINE LOCK IT IN AND DO NOTHING ELSE. The press is spent
-        // whole on ending the recall: no submission, no candidate taken, and no list asked for.
-        // The next Enter or Tab has its ordinary meaning.
-        if (asked.id == pane::kActionSubmit || asked.id == pane::kActionComplete) {
-            if (settle_recall()) {
-                remember_line();
-                say(mail);
-                return;
-            }
-        }
-        if (asked.id == pane::kActionSubmit) {
-            submit(mail);
-            return;
-        }
-        // UP AND DOWN WALK THE HISTORY WHEN NO COMMAND IS BEING COMPOSED, and keep walking it
-        // while a recalled line is browsed; on a command being composed they move the list.
-        if (asked.id == pane::kActionUp || asked.id == pane::kActionDown) {
-            const int by = asked.id == pane::kActionUp ? -1 : +1;
-            if (recall_.active || composing_nothing()) {
-                recall(by, mail);
-                return;
-            }
-            move_selection(by);
-            say(mail);
-            return;
-        }
-        if (asked.id == pane::kActionComplete) {
-            // ONE KEY, ONE MEANING: "help me here". With a list on screen that is taking the
-            // selected candidate; with nothing on screen it is asking for one, which is the
-            // only gesture discovery needs because every other entry point is typing.
-            if (selectable()) {
-                accept_candidate();
-                moved();
-                remember_line();
-                ask_completion(mail);
-            } else {
-                asked_for_list_ = true;
-                dismissed_ = false;
-                moved();
-                ask_completion(mail);
-            }
-            say(mail);
-            return;
-        }
-        if (asked.id == pane::kActionBack) {
-            if (recall_.active) {
-                // ESCAPE ON A RECALLED LINE GOES BACK TO THE LINE BEFORE THE RECALL, whole.
-                cancel_recall();
-            } else if (selectable()) {
-                // THE LIST GOES AWAY AND THE LINE IS UNTOUCHED. A weaver who wanted the line
-                // gone presses it again; a weaver who wanted only the list gone has not lost
-                // the word they were half-way through.
-                dismissed_ = true;
-                dismissed_at_ = offered_.slot;
-                asked_for_list_ = false;
-                moved();
-            } else if (!composing_nothing()) {
-                // ABANDONING THE LINE ABANDONS THE DISMISSAL WITH IT. The dismissal was made
-                // against a word; there is no longer a word, so keeping it would leave the
-                // list hidden for the whole of the next command with nothing on screen to
-                // explain why.
-                line_.clear(); // ...and the caret with it: `clear` moves both
-                dismissed_ = false;
-                asked_for_list_ = false;
-                moved();
-                remember_line();
-                ask_completion(mail);
-            } else {
-                // Nothing more specific is left (no recall, list or line): this Escape was
-                // unspent here, and saying so lets Workshop's own last meaning for it -- putting
-                // this pane down -- run if it is still the latest gesture. Echoed under the number
-                // it arrived on, since the answer may reach Workshop behind later gestures.
-                (void)mail.as_role(pane::kTerminalPaneRole)
-                    .send_to_role(kWorkshopRole, PaneEscapeUnspent{pane::kTerminalPane},
-                                  mail.correlation());
-            }
-            say(mail);
-        }
-    }
+    // The rows it declared, acted on: defined at the end of this file, after `view.hpp`.
+    void on(const PaneActionRequested& asked, loom::Mail& mail);
 
     void on(const surface::ClipboardCopy& said, loom::Mail&) {
         // WHAT THE PROCESS SAYS IT COPIED -- this pane's own copies included, which is why
@@ -789,63 +563,7 @@ private:
         say(mail);
     }
 
-    /// Ask what could be said next: at most one question outstanding, never from a place the
-    /// answer could not be about. Every exit leaves the offer applying to the line that is there:
-    /// the three silences below re-stamp `offered_about_`, and the ask stamps `asked_about_`, so
-    /// the answer can be measured against the line it comes back to.
-    void ask_completion(loom::Mail& mail) {
-        wanted_ = true;
-        wanted_intent_ = intent_;
-        if (recall_.active) {
-            // A RECALLED LINE IS BROWSED, NOT COMPOSED: no list is asked for it until the weaver
-            // locks it in or edits it.
-            offered_ = TerminalCompletionOffered{};
-            offered_about_ = here();
-            offered_intent_ = intent_;
-            return;
-        }
-        if (!known_.attached) {
-            offered_ = TerminalCompletionOffered{};
-            offered_about_ = here();
-            offered_intent_ = intent_;
-            return; // nothing to ask, and a door that would answer "nothing" anyway
-        }
-        // Asked about the end of the line, where the caret must be: accepting a candidate drops
-        // the typed part of the last token and appends the rest, which with a mid-line caret
-        // would delete everything after it. So the pane says so aloud rather than going quiet,
-        // since three different silences would look identical.
-        if (!line_.at_end()) {
-            offered_ = TerminalCompletionOffered{};
-            offered_.open = true;
-            offered_.heading = "completion follows the END of the line -- this caret is inside it";
-            offered_about_ = here();
-            offered_intent_ = intent_;
-            selected_ = 0;
-            return;
-        }
-        // AN UNTOUCHED LINE ASKS NOTHING. The line is empty immediately after a submit, and a
-        // list there covers the answer the pane just gave. Typing is the gesture; the
-        // completion key is the way to ask anyway.
-        if (line_.empty() && !asked_for_list_) {
-            offered_ = TerminalCompletionOffered{};
-            offered_about_ = here();
-            offered_intent_ = intent_;
-            selected_ = 0;
-            return;
-        }
-        if (completing_) {
-            return; // one question at a time; its answer is dropped and asked again (`wanted_`)
-        }
-        asked_about_ = here();
-        asked_intent_ = intent_;
-        completion_pending_ = ++asked_;
-        completing_ = true;
-        (void)mail.as_role(pane::kTerminalPaneRole)
-            .send_to_role(kWorkshopRole, TerminalCompletionRequested{line_.text()},
-                          completion_pending_);
-    }
-
-    /// ...and the draft that asked, so the answer is measured against the draft it comes back
+    /// THE PASTE'S ASK, and the draft that asked, so the answer is measured against the draft it comes back
     /// to (WL-TEXT-09): `set` and `clear` end a draft and bump this counter, so an edit is the
     /// same draft and an abandoned or submitted line is not.
     void begin_paste(loom::Mail& mail) {
@@ -857,102 +575,18 @@ private:
                           paste_.pending);
     }
 
-    // ---- The completion list's own cursor -------------------------------------------------
-
-    /// WHETHER THERE IS A CANDIDATE TO ACT ON -- and the first half of the question is
-    /// whether what this pane is holding is about the line in front of the weaver at all
-    /// (`offer_applies`). A list that outlived its line is not a list.
-    bool selectable() const {
-        return offer_applies() && offered_.open && !dismissed_ && !offered_.candidates.empty();
-    }
-
-    void move_selection(int by) {
-        if (!selectable()) {
-            return;
-        }
-        const std::size_t last = offered_.candidates.size() - 1;
-        if (by < 0) {
-            selected_ = selected_ == 0 ? 0 : selected_ - 1;
-        } else {
-            selected_ = selected_ >= last ? last : selected_ + 1;
-        }
-    }
-
-    void accept_candidate() {
-        if (!selectable()) {
-            return;
-        }
-        const ShownCandidate& c = offered_.candidates[selected_];
-        // `partial` IS A TOKEN OF THIS VERY LINE, so it can never be longer than the line.
-        // The `min` is written anyway rather than as an `if`, because the alternative to
-        // clamping is appending without stripping, which is a doubled word on a line nobody
-        // could explain.
-        const std::size_t typed =
-            offered_.partial.size() < line_.size() ? offered_.partial.size() : line_.size();
-        std::string text = line_.text();
-        text.resize(text.size() - typed);
-        text += c.insert;
-        const std::size_t at = text.size();
-        line_.set(std::move(text), at);
-    }
+    // ---- The line: the one place it is kept, and whether a command is composed --------------
 
     /// THE ONE PLACE THE KEPT LINE IS WRITTEN. `state_` is what a same-shape reload carries,
     /// so it is updated wherever the text changes and nowhere else. A recalled line is browsed
     /// and not yet adopted, so while one is on the line the kept line is the draft before it.
     void remember_line() { state_.line = recall_.active ? recall_.before.text() : line_.text(); }
 
-    // ---- Reading the record: the view's top, and the gestures that move it -------------------
+    /// NO COMMAND IS BEING COMPOSED: the line is empty and the weaver has not asked for a list
+    /// on it. This, or a recall already under way, is when Up and Down mean history.
+    bool composing_nothing() const { return line_.empty() && !asked_for_list_; }
 
-    /// THE ROW AT THE TOP OF A VIEW `view` ROWS TALL. Following, the row that puts the newest row
-    /// at the bottom; anchored, the anchor's row -- clamped into the entry a re-wrap may have
-    /// shortened, and never so far down that the view runs past the newest row.
-    std::int64_t view_top(const WrappedRecord& record, std::int64_t view) const {
-        const std::int64_t last = record.total() > view ? record.total() - view : 0;
-        if (reading_.follow) {
-            return last;
-        }
-        const std::int64_t index = reading_.seq - known_.dropped;
-        if (index < 0 || record.starts.empty()) {
-            return 0;
-        }
-        if (index >= static_cast<std::int64_t>(record.starts.size())) {
-            return last;
-        }
-        const std::size_t i = static_cast<std::size_t>(index);
-        const std::int64_t end =
-            i + 1 < record.starts.size() ? record.starts[i + 1] : record.total();
-        const std::int64_t cost = end - record.starts[i];
-        const std::int64_t row = reading_.row < cost ? reading_.row : (cost > 0 ? cost - 1 : 0);
-        const std::int64_t top = record.starts[i] + row;
-        return top < last ? top : last;
-    }
-
-    /// MOVE THE VIEW BY `by` ROWS (negative is older). Reaching the newest row follows it again;
-    /// anywhere else the view is anchored to the entry and row now at its top.
-    void scroll(std::int64_t by) {
-        const WrappedRecord record = wrap_record(known_.entries, columns());
-        const std::int64_t view = view_rows_ > 0 ? view_rows_ : 1;
-        const std::int64_t last = record.total() > view ? record.total() - view : 0;
-        std::int64_t top = view_top(record, view) + by;
-        top = top < 0 ? 0 : top;
-        reading_.lost = false;
-        if (top >= last) {
-            reading_ = Reading{};
-            return;
-        }
-        std::size_t i = 0;
-        while (i + 1 < record.starts.size() && record.starts[i + 1] <= top) {
-            ++i;
-        }
-        reading_.follow = false;
-        reading_.seq = known_.dropped + static_cast<std::int64_t>(i);
-        reading_.row = top - (record.starts.empty() ? 0 : record.starts[i]);
-    }
-
-    /// A PAGE OF THE VIEW, keeping one row of the page before it in sight.
-    std::int64_t page() const { return view_rows_ > 1 ? view_rows_ - 1 : 1; }
-
-    // ---- Command history: the participant's own record, walked ------------------------------
+    // ---- Command history, defined in `history_and_completion.hpp` ---------------------------
 
     /// ONE COMMAND A WEAVER CAN RECALL, named by its place in the record's whole history.
     struct Recallable {
@@ -960,122 +594,14 @@ private:
         std::string text;
     };
 
-    /// THE COMMANDS THE RECORD HOLDS, NEWEST FIRST. Only `command` entries -- what a
-    /// presentation asked this participant to run, recorded before it was parsed -- and never
-    /// an answer, a notice or a refusal. A run of the same command typed again and again is
-    /// walked as one, as its newest. Bounded by the record's own owner, so a command the
-    /// participant evicted is no longer here, and nothing in this pane keeps a copy of one.
-    std::vector<Recallable> recallable() const {
-        std::vector<Recallable> out;
-        for (std::size_t i = known_.entries.size(); i > 0; --i) {
-            const ShownEntry& e = known_.entries[i - 1];
-            if (e.kind != ws::kEntryCommand || e.text.empty()) {
-                continue;
-            }
-            if (!out.empty() && out.back().text == e.text) {
-                continue;
-            }
-            out.push_back(Recallable{known_.dropped + static_cast<std::int64_t>(i - 1), e.text});
-        }
-        return out;
-    }
+    std::vector<Recallable> recallable() const;
+    void recall(int by, loom::Mail& mail);
+    void show_recalled(const Recallable& c);
+    bool settle_recall();
+    void cancel_recall();
+    std::string history_heading() const;
 
-    /// NO COMMAND IS BEING COMPOSED: the line is empty and the weaver has not asked for a list
-    /// on it. This, or a recall already under way, is when Up and Down mean history.
-    bool composing_nothing() const { return line_.empty() && !asked_for_list_; }
-
-    /// ONE STEP THROUGH HISTORY: -1 older, +1 newer.
-    void recall(int by, loom::Mail& mail) {
-        const std::vector<Recallable> commands = recallable();
-        if (!recall_.active) {
-            if (commands.empty()) {
-                history_note_ = "no command to recall yet";
-            } else if (by > 0) {
-                history_note_ = "nothing newer -- Up recalls the last command";
-            } else {
-                recall_.before = line_;
-                show_recalled(commands.front());
-            }
-            say(mail);
-            return;
-        }
-        const std::string now = line_.text();
-        if (by < 0) {
-            for (const Recallable& c : commands) {
-                if (c.seq < recall_.seq && c.text != now) {
-                    show_recalled(c);
-                    say(mail);
-                    return;
-                }
-            }
-            history_note_ = known_.dropped > 0 ? "the oldest kept; " +
-                                                     std::to_string(known_.dropped) +
-                                                     " older entries dropped for good"
-                                               : "the oldest command";
-            say(mail);
-            return;
-        }
-        for (std::size_t i = commands.size(); i > 0; --i) {
-            const Recallable& c = commands[i - 1];
-            if (c.seq > recall_.seq && c.text != now) {
-                show_recalled(c);
-                say(mail);
-                return;
-            }
-        }
-        // PAST THE NEWEST IS THE LINE BEFORE THE FIRST RECALL, exactly as it was left.
-        cancel_recall();
-        say(mail);
-    }
-
-    void show_recalled(const Recallable& c) {
-        line_.set(c.text, c.text.size());
-        recall_.active = true;
-        recall_.seq = c.seq;
-        dismissed_ = false;
-        asked_for_list_ = false;
-        selected_ = 0;
-        moved();
-        offered_ = TerminalCompletionOffered{};
-        offered_about_ = here();
-        offered_intent_ = intent_;
-    }
-
-    /// THE RECALLED LINE BECOMES THE DRAFT, where it stands, and the line before the recall is
-    /// let go. Answers whether there was a recall to end.
-    bool settle_recall() {
-        if (!recall_.active) {
-            return false;
-        }
-        recall_ = Recall{};
-        moved();
-        return true;
-    }
-
-    /// BACK TO THE DRAFT BEFORE THE FIRST RECALL -- the whole box, so its undo, its caret and
-    /// the draft a paste in flight belongs to come back with its text.
-    void cancel_recall() {
-        line_ = recall_.before;
-        recall_ = Recall{};
-        moved();
-        remember_line();
-    }
-
-    /// WHAT THE ROW ABOVE THE LINE SAYS ABOUT HISTORY, or nothing.
-    std::string history_heading() const {
-        if (!recall_.active) {
-            return history_note_;
-        }
-        const std::vector<Recallable> commands = recallable();
-        std::size_t newer = 0;
-        for (const Recallable& c : commands) {
-            newer += c.seq > recall_.seq ? 1 : 0;
-        }
-        std::string text = "history " + std::to_string(newer + 1) + " of " +
-                           std::to_string(commands.size() > newer ? commands.size() : newer + 1);
-        text += history_note_.empty() ? " -- Enter/Tab: edit, Esc: back" : " -- " + history_note_;
-        return text;
-    }
+    // ---- Completion: the one read and the list's cursor, in `history_and_completion.hpp` ----
 
     /// THE LINE A QUESTION ABOUT COMPLETION IS ABOUT. Two of these are kept: what the
     /// OUTSTANDING ask was about (`asked_about_`), and what the offer in hand is about
@@ -1087,194 +613,27 @@ private:
         bool operator!=(const Asking& o) const { return !(*this == o); }
     };
 
-    /// What a completion is about: the line, and where in it the weaver stands. The text, because
-    /// accepting strips `partial` off the end and appends `insert`, meaningless against a line
-    /// the partial is not a token of; the caret, because completion follows the end of the line,
-    /// and a mid-line caret would lose everything after it.
-    Asking here() const { return Asking{line_.text(), line_.caret()}; }
+    void ask_completion(loom::Mail& mail);
+    Asking here() const;
+    bool offer_applies() const;
+    void moved();
+    bool selectable() const;
+    void move_selection(int by);
+    void accept_candidate();
 
-    /// Is what this pane holds about the line in front of the weaver? Asked before the list is
-    /// drawn as well as before a candidate is taken. The cost is a publication with no list while
-    /// a fresh answer is in flight (the completion is a round trip); whether a medium draws both
-    /// canvases of that turn is the medium's business, unmeasured. What it buys: no candidate is
-    /// ever offered against a line that is not on the screen.
-    bool offer_applies() const { return offered_intent_ == intent_ && offered_about_ == here(); }
+    // ---- Reading the record, defined in `view.hpp` ------------------------------------------
 
-    /// THE WEAVER'S ACT CHANGED WHAT A COMPLETION WOULD BE ABOUT: a new intent, which no answer
-    /// already in flight belongs to, and no wish for a list until an act asks for one.
-    void moved() {
-        ++intent_;
-        wanted_ = false;
-    }
+    std::int64_t view_top(const WrappedRecord& record, std::int64_t view) const;
+    void scroll(std::int64_t by);
+    std::int64_t page() const;
 
-    // ---- The rows, and the caret in them --------------------------------------------------
+    // ---- The rows, and the caret in them: composed in `view.hpp`, named here ----------------
 
-    /// The pane, composed: refusal, header, legend, what is above the view, the view, what is
-    /// below it, the completion list or the history row, the input row, and the caret on it. The budget is spent in priority order: the input row first (a Terminal with no line
-    /// is not one), then a standing refusal, the header, the marker above the view and the
-    /// legend; the rest is split between the list (at most half) and the transcript. Every row is
-    /// budgeted before it is composed, so a late row can never take back the input line.
-    void say(loom::Mail& mail) {
-        if (!room().granted()) {
-            return; // no room has been sent: there is nothing this pane could truthfully fill
-        }
-        room().begin();
-        input_row_ = -1;
-        legend_row_ = -1;
-        list_first_row_ = -1;
-        list_row_count_ = 0;
-        list_shown_first_ = 0;
-        std::vector<surface::SurfaceTextRow> out;
-        const auto push = [&out, this](std::string text, std::int64_t role) {
-            out.push_back(surface::SurfaceTextRow{drawable(fit(std::move(text), columns())), role});
-        };
-        if (rows() <= 0 || columns() <= 0) {
-            send(std::move(out), room().map().settle(), {}, mail);
-            return;
-        }
-        // The input row is taken first and a notice second, before anything else is composed: a
-        // refusal belongs beside the line it is about, inside the budget. Two rows is the smallest
-        // room that holds both; in one row the line keeps it and the refusal is not shown.
-        const bool notice = !notice_.empty() && rows() >= 2;
-        const std::int64_t body = rows() - 1 - (notice ? 1 : 0);
-        const bool header = body >= 1;
-        const bool omission = body >= 2;
-        const bool legend = legend_shown_ && body >= kChromeRows;
-        std::int64_t rest = body - (header ? 1 : 0) - (omission ? 1 : 0) - (legend ? 1 : 0);
-        if (rest < 0) {
-            rest = 0;
-        }
-
-        // A REFUSAL THE DOOR GAVE, over the top row, where a weaver will see it.
-        if (notice) {
-            push(notice_, surface::role::kAlert);
-        }
-
-        // THE HEADER NAMES THE IDENTITY whose record this is. A presentation may hold
-        // controls for more than one identity, and the moment it stops saying which one it
-        // is showing is the moment the two look like one thing with two windows.
-        if (header) {
-            push(known_.attached
-                     ? "TERMINAL -- weave #" + std::to_string(known_.participant)
-                     : "TERMINAL -- no participant was mounted on this bus",
-                 surface::role::kAccent);
-        }
-        if (legend) {
-            // WHERE THE SETTING SHOWS, SO WHERE A VALUE IT CANNOT USE IS SAID.
-            legend_row_ = static_cast<std::int64_t>(out.size());
-            push(legend_problem_.empty() ? legend_text() : legend_problem_,
-                 legend_problem_.empty() ? surface::role::kMuted : surface::role::kAlert);
-        }
-
-        // THE LIST'S SHARE, DECIDED BEFORE THE TRANSCRIPT'S so the transcript gets what is
-        // left rather than the other way round.
-        const bool list_open = offer_applies() && offered_.open && !dismissed_;
-        // THE ROW ABOVE THE LINE SAYS WHICH COMMAND IS RECALLED when there is no list: browsing
-        // history is a different state from composing, and a weaver has to be able to see which.
-        const std::string history = list_open ? std::string() : history_heading();
-        std::size_t list_wanted = list_open ? offered_.candidates.size() + 1 /*the heading*/
-                                            : (history.empty() ? 0 : 1);
-        const std::size_t list_ceiling = static_cast<std::size_t>(rest / 2);
-        if (list_wanted > list_ceiling) {
-            list_wanted = list_ceiling;
-        }
-        // A LIST OF ONE ROW IS A HEADING WITH NO CANDIDATES UNDER IT, and that is a complete
-        // answer rather than an empty box -- `kCompletionMinRows` was one for exactly this
-        // reason, measured: with a floor of two, `send * s` showed nothing at all.
-        if ((list_open || !history.empty()) && list_wanted == 0 && rest >= 2) {
-            list_wanted = 1;
-        }
-        const std::int64_t transcript_rows = rest - static_cast<std::int64_t>(list_wanted);
-
-        // THE TRANSCRIPT, WRAPPED AND SCROLLED -- one entry becomes as many rows as its sentence
-        // needs, and the view is a window onto all of them. Following, the newest row is at the
-        // bottom. Scrolled away, a row below the view says how much is below and is the press back
-        // to the newest; where there is no row for it, the top marker says it instead.
-        const WrappedRecord record = wrap_record(known_.entries, columns());
-        std::int64_t view = transcript_rows > 0 ? transcript_rows : 0;
-        std::int64_t top = view_top(record, view);
-        std::int64_t below = record.total() - (top + view);
-        const bool bottom = !reading_.follow && below > 0 && view >= 2;
-        if (bottom) {
-            view -= 1;
-            top = view_top(record, view);
-            below = record.total() - (top + view);
-        }
-        below = below > 0 ? below : 0;
-        view_rows_ = view;
-        top_marker_row_ = -1;
-        bottom_marker_row_ = -1;
-        if (omission) {
-            top_marker_row_ = static_cast<std::int64_t>(out.size());
-            std::string said = omission_text(top, below, known_.dropped, reading_.lost);
-            if (below > 0 && !bottom) {
-                said += " -- " + std::to_string(below) + " more rows below";
-            }
-            push(std::move(said), surface::role::kMuted);
-        }
-        for (std::int64_t i = 0; i < view; ++i) {
-            const std::int64_t at = top + i;
-            if (at < record.total()) {
-                const auto& entry = known_.entries[record.subjects[static_cast<std::size_t>(at)]];
-                if (entry.observation > 0 && (entry.kind == ws::kEntrySubmitted ||
-                    entry.kind == ws::kEntryReceived || entry.kind == ws::kEntryAnswer)) {
-                    room().map().row(static_cast<std::int64_t>(out.size()),
-                                     {known_.participant, entry.observation});
-                }
-            }
-            push(at < record.total() ? record.rows[static_cast<std::size_t>(at)] : std::string(),
-                 surface::role::kFill);
-        }
-        if (bottom) {
-            bottom_marker_row_ = static_cast<std::int64_t>(out.size());
-            push(below_text(below), surface::role::kMuted);
-        }
-        if (list_wanted > 0 && list_open) {
-            list_first_row_ = static_cast<std::int64_t>(out.size());
-            list_row_count_ = static_cast<std::int64_t>(list_wanted);
-            say_list(list_wanted, push);
-        } else if (list_wanted > 0) {
-            push(history, surface::role::kMuted);
-        }
-
-        // THE LINE BEING TYPED, AND -- while there is nothing on it -- the gesture that
-        // answers "what can I say here". It is on this row rather than in the legend because
-        // it is about what to do NEXT rather than about what a word means, and because it
-        // erases itself: the moment a weaver types anything the line has their text on it.
-        const std::int64_t visible = columns() - kPromptCols - kCaretCols;
-        line_.keep_caret_visible(visible > 0 ? visible : 0);
-        input_row_ = static_cast<std::int64_t>(out.size());
-        const bool prompting = line_.empty() && !list_open;
-        push(prompting ? std::string(">    Tab: what can this terminal say?  Up: recall a command")
-                       : "> " + line_.visible(visible > 0 ? visible : 0),
-             known_.attached ? surface::role::kAccent : surface::role::kAlert);
-
-        if (static_cast<std::int64_t>(out.size()) > rows()) {
-            out.resize(static_cast<std::size_t>(rows()));
-        }
-        if (input_row_ >= static_cast<std::int64_t>(out.size())) {
-            input_row_ = -1; // cut away: there is no row to put a caret on
-        }
-        const std::int64_t picture = room().map().settle();
-        std::vector<ws::v2::PaneRowPart> parts = named_rows(static_cast<std::int64_t>(out.size()));
-        send(std::move(out), picture, std::move(parts), mail);
-    }
-
-    /// THE ROWS SENT: as the pane's own picture while it holds a canvas, numbered by what the
-    /// transcript's rows mean, its caret and selection standing in it; as prose with the caret
-    /// beside it to a host granting none.
+    void say(loom::Mail& mail);
     void send(std::vector<surface::SurfaceTextRow> out, std::int64_t meaning,
-              std::vector<ws::v2::PaneRowPart> parts, loom::Mail& mail) {
-        const PaneCaret said = caret();
-        ws::RowsCaret& at = room().caret();
-        at.row = said.row;
-        at.column = said.column;
-        at.sel_begin_row = said.sel_begin_row;
-        at.sel_begin_col = said.sel_begin_col;
-        at.sel_end_row = said.sel_end_row;
-        at.sel_end_col = said.sel_end_col;
-        room().send(mail, meaning, std::move(out), std::move(parts));
-    }
+              std::vector<ws::v2::PaneRowPart> parts, loom::Mail& mail);
+    template <typename Push> void say_list(std::size_t room, const Push& push);
+    PaneCaret caret() const;
 
     /// WHAT THE TERMINAL CALLS ITS PARTS, of the `said` rows it sends: a transcript entry carrying
     /// a value, `entry:<observation>`; the line being typed, `line`; the way back to the newest
@@ -1300,68 +659,6 @@ private:
             }
         }
         return names.take();
-    }
-
-    template <typename Push> void say_list(std::size_t room, const Push& push) {
-        const std::size_t body = room - 1; // the heading always costs one
-        const std::size_t first = first_shown(selected_, offered_.candidates.size(), body);
-        list_shown_first_ = first;
-        const std::size_t last = offered_.candidates.size() < first + body
-                                     ? offered_.candidates.size()
-                                     : first + body;
-        std::string heading = offered_.heading;
-        if (offered_.candidates.size() > body) {
-            // WHICH SLICE, SAID OUT LOUD -- including the slice that is nothing at all, which
-            // is what a pane too short for a single candidate row shows. "none of 5" is a
-            // worse picture than five rows and a far better sentence than five rows' worth of
-            // silence.
-            heading = (body == 0 ? std::string("none")
-                                 : std::to_string(first + 1) + "-" + std::to_string(last)) +
-                      " of " + std::to_string(offered_.candidates.size()) + "  " + heading;
-        }
-        push(std::move(heading), surface::role::kMuted);
-        for (std::size_t i = first; i < last; ++i) {
-            const ShownCandidate& c = offered_.candidates[i];
-            const bool chosen = i == selected_;
-            std::string text = (chosen ? "> " : "  ") + c.display;
-            if (!c.detail.empty()) {
-                // The detail is what a candidate MEANS, and it is the first thing a narrow
-                // pane gives up: `fit` cuts the whole row, so a list in a small window shows
-                // names and a list in a large one shows names and meanings.
-                text += "   " + c.detail;
-            }
-            push(std::move(text), chosen ? surface::role::kAccent : surface::role::kFill);
-        }
-    }
-
-    /// WHERE THE CARET IS, AND WHAT IS SELECTED -- in the rows' own lattice, never written
-    /// into them; none when the input row was cut away.
-    ///
-    /// ONE MEASURER: the column comes from the same window the row was written against and
-    /// the same one a press is answered with, so a caret cannot land where the text is not
-    /// and a click cannot land where the caret would not.
-    PaneCaret caret() const {
-        PaneCaret caret;
-        caret.pane = pane::kTerminalPane;
-        if (input_row_ < 0) {
-            return caret;
-        }
-        const std::int64_t visible = columns() - kPromptCols - kCaretCols;
-        caret.row = input_row_;
-        caret.column = kPromptCols + static_cast<std::int64_t>(line_.caret_column());
-        // AND THE SELECTION, THE SAME WAY: the visible part of the component's own range,
-        // prompt-shifted by the same arithmetic the caret goes through. A selection scrolled
-        // wholly off the slice says nothing, which is the truthful picture of a row that
-        // shows none of it.
-        const component::TextBox::VisibleSpan span =
-            line_.visible_selection(visible > 0 ? visible : 0);
-        if (span.present()) {
-            caret.sel_begin_row = input_row_;
-            caret.sel_begin_col = kPromptCols + span.begin;
-            caret.sel_end_row = input_row_;
-            caret.sel_end_col = kPromptCols + span.end;
-        }
-        return caret;
     }
 
     // ---- State not in the shape --------------------------------------------------------
@@ -1483,6 +780,124 @@ private:
     bool wanted_ = false;
 
 };
+
+} // namespace
+
+#include "terminal/history_and_completion.hpp"
+#include "terminal/view.hpp"
+
+namespace {
+
+// THE ROWS THE PANE DECLARED, ACTED ON. Defined after the class and its headers because Ctrl+Home
+// measures the whole record as `view.hpp` wraps it.
+void TerminalPaneWeave::on(const PaneActionRequested& asked, loom::Mail& mail) {
+    if (!mail.authored_from_role(kWorkshopRole) || asked.pane != pane::kTerminalPane) {
+        return;
+    }
+    // AN ID THIS PANE NEVER DECLARED IS NO ACT (`agents/panes.md`), so it spends nothing: not
+    // the notice, and not the memory that lets a second press in a word select it. Every id
+    // the pane does declare says its rows below, so what an act spends is always published.
+    if (!answers(asked.id)) {
+        return;
+    }
+    // THE READING KEYS MOVE THE VIEW AND NOTHING ELSE: not the line, a recall, a list, a
+    // refusal beside the line or the memory that makes a second press select a word.
+    if (asked.id == pane::kActionScrollUp || asked.id == pane::kActionScrollDown ||
+        asked.id == pane::kActionOldest || asked.id == pane::kActionNewest) {
+        if (asked.id == pane::kActionScrollUp) {
+            scroll(-page());
+        } else if (asked.id == pane::kActionScrollDown) {
+            scroll(page());
+        } else if (asked.id == pane::kActionOldest) {
+            scroll(-wrap_record(known_.entries, columns()).total());
+        } else {
+            reading_ = Reading{};
+        }
+        say(mail);
+        return;
+    }
+    word_press_ = false;
+    notice_.clear();
+    history_note_.clear();
+    // (!) ENTER AND TAB ON A RECALLED LINE LOCK IT IN AND DO NOTHING ELSE. The press is spent
+    // whole on ending the recall: no submission, no candidate taken, and no list asked for.
+    // The next Enter or Tab has its ordinary meaning.
+    if (asked.id == pane::kActionSubmit || asked.id == pane::kActionComplete) {
+        if (settle_recall()) {
+            remember_line();
+            say(mail);
+            return;
+        }
+    }
+    if (asked.id == pane::kActionSubmit) {
+        submit(mail);
+        return;
+    }
+    // UP AND DOWN WALK THE HISTORY WHEN NO COMMAND IS BEING COMPOSED, and keep walking it
+    // while a recalled line is browsed; on a command being composed they move the list.
+    if (asked.id == pane::kActionUp || asked.id == pane::kActionDown) {
+        const int by = asked.id == pane::kActionUp ? -1 : +1;
+        if (recall_.active || composing_nothing()) {
+            recall(by, mail);
+            return;
+        }
+        move_selection(by);
+        say(mail);
+        return;
+    }
+    if (asked.id == pane::kActionComplete) {
+        // ONE KEY, ONE MEANING: "help me here". With a list on screen that is taking the
+        // selected candidate; with nothing on screen it is asking for one, which is the
+        // only gesture discovery needs because every other entry point is typing.
+        if (selectable()) {
+            accept_candidate();
+            moved();
+            remember_line();
+            ask_completion(mail);
+        } else {
+            asked_for_list_ = true;
+            dismissed_ = false;
+            moved();
+            ask_completion(mail);
+        }
+        say(mail);
+        return;
+    }
+    if (asked.id == pane::kActionBack) {
+        if (recall_.active) {
+            // ESCAPE ON A RECALLED LINE GOES BACK TO THE LINE BEFORE THE RECALL, whole.
+            cancel_recall();
+        } else if (selectable()) {
+            // THE LIST GOES AWAY AND THE LINE IS UNTOUCHED. A weaver who wanted the line
+            // gone presses it again; a weaver who wanted only the list gone has not lost
+            // the word they were half-way through.
+            dismissed_ = true;
+            dismissed_at_ = offered_.slot;
+            asked_for_list_ = false;
+            moved();
+        } else if (!composing_nothing()) {
+            // ABANDONING THE LINE ABANDONS THE DISMISSAL WITH IT. The dismissal was made
+            // against a word; there is no longer a word, so keeping it would leave the
+            // list hidden for the whole of the next command with nothing on screen to
+            // explain why.
+            line_.clear(); // ...and the caret with it: `clear` moves both
+            dismissed_ = false;
+            asked_for_list_ = false;
+            moved();
+            remember_line();
+            ask_completion(mail);
+        } else {
+            // Nothing more specific is left (no recall, list or line): this Escape was
+            // unspent here, and saying so lets Workshop's own last meaning for it -- putting
+            // this pane down -- run if it is still the latest gesture. Echoed under the number
+            // it arrived on, since the answer may reach Workshop behind later gestures.
+            (void)mail.as_role(pane::kTerminalPaneRole)
+                .send_to_role(kWorkshopRole, PaneEscapeUnspent{pane::kTerminalPane},
+                              mail.correlation());
+        }
+        say(mail);
+    }
+}
 
 } // namespace
 

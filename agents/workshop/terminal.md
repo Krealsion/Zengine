@@ -222,12 +222,12 @@ candidate edits the line, and the grammar's separators hold" "completion follows
 line, and says so when it cannot"
 
 ### WL-TERM-06
-`terminal/pane.cpp` say_list first_shown
+`terminal/view.hpp` say_list first_shown
 `tests/test_workshop_panes_terminal.cpp` "the list is rows INSIDE the pane, above the line it
 belongs to"
 
 ### WL-TERM-07
-`terminal/pane.cpp` entry_line entry_wrapped wrap_record legend_text omission_text
+`terminal/view.hpp` entry_line entry_wrapped wrap_record legend_text omission_text
 `workshop/pane_text.hpp` wrap
 `terminal/door.hpp` submit_terminal_line
 `tests/test_workshop_panes_terminal.cpp` "a weaver presses in, types a line, and the participant
@@ -240,20 +240,21 @@ runs it"
 
 ### WL-TERM-09
 `workshop/pane_facets.hpp` PaneRowsFacet::on(PaneCanvasPointer)
-`terminal/pane.cpp` press caret
+`terminal/pane.cpp` press
+`terminal/view.hpp` caret
 `workshop/terminal_seam_vocabulary.hpp` TerminalCompletionOffered
 `tests/test_workshop_panes_terminal.cpp` "a press on the input row places the caret where the weaver
 aimed" "the pane draws its caret in its own picture, and the medium draws it there"
 
 ### WL-TERM-10
-`terminal/pane.cpp` say caret kChromeRows
+`terminal/view.hpp` say caret kChromeRows
 `workshop/pane_canvas_rows.hpp` RowsCaret
 `tests/test_workshop_panes_terminal.cpp` "a refusal is said BESIDE the line it is about, never in
 place of it" "in a room too small for both, the LINE is what survives"
 
 ### WL-TERM-11
-`terminal/pane.cpp` here moved offer_applies ask_completion on(TerminalCompletionOffered) selectable
-accept_candidate
+`terminal/pane.cpp` on(TerminalCompletionOffered)
+`terminal/history_and_completion.hpp` here moved offer_applies ask_completion selectable accept_candidate
 `tests/test_workshop_panes_terminal.cpp` "a completion answer about a line that is gone is neither
 shown nor taken" "an answer for a caret that has since moved does not reopen the list"
 
