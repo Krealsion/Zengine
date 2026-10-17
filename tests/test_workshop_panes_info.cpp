@@ -674,6 +674,26 @@ TEST_CASE("an office's ask inspects a pane through the host's own door, and the 
     CHECK(f.r.session().inspected.ref == pane_info_ref());
 }
 
+TEST_CASE("two inspects asked in one burst: the older office is told a newer took its place, the "
+          "newer is answered what the host said, and the subject is the newer's") {
+    // WHICH ANSWER IS THIS. Info holds one inspect, the newest; the office whose ask it replaced
+    // is answered at once, and the host's answer to the replaced ask names a correlation nothing
+    // waits on.
+    InfoRig f;
+    f.open();
+    DoorHand& hand = door_hand(f.r);
+    const std::size_t before = hand.acted.size();
+    f.enqueue_inspect(layouts_ref());
+    f.enqueue_inspect(pane_info_ref());
+    f.settle();
+    REQUIRE(hand.acted.size() == before + 2);
+    CHECK_FALSE(hand.acted[before].accepted);
+    CHECK(hand.acted[before].refusal == "a newer inspect took its place -- nothing changed");
+    CHECK(hand.acted[before + 1].accepted);
+    CHECK(f.r.session().inspected.ref == pane_info_ref());
+    CHECK(f.row_of("PANE Info") == 0);
+}
+
 TEST_CASE("WL-HAND-06: Info names its panes by reference and its properties by label") {
     InfoRig f;
     f.open();
