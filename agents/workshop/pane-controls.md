@@ -107,7 +107,8 @@ menu, and the menu keeps them"
 side a row of its own" "ControlStrip: a strip spends about a third of the room up to its cap, and a
 pane's own rows pack as their faces"
 `tests/test_workshop_panes_files.cpp` "in a room too short for every control the strip says how many
-are in the menu, and the menu keeps them"
+are in the menu, and the menu keeps them" "scrolled into a long listing, Files says on a row of each
+side how many entries the window left out"
 `tests/test_workshop_panes_output.cpp` "WL-OUT-04: a build's own words are opened, stepped, panned
 and closed by hand"
 

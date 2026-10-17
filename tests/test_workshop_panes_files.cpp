@@ -3092,6 +3092,43 @@ TEST_CASE("a cut the window reserved no row for is not said, and the strip keeps
     CHECK_FALSE(any_row(rows, "earlier"));
 }
 
+TEST_CASE("scrolled into a long listing, Files says on a row of each side how many entries the window left out") {
+    // EACH CUT SIDE HAS THE ROW THE WINDOW RESERVED FOR IT, next to the entries it bounds: the
+    // count above the first entry shown, the entries, the count below the last, and together the
+    // whole listing. ⚔ MUTATION: `PaneRowsFacet::push_window` saying no earlier marker leaves the
+    // entries above the window uncounted, and every other Files case stays green.
+    FilesRig f("files-marker-counts");
+    for (std::int64_t i = 0; i < kLongListing; ++i) {
+        put_file(f.root / entry_name(i), "x\n");
+    }
+    f.open(160, 48, /*with_editor=*/false, /*with_manager=*/false);
+    REQUIRE(f.granted_rows() >= 6);
+    REQUIRE(f.granted_rows() < kLongListing);
+    f.settle(kLongListing / 2, false);
+
+    const std::vector<std::string> rows = f.shown();
+    INFO("the pane showed\n", picture(rows));
+    std::int64_t first_row = -1;
+    std::int64_t last_row = -1;
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        if (entry_shown(rows[i]) >= 0) {
+            first_row = first_row < 0 ? static_cast<std::int64_t>(i) : first_row;
+            last_row = static_cast<std::int64_t>(i);
+        }
+    }
+    REQUIRE(first_row > 1);
+    REQUIRE(last_row + 1 < static_cast<std::int64_t>(rows.size()));
+    const std::int64_t first = entry_shown(rows[static_cast<std::size_t>(first_row)]);
+    const std::int64_t last = entry_shown(rows[static_cast<std::size_t>(last_row)]);
+    REQUIRE(first > 0);
+    REQUIRE(last < kLongListing - 1);
+    CHECK(last - first == last_row - first_row); // the entries shown are one unbroken run
+    CHECK(rows[static_cast<std::size_t>(first_row - 1)] ==
+          "  ... " + std::to_string(first) + " earlier");
+    CHECK(rows[static_cast<std::size_t>(last_row + 1)] ==
+          "  ... " + std::to_string(kLongListing - 1 - last) + " more");
+}
+
 TEST_CASE("in a room too short for every control the strip says how many are in the menu, and the menu keeps them") {
     // A NARROW OR SHORT PANE MUST NOT LOSE THE ROUTE. The strip grows with the room and stops;
     // what it could not seat is counted on its last row, and `[menu]` is the control it never
