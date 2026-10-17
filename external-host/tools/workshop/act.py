@@ -50,7 +50,8 @@ GESTURES = ("press", "type", "open", "select", "into", "click", "part", "at", "r
 MANAGER = ("zengine.desktop", "launcher")
 BUTTONS = {"left": 1, "right": 3}
 #: How many readings a step aims a press from while Workshop refuses the point because the pane's
-#: picture moved between the reading and the point; past it the step fails naming the pane.
+#: picture moved between the reading and the point; past it the step fails naming the pane. A point
+#: refused because the pane holds no settled picture yet is waited through for the step's seconds.
 POINT_TRIES = 3
 
 
@@ -252,20 +253,33 @@ def wait_rows(hand, provider, pane, text, seconds, present=True):
         pause(hand, end, (provider, pane))
 
 
-def aimed(ctx, verb, provider, pane, read, aim):
+def aimed(ctx, hand, verb, provider, pane, read, aim, seconds):
     """`(reading, point)`: `read()` reads the pane, `aim(reading)` asks Workshop where to press on
     that reading. A point Workshop refuses because the pane's picture moved since the reading is
     read and aimed again, at most POINT_TRIES times; then the step fails naming the pane and the
-    count. Any other refusal is the step's."""
-    for _ in range(POINT_TRIES):
+    count. One it refuses because the pane holds no settled picture -- as a pane just opened holds
+    none until Workshop aims at its first, which a reading can come before -- is read and aimed
+    again once that picture may have settled (at its aimed number moving, `hand.wait`), for at most
+    `seconds`; then the step fails naming the pane. Any other refusal is the step's."""
+    end = time.monotonic() + seconds
+    moved = 0
+    while True:
         reading = read()
         try:
             return reading, aim(reading)
         except Refused as refused:
+            if "no settled picture" in str(refused):
+                if time.monotonic() >= end:
+                    ctx.fail("%s: %s/%s held no settled picture to aim at within %gs"
+                             % (verb, provider, pane, seconds))
+                hand.wait(end - time.monotonic(), (provider, pane), unsettled=True)
+                continue
             if "picture moved" not in str(refused):
                 raise
-    ctx.fail("%s: %s/%s kept redrawing while it was read (%d times)"
-             % (verb, provider, pane, POINT_TRIES))
+            moved += 1
+            if moved >= POINT_TRIES:
+                ctx.fail("%s: %s/%s kept redrawing while it was read (%d times)"
+                         % (verb, provider, pane, POINT_TRIES))
 
 
 def press_at(ctx, hand, where, button="left"):
@@ -310,7 +324,7 @@ def act(ctx, hand, verb, step):
             return at if not at["text"] else hand.word_point(
                 provider, pane, at["word"], max(0, at["text"].find(text)), view["picture"])
 
-        (_, at), where = aimed(ctx, verb, provider, pane, read, aim)
+        (_, at), where = aimed(ctx, hand, verb, provider, pane, read, aim, seconds)
         press_at(ctx, hand, where, step.get("button", "left"))
         return {"word": at["text"], "x": where["x"], "y": where["y"]}
     if verb == "part":
@@ -346,10 +360,11 @@ def act(ctx, hand, verb, step):
             and all(isinstance(v, int) for v in arg[2:])
         ctx.check(ok, "at names [provider, pane, row, column]")
         provider, pane, row, column = arg
+        seconds = float(step.get("seconds", 10))
         _, where = aimed(
-            ctx, verb, provider, pane,
-            lambda: press_view(ctx, hand, verb, provider, pane, float(step.get("seconds", 10))),
-            lambda view: hand.point(provider, pane, row, column, view["picture"]))
+            ctx, hand, verb, provider, pane,
+            lambda: press_view(ctx, hand, verb, provider, pane, seconds),
+            lambda view: hand.point(provider, pane, row, column, view["picture"]), seconds)
         press_at(ctx, hand, where, step.get("button", "left"))
         return {"x": where["x"], "y": where["y"]}
     if verb == "control":
@@ -460,7 +475,7 @@ def press_control(ctx, hand, provider, pane, label, seconds):
         view, (w, at) = reading
         return hand.word_point(provider, pane, w["word"], at + 1, view["picture"])
 
-    (_, (w, _)), where = aimed(ctx, "control", provider, pane, read, aim)
+    (_, (w, _)), where = aimed(ctx, hand, "control", provider, pane, read, aim, seconds)
     press_at(ctx, hand, where)
     return {"word": w["text"], "x": where["x"], "y": where["y"]}
 
@@ -711,7 +726,7 @@ def manager_row(ctx, hand, name, seconds, verb="open"):
             return first if not first["text"] else hand.word_point(
                 *MANAGER, first["word"], 0, reading["picture"])
 
-        view, first = aimed(ctx, verb, *MANAGER, read, aim)
+        view, first = aimed(ctx, hand, verb, *MANAGER, read, aim, seconds)
         if first is not None:
             press_at(ctx, hand, first)
         for key in ("down", "up"):

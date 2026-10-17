@@ -133,8 +133,10 @@ that sends the window only what changed. Shape: [`graphics/vocabulary.hpp`](../.
 
 ### `DrawnRefused`
 
-`DrawnRefused` v1, from that window: a drawing it refused, and why. What it shows stays as it was,
-and the pane's next drawing goes whole. Shape: [`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp).
+`DrawnRefused` v1, from that window: a drawing it refused, and why. What it shows stays as it was.
+A refused change is followed at once by the drawing last sent, whole; after a refused whole drawing,
+nothing is sent until the pane's lines change, and that drawing goes whole.
+Shape: [`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp).
 
 ### `ActionRequested`
 

@@ -14,7 +14,7 @@
 #include "guest_hand.hpp"
 #include "builder_rig.hpp"
 #include "census.hpp"
-#include "window_stand_in.hpp"
+#include "pane_window.hpp"
 
 #include "builder/builder-pane/vocabulary.hpp"
 #include "workshop/authoring.hpp"
@@ -1529,30 +1529,30 @@ TEST_CASE("the Builder's controls perform the operations its keys perform") {
             "drawn unavailable answers in its own words, and an act Workshop must approve is "
             "refused, since no Workshop gesture made the press") {
         const char* area = pane::kBuilderPaneRole;
-        zengine::testing::WindowStandIn window(b.r.bus);
-        window.room(area, 160 * zengine::graphics::kCellPx, 48 * zengine::graphics::kCellPx);
-        REQUIRE_FALSE(window.seat().drawn.empty());
-        CHECK(window.seat().refused.empty());
+        zengine::testing::pane_window::Window window(b.r.bus);
+        window.room(area, area, 160, 48);
+        REQUIRE_FALSE(window.weave().heard.empty());
+        CHECK(window.weave().refusals.empty());
         const auto window_says = [&](const std::string& words) {
-            for (const std::string& row : window.shown(area)) {
+            for (const std::string& row : window.rows(area)) {
                 if (row.find(words) != std::string::npos) return true;
             }
             return false;
         };
         REQUIRE_MESSAGE(window_says("one -> a  (1/2)"), b.text());
-        REQUIRE(window.press(area, "(load what was built)"));
+        REQUIRE(window.press_words(area, "(load what was built)"));
         CHECK(b.text().find("nothing built is waiting to be loaded") != std::string::npos);
         CHECK(window_says("nothing built is waiting to be loaded"));
-        REQUIRE(window.press(area, "[build]"));
+        REQUIRE(window.press_words(area, "[build]"));
         CHECK(b.tool->asked.empty());
         CHECK_MESSAGE(b.text().find("needs a current attributed input gesture") !=
                           std::string::npos,
                       b.text());
-        REQUIRE(window.press(area, "[turn load-after-build on]"));
+        REQUIRE(window.press_words(area, "[turn load-after-build on]"));
         CHECK(b.text().find("load after build: on") != std::string::npos);
         CHECK(window_says("load after build: on"));
         CHECK(b.tool->asked.empty()); // a toggle sends nothing
-        CHECK(window.seat().refused.empty());
+        CHECK(window.weave().refusals.empty());
     }
 }
 

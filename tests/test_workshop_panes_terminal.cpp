@@ -12,7 +12,7 @@
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 #include "census.hpp"
-#include "window_stand_in.hpp"
+#include "pane_window.hpp"
 
 #include "terminal/vocabulary.hpp"
 #include "workshop/terminal_seam_vocabulary.hpp"
@@ -400,37 +400,46 @@ TEST_CASE("nothing global opens it, and no key acts on it from anywhere else") {
         });
         u.open(160, 48, 0, true, false, /*pick=*/false);
         REQUIRE_FALSE(u.r.session().panes.has(u.kind));
-        zengine::testing::WindowStandIn window(u.r.bus);
-        window.room(area, 40 * gfx::kCellPx, 10 * gfx::kCellPx);
-        REQUIRE(window.seat().drawn.size() == 1);
-        CHECK(window.seat().drawn[0].whole);
-        const std::vector<std::string> shown = window.shown(area);
+        zengine::testing::pane_window::Window window(u.r.bus);
+        window.room(area, area, 40, 10);
+        REQUIRE(window.weave().heard.size() == 1);
+        CHECK(window.weave().heard[0].whole);
+        const std::vector<std::string> shown = window.rows(area);
         REQUIRE(shown.size() == 10);
         CHECK(shown[9].rfind(">", 0) == 0); // the line, on the last row of the window's room
-        CHECK(window.action_at(area, 9, 0) == "line");
+        CHECK(window.action_at(area, 0, 9) == "line");
 
-        // A CHANGE IS DRAWN AS WHAT CHANGED; after a refusal, whole.
-        std::size_t mark = window.seat().drawn.size();
+        // A CHANGE IS DRAWN AS WHAT CHANGED. Refused, it leaves the window as it was, and the rows
+        // last sent go again at once, whole; that refused too, nothing is sent again, and the next
+        // rows go whole.
+        std::size_t mark = window.weave().heard.size();
         window.ask(area, pane::kActionComplete);
-        REQUIRE(window.seat().drawn.size() > mark);
-        CHECK_FALSE(window.seat().drawn.back().whole);
-        window.refuse(area, "the suite refuses it");
-        mark = window.seat().drawn.size();
+        REQUIRE(window.weave().heard.size() > mark);
+        CHECK_FALSE(window.weave().heard.back().whole);
+        const std::vector<std::string> before = window.rows(area);
+        mark = window.weave().heard.size();
+        window.refuse(area, "the suite refuses a change");
+        REQUIRE(window.weave().heard.size() == mark + 1);
+        CHECK(window.weave().heard.back().whole);
+        CHECK(window.rows(area) == before);
+        mark = window.weave().heard.size();
+        window.refuse(area, "the suite refuses the whole");
+        CHECK(window.weave().heard.size() == mark);
         window.ask(area, pane::kActionBack);
-        REQUIRE(window.seat().drawn.size() > mark);
-        CHECK(window.seat().drawn[mark].whole);
+        REQUIRE(window.weave().heard.size() > mark);
+        CHECK(window.weave().heard[mark].whole);
 
         // A ROOM OR A PRESS ANYONE BUT THE WINDOW SAYS IS NOTHING: the rows stay this window's.
-        mark = window.seat().drawn.size();
+        mark = window.weave().heard.size();
         u.r.publish(loom::to_value(gfx::AreaRoom{area, "elsewhere", 1, 480, 120, {}}));
         u.r.publish(loom::to_value(gfx::ActionRequested{area, pane::kActionComplete}));
-        CHECK(window.seat().drawn.size() == mark);
+        CHECK(window.weave().heard.size() == mark);
         window.ask(area, pane::kActionComplete);
-        CHECK(window.seat().drawn.size() > mark);
+        CHECK(window.weave().heard.size() > mark);
 
         CHECK(to_workshop == 0);
         CHECK(room_asked == 1);
-        CHECK(window.seat().refused.empty());
+        CHECK(window.weave().refusals.empty());
         u.r.bus.remove_observer(tap);
     }
     // NO GLOBAL CHORD OPENS IT: the Terminal is opened from the Pane Manager, and its keys reach
@@ -822,23 +831,23 @@ TEST_CASE("WL-HAND-06: the Terminal names the line being typed and each candidat
             text.erase(text.find_last_not_of(' ') + 1);
             return text;
         };
-        zengine::testing::WindowStandIn window(t.r.bus);
-        window.room(area, 160 * zengine::graphics::kCellPx, 48 * zengine::graphics::kCellPx);
-        REQUIRE_FALSE(window.seat().drawn.empty());
-        CHECK(window.seat().drawn.front().whole);
-        CHECK(window.seat().refused.empty());
+        zengine::testing::pane_window::Window window(t.r.bus);
+        window.room(area, area, 160, 48);
+        REQUIRE_FALSE(window.weave().heard.empty());
+        CHECK(window.weave().heard.front().whole);
+        CHECK(window.weave().refusals.empty());
         // THE ROWS WORKSHOP HOLDS, since it seats the pane and the pane composes for its room.
         const std::vector<std::string> held = t.shown();
         REQUIRE_FALSE(held.empty());
         for (std::size_t i = 0; i < held.size(); ++i) {
             CAPTURE(i);
-            CHECK(row_at(window.shown(area), static_cast<std::int64_t>(i)) ==
+            CHECK(row_at(window.rows(area), static_cast<std::int64_t>(i)) ==
                   row_at(held, static_cast<std::int64_t>(i)));
         }
         // ...UNDER THE SAME NAMES: a press on the line's row or a candidate's asks for it by name.
         parts = held_parts(t.r.session(), t.kind);
-        CHECK(window.action_at(area, parts.at("line").row, 0) == "line");
-        CHECK(window.action_at(area, parts.at("candidate:send").row, 3) == "candidate:send");
+        CHECK(window.action_at(area, 0, parts.at("line").row) == "line");
+        CHECK(window.action_at(area, 3, parts.at("candidate:send").row) == "candidate:send");
 
         // A DECLARED ID ASKED THERE IS THE PANE'S ACT: on an empty line, completion lists every verb.
         t.clear_line();
@@ -850,22 +859,22 @@ TEST_CASE("WL-HAND-06: the Terminal names the line being typed and each candidat
         }
         REQUIRE_FALSE(other.empty());
         const std::int64_t at = parts.at(other).row;
-        CHECK(window.action_at(area, at, 3) == other);
+        CHECK(window.action_at(area, 3, at) == other);
 
         // A CANDIDATE PRESSED THERE IS CHOSEN, in both media.
         window.ask(area, other);
         CHECK(row_at(t.shown(), at).rfind("> " + other.substr(10), 0) == 0);
-        CHECK(row_at(window.shown(area), at) == row_at(t.shown(), at));
+        CHECK(row_at(window.rows(area), at) == row_at(t.shown(), at));
 
         // ...and asked again, takes the candidate chosen into the line.
         window.ask(area, pane::kActionComplete);
         CHECK(t.input_text().find(other.substr(10)) != std::string::npos);
-        CHECK(row_at(window.shown(area), t.input_row()) == row_at(t.shown(), t.input_row()));
+        CHECK(row_at(window.rows(area), t.input_row()) == row_at(t.shown(), t.input_row()));
 
         // AN ID IT NEITHER DREW NOR DECLARED is no act, and nothing is drawn.
-        std::size_t drawn = window.seat().drawn.size();
+        std::size_t drawn = window.weave().heard.size();
         window.ask(area, "terminal.no-such-action");
-        CHECK(window.seat().drawn.size() == drawn);
+        CHECK(window.weave().heard.size() == drawn);
 
         // A VALUE IN THE RECORD, PRESSED THERE, PICKS NOTHING UP: no carry begins in a window. The
         // line is run as the window asks it.
@@ -879,11 +888,11 @@ TEST_CASE("WL-HAND-06: the Terminal names the line being typed and each candidat
             if (name.rfind("entry:", 0) == 0) entry = name;
         }
         REQUIRE_FALSE(entry.empty());
-        drawn = window.seat().drawn.size();
+        drawn = window.weave().heard.size();
         const std::string before = t.text();
         window.ask(area, entry);
         CHECK(t.text() == before); // no pickup asked, and no refusal of one said
-        CHECK(window.seat().drawn.size() == drawn);
+        CHECK(window.weave().heard.size() == drawn);
     }
 }
 
