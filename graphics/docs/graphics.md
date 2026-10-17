@@ -136,6 +136,15 @@ public:
 };
 ```
 
+A pane Workshop seats draws the same way. `workshop::PaneDrawingFacet`
+([`workshop/pane_facets.hpp`](../../workshop/pane_facets.hpp)) holds the pane's room in Workshop
+and in a window alike: the weave writes one `picture(graphics::Sketch&)` and one
+`on_action(action, mail)`, and calls the facet's `show` where its state changed. The window that
+shows the area named by the pane's office is sent what changed; Workshop is sent the same picture
+as the pane's rows, each record a part named by its path. A press on a part, in the window or on
+Workshop's canvas, reaches `on_action` as the action its record names, so the owner never reads a
+place ([The pane facets](../../workshop/docs/workshop-panes.md#the-pane-facets)).
+
 Over the Timer, a drawer passes `zengine::timer::TimedWeave` as the `Base`
 parameter to `Weave`; the single-facet `DrawingWeave` shorthand keeps the compile-time wall on a
 derived `after_delivery`. A weave that claims names its `loom::Claims<...>` after `loom::WeaveBase`

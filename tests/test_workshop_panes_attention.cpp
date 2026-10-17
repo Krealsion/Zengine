@@ -293,6 +293,55 @@ TEST_CASE("WL-HAND-06: Attention names each condition's row by its key") {
           std::string::npos);
 }
 
+TEST_CASE("a press on a condition's row in the Attention pane puts the cursor there, and a press where its picture names nothing moves nothing") {
+    // THE ROW'S OWN ACTION, ASKED BY A PRESS: the pane names each condition's row, and a press on
+    // it reaches the pane as that row's action, never as a place it reads. ⚔ MUTATION: a press on
+    // a part that asks nothing of the pane, and the second condition's explanation never opens.
+    AttentionRig f;
+    f.open();
+    f.unfocus(); // `establish` repaints with a key, which must not be this pane's
+    f.establish(thing("a.one", "the first thing", "why the first"));
+    f.establish(thing("b.two", "the second thing", "why the second"));
+    f.focus(); // a press on the body's corner, where no part stands
+    REQUIRE(f.listed("the first thing"));
+    CHECK(f.text().find("> the first thing") != std::string::npos);
+    CHECK(f.text().find("why the first") != std::string::npos);
+
+    const ExternalPane* seat = f.r.session().panes.external_pane(f.kind);
+    REQUIRE(seat != nullptr);
+    REQUIRE(shows_canvas(*seat));
+    const v2::PaneCanvasPart* second = nullptr;
+    for (const v2::PaneCanvasPart& part : seat->canvas.content.parts) {
+        if (part.name == "condition:b.two") {
+            second = &part;
+        }
+    }
+    REQUIRE(second != nullptr);
+    const std::int64_t column = surface::cell_of_pixel(seat->canvas.x + second->x) + 2;
+    const std::int64_t row = surface::cell_of_pixel(seat->canvas.y + second->y);
+
+    // THE GLANCE'S ROW, shown and named nothing: a press there moves nothing.
+    const std::int64_t below = held_parts(f.r.session(), f.kind).at("condition:b.two").row;
+    const std::int64_t glance = surface::cell_of_pixel(seat->canvas.y + second->y - below * second->h);
+    const std::vector<std::string> before = f.shown();
+    REQUIRE(before.front().find("the first thing (+1 more)") == 0);
+    f.r.press_cell(column, glance);
+    f.r.release_cell(column, glance);
+    CHECK(f.shown() == before);
+
+    seat = f.r.session().panes.external_pane(f.kind);
+    REQUIRE(seat != nullptr);
+    f.r.press_cell(column, row);
+    f.r.release_cell(column, row);
+    CHECK(f.text().find("> the second thing") != std::string::npos);
+    CHECK(f.text().find("why the second") != std::string::npos);
+    CHECK(f.text().find("why the first") == std::string::npos);
+    // ...AND NOTHING TRUE MOVED.
+    CHECK(f.r.session().conditions.holds("a.one"));
+    CHECK(f.r.session().conditions.holds("b.two"));
+    CHECK(attention_conditions(f.r.session()).size() == 2);
+}
+
 TEST_CASE("WL-HAND-06: a notice leading the Attention pane moves each condition's name down with the row that says it") {
     // THE NOTICE TAKES THE PANE'S FIRST ROW, so every row of the list lands one lower than it would
     // alone -- and a condition's name lands with it, never on the row above.
@@ -380,6 +429,25 @@ TEST_CASE("the Attention pane leads with the glance: the loudest condition that 
     CHECK_FALSE(f.listed("a loud thing"));
     CHECK(f.listed("a quiet thing"));
     CHECK(f.shown().front() == "a loud thing (+1 more)");
+}
+
+TEST_CASE("an Attention pane too short to seat a condition between two markers says only how many it leaves out") {
+    // THE LIST'S FLOOR OF THREE ROWS: under the glance, two rows cannot hold a condition between
+    // the markers its window would need, so the list spends them on the count, and a condition is
+    // never dropped quietly. ⚔ MUTATION: drop the floor, and the window seats the cursor's row with
+    // a count beside it.
+    AttentionRig f;
+    f.open();
+    f.unfocus(); // `establish` repaints with a key, which must not be this pane's
+    f.establish(thing("a.one", "the first thing", "why the first"));
+    f.establish(thing("b.two", "the second thing", "why the second"));
+    f.establish(thing("c.three", "the third thing", "why the third"));
+    author_test_pane_room(f.r, f.kind, 3, 60);
+    f.r.extent(150, 44);
+    REQUIRE(f.held_runs().size() == 2);
+    CHECK(f.held_runs()[0].text == "the first thing (+2 more)");
+    CHECK(f.held_runs()[1].text == "  ... 3 more");
+    CHECK(held_parts(f.r.session(), f.kind).empty()); // no condition's row is drawn, so none named
 }
 
 TEST_CASE("dismissal hides a presentation and changes nothing that is true") {

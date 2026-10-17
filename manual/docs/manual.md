@@ -121,8 +121,9 @@ class MyPane : public zengine::With<ws::PaneManualFacet<kMyPane,
                    MyPane, MyState, loom::Accept<...>, loom::Emit<...>> { ... };
 ```
 
-An office that composes `workshop::PaneFacet` or `workshop::PaneRowsFacet`
-(`workshop/pane_facets.hpp`), which hold its offer and its room, is answered by them the same way.
+An office that composes `workshop::PaneFacet`, `workshop::PaneRowsFacet` or
+`workshop::PaneDrawingFacet` (`workshop/pane_facets.hpp`), which hold its offer and its room, is
+answered by them the same way.
 
 A weave that claims, as the Editor claims its document, names its `loom::Claims<...>` after
 `loom::WeaveBase`: `Weave<MyPane, MyState, loom::Accept<...>, loom::Emit<...>, loom::WeaveBase,

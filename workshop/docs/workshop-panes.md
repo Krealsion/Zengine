@@ -662,7 +662,8 @@ of the weave; a member the facet calls only when present is optional.
   and on each `PaneCatalogRequested` Workshop's office sends; answers the manual from `Page`, as
   `PaneManualFacet` does; and keeps the room -- `PaneRoom` and `PaneCanvasRoom`, each taken only as
   Workshop's own word about this pane -- with the rows and columns the pane composes for: the
-  canvas lattice's while a canvas room is held, else the prose room's (`rows()`, `columns()`,
+  canvas lattice's while a canvas room is held, else the prose room's, else, for a pane Workshop
+  seats nowhere (`seated()`), the room a graphics window gave it (`rows()`, `columns()`,
   `on_canvas()`, `canvas_room()`). The weave supplies `offering()`, its `Offer` (`v2::PaneOffered`
   for a pane of rows, `v3::PaneOffered` for a picture of a given size), and `on_room(mail)`, where
   it draws. Optional: `offered(mail)`, after each offer (its rows, its settings);
@@ -680,11 +681,34 @@ of the weave; a member the facet calls only when present is optional.
   `spend_notice(notice, act, say)` spends a weaver's act: it clears the notice, runs the act, and
   says the rows once without the notice when one stood and the act published no picture of its
   own.
+- **`PaneDrawingFacet<Pane, Office, Page, Offer>`: a pane that draws one picture.** `PaneFacet`,
+  and the weave's `picture(graphics::Sketch&)` -- named nodes and element records, as any drawer
+  draws ([A drawing weave](../../graphics/docs/graphics.md#a-drawing-weave)) -- shown by
+  `show(self, mail)` wherever the pane stands. The graphics window that shows the area named
+  `Office` is sent what changed since it last held the area's drawing (`graphics::Drawn`): nothing
+  when nothing did, the whole picture after its room changed or it refused one. Workshop, while it
+  seats the pane, is sent the same picture as rows ([`workshop/pane_drawing.hpp`](../pane_drawing.hpp),
+  `drawn_rows`): each text node's characters on the cells a window of characters paints them, a
+  row in the role of the first text drawn on it, and each record a part named by its path over the
+  columns its text covers there -- its canvas picture while it holds a canvas room, numbered by
+  its parts and their actions, else `v5::PaneContent`. Workshop hears only a picture the weave
+  shows, so a message the pane ignores repaints nothing; the weave calls `show` where its state
+  changed and in `on_room`, which a window's room (`graphics::AreaRoom`, from that window's office)
+  runs as Workshop's does. A pane Workshop seats draws for Workshop's room; one it seats nowhere,
+  for the window's, a row and a column each `graphics::kCellPx`. A press on a part is the weave's
+  `on_action(id, mail)` with the action the part's record names: the first button on Workshop's
+  canvas, read against the picture it was aimed at (`fenced(mail)` otherwise), or
+  `graphics::ActionRequested` from the window that shows the area, for an action the picture last
+  shown there names or one `answers(id)` admits. The third button in Workshop is passed back, and
+  the wheel is `wheel(dy, mail)`, as `PaneRowsFacet`'s. The room is asked once each life while no
+  window has said it (`graphics::RoomAsked`), so a pane reloaded into a window draws there again.
+  Operators other than text are the window's alone.
 - **`PaneActionFacet<Pane, Office>`: the actions a pane declares.** `declare(mail, rows, mode,
   elsewhere)` sends `v3::PaneActions` as `Office`, replacing the rows last declared. A
   `PaneActionRequested` counts only as Workshop's own word about `Pane`, and only for an id the
   weave's `answers(id)` admits where the weave has one, so an id the pane does not answer to in the
-  mode it is in spends nothing; it is then the weave's `on_action(id, mail)`. `answers` must be
+  mode it is in spends nothing; it is then the weave's `on_action(id, mail)`, the same member a
+  press on a part a `PaneDrawingFacet` pane drew reaches, so a pane writes one. `answers` must be
   public, as every member a facet calls is.
 - **`PaneMenuFacet<Pane, Office>`: the pane's own menu.** It holds the one menu the image asked
   the presenter for and has not heard answered (`pane_menu::Asked`, never reload-kept state).
