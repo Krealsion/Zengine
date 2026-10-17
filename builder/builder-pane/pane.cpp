@@ -54,12 +54,8 @@ namespace pane = zengine::builder_pane;
 namespace builder = zengine::builder;
 namespace pane_menu = zengine::workshop::pane_menu;
 
-using ws::PaneActionRequested;
 using ws::v3::PaneActionRow;
-using ws::v3::PaneActions;
 using ws::PaneKey;
-using ws::PaneMenuAnswered;
-using ws::PaneMenuRequested;
 using ws::v2::PaneOffered;
 using ws::PanePassRequested;
 using ws::PaneTextInput;
@@ -188,20 +184,20 @@ using Rows = ws::PaneRowsFacet<pane::kBuilderPane, pane::kBuilderPaneRole,
                                zengine::manual::pages::zengine_builder_pane::kManual,
                                BuilderMeaning>;
 using Asks = ws::AskFacet<pane::kBuilderPane, pane::kBuilderPaneRole, BuilderAsk>;
+using Actions = ws::PaneActionFacet<pane::kBuilderPane, pane::kBuilderPaneRole>;
+using Menu = ws::PaneMenuFacet<pane::kBuilderPane, pane::kBuilderPaneRole>;
 
 class BuilderPaneWeave
-    : public zengine::With<Rows, Asks>::Weave<
+    : public zengine::With<Rows, Asks, Actions, Menu>::Weave<
           BuilderPaneWeave, pane::BuilderPaneState,
-          loom::Accept<PaneKey, PaneTextInput, PaneActionRequested, builder::BuildStatus,
-                       builder::RecipeCatalog, ProjectFrontierSaid, PlanNames, PlanRowWritten,
-                       RecipeSourceSaid, SourceOpened, surface::ClipboardCopy,
-                       surface::ClipboardText, PaneSourceOpened, builder::BuildOutputSaid,
-                       PaneMenuAnswered>,
-          loom::Emit<PaneActions, builder::StatusRequested, builder::BuildRequested,
-                     builder::PromoteArtifact, builder::RevertArtifact, ProjectFrontierRequested,
-                     PlanNamesRequested, PlanRowRequested, RecipeSourceRequested,
-                     OpenSourceRequested, PaneMenuRequested, ws::PaneKeyboardRequested,
-                     ws::PaneEscapeUnspent, surface::ClipboardCopy,
+          loom::Accept<PaneKey, PaneTextInput, builder::BuildStatus, builder::RecipeCatalog,
+                       ProjectFrontierSaid, PlanNames, PlanRowWritten, RecipeSourceSaid,
+                       SourceOpened, surface::ClipboardCopy, surface::ClipboardText,
+                       PaneSourceOpened, builder::BuildOutputSaid>,
+          loom::Emit<builder::StatusRequested, builder::BuildRequested, builder::PromoteArtifact,
+                     builder::RevertArtifact, ProjectFrontierRequested, PlanNamesRequested,
+                     PlanRowRequested, RecipeSourceRequested, OpenSourceRequested,
+                     ws::PaneKeyboardRequested, ws::PaneEscapeUnspent, surface::ClipboardCopy,
                      surface::ClipboardTextRequested, builder::BuildOutputRequested>> {
 public:
     PaneOffered offering() const {
@@ -223,8 +219,8 @@ public:
     }
 
     /// ONLY THE ROLE LINE READS RAW KEYS. Everything else this pane does arrives as a
-    /// resolved id (`on(PaneActionRequested)`); a component's editing gestures are the
-    /// component's, not the pane's commands.
+    /// resolved id (`on_action`); a component's editing gestures are the component's, not the
+    /// pane's commands.
     void on(const PaneKey& key, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || key.pane != pane::kBuilderPane) {
             return;
@@ -263,43 +259,30 @@ public:
         say(mail);
     }
 
-    /// ONE OF THE PANE'S DECLARED ACTIONS, ASKED FOR BY NAME (WL-KEY-15). Workshop resolved
-    /// the keystroke against the effective keymap -- the weaver's override where one is
-    /// authored, this office's declared default otherwise -- so what arrives is the id.
-    void on(const PaneActionRequested& asked, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || asked.pane != pane::kBuilderPane) {
-            return;
-        }
-        // The mode owns the pane's actions first, and an id it does not answer to is no act: the
-        // declaration and the keystroke race across two messages (Escape and Return in one poll
-        // resolve to a cancel and a commit, and the commit arrives after the line closed), so a
-        // stale id, or one nobody declared, spends nothing and the notice stands
-        // (`agents/panes.md`).
-        if (!answers(asked.id)) {
-            return;
-        }
-        // THE WEAVER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT -- and spent means gone from the
-        // rows Workshop holds, which are the rows a weaver reads. Most acts say their own picture;
-        // one whose answer is still on its way (Workshop's word on a build, `e`'s lookup, `o`'s
-        // plan names) or that meant nothing says none, and the spent notice would stand beside the
-        // act that spent it. So when a notice stood and the act published nothing, the rows are
-        // said here, once, without it.
-        const bool spent = !notice_.empty();
-        const std::uint64_t published = room().published();
-        notice_.clear();
-        act(asked, mail);
-        if (spent && room().published() == published) {
-            say(mail);
-        }
+    /// ONE OF THE PANE'S DECLARED ACTIONS, ASKED FOR BY NAME (WL-KEY-15): the id Workshop resolved
+    /// the keystroke to against the effective keymap, admitted by `answers` in the mode the pane is
+    /// in. (!) A KEY AND A CONTROL REACH ONE OPERATION: the id a keystroke resolved to and the id a
+    /// pressed control carries are the same id, spent through the same `perform`, so a weaver's
+    /// remapped key and the button beside it cannot come to mean two different things.
+    void on_action(const std::string& id, loom::Mail& mail) {
+        // THE WEAVER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT: an act whose answer is still on
+        // its way (Workshop's word on a build, `e`'s lookup, `o`'s plan names), or that meant
+        // nothing, says no picture, and the rows are said once without the notice.
+        room().spend_notice(notice_, [&] { perform(id, mail); }, [&] { say(mail); });
     }
 
-    /// WHAT ONE ACTION DOES, BY ID -- with the notice already spent (`on(PaneActionRequested)`),
-    /// and only for an id `answers` admitted in the mode the pane is in.
-    ///
-    /// (!) A KEY AND A CONTROL REACH ONE OPERATION. The id a keystroke resolved to and the id a
-    /// pressed control carries are the same id, spent through the same `perform` -- so a
-    /// weaver's remapped key and the button beside it cannot come to mean two different things.
-    void act(const PaneActionRequested& asked, loom::Mail& mail) { perform(asked.id, mail); }
+    /// The mode owns the pane's actions first, and an id it does not answer to is no act: the
+    /// declaration and the keystroke race across two messages (Escape and Return in one poll
+    /// resolve to a cancel and a commit, and the commit arrives after the line closed), so a stale
+    /// id, or one nobody declared, spends nothing and the notice stands (`agents/panes.md`).
+    bool answers(const std::string& id) const {
+        for (const PaneActionRow& row : action_rows()) {
+            if (row.id == id) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /// What an id will act on right now: the one place that says so, read when a control is
     /// painted or a menu row offered, and again when either is spent; empty for an id with no
@@ -780,39 +763,39 @@ public:
         if (m == nullptr || m->kind == builder_row::kNone) {
             return; // a fact row, a heading, a build's own words: pointing, and nothing more
         }
-        const bool spent = !notice_.empty();
-        const std::uint64_t published = room().published();
-        notice_.clear();
-        if (m->kind == builder_row::kControl) {
-            perform_on(m->id, m->subject, m->op, mail);
-        } else if (m->kind == builder_row::kRecipe && choosing_.open) {
-            // THE LIST'S OWN SECOND PRESS: the first names the row, the second makes it the
-            // weaver's pick and closes the list -- Files' rule, so no press means two things.
-            // And only where the keys already were (WL-FOCUS-04): the press that brings them
-            // here points at the pane, and pointing is not choosing.
-            if (keys_went_here && m->subject == choosing_.name) {
-                take_choice(mail);
-            } else {
-                choosing_.name = m->subject;
-                say(mail);
-            }
-        } else if (m->kind == builder_row::kRecipe && keys_went_here) {
-            // THE ROW THAT NAMES THE CHOICE IS A WAY INTO THE LIST -- for a weaver whose keys
-            // are already here. A press that merely brings them points at the pane and opens
-            // no mode, which is what keeps clicking a pane to focus it from doing anything.
-            open_recipes(mail);
-        } else if (m->kind == builder_row::kLine && role_.open) {
-            // A PRESS IS READ IN WHAT THE ROW DRAWS, as the caret is: the pressed column counts
-            // the spelled characters before it, never the typed bytes.
-            const std::string prompt = active_role_prompt();
-            const std::string shown = role_.line.visible(role_value_columns(prompt));
-            role_.line.place(role_.line.position_at_column(spelled_column_byte(
-                shown, column - static_cast<std::int64_t>(prompt.size()))));
-            say(mail);
-        }
-        if (spent && room().published() == published) {
-            say(mail);
-        }
+        room().spend_notice(
+            notice_,
+            [&] {
+                if (m->kind == builder_row::kControl) {
+                    perform_on(m->id, m->subject, m->op, mail);
+                } else if (m->kind == builder_row::kRecipe && choosing_.open) {
+                    // THE LIST'S OWN SECOND PRESS: the first names the row, the second makes it
+                    // the weaver's pick and closes the list -- Files' rule, so no press means two
+                    // things. And only where the keys already were (WL-FOCUS-04): the press that
+                    // brings them here points at the pane, and pointing is not choosing.
+                    if (keys_went_here && m->subject == choosing_.name) {
+                        take_choice(mail);
+                    } else {
+                        choosing_.name = m->subject;
+                        say(mail);
+                    }
+                } else if (m->kind == builder_row::kRecipe && keys_went_here) {
+                    // THE ROW THAT NAMES THE CHOICE IS A WAY INTO THE LIST -- for a weaver whose
+                    // keys are already here. A press that merely brings them points at the pane
+                    // and opens no mode, which is what keeps clicking a pane to focus it from
+                    // doing anything.
+                    open_recipes(mail);
+                } else if (m->kind == builder_row::kLine && role_.open) {
+                    // A PRESS IS READ IN WHAT THE ROW DRAWS, as the caret is: the pressed column
+                    // counts the spelled characters before it, never the typed bytes.
+                    const std::string prompt = active_role_prompt();
+                    const std::string shown = role_.line.visible(role_value_columns(prompt));
+                    role_.line.place(role_.line.position_at_column(spelled_column_byte(
+                        shown, column - static_cast<std::int64_t>(prompt.size()))));
+                    say(mail);
+                }
+            },
+            [&] { say(mail); });
     }
 
     /// THE SECOND BUTTON. A right press on a row this pane owns OFFERS that row's menu, beside
@@ -832,18 +815,13 @@ public:
         return true;
     }
 
-    /// WHAT A MENU CAME TO -- if it answers one of THIS image's own asks. `Asked::take` is the
-    /// whole of what makes an answer safe to act on: a choice counts only from the presenter's
-    /// office, under the number of an ask this image sent and has not heard answered, about the
-    /// pane and subject it asked about, once. A reloaded pane asked nothing, so its
-    /// predecessor's menus act on nothing. What the row MEANS is judged here, against what this
-    /// pane holds now -- the catalog may have been republished while the menu was open.
-    void on(const PaneMenuAnswered& a, loom::Mail& mail) {
-        const std::string id = asked_menu_.take(mail, a);
-        if (id.empty()) {
-            return;
-        }
-        chose(id, a.subject, mail);
+    /// WHAT A MENU CAME TO -- one of THIS image's own asks, settled by `PaneMenuFacet`: a choice
+    /// counts only from the presenter's office, under the number of an ask this image sent and
+    /// has not heard answered, about the pane and subject it asked about, once. What the row
+    /// MEANS is judged here, against what this pane holds now -- the catalog may have been
+    /// republished while the menu was open.
+    void on_menu(const std::string& id, const std::string& subject, loom::Mail& mail) {
+        chose(id, subject, mail);
     }
 
     // ---- The recipe list (the pane's own mode) -------------------------------------------
@@ -967,14 +945,12 @@ private:
     /// `PaneKey`, so Backspace deletes a character. `PaneActions` is a replacement (WL-KEY-15),
     /// and an id never moves: a weaver's override applies wherever the id is in force.
     void declare(loom::Mail& mail) {
-        PaneActions actions;
-        actions.pane = pane::kBuilderPane;
-        actions.mode = mode();
-        actions.rows = rows_of(actions.mode);
-        actions.elsewhere = ws::causes_elsewhere(
-            {pane::kModeBrowse, pane::kModeRecipes, pane::kModeOutput, pane::kModeRole},
-            actions.mode, [](const std::string& m) { return rows_of(m); });
-        (void)mail.as_role(pane::kBuilderPaneRole).send_to_role(kWorkshopRole, actions);
+        const std::string in = mode();
+        this->template facet<Actions>().declare(
+            mail, rows_of(in), in,
+            ws::causes_elsewhere(
+                {pane::kModeBrowse, pane::kModeRecipes, pane::kModeOutput, pane::kModeRole}, in,
+                [](const std::string& m) { return rows_of(m); }));
     }
 
     /// THE MODE THIS PANE IS IN: the role line, the output reader, the recipe list, or browsing.
@@ -1082,15 +1058,6 @@ private:
         row(pane::kActionLoadBuilt, "load what was built", input::scan::kUnknown,
             input::mod::kNone, build);
         return rows;
-    }
-
-    bool answers(const std::string& id) const {
-        for (const PaneActionRow& row : action_rows()) {
-            if (row.id == id) {
-                return true;
-            }
-        }
-        return false;
     }
 
     // ---- The asks -------------------------------------------------------------------
@@ -1699,6 +1666,8 @@ private:
 
     Rows& room() { return this->template facet<Rows>(); }
     const Rows& room() const { return this->template facet<Rows>(); }
+    /// This image's one outstanding menu (`PaneMenuFacet`).
+    Menu& menu() { return this->template facet<Menu>(); }
     /// The rows and columns the pane composes for (`PaneFacet`).
     std::int64_t rows() const { return room().rows(); }
     std::int64_t columns() const { return room().columns(); }
@@ -1752,11 +1721,8 @@ private:
 
     /// NOTCHES NOT YET WORTH A WHOLE ROW -- one accumulator for the one list in force.
     double wheel_ = 0.0;
-    /// THIS IMAGE'S ONE OUTSTANDING MENU. Deliberately not reload-kept state: a successor that
-    /// inherited it would accept its predecessor's menu as its own (`pane_menu::Asked`).
-    pane_menu::Asked asked_menu_;
-    /// WHAT THE ROWS OF THAT MENU PROMISED, row by row (`offer_menu`). Replaced whole every
-    /// time a menu is offered, and read once when its answer lands.
+    /// WHAT THE ROWS OF THE MENU OFFERED LAST PROMISED, row by row (`offer_menu`). Replaced whole
+    /// every time a menu is offered, and read once when its answer lands.
     std::vector<Offered> offered_;
     /// THE NUMBER OF THE MENU CHOICE BEING SPENT, for the length of one `chose` and no longer.
     std::uint64_t choice_ = 0;

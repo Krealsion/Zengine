@@ -85,7 +85,7 @@ the keys" "a command being composed keeps Up and Down for its completion list an
 untouched" "history is the participant's commands only and eviction bounds it"
 
 ### WL-TERM-13
-`terminal/pane.cpp` on(PaneActionRequested) on(TerminalCompletionOffered)
+`terminal/pane.cpp` on_action on(TerminalCompletionOffered)
 `terminal/history_and_completion.hpp` settle_recall moved offer_applies ask_completion
 `tests/test_workshop_panes_terminal.cpp` "on an empty line Up Up Enter leaves the older command
 ready to edit and runs nothing until the next Enter runs it" "Tab on a recalled line locks it in

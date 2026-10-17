@@ -66,19 +66,19 @@ inline auto of_kind(FlowAsk::Kind kind) {
 using Room = ws::PaneFacet<pane::kPane, pane::kRole, zengine::manual::pages::zengine_flow::kManual,
                            ws::v3::PaneOffered>;
 using Asks = ws::AskFacet<pane::kPane, pane::kRole, FlowAsk>;
+using Actions = ws::PaneActionFacet<pane::kPane, pane::kRole>;
+using Menu = ws::PaneMenuFacet<pane::kPane, pane::kRole>;
 
 class FlowPane final
-    : public zengine::With<Room, Asks>::Weave<
+    : public zengine::With<Room, Asks, Actions, Menu>::Weave<
           FlowPane, pane::FlowPaneState,
-          loom::Accept<ws::PaneCanvasPointer, ws::PaneKey, ws::PaneTextInput,
-                       ws::PaneActionRequested, ws::ActionsJudged, ws::PaneQuitRequested,
-                       pane::FlowEdit, fh::FlowAnswer, fh::FlowCatalogAnswer, fh::FlowChanged,
-                       ws::PowersFound, ws::PaneCanvasValueDrop, ws::PaneMenuAnswered,
-                       ws::PaneCarryAnswered>,
-          loom::Emit<ws::PaneContent, ws::v4::PaneCanvasContent, ws::v3::PaneActions,
-                     ws::PaneEscapeUnspent, ws::PanePassRequested, ws::PaneQuitAnswered,
-                     pane::FlowEdited, fh::FlowRun, fh::FlowApply, fh::FlowSend, fh::FlowInspect,
-                     fh::FlowStop, fh::FlowCatalog, ws::PaneMenuRequested,
+          loom::Accept<ws::PaneCanvasPointer, ws::PaneKey, ws::PaneTextInput, ws::ActionsJudged,
+                       ws::PaneQuitRequested, pane::FlowEdit, fh::FlowAnswer,
+                       fh::FlowCatalogAnswer, fh::FlowChanged, ws::PowersFound,
+                       ws::PaneCanvasValueDrop, ws::PaneCarryAnswered>,
+          loom::Emit<ws::PaneContent, ws::v4::PaneCanvasContent, ws::PaneEscapeUnspent,
+                     ws::PanePassRequested, ws::PaneQuitAnswered, pane::FlowEdited, fh::FlowRun,
+                     fh::FlowApply, fh::FlowSend, fh::FlowInspect, fh::FlowStop, fh::FlowCatalog,
                      ws::PaneOperationRequested, ws::PaneValueCarryRequested>> {
 public:
   loom::Value snapshot() const override {
@@ -180,10 +180,7 @@ public:
       show(mail);
     }
   }
-  void on(const ws::PaneActionRequested &action, loom::Mail &mail) {
-    if (host(mail, action.pane))
-      perform(action.id, {}, mail);
-  }
+  void on_action(const std::string &id, loom::Mail &mail) { perform(id, {}, mail); }
   void on(const ws::PaneQuitRequested &, loom::Mail &mail) {
     if (!mail.authored_from_role(workshop_role))
       return;
@@ -340,9 +337,7 @@ public:
         // A RIGHT PRESS ON A DECLARED MESSAGE offers to carry its shape out; anywhere else it is
         // handed back, so Workshop's pane menu opens where it landed.
         if (const auto shape = pressed_message(event)) {
-          menu_ = ws::pane_menu::Offer(pane::kPane, shape->name())
-                      .row("carry", "Carry " + shape->name())
-                      .send(mail, pane::kRole);
+          menu().send(mail, menu().offer(shape->name()).row("carry", "Carry " + shape->name()));
           return;
         }
         (void)ws::pane_menu::pass_back(mail, pane::kRole, event.pane);
@@ -432,12 +427,12 @@ public:
   }
   /// THE MENU'S CHOICE: carry the declared message's shape out as a description, under the
   /// gesture the choice continues. The message must still be declared, or nothing is carried.
-  void on(const ws::PaneMenuAnswered &answer, loom::Mail &mail) {
-    if (menu_.take(mail, answer) != "carry")
+  void on_menu(const std::string &id, const std::string &subject, loom::Mail &mail) {
+    if (id != "carry")
       return;
-    const auto shape = declared(answer.subject);
+    const auto shape = declared(subject);
     if (!shape) {
-      model_.notice = answer.subject + " is no longer declared here; nothing was carried";
+      model_.notice = subject + " is no longer declared here; nothing was carried";
       show(mail);
       return;
     }
@@ -885,8 +880,7 @@ private:
       else if (row.id == "add-fold" || row.id == "dialog-confirm")
         row.causes = {found};
     }
-    (void)mail.as_role(pane::kRole)
-        .send_to_role(workshop_role, ws::v3::PaneActions{pane::kPane, {}, std::move(rows)});
+    this->template facet<Actions>().declare(mail, std::move(rows));
   }
   void perform(const std::string &action, const std::vector<std::string> &args,
                loom::Mail &mail) {
@@ -1327,6 +1321,8 @@ private:
   /// The canvas room this pane holds, or the last one granted (`PaneFacet`).
   const ws::PaneCanvasRoom &canvas_room() const { return room().canvas_room(); }
   Asks &asks() { return this->template facet<Asks>(); }
+  /// This image's one outstanding menu (`PaneMenuFacet`).
+  Menu &menu() { return this->template facet<Menu>(); }
   bool restored_ = false;
   std::int64_t picture_number_ = 0;
   /// The number of the last host request asked, which an Add names to wait on its answer.
@@ -1347,7 +1343,6 @@ private:
   /// The bytes of the last question asked of the discovery door.
   std::string asked_;
   std::optional<Adding> adding_;
-  ws::pane_menu::Asked menu_;
   /// Whether the rows last declared held the dialog's confirm; none before the offer's.
   std::optional<bool> declared_;
 };

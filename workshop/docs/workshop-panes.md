@@ -677,6 +677,21 @@ of the weave; a member the facet calls only when present is optional.
   room's, is `fenced(mail)`; the first button on a shown row is `press(RowPress, mail)`; the third
   button on a row that means something is `right_press(meaning, RowPress, mail)`, and one the
   weave does not take is passed back (`PanePassRequested`), so Workshop's own pane menu opens.
+  `spend_notice(notice, act, say)` spends a weaver's act: it clears the notice, runs the act, and
+  says the rows once without the notice when one stood and the act published no picture of its
+  own.
+- **`PaneActionFacet<Pane, Office>`: the actions a pane declares.** `declare(mail, rows, mode,
+  elsewhere)` sends `v3::PaneActions` as `Office`, replacing the rows last declared. A
+  `PaneActionRequested` counts only as Workshop's own word about `Pane`, and only for an id the
+  weave's `answers(id)` admits where the weave has one, so an id the pane does not answer to in the
+  mode it is in spends nothing; it is then the weave's `on_action(id, mail)`. `answers` must be
+  public, as every member a facet calls is.
+- **`PaneMenuFacet<Pane, Office>`: the pane's own menu.** It holds the one menu the image asked
+  the presenter for and has not heard answered (`pane_menu::Asked`, never reload-kept state).
+  `offer(subject)` begins a menu; `send(mail, menu)` sends it as `Office`, and
+  `send_continuing(mail, menu, correlation)` continues the gesture it answers, each replacing the
+  ask held. A `PaneMenuAnswered` settles only that ask, from the presenter's office, about the pane
+  and subject it asked about, once; its chosen row is the weave's `on_menu(id, subject, mail)`.
 - **`AskFacet<Pane, Office, Act, Approvals, Capacity>`: the asks a pane still waits on.** One
   bounded table (`loom::AskBook`) numbered from the pane's one correlation sequence, each entry the
   pane's own record of the act, `Act`, captured when it was asked. `approve` asks Workshop whether

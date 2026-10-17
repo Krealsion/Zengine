@@ -123,7 +123,7 @@ inline void BuilderPaneWeave::offer_menu(std::int64_t row, std::int64_t column,
                                : "read what build #" + std::to_string(shown_.op) + " said",
                 shown_.op == 0 ? std::string() : "#" + std::to_string(shown_.op));
     }
-    asked_menu_ = offer.continuing(mail, pane::kBuilderPaneRole, correlation);
+    menu().send_continuing(mail, offer, correlation);
 }
 
 /// WHAT THIS ROW ADVERTISED WHEN IT WAS OFFERED, or an empty `Offered` -- read once, when

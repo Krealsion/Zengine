@@ -18,12 +18,14 @@ namespace ws = zengine::workshop;
 /// beneath it `status`. A right press is handed back, so Workshop's own pane menu opens there.
 using ControlRows = ws::PaneRowsFacet<kControlsPane, kRole, manual::pages::zengine_demo::kManual,
                                       std::string>;
+using Actions = ws::PaneActionFacet<kControlsPane, kRole>;
 class Control final
-    : public zengine::With<ControlRows, manual::ManualFacet<manual::pages::zengine_demo::kManual>>::
+    : public zengine::With<ControlRows, Actions,
+                           manual::ManualFacet<manual::pages::zengine_demo::kManual>>::
     Weave<Control, DemoStatus,
-    loom::Accept<ws::PaneActionRequested, DemoServiceOpened, DemoServiceClosed, DemoWorkRequested,
-                 DemoWorkFinished, DemoResetRequested, DemoStatusRequested, DemoReadyRequested>,
-    loom::Emit<ws::v3::PaneActions, DemoWork, DemoStatus, loom::Ack, loom::Refused>> {
+    loom::Accept<DemoServiceOpened, DemoServiceClosed, DemoWorkRequested, DemoWorkFinished,
+                 DemoResetRequested, DemoStatusRequested, DemoReadyRequested>,
+    loom::Emit<DemoWork, DemoStatus, loom::Ack, loom::Refused>> {
 public:
     void on_activated(loom::Mail& m) {
         unserved();
@@ -35,9 +37,9 @@ public:
     /// ...and the reset its row performs, with no key: the row's part is `control:reset`. Its
     /// press answers the attached service's wait with the work.
     void offered(loom::Mail& m) {
-        m.as_role(kRole).send_to_role("zengine.workshop",
-            ws::v3::PaneActions{kControlsPane, {}, {{"reset", "reset the demo", input::scan::kUnknown,
-                                                     input::mod::kNone, {}, {ws::cause_of<DemoWork>()}}}});
+        this->template facet<Actions>().declare(
+            m, {{"reset", "reset the demo", input::scan::kUnknown, input::mod::kNone, {},
+                 {ws::cause_of<DemoWork>()}}});
     }
     /// THE PANE DRAWS ITS ROWS ON ITS CANVAS while it holds a room there, and says them as prose
     /// only to a host that grants none. A refused picture leaves the last good one showing; a
@@ -53,8 +55,8 @@ public:
         unserved();
     }
     /// ITS ONE ACTION, `reset`: what a primary press on the reset row does.
-    void on(const ws::PaneActionRequested& a, loom::Mail& m) {
-        if (m.authored_from_role("zengine.workshop") && a.pane == kControlsPane && a.id == "reset") reset(m, false);
+    void on_action(const std::string& id, loom::Mail& m) {
+        if (id == "reset") reset(m, false);
     }
     void on(const DemoStatusRequested&, loom::Mail& m) { (void)m.answer(state_); }
     void on(const DemoReadyRequested& r, loom::Mail& m) {
