@@ -129,7 +129,7 @@ refuses a second switch, and cancels cleanly" "a newer request replaces a switch
 and the replaced switch's confirmation is answered superseded"
 
 ### WL-SWITCH-04
-`editor/editor-pane/pane.cpp` on(EditorHandoffJudgeRequested) on(EditorHandoffRequested)
+`editor/editor-pane/opening_switch.hpp` on(EditorHandoffJudgeRequested) on(EditorHandoffRequested)
 on(EditorHandoffEnded) on(EditorRetireRequested) held_still handoff_refusal transfer_now
 `workshop/editor_switch.hpp` end_handoff on(EditorRetired)
 `tests/test_workshop_editor_switch.cpp` "a keystroke that reaches the incumbent after its boundary
@@ -138,7 +138,8 @@ the incumbent editing, resumed and told" "a switch waiting on a silent candidate
 published, refuses a second switch, and cancels cleanly"
 
 ### WL-SWITCH-05
-`editor/editor-pane/pane.cpp` on(EditorAdoptRequested) on(EditorLiveRequested) after_delivery
+`editor/editor-pane/pane.cpp` after_delivery
+`editor/editor-pane/opening_switch.hpp` on(EditorAdoptRequested) on(EditorLiveRequested)
 `workshop/editor_switch.hpp` on(EditorAdopted) on(EditorLive) release_retired release_retained
 `tests/test_workshop_editor_switch.cpp` "a switch between two authored Editors carries the document,
 its unsaved edits and its caret, and moves the office" "a keystroke queued behind the commitment
