@@ -210,7 +210,8 @@ external catalog is chosen live, and the project still owns relative sources"
 ### WL-FILES-04
 `files/os.cpp` leaves_the_tree GetFileAttributesW symlink_status
 `files/files.hpp` FileRow::linked
-`files/files.cpp` row_text open
+`files/files.cpp` open
+`files/browser_view.hpp` row_text
 `tests/test_workshop_panes_files.cpp` "a linked directory is marked, entered through its own
 spelling, and left the way it came"
 UNWITNESSED — a dangling junction on libstdc++/Windows lists as a linked directory row, and what
@@ -252,7 +253,8 @@ host's filesystem roots are asked for, never invented"
 ### WL-FILES-10
 `files/files.hpp` carried_name narrow_paths_are_utf8 FileRow::openable shown_name
 `workshop/path_admission.hpp` admit_filename
-`files/files.cpp` row_text open
+`files/files.cpp` open
+`files/browser_view.hpp` row_text
 `tests/test_files.cpp` "a name beyond ASCII is carried exactly and opens, drawn as the screen spells
 it"
 
@@ -282,7 +284,7 @@ directory that cannot be listed is a refusal, not an empty listing"
 
 ### WL-FILES-15
 `files/vocabulary.hpp` kActionPickBuildable
-`files/files.cpp` pick_buildable chooser_choose authoring_commit
+`files/recipe_authoring.hpp` pick_buildable chooser_choose authoring_commit
 `workshop/pane_seam_vocabulary.hpp` RecipeAuthorRequested
 `tests/test_workshop_panes_files.cpp` "a weaver authors a recipe row in-pane, and the host writes
 it"

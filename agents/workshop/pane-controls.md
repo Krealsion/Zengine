@@ -89,7 +89,7 @@ WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
 
 ### WL-HAND-01
 `component/control_strip.hpp` Control PlacedControl ControlStrip control_face pack_controls
-`files/files.cpp` browser_controls say_controls strip_budget
+`files/browser_view.hpp` browser_controls say_controls strip_budget
 `builder/builder-pane/pane.cpp` builder_controls say_controls strip_budget
 `tests/test_workshop_panes_files.cpp` "every control the browser draws is a target, and pressing it
 performs that operation" "in a room too short for every control the strip says how many are in the
@@ -97,7 +97,7 @@ menu, and the menu keeps them"
 
 ### WL-HAND-02
 `component/list_window.hpp` ListWindow::markers cursor_window
-`files/files.cpp` body_budget say_entries strip_budget
+`files/browser_view.hpp` body_budget say_entries strip_budget
 `builder/builder-pane/pane.cpp` publish output_body_rows strip_budget
 `tests/test_workshop_panes_files.cpp` "in a room too short for every control the strip says how many
 are in the menu, and the menu keeps them"
@@ -109,7 +109,8 @@ and closed by hand"
 `workshop/pane_vocabulary.hpp` v3::PaneContent v3::PanePressed
 `workshop/pane_canvas_rows.hpp` CanvasPictures
 `workshop/pane_facets.hpp` PaneRowsFacet
-`files/files.cpp` kMovedSentence fenced say_entries
+`files/files.cpp` kMovedSentence fenced
+`files/browser_view.hpp` say_entries
 `builder/builder-pane/pane.cpp` kMovedSentence fenced
 `tests/test_workshop_panes_canvas.cpp` "a pane's canvas pictures fence a press by the meaning each
 was drawn under"
@@ -136,8 +137,8 @@ a shared artifact stem" "a held promote or revert menu row cannot switch images 
 stem"
 
 ### WL-HAND-05
-`files/files.cpp` chooser_controls authoring_controls edit_field write_recipe next_field offer_field
-say_authoring
+`files/recipe_authoring.hpp` chooser_controls authoring_controls edit_field write_recipe next_field
+offer_field say_authoring
 `builder/builder-pane/pane.cpp` list_controls role_controls output_controls offer_menu
 `files/vocabulary.hpp` kActionWriteRecipe kActionNextField kActionMenu menu_edit_field
 `builder/builder-pane/vocabulary.hpp` kActionRecipes kActionRecipesClose kActionMenu
