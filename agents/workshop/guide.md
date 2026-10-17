@@ -107,7 +107,7 @@ its role and doors beneath its connection"
 ### WL-GUIDE-02
 `workshop/guests.cpp` grant_for observation_of
 `workshop/weave_guest_read.cpp` reads_by_pane read_withheld withheld_stamp withhold_desk
-`workshop/weave_inspection.cpp` answer_page
+`workshop/weave_desk_read.cpp` answer_page
 `workshop/weave_desktop.cpp` on(KeymapRequested)
 `tests/test_workshop_guests.cpp` "grant: a row that reads by pane is granted the newest reads, the keymap,
 the inventory and its doors' manuals as Loom door rules, and never the older reads or the Skin's picture"
