@@ -18,6 +18,7 @@
 #include "editor/neovim/host.hpp"
 #include "editor/neovim/launch.hpp"
 #include "editor/neovim/lua.hpp"
+#include "editor/office_seam.hpp"
 #include "workshop/editor_handoff_vocabulary.hpp"
 #include "workshop/editor_switch_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
@@ -41,90 +42,26 @@ namespace {
 // ---- THE TWO OPEN DOORS (WL-OPEN) -----------------------------------------------------------
 
 /// THE OLD DOOR, RELAYED to the opening manager with the requester's right kept -- the standard
-/// Editor's promise, kept the same way.
+/// Editor's promise, kept the same way (`office::relay_open_source`).
 inline void NeovimEditorWeave::on(const OpenSourceRequested& asked, loom::Mail& mail) {
-    if (mail.authored_role().empty()) {
-        return;
-    }
-    if (mail.authored_from_role(ws::kOpeningRole)) {
-        (void)mail.answer(SourceOpened{false, "the opening office asks the Editor to prepare a source, not "
-                                              "to open one -- nothing was relayed for " +
-                                                  asked.path});
-        return;
-    }
-    if (holding_.active) {
-        ++holding_.refused;
-        (void)mail.answer(SourceOpened{false, "the Editor is being switched -- " + asked.path +
-                                                  " was not opened; open it again once the switch has settled"});
-        return;
-    }
-    if (relays_.size() >= kMaxRelays) {
-        (void)mail.answer(SourceOpened{false, "too many opens are already being relayed through the Editor -- " +
-                                                  asked.path + " was not opened; try again"});
-        return;
-    }
-    const std::uint64_t correlation = ++asked_;
-    const loom::Ticket attempt = mail.as_role(nve::kEditorOffice)
-                                     .send_to_role(ws::kOpeningRole, OpenSourceRequested{asked.path}, correlation);
-    if (!attempt.valid()) {
-        (void)mail.answer(SourceOpened{false, "nothing was queued: the Editor could not ask the opening office to show " +
-                                                  asked.path});
-        return;
-    }
-    Relay relay;
-    relay.path = asked.path;
-    relay.correlation = correlation;
-    relay.attempt = attempt;
-    relay.answer = mail.defer_answer();
-    relays_.push_back(std::move(relay));
+    office::relay_open_source(asked, mail, nve::kEditorOffice, holding_, relays_, asked_);
 }
 
+/// The manager's answer: to a dropped location's own open, settled here; otherwise to a relay,
+/// spent into its requester's kept right (`office::settle_relay`).
 inline void NeovimEditorWeave::on(const SourceOpened& said, loom::Mail& mail) {
-    if (!mail.answers_ask()) {
-        return;
-    }
-    if (locate_.stage == Locate::Stage::Opening && mail.correlation() == locate_.ask) {
+    if (mail.answers_ask() && locate_.stage == Locate::Stage::Opening && mail.correlation() == locate_.ask) {
         settle_location(said);
         resay_ = true;
         return;
     }
-    for (auto it = relays_.begin(); it != relays_.end(); ++it) {
-        if (it->correlation == mail.correlation()) {
-            (void)loom::answer_deferred(it->answer, mail, SourceOpened{said.accepted, said.refusal});
-            relays_.erase(it);
-            return;
-        }
-    }
+    office::settle_relay(said, mail, relays_);
 }
 
+/// The bus's word that an ask never arrived, matched by exact attempt: a relay's requester is told
+/// in words, and a pickup's or a dropped location's failure is said (`office::settle_dispatch_refused`).
 inline void NeovimEditorWeave::on(const loom::DispatchRefused& refused, loom::Mail& mail) {
-    if (!mail.dispatch_refused()) {
-        return;
-    }
-    const loom::Ticket attempt = refused.refused_attempt();
-    if (!attempt.valid()) {
-        return;
-    }
-    for (auto it = relays_.begin(); it != relays_.end(); ++it) {
-        if (it->attempt.seq == attempt.seq) {
-            (void)loom::answer_deferred(
-                it->answer, mail,
-                SourceOpened{false, std::string(ws::kOpeningRole) + " could not be reached (" + refused.reason +
-                                        ") -- " + it->path + " was not opened"});
-            relays_.erase(it);
-            return;
-        }
-    }
-    if (pickup_.stage != Pickup::Stage::Idle && pickup_.ticket.valid() && attempt.seq == pickup_.ticket.seq) {
-        pickup_ = Pickup{};
-        notice("nothing was carried -- Workshop could not be asked (" + refused.reason + ")", true);
-        resay_ = true;
-        return;
-    }
-    if (locate_.stage != Locate::Stage::Idle && locate_.ticket.valid() && attempt.seq == locate_.ticket.seq) {
-        const std::string path = locate_.loc.path;
-        locate_ = Locate{};
-        notice("nothing was opened -- " + path + " could not be asked for (" + refused.reason + ")", true);
+    if (office::settle_dispatch_refused(refused, mail, relays_, pickup_, locate_, noticing())) {
         resay_ = true;
     }
 }
