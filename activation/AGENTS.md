@@ -7,7 +7,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 
 | | |
 |---|---|
-| `activation.hpp` | the whole library, header-only: `zengine::ActivationCursor` |
+| `activation.hpp` | the whole library, header-only: `zengine::ActivationCursor`, `zengine::With` and the value door (`zengine::ValueDoor`, `ZENGINE_VALUE_DOOR`) |
 | `CMakeLists.txt` | `zengine-activation`, INTERFACE, alias `zengine::activation`; not a weave |
 | `docs/activation.md` | the reference |
 

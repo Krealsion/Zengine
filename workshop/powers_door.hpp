@@ -13,6 +13,7 @@
 
 #include "powers_vocabulary.hpp"
 
+#include "activation/activation.hpp"
 #include "manual/vocabulary.hpp"
 #include "manuals/zengine.powers.hpp" // this office's manual, compiled in from its page
 #include "operator/catalog.hpp"
@@ -23,10 +24,7 @@
 #include "operator/source.hpp"    // `is_source`, the one spelling of "no weaver inputs"
 
 #include <zen/serialize.hpp>
-#include <zen/switchboard/bus.hpp>
 #include <zen/switchboard/grant.hpp>
-#include <zen/switchboard/message.hpp>
-#include <zen/switchboard/weave_contract.hpp>
 #include <zen/terminal/composer.hpp> // `describe_schema`: Loom's one spelling of a type
 #include <zen/terminal/vocabulary.hpp>
 #include <zen/value.hpp>
@@ -363,80 +361,70 @@ inline PowerDescribed describe_power(const op::Catalog& catalog, const std::stri
 
 // ---- The door -------------------------------------------------------------------
 
+/// `FindPowers` at the schema `Schema()` builds, as a door a weave accepts: the ask, read out of
+/// the value the gate admitted. A value door, because every field of the schema is optional.
+template <std::shared_ptr<const loom::Schema> (*Schema)()>
+struct FindPowersAt : FindPowers {
+    static std::shared_ptr<const loom::Schema> schema() { return Schema(); }
+    static FindPowersAt from_value(const loom::Value& v) { return FindPowersAt{find_powers_from(v)}; }
+};
+
+/// `FindPowers v2`, the version this build asks with, and `v1`, which the door still answers.
+using FindPowersAsked = FindPowersAt<&find_powers_schema>;
+using FindPowersV1Asked = FindPowersAt<&find_powers_v1_schema>;
+
 /// What this door has done: counters only. No answer is kept between asks.
 struct PowersDoorState {
     std::int64_t found = 0;      ///< `FindPowers` asks answered, a refusal being an answer
     std::int64_t described = 0;  ///< `DescribePower` asks answered
-    std::int64_t unanswered = 0; ///< asks with no sender, so nobody to answer
+    std::int64_t unanswered = 0; ///< finds and describes with no sender, so nobody to answer
     ZEN_SHAPE(PowersDoorState, 1, ZEN_FIELD(found), ZEN_FIELD(described), ZEN_FIELD(unanswered));
 };
 
-/// The host's discovery participant. A `loom::Weave` rather than a `WeaveBase`, because one of its
-/// doors is the hand-built `find_powers_schema()`, which `WeaveBase`'s accept list, made of
-/// `ZEN_SHAPE` types, cannot hold. It holds the
-/// catalog as `const` and owns nothing: a copy would be a mirror, a non-const reference a
-/// controller. Any participant may ask, an office or one speaking for itself as the Terminal does,
-/// and the answer goes to it alone; only a send with no sender is left unanswered, and counted.
-class PowersDoor final : public loom::Weave {
+} // namespace zengine::workshop
+
+ZENGINE_VALUE_DOOR(::zengine::workshop::FindPowersAsked)
+ZENGINE_VALUE_DOOR(::zengine::workshop::FindPowersV1Asked)
+
+namespace zengine::workshop {
+
+/// The host's discovery participant. It holds the catalog as `const` and owns nothing: a copy
+/// would be a mirror, a non-const reference a controller. Any participant may ask, an office or
+/// one speaking for itself as the Terminal does, and the answer goes to it alone; only a find or a
+/// describe with no sender is left unanswered, and counted.
+class PowersDoor final
+    : public zengine::With<manual::ManualFacet<manual::pages::zengine_powers::kManual>>::Weave<
+          PowersDoor, PowersDoorState,
+          loom::Accept<FindPowersAsked, FindPowersV1Asked, DescribePower>,
+          loom::Emit<PowersFound, PowerDescribed>> {
 public:
     explicit PowersDoor(const op::Catalog& catalog) : catalog_(&catalog) {}
 
-    void zen_set_self(loom::WeaveId id) noexcept { self_ = id; }
+    // Answered, not sent: the recipient and correlation are Loom's, and the answer is derived
+    // now, from the catalog as it stands at this ask.
+    void on(const FindPowersAsked& asked, loom::Mail& mail) { found(asked, mail); }
+    void on(const FindPowersV1Asked& asked, loom::Mail& mail) { found(asked, mail); }
 
-    std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
-        return {find_powers_schema(), find_powers_v1_schema(), loom::schema_of<DescribePower>(),
-                loom::schema_of<manual::ShapeDocumentRequested>()};
-    }
-    std::vector<std::shared_ptr<const loom::Schema>> emitted_schemas() const override {
-        return {loom::schema_of<PowersFound>(), loom::schema_of<PowerDescribed>(),
-                loom::schema_of<manual::ShapeDocumentShown>()};
-    }
-
-    void handle(const loom::Message& in, loom::Bus& bus) override {
-        if (!in.sender.valid()) {
+    void on(const DescribePower& asked, loom::Mail& mail) {
+        if (!mail.sender().valid()) {
             ++state_.unanswered;
             return; // a root's send: there is nobody for an answer to go to
         }
-        // Answered, not sent: the recipient and correlation are Loom's, and the answer is
-        // derived now, from the catalog as it stands at this ask.
-        if (loom::same_identity(in.payload.schema(), *find_powers_schema()) ||
-            loom::same_identity(in.payload.schema(), *find_powers_v1_schema())) {
-            ++state_.found;
-            (void)bus.answer(loom::Message(
-                loom::to_value(find_powers(*catalog_, find_powers_from(in.payload))), self_));
-            return;
-        }
-        // What a shape this door accepts does: its page's section, said to the asker alone.
-        if (loom::same_identity(in.payload.schema(),
-                                *loom::schema_of<manual::ShapeDocumentRequested>())) {
-            (void)bus.answer(loom::Message(
-                loom::to_value(manual::shape_document(
-                    loom::from_value<manual::ShapeDocumentRequested>(in.payload),
-                    accepted_schemas(), manual::pages::zengine_powers::kManual)),
-                self_));
-            return;
-        }
         ++state_.described;
-        (void)bus.answer(loom::Message(
-            loom::to_value(describe_power(
-                *catalog_, loom::from_value<DescribePower>(in.payload).identity)),
-            self_));
+        (void)mail.answer(describe_power(*catalog_, asked.identity));
     }
-
-    loom::Value snapshot() const override { return loom::to_value(state_); }
-    loom::Value policy() const override {
-        const loom::LifecyclePolicy p{};
-        loom::Value v(loom::lifecycle_policy_schema());
-        v.set("max_reloads", loom::Cell::integer(p.max_reloads));
-        v.set("revive_from_last_good", loom::Cell::boolean(p.revive_from_last_good));
-        return v;
-    }
-    void revive(const loom::Value& v) override { state_ = loom::from_value<PowersDoorState>(v); }
 
 private:
+    void found(const FindPowers& asked, loom::Mail& mail) {
+        if (!mail.sender().valid()) {
+            ++state_.unanswered;
+            return;
+        }
+        ++state_.found;
+        (void)mail.answer(find_powers(*catalog_, asked));
+    }
+
     const op::Catalog* catalog_;
-    loom::WeaveId self_{};
-    PowersDoorState state_;
 };
 
 /// What a terminal participant may ask the door and hear back: the two asks, known and granted to

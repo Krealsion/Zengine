@@ -525,6 +525,44 @@ TEST_CASE("WL-HAND-06: the Composer names a message by its identity, a field by 
     }
 }
 
+TEST_CASE("a row means the same only under the same target and the same form") {
+    // A press is read back against what its row meant, so a meaning names the target and the
+    // form it was drawn under: where two targets, or two forms, draw the very same rows, no row
+    // of one means a row of the other.
+    const auto meanings = [](const cmp::Composing& c) {
+        std::vector<cmp::RowMeaning> out;
+        for (const cmp::RenderedRow& row : cmp::project(c, 20, 60).rows) {
+            if (row.meaning.what != cmp::meaning::kNothing) out.push_back(row.meaning);
+        }
+        return out;
+    };
+    const std::vector<cmp::RowMeaning> first =
+        meanings(composing_form(three_scalars(), "zengine.first"));
+    const std::vector<cmp::RowMeaning> again =
+        meanings(composing_form(three_scalars(), "zengine.first"));
+    const std::vector<cmp::RowMeaning> other_target =
+        meanings(composing_form(three_scalars(), "zengine.second"));
+    const std::vector<cmp::RowMeaning> other_form =
+        meanings(composing_form(loom::SchemaBuilder("Elsewhere", 1)
+                                    .field("id", loom::Kind::Text)
+                                    .field("delay_ms", loom::Kind::Int)
+                                    .field("repeat", loom::Kind::Bool)
+                                    .build(),
+                                "zengine.first"));
+    REQUIRE(first.size() == 5); // three fields, Submit and Back
+    CHECK(first == again);
+    for (const std::vector<cmp::RowMeaning>* other : {&other_target, &other_form}) {
+        REQUIRE(other->size() == first.size());
+        for (std::size_t i = 0; i < first.size(); ++i) {
+            CAPTURE(i);
+            CHECK((*other)[i].what == first[i].what);
+            CHECK((*other)[i].which == first[i].which);
+            CHECK((*other)[i].part == first[i].part);
+            CHECK_FALSE((*other)[i] == first[i]);
+        }
+    }
+}
+
 TEST_CASE("a field row says PRESENCE and VALUE separately") {
     // The brackets are what say PRESENT. An empty pair is a Text field a weaver
     // deliberately set to the empty string, and it does not look like `(absent)`.

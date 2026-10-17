@@ -79,7 +79,40 @@ different sender is another lineage's traffic, not this one's.
 - **Anything across a process boundary.** An out-of-process weave receives no attestation, so a
   cursor there accepts no activation.
 
+## A door whose schema is built by hand
+
+The same header composes facets onto a weave (`zengine::With`), and a weave lists the shapes it
+accepts in `loom::Accept<...>`, where Loom reads each one's schema from its `ZEN_SHAPE`. A schema
+built by hand with `loom::SchemaBuilder` -- one whose fields are all optional, or one the Loom
+owns, such as `zen.AcceptedShapes` -- has no `ZEN_SHAPE` to read. A type satisfying
+`zengine::ValueDoor` stands in its place: it names the schema (`static schema()`) and reads itself
+out of a value the gate admitted against it (`static from_value(value)`).
+`zengine::RawValueDoor<schema_fn>` is the door that keeps the admitted value as it came. A door is
+registered once, at global scope, by its fully qualified name, and the weave hears it as any shape:
+
+```cpp
+ZENGINE_VALUE_DOOR(::zengine::RawValueDoor<&::loom::accepted_shapes_schema>)
+
+using Described = zengine::RawValueDoor<&loom::accepted_shapes_schema>;
+class MyWeave : public zengine::With<...>::Weave<MyWeave, MyState, loom::Accept<Described>> {
+public:
+    void on(const Described& answer, loom::Mail& mail); // answer.value, as the gate admitted it
+};
+```
+
+- **Why a registration.** The accept list and the dispatch both ask `loom::schema_of<T>()`, which
+  asks `loom::build_schema<T>()` with no argument, so no overload declared after Loom's header can
+  be found for it; `ZENGINE_VALUE_DOOR` is an explicit specialization of that template, which is.
+  The reading needs none: `activation.hpp` adds a `loom::from_value` for value doors, which the
+  dispatch finds through the value's own namespace.
+- **Where.** Beside the door's type, before any weave that accepts it, so every source that names
+  the door sees its registration first. The Compose pane (`composer/composer.cpp`) and the host's
+  discovery door (`workshop/powers_door.hpp`) are the shipped ones.
+
 ## Tests
 
 Zengine suite `timer` exercises the cursor through the Timer and its binding: an unattested
-activation, a replay, a newer sequence and a second operator's lineage.
+activation, a replay, a newer sequence and a second operator's lineage. A value door is exercised
+where it is accepted: Compose's discovery in `workshop_panes` (`tests/test_workshop_panes_input.cpp`)
+and the discovery door in `workshop_panes` (`tests/test_workshop_panes_powers.cpp`) and
+`workshop_load`; the installed-package witness compiles one from `tests/package/public_surface.cpp`.

@@ -64,6 +64,13 @@ inline constexpr std::int64_t kBack = 3;     ///< the control that returns to th
 struct RowMeaning {
     std::int64_t what = meaning::kNothing;
     std::int64_t which = 0;
+    /// What the pane calls the row (`part_name`), and what it was drawn under: the target, the
+    /// stage and the form. Two rows mean the same only under the same target and form, so a press
+    /// on a picture drawn for another names nothing in this one. Empty for a row naming nothing.
+    std::string part{};
+    std::string under{};
+
+    bool operator==(const RowMeaning&) const = default;
 };
 
 struct RenderedRow {
@@ -71,10 +78,10 @@ struct RenderedRow {
     RowMeaning meaning;
 };
 
-/// THE PANE, AS ROWS THAT KNOW WHAT THEY ARE. Bounded by the granted room, replaced
-/// whole on every projection, and retained by the provider for exactly one reason:
-/// to answer which item a press named. The caret is where the edited value's is, on its row,
-/// and none while no value is edited or its row was cut; the medium draws it.
+/// THE PANE, AS ROWS THAT KNOW WHAT THEY ARE. Bounded by the granted room and replaced
+/// whole on every projection; the meanings published with it are what a press is read
+/// back against. The caret is where the edited value's is, on its row, and none while no
+/// value is edited or its row was cut; the medium draws it.
 struct ComposerView {
     std::vector<RenderedRow> rows;
     std::int64_t caret_row = surface::kNoCaret;
@@ -329,16 +336,32 @@ inline std::string library_row_text(const Composing& c, std::int64_t columns) {
     return fit("from " + c.library, columns);
 }
 
+/// WHAT A ROW IS DRAWN UNDER: the target, the stage, and the form while one is open.
+inline std::string drawn_under(const Composing& c) {
+    std::string out = c.role + '\n' + std::to_string(c.stage);
+    if (c.draft.valid()) {
+        out += '\n' + c.draft.schema->name() + " v" + std::to_string(c.draft.schema->version());
+    }
+    return out;
+}
+
 namespace detail {
 
-/// One row and its meaning, appended together. The closure exists so that a row with
-/// no meaning is not a thing this file can produce by forgetting a line.
+/// One row and its meaning, appended together, a meaning named and stamped with what it was drawn
+/// under. The closure exists so that a row with no meaning is not a thing this file can produce
+/// by forgetting a line.
 struct Sayer {
+    const Composing& composing;
     ComposerView& view;
-    void operator()(std::string text, std::int64_t role, RowMeaning meaning = RowMeaning{},
+    std::string under;
+    void operator()(std::string text, std::int64_t role, RowMeaning means = RowMeaning{},
                     std::int64_t ground = surface::role::kNone) const {
+        if (means.what != meaning::kNothing) {
+            means.part = part_name(composing, means);
+            means.under = under;
+        }
         view.rows.push_back(RenderedRow{
-            surface::SurfaceTextRow{std::move(text), role, ground}, meaning});
+            surface::SurfaceTextRow{std::move(text), role, ground}, std::move(means)});
     }
 };
 
@@ -352,7 +375,7 @@ struct Sayer {
 /// (Workshop refuses an over-budget update whole); zero rows or columns is an empty projection.
 inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t columns) {
     ComposerView view;
-    const detail::Sayer say{view};
+    const detail::Sayer say{c, view, drawn_under(c)};
     if (rows <= 0 || columns <= 0) {
         return view;
     }
