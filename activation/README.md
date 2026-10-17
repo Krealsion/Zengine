@@ -13,13 +13,13 @@ it ([the Timer binding](../timer/docs/timer-binding.md)).
 ## Pages
 
 - [The activation cursor — reference](docs/activation.md): what `accept` checks, in what order and
-  why, and how to carry an activation on a wire.
+  why, how to carry an activation on a wire, and how a weave accepts a schema built by hand.
 
 ## What is in this folder
 
 | | |
 |---|---|
-| `activation.hpp` | the cursor, `zengine::ActivationCursor` |
+| `activation.hpp` | the cursor, `zengine::ActivationCursor`; `zengine::With`; a door whose schema is built by hand |
 | `CMakeLists.txt` | its build target, `zengine::activation` |
 | `docs/` | these pages |
 

@@ -827,18 +827,21 @@ The public weaver route is [Inventory to Compose](../inventory/docs/inventory-co
 - LoadedSelected is accepted only from the introspection office. The target supplies its
   accepted roots and referenced closure through authenticated DescribeAccepted answers.
   The whole snapshot is replaced per selection; dependencies are not sendable roots.
-- This is a raw Loom Weave because AcceptedShapes is a runtime schema. It does not advertise
-  the construction layer's automatic Poke/Describe doors. Its state retains counters only;
-  live forms, clipboard asks and permission requests do not survive image replacement.
+- It is a `zengine::With` weave over `PaneRowsFacet` and `ManualFacet`, and hears AcceptedShapes,
+  a runtime schema, as a value door (`zengine::RawValueDoor`, `activation/activation.hpp`), so it
+  answers the construction layer's Poke/Describe doors as any woven weave does. Its state keeps
+  counters and what a reload in place carries, the target and the form; a clipboard ask does not
+  survive image replacement, and a submission or a store in flight is dropped and said so.
 - Scalar text uses the shared message-draft helper and Loom lexer/composer. Typed fields use
   that helper's transactional gate and deep copy. Presence is distinct from empty/false.
 - RenderedRow pairs prose and row meaning. The rows are the pane's own canvas picture
-  (`rows_picture`), numbered by what they mean (`meaning_of`): a press or a drop reads its place
-  back to a row of the picture it was aimed at and acts only while that picture's meaning stands,
-  so an incompatible or stale drop leaves the draft intact. Existing included fields require
-  explicit exclusion before replacement. Whole forms require an empty draft and one of the
-  selected target's accepted root schemas. To a host granting no canvas it says its rows and
-  caret as prose and takes no press or drop.
+  (`rows_picture`), numbered by what they mean (`RowMeaning`, which names the target and form a
+  row was drawn under): a press or a drop reads its place back to a row of the picture it was
+  aimed at and acts only while that picture's meaning stands, so an incompatible or stale drop
+  leaves the draft intact. Existing included fields require explicit exclusion before
+  replacement. Whole forms require an empty draft and one of the selected target's accepted
+  root schemas. To a host granting no canvas it says its rows and caret as prose and takes no
+  press or drop.
 - The edited value's caret is the medium's (`ComposerView::caret_row`): its row keeps a blank
   after the value for a caret at its end, so no character moves as the caret does.
 - The value and reference transfer doors remain distinct (`PaneCanvasValueDrop`,

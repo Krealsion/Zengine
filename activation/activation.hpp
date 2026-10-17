@@ -7,13 +7,20 @@
 // The activation cursor: whether a weave acts on an arriving `zen.Activated`. What an activation
 // means, and who may attest one, are the Loom's (its lifecycle laws); the cursor reads the Loom's
 // attestation and keeps one lineage. Not a lifecycle and not a scheduler: what a weave does with
-// an accepted activation is its own. Reference: activation/docs/activation.md.
+// an accepted activation is its own. Beside it, `zengine::With` composes facets onto a weave, and
+// a value door lets a hand-built schema stand in its accept list. Reference:
+// activation/docs/activation.md.
 
+#include <zen/schema.hpp>
 #include <zen/switchboard/message.hpp>
+#include <zen/value.hpp>
 #include <zen/weave.hpp>
 #include <zen/weave/lifecycle.hpp>
+#include <zen/weave/shape.hpp>
 
+#include <concepts>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <tuple>
 #include <type_traits>
@@ -428,6 +435,48 @@ struct With<Self, State, loom::Accept<A...>, FirstFacet, RestFacets...>
     using Base::on;
 };
 
+/// A DOOR WHOSE SCHEMA IS BUILT BY HAND, not derived from a `ZEN_SHAPE`: it names its schema and
+/// reads itself out of a value the gate admitted against it. Registered once with
+/// `ZENGINE_VALUE_DOOR`, it stands in `loom::Accept<...>` on `loom::WeaveBase` or `zengine::With`
+/// as a shape does, and the weave's `on(const T&, loom::Mail&)` hears it.
+template <class T>
+concept ValueDoor = (!loom::Shape<T>) && requires(const loom::Value& v) {
+    { T::schema() } -> std::same_as<std::shared_ptr<const loom::Schema>>;
+    { T::from_value(v) } -> std::same_as<T>;
+};
+
+/// The admitted value itself, at the schema `SchemaFn()` builds, for a weave that reads its fields
+/// as they came.
+template <auto SchemaFn>
+struct RawValueDoor {
+    loom::Value value;
+
+    static std::shared_ptr<const loom::Schema> schema() { return SchemaFn(); }
+    static RawValueDoor from_value(const loom::Value& v) { return RawValueDoor{v}; }
+};
+
 } // namespace zengine
+
+namespace loom {
+
+/// A value door's own reading, found where the Loom's dispatch reads an admitted value, by the
+/// value's namespace; a `ZEN_SHAPE` type is read by the Loom's own `from_value`.
+template <zengine::ValueDoor T>
+T from_value(const loom::Value& v) {
+    return T::from_value(v);
+}
+
+} // namespace loom
+
+/// REGISTERS A VALUE DOOR, written once at global scope with the door's fully qualified name
+/// (`::zengine::...`). `loom::schema_of<T>()`, which the accept list and the dispatch both read,
+/// asks `loom::build_schema<T>()` with no argument, so only a specialization of that template can
+/// answer for a door; it answers `T::schema()`.
+#define ZENGINE_VALUE_DOOR(DOOR)                                                                   \
+    template <>                                                                                    \
+    inline std::shared_ptr<const ::loom::Schema> loom::build_schema<DOOR>() {                      \
+        static_assert(::zengine::ValueDoor<DOOR>, "ZENGINE_VALUE_DOOR names a value door");        \
+        return DOOR::schema();                                                                     \
+    }
 
 #endif // ZENGINE_ACTIVATION_ACTIVATION_HPP
