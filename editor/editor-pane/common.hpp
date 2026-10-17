@@ -5,15 +5,16 @@
 #define ZENGINE_EDITOR_PANE_COMMON_HPP
 
 // What the Editor pane's weave and its two aspect headers share: the names they speak in, the
-// constants the rows are budgeted by, the records of a candidate, a view, a composition, a hold
-// and a transfer in flight, and the pure helpers over them. Private to `zengine-editor-pane`:
-// only `pane.cpp` includes it, and everything here stands in the unnamed namespace that file's
-// weave does, so each name keeps the internal linkage it has in that one translation unit.
+// constants the rows are budgeted by, the records of a candidate, a view, a composition and a
+// transfer in flight, and the pure helpers over them -- beside what both Editors keep alike
+// (`editor/office_seam.hpp`). Private to `zengine-editor-pane`: only `pane.cpp` includes it, and
+// what it defines stands in the unnamed namespace that file's weave does.
 // Workshop law: agents/workshop/editor.md
 
 #include "editor/editor-pane/vocabulary.hpp"
 
 #include "editor/editor-pane/editor.hpp"
+#include "editor/office_seam.hpp"
 #include "editor/source-transfer/material.hpp"
 #include "workshop/editor_handoff_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
@@ -30,9 +31,7 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <optional>
 #include <string>
-#include <utility>
 #include <vector>
 
 namespace {
@@ -81,13 +80,22 @@ using ws::Written;
 using zengine::workshop::pane_text::drawable;
 using zengine::workshop::pane_text::fit;
 
-/// The office Workshop holds, named as a string rather than through `workshop/panes.hpp`: a
-/// provider is a stranger to Workshop's internals.
-constexpr const char* kWorkshopRole = "zengine.workshop";
+namespace office = zengine::editor_office;
 
-/// One column of every document row the text may not use: the caret's own, so a caret at the
-/// end of a full row stays inside the room (WL-EDIT-08).
-constexpr std::int64_t kCaretCols = 1;
+// What both Editors keep and say alike (`editor/office_seam.hpp`), named as this weave's own.
+using office::file_name;
+using office::Holding;
+using office::kCaretCols;
+using office::kDropSubject;
+using office::kWorkshopRole;
+using office::not_prepared;
+using office::offer_refusal;
+using office::Pickup;
+using office::Relay;
+using office::rows_caret;
+using office::same_identity;
+using office::tail_of_path;
+using office::Take;
 
 /// The fewest rows in which a refusal gets a row of its own: status, refusal, and one document
 /// row. In a smaller room the refusal replaces the status row, so the document keeps its rows
@@ -169,18 +177,6 @@ struct Plan {
     ws::SourceIn admitted;
 };
 
-/// An open relayed through the old door: the requester's kept answer right, and this weave's
-/// own conversation with the manager (its correlation and exact attempt), so the answer or
-/// the bus's refusal finds its requester. Bounded, and not reload state: the rights die with
-/// the incarnation that kept them (ANS-02), and an answer to a predecessor's relay is refused.
-struct Relay {
-    std::string path;
-    std::uint64_t correlation = 0;
-    loom::Ticket attempt{};
-    loom::DeferredAnswer answer;
-};
-constexpr std::size_t kMaxRelays = 4;
-
 /// THE PASTE THIS DOCUMENT ASKED FOR, pinned to where it stood (`begin_paste`).
 struct Paste {
     bool awaiting = false;
@@ -189,19 +185,7 @@ struct Paste {
     std::uint64_t revision = 0; ///< ...and exactly where it stood
 };
 
-/// A SWITCH HOLDING THIS EDITOR STILL at its boundary: which operation, and how many inputs
-/// it refused meanwhile. Not in the state shape -- a reload is not a switch, and the hold
-/// belongs to the incarnation the coordinator is talking to.
-struct Holding {
-    bool active = false;
-    std::int64_t op = 0;
-    std::int64_t refused = 0;
-};
-
 // ---- What a transfer holds, between the gestures and the answers (WL-EDIT-17..21) -------
-
-/// WHAT A HAND IS TAKING: the selection's text, or this file's location.
-enum class Take : std::uint8_t { Selection, Location };
 
 /// THE DOCUMENT AT ONE INSTANT (`mark_now`): equal marks mean nothing moved in between.
 struct Mark {
@@ -228,19 +212,6 @@ struct Grab {
     Mark after;                ///< ...and the document once the press had placed the caret
 };
 
-/// ONE ACQUISITION IN FLIGHT: Workshop's approval for the gesture, then the carry itself.
-struct Pickup {
-    enum class Stage : std::uint8_t { Idle, Permission, Carry };
-    Stage stage = Stage::Idle;
-    std::uint64_t ask = 0;
-    std::uint64_t gesture = 0;
-    bool drag = false;
-    loom::Bytes bytes;
-    std::string label;
-    std::string what;
-    loom::Ticket ticket{};
-};
-
 /// WHERE A DROP LANDED: the character under it, and whether that is on the highlight.
 struct Landing {
     EditorPos pos;
@@ -256,17 +227,8 @@ struct Dropped {
     ws::pane_menu::Asked menu;
 };
 
-/// A DROPPED LOCATION: Workshop's approval for the gesture, then the managed open.
-struct Locate {
-    enum class Stage : std::uint8_t { Idle, Permission, Opening };
-    Stage stage = Stage::Idle;
-    std::uint64_t ask = 0;
-    loom::Ticket ticket{};
-    st::SourceLocation loc;
-    std::optional<st::SourceLocationContext> ctx;
-    bool same_path = false;
-    Mark mark;
-};
+/// A DROPPED LOCATION, judged against the document's mark when the open was asked.
+using Locate = office::LocateOf<Mark>;
 
 /// THE PICTURE'S ROW-TO-MEANING MAP, as the facts it is made of (WL-EDIT-18).
 struct PictureKey {
@@ -287,7 +249,6 @@ struct PictureKey {
     }
 };
 
-constexpr const char* kDropSubject = "drop";
 constexpr const char* kInsertLine = "editor.insert-line";
 constexpr const char* kInsertCpp = "editor.insert-cpp";
 
@@ -296,23 +257,6 @@ constexpr const char* kInsertCpp = "editor.insert-cpp";
 /// A carried row, byte or offset as an index: a negative one is the first.
 inline std::size_t as_index(std::int64_t n) {
     return n < 0 ? 0 : static_cast<std::size_t>(n);
-}
-
-/// A PATH THAT KEEPS ITS END. Whole when it fits; otherwise `...` and the last `width - 3`
-/// bytes, so the file's own name survives before its directories do; a width too small
-/// for even that keeps the last bytes alone.
-inline std::string tail_of_path(const std::string& path, std::int64_t width) {
-    if (width <= 0) {
-        return std::string();
-    }
-    const std::size_t room = static_cast<std::size_t>(width);
-    if (path.size() <= room) {
-        return path;
-    }
-    if (room <= 4) {
-        return path.substr(path.size() - room);
-    }
-    return "..." + path.substr(path.size() - (room - 3));
 }
 
 /// A history step's lines as one Text, a newline byte between them, and back: no line holds
@@ -366,53 +310,9 @@ inline std::vector<ws::PaneRowPart> parts_of(const Composition& c, std::int64_t 
     return parts;
 }
 
-/// The caret and selection a composition says beside its rows, as its picture stands them in
-/// them.
-inline ws::RowsCaret rows_caret(const ws::v2::PaneCaret& c) {
-    return ws::RowsCaret{c.row, c.column, c.sel_begin_row, c.sel_begin_col, c.sel_end_row,
-                         c.sel_end_col};
-}
-
-inline bool same_identity(const EditorDocument& a, const EditorDocument& b) {
-    return a.path == b.path && a.doc_epoch == b.doc_epoch && a.convention == b.convention &&
-           a.content_revision == b.content_revision && a.dirty == b.dirty &&
-           a.opened_by == b.opened_by;
-}
-
-/// THE WEAVER'S WORDS FOR AN OFFER THE BUS REFUSED: the document this weave claims moved
-/// since the operation bound it (an edit, a paste), the operation was superseded, or a
-/// participant was replaced. The diagnostic name stays in parentheses.
-inline std::string offer_refusal(const std::string& path, loom::JointRefusal why) {
-    switch (why) {
-    case loom::JointRefusal::StaleRevision:
-    case loom::JointRefusal::ParticipantChanged:
-    case loom::JointRefusal::WrongState:
-    case loom::JointRefusal::Cancelled:
-        return "the document changed while opening " + path + " -- try again";
-    default:
-        return "the opening was no longer arranged (" + std::string(loom::name_of(why)) +
-               ") -- " + path + " was not prepared";
-    }
-}
-
-/// A REFUSED PREPARATION, as one value: the operation, no, and the sentence.
-inline SourcePrepared not_prepared(std::int64_t op, std::string refusal) {
-    SourcePrepared refused;
-    refused.op = op;
-    refused.ok = false;
-    refused.refusal = std::move(refusal);
-    return refused;
-}
-
 /// WHAT A SWITCH AWAY RESETS: the transfer carries neither, so a judgement and an offer say both.
 inline std::vector<std::string> handoff_resets() {
     return {"the standard Editor's undo history", "the wheel's unspent fraction of a line"};
-}
-
-/// A PATH'S LAST PART, the name a carried copy goes by.
-inline std::string file_name(const std::string& path) {
-    const std::size_t slash = path.find_last_of('/');
-    return slash == std::string::npos ? path : path.substr(slash + 1);
 }
 
 } // namespace

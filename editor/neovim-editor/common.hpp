@@ -6,12 +6,14 @@
 
 // What the Neovim-backed Editor's weave and the two files that complete it share: the bounds and
 // names it works by, the arithmetic of its paths, rows, pictures and clipboard, and the records of
-// its conversations -- a candidate, a relay, a switch, a transfer, a change Neovim holds. Private
-// to `zengine-neovim-editor`, whose pane.cpp reads it whole (`using namespace`).
+// its own conversations -- a candidate, a transfer's snapshot and aim, a change Neovim holds --
+// beside what both Editors keep alike (`editor/office_seam.hpp`). Private to
+// `zengine-neovim-editor`, whose pane.cpp reads it whole (`using namespace`).
 // Workshop law: agents/workshop/neovim.md
 
 #include "editor/neovim/document.hpp"
 #include "editor/neovim/host.hpp"
+#include "editor/office_seam.hpp"
 #include "editor/source-transfer/material.hpp"
 #include "workshop/editor_handoff_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
@@ -57,12 +59,24 @@ using ws::SourcePrepared;
 using ws::pane_text::drawable;
 using ws::pane_text::fit;
 
-/// Workshop's office, as a stranger names it.
-inline constexpr const char* kWorkshopRole = "zengine.workshop";
+namespace office = zengine::editor_office;
 
-/// THE CARET'S COLUMN, reserved as the standard Editor reserves it: Neovim is given one column less
-/// than the room, so an Insert caret after the last cell still has a cell to be drawn in.
-inline constexpr std::int64_t kCaretCols = 1;
+// What both Editors keep and say alike (`editor/office_seam.hpp`), named as this weave's own.
+// `kCaretCols` is why Neovim is given one column less than the room: an Insert caret after the
+// last cell still has a cell to be drawn in.
+using office::file_name;
+using office::Holding;
+using office::kCaretCols;
+using office::kDropSubject;
+using office::kWorkshopRole;
+using office::not_prepared;
+using office::offer_refusal;
+using office::Pickup;
+using office::Relay;
+using office::rows_caret;
+using office::same_identity;
+using office::tail_of_path;
+using office::Take;
 
 /// THE ROW ABOVE NEOVIM'S SCREEN: what the Editor says about itself -- the mode, whether the buffer
 /// is saved, the file -- or a standing notice in its place.
@@ -90,11 +104,7 @@ inline constexpr int kAdoptMs = 10000;
 /// ...and a start an answer waits for (an open with no Neovim running, a baseline start).
 inline constexpr int kStartWaitMs = 10000;
 
-/// How many opens may be relayed through the old door at once (the standard Editor's bound).
-inline constexpr std::size_t kMaxRelays = 4;
-
-/// THE NAMES A TRANSFER'S MENUS ARE TOLD APART BY: a drop's subject, and the rows it and a press offer.
-inline constexpr const char* kDropSubject = "drop";
+/// THE ROWS A TRANSFER'S MENUS OFFER, told apart by name: a drop's, and a press's.
 inline constexpr const char* kInsertLine = "neovim.insert-line";
 inline constexpr const char* kInsertCpp = "neovim.insert-cpp";
 inline constexpr const char* kExtractRow = "neovim.extract";
@@ -141,21 +151,6 @@ inline std::uint64_t picture_hash(const std::vector<surface::SurfaceTextRow>& ro
     num(caret.sel_end_col);
     num(caret.generation);
     return h;
-}
-
-/// A PATH THAT KEEPS ITS END (the standard Editor's rule).
-inline std::string tail_of_path(const std::string& path, std::int64_t width) {
-    if (width <= 0) {
-        return std::string();
-    }
-    const std::size_t room = static_cast<std::size_t>(width);
-    if (path.size() <= room) {
-        return path;
-    }
-    if (room <= 4) {
-        return path.substr(path.size() - room);
-    }
-    return "..." + path.substr(path.size() - (room - 3));
 }
 
 /// NEOVIM'S MODE, as the status row says it.
@@ -276,11 +271,6 @@ inline bool visual_mode(const std::string& mode) {
     return k == 'v' || k == 'V' || k == '\x16' || k == 's' || k == 'S' || k == '\x13';
 }
 
-inline std::string file_name(const std::string& path) {
-    const std::size_t slash = path.find_last_of('/');
-    return slash == std::string::npos ? path : path.substr(slash + 1);
-}
-
 /// A CHANGE NEOVIM ENDED WITH, as the Editor says it: the buffer it went to is gone, and a
 /// change writes no file.
 inline std::string ended_words(const std::string& what, const std::string& why) {
@@ -290,38 +280,6 @@ inline std::string ended_words(const std::string& what, const std::string& why) 
 
 inline std::int64_t ui_rows(std::int64_t rows) { return std::max(rows - kChromeRows, kMinUiRows); }
 inline std::int64_t ui_cols(std::int64_t cols) { return std::max(cols - kCaretCols, kMinUiCols); }
-
-/// The caret and range a composition says beside its rows, as its picture stands them in them.
-inline ws::RowsCaret rows_caret(const ws::v2::PaneCaret& c) {
-    return ws::RowsCaret{c.row, c.column, c.sel_begin_row, c.sel_begin_col, c.sel_end_row,
-                         c.sel_end_col};
-}
-
-inline bool same_identity(const EditorDocument& a, const EditorDocument& b) {
-    return a.path == b.path && a.doc_epoch == b.doc_epoch && a.convention == b.convention &&
-           a.content_revision == b.content_revision && a.dirty == b.dirty && a.opened_by == b.opened_by;
-}
-
-inline std::string offer_refusal(const std::string& path, loom::JointRefusal why) {
-    switch (why) {
-    case loom::JointRefusal::StaleRevision:
-    case loom::JointRefusal::ParticipantChanged:
-    case loom::JointRefusal::WrongState:
-    case loom::JointRefusal::Cancelled:
-        return "the document changed while opening " + path + " -- try again";
-    default:
-        return "the opening was no longer arranged (" + std::string(loom::name_of(why)) + ") -- " + path +
-               " was not prepared";
-    }
-}
-
-inline SourcePrepared not_prepared(std::int64_t op, std::string refusal) {
-    SourcePrepared refused;
-    refused.op = op;
-    refused.ok = false;
-    refused.refusal = std::move(refusal);
-    return refused;
-}
 
 inline std::string listed(const std::vector<std::string>& names) {
     std::string out;
@@ -356,19 +314,6 @@ struct Candidate {
     std::vector<std::string> lines;
 };
 
-struct Relay {
-    std::string path;
-    std::uint64_t correlation = 0;
-    loom::Ticket attempt{};
-    loom::DeferredAnswer answer;
-};
-
-struct Holding {
-    bool active = false;
-    std::int64_t op = 0;
-    std::int64_t refused = 0;
-};
-
 struct Warm {
     std::int64_t op = 0;
     loom::DeferredAnswer answer;
@@ -381,8 +326,6 @@ struct Drag {
 };
 
 // ---- What a transfer holds, between the gestures and the answers (WL-NVIM-10..12) --------
-
-enum class Take : std::uint8_t { Selection, Location };
 
 /// THE SELECTION AS NEOVIM HELD IT at one instant (`zengine_neovim.selection`): its text as
 /// Neovim's own yank takes it, and the identity a later step compares against.
@@ -420,18 +363,6 @@ struct Grab {
     Snapshot snap;
 };
 
-struct Pickup {
-    enum class Stage : std::uint8_t { Idle, Permission, Carry };
-    Stage stage = Stage::Idle;
-    std::uint64_t ask = 0;
-    std::uint64_t gesture = 0;
-    bool drag = false;
-    loom::Bytes bytes;
-    std::string label;
-    std::string what;
-    loom::Ticket ticket{};
-};
-
 /// A DROP AIMED AT A CELL: the buffer, its tick and the screen row the hand saw, so Neovim can
 /// refuse a drop whose target moved. A command in a C++ buffer waits here for the weaver's choice.
 struct Aim {
@@ -448,16 +379,9 @@ struct Dropped {
     ws::pane_menu::Asked menu;
 };
 
-struct Locate {
-    enum class Stage : std::uint8_t { Idle, Permission, Opening };
-    Stage stage = Stage::Idle;
-    std::uint64_t ask = 0;
-    loom::Ticket ticket{};
-    st::SourceLocation loc;
-    std::optional<st::SourceLocationContext> ctx;
-    bool same_path = false;
-    std::int64_t tick = 0;
-};
+/// A DROPPED LOCATION, judged against the changedtick of the buffer Neovim held when the open was
+/// asked.
+using Locate = office::LocateOf<std::int64_t>;
 
 /// WHAT NEOVIM SAID OF A CHANGE (WL-NVIM-13): the module's answer, which may carry its own
 /// refusal (`why`); or no answer -- never sent (`why`), answered with an error (`why`), or

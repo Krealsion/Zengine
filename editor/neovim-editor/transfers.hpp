@@ -19,6 +19,7 @@
 #include "editor/neovim-editor/vocabulary.hpp"
 
 #include "editor/neovim/lua.hpp"
+#include "editor/office_seam.hpp"
 #include "editor/source-transfer/cpp.hpp"
 #include "editor/source-transfer/material.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
@@ -294,65 +295,25 @@ inline void NeovimEditorWeave::on(const ws::PaneMenuAnswered& answer, loom::Mail
     resay_ = true;
 }
 
+/// WORKSHOP'S WORD ON WHETHER THIS GESTURE'S ACTOR MAY DO WHAT THIS PANE ASKED: carry a copy, or
+/// open a dropped location (`office::answer_operation`), settled against whether it names the
+/// buffer Neovim holds and that buffer's changedtick now.
 inline void NeovimEditorWeave::on(const ws::PaneOperationAnswered& answer, loom::Mail& mail) {
-    if (!mail.answers_ask()) {
-        return;
-    }
-    if (pickup_.stage == Pickup::Stage::Permission && mail.correlation() == pickup_.ask) {
-        if (!answer.allowed) {
-            pickup_ = Pickup{};
-            notice("nothing was carried -- " + answer.reason, true);
-            resay_ = true;
-            return;
-        }
-        pickup_.stage = Pickup::Stage::Carry;
-        pickup_.ticket = mail.as_role(nve::kEditorOffice)
-                             .send_to_role(kWorkshopRole,
-                                           ws::PaneValueCarryRequested{nve::kEditorPane, pickup_.label,
-                                                                       pickup_.bytes, pickup_.drag},
-                                           pickup_.gesture);
-        if (!pickup_.ticket.valid()) {
-            pickup_ = Pickup{};
-            notice("nothing was carried -- the copy could not be handed to Workshop", true);
-            resay_ = true;
-        }
-        return;
-    }
-    if (locate_.stage == Locate::Stage::Permission && mail.correlation() == locate_.ask) {
-        if (!answer.allowed) {
-            locate_ = Locate{};
-            notice("nothing was opened -- " + answer.reason, true);
-            resay_ = true;
-            return;
-        }
-        locate_.stage = Locate::Stage::Opening;
-        locate_.same_path = doc_path() == locate_.loc.path;
-        locate_.tick = doc_.tick;
-        locate_.ask = ++asked_;
-        locate_.ticket = mail.as_role(nve::kEditorOffice)
-                             .send_to_role(ws::kOpeningRole, OpenSourceRequested{locate_.loc.path}, locate_.ask);
-        if (!locate_.ticket.valid()) {
-            const std::string path = locate_.loc.path;
-            locate_ = Locate{};
-            notice("nothing was opened -- the Editor could not ask the opening office for " + path, true);
-            resay_ = true;
-        }
+    const auto stamp = [this](Locate& l) {
+        l.same_path = doc_path() == l.loc.path;
+        l.snapshot = doc_.tick;
+    };
+    if (office::answer_operation(answer, mail, nve::kEditorOffice, nve::kEditorPane, asked_, pickup_, locate_, stamp,
+                                 noticing())) {
+        resay_ = true;
     }
 }
 
+/// WORKSHOP TOOK THE COPY, OR SAID WHY NOT. Neovim's buffer was never touched either way.
 inline void NeovimEditorWeave::on(const ws::PaneCarryAnswered& answer, loom::Mail& mail) {
-    if (pickup_.stage != Pickup::Stage::Carry || !mail.answers_ask() || mail.correlation() != pickup_.gesture) {
-        return;
+    if (office::settle_carry(answer, mail, pickup_, "Neovim's buffer is unchanged", noticing())) {
+        resay_ = true;
     }
-    const Pickup done = std::move(pickup_);
-    pickup_ = Pickup{};
-    if (!answer.carried) {
-        notice("nothing was carried -- " + answer.reason, true);
-    } else if (!done.drag) {
-        notice("carrying a copy of " + done.what + " -- click a receiving pane, or Escape; Neovim's buffer is unchanged",
-               false);
-    }
-    resay_ = true;
 }
 
 // ---- A change Neovim holds until it answers (WL-NVIM-13) ------------------------------------
@@ -488,35 +449,11 @@ inline std::string NeovimEditorWeave::project_root() const {
 }
 
 /// ASK WORKSHOP TO APPROVE A CARRY OF THIS PAIR FOR THE GESTURE THAT CAUSED IT; the carry
-/// follows the approval (`on(PaneOperationAnswered)`).
+/// follows the approval (`office::begin_pickup`).
 inline void NeovimEditorWeave::begin_pickup(const st::Pair& pair, bool drag, std::uint64_t gesture,
                                             std::string label, std::string what, loom::Mail& mail) {
-    if (!pair.ok) {
-        notice("nothing was carried -- " + pair.refusal, true);
-        return;
-    }
-    if (pickup_.stage != Pickup::Stage::Idle) {
-        notice("nothing was carried -- a copy is already on its way to Workshop", true);
-        return;
-    }
-    pickup_.stage = Pickup::Stage::Permission;
-    pickup_.ask = ++asked_;
-    pickup_.gesture = gesture;
-    pickup_.drag = drag;
-    pickup_.bytes.assign(pair.bytes.begin(), pair.bytes.end());
-    pickup_.label = label.substr(0, ws::kMaxCarryLabelBytes);
-    pickup_.what = std::move(what);
-    pickup_.ticket = mail.as_role(nve::kEditorOffice)
-                         .send_to_role(kWorkshopRole,
-                                       ws::PaneOperationRequested{nve::kEditorPane, kWorkshopRole,
-                                                                  ws::PaneValueCarryRequested::zen_name,
-                                                                  ws::PaneValueCarryRequested::zen_version,
-                                                                  static_cast<std::int64_t>(gesture)},
-                                       pickup_.ask);
-    if (!pickup_.ticket.valid()) {
-        pickup_ = Pickup{};
-        notice("nothing was carried -- Workshop could not be asked", true);
-    }
+    office::begin_pickup(pair, drag, gesture, label, std::move(what), mail, nve::kEditorOffice, nve::kEditorPane, asked_,
+                         pickup_, noticing());
 }
 
 /// A COPY OF THE SELECTION NEOVIM HELD (WL-NVIM-10): its text, with where it came from beside it.
@@ -709,20 +646,7 @@ inline void NeovimEditorWeave::insert_command(const st::Material& m, const Aim& 
     }
     Insertion said;
     said.amount = "the Terminal line for " + m.what;
-    said.after = "; text only -- nothing was sent";
-    if (!t.missing.empty()) {
-        said.after += "; INCOMPLETE: ";
-        for (std::size_t i = 0; i < t.missing.size(); ++i) {
-            said.after += (i > 0 ? ", " : "") + t.missing[i];
-        }
-        said.after += t.missing.size() == 1 ? " is not set" : " are not set";
-    }
-    if (!t.address_supplied) {
-        said.after += "; <address> marks a destination this value never named";
-    }
-    if (!m.address_note.empty()) {
-        said.after += " (" + m.address_note + ")";
-    }
+    said.after = office::terminal_line_after(t, m);
     said.alert = !t.missing.empty();
     insert_lines(t.line, aim, std::move(said));
 }
@@ -744,20 +668,7 @@ inline void NeovimEditorWeave::insert_cpp(const st::Material& m, const Aim& aim)
     }
     Insertion said;
     said.amount = "C++ for " + m.what;
-    said.instead = "generated " + g.function + "() for " + m.what + "; ";
-    if (g.missing_includes.empty()) {
-        said.instead += "its includes are already here";
-    } else {
-        said.instead += "add #include";
-        for (std::size_t i = 0; i < g.missing_includes.size(); ++i) {
-            said.instead += (i > 0 ? " and " : " ") + g.missing_includes[i];
-        }
-    }
-    if (!g.holes.empty()) {
-        said.instead += "; INCOMPLETE until you fill " + std::to_string(g.holes.size()) + " required field" +
-                        (g.holes.size() == 1 ? "" : "s");
-    }
-    said.instead += " -- u removes it; nothing was sent, written or built";
+    said.instead = office::generated_cpp_words(g, m.what, "") + " -- u removes it; nothing was sent, written or built";
     said.alert = !g.holes.empty();
     // GENERATED CODE IS WHOLE LINES, before the line the drop landed on, joining no text.
     insert_lines(st::join_lf(g.lines), aim, std::move(said), true);
@@ -766,13 +677,9 @@ inline void NeovimEditorWeave::insert_cpp(const st::Material& m, const Aim& aim)
 /// A DROPPED LOCATION (WL-NVIM-12): Workshop approves the gesture, then the managed open.
 // WL-NVIM-12 -- agents/workshop/neovim-transfers.md
 inline void NeovimEditorWeave::open_location(const st::Material& m, loom::Mail& mail) {
-    const st::SourceLocation& loc = m.location;
-    if (loc.path.empty() || !std::filesystem::path(loc.path).is_absolute()) {
-        notice("nothing was opened -- this location names no absolute path; edit its path in Info", true);
-        return;
-    }
-    if (locate_.stage != Locate::Stage::Idle) {
-        notice("nothing was opened -- a dropped location is still being opened", true);
+    const std::string refused = office::location_refusal(m.location, locate_);
+    if (!refused.empty()) {
+        notice(refused, true);
         return;
     }
     if (!settle_held()) {
@@ -785,57 +692,34 @@ inline void NeovimEditorWeave::open_location(const st::Material& m, loom::Mail& 
     // as a new buffer, so a location whose file is gone is refused here, before anything is
     // asked -- with where it was saved, when that was another root.
     std::error_code ec;
-    if (!std::filesystem::is_regular_file(std::filesystem::path(spelled(loc.path)), ec)) {
-        const std::string root = m.location_context ? m.location_context->project_root : std::string();
-        const std::string here = project_root();
-        std::string why = "nothing was opened -- " + spelled(loc.path) +
-                          " is not there, and a location reopens a file rather than creating one";
-        if (!root.empty() && !here.empty() && root != here) {
-            why += " (it was saved under " + root + ", and this run's project is " + here +
+    const std::string path = spelled(m.location.path);
+    if (!std::filesystem::is_regular_file(std::filesystem::path(path), ec)) {
+        const office::Roots roots = office::roots_of(m.location_context, project_root());
+        std::string why =
+            "nothing was opened -- " + path + " is not there, and a location reopens a file rather than creating one";
+        if (roots.elsewhere) {
+            why += " (it was saved under " + roots.saved + ", and this run's project is " + roots.here +
                    "; edit its path in Info to rebind it)";
         }
         notice(why, true);
         return;
     }
-    locate_.stage = Locate::Stage::Permission;
-    locate_.loc = loc;
-    locate_.loc.path = spelled(loc.path);
-    locate_.ctx = m.location_context;
-    locate_.ask = ++asked_;
-    locate_.ticket = mail.as_role(nve::kEditorOffice)
-                         .send_to_role(kWorkshopRole,
-                                       ws::PaneOperationRequested{nve::kEditorPane, ws::kOpeningRole,
-                                                                  OpenSourceRequested::zen_name,
-                                                                  OpenSourceRequested::zen_version,
-                                                                  static_cast<std::int64_t>(mail.correlation())},
-                                       locate_.ask);
-    if (!locate_.ticket.valid()) {
-        locate_ = Locate{};
-        notice("nothing was opened -- Workshop could not be asked", true);
-    }
+    office::ask_location(m, mail, nve::kEditorOffice, nve::kEditorPane, asked_, locate_, noticing());
 }
 
 inline void NeovimEditorWeave::settle_location(const SourceOpened& said) {
     Locate l = std::move(locate_);
     locate_ = Locate{};
-    const std::string root = l.ctx ? l.ctx->project_root : std::string();
-    const std::string here = project_root();
-    const bool elsewhere = !root.empty() && !here.empty() && root != here;
+    const office::Roots roots = office::roots_of(l.ctx, project_root());
     if (!said.accepted) {
-        std::string why = "could not open " + l.loc.path + ": " + said.refusal;
-        if (elsewhere) {
-            why += " -- it was saved under " + root + ", and this run's project is " + here +
-                   "; a location never follows its name to another root (edit its path in Info to rebind it)";
-        }
-        notice(why, true);
+        notice(office::open_refused_words(l.loc.path, said.refusal, roots), true);
         return;
     }
     if (doc_path() != l.loc.path) {
         notice("the location's file was shown, but Neovim holds another buffer now -- the cursor was not moved", false);
         return;
     }
-    const std::string opened = "opened " + shown_path(l.loc.path) +
-                               (elsewhere ? " (saved under another project root, " + root + ")" : std::string());
+    const std::string opened = office::opened_words(shown_path(l.loc.path), roots);
     if (l.loc.line <= 0) {
         notice(opened, false);
         return;
@@ -846,7 +730,7 @@ inline void NeovimEditorWeave::settle_location(const SourceOpened& said) {
     const std::string line = std::to_string(l.loc.line);
     const bool text = l.ctx.has_value() && !l.ctx->line_text.empty();
     change(nv::lua::kLocate,
-           nv::rpc::params(mp::Value::integer(doc_.buf), mp::Value::integer(l.same_path ? l.tick : shown_tick_),
+           nv::rpc::params(mp::Value::integer(doc_.buf), mp::Value::integer(l.same_path ? l.snapshot : shown_tick_),
                            mp::Value::integer(l.loc.line), mp::Value::integer(l.loc.column),
                            text ? mp::Value::str(l.ctx->line_text) : mp::Value::nil(),
                            mp::Value::boolean(text && st::whole_line(l.ctx->line_text))),
