@@ -1021,4 +1021,33 @@ TEST_CASE("the view host answers a shape's section from its own page, and its pa
     rig.pump();
     CHECK(rig.client->heard.empty());
     CHECK(rig.desk->heard.empty());
+    // LOOM'S OWN DOORS ARE ANSWERED TOO, to the asker alone: the accept set, the page's shapes
+    // among it, and a state that holds nothing, so a write is refused and changes nothing.
+    auto l = std::make_unique<Listener>(std::vector{loom::accepted_shapes_schema(),
+                                                    loom::schema_of<loom::PokeStructure>(),
+                                                    loom::schema_of<loom::Refused>()});
+    Listener* asker = l.get();
+    loom::Grant asking;
+    asking.allow_to_role(loom::DescribeAccepted::zen_name, loom::DescribeAccepted::zen_version, view::kViewHostRole);
+    asking.allow_to_role(loom::PokeDescribe::zen_name, loom::PokeDescribe::zen_version, view::kViewHostRole);
+    asking.allow_to_role(loom::PokeWrite::zen_name, loom::PokeWrite::zen_version, view::kViewHostRole);
+    const WeaveId id = rig.bus.register_weave(std::move(l), std::move(asking));
+    (void)rig.bus.send_as_to_role(id, view::kViewHostRole, loom::Message(loom::to_value(loom::DescribeAccepted{}), id, {}, 11));
+    (void)rig.bus.send_as_to_role(id, view::kViewHostRole, loom::Message(loom::to_value(loom::PokeDescribe{}), id, {}, 12));
+    (void)rig.bus.send_as_to_role(id, view::kViewHostRole,
+                                  loom::Message(loom::to_value(loom::PokeWrite{"session", "x"}), id, {}, 13));
+    rig.pump();
+    REQUIRE(asker->heard.size() == 3);
+    for (const auto& m : asker->heard) CHECK(m.provenance.answers_ask());
+    loom::Registry deps;
+    loom::decode_accepted_referenced(asker->heard[0].payload, deps);
+    std::vector<std::string> roots;
+    for (const auto& s : loom::decode_accepted_roots(asker->heard[0].payload, deps)) roots.push_back(s->name());
+    for (const auto& name : described_shapes_of(rig.bus, rig.bus.role_holder(view::kViewHostRole)))
+        CHECK(std::find(roots.begin(), roots.end(), name) != roots.end());
+    const auto structure = loom::from_value<loom::PokeStructure>(asker->heard[1].payload);
+    CHECK(structure.fields.empty());
+    CHECK_FALSE(loom::from_value<loom::Refused>(asker->heard[2].payload).reason.empty());
+    rig.bus.unregister_weave(id);
+    CHECK(rig.client->heard.empty());
 }
