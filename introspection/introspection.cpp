@@ -27,6 +27,7 @@
 #include "workshop/pane_escape.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_operation.hpp"
+#include "workshop/pane_seat.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/powers_vocabulary.hpp"
 #include "workshop/sample_vocabulary.hpp"
@@ -73,58 +74,67 @@ struct IntrospectionState {
               ZEN_FIELD(refused), ZEN_FIELD(selections), ZEN_FIELD(samples));
 };
 
+/// THE OFFICE OF THE THREE PANES. First breath only if Loom says so: `ActivationCursor` requires
+/// Loom's attestation and a sequence not yet acted on, so no weave can make a pane appear by
+/// sending `zen.Activated`. The manual is the one page this weave carries, for any of its three
+/// pane keys; any other key is refused.
+using Office = ws::MultiPaneFacet<kIntrospectionRole, kLoadedPane,
+                                  zengine::manual::pages::zengine_introspection::kManual>;
+
 class IntrospectionWeave
-    : public loom::WeaveBase<
+    : public zengine::With<Office>::Weave<
           IntrospectionWeave, IntrospectionState,
-          loom::Accept<loom::Activated, ws::PaneCatalogRequested, ws::PaneRoom, ws::PaneCanvasRoom,
+          loom::Accept<ws::PaneRoom, ws::PaneCanvasRoom,
                        ws::PaneCanvasPointer, ws::PaneCanvasRejected, ws::PaneKey,
                        ws::PaneTextInput, ws::PaneActionRequested, loom::Result,
                        ws::PaneOperationAnswered, ws::PaneCarryAnswered, loom::Refused,
                        ws::ResolvedArrangement, ws::v2::ResolvedArrangement, ws::PowersFound,
                        ws::PowerDescribed, ws::SourceSampled, surface::ClipboardCopy,
-                       surface::ClipboardText, ws::PaneDocumentRequested>,
+                       surface::ClipboardText>,
           loom::Emit<ws::v2::PaneOffered, ws::v3::PaneActions, ws::v4::PaneContent,
                      ws::v5::PaneCanvasContent, ws::PaneCaret, ws::PanePassRequested,
                      intro::LoadedSelected, loom::ListLoaded, ws::ArrangementRequested,
                      ws::DescribePower, ws::SampleRequested, ws::PaneOperationRequested,
                      ws::PaneValueCarryRequested, ws::PaneEscapeUnspent, surface::ClipboardCopy,
-                     surface::ClipboardTextRequested, ws::PaneDocumentShown>> {
+                     surface::ClipboardTextRequested>> {
 public:
-    /// First breath, only if Loom says so: `ActivationCursor` requires Loom's attestation and a
-    /// sequence not yet acted on, so no weave can make a pane appear by sending `zen.Activated`.
-    void on(const loom::Activated& a, loom::Mail& mail) {
-        if (activation_.accept(mail, a)) {
-            announce(mail);
+    // ---- What its office calls --------------------------------------------------------------
+
+    /// THE THREE PANE KEYS THIS OFFICE OFFERS.
+    bool known_pane(std::string_view pane) { return seat_of(pane) != nullptr; }
+
+    /// Is this Workshop's own word? `authored_from_role`, not `sender()`: a catalog request is a
+    /// publication, and only Loom's stamp on its authorship says it was Workshop. Anything else
+    /// asks nothing and grants nothing, and is counted.
+    bool workshop_said(const loom::Mail& mail) {
+        if (mail.authored_from_role(kWorkshopRole)) {
+            return true;
         }
+        ++state_.refused;
+        return false;
     }
 
-    /// Workshop asking who has panes. `authored_from_role`, not `sender()`: the ask is a
-    /// publication, and only Loom's stamp on its authorship says it was Workshop.
-    void on(const ws::PaneCatalogRequested&, loom::Mail& mail) {
-        if (workshop_said(mail)) {
-            announce(mail);
+    /// Every pane this office has, offered directly to Workshop, one offer per pane, so an offer
+    /// this build gets wrong costs one pane; then the actions the Powers pane answers to.
+    void announce(loom::Mail& mail) {
+        for (const ws::v2::PaneOffered& said :
+             {loaded_.offering(), arrangement_.offering(), powers_.offering()}) {
+            ++state_.offers;
+            (void)mail.as_role(kIntrospectionRole).send_to_role(kWorkshopRole, said);
         }
+        (void)mail.as_role(kIntrospectionRole).send_to_role(kWorkshopRole, powers_.actions());
     }
 
-    /// THE MANUAL OF A PANE THIS OFFICE OFFERS, to the asker alone: the one page this weave carries,
-    /// answered for whichever of its three pane keys the ask names; any other key is refused.
-    void on(const ws::PaneDocumentRequested& ask, loom::Mail& mail) {
-        std::string_view pane = kLoadedPane;
-        for (const char* offered : {kLoadedPane, kArrangementPane, kPowersPane}) {
-            if (ask.pane == offered) {
-                pane = offered;
-            }
-        }
-        (void)mail.answer(
-            ws::pane_document(ask, pane, zengine::manual::pages::zengine_introspection::kManual));
-    }
+    // ---- Its panes ----------------------------------------------------------------------------
 
     /// Workshop granting one pane its prose budget, spent only while the pane holds no canvas room.
     /// A forged room grants nothing; a room for a pane this office lacks is neither counted nor
     /// answered.
     void on(const ws::PaneRoom& room, loom::Mail& mail) {
         if (intro::PaneSeat* seat = workshop_said(mail) ? seat_of(room.pane) : nullptr) {
-            grant(mail, seat->prose_room(room));
+            if (seat->prose_room(room)) {
+                grant(mail, room.pane);
+            }
         }
     }
 
@@ -132,7 +142,9 @@ public:
     /// lattice its budget. Every grant is a room grant (`grant`), the picture's numbers its own.
     void on(const ws::PaneCanvasRoom& room, loom::Mail& mail) {
         if (intro::PaneSeat* seat = workshop_said(mail) ? seat_of(room.pane) : nullptr) {
-            grant(mail, seat->canvas_room(room));
+            if (seat->canvas_room(room)) {
+                grant(mail, room.pane);
+            }
         }
     }
 
@@ -238,15 +250,6 @@ public:
     }
 
 private:
-    /// Is this Workshop's own word? Anything else asks nothing and grants nothing, and is counted.
-    bool workshop_said(const loom::Mail& mail) {
-        if (mail.authored_from_role(kWorkshopRole)) {
-            return true;
-        }
-        ++state_.refused;
-        return false;
-    }
-
     intro::PaneSeat* seat_of(std::string_view pane) {
         if (pane == kLoadedPane) return &loaded_;
         if (pane == kArrangementPane) return &arrangement_;
@@ -260,17 +263,14 @@ private:
     /// outstanding question, or the last grant would decide how the others are drawn. The room is
     /// kept and the owner asked; content goes when the owner answers, never from a previous
     /// reading -- Workshop clears its cache before every grant, and its `(waiting for the
-    /// provider)` is the honest gap. A seat that holds no room to grant grants nothing.
-    void grant(loom::Mail& mail, const std::optional<ws::PaneRoom>& room) {
-        if (!room) {
-            return;
-        }
-        if (room->pane == kLoadedPane) {
-            loaded_.grant(speaking(mail), *room);
-        } else if (room->pane == kArrangementPane) {
-            arrangement_.grant(speaking(mail), *room);
-        } else if (room->pane == kPowersPane) {
-            powers_.grant(speaking(mail), *room);
+    /// provider)` is the honest gap.
+    void grant(loom::Mail& mail, std::string_view pane) {
+        if (pane == kLoadedPane) {
+            loaded_.grant(speaking(mail));
+        } else if (pane == kArrangementPane) {
+            arrangement_.grant(speaking(mail));
+        } else if (pane == kPowersPane) {
+            powers_.grant(speaking(mail));
         } else {
             return;
         }
@@ -285,18 +285,6 @@ private:
         return false;
     }
 
-    /// Every pane this office has, offered directly to Workshop, one offer per pane, so an offer
-    /// this build gets wrong costs one pane; then the actions the Powers pane answers to.
-    void announce(loom::Mail& mail) {
-        for (const ws::v2::PaneOffered& said :
-             {loaded_.offering(), arrangement_.offering(), powers_.offering()}) {
-            ++state_.offers;
-            (void)mail.as_role(kIntrospectionRole).send_to_role(kWorkshopRole, said);
-        }
-        (void)mail.as_role(kIntrospectionRole).send_to_role(kWorkshopRole, powers_.actions());
-    }
-
-    zengine::ActivationCursor activation_;
     std::uint64_t asked_ = 0; ///< this incarnation's correlation counter, for all three panes
     intro::LoadedSeat loaded_;
     intro::ArrangementSeat arrangement_;

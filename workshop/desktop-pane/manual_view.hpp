@@ -54,27 +54,16 @@ public:
     // ---- Its rooms ----------------------------------------------------------------------------
 
     /// THE PROSE ROOM WORKSHOP GRANTED IT, kept for a host that grants no canvas.
-    void grant_prose(std::int64_t rows, std::int64_t columns) {
-        manual_canvas_.prose_rows = rows;
-        manual_canvas_.prose_columns = columns;
-        manual_granted_ = true;
-    }
+    void grant_prose(const ws::PaneRoom& room) { (void)manual_canvas_.prose_room(room); }
 
     /// ...AND ITS OWN CANVAS, whose lattice is the room it composes for while it holds one.
-    void grant_canvas(const ws::PaneCanvasRoom& room) {
-        manual_canvas_.room = room;
-        manual_granted_ = true;
-    }
+    void grant_canvas(const ws::PaneCanvasRoom& room) { manual_canvas_.canvas_room(room); }
 
     const PaneCanvas& canvas() const { return manual_canvas_; }
 
     /// The rows and columns it composes for: its canvas's lattice while it holds one, its prose
     /// room otherwise.
-    void fit_room() {
-        const ws::CanvasRows manual = ws::canvas_rows(manual_canvas_.room);
-        manual_room_rows_ = manual_canvas_.on() ? manual.rows : manual_canvas_.prose_rows;
-        manual_room_columns_ = manual_canvas_.on() ? manual.columns : manual_canvas_.prose_columns;
-    }
+    void fit_room() { manual_canvas_.fit(); }
 
     // ---- Asking for a pane's words ------------------------------------------------------------
 
@@ -196,14 +185,16 @@ public:
     /// THE MANUAL AS ITS PANE SHOWS IT: which pane it is about, then its lines from the window's
     /// first, and a line that says how many more there are below.
     void say_manual(bool keys_heard, const ws::KeymapShown& keymap, loom::Mail& mail) {
-        if (!manual_granted_ || manual_room_rows_ <= 0 || manual_room_columns_ <= 0) {
+        const std::int64_t room_rows = manual_canvas_.rows();
+        const std::int64_t room_columns = manual_canvas_.columns();
+        if (!manual_canvas_.granted() || room_rows <= 0 || room_columns <= 0) {
             return;
         }
         std::vector<surface::SurfaceTextRow> out;
-        const auto push = [&out, this](std::string text, std::int64_t role) {
-            if (static_cast<std::int64_t>(out.size()) < manual_room_rows_) {
+        const auto push = [&out, room_rows, room_columns](std::string text, std::int64_t role) {
+            if (static_cast<std::int64_t>(out.size()) < room_rows) {
                 out.push_back(
-                    surface::SurfaceTextRow{fit(std::move(text), manual_room_columns_), role});
+                    surface::SurfaceTextRow{fit(std::move(text), room_columns), role});
             }
         };
         if (manual_.office.empty() && manual_.word.empty()) {
@@ -222,7 +213,7 @@ public:
             return;
         }
         const std::vector<surface::SurfaceTextRow> lines =
-            manual_reader::manual_lines(*manual_.words, keymap, manual_room_columns_);
+            manual_reader::manual_lines(*manual_.words, keymap, room_columns);
         manual_.lines = lines.size();
         manual_scroll(0);
         const std::size_t end = std::min(lines.size(), manual_.first + manual_window());
@@ -239,7 +230,7 @@ public:
 private:
     /// THE WINDOW'S LINES: the room less the heading and the line that says what is below.
     std::size_t manual_window() const {
-        return static_cast<std::size_t>(std::max<std::int64_t>(manual_room_rows_ - 2, 1));
+        return static_cast<std::size_t>(std::max<std::int64_t>(manual_canvas_.rows() - 2, 1));
     }
 
     /// THE WINDOW MOVES BY `by` LINES, held inside the manual's lines.
@@ -255,21 +246,7 @@ private:
     /// nothing, so its picture's number moves only with its first composition.
     void publish_manual(loom::Mail& mail, std::vector<surface::SurfaceTextRow> rows) {
         manual_map_.begin();
-        const std::int64_t meaning = manual_map_.settle();
-        if (manual_canvas_.on()) {
-            (void)mail.as_role(kDesktopRole)
-                .send_to_role(kWorkshopRole,
-                              ws::rows_picture(manual_canvas_.room,
-                                               manual_canvas_.pictures.next(manual_canvas_.room,
-                                                                            meaning),
-                                               rows, std::vector<ws::PaneRowPart>{}, {}));
-            return;
-        }
-        ws::v4::PaneContent said;
-        said.pane = kManualPane;
-        said.rows = std::move(rows);
-        said.picture = meaning;
-        (void)mail.as_role(kDesktopRole).send_to_role(kWorkshopRole, said);
+        manual_canvas_.publish_rows(mail, manual_map_.settle(), std::move(rows));
     }
 
     // ---- State not in the shape ----------------------------------------------------------
@@ -289,10 +266,7 @@ private:
     };
     ManualShown manual_;
     std::uint64_t manual_asks_ = 0;
-    std::int64_t manual_room_rows_ = 0;
-    std::int64_t manual_room_columns_ = 0;
-    bool manual_granted_ = false;
-    PaneCanvas manual_canvas_;
+    PaneCanvas manual_canvas_{kManualPane, kDesktopRole};
     component::RowMap<std::int64_t> manual_map_;
 };
 
