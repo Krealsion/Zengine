@@ -155,10 +155,10 @@ struct OperatorContext {
 /// reach (the manager, target-scoped, and the world's poke-reset door by role), and hears every
 /// answer.
 class OperatorWeave
-    : public gfx::With<gfx::DrawingFacet>::Weave<
+    : public gfx::With<gfx::ActionFacet>::Weave<
           OperatorWeave, OperatorState,
           loom::Accept<loom::Result, loom::Ack, loom::Refused, input::KeyPressed,
-                       gfx::ActionRequested, gfx::GraphicsReady>,
+                       gfx::GraphicsReady>,
           loom::Emit<loom::LoadWeave, loom::SwapWeave, loom::ReloadWeave, loom::ListLoaded,
                      loom::PokeResetState, gfx::AreaPlaced, gfx::SkinOffered, gfx::SkinChosen,
                      gfx::ElementCodeOffered>> {
@@ -213,23 +213,20 @@ public:
     }
 
     /// A button pressed in the window: the gesture of the key it names.
-    void on(const gfx::ActionRequested& a, loom::Mail& mail) {
-        if (!mail.authored_from_role(canvas().window_office())) {
-            return;
-        }
-        if (a.action == kSkinAction) {
+    void on_action(const std::string& action, loom::Mail& mail) {
+        if (action == kSkinAction) {
             flip_skin(mail);
-        } else if (a.action == kScoreAction) {
+        } else if (action == kScoreAction) {
             load_score(mail);
-        } else if (a.action == kGrowAction) {
+        } else if (action == kGrowAction) {
             grow_world(mail);
-        } else if (a.action == kReloadAction) {
+        } else if (action == kReloadAction) {
             reload_world(mail);
-        } else if (a.action == kNewAction) {
+        } else if (action == kNewAction) {
             reset_world(mail);
-        } else if (a.action == kListAction) {
+        } else if (action == kListAction) {
             list_loaded(mail);
-        } else if (a.action == kQuitAction) {
+        } else if (action == kQuitAction) {
             quit();
         }
     }

@@ -112,7 +112,31 @@ wrote the state, `With` runs the weave's own `after_delivery` (when present) and
 the beat: a drawer never calls `show`. An optional `on_room` runs when the window, its incarnation,
 or its size changed, where an element the window does not hold is said again (`canvas().holds`).
 A drawer that presents elements emits `ElementPut` and `ElementChange` itself and accepts the
-presses it wants. Over the Timer, a drawer passes `zengine::timer::TimedWeave` as the `Base`
+presses it wants. A drawer whose parts name actions composes `graphics::ActionFacet` in place of
+`DrawingFacet`: the same facet, also taking `ActionRequested`, which is the drawer's
+`on_action(action, mail)` only when the window that shows the drawer's area asks it, as that
+window's office, about that area; a drawer without actions keeps `DrawingFacet` and accepts no
+`ActionRequested`:
+
+```cpp
+class NewGame
+    : public graphics::With<graphics::ActionFacet>::Weave<NewGame, NewGameState,
+                                                          loom::Accept<>> {
+public:
+    using Weave::on;
+    NewGame() : Weave("demo.new-game") {}
+    void on_action(const std::string& action, loom::Mail&) {
+        if (action == "new-game") ++state_.games;
+    }
+    void picture(graphics::Sketch& f) const {
+        graphics::Button button("new-game", " new game ");
+        button.set_bounds(0, 0, 12 * graphics::kCellPx, graphics::kCellPx);
+        button.sketch(f, "new-game"); // the action a press on it asks
+    }
+};
+```
+
+Over the Timer, a drawer passes `zengine::timer::TimedWeave` as the `Base`
 parameter to `Weave`; the single-facet `DrawingWeave` shorthand keeps the compile-time wall on a
 derived `after_delivery`. A weave that claims names its `loom::Claims<...>` after `loom::WeaveBase`
 (`Weave<Self, State, Accept, Emit, loom::WeaveBase, loom::Claims<...>>`); a facet may declare

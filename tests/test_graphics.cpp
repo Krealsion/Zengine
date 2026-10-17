@@ -872,6 +872,21 @@ TEST_CASE("the new-game button is the world's action, and a new game reaches the
     for (int i = 0; i < 4; ++i) {
         t.r.tick();
     }
+    // ONLY THE WINDOW SHOWING THE WORLD'S AREA ASKS ITS ACTIONS, about that area: the same action
+    // from anyone else, or from the window about another area, is delivered and does nothing.
+    const std::size_t asked = t.r.log.size();
+    t.r.to_role(snake::kWorldRole, gfx::ActionRequested{kArea, "new-game"});
+    t.r.bus.office_send_to_role_as(
+        t.window, window_office(), snake::kWorldRole,
+        loom::Message(loom::to_value(gfx::ActionRequested{"test.elsewhere", "new-game"})));
+    t.r.drain();
+    REQUIRE(t.r.read<gfx::ActionRequested>(asked).size() == 2);
+    const auto from_window = t.r.read<gfx::ActionRequested>(asked, window_office());
+    REQUIRE(from_window.size() == 1);
+    CHECK(from_window[0].area == "test.elsewhere");
+    CHECK(t.r.count(asked, "ElementChange", snake::kWorldRole) == 0);
+    CHECK(t.r.count(asked, "SnakeVisual") == 0);
+
     const std::size_t mark = t.r.log.size();
     t.press(3, 19); // "[ new game ]"
     const auto requested = t.r.read<gfx::ActionRequested>(mark);

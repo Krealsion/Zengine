@@ -433,7 +433,7 @@ inline void FilesWeave::offer_candidate(std::int64_t row, std::int64_t column,
                   "author a recipe for `" + chooser_.candidates[chooser_.cursor].name + "`");
     }
     offer.row(files::kMenuCancel, "pick nothing -- back to the listing");
-    asked_menu_ = offer.continuing(mail, files::kFilesRole, correlation);
+    menu().send_continuing(mail, offer, correlation);
 }
 
 /// The authoring menu: every field but the one in hand, then the mode's own controls. A row
@@ -482,7 +482,7 @@ inline void FilesWeave::offer_field(std::size_t which, std::int64_t row, std::in
     offer.row(files::kMenuWriteRecipe,
               "write the recipe for `" + authoring_.chosen.name + "`");
     offer.row(files::kMenuCancel, "abandon this recipe");
-    asked_menu_ = offer.continuing(mail, files::kFilesRole, correlation);
+    menu().send_continuing(mail, offer, correlation);
 }
 
 // ---- The two modes' controls and pictures -------------------------------------------------

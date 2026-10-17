@@ -5,9 +5,10 @@
 
 // The conversations every pane office holds with Workshop, as facets composed with
 // `zengine::With` (activation/activation.hpp): its offer, room and manual (`PaneFacet`), its rows
-// and the presses on them (`PaneRowsFacet`), and the asks it still waits on (`AskFacet`). The
-// shapes they carry leave the weave's own lists; what each calls on the weave, and when, is
-// workshop/docs/workshop-panes.md, "The pane facets".
+// and the presses on them (`PaneRowsFacet`), the asks it still waits on (`AskFacet`), its declared
+// actions (`PaneActionFacet`) and its own menu (`PaneMenuFacet`). The shapes they carry leave the
+// weave's own lists; what each calls on the weave, and when, is workshop/docs/workshop-panes.md,
+// "The pane facets".
 
 #include "activation/activation.hpp"
 #include "component/control_strip.hpp"
@@ -28,6 +29,7 @@
 #include <zen/weave/dispatch_refusal.hpp>
 
 #include <algorithm>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -369,6 +371,21 @@ public:
     /// How many pictures the pane has published, so a handler can tell whether the act it ran
     /// already said its rows.
     std::uint64_t published() const noexcept { return published_; }
+
+    /// THE WEAVER HAS ACTED, SO THE LAST ACT'S ANSWER IS SPENT: `notice` is cleared before `act()`
+    /// runs, and when one stood and the act published no picture of its own -- its answer still on
+    /// its way, or it meant nothing -- `say()` says the rows once without it.
+    template <class Act, class Say>
+    void spend_notice(std::string& notice, Act&& act, Say&& say) {
+        const bool spent = !notice.empty();
+        const std::uint64_t before = published_;
+        notice.clear();
+        std::forward<Act>(act)();
+        if (spent && published_ == before) {
+            std::forward<Say>(say)();
+        }
+    }
+
     /// The pictures numbered in this room, and which a press may still name.
     CanvasPictures& pictures() noexcept { return pictures_; }
 
@@ -378,6 +395,80 @@ private:
     CanvasPictures pictures_;
     RowsCaret caret_;
     std::uint64_t published_ = 0;
+};
+
+/// ONE OF THE PANE'S DECLARED ACTIONS, ASKED FOR BY ID: Workshop resolved the keystroke against
+/// the effective keymap, so what arrives is the id. Only Workshop's word about this office's pane
+/// counts, and only an id the weave's public `answers(id)` admits, where it has one: an id the
+/// pane does not answer to is no act and spends nothing. The weave's `on_action(id, mail)` acts.
+template <const char* const& Pane, const char* const& Office>
+class PaneActionFacet {
+public:
+    using Accept = loom::Accept<PaneActionRequested>;
+    using Emit = loom::Emit<v3::PaneActions>;
+
+    template <class Self>
+    void on(Self& self, const PaneActionRequested& asked, loom::Mail& mail) {
+        if (!mail.authored_from_role(pane_menu::kWorkshopRole) || asked.pane != Pane) {
+            return;
+        }
+        if constexpr (requires {
+                          { self.answers(asked.id) } -> std::convertible_to<bool>;
+                      }) {
+            if (!self.answers(asked.id)) {
+                return;
+            }
+        }
+        self.on_action(asked.id, mail);
+    }
+
+    /// THE ROWS THE PANE ANSWERS TO, replacing the last it declared: those of `mode` where the pane
+    /// has modes, beside what each other mode's rows may cause.
+    void declare(loom::Mail& mail, std::vector<v3::PaneActionRow> rows, std::string mode = {},
+                 std::vector<ModeCauses> elsewhere = {}) const {
+        (void)mail.as_role(Office).send_to_role(
+            pane_menu::kWorkshopRole,
+            v3::PaneActions{Pane, std::move(mode), std::move(rows), std::move(elsewhere)});
+    }
+};
+
+/// THE PANE'S OWN MENU: the one this image asked the presenter for and has not heard answered. An
+/// answer settles it only as that ask's (`pane_menu::Asked::take`), and a chosen row goes to the
+/// weave's `on_menu(id, subject, mail)`. Image-local: a successor asked nothing, so its
+/// predecessor's menus act on nothing.
+template <const char* const& Pane, const char* const& Office>
+class PaneMenuFacet {
+public:
+    using Accept = loom::Accept<PaneMenuAnswered>;
+    using Emit = loom::Emit<PaneMenuRequested>;
+
+    template <class Self>
+    void on(Self& self, const PaneMenuAnswered& answer, loom::Mail& mail) {
+        const std::string id = asked_.take(mail, answer);
+        if (!id.empty()) {
+            self.on_menu(id, answer.subject, mail);
+        }
+    }
+
+    bool pending() const noexcept { return asked_.pending(); }
+    void clear() noexcept { asked_.clear(); }
+    pane_menu::Asked& asked() noexcept { return asked_; }
+    const pane_menu::Asked& asked() const noexcept { return asked_; }
+
+    /// A menu about `subject`, to fill and send.
+    pane_menu::Offer offer(std::string subject) const {
+        return pane_menu::Offer(Pane, std::move(subject));
+    }
+    /// SEND `menu` AS THE PANE'S OFFICE, and wait on it in place of any earlier one...
+    void send(loom::Mail& mail, const pane_menu::Offer& menu) { asked_ = menu.send(mail, Office); }
+    /// ...or continuing the gesture numbered `correlation`.
+    void send_continuing(loom::Mail& mail, const pane_menu::Offer& menu,
+                         std::uint64_t correlation) {
+        asked_ = menu.continuing(mail, Office, correlation);
+    }
+
+private:
+    pane_menu::Asked asked_;
 };
 
 /// THE ASKS A PANE STILL WAITS ON, in one bounded table numbered from its one correlation
