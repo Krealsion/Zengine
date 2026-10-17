@@ -97,7 +97,8 @@ MenuPresenter::row_of MenuPresenter::is_rule rule_line drawable
 `examples/numbered-presenter/presenter.cpp` NumberedPresenter digit_row line_for
 NumberedPresenter::give_back NumberedPresenter::row_of
 `workshop/pane_menu.hpp` Asked Asked::take Offer
-`workshop/desktop-pane/pane.cpp` launcher_asked_ keys_asked_
+`workshop/desktop-pane/launcher_view.hpp` launcher_asked_
+`workshop/desktop-pane/hotkeys_view.hpp` keys_asked_
 `workshop/weave_external.cpp` on(PresenterReady) answer_withdrawn end_refused_menu
 on(WithdrawalFence) on(MenuReturned) forget_withdrawn
 `workshop/context.hpp` WithdrawnMenu PresentedMenu::first_attempt
