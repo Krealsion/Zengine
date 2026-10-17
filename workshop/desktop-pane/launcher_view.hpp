@@ -103,6 +103,8 @@ public:
     void grant_canvas(const ws::PaneCanvasRoom& room) { launcher_canvas_.canvas_room(room); }
 
     const PaneCanvas& canvas() const { return launcher_canvas_; }
+    /// ...for the office to hand the room a graphics window gives the pane.
+    PaneCanvas& canvas() { return launcher_canvas_; }
 
     /// The rows and columns it composes for: its canvas's lattice while it holds one, its prose
     /// room otherwise.

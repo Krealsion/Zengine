@@ -189,17 +189,15 @@ public:
         }
         if (room.pane == pane::kLauncherPane) {
             launcher_.grant_prose(room);
-            fit_rooms();
-            say(mail);
         } else if (room.pane == pane::kHotkeysPane) {
             hotkeys_.grant_prose(room);
-            fit_rooms();
-            say_keys(mail);
         } else if (room.pane == pane::kManualPane) {
             manual_.grant_prose(room);
-            fit_rooms();
-            say_manual(mail);
+        } else {
+            return;
         }
+        fit_rooms();
+        say_pane(room.pane, mail);
     }
 
     /// ...AND ITS OWN CANVAS: while a pane holds a room there it draws its rows as its picture,
@@ -210,17 +208,37 @@ public:
         }
         if (room.pane == pane::kLauncherPane) {
             launcher_.grant_canvas(room);
-            fit_rooms();
-            say(mail);
         } else if (room.pane == pane::kHotkeysPane) {
             hotkeys_.grant_canvas(room);
-            fit_rooms();
-            say_keys(mail);
         } else if (room.pane == pane::kManualPane) {
             manual_.grant_canvas(room);
-            fit_rooms();
-            say_manual(mail);
+        } else {
+            return;
         }
+        fit_rooms();
+        say_pane(room.pane, mail);
+    }
+
+    // ---- Its panes in graphics windows (its office's `MultiPaneFacet` calls these) ------------
+
+    /// EACH PANE'S SEAT, where a window that shows the pane's area finds it.
+    template <class F>
+    void each_seat(F&& visit) {
+        visit(launcher_.canvas());
+        visit(hotkeys_.canvas());
+        visit(manual_.canvas());
+    }
+
+    /// A pane Workshop seats nowhere, composed again for the room a window gave it.
+    void on_window_room(const std::string& pane_key, loom::Mail& mail) { say_pane(pane_key, mail); }
+
+    /// A PRESS ON A PART IN A WINDOW is a primary press on its place in the picture shown there,
+    /// which is the pane's current one. The window gives a press to the area's owner alone, so it
+    /// is never the press that brought the keys: a second press on the chosen row opens it.
+    void on_window_press(const std::string& pane_key, std::int64_t row, std::int64_t column,
+                         loom::Mail& mail) {
+        primary_press(PanePress{pane_key, row, column, /*keys_went_here=*/true, /*current=*/true},
+                      mail);
     }
 
     /// A refused picture leaves the last good one showing; the next change draws again.
@@ -475,11 +493,7 @@ public:
         } else if (event.phase != ws::canvas_pointer::kPress) {
             return;
         } else if (event.button == 1 && at.shown) {
-            if (event.pane == pane::kLauncherPane) {
-                launcher_.launcher_press(press, state_, pane_rows_, app_, mail, launches_);
-            } else if (event.pane == pane::kHotkeysPane) {
-                hotkeys_.keys_press(press, keys_rows_, mail);
-            }
+            primary_press(press, mail);
         } else if (event.button == 3) {
             second_button(press, mail);
         }
@@ -509,6 +523,15 @@ public:
     std::string keys_part(const pane::KeysMeaning& m) const { return hotkeys_.keys_part(m); }
 
 private:
+    /// A PRIMARY PRESS on a row of the Pane Manager or the Hotkeys table; the Manual takes none.
+    void primary_press(const PanePress& press, loom::Mail& mail) {
+        if (press.pane == pane::kLauncherPane) {
+            launcher_.launcher_press(press, state_, pane_rows_, app_, mail, launches_);
+        } else if (press.pane == pane::kHotkeysPane) {
+            hotkeys_.keys_press(press, keys_rows_, mail);
+        }
+    }
+
     /// THE WHEEL WALKS THE CURSOR of the pane it turned over, one row per notch (Powers').
     void wheel(const std::string& pane_key, double dy, loom::Mail& mail) {
         if (pane_key == pane::kLauncherPane) {
@@ -549,6 +572,15 @@ private:
     void say_keys(loom::Mail& mail) { hotkeys_.say_keys(keys_rows_, mail); }
     void say_manual(loom::Mail& mail) {
         manual_.say_manual(hotkeys_.keys_heard(), hotkeys_.keymap(), mail);
+    }
+    void say_pane(const std::string& pane_key, loom::Mail& mail) {
+        if (pane_key == pane::kLauncherPane) {
+            say(mail);
+        } else if (pane_key == pane::kHotkeysPane) {
+            say_keys(mail);
+        } else if (pane_key == pane::kManualPane) {
+            say_manual(mail);
+        }
     }
 
     /// WHICH OF THIS IMAGE'S DECLARATIONS A VERDICT IS ABOUT, by the pane it names.

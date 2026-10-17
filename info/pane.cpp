@@ -255,8 +255,38 @@ public:
             // Only the motion of the press a field pickup is armed under may begin it, and only a
             // value view's press arms one: a press on the properties leaves no earlier press armed.
             held_of(*v) = at.shown && value_mode(*v) ? event.gesture : 0;
-            if (at.shown) press(*v, at, event.grant, event.picture, mail);
+            // The property view reads a press against the rows last composed, in the room it was
+            // aimed at; a value view only against the picture it still shows.
+            const bool current = value_mode(*v) ? shows_value(*v, event.grant, event.picture)
+                                                : event.grant == canvas.room().grant;
+            if (at.shown) press(*v, at, current, mail);
         }
+    }
+
+    // ---- Its views in graphics windows (its office's `MultiPaneFacet` calls these) ------------
+
+    /// EACH VIEW'S SEAT, where a window that shows the view's area finds it.
+    template <class F>
+    void each_seat(F&& visit) {
+        for (ws::PaneCanvasSeat& seat : canvases_) visit(seat);
+    }
+
+    /// A view Workshop seats nowhere, composed again for the room a window gave it.
+    void on_window_room(const std::string& key, loom::Mail& mail) {
+        if (pane::ValueView* v = view_of(key)) {
+            fit_room(*v);
+            say(*v, mail);
+        }
+    }
+
+    /// A PRESS ON A PART IN A WINDOW is a primary press on its place in the picture shown there,
+    /// which is the view's current one. A window carries no drag, so it arms no field pickup.
+    void on_window_press(const std::string& key, std::int64_t row, std::int64_t column,
+                         loom::Mail& mail) {
+        pane::ValueView* v = view_of(key);
+        if (!v) return;
+        held_of(*v) = 0;
+        press(*v, ws::RowCell{row, column, true}, /*current=*/true, mail);
     }
 
     /// A RIGHT PRESS on the view's rows opens its own menu; one beside them, where a prose press
@@ -391,20 +421,17 @@ public:
     }
 
     /// A PRESS NAMES A ROW OF A VIEW'S ROOM, and the view knows what that row is because it
-    /// composed it: the property view reads it against the rows last composed, in the room the
-    /// press was aimed at; a value view acts only on the picture it still shows, so a stale or
+    /// composed it: `current` says the press was aimed at what the view shows now, so a stale or
     /// clipped place is refused.
-    void press(pane::ValueView& v, const ws::RowCell& at, std::int64_t grant, std::int64_t picture,
-               loom::Mail& mail) {
+    void press(pane::ValueView& v, const ws::RowCell& at, bool current, loom::Mail& mail) {
         if (!value_mode(v)) {
-            if (grant == canvas_of(v).room().grant) {
+            if (current) {
                 properties_.press(at.row);
                 settle(mail);
             }
             return;
         }
-        const std::string control =
-            v.press(at.row, at.column, shows_value(v, grant, picture), mail.correlation());
+        const std::string control = v.press(at.row, at.column, current, mail.correlation());
         if (control.empty()) { say(v, mail); return; }
         if (control == pane::kActionViewMenu) { open_menu(v, at.row, at.column, mail); return; }
         act_view(v, control, mail);

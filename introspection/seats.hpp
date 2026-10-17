@@ -76,6 +76,9 @@ public:
 
     bool on_canvas() const noexcept { return room_.on_canvas(); }
 
+    /// THE PANE'S ROOMS THEMSELVES, where a graphics window that shows its area finds the pane.
+    workshop::PaneCanvasSeat& room() noexcept { return room_; }
+
     /// THE PROSE ROOM, kept for a host that grants no canvas: true when it is the room to grant
     /// now, the pane holding no canvas room, and its rows and columns the budget then.
     bool prose_room(const workshop::PaneRoom& room) { return room_.prose_room(room); }

@@ -11,6 +11,7 @@
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
 #include "census.hpp"
+#include "pane_window.hpp"
 #include "workshop_support.hpp"
 
 #include "info/vocabulary.hpp"
@@ -733,6 +734,70 @@ TEST_CASE("WL-HAND-06: Info names its panes by reference and its properties by l
     REQUIRE(parts.count("property:Width") == 1);
     CHECK(parts.at("property:Width").row == f.property_at("Width"));
     CHECK(f.property_row("Width").find("300") != std::string::npos);
+
+    SUBCASE("a graphics window shows each Info view by these names, and a press there is the "
+            "view's own press") {
+        namespace pw = zengine::testing::pane_window;
+        const auto trimmed = [](std::vector<std::string> rows) {
+            for (std::string& row : rows) row.erase(row.find_last_not_of(' ') + 1);
+            return rows;
+        };
+        const std::string info = std::string(pane::kInfoPaneRole) + "." + pane::kInfoPane;
+        const std::string second = std::string(pane::kInfoPaneRole) + "." + pane::view_key(2);
+        pw::Window w(f.r.bus);
+        // THE VIEW WORKSHOP SEATS is drawn as Workshop holds it, each property by its label.
+        w.room(info, pane::kInfoPaneRole, 120, 48);
+        REQUIRE_FALSE(w.weave().heard.empty());
+        CHECK(w.weave().heard.back().whole);
+        CHECK(w.rows(info) == trimmed(f.shown()));
+        const std::set<std::string> asked = w.actions(info);
+        std::string other;
+        for (const auto& [name, part] : held_parts(f.r.session(), f.kind)) {
+            CAPTURE(name);
+            CHECK(asked.count(name) == 1);
+            if (other.empty() && name.rfind("property:", 0) == 0 && name != "property:Width") {
+                other = name;
+            }
+        }
+        REQUIRE_FALSE(other.empty());
+        // A PRESS ON A PROPERTY puts the cursor there, in Workshop's rows and the window's alike.
+        const std::string label = other.substr(std::string("property:").size());
+        CHECK(w.press(info, other));
+        CHECK(f.property_row(label).rfind(">", 0) == 0);
+        CHECK(w.rows(info) == trimmed(f.shown()));
+        // A VIEW WORKSHOP SEATS NOWHERE is composed for the window's room, and Workshop is shown
+        // none of it.
+        const loom::WeaveId office = f.r.bus.role_holder(pane::kInfoPaneRole);
+        std::size_t shown_to_workshop = 0;
+        const loom::ObserverId tap = f.r.bus.add_observer([&](const loom::BusEvent& e) {
+            if (e.kind == loom::EventKind::Delivered && e.sender == office &&
+                e.target == f.r.workshop_id &&
+                (e.schema_name == v4::PaneContent::zen_name ||
+                 e.schema_name == v5::PaneCanvasContent::zen_name ||
+                 e.schema_name == PaneCaret::zen_name)) {
+                ++shown_to_workshop;
+            }
+        });
+        w.room(second, pane::kInfoPaneRole, 80, 16);
+        REQUIRE_FALSE(w.rows(second).empty());
+        const std::string use = std::string("control:") + pane::kActionViewUse;
+        REQUIRE(w.actions(second).count(use) == 1);
+        CHECK(w.press(second, use));
+        bool yours = false;
+        for (const std::string& row : w.rows(second)) {
+            yours = yours || row.find("This view is yours") != std::string::npos;
+        }
+        CHECK(yours);
+        f.r.bus.remove_observer(tap);
+        CHECK(shown_to_workshop == 0);
+        // AN ACTION NO PART NAMES, and a press from a window not showing the view, is no act.
+        const std::size_t drawn = w.weave().heard.size();
+        w.ask(info, "property:");
+        pw::Window elsewhere(f.r.bus, "other");
+        elsewhere.ask(info, "property:Width", pane::kInfoPaneRole);
+        CHECK(f.property_row(label).rfind(">", 0) == 0);
+        CHECK(w.weave().heard.size() == drawn);
+    }
 }
 
 TEST_CASE("Info's property cursor survives its own reload, the subject stands, and Return opens a "
