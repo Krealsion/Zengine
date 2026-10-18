@@ -19,6 +19,7 @@
 #include "workshop/pane_canvas_text.hpp"
 #include "workshop/pane_canvas_vocabulary.hpp"
 #include "workshop/pane_causes.hpp"
+#include "workshop/pane_drawing.hpp"
 #include "workshop/pane_parts.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
@@ -291,7 +292,9 @@ inline Picture picture(const Description& d, const Told& told, const Presentatio
 /// THE PICTURE IN A GRAPHICS WINDOW: the one picture (`picture`), each rectangle and run of text
 /// a node in the order drawn, named by what drew it -- `ground`, `box:<id>`, `text:<id>`, the
 /// notice's lines `notice` -- and each button's nodes recorded with its id, the action a press on
-/// them asks. No name holds a `/`, so no node waits for a parent. A caret is Workshop's alone.
+/// them asks; in front, a focused number field's caret, `caret`, a bar in the accent role at the
+/// left of the cell it stands before, as Workshop's panes draw theirs. No name holds a `/`, so no
+/// node waits for a parent.
 inline graphics::Sketch sketch(const Description& d, const Picture& p) {
     graphics::Sketch out;
     std::map<std::string, std::size_t> named;
@@ -310,6 +313,12 @@ inline graphics::Sketch sketch(const Description& d, const Picture& p) {
     for (std::size_t i = 0; i < p.content.texts.size(); ++i) {
         const auto& t = p.content.texts[i];
         out.text(node("text", p.texts_by[i], "notice"), t.x, t.y, t.text, graphics::by_role(t.role));
+    }
+    for (const auto& t : p.content.texts) {
+        if (t.caret_col < 0) continue;
+        const std::int64_t cx = t.x + t.caret_col * graphics::kCellPx;
+        out.line("caret", cx, t.y, cx, t.y + graphics::kCellPx - 1, graphics::by_role(ink::kAccent));
+        break;
     }
     return out;
 }
@@ -474,7 +483,7 @@ private:
 class View final : public loom::Weave {
 public:
     explicit View(Description description, std::shared_ptr<Presenter> presenter = {})
-        : description_(std::move(description)), window_(description_.name) {
+        : description_(std::move(description)), window_(description_.name, description_.name) {
         pair(std::move(presenter));
     }
     ~View() override {
@@ -537,7 +546,7 @@ public:
     /// HOST AUTHORITY: the same farewell for the window that shows its area, drawn whole with no
     /// action, and that window's office; none when no window shows it.
     std::optional<std::pair<std::string, graphics::Drawn>> window_farewell(const std::string& why) const {
-        if (window_.window().empty() || window_.width() <= 0 || window_.height() <= 0) return std::nullopt;
+        if (!window_.shown() || window_.width() <= 0 || window_.height() <= 0) return std::nullopt;
         const auto room = window_room(window_.width(), window_.height());
         Picture last;
         last.content = stopped_picture(description_, room, 1, why);
@@ -584,7 +593,7 @@ public:
             offer(bus);
             if (loom::from_value<detail::ViewStart>(in.payload).reveal) say(bus, ws::PaneRevealRequested{kPane});
             // ...and asks its area's room once a life: a view started again draws in its window again.
-            if (!room_asked_ && window_.window().empty()) {
+            if (!room_asked_ && !window_.shown()) {
                 room_asked_ = true;
                 (void)bus.office_send_to_role(description_.name, graphics::kGraphicsRole,
                                               loom::Message(loom::to_value(graphics::RoomAsked{window_.area()}), self_));
@@ -594,29 +603,17 @@ public:
         if (is(loom::schema_of<graphics::AreaRoom>())) {
             // THE ROOM, from the window that shows its area, as that window's office: a window, an
             // incarnation or a size it has not drawn in holds none of its drawing, so it goes whole.
-            const auto r = loom::from_value<graphics::AreaRoom>(in.payload);
-            if (r.area != window_.area() ||
-                !in.provenance.authored_from_role(std::string(graphics::kWindowOfficePrefix) + r.window))
-                return;
-            if (window_.room(r)) {
-                whole_next_ = true;
-                show_window(bus);
-            }
+            loom::Mail mail(bus, in, self_);
+            if (window_.room(loom::from_value<graphics::AreaRoom>(in.payload), mail)) show_window(bus);
             return;
         }
         if (is(loom::schema_of<graphics::DrawnRefused>())) {
             // A REFUSED CHANGE is drawn again whole at once, against nothing the window lacks; a
-            // refused whole drawing is said on the notice row and waits for the next change.
+            // refused whole drawing is said on the notice row, and the window is sent nothing more
+            // until the drawing changes.
             const auto refused = loom::from_value<graphics::DrawnRefused>(in.payload);
-            if (refused.area != window_.area() || window_.window().empty() ||
-                !in.provenance.authored_from_role(window_.window_office()))
-                return;
-            window_.forget();
-            whole_next_ = true;
-            if (!last_whole_) {
-                show_window(bus);
-                return;
-            }
+            loom::Mail mail(bus, in, self_);
+            if (!window_.refused(refused, mail) || !window_.refused_whole()) return;
             presentation_.notice = "the window refused this view: " + refused.reason;
             presentation_.alert = true;
             show_workshop(bus);
@@ -626,9 +623,8 @@ public:
             // A PRESS IN THE WINDOW on a button the picture last drawn there names, asked by that
             // window's office, is used as a press on Workshop's canvas is.
             const auto asked = loom::from_value<graphics::ActionRequested>(in.payload);
-            if (asked.area != window_.area() || window_.window().empty() ||
-                !in.provenance.authored_from_role(window_.window_office()) ||
-                window_actions_.count(asked.action) == 0)
+            const loom::Mail mail(bus, in, self_);
+            if (!window_.from_window(asked.area, mail) || window_actions_.count(asked.action) == 0)
                 return;
             const Element* button = description_.element(asked.action);
             if (!button || button->kind != Kind::button) return;
@@ -767,19 +763,16 @@ private:
     }
 
     /// The window that shows its area is sent what changed there (nothing when nothing did), or
-    /// the picture whole.
+    /// the picture whole (`ws::WindowDrawing`).
     void show_window(loom::Bus& bus) {
-        if (window_.window().empty() || window_.width() <= 0 || window_.height() <= 0) return;
+        if (!window_.shown() || window_.width() <= 0 || window_.height() <= 0) return;
         const auto drawn = sketch(description_, told_, presentation_, window_.width(), window_.height());
         window_actions_.clear();
         for (const auto& record : drawn.records()) window_actions_.insert(record.action);
-        window_.draw(drawn);
-        last_whole_ = whole_next_;
-        whole_next_ = false;
         // The mail only carries this view's statements as its office; it answers nothing.
         static const loom::Message quiet(loom::to_value(detail::ViewRedraw{}));
         loom::Mail mail(bus, quiet, self_);
-        window_.show(mail);
+        window_.draw(drawn, mail);
     }
 
     void show_workshop(loom::Bus& bus) {
@@ -909,9 +902,9 @@ private:
     std::uint64_t correlation_ = 0;
     component::Clipboard clipboard_;
     std::shared_ptr<Presenter> presenter_;
-    graphics::Canvas window_;               ///< its area in the window that shows it
+    ws::WindowDrawing window_;              ///< its area in the window that shows it
     std::set<std::string> window_actions_;  ///< the buttons the picture last sent there names
-    bool whole_next_ = true, last_whole_ = false, room_asked_ = false;
+    bool room_asked_ = false;
 };
 
 // ---- the presenter, which reaches the view it is paired with -----------------------------

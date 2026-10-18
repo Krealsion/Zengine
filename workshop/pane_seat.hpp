@@ -163,13 +163,13 @@ public:
         }
     }
 
-    /// THE ROWS LAST SAID, drawn in the window that shows the area: what changed there, or the
-    /// whole of them after a new room or a refusal.
+    /// THE ROWS LAST SAID, drawn in the window that shows the area with the caret and selection
+    /// said beside them: what changed there, or the whole of them after a new room or a refusal.
     void redraw(loom::Mail& mail) {
         if (!in_window() || rows_ <= 0 || columns_ <= 0) {
             return;
         }
-        RowsDrawing drawn = rows_drawing(said_rows_, said_parts_, columns_);
+        RowsDrawing drawn = rows_drawing(said_rows_, said_parts_, columns_, said_caret_);
         window_places_ = std::move(drawn.places);
         window_.draw(drawn.sketch, mail);
     }
@@ -192,11 +192,11 @@ public:
         return shows(event.grant, event.picture);
     }
 
-    /// THE PANE'S ROWS SAID, to the window showing its area (`redraw`) and, while Workshop seats
-    /// it, to Workshop as its office: its picture while it holds a canvas room, numbered under
-    /// `meaning`, the caret standing in it; else `prose` as it stands, its caret beside it while
-    /// there is one -- or always with `always_caret`, "none" included, so a caret the rows lost is
-    /// gone. The parts decide the shapes: `PaneRowPart`s go as `v4::PaneContent` or
+    /// THE PANE'S ROWS SAID, the caret standing in them, to the window showing its area (`redraw`)
+    /// and, while Workshop seats it, to Workshop as its office: its picture while it holds a canvas
+    /// room, numbered under `meaning`; else `prose` as it stands, its caret beside it while there
+    /// is one -- or always with `always_caret`, "none" included, so a caret the rows lost is gone.
+    /// The parts decide the shapes: `PaneRowPart`s go as `v4::PaneContent` or
     /// `v5::PaneCanvasContent`, `v2::PaneRowPart`s as `v5::PaneContent` or `v6::PaneCanvasContent`.
     template <class Content>
     void say(loom::Mail& mail, Content prose, std::int64_t meaning, const RowsCaret& caret = {},
@@ -206,6 +206,7 @@ public:
         for (const auto& part : prose.parts) {
             said_parts_.push_back(PaneRowPart{part.name, part.row, part.column, part.columns});
         }
+        said_caret_ = caret;
         redraw(mail);
         if (!seated_) {
             return;
@@ -248,9 +249,11 @@ private:
     std::int64_t rows_ = 0, columns_ = 0;
     bool seated_ = false;
     WindowDrawing window_{std::string(), std::string()};
-    /// The rows and parts last said, and where a press in the window reaches each named part.
+    /// The rows, parts and caret last said, and where a press in the window reaches each named
+    /// part.
     std::vector<surface::SurfaceTextRow> said_rows_;
     std::vector<PaneRowPart> said_parts_;
+    RowsCaret said_caret_;
     std::map<std::string, RowCell> window_places_;
 };
 
