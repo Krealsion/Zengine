@@ -91,9 +91,19 @@ def unresolved_runs(rig):
     check("U1 a run whose story wait ran out is UNRESOLVED, and its handle (name, lifetime) is kept",
           raised.startswith("run 01-held") and h and h["name"] == "01-held" and
           h["lifetime"] == rig.record(root)["lifetime"], raised)
-    s = status_of(rig, root)
-    check("U2 `status`, a separate process, finds the same run through the manager, still running",
-          "run 01-held is running" in s.get("current_run_now", ""), s.get("current_run_now"))
+    # The manager says a run is running once its worker connects, and names its step once the tool
+    # holds Workshop's input session, which U4's cleanup gives back; a loaded machine can take
+    # either past the story's wait. Every `status` read until then says starting or running.
+    said = []
+    def at_its_step():
+        said.append(status_of(rig, root).get("current_run_now", ""))
+        return said[-1].startswith("run 01-held is running,") and not said[-1].endswith("(step '')")
+    reached = wait_until(at_its_step, 10.0)
+    astray = [w for w in said
+              if not w.startswith(("run 01-held is starting,", "run 01-held is running,"))]
+    check("U2 `status`, a separate process, finds the same run through the manager: running at its "
+          "first step within 10s, and starting or running until then", reached and not astray,
+          astray[0] if astray else said[-1])
     try:
         st.run("workshop/connections", "blocked", {})
         blocked = "started"
