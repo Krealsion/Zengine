@@ -22,6 +22,13 @@
 #include "editor/neovim-editor/vocabulary.hpp"
 #include "editor/source-transfer/vocabulary.hpp"
 
+#include "graphics/canvas.hpp"
+#include "graphics/drawing.hpp"
+#include "graphics/element_export.hpp"
+#include "graphics/elements.hpp"
+#include "graphics/painter_export.hpp"
+#include "graphics/term_paint.hpp"
+
 #include "operator/catalog.hpp"
 #include "operator/host.hpp"
 #include "operator/host_abi.h"
@@ -386,6 +393,53 @@ void source_transfer_surface() {
           "a location names the root it was saved under");
 }
 
+// ---- zengine::graphics -----------------------------------------------------------------
+// An owner's drawing from the installed headers alone: a button sketched, a canvas told its room
+// and handed the picture, and the picture painted into cells by the code a terminal skin runs. No
+// window and no bus: those are the artifacts'.
+void graphics_surface() {
+    namespace gfx = zengine::graphics;
+    gfx::Sketch picture;
+    check(picture.nodes().empty() && picture.records().empty(), "a fresh sketch holds nothing");
+    gfx::Button serve("serve", "OK");
+    serve.set_bounds(0, 0, 6 * gfx::kCellPx, gfx::kCellPx);
+    serve.sketch(picture, "kitchen.serve");
+    check(picture.nodes().size() == 3 && picture.records().size() == 1,
+          "a button draws its group, its face and its label, and says its record");
+
+    gfx::Canvas canvas("kitchen.oven");
+    check(canvas.window().empty() && canvas.width() == 0, "a canvas no window has answered has no room");
+    gfx::AreaRoom room;
+    room.area = "kitchen.oven";
+    room.window = gfx::kTerminalWindow;
+    room.epoch = 1;
+    room.w = 20 * gfx::kCellPx;
+    room.h = 2 * gfx::kCellPx;
+    check(canvas.room(room) && canvas.width() == room.w &&
+              canvas.window_office() == "zengine.window.terminal",
+          "a canvas keeps the room its window told, and names that window's office");
+    check(!canvas.room(room), "and the same room told again changes nothing");
+
+    gfx::PaintTask task;
+    std::int64_t rank = 1;
+    for (const gfx::Node& n : picture.nodes()) {
+        task.nodes.push_back(gfx::PaintNode{n.path, {rank++}, n.op, n.args});
+    }
+    std::string top;
+    for (const gfx::NodePaint& painted : gfx::term::paint_task(task, gfx::term::Look{}).nodes) {
+        for (const gfx::term::Cell& c : gfx::term::unpack(painted.cells)) {
+            if (c.row == 0 && c.col >= 0) {
+                if (top.size() <= static_cast<std::size_t>(c.col)) {
+                    top.resize(static_cast<std::size_t>(c.col) + 1, ' ');
+                }
+                top[static_cast<std::size_t>(c.col)] = c.glyph;
+            }
+        }
+    }
+    check(top.find("[OK]") != std::string::npos,
+          "and the terminal painter's code paints the button's label in its cells");
+}
+
 } // namespace
 
 // The bounded inventory grant answers the folder and organized-listing doors, and nothing wider.
@@ -493,6 +547,7 @@ int main() {
     pane_surface();
     neovim_surface();
     source_transfer_surface();
+    graphics_surface();
 
     if (failures != 0) {
         std::fprintf(stderr, "public surface: %d check(s) failed\n", failures);

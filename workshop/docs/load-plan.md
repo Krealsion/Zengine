@@ -265,6 +265,7 @@ build is a retry, and the host keeps running.
 | | |
 |---|---|
 | shipped default | `workshop/default-load-plan.json`, staged beside the host binary |
+| shipped window | `workshop/window-load-plan.json`, staged beside the host binary |
 | shipped graphical | `workshop/graphical-load-plan.json`, staged only where both SDL artifacts were built |
 | project plan | `<project>/workshop-plan.json`, written by `o` in the Builder; the plan in force when it exists and no `--load-plan` is given |
 | default lookup | `<directory of the executable>/default-load-plan.json`, when there is no project plan |
@@ -278,16 +279,18 @@ what actually ran was the host's own opinion of one.
 `--load-plan` replaced `--skin` and `--input`. Those flags existed because *building* a Skin and
 *choosing* one are different acts, and choosing one by editing a literal in the host is an
 experiment nobody else can repeat — which is exactly what a plan file makes repeatable. The
-graphical arrangement is therefore a second shipped plan; it differs from the default in exactly
+graphical arrangement is therefore another shipped plan; it differs from the default in exactly
 the two rows that name the medium and the reader, and presentation and input remain two
-independent rows rather than one deduced from the other.
+independent rows rather than one deduced from the other. So does the terminal window's: its two
+rows name the graphics directory, `zengine-graphics`, and the window, `zengine-window-terminal`,
+which shows the desk and reads its own terminal's keys.
 
 ## Artifact names, and why they are stems
 
 A row names a **stem**: `zengine-timer`, not `zengine-timer.so` and not a path. The host owns the
 one rule that turns a stem into a file — a directory, a separator and the platform's suffix
 (`HostContext::so`) — which is what makes one plan legal on Linux and on Windows with no platform
-matrix, no per-OS field and no package locator. Neither shipped plan contains `.so`, `.dll` or a
+matrix, no per-OS field and no package locator. No shipped plan contains `.so`, `.dll` or a
 path separator, and a test asserts it.
 
 A stem carries no path separator and no `..`. That is an authority rule rather than tidiness: a
@@ -316,8 +319,8 @@ something hand-written. One codec; no JSON is read anywhere else in Workshop's s
 
 **Version 2 adds `choices`**, and nothing else: the artifacts an office may be switched between,
 each under a name a weaver switches to it by. Exactly one row of `artifacts` loads the office and is
-one of its choices; every other choice is loaded only when a switch asks for it. Both shipped plans
-author `standard` and `neovim` for `zengine.editor` (and are version 3, below). The choices' law, the
+one of its choices; every other choice is loaded only when a switch asks for it. Every shipped plan
+authors `standard` and `neovim` for `zengine.editor` (and is version 3, below). The choices' law, the
 switch and what crosses it are [editor/docs/editor-switch.md](../../editor/docs/editor-switch.md).
 
 ```json
@@ -344,7 +347,7 @@ has one spelling.
 **Version 3 adds a row's `optional`** — a plain `true`/`false` on every artifact row, and the
 one field of a row that is not a list. `true` says this project stands without the row: its
 refusal makes it an unavailable tool rather than a refused project (see
-[failure](#failure-and-what-it-leaves-behind)). Both shipped plans are version 3. A plan that
+[failure](#failure-and-what-it-leaves-behind)). Every shipped plan is version 3. A plan that
 marks no row optional is still written as version 1 or 2, byte for byte, and those files are
 read exactly as before.
 
