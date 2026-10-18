@@ -51,6 +51,7 @@ watch.DESK_READ_GAP             external-host/tools/desk/watch.py         DESK_R
 keymap_persist::kFormatVersion  workshop/keymap_persist.hpp               kFormatVersion
 claim   keymap_persist::kFormatVersion  `zengine-workshop-keymap` version {}
 recipe_persist::kFormatVersion  workshop/recipe_persist.hpp               kFormatVersion
+load_persist::kFormatVersion    workshop/load_persist.hpp                 kFormatVersion
 marks_persist::kFormatVersion   files/marks_persist.hpp                   kFormatVersion
 claim   marks_persist::kFormatVersion  marks file is its own format, version {}
 

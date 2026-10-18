@@ -717,8 +717,9 @@ no reordering, no retry, no deadline — and while one is outstanding the rest o
 running. There is no turn budget anywhere: an unanswered load stays unanswered rather than
 becoming a refusal somebody made up.
 
-Shipped plans: [`workshop/default-load-plan.json`](workshop/default-load-plan.json) (terminal)
-and [`workshop/graphical-load-plan.json`](workshop/graphical-load-plan.json) (SDL window).
+Shipped plans: [`workshop/default-load-plan.json`](workshop/default-load-plan.json) (terminal),
+[`workshop/window-load-plan.json`](workshop/window-load-plan.json) (terminal window) and
+[`workshop/graphical-load-plan.json`](workshop/graphical-load-plan.json) (SDL window).
 Reference: [workshop/docs/load-plan.md](workshop/docs/load-plan.md).
 
 ---
