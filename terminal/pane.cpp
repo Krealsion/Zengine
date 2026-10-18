@@ -13,7 +13,7 @@
 // sweep is not a gesture here: a press places the caret, a second press in a word selects it, and
 // shift with the caret keys sweeps by keyboard.
 
-// This file is the weave: its offer, its setting, the record it is shown, its keys, text and
+// This file is the weave: its offer, its settings, the record it is shown, its keys, text and
 // presses, the value pickup, the clipboard, the act and the rows it declares. It declares every
 // member; `view.hpp` defines the record's view and the rows composed from it, and
 // `history_and_completion.hpp` the recall and the completion ask and cursor, both included after
@@ -33,6 +33,7 @@
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_settings.hpp"
+#include "workshop/settings_seam_vocabulary.hpp"
 #include <zen/weave/dispatch_refusal.hpp>
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
@@ -76,12 +77,18 @@ using zengine::workshop::pane_text::admissible;
 
 constexpr const char* kWorkshopRole = "zengine.workshop";
 
-/// THE PROMPT, in columns: the `> ` before the editable text -- a fact about a ROW this pane
-/// composes rather than about any screen.
+/// THE PROMPT, in columns: its mark and a space before the editable text -- a fact about a ROW this
+/// pane composes rather than about any screen. Every mark the `prompt` setting takes is one column.
 constexpr std::int64_t kPromptCols = 2;
 
-/// ROWS OF THE RECORD A WHEEL NOTCH READS.
+/// THE MARK THE LINE IS TYPED AFTER unless a layout keeps another, and the marks it takes.
+constexpr const char* kPrompt = ">";
+const std::vector<std::string> kPromptMarks = {">", "$", "%", "#", ":"};
+
+/// ROWS OF THE RECORD A WHEEL NOTCH READS unless a layout keeps another, and the most and fewest.
 constexpr std::int64_t kWheelRows = 3;
+constexpr std::int64_t kWheelRowsLow = 1;
+constexpr std::int64_t kWheelRowsHigh = 24;
 
 /// The record wrapped into rows, which `view_top` reads: defined in `view.hpp`.
 struct WrappedRecord;
@@ -98,11 +105,12 @@ using Menu = ws::PaneMenuFacet<pane::kTerminalPane, pane::kTerminalPaneRole>;
 class TerminalPaneWeave
     : public zengine::With<Rows, Actions, Menu>::Weave<
           TerminalPaneWeave, pane::TerminalPaneState,
-          loom::Accept<ws::PaneSettings, ws::TerminalValueAnswered, ws::PaneCarryAnswered,
+          loom::Accept<ws::v2::PaneSettings, ws::TerminalValueAnswered, ws::PaneCarryAnswered,
                        loom::DispatchRefused, PaneKey, PaneTextInput, TranscriptShown,
                        TerminalActed, TerminalCompletionOffered, surface::ClipboardCopy,
                        surface::ClipboardText>,
-          loom::Emit<ws::PaneSettingsDeclared, PaneEscapeUnspent, ws::TerminalValueRequested,
+          loom::Emit<ws::v2::PaneSettingsDeclared, ws::PaneSettingUnused, PaneEscapeUnspent,
+                     ws::TerminalValueRequested,
                      ws::PaneValueCarryRequested, TerminalActRequested,
                      TerminalCompletionRequested, surface::ClipboardCopy,
                      surface::ClipboardTextRequested>> {
@@ -119,35 +127,56 @@ public:
                            pane::kTerminalPaneSummary, 10, 72};
     }
 
-    /// The rows the pane answers to, and the one setting it takes.
+    /// The rows the pane answers to, and the settings it takes.
     void offered(loom::Mail& mail) {
         declare(mail);
         (void)mail.as_role(pane::kTerminalPaneRole)
             .send_to_role(kWorkshopRole,
-                          ws::PaneSettingsDeclared{pane::kTerminalPane, {legend_setting()}});
+                          ws::v2::PaneSettingsDeclared{pane::kTerminalPane, setting_rows()});
     }
 
     /// A room granted, prose or canvas: the pane draws its rows there.
     void on_room(loom::Mail& mail) { say(mail); }
 
     /// THE SETTINGS THIS LAYOUT KEEPS FOR THE PANE, taken whole: a list that keeps none is every
-    /// setting at its default. A value the legend cannot use leaves it shown and says why in its
-    /// own row; a key it did not declare is passed over. Held as plain members, never reload state.
-    void on(const ws::PaneSettings& handed, loom::Mail& mail) {
+    /// setting at its default. A value a setting cannot use leaves its default in force and is said
+    /// back to Workshop against the revision it was handed at -- the legend's on its own row too;
+    /// a key it did not declare is passed over. Held as plain members, never reload state.
+    void on(const ws::v2::PaneSettings& handed, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || handed.pane != pane::kTerminalPane) {
             return;
         }
-        const ws::PaneSettingRow row = legend_setting();
-        const ws::PaneSetting* legend = ws::find_pane_setting(handed.settings, row.key);
         const bool was = legend_shown_;
         legend_shown_ = true;
         legend_problem_.clear();
-        if (legend != nullptr) {
-            const std::string refused = ws::pane_setting_refused_by(row, *legend);
-            if (refused.empty()) {
-                legend_shown_ = *legend->flag;
-            } else {
-                legend_problem_ = refused + " -- " + ws::kSettingOn;
+        wheel_rows_ = kWheelRows;
+        prompt_ = kPrompt;
+        for (const ws::v2::PaneSettingRow& row : setting_rows()) {
+            const ws::PaneSetting* held = ws::find_pane_setting(handed.settings, row.key);
+            if (held == nullptr) {
+                continue;
+            }
+            if (const std::string refused = ws::v2::pane_setting_refused_by(row, *held);
+                !refused.empty()) {
+                if (row.key == pane::kSettingLegend) {
+                    legend_problem_ = refused + " -- " + ws::kSettingOn;
+                }
+                // WHY, IN WHAT THE SETTING TAKES: a line Workshop can keep whatever the value was.
+                const std::string why =
+                    "it takes " + ws::pane_setting_takes(ws::narrow_setting_row(row));
+                (void)mail.as_role(pane::kTerminalPaneRole)
+                    .send_to_role(kWorkshopRole,
+                                  ws::PaneSettingUnused{pane::kTerminalPane, handed.revision,
+                                                        row.key,
+                                                        why.substr(0, ws::kMaxPaneSettingTextLen)});
+                continue;
+            }
+            if (row.key == pane::kSettingLegend) {
+                legend_shown_ = *held->flag;
+            } else if (row.key == pane::kSettingWheelRows) {
+                wheel_rows_ = *held->number;
+            } else if (row.key == pane::kSettingPrompt) {
+                prompt_ = *held->text;
             }
         }
         if (legend_shown_ != was) {
@@ -175,10 +204,10 @@ public:
         say(mail);
     }
 
-    /// THE WHEEL READS THE RECORD: three rows a notch, fractions carried, +1 away from the weaver
-    /// being older output. Reading moves no line, recall, list or notice.
+    /// THE WHEEL READS THE RECORD: the layout's `wheel-rows` a notch, fractions carried, +1 away
+    /// from the weaver being older output. Reading moves no line, recall, list or notice.
     void wheel(double dy, loom::Mail& mail) {
-        wheel_ += dy * static_cast<double>(kWheelRows);
+        wheel_ += dy * static_cast<double>(wheel_rows_);
         const std::int64_t rows = static_cast<std::int64_t>(wheel_);
         wheel_ -= static_cast<double>(rows);
         if (rows == 0) {
@@ -494,12 +523,29 @@ public:
 private:
     // ---- Offering and declaring ---------------------------------------------------------
 
-    /// THE SETTING THE PANE TAKES: its legend shown or not, shown unless a layout says otherwise.
-    static ws::PaneSettingRow legend_setting() {
-        ws::PaneSettingRow row;
-        row.key = pane::kSettingLegend;
-        row.flag = true;
-        return row;
+    /// THE SETTINGS THE PANE TAKES, each with its default, how a weaver finds it and what it does:
+    /// the legend, pinned; the wheel's rows a notch; the prompt's mark.
+    static std::vector<ws::v2::PaneSettingRow> setting_rows() {
+        ws::v2::PaneSettingRow legend;
+        legend.key = pane::kSettingLegend;
+        legend.flag = true;
+        legend.tags = {"chrome", "help"};
+        legend.pinned = true;
+        legend.summary = "show the shortcut legend bar";
+        ws::v2::PaneSettingRow wheel;
+        wheel.key = pane::kSettingWheelRows;
+        wheel.number = kWheelRows;
+        wheel.low = kWheelRowsLow;
+        wheel.high = kWheelRowsHigh;
+        wheel.tags = {"input", "scroll"};
+        wheel.summary = "rows scrolled per mouse wheel notch";
+        ws::v2::PaneSettingRow prompt;
+        prompt.key = pane::kSettingPrompt;
+        prompt.text = kPrompt;
+        prompt.choices = kPromptMarks;
+        prompt.tags = {"chrome", "text"};
+        prompt.summary = "input line prompt mark";
+        return {legend, wheel, prompt};
     }
 
     /// What this pane answers to: nine rows, and they never change. No modes, unlike Info's and
@@ -741,11 +787,13 @@ private:
 
     std::string notice_;
 
-    /// THE LEGEND SETTING THIS LAYOUT HANDED, and why a value it could not use left it shown --
+    /// THE SETTINGS THIS LAYOUT HANDED, and why a legend value it could not use left it shown --
     /// said on the legend row itself, which no keystroke clears. Plain members: a reloaded image
     /// is handed them again before its room.
     bool legend_shown_ = true;
     std::string legend_problem_;
+    std::int64_t wheel_rows_ = kWheelRows;
+    std::string prompt_ = kPrompt;
     std::int64_t legend_row_ = -1;
 
     /// WHICH COMPOSED ROW IS THE INPUT LINE, and where the list is -- written by `say` and

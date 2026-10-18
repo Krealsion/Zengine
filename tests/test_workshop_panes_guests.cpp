@@ -19,6 +19,7 @@
 #include "workshop/actor_scope.hpp"
 #include "workshop/editor_switch.hpp"
 #include "workshop/editor_switch_vocabulary.hpp"
+#include "workshop/guests.hpp"
 #include "workshop/pane_operation.hpp"
 #include "workshop/terminal_seam_vocabulary.hpp"
 
@@ -1040,4 +1041,148 @@ TEST_CASE("on a development host the same guest types into the Editor and saves,
         CHECK(r.session().pane_titles != titles);
         CHECK_MESSAGE(std::filesystem::exists(r.host.prefs_path), r.last_notice());
     }
+}
+
+// ---- A guest's `settings`: one pane's settings read and written by message -------------------
+
+namespace {
+
+/// A GUEST'S SESSION AS THE DOOR MOUNTS IT: a participant in no office, speaking personally under
+/// the grant it was given, and keeping every answer it hears.
+class SettingsGuest
+    : public loom::WeaveBase<SettingsGuest, SeatState,
+                             loom::Accept<PaneSettingsShown, PaneSettingActed, SeatDo>,
+                             loom::Emit<PaneSettingsRequested, PaneSettingCommitRequested>> {
+public:
+    void on(const PaneSettingsShown& s, loom::Mail& mail) {
+        if (mail.answers_ask()) shown.push_back(s);
+    }
+    void on(const PaneSettingActed& a, loom::Mail& mail) {
+        if (mail.answers_ask()) acted.push_back(a);
+    }
+    void on(const SeatDo&, loom::Mail& mail) {
+        if (next) {
+            std::function<void(SettingsGuest&, loom::Mail&)> once;
+            once.swap(next);
+            once(*this, mail);
+        }
+    }
+    template <class Shape> void ask(loom::Mail& mail, const Shape& s) {
+        (void)mail.send_to_role(kWorkshopProvider, s);
+    }
+
+    std::function<void(SettingsGuest&, loom::Mail&)> next;
+    std::vector<PaneSettingsShown> shown;
+    std::vector<PaneSettingActed> acted;
+};
+
+struct GuestAsker {
+    SettingsGuest* guest = nullptr;
+    loom::WeaveId id{};
+};
+
+GuestAsker mount_settings_guest(PaneRig& r, loom::Grant grant) {
+    auto weave = std::make_unique<SettingsGuest>();
+    GuestAsker out{weave.get(), {}};
+    out.id = r.bus.register_weave(std::move(weave), std::move(grant), std::string());
+    out.guest->zen_set_self(out.id);
+    return out;
+}
+
+void ask_as(PaneRig& r, const GuestAsker& a, std::function<void(SettingsGuest&, loom::Mail&)> what) {
+    a.guest->next = std::move(what);
+    (void)r.bus.send(a.id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
+    r.bus.drain_until_idle();
+}
+
+scope::GuestRowFacts guest_facts(const guests::GuestRow& row) {
+    scope::GuestRowFacts f;
+    f.admitted = true;
+    f.name = row.name;
+    f.powers = row.may;
+    f.version = guests::kGuestsFileVersion;
+    return f;
+}
+
+} // namespace
+
+TEST_CASE("a guest whose row has `settings` reads and writes a pane's settings; without it Loom's grant refuses the ask, and Workshop's door the asker") {
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    r.extent(160, 48);
+    const PaneRef dial{"test.dial", "dial"};
+    Session& s = const_cast<Session&>(r.session());
+    REQUIRE(add_pane(s.setup.active, dial));
+    pane_of(s.setup.active, dial)->settings = {PaneSetting{"step", {}, 4, {}}};
+
+    guests::GuestRow settings_row;
+    settings_row.name = "agent";
+    settings_row.may = {guests::kPowerSettings};
+    guests::GuestRow capture_row;
+    capture_row.name = "reader";
+    capture_row.may = {guests::kPowerCapture};
+    const GuestAsker with = mount_settings_guest(r, guests::grant_for(settings_row));
+    const GuestAsker without = mount_settings_guest(r, guests::grant_for(capture_row));
+    // ...and the same row without the power, its session granted the asks anyway: the door judges
+    // the row it admitted, not only what Loom let through.
+    loom::Grant open;
+    open.allow_to_any(PaneSettingsRequested::zen_name, PaneSettingsRequested::zen_version);
+    open.allow_to_any(PaneSettingCommitRequested::zen_name, PaneSettingCommitRequested::zen_version);
+    const GuestAsker past = mount_settings_guest(r, std::move(open));
+    r.host.guest_row = [&](loom::WeaveId who) {
+        if (who == with.id) return guest_facts(settings_row);
+        if (who == without.id || who == past.id) return guest_facts(capture_row);
+        return scope::GuestRowFacts{};
+    };
+
+    // WITH `settings`: answered, and a clear written.
+    ask_as(r, with, [&](SettingsGuest& g, loom::Mail& m) { g.ask(m, PaneSettingsRequested{dial.provider, dial.pane}); });
+    REQUIRE(with.guest->shown.size() == 1);
+    const PaneSettingsShown read = with.guest->shown.back();
+    CHECK(read.revision > 0);
+    CHECK(read.settings == std::vector<PaneSetting>{PaneSetting{"step", {}, 4, {}}});
+    CHECK(read.said == "stored; not handed: nothing offers test.dial/dial here");
+    PaneSettingCommitRequested clear;
+    clear.provider = dial.provider;
+    clear.pane = dial.pane;
+    clear.revision = read.revision;
+    clear.key = "step";
+    clear.clear = true;
+    ask_as(r, with, [&](SettingsGuest& g, loom::Mail& m) { g.ask(m, clear); });
+    REQUIRE(with.guest->acted.size() == 1);
+    CHECK_MESSAGE(with.guest->acted.back().accepted, with.guest->acted.back().refusal);
+    CHECK(pane_of(r.session().setup.active, dial)->settings.empty());
+
+    // WITHOUT IT: Loom's grant refuses the ask, and Workshop never hears it.
+    pane_of(s.setup.active, dial)->settings = {PaneSetting{"step", {}, 4, {}}};
+    std::size_t refused = 0, heard = 0;
+    const loom::ObserverId tap = r.bus.add_observer([&](const loom::BusEvent& ev) {
+        if (ev.sender != without.id) return;
+        refused += ev.kind == loom::EventKind::Refused ? 1u : 0u;
+        heard += ev.kind == loom::EventKind::Delivered && ev.target == r.workshop_id ? 1u : 0u;
+    });
+    ask_as(r, without, [&](SettingsGuest& g, loom::Mail& m) { g.ask(m, PaneSettingsRequested{dial.provider, dial.pane}); });
+    ask_as(r, without, [&](SettingsGuest& g, loom::Mail& m) { g.ask(m, clear); });
+    r.bus.remove_observer(tap);
+    CHECK(refused == 2);
+    CHECK(heard == 0);
+    CHECK(without.guest->shown.empty());
+    CHECK(without.guest->acted.empty());
+
+    // ...AND AN ASK LET THROUGH IS STILL ANSWERED WITHHELD, naming the power its row lacks.
+    ask_as(r, past, [&](SettingsGuest& g, loom::Mail& m) { g.ask(m, PaneSettingsRequested{dial.provider, dial.pane}); });
+    REQUIRE(past.guest->shown.size() == 1);
+    CHECK(past.guest->shown.back().revision == 0);
+    CHECK(past.guest->shown.back().settings.empty());
+    CHECK(past.guest->shown.back().said ==
+          "settings withheld: guest 'reader' has no `settings` in its row -- only `settings` reads "
+          "and writes a pane's settings");
+    clear.revision = read.revision + 100;
+    ask_as(r, past, [&](SettingsGuest& g, loom::Mail& m) { g.ask(m, clear); });
+    REQUIRE(past.guest->acted.size() == 1);
+    CHECK_FALSE(past.guest->acted.back().accepted);
+    CHECK(past.guest->acted.back().refusal.rfind("settings commit withheld: guest 'reader'", 0) == 0);
+    CHECK(pane_of(r.session().setup.active, dial)->settings ==
+          std::vector<PaneSetting>{PaneSetting{"step", {}, 4, {}}});
 }

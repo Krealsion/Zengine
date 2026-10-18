@@ -61,8 +61,11 @@ void WorkshopWeave::accept_pane_offer(const PaneOffered& offer, loom::Mail& mail
             // gave out must not match the new image's picture of the same number.
             pane->forget_pictures();
             pane->canvas = ExternalPane::Canvas{};
-            // ...AND ITS SETTINGS ARE OWED AGAIN: a reloaded image holds none it was handed.
+            // ...AND ITS SETTINGS ARE OWED AGAIN: a reloaded image holds none it was handed, and
+            // can use none it was handed before.
             pane->settings_heard.reset();
+            pane->settings_revision = 0;
+            pane->settings_unused.clear();
             // ...AND NOT THE REFUSAL, for the room grant's reason exactly: a provider
             // correcting its own summary has not sent content this host accepted, so what
             // last happened to this pane's content is still what happened to it.
@@ -74,6 +77,17 @@ void WorkshopWeave::accept_pane_offer(const PaneOffered& offer, loom::Mail& mail
         if (session_.presented.open && session_.presented.office == office &&
             session_.presented.pane == offer.pane) {
             withdraw_menu("the pane was offered again", mail);
+        }
+        // ...AND A DECLARATION THAT NO LONGER COUNTS GOES: a reloaded image keeps the weave id
+        // but not the incarnation it was counted by, so one that declares nothing takes nothing
+        // its predecessor declared. The same image offering again keeps its declaration.
+        for (RuntimePane& row : session_.panes.runtime.entries) {
+            if (row.kind == admitted.kind && counted_settings(row) == nullptr) {
+                row.settings_rows.clear();
+                row.settings_rows_v2.clear();
+                row.settings_from = {};
+                row.settings_incarnation = 0;
+            }
         }
     }
     // A party that has just arrived has heard nothing, so what is true is said again on the next
@@ -263,21 +277,99 @@ void WorkshopWeave::on(const PaneSettingsDeclared& declared, loom::Mail& mail) {
         repaint(mail);
         return;
     }
+    std::vector<v2::PaneSettingRow> rows;
+    rows.reserve(declared.rows.size());
+    for (const PaneSettingRow& row : declared.rows) {
+        rows.push_back(widen_setting_row(row));
+    }
+    keep_settings_rows(admitted.kind, std::move(rows), mail);
+}
+
+// WL-SETTING-03 -- agents/workshop/settings.md
+void WorkshopWeave::on(const v2::PaneSettingsDeclared& declared, loom::Mail& mail) {
+    const std::string_view office = mail.authored_role();
+    if (office.empty()) {
+        return;
+    }
+    const Admission admitted = admit_pane_settings(session_.panes.runtime, office, declared);
+    if (!admitted.written.accepted) {
+        say(admitted.written.refusal, true);
+        repaint(mail);
+        return;
+    }
+    keep_settings_rows(admitted.kind, declared.rows, mail);
+}
+
+void WorkshopWeave::keep_settings_rows(std::int64_t kind, std::vector<v2::PaneSettingRow> rows,
+                                       loom::Mail& mail) {
     // JUDGED WHOLE; ONLY NOW IS ANYTHING WRITTEN, by handle, as an action declaration is. The
     // sender is kept beside the settings, which count while it holds the office.
     for (RuntimePane& row : session_.panes.runtime.entries) {
-        if (row.kind == admitted.kind) {
-            row.settings_rows = declared.rows;
+        if (row.kind == kind) {
+            row.settings_rows.clear();
+            for (const v2::PaneSettingRow& one : rows) {
+                row.settings_rows.push_back(narrow_setting_row(one));
+            }
+            row.settings_rows_v2 = rows;
             row.settings_from = mail.sender();
+            row.settings_incarnation =
+                host_->incarnation_of ? host_->incarnation_of(mail.sender()) : 0;
         }
     }
     repaint(mail);
 }
 
 // WL-SETTING-03 -- agents/workshop/settings.md
+const std::vector<v2::PaneSettingRow>*
+WorkshopWeave::counted_settings_v2(const RuntimePane& row) const {
+    return counted_settings(row) != nullptr ? &row.settings_rows_v2 : nullptr;
+}
+
+// WL-SETTING-07 -- agents/workshop/settings.md
+std::int64_t WorkshopWeave::settings_revision(const PaneRef& ref) {
+    // A ROW THE LIVE LAYOUT NO LONGER HAS TAKES ITS RECORD WITH IT, so the list is bounded by the
+    // desk's rows, and the row coming back is minted afresh.
+    std::erase_if(settings_revisions_, [this](const SettingsRevision& r) {
+        return pane_of(session_.setup.active, r.ref) == nullptr;
+    });
+    const SetupPane* seat = pane_of(session_.setup.active, ref);
+    if (seat == nullptr) {
+        return 0;
+    }
+    const RuntimePane* offered = session_.panes.runtime.find(ref.provider, ref.pane);
+    const std::vector<v2::PaneSettingRow>* counted =
+        offered != nullptr ? counted_settings_v2(*offered) : nullptr;
+    SettingsRevision now{ref,
+                         0,
+                         session_.setup.put_live,
+                         seat->settings,
+                         counted != nullptr ? *counted : std::vector<v2::PaneSettingRow>{},
+                         host_->role_holder ? host_->role_holder(ref.provider) : loom::WeaveId{}};
+    for (SettingsRevision& kept : settings_revisions_) {
+        if (!(kept.ref == ref)) {
+            continue;
+        }
+        if (kept.desk != now.desk || kept.settings != now.settings || kept.rows != now.rows ||
+            kept.holder != now.holder) {
+            now.revision = ++settings_revision_;
+            kept = std::move(now);
+        }
+        return kept.revision;
+    }
+    now.revision = ++settings_revision_;
+    settings_revisions_.push_back(std::move(now));
+    return settings_revisions_.back().revision;
+}
+
+// WL-SETTING-03 -- agents/workshop/settings.md
 const std::vector<PaneSettingRow>* WorkshopWeave::counted_settings(const RuntimePane& row) const {
     if (!row.settings_from.valid() || !host_->role_holder ||
         host_->role_holder(row.provider) != row.settings_from) {
+        return nullptr;
+    }
+    // ...AND AT THE INCARNATION THAT DECLARED: a reload in place keeps the id and moves this.
+    if (host_->incarnation_of &&
+        host_->incarnation_of(row.settings_from) != row.settings_incarnation) {
         return nullptr;
     }
     return &row.settings_rows;

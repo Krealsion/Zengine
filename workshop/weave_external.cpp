@@ -60,23 +60,38 @@ void WorkshopWeave::hand_settings(loom::Mail& mail) {
         if (pane == nullptr || seat == nullptr) {
             continue;
         }
-        // A HOLDER THAT TAKES THE DOOR, whether or not, and whenever, it declared.
-        if (!host_->holder_accepts(row->provider, *loom::schema_of<PaneSettings>())) {
+        // A HOLDER THAT TAKES THE DOOR, whether or not, and whenever, it declared -- the newest
+        // version it takes. A v2 holder is handed the row's revision too, so it is handed again
+        // whenever the revision moves, a desk put live with the same settings included.
+        const PaneRef ref{row->provider, row->pane};
+        const bool revisions = host_->holder_accepts(row->provider,
+                                                     *loom::schema_of<v2::PaneSettings>());
+        if (!revisions &&
+            !host_->holder_accepts(row->provider, *loom::schema_of<PaneSettings>())) {
             continue;
         }
         const loom::WeaveId holder = host_->role_holder(row->provider);
+        const std::int64_t revision = revisions ? settings_revision(ref) : 0;
         if (pane->settings_heard && pane->settings_holder == holder &&
-            *pane->settings_heard == seat->settings) {
+            *pane->settings_heard == seat->settings && pane->settings_revision == revision) {
             continue; // what it holds is what this layout keeps: saying so again is noise
         }
         // TO THE HOLDER ITSELF, as its canvas room is, so what is recorded is who heard it.
-        const loom::Ticket sent = mail.as_role(kWorkshopProvider)
-                                      .send(holder, PaneSettings{row->pane, seat->settings});
+        const loom::Ticket sent =
+            revisions ? mail.as_role(kWorkshopProvider)
+                            .send(holder, v2::PaneSettings{row->pane, revision, seat->settings})
+                      : mail.as_role(kWorkshopProvider)
+                            .send(holder, PaneSettings{row->pane, seat->settings});
         if (!sent.valid()) {
             continue; // nothing recorded, so the next repaint hands them again
         }
         pane->settings_heard = seat->settings;
         pane->settings_holder = holder;
+        pane->settings_revision = revision;
+        // WHAT THE PANE SAID IT COULD NOT USE WAS ABOUT A REVISION IT NO LONGER HOLDS.
+        std::erase_if(pane->settings_unused, [revision](const ExternalPane::UnusedSetting& u) {
+            return u.revision != revision;
+        });
     }
 }
 

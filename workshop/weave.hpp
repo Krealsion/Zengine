@@ -21,6 +21,7 @@
 #include "builder_seam_vocabulary.hpp" // the doors the Builder pane asks; this host answers one
 #include "pane_seam_vocabulary.hpp"  // the doors a pane weave asks; this host answers one
 #include "open_seam_vocabulary.hpp"  // the managed opening's conversation
+#include "settings_seam_vocabulary.hpp" // one pane's settings, read and written by message
 #include "editor_switch_vocabulary.hpp" // what a switch of the Editor is waiting on
 #include "interaction_time.hpp" // what monotonic time it is, and nothing else
 #include "keymap_persist.hpp"
@@ -292,6 +293,21 @@ bool holder_accepts_on(const loom::Switchboard& bus, std::string_view role,
 bool holder_emits_on(const loom::Switchboard& bus, std::string_view role,
                      const loom::Schema& shape);
 
+/// What a terminal participant may ask of a pane's settings and hear back: the read and the commit,
+/// known and granted to this office alone, and their answers accepted. The host widens the terminal
+/// it mounts with exactly this, so what a case typing the documented line proves is what it grants.
+// WL-SETTING-09 -- agents/workshop/settings.md
+inline void let_terminal_edit_settings(loom::TerminalVocabulary& vocab, loom::Grant& grant) {
+    vocab.knows(loom::schema_of<PaneSettingsRequested>())
+        .knows(loom::schema_of<PaneSettingCommitRequested>())
+        .accepts(loom::schema_of<PaneSettingsShown>())
+        .accepts(loom::schema_of<PaneSettingActed>());
+    grant.allow_to_role(PaneSettingsRequested::zen_name, PaneSettingsRequested::zen_version,
+                        kWorkshopProvider);
+    grant.allow_to_role(PaneSettingCommitRequested::zen_name,
+                        PaneSettingCommitRequested::zen_version, kWorkshopProvider);
+}
+
 /// The door onto the terminal participant, as this host composes it: over its own context.
 using TerminalDoorFacet = TerminalDoor<HostContext>;
 
@@ -319,6 +335,12 @@ class WorkshopWeave
                                           zengine::workshop::v2::PaneActions,
                                           zengine::workshop::v3::PaneActions,
                                           zengine::workshop::PaneSettingsDeclared,
+                                          zengine::workshop::v2::PaneSettingsDeclared,
+                                          // one pane's settings on the live layout, read and
+                                          // written by message, and a value a pane cannot use
+                                          zengine::workshop::PaneSettingsRequested,
+                                          zengine::workshop::PaneSettingCommitRequested,
+                                          zengine::workshop::PaneSettingUnused,
                                           zengine::workshop::PaneContent,
                                           zengine::workshop::PaneCaret,
                                           zengine::workshop::v2::PaneContent,
@@ -399,6 +421,9 @@ class WorkshopWeave
                                         zengine::workshop::PaneCatalogRequested,
                                         zengine::workshop::PaneRoom,
                                         zengine::workshop::PaneSettings,
+                                        zengine::workshop::v2::PaneSettings,
+                                        zengine::workshop::PaneSettingsShown,
+                                        zengine::workshop::PaneSettingActed,
                                         zengine::workshop::PanePressed,
                                         zengine::workshop::v2::PanePressed,
                                         zengine::workshop::v3::PanePressed,
@@ -773,10 +798,28 @@ public:
     /// The settings a pane takes, judged whole under the office stamp: kept with the weave that
     /// declared them, or refused aloud with the rows in force left standing.
     void on(const PaneSettingsDeclared& declared, loom::Mail& mail);
+    /// ...and the same judgement of v2's rows, which say how each setting is found.
+    void on(const v2::PaneSettingsDeclared& declared, loom::Mail& mail);
 
     /// THE SETTINGS A PANE'S DECLARATION GIVES, while the weave that declared them holds its
-    /// office; nullptr when none counts.
+    /// office; nullptr when none counts. v1's rows, and v2's beside them.
     const std::vector<PaneSettingRow>* counted_settings(const RuntimePane& row) const;
+    const std::vector<v2::PaneSettingRow>* counted_settings_v2(const RuntimePane& row) const;
+
+    /// ONE PANE'S ROW OF THE LIVE LAYOUT, READ: its revision, what its counted declaration takes,
+    /// what it keeps, and the desk's sentence about it -- answered to the asker alone, and only to
+    /// one this door serves (`settings_asker_refused`).
+    void on(const PaneSettingsRequested& asked, loom::Mail& mail);
+    /// ...AND ONE SETTING OF IT WRITTEN, at the revision the asker read, through the setter Info's
+    /// rows use; refused in words with nothing written.
+    void on(const PaneSettingCommitRequested& asked, loom::Mail& mail);
+    /// A PANE'S WORD THAT IT CANNOT USE A SETTING IT WAS HANDED, kept against that revision.
+    void on(const PaneSettingUnused& unused, loom::Mail& mail);
+
+    /// THE REVISION THE LIVE LAYOUT'S ROW FOR `ref` STANDS AT, minted afresh when what it was
+    /// minted for moved -- the desk put live, the row's settings, the counted declaration or the
+    /// office's holder; 0 when the live layout has no such row.
+    std::int64_t settings_revision(const PaneRef& ref);
 
     // ---- The participating owner of the application's default behaviour (WL-DESK) --------
 
@@ -1899,6 +1942,25 @@ private:
     std::int64_t app_declaration_ = 0;
     /// THE MINT FOR DECLARATION NUMBERS, pane and application alike: from one, never reused.
     std::int64_t declarations_ = 0;
+    /// WHAT EACH LIVE ROW'S SETTINGS REVISION WAS MINTED FOR, and the mint: from one, never
+    /// reused, so a revision read before any move is never current again. A row the live layout
+    /// no longer has goes from the list; never persisted.
+    struct SettingsRevision {
+        PaneRef ref;
+        std::int64_t revision = 0;
+        std::uint64_t desk = 0;
+        std::vector<PaneSetting> settings;
+        std::vector<v2::PaneSettingRow> rows;
+        loom::WeaveId holder{};
+    };
+    std::vector<SettingsRevision> settings_revisions_;
+    std::int64_t settings_revision_ = 0;
+    /// WHETHER THIS ASKER MAY READ AND WRITE A PANE'S SETTINGS BY MESSAGE: an office, the Terminal
+    /// this host mounted, or a guest whose row has `settings`. Empty when it may; else why not.
+    std::string settings_asker_refused(const loom::Mail& mail) const;
+    /// ...and an admitted declaration kept for the pane of `kind`, whichever version it came in.
+    void keep_settings_rows(std::int64_t kind, std::vector<v2::PaneSettingRow> rows,
+                            loom::Mail& mail);
     /// THE LAST INVENTORY THIS HOST SAID OUT LOUD, so it does not say it again unchanged -- and
     /// whether it has said one since a presenter last arrived (`on(PaneOffered)` clears it).
     std::vector<InventoryPane> inventory_said_;
