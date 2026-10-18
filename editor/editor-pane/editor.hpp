@@ -26,23 +26,30 @@ namespace zengine::workshop {
 
 // ---- The editor's fixed policy numbers ---------------------------------------------------
 
-/// THE TAB STOP IS FOUR COLUMNS, FIXED.
+/// THE TAB STOP, IN COLUMNS, unless a layout keeps another, and the fewest and most it may keep.
 // WL-EDIT-08 -- agents/workshop/editor.md
 inline constexpr std::int64_t kEditorTabStop = 4;
+inline constexpr std::int64_t kEditorTabStopLow = 1;
+inline constexpr std::int64_t kEditorTabStopHigh = 16;
 
 /// The largest file this editor will open. The document ceiling's own number: a source
 /// file a weaver edits by hand is far smaller, and a hostile file must not choose the cost.
 inline constexpr std::uintmax_t kMaxSourceBytes = 1u << 22; // 4 MiB
 
-/// How many undo steps the editor keeps, and how many bytes of snapshots it will hold.
+/// How many undo steps the editor keeps, and how many bytes of snapshots it will hold. A layout may
+/// keep fewer steps, one at the least; the byte budget holds whatever it keeps.
 // WL-EDIT-01 -- agents/workshop/editor.md
 inline constexpr std::size_t kEditorUndoDepth = 100;
+inline constexpr std::size_t kEditorUndoDepthLow = 1;
 inline constexpr std::size_t kEditorUndoBudgetBytes = 8u << 20; // 8 MiB of snapshots
 
-/// How many buffer lines one wheel notch scrolls. Three is the desktop convention;
-/// fractional high-resolution notches accumulate in the session until they are worth a
-/// line (`EditorState::wheel_accum`), so a precise wheel is not rounded to nothing.
+/// How many buffer lines one wheel notch scrolls unless a layout keeps another, and the fewest and
+/// most it may keep. Three is the desktop convention; fractional high-resolution notches
+/// accumulate in the session until they are worth a line (`EditorState::wheel_accum`), so a
+/// precise wheel is not rounded to nothing.
 inline constexpr std::int64_t kEditorWheelLines = 3;
+inline constexpr std::int64_t kEditorWheelLinesLow = 1;
+inline constexpr std::int64_t kEditorWheelLinesHigh = 24;
 
 // ---- The line-ending convention ----------------------------------------------------------
 
@@ -80,13 +87,15 @@ inline bool source_text_ok(const std::string& text) noexcept {
 // ---- Tab geometry: byte positions <-> displayed columns ----------------------------------
 // WL-EDIT-08 -- agents/workshop/editor.md
 
-/// The displayed column immediately after `byte` bytes of this line.
-inline std::int64_t visual_col_of(const std::string& line, std::size_t byte) noexcept {
+/// The displayed column immediately after `byte` bytes of this line, its tabs stopping every `tab`
+/// columns.
+inline std::int64_t visual_col_of(const std::string& line, std::size_t byte,
+                                  std::int64_t tab = kEditorTabStop) noexcept {
     std::int64_t col = 0;
     const std::size_t end = byte < line.size() ? byte : line.size();
     for (std::size_t i = 0; i < end; ++i) {
         if (line[i] == '\t') {
-            col += kEditorTabStop - (col % kEditorTabStop);
+            col += tab - (col % tab);
         } else {
             ++col;
         }
@@ -95,20 +104,21 @@ inline std::int64_t visual_col_of(const std::string& line, std::size_t byte) noe
 }
 
 /// The whole line's displayed width.
-inline std::int64_t visual_len(const std::string& line) noexcept {
-    return visual_col_of(line, line.size());
+inline std::int64_t visual_len(const std::string& line, std::int64_t tab = kEditorTabStop) noexcept {
+    return visual_col_of(line, line.size(), tab);
 }
 
 /// THE BYTE A DISPLAYED COLUMN NAMES -- `visual_col_of` read backwards.
 // WL-EDIT-08 -- agents/workshop/editor.md
-inline std::size_t byte_of_visual_col(const std::string& line, std::int64_t col) noexcept {
+inline std::size_t byte_of_visual_col(const std::string& line, std::int64_t col,
+                                      std::int64_t tab = kEditorTabStop) noexcept {
     if (col <= 0) {
         return 0;
     }
     std::int64_t at = 0; // the displayed column byte `i` begins at
     for (std::size_t i = 0; i < line.size(); ++i) {
         const std::int64_t width =
-            line[i] == '\t' ? kEditorTabStop - (at % kEditorTabStop) : 1;
+            line[i] == '\t' ? tab - (at % tab) : 1;
         if (col < at + width) {
             return i; // inside this byte's span: the caret lands before it
         }
@@ -124,7 +134,7 @@ inline std::size_t byte_of_visual_col(const std::string& line, std::int64_t col)
 /// `[first_col, first_col + columns)`, as the exact bytes a region row carries.
 // WL-EDIT-08 -- agents/workshop/editor.md
 inline std::string expanded_slice(const std::string& line, std::int64_t first_col,
-                                  std::int64_t columns) {
+                                  std::int64_t columns, std::int64_t tab = kEditorTabStop) {
     if (columns <= 0) {
         return {};
     }
@@ -136,7 +146,7 @@ inline std::string expanded_slice(const std::string& line, std::int64_t first_co
     for (const char c : line) {
         std::int64_t width = 1;
         if (c == '\t') {
-            width = kEditorTabStop - (col % kEditorTabStop);
+            width = tab - (col % tab);
         }
         for (std::int64_t w = 0; w < width; ++w) {
             if (col >= to) {
@@ -370,6 +380,28 @@ public:
     /// time -- `set_lines`, every mutation (through `remember`), and the two history doors that
     /// put a whole document back.
     std::uint64_t content_revision() const noexcept { return content_revision_; }
+
+    /// THE TAB STOP THE CARET'S MOTION AND A DRAG COUNT IN, and the undo steps kept: the layout's,
+    /// which the pane gives the buffer. A lower depth forgets the oldest steps now.
+    std::int64_t tab_width() const noexcept { return tab_width_; }
+    void set_tab_width(std::int64_t columns) noexcept {
+        const std::int64_t to = columns > 0 ? columns : kEditorTabStop;
+        if (to != tab_width_) {
+            tab_width_ = to;
+            preferred_ = -1; // a remembered column was counted in the old stop
+        }
+    }
+    std::size_t undo_depth() const noexcept { return undo_depth_; }
+    void set_undo_depth(std::size_t steps) {
+        undo_depth_ = steps > 0 ? steps : kEditorUndoDepthLow;
+        if (undo_.size() > undo_depth_) {
+            ++history_revision_;
+            while (undo_.size() > undo_depth_) {
+                undo_bytes_ -= undo_.front().bytes();
+                undo_.erase(undo_.begin());
+            }
+        }
+    }
 
     bool has_selection() const noexcept { return !(anchor_ == caret_); }
     EditorPos selection_begin() const noexcept { return caret_ < anchor_ ? caret_ : anchor_; }
@@ -674,9 +706,9 @@ public:
     void drag_to(std::size_t row, std::int64_t visual_col) noexcept {
         const std::size_t r = row < lines_.size() ? row : lines_.size() - 1;
         if (visual_col < 0) {
-            caret_ = position_left_of(EditorPos{r, byte_of_visual_col(lines_[r], 0)});
+            caret_ = position_left_of(EditorPos{r, byte_of_visual_col(lines_[r], 0, tab_width_)});
         } else {
-            caret_ = EditorPos{r, byte_of_visual_col(lines_[r], visual_col)};
+            caret_ = EditorPos{r, byte_of_visual_col(lines_[r], visual_col, tab_width_)};
         }
         preferred_ = -1;
         last_edit_ = EditKind::kNone;
@@ -941,21 +973,21 @@ private:
     /// whole reason it exists.
     void vertical(std::int64_t by, bool extend) noexcept {
         if (preferred_ < 0) {
-            preferred_ = visual_col_of(lines_[caret_.row], caret_.byte);
+            preferred_ = visual_col_of(lines_[caret_.row], caret_.byte, tab_width_);
         }
         if (by < 0) {
             if (caret_.row == 0) {
                 caret_.byte = 0; // up from the first line: the document's start
             } else {
                 caret_.row -= 1;
-                caret_.byte = byte_of_visual_col(lines_[caret_.row], preferred_);
+                caret_.byte = byte_of_visual_col(lines_[caret_.row], preferred_, tab_width_);
             }
         } else {
             if (caret_.row + 1 >= lines_.size()) {
                 caret_.byte = lines_[caret_.row].size(); // down from the last: its end
             } else {
                 caret_.row += 1;
-                caret_.byte = byte_of_visual_col(lines_[caret_.row], preferred_);
+                caret_.byte = byte_of_visual_col(lines_[caret_.row], preferred_, tab_width_);
             }
         }
         if (!extend) {
@@ -1025,7 +1057,7 @@ private:
         ++history_revision_;
         undo_bytes_ += m.bytes();
         undo_.push_back(std::move(m));
-        while (undo_.size() > kEditorUndoDepth ||
+        while (undo_.size() > undo_depth_ ||
                (undo_bytes_ > kEditorUndoBudgetBytes && undo_.size() > 1)) {
             undo_bytes_ -= undo_.front().bytes();
             undo_.erase(undo_.begin());
@@ -1081,6 +1113,8 @@ private:
     EditKind last_edit_ = EditKind::kNone;
     std::uint64_t revision_ = 0;
     std::uint64_t content_revision_ = 0;
+    std::int64_t tab_width_ = kEditorTabStop;
+    std::size_t undo_depth_ = kEditorUndoDepth;
 };
 
 // ---- The document layer ------------------------------------------------------------------

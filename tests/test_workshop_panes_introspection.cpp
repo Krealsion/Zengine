@@ -2147,6 +2147,52 @@ const PressDriverOf kIntrospectionPresses{kIntroOffice, [](PressWitness& w) {
 
 } // namespace
 
+TEST_CASE("Powers declares its chrome row's widths as settings, and a layout's widths pad its view control and space the row's parts") {
+    // ⚔ MUTATION: the row drawn at `kViewWidth` and `kGap` whatever the layout keeps -- the wide
+    // picture is the default one.
+    PaneRig r;
+    const std::int64_t kind = open_powers(r);
+    const PaneRef powers{kIntroOffice, intro::kPowersPane};
+
+    // THE THREE SETTINGS, AS WORKSHOP COUNTS THEM: a control's column never narrower than its label.
+    namespace d = intro::detail;
+    const auto columns = [](const char* key, std::int64_t label, bool pinned, const char* says) {
+        return v2::PaneSettingRow{key, std::nullopt, label, std::nullopt, {}, label,
+                                  d::kMostControlWidth, {"layout"}, pinned, says};
+    };
+    const std::vector<v2::PaneSettingRow> declared{
+        columns(intro::kSettingViewColumns, d::kViewWidth, true, "width of the view column"),
+        columns(intro::kSettingCompositeColumns, d::kCompositeWidth, false,
+                "width of the composite column"),
+        v2::PaneSettingRow{intro::kSettingGap, std::nullopt, d::kGap, std::nullopt, {}, d::kFewestGap,
+                           d::kMostGap, {"layout"}, false, "spaces between columns"}};
+    CHECK(declared_settings(r, powers) == declared);
+
+    const std::string shown = pane_rows(r, kind).at(0);
+    CAPTURE(shown);
+    REQUIRE(shown.rfind("[Sources] Operators  ", 0) == 0);
+    REQUIRE(shown.at(21) != ' ');
+
+    // A WIDER VIEW COLUMN AND A WIDER GAP: the control padded to 24, then three spaces.
+    keep_settings(r, powers, {PaneSetting{intro::kSettingViewColumns, {}, 24, {}},
+                              PaneSetting{intro::kSettingGap, {}, 3, {}}});
+    CHECK(unused_settings(r, powers).empty());
+    const std::string wide = pane_rows(r, kind).at(0);
+    CAPTURE(wide);
+    CHECK(wide.rfind("[Sources] Operators" + std::string(5 + 3, ' '), 0) == 0);
+    CHECK(wide.at(27) == shown.at(21));
+
+    // A ROW THAT KEEPS NOTHING IS EVERY SETTING AT ITS DEFAULT: today's row, exactly.
+    keep_settings(r, powers, {});
+    CHECK(pane_rows(r, kind).at(0) == shown);
+
+    // A COLUMN NARROWER THAN ITS LABEL is not one it takes: the default stands, and it is said.
+    keep_settings(r, powers, {PaneSetting{intro::kSettingViewColumns, {}, 8, {}}});
+    CHECK(unused_settings(r, powers) ==
+          std::vector<std::string>{"view-columns: it takes a whole number from 19 to 40"});
+    CHECK(pane_rows(r, kind).at(0) == shown);
+}
+
 TEST_CASE("the manual the introspection office answers for each of its panes is the page its build "
           "embedded, and names exactly the commands its panes declare") {
     PaneRig r;

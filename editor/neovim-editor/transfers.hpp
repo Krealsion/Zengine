@@ -102,14 +102,14 @@ inline void NeovimEditorWeave::press_at(std::int64_t row, std::int64_t column, s
         pump(mail); // what Neovim drew since the last picture, before the press is judged
     }
     const bool current = fresh(grant, picture);
-    if (!running() || row < kChromeRows) {
+    if (!running() || row < chrome_rows()) {
         if (row == 0 && current && running() && host_->ready() && !doc_path().empty()) {
             grab_ = Grab{true, false, Take::Location, row, column, mail.correlation(), Snapshot{}};
         }
         return;
     }
     notice_.clear();
-    const std::int64_t r = row - kChromeRows;
+    const std::int64_t r = row - chrome_rows();
     const std::int64_t c = column < 0 ? 0 : column;
     if (current && on_highlight(r, c)) {
         Snapshot snap = snapshot_now();
@@ -157,7 +157,7 @@ inline void NeovimEditorWeave::dragged(std::int64_t row, std::int64_t column, lo
     if (!drag_.down || !running()) {
         return;
     }
-    drag_.row = std::clamp<std::int64_t>(row - kChromeRows, 0, ui_rows(rows_) - 1);
+    drag_.row = std::clamp<std::int64_t>(row - chrome_rows(), 0, screen_rows() - 1);
     drag_.col = std::clamp<std::int64_t>(column, 0, ui_cols(columns_) - 1);
     mouse("left", "drag", drag_.row, drag_.col);
     flush(mail);
@@ -174,7 +174,7 @@ inline void NeovimEditorWeave::right_press(std::int64_t row, std::int64_t column
         return;
     }
     grab_ = Grab{};
-    if (row < kChromeRows) {
+    if (row < chrome_rows()) {
         // THE STATUS ROW NAMES THIS FILE: its menu carries the location (WL-NVIM-10).
         if (row == 0 && host_->ready() && !doc_path().empty()) {
             menu_take_ = Take::Location;
@@ -187,7 +187,7 @@ inline void NeovimEditorWeave::right_press(std::int64_t row, std::int64_t column
     }
     // ON THE PAINTED VISUAL HIGHLIGHT THE RIGHT PRESS IS NOT NEOVIM'S YET: a menu offers the
     // copy and Neovim's own menu, so neither a destructive click nor a replaced popup comes first.
-    const std::int64_t r = row - kChromeRows;
+    const std::int64_t r = row - chrome_rows();
     const std::int64_t c = column < 0 ? 0 : column;
     pump(mail);
     if (fresh(grant, picture) && on_highlight(r, c)) {
@@ -215,7 +215,7 @@ inline void NeovimEditorWeave::right_release(std::int64_t row, std::int64_t colu
     if (held_still() || !running() || !right_.down) {
         return;
     }
-    const std::int64_t r = std::clamp<std::int64_t>(row - kChromeRows, 0, ui_rows(rows_) - 1);
+    const std::int64_t r = std::clamp<std::int64_t>(row - chrome_rows(), 0, screen_rows() - 1);
     const std::int64_t c = std::clamp<std::int64_t>(column, 0, ui_cols(columns_) - 1);
     right_ = Drag{};
     mouse("right", "release", r, c);
@@ -230,7 +230,7 @@ inline void NeovimEditorWeave::wheel(double dy, loom::Mail& mail) {
     wheel_ += dy;
     const std::int64_t notches = static_cast<std::int64_t>(wheel_);
     wheel_ -= static_cast<double>(notches);
-    const std::int64_t row = ui_rows(rows_) / 2;
+    const std::int64_t row = screen_rows() / 2;
     for (std::int64_t i = 0; i < (notches < 0 ? -notches : notches); ++i) {
         mouse("wheel", notches > 0 ? "up" : "down", row, 0);
     }
@@ -540,7 +540,7 @@ inline void NeovimEditorWeave::receive(const loom::Bytes& data, const ws::RowCel
         notice("nothing was inserted -- drop onto Neovim's text", true);
         return;
     }
-    if (drop.row < kChromeRows) {
+    if (drop.row < chrome_rows()) {
         notice("nothing was inserted -- drop onto Neovim's text, not the status row", true);
         return;
     }
@@ -552,7 +552,7 @@ inline void NeovimEditorWeave::receive(const loom::Bytes& data, const ws::RowCel
         return;
     }
     Aim aim;
-    aim.row = drop.row - kChromeRows;
+    aim.row = drop.row - chrome_rows();
     aim.column = drop.column < 0 ? 0 : drop.column;
     aim.buf = field(*lang, "buf").as_int();
     aim.tick = field(*lang, "tick").as_int();

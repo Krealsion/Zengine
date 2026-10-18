@@ -40,6 +40,12 @@ inline constexpr const char* kProjectFilesSummary = "browse and open files";
 /// must agree on it.
 inline constexpr const char* kFilesStem = "zengine-files";
 
+/// THE SETTINGS THE PANE DECLARES (`v2::PaneSettingsDeclared`, workshop/pane_settings.hpp): how
+/// many rows a wheel notch moves the cursor, and how many entries one listing holds, at most
+/// `kMaxListedEntries`.
+inline constexpr const char* kSettingWheelRows = "wheel-rows";
+inline constexpr const char* kSettingListedEntries = "listed-entries";
+
 // ---- THE ACTIONS THE PANE DECLARES (`PaneActions`, workshop/pane_vocabulary.hpp) --------
 //
 // The ids a weaver's keymap file names to move them, so they live here for the pane key's

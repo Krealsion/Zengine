@@ -128,6 +128,14 @@ public:
     /// room otherwise.
     void fit_room() { keys_canvas_.fit(); }
 
+    /// THE LAYOUT'S `help` SETTING: whether the footer's help lines show, their rows the list's
+    /// when they do not. True when it moved.
+    bool show_help(bool shown) {
+        const bool moved = help_shown_ != shown;
+        help_shown_ = shown;
+        return moved;
+    }
+
     // ---- The keymap in force ------------------------------------------------------------------
 
     /// THE KEYMAP IN FORCE, AS THE HOST RESOLVED IT -- the one binding truth. The table is read
@@ -404,7 +412,9 @@ public:
             }
         }
         // WHERE A KEY IS MOVED, said last and reserved first: the grammar a weaver writes, the file
-        // this run reads, and what reading it came to. A small room keeps the notice alone.
+        // this run reads, and what reading it came to. A small room keeps the notice alone. The
+        // file and the grammar are the help lines a layout's `help` hides; what an act or a reading
+        // came to is said whatever it keeps.
         std::vector<std::string> footer;
         if (!keys_notice_.empty()) {
             footer.push_back("  " + drawable(keys_notice_));
@@ -412,13 +422,17 @@ public:
         if (!keys_rows_decl.word.empty()) {
             footer.push_back("  " + drawable(keys_rows_decl.word));
         }
-        footer.push_back("keymap file: " +
-                         (keymap_.file.empty() ? std::string("(none)") : drawable(keymap_.file)));
+        if (help_shown_) {
+            footer.push_back("keymap file: " + (keymap_.file.empty() ? std::string("(none)")
+                                                                     : drawable(keymap_.file)));
+        }
         if (!keymap_.word.empty()) {
             footer.push_back("  " + drawable(keymap_.word));
         }
-        footer.push_back("or write {\"action\": \"<id>\", \"gesture\": \"alt+up\"} in the file; "
-                         "\"none\" disables; read at launch");
+        if (help_shown_) {
+            footer.push_back("or write {\"action\": \"<id>\", \"gesture\": \"alt+up\"} in the "
+                             "file; \"none\" disables; read at launch");
+        }
         std::int64_t budget = room_rows - 1 - (typing_.active ? 1 : 0);
         // AS MANY FOOTER ROWS AS THE ROOM ALLOWS while three list rows stay -- the notice first,
         // then the reading's word, the file and the grammar; a tiny room keeps the notice alone.
@@ -788,6 +802,9 @@ private:
     double keys_wheel_ = 0.0;
     std::string keys_notice_;
     std::string refind_id_;
+    /// WHETHER THE FOOTER'S HELP LINES SHOW: the layout's `help` setting, handed again after a
+    /// reload, so never reload state.
+    bool help_shown_ = true;
     /// THE ONE MENU THIS PANE ASKED FOR AND HAS NOT HEARD ANSWERED. Image-local, and never in
     /// `DesktopState`: a successor must not accept its predecessor's menu (`menu_answered`).
     pane_menu::Asked keys_asked_;

@@ -2671,6 +2671,59 @@ TEST_CASE("the Hotkeys pane names a keymap file whose path a canvas cannot draw 
     CHECK(keys.find("\nkeymap file: caf?/keymap.json\n") != std::string::npos);
 }
 
+TEST_CASE("the Hotkeys pane declares its `help` setting, and a layout keeping it off gives the footer's help lines to the list") {
+    // ⚔ MUTATION: the footer's two help lines kept whatever `help` says -- the off picture is the on.
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    r.extent(160, 60);
+    load_real_desktop(r);
+    r.key(input::scan::kK, input::mod::kCtrl);
+    const PaneRef hotkeys{kDesktopRole, dp::kHotkeysPane};
+    const Written tall = author_pane_size(r.session().setup.active, hotkeys,
+                                          PaneSize{pane_unit::kPixels, cells_px(180)},
+                                          PaneSize{pane_unit::kPixels, cells_px(40)});
+    REQUIRE_MESSAGE(tall.accepted, tall.refusal);
+    r.extent(200, 60);
+
+    // THE ONE SETTING, AS WORKSHOP COUNTS IT: a flag on by default, pinned, found under help and chrome.
+    const v2::PaneSettingRow help{dp::kSettingHelp, true, std::nullopt, std::nullopt, {},
+                                  std::nullopt, std::nullopt, {"help", "chrome"}, true,
+                                  "show the footer help lines"};
+    CHECK(declared_settings(r, hotkeys) == std::vector<v2::PaneSettingRow>{help});
+
+    // ON, AS EVERY LAYOUT HAS IT TODAY: the file this run reads and how a key is written there.
+    const std::string shown = hotkeys_pane_text(r);
+    CAPTURE(shown);
+    REQUIRE(shown.find("\nkeymap file: (none)\n") != std::string::npos);
+    REQUIRE(shown.find("\"none\" disables") != std::string::npos);
+    const auto below = [](const std::string& text) {
+        const std::size_t v = text.find("  v ");
+        REQUIRE(v != std::string::npos);
+        return std::stoi(text.substr(v + 4));
+    };
+
+    // OFF: both lines go, and the list keeps the two rows they took.
+    keep_settings(r, hotkeys, {PaneSetting{dp::kSettingHelp, false, {}, {}}});
+    const std::string hidden = hotkeys_pane_text(r);
+    CAPTURE(hidden);
+    CHECK(hidden.find("keymap file:") == std::string::npos);
+    CHECK(hidden.find("\"none\" disables") == std::string::npos);
+    CHECK(below(hidden) == below(shown) - 2);
+    CHECK(unused_settings(r, hotkeys).empty());
+
+    // A ROW THAT KEEPS NOTHING IS EVERY SETTING AT ITS DEFAULT: today's picture, exactly.
+    keep_settings(r, hotkeys, {});
+    CHECK(hotkeys_pane_text(r) == shown);
+
+    // A VALUE IT CANNOT USE leaves the default and is said, against the revision the pane holds;
+    // a key it does not declare is passed over.
+    keep_settings(r, hotkeys, {PaneSetting{dp::kSettingHelp, {}, {}, std::string("hidden")},
+                               PaneSetting{"zoom", {}, 2, {}}});
+    CHECK(hotkeys_pane_text(r) == shown);
+    CHECK(unused_settings(r, hotkeys) == std::vector<std::string>{"help: it takes on or off"});
+}
+
 TEST_CASE("the Hotkeys pane's example row names a chord no pane on the desk declares") {
     // ⚔ MUTATION: the example naming `ctrl+g`, which Flow declares for asking for native C++ --
     // a weaver who copies it is told the two collide.

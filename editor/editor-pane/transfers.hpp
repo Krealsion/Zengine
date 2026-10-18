@@ -105,7 +105,8 @@ inline void EditorPaneWeave::press_at(std::int64_t prow, std::int64_t pcol, bool
     const std::size_t target =
         row < e_.buffer.line_count() ? row : e_.buffer.line_count() - 1;
     const std::int64_t column = pcol < 0 ? 0 : pcol;
-    const EditorPos at{target, ws::byte_of_visual_col(e_.buffer.line(target), e_.first_col + column)};
+    const EditorPos at{target, ws::byte_of_visual_col(e_.buffer.line(target), e_.first_col + column,
+                                                      e_.buffer.tab_width())};
     if (current && row < e_.buffer.line_count() && on_highlight(at)) {
         grab_ = Grab{true, false, Take::Selection, prow, pcol, mail.correlation(), mark_now(),
                      EditorPos{e_.buffer.anchor_row(), e_.buffer.anchor_byte()},
@@ -178,7 +179,7 @@ inline void EditorPaneWeave::wheel(double dy, loom::Mail& mail) {
         return;
     }
     end_grab();
-    e_.wheel_accum += dy * static_cast<double>(ws::kEditorWheelLines);
+    e_.wheel_accum += dy * static_cast<double>(wheel_lines_);
     const std::int64_t lines = static_cast<std::int64_t>(e_.wheel_accum);
     e_.wheel_accum -= static_cast<double>(lines);
     if (lines == 0) {
@@ -230,7 +231,8 @@ inline void EditorPaneWeave::right_press(const ws::RowCell& at, bool current, lo
             if (current && row < e_.buffer.line_count() &&
                 on_highlight(EditorPos{
                     row, ws::byte_of_visual_col(e_.buffer.line(row),
-                                                e_.first_col + (at.column < 0 ? 0 : at.column))})) {
+                                                e_.first_col + (at.column < 0 ? 0 : at.column),
+                                                e_.buffer.tab_width())})) {
                 offer(Take::Selection, at.row, at.column, mail);
                 return;
             }
@@ -338,7 +340,7 @@ inline void EditorPaneWeave::offer(Take what, std::int64_t row, std::int64_t col
 
 inline std::string EditorPaneWeave::where_words(EditorPos p) const {
     return "L" + std::to_string(p.row + 1) + ":C" +
-           std::to_string(ws::visual_col_of(e_.buffer.line(p.row), p.byte) + 1);
+           std::to_string(ws::visual_col_of(e_.buffer.line(p.row), p.byte, e_.buffer.tab_width()) + 1);
 }
 
 inline std::string EditorPaneWeave::project_root() const {
@@ -443,7 +445,8 @@ inline Landing EditorPaneWeave::landing(std::int64_t prow, std::int64_t pcol) co
         l.pos = EditorPos{last, e_.buffer.line(last).size()};
         return l;
     }
-    l.pos = EditorPos{row, ws::byte_of_visual_col(e_.buffer.line(row), e_.first_col + (pcol < 0 ? 0 : pcol))};
+    l.pos = EditorPos{row, ws::byte_of_visual_col(e_.buffer.line(row), e_.first_col + (pcol < 0 ? 0 : pcol),
+                                                  e_.buffer.tab_width())};
     l.inside = on_highlight(l.pos);
     return l;
 }

@@ -54,6 +54,14 @@ inline constexpr const char* kActionDiscard = "editor.discard"; ///< back to the
 inline constexpr const char* kActionExtract = "editor.extract";
 inline constexpr const char* kActionLocation = "editor.location";
 
+/// THE SETTINGS THE PANE DECLARES (`v2::PaneSettingsDeclared`, workshop/pane_settings.hpp): the
+/// columns between tab stops, whether the status row shows, the lines a wheel notch scrolls, and
+/// the undo steps kept.
+inline constexpr const char* kSettingTabWidth = "tab-width";
+inline constexpr const char* kSettingStatus = "status";
+inline constexpr const char* kSettingWheelLines = "wheel-lines";
+inline constexpr const char* kSettingUndoDepth = "undo-depth";
+
 /// ONE STEP OF THE UNDO HISTORY a reload carries: the document before an edit, its lines joined
 /// by a newline byte whatever the file's convention, and the caret and anchor then.
 struct EditorUndoStep {

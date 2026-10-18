@@ -275,6 +275,39 @@ TEST_CASE("the pane shows every current condition in its owner's own words") {
     CHECK(f.r.session().conditions.holds("b.two"));
 }
 
+TEST_CASE("the Attention pane declares its `detail` setting, and a layout keeping it off lists each condition without the cursor's explanation") {
+    // ⚔ MUTATION: the cursor's block drawn whatever `detail` says -- the off picture keeps it.
+    AttentionRig f;
+    f.open();
+    f.establish(thing("a.one", "the first thing", "a sentence its owner already had"));
+
+    // THE ONE SETTING, AS WORKSHOP COUNTS IT: a flag on by default, pinned, found under help and chrome.
+    const v2::PaneSettingRow detail{pane::kSettingDetail, true, std::nullopt, std::nullopt, {},
+                                    std::nullopt, std::nullopt, {"help", "chrome"}, true,
+                                    "show the selected item detail block"};
+    CHECK(declared_settings(f.r, attention_ref()) == std::vector<v2::PaneSettingRow>{detail});
+    const std::string shown = f.text();
+    CAPTURE(shown);
+    REQUIRE(shown.find("a sentence its owner already had") != std::string::npos);
+
+    // OFF: the condition is listed and its explanation is not.
+    keep_settings(f.r, attention_ref(), {PaneSetting{pane::kSettingDetail, false, {}, {}}});
+    CHECK(f.listed("the first thing"));
+    CHECK(f.text().find("a sentence its owner already had") == std::string::npos);
+    CHECK(unused_settings(f.r, attention_ref()).empty());
+
+    // A ROW THAT KEEPS NOTHING IS EVERY SETTING AT ITS DEFAULT: the picture as it was.
+    keep_settings(f.r, attention_ref(), {});
+    CHECK(f.text() == shown);
+
+    // A VALUE IT CANNOT USE leaves the default and is said -- and Attention lists Workshop's word
+    // about it as it lists everything true now.
+    keep_settings(f.r, attention_ref(), {PaneSetting{pane::kSettingDetail, {}, 3, {}}});
+    CHECK(unused_settings(f.r, attention_ref()) == std::vector<std::string>{"detail: it takes on or off"});
+    CHECK(f.listed("`zengine.attention/attention` cannot use its setting detail"));
+    CHECK(f.text().find("a sentence its owner already had") != std::string::npos);
+}
+
 TEST_CASE("WL-HAND-06: Attention names each condition's row by its key") {
     AttentionRig f;
     f.open();

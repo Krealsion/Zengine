@@ -28,6 +28,8 @@
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_operation.hpp"
 #include "workshop/pane_seat.hpp"
+#include "workshop/pane_settings.hpp"
+#include "workshop/pane_settings_taken.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/powers_vocabulary.hpp"
 #include "workshop/sample_vocabulary.hpp"
@@ -90,13 +92,14 @@ class IntrospectionWeave
                        ws::PaneOperationAnswered, ws::PaneCarryAnswered, loom::Refused,
                        ws::ResolvedArrangement, ws::v2::ResolvedArrangement, ws::PowersFound,
                        ws::PowerDescribed, ws::SourceSampled, surface::ClipboardCopy,
-                       surface::ClipboardText>,
+                       surface::ClipboardText, ws::v2::PaneSettings>,
           loom::Emit<ws::v2::PaneOffered, ws::v3::PaneActions, ws::v4::PaneContent,
                      ws::v5::PaneCanvasContent, ws::PaneCaret, ws::PanePassRequested,
                      intro::LoadedSelected, loom::ListLoaded, ws::ArrangementRequested,
                      ws::DescribePower, ws::SampleRequested, ws::PaneOperationRequested,
                      ws::PaneValueCarryRequested, ws::PaneEscapeUnspent, surface::ClipboardCopy,
-                     surface::ClipboardTextRequested>> {
+                     surface::ClipboardTextRequested, ws::v2::PaneSettingsDeclared,
+                     ws::PaneSettingUnused>> {
 public:
     // ---- What its office calls --------------------------------------------------------------
 
@@ -123,6 +126,51 @@ public:
             (void)mail.as_role(kIntrospectionRole).send_to_role(kWorkshopRole, said);
         }
         (void)mail.as_role(kIntrospectionRole).send_to_role(kWorkshopRole, powers_.actions());
+        (void)mail.as_role(kIntrospectionRole)
+            .send_to_role(kWorkshopRole, ws::v2::PaneSettingsDeclared{kPowersPane, powers_settings()});
+    }
+
+    /// THE SETTINGS THIS LAYOUT KEEPS FOR POWERS, taken whole: its chrome widths, a value it cannot
+    /// use said back against the revision it was handed at. Loaded and Project declare none, and
+    /// pass over what they are handed. Held by the seat, never reload state.
+    void on(const ws::v2::PaneSettings& handed, loom::Mail& mail) {
+        if (!workshop_said(mail) || handed.pane != kPowersPane) {
+            return;
+        }
+        const ws::SettingsTaken taken = ws::take_pane_settings(powers_settings(), handed);
+        ws::say_settings_unused(mail, kIntrospectionRole, taken);
+        powers_.take_widths(intro::ChromeWidths{taken.number(intro::kSettingViewColumns),
+                                                taken.number(intro::kSettingCompositeColumns),
+                                                taken.number(intro::kSettingGap)},
+                            mail);
+    }
+
+    /// THE SETTINGS POWERS TAKES, each with its default, how a weaver finds it and what it does: its
+    /// chrome row's two control columns, each at least its label, and the gap between segments.
+    static std::vector<ws::v2::PaneSettingRow> powers_settings() {
+        namespace d = intro::detail;
+        const auto columns = [](const char* key, std::int64_t label, bool pinned, const char* says) {
+            ws::v2::PaneSettingRow row;
+            row.key = key;
+            row.number = label;
+            row.low = label;
+            row.high = d::kMostControlWidth;
+            row.tags = {"layout"};
+            row.pinned = pinned;
+            row.summary = says;
+            return row;
+        };
+        ws::v2::PaneSettingRow gap;
+        gap.key = intro::kSettingGap;
+        gap.number = d::kGap;
+        gap.low = d::kFewestGap;
+        gap.high = d::kMostGap;
+        gap.tags = {"layout"};
+        gap.summary = "spaces between columns";
+        return {columns(intro::kSettingViewColumns, d::kViewWidth, true, "width of the view column"),
+                columns(intro::kSettingCompositeColumns, d::kCompositeWidth, false,
+                        "width of the composite column"),
+                gap};
     }
 
     // ---- Its panes ----------------------------------------------------------------------------

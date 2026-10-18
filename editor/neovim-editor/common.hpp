@@ -79,7 +79,8 @@ using office::tail_of_path;
 using office::Take;
 
 /// THE ROW ABOVE NEOVIM'S SCREEN: what the Editor says about itself -- the mode, whether the buffer
-/// is saved, the file -- or a standing notice in its place.
+/// is saved, the file -- or a standing notice in its place. A layout keeping `status` off gives
+/// that row to Neovim while nothing stands in it.
 inline constexpr std::int64_t kChromeRows = 1;
 
 /// The smallest screen a Neovim is asked for, whatever the room: Neovim's own floor is one row and
@@ -278,7 +279,9 @@ inline std::string ended_words(const std::string& what, const std::string& why) 
            ") -- nothing was written, and the Editor holds no document; open a source to start Neovim again";
 }
 
-inline std::int64_t ui_rows(std::int64_t rows) { return std::max(rows - kChromeRows, kMinUiRows); }
+inline std::int64_t ui_rows(std::int64_t rows, std::int64_t chrome = kChromeRows) {
+    return std::max(rows - chrome, kMinUiRows);
+}
 inline std::int64_t ui_cols(std::int64_t cols) { return std::max(cols - kCaretCols, kMinUiCols); }
 
 inline std::string listed(const std::vector<std::string>& names) {

@@ -14,6 +14,7 @@
 #include "guest_hand.hpp"
 #include "pane_window.hpp"
 
+#include "files/files.hpp"
 #include "files/vocabulary.hpp"
 #include "workshop/authoring.hpp"
 #include "workshop/pane_doors.hpp"
@@ -952,6 +953,64 @@ TEST_CASE("the wheel moves the cursor, and a header press names no entry") {
     REQUIRE(tap.pressed.size() == 1);
     CHECK(tap.pressed[0] == header);
     CHECK(f.at_cursor() == now);
+}
+
+TEST_CASE("Files declares its wheel and its listing's bound as settings, and a layout's values move the cursor and stop the walk") {
+    // ⚔ MUTATION: the wheel reading `kFilesWheelRows` whatever the layout keeps -- one notch still
+    // moves three rows. And the walk bounded by `kMaxListedEntries` alone -- the header still
+    // counts every entry.
+    FilesRig f("files-settings");
+    for (int i = 0; i < 150; ++i) {
+        const std::string n = std::to_string(i);
+        put_file(f.root / ("f" + std::string(3 - n.size(), '0') + n + ".cpp"), "x\n");
+    }
+    f.open(160, 14);
+
+    // THE TWO SETTINGS, AS WORKSHOP COUNTS THEM.
+    const v2::PaneSettingRow wheel{files::kSettingWheelRows, std::nullopt, 3, std::nullopt, {}, 1,
+                                   24, {"input", "scroll"}, true, "rows scrolled per wheel notch"};
+    const auto most = static_cast<std::int64_t>(zengine::workshop::kMaxListedEntries);
+    const v2::PaneSettingRow listed{files::kSettingListedEntries, std::nullopt, most, std::nullopt, {},
+                                    static_cast<std::int64_t>(zengine::workshop::kFewestListedEntries),
+                                    most, {"limits"}, false,
+                                    "the most entries one directory listing holds"};
+    CHECK(declared_settings(f.r, files_ref()) == std::vector<v2::PaneSettingRow>{wheel, listed});
+
+    const ui::Rect body = external_body_rect(f.r.session(), f.kind);
+    // ONE NOTCH FROM THE TOP OF THE LIST, walked there as a weaver walks.
+    const auto notch = [&] {
+        for (int i = 0; i < 160; ++i) {
+            f.r.key(input::scan::kUp);
+        }
+        f.r.wheel_cell(-1.0, body.x + 1, body.y + 2);
+        return f.at_cursor();
+    };
+    REQUIRE(f.first().find(" 1/150 ") != std::string::npos);
+    CHECK(notch() == "f003.cpp");
+
+    // A LAYOUT'S VALUES: five rows a notch, and a walk that stops at a hundred and says so -- the
+    // walk stops in the order the filesystem gives, before the listing is sorted.
+    keep_settings(f.r, files_ref(), {PaneSetting{files::kSettingWheelRows, {}, 5, {}}});
+    CHECK(unused_settings(f.r, files_ref()).empty());
+    CHECK(notch() == "f005.cpp");
+    keep_settings(f.r, files_ref(), {PaneSetting{files::kSettingWheelRows, {}, 5, {}},
+                                     PaneSetting{files::kSettingListedEntries, {}, 100, {}}});
+    CHECK(unused_settings(f.r, files_ref()).empty());
+    CHECK(f.first().find("/100+ (stopped counting)") != std::string::npos);
+
+    // A ROW THAT KEEPS NOTHING IS EVERY SETTING AT ITS DEFAULT.
+    keep_settings(f.r, files_ref(), {});
+    CHECK(notch() == "f003.cpp");
+    CHECK(f.first().find(" 4/150 ") != std::string::npos);
+
+    // A VALUE OUTSIDE ITS RANGE leaves the default and is said, naming what the setting takes.
+    keep_settings(f.r, files_ref(), {PaneSetting{files::kSettingListedEntries, {}, 50, {}},
+                                     PaneSetting{files::kSettingWheelRows, {}, 25, {}}});
+    CHECK(unused_settings(f.r, files_ref()) ==
+          std::vector<std::string>{"wheel-rows: it takes a whole number from 1 to 24",
+                                   "listed-entries: it takes a whole number from 100 to 2000"});
+    CHECK(notch() == "f003.cpp");
+    CHECK(f.first().find(" 4/150 ") != std::string::npos);
 }
 
 // ============================================================================

@@ -874,14 +874,14 @@ TEST_CASE("interpreting a press asks the Weave Manager nothing") {
     r.bus.remove_observer(tap);
     CHECK(std::count(said.begin(), said.end(), std::string("zen.ListLoaded")) == asks_before);
 
-    // AND THE WHOLE OUTBOUND VOCABULARY IS FIVE SHAPES: the three introspection sentences -- its
+    // AND THE WHOLE OUTBOUND VOCABULARY IS SIX SHAPES: the three introspection sentences -- its
     // offer, its question and its picture, drawn in the room Workshop granted -- the selection,
-    // and the Powers pane's declared actions, spoken beside its offer (WL-KEY-15).
+    // and the Powers pane's declared actions and settings, spoken beside its offer (WL-KEY-15).
     std::vector<std::string> distinct = said;
     std::sort(distinct.begin(), distinct.end());
     distinct.erase(std::unique(distinct.begin(), distinct.end()), distinct.end());
     const std::vector<std::string> allowed{"LoadedSelected", "PaneActions", "PaneCanvasContent",
-                                           "PaneOffered", "zen.ListLoaded"};
+                                           "PaneOffered", "PaneSettingsDeclared", "zen.ListLoaded"};
     CHECK(distinct == allowed);
     // NAMED NEGATIVELY, because the interesting half of an authority audit is what is
     // ABSENT. Being able to say which weave a weaver pointed at is not being able to
