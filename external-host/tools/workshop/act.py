@@ -668,22 +668,21 @@ def settings_step(ctx, hand, arg):
     provider, pane, key, value = settings_of(arg)
     where = {"provider": provider, "pane": pane}
     shown = hand.ask("zengine.workshop", "PaneSettingsRequested", where)
-    record = {"read": shown}
+    record = {"read": shown.fields}
     if key is None:
         return record
     ctx.check(int(shown["revision"]) > 0, "settings: %s/%s -- %s" % (provider, pane, shown["said"]))
-    fields = dict(where, revision=int(shown["revision"]), key=key)
-    if value == "-":
-        fields["clear"] = True
-    else:
+    # EVERY FIELD THE SHAPE REQUIRES IS SENT, `clear` among them: only the value fields are optional.
+    fields = dict(where, revision=int(shown["revision"]), key=key, clear=value == "-")
+    if value != "-":
         rows = [r for r in shown["rows"] if r["key"] == key]
         ctx.check(rows, "settings: %s/%s declares no setting %r; it declares %s"
                   % (provider, pane, key, ", ".join(r["key"] for r in shown["rows"]) or "none"))
         fields.update(settings_value(ctx, rows[0], value))
     acted = hand.ask("zengine.workshop", "PaneSettingCommitRequested", fields)
-    record["acted"] = acted
+    record["acted"] = acted.fields
     ctx.check(acted["accepted"], "settings: %s of %s/%s refused: %s" % (key, provider, pane, acted["refusal"]))
-    record["after"] = hand.ask("zengine.workshop", "PaneSettingsRequested", where)
+    record["after"] = hand.ask("zengine.workshop", "PaneSettingsRequested", where).fields
     return record
 
 
