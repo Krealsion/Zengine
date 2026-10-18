@@ -52,7 +52,7 @@ import time
 from loom_session.tool import LinkOutcome, NotAnswered, Refused
 
 from act import act as act_step, painted, GESTURES, VERBS
-from hand import Hand
+from hand import Hand, no_settled_picture
 from workshop_steps import chord_moments, moment, picture, png_of
 
 FINISHED, ATTENTION, INCONCLUSIVE = "finished", "needs-attention", "inconclusive"
@@ -146,29 +146,39 @@ class Monitor(object):
     def press_at(self, provider, pane, row, column):
         """A press on one cell of a pane's text lattice, by its row and column counted from 0
         (`hand.point`): a text pane's painted cell, or the cell of the lattice a canvas pane sets
-        its text on, a blank row's too. A pane that redrew between the reading and the point is
-        read again, and so is one whose picture takes no press yet (`hand.pressing`), within the
-        deadline: past it, the monitor cannot tell."""
+        its text on, a blank row's too. The point is aimed at the picture it was read from
+        (`hand.aimed`): a pane that redrew between the reading and the point is read again, and so
+        is one whose picture takes no press yet (`hand.pressing`) or is not yet aimed at, within
+        the deadline: past it, the monitor cannot tell."""
         hand = self._hand()
-        for _ in range(3):
+        def left():
+            return max(0.0, min(10.0, self.deadline - time.monotonic()))
+        def unsettled(refused):
+            return Inconclusive("%s/%s held no settled picture to press its cell %d,%d at: %s"
+                                % (provider, pane, row, column, refused))
+        def read():
             try:
-                left = max(0.0, min(10.0, self.deadline - time.monotonic()))
-                view = hand.pressing(provider, pane, left)
-            except Refused:
+                return hand.pressing(provider, pane, left())
+            except Refused as refused:
+                if no_settled_picture(refused):
+                    raise unsettled(refused)
                 self.ctx.fail("Workshop does not describe %s/%s now" % (provider, pane))
             except ValueError as taken:
                 raise Inconclusive(str(taken))
-            try:
-                at = hand.point(provider, pane, row, column, view["picture"])
-            except Refused as refused:
-                if "picture moved" not in str(refused):
-                    raise
-                continue  # the pane redrew between the reading and the point: read it again
-            return self._gesture("press %s/%s %d,%d" % (provider, pane, row, column), hand.inject(
-                [moment(self.ctx, "PointerButton", button=1, pressed=p, x=at["x"], y=at["y"],
-                        space=at["space"]) for p in (True, False)]))
-        self.ctx.fail("%s/%s kept redrawing while its cell %d,%d was read"
-                      % (provider, pane, row, column))
+        def aim(view):
+            return hand.point(provider, pane, row, column, view["picture"])
+        try:
+            _, at = hand.aimed(provider, pane, read, aim, "cell %d,%d" % (row, column), left())
+        except ValueError:
+            self.ctx.fail("%s/%s kept redrawing while its cell %d,%d was read"
+                          % (provider, pane, row, column))
+        except Refused as refused:
+            if not no_settled_picture(refused):
+                raise
+            raise unsettled(refused)
+        return self._gesture("press %s/%s %d,%d" % (provider, pane, row, column), hand.inject(
+            [moment(self.ctx, "PointerButton", button=1, pressed=p, x=at["x"], y=at["y"],
+                    space=at["space"]) for p in (True, False)]))
 
     def picture(self, name):
         """A capture kept as ``<name>.png`` (or ``<name>.cells.txt`` in a terminal medium)."""
