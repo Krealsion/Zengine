@@ -40,7 +40,8 @@ from pathlib import Path
 
 from loom_session.tool import Refused
 
-from hand import FALLBACK_PACE, NO_PRESS, Hand, on_row, rows_of, takes_no_press
+from hand import (FALLBACK_PACE, NO_PRESS, POINT_TRIES, Hand, no_settled_picture, on_row, rows_of,
+                  takes_no_press)
 from workshop_steps import chord_moments, moment, picture, png_of, point
 
 VERBS = ("press", "type", "open", "select", "into", "click", "part", "at", "rest", "wheel",
@@ -49,10 +50,6 @@ GESTURES = ("press", "type", "open", "select", "into", "click", "part", "at", "r
             "control", "menu")
 MANAGER = ("zengine.desktop", "launcher")
 BUTTONS = {"left": 1, "right": 3}
-#: How many readings a step aims a press from while Workshop refuses the point because the pane's
-#: picture moved between the reading and the point; past it the step fails naming the pane. A point
-#: refused because the pane holds no settled picture yet is waited through for the step's seconds.
-POINT_TRIES = 3
 
 
 def run(ctx):
@@ -268,7 +265,7 @@ def aimed(ctx, hand, verb, provider, pane, read, aim, seconds):
         try:
             return reading, aim(reading)
         except Refused as refused:
-            if "no settled picture" in str(refused):
+            if no_settled_picture(refused):
                 if time.monotonic() >= end:
                     ctx.fail("%s: %s/%s held no settled picture to aim at within %gs"
                              % (verb, provider, pane, seconds))
