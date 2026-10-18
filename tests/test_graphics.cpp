@@ -4057,6 +4057,7 @@ TEST_CASE("the OS window with no display to open on keeps and composes its pictu
 TEST_CASE("the OS window claims SDL's queue while it is loaded, reloaded or replaced, and gives "
           "the claim back when it goes") {
     namespace in = zengine::input;
+    sdl_video_driver("dummy"); // a real SDL with no display, run inside the lane or out of it
     REQUIRE_FALSE(in::window_holds_sdl_input());
     {
         SdlWeave w;
@@ -4077,6 +4078,7 @@ TEST_CASE("the OS window claims SDL's queue while it is loaded, reloaded or repl
 
 TEST_CASE("the OS window empties SDL's own queue: a key's release, a move, another button and the "
           "wheel reach the owner placed to hear them, and a close request is taken off the queue") {
+    sdl_video_driver("dummy"); // a real SDL with no display, run inside the lane or out of it
     SdlWeave w(/*keys=*/true, /*pointer=*/true);
     w.pump(); // what the window's own opening queued
     const auto push = [](SDL_Event e) { REQUIRE(SDL_PushEvent(&e)); };
