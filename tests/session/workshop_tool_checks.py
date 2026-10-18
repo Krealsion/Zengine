@@ -11,6 +11,7 @@ Standalone: python workshop_tool_checks.py --tools <package> --runtime <loom run
 import argparse
 import importlib
 import json
+import math
 from pathlib import Path
 import sys
 import tempfile
@@ -910,16 +911,17 @@ class AimedSub:
 
 
 class AimingWorkshop(Context):
-    """A run context whose Workshop shows one canvas pane, `zengine.editor/editor`, whose newest
-    picture, `picture`, is read by number only once it is aimed at: until then its words are
-    refused as a picture not yet settled, as Workshop refuses them. Its notices are `AimedSub`'s,
-    second version, while `versions` holds 2; a row naming only the first version is followed by a
-    subscription that tells nothing. Every pane read is counted in `reads`."""
+    """A run context whose Workshop shows one pane, `zengine.editor/editor` -- drawing a picture, or
+    a text pane where `text` says so -- whose newest picture, `picture`, is read by number only once
+    it is aimed at: until then its words are refused as a picture not yet settled, in Workshop's
+    words for that kind of pane. Its notices are `AimedSub`'s, second version, while `versions`
+    holds 2; a row naming only the first version is followed by a subscription that tells nothing.
+    Every pane read is counted in `reads`."""
 
-    def __init__(self, steps, notices, versions=(2, 1), act_steps=()):
+    def __init__(self, steps, notices, versions=(2, 1), act_steps=(), text=False):
         Context.__init__(self, steps)
         self.inputs["steps"] = json.dumps(list(act_steps))
-        self.notices, self.versions = list(notices), versions
+        self.notices, self.versions, self.text = list(notices), versions, text
         self.picture, self.aimed, self.reads, self.observed, self.kept = 9, 8, 0, [], {}
 
     def produce(self, name, data):
@@ -939,9 +941,10 @@ class AimingWorkshop(Context):
         if shape == "PaneViewRequested":
             self.reads += 1
             if self.aimed != self.picture:
-                raise Refused("pane view unavailable: no settled picture")
+                raise Refused("pane view unavailable: no settled text picture" if self.text else
+                              "pane view unavailable: no settled picture")
             return {"provider": "zengine.editor", "pane": "editor", "picture": self.picture,
-                    "canvas": True, "parts": [],
+                    "canvas": not self.text, "parts": [],
                     "words": [{"word": 0, "text": "ready", "x": 3, "y": 4, "space": 2,
                                "place": {"x": 0, "y": 0, "w": 50, "h": 12}}]}
         return Context.ask(self, office, shape, fields, **options)
@@ -957,8 +960,10 @@ class ActWorkshop(Context):
     whose lines are named. A pane drawing a picture refuses version 1 of either reading. A part or
     a line `unreached` names has no point, as Workshop says one no press reaches on its own. While
     `redraws` counts down, a point is refused as one asked of a picture that moved since it was
-    read, and while `unsettled` does, as one asked of a pane whose picture is not yet settled.
-    Every injected moment is kept, as `Context` keeps them."""
+    read; while `unsettled` does, as one asked of a pane whose picture is not yet settled, in
+    Workshop's words for a text pane or for one drawing a picture; and while `covered` does, as one
+    asked of a pane an interaction came to cover. Every point asked is counted in `point_asks`, and
+    every injected moment is kept, as `Context` keeps them."""
     COLUMNS = 40
 
     def __init__(self, steps, act_steps, rows, panes=None, named=None, manager=None, unreached=()):
@@ -971,6 +976,8 @@ class ActWorkshop(Context):
         self.points, self.cells, self.kept = [], [], {}
         self.redraws = 0  # points to refuse as a pane that redrew since it was read
         self.unsettled = 0  # points to refuse as a pane whose picture is not yet settled
+        self.covered = 0  # points to refuse as a pane an interaction came to cover
+        self.point_asks = 0
 
     def draws_picture(self, pane):
         """Whether the pane draws its own picture: the View Builder, or a `CanvasManager`."""
@@ -1021,12 +1028,19 @@ class ActWorkshop(Context):
         if (shape in ("PaneViewRequested", "PanePointRequested") and
                 options.get("version", 1) == 1 and self.draws_picture(fields["pane"])):
             raise Refused("pane view unavailable: the pane draws a picture, not text rows")
+        if shape == "PanePointRequested":
+            self.point_asks += 1
         if shape == "PanePointRequested" and self.redraws:
             self.redraws -= 1
             raise Refused("pane point unavailable: the pane's picture moved; read it again")
         if shape == "PanePointRequested" and self.unsettled:
             self.unsettled -= 1
-            raise Refused("pane view unavailable: no settled picture")
+            raise Refused("pane view unavailable: no settled picture"
+                          if self.draws_picture(fields["pane"]) else
+                          "pane view unavailable: no settled text picture")
+        if shape == "PanePointRequested" and self.covered:
+            self.covered -= 1
+            raise Refused("pane view unavailable: closed, unknown or covered by an interaction")
         if shape == "PanePointRequested" and options.get("version") == 3:
             if self.draws_picture(fields["pane"]):
                 if fields["pane"] != "launcher":
@@ -1567,6 +1581,132 @@ def run_checks(tools, runtime):
                              "no settled picture to aim at within 0.3s")
             self.assertFalse([e for e in ctx.events if e["kind"] == "PointerButton"])
 
+        def test_a_point_the_hand_aims_before_a_panes_picture_settles_waits_and_reads_again(self):
+            info, built = ("zengine.info", "info"), ("zengine.view.builder", "view-builder")
+            def holding(text):
+                return lambda view: next((w for w in view["words"] if text in w["text"]), None)
+            # Each of the hand's point readers, on a text pane and on one drawing a picture, with the
+            # point it gives when Workshop refuses nothing.
+            readers = (
+                ("row", info, lambda h, s: h.row(*info, "Height", seconds=s), (101, 2)),
+                ("row", built, lambda h, s: h.row(*built, "node", seconds=s), (100, 2)),
+                ("pointed", info, lambda h, s: h.pointed(*info, holding("Height"), lambda w: 2,
+                                                         "Height", seconds=s)[1], (101, 2)),
+                ("pointed", built, lambda h, s: h.pointed(*built, holding("[Label]"), lambda w: 1,
+                                                          "[Label]", seconds=s)[1], (101, 1)),
+                ("lattice_point", info, lambda h, s: h.lattice_point(*info, lambda view: (1, 3), "1,3",
+                                                                     seconds=s)[1], (203, 18)))
+            for reader, pane, read, where in readers:
+                words = "no settled picture" if pane == built else "no settled text picture"
+                with self.subTest(reader=reader, pane=pane):
+                    # A PICTURE NEWER THAN THE READING, NOT YET AIMED AT: Workshop refuses the point
+                    # in its words for the pane, and the reader waits on the pane, reads it again
+                    # and aims where it would have -- more times than a moved picture may.
+                    ctx = ActWorkshop(steps, [], self.INFO_ROWS)
+                    held = hand.Hand(ctx, "workshop")
+                    ctx.unsettled = hand.POINT_TRIES + 1
+                    slept = []
+                    try:
+                        with patch.object(hand.time, "sleep", side_effect=slept.append):
+                            at = read(held, hand.SETTLE_SECONDS)
+                    finally:
+                        held.close()
+                    self.assertEqual((ctx.unsettled, ctx.point_asks), (0, hand.POINT_TRIES + 2))
+                    self.assertEqual(len(slept), hand.POINT_TRIES + 1)  # a wait each, never a spin
+                    self.assertEqual((at["x"], at["y"]), where)
+                    # ...ONE THAT NEVER SETTLES within the reader's seconds: Workshop's refusal is
+                    # raised, after a wait each time, the waits together the reader's seconds.
+                    ctx = ActWorkshop(steps, [], self.INFO_ROWS)
+                    held = hand.Hand(ctx, "workshop")
+                    ctx.unsettled = 10 ** 6
+                    try:
+                        with self.assertRaisesRegex(Refused, "^pane view unavailable: %s$" % words):
+                            read(held, 0.3)
+                    finally:
+                        held.close()
+                    self.assertEqual(held.clock_waits(), ctx.point_asks - 1)
+                    self.assertLessEqual(held.clock_waits(), math.ceil(0.3 / hand.FALLBACK_PACE) + 1)
+                    # ...WHERE THE PICTURE MOVED instead, read again at once, and past POINT_TRIES
+                    # readings the reader says the pane kept moving.
+                    for redraws in (hand.POINT_TRIES - 1, hand.POINT_TRIES):
+                        ctx = ActWorkshop(steps, [], self.INFO_ROWS)
+                        held = hand.Hand(ctx, "workshop")
+                        ctx.redraws = redraws
+                        try:
+                            if redraws < hand.POINT_TRIES:
+                                at = read(held, hand.SETTLE_SECONDS)
+                                self.assertEqual((at["x"], at["y"]), where)
+                            else:
+                                with self.assertRaisesRegex(ValueError, "in %s/%s kept moving while it "
+                                                                        "was read" % pane):
+                                    read(held, hand.SETTLE_SECONDS)
+                        finally:
+                            held.close()
+                        self.assertEqual((ctx.point_asks, held.clock_waits()),
+                                         (min(redraws + 1, hand.POINT_TRIES), 0))
+                    # ...AND A REFUSAL NO WAIT ENDS -- a pane an interaction came to cover -- raised
+                    # at once, at the first point, waiting for nothing.
+                    ctx = ActWorkshop(steps, [], self.INFO_ROWS)
+                    held = hand.Hand(ctx, "workshop")
+                    ctx.covered = 1
+                    slept = []
+                    try:
+                        with patch.object(hand.time, "sleep", side_effect=slept.append):
+                            with self.assertRaisesRegex(Refused, "covered by an interaction"):
+                                read(held, hand.SETTLE_SECONDS)
+                    finally:
+                        held.close()
+                    self.assertEqual((ctx.point_asks, slept), (1, []))
+            # A POINT PAST WHAT THE PANE SHOWS is refused for good: raised at once, waiting for nothing.
+            for reader, read, pane, refused in (
+                    ("pointed", lambda h: h.pointed(*info, holding("Height"), lambda w: 99, "Height"),
+                     None, "outside the pane's visible words"),
+                    ("lattice_point", lambda h: h.lattice_point(*info, lambda view: (9, 0), "9,0"),
+                     None, "outside the pane's visible text"),
+                    ("lattice_point",
+                     lambda h: h.lattice_point(*self.EDITOR, lambda view: (20, 0), "20,0"),
+                     self.beat_editor(), "outside the pane's text lattice")):
+                with self.subTest(reader=reader, refused=refused):
+                    ctx = (ActWorkshop(steps, [], self.INFO_ROWS) if pane is None else
+                           CanvasWorkshop(steps, {self.EDITOR: pane}))
+                    held = hand.Hand(ctx, "workshop")
+                    slept = []
+                    try:
+                        with patch.object(hand.time, "sleep", side_effect=slept.append):
+                            with self.assertRaisesRegex(Refused, refused):
+                                read(held)
+                    finally:
+                        held.close()
+                    self.assertEqual(slept, [])
+                    if pane is None:
+                        self.assertEqual(ctx.point_asks, 1)
+                    else:
+                        self.assertEqual([a for a in ctx.asked if a[0] == "PanePointRequested"],
+                                         [("PanePointRequested", 3)])
+
+        def test_a_point_the_hand_aims_at_a_canvas_pane_waits_at_the_notice_its_picture_is_aimed_at(self):
+            # A CANVAS PANE REDRAWS BETWEEN A READING AND ITS POINT, its new picture not yet aimed
+            # at: each reader waits at Workshop's notice, reads the pane again -- refused once more
+            # while the picture settles -- and aims where the settled picture puts it.
+            editor = self.beat_editor()
+            ctx = CanvasWorkshop(steps, {self.EDITOR: editor})
+            held = hand.Hand(ctx, "workshop")
+            try:
+                ctx.window = ["settled", "unsettled"]
+                row = held.row(*self.EDITOR, "int total = 0;")
+                self.assertEqual(ctx.window, [])
+                ctx.window = ["settled", "unsettled"]
+                spot = held.spot(*self.EDITOR, "total")
+                self.assertEqual(ctx.window, [])
+                ctx.window = ["settled", "unsettled"]
+                cell = materials.cell(held, "int total = 0;")
+                self.assertEqual(ctx.window, [])
+            finally:
+                held.close()
+            self.assertEqual(held.clock_waits(), 0)
+            self.assertEqual([editor.at(p["x"], p["y"]) for p in (row, spot, cell)],
+                             [(5, 2), (5, 9), (5, 4)])
+
         # ---- panes that draw a picture, read by their words and their names --------------------
         # Each stand-in below answers PaneView version 3 and PanePointRequested versions 2 and 3
         # for such a pane, and refuses version 1 of either as Workshop does: a reading of rows by
@@ -1742,27 +1882,30 @@ def run_checks(tools, runtime):
 
         def test_a_picture_not_yet_aimed_at_is_read_again_when_its_aimed_number_moves_never_on_a_clock(self):
             # THE NEWEST PICTURE LOOKS LIKE THE LAST, so its stamp holds: only its aimed number,
-            # which the second version names, moves when the pane's reading by number settles.
-            ctx = AimingWorkshop(steps, ["other", "other", "aim"])
-            held = hand.Hand(ctx, "workshop")
-            slept = []
+            # which the second version names, moves when the pane's reading by number settles --
+            # a canvas pane's picture or a text pane's, each refused in its own words until then.
+            for text in (False, True):
+                with self.subTest(text=text):
+                    ctx = AimingWorkshop(steps, ["other", "other", "aim"], text=text)
+                    held = hand.Hand(ctx, "workshop")
+                    slept = []
 
-            def sleep(seconds):  # time passing aims the picture too, as it does in Workshop
-                slept.append(seconds)
-                ctx.aimed = ctx.picture
-            try:
-                with patch.object(hand.time, "sleep", side_effect=sleep):
-                    view = held.pressing("zengine.editor", "editor", seconds=5)
-            finally:
-                held.close()
-            self.assertEqual(view["words"][0]["text"], "ready")
-            self.assertEqual(slept, [])
-            # ...READ: refused, again under the new subscription, again at the first notice taken,
-            # never at the other pane's next, and at its own aimed number moving.
-            self.assertEqual(ctx.reads, 4)
-            self.assertEqual(ctx.observed, [(2, hand.NOTICE_WINDOW)])
-            self.assertEqual(held.clock_waits(), 0)
-            self.assertIsNone(held.waits_said())
+                    def sleep(seconds):  # time passing aims the picture too, as it does in Workshop
+                        slept.append(seconds)
+                        ctx.aimed = ctx.picture
+                    try:
+                        with patch.object(hand.time, "sleep", side_effect=sleep):
+                            view = held.pressing("zengine.editor", "editor", seconds=5)
+                    finally:
+                        held.close()
+                    self.assertEqual(view["words"][0]["text"], "ready")
+                    self.assertEqual(slept, [])
+                    # ...READ: refused, again under the new subscription, again at the first notice
+                    # taken, never at the other pane's next, and at its own aimed number moving.
+                    self.assertEqual(ctx.reads, 4)
+                    self.assertEqual(ctx.observed, [(2, hand.NOTICE_WINDOW)])
+                    self.assertEqual(held.clock_waits(), 0)
+                    self.assertIsNone(held.waits_said())
 
         def test_a_step_waiting_on_a_picture_not_yet_aimed_at_reads_at_the_notice_and_its_record_says_no_clock(self):
             ctx = AimingWorkshop(steps, ["aim"], act_steps=[
@@ -1780,20 +1923,23 @@ def run_checks(tools, runtime):
             self.assertNotIn("not at Workshop's notice", said)
 
         def test_a_row_following_only_the_first_notice_reads_an_unsettled_picture_on_a_clock_and_says_so(self):
-            ctx = AimingWorkshop(steps, [], versions=(1,), act_steps=[
-                {"expect": ["zengine.editor", "editor", "ready"], "seconds": 5}])
-            slept = []
+            for text in (False, True):  # a canvas pane's picture, and a text pane's
+                with self.subTest(text=text):
+                    ctx = AimingWorkshop(steps, [], versions=(1,), text=text, act_steps=[
+                        {"expect": ["zengine.editor", "editor", "ready"], "seconds": 5}])
+                    slept = []
 
-            def sleep(seconds):
-                slept.append(seconds)
-                ctx.aimed = ctx.picture  # Workshop aims at the picture while the hand waits
-            with patch.object(hand.time, "sleep", side_effect=sleep):
-                said = act.run(ctx)
-            self.assertEqual([v for v, _ in ctx.observed], [2, 1])
-            self.assertEqual(slept, [hand.FALLBACK_PACE])
-            self.assertEqual([r["clock_waits"] for r in json.loads(ctx.kept["steps.json"])], [1])
-            self.assertIn("1 of its waits read again every 0.2 s, not at Workshop's notice: the row "
-                          "follows DeskStamps 1, which names no aimed picture", said)
+                    def sleep(seconds):
+                        slept.append(seconds)
+                        ctx.aimed = ctx.picture  # Workshop aims at the picture while the hand waits
+                    with patch.object(hand.time, "sleep", side_effect=sleep):
+                        said = act.run(ctx)
+                    self.assertEqual([v for v, _ in ctx.observed], [2, 1])
+                    self.assertEqual(slept, [hand.FALLBACK_PACE])
+                    self.assertEqual([r["clock_waits"] for r in json.loads(ctx.kept["steps.json"])],
+                                     [1])
+                    self.assertIn("1 of its waits read again every 0.2 s, not at Workshop's notice: "
+                                  "the row follows DeskStamps 1, which names no aimed picture", said)
 
         def test_a_row_that_may_not_follow_the_desk_reads_on_a_clock_and_the_run_says_so(self):
             ctx = ActWorkshop(steps, [{"expect": ["zengine.terminal-pane", "terminal", "two"],
