@@ -3,14 +3,15 @@
 
 // The loadable weave `zengine-window-sdl`: the OS window, through SDL3. It opens its window when it
 // is activated, draws each picture through SDL's renderer, and empties SDL's queue on its beat,
-// translated by Zengine's own SDL translator (input/translate_sdl.hpp). Reloaded, it leaves its
-// window and renderer to the instance after it through SDL's global properties, so the window is
-// not made again. With no display it says why once, holds no SDL, and still keeps and
-// composes its picture.
+// translated by Zengine's own SDL translator (input/translate_sdl_core.hpp), claiming the queue so
+// an SDL Input reader beside it reads none of it (input/window_claim.hpp). Reloaded, it leaves its
+// window and renderer to the instance after it through SDL's global properties. With no display
+// it says why once, holds no SDL and no claim, and still keeps and composes its picture.
 
 #include "graphics/window/window_sdl.hpp"
 
-#include "input/translate_sdl.hpp"
+#include "input/translate_sdl_core.hpp"
+#include "input/window_claim.hpp"
 
 #include <zen/kernel/export.hpp>
 
@@ -22,7 +23,6 @@
 #include <map>
 #include <set>
 #include <string>
-#include <variant>
 #include <vector>
 
 namespace {
@@ -62,9 +62,12 @@ std::int64_t living(std::int64_t step) {
 
 class ProcessSdlBackend {
 public:
-    /// Counted among the living when SDL's video is up already: an instance before it may hold a
-    /// window to leave it.
+    /// SDL's queue claimed from the start, so a reload in place, which makes the next instance
+    /// before it ends this one, never leaves the queue unclaimed; and counted among the living
+    /// when SDL's video is up already: an instance before it may hold a window to leave it.
     ProcessSdlBackend() {
+        zengine::input::claim_window_sdl_input();
+        input_claimed_ = true;
         if (SDL_WasInit(SDL_INIT_VIDEO) != 0) {
             counted_ = true;
             (void)living(1);
@@ -72,6 +75,7 @@ public:
     }
 
     ~ProcessSdlBackend() {
+        give_back_input();
         drop_textures();
         const bool up = counted_ && SDL_WasInit(SDL_INIT_VIDEO) != 0;
         const bool others = up && living(-1) > 0;
@@ -106,6 +110,7 @@ public:
         if (!SDL_Init(SDL_INIT_VIDEO)) {
             complain("SDL_Init(SDL_INIT_VIDEO)");
             release_sdl(); // a failed init still allocated: see release_sdl
+            give_back_input();
             return;
         }
         held_ = true;
@@ -174,30 +179,45 @@ public:
         return SDL_RenderPresent(renderer_);
     }
 
-    /// What SDL's queue holds, emptied in queue order: keys, their text and the pointer's
-    /// buttons translated; an uncovered or resized window asks to be drawn again.
+    /// What SDL's queue holds, emptied in queue order: keys and their releases, their text, and
+    /// the pointer's moves, buttons and wheel translated; a close asked of the window or of the
+    /// application is said; an uncovered or resized window asks to be drawn again.
     win::PixelPolled poll() {
+        namespace in = zengine::input;
         win::PixelPolled out;
         if (window_ == nullptr) {
             return out;
         }
         SDL_Event ev;
         while (SDL_PollEvent(&ev)) {
-            std::vector<zengine::input::SdlEvent> batch;
+            std::vector<in::InputEvent> moments;
             switch (ev.type) {
+            case SDL_EVENT_QUIT:
+            case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
+                out.close = true;
+                break;
             case SDL_EVENT_KEY_DOWN:
-                batch = zengine::input::sdl_key_to_events(
-                    static_cast<std::int64_t>(ev.key.scancode),
-                    static_cast<std::uint16_t>(ev.key.mod), ev.key.down, ev.key.repeat);
+            case SDL_EVENT_KEY_UP:
+                moments = in::sdl_key_moments(static_cast<std::int64_t>(ev.key.scancode),
+                                              static_cast<std::uint16_t>(ev.key.mod), ev.key.down,
+                                              ev.key.repeat);
                 break;
             case SDL_EVENT_TEXT_INPUT:
-                batch = zengine::input::sdl_text_to_events(ev.text.text);
+                moments = in::sdl_text_moments(ev.text.text);
+                break;
+            case SDL_EVENT_MOUSE_MOTION:
+                moments = in::sdl_mouse_motion_moments(ev.motion.x, ev.motion.y, ev.motion.xrel,
+                                                       ev.motion.yrel);
                 break;
             case SDL_EVENT_MOUSE_BUTTON_DOWN:
             case SDL_EVENT_MOUSE_BUTTON_UP:
-                batch = zengine::input::sdl_mouse_button_to_events(
-                    static_cast<std::int64_t>(ev.button.button), ev.button.down, ev.button.x,
-                    ev.button.y);
+                moments = in::sdl_mouse_button_moments(static_cast<std::int64_t>(ev.button.button),
+                                                       ev.button.down, ev.button.x, ev.button.y);
+                break;
+            case SDL_EVENT_MOUSE_WHEEL:
+                moments = in::sdl_mouse_wheel_moments(
+                    ev.wheel.x, ev.wheel.y, static_cast<std::uint32_t>(ev.wheel.direction),
+                    ev.wheel.mouse_x, ev.wheel.mouse_y);
                 break;
             case SDL_EVENT_WINDOW_EXPOSED:
             case SDL_EVENT_WINDOW_RESIZED:
@@ -207,15 +227,7 @@ public:
             default:
                 break;
             }
-            for (const zengine::input::SdlEvent& e : batch) {
-                if (const auto* k = std::get_if<zengine::input::KeyPressed>(&e)) {
-                    out.events.emplace_back(*k);
-                } else if (const auto* t = std::get_if<zengine::input::TextEntered>(&e)) {
-                    out.events.emplace_back(*t);
-                } else if (const auto* b = std::get_if<zengine::input::PointerButton>(&e)) {
-                    out.events.emplace_back(*b);
-                }
-            }
+            out.events.insert(out.events.end(), moments.begin(), moments.end());
         }
         return out;
     }
@@ -225,6 +237,15 @@ private:
         std::uint64_t version = 0;
         std::vector<SDL_Texture*> made;
     };
+
+    /// This instance's claim on SDL's queue given back, once: when it goes, or when it finds it
+    /// has no window to read the queue for.
+    void give_back_input() {
+        if (input_claimed_) {
+            input_claimed_ = false;
+            zengine::input::release_window_sdl_input();
+        }
+    }
 
     static SDL_Window* take_handed() {
         const SDL_PropertiesID global = SDL_GetGlobalProperties();
@@ -256,6 +277,7 @@ private:
             complain("SDL_CreateWindow");
             held_ = false;
             release_sdl();
+            give_back_input();
             return;
         }
         renderer_ = SDL_CreateRenderer(window_, nullptr);
@@ -265,6 +287,7 @@ private:
             window_ = nullptr;
             held_ = false;
             release_sdl();
+            give_back_input();
             return;
         }
         SDL_StartTextInput(window_);
@@ -360,8 +383,9 @@ private:
     SDL_Window* window_ = nullptr;
     SDL_Renderer* renderer_ = nullptr;
     bool claimed_ = false;
-    bool held_ = false;    ///< this instance holds SDL's video
-    bool counted_ = false; ///< counted among the living
+    bool input_claimed_ = false; ///< this instance holds a claim on SDL's queue
+    bool held_ = false;          ///< this instance holds SDL's video
+    bool counted_ = false;       ///< counted among the living
     std::vector<SDL_Vertex> batch_;
     std::vector<int> indices_;
     std::map<std::string, Made> textures_;

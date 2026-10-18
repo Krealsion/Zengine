@@ -1837,6 +1837,38 @@ TEST_CASE("the SDL reader owns the real queue: pushed events come out as Zen mes
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
 }
 
+TEST_CASE("the SDL reader leaves SDL's queue to an OS window that claims it, and drains it again "
+          "once the claim is given back") {
+    SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "dummy");
+    REQUIRE(SDL_Init(SDL_INIT_VIDEO));
+    Rig r;
+    (void)r.load("zengine-input-sdl", INPUT_SDL_SO, kInputRole);
+    r.pump_input_by_role();
+    std::vector<SdlEvent> heard;
+    (void)loom::mount<SdlEars>(r.bus, heard);
+
+    // While a window holds the queue, a key pushed into it stays there for the window to take.
+    claim_window_sdl_input();
+    SDL_Event down{};
+    down.type = SDL_EVENT_KEY_DOWN;
+    down.key.scancode = SDL_SCANCODE_Q;
+    down.key.down = true;
+    const bool pushed = SDL_PushEvent(&down);
+    r.pump_input_by_role();
+    const bool yielded = heard.empty();
+    const int left =
+        SDL_PeepEvents(nullptr, 0, SDL_PEEKEVENT, SDL_EVENT_KEY_DOWN, SDL_EVENT_KEY_DOWN);
+    release_window_sdl_input(); // given back before any check, so no case after inherits it
+    REQUIRE(pushed);
+    CHECK(yielded);
+    CHECK(left == 1);
+
+    r.pump_input_by_role();
+    REQUIRE(heard.size() == 1);
+    CHECK(sdl_at<KeyPressed>(heard, 0).scancode == scan::kQ);
+    SDL_QuitSubSystem(SDL_INIT_VIDEO);
+}
+
 
 TEST_CASE("both SDL weaves live: the Skin services its window and takes NOTHING off the queue") {
     // THE ONE-OWNER PROPERTY, with the exact interleaving that breaks it: SDL_PollEvent REMOVES
@@ -2068,7 +2100,7 @@ TEST_CASE("the component's key spellings ARE the wire's") {
     // component/text_box.hpp spells its vocabulary's identities locally because the
     // component includes nothing; this is the one translation unit that sees both
     // spellings, so this is where a drift becomes a red build rather than a silently
-    // different world (translate_sdl.hpp's own pattern for SDL's constants).
+    // different world (translate_sdl_core.hpp's own pattern for SDL's constants).
     namespace ckey = zengine::component::key;
     namespace cmod = zengine::component::mod;
     static_assert(ckey::kA == scan::kA);
@@ -2098,7 +2130,7 @@ TEST_CASE("the component's key spellings ARE the wire's") {
 TEST_CASE("the clipboard event class is IGNORED, and the reader's sources are clean") {
     // Translating SDL_EVENT_CLIPBOARD_UPDATE and reading the payload would import ambient
     // system-clipboard text merely because the application runs, so the class is in the ignored
-    // set beside the joysticks -- and the constant is spelled here, because translate_sdl.hpp
+    // set beside the joysticks -- and the constant is spelled here, because the translator
     // deliberately has no name for it.
     constexpr std::uint32_t kSdlEventClipboardUpdate = 0x900;
     CHECK(!sdl_event_is_translated(kSdlEventClipboardUpdate));
@@ -2114,7 +2146,8 @@ TEST_CASE("the clipboard event class is IGNORED, and the reader's sources are cl
     // included. The clipboard is read in one place, the Medium, under a paste ask. The prose is
     // stripped first, as every source tripwire here reads: these files EXPLAIN what they refuse
     // to contain, and a check that grepped the explanation would report an absence as a presence.
-    for (const char* path : {INPUT_SDL_READER_CPP, INPUT_SDL_TRANSLATE_HPP}) {
+    for (const char* path : {INPUT_SDL_READER_CPP, INPUT_SDL_TRANSLATE_HPP,
+                             INPUT_SDL_TRANSLATE_CORE_HPP, WINDOW_SDL_CPP}) {
         std::ifstream in(path);
         REQUIRE(in.good());
         std::string code;
@@ -2645,10 +2678,10 @@ TEST_CASE("session: an in-place reload keeps the open session, its held keys and
 }
 
 // =============================================================================
-// The terminal window's claim: the readers beside a window leave its terminal to it
+// A window's claim: the readers beside a window leave its terminal, or SDL's queue, to it
 // =============================================================================
-// A terminal window and the Input weave are separate libraries in one process; the window's claim
-// is the process's environment variable, read here as both libraries read it.
+// A window and the Input weave are separate libraries in one process; the window's claim is the
+// process's environment variable, read here as both libraries read it.
 
 namespace {
 
@@ -2661,31 +2694,30 @@ std::string own_pid() {
 }
 
 /// The variable as another hand leaves it -- a parent's claim, garbage -- or gone (nullptr).
-void put_claim_text(const char* text) {
+void put_claim_text(const char* text, const char* variable = kWindowTerminalInputVariable) {
 #if defined(_WIN32)
-    ::SetEnvironmentVariableA(kWindowTerminalInputVariable, text);
+    ::SetEnvironmentVariableA(variable, text);
 #else
     if (text == nullptr) {
-        ::unsetenv(kWindowTerminalInputVariable);
+        ::unsetenv(variable);
     } else {
-        ::setenv(kWindowTerminalInputVariable, text, 1);
+        ::setenv(variable, text, 1);
     }
 #endif
 }
 
 /// The variable's text as a child process would inherit it, or "(unset)".
-std::string claim_text() {
+std::string claim_text(const char* variable = kWindowTerminalInputVariable) {
 #if defined(_WIN32)
     char buf[64];
     ::SetLastError(ERROR_SUCCESS);
-    const DWORD n = ::GetEnvironmentVariableA(kWindowTerminalInputVariable, buf,
-                                              static_cast<DWORD>(sizeof(buf)));
+    const DWORD n = ::GetEnvironmentVariableA(variable, buf, static_cast<DWORD>(sizeof(buf)));
     if (n == 0 && ::GetLastError() == ERROR_ENVVAR_NOT_FOUND) {
         return "(unset)";
     }
     return n < sizeof(buf) ? std::string(buf, n) : std::string("(too long)");
 #else
-    const char* text = ::getenv(kWindowTerminalInputVariable);
+    const char* text = ::getenv(variable);
     return text == nullptr ? std::string("(unset)") : std::string(text);
 #endif
 }
@@ -2695,7 +2727,10 @@ struct ClaimClearedAtEnd {
     ClaimClearedAtEnd() = default;
     ClaimClearedAtEnd(const ClaimClearedAtEnd&) = delete;
     ClaimClearedAtEnd& operator=(const ClaimClearedAtEnd&) = delete;
-    ~ClaimClearedAtEnd() { put_claim_text(nullptr); }
+    ~ClaimClearedAtEnd() {
+        put_claim_text(nullptr, kWindowTerminalInputVariable);
+        put_claim_text(nullptr, kWindowSdlInputVariable);
+    }
 };
 
 } // namespace
@@ -2759,6 +2794,51 @@ TEST_CASE("a reader touches the terminal as the window's own, or while no window
     CHECK_FALSE(terminal_reader_may_use_terminal(false, true));
     CHECK(terminal_reader_may_use_terminal(true, false));
     CHECK(terminal_reader_may_use_terminal(true, true));
+}
+
+TEST_CASE("an OS window's claim on SDL's queue is counted under this process's pid, apart from the "
+          "terminal's, and the SDL reader drains the queue only while no window holds it") {
+    ClaimClearedAtEnd cleared;
+    const std::string pid = own_pid();
+    CHECK(window_sdl_input_claims() == 0);
+    CHECK_FALSE(window_holds_sdl_input());
+    CHECK(sdl_reader_may_use_sdl());
+
+    claim_window_sdl_input();
+    CHECK(window_sdl_input_claims() == 1);
+    CHECK(window_holds_sdl_input());
+    CHECK_FALSE(sdl_reader_may_use_sdl());
+    CHECK(claim_text(kWindowSdlInputVariable) == pid + ":1");
+    // The terminal's claim is another: neither counts the other's.
+    CHECK(window_terminal_input_claims() == 0);
+    claim_window_terminal_input();
+    CHECK(window_sdl_input_claims() == 1);
+    release_window_terminal_input();
+
+    // A reload in place makes the new window before it destroys the old one.
+    claim_window_sdl_input();
+    CHECK(window_sdl_input_claims() == 2);
+    release_window_sdl_input();
+    CHECK(window_sdl_input_claims() == 1);
+    CHECK_FALSE(sdl_reader_may_use_sdl());
+
+    release_window_sdl_input();
+    CHECK(window_sdl_input_claims() == 0);
+    CHECK(sdl_reader_may_use_sdl());
+    CHECK(claim_text(kWindowSdlInputVariable) == "(unset)"); // a child started now inherits nothing
+    release_window_sdl_input();
+    CHECK(claim_text(kWindowSdlInputVariable) == "(unset)");
+
+    // A claim under another pid, or one that is not a count, holds nothing.
+    for (const std::string& text : {std::string("0:3"), pid + ":0", pid + ":x", pid}) {
+        CAPTURE(text);
+        put_claim_text(text.c_str(), kWindowSdlInputVariable);
+        CHECK(window_sdl_input_claims() == 0);
+        CHECK(sdl_reader_may_use_sdl());
+    }
+    put_claim_text("0:3", kWindowSdlInputVariable);
+    claim_window_sdl_input();
+    CHECK(claim_text(kWindowSdlInputVariable) == pid + ":1");
 }
 
 #if !defined(_WIN32)

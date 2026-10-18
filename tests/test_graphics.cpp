@@ -920,6 +920,105 @@ TEST_CASE("a press nothing drawn there takes reaches the owner of an area placed
     CHECK(heard.pressed.size() == 1);
 }
 
+/// AN OWNER PLACED TO HEAR THE WHOLE POINTER: every moment the window gives it, in order.
+struct MomentsHeard {
+    std::vector<zengine::input::PointerButton> buttons;
+    std::vector<zengine::input::PointerMoved> moves;
+    std::vector<zengine::input::PointerWheel> wheels;
+    std::vector<std::string> order;
+    bool empty() const { return order.empty(); }
+};
+
+class MomentsOwner
+    : public loom::WeaveBase<MomentsOwner, GraphicsTestOwner,
+                             loom::Accept<gfx::AreaRoom, zengine::input::PointerButton,
+                                          zengine::input::PointerMoved,
+                                          zengine::input::PointerWheel>,
+                             loom::Emit<>> {
+public:
+    explicit MomentsOwner(MomentsHeard& heard) : heard_(&heard) {}
+    void on(const gfx::AreaRoom&, loom::Mail&) { ++state_.heard; }
+    void on(const zengine::input::PointerButton& b, loom::Mail& mail) {
+        if (!mail.authored_from_role(window_office())) return;
+        heard_->buttons.push_back(b);
+        heard_->order.push_back("button");
+    }
+    void on(const zengine::input::PointerMoved& m, loom::Mail& mail) {
+        if (!mail.authored_from_role(window_office())) return;
+        heard_->moves.push_back(m);
+        heard_->order.push_back("move");
+    }
+    void on(const zengine::input::PointerWheel& w, loom::Mail& mail) {
+        if (!mail.authored_from_role(window_office())) return;
+        heard_->wheels.push_back(w);
+        heard_->order.push_back("wheel");
+    }
+
+private:
+    MomentsHeard* heard_;
+};
+
+TEST_CASE("the terminal window sends a release, another button, a move and the wheel to the owner "
+          "of the area they land in, at its own point in pixels, only when it was placed to hear "
+          "the pointer") {
+    TypedWindow t;
+    t.r.to_role(gfx::kGraphicsRole, gfx::SkinOffered{"classic", PAINT_CLASSIC_SO});
+    t.r.drain();
+    const auto mount = [&t](MomentsHeard& heard, const char* office, std::int64_t row,
+                            bool pointer) {
+        auto made = std::make_unique<MomentsOwner>(heard);
+        MomentsOwner* raw = made.get();
+        loom::Grant g = loom::emit_default_grant(*raw);
+        raw->zen_set_self(t.r.bus.register_weave(std::move(made), std::move(g), office));
+        gfx::AreaPlaced placed{office, gfx::kTerminalWindow, office, 10 * gfx::kCellPx,
+                               row * gfx::kCellPx, 20 * gfx::kCellPx, 5 * gfx::kCellPx, 1, false};
+        placed.pointer = pointer;
+        t.r.to_role(gfx::kGraphicsRole, placed);
+        t.r.to_role(gfx::kGraphicsRole, gfx::SkinChosen{office, "classic"});
+        t.r.drain();
+    };
+    MomentsHeard hearing, deaf;
+    mount(hearing, "test.hearing", 2, true);
+    mount(deaf, "test.deaf", 8, false);
+    // A window cell's centre, in the pixels of an area whose corner stands at cell (10, row0).
+    const auto local = [](std::int64_t cell, std::int64_t origin) {
+        return cell * gfx::kCellPx + gfx::kCellPx / 2 - origin * gfx::kCellPx;
+    };
+
+    t.type("\x1b[<0;13;4m");                 // the left button let go at cell (12, 3)
+    // The right button pressed at (13, 4) and dragged with it held to (15, 4), then (16, 5).
+    t.type("\x1b[<2;14;5M\x1b[<34;16;5M\x1b[<34;17;6M");
+    t.type("\x1b[<64;15;4M");                // the wheel turned up at (14, 3)
+    CHECK(hearing.order == std::vector<std::string>{"button", "button", "move", "wheel"});
+    REQUIRE(hearing.buttons.size() == 2);
+    CHECK(hearing.buttons[0].button == 1);
+    CHECK_FALSE(hearing.buttons[0].pressed);
+    CHECK(hearing.buttons[0].x == local(12, 10));
+    CHECK(hearing.buttons[0].y == local(3, 2));
+    CHECK(hearing.buttons[0].space == zengine::input::space::kPixels);
+    CHECK(hearing.buttons[1].button == 3);
+    CHECK(hearing.buttons[1].pressed);
+    CHECK(hearing.buttons[1].x == local(13, 10));
+    // TWO MOVES READ IN ONE BEAT GO AS ONE: the last point, the deltas summed, in pixels.
+    REQUIRE(hearing.moves.size() == 1);
+    CHECK(hearing.moves[0].x == local(16, 10));
+    CHECK(hearing.moves[0].y == local(5, 2));
+    CHECK(hearing.moves[0].dx == 3 * gfx::kCellPx);
+    CHECK(hearing.moves[0].dy == gfx::kCellPx);
+    CHECK(hearing.moves[0].space == zengine::input::space::kPixels);
+    REQUIRE(hearing.wheels.size() == 1);
+    CHECK(hearing.wheels[0].dy == doctest::Approx(1.0));
+    CHECK(hearing.wheels[0].x == local(14, 10));
+    CHECK(hearing.wheels[0].y == local(3, 2));
+    CHECK(hearing.wheels[0].space == zengine::input::space::kPixels);
+
+    // THE SAME MOMENTS IN AN AREA PLACED WITHOUT THE POINTER, OR IN NONE, REACH NO ONE.
+    t.type("\x1b[<0;13;10m\x1b[<2;14;11M\x1b[<34;16;11M\x1b[<64;15;10M");
+    t.type("\x1b[<0;60;20m\x1b[<2;60;20M\x1b[<34;61;21M\x1b[<64;60;20M");
+    CHECK(deaf.empty());
+    CHECK(hearing.order.size() == 4);
+}
+
 TEST_CASE("the new-game button is the world's action, and a new game reaches the board as a change") {
     Typed t;
     for (int i = 0; i < 4; ++i) {
@@ -983,10 +1082,11 @@ private:
     KeysHeard* heard_;
 };
 
-/// AN OWNER THAT TAKES KEYS AND TEXT.
+/// AN OWNER THAT TAKES KEYS, THEIR RELEASES AND TEXT.
 class TextOwner
     : public loom::WeaveBase<TextOwner, GraphicsTestOwner,
                              loom::Accept<gfx::AreaRoom, zengine::input::KeyPressed,
+                                          zengine::input::KeyReleased,
                                           zengine::input::TextEntered>,
                              loom::Emit<>> {
 public:
@@ -994,6 +1094,9 @@ public:
     void on(const gfx::AreaRoom&, loom::Mail&) { ++state_.heard; }
     void on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
         if (mail.authored_from_role(window_office())) heard_->said.push_back("key " + k.name);
+    }
+    void on(const zengine::input::KeyReleased& k, loom::Mail& mail) {
+        if (mail.authored_from_role(window_office())) heard_->said.push_back("up " + k.name);
     }
     void on(const zengine::input::TextEntered& e, loom::Mail& mail) {
         if (mail.authored_from_role(window_office())) heard_->said.push_back("text " + e.text);
@@ -1005,8 +1108,9 @@ private:
 
 } // namespace
 
-TEST_CASE("what a key types goes with the key from the window to the owner of each area placed to "
-          "hear keys, and to no other; an owner that takes no text refuses it on the bus") {
+TEST_CASE("what a key types goes with the key and its release from the window to the owner of each "
+          "area placed to hear keys, and to no other; an owner that takes no text or release "
+          "refuses it on the bus") {
     TypedWindow t;
     t.r.to_role(gfx::kGraphicsRole, gfx::SkinOffered{"classic", PAINT_CLASSIC_SO});
     t.r.drain();
@@ -1035,9 +1139,10 @@ TEST_CASE("what a key types goes with the key from the window to the owner of ea
     const std::size_t mark = t.r.log.size();
     t.type("hi");
     t.r.bus.remove_observer(tap);
-    // EACH KEY, AND THEN THE CHARACTER IT TYPED, to the owner placed to hear keys, as the window's
-    // office, to that owner alone...
-    CHECK(typing.said == std::vector<std::string>{"key H", "text h", "key I", "text i"});
+    // EACH KEY, THE CHARACTER IT TYPED, AND ITS RELEASE, to the owner placed to hear keys, as the
+    // window's office, to that owner alone...
+    CHECK(typing.said == std::vector<std::string>{"key H", "text h", "up H", "key I", "text i",
+                                                  "up I"});
     std::size_t text_delivered = 0;
     for (std::size_t i = mark; i < t.r.log.size(); ++i) {
         if (t.r.log[i].shape != zengine::input::TextEntered::zen_name) continue;
@@ -1048,12 +1153,14 @@ TEST_CASE("what a key types goes with the key from the window to the owner of ea
     CHECK(text_delivered == 2);
     // ...NOTHING TO ONE PLACED WITHOUT THEM...
     CHECK(deaf.said.empty());
-    // ...AND TO AN OWNER THAT TAKES KEYS ALONE, its keys, the bus refusing the text it does not
-    // take, and nothing else refused.
+    // ...AND TO AN OWNER THAT TAKES KEYS ALONE, its keys, the bus refusing the text and the
+    // releases it does not take, and nothing else refused.
     CHECK(keys_only.said == std::vector<std::string>{"key H", "key I"});
     CHECK(refused == std::vector<std::pair<std::uint64_t, std::string>>{
                          {keys_id.value, zengine::input::TextEntered::zen_name},
-                         {keys_id.value, zengine::input::TextEntered::zen_name}});
+                         {keys_id.value, zengine::input::KeyReleased::zen_name},
+                         {keys_id.value, zengine::input::TextEntered::zen_name},
+                         {keys_id.value, zengine::input::KeyReleased::zen_name}});
 }
 
 namespace {
@@ -3341,6 +3448,8 @@ struct LitHeard {
     std::vector<std::string> refused;
     std::vector<std::string> said;
     std::vector<zengine::input::PointerButton> pressed;
+    std::vector<zengine::input::PointerMoved> moves;
+    std::vector<zengine::input::PointerWheel> wheels;
     std::vector<gfx::ActionRequested> actions;
 };
 
@@ -3348,8 +3457,9 @@ class LitOwner
     : public loom::WeaveBase<
           LitOwner, GraphicsTestOwner,
           loom::Accept<gfx::AreaRoom, gfx::DrawnRefused, zengine::input::KeyPressed,
-                       zengine::input::TextEntered, zengine::input::PointerButton,
-                       gfx::ActionRequested>,
+                       zengine::input::KeyReleased, zengine::input::TextEntered,
+                       zengine::input::PointerButton, zengine::input::PointerMoved,
+                       zengine::input::PointerWheel, gfx::ActionRequested>,
           loom::Emit<gfx::Drawn, gfx::ElementPut, gfx::ElementChange>> {
 public:
     explicit LitOwner(LitHeard& heard) : heard_(&heard) {}
@@ -3362,11 +3472,20 @@ public:
     void on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
         if (mail.authored_from_role(sdl_office())) heard_->said.push_back("key " + k.name);
     }
+    void on(const zengine::input::KeyReleased& k, loom::Mail& mail) {
+        if (mail.authored_from_role(sdl_office())) heard_->said.push_back("up " + k.name);
+    }
     void on(const zengine::input::TextEntered& e, loom::Mail& mail) {
         if (mail.authored_from_role(sdl_office())) heard_->said.push_back("text " + e.text);
     }
     void on(const zengine::input::PointerButton& b, loom::Mail& mail) {
         if (mail.authored_from_role(sdl_office())) heard_->pressed.push_back(b);
+    }
+    void on(const zengine::input::PointerMoved& m, loom::Mail& mail) {
+        if (mail.authored_from_role(sdl_office())) heard_->moves.push_back(m);
+    }
+    void on(const zengine::input::PointerWheel& w, loom::Mail& mail) {
+        if (mail.authored_from_role(sdl_office())) heard_->wheels.push_back(w);
     }
     void on(const gfx::ActionRequested& a, loom::Mail& mail) {
         if (mail.authored_from_role(sdl_office())) heard_->actions.push_back(a);
@@ -3618,17 +3737,97 @@ TEST_CASE("a press on the OS window lands on the top node painted at its pixel: 
     CHECK(back.actions.size() == 2);
 }
 
-TEST_CASE("keys and their text go from the OS window to the owner of each area placed to hear "
-          "them, and to no other") {
+TEST_CASE("keys, their text and their releases go from the OS window to the owner of each area "
+          "placed to hear them, and to no other") {
     LitWindow t;
     LitHeard& keys = t.own("test.keys", 0, 0, 100, 100, "night", 0, /*keys=*/true);
     LitHeard& deaf = t.own("test.deaf", 0, 100, 100, 100, "night", 1);
     t.light.queued.events.emplace_back(zengine::input::KeyPressed{
         zengine::input::scan::kQ, "Q", zengine::input::mod::kNone});
     t.light.queued.events.emplace_back(zengine::input::TextEntered{"q"});
+    t.light.queued.events.emplace_back(zengine::input::KeyReleased{
+        zengine::input::scan::kQ, "Q", zengine::input::mod::kNone});
     t.pump();
-    CHECK(keys.said == std::vector<std::string>{"key Q", "text q"});
+    CHECK(keys.said == std::vector<std::string>{"key Q", "text q", "up Q"});
     CHECK(deaf.said.empty());
+}
+
+TEST_CASE("the OS window sends a release, another button, a move and the wheel to the owner of the "
+          "area they land in, at its own pixel, only when it was placed to hear the pointer") {
+    namespace in = zengine::input;
+    LitWindow t;
+    LitHeard& back = t.own("test.back", 0, 0, 400, 200, "night", 0, false, /*pointer=*/true);
+    LitHeard& front = t.own("test.front", 100, 50, 100, 50, "night", 1, false, /*pointer=*/true);
+    LitHeard& deaf = t.own("test.deaf", 0, 300, 400, 100, "night", 2);
+    auto& q = t.light.queued.events;
+    q.emplace_back(in::PointerButton{1, false, 120, 70, in::space::kPixels, in::mod::kNone});
+    q.emplace_back(in::PointerButton{3, true, 10, 12, in::space::kPixels, in::mod::kNone});
+    q.emplace_back(in::PointerMoved{130, 80, 2, 3, in::space::kPixels, in::mod::kNone});
+    q.emplace_back(in::PointerMoved{140, 85, 10, 5, in::space::kPixels, in::mod::kNone});
+    q.emplace_back(in::PointerWheel{0.0, -1.5, 20, 30, in::space::kPixels, in::mod::kNone});
+    q.emplace_back(in::PointerButton{2, true, 50, 350, in::space::kPixels, in::mod::kNone});
+    q.emplace_back(in::PointerMoved{60, 360, 10, 10, in::space::kPixels, in::mod::kNone});
+    q.emplace_back(in::PointerWheel{1.0, 0.0, 60, 360, in::space::kPixels, in::mod::kNone});
+    q.emplace_back(in::PointerButton{1, false, 500, 500, in::space::kPixels, in::mod::kNone});
+    t.pump();
+
+    // The front area's: the release at its own pixel, and two moves read in one beat as one.
+    REQUIRE(front.pressed.size() == 1);
+    CHECK(front.pressed[0].button == 1);
+    CHECK_FALSE(front.pressed[0].pressed);
+    CHECK(front.pressed[0].x == 20);
+    CHECK(front.pressed[0].y == 20);
+    CHECK(front.pressed[0].space == in::space::kPixels);
+    REQUIRE(front.moves.size() == 1);
+    CHECK(front.moves[0].x == 40);
+    CHECK(front.moves[0].y == 35);
+    CHECK(front.moves[0].dx == 12);
+    CHECK(front.moves[0].dy == 8);
+    CHECK(front.wheels.empty());
+    // The back area's: the right press and the wheel.
+    REQUIRE(back.pressed.size() == 1);
+    CHECK(back.pressed[0].button == 3);
+    CHECK(back.pressed[0].pressed);
+    CHECK(back.pressed[0].x == 10);
+    CHECK(back.pressed[0].y == 12);
+    REQUIRE(back.wheels.size() == 1);
+    CHECK(back.wheels[0].dy == doctest::Approx(-1.5));
+    CHECK(back.wheels[0].x == 20);
+    CHECK(back.wheels[0].y == 30);
+    CHECK(back.wheels[0].space == in::space::kPixels);
+    CHECK(back.moves.empty());
+    // Placed without the pointer, or outside every area: nothing.
+    CHECK(deaf.pressed.empty());
+    CHECK(deaf.moves.empty());
+    CHECK(deaf.wheels.empty());
+
+    // A move in cells lands at its cell's centre, its deltas in pixels.
+    q.emplace_back(in::PointerMoved{1, 1, 2, -1, in::space::kCells, in::mod::kNone});
+    t.pump();
+    REQUIRE(back.moves.size() == 1);
+    CHECK(back.moves[0].x == gfx::kCellPx + gfx::kCellPx / 2);
+    CHECK(back.moves[0].y == gfx::kCellPx + gfx::kCellPx / 2);
+    CHECK(back.moves[0].dx == 2 * gfx::kCellPx);
+    CHECK(back.moves[0].dy == -gfx::kCellPx);
+    CHECK(back.moves[0].space == in::space::kPixels);
+}
+
+TEST_CASE("the OS window keeps a close its desktop asked for until it is taken; a terminal is "
+          "never asked") {
+    LitWindow t;
+    CHECK_FALSE(t.instance->close_requested());
+    t.light.queued.close = true;
+    t.pump();
+    CHECK(t.instance->close_requested());
+    t.pump(); // a beat that asks nothing leaves the request as it was
+    CHECK(t.instance->close_requested());
+    CHECK(t.instance->take_close());
+    CHECK_FALSE(t.instance->close_requested());
+    CHECK_FALSE(t.instance->take_close());
+
+    gw::TerminalMedium<FakeTerminal> terminal;
+    CHECK_FALSE(terminal.close_requested());
+    CHECK_FALSE(terminal.take_close());
 }
 
 TEST_CASE("the OS window resized offers itself again in its new size in cells, under the same "
@@ -3757,19 +3956,22 @@ void sdl_video_driver(const char* name) {
 struct SdlWeave {
     Rig r;
     LitHeard heard;
+    loom::WeaveId window;
     loom::WeaveId owner;
-    SdlWeave() {
+    explicit SdlWeave(bool keys = false, bool pointer = false) {
         REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
-        REQUIRE(r.load("zengine-window-sdl", WINDOW_SDL_SO, sdl_office()).valid());
+        window = r.load("zengine-window-sdl", WINDOW_SDL_SO, sdl_office());
+        REQUIRE(window.valid());
         auto made = std::make_unique<LitOwner>(heard);
         LitOwner* raw = made.get();
         loom::Grant g = loom::emit_default_grant(*raw);
         owner = r.bus.register_weave(std::move(made), std::move(g), "test.lit");
         raw->zen_set_self(owner);
         r.to_role(gfx::kGraphicsRole, gfx::SkinOffered{"day", PAINT_DAY_SO});
-        r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{"test.lit", gfx::kSdlWindow, "test.lit", 0,
-                                                      0, 40 * gfx::kCellPx, 4 * gfx::kCellPx, 0,
-                                                      false});
+        gfx::AreaPlaced placed{"test.lit", gfx::kSdlWindow, "test.lit", 0,
+                               0, 40 * gfx::kCellPx, 4 * gfx::kCellPx, 0, keys};
+        placed.pointer = pointer;
+        r.to_role(gfx::kGraphicsRole, placed);
         r.to_role(gfx::kGraphicsRole, gfx::SkinChosen{"test.lit", "day"});
         r.drain();
         gfx::Sketch s;
@@ -3786,7 +3988,18 @@ struct SdlWeave {
         r.drain();
         return r.heard.shown.empty() ? gfx::WindowShown{} : r.heard.shown.back();
     }
+    /// The window's own beat: it empties SDL's queue.
+    void pump() {
+        r.bus.send(window, loom::Message(loom::to_value(
+                               zengine::timer::TimerFired{gw::kPumpTimerId})));
+        r.drain();
+    }
 };
+
+/// How many events SDL's queue holds.
+int queued_events() {
+    return SDL_PeepEvents(nullptr, 0, SDL_PEEKEVENT, SDL_EVENT_FIRST, SDL_EVENT_LAST);
+}
 
 } // namespace
 
@@ -3824,7 +4037,7 @@ TEST_CASE("the OS window opens one window on the desktop, draws in it, keeps tha
 }
 
 TEST_CASE("the OS window with no display to open on keeps and composes its picture, and holds no "
-          "SDL") {
+          "SDL and no claim on SDL's queue") {
     sdl_video_driver("zengine-no-such-driver");
     {
         SdlWeave w;
@@ -3835,8 +4048,83 @@ TEST_CASE("the OS window with no display to open on keeps and composes its pictu
         CHECK(s.showings == 0); // nothing was drawn, so nothing was shown
         CHECK(os_windows().empty());
         CHECK(SDL_WasInit(SDL_INIT_VIDEO) == 0);
+        // With no window to read for, the queue is left to an SDL Input reader beside it.
+        CHECK_FALSE(zengine::input::window_holds_sdl_input());
     }
     sdl_video_driver("dummy");
+}
+
+TEST_CASE("the OS window claims SDL's queue while it is loaded, reloaded or replaced, and gives "
+          "the claim back when it goes") {
+    namespace in = zengine::input;
+    REQUIRE_FALSE(in::window_holds_sdl_input());
+    {
+        SdlWeave w;
+        CHECK(in::window_sdl_input_claims() == 1);
+
+        // A reload makes the successor before it destroys its predecessor: one claim, not none.
+        const auto reloaded = w.r.command(loom::ReloadWeave{"zengine-window-sdl", WINDOW_SDL_SO});
+        REQUIRE_MESSAGE(reloaded.kind == 1, reloaded.text);
+        CHECK(in::window_sdl_input_claims() == 1);
+
+        const auto swapped = w.r.command(loom::SwapWeave{sdl_office(), "zengine-window-sdl",
+                                                         WINDOW_SDL_SO, /*graceful=*/false});
+        REQUIRE_MESSAGE(swapped.kind == 0, swapped.text);
+        CHECK(in::window_sdl_input_claims() == 1);
+    }
+    CHECK_FALSE(in::window_holds_sdl_input());
+}
+
+TEST_CASE("the OS window empties SDL's own queue: a key's release, a move, another button and the "
+          "wheel reach the owner placed to hear them, and a close request is taken off the queue") {
+    SdlWeave w(/*keys=*/true, /*pointer=*/true);
+    w.pump(); // what the window's own opening queued
+    const auto push = [](SDL_Event e) { REQUIRE(SDL_PushEvent(&e)); };
+    SDL_Event up{};
+    up.type = SDL_EVENT_KEY_UP;
+    up.key.scancode = SDL_SCANCODE_Q;
+    up.key.down = false;
+    push(up);
+    SDL_Event motion{};
+    motion.type = SDL_EVENT_MOUSE_MOTION;
+    motion.motion.x = 30.0f;
+    motion.motion.y = 20.0f;
+    motion.motion.xrel = 4.0f;
+    motion.motion.yrel = -1.0f;
+    push(motion);
+    SDL_Event right{};
+    right.type = SDL_EVENT_MOUSE_BUTTON_UP;
+    right.button.button = SDL_BUTTON_RIGHT;
+    right.button.down = false;
+    right.button.x = 31.0f;
+    right.button.y = 21.0f;
+    push(right);
+    SDL_Event wheel{};
+    wheel.type = SDL_EVENT_MOUSE_WHEEL;
+    wheel.wheel.y = 1.0f;
+    wheel.wheel.direction = SDL_MOUSEWHEEL_FLIPPED;
+    wheel.wheel.mouse_x = 32.0f;
+    wheel.wheel.mouse_y = 22.0f;
+    push(wheel);
+    SDL_Event close{};
+    close.type = SDL_EVENT_WINDOW_CLOSE_REQUESTED;
+    push(close);
+
+    w.pump();
+    CHECK(w.heard.said == std::vector<std::string>{"up Q"});
+    REQUIRE(w.heard.moves.size() == 1);
+    CHECK(w.heard.moves[0].x == 30);
+    CHECK(w.heard.moves[0].y == 20);
+    CHECK(w.heard.moves[0].dx == 4);
+    CHECK(w.heard.moves[0].dy == -1);
+    REQUIRE(w.heard.pressed.size() == 1);
+    CHECK(w.heard.pressed[0].button == 3);
+    CHECK_FALSE(w.heard.pressed[0].pressed);
+    CHECK(w.heard.pressed[0].x == 31);
+    REQUIRE(w.heard.wheels.size() == 1);
+    CHECK(w.heard.wheels[0].dy == doctest::Approx(-1.0)); // flipped, put back
+    CHECK(w.heard.wheels[0].x == 32);
+    CHECK(queued_events() == 0); // the close too was the window's to take
 }
 
 #endif // GRAPHICS_HAS_SDL
