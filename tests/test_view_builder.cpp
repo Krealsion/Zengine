@@ -2162,8 +2162,8 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
         // window, which reaches less of the view, draws it.
         REQUIRE(rig.edit("size", {"1400", "700"}).ok);
         REQUIRE(rig.edit("add", {"button"}).ok);
-        const auto far = std::to_string(rig.now().elements.size() - 1);
-        REQUIRE(rig.edit("element", {far, "far", "Far", "1200", "600", "96", "24"}).ok);
+        const auto distant = std::to_string(rig.now().elements.size() - 1);
+        REQUIRE(rig.edit("element", {distant, "far", "Far", "1200", "600", "96", "24"}).ok);
         const auto canvas = rig.design();
         rig.pointer(ws::canvas_pointer::kPress, canvas.x + 2 * unit, canvas.y + 2 * unit, 60, 2);
         rig.pointer(ws::canvas_pointer::kMove, canvas.x + 2 * unit - 60 * unit, canvas.y + 2 * unit - 30 * unit, 60, 2);
