@@ -4262,15 +4262,15 @@ TEST_CASE("a pane whose office draws in no graphics window, or whose last word w
 
 namespace {
 
-struct OfferingWindowState {
+struct DeskSeatState {
     std::int64_t heard = 0;
-    ZEN_SHAPE(OfferingWindowState, 1, ZEN_FIELD(heard));
+    ZEN_SHAPE(DeskSeatState, 1, ZEN_FIELD(heard));
 };
 
 /// A PARTICIPANT THAT SAYS ONE THING AS ITS OFFICE inside its own delivery, when a case asks.
 template <class Said>
 class SayingSeat
-    : public loom::WeaveBase<SayingSeat<Said>, OfferingWindowState, loom::Accept<SeatDo>,
+    : public loom::WeaveBase<SayingSeat<Said>, DeskSeatState, loom::Accept<SeatDo>,
                              loom::Emit<Said>> {
 public:
     void on(const SeatDo&, loom::Mail& mail) {
@@ -4386,7 +4386,7 @@ namespace {
 /// A GUEST A GUEST DOOR ADMITTED, as its session stands on the bus: it asks Workshop for a mark,
 /// and keeps every answer.
 class GuideGuest
-    : public loom::WeaveBase<GuideGuest, OfferingWindowState, loom::Accept<SeatDo, GuideAnswered>,
+    : public loom::WeaveBase<GuideGuest, DeskSeatState, loom::Accept<SeatDo, GuideAnswered>,
                              loom::Emit<GuideRequested>> {
 public:
     void on(const SeatDo&, loom::Mail& mail) {
@@ -4454,7 +4454,6 @@ TEST_CASE("a guest's guide mark stands over the desk in the window that shows Wo
         if (who == guest_id) {
             row.admitted = true;
             row.name = "tutor";
-            row.version = 3;
         }
         return row;
     };
@@ -4500,7 +4499,7 @@ namespace {
 /// A PANE THAT CARRIES A VALUE OUT UNDER THE PRESS THAT TOOK HOLD OF IT: it keeps the number each
 /// press came under, and what Workshop answered its operation and its carry.
 class CarrySeat
-    : public loom::WeaveBase<CarrySeat, OfferingWindowState,
+    : public loom::WeaveBase<CarrySeat, DeskSeatState,
                              loom::Accept<PaneCatalogRequested, PaneRoom, PanePressed,
                                           PaneOperationAnswered, PaneCarryAnswered, SeatDo>,
                              loom::Emit<PaneOffered, PaneContent, PaneOperationRequested,
