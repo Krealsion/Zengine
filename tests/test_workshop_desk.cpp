@@ -4234,6 +4234,16 @@ TEST_CASE("a pane whose office draws in no graphics window, or whose last word w
     CHECK(parts.count("focus:" + std::to_string(kind)) == 1);
     CHECK(parts.count("manual:" + std::to_string(kind)) == 0);
     CHECK(parts.count("settings:" + std::to_string(kind)) == 0);
+    // ...and while arranging, in front of its rows, Workshop paints nothing over them.
+    d.type(input::scan::kW, "w");
+    REQUIRE(s.arrange.open);
+    const PixelRect seat_body =
+        canvas_body_place(external_pane_rect(s, kind), screen_of(s),
+                          external_title_rows(s.panes, kind, s.pane_titles));
+    REQUIRE_FALSE(seat_body.empty());
+    CHECK_FALSE(paints_inside(painted_cells(*window.weave().find(area)), seat_body));
+    d.r.key(input::scan::kEscape);
+    REQUIRE_FALSE(s.arrange.open);
     // ...A WORD TOO WIDE FOR ITS ROOM, refused: the area withdrawn, and the refusal drawn there.
     say(std::string(static_cast<std::size_t>(seat->room.columns + 1), 'x'));
     REQUIRE_FALSE(s.panes.external_pane(kind)->refusal.empty());
