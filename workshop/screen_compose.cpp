@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <utility>
 
 namespace zengine::workshop {
 
@@ -41,6 +42,9 @@ void paint_panes(surface::SurfaceCanvas& c, const Session& s, const Screen& sc) 
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
         paint_pane_affordances(layer, s, sc);
     });
+    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
+        paint_selection_ring(layer, s, sc);
+    });
     // The contextual-action surface, last in the band: over everything as the band's latest
     // gesture, and it takes the band's keys first for the same reason (`keyboard_context`).
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
@@ -51,6 +55,71 @@ void paint_panes(surface::SurfaceCanvas& c, const Session& s, const Screen& sc) 
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
         paint_presented(layer, s, sc);
     });
+}
+
+namespace {
+
+/// The selected pane's rectangle while command mode has the keys, or empty: what the selection's
+/// ring is drawn around, on the canvas and in a window alike.
+PixelRect selection_ring_rect(const Session& s, const Screen& sc) {
+    if (keyboard_context(s) != KeyContext::kCommand) {
+        return PixelRect{};
+    }
+    const std::int64_t kind = selected_pane(s.panes);
+    if (kind == kNoPaneKind || !kind_takes_keyboard(kind)) {
+        return PixelRect{};
+    }
+    return bounds_of(s.panes, s.setup.active, kind, sc).rect;
+}
+
+/// The selection's two rings around `b`, a device unit apart and just outside its edge, clipped to
+/// the canvas: where an edge is finer than a cell, a mark on a corner cell would cover words.
+std::vector<PixelRect> selection_rings(const PixelRect& b, const Screen& sc) {
+    const std::int64_t grain = chrome_grain(sc);
+    std::vector<PixelRect> out;
+    for (std::int64_t ring = 1; ring <= 2; ++ring) {
+        const std::int64_t x0 = (std::max)(std::int64_t{0}, b.x - ring * grain);
+        const std::int64_t y0 = (std::max)(std::int64_t{0}, b.y - ring * grain);
+        const std::int64_t x1 = (std::min)(sc.w, b.x + b.w + ring * grain);
+        const std::int64_t y1 = (std::min)(sc.h, b.y + b.h + ring * grain);
+        out.push_back(PixelRect{x0, y0, x1 - x0, y1 - y0});
+    }
+    return out;
+}
+
+} // namespace
+
+// WL-FOCUS-12 -- agents/workshop/focus.md
+void paint_selection_ring(surface::SurfaceLayer& layer, const Session& s, const Screen& sc) {
+    const PixelRect b = selection_ring_rect(s, sc);
+    if (b.empty()) {
+        return;
+    }
+    // WHERE AN EDGE IS FINER THAN A CELL, the rings, each as its four sides.
+    const std::int64_t grain = chrome_grain(sc);
+    if (grain < surface::kCanvasCellPx) {
+        for (const PixelRect& r : selection_rings(b, sc)) {
+            for (const PixelRect& side : {PixelRect{r.x, r.y, r.w, grain},
+                                          PixelRect{r.x, r.y + r.h - grain, r.w, grain},
+                                          PixelRect{r.x, r.y, grain, r.h},
+                                          PixelRect{r.x + r.w - grain, r.y, grain, r.h}}) {
+                layer.rects.push_back(wire_rect_of(side, surface::role::kAccent));
+            }
+        }
+        return;
+    }
+    // ...WHERE TEXT IS A CELL, brackets on the frame's corner cells, which neither a role's fill nor
+    // an arrangement handle draws.
+    static constexpr std::pair<std::int64_t, const char*> kCorners[] = {
+        {pane_edge::kTopLeft, "["},
+        {pane_edge::kTopRight, "]"},
+        {pane_edge::kBottomLeft, "["},
+        {pane_edge::kBottomRight, "]"},
+    };
+    for (const auto& [edge, glyph] : kCorners) {
+        const PixelRect at = pane_edge_cell(b, edge);
+        layer.labels.push_back(surface::SurfaceLabel{at.x, at.y, glyph, surface::role::kAccent});
+    }
 }
 
 surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc) {
@@ -415,6 +484,18 @@ WorkshopWindowDrawing workshop_window_drawing(const Session& s,
         surface::SurfaceLayer layer;
         paint_pane_affordances(layer, s, sc);
         draw_plane(out.sketch, desk + "/rings", layer, sc);
+    }
+    // ...AND THE KEYBOARD'S SELECTION, where command mode has one: a window's edges are a device
+    // unit wide, so it wears the rings.
+    if (const PixelRect b = selection_ring_rect(s, sc); !b.empty()) {
+        const std::string group = desk + "/selection";
+        out.sketch.group(group, 0, 0);
+        const std::vector<PixelRect> rings = selection_rings(b, sc);
+        for (std::size_t i = 0; i < rings.size(); ++i) {
+            out.sketch.outline_rect(group + "/ring" + std::to_string(i), rings[i].x, rings[i].y,
+                                    rings[i].w, rings[i].h,
+                                    graphics::by_role(surface::role::kAccent));
+        }
     }
     if (s.context.open) {
         surface::SurfaceLayer layer;

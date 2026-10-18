@@ -60,8 +60,8 @@ case `"a pane that never mentions Escape is put down by it, and is sent nothing"
 **Consequences.** `unselect_pane` is the press-on-nothing line spent from the keyboard, the
 fourth writer of `Panes::selected`. The Terminal sheds its list, then its line, then itself, and
 the two editors keep every Escape, so the way out of them is the way in -- press a pane that takes
-no text (every desk has Layouts) or the workspace. A pane whose holder takes no keys at all is put
-down by Escape where it used to swallow it at Loom's gate. Presence changes only through the two
+no text (every desk has Layouts) or the workspace -- or `focus.leave`. A pane whose holder takes no
+keys at all is put down by Escape where it used to swallow it at Loom's gate. Presence changes only through the two
 doors the Pane Manager spends (WL-DESK-03, WL-DESK-12); the picker was that door when this was
 decided.
 
