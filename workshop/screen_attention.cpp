@@ -18,6 +18,10 @@ std::string pane_window_key(const PaneRef& ref) {
     return "pane.not-presented." + ref_text(ref);
 }
 
+static std::string pane_setting_unused_key(const PaneRef& ref, const std::string& key) {
+    return "pane.setting-unused." + ref_text(ref) + "." + key;
+}
+
 // WL-ATTN-03, WL-ATTN-04, WL-ATTN-05 -- agents/workshop/attention.md
 std::vector<Condition> attention_conditions(const Session& s,
                                             const ProjectFrontier& frontier) {
@@ -40,6 +44,21 @@ std::vector<Condition> attention_conditions(const Session& s,
                                 "`" + ref_text(ref) + "` refused an update",
                                 pane.refusal_why.empty() ? pane.refusal : pane.refusal_why,
                                 surface::role::kAlert, std::string()});
+    }
+
+    // DERIVED: a setting a pane was handed and said it cannot use. The pane holds the word against
+    // the revision it was handed, so the condition goes when a newer revision is handed.
+    for (const ExternalPane& pane : s.panes.external) {
+        const RuntimePane* named = s.panes.runtime.of_kind(pane.kind);
+        if (named == nullptr) {
+            continue;
+        }
+        const PaneRef ref{named->provider, named->pane};
+        for (const ExternalPane::UnusedSetting& u : pane.settings_unused) {
+            out.push_back(Condition{pane_setting_unused_key(ref, u.key),
+                                    "`" + ref_text(ref) + "` cannot use its setting " + u.key,
+                                    u.why, surface::role::kAccent, std::string()});
+        }
     }
 
     // DERIVED: a pane the weaver authored, that this build can resolve, and of which no cell

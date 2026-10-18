@@ -54,6 +54,14 @@ outside plain ASCII, which this line cannot carry truthfully -- nothing was past
 A press on a submitted, received or answer row picks up a copy of its value
 ([`entry`](#entry)).
 
+Each layout keeps the pane's three settings in its row, written from Info's SETTINGS rows or by
+message ([`PaneSettingCommitRequested`](../../workshop/docs/zengine.workshop.md#panesettingcommitrequested)):
+`legend`, pinned, whether the shortcut legend bar shows ([`legend`](#legend)); `wheel-rows`, how
+many rows of the record a wheel notch reads; and `prompt`, the line's mark, one of `>`, `$`, `%`,
+`#` and `:` ([`line`](#line)). What each takes is said beside it in Info. A value a setting
+cannot use, one a hand-written setup file kept, leaves its default in force, and the pane tells
+Workshop, which says it with the row: `it cannot use <key> -- it takes <what it takes>`.
+
 ## Commands
 
 ### `terminal.submit`
@@ -150,7 +158,7 @@ Reads older output: the view moves up a page, keeping one row of the page before
 moves nothing else: not the line, a recalled command, the list or a refusal beside the line.
 
 - **Takes:** the record. Default key <!-- key terminal.scroll-up -->`ctrl+up`<!-- /key -->; the
-  wheel over the pane reads three rows a notch.
+  wheel over the pane reads the layout's `wheel-rows` a notch.
 - **Answers:** the view stays where you leave it while new output arrives, and the rows around it
   say what is out of sight ([`newest`](#newest)). A long entry is read by scrolling: its beginning
   is above its end.
@@ -192,22 +200,23 @@ same, and so does running a line.
 The pane's record is `TranscriptShown`, which Workshop publishes from its office,
 `zengine.workshop`, to any, each time the participant's record changed; a weave that wants the
 record follows that rather than the pane ([the terminal seam](../../workshop/terminal_seam_vocabulary.hpp)).
-The pane says nothing else unasked but its picture, to Workshop, and `ClipboardCopy` when you copy
-from the line.
+The pane says nothing else unasked but its picture, to Workshop, `ClipboardCopy` when you copy
+from the line, and `PaneSettingUnused` when a layout hands it a setting it cannot use.
 
 ## Shows
 
 ### `line`
 
-The line you type on, always the bottom row: `> ` and your text, or, empty, `>    Tab: what can
-this terminal say?  Up: recall a command`. While you recall, the row above it is the history row.
+The line you type on, always the bottom row: the `prompt` mark, `>` unless the layout keeps
+another, a space and your text, or, empty, `>    Tab: what can this terminal say?  Up:
+recall a command`. While you recall, the row above it is the history row.
 A refusal stands over the top row until your next act.
 
 ### `legend`
 
-Under the header, `SUBMITTED = authored; a sender is not told its fate`. It is the pane's one
-setting, `legend`, on unless a layout keeps it off; a value it cannot use leaves the row shown,
-saying why, `legend takes on or off, not <the value> -- on`.
+Under the header, `SUBMITTED = authored; a sender is not told its fate`. It is the pane's
+`legend` setting, on unless a layout keeps it off; a value it cannot use leaves the
+row shown, saying why, `legend takes on or off, not <the value> -- on`.
 
 ### `entry`
 

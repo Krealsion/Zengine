@@ -361,9 +361,17 @@ PaneRoom v1 0xf59705a5786e0884
 PaneRowPart v1 0xc2090f5a6cc1cb72
 PaneRowPart v2 0x39fef02f9583ec28
 PaneSetting v1 0x734b46a0def3b4c5
+PaneSettingActed v1 0x309d126d859b68c3
+PaneSettingCommitRequested v1 0x03927a9c6037218c
 PaneSettingRow v1 0x08e89ae1903ffd5a
+PaneSettingRow v2 0x4a14b26fa8096192
+PaneSettingUnused v1 0xa1796e6d75bd52c1
 PaneSettings v1 0xf6c2d4b5c1a9609f
+PaneSettings v2 0x23441ba397dff7a5
 PaneSettingsDeclared v1 0xb743dcc778e2298c
+PaneSettingsDeclared v2 0xd0b9e15acd8b3577
+PaneSettingsRequested v1 0xfdb740e7d46ec803
+PaneSettingsShown v1 0x65db060c98b57453
 PaneShortcut v1 0x3bcd34b52ee938c7
 PaneShortcutInvoked v1 0x0f764f3d33ac413f
 PaneShortcuts v1 0xa46e946d9b7487b1
@@ -456,6 +464,7 @@ SavedView v1 0x16bedef2a254852f
 SchemaIdentity v1 0xd6ff55096a9d98d2
 ScoreState v1 0x2a0e436c6672fb9d
 ScrollBarFace v1 0x444bc6439b4e716f
+SettingLockShown v1 0x7e176756b72d1997
 SetupApplyRequested v1 0xdbed9509ec8b868a
 ShapeDocumentRequested v1 0x6a2a97debe09af6e
 ShapeDocumentShown v1 0x5444c736d8fefe30

@@ -41,7 +41,8 @@ A weave joins the desk as a pane in five steps, each a message sent as its offic
    settings you take with [`PaneSettingsDeclared`](#panesettingsdeclared).
 3. **Be granted a room.** When the desk seats your pane -- a setup naming it, the Pane Manager's
    launch, your own [`PaneRevealRequested`](#panerevealrequested) -- Workshop hands you
-   `PaneSettings`, then a `PaneCanvasRoom` if your holder accepts the canvas doors, and
+   `PaneSettings` (version 2, with the row's revision, when your holder accepts it), then a
+   `PaneCanvasRoom` if your holder accepts the canvas doors, and
    `PaneRoom{pane, rows, columns}`. A new room comes whenever the room changes.
 4. **Draw.** Send [`PaneContent`](#panecontent) rows inside the room, or a
    [`PaneCanvasContent`](#panecanvascontent) picture under the grant, and
@@ -501,6 +502,40 @@ a setting in the layout.
   it is what the screen makes of the authored value`; `<property>: <its setter's words>`.
 - **Example:** Info commits a width of `480` to the pane it inspects.
 
+### `PaneSettingsRequested`
+
+`PaneSettingsRequested` asks for one pane's row of the live layout
+([`settings_seam_vocabulary.hpp`](../settings_seam_vocabulary.hpp)).
+
+- **Takes:** `provider` and `pane`, the row's address.
+- **Answers:** `PaneSettingsShown`, to the asker alone: the row's `revision` (0 when the live layout
+  has no such row), the `rows` of the pane's counted declaration with their tags, pins and summaries,
+  the `settings` the row keeps, its `pins` in order, no `locks`, and `said`, the band's sentence
+  about the row (`stored and handed`, or `stored; not handed: ...`, and what the pane said it
+  cannot use).
+- **Refuses:** `settings withheld: <why>` in `said`, with nothing read, to an asker that is not an
+  office, this Workshop's Terminal or a guest whose row has `settings`.
+- **Example:** `ask @zengine.workshop PaneSettingsRequested 1 provider=zengine.terminal
+  pane=terminal`, from the Terminal.
+
+### `PaneSettingCommitRequested`
+
+`PaneSettingCommitRequested` asks Workshop to write one setting of a pane's row of the live layout,
+at the revision the asker read.
+
+- **Takes:** `provider`, `pane`, `revision`, `key`, and the value in its kind's one field --
+  `flag`, `number` or `text` -- or `clear` and no field for the setting's default.
+- **Answers:** `PaneSettingActed{accepted, refusal, revision, handed}`, to the asker alone: the
+  row's revision after the write, or as it stood, and how far the write got. The band says
+  `committed <key> of <pane> = <value>; <how far>`, or `cleared <key> of <pane>; <how far>`.
+- **Refuses:** `settings commit withheld: <why>`; `<office>/<pane> has no row on the live layout
+  -- open it first`; `stale revision <n> -- the row of <office>/<pane> stands at <m>; read it
+  again`; `a clear takes no value -- name the key alone`; ``<office>/<pane> has no counted setting
+  `<key>` -- a key no declaration takes is only cleared``; `<key> takes <what it takes>, not <the
+  value>`. Each writes nothing.
+- **Example:** `ask @zengine.workshop PaneSettingCommitRequested 1 provider=zengine.terminal
+  pane=terminal revision=$r1.revision clear=false key=wheel-rows number=6`, from the Terminal.
+
 ### `TerminalActRequested`
 
 `TerminalActRequested` asks Workshop to submit a line to its terminal participant
@@ -593,9 +628,16 @@ whole, answered `ActionsJudged`; every pane's rows are joined again, a pane that
 ### `PaneSettingsDeclared`
 
 `PaneSettingsDeclared`, from a pane's office: the settings it takes, each a key, a default and what
-it takes ([`pane_settings.hpp`](../pane_settings.hpp), [settings](workshop-panes.md#a-panes-settings)).
+it takes, and at version 2 its tags, pin and summary ([settings](workshop-panes.md#a-panes-settings)).
 Judged whole; a refusal is said on the band, `<name> @<office>: its settings were not taken --
-<why>`, and the settings in force stand. It counts while its sender holds the office.
+<why>`, and the settings in force stand. It counts while the incarnation that sent it holds the
+office.
+
+### `PaneSettingUnused`
+
+`PaneSettingUnused`, from a pane's office: a setting it was handed at a revision and cannot use,
+and why. Kept while the pane holds that revision, said with its row (`it cannot use <key> --
+<why>`) and on Attention; one naming another revision is dropped.
 
 ### `PaneContent`
 

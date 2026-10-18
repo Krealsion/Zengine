@@ -620,6 +620,8 @@ int main(int argc, char** argv) {
     // ...and the two a weaver asks the discovery door, to its office only: finding grants nothing
     // more (WL-TERM-18).
     let_terminal_find_powers(terminal_vocab, terminal_grant);
+    // ...and one pane's settings read and written, to this office only (WL-SETTING-09).
+    let_terminal_edit_settings(terminal_vocab, terminal_grant);
     const loom::MountedTerminal terminal = loom::host_mount_terminal(
         bus, std::make_unique<loom::TerminalSession>("workshop", std::move(terminal_vocab)),
         std::move(terminal_grant));

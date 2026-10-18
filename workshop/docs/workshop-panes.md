@@ -463,14 +463,36 @@ a step, a mode — in the layout's own setup row, beside the pane's place and si
   key, its default in the field of its kind, and what it takes — a text one of its `choices` (or
   any text when it names none), a number from `low` to `high`. The declaration is judged whole
   under the office stamp, a refusal is said in the band and leaves the settings in force, a later
-  one replaces it, and it counts only while the weave that sent it holds the office.
+  one replaces it, and it counts only while the weave that sent it holds the office, at the
+  incarnation that sent it: a reloaded image declares again, or is shown none of its
+  predecessor's settings. Version 2 of the declaration says how a weaver finds each setting -- up
+  to `kMaxSettingTags` tags of its own (words like `chrome` or `scroll`, never `pinned`, `all` or
+  `kept`, which an editor's tab strip spells for itself), whether it is among the pane's default
+  pins (`kMaxDefaultPins` at most), and a one-line `summary` -- and at most `kMaxDeclaredTags`
+  distinct tags between them. Workshop judges these by form and never acts on them.
 - **Workshop hands a seated pane its row's settings** (`PaneSettings`) when the office's holder
   accepts the shape, declared or not: before any room it grants the pane -- at the top of every
   repaint, and before the rooms a managed opening seats it in -- so the first picture is drawn
   with them, and again whenever they differ from what that holder last heard. A pane passes over
   keys it did not declare, and says so where a setting shows when it cannot use the value it was
   handed. A pane a managed opening seats shows the picture it prepared before the seat; its
-  settings reach it before its rooms, and its next picture has them.
+  settings reach it before its rooms, and its next picture has them. A holder that accepts
+  version 2 (`v2::PaneSettings`) is handed the row's **revision** with them: a number minted
+  afresh whenever the desk put live, the row's settings, the counted declaration or the office's
+  holder moved, so a holder is handed again at each new one. A pane that cannot use a value says
+  so back, `PaneSettingUnused` naming the revision it was handed, and Workshop keeps it with the
+  row until a later revision is handed.
+- **A row is read and written by message** (`workshop/settings_seam_vocabulary.hpp`):
+  `PaneSettingsRequested` answers the live layout's row for one pane -- its revision, the counted
+  declaration, what it keeps, its pins and the band's sentence -- and `PaneSettingCommitRequested`
+  writes one setting at the revision read, through the same setter Info's rows use, or refuses in
+  words with nothing written. An office asks, and so may this Workshop's Terminal and a guest whose
+  row has `settings`; the Terminal's line spells every field, `clear=false` included:
+
+  ```text
+  ask @zengine.workshop PaneSettingsRequested 1 provider=zengine.terminal pane=terminal
+  ask @zengine.workshop PaneSettingCommitRequested 1 provider=zengine.terminal pane=terminal revision=$r1.revision clear=false key=wheel-rows number=5
+  ```
 
 ## A weave may offer a pane
 

@@ -349,8 +349,8 @@ inline void TerminalPaneWeave::say(loom::Mail& mail) {
     line_.keep_caret_visible(visible > 0 ? visible : 0);
     input_row_ = static_cast<std::int64_t>(out.size());
     const bool prompting = line_.empty() && !list_open;
-    push(prompting ? std::string(">    Tab: what can this terminal say?  Up: recall a command")
-                   : "> " + line_.visible(visible > 0 ? visible : 0),
+    push(prompting ? prompt_ + "    Tab: what can this terminal say?  Up: recall a command"
+                   : prompt_ + " " + line_.visible(visible > 0 ? visible : 0),
          known_.attached ? surface::role::kAccent : surface::role::kAlert);
 
     if (static_cast<std::int64_t>(out.size()) > rows()) {

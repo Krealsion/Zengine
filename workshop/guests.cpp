@@ -9,6 +9,7 @@
 #include "desktop_seam_vocabulary.hpp"
 #include "guest_seam_vocabulary.hpp"
 #include "inspection_seam_vocabulary.hpp"
+#include "settings_seam_vocabulary.hpp"
 #include "open_seam_vocabulary.hpp"
 #include "pane_seam_vocabulary.hpp"
 #include "pane_menu.hpp" // kWorkshopRole, the office Workshop holds
@@ -300,17 +301,18 @@ bool read_guests_file(const std::string& path, GuestsFile* out, std::string* err
                              "', a power of the file's version 2; " + read_as;
                     return false;
                 }
-                if ((power == kPowerGuide || power == kPowerKeystrokes) && out->version < kDoorsVersion) {
+                if ((power == kPowerGuide || power == kPowerKeystrokes || power == kPowerSettings) &&
+                    out->version < kDoorsVersion) {
                     return version_3(power);
                 }
                 if (power != kPowerInput && power != kPowerCapture && power != kPowerInspect &&
                     power != kPowerInventory && power != kPowerToolbox && power != kPowerDemo &&
                     power != kPowerOpen && power != kPowerBuild && power != kPowerGuide &&
-                    power != kPowerKeystrokes) {
+                    power != kPowerKeystrokes && power != kPowerSettings) {
                     *error = "guests file '" + path + "': guest '" + row.name +
                              "' may '" + power + "', which is not a power this host grants "
                              "(input, capture, inspect, inventory, toolbox, demo, open, build, guide, "
-                             "keystrokes)";
+                             "keystrokes, settings)";
                     return false;
                 }
                 if (std::find(row.may.begin(), row.may.end(), power) == row.may.end()) row.may.push_back(power);
@@ -517,6 +519,12 @@ loom::Grant grant_for(const GuestRow& row) {
                     }
                 }
             }
+        } else if (power == kPowerSettings) {
+            // ONE PANE'S SETTINGS ON THE LIVE LAYOUT, read and written, asked of Workshop alone.
+            g.allow_to_role(PaneSettingsRequested::zen_name, PaneSettingsRequested::zen_version,
+                            pane_menu::kWorkshopRole);
+            g.allow_to_role(PaneSettingCommitRequested::zen_name,
+                            PaneSettingCommitRequested::zen_version, pane_menu::kWorkshopRole);
         } else if (power == kPowerKeystrokes) {
             // NOTHING TO SAY: hearing the weaver's input is an observation the relay judges
             // (`observation_of`), never a shape a guest sends.
