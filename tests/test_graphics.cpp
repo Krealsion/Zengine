@@ -41,6 +41,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <memory>
+#include <set>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -911,6 +912,186 @@ TEST_CASE("keys go from the window to the owner of each area placed to hear them
     t.type("w"); // the world's own up key
     t.r.tick();
     CHECK(t.r.heard.visuals.back().snake.front().y == 7);
+}
+
+namespace {
+
+/// WHAT AN OWNER PLACED IN THE WINDOW WAS GIVEN, in order, as the window's office.
+struct KeysHeard {
+    std::vector<std::string> said;
+};
+
+/// AN OWNER THAT TAKES KEYS AND NO TEXT.
+class KeysOwner
+    : public loom::WeaveBase<KeysOwner, GraphicsTestOwner,
+                             loom::Accept<gfx::AreaRoom, zengine::input::KeyPressed>,
+                             loom::Emit<>> {
+public:
+    explicit KeysOwner(KeysHeard& heard) : heard_(&heard) {}
+    void on(const gfx::AreaRoom&, loom::Mail&) { ++state_.heard; }
+    void on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
+        if (mail.authored_from_role(window_office())) heard_->said.push_back("key " + k.name);
+    }
+
+private:
+    KeysHeard* heard_;
+};
+
+/// AN OWNER THAT TAKES KEYS AND TEXT.
+class TextOwner
+    : public loom::WeaveBase<TextOwner, GraphicsTestOwner,
+                             loom::Accept<gfx::AreaRoom, zengine::input::KeyPressed,
+                                          zengine::input::TextEntered>,
+                             loom::Emit<>> {
+public:
+    explicit TextOwner(KeysHeard& heard) : heard_(&heard) {}
+    void on(const gfx::AreaRoom&, loom::Mail&) { ++state_.heard; }
+    void on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
+        if (mail.authored_from_role(window_office())) heard_->said.push_back("key " + k.name);
+    }
+    void on(const zengine::input::TextEntered& e, loom::Mail& mail) {
+        if (mail.authored_from_role(window_office())) heard_->said.push_back("text " + e.text);
+    }
+
+private:
+    KeysHeard* heard_;
+};
+
+} // namespace
+
+TEST_CASE("what a key types goes with the key from the window to the owner of each area placed to "
+          "hear keys, and to no other; an owner that takes no text refuses it on the bus") {
+    TypedWindow t;
+    t.r.to_role(gfx::kGraphicsRole, gfx::SkinOffered{"classic", PAINT_CLASSIC_SO});
+    t.r.drain();
+    const auto mount = [&t](auto made, const char* office, bool keys, std::int64_t y) {
+        auto* raw = made.get();
+        loom::Grant g = loom::emit_default_grant(*raw);
+        const loom::WeaveId id = t.r.bus.register_weave(std::move(made), std::move(g), office);
+        raw->zen_set_self(id);
+        t.r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{office, gfx::kTerminalWindow, office, 0, y,
+                                                        10 * gfx::kCellPx, 2 * gfx::kCellPx, 1,
+                                                        keys});
+        t.r.to_role(gfx::kGraphicsRole, gfx::SkinChosen{office, "classic"});
+        t.r.drain();
+        return id;
+    };
+    KeysHeard typing, deaf, keys_only;
+    const loom::WeaveId typing_id =
+        mount(std::make_unique<TextOwner>(typing), "test.typing", true, 0);
+    (void)mount(std::make_unique<TextOwner>(deaf), "test.deaf", false, 3 * gfx::kCellPx);
+    const loom::WeaveId keys_id =
+        mount(std::make_unique<KeysOwner>(keys_only), "test.keys-only", true, 6 * gfx::kCellPx);
+    std::vector<std::pair<std::uint64_t, std::string>> refused;
+    const loom::ObserverId tap = t.r.bus.add_observer([&refused](const loom::BusEvent& e) {
+        if (e.kind == loom::EventKind::Refused) refused.emplace_back(e.target.value, e.schema_name);
+    });
+    const std::size_t mark = t.r.log.size();
+    t.type("hi");
+    t.r.bus.remove_observer(tap);
+    // EACH KEY, AND THEN THE CHARACTER IT TYPED, to the owner placed to hear keys, as the window's
+    // office, to that owner alone...
+    CHECK(typing.said == std::vector<std::string>{"key H", "text h", "key I", "text i"});
+    std::size_t text_delivered = 0;
+    for (std::size_t i = mark; i < t.r.log.size(); ++i) {
+        if (t.r.log[i].shape != zengine::input::TextEntered::zen_name) continue;
+        CHECK(t.r.log[i].authored_role == window_office());
+        CHECK(t.r.log[i].target == typing_id.value);
+        ++text_delivered;
+    }
+    CHECK(text_delivered == 2);
+    // ...NOTHING TO ONE PLACED WITHOUT THEM...
+    CHECK(deaf.said.empty());
+    // ...AND TO AN OWNER THAT TAKES KEYS ALONE, its keys, the bus refusing the text it does not
+    // take, and nothing else refused.
+    CHECK(keys_only.said == std::vector<std::string>{"key H", "key I"});
+    CHECK(refused == std::vector<std::pair<std::uint64_t, std::string>>{
+                         {keys_id.value, zengine::input::TextEntered::zen_name},
+                         {keys_id.value, zengine::input::TextEntered::zen_name}});
+}
+
+namespace {
+
+/// EVERY WINDOW OFFER AN ARRANGER BESIDE THE DIRECTORY HEARD, and whether the window's office said
+/// it.
+struct OffersHeard {
+    std::vector<gfx::WindowOffered> offers;
+    std::vector<bool> from_window;
+};
+
+class OfferFollower
+    : public loom::WeaveBase<OfferFollower, GraphicsTestOwner, loom::Accept<gfx::WindowOffered>,
+                             loom::Emit<>> {
+public:
+    explicit OfferFollower(OffersHeard& heard) : heard_(&heard) {}
+    void on(const gfx::WindowOffered& w, loom::Mail& mail) {
+        heard_->offers.push_back(w);
+        heard_->from_window.push_back(mail.authored_from_role(window_office()));
+    }
+
+private:
+    OffersHeard* heard_;
+};
+
+} // namespace
+
+TEST_CASE("the window offers itself as its own office to whoever follows it: the directory, which "
+          "introduces its areas, and an arranger beside it, on each activation and new directory") {
+    Rig r;
+    REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
+    OffersHeard heard;
+    auto made = std::make_unique<OfferFollower>(heard);
+    OfferFollower* raw = made.get();
+    loom::Grant g = loom::emit_default_grant(*raw);
+    const loom::WeaveId follower =
+        r.bus.register_weave(std::move(made), std::move(g), "test.arranger");
+    raw->zen_set_self(follower);
+    const std::size_t mark = r.log.size();
+    REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_office()).valid());
+    // ACTIVATED: one offer, published as the window's office, heard by the directory and the
+    // arranger alike.
+    REQUIRE(heard.offers.size() == 1);
+    CHECK(heard.from_window[0]);
+    CHECK(heard.offers[0].window == gfx::kTerminalWindow);
+    CHECK(heard.offers[0].cols > 0);
+    CHECK(heard.offers[0].rows > 0);
+    std::set<std::uint64_t> to;
+    for (std::size_t i = mark; i < r.log.size(); ++i) {
+        if (r.log[i].shape != gfx::WindowOffered::zen_name) continue;
+        CHECK(r.log[i].authored_role == window_office());
+        CHECK(r.log[i].addressed_role.empty());
+        to.insert(r.log[i].target);
+    }
+    CHECK(to == std::set<std::uint64_t>{r.bus.role_holder(gfx::kGraphicsRole).value,
+                                        follower.value});
+    // THE DIRECTORY HEARD IT AS THE WINDOW'S: an area placed now is introduced, and the window
+    // tells its owner the room.
+    OwnerHeard owned;
+    auto o = std::make_unique<Owner>(owned);
+    Owner* oraw = o.get();
+    loom::Grant og = loom::emit_default_grant(*oraw);
+    const loom::WeaveId owner = r.bus.register_weave(std::move(o), std::move(og), kOwner);
+    oraw->zen_set_self(owner);
+    const std::size_t placed = r.log.size();
+    r.arrange(PAINT_CLASSIC_SO, PAINT_BLOCK_SO, SNAKE_SO_BOARD, kOwner, kOwner, "classic");
+    std::size_t rooms = 0;
+    for (std::size_t i = placed; i < r.log.size(); ++i) {
+        if (r.log[i].shape == gfx::AreaRoom::zen_name && r.log[i].target == owner.value &&
+            r.log[i].authored_role == window_office()) {
+            ++rooms;
+        }
+    }
+    CHECK(rooms >= 1);
+    // A NEW DIRECTORY: the window offers itself again, the same incarnation, to both.
+    const std::size_t again = r.log.size();
+    r.bus.office_send_to_role_as(r.bus.role_holder(gfx::kGraphicsRole), gfx::kGraphicsRole,
+                                 window_office(),
+                                 loom::Message(loom::to_value(gfx::GraphicsReady{})));
+    r.drain();
+    REQUIRE(heard.offers.size() == 2);
+    CHECK(heard.from_window[1]);
+    CHECK(heard.offers[1].epoch == heard.offers[0].epoch);
+    CHECK(r.count(again, gfx::WindowOffered::zen_name, window_office()) == 2);
 }
 
 TEST_CASE("an area at its element bound still takes a change, and a record said again is itself") {

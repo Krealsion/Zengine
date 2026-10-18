@@ -179,6 +179,11 @@ void WorkshopWeave::take_host_conditions() {
 }
 
 void WorkshopWeave::on(const zengine::surface::SurfaceReady&, loom::Mail& mail) {
+    start_surface(mail);
+}
+
+void WorkshopWeave::start_surface(loom::Mail& mail) {
+    surface_started_ = true;
     (void)mail.as_role(kWorkshopProvider).publish(PaneCatalogRequested{});
     // The first picture of a run is Workshop's floor: the smallest room it is honest in comes
     // first and the room it wants back second, so a weaver can always shrink the window.
@@ -223,6 +228,36 @@ void WorkshopWeave::on(const graphics::GraphicsReady&, loom::Mail& mail) {
     }
     graphics_known_ = false;
     show_in_graphics(mail);
+}
+
+static_assert(graphics::kCellPx == surface::kCanvasCellPx,
+              "the window draws the desk one canvas pixel to one of its own, so its cell is the "
+              "canvas cell and its room in cells is the screen in cells");
+
+void WorkshopWeave::on(const graphics::WindowOffered& w, loom::Mail& mail) {
+    if (w.window != graphics::kTerminalWindow ||
+        !mail.authored_from_role(std::string(graphics::kWindowOfficePrefix) + w.window)) {
+        return;
+    }
+    // A HOST WITH NO SKIN COMES UP IN THE WINDOW, as a skin's hello brings it up: the session
+    // restored first, and the window's room taken after it, as a skin's extent follows its hello.
+    if (!surface_started_) {
+        start_surface(mail);
+    }
+    // THE WINDOW'S ROOM, WHILE NO MEDIUM HAS NAMED ITS UNIT: its cells, as a terminal skin reports
+    // its own, text a cell and the device unit the cell. A skin's `SurfaceExtent` owns the room
+    // from then on; until one comes, a window that offers another size is laid out in again.
+    if (medium_unit_known_ || w.cols <= 0 || w.rows <= 0) {
+        return;
+    }
+    if (!adopt_screen(session_, surface::px_of_cells(w.cols), surface::px_of_cells(w.rows))) {
+        return;
+    }
+    if (!(medium_placed_ && session_.place_maximized)) {
+        session_.normal_w = session_.screen_w;
+        session_.normal_h = session_.screen_h;
+    }
+    repaint(mail);
 }
 
 void WorkshopWeave::on(const graphics::AreaRoom& r, loom::Mail& mail) {

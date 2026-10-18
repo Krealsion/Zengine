@@ -24,9 +24,10 @@ worked example: it draws its frame as nodes and its board as an element of its o
 ```text
 owner -> its window          Drawn (nodes and records), ElementPut once, then ElementChange
 window -> the owner          AreaRoom (this window, its incarnation, the room, what it holds)
-window -> the owner          DrawnRefused (why, in words), ActionRequested, KeyPressed, PointerButton
+window -> the owner          DrawnRefused (why, in words), ActionRequested, PointerButton
+window -> the keys' owners   KeyPressed, TextEntered
 arranger -> directory        AreaPlaced, SkinOffered, SkinChosen, ElementCodeOffered
-window -> directory          WindowOffered (as its own office, with its incarnation)
+window -> everyone           WindowOffered (as its own office, with its size and incarnation)
 directory -> window          AreaIntroduced, AreaWithdrawn, ElementCodeOffered
 owner -> directory           RoomAsked (an owner that started again)
 directory -> everyone        GraphicsReady (a directory that started afresh)
@@ -34,7 +35,9 @@ directory -> everyone        GraphicsReady (a directory that started afresh)
 
 The **arranger** is whoever a host lets reach the directory: in the snake's host, its operator;
 in Workshop, its own weave, which places each pane's area and its own
-([`zengine.workshop`](../../workshop/docs/zengine.workshop.md#graphicsready)).
+([`zengine.workshop`](../../workshop/docs/zengine.workshop.md#graphicsready)), and lays its desk
+out in the terminal window's room while no skin has said its own
+([`WindowOffered`](../../workshop/docs/zengine.workshop.md#windowoffered)).
 What each message does is the manual of the office that takes it: the window's for what an owner
 sends it, the directory's for what the arranger and a window send it.
 
