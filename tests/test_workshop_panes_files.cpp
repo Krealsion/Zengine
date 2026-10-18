@@ -12,7 +12,7 @@
 #include "workshop_support.hpp"
 #include "census.hpp"
 #include "guest_hand.hpp"
-#include "window_stand_in.hpp"
+#include "pane_window.hpp"
 
 #include "files/vocabulary.hpp"
 #include "workshop/authoring.hpp"
@@ -894,35 +894,35 @@ TEST_CASE("WL-HAND-06: Files names its entries by name and its controls by opera
             "activates it, since Workshop reported no keys there; its control does, and an open "
             "Workshop must approve is refused, since no Workshop gesture made the press") {
         const char* area = files::kFilesRole;
-        zengine::testing::WindowStandIn window(f.r.bus);
-        window.room(area, 160 * zengine::graphics::kCellPx, 48 * zengine::graphics::kCellPx);
-        REQUIRE_FALSE(window.seat().drawn.empty());
-        CHECK(window.seat().refused.empty());
+        zengine::testing::pane_window::Window window(f.r.bus);
+        window.room(area, area, 160, 48);
+        REQUIRE_FALSE(window.weave().heard.empty());
+        CHECK(window.weave().refusals.empty());
         const auto window_says = [&](const std::string& words) {
-            for (const std::string& row : window.shown(area)) {
+            for (const std::string& row : window.rows(area)) {
                 if (row.find(words) != std::string::npos) return true;
             }
             return false;
         };
-        CHECK(window.action_at(area, zulu.row, 2) == "entry:zulu.cpp");
+        CHECK(window.action_at(area, 2, zulu.row) == "entry:zulu.cpp");
         // THE SELECTED FILE, PRESSED AGAIN: still only selected, and nothing asked.
-        REQUIRE(window.press(area, "zulu.cpp"));
+        REQUIRE(window.press_words(area, "zulu.cpp"));
         CHECK(f.at_cursor().find("zulu.cpp") != std::string::npos);
         CHECK_FALSE(any_row(f.shown(), "needs a current attributed input gesture"));
         // ...ITS CONTROL OPENS IT, and the open is refused in Workshop's words.
-        REQUIRE(window.press(area, "[open]"));
+        REQUIRE(window.press_words(area, "[open]"));
         CHECK(any_row(f.shown(), "needs a current attributed input gesture"));
         CHECK(window_says("needs a current attributed input gesture"));
         // A DIRECTORY: a press selects it, a second press does not walk in, and its control does.
-        REQUIRE(window.press(area, "src/"));
+        REQUIRE(window.press_words(area, "src/"));
         CHECK(f.at_cursor().rfind("src/", 0) == 0);
         CHECK(window_says("> src/"));
-        REQUIRE(window.press(area, "src/"));
+        REQUIRE(window.press_words(area, "src/"));
         CHECK(any_row(f.shown(), "zulu.cpp"));
-        REQUIRE(window.press(area, "[enter]"));
+        REQUIRE(window.press_words(area, "[enter]"));
         CHECK_FALSE(any_row(f.shown(), "zulu.cpp"));
         CHECK_FALSE(window_says("zulu.cpp"));
-        CHECK(window.seat().refused.empty());
+        CHECK(window.weave().refusals.empty());
     }
 }
 
