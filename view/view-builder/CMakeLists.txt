@@ -9,4 +9,5 @@ endif()
 zengine_weave(zengine-view-builder pane.cpp MANUAL ../docs/zengine.view.builder.md)
 target_include_directories(zengine-view-builder PRIVATE ${CMAKE_SOURCE_DIR})
 target_link_libraries(zengine-view-builder PRIVATE zengine-view zengine-flow zengine-pane-vocabulary
-    zengine-message-draft zengine-activation zengine-component zengine-input-vocabulary loom::terminal)
+    zengine-message-draft zengine-activation zengine-component zengine-input-vocabulary
+    zengine-graphics-vocabulary loom::terminal)

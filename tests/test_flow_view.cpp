@@ -88,6 +88,29 @@ TEST_CASE("Flow shows an actionable bounded picture instead of a partial dense g
     CHECK_FALSE(action_has(view, "node"));
     CHECK_FALSE(action_has(view, "port"));
     CHECK(model.workspace.graph.project.definition.on.at(0).body.nodes.size() == 1100);
+
+    SUBCASE("in a graphics window, a graph Workshop's canvas takes but a window would not keep is "
+            "the recovery picture there; a picture past a window's bounds is the bound, said") {
+        namespace gfx = zengine::graphics;
+        auto stacked = graph(60);
+        for (auto& place : stacked.workspace.graph.places) { place.x = 24 * unit; place.y = 3 * unit; }
+        CHECK_FALSE(text_has(pane::picture(stacked, room(), 3), "View limit reached"));
+        const auto window = pane::window_picture(stacked, 100 * cell, 45 * cell);
+        CHECK(text_has(window.picture, "View limit reached"));
+        CHECK(window.sketch.nodes().size() <= gfx::kMaxNodesPerArea);
+        CHECK(window.parts.count("control:ask-save") == 1);
+        CHECK(window.parts.count("control:zoom-in") == 1);
+        CHECK(std::none_of(window.parts.begin(), window.parts.end(),
+                           [](const auto& part) { return part.second.action == "node"; }));
+        ws::v4::PaneCanvasContent many;
+        many.rects.push_back({0, 0, 120, 120, zengine::surface::role::kGround});
+        for (std::size_t i = 0; i <= gfx::kMaxElementsPerArea; ++i)
+            many.parts.push_back({"part " + std::to_string(i), 0, 0, cell, cell});
+        const auto said = ws::canvas_sketch(many, ws::canvas_window_room("flow", 120, 120));
+        CHECK(said.over.find("more than a graphics window keeps") != std::string::npos);
+        CHECK(said.sketch.records().empty());
+        CHECK(said.sketch.nodes().size() == 3);
+    }
 }
 
 TEST_CASE("Flow keeps a long dialog draft editable without rejecting its canvas") {

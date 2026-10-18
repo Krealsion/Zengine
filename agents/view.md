@@ -126,14 +126,21 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
   values column (`view_builder::lay_choices`), and More where the rows cannot hold them. A
   control in the values column (Remove, Unshow, an intent's box) is drawn whole inside it: the
   words before it give way, cut to end in `...`.
+- The graphics window that shows the area `zengine.view.builder` is sent the builder's picture,
+  composed for the window's room from a copy of its presentation, so the window moves nothing
+  Workshop's pane shows, and projected as any canvas picture is (`workshop::canvas_sketch`). Its
+  room, its refusals and its ask once a life are Flow's ([flow](flow.md)). A press there names a
+  part the picture last sent there names, and is that place's first-button press let go without
+  moving: a kind is made, an element or its row selected, a box opened with its caret after its
+  value. It begins no drag and carries nothing.
 - `tests/test_view.cpp` witnesses the format, the rules, registration and grant, publication,
   refusal, in-place and fresh apply, a replacement that cannot register, stop, the terminal
   picture, the picture in a window, its changes, refusals and presses, and the presenter, against
   a window that admits by the window's own judge (`graphics/window/store.hpp`);
   `tests/test_view_builder.cpp` the one renderer, the palette, the drags, the snap,
   the side handles, the pan, the size, nothing outside it, the grid, the boxes, the marks and the
-  terminal floor, the run again at a launch, and the launch record across a reload, a failed
-  write and a missing view file; `tests/test_view.cpp` also the size, a version 1 description, a
-  view asking for its size,
+  terminal floor, the builder in a graphics window, the run again at a launch, and the launch
+  record across a reload, a failed write and a missing view file; `tests/test_view.cpp` also the
+  size, a version 1 description, a view asking for its size,
   and a resumed view; the panes suite the view and the builder through Workshop's real seat,
   pointer route, drag carry and canvas admission.

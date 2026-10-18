@@ -40,8 +40,9 @@ Open it from the Pane Manager, <!-- key desktop.panes -->`ctrl+p`<!-- /key -->, 
 The bar along its top holds New, Open, Import, Export, Save, Run, Apply, Stop, Inspect, Catalog and
 Discard, then the pages: Graph, State, Messages, Library and Events. Each page draws its own
 buttons, and every button with no argument is one of the commands below; a press on a node, a port,
-a row or a field is the page's own ([Shows](#shows)). The last two lines are the latest notice, and
-the definition's name and draft revision with `interpreted live` or `stopped`.
+a row or a field is the page's own ([Shows](#shows)), and so is one in a graphics window
+([Hears](#arearoom)). The last two lines are the latest notice, and the definition's name and
+draft revision with `interpreted live` or `stopped`.
 
 The ordinary path: [`ask-new`](#ask-new), a state field ([`ask-state-field`](#ask-state-field)),
 a message ([`ask-message`](#ask-message), [`ask-message-field`](#ask-message-field)), a trigger
@@ -515,8 +516,9 @@ to repair.
   generate and a library export ask Workshop first whether the confirming hand may write a file,
   `<Saving> is waiting for Workshop's approval`, and write only when it allows.
 - **Refuses:** `<Saving> was refused: <Workshop's reason>`; `<Saving> is already waiting for
-  Workshop's approval`; `` <Saving> waits: the confirm came as a raw key, which Workshop cannot
-  approve -- confirm with the dialog's `dialog-confirm` row ``; `<Saving> was not done: Workshop
+  Workshop's approval`; `` <Saving> waits: the confirm came under no gesture Workshop numbered, as
+  a raw key or a press in a graphics window, which Workshop cannot approve -- confirm with the
+  dialog's `dialog-confirm` row in Workshop ``; `<Saving> was not done: Workshop
   could not be asked`, with the bus's reason when it is known; `<Saving> was not done: its dialog
   is no longer open`; `<Saving> was not done: confirm it again` after the pane was replaced. The
   word is `Saving`, `Exporting`, `Generating` or `Saving the library`.
@@ -547,6 +549,27 @@ only that it was queued.
 
 `FlowChanged` v1, from `zengine.flow.host`: the `workshop` session moved. The pane inspects it
 again ([`inspect`](#inspect)) unless an inspection is already asked.
+
+### `AreaRoom`
+
+`AreaRoom` v2, from the graphics window that shows the area `zengine.flow`, as that window's office
+([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): the pane's room there. It draws the
+picture a terminal Workshop that size would show, whole when the window, its incarnation or its
+size changed, then only what changed; one more than a window keeps is the one that says `View limit
+reached`. Each time it starts it asks `zengine.graphics` for this room (`RoomAsked` v1).
+
+### `DrawnRefused`
+
+`DrawnRefused` v1, from that window: a drawing it refused, and why. What it shows stays as it was.
+A refused change is drawn again whole at once; a refused whole picture is said, `The graphics window
+refused Flow's picture: <the reason>`, and the pane draws there again at its next change.
+
+### `ActionRequested`
+
+`ActionRequested` v1, from that window: a press on one of the pane's places there, by the name its
+Workshop picture gives that place -- `node:<id>`, `port:<id>.<n>`, `control:<action>` -- which is a
+click on that place: a node is selected and anything else is done. It begins no drag and carries
+nothing, and a write it confirms waits, since Workshop numbered no gesture for it.
 
 ## Follow
 
