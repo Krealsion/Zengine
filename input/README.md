@@ -25,9 +25,11 @@ and links `zengine::input`.
 |---|---|
 | `vocabulary.hpp` | the messages, key codes, modifiers and pointer spaces |
 | `translate.hpp` | how terminal and console events become those messages |
-| `translate_sdl.hpp` | how SDL window events become those messages |
+| `translate_sdl_core.hpp` | how SDL window events become those messages |
+| `translate_sdl.hpp` | the SDL reader's events: those messages and the close box |
 | `input_weave.hpp` | the Input weave itself, over any reader |
 | `terminal_reader.hpp` | the terminal and console readers |
+| `window_claim.hpp` | a window's claim on the terminal or SDL's queue, which the readers leave to it |
 | `office_page.hpp` | the office's manual, as the two shipped weaves answer from it |
 | `input.cpp` | the terminal and console reader, built as the `zengine-input` weave |
 | `input_sdl.cpp` | the window reader, built as `zengine-input-sdl` where SDL is available |

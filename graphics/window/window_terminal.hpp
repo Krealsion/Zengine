@@ -190,12 +190,21 @@ public:
         return rows;
     }
 
-    /// A press at a cell of the terminal: the top node painted there.
-    Landed land(const std::vector<WinArea>& areas, const zengine::input::PointerButton& b) const {
-        return window::land(areas, cache_, b.x, b.y);
+    /// A point of the terminal, in cells (a point in pixels in the cell that holds it): the top
+    /// node painted there.
+    Landed land(const std::vector<WinArea>& areas, std::int64_t x, std::int64_t y,
+                std::int64_t space) const {
+        if (space == zengine::input::space::kPixels) {
+            return window::land(areas, cache_, term::floor_cell(x), term::floor_cell(y));
+        }
+        return window::land(areas, cache_, x, y);
     }
 
     std::vector<zengine::input::InputEvent> poll() { return terminal_.poll(); }
+
+    /// A terminal has no close box: nothing asks it to close.
+    bool close_requested() const noexcept { return false; }
+    bool take_close() noexcept { return false; }
 
     std::int64_t showings() const { return showings_; }
     std::int64_t device_bytes() const { return device_bytes_; }

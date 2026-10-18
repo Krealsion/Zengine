@@ -5,7 +5,7 @@ showing what its areas' owners draw. It answers to the office `zengine.window.te
 window's office is `zengine.window.` and its name, `terminal`) and is built as
 `zengine-window-terminal`, a file a host loads. It keeps what each owner drew, paints it with the
 area's skin, composes the areas, writes the terminal only the cells that changed, and sends the
-terminal's keys, their text and its presses to the owners. The directory,
+terminal's keys, their text and its pointer to the owners. The directory,
 [`zengine.graphics`](zengine.graphics.md), introduces its areas to it.
 
 ## About
@@ -29,13 +29,12 @@ runs: a cursor move, the role's ink, the glyphs. A drawing or a change saying `m
 showing back; the next message from that drawer without it shows everything since, once. Any other
 message the window handles shows what it changed.
 
-**Keys and presses.** The window reads its terminal on its own beat, the Timer's
-`zengine.window.pump` every `window::kPumpBeatMs` milliseconds, with Zengine's parser. A key and
-its text go to the owner of each area placed to hear keys, front to back. A left press lands on
-the top node painted at its cell: an element presented there whose code takes the press handles
-it; else the action of the record it lies in goes to the area's owner (`ActionRequested`); else
-the press, in the area's pixels, to an owner placed to hear the pointer (`PointerButton`); else
-nothing.
+**Keys and the pointer.** The window reads its terminal on its own beat, the Timer's
+`zengine.window.pump` every `window::kPumpBeatMs` milliseconds, with Zengine's parser, and sends
+what it read on in order. A left press lands on the top node painted at its cell: an element
+presented there whose code takes the press handles it; else the action of the record it lies in
+goes to the area's owner (`ActionRequested`); else the press, to an owner placed to hear the
+pointer (`PointerButton`); else nothing.
 
 ## Use
 
@@ -45,6 +44,13 @@ changes with [`ElementChange`](#elementchange). A drawer usually does all three 
 or a drawing weave ([the Graphics package](graphics.md#a-drawing-weave)), which draw whole only
 when the room names another window or incarnation. To read what the window shows, ask
 [`WindowShowAsked`](#windowshowasked).
+
+Keys go to each owner placed to hear them, front to back: each key, its text and its release, which
+a terminal reports right after the press. Every pointer moment but a left press -- any button let
+go, the middle or right button pressed, a move, the wheel -- goes to the owner of the area its cell
+lands in, when placed to hear the pointer. Each reaches it at the area's own point in pixels, its
+cell's centre, a move's deltas in pixels too; moves read in one beat go as one, at the last point,
+their deltas summed.
 
 Who may send: whoever the host's grant lets reach `zengine.window.terminal` (the snake's host
 grants its operator `Drawn`). The window takes a drawing or an element only from the area's owner,
@@ -153,7 +159,7 @@ code for a type the window presents draws each such element again, from the stat
 `TimerFired` v1, from the Timer: the window's beat, `zengine.window.pump`. It measures the
 terminal, and at another size in cells shows its whole picture at that size and offers itself
 again (`WindowOffered`) with the new size and the same incarnation. Then it reads what the terminal
-typed and sends the keys, their text and the presses on.
+typed and sends the keys, their releases, their text and the pointer on.
 
 ### `TimerReady`
 
@@ -169,14 +175,14 @@ timer binding.
 
 The window publishes `WindowOffered` v1 as its own office, on each activation, after
 `GraphicsReady`, and on a beat that finds its terminal at another size in cells: its name, its size
-in cells, its incarnation, which a resize leaves as it was. The directory keeps it, and an arranger
-that follows it may lay out in that room. Everything else goes to one office. To an
-area's owner, `AreaRoom` v2 for each introduction: the area, this window, its incarnation, the
-area's size, and the references of the owner's elements it still presents there; `DrawnRefused`
-v1 for a drawing refused; `ActionRequested` v1 for a press on an action, and `PointerButton` v1 for
-any other press to an owner placed to hear the pointer; and `KeyPressed` v2 and `TextEntered` v1
-to each owner placed to hear keys, an owner that takes no text refusing it on the bus. To the
-Timer, its beat's order. An observer reads what it shows with `WindowShowAsked`.
+in cells, its incarnation, which a resize leaves as it was. The directory keeps it; an arranger
+that follows it may lay out in that room. Everything else goes to one office. To an area's owner:
+`AreaRoom` v2 for each introduction (the area, this window, its incarnation, the area's size, the
+references of the elements it presents there); `DrawnRefused` v1; `ActionRequested` v1;
+`PointerButton` v1, `PointerMoved` v1 and `PointerWheel` v1 when placed to hear the pointer;
+`KeyPressed` v2, `KeyReleased` v2 and `TextEntered` v1 when placed to hear keys, a shape it does not
+take refused on the bus. To the Timer, its beat's order. An observer reads what it shows
+with `WindowShowAsked`.
 
 ## Files
 

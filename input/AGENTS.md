@@ -9,12 +9,14 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 |---|---|
 | `vocabulary.hpp` | the contract: moments, `scan::`, `mod::`, `space::`, sessions, `kInputRole` |
 | `translate.hpp` | POSIX terminal and Win32 console events to moments, as pure code |
-| `translate_sdl.hpp` | SDL events to moments, pure; the one file using the Surface vocabulary |
+| `translate_sdl_core.hpp` | SDL events to moments, pure, for both readers of SDL's queue |
+| `translate_sdl.hpp` | the SDL reader's events over it; the one file using the Surface vocabulary |
+| `window_claim.hpp` | a window's claim on the terminal's input or SDL's queue, which a reader yields to |
 | `input_weave.hpp` | the weave over an injected reader: publish, beat, sessions, motion, facets |
 | `office_page.hpp` | `OfficePage`: the office manual both loadable weaves answer from; not installed |
 | `terminal_reader.hpp` | the terminal and console readers, the platform's input edge |
 | `input.cpp` | loadable weave `zengine-input` over the platform's reader |
-| `input_sdl.cpp` | the SDL queue's one reader; loadable weave `zengine-input-sdl`, where SDL is |
+| `input_sdl.cpp` | the SDL queue's reader unless an OS window claims it; loadable weave `zengine-input-sdl`, where SDL is |
 | `CMakeLists.txt` | `zengine-input-vocabulary` (header-only, alias `zengine::input`), both weaves, each carrying the manual |
 | `docs/zengine.input.md` | the manual of the office both weaves hold |
 | `docs/input.md` | the package reference: the vocabulary, the backends, the weave over a reader |
@@ -46,8 +48,10 @@ is Workshop's side, a press and a key reaching a pane.
 - Beyond Workshop: `surface/skin_tui.hpp` turns terminal pointer reporting on;
   `cmake/ZengineSdl.cmake` shares one SDL with the window Skin; `cmake/ZengineInstall.cmake`
   installs the headers and `zengine-input`; `input/terminal_reader.hpp`'s readers are the
-  terminal window's input edge too (`graphics/window/window.cpp`), and the snake's world consumes
-  the keys it is given (`examples/snake/world.cpp`).
+  terminal window's input edge too (`graphics/window/window.cpp`); the OS window translates SDL's
+  queue with `input/translate_sdl_core.hpp` and claims it with `input/window_claim.hpp`
+  (`graphics/window/window_sdl.cpp`); and the snake's world consumes the keys it is given
+  (`examples/snake/world.cpp`).
 
 ## Pages
 
