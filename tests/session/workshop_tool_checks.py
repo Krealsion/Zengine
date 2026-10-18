@@ -361,12 +361,15 @@ class CanvasBuilder(CanvasPane):
     load-after-build switch; or, with its output reader open, the notice, the reader's header
     naming the lines it shows, `room` lines of `output` from line `top` -- a blank one drawn as no
     word -- and the reader's strip on two rows. L opens the reader, Down moves it a line, Escape
-    closes it, Shift+b turns the switch. Each press is kept as the row and column it lands on."""
+    closes it, Shift+b turns the switch, C chooses the next of `recipes`, its catalog, after the
+    last the first. Each press is kept as the row and column it lands on."""
 
-    def __init__(self, output, room=4, reading=False, **kw):
+    def __init__(self, output, room=4, reading=False, recipes=("tower-defense", "zengine-hello"),
+                 **kw):
         CanvasPane.__init__(self, body=(600, 100, 560, 196), **kw)
         self.output, self.room, self.reading, self.top = list(output), room, reading, 1
         self.armed, self.notice, self.presses = False, "build #8 FAILED -- l reads its output", []
+        self.recipes, self.recipe = list(recipes), 0
 
     def drawn(self):
         if self.reading:
@@ -375,8 +378,10 @@ class CanvasBuilder(CanvasPane):
                 self.top, self.top + len(shown) - 1, len(self.output))] + shown + [
                 "[menu] [older build] [newer build] [back to the Builder]", "[copy the command]"]
         else:
+            chosen = self.recipes[self.recipe]
             rows = ["BUILDER @zengine.builder  game/build-recipes.json",
-                    "recipe   tower-defense -> tower-defense  (1/2)",
+                    "recipe   %s -> %s  (%d/%d)" % (chosen, chosen, self.recipe + 1,
+                                                    len(self.recipes)),
                     "last     FAILED -- op #8, 7 out", "exit     2          asks 8 ever", "", "",
                     "realize  REFUSED -- op #8", "said     --", "", "",
                     "[menu] [choose a recipe...] [build] [turn load-after-build %s]"
@@ -396,6 +401,8 @@ class CanvasBuilder(CanvasPane):
         elif (scancode, modifiers) == (5, 1):
             self.armed = not self.armed
             self.notice = "load after build: %s" % ("on" if self.armed else "off")
+        elif (scancode, modifiers) == (6, 0) and not self.reading:
+            self.recipe = (self.recipe + 1) % len(self.recipes)
 
 
 class CanvasTerminal(CanvasPane):
@@ -1542,6 +1549,20 @@ def run_checks(tools, runtime):
                                                                       act.POINT_TRIES))
                             self.assertFalse([e for e in ctx.events if e["kind"] == "PointerButton"])
                         self.assertEqual(ctx.redraws, 0)
+            # A READING THAT CANNOT BE MADE fails the step in its own words, never as a picture that
+            # kept redrawing: only the point's refusals are counted against the bound.
+            ctx = ActWorkshop(steps, [], [])
+            held = hand.Hand(ctx, "workshop")
+            def unread():
+                raise ValueError("no visible word holding 'Label'")
+            try:
+                with self.assertRaises(CheckFailed) as failed:
+                    act.aimed(ctx, held, "click", "zengine.view.builder", "view-builder", unread,
+                              lambda reading: reading, 0.3)
+            finally:
+                held.close()
+            self.assertEqual(str(failed.exception), "click: no visible word holding 'Label'")
+            self.assertEqual(ctx.point_asks, 0)
 
         def test_a_press_aimed_before_a_panes_picture_settles_waits_and_reads_again(self):
             # A PANE JUST OPENED, its words read before Workshop aimed at its first picture: the
@@ -1579,6 +1600,7 @@ def run_checks(tools, runtime):
                 self.act(ctx)
             self.assertEqual(str(failed.exception), "click: zengine.view.builder/view-builder held "
                              "no settled picture to aim at within 0.3s")
+            self.assertLessEqual(ctx.point_asks, math.ceil(0.3 / hand.FALLBACK_PACE) + 1)
             self.assertFalse([e for e in ctx.events if e["kind"] == "PointerButton"])
 
         def test_a_point_the_hand_aims_before_a_panes_picture_settles_waits_and_reads_again(self):
@@ -2698,6 +2720,74 @@ def run_checks(tools, runtime):
                     self.assertFalse([e for e in ctx.events
                                       if e["kind"] in ("PointerButton", "PointerWheel")])
 
+        def test_a_recipe_is_chosen_from_the_builders_picture_once_it_takes_a_press(self):
+            recipes = ("zengine-hello", "zengine-files")
+            def cs(ctx):
+                return [e for e in ctx.events if e["kind"] == "KeyPressed" and e["scancode"] == 6]
+            # THE BUILDER IS READ AS ITS PICTURE SETTLES -- before C and after it, or twice before
+            # the recipe it already names: each reading waits for the picture that takes a press,
+            # and C is pressed only to move the catalog on.
+            for window, recipe, chosen, pressed in (
+                    (self.OPENING + ["settled"] + self.OPENING, "zengine-files",
+                     "zengine-files -> zengine-files  (2/2)", 1),
+                    (["unsettled"] * 2, "zengine-hello",
+                     "zengine-hello -> zengine-hello  (1/2)", 0)):
+                with self.subTest(window=window, recipe=recipe):
+                    pane = CanvasBuilder(self.BUILT, recipes=recipes)
+                    ctx = CanvasWorkshop(steps, {self.BUILDER: pane})
+                    held = hand.Hand(ctx, "workshop")
+                    try:
+                        builder.keys_into(ctx, held)
+                        ctx.window = list(window)
+                        said = builder.choose(ctx, held, recipe)
+                    finally:
+                        held.close()
+                    self.assertEqual((said, ctx.window), (chosen, []))
+                    self.assertEqual((len(cs(ctx)), pane.recipe), (pressed, recipes.index(recipe)))
+                    self.assertEqual(held.clock_waits(), 0)
+            # A RECIPE THE CATALOG DOES NOT HOLD: C goes round it once, and the run fails naming
+            # every recipe it offered.
+            with self.subTest(recipe="zengine-nope"):
+                pane = CanvasBuilder(self.BUILT, recipes=recipes)
+                ctx = CanvasWorkshop(steps, {self.BUILDER: pane})
+                held = hand.Hand(ctx, "workshop")
+                try:
+                    builder.keys_into(ctx, held)
+                    ctx.window = list(self.OPENING)
+                    with self.assertRaises(CheckFailed) as failed:
+                        builder.choose(ctx, held, "zengine-nope")
+                finally:
+                    held.close()
+                self.assertEqual(str(failed.exception),
+                                 "the catalog holds no recipe 'zengine-nope' (it offered "
+                                 "['zengine-hello -> zengine-hello  (1/2)', "
+                                 "'zengine-files -> zengine-files  (2/2)'])")
+                self.assertEqual((len(cs(ctx)), pane.recipe), (2, 0))
+            # A BUILDER NOT AIMED AT, OR TAKING NO PRESS, WITHIN THE SECONDS, OR ONE WORKSHOP DOES
+            # NOT DESCRIBE: the run fails saying which, and C is never pressed -- though the keys
+            # are the Builder's.
+            for shown, window, said in (
+                    (True, ["unsettled"] * 1000, "the Builder held no settled picture within 0.3s"),
+                    (True, ["untaken"] * 1000, "zengine.builder-pane/builder's picture took no "
+                                               "press within 0.3s: " + hand.NO_PRESS),
+                    (False, [], "Workshop does not describe the Builder pane; open it where "
+                                "nothing covers it")):
+                with self.subTest(shown=shown, window=window[:1]):
+                    pane = CanvasBuilder(self.BUILT, recipes=recipes)
+                    ctx = CanvasWorkshop(steps, {self.BUILDER: pane} if shown else {})
+                    ctx.holder = pane
+                    held = hand.Hand(ctx, "workshop")
+                    try:
+                        ctx.window = list(window)
+                        with patch.object(builder, "SETTLE_SECONDS", 0.3):
+                            with self.assertRaises(CheckFailed) as failed:
+                                builder.choose(ctx, held, "zengine-files")
+                    finally:
+                        held.close()
+                    self.assertEqual(str(failed.exception), said)
+                    self.assertEqual(bool(ctx.window), bool(window))
+                    self.assertEqual((cs(ctx), pane.recipe), ([], 0))
+
         def test_a_monitor_reads_a_pane_again_while_its_picture_takes_no_press(self):
             editor = self.beat_editor()
             ctx = CanvasWorkshop(steps, {self.EDITOR: editor})
@@ -2770,6 +2860,70 @@ def run_checks(tools, runtime):
             finally:
                 m.release_keys()
             self.assertFalse([e for e in ctx.events if e["kind"] == "PointerButton"])
+
+        def test_a_monitor_keeps_a_panes_rows_once_its_picture_takes_a_press(self):
+            def kept(ctx, name, pane="editor", picture=None, rows=None):
+                self.assertEqual(json.loads(ctx.kept[name + ".json"]), {
+                    "provider": "zengine.editor", "pane": pane, "picture": picture, "rows": rows})
+            policy = SimpleNamespace(producer="td.game", shapes=[("TdSeen", 1)])
+            # A WATCHING MONITOR holds no input session and claims none to read a pane: it waits at
+            # Workshop's notice -- never on a clock -- through the picture a managed opening shows
+            # and the moment the pane's own settles, keeps the settled picture's rows, and stops
+            # following the notice when it gives its keys back.
+            with self.subTest(keys=False):
+                ctx = CanvasWorkshop(steps, {self.EDITOR: self.beat_editor()})
+                m = monitor.Monitor(ctx, policy)
+                try:
+                    ctx.window = list(self.OPENING)
+                    rows = m.rows(*self.EDITOR, "editor-rows")
+                finally:
+                    m.release_keys()
+                self.assertEqual(ctx.window, [])
+                self.assertEqual(rows[0], "beat.cpp  saved  line 1")
+                kept(ctx, "editor-rows", picture=1, rows=rows)
+                self.assertEqual((m.hand, ctx.owner.open, ctx.owner.closes), (None, False, 0))
+                self.assertNotIn("InputSessionRequested", ctx.contacts)
+                self.assertEqual((m.asker.notices.clock_waits, m.asker.notices.sub), (0, None))
+                self.assertIn(m.asker.close, ctx.cleanups)
+            # A MONITOR HOLDING THE KEYS reads through its own input session, waiting alike; a pane
+            # Workshop does not describe keeps no rows, read once and not waited for.
+            with self.subTest(keys=True):
+                ctx = CanvasWorkshop(steps, {self.EDITOR: self.beat_editor()})
+                m = monitor.Monitor(ctx, policy)
+                try:
+                    m._hand()
+                    ctx.window = list(self.OPENING)
+                    rows = m.rows(*self.EDITOR, "editor-rows")
+                    self.assertEqual(ctx.window, [])
+                    ctx.window = list(self.OPENING)
+                    missing = m.rows("zengine.editor", "no-such-pane", "missing")
+                    self.assertEqual(ctx.window, self.OPENING)
+                finally:
+                    m.release_keys()
+                self.assertEqual(rows[0], "beat.cpp  saved  line 1")
+                kept(ctx, "editor-rows", picture=1, rows=rows)
+                self.assertIsNone(missing)
+                kept(ctx, "missing", pane="no-such-pane")
+                self.assertEqual((m.asker, ctx.owner.open, ctx.owner.closes), (None, False, 1))
+                self.assertEqual(m.hand.clock_waits(), 0)
+            # A PICTURE STILL NOT AIMED AT, OR STILL TAKING NO PRESS, AT THE MONITOR'S DEADLINE --
+            # which ends the wait, well before the seconds a picture is given to settle: no rows
+            # are kept, and none claimed an input session.
+            for window in (["unsettled"] * 1000, ["untaken"] * 1000):
+                with self.subTest(window=window[:1]):
+                    ctx = CanvasWorkshop(steps, {self.EDITOR: self.beat_editor()})
+                    m = monitor.Monitor(ctx, policy, seconds=0.3)
+                    try:
+                        ctx.window = list(window)
+                        started = time.monotonic()
+                        rows = m.rows(*self.EDITOR, "late")
+                        self.assertLess(time.monotonic() - started, hand.SETTLE_SECONDS / 2)
+                    finally:
+                        m.release_keys()
+                    self.assertIsNone(rows)
+                    self.assertTrue(ctx.window)  # it never settled
+                    kept(ctx, "late")
+                    self.assertNotIn("InputSessionRequested", ctx.contacts)
 
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(ToolChecks)
     return unittest.TextTestRunner(stream=sys.stdout, verbosity=2).run(suite).wasSuccessful()
