@@ -17,7 +17,9 @@ input                             doctest           always  54
 input                             doctest           sdl     4
 surface                           doctest           always  113
 surface                           doctest           sdl     8
-graphics                          doctest           always  53
+# A tripwire in this suite reads graphics/ as text (VM-WALL-11).
+graphics                          doctest           always  72
+graphics                          doctest           sdl     2
 ui                                doctest           always  22
 component                         doctest           always  48
 editor                            doctest           always  20

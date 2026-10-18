@@ -1571,15 +1571,35 @@ zengine_test_definitions(zengine-graphics-tests
     "WINDOW_SO=\"$<TARGET_FILE:zengine-window-terminal>\""
     "PAINT_CLASSIC_SO=\"$<TARGET_FILE:zengine-paint-classic>\""
     "PAINT_BLOCK_SO=\"$<TARGET_FILE:zengine-paint-block>\""
+    "PAINT_DAY_SO=\"$<TARGET_FILE:zengine-paint-day>\""
+    "PAINT_NIGHT_SO=\"$<TARGET_FILE:zengine-paint-night>\""
+    # The package's own folder, for the tripwire that no graphics source includes Surface: a claim
+    # about what code does not contain holds on every lane, and only reading the files can show
+    # it (VM-WALL-11).
+    "GRAPHICS_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/graphics\""
     "SNAKE_SO_BOARD=\"$<TARGET_FILE:snake-board>\""
     "WORLD_V1_SO=\"$<TARGET_FILE:snake-world-v1>\""
     "WORLD_V2_SO=\"$<TARGET_FILE:snake-world-v2>\""
     "ATTENTION_PANE_SO=\"$<TARGET_FILE:zengine-attention-pane>\""
     "CONNECTIONS_PANE_SO=\"$<TARGET_FILE:zengine-connections-pane>\"")
-# The suite mounts the window in process, and reads both offices' pages against what they accept.
+# The suite mounts both windows in process, and reads every office's page against what it accepts.
 zengine_manual(zengine-graphics-tests PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.terminal.md)
+zengine_manual(zengine-graphics-tests PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.sdl.md)
 zengine_manual(zengine-graphics-tests PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.graphics.md)
 zengine_doctest_test(graphics zengine-graphics-tests)
+# The OS window's own weave is a conditional subpopulation (VM-POP-08): the cases that load
+# zengine-window-sdl through the kernel, open its window under SDL's dummy driver and reload it,
+# behind GRAPHICS_HAS_SDL. The suite links the same shared SDL the weave does, so a case can count
+# the process's OS windows across a reload.
+if(TARGET zengine-window-sdl)
+    zengine_test_definitions(zengine-graphics-tests
+        GRAPHICS_HAS_SDL=1
+        "WINDOW_SDL_SO=\"$<TARGET_FILE:zengine-window-sdl>\"")
+    target_link_libraries(zengine-graphics-tests PRIVATE ${ZENGINE_SDL_LIB})
+    set_tests_properties(graphics PROPERTIES
+        ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_VIDEODRIVER=dummy;ZENGINE_SDL_NOT_FOCUSABLE=1")
+    set_property(GLOBAL APPEND PROPERTY ZENGINE_ACTIVE_GATES "sdl")
+endif()
 
 # ---- the source-tree checks ------------------------------------------------------------
 # Six entries read the source tree rather than a build -- doc_links, package_vocabulary, law_register,

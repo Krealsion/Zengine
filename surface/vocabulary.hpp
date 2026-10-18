@@ -10,6 +10,8 @@
 // second Skin into the held role is refused. Reference: surface/docs/surface.md; the Skin:
 // surface/docs/zengine.skin.md.
 
+#include "graphics/role.hpp"
+
 #include <zen/value.hpp>
 #include <zen/weave/shape.hpp>
 
@@ -28,28 +30,9 @@ struct SurfaceText {
 };
 
 /// The visual role of a canvas element: semantic, never a colour -- each Skin picks the ink, so one
-/// canvas reads correctly in a monochrome terminal and in a window. A role the active Skin does
-/// not know paints as `kFill` rather than vanishing.
-namespace role {
-inline constexpr std::int64_t kFill = 0;   ///< ordinary authored material
-inline constexpr std::int64_t kAccent = 1; ///< the one thing being pointed at
-inline constexpr std::int64_t kMuted = 2;  ///< present, deliberately quiet
-inline constexpr std::int64_t kAlert = 3;  ///< something the weaver must see
-inline constexpr std::int64_t kGround = 4; ///< opaque, empty material beneath content
-/// The medium's own ground: opaque, empty, and what the medium shows where nothing is published
-/// -- a window's own background, a terminal's default one, light or dark. A ground and never an
-/// ink: a rectangle or a row's background names it, and text drawn in it paints as `kFill`.
-inline constexpr std::int64_t kMediumGround = 5;
-/// Drawn at a guest's ask, never Workshop's own voice: a guide mark a guest set on a control for
-/// the weaver to see. Every guest-caused mark shares it, so the weaver tells it from the desk's
-/// own emphasis by role, in every medium.
-inline constexpr std::int64_t kGuide = 6;
-
-/// No role at all: the absence of a background, not an ink role. Negative, so it cannot collide
-/// with a role a later vocabulary adds (which an older Skin would silently paint as `kFill`).
-/// Never pass it to a Skin's role-to-ink table; test for it first.
-inline constexpr std::int64_t kNone = -1;
-} // namespace role
+/// canvas reads correctly in a monochrome terminal and in a window. The roles are the graphics
+/// vocabulary's, one set for every medium (graphics/role.hpp).
+namespace role = zengine::graphics::role;
 
 /// One filled rectangle, in canvas pixels: one device pixel in the shipped window, and a twelfth
 /// of a character cell in a terminal, whose Skin floors each edge to its cells (`kCanvasCellPx`).

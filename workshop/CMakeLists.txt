@@ -199,9 +199,9 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default-build-recipes.json.in
 # The artifacts this host loads, staged beside its binary: the host resolves them from its own
 # directory (workshop.cpp's exe_dir). Copied, not aimed here: snake aims the same files at its own
 # directory, and each host takes a copy. The SDL skin joins only where this configuration built
-# it; `--skin` selects one at launch, and staging makes the stem resolvable. The graphics directory,
-# its terminal window and the two painters a window opens stand here too: Workshop offers the
-# painters to the directory from this directory (`arrange_graphics`).
+# it, as the OS window does; `--skin` selects one at launch, and staging makes the stem resolvable.
+# The graphics directory, its terminal window and the painters a window opens stand here too:
+# Workshop offers the painters to the directory from this directory (`arrange_graphics`).
 set(zengine_workshop_artifacts zengine-skin-tui-classic zengine-input zengine-timer zengine-inventory zengine-inventory-pane
                                zengine-introspection zengine-composer zengine-files
                                zengine-builder-pane zengine-attention-pane
@@ -212,7 +212,11 @@ set(zengine_workshop_artifacts zengine-skin-tui-classic zengine-input zengine-ti
                                zengine-operators-basic
                                zengine-workshop-session-history
                                zengine-graphics zengine-window-terminal
-                               zengine-paint-classic zengine-paint-block)
+                               zengine-paint-classic zengine-paint-block
+                               zengine-paint-day zengine-paint-night)
+if(TARGET zengine-window-sdl)
+    list(APPEND zengine_workshop_artifacts zengine-window-sdl)
+endif()
 if(TARGET zengine-skin-sdl)
     list(APPEND zengine_workshop_artifacts zengine-skin-sdl)
 endif()

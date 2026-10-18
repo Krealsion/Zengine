@@ -8,11 +8,12 @@
 // the host states (`--input <stem>`), and the terminal reader is untouched.
 // Surface law: agents/surface.md
 
-// SDL has one process-global queue and `SDL_PollEvent` removes what it returns, so this is the
-// only code that touches it (the Skin takes no events from it), and its 10 ms beat also pumps the
-// OS conversation for the Skin's window. Both need one shared SDL: a static SDL in an
-// `RTLD_LOCAL` library would give this reader its own queue, deaf to the window, and
-// cmake/ZengineSdl.cmake refuses one. With no display the reader stays disabled and says why.
+// SDL has one process-global queue and `SDL_PollEvent` removes what it returns, so this is the only
+// code that touches it (the Skin takes none; the OS window reads it itself and is never loaded
+// beside it), and its 10 ms beat also pumps the OS conversation for the Skin's window. Both need
+// one shared SDL: a static SDL in an `RTLD_LOCAL` library would give this reader its own queue,
+// deaf to the window, and cmake/ZengineSdl.cmake refuses one. With no display the reader stays
+// disabled and says why.
 
 #include "input_weave.hpp"
 #include "office_page.hpp"

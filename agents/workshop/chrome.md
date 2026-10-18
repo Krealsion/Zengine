@@ -159,7 +159,7 @@ selected pane wears its own chrome, and only it"
 
 ### WL-CHROME-08
 `workshop/screen.hpp` kPaneChrome kPaneChromeSelected kTransientChrome
-`surface/vocabulary.hpp` kFill kAccent kMuted
+`graphics/role.hpp` kFill kAccent kMuted
 `tests/test_workshop_screen.cpp` "selected and ordinary differ in INK, and in nothing else" "a
 transient surface stays over the pane it covers, selected or not"
 

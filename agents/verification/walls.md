@@ -112,7 +112,7 @@ nowhere yet
 `CMakeLists.txt` zengine_compile_test ZENGINE_COMPILE_FIXTURE_TREE
 
 ### VM-WALL-09
-`surface/terminal_size.hpp` measured
+`graphics/window/terminal_io.hpp` measured
 `tests/check_law_register.cmake`
 
 ### VM-WALL-10

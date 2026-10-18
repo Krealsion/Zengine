@@ -85,7 +85,8 @@ and the office is answered what the host said"
 
 ### WL-CTRL-06
 `info/property_view.hpp` compose
-`surface/vocabulary.hpp` kAccent kMuted kNone SurfaceTextRow SurfaceTextRow::background
+`graphics/role.hpp` kAccent kMuted kNone
+`surface/vocabulary.hpp` SurfaceTextRow SurfaceTextRow::background
 `tests/test_workshop_panes_info.cpp` "the heading and the subject's properties are the pane's rows,
 over the host's subject, and the panes are the Pane Manager's to list"
 

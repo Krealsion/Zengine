@@ -2,17 +2,19 @@
 
 A participant that shows something draws it into the window that shows its area. It draws **nodes**
 -- the one primitive -- or says an **element** once and then sends only that element's changes.
-The window keeps what was drawn, paints it with the skin chosen for the area, and writes only the
-cells that changed. A **directory** introduces each area to its window and tells each owner its
+The window keeps what was drawn, paints it with the skin chosen for the area, and shows only what
+changed: the cells that changed on a terminal, the picture once a beat in an OS window. A **directory** introduces each area to its window and tells each owner its
 room; nothing a picture is made of passes through it.
 
 A program spells the vocabulary with `#include "graphics/vocabulary.hpp"` and links
 `zengine::graphics`. This page is for whoever draws: the vocabulary, the canvas, a drawing weave,
 an element of your own, and the two seams a skin or an element's code is written against. The
-package ships two weaves, each with its manual: the terminal window,
-[`zengine.window.terminal`](zengine.window.terminal.md), built as `zengine-window-terminal`, and
-the directory, [`zengine.graphics`](zengine.graphics.md), built as `zengine-graphics`; and two
-skins, `zengine-paint-classic` and `zengine-paint-block`. The snake (`examples/snake/`) is the
+package ships three weaves, each with its manual: the terminal window,
+[`zengine.window.terminal`](zengine.window.terminal.md), built as `zengine-window-terminal`; the OS
+window, [`zengine.window.sdl`](zengine.window.sdl.md), built as `zengine-window-sdl` where the build
+has SDL; and the directory, [`zengine.graphics`](zengine.graphics.md), built as `zengine-graphics`.
+Four skins come with them: `zengine-paint-classic` and `zengine-paint-block` paint characters, and
+`zengine-paint-day` and `zengine-paint-night` paint light. The snake (`examples/snake/`) is the
 worked example: it draws its frame as nodes and its board as an element of its own.
 
 ![The snake in a terminal window under the classic skin: the operator's status line, the world's score and board, and the score weave's own area beside it](images/snake-classic.png)
@@ -58,18 +60,18 @@ and the `action` a press anywhere in it asks of the area's owner.
 
 ## The operators
 
-| operator | operands | in a terminal |
-|---|---|---|
-| `group` | an offset, an optional clip | its children's space; paints nothing |
-| `rect` | a box, a fill and an outline | the cells it covers; `+ - |` edges |
-| `ellipse` | a box, a fill and an outline | the cells whose centre falls inside |
-| `line` | two points and an ink | a walk of cells in `- | / \` |
-| `path` | SVG path data (`M L H V C Q Z`), a fill and an outline | curves flattened; cells by centre |
-| `text` | a point, words and an ink | one cell a character; outside ASCII, `?` |
-| `image` | a box and pixels, four bytes each | a luminance ramp, one glyph a cell |
+| operator | operands | in a terminal | in light |
+|---|---|---|---|
+| `group` | an offset, an optional clip | its children's space; paints nothing | the same |
+| `rect` | a box, a fill and an outline | the cells it covers; `+ - |` edges | a filled rectangle; edges a pixel wide |
+| `ellipse` | a box, a fill and an outline | the cells whose centre falls inside | a span a pixel row; its outline in lines |
+| `line` | two points and an ink | a walk of cells in `- | / \` | a line |
+| `path` | SVG path data (`M L H V C Q Z`), a fill and an outline | curves flattened; cells by centre | curves flattened; spans a pixel row, even-odd |
+| `text` | a point, words and an ink | one cell a character; outside ASCII, `?` | a run of text, `light::kAdvance` pixels a character; outside ASCII, `?` |
+| `image` | a box and pixels, four bytes each | a luminance ramp, one glyph a cell | its pixels, scaled into its box |
 
 Coordinates are the area's pixels; a terminal floors each edge to its cell of
-<!-- value kCellPx -->12<!-- /value --> pixels. A colour is a `Paint`: a theme role (Surface's roles),
+<!-- value kCellPx -->12<!-- /value --> pixels. A colour is a `Paint`: a theme role (`graphics/role.hpp`),
 or an exact `0xRRGGBB` beside the role a medium without colour shows it as. An operator a skin does
 not know is painted as its name, muted, never silently dropped.
 
@@ -205,7 +207,11 @@ answer is read through the one gate. Ours and a stranger's are opened and judged
 | element code (`element_abi.h`) | `zengine_element` | `ElementEvent` | `ElementOutcome` |
 
 A skin for a terminal is the shared painter (`graphics/term_paint.hpp`) and a look -- a glyph for
-each role, the glyphs an outline wears -- exported by `ZENGINE_EXPORT_PAINTER`. Which library holds
+each role, the glyphs an outline wears -- exported by `ZENGINE_EXPORT_PAINTER`. A skin for light is
+the painter for light (`graphics/light_paint.hpp`) and a look -- a colour for each role and a
+ground -- exported by `ZENGINE_EXPORT_LIGHT_PAINTER`; each node's pixel primitives cross the seam
+packed in its `NodePaint`'s cells behind a tag, so a window tells a skin for light from one for
+characters by what it answers. Which library holds
 a skin or an element's code is the load plan's word, through the arranger and the directory, never
 a pane's. What a window says of a library it cannot open or read is
 [the window's manual](zengine.window.terminal.md#files).

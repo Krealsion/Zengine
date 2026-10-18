@@ -4,12 +4,12 @@
 #ifndef ZENGINE_GRAPHICS_WINDOW_WINDOW_HPP
 #define ZENGINE_GRAPHICS_WINDOW_WINDOW_HPP
 
-// The terminal window: the whole job of showing what its areas' owners drew, over an injected
-// Terminal. It keeps each area's nodes, records and presented elements in its state, presents an
-// element from code it loads, paints what changed with the area's skin and keeps it painted,
-// composes the areas, reads its terminal, routes a press, gives keys and their text to the areas
-// that hear them, and tells each owner its room. Nothing it shows passes through the directory.
-// Reference: graphics/docs/zengine.window.terminal.md, its manual, compiled in and answered.
+// A window, over the medium it shows on: the whole job of showing what its areas' owners drew. It
+// keeps each area's nodes, records and presented elements in its state, presents an element from
+// code it loads, has what changed painted with the area's skin, routes a press, gives keys and
+// their text to the areas that hear them, and tells each owner its room. What it keeps painted,
+// how it shows it and what it reads are its Medium's: characters on a terminal
+// (graphics/window/window_terminal.hpp), light in an OS window (graphics/window/window_sdl.hpp).
 
 #include "graphics/painting.hpp"
 #include "graphics/vocabulary.hpp"
@@ -20,9 +20,6 @@
 #include "input/translate.hpp"
 #include "input/vocabulary.hpp"
 #include "manual/vocabulary.hpp"
-#include "manuals/zengine.window.terminal.hpp" // this office's manual, compiled in from its page
-#include "surface/terminal_size.hpp"
-#include "surface/tui_terminal.hpp"
 #include "timer/binding.hpp"
 
 #include <zen/serialize.hpp>
@@ -35,19 +32,15 @@
 #include <random>
 #include <set>
 #include <string>
-#include <string_view>
 #include <utility>
 #include <variant>
 #include <vector>
 
 namespace zengine::graphics::window {
 
-/// How often the window reads its terminal: the Input weave's own beat.
+/// How often the window reads its medium: the Input weave's own beat.
 inline constexpr const char* kPumpTimerId = "zengine.window.pump";
 inline constexpr std::int64_t kPumpBeatMs = 10;
-/// The size a window shows when its terminal cannot be measured: a pipe, a suite.
-inline constexpr std::int64_t kUnmeasuredCols = 80;
-inline constexpr std::int64_t kUnmeasuredRows = 24;
 
 /// What a window keeps across a reload: its incarnation, its areas with everything drawn in them,
 /// the element code offered for each type, and the next handle it names an element by.
@@ -61,47 +54,34 @@ struct WindowState {
               ZEN_FIELD(next_handle), ZEN_FIELD(refusals));
 };
 
-/// The bytes that show cells on a terminal: for each run, a cursor move (left out where the cursor
-/// already stands), the role's ink where it changes, and the glyphs.
-inline std::string ansi(const std::vector<term::Cell>& cells) {
-    std::string out;
-    std::int64_t at_col = -1, at_row = -1, ink = -2;
-    for (const term::Cell& c : cells) {
-        if (c.col != at_col || c.row != at_row) {
-            out += "\x1b[" + std::to_string(c.row + 1) + ";" + std::to_string(c.col + 1) + "H";
-        }
-        if (c.role != ink) {
-            ink = c.role;
-            out += surface::sgr_for_role(static_cast<int>(c.role));
-        }
-        out.push_back(c.glyph);
-        at_col = c.col + 1;
-        at_row = c.row;
-    }
-    return out;
-}
+/// A window's size in cells.
+struct CellExtent {
+    std::int64_t cols = 0, rows = 0;
+};
 
-template <class Terminal>
-class WindowT;
+template <class Medium>
+class Window;
 
-template <class Terminal>
-using WindowBase = zengine::With<
-    zengine::manual::ManualFacet<zengine::manual::pages::zengine_window_terminal::kManual>>::
-    Weave<WindowT<Terminal>, WindowState,
-          loom::Accept<Drawn, ElementPut, ElementChange, AreaIntroduced, AreaWithdrawn,
-                       ElementCodeOffered, GraphicsReady, WindowShowAsked>,
-          loom::Emit<DrawnRefused, WindowOffered, AreaRoom, zengine::input::KeyPressed,
-                     zengine::input::TextEntered, ActionRequested, zengine::input::PointerButton,
-                     WindowShown>,
-          zengine::timer::TimedWeave>;
+template <class Medium>
+using WindowBase = typename zengine::With<
+    zengine::manual::ManualFacet<Medium::kManual>>::template Weave<Window<Medium>, WindowState,
+    loom::Accept<Drawn, ElementPut, ElementChange, AreaIntroduced, AreaWithdrawn,
+                 ElementCodeOffered, GraphicsReady, WindowShowAsked>,
+    loom::Emit<DrawnRefused, WindowOffered, AreaRoom, zengine::input::KeyPressed,
+               zengine::input::TextEntered, ActionRequested, zengine::input::PointerButton,
+               WindowShown>,
+    zengine::timer::TimedWeave>;
 
-template <class Terminal>
-class WindowT : public WindowBase<Terminal> {
+/// The window over `Medium`, which names it (`kWindow`), carries its manual (`kManual`), and
+/// keeps, paints, shows, lands and reads what the window asks of it.
+template <class Medium>
+class Window : public WindowBase<Medium> {
 public:
-    using WindowBase<Terminal>::on;
+    using WindowBase<Medium>::on;
 
-    WindowT() : pump_(declare_pump()) {}
-    explicit WindowT(Terminal terminal) : terminal_(std::move(terminal)), pump_(declare_pump()) {}
+    Window() : pump_(declare_pump()) {}
+    template <class Device>
+    explicit Window(Device device) : medium_(std::move(device)), pump_(declare_pump()) {}
 
     // ---- drawing -------------------------------------------------------------------------
 
@@ -109,7 +89,7 @@ public:
         WinArea* a = find(d.area);
         if (a == nullptr || !mail.authored_from_role(a->owner)) {
             refuse(mail, d.area,
-                   a == nullptr ? "window '" + std::string(kTerminalWindow) +
+                   a == nullptr ? "window '" + std::string(Medium::kWindow) +
                                       "' shows no area '" + d.area + "'"
                                 : "area '" + d.area + "' is drawn only by its owner, " + a->owner);
             settle(d.more);
@@ -153,14 +133,14 @@ public:
         }
         const bool moved = a->x != i.x || a->y != i.y || a->w != i.w || a->h != i.h ||
                            a->order != i.order;
-        const bool repaint = a->library != i.library;
+        const bool repaint = a->library != i.library || a->skin != i.skin;
         const bool handed = a->owner != i.owner;
         const std::string old_library = a->library;
         if (moved || repaint || handed) {
-            cover_area(*a, dirty_);
+            medium_.cover_area(*a);
         }
         if (handed) {
-            cache_.drop_area(a->area);
+            medium_.drop_area(a->area);
             a->nodes.clear();
             a->records.clear();
             a->presented.clear();
@@ -179,7 +159,7 @@ public:
             remake(*a);
             close_unused(old_library);
         } else if (moved) {
-            cover_area(*a, dirty_);
+            medium_.cover_area(*a);
         }
         settle(false);
         room(mail, *a);
@@ -193,9 +173,9 @@ public:
         if (a == nullptr) {
             return;
         }
-        cover_area(*a, dirty_);
+        medium_.cover_area(*a);
         const std::string library = a->library;
-        cache_.drop_area(w.area);
+        medium_.drop_area(w.area);
         std::erase_if(this->state_.areas, [&](const WinArea& k) { return k.area == w.area; });
         close_unused(library);
         settle(false);
@@ -242,16 +222,16 @@ public:
 
     void on(const WindowShowAsked&, loom::Mail& mail) {
         WindowShown s;
-        s.window = kTerminalWindow;
+        s.window = Medium::kWindow;
         s.epoch = this->state_.epoch;
-        s.rows = rows_shown();
+        s.rows = medium_.rows_shown(this->state_.areas);
         s.areas = static_cast<std::int64_t>(this->state_.areas.size());
         for (const WinArea& a : this->state_.areas) {
             s.nodes += static_cast<std::int64_t>(a.nodes.size());
             s.elements += static_cast<std::int64_t>(a.presented.size());
         }
-        s.showings = showings_;
-        s.device_bytes = device_bytes_;
+        s.showings = medium_.showings();
+        s.device_bytes = medium_.device_bytes();
         s.painter_calls = painters_.calls;
         s.element_calls = codes_.calls;
         s.refusals = this->state_.refusals;
@@ -262,16 +242,13 @@ public:
     // ---- life ---------------------------------------------------------------------------------
 
     /// Started, or started again: a fresh window draws its incarnation (a reload carries the one
-    /// it had), takes its terminal, paints what its state keeps, shows it, and offers itself.
+    /// it had), takes its medium, paints what its state keeps, shows it, and offers itself.
     void on_timed_activation(const loom::Activated&, loom::Mail& mail) {
         if (this->state_.epoch == 0) {
             this->state_.epoch = token();
         }
-        terminal_.claim();
-        const surface::TerminalSize size = measure();
-        cols_ = size.cols;
-        rows_ = size.rows;
-        cache_.clear();
+        medium_.claim();
+        medium_.clear();
         for (WinArea& a : this->state_.areas) {
             remake(a);
         }
@@ -282,16 +259,18 @@ public:
 private:
     auto declare_pump() {
         return this->timers().repeat(kPumpTimerId, std::chrono::milliseconds(kPumpBeatMs),
-                                     &WindowT::on_pump);
+                                     &Window::on_pump);
     }
 
     // ---- input --------------------------------------------------------------------------------
 
-    /// The window's own beat: its terminal measured, and what it typed read with Zengine's parser.
-    /// A key and the text it typed go alike, to the owner of each area placed to hear keys.
+    /// The window's own beat: its medium measured, and what it read sent on. A key and the text
+    /// it typed go alike, to the owner of each area placed to hear keys.
     void on_pump(const zengine::timer::TimerFired&, loom::Mail& mail) {
-        resize(mail);
-        for (const zengine::input::InputEvent& e : terminal_.poll()) {
+        if (medium_.remeasure()) {
+            offer(mail);
+        }
+        for (const zengine::input::InputEvent& e : medium_.poll()) {
             if (const auto* k = std::get_if<zengine::input::KeyPressed>(&e)) {
                 to_keys(mail, *k);
             } else if (const auto* t = std::get_if<zengine::input::TextEntered>(&e)) {
@@ -305,23 +284,6 @@ private:
         settle(false);
     }
 
-    /// The terminal at another size in cells: every cell of the window at the new size marked to
-    /// show, and the window offered again in its new room, the same incarnation.
-    void resize(loom::Mail& mail) {
-        const surface::TerminalSize size = measure();
-        if (size.cols == cols_ && size.rows == rows_) {
-            return;
-        }
-        cols_ = size.cols;
-        rows_ = size.rows;
-        for (std::int64_t r = 0; r < rows_; ++r) {
-            for (std::int64_t c = 0; c < cols_; ++c) {
-                dirty_.insert({c, r});
-            }
-        }
-        offer(mail);
-    }
-
     /// A key, or its text, to the owner of each area placed to hear keys, front to back.
     template <class Typed>
     void to_keys(loom::Mail& mail, const Typed& typed) {
@@ -332,11 +294,11 @@ private:
         }
     }
 
-    /// A press at a cell of the window: the element presented there, if its code takes it; else
+    /// A press where the medium lands it: the element presented there, if its code takes it; else
     /// the action its record names, to the area's owner; else, to an owner whose area was placed
     /// to hear the pointer, the press itself at the area's own point; else nothing.
     void press(loom::Mail& mail, const zengine::input::PointerButton& b) {
-        const Landed l = land(this->state_.areas, cache_, b.x, b.y);
+        const Landed l = medium_.land(this->state_.areas, b);
         if (l.area == nullptr) {
             return;
         }
@@ -477,17 +439,16 @@ private:
         if (!why.empty()) {
             return false;
         }
-        const Place pl = place_of(a);
         for (const KeptNode& k : a.nodes) {
             if (touches(a, who, d, k.node.path)) {
-                cache_.cover(a.area, k.node.path, pl, dirty_);
+                medium_.cover(a, k.node.path);
             }
         }
         const Applied applied = apply(a, who, d);
         for (const std::string& gone : applied.gone) {
-            cache_.drop(a.area, gone);
+            medium_.drop(a, gone);
         }
-        paint_into_cache(a, applied.changed);
+        paint(a, applied.changed);
         if (d.whole && !who.element) {
             std::erase_if(a.presented, [&](const Presented& p) {
                 return index_of(a).count(p.path) == 0 && !applied.changed.count(p.path);
@@ -514,8 +475,9 @@ private:
         return false;
     }
 
-    /// Paint some of an area's nodes with its skin, kept painted; their cells marked to show.
-    void paint_into_cache(const WinArea& a, const std::set<std::string>& paths) {
+    /// Some of an area's nodes painted by its medium, each sent with every ancestor present (a
+    /// node is drawn in their space); a skin that will not paint is the last refusal.
+    void paint(const WinArea& a, const std::set<std::string>& paths) {
         if (paths.empty()) {
             return;
         }
@@ -532,13 +494,7 @@ private:
                 }
             }
         }
-        if (send.empty() || a.library.empty()) {
-            return;
-        }
-        std::string why;
-        const ZenginePainterV1* skin = painters_.get(a.library, why);
-        if (skin == nullptr) {
-            note("area '" + a.area + "': " + why);
+        if (send.empty()) {
             return;
         }
         PaintTask task;
@@ -548,93 +504,35 @@ private:
                     PaintNode{k.node.path, key_of(at, k.node.path), k.node.op, k.node.args});
             }
         }
-        auto result = painters_.paint(skin, task, why);
-        if (!result) {
+        std::string why;
+        medium_.paint(painters_, a, task, paths, why);
+        if (!why.empty()) {
             note("area '" + a.area + "': " + why);
-            return;
-        }
-        const Place pl = place_of(a);
-        for (const std::string& p : paths) {
-            cache_.drop(a.area, p);
-        }
-        for (const NodePaint& np : result->nodes) {
-            if (paths.count(np.path) == 0 || at.count(np.path) == 0) {
-                continue;
-            }
-            PaintedNode n;
-            n.key = key_of(at, np.path);
-            for (const term::Cell& c : term::unpack(np.cells)) {
-                if (c.col >= 0 && c.row >= 0 && c.col < pl.cols && c.row < pl.rows) {
-                    n.cells.push_back(c);
-                }
-            }
-            cache_.set(a.area, np.path, std::move(n));
-            cache_.cover(a.area, np.path, pl, dirty_);
         }
     }
 
     /// Paint all of an area afresh.
     void remake(const WinArea& a) {
-        cover_area(a, dirty_);
-        cache_.drop_area(a.area);
+        medium_.cover_area(a);
+        medium_.drop_area(a.area);
         std::set<std::string> all;
         for (const KeptNode& k : a.nodes) {
             all.insert(k.node.path);
         }
-        paint_into_cache(a, all);
-    }
-
-    void cover_area(const WinArea& a, std::set<CellAt>& into) const {
-        const Place pl = place_of(a);
-        for (const KeptNode& k : a.nodes) {
-            cache_.cover(a.area, k.node.path, pl, into);
-        }
+        paint(a, all);
     }
 
     /// A drawer's word decides when its beat's drawing shows: one saying more follows holds the
     /// showing back; any other handler shows what it changed.
     void settle(bool more) {
-        if (more) {
-            return;
+        if (!more) {
+            medium_.show(this->state_.areas);
         }
-        std::vector<term::Cell> cells;
-        std::set<CellAt> in_window;
-        for (const CellAt& c : dirty_) {
-            if (c.first >= 0 && c.second >= 0 && c.first < cols_ && c.second < rows_) {
-                in_window.insert(c);
-            }
-        }
-        dirty_.clear();
-        if (in_window.empty()) {
-            return;
-        }
-        const std::string bytes = ansi(compose(this->state_.areas, cache_, in_window));
-        terminal_.write(bytes);
-        ++showings_;
-        device_bytes_ += static_cast<std::int64_t>(bytes.size());
-    }
-
-    std::vector<std::string> rows_shown() const {
-        std::set<CellAt> all;
-        for (std::int64_t r = 0; r < rows_; ++r) {
-            for (std::int64_t c = 0; c < cols_; ++c) {
-                all.insert({c, r});
-            }
-        }
-        std::vector<std::string> rows(static_cast<std::size_t>(rows_),
-                                      std::string(static_cast<std::size_t>(cols_), ' '));
-        for (const term::Cell& c : compose(this->state_.areas, cache_, all)) {
-            rows[static_cast<std::size_t>(c.row)][static_cast<std::size_t>(c.col)] = c.glyph;
-        }
-        for (std::string& r : rows) {
-            r.erase(r.find_last_not_of(' ') + 1);
-        }
-        return rows;
     }
 
     // ---- small things ---------------------------------------------------------------------
 
-    static std::string office() { return std::string(kWindowOfficePrefix) + kTerminalWindow; }
+    static std::string office() { return std::string(kWindowOfficePrefix) + Medium::kWindow; }
 
     /// A random token of one width, its top bit set: a loaded weave cannot read its own id, and
     /// a window started afresh must differ from every one before it.
@@ -663,19 +561,15 @@ private:
             }
         }
         painters_.close(library);
-    }
-
-    /// The window's size in cells: its terminal's, or the unmeasured size where it has none.
-    surface::TerminalSize measure() const {
-        const surface::TerminalSize size = terminal_.size();
-        return size.measured() ? size : surface::TerminalSize{kUnmeasuredCols, kUnmeasuredRows};
+        medium_.forget(library);
     }
 
     /// This window, as its own office, to whoever follows it: the directory, and an arranger that
     /// lays out in its room.
     void offer(loom::Mail& mail) {
+        const CellExtent size = medium_.extent();
         (void)mail.as_role(office()).publish(
-            WindowOffered{kTerminalWindow, cols_, rows_, this->state_.epoch});
+            WindowOffered{Medium::kWindow, size.cols, size.rows, this->state_.epoch});
     }
 
     /// An area's room, to its owner: this window, its incarnation, the area's size, and the
@@ -684,7 +578,7 @@ private:
         if (a.owner.empty()) {
             return;
         }
-        AreaRoom r{a.area, kTerminalWindow, this->state_.epoch, a.w, a.h, {}};
+        AreaRoom r{a.area, Medium::kWindow, this->state_.epoch, a.w, a.h, {}};
         for (const Presented& p : a.presented) {
             r.elements.push_back(p.ref);
         }
@@ -707,16 +601,10 @@ private:
         last_refusal_ = why;
     }
 
-    Terminal terminal_;
-    typename WindowBase<Terminal>::Handle pump_;
+    Medium medium_;
+    typename WindowBase<Medium>::Handle pump_;
     Painters painters_;
     ElementCodes codes_;
-    Cache cache_;
-    std::set<CellAt> dirty_;
-    std::int64_t cols_ = kUnmeasuredCols;
-    std::int64_t rows_ = kUnmeasuredRows;
-    std::int64_t showings_ = 0;
-    std::int64_t device_bytes_ = 0;
     std::string last_refusal_;
 };
 

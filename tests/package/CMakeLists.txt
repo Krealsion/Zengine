@@ -35,6 +35,12 @@ target_link_libraries(witness-surfaces
         zengine::source-transfer
         zengine::graphics)
 
+# ---- the graphics package alone -----------------------------------------------------------
+# graphics_consumer.cpp paints for light and reads the terminal's claim from `zengine::graphics`
+# and nothing else: a graphics header that needs Surface or another package stops it compiling.
+add_executable(witness-graphics graphics_consumer.cpp)
+target_link_libraries(witness-graphics PRIVATE zengine::graphics)
+
 # ---- a stranger uses the pane menu, the presenter seam and the list helpers, live ---------
 # pane_menu_consumer.cpp runs the protocol public_surface.cpp only includes, from `zengine::pane`,
 # `zengine::component` and the Loom bus alone, out of tree: a helper the package stopped
@@ -82,7 +88,8 @@ add_dependencies(kitchen-host oven)
 # noun true of every member is `artifact`, and a variable renamed after one surface goes red here.
 foreach(expected zengine-timer zengine-operators-basic zengine-neovim-editor
                  zengine-guest-vocabulary zengine-inventory zengine-graphics
-                 zengine-window-terminal zengine-paint-classic zengine-paint-block)
+                 zengine-window-terminal zengine-paint-classic zengine-paint-block
+                 zengine-paint-day zengine-paint-night)
     if(NOT expected IN_LIST ZENGINE_RUNTIME_ARTIFACTS)
         message(FATAL_ERROR
             "kitchen: '${expected}' is not in ZENGINE_RUNTIME_ARTIFACTS "
@@ -122,5 +129,5 @@ target_link_libraries(witness-message-drafts PRIVATE zengine::message-draft zeng
 # ---- every program here runs in the UTF-8 code page on Windows, as a stranger asks ---------
 # run.cmake refuses a program built without it there, and public_surface.cpp checks the code page
 # it runs in; elsewhere the line does nothing.
-zengine_code_page(witness-surfaces witness-pane-menu witness-pane-settings kitchen-host
-                  flow-author flow-host witness-message-drafts)
+zengine_code_page(witness-surfaces witness-graphics witness-pane-menu witness-pane-settings
+                  kitchen-host flow-author flow-host witness-message-drafts)

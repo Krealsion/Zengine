@@ -174,7 +174,7 @@ own pane through the view host, Workshop seats and draws it, a press reaches it,
 picture that says so"
 
 ### WL-CANVAS-07
-`surface/vocabulary.hpp` kMediumGround
+`graphics/role.hpp` kMediumGround
 `workshop/pane_canvas_rows.hpp` rows_picture
 `workshop/pane_canvas.hpp` canvas_content_problem
 `surface/skin_tui.hpp` canvas_body sgr_for_role sgr_for_cell

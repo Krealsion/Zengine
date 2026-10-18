@@ -26,8 +26,11 @@
 #include "graphics/drawing.hpp"
 #include "graphics/element_export.hpp"
 #include "graphics/elements.hpp"
+#include "graphics/light_paint.hpp"
 #include "graphics/painter_export.hpp"
+#include "graphics/role.hpp"
 #include "graphics/term_paint.hpp"
+#include "graphics/window/terminal_io.hpp"
 
 #include "operator/catalog.hpp"
 #include "operator/host.hpp"
@@ -438,6 +441,22 @@ void graphics_surface() {
     }
     check(top.find("[OK]") != std::string::npos,
           "and the terminal painter's code paints the button's label in its cells");
+
+    std::string label;
+    const gfx::PaintResult lit = gfx::light::paint_task(task, gfx::light::night_look());
+    for (const gfx::NodePaint& painted : lit.nodes) {
+        if (const auto prims = gfx::light::unpack_node(painted.cells)) {
+            for (const gfx::light::TextRun& t : prims->texts) {
+                label += t.text;
+            }
+        }
+    }
+    check(label.find("OK") != std::string::npos,
+          "and the painter for light paints the same label as a run of text in pixels");
+    static_assert(zengine::surface::role::kGuide == gfx::role::kGuide,
+                  "Surface's roles are the graphics vocabulary's");
+    check(gfx::window::tui_leave_sequence(false).find("?1049l") != std::string::npos,
+          "the terminal's claim gives the alternate screen back");
 }
 
 } // namespace
