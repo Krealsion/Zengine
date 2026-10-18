@@ -866,7 +866,7 @@ TEST_CASE("the hotkeys guide's keymap example is a file Workshop reads and appli
     REQUIRE(loaded.outcome.accepted);
     REQUIRE(loaded.keymap.authored.size() == 4);
     CHECK(loaded.keymap.authored[0].action == "desktop.terminal");
-    CHECK(loaded.keymap.authored[0].gesture == "ctrl+q");
+    CHECK(loaded.keymap.authored[0].gesture == "alt+up");
     CHECK(loaded.keymap.authored[3].action == "layout.next");
     CHECK(loaded.keymap.authored[3].gesture == "ctrl+n");
     // COPIED, IT IS APPLIED: the load says so with its count, and its keys answer.
@@ -967,14 +967,15 @@ TEST_CASE("a retired id in a weaver's file is kept and said, and nothing answers
     CHECK(retired_with("object.new") != nullptr);
     CHECK(retired_with("layout.new") == nullptr);
 
-    // ⚠ AND THE HOST DECLARES NO ROW ABOVE EVERY MODE BUT QUIT'S. The two walls a global row
-    // meets at the file -- no bare printable, no chord the text box owns -- apply to the
-    // application's rows when the desktop declares them (`join_app_rows`, witnessed in
-    // `tests/test_workshop_panes_actions.cpp`). A host row declared global again must bring
-    // its own witness for the file's walls, and this line is where it will find out.
+    // ⚠ AND THE HOST DECLARES TWO ROWS ABOVE EVERY MODE: QUIT'S, AND `focus.leave`, the one
+    // global row. The two walls a global row meets at the file -- no bare printable, no chord the
+    // text box owns -- are witnessed for it in `tests/test_workshop_panes_input.cpp`, and for the
+    // application's rows in `tests/test_workshop_panes_actions.cpp` (`join_app_rows`). Another host
+    // row declared global must bring its own witness for the file's walls, and this line is where
+    // it will find out.
     for (const ActionRow& row : kActionCatalog) {
         CAPTURE(row.id);
-        CHECK(row.context != KeyContext::kGlobal);
+        CHECK((row.context != KeyContext::kGlobal || row.act == Act::kFocusLeave));
         CHECK(row.context != KeyContext::kUnlessOwned);
     }
 }

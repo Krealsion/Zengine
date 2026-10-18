@@ -534,7 +534,7 @@ int main(int argc, char** argv) {
         std::ofstream k(held(folder + "/keymap.json"), std::ios::trunc);
         k << R"({"zen":1,"schema":"WorkshopKeymap","version":2,"fields":{)"
           << R"("format":"zengine-workshop-keymap","format_version":"2","legend":"default",)"
-          << R"("overrides":[{"action":"desktop.panes","gesture":"ctrl+q"}]}})";
+          << R"("overrides":[{"action":"desktop.panes","gesture":"alt+up"}]}})";
         made = made && k.good();
     }
 #if defined(_WIN32)
@@ -644,15 +644,15 @@ int main(int argc, char** argv) {
             const std::uint64_t asked = w.ask(input::kInputRole, input::InputSessionRequested{"own"});
             const std::optional<input::InputSessionOpened> session =
                 w.answer<input::InputSessionOpened>(asked);
-            // The legend spells the keymap in force: the chord is pressed once it says Ctrl+Q.
+            // The legend spells the keymap in force: the chord is pressed once it says Alt+Up.
             std::string legend;
             check(until(
                       [&] {
                           legend = look(w);
-                          return legend.find("^q panes") != std::string::npos;
+                          return legend.find("alt+up panes") != std::string::npos;
                       },
                       10000),
-                  "its legend says ^q panes: the keymap in that folder is in force");
+                  "its legend says alt+up panes: the keymap in that folder is in force");
             check(legend.find("Pane Manager @zengine.desktop") == std::string::npos,
                   "...and the Pane Manager is not on the desk yet");
             if (check(session.has_value(), "the Input weave opened a session")) {
@@ -660,18 +660,18 @@ int main(int argc, char** argv) {
                 chord.session = session->session;
                 input::InjectedEvent press;
                 press.kind = "KeyPressed";
-                press.scancode = input::scan::kQ;
-                press.modifiers = input::mod::kCtrl;
+                press.scancode = input::scan::kUp;
+                press.modifiers = input::mod::kAlt;
                 input::InjectedEvent release = press;
                 release.kind = "KeyReleased";
                 chord.events = {press, release};
                 const std::uint64_t pressed = w.ask(input::kInputRole, chord, /*settle=*/true);
                 check(w.answer<input::InputInjected>(pressed).has_value() && w.settled(pressed),
-                      "Ctrl+Q was injected, and all it set in motion dispatched");
+                      "Alt+Up was injected, and all it set in motion dispatched");
                 const std::string seen = look(w);
                 std::ofstream(work + "/own-capture.txt", std::ios::binary | std::ios::trunc) << seen;
                 check(seen.find("Pane Manager @zengine.desktop") != std::string::npos,
-                      "...and Ctrl+Q opens the Pane Manager");
+                      "...and Alt+Up opens the Pane Manager");
                 // Escape puts the Pane Manager down, and `t` hides the titles: a preference,
                 // written under the configuration root in that folder.
                 for (const std::int64_t key : {input::scan::kEscape, input::scan::kT}) {

@@ -1691,7 +1691,8 @@ TEST_CASE("the screen says which pane the keys are going to, in two places") {
               std::string::npos);
         CHECK(lines[0].find("press elsewhere") != std::string::npos);
         CHECK(lines[0].find("q quit") == std::string::npos); // it would be a lie
-        CHECK(lines[1] == "^t terminal | ^p panes | ^k hotkeys"); // the application's
+        // the way out, and the application's
+        CHECK(lines[1] == "^q leave pane | ^t terminal | ^p panes | ^k hotkeys");
         CHECK(lines[1].find("^c") == std::string::npos); // that one would be a lie now too
     }
 
@@ -4050,4 +4051,230 @@ TEST_CASE("Desktop takes every shortcut one provider may switch on, and refuses 
     const PaneShortcutsAnswered over = propose(513);
     CHECK_FALSE(over.accepted);
     CHECK(over.reason == "A provider may propose at most 512 active shortcuts");
+}
+
+// ============================================================================
+// The keyboard alone: a selection moved, a pane entered, and Workshop's keys back
+// ============================================================================
+
+namespace {
+
+/// Two recording panes seated in one column, the first above the second, and nothing selected.
+struct TwoSeats {
+    PaneRig r;
+    ProviderSeat* first = nullptr;
+    ProviderSeat* second = nullptr;
+    std::int64_t a = kNoPaneKind;
+    std::int64_t b = kNoPaneKind;
+
+    TwoSeats() {
+        r.mount_workshop();
+        r.ready();
+        // Tall enough for two slots, as the press case above needs it.
+        r.extent(120, 60);
+        first = r.mount_provider(kHelloOffice);
+        second = r.mount_provider("zengine.other");
+        a = seat_pane_open(r, first, kHelloOffice, kHelloPane);
+        b = seat_pane_open(r, second, "zengine.other", "pane");
+        REQUIRE(is_runtime_kind(a));
+        REQUIRE(is_runtime_kind(b));
+        press_outside(r, b);
+        REQUIRE(r.session().panes.keyboard == kNoPaneKind);
+        r.session().panes.selected = kNoPaneKind;
+        // THE COLUMN, measured: `a` above `b`.
+        const Screen sc = screen_of(r.session());
+        REQUIRE(bounds_of(r.session().panes, r.session().setup.active, a, sc).rect.y <
+                bounds_of(r.session().panes, r.session().setup.active, b, sc).rect.y);
+    }
+
+    std::size_t presses() const { return first->presses.size() + second->presses.size(); }
+    std::size_t keys() const { return first->keys.size() + second->keys.size(); }
+};
+
+} // namespace
+
+TEST_CASE("Tab and the arrows move the keyboard's selection between panes and give none of them "
+          "the keys") {
+    // ⚔ MUTATION: `focus.next` writing the keys as well as the selection -- the next Tab is the
+    // pane's, and the selection stops moving.
+    TwoSeats t;
+    t.r.key(input::scan::kTab);
+    CHECK(t.r.session().panes.selected == t.a);
+    CHECK(t.r.session().panes.keyboard == kNoPaneKind);
+    CHECK(t.r.last_notice().find("selected Seat") == 0);
+    t.r.key(input::scan::kTab);
+    CHECK(t.r.session().panes.selected == t.b);
+    t.r.key(input::scan::kTab); // round to the start
+    CHECK(t.r.session().panes.selected == t.a);
+    t.r.key(input::scan::kTab, input::mod::kShift); // and back
+    CHECK(t.r.session().panes.selected == t.b);
+
+    // THE ARROWS FIND THE NEIGHBOUR, and say so when there is none.
+    t.r.key(input::scan::kUp);
+    CHECK(t.r.session().panes.selected == t.a);
+    t.r.key(input::scan::kDown);
+    CHECK(t.r.session().panes.selected == t.b);
+    t.r.key(input::scan::kDown);
+    CHECK(t.r.session().panes.selected == t.b);
+    CHECK(t.r.last_notice().find("no pane below") == 0);
+
+    // NOTHING CROSSED: no key, no press, and the selection stands in front, as a press's does.
+    CHECK(t.keys() == 0);
+    CHECK(t.presses() == 0);
+    CHECK(t.r.session().panes.keyboard == kNoPaneKind);
+    const std::vector<std::int64_t> order =
+        effective_pane_order(t.r.session().setup.active, t.r.session().panes);
+    REQUIRE_FALSE(order.empty());
+    CHECK(order.back() == t.b);
+}
+
+TEST_CASE("Return gives the selected pane the keys with no press, and a typed key reaches it") {
+    // ⚔ MUTATION: `focus.enter` moving only the selection -- the `a` below is Workshop's, and
+    // opens the contextual surface.
+    TwoSeats t;
+    t.r.key(input::scan::kTab);
+    t.r.key(input::scan::kTab);
+    REQUIRE(t.r.session().panes.selected == t.b);
+    t.r.key(input::scan::kReturn);
+    CHECK(t.r.session().panes.keyboard == t.b);
+    CHECK(t.r.session().panes.selected == t.b);
+    CHECK(keyboard_pane(t.r.session().panes) == t.b);
+    // ARRIVING IS NOT AN ACT IN THE PANE (WL-FOCUS-04): no press crossed, so nothing in it was
+    // activated, and the Return that entered it did not cross either.
+    CHECK(t.presses() == 0);
+    CHECK(t.keys() == 0);
+    CHECK(t.r.last_notice().find("typing goes to Seat") == 0);
+
+    t.r.key(input::scan::kA);
+    t.r.text("a");
+    CHECK_FALSE(t.r.session().context.open);
+    REQUIRE(t.second->keys.size() == 1);
+    CHECK(t.second->keys[0].scancode == input::scan::kA);
+    REQUIRE(t.second->typed.size() == 1);
+    CHECK(t.second->typed[0].text == "a");
+    CHECK(t.first->keys.empty());
+
+    // FROM NOTHING SELECTED, Return enters the first pane in reading order.
+    TwoSeats cold;
+    cold.r.key(input::scan::kReturn);
+    CHECK(cold.r.session().panes.keyboard == cold.a);
+    CHECK(cold.presses() == 0);
+}
+
+TEST_CASE("ctrl+q gives Workshop the keys back from a pane that keeps Escape, and the pane stays "
+          "selected") {
+    // ⚔ MUTATION: no `focus.leave` arm -- the chord crosses to the pane like any other key, and
+    // the keys stay there.
+    TwoSeats t;
+    press_body(t.r, t.a);
+    REQUIRE(t.r.session().panes.keyboard == t.a);
+    // THE TRAP: the pane takes Escape and never says it went unspent, so Escape leaves nothing.
+    t.r.key(input::scan::kEscape);
+    REQUIRE(t.first->keys.size() == 1);
+    REQUIRE(t.r.session().panes.keyboard == t.a);
+
+    t.r.key(input::scan::kQ, input::mod::kCtrl);
+    CHECK(t.r.session().panes.keyboard == kNoPaneKind);
+    CHECK(t.r.session().panes.selected == t.a);
+    CHECK(t.first->keys.size() == 1); // the chord was Workshop's, not the pane's
+    CHECK(t.r.last_notice() == "Workshop has the keys -- left Seat");
+
+    // ...SO COMMAND MODE'S KEYS ARE BACK, and the pane is one Return away.
+    t.r.key(input::scan::kDown);
+    CHECK(t.r.session().panes.selected == t.b);
+    t.r.key(input::scan::kUp);
+    t.r.key(input::scan::kReturn);
+    CHECK(t.r.session().panes.keyboard == t.a);
+
+    // ...AND WITH WORKSHOP HOLDING THEM ALREADY, the chord says so and moves nothing.
+    t.r.key(input::scan::kQ, input::mod::kCtrl);
+    t.r.key(input::scan::kQ, input::mod::kCtrl);
+    CHECK(t.r.last_notice() == "Workshop already has the keys");
+    CHECK(t.r.session().panes.selected == t.a);
+    CHECK_FALSE(t.r.host.quit);
+}
+
+TEST_CASE("ctrl+q leaves every Workshop mode over a pane, and the pane with them") {
+    // ⚔ MUTATION: `focus.leave` returning the pane's keys alone -- the arrangement, the menu and
+    // the name editor stay open over the desk.
+    TwoSeats t;
+    press_body(t.r, t.a);
+    REQUIRE(t.r.session().panes.keyboard == t.a);
+    const ui::Rect head = external_body_rect(t.r.session(), t.a);
+    t.r.right_press_cell(head.x + 1, head.y);
+    REQUIRE(t.r.session().context.open);
+    t.r.key(input::scan::kQ, input::mod::kCtrl);
+    CHECK_FALSE(t.r.session().context.open);
+    CHECK(t.r.session().panes.keyboard == kNoPaneKind);
+
+    t.r.key(input::scan::kW);
+    t.r.text("w");
+    REQUIRE(t.r.session().arrange.open);
+    t.r.key(input::scan::kQ, input::mod::kCtrl);
+    CHECK_FALSE(t.r.session().arrange.open);
+    CHECK(t.r.last_notice() == "Workshop has the keys");
+
+    open_rename_on_live_tab(t.r);
+    REQUIRE(t.r.session().setup.naming.open);
+    t.r.key(input::scan::kQ, input::mod::kCtrl);
+    CHECK_FALSE(t.r.session().setup.naming.open);
+    CHECK(t.keys() == 0);
+}
+
+TEST_CASE("the focus actions move with a weaver's keymap, and focus.leave's chord stands clear of "
+          "every shipped row") {
+    // ⚔ MUTATION: `focus.leave` declared in command mode -- a pane's row on its chord is admitted,
+    // and the chord is the pane's while it holds the keys.
+    Keymap k;
+    const Written moved = apply_overrides({{"focus.next", "n"},
+                                           {"focus.left", "h"},
+                                           {"focus.down", "j"},
+                                           {"focus.up", "k"},
+                                           {"focus.right", "l"},
+                                           {"focus.enter", "i"},
+                                           {"focus.leave", "ctrl+shift+l"}},
+                                          legend_mode::kDefault, k);
+    REQUIRE_MESSAGE(moved.accepted, moved.refusal);
+    CHECK(k.action_for(KeyContext::kCommand, input::scan::kN, input::mod::kNone) ==
+          Act::kFocusNext);
+    CHECK(k.action_for(KeyContext::kCommand, input::scan::kTab, input::mod::kNone) == Act::kNone);
+    CHECK(k.action_for(KeyContext::kCommand, input::scan::kI, input::mod::kNone) ==
+          Act::kFocusEnter);
+    CHECK(k.above_mode_action(KeyContext::kPane, input::scan::kL,
+                              input::mod::kCtrl | input::mod::kShift) == Act::kFocusLeave);
+
+    // A GLOBAL ROW MEETS EVERY TEXT FIELD, so the file's walls are its walls.
+    Keymap refused;
+    CHECK_FALSE(apply_overrides({{"focus.leave", "x"}}, legend_mode::kDefault, refused).accepted);
+    CHECK_FALSE(
+        apply_overrides({{"focus.leave", "ctrl+a"}}, legend_mode::kDefault, refused).accepted);
+    const Written met = apply_overrides({{"focus.leave", "ctrl+w"}}, legend_mode::kDefault, refused);
+    CHECK_FALSE(met.accepted);
+    CHECK(met.refusal.find("layout.remove") != std::string::npos);
+
+    // THE DEFAULT CHORD, AGAINST EVERY ACTION A SHIPPED PANE DECLARES (the action census).
+    const Gesture leave = Keymap{}.gesture_of(Act::kFocusLeave);
+    std::size_t read = 0;
+    for (const std::string& line : census_pinned()) {
+        std::istringstream in(line);
+        std::string office, mode, id, key;
+        in >> office >> mode >> id >> key;
+        if (key == "unbound") {
+            continue;
+        }
+        const ParsedGesture g = parse_gesture(key);
+        REQUIRE_MESSAGE(g.accepted, line);
+        CHECK_MESSAGE(!(g.gesture == leave), line);
+        ++read;
+    }
+    CHECK(read > 100);
+
+    // ...AND A PANE DECLARING IT IS REFUSED, NAMING THE ROW IT MET; moved, the pane's row joins.
+    Keymap fresh;
+    const std::vector<v3::PaneActionRow> row{
+        v3::PaneActionRow{"probe.go", "go", input::scan::kQ, input::mod::kCtrl, "", {}, {}}};
+    const Written joined = join_pane_rows(fresh, kFirstRuntimeKind, row);
+    CHECK_FALSE(joined.accepted);
+    CHECK(joined.refusal.find("focus.leave") != std::string::npos);
+    CHECK(join_pane_rows(k, kFirstRuntimeKind, row).accepted);
 }

@@ -54,7 +54,7 @@ WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 LAW — A pane that closes, stops resolving or loses its room stops being the answer with nothing to clear, and comes back with its keyboard; the two pointings that write none are pointings.
 
 MEANS
-- a press on nothing, and Escape's final fallthrough, say "nowhere" — not a clearing path.
+- a press on nothing, Escape's final fallthrough, a moved selection and `focus.leave` say "nowhere" — not a clearing path.
 
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
@@ -107,6 +107,27 @@ MEANS
 
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
+## WL-FOCUS-12 — The keyboard's selection moves, and only entering points the keys
+
+LAW — In command mode `focus.next`/`previous` walk the selectable panes in reading order, wrapping, and the arrows take `spatial_neighbour`; a move writes the selection, never the keys.
+
+MEANS
+- selectable: open, takes the keys, on the canvas; reading order is top, then left, then front;
+- the neighbour is past the edge, else the centre: gap plus twice the misalignment, a tie in front;
+- `focus.enter` sends no press (WL-FOCUS-04); the selection wears `[` `]` corners, or rings where edges are finer.
+
+WHY — `agents/decisions/the-keyboard-reaches-a-pane.md`
+
+## WL-FOCUS-13 — `focus.leave` gives Workshop the keys from anywhere
+
+LAW — `focus.leave` is the host's one global row, answered above every mode and pane: it closes a menu, the arrangement and the name editor, and writes the keys nowhere, the pane left still selected.
+
+MEANS
+- no pane may declare its chord (WL-KEY-15), and a weaver's file meets the global walls (WL-KEY-08);
+- with nothing to leave, it says Workshop already has the keys.
+
+WHY — `agents/decisions/the-keyboard-reaches-a-pane.md`
+
 ## Do not assume
 
 - That hiding pane titles can hide where typing goes — the keyboard's pane wears its title and
@@ -114,6 +135,8 @@ WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 - That the pane the keys point at is where an ordinary key goes — a mode above it takes the
   key, and a press there is reported "not here" (WL-FOCUS-04, WL-FOCUS-10).
 - That a focused pane above a live draft has its own witness — it does not (WL-FOCUS-06).
+- That Escape always leaves a pane — a pane may keep it in a mode of its own; `focus.leave` is
+  the way out no pane keeps (WL-FOCUS-13).
 
 ## Proven by
 
@@ -238,3 +261,28 @@ room at once and the press is lost, in a window and in a terminal, titled or not
 the canvas pane that has the keys keeps its room while launches take its title row away and give it
 back, and its title is drawn again once it has the keys again" "a held press a menu takes ends its
 canvas pane's wait in that same repaint: the room under the title and its rows are granted at once"
+
+### WL-FOCUS-12
+`workshop/keymap.hpp` focus.next focus.previous focus.left focus.right focus.up focus.down
+focus.enter
+`workshop/screen.hpp` selectable_panes cycle_pane spatial_neighbour paint_selection_ring
+`workshop/screen_arrange.cpp` selectable_panes cycle_pane spatial_neighbour
+`workshop/screen_compose.cpp` paint_selection_ring paint_panes workshop_window_drawing
+`workshop/weave_input.cpp` command
+`tests/test_workshop_screen.cpp` "the keyboard's selection walks the open panes in reading order,
+whatever order they were authored in, and wraps both ways" "a direction selects the neighbour past
+the selected pane's edge, and nothing past the desk's" "misalignment across the direction counts
+twice the gap along it" "two neighbours scored alike go to the one in front" "a pane overlapping the
+selected one is reached past its centre" "command mode marks the selected pane, with brackets where
+text is a cell and rings where an edge is finer, and the pane the keys are in wears none"
+`tests/test_workshop_panes_input.cpp` "Tab and the arrows move the keyboard's selection between
+panes and give none of them the keys" "Return gives the selected pane the keys with no press, and a
+typed key reaches it"
+
+### WL-FOCUS-13
+`workshop/keymap.hpp` focus.leave KeyContext::kGlobal Keymap::above_mode_action
+`workshop/weave_handlers.cpp` on(KeyPressed)
+`tests/test_workshop_panes_input.cpp` "ctrl+q gives Workshop the keys back from a pane that keeps
+Escape, and the pane stays selected" "ctrl+q leaves every Workshop mode over a pane, and the pane
+with them" "the focus actions move with a weaver's keymap, and focus.leave's chord stands clear of
+every shipped row"

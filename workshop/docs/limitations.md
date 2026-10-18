@@ -301,9 +301,9 @@ list says beside it.
 
 **`Esc` from a pane that types is the pane's until it has nothing left.** The Terminal sheds its
 list, then its line, then itself. Both editors keep every `Esc` — the standard Editor's does
-nothing by design, Neovim's is Neovim's — so the way out of those is a press elsewhere, which the
-keyboard band names while they hold the keys. A pane that takes no keys at all is put down by `Esc`
-directly.
+nothing by design, Neovim's is Neovim's — so the way out of those is `Ctrl`+`q` or a press
+elsewhere, which the keyboard band names while they hold the keys. A pane that takes no keys at all
+is put down by `Esc` directly.
 
 ### A pane asks for some answers, and an answer can arrive after you have moved on
 

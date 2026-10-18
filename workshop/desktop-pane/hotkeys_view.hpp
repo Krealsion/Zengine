@@ -417,7 +417,7 @@ public:
         if (!keymap_.word.empty()) {
             footer.push_back("  " + drawable(keymap_.word));
         }
-        footer.push_back("or write {\"action\": \"<id>\", \"gesture\": \"ctrl+q\"} in the file; "
+        footer.push_back("or write {\"action\": \"<id>\", \"gesture\": \"alt+up\"} in the file; "
                          "\"none\" disables; read at launch");
         std::int64_t budget = room_rows - 1 - (typing_.active ? 1 : 0);
         // AS MANY FOOTER ROWS AS THE ROOM ALLOWS while three list rows stay -- the notice first,

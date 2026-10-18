@@ -111,6 +111,7 @@ enum class Act : std::uint8_t {
     kNone = 0,
     // -- above every mode -------------------------------------------------------------
     kQuit,
+    kFocusLeave,
     // -- command mode ------------------------------------------------------------------
     kSetupSave,
     kSetupRestore,
@@ -127,6 +128,13 @@ enum class Act : std::uint8_t {
     kBandKeys,
     kHotkeysKeys,
     kEditCode,
+    kFocusNext,
+    kFocusPrevious,
+    kFocusLeft,
+    kFocusRight,
+    kFocusUp,
+    kFocusDown,
+    kFocusEnter,
     // -- the setup-name editor's controls ----------------------------------------------
     kNamingCommit,
     kNamingCancel,
@@ -189,6 +197,9 @@ inline constexpr ActionRow kActionCatalog[] = {
     {Act::kQuit, "workshop.quit", "quit", KeyContext::kNoText, {scan::kC, mod::kCtrl}},
     // `ctrl+c` is both the copy chord and the quit chord, told apart by whether the keys go to
     // text: the whole of the `kNoText` class.
+    // The keys back to Workshop from any pane or mode, whatever the pane keeps Escape for: the one
+    // host row of the `kGlobal` class, so no pane may declare its chord (WL-KEY-15).
+    {Act::kFocusLeave, "focus.leave", "leave pane", KeyContext::kGlobal, {scan::kQ, mod::kCtrl}},
     // -- command mode ------------------------------------------------------------------
     {Act::kQuit, "workshop.quit", "quit", KeyContext::kCommand, {scan::kQ, mod::kNone}},
     // The id is the old `setup.name`, kept for the weaver's file: `s` saves the live layout's desk
@@ -236,6 +247,18 @@ inline constexpr ActionRow kActionCatalog[] = {
     {Act::kBandKeys, "workshop.band-keys", "band key spelling", KeyContext::kCommand, kNoGesture},
     {Act::kHotkeysKeys, "workshop.hotkeys-keys", "Hotkeys key spelling", KeyContext::kCommand,
      kNoGesture},
+    // ...and the keyboard's way to a pane: a selection moved in reading order or by direction,
+    // and entered. Moving it gives no pane the keys; only `focus.enter` does.
+    {Act::kFocusNext, "focus.next", "next pane", KeyContext::kCommand, {scan::kTab, mod::kNone}},
+    {Act::kFocusPrevious, "focus.previous", "previous pane", KeyContext::kCommand,
+     {scan::kTab, mod::kShift}},
+    {Act::kFocusLeft, "focus.left", "pane left", KeyContext::kCommand, {scan::kLeft, mod::kNone}},
+    {Act::kFocusRight, "focus.right", "pane right", KeyContext::kCommand,
+     {scan::kRight, mod::kNone}},
+    {Act::kFocusUp, "focus.up", "pane up", KeyContext::kCommand, {scan::kUp, mod::kNone}},
+    {Act::kFocusDown, "focus.down", "pane down", KeyContext::kCommand, {scan::kDown, mod::kNone}},
+    {Act::kFocusEnter, "focus.enter", "enter pane", KeyContext::kCommand,
+     {scan::kReturn, mod::kNone}},
     // -- the layout-name editor's controls ---------------------------------------------
     // The ids are the old ones (`naming.commit` still finishes it); the editor now renames the
     // layout and writes nothing.
