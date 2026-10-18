@@ -59,7 +59,7 @@ import re
 import time
 
 from act import painted, rows_by_place, words_now
-from hand import Hand
+from hand import Hand, SETTLE_SECONDS, no_settled_picture, rows_of
 from loom_session.tool import Refused
 from workshop_steps import chord_moments, moment
 
@@ -148,24 +148,56 @@ def press(ctx, hand, chord):
     return hand.inject(chord_moments(ctx, chord))
 
 
+#: How a press on the Builder fails when its picture is not yet aimed at within the seconds.
+UNSETTLED = "the Builder held no settled picture within %gs"
+
+
+def pressing(ctx, hand):
+    """The Builder's rows, as `painted` reads them, once its picture takes a press (`hand.pressing`,
+    within SETTLE_SECONDS): a pane Workshop does not describe -- closed, covered or drawing no row
+    -- fails the run, and so does one whose picture did not settle or take a press in time."""
+    try:
+        view = rows_of(hand.pressing(*BUILDER, SETTLE_SECONDS))
+    except Refused as refused:
+        ctx.check(not no_settled_picture(refused), UNSETTLED % SETTLE_SECONDS)
+        view = None
+    except ValueError as taken:
+        ctx.fail(str(taken))
+    ctx.check(view and view["rows"],
+              "Workshop does not describe the Builder pane; open it where nothing covers it")
+    return view
+
+
+def aimed(ctx, hand, read, aim, what):
+    """`(reading, point)` on the Builder, as `hand.aimed` aims within SETTLE_SECONDS: a picture that
+    moved since the reading, or is not yet aimed at, is read and aimed again. Past POINT_TRIES moves
+    the run fails naming `what`, past the seconds saying the picture did not settle; any other
+    refusal is raised. Nothing is pressed either way."""
+    try:
+        return hand.aimed(*BUILDER, read, aim, what, SETTLE_SECONDS)
+    except ValueError:
+        ctx.fail("the Builder kept redrawing while its %s was read" % what)
+    except Refused as refused:
+        ctx.check(not no_settled_picture(refused), UNSETTLED % SETTLE_SECONDS)
+        raise
+
+
 def calm(ctx, hand):
     """The Builder's own rows: close its output reader, its recipe list or a role line first, the
     keys brought by a press on its first word -- at its first character, or a blank word's own
-    point -- and then Escape."""
-    for _ in range(4):
-        view = painted(hand, *BUILDER)
-        rows = [r["text"] for r in view["rows"]] if view else []
-        ctx.check(rows, "Workshop does not describe the Builder pane; open it where nothing covers it")
+    point -- and then Escape. The press is aimed at the picture it was read from (`aimed`), so a
+    picture that moved or was not yet aimed at is read again without spending an Escape."""
+    def aim(view):
+        rows = [r["text"] for r in view["rows"]]
         if rows[0].startswith("BUILDER") or (len(rows) > 1 and rows[1].startswith("BUILDER")):
-            return rows
+            return None
         first = view["rows"][0]
-        try:
-            at = first if not first["text"] else hand.word_point(*BUILDER, first["row"], 0,
-                                                                 view["picture"])
-        except Refused as refused:
-            if "picture moved" not in str(refused):
-                raise
-            continue  # the pane redrew between the reading and the point: read it again
+        return first if not first["text"] else hand.word_point(*BUILDER, first["row"], 0,
+                                                               view["picture"])
+    for _ in range(4):
+        view, at = aimed(ctx, hand, lambda: pressing(ctx, hand), aim, "first word")
+        if at is None:
+            return [r["text"] for r in view["rows"]]
         hand.inject([moment(ctx, "PointerButton", button=1, pressed=p, x=at["x"], y=at["y"],
                             space=at["space"]) for p in (True, False)])
         press(ctx, hand, "escape")
@@ -174,18 +206,17 @@ def calm(ctx, hand):
 
 def keys_into(ctx, hand):
     """The keys to the Builder: a press on its header's first character, which means nothing
-    more. A pane that redrew between the reading and the point is read again."""
-    for _ in range(3):
-        view = painted(hand, *BUILDER)
-        row = [r for r in view["rows"] if r["text"].startswith("BUILDER")][0]
-        try:
-            at = hand.word_point(*BUILDER, row["row"], 0, view["picture"])
-            break
-        except Refused as refused:
-            if "picture moved" not in str(refused):
-                raise
-    else:
-        ctx.fail("the Builder kept redrawing while its header was read")
+    more, aimed at the picture it was read from (`aimed`)."""
+    def read():
+        view = pressing(ctx, hand)
+        header = [r for r in view["rows"] if r["text"].startswith("BUILDER")]
+        ctx.check(header, "the Builder shows no header to press (it reads %r)"
+                  % [r["text"] for r in view["rows"][:2]])
+        return view, header[0]
+    def aim(reading):
+        view, row = reading
+        return hand.word_point(*BUILDER, row["row"], 0, view["picture"])
+    _, at = aimed(ctx, hand, read, aim, "header")
     hand.inject([moment(ctx, "PointerButton", button=1, pressed=p, x=at["x"], y=at["y"],
                         space=at["space"]) for p in (True, False)])
 
