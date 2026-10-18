@@ -106,9 +106,11 @@ struct Stage {
         // plan in tier 6 on purpose.
         put("zengine-operators-basic", PROVIDER_BASIC_SO);
         put("zengine-timer", TIMER_SO);
-        // The window plan's two medium rows: the graphics directory and the terminal window.
+        // The window plan's two medium rows, the graphics directory and the terminal window, and
+        // the input weave after them.
         put("zengine-graphics", GRAPHICS_SO);
         put("zengine-window-terminal", WINDOW_TERMINAL_SO);
+        put("zengine-input", INPUT_SO);
         put("zengine-provider-min", PROVIDER_MIN_SO);
         put("zengine-plain-weave", PLAIN_WEAVE_SO);
 #ifdef EDITOR_PANE_SO
@@ -1279,23 +1281,30 @@ TEST_CASE("the graphical plan differs from the default in exactly the two medium
     CHECK(different == 2);
 }
 
-TEST_CASE("the window plan differs from the default in exactly the two medium rows, and they "
-          "realize") {
+TEST_CASE("the window plan puts the two medium rows where the default's skin stands, and they "
+          "realize beside the input weave") {
     const load_persist::LoadedPlan tui = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
     const load_persist::LoadedPlan win = load_persist::from_text(file_text(WORKSHOP_WINDOW_PLAN));
     REQUIRE(tui.outcome.accepted);
     REQUIRE_MESSAGE(win.outcome.accepted, win.outcome.refusal);
-    REQUIRE(win.plan.artifacts.size() == tui.plan.artifacts.size());
+    REQUIRE(win.plan.artifacts.size() == tui.plan.artifacts.size() + 1);
     CHECK(win.plan.choices == tui.plan.choices);
-    for (std::size_t i = 0; i < tui.plan.artifacts.size(); ++i) {
-        if (i != 2 && i != 3) {
-            CAPTURE(tui.plan.artifacts[i].stem);
-            CHECK(win.plan.artifacts[i] == tui.plan.artifacts[i]);
-        }
+    CHECK(win.plan.artifacts[0] == tui.plan.artifacts[0]);
+    CHECK(win.plan.artifacts[1] == tui.plan.artifacts[1]);
+    // ...and every row from the default's input weave on, one row later: the reader that serves
+    // input sessions stays, and so does every pane.
+    for (std::size_t i = 3; i < tui.plan.artifacts.size(); ++i) {
+        CAPTURE(tui.plan.artifacts[i].stem);
+        CHECK(win.plan.artifacts[i + 1] == tui.plan.artifacts[i]);
     }
+    REQUIRE(win.plan.artifacts[4].weave.has_value());
+    CHECK(win.plan.artifacts[4].stem == "zengine-input");
+    CHECK(win.plan.artifacts[4].weave->role == "zengine.input");
+    REQUIRE(win.plan.artifacts[5].weave.has_value());
+    CHECK(win.plan.artifacts[5].weave->role == tmr::kTimerRole);
 
-    // THE MEDIUM'S TWO ROWS: the directory where the skin stood and the window where the reader
-    // stood, each a required weave in the office its own code answers to, and neither a provider.
+    // THE MEDIUM'S TWO ROWS: the directory and the window where the skin stood, each a required
+    // weave in the office its own code answers to, and neither a provider.
     const load::ArtifactIntent& directory = win.plan.artifacts[2];
     const load::ArtifactIntent& window = win.plan.artifacts[3];
     CHECK(directory.stem == "zengine-graphics");
@@ -1311,27 +1320,88 @@ TEST_CASE("the window plan differs from the default in exactly the two medium ro
     CHECK_FALSE(window.optional);
 
     // ...AND THEY REALIZE AS THE PLAN NAMES THEM, between the basic provider before them and the
-    // Timer after them whose beat the window reads its terminal on: two weaves loaded, at their
-    // offices, by the real Kernel from the staged artifacts.
+    // input weave and the Timer after them, whose beat the window reads its terminal on: four
+    // weaves loaded, at their offices, by the real Kernel from the staged artifacts.
     PlanRig rig;
     const load::Executed done = rig.realize(plan_of(
-        {win.plan.artifacts[0], directory, window, win.plan.artifacts[4]}));
+        {win.plan.artifacts[0], directory, window, win.plan.artifacts[4], win.plan.artifacts[5]}));
     REQUIRE_MESSAGE(done.ok, done.refusal);
-    REQUIRE(done.resolved.size() == 4);
-    for (std::size_t i : {std::size_t{1}, std::size_t{2}}) {
+    REQUIRE(done.resolved.size() == 5);
+    for (std::size_t i : {std::size_t{1}, std::size_t{2}, std::size_t{3}, std::size_t{4}}) {
         const load::ResolvedArtifact& row = done.resolved[i];
         CAPTURE(row.stem);
         CHECK(row.weave_loaded);
         CHECK(row.weave.value != 0);
-        CHECK_FALSE(row.provider_mounted);
         CHECK(rig.kernel.is_loaded(row.stem));
+    }
+    for (std::size_t i : {std::size_t{1}, std::size_t{2}, std::size_t{3}}) {
+        CAPTURE(done.resolved[i].stem);
+        CHECK_FALSE(done.resolved[i].provider_mounted);
     }
     CHECK(done.resolved[1].stem == "zengine-graphics");
     CHECK(done.resolved[1].role == "zengine.graphics");
     CHECK(done.resolved[2].stem == "zengine-window-terminal");
     CHECK(done.resolved[2].role == "zengine.window.terminal");
-    CHECK(done.resolved[3].weave_loaded);
-    CHECK(done.resolved[3].role == tmr::kTimerRole);
+    CHECK(done.resolved[3].stem == "zengine-input");
+    CHECK(done.resolved[3].role == "zengine.input");
+    CHECK(done.resolved[4].stem == "zengine-timer");
+    CHECK(done.resolved[4].role == tmr::kTimerRole);
+}
+
+TEST_CASE("a settled project's medium holds the terminal only when a terminal medium loaded on a "
+          "measured terminal and nothing refused") {
+    const auto loaded = [](const char* stem, const std::string& role) {
+        load::ResolvedArtifact row;
+        row.stem = stem;
+        row.weave_loaded = true;
+        row.role = role;
+        return row;
+    };
+    const auto settled = [&loaded](load::ResolvedArtifact medium) {
+        load::Executed done;
+        done.ok = true;
+        done.resolved.push_back(loaded("zengine-timer", tmr::kTimerRole));
+        done.resolved.push_back(std::move(medium));
+        return done;
+    };
+    const std::string window =
+        std::string(zengine::graphics::kWindowOfficePrefix) + zengine::graphics::kTerminalWindow;
+    const std::string skin = zengine::surface::kSkinRole;
+
+    // THE THREE MEDIA THAT TAKE THE TERMINAL: the terminal window and both terminal Skins.
+    for (const load::ResolvedArtifact& medium :
+         {loaded("zengine-window-terminal", window), loaded("zengine-skin-tui-classic", skin),
+          loaded("zengine-skin-tui-block", skin)}) {
+        CAPTURE(medium.stem);
+        const load::Executed done = settled(medium);
+        CHECK(load::medium_holds_terminal(done, true));
+        // ...and none of them holds a standard output that is no terminal: a file, a pipe.
+        CHECK_FALSE(load::medium_holds_terminal(done, false));
+    }
+
+    // A REFUSED STARTUP is said in full, whatever holds the terminal: the host is leaving.
+    load::Executed refused = settled(loaded("zengine-window-terminal", window));
+    refused.ok = false;
+    refused.refusal = "artifact 'zengine-timer': weave load refused: open failed";
+    CHECK_FALSE(load::medium_holds_terminal(refused, true));
+
+    // THE SDL SKIN paints a window of its own and leaves the terminal it was started from alone.
+    CHECK_FALSE(load::medium_holds_terminal(settled(loaded("zengine-skin-sdl", skin)), true));
+
+    // A ROW THAT RUNS NO WEAVE holds nothing: a medium switched away or never loaded.
+    load::ResolvedArtifact gone = loaded("zengine-window-terminal", window);
+    gone.weave_loaded = false;
+    CHECK_FALSE(load::medium_holds_terminal(settled(gone), true));
+    load::ResolvedArtifact unloaded_skin = loaded("zengine-skin-tui-classic", skin);
+    unloaded_skin.weave_loaded = false;
+    CHECK_FALSE(load::medium_holds_terminal(settled(unloaded_skin), true));
+
+    // ...nor does a terminal-sounding stem in another office, or a project with no medium at all.
+    CHECK_FALSE(load::medium_holds_terminal(
+        settled(loaded("zengine-skin-tui-classic", "zengine.input")), true));
+    load::Executed bare;
+    bare.ok = true;
+    CHECK_FALSE(load::medium_holds_terminal(bare, true));
 }
 
 // =============================================================================

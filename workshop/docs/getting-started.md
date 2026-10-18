@@ -109,6 +109,12 @@ zengine-workshop - recipe: skin-tui-block -> .../zengine-skin-tui-block.so
 - **a tool that is not here** — `zengine-workshop - unavailable: ...`, with the refusing layer's
   own sentence, for a pane the plan could not load. Workshop runs without it: see below.
 
+Once the plan has run, Workshop prints the arrangement it made — each artifact `loaded:`, each
+tool `unavailable:` — when standard output is not a terminal held by a terminal skin or the
+terminal window. On a terminal desk those lines would scroll the picture, so the
+[`Project` pane](../../introspection/docs/zengine.introspection.md#arrangement) shows the live
+arrangement instead.
+
 ## The screen
 
 ```text
@@ -138,7 +144,7 @@ half.
 **Info** is a loadable weave that arrives with its own artifact, not something Workshop
 compiles in. Your desk names it, so it is there on a first run, in a fixed place at the right
 edge. Every pane in the shipped plan is **optional**: if your build tree is missing
-`zengine-info-pane.so`, Workshop still starts, prints which artifact it could not load, lists
+`zengine-info-pane.so`, Workshop still starts, says which artifact it could not load, lists
 Info as `[gone]` in the Pane Manager, names it on Workshop's own condition row and keeps the fact
 in Attention for the whole run. (While the run is still loading a tool, its row reads `[load]`:
 on its way, not missing.) Build

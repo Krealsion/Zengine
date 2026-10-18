@@ -22,8 +22,11 @@ That is why there is no `--skin` flag and no `--input` flag. Those two were the 
 replaced, and the replacement is not cosmetic: a plan is repeatable, diffable and durable, so
 "the graphical Workshop" is another **shipped file** rather than a second code path.
 
-Workshop prints the whole executed arrangement on the way up, so what a run is actually made of
-is on your screen rather than inferred from which flags you passed.
+Workshop prints the whole executed arrangement on the way up when its standard output is not a
+terminal that a terminal skin or the terminal window holds, and on a terminal desk the
+[`Project` pane](../../introspection/docs/zengine.introspection.md#arrangement) shows the live
+arrangement, so what a run is actually made of is on your screen rather than inferred from which
+flags you passed.
 
 **Workshop *begins* your project and then runs normally while it comes up.** Mounting a provider
 finishes where it stands; loading a weave is a request whose answer comes back a few moments
@@ -45,17 +48,22 @@ one that draws your screen.
 | [`workshop/window-load-plan.json`](../window-load-plan.json) | Workshop in the terminal window: the desk drawn through the graphics directory |
 | [`workshop/graphical-load-plan.json`](../graphical-load-plan.json) | the windowed Workshop, staged only where both SDL artifacts were built |
 
-Each differs from the default in exactly the medium's two rows, the third and the fourth:
+The graphical plan differs from the default in exactly the medium's two rows, the third and the
+fourth. The window plan replaces the default's skin row, the third, with two rows, and every row
+from the default's fourth on follows them, one row later:
 
 | row | default | window | graphical |
 |---|---|---|---|
 | third | `zengine-skin-tui-classic`, as `zengine.skin` | `zengine-graphics`, as `zengine.graphics` | `zengine-skin-sdl`, as `zengine.skin` |
 | fourth | `zengine-input`, as `zengine.input` | `zengine-window-terminal`, as `zengine.window.terminal` | `zengine-input-sdl`, as `zengine.input` |
+| fifth | `zengine-timer`, as `zengine.timer` | `zengine-input`, as `zengine.input` | `zengine-timer`, as `zengine.timer` |
 
 In the window plan the [graphics directory](../../graphics/docs/zengine.graphics.md) introduces
 each pane's area and Workshop's own to the [terminal window](../../graphics/docs/zengine.window.terminal.md),
 which takes the process's terminal, shows what each one draws and sends the terminal's keys to their
-owners; no skin and no input weave is loaded.
+owners; no skin is loaded. [`zengine-input`](../../input/docs/zengine.input.md) follows them and
+serves input sessions, a guest's or a session tool's keys, while the terminal window holds the
+process's terminal.
 
 Everything else is identical, and Workshop's own code is identical under all three. Every plan also
 carries `zengine-operators-basic` (a provider only), `zengine-timer` (a provider **and** a
