@@ -5670,16 +5670,21 @@ struct PlacedDesk {
 
 constexpr std::int64_t kCell = surface::kCanvasCellPx;
 
-/// How many nodes of a window's drawing stand in the selection's group.
-std::size_t window_selection_nodes(const Session& s) {
+/// The rectangles a window's drawing outlines in the selection's group.
+std::vector<PixelRect> window_selection_rings(const Session& s) {
+    namespace gfx = zengine::graphics;
     const WorkshopWindowDrawing drawn = workshop_window_drawing(s, {}, {});
-    std::size_t n = 0;
+    std::vector<PixelRect> out;
     for (const auto& node : drawn.sketch.nodes()) {
-        if (node.path.find("/selection/") != std::string::npos) {
-            ++n;
+        if (node.path.find("/selection/") == std::string::npos) {
+            continue;
         }
+        REQUIRE(node.op == gfx::op::kRect);
+        const auto r = gfx::from_body<gfx::RectArgs>(node.args);
+        REQUIRE(r.has_value());
+        out.push_back(PixelRect{r->x, r->y, r->w, r->h});
     }
-    return n;
+    return out;
 }
 
 } // namespace
@@ -5792,7 +5797,8 @@ TEST_CASE("a pane overlapping the selected one is reached past its centre") {
     CHECK(d.toward(0, Act::kFocusLeft) == -1);
 }
 
-TEST_CASE("command mode marks the selected pane's corners, and the pane the keys are in wears none") {
+TEST_CASE("command mode marks the selected pane, at its corners on a canvas and with rings in a "
+          "window, and the pane the keys are in wears none") {
     // ⚔ MUTATION: no ring -- the selected pane looks as it does with the keys in it, but for the
     // two-character mark.
     PlacedDesk d({PixelRect{0, 0, 30 * kCell, 10 * kCell},
@@ -5831,7 +5837,16 @@ TEST_CASE("command mode marks the selected pane's corners, and the pane the keys
         }
     }
     CHECK(brackets == 4);
-    CHECK(window_selection_nodes(d.s) == 4);
+    // IN A WINDOW, TWO RINGS JUST OUTSIDE THE EDGE: a corner cell there would stand on the header's
+    // words, so nothing is drawn inside the pane.
+    const std::vector<PixelRect> rings = window_selection_rings(d.s);
+    REQUIRE(rings.size() == 2);
+    for (const PixelRect& r : rings) {
+        CHECK(r.x < b.x);
+        CHECK(r.y < b.y);
+        CHECK(r.x + r.w > b.x + b.w);
+        CHECK(r.y + r.h > b.y + b.h);
+    }
 
     // THE KEYS IN THE PANE: its `> ` mark says so, and no ring is drawn.
     ExternalPane* pane = d.s.panes.external_pane(d.kinds[1]);
@@ -5842,5 +5857,5 @@ TEST_CASE("command mode marks the selected pane's corners, and the pane the keys
     surface::SurfaceLayer held;
     paint_selection_ring(held, d.s, sc);
     CHECK(held.labels.empty());
-    CHECK(window_selection_nodes(d.s) == 0);
+    CHECK(window_selection_rings(d.s).empty());
 }

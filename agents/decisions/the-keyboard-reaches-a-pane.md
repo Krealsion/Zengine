@@ -10,9 +10,10 @@ kept the keys until one: no keyboard path into a pane, and a trap out of some (W
 `focus.previous` walk the panes in reading order, wrapping; the arrows take the nearest pane past
 the selected one's edge, past its centre where panes overlap, scored by the gap along the direction
 plus twice the misalignment across it, a tie the front-most. The selected pane wears bracketed
-corners. Only `focus.enter` points the keys, and it sends no press. `focus.leave` is the one host
-row of the global class: it closes any mode and gives Workshop the keys, the pane left still
-selected. Its default chord is `ctrl+q`.
+corners, and in a window two rings outside its edge, where a corner cell would stand on its words.
+Only `focus.enter` points the keys, and it sends no press. `focus.leave` is the one host row of the
+global class: it closes any mode and gives Workshop the keys, the pane left still selected. Its
+default chord is `ctrl+q`.
 
 **Alternatives tried.**
 - *`ctrl+g` for `focus.leave`* — refused: Info's `info.value.grab` and Flow's `ask-generate`
