@@ -196,8 +196,9 @@ publishing zeroes: "I have no opinion" and "there is no room" are different sent
 *offer*: a publisher that ignores it keeps publishing whatever extent it likes and the skin clips,
 which is the contract `SurfaceCanvas` already states.
 
-How big a terminal is, the one question here put to an operating system, is
-`surface/terminal_size.hpp`'s: `ioctl(TIOCGWINSZ)` on POSIX, `GetConsoleScreenBufferInfo`'s
+How big a terminal is, the one question here put to an operating system, is the terminal window's
+(`graphics/window/terminal_io.hpp`), which `surface/terminal_size.hpp` spells for Surface:
+`ioctl(TIOCGWINSZ)` on POSIX, `GetConsoleScreenBufferInfo`'s
 **visible window** on Windows (never `dwSize`, which is the 9,001-row scrollback buffer). A
 redirected, piped or captured run has no terminal at the far end, and measures nothing.
 

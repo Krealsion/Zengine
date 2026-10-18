@@ -10,7 +10,7 @@
 // which code the window loads turns into nodes. The directory stays off that path.
 // Reference: graphics/docs/graphics.md.
 
-#include "surface/vocabulary.hpp"
+#include "graphics/role.hpp"
 
 #include <zen/value.hpp>
 #include <zen/weave/shape.hpp>
@@ -22,9 +22,6 @@
 
 namespace zengine::graphics {
 
-/// The theme's roles are Surface's: a colour is named by its role, or given exactly beside one.
-namespace role = zengine::surface::role;
-
 /// The directory's role: which windows exist, which areas each shows, who draws in each, which
 /// skin paints it and which code presents each element type.
 inline constexpr const char* kGraphicsRole = "zengine.graphics";
@@ -32,6 +29,8 @@ inline constexpr const char* kGraphicsRole = "zengine.graphics";
 inline constexpr const char* kWindowOfficePrefix = "zengine.window.";
 /// The terminal window's name: one terminal to a process, so one terminal window.
 inline constexpr const char* kTerminalWindow = "terminal";
+/// The OS window's name: a window of light on the desktop, drawn through SDL.
+inline constexpr const char* kSdlWindow = "sdl";
 
 /// The bounds one area keeps in its window. A drawing past any of them is refused whole, in words
 /// sent to its drawer.
