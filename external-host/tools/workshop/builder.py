@@ -222,9 +222,13 @@ def keys_into(ctx, hand):
 
 
 def choose(ctx, hand, recipe):
+    """The Builder's `recipe` row once it names `recipe`, its catalog cycled with C until it does.
+    Each reading waits for a picture that takes a press (`pressing`), on entry and after every C:
+    a closed or covered Builder, or one that does not settle, fails the run, and a recipe the
+    catalog does not hold fails it naming the ones it offered."""
     seen = []
     for _ in range(64):
-        now = labelled(view_rows(hand)).get("recipe", "")
+        now = labelled([r["text"] for r in pressing(ctx, hand)["rows"]]).get("recipe", "")
         if now.startswith(recipe + " ->"):
             return now
         ctx.check(now not in seen, "the catalog holds no recipe %r (it offered %s)" % (recipe, seen))

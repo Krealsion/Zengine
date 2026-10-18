@@ -51,8 +51,8 @@ import time
 
 from loom_session.tool import LinkOutcome, NotAnswered, Refused
 
-from act import act as act_step, painted, GESTURES, VERBS
-from hand import Hand, no_settled_picture
+from act import act as act_step, GESTURES, VERBS
+from hand import Hand, Notices, SETTLE_SECONDS, no_settled_picture, rows_of
 from workshop_steps import chord_moments, moment, picture, png_of
 
 FINISHED, ATTENTION, INCONCLUSIVE = "finished", "needs-attention", "inconclusive"
@@ -83,6 +83,7 @@ class Monitor(object):
         # A pause after each gesture, so a person can watch; the owner's words decide as before.
         self.pace = max(0, int(ctx.inputs.get("pace_ms", 0) or 0)) / 1000.0
         self.hand = None
+        self.asker = None    # reads panes for a run holding no input session (`_Asker`)
         self.sub = None
         self.kept, self.let_go = [], 0
         self.state = {}      # the newest observation of each `latest` shape
@@ -102,6 +103,11 @@ class Monitor(object):
         self.record["phases"].setdefault(name, self.now())
         self.ctx.step(name)
 
+    def _left(self):
+        """How long a reading may wait for a pane's picture to settle: SETTLE_SECONDS, within the
+        deadline."""
+        return max(0.0, min(SETTLE_SECONDS, self.deadline - time.monotonic()))
+
     # ---- the application: acting as a weaver does --------------------------------------------
 
     def _hand(self):
@@ -109,15 +115,27 @@ class Monitor(object):
             self.hand = Hand(self.ctx, self.link)
         return self.hand
 
+    def _asker(self):
+        if self.asker is None:
+            self.asker = _Asker(self)
+        return self.asker
+
     def release_keys(self):
-        """Give Workshop's input session back now. A link that is gone cannot be asked --
-        Workshop's door closes a lost guest's session itself -- so a failure here is written down,
-        and the run's cleanup, which tries again, records what it could do."""
+        """Give Workshop's input session back now, and stop following Workshop's notices for the
+        panes read without it. A link that is gone cannot be asked -- Workshop's door closes a lost
+        guest's session itself -- so a failure here is written down, and the run's cleanup, which
+        tries again, records what it could do."""
         if self.hand is not None and self.hand.open:
             try:
                 self.hand.close()
             except Exception as err:
                 self.record["input_session"] = "not given back from here: %s: %s" % (
+                    type(err).__name__, str(err).splitlines()[0])
+        if self.asker is not None:
+            try:
+                self.asker.close()
+            except Exception as err:
+                self.record["notices"] = "not released from here: %s: %s" % (
                     type(err).__name__, str(err).splitlines()[0])
 
     def act(self, steps):
@@ -151,14 +169,12 @@ class Monitor(object):
         is one whose picture takes no press yet (`hand.pressing`) or is not yet aimed at, within
         the deadline: past it, the monitor cannot tell."""
         hand = self._hand()
-        def left():
-            return max(0.0, min(10.0, self.deadline - time.monotonic()))
         def unsettled(refused):
             return Inconclusive("%s/%s held no settled picture to press its cell %d,%d at: %s"
                                 % (provider, pane, row, column, refused))
         def read():
             try:
-                return hand.pressing(provider, pane, left())
+                return hand.pressing(provider, pane, self._left())
             except Refused as refused:
                 if no_settled_picture(refused):
                     raise unsettled(refused)
@@ -168,7 +184,8 @@ class Monitor(object):
         def aim(view):
             return hand.point(provider, pane, row, column, view["picture"])
         try:
-            _, at = hand.aimed(provider, pane, read, aim, "cell %d,%d" % (row, column), left())
+            _, at = hand.aimed(provider, pane, read, aim, "cell %d,%d" % (row, column),
+                               self._left())
         except ValueError:
             self.ctx.fail("%s/%s kept redrawing while its cell %d,%d was read"
                           % (provider, pane, row, column))
@@ -188,11 +205,21 @@ class Monitor(object):
         return {"frame": captured["frame"], "format": captured["format"]}
 
     def rows(self, provider, pane, name):
-        view = painted(self._hand() if self.hand is not None and self.hand.open else _Asker(self),
-                       provider, pane)
+        """The rows `provider/pane` shows, kept as ``<name>.json`` with the pane and the picture
+        they were read from. A picture that takes no press yet, or is not yet aimed at, is read
+        again at Workshop's notice (`hand.pressing`), for at most SETTLE_SECONDS within the
+        deadline -- through this run's input session while it holds one, else without one
+        (`_Asker`). A pane Workshop does not describe, or one still unsettled or taking no press
+        when that ends, keeps no rows: None."""
+        reader = self.hand if self.hand is not None and self.hand.open else self._asker()
+        try:
+            view = rows_of(reader.pressing(provider, pane, self._left()))
+        except (Refused, ValueError):
+            view = None
         rows = [r["text"] for r in view["rows"]] if view else None
-        self.ctx.produce(name + ".json", json.dumps({"picture": view["picture"] if view else None,
-                                                     "rows": rows}, indent=1).encode())
+        self.ctx.produce(name + ".json", json.dumps({
+            "provider": provider, "pane": pane, "picture": view["picture"] if view else None,
+            "rows": rows}, indent=1).encode())
         return rows
 
     # ---- the owner's words --------------------------------------------------------------------
@@ -387,11 +414,17 @@ class Monitor(object):
 
 
 class _Asker(object):
-    """Pane views asked without an input session (a watching monitor holds none)."""
+    """Pane views asked without an input session, as a watching monitor holds none: the hand's own
+    reading (`Hand.words`, `Hand.pressing`) and its waits at Workshop's notice that the desk moved
+    (`Notices`, which claims nothing), and none of its gestures. Its notices are released with the
+    monitor's keys, and in the run's cleanup."""
+    ask, words, pressing = Hand.ask, Hand.words, Hand.pressing
+    wait, last_view = Hand.wait, Hand.last_view
 
     def __init__(self, m):
-        self.m = m
+        self.ctx, self.link, self.unsettled = m.ctx, m.link, False
+        self.notices = Notices(m.ctx, m.link)
+        m.ctx.on_cleanup(self.close, "release a watching monitor's notices")
 
-    def words(self, provider, pane):
-        return self.m.ctx.ask("zengine.workshop", "PaneViewRequested",
-                              {"provider": provider, "pane": pane}, via=self.m.link, version=3)
+    def close(self):
+        self.notices.close()
