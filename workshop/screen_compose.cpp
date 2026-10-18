@@ -57,20 +57,31 @@ void paint_panes(surface::SurfaceCanvas& c, const Session& s, const Screen& sc) 
     });
 }
 
-// WL-FOCUS-12 -- agents/workshop/focus.md
-void paint_selection_ring(surface::SurfaceLayer& layer, const Session& s, const Screen& sc) {
+namespace {
+
+/// The selected pane's rectangle while command mode has the keys, or empty: what the selection's
+/// ring is drawn around, on the canvas and in a window alike.
+PixelRect selection_ring_rect(const Session& s, const Screen& sc) {
     if (keyboard_context(s) != KeyContext::kCommand) {
-        return;
+        return PixelRect{};
     }
     const std::int64_t kind = selected_pane(s.panes);
     if (kind == kNoPaneKind || !kind_takes_keyboard(kind)) {
-        return;
+        return PixelRect{};
     }
-    const PixelRect b = bounds_of(s.panes, s.setup.active, kind, sc).rect;
+    return bounds_of(s.panes, s.setup.active, kind, sc).rect;
+}
+
+} // namespace
+
+// WL-FOCUS-12 -- agents/workshop/focus.md
+void paint_selection_ring(surface::SurfaceLayer& layer, const Session& s, const Screen& sc) {
+    const PixelRect b = selection_ring_rect(s, sc);
     if (b.empty()) {
         return;
     }
-    // Brackets, which neither a role's fill nor an arrangement handle draws.
+    // Brackets on the frame's corner cells, which neither a role's fill nor an arrangement handle
+    // draws.
     static constexpr std::pair<std::int64_t, const char*> kCorners[] = {
         {pane_edge::kTopLeft, "["},
         {pane_edge::kTopRight, "]"},
@@ -446,12 +457,20 @@ WorkshopWindowDrawing workshop_window_drawing(const Session& s,
         paint_pane_affordances(layer, s, sc);
         draw_plane(out.sketch, desk + "/rings", layer, sc);
     }
-    {
-        // ...and the keyboard's selection, where command mode has one.
-        surface::SurfaceLayer layer;
-        paint_selection_ring(layer, s, sc);
-        if (!layer.labels.empty()) {
-            draw_plane(out.sketch, desk + "/selection", layer, sc);
+    // ...AND THE KEYBOARD'S SELECTION, where command mode has one: in a window a pane's edge is a
+    // device unit wide, so a corner cell would stand on its header's words; two rings just outside
+    // the edge mark it instead, clipped to the canvas.
+    if (const PixelRect b = selection_ring_rect(s, sc); !b.empty()) {
+        const std::string group = desk + "/selection";
+        out.sketch.group(group, 0, 0);
+        const std::int64_t grain = chrome_grain(sc);
+        for (std::int64_t ring = 1; ring <= 2; ++ring) {
+            const std::int64_t x0 = (std::max)(std::int64_t{0}, b.x - ring * grain);
+            const std::int64_t y0 = (std::max)(std::int64_t{0}, b.y - ring * grain);
+            const std::int64_t x1 = (std::min)(sc.w, b.x + b.w + ring * grain);
+            const std::int64_t y1 = (std::min)(sc.h, b.y + b.h + ring * grain);
+            out.sketch.outline_rect(group + "/ring" + std::to_string(ring), x0, y0, x1 - x0,
+                                    y1 - y0, graphics::by_role(surface::role::kAccent));
         }
     }
     if (s.context.open) {
