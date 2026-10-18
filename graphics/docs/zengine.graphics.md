@@ -115,10 +115,10 @@ from the window's own office, and `RoomAsked` only from the area's owner.
 
 ### `WindowOffered`
 
-`WindowOffered` v1, from a window as its own office, `zengine.window.<name>`, on each activation
-and after `GraphicsReady`: its name, its size in cells and its incarnation. The directory keeps
-it, then tells the window every element code and introduces each of its areas. A `WindowOffered`
-from any other office is ignored.
+`WindowOffered` v1, from a window as its own office, `zengine.window.<name>`, on each activation,
+after `GraphicsReady`, and on a resize: its name, its size in cells and its incarnation. The
+directory keeps it, then tells the window every element code and introduces each of its areas. A
+`WindowOffered` from any other office is ignored.
 
 ## Follow
 

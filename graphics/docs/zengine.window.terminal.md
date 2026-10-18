@@ -57,6 +57,10 @@ to its drawer (`DrawnRefused`), leaving what the window shows as it was. The bou
 `kMaxPathDepth`, `kMaxArgsBytes`, and `kMaxAreas` areas a window. A record said again at its own
 path counts as itself, so an area at its bound still takes a change.
 
+A host may load [`zengine-input`](../../input/docs/zengine.input.md) beside it: while the window
+is loaded it claims the process's terminal input, so `zengine-input` serves input sessions without
+reading the terminal.
+
 ## Commands
 
 ### `Drawn`
