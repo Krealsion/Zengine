@@ -14,6 +14,7 @@
 
 #include "census.hpp"
 #include "neovim_environment.hpp"
+#include "pane_window.hpp"
 
 #include "workshop/desktop-pane/vocabulary.hpp"
 #include "editor/editor-pane/editor.hpp"
@@ -869,6 +870,49 @@ inline SecondPane second_pane(EditorRig& e) {
 }
 
 TEST_CASE("the Editor is an ordinary arranged pane, offered by an office") {
+    SUBCASE("a graphics window that shows the office's area shows an Editor Workshop seats "
+            "nowhere, composed for the window's room, and Workshop is told none of it") {
+        namespace gfx = zengine::graphics;
+        namespace pw = zengine::testing::pane_window;
+        const char* area = pane::kEditorPaneRole;
+        std::size_t to_workshop = 0; // outlives the rig, whose bus the tap is on
+        EditorRig u("edit-offer-window");
+        const loom::ObserverId tap = u.r.bus.add_observer([&](const loom::BusEvent& ev) {
+            if (ev.authored_role == area && ev.kind == loom::EventKind::Delivered &&
+                (ev.schema_name == v4::PaneContent::zen_name ||
+                 ev.schema_name == v5::PaneCanvasContent::zen_name ||
+                 ev.schema_name == v2::PaneCaret::zen_name)) {
+                ++to_workshop;
+            }
+        });
+        pw::PaneDirectory* directory = pw::mount_directory(u.r.bus);
+        u.open(160, 48, /*pick_it=*/false);
+        REQUIRE_FALSE(u.r.session().panes.has(u.kind));
+        CHECK(directory->times(area, area) == 1);
+        pw::Window window(u.r.bus);
+        window.room(area, area, 30, 6);
+        REQUIRE(window.weave().heard.size() == 1);
+        const gfx::Drawn& first = window.weave().heard[0];
+        CHECK(first.whole);
+        CHECK(window.weave().refusals.empty());
+        // COMPOSED FOR THE WINDOW'S THIRTY COLUMNS, not Workshop's room: the status row says its
+        // words cut to them.
+        const std::vector<std::string> rows = window.rows(area);
+        REQUIRE(rows.size() == 1);
+        CHECK(rows[0].rfind("no source open", 0) == 0);
+        std::size_t said = 0;
+        for (const gfx::Node& n : first.put) {
+            if (n.op != gfx::op::kText) continue;
+            const std::optional<gfx::TextArgs> text = gfx::from_body<gfx::TextArgs>(n.args);
+            REQUIRE(text.has_value());
+            CHECK(text->text.size() <= 30);
+            ++said;
+        }
+        CHECK(said > 0);
+        CHECK(window.actions(area) == std::set<std::string>{"status"});
+        CHECK(to_workshop == 0);
+        u.r.bus.remove_observer(tap);
+    }
     // The Editor's row arrives the way every loaded pane's does: an offer from an office,
     // admitted into the runtime catalog, launched, seated in the stack.
     EditorRig e("edit-offer");
@@ -1648,6 +1692,127 @@ TEST_CASE("printable text edits the source, and command letters stop being comma
 }
 
 TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by its number, wherever the window stands") {
+    SUBCASE("a graphics window that shows the office's area is drawn the rows Workshop is told, "
+            "named alike: whole first, then what changed; a press on a line there puts the caret "
+            "on it; a refused change is followed once by the whole, a refused whole by nothing "
+            "until the rows change") {
+        namespace gfx = zengine::graphics;
+        namespace pw = zengine::testing::pane_window;
+        const char* area = pane::kEditorPaneRole;
+        EditorRig w("edit-names-window");
+        pw::PaneDirectory* directory = pw::mount_directory(w.r.bus);
+        w.open();
+        // THE ROOM IS ASKED ONCE, on the activation, as the office.
+        CHECK(directory->times(area, area) == 1);
+        (void)w.open_file("w.cpp", "one\ntwo\nthree\n");
+        pw::Window window(w.r.bus);
+        pw::PaneWindow& seen = window.weave();
+        const auto kept = [&](const std::string& path) -> const gfx::Node* {
+            const gfx::window::WinArea* a = seen.find(area);
+            for (std::size_t i = 0; a != nullptr && i < a->nodes.size(); ++i) {
+                if (a->nodes[i].node.path == path) return &a->nodes[i].node;
+            }
+            return nullptr;
+        };
+        window.room(area, area, 40, 10);
+        REQUIRE(seen.heard.size() == 1);
+        CHECK(seen.heard[0].whole);
+        CHECK(seen.refusals.empty());
+        std::vector<std::string> rows = window.rows(area);
+        REQUIRE(rows.size() >= static_cast<std::size_t>(w.chrome() + 3));
+        std::string said;
+        for (const std::string& row : rows) said += row + "|";
+        for (const std::string& a : window.actions(area)) said += " [" + a + "]";
+        INFO(said);
+        CHECK(rows[0].rfind("saved L1:C1/4", 0) == 0); // the line after the last newline counts
+        CHECK(rows[static_cast<std::size_t>(w.chrome())] == "one");
+        CHECK(rows[static_cast<std::size_t>(w.chrome() + 2)] == "three");
+        CHECK(window.actions(area) ==
+              std::set<std::string>{"status", "line:1", "line:2", "line:3", "line:4"});
+
+        // A CHANGE IS DRAWN AS WHAT CHANGED.
+        std::size_t mark = seen.heard.size();
+        w.press_doc(0, 0);
+        w.type("x");
+        REQUIRE(seen.heard.size() > mark);
+        CHECK_FALSE(seen.heard.back().whole);
+        CHECK(window.rows(area)[static_cast<std::size_t>(w.chrome())] == "xone");
+
+        // THE SELECTION STANDS IN ITS ROW IN THE ACCENT ROLE, asking what its line asks.
+        w.press_doc(1, 0);
+        w.key(input::scan::kRight, input::mod::kShift);
+        w.key(input::scan::kRight, input::mod::kShift);
+        const std::int64_t second = w.chrome() + 1;
+        const gfx::Node* selected = kept("sel" + std::to_string(second) + ".0");
+        REQUIRE(selected != nullptr);
+        const std::optional<gfx::TextArgs> words = gfx::from_body<gfx::TextArgs>(selected->args);
+        REQUIRE(words.has_value());
+        CHECK(words->text == "tw");
+        CHECK(words->ink.role == surface::role::kAccent);
+        CHECK(window.action_at(area, 0, second) == "line:2");
+        CHECK(window.rows(area)[static_cast<std::size_t>(second)] == "two");
+
+        // A PRESS ON A LINE IN THE WINDOW PUTS THE CARET ON IT, as a press there in Workshop does;
+        // the caret is drawn there, a bar asking what the line asks, and no selection stays.
+        mark = seen.heard.size();
+        REQUIRE(window.press(area, "line:3"));
+        CHECK(w.read("caret_row") == "2");
+        CHECK(w.read("caret_byte") == "0");
+        REQUIRE(seen.heard.size() == mark + 1);
+        CHECK_FALSE(seen.heard.back().whole);
+        const std::int64_t third = w.chrome() + 2;
+        const gfx::Node* caret = kept("caret");
+        REQUIRE(caret != nullptr);
+        CHECK(caret->op == gfx::op::kLine);
+        const std::optional<gfx::LineArgs> bar = gfx::from_body<gfx::LineArgs>(caret->args);
+        REQUIRE(bar.has_value());
+        CHECK(bar->x1 == 0);
+        CHECK(bar->y1 == third * gfx::kCellPx);
+        CHECK(kept("sel" + std::to_string(second) + ".0") == nullptr);
+        CHECK(window.action_at(area, 0, third) == "line:3");
+        // ...AND IT LEAVES NO SWEEP ARMED: the press still held in Workshop's canvas moves, and
+        // selects nothing from where the window pressed.
+        w.motion_doc(2, 3);
+        CHECK(w.read("anchor_row") == "2");
+        CHECK(w.read("anchor_byte") == "0");
+        CHECK(w.read("caret_byte") == "0");
+
+        // A REFUSED CHANGE IS FOLLOWED AT ONCE BY THE WHOLE...
+        seen.refuse_next = true;
+        mark = seen.heard.size();
+        w.type("y");
+        REQUIRE(seen.heard.size() == mark + 2);
+        CHECK_FALSE(seen.heard[mark].whole);
+        CHECK(seen.heard[mark + 1].whole);
+        CHECK(seen.refusals.size() == 1);
+        CHECK(window.rows(area)[static_cast<std::size_t>(w.chrome() + 2)] == "ythree");
+
+        // ...AND A REFUSED WHOLE BY NOTHING, until the rows change.
+        seen.refuse_next = true;
+        mark = seen.heard.size();
+        window.room(area, area, 40, 10, 2); // the window started again, holding nothing
+        REQUIRE(seen.heard.size() == mark + 1);
+        CHECK(seen.heard[mark].whole);
+        CHECK(seen.refusals.size() == 2);
+        w.press_doc(2, 1); // where the caret already stands: the rows do not change
+        CHECK(seen.heard.size() == mark + 1);
+        w.type("z");
+        REQUIRE(seen.heard.size() == mark + 2);
+        CHECK(seen.heard.back().whole);
+        CHECK(seen.refusals.size() == 2);
+        CHECK(window.rows(area)[static_cast<std::size_t>(w.chrome() + 2)] == "yzthree");
+
+        // A ROOM OR A PRESS ANYONE BUT THE WINDOW SAYS IS NOTHING.
+        mark = seen.heard.size();
+        w.r.publish(loom::to_value(gfx::AreaRoom{area, "elsewhere", 1, 480, 120, {}}));
+        w.r.publish(loom::to_value(gfx::ActionRequested{area, "line:1"}));
+        CHECK(seen.heard.size() == mark);
+        CHECK(w.read("caret_row") == "2");
+        w.type("q"); // ...and the window that shows the area is still the one drawn
+        REQUIRE(seen.heard.size() == mark + 1);
+        CHECK_FALSE(seen.heard.back().whole);
+        CHECK(seen.strangers == 0);
+    }
     EditorRig e("edit-names");
     e.open();
     std::string text;

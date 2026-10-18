@@ -16,6 +16,7 @@
 
 #include "editor/neovim-editor/vocabulary.hpp"
 #include "neovim_environment.hpp"
+#include "pane_window.hpp"
 #include "editor/neovim/child.hpp"
 #include "timer/vocabulary.hpp"
 
@@ -312,6 +313,77 @@ TEST_CASE("the Neovim editor holding the office under a profile it refuses says 
 }
 
 TEST_CASE("WL-HAND-06: the Neovim editor names its own status row, and nothing of Neovim's screen") {
+    SUBCASE("a graphics window that shows the office's area is drawn the rows Workshop is told, "
+            "naming only the status row: whole first, then what changed; a press there moves "
+            "nothing; a refused change is followed once by the whole, a refused whole by nothing "
+            "until the rows change") {
+        namespace gfx = zengine::graphics;
+        namespace pw = zengine::testing::pane_window;
+        const char* area = nve::kEditorOffice;
+        SwitchRig w("nvim-names-window");
+        NeovimEnvironment env(w.root, (w.root / "no-such-dir" / "nvim").string());
+        pw::PaneDirectory* directory = nullptr;
+        w.before_plan = [&] { directory = pw::mount_directory(w.r.bus); };
+        w.open(standard_and_neovim(), nve::kNeovimEditorStem);
+        REQUIRE(directory != nullptr);
+        // THE ROOM IS ASKED ONCE, on the holder's activation, as the office.
+        CHECK(directory->times(area, area) == 1);
+        // A NOTICE THE PANE SAYS, as a refused beat makes one: each reason a change of its rows.
+        const auto refuse_beat = [&w](const std::string& why) {
+            (void)w.r.bus.send(w.holder(), loom::Message(loom::to_value(zengine::timer::TimerResolution{
+                                                             "zengine.neovim-editor.beat",
+                                                             zengine::timer::kResolutionRefused, why}),
+                                                         loom::WeaveId{}, loom::WeaveId{}, 0));
+            w.r.bus.drain_until_idle();
+        };
+        pw::Window window(w.r.bus);
+        pw::PaneWindow& seen = window.weave();
+        window.room(area, area, 60, 8);
+        REQUIRE(seen.heard.size() == 1);
+        CHECK(seen.heard[0].whole);
+        CHECK(seen.refusals.empty());
+        REQUIRE_FALSE(window.rows(area).empty());
+        CHECK(w.status().rfind(window.rows(area)[0], 0) == 0);
+        CHECK(window.actions(area) == std::set<std::string>{"status"});
+
+        // A PRESS ON THE STATUS ROW IS A FOCUS STATEMENT, AND MOVES NOTHING.
+        std::size_t mark = seen.heard.size();
+        CHECK(window.press(area, "status"));
+        CHECK(seen.heard.size() == mark);
+        CHECK(w.read("running") == "false");
+
+        // A CHANGE IS DRAWN AS WHAT CHANGED.
+        refuse_beat("first");
+        REQUIRE(seen.heard.size() == mark + 1);
+        CHECK_FALSE(seen.heard.back().whole);
+        CHECK(window.rows(area)[0].find("(first)") != std::string::npos);
+
+        // A REFUSED CHANGE IS FOLLOWED AT ONCE BY THE WHOLE...
+        seen.refuse_next = true;
+        mark = seen.heard.size();
+        refuse_beat("second");
+        REQUIRE(seen.heard.size() == mark + 2);
+        CHECK_FALSE(seen.heard[mark].whole);
+        CHECK(seen.heard[mark + 1].whole);
+        CHECK(seen.refusals.size() == 1);
+        CHECK(window.rows(area)[0].find("(second)") != std::string::npos);
+
+        // ...AND A REFUSED WHOLE BY NOTHING, until the rows change.
+        seen.refuse_next = true;
+        mark = seen.heard.size();
+        window.room(area, area, 60, 8, 2); // the window started again, holding nothing
+        REQUIRE(seen.heard.size() == mark + 1);
+        CHECK(seen.heard[mark].whole);
+        CHECK(seen.refusals.size() == 2);
+        refuse_beat("second"); // said again: the rows do not change
+        CHECK(seen.heard.size() == mark + 1);
+        refuse_beat("third");
+        REQUIRE(seen.heard.size() == mark + 2);
+        CHECK(seen.heard.back().whole);
+        CHECK(seen.refusals.size() == 2);
+        CHECK(window.rows(area)[0].find("(third)") != std::string::npos);
+        CHECK(seen.strangers == 0);
+    }
     SwitchRig s("nvim-names");
     NeovimEnvironment env(s.root, (s.root / "no-such-dir" / "nvim").string());
     s.open(standard_and_neovim(), nve::kNeovimEditorStem);

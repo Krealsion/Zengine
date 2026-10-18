@@ -13,6 +13,7 @@
 #include "workshop_switch_rig.hpp"
 
 #include "office_manual.hpp"
+#include "pane_window.hpp"
 
 #include "manuals/zengine.editor-switch.hpp"
 
@@ -28,6 +29,56 @@ inline std::vector<load::ChoiceIntent> standard_and_twin() {
 TEST_SUITE("workshop_editor_switch") {
 
 TEST_CASE("a switch between two authored Editors carries the document, its unsaved edits and its caret, and moves the office") {
+    SUBCASE("the successor asks for the graphics window's room once it holds the office, and is "
+            "drawn the carried document there whole") {
+        namespace gfx = zengine::graphics;
+        namespace pw = zengine::testing::pane_window;
+        const char* area = pane::kEditorPaneRole;
+        struct Asked {
+            loom::WeaveId sender;
+            loom::EventKind kind;
+        };
+        std::vector<Asked> asked; // outlives the rig, whose bus the tap is on
+        SwitchRig w("switch-carry-window");
+        const loom::ObserverId tap = w.r.bus.add_observer([&](const loom::BusEvent& ev) {
+            if (ev.schema_name == gfx::RoomAsked::zen_name &&
+                (ev.kind == loom::EventKind::Delivered || ev.kind == loom::EventKind::Refused)) {
+                asked.push_back(Asked{ev.sender, ev.kind});
+            }
+        });
+        pw::PaneDirectory* directory = nullptr;
+        w.before_plan = [&] { directory = pw::mount_directory(w.r.bus); };
+        w.open(standard_and_twin());
+        const loom::WeaveId first = w.holder();
+        pw::Window window(w.r.bus);
+        window.room(area, area, 40, 10);
+        (void)w.open_file("carry.cpp", "int one;\nint two;\n");
+        w.press_doc(1, 4);
+        w.type("X");
+        const EditorSwitchAnswered away = w.switch_to("twin");
+        REQUIRE_MESSAGE(away.outcome == switch_outcome::kSwitched, away.detail);
+        const loom::WeaveId second = w.holder();
+        REQUIRE_FALSE(second == first);
+        // EACH HOLDER ASKED ONCE, AS THE OFFICE IT HELD: the successor, once its admission had
+        // activated it, and never while it was sealed.
+        REQUIRE(asked.size() == 2);
+        CHECK(asked[0].sender == first);
+        CHECK(asked[1].sender == second);
+        CHECK(asked[1].kind == loom::EventKind::Delivered);
+        REQUIRE(directory != nullptr);
+        CHECK(directory->times(area, area) == 2);
+        // THE WINDOW, TOLD THE ROOM AGAIN as the directory passes the ask on, is drawn the carried
+        // document whole, by the successor.
+        const std::size_t mark = window.weave().heard.size();
+        window.room(area, area, 40, 10);
+        REQUIRE(window.weave().heard.size() == mark + 1);
+        CHECK(window.weave().heard.back().whole);
+        const std::vector<std::string> rows = window.rows(area);
+        CHECK(std::find(rows.begin(), rows.end(), "int Xtwo;") != rows.end());
+        CHECK(window.weave().refusals.empty());
+        CHECK(window.weave().strangers == 0);
+        w.r.bus.remove_observer(tap);
+    }
     SwitchRig s("switch-carry");
     s.open(standard_and_twin());
     const loom::WeaveId first = s.holder();
@@ -174,6 +225,54 @@ TEST_CASE("a destination that refuses the document leaves the incumbent editing,
 }
 
 TEST_CASE("a switch waiting on a silent candidate is pending, published, refuses a second switch, and cancels cleanly") {
+    SUBCASE("the sealed candidate asks no graphics window for a room and draws in none while it "
+            "warms; the incumbent keeps drawing") {
+        namespace gfx = zengine::graphics;
+        namespace pw = zengine::testing::pane_window;
+        const char* area = pane::kEditorPaneRole;
+        std::vector<loom::WeaveId> askers; // outlive the rig, whose bus the tap is on
+        std::size_t drawers = 0;
+        loom::WeaveId first{};
+        SwitchRig w("switch-silent-window");
+        std::vector<load::ChoiceIntent> choices = standard_and_twin();
+        choices.push_back(load::ChoiceIntent{pane::kEditorPaneRole, "silent", "zengine-editor-pane-silent"});
+        const loom::ObserverId tap = w.r.bus.add_observer([&](const loom::BusEvent& ev) {
+            if (ev.kind != loom::EventKind::Delivered && ev.kind != loom::EventKind::Refused) return;
+            if (ev.schema_name == gfx::RoomAsked::zen_name) askers.push_back(ev.sender);
+            if (ev.schema_name == gfx::Drawn::zen_name && !(ev.sender == first)) ++drawers;
+        });
+        w.before_plan = [&] { (void)pw::mount_directory(w.r.bus); };
+        w.open(choices);
+        first = w.holder();
+        REQUIRE(askers.size() == 1);
+        CHECK(askers[0] == first);
+        pw::Window window(w.r.bus);
+        window.room(area, area, 40, 10);
+        (void)w.open_file("wait.cpp", "wait\n");
+        w.enqueue([](SwitchAsker&, loom::Mail& mail) {
+            (void)mail.as_role(kSwitchAskerOffice).send_to_role(kEditorSwitchRole, EditorSwitchRequested{"silent"});
+        });
+        w.r.bus.drain_until_idle();
+        REQUIRE(w.switcher->stage() == EditorSwitchCoordinator::Stage::Warming);
+        REQUIRE(w.r.kernel.is_loaded("zengine-editor-pane-silent"));
+        const std::size_t mark = window.weave().heard.size();
+        w.press_doc(0, 0);
+        w.type("w");
+        CHECK(window.weave().heard.size() > mark);
+        const std::vector<std::string> rows = window.rows(area);
+        CHECK(std::find(rows.begin(), rows.end(), "wwait") != rows.end());
+        CHECK(askers.size() == 1);
+        CHECK(drawers == 0);
+        CHECK(window.weave().strangers == 0);
+        const std::int64_t op = w.switcher->op();
+        w.enqueue([op](SwitchAsker&, loom::Mail& mail) {
+            (void)mail.as_role(kSwitchAskerOffice).send_to_role(kEditorSwitchRole, EditorSwitchCancelled{op});
+        });
+        w.r.bus.drain_until_idle();
+        CHECK_FALSE(w.r.kernel.is_loaded("zengine-editor-pane-silent"));
+        CHECK(askers.size() == 1);
+        w.r.bus.remove_observer(tap);
+    }
     SwitchRig s("switch-silent");
     std::vector<load::ChoiceIntent> choices = standard_and_twin();
     choices.push_back(load::ChoiceIntent{pane::kEditorPaneRole, "silent", "zengine-editor-pane-silent"});
@@ -409,6 +508,32 @@ TEST_CASE("the documented Terminal lines, typed through Workshop's own door, ask
 }
 
 TEST_CASE("a successor that holds the office and does not serve is a failure after the commitment, and the retired Editor is kept") {
+    SUBCASE("with a graphics window showing the office's area, the failure after the commitment and "
+            "the switch home end as they do without one, and the plan's own Editor is drawn there "
+            "again whole") {
+        namespace pw = zengine::testing::pane_window;
+        const char* area = pane::kEditorPaneRole;
+        SwitchRig w("switch-not-live-window");
+        std::vector<load::ChoiceIntent> choices = standard_and_twin();
+        choices.push_back(load::ChoiceIntent{pane::kEditorPaneRole, "not-live", "zengine-editor-pane-not-live"});
+        w.before_plan = [&] { (void)pw::mount_directory(w.r.bus); };
+        w.open(choices);
+        pw::Window window(w.r.bus);
+        window.room(area, area, 40, 10);
+        (void)w.open_file("after.cpp", "after\n");
+        const EditorSwitchAnswered failed = w.switch_to("not-live");
+        CHECK(failed.outcome == switch_outcome::kFailedAfterCommit);
+        CHECK(w.r.kernel.is_loaded(pane::kEditorPaneStem)); // retired, sealed, kept
+        const EditorSwitchAnswered home = w.switch_to("standard");
+        CHECK_MESSAGE(home.outcome == switch_outcome::kSwitched, home.detail);
+        const std::size_t mark = window.weave().heard.size();
+        window.room(area, area, 40, 10);
+        REQUIRE(window.weave().heard.size() == mark + 1);
+        CHECK(window.weave().heard.back().whole);
+        const std::vector<std::string> rows = window.rows(area);
+        CHECK(std::find(rows.begin(), rows.end(), "after") != rows.end());
+        CHECK(window.weave().strangers == 0);
+    }
     SwitchRig s("switch-not-live");
     std::vector<load::ChoiceIntent> choices = standard_and_twin();
     choices.push_back(load::ChoiceIntent{pane::kEditorPaneRole, "not-live", "zengine-editor-pane-not-live"});
