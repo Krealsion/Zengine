@@ -9,7 +9,7 @@ host](../../external-host/docs/external-host.md). One law per heading; cite by I
 
 ## WL-GUIDE-01 — Version 3 adds guide, keystrokes, a role and the doors, and a row's reach is said in full
 
-LAW — A file of version 3 may name a row's `role`, the powers `guide` and `keystrokes`, and its `capture` and `guide` doors; a role expands to its powers at launch, and the row's reach is said beside it.
+LAW — A version-3 file may name a row's `role`, the powers `guide`, `keystrokes` and `settings`, and its `capture` and `guide` doors; a role expands to its powers at launch, its reach said beside it.
 
 MEANS
 - a door is `<office>/<pane>`, `<office>/*` or `*` alone; a guide door lies within a capture door;
@@ -90,7 +90,7 @@ WHY — `agents/decisions/a-guest-reads-and-points-by-door.md`
 
 ### WL-GUIDE-01
 `workshop/guests.cpp` read_guests_file door_problem within scopes_of grant_for
-`workshop/guests.hpp` kPowerGuide kPowerKeystrokes kDoorsVersion RoleBundle role_bundles GuestRow::by_door
+`workshop/guests.hpp` kPowerGuide kPowerKeystrokes kPowerSettings kDoorsVersion RoleBundle role_bundles GuestRow::by_door
 GuestRow::capture GuestRow::guide
 `workshop/attention.hpp` guest_row_scopes
 `workshop/guest_door.hpp` on(GuestRowDescribedRequested) on(GuestConnectionsRequested) inventory_v3

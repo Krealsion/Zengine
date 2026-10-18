@@ -34,7 +34,7 @@ struct TerminalTap {
     loom::Switchboard& bus;
     loom::ObserverId tap{};
     std::vector<std::string> heard; ///< "settings", "room" or "picture", in the order they crossed
-    std::vector<PaneSettings> handed;
+    std::vector<v2::PaneSettings> handed;
     std::vector<bool> legend_drawn; ///< per picture
     explicit TerminalTap(loom::Switchboard& on) : bus(on) {
         tap = bus.add_observer([this](const loom::BusEvent& ev) {
@@ -42,9 +42,11 @@ struct TerminalTap {
                 return;
             }
             const loom::WeaveId terminal = bus.role_holder(tp::kTerminalPaneRole);
-            if (ev.target == terminal && ev.schema_name == PaneSettings::zen_name) {
+            if (ev.target == terminal && ev.schema_name == v2::PaneSettings::zen_name) {
+                // THE TERMINAL TAKES v2 ALONE, so no other version may cross to it.
+                CHECK(ev.schema_version == v2::PaneSettings::zen_version);
                 heard.push_back("settings");
-                handed.push_back(loom::from_value<PaneSettings>(*ev.payload));
+                handed.push_back(loom::from_value<v2::PaneSettings>(*ev.payload));
             } else if (ev.target == terminal && (ev.schema_name == PaneCanvasRoom::zen_name ||
                                                  ev.schema_name == PaneRoom::zen_name)) {
                 heard.push_back("room");
@@ -251,7 +253,7 @@ TEST_CASE("a layout keeps the Terminal's legend hidden while another shows it, w
     CHECK(tap.count_since(mark, "room") == 0);
     CHECK(tap.handed.back().settings == std::vector<PaneSetting>{legend_off()});
     // ...AND WHAT CROSSED NAMES THE SETTING, NEVER A LAYOUT.
-    for (const PaneSettings& one : tap.handed) {
+    for (const v2::PaneSettings& one : tap.handed) {
         CHECK(one.pane == tp::kTerminalPane);
     }
 }

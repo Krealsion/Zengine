@@ -1,7 +1,7 @@
 # Workshop law — the Terminal pane's line and record
 
 Register `WL-TERM`, continued from [`terminal.md`](terminal.md): what the Terminal pane does with
-the line a weaver composes, the record it is shown, and the setting its layout keeps for it. One law per heading; cite by ID. Router:
+the line a weaver composes, the record it is shown, and the settings its layout keeps for it. One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md). The participant, the picture and the completer are
 [`terminal.md`](terminal.md); what crosses the pane seam is [`../panes.md`](../panes.md).
 
@@ -55,12 +55,12 @@ MEANS
 
 WHY — `agents/decisions/the-record-is-read-through-a-view.md`
 
-## WL-TERM-19 — The Terminal's legend is a setting each layout keeps
+## WL-TERM-19 — The Terminal's legend, its wheel and its prompt are settings each layout keeps
 
-LAW — The Terminal declares one setting, `legend`, a flag on by default; handed it off, its legend row's place goes to the record, and handed a value it cannot use, the legend row stays and says why.
+LAW — The Terminal declares `legend`, pinned and on; `wheel-rows`, `kWheelRowsLow` to `kWheelRowsHigh`, `kWheelRows`; `prompt`, one of `kPromptMarks`, `kPrompt`; a value it cannot use keeps the default.
 
 MEANS
-- it takes what it is handed whole and holds it in plain members, so a reload is handed it again;
+- it takes what it is handed whole, in plain members, so a reload is handed it again; an unusable value is said to Workshop, the legend's on its row too;
 - the legend row is its part `legend`, there while it shows and gone while it does not;
 - every row below it moves when it shows or hides, so no press aimed at the last picture lands.
 
@@ -117,10 +117,10 @@ its bottom" "when the entry being read is evicted the view moves to the oldest k
 composing"
 
 ### WL-TERM-19
-`terminal/pane.cpp` on(ws::PaneSettings) legend_setting offered legend_shown_ legend_problem_
-named_rows
+`terminal/pane.cpp` on(ws::v2::PaneSettings) setting_rows offered legend_shown_ legend_problem_
+wheel_rows_ prompt_ wheel named_rows kWheelRows kWheelRowsLow kWheelRowsHigh kPrompt kPromptMarks
 `terminal/view.hpp` say
-`terminal/vocabulary.hpp` kSettingLegend
+`terminal/vocabulary.hpp` kSettingLegend kSettingWheelRows kSettingPrompt
 `tests/test_workshop_panes_legend.cpp` "a layout keeps the Terminal's legend hidden while another
 shows it, written through Info's rows" "a Terminal seated again is handed its layout's legend before
 its room, and its first picture keeps it" "after a restart the Terminal's first picture keeps its

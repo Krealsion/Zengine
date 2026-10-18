@@ -28,6 +28,16 @@ inline constexpr std::size_t kMaxPaneSettingTextLen = 64;
 inline constexpr std::size_t kMaxPaneSettingsPerRow = 24;
 inline constexpr std::size_t kMaxPaneSettingChoices = 16;
 
+/// How a weaver finds a setting: the longest tag word, the most tags one setting is listed under,
+/// the most distinct tags one declaration names, and the most settings a pane pins by default.
+inline constexpr std::size_t kMaxTagLen = 16;
+inline constexpr std::size_t kMaxSettingTags = 4;
+inline constexpr std::size_t kMaxDeclaredTags = 12;
+inline constexpr std::size_t kMaxDefaultPins = 3;
+
+/// The words an editor's tag strip spells for itself, which no setting is tagged with.
+inline constexpr std::string_view kReservedTags[] = {"pinned", "all", "kept"};
+
 /// Keys under this prefix are Workshop's own.
 inline constexpr std::string_view kDeskSettingPrefix = "workshop.";
 
@@ -81,6 +91,56 @@ struct PaneSettings {
     std::vector<PaneSetting> settings;
     ZEN_SHAPE(PaneSettings, 1, ZEN_FIELD(pane), ZEN_FIELD(settings));
 };
+
+namespace v2 {
+
+/// ONE SETTING A PANE TAKES, as v1 says it, and how a weaver finds it: the tags it is listed
+/// under, whether the pane pins it by default, and one line saying what it does.
+struct PaneSettingRow {
+    std::string key;
+    std::optional<bool> flag;
+    std::optional<std::int64_t> number;
+    std::optional<std::string> text;
+    std::vector<std::string> choices;
+    std::optional<std::int64_t> low;
+    std::optional<std::int64_t> high;
+    std::vector<std::string> tags = {}; ///< at most `kMaxSettingTags` tag words, once each
+    bool pinned = false;                ///< among the pane's default pins, in declaration order
+    std::string summary;                ///< printable ASCII, at most `kMaxPaneSettingTextLen`
+    ZEN_SHAPE(PaneSettingRow, 2, ZEN_FIELD(key), ZEN_FIELD(flag), ZEN_FIELD(number),
+              ZEN_FIELD(text), ZEN_FIELD(choices), ZEN_FIELD(low), ZEN_FIELD(high),
+              ZEN_FIELD(tags), ZEN_FIELD(pinned), ZEN_FIELD(summary));
+    friend bool operator==(const PaneSettingRow&, const PaneSettingRow&) = default;
+};
+
+/// Provider -> Workshop: v1's declaration, its rows saying how each is found.
+struct PaneSettingsDeclared {
+    std::string pane;
+    std::vector<PaneSettingRow> rows;
+    ZEN_SHAPE(PaneSettingsDeclared, 2, ZEN_FIELD(pane), ZEN_FIELD(rows));
+};
+
+/// Workshop -> the office's holder, when it accepts this version: v1's settings, and the revision
+/// of the live layout's row they were handed at, which the pane names when it speaks about them.
+struct PaneSettings {
+    std::string pane;
+    std::int64_t revision = 0;
+    std::vector<PaneSetting> settings;
+    ZEN_SHAPE(PaneSettings, 2, ZEN_FIELD(pane), ZEN_FIELD(revision), ZEN_FIELD(settings));
+};
+
+} // namespace v2
+
+/// A v1 ROW AS v2 SAYS IT: untagged, unpinned, with no summary.
+inline v2::PaneSettingRow widen_setting_row(const PaneSettingRow& row) {
+    return v2::PaneSettingRow{row.key,     row.flag, row.number, row.text, row.choices,
+                              row.low,     row.high, {},         false,    std::string()};
+}
+
+/// ...and v2's row as v1 says it: what it takes, without how it is found.
+inline PaneSettingRow narrow_setting_row(const v2::PaneSettingRow& row) {
+    return PaneSettingRow{row.key, row.flag, row.number, row.text, row.choices, row.low, row.high};
+}
 
 // ---- Kinds -------------------------------------------------------------------------------
 
@@ -315,6 +375,114 @@ inline std::string pane_settings_declared_problem(const PaneSettingsDeclared& d)
     }
     return std::string();
 }
+
+/// WHAT IS WRONG WITH A TAG, or empty: 1 to `kMaxTagLen` bytes of `a`-`z`, `0`-`9` and `-`,
+/// beginning with a letter or a digit, and none of the strip's own words (`kReservedTags`).
+inline std::string pane_setting_tag_problem(std::string_view tag) {
+    if (tag.empty()) {
+        return "a setting's tag cannot be empty";
+    }
+    if (tag.size() > kMaxTagLen) {
+        return "a setting's tag is at most " + std::to_string(kMaxTagLen) + " bytes -- `" +
+               std::string(tag) + "` has " + std::to_string(tag.size());
+    }
+    for (const char c : tag) {
+        if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-')) {
+            return "a setting's tag is `a`-`z`, `0`-`9` and `-` -- `" + std::string(tag) +
+                   "` is not";
+        }
+    }
+    if (tag.front() == '-') {
+        return "a setting's tag begins with a letter or a digit -- `" + std::string(tag) +
+               "` does not";
+    }
+    for (const std::string_view reserved : kReservedTags) {
+        if (tag == reserved) {
+            return "`" + std::string(tag) + "` is a tab of its own, never a setting's tag";
+        }
+    }
+    return std::string();
+}
+
+namespace v2 {
+
+/// WHY A DECLARED SETTING DOES NOT TAKE A VALUE, as v1's row says it.
+template <class Valued>
+inline std::string pane_setting_refused_by(const PaneSettingRow& row, const Valued& v) {
+    return ::zengine::workshop::pane_setting_refused_by(narrow_setting_row(row), v);
+}
+
+/// WHAT IS WRONG WITH ONE DECLARED SETTING, or empty: v1's rules, then its tags -- at most
+/// `kMaxSettingTags`, each sound, none twice -- and a summary of printable text.
+inline std::string pane_setting_row_problem(const PaneSettingRow& row) {
+    if (std::string v1 = ::zengine::workshop::pane_setting_row_problem(narrow_setting_row(row));
+        !v1.empty()) {
+        return v1;
+    }
+    const std::string at = "setting `" + row.key + "`";
+    if (row.tags.size() > kMaxSettingTags) {
+        return at + " is listed under " + std::to_string(row.tags.size()) +
+               " tags -- a setting takes at most " + std::to_string(kMaxSettingTags);
+    }
+    for (std::size_t i = 0; i < row.tags.size(); ++i) {
+        if (std::string wrong = pane_setting_tag_problem(row.tags[i]); !wrong.empty()) {
+            return at + ": " + wrong;
+        }
+        for (std::size_t j = 0; j < i; ++j) {
+            if (row.tags[j] == row.tags[i]) {
+                return at + " names the tag `" + row.tags[i] + "` twice";
+            }
+        }
+    }
+    if (!pane_setting_text_ok(row.summary)) {
+        return at + "'s summary is past " + std::to_string(kMaxPaneSettingTextLen) +
+               " bytes of printable ASCII";
+    }
+    return std::string();
+}
+
+/// WHAT IS WRONG WITH A WHOLE DECLARATION, or empty: v1's bounds and keys, each row sound, at most
+/// `kMaxDefaultPins` rows pinned and `kMaxDeclaredTags` distinct tags across them.
+inline std::string pane_settings_declared_problem(const PaneSettingsDeclared& d) {
+    if (d.rows.size() > kMaxPaneSettingsPerRow) {
+        return "a pane declares at most " + std::to_string(kMaxPaneSettingsPerRow) +
+               " settings -- this declares " + std::to_string(d.rows.size());
+    }
+    std::vector<std::string> tags;
+    std::size_t pins = 0;
+    for (std::size_t i = 0; i < d.rows.size(); ++i) {
+        const PaneSettingRow& row = d.rows[i];
+        if (std::string wrong = pane_setting_row_problem(row); !wrong.empty()) {
+            return wrong;
+        }
+        for (std::size_t j = 0; j < i; ++j) {
+            if (d.rows[j].key == row.key) {
+                return "setting `" + row.key + "` is declared twice";
+            }
+        }
+        pins += row.pinned ? 1u : 0u;
+        for (const std::string& tag : row.tags) {
+            bool known = false;
+            for (const std::string& t : tags) {
+                known = known || t == tag;
+            }
+            if (!known) {
+                tags.push_back(tag);
+            }
+        }
+    }
+    if (pins > kMaxDefaultPins) {
+        return "a pane pins at most " + std::to_string(kMaxDefaultPins) +
+               " settings by default -- this pins " + std::to_string(pins);
+    }
+    if (tags.size() > kMaxDeclaredTags) {
+        return "a pane's settings name at most " + std::to_string(kMaxDeclaredTags) +
+               " tags between them -- these name " + std::to_string(tags.size());
+    }
+    return std::string();
+}
+
+} // namespace v2
 
 /// A DECLARED SETTING'S DEFAULT, as the setting it stands for.
 inline PaneSetting pane_setting_default(const PaneSettingRow& row) {

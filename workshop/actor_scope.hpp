@@ -31,6 +31,8 @@ inline constexpr const char* kOpen = "open";
 /// The power that reads the desk's words and pictures, as the guests file spells it
 /// (`guests::kPowerCapture`).
 inline constexpr const char* kPowerCapture = "capture";
+/// ...and the power that reads and writes a pane's settings by message (`guests::kPowerSettings`).
+inline constexpr const char* kPowerSettings = "settings";
 
 /// ONE GUEST SESSION'S ADMITTED ROW, as the guest door recorded it when it admitted the session:
 /// the row's own powers and the version of the file it was written in. `admitted` is false for an

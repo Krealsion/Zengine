@@ -47,9 +47,12 @@ inline constexpr const char* kActionUp = "terminal.previous";       ///< older c
 inline constexpr const char* kActionDown = "terminal.next";         ///< newer command, or list down
 inline constexpr const char* kActionComplete = "terminal.complete"; ///< "help me here", or lock a recall
 
-/// THE ONE SETTING THE PANE DECLARES (`PaneSettingsDeclared`, workshop/pane_settings.hpp): whether
-/// its legend row shows in a layout, a flag that is on unless the layout keeps it off.
+/// THE SETTINGS THE PANE DECLARES (`v2::PaneSettingsDeclared`, workshop/pane_settings.hpp): whether
+/// its legend row shows in a layout, a flag that is on unless the layout keeps it off; how many rows
+/// of the record a wheel notch reads; and the mark the line is typed after, one of a few marks.
 inline constexpr const char* kSettingLegend = "legend";
+inline constexpr const char* kSettingWheelRows = "wheel-rows";
+inline constexpr const char* kSettingPrompt = "prompt";
 
 /// THE RECORD'S FOUR READING KEYS -- a page of the view each way, the oldest kept row and the newest.
 /// On Ctrl with the arrows, Home and End, which every backend reports (the vocabulary has no page
