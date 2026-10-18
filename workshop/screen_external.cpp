@@ -167,7 +167,7 @@ std::int64_t chrome_mark_at(const Panes& panes, const Setup& setup, const Screen
 // WL-FOCUS-10 -- agents/workshop/focus.md; WL-PANE-06 -- agents/workshop/panes-and-windows.md
 void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64_t kind,
                     const PixelRect& b, const Screen& sc, bool titles,
-                    std::int64_t chrome) {
+                    std::int64_t chrome, bool with_body) {
     paint_pane_frame(layer, b, chrome);
     const RuntimePane* row = panes.runtime.of_kind(kind);
     if (row == nullptr) {
@@ -183,6 +183,16 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
     region.y = body.region_y;
     region.w = body.region_w;
     region.h = body.region_h;
+    // Without the body the region is as tall as the rows it holds, so beneath them stands the area
+    // the office draws in.
+    const auto said = [&](surface::SurfaceTextRegion r) {
+        if (!with_body) {
+            const auto rows = static_cast<std::int64_t>(r.rows.size());
+            r.h = (std::min)(r.h, surface::region_px_for(1, rows, body.fit.advance_px,
+                                                         body.fit.line_px).h);
+        }
+        layer.texts.push_back(std::move(r));
+    };
     // Workshop's header is the region's first row, fitted to its columns, and exists exactly when
     // the resolution reserved one: hidden titles return it to the provider, but the keyboard pane
     // keeps its title and its `> ` mark (`external_title_rows`).
@@ -197,13 +207,13 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
     // after the header is written.
     if (!body.present) {
         if (!region.rows.empty()) {
-            layer.texts.push_back(std::move(region));
+            said(std::move(region));
         }
         return; // no room under the heading: the heading, and no invented room
     }
     if (pane == nullptr) {
         if (!region.rows.empty()) {
-            layer.texts.push_back(std::move(region));
+            said(std::move(region));
         }
         return;
     }
@@ -212,8 +222,10 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
         // not drawn over the row the picture still holds.
         const PixelRect canvas = shown_canvas_place(pane->canvas, b, sc, body.header_rows);
         if (pane->canvas.title_waits) region.rows.clear();
-        paint_pane_canvas(layer, canvas, pane->canvas.content, sc.text_advance_px,
-                          sc.text_line_px, chrome_grain(sc));
+        if (with_body) {
+            paint_pane_canvas(layer, canvas, pane->canvas.content, sc.text_advance_px,
+                              sc.text_line_px, chrome_grain(sc));
+        }
         // A picture older than what its pane last drew says so: refused, until a picture is
         // admitted, else carried to a new room. Where no title row shows the mark it stands at
         // the picture's corner (`refused_mark_cover`), and what it covers is read and pressed by
@@ -225,7 +237,7 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
                 region.rows[0].text =
                     external_header_row(*row, typing, marks, body.columns, mark + " ");
                 if (refused) region.rows[0].role = surface::role::kAlert;
-            } else {
+            } else if (with_body) {
                 v6::PaneCanvasContent notice;
                 notice.texts.push_back(refused ? refused_mark_run()
                                                : v2::PaneCanvasText{0, 0, mark, surface::role::kAlert});
@@ -250,7 +262,7 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
                                           surface::role::kMuted}
                 : surface::SurfaceTextRow{detail::fit(pane->refusal, body.columns),
                                           surface::role::kAlert});
-    } else {
+    } else if (with_body) {
         region.rows.insert(region.rows.end(), pane->shown.begin(), pane->shown.end());
         // The pane's own caret, merged here and nowhere else: the header is the region's first
         // row, so the offset added is the one `external_press_row` subtracts. Admission already
@@ -266,7 +278,7 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
             region.sel_end_col = pane->sel_end_col;
         }
     }
-    layer.texts.push_back(std::move(region));
+    said(std::move(region));
 }
 
 } // namespace zengine::workshop

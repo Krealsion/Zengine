@@ -20,6 +20,7 @@
 #include "vocabulary.hpp"
 
 #include "component/text_box.hpp" // the editable line, the caret in it, and its window
+#include "graphics/canvas.hpp"   // the desk drawn for a graphics window
 #include "input/vocabulary.hpp"  // `space` -- which medium's numbers a pointer reported in
 #include "surface/pointing.hpp"  // and what that medium's layout makes of them
 #include "surface/region.hpp"    // and how much prose a bounded region of it holds
@@ -33,7 +34,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <map>
 #include <optional>
+#include <set>
 #include <string_view>
 #include <string>
 #include <vector>
@@ -1371,10 +1374,12 @@ std::int64_t chrome_mark_at(const Panes& panes, const Setup& setup, const Screen
                             std::int64_t y);
 
 /// ONE EXTERNAL PANE: Workshop's backdrop, Workshop's header, and ONE region carrying
-/// whatever that office last validly said inside the room it was granted.
+/// whatever that office last validly said inside the room it was granted. Without the body
+/// (`with_body` false), what a graphics window shows around an area the office draws itself: the
+/// header, and the line standing in for a body not yet heard or refused, in a region that tall.
 void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64_t kind,
                            const PixelRect& b, const Screen& sc, bool titles,
-                           std::int64_t chrome = kPaneChrome);
+                           std::int64_t chrome = kPaneChrome, bool with_body = true);
 
 // ---- The arrangement's affordance rings --------------------------------------------------
 
@@ -1655,6 +1660,28 @@ surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc);
 /// The whole screen as one published canvas, an ordered list of planes: a pure projection of the
 /// session and the screen.
 surface::SurfaceCanvas paint(const Session& s);
+
+// ---- THE DESK IN A GRAPHICS WINDOW: each pane's own area, and Workshop's behind them ----------
+
+/// THE AREA A GRAPHICS WINDOW SHOWS AN OPEN PANE'S BODY IN, by the name its office draws there: an
+/// office seating several panes names each `<office>.<pane>` (`PaneCanvasSeat::area_of`), any
+/// other its office.
+std::string pane_window_area(const Panes& panes, const RuntimePane& row);
+
+/// WHETHER WORKSHOP'S OWN AREA STANDS IN FRONT OF EVERY PANE'S: while arranging or while a menu is
+/// open, the surfaces a weaver's next press goes to.
+bool desk_in_front(const Session& s) noexcept;
+
+/// WORKSHOP'S DESK AS A GRAPHICS WINDOW DRAWS IT -- every plane `paint` composes, but the bodies of
+/// the panes in `placed`, which their offices draw in areas of their own -- and where each press
+/// its parts name stands on the screen.
+struct WorkshopWindowDrawing {
+    graphics::Sketch sketch;
+    std::map<std::string, PixelRect> parts; ///< each action a press asks, and where it stands
+};
+
+WorkshopWindowDrawing workshop_window_drawing(const Session& s,
+                                              const std::set<std::int64_t>& placed);
 
 } // namespace zengine::workshop
 

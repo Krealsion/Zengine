@@ -6,7 +6,9 @@
 
 #include "doctest.h"
 #include "workshop_support.hpp"
+#include "pane_window.hpp"
 #include "timeline.hpp"
+#include "attention/vocabulary.hpp"
 #include "surface/skin_sdl_plan.hpp"
 #include "surface/skin_tui.hpp"
 #include "workshop/pane_canvas_text.hpp"
@@ -17,7 +19,9 @@
 #include <algorithm>
 #include <filesystem>
 #include <functional>
+#include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -3526,4 +3530,730 @@ TEST_CASE("the desk number moves when anything the desk says moves, and holds wh
                                                     input::space::kCells, input::mod::kNone}));
     REQUIRE(d.r.session().context.open);
     CHECK(number() != keys_back);
+}
+
+// ---- The desk in a graphics window ------------------------------------------------------------
+
+namespace {
+
+namespace gfx = zengine::graphics;
+namespace gw = zengine::graphics::window;
+namespace pw = zengine::testing::pane_window;
+namespace apane = zengine::attention_pane;
+
+struct ArrangedDirectoryState {
+    std::int64_t heard = 0;
+    ZEN_SHAPE(ArrangedDirectoryState, 1, ZEN_FIELD(heard));
+};
+
+/// THE GRAPHICS DIRECTORY AS ITS ARRANGER MEETS IT: the `zengine.graphics` office keeping every
+/// placement, skin and room said to it, with the office that said each, introducing nothing, and
+/// saying it started afresh when a case asks.
+class ArrangedDirectory
+    : public loom::WeaveBase<ArrangedDirectory, ArrangedDirectoryState,
+                             loom::Accept<gfx::AreaPlaced, gfx::SkinOffered, gfx::SkinChosen,
+                                          gfx::RoomAsked, SeatDo>,
+                             loom::Emit<gfx::GraphicsReady, gfx::ActionRequested>> {
+public:
+    void on(const gfx::AreaPlaced& p, loom::Mail& mail) {
+        note(mail);
+        placed.push_back(p);
+        areas[p.area] = p;
+    }
+    void on(const gfx::SkinOffered& s, loom::Mail& mail) {
+        note(mail);
+        offered.push_back(s);
+    }
+    void on(const gfx::SkinChosen& c, loom::Mail& mail) {
+        note(mail);
+        chosen.push_back(c);
+    }
+    void on(const gfx::RoomAsked& r, loom::Mail& mail) {
+        ++state_.heard;
+        asked.push_back(r.area + " by " + std::string(mail.authored_role()));
+    }
+    /// The case's hand inside the directory's delivery; with none, it says it started afresh.
+    void on(const SeatDo&, loom::Mail& mail) {
+        auto run = std::move(next);
+        next = {};
+        if (run) {
+            run(mail);
+        } else {
+            (void)mail.as_role(gfx::kGraphicsRole).publish(gfx::GraphicsReady{});
+        }
+    }
+
+    std::function<void(loom::Mail&)> next;
+    std::map<std::string, gfx::AreaPlaced> areas;
+    std::vector<gfx::AreaPlaced> placed;
+    std::vector<gfx::SkinOffered> offered;
+    std::vector<gfx::SkinChosen> chosen;
+    std::vector<std::string> asked;
+    std::set<std::string> arrangers; ///< every office that placed, offered or chose
+
+private:
+    void note(loom::Mail& mail) {
+        ++state_.heard;
+        arrangers.insert(std::string(mail.authored_role()));
+    }
+};
+
+struct DeskWindowState {
+    std::int64_t drawn = 0;
+    ZEN_SHAPE(DeskWindowState, 1, ZEN_FIELD(drawn));
+};
+
+/// A GRAPHICS WINDOW THAT GIVES THE AREA IT SHOWS THE POINTER, as the real one does an area placed
+/// to hear it: it tells a room and a press as its office, and keeps what is drawn there.
+class DeskWindow
+    : public loom::WeaveBase<DeskWindow, DeskWindowState, loom::Accept<gfx::Drawn, SeatDo>,
+                             loom::Emit<gfx::AreaRoom, input::PointerButton>> {
+public:
+    void on(const gfx::Drawn& d, loom::Mail&) {
+        ++state_.drawn;
+        drawn.push_back(d);
+    }
+    void on(const SeatDo&, loom::Mail& mail) {
+        auto run = std::move(next);
+        next = {};
+        if (run) run(mail);
+    }
+    std::vector<gfx::Drawn> drawn;
+    std::function<void(loom::Mail&)> next;
+};
+
+constexpr const char* kDeskWindowOffice = "zengine.window.desk";
+
+/// WORKSHOP WITH A GRAPHICS DIRECTORY -- or none -- the Attention pane open on its desk, a desktop
+/// declaring the row that shows a manual, and a tap keeping every graphics word Workshop's sends
+/// delivered and every one refused.
+struct WindowDesk {
+    PaneRig r;
+    ArrangedDirectory* directory = nullptr;
+    loom::WeaveId directory_id{};
+    DesktopSeat* desktop = nullptr;
+    std::int64_t kind = kNoPaneKind;
+    std::vector<std::string> said;
+    std::vector<std::string> refused;
+    loom::ObserverId tap{};
+
+    explicit WindowDesk(bool with_directory, bool skins = true) {
+        if (skins) {
+            r.host.dir = "/zen/window-desk";
+        }
+        if (with_directory) {
+            mount_directory();
+        }
+        r.mount_workshop();
+        const std::set<std::string> graphics{gfx::AreaPlaced::zen_name, gfx::SkinOffered::zen_name,
+                                             gfx::SkinChosen::zen_name, gfx::RoomAsked::zen_name,
+                                             gfx::Drawn::zen_name};
+        tap = r.bus.add_observer([this, graphics](const loom::BusEvent& e) {
+            if (e.sender != r.workshop_id || graphics.count(e.schema_name) == 0) return;
+            if (e.kind == loom::EventKind::Delivered) said.push_back(e.schema_name);
+            if (e.kind == loom::EventKind::Refused) refused.push_back(e.schema_name);
+        });
+        AppActions rows = shipped_app_actions();
+        rows.rows.push_back(AppActionRow{kManualAction, "manual", input::scan::kF,
+                                         input::mod::kCtrl, app_precedence::kAboveModes});
+        desktop = mount_desktop(r, rows);
+        r.ready();
+        r.extent(100, 40);
+        REQUIRE(r.load(apane::kAttentionPaneStem, WORKSHOP_SO_ATTENTION_PANE,
+                       apane::kAttentionPaneRole)
+                    .valid());
+        r.pick(PaneRef{apane::kAttentionPaneRole, apane::kAttentionPane});
+        const RuntimePane* row =
+            r.session().panes.runtime.find(apane::kAttentionPaneRole, apane::kAttentionPane);
+        REQUIRE(row != nullptr);
+        kind = row->kind;
+        REQUIRE(r.session().panes.has(kind));
+        press_outside(r, kind); // the keys are Workshop's
+    }
+    WindowDesk(const WindowDesk&) = delete;
+    WindowDesk& operator=(const WindowDesk&) = delete;
+    ~WindowDesk() { r.bus.remove_observer(tap); }
+
+    /// A directory in `zengine.graphics`, keeping what it is told; it may forge an action.
+    void mount_directory() {
+        auto made = std::make_unique<ArrangedDirectory>();
+        directory = made.get();
+        loom::Grant grant;
+        grant.allow_to_any(gfx::GraphicsReady::zen_name, gfx::GraphicsReady::zen_version);
+        grant.allow_to_any(gfx::ActionRequested::zen_name, gfx::ActionRequested::zen_version);
+        directory_id = r.bus.register_weave(std::move(made), std::move(grant), gfx::kGraphicsRole);
+        directory->zen_set_self(directory_id);
+    }
+    /// The directory's hand, inside its own delivery; with none, it says it started afresh.
+    void directory_does(std::function<void(loom::Mail&)> what = {}) {
+        directory->next = std::move(what);
+        (void)r.bus.send(directory_id, loom::Message(loom::to_value(SeatDo{}), {}, {}, 0));
+        r.bus.drain_until_idle();
+    }
+
+    /// Where the open pane's office draws its body: under its header, as a canvas is placed.
+    PixelRect pane_body() {
+        const Session& s = r.session();
+        return canvas_body_place(external_pane_rect(s, kind), screen_of(s),
+                                 external_title_rows(s.panes, kind, s.pane_titles));
+    }
+    /// The open pane's place in the desk's order, from one.
+    std::int64_t pane_order() {
+        const std::vector<std::int64_t> order =
+            effective_pane_order(r.session().setup.active, r.session().panes);
+        return static_cast<std::int64_t>(std::find(order.begin(), order.end(), kind) -
+                                         order.begin()) +
+               1;
+    }
+    std::int64_t panes_on_desk() {
+        return static_cast<std::int64_t>(
+            effective_pane_order(r.session().setup.active, r.session().panes).size());
+    }
+    /// A key and the character it makes, as a backend reports both.
+    void type(std::int64_t scancode, const char* character) {
+        r.key(scancode);
+        r.text(character);
+    }
+};
+
+/// The cells an area's nodes paint, as a window of characters paints them.
+std::set<std::pair<std::int64_t, std::int64_t>> painted_cells(const gw::WinArea& a) {
+    gfx::PaintTask task;
+    const auto at = gw::index_of(a);
+    for (const gw::KeptNode& k : a.nodes) {
+        task.nodes.push_back(
+            gfx::PaintNode{k.node.path, gw::key_of(at, k.node.path), k.node.op, k.node.args});
+    }
+    std::set<std::pair<std::int64_t, std::int64_t>> out;
+    for (const gfx::NodePaint& np : gfx::term::paint_task(task, gfx::term::Look{}).nodes) {
+        for (const gfx::term::Cell& c : gfx::term::unpack(np.cells)) {
+            out.insert({c.col, c.row});
+        }
+    }
+    return out;
+}
+
+/// Whether any of `cells` lies inside `r`, a pixel rectangle on whole cells.
+bool paints_inside(const std::set<std::pair<std::int64_t, std::int64_t>>& cells,
+                   const PixelRect& r) {
+    for (const auto& [col, row] : cells) {
+        if (col * gfx::kCellPx >= r.x && col * gfx::kCellPx < r.x + r.w &&
+            row * gfx::kCellPx >= r.y && row * gfx::kCellPx < r.y + r.h) {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::string trimmed(std::string text) {
+    text.erase(text.find_last_not_of(' ') + 1);
+    return text;
+}
+
+} // namespace
+
+TEST_CASE("with a graphics directory, Workshop places an open pane's area over its body in the "
+          "desk's order and its own across the screen, behind the panes or in front while a weaver "
+          "arranges or a menu is open, saying only what moved") {
+    WindowDesk d(true);
+    const Screen sc = screen_of(d.r.session());
+    // Read from the directory mounted at the time: the case replaces it below.
+    REQUIRE(d.directory->areas.count(kWorkshopProvider) == 1);
+    REQUIRE(d.directory->areas.count(apane::kAttentionPaneRole) == 1);
+    const auto desk = [&] { return d.directory->areas.at(kWorkshopProvider); };
+    const auto pane = [&] { return d.directory->areas.at(apane::kAttentionPaneRole); };
+
+    // WORKSHOP'S OWN AREA, the whole screen, behind every pane's; it hears the window's keys, since
+    // no pane's own area takes them, and a press nothing drawn there takes.
+    CHECK(desk().window == gfx::kTerminalWindow);
+    CHECK(desk().owner == kWorkshopProvider);
+    CHECK((desk().x == 0 && desk().y == 0 && desk().w == sc.w && desk().h == sc.h));
+    CHECK(desk().order == 0);
+    CHECK(desk().keys);
+    CHECK(desk().pointer);
+    // THE PANE'S, over the body its office draws, by its office's name, above in the desk's order.
+    const PixelRect body = d.pane_body();
+    REQUIRE_FALSE(body.empty());
+    CHECK(pane().window == gfx::kTerminalWindow);
+    CHECK(pane().owner == apane::kAttentionPaneRole);
+    CHECK((pane().x == body.x && pane().y == body.y && pane().w == body.w &&
+           pane().h == body.h));
+    CHECK(pane().order == d.pane_order());
+    CHECK(pane().order > desk().order);
+    // ...and neither the window's keys nor its presses: that office takes Workshop's words.
+    CHECK_FALSE(pane().keys);
+    CHECK_FALSE(pane().pointer);
+    // ALL OF IT SAID AS WORKSHOP'S OFFICE: the two skins offered once, each area's chosen once, and
+    // Workshop's room asked once.
+    CHECK(d.directory->arrangers == std::set<std::string>{kWorkshopProvider});
+    REQUIRE(d.directory->offered.size() == 2);
+    CHECK(d.directory->offered[0].skin == "classic");
+    CHECK(d.directory->offered[0].library == d.r.host.so("zengine-paint-classic"));
+    CHECK(d.directory->offered[1].skin == "block");
+    CHECK(d.directory->offered[1].library == d.r.host.so("zengine-paint-block"));
+    std::map<std::string, int> chosen;
+    for (const gfx::SkinChosen& c : d.directory->chosen) {
+        CHECK(c.skin == "classic");
+        ++chosen[c.area];
+    }
+    CHECK(chosen == std::map<std::string, int>{{kWorkshopProvider, 1},
+                                               {apane::kAttentionPaneRole, 1}});
+    const std::string own_room = std::string(kWorkshopProvider) + " by " + kWorkshopProvider;
+    CHECK(std::count(d.directory->asked.begin(), d.directory->asked.end(), own_room) == 1);
+    CHECK(d.refused.empty());
+
+    // A REPAINT THAT MOVED NOTHING SAYS NOTHING MORE.
+    const std::size_t placed = d.directory->placed.size();
+    d.r.key(input::scan::kGrave);
+    CHECK(d.directory->placed.size() == placed);
+
+    // ARRANGING PUTS WORKSHOP'S AREA IN FRONT, and leaving puts it back.
+    d.type(input::scan::kW, "w");
+    REQUIRE(d.r.session().arrange.open);
+    CHECK(desk().order == d.panes_on_desk() + 1);
+    CHECK(desk().keys);
+    CHECK(pane().order == d.pane_order());
+    d.r.key(input::scan::kEscape);
+    REQUIRE_FALSE(d.r.session().arrange.open);
+    CHECK(desk().order == 0);
+    // ...AND SO DOES WORKSHOP'S OWN MENU.
+    d.type(input::scan::kA, "a");
+    REQUIRE(d.r.session().context.open);
+    CHECK(desk().order == d.panes_on_desk() + 1);
+    d.r.key(input::scan::kEscape);
+    REQUIRE_FALSE(d.r.session().context.open);
+    CHECK(desk().order == 0);
+
+    // A DIRECTORY THAT STARTS AFRESH is offered, placed and chosen again, and asked the room.
+    const std::size_t offered = d.directory->offered.size();
+    const std::size_t again = d.directory->placed.size();
+    d.directory_does();
+    CHECK(d.directory->offered.size() == offered + 2);
+    CHECK(d.directory->placed.size() == again + 2);
+    CHECK(std::count(d.directory->asked.begin(), d.directory->asked.end(), own_room) == 2);
+    // ...AND SO IS ANOTHER HOLDER OF ITS OFFICE, at the next repaint, though it says nothing.
+    const std::uint64_t before = d.directory_id.value;
+    d.r.bus.unregister_weave(d.directory_id);
+    d.mount_directory();
+    REQUIRE(d.directory_id.value != before);
+    d.r.key(input::scan::kGrave);
+    CHECK(d.directory->offered.size() == 2);
+    CHECK(d.directory->areas.count(kWorkshopProvider) == 1);
+    CHECK(d.directory->areas.count(apane::kAttentionPaneRole) == 1);
+    CHECK(d.directory->chosen.size() == 2);
+    CHECK(std::count(d.directory->asked.begin(), d.directory->asked.end(), own_room) == 1);
+
+    // CLOSING THE PANE WITHDRAWS ITS AREA: placed in no window, nowhere.
+    d.r.pick(PaneRef{apane::kAttentionPaneRole, apane::kAttentionPane});
+    REQUIRE_FALSE(d.r.session().panes.has(d.kind));
+    CHECK(pane().window.empty());
+    CHECK((pane().w == 0 && pane().h == 0));
+    CHECK(d.directory->placed.back().area == apane::kAttentionPaneRole);
+    CHECK(d.refused.empty());
+}
+
+TEST_CASE("a host with no skin libraries offers and chooses no skin, and places its areas all the "
+          "same") {
+    WindowDesk bare(true, false);
+    CHECK(bare.directory->offered.empty());
+    CHECK(bare.directory->chosen.empty());
+    CHECK(bare.directory->areas.count(kWorkshopProvider) == 1);
+    CHECK(bare.directory->areas.count(apane::kAttentionPaneRole) == 1);
+}
+
+TEST_CASE("a pane's graphics area is named as its office draws there: `<office>.<pane>` for an "
+          "office that seats each of its panes, its office for any other") {
+    Panes panes;
+    const auto offered = [&panes](const char* office, const char* pane) {
+        RuntimePane row;
+        row.provider = office;
+        row.pane = pane;
+        panes.runtime.entries.push_back(row);
+        return row;
+    };
+    const RuntimePane alone = offered("zengine.test.alone", "only");
+    CHECK(pane_window_area(panes, alone) == "zengine.test.alone");
+    const RuntimePane first = offered("zengine.test.two", "first");
+    const RuntimePane second = offered("zengine.test.two", "second");
+    CHECK(pane_window_area(panes, first) == "zengine.test.two.first");
+    CHECK(pane_window_area(panes, second) == "zengine.test.two.second");
+    for (const char* office :
+         {"zengine.desktop", "zengine.introspection", "zengine.info", "zengine.inventory"}) {
+        CAPTURE(office);
+        CHECK(pane_window_area(panes, offered(office, "seat")) == std::string(office) + ".seat");
+    }
+}
+
+TEST_CASE("with no graphics directory, or one that takes no placement, Workshop says nothing to it "
+          "and nothing it says is refused") {
+    for (const bool stand_in : {false, true}) {
+        CAPTURE(stand_in);
+        WindowDesk d(false);
+        if (stand_in) {
+            (void)pw::mount_directory(d.r.bus);
+        }
+        d.type(input::scan::kW, "w");
+        d.r.key(input::scan::kEscape);
+        d.type(input::scan::kA, "a");
+        d.r.key(input::scan::kEscape);
+        press_body(d.r, d.kind);
+        CHECK(d.said.empty());
+        CHECK(d.refused.empty());
+    }
+}
+
+TEST_CASE("Workshop draws its desk in the window that shows its area -- Layouts, a pane's edge and "
+          "header, the band -- leaving the pane's body to its own area, and a press there on a "
+          "part the drawing names is that press on the desk") {
+    WindowDesk d(true);
+    pw::Window window(d.r.bus, gfx::kTerminalWindow);
+    const Session& s = d.r.session();
+    const Screen sc = screen_of(s);
+    const std::string area = kWorkshopProvider;
+    window.room(area, area, sc.w / gfx::kCellPx, sc.h / gfx::kCellPx);
+    REQUIRE_FALSE(window.weave().heard.empty());
+    CHECK(window.weave().heard.front().whole);
+    CHECK(window.weave().refusals.empty());
+    const std::vector<std::string> rows = window.rows(area);
+    const auto row_at = [&rows](std::int64_t y) {
+        const auto at = static_cast<std::size_t>(y / gfx::kCellPx);
+        return at < rows.size() ? rows[at] : std::string();
+    };
+
+    // LAYOUTS, AT THE TOP: its tab run where the skin paints it.
+    const ExternalBodyPlace layouts = layouts_body(s, sc);
+    REQUIRE(layouts.present);
+    CHECK(row_at(layouts.region_y).rfind(trimmed(band_status(s, layouts).text), 0) == 0);
+    // THE PANE'S HEADER, with its `?` and gear, and its edge as a ring.
+    const PixelRect bounds = external_pane_rect(s, d.kind);
+    const ExternalBodyPlace header =
+        external_body_place(bounds, sc, external_title_rows(s.panes, d.kind, s.pane_titles));
+    const RuntimePane* row = s.panes.runtime.of_kind(d.kind);
+    REQUIRE(row != nullptr);
+    REQUIRE(s.panes.external_pane(d.kind)->manual);
+    const std::string title =
+        row_at(header.region_y).substr(static_cast<std::size_t>(header.region_x / gfx::kCellPx));
+    CHECK(title == trimmed(external_header_row(*row, false, true, header.columns)));
+    REQUIRE(title.size() >= 3);
+    CHECK(title.substr(title.size() - 3) == kChromeMarks);
+    bool ring = false;
+    for (const gw::KeptNode& k : window.weave().find(area)->nodes) {
+        if (k.node.op != gfx::op::kRect) continue;
+        const auto r = gfx::from_body<gfx::RectArgs>(k.node.args);
+        ring = ring || (r && r->x == bounds.x && r->y == bounds.y && r->w == bounds.w &&
+                        r->h == bounds.h && r->fill.none() && !r->stroke.none());
+    }
+    CHECK(ring);
+    // THE BAND, AT THE FOOT: what the keys mean, under what the tool last said.
+    const surface::SurfaceTextRegion band = band_region(s, sc);
+    REQUIRE(band.rows.size() >= 2);
+    CHECK(row_at(band.y + gfx::kCellPx) == trimmed(band.rows[1].text));
+
+    // THE PANE'S BODY IS ITS OWN AREA'S: behind it Workshop lays ground and says nothing there, and
+    // while arranging, in front of it, Workshop leaves it unpainted.
+    const PixelRect body = d.pane_body();
+    const auto left = static_cast<std::size_t>(body.x / gfx::kCellPx);
+    const auto right = static_cast<std::size_t>((body.x + body.w) / gfx::kCellPx);
+    for (std::int64_t y = body.y; y < body.y + body.h; y += gfx::kCellPx) {
+        CAPTURE(y);
+        CHECK(trimmed(row_at(y).substr(0, right)).size() <= left);
+    }
+    CHECK(paints_inside(painted_cells(*window.weave().find(area)), body));
+    d.type(input::scan::kW, "w");
+    REQUIRE(d.r.session().arrange.open);
+    CHECK_FALSE(paints_inside(painted_cells(*window.weave().find(area)), body));
+    d.r.key(input::scan::kEscape);
+    REQUIRE_FALSE(d.r.session().arrange.open);
+
+    // THE PARTS A PRESS THERE ASKS FOR, each over the cells Workshop's own press inverse reads.
+    const std::string k = std::to_string(d.kind);
+    const std::set<std::string> parts = window.actions(area);
+    for (const std::string& name : std::vector<std::string>{
+             "layout:0", "layout:new", "focus:" + k, "settings:" + k, "manual:" + k}) {
+        CAPTURE(name);
+        CHECK(parts.count(name) == 1);
+    }
+    const auto manual = window.cell_of(area, "manual:" + k);
+    REQUIRE(manual.has_value());
+    CHECK(chrome_mark_at(s.panes, s.setup.active, sc, d.kind, s.pane_titles,
+                         input::space::kPixels, manual->first * gfx::kCellPx + 1,
+                         manual->second * gfx::kCellPx + 1) == chrome_mark::kManual);
+    const auto gear = window.cell_of(area, "settings:" + k);
+    REQUIRE(gear.has_value());
+    CHECK(chrome_mark_at(s.panes, s.setup.active, sc, d.kind, s.pane_titles,
+                         input::space::kPixels, gear->first * gfx::kCellPx + 1,
+                         gear->second * gfx::kCellPx + 1) == chrome_mark::kSettings);
+
+    // THE TITLE PRESSED THERE PUTS THE PANE IN FRONT AND GIVES IT THE KEYS; the drawing follows.
+    REQUIRE(s.panes.selected != d.kind);
+    std::size_t heard = window.weave().heard.size();
+    REQUIRE(window.press(area, "focus:" + k));
+    CHECK(s.panes.selected == d.kind);
+    CHECK(s.panes.keyboard == d.kind);
+    CHECK(window.weave().heard.size() > heard);
+    CHECK(window.rows(area) != rows);
+    // ...where Workshop still takes the window's keys, the pane's own area taking none of them.
+    CHECK(typing_pane(s) == d.kind);
+    CHECK(d.directory->areas.at(area).keys);
+    CHECK_FALSE(d.directory->areas.at(apane::kAttentionPaneRole).keys);
+    // ...THE `?`, the desktop's manual row asked about the pane...
+    const std::size_t asked = d.desktop->asked().size();
+    REQUIRE(window.press(area, "manual:" + k));
+    REQUIRE(d.desktop->asked().size() == asked + 1);
+    CHECK(d.desktop->asked().back() == kManualAction);
+    // ...THE GEAR, Workshop's own menu at the pane's settings, in front, its lines parts too. A
+    // drawing that gains or loses a node is a new root, the old one removed; the same desk
+    // drawn again is the same root, and a word changed in place keeps it.
+    const auto root = [&] {
+        for (const gw::KeptNode& n : window.weave().find(area)->nodes) {
+            if (n.node.path.find('/') == std::string::npos) return n.node.path;
+        }
+        return std::string();
+    };
+    const std::string closed = root();
+    REQUIRE(window.press(area, "settings:" + k));
+    REQUIRE(s.context.open);
+    CHECK(d.directory->areas.at(area).order == d.panes_on_desk() + 1);
+    CHECK(window.actions(area).count("menu:0") == 1);
+    CHECK(root() != closed);
+    d.r.key(input::scan::kEscape);
+    REQUIRE_FALSE(s.context.open);
+    CHECK(window.actions(area).count("menu:0") == 0);
+    CHECK(root() == closed);
+    {
+        Session said = s;
+        said.notice = "a notice of another length entirely";
+        const gfx::Sketch now = workshop_window_drawing(s, {d.kind}).sketch;
+        const gfx::Sketch then = workshop_window_drawing(said, {d.kind}).sketch;
+        REQUIRE_FALSE(now.nodes().empty());
+        CHECK(now.nodes().front().path == closed);
+        CHECK(then.nodes().front().path == closed);
+        CHECK(gfx::difference(now, then).put.size() == 1);
+    }
+    // ...AND `+`, A FRESH LAYOUT, live: its tab is a part, and the pane, not on it, has no area.
+    const std::size_t layouts_before = layout_count(s.setup);
+    REQUIRE(window.press(area, "layout:new"));
+    CHECK(layout_count(s.setup) == layouts_before + 1);
+    CHECK(s.setup.active_at == layouts_before);
+    CHECK(window.actions(area).count("layout:" + std::to_string(layouts_before)) == 1);
+    CHECK(d.directory->areas.at(apane::kAttentionPaneRole).window.empty());
+    // A NAME THE DRAWING DOES NOT GIVE, or one asked by anyone but the window, presses nothing.
+    heard = window.weave().heard.size();
+    window.ask(area, "layout:99");
+    d.directory_does([](loom::Mail& m) {
+        (void)m.as_role(gfx::kGraphicsRole)
+            .send_to_role(kWorkshopProvider, gfx::ActionRequested{kWorkshopProvider, "layout:0"});
+    });
+    CHECK(window.weave().heard.size() == heard);
+    CHECK(s.setup.active_at == layouts_before);
+
+    // A CHANGE THE WINDOW REFUSES IS DRAWN AGAIN WHOLE, after any change already on its way, and
+    // the window then shows the desk as it is: the first layout's tab pressed, the pane back on
+    // the desk and its area placed again.
+    window.weave().refuse_next = true;
+    heard = window.weave().heard.size();
+    REQUIRE(window.press(area, "layout:0"));
+    CHECK(s.setup.active_at == 0);
+    REQUIRE(window.weave().refusals.size() == 1);
+    REQUIRE(window.weave().heard.size() > heard + 1);
+    CHECK_FALSE(window.weave().heard[heard].whole);
+    CHECK(window.weave().heard.back().whole);
+    CHECK(window.actions(area).count("focus:" + k) == 1);
+    CHECK(d.directory->areas.at(apane::kAttentionPaneRole).window == gfx::kTerminalWindow);
+
+    // THE TAB PRESSED TWICE NAMES THE LAYOUT: the name being typed, and its caret as a bar.
+    d.r.clock.together();
+    REQUIRE(window.press(area, "layout:0"));
+    REQUIRE(window.press(area, "layout:0"));
+    d.r.clock.apart();
+    REQUIRE(s.setup.naming.open);
+    const auto shown = window.rows(area);
+    CHECK(std::any_of(shown.begin(), shown.end(), [](const std::string& line) {
+        return line.find(kSetupNamePrompt) != std::string::npos;
+    }));
+    const auto& nodes = window.weave().find(area)->nodes;
+    CHECK(std::any_of(nodes.begin(), nodes.end(), [](const gw::KeptNode& n) {
+        return n.node.op == gfx::op::kLine;
+    }));
+    d.r.key(input::scan::kEscape);
+    CHECK_FALSE(s.setup.naming.open);
+    CHECK(d.refused.empty());
+}
+
+TEST_CASE("a press the graphics window showing Workshop's area gives it is a whole click there, "
+          "and a press from anyone else is the press it is") {
+    WindowDesk d(true);
+    auto made = std::make_unique<DeskWindow>();
+    DeskWindow* window = made.get();
+    loom::Grant grant;
+    grant.allow_to_any(gfx::AreaRoom::zen_name, gfx::AreaRoom::zen_version);
+    grant.allow_to_any(input::PointerButton::zen_name, input::PointerButton::zen_version);
+    const loom::WeaveId id =
+        d.r.bus.register_weave(std::move(made), std::move(grant), kDeskWindowOffice);
+    window->zen_set_self(id);
+    const auto as_window = [&](auto said) {
+        window->next = [said](loom::Mail& mail) {
+            (void)mail.as_role(kDeskWindowOffice).send_to_role(kWorkshopProvider, said);
+        };
+        (void)d.r.bus.send(id, loom::Message(loom::to_value(SeatDo{}), {}, {}, 0));
+        d.r.bus.drain_until_idle();
+    };
+    const Screen sc = screen_of(d.r.session());
+    as_window(gfx::AreaRoom{kWorkshopProvider, "desk", 1, sc.w, sc.h, {}});
+    REQUIRE_FALSE(window->drawn.empty());
+    CHECK(window->drawn.front().whole);
+
+    // A PRESS ON THE PANE'S BODY, given as the window's, puts the pane in front.
+    const Session& s = d.r.session();
+    const ExternalBodyPlace body = external_body_place(
+        external_pane_rect(s, d.kind), sc, external_title_rows(s.panes, d.kind, s.pane_titles));
+    const std::int64_t x = body.region_x + gfx::kCellPx / 2;
+    const std::int64_t y = body.region_y + body.header_rows * gfx::kCellPx + gfx::kCellPx / 2;
+    REQUIRE(s.panes.selected != d.kind);
+    const input::PointerButton press{1, true, x, y, input::space::kPixels, input::mod::kNone};
+    as_window(press);
+    CHECK(s.panes.selected == d.kind);
+    // WHILE ARRANGING, A PRESS ON THE PANE TAKES HOLD OF IT: given as the window's, the release
+    // comes with it and the hold ends where it began...
+    press_outside(d.r, d.kind);
+    d.type(input::scan::kW, "w");
+    REQUIRE(s.arrange.open);
+    const PixelRect before = external_pane_rect(s, d.kind);
+    as_window(press);
+    CHECK_FALSE(s.pane_drag.active);
+    CHECK(external_pane_rect(s, d.kind) == before);
+    // ...and the same press from the platform holds until its own release.
+    d.r.publish(loom::to_value(press));
+    CHECK(s.pane_drag.active);
+    d.r.publish(loom::to_value(input::PointerButton{1, false, x, y, input::space::kPixels,
+                                                    input::mod::kNone}));
+    CHECK_FALSE(s.pane_drag.active);
+}
+
+namespace {
+
+struct AreaSeatState {
+    std::int64_t heard = 0;
+    ZEN_SHAPE(AreaSeatState, 1, ZEN_FIELD(heard));
+};
+
+/// A PANE'S OFFICE THAT WOULD DRAW IN A GRAPHICS WINDOW: it takes a window's room, and says rows to
+/// Workshop when a case asks.
+class AreaSeat
+    : public loom::WeaveBase<AreaSeat, AreaSeatState,
+                             loom::Accept<PaneRoom, gfx::AreaRoom, SeatDo>,
+                             loom::Emit<PaneOffered, PaneContent>> {
+public:
+    void on(const PaneRoom& r, loom::Mail&) {
+        ++state_.heard;
+        room = r;
+    }
+    void on(const gfx::AreaRoom&, loom::Mail&) { ++state_.heard; }
+    void on(const SeatDo&, loom::Mail& mail) {
+        auto run = std::move(next);
+        next = {};
+        if (run) run(mail);
+    }
+    PaneRoom room;
+    std::function<void(loom::Mail&)> next;
+};
+
+constexpr const char* kAreaSeatOffice = "zengine.test.desk-area-seat";
+constexpr const char* kRowSeatOffice = "zengine.test.desk-row-seat";
+
+} // namespace
+
+TEST_CASE("a pane whose office draws in no graphics window, or whose last word was refused, has no "
+          "area there: Workshop draws its body in its own, the rows or the refusal") {
+    WindowDesk d(true);
+    pw::Window window(d.r.bus, gfx::kTerminalWindow);
+    const Session& s = d.r.session();
+    const std::string area = kWorkshopProvider;
+    {
+        const Screen sc = screen_of(s);
+        window.room(area, area, sc.w / gfx::kCellPx, sc.h / gfx::kCellPx);
+    }
+    const auto shows = [&](const std::string& words) {
+        for (const std::string& row : window.rows(area)) {
+            if (row.find(words) != std::string::npos) return true;
+        }
+        return false;
+    };
+
+    // AN OFFICE THAT TAKES NO WINDOW'S ROOM: no area, and its rows drawn by Workshop.
+    ProviderSeat* rows_seat = d.r.mount_provider(kRowSeatOffice);
+    const std::int64_t rows_kind = seat_pane_open(d.r, rows_seat, kRowSeatOffice, "rows");
+    REQUIRE(rows_kind != kNoPaneKind);
+    d.r.drive(rows_seat, [](ProviderSeat& p, loom::Mail& m) {
+        p.say(m, PaneContent{"rows", {surface::SurfaceTextRow{"said by the row seat",
+                                                              surface::role::kFill}}});
+    });
+    REQUIRE(s.panes.external_pane(rows_kind)->heard);
+    CHECK(d.directory->areas.count(std::string(kRowSeatOffice)) == 0);
+    CHECK(shows("said by the row seat"));
+
+    // AN OFFICE THAT TAKES ONE: its area, once its rows are heard and while they are not refused.
+    auto made = std::make_unique<AreaSeat>();
+    AreaSeat* seat = made.get();
+    loom::Grant grant;
+    grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
+    grant.allow_to_any(PaneContent::zen_name, PaneContent::zen_version);
+    const loom::WeaveId id =
+        d.r.bus.register_weave(std::move(made), std::move(grant), kAreaSeatOffice);
+    seat->zen_set_self(id);
+    const auto seat_does = [&](std::function<void(loom::Mail&)> what) {
+        seat->next = std::move(what);
+        (void)d.r.bus.send(id, loom::Message(loom::to_value(SeatDo{}), {}, {}, 0));
+        d.r.bus.drain_until_idle();
+    };
+    const auto say = [&](std::string text) {
+        seat_does([text](loom::Mail& m) {
+            (void)m.as_role(kAreaSeatOffice)
+                .send_to_role(kWorkshopProvider,
+                              PaneContent{"seat", {surface::SurfaceTextRow{text,
+                                                                           surface::role::kFill}}});
+        });
+    };
+    seat_does([](loom::Mail& m) {
+        (void)m.as_role(kAreaSeatOffice)
+            .send_to_role(kWorkshopProvider, PaneOffered{"seat", "Seat", "a window seat"});
+    });
+    d.r.pick(PaneRef{kAreaSeatOffice, "seat"});
+    const RuntimePane* row = s.panes.runtime.find(kAreaSeatOffice, "seat");
+    REQUIRE(row != nullptr);
+    REQUIRE(s.panes.has(row->kind));
+    const std::int64_t kind = row->kind;
+    REQUIRE(seat->room.columns > 0);
+    say("fits its room");
+    REQUIRE(s.panes.external_pane(kind)->heard);
+    REQUIRE(d.directory->areas.count(std::string(kAreaSeatOffice)) == 1);
+    CHECK(d.directory->areas.at(kAreaSeatOffice).window == gfx::kTerminalWindow);
+    CHECK_FALSE(shows("fits its room"));
+    // ...and a title, but no `?` or gear: its office answers no manual.
+    const std::set<std::string> parts = window.actions(area);
+    CHECK(parts.count("focus:" + std::to_string(kind)) == 1);
+    CHECK(parts.count("manual:" + std::to_string(kind)) == 0);
+    CHECK(parts.count("settings:" + std::to_string(kind)) == 0);
+    // ...and while arranging, in front of its rows, Workshop paints nothing over them.
+    d.type(input::scan::kW, "w");
+    REQUIRE(s.arrange.open);
+    const PixelRect seat_body =
+        canvas_body_place(external_pane_rect(s, kind), screen_of(s),
+                          external_title_rows(s.panes, kind, s.pane_titles));
+    REQUIRE_FALSE(seat_body.empty());
+    CHECK_FALSE(paints_inside(painted_cells(*window.weave().find(area)), seat_body));
+    d.r.key(input::scan::kEscape);
+    REQUIRE_FALSE(s.arrange.open);
+    // ...A WORD TOO WIDE FOR ITS ROOM, refused: the area withdrawn, and the refusal drawn there.
+    say(std::string(static_cast<std::size_t>(seat->room.columns + 1), 'x'));
+    REQUIRE_FALSE(s.panes.external_pane(kind)->refusal.empty());
+    CHECK(d.directory->areas.at(kAreaSeatOffice).window.empty());
+    CHECK(shows(trimmed(detail::fit(s.panes.external_pane(kind)->refusal,
+                                    seat->room.columns))
+                    .substr(0, 20)));
+    // ...and a word that fits again: the area placed again.
+    say("fits again");
+    REQUIRE(s.panes.external_pane(kind)->refusal.empty());
+    CHECK(d.directory->areas.at(kAreaSeatOffice).window == gfx::kTerminalWindow);
+    CHECK(d.refused.empty());
 }
