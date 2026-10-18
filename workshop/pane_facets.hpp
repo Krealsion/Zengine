@@ -35,6 +35,7 @@
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <map>
 #include <optional>
 #include <set>
 #include <string>
@@ -198,7 +199,7 @@ struct RowPress {
 /// means (`component::RowMap<Meaning>`), the caret, and the presses on them. Its rows go as its
 /// canvas picture, numbered by what they mean, while it holds a canvas room, else as prose with
 /// the caret beside them, and to the graphics window that shows the area named `Office` as a
-/// drawing (`rows_sketch`). A press is read against the picture it was aimed at; a third-button
+/// drawing (`rows_drawing`). A press is read against the picture it was aimed at; a third-button
 /// press that means nothing to the pane is passed back to Workshop.
 template <const char* const& Pane, const char* const& Office, const manual::Manual& Page,
           class Meaning, class Offer = v2::PaneOffered>
@@ -219,41 +220,33 @@ public:
     /// weave's `on_room` says them, and the window is sent them whole.
     template <class Self>
     void on(Self& self, const graphics::AreaRoom& r, loom::Mail& mail) {
-        if (r.area != window_.area() ||
-            !mail.authored_from_role(std::string(graphics::kWindowOfficePrefix) + r.window)) {
-            return;
-        }
-        if (window_.room(r)) {
+        if (window_.room(r, mail)) {
             this->window_room(r.h / graphics::kCellPx, r.w / graphics::kCellPx);
             self.on_room(mail);
         }
     }
 
-    /// Rows the window refused leave what it shows as it was, so the next go whole rather than as
-    /// a change from a drawing the window does not hold.
+    /// Rows the window refused leave what it shows as it was: after a refused change the rows last
+    /// sent go again whole at once, and after a refused whole drawing the next rows go whole
+    /// (`WindowDrawing::refused`).
     template <class Self>
     void on(Self&, const graphics::DrawnRefused& refused, loom::Mail& mail) {
-        if (refused.area == window_.area() && !window_.window().empty() &&
-            mail.authored_from_role(window_.window_office())) {
-            window_.forget();
-        }
+        (void)window_.refused(refused, mail);
     }
 
     /// A PRESS ON A PART IN THE WINDOW, asked by the window that shows the area as its office: for a
-    /// part of the rows last sent there, the weave's `press` at the first column of it a press
-    /// reaches -- the press Workshop's canvas makes there -- else the weave's `on_action` for an id
-    /// its `answers(id)` admits. Any other is no act and spends nothing.
+    /// part of the rows last sent there, the weave's `press` at the part's place -- a cell only it
+    /// holds, else the first a press reaches it at, the press Workshop's canvas makes there -- else
+    /// the weave's `on_action` for an id its `answers(id)` admits. Any other is no act and spends
+    /// nothing.
     template <class Self>
     void on(Self& self, const graphics::ActionRequested& asked, loom::Mail& mail) {
-        if (asked.area != window_.area() || window_.window().empty() ||
-            !mail.authored_from_role(window_.window_office())) {
+        if (!window_.from_window(asked.area, mail)) {
             return;
         }
-        const auto part =
-            std::find_if(window_parts_.begin(), window_parts_.end(),
-                         [&](const SketchedPart& p) { return p.name == asked.action; });
-        if (part != window_parts_.end()) {
-            const RowPress press{part->row, part->column, false, true};
+        const auto place = window_places_.find(asked.action);
+        if (place != window_places_.end()) {
+            const RowPress press{place->second.row, place->second.column, false, true};
             if constexpr (requires { self.press(press, mail); }) {
                 self.press(press, mail);
             }
@@ -273,7 +266,7 @@ public:
     /// life delivers: a pane reloaded into a window says its rows there again.
     template <class Self>
     void after_delivery(Self&, loom::Mail& mail) {
-        if (!asked_ && window_.window().empty()) {
+        if (!asked_ && !window_.shown()) {
             asked_ = true;
             (void)mail.as_role(Office).send_to_role(graphics::kGraphicsRole,
                                                     graphics::RoomAsked{window_.area()});
@@ -442,11 +435,10 @@ public:
     void send(loom::Mail& mail, std::int64_t meaning, std::vector<surface::SurfaceTextRow> rows,
               std::vector<v2::PaneRowPart> parts, bool with_caret = true) {
         ++published_;
-        if (!window_.window().empty()) {
-            graphics::Sketch sketch;
-            window_parts_ = rows_sketch(rows, parts, sketch);
-            window_.draw(sketch);
-            window_.show(mail);
+        if (window_.shown()) {
+            RowsDrawing drawn = rows_drawing(rows, parts, this->columns());
+            window_places_ = std::move(drawn.places);
+            window_.draw(drawn.sketch, mail);
         }
         if (this->granted() && !this->seated()) {
             return;
@@ -496,9 +488,9 @@ private:
     CanvasPictures pictures_;
     RowsCaret caret_;
     std::uint64_t published_ = 0;
-    graphics::Canvas window_{Office, Office};
-    std::vector<SketchedPart> window_parts_; ///< the parts of the rows last sent the window
-    bool asked_ = false;                     ///< the room asked in this life
+    WindowDrawing window_{Office, Office};
+    std::map<std::string, RowCell> window_places_; ///< where each part of the rows last sent lands
+    bool asked_ = false;                           ///< the room asked in this life
 };
 
 /// A PANE THAT DRAWS ONE PICTURE: `PaneFacet`, and the weave's `picture(graphics::Sketch&)` shown
@@ -526,24 +518,18 @@ public:
     /// weave's `on_room` draws, and the window is sent the picture whole.
     template <class Self>
     void on(Self& self, const graphics::AreaRoom& r, loom::Mail& mail) {
-        if (r.area != canvas_.area() ||
-            !mail.authored_from_role(std::string(graphics::kWindowOfficePrefix) + r.window)) {
-            return;
-        }
-        if (canvas_.room(r)) {
+        if (window_.room(r, mail)) {
             this->window_room(r.h / graphics::kCellPx, r.w / graphics::kCellPx);
             self.on_room(mail);
         }
     }
 
-    /// A drawing the window refused leaves what it shows as it was, so the next goes whole rather
-    /// than as a change from a picture the window does not hold.
+    /// A drawing the window refused leaves what it shows as it was: after a refused change the
+    /// picture last sent goes again whole at once, and after a refused whole picture the next goes
+    /// whole (`WindowDrawing::refused`).
     template <class Self>
     void on(Self&, const graphics::DrawnRefused& refused, loom::Mail& mail) {
-        if (refused.area == canvas_.area() && !canvas_.window().empty() &&
-            mail.authored_from_role(canvas_.window_office())) {
-            canvas_.forget();
-        }
+        (void)window_.refused(refused, mail);
     }
 
     /// A PRESS ON A PART IN THE WINDOW, asked by the window that shows the area as its office: the
@@ -551,8 +537,7 @@ public:
     /// `answers(id)` admits where it has one. Any other is no act and spends nothing.
     template <class Self>
     void on(Self& self, const graphics::ActionRequested& asked, loom::Mail& mail) {
-        if (asked.area != canvas_.area() || canvas_.window().empty() ||
-            !mail.authored_from_role(canvas_.window_office())) {
+        if (!window_.from_window(asked.area, mail)) {
             return;
         }
         bool admitted = window_actions_.count(asked.action) != 0;
@@ -609,10 +594,10 @@ public:
     /// life delivers: a pane reloaded into a window draws there again.
     template <class Self>
     void after_delivery(Self&, loom::Mail& mail) {
-        if (!asked_ && canvas_.window().empty()) {
+        if (!asked_ && !window_.shown()) {
             asked_ = true;
             (void)mail.as_role(Office).send_to_role(graphics::kGraphicsRole,
-                                                    graphics::RoomAsked{canvas_.area()});
+                                                    graphics::RoomAsked{window_.area()});
         }
     }
 
@@ -630,15 +615,14 @@ public:
         }
         graphics::Sketch sketch;
         self.picture(sketch);
-        if (!canvas_.window().empty()) {
+        if (window_.shown()) {
             window_actions_.clear();
             for (const graphics::ElementRecord& record : sketch.records()) {
                 if (!record.action.empty()) {
                     window_actions_.insert(record.action);
                 }
             }
-            canvas_.draw(sketch);
-            canvas_.show(mail);
+            window_.draw(sketch, mail);
         }
         if (!this->seated()) {
             return;
@@ -670,7 +654,7 @@ private:
         }
     }
 
-    graphics::Canvas canvas_{Office, Office};
+    WindowDrawing window_{Office, Office};
     std::set<std::string> window_actions_; ///< the actions the picture last sent the window names
     bool asked_ = false;                   ///< the room asked in this life
     component::RowMap<DrawnPart> map_;     ///< the parts of the picture Workshop last held

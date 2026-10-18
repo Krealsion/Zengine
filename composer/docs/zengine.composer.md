@@ -216,8 +216,9 @@ only what changed.
 
 ### `DrawnRefused`
 
-`DrawnRefused` v1, from that window: rows it refused, and why. What it shows stays as it was, and
-Compose's next drawing goes whole.
+`DrawnRefused` v1, from that window: rows it refused, and why. What it shows stays as it was. A
+refused change is followed at once by the rows last sent, whole; after a refused whole drawing,
+nothing is sent until Compose's rows change, and that drawing goes whole.
 
 ### `ActionRequested`
 

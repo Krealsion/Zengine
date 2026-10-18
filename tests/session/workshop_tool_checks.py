@@ -957,7 +957,8 @@ class ActWorkshop(Context):
     whose lines are named. A pane drawing a picture refuses version 1 of either reading. A part or
     a line `unreached` names has no point, as Workshop says one no press reaches on its own. While
     `redraws` counts down, a point is refused as one asked of a picture that moved since it was
-    read. Every injected moment is kept, as `Context` keeps them."""
+    read, and while `unsettled` does, as one asked of a pane whose picture is not yet settled.
+    Every injected moment is kept, as `Context` keeps them."""
     COLUMNS = 40
 
     def __init__(self, steps, act_steps, rows, panes=None, named=None, manager=None, unreached=()):
@@ -969,6 +970,7 @@ class ActWorkshop(Context):
         self.manager, self.unreached = manager, set(unreached)
         self.points, self.cells, self.kept = [], [], {}
         self.redraws = 0  # points to refuse as a pane that redrew since it was read
+        self.unsettled = 0  # points to refuse as a pane whose picture is not yet settled
 
     def draws_picture(self, pane):
         """Whether the pane draws its own picture: the View Builder, or a `CanvasManager`."""
@@ -1022,6 +1024,9 @@ class ActWorkshop(Context):
         if shape == "PanePointRequested" and self.redraws:
             self.redraws -= 1
             raise Refused("pane point unavailable: the pane's picture moved; read it again")
+        if shape == "PanePointRequested" and self.unsettled:
+            self.unsettled -= 1
+            raise Refused("pane view unavailable: no settled picture")
         if shape == "PanePointRequested" and options.get("version") == 3:
             if self.draws_picture(fields["pane"]):
                 if fields["pane"] != "launcher":
@@ -1523,6 +1528,44 @@ def run_checks(tools, runtime):
                                                                       act.POINT_TRIES))
                             self.assertFalse([e for e in ctx.events if e["kind"] == "PointerButton"])
                         self.assertEqual(ctx.redraws, 0)
+
+        def test_a_press_aimed_before_a_panes_picture_settles_waits_and_reads_again(self):
+            # A PANE JUST OPENED, its words read before Workshop aimed at its first picture: the
+            # point is refused for no settled picture, and the step waits on the pane, reads it
+            # again and presses where it would have -- more times than a moved picture may.
+            for step, rows, panes, manager, where in (
+                    ({"open": "pane:zengine.files/project-files"}, [], None, Manager(self.LISTED),
+                     [(400, 6), (450, 42)]),
+                    ({"click": ["zengine.view.builder", "view-builder", "Label"]}, [], None, None,
+                     [(101, 1)] * 2),
+                    ({"control": ["zengine.view.builder", "view-builder", "Label"]}, [], None, None,
+                     [(101, 1)] * 2),
+                    ({"into": ["zengine.editor", "editor"]}, [], {"editor": ["notes"]}, None,
+                     [(100, 0)] * 2),
+                    ({"at": ["zengine.info", "info", 1, 3]}, self.INFO_ROWS, None, None,
+                     [(203, 18)] * 2)):
+                verb = next(iter(step))
+                with self.subTest(verb=verb):
+                    ctx = ActWorkshop(steps, [step], rows, panes=panes, manager=manager)
+                    ctx.unsettled = act.POINT_TRIES + 1
+                    slept = []
+                    with patch.object(hand.time, "sleep", side_effect=slept.append):
+                        self.act(ctx)
+                    self.assertEqual(ctx.unsettled, 0)
+                    self.assertEqual(len(slept), act.POINT_TRIES + 1)  # a wait each, never a spin
+                    presses = [(e["x"], e["y"]) for e in ctx.events
+                               if e["kind"] == "PointerButton" and (verb != "open" or e["pressed"])]
+                    self.assertEqual(presses, where)
+            # A PICTURE THAT NEVER SETTLES within the step's seconds: the step fails naming the pane
+            # and presses nothing.
+            ctx = ActWorkshop(steps, [{"click": ["zengine.view.builder", "view-builder", "Label"],
+                                       "seconds": 0.3}], [])
+            ctx.unsettled = 10 ** 6
+            with self.assertRaises(CheckFailed) as failed:
+                self.act(ctx)
+            self.assertEqual(str(failed.exception), "click: zengine.view.builder/view-builder held "
+                             "no settled picture to aim at within 0.3s")
+            self.assertFalse([e for e in ctx.events if e["kind"] == "PointerButton"])
 
         # ---- panes that draw a picture, read by their words and their names --------------------
         # Each stand-in below answers PaneView version 3 and PanePointRequested versions 2 and 3
