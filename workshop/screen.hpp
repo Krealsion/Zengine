@@ -835,6 +835,30 @@ std::int64_t typing_pane(const Session& s);
 /// MAY ESCAPE'S FINAL FALLTHROUGH SHED THE PANE SELECTION IN THIS CONTEXT?
 bool default_row_context(KeyContext c);
 
+// ---- Moving the keyboard's selection -----------------------------------------------------
+
+/// THE PANES THE KEYBOARD'S SELECTION WALKS, in reading order: every open pane that takes the
+/// keys and stands on the canvas, top to bottom by its rectangle, then left to right, then front
+/// to back in the authored order.
+// WL-FOCUS-12 -- agents/workshop/focus.md
+std::vector<std::int64_t> selectable_panes(const Panes& panes, const Setup& setup,
+                                           const Screen& sc);
+
+/// The pane `step` places after `from` in reading order, wrapping; from a pane not in it, the
+/// first (a step forward) or the last. None while no pane is selectable.
+// WL-FOCUS-12 -- agents/workshop/focus.md
+std::optional<std::int64_t> cycle_pane(const Panes& panes, const Setup& setup, const Screen& sc,
+                                       std::int64_t from, std::int64_t step);
+
+/// THE NEAREST PANE BEYOND `from` IN A DIRECTION (`Act::kFocusLeft`, `kFocusRight`, `kFocusUp`,
+/// `kFocusDown`): candidates whose centre lies past `from`'s edge, else past its centre where
+/// panes overlap; the lowest gap along the direction plus twice the misalignment across it
+/// wins, a tie the front-most. From a pane not selectable, the first in reading order; none when
+/// nothing lies that way.
+// WL-FOCUS-12 -- agents/workshop/focus.md
+std::optional<std::int64_t> spatial_neighbour(const Panes& panes, const Setup& setup,
+                                              const Screen& sc, std::int64_t from, Act dir);
+
 // ---- Spelling the effective bindings -----------------------------------------------------
 
 /// The effective gesture of one action, in the band's spelling (`^s` or `ctrl+s`). The one call
@@ -1382,6 +1406,11 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
                            std::int64_t chrome = kPaneChrome, bool with_body = true);
 
 // ---- The arrangement's affordance rings --------------------------------------------------
+
+/// THE KEYBOARD'S SELECTION MADE VISIBLE: in command mode, the selected pane's four corners
+/// marked, so a selection the keys have not entered is told from the pane that has them.
+// WL-FOCUS-12 -- agents/workshop/focus.md
+void paint_selection_ring(surface::SurfaceLayer& layer, const Session& s, const Screen& sc);
 
 /// THE AFFORDANCE RINGS ARE THE ARRANGEMENT STATE MADE VISIBLE.
 void paint_pane_affordances(surface::SurfaceLayer& layer, const Session& s,

@@ -107,8 +107,9 @@ negotiation: a pane with no door for what is carried is sent nothing. The other 
 protocol carries are scoped conversations with explicit answers: a pane asking to be seated,
 Workshop asking whether it may quit.
 
-**Keyboard possession is a spend, and any press elsewhere takes it away.** That is enough for a
-pane that wants typed input in its own room, and it is not a capture model.
+**Keyboard possession is a spend, and any press elsewhere takes it away,** as does `focus.leave`
+from the keyboard. That is enough for a pane that wants typed input in its own room, and it is not
+a capture model.
 
 ### Ownership map
 

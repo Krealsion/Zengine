@@ -470,7 +470,7 @@ TEST_CASE("the join judges a declaration whole, in order, and a refusal writes n
         CHECK(moved.pane_action_for(kSomePane, input::scan::kUp, input::mod::kNone) == nullptr);
         REQUIRE(moved.pane_action_for(kSomePane, input::scan::kU, input::mod::kCtrl) != nullptr);
         // AN OVERRIDE THAT LANDS ON A ROW ACTIVE ABOVE THE MODES IS THE SAME COLLISION, said the
-        // same way -- an application row's, since no host row but the quit is active here.
+        // same way -- an application row's, since no host row on its chord is active here.
         REQUIRE(join_app_rows(k, std::vector<AppRow>{AppRow{
                                      "desktop.terminal", "terminal",
                                      Gesture{input::scan::kT, input::mod::kCtrl}, 0}})
@@ -1094,9 +1094,9 @@ TEST_CASE("the band's legend and the effective keymap print the pane's rows whil
         REQUIRE(lines.size() == 2);
         CHECK(lines[0].find("typing goes to Seat @" + std::string(kHelloOffice)) !=
               std::string::npos);
-        // THE PANE'S OWN ROWS, and nothing after them: an unbound row teaches no key (WL-KEY-13),
-        // and no host row is requestable while a pane holds the keys.
-        CHECK(lines[1] == "up row up | m mark");
+        // THE PANE'S OWN ROWS, then the one host row requestable while a pane holds the keys, the
+        // way out: an unbound row teaches no key (WL-KEY-13).
+        CHECK(lines[1] == "up row up | m mark | ^q leave pane");
     }
     // THE EFFECTIVE KEYMAP: the pane's rows under its own name, the unbound one with no key.
     const std::string group = "pane Seat @" + std::string(kHelloOffice);
@@ -1125,8 +1125,8 @@ TEST_CASE("a pane that declared nothing is described as ownership only, exactly 
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
     press_body(r, kind);
-    // The survivors are the application's, and nothing of the pane's own.
-    CHECK(band_lines(r).at(1) == "^t terminal | ^p panes | ^k hotkeys");
+    // The survivors are the way out and the application's, and nothing of the pane's own.
+    CHECK(band_lines(r).at(1) == "^q leave pane | ^t terminal | ^p panes | ^k hotkeys");
     // ...AND THE EFFECTIVE KEYMAP HOLDS NO ROW FOR IT: every key it gets is its own to read.
     const std::string view = hotkeys_text(r);
     CHECK(view.find("pane Seat @" + std::string(kHelloOffice)) == std::string::npos);

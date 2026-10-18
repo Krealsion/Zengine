@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <utility>
 
 namespace zengine::workshop {
 
@@ -41,6 +42,9 @@ void paint_panes(surface::SurfaceCanvas& c, const Session& s, const Screen& sc) 
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
         paint_pane_affordances(layer, s, sc);
     });
+    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
+        paint_selection_ring(layer, s, sc);
+    });
     // The contextual-action surface, last in the band: over everything as the band's latest
     // gesture, and it takes the band's keys first for the same reason (`keyboard_context`).
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
@@ -51,6 +55,32 @@ void paint_panes(surface::SurfaceCanvas& c, const Session& s, const Screen& sc) 
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
         paint_presented(layer, s, sc);
     });
+}
+
+// WL-FOCUS-12 -- agents/workshop/focus.md
+void paint_selection_ring(surface::SurfaceLayer& layer, const Session& s, const Screen& sc) {
+    if (keyboard_context(s) != KeyContext::kCommand) {
+        return;
+    }
+    const std::int64_t kind = selected_pane(s.panes);
+    if (kind == kNoPaneKind || !kind_takes_keyboard(kind)) {
+        return;
+    }
+    const PixelRect b = bounds_of(s.panes, s.setup.active, kind, sc).rect;
+    if (b.empty()) {
+        return;
+    }
+    // Brackets, which neither a role's fill nor an arrangement handle draws.
+    static constexpr std::pair<std::int64_t, const char*> kCorners[] = {
+        {pane_edge::kTopLeft, "["},
+        {pane_edge::kTopRight, "]"},
+        {pane_edge::kBottomLeft, "["},
+        {pane_edge::kBottomRight, "]"},
+    };
+    for (const auto& [edge, glyph] : kCorners) {
+        const PixelRect at = pane_edge_cell(b, edge);
+        layer.labels.push_back(surface::SurfaceLabel{at.x, at.y, glyph, surface::role::kAccent});
+    }
 }
 
 surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc) {
@@ -415,6 +445,14 @@ WorkshopWindowDrawing workshop_window_drawing(const Session& s,
         surface::SurfaceLayer layer;
         paint_pane_affordances(layer, s, sc);
         draw_plane(out.sketch, desk + "/rings", layer, sc);
+    }
+    {
+        // ...and the keyboard's selection, where command mode has one.
+        surface::SurfaceLayer layer;
+        paint_selection_ring(layer, s, sc);
+        if (!layer.labels.empty()) {
+            draw_plane(out.sketch, desk + "/selection", layer, sc);
+        }
     }
     if (s.context.open) {
         surface::SurfaceLayer layer;

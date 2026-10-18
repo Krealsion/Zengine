@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// `WorkshopWeave`'s command mode: each key bound there calls one operation, and the presentation
-// preferences a toggle states and saves.
+// `WorkshopWeave`'s command mode: each key bound there calls one operation, the keyboard's way
+// to a pane, and the presentation preferences a toggle states and saves.
 // Workshop law: agents/workshop/keyboard.md (+3 registers; agents/workshop.md routes)
 
 #include "weave.hpp"
@@ -67,8 +67,23 @@ void WorkshopWeave::state_presentation(Act a) {
     say(note, bad);
 }
 
+namespace {
+
+/// Where a direction looks from the selected pane, in the words a refusal says it.
+const char* direction_words(Act a) {
+    switch (a) {
+    case Act::kFocusLeft: return "to the left of";
+    case Act::kFocusRight: return "to the right of";
+    case Act::kFocusUp: return "above";
+    default: return "below";
+    }
+}
+
+} // namespace
+
 // WL-KEY-01 -- agents/workshop/keyboard.md
 // WL-GUEST-09 -- agents/workshop/guests.md
+// WL-FOCUS-12 -- agents/workshop/focus.md
 void WorkshopWeave::command(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     // Each arm calls one operation. A weaver's keymap row naming a retired id is kept byte for byte
     // and said at load (`kRetiredActions`); nothing here answers it.
@@ -101,6 +116,63 @@ void WorkshopWeave::command(const zengine::input::KeyPressed& k, loom::Mail& mai
     case Act::kBandKeys:
     case Act::kHotkeysKeys: state_presentation(a); break;
     case Act::kQuit: quit(mail); break;
+    // THE KEYBOARD'S WAY TO A PANE: the selection moves, lifting the pane it reaches as a press
+    // would, and writes the keys nowhere; only `focus.enter` gives a pane the keys, and it sends
+    // the pane no press, so arriving never activates a row (WL-FOCUS-04).
+    case Act::kFocusNext:
+    case Act::kFocusPrevious:
+    case Act::kFocusLeft:
+    case Act::kFocusRight:
+    case Act::kFocusUp:
+    case Act::kFocusDown: {
+        const Screen sc = screen_of(session_);
+        const std::int64_t from = selected_pane(session_.panes);
+        const std::vector<std::int64_t> order =
+            selectable_panes(session_.panes, session_.setup.active, sc);
+        if (order.empty()) {
+            say("no open pane to select", true);
+            break;
+        }
+        const bool cycling = a == Act::kFocusNext || a == Act::kFocusPrevious;
+        const std::optional<std::int64_t> to =
+            cycling ? cycle_pane(session_.panes, session_.setup.active, sc, from,
+                                 a == Act::kFocusNext ? 1 : -1)
+                    : spatial_neighbour(session_.panes, session_.setup.active, sc, from, a);
+        if (!to.has_value()) {
+            say(std::string("no pane ") + direction_words(a) + " " +
+                    kind_name(session_.panes, from),
+                false);
+            break;
+        }
+        session_.panes.selected = *to;
+        session_.panes.keyboard = kNoPaneKind;
+        say("selected " + kind_name(session_.panes, *to) + " -- " + hotkey(Act::kFocusEnter) +
+                " gives it the keys",
+            false);
+        break;
+    }
+    case Act::kFocusEnter: {
+        std::int64_t to = selected_pane(session_.panes);
+        if (to == kNoPaneKind || !kind_takes_keyboard(to)) {
+            const std::optional<std::int64_t> first = cycle_pane(
+                session_.panes, session_.setup.active, screen_of(session_), kNoPaneKind, 1);
+            if (!first.has_value()) {
+                say("no open pane to enter", true);
+                break;
+            }
+            to = *first;
+        }
+        session_.panes.selected = to;
+        session_.panes.keyboard = to;
+        if (keyboard_pane() != to) {
+            say(kind_name(session_.panes, to) + " takes the keys once it has its room", false);
+            break;
+        }
+        say("typing goes to " + kind_name(session_.panes, to) + " -- " +
+                hotkey(Act::kFocusLeave) + " gives Workshop the keys back",
+            false);
+        break;
+    }
     // EDIT CODE BOUND TO A KEY NAMES NO PANE, so it acts on none. Command mode's subject is the
     // selected object or the room (`open_context_ambient`), never a pane, and guessing one --
     // the selected pane, the keyboard's -- would be the pointing/selecting collapse WL-CTX-01
