@@ -20,7 +20,7 @@ rule: `build-recipes.json` there, else the shipped one
 
 That is why there is no `--skin` flag and no `--input` flag. Those two were the flags a plan
 replaced, and the replacement is not cosmetic: a plan is repeatable, diffable and durable, so
-"the graphical Workshop" is a second **shipped file** rather than a second code path.
+"the graphical Workshop" is another **shipped file** rather than a second code path.
 
 Workshop prints the whole executed arrangement on the way up, so what a run is actually made of
 is on your screen rather than inferred from which flags you passed.
@@ -37,23 +37,29 @@ If a row is refused, Workshop names the artifact, says how many participated bef
 exits — the same behaviour as before, and still deliberate, because the row that fails may be the
 one that draws your screen.
 
-## The two shipped plans
+## The three shipped plans
 
 | file | is |
 |---|---|
 | [`workshop/default-load-plan.json`](../default-load-plan.json) | the terminal Workshop |
-| [`workshop/graphical-load-plan.json`](../graphical-load-plan.json) | the windowed Workshop |
+| [`workshop/window-load-plan.json`](../window-load-plan.json) | Workshop in the terminal window: the desk drawn through the graphics directory |
+| [`workshop/graphical-load-plan.json`](../graphical-load-plan.json) | the windowed Workshop, staged only where both SDL artifacts were built |
 
-They differ in exactly two rows:
+Each differs from the default in exactly the medium's two rows, the third and the fourth:
 
-| | default | graphical |
-|---|---|---|
-| skin | `zengine-skin-tui-classic` | `zengine-skin-sdl` |
-| input | `zengine-input` | `zengine-input-sdl` |
+| row | default | window | graphical |
+|---|---|---|---|
+| third | `zengine-skin-tui-classic`, as `zengine.skin` | `zengine-graphics`, as `zengine.graphics` | `zengine-skin-sdl`, as `zengine.skin` |
+| fourth | `zengine-input`, as `zengine.input` | `zengine-window-terminal`, as `zengine.window.terminal` | `zengine-input-sdl`, as `zengine.input` |
 
-Everything else is identical, and Workshop's own code is identical under both. Both plans also
-carry `zengine-operators-basic` (a provider only), `zengine-timer` (a provider **and** a
-weave), `zengine-introspection` and `zengine-composer`. And both author two **choices** for the
+In the window plan the [graphics directory](../../graphics/docs/zengine.graphics.md) introduces
+each pane's area and Workshop's own to the [terminal window](../../graphics/docs/zengine.window.terminal.md),
+which takes the process's terminal, shows what each one draws and sends the terminal's keys to their
+owners; no skin and no input weave is loaded.
+
+Everything else is identical, and Workshop's own code is identical under all three. Every plan also
+carries `zengine-operators-basic` (a provider only), `zengine-timer` (a provider **and** a
+weave), `zengine-introspection` and `zengine-composer`. And each authors two **choices** for the
 Editor's office: `standard`, the row that loads, and `neovim`, loaded only when you switch to it
 ([Neovim in Workshop](../../editor/docs/neovim.md)).
 
@@ -97,7 +103,7 @@ Copy a shipped plan and change rows. Two things to know:
   treat editing a list of shared libraries a program will `dlopen` — because that is what it is.
 - **Alternatives for an office are `choices`** (plan format version 2): each names an artifact that
   may hold the office and the word a weaver switches to it by, and exactly one of them is also the
-  row that loads it. Keep both of the shipped plans' Editor choices if you want to switch editors;
+  row that loads it. Keep both of a shipped plan's Editor choices if you want to switch editors;
   the format is [the reference's](load-plan.md#the-file-format), the law
   [editor-switch.md](../../editor/docs/editor-switch.md).
 

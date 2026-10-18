@@ -64,7 +64,8 @@ set(ZENGINE_EXPORTED_TARGETS
     zengine-operator
     zengine-operator-consumer
     zengine-pane-vocabulary
-    zengine-neovim-editor-vocabulary)
+    zengine-neovim-editor-vocabulary
+    zengine-graphics-vocabulary)
 
 set_target_properties(zengine-maker PROPERTIES EXPORT_NAME maker)
 set_target_properties(zengine-flow PROPERTIES EXPORT_NAME flow)
@@ -82,6 +83,7 @@ set_target_properties(zengine-operator            PROPERTIES EXPORT_NAME operato
 set_target_properties(zengine-operator-consumer   PROPERTIES EXPORT_NAME operator-consumer)
 set_target_properties(zengine-pane-vocabulary     PROPERTIES EXPORT_NAME pane)
 set_target_properties(zengine-neovim-editor-vocabulary PROPERTIES EXPORT_NAME neovim)
+set_target_properties(zengine-graphics-vocabulary PROPERTIES EXPORT_NAME graphics)
 
 # Every one of them is an INTERFACE target, so nothing is installed here but the target
 # definitions themselves; the headers go below and there is no library to place.
@@ -148,6 +150,16 @@ set(zengine_public_headers_workshop   workshop/setup_control.hpp workshop/pane_o
                                       workshop/guest_seam_vocabulary.hpp)
 # ...and the Neovim-backed Editor's asks, under its own directory for the same reason.
 set(zengine_public_headers_editor/neovim-editor editor/neovim-editor/vocabulary.hpp)
+# The graphics vocabulary an owner draws with, the elements, the terminal painter's code and the two
+# seams a skin or an element's code is written against; the window and the directory are artifacts.
+set(zengine_public_headers_graphics graphics/vocabulary.hpp graphics/ops.hpp graphics/implied.hpp
+    graphics/painting.hpp graphics/term_paint.hpp graphics/canvas.hpp graphics/drawing.hpp
+    graphics/elements.hpp graphics/element_abi.h graphics/element_export.hpp
+    graphics/painter_abi.h graphics/painter_export.hpp)
+set(zengine_public_headers_graphics/elements graphics/elements/button.hpp
+    graphics/elements/checkbox.hpp graphics/elements/grid.hpp graphics/elements/icon.hpp
+    graphics/elements/image.hpp graphics/elements/list.hpp graphics/elements/scroll_view.hpp
+    graphics/elements/text_box.hpp)
 
 set(zengine_public_headers_maker maker/definition.hpp maker/files.hpp maker/write.hpp
     maker/runtime.hpp maker/weave.hpp maker/vocabulary.hpp maker/succession.hpp)
@@ -165,7 +177,7 @@ if(TARGET zengine-flow-tool)
 endif()
 install(TARGETS zengine-inventory-read RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-foreach(pkg IN ITEMS maker flow flow/flow-host flow/flow-pane message-draft inventory editor/source-transfer activation timer surface input ui component operator workshop editor/neovim-editor)
+foreach(pkg IN ITEMS maker flow flow/flow-host flow/flow-pane message-draft inventory editor/source-transfer activation timer surface input ui component operator workshop editor/neovim-editor graphics graphics/elements)
     install(FILES ${zengine_public_headers_${pkg}}
             DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zengine/${pkg})
 endforeach()

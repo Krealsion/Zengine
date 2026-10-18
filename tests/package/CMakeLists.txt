@@ -32,7 +32,8 @@ target_link_libraries(witness-surfaces
         zengine::operator-consumer
         zengine::pane
         zengine::neovim
-        zengine::source-transfer)
+        zengine::source-transfer
+        zengine::graphics)
 
 # ---- a stranger uses the pane menu, the presenter seam and the list helpers, live ---------
 # pane_menu_consumer.cpp runs the protocol public_surface.cpp only includes, from `zengine::pane`,

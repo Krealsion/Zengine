@@ -296,9 +296,12 @@ int main(int argc, char** argv) {
                     "                        [--log <path>] [--log-refusals] [--dump <path>] [--demo-history]\n"
                     "                        [--guests <file>]\n"
                     "       zengine-workshop --read-log <path>\n"
-                    "the graphical Workshop is the second plan shipped beside this binary:\n"
+                    "the desk in a terminal window, and in an SDL window where that skin was\n"
+                    "built, are the other plans shipped beside this binary:\n"
+                    "  zengine-workshop --load-plan <workshop dir>/%s\n"
                     "  zengine-workshop --load-plan <workshop dir>/%s\n",
-                    args.complaint.c_str(), load_persist::kGraphicalLoadPlanName);
+                    args.complaint.c_str(), load_persist::kWindowLoadPlanName,
+                    load_persist::kGraphicalLoadPlanName);
         return 2;
     }
 

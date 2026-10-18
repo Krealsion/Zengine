@@ -16,7 +16,7 @@ No other weave touches the terminal or a window: a weave publishes what it wants
 medium when it is loaded and gives it back when it is unloaded. The office holds one Skin at a time:
 loading a second into it is refused, and replacing the one there (Loom's swap) unloads it before
 its successor claims the medium. Workshop's default plan loads `zengine-skin-tui-classic`, and its
-graphical plan `zengine-skin-sdl` ([the two shipped plans](../../workshop/docs/load-plans.md#the-two-shipped-plans)).
+graphical plan `zengine-skin-sdl` ([the shipped plans](../../workshop/docs/load-plans.md#the-three-shipped-plans)).
 
 **The two terminal libraries are the same Skin**, so a terminal Skin replaced while running has
 another library to be replaced by; they paint the same bytes, and neither is a look of its own.
