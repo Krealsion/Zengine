@@ -114,7 +114,7 @@ LAW — In command mode `focus.next`/`previous` walk the selectable panes in rea
 MEANS
 - selectable: open, takes the keys, on the canvas; reading order is top, then left, then front;
 - the neighbour is past the edge, else the centre: gap plus twice the misalignment, a tie in front;
-- `focus.enter` sends no press (WL-FOCUS-04); the selection wears `[` `]` corners, in a window two rings.
+- `focus.enter` sends no press (WL-FOCUS-04); the selection wears `[` `]` corners, or rings where edges are finer.
 
 WHY — `agents/decisions/the-keyboard-reaches-a-pane.md`
 
@@ -273,8 +273,8 @@ focus.enter
 whatever order they were authored in, and wraps both ways" "a direction selects the neighbour past
 the selected pane's edge, and nothing past the desk's" "misalignment across the direction counts
 twice the gap along it" "two neighbours scored alike go to the one in front" "a pane overlapping the
-selected one is reached past its centre" "command mode marks the selected pane, at its corners on a
-canvas and with rings in a window, and the pane the keys are in wears none"
+selected one is reached past its centre" "command mode marks the selected pane, with brackets where
+text is a cell and rings where an edge is finer, and the pane the keys are in wears none"
 `tests/test_workshop_panes_input.cpp` "Tab and the arrows move the keyboard's selection between
 panes and give none of them the keys" "Return gives the selected pane the keys with no press, and a
 typed key reaches it"
