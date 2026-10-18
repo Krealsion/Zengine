@@ -3,10 +3,10 @@
 
 // The Input suite -- the Input package proven headless: the vocabulary's spellings pinned by
 // content id, and scan:: as SDL's scancode values; the native translations as pure math, both
-// backends on every lane; the weave through a real bus with an injected reader; and the real
-// libraries through the real Kernel, down to a published KeyPressed steering the world. What
-// headless cannot prove is the platform edge itself -- a real terminal's bytes reaching the
-// reader -- which the live pty run drives through the real host.
+// backends on every lane; the weave through a real bus with an injected reader; the real libraries
+// through the real Kernel, down to a published KeyPressed steering the world; and, on POSIX, a
+// pseudo-terminal on standard input, which a reader reads or leaves to a terminal window holding
+// it. A real console, and a real terminal through the real host, are the live pty run's to drive.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).
@@ -14,6 +14,7 @@
 
 #include "component/text_box.hpp" // the one TU that pins its key spellings to scan::
 #include "input/input_weave.hpp"
+#include "input/terminal_reader.hpp"
 #include "input/translate.hpp"
 #include "input/translate_sdl.hpp"
 #include "input/vocabulary.hpp"
@@ -32,16 +33,26 @@
 #include <zen/switchboard.hpp>
 #include <zen/weave.hpp>
 
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <fstream>
 #include <functional>
 #include <memory>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <utility>
 #include <variant>
 #include <vector>
+
+#if !defined(_WIN32)
+#include <fcntl.h>
+#include <stdlib.h>
+#include <termios.h>
+#include <unistd.h>
+#endif
 
 using namespace zengine::input;
 using loom::schema_of;
@@ -2632,3 +2643,235 @@ TEST_CASE("session: an in-place reload keeps the open session, its held keys and
     // A NUMBER IS NEVER GIVEN TWICE: the next session is numbered after the one the reload kept.
     CHECK(open() == "opened 2");
 }
+
+// =============================================================================
+// The terminal window's claim: the readers beside a window leave its terminal to it
+// =============================================================================
+// A terminal window and the Input weave are separate libraries in one process; the window's claim
+// is the process's environment variable, read here as both libraries read it.
+
+namespace {
+
+std::string own_pid() {
+#if defined(_WIN32)
+    return std::to_string(::GetCurrentProcessId());
+#else
+    return std::to_string(::getpid());
+#endif
+}
+
+/// The variable as another hand leaves it -- a parent's claim, garbage -- or gone (nullptr).
+void put_claim_text(const char* text) {
+#if defined(_WIN32)
+    ::SetEnvironmentVariableA(kWindowTerminalInputVariable, text);
+#else
+    if (text == nullptr) {
+        ::unsetenv(kWindowTerminalInputVariable);
+    } else {
+        ::setenv(kWindowTerminalInputVariable, text, 1);
+    }
+#endif
+}
+
+/// The variable's text as a child process would inherit it, or "(unset)".
+std::string claim_text() {
+#if defined(_WIN32)
+    char buf[64];
+    ::SetLastError(ERROR_SUCCESS);
+    const DWORD n = ::GetEnvironmentVariableA(kWindowTerminalInputVariable, buf,
+                                              static_cast<DWORD>(sizeof(buf)));
+    if (n == 0 && ::GetLastError() == ERROR_ENVVAR_NOT_FOUND) {
+        return "(unset)";
+    }
+    return n < sizeof(buf) ? std::string(buf, n) : std::string("(too long)");
+#else
+    const char* text = ::getenv(kWindowTerminalInputVariable);
+    return text == nullptr ? std::string("(unset)") : std::string(text);
+#endif
+}
+
+/// Each case leaves the process as it found it, red or green.
+struct ClaimClearedAtEnd {
+    ClaimClearedAtEnd() = default;
+    ClaimClearedAtEnd(const ClaimClearedAtEnd&) = delete;
+    ClaimClearedAtEnd& operator=(const ClaimClearedAtEnd&) = delete;
+    ~ClaimClearedAtEnd() { put_claim_text(nullptr); }
+};
+
+} // namespace
+
+TEST_CASE("a terminal window's claim on the terminal input is counted under this process's pid") {
+    ClaimClearedAtEnd cleared;
+    const std::string pid = own_pid();
+    CHECK_FALSE(window_holds_terminal_input());
+    CHECK(window_terminal_input_claims() == 0);
+
+    claim_window_terminal_input();
+    CHECK(window_terminal_input_claims() == 1);
+    CHECK(window_holds_terminal_input());
+    CHECK(claim_text() == pid + ":1");
+
+    // A reload in place makes the new window before it destroys the old one.
+    claim_window_terminal_input();
+    CHECK(window_terminal_input_claims() == 2);
+    CHECK(claim_text() == pid + ":2");
+
+    release_window_terminal_input();
+    CHECK(window_terminal_input_claims() == 1);
+    CHECK(window_holds_terminal_input());
+
+    release_window_terminal_input();
+    CHECK(window_terminal_input_claims() == 0);
+    CHECK_FALSE(window_holds_terminal_input());
+    CHECK(claim_text() == "(unset)"); // a child started now inherits nothing
+
+    release_window_terminal_input();
+    CHECK(window_terminal_input_claims() == 0);
+    CHECK(claim_text() == "(unset)");
+}
+
+TEST_CASE("a claim under another pid, or one that is not a count, holds nothing, and a window "
+          "claims over it from one") {
+    ClaimClearedAtEnd cleared;
+    const std::string pid = own_pid();
+    for (const std::string& text :
+         {std::string("0:3"), std::string("bad"), pid + "1:3", "1" + pid + ":3", pid + ":",
+          pid + ":0", pid + ":-2", pid + ":2x", pid + ": 2", pid, std::string(":3")}) {
+        CAPTURE(text);
+        put_claim_text(text.c_str());
+        CHECK(window_terminal_input_claims() == 0);
+        CHECK_FALSE(window_holds_terminal_input());
+    }
+    put_claim_text((pid + ":7").c_str());
+    CHECK(window_terminal_input_claims() == 7);
+
+    // The parent's claim a child inherited: the child's own window counts from one, and its last
+    // release leaves nothing.
+    put_claim_text("0:3");
+    claim_window_terminal_input();
+    CHECK(claim_text() == pid + ":1");
+    release_window_terminal_input();
+    CHECK(claim_text() == "(unset)");
+}
+
+TEST_CASE("a reader touches the terminal as the window's own, or while no window holds it") {
+    CHECK(terminal_reader_may_use_terminal(false, false));
+    CHECK_FALSE(terminal_reader_may_use_terminal(false, true));
+    CHECK(terminal_reader_may_use_terminal(true, false));
+    CHECK(terminal_reader_may_use_terminal(true, true));
+}
+
+#if !defined(_WIN32)
+
+namespace {
+
+/// A pseudo-terminal on standard input for this object's life, the process's own put back after:
+/// the reader's real edge, typed into from the other end.
+struct PtyOnStdin {
+    int master = ::posix_openpt(O_RDWR | O_NOCTTY);
+    int saved = -1;
+    bool ok = false;
+
+    PtyOnStdin() {
+        if (master < 0 || ::grantpt(master) != 0 || ::unlockpt(master) != 0) {
+            return;
+        }
+        const char* name = ::ptsname(master);
+        const int pty = name != nullptr ? ::open(name, O_RDWR | O_NOCTTY) : -1;
+        if (pty < 0) {
+            return;
+        }
+        saved = ::dup(STDIN_FILENO);
+        ok = saved >= 0 && ::dup2(pty, STDIN_FILENO) == STDIN_FILENO;
+        ::close(pty);
+    }
+    ~PtyOnStdin() {
+        if (saved >= 0) {
+            ::dup2(saved, STDIN_FILENO);
+            ::close(saved);
+        }
+        if (master >= 0) {
+            ::close(master);
+        }
+    }
+    PtyOnStdin(const PtyOnStdin&) = delete;
+    PtyOnStdin& operator=(const PtyOnStdin&) = delete;
+
+    /// A line at a time, as a terminal is before a reader takes it and after it gives it back.
+    bool cooked() const {
+        termios t{};
+        return ::tcgetattr(STDIN_FILENO, &t) == 0 &&
+               (t.c_lflag & static_cast<tcflag_t>(ICANON)) != 0;
+    }
+    bool type(std::string_view text) const {
+        return ::write(master, text.data(), text.size()) == static_cast<ssize_t>(text.size());
+    }
+};
+
+/// Whether the text was typed, read within two seconds: the pty hands bytes on asynchronously.
+bool reads_text(PlatformReader& reader, const std::string& text) {
+    const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    while (std::chrono::steady_clock::now() < until) {
+        for (const InputEvent& e : reader.poll()) {
+            const auto* t = std::get_if<TextEntered>(&e);
+            if (t != nullptr && t->text == text) {
+                return true;
+            }
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    return false;
+}
+
+} // namespace
+
+TEST_CASE("a reader beside a terminal window takes nothing, reads nothing and gives nothing back "
+          "while the window holds the terminal") {
+    ClaimClearedAtEnd cleared;
+    PtyOnStdin pty;
+    REQUIRE(pty.ok);
+    REQUIRE(pty.cooked());
+
+    // Made while a window holds the terminal, it never takes it.
+    claim_window_terminal_input();
+    {
+        const PlatformReader late;
+        CHECK(pty.cooked());
+    }
+    CHECK(pty.cooked());
+    release_window_terminal_input();
+
+    // Made before the window, it took the terminal: while the window holds it, it reads nothing of
+    // what is typed, which it reads once the window gives the terminal back.
+    {
+        PlatformReader early;
+        REQUIRE_FALSE(pty.cooked());
+        claim_window_terminal_input();
+        REQUIRE(pty.type("a"));
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        CHECK(early.poll().empty());
+        release_window_terminal_input();
+        CHECK(reads_text(early, "a"));
+        claim_window_terminal_input(); // and it goes while a window holds the terminal again
+    }
+    CHECK_FALSE(pty.cooked()); // the window's mode, untouched
+    release_window_terminal_input();
+}
+
+TEST_CASE("the terminal window's own reader takes, reads and gives back the terminal it holds") {
+    ClaimClearedAtEnd cleared;
+    PtyOnStdin pty;
+    REQUIRE(pty.ok);
+    REQUIRE(pty.cooked());
+    claim_window_terminal_input();
+    {
+        PlatformReader own(true);
+        CHECK_FALSE(pty.cooked());
+        REQUIRE(pty.type("b"));
+        CHECK(reads_text(own, "b"));
+    }
+    CHECK(pty.cooked());
+    release_window_terminal_input();
+}
+
+#endif

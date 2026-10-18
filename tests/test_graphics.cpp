@@ -28,6 +28,7 @@
 #include "graphics/term_paint.hpp"
 #include "graphics/vocabulary.hpp"
 #include "graphics/window/window.hpp"
+#include "input/terminal_reader.hpp"
 #include "input/translate.hpp"
 #include "manuals/zengine.graphics.hpp"
 #include "manuals/zengine.window.terminal.hpp"
@@ -553,6 +554,28 @@ TEST_CASE("the window replaced: the frame drawn whole once and the board said on
     const gfx::WindowShown after = r.shown();
     CHECK(after.epoch != before.epoch);
     CHECK(after.rows == before.rows);
+}
+
+TEST_CASE("the window holds the process's terminal input while it is loaded, reloaded or replaced, "
+          "and gives it back when it goes") {
+    namespace in = zengine::input;
+    REQUIRE_FALSE(in::window_holds_terminal_input());
+    {
+        Rig r;
+        REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_office()).valid());
+        CHECK(in::window_terminal_input_claims() == 1);
+
+        // A reload makes the successor before it destroys its predecessor: one claim, not none.
+        const auto reloaded = r.command(loom::ReloadWeave{"zengine-window-terminal", WINDOW_SO});
+        REQUIRE_MESSAGE(reloaded.kind == 1, reloaded.text);
+        CHECK(in::window_terminal_input_claims() == 1);
+
+        const auto swapped = r.command(loom::SwapWeave{window_office(), "zengine-window-terminal",
+                                                       WINDOW_SO, /*graceful=*/false});
+        REQUIRE_MESSAGE(swapped.kind == 0, swapped.text);
+        CHECK(in::window_terminal_input_claims() == 1);
+    }
+    CHECK_FALSE(in::window_holds_terminal_input());
 }
 
 TEST_CASE("the window's page answers for every shape it accepts, and names no other") {
