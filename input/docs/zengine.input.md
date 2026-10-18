@@ -23,7 +23,9 @@ the two weaves differ:
   standard input in raw mode, and says a key's release right after its press, since a terminal
   reports whole keystrokes; pointer reports arrive only once the terminal Skin has turned them on.
   On Windows it reads the console's records, releases included. With no terminal (a pipe, a test
-  run) it reads nothing, and says nothing of it.
+  run) it reads nothing, and says nothing of it. When a terminal window
+  (`zengine.window.terminal`) holds the process's terminal in the same run, it leaves the
+  terminal's input to the window and serves input sessions alone.
 - **`zengine-input-sdl`** says pointer positions in window pixels, and a pointer moment carries no
   modifiers. It is the one reader of SDL's event queue, which it shares with the window Skin, and
   the window's close box reaches you as `SurfaceCloseRequested`, never as a key. With no display it
