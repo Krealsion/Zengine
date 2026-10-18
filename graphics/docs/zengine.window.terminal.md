@@ -147,8 +147,10 @@ code for a type the window presents draws each such element again, from the stat
 
 ### `TimerFired`
 
-`TimerFired` v1, from the Timer: the window's beat, `zengine.window.pump`. It reads what the
-terminal typed and sends the keys, their text and the presses on.
+`TimerFired` v1, from the Timer: the window's beat, `zengine.window.pump`. It measures the
+terminal, and at another size in cells shows its whole picture at that size and offers itself
+again (`WindowOffered`) with the new size and the same incarnation. Then it reads what the terminal
+typed and sends the keys, their text and the presses on.
 
 ### `TimerReady`
 
@@ -162,9 +164,10 @@ timer binding.
 
 ## Follow
 
-The window publishes `WindowOffered` v1 as its own office, on each activation and after
-`GraphicsReady`: its name, its size in cells, its incarnation. The directory keeps it, and an
-arranger that follows it may lay out in that room. Everything else goes to one office. To an
+The window publishes `WindowOffered` v1 as its own office, on each activation, after
+`GraphicsReady`, and on a beat that finds its terminal at another size in cells: its name, its size
+in cells, its incarnation, which a resize leaves as it was. The directory keeps it, and an arranger
+that follows it may lay out in that room. Everything else goes to one office. To an
 area's owner, `AreaRoom` v2 for each introduction: the area, this window, its incarnation, the
 area's size, and the references of the owner's elements it still presents there; `DrawnRefused`
 v1 for a drawing refused; `ActionRequested` v1 for a press on an action, and `PointerButton` v1 for

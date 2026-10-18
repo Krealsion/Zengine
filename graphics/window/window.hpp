@@ -268,9 +268,9 @@ public:
             this->state_.epoch = token();
         }
         terminal_.claim();
-        const surface::TerminalSize size = terminal_.size();
-        cols_ = size.measured() ? size.cols : kUnmeasuredCols;
-        rows_ = size.measured() ? size.rows : kUnmeasuredRows;
+        const surface::TerminalSize size = measure();
+        cols_ = size.cols;
+        rows_ = size.rows;
         cache_.clear();
         for (WinArea& a : this->state_.areas) {
             remake(a);
@@ -287,9 +287,10 @@ private:
 
     // ---- input --------------------------------------------------------------------------------
 
-    /// The window's own beat: what its terminal typed, read with Zengine's parser. A key and the
-    /// text it typed go alike, to the owner of each area placed to hear keys.
+    /// The window's own beat: its terminal measured, and what it typed read with Zengine's parser.
+    /// A key and the text it typed go alike, to the owner of each area placed to hear keys.
     void on_pump(const zengine::timer::TimerFired&, loom::Mail& mail) {
+        resize(mail);
         for (const zengine::input::InputEvent& e : terminal_.poll()) {
             if (const auto* k = std::get_if<zengine::input::KeyPressed>(&e)) {
                 to_keys(mail, *k);
@@ -302,6 +303,23 @@ private:
             }
         }
         settle(false);
+    }
+
+    /// The terminal at another size in cells: every cell of the window at the new size marked to
+    /// show, and the window offered again in its new room, the same incarnation.
+    void resize(loom::Mail& mail) {
+        const surface::TerminalSize size = measure();
+        if (size.cols == cols_ && size.rows == rows_) {
+            return;
+        }
+        cols_ = size.cols;
+        rows_ = size.rows;
+        for (std::int64_t r = 0; r < rows_; ++r) {
+            for (std::int64_t c = 0; c < cols_; ++c) {
+                dirty_.insert({c, r});
+            }
+        }
+        offer(mail);
     }
 
     /// A key, or its text, to the owner of each area placed to hear keys, front to back.
@@ -645,6 +663,12 @@ private:
             }
         }
         painters_.close(library);
+    }
+
+    /// The window's size in cells: its terminal's, or the unmeasured size where it has none.
+    surface::TerminalSize measure() const {
+        const surface::TerminalSize size = terminal_.size();
+        return size.measured() ? size : surface::TerminalSize{kUnmeasuredCols, kUnmeasuredRows};
     }
 
     /// This window, as its own office, to whoever follows it: the directory, and an arranger that

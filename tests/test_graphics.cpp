@@ -210,12 +210,13 @@ bool any_whole(const std::vector<gfx::Drawn>& drawn) {
     return false;
 }
 
-/// A terminal the suite types into and reads: what the window writes, kept; what it reads, the
-/// bytes the suite queued, parsed by Zengine's own parser as a terminal's are.
+/// A terminal the suite types into, reads and sizes: what the window writes, kept; what it reads,
+/// the bytes the suite queued, parsed by Zengine's own parser as a terminal's are.
 struct TermLog {
     std::string typed;
     std::string written;
-    std::vector<std::string> writes; ///< each write, one showing each
+    std::vector<std::string> writes;              ///< each write, one showing each
+    zengine::surface::TerminalSize size{80, 30};  ///< its size in cells, the suite's to change
 };
 
 class FakeTerminal {
@@ -223,7 +224,9 @@ public:
     FakeTerminal() = default;
     explicit FakeTerminal(TermLog* log) : log_(log) {}
     void claim() {}
-    zengine::surface::TerminalSize size() const { return {80, 30}; }
+    zengine::surface::TerminalSize size() const {
+        return log_ != nullptr ? log_->size : TermLog{}.size;
+    }
     void write(std::string_view bytes) {
         if (log_ != nullptr) {
             log_->written += bytes;
@@ -270,6 +273,8 @@ struct TypedWindow {
                                gfx::window::kPumpTimerId})));
         r.drain();
     }
+    /// The window's own beat, with nothing typed.
+    void pump() { type(""); }
     /// A left press at a cell of the terminal, 0-based, as an SGR report.
     void press(int col, int row) {
         type("\x1b[<0;" + std::to_string(col + 1) + ";" + std::to_string(row + 1) + "M");
@@ -1092,6 +1097,189 @@ TEST_CASE("the window offers itself as its own office to whoever follows it: the
     CHECK(heard.from_window[1]);
     CHECK(heard.offers[1].epoch == heard.offers[0].epoch);
     CHECK(r.count(again, gfx::WindowOffered::zen_name, window_office()) == 2);
+}
+
+namespace {
+
+/// An arranger as Workshop's lays its desk out while no skin names its room: the owner's area
+/// across the whole room each offer of the window names, and each offer kept.
+class RoomArranger
+    : public loom::WeaveBase<RoomArranger, GraphicsTestOwner, loom::Accept<gfx::WindowOffered>,
+                             loom::Emit<gfx::AreaPlaced>> {
+public:
+    explicit RoomArranger(OffersHeard& heard) : heard_(&heard) {}
+    void on(const gfx::WindowOffered& w, loom::Mail& mail) {
+        if (!mail.authored_from_role(window_office())) {
+            return;
+        }
+        heard_->offers.push_back(w);
+        heard_->from_window.push_back(true);
+        (void)mail.send_to_role(gfx::kGraphicsRole,
+                                gfx::AreaPlaced{kOwner, w.window, kOwner, 0, 0,
+                                                w.cols * gfx::kCellPx, w.rows * gfx::kCellPx, 0,
+                                                true});
+    }
+
+private:
+    OffersHeard* heard_;
+};
+
+/// An owner's words in a window whose terminal is the suite's: its area placed two cells in and
+/// three down, the words at the area's corner, and the incarnation the window showed them in.
+struct Resized : TypedWindow {
+    OwnerHeard heard;
+    loom::WeaveId owner;
+    std::int64_t epoch = 0;
+    Resized() {
+        auto o = std::make_unique<Owner>(heard);
+        Owner* raw = o.get();
+        loom::Grant g = loom::emit_default_grant(*raw);
+        owner = r.bus.register_weave(std::move(o), std::move(g), kOwner);
+        raw->zen_set_self(owner);
+        r.arrange(PAINT_CLASSIC_SO, PAINT_BLOCK_SO, SNAKE_SO_BOARD, kOwner, kOwner, "classic",
+                  2 * gfx::kCellPx, 3 * gfx::kCellPx);
+        gfx::Sketch s;
+        s.text("words", 0, 0, "hello", gfx::by_role(gfx::role::kFill));
+        gfx::Drawn d;
+        d.area = kOwner;
+        d.whole = true;
+        d.put = s.nodes();
+        r.bus.office_send_to_role_as(owner, kOwner, window_office(),
+                                     loom::Message(loom::to_value(d)));
+        r.drain();
+        epoch = r.shown().epoch;
+    }
+};
+
+/// The window's offers since `from` that reached the directory.
+std::vector<gfx::WindowOffered> offers_to_directory(Rig& r, std::size_t from) {
+    std::vector<gfx::WindowOffered> out;
+    const std::uint64_t directory = r.bus.role_holder(gfx::kGraphicsRole).value;
+    for (std::size_t i = from; i < r.log.size(); ++i) {
+        const auto& d = r.log[i];
+        if (d.shape != gfx::WindowOffered::zen_name || d.authored_role != window_office() ||
+            d.target != directory) {
+            continue;
+        }
+        if (auto w = loom::claim_item<gfx::WindowOffered>(loom::Bytes(d.bytes.begin(),
+                                                                      d.bytes.end()))) {
+            out.push_back(*w);
+        }
+    }
+    return out;
+}
+
+/// The terminal at another size, then one beat: the window offers itself once in its new room, the
+/// same incarnation, and writes one showing that covers every cell of the new size -- laid over a
+/// terminal still holding something else everywhere, nothing of that is left.
+void check_resized(Resized& t, zengine::surface::TerminalSize size, std::int64_t cols,
+                   std::int64_t rows) {
+    Rig& r = t.r;
+    const std::int64_t showings = r.shown().showings;
+    const std::size_t writes = t.term.writes.size();
+    const std::size_t mark = r.log.size();
+    t.term.size = size;
+    t.pump();
+    const std::vector<gfx::WindowOffered> offers = offers_to_directory(r, mark);
+    REQUIRE(offers.size() == 1);
+    CHECK(offers[0].window == gfx::kTerminalWindow);
+    CHECK(offers[0].cols == cols);
+    CHECK(offers[0].rows == rows);
+    CHECK(offers[0].epoch == t.epoch);
+
+    REQUIRE(t.term.writes.size() == writes + 1);
+    const gfx::WindowShown after = r.shown();
+    CHECK(after.showings == showings + 1);
+    CHECK(after.epoch == t.epoch);
+    REQUIRE(after.rows.size() == static_cast<std::size_t>(rows));
+    CHECK(after.rows[3] == "  hello"); // the area where it was placed
+    const std::vector<std::string> stale(static_cast<std::size_t>(rows),
+                                         std::string(static_cast<std::size_t>(cols), '~'));
+    const std::vector<std::string> picture = pictures_of(stale, {t.term.writes.back()}).back();
+    REQUIRE(picture.size() == static_cast<std::size_t>(rows));
+    for (const std::string& row : picture) {
+        CHECK(row.size() == static_cast<std::size_t>(cols));
+        CHECK(row.find('~') == std::string::npos);
+    }
+    CHECK(trimmed(picture) == trimmed(after.rows));
+}
+
+} // namespace
+
+TEST_CASE("the window measures its terminal each beat: at another size it shows its whole picture "
+          "there and offers itself again, the same incarnation; at the same size, nothing") {
+    Resized t;
+    Rig& r = t.r;
+    REQUIRE(t.heard.refused.empty());
+    REQUIRE(r.shown().rows.size() == 30);
+    REQUIRE(r.shown().rows[3] == "  hello");
+
+    SUBCASE("the same size: a beat offers nothing and shows nothing") {
+        const std::size_t mark = r.log.size();
+        const std::size_t writes = t.term.writes.size();
+        const std::int64_t showings = r.shown().showings;
+        t.pump();
+        CHECK(r.count(mark, gfx::WindowOffered::zen_name) == 0);
+        CHECK(t.term.writes.size() == writes);
+        CHECK(r.shown().showings == showings);
+    }
+    SUBCASE("a larger terminal, and then a beat at that size, which offers and shows nothing") {
+        check_resized(t, {100, 36}, 100, 36);
+        const std::size_t mark = r.log.size();
+        const std::size_t writes = t.term.writes.size();
+        t.pump();
+        CHECK(r.count(mark, gfx::WindowOffered::zen_name) == 0);
+        CHECK(t.term.writes.size() == writes);
+    }
+    SUBCASE("a smaller terminal") {
+        check_resized(t, {60, 20}, 60, 20);
+    }
+    SUBCASE("a terminal that cannot be measured: the window shows the unmeasured size") {
+        check_resized(t, {0, 0}, gfx::window::kUnmeasuredCols, gfx::window::kUnmeasuredRows);
+    }
+}
+
+TEST_CASE("an arranger following the window's offer places its area across the room a resized "
+          "terminal gives, and the window tells the owner that room in the same incarnation") {
+    Resized t;
+    Rig& r = t.r;
+    OffersHeard heard;
+    auto made = std::make_unique<RoomArranger>(heard);
+    RoomArranger* raw = made.get();
+    loom::Grant g = loom::emit_default_grant(*raw);
+    const loom::WeaveId arranger =
+        r.bus.register_weave(std::move(made), std::move(g), "test.arranger");
+    raw->zen_set_self(arranger);
+    const std::size_t mark = r.log.size();
+    t.term.size = {100, 36};
+    t.pump();
+    // THE ARRANGER HEARD THE NEW ROOM, from the window, in the incarnation it had...
+    REQUIRE(heard.offers.size() == 1);
+    CHECK(heard.offers[0].cols == 100);
+    CHECK(heard.offers[0].rows == 36);
+    CHECK(heard.offers[0].epoch == t.epoch);
+    // ...AND PLACED ITS AREA ACROSS IT, which the directory introduced to the window there...
+    const auto introduced = r.read<gfx::AreaIntroduced>(mark, gfx::kGraphicsRole);
+    REQUIRE_FALSE(introduced.empty());
+    CHECK(introduced.back().area == kOwner);
+    CHECK(introduced.back().x == 0);
+    CHECK(introduced.back().y == 0);
+    CHECK(introduced.back().w == 100 * gfx::kCellPx);
+    CHECK(introduced.back().h == 36 * gfx::kCellPx);
+    // ...AND THE WINDOW TOLD THE OWNER ITS NEW ROOM, the incarnation unchanged...
+    const auto rooms = r.read<gfx::AreaRoom>(mark, window_office());
+    REQUIRE_FALSE(rooms.empty());
+    CHECK(rooms.back().area == kOwner);
+    CHECK(rooms.back().w == 100 * gfx::kCellPx);
+    CHECK(rooms.back().h == 36 * gfx::kCellPx);
+    CHECK(rooms.back().epoch == t.epoch);
+    // ...AND SHOWS THE AREA WHERE IT NOW STANDS, at the terminal's new size, nothing left where it
+    // stood before.
+    const gfx::WindowShown after = r.shown();
+    CHECK(after.epoch == t.epoch);
+    REQUIRE(after.rows.size() == 36);
+    CHECK(after.rows[0] == "hello");
+    CHECK(after.rows[3].empty());
 }
 
 TEST_CASE("an area at its element bound still takes a change, and a record said again is itself") {
