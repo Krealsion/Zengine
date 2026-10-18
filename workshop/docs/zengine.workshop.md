@@ -763,6 +763,34 @@ not. Its condition is retracted, a trial it held is let go, and a refusal is sai
 where a switch of the Editor stands. Attention says it, with the line that confirms or cancels it;
 its outcome is said on the band, `editor switch <op>: <outcome>`.
 
+### `GraphicsReady`
+
+`GraphicsReady`, from `zengine.graphics` ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)):
+a graphics directory started afresh. While one is mounted Workshop is its arranger: it offers the
+`classic` and `block` skins, places each open pane whose office draws in a window over the pane's
+body, and its own area, `zengine.workshop`, across the screen, and asks its own room. With no
+directory it says nothing there.
+
+### `AreaRoom`
+
+`AreaRoom` v2, from the graphics window that shows the area `zengine.workshop`, as that window's
+office: Workshop's room there. It draws its desk -- Layouts, each pane's edge and header, a body
+its office does not draw, a menu, the band -- whole when the window, its incarnation or its size
+changed, then only what changed. A pane's own area stands in front of it, but while a weaver
+arranges or a menu is open.
+
+### `DrawnRefused`
+
+`DrawnRefused` v1, from that window: a drawing it refused, and why. What it shows stays as it was;
+a refused change is drawn again whole at once.
+
+### `ActionRequested`
+
+`ActionRequested` v1, from that window: a press on a part of the desk there, by its name --
+`layout:<n>`, `layout:new`, `focus:<kind>`, `settings:<kind>`, `manual:<kind>`, `menu:<line>` --
+is a click at the part's middle, as `PointerButton` takes one. A press there on no part reaches
+Workshop as a `PointerButton` from that window, and is a click too.
+
 ## Follow
 
 Workshop publishes as `zengine.workshop`, to whoever follows it, each only when it differs from
@@ -772,7 +800,9 @@ at the end of each delivery that moved the desk or a pane's stamp, the newest st
 before it ([the desk, said whole](workshop-panes.md#the-desk-said-whole)); `PaneSubjectShown`
 once a pane is inspected; `TranscriptShown`, the terminal's record; `PaneSourceOpened` after an
 Edit Code open; and `PaneQuitRequested`, the question a quit asks. To the skin it says
-`SurfaceCanvas` and `SurfaceText`, the picture and the band.
+`SurfaceCanvas` and `SurfaceText`, the picture and the band. To a graphics directory it says
+`SkinOffered`, `AreaPlaced`, `SkinChosen` and `RoomAsked`, each only when it moved, and to the
+window that shows its area, `Drawn`.
 
 ## Files
 

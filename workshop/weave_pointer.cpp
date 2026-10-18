@@ -310,6 +310,11 @@ WorkshopWeave::GesturesEnded WorkshopWeave::end_held_gestures() {
 // WL-GUEST-06 -- agents/workshop/guests.md
 void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail) {
     if (duplicate_input(mail)) return;
+    // A PRESS THE GRAPHICS WINDOW SHOWING WORKSHOP'S AREA GAVE IT, which says no release: a click.
+    if (b.pressed && !window_clicking_ && window_.from_window(window_.area(), mail)) {
+        window_click(b.x, b.y, mail);
+        return;
+    }
     if (quitting_) {
         HeldInput held;
         held.kind = HeldInput::Kind::kButton;

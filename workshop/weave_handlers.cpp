@@ -217,6 +217,39 @@ void WorkshopWeave::on(const zengine::surface::SurfaceExtent& e, loom::Mail& mai
     repaint(mail);
 }
 
+void WorkshopWeave::on(const graphics::GraphicsReady&, loom::Mail& mail) {
+    if (!mail.authored_from_role(graphics::kGraphicsRole)) {
+        return;
+    }
+    graphics_known_ = false;
+    show_in_graphics(mail);
+}
+
+void WorkshopWeave::on(const graphics::AreaRoom& r, loom::Mail& mail) {
+    // A room said by anyone but the window it names, about another area, or the same again, is
+    // nothing new (`WindowDrawing::room`).
+    if (window_.room(r, mail)) {
+        draw_window(mail);
+    }
+}
+
+void WorkshopWeave::on(const graphics::DrawnRefused& refused, loom::Mail& mail) {
+    (void)window_.refused(refused, mail);
+}
+
+void WorkshopWeave::on(const graphics::ActionRequested& asked, loom::Mail& mail) {
+    if (!window_.from_window(asked.area, mail)) {
+        return;
+    }
+    // Resolved against the drawing last sent, which every repaint renews: a part it does not name
+    // is no press.
+    const auto part = window_parts_.find(asked.action);
+    if (part != window_parts_.end()) {
+        window_click(part->second.x + part->second.w / 2, part->second.y + part->second.h / 2,
+                     mail);
+    }
+}
+
 // WL-SESSION-08, WL-SESSION-09 -- agents/workshop/session-restore.md
 void WorkshopWeave::on(const zengine::surface::SurfacePlacement& p, loom::Mail&) {
     medium_placed_ = true;

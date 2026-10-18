@@ -98,6 +98,13 @@ loom::Grant workshop_grant() {
     speak.allow_to_any(manual::ShapeDocumentShown::zen_name, manual::ShapeDocumentShown::zen_version);
     // THE EDITOR'S DOCUMENT, read to refuse a guest the words of the guests file.
     speak.allow_observe(EditorDocument::zen_name, EditorDocument::zen_version);
+    // THE DESK IN A GRAPHICS WINDOW: where each area stands and which skin paints it, said to the
+    // directory, and Workshop's own drawing, to the window that shows its area.
+    speak.allow_to_role(graphics::AreaPlaced::zen_name, graphics::AreaPlaced::zen_version, graphics::kGraphicsRole);
+    speak.allow_to_role(graphics::SkinOffered::zen_name, graphics::SkinOffered::zen_version, graphics::kGraphicsRole);
+    speak.allow_to_role(graphics::SkinChosen::zen_name, graphics::SkinChosen::zen_version, graphics::kGraphicsRole);
+    speak.allow_to_role(graphics::RoomAsked::zen_name, graphics::RoomAsked::zen_version, graphics::kGraphicsRole);
+    speak.allow_to_any(graphics::Drawn::zen_name, graphics::Drawn::zen_version);
     return speak;
 }
 }

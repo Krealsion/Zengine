@@ -31,16 +31,17 @@ again draws nothing.
 
 ## Use
 
-Whoever arranges the window -- the *arranger*, in the snake's host its operator weave -- offers the
-skins and the element code, places each area and chooses its skin. Once the window has offered
-itself, each area whose skin is offered is introduced, and its owner hears its room from the
-window. An owner that starts again asks its room with [`RoomAsked`](#roomasked).
+Whoever arranges the window -- the *arranger*, in the snake's host its operator weave, in Workshop
+Workshop's own -- offers the skins and the element code, places each area and chooses its skin.
+Once the window has offered itself, each area whose skin is offered is introduced, and its owner
+hears its room from the window. An owner that starts again asks its room with
+[`RoomAsked`](#roomasked).
 
 Who may send: whoever the host's grant lets reach `zengine.graphics`. The snake's host grants its
 operator [`AreaPlaced`](#areaplaced), [`SkinOffered`](#skinoffered), [`SkinChosen`](#skinchosen),
-[`ElementCodeOffered`](#elementcodeoffered) and [`RoomAsked`](#roomasked). The directory itself
-takes [`WindowOffered`](#windowoffered) only from the window's own office, and `RoomAsked` only from
-the area's owner.
+[`ElementCodeOffered`](#elementcodeoffered) and [`RoomAsked`](#roomasked); Workshop's grant gives
+it all but `ElementCodeOffered`. The directory itself takes [`WindowOffered`](#windowoffered) only
+from the window's own office, and `RoomAsked` only from the area's owner.
 
 ## Commands
 

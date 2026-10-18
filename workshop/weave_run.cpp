@@ -6,6 +6,7 @@
 // Workshop law: agents/workshop/attention.md (+5 registers; agents/workshop.md routes)
 
 #include "weave.hpp"
+#include "screen_canvas.hpp"
 
 namespace zengine::workshop {
 
@@ -74,6 +75,147 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     // stamped with, queued after it so no delivery comes between them.
     fence_pictures(mail);
     stamps_owed_ = desk_owed_ = true; // the desk may have moved: looked at once, at the delivery's end
+    // ...and the same desk in a graphics window, where a directory places its areas.
+    show_in_graphics(mail);
+}
+
+// ---- THE DESK IN A GRAPHICS WINDOW: Workshop the arranger, and the drawer of its own area ----
+
+bool WorkshopWeave::graphics_present() const {
+    return host_->holder_accepts &&
+           host_->holder_accepts(graphics::kGraphicsRole, *loom::schema_of<graphics::AreaPlaced>());
+}
+
+void WorkshopWeave::show_in_graphics(loom::Mail& mail) {
+    arrange_graphics(mail);
+    draw_window(mail);
+}
+
+namespace {
+
+bool same_place(const graphics::AreaPlaced& a, const graphics::AreaPlaced& b) {
+    return a.area == b.area && a.window == b.window && a.owner == b.owner && a.x == b.x &&
+           a.y == b.y && a.w == b.w && a.h == b.h && a.order == b.order && a.keys == b.keys &&
+           a.pointer == b.pointer;
+}
+
+} // namespace
+
+void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
+    if (!graphics_present()) {
+        graphics_known_ = false; // a directory that comes is a new one, placed with afresh
+        return;
+    }
+    const auto to_directory = [&mail](const auto& said) {
+        (void)mail.as_role(kWorkshopProvider).send_to_role(graphics::kGraphicsRole, said);
+    };
+    const auto accepts = [this](const std::string& office, const loom::Schema& shape) {
+        return host_->holder_accepts && host_->holder_accepts(office, shape);
+    };
+    // A DIRECTORY NOT PLACED WITH YET -- another holder, a reload, or one that said it started
+    // afresh -- holds none of this desk's areas: the skins are offered and everything placed again.
+    const loom::WeaveId holder =
+        host_->role_holder ? host_->role_holder(graphics::kGraphicsRole) : loom::WeaveId{};
+    const std::int64_t incarnation =
+        host_->incarnation_of && holder.valid() ? host_->incarnation_of(holder) : 0;
+    if (!graphics_known_ || holder.value != graphics_holder_ ||
+        incarnation != graphics_incarnation_) {
+        graphics_known_ = true;
+        graphics_holder_ = holder.value;
+        graphics_incarnation_ = incarnation;
+        areas_placed_.clear();
+        skins_chosen_.clear();
+        graphics_asked_ = false;
+        if (!host_->dir.empty()) {
+            to_directory(graphics::SkinOffered{"classic", host_->so("zengine-paint-classic")});
+            to_directory(graphics::SkinOffered{"block", host_->so("zengine-paint-block")});
+        }
+    }
+    // EACH OPEN PANE WHOSE OFFICE DRAWS IN A WINDOW, over its body, in the desk's order and above
+    // Workshop's own area; a pane that does not, or whose last word was refused, is drawn by
+    // Workshop. Its area takes the window's keys only where they are typed into it and its office
+    // takes them, and Workshop's takes them everywhere else.
+    const Screen sc = screen_of(session_);
+    const std::vector<std::int64_t> order =
+        effective_pane_order(session_.setup.active, session_.panes);
+    const std::int64_t typing = typing_pane(session_);
+    std::map<std::string, graphics::AreaPlaced> next;
+    std::set<std::int64_t> kinds;
+    bool pane_keys = false;
+    for (std::size_t i = 0; i < order.size(); ++i) {
+        const RuntimePane* row = session_.panes.runtime.of_kind(order[i]);
+        const ExternalPane* ext = session_.panes.external_pane(order[i]);
+        if (!is_runtime_kind(order[i]) || row == nullptr ||
+            (ext != nullptr && !ext->refusal.empty()) ||
+            !accepts(row->provider, *loom::schema_of<graphics::AreaRoom>())) {
+            continue;
+        }
+        const PaneBounds where = bounds_of(session_.panes, session_.setup.active, order[i], sc);
+        const std::int64_t titles =
+            external_title_rows(session_.panes, order[i], session_.pane_titles);
+        const PixelRect place = ext != nullptr && ext->canvas.grant > 0
+                                    ? shown_canvas_place(ext->canvas, where.rect, sc, titles)
+                                    : canvas_body_place(where.rect, sc, titles);
+        if (!where.open || place.empty()) {
+            continue;
+        }
+        const bool keys = typing == order[i] &&
+                          accepts(row->provider, *loom::schema_of<input::KeyPressed>());
+        pane_keys = pane_keys || keys;
+        const std::string area = pane_window_area(session_.panes, *row);
+        next[area] = graphics::AreaPlaced{
+            area, graphics::kTerminalWindow, row->provider, place.x, place.y, place.w, place.h,
+            static_cast<std::int64_t>(i) + 1, keys,
+            accepts(row->provider, *loom::schema_of<input::PointerButton>())};
+        kinds.insert(order[i]);
+    }
+    // WORKSHOP'S OWN AREA, the whole screen: behind every pane's, and in front of them while a
+    // weaver arranges or a menu is open.
+    next[kWorkshopProvider] = graphics::AreaPlaced{
+        kWorkshopProvider, graphics::kTerminalWindow, kWorkshopProvider, 0, 0, sc.w, sc.h,
+        desk_in_front(session_) ? static_cast<std::int64_t>(order.size()) + 1 : 0, !pane_keys,
+        true};
+    for (const auto& [area, was] : areas_placed_) {
+        if (next.count(area) == 0) {
+            to_directory(graphics::AreaPlaced{area, "", was.owner, 0, 0, 0, 0, 0, false, false});
+            skins_chosen_.erase(area);
+        }
+    }
+    for (const auto& [area, placed] : next) {
+        const auto was = areas_placed_.find(area);
+        if (was == areas_placed_.end() || !same_place(was->second, placed)) {
+            to_directory(placed);
+        }
+        if (!host_->dir.empty() && skins_chosen_.insert(area).second) {
+            to_directory(graphics::SkinChosen{area, "classic"});
+        }
+    }
+    areas_placed_ = std::move(next);
+    placed_kinds_ = std::move(kinds);
+    if (!graphics_asked_ && !window_.shown()) {
+        graphics_asked_ = true;
+        to_directory(graphics::RoomAsked{kWorkshopProvider});
+    }
+}
+
+void WorkshopWeave::draw_window(loom::Mail& mail) {
+    if (!window_.shown()) {
+        return;
+    }
+    WorkshopWindowDrawing drawn = workshop_window_drawing(session_, placed_kinds_);
+    window_parts_ = std::move(drawn.parts);
+    window_.draw(drawn.sketch, mail);
+}
+
+void WorkshopWeave::window_click(std::int64_t x, std::int64_t y, loom::Mail& mail) {
+    struct Clicking {
+        bool& on;
+        ~Clicking() { on = false; }
+    } clicking{window_clicking_};
+    window_clicking_ = true;
+    for (const bool down : {true, false}) {
+        on(input::PointerButton{1, down, x, y, input::space::kPixels, input::mod::kNone}, mail);
+    }
 }
 
 // WL-ATTN-12 -- agents/workshop/attention.md

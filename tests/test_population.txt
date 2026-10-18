@@ -48,7 +48,7 @@ neovim_journey                    program           session-neovim
 # A case in this suite reads the keymap example in workshop/docs/hotkeys.md, as a weaver copies it.
 workshop_document                 doctest           always  47
 workshop_screen                   doctest           always  137
-workshop_desk                     doctest           always  68
+workshop_desk                     doctest           always  75
 # Tripwires in this suite read workshop/attention.hpp as text (VM-WALL-11).
 workshop_host                   doctest           always  77
 # Tripwires in this suite read Workshop's presentation sources, workshop/workshop.cpp,

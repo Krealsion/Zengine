@@ -36,6 +36,7 @@
 #include "pane_operation.hpp"
 #include "pane_shortcuts.hpp"
 #include "pane_carry.hpp"
+#include "pane_drawing.hpp" // Workshop's own area in a graphics window, as its drawer keeps it
 #include "pane_view.hpp"
 #include "guide_vocabulary.hpp" // a guest's mark on one control, for the weaver to see
 #include "pane_parts.hpp" // the form a pane's names are admitted in
@@ -55,6 +56,7 @@
 #include <functional>
 #include <map>
 #include <optional>
+#include <set>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -374,6 +376,12 @@ class WorkshopWeave
                                           // ...and the host's own fence behind a menu it
                                           // withdrew, whose requester may still be owed
                                           zengine::workshop::WithdrawalFence,
+                                          // a graphics window showing Workshop's own area, and
+                                          // the directory its areas are placed with
+                                          zengine::graphics::GraphicsReady,
+                                          zengine::graphics::AreaRoom,
+                                          zengine::graphics::DrawnRefused,
+                                          zengine::graphics::ActionRequested,
                                           loom::DispatchRefused>,
                              loom::Emit<loom::Ack, loom::Refused, GuideAnswered, PaneView, PanePoint, DeskView, v2::DeskView, v2::PaneView, v2::PanePoint, v3::PaneView, v4::PaneView, v5::PaneView, v6::PaneView, DeskRead, v2::DeskRead, DeskStamps, v2::DeskStamps, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, PaneCanvasValueDrop, v1::PaneCanvasValueDrop, PaneCanvasDrop, zengine::workshop::PaneCanvasRoom,
                                         zengine::workshop::v2::PaneCanvasRoom,
@@ -424,7 +432,12 @@ class WorkshopWeave
                                         zengine::workshop::MenuGranted,
                                         zengine::workshop::MenuInput,
                                         zengine::workshop::MenuWithdrawn,
-                                        zengine::workshop::WithdrawalFence>,
+                                        zengine::workshop::WithdrawalFence,
+                                        zengine::graphics::AreaPlaced,
+                                        zengine::graphics::SkinOffered,
+                                        zengine::graphics::SkinChosen,
+                                        zengine::graphics::RoomAsked,
+                                        zengine::graphics::Drawn>,
                              loom::WeaveBase,
                              // the one latest claim
                              // this host makes -- the managed pane's presentation.
@@ -1009,6 +1022,20 @@ public:
     /// THE END OF EVERY DELIVERY: a repaint the hook owed, then the claim if it moved.
     void after_delivery(loom::Mail& mail);
 
+    // ---- The desk in a graphics window: Workshop the arranger, and its own area's drawer ----
+
+    /// A GRAPHICS DIRECTORY STARTED AFRESH: the skins offered, every area placed and its skin
+    /// chosen again, and Workshop's own room asked.
+    void on(const graphics::GraphicsReady&, loom::Mail& mail);
+    /// THE ROOM OF WORKSHOP'S OWN AREA, from the window that shows it: the desk drawn there, whole
+    /// when the window, its incarnation or its size changed.
+    void on(const graphics::AreaRoom& r, loom::Mail& mail);
+    /// A DRAWING THAT WINDOW REFUSED: a refused change goes again whole (`WindowDrawing::refused`).
+    void on(const graphics::DrawnRefused& refused, loom::Mail& mail);
+    /// A PRESS ON A PART OF THE DESK THERE, by the name the drawing gives it: a click at its
+    /// middle, through the one pointer path every press takes.
+    void on(const graphics::ActionRequested& asked, loom::Mail& mail);
+
     /// The session, for a suite that wants to check where a gesture left things.
     /// Read-only: every change still goes through a message and a gesture.
     const Session& session() const;
@@ -1537,6 +1564,36 @@ private:
     void guide_pressed(loom::Mail& mail, const PointedAt& at);
 
     void repaint(loom::Mail& mail);
+
+    /// WHETHER A GRAPHICS DIRECTORY IS THERE TO PLACE AREAS WITH: its office's holder takes
+    /// `AreaPlaced`. With none, nothing is said to `zengine.graphics`.
+    bool graphics_present() const;
+    /// PLACE EACH OPEN PANE'S AREA AND WORKSHOP'S OWN with the directory, saying only what moved,
+    /// and draw the desk in the window that shows Workshop's area: what every repaint ends with.
+    void show_in_graphics(loom::Mail& mail);
+    void arrange_graphics(loom::Mail& mail);
+    void draw_window(loom::Mail& mail);
+    /// A PRESS A GRAPHICS WINDOW GAVE WORKSHOP'S AREA, at a pixel of the screen, as a whole click:
+    /// a window says a press and never its release.
+    void window_click(std::int64_t x, std::int64_t y, loom::Mail& mail);
+    /// The window that shows Workshop's own area, and what was last drawn there.
+    WindowDrawing window_{kWorkshopProvider, kWorkshopProvider};
+    /// Where each part the drawing last sent there names stands on the screen.
+    std::map<std::string, PixelRect> window_parts_;
+    /// Every area placed with the directory now, as placed, and the panes among them.
+    std::map<std::string, graphics::AreaPlaced> areas_placed_;
+    std::set<std::int64_t> placed_kinds_;
+    /// The areas a skin was chosen for under this directory.
+    std::set<std::string> skins_chosen_;
+    /// The directory placed with -- its holder and incarnation -- and whether one is known.
+    bool graphics_known_ = false;
+    std::uint64_t graphics_holder_ = 0;
+    std::int64_t graphics_incarnation_ = 0;
+    /// Workshop's own room was asked of this directory.
+    bool graphics_asked_ = false;
+    /// A click being given, so the press it makes is not taken for the window's own.
+    bool window_clicking_ = false;
+
     /// A NUMBERED PICTURE THE CANVAS JUST HANDED THE MEDIUM is recorded as in flight, and one
     /// fence is sent behind the canvas for all of them (none when no picture moved).
     void fence_pictures(loom::Mail& mail);
