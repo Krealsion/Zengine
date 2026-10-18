@@ -11,18 +11,17 @@ terminal's keys, their text and its presses to the owners. The directory,
 ## About
 
 The window keeps, in its state, its incarnation and every area it was introduced: where it stands,
-its owner, its skin, and what was drawn there -- every node with its place in the paint order,
-every element record, and each element it presents with that element's state. A reload keeps all
-of it and nothing is drawn again. What it painted, and the libraries it opened, it keeps in memory:
-started again, it paints its areas once from what its state keeps. A window replaced starts empty,
-with a new incarnation: each owner draws its picture whole once when it hears its room, and
-says each element once.
+its owner, its skin, and what was drawn there -- every node in its paint order, every element
+record, and each element it presents with that element's state. A reload keeps all of it and
+nothing is drawn again. What it painted, and the libraries it opened, it keeps in memory: started
+again, it paints its areas once from what its state keeps. A window replaced starts empty, with a
+new incarnation: each owner draws whole once when it hears its room, and says each element once.
 
-It takes the terminal when it is activated, its output as a terminal skin takes it
-(`surface/tui_terminal.hpp`) and its input as the Input weave reads it (`input/terminal_reader.hpp`),
-and gives both back when it goes. With no terminal (a pipe, a suite) it writes and reads nothing,
-and still keeps and composes its picture, at the size `window::kUnmeasuredCols` by
-`window::kUnmeasuredRows` (`graphics/window/window.hpp`).
+It takes the terminal when activated, its output with the terminal's claim
+(`graphics/window/terminal_io.hpp`) and its input as the Input weave reads it
+(`input/terminal_reader.hpp`), and gives both back when it goes. With no terminal (a pipe, a suite)
+it writes and reads nothing, and still keeps and composes its picture, at
+`window::kUnmeasuredCols` by `window::kUnmeasuredRows` (`graphics/window/window_terminal.hpp`).
 
 **Showing.** A node is painted once, when it changes, with its area's skin. The areas are composed
 front to back by their order, and the terminal is written only the cells whose picture changed, as

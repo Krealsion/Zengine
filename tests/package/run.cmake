@@ -230,6 +230,9 @@ message(STATUS "package witness: the Workshop probe builds as a stranger, from i
 zen_find_program_in(surfaces witness-surfaces "${stranger_bin}")
 zen_run("every exported target, from the installed headers" "${surfaces}")
 
+zen_find_program_in(graphics witness-graphics "${stranger_bin}")
+zen_run("the graphics package alone, from its installed headers" "${graphics}")
+
 zen_find_program_in(drafts witness-message-drafts "${stranger_bin}")
 zen_run("reusable drafts and Flow workspace use installed headers" "${drafts}")
 

@@ -137,7 +137,7 @@ nowhere yet
 `tests/test_workshop_load.cpp` Stage::put
 
 ### VM-PLAT-07
-`surface/terminal_size.hpp` native_terminal_size
+`graphics/window/terminal_io.hpp` native_terminal_size
 
 ### VM-PLAT-08
 `timer/os_clock.hpp` MonotonicClock MonotonicClock::now_ms MonotonicClock::nap_ms

@@ -150,12 +150,15 @@ set(zengine_public_headers_workshop   workshop/setup_control.hpp workshop/pane_o
                                       workshop/guest_seam_vocabulary.hpp)
 # ...and the Neovim-backed Editor's asks, under its own directory for the same reason.
 set(zengine_public_headers_editor/neovim-editor editor/neovim-editor/vocabulary.hpp)
-# The graphics vocabulary an owner draws with, the elements, the terminal painter's code and the two
-# seams a skin or an element's code is written against; the window and the directory are artifacts.
-set(zengine_public_headers_graphics graphics/vocabulary.hpp graphics/ops.hpp graphics/implied.hpp
-    graphics/painting.hpp graphics/term_paint.hpp graphics/canvas.hpp graphics/drawing.hpp
-    graphics/elements.hpp graphics/element_abi.h graphics/element_export.hpp
-    graphics/painter_abi.h graphics/painter_export.hpp)
+# The graphics vocabulary an owner draws with, its roles, the elements, the two painters' code (for
+# characters and for light) and the two seams a skin or an element's code is written against; the
+# windows and the directory are artifacts. Beside them, the terminal's claim and size, which a
+# terminal Skin's header spells for Surface (`surface/terminal_size.hpp`).
+set(zengine_public_headers_graphics graphics/vocabulary.hpp graphics/role.hpp graphics/ops.hpp
+    graphics/implied.hpp graphics/painting.hpp graphics/term_paint.hpp graphics/light_paint.hpp
+    graphics/canvas.hpp graphics/drawing.hpp graphics/elements.hpp graphics/element_abi.h
+    graphics/element_export.hpp graphics/painter_abi.h graphics/painter_export.hpp)
+set(zengine_public_headers_graphics/window graphics/window/terminal_io.hpp)
 set(zengine_public_headers_graphics/elements graphics/elements/button.hpp
     graphics/elements/checkbox.hpp graphics/elements/grid.hpp graphics/elements/icon.hpp
     graphics/elements/image.hpp graphics/elements/list.hpp graphics/elements/scroll_view.hpp
@@ -177,7 +180,7 @@ if(TARGET zengine-flow-tool)
 endif()
 install(TARGETS zengine-inventory-read RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-foreach(pkg IN ITEMS maker flow flow/flow-host flow/flow-pane message-draft inventory editor/source-transfer activation timer surface input ui component operator workshop editor/neovim-editor graphics graphics/elements)
+foreach(pkg IN ITEMS maker flow flow/flow-host flow/flow-pane message-draft inventory editor/source-transfer activation timer surface input ui component operator workshop editor/neovim-editor graphics graphics/elements graphics/window)
     install(FILES ${zengine_public_headers_${pkg}}
             DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zengine/${pkg})
 endforeach()
@@ -190,8 +193,9 @@ endforeach()
 # Loom statically and needs nothing else at load time.
 set(ZENGINE_INSTALL_ARTIFACTDIR ${CMAKE_INSTALL_LIBDIR}/zengine)
 
-# Out: the SDL pair (a fetched SDL is a build-tree library this install does not own, and
-# shipping one would make this package another project's distributor); introspection and the
+# Out: the SDL weaves -- the Skin, the Input reader and the OS window (a fetched SDL is a build-tree
+# library this install does not own, and shipping one would make this package another project's
+# distributor); introspection and the
 # composer, shown only inside a Workshop run; the snake example; every test fixture.
 set(zengine_installable_artifacts
     zengine-timer                # weave
@@ -208,7 +212,9 @@ set(zengine_installable_artifacts
     zengine-graphics             # weave: the graphics directory
     zengine-window-terminal      # weave: the window over the process's own terminal
     zengine-paint-classic        # provider, not a weave: painter code a window opens by path
-    zengine-paint-block)         # provider, not a weave: the same, in block glyphs
+    zengine-paint-block          # provider, not a weave: the same, in block glyphs
+    zengine-paint-day            # provider, not a weave: painter code for light, a light ground
+    zengine-paint-night)         # provider, not a weave: the same, a dark ground
 
 set(ZENGINE_INSTALLED_ARTIFACTS "")
 foreach(artifact IN LISTS zengine_installable_artifacts)

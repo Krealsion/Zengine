@@ -78,4 +78,4 @@ nowhere yet
 nowhere yet
 
 ### VM-WIT-22
-`surface/tui_terminal.hpp` kTuiPointerOn
+`graphics/window/terminal_io.hpp` kTuiPointerOn

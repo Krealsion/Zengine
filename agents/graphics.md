@@ -10,9 +10,14 @@ keeps, is [surface](surface.md); where the two meet is the last section here.
 - A window weave does the whole job of showing: it keeps every area's nodes, records and presented
   elements in its STATE (a reload keeps them and draws nothing again), paints a node only when it
   changes, keeps what it painted in its MEMORY (a reload paints it again from the state, once),
-  composes the areas front to back by their order, and writes its medium only the cells whose
-  picture changed, as runs. It judges a press against what it painted and routes it, and gives
-  keys, and the text they type, to the owners of the areas placed to hear them.
+  composes the areas front to back by their order, and shows only what changed: a terminal window
+  writes the cells whose picture changed, as runs; an OS window draws its whole picture once a
+  showing. It judges a press against what it painted and routes it, and gives keys, and the text
+  they type, to the owners of the areas placed to hear them.
+- **One window, many media.** The store, the judge, the element seam, the directory's words, keys
+  and presses are one class over its medium (`graphics/window/window.hpp`); what a medium keeps
+  painted, how it shows it and what it reads are the medium's alone (`window_terminal.hpp`,
+  `window_sdl.hpp`). A medium never holds a node, a record or an element the store does not.
 - **Nothing on the path a picture takes but the drawer and its window.** The directory introduces;
   it never holds a node, a record or a painted cell, and a skin chosen or an area moved sends the
   window a word, never a drawing.
@@ -38,7 +43,11 @@ keeps, is [surface](surface.md); where the two meet is the last section here.
 ## Colour, pixels and operands
 
 - **A colour is a role or an exact value beside one** (`Paint`): a medium without colour shows the
-  role. The roles are Surface's; no medium invents one.
+  role. The roles are the graphics vocabulary's (`graphics/role.hpp`), which Surface spells as its
+  own; no medium invents one.
+- **A skin paints for one medium, and says which in its bytes**: a node painted for light opens
+  with its tag (`light::kTag`). A terminal window refuses a skin that paints light, in words; an OS
+  window paints an area whose skin paints characters itself, in the look the skin's name chooses.
 - **Pixels are bytes**: an `image` carries its own red, green, blue and alpha, four bytes a pixel.
 - **An operand's shape is implied by its operator** and an element change's by the element's type:
   each travels as its shape's body, and the receiver restores the envelope before the gate reads
@@ -67,7 +76,10 @@ keeps, is [surface](surface.md); where the two meet is the last section here.
 - A Skin weave (`surface/`) paints whole canvases a publisher sends and composes nothing; a
   window (`graphics/`) composes areas and writes runs of changed cells. Neither paints the
   other's vocabulary: no Skin accepts a node, and no window accepts a `SurfaceCanvas`.
-- The terminal's claim (`surface/tui_terminal.hpp`) and its input edge
+- The terminal's claim (`graphics/window/terminal_io.hpp`) and its input edge
   (`input/terminal_reader.hpp`) are shared: whichever participant owns the terminal in a process
   takes both, for exactly its life. Two owners of one terminal in one process is not a supported
-  arrangement.
+  arrangement, and neither are two drainers of SDL's one queue: the OS window and the SDL Input
+  reader are not loaded together.
+- Graphics includes nothing of Surface: its roles and the terminal's claim are its own, and
+  Surface's headers spell them for the Skins (`surface/vocabulary.hpp`, `surface/tui_terminal.hpp`).

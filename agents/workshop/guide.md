@@ -140,7 +140,7 @@ on Connections, the Hotkeys pane or a part whose press opens either"
 
 ### WL-GUIDE-06
 `workshop/weave_guide.cpp` guide_drawing guide_layer guide_pressed end_guide
-`surface/vocabulary.hpp` kGuide
+`graphics/role.hpp` kGuide
 `tests/test_workshop_panes_guide.cpp` "the Tutor's walk on a weaver's host, in a terminal and in a window: it
 reads the Builder, marks [build], the weaver's press inside the mark ends it and builds, the desk moves, and
 the next mark stands" "a mark in a terminal is its part's own cells in the guide role: every row of the pane

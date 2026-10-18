@@ -1,19 +1,19 @@
 # The Graphics package: the vocabulary an owner draws with (a node, an element record, seven
-# operators, a canvas), the terminal window that shows what owners draw, the directory that
-# introduces an area to its window, and two skins as painter code a window opens.
+# operators, a canvas), the windows that show what owners draw -- the terminal window and the OS
+# window -- the directory that introduces an area to its window, and four skins as painter code a
+# window opens: two for characters, two for light.
 
 # The vocabulary and its helpers travel as a header-only interface target, as Surface's do, and
 # install with the package (cmake/ZengineInstall.cmake): consumers spell
 # `#include "graphics/vocabulary.hpp"`. The seams' C headers are among them. Its link line is what
-# the headers include: the Loom's values and shapes, Surface's roles, and the activation cursor a
-# drawing weave keeps (`drawing.hpp`).
+# the headers include: the Loom's values and shapes, and the activation cursor a drawing weave
+# keeps (`drawing.hpp`); the roles and the terminal's claim are its own headers.
 add_library(zengine-graphics-vocabulary INTERFACE)
 target_include_directories(zengine-graphics-vocabulary INTERFACE
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/zengine>)
 add_library(zengine::graphics ALIAS zengine-graphics-vocabulary)
-target_link_libraries(zengine-graphics-vocabulary INTERFACE loom::core zengine-surface-vocabulary
-                                                            zengine-activation)
+target_link_libraries(zengine-graphics-vocabulary INTERFACE loom::core zengine-activation)
 
 if(NOT TARGET loom::kernel)
     message(STATUS "zengine: graphics weaves skipped — this Loom cannot host loadable weaves (no loom::kernel)")
@@ -34,9 +34,26 @@ target_link_libraries(zengine-window-terminal PRIVATE zengine-graphics-vocabular
                                                       zengine-timer-vocabulary
                                                       zengine-activation zengine-operator)
 
-# The skins: painter code, not weaves -- no participant lives in either image, and a window opens
-# the file itself and resolves one symbol.
+# The skins: painter code, not weaves -- no participant lives in any of their images, and a window
+# opens the file itself and resolves one symbol. Classic and block paint characters; day and night
+# paint light.
 zengine_provider(zengine-paint-classic paint_classic.cpp)
 target_link_libraries(zengine-paint-classic PRIVATE zengine-graphics-vocabulary)
 zengine_provider(zengine-paint-block paint_block.cpp)
 target_link_libraries(zengine-paint-block PRIVATE zengine-graphics-vocabulary)
+zengine_provider(zengine-paint-day paint_day.cpp)
+target_link_libraries(zengine-paint-day PRIVATE zengine-graphics-vocabulary)
+zengine_provider(zengine-paint-night paint_night.cpp)
+target_link_libraries(zengine-paint-night PRIVATE zengine-graphics-vocabulary)
+
+# The OS window, through SDL3: built where this configuration has SDL (cmake/ZengineSdl.cmake), which
+# it shares with the SDL Skin and the SDL Input reader. Its manual is compiled in, as the terminal
+# window's is.
+if(ZENGINE_SDL_LIB)
+    zengine_weave(zengine-window-sdl window/window_sdl.cpp MANUAL docs/zengine.window.sdl.md)
+    target_link_libraries(zengine-window-sdl PRIVATE zengine-graphics-vocabulary
+                                                     zengine-input-vocabulary
+                                                     zengine-timer-vocabulary
+                                                     zengine-activation zengine-operator)
+    zengine_sdl_weave(zengine-window-sdl)
+endif()

@@ -38,25 +38,27 @@ owned separately by the pane), `source-transfer` (the one header
 `editor/source-transfer/vocabulary.hpp`: the text, selection, location and location-context shapes the
 Editors carry, so a stranger's pane can make or recognize them; the byte laws, the Terminal line
 and the C++ generator stay internal), `graphics` (the vocabulary an owner draws with -- a node,
-an element record, the seven operators and a canvas -- with the eight elements, a drawing weave's
-helper, the painter code a terminal skin runs, and the two seams a skin or an element's code is
-written against, `element_abi.h` and `painter_abi.h` with their export helpers: every header
-`zengine_public_headers_graphics` and `zengine_public_headers_graphics/elements` list, installed
-under `include/zengine/graphics/` and `include/zengine/graphics/elements/`; the directory and the
-window are artifacts, below), and `flow` (standalone
+an element record, the seven operators, the roles and a canvas -- with the eight elements, a
+drawing weave's helper, the painter code a skin runs for characters and for light, the two seams a
+skin or an element's code is written against, `element_abi.h` and `painter_abi.h` with their
+export helpers, and the terminal's claim and size, `window/terminal_io.hpp`: every header
+`zengine_public_headers_graphics`, `zengine_public_headers_graphics/elements` and
+`zengine_public_headers_graphics/window` list, installed under `include/zengine/graphics/` and
+its `elements/` and `window/`; the directory and the windows are artifacts, below), and `flow` (standalone
 authoring, `graph_edit.hpp`, `workspace.hpp`,
 persistence, generated-runtime support, and the public control vocabularies
 `flow/flow-host/vocabulary.hpp` and `flow/flow-pane/vocabulary.hpp`). The optional
 `zengine-flow` executable installs to `bin` when a Loom kernel is available. A plain hyphenated name on a link line means the
 target is internal, and that difference is the boundary made visible.
 
-**Twelve artifacts** install to `lib/zengine/`, named by `ZENGINE_RUNTIME_ARTIFACTS` and located
+**Fourteen artifacts** install to `lib/zengine/`, named by `ZENGINE_RUNTIME_ARTIFACTS` and located
 by `ZENGINE_ARTIFACT_DIR`: `zengine-timer`, `zengine-input`, `zengine-inventory`, the two TUI skins,
 `zengine-neovim-editor` (whose one runtime need beyond the Loom is a Neovim, found when it
 starts one), `zengine-operators-basic`, `zengine-guest-vocabulary` (booted by another
 Loom host, a session, to speak Workshop's guest shapes), and the graphics directory and terminal
-window (`zengine-graphics`, `zengine-window-terminal`) with the two painters a window opens by
-path (`zengine-paint-classic`, `zengine-paint-block`). They install as FILES, not as
+window (`zengine-graphics`, `zengine-window-terminal`) with the four painters a window opens by
+path (`zengine-paint-classic` and `zengine-paint-block` for characters, `zengine-paint-day` and
+`zengine-paint-night` for light). They install as FILES, not as
 exported targets — an artifact is opened by path and never linked, and an imported target would
 offer a link line that must never be written. Beside them, as data, the Workshop tool packages
 for a Loom session's run manager: `share/zengine/loom-tools/workshop`, the journeys and their
@@ -75,16 +77,17 @@ every program of its own and, on Windows, refuses one whose manifest names no UT
 
 **ARTIFACT is the noun, and the distinction is load-bearing.** An artifact is the
 physical loadable file; *weave* and *provider* are runtime SURFACES an artifact may expose.
-Nine of the twelve above are weaves; `zengine-operators-basic` is a provider and the two painters
-are painter code, none of the three a weave (enforced by `zengine_provider()` in the top-level
+Nine of the fourteen above are weaves; `zengine-operators-basic` is a provider and the four
+painters are painter code, none of the five a weave (enforced by `zengine_provider()` in the top-level
 `CMakeLists.txt`). The public
 package variables must therefore name the physical thing: a variable named after one surface
 is false of its own contents the moment the list holds another. The `package_vocabulary`
 CTest entry keeps the retired spellings from coming back — it owns the list of them, so this
 page does not spell them.
 
-**What is deliberately out, and why** (each is a limit, not an oversight): the SDL skin and
-SDL input reader, because a fetched SDL is a build-tree library this install does not own;
+**What is deliberately out, and why** (each is a limit, not an oversight): the SDL skin, the
+SDL input reader and the OS window (`zengine-window-sdl`), because a fetched SDL is a build-tree
+library this install does not own;
 Workshop, because its executable carries `ZENGINE_BUILDER_CMAKE`, the absolute path of the cmake
 that configured it (`cmake/ZengineInstall.cmake`), so installing it would ship one machine's layout;
 the implementation in `flow/flow-host/runtime.hpp` and the Flow pane model/view,
