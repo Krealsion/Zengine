@@ -16,11 +16,17 @@ own, or one its office's holder no longer holds -- says its words and parts with
 (`takes_no_press`), and refuses a point asked of it; every helper here that presses reads the pane
 again until one does (`pressing`).
 
+A POINT IS ASKED OF THE PICTURE ITS READING READ (`Hand.aimed`), and Workshop refuses one where the
+pane drew another since: the pane is read and aimed again, at most POINT_TRIES times -- or, while
+that newer picture, a canvas pane's or a text pane's, is not yet aimed at (`no_settled_picture`),
+once it may have settled, for at most the reader's seconds. `row`, `pointed` and `lattice_point`
+aim so, and every helper built on them.
+
 A WAIT IS FOR THE DESK TO MOVE. Workshop says when its desk moved (`DeskStamps` v2, the desk
 number, every presented pane's stamp and the picture each is aimed at), so a helper waiting for a
 pane to say something reads it again when that pane's stamp, its aimed picture or the desk number
-moved, not on a clock (`Notices`, `Hand.wait`) -- a picture whose number is not yet aimed at ("no
-settled picture") included, which its aimed number moving marks. A row whose `observe` names
+moved, not on a clock (`Notices`, `Hand.wait`) -- a picture whose number is not yet aimed at
+(`no_settled_picture`) included, which its aimed number moving marks. A row whose `observe` names
 `DeskStamps` 1 and not 2 follows the first version, which names no aimed picture: an unsettled
 picture is read again every FALLBACK_PACE seconds, and the run says so. A row naming neither is
 read again every FALLBACK_PACE seconds at every wait, and the run says so too."""
@@ -65,6 +71,22 @@ def takes_no_press(view):
     said = (view["words"] + view.get("parts", [])) if view else []
     return bool(view) and bool(view.get("canvas")) and bool(said) and all(
         s.get("space", 0) == 0 for s in said)
+
+
+#: How many readings a point is aimed from while Workshop refuses it because the pane's picture
+#: moved between the reading and the point; past it the aiming fails naming the pane.
+POINT_TRIES = 3
+#: How long, in seconds, a reader waits for a pane's picture to settle: a reading's (`pressing`),
+#: and a point's while the picture it would land on is not yet aimed at (`Hand.aimed`).
+SETTLE_SECONDS = 10
+
+
+def no_settled_picture(refused):
+    """Whether Workshop refused a reading or a point because the pane holds no settled picture: its
+    newest one -- a canvas pane's, or a text pane's, as each refusal says -- not yet aimed at. The
+    pane's aimed number moving ends it (`Hand.wait`, `unsettled`)."""
+    said = str(refused)
+    return "no settled picture" in said or "no settled text picture" in said
 
 
 def rows_of(view):
@@ -233,23 +255,24 @@ class Hand:
             view = self.ask("zengine.workshop", "PaneViewRequested",
                             {"provider": provider, "pane": pane}, version=3)
         except Refused as refused:
-            self.unsettled = "no settled picture" in str(refused)
+            self.unsettled = no_settled_picture(refused)
             raise
         self.unsettled = False
         return view
 
-    def pressing(self, provider, pane, seconds=10):
+    def pressing(self, provider, pane, seconds=SETTLE_SECONDS):
         """The pane's words and parts, as `words` reads them, once its picture takes a press: while
-        it takes none (`takes_no_press`), or Workshop calls its picture unsettled -- as it does
-        while the pane's own picture settles after one -- the pane is read again, for at most
-        `seconds`; then ValueError, keeping `last-view.json`, or the refusal. Any other refusal --
-        a closed, covered or overlapped pane -- is raised at once, as `words` raises it."""
+        it takes none (`takes_no_press`), or Workshop calls its picture unsettled
+        (`no_settled_picture`) -- as it does while the pane's own picture settles after one -- the
+        pane is read again, for at most `seconds`; then ValueError, keeping `last-view.json`, or the
+        refusal. Any other refusal -- a closed, covered or overlapped pane -- is raised at once, as
+        `words` raises it."""
         end = time.monotonic() + seconds
         while True:
             try:
                 view = self.words(provider, pane)
             except Refused as refused:
-                if "no settled picture" not in str(refused) or time.monotonic() >= end:
+                if not no_settled_picture(refused) or time.monotonic() >= end:
                     raise
                 # ...UNTIL ITS NUMBER IS AIMED AT, which moves the pane's aimed picture.
                 self.wait(end - time.monotonic(), (provider, pane), unsettled=True)
@@ -307,31 +330,56 @@ class Hand:
             self.ctx.produce(kept, json.dumps(dict(rows_of(view), parts=[
                 p["name"] for p in view.get("parts", [])]), indent=2).encode())
 
-    def row(self, provider, pane, contains, scroll=False):
+    def aimed(self, provider, pane, read, aim, what, seconds=SETTLE_SECONDS):
+        """`(reading, point)`: `read()` reads the pane, `aim(reading)` asks Workshop where to press
+        on that reading. A point refused because the pane's picture moved since the reading is read
+        and aimed again, at most POINT_TRIES times; then ValueError naming `what`. One refused
+        because the pane holds no settled picture -- a newer one, not yet aimed at -- is read and
+        aimed again once that picture may have settled (at its aimed number moving, `wait`), for at
+        most `seconds`; then that refusal is raised. Any other refusal is raised at once."""
+        end = time.monotonic() + seconds
+        moved = 0
+        while True:
+            reading = read()
+            try:
+                return reading, aim(reading)
+            except Refused as refused:
+                if no_settled_picture(refused):
+                    if time.monotonic() >= end:
+                        raise
+                    self.wait(end - time.monotonic(), (provider, pane), unsettled=True)
+                    continue
+                if "picture moved" not in str(refused):
+                    raise
+                moved += 1
+                if moved >= POINT_TRIES:
+                    raise ValueError("%s in %s/%s kept moving while it was read"
+                                     % (what, provider, pane))
+
+    def row(self, provider, pane, contains, scroll=False, seconds=SETTLE_SECONDS):
         """The one visible row holding `contains` -- a text pane's row, or the one run of text a
         canvas pane draws on a row -- as `{row, text, x, y, space}`, pressed where Workshop says its
-        third character is (its own point where it has fewer). With `scroll`, the pane is wheeled
-        toward each edge until the row shows. Two rows holding it fail the run's check (the row is
-        ambiguous); none raises ValueError and keeps `last-view.json`."""
+        third character is (its own point where it has fewer), aimed as `aimed` aims, for at most
+        `seconds`. With `scroll`, the pane is wheeled toward each edge until the row shows. Two
+        rows holding it fail the run's check (the row is ambiguous); none raises ValueError and
+        keeps `last-view.json`."""
         def find(view):
             found = [w for w in view["words"] if contains in w["text"]]
             self.ctx.check(len(found) <= 1, "ambiguous visible row: " + contains)
             return found[0] if found else None
-        for _ in range(3):
+        def read():
             view, w = self.seek(provider, pane, find, scroll)
             if w is None:
                 self.last_view(view)
                 raise ValueError("visible row not found: " + contains)
-            try:
-                at = w if len(w["text"]) < 3 else self.word_point(provider, pane, w["word"], 2,
-                                                                    view["picture"])
-            except Refused as refused:
-                if "picture moved" not in str(refused):
-                    raise
-                continue  # the pane redrew between the reading and the point: read it again
-            return {"row": w["word"], "text": w["text"], "x": at["x"], "y": at["y"],
-                    "space": at["space"]}
-        raise ValueError("visible row %r kept moving while it was read" % contains)
+            return view, w
+        def aim(reading):
+            view, w = reading
+            return w if len(w["text"]) < 3 else self.word_point(provider, pane, w["word"], 2,
+                                                                view["picture"])
+        (_, w), at = self.aimed(provider, pane, read, aim, "visible row %r" % contains, seconds)
+        return {"row": w["word"], "text": w["text"], "x": at["x"], "y": at["y"],
+                "space": at["space"]}
 
     def row_starting(self, provider, pane, prefix):
         """The topmost row starting with `prefix` -- a text pane's row, or the one run of text a
@@ -347,27 +395,26 @@ class Hand:
         return {"row": w["word"], "text": w["text"], "x": at["x"], "y": at["y"],
                 "space": at["space"]}
 
-    def pointed(self, provider, pane, pick, column, what):
+    def pointed(self, provider, pane, pick, column, what, seconds=SETTLE_SECONDS):
         """The word `pick(view)` chooses among the pane's words now and where Workshop says its
         character `column(word)` is -- the word's own point where that is None -- as `(word,
-        point)`. A pane that redrew between the reading and the point is read again, as a canvas
-        pane numbers every picture it sends. No word chosen raises ValueError naming `what` and
-        keeps `last-view.json`."""
-        for _ in range(3):
+        point)`, aimed as `aimed` aims, for at most `seconds`: a pane that redrew between the
+        reading and the point is read again, as a canvas pane numbers every picture it sends. No
+        word chosen raises ValueError naming `what` and keeps `last-view.json`."""
+        def read():
             view = self.pressing(provider, pane)
             w = pick(view)
             if w is None:
                 self.last_view(view)
                 raise ValueError("no visible %s in %s/%s" % (what, provider, pane))
+            return view, w
+        def aim(reading):
+            view, w = reading
             at = column(w)
-            try:
-                return w, (w if at is None else
-                           self.word_point(provider, pane, w["word"], at, view["picture"]))
-            except Refused as refused:
-                if "picture moved" not in str(refused):
-                    raise
-                continue  # the pane redrew between the reading and the point: read it again
-        raise ValueError("%s in %s/%s kept moving while it was read" % (what, provider, pane))
+            return w if at is None else self.word_point(provider, pane, w["word"], at,
+                                                        view["picture"])
+        (_, w), at = self.aimed(provider, pane, read, aim, what, seconds)
+        return w, at
 
     def part(self, provider, pane, name, scroll=False):
         """The part a pane names `name`, wherever its last redraw put it, as `{name, row, text, x,
@@ -427,24 +474,23 @@ class Hand:
         return self.ask("zengine.workshop", "PanePointRequested", {"provider": provider, "pane": pane,
                         "picture": picture, "row": row, "column": column}, version=3)
 
-    def lattice_point(self, provider, pane, pick, what):
+    def lattice_point(self, provider, pane, pick, what, seconds=SETTLE_SECONDS):
         """The cell `pick(view)` chooses from the pane's words now -- `(row, column)` of its text
-        lattice, counted from 0 -- and where Workshop says it is (`point`), as `(cell, point)`. A
-        pane that redrew between the reading and the point is read again, as `pointed` reads a word
-        again. No cell chosen raises ValueError naming `what` and keeps `last-view.json`."""
-        for _ in range(3):
+        lattice, counted from 0 -- and where Workshop says it is (`point`), as `(cell, point)`,
+        aimed as `aimed` aims, for at most `seconds`. No cell chosen raises ValueError naming
+        `what` and keeps `last-view.json`."""
+        def read():
             view = self.pressing(provider, pane)
             cell = pick(view)
             if cell is None:
                 self.last_view(view)
                 raise ValueError("no visible %s in %s/%s" % (what, provider, pane))
-            try:
-                return cell, self.point(provider, pane, cell[0], cell[1], view["picture"])
-            except Refused as refused:
-                if "picture moved" not in str(refused):
-                    raise
-                continue  # the pane redrew between the reading and the point: read it again
-        raise ValueError("%s in %s/%s kept moving while it was read" % (what, provider, pane))
+            return view, cell
+        def aim(reading):
+            view, cell = reading
+            return self.point(provider, pane, cell[0], cell[1], view["picture"])
+        (_, cell), at = self.aimed(provider, pane, read, aim, what, seconds)
+        return cell, at
 
     def control(self, provider, pane, label):
         """Press a visible `[label]` control, in a text pane's rows or a canvas pane's words: the
