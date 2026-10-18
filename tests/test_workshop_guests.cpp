@@ -1321,7 +1321,7 @@ TEST_CASE("guests file: version 3 adds guide, keystrokes, a role and the capture
     guests::GuestsFile file;
     std::string why;
     SUBCASE("version 3 reads every word") {
-        f.write(R"({"version":"3","guests":[{"name":"t","credential":"x","may":["capture","guide","keystrokes"],)"
+        f.write(R"({"version":"3","guests":[{"name":"t","credential":"x","may":["capture","guide","keystrokes","settings"],)"
                 R"("capture":["zengine.builder-pane/)" R"(*","zengine.desktop/launcher"],"guide":["zengine.builder-pane/builder"]}]})");
         REQUIRE_MESSAGE(guests::read_guests_file(f.path, &file, &why), why);
         REQUIRE(file.rows.size() == 1);
@@ -1332,7 +1332,8 @@ TEST_CASE("guests file: version 3 adds guide, keystrokes, a role and the capture
         CHECK(row.reads_by_pane());
         CHECK(row.guides_by_pane());
     }
-    for (const char* word : {R"("may":["guide"])", R"("may":["keystrokes"])", R"("role":"tutor")",
+    for (const char* word : {R"("may":["guide"])", R"("may":["keystrokes"])", R"("may":["settings"])",
+                             R"("role":"tutor")",
                              R"("may":["capture"],"capture":["*"])", R"("may":["capture","guide"],"guide":["*"])"}) {
         CAPTURE(word);
         f.write(std::string(R"({"version":"2","guests":[{"name":"t","credential":"x",)") + word + "}]}");

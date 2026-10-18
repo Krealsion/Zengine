@@ -2259,3 +2259,144 @@ TEST_CASE("an unspent Escape the weaver has already typed past moves nothing") {
     CHECK(t.r.session().panes.keyboard == t.kind);
     CHECK(t.input_text().rfind("> x", 0) == 0);
 }
+
+// ---- The Terminal's settings, read and written by message ------------------------------------
+
+namespace {
+
+/// TYPE ONE LINE INTO THE TERMINAL AND SUBMIT IT, and the answer its participant received for it.
+template <class Shape> Shape typed_answer(TerminalRig& t, const std::string& line) {
+    const std::size_t before = of_kind(*t.me, loom::TranscriptKind::AnswerReceived).size();
+    t.focus();
+    t.type(line);
+    t.submit();
+    const std::vector<loom::TranscriptEntry> now =
+        of_kind(*t.me, loom::TranscriptKind::AnswerReceived);
+    REQUIRE_MESSAGE(now.size() == before + 1, "the typed ask `", line, "` was not answered");
+    REQUIRE(now.back().shape == std::string(Shape::zen_name));
+    const std::optional<loom::ReceivedMessage> held = t.me->received(now.back().message);
+    REQUIRE(held.has_value());
+    return loom::from_value<Shape>(held->value);
+}
+
+/// WHAT THE LIVE LAYOUT KEEPS FOR THE TERMINAL.
+std::vector<PaneSetting> kept_settings(TerminalRig& t) {
+    const SetupPane* row = pane_of(t.r.session().setup.active, pane_terminal_ref());
+    return row != nullptr ? row->settings : std::vector<PaneSetting>{};
+}
+
+constexpr const char* kReadLine =
+    "ask @zengine.workshop PaneSettingsRequested 1 provider=zengine.terminal pane=terminal";
+
+std::string commit_line(std::int64_t revision, const std::string& value) {
+    return "ask @zengine.workshop PaneSettingCommitRequested 1 provider=zengine.terminal "
+           "pane=terminal revision=" +
+           std::to_string(revision) + " clear=false " + value;
+}
+
+} // namespace
+
+TEST_CASE("a Terminal line reads the Terminal's settings, and writes them: the wheel reads its rows a notch and the line wears its prompt") {
+    TerminalRig t;
+    t.r.terminal_edits_settings = true;
+    t.open();
+    t.give_room(12, 60);
+    thirty_notices(t);
+
+    // THE READING: three settings, how each is found, the legend pinned, nothing kept yet.
+    const PaneSettingsShown shown = typed_answer<PaneSettingsShown>(t, kReadLine);
+    CHECK(shown.provider == pane::kTerminalPaneRole);
+    CHECK(shown.pane == pane::kTerminalPane);
+    CHECK(shown.revision > 0);
+    REQUIRE(shown.rows.size() == 3);
+    CHECK(shown.rows[0].key == pane::kSettingLegend);
+    CHECK(shown.rows[0].flag == true);
+    CHECK(shown.rows[0].tags == std::vector<std::string>{"chrome", "help"});
+    CHECK(shown.rows[0].pinned);
+    CHECK(shown.rows[0].summary == "show the shortcut legend bar");
+    CHECK(shown.rows[1].key == pane::kSettingWheelRows);
+    CHECK(shown.rows[1].number == 3);
+    CHECK(shown.rows[1].low == 1);
+    CHECK(shown.rows[1].high == 24);
+    CHECK(shown.rows[1].tags == std::vector<std::string>{"input", "scroll"});
+    CHECK_FALSE(shown.rows[1].pinned);
+    CHECK(shown.rows[2].key == pane::kSettingPrompt);
+    CHECK(shown.rows[2].text == std::string(">"));
+    CHECK(shown.rows[2].choices == std::vector<std::string>{">", "$", "%", "#", ":"});
+    CHECK(shown.rows[2].tags == std::vector<std::string>{"chrome", "text"});
+    CHECK(shown.pins == std::vector<std::string>{"legend"});
+    CHECK(shown.settings.empty());
+    CHECK(shown.said == "stored and handed");
+    CHECK(t.shown().back().rfind(">    Tab:", 0) == 0);
+
+    // SIX ROWS A NOTCH, AND THE PROMPT A `$`, each at the revision the last answer gave.
+    const PaneSettingActed six =
+        typed_answer<PaneSettingActed>(t, commit_line(shown.revision, "key=wheel-rows number=6"));
+    REQUIRE_MESSAGE(six.accepted, six.refusal);
+    CHECK(six.revision > shown.revision);
+    CHECK(six.handed == "stored and handed");
+    const PaneSettingActed dollar =
+        typed_answer<PaneSettingActed>(t, commit_line(six.revision, "key=prompt text=\"$\""));
+    REQUIRE_MESSAGE(dollar.accepted, dollar.refusal);
+    CHECK(dollar.revision > six.revision);
+    CHECK(t.r.last_notice() == "committed prompt of Terminal = $; stored and handed");
+    CHECK(kept_settings(t) ==
+          std::vector<PaneSetting>{PaneSetting{pane::kSettingPrompt, {}, {}, std::string("$")},
+                                   PaneSetting{pane::kSettingWheelRows, {}, 6, {}}});
+    CHECK(t.shown().back().rfind("$    Tab:", 0) == 0);
+    t.type("x");
+    CHECK(t.input_text() == "$ x");
+
+    const std::int64_t above = marker_count(t, " more rows above");
+    REQUIRE(above > 6);
+    const ui::Rect body = external_body_rect(t.r.session(), t.kind);
+    t.r.wheel_cell(1.0, body.x + 2, body.y + 2);
+    CHECK(marker_count(t, " more rows above") == above - 6);
+
+    // REFUSED ALOUD, WITH NOTHING WRITTEN: a revision read before, a value out of range, the wrong
+    // kind, a mark it does not take.
+    t.r.key(input::scan::kEnd, input::mod::kCtrl);
+    t.r.key(input::scan::kEscape);
+    struct Case {
+        std::string line;
+        std::string said;
+    };
+    const std::vector<Case> cases = {
+        {commit_line(six.revision, "key=wheel-rows number=5"),
+         "stale revision " + std::to_string(six.revision) +
+             " -- the row of zengine.terminal/terminal stands at " +
+             std::to_string(dollar.revision) + "; read it again"},
+        {commit_line(dollar.revision, "key=wheel-rows number=99"),
+         "wheel-rows takes a whole number from 1 to 24, not a number `99`"},
+        {commit_line(dollar.revision, "key=wheel-rows text=five"),
+         "wheel-rows takes a whole number from 1 to 24, not a text `five`"},
+        {commit_line(dollar.revision, "key=prompt text=\"!\""),
+         "prompt takes one of >, $, %, #, :, not a text `!`"},
+    };
+    for (const Case& c : cases) {
+        CAPTURE(c.line);
+        const PaneSettingActed refused = typed_answer<PaneSettingActed>(t, c.line);
+        CHECK_FALSE(refused.accepted);
+        CHECK(refused.refusal == c.said);
+        CHECK(refused.revision == dollar.revision);
+        CHECK(kept_settings(t).size() == 2);
+    }
+
+    // ...AND A CLEAR PUTS THE DEFAULT BACK, which the pane draws.
+    const PaneSettingActed back = typed_answer<PaneSettingActed>(
+        t, "ask @zengine.workshop PaneSettingCommitRequested 1 provider=zengine.terminal "
+           "pane=terminal revision=" + std::to_string(dollar.revision) + " key=prompt clear=true");
+    REQUIRE_MESSAGE(back.accepted, back.refusal);
+    CHECK(t.shown().back().rfind(">    Tab:", 0) == 0);
+}
+
+TEST_CASE("a Terminal not widened to settings cannot ask for them: the line is refused before it is sent") {
+    TerminalRig t;
+    t.open();
+    const std::size_t answers = of_kind(*t.me, loom::TranscriptKind::AnswerReceived).size();
+    t.focus();
+    t.type(kReadLine);
+    t.submit();
+    CHECK(of_kind(*t.me, loom::TranscriptKind::AnswerReceived).size() == answers);
+    CHECK(kept_settings(t).empty());
+}

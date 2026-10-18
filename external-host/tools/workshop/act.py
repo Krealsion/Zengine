@@ -5,8 +5,8 @@ Workshop says it holds instead of by comparing pictures. loom-tool.json lists th
 arguments.
 
 A step is one weaver gesture (press, type, open, select, into, click, part, at, rest, wheel,
-control, menu) or one observation (desk, expect, absent, rows, picture, wait). Steps run in order
-through ONE input session; the first that cannot be done ends the run naming its index and verb,
+control, menu), one observation (desk, expect, absent, rows, picture, wait), or one pane's settings
+read and written by message (settings). Steps run in order through ONE input session; the first that cannot be done ends the run naming its index and verb,
 and nothing after it is sent. Every step is spelled before any Workshop contact, so a misspelled
 list costs nothing.
 
@@ -30,6 +30,12 @@ the rows' ids. `part` presses a part by its pane and its name, wherever the pane
 wheel over a part by its name; `select` and `menu` take a name before the text a row or line shows.
 A name is the pane's: Workshop carries it as said.
 
+WHAT A SETTING IS. `settings` reads one pane's row of the live layout (PaneSettingsRequested): its
+revision, what the pane's declaration takes, what the row keeps, and the desk's sentence about it.
+Given `key=value` it writes that value at the revision it just read, in the field the declaration
+says the setting takes (PaneSettingCommitRequested), and reads the row back; `key=-` clears it. A
+write Workshop refuses ends the run with Workshop's words.
+
 WHAT IT CLEANS UP. hand.py registers the input session's close with the run's cleanup, so a
 failed step, a bug or a cancellation still gives Workshop's input session back."""
 import json
@@ -45,7 +51,7 @@ from hand import (FALLBACK_PACE, NO_PRESS, POINT_TRIES, Hand, no_settled_picture
 from workshop_steps import chord_moments, moment, picture, png_of, point
 
 VERBS = ("press", "type", "open", "select", "into", "click", "part", "at", "rest", "wheel",
-         "control", "menu", "desk", "expect", "absent", "rows", "picture", "wait")
+         "control", "menu", "desk", "expect", "absent", "rows", "picture", "wait", "settings")
 GESTURES = ("press", "type", "open", "select", "into", "click", "part", "at", "rest", "wheel",
             "control", "menu")
 MANAGER = ("zengine.desktop", "launcher")
@@ -65,6 +71,8 @@ def run(ctx):
             pane_ref(step["open"])  # ...and a pane named by anything but its row's name
         if named == ["wheel"]:
             wheel_of(step)  # ...and a wheel that names no pane or turns no notch
+        if named == ["settings"]:
+            settings_of(step["settings"])  # ...and a setting named by anything but key=value
     pace = max(0, int(ctx.inputs.get("pace_ms", 0))) / 1000.0
     hand = Hand(ctx, ctx.inputs["link"])
     done = []
@@ -386,6 +394,8 @@ def act(ctx, hand, verb, step):
                     "words": [dict(w) for w in view["words"]],
                     "parts": [dict(p) for p in view.get("parts", [])]}, indent=1).encode())
         return {"rows": len(view["words"]), "parts": names(view), "picture": view["picture"]}
+    if verb == "settings":
+        return settings_step(ctx, hand, arg)
     if verb == "picture":
         captured, data = picture(ctx, hand.link, arg)
         kept = {"frame": captured["frame"]}
@@ -618,6 +628,63 @@ def manager_holds_keys(hand):
     """Whether the desk says the Pane Manager holds the keys."""
     on = [p for p in hand.desk()["panes"] if (p["provider"], p["pane"]) == MANAGER]
     return bool(on) and on[0]["keys"]
+
+
+def settings_of(arg):
+    """`(provider, pane, key, value)` of a settings step -- `"<provider>/<pane>"` to read, or
+    `"<provider>/<pane> <key>=<value>"` (or the same as a list of its words) to write, `-` for the
+    value clearing it; `key` and `value` None for a read -- or ValueError, before any contact."""
+    words = arg.split() if isinstance(arg, str) else arg
+    if not (isinstance(words, list) and len(words) in (1, 2) and all(isinstance(w, str) for w in words)):
+        raise ValueError("settings names \"<provider>/<pane> [<key>=<value>]\", not %r" % (arg,))
+    provider, _, pane = words[0].partition("/")
+    if not provider or not pane:
+        raise ValueError("settings names a pane as <provider>/<pane>, not %r" % (words[0],))
+    if len(words) == 1:
+        return provider, pane, None, None
+    key, eq, value = words[1].partition("=")
+    if not key or not eq or not value:
+        raise ValueError("settings writes <key>=<value>, or <key>=- to clear it, not %r" % (words[1],))
+    return provider, pane, key, value
+
+
+def settings_value(ctx, row, value):
+    """The commit's one value field for `value`, in the kind `row` declares: a flag on, off, true or
+    false; a whole number; or the text as written."""
+    if row.get("flag") is not None:
+        flags = {"on": True, "true": True, "off": False, "false": False}
+        ctx.check(value in flags, "settings: %s is a flag -- on or off, not %r" % (row["key"], value))
+        return {"flag": flags[value]}
+    if row.get("number") is not None:
+        ctx.check(re.fullmatch(r"-?[0-9]+", value) is not None,
+                  "settings: %s is a whole number, not %r" % (row["key"], value))
+        return {"number": int(value)}
+    return {"text": value}
+
+
+def settings_step(ctx, hand, arg):
+    """Read one pane's row of the live layout; given key=value, write it at the revision just read
+    and read the row back. Returns the readings and the commit's answer."""
+    provider, pane, key, value = settings_of(arg)
+    where = {"provider": provider, "pane": pane}
+    shown = hand.ask("zengine.workshop", "PaneSettingsRequested", where)
+    record = {"read": shown}
+    if key is None:
+        return record
+    ctx.check(int(shown["revision"]) > 0, "settings: %s/%s -- %s" % (provider, pane, shown["said"]))
+    fields = dict(where, revision=int(shown["revision"]), key=key)
+    if value == "-":
+        fields["clear"] = True
+    else:
+        rows = [r for r in shown["rows"] if r["key"] == key]
+        ctx.check(rows, "settings: %s/%s declares no setting %r; it declares %s"
+                  % (provider, pane, key, ", ".join(r["key"] for r in shown["rows"]) or "none"))
+        fields.update(settings_value(ctx, rows[0], value))
+    acted = hand.ask("zengine.workshop", "PaneSettingCommitRequested", fields)
+    record["acted"] = acted
+    ctx.check(acted["accepted"], "settings: %s of %s/%s refused: %s" % (key, provider, pane, acted["refusal"]))
+    record["after"] = hand.ask("zengine.workshop", "PaneSettingsRequested", where)
+    return record
 
 
 def pane_ref(name):

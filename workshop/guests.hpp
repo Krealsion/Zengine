@@ -46,6 +46,10 @@ inline constexpr const char* kPowerGuide = "guide";
 /// `KeyPressed` or `TextEntered`, from any office, needs it. It grants nothing to say. A version-3
 /// word.
 inline constexpr const char* kPowerKeystrokes = "keystrokes";
+/// Reading and writing one pane's settings on the live layout by message (`PaneSettingsRequested`,
+/// `PaneSettingCommitRequested`), Workshop judging each ask by the row as well as Loom by its grant.
+/// A version-3 word.
+inline constexpr const char* kPowerSettings = scope::kPowerSettings;
 
 /// The newest version of the guests file this Workshop reads; a file names its own in `version`.
 inline constexpr std::int64_t kGuestsFileVersion = 3;

@@ -176,8 +176,9 @@ zengine-workshop - guests: 'agent' (version 1) also reaches here: the desk read 
 
 ### Reading and pointing by pane: version 3
 
-A file of **version 3** adds four words, so a guest on a weaver's desk can teach -- read the panes a
-lesson is about and point at the control the weaver should press -- without reading the rest:
+A file of **version 3** adds five words, so a guest on a weaver's desk can teach -- read the panes a
+lesson is about and point at the control the weaver should press -- without reading the rest, and
+set a pane's settings by message:
 
 - **`capture`**, a field of the row beside the power: the panes the row reads, each
   `<office>/<pane>` or `<office>/*` (every pane that office offers), or `*` alone for every pane.
@@ -198,6 +199,10 @@ lesson is about and point at the control the weaver should press -- without read
 - **`keystrokes`**, a power: hearing the weaver's input as it happens. An `observe` entry naming
   `AttributedInput`, `KeyPressed` or `TextEntered`, from any office, needs it; a row of an earlier
   version cannot hold it, so such an entry there is refused.
+- **`settings`**, a power: reading one pane's row of the live layout and writing one of its
+  settings at the revision read, by message (`PaneSettingsRequested`, `PaneSettingCommitRequested`,
+  [Workshop's manual](../../workshop/docs/zengine.workshop.md#panesettingsrequested)); `workshop/act`'s
+  `settings` step asks both. Workshop judges each ask by the row it admitted as well as by the grant.
 - **`role`**, a row's bundle of powers. `tutor` is `capture` and `guide`; a row may add powers of
   its own in `may`, and sets its own doors. The role, what it expanded to and the doors are said at launch, on Attention and
   to the row's own session (`GuestRowDescribed` version 2).

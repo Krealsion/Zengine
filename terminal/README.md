@@ -21,7 +21,7 @@ shell and starts no programs. Press `Ctrl`+`t` in Workshop to open it.
 | | |
 |---|---|
 | `pane.cpp` | the Terminal pane, built as a weave that Workshop loads |
-| `vocabulary.hpp` | its names: the office it holds (`zengine.terminal`), its pane, its key actions and its one setting |
+| `vocabulary.hpp` | its names: the office it holds (`zengine.terminal`), its pane, its key actions and its settings |
 | `CMakeLists.txt` | how it is built |
 | `docs/` | these pages and their screenshots |
 

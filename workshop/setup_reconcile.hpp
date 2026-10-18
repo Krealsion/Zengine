@@ -193,12 +193,14 @@ inline Admission admit_pane_actions(const RuntimeCatalog& runtime,
     return out;
 }
 
-/// WHICH ADMITTED PANE A `PaneSettingsDeclared` IS ABOUT, under the office Loom stamped on it, and
-/// whether its settings are sound: the declaration judged whole. An office that never offered the
+/// WHICH ADMITTED PANE A `PaneSettingsDeclared` IS ABOUT, of either version, under the office Loom
+/// stamped on it, and whether its settings are sound by that version's rules (each version's
+/// `pane_settings_declared_problem`): the declaration judged whole. An office that never offered the
 /// key is refused by name. Nothing is written here; the caller writes the settings or nothing.
 // WL-SETTING-03 -- agents/workshop/settings.md
+template <class Declared>
 inline Admission admit_pane_settings(const RuntimeCatalog& runtime, std::string_view stamped_office,
-                                     const PaneSettingsDeclared& declared) {
+                                     const Declared& declared) {
     Admission out;
     const Written office = check_pane_key(stamped_office, "provider");
     if (!office.accepted) {

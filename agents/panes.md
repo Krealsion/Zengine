@@ -740,7 +740,12 @@ press sends. The host's side is [`workshop/action-causes.md`](workshop/action-ca
 `PaneSettingsDeclared v1` `{pane, rows}` of `PaneSettingRow v1` `{key, flag?, number?, text?,
 choices, low?, high?}`, provider → Workshop, sent beside the offer; `PaneSettings v1`
 `{pane, settings}` of `PaneSetting v1` `{key, flag?, number?, text?}`, Workshop → the office's
-holder (`workshop/pane_settings.hpp`). Neither names a provider: the office is Loom's stamp. The
+holder (`workshop/pane_settings.hpp`). Version 2 of each adds how a weaver finds a setting and
+which row a hand-off was: `PaneSettingRow v2` adds `tags`, `pinned` and `summary`, so
+`PaneSettingsDeclared v2` carries those rows, and `PaneSettings v2` `{pane, revision, settings}`
+names the revision of the live layout's row it was handed at. A pane that speaks about what it
+was handed says `PaneSettingUnused` `{pane, revision, key, why}` back
+(`workshop/settings_seam_vocabulary.hpp`). None names a provider: the office is Loom's stamp. The
 host's side is Workshop's law, [`workshop/settings.md`](workshop/settings.md).
 
 - **A setting is a key and exactly one value, in its kind's own field**: a flag, a number or a
@@ -750,19 +755,24 @@ host's side is Workshop's law, [`workshop/settings.md`](workshop/settings.md).
   stamp: an empty office declares nothing, a pane this office never offered is refused by name,
   and a setting whose default is not one it takes is refused naming what it does take. A refusal
   is said in the band and leaves the settings in force standing; an accepted declaration replaces
-  them. It counts only while the weave that sent it holds the office, and nothing waits on it: it
-  makes no pane appear, and no hand-off is held for it.
+  them. It counts only while the weave that sent it holds the office, at the incarnation that
+  sent it -- a reloaded image declares again or takes nothing -- and nothing waits on it: it
+  makes no pane appear, and no hand-off is held for it. Workshop takes either version and reads
+  both as one declaration; v2's tags, pins and summary are judged by form and never acted on.
 - **The hand-off waits on nothing but the door.** A seated pane whose office's holder accepts
   `PaneSettings` is handed its row's settings, whether or not, and whenever, it declared — before
   any room it is granted, at the top of every repaint and before the rooms a managed opening seats
   it in, and again whenever what the live layout keeps differs from what that holder last heard:
   another layout's settings, a re-offer, a re-seat, a managed opening, a new holder. "Never handed" is not "handed none", so a reopened row's empty list is handed too.
-  It is sent to the holder itself, as a canvas room is. A holder without the door is handed
-  nothing, and a pane in two layouts keeping one set of settings hears nothing on a switch.
+  It is sent to the holder itself, as a canvas room is, in the newest version it accepts. A holder
+  without the door is handed nothing. A v1 holder in two layouts keeping one set of settings hears
+  nothing on a switch; a v2 holder is handed again whenever its row's revision moves, a desk put
+  live included, so the revision it names is always the one it holds.
 - **The pane means; Workshop judges and keeps.** A pane checks the stamp and its pane key, as it
   does for a room; takes the list whole, each setting it declared from it or its default; passes
   over a key it did not declare; and, when it cannot use a value — no kind, two, or one its
-  setting does not take — keeps its default and says so where the setting shows. Held settings
+  setting does not take — keeps its default and says so where the setting shows, and a v2 pane
+  may say it to Workshop too, against the revision it was handed. Held settings
   are plain members, never Loom state, so a reload is refused for nothing a setting changed and
   is handed its settings again on its re-offer. Gaining the `PaneSettings` door changes an
   image's accepted schemas: a pane that gains it arrives with a restarted Workshop.

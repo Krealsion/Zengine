@@ -7,8 +7,8 @@
 // Workshop's guest vocabulary, declared on another Loom host. An external host's link re-admits a
 // far answer, and encodes a Python tool's JSON request, against shapes its own registry resolves
 // (the Loom's bridge reference page); a Python tool is no participant there, so this weave declares
-// them: Input's session shapes, the Skin's picture, the desk read whole, the pane inventory, the
-// keymap, the door's inventory, the asker's row, the plan, the managed opening, the Builder's read.
+// them: Input's session, the Skin's picture, the desk read whole, the pane inventory, the keymap,
+// the door's inventory, the asker's row, the plan, the opening, the Builder's read, the settings.
 // Reference: external-host/docs/external-host.md.
 
 // Declared through Loom's agreement wall (`Emit<...>`: a declared shape resolves while its
@@ -29,6 +29,7 @@
 #include "workshop/guide_vocabulary.hpp"
 #include "workshop/pane_document.hpp"
 #include "workshop/setup_control.hpp"
+#include "workshop/settings_seam_vocabulary.hpp"
 #include "external-host/demo-control/vocabulary.hpp"
 
 #include <zen/weave.hpp>
@@ -38,7 +39,7 @@
 namespace zengine::external_host {
 
 struct GuestVocabularyState {
-    std::int64_t declared = 103; ///< top-level emitted shapes, excluding nested and substrate shapes
+    std::int64_t declared = 107; ///< top-level emitted shapes, excluding nested and substrate shapes
     ZEN_SHAPE(GuestVocabularyState, 1, ZEN_FIELD(declared));
 };
 
@@ -113,7 +114,11 @@ class GuestVocabulary final
                      // The managed opening a guest's `open` power reaches (workshop/guests.hpp).
                      zengine::workshop::OpenSourceRequested, zengine::workshop::SourceOpened,
                      // Where the Builder stands, answered to one observer (builder/vocabulary.hpp).
-                     zengine::builder::BuildStatusRequested, zengine::builder::BuildStatus>> {};
+                     zengine::builder::BuildStatusRequested, zengine::builder::BuildStatus,
+                     // One pane's settings on the live layout, which the `settings` power reaches.
+                     zengine::workshop::PaneSettingsRequested, zengine::workshop::PaneSettingsShown,
+                     zengine::workshop::PaneSettingCommitRequested,
+                     zengine::workshop::PaneSettingActed>> {};
 
 } // namespace zengine::external_host
 

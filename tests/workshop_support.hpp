@@ -2840,6 +2840,10 @@ struct PaneRig {
             grant.allow_to_any(surface::SurfaceText::zen_name,
                                surface::SurfaceText::zen_version);
         }
+        // ...AND, WHEN A CASE ASKS, A PANE'S SETTINGS, by the host's own widening.
+        if (terminal_edits_settings) {
+            let_terminal_edit_settings(vocab, grant);
+        }
         const loom::MountedTerminal mounted = loom::host_mount_terminal(
             bus, std::make_unique<loom::TerminalSession>("workshop", std::move(vocab)),
             std::move(grant));
@@ -2848,6 +2852,7 @@ struct PaneRig {
         return mounted.session;
     }
     loom::WeaveId terminal_id{};
+    bool terminal_edits_settings = false;
 
     /// A native provider in an office of its own, granted the pane sentences a provider says --
     /// offer, content, both declarations, caret, unspent Escape -- and a press to forge. The office

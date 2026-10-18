@@ -17,6 +17,10 @@ loom::Grant workshop_grant() {
     speak.allow_to_any(PaneCatalogRequested::zen_name, PaneCatalogRequested::zen_version);
     speak.allow_to_any(PaneRoom::zen_name, PaneRoom::zen_version);
     speak.allow_to_any(PaneSettings::zen_name, PaneSettings::zen_version);
+    speak.allow_to_any(v2::PaneSettings::zen_name, v2::PaneSettings::zen_version);
+    // ...and one pane's settings read and written by message, answered to whoever asked.
+    speak.allow_to_any(PaneSettingsShown::zen_name, PaneSettingsShown::zen_version);
+    speak.allow_to_any(PaneSettingActed::zen_name, PaneSettingActed::zen_version);
     speak.allow_to_any(PanePressed::zen_name, PanePressed::zen_version);
     speak.allow_to_any(v2::PanePressed::zen_name, v2::PanePressed::zen_version);
     speak.allow_to_any(loom::Refused::zen_name, loom::Refused::zen_version);
