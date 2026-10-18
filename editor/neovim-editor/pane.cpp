@@ -55,6 +55,7 @@
 #include "workshop/pane_vocabulary.hpp"
 
 #include "activation/activation.hpp"
+#include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 #include "timer/vocabulary.hpp"
@@ -79,6 +80,7 @@
 
 namespace {
 
+namespace graphics = zengine::graphics;
 namespace nv = zengine::neovim;
 namespace mp = zengine::neovim::msgpack;
 namespace nve = zengine::neovim_editor;
@@ -138,7 +140,8 @@ using NeovimEditorBase = zengine::With<ws::PaneManualFacet<
                  EditorAdoptRequested, EditorLiveRequested, EditorRetireRequested,
                  nve::NeovimStartRequested, nve::NeovimStopRequested, nve::NeovimStatusRequested,
                  ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
-                 ws::PaneCarryAnswered>,
+                 ws::PaneCarryAnswered, graphics::AreaRoom, graphics::DrawnRefused,
+                 graphics::ActionRequested>,
     loom::Emit<PaneOffered, ws::v3::PaneActions, ws::v5::PaneCanvasContent, ws::v4::PaneContent,
                ws::v2::PaneCaret,
                ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
@@ -147,7 +150,8 @@ using NeovimEditorBase = zengine::With<ws::PaneManualFacet<
                ProjectRootRequested, surface::ClipboardCopy, surface::ClipboardTextRequested,
                EditorHandoffJudged, EditorWarmed, EditorHandoffOffered, EditorAdopted, EditorLive,
                EditorRetired, timer::EnsureTimer, timer::CancelTimer, loom::Result, loom::Refused,
-               ws::PaneMenuRequested, ws::PaneOperationRequested, ws::PaneValueCarryRequested>,
+               ws::PaneMenuRequested, ws::PaneOperationRequested, ws::PaneValueCarryRequested,
+               graphics::Drawn, graphics::RoomAsked>,
     loom::WeaveBase, loom::Claims<EditorDocument>>;
 
 // WL-NVIM-01 -- agents/workshop/neovim.md
@@ -193,6 +197,12 @@ public:
         }
         announce(mail);
         ask_project_root(mail);
+        // THE GRAPHICS WINDOW THAT SHOWS THE OFFICE'S AREA, asked for its room once each life; a
+        // room it said before this activation is taken now.
+        window_.ask_room(mail);
+        if (window_.in_window() && !granted_) {
+            size_to(window_.rows(), window_.columns(), mail);
+        }
         resay_ = true;
     }
 
@@ -270,12 +280,48 @@ public:
     /// A refused picture leaves the last good one showing; the next change draws again.
     void on(const ws::PaneCanvasRejected&, loom::Mail&) {}
 
-    /// THE ROOM TAKEN: the rows and columns composed for, and Neovim sized to them -- or started in
-    /// them, the first time this pane is given room.
+    /// THE ROOM THE GRAPHICS WINDOW THAT SHOWS THE OFFICE'S AREA GIVES, from that window's office.
+    /// An Editor Workshop seats keeps Neovim sized to Workshop's room, and the window is sent those
+    /// rows; one Workshop seats nowhere sizes Neovim to the window's room, or starts it there.
+    void on(const graphics::AreaRoom& r, loom::Mail& mail) {
+        if (!window_.room(r, mail) || !activation_.activated()) {
+            return; // a room said before the activation is taken there
+        }
+        if (granted_) {
+            say(mail);
+            return;
+        }
+        size_to(window_.rows(), window_.columns(), mail);
+    }
+
+    /// A drawing the window refused (`EditorWindow::refused`): a refused change is followed by the
+    /// rows whole, a refused whole drawing by nothing until they change.
+    void on(const graphics::DrawnRefused& refused, loom::Mail& mail) {
+        (void)window_.refused(refused, mail);
+    }
+
+    /// A PRESS ON A PART IN THE WINDOW, by the part's name: Neovim's own press at the first column
+    /// of that part, on no picture a carry could begin from, and released at once, since the window
+    /// says the press and its release as one act.
+    void on(const graphics::ActionRequested& asked, loom::Mail& mail) {
+        if (const std::optional<ws::RowCell> at = window_.part(asked, mail)) {
+            press_at(at->row, at->column, 0, 0, mail);
+            release_drag();
+            flush(mail);
+        }
+    }
+
+    /// THE ROOM TAKEN from Workshop: the rows and columns composed for (`size_to`).
     void take_room(std::int64_t rows, std::int64_t columns, loom::Mail& mail) {
+        granted_ = true;
+        size_to(rows, columns, mail);
+    }
+
+    /// THE ROWS AND COLUMNS COMPOSED FOR, and Neovim sized to them -- or started in them, the first
+    /// time this pane is given room.
+    void size_to(std::int64_t rows, std::int64_t columns, loom::Mail& mail) {
         rows_ = rows;
         columns_ = columns;
-        granted_ = true;
         if (!root_asked_) {
             ask_project_root(mail);
         }
@@ -862,7 +908,11 @@ private:
     /// NUMBERED (WL-NVIM-11): a picture whose rows, caret, range or generation differ from the last
     /// one said is a new picture, so a press or a drop names which screen it was aimed at.
     void say(loom::Mail& mail) {
-        if (!granted_ || (canvas_.grant > 0 && !on_canvas())) {
+        // Workshop is told while it grants a room the pane can fill: none, or a canvas room with
+        // no extent, is nothing its rows could truthfully fill.
+        const bool to_workshop = granted_ && !(canvas_.grant > 0 && !on_canvas());
+        const bool to_window = window_.in_window() && activation_.activated();
+        if (!to_workshop && !to_window) {
             return;
         }
         std::vector<surface::SurfaceTextRow> rows;
@@ -877,6 +927,12 @@ private:
         }
         ++state_.screens;
         std::vector<ws::PaneRowPart> parts = status_part(rows);
+        if (to_window) { // the same rows, part and caret, as a drawing in the graphics window
+            window_.draw(mail, rows, parts, rows_caret(caret));
+        }
+        if (!to_workshop) {
+            return;
+        }
         if (on_canvas()) {
             (void)mail.as_role(nve::kEditorOffice)
                 .send_to_role(kWorkshopRole,
@@ -1123,6 +1179,9 @@ private:
     std::int64_t pressed_ = 0;
     bool on_canvas() const { return canvas_.grant > 0 && canvas_.width > 0 && canvas_.height > 0; }
     Preview preview_;
+
+    /// THE GRAPHICS WINDOW THAT SHOWS THE OFFICE'S AREA, and the rows drawn there. Not reload state.
+    office::EditorWindow window_{nve::kEditorOffice};
 };
 
 } // namespace

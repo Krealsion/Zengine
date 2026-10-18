@@ -15,9 +15,9 @@
 // right kept, or the managed door, where a candidate built beside the document becomes it only
 // when the bus publishes this weave's claim (WL-EDIT-05).
 
-// This file is the weave: its lifecycle and revival, the room, the keys, the clipboard and the
-// exit, save and discard, and the rows, caret and mirror it composes. It declares every member;
-// `transfers.hpp` defines the pointer's and the transfers' (WL-EDIT-16..21) and
+// This file is the weave: its lifecycle and revival, the room, the graphics window, the keys, the
+// clipboard and the exit, save and discard, and the rows, caret and mirror it composes. It declares
+// every member; `transfers.hpp` defines the pointer's and the transfers' (WL-EDIT-16..21) and
 // `opening_switch.hpp` the open doors' and a switch's, both included after the class, over the
 // records and pure helpers of `common.hpp`.
 
@@ -40,6 +40,7 @@
 
 #include "activation/activation.hpp"
 #include "component/text_box.hpp"
+#include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 
@@ -60,6 +61,7 @@
 namespace {
 
 namespace component = zengine::component;
+namespace graphics = zengine::graphics;
 namespace input = zengine::input;
 
 // =============================================================================
@@ -78,7 +80,8 @@ class EditorPaneWeave
                        EditorPreparationTick, EditorHandoffRequested, EditorHandoffEnded,
                        EditorAdoptRequested, EditorLiveRequested, EditorRetireRequested,
                        ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
-                       ws::PaneCarryAnswered>,
+                       ws::PaneCarryAnswered, graphics::AreaRoom, graphics::DrawnRefused,
+                       graphics::ActionRequested>,
           loom::Emit<PaneOffered, ws::v3::PaneActions, ws::v5::PaneCanvasContent,
                      ws::v4::PaneContent, ws::v2::PaneCaret,
                      ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
@@ -88,7 +91,7 @@ class EditorPaneWeave
                      surface::ClipboardTextRequested, EditorHandoffJudged, EditorWarmed,
                      EditorHandoffOffered, EditorAdopted, EditorLive, EditorRetired,
                      ws::PaneMenuRequested, ws::PanePassRequested, ws::PaneOperationRequested,
-                     ws::PaneValueCarryRequested>,
+                     ws::PaneValueCarryRequested, graphics::Drawn, graphics::RoomAsked>,
           loom::WeaveBase, loom::Claims<EditorDocument>> {
 public:
     using Base = Weave;
@@ -122,6 +125,12 @@ public:
         }
         announce(mail);
         ask_project_root(mail);
+        // THE GRAPHICS WINDOW THAT SHOWS THE OFFICE'S AREA, asked for its room once each life; a
+        // room it said before this activation is drawn now.
+        window_.ask_room(mail);
+        if (window_.in_window()) {
+            resay_ = true;
+        }
     }
 
     void on(const PaneCatalogRequested&, loom::Mail& mail) {
@@ -129,6 +138,37 @@ public:
             return;
         }
         announce(mail);
+    }
+
+    /// THE ROOM THE GRAPHICS WINDOW THAT SHOWS THE OFFICE'S AREA GIVES, from that window's office.
+    /// An Editor Workshop seats keeps composing for Workshop's room, and the window is sent those
+    /// rows; one Workshop seats nowhere composes for the window's.
+    void on(const graphics::AreaRoom& r, loom::Mail& mail) {
+        if (!window_.room(r, mail)) {
+            return;
+        }
+        if (!granted_) {
+            rows_ = window_.rows();
+            columns_ = window_.columns();
+        }
+        say(mail);
+    }
+
+    /// A drawing the window refused (`EditorWindow::refused`): a refused change is followed by the
+    /// rows whole, a refused whole drawing by nothing until they change.
+    void on(const graphics::DrawnRefused& refused, loom::Mail& mail) {
+        (void)window_.refused(refused, mail);
+    }
+
+    /// A PRESS ON A PART IN THE WINDOW, by the part's name: the press Workshop's canvas makes at the
+    /// first column of that part, on no picture a carry could begin from, and leaving no sweep
+    /// armed, since the window says the press and its release as one act.
+    void on(const graphics::ActionRequested& asked, loom::Mail& mail) {
+        if (const std::optional<ws::RowCell> at = window_.part(asked, mail)) {
+            press_at(at->row, at->column, false, mail);
+            drag_ = Drag{};
+            grab_ = Grab{};
+        }
     }
 
     /// THE PROSE ROOM: the rows and columns this pane composes for where its host grants it no
@@ -869,8 +909,12 @@ private:
     /// caret are said beside each other as prose, each naming the document's generation.
     // WL-EDIT-18 -- agents/workshop/editor-transfers.md
     void say(loom::Mail& mail) {
-        if (!granted_ || (canvas_.grant > 0 && !on_canvas())) {
-            return; // no room, or a canvas room with none: nothing this pane could truthfully fill
+        // Workshop is told while it grants a room the pane can fill: none, or a canvas room with
+        // no extent, is nothing its rows could truthfully fill.
+        const bool to_workshop = granted_ && !(canvas_.grant > 0 && !on_canvas());
+        const bool to_window = window_.in_window() && activation_.activated();
+        if (!to_workshop && !to_window) {
+            return;
         }
         Composition c = compose(e_, viewport_of(e_), rows_, columns_, notice_, notice_bad_);
         apply_viewport(e_, c.view);
@@ -898,6 +942,12 @@ private:
             ++picture_;
         }
         std::vector<ws::PaneRowPart> parts = parts_of(c, columns_);
+        if (to_window) { // the same rows, parts and caret, as a drawing in the graphics window
+            window_.draw(mail, c.rows, parts, rows_caret(c.caret));
+        }
+        if (!to_workshop) {
+            return;
+        }
         if (on_canvas()) {
             (void)mail.as_role(pane::kEditorPaneRole)
                 .send_to_role(kWorkshopRole,
@@ -1059,6 +1109,9 @@ private:
     ws::CanvasPictures pictures_;
     std::int64_t held_ = 0;
     bool on_canvas() const { return canvas_.grant > 0 && canvas_.width > 0 && canvas_.height > 0; }
+
+    /// THE GRAPHICS WINDOW THAT SHOWS THE OFFICE'S AREA, and the rows drawn there. Not reload state.
+    office::EditorWindow window_{pane::kEditorPaneRole};
 
     /// THE SWITCH HOLDING THIS EDITOR STILL, while one does (`Holding`).
     Holding holding_;
