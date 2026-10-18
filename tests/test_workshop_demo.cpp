@@ -271,6 +271,107 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
         CHECK(overlap.places.at("left").column == 0);
         CHECK(overlap.places.at("right").column == 6);
     }
+    SUBCASE("a caret and a selection drawn there stand in front of their rows, each run asking "
+            "what the part beneath it asks: none without a caret, the caret on the last column "
+            "when it stands past it, and neither on a row past the rows asked for") {
+        namespace surface = zengine::surface;
+        namespace gfx = zengine::graphics;
+        const std::vector<surface::SurfaceTextRow> rows{{"first row", surface::role::kFill},
+                                                        {"second", surface::role::kFill},
+                                                        {"third", surface::role::kFill}};
+        const std::vector<v2::PaneRowPart> parts{{"one", 0, 0, 10, true}, {"two", 1, 0, 3, true}};
+        const auto node = [](const RowsDrawing& d, const std::string& path) -> const gfx::Node* {
+            for (const gfx::Node& n : d.sketch.nodes()) {
+                if (n.path == path) return &n;
+            }
+            return nullptr;
+        };
+        const auto asks = [](const RowsDrawing& d, const std::string& path) {
+            for (const gfx::ElementRecord& r : d.sketch.records()) {
+                if (r.path == path) return r.action;
+            }
+            return std::string();
+        };
+        const auto words = [&](const RowsDrawing& d, const std::string& path) {
+            const gfx::Node* n = node(d, path);
+            REQUIRE(n != nullptr);
+            CHECK(n->op == gfx::op::kText);
+            const std::optional<gfx::TextArgs> text = gfx::from_body<gfx::TextArgs>(n->args);
+            REQUIRE(text.has_value());
+            CHECK(text->ink.role == surface::role::kAccent);
+            return *text;
+        };
+        const RowsDrawing plain = rows_drawing(rows, parts, 10);
+        CHECK(node(plain, "caret") == nullptr);
+        CHECK(node(plain, "sel0.0") == nullptr);
+        // FROM THE FIRST ROW'S SEVENTH COLUMN TO THE SECOND ROW'S FIFTH, cut where the part
+        // beneath changes; the caret past the room's last column stands on it.
+        RowsCaret caret;
+        caret.row = 1;
+        caret.column = 40;
+        caret.sel_begin_row = 0;
+        caret.sel_begin_col = 6;
+        caret.sel_end_row = 1;
+        caret.sel_end_col = 5;
+        const RowsDrawing marked = rows_drawing(rows, parts, 10, caret);
+        const gfx::TextArgs first = words(marked, "sel0.0");
+        CHECK(first.text == "row");
+        CHECK(first.x == 6 * gfx::kCellPx);
+        CHECK(first.y == 0);
+        CHECK(asks(marked, "sel0.0") == "one");
+        CHECK(node(marked, "sel0.1") == nullptr);
+        const gfx::TextArgs named = words(marked, "sel1.0");
+        CHECK(named.text == "sec");
+        CHECK(named.y == gfx::kCellPx);
+        CHECK(asks(marked, "sel1.0") == "two");
+        const gfx::TextArgs bare = words(marked, "sel1.1");
+        CHECK(bare.text == "on");
+        CHECK(bare.x == 3 * gfx::kCellPx);
+        CHECK(asks(marked, "sel1.1").empty());
+        CHECK(node(marked, "sel2.0") == nullptr);
+        const gfx::Node* bar = node(marked, "caret");
+        REQUIRE(bar != nullptr);
+        REQUIRE(bar->op == gfx::op::kLine);
+        const std::optional<gfx::LineArgs> line = gfx::from_body<gfx::LineArgs>(bar->args);
+        REQUIRE(line.has_value());
+        CHECK(line->x1 == 9 * gfx::kCellPx);
+        CHECK(line->x2 == 9 * gfx::kCellPx);
+        CHECK(line->y1 == gfx::kCellPx);
+        CHECK(line->y2 == 2 * gfx::kCellPx - 1);
+        CHECK(line->ink.role == surface::role::kAccent);
+        CHECK(asks(marked, "caret").empty());
+        // THE MARKS STAND IN FRONT: drawn after every row.
+        CHECK(marked.sketch.nodes().back().path == "caret");
+        CHECK(node(marked, "row2.0") < node(marked, "sel0.0"));
+        // ONE ROW ASKED FOR: the rows after it go, and the marks on them.
+        const RowsDrawing capped = rows_drawing(rows, parts, 10, caret, 1);
+        CHECK(node(capped, "row0.0") != nullptr);
+        CHECK(node(capped, "row1.0") == nullptr);
+        CHECK(node(capped, "sel0.0") != nullptr);
+        CHECK(node(capped, "sel1.0") == nullptr);
+        CHECK(node(capped, "caret") == nullptr);
+        CHECK(capped.places.count("two") == 0);
+        // ROWS PAST THE WINDOW'S BOUNDS go, and the marks on them: none stands on a row not drawn.
+        std::vector<surface::SurfaceTextRow> many;
+        std::vector<v2::PaneRowPart> each;
+        const auto past = static_cast<std::int64_t>(gfx::kMaxElementsPerArea) + 20;
+        for (std::int64_t i = 0; i < past + 10; ++i) {
+            many.push_back({"xxxxxx", surface::role::kFill});
+            each.push_back({"p" + std::to_string(i), i, 0, 2, true});
+        }
+        RowsCaret beyond;
+        beyond.row = past;
+        beyond.column = 5;
+        beyond.sel_begin_row = past;
+        beyond.sel_begin_col = 2;
+        beyond.sel_end_row = past;
+        beyond.sel_end_col = 5;
+        const RowsDrawing bounded = rows_drawing(many, each, 10, beyond);
+        CHECK(node(bounded, "row0.0") != nullptr);
+        CHECK(node(bounded, "row" + std::to_string(past) + ".0") == nullptr);
+        CHECK(node(bounded, "sel" + std::to_string(past) + ".0") == nullptr);
+        CHECK(node(bounded, "caret") == nullptr);
+    }
     DemoRig r; r.ready();
     // ON ITS CANVAS, the picture Workshop shows: each name over the row it names.
     r.desk.say(demo::kRole, demo_room, "zengine.workshop");

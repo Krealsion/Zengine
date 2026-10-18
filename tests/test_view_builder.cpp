@@ -2143,6 +2143,7 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
         CHECK_FALSE(seen.heard[heard].whole);
         CHECK(seen.heard[heard + 1].whole);
         CHECK(seen.refusals.size() == 1);
+        CHECK_FALSE(rig.says("The graphics window refused the View Builder's picture"));
         // ...AND A REFUSED WHOLE PICTURE IS SAID, drawing nothing more until the next change.
         window.weave().refuse_next = true;
         window.room(vb::kRole, vb::kRole, 110, 30, 2);

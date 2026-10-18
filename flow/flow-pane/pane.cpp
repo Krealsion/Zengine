@@ -10,6 +10,7 @@
 #include "workshop/actor_scope.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_causes.hpp"
+#include "workshop/pane_drawing.hpp"
 #include "workshop/pane_facets.hpp"
 #include "input/vocabulary.hpp"
 #include "operator/host.hpp"
@@ -158,7 +159,7 @@ public:
     request(fh::FlowInspect{"workshop", 0}, "inspect", mail);
     find(mail, true);
     // ...and its area's room, once a life: a pane started again draws in its window again.
-    if (!room_asked_ && window_.window().empty()) {
+    if (!room_asked_ && !window_.shown()) {
       room_asked_ = true;
       (void)mail.as_role(pane::kRole).send_to_role(gfx::kGraphicsRole,
                                                    gfx::RoomAsked{window_.area()});
@@ -401,28 +402,17 @@ public:
   /// THE ROOM, from the graphics window that shows Flow's area, as that window's office: a window,
   /// an incarnation or a size it has not drawn in holds none of its picture, so it goes whole.
   void on(const gfx::AreaRoom &r, loom::Mail &mail) {
-    if (r.area != window_.area() ||
-        !mail.authored_from_role(std::string(gfx::kWindowOfficePrefix) + r.window))
-      return;
-    if (window_.room(r)) {
-      window_whole_ = true;
+    if (window_.room(r, mail)) {
       window_parts_.clear();
       show_window(mail);
     }
   }
   /// A REFUSED CHANGE is drawn again whole at once, against nothing the window lacks; a refused
-  /// whole picture is said in the notice and waits for the next change, so a window that keeps
-  /// refusing starts no loop.
+  /// whole picture is said in the notice and nothing goes there until the picture changes, so a
+  /// window that keeps refusing starts no loop (`ws::WindowDrawing::refused`).
   void on(const gfx::DrawnRefused &refused, loom::Mail &mail) {
-    if (refused.area != window_.area() || window_.window().empty() ||
-        !mail.authored_from_role(window_.window_office()))
+    if (!window_.refused(refused, mail) || !window_.refused_whole())
       return;
-    window_.forget();
-    window_whole_ = true;
-    if (!window_drew_whole_) {
-      show_window(mail);
-      return;
-    }
     model_.notice = "The graphics window refused Flow's picture: " + refused.reason;
     show_workshop(mail);
   }
@@ -431,8 +421,7 @@ public:
   /// anything else performed. No drag begins and nothing is carried, since no hand holds a press
   /// Workshop numbered there.
   void on(const gfx::ActionRequested &asked, loom::Mail &mail) {
-    if (asked.area != window_.area() || window_.window().empty() ||
-        !mail.authored_from_role(window_.window_office()))
+    if (!window_.from_window(asked.area, mail))
       return;
     const auto part = window_parts_.find(asked.action);
     if (part == window_parts_.end())
@@ -1361,14 +1350,11 @@ private:
   /// The window that shows Flow's area is sent what changed there (nothing when nothing did), or
   /// the picture whole.
   void show_window(loom::Mail &mail) {
-    if (window_.window().empty() || window_.width() <= 0 || window_.height() <= 0)
+    if (!window_.shown() || window_.width() <= 0 || window_.height() <= 0)
       return;
     auto drawn = pane::window_picture(model_, window_.width(), window_.height());
     window_parts_ = std::move(drawn.parts);
-    window_.draw(drawn.sketch);
-    window_drew_whole_ = window_whole_;
-    window_whole_ = false;
-    window_.show(mail);
+    window_.draw(drawn.sketch, mail);
   }
   void show_workshop(loom::Mail &mail) {
     if (canvas_room().grant > 0 && canvas_room().width > 0 && canvas_room().height > 0) {
@@ -1413,11 +1399,9 @@ private:
   std::optional<zengine::message_draft::Draft> live_state_;
   std::deque<pane::Picture> pictures_;
   std::optional<Drag> drag_;
-  gfx::Canvas window_{pane::kRole, pane::kRole}; ///< its area in the window that shows it
+  ws::WindowDrawing window_{pane::kRole, pane::kRole}; ///< its area in the window that shows it
   std::map<std::string, pane::Hit> window_parts_; ///< the parts the picture last sent there names
-  bool window_whole_ = false;      ///< the next picture sent there goes whole
-  bool window_drew_whole_ = false; ///< the last one sent there went whole
-  bool room_asked_ = false;        ///< its area's room asked in this life
+  bool room_asked_ = false;                       ///< its area's room asked in this life
   zengine::component::Clipboard clipboard_;
   /// An Add waiting on the host request numbered `request` -- the catalog request that will
   /// describe what it adds -- its node and port numbers meaning what they meant in `draft`.
