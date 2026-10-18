@@ -37,7 +37,13 @@ compiled knowledge of the item's or a metadata entry's schema; portable-view con
 owned separately by the pane), `source-transfer` (the one header
 `editor/source-transfer/vocabulary.hpp`: the text, selection, location and location-context shapes the
 Editors carry, so a stranger's pane can make or recognize them; the byte laws, the Terminal line
-and the C++ generator stay internal), and `flow` (standalone
+and the C++ generator stay internal), `graphics` (the vocabulary an owner draws with -- a node,
+an element record, the seven operators and a canvas -- with the eight elements, a drawing weave's
+helper, the painter code a terminal skin runs, and the two seams a skin or an element's code is
+written against, `element_abi.h` and `painter_abi.h` with their export helpers: every header
+`zengine_public_headers_graphics` and `zengine_public_headers_graphics/elements` list, installed
+under `include/zengine/graphics/` and `include/zengine/graphics/elements/`; the directory and the
+window are artifacts, below), and `flow` (standalone
 authoring, `graph_edit.hpp`, `workspace.hpp`,
 persistence, generated-runtime support, and the public control vocabularies
 `flow/flow-host/vocabulary.hpp` and `flow/flow-pane/vocabulary.hpp`). The optional
