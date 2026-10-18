@@ -47,6 +47,16 @@
         "optional": false
       },
       {
+        "artifact": "zengine-input",
+        "provider": [],
+        "weave": [
+          {
+            "role": "zengine.input"
+          }
+        ],
+        "optional": false
+      },
+      {
         "artifact": "zengine-timer",
         "provider": [
           {
