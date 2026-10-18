@@ -300,6 +300,7 @@ void WorkshopWeave::on(const zengine::surface::SurfaceCloseRequested&, loom::Mai
 }
 
 // WL-KEY-03, WL-KEY-05, WL-KEY-12 -- agents/workshop/keyboard.md
+// WL-FOCUS-13 -- agents/workshop/focus.md
 void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     if (duplicate_input(mail)) return;
     // WHILE THE ROOM IS BEING ASKED WHETHER THIS WORKSHOP MAY END, NOTHING IS ROUTED. Held,
@@ -358,6 +359,44 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
         quit(mail);
         repaint(mail);
         return;
+    case Act::kFocusLeave: {
+        // THE WAY OUT THAT NO PANE KEEPS: whatever has the keys -- a menu, the arrangement, the
+        // name editor, a pane in a mode of its own that spends Escape -- gives them back to
+        // Workshop, and the pane left stays selected for the keys to find it again.
+        bool left = false;
+        if (session_.presented.open) {
+            withdraw_menu("the weaver left it", mail);
+            left = true;
+        }
+        if (session_.context.open) {
+            close_context();
+            left = true;
+        }
+        if (session_.arrange.open) {
+            close_arrange();
+            left = true;
+        }
+        if (session_.setup.naming.open) {
+            close_naming();
+            left = true;
+        }
+        const std::int64_t pane = session_.panes.keyboard;
+        if (pane != kNoPaneKind) {
+            if (session_.panes.has(pane)) {
+                session_.panes.selected = pane;
+            }
+            session_.panes.keyboard = kNoPaneKind;
+            left = true;
+        }
+        const std::string name = pane == kNoPaneKind ? std::string()
+                                                     : kind_name(session_.panes, pane);
+        say(!left          ? std::string("Workshop already has the keys")
+            : name.empty() ? std::string("Workshop has the keys")
+                           : "Workshop has the keys -- left " + name,
+            false);
+        repaint(mail);
+        return;
+    }
     default: break;
     }
     // The chain is `keyboard_context`'s answer; this switch names the owner it resolved. A copy or

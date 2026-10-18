@@ -48,8 +48,8 @@ WHY — `agents/decisions/one-binding-truth.md`
 LAW — Three declaration-only classes answer above a mode: global rows everywhere, no-text rows where no editable text has the keys, unless-owned rows unless the keyboard's pane declared it owns them.
 
 MEANS
-- the host's one row above a mode is `workshop.quit` (`^c`, `kNoText`); the launches are an app's;
-- ⭐ `kGlobal` and `kUnlessOwned` hold no host row since `^s`/`^o` retired; the classes stand;
+- the host's rows above a mode are `workshop.quit` (`^c`, `kNoText`) and `focus.leave` (`^q`, `kGlobal`);
+- ⭐ `kUnlessOwned` holds no host row since `^s`/`^o` retired; the class stands; launches are an app's;
 - `Keymap::row_active` is the one answer for all three; every view spends it.
 
 DOES NOT MEAN
@@ -176,13 +176,14 @@ longer fire" "a known backend gap is accepted and said, never silently rewritten
 
 ### WL-KEY-05
 `workshop/keymap.hpp` KeyContext::kGlobal KeyContext::kNoText KeyContext::kUnlessOwned
-Keymap::above_mode_action workshop.quit
+Keymap::above_mode_action workshop.quit focus.leave
 `workshop/weave_handlers.cpp` on(KeyPressed)
 `tests/test_workshop_panes_editor.cpp` "^s is the Editor's save while it holds the keys, and the
 host answers ^s nowhere"
 `tests/test_workshop_document.cpp` "^c still quits exactly where nothing takes text"
 `tests/test_workshop_panes_input.cpp` "the keys that mean the same thing in every mode still outrank
-a pane"
+a pane" "ctrl+q gives Workshop the keys back from a pane that keeps Escape, and the pane stays
+selected"
 
 ### WL-KEY-06
 `workshop/keymap.hpp` kActionCatalog manage.arrange manage.next manage.previous workshop.manage

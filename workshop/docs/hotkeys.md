@@ -108,7 +108,7 @@ small menu opens beside it:
 | row | does |
 |---|---|
 | `Modify (press a key)` | the next key you press becomes the action's only key |
-| `Modify (type a spelling)` | type the key as the file spells it (`ctrl+q`, `shift+h`, `[`), then `Enter`; a spelling is plain ASCII on one line, so text typed or pasted holding anything else is not typed, and the pane says so |
+| `Modify (type a spelling)` | type the key as the file spells it (`alt+up`, `shift+h`, `[`), then `Enter`; a spelling is plain ASCII on one line, so text typed or pasted holding anything else is not typed, and the pane says so |
 | `Add a key (press)` / `Add a key (type)` | the action keeps its keys and gains this one |
 | `` Remove `key` `` | this row's key stops requesting the action; removing the last one **disables** it, and the notice says so — nothing falls back to the default you just removed |
 | `Disable` | no key requests the action (the file says `none`) |
@@ -206,7 +206,7 @@ Hotkeys pane's edits or by your hand:
   "format":"zengine-workshop-keymap","format_version":"2",
   "legend":"default",
   "overrides":[
-    {"action":"desktop.terminal","gesture":"ctrl+q"},
+    {"action":"desktop.terminal","gesture":"alt+up"},
     {"action":"layout.new","gesture":"n"},
     {"action":"layout.next","gesture":"."},
     {"action":"layout.next","gesture":"ctrl+n"}
@@ -238,7 +238,7 @@ pane, and that never touches a file that was refused or that changed under it
 The file and its folder may be named in any language. Below, Workshop was launched with its
 per-user folders, and the file its `--keymap` names, in a folder named `Zoë Ж`, then quit and
 launched again: the desk, the hidden titles and the keymap came back from there. The keymap gives
-the Pane Manager `ctrl+q` beside `ctrl+p`; the notice line names the file whole, and the Hotkeys
+the Pane Manager `alt+up` beside `ctrl+p`; the notice line names the file whole, and the Hotkeys
 pane spells what it cannot draw as `?`.
 
 ![Workshop launched again from a folder named Zoë Ж: the desk saved there restored, the legend offering ^p and ^q for panes, the Hotkeys pane naming the keymap file Zo? ?/keymap.json, and the notice line naming it Zoë Ж/keymap.json, applied with 2 overrides](images/hotkeys-keymap-folder-window.png)

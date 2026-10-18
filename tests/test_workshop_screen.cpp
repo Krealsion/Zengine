@@ -5604,3 +5604,243 @@ TEST_CASE("removing the Layouts pane strands nobody") {
               .rect == top_band_bounds(screen_of(t.session())));
     CHECK_FALSE(band_status(t.session(), screen_of(t.session())).text.empty());
 }
+
+// ========================================================================================
+// The keyboard's selection: reading order, the neighbour in a direction, and its ring
+// ========================================================================================
+
+namespace {
+
+/// A DESK OF STAND-IN PANES AT AUTHORED RECTANGLES, as a value: each offered under the stand-ins'
+/// office, opened, and placed at its rectangle in room pixels, on a graphical medium with room for
+/// every one. The selection walks what `bounds_of` answers, so no bus is needed.
+struct PlacedDesk {
+    Session s = screen_session(cells_px(160), cells_px(44), 8, 18);
+    std::vector<std::int64_t> kinds;
+
+    explicit PlacedDesk(const std::vector<PixelRect>& rects) {
+        for (std::size_t i = 0; i < rects.size(); ++i) {
+            const std::string pane = "placed" + std::to_string(i);
+            const Admission took = admit_pane_offer(
+                s.panes.runtime, stock::kOffice,
+                PaneOffered{pane, "Placed " + std::to_string(i), "a pane at a known place"});
+            REQUIRE_MESSAGE(took.written.accepted, took.written.refusal);
+            REQUIRE(open_kind(s.panes, took.kind));
+            const PaneRef ref{stock::kOffice, pane};
+            REQUIRE(add_pane(s.setup.active, ref));
+            REQUIRE(author_pane_place(s.setup.active, ref, rects[i].x, rects[i].y).accepted);
+            REQUIRE(author_pane_size(s.setup.active, ref, PaneSize{pane_unit::kPixels, rects[i].w},
+                                     PaneSize{pane_unit::kPixels, rects[i].h})
+                        .accepted);
+            kinds.push_back(took.kind);
+        }
+        // EVERY PANE STANDS AS IT WAS AUTHORED, or the case would measure a clip.
+        for (std::size_t i = 0; i < rects.size(); ++i) {
+            const PixelRect at = rect(i);
+            CHECK(at.w == rects[i].w);
+            CHECK(at.h == rects[i].h);
+        }
+    }
+
+    PixelRect rect(std::size_t i) const {
+        return bounds_of(s.panes, s.setup.active, kinds[i], screen_of(s)).rect;
+    }
+
+    std::int64_t kind_at(std::int64_t i) const {
+        return i < 0 ? kNoPaneKind : kinds[static_cast<std::size_t>(i)];
+    }
+
+    /// The pane `dir` reaches from pane `from`, as its index, or -1 for none.
+    std::int64_t toward(std::int64_t from, Act dir) const {
+        return index(spatial_neighbour(s.panes, s.setup.active, screen_of(s), kind_at(from), dir));
+    }
+
+    std::int64_t step(std::int64_t from, std::int64_t by) const {
+        return index(cycle_pane(s.panes, s.setup.active, screen_of(s), kind_at(from), by));
+    }
+
+    std::int64_t index(const std::optional<std::int64_t>& kind) const {
+        if (!kind.has_value()) {
+            return -1;
+        }
+        const auto at = std::find(kinds.begin(), kinds.end(), *kind);
+        return at == kinds.end() ? -2 : static_cast<std::int64_t>(at - kinds.begin());
+    }
+};
+
+constexpr std::int64_t kCell = surface::kCanvasCellPx;
+
+/// How many nodes of a window's drawing stand in the selection's group.
+std::size_t window_selection_nodes(const Session& s) {
+    const WorkshopWindowDrawing drawn = workshop_window_drawing(s, {}, {});
+    std::size_t n = 0;
+    for (const auto& node : drawn.sketch.nodes()) {
+        if (node.path.find("/selection/") != std::string::npos) {
+            ++n;
+        }
+    }
+    return n;
+}
+
+} // namespace
+
+TEST_CASE("the keyboard's selection walks the open panes in reading order, whatever order they were "
+          "authored in, and wraps both ways") {
+    // ⚔ MUTATION: the walk in authored order -- `focus.next` from the left pane goes to the
+    // right one, the order this desk was written in.
+    // Authored middle, right, left on one row, and a fourth pane below them all.
+    const PlacedDesk d({PixelRect{30 * kCell, 0, 20 * kCell, 8 * kCell},
+                        PixelRect{60 * kCell, 0, 20 * kCell, 8 * kCell},
+                        PixelRect{0, 0, 20 * kCell, 8 * kCell},
+                        PixelRect{10 * kCell, 12 * kCell, 20 * kCell, 8 * kCell}});
+    const std::vector<std::int64_t> order =
+        selectable_panes(d.s.panes, d.s.setup.active, screen_of(d.s));
+    REQUIRE(order.size() == 4);
+    CHECK(order[0] == d.kinds[2]);
+    CHECK(order[1] == d.kinds[0]);
+    CHECK(order[2] == d.kinds[1]);
+    CHECK(order[3] == d.kinds[3]);
+    // ...FORWARD, round and back to the start...
+    CHECK(d.step(2, 1) == 0);
+    CHECK(d.step(0, 1) == 1);
+    CHECK(d.step(1, 1) == 3);
+    CHECK(d.step(3, 1) == 2);
+    // ...AND BACKWARD, the same ring the other way.
+    CHECK(d.step(2, -1) == 3);
+    CHECK(d.step(3, -1) == 1);
+    CHECK(d.step(0, -1) == 2);
+    // FROM NOTHING SELECTED, the first in reading order, or the last going back.
+    CHECK(d.step(-1, 1) == 2);
+    CHECK(d.step(-1, -1) == 3);
+    // THE LAYOUT RUN IS ON THE DESK AND TAKES NO KEYS, so it is no stop.
+    REQUIRE(d.s.panes.has(pane_kind::kLayouts));
+    CHECK(std::find(order.begin(), order.end(), pane_kind::kLayouts) == order.end());
+    // ...AND A DESK WITH NOTHING TO SELECT ANSWERS NONE.
+    const PlacedDesk empty({});
+    CHECK(empty.step(-1, 1) == -1);
+    CHECK(empty.toward(-1, Act::kFocusRight) == -1);
+}
+
+TEST_CASE("a direction selects the neighbour past the selected pane's edge, and nothing past the "
+          "desk's") {
+    // ⚔ MUTATION: right and left swapped in `spatial_neighbour`'s filter -- `right` from the top
+    // left reaches nothing, and `left` from it reaches the top right.
+    // A two-by-two grid with a gap between the columns and the rows.
+    const PlacedDesk d({PixelRect{0, 0, 30 * kCell, 10 * kCell},
+                        PixelRect{40 * kCell, 0, 30 * kCell, 10 * kCell},
+                        PixelRect{0, 14 * kCell, 30 * kCell, 10 * kCell},
+                        PixelRect{40 * kCell, 14 * kCell, 30 * kCell, 10 * kCell}});
+    CHECK(d.toward(0, Act::kFocusRight) == 1);
+    CHECK(d.toward(0, Act::kFocusDown) == 2);
+    CHECK(d.toward(3, Act::kFocusLeft) == 2);
+    CHECK(d.toward(3, Act::kFocusUp) == 1);
+    CHECK(d.toward(1, Act::kFocusDown) == 3);
+    CHECK(d.toward(2, Act::kFocusUp) == 0);
+    // THE DESK'S EDGE: nothing beyond it, said as none.
+    CHECK(d.toward(0, Act::kFocusLeft) == -1);
+    CHECK(d.toward(0, Act::kFocusUp) == -1);
+    CHECK(d.toward(3, Act::kFocusRight) == -1);
+    CHECK(d.toward(3, Act::kFocusDown) == -1);
+    // FROM NOTHING SELECTED, a direction starts where the walk does.
+    CHECK(d.toward(-1, Act::kFocusDown) == 0);
+    // An action that is no direction reaches nothing.
+    CHECK(d.toward(0, Act::kFocusNext) == -1);
+}
+
+TEST_CASE("misalignment across the direction counts twice the gap along it") {
+    // ⚔ MUTATION: misalignment weighted once -- the near pane fourteen cells lower wins, 5 + 14
+    // against the level pane's 30.
+    // From the first pane, `right` meets a near pane fourteen cells lower (gap 5, across 14: 33)
+    // and a far pane level with it (gap 30, across 0: 30). The level one wins.
+    const PlacedDesk d({PixelRect{0, 0, 10 * kCell, 10 * kCell},
+                        PixelRect{15 * kCell, 14 * kCell, 10 * kCell, 10 * kCell},
+                        PixelRect{40 * kCell, 0, 10 * kCell, 10 * kCell}});
+    CHECK(d.toward(0, Act::kFocusRight) == 2);
+    // ...and with the level pane five cells further, the near pane wins (33 against 35).
+    const PlacedDesk farther({PixelRect{0, 0, 10 * kCell, 10 * kCell},
+                              PixelRect{15 * kCell, 14 * kCell, 10 * kCell, 10 * kCell},
+                              PixelRect{45 * kCell, 0, 10 * kCell, 10 * kCell}});
+    CHECK(farther.toward(0, Act::kFocusRight) == 1);
+}
+
+TEST_CASE("two neighbours scored alike go to the one in front") {
+    // ⚔ MUTATION: a tie kept by the first candidate read -- the pane behind is chosen whichever
+    // is in front.
+    // From the left pane, `right` meets two panes the same distance off, one above its centre and
+    // one below.
+    PlacedDesk d({PixelRect{0, 6 * kCell, 10 * kCell, 10 * kCell},
+                  PixelRect{20 * kCell, 0, 10 * kCell, 10 * kCell},
+                  PixelRect{20 * kCell, 12 * kCell, 10 * kCell, 10 * kCell}});
+    // Authored in order, the last is in front.
+    CHECK(d.toward(0, Act::kFocusRight) == 2);
+    // ...and with the ranks turned over, the other.
+    const auto n = static_cast<std::int64_t>(d.s.setup.active.panes.size());
+    for (SetupPane& row : d.s.setup.active.panes) {
+        row.front = n - 1 - row.front;
+    }
+    CHECK(d.toward(0, Act::kFocusRight) == 1);
+}
+
+TEST_CASE("a pane overlapping the selected one is reached past its centre") {
+    // ⚔ MUTATION: the edge filter alone -- a pane half over the selected one is never past its
+    // edge, so `right` reaches nothing.
+    // The second's centre is five cells short of the first's right edge, and ten past its centre.
+    const PlacedDesk d({PixelRect{0, 0, 30 * kCell, 10 * kCell},
+                        PixelRect{10 * kCell, 2 * kCell, 30 * kCell, 10 * kCell}});
+    CHECK(d.toward(0, Act::kFocusRight) == 1);
+    CHECK(d.toward(1, Act::kFocusLeft) == 0);
+    CHECK(d.toward(0, Act::kFocusLeft) == -1);
+}
+
+TEST_CASE("command mode marks the selected pane's corners, and the pane the keys are in wears none") {
+    // ⚔ MUTATION: no ring -- the selected pane looks as it does with the keys in it, but for the
+    // two-character mark.
+    PlacedDesk d({PixelRect{0, 0, 30 * kCell, 10 * kCell},
+                  PixelRect{40 * kCell, 0, 30 * kCell, 10 * kCell}});
+    const Screen sc = screen_of(d.s);
+    surface::SurfaceLayer none;
+    paint_selection_ring(none, d.s, sc);
+    CHECK(none.labels.empty()); // nothing selected, nothing marked
+
+    d.s.panes.selected = d.kinds[1];
+    REQUIRE(keyboard_context(d.s) == KeyContext::kCommand);
+    surface::SurfaceLayer ring;
+    paint_selection_ring(ring, d.s, sc);
+    REQUIRE(ring.labels.size() == 4);
+    const PixelRect b = d.rect(1);
+    const PixelRect tl = pane_edge_cell(b, pane_edge::kTopLeft);
+    const PixelRect br = pane_edge_cell(b, pane_edge::kBottomRight);
+    CHECK(ring.labels[0].x == tl.x);
+    CHECK(ring.labels[0].y == tl.y);
+    CHECK(ring.labels[0].text == "[");
+    CHECK(ring.labels[3].x == br.x);
+    CHECK(ring.labels[3].y == br.y);
+    CHECK(ring.labels[3].text == "]");
+    for (const surface::SurfaceLabel& l : ring.labels) {
+        CHECK(l.role == surface::role::kAccent);
+        CHECK(l.text != std::string(kHandleGlyph)); // not an arrangement handle
+    }
+    // ...ON THE CANVAS AND IN A WINDOW ALIKE.
+    const surface::SurfaceCanvas c = paint(d.s);
+    std::size_t brackets = 0;
+    for (const surface::SurfaceLayer& layer : c.layers) {
+        for (const surface::SurfaceLabel& l : layer.labels) {
+            if (l.text == "[" || l.text == "]") {
+                ++brackets;
+            }
+        }
+    }
+    CHECK(brackets == 4);
+    CHECK(window_selection_nodes(d.s) == 4);
+
+    // THE KEYS IN THE PANE: its `> ` mark says so, and no ring is drawn.
+    ExternalPane* pane = d.s.panes.external_pane(d.kinds[1]);
+    REQUIRE(pane != nullptr);
+    pane->granted = true;
+    d.s.panes.keyboard = d.kinds[1];
+    REQUIRE(keyboard_context(d.s) == KeyContext::kPane);
+    surface::SurfaceLayer held;
+    paint_selection_ring(held, d.s, sc);
+    CHECK(held.labels.empty());
+    CHECK(window_selection_nodes(d.s) == 0);
+}
