@@ -15,14 +15,12 @@
 #include "editor/source-transfer/command_line.hpp"
 #include "editor/source-transfer/cpp.hpp"
 #include "editor/source-transfer/material.hpp"
-#include "graphics/canvas.hpp"
-#include "graphics/ops.hpp"
 #include "graphics/vocabulary.hpp"
-#include "surface/region.hpp"
 #include "surface/vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
 #include "workshop/pane_canvas_rows.hpp"
 #include "workshop/pane_carry.hpp"
+#include "workshop/pane_drawing.hpp"
 #include "workshop/pane_operation.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_seat.hpp"
@@ -524,20 +522,20 @@ inline std::string generated_cpp_words(const st::GeneratedCpp& g, const std::str
 
 // ---- The graphics window that shows the Editor ---------------------------------------------
 
-/// THE GRAPHICS WINDOW THAT SHOWS THE EDITOR, as the weave holding the office keeps it: the area
-/// the office names, the room the window showing it gives, the rows last composed and drawn there
-/// with the caret and the selection standing in them, and where a press on each named part lands.
-/// Transient, as every room is: an Editor reloaded or admitted by a switch asks for it again.
+/// THE GRAPHICS WINDOW THAT SHOWS THE EDITOR, as the weave holding the office keeps it: the window
+/// drawing the area the office names (`ws::WindowDrawing`), the room it gives, and where a press
+/// on each named part of the rows last drawn there lands. Transient, as every room is: an Editor
+/// reloaded or admitted by a switch asks for it again.
 class EditorWindow {
 public:
-    explicit EditorWindow(const char* office) : office_(office), canvas_(office, office) {}
+    explicit EditorWindow(const char* office) : office_(office), window_(office, office) {}
 
-    const std::string& area() const noexcept { return canvas_.area(); }
+    const std::string& area() const noexcept { return window_.area(); }
     /// A graphics window shows the area.
-    bool in_window() const noexcept { return !canvas_.window().empty(); }
+    bool in_window() const noexcept { return window_.shown(); }
     /// The window's room in rows and columns, `graphics::kCellPx` pixels a cell.
-    std::int64_t rows() const noexcept { return rows_; }
-    std::int64_t columns() const noexcept { return columns_; }
+    std::int64_t rows() const noexcept { return window_.height() / graphics::kCellPx; }
+    std::int64_t columns() const noexcept { return window_.width() / graphics::kCellPx; }
 
     /// THE ROOM ASKED OF THE GRAPHICS DIRECTORY, as the office, while no window has said it.
     void ask_room(loom::Mail& mail) const {
@@ -550,34 +548,14 @@ public:
     /// THE ROOM, said by the window that shows the area as that window's office: true when the
     /// window, its incarnation or its size changed, so the window holds none of the drawing and the
     /// next goes whole.
-    bool room(const graphics::AreaRoom& r, const loom::Mail& mail) {
-        if (r.area != area() ||
-            !mail.authored_from_role(std::string(graphics::kWindowOfficePrefix) + r.window) ||
-            !canvas_.room(r)) {
-            return false;
-        }
-        rows_ = r.h / graphics::kCellPx;
-        columns_ = r.w / graphics::kCellPx;
-        fresh_ = true;
-        refused_whole_ = false;
-        return true;
-    }
+    bool room(const graphics::AreaRoom& r, const loom::Mail& mail) { return window_.room(r, mail); }
 
-    /// A DRAWING THE WINDOW REFUSED leaves what it shows as it was, and a change sent since was read
-    /// against that: a refused change is followed at once by the rows last drawn, whole; a refused
-    /// whole drawing, which the window would refuse again, is followed by nothing until the drawing
-    /// changes. False for another area or speaker.
+    /// A DRAWING THE WINDOW REFUSED leaves what it shows as it was: a refused change is followed at
+    /// once by the rows last drawn, whole; a refused whole drawing, which the window would refuse
+    /// again, by nothing until the rows change (`ws::WindowDrawing::refused`). False for another
+    /// area or speaker.
     bool refused(const graphics::DrawnRefused& r, loom::Mail& mail) {
-        if (r.area != area() || !in_window() || !mail.authored_from_role(canvas_.window_office())) {
-            return false;
-        }
-        canvas_.forget();
-        fresh_ = true;
-        refused_whole_ = drew_whole_;
-        if (!drew_whole_) {
-            redraw(mail);
-        }
-        return true;
+        return window_.refused(r, mail);
     }
 
     /// A PRESS ON A PART IN THE WINDOW, asked by the window that shows the area as its office: the
@@ -585,133 +563,30 @@ public:
     /// or speaker, or an action those rows name no part by.
     std::optional<ws::RowCell> part(const graphics::ActionRequested& asked,
                                     const loom::Mail& mail) const {
-        if (asked.area != area() || !in_window() ||
-            !mail.authored_from_role(canvas_.window_office())) {
+        if (!window_.from_window(asked.area, mail)) {
             return std::nullopt;
         }
         const auto at = places_.find(asked.action);
         return at == places_.end() ? std::nullopt : std::optional<ws::RowCell>(at->second);
     }
 
-    /// THE EDITOR'S ROWS, DRAWN in the window that shows the area: what changed there since the
+    /// THE EDITOR'S ROWS, DRAWN in the window that shows the area, as many as its room holds, the
+    /// caret and the selection standing in them (`ws::rows_drawing`): what changed there since the
     /// drawing last sent, or the whole after a new room or a refused change.
-    void draw(loom::Mail& mail, std::vector<surface::SurfaceTextRow> rows,
-              std::vector<ws::PaneRowPart> parts, const ws::RowsCaret& caret) {
-        rows_said_ = std::move(rows);
-        parts_said_ = std::move(parts);
-        caret_said_ = caret;
-        redraw(mail);
-    }
-
-    /// THE ROWS LAST SAID, drawn again (`draw`).
-    void redraw(loom::Mail& mail) {
-        if (!in_window() || rows_ <= 0 || columns_ <= 0) {
+    void draw(loom::Mail& mail, const std::vector<surface::SurfaceTextRow>& said,
+              const std::vector<ws::PaneRowPart>& parts, const ws::RowsCaret& caret) {
+        if (!in_window() || rows() <= 0 || columns() <= 0) {
             return;
         }
-        ws::RowsDrawing drawn = ws::rows_drawing(rows_said_, parts_said_, columns_);
-        mark(drawn.sketch);
+        ws::RowsDrawing drawn = ws::rows_drawing(said, parts, columns(), caret, rows());
         places_ = std::move(drawn.places);
-        const graphics::Drawn change = graphics::difference(last_, drawn.sketch);
-        const bool moved = !change.put.empty() || !change.removed.empty() ||
-                           !change.said.empty() || !change.unsaid.empty();
-        if (!moved && (refused_whole_ || !fresh_)) {
-            return; // the window holds this drawing, or refused it whole
-        }
-        refused_whole_ = false;
-        drew_whole_ = fresh_;
-        fresh_ = false;
-        last_ = std::move(drawn.sketch);
-        canvas_.draw(last_);
-        canvas_.show(mail);
+        window_.draw(drawn.sketch, mail);
     }
 
 private:
-    /// THE CARET AND THE SELECTION, in front of the rows they stand in: each row's selected columns
-    /// again in the accent role, and the caret a bar at the left of the cell it sits before, as a
-    /// window that sets type draws one. Each mark asks what the part beneath it asks, so a press on
-    /// it reaches the row it stands on. A mark that would take the area past the window's bounds is
-    /// not drawn.
-    void mark(graphics::Sketch& sketch) const {
-        std::size_t nodes = sketch.nodes().size();
-        std::size_t records = sketch.records().size();
-        const auto room_for = [&](const std::string& asks) {
-            return nodes < graphics::kMaxNodesPerArea &&
-                   (asks.empty() || records < graphics::kMaxElementsPerArea);
-        };
-        const auto put = [&](const std::string& node, const std::string& asks) {
-            ++nodes;
-            if (!asks.empty()) {
-                sketch.action(node, asks);
-                ++records;
-            }
-        };
-        const auto shown_rows = (std::min)(rows_, static_cast<std::int64_t>(rows_said_.size()));
-        surface::SurfaceTextRegion selected;
-        selected.sel_begin_row = caret_said_.sel_begin_row;
-        selected.sel_begin_col = caret_said_.sel_begin_col;
-        selected.sel_end_row = caret_said_.sel_end_row;
-        selected.sel_end_col = caret_said_.sel_end_col;
-        for (std::int64_t r = 0; r < shown_rows; ++r) {
-            const std::string& text = rows_said_[static_cast<std::size_t>(r)].text;
-            const auto length = (std::min)(static_cast<std::int64_t>(text.size()), columns_);
-            const surface::RowSpan span = surface::selection_span_of_row(selected, r, length);
-            std::size_t run = 0;
-            for (std::int64_t a = span.begin; a < span.end;) {
-                const std::string asks = asked_at(r, a);
-                std::int64_t b = a + 1;
-                while (b < span.end && asked_at(r, b) == asks) {
-                    ++b;
-                }
-                const std::string node = "sel" + std::to_string(r) + "." + std::to_string(run++);
-                if (!room_for(asks)) {
-                    return;
-                }
-                sketch.text(node, a * graphics::kCellPx, r * graphics::kCellPx,
-                            text.substr(static_cast<std::size_t>(a), static_cast<std::size_t>(b - a)),
-                            graphics::by_role(surface::role::kAccent));
-                put(node, asks);
-                a = b;
-            }
-        }
-        const std::int64_t row = caret_said_.row;
-        if (row < 0 || row >= shown_rows || caret_said_.column < 0) {
-            return;
-        }
-        const std::int64_t column = (std::min)(caret_said_.column, columns_ - 1);
-        const std::string asks = asked_at(row, column);
-        if (!room_for(asks)) {
-            return;
-        }
-        sketch.line("caret", column * graphics::kCellPx, row * graphics::kCellPx,
-                    column * graphics::kCellPx, row * graphics::kCellPx + graphics::kCellPx - 1,
-                    graphics::by_role(surface::role::kAccent));
-        put("caret", asks);
-    }
-
-    /// The name of the part a press on that cell reaches -- the last of the parts said that covers
-    /// it, as `ws::rows_drawing` holds them -- or "" where none does.
-    std::string asked_at(std::int64_t row, std::int64_t column) const {
-        std::string asks;
-        for (const ws::PaneRowPart& p : parts_said_) {
-            if (p.row == row && column >= p.column && column < p.column + p.columns) {
-                asks = p.name;
-            }
-        }
-        return asks;
-    }
-
     const char* office_;
-    graphics::Canvas canvas_;
-    std::int64_t rows_ = 0, columns_ = 0;
-    /// The window holds none of the drawing; the last drawing sent went whole; the window refused a
-    /// whole drawing and nothing has changed since.
-    bool fresh_ = true, drew_whole_ = false, refused_whole_ = false;
-    /// The rows, parts and caret last said, the drawing last sent, and where a press in the window
-    /// reaches each named part.
-    std::vector<surface::SurfaceTextRow> rows_said_;
-    std::vector<ws::PaneRowPart> parts_said_;
-    ws::RowsCaret caret_said_;
-    graphics::Sketch last_;
+    ws::WindowDrawing window_;
+    /// Where a press in the window reaches each named part of the rows last drawn there.
     std::map<std::string, ws::RowCell> places_;
 };
 

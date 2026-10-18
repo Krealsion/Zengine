@@ -16,6 +16,7 @@
 #include "workshop/pane_canvas_drawing.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_causes.hpp"
+#include "workshop/pane_drawing.hpp"
 #include "workshop/pane_facets.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_vocabulary.hpp"
@@ -164,7 +165,7 @@ public:
         }
         room().announce(*this, mail);
         // ...and its area's room, once a life: a builder started again draws in its window again.
-        if (!room_asked_ && window_.window().empty()) {
+        if (!room_asked_ && !window_.shown()) {
             room_asked_ = true;
             (void)mail.as_role(vb::kRole).send_to_role(gfx::kGraphicsRole, gfx::RoomAsked{window_.area()});
         }
@@ -310,27 +311,16 @@ public:
     /// window, an incarnation or a size it has not drawn in holds none of its picture, so it goes
     /// whole.
     void on(const gfx::AreaRoom& r, loom::Mail& mail) {
-        if (r.area != window_.area() || !mail.authored_from_role(std::string(gfx::kWindowOfficePrefix) + r.window))
-            return;
-        if (window_.room(r)) {
-            window_whole_ = true;
+        if (window_.room(r, mail)) {
             window_parts_.clear();
             show_window(mail);
         }
     }
     /// A REFUSED CHANGE is drawn again whole at once, against nothing the window lacks; a refused
-    /// whole picture is said in the notice and waits for the next change, so a window that keeps
-    /// refusing starts no loop.
+    /// whole picture is said in the notice and nothing goes there until the picture changes, so a
+    /// window that keeps refusing starts no loop (`ws::WindowDrawing::refused`).
     void on(const gfx::DrawnRefused& refused, loom::Mail& mail) {
-        if (refused.area != window_.area() || window_.window().empty() ||
-            !mail.authored_from_role(window_.window_office()))
-            return;
-        window_.forget();
-        window_whole_ = true;
-        if (!window_drew_whole_) {
-            show_window(mail);
-            return;
-        }
+        if (!window_.refused(refused, mail) || !window_.refused_whole()) return;
         model_.notice = "The graphics window refused the View Builder's picture: " + refused.reason;
         show_workshop(mail);
     }
@@ -338,9 +328,7 @@ public:
     /// office: what a first-button press on that place of Workshop's canvas does, let go without
     /// moving (`choose`).
     void on(const gfx::ActionRequested& asked, loom::Mail& mail) {
-        if (asked.area != window_.area() || window_.window().empty() ||
-            !mail.authored_from_role(window_.window_office()))
-            return;
+        if (!window_.from_window(asked.area, mail)) return;
         const auto part = window_parts_.find(asked.action);
         if (part == window_parts_.end()) return;
         choose(part->second, nullptr, {}, {}, mail);
@@ -1142,7 +1130,7 @@ private:
     /// did), or the picture whole: drawn for the window's room from a copy of the presentation, so
     /// the window never moves what Workshop's pane shows.
     void show_window(loom::Mail& mail) {
-        if (window_.window().empty() || window_.width() <= 0 || window_.height() <= 0) return;
+        if (!window_.shown() || window_.width() <= 0 || window_.height() <= 0) return;
         const auto room = ws::canvas_window_room(vb::kPane, window_.width(), window_.height());
         auto shown = shown_;
         const auto drawn = vb::picture(model_, shown, room, 0);
@@ -1153,10 +1141,7 @@ private:
         for (const auto& hit : drawn.hits)
             if (const auto name = vb::part_name(hit, model_.description); named.count(name) != 0)
                 window_parts_.emplace(name, hit);
-        window_.draw(said.sketch);
-        window_drew_whole_ = window_whole_;
-        window_whole_ = false;
-        window_.show(mail);
+        window_.draw(said.sketch, mail);
     }
     void show_workshop(loom::Mail& mail) {
         if (room().on_canvas()) {
@@ -1198,11 +1183,9 @@ private:
     bool kept_ = false;
     std::int64_t picture_number_ = 0;
     std::deque<vb::Picture> pictures_;
-    gfx::Canvas window_{vb::kRole, vb::kRole};    ///< its area in the window that shows it
-    std::map<std::string, vb::Hit> window_parts_; ///< the parts the picture last sent there names
-    bool window_whole_ = false;                   ///< the next picture sent there goes whole
-    bool window_drew_whole_ = false;              ///< the last one sent there went whole
-    bool room_asked_ = false;                     ///< its area's room asked in this life
+    ws::WindowDrawing window_{vb::kRole, vb::kRole}; ///< its area in the window that shows it
+    std::map<std::string, vb::Hit> window_parts_;   ///< the parts the picture last sent there names
+    bool room_asked_ = false;                       ///< its area's room asked in this life
     zengine::component::Clipboard clipboard_;
 };
 } // namespace

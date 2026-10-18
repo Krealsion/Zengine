@@ -199,8 +199,8 @@ struct RowPress {
 /// means (`component::RowMap<Meaning>`), the caret, and the presses on them. Its rows go as its
 /// canvas picture, numbered by what they mean, while it holds a canvas room, else as prose with
 /// the caret beside them, and to the graphics window that shows the area named `Office` as a
-/// drawing (`rows_drawing`). A press is read against the picture it was aimed at; a third-button
-/// press that means nothing to the pane is passed back to Workshop.
+/// drawing, the caret in it (`rows_drawing`). A press is read against the picture it was aimed
+/// at; a third-button press that means nothing to the pane is passed back to Workshop.
 template <const char* const& Pane, const char* const& Office, const manual::Manual& Page,
           class Meaning, class Offer = v2::PaneOffered>
 class PaneRowsFacet : public PaneFacet<Pane, Office, Page, Offer> {
@@ -227,8 +227,8 @@ public:
     }
 
     /// Rows the window refused leave what it shows as it was: after a refused change the rows last
-    /// sent go again whole at once, and after a refused whole drawing the next rows go whole
-    /// (`WindowDrawing::refused`).
+    /// sent go again whole at once, and after a refused whole drawing nothing goes until the rows
+    /// change, and then whole (`WindowDrawing::refused`).
     template <class Self>
     void on(Self&, const graphics::DrawnRefused& refused, loom::Mail& mail) {
         (void)window_.refused(refused, mail);
@@ -431,12 +431,14 @@ public:
     }
 
     /// ...or rows composed elsewhere, numbered `meaning`, with their parts: to the window that
-    /// shows the area as what changed there, and to Workshop, unless only a window granted a room.
+    /// shows the area as what changed there, the caret in them when `with_caret`, and to Workshop,
+    /// unless only a window granted a room.
     void send(loom::Mail& mail, std::int64_t meaning, std::vector<surface::SurfaceTextRow> rows,
               std::vector<v2::PaneRowPart> parts, bool with_caret = true) {
         ++published_;
         if (window_.shown()) {
-            RowsDrawing drawn = rows_drawing(rows, parts, this->columns());
+            RowsDrawing drawn =
+                rows_drawing(rows, parts, this->columns(), with_caret ? caret_ : RowsCaret{});
             window_places_ = std::move(drawn.places);
             window_.draw(drawn.sketch, mail);
         }
@@ -525,8 +527,8 @@ public:
     }
 
     /// A drawing the window refused leaves what it shows as it was: after a refused change the
-    /// picture last sent goes again whole at once, and after a refused whole picture the next goes
-    /// whole (`WindowDrawing::refused`).
+    /// picture last sent goes again whole at once, and after a refused whole picture nothing goes
+    /// until the picture changes, and then whole (`WindowDrawing::refused`).
     template <class Self>
     void on(Self&, const graphics::DrawnRefused& refused, loom::Mail& mail) {
         (void)window_.refused(refused, mail);

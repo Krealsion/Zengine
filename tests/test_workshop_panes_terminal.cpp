@@ -849,6 +849,56 @@ TEST_CASE("WL-HAND-06: the Terminal names the line being typed and each candidat
         CHECK(window.action_at(area, 0, parts.at("line").row) == "line");
         CHECK(window.action_at(area, 3, parts.at("candidate:send").row) == "candidate:send");
 
+        // THE CARET STANDS THERE AS IT DOES IN WORKSHOP'S PICTURE, a bar at the left of its cell,
+        // and a press on its cell asks for the line.
+        namespace gfx = zengine::graphics;
+        const auto kept = [&](const std::string& path) -> const gfx::Node* {
+            const gfx::window::WinArea* a = window.weave().find(area);
+            for (std::size_t i = 0; a != nullptr && i < a->nodes.size(); ++i) {
+                if (a->nodes[i].node.path == path) return &a->nodes[i].node;
+            }
+            return nullptr;
+        };
+        t.clear_line();
+        t.type("hello");
+        const PaneCaret typed = t.caret();
+        REQUIRE(typed.row == t.input_row());
+        CHECK(typed.column == 2 + 5);
+        const gfx::Node* caret = kept("caret");
+        REQUIRE(caret != nullptr);
+        CHECK(caret->op == gfx::op::kLine);
+        const std::optional<gfx::LineArgs> bar = gfx::from_body<gfx::LineArgs>(caret->args);
+        REQUIRE(bar.has_value());
+        CHECK(bar->x1 == typed.column * gfx::kCellPx);
+        CHECK(bar->x2 == typed.column * gfx::kCellPx);
+        CHECK(bar->y1 == typed.row * gfx::kCellPx);
+        CHECK(bar->y2 == typed.row * gfx::kCellPx + gfx::kCellPx - 1);
+        CHECK(window.action_at(area, typed.column, typed.row) == "line");
+        // ...AND SO DOES THE SELECTION: the selected columns again in the accent role, asking for
+        // the line, the row's words unchanged; collapsed, it is gone and the caret stays.
+        t.r.key(input::scan::kA, input::mod::kCtrl);
+        const PaneCaret all = t.caret();
+        REQUIRE(all.sel_begin_row == t.input_row());
+        const std::string sel = "sel" + std::to_string(t.input_row()) + ".0";
+        const gfx::Node* selected = kept(sel);
+        REQUIRE(selected != nullptr);
+        const std::optional<gfx::TextArgs> words = gfx::from_body<gfx::TextArgs>(selected->args);
+        REQUIRE(words.has_value());
+        CHECK(words->text == "hello");
+        CHECK(words->x == all.sel_begin_col * gfx::kCellPx);
+        CHECK(words->y == t.input_row() * gfx::kCellPx);
+        CHECK(words->ink.role == surface::role::kAccent);
+        CHECK(kept("sel" + std::to_string(t.input_row()) + ".1") == nullptr);
+        for (std::int64_t c = all.sel_begin_col; c < all.sel_end_col; ++c) {
+            CAPTURE(c);
+            CHECK(window.action_at(area, c, t.input_row()) == "line");
+        }
+        CHECK(row_at(window.rows(area), t.input_row()) == row_at(t.shown(), t.input_row()));
+        t.r.key(input::scan::kRight);
+        REQUIRE(t.caret().sel_begin_row == surface::kNoSelection);
+        CHECK(kept(sel) == nullptr);
+        CHECK(kept("caret") != nullptr);
+
         // A DECLARED ID ASKED THERE IS THE PANE'S ACT: on an empty line, completion lists every verb.
         t.clear_line();
         window.ask(area, pane::kActionComplete);
@@ -893,6 +943,22 @@ TEST_CASE("WL-HAND-06: the Terminal names the line being typed and each candidat
         window.ask(area, entry);
         CHECK(t.text() == before); // no pickup asked, and no refusal of one said
         CHECK(window.weave().heard.size() == drawn);
+
+        // A WINDOW STARTED AGAIN THAT REFUSES THE ROWS WHOLE holds none of them, and one started
+        // after it is sent them whole.
+        const std::size_t refusals = window.weave().refusals.size();
+        window.weave().refuse_next = true;
+        drawn = window.weave().heard.size();
+        window.room(area, area, 160, 48, 2);
+        REQUIRE(window.weave().heard.size() == drawn + 1);
+        CHECK(window.weave().heard.back().whole);
+        CHECK(window.weave().refusals.size() == refusals + 1);
+        CHECK(window.rows(area).empty());
+        window.room(area, area, 160, 48, 3);
+        REQUIRE(window.weave().heard.size() == drawn + 2);
+        CHECK(window.weave().heard.back().whole);
+        CHECK(window.weave().refusals.size() == refusals + 1);
+        CHECK(row_at(window.rows(area), t.input_row()) == row_at(t.shown(), t.input_row()));
     }
 }
 

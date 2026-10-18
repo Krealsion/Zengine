@@ -685,14 +685,17 @@ of the weave; a member the facet calls only when present is optional.
   ([`workshop/pane_drawing.hpp`](../pane_drawing.hpp), `rows_drawing`): each row's text in its
   role over its ground, cut into runs where a part begins or ends, each run a named part holds
   recorded as asking that part's name -- where parts overlap, the one a press on Workshop's rows
-  reaches. Only what changed goes, and the whole after the window's room changed. A refused change
+  reaches -- and in front of them the caret the pane says, a bar at the left of its cell, and its
+  selection, the selected columns again in the accent role, each asking what the part beneath it
+  asks. Only what changed goes, and the whole after the window's room changed. A refused change
   (`graphics::DrawnRefused`) is followed at once by the rows last sent, whole; a refused whole
-  drawing is not sent again, and the next rows go whole (`WindowDrawing`, which an office of
-  several panes keeps for each pane too). A pane Workshop seats nowhere composes for the window's
-  room and sends Workshop nothing. `graphics::ActionRequested` from that window naming a part of
-  the rows it was last sent is `press(RowPress, mail)` at the part's place -- a cell only it holds,
-  else the first a press reaches it at -- with `window` set and `keys_went_here` not: Workshop saw
-  no press, so it reported no keys there, and no carry or other Workshop gesture begins there. A row a second press would
+  drawing is not sent again, nor are those rows unchanged, and the next rows go whole
+  (`WindowDrawing`, which an office of several panes keeps for each pane too, and both Editors,
+  Flow and the View Builder keep for their areas). A pane Workshop seats nowhere composes for the
+  window's room and sends Workshop nothing. `graphics::ActionRequested` from that window naming a
+  part of the rows it was last sent is `press(RowPress, mail)` at the part's place -- a cell only
+  it holds, else the first a press reaches it at -- with `window` set and `keys_went_here` not:
+  Workshop saw no press, so it reported no keys there, and no carry or other Workshop gesture begins there. A row a second press would
   activate is reached there only through a control the pane draws for it. An id `answers(id)` admits is `on_action(id, mail)`;
   any other is no act. An act Workshop must approve is refused from a window press, which is no
   Workshop gesture. The room is asked once each life while no window has said it
@@ -703,8 +706,8 @@ of the weave; a member the facet calls only when present is optional.
   `show(self, mail)` wherever the pane stands. The graphics window that shows the area named
   `Office` is sent what changed since it last held the area's drawing (`graphics::Drawn`): nothing
   when nothing did, the whole picture after its room changed, and after a refused change the
-  picture last sent, whole, at once (a refused whole picture is not sent again). Workshop, while it
-  seats the pane, is sent the same picture as rows ([`workshop/pane_drawing.hpp`](../pane_drawing.hpp),
+  picture last sent, whole, at once (a refused whole picture is not sent again until it changes).
+  Workshop, while it seats the pane, is sent the same picture as rows ([`workshop/pane_drawing.hpp`](../pane_drawing.hpp),
   `drawn_rows`): each text node's characters on the cells a window of characters paints them, a
   row in the role of the first text drawn on it, and each record a part named by its path over the
   columns its text covers there -- its canvas picture while it holds a canvas room, numbered by
