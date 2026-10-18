@@ -65,6 +65,16 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   invalidates old picture maps, including a change of text metrics. A right press means nothing
   on the graph or its pages, so the pane hands it back (`PanePassRequested`) and Workshop's pane
   menu opens where it landed.
+- The graphics window that shows the area `zengine.flow` is sent the same picture, composed for
+  the window's room (`flow_pane::window_picture`) and projected as any canvas picture is
+  (`workshop::canvas_sketch`); one more than a window keeps is the recovery picture. Its room is
+  the window's word alone (`AreaRoom`, as that window's office), asked of `zengine.graphics` once a
+  life. A refused change goes whole at once; a refused whole picture is said in the notice and
+  draws nothing more until the next change, so a window that keeps refusing starts no loop. A
+  press there names a part the picture last sent there names, and is that place's first-button
+  press: a node selected, anything else performed. It begins no drag and carries nothing, and a
+  write it confirms waits, since no Workshop gesture made it. A window's room ends no Workshop
+  gesture or picture map.
 - The pane carries a declared message's shape out, with every shape it nests
   (`flow::shape::carried`), from a press's drag or a right press on its row in Messages. A
   dropped description is read with the shapes it carries and nothing else
@@ -95,7 +105,8 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   changes and command atomicity. `tests/test_flow_view.cpp` covers canvas clipping, dense views,
   long text, independent measured axes, device-grain hit testing and the rail's grouping and
   preview. `tests/test_flow_pane.cpp` covers modal commands, native text dragging, reload
-  preservation, the right press handed back and finding through the door; host
+  preservation, the right press handed back, finding through the door and the pane in a graphics
+  window; host
   behavior is witnessed under
   [host integration](flow-host.md).
   Add new semantic boundaries to those witnesses rather than preserving a canned example alone.

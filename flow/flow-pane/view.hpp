@@ -4,10 +4,14 @@
 #define ZENGINE_FLOW_PANE_VIEW_HPP
 #include "flow/flow-pane/find.hpp"
 #include "flow/flow-pane/model.hpp"
+#include "flow/flow-pane/vocabulary.hpp"
+#include "workshop/pane_canvas_drawing.hpp"
 #include "workshop/pane_canvas_text.hpp"
 #include "workshop/pane_parts.hpp"
 #include "surface/pointing.hpp"
 #include <limits>
+#include <map>
+#include <set>
 
 namespace zengine::flow_pane {
 namespace ws = zengine::workshop;
@@ -124,20 +128,13 @@ inline Picture project_picture(Picture view, const ws::PaneCanvasRoom &room) {
   view.width = room.width; view.height = room.height;
   return view;
 }
-inline Picture finish_picture(Picture view, const ws::PaneCanvasRoom &room) {
-  view = project_picture(std::move(view), room);
-  std::size_t bytes = 0;
-  for (const auto &text : view.content.texts) bytes += text.text.size();
-  if (view.content.rects.size() <= ws::kPaneCanvasMaxRects &&
-      view.content.texts.size() <= ws::kPaneCanvasMaxTexts &&
-      bytes <= ws::kPaneCanvasMaxTextBytes) return view;
-
-  // A partial graph would look like a different graph. Show a bounded recovery
-  // picture instead, keeping save/export and view controls available.
+/// A partial graph would look like a different graph. A view too dense to show is this bounded
+/// recovery picture instead, keeping save/export and view controls available.
+inline Picture recovery_picture(Picture view, const ws::PaneCanvasRoom &room) {
   const GridProjection grid(room);
   view.width = grid.grid_x(room.width); view.height = grid.grid_y(room.height);
   view.content.rects = {{0, 0, view.width, view.height, ink::kGround}};
-  view.content.texts.clear(); view.hits.clear();
+  view.content.texts.clear(); view.text_clips.clear(); view.hits.clear();
   auto text = [&](std::int64_t x, std::int64_t y, std::string value,
                   std::int64_t role = ink::kAlert) {
     view.content.texts.push_back({x, y, std::move(value), role});
@@ -160,6 +157,15 @@ inline Picture finish_picture(Picture view, const ws::PaneCanvasRoom &room) {
   button("Reset view", "fit"); button("Zoom in", "zoom-in");
   button("Zoom out", "zoom-out");
   return project_picture(std::move(view), room);
+}
+inline Picture finish_picture(Picture view, const ws::PaneCanvasRoom &room) {
+  view = project_picture(std::move(view), room);
+  std::size_t bytes = 0;
+  for (const auto &text : view.content.texts) bytes += text.text.size();
+  if (view.content.rects.size() <= ws::kPaneCanvasMaxRects &&
+      view.content.texts.size() <= ws::kPaneCanvasMaxTexts &&
+      bytes <= ws::kPaneCanvasMaxTextBytes) return view;
+  return recovery_picture(std::move(view), room);
 }
 inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room,
                        std::int64_t sequence) {
@@ -877,6 +883,32 @@ inline ws::v4::PaneCanvasContent named(const Picture &p) {
   const auto &c = p.content;
   return ws::v4::PaneCanvasContent{c.pane,   c.grant,  c.picture,   c.rects,
                                    c.labels, c.texts, parts.take()};
+}
+
+/// FLOW IN A GRAPHICS WINDOW: its picture for the window's room, `width` by `height` pixels, drawn
+/// as the window draws a canvas picture (`ws::canvas_sketch`), and the place each part the drawing
+/// names stands for, by its name. A view past what a window keeps is the recovery picture.
+struct WindowPicture {
+  Picture picture;
+  zengine::graphics::Sketch sketch;
+  std::map<std::string, Hit> parts;
+};
+inline WindowPicture window_picture(const Model &model, std::int64_t width, std::int64_t height) {
+  const auto room = ws::canvas_window_room(kPane, width, height);
+  WindowPicture out{picture(model, room, 0), {}, {}};
+  auto drawn = ws::canvas_sketch(named(out.picture), room);
+  if (!drawn.over.empty()) {
+    out.picture = recovery_picture(std::move(out.picture), room);
+    drawn = ws::canvas_sketch(named(out.picture), room);
+  }
+  out.sketch = std::move(drawn.sketch);
+  std::set<std::string> said;
+  for (const auto &record : out.sketch.records())
+    said.insert(record.action);
+  for (const Hit &hit : out.picture.hits)
+    if (const auto name = part_name(hit); said.count(name) != 0)
+      out.parts.emplace(name, hit);
+  return out;
 }
 } // namespace zengine::flow_pane
 #endif
