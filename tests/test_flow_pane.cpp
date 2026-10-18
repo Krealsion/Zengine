@@ -587,6 +587,7 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
         CHECK_FALSE(seen.heard[before].whole);
         CHECK(seen.heard[before + 1].whole);
         CHECK(seen.refusals.size() == 1);
+        CHECK_FALSE(rig.shows_part("The graphics window refused Flow's picture"));
         // ...AND A REFUSED WHOLE PICTURE IS SAID, drawing nothing more until the next change.
         window.weave().refuse_next = true;
         window.room(fp::kRole, fp::kRole, 170, 65, 2);

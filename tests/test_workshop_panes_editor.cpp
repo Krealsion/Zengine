@@ -1812,6 +1812,21 @@ TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by
         REQUIRE(seen.heard.size() == mark + 1);
         CHECK_FALSE(seen.heard.back().whole);
         CHECK(seen.strangers == 0);
+
+        // A WINDOW SHORTER THAN THE ROWS WORKSHOP IS TOLD is drawn as many of them as it holds.
+        window.room(area, area, 40, 3, 3);
+        const gfx::window::WinArea* held = seen.find(area);
+        REQUIRE(held != nullptr);
+        std::size_t texts = 0;
+        for (const auto& k : held->nodes) {
+            if (k.node.op != gfx::op::kText) continue;
+            const std::optional<gfx::TextArgs> t = gfx::from_body<gfx::TextArgs>(k.node.args);
+            REQUIRE(t.has_value());
+            CAPTURE(k.node.path);
+            CHECK(t->y < 3 * gfx::kCellPx);
+            ++texts;
+        }
+        CHECK(texts > 0);
     }
     EditorRig e("edit-names");
     e.open();
