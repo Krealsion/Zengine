@@ -44,11 +44,13 @@ persistence, generated-runtime support, and the public control vocabularies
 `zengine-flow` executable installs to `bin` when a Loom kernel is available. A plain hyphenated name on a link line means the
 target is internal, and that difference is the boundary made visible.
 
-**Eight artifacts** install to `lib/zengine/`, named by `ZENGINE_RUNTIME_ARTIFACTS` and located
+**Twelve artifacts** install to `lib/zengine/`, named by `ZENGINE_RUNTIME_ARTIFACTS` and located
 by `ZENGINE_ARTIFACT_DIR`: `zengine-timer`, `zengine-input`, `zengine-inventory`, the two TUI skins,
 `zengine-neovim-editor` (whose one runtime need beyond the Loom is a Neovim, found when it
-starts one), `zengine-operators-basic`, and `zengine-guest-vocabulary` (booted by another
-Loom host, a session, to speak Workshop's guest shapes). They install as FILES, not as
+starts one), `zengine-operators-basic`, `zengine-guest-vocabulary` (booted by another
+Loom host, a session, to speak Workshop's guest shapes), and the graphics directory and terminal
+window (`zengine-graphics`, `zengine-window-terminal`) with the two painters a window opens by
+path (`zengine-paint-classic`, `zengine-paint-block`). They install as FILES, not as
 exported targets — an artifact is opened by path and never linked, and an imported target would
 offer a link line that must never be written. Beside them, as data, the Workshop tool packages
 for a Loom session's run manager: `share/zengine/loom-tools/workshop`, the journeys and their
@@ -67,8 +69,9 @@ every program of its own and, on Windows, refuses one whose manifest names no UT
 
 **ARTIFACT is the noun, and the distinction is load-bearing.** An artifact is the
 physical loadable file; *weave* and *provider* are runtime SURFACES an artifact may expose.
-Seven of the eight above are weaves; `zengine-operators-basic` is a provider and explicitly not
-a weave (enforced by `zengine_provider()` in the top-level `CMakeLists.txt`). The public
+Nine of the twelve above are weaves; `zengine-operators-basic` is a provider and the two painters
+are painter code, none of the three a weave (enforced by `zengine_provider()` in the top-level
+`CMakeLists.txt`). The public
 package variables must therefore name the physical thing: a variable named after one surface
 is false of its own contents the moment the list holds another. The `package_vocabulary`
 CTest entry keeps the retired spellings from coming back — it owns the list of them, so this

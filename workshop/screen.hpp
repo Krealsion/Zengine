@@ -1669,19 +1669,23 @@ surface::SurfaceCanvas paint(const Session& s);
 std::string pane_window_area(const Panes& panes, const RuntimePane& row);
 
 /// WHETHER WORKSHOP'S OWN AREA STANDS IN FRONT OF EVERY PANE'S: while arranging or while a menu is
-/// open, the surfaces a weaver's next press goes to.
+/// open, the surfaces a weaver's next press goes to -- and while a repaint lays an overlay above
+/// the picture (`workshop_window_drawing`).
 bool desk_in_front(const Session& s) noexcept;
 
 /// WORKSHOP'S DESK AS A GRAPHICS WINDOW DRAWS IT -- every plane `paint` composes, but the bodies of
-/// the panes in `placed`, which their offices draw in areas of their own -- and where each press
-/// its parts name stands on the screen.
+/// the panes in `placed`, which their offices draw in areas of their own, and then `overlays`, the
+/// planes a repaint lays above the picture -- and where each press its parts name stands on the
+/// screen. With no overlay it draws nothing for them; with one, it is drawn as the desk in front
+/// of the panes' areas is, which leaves their bodies to them.
 struct WorkshopWindowDrawing {
     graphics::Sketch sketch;
     std::map<std::string, PixelRect> parts; ///< each action a press asks, and where it stands
 };
 
-WorkshopWindowDrawing workshop_window_drawing(const Session& s,
-                                              const std::set<std::int64_t>& placed);
+WorkshopWindowDrawing workshop_window_drawing(
+    const Session& s, const std::set<std::int64_t>& placed,
+    const std::vector<surface::SurfaceLayer>& overlays = {});
 
 } // namespace zengine::workshop
 

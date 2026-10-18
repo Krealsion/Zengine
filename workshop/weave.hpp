@@ -379,6 +379,7 @@ class WorkshopWeave
                                           // a graphics window showing Workshop's own area, and
                                           // the directory its areas are placed with
                                           zengine::graphics::GraphicsReady,
+                                          zengine::graphics::WindowOffered,
                                           zengine::graphics::AreaRoom,
                                           zengine::graphics::DrawnRefused,
                                           zengine::graphics::ActionRequested,
@@ -483,6 +484,11 @@ public:
     /// than an activation, which Loom sends no native mount. This makes discovery converge in
     /// either load order, and repeating it is harmless: a re-offer refreshes in place.
     void on(const zengine::surface::SurfaceReady&, loom::Mail& mail);
+    /// THE SURFACE COMES UP: the room asked who has panes, the keymap, the preferences and the
+    /// host's conditions taken, the floor painted, the last session restored and the startup
+    /// notes said. A skin's `SurfaceReady` runs it each time; a graphics window's offer, only
+    /// while nothing has.
+    void start_surface(loom::Mail& mail);
 
     /// THE SURFACE SAID HOW MUCH ROOM IT HAS. Take it, and lay the screen out again.
     void on(const zengine::surface::SurfaceExtent& e, loom::Mail& mail);
@@ -1027,6 +1033,10 @@ public:
     /// A GRAPHICS DIRECTORY STARTED AFRESH: the skins offered, every area placed and its skin
     /// chosen again, and Workshop's own room asked.
     void on(const graphics::GraphicsReady&, loom::Mail& mail);
+    /// THE TERMINAL WINDOW OFFERED ITSELF, as its own office: Workshop comes up in it while no
+    /// surface has, and lays its screen out in the window's room while no medium has named its
+    /// unit.
+    void on(const graphics::WindowOffered& w, loom::Mail& mail);
     /// THE ROOM OF WORKSHOP'S OWN AREA, from the window that shows it: the desk drawn there, whole
     /// when the window, its incarnation or its size changed.
     void on(const graphics::AreaRoom& r, loom::Mail& mail);
@@ -1580,6 +1590,9 @@ private:
     WindowDrawing window_{kWorkshopProvider, kWorkshopProvider};
     /// Where each part the drawing last sent there names stands on the screen.
     std::map<std::string, PixelRect> window_parts_;
+    /// The planes the last repaint laid above the picture -- the carried value, the guide marks
+    /// -- drawn over the desk there too.
+    std::vector<surface::SurfaceLayer> window_overlays_;
     /// Every area placed with the directory now, as placed, and the panes among them.
     std::map<std::string, graphics::AreaPlaced> areas_placed_;
     std::set<std::int64_t> placed_kinds_;
@@ -1865,6 +1878,8 @@ private:
     /// `SurfaceExtent` spells it again.
     std::optional<RestoreNotice> restore_notice_;
     bool medium_unit_known_ = false;
+    /// Whether the surface has come up (`start_surface`), from a skin or a graphics window.
+    bool surface_started_ = false;
 
     /// How many notices this run has said, so a sentence can tell whether another came after it.
     std::uint64_t notices_said_ = 0;

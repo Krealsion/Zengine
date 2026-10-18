@@ -16,6 +16,8 @@
 #include "view/view-builder/picture.hpp"
 #include "view/view.hpp"
 
+#include <zen/host/grant_wiring.hpp>
+
 #include <algorithm>
 #include <filesystem>
 #include <functional>
@@ -4255,5 +4257,371 @@ TEST_CASE("a pane whose office draws in no graphics window, or whose last word w
     say("fits again");
     REQUIRE(s.panes.external_pane(kind)->refusal.empty());
     CHECK(d.directory->areas.at(kAreaSeatOffice).window == gfx::kTerminalWindow);
+    CHECK(d.refused.empty());
+}
+
+namespace {
+
+struct DeskSeatState {
+    std::int64_t heard = 0;
+    ZEN_SHAPE(DeskSeatState, 1, ZEN_FIELD(heard));
+};
+
+/// A PARTICIPANT THAT SAYS ONE THING AS ITS OFFICE inside its own delivery, when a case asks.
+template <class Said>
+class SayingSeat
+    : public loom::WeaveBase<SayingSeat<Said>, DeskSeatState, loom::Accept<SeatDo>,
+                             loom::Emit<Said>> {
+public:
+    void on(const SeatDo&, loom::Mail& mail) {
+        auto run = std::move(next);
+        next = {};
+        if (run) run(mail);
+    }
+    std::function<void(loom::Mail&)> next;
+};
+
+/// ONE SUCH PARTICIPANT MOUNTED IN `office`, granted to say `Said` to anyone, and the case's hand.
+template <class Said>
+struct Sayer {
+    PaneRig& r;
+    std::string office;
+    SayingSeat<Said>* seat = nullptr;
+    loom::WeaveId id{};
+    Sayer(PaneRig& rig, std::string in) : r(rig), office(std::move(in)) {
+        auto made = std::make_unique<SayingSeat<Said>>();
+        seat = made.get();
+        loom::Grant grant;
+        grant.allow_to_any(Said::zen_name, Said::zen_version);
+        id = r.bus.register_weave(std::move(made), std::move(grant), office);
+        seat->zen_set_self(id);
+    }
+    /// Publish `said` as this office, and let the bus settle.
+    void publish(const Said& said) {
+        seat->next = [as = office, said](loom::Mail& m) { (void)m.as_role(as).publish(said); };
+        (void)r.bus.send(id, loom::Message(loom::to_value(SeatDo{}), {}, {}, 0));
+        r.bus.drain_until_idle();
+    }
+};
+
+std::string terminal_window_office() {
+    return std::string(gfx::kWindowOfficePrefix) + gfx::kTerminalWindow;
+}
+
+} // namespace
+
+TEST_CASE("the terminal window offered before any skin brings Workshop up in it, the last session "
+          "restored first, and lays the desk out in the window's room until a skin's extent owns "
+          "it") {
+    TempDir dir("window-offered");
+    PaneRig r;
+    r.host.session_path = dir.file("session.json");
+    REQUIRE(session_persist::save_file(r.host.session_path, one_layout(setup_of("Offered", {})), 0,
+                                       cells_px(100), cells_px(40), session_persist::Placement{})
+                .accepted);
+    ProviderSeat* seat = r.mount_provider("zengine.test.offered-seat");
+    r.mount_workshop();
+    Sayer<gfx::WindowOffered> window(r, terminal_window_office());
+    const auto offer = [&window](std::int64_t cols, std::int64_t rows,
+                                 std::string name = gfx::kTerminalWindow) {
+        window.publish(gfx::WindowOffered{name, cols, rows, 7});
+    };
+    REQUIRE(seat->asks.empty());
+
+    // OFFERED, WITH NOTHING UP YET: Workshop comes up as a skin's hello brings it up -- the room
+    // asked who has panes, the last session restored...
+    offer(90, 30);
+    CHECK(seat->asks == std::vector<std::string>{kWorkshopProvider});
+    CHECK(r.session().setup.active.name == "Offered");
+    CHECK(r.last_notice().find("reopened your last desk") != std::string::npos);
+    // ...and lays the desk out in the window's room, taken after the room the session restored,
+    // a cell of text a cell.
+    CHECK(r.session().screen_w == cells_px(90));
+    CHECK(r.session().screen_h == cells_px(30));
+    CHECK(r.session().normal_w == cells_px(90));
+    CHECK(r.session().normal_h == cells_px(30));
+    CHECK(r.session().text_advance_px == 0);
+    CHECK(r.session().text_line_px == 0);
+    CHECK(r.session().cell_px == 0);
+    REQUIRE_FALSE(r.canvases.empty());
+    CHECK(r.canvases.back().width == cells_px(90));
+    CHECK(r.canvases.back().height == cells_px(30));
+
+    // OFFERED AGAIN AT ITS SIZE: nothing comes up a second time, and nothing is painted.
+    const std::size_t pictures = r.canvases.size();
+    offer(90, 30);
+    CHECK(seat->asks.size() == 1);
+    CHECK(r.canvases.size() == pictures);
+    // ...AT ANOTHER: the desk is laid out in it again.
+    offer(120, 40);
+    CHECK(r.session().screen_w == cells_px(120));
+    CHECK(r.session().screen_h == cells_px(40));
+    CHECK(r.canvases.back().width == cells_px(120));
+
+    // AN OFFER OF NO ROOM, OF ANOTHER WINDOW -- even from that window's own office -- OR FROM ANY
+    // OFFICE BUT THE WINDOW'S MOVES NOTHING.
+    offer(0, 24);
+    offer(80, 0);
+    offer(80, 24, "desk");
+    Sayer<gfx::WindowOffered> desk_window(r, "zengine.window.desk");
+    desk_window.publish(gfx::WindowOffered{"desk", 80, 24, 7});
+    desk_window.publish(gfx::WindowOffered{gfx::kTerminalWindow, 80, 24, 7});
+    CHECK(r.session().screen_w == cells_px(120));
+    CHECK(r.session().screen_h == cells_px(40));
+    CHECK(seat->asks.size() == 1);
+
+    // A SKIN'S EXTENT OWNS THE ROOM FROM THEN ON: a window's offer moves it no more.
+    r.extent(100, 36);
+    CHECK(r.session().screen_w == cells_px(100));
+    offer(90, 30);
+    CHECK(r.session().screen_w == cells_px(100));
+    CHECK(r.session().screen_h == cells_px(36));
+    // ...and a skin's hello brings Workshop up as it always does, the room asked again.
+    r.ready();
+    CHECK(seat->asks.size() == 2);
+}
+
+namespace {
+
+/// A GUEST A GUEST DOOR ADMITTED, as its session stands on the bus: it asks Workshop for a mark,
+/// and keeps every answer.
+class GuideGuest
+    : public loom::WeaveBase<GuideGuest, DeskSeatState, loom::Accept<SeatDo, GuideAnswered>,
+                             loom::Emit<GuideRequested>> {
+public:
+    void on(const SeatDo&, loom::Mail& mail) {
+        auto run = std::move(next);
+        next = {};
+        if (run) run(mail);
+    }
+    void on(const GuideAnswered& a, loom::Mail&) { answers.push_back(a); }
+    std::function<void(loom::Mail&)> next;
+    std::vector<GuideAnswered> answers;
+};
+
+constexpr const char* kMarkedSeatOffice = "zengine.test.desk-marked-seat";
+
+/// THE ROWS WORKSHOP DRAWS IN ITS OWN AREA OF THE WINDOW, and whether one of them says `words`.
+bool window_shows(pw::Window& window, const std::string& area, const std::string& words) {
+    for (const std::string& row : window.rows(area)) {
+        if (row.find(words) != std::string::npos) return true;
+    }
+    return false;
+}
+
+/// Whether the drawing kept there has a node in a plane laid above the desk.
+bool window_overlaid(pw::Window& window, const std::string& area) {
+    const gw::WinArea* a = window.weave().find(area);
+    REQUIRE(a != nullptr);
+    return std::any_of(a->nodes.begin(), a->nodes.end(), [](const gw::KeptNode& k) {
+        return k.node.path.find("/overlay") != std::string::npos;
+    });
+}
+
+} // namespace
+
+TEST_CASE("a guest's guide mark stands over the desk in the window that shows Workshop's area, the "
+          "area in front of the panes' while it stands, and goes with the mark") {
+    WindowDesk d(true);
+    pw::Window window(d.r.bus, gfx::kTerminalWindow);
+    const Session& s = d.r.session();
+    const std::string area = kWorkshopProvider;
+    {
+        const Screen sc = screen_of(s);
+        window.room(area, area, sc.w / gfx::kCellPx, sc.h / gfx::kCellPx);
+    }
+    // THE MARKED PANE beside Attention, which draws its body in its own area: a seat's one row
+    // naming one control, the body free below it.
+    ProviderSeat* seat = d.r.mount_provider(kMarkedSeatOffice);
+    const std::int64_t kind = seat_pane_open(d.r, seat, kMarkedSeatOffice, "marked");
+    REQUIRE(kind != kNoPaneKind);
+    d.r.drive(seat, [](ProviderSeat& p, loom::Mail& m) {
+        p.say_named(m, v4::PaneContent{"marked",
+                                       {surface::SurfaceTextRow{"[go] there", surface::role::kFill}},
+                                       0,
+                                       0,
+                                       {PaneRowPart{"control:go", 0, 0, 4}}});
+    });
+    // THE GUEST, admitted as `tutor`, its session alive.
+    auto made = std::make_unique<GuideGuest>();
+    GuideGuest* guest = made.get();
+    loom::Grant grant;
+    grant.allow_to_role(GuideRequested::zen_name, GuideRequested::zen_version, kWorkshopProvider);
+    const loom::WeaveId guest_id = d.r.bus.register_weave(std::move(made), std::move(grant));
+    guest->zen_set_self(guest_id);
+    d.r.host.guest_row = [guest_id](loom::WeaveId who) {
+        scope::GuestRowFacts row;
+        if (who == guest_id) {
+            row.admitted = true;
+            row.name = "tutor";
+        }
+        return row;
+    };
+    d.r.host.input_authority = [&bus = d.r.bus](loom::WeaveId who) {
+        return bus.alive(who) ? loom::host_describe_only_authority(bus, who)
+                              : loom::GrantAuthority{};
+    };
+    const auto ask = [&](std::string control) {
+        guest->next = [control](loom::Mail& m) {
+            (void)m.send_to_role(kWorkshopProvider,
+                                 GuideRequested{std::string(kMarkedSeatOffice) + "/marked", control,
+                                                "press go"});
+        };
+        (void)d.r.bus.send(guest_id, loom::Message(loom::to_value(SeatDo{}), {}, {}, 0));
+        d.r.bus.drain_until_idle();
+    };
+    REQUIRE(d.directory->areas.at(area).order == 0);
+    REQUIRE_FALSE(window_shows(window, area, "tutor: "));
+    REQUIRE_FALSE(window_overlaid(window, area));
+
+    // MARKED: its label drawn over the desk there, in a plane above it...
+    ask("go");
+    REQUIRE_FALSE(guest->answers.empty());
+    REQUIRE_MESSAGE(guest->answers.back().shown, guest->answers.back().said);
+    CHECK_MESSAGE(window_shows(window, area, "tutor: \"press go\""), guest->answers.back().said);
+    CHECK(window_overlaid(window, area));
+    // ...and Workshop's area in front of every pane's while it stands, so a pane's own area does
+    // not hide it, painting nothing over a body a pane draws there itself.
+    CHECK(d.directory->areas.at(area).order == d.panes_on_desk() + 1);
+    CHECK_FALSE(paints_inside(painted_cells(*window.weave().find(area)), d.pane_body()));
+
+    // CLEARED: gone from the window, and the area behind the panes again.
+    ask("");
+    REQUIRE_FALSE(guest->answers.back().shown);
+    CHECK_FALSE(window_shows(window, area, "tutor: "));
+    CHECK_FALSE(window_overlaid(window, area));
+    CHECK(d.directory->areas.at(area).order == 0);
+    CHECK(d.refused.empty());
+}
+
+namespace {
+
+/// A PANE THAT CARRIES A VALUE OUT UNDER THE PRESS THAT TOOK HOLD OF IT: it keeps the number each
+/// press came under, and what Workshop answered its operation and its carry.
+class CarrySeat
+    : public loom::WeaveBase<CarrySeat, DeskSeatState,
+                             loom::Accept<PaneCatalogRequested, PaneRoom, PanePressed,
+                                          PaneOperationAnswered, PaneCarryAnswered, SeatDo>,
+                             loom::Emit<PaneOffered, PaneContent, PaneOperationRequested,
+                                        PaneValueCarryRequested>> {
+public:
+    void on(const PaneCatalogRequested&, loom::Mail&) {}
+    void on(const PaneRoom&, loom::Mail&) {}
+    void on(const PanePressed&, loom::Mail& mail) { presses.push_back(mail.correlation()); }
+    void on(const PaneOperationAnswered& a, loom::Mail&) { operations.push_back(a); }
+    void on(const PaneCarryAnswered& a, loom::Mail&) { carries.push_back(a); }
+    void on(const SeatDo&, loom::Mail& mail) {
+        auto run = std::move(next);
+        next = {};
+        if (run) run(mail);
+    }
+    std::function<void(loom::Mail&)> next;
+    std::vector<std::uint64_t> presses;
+    std::vector<PaneOperationAnswered> operations;
+    std::vector<PaneCarryAnswered> carries;
+};
+
+constexpr const char* kCarrySeatOffice = "zengine.test.desk-carry-seat";
+
+} // namespace
+
+TEST_CASE("a value the weaver drags out of a pane is carried under the hand over the desk in the "
+          "window that shows Workshop's area, the area in front of the panes' while it is, and "
+          "goes when the hand lets go") {
+    WindowDesk d(true);
+    pw::Window window(d.r.bus, gfx::kTerminalWindow);
+    const Session& s = d.r.session();
+    const std::string area = kWorkshopProvider;
+    {
+        const Screen sc = screen_of(s);
+        window.room(area, area, sc.w / gfx::kCellPx, sc.h / gfx::kCellPx);
+    }
+    // THE PANE A VALUE IS DRAGGED OUT OF, beside Attention, which draws its body in its own area.
+    auto made = std::make_unique<CarrySeat>();
+    CarrySeat* seat = made.get();
+    loom::Grant grant;
+    grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
+    grant.allow_to_any(PaneContent::zen_name, PaneContent::zen_version);
+    grant.allow_to_role(PaneOperationRequested::zen_name, PaneOperationRequested::zen_version,
+                        kWorkshopProvider);
+    grant.allow_to_role(PaneValueCarryRequested::zen_name, PaneValueCarryRequested::zen_version,
+                        kWorkshopProvider);
+    const loom::WeaveId seat_id =
+        d.r.bus.register_weave(std::move(made), std::move(grant), kCarrySeatOffice);
+    seat->zen_set_self(seat_id);
+    const auto seat_does = [&](std::function<void(loom::Mail&)> what) {
+        seat->next = std::move(what);
+        (void)d.r.bus.send(seat_id, loom::Message(loom::to_value(SeatDo{}), {}, {}, 0));
+        d.r.bus.drain_until_idle();
+    };
+    seat_does([](loom::Mail& m) {
+        (void)m.as_role(kCarrySeatOffice)
+            .send_to_role(kWorkshopProvider, PaneOffered{"carry", "Carry", "a value to drag"});
+    });
+    d.r.pick(PaneRef{kCarrySeatOffice, "carry"});
+    const RuntimePane* row = s.panes.runtime.find(kCarrySeatOffice, "carry");
+    REQUIRE(row != nullptr);
+    REQUIRE(s.panes.has(row->kind));
+    const std::int64_t kind = row->kind;
+    seat_does([](loom::Mail& m) {
+        (void)m.as_role(kCarrySeatOffice)
+            .send_to_role(kWorkshopProvider,
+                          PaneContent{"carry", {surface::SurfaceTextRow{"a value",
+                                                                        surface::role::kFill}}});
+    });
+    // THE WEAVER'S OWN HAND, as the input office says it: each moment attributed to the local
+    // hand, at a terminal cell.
+    Sayer<input::AttributedInput> hand(d.r, input::kInputRole);
+    const auto moment = [&hand](const char* what, bool pressed, std::int64_t cx, std::int64_t cy,
+                                std::int64_t dx = 0) {
+        input::InjectedEvent e;
+        e.kind = what;
+        e.button = 1;
+        e.pressed = pressed;
+        e.x = cx;
+        e.y = cy + surface::kTuiCanvasTopRow;
+        e.dx = dx;
+        e.space = input::space::kCells;
+        hand.publish(input::AttributedInput{true, 0, e});
+    };
+    const ui::Rect body = external_body_rect(s, kind);
+    const std::int64_t x = body.x + 1, y = body.y + kExternalHeaderRows;
+
+    // THE PRESS TAKES HOLD OF THE ROW, and the pane asks to carry its value under that press.
+    moment("PointerButton", true, x, y);
+    REQUIRE(seat->presses.size() == 1);
+    const std::uint64_t press = seat->presses.back();
+    REQUIRE(press != 0);
+    seat_does([press](loom::Mail& m) {
+        (void)m.as_role(kCarrySeatOffice)
+            .send_to_role(kWorkshopProvider,
+                          PaneOperationRequested{"carry", kWorkshopProvider,
+                                                 PaneValueCarryRequested::zen_name, 1,
+                                                 static_cast<std::int64_t>(press)});
+        (void)m.as_role(kCarrySeatOffice)
+            .send_to_role(kWorkshopProvider,
+                          PaneValueCarryRequested{"carry", "a value", loom::Bytes{1, 2, 3}, true},
+                          press);
+    });
+    REQUIRE(seat->operations.size() == 1);
+    REQUIRE_MESSAGE(seat->operations.back().allowed, seat->operations.back().reason);
+    REQUIRE(seat->carries.size() == 1);
+    REQUIRE_MESSAGE(seat->carries.back().carried, seat->carries.back().reason);
+    CHECK_FALSE(window_shows(window, area, "[value]"));
+    CHECK(d.directory->areas.at(area).order == 0);
+
+    // THE HAND MOVES: the value goes with it, over the desk there, the area in front, painting
+    // nothing over a body a pane draws itself.
+    moment("PointerMoved", false, x + 4, y, 4);
+    CHECK(window_shows(window, area, "[value]"));
+    CHECK(window_overlaid(window, area));
+    CHECK(d.directory->areas.at(area).order == d.panes_on_desk() + 1);
+    CHECK_FALSE(paints_inside(painted_cells(*window.weave().find(area)), d.pane_body()));
+
+    // LET GO ON THE BAND, WHERE NO PANE STANDS: nothing takes it, and it is gone from the window.
+    moment("PointerButton", false, 1, screen_of(s).notice_y / surface::kCanvasCellPx + 1);
+    CHECK_FALSE(window_shows(window, area, "[value]"));
+    CHECK_FALSE(window_overlaid(window, area));
+    CHECK(d.directory->areas.at(area).order == 0);
     CHECK(d.refused.empty());
 }

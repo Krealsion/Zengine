@@ -49,7 +49,9 @@ rows; it shares the rig.
 
 - Staging and loading: `examples/snake/CMakeLists.txt` builds the window, the directory, the skins
   and the board's code beside the snake's host; `examples/snake/play.cpp` loads the directory and
-  the window, and its operator weave is the arranger.
+  the window, and its operator weave is the arranger. `workshop/CMakeLists.txt` stages the window,
+  the directory and the skins beside `zengine-workshop`, whose weave arranges when they are
+  loaded, and `cmake/ZengineInstall.cmake` installs them as artifacts.
 - Grants: the snake host grants its operator `AreaPlaced`, `SkinOffered`, `SkinChosen`,
   `ElementCodeOffered` and `RoomAsked` to `kGraphicsRole`, and `Drawn` to the window's office.
 - Beyond the snake: the window reads its terminal with `input/terminal_reader.hpp` and claims its

@@ -52,7 +52,7 @@ from the window's own office, and `RoomAsked` only from the area's owner.
 - **Takes:** `area`, the area's name; `window`, the window's name (`terminal`); `owner`, the
   office that draws in it; `x`, `y`, `w`, `h`, its place and size in the window's pixels; `order`,
   its place among the window's areas, a higher order in front; `keys`, true for the window to give
-  the owner its keys; `pointer`, true for the window to give the owner a press that nothing drawn
+  the owner its keys and their text; `pointer`, true for the window to give the owner a press that nothing drawn
   in the area takes (else such a press sends nothing).
 - **Answers:** nothing to the sender. Once the window has offered itself and the area's chosen
   skin is offered, `AreaIntroduced` goes to the window's office, and the window tells the owner its
