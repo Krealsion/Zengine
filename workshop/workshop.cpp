@@ -37,6 +37,7 @@
 #include "builder/weave.hpp"
 #include "operator/catalog.hpp"
 #include "operator/host_surface.hpp"
+#include "surface/terminal_size.hpp"
 #include "surface/vocabulary.hpp"
 #include "timer/vocabulary.hpp"
 
@@ -908,50 +909,64 @@ int main(int argc, char** argv) {
         [&host](const std::string& stem) { return host.so(stem); },
         [&host, &operators, &project_refused](const load::Executed& done) {
             // Said artifact by artifact, in order: resolved truth, never written back to the plan.
-            // Said when realization settles, inside a delivery, so a painting Skin may draw over
-            // these lines; stdout keeps them all.
-            for (const load::ResolvedArtifact& row : done.resolved) {
-                std::string said = row.stem;
-                if (row.provider_mounted) {
-                    said += " | provider '" + row.provider + "' supplied " +
-                            std::to_string(row.contributed);
+            // Said when realization settles, after the medium has taken the terminal: a medium
+            // that holds it would have these lines scrolled into its picture, so they are said
+            // only to a standard output none holds, and a refusal always. The Project pane shows
+            // the arrangement either way.
+            const bool print_settled =
+                !load::medium_holds_terminal(done, surface::native_terminal_size().measured());
+            if (print_settled) {
+                for (const load::ResolvedArtifact& row : done.resolved) {
+                    std::string said = row.stem;
+                    if (row.provider_mounted) {
+                        said += " | provider '" + row.provider + "' supplied " +
+                                std::to_string(row.contributed);
+                    }
+                    if (row.weave_loaded) {
+                        said += " | weave #" + std::to_string(row.weave.value) + " as " + row.role;
+                        said += row.offer == op::OfferOutcome::Offered
+                                    ? " (this host's operator resolution offered)"
+                                    : " (ordinary weave: it declares no operator surface)";
+                    }
+                    std::printf("zengine-workshop - loaded: %s\n", said.c_str());
                 }
-                if (row.weave_loaded) {
-                    said += " | weave #" + std::to_string(row.weave.value) + " as " + row.role;
-                    said += row.offer == op::OfferOutcome::Offered
-                                ? " (this host's operator resolution offered)"
-                                : " (ordinary weave: it declares no operator surface)";
-                }
-                std::printf("zengine-workshop - loaded: %s\n", said.c_str());
             }
             // And where this run stopped, named: one row, never a count.
-            if (!done.waiting_on.empty()) {
+            if (print_settled && !done.waiting_on.empty()) {
                 std::printf("zengine-workshop - waiting to be built: %s (build it, and its "
                             "authored participation is performed then -- every authored row "
                             "after it is waiting on this one)\n",
                             done.waiting_on.c_str());
             }
             // The tools that are not here, named: an optional row that refused is an unavailable
-            // tool, said with its reason and kept as a standing condition for the run (WL-ATTN-01).
-            // The compact row is what a terminal weaver can still read.
+            // tool, said with its reason and kept as a standing condition for the run (WL-ATTN-01),
+            // whether or not the line is printed. The compact row is what a terminal weaver can
+            // still read.
             for (std::size_t i = 0; i < done.unavailable.size(); ++i) {
-                std::printf("zengine-workshop - unavailable: %s\n", done.unavailable[i].c_str());
+                if (print_settled) {
+                    std::printf("zengine-workshop - unavailable: %s\n",
+                                done.unavailable[i].c_str());
+                }
                 host.standing_conditions.push_back(zengine::workshop::unavailable_tool(
                     done.unavailable_stems[i], done.unavailable[i]));
                 ++host.conditions_generation;
             }
             if (done.ok) {
-                std::printf("zengine-workshop - operators: %zu resolvable, from %zu "
-                            "provider(s)\n",
-                            operators.size(), operators.providers().size());
-                std::fflush(stdout);
+                if (print_settled) {
+                    std::printf("zengine-workshop - operators: %zu resolvable, from %zu "
+                                "provider(s)\n",
+                                operators.size(), operators.providers().size());
+                    std::fflush(stdout);
+                }
                 // Completion ends nothing: the host goes on being a host.
                 return;
             }
             // Nor does waiting. A refusal is one because somebody said it, so `refusal` is tested,
             // not `ok`.
             if (done.refusal.empty()) {
-                std::fflush(stdout);
+                if (print_settled) {
+                    std::fflush(stdout);
+                }
                 return;
             }
             // This host's failure policy: a refused startup project ends this Workshop. The

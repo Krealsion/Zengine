@@ -14,12 +14,15 @@
 
 #include "builder/vocabulary.hpp"
 #include "activation/activation.hpp"
+#include "graphics/vocabulary.hpp"
 #include "manual/vocabulary.hpp"
 #include "manuals/zengine.realization.hpp" // this office's manual, compiled in from its page
 
 #include "operator/catalog.hpp"
 #include "operator/host_surface.hpp"
 #include "operator/provider_host.hpp"
+
+#include "surface/vocabulary.hpp"
 
 #include <zen/kernel/manager.hpp>
 #include <zen/switchboard.hpp>
@@ -92,6 +95,27 @@ struct Executed {
 
     explicit operator bool() const noexcept { return ok; }
 };
+
+/// Whether a realized project's medium -- `zengine.window.terminal` or a terminal Skin -- holds the
+/// process's measured terminal, so the host does not print the settled banner over it. Never for a
+/// refused project, whose host prints why it is leaving.
+inline bool medium_holds_terminal(const Executed& done, bool terminal_measured) {
+    if (!terminal_measured || !done.refusal.empty()) {
+        return false;
+    }
+    const std::string window =
+        std::string(zengine::graphics::kWindowOfficePrefix) + zengine::graphics::kTerminalWindow;
+    for (const ResolvedArtifact& row : done.resolved) {
+        if (!row.weave_loaded) {
+            continue;
+        }
+        if (row.role == window ||
+            (row.role == zengine::surface::kSkinRole && row.stem != "zengine-skin-sdl")) {
+            return true;
+        }
+    }
+    return false;
+}
 
 // ---- Where realization is, and what it has made of one authored row ------------
 

@@ -1220,12 +1220,14 @@ zengine_manual(zengine-workshop-panes-tests PRIVATE ${PROJECT_SOURCE_DIR}/intros
 zengine_workshop_suite(load SOURCES test_workshop_load.cpp
     NEEDS zengine-timer zengine-provider-abi zengine-operator-consumer-weave-abi
           zengine-operator-consumer-weave zengine-introspection zengine-legacy-pane
-          zengine-graphics zengine-window-terminal
+          zengine-graphics zengine-window-terminal zengine-input
     DEFINITIONS "WORKSHOP_LOAD_STAGE_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/load-plan-stage\""
                 "TIMER_SO=\"$<TARGET_FILE:zengine-timer>\""
-                # The window plan's two medium rows, realized as the plan names them.
+                # The window plan's two medium rows and the input weave after them, realized as
+                # the plan names them.
                 "GRAPHICS_SO=\"$<TARGET_FILE:zengine-graphics>\""
                 "WINDOW_TERMINAL_SO=\"$<TARGET_FILE:zengine-window-terminal>\""
+                "INPUT_SO=\"$<TARGET_FILE:zengine-input>\""
                 # Two more real images: a good consumer weave, whose reload must say `Offered`
                 # again, and one with another state shape, for the changed-shape refusal.
                 "CONSUMER_SO=\"$<TARGET_FILE:zengine-operator-consumer-weave>\""

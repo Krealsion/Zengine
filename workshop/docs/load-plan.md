@@ -131,6 +131,14 @@ different instants and the second is not the useful one: a weave the Kernel has 
 has not been activated is registered and routable and never breathes. The answer is the fact that
 implies the whole sequence.
 
+**When realization comes to rest, Workshop says what it made of the plan**: each row as
+`zengine-workshop - loaded: ...`, a waiting row as `waiting to be built: ...`, each unavailable row
+as `unavailable: ...` and the operators it can resolve as `operators: ...`. It prints these lines
+to standard output when no terminal medium holds a measured terminal there — the terminal window,
+or a terminal skin, whose picture the lines would scroll — and always for a refused startup. The
+[`Project` pane](../../introspection/docs/zengine.introspection.md#arrangement) shows the same
+arrangement live, from the executor's own rows, whatever the medium.
+
 ## Provider mode
 
 `normal` and `overlay` are `op::MountMode::Ordinary` and `op::MountMode::Overlay` — the provider
@@ -182,7 +190,8 @@ reporting the one that was asked for.
 refusal makes it an *unavailable tool*, not a refused project: the refusal is recorded with the
 same sentence, the row is stepped over, and every row after it is still performed in authored
 order. The plan still completes, and completing does not mean every row succeeded — the host
-prints each unavailable row (`zengine-workshop - unavailable: ...`), keeps it as a standing
+names each unavailable row (`zengine-workshop - unavailable: ...`, printed as the
+[settled arrangement](#realization-takes-the-hosts-own-turns) is), keeps it as a standing
 condition for the whole run, and the Arrangement and Project panes show the row as
 `unavailable` with its reason. Nothing is retried. The shipped plans mark the host's own
 infrastructure required and every pane optional, so a build tree short one pane's artifact
@@ -281,9 +290,10 @@ what actually ran was the host's own opinion of one.
 experiment nobody else can repeat — which is exactly what a plan file makes repeatable. The
 graphical arrangement is therefore another shipped plan; it differs from the default in exactly
 the two rows that name the medium and the reader, and presentation and input remain two
-independent rows rather than one deduced from the other. So does the terminal window's: its two
-rows name the graphics directory, `zengine-graphics`, and the window, `zengine-window-terminal`,
-which shows the desk and reads its own terminal's keys.
+independent rows rather than one deduced from the other. The terminal window's puts two rows
+where the default's skin stands, the graphics directory, `zengine-graphics`, and the window,
+`zengine-window-terminal`, which shows the desk and reads its own terminal's keys; the default's
+input row follows them and serves input sessions.
 
 ## Artifact names, and why they are stems
 
@@ -369,7 +379,8 @@ Whitespace and indentation are free — the shipped plans are indented for readi
 a loaded plan produces the canonical one-line form, and a second write of a loaded plan is
 byte-identical to the first.
 
-Refused, with the reason: a `format_version` other than 1 or 2 (by its number, before the rows are
+Refused, with the reason: a `format_version` other than 1, 2 or
+<!-- value load_persist::kFormatVersion -->3<!-- /value --> (by its number, before the rows are
 judged);
 a `format` that is not this one; more than one provider or weave surface on one artifact; an
 unrecognised mode word (naming both what was found and what would have worked); a weave
