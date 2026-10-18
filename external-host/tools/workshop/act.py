@@ -251,32 +251,28 @@ def wait_rows(hand, provider, pane, text, seconds, present=True):
 
 
 def aimed(ctx, hand, verb, provider, pane, read, aim, seconds):
-    """`(reading, point)`: `read()` reads the pane, `aim(reading)` asks Workshop where to press on
-    that reading. A point Workshop refuses because the pane's picture moved since the reading is
-    read and aimed again, at most POINT_TRIES times; then the step fails naming the pane and the
-    count. One it refuses because the pane holds no settled picture -- as a pane just opened holds
-    none until Workshop aims at its first, which a reading can come before -- is read and aimed
-    again once that picture may have settled (at its aimed number moving, `hand.wait`), for at most
-    `seconds`; then the step fails naming the pane. Any other refusal is the step's."""
-    end = time.monotonic() + seconds
-    moved = 0
-    while True:
-        reading = read()
+    """`(reading, point)`, aimed as `hand.aimed` aims within `seconds`: `read()` reads the pane,
+    `aim(reading)` asks Workshop where to press on that reading. A picture that moved since the
+    reading is read and aimed again, at most POINT_TRIES times; then the step fails naming the pane
+    and the count. One not yet aimed at -- as a pane just opened holds none until Workshop aims at
+    its first, which a reading can come before -- is read and aimed again once it may have settled;
+    past the seconds the step fails naming the pane. A reading that cannot be made fails the step
+    in its own words, and any other refusal is the step's."""
+    def reading():
         try:
-            return reading, aim(reading)
-        except Refused as refused:
-            if no_settled_picture(refused):
-                if time.monotonic() >= end:
-                    ctx.fail("%s: %s/%s held no settled picture to aim at within %gs"
-                             % (verb, provider, pane, seconds))
-                hand.wait(end - time.monotonic(), (provider, pane), unsettled=True)
-                continue
-            if "picture moved" not in str(refused):
-                raise
-            moved += 1
-            if moved >= POINT_TRIES:
-                ctx.fail("%s: %s/%s kept redrawing while it was read (%d times)"
-                         % (verb, provider, pane, POINT_TRIES))
+            return read()
+        except ValueError as unread:  # failed here, so hand.aimed's own ValueError is its bound
+            ctx.fail("%s: %s" % (verb, unread))
+    try:
+        return hand.aimed(provider, pane, reading, aim, verb, seconds)
+    except ValueError:
+        ctx.fail("%s: %s/%s kept redrawing while it was read (%d times)"
+                 % (verb, provider, pane, POINT_TRIES))
+    except Refused as refused:
+        if no_settled_picture(refused):
+            ctx.fail("%s: %s/%s held no settled picture to aim at within %gs"
+                     % (verb, provider, pane, seconds))
+        raise
 
 
 def press_at(ctx, hand, where, button="left"):
