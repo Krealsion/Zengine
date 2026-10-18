@@ -4358,12 +4358,14 @@ TEST_CASE("the terminal window offered before any skin brings Workshop up in it,
     CHECK(r.session().screen_h == cells_px(40));
     CHECK(r.canvases.back().width == cells_px(120));
 
-    // AN OFFER OF ANOTHER WINDOW, OF NO ROOM, OR FROM ANY OTHER OFFICE MOVES NOTHING.
-    offer(80, 24, "desk");
+    // AN OFFER OF NO ROOM, OF ANOTHER WINDOW -- even from that window's own office -- OR FROM ANY
+    // OFFICE BUT THE WINDOW'S MOVES NOTHING.
     offer(0, 24);
     offer(80, 0);
-    Sayer<gfx::WindowOffered> stranger(r, "zengine.window.desk");
-    stranger.publish(gfx::WindowOffered{gfx::kTerminalWindow, 80, 24, 7});
+    offer(80, 24, "desk");
+    Sayer<gfx::WindowOffered> desk_window(r, "zengine.window.desk");
+    desk_window.publish(gfx::WindowOffered{"desk", 80, 24, 7});
+    desk_window.publish(gfx::WindowOffered{gfx::kTerminalWindow, 80, 24, 7});
     CHECK(r.session().screen_w == cells_px(120));
     CHECK(r.session().screen_h == cells_px(40));
     CHECK(seat->asks.size() == 1);
