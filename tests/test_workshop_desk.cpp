@@ -3757,11 +3757,11 @@ TEST_CASE("with a graphics directory, Workshop places an open pane's area over i
           "arranges or a menu is open, saying only what moved") {
     WindowDesk d(true);
     const Screen sc = screen_of(d.r.session());
-    const auto& areas = d.directory->areas;
-    REQUIRE(areas.count(kWorkshopProvider) == 1);
-    REQUIRE(areas.count(apane::kAttentionPaneRole) == 1);
-    const auto desk = [&] { return areas.at(kWorkshopProvider); };
-    const auto pane = [&] { return areas.at(apane::kAttentionPaneRole); };
+    // Read from the directory mounted at the time: the case replaces it below.
+    REQUIRE(d.directory->areas.count(kWorkshopProvider) == 1);
+    REQUIRE(d.directory->areas.count(apane::kAttentionPaneRole) == 1);
+    const auto desk = [&] { return d.directory->areas.at(kWorkshopProvider); };
+    const auto pane = [&] { return d.directory->areas.at(apane::kAttentionPaneRole); };
 
     // WORKSHOP'S OWN AREA, the whole screen, behind every pane's; it hears the window's keys, since
     // no pane's own area takes them, and a press nothing drawn there takes.
