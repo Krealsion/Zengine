@@ -857,7 +857,7 @@ TEST_CASE("WL-HAND-06: a running view names each element by its id over the plac
                                                   count->x + count->w / 2, count->y + count->h / 2});
     CHECK(rig.total() == 45);
 
-    SUBCASE("the window that shows the view's area is drawn the same picture, its changes as changes, and a press on a button there uses it") {
+    SUBCASE("the window that shows the view's area is drawn the same picture and a focused field's caret, its changes as changes, and a press on a button there uses it") {
         Rig shown;
         // STARTED, it asks the graphics directory its area's room once, as its office.
         auto directory = std::make_unique<Listener>(std::vector{loom::schema_of<gfx::RoomAsked>()});
@@ -912,6 +912,45 @@ TEST_CASE("WL-HAND-06: a running view names each element by its id over the plac
         window_says(shown, w, "tally.panel", area_room("tally.panel", 40, 16));
         CHECK(w.window->holds("box:count"));
 
+        // A FOCUSED FIELD'S CARET stands in the window as Workshop's panes draw theirs: a bar in
+        // the accent role at the left of the cell it stands before, asking nothing. It moves as
+        // the caret does, and goes with the focus.
+        const auto kept = [&](const std::string& path) -> const gfx::Node* {
+            for (const auto& k : w.window->area.nodes)
+                if (k.node.path == path) return &k.node;
+            return nullptr;
+        };
+        const auto bar_at = [&](std::int64_t column) {
+            const gfx::Node* text = kept("text:start");
+            const gfx::Node* caret = kept("caret");
+            REQUIRE(text != nullptr);
+            REQUIRE(caret != nullptr);
+            CHECK(caret->op == gfx::op::kLine);
+            const auto words = gfx::from_body<gfx::TextArgs>(text->args);
+            const auto bar = gfx::from_body<gfx::LineArgs>(caret->args);
+            REQUIRE(words.has_value());
+            REQUIRE(bar.has_value());
+            CHECK(bar->x1 == words->x + column * gfx::kCellPx);
+            CHECK(bar->x2 == bar->x1);
+            CHECK(bar->y1 == words->y);
+            CHECK(bar->y2 == words->y + gfx::kCellPx - 1);
+            CHECK(bar->ink.role == zengine::surface::role::kAccent);
+            CHECK(w.window->action("caret").empty());
+            CHECK(w.window->refused.empty());
+        };
+        CHECK_FALSE(w.window->holds("caret"));
+        shown.press("tally.panel", d.elements[0]);
+        bar_at(8); // after `start: 0`
+        CHECK(w.window->drawing() == drawing(*shown.latest("tally.panel")));
+        shown.tell("tally.panel", ws::PaneTextInput{view::kPane, "5"});
+        CHECK(has(w.window->words("text:start").value_or(""), "start: 05"));
+        bar_at(9);
+        shown.tell("tally.panel", ws::PaneKey{view::kPane, zengine::input::scan::kLeft, 0});
+        bar_at(8);
+        CHECK_FALSE(w.window->drawn.back().whole);
+        shown.tell("tally.panel", ws::PaneKey{view::kPane, zengine::input::scan::kEscape, 0});
+        CHECK_FALSE(w.window->holds("caret"));
+
         // WHAT IT IS TOLD changes its label's node alone, sent as a change.
         const auto before = w.window->drawn.size();
         loom::Value total(total_shape());
@@ -935,6 +974,7 @@ TEST_CASE("WL-HAND-06: a running view names each element by its id over the plac
         window_says(shown, w, "tally.panel", gfx::DrawnRefused{"tally.panel", "a change against nothing held"});
         REQUIRE(w.window->drawn.size() == before + 2);
         CHECK(w.window->drawn.back().whole);
+        CHECK_FALSE(has(shown.said("tally.panel"), "the window refused this view"));
         window_says(shown, w, "tally.panel", gfx::DrawnRefused{"tally.panel", "too many nodes"});
         CHECK(w.window->drawn.size() == before + 2);
         CHECK(has(shown.said("tally.panel"), "the window refused this view: too many nodes"));
@@ -944,6 +984,11 @@ TEST_CASE("WL-HAND-06: a running view names each element by its id over the plac
         REQUIRE(w.window->drawn.size() == before + 3);
         CHECK(w.window->drawn.back().whole);
         CHECK(w.window->words("text:total") == "Total: 7");
+        // ...A WINDOW THAT KEEPS REFUSING starts no loop: the same picture is not sent it again.
+        window_says(shown, w, "tally.panel", gfx::DrawnRefused{"tally.panel", "too many nodes"});
+        (void)shown.bus.publish(loom::Message(total));
+        shown.pump();
+        CHECK(w.window->drawn.size() == before + 3);
         // ...and a room of another size or incarnation goes whole too.
         window_says(shown, w, "tally.panel", area_room("tally.panel", 40, 20));
         REQUIRE(w.window->drawn.size() == before + 4);
