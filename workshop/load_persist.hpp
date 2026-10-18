@@ -36,9 +36,9 @@ inline constexpr std::int64_t kFormatVersionV1 = 1;
 /// ...and the one between, which authors choices and no optional rows.
 inline constexpr std::int64_t kFormatVersionV2 = 2;
 
-/// The two plans Workshop ships, staged beside the executable, where the artifacts they name are.
-/// Two files, not a flag: their diff is the whole difference between the terminal and graphical
-/// arrangements, and a third is a copy passed with `--load-plan`.
+/// The plans Workshop ships, staged beside the executable, where the artifacts they name are.
+/// Files, not a flag: each one's diff from this default is the whole difference between the
+/// terminal arrangement and another, and any other is a copy passed with `--load-plan`.
 inline constexpr const char* kDefaultLoadPlanName = "default-load-plan.json";
 
 /// The plan a weaver authors into, under the project: where `load it` writes the minimum row,
@@ -65,6 +65,10 @@ inline std::string plan_in_force(const std::string& explicit_path, const std::st
     }
     return host_dir + "/" + kDefaultLoadPlanName;
 }
+/// ...and the two beside it, each passed with `--load-plan`: the desk in the terminal window
+/// (`zengine-graphics` and `zengine-window-terminal` in the medium's two rows), and the desk in
+/// an SDL window, staged only where the SDL skin and reader were built.
+inline constexpr const char* kWindowLoadPlanName = "window-load-plan.json";
 inline constexpr const char* kGraphicalLoadPlanName = "graphical-load-plan.json";
 
 /// The ceiling: an order of magnitude above the largest legal plan, so a hostile file does not

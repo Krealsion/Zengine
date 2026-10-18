@@ -47,7 +47,7 @@ and menus are tools too, and you can change or replace them while Workshop runs.
 |---|---|
 | `desktop-pane/` | the Pane Manager and the Hotkeys pane: the desk's default behaviour |
 | `menu-presenter/` | the tool that shows a pane's menu; you can replace it |
-| `default-load-plan.json`, `graphical-load-plan.json` | the shipped load plans: terminal, windowed |
+| `default-load-plan.json`, `window-load-plan.json`, `graphical-load-plan.json` | the shipped load plans: terminal, terminal window, SDL window |
 | `pane_vocabulary.hpp` and its helpers | the pane protocol a tool speaks, installed: `#include "workshop/pane_vocabulary.hpp"`, linking `zengine::pane` |
 | `workshop.cpp` and the rest | the Workshop program |
 | `docs/` | these pages |

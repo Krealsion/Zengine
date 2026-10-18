@@ -33,6 +33,7 @@
 #include "builder/vocabulary.hpp"
 #include "editor/editor-pane/editor.hpp"
 #include "editor/editor-pane/vocabulary.hpp"
+#include "graphics/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
 #include "workshop/opening.hpp"
@@ -101,10 +102,13 @@ struct Stage {
             }
         }
         REQUIRE_MESSAGE(!ec, "cannot list the stage ", dir.string(), ": ", ec.message());
-        // THE FOUR ARTIFACTS THIS SUITE STAGES, and one of them is never named by a
+        // THE ARTIFACTS THIS SUITE STAGES, and one of them is never named by a
         // plan in tier 6 on purpose.
         put("zengine-operators-basic", PROVIDER_BASIC_SO);
         put("zengine-timer", TIMER_SO);
+        // The window plan's two medium rows: the graphics directory and the terminal window.
+        put("zengine-graphics", GRAPHICS_SO);
+        put("zengine-window-terminal", WINDOW_TERMINAL_SO);
         put("zengine-provider-min", PROVIDER_MIN_SO);
         put("zengine-plain-weave", PLAIN_WEAVE_SO);
 #ifdef EDITOR_PANE_SO
@@ -1240,7 +1244,7 @@ TEST_CASE("the Timer appears exactly ONCE in the shipped plan, participating in 
 }
 
 TEST_CASE("the shipped plans carry no operator identity, no suffix and no path") {
-    for (const char* path : {WORKSHOP_DEFAULT_PLAN, WORKSHOP_GRAPHICAL_PLAN}) {
+    for (const char* path : {WORKSHOP_DEFAULT_PLAN, WORKSHOP_WINDOW_PLAN, WORKSHOP_GRAPHICAL_PLAN}) {
         const std::string text = file_text(path);
         // PROVIDERS OWN THE VOCABULARY. A plan that copied an operator identity into
         // the project file would be a host authoring semantics one indirection out.
@@ -1273,6 +1277,61 @@ TEST_CASE("the graphical plan differs from the default in exactly the two medium
         }
     }
     CHECK(different == 2);
+}
+
+TEST_CASE("the window plan differs from the default in exactly the two medium rows, and they "
+          "realize") {
+    const load_persist::LoadedPlan tui = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
+    const load_persist::LoadedPlan win = load_persist::from_text(file_text(WORKSHOP_WINDOW_PLAN));
+    REQUIRE(tui.outcome.accepted);
+    REQUIRE_MESSAGE(win.outcome.accepted, win.outcome.refusal);
+    REQUIRE(win.plan.artifacts.size() == tui.plan.artifacts.size());
+    CHECK(win.plan.choices == tui.plan.choices);
+    for (std::size_t i = 0; i < tui.plan.artifacts.size(); ++i) {
+        if (i != 2 && i != 3) {
+            CAPTURE(tui.plan.artifacts[i].stem);
+            CHECK(win.plan.artifacts[i] == tui.plan.artifacts[i]);
+        }
+    }
+
+    // THE MEDIUM'S TWO ROWS: the directory where the skin stood and the window where the reader
+    // stood, each a required weave in the office its own code answers to, and neither a provider.
+    const load::ArtifactIntent& directory = win.plan.artifacts[2];
+    const load::ArtifactIntent& window = win.plan.artifacts[3];
+    CHECK(directory.stem == "zengine-graphics");
+    CHECK_FALSE(directory.provider.has_value());
+    REQUIRE(directory.weave.has_value());
+    CHECK(directory.weave->role == zengine::graphics::kGraphicsRole);
+    CHECK_FALSE(directory.optional);
+    CHECK(window.stem == "zengine-window-terminal");
+    CHECK_FALSE(window.provider.has_value());
+    REQUIRE(window.weave.has_value());
+    CHECK(window.weave->role == std::string(zengine::graphics::kWindowOfficePrefix) +
+                                    zengine::graphics::kTerminalWindow);
+    CHECK_FALSE(window.optional);
+
+    // ...AND THEY REALIZE AS THE PLAN NAMES THEM, between the basic provider before them and the
+    // Timer after them whose beat the window reads its terminal on: two weaves loaded, at their
+    // offices, by the real Kernel from the staged artifacts.
+    PlanRig rig;
+    const load::Executed done = rig.realize(plan_of(
+        {win.plan.artifacts[0], directory, window, win.plan.artifacts[4]}));
+    REQUIRE_MESSAGE(done.ok, done.refusal);
+    REQUIRE(done.resolved.size() == 4);
+    for (std::size_t i : {std::size_t{1}, std::size_t{2}}) {
+        const load::ResolvedArtifact& row = done.resolved[i];
+        CAPTURE(row.stem);
+        CHECK(row.weave_loaded);
+        CHECK(row.weave.value != 0);
+        CHECK_FALSE(row.provider_mounted);
+        CHECK(rig.kernel.is_loaded(row.stem));
+    }
+    CHECK(done.resolved[1].stem == "zengine-graphics");
+    CHECK(done.resolved[1].role == "zengine.graphics");
+    CHECK(done.resolved[2].stem == "zengine-window-terminal");
+    CHECK(done.resolved[2].role == "zengine.window.terminal");
+    CHECK(done.resolved[3].weave_loaded);
+    CHECK(done.resolved[3].role == tmr::kTimerRole);
 }
 
 // =============================================================================

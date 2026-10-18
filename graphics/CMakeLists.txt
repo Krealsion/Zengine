@@ -2,13 +2,18 @@
 # operators, a canvas), the terminal window that shows what owners draw, the directory that
 # introduces an area to its window, and two skins as painter code a window opens.
 
-# The vocabulary and its helpers travel as a header-only interface target, as Surface's do:
-# consumers spell `#include "graphics/vocabulary.hpp"`. The seams' C headers are among them.
+# The vocabulary and its helpers travel as a header-only interface target, as Surface's do, and
+# install with the package (cmake/ZengineInstall.cmake): consumers spell
+# `#include "graphics/vocabulary.hpp"`. The seams' C headers are among them. Its link line is what
+# the headers include: the Loom's values and shapes, Surface's roles, and the activation cursor a
+# drawing weave keeps (`drawing.hpp`).
 add_library(zengine-graphics-vocabulary INTERFACE)
 target_include_directories(zengine-graphics-vocabulary INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>)
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/zengine>)
 add_library(zengine::graphics ALIAS zengine-graphics-vocabulary)
-target_link_libraries(zengine-graphics-vocabulary INTERFACE loom::core zengine-surface-vocabulary)
+target_link_libraries(zengine-graphics-vocabulary INTERFACE loom::core zengine-surface-vocabulary
+                                                            zengine-activation)
 
 if(NOT TARGET loom::kernel)
     message(STATUS "zengine: graphics weaves skipped — this Loom cannot host loadable weaves (no loom::kernel)")

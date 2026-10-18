@@ -1220,8 +1220,12 @@ zengine_manual(zengine-workshop-panes-tests PRIVATE ${PROJECT_SOURCE_DIR}/intros
 zengine_workshop_suite(load SOURCES test_workshop_load.cpp
     NEEDS zengine-timer zengine-provider-abi zengine-operator-consumer-weave-abi
           zengine-operator-consumer-weave zengine-introspection zengine-legacy-pane
+          zengine-graphics zengine-window-terminal
     DEFINITIONS "WORKSHOP_LOAD_STAGE_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/load-plan-stage\""
                 "TIMER_SO=\"$<TARGET_FILE:zengine-timer>\""
+                # The window plan's two medium rows, realized as the plan names them.
+                "GRAPHICS_SO=\"$<TARGET_FILE:zengine-graphics>\""
+                "WINDOW_TERMINAL_SO=\"$<TARGET_FILE:zengine-window-terminal>\""
                 # Two more real images: a good consumer weave, whose reload must say `Offered`
                 # again, and one with another state shape, for the changed-shape refusal.
                 "CONSUMER_SO=\"$<TARGET_FILE:zengine-operator-consumer-weave>\""
@@ -1239,9 +1243,10 @@ zengine_workshop_suite(load SOURCES test_workshop_load.cpp
                 # both must remain distinguishable from "an ordinary artifact".
                 "PROVIDER_ABI_SO=\"$<TARGET_FILE:zengine-provider-abi>\""
                 "BROKEN_CONSUMER_SO=\"$<TARGET_FILE:zengine-operator-consumer-weave-abi>\""
-                # The two plan files this repository SHIPS, read as files rather than as a
+                # The plan files this repository SHIPS, read as files rather than as a
                 # description of files.
                 "WORKSHOP_DEFAULT_PLAN=\"${CMAKE_SOURCE_DIR}/workshop/default-load-plan.json\""
+                "WORKSHOP_WINDOW_PLAN=\"${CMAKE_SOURCE_DIR}/workshop/window-load-plan.json\""
                 "WORKSHOP_GRAPHICAL_PLAN=\"${CMAKE_SOURCE_DIR}/workshop/graphical-load-plan.json\"")
 # The panes suite (above) also embeds the Connections pane's page and the Demo controls', whose
 # weave it compiles in, which their answers are compared to.
