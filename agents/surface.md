@@ -402,7 +402,7 @@ state a pipe reaches every day; the mistake would look exactly like the truth on
 forever.
 
 ```text
-native_terminal_size()   surface/terminal_size.hpp -- the ONE #if defined(_WIN32) any of this needs
+native_terminal_size()   graphics/window/terminal_io.hpp -- the ONE #if defined(_WIN32) any of this needs
 TuiTerminal::size()      gated on the same `ok_` the alternate-screen CLAIM is
 tui_canvas_extent()      pure: a terminal size -> what a CANVAS fits in it
 SkinT::report_extent     publish on change, never publish "no opinion"

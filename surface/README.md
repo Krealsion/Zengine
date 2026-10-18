@@ -31,7 +31,7 @@ running Skin has another library to be replaced by.
 | `vocabulary.hpp` | the messages: what a weave publishes to be drawn, and what the Skin reports back |
 | `region.hpp`, `cells.hpp` | how much text a region holds, and the arithmetic every Skin shares |
 | `pointing.hpp` | where a pointer lands on the canvas ([Pointer spaces](../workshop/docs/pointer-spaces.md)) |
-| `terminal_size.hpp` | how big the terminal is |
+| `terminal_size.hpp`, `tui_terminal.hpp` | how big the terminal is, and its claimed output side: the terminal window's own (`graphics/window/terminal_io.hpp`), spelled for Surface |
 | `skin.hpp` | what every Skin has in common |
 | `skin_tui.hpp`, `skin_tui_classic.cpp`, `skin_tui_block.cpp` | the terminal Skin, `zengine-skin-tui-classic`, and `zengine-skin-tui-block`, the same Skin built as a second library for live replacement |
 | `skin_sdl.cpp`, `skin_sdl_plan.hpp`, `skin_sdl_text.hpp`, `skin_sdl_glyphs.hpp` | the window Skin, `zengine-skin-sdl`, built where SDL is available |

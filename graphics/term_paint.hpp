@@ -83,6 +83,112 @@ struct Look {
     bool mono = false;
 };
 
+/// A path flattened: each subpath a polygon of points.
+using Polygon = std::vector<std::pair<double, double>>;
+
+/// SVG path data (M L H V C Q Z, absolute and relative), flattened to polygons in the path's own
+/// pixels; a command outside that subset ends the path there. Every painter reads a path so.
+inline std::vector<Polygon> flatten_path(const std::string& d) {
+    std::vector<Polygon> polys;
+    Polygon cur;
+    double x = 0, y = 0, sx = 0, sy = 0;
+    std::size_t i = 0;
+    char cmd = 0;
+    const auto skip = [&] {
+        while (i < d.size() &&
+               (std::isspace(static_cast<unsigned char>(d[i])) != 0 || d[i] == ',')) {
+            ++i;
+        }
+    };
+    const auto number = [&](double& out) {
+        skip();
+        const char* start = d.c_str() + i;
+        char* end = nullptr;
+        out = std::strtod(start, &end);
+        if (end == start) {
+            return false;
+        }
+        i += static_cast<std::size_t>(end - start);
+        return true;
+    };
+    const auto close = [&] {
+        if (!cur.empty()) {
+            polys.push_back(cur);
+            cur.clear();
+        }
+    };
+    for (int guard = 0; guard < 100000; ++guard) {
+        skip();
+        if (i >= d.size()) {
+            break;
+        }
+        if (std::isalpha(static_cast<unsigned char>(d[i])) != 0) {
+            cmd = d[i++];
+        }
+        const bool rel = std::islower(static_cast<unsigned char>(cmd)) != 0;
+        const char up = static_cast<char>(std::toupper(static_cast<unsigned char>(cmd)));
+        double a = 0, b = 0, c = 0, e = 0, f = 0, g = 0;
+        if (up == 'Z') {
+            close();
+            x = sx;
+            y = sy;
+            if (i < d.size() && std::isalpha(static_cast<unsigned char>(d[i])) == 0) {
+                ++i;
+            }
+            continue;
+        }
+        if (up == 'M' && number(a) && number(b)) {
+            close();
+            x = rel ? x + a : a;
+            y = rel ? y + b : b;
+            sx = x;
+            sy = y;
+            cur.push_back({x, y});
+            cmd = rel ? 'l' : 'L';
+        } else if (up == 'L' && number(a) && number(b)) {
+            x = rel ? x + a : a;
+            y = rel ? y + b : b;
+            cur.push_back({x, y});
+        } else if (up == 'H' && number(a)) {
+            x = rel ? x + a : a;
+            cur.push_back({x, y});
+        } else if (up == 'V' && number(a)) {
+            y = rel ? y + a : a;
+            cur.push_back({x, y});
+        } else if (up == 'C' && number(a) && number(b) && number(c) && number(e) &&
+                   number(f) && number(g)) {
+            const double x0 = x, y0 = y;
+            const double x1 = rel ? x + a : a, y1 = rel ? y + b : b;
+            const double x2 = rel ? x + c : c, y2 = rel ? y + e : e;
+            const double x3 = rel ? x + f : f, y3 = rel ? y + g : g;
+            for (int k = 1; k <= 16; ++k) {
+                const double t = k / 16.0, u = 1 - t;
+                cur.push_back({u * u * u * x0 + 3 * u * u * t * x1 + 3 * u * t * t * x2 +
+                                   t * t * t * x3,
+                               u * u * u * y0 + 3 * u * u * t * y1 + 3 * u * t * t * y2 +
+                                   t * t * t * y3});
+            }
+            x = x3;
+            y = y3;
+        } else if (up == 'Q' && number(a) && number(b) && number(c) && number(e)) {
+            const double x0 = x, y0 = y;
+            const double x1 = rel ? x + a : a, y1 = rel ? y + b : b;
+            const double x2 = rel ? x + c : c, y2 = rel ? y + e : e;
+            for (int k = 1; k <= 16; ++k) {
+                const double t = k / 16.0, u = 1 - t;
+                cur.push_back({u * u * x0 + 2 * u * t * x1 + t * t * x2,
+                               u * u * y0 + 2 * u * t * y1 + t * t * y2});
+            }
+            x = x2;
+            y = y2;
+        } else {
+            break;
+        }
+    }
+    close();
+    return polys;
+}
+
 inline std::int64_t floor_cell(std::int64_t v) {
     return v >= 0 ? v / kCellPx : -((-v + kCellPx - 1) / kCellPx);
 }
@@ -237,113 +343,10 @@ private:
         }
     }
 
-    using Polygon = std::vector<std::pair<double, double>>;
-
-    /// SVG path data (M L H V C Q Z, absolute and relative), flattened to polygons; a command
-    /// outside that subset ends the path there.
-    static std::vector<Polygon> flatten(const std::string& d) {
-        std::vector<Polygon> polys;
-        Polygon cur;
-        double x = 0, y = 0, sx = 0, sy = 0;
-        std::size_t i = 0;
-        char cmd = 0;
-        const auto skip = [&] {
-            while (i < d.size() &&
-                   (std::isspace(static_cast<unsigned char>(d[i])) != 0 || d[i] == ',')) {
-                ++i;
-            }
-        };
-        const auto number = [&](double& out) {
-            skip();
-            const char* start = d.c_str() + i;
-            char* end = nullptr;
-            out = std::strtod(start, &end);
-            if (end == start) {
-                return false;
-            }
-            i += static_cast<std::size_t>(end - start);
-            return true;
-        };
-        const auto close = [&] {
-            if (!cur.empty()) {
-                polys.push_back(cur);
-                cur.clear();
-            }
-        };
-        for (int guard = 0; guard < 100000; ++guard) {
-            skip();
-            if (i >= d.size()) {
-                break;
-            }
-            if (std::isalpha(static_cast<unsigned char>(d[i])) != 0) {
-                cmd = d[i++];
-            }
-            const bool rel = std::islower(static_cast<unsigned char>(cmd)) != 0;
-            const char up = static_cast<char>(std::toupper(static_cast<unsigned char>(cmd)));
-            double a = 0, b = 0, c = 0, e = 0, f = 0, g = 0;
-            if (up == 'Z') {
-                close();
-                x = sx;
-                y = sy;
-                if (i < d.size() && std::isalpha(static_cast<unsigned char>(d[i])) == 0) {
-                    ++i;
-                }
-                continue;
-            }
-            if (up == 'M' && number(a) && number(b)) {
-                close();
-                x = rel ? x + a : a;
-                y = rel ? y + b : b;
-                sx = x;
-                sy = y;
-                cur.push_back({x, y});
-                cmd = rel ? 'l' : 'L';
-            } else if (up == 'L' && number(a) && number(b)) {
-                x = rel ? x + a : a;
-                y = rel ? y + b : b;
-                cur.push_back({x, y});
-            } else if (up == 'H' && number(a)) {
-                x = rel ? x + a : a;
-                cur.push_back({x, y});
-            } else if (up == 'V' && number(a)) {
-                y = rel ? y + a : a;
-                cur.push_back({x, y});
-            } else if (up == 'C' && number(a) && number(b) && number(c) && number(e) &&
-                       number(f) && number(g)) {
-                const double x0 = x, y0 = y;
-                const double x1 = rel ? x + a : a, y1 = rel ? y + b : b;
-                const double x2 = rel ? x + c : c, y2 = rel ? y + e : e;
-                const double x3 = rel ? x + f : f, y3 = rel ? y + g : g;
-                for (int k = 1; k <= 16; ++k) {
-                    const double t = k / 16.0, u = 1 - t;
-                    cur.push_back({u * u * u * x0 + 3 * u * u * t * x1 + 3 * u * t * t * x2 +
-                                       t * t * t * x3,
-                                   u * u * u * y0 + 3 * u * u * t * y1 + 3 * u * t * t * y2 +
-                                       t * t * t * y3});
-                }
-                x = x3;
-                y = y3;
-            } else if (up == 'Q' && number(a) && number(b) && number(c) && number(e)) {
-                const double x0 = x, y0 = y;
-                const double x1 = rel ? x + a : a, y1 = rel ? y + b : b;
-                const double x2 = rel ? x + c : c, y2 = rel ? y + e : e;
-                for (int k = 1; k <= 16; ++k) {
-                    const double t = k / 16.0, u = 1 - t;
-                    cur.push_back({u * u * x0 + 2 * u * t * x1 + t * t * x2,
-                                   u * u * y0 + 2 * u * t * y1 + t * t * y2});
-                }
-                x = x2;
-                y = y2;
-            } else {
-                break;
-            }
-        }
-        close();
-        return polys;
-    }
+    using Polygon = term::Polygon;
 
     void path(const PathArgs& a) const {
-        auto polys = flatten(a.d);
+        auto polys = flatten_path(a.d);
         for (Polygon& poly : polys) {
             for (auto& [px, py] : poly) {
                 px += static_cast<double>(space_.dx);

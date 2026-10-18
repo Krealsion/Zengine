@@ -23,15 +23,23 @@
 #include "graphics/drawing.hpp"
 #include "graphics/elements.hpp"
 #include "graphics/implied.hpp"
+#include "graphics/light_paint.hpp"
 #include "graphics/ops.hpp"
 #include "graphics/painting.hpp"
+#include "graphics/role.hpp"
 #include "graphics/term_paint.hpp"
 #include "graphics/vocabulary.hpp"
-#include "graphics/window/window.hpp"
+#include "graphics/window/terminal_io.hpp"
+#include "graphics/window/window_sdl.hpp"
+#include "graphics/window/window_terminal.hpp"
 #include "input/terminal_reader.hpp"
 #include "input/translate.hpp"
 #include "manuals/zengine.graphics.hpp"
+#include "manuals/zengine.window.sdl.hpp"
 #include "manuals/zengine.window.terminal.hpp"
+#include "surface/terminal_size.hpp"
+#include "surface/tui_terminal.hpp"
+#include "surface/vocabulary.hpp"
 #include "workshop/attention_seam_vocabulary.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
 #include "workshop/pane_facets.hpp"
@@ -41,12 +49,22 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <vector>
+
+#if defined(GRAPHICS_HAS_SDL)
+#include <SDL3/SDL.h>
+#endif
 
 namespace gfx = zengine::graphics;
 namespace snake = zengine::snake;
@@ -2981,3 +2999,844 @@ TEST_CASE("the Connections pane draws in a graphics window: whole on its room, e
         CHECK(d.unsaid.empty());
     }
 }
+
+// ============================================================================
+// Light -- the painter for light, its skins, and the OS window over a pixel backend
+// ============================================================================
+
+namespace {
+
+namespace light = zengine::graphics::light;
+namespace gw = zengine::graphics::window;
+
+std::string sdl_office() { return std::string(gfx::kWindowOfficePrefix) + gfx::kSdlWindow; }
+
+/// The primitives each node of a sketch paints for light, in the sketch's order.
+std::vector<light::NodePrimitives> lit(const gfx::Sketch& s, const light::Look& look) {
+    gfx::PaintTask task;
+    std::int64_t rank = 1;
+    for (const gfx::Node& n : s.nodes()) {
+        task.nodes.push_back(gfx::PaintNode{n.path, {rank++}, n.op, n.args});
+    }
+    std::vector<light::NodePrimitives> out;
+    for (const gfx::NodePaint& np : light::paint_task(task, look).nodes) {
+        auto p = light::unpack_node(np.cells);
+        REQUIRE(p.has_value());
+        out.push_back(std::move(*p));
+    }
+    return out;
+}
+
+std::uint32_t ink_of(const light::Look& look, std::int64_t role) {
+    return light::rgba_of(look.colour.at(role));
+}
+
+/// Every operator once, in one picture: a group holding the rest.
+gfx::Sketch every_operator() {
+    gfx::Sketch s;
+    s.group("g", 10, 20);
+    s.rect("g/rect", 0, 0, 40, 30, gfx::by_role(gfx::role::kAccent), gfx::by_role(gfx::role::kFill));
+    s.ellipse("g/ellipse", 50, 0, 20, 10, gfx::exact(gfx::role::kFill, 0x123456),
+              gfx::by_role(gfx::role::kMuted));
+    s.line("g/line", 0, 40, 30, 40, gfx::by_role(gfx::role::kAlert));
+    s.path("g/path", "M 0 50 L 20 50 L 20 60 L 0 60 Z", gfx::by_role(gfx::role::kGuide),
+           gfx::by_role(gfx::role::kFill));
+    s.text("g/text", 0, 70, "hi\xC3\xA9!", gfx::by_role(gfx::role::kFill));
+    s.image("g/image", 0, 90, 4, 2, 2, 1, loom::Bytes{255, 0, 0, 255, 0, 255, 0, 255});
+    return s;
+}
+
+} // namespace
+
+TEST_CASE("the painter for light paints all seven operators into pixel primitives, each in its "
+          "exact colour or its role's in the look") {
+    const light::Look day = light::day_look();
+    const auto nodes = lit(every_operator(), day);
+    REQUIRE(nodes.size() == 6); // the group paints nothing of its own
+
+    const light::NodePrimitives& rect = nodes[0];
+    REQUIRE(rect.quads.size() == 5); // the fill, then four edges a pixel wide
+    CHECK(rect.quads[0] == light::Quad{10, 20, 40, 30, ink_of(day, gfx::role::kAccent)});
+    CHECK(rect.quads[1] == light::Quad{10, 20, 40, 1, ink_of(day, gfx::role::kFill)});
+    CHECK(rect.quads[4] == light::Quad{49, 20, 1, 30, ink_of(day, gfx::role::kFill)});
+
+    const light::NodePrimitives& ellipse = nodes[1];
+    CHECK(ellipse.quads.size() == 10); // a span a pixel row
+    for (const light::Quad& q : ellipse.quads) {
+        CHECK(q.rgba == light::rgba_of(0x123456)); // the exact colour, not its role's
+        CHECK(q.x >= 60);
+        CHECK(q.x + q.w <= 80);
+    }
+    CHECK(ellipse.lines.size() == 48);
+    CHECK(ellipse.lines[0].rgba == ink_of(day, gfx::role::kMuted));
+
+    const light::NodePrimitives& line = nodes[2];
+    REQUIRE(line.lines.size() == 1);
+    CHECK(line.lines[0] == light::Line{10, 60, 40, 60, ink_of(day, gfx::role::kAlert)});
+
+    const light::NodePrimitives& path = nodes[3];
+    CHECK(path.quads.size() == 10); // the square's ten pixel rows
+    CHECK(path.quads[0] == light::Quad{10, 70, 20, 1, ink_of(day, gfx::role::kGuide)});
+    CHECK(path.lines.size() == 3); // between its points as flattened: a closing Z adds none
+
+    const light::NodePrimitives& text = nodes[4];
+    REQUIRE(text.texts.size() == 1);
+    CHECK(text.texts[0] == light::TextRun{10, 90, ink_of(day, gfx::role::kFill), "hi?!"});
+
+    const light::NodePrimitives& image = nodes[5];
+    REQUIRE(image.images.size() == 1);
+    CHECK(image.images[0].x == 10);
+    CHECK(image.images[0].y == 110);
+    CHECK(image.images[0].w == 4);
+    CHECK(image.images[0].pw == 2);
+    CHECK(image.images[0].rgba == loom::Bytes{255, 0, 0, 255, 0, 255, 0, 255});
+
+    // An operator this medium does not know, named and muted.
+    gfx::Sketch u;
+    u.put("u", "sparkle", gfx::RectArgs{});
+    const auto unknown = lit(u, day);
+    REQUIRE(unknown[0].texts.size() == 1);
+    CHECK(unknown[0].texts[0].text == "?sparkle");
+    CHECK(unknown[0].texts[0].rgba == ink_of(day, gfx::role::kMuted));
+
+    // The night look inks the same picture otherwise, and text in the medium's ground is fill.
+    gfx::Sketch g;
+    g.text("t", 0, 0, "x", gfx::by_role(gfx::role::kMediumGround));
+    const light::Look night = light::night_look();
+    CHECK(lit(g, night)[0].texts[0].rgba == ink_of(night, gfx::role::kFill));
+    CHECK(ink_of(night, gfx::role::kFill) != ink_of(day, gfx::role::kFill));
+}
+
+TEST_CASE("a group's clip cuts what its children paint for light: quads, lines, text and images") {
+    gfx::Sketch s;
+    s.group("g", 10, 10, 20, 12); // the clip, (10, 10) to (30, 22)
+    s.fill_rect("g/r", -5, -5, 100, 100, gfx::by_role(gfx::role::kFill));
+    s.line("g/l", -10, 5, 50, 5, gfx::by_role(gfx::role::kFill));
+    s.text("g/t", 0, 0, "abcdef", gfx::by_role(gfx::role::kFill));
+    s.text("g/below", 0, 40, "gone", gfx::by_role(gfx::role::kFill));
+    s.image("g/i", 10, 0, 20, 10, 2, 1, loom::Bytes{1, 1, 1, 255, 2, 2, 2, 255});
+    const auto nodes = lit(s, light::day_look());
+    REQUIRE(nodes.size() == 5);
+    REQUIRE(nodes[0].quads.size() == 1);
+    CHECK(nodes[0].quads[0].x == 10);
+    CHECK(nodes[0].quads[0].y == 10);
+    CHECK(nodes[0].quads[0].w == 20);
+    CHECK(nodes[0].quads[0].h == 12);
+    REQUIRE(nodes[1].lines.size() == 1);
+    CHECK(nodes[1].lines[0].x1 == 10);
+    CHECK(nodes[1].lines[0].x2 == 29);
+    REQUIRE(nodes[2].texts.size() == 1);
+    CHECK(nodes[2].texts[0].text == "ab"); // two whole characters in twenty pixels
+    CHECK(nodes[3].empty());               // a line whose top is outside the clip
+    REQUIRE(nodes[4].images.size() == 1);
+    CHECK(nodes[4].images[0].x == 20);
+    CHECK(nodes[4].images[0].w == 10); // half the image shows
+    CHECK(nodes[4].images[0].pw == 1); // and half its pixels go with it
+    CHECK(nodes[4].images[0].rgba == loom::Bytes{1, 1, 1, 255});
+}
+
+TEST_CASE("a node painted for light packs and reads back whole, and bytes that are not one are "
+          "refused") {
+    light::NodePrimitives n;
+    n.quads.push_back(light::Quad{-3, 4, 5, 6, 0x11223344u});
+    n.lines.push_back(light::Line{1, 2, 3, 4, 0xaabbccddu});
+    n.texts.push_back(light::TextRun{7, 8, 0x01020304u, "words"});
+    n.images.push_back(light::ImageBlit{0, 0, 2, 2, 1, 1, loom::Bytes{9, 9, 9, 9}});
+    const loom::Bytes packed = light::pack_node(n);
+    CHECK(light::is_light(packed));
+    const auto back = light::unpack_node(packed);
+    REQUIRE(back.has_value());
+    CHECK(*back == n);
+    CHECK(light::unpack_node(light::pack_node(light::NodePrimitives{})).has_value());
+
+    // Cut short, run on, untagged, or an image whose pixels are not pw * ph * 4 bytes: refused.
+    CHECK_FALSE(light::unpack_node(loom::Bytes(packed.begin(), packed.end() - 1)).has_value());
+    loom::Bytes longer = packed;
+    longer.push_back(0);
+    CHECK_FALSE(light::unpack_node(longer).has_value());
+    loom::Bytes untagged = packed;
+    untagged[0] = 'X';
+    CHECK_FALSE(light::unpack_node(untagged).has_value());
+    light::NodePrimitives bad;
+    bad.images.push_back(light::ImageBlit{0, 0, 1, 1, 2, 2, loom::Bytes{1, 2, 3, 4}});
+    CHECK_FALSE(light::unpack_node(light::pack_node(bad)).has_value());
+    // A count larger than the bytes behind it is refused before anything is reserved for it.
+    loom::Bytes huge(light::kTag.begin(), light::kTag.end());
+    const loom::Bytes counts{0xff, 0xff, 0xff, 0x7f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    huge.insert(huge.end(), counts.begin(), counts.end());
+    CHECK_FALSE(light::unpack_node(huge).has_value());
+
+    // What a character painter writes is not light.
+    gfx::Sketch s;
+    s.fill_rect("r", 0, 0, 24, 12, gfx::by_role(gfx::role::kFill));
+    gfx::PaintTask task;
+    task.nodes.push_back(gfx::PaintNode{"r", {1}, s.nodes()[0].op, s.nodes()[0].args});
+    const gfx::PaintResult cells = gfx::term::paint_task(task, gfx::term::Look{});
+    REQUIRE(cells.nodes.size() == 1);
+    CHECK_FALSE(light::is_light(cells.nodes[0].cells));
+    CHECK_FALSE(light::unpack_node(cells.nodes[0].cells).has_value());
+}
+
+TEST_CASE("a point lands on a node painted for light where it painted, and within a pixel of a "
+          "line") {
+    light::NodePrimitives n;
+    n.quads.push_back(light::Quad{10, 10, 5, 5, 0});
+    n.texts.push_back(light::TextRun{40, 0, 0, "abc"});
+    n.images.push_back(light::ImageBlit{0, 40, 8, 8, 1, 1, loom::Bytes{0, 0, 0, 0}});
+    n.lines.push_back(light::Line{100, 0, 100, 50, 0});
+    CHECK(light::hits_node(n, 10, 10));
+    CHECK(light::hits_node(n, 14, 14));
+    CHECK_FALSE(light::hits_node(n, 15, 15));
+    CHECK(light::hits_node(n, 40 + 3 * light::kAdvance - 1, light::kLine - 1)); // the run's box
+    CHECK_FALSE(light::hits_node(n, 40 + 3 * light::kAdvance, 0));
+    CHECK(light::hits_node(n, 7, 47));
+    CHECK(light::hits_node(n, 101, 25)); // a pixel from the line
+    CHECK_FALSE(light::hits_node(n, 102, 25));
+    CHECK_FALSE(light::hits_node(n, 100, 52)); // past its end
+}
+
+TEST_CASE("no source in the graphics package includes Surface") {
+    std::size_t read = 0;
+    std::vector<std::string> including;
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(GRAPHICS_SOURCE_DIR)) {
+        const std::string ext = entry.path().extension().string();
+        if (!entry.is_regular_file() || (ext != ".hpp" && ext != ".cpp" && ext != ".h")) {
+            continue;
+        }
+        std::ifstream in(entry.path(), std::ios::binary);
+        const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        ++read;
+        if (text.find("#include \"surface/") != std::string::npos) {
+            including.push_back(entry.path().generic_string());
+        }
+    }
+    CHECK(read > 20); // the population is the package's sources, not an empty folder
+    CHECK(including.empty());
+}
+
+TEST_CASE("the terminal's claim, size and ink are the graphics package's, and Surface's spelling "
+          "names the same things") {
+    static_assert(std::is_same_v<zengine::surface::TerminalSize, gw::TerminalSize>);
+    static_assert(std::is_same_v<zengine::surface::TuiTerminal, gw::TuiTerminal>);
+    CHECK(zengine::surface::role::kGuide == 6); // the one set of roles, spelled in either namespace
+    CHECK(std::string(zengine::surface::sgr_for_role(6)) == gw::sgr_for_role(6));
+    CHECK(std::string(gw::sgr_for_role(static_cast<int>(gfx::role::kAccent))) == "\x1b[36m");
+    CHECK(std::string(gw::sgr_for_role(static_cast<int>(gfx::role::kGuide))) == "\x1b[95m");
+    CHECK(std::string(gw::sgr_for_role(static_cast<int>(gfx::role::kMediumGround))) == "\x1b[39m");
+    CHECK(gw::tui_enter_sequence(true).find(gw::kTuiPointerOn) != std::string::npos);
+}
+
+TEST_CASE("the day and night skins paint light across the painter seam, each in its own look, and "
+          "a skin for characters does not") {
+    gw::Painters painters;
+    std::string why;
+    const ZenginePainterV1* day = painters.get(PAINT_DAY_SO, why);
+    REQUIRE_MESSAGE(day != nullptr, why);
+    const ZenginePainterV1* night = painters.get(PAINT_NIGHT_SO, why);
+    REQUIRE_MESSAGE(night != nullptr, why);
+    CHECK(std::string(day->name) == "day");
+    CHECK(std::string(night->name) == "night");
+
+    gfx::Sketch s;
+    s.fill_rect("r", 0, 0, 24, 12, gfx::by_role(gfx::role::kFill));
+    s.text("t", 0, 0, "seam", gfx::exact(gfx::role::kFill, 0x0a0b0c));
+    gfx::PaintTask task;
+    std::int64_t rank = 1;
+    for (const gfx::Node& n : s.nodes()) {
+        task.nodes.push_back(gfx::PaintNode{n.path, {rank++}, n.op, n.args});
+    }
+    const auto by_day = painters.paint(day, task, why);
+    const auto by_night = painters.paint(night, task, why);
+    REQUIRE_MESSAGE(by_day.has_value(), why);
+    REQUIRE_MESSAGE(by_night.has_value(), why);
+    REQUIRE(by_day->nodes.size() == 2);
+    const auto day_rect = light::unpack_node(by_day->nodes[0].cells);
+    const auto night_rect = light::unpack_node(by_night->nodes[0].cells);
+    REQUIRE(day_rect.has_value());
+    REQUIRE(night_rect.has_value());
+    CHECK(day_rect->quads[0].rgba == ink_of(light::day_look(), gfx::role::kFill));
+    CHECK(night_rect->quads[0].rgba == ink_of(light::night_look(), gfx::role::kFill));
+    const auto day_text = light::unpack_node(by_day->nodes[1].cells);
+    REQUIRE(day_text.has_value());
+    CHECK(day_text->texts[0].rgba == light::rgba_of(0x0a0b0c)); // exact in every look
+    CHECK(painters.calls == 2);
+
+    const ZenginePainterV1* classic = painters.get(PAINT_CLASSIC_SO, why);
+    REQUIRE_MESSAGE(classic != nullptr, why);
+    const auto by_classic = painters.paint(classic, task, why);
+    REQUIRE(by_classic.has_value());
+    CHECK_FALSE(light::is_light(by_classic->nodes[0].cells));
+}
+
+namespace {
+
+/// What the OS window handed its backend and what the suite queues for it to read.
+struct LightLog {
+    struct Area {
+        std::string area;
+        std::int64_t x = 0, y = 0, w = 0, h = 0;
+        std::vector<std::string> paths;
+        std::vector<std::uint64_t> versions;
+        std::vector<light::NodePrimitives> nodes;
+    };
+    struct Frame {
+        std::int64_t width = 0, height = 0;
+        std::uint32_t ground = 0;
+        std::vector<Area> areas;
+    };
+    gw::PixelSize size{gw::kDefaultWidth, gw::kDefaultHeight};
+    gw::PixelPolled queued;
+    std::vector<Frame> frames;
+    int claims = 0;
+
+    const Area* area(const std::string& name) const {
+        if (frames.empty()) {
+            return nullptr;
+        }
+        for (const Area& a : frames.back().areas) {
+            if (a.area == name) {
+                return &a;
+            }
+        }
+        return nullptr;
+    }
+};
+
+/// A pixel backend the suite reads, sizes and types into.
+class FakeSdlBackend {
+public:
+    FakeSdlBackend() = default;
+    explicit FakeSdlBackend(LightLog* log) : log_(log) {}
+    void claim() { ++log_->claims; }
+    gw::PixelSize size() const { return log_->size; }
+    bool present(const gw::ComposedLightFrame& frame) {
+        LightLog::Frame f{frame.width, frame.height, frame.ground, {}};
+        for (const gw::LightAreaShown& a : frame.areas) {
+            LightLog::Area kept{a.area, a.x, a.y, a.w, a.h, {}, {}, {}};
+            for (const gw::LightNodeShown& n : a.nodes) {
+                kept.paths.push_back(n.path);
+                kept.versions.push_back(n.version);
+                kept.nodes.push_back(*n.prims);
+            }
+            f.areas.push_back(std::move(kept));
+        }
+        log_->frames.push_back(std::move(f));
+        return true;
+    }
+    gw::PixelPolled poll() {
+        gw::PixelPolled out = std::move(log_->queued);
+        log_->queued = {};
+        return out;
+    }
+
+private:
+    LightLog* log_ = nullptr;
+};
+
+using FakeSdlWindow = gw::SdlWindowT<FakeSdlBackend>;
+
+/// What an owner in the OS window was told, as the window's office.
+struct LitHeard {
+    std::vector<gfx::AreaRoom> rooms;
+    std::vector<std::string> refused;
+    std::vector<std::string> said;
+    std::vector<zengine::input::PointerButton> pressed;
+    std::vector<gfx::ActionRequested> actions;
+};
+
+class LitOwner
+    : public loom::WeaveBase<
+          LitOwner, GraphicsTestOwner,
+          loom::Accept<gfx::AreaRoom, gfx::DrawnRefused, zengine::input::KeyPressed,
+                       zengine::input::TextEntered, zengine::input::PointerButton,
+                       gfx::ActionRequested>,
+          loom::Emit<gfx::Drawn, gfx::ElementPut, gfx::ElementChange>> {
+public:
+    explicit LitOwner(LitHeard& heard) : heard_(&heard) {}
+    void on(const gfx::AreaRoom& r, loom::Mail& mail) {
+        if (mail.authored_from_role(sdl_office())) heard_->rooms.push_back(r);
+    }
+    void on(const gfx::DrawnRefused& r, loom::Mail& mail) {
+        if (mail.authored_from_role(sdl_office())) heard_->refused.push_back(r.reason);
+    }
+    void on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
+        if (mail.authored_from_role(sdl_office())) heard_->said.push_back("key " + k.name);
+    }
+    void on(const zengine::input::TextEntered& e, loom::Mail& mail) {
+        if (mail.authored_from_role(sdl_office())) heard_->said.push_back("text " + e.text);
+    }
+    void on(const zengine::input::PointerButton& b, loom::Mail& mail) {
+        if (mail.authored_from_role(sdl_office())) heard_->pressed.push_back(b);
+    }
+    void on(const gfx::ActionRequested& a, loom::Mail& mail) {
+        if (mail.authored_from_role(sdl_office())) heard_->actions.push_back(a);
+    }
+
+private:
+    LitHeard* heard_;
+};
+
+/// The whole of a sketch, as one drawing of an area.
+gfx::Drawn whole(const std::string& area, const gfx::Sketch& s) {
+    return gfx::Drawn{area, true, s.nodes(), {}, s.records(), {}, false};
+}
+
+/// The OS window over the suite's backend, beside the directory, its skins offered: mounted in
+/// process at its office and activated as Loom's control door activates.
+struct LitWindow {
+    Rig r;
+    LightLog light;
+    loom::WeaveId window;
+    std::vector<std::unique_ptr<LitHeard>> heard;
+    std::vector<std::pair<std::string, loom::WeaveId>> owners;
+
+    FakeSdlWindow* instance = nullptr;
+
+    /// `kept`, when given, is the state a window before this one left: this one revives it, as a
+    /// reload's successor does, before it is activated.
+    explicit LitWindow(const loom::Value* kept = nullptr) {
+        REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
+        auto w = std::make_unique<FakeSdlWindow>(FakeSdlBackend{&light});
+        if (kept != nullptr) {
+            w->revive(*kept);
+        }
+        FakeSdlWindow* raw = w.get();
+        instance = raw;
+        loom::Grant g = loom::emit_default_grant(*raw);
+        window = r.bus.register_weave(std::move(w), std::move(g), sdl_office());
+        raw->zen_set_self(window);
+        const loom::WeaveId door = zengine::testing::mount_door(r.bus);
+        zengine::testing::order_activation(r.bus, door, window, 1);
+        r.to_role(gfx::kGraphicsRole, gfx::SkinOffered{"classic", PAINT_CLASSIC_SO});
+        r.to_role(gfx::kGraphicsRole, gfx::SkinOffered{"day", PAINT_DAY_SO});
+        r.to_role(gfx::kGraphicsRole, gfx::SkinOffered{"night", PAINT_NIGHT_SO});
+        r.to_role(gfx::kGraphicsRole, gfx::ElementCodeOffered{"SnakeBoardData", SNAKE_SO_BOARD});
+        r.drain();
+    }
+
+    /// An owner of an area of the window: placed there, its skin chosen. What it hears is kept.
+    LitHeard& own(const std::string& office, std::int64_t x, std::int64_t y, std::int64_t w,
+                  std::int64_t h, const std::string& skin, std::int64_t order = 0,
+                  bool keys = false, bool pointer = false) {
+        heard.push_back(std::make_unique<LitHeard>());
+        auto made = std::make_unique<LitOwner>(*heard.back());
+        LitOwner* raw = made.get();
+        loom::Grant g = loom::emit_default_grant(*raw);
+        const loom::WeaveId id = r.bus.register_weave(std::move(made), std::move(g), office);
+        raw->zen_set_self(id);
+        owners.emplace_back(office, id);
+        gfx::AreaPlaced placed{office, gfx::kSdlWindow, office, x, y, w, h, order, keys};
+        placed.pointer = pointer;
+        r.to_role(gfx::kGraphicsRole, placed);
+        r.to_role(gfx::kGraphicsRole, gfx::SkinChosen{office, skin});
+        r.drain();
+        return *heard.back();
+    }
+
+    /// The owner of `office` says `msg` to the window, as its office.
+    template <class T>
+    void say(const std::string& office, const T& msg) {
+        for (const auto& [o, id] : owners) {
+            if (o == office) {
+                r.bus.office_send_to_role_as(id, office, sdl_office(),
+                                             loom::Message(loom::to_value(msg)));
+            }
+        }
+        r.drain();
+    }
+
+    /// The window's own beat, with what the suite queued for it to read.
+    void pump() {
+        r.bus.send(window, loom::Message(loom::to_value(
+                               zengine::timer::TimerFired{gw::kPumpTimerId})));
+        r.drain();
+    }
+    void press(std::int64_t x, std::int64_t y) {
+        light.queued.events.emplace_back(zengine::input::PointerButton{
+            1, true, x, y, zengine::input::space::kPixels, zengine::input::mod::kNone});
+        pump();
+    }
+
+    gfx::WindowShown shown() {
+        r.bus.send_as_to_role(r.ears, sdl_office(),
+                              loom::Message(loom::to_value(gfx::WindowShowAsked{}), r.ears,
+                                            r.ears, r.next_corr++));
+        r.drain();
+        return r.heard.shown.empty() ? gfx::WindowShown{} : r.heard.shown.back();
+    }
+};
+
+bool any_row_has(const gfx::WindowShown& s, const std::string& words) {
+    return std::any_of(s.rows.begin(), s.rows.end(),
+                       [&](const std::string& row) { return row.find(words) != std::string::npos; });
+}
+
+} // namespace
+
+TEST_CASE("the OS window paints every operator for light, holds a drawing saying more back, and "
+          "shows the beat once") {
+    LitWindow t;
+    LitHeard& o = t.own("test.lit", 0, 0, 40 * gfx::kCellPx, 20 * gfx::kCellPx, "night");
+    REQUIRE(o.rooms.size() == 1);
+    CHECK(o.rooms[0].window == gfx::kSdlWindow);
+    const std::size_t before = t.light.frames.size();
+    gfx::Drawn first = whole("test.lit", every_operator());
+    first.more = true;
+    t.say("test.lit", first);
+    CHECK(t.light.frames.size() == before); // held back: more of the beat follows
+    gfx::Sketch tail;
+    tail.text("tail", 0, 0, "tail", gfx::by_role(gfx::role::kFill));
+    t.say("test.lit", gfx::Drawn{"test.lit", false, tail.nodes(), {}, {}, {}, false});
+    REQUIRE(t.light.frames.size() == before + 1); // the beat, shown once
+    CHECK(o.refused.empty());
+
+    const light::Look night = light::night_look();
+    CHECK(t.light.frames.back().ground == light::rgba_of(night.ground));
+    const LightLog::Area* a = t.light.area("test.lit");
+    REQUIRE(a != nullptr);
+    REQUIRE(a->nodes.size() == 7); // every operator but the group, and the tail
+    CHECK(a->paths[0] == "g/rect");
+    CHECK(a->nodes[0].quads[0].rgba == ink_of(night, gfx::role::kAccent));
+    CHECK(a->nodes[5].images.size() == 1);
+
+    const gfx::WindowShown s = t.shown();
+    CHECK(s.window == gfx::kSdlWindow);
+    CHECK(s.nodes == 8);
+    CHECK(s.rows.size() == static_cast<std::size_t>(gw::kDefaultHeight / gfx::kCellPx));
+    CHECK(any_row_has(s, "hi?!"));
+    CHECK(s.rows[0].rfind("tail", 0) == 0);
+    CHECK(s.showings == static_cast<std::int64_t>(t.light.frames.size()));
+    CHECK(s.device_bytes > 0);
+
+    t.say("test.lit", gfx::Drawn{"test.nowhere", false, {}, {}, {}, {}, false});
+    REQUIRE(o.refused.size() == 1);
+    CHECK(o.refused[0] == "window 'sdl' shows no area 'test.nowhere'");
+}
+
+TEST_CASE("the OS window paints an area whose skin paints characters in its own look, and one "
+          "whose skin paints light with that skin") {
+    LitWindow t;
+    t.own("test.classic", 0, 0, 20 * gfx::kCellPx, 5 * gfx::kCellPx, "classic");
+    t.own("test.day", 0, 6 * gfx::kCellPx, 20 * gfx::kCellPx, 5 * gfx::kCellPx, "day", 1);
+    gfx::Sketch s;
+    s.fill_rect("r", 0, 0, 24, 12, gfx::by_role(gfx::role::kFill));
+    t.say("test.classic", whole("test.classic", s));
+    t.say("test.day", whole("test.day", s));
+    const LightLog::Area* classic = t.light.area("test.classic");
+    const LightLog::Area* day = t.light.area("test.day");
+    REQUIRE(classic != nullptr);
+    REQUIRE(day != nullptr);
+    REQUIRE(classic->nodes.size() == 1);
+    REQUIRE(day->nodes.size() == 1);
+    CHECK(classic->nodes[0].quads[0].rgba == ink_of(light::night_look(), gfx::role::kFill));
+    CHECK(day->nodes[0].quads[0].rgba == ink_of(light::day_look(), gfx::role::kFill));
+    // The ground is the back-most area's look's.
+    CHECK(t.light.frames.back().ground == light::rgba_of(light::night_look().ground));
+
+    // The skin for characters was asked once and is not asked again; the day skin paints each time.
+    const gfx::WindowShown first = t.shown();
+    CHECK(first.refusals == 0);
+    s.fill_rect("r", 0, 0, 36, 12, gfx::by_role(gfx::role::kFill));
+    t.say("test.classic", whole("test.classic", s));
+    CHECK(t.shown().painter_calls == first.painter_calls);
+    t.say("test.day", whole("test.day", s));
+    CHECK(t.shown().painter_calls == first.painter_calls + 1);
+    REQUIRE(t.light.area("test.classic")->nodes[0].quads.size() == 1);
+    CHECK(t.light.area("test.classic")->nodes[0].quads[0].w == 36);
+}
+
+TEST_CASE("a terminal window refuses a skin that paints light, in words, and shows none of it") {
+    TypedWindow t;
+    OwnerHeard heard;
+    auto o = std::make_unique<Owner>(heard);
+    Owner* raw = o.get();
+    loom::Grant g = loom::emit_default_grant(*raw);
+    const loom::WeaveId owner = t.r.bus.register_weave(std::move(o), std::move(g), kOwner);
+    raw->zen_set_self(owner);
+    t.r.to_role(gfx::kGraphicsRole, gfx::SkinOffered{"day", PAINT_DAY_SO});
+    t.r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{kOwner, gfx::kTerminalWindow, kOwner, 0, 0,
+                                                    20 * gfx::kCellPx, 2 * gfx::kCellPx, 0, false});
+    t.r.to_role(gfx::kGraphicsRole, gfx::SkinChosen{kOwner, "day"});
+    t.r.drain();
+    gfx::Sketch s;
+    s.text("t", 0, 0, "words", gfx::by_role(gfx::role::kFill));
+    t.r.bus.office_send_to_role_as(owner, kOwner, window_office(),
+                                   loom::Message(loom::to_value(whole(kOwner, s))));
+    t.r.drain();
+    const gfx::WindowShown shown = t.r.shown();
+    CHECK(shown.last_refusal.find("paints light, which a terminal does not show") !=
+          std::string::npos);
+    for (const std::string& row : shown.rows) {
+        CHECK(row.empty());
+    }
+}
+
+TEST_CASE("a press on the OS window lands on the top node painted at its pixel: a record's action "
+          "to its owner, else the press to an owner placed to hear the pointer, else nothing") {
+    LitWindow t;
+    LitHeard& back = t.own("test.back", 0, 0, 400, 200, "night", 0, false, /*pointer=*/true);
+    LitHeard& front = t.own("test.front", 100, 50, 100, 50, "night", 1);
+    gfx::Sketch b;
+    b.fill_rect("plate", 0, 0, 400, 200, gfx::by_role(gfx::role::kGround));
+    b.fill_rect("button", 10, 10, 50, 20, gfx::by_role(gfx::role::kAccent));
+    b.action("button", "serve");
+    t.say("test.back", whole("test.back", b));
+    gfx::Sketch f;
+    f.text("lid", 10, 10, "lid", gfx::by_role(gfx::role::kFill));
+    t.say("test.front", whole("test.front", f));
+
+    t.press(20, 15); // the button
+    REQUIRE(back.actions.size() == 1);
+    CHECK(back.actions[0].area == "test.back");
+    CHECK(back.actions[0].action == "serve");
+    CHECK(back.pressed.empty());
+
+    t.press(300, 150); // the plate: no action, and the owner hears the pointer
+    REQUIRE(back.pressed.size() == 1);
+    CHECK(back.pressed[0].x == 300);
+    CHECK(back.pressed[0].y == 150);
+    CHECK(back.pressed[0].space == zengine::input::space::kPixels);
+
+    t.press(150, 90); // in the front area, where it painted nothing: what lies behind takes it
+    REQUIRE(back.pressed.size() == 2);
+    CHECK(back.pressed[1].x == 150);
+    CHECK(back.pressed[1].y == 90);
+
+    t.press(115, 65); // the lid: the front area's, which names no action and hears no pointer
+    CHECK(back.pressed.size() == 2);
+    CHECK(back.actions.size() == 1);
+    CHECK(front.pressed.empty());
+    CHECK(front.actions.empty());
+
+    t.press(500, 300); // outside every area
+    CHECK(back.pressed.size() == 2);
+
+    // A press in cells lands at its cell's centre.
+    t.light.queued.events.emplace_back(zengine::input::PointerButton{
+        1, true, 1, 1, zengine::input::space::kCells, zengine::input::mod::kNone});
+    t.pump();
+    CHECK(back.actions.size() == 2);
+}
+
+TEST_CASE("keys and their text go from the OS window to the owner of each area placed to hear "
+          "them, and to no other") {
+    LitWindow t;
+    LitHeard& keys = t.own("test.keys", 0, 0, 100, 100, "night", 0, /*keys=*/true);
+    LitHeard& deaf = t.own("test.deaf", 0, 100, 100, 100, "night", 1);
+    t.light.queued.events.emplace_back(zengine::input::KeyPressed{
+        zengine::input::scan::kQ, "Q", zengine::input::mod::kNone});
+    t.light.queued.events.emplace_back(zengine::input::TextEntered{"q"});
+    t.pump();
+    CHECK(keys.said == std::vector<std::string>{"key Q", "text q"});
+    CHECK(deaf.said.empty());
+}
+
+TEST_CASE("the OS window resized offers itself again in its new size in cells, under the same "
+          "incarnation, and draws its picture again at any new size") {
+    LitWindow t;
+    t.own("test.lit", 0, 0, 100, 100, "night");
+    const auto offers = t.r.read<gfx::WindowOffered>(0, sdl_office());
+    REQUIRE_FALSE(offers.empty());
+    CHECK(offers.back().cols == gw::kDefaultWidth / gfx::kCellPx);
+    CHECK(offers.back().rows == gw::kDefaultHeight / gfx::kCellPx);
+    const std::int64_t epoch = offers.back().epoch;
+
+    std::size_t mark = t.r.log.size();
+    std::size_t frames = t.light.frames.size();
+    t.light.size = gw::PixelSize{gw::kDefaultWidth + 5, gw::kDefaultHeight + 5}; // the same cells
+    t.pump();
+    CHECK(t.r.read<gfx::WindowOffered>(mark, sdl_office()).empty());
+    CHECK(t.light.frames.size() == frames + 1);
+
+    mark = t.r.log.size();
+    frames = t.light.frames.size();
+    t.light.size = gw::PixelSize{1200, 600};
+    t.pump();
+    const auto again = t.r.read<gfx::WindowOffered>(mark, sdl_office());
+    REQUIRE(again.size() == 1);
+    CHECK(again[0].window == gfx::kSdlWindow);
+    CHECK(again[0].cols == 1200 / gfx::kCellPx);
+    CHECK(again[0].rows == 600 / gfx::kCellPx);
+    CHECK(again[0].epoch == epoch);
+    CHECK(t.light.frames.size() > frames);
+    CHECK(t.light.frames.back().width == 1200);
+    CHECK(t.shown().rows.size() == static_cast<std::size_t>(600 / gfx::kCellPx));
+
+    mark = t.r.log.size();
+    t.pump(); // nothing changed: nothing offered, nothing drawn
+    CHECK(t.r.read<gfx::WindowOffered>(mark, sdl_office()).empty());
+}
+
+TEST_CASE("an element said in the OS window is drawn by its code, and a change of it is painted "
+          "again") {
+    LitWindow t;
+    LitHeard& o = t.own("test.board", 0, 0, 30 * gfx::kCellPx, 10 * gfx::kCellPx, "night");
+    t.say("test.board",
+          gfx::ElementPut{"test.board", "grid", "SnakeBoardData", 1,
+                          loom::bequeath_item(snake::SnakeBoardData{3, 1, gfx::kCellPx, {0}, -1}),
+                          false});
+    CHECK(o.refused.empty());
+    const LightLog::Area* a = t.light.area("test.board");
+    REQUIRE(a != nullptr);
+    REQUIRE_FALSE(a->nodes.empty());
+    const std::vector<light::NodePrimitives> before = a->nodes;
+    CHECK(t.shown().elements == 1);
+
+    t.say("test.board",
+          gfx::ElementChange{1, 0, gfx::body_of(snake::SnakeStep{1, 0, -1, false}), false});
+    CHECK(o.refused.empty());
+    CHECK(t.light.area("test.board")->nodes != before);
+}
+
+TEST_CASE("the OS window started again from what its last instance kept shows it, under the same "
+          "incarnation, and nothing is drawn again") {
+    std::optional<loom::Value> kept;
+    gfx::WindowShown before;
+    {
+        LitWindow t;
+        t.own("test.lit", 0, 0, 40 * gfx::kCellPx, 4 * gfx::kCellPx, "day");
+        gfx::Sketch s;
+        s.text("t", 0, gfx::kCellPx, "kept", gfx::by_role(gfx::role::kFill));
+        t.say("test.lit", whole("test.lit", s));
+        before = t.shown();
+        kept = t.instance->snapshot();
+    }
+    REQUIRE(kept.has_value());
+    LitWindow again(&*kept); // a host with no owner of the area at all
+    const gfx::WindowShown after = again.shown();
+    CHECK(after.epoch == before.epoch);
+    CHECK(after.rows == before.rows);
+    CHECK(any_row_has(after, "kept"));
+    const LightLog::Area* a = again.light.area("test.lit");
+    REQUIRE(a != nullptr);
+    REQUIRE(a->nodes.size() == 1);
+    CHECK(a->nodes[0].texts[0].rgba == ink_of(light::day_look(), gfx::role::kFill));
+    CHECK(again.r.count(0, "Drawn") == 0);
+    CHECK(again.light.claims == 1);
+}
+
+TEST_CASE("the OS window's page answers for every shape it accepts, and names no other") {
+    LitWindow t;
+    const std::vector<std::string> described = described_shapes_of(t.r.bus, t.window);
+    REQUIRE_FALSE(described.empty());
+    CHECK(check_office_manual(t.r.bus, sdl_office()) >= described.size());
+    check_page_names_accepted(zengine::manual::pages::zengine_window_sdl::kManual, described);
+}
+
+#if defined(GRAPHICS_HAS_SDL)
+
+namespace {
+
+/// The OS windows SDL holds in this process, by id.
+std::vector<SDL_WindowID> os_windows() {
+    std::vector<SDL_WindowID> out;
+    if (SDL_WasInit(SDL_INIT_VIDEO) == 0) {
+        return out;
+    }
+    int n = 0;
+    SDL_Window** windows = SDL_GetWindows(&n);
+    for (int i = 0; i < n; ++i) {
+        out.push_back(SDL_GetWindowID(windows[i]));
+    }
+    SDL_free(windows);
+    return out;
+}
+
+void sdl_video_driver(const char* name) {
+#if defined(_WIN32)
+    ::_putenv_s("SDL_VIDEO_DRIVER", name);
+    ::_putenv_s("SDL_VIDEODRIVER", name);
+#else
+    ::setenv("SDL_VIDEO_DRIVER", name, 1);
+    ::setenv("SDL_VIDEODRIVER", name, 1);
+#endif
+}
+
+/// The OS window's own weave, loaded through the kernel beside the directory, an owner drawing in
+/// it with the day skin.
+struct SdlWeave {
+    Rig r;
+    LitHeard heard;
+    loom::WeaveId owner;
+    SdlWeave() {
+        REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
+        REQUIRE(r.load("zengine-window-sdl", WINDOW_SDL_SO, sdl_office()).valid());
+        auto made = std::make_unique<LitOwner>(heard);
+        LitOwner* raw = made.get();
+        loom::Grant g = loom::emit_default_grant(*raw);
+        owner = r.bus.register_weave(std::move(made), std::move(g), "test.lit");
+        raw->zen_set_self(owner);
+        r.to_role(gfx::kGraphicsRole, gfx::SkinOffered{"day", PAINT_DAY_SO});
+        r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{"test.lit", gfx::kSdlWindow, "test.lit", 0,
+                                                      0, 40 * gfx::kCellPx, 4 * gfx::kCellPx, 0,
+                                                      false});
+        r.to_role(gfx::kGraphicsRole, gfx::SkinChosen{"test.lit", "day"});
+        r.drain();
+        gfx::Sketch s;
+        s.fill_rect("plate", 0, 0, 200, 40, gfx::by_role(gfx::role::kGround));
+        s.text("t", 0, gfx::kCellPx, "lit", gfx::by_role(gfx::role::kFill));
+        r.bus.office_send_to_role_as(owner, "test.lit", sdl_office(),
+                                     loom::Message(loom::to_value(whole("test.lit", s))));
+        r.drain();
+    }
+    gfx::WindowShown shown() {
+        r.bus.send_as_to_role(r.ears, sdl_office(),
+                              loom::Message(loom::to_value(gfx::WindowShowAsked{}), r.ears,
+                                            r.ears, r.next_corr++));
+        r.drain();
+        return r.heard.shown.empty() ? gfx::WindowShown{} : r.heard.shown.back();
+    }
+};
+
+} // namespace
+
+TEST_CASE("the OS window opens one window on the desktop, draws in it, keeps that one window "
+          "across a reload, holds one again once replaced, and closes it when it goes") {
+    REQUIRE(os_windows().empty());
+    {
+        SdlWeave w;
+        const gfx::WindowShown first = w.shown();
+        CHECK(first.window == gfx::kSdlWindow);
+        CHECK(any_row_has(first, "lit"));
+        CHECK(first.showings > 0);
+        CHECK(first.painter_calls > 0);
+        CHECK(first.refusals == 0);
+        const std::vector<SDL_WindowID> opened = os_windows();
+        REQUIRE(opened.size() == 1);
+
+        const auto reloaded = w.r.command(loom::ReloadWeave{"zengine-window-sdl", WINDOW_SDL_SO});
+        REQUIRE_MESSAGE(reloaded.kind == 1, reloaded.text);
+        const gfx::WindowShown after = w.shown();
+        CHECK(after.epoch == first.epoch);
+        CHECK(after.rows == first.rows);
+        CHECK(os_windows() == opened); // the same window, handed over, not made again
+
+        const auto swapped = w.r.command(loom::SwapWeave{sdl_office(), "zengine-window-sdl",
+                                                         WINDOW_SDL_SO, /*graceful=*/false});
+        REQUIRE_MESSAGE(swapped.kind == 0, swapped.text);
+        CHECK(w.shown().epoch != first.epoch);
+        // Replaced, the window goes before its successor comes: it closes its OS window, and the
+        // successor opens one of its own -- one window, never two.
+        CHECK(os_windows().size() == 1);
+    }
+    CHECK(os_windows().empty());
+    CHECK(SDL_WasInit(SDL_INIT_VIDEO) == 0); // and SDL is given back whole
+}
+
+TEST_CASE("the OS window with no display to open on keeps and composes its picture, and holds no "
+          "SDL") {
+    sdl_video_driver("zengine-no-such-driver");
+    {
+        SdlWeave w;
+        const gfx::WindowShown s = w.shown();
+        CHECK(s.window == gfx::kSdlWindow);
+        CHECK(any_row_has(s, "lit"));
+        CHECK(s.rows.size() == static_cast<std::size_t>(gw::kDefaultHeight / gfx::kCellPx));
+        CHECK(s.showings == 0); // nothing was drawn, so nothing was shown
+        CHECK(os_windows().empty());
+        CHECK(SDL_WasInit(SDL_INIT_VIDEO) == 0);
+    }
+    sdl_video_driver("dummy");
+}
+
+#endif // GRAPHICS_HAS_SDL

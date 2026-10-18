@@ -60,6 +60,9 @@ the Timer for a repeating beat, `zengine.input.pump`, every `kPumpBeatMs` millis
 (`EnsureRoleTimer`, addressed to its office, so a successor inherits it), and each beat polls the
 platform once ([the Timer binding](../../timer/docs/timer-binding.md)).
 
+The OS window ([`zengine.window.sdl`](../../graphics/docs/zengine.window.sdl.md)) reads SDL's queue
+itself, so a host loads it or `zengine-input-sdl`, never both.
+
 ## Commands
 
 ### `PumpInput`

@@ -217,8 +217,8 @@ The POSIX terminal backend parses raw-mode bytes with a *stateful, incremental* 
 read boundary is not an event boundary, so a mouse report split across reads is rejoined rather
 than translated into the keystrokes its bytes happen to spell. The Win32 console backend reads
 `INPUT_RECORD`s. Terminal *size* is asked of the operating system through one file —
-[`surface/terminal_size.hpp`](../../surface/terminal_size.hpp) — which is the only place in this
-repository that names an operating system for that question.
+[`graphics/window/terminal_io.hpp`](../../graphics/window/terminal_io.hpp) — which is the only place
+in this repository that names an operating system for that question.
 
 A redirected, piped or captured run measures nothing and says nothing, which is different from
 reporting zeroes: "I have no opinion" and "there is no room" are different sentences.
