@@ -32,7 +32,9 @@ owner -> directory           RoomAsked (an owner that started again)
 directory -> everyone        GraphicsReady (a directory that started afresh)
 ```
 
-The **arranger** is whoever a host lets reach the directory: in the snake's host, its operator.
+The **arranger** is whoever a host lets reach the directory: in the snake's host, its operator;
+in Workshop, its own weave, which places each pane's area and its own
+([`zengine.workshop`](../../workshop/docs/zengine.workshop.md#graphicsready)).
 What each message does is the manual of the office that takes it: the window's for what an owner
 sends it, the directory's for what the arranger and a window send it.
 
