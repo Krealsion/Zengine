@@ -38,6 +38,11 @@ inline constexpr const char* kHotkeysPane = "hotkeys";
 inline constexpr const char* kHotkeysName = "Hotkeys";
 inline constexpr const char* kHotkeysSummary = "every key in force, and how to move one";
 
+/// THE ONE SETTING THE HOTKEYS PANE DECLARES (`v2::PaneSettingsDeclared`,
+/// workshop/pane_settings.hpp): whether its footer's help lines -- the keymap file and how a key is
+/// written there -- show in a layout, on unless the layout keeps it off.
+inline constexpr const char* kSettingHelp = "help";
+
 /// THE THIRD PANE: the manual of the pane whose `?` a weaver pressed -- `About`, `Use`, then each
 /// command with the key it answers to now. It asks that pane for its words when it is shown and
 /// keeps them only while it is open.

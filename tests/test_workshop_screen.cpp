@@ -1575,10 +1575,11 @@ TEST_CASE("adding this tool widens nothing -- it says three shapes and no more")
     std::vector<std::string> distinct = said;
     std::sort(distinct.begin(), distinct.end());
     distinct.erase(std::unique(distinct.begin(), distinct.end()), distinct.end());
-    // FOUR: the Powers pane's declared actions ride beside its offer (WL-KEY-15), a
-    // declaration of what a pane DOES, not a reach into anything; its rows are its picture.
+    // FIVE: the Powers pane's declared actions and the settings it takes ride beside its offer
+    // (WL-KEY-15, WL-SETTING-03), declarations of what a pane DOES, not a reach into anything;
+    // its rows are its picture.
     const std::vector<std::string> allowed{"PaneActions", "PaneCanvasContent", "PaneOffered",
-                                           "zen.ListLoaded"};
+                                           "PaneSettingsDeclared", "zen.ListLoaded"};
     CHECK(distinct == allowed);
     // NAMED NEGATIVELY TOO, because the interesting half of an authority audit is the
     // shapes that are ABSENT. Asking what is loaded is not being able to load anything:

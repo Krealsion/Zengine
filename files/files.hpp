@@ -31,9 +31,11 @@
 
 namespace zengine::workshop {
 
-/// HOW MANY ENTRIES ONE LISTING WILL HOLD.
+/// HOW MANY ENTRIES ONE LISTING WILL HOLD, whatever a layout keeps, and the fewest a layout may
+/// keep it to.
 // WL-FILES-13 -- agents/workshop/files.md
 inline constexpr std::size_t kMaxListedEntries = 2000;
+inline constexpr std::size_t kFewestListedEntries = 100;
 
 /// ONE ROW: a name and a kind, and deliberately nothing else.
 struct FileRow {
@@ -153,7 +155,9 @@ bool narrow_paths_are_utf8();
 /// a file: dropping it would lie about what is there, and a file's activation is refused by the
 /// editor's door in its own words.
 // WL-FILES-14 -- agents/workshop/files.md
-inline Listing enumerate_directory(const std::string& dir) {
+inline Listing enumerate_directory(const std::string& dir,
+                                   std::size_t most = kMaxListedEntries) {
+    most = most < kMaxListedEntries ? most : kMaxListedEntries;
     Listing out;
     if (dir.empty()) {
         out.refusal = "there is no location to browse";
@@ -167,7 +171,7 @@ inline Listing enumerate_directory(const std::string& dir) {
     }
     const std::filesystem::directory_iterator done;
     while (it != done) {
-        if (out.rows.size() >= kMaxListedEntries) {
+        if (out.rows.size() >= most) {
             out.bounded = true;
             break;
         }

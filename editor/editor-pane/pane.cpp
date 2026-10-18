@@ -34,6 +34,8 @@
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_operation.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
+#include "workshop/pane_settings.hpp"
+#include "workshop/pane_settings_taken.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/persist.hpp"
@@ -81,7 +83,7 @@ class EditorPaneWeave
                        EditorAdoptRequested, EditorLiveRequested, EditorRetireRequested,
                        ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
                        ws::PaneCarryAnswered, graphics::AreaRoom, graphics::DrawnRefused,
-                       graphics::ActionRequested>,
+                       graphics::ActionRequested, ws::v2::PaneSettings>,
           loom::Emit<PaneOffered, ws::v3::PaneActions, ws::v5::PaneCanvasContent,
                      ws::v4::PaneContent, ws::v2::PaneCaret,
                      ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
@@ -91,7 +93,8 @@ class EditorPaneWeave
                      surface::ClipboardTextRequested, EditorHandoffJudged, EditorWarmed,
                      EditorHandoffOffered, EditorAdopted, EditorLive, EditorRetired,
                      ws::PaneMenuRequested, ws::PanePassRequested, ws::PaneOperationRequested,
-                     ws::PaneValueCarryRequested, graphics::Drawn, graphics::RoomAsked>,
+                     ws::PaneValueCarryRequested, graphics::Drawn, graphics::RoomAsked,
+                     ws::v2::PaneSettingsDeclared, ws::PaneSettingUnused>,
           loom::WeaveBase, loom::Claims<EditorDocument>> {
 public:
     using Base = Weave;
@@ -220,6 +223,23 @@ public:
 
     /// A refused picture leaves the last good one showing, and the next saying draws again.
     void on(const ws::PaneCanvasRejected&, loom::Mail&) {}
+
+    /// THE SETTINGS THIS LAYOUT KEEPS FOR THE PANE, taken whole; what it cannot use is said back
+    /// against the revision it was handed at. The tab stop and the undo steps are the buffer's, so
+    /// every document this pane holds or prepares wears them (`wear`). Held as plain members, never
+    /// reload state: a reloaded image is handed them again before its room.
+    void on(const ws::v2::PaneSettings& handed, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || handed.pane != pane::kEditorPane) {
+            return;
+        }
+        const ws::SettingsTaken taken = ws::take_pane_settings(setting_rows(), handed);
+        ws::say_settings_unused(mail, pane::kEditorPaneRole, taken);
+        tab_width_ = taken.number(pane::kSettingTabWidth);
+        status_shown_ = taken.flag(pane::kSettingStatus);
+        wheel_lines_ = taken.number(pane::kSettingWheelLines);
+        undo_depth_ = static_cast<std::size_t>(taken.number(pane::kSettingUndoDepth));
+        say(mail); // draws nothing until a room is granted, so the first picture has them
+    }
 
     /// WHERE THIS RUN BEGAN, asked of `zengine.project` -- the one host fact a relative
     /// spelling needs, and the door Files asks for the same reason (WL-FILES-02).
@@ -515,6 +535,51 @@ private:
             .send_to_role(kWorkshopRole, PaneOffered{pane::kEditorPane, pane::kEditorPaneName,
                                                      pane::kEditorPaneSummary, 20, 84});
         declare(mail);
+        (void)mail.as_role(pane::kEditorPaneRole)
+            .send_to_role(kWorkshopRole,
+                          ws::v2::PaneSettingsDeclared{pane::kEditorPane, setting_rows()});
+    }
+
+    /// THE SETTINGS THE PANE TAKES, each with its default, how a weaver finds it and what it does:
+    /// the tab stop and the status row, pinned; the wheel's lines a notch; the undo steps kept,
+    /// which the byte budget bounds whatever it says.
+    static std::vector<ws::v2::PaneSettingRow> setting_rows() {
+        ws::v2::PaneSettingRow tab;
+        tab.key = pane::kSettingTabWidth;
+        tab.number = ws::kEditorTabStop;
+        tab.low = ws::kEditorTabStopLow;
+        tab.high = ws::kEditorTabStopHigh;
+        tab.tags = {"editing", "text"};
+        tab.pinned = true;
+        tab.summary = "columns between tab stops";
+        ws::v2::PaneSettingRow status;
+        status.key = pane::kSettingStatus;
+        status.flag = true;
+        status.tags = {"chrome"};
+        status.pinned = true;
+        status.summary = "show the status row";
+        ws::v2::PaneSettingRow wheel;
+        wheel.key = pane::kSettingWheelLines;
+        wheel.number = ws::kEditorWheelLines;
+        wheel.low = ws::kEditorWheelLinesLow;
+        wheel.high = ws::kEditorWheelLinesHigh;
+        wheel.tags = {"input", "scroll"};
+        wheel.summary = "lines scrolled per wheel notch";
+        ws::v2::PaneSettingRow undo;
+        undo.key = pane::kSettingUndoDepth;
+        undo.number = static_cast<std::int64_t>(ws::kEditorUndoDepth);
+        undo.low = static_cast<std::int64_t>(ws::kEditorUndoDepthLow);
+        undo.high = static_cast<std::int64_t>(ws::kEditorUndoDepth);
+        undo.tags = {"editing", "limits"};
+        undo.summary = "maximum undo steps kept";
+        return {tab, status, wheel, undo};
+    }
+
+    /// A DOCUMENT WEARS THE LAYOUT'S TAB STOP AND UNDO STEPS, live or prepared: a lower depth
+    /// forgets its oldest steps.
+    void wear(EditorState& doc) const {
+        doc.buffer.set_tab_width(tab_width_);
+        doc.buffer.set_undo_depth(undo_depth_);
     }
 
     /// What this pane answers to: the rows below, which never change. Everything else a weaver
@@ -756,10 +821,11 @@ private:
             return;
         }
         const std::string& line = doc.buffer.line(cr);
-        const std::int64_t vis = ws::visual_col_of(line, doc.buffer.caret_byte());
+        const std::int64_t tab = doc.buffer.tab_width();
+        const std::int64_t vis = ws::visual_col_of(line, doc.buffer.caret_byte(), tab);
         // The horizontal half, measured on the caret's own line: no blank room at the right while
         // text is hidden at the left, so erasing a long line recovers the room it freed.
-        const std::int64_t need = ws::visual_len(line) + kCaretCols;
+        const std::int64_t need = ws::visual_len(line, tab) + kCaretCols;
         const std::int64_t furthest_col = need > text_cols ? need - text_cols : 0;
         if (v.first_col > furthest_col) {
             v.first_col = furthest_col;
@@ -784,7 +850,7 @@ private:
         std::string head = doc.dirty() ? "UNSAVED" : "saved";
         head += " L" + std::to_string(doc.buffer.caret_row() + 1) + ":C" +
                 std::to_string(ws::visual_col_of(doc.buffer.line(doc.buffer.caret_row()),
-                                                 doc.buffer.caret_byte()) +
+                                                 doc.buffer.caret_byte(), doc.buffer.tab_width()) +
                                1);
         head += "/" + std::to_string(doc.buffer.line_count());
         head += " -- ";
@@ -799,18 +865,22 @@ private:
     }
 
     /// Compose a document for a room: the status row, a standing notice where the room holds one,
-    /// then the document through the viewport, with the caret and selection beside the rows on
-    /// the lattice a press names (WL-EDIT-12, WL-CARET-01). Pure over the document and viewport it
-    /// is handed, so it serves the live document and a candidate alike. The status row comes
-    /// first; a notice gets its own row only where a document row survives under it, and
-    /// otherwise stands in for the status row, so the document keeps its rows.
+    /// then the document through the viewport, the caret and selection beside the rows on the
+    /// lattice a press names (WL-EDIT-12, WL-CARET-01); pure, so it serves a candidate too. A notice
+    /// gets its own row only where a document row survives under it, else stands in for the status
+    /// row; with `status` off the document has that row, and a notice stands alone above it.
     static Composition compose(const EditorState& doc, Viewport view, std::int64_t rows,
-                               std::int64_t columns, const std::string& note, bool bad) {
+                               std::int64_t columns, const std::string& note, bool bad,
+                               bool status) {
         Composition out;
         const auto push = [&out, columns](std::string text, std::int64_t role) {
             out.rows.push_back(surface::SurfaceTextRow{drawable(fit(std::move(text), columns)), role});
         };
-        if (rows >= 1) {
+        if (rows >= 1 && !status) {
+            if (!note.empty()) {
+                push(note, bad ? surface::role::kAlert : surface::role::kMuted);
+            }
+        } else if (rows >= 1) {
             const bool notice_row = !note.empty() && rows >= kNoticeNeedsRows;
             if (!note.empty() && !notice_row) {
                 push(note, bad ? surface::role::kAlert : surface::role::kMuted);
@@ -833,7 +903,8 @@ private:
             last = view.first_row + shown < total ? view.first_row + shown : total;
             for (std::size_t r = view.first_row; r < last; ++r) {
                 out.rows.push_back(surface::SurfaceTextRow{
-                    ws::expanded_slice(doc.buffer.line(r), view.first_col, text_cols),
+                    ws::expanded_slice(doc.buffer.line(r), view.first_col, text_cols,
+                                       doc.buffer.tab_width()),
                     surface::role::kFill});
             }
         }
@@ -855,8 +926,8 @@ private:
         if (doc.open_document() && doc_rows > 0) {
             const std::size_t cr = doc.buffer.caret_row();
             if (cr >= view.first_row && cr < last) {
-                const std::int64_t vis =
-                    ws::visual_col_of(doc.buffer.line(cr), doc.buffer.caret_byte());
+                const std::int64_t vis = ws::visual_col_of(doc.buffer.line(cr), doc.buffer.caret_byte(),
+                                                           doc.buffer.tab_width());
                 const std::int64_t col = vis - view.first_col;
                 if (col >= 0 && col <= text_cols) {
                     caret.row = chrome_rows + static_cast<std::int64_t>(cr - view.first_row);
@@ -875,7 +946,8 @@ private:
                     } else {
                         brow = chrome_rows + static_cast<std::int64_t>(from.row - view.first_row);
                         const std::int64_t v =
-                            ws::visual_col_of(doc.buffer.line(from.row), from.byte) - view.first_col;
+                            ws::visual_col_of(doc.buffer.line(from.row), from.byte, doc.buffer.tab_width()) -
+                            view.first_col;
                         bcol = v < 0 ? 0 : (v > text_cols ? text_cols : v);
                     }
                     std::int64_t erow;
@@ -886,7 +958,8 @@ private:
                     } else {
                         erow = chrome_rows + static_cast<std::int64_t>(to.row - view.first_row);
                         const std::int64_t v =
-                            ws::visual_col_of(doc.buffer.line(to.row), to.byte) - view.first_col;
+                            ws::visual_col_of(doc.buffer.line(to.row), to.byte, doc.buffer.tab_width()) -
+                            view.first_col;
                         ecol = v < 0 ? 0 : (v > text_cols ? text_cols : v);
                     }
                     if (erow > brow || ecol > bcol) {
@@ -911,12 +984,14 @@ private:
     void say(loom::Mail& mail) {
         // Workshop is told while it grants a room the pane can fill: none, or a canvas room with
         // no extent, is nothing its rows could truthfully fill.
+        wear(e_); // whichever document is live now wears the layout's settings, shown or not
         const bool to_workshop = granted_ && !(canvas_.grant > 0 && !on_canvas());
         const bool to_window = window_.in_window() && activation_.activated();
         if (!to_workshop && !to_window) {
             return;
         }
-        Composition c = compose(e_, viewport_of(e_), rows_, columns_, notice_, notice_bad_);
+        Composition c =
+            compose(e_, viewport_of(e_), rows_, columns_, notice_, notice_bad_, status_shown_);
         apply_viewport(e_, c.view);
         chrome_rows_ = c.chrome_rows;
         doc_rows_ = c.doc_rows;
@@ -1128,6 +1203,13 @@ private:
     PictureKey picture_key_;
     /// WHETHER ROW 0 IS THE STATUS ROW -- the location's surface -- in the picture last said.
     bool status_row_ = false;
+
+    /// THE LAYOUT'S SETTINGS, handed again after a reload, so never reload state: the tab stop,
+    /// whether the status row shows, the lines a wheel notch scrolls and the undo steps kept.
+    std::int64_t tab_width_ = ws::kEditorTabStop;
+    bool status_shown_ = true;
+    std::int64_t wheel_lines_ = ws::kEditorWheelLines;
+    std::size_t undo_depth_ = ws::kEditorUndoDepth;
     Grab grab_;
     Pickup pickup_;
     ws::pane_menu::Asked menu_;

@@ -38,6 +38,8 @@
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_escape.hpp"
 #include "workshop/pane_seat.hpp"
+#include "workshop/pane_settings.hpp"
+#include "workshop/pane_settings_taken.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
 #include "activation/activation.hpp"
@@ -126,7 +128,8 @@ class DesktopWeave
                        ActionsWithdrawn, KeymapShown, KeymapEditAnswered, PaneKey, PaneTextInput,
                        ws::PaneCanvasRoom, ws::PaneCanvasPointer, ws::PaneCanvasRejected,
                        PaneMenuAnswered, loom::DispatchRefused, surface::ClipboardCopy,
-                       surface::ClipboardText, ws::PaneDocumentShown, PaneSubjectActed>,
+                       surface::ClipboardText, ws::PaneDocumentShown, PaneSubjectActed,
+                       ws::v2::PaneSettings>,
           loom::Emit<ws::PaneShortcutsAnswered, ws::PaneShortcutsRequested, ws::PaneShortcutsWithdrawn,
                      ws::PaneShortcutInvoked, PaneOffered, PaneActions, ws::v4::PaneContent,
                      ws::v5::PaneCanvasContent, ws::PaneCaret, AppActions,
@@ -135,7 +138,8 @@ class DesktopWeave
                      KeymapRequested, KeymapEditRequested, PaneMenuRequested, PanePassRequested,
                      PaneKeyboardRequested, PaneManageRequested, InspectPaneRequested,
                      ws::PaneEscapeUnspent, ws::PaneDocumentRequested,
-                     surface::ClipboardCopy, surface::ClipboardTextRequested>> {
+                     surface::ClipboardCopy, surface::ClipboardTextRequested,
+                     ws::v2::PaneSettingsDeclared, ws::PaneSettingUnused>> {
 public:
     // ---- What its office calls --------------------------------------------------------------
 
@@ -156,6 +160,9 @@ public:
             .send_to_role(kWorkshopRole, PaneOffered{pane::kHotkeysPane, pane::kHotkeysName,
                                                      pane::kHotkeysSummary, 10, 68});
         declare_keys(mail);
+        (void)mail.as_role(pane::kDesktopRole)
+            .send_to_role(kWorkshopRole,
+                          ws::v2::PaneSettingsDeclared{pane::kHotkeysPane, hotkeys_settings()});
         (void)mail.as_role(pane::kDesktopRole)
             .send_to_role(kWorkshopRole, PaneOffered{pane::kManualPane, pane::kManualName,
                                                      pane::kManualSummary, 16, 72});
@@ -217,6 +224,20 @@ public:
         }
         fit_rooms();
         say_pane(room.pane, mail);
+    }
+
+    /// THE SETTINGS THIS LAYOUT KEEPS FOR HOTKEYS, taken whole: its `help`, a value it cannot use
+    /// said back against the revision it was handed at. The other two panes declare none, and pass
+    /// over what they are handed. Held by the pane, never reload state.
+    void on(const ws::v2::PaneSettings& handed, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || handed.pane != pane::kHotkeysPane) {
+            return;
+        }
+        const ws::SettingsTaken taken = ws::take_pane_settings(hotkeys_settings(), handed);
+        ws::say_settings_unused(mail, pane::kDesktopRole, taken);
+        if (hotkeys_.show_help(taken.flag(pane::kSettingHelp))) {
+            say_keys(mail); // draws nothing until a room is granted, so the first picture has it
+        }
     }
 
     // ---- Its panes in graphics windows (its office's `MultiPaneFacet` calls these) ------------
@@ -665,6 +686,17 @@ private:
     /// move its mode.
     pane::DeclareKeys keys_declarer() {
         return [this](loom::Mail& m) { declare_keys(m); };
+    }
+
+    /// THE SETTING THE HOTKEYS PANE TAKES, with its default, how a weaver finds it and what it does.
+    static std::vector<ws::v2::PaneSettingRow> hotkeys_settings() {
+        ws::v2::PaneSettingRow help;
+        help.key = pane::kSettingHelp;
+        help.flag = true;
+        help.tags = {"help", "chrome"};
+        help.pinned = true;
+        help.summary = "show the footer help lines";
+        return {help};
     }
 
     void declare_manual(loom::Mail& mail) {

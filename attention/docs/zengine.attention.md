@@ -46,6 +46,11 @@ row tall is the glance alone. A right press on the pane opens Workshop's menu fo
 under its id; the pane spells no key of its own, so the keys a weaver sees in the band's legend and
 the hotkey view are that weaver's.
 
+Each layout keeps one setting for the pane, written from Info's SETTINGS rows or by message
+([`PaneSettingCommitRequested`](../../workshop/docs/zengine.workshop.md#panesettingcommitrequested)): `detail`,
+pinned, whether the cursor's row opens its [explanation](#explanation); off, its rows are the
+list's. A value it cannot use keeps the default and is said to Workshop.
+
 ## Commands
 
 ### `attention.up`
@@ -98,7 +103,8 @@ what is true changes, and to a pane newly offered: every condition true now, in 
 an empty list when nothing is. Each publication replaces the last one whole; the pane hears it only
 from `zengine.workshop`. An observer follows the same publication instead of reading the pane
 ([`workshop/attention_seam_vocabulary.hpp`](../../workshop/attention_seam_vocabulary.hpp)); what
-you hide is the pane's own and is said to no one.
+you hide is the pane's own and is said to no one. The pane tells Workshop `PaneSettingUnused` when
+a layout hands it a setting it cannot use.
 
 ## Shows
 
@@ -119,8 +125,8 @@ the room says what it left out, `... 3 earlier` and `... 4 more`.
 ### `explanation`
 
 Beneath the cursor's row, indented: the condition's explanation, wrapped, then what you could
-press elsewhere, `try: w arrange desk`. Cut short, it ends `... 2 more`; below four rows of list
-there is none.
+press elsewhere, `try: w arrange desk`. Cut short, it ends `... 2 more`; below four rows of list,
+or with the layout's `detail` off, there is none.
 
 ### `notice`
 

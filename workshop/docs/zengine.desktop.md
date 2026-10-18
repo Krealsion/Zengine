@@ -35,6 +35,12 @@ below act everywhere, above every pane's mode, except Escape, which a pane hears
 A press names the picture it was aimed at: when the list moved under your hand the press does
 nothing and the pane says `the list moved -- press again`.
 
+Each layout keeps one setting for Hotkeys in its row, written from Info's SETTINGS rows or by
+message ([`PaneSettingCommitRequested`](zengine.workshop.md#panesettingcommitrequested)): `help`, pinned, whether
+the footer shows the keymap file and how a key is written there. Off, those rows are the list's; a
+notice and what reading the file came to still show. A value it cannot use leaves the default in
+force, and Workshop says it with the row.
+
 ## Commands
 
 ### `desktop.terminal`
@@ -341,7 +347,8 @@ The desk shows what Workshop says: the panes there are (`PaneInventory`), the ke
 (`KeymapShown`) and Workshop's verdict on each of its declarations (`ActionsJudged`,
 `ActionsWithdrawn`), each from `zengine.workshop`. An observer follows those instead of reading
 these panes. A declaration Workshop refused shows as `keys refused: <its reason>` in the pane it was
-about; one withdrawn, `keys withdrawn: <its reason>`.
+about; one withdrawn, `keys withdrawn: <its reason>`. The desk tells Workshop `PaneSettingUnused`
+when a layout hands one of its panes a setting it cannot use.
 
 ## Shows
 

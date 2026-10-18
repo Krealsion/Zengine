@@ -53,6 +53,11 @@ inline constexpr const char* kActionUp = "attention.up";
 inline constexpr const char* kActionDown = "attention.down";
 inline constexpr const char* kActionDismiss = "attention.dismiss";
 
+/// THE ONE SETTING THE PANE DECLARES (`v2::PaneSettingsDeclared`, workshop/pane_settings.hpp):
+/// whether the cursor's condition is explained beneath it in a layout, on unless the layout keeps
+/// it off.
+inline constexpr const char* kSettingDetail = "detail";
+
 /// One condition the weaver has hidden, and the statement they hid. `stamp` is the content, not a
 /// time: remembering only the key would hide a later, different condition wearing the same name,
 /// so a condition that materially changes is visible again with nobody clearing anything

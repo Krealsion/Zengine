@@ -170,19 +170,35 @@ inline constexpr std::int64_t kViewWidth = 19; ///< `[Sources] Operators` either
 inline constexpr std::int64_t kCompositeWidth = 13; ///< `[x] Composite`
 inline constexpr std::int64_t kFindMin = 6;  ///< `find:` and one column of query+caret
 
+/// The widest a layout may keep a control's column, and the fewest and most spaces between two
+/// segments: a control's column is never narrower than its own label.
+inline constexpr std::int64_t kMostControlWidth = 40;
+inline constexpr std::int64_t kFewestGap = 1;
+inline constexpr std::int64_t kMostGap = 4;
+
 inline std::int64_t find_fixed() {
     return static_cast<std::int64_t>(std::char_traits<char>::length(kFindLabel));
 }
 
 } // namespace detail
 
-inline ChromeFit fit_chrome(const std::string& position, std::int64_t columns) {
+/// THE CHROME ROW'S WIDTHS AS A LAYOUT KEEPS THEM: the columns the view control and the composite
+/// control are drawn in, each padded past its label, and the spaces between two segments.
+struct ChromeWidths {
+    std::int64_t view = detail::kViewWidth;
+    std::int64_t composite = detail::kCompositeWidth;
+    std::int64_t gap = detail::kGap;
+    friend bool operator==(const ChromeWidths&, const ChromeWidths&) = default;
+};
+
+inline ChromeFit fit_chrome(const std::string& position, std::int64_t columns,
+                            const ChromeWidths& widths = {}) {
     ChromeFit out;
     const std::int64_t pos_w = static_cast<std::int64_t>(position.size());
-    const std::int64_t find_min = detail::kGap + detail::kFindMin;
-    const std::int64_t with_pos = detail::kGap + pos_w;
-    const std::int64_t with_comp = detail::kGap + detail::kCompositeWidth;
-    std::int64_t used = detail::kViewWidth;
+    const std::int64_t find_min = widths.gap + detail::kFindMin;
+    const std::int64_t with_pos = widths.gap + pos_w;
+    const std::int64_t with_comp = widths.gap + widths.composite;
+    std::int64_t used = widths.view;
     if (used + with_pos + find_min + with_comp <= columns) {
         out.position = out.find = out.composite = true;
         used += with_pos + with_comp;
@@ -194,7 +210,7 @@ inline ChromeFit fit_chrome(const std::string& position, std::int64_t columns) {
         used += with_pos;
     }
     if (out.find) {
-        used += detail::kGap + detail::find_fixed();
+        used += widths.gap + detail::find_fixed();
         out.query_room = columns - used;
     }
     return out;

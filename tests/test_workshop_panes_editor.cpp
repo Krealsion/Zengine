@@ -1317,6 +1317,82 @@ TEST_CASE("CRLF and the final-newline state round-trip; tabs stay tabs and Tab i
     CHECK(bytes_of(e.root / "tabs.txt") == "\tone\t\n"); // ...saved as tabs
 }
 
+TEST_CASE("the Editor declares four settings, and a layout's tab stop, status row, wheel and undo depth are what its rows, its wheel and its history spend") {
+    // ⚔ MUTATION: the geometry reading `kEditorTabStop` whatever the layout keeps -- the tab is
+    // still drawn four wide; and the undo bound reading `kEditorUndoDepth` -- three undos take
+    // back three steps.
+    EditorRig e("edit-settings");
+    e.open();
+    namespace w = zengine::workshop;
+    const auto number = [](const char* key, std::int64_t made, std::int64_t low, std::int64_t high,
+                           std::vector<std::string> tags, bool pinned, const char* says) {
+        return v2::PaneSettingRow{key, std::nullopt, made, std::nullopt, {}, low, high, std::move(tags),
+                                  pinned, says};
+    };
+    const std::vector<v2::PaneSettingRow> declared{
+        number(pane::kSettingTabWidth, w::kEditorTabStop, w::kEditorTabStopLow, w::kEditorTabStopHigh,
+               {"editing", "text"}, true, "columns between tab stops"),
+        v2::PaneSettingRow{pane::kSettingStatus, true, std::nullopt, std::nullopt, {}, std::nullopt,
+                           std::nullopt, {"chrome"}, true, "show the status row"},
+        number(pane::kSettingWheelLines, w::kEditorWheelLines, w::kEditorWheelLinesLow,
+               w::kEditorWheelLinesHigh, {"input", "scroll"}, false, "lines scrolled per wheel notch"),
+        number(pane::kSettingUndoDepth, static_cast<std::int64_t>(w::kEditorUndoDepth),
+               static_cast<std::int64_t>(w::kEditorUndoDepthLow),
+               static_cast<std::int64_t>(w::kEditorUndoDepth), {"editing", "limits"}, false,
+               "maximum undo steps kept")};
+    CHECK(declared_settings(e.r, editor_ref()) == declared);
+
+    std::string lines = "\tone\n";
+    for (int i = 2; i <= 30; ++i) {
+        lines += "line " + std::to_string(i) + "\n";
+    }
+    e.open_file("a.cpp", lines);
+    e.give_rows(6);
+    // THE OPEN'S NOTICE SPENT by an act that leaves the caret where it was.
+    e.key(input::scan::kDown);
+    e.key(input::scan::kUp);
+    REQUIRE(e.status().rfind("saved L1:C1", 0) == 0);
+    REQUIRE(e.doc_row(0).rfind("    one", 0) == 0);
+
+    // A LAYOUT'S VALUES: a tab eight wide on the row the status gave up, five lines a notch.
+    keep_settings(e.r, editor_ref(), {PaneSetting{pane::kSettingTabWidth, {}, 8, {}},
+                                      PaneSetting{pane::kSettingStatus, false, {}, {}},
+                                      PaneSetting{pane::kSettingWheelLines, {}, 5, {}},
+                                      PaneSetting{pane::kSettingUndoDepth, {}, 2, {}}});
+    CHECK(unused_settings(e.r, editor_ref()).empty());
+    CHECK(e.shown().at(0).rfind("        one", 0) == 0);
+    e.wheel(-1.0);
+    CHECK(e.shown().at(0) == "line 6");
+    // ...AND TWO UNDO STEPS KEPT: three new lines, three undos, and the first stays.
+    for (int i = 0; i < 3; ++i) {
+        e.key(input::scan::kReturn);
+    }
+    for (int i = 0; i < 3; ++i) {
+        e.key(input::scan::kZ, input::mod::kCtrl);
+    }
+    CHECK(e.read("text") == "\n" + lines);
+
+    // A ROW THAT KEEPS NOTHING IS EVERY SETTING AT ITS DEFAULT: the status row is back, and the
+    // tab four wide.
+    keep_settings(e.r, editor_ref(), {});
+    CHECK(e.status().rfind("UNSAVED", 0) == 0);
+    e.discard();
+    REQUIRE(e.read("text") == lines);
+    CHECK(e.status().rfind("saved ", 0) == 0);
+
+    // A VALUE OUTSIDE ITS RANGE OR OF ANOTHER KIND leaves its default, each said by its key.
+    keep_settings(e.r, editor_ref(), {PaneSetting{pane::kSettingTabWidth, {}, 0, {}},
+                                      PaneSetting{pane::kSettingStatus, {}, {}, std::string("off")},
+                                      PaneSetting{pane::kSettingWheelLines, {}, 25, {}},
+                                      PaneSetting{pane::kSettingUndoDepth, {}, 101, {}}});
+    CHECK(unused_settings(e.r, editor_ref()) ==
+          std::vector<std::string>{"tab-width: it takes a whole number from 1 to 16",
+                                   "status: it takes on or off",
+                                   "wheel-lines: it takes a whole number from 1 to 24",
+                                   "undo-depth: it takes a whole number from 1 to 100"});
+    CHECK(e.status().rfind("saved ", 0) == 0);
+}
+
 TEST_CASE("discard is deliberate, scoped, undoable, and honest about nothing to do") {
     EditorRig e("edit-discard");
     e.open();

@@ -19,6 +19,8 @@
 #include "workshop/pane_drawing.hpp"
 #include "workshop/pane_facets.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
+#include "workshop/pane_settings.hpp"
+#include "workshop/pane_settings_taken.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
 #include "manuals/zengine.view.builder.hpp" // this pane's manual, compiled in from its page
@@ -110,12 +112,13 @@ class ViewBuilderPane final
           loom::Accept<ws::PaneCanvasPointer, ws::PaneCanvasHover, ws::PaneKey, ws::PaneTextInput,
                        ws::ActionsJudged, ws::PaneQuitRequested, ws::PaneCanvasValueDrop,
                        ws::PaneCarryAnswered, vb::ViewEdit, view::ViewAnswer, ws::ProjectRoot,
-                       gfx::AreaRoom, gfx::DrawnRefused, gfx::ActionRequested>,
+                       gfx::AreaRoom, gfx::DrawnRefused, gfx::ActionRequested,
+                       ws::v2::PaneSettings>,
           loom::Emit<ws::PaneContent, ws::v4::PaneCanvasContent, ws::PaneEscapeUnspent,
                      ws::PanePassRequested, ws::PaneQuitAnswered, ws::PaneOperationRequested,
                      ws::PaneValueCarryRequested, vb::ViewEdited, view::ViewRun, view::ViewResume,
                      view::ViewApply, view::ViewStop, ws::ProjectRootRequested, gfx::Drawn,
-                     gfx::RoomAsked>> {
+                     gfx::RoomAsked, ws::v2::PaneSettingsDeclared, ws::PaneSettingUnused>> {
 public:
     loom::Value snapshot() const override {
         vb::ViewBuilderState saved;
@@ -174,7 +177,49 @@ public:
         return ws::v3::PaneOffered{vb::kPane, "View Builder", "make a view by hand, then run it beside Flow",
                                    880, 540, 0};
     }
-    void offered(loom::Mail& mail) { declare(mail); }
+    /// The rows the pane answers to, and the settings it takes.
+    void offered(loom::Mail& mail) {
+        declare(mail);
+        (void)mail.as_role(vb::kRole)
+            .send_to_role(workshop_role, ws::v2::PaneSettingsDeclared{vb::kPane, setting_rows()});
+    }
+    /// THE SETTINGS THIS LAYOUT KEEPS FOR THE PANE, taken whole; what it cannot use is said back
+    /// against the revision it was handed at. A hand-off moves no view: the size is the next
+    /// `new`'s, the reach the next placing hand's. Held as plain members, never reload state.
+    void on(const ws::v2::PaneSettings& handed, loom::Mail& mail) {
+        if (!mail.authored_from_role(workshop_role) || handed.pane != vb::kPane) return;
+        const ws::SettingsTaken taken = ws::take_pane_settings(setting_rows(), handed);
+        ws::say_settings_unused(mail, vb::kRole, taken);
+        snap_reach_ = taken.number(vb::kSettingSnapReach);
+        model_.new_width = taken.number(vb::kSettingNewWidth);
+        model_.new_height = taken.number(vb::kSettingNewHeight);
+    }
+    /// THE SETTINGS THE PANE TAKES, each with its default, how a weaver finds it and what it does.
+    static std::vector<ws::v2::PaneSettingRow> setting_rows() {
+        ws::v2::PaneSettingRow reach;
+        reach.key = vb::kSettingSnapReach;
+        reach.number = vb::kSnapReach;
+        reach.low = 0;
+        reach.high = vb::kMostSnapReach;
+        reach.tags = {"layout", "input"};
+        reach.pinned = true;
+        reach.summary = "snap reach in pixels when dragging";
+        ws::v2::PaneSettingRow width;
+        width.key = vb::kSettingNewWidth;
+        width.number = vb::kNewViewWidth;
+        width.low = view::kMinWidthPx;
+        width.high = view::kMaxPixels;
+        width.tags = {"layout"};
+        width.summary = "initial width in pixels of a new view";
+        ws::v2::PaneSettingRow height;
+        height.key = vb::kSettingNewHeight;
+        height.number = vb::kNewViewHeight;
+        height.low = view::kMinHeightPx;
+        height.high = view::kMaxPixels;
+        height.tags = {"layout"};
+        height.summary = "initial height in pixels of a new view";
+        return {reach, width, height};
+    }
     void on_room(loom::Mail& mail) { show(mail); }
     void on_canvas_room(loom::Mail& mail) {
         // A fresh room ends whatever the old one held: a drag, a hover, a mark. The pan stays,
@@ -634,7 +679,7 @@ private:
             const auto most = [](std::int64_t v) { return std::clamp<std::int64_t>(v, 1, view::kMaxSizePx); };
             const auto sized = vb::sized_by_hand(model_.description, most(h.width + (h.sx ? px : 0)),
                                                  most(h.height + (h.sy ? py : 0)), snapping && h.sx != 0,
-                                                 snapping && h.sy != 0, shown_.grid);
+                                                 snapping && h.sy != 0, shown_.grid, snap_reach_);
             const bool met = sized.met_x != shown_.met_x || sized.met_y != shown_.met_y;
             shown_.met_x = sized.met_x;
             shown_.met_y = sized.met_y;
@@ -673,7 +718,8 @@ private:
                 at.h = b.y + b.h - at.y;
             }
         }
-        const auto snapped = snapping ? vb::snap(model_.description, h.element, at, along_x, along_y, shown_.grid) : at;
+        const auto snapped =
+            snapping ? vb::snap(model_.description, h.element, at, along_x, along_y, shown_.grid, snap_reach_) : at;
         const bool met = snapped.met_x != shown_.met_x || snapped.met_y != shown_.met_y;
         shown_.met_x = snapped.met_x;
         shown_.met_y = snapped.met_y;
@@ -701,7 +747,8 @@ private:
         const vb::Place under{at(event.x - h.placed.x, d.width - w), at(event.y - h.placed.y, d.height - height), w,
                               height, std::nullopt, std::nullopt};
         if (aside(event)) return under;
-        return vb::snap(model_.description, std::nullopt, under, vb::Edges::both, vb::Edges::both, shown_.grid);
+        return vb::snap(model_.description, std::nullopt, under, vb::Edges::both, vb::Edges::both, shown_.grid,
+                        snap_reach_);
     }
 
     /// THE PRESS ENDS. A release keeps what the drag did, and a kind let go over the canvas is made
@@ -1169,6 +1216,9 @@ private:
     Menu& menu() { return this->template facet<Menu>(); }
 
     vb::Model model_;
+    /// HOW NEAR AN EDGE PLACED BY HAND SNAPS: the layout's `snap-reach`, handed again after a
+    /// reload, so never reload state.
+    std::int64_t snap_reach_ = vb::kSnapReach;
     vb::Presentation shown_;
     std::optional<Held> held_;
     bool restored_ = false;

@@ -83,7 +83,8 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
   a corner's the two it joins (`place`). The view's size is set by the handles on its right and
   bottom edges or typed into its boxes (`size`). Each place by hand snaps (`view_builder::snap`,
   `view_builder::sized_by_hand`): an edge the hand moves comes to another element's edge, or the
-  view's, within `view_builder::kSnapReach` pixels; else to the weaver's grid when one is set, up
+  view's, within the layout's `snap-reach` pixels (`view_builder::kSnapReach` unless it keeps
+  another; none snaps to no edge); else to the weaver's grid when one is set, up
   to `view_builder::kMaxGrid`, and without one it stays at its whole pixel. The edge it met is
   marked while held. Alt held sets every snap aside. Nothing sits outside the view: a drag stops
   at its edges, and a typed value or a key that would cross one, or a size that would shrink past
