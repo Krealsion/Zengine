@@ -191,8 +191,12 @@ set(zengine_installable_artifacts
                                  # for a second terminal from a Loom with no Workshop; its one
                                  # runtime need beyond the Loom is a Neovim, found at run time
     zengine-operators-basic      # provider, not a weave
-    zengine-guest-vocabulary)    # weave for an EXTERNAL Loom host: Workshop's guest vocabulary
+    zengine-guest-vocabulary     # weave for an EXTERNAL Loom host: Workshop's guest vocabulary
                                  # declared there, so a session's Python tools can speak it
+    zengine-graphics             # weave: the graphics directory
+    zengine-window-terminal      # weave: the window over the process's own terminal
+    zengine-paint-classic        # provider, not a weave: painter code a window opens by path
+    zengine-paint-block)         # provider, not a weave: the same, in block glyphs
 
 set(ZENGINE_INSTALLED_ARTIFACTS "")
 foreach(artifact IN LISTS zengine_installable_artifacts)

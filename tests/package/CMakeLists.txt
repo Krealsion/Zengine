@@ -80,7 +80,8 @@ add_dependencies(kitchen-host oven)
 # `zengine-operators-basic` a provider it opens directly, with no participant in it. So the only
 # noun true of every member is `artifact`, and a variable renamed after one surface goes red here.
 foreach(expected zengine-timer zengine-operators-basic zengine-neovim-editor
-                 zengine-guest-vocabulary zengine-inventory)
+                 zengine-guest-vocabulary zengine-inventory zengine-graphics
+                 zengine-window-terminal zengine-paint-classic zengine-paint-block)
     if(NOT expected IN_LIST ZENGINE_RUNTIME_ARTIFACTS)
         message(FATAL_ERROR
             "kitchen: '${expected}' is not in ZENGINE_RUNTIME_ARTIFACTS "

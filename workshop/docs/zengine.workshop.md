@@ -695,16 +695,17 @@ pasted into the line that asked, if that draft still stands.
 
 ### `KeyPressed`
 
-`KeyPressed`, from input ([`input/vocabulary.hpp`](../../input/vocabulary.hpp)): resolved once --
-the application's rows above every mode, then a menu, arranging, a naming line, the focused pane,
-command mode -- and spent there. A pane holding the keys hears `PaneKey`, or
-`PaneActionRequested` for a row it declared.
+`KeyPressed`, from input ([`input/vocabulary.hpp`](../../input/vocabulary.hpp)), or from the
+graphics window that shows Workshop's area: resolved once -- the application's rows above every
+mode, then a menu, arranging, a naming line, the focused pane, command mode -- and spent there. A
+pane holding the keys hears `PaneKey`, or `PaneActionRequested` for a row it declared.
 
 ### `TextEntered`
 
-`TextEntered`, from input: a character goes where a key goes, so a pane holding the keys hears
-`PaneTextInput`; the character a binding's key produced is that binding's. On a weaver's host a
-guest's text rests nowhere: `this is a weaver's host: a guest's typed text rests in no pane, ...`.
+`TextEntered`, from input or from that window: a character goes where a key goes, so a pane
+holding the keys hears `PaneTextInput`; the character a binding's key produced is that binding's.
+On a weaver's host a guest's text rests nowhere:
+`this is a weaver's host: a guest's typed text rests in no pane, ...`.
 
 ### `PointerButton`
 
@@ -768,8 +769,16 @@ its outcome is said on the band, `editor switch <op>: <outcome>`.
 `GraphicsReady`, from `zengine.graphics` ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)):
 a graphics directory started afresh. While one is mounted Workshop is its arranger: it offers the
 `classic` and `block` skins, places each open pane whose office draws in a window over the pane's
-body, and its own area, `zengine.workshop`, across the screen, and asks its own room. With no
-directory it says nothing there.
+body, and its own area, `zengine.workshop`, across the screen, the one area that takes the
+window's keys and text, and asks its own room. With no directory it says nothing there.
+
+### `WindowOffered`
+
+`WindowOffered` v1, from the terminal window as its own office, `zengine.window.terminal`: its
+size in cells. With no skin up yet, Workshop comes up in it as `SurfaceReady` brings it up; and
+while no skin has said `SurfaceExtent`, it lays the same panes out in the window's room, a cell
+of text a cell, again each time the window offers another size. A skin's extent then owns the
+room. An offer from any other office, or of another window, is ignored.
 
 ### `AreaRoom`
 
@@ -777,7 +786,7 @@ directory it says nothing there.
 office: Workshop's room there. It draws its desk -- Layouts, each pane's edge and header, a body
 its office does not draw, a menu, the band -- whole when the window, its incarnation or its size
 changed, then only what changed. A pane's own area stands in front of it, but while a weaver
-arranges or a menu is open.
+arranges, a menu is open, or a carried value or a guide mark stands over the desk, drawn on top.
 
 ### `DrawnRefused`
 
