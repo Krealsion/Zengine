@@ -5797,8 +5797,8 @@ TEST_CASE("a pane overlapping the selected one is reached past its centre") {
     CHECK(d.toward(0, Act::kFocusLeft) == -1);
 }
 
-TEST_CASE("command mode marks the selected pane, at its corners on a canvas and with rings in a "
-          "window, and the pane the keys are in wears none") {
+TEST_CASE("command mode marks the selected pane, with brackets where text is a cell and rings where "
+          "an edge is finer, and the pane the keys are in wears none") {
     // ⚔ MUTATION: no ring -- the selected pane looks as it does with the keys in it, but for the
     // two-character mark.
     PlacedDesk d({PixelRect{0, 0, 30 * kCell, 10 * kCell},
@@ -5846,6 +5846,24 @@ TEST_CASE("command mode marks the selected pane, at its corners on a canvas and 
         CHECK(r.y < b.y);
         CHECK(r.x + r.w > b.x + b.w);
         CHECK(r.y + r.h > b.y + b.h);
+    }
+
+    // ...AND A CANVAS WHOSE EDGES ARE A DEVICE UNIT WIDE wears the rings too, as filled sides, and
+    // no glyph that could stand on the header's words.
+    Session fine = d.s;
+    fine.cell_px = surface::kCanvasCellPx;
+    const Screen fine_sc = screen_of(fine);
+    REQUIRE(chrome_grain(fine_sc) < surface::kCanvasCellPx);
+    surface::SurfaceLayer fine_ring;
+    paint_selection_ring(fine_ring, fine, fine_sc);
+    CHECK(fine_ring.labels.empty());
+    REQUIRE(fine_ring.rects.size() == 8);
+    const PixelRect fb = bounds_of(fine.panes, fine.setup.active, d.kinds[1], fine_sc).rect;
+    for (const surface::SurfaceRect& side : fine_ring.rects) {
+        CHECK(side.role == surface::role::kAccent);
+        // Every side lies outside the pane: wholly left, right, above or below its rectangle.
+        CHECK((side.x + side.w <= fb.x || side.x >= fb.x + fb.w || side.y + side.h <= fb.y ||
+               side.y >= fb.y + fb.h));
     }
 
     // THE KEYS IN THE PANE: its `> ` mark says so, and no ring is drawn.

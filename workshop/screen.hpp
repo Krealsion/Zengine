@@ -1407,8 +1407,9 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
 
 // ---- The arrangement's affordance rings --------------------------------------------------
 
-/// THE KEYBOARD'S SELECTION MADE VISIBLE: in command mode, the selected pane's four corners
-/// marked, so a selection the keys have not entered is told from the pane that has them.
+/// THE KEYBOARD'S SELECTION MADE VISIBLE: in command mode, brackets on the selected pane's corners
+/// where text is a cell, rings outside its edge where an edge is finer, so a selection the keys
+/// have not entered is told from the pane that has them.
 // WL-FOCUS-12 -- agents/workshop/focus.md
 void paint_selection_ring(surface::SurfaceLayer& layer, const Session& s, const Screen& sc);
 
