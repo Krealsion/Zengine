@@ -56,6 +56,9 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     // Same beat, same rule, same silence when nothing changed.
     facet<TerminalDoorFacet>().say_transcript(mail);
     auto canvas = paint(session_);
+    // THE PLANES ABOVE THE PICTURE, kept for the window's drawing of the desk too: the carried
+    // value under the hand...
+    window_overlays_.clear();
     if (carried_.drag && value_drag_.moved && !value_drag_.released && drag_pointer_.understood) {
         surface::SurfaceLayer overlay;
         const auto rect = wire_rect_of(PixelRect{drag_pointer_.px.x, drag_pointer_.px.y,
@@ -63,13 +66,16 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
         overlay.rects.push_back(rect);
         overlay.labels.push_back(
             surface::SurfaceLabel{rect.x, rect.y, "[value]", surface::role::kFill});
-        canvas.layers.push_back(std::move(overlay));
+        window_overlays_.push_back(std::move(overlay));
     }
-    // EVERY GUEST'S GUIDE MARK, above the picture, each judged against what shows now.
+    // ...and EVERY GUEST'S GUIDE MARK, each judged against what shows now.
     if (!guide_marks_.empty()) {
         surface::SurfaceLayer marks = guide_layer(mail);
-        if (!marks.rects.empty() || !marks.labels.empty()) canvas.layers.push_back(std::move(marks));
+        if (!marks.rects.empty() || !marks.labels.empty()) {
+            window_overlays_.push_back(std::move(marks));
+        }
     }
+    canvas.layers.insert(canvas.layers.end(), window_overlays_.begin(), window_overlays_.end());
     mail.publish(std::move(canvas));
     // ...and behind the canvas, the fence that makes a newly shown picture the one a press is
     // stamped with, queued after it so no delivery comes between them.
@@ -133,15 +139,13 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
     }
     // EACH OPEN PANE WHOSE OFFICE DRAWS IN A WINDOW, over its body, in the desk's order and above
     // Workshop's own area; a pane that does not, or whose last word was refused, is drawn by
-    // Workshop. Its area takes the window's keys only where they are typed into it and its office
-    // takes them, and Workshop's takes them everywhere else.
+    // Workshop. The window's keys and text are Workshop's alone, whichever pane they are typed
+    // into: its keymap decides first, and a pane hears them as `PaneKey` and `PaneTextInput`.
     const Screen sc = screen_of(session_);
     const std::vector<std::int64_t> order =
         effective_pane_order(session_.setup.active, session_.panes);
-    const std::int64_t typing = typing_pane(session_);
     std::map<std::string, graphics::AreaPlaced> next;
     std::set<std::int64_t> kinds;
-    bool pane_keys = false;
     for (std::size_t i = 0; i < order.size(); ++i) {
         const RuntimePane* row = session_.panes.runtime.of_kind(order[i]);
         const ExternalPane* ext = session_.panes.external_pane(order[i]);
@@ -159,22 +163,19 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         if (!where.open || place.empty()) {
             continue;
         }
-        const bool keys = typing == order[i] &&
-                          accepts(row->provider, *loom::schema_of<input::KeyPressed>());
-        pane_keys = pane_keys || keys;
         const std::string area = pane_window_area(session_.panes, *row);
         next[area] = graphics::AreaPlaced{
             area, graphics::kTerminalWindow, row->provider, place.x, place.y, place.w, place.h,
-            static_cast<std::int64_t>(i) + 1, keys,
+            static_cast<std::int64_t>(i) + 1, false,
             accepts(row->provider, *loom::schema_of<input::PointerButton>())};
         kinds.insert(order[i]);
     }
     // WORKSHOP'S OWN AREA, the whole screen: behind every pane's, and in front of them while a
-    // weaver arranges or a menu is open.
+    // weaver arranges or a menu is open, or while a carried value or a guide mark stands over them.
+    const bool front = desk_in_front(session_) || !window_overlays_.empty();
     next[kWorkshopProvider] = graphics::AreaPlaced{
         kWorkshopProvider, graphics::kTerminalWindow, kWorkshopProvider, 0, 0, sc.w, sc.h,
-        desk_in_front(session_) ? static_cast<std::int64_t>(order.size()) + 1 : 0, !pane_keys,
-        true};
+        front ? static_cast<std::int64_t>(order.size()) + 1 : 0, true, true};
     for (const auto& [area, was] : areas_placed_) {
         if (next.count(area) == 0) {
             to_directory(graphics::AreaPlaced{area, "", was.owner, 0, 0, 0, 0, 0, false, false});
@@ -202,7 +203,8 @@ void WorkshopWeave::draw_window(loom::Mail& mail) {
     if (!window_.shown()) {
         return;
     }
-    WorkshopWindowDrawing drawn = workshop_window_drawing(session_, placed_kinds_);
+    WorkshopWindowDrawing drawn =
+        workshop_window_drawing(session_, placed_kinds_, window_overlays_);
     window_parts_ = std::move(drawn.parts);
     window_.draw(drawn.sketch, mail);
 }

@@ -7,8 +7,8 @@
 // The terminal window: the whole job of showing what its areas' owners drew, over an injected
 // Terminal. It keeps each area's nodes, records and presented elements in its state, presents an
 // element from code it loads, paints what changed with the area's skin and keeps it painted,
-// composes the areas, reads its terminal, routes a press, gives keys to the areas that hear them,
-// and tells each owner its room. Nothing it shows passes through the directory.
+// composes the areas, reads its terminal, routes a press, gives keys and their text to the areas
+// that hear them, and tells each owner its room. Nothing it shows passes through the directory.
 // Reference: graphics/docs/zengine.window.terminal.md, its manual, compiled in and answered.
 
 #include "graphics/painting.hpp"
@@ -91,7 +91,8 @@ using WindowBase = zengine::With<
           loom::Accept<Drawn, ElementPut, ElementChange, AreaIntroduced, AreaWithdrawn,
                        ElementCodeOffered, GraphicsReady, WindowShowAsked>,
           loom::Emit<DrawnRefused, WindowOffered, AreaRoom, zengine::input::KeyPressed,
-                     ActionRequested, zengine::input::PointerButton, WindowShown>,
+                     zengine::input::TextEntered, ActionRequested, zengine::input::PointerButton,
+                     WindowShown>,
           zengine::timer::TimedWeave>;
 
 template <class Terminal>
@@ -286,15 +287,14 @@ private:
 
     // ---- input --------------------------------------------------------------------------------
 
-    /// The window's own beat: what its terminal typed, read with Zengine's parser.
+    /// The window's own beat: what its terminal typed, read with Zengine's parser. A key and the
+    /// text it typed go alike, to the owner of each area placed to hear keys.
     void on_pump(const zengine::timer::TimerFired&, loom::Mail& mail) {
         for (const zengine::input::InputEvent& e : terminal_.poll()) {
             if (const auto* k = std::get_if<zengine::input::KeyPressed>(&e)) {
-                for (const WinArea* a : front_to_back(this->state_.areas)) {
-                    if (a->keys && !a->owner.empty()) {
-                        (void)mail.as_role(office()).send_to_role(a->owner, *k);
-                    }
-                }
+                to_keys(mail, *k);
+            } else if (const auto* t = std::get_if<zengine::input::TextEntered>(&e)) {
+                to_keys(mail, *t);
             } else if (const auto* b = std::get_if<zengine::input::PointerButton>(&e)) {
                 if (b->pressed && b->button == 1) {
                     press(mail, *b);
@@ -302,6 +302,16 @@ private:
             }
         }
         settle(false);
+    }
+
+    /// A key, or its text, to the owner of each area placed to hear keys, front to back.
+    template <class Typed>
+    void to_keys(loom::Mail& mail, const Typed& typed) {
+        for (const WinArea* a : front_to_back(this->state_.areas)) {
+            if (a->keys && !a->owner.empty()) {
+                (void)mail.as_role(office()).send_to_role(a->owner, typed);
+            }
+        }
     }
 
     /// A press at a cell of the window: the element presented there, if its code takes it; else
@@ -637,9 +647,11 @@ private:
         painters_.close(library);
     }
 
+    /// This window, as its own office, to whoever follows it: the directory, and an arranger that
+    /// lays out in its room.
     void offer(loom::Mail& mail) {
-        (void)mail.as_role(office()).send_to_role(
-            kGraphicsRole, WindowOffered{kTerminalWindow, cols_, rows_, this->state_.epoch});
+        (void)mail.as_role(office()).publish(
+            WindowOffered{kTerminalWindow, cols_, rows_, this->state_.epoch});
     }
 
     /// An area's room, to its owner: this window, its incarnation, the area's size, and the

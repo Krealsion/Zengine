@@ -5,8 +5,8 @@ showing what its areas' owners draw. It answers to the office `zengine.window.te
 window's office is `zengine.window.` and its name, `terminal`) and is built as
 `zengine-window-terminal`, a file a host loads. It keeps what each owner drew, paints it with the
 area's skin, composes the areas, writes the terminal only the cells that changed, and sends the
-terminal's keys and presses to the owners. The directory, [`zengine.graphics`](zengine.graphics.md),
-introduces its areas to it.
+terminal's keys, their text and its presses to the owners. The directory,
+[`zengine.graphics`](zengine.graphics.md), introduces its areas to it.
 
 ## About
 
@@ -30,12 +30,13 @@ runs: a cursor move, the role's ink, the glyphs. A drawing or a change saying `m
 showing back; the next message from that drawer without it shows everything since, once. Any other
 message the window handles shows what it changed.
 
-**Keys and presses.** The window reads its terminal on its own beat, the Timer's repeating
-`zengine.window.pump` every `window::kPumpBeatMs` milliseconds, with Zengine's parser. A key goes to
-the owner of each area placed to hear keys, front to back. A left press lands on the top node
-painted at its cell: an element presented there whose code takes the press handles it; else the
-action of the record it lies in goes to the area's owner (`ActionRequested`); else the press, in
-the area's pixels, to an owner placed to hear the pointer (`PointerButton`); else nothing.
+**Keys and presses.** The window reads its terminal on its own beat, the Timer's
+`zengine.window.pump` every `window::kPumpBeatMs` milliseconds, with Zengine's parser. A key and
+its text go to the owner of each area placed to hear keys, front to back. A left press lands on
+the top node painted at its cell: an element presented there whose code takes the press handles
+it; else the action of the record it lies in goes to the area's owner (`ActionRequested`); else
+the press, in the area's pixels, to an owner placed to hear the pointer (`PointerButton`); else
+nothing.
 
 ## Use
 
@@ -147,7 +148,7 @@ code for a type the window presents draws each such element again, from the stat
 ### `TimerFired`
 
 `TimerFired` v1, from the Timer: the window's beat, `zengine.window.pump`. It reads what the
-terminal typed and sends the keys and presses on.
+terminal typed and sends the keys, their text and the presses on.
 
 ### `TimerReady`
 
@@ -161,14 +162,15 @@ timer binding.
 
 ## Follow
 
-Nothing the window says is published: each message goes to one office. To the directory,
-`WindowOffered` v1 on each activation and after `GraphicsReady`: its name, its size in cells, its
-incarnation. To an area's owner, `AreaRoom` v2 for each introduction: the area, this window, its
-incarnation, the area's size, and the references of the owner's elements it still presents there;
-`DrawnRefused` v1 for a drawing refused; `ActionRequested` v1 for a press on an action, and
-`PointerButton` v1 for any other press to an owner placed to hear the pointer; and `KeyPressed` v2
-to each owner placed to hear keys. To the Timer, its beat's order. An observer
-reads what it shows with `WindowShowAsked`.
+The window publishes `WindowOffered` v1 as its own office, on each activation and after
+`GraphicsReady`: its name, its size in cells, its incarnation. The directory keeps it, and an
+arranger that follows it may lay out in that room. Everything else goes to one office. To an
+area's owner, `AreaRoom` v2 for each introduction: the area, this window, its incarnation, the
+area's size, and the references of the owner's elements it still presents there; `DrawnRefused`
+v1 for a drawing refused; `ActionRequested` v1 for a press on an action, and `PointerButton` v1 for
+any other press to an owner placed to hear the pointer; and `KeyPressed` v2 and `TextEntered` v1
+to each owner placed to hear keys, an owner that takes no text refusing it on the bus. To the
+Timer, its beat's order. An observer reads what it shows with `WindowShowAsked`.
 
 ## Files
 

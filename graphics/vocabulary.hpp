@@ -138,8 +138,9 @@ struct ActionRequested {
 
 // ---- the directory ------------------------------------------------------------------------
 
-/// A window -> the directory, as its own office, on each activation: its name, its size in cells,
-/// and its incarnation. A window started afresh holds nothing, so its owners draw whole again.
+/// A window, as its own office, to whoever follows it -- the directory, and an arranger laying out
+/// in its room -- on each activation: its name, its size in cells, and its incarnation. A window
+/// started afresh holds nothing, so its owners draw whole again.
 struct WindowOffered {
     std::string window;
     std::int64_t cols = 0, rows = 0;

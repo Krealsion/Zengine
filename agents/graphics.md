@@ -12,7 +12,7 @@ keeps, is [surface](surface.md); where the two meet is the last section here.
   changes, keeps what it painted in its MEMORY (a reload paints it again from the state, once),
   composes the areas front to back by their order, and writes its medium only the cells whose
   picture changed, as runs. It judges a press against what it painted and routes it, and gives
-  keys to the owners of the areas placed to hear them.
+  keys, and the text they type, to the owners of the areas placed to hear them.
 - **Nothing on the path a picture takes but the drawer and its window.** The directory introduces;
   it never holds a node, a record or a painted cell, and a skin chosen or an area moved sends the
   window a word, never a drawing.
