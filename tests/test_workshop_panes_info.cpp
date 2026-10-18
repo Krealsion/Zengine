@@ -2540,8 +2540,37 @@ TEST_CASE("a subject naming a pane in neither this build's vocabulary nor this d
 TEST_CASE("Info draws its properties on its canvas on the medium's own ground, and a draft's caret "
           "and selection stand in its row where the weaver types, moving no character, and go with "
           "it") {
+    namespace gfx = zengine::graphics;
+    namespace pw = zengine::testing::pane_window;
     InfoRig f;
     f.open();
+    // A GRAPHICS WINDOW SHOWS INFO'S AREA TOO, where the same caret and selection stand.
+    const std::string area = std::string(pane::kInfoPaneRole) + "." + pane::kInfoPane;
+    pw::Window window(f.r.bus);
+    window.room(area, pane::kInfoPaneRole, 120, 48);
+    const auto kept = [&](const std::string& path) -> const gfx::Node* {
+        const gfx::window::WinArea* a = window.weave().find(area);
+        for (std::size_t i = 0; a != nullptr && i < a->nodes.size(); ++i) {
+            if (a->nodes[i].node.path == path) return &a->nodes[i].node;
+        }
+        return nullptr;
+    };
+    const auto asks = [&](const std::string& path) {
+        const gfx::window::WinArea* a = window.weave().find(area);
+        const gfx::ElementRecord* r = a == nullptr ? nullptr : gfx::window::record_of(*a, path);
+        return r == nullptr ? std::string() : r->action;
+    };
+    const auto marks = [&] {
+        std::size_t n = 0;
+        const gfx::window::WinArea* a = window.weave().find(area);
+        for (std::size_t i = 0; a != nullptr && i < a->nodes.size(); ++i) {
+            const std::string& path = a->nodes[i].node.path;
+            if (path == "caret" || path.rfind("sel", 0) == 0) ++n;
+        }
+        return n;
+    };
+    REQUIRE_FALSE(window.weave().heard.empty());
+    CHECK(marks() == 0);
     f.draft_holding("Width", "77");
     const auto held = [&f] {
         const ExternalPane* seat = f.r.session().panes.external_pane(f.kind);
@@ -2552,20 +2581,63 @@ TEST_CASE("Info draws its properties on its canvas on the medium's own ground, a
     CHECK(wears_medium_ground(held()));
     const std::int64_t row = f.property_at("Width");
     REQUIRE(row >= 0);
+    // ...THE CARET A BAR AT THE LEFT OF ITS CELL in the window, asking for the property.
+    const auto bar_at = [&](std::int64_t column) {
+        const gfx::Node* caret = kept("caret");
+        REQUIRE(caret != nullptr);
+        CHECK(caret->op == gfx::op::kLine);
+        const std::optional<gfx::LineArgs> bar = gfx::from_body<gfx::LineArgs>(caret->args);
+        REQUIRE(bar.has_value());
+        CHECK(bar->x1 == column * gfx::kCellPx);
+        CHECK(bar->x2 == column * gfx::kCellPx);
+        CHECK(bar->y1 == row * gfx::kCellPx);
+        CHECK(bar->y2 == row * gfx::kCellPx + gfx::kCellPx - 1);
+        CHECK(bar->ink.role == surface::role::kAccent);
+        CHECK(asks("caret") == "property:Width");
+    };
     CHECK(value_of(f.property_row("Width")) == "77"); // nothing written into the value
     CHECK(held_caret(held()).row == row);
     CHECK(held_caret(held()).column == 12); // the mark, the label column, then after `77`
+    bar_at(12);
     f.r.key(input::scan::kLeft);
     CHECK(held_caret(held()).column == 11);
+    bar_at(11);
     CHECK(value_of(f.property_row("Width")) == "77");
     f.r.key(input::scan::kLeft, input::mod::kShift);
     CHECK(held_caret(held()).column == 10);
     CHECK(held_caret(held()).sel_begin_row == row);
     CHECK(held_caret(held()).sel_begin_col == 10);
     CHECK(held_caret(held()).sel_end_col == 11);
+    // ...THE SELECTION its columns again in the accent role, asking for the property, the row's
+    // words unchanged. A window started again, holding nothing, is drawn both with the rows, whole.
+    const auto selected = [&] {
+        const std::string sel = "sel" + std::to_string(row) + ".0";
+        const gfx::Node* node = kept(sel);
+        REQUIRE(node != nullptr);
+        const std::optional<gfx::TextArgs> words = gfx::from_body<gfx::TextArgs>(node->args);
+        REQUIRE(words.has_value());
+        CHECK(words->text == "7");
+        CHECK(words->x == 10 * gfx::kCellPx);
+        CHECK(words->y == row * gfx::kCellPx);
+        CHECK(words->ink.role == surface::role::kAccent);
+        CHECK(asks(sel) == "property:Width");
+        CHECK(marks() == 2);
+        std::vector<std::string> shown = f.shown();
+        for (std::string& r : shown) r.erase(r.find_last_not_of(' ') + 1);
+        CHECK(window.rows(area) == shown);
+    };
+    selected();
+    bar_at(10);
+    const std::size_t sent = window.weave().heard.size();
+    window.room(area, pane::kInfoPaneRole, 120, 48, 2);
+    REQUIRE(window.weave().heard.size() == sent + 1);
+    CHECK(window.weave().heard.back().whole);
+    selected();
+    bar_at(10);
     f.r.key(input::scan::kEscape); // the draft ends, and its caret with it
     CHECK(held_caret(held()).row == surface::kNoCaret);
     CHECK(held_caret(held()).sel_begin_row == surface::kNoSelection);
+    CHECK(marks() == 0);
 }
 
 TEST_CASE("a host that grants Info no canvas is shown its properties and a draft's caret as prose, "

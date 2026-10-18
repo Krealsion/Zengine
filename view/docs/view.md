@@ -96,10 +96,13 @@ actions among them.
   draws in the room a window gives (`graphics::AreaRoom`) as a terminal does,
   `graphics::kCellPx` pixels to a character (`view::sketch`): each rectangle and run of text a
   node named by what drew it -- `ground`, `box:<id>`, `text:<id>`, and `notice` for the notice's
-  lines -- and each button's nodes asking its id. A press there (`graphics::ActionRequested`) on a
-  button the picture last sent there names uses it as a press in Workshop does. A change is sent
-  as what changed; a new window, incarnation or size gets the picture whole, a refused change is
-  sent again whole, and a refused whole drawing is said on the notice row. A caret is Workshop's.
+  lines -- and each button's nodes asking its id. A focused number field's caret is drawn there
+  as Workshop's panes draw theirs: `caret`, a bar in the accent role at the left of the cell it
+  stands before, in front of the rest. A press there (`graphics::ActionRequested`) on a button the
+  picture last sent there names uses it as a press in Workshop does. A change is sent as what
+  changed; a new window, incarnation or size gets the picture whole, a refused change is sent
+  again whole, and a refused whole drawing is said on the notice row, the window sent nothing more
+  until the picture changes.
 
 `view::picture(description, told, presentation, room, number)` is the one drawing of a view and
 is pure. The View Builder draws its design canvas with it too, in a room exactly the view's

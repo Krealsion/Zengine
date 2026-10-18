@@ -324,6 +324,8 @@ public:
     const std::string& area() const noexcept { return canvas_.area(); }
     /// A graphics window shows the area.
     bool shown() const noexcept { return !canvas_.window().empty(); }
+    /// The office of the window that shows the area, which a drawing sent there addresses.
+    std::string window_office() const { return canvas_.window_office(); }
     /// The room that window gives the area, in pixels.
     std::int64_t width() const noexcept { return canvas_.width(); }
     std::int64_t height() const noexcept { return canvas_.height(); }
