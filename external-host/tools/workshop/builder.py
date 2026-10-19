@@ -171,10 +171,16 @@ def pressing(ctx, hand):
 def aimed(ctx, hand, read, aim, what):
     """`(reading, point)` on the Builder, as `hand.aimed` aims within SETTLE_SECONDS: a picture that
     moved since the reading, or is not yet aimed at, is read and aimed again. Past POINT_TRIES moves
-    the run fails naming `what`, past the seconds saying the picture did not settle; any other
-    refusal is raised. Nothing is pressed either way."""
+    the run fails naming `what`, past the seconds saying the picture did not settle; a reading that
+    cannot be made fails it in its own words, and any other refusal is raised. Nothing is pressed
+    either way."""
+    def reading():
+        try:
+            return read()
+        except ValueError as unread:  # failed here, so hand.aimed's own ValueError is its bound
+            ctx.fail(str(unread))
     try:
-        return hand.aimed(*BUILDER, read, aim, what, SETTLE_SECONDS)
+        return hand.aimed(*BUILDER, reading, aim, what, SETTLE_SECONDS)
     except ValueError:
         ctx.fail("the Builder kept redrawing while its %s was read" % what)
     except Refused as refused:
