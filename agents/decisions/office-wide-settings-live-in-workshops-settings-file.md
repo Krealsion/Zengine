@@ -28,4 +28,4 @@ refuses every edit and is never written.
 write door already refuses a locked key.
 
 **Laws supported.** [WL-SETTING-10](../workshop/settings.md),
-[WL-SETTING-11](../workshop/settings.md).
+[WL-SETTING-11](../workshop/settings.md), [WL-SETTING-13](../workshop/settings.md).

@@ -169,7 +169,10 @@ SettingsSubject settings_subject(const Session& s, const PaneRef& ref,
             for (const PaneSettingRow& row : out.declared) {
                 takes = takes || row.key == stored.key;
             }
-            if (!takes) {
+            if (!takes && stored.key == kWorkshopSkinKey) {
+                // WORKSHOP'S OWN WORD FOR THE PANE'S AREA is a setting a row takes, once kept.
+                out.declared.push_back(narrow_setting_row(workshop_skin_setting_row()));
+            } else if (!takes) {
                 out.kept.push_back(stored.key);
             }
         }
@@ -217,7 +220,7 @@ Written write_pane_setting(Session& s, const PaneRef& ref, const PaneSettingRow&
     // `-` CLEARS, AS IT RESETS EVERY ROW INFO EDITS; a flag or a number is read from what stands
     // between the spaces, and a text is the text as typed, its spaces part of it.
     const std::string_view body = without_edge_spaces(text);
-    const PaneSetting fallback = pane_setting_default(row);
+    const std::optional<PaneSetting> fallback = row_setting_absence(row);
     if (body == "-") {
         return author_pane_setting(s.setup.active, ref, row.key, std::nullopt, fallback);
     }

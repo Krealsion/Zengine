@@ -125,8 +125,8 @@ std::string WorkshopWeave::settings_handed(const PaneRef& ref) const {
     for (const SettingsRevision& r : settings_revisions_) {
         current = current || (r.ref == ref && r.revision == pane->settings_revision);
     }
-    if (seat == nullptr || !pane->settings_heard || *pane->settings_heard != seat->settings ||
-        !current) {
+    if (seat == nullptr || !pane->settings_heard ||
+        *pane->settings_heard != pane_held_settings(seat->settings) || !current) {
         return "stored; not handed: the hand-off was not queued";
     }
     // ...AND WHAT THE PANE SAID IT CANNOT USE OF WHAT IT WAS HANDED, in its own words.
@@ -249,6 +249,11 @@ void WorkshopWeave::on(const PaneSettingCommitRequested& asked, loom::Mail& mail
         for (std::size_t i = 0; rows != nullptr && i < rows->size(); ++i) {
             declared = (*rows)[i].key == asked.key ? &(*rows)[i] : declared;
         }
+        // WORKSHOP'S OWN WORD FOR THE PANE'S AREA, whatever the pane declares.
+        const PaneSettingRow skin_row = narrow_setting_row(workshop_skin_setting_row());
+        if (asked.key == kWorkshopSkinKey) {
+            declared = &skin_row;
+        }
         if (declared == nullptr) {
             refuse(ref_text(ref) + " has no counted setting `" + asked.key +
                        "` -- a key no declaration takes is only cleared",
@@ -262,7 +267,7 @@ void WorkshopWeave::on(const PaneSettingCommitRequested& asked, loom::Mail& mail
             return;
         }
         const Written w = author_pane_setting(session_.setup.active, ref, asked.key, candidate,
-                                              pane_setting_default(*declared));
+                                              row_setting_absence(*declared));
         if (!w.accepted) {
             refuse(w.refusal, current);
             return;

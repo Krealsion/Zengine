@@ -18,12 +18,12 @@ WHY — `agents/decisions/a-setting-is-a-typed-value-its-row-keeps.md`
 
 ## WL-SETTING-02 — A layout's row keeps its pane's settings, judged by form alone
 
-LAW — A setup row keeps its pane's settings in key order, once each, at most `kMaxPaneSettingsPerRow` of them and a desk `kMaxPaneSettingsPerDesk`; a key under `workshop.` is refused by name.
+LAW — A setup row keeps its pane's settings in key order, once each, at most `kMaxPaneSettingsPerRow` of them and a desk `kMaxPaneSettingsPerDesk`; a `workshop.` key but `workshop.skin` is refused by name.
 
 MEANS
 - form alone: an unresolved reference keeps its settings byte for byte, whatever they mean;
 - the desk's bound keeps a session at every bound inside Loom's decode budget (`kMaxDecodedCells`);
-- `workshop.` keys are Workshop's own office-wide settings (WL-SETTING-10), never a row's, so a row holding one is refused.
+- `workshop.skin` is Workshop's word for the pane's area (WL-SETTING-13), judged as its own row says; any other `workshop.` key is a newer Workshop's.
 
 DOES NOT MEAN
 - that a refused file is half read: it is refused whole, and `r` leaves the file and the desk.
@@ -51,7 +51,7 @@ LAW — A seated pane whose holder takes `PaneSettings`, declared or not, is han
 
 MEANS
 - a seat, a switch, a re-offer, a re-seat, a managed opening and a new holder each hand them when what is kept moved;
-- never handed is not handed none: a reopened row's empty list is handed too;
+- never handed is not handed none: a reopened row's empty list is handed too; a `workshop.` key is never handed;
 - a holder without the door is handed nothing; equal settings across a switch hand a v1 holder nothing and a v2 holder its new revision.
 
 DOES NOT MEAN
@@ -69,7 +69,8 @@ MEANS
 - the band says the value was stored and handed, or why it was not handed.
 
 DOES NOT MEAN
-- that the desk acts on a value: it judges and keeps it, and what it means is the pane's.
+- that the desk acts on a value: it judges and keeps it, and what it means is the pane's;
+- that a row's `workshop.skin` is stored as absence at `classic`: its absence is Workshop's own skin (WL-SETTING-13).
 
 WHY — `agents/decisions/settings-are-rows-of-a-panes-subject.md`
 
@@ -89,7 +90,7 @@ LAW — `PaneSettingsRequested` reads a pane's row of the live layout and its re
 
 MEANS
 - a revision is minted afresh when the desk put live, the row's settings, its counted declaration or the office's holder moved, and never again;
-- refused in order with nothing written: the asker, the row, the revision, a lock, a clear given a value, a key no declaration takes, a value its setting does not take;
+- refused in order with nothing written: the asker, the row, the revision, a lock, a clear given a value, a key no declaration takes (`workshop.skin` is taken), a value not taken;
 - a clear takes back a kept key, declared or not; clearing an absent key, or writing the value kept, mints nothing.
 
 DOES NOT MEAN
@@ -125,7 +126,7 @@ WHY — `agents/decisions/a-settings-write-names-the-revision-it-read.md`
 LAW — An office's `OfficeSettingsDeclared` is judged by a pane declaration's rules and counts while its incarnation holds the office; one office's settings are read, and written at the revision read.
 
 MEANS
-- Workshop's five `workshop.` settings are declared in code; an office declaring as Workshop is refused; at most `kMaxSettingOffices` offices, and `kMaxOfficeSettingsKept` settings;
+- Workshop's own are declared in code (`workshop_office_rows`); an office declaring as Workshop is refused; at most `kMaxSettingOffices` offices, and `kMaxOfficeSettingsKept` settings;
 - refused in order, nothing written: the asker, the office, the revision, an unreadable file, a clear given a value, a key not declared, a lock, a value not taken;
 - a default is kept as its absence; Workshop applies its own, another office's holder is handed `OfficeSettings`; the answer says applied or handed, then written or why not.
 
@@ -162,6 +163,19 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/a-setting-is-found-by-its-tags-and-pins.md`
 
+## WL-SETTING-13 — Each graphics area wears its row's skin, else Workshop's own
+
+LAW — Each graphics area wears a painter skin Workshop chooses: a pane's, the `workshop.skin` its row keeps, else Workshop's own `workshop.skin`; Workshop's area, its own. A choice is said when it moved.
+
+MEANS
+- `classic` or `block`: the settings file keeps `classic` as absence; a row keeps either, and its clear gives the area back to Workshop's own;
+- a commit of either, and a directory placed with afresh, say the skins the areas wear now.
+
+DOES NOT MEAN
+- that the pane hears its skin: the row's `workshop.skin` is Workshop's, and is never handed to the pane.
+
+WHY — `agents/decisions/office-wide-settings-live-in-workshops-settings-file.md`
+
 ## Proven by
 
 ### WL-SETTING-01
@@ -177,6 +191,9 @@ key, and changes nothing"
 `workshop/setup.hpp` check_pane_settings kMaxPaneSettingsPerDesk desk_setting_count check_setup
 SetupPane::settings
 `workshop/pane_settings.hpp` kMaxPaneSettingsPerRow kDeskSettingPrefix is_desk_setting_key
+kWorkshopSkinKey workshop_skin_setting_row
+`tests/test_workshop_panes_settings.cpp` "a row's `workshop.skin` is Workshop's word for its pane's
+area: taken on every row, kept as written, shown in Info, and never handed to the pane"
 `tests/test_workshop_persistence.cpp` "a setting holding no value, or two, is refused by every
 reader, naming its key" "a setup holding a Workshop setting is refused by name, and `r` leaves file
 and desk" "a desk at its pane bound, every key at its own bound, is a setup file a launch reads" "a
@@ -207,8 +224,10 @@ declares, and an identical declaration keeps a draft"
 `workshop/panes.hpp` ExternalPane::settings_heard ExternalPane::settings_revision
 `workshop/weave_seam.cpp` accept_pane_offer
 `workshop/grant.cpp` workshop_grant
-`workshop/pane_settings.hpp` PaneSettings
-`tests/test_workshop_panes_settings.cpp` "a pane's settings are handed before its first room,
+`workshop/pane_settings.hpp` PaneSettings pane_held_settings
+`tests/test_workshop_panes_settings.cpp` "a row's `workshop.skin` is Workshop's word for its pane's
+area: taken on every row, kept as written, shown in Info, and never handed to the pane"
+"a pane's settings are handed before its first room,
 whether or not it declared" "a holder that takes no settings is handed none" "a layout switch hands
 a pane its new layout's settings once, and only when they differ" "a re-offer and a reopened row are
 handed their settings again, before their room" "a declaration counts only while the weave that sent
@@ -220,6 +239,7 @@ repaints nothing"
 
 ### WL-SETTING-05
 `workshop/setup.hpp` author_pane_setting
+`workshop/pane_settings.hpp` row_setting_absence
 `workshop/screen.hpp` SettingsSubject
 `workshop/screen_pane_subject.cpp` settings_subject write_pane_setting write_kept_setting
 pane_setting_text kept_setting_text
@@ -287,8 +307,11 @@ kMaxOfficeSettings kMaxOfficeSettingsKept
 hand_office_settings apply_workshop_settings on(OfficeSettingsRequested)
 on(OfficeSettingCommitRequested) write_prefs
 `workshop/prefs_persist.hpp` workshop_office_rows put_office_value put_workshop_value
+presentation_of Presentation
 `workshop/weave_external.cpp` hand_settings
-`tests/test_workshop_panes_settings.cpp` "Workshop's own settings are read by message: what each
+`tests/test_workshop_panes_settings.cpp` "Workshop's measures and its completion order apply when
+committed, are kept in the settings file, and a value outside what each takes is refused"
+"Workshop's own settings are read by message: what each
 takes, what is kept, the revision, and whether the file holds it" "a commit of Workshop's own
 setting applies it, keeps it in the settings file, and says both" "an office commit is refused in
 words with nothing written: a stale revision, an office nothing declares for, a value not taken, a
@@ -324,3 +347,14 @@ Workshop-wide list, and a reading of the row says the list" "a pin act is refuse
 nothing written: a key not declared, one pinned already, one not pinned, an act not known, past the
 bound" "per-layout pins keep each layout's own list, a layout with none reading the Workshop-wide
 one"
+
+### WL-SETTING-13
+`workshop/weave_run.cpp` arrange_graphics
+`workshop/weave.hpp` WorkshopWeave::skins_chosen_
+`workshop/screen.hpp` Session::skin
+`workshop/pane_settings.hpp` workshop_skin_setting_row kWorkshopSkinKey kSkinClassic kSkinBlock
+row_setting_absence
+`tests/test_workshop_desk.cpp` "each graphics area wears its pane row's `workshop.skin`, else
+Workshop's own, and a skin is said only when an area's moved"
+`tests/test_workshop_panes_settings.cpp` "a row's `workshop.skin` is Workshop's word for its pane's
+area: taken on every row, kept as written, shown in Info, and never handed to the pane"

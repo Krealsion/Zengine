@@ -1700,8 +1700,8 @@ private:
     /// Every area placed with the directory now, as placed, and the panes among them.
     std::map<std::string, graphics::AreaPlaced> areas_placed_;
     std::set<std::int64_t> placed_kinds_;
-    /// The areas a skin was chosen for under this directory.
-    std::set<std::string> skins_chosen_;
+    /// The skin each area was last given under this directory.
+    std::map<std::string, std::string> skins_chosen_;
     /// The directory placed with -- its holder and incarnation -- and whether one is known.
     bool graphics_known_ = false;
     std::uint64_t graphics_holder_ = 0;

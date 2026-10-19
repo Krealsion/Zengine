@@ -2400,3 +2400,38 @@ TEST_CASE("a Terminal not widened to settings cannot ask for them: the line is r
     CHECK(of_kind(*t.me, loom::TranscriptKind::AnswerReceived).size() == answers);
     CHECK(kept_settings(t).empty());
 }
+
+TEST_CASE("`workshop.completion-order` puts a shape's required fields first in the Terminal's list, so accepting the first offer names what the message needs") {
+    // ⚔ MUTATION: the door asks `complete_line` in the shape's order whatever the session says --
+    // the first offer after `key=` stays `flag=`, an optional field.
+    TerminalRig t;
+    t.r.terminal_edits_settings = true;
+    t.open();
+    t.give_room(16, 140);
+    const auto first_offer = [&t] {
+        t.focus();
+        t.clear_line();
+        t.type("ask @zengine.workshop PaneSettingCommitRequested 1 provider=a pane=b revision=1 "
+               "key=k ");
+        t.r.key(input::scan::kTab); // accepts the selected candidate: the list's first
+        const std::string line = t.input_text();
+        const std::string accepted = line.substr(line.rfind(' ') + 1);
+        t.clear_line();
+        return accepted;
+    };
+    // THE SHAPE'S ORDER: `flag`, `number` and `text` are optional, and stand before `clear`.
+    CHECK(first_offer() == "flag=");
+    CHECK_FALSE(t.r.session().completion_required_first);
+
+    // THE TERMINAL ITSELF WRITES WORKSHOP'S SETTING, and the next list is in the order it says.
+    const OfficeSettingsShown office = typed_answer<OfficeSettingsShown>(
+        t, "ask @zengine.workshop OfficeSettingsRequested 1 office=zengine.workshop");
+    t.clear_line();
+    const PaneSettingActed order = typed_answer<PaneSettingActed>(
+        t, "ask @zengine.workshop OfficeSettingCommitRequested 1 office=zengine.workshop "
+           "revision=" + std::to_string(office.revision) +
+               " clear=false key=workshop.completion-order text=required-first");
+    REQUIRE_MESSAGE(order.accepted, order.refusal);
+    CHECK(t.r.session().completion_required_first);
+    CHECK(first_offer() == "clear=");
+}
