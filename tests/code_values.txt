@@ -24,11 +24,6 @@ ZEN_LAW_RECORD_FLAG_BYTES       tests/check_law_register.cmake            ZEN_LA
 ZEN_LAW_MEANS_MAX               tests/check_law_register.cmake            ZEN_LAW_MEANS_MAX
 ZEN_LAW_DNM_MAX                 tests/check_law_register.cmake            ZEN_LAW_DNM_MAX
 
-# ---- Info's own settings
-kLabelColumnsLow                info/vocabulary.hpp                       kLabelColumnsLow
-kLabelColumnsHigh               info/vocabulary.hpp                       kLabelColumnsHigh
-kLabelColumnsDefault            info/vocabulary.hpp                       kLabelColumnsDefault
-
 # ---- file formats
 setup_persist::kFormatVersion   workshop/setup_persist.hpp                kFormatVersion
 claim   setup_persist::kFormatVersion  setup file is format version {}

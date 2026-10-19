@@ -503,17 +503,16 @@ struct SeenState {
 class Painter : public loom::WeaveBase<Painter, SeenState,
                                        loom::Accept<surface::SurfaceCanvas, surface::SurfaceText,
                                                     StandingConditions, TranscriptShown,
-                                                    PaneSubjectShown, v2::PaneSubjectShown>,
+                                                    PaneSubjectShown>,
                                        loom::Emit<>> {
 public:
     Painter(std::vector<surface::SurfaceCanvas>& canvases,
             std::vector<surface::SurfaceText>& notes,
             std::vector<StandingConditions>& conditions,
             std::vector<TranscriptShown>& transcripts,
-            std::vector<PaneSubjectShown>& subjects,
-            std::vector<v2::PaneSubjectShown>* subjects_v2 = nullptr)
+            std::vector<PaneSubjectShown>& subjects)
         : canvases_(&canvases), notes_(&notes), conditions_(&conditions),
-          transcripts_(&transcripts), subjects_(&subjects), subjects_v2_(subjects_v2) {}
+          transcripts_(&transcripts), subjects_(&subjects) {}
     void on(const surface::SurfaceCanvas& c, loom::Mail&) {
         ++state_.frames;
         canvases_->push_back(c);
@@ -522,14 +521,6 @@ public:
     void on(const StandingConditions& c, loom::Mail&) { conditions_->push_back(c); }
     void on(const TranscriptShown& t, loom::Mail&) { transcripts_->push_back(t); }
     void on(const PaneSubjectShown& s, loom::Mail&) { subjects_->push_back(s); }
-    /// A subject said in v2, to an inspector that takes it: kept as v1 says it too, so a case
-    /// reading the rows reads them whichever version was said.
-    void on(const v2::PaneSubjectShown& s, loom::Mail&) {
-        subjects_->push_back(narrow_pane_subject(s));
-        if (subjects_v2_ != nullptr) {
-            subjects_v2_->push_back(s);
-        }
-    }
 
 private:
     std::vector<surface::SurfaceCanvas>* canvases_;
@@ -537,7 +528,6 @@ private:
     std::vector<StandingConditions>* conditions_;
     std::vector<TranscriptShown>* transcripts_;
     std::vector<PaneSubjectShown>* subjects_;
-    std::vector<v2::PaneSubjectShown>* subjects_v2_;
 };
 
 
@@ -721,10 +711,8 @@ struct Live {
     std::vector<StandingConditions> said_conditions;
     /// ...and every `TranscriptShown` this host published, for the same reason.
     std::vector<TranscriptShown> said_transcripts;
-    /// ...and every `PaneSubjectShown` -- an inspector's pane subject (WL-INFO-14) -- in order, and
-    /// those said in v2 as v2 says them.
+    /// ...and every `PaneSubjectShown` -- an inspector's pane subject (WL-INFO-14) -- in order.
     std::vector<PaneSubjectShown> said_subjects;
-    std::vector<v2::PaneSubjectShown> said_subjects_v2;
     WorkshopWeave* w = nullptr;
     loom::WeaveId workshop_id{};
     loom::WeaveId terminal_id{};
@@ -775,7 +763,7 @@ struct Live {
         workshop_id = id;
         quit_watch = std::make_unique<QuitDeliveryWatch>(bus, id, host.undelivered_quits);
         (void)loom::mount<Painter>(bus, canvases, notes, said_conditions, said_transcripts,
-                                   said_subjects, &said_subjects_v2);
+                                   said_subjects);
         // THE STACK'S STAND-IN, FIRST (see `stock` above) -- through the same door the seam
         // spends, before any offer a case might make, so its handle is the constant.
         admit_stock(const_cast<Session&>(w->session()).panes);
@@ -2736,10 +2724,8 @@ struct PaneRig {
     std::vector<StandingConditions> said_conditions;
     /// ...and every `TranscriptShown` this host published, for the same reason.
     std::vector<TranscriptShown> said_transcripts;
-    /// ...and every `PaneSubjectShown` -- an inspector's pane subject (WL-INFO-14) -- in order, and
-    /// those said in v2 as v2 says them.
+    /// ...and every `PaneSubjectShown` -- an inspector's pane subject (WL-INFO-14) -- in order.
     std::vector<PaneSubjectShown> said_subjects;
-    std::vector<v2::PaneSubjectShown> said_subjects_v2;
     /// ...and the hand that opens and closes panes through the host's doors (`door_hand`).
     DoorHand* hand = nullptr;
     loom::WeaveId hand_id{};
@@ -2759,7 +2745,7 @@ struct PaneRig {
     PaneRig() {
         host.interaction_now = [this] { return clock.read(); };
         painter_id = loom::mount<Painter>(bus, canvases, notes, said_conditions, said_transcripts,
-                                          said_subjects, &said_subjects_v2);
+                                          said_subjects);
     }
 
 

@@ -96,7 +96,6 @@ loom::Grant workshop_grant() {
     speak.allow_to_any(PaneSourceOpened::zen_name, PaneSourceOpened::zen_version);
     speak.allow_to_any(StandingConditions::zen_name, StandingConditions::zen_version);
     speak.allow_to_any(PaneSubjectShown::zen_name, PaneSubjectShown::zen_version);
-    speak.allow_to_any(v2::PaneSubjectShown::zen_name, v2::PaneSubjectShown::zen_version);
     speak.allow_to_any(PaneSubjectActed::zen_name, PaneSubjectActed::zen_version);
     speak.allow_to_any(TranscriptShown::zen_name, TranscriptShown::zen_version);
     speak.allow_to_any(TerminalActed::zen_name, TerminalActed::zen_version);

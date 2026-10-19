@@ -28,7 +28,7 @@ void WorkshopWeave::refresh_inspected() {
     const RuntimePane* offered = session_.panes.runtime.find(in.ref.provider, in.ref.pane);
     const SettingsSubject settings =
         settings_subject(session_, in.ref,
-                         offered != nullptr ? counted_settings_v2(*offered) : nullptr,
+                         offered != nullptr ? counted_settings(*offered) : nullptr,
                          locked_keys(in.ref));
     const bool member = has_pane(session_.setup.active, in.ref);
     if (in.name != 0 && in.desk == session_.setup.put_live && in.member == member &&
@@ -66,7 +66,6 @@ void WorkshopWeave::on(const InspectPaneRequested& asked, loom::Mail& mail) {
         in.ref = ref;
         in.name = 0; // another pane: named afresh below, so no draft typed for the last one lands
     }
-    in.inspector = std::string(mail.authored_role());
     refresh_inspected();
     (void)mail.answer(PaneSubjectActed{true, std::string()});
     repaint(mail);
@@ -78,23 +77,7 @@ void WorkshopWeave::on(const PaneSubjectRequested&, loom::Mail& mail) {
         return;
     }
     refresh_inspected();
-    // IN THE NEWEST VERSION THE ASKER'S OFFICE TAKES: v2 says how a setting is found.
-    const v2::PaneSubjectShown said = inspected_subject();
-    if (host_->holder_accepts &&
-        host_->holder_accepts(mail.authored_role(), *loom::schema_of<v2::PaneSubjectShown>())) {
-        (void)mail.answer(said);
-        return;
-    }
-    (void)mail.answer(narrow_pane_subject(said));
-}
-
-// WL-INFO-16 -- agents/workshop/info-body.md
-v2::PaneSubjectShown WorkshopWeave::inspected_subject() const {
-    const PaneRef& ref = session_.inspected.ref;
-    return pane_subject_shown(session_, effective_pins(ref),
-                              prefs_persist::presentation_of(prefs_).pins_per_layout
-                                  ? kPinsPerLayout
-                                  : kPinsWorkshopWide);
+    (void)mail.answer(pane_subject_shown(session_));
 }
 
 // WL-INFO-14 -- agents/workshop/info-body.md
@@ -105,20 +88,13 @@ void WorkshopWeave::publish_pane_subject(loom::Mail& mail) {
         return;
     }
     refresh_inspected();
-    v2::PaneSubjectShown said = inspected_subject();
-    if (subject_published_ && said == subject_said_) {
+    PaneSubjectShown said = pane_subject_shown(session_);
+    if (subject_published_ && same_pane_subject(said, subject_said_)) {
         return; // no news is silence, and silence is what makes this seam terminate
     }
     subject_said_ = said;
     subject_published_ = true;
-    // IN THE NEWEST VERSION THE INSPECTOR'S OFFICE TAKES, as a picture is answered.
-    const std::string& inspector = session_.inspected.inspector;
-    if (host_->holder_accepts &&
-        host_->holder_accepts(inspector, *loom::schema_of<v2::PaneSubjectShown>())) {
-        (void)mail.as_role(kWorkshopProvider).publish(std::move(said));
-        return;
-    }
-    (void)mail.as_role(kWorkshopProvider).publish(narrow_pane_subject(said));
+    (void)mail.as_role(kWorkshopProvider).publish(std::move(said));
 }
 
 // WL-SETTING-05 -- agents/workshop/settings.md
