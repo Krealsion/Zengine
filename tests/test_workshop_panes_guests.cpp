@@ -1051,9 +1051,21 @@ namespace {
 /// the grant it was given, and keeping every answer it hears.
 class SettingsGuest
     : public loom::WeaveBase<SettingsGuest, SeatState,
-                             loom::Accept<PaneSettingsShown, PaneSettingActed, SeatDo>,
-                             loom::Emit<PaneSettingsRequested, PaneSettingCommitRequested>> {
+                             loom::Accept<PaneSettingsShown, PaneSettingActed, PaneSettingLockActed,
+                                          LayoutSettingsShown, SettingsWritten, SeatDo>,
+                             loom::Emit<PaneSettingsRequested, PaneSettingCommitRequested,
+                                        PaneSettingLockRequested, LayoutSettingsRequested,
+                                        SettingsWriteRequested>> {
 public:
+    void on(const PaneSettingLockActed& a, loom::Mail& mail) {
+        if (mail.answers_ask()) lock_acted.push_back(a);
+    }
+    void on(const LayoutSettingsShown& s, loom::Mail& mail) {
+        if (mail.answers_ask()) layouts.push_back(s);
+    }
+    void on(const SettingsWritten& w, loom::Mail& mail) {
+        if (mail.answers_ask()) batches.push_back(w);
+    }
     void on(const PaneSettingsShown& s, loom::Mail& mail) {
         if (mail.answers_ask()) shown.push_back(s);
     }
@@ -1074,6 +1086,9 @@ public:
     std::function<void(SettingsGuest&, loom::Mail&)> next;
     std::vector<PaneSettingsShown> shown;
     std::vector<PaneSettingActed> acted;
+    std::vector<PaneSettingLockActed> lock_acted;
+    std::vector<LayoutSettingsShown> layouts;
+    std::vector<SettingsWritten> batches;
 };
 
 struct GuestAsker {
@@ -1185,4 +1200,83 @@ TEST_CASE("a guest whose row has `settings` reads and writes a pane's settings; 
     CHECK(past.guest->acted.back().refusal.rfind("settings commit withheld: guest 'reader'", 0) == 0);
     CHECK(pane_of(r.session().setup.active, dial)->settings ==
           std::vector<PaneSetting>{PaneSetting{"step", {}, 4, {}}});
+}
+
+TEST_CASE("a guest whose row has `settings` locks a setting, reads every layout and writes a batch, and never unlocks; without it Loom's grant refuses all three") {
+    PaneRig r;
+    r.mount_workshop();
+    r.ready();
+    r.extent(160, 48);
+    const PaneRef dial{"test.dial", "dial"};
+    Session& s = const_cast<Session&>(r.session());
+    REQUIRE(add_pane(s.setup.active, dial));
+    pane_of(s.setup.active, dial)->settings = {PaneSetting{"step", {}, 4, {}}};
+    guests::GuestRow settings_row;
+    settings_row.name = "agent";
+    settings_row.may = {guests::kPowerSettings};
+    guests::GuestRow capture_row;
+    capture_row.name = "reader";
+    capture_row.may = {guests::kPowerCapture};
+    const GuestAsker with = mount_settings_guest(r, guests::grant_for(settings_row));
+    const GuestAsker without = mount_settings_guest(r, guests::grant_for(capture_row));
+    r.host.guest_row = [&](loom::WeaveId who) {
+        if (who == with.id) return guest_facts(settings_row);
+        if (who == without.id) return guest_facts(capture_row);
+        return scope::GuestRowFacts{};
+    };
+    const PaneSettingLockRequested lock{"test.dial/dial", "step", "lock", "layout", -1, 0};
+
+    // WITH `settings`: every layout read, a lock made, a batch written.
+    ask_as(r, with, [](SettingsGuest& g, loom::Mail& m) { g.ask(m, LayoutSettingsRequested{}); });
+    REQUIRE(with.guest->layouts.size() == 1);
+    CHECK(with.guest->layouts.back().revision > 0);
+    REQUIRE(with.guest->layouts.back().layouts.size() == 1);
+    ask_as(r, with, [&](SettingsGuest& g, loom::Mail& m) { g.ask(m, lock); });
+    REQUIRE(with.guest->lock_acted.size() == 1);
+    CHECK_MESSAGE(with.guest->lock_acted.back().accepted, with.guest->lock_acted.back().refusal);
+    // THE LOCK MOVED THE LAYOUTS ON: the batch names the revision read after it.
+    ask_as(r, with, [](SettingsGuest& g, loom::Mail& m) { g.ask(m, LayoutSettingsRequested{}); });
+    SettingsWriteRequested batch;
+    batch.revision = with.guest->layouts.back().revision;
+    SettingWrite clear;
+    clear.target = "test.dial/dial";
+    clear.key = "step";
+    clear.clear = true;
+    batch.writes = {clear};
+    ask_as(r, with, [&](SettingsGuest& g, loom::Mail& m) { g.ask(m, batch); });
+    REQUIRE(with.guest->batches.size() == 1);
+    REQUIRE_MESSAGE(with.guest->batches.back().accepted, with.guest->batches.back().refusal);
+    REQUIRE(with.guest->batches.back().results.size() == 1);
+    CHECK(with.guest->batches.back().results[0].outcome == "locked");
+
+    // ...AND NO GUEST UNLOCKS, whatever number it names: unlocking is the weaver's.
+    for (const std::int64_t gesture : {std::int64_t{0}, std::int64_t{1}, std::int64_t{99}}) {
+        PaneSettingLockRequested unlock = lock;
+        unlock.act = "unlock";
+        unlock.gesture = gesture;
+        ask_as(r, with, [&](SettingsGuest& g, loom::Mail& m) { g.ask(m, unlock); });
+        CHECK_FALSE(with.guest->lock_acted.back().accepted);
+        CHECK(with.guest->lock_acted.back().refusal ==
+              "unlocking is the weaver's -- from the Terminal, or from a pane on the weaver's own "
+              "current act");
+    }
+    CHECK(pane_of(r.session().setup.active, dial)->settings ==
+          std::vector<PaneSetting>{PaneSetting{"step", {}, 4, {}}});
+
+    // WITHOUT IT: Loom's grant refuses all three asks, and Workshop never hears them.
+    std::size_t refused = 0, heard = 0;
+    const loom::ObserverId tap = r.bus.add_observer([&](const loom::BusEvent& ev) {
+        if (ev.sender != without.id) return;
+        refused += ev.kind == loom::EventKind::Refused ? 1u : 0u;
+        heard += ev.kind == loom::EventKind::Delivered && ev.target == r.workshop_id ? 1u : 0u;
+    });
+    ask_as(r, without, [](SettingsGuest& g, loom::Mail& m) { g.ask(m, LayoutSettingsRequested{}); });
+    ask_as(r, without, [&](SettingsGuest& g, loom::Mail& m) { g.ask(m, lock); });
+    ask_as(r, without, [&](SettingsGuest& g, loom::Mail& m) { g.ask(m, batch); });
+    r.bus.remove_observer(tap);
+    CHECK(refused == 3);
+    CHECK(heard == 0);
+    CHECK(without.guest->layouts.empty());
+    CHECK(without.guest->lock_acted.empty());
+    CHECK(without.guest->batches.empty());
 }

@@ -202,9 +202,11 @@ set a pane's settings by message:
 - **`settings`**, a power: reading one pane's row of the live layout and writing one of its
   settings at the revision read, by message (`PaneSettingsRequested`, `PaneSettingCommitRequested`,
   [Workshop's manual](../../workshop/docs/zengine.workshop.md#panesettingsrequested)); the same for
-  one office's office-wide settings (`OfficeSettingsRequested`, `OfficeSettingCommitRequested`), and
-  a pane's pin list (`PaneSettingPinRequested`). `workshop/act`'s `settings` step asks a pane's two.
-  Workshop judges each ask by the row it admitted as well as by the grant.
+  one office's office-wide settings (`OfficeSettingsRequested`, `OfficeSettingCommitRequested`), a
+  pane's pin list (`PaneSettingPinRequested`), a lock (`PaneSettingLockRequested`; an unlock is the
+  weaver's and Workshop refuses a guest's), and every layout's rows read and written in one batch
+  (`LayoutSettingsRequested`, `SettingsWriteRequested`). `workshop/act`'s `settings` step asks a
+  pane's two. Workshop judges each ask by the row it admitted as well as by the grant.
 - **`role`**, a row's bundle of powers. `tutor` is `capture` and `guide`; a row may add powers of
   its own in `may`, and sets its own doors. The role, what it expanded to and the doors are said at launch, on Attention and
   to the row's own session (`GuestRowDescribed` version 2).

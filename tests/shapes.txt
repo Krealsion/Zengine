@@ -52,6 +52,7 @@ ComposerCommandContext v1 0x50d30a1f2e258fc9
 ComposerFieldState v1 0xb308cce02ecc3dad
 ComposerState v2 0xa220f1db53259959
 ConnectionsPaneState v1 0x62852853b8c3881f
+DeclaredSettings v1 0xc74a475a81bcd779
 DemoReadyRequested v1 0x03fff41d95cc66d6
 DemoResetRequested v1 0xe46fbaa5eb051d22
 DemoServiceClosed v1 0x69030729e88a6245
@@ -241,6 +242,12 @@ KeymapEditAnswered v1 0xc4076e9e76909fd3
 KeymapEditRequested v1 0xb039709485b92a21
 KeymapRequested v1 0x1f9fa150659359e4
 KeymapShown v3 0x864ccb540c579b17
+LayoutPaneSettings v1 0x5bda473ede871192
+LayoutSettings v1 0x474f9e044edb9766
+LayoutSettingsRequested v1 0x913e2e891bf53d60
+LayoutSettingsShown v1 0x8498e7ac4fc434e0
+LayoutTheme v1 0x4852412d225837d0
+LayoutThemeWrite v1 0xb22438913ce4983a
 LineArgs v1 0xd5cddde3b357431f
 ListRowFace v1 0x1bb72dc45bde118a
 LoadedSelected v1 0x014167e0a0600f00
@@ -369,6 +376,8 @@ PaneRowPart v2 0x39fef02f9583ec28
 PaneSetting v1 0x734b46a0def3b4c5
 PaneSettingActed v1 0x309d126d859b68c3
 PaneSettingCommitRequested v1 0x03927a9c6037218c
+PaneSettingLockActed v1 0x97d335d67e6e5339
+PaneSettingLockRequested v1 0x3cdc0547854d6ba2
 PaneSettingPinActed v1 0x8e1b178a7d151bad
 PaneSettingPinRequested v1 0xf6bea8484cdaef38
 PaneSettingRow v1 0x08e89ae1903ffd5a
@@ -477,6 +486,10 @@ ScoreState v1 0x2a0e436c6672fb9d
 ScrollBarFace v1 0x444bc6439b4e716f
 SettingLock v1 0x5f8be7c8d3208026
 SettingLockShown v1 0x7e176756b72d1997
+SettingWrite v1 0xaefdd3d8f4627f21
+SettingWriteResult v1 0xf41042ee0377eb67
+SettingsWriteRequested v1 0xa0272e22ab7625c1
+SettingsWritten v1 0x2f0223da52634fc7
 SetupApplyRequested v1 0xdbed9509ec8b868a
 ShapeDocumentRequested v1 0x6a2a97debe09af6e
 ShapeDocumentShown v1 0x5444c736d8fefe30

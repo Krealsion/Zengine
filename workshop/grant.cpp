@@ -28,10 +28,13 @@ loom::Grant workshop_grant() {
     speak.allow_to_any(PaneSettingsShown::zen_name, PaneSettingsShown::zen_version);
     speak.allow_to_any(PaneSettingActed::zen_name, PaneSettingActed::zen_version);
     // ...and an office's office-wide settings, handed to its holder and answered to whoever asked,
-    // and a pin act's answer.
+    // and a pin act's, a lock act's, every layout's reading's and a batch's answers.
     speak.allow_to_any(OfficeSettings::zen_name, OfficeSettings::zen_version);
     speak.allow_to_any(OfficeSettingsShown::zen_name, OfficeSettingsShown::zen_version);
     speak.allow_to_any(PaneSettingPinActed::zen_name, PaneSettingPinActed::zen_version);
+    speak.allow_to_any(PaneSettingLockActed::zen_name, PaneSettingLockActed::zen_version);
+    speak.allow_to_any(LayoutSettingsShown::zen_name, LayoutSettingsShown::zen_version);
+    speak.allow_to_any(SettingsWritten::zen_name, SettingsWritten::zen_version);
     speak.allow_to_any(PanePressed::zen_name, PanePressed::zen_version);
     speak.allow_to_any(v2::PanePressed::zen_name, v2::PanePressed::zen_version);
     speak.allow_to_any(loom::Refused::zen_name, loom::Refused::zen_version);

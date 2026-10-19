@@ -683,12 +683,15 @@ class RevisionSeat
     : public loom::WeaveBase<RevisionSeat, SeatState,
                              loom::Accept<PaneCatalogRequested, PaneRoom, v2::PaneSettings,
                                           PaneSettingsShown, PaneSettingActed, OfficeSettings,
-                                          OfficeSettingsShown, PaneSettingPinActed, SeatDo>,
+                                          OfficeSettingsShown, PaneSettingPinActed,
+                                          PaneSettingLockActed, LayoutSettingsShown,
+                                          SettingsWritten, PanePressed, SeatDo>,
                              loom::Emit<PaneOffered, v2::PaneSettingsDeclared,
                                         PaneSettingsRequested, PaneSettingCommitRequested,
                                         PaneSettingUnused, OfficeSettingsDeclared,
                                         OfficeSettingsRequested, OfficeSettingCommitRequested,
-                                        PaneSettingPinRequested>> {
+                                        PaneSettingPinRequested, PaneSettingLockRequested,
+                                        LayoutSettingsRequested, SettingsWriteRequested>> {
 public:
     explicit RevisionSeat(std::string office) : office_(std::move(office)) {}
 
@@ -715,6 +718,17 @@ public:
     void on(const PaneSettingPinActed& a, loom::Mail& mail) {
         if (mail.answers_ask()) pin_acted.push_back(a);
     }
+    void on(const PaneSettingLockActed& a, loom::Mail& mail) {
+        if (mail.answers_ask()) lock_acted.push_back(a);
+    }
+    void on(const LayoutSettingsShown& s, loom::Mail& mail) {
+        if (mail.answers_ask()) layouts_shown.push_back(s);
+    }
+    void on(const SettingsWritten& w, loom::Mail& mail) {
+        if (mail.answers_ask()) batches.push_back(w);
+    }
+    /// A PRESS, and the correlation it came under: what an unlock names as the weaver's act.
+    void on(const PanePressed&, loom::Mail& mail) { press_asks.push_back(mail.correlation()); }
     void on(const SeatDo&, loom::Mail& mail) {
         if (next) {
             std::function<void(RevisionSeat&, loom::Mail&)> once;
@@ -741,6 +755,10 @@ public:
     std::vector<OfficeSettings> office_handed;
     std::vector<OfficeSettingsShown> office_shown;
     std::vector<PaneSettingPinActed> pin_acted;
+    std::vector<PaneSettingLockActed> lock_acted;
+    std::vector<LayoutSettingsShown> layouts_shown;
+    std::vector<SettingsWritten> batches;
+    std::vector<std::uint64_t> press_asks;
 
 private:
     std::string office_;
@@ -762,6 +780,9 @@ RevisionSeat* mount_revision_seat(PaneRig& r, const std::string& office, loom::W
     grant.allow_to_any(OfficeSettingCommitRequested::zen_name,
                        OfficeSettingCommitRequested::zen_version);
     grant.allow_to_any(PaneSettingPinRequested::zen_name, PaneSettingPinRequested::zen_version);
+    grant.allow_to_any(PaneSettingLockRequested::zen_name, PaneSettingLockRequested::zen_version);
+    grant.allow_to_any(LayoutSettingsRequested::zen_name, LayoutSettingsRequested::zen_version);
+    grant.allow_to_any(SettingsWriteRequested::zen_name, SettingsWriteRequested::zen_version);
     *id = r.bus.register_weave(std::move(seat), std::move(grant), office);
     raw->zen_set_self(*id);
     return raw;
@@ -872,7 +893,74 @@ struct RevisionRig {
         REQUIRE(editor->pin_acted.size() == before + 1);
         return editor->pin_acted.back();
     }
+    /// ...AND ONE LOCK ACT, asked by the editor or -- `by_dial` -- by the dial's own office.
+    PaneSettingLockActed lock(PaneSettingLockRequested asked, bool by_dial = false) {
+        RevisionSeat* who = by_dial ? seat : editor;
+        const loom::WeaveId id = by_dial ? seat_id : editor_id;
+        const std::size_t before = who->lock_acted.size();
+        drive(r, id, who, [asked](RevisionSeat& s, loom::Mail& m) { s.say(m, asked); });
+        REQUIRE(who->lock_acted.size() == before + 1);
+        return who->lock_acted.back();
+    }
+    /// ...AND EVERY LAYOUT READ, AND A BATCH WRITTEN, by the editor (or as no office).
+    LayoutSettingsShown layouts(bool personally = false) {
+        const std::size_t before = editor->layouts_shown.size();
+        drive(r, editor_id, editor, [personally](RevisionSeat& s, loom::Mail& m) {
+            s.say(m, LayoutSettingsRequested{}, personally);
+        });
+        REQUIRE(editor->layouts_shown.size() == before + 1);
+        return editor->layouts_shown.back();
+    }
+    SettingsWritten batch(SettingsWriteRequested asked, bool personally = false) {
+        const std::size_t before = editor->batches.size();
+        drive(r, editor_id, editor, [asked, personally](RevisionSeat& s, loom::Mail& m) {
+            s.say(m, asked, personally);
+        });
+        REQUIRE(editor->batches.size() == before + 1);
+        return editor->batches.back();
+    }
 };
+
+/// A lock act on the dial's `key`.
+PaneSettingLockRequested dial_lock(const char* key, const char* act, const char* scope,
+                                   std::int64_t layout = -1, std::int64_t gesture = 0) {
+    return PaneSettingLockRequested{"test.dial/dial", key, act, scope, layout, gesture};
+}
+
+/// One write of a batch.
+SettingWrite flag_write(std::int64_t layout, const char* target, const char* key, bool value) {
+    SettingWrite w;
+    w.layout = layout;
+    w.target = target;
+    w.key = key;
+    w.flag = value;
+    return w;
+}
+SettingWrite number_write(std::int64_t layout, const char* target, const char* key,
+                          std::int64_t value) {
+    SettingWrite w;
+    w.layout = layout;
+    w.target = target;
+    w.key = key;
+    w.number = value;
+    return w;
+}
+SettingWrite text_write(std::int64_t layout, const char* target, const char* key,
+                        const char* value) {
+    SettingWrite w;
+    w.layout = layout;
+    w.target = target;
+    w.key = key;
+    w.text = std::string(value);
+    return w;
+}
+
+/// The dial's row in the layout at `at`, read off the desk.
+std::vector<PaneSetting> dial_settings_at(PaneRig& r, std::size_t at) {
+    const SetupPane* row = pane_of(layout_at(r.session().setup, at), dial_ref());
+    REQUIRE(row != nullptr);
+    return row->settings;
+}
 
 /// A commit of Workshop's own text setting `key`, at the revision read now.
 OfficeSettingCommitRequested workshop_text(std::int64_t revision, const char* key, const char* text) {
@@ -1839,4 +1927,531 @@ TEST_CASE("a row's `workshop.skin` is Workshop's word for its pane's area: taken
               .refusal.find(
                   "workshop.skin takes one of classic, block, day, night, not a number `1`") !=
           std::string::npos);
+}
+
+namespace {
+
+/// RENAME THE LIVE LAYOUT AS A WEAVER DOES: a double-click on its tab, the name typed, then Return.
+void rename_live(PaneRig& r, const std::string& name) {
+    open_rename_on_live_tab(r);
+    REQUIRE(r.session().setup.naming.open);
+    for (int guard = 0; guard < 64 && !r.session().setup.naming.line.empty(); ++guard) {
+        r.key(input::scan::kBackspace);
+    }
+    for (const char c : name) {
+        r.text(std::string(1, c));
+    }
+    r.key(input::scan::kReturn);
+    REQUIRE(r.session().setup.active.name == name);
+}
+
+/// The dial's row in one layout of a reading of every layout.
+const LayoutPaneSettings* dial_in(const LayoutSettings& layout) {
+    for (const LayoutPaneSettings& p : layout.panes) {
+        if (p.provider == kDialOffice && p.pane == kDial) {
+            return &p;
+        }
+    }
+    return nullptr;
+}
+
+PaneSetting step_of(std::int64_t n) { return PaneSetting{"step", std::nullopt, n, std::nullopt}; }
+
+constexpr const char* kWeavers =
+    "unlocking is the weaver's -- from the Terminal, or from a pane on the weaver's own current act";
+
+} // namespace
+
+TEST_CASE("a lock in one layout freezes its row there: both commit doors refuse it, every reading says it, and another layout still writes it") {
+    RevisionRig t;
+    t.open();
+    duplicate_live_layout(t.r);
+    rename_live(t.r, "Layout 2");
+    layout_key(t.r, Act::kLayoutPrevious);
+    REQUIRE(t.r.session().setup.active_at == 0);
+    const std::string first = t.r.session().setup.active.name;
+    REQUIRE(first != "Layout 2");
+    PaneSettingLockActed a = t.lock(dial_lock("legend", "lock", "layout"));
+    REQUIRE_MESSAGE(a.accepted, a.refusal);
+    CHECK(a.written == std::vector<std::string>{first});
+    CHECK(prefs_persist::lock_on(t.r.w->prefs(), "test.dial/dial@" + first, "legend") != nullptr);
+    // EVERY READING SAYS THE LOCK, AND THAT IT HOLDS IN THIS LAYOUT.
+    const PaneSettingsShown shown = t.read();
+    REQUIRE(shown.locks.size() == 1);
+    CHECK(shown.locks[0].key == "legend");
+    CHECK(shown.locks[0].scope == "layout");
+    REQUIRE(hand_inspect(t.r, dial_ref()).accepted);
+    CHECK(subject_value(t.r.session(), "legend", "SETTINGS") == "on -- locked in this layout");
+    // BOTH COMMIT DOORS REFUSE IT, A CLEAR INCLUDED, and nothing is written.
+    PaneSettingCommitRequested off;
+    off.revision = shown.revision;
+    off.key = "legend";
+    off.flag = false;
+    CHECK(t.commit(off).refusal == locked_setting_refusal("legend"));
+    const Row* row = subject_row(t.r.session(), "legend", "SETTINGS");
+    REQUIRE(row != nullptr);
+    Row writable = *row;
+    CHECK(writable.commit_text("off") != Commit::Accepted);
+    CHECK(writable.refusal() == locked_setting_refusal("legend"));
+    CHECK(t.stored().empty());
+    // THE SAME LOCK TWICE IS REFUSED.
+    a = t.lock(dial_lock("legend", "lock", "layout"));
+    CHECK_FALSE(a.accepted);
+    CHECK(a.refusal == "`legend` of test.dial/dial is locked in layout " +
+                           quoted_setup_name(first) + " already");
+    // THE OTHER LAYOUT'S ROW IS ITS OWN: no lock is read there, and the commit writes.
+    layout_key(t.r, Act::kLayoutNext);
+    REQUIRE(t.r.session().setup.active_at == 1);
+    const PaneSettingsShown there = t.read();
+    CHECK(there.locks.empty());
+    off.revision = there.revision;
+    const PaneSettingActed wrote = t.commit(off);
+    REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
+    CHECK(t.stored() == std::vector<PaneSetting>{legend_off()});
+    const LayoutSettingsShown all = t.layouts();
+    REQUIRE(all.layouts.size() == 2);
+    REQUIRE(dial_in(all.layouts[0]) != nullptr);
+    REQUIRE(dial_in(all.layouts[1]) != nullptr);
+    CHECK(dial_in(all.layouts[0])->locked == std::vector<std::string>{"legend"});
+    CHECK(dial_in(all.layouts[1])->locked.empty());
+}
+
+TEST_CASE("an everywhere lock pins the value its layout holds into every layout that seats the pane, and a pane seated later wears it") {
+    TempDir dir("pane-setting-everywhere");
+    RevisionRig t;
+    t.r.host.prefs_path = dir.file("workshop-prefs.json");
+    t.open({step_of(4)});
+    const std::string first = t.r.session().setup.active.name;
+    duplicate_live_layout(t.r);
+    rename_live(t.r, "Layout 2");
+    REQUIRE(t.commit(number_at(t.read().revision, "step", 7)).accepted);
+    layout_key(t.r, Act::kLayoutNew);
+    REQUIRE(t.r.session().setup.active_at == 2);
+    REQUIRE_FALSE(has_pane(t.r.session().setup.active, dial_ref()));
+    // LOCKED FROM THE FIRST LAYOUT, NAMED BY ITS PLACE: its value goes to every row that seats the dial.
+    PaneSettingLockActed a = t.lock(dial_lock("step", "lock", "everywhere", 0));
+    REQUIRE_MESSAGE(a.accepted, a.refusal);
+    CHECK(a.written == std::vector<std::string>{first, "Layout 2"});
+    CHECK(dial_settings_at(t.r, 0) == std::vector<PaneSetting>{step_of(4)});
+    CHECK(dial_settings_at(t.r, 1) == std::vector<PaneSetting>{step_of(4)});
+    const SettingLock* kept = prefs_persist::lock_on(t.r.w->prefs(), "test.dial/dial", "step");
+    REQUIRE(kept != nullptr);
+    CHECK(kept->number == 4);
+    CHECK_FALSE(kept->clear);
+    const prefs_persist::LoadedPrefs file = prefs_persist::load_file(t.r.host.prefs_path);
+    REQUIRE_MESSAGE(file.outcome.accepted, file.outcome.refusal);
+    CHECK(file.kept.locks == t.r.w->prefs().locks);
+    // A PANE SEATED LATER, IN A LAYOUT THAT HELD NONE, WEARS THE PINNED VALUE.
+    REQUIRE(seat_pane(t.r, dial_ref()).refusal.empty());
+    CHECK(t.stored() == std::vector<PaneSetting>{step_of(4)});
+    CHECK(t.seat->handed.back().settings == std::vector<PaneSetting>{step_of(4)});
+    const PaneSettingsShown shown = t.read();
+    REQUIRE(shown.locks.size() == 1);
+    CHECK(shown.locks[0].scope == "everywhere");
+    CHECK(t.commit(number_at(shown.revision, "step", 2)).refusal == locked_setting_refusal("step"));
+    // A KEY AT ITS DEFAULT IS PINNED TO ITS DEFAULT, and a row that kept another value loses it.
+    pane_of(const_cast<Session&>(t.r.session()).setup.shelved[0].desk, dial_ref())->settings = {
+        PaneSetting{"mode", std::nullopt, std::nullopt, std::string("narrow")}, step_of(4)};
+    a = t.lock(dial_lock("mode", "lock", "everywhere"));
+    REQUIRE_MESSAGE(a.accepted, a.refusal);
+    CHECK(prefs_persist::lock_on(t.r.w->prefs(), "test.dial/dial", "mode")->clear);
+    CHECK(dial_settings_at(t.r, 0) == std::vector<PaneSetting>{step_of(4)});
+    // A LAYOUT'S OWN LOCK ON A KEY LOCKED EVERYWHERE IS REFUSED.
+    a = t.lock(dial_lock("step", "lock", "layout"));
+    CHECK_FALSE(a.accepted);
+    CHECK(a.refusal == "`step` of test.dial/dial is locked everywhere already");
+    // ...AND AN EVERYWHERE LOCK TAKES THE PLACE OF EACH LAYOUT'S OWN ON ITS KEY.
+    REQUIRE(t.lock(dial_lock("legend", "lock", "layout")).accepted);
+    REQUIRE(t.lock(dial_lock("legend", "lock", "everywhere")).accepted);
+    for (const SettingLock& l : t.r.w->prefs().locks) {
+        CHECK(l.target.find('@') == std::string::npos);
+    }
+}
+
+TEST_CASE("only the weaver unlocks: a pane on the weaver's current act does, and an office's ask, a forged number and a stale act are refused") {
+    RevisionRig t;
+    t.open();
+    REQUIRE(t.lock(dial_lock("legend", "lock", "everywhere")).accepted);
+    // AN OFFICE ASKING ON NO ACT OF THE WEAVER'S.
+    PaneSettingLockActed a = t.lock(dial_lock("legend", "unlock", "everywhere"));
+    CHECK_FALSE(a.accepted);
+    CHECK(a.refusal == kWeavers);
+    REQUIRE(prefs_persist::lock_on(t.r.w->prefs(), "test.dial/dial", "legend") != nullptr);
+    // THE WEAVER PRESSES THE DIAL: the press's correlation names the weaver's current act.
+    press_body(t.r, t.row()->kind);
+    REQUIRE_FALSE(t.seat->press_asks.empty());
+    const auto act = static_cast<std::int64_t>(t.seat->press_asks.back());
+    REQUIRE(act != 0);
+    // A NUMBER THE WEAVER'S HAND NEVER SENT, AND ANOTHER OFFICE NAMING THE DIAL'S ACT, ARE REFUSED.
+    CHECK(t.lock(dial_lock("legend", "unlock", "everywhere", -1, act + 7), true).refusal == kWeavers);
+    CHECK(t.lock(dial_lock("legend", "unlock", "everywhere", -1, act)).refusal == kWeavers);
+    REQUIRE(prefs_persist::lock_on(t.r.w->prefs(), "test.dial/dial", "legend") != nullptr);
+    // THE DIAL, ON THE WEAVER'S CURRENT ACT, UNLOCKS; a commit writes the key again.
+    a = t.lock(dial_lock("legend", "unlock", "everywhere", -1, act), true);
+    REQUIRE_MESSAGE(a.accepted, a.refusal);
+    CHECK(prefs_persist::lock_on(t.r.w->prefs(), "test.dial/dial", "legend") == nullptr);
+    PaneSettingCommitRequested off;
+    off.revision = t.read().revision;
+    off.key = "legend";
+    off.flag = false;
+    CHECK(t.commit(off).accepted);
+    // AN ACT THE WEAVER HAS SINCE MOVED ON FROM IS STALE.
+    REQUIRE(t.lock(dial_lock("legend", "lock", "layout")).accepted);
+    press_body(t.r, t.row()->kind);
+    const auto stale = static_cast<std::int64_t>(t.seat->press_asks.back());
+    press_body(t.r, t.row()->kind);
+    CHECK(t.lock(dial_lock("legend", "unlock", "layout", -1, stale), true).refusal == kWeavers);
+    // UNLOCKED WHERE IT HOLDS, OR REFUSED NAMING WHERE IT DOES.
+    const auto now = static_cast<std::int64_t>(t.seat->press_asks.back());
+    a = t.lock(dial_lock("legend", "unlock", "everywhere", -1, now), true);
+    CHECK(a.refusal == "`legend` of test.dial/dial is not locked everywhere");
+    a = t.lock(dial_lock("legend", "unlock", "layout", -1, now), true);
+    REQUIRE_MESSAGE(a.accepted, a.refusal);
+    CHECK(a.written == std::vector<std::string>{t.r.session().setup.active.name});
+    CHECK(t.r.w->prefs().locks.empty());
+}
+
+TEST_CASE("a lock act is refused in words with nothing changed: an act or a scope not known, a target naming its layout, no such layout, a key nothing takes, a pane its layout does not seat") {
+    RevisionRig t;
+    t.open();
+    CHECK(t.lock(dial_lock("legend", "freeze", "layout")).refusal ==
+          "`freeze` is not a lock act -- lock or unlock");
+    CHECK(t.lock(dial_lock("legend", "lock", "here")).refusal ==
+          "`here` is not where a lock holds -- layout or everywhere");
+    PaneSettingLockRequested at = dial_lock("legend", "lock", "layout");
+    at.target = "test.dial/dial@Elsewhere";
+    CHECK(t.lock(at).refusal == "a lock names its layout by `layout`, never in its target");
+    CHECK(t.lock(dial_lock("legend", "lock", "layout", 3)).refusal ==
+          "no layout at place 3 -- this Workshop holds 1");
+    CHECK(t.lock(dial_lock("nothing", "lock", "layout")).refusal ==
+          "test.dial/dial neither declares nor keeps `nothing` in layout " +
+              quoted_setup_name(t.r.session().setup.active.name));
+    PaneSettingLockRequested away = dial_lock("legend", "lock", "layout");
+    away.target = "test.dial/other";
+    CHECK(t.lock(away).refusal == "test.dial/other neither declares nor keeps `legend` in layout " +
+                                      quoted_setup_name(t.r.session().setup.active.name));
+    away.key = kWorkshopSkinKey;
+    CHECK(t.lock(away).refusal == "test.dial/other is not in layout " +
+                                      quoted_setup_name(t.r.session().setup.active.name) +
+                                      " -- a layout's lock holds its row");
+    CHECK(t.r.w->prefs().locks.empty());
+    // ...AND TO AN ASKER THE SETTINGS DOORS DO NOT SERVE.
+    PaneSettingLockActed withheld;
+    const std::size_t before = t.editor->lock_acted.size();
+    drive(t.r, t.editor_id, t.editor, [](RevisionSeat& s, loom::Mail& m) {
+        s.say(m, dial_lock("legend", "lock", "layout"), true);
+    });
+    REQUIRE(t.editor->lock_acted.size() == before + 1);
+    withheld = t.editor->lock_acted.back();
+    CHECK_FALSE(withheld.accepted);
+    CHECK(withheld.refusal.rfind("lock withheld: ", 0) == 0);
+    CHECK(t.r.w->prefs().locks.empty());
+}
+
+TEST_CASE("an office-wide setting is locked everywhere alone, and its lock freezes the office's commit") {
+    TempDir dir("office-setting-lock");
+    RevisionRig t;
+    t.r.host.prefs_path = dir.file("workshop-prefs.json");
+    t.open();
+    PaneSettingLockRequested ring{kWorkshopProvider, "workshop.focus.ring", "lock", "layout", -1, 0};
+    CHECK(t.lock(ring).refusal ==
+          "an office-wide setting has one value in every layout -- lock it everywhere");
+    ring.scope = "everywhere";
+    PaneSettingLockActed a = t.lock(ring);
+    REQUIRE_MESSAGE(a.accepted, a.refusal);
+    CHECK(a.written.empty());
+    const OfficeSettingsShown shown = t.read_office(kWorkshopProvider);
+    REQUIRE(shown.locks.size() == 1);
+    CHECK(shown.locks[0].key == "workshop.focus.ring");
+    const PaneSettingActed refused =
+        t.commit_office(workshop_text(shown.revision, "workshop.focus.ring", "plain"));
+    CHECK_FALSE(refused.accepted);
+    CHECK(refused.refusal == locked_setting_refusal("workshop.focus.ring"));
+    CHECK_FALSE(t.r.session().selection_ring_plain);
+    CHECK(t.lock(ring).refusal == "`workshop.focus.ring` of zengine.workshop is locked already");
+    ring.key = "workshop.nothing";
+    CHECK(t.lock(ring).refusal == "zengine.workshop declares no setting `workshop.nothing` to lock");
+    PaneSettingLockRequested nobody{"test.nobody", "anything", "lock", "everywhere", -1, 0};
+    CHECK(t.lock(nobody).refusal == "nothing declares office-wide settings for `test.nobody` here");
+    const prefs_persist::LoadedPrefs file = prefs_persist::load_file(t.r.host.prefs_path);
+    REQUIRE_MESSAGE(file.outcome.accepted, file.outcome.refusal);
+    REQUIRE(file.kept.locks.size() == 1);
+    CHECK(file.kept.locks[0].target == kWorkshopProvider);
+    // A FILE ANOTHER HAND CHANGED SINCE IS NEVER WRITTEN OVER, so the act is refused, nothing changed.
+    REQUIRE(prefs_persist::save_file(t.r.host.prefs_path, prefs_persist::Prefs{}).accepted);
+    ring.key = kWorkshopSkinKey;
+    a = t.lock(ring);
+    CHECK_FALSE(a.accepted);
+    CHECK(a.refusal.rfind("nothing changed: Workshop's settings file was not written -- the "
+                          "settings file changed since this Workshop read it",
+                          0) == 0);
+    REQUIRE(t.r.w->prefs().locks.size() == 1);
+    CHECK(t.r.w->prefs().locks[0].key == "workshop.focus.ring");
+}
+
+TEST_CASE("the settings file keeps a layout's locks, pins and baseline under its name, spaces and all, and judges each") {
+    prefs_persist::Prefs p;
+    p.pins = {prefs_persist::PinList{"test.dial/dial@Layout 2", {"step"}}};
+    prefs_persist::put_lock(p, SettingLock{"test.dial/dial@Layout 2", "legend"});
+    prefs_persist::put_lock(p, SettingLock{"test.dial/dial", "step", std::nullopt, 4});
+    REQUIRE(prefs_persist::set_layout_theme(p, "Layout 2", LayoutTheme{"evening", 42}));
+    CHECK_FALSE(prefs_persist::set_layout_theme(p, "Layout 2", LayoutTheme{"evening", 42}));
+    CHECK(prefs_persist::kept_problem(p).empty());
+    TempDir dir("prefs-layout-entries");
+    const std::string path = dir.file("workshop-prefs.json");
+    REQUIRE(prefs_persist::save_file(path, p).accepted);
+    const prefs_persist::LoadedPrefs read = prefs_persist::load_file(path);
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    CHECK(read.kept == p);
+    CHECK(prefs_persist::layout_theme_of(read.kept, "Layout 2") == LayoutTheme{"evening", 42});
+    CHECK(prefs_persist::layout_theme_of(read.kept, "Layout 3").name.empty());
+    // A BASELINE IS NOT AN OFFICE: it counts toward neither office bound.
+    CHECK(prefs_persist::office_count(p) == 0);
+    CHECK(prefs_persist::kept_count(p) == 0);
+    // EACH FORM IS JUDGED: a layout's lock holds no value and names a pane; a layout's name is one a
+    // layout takes; a baseline keeps a theme's name and its fingerprint alone.
+    prefs_persist::Prefs bad = p;
+    for (SettingLock& l : bad.locks) {
+        l.flag = l.target.find('@') != std::string::npos ? std::optional<bool>(true) : l.flag;
+    }
+    CHECK(prefs_persist::kept_problem(bad).find("a layout's lock freezes its row") !=
+          std::string::npos);
+    bad = p;
+    prefs_persist::put_lock(bad, SettingLock{"test.dial@Layout 2", "legend"});
+    CHECK(prefs_persist::kept_problem(bad).find("names a layout but no pane") != std::string::npos);
+    bad = p;
+    bad.pins[0].target = "test.dial/dial@" + std::string(40, 'x');
+    CHECK(prefs_persist::kept_problem(bad).find("names its layout wrongly") != std::string::npos);
+    bad = p;
+    REQUIRE(prefs_persist::put_office_value(bad, "@Layout 2", "theme",
+                                            PaneSetting{"theme", std::nullopt, std::nullopt,
+                                                        std::string("Evening!")}));
+    CHECK(prefs_persist::kept_problem(bad).find("a baseline's theme name") != std::string::npos);
+    // WHAT IS KEPT FOR A LAYOUT FOLLOWS A NEW NAME, AND GOES WITH A REMOVED ONE.
+    prefs_persist::Prefs moved = p;
+    REQUIRE(prefs_persist::move_layout_entries(moved, "Layout 2", "Night Desk"));
+    CHECK(prefs_persist::pin_list(moved, "test.dial/dial@Night Desk") != nullptr);
+    CHECK(prefs_persist::lock_on(moved, "test.dial/dial@Night Desk", "legend") != nullptr);
+    CHECK(prefs_persist::lock_on(moved, "test.dial/dial", "step") != nullptr);
+    CHECK(prefs_persist::layout_theme_of(moved, "Night Desk") == LayoutTheme{"evening", 42});
+    CHECK(prefs_persist::layout_theme_of(moved, "Layout 2").name.empty());
+    CHECK(prefs_persist::kept_problem(moved).empty());
+    REQUIRE(prefs_persist::move_layout_entries(moved, "Night Desk", ""));
+    CHECK(moved.pins.empty());
+    CHECK(moved.locks.size() == 1);
+    CHECK(moved.offices.empty());
+}
+
+TEST_CASE("what the settings file keeps for a layout follows the layout's rename, and goes when the layout is removed") {
+    TempDir dir("layout-entries-follow");
+    RevisionRig t;
+    t.r.host.prefs_path = dir.file("workshop-prefs.json");
+    t.open();
+    duplicate_live_layout(t.r);
+    rename_live(t.r, "Layout 2");
+    REQUIRE(t.lock(dial_lock("legend", "lock", "layout")).accepted);
+    SettingsWriteRequested b;
+    b.revision = t.layouts().revision;
+    b.baselines = {LayoutThemeWrite{-1, LayoutTheme{"evening", 7}}};
+    REQUIRE(t.batch(b).accepted);
+    rename_live(t.r, "Night Desk");
+    CHECK(prefs_persist::lock_on(t.r.w->prefs(), "test.dial/dial@Night Desk", "legend") != nullptr);
+    CHECK(prefs_persist::lock_on(t.r.w->prefs(), "test.dial/dial@Layout 2", "legend") == nullptr);
+    CHECK(t.layouts().layouts[1].theme == LayoutTheme{"evening", 7});
+    CHECK(t.read().locks.size() == 1);
+    prefs_persist::LoadedPrefs file = prefs_persist::load_file(t.r.host.prefs_path);
+    REQUIRE_MESSAGE(file.outcome.accepted, file.outcome.refusal);
+    CHECK(file.kept == t.r.w->prefs());
+    // A REMOVED LAYOUT TAKES WHAT WAS KEPT FOR IT.
+    layout_key(t.r, Act::kLayoutRemove);
+    REQUIRE(layout_count(t.r.session().setup) == 1);
+    CHECK(t.r.w->prefs().locks.empty());
+    CHECK(t.r.w->prefs().offices.empty());
+    file = prefs_persist::load_file(t.r.host.prefs_path);
+    REQUIRE(file.outcome.accepted);
+    CHECK(file.kept == t.r.w->prefs());
+}
+
+TEST_CASE("every layout is read at once: each row with its locks, what each pane and office takes, the everywhere locks, the live one and one revision") {
+    RevisionRig t;
+    t.open({legend_off()});
+    duplicate_live_layout(t.r);
+    rename_live(t.r, "Layout 2");
+    REQUIRE(t.lock(dial_lock("step", "lock", "layout")).accepted);
+    REQUIRE(t.lock(dial_lock("mode", "lock", "everywhere")).accepted);
+    const LayoutSettingsShown s = t.layouts();
+    CHECK(s.revision > 0);
+    CHECK(s.active == 1);
+    REQUIRE(s.layouts.size() == 2);
+    CHECK(s.layouts[0].position == 0);
+    CHECK(s.layouts[1].position == 1);
+    CHECK(s.layouts[1].name == "Layout 2");
+    CHECK(s.layouts[1].theme.name.empty());
+    REQUIRE(dial_in(s.layouts[0]) != nullptr);
+    REQUIRE(dial_in(s.layouts[1]) != nullptr);
+    CHECK(dial_in(s.layouts[0])->settings == std::vector<PaneSetting>{legend_off()});
+    CHECK(dial_in(s.layouts[0])->locked == std::vector<std::string>{"mode"});
+    CHECK(dial_in(s.layouts[1])->locked == std::vector<std::string>{"mode", "step"});
+    // WHAT EACH PANE TAKES, WORKSHOP'S WORD FOR ITS AREA FIRST, AND WHAT EACH OFFICE TAKES.
+    const DeclaredSettings* dial = nullptr;
+    const DeclaredSettings* workshop = nullptr;
+    for (const DeclaredSettings& d : s.declared) {
+        dial = d.provider == kDialOffice && d.pane == kDial ? &d : dial;
+        workshop = d.provider == kWorkshopProvider && d.pane.empty() ? &d : workshop;
+    }
+    REQUIRE(dial != nullptr);
+    REQUIRE(dial->rows.size() == 4);
+    CHECK(dial->rows[0].key == kWorkshopSkinKey);
+    CHECK(dial->rows[1].key == "legend");
+    REQUIRE(workshop != nullptr);
+    CHECK(workshop->rows == prefs_persist::workshop_office_rows());
+    REQUIRE(s.everywhere.size() == 1);
+    CHECK(s.everywhere[0].key == "mode");
+    CHECK(s.everywhere[0].clear);
+    // THE SAME READING STANDS AT THE SAME REVISION; anything it says moving moves it.
+    CHECK(t.layouts().revision == s.revision);
+    PaneSettingCommitRequested on;
+    on.revision = t.read().revision;
+    on.key = "legend";
+    on.flag = true;
+    REQUIRE(t.commit(on).accepted);
+    const std::int64_t moved = t.layouts().revision;
+    CHECK(moved > s.revision);
+    layout_key(t.r, Act::kLayoutPrevious);
+    CHECK(t.layouts().revision > moved);
+    // ...AND TO AN ASKER THE SETTINGS DOORS DO NOT SERVE, NOTHING, at no revision.
+    const LayoutSettingsShown none = t.layouts(true);
+    CHECK(none.revision == 0);
+    CHECK(none.layouts.empty());
+    CHECK(none.declared.empty());
+}
+
+TEST_CASE("a batch is judged whole at its revision: a stale one, a value not taken, a layout not held or a bad baseline writes nothing") {
+    TempDir dir("batch-refused");
+    RevisionRig t;
+    t.r.host.prefs_path = dir.file("workshop-prefs.json");
+    t.open();
+    duplicate_live_layout(t.r);
+    rename_live(t.r, "Layout 2");
+    const std::int64_t rev = t.layouts().revision;
+    const prefs_persist::Prefs kept = t.r.w->prefs();
+    SettingsWriteRequested b;
+    b.revision = rev + 5;
+    b.writes = {number_write(0, "test.dial/dial", "step", 3)};
+    SettingsWritten w = t.batch(b);
+    CHECK_FALSE(w.accepted);
+    CHECK(w.refusal == "stale revision " + std::to_string(rev + 5) + " -- the layouts stand at " +
+                           std::to_string(rev) + "; read them again");
+    CHECK(w.revision == rev);
+    b.revision = rev;
+    // A SOUND WRITE BEFORE A VALUE ITS SETTING DOES NOT TAKE IS NOT WRITTEN EITHER.
+    b.writes = {number_write(0, "test.dial/dial", "step", 3),
+                number_write(1, "test.dial/dial", "step", 12)};
+    w = t.batch(b);
+    CHECK_FALSE(w.accepted);
+    CHECK(w.refusal.rfind("write 1: ", 0) == 0);
+    b.writes = {number_write(0, "test.dial/dial", "step", 3),
+                number_write(5, "test.dial/dial", "step", 3)};
+    CHECK(t.batch(b).refusal == "write 1: no layout at place 5 -- this Workshop holds 2");
+    b.writes = {number_write(0, "test.dial/dial", "step", 3),
+                text_write(-1, kWorkshopProvider, "workshop.focus.ring", "loud")};
+    CHECK(t.batch(b).refusal.rfind("write 1: ", 0) == 0);
+    b.writes = {number_write(0, "test.dial/dial@Layout 2", "step", 3)};
+    CHECK(t.batch(b).refusal ==
+          "write 0: a write names its layout by `layout`, never in its target");
+    b.writes = {flag_write(0, "test.dial/dial", "legend", true)};
+    b.writes[0].clear = true;
+    CHECK(t.batch(b).refusal == "write 0: a clear takes no value -- name the key alone");
+    b.writes = {number_write(0, "test.dial/dial", "step", 3)};
+    b.baselines = {LayoutThemeWrite{0, LayoutTheme{"Evening!", 3}}};
+    CHECK(t.batch(b).refusal.rfind("baseline 0: a baseline's theme name", 0) == 0);
+    b.baselines = {LayoutThemeWrite{0, LayoutTheme{"", 3}}};
+    CHECK(t.batch(b).refusal == "baseline 0: a baseline of no theme has no fingerprint");
+    // NOTHING WAS WRITTEN, AND THE LAYOUTS STAND WHERE THEY WERE READ.
+    CHECK(dial_settings_at(t.r, 0).empty());
+    CHECK(dial_settings_at(t.r, 1).empty());
+    CHECK(t.r.w->prefs() == kept);
+    CHECK_FALSE(t.r.session().selection_ring_plain);
+    CHECK(t.layouts().revision == rev);
+    // ...AND TO AN ASKER THE SETTINGS DOORS DO NOT SERVE.
+    w = t.batch(b, true);
+    CHECK_FALSE(w.accepted);
+    CHECK(w.refusal.rfind("settings writes withheld: ", 0) == 0);
+    CHECK(w.revision == 0);
+    // A SETTINGS FILE ANOTHER HAND WROTE SINCE IS NEVER WRITTEN OVER, so neither is the desk.
+    REQUIRE(prefs_persist::save_file(t.r.host.prefs_path, prefs_persist::Prefs{}).accepted);
+    b.baselines = {LayoutThemeWrite{0, LayoutTheme{"evening", 3}}};
+    w = t.batch(b);
+    CHECK_FALSE(w.accepted);
+    CHECK(w.refusal.rfind("nothing written: Workshop's settings file was not written -- ", 0) == 0);
+    CHECK(dial_settings_at(t.r, 0).empty());
+    CHECK(t.r.w->prefs() == kept);
+}
+
+TEST_CASE("a batch writes what it can across layouts, says each write's outcome, keeps baselines, and hands the live rows and offices it moved") {
+    TempDir dir("batch-written");
+    RevisionRig t;
+    t.r.host.prefs_path = dir.file("workshop-prefs.json");
+    t.open();
+    const std::string first = t.r.session().setup.active.name;
+    duplicate_live_layout(t.r);
+    rename_live(t.r, "Layout 2");
+    REQUIRE(t.lock(dial_lock("legend", "lock", "layout", 0)).accepted);
+    const std::int64_t rev = t.layouts().revision;
+    SettingsWriteRequested b;
+    b.revision = rev;
+    b.cause = "theme evening";
+    b.writes = {number_write(1, "test.dial/dial", "step", 6),
+                flag_write(0, "test.dial/dial", "legend", false),
+                text_write(1, "test.dial/dial", "nothing", "x"),
+                number_write(0, "test.dial/other", "step", 2),
+                number_write(-1, "test.dial/dial", "step", 6),
+                text_write(-1, kWorkshopProvider, "workshop.focus.ring", "plain"),
+                text_write(0, "test.dial/dial", "mode", "narrow")};
+    b.baselines = {LayoutThemeWrite{0, LayoutTheme{"evening", 42}}};
+    const SettingsWritten w = t.batch(b);
+    REQUIRE_MESSAGE(w.accepted, w.refusal);
+    REQUIRE(w.results.size() == 7);
+    std::vector<std::string> outcomes;
+    for (const SettingWriteResult& r : w.results) {
+        outcomes.push_back(r.outcome);
+    }
+    CHECK(outcomes == std::vector<std::string>{"written", "locked", "not-taken", "not-in-layout",
+                                               "unchanged", "written", "written"});
+    CHECK(w.results[1].said == locked_setting_refusal("legend"));
+    CHECK(w.results[3].said == "test.dial/other is not in layout " + quoted_setup_name(first));
+    CHECK(w.revision > rev);
+    CHECK(w.handed == std::vector<std::string>{"test.dial/dial", kWorkshopProvider});
+    // WRITTEN WHERE EACH WAS ASKED, the live row handed, Workshop's own applied.
+    CHECK(dial_settings_at(t.r, 1) == std::vector<PaneSetting>{step_of(6)});
+    CHECK(dial_settings_at(t.r, 0) ==
+          std::vector<PaneSetting>{
+              PaneSetting{"mode", std::nullopt, std::nullopt, std::string("narrow")}});
+    CHECK(t.seat->handed.back().settings == std::vector<PaneSetting>{step_of(6)});
+    CHECK(t.r.session().selection_ring_plain);
+    CHECK(t.r.last_notice() == "theme evening: 3 of 7 written, baselines set");
+    // THE BASELINE AND WORKSHOP'S OWN ARE KEPT IN THE SETTINGS FILE.
+    CHECK(prefs_persist::layout_theme_of(t.r.w->prefs(), first) == LayoutTheme{"evening", 42});
+    const prefs_persist::LoadedPrefs file = prefs_persist::load_file(t.r.host.prefs_path);
+    REQUIRE_MESSAGE(file.outcome.accepted, file.outcome.refusal);
+    CHECK(file.kept == t.r.w->prefs());
+    CHECK(file.prefs.ring_plain);
+    const LayoutSettingsShown after = t.layouts();
+    CHECK(after.revision == w.revision);
+    CHECK(after.layouts[0].theme == LayoutTheme{"evening", 42});
+    // A BASELINE OF NO THEME REMOVES IT; a batch that moves nothing mints nothing.
+    SettingsWriteRequested gone;
+    gone.revision = after.revision;
+    gone.baselines = {LayoutThemeWrite{0, LayoutTheme{}}};
+    const SettingsWritten removed = t.batch(gone);
+    REQUIRE_MESSAGE(removed.accepted, removed.refusal);
+    CHECK(prefs_persist::layout_theme_of(t.r.w->prefs(), first).name.empty());
+    SettingsWriteRequested same;
+    same.revision = removed.revision;
+    same.writes = {number_write(1, "test.dial/dial", "step", 6)};
+    const SettingsWritten unchanged = t.batch(same);
+    REQUIRE(unchanged.accepted);
+    CHECK(unchanged.results[0].outcome == "unchanged");
+    CHECK(unchanged.revision == removed.revision);
+    CHECK(unchanged.handed.empty());
 }

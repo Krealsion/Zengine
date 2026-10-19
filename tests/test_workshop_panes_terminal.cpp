@@ -2390,6 +2390,39 @@ TEST_CASE("a Terminal line reads the Terminal's settings, and writes them: the w
     CHECK(t.shown().back().rfind(">    Tab:", 0) == 0);
 }
 
+TEST_CASE("a Terminal line locks a setting and, as the weaver's hand, unlocks it, and reads every layout") {
+    TerminalRig t;
+    t.r.terminal_edits_settings = true;
+    t.open();
+    t.give_room(12, 60);
+    const std::string lock = "ask @zengine.workshop PaneSettingLockRequested 1 "
+                             "target=zengine.terminal/terminal key=wheel-rows act=lock "
+                             "scope=everywhere layout=-1 gesture=0";
+    const PaneSettingLockActed locked = typed_answer<PaneSettingLockActed>(t, lock);
+    REQUIRE_MESSAGE(locked.accepted, locked.refusal);
+    const PaneSettingsShown shown = typed_answer<PaneSettingsShown>(t, kReadLine);
+    REQUIRE(shown.locks.size() == 1);
+    CHECK(shown.locks[0].scope == "everywhere");
+    const PaneSettingActed refused =
+        typed_answer<PaneSettingActed>(t, commit_line(shown.revision, "key=wheel-rows number=6"));
+    CHECK_FALSE(refused.accepted);
+    CHECK(refused.refusal == locked_setting_refusal("wheel-rows"));
+    // THE TERMINAL ANSWERS THE WEAVER ALONE, SO ITS LINE UNLOCKS.
+    std::string unlock = lock;
+    unlock.replace(unlock.find("act=lock"), 8, "act=unlock");
+    const PaneSettingLockActed unlocked = typed_answer<PaneSettingLockActed>(t, unlock);
+    REQUIRE_MESSAGE(unlocked.accepted, unlocked.refusal);
+    const PaneSettingActed six = typed_answer<PaneSettingActed>(
+        t, commit_line(typed_answer<PaneSettingsShown>(t, kReadLine).revision,
+                       "key=wheel-rows number=6"));
+    CHECK_MESSAGE(six.accepted, six.refusal);
+    const LayoutSettingsShown all =
+        typed_answer<LayoutSettingsShown>(t, "ask @zengine.workshop LayoutSettingsRequested 1");
+    CHECK(all.revision > 0);
+    REQUIRE(all.layouts.size() == 1);
+    CHECK(all.everywhere.empty());
+}
+
 TEST_CASE("a Terminal not widened to settings cannot ask for them: the line is refused before it is sent") {
     TerminalRig t;
     t.open();
