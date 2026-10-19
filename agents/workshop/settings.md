@@ -311,8 +311,8 @@ version-2 prefs file is read as Workshop's own three settings, and its words are
 file version 3 cannot read is refused whole, and its bytes stand"
 `tests/test_workshop_panes_settings.cpp` "an office commit is refused in words with nothing written:
 a stale revision, an office nothing declares for, a value not taken, a key not declared, a lock" "an
-everywhere lock on a pane's setting refuses the message commit and Info's row, and every reading
-says it"
+everywhere lock on a pane's setting refuses the message commit and the subject's row, and every
+reading says it"
 
 ### WL-SETTING-12
 `workshop/settings_seam_vocabulary.hpp` PaneSettingPinRequested PaneSettingPinActed kMaxPinsPerPane
@@ -320,7 +320,7 @@ kPinsWorkshopWide kPinsPerLayout
 `workshop/weave_settings.cpp` pin_target effective_pins on(PaneSettingPinRequested)
 `workshop/weave_inspection.cpp` on(PaneSettingsRequested)
 `tests/test_workshop_panes_settings.cpp` "a pin act pins, unpins and moves a pane's setting in the
-Workshop-wide list, and the subject's rows say each pin's place" "a pin act is refused in words with
+Workshop-wide list, and a reading of the row says the list" "a pin act is refused in words with
 nothing written: a key not declared, one pinned already, one not pinned, an act not known, past the
 bound" "per-layout pins keep each layout's own list, a layout with none reading the Workshop-wide
 one"

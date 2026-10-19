@@ -468,7 +468,6 @@ class WorkshopWeave
                                         zengine::workshop::PaneRevealAnswered,
                                         zengine::workshop::StandingConditions,
                                         zengine::workshop::PaneSubjectShown,
-                                        zengine::workshop::v2::PaneSubjectShown,
                                         zengine::workshop::PaneSubjectActed,
                                         zengine::workshop::TerminalValueAnswered,
                                         zengine::workshop::PresentationTrial,
@@ -1031,8 +1030,6 @@ public:
 
     /// SAY THE SUBJECT OUT LOUD, if it changed since it was last said (the inventory's rule).
     void publish_pane_subject(loom::Mail& mail);
-    /// The subject as v2 says it: its rows, the pins of the list the pin scope reads, the scope.
-    v2::PaneSubjectShown inspected_subject() const;
 
     /// A COMMIT TYPED FOR ROWS THAT ARE NO LONGER THE SUBJECT'S (WL-INFO-15).
     static constexpr const char* kPaneCommitSubjectGone =
@@ -2036,7 +2033,7 @@ private:
     std::string keymap_standing_;
     /// ...AND FOR THE INSPECTOR'S SUBJECT (WL-INFO-14): what was last said, and whether it has
     /// been said since a presenter last arrived.
-    v2::PaneSubjectShown subject_said_;
+    PaneSubjectShown subject_said_;
     bool subject_published_ = false;
     /// Which generation of the host's standing list this weave has taken.
     std::uint64_t conditions_taken_ = 0;

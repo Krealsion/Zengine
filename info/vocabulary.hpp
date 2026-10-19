@@ -57,27 +57,6 @@ inline constexpr const char* kActionEdit = "info.edit";
 inline constexpr const char* kActionCommit = "info.commit";
 inline constexpr const char* kActionCancel = "info.cancel";
 
-/// THE SETTINGS TABS AND THE PINS: the previous and next tab, wrapping; and the cursor's setting
-/// pinned or unpinned, and moved one place among the pins. A tab's face is a part, `tab:<word>`,
-/// pressed by its place: the tags are a subject's own words, so no action is declared per tab.
-inline constexpr const char* kActionTabPrevious = "info.tab-previous";
-inline constexpr const char* kActionTabNext = "info.tab-next";
-inline constexpr const char* kTabPartPrefix = "tab:";
-inline constexpr const char* kActionPin = "info.pin";
-inline constexpr const char* kActionPinUp = "info.pin-up";
-inline constexpr const char* kActionPinDown = "info.pin-down";
-
-// ---- The settings the default pane takes (`workshop/pane_settings.hpp`) ---------------------
-
-/// How wide the property label column is, and the tab a new subject's settings open on.
-inline constexpr const char* kLabelColumnsSetting = "label-columns";
-inline constexpr std::int64_t kLabelColumnsDefault = 9;
-inline constexpr std::int64_t kLabelColumnsLow = 6;
-inline constexpr std::int64_t kLabelColumnsHigh = 24;
-inline constexpr const char* kTabSetting = "tab";
-inline constexpr const char* kTabPinned = "pinned";
-inline constexpr const char* kTabAll = "all";
-
 // ---- Independent value views (`value_view.hpp`) --------------------------------------------
 //
 // The default pane `info` plus three fixed slots, `info.2`..`info.4`, each offered on first use

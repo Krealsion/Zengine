@@ -392,7 +392,6 @@ PaneStamp v2 0xf1f9e7ae3f50b4d7
 PaneSubjectActed v1 0x7e036a3483c1c5a4
 PaneSubjectRequested v1 0xa405e3a2d389e75c
 PaneSubjectShown v1 0x3956a00cb099e844
-PaneSubjectShown v2 0xd20b10d55bcce0e3
 PaneTextInput v1 0xabf9a61f8ca8d377
 PaneToggleAnswered v1 0x5c4d9d1c9d40203d
 PaneToggleRequested v1 0x90182c7b8e55f165
@@ -484,7 +483,6 @@ ShownCandidate v1 0x8ad594ca04e169db
 ShownEntry v2 0x5daa79b13f1620ff
 ShownModes v1 0xf2b326854977a7bc
 ShownProperty v1 0x33d6e471c262cd06
-ShownProperty v2 0x1cf0dc0e46d3c3b5
 SkinChosen v1 0xd468996ace38d835
 SkinOffered v1 0x3779030674e1456a
 SkinState v1 0x75193458bf021f5c

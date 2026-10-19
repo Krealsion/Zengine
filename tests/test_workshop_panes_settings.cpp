@@ -884,17 +884,6 @@ OfficeSettingCommitRequested workshop_text(std::int64_t revision, const char* ke
     return c;
 }
 
-/// The pins the inspector's subject gives the dial's settings rows, by label.
-std::vector<std::pair<std::string, std::int64_t>> subject_pins(const RevisionRig& t) {
-    std::vector<std::pair<std::string, std::int64_t>> out;
-    for (const v2::ShownProperty& p : t.r.w->inspected_subject().properties) {
-        if (p.setting) {
-            out.emplace_back(p.label, p.pin);
-        }
-    }
-    return out;
-}
-
 PaneSettingCommitRequested number_at(std::int64_t revision, const char* key, std::int64_t n) {
     PaneSettingCommitRequested c;
     c.revision = revision;
@@ -1362,7 +1351,6 @@ TEST_CASE("a commit of Workshop's own setting applies it, keeps it in the settin
     const PaneSettingActed scope = t.commit_office(
         workshop_text(plain.revision, "workshop.pinned-scope", "per-layout"));
     REQUIRE_MESSAGE(scope.accepted, scope.refusal);
-    CHECK(t.r.w->inspected_subject().pins.empty()); // nothing inspected
     read = prefs_persist::load_file(t.r.host.prefs_path);
     REQUIRE(read.outcome.accepted);
     CHECK(read.prefs.pins_per_layout);
@@ -1477,17 +1465,13 @@ TEST_CASE("an office declares the office-wide settings it takes, is handed what 
 
 // ---- Pins ---------------------------------------------------------------------------------
 
-TEST_CASE("a pin act pins, unpins and moves a pane's setting in the Workshop-wide list, and the subject's rows say each pin's place") {
+TEST_CASE("a pin act pins, unpins and moves a pane's setting in the Workshop-wide list, and a reading of the row says the list") {
     TempDir dir("pins-workshop-wide");
     RevisionRig t;
     t.r.host.prefs_path = dir.file("workshop-prefs.json");
     t.open();
-    REQUIRE(hand_inspect(t.r, dial_ref()).accepted);
     // THE DECLARED PINS UNTIL AN ACT: legend.
     CHECK(t.read().pins == std::vector<std::string>{"legend"});
-    CHECK(subject_pins(t) == std::vector<std::pair<std::string, std::int64_t>>{
-                                 {"legend", 0}, {"mode", -1}, {"step", -1}});
-    CHECK(t.r.w->inspected_subject().pins == "workshop-wide");
     PaneSettingPinActed a = t.pin("step", "pin");
     REQUIRE_MESSAGE(a.accepted, a.refusal);
     CHECK(a.pins == std::vector<std::string>{"legend", "step"});
@@ -1495,8 +1479,6 @@ TEST_CASE("a pin act pins, unpins and moves a pane's setting in the Workshop-wid
     a = t.pin("step", "up");
     REQUIRE_MESSAGE(a.accepted, a.refusal);
     CHECK(a.pins == std::vector<std::string>{"step", "legend"});
-    CHECK(subject_pins(t) == std::vector<std::pair<std::string, std::int64_t>>{
-                                 {"legend", 1}, {"mode", -1}, {"step", 0}});
     CHECK(t.read().pins == std::vector<std::string>{"step", "legend"});
     // UP AT THE TOP MOVES NOTHING; DOWN MOVES IT BACK.
     CHECK(t.pin("step", "up").pins == std::vector<std::string>{"step", "legend"});
@@ -1569,7 +1551,7 @@ TEST_CASE("per-layout pins keep each layout's own list, a layout with none readi
     CHECK(t.read().pins == std::vector<std::string>{"step"});
 }
 
-TEST_CASE("an everywhere lock on a pane's setting refuses the message commit and Info's row, and every reading says it") {
+TEST_CASE("an everywhere lock on a pane's setting refuses the message commit and the subject's row, and every reading says it") {
     TempDir dir("pane-setting-locked");
     prefs_persist::Prefs locked;
     locked.locks = {prefs_persist::SettingLock{"test.dial/dial", "legend"}};
@@ -1597,7 +1579,7 @@ TEST_CASE("an everywhere lock on a pane's setting refuses the message commit and
     clear.clear = true;
     CHECK(t.commit(clear).refusal == locked_setting_refusal("legend"));
     CHECK(t.stored().empty());
-    // ...AND INFO'S ROW SAYS THE LOCK IN ITS VALUE, and its write is refused in the same words.
+    // ...AND THE SUBJECT'S ROW SAYS THE LOCK IN ITS VALUE, and its write is refused in the same words.
     CHECK(subject_value(t.r.session(), "legend", "SETTINGS") == "on -- locked everywhere");
     const Row* row = subject_row(t.r.session(), "legend", "SETTINGS");
     REQUIRE(row != nullptr);
@@ -1605,11 +1587,6 @@ TEST_CASE("an everywhere lock on a pane's setting refuses the message commit and
     CHECK(writable.commit_text("off") != Commit::Accepted);
     CHECK(writable.refusal() == locked_setting_refusal("legend"));
     CHECK(t.stored().empty());
-    bool lock_said = false;
-    for (const v2::ShownProperty& p : t.r.w->inspected_subject().properties) {
-        lock_said = lock_said || (p.label == "legend" && p.lock == "everywhere");
-    }
-    CHECK(lock_said);
     // A SETTING NO LOCK HOLDS IS WRITTEN AS EVER.
     CHECK(t.commit(number_at(shown.revision, "step", 4)).accepted);
 }

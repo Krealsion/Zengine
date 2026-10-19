@@ -644,7 +644,7 @@ struct PaneArrange {
 /// everywhere. A row is built from each.
 // WL-SETTING-05 -- agents/workshop/settings.md
 struct SettingsSubject {
-    std::vector<v2::PaneSettingRow> declared;
+    std::vector<PaneSettingRow> declared;
     std::vector<std::string> kept;
     std::vector<std::string> locked;
 
@@ -665,7 +665,6 @@ struct InspectedPane {
     std::uint64_t desk = 0;    ///< `SetupState::put_live` when `name` was given
     bool member = false;       ///< whether that desk held the pane's row when `name` was given
     SettingsSubject settings;  ///< the settings rows `name` was given over
-    std::string inspector;     ///< the office that named the pane, whose holder is shown it
 
     bool addressed() const { return !ref.provider.empty(); }
 };
@@ -1651,7 +1650,7 @@ Written write_pane_axis(Session& s, const PaneRef& ref, std::size_t axis,
 /// THE SETTINGS ROWS A SUBJECT HAS NOW, from the declaration that counts (none when nothing
 /// counts) and what the live layout's row keeps.
 SettingsSubject settings_subject(const Session& s, const PaneRef& ref,
-                                 const std::vector<v2::PaneSettingRow>* declared,
+                                 const std::vector<PaneSettingRow>* declared,
                                  std::vector<std::string> locked = {});
 
 /// ONE SETTING AS A WEAVER READS IT in its row: the stored value, or the default when nothing is
@@ -1677,9 +1676,6 @@ Written write_kept_setting(Session& s, const PaneRef& ref, const std::string& ke
 std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref,
                                    const SettingsSubject& settings = {});
 
-/// The heading the SETTINGS rows follow, a row of the subject's own.
-inline constexpr const char* kSettingsSection = "SETTINGS";
-
 /// Where a lock holds a setting, as a row says it, and the refusal of a write it holds.
 inline constexpr const char* kLockedEverywhere = "everywhere";
 inline std::string locked_setting_refusal(const std::string& key) {
@@ -1688,12 +1684,12 @@ inline std::string locked_setting_refusal(const std::string& key) {
 }
 
 /// THE INSPECTOR'S SUBJECT AS THE SEAM CARRIES IT: the reference, the inventory's name for it,
-/// the name of the rows and every row read fresh -- each SETTINGS row with its declaration's tags
-/// and summary, its place in `pins` (the subject's pin list, in pin order), whether a lock holds
-/// it, and whether it is kept -- and the pin scope `scope` names. Pure over the session.
+/// the name of the rows and every row read fresh. Pure over the session.
 // WL-INFO-14 -- agents/workshop/info-body.md
-v2::PaneSubjectShown pane_subject_shown(const Session& s, const std::vector<std::string>& pins = {},
-                                        const std::string& scope = std::string());
+PaneSubjectShown pane_subject_shown(const Session& s);
+
+/// ...AND WHETHER TWO READINGS SAY THE SAME THING, every field, for the publication's gate.
+bool same_pane_subject(const PaneSubjectShown& a, const PaneSubjectShown& b);
 
 // ---- THE COMPOSITION: every pane back to front, the bottom band, and the screen as planes ----
 
