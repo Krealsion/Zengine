@@ -563,7 +563,7 @@ Workshop's own, `office=zengine.workshop`:
 | `workshop.hotkeys-keys` | `short` or `full` | `full` | how the Hotkeys pane spells a key |
 | `workshop.pinned-scope` | `workshop-wide` or `per-layout` | `workshop-wide` | which pin list an editor's pin acts edit |
 | `workshop.focus.ring` | `accent` or `plain` | `accent` | the command-mode selection: the accent's two rings, or one in the chrome's ink |
-| `workshop.skin` | `classic` or `block` | `classic` | each graphics area's skin; a pane's row may keep its own |
+| `workshop.skin` | `classic`, `block`, `day` or `night` | `classic` | each graphics area's skin; a pane's row may keep its own |
 | `workshop.completion-order` | `declared` or `required-first` | `declared` | the order the Terminal offers a shape's fields |
 | `workshop.arrange-step` | 2 to 16 | 4 | cells one coarse grow or shrink moves |
 | `workshop.snap-reach` | 6 to 11 | 8 | canvas pixels a hand's edge snaps across |
@@ -791,13 +791,14 @@ is granted a new one.
 
 ### `SurfacePlacement`
 
-`SurfacePlacement`, from the skin: where the window sits, and whether it is maximized. Workshop
-keeps it, opaque, for the session file.
+`SurfacePlacement`, from the skin or a graphics window: where the window sits, and whether it is
+maximized. Workshop keeps it, opaque, for the session file, and offers it back at a restore
+(`SurfacePlacementRemembered`) to the medium that holds the desk.
 
 ### `SurfaceCloseRequested`
 
-`SurfaceCloseRequested`, from the skin: the window was asked to close. Workshop quits as a weaver's
-quit does, asking its panes first.
+`SurfaceCloseRequested`, from the skin or a graphics window: the window was asked to close.
+Workshop quits as a weaver's quit does, asking its panes first.
 
 ### `ClipboardCopy`
 
@@ -805,8 +806,10 @@ quit does, asking its panes first.
 
 ### `ClipboardText`
 
-`ClipboardText`, from the skin, answering Workshop's `ClipboardTextRequested`: the platform's text,
-pasted into the line that asked, if that draft still stands.
+`ClipboardText`, answering Workshop's `ClipboardTextRequested`, which it asks of the graphics
+window that shows its area, else the window that offered itself while no skin has said its
+extent, else the skin: the platform's text, pasted into the line that asked, if that draft still
+stands.
 
 ### `KeyPressed`
 
@@ -883,18 +886,19 @@ its outcome is said on the band, `editor switch <op>: <outcome>`.
 
 `GraphicsReady`, from `zengine.graphics` ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)):
 a graphics directory started afresh. While one is mounted Workshop is its arranger: it offers the
-`classic` and `block` skins and chooses each area's (`workshop.skin`), places each open pane whose
-office draws in a window over its body, and its own area, `zengine.workshop`, across the screen,
-the one taking the window's keys and text, and asks its own room. With no directory it says
-nothing there.
+`classic`, `block`, `day` and `night` skins and chooses each area's (`workshop.skin`), places on
+the window that offered itself each open pane whose office draws in a window, over its body, and
+its own area, `zengine.workshop`, across the screen, which takes the window's keys and text, and
+asks its own room.
 
 ### `WindowOffered`
 
-`WindowOffered` v1, from the terminal window as its own office, `zengine.window.terminal`: its
-size in cells. With no skin up yet, Workshop comes up in it as `SurfaceReady` brings it up; and
-while no skin has said `SurfaceExtent`, it lays the same panes out in the window's room, a cell
-of text a cell, again each time the window offers another size. A skin's extent then owns the
-room. An offer from any other office, or of another window, is ignored.
+`WindowOffered` v1, from the terminal or OS window as its own office (`zengine.window.terminal`,
+`zengine.window.sdl`): its size in cells; Workshop's areas go on it. With no skin up yet, Workshop
+comes up in it as `SurfaceReady` brings it up; and while no skin has said `SurfaceExtent`, it lays
+the same panes out in the window's room, a cell of text a cell, again each time the window offers
+another size. A skin's extent then owns the room. An offer from any other office, or of another
+window, is ignored.
 
 ### `AreaRoom`
 

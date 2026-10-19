@@ -507,21 +507,28 @@ inline const PaneSetting* find_pane_setting(const std::vector<PaneSetting>& all,
 inline constexpr const char* kWorkshopSkinKey = "workshop.skin";
 inline constexpr const char* kSkinClassic = "classic";
 inline constexpr const char* kSkinBlock = "block";
+inline constexpr const char* kSkinDay = "day";
+inline constexpr const char* kSkinNight = "night";
+
+/// Whether `s` names one of the four painter skins Workshop offers the graphics directory.
+inline bool is_workshop_skin_choice(std::string_view s) noexcept {
+    return s == kSkinClassic || s == kSkinBlock || s == kSkinDay || s == kSkinNight;
+}
 
 /// The skin setting, as Workshop's office declares it and a row is judged by.
 inline v2::PaneSettingRow workshop_skin_setting_row() {
     v2::PaneSettingRow row;
     row.key = kWorkshopSkinKey;
     row.text = kSkinClassic;
-    row.choices = {kSkinClassic, kSkinBlock};
+    row.choices = {kSkinClassic, kSkinBlock, kSkinDay, kSkinNight};
     row.tags = {"chrome", "color"};
     row.pinned = true;
-    row.summary = "painter skin for graphics window areas: classic or block";
+    row.summary = "painter skin for graphics areas: classic, block, day or night";
     return row;
 }
 
 /// WHAT A ROW KEEPS AS ITS ABSENCE: a setting's default, and nothing for `workshop.skin`, whose
-/// absence on a row is Workshop's own skin -- so a row keeps `classic` as well as `block`.
+/// absence on a row is Workshop's own skin -- so a row keeps `classic` as well as any other.
 inline std::optional<PaneSetting> row_setting_absence(const PaneSettingRow& row) {
     if (row.key == kWorkshopSkinKey) {
         return std::nullopt;

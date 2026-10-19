@@ -533,6 +533,8 @@ public:
     const std::string& area() const noexcept { return window_.area(); }
     /// A graphics window shows the area.
     bool in_window() const noexcept { return window_.shown(); }
+    /// The office a paste is asked of: the window showing the area, else the Skin.
+    std::string clipboard_office() const { return window_.clipboard_office(); }
     /// The window's room in rows and columns, `graphics::kCellPx` pixels a cell.
     std::int64_t rows() const noexcept { return window_.height() / graphics::kCellPx; }
     std::int64_t columns() const noexcept { return window_.width() / graphics::kCellPx; }

@@ -168,8 +168,8 @@ WHY — `agents/decisions/a-setting-is-found-by-its-tags-and-pins.md`
 LAW — Each graphics area wears a painter skin Workshop chooses: a pane's, the `workshop.skin` its row keeps, else Workshop's own `workshop.skin`; Workshop's area, its own. A choice is said when it moved.
 
 MEANS
-- `classic` or `block`: the settings file keeps `classic` as absence; a row keeps either, and its clear gives the area back to Workshop's own;
-- a commit of either, and a directory placed with afresh, say the skins the areas wear now.
+- `classic`, `block`, `day` or `night`: the settings file keeps `classic` as absence; a row keeps any, and its clear gives the area back to Workshop's own;
+- a commit of any of them, and a directory placed with afresh, say the skins the areas wear now.
 
 DOES NOT MEAN
 - that the pane hears its skin: the row's `workshop.skin` is Workshop's, and is never handed to the pane.
@@ -353,7 +353,7 @@ one"
 `workshop/weave.hpp` WorkshopWeave::skins_chosen_
 `workshop/screen.hpp` Session::skin
 `workshop/pane_settings.hpp` workshop_skin_setting_row kWorkshopSkinKey kSkinClassic kSkinBlock
-row_setting_absence
+kSkinDay kSkinNight is_workshop_skin_choice row_setting_absence
 `tests/test_workshop_desk.cpp` "each graphics area wears its pane row's `workshop.skin`, else
 Workshop's own, and a skin is said only when an area's moved"
 `tests/test_workshop_panes_settings.cpp` "a row's `workshop.skin` is Workshop's word for its pane's
