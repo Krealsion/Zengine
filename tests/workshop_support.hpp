@@ -2111,6 +2111,46 @@ inline PaneSubjectActed hand_commit(Rig& t, const std::string& label, const std:
     return h.acted.back();
 }
 
+/// KEEP A PANE'S SETTINGS IN THE LIVE LAYOUT'S ROW AS A HAND-WRITTEN DESK KEEPS THEM -- in key
+/// order and judged by form alone (WL-SETTING-02), so a value its setting does not take and a key
+/// no declaration names stand as written -- and hand them to the pane's holder at the frame a key
+/// nothing answers redraws (WL-SETTING-04).
+template <class Rig>
+inline void keep_settings(Rig& t, const PaneRef& ref, std::vector<PaneSetting> settings) {
+    std::sort(settings.begin(), settings.end(),
+              [](const PaneSetting& a, const PaneSetting& b) { return a.key < b.key; });
+    const Written legal = check_pane_settings(ref, settings);
+    REQUIRE_MESSAGE(legal.accepted, legal.refusal);
+    SetupPane* row = pane_of(const_cast<Session&>(t.session()).setup.active, ref);
+    REQUIRE_MESSAGE(row != nullptr, "the live layout keeps no row for ", ref_text(ref));
+    row->settings = std::move(settings);
+    t.key(input::scan::kUnknown);
+}
+
+/// WHAT A PANE'S COUNTED DECLARATION TAKES, as Workshop holds it.
+template <class Rig>
+inline std::vector<v2::PaneSettingRow> declared_settings(Rig& t, const PaneRef& ref) {
+    const RuntimePane* row = t.session().panes.runtime.find(ref.provider, ref.pane);
+    REQUIRE_MESSAGE(row != nullptr, "nothing offers ", ref_text(ref));
+    return row->settings_rows_v2;
+}
+
+/// ...AND WHAT ITS HOLDER SAID IT CANNOT USE, each `<key>: <why>`, kept only against the revision
+/// the holder was last handed (WL-SETTING-08).
+template <class Rig>
+inline std::vector<std::string> unused_settings(Rig& t, const PaneRef& ref) {
+    const RuntimePane* row = t.session().panes.runtime.find(ref.provider, ref.pane);
+    REQUIRE_MESSAGE(row != nullptr, "nothing offers ", ref_text(ref));
+    const ExternalPane* pane = t.session().panes.external_pane(row->kind);
+    REQUIRE_MESSAGE(pane != nullptr, ref_text(ref), " is not seated");
+    std::vector<std::string> out;
+    for (const ExternalPane::UnusedSetting& u : pane->settings_unused) {
+        CHECK(u.revision == pane->settings_revision);
+        out.push_back(u.key + ": " + u.why);
+    }
+    return out;
+}
+
 /// ...OR QUEUE THE CLOSE WITHOUT DELIVERING ANYTHING -- office-authored as the hand, behind
 /// whatever the bus already holds -- for the cases about what a removal in the same poll does to
 /// a flight already under way. The next pump delivers it in order.

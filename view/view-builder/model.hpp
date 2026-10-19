@@ -50,7 +50,7 @@ inline std::int64_t whole(const std::string& text, const char* what) {
     return out;
 }
 
-/// The size a new view is made at, in whole pixels: 40 cells by 20.
+/// The size a new view is made at, in whole pixels, unless a layout keeps another: 40 cells by 20.
 inline constexpr std::int64_t kNewViewWidth = 480;
 inline constexpr std::int64_t kNewViewHeight = 240;
 
@@ -67,6 +67,8 @@ public:
     std::optional<std::size_t> selected;
     std::optional<Choosing> choosing;
     std::size_t first_row = 0;
+    /// THE SIZE `new` MAKES A VIEW AT: the layout's `new-width` and `new-height`.
+    std::int64_t new_width = kNewViewWidth, new_height = kNewViewHeight;
 
     Model() {
         description.name = "my.view";
@@ -157,8 +159,8 @@ private:
             if (running) throw std::invalid_argument("stop the running view before starting another");
             description = view::Description{};
             description.name = args[0];
-            description.width = kNewViewWidth;
-            description.height = kNewViewHeight;
+            description.width = new_width;
+            description.height = new_height;
             selected.reset();
             choosing.reset();
             path.clear();

@@ -125,7 +125,8 @@ WHY — `agents/decisions/four-facts-that-coincide.md`
 LAW — `kMaxListedEntries` stops the walk and the header says `stopped counting`, never an unreached total; directories first, then files, bytewise over admitted name bytes within each class.
 
 MEANS
-- no locale, no natural sort, no extension grouping, no configuration.
+- a layout's `listed-entries` stops it sooner, and the header says the same;
+- the order takes no locale, no natural sort, no extension grouping, no configuration.
 
 WHY — `agents/decisions/four-facts-that-coincide.md`
 

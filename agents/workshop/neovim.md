@@ -27,7 +27,7 @@ WHY — `agents/decisions/neovim-holds-the-editor-office.md`
 LAW — The pane is one status row over Neovim's screen in drawable ASCII; a bar or underline cursor is the caret, and the one range is Visual, else the menu's selected item, else the block cursor's cell.
 
 MEANS
-- the status row says saved or UNSAVED, the mode and the file, or a standing notice in its place;
+- the status row says saved or UNSAVED, the mode and the file, or a notice in its place; `status` off gives Neovim it while none stands;
 - Neovim is given the room less that row and the caret's column; the blanks a cursor stands on stay;
 - it draws in its own room, so a retired editor's picture never repaints it; an opened file's preview stands until Neovim draws it.
 
@@ -105,7 +105,7 @@ LAW — `ZENGINE_NEOVIM` names the program and `ZENGINE_NEOVIM_PROFILE` the conf
 MEANS
 - a value that is neither word and names no file is refused, naming where it looked;
 - a running Neovim's pane says the profile in a word beside its mode; an answer says it whole;
-- nothing else names either -- no shape, poke or plan row -- so the environment is the one owner.
+- nothing else names the program or an init file; with the variable unset, a layout's `profile` picks `clean` or `user`.
 
 DOES NOT MEAN — that a relative init path follows Neovim's own working directory, which is the
 project's: it follows the directory this process started in, where the weaver set the variable.

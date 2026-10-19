@@ -18,6 +18,8 @@
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_facets.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
+#include "workshop/pane_settings.hpp"
+#include "workshop/pane_settings_taken.hpp"
 #include "workshop/pane_text.hpp"
 #include "files/marks_persist.hpp"
 #include "workshop/pane_vocabulary.hpp"
@@ -87,8 +89,11 @@ using ws::SourceOpened;
 /// provider is a stranger to Workshop's internals.
 constexpr const char* kWorkshopRole = "zengine.workshop";
 
-/// How many rows the wheel is worth per notch in a cursor-windowed list.
+/// How many rows the wheel is worth per notch in a cursor-windowed list, unless a layout keeps
+/// another, and the fewest and most it may keep.
 constexpr std::int64_t kFilesWheelRows = 3;
+constexpr std::int64_t kFilesWheelRowsLow = 1;
+constexpr std::int64_t kFilesWheelRowsHigh = 24;
 
 /// The shared pane text helpers (`workshop/pane_text.hpp`); `judge_content` is why the fit must
 /// be applied at all.
@@ -205,18 +210,45 @@ class FilesWeave
           FilesWeave, files::FilesState,
           loom::Accept<PaneKey, PaneTextInput, ProjectRoot, RecipeOutcome, SourceOpened,
                        zengine::builder::BuildStatus, surface::ClipboardCopy,
-                       surface::ClipboardText>,
+                       surface::ClipboardText, ws::v2::PaneSettings>,
           loom::Emit<ProjectRootRequested, RecipeUseRequested, RecipeAuthorRequested,
                      OpenSourceRequested, zengine::builder::StatusRequested,
                      ws::PaneKeyboardRequested, ws::PaneEscapeUnspent, surface::ClipboardCopy,
-                     surface::ClipboardTextRequested>> {
+                     surface::ClipboardTextRequested, ws::v2::PaneSettingsDeclared,
+                     ws::PaneSettingUnused>> {
 public:
     PaneOffered offering() const {
         return PaneOffered{files::kProjectFilesPane, files::kProjectFilesName,
                            files::kProjectFilesSummary, 9, 56};
     }
 
-    void offered(loom::Mail& mail) { declare(mail); }
+    /// The rows the pane answers to, and the settings it takes.
+    void offered(loom::Mail& mail) {
+        declare(mail);
+        (void)mail.as_role(files::kFilesRole)
+            .send_to_role(kWorkshopRole,
+                          ws::v2::PaneSettingsDeclared{files::kProjectFilesPane, setting_rows()});
+    }
+
+    /// THE SETTINGS THIS LAYOUT KEEPS FOR THE PANE, taken whole; what it cannot use is said back
+    /// against the revision it was handed at. A listing held to fewer or more entries is walked
+    /// again, keeping the row the weaver was on. Held as plain members, never reload state.
+    void on(const ws::v2::PaneSettings& handed, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || handed.pane != files::kProjectFilesPane) {
+            return;
+        }
+        const ws::SettingsTaken taken = ws::take_pane_settings(setting_rows(), handed);
+        ws::say_settings_unused(mail, files::kFilesRole, taken);
+        wheel_rows_ = taken.number(files::kSettingWheelRows);
+        const auto listed = static_cast<std::size_t>(taken.number(files::kSettingListedEntries));
+        if (listed != listed_entries_) {
+            listed_entries_ = listed;
+            if (settled_) {
+                relist();
+                say(mail); // draws nothing until a room is granted, so the first picture has it
+            }
+        }
+    }
 
     /// Workshop grants the pane its room -- its canvas room, or its prose room where it grants no
     /// canvas -- the one beat on which this tool draws. The listing is re-enumerated on it
@@ -395,7 +427,7 @@ public:
             return;
         }
         const std::int64_t notches = component::take_wheel_notches(
-            wheel_accum_, dy * static_cast<double>(kFilesWheelRows));
+            wheel_accum_, dy * static_cast<double>(wheel_rows_));
         if (notches == 0) {
             return;
         }
@@ -905,6 +937,27 @@ public:
 private:
     // ---- Announcing ---------------------------------------------------------------------
 
+    /// THE SETTINGS THE PANE TAKES, each with its default, how a weaver finds it and what it does:
+    /// the wheel's rows a notch, pinned, and the entries one listing holds.
+    static std::vector<ws::v2::PaneSettingRow> setting_rows() {
+        ws::v2::PaneSettingRow wheel;
+        wheel.key = files::kSettingWheelRows;
+        wheel.number = kFilesWheelRows;
+        wheel.low = kFilesWheelRowsLow;
+        wheel.high = kFilesWheelRowsHigh;
+        wheel.tags = {"input", "scroll"};
+        wheel.pinned = true;
+        wheel.summary = "rows scrolled per wheel notch";
+        ws::v2::PaneSettingRow listed;
+        listed.key = files::kSettingListedEntries;
+        listed.number = static_cast<std::int64_t>(ws::kMaxListedEntries);
+        listed.low = static_cast<std::int64_t>(ws::kFewestListedEntries);
+        listed.high = static_cast<std::int64_t>(ws::kMaxListedEntries);
+        listed.tags = {"limits"};
+        listed.summary = "the most entries one directory listing holds";
+        return {wheel, listed};
+    }
+
     /// What this pane answers to right now, re-declared whenever the mode changes. A mode is a
     /// declaration, not a keyboard context of Workshop's: a pane's rows join one map under its
     /// runtime handle and the collision law refuses a second row on a taken gesture, so the pane
@@ -1056,7 +1109,7 @@ private:
             state_.cursor = 0;
             return;
         }
-        listing_ = ws::enumerate_directory(state_.current_dir);
+        listing_ = ws::enumerate_directory(state_.current_dir, listed_entries_);
         state_.cursor = 0;
         wheel_accum_ = 0.0;
     }
@@ -1430,6 +1483,10 @@ private:
     Listing listing_;
     double wheel_accum_ = 0.0;
     std::string notice_;
+    /// THE LAYOUT'S SETTINGS, handed again after a reload, so never reload state: the rows a wheel
+    /// notch moves, and the entries one listing holds.
+    std::int64_t wheel_rows_ = kFilesWheelRows;
+    std::size_t listed_entries_ = ws::kMaxListedEntries;
     /// WHERE THE LISTING'S WINDOW BEGAN LAST TIME, and the chooser's -- what makes the window
     /// move by the least it can rather than re-centring under a weaver's hand. Derived, never
     /// kept across a reload: a fresh image re-derives it from the cursor on its first paint.

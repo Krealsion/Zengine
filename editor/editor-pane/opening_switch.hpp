@@ -159,7 +159,7 @@ inline Preparation EditorPaneWeave::prepare(std::int64_t asked_op, const std::st
         out.shown = compose(e_, viewport_of(e_), rows, columns,
                             (e_.dirty() ? "UNSAVED edits stand -- editing " : "editing ") +
                                 tail_of_path(e_.path, columns > 24 ? columns - 24 : columns),
-                            false);
+                            false, status_shown_);
     } else {
         next.doc.path = plan.path;
         next.doc.saved_lines = plan.admitted.lines;
@@ -167,6 +167,7 @@ inline Preparation EditorPaneWeave::prepare(std::int64_t asked_op, const std::st
         next.doc.convention = plan.admitted.convention;
         next.doc.doc_epoch = e_.doc_epoch + 1;
         next.doc.follow_caret = true;
+        wear(next.doc);
         offered.path = next.doc.path;
         offered.doc_epoch = static_cast<std::int64_t>(next.doc.doc_epoch);
         offered.convention = next.doc.convention;
@@ -177,7 +178,7 @@ inline Preparation EditorPaneWeave::prepare(std::int64_t asked_op, const std::st
         out.shown = compose(next.doc, viewport_of(next.doc), rows, columns,
                             "editing " + tail_of_path(next.doc.path,
                                                       columns > 24 ? columns - 24 : columns),
-                            false);
+                            false, status_shown_);
         // The candidate keeps the viewport it was composed with, so what it shows at
         // activation is what the desk admitted.
         apply_viewport(next.doc, out.shown.view);

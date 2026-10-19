@@ -60,6 +60,9 @@
 #include "surface/vocabulary.hpp"
 #include "timer/vocabulary.hpp"
 
+#include "workshop/pane_settings.hpp"
+#include "workshop/pane_settings_taken.hpp"
+
 #include "manuals/zengine.editor.hpp" // the Editor's manual, compiled in from its page
 
 #include <zen/kernel/export.hpp>
@@ -141,7 +144,7 @@ using NeovimEditorBase = zengine::With<ws::PaneManualFacet<
                  nve::NeovimStartRequested, nve::NeovimStopRequested, nve::NeovimStatusRequested,
                  ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
                  ws::PaneCarryAnswered, graphics::AreaRoom, graphics::DrawnRefused,
-                 graphics::ActionRequested>,
+                 graphics::ActionRequested, ws::v2::PaneSettings>,
     loom::Emit<PaneOffered, ws::v3::PaneActions, ws::v5::PaneCanvasContent, ws::v4::PaneContent,
                ws::v2::PaneCaret,
                ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
@@ -151,7 +154,8 @@ using NeovimEditorBase = zengine::With<ws::PaneManualFacet<
                EditorHandoffJudged, EditorWarmed, EditorHandoffOffered, EditorAdopted, EditorLive,
                EditorRetired, timer::EnsureTimer, timer::CancelTimer, loom::Result, loom::Refused,
                ws::PaneMenuRequested, ws::PaneOperationRequested, ws::PaneValueCarryRequested,
-               graphics::Drawn, graphics::RoomAsked>,
+               graphics::Drawn, graphics::RoomAsked, ws::v2::PaneSettingsDeclared,
+               ws::PaneSettingUnused>,
     loom::WeaveBase, loom::Claims<EditorDocument>>;
 
 // WL-NVIM-01 -- agents/workshop/neovim.md
@@ -280,6 +284,49 @@ public:
     /// A refused picture leaves the last good one showing; the next change draws again.
     void on(const ws::PaneCanvasRejected&, loom::Mail&) {}
 
+    /// THE SETTINGS THIS LAYOUT KEEPS FOR THE PANE, taken whole; what it cannot use is said back
+    /// against the revision it was handed at. The profile is the next start's, never a running
+    /// Neovim's; the status row moves Neovim's screen at once. Held as plain members, never reload
+    /// state: a reloaded image is handed them again before its room.
+    void on(const ws::v2::PaneSettings& handed, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || handed.pane != nve::kEditorPane) {
+            return;
+        }
+        const ws::SettingsTaken taken = ws::take_pane_settings(setting_rows(), handed);
+        ws::say_settings_unused(mail, nve::kEditorOffice, taken);
+        profile_ = taken.text(nve::kSettingProfile);
+        status_shown_ = taken.flag(nve::kSettingStatus);
+        say(mail); // draws nothing until a room is granted, so the first picture has them
+    }
+
+    /// THE SETTINGS THE PANE TAKES, each with its default, how a weaver finds it and what it does:
+    /// the profile, pinned, one of the two words the variable's own default is among, and the
+    /// status row.
+    static std::vector<ws::v2::PaneSettingRow> setting_rows() {
+        ws::v2::PaneSettingRow profile;
+        profile.key = nve::kSettingProfile;
+        profile.text = std::string(nv::LaunchChoice{}.profile);
+        profile.choices = {"clean", "user"};
+        profile.tags = {"editing"};
+        profile.pinned = true;
+        profile.summary = "Neovim profile name when ZENGINE_NEOVIM_PROFILE is unset";
+        ws::v2::PaneSettingRow status;
+        status.key = nve::kSettingStatus;
+        status.flag = true;
+        status.tags = {"chrome"};
+        status.summary = "show the status row above Neovim";
+        return {profile, status};
+    }
+
+    /// THE ROWS DRAWN ABOVE NEOVIM'S SCREEN: the status row, or a notice in its place -- none while a
+    /// layout keeps `status` off and nothing stands there, once a Neovim is up to show the room.
+    std::int64_t chrome_rows() const {
+        return status_shown_ || !notice_.empty() || !running() || !host_->ready() ? kChromeRows : 0;
+    }
+
+    /// NEOVIM'S SCREEN IN THE ROOM COMPOSED FOR, under those rows.
+    std::int64_t screen_rows() const { return ui_rows(rows_, chrome_rows()); }
+
     /// THE ROOM THE GRAPHICS WINDOW THAT SHOWS THE OFFICE'S AREA GIVES, from that window's office.
     /// An Editor Workshop seats keeps Neovim sized to Workshop's room, and the window is sent those
     /// rows; one Workshop seats nowhere sizes Neovim to the window's room, or starts it there.
@@ -326,12 +373,12 @@ public:
             ask_project_root(mail);
         }
         if (running()) {
-            (void)host_->resize(ui_rows(rows_), ui_cols(columns_));
+            (void)host_->resize(screen_rows(), ui_cols(columns_));
         } else if (!start_tried_) {
             // THE PANE WAS GIVEN ROOM AND NO NEOVIM RUNS YET: start one now, in this room. Once --
             // a start that failed is said on the pane and retried by the weaver's next open, never by
             // the next room grant.
-            (void)start_embedded(ui_rows(rows_), ui_cols(columns_));
+            (void)start_embedded(screen_rows(), ui_cols(columns_));
         }
         say(mail);
     }
@@ -577,7 +624,7 @@ private:
 
     bool start(nv::UiMode mode, std::int64_t rows, std::int64_t cols) {
         start_tried_ = true;
-        choice_ = nv::choice_from_environment();
+        choice_ = nv::choice_from_environment(profile_);
         // WHICH CONFIGURATION, JUDGED BEFORE A NEOVIM EXISTS. A profile that is neither spelling
         // and names no file is the weaver's own typo, and saying so here is the difference between
         // a sentence they can act on and Neovim starting bare behind an `E282` prompt.
@@ -633,7 +680,7 @@ private:
 
     /// A NEOVIM, RUNNING AND READY, for an answer that needs one now.
     bool ensure_running(std::string& why) {
-        if (!running() && !start_embedded(ui_rows(rows_ > 0 ? rows_ : kDefaultRows),
+        if (!running() && !start_embedded(ui_rows(rows_ > 0 ? rows_ : kDefaultRows, chrome_rows()),
                                           ui_cols(columns_ > 0 ? columns_ : kDefaultCols))) {
             why = failure_;
             return false;
@@ -820,6 +867,8 @@ private:
         (void)mail.as_role(nve::kEditorOffice)
             .send_to_role(kWorkshopRole, PaneOffered{nve::kEditorPane, nve::kPaneName, nve::kPaneSummary, 20, 84});
         declare(mail);
+        (void)mail.as_role(nve::kEditorOffice)
+            .send_to_role(kWorkshopRole, ws::v2::PaneSettingsDeclared{nve::kEditorPane, setting_rows()});
     }
 
     /// Two rows naming Workshop's retired document rows as what they stand in for, so an older
@@ -892,7 +941,7 @@ private:
     /// THE ONE PART THIS PANE NAMES, `status`: the row it draws above Neovim's screen, saying the
     /// status or a notice in its place. The screen beneath is Neovim's own, and named nothing.
     std::vector<ws::PaneRowPart> status_part(const std::vector<surface::SurfaceTextRow>& rows) const {
-        return status_part(rows, columns_);
+        return chrome_rows() > 0 ? status_part(rows, columns_) : std::vector<ws::PaneRowPart>{};
     }
     static std::vector<ws::PaneRowPart> status_part(const std::vector<surface::SurfaceTextRow>& rows,
                                                     std::int64_t columns) {
@@ -914,6 +963,11 @@ private:
         const bool to_window = window_.in_window() && activation_.activated();
         if (!to_workshop && !to_window) {
             return;
+        }
+        // NEOVIM'S SCREEN FITS UNDER THE ROWS DRAWN ABOVE IT NOW: a notice standing or going, or a
+        // layout's status row, moves it, and a size Neovim already has asks nothing.
+        if (running() && rows_ > 0) {
+            (void)host_->resize(screen_rows(), ui_cols(columns_));
         }
         std::vector<surface::SurfaceTextRow> rows;
         ws::v2::PaneCaret caret;
@@ -966,10 +1020,11 @@ private:
         if (room_rows <= 0 || room_cols <= 0) {
             return;
         }
+        const std::int64_t chrome = chrome_rows();
         if (!notice_.empty()) {
             rows.push_back(surface::SurfaceTextRow{drawable(fit(notice_, room_cols)),
                                                    notice_bad_ ? surface::role::kAlert : surface::role::kMuted});
-        } else {
+        } else if (chrome > 0) {
             rows.push_back(surface::SurfaceTextRow{drawable(fit(status_text(room_cols), room_cols)), surface::role::kAccent});
         }
         if (!running() || !host_->ready()) {
@@ -980,7 +1035,7 @@ private:
             // THE FILE A SHOWING PUT IN FRONT, BEFORE NEOVIM HAS DRAWN IT: its first lines as they
             // were prepared, so no screen of the file it replaced stands under its status.
             for (std::size_t i = 0;
-                 i < preview_.lines.size() && static_cast<std::int64_t>(i) + kChromeRows < room_rows; ++i) {
+                 i < preview_.lines.size() && static_cast<std::int64_t>(i) + chrome < room_rows; ++i) {
                 rows.push_back(surface::SurfaceTextRow{preview_line(preview_.lines[i], text_cols),
                                                        surface::role::kFill});
             }
@@ -988,9 +1043,9 @@ private:
         }
         const nv::Screen screen = nv::project(host_->grid(), host_->visual_kind());
         const std::int64_t shown_rows = std::min<std::int64_t>(static_cast<std::int64_t>(screen.rows.size()),
-                                                               room_rows - kChromeRows);
+                                                               room_rows - chrome);
         if (screen.caret_row >= 0 && screen.caret_row < shown_rows && screen.caret_col <= text_cols) {
-            caret.row = screen.caret_row + kChromeRows;
+            caret.row = screen.caret_row + chrome;
             caret.column = screen.caret_col;
         }
         if (screen.sel_begin_row >= 0 && screen.sel_begin_row < shown_rows) {
@@ -1002,9 +1057,9 @@ private:
             }
             const std::int64_t bcol = std::min(screen.sel_begin_col, text_cols);
             if (erow > screen.sel_begin_row || ecol > bcol) {
-                caret.sel_begin_row = screen.sel_begin_row + kChromeRows;
+                caret.sel_begin_row = screen.sel_begin_row + chrome;
                 caret.sel_begin_col = bcol;
-                caret.sel_end_row = erow + kChromeRows;
+                caret.sel_end_row = erow + chrome;
                 caret.sel_end_col = ecol;
             }
         }
@@ -1019,7 +1074,7 @@ private:
             }
             // A ROW'S BLANKS GO, BUT NOT THE ONES THE CARET OR THE RANGE STANDS ON: Neovim's cursor on
             // an empty line, or after blanks it typed, is a cell of the row, drawn as every caret is.
-            const std::int64_t at = r + kChromeRows;
+            const std::int64_t at = r + chrome;
             std::int64_t keep = 0;
             if (caret.row == at) keep = std::max(keep, caret.column);
             if (caret.sel_end_row == at) keep = std::max(keep, caret.sel_end_col);
@@ -1112,6 +1167,10 @@ private:
     std::unique_ptr<nv::Host> host_;
     nv::LaunchChoice choice_;
     nv::Observed carried_;
+    /// THE LAYOUT'S SETTINGS, handed again after a reload, so never reload state: the profile a
+    /// start uses where the variable names none, and whether the status row shows.
+    std::string profile_ = nv::LaunchChoice{}.profile;
+    bool status_shown_ = true;
     std::string ui_;
     std::string listen_;
     std::string failure_;

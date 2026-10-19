@@ -44,6 +44,13 @@ inline constexpr const char* kArrangementPaneSummary =
 inline constexpr const char* kPowersPaneName = "Powers";
 inline constexpr const char* kPowersPaneSummary = "which operators resolve, and who supplies each";
 
+/// THE SETTINGS THE POWERS PANE DECLARES (`v2::PaneSettingsDeclared`, workshop/pane_settings.hpp):
+/// the columns its chrome row draws the view control and the composite control in, and the spaces
+/// between two of the row's segments.
+inline constexpr const char* kSettingViewColumns = "view-columns";
+inline constexpr const char* kSettingCompositeColumns = "composite-columns";
+inline constexpr const char* kSettingGap = "gap";
+
 /// The Powers pane's declared actions (`PaneActions`): ids a weaver's keymap names, durable as the
 /// pane key is. The pane is told the id, never the key; the query's editing is not among them,
 /// since a component's gestures are the component's. The last three have no default key: they are

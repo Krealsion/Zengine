@@ -57,6 +57,13 @@ To switch holders, ask the switch from Workshop's Terminal,
 `ask @zengine.editor-switch EditorSwitchRequested 1 destination=neovim`, or `destination=standard`
 ([`EditorSwitchRequested`](zengine.editor-switch.md#editorswitchrequested)).
 
+Each layout keeps the Editor's settings, set in Info or by message
+([`PaneSettingCommitRequested`](../../workshop/docs/zengine.workshop.md#panesettingcommitrequested)), and each
+holder declares its own: the standard Editor's `tab-width` and `status`, pinned, `wheel-lines` and
+`undo-depth`, within the byte budget; Neovim's `profile`, pinned, `clean` or `user` for its next
+start where `ZENGINE_NEOVIM_PROFILE` names none, and `status`. A value one cannot use keeps the
+default and is said to Workshop; a key the holder does not declare is passed over.
+
 ## Commands
 
 The standard Editor's declared rows. Each moves in your keymap file like any pane's row, and acts
@@ -88,9 +95,9 @@ Splits the caret's line: a line break in the file's own convention, LF or CRLF.
 
 ### `editor.tab`
 
-Inserts one tab byte, kept as a tab in the file. It is drawn to a fixed tab stop
-(`kEditorTabStop`, `editor/editor-pane/editor.hpp`), and the caret, a press and a selection count
-it as the columns it is drawn across.
+Inserts one tab byte, kept as a tab in the file. It is drawn to the layout's `tab-width` stop
+(`kEditorTabStop` unless it keeps another, `editor/editor-pane/editor.hpp`), and the caret, a press
+and a selection count it as the columns it is drawn across.
 
 - **Takes:** the caret. Default key <!-- key editor.tab -->`tab`<!-- /key -->.
 - **Answers:** one tab byte at the caret; the `status` row reads `UNSAVED`.
@@ -272,7 +279,8 @@ declared fields with `zen.PokeRead`: the standard Editor's `EditorPaneState`
 which a poke does not read); the Neovim-backed Editor's `NeovimEditorState`
 ([`editor/neovim-editor/vocabulary.hpp`](../neovim-editor/vocabulary.hpp)), with `running`,
 `ready`, `profile`, `path`, `modified` and `mode`, written from what Neovim last said. A switch's
-own account is the switch's ([Follow](zengine.editor-switch.md#follow)).
+own account is the switch's ([Follow](zengine.editor-switch.md#follow)). Beside its picture it
+tells Workshop only `PaneSettingUnused`, about a setting a layout handed it and it cannot use.
 
 ## Shows
 
@@ -281,7 +289,8 @@ own account is the switch's ([Follow](zengine.editor-switch.md#follow)).
 The pane's first row. The standard Editor's: `UNSAVED` or `saved`, the caret's line and column of
 the lines, and the file, cut from its front when narrow, `saved L12:C5/40 -- <the file>`; empty,
 `no source open -- Return on a file in Files, or e in the Builder`. Neovim's: `saved NORMAL clean --
-<the file>`, its mode and profile; `Neovim is not running -- open a source to start it`.
+<the file>`, its mode and profile; `Neovim is not running -- open a source to start it`. A layout's
+`status` off gives the row to the document, or to Neovim once it is up, while no notice stands.
 
 ### `line`
 

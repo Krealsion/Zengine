@@ -110,6 +110,12 @@ struct NeovimStatusRequested {
     ZEN_SHAPE(NeovimStatusRequested, 1);
 };
 
+/// THE SETTINGS THE PANE DECLARES (`v2::PaneSettingsDeclared`, workshop/pane_settings.hpp): the
+/// Neovim profile a start uses where `ZENGINE_NEOVIM_PROFILE` names none, `clean` or `user` -- an
+/// init file is the variable's alone -- and whether the status row above Neovim's screen shows.
+inline constexpr const char* kSettingProfile = "profile";
+inline constexpr const char* kSettingStatus = "status";
+
 } // namespace zengine::neovim_editor
 
 #endif // ZENGINE_NEOVIM_EDITOR_VOCABULARY_HPP

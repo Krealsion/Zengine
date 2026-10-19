@@ -15,6 +15,8 @@
 
 #include "workshop/attention_seam_vocabulary.hpp"
 #include "workshop/pane_facets.hpp"
+#include "workshop/pane_settings.hpp"
+#include "workshop/pane_settings_taken.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
@@ -101,15 +103,23 @@ using Drawing = ws::PaneDrawingFacet<pane::kAttentionPane, pane::kAttentionPaneR
 using Actions = ws::PaneActionFacet<pane::kAttentionPane, pane::kAttentionPaneRole>;
 
 class AttentionPaneWeave
-    : public zengine::With<Drawing, Actions>::Weave<AttentionPaneWeave, pane::AttentionPaneState,
-                                                    loom::Accept<StandingConditions>> {
+    : public zengine::With<Drawing, Actions>::Weave<
+          AttentionPaneWeave, pane::AttentionPaneState,
+          loom::Accept<StandingConditions, ws::v2::PaneSettings>,
+          loom::Emit<ws::v2::PaneSettingsDeclared, ws::PaneSettingUnused>> {
 public:
     PaneOffered offering() const {
         return PaneOffered{pane::kAttentionPane, pane::kAttentionPaneName,
                            pane::kAttentionPaneSummary, 7, 62};
     }
 
-    void offered(loom::Mail& mail) { declare(mail); }
+    /// The rows the pane answers to, and the setting it takes.
+    void offered(loom::Mail& mail) {
+        declare(mail);
+        (void)mail.as_role(pane::kAttentionPaneRole)
+            .send_to_role(kWorkshopRole,
+                          ws::v2::PaneSettingsDeclared{pane::kAttentionPane, setting_rows()});
+    }
 
     /// Workshop, or the graphics window that shows the pane's area, grants it a room: the one beat
     /// on which this view draws unasked. It asks for nothing here: what it shows arrives when it
@@ -192,8 +202,34 @@ public:
         say(mail);
     }
 
+    /// THE SETTING THIS LAYOUT KEEPS FOR THE PANE, taken whole; what it cannot use is said back
+    /// against the revision it was handed at. Held as a plain member, never reload state.
+    void on(const ws::v2::PaneSettings& handed, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || handed.pane != pane::kAttentionPane) {
+            return;
+        }
+        const ws::SettingsTaken taken = ws::take_pane_settings(setting_rows(), handed);
+        ws::say_settings_unused(mail, pane::kAttentionPaneRole, taken);
+        const bool was = detail_shown_;
+        detail_shown_ = taken.flag(pane::kSettingDetail);
+        if (detail_shown_ != was) {
+            say(mail); // draws nothing until a room is granted, so the first picture has it
+        }
+    }
+
 private:
     // ---- Offering and declaring ---------------------------------------------------------
+
+    /// THE SETTING THE PANE TAKES, with its default, how a weaver finds it and what it does.
+    static std::vector<ws::v2::PaneSettingRow> setting_rows() {
+        ws::v2::PaneSettingRow detail;
+        detail.key = pane::kSettingDetail;
+        detail.flag = true;
+        detail.tags = {"help", "chrome"};
+        detail.pinned = true;
+        detail.summary = "show the selected item detail block";
+        return {detail};
+    }
 
     /// What this pane answers to: three rows in every state, `attention.up`, `attention.down` and
     /// `attention.dismiss` (Up, Down, `d`), the ids a weaver's keymap names. No modes, so one
@@ -373,8 +409,10 @@ private:
         // and the next publication, and every question below spends the same answer.
         const std::size_t cursor = cursor_ < shown.size() ? cursor_ : shown.size() - 1;
         const StandingCondition& at = shown[cursor];
-        std::vector<std::string> block = wrap(at.detail, columns - kWrapIndent);
-        if (!at.suggestion.empty()) {
+        // THE LAYOUT'S `detail` SETTING OFF: no block, and its rows are the list's.
+        std::vector<std::string> block =
+            detail_shown_ ? wrap(at.detail, columns - kWrapIndent) : std::vector<std::string>{};
+        if (detail_shown_ && !at.suggestion.empty()) {
             // WHAT A WEAVER COULD PRESS SOMEWHERE ELSE, in the host's own words. Nothing here
             // can press it, which is WL-ATTN-10 unchanged: the row is a sentence, and this
             // pane could not resolve an action id even if it were given one.
@@ -427,6 +465,10 @@ private:
 
     std::size_t cursor_ = 0;
     std::string notice_;
+
+    /// WHETHER THE CURSOR'S CONDITION IS EXPLAINED BENEATH IT: the layout's `detail` setting,
+    /// handed again after a reload, so never reload state.
+    bool detail_shown_ = true;
 };
 
 } // namespace

@@ -77,7 +77,7 @@ WHY — `agents/decisions/the-first-multiline-consumer.md`
 
 ## WL-EDIT-08 — Tabs expand at presentation only
 
-LAW — Tabs expand only at presentation, at a four-column stop; one tab-geometry measurer (bytes to displayed columns and back, plus the slice) is what the rows, the press and the drag spend.
+LAW — Tabs expand only at presentation, at the layout's `tab-width` stop; one tab-geometry measurer (bytes to displayed columns and back, plus the slice) is what the rows, the press and the drag spend.
 
 MEANS
 - `kCaretCols` reserves the caret's column of every document row (the Terminal's rule).
@@ -109,7 +109,7 @@ LAW — The pane composes a status row (dirty word, `L:C/N`, the path), a notice
 
 MEANS
 - a room too small for both keeps the document's row: the notice replaces the status row;
-- one row is the status row alone, and the caret has nowhere to be;
+- one row is the status row alone, and the caret has nowhere to be; a layout's `status` off gives that row to the document;
 - they are its picture on its canvas, and prose rows with `PaneCaret` beside them to a host granting none.
 
 WHY — `agents/decisions/the-editor-is-the-custodian.md`
