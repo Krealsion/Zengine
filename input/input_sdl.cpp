@@ -1,23 +1,24 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The SDL Input weave library: the SDL event queue's one owner. Like input.cpp it is only the
+// The SDL Input weave library: the SDL event queue's reader. Like input.cpp it is only the
 // platform edge -- it fetches native events and hands their fields to the pure translators in
 // translate_sdl.hpp, and the weave publishes what comes back. A separate artifact rather than a
 // build-time reader in zengine-input, so which surface a run is shown on is a launch decision
 // the host states (`--input <stem>`), and the terminal reader is untouched.
 // Surface law: agents/surface.md
 
-// SDL has one process-global queue and `SDL_PollEvent` removes what it returns, so this is the only
-// code that touches it (the Skin takes none; the OS window reads it itself and is never loaded
-// beside it), and its 10 ms beat also pumps the OS conversation for the Skin's window. Both need
-// one shared SDL: a static SDL in an `RTLD_LOCAL` library would give this reader its own queue,
-// deaf to the window, and cmake/ZengineSdl.cmake refuses one. With no display the reader stays
-// disabled and says why.
+// SDL has one process-global queue and `SDL_PollEvent` removes what it returns, so one reader
+// drains it: this one (the Skin takes none; this beat also pumps the OS for the Skin's window),
+// unless an OS window in this process claims the queue (input/window_claim.hpp) and reads it
+// itself. All need one shared SDL: a static SDL in an `RTLD_LOCAL` library would give this reader
+// its own queue, deaf to the window, and cmake/ZengineSdl.cmake refuses one. With no display the
+// reader stays disabled and says why.
 
 #include "input_weave.hpp"
 #include "office_page.hpp"
 #include "translate_sdl.hpp"
+#include "window_claim.hpp"
 
 #include <zen/kernel/export.hpp>
 
@@ -68,10 +69,11 @@ public:
     /// `KeyPressed, TextEntered, KeyReleased` reaches the bus in that order, and nothing sorts,
     /// batches by kind or defers one population for another. It drains everything pending: no
     /// cap is invented, since an arbitrary number would drop a weaver's input to defend against
-    /// a queue nothing has been measured to produce.
+    /// a queue nothing has been measured to produce. While an OS window holds the queue, nothing
+    /// is drained: what it holds is the window's.
     std::vector<SdlEvent> poll() {
         std::vector<SdlEvent> out;
-        if (!ok_) {
+        if (!ok_ || !sdl_reader_may_use_sdl()) {
             return out;
         }
         // This reader never touches the clipboard: reading it on every update would import
@@ -134,8 +136,8 @@ private:
     bool ok_ = false;
 };
 
-/// The local constants in translate_sdl.hpp are SDL's, checked by the compiler against the real
-/// headers in the one translation unit that has both spellings: the pure translator must not
+/// The local constants in translate_sdl_core.hpp are SDL's, checked by the compiler against the
+/// real headers in the one translation unit that has both spellings: the pure translator must not
 /// include SDL, and a hand-spelled constant can be wrong. A build is a stronger place to fail
 /// than a run.
 static_assert(sdl::kEventQuit == SDL_EVENT_QUIT);

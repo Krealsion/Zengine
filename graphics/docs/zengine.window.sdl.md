@@ -5,7 +5,7 @@ job of showing what its areas' owners draw, as the terminal window does on a ter
 to the office `zengine.window.sdl` (a window's office is `zengine.window.` and its name, `sdl`)
 and is built as `zengine-window-sdl`, a file a host loads, where the build has SDL. It keeps what
 each owner drew, paints it in pixels with the area's skin, draws the whole picture again when
-anything changed, and sends the window's keys, their text and its presses to the owners. The
+anything changed, and sends the window's keys, their text and its pointer to the owners. The
 directory, [`zengine.graphics`](zengine.graphics.md), introduces its areas to it.
 
 ## About
@@ -31,12 +31,12 @@ area's skin when it paints light, else by the window itself, in the day look for
 area's ground, then the areas back to front, each clipped to its bounds -- and presents it; `more`
 holds it back. Uncovered or resized, it draws again.
 
-**Keys and presses.** It empties SDL's queue on its own beat, the Timer's `zengine.window.pump`
-every `window::kPumpBeatMs` milliseconds. A key and its text go to the owner of each area placed to
-hear keys. A left press lands on the top node whose primitives hold its pixel (within a pixel of a
-line), through an area wherever it painted nothing: an element there whose code takes it; else its
+**Keys and the pointer.** It empties SDL's queue on its own beat, the Timer's
+`zengine.window.pump` every `window::kPumpBeatMs` milliseconds, and sends what it read on in order.
+A left press lands on the top node whose primitives hold its pixel (within a pixel of a line),
+through an area wherever it painted nothing: an element there whose code takes it; else its
 record's action to the owner (`ActionRequested`); else, to an owner placed to hear the pointer, the
-press in the area's pixels (`PointerButton`).
+press (`PointerButton`). A close asked of the OS window is kept (`close_requested`), sent to no one.
 
 ## Use
 
@@ -47,6 +47,12 @@ or a drawing weave ([the Graphics package](graphics.md#a-drawing-weave)), which 
 when the room names another window or incarnation. To read what the window shows, ask
 [`WindowShowAsked`](#windowshowasked).
 
+Keys go to each owner placed to hear them: each key, its text and its release. Every pointer
+moment but a left press -- any button let go, the middle or right button pressed, a move, the
+wheel -- goes to the owner of the area it lands in, when placed to hear the pointer. Each reaches
+it at the area's own point in pixels, a move's deltas in pixels too; moves read in one beat go as
+one, at the last point, their deltas summed.
+
 Who may send: whoever the host's grant lets reach `zengine.window.sdl`. The window takes a drawing
 or an element only from the area's owner, as that office, and refuses anyone else's; it takes the
 directory's words only from `zengine.graphics`, and ignores them from anyone else. Every bound is
@@ -56,9 +62,10 @@ judged before anything changes, and a drawing past one is refused whole, in word
 `kMaxPathDepth`, `kMaxArgsBytes`, and `kMaxAreas` areas a window. A record said again at its own
 path counts as itself, so an area at its bound still takes a change.
 
-SDL has one event queue to a process, and this window empties it: a host loads it instead of
-[`zengine-input`](../../input/docs/zengine.input.md)'s SDL reader, never beside it, as two owners
-of one terminal are not an arrangement either.
+SDL has one event queue to a process, and this window empties it. Loaded, it claims the queue
+(`ZENGINE_WINDOW_SDL_INPUT_PID`, `input/window_claim.hpp`), so
+[`zengine-input`](../../input/docs/zengine.input.md)'s SDL reader may run beside it, reading none
+of the queue and serving input sessions alone. With no display, the window gives its claim back.
 
 ## Commands
 
@@ -155,7 +162,7 @@ code for a type the window presents draws each such element again, from the stat
 `TimerFired` v1, from the Timer: the window's beat, `zengine.window.pump`. It measures the OS
 window, and at another size draws its picture again; at another size in cells it offers itself
 again (`WindowOffered`) with the new size and the same incarnation. Then it empties SDL's queue and
-sends the keys, their text and the presses on.
+sends the keys, their releases, their text and the pointer on.
 
 ### `TimerReady`
 
@@ -172,13 +179,13 @@ timer binding.
 The window publishes `WindowOffered` v1 as its own office, on each activation, after
 `GraphicsReady`, and on a beat that finds the OS window at another size in cells: its name, `sdl`,
 its size in cells of `kCellPx` pixels, and its incarnation, which a resize leaves as it was. The
-directory keeps it, and an arranger that follows it may lay out in that room. Everything else goes
-to one office. To an area's owner, `AreaRoom` v2 for each introduction: the area, this window, its
-incarnation, the area's size, and the references of the owner's elements it still presents there;
-`DrawnRefused` v1 for a drawing refused; `ActionRequested` v1 for a press on an action, and
-`PointerButton` v1 for any other press to an owner placed to hear the pointer; and `KeyPressed` v2
-and `TextEntered` v1 to each owner placed to hear keys, an owner that takes no text refusing it on
-the bus. To the Timer, its beat's order. An observer reads what it shows with `WindowShowAsked`.
+directory keeps it; an arranger that follows it may lay out in that room. Everything else goes to
+one office. To an area's owner: `AreaRoom` v2 for each introduction (the area, this window, its
+incarnation, the area's size, the references of the elements it presents there); `DrawnRefused` v1;
+`ActionRequested` v1; `PointerButton` v1, `PointerMoved` v1 and `PointerWheel` v1 when placed to
+hear the pointer; `KeyPressed` v2, `KeyReleased` v2 and `TextEntered` v1 when placed to hear keys,
+a shape it does not take refused on the bus. To the Timer, its beat's order. An observer reads what
+it shows with `WindowShowAsked`.
 
 ## Files
 

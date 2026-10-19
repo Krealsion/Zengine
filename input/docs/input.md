@@ -38,11 +38,13 @@ bare, tilde-numbered and `1;m`-modified spellings, with the modifier parameter *
 1 + Shift/Alt/Ctrl bitmask; the Meta bit is deliberately not claimed). The **Win32 console**
 reads `INPUT_RECORD`s: `uChar.UnicodeChar` is the text, `dwControlKeyState` the modifiers,
 `dwMousePosition` the position — all present on the record and all preserved — and its VK table
-names Home, End and Delete. The SDL **Reader** owns the window's one process-global event
-queue: SDL scancodes pass through as the wire identity they already are, and one fact on that
-queue is not an input moment and is routed in the Surface vocabulary instead — the close box
-(`SurfaceCloseRequested`). The platform's clipboard events are in the reader's ignored set
-deliberately, not from disinterest: clipboard read follows paste intent, so the clipboard is
+names Home, End and Delete. The SDL **Reader** drains the window's one process-global event
+queue, unless an OS window in the process claims it (`input/window_claim.hpp`) and reads it itself
+with the same translation (`input/translate_sdl_core.hpp`): SDL scancodes pass through as the wire
+identity they already are, and one fact on that queue is not an input moment and is routed in the
+Surface vocabulary instead — the close box (`SurfaceCloseRequested`). The platform's clipboard
+events are in the reader's ignored set deliberately, not from disinterest: clipboard read follows
+paste intent, so the clipboard is
 read through the Skin when a paste asks with `ClipboardTextRequested` — see
 [surface/docs/surface.md](../../surface/docs/surface.md) — and never watched; no shape leaving this reader carries clipboard
 text. Each backend's exact honest reach — which modifiers it can vouch for on which keys —

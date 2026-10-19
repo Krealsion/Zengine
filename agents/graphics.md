@@ -79,7 +79,8 @@ keeps, is [surface](surface.md); where the two meet is the last section here.
 - The terminal's claim (`graphics/window/terminal_io.hpp`) and its input edge
   (`input/terminal_reader.hpp`) are shared: whichever participant owns the terminal in a process
   takes both, for exactly its life. Two owners of one terminal in one process is not a supported
-  arrangement, and neither are two drainers of SDL's one queue: the OS window and the SDL Input
-  reader are not loaded together.
+  arrangement. A window claims the input edge it shares with an Input reader for its life
+  (`input/window_claim.hpp`), and a reader beside it reads none of it: the terminal window the
+  terminal's input, the OS window SDL's one queue.
 - Graphics includes nothing of Surface: its roles and the terminal's claim are its own, and
   Surface's headers spell them for the Skins (`surface/vocabulary.hpp`, `surface/tui_terminal.hpp`).
