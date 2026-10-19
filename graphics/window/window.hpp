@@ -92,11 +92,15 @@ template <class Medium>
 using WindowBase = typename zengine::With<
     zengine::manual::ManualFacet<Medium::kManual>>::template Weave<Window<Medium>, WindowState,
     loom::Accept<Drawn, ElementPut, ElementChange, AreaIntroduced, AreaWithdrawn,
-                 ElementCodeOffered, GraphicsReady, WindowShowAsked>,
+                 ElementCodeOffered, GraphicsReady, WindowShowAsked, ClipboardCopy,
+                 ClipboardTextRequested, SurfacePlacementRemembered, PumpSurface,
+                 SurfaceCaptureRequested, SurfaceCaptureChunkRequested>,
     loom::Emit<DrawnRefused, WindowOffered, AreaRoom, zengine::input::KeyPressed,
                zengine::input::KeyReleased, zengine::input::TextEntered, ActionRequested,
                zengine::input::PointerButton, zengine::input::PointerMoved,
-               zengine::input::PointerWheel, WindowShown>,
+               zengine::input::PointerWheel, WindowShown, SurfaceCloseRequested,
+               SurfacePlacement, ClipboardText, SurfaceCaptured, SurfaceCaptureChunk,
+               loom::Refused>,
     zengine::timer::TimedWeave>;
 
 /// The window over `Medium`, which names it (`kWindow`), carries its manual (`kManual`), and
@@ -119,24 +123,24 @@ public:
                    a == nullptr ? "window '" + std::string(Medium::kWindow) +
                                       "' shows no area '" + d.area + "'"
                                 : "area '" + d.area + "' is drawn only by its owner, " + a->owner);
-            settle(d.more);
+            settle(mail, d.more);
             return;
         }
         std::string why;
         if (!draw(*a, Drawer{}, d, why)) {
             refuse(mail, d.area, why);
         }
-        settle(d.more);
+        settle(mail, d.more);
     }
 
     void on(const ElementPut& e, loom::Mail& mail) {
         put(mail, e);
-        settle(e.more);
+        settle(mail, e.more);
     }
 
     void on(const ElementChange& c, loom::Mail& mail) {
         change(mail, c);
-        settle(c.more);
+        settle(mail, c.more);
     }
 
     // ---- what the directory says --------------------------------------------------------------
@@ -188,7 +192,7 @@ public:
         } else if (moved) {
             medium_.cover_area(*a);
         }
-        settle(false);
+        settle(mail, false);
         room(mail, *a);
     }
 
@@ -205,7 +209,7 @@ public:
         medium_.drop_area(w.area);
         std::erase_if(this->state_.areas, [&](const WinArea& k) { return k.area == w.area; });
         close_unused(library);
-        settle(false);
+        settle(mail, false);
     }
 
     /// The load plan's element code, through the directory. New code for a type the window
@@ -237,7 +241,7 @@ public:
                 }
             }
         }
-        settle(false);
+        settle(mail, false);
     }
 
     /// A new directory: this window says itself again; its areas stay until it says otherwise.
@@ -266,10 +270,78 @@ public:
         (void)mail.answer(s);
     }
 
-    /// Whether the window's medium was asked to close (an OS window's close box) since the
-    /// request was last taken; a terminal never is.
-    bool close_requested() const noexcept { return medium_.close_requested(); }
-    bool take_close() noexcept { return medium_.take_close(); }
+    // ---- what the window answers for its platform ----------------------------------------------
+
+    /// A weaver copied text: handed to the medium, which sets the platform's clipboard as far as it
+    /// can. No showing, and no answer: a terminal cannot confirm its copy sequence.
+    void on(const ClipboardCopy& c, loom::Mail&) { medium_.clipboard_copy(c.text); }
+
+    /// A weaver asked to paste: the platform clipboard read now, answered to the asker alone.
+    void on(const ClipboardTextRequested&, loom::Mail& mail) {
+        const std::optional<std::string> text = medium_.clipboard_text();
+        (void)mail.answer(ClipboardText{text.has_value(), text.value_or(std::string())});
+    }
+
+    /// A remembered placement offered back: the medium judges it, and where the window is after is
+    /// the next `SurfacePlacement`; a resize it made offers the window again.
+    void on(const SurfacePlacementRemembered& p, loom::Mail& mail) {
+        medium_.place(WindowPlacementValue{p.x, p.y, p.maximized});
+        report_placement(mail);
+        if (medium_.remeasure()) {
+            offer(mail);
+        }
+    }
+
+    /// The beat's work, asked for now.
+    void on(const PumpSurface&, loom::Mail& mail) { service_pump(mail); }
+
+    /// A picture of what the window last presented: now, or on the showing that passes
+    /// `after_frame`, the window's showings its frame count; one may wait at a time.
+    void on(const SurfaceCaptureRequested& asked, loom::Mail& mail) {
+        if (asked.after_frame >= 0 && asked.after_frame >= medium_.showings()) {
+            if (pending_capture_.valid()) {
+                (void)mail.answer(refused_capture("a capture is already waiting for frame " +
+                                                  std::to_string(pending_after_ + 1) +
+                                                  "; one waits at a time"));
+                return;
+            }
+            pending_capture_ = mail.defer_answer();
+            if (!pending_capture_.valid()) {
+                (void)mail.answer(refused_capture("this delivery cannot defer its answer"));
+                return;
+            }
+            pending_after_ = asked.after_frame;
+            return;
+        }
+        (void)mail.answer(take_capture());
+    }
+
+    /// One chunk of the retained picture, or a refusal naming which picture is retained now.
+    void on(const SurfaceCaptureChunkRequested& asked, loom::Mail& mail) {
+        if (retained_.number == 0 || asked.capture != retained_.number) {
+            (void)mail.answer(loom::Refused{
+                retained_.number == 0
+                    ? std::string("no picture is retained; ask for a capture first")
+                    : "capture " + std::to_string(asked.capture) +
+                          " is gone; the retained one is " + std::to_string(retained_.number)});
+            return;
+        }
+        const std::int64_t total = static_cast<std::int64_t>(retained_.picture.bytes.size());
+        if (asked.offset < 0 || asked.offset > total) {
+            (void)mail.answer(loom::Refused{"offset " + std::to_string(asked.offset) +
+                                            " is outside a picture of " + std::to_string(total) +
+                                            " bytes"});
+            return;
+        }
+        SurfaceCaptureChunk chunk;
+        chunk.capture = retained_.number;
+        chunk.offset = asked.offset;
+        chunk.total = total;
+        const std::int64_t n = (std::min)(total - asked.offset, kCaptureChunkBytes);
+        const auto begin = retained_.picture.bytes.begin() + asked.offset;
+        chunk.data.assign(begin, begin + n);
+        (void)mail.answer(chunk);
+    }
 
     /// Text copied to the platform's clipboard: an OS window's, or a terminal's by its copy
     /// sequence, which no terminal confirms.
@@ -298,7 +370,7 @@ public:
         for (WinArea& a : this->state_.areas) {
             remake(a);
         }
-        settle(false);
+        settle(mail, false);
         offer(mail);
     }
 
@@ -310,13 +382,16 @@ private:
 
     // ---- input --------------------------------------------------------------------------------
 
-    /// The window's own beat: its medium measured, and what it read sent on, in the order read. A
-    /// key, its release and the text it typed go alike, to the owner of each area placed to hear
-    /// keys. A left press goes where it lands (`press`); every other pointer moment -- a release,
-    /// another button, a move, the wheel -- to the area it lands in, when that area was placed to
+    void on_pump(const zengine::timer::TimerFired&, loom::Mail& mail) { service_pump(mail); }
+
+    /// The beat: the window's place said, then its medium measured, then what it read sent on, in
+    /// the order read, and a close its desktop asked for published. A key, its release and its text
+    /// go alike, to the owner of each area placed to hear keys. A left press goes where it lands
+    /// (`press`); every other pointer moment to the area it lands in, when that area was placed to
     /// hear the pointer. Moves read one after another go as one: the last point, the deltas summed.
-    void on_pump(const zengine::timer::TimerFired&, loom::Mail& mail) {
+    void service_pump(loom::Mail& mail) {
         namespace in = zengine::input;
+        report_placement(mail);
         if (medium_.remeasure()) {
             offer(mail);
         }
@@ -354,7 +429,10 @@ private:
                 to_pointer(mail, *w);
             }
         }
-        settle(false);
+        if (medium_.take_close()) {
+            (void)mail.as_role(office()).publish(SurfaceCloseRequested{});
+        }
+        settle(mail, false);
     }
 
     /// A pointer moment other than a left press, to the owner of the area it lands in when that
@@ -618,11 +696,69 @@ private:
     }
 
     /// A drawer's word decides when its beat's drawing shows: one saying more follows holds the
-    /// showing back; any other handler shows what it changed.
-    void settle(bool more) {
+    /// showing back; any other handler shows what it changed, says where the window is now, and
+    /// answers a capture that showing let through.
+    void settle(loom::Mail& mail, bool more) {
         if (!more) {
             medium_.show(this->state_.areas);
+            report_placement(mail);
+            capture_if_due(mail);
         }
+    }
+
+    /// Where the window sits, said as its office when it changed and only then: never on a
+    /// medium with no desktop place, since `(0,0)` is a real place.
+    void report_placement(loom::Mail& mail) {
+        const std::optional<WindowPlacementValue> now = medium_.placement();
+        if (!now.has_value() || (last_placement_.has_value() && *now == *last_placement_)) {
+            return;
+        }
+        last_placement_ = *now;
+        (void)mail.as_role(office()).publish(SurfacePlacement{now->x, now->y, now->maximized});
+    }
+
+    static SurfaceCaptured refused_capture(std::string why) {
+        SurfaceCaptured c;
+        c.ok = false;
+        c.refusal = std::move(why);
+        return c;
+    }
+
+    /// The medium's last picture read back and retained in place of the one before; none to read
+    /// is said, and a picture over the bound is refused whole rather than cut.
+    SurfaceCaptured take_capture() {
+        std::optional<CapturedWindowPicture> picture = medium_.capture();
+        if (!picture.has_value()) {
+            return refused_capture("this medium has no picture to read back right now");
+        }
+        if (static_cast<std::int64_t>(picture->bytes.size()) > kMaxCaptureBytes) {
+            return refused_capture("the picture is " + std::to_string(picture->bytes.size()) +
+                                   " bytes, over the " + std::to_string(kMaxCaptureBytes) +
+                                   " this window retains");
+        }
+        retained_.number = ++captures_;
+        retained_.frame = medium_.showings();
+        retained_.picture = std::move(*picture);
+        SurfaceCaptured c;
+        c.ok = true;
+        c.capture = retained_.number;
+        c.frame = retained_.frame;
+        c.width = retained_.picture.width;
+        c.height = retained_.picture.height;
+        c.cell_px = retained_.picture.cell_px;
+        c.format = retained_.picture.format;
+        c.bytes = static_cast<std::int64_t>(retained_.picture.bytes.size());
+        return c;
+    }
+
+    /// The waiting capture, answered on the showing that passed its frame, and only then.
+    void capture_if_due(loom::Mail& mail) {
+        if (!pending_capture_.valid() || medium_.showings() <= pending_after_) {
+            return;
+        }
+        loom::DeferredAnswer due = std::move(pending_capture_);
+        pending_capture_ = loom::DeferredAnswer{};
+        (void)loom::answer_deferred(due, mail, take_capture());
     }
 
     // ---- small things ---------------------------------------------------------------------
@@ -720,11 +856,23 @@ private:
         last_refusal_ = why;
     }
 
+    /// The one picture retained, numbered: an incarnation's, as the medium that showed it is.
+    struct Retained {
+        std::int64_t number = 0;
+        std::int64_t frame = 0;
+        CapturedWindowPicture picture;
+    };
+
     Medium medium_;
     typename WindowBase<Medium>::Handle pump_;
     Painters painters_;
     ElementCodes codes_;
     std::string last_refusal_;
+    std::optional<WindowPlacementValue> last_placement_; ///< the last place said, this incarnation
+    Retained retained_;
+    std::int64_t captures_ = 0;
+    loom::DeferredAnswer pending_capture_;
+    std::int64_t pending_after_ = -1;
 };
 
 } // namespace zengine::graphics::window
