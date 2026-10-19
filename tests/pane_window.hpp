@@ -49,10 +49,14 @@ struct PaneWindowDo {
 };
 
 /// THE STAND-IN ITSELF: the areas it keeps, every drawing its areas' owners sent it, the refusals
-/// it answered, and the drawings it heard from anyone but an area's owner, which it ignores.
+/// it answered, and the drawings it heard from anyone but an area's owner, which it ignores. It
+/// holds the platform's clipboard as the real windows do, and answers a paste with what that
+/// holds, counting each read.
 class PaneWindow
-    : public loom::WeaveBase<PaneWindow, PaneWindowState, loom::Accept<gfx::Drawn, PaneWindowDo>,
-                             loom::Emit<gfx::AreaRoom, gfx::DrawnRefused, gfx::ActionRequested>> {
+    : public loom::WeaveBase<PaneWindow, PaneWindowState,
+                             loom::Accept<gfx::Drawn, PaneWindowDo, surface::ClipboardTextRequested>,
+                             loom::Emit<gfx::AreaRoom, gfx::DrawnRefused, gfx::ActionRequested,
+                                        surface::ClipboardText>> {
 public:
     explicit PaneWindow(std::string window) : window_(std::move(window)) {}
 
@@ -86,6 +90,11 @@ public:
         }
     }
 
+    void on(const surface::ClipboardTextRequested&, loom::Mail& mail) {
+        ++clipboard_reads;
+        (void)mail.answer(surface::ClipboardText{true, platform});
+    }
+
     gw::WinArea* find(const std::string& area) {
         for (gw::WinArea& a : areas) {
             if (a.area == area) {
@@ -101,6 +110,8 @@ public:
     int strangers = 0;
     bool refuse_next = false;
     std::function<void(PaneWindow&, loom::Mail&)> next;
+    std::string platform;    ///< what the platform clipboard holds
+    int clipboard_reads = 0; ///< the pastes asked of this window
 
 private:
     std::string window_;
@@ -117,6 +128,7 @@ public:
         grant.allow_to_any(gfx::AreaRoom::zen_name, gfx::AreaRoom::zen_version);
         grant.allow_to_any(gfx::DrawnRefused::zen_name, gfx::DrawnRefused::zen_version);
         grant.allow_to_any(gfx::ActionRequested::zen_name, gfx::ActionRequested::zen_version);
+        grant.allow_to_any(surface::ClipboardText::zen_name, surface::ClipboardText::zen_version);
         const std::string office = w_->office();
         id_ = bus_.register_weave(std::move(weave), std::move(grant), office);
         w_->zen_set_self(id_);

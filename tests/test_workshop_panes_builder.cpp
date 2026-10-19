@@ -2456,6 +2456,37 @@ TEST_CASE("the wheel walks the Builder's recipe list, three rows a notch, and me
     CHECK_MESSAGE(bp_row(b.shown(), "> one -> a") >= 0, b.text());
 }
 
+TEST_CASE("the Builder's role line asks the window that shows the pane for a paste, the OS window or the terminal's, and the Skin only while none shows it") {
+    // ⚔ MUTATION: the Builder's paste asked of the Skin wherever its area is shown.
+    namespace gfx = zengine::graphics;
+    namespace pw = zengine::testing::pane_window;
+    for (const char* window : {gfx::kSdlWindow, gfx::kTerminalWindow}) {
+        CAPTURE(window);
+        BuilderRig b("bld-paste-window");
+        b.tool->catalog = catalog_of({{"one", "a"}});
+        b.open();
+        SkinSeat* skin = b.r.mount_skin_seat();
+        skin->platform = "zengine.";
+        b.r.key(input::scan::kO);
+        REQUIRE_MESSAGE(b.text().find("type the role") != std::string::npos, b.text());
+
+        // NO WINDOW SHOWS IT YET: the paste is the Skin's.
+        b.r.key(input::scan::kV, input::mod::kCtrl);
+        CHECK(skin->clipboard_reads == 1);
+        CHECK_MESSAGE(bp_row(b.shown(), "role for a> zengine.") >= 0, b.text());
+
+        // THE WINDOW TELLS THE PANE'S AREA ITS ROOM, and from then on is asked, not the Skin, and
+        // what it holds lands in the line.
+        pw::Window shown(b.r.bus, window);
+        shown.weave().platform = "oven";
+        shown.room(pane::kBuilderPaneRole, pane::kBuilderPaneRole, 60, 20);
+        b.r.key(input::scan::kV, input::mod::kCtrl);
+        CHECK(shown.weave().clipboard_reads == 1);
+        CHECK(skin->clipboard_reads == 1);
+        CHECK_MESSAGE(bp_row(b.shown(), "role for a> zengine.oven") >= 0, b.text());
+    }
+}
+
 TEST_CASE("the Builder's role line shows the medium's caret where the line's is, its column counted in what the row draws") {
     BuilderRig b("bld-role-caret");
     b.tool->catalog = catalog_of({{"one", "a"}});

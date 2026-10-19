@@ -2303,6 +2303,36 @@ TEST_CASE("the browser this host used to compile is named by no presentation sou
     }
 }
 
+TEST_CASE("Powers asks the window that shows it for a paste into its query, the OS window or the terminal's, and the Skin only while none shows it") {
+    // ⚔ MUTATION: Powers' paste asked of the Skin wherever its area is shown.
+    namespace gfx = zengine::graphics;
+    namespace pw = zengine::testing::pane_window;
+    for (const char* window : {gfx::kSdlWindow, gfx::kTerminalWindow}) {
+        CAPTURE(window);
+        PaneRig r;
+        SkinSeat* skin = r.mount_skin_seat();
+        const std::int64_t kind = open_powers(r);
+        make_taller(r, intro::kPowersPane, 18);
+        focus_pane(r, kind);
+        skin->platform = "rec";
+
+        // NO WINDOW SHOWS IT YET: the paste is the Skin's.
+        r.key(input::scan::kV, input::mod::kCtrl);
+        CHECK(skin->clipboard_reads == 1);
+        CHECK(pane_rows(r, kind)[0].find("find:rec") != std::string::npos);
+
+        // THE WINDOW TELLS THE PANE'S AREA ITS ROOM, and from then on is asked, not the Skin, and
+        // what it holds lands in the query.
+        pw::Window shown(r.bus, window);
+        shown.weave().platform = "ipe";
+        shown.room(std::string(kIntroOffice) + "." + intro::kPowersPane, kIntroOffice, 120, 40);
+        r.key(input::scan::kV, input::mod::kCtrl);
+        CHECK(shown.weave().clipboard_reads == 1);
+        CHECK(skin->clipboard_reads == 1);
+        CHECK(pane_rows(r, kind)[0].find("find:recipe") != std::string::npos);
+    }
+}
+
 TEST_CASE("the Builder pane this host used to compile is named by no presentation source") {
     // THE BUILDER PANE'S HOST FORMS STAY GONE, while the host still mounts its TOOL:
     // `pane_kind::kBuilder`, `pane_key::kBuilder`, the nine `Act::` values,
