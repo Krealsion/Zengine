@@ -18,7 +18,7 @@ consumer-specific behavior of its extracted panes.
 | the task touches… | read |
 |---|---|
 | the composition in pixels, the whole pixel, a face's unit; the desk said whole | [geometry](workshop/geometry.md) `WL-GEO` · [chrome](workshop/chrome.md) `WL-CHROME` · [desk-read](workshop/desk-read.md) `WL-READ` |
-| the setup file, a pane's default and override, its settings, places and slots, five states, the plane sequence, arranging a pane | [setup-file](workshop/setup-file.md) `WL-SETUP` · [settings](workshop/settings.md) `WL-SETTING` · [panes-and-windows](workshop/panes-and-windows.md) `WL-PANE` · [planes](workshop/planes.md) `WL-FRONT` · [arrangement](workshop/arrangement.md) `WL-ARR` |
+| the setup file, a pane's default and override, its settings and their locks, places and slots, five states, the plane sequence, arranging a pane | [setup-file](workshop/setup-file.md) `WL-SETUP` · [settings](workshop/settings.md) `WL-SETTING` · [setting-locks](workshop/setting-locks.md) `WL-LOCK` · [panes-and-windows](workshop/panes-and-windows.md) `WL-PANE` · [planes](workshop/planes.md) `WL-FRONT` · [arrangement](workshop/arrangement.md) `WL-ARR` |
 | the pane catalog: the kinds, the built-in rows, a live offer's admission and its bounds | [catalog](workshop/catalog.md) `WL-CAT` |
 | local canvas pictures, room tokens, clipping and pointer custody | [canvas](workshop/canvas.md) `WL-CANVAS` |
 | a press, a double-click, what a routing bool means, the pointer order | [pointer](workshop/pointer.md) `WL-PTR` · [press-chain](workshop/press-chain.md) `WL-PRESS` |

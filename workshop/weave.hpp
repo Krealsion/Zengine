@@ -294,9 +294,10 @@ bool holder_emits_on(const loom::Switchboard& bus, std::string_view role,
                      const loom::Schema& shape);
 
 /// What a terminal participant may ask of settings and hear back: a pane's row and an office's
-/// settings, each read and committed, and a pane's pin list edited -- known and granted to this
-/// office alone, and their answers accepted. The host widens the terminal it mounts with exactly
-/// this, so what a case typing the documented line proves is what it grants.
+/// settings, each read and committed, a pane's pin list edited, a setting locked or unlocked, and
+/// every layout's rows read and written in one batch -- known and granted to this office alone,
+/// and their answers accepted. The host widens the terminal it mounts with exactly this, so what a
+/// case typing the documented line proves is what it grants.
 // WL-SETTING-09 -- agents/workshop/settings.md
 inline void let_terminal_edit_settings(loom::TerminalVocabulary& vocab, loom::Grant& grant) {
     vocab.knows(loom::schema_of<PaneSettingsRequested>())
@@ -304,10 +305,22 @@ inline void let_terminal_edit_settings(loom::TerminalVocabulary& vocab, loom::Gr
         .knows(loom::schema_of<OfficeSettingsRequested>())
         .knows(loom::schema_of<OfficeSettingCommitRequested>())
         .knows(loom::schema_of<PaneSettingPinRequested>())
+        .knows(loom::schema_of<PaneSettingLockRequested>())
+        .knows(loom::schema_of<LayoutSettingsRequested>())
+        .knows(loom::schema_of<SettingsWriteRequested>())
         .accepts(loom::schema_of<PaneSettingsShown>())
         .accepts(loom::schema_of<PaneSettingActed>())
         .accepts(loom::schema_of<OfficeSettingsShown>())
-        .accepts(loom::schema_of<PaneSettingPinActed>());
+        .accepts(loom::schema_of<PaneSettingPinActed>())
+        .accepts(loom::schema_of<PaneSettingLockActed>())
+        .accepts(loom::schema_of<LayoutSettingsShown>())
+        .accepts(loom::schema_of<SettingsWritten>());
+    grant.allow_to_role(PaneSettingLockRequested::zen_name, PaneSettingLockRequested::zen_version,
+                        kWorkshopProvider);
+    grant.allow_to_role(LayoutSettingsRequested::zen_name, LayoutSettingsRequested::zen_version,
+                        kWorkshopProvider);
+    grant.allow_to_role(SettingsWriteRequested::zen_name, SettingsWriteRequested::zen_version,
+                        kWorkshopProvider);
     grant.allow_to_role(PaneSettingsRequested::zen_name, PaneSettingsRequested::zen_version,
                         kWorkshopProvider);
     grant.allow_to_role(PaneSettingCommitRequested::zen_name,
@@ -359,6 +372,11 @@ class WorkshopWeave
                                           zengine::workshop::OfficeSettingsRequested,
                                           zengine::workshop::OfficeSettingCommitRequested,
                                           zengine::workshop::PaneSettingPinRequested,
+                                          // a setting locked in a layout or everywhere, and every
+                                          // layout's rows read and written in one batch
+                                          zengine::workshop::PaneSettingLockRequested,
+                                          zengine::workshop::LayoutSettingsRequested,
+                                          zengine::workshop::SettingsWriteRequested,
                                           zengine::workshop::PaneContent,
                                           zengine::workshop::PaneCaret,
                                           zengine::workshop::v2::PaneContent,
@@ -445,6 +463,9 @@ class WorkshopWeave
                                         zengine::workshop::OfficeSettings,
                                         zengine::workshop::OfficeSettingsShown,
                                         zengine::workshop::PaneSettingPinActed,
+                                        zengine::workshop::PaneSettingLockActed,
+                                        zengine::workshop::LayoutSettingsShown,
+                                        zengine::workshop::SettingsWritten,
                                         zengine::workshop::PanePressed,
                                         zengine::workshop::v2::PanePressed,
                                         zengine::workshop::v3::PanePressed,
@@ -877,8 +898,39 @@ public:
     /// per layout, the Workshop-wide one, else the declaration's own pins.
     std::vector<std::string> effective_pins(const PaneRef& ref, std::int64_t layout = -1) const;
     std::string pin_target(const PaneRef& ref, std::int64_t layout = -1) const;
-    /// The everywhere locks on `ref`'s settings, by key.
+    /// THE LOCKS ON `ref`'S ROW IN THE LAYOUT AT `layout` (a shelf position), in key order, each with
+    /// where it holds: the everywhere locks, and that layout's own.
+    std::vector<SettingLockShown> locks_on(const PaneRef& ref, std::size_t layout) const;
+    /// The keys locked on `ref`'s row of the live layout, which every write door refuses, and those
+    /// locked in the live layout alone.
     std::vector<std::string> locked_keys(const PaneRef& ref) const;
+    std::vector<std::string> layout_locked_keys(const PaneRef& ref) const;
+
+    // ---- Locks and every layout at once (WL-SETTING) ----------------------------------------
+
+    /// ONE SETTING LOCKED OR UNLOCKED, in one layout or everywhere: an everywhere lock on a pane
+    /// pins the value its layout holds into every layout's row. An unlock is the weaver's alone.
+    void on(const PaneSettingLockRequested& asked, loom::Mail& mail);
+    /// EVERY LAYOUT'S ROWS, READ: what each keeps and has locked, what each pane and office takes,
+    /// the everywhere locks, and the revision it all stands at; answered to the asker alone.
+    void on(const LayoutSettingsRequested& asked, loom::Mail& mail);
+    /// ...AND MANY OF THEM WRITTEN, with layouts' baselines, at the revision the asker read: judged
+    /// whole before anything is written, then each write's outcome said.
+    void on(const SettingsWriteRequested& asked, loom::Mail& mail);
+    /// THE REVISION EVERY LAYOUT'S SETTINGS STAND AT, minted afresh whenever the reading moved: a
+    /// row's settings, a layout added, removed, moved or renamed, the live one, a declaration, a
+    /// lock or a baseline.
+    std::int64_t layout_settings_revision();
+    /// The reading itself, its revision left 0.
+    LayoutSettingsShown layout_settings_reading() const;
+    /// WHETHER `gesture` IS THE WEAVER'S CURRENT ACT sent to a pane of `office`: the correlation of
+    /// the weaver's hand's latest act, which a guest's hand never holds.
+    bool weavers_act(std::int64_t gesture, std::string_view office) const;
+    /// GIVE EVERY ROW OF `desk` AN EVERYWHERE LOCK NAMES ITS PINNED VALUE. Says whether any moved.
+    bool pin_everywhere_locks(Setup& desk) const;
+    /// What Workshop's settings file keeps for layout `from`, kept for `to` instead (`to` empty:
+    /// dropped) when no layout still holds `from`; then the file written.
+    void move_layout_prefs(const std::string& from, const std::string& to);
     /// What Workshop's settings file keeps, as this run holds it.
     const prefs_persist::Prefs& prefs() const noexcept { return prefs_; }
 
@@ -2032,6 +2084,9 @@ private:
     };
     std::vector<SettingsRevision> settings_revisions_;
     std::int64_t settings_revision_ = 0;
+    /// The reading every layout's settings were last minted for, and the revision it was minted.
+    LayoutSettingsShown layout_settings_minted_;
+    std::int64_t layout_settings_revision_ = 0;
     /// WHETHER THIS ASKER MAY READ AND WRITE A PANE'S SETTINGS BY MESSAGE: an office, the Terminal
     /// this host mounted, or a guest whose row has `settings`. Empty when it may; else why not.
     std::string settings_asker_refused(const loom::Mail& mail) const;

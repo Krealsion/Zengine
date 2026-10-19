@@ -158,7 +158,8 @@ Written write_pane_axis(Session& s, const PaneRef& ref, std::size_t axis,
 // WL-SETTING-05 -- agents/workshop/settings.md
 SettingsSubject settings_subject(const Session& s, const PaneRef& ref,
                                  const std::vector<PaneSettingRow>* declared,
-                                 std::vector<std::string> locked) {
+                                 std::vector<std::string> locked,
+                                 std::vector<std::string> locked_here) {
     SettingsSubject out;
     if (declared != nullptr) {
         out.declared = *declared;
@@ -178,6 +179,7 @@ SettingsSubject settings_subject(const Session& s, const PaneRef& ref,
         }
     }
     out.locked = std::move(locked);
+    out.locked_here = std::move(locked_here);
     return out;
 }
 
@@ -409,12 +411,16 @@ std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref,
             }
             if (locked) {
                 // A LOCKED SETTING SAYS ITS LOCK IN ITS VALUE, and its write is refused, naming it.
+                bool here = false;
+                for (const std::string& key : settings.locked_here) {
+                    here = here || key == declared.key;
+                }
+                const std::string where = here ? kLockedInLayout : kLockedEverywhere;
                 rows.push_back(Row::edit(
                     declared.key,
                     Property<std::string>(
-                        [sp, ref, declared] {
-                            return pane_setting_text(*sp, ref, declared) + " -- locked " +
-                                   kLockedEverywhere;
+                        [sp, ref, declared, where] {
+                            return pane_setting_text(*sp, ref, declared) + " -- locked " + where;
                         },
                         [declared](std::string) {
                             return Written::no(locked_setting_refusal(declared.key));

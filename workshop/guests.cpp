@@ -526,8 +526,9 @@ loom::Grant grant_for(const GuestRow& row) {
                 }
             }
         } else if (power == kPowerSettings) {
-            // ONE PANE'S SETTINGS ON THE LIVE LAYOUT AND ONE OFFICE'S, read and written, and a
-            // pane's pin list edited, asked of Workshop alone.
+            // ONE PANE'S SETTINGS ON THE LIVE LAYOUT AND ONE OFFICE'S, read and written, a pane's
+            // pin list edited, a setting locked (an unlock is the weaver's, refused by Workshop),
+            // and every layout's rows read and written in one batch, asked of Workshop alone.
             g.allow_to_role(PaneSettingsRequested::zen_name, PaneSettingsRequested::zen_version,
                             pane_menu::kWorkshopRole);
             g.allow_to_role(PaneSettingCommitRequested::zen_name,
@@ -537,6 +538,12 @@ loom::Grant grant_for(const GuestRow& row) {
             g.allow_to_role(OfficeSettingCommitRequested::zen_name,
                             OfficeSettingCommitRequested::zen_version, pane_menu::kWorkshopRole);
             g.allow_to_role(PaneSettingPinRequested::zen_name, PaneSettingPinRequested::zen_version,
+                            pane_menu::kWorkshopRole);
+            g.allow_to_role(PaneSettingLockRequested::zen_name,
+                            PaneSettingLockRequested::zen_version, pane_menu::kWorkshopRole);
+            g.allow_to_role(LayoutSettingsRequested::zen_name, LayoutSettingsRequested::zen_version,
+                            pane_menu::kWorkshopRole);
+            g.allow_to_role(SettingsWriteRequested::zen_name, SettingsWriteRequested::zen_version,
                             pane_menu::kWorkshopRole);
         } else if (power == kPowerKeystrokes) {
             // NOTHING TO SAY: hearing the weaver's input is an observation the relay judges
