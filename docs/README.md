@@ -34,6 +34,7 @@ front pages, and the index of the pages no one folder owns.
 | [info/](../info/README.md) | Info: independent views that inspect and edit a value |
 | [introspection/](../introspection/README.md) | Loaded, Project and Powers: what a running system is made of |
 | [inventory/](../inventory/README.md) | Inventory: stored typed values, portable toolboxes and hotkeys |
+| [settings/](../settings/README.md) | theme files, how a theme resolves with the themes it includes, and the `zengine.settings` doors |
 | [terminal/](../terminal/README.md) | the Terminal: type a command to the weaves on the bus |
 | [view/](../view/README.md) | a view described as data, the view host, and the View Builder |
 

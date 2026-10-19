@@ -107,6 +107,23 @@ kPreparedClaimBeats             timer/vocabulary.hpp                      kPrepa
 kMaxHandoffEntries              timer/vocabulary.hpp                      kMaxHandoffEntries
 kBeatCapMs                      timer/vocabulary.hpp                      kBeatCapMs
 
+# ---- settings: the theme file
+# What one theme file holds and what one resolution may spend: the version the file and its
+# envelope share, a name's, a summary's and a target's length, the settings, keys and includes in a
+# file and its bytes, and the themes, include depth and entries of one resolution. Each is read
+# from settings/theme_persist.hpp, the one place it is set; settings/README.md marks the bounds.
+kThemeFormatVersion             settings/theme_persist.hpp                kThemeFormatVersion
+kMaxThemeNameLen                settings/theme_persist.hpp                kMaxThemeNameLen
+kMaxThemeSummaryLen             settings/theme_persist.hpp                kMaxThemeSummaryLen
+kMaxThemeTargetLen              settings/theme_persist.hpp                kMaxThemeTargetLen
+kMaxThemeSettings               settings/theme_persist.hpp                kMaxThemeSettings
+kMaxThemeKeys                   settings/theme_persist.hpp                kMaxThemeKeys
+kMaxThemeIncludes               settings/theme_persist.hpp                kMaxThemeIncludes
+kMaxThemesResolved              settings/theme_persist.hpp                kMaxThemesResolved
+kMaxThemeDepth                  settings/theme_persist.hpp                kMaxThemeDepth
+kMaxResolvedEntries             settings/theme_persist.hpp                kMaxResolvedEntries
+kMaxThemeBytes                  settings/theme_persist.hpp                kMaxThemeBytes
+
 # ---- carrying text
 kMaxCarryBytes                  workshop/pane_carry.hpp                   kMaxCarryBytes
 kMaxCarryLabelBytes             workshop/pane_carry.hpp                   kMaxCarryLabelBytes
