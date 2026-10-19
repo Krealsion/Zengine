@@ -703,8 +703,9 @@ private:
         if (d == nullptr) {
             return; // unreachable while edit_field's gate holds; written anyway
         }
+        const std::string clipboard = room().clipboard_office();
         const loom::AskOpened opened = clip_asks_.open_to_role(
-            surface::kSkinRole, surface::ClipboardTextRequested::zen_name,
+            clipboard, surface::ClipboardTextRequested::zen_name,
             surface::ClipboardTextRequested::zen_version);
         if (!opened) {
             return;
@@ -716,8 +717,7 @@ private:
         p.epoch = d->value.draft_epoch();
         pending_pastes_.push_back(p);
         (void)mail.as_role(kComposerRole)
-            .send_to_role(surface::kSkinRole, surface::ClipboardTextRequested{},
-                          opened.correlation);
+            .send_to_role(clipboard, surface::ClipboardTextRequested{}, opened.correlation);
     }
 
     // ---- submission ---------------------------------------------------------

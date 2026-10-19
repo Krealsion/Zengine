@@ -24,6 +24,15 @@ MODIFIERS = {"shift": 1, "ctrl": 2, "control": 2, "alt": 4}
 # zengine/input/vocabulary.hpp space::: the two terminal skins report cells, the SDL skin pixels.
 SPACE_CELLS = 1
 SPACE_PIXELS = 2
+# The offices that hold Workshop's picture, in the order a first picture asks them: the Skin, the
+# OS window and the terminal window (graphics/vocabulary.hpp kWindowOfficePrefix). A far Workshop
+# loads one of them; the others are no office there.
+CAPTURE_OFFICES = ("zengine.skin", "zengine.window.sdl", "zengine.window.terminal")
+
+
+def capture_office(ctx):
+    """The office that answered this run's first picture, or the Skin before one has."""
+    return getattr(ctx, "_capture_office", "zengine.skin")
 
 
 def chord(spelling):
@@ -229,27 +238,30 @@ def plan_at_rest(ctx, link, seconds=600.0):
     return said
 
 
-def fetch_picture(ctx, link, captured):
-    """Every byte of one retained picture, each chunk checked to continue it."""
+def fetch_picture(ctx, link, captured, office=None):
+    """Every byte of one retained picture, each chunk checked to continue it, asked of the office
+    that took the picture."""
+    office = office or capture_office(ctx)
     total = captured["bytes"]
     data = bytearray()
     while len(data) < total:
-        c = ctx.ask("zengine.skin", "SurfaceCaptureChunkRequested",
+        c = ctx.ask(office, "SurfaceCaptureChunkRequested",
                     {"capture": captured["capture"], "offset": len(data)}, via=link)
         piece = c["data"]
         ctx.check(c["capture"] == captured["capture"] and c["offset"] == len(data) and
                   c["total"] == total and piece and len(data) + len(piece) <= total,
-                  "zengine.skin sent a chunk of capture %d at %d (%d of %d bytes) where capture "
-                  "%d at %d of %d was asked for" % (c["capture"], c["offset"], len(piece),
+                  "%s sent a chunk of capture %d at %d (%d of %d bytes) where capture "
+                  "%d at %d of %d was asked for" % (office, c["capture"], c["offset"], len(piece),
                                                     c["total"], captured["capture"], len(data),
                                                     total))
         data += piece
     return bytes(data)
 
 
-def check_picture(ctx, captured, data):
+def check_picture(ctx, captured, data, office=None):
     """A picture is what its format says it is, whole."""
-    ctx.check(captured["ok"], "zengine.skin refused the picture: %s" % captured.get("refusal"))
+    ctx.check(captured["ok"], "%s refused the picture: %s"
+              % (office or "zengine.skin", captured.get("refusal")))
     ctx.check(len(data) == captured["bytes"], "the picture is %d bytes, not the %d described"
               % (len(data), captured["bytes"]))
     if captured["format"] == "image/bmp":
@@ -261,13 +273,42 @@ def check_picture(ctx, captured, data):
     return "cells.txt"
 
 
+def ask_picture(ctx, link, after_frame):
+    """``(office, captured)``: the picture asked of the office that answered this run's first one,
+    or, before one has, of each of ``CAPTURE_OFFICES`` in turn until one holds its office on the far
+    Workshop -- an office no weave holds there is the far bus's refusal, and the next is asked. When
+    none holds one, the first office's refusal is raised."""
+    from loom_session.tool import LinkOutcome  # the session runtime's; a step that asks needs it
+    known = getattr(ctx, "_capture_office", None)
+    if known is not None:
+        return known, ctx.ask(known, "SurfaceCaptureRequested", {"after_frame": after_frame},
+                              via=link)
+    first = None
+    for office in CAPTURE_OFFICES:
+        try:
+            captured = ctx.ask(office, "SurfaceCaptureRequested", {"after_frame": after_frame},
+                               via=link)
+        except LinkOutcome as out:
+            if out.state != "dispatch-refused":
+                raise
+            first = first or out
+            continue
+        ctx._capture_office = office
+        return office, captured
+    raise first
+
+
 def picture(ctx, link, name, after_frame=-1, pending=None):
     """Ask for a picture (or collect one already asked for), fetch it whole and keep it as
     ``<name>.<bmp|cells.txt>``. Returns ``(captured, bytes)``."""
-    captured = pending.wait(60.0) if pending is not None else ctx.ask(
-        "zengine.skin", "SurfaceCaptureRequested", {"after_frame": after_frame}, via=link)
-    data = fetch_picture(ctx, link, captured) if captured["ok"] else b""
-    ext = check_picture(ctx, captured, data)
+    if pending is not None:
+        office = pending.office
+        ctx._capture_office = office
+        captured = pending.wait(60.0)
+    else:
+        office, captured = ask_picture(ctx, link, after_frame)
+    data = fetch_picture(ctx, link, captured, office) if captured["ok"] else b""
+    ext = check_picture(ctx, captured, data, office)
     ctx.produce("%s.%s" % (name, ext), data)
     return captured, data
 

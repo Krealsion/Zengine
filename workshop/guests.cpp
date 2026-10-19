@@ -22,6 +22,7 @@
 #include "external-host/demo-control/vocabulary.hpp"
 
 #include "builder/vocabulary.hpp"
+#include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "inventory/vocabulary.hpp"
 #include "inventory/inventory-pane/vocabulary.hpp"
@@ -481,11 +482,16 @@ loom::Grant grant_for(const GuestRow& row) {
                             "zengine.workshop");
             g.allow_to_role(KeymapRequested::zen_name, KeymapRequested::zen_version,
                             "zengine.workshop");
-            g.allow_to_role(surface::SurfaceCaptureRequested::zen_name,
-                            surface::SurfaceCaptureRequested::zen_version, surface::kSkinRole);
-            g.allow_to_role(surface::SurfaceCaptureChunkRequested::zen_name,
-                            surface::SurfaceCaptureChunkRequested::zen_version,
-                            surface::kSkinRole);
+            // THE PICTURE, read from whichever medium shows the desk: the Skin or a window.
+            for (const std::string& medium :
+                 {std::string(surface::kSkinRole),
+                  std::string(graphics::kWindowOfficePrefix) + graphics::kTerminalWindow,
+                  std::string(graphics::kWindowOfficePrefix) + graphics::kSdlWindow}) {
+                g.allow_to_role(surface::SurfaceCaptureRequested::zen_name,
+                                surface::SurfaceCaptureRequested::zen_version, medium);
+                g.allow_to_role(surface::SurfaceCaptureChunkRequested::zen_name,
+                                surface::SurfaceCaptureChunkRequested::zen_version, medium);
+            }
         } else if (power == kPowerInspect) {
             g.allow_to_any(loom::DescribeAccepted::zen_name, loom::DescribeAccepted::zen_version);
             // A weave's exposed structure, the self-description floor Info's Sample source asks for.

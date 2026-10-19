@@ -797,11 +797,11 @@ private:
         for (const std::uint32_t id : seen.paste_requests) {
             const std::uint64_t correlation = ++asked_;
             const loom::Ticket asked = mail.as_role(nve::kEditorOffice)
-                                           .send_to_role(surface::kSkinRole, surface::ClipboardTextRequested{}, correlation);
+                                           .send_to_role(window_.clipboard_office(), surface::ClipboardTextRequested{}, correlation);
             if (asked.valid()) {
                 pastes_.emplace(correlation, id);
             } else {
-                const PasteLines paste = paste_lines(clip_); // no Skin: the mirror is the clipboard
+                const PasteLines paste = paste_lines(clip_); // unsent: the mirror is the clipboard
                 (void)host_->answer_paste(id, paste.lines, paste.regtype);
             }
         }

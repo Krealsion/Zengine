@@ -247,10 +247,13 @@ endforeach()
 # ---- The authored load plans, which are not artifacts ---------------------------------
 #
 # Staged by the same stamp rule, since the host resolves its default plan from its own directory.
-# The window plan always, as its two artifacts are staged above; the graphical plan only where its
-# artifacts exist: a file that can only refuse is not offered.
+# The window plan always, as its two artifacts are staged above; the OS window's plan and the
+# graphical plan only where their artifacts exist: a file that can only refuse is not offered.
 # Not in `zengine_workshop_artifacts`: an artifact is a library this host may execute.
 set(zengine_workshop_plans default-load-plan.json window-load-plan.json)
+if(TARGET zengine-window-sdl AND TARGET zengine-input-sdl)
+    list(APPEND zengine_workshop_plans sdl-window-load-plan.json)
+endif()
 if(TARGET zengine-skin-sdl AND TARGET zengine-input-sdl)
     list(APPEND zengine_workshop_plans graphical-load-plan.json)
 endif()
