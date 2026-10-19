@@ -273,6 +273,35 @@ TEST_CASE("arguments offer field NAMES, never values, and the heading is compose
           std::string::npos);
 }
 
+TEST_CASE("arguments offer a shape's fields in its order, or its required fields first and its optional ones after, each in its order") {
+    // ⚔ MUTATION: the second pass dropped -- `required-first` offers only the required fields,
+    // or the split ignored and the shape's order kept.
+    loom::TerminalVocabulary vocab;
+    vocab.knows(loom::SchemaBuilder("Fetch", 1)
+                    .field("limit", loom::Kind::Int, false)
+                    .field("name", loom::Kind::Text)
+                    .field("note", loom::Kind::Text, false)
+                    .field("count", loom::Kind::Int)
+                    .build());
+    loom::TerminalSession me("t", std::move(vocab));
+    const std::string line = "send * Fetch 1 ";
+    CHECK(displays(complete_line(me, line)) ==
+          std::vector<std::string>{"limit=", "name=", "note=", "count="});
+    CHECK(displays(complete_line(me, line, nullptr, CompletionFieldOrder::Declared)) ==
+          std::vector<std::string>{"limit=", "name=", "note=", "count="});
+    const Completion first = complete_line(me, line, nullptr, CompletionFieldOrder::RequiredFirst);
+    CHECK(displays(first) == std::vector<std::string>{"name=", "count=", "limit=", "note="});
+    CHECK(first.candidates[0].detail.find("required") != std::string::npos);
+    CHECK(first.candidates[2].detail.find("optional") != std::string::npos);
+    // THE ORDER MOVES NOTHING ELSE: a field named already, a partial and the heading stand.
+    CHECK(displays(complete_line(me, line + "name=x ", nullptr,
+                                 CompletionFieldOrder::RequiredFirst)) ==
+          std::vector<std::string>{"count=", "limit=", "note="});
+    CHECK(displays(complete_line(me, line + "n", nullptr, CompletionFieldOrder::RequiredFirst)) ==
+          std::vector<std::string>{"name=", "note="});
+    CHECK(first.heading == complete_line(me, line).heading);
+}
+
 TEST_CASE("a quoted token is left alone, because the quote is not on the line the completer sees") {
     // `loom::tokenize` drops the quote characters, so the partial this completer can see
     // (`Sur`) is not the text on the line (`"Sur`). Replacing one with the other would

@@ -500,6 +500,47 @@ inline const PaneSetting* find_pane_setting(const std::vector<PaneSetting>& all,
     return nullptr;
 }
 
+// ---- Workshop's own word on a row: the skin its area is painted in -------------------------
+
+/// THE ONE `workshop.` KEY A ROW KEEPS: the painter skin its pane's graphics area wears, over the
+/// Workshop-wide one. Workshop reads it, and never hands it to the pane.
+inline constexpr const char* kWorkshopSkinKey = "workshop.skin";
+inline constexpr const char* kSkinClassic = "classic";
+inline constexpr const char* kSkinBlock = "block";
+
+/// The skin setting, as Workshop's office declares it and a row is judged by.
+inline v2::PaneSettingRow workshop_skin_setting_row() {
+    v2::PaneSettingRow row;
+    row.key = kWorkshopSkinKey;
+    row.text = kSkinClassic;
+    row.choices = {kSkinClassic, kSkinBlock};
+    row.tags = {"chrome", "color"};
+    row.pinned = true;
+    row.summary = "painter skin for graphics window areas: classic or block";
+    return row;
+}
+
+/// WHAT A ROW KEEPS AS ITS ABSENCE: a setting's default, and nothing for `workshop.skin`, whose
+/// absence on a row is Workshop's own skin -- so a row keeps `classic` as well as `block`.
+inline std::optional<PaneSetting> row_setting_absence(const PaneSettingRow& row) {
+    if (row.key == kWorkshopSkinKey) {
+        return std::nullopt;
+    }
+    return pane_setting_default(row);
+}
+
+/// A ROW'S SETTINGS AS ITS PANE HOLDS THEM: every one but Workshop's own words for its area.
+inline std::vector<PaneSetting> pane_held_settings(const std::vector<PaneSetting>& kept) {
+    std::vector<PaneSetting> out;
+    out.reserve(kept.size());
+    for (const PaneSetting& s : kept) {
+        if (!is_desk_setting_key(s.key)) {
+            out.push_back(s);
+        }
+    }
+    return out;
+}
+
 } // namespace zengine::workshop
 
 #endif // ZENGINE_WORKSHOP_PANE_SETTINGS_HPP

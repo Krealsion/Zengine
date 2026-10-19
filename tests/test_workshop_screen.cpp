@@ -1859,7 +1859,12 @@ namespace {
 /// A Live Workshop on a graphical medium: a real text metric, so pointer events arrive
 /// in window pixels and the fine lattice is reachable at its pixel grain.
 struct FineRig : Live {
-    FineRig() {
+    /// `prefs`, when named: a settings file this Workshop reads as its surface comes up.
+    explicit FineRig(const std::string& prefs = std::string()) {
+        if (!prefs.empty()) {
+            host.prefs_path = prefs;
+            publish(loom::to_value(surface::SurfaceReady{}));
+        }
         publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(44), 8, 18}));
         open_pane(*this, ref_of(stock::kKind));
         enter_arrange_desk(*this);
@@ -1925,7 +1930,7 @@ SnapMarks snap_marks(Live& t) {
 /// A FINE RIG WITH TWO PANES OF KNOWN SIZE, IN THE OPEN: the stand-in at 100,100, 300 by 120, and
 /// the second at 600,200, 200 wide -- so every edge but the room's own stands in open room.
 struct TwoPaneRig : FineRig {
-    TwoPaneRig() {
+    explicit TwoPaneRig(const std::string& prefs = std::string()) : FineRig(prefs) {
         open_pane(*this, ref_of(second::kKind));
         Setup& s = live(*this).setup.active;
         REQUIRE(author_pane_place(s, ref_of(stock::kKind), 100, 100).accepted);
@@ -2014,6 +2019,105 @@ TEST_CASE("Alt held while dragging sets every snap aside, and the hand places to
     CHECK(t.builder_row()->width.amount == 597 - now.x);
     CHECK(snap_marks(t).xs.empty());
     release_at(t, 0, 0, input::space::kPixels);
+}
+
+namespace {
+
+/// A SETTINGS FILE KEEPING WORKSHOP'S OWN NUMBER SETTINGS, written where a case's Workshop reads it.
+std::string measures_file(TempDir& dir, const std::string& name,
+                          const std::vector<std::pair<std::string, std::int64_t>>& numbers) {
+    prefs_persist::Prefs kept;
+    for (const auto& [key, n] : numbers) {
+        REQUIRE(prefs_persist::put_workshop_value(
+            kept, key, PaneSetting{key, std::nullopt, n, std::nullopt}));
+    }
+    const std::string path = dir.file(name.c_str());
+    REQUIRE(prefs_persist::save_file(path, kept).accepted);
+    return path;
+}
+
+/// WHERE THE STAND-IN'S LEFT EDGE COMES TO when a hand drags it to `left` pixels from the room's
+/// left edge and lets go.
+std::int64_t left_edge_dragged_to(TwoPaneRig& t, std::int64_t left) {
+    const PixelRect at = t.builder_rect();
+    const std::int64_t press_x = at.x + 30;
+    const std::int64_t press_y = at.y + 20;
+    t.press_at(press_x, press_y, input::space::kPixels);
+    REQUIRE(t.session().pane_drag.active);
+    t.motion_at(press_x - (at.x - left), press_y, input::space::kPixels);
+    const std::int64_t came_to = t.builder_row()->place.x;
+    release_at(t, press_x - (at.x - left), press_y, input::space::kPixels);
+    return came_to;
+}
+
+} // namespace
+
+TEST_CASE("the snap reaches as far as `workshop.snap-reach` says: eleven pixels meets an edge ten away, six misses one seven away") {
+    // ⚔ MUTATION: the reach left at `kPaneSnapReachPx` -- the far hand stops ten pixels short and
+    // the near one is still pulled seven.
+    TempDir dir("measures-snap");
+    TwoPaneRig standard;
+    REQUIRE(standard.session().snap_reach_px == kPaneSnapReachPx);
+    CHECK(left_edge_dragged_to(standard, 10) == 10);
+    CHECK(left_edge_dragged_to(standard, 7) == 0);
+
+    TwoPaneRig wide_reach(measures_file(dir, "far.json", {{"workshop.snap-reach", 11}}));
+    REQUIRE(wide_reach.session().snap_reach_px == 11);
+    CHECK(left_edge_dragged_to(wide_reach, 12) == 12);
+    CHECK(left_edge_dragged_to(wide_reach, 10) == 0);
+
+    TwoPaneRig short_reach(measures_file(dir, "near.json", {{"workshop.snap-reach", 6}}));
+    REQUIRE(short_reach.session().snap_reach_px == 6);
+    CHECK(left_edge_dragged_to(short_reach, 7) == 7);
+    CHECK(left_edge_dragged_to(short_reach, 6) == 0);
+}
+
+TEST_CASE("the coarse step is `workshop.arrange-step` cells, read from Workshop's settings file") {
+    // ⚔ MUTATION: the grow spends `kCoarseStepCells` -- four cells where the file says eight.
+    TempDir dir("measures-step");
+    FineRig t(measures_file(dir, "step.json", {{"workshop.arrange-step", 8}}));
+    REQUIRE(t.session().arrange_step_cells == 8);
+    const PixelRect before = bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
+                                       screen_of(t.session()))
+                                 .resolved;
+    t.key(input::scan::kEquals);
+    CHECK(t.builder_row()->width.amount == before.w + cells_px(8));
+    CHECK(t.builder_row()->height.amount == before.h + cells_px(8));
+    t.key(input::scan::kMinus);
+    CHECK(t.builder_row()->width.amount == before.w);
+    CHECK(t.builder_row()->height.amount == before.h);
+}
+
+TEST_CASE("the right column is `workshop.side-columns` wide and a stacked pane `workshop.stack-rows` tall, read from Workshop's settings file") {
+    // ⚔ MUTATION: `placement_bounds` spends `kSideCols` and `kStackRows` -- twenty-eight and nine.
+    TempDir dir("measures-room");
+    Live t;
+    t.host.prefs_path = measures_file(dir, "room.json",
+                                      {{"workshop.side-columns", 40}, {"workshop.stack-rows", 20}});
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(44), 0, 0, 0}));
+    REQUIRE(t.session().side_cols == 40);
+    REQUIRE(t.session().stack_rows == 20);
+    const Screen sc = screen_of(t.session());
+    CHECK(sc.side_cols == 40);
+    CHECK(sc.side_x == sc.w - cells_px(40));
+    CHECK(sc.stack_rows == 20);
+    open_stock_pane(t);
+    const PixelRect stacked =
+        bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc).rect;
+    CHECK(stacked.h == cells_px(20));
+    open_at_right_column(t, second::kKind);
+    const PixelRect column =
+        bounds_of(t.session().panes, t.session().setup.active, second::kKind, sc).rect;
+    CHECK(column.x == sc.w - cells_px(40));
+    CHECK(column.w == cells_px(40));
+
+    // THE SCREEN HOLDS EACH TO WHAT ITS SETTING TAKES, and its own furniture is the default's.
+    const Screen held = screen_of(kScreenMinW, kScreenMinH, 0, 0, 0, 3, 99);
+    CHECK(held.side_cols == kMinSideCols);
+    CHECK(held.stack_rows == kMaxStackRows);
+    CHECK(kMinScreen.side_cols == kSideCols);
+    CHECK(kMinScreen.stack_rows == kStackRows);
 }
 
 TEST_CASE("an edge pulled near another pane's edge or the room's comes to it, its opposite edge held") {

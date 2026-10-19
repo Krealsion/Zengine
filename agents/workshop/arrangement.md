@@ -99,13 +99,17 @@ LAW — The coarse step resizes the addressed pane by the coarse count on both a
 
 MEANS
 - it meets the identical per-axis settlement a shifted arrow meets, and there is no second owner;
-- it cannot move the pane it resizes, moves no other pane, and measures no content.
+- it cannot move the pane it resizes, moves no other pane, and measures no content;
+- the coarse count is `workshop.arrange-step`, `kCoarseStepCells` until a weaver sets it.
 
 WHY — `agents/decisions/why-the-coarse-step-is-four.md`
 
-## WL-ARR-11 — Four is pinned, not chosen
+## WL-ARR-11 — Four is the default, and the default is pinned
 
-LAW — A `static_assert` holds `kStackRows + kCoarseStepCells - 2*kChromeCells - 1 >= 8`, so one grow gives a default stack pane's body the eight rows the Compose form needs.
+LAW — A `static_assert` holds `kStackRows + kCoarseStepCells - 2*kChromeCells - 1 >= 8`, so at the defaults one grow gives a stack pane's body the eight rows the Compose form needs.
+
+DOES NOT MEAN
+- that a weaver's settings keep it: a smaller `workshop.arrange-step` or `workshop.stack-rows` is theirs to choose.
 
 WHY — `agents/decisions/why-the-coarse-step-is-four.md`
 
@@ -240,15 +244,18 @@ itself" "contextual Arrange lifts the pane it addressed, not the one in front"
 in words"
 
 ### WL-ARR-10
-`workshop/weave_arrange.cpp` arrange_grow
-`workshop/screen.hpp` kCoarseStepCells pane_edge::kBottomRight
+`workshop/weave_arrange.cpp` arrange_grow arrange_key
+`workshop/screen.hpp` kCoarseStepCells pane_edge::kBottomRight Session::arrange_step_cells
 `workshop/screen_gestures.cpp` pane_window_proposal
 `workshop/setup.hpp` author_pane_window
 `tests/test_workshop_panes_window.cpp` "the coarse step is the resize seam with a bigger delta" "a
 coarse shrink meets the same per-axis refusal a fine one does"
+`tests/test_workshop_screen.cpp` "the coarse step is `workshop.arrange-step` cells, read from
+Workshop's settings file"
 
 ### WL-ARR-11
-`workshop/screen.hpp` kCoarseStepCells kStackRows kChromeCells
+`workshop/screen.hpp` kCoarseStepCells kStackRows kChromeCells kMinArrangeStepCells
+kMaxArrangeStepCells
 `tests/test_workshop_panes_input.cpp` "one coarse grow gives the DEFAULT Compose pane a usable form"
 
 ### WL-ARR-12

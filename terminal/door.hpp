@@ -109,9 +109,10 @@ public:
         self.repaint(mail);
     }
 
-    /// What could be said next on a half-typed line: read, never authored.
-    // WL-TERM-05 -- agents/workshop/terminal.md
-    void on(const TerminalCompletionRequested& asked, loom::Mail& mail) {
+    /// What could be said next on a half-typed line: read, never authored, a shape's fields in the
+    /// order `self`'s session chose (WL-TERM-05).
+    template <class Self>
+    void on(Self& self, const TerminalCompletionRequested& asked, loom::Mail& mail) {
         if (mail.authored_role().empty()) {
             return;
         }
@@ -132,8 +133,11 @@ public:
         if (listing) {
             reachable = host_->destinations();
         }
-        const Completion c =
-            complete_line(*host_->terminal, asked.line, listing ? &reachable : nullptr);
+        const Completion c = complete_line(*host_->terminal, asked.line,
+                                           listing ? &reachable : nullptr,
+                                           self.session().completion_required_first
+                                               ? CompletionFieldOrder::RequiredFirst
+                                               : CompletionFieldOrder::Declared);
         out.open = c.open;
         out.slot = slot_name(c.slot);
         out.partial = c.partial;

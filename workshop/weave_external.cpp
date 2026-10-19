@@ -72,20 +72,21 @@ void WorkshopWeave::hand_settings(loom::Mail& mail) {
         }
         const loom::WeaveId holder = host_->role_holder(row->provider);
         const std::int64_t revision = revisions ? settings_revision(ref) : 0;
+        // THE PANE'S OWN: a `workshop.` key on its row is Workshop's word for its area.
+        const std::vector<PaneSetting> held = pane_held_settings(seat->settings);
         if (pane->settings_heard && pane->settings_holder == holder &&
-            *pane->settings_heard == seat->settings && pane->settings_revision == revision) {
+            *pane->settings_heard == held && pane->settings_revision == revision) {
             continue; // what it holds is what this layout keeps: saying so again is noise
         }
         // TO THE HOLDER ITSELF, as its canvas room is, so what is recorded is who heard it.
         const loom::Ticket sent =
             revisions ? mail.as_role(kWorkshopProvider)
-                            .send(holder, v2::PaneSettings{row->pane, revision, seat->settings})
-                      : mail.as_role(kWorkshopProvider)
-                            .send(holder, PaneSettings{row->pane, seat->settings});
+                            .send(holder, v2::PaneSettings{row->pane, revision, held})
+                      : mail.as_role(kWorkshopProvider).send(holder, PaneSettings{row->pane, held});
         if (!sent.valid()) {
             continue; // nothing recorded, so the next repaint hands them again
         }
-        pane->settings_heard = seat->settings;
+        pane->settings_heard = held;
         pane->settings_holder = holder;
         pane->settings_revision = revision;
         // WHAT THE PANE SAID IT COULD NOT USE WAS ABOUT A REVISION IT NO LONGER HOLDS.
