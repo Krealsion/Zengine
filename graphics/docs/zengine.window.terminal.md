@@ -6,7 +6,9 @@ window's office is `zengine.window.` and its name, `terminal`) and is built as
 `zengine-window-terminal`, a file a host loads. It keeps what each owner drew, paints it with the
 area's skin, composes the areas, writes the terminal only the cells that changed, and sends the
 terminal's keys, their text and its pointer to the owners. The directory,
-[`zengine.graphics`](zengine.graphics.md), introduces its areas to it.
+[`zengine.graphics`](zengine.graphics.md), introduces its areas to it. C++ in its own process may
+also have it copy to the terminal's clipboard, and read back the cells it last showed
+([the Graphics package](graphics.md#a-window-in-its-own-process)).
 
 ## About
 

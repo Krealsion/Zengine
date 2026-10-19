@@ -63,6 +63,8 @@
 #include <vector>
 
 #if defined(GRAPHICS_HAS_SDL)
+#include "graphics/window/window_sdl_backend.hpp"
+
 #include <SDL3/SDL.h>
 #endif
 
@@ -274,10 +276,12 @@ struct TypedWindow {
     Rig r;
     TermLog term;
     loom::WeaveId window;
+    FakeWindow* instance = nullptr;
     TypedWindow() {
         REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
         auto w = std::make_unique<FakeWindow>(FakeTerminal{&term});
         FakeWindow* raw = w.get();
+        instance = raw;
         loom::Grant g = loom::emit_default_grant(*raw);
         window = r.bus.register_weave(std::move(w), std::move(g), window_office());
         raw->zen_set_self(window);
@@ -1428,6 +1432,91 @@ TEST_CASE("an arranger following the window's offer places its area across the r
     REQUIRE(after.rows.size() == 36);
     CHECK(after.rows[0] == "hello");
     CHECK(after.rows[3].empty());
+}
+
+TEST_CASE("the terminal window copies by OSC 52, reads no clipboard, has no placement to say or take, "
+          "and reads back the cells it last showed, at the size it showed them, none before") {
+    {
+        TypedWindow bare; // activated, and nothing shown yet
+        CHECK_FALSE(bare.instance->capture().has_value());
+    }
+    Resized t;
+    Rig& r = t.r;
+    FakeWindow& w = *t.instance;
+
+    // A copy is the copy sequence, written to the terminal and no showing; a paste has no read.
+    const std::int64_t showings = r.shown().showings;
+    const std::size_t writes = t.term.writes.size();
+    w.clipboard_copy("soup");
+    REQUIRE(t.term.writes.size() == writes + 1);
+    CHECK(t.term.writes.back() == "\x1b]52;c;c291cA==\x07");
+    CHECK(r.shown().showings == showings);
+    CHECK_FALSE(w.clipboard_text().has_value());
+    CHECK_FALSE(w.placement().has_value());
+    w.place(gfx::window::WindowPlacementValue{10, 20, true});
+    CHECK_FALSE(w.placement().has_value());
+    CHECK(t.term.writes.size() == writes + 1);
+
+    // What it showed: every row at the terminal's width, each ending in a newline -- the rows it
+    // reports, their trailing spaces kept.
+    const auto shown = w.capture();
+    REQUIRE(shown.has_value());
+    CHECK(shown->format == "text/cells");
+    CHECK(shown->cell_px == 0);
+    CHECK(shown->width == 80);
+    CHECK(shown->height == 30);
+    REQUIRE(shown->bytes.size() == 30u * 81u);
+    const auto row = [](const gfx::window::CapturedWindowPicture& p, std::size_t i) {
+        const std::size_t width = static_cast<std::size_t>(p.width);
+        return p.bytes.substr(i * (width + 1), width + 1);
+    };
+    CHECK(row(*shown, 3) == "  hello" + std::string(73, ' ') + "\n");
+    CHECK(row(*shown, 0) == std::string(80, ' ') + "\n");
+    const gfx::WindowShown s = r.shown();
+    REQUIRE(s.rows.size() == 30);
+    for (std::size_t i = 0; i < 30; ++i) {
+        std::string trimmed = row(*shown, i).substr(0, 80);
+        trimmed.erase(trimmed.find_last_not_of(' ') + 1);
+        CHECK(trimmed == s.rows[i]);
+    }
+
+    // A drawing saying more is not shown yet, so the picture is still the one shown; shown, the
+    // next picture has it.
+    const auto draw = [&](const std::string& words, bool more) {
+        gfx::Sketch sk;
+        sk.text("words", 0, 0, words, gfx::by_role(gfx::role::kFill));
+        gfx::Drawn d;
+        d.area = kOwner;
+        d.whole = true;
+        d.put = sk.nodes();
+        d.more = more;
+        r.bus.office_send_to_role_as(t.owner, kOwner, window_office(),
+                                     loom::Message(loom::to_value(d)));
+        r.drain();
+    };
+    draw("world", true);
+    CHECK(w.capture() == shown);
+    draw("world", false);
+    const auto again = w.capture();
+    REQUIRE(again.has_value());
+    CHECK(row(*again, 3).substr(0, 8) == "  world ");
+
+    // At another size the next showing covers every cell, and the picture has that size.
+    t.term.size = {100, 36};
+    t.pump();
+    const auto larger = w.capture();
+    REQUIRE(larger.has_value());
+    CHECK(larger->width == 100);
+    CHECK(larger->height == 36);
+    REQUIRE(larger->bytes.size() == 36u * 101u);
+    CHECK(row(*larger, 3) == "  world" + std::string(93, ' ') + "\n");
+    t.term.size = {60, 20};
+    t.pump();
+    const auto smaller = w.capture();
+    REQUIRE(smaller.has_value());
+    CHECK(smaller->width == 60);
+    CHECK(smaller->height == 20);
+    CHECK(smaller->bytes.size() == 20u * 61u);
 }
 
 TEST_CASE("an area at its element bound still takes a change, and a record said again is itself") {
@@ -3333,6 +3422,111 @@ TEST_CASE("the terminal's claim, size and ink are the graphics package's, and Su
     CHECK(gw::tui_enter_sequence(true).find(gw::kTuiPointerOn) != std::string::npos);
 }
 
+TEST_CASE("a copy reaches a terminal as OSC 52: the text in standard base64 between the "
+          "sequence's own bytes") {
+    // RFC 4648's own vectors, both paddings among them.
+    CHECK(gw::terminal_base64("") == "");
+    CHECK(gw::terminal_base64("f") == "Zg==");
+    CHECK(gw::terminal_base64("fo") == "Zm8=");
+    CHECK(gw::terminal_base64("foo") == "Zm9v");
+    CHECK(gw::terminal_base64("foob") == "Zm9vYg==");
+    CHECK(gw::terminal_base64("fooba") == "Zm9vYmE=");
+    CHECK(gw::terminal_base64("foobar") == "Zm9vYmFy");
+    // Every byte is a byte, read unsigned: high ones and a zero, and the alphabet's last letters.
+    CHECK(gw::terminal_base64(std::string("\xff\xfe\x00", 3)) == "//4A");
+    CHECK(gw::terminal_base64(std::string("\xfb\xff", 2)) == "+/8=");
+    CHECK(gw::terminal_clipboard_sequence("hi") == "\x1b]52;c;aGk=\x07");
+    CHECK(gw::terminal_clipboard_sequence("") == "\x1b]52;c;\x07");
+}
+
+TEST_CASE("a window is put whole on the display it belongs to: as it was when it is, moved in only "
+          "as far as it must, its top-left kept when it is larger, and not moved with no display") {
+    const std::vector<gw::DesktopSpan> one = {{0, 0, 1000, 500}};
+    CHECK(gw::placement_within(100, 100, 200, 100, one) == gw::DesktopPoint{100, 100});
+    CHECK(gw::placement_within(800, 400, 200, 100, one) == gw::DesktopPoint{800, 400}); // edges
+    CHECK(gw::placement_within(-700, 100, 200, 100, one) == gw::DesktopPoint{0, 100});
+    CHECK(gw::placement_within(801, 100, 200, 100, one) == gw::DesktopPoint{800, 100});
+    CHECK(gw::placement_within(100, -1, 200, 100, one) == gw::DesktopPoint{100, 0});
+    CHECK(gw::placement_within(100, 450, 200, 100, one) == gw::DesktopPoint{100, 400});
+    // Larger than the display: the strip a hand drags it by stays on the screen.
+    CHECK(gw::placement_within(-4000, -4000, 2400, 1400, one) == gw::DesktopPoint{0, 0});
+    CHECK(gw::placement_within(300, 200, 2400, 300, one) == gw::DesktopPoint{0, 200});
+
+    // Two displays, one at negative x: the one a window overlaps most, else the nearest.
+    const std::vector<gw::DesktopSpan> two = {{0, 0, 1920, 1040}, {-1920, 0, 1920, 1040}};
+    CHECK(gw::placement_within(-1800, 50, 800, 600, two) == gw::DesktopPoint{-1800, 50});
+    CHECK(gw::placement_within(-200, 50, 800, 600, two) == gw::DesktopPoint{0, 50});
+    CHECK(gw::placement_within(-600, 50, 800, 600, two) == gw::DesktopPoint{-800, 50});
+    CHECK(gw::placement_within(-5000, 50, 800, 600, two) == gw::DesktopPoint{-1920, 50});
+    CHECK(gw::placement_within(5000, 50, 800, 600, two) == gw::DesktopPoint{1920 - 800, 50});
+    CHECK(gw::placement_within(400, 1200, 800, 600, two) == gw::DesktopPoint{400, 1040 - 600});
+    CHECK(gw::home_display(-700, 50, 800, 600, two).x == -1920);
+    CHECK(gw::home_display(-100, 50, 800, 600, two).x == 0);
+    CHECK(gw::moved_within(50, 10, 0, 100) == 50);
+    CHECK(gw::moved_within(95, 10, 0, 100) == 90);
+    CHECK(gw::moved_within(-5, 10, 0, 100) == 0);
+    CHECK(gw::moved_within(5, 200, 0, 100) == 0);
+
+    // With no display truth there is no answer: a remembered place is never replayed blind.
+    CHECK_FALSE(gw::placement_within(100, 100, 800, 600, {}).has_value());
+}
+
+TEST_CASE("a window nobody placed is centred on its display, a larger one at its top-left, and a "
+          "window grows only as far as its display holds it, frame and all, never smaller") {
+    const gw::DesktopSpan primary{0, 0, 1920, 1040};
+    CHECK(gw::centred_within(800, 600, primary) == gw::DesktopPoint{560, 220});
+    CHECK(gw::centred_within(800, 600, gw::DesktopSpan{-1920, -1080, 1920, 1040}) ==
+          gw::DesktopPoint{-1920 + 560, -1080 + 220});
+    CHECK(gw::centred_within(800, 1400, primary) == gw::DesktopPoint{560, 0});
+    CHECK(gw::centred_within(2400, 1400, primary) == gw::DesktopPoint{0, 0});
+
+    const gw::DesktopSpan display{0, 0, 1920, 1032};
+    CHECK(gw::grown_within({1200, 700}, {800, 600}, 16, 39, display) == gw::PixelSize{1200, 700});
+    CHECK(gw::grown_within({2400, 1440}, {800, 600}, 16, 39, display) ==
+          gw::PixelSize{1920 - 16, 1032 - 39});
+    // A weaver's own larger window stays as large.
+    CHECK(gw::grown_within({2400, 700}, {2200, 600}, 16, 39, display) == gw::PixelSize{2200, 700});
+    CHECK(gw::grown_within({100, 100}, {800, 600}, 16, 39, display) == gw::PixelSize{800, 600});
+}
+
+TEST_CASE("a picture read back from light is a 24-bit bottom-up BMP: its header says its size, each "
+          "row is padded to four bytes, and the last row comes first") {
+    // Two rows of two pixels, blue, green, red each, a row every eight bytes as SDL's may be.
+    const std::uint8_t px[] = {1, 2, 3, 4,  5,  6,  0xaa, 0xaa,
+                               7, 8, 9, 10, 11, 12, 0xbb, 0xbb};
+    const std::string bmp = gw::bmp_of_bgr24(2, 2, 8, px);
+    const auto le = [&bmp](std::size_t at, int bytes) {
+        std::uint64_t v = 0;
+        for (int i = bytes - 1; i >= 0; --i) {
+            v = (v << 8) | static_cast<unsigned char>(bmp[at + static_cast<std::size_t>(i)]);
+        }
+        return v;
+    };
+    REQUIRE(bmp.size() == 54 + 2 * 8);
+    CHECK(bmp.substr(0, 2) == "BM");
+    CHECK(le(2, 4) == bmp.size());
+    CHECK(le(10, 4) == 54); // where the pixels start
+    CHECK(le(14, 4) == 40);
+    CHECK(le(18, 4) == 2);  // wide
+    CHECK(le(22, 4) == 2);  // tall, and positive: bottom-up
+    CHECK(le(26, 2) == 1);
+    CHECK(le(28, 2) == 24);
+    CHECK(le(30, 4) == 0); // no compression
+    CHECK(le(34, 4) == 16);
+    CHECK(bmp.substr(54, 8) == std::string("\x07\x08\x09\x0a\x0b\x0c\x00\x00", 8));
+    CHECK(bmp.substr(62, 8) == std::string("\x01\x02\x03\x04\x05\x06\x00\x00", 8));
+
+    // A row four bytes long already takes no padding, and one pixel's row takes one byte.
+    const std::uint8_t four[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
+    CHECK(gw::bmp_of_bgr24(4, 1, 12, four).size() == 54 + 12);
+    CHECK(gw::bmp_of_bgr24(1, 1, 3, four).substr(54) == std::string("\x01\x02\x03\x00", 4));
+    // Nothing to draw is the header alone; a size the format cannot hold, or no pixels, is none.
+    CHECK(gw::bmp_of_bgr24(0, 0, 0, nullptr).size() == 54);
+    CHECK(gw::bmp_of_bgr24(-3, 5, 0, nullptr).size() == 54);
+    CHECK(gw::bmp_of_bgr24(2, 2, 8, nullptr).empty());
+    CHECK(gw::bmp_of_bgr24(INT32_MAX, INT32_MAX, 0, px).empty());
+}
+
 TEST_CASE("the day and night skins paint light across the painter seam, each in its own look, and "
           "a skin for characters does not") {
     gw::Painters painters;
@@ -3385,16 +3579,51 @@ struct LightLog {
         std::vector<std::string> paths;
         std::vector<std::uint64_t> versions;
         std::vector<light::NodePrimitives> nodes;
+        bool operator==(const Area&) const = default;
     };
     struct Frame {
         std::int64_t width = 0, height = 0;
         std::uint32_t ground = 0;
         std::vector<Area> areas;
+        bool operator==(const Frame&) const = default;
     };
     gw::PixelSize size{gw::kDefaultWidth, gw::kDefaultHeight};
     gw::PixelPolled queued;
     std::vector<Frame> frames;
     int claims = 0;
+    bool drawing = true; ///< false: no OS window, so nothing is presented
+    bool reading = true; ///< false: a picture cannot be read back
+    std::vector<Frame> captured;              ///< each picture it was asked to read back
+    std::optional<std::string> clipboard;     ///< what its clipboard holds; none: no read exists
+    std::vector<std::string> copies;
+    int reads = 0;                            ///< how often its clipboard was read
+    std::optional<gw::WindowPlacementValue> placement;
+    std::vector<gw::WindowPlacementValue> placed;
+    std::vector<gw::PixelSize> grown;         ///< each size it was asked to grow toward
+    int maximized = 0;
+
+    static Frame kept_of(const gw::ComposedLightFrame& frame) {
+        Frame f{frame.width, frame.height, frame.ground, {}};
+        for (const gw::LightAreaShown& a : frame.areas) {
+            Area kept{a.area, a.x, a.y, a.w, a.h, {}, {}, {}};
+            for (const gw::LightNodeShown& n : a.nodes) {
+                kept.paths.push_back(n.path);
+                kept.versions.push_back(n.version);
+                kept.nodes.push_back(*n.prims);
+            }
+            f.areas.push_back(std::move(kept));
+        }
+        return f;
+    }
+
+    /// The picture this backend reads back: one pixel of a frame's ground (0xRRGGBBAA), as a BMP.
+    static gw::CapturedWindowPicture picture_of(std::uint32_t ground) {
+        const std::uint8_t bgr[3] = {static_cast<std::uint8_t>((ground >> 8) & 0xffu),
+                                     static_cast<std::uint8_t>((ground >> 16) & 0xffu),
+                                     static_cast<std::uint8_t>((ground >> 24) & 0xffu)};
+        return gw::CapturedWindowPicture{1, 1, gfx::kCellPx, "image/bmp",
+                                         gw::bmp_of_bgr24(1, 1, 3, bgr)};
+    }
 
     const Area* area(const std::string& name) const {
         if (frames.empty()) {
@@ -3417,24 +3646,33 @@ public:
     void claim() { ++log_->claims; }
     gw::PixelSize size() const { return log_->size; }
     bool present(const gw::ComposedLightFrame& frame) {
-        LightLog::Frame f{frame.width, frame.height, frame.ground, {}};
-        for (const gw::LightAreaShown& a : frame.areas) {
-            LightLog::Area kept{a.area, a.x, a.y, a.w, a.h, {}, {}, {}};
-            for (const gw::LightNodeShown& n : a.nodes) {
-                kept.paths.push_back(n.path);
-                kept.versions.push_back(n.version);
-                kept.nodes.push_back(*n.prims);
-            }
-            f.areas.push_back(std::move(kept));
+        if (!log_->drawing) {
+            return false;
         }
-        log_->frames.push_back(std::move(f));
+        log_->frames.push_back(LightLog::kept_of(frame));
         return true;
+    }
+    std::optional<gw::CapturedWindowPicture> capture(const gw::ComposedLightFrame& frame) {
+        log_->captured.push_back(LightLog::kept_of(frame));
+        if (!log_->reading) {
+            return std::nullopt;
+        }
+        return LightLog::picture_of(frame.ground);
     }
     gw::PixelPolled poll() {
         gw::PixelPolled out = std::move(log_->queued);
         log_->queued = {};
         return out;
     }
+    void clipboard_copy(std::string_view text) { log_->copies.emplace_back(text); }
+    std::optional<std::string> clipboard_text() {
+        ++log_->reads;
+        return log_->clipboard;
+    }
+    std::optional<gw::WindowPlacementValue> placement() { return log_->placement; }
+    void place(const gw::WindowPlacementValue& want) { log_->placed.push_back(want); }
+    void grow(const gw::PixelSize& want) { log_->grown.push_back(want); }
+    void maximize() { ++log_->maximized; }
 
 private:
     LightLog* log_ = nullptr;
@@ -3922,6 +4160,127 @@ TEST_CASE("the OS window's page answers for every shape it accepts, and names no
     check_page_names_accepted(zengine::manual::pages::zengine_window_sdl::kManual, described);
 }
 
+TEST_CASE("the OS window has its backend read back the last picture it presented: none before one, "
+          "and never a drawing held back since, nor without a node removed since") {
+    // Nothing presented, nothing to read back; with no OS window, nothing is presented.
+    LightLog quiet;
+    quiet.drawing = false;
+    gw::LightMedium<FakeSdlBackend> medium(FakeSdlBackend{&quiet});
+    CHECK_FALSE(medium.capture().has_value());
+    medium.claim();
+    medium.show({});
+    CHECK(medium.showings() == 0);
+    CHECK_FALSE(medium.capture().has_value());
+    CHECK(quiet.captured.empty());
+    quiet.drawing = true;
+    medium.clear();
+    medium.show({});
+    REQUIRE(medium.showings() == 1);
+    REQUIRE(medium.capture().has_value());
+    CHECK(quiet.captured.back() == quiet.frames.back());
+
+    LitWindow t;
+    t.own("test.lit", 0, 0, 400, 200, "night");
+    gfx::Sketch one;
+    one.text("t", 0, 0, "one", gfx::by_role(gfx::role::kFill));
+    one.fill_rect("gone", 0, 24, 48, 12, gfx::by_role(gfx::role::kAccent));
+    t.say("test.lit", whole("test.lit", one));
+    const LightLog::Frame presented = t.light.frames.back();
+    REQUIRE(t.light.area("test.lit") != nullptr);
+    REQUIRE(t.light.area("test.lit")->nodes.size() == 2);
+    const std::size_t frames = t.light.frames.size();
+
+    // Held back: its text changed and a node removed, with more of the beat to follow.
+    gfx::Sketch two;
+    two.text("t", 0, 0, "two", gfx::by_role(gfx::role::kFill));
+    t.say("test.lit", gfx::Drawn{"test.lit", false, two.nodes(), {"gone"}, {}, {}, true});
+    REQUIRE(t.light.frames.size() == frames);
+
+    // What is read back is the picture presented, whole: its text, and the node gone since.
+    const auto first = t.instance->capture();
+    REQUIRE(first.has_value());
+    REQUIRE(t.light.captured.size() == 1);
+    CHECK(t.light.captured[0] == presented);
+    CHECK(*first == LightLog::picture_of(presented.ground));
+
+    // Presented, the picture read back is the one shown now.
+    t.say("test.lit", gfx::Drawn{"test.lit", false, two.nodes(), {}, {}, {}, false});
+    REQUIRE(t.light.frames.size() == frames + 1);
+    REQUIRE(t.instance->capture().has_value());
+    CHECK(t.light.captured.back() == t.light.frames.back());
+    REQUIRE(t.light.captured.back().areas.size() == 1);
+    CHECK(t.light.captured.back().areas[0].paths == std::vector<std::string>{"t"});
+
+    // A backend that cannot read its picture back answers none, and so does the window.
+    t.light.reading = false;
+    CHECK_FALSE(t.instance->capture().has_value());
+}
+
+TEST_CASE("the OS window's clipboard and its place on the desktop are its backend's: a copy handed "
+          "on, the clipboard read only when asked, its placement read, and a remembered place") {
+    LitWindow t;
+    t.own("test.lit", 0, 0, 400, 200, "night");
+    FakeSdlWindow& w = *t.instance;
+    w.clipboard_copy("soup");
+    CHECK(t.light.copies == std::vector<std::string>{"soup"});
+    t.pump();
+    CHECK(t.light.reads == 0); // the beat reads no clipboard
+    CHECK_FALSE(w.clipboard_text().has_value());
+    t.light.clipboard = "stock";
+    CHECK(w.clipboard_text() == std::optional<std::string>("stock"));
+    t.light.clipboard = "";
+    CHECK(w.clipboard_text() == std::optional<std::string>(""));
+    CHECK(t.light.reads == 3);
+
+    CHECK_FALSE(w.placement().has_value());
+    t.light.placement = gw::WindowPlacementValue{-1200, 40, true};
+    CHECK(w.placement() == t.light.placement);
+    w.place(gw::WindowPlacementValue{300, 200, false});
+    REQUIRE(t.light.placed.size() == 1);
+    CHECK(t.light.placed[0] == gw::WindowPlacementValue{300, 200, false});
+}
+
+TEST_CASE("the OS window asks its backend to grow once for each new reach of its areas past it, and "
+          "maximizes a remembered maximize on the beat after its next picture, once") {
+    LitWindow t;
+    t.own("test.small", 0, 0, 400, 200, "night");
+    CHECK(t.light.grown.empty()); // within the window: nothing asked
+    t.own("test.wide", 100, 50, 1900, 950, "night", 1); // to 2000 x 1000, past 1600 x 900
+    REQUIRE(t.light.grown.size() == 1);
+    CHECK(t.light.grown[0] == gw::PixelSize{2000, 1000});
+    gfx::Sketch s;
+    s.fill_rect("r", 0, 0, 24, 12, gfx::by_role(gfx::role::kFill));
+    t.say("test.wide", whole("test.wide", s));
+    t.pump();
+    CHECK(t.light.grown.size() == 1); // more pictures, the same reach: not asked again
+    // A window a weaver made smaller is not grown back while its areas stay where they are...
+    t.light.size = gw::PixelSize{1200, 700};
+    t.pump();
+    CHECK(t.light.grown.size() == 1);
+    // ...and an area placed further out asks again, for the whole reach.
+    t.own("test.tall", 0, 0, 100, 1200, "night", 2);
+    REQUIRE(t.light.grown.size() == 2);
+    CHECK(t.light.grown[1] == gw::PixelSize{2000, 1200});
+
+    // A remembered maximize waits for the next picture, and lands on the beat after it, once.
+    t.instance->place(gw::WindowPlacementValue{50, 60, true});
+    CHECK(t.light.placed.back() == gw::WindowPlacementValue{50, 60, true});
+    t.pump();
+    CHECK(t.light.maximized == 0); // no picture yet
+    t.say("test.small", whole("test.small", s));
+    CHECK(t.light.maximized == 0); // not on the picture's own beat
+    t.pump();
+    CHECK(t.light.maximized == 1);
+    t.pump();
+    CHECK(t.light.maximized == 1);
+    // A later want, not maximized, replaces one still waiting.
+    t.instance->place(gw::WindowPlacementValue{50, 60, true});
+    t.instance->place(gw::WindowPlacementValue{70, 80, false});
+    t.say("test.small", whole("test.small", s));
+    t.pump();
+    CHECK(t.light.maximized == 1);
+}
+
 #if defined(GRAPHICS_HAS_SDL)
 
 namespace {
@@ -4127,6 +4486,189 @@ TEST_CASE("the OS window empties SDL's own queue: a key's release, a move, anoth
     CHECK(w.heard.wheels[0].dy == doctest::Approx(-1.0)); // flipped, put back
     CHECK(w.heard.wheels[0].x == 32);
     CHECK(queued_events() == 0); // the close too was the window's to take
+}
+
+namespace {
+
+using RealSdlWindow = gw::SdlWindowT<gw::ProcessSdlBackend>;
+
+/// The OS window over its own SDL backend, mounted in process at its office beside the directory as
+/// `LitWindow` mounts it over the suite's, an owner placed in it with the day skin: a case may ask
+/// it what only C++ in its own process can, its clipboard, its place and its picture.
+struct RealLit {
+    Rig r;
+    LitHeard heard;
+    loom::WeaveId window;
+    loom::WeaveId owner;
+    RealSdlWindow* instance = nullptr;
+    RealLit() {
+        REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
+        auto w = std::make_unique<RealSdlWindow>();
+        instance = w.get();
+        loom::Grant g = loom::emit_default_grant(*instance);
+        window = r.bus.register_weave(std::move(w), std::move(g), sdl_office());
+        instance->zen_set_self(window);
+        const loom::WeaveId door = zengine::testing::mount_door(r.bus);
+        zengine::testing::order_activation(r.bus, door, window, 1);
+        r.to_role(gfx::kGraphicsRole, gfx::SkinOffered{"day", PAINT_DAY_SO});
+        auto made = std::make_unique<LitOwner>(heard);
+        LitOwner* raw = made.get();
+        loom::Grant og = loom::emit_default_grant(*raw);
+        owner = r.bus.register_weave(std::move(made), std::move(og), "test.lit");
+        raw->zen_set_self(owner);
+        r.drain();
+    }
+    /// The owner's area at (x, y), w by h pixels.
+    void place_area(std::int64_t x, std::int64_t y, std::int64_t w, std::int64_t h) {
+        r.to_role(gfx::kGraphicsRole,
+                  gfx::AreaPlaced{"test.lit", gfx::kSdlWindow, "test.lit", x, y, w, h, 0, false});
+        r.to_role(gfx::kGraphicsRole, gfx::SkinChosen{"test.lit", "day"});
+        r.drain();
+    }
+    void draw(const gfx::Sketch& s) {
+        r.bus.office_send_to_role_as(owner, "test.lit", sdl_office(),
+                                     loom::Message(loom::to_value(whole("test.lit", s))));
+        r.drain();
+    }
+    void pump() {
+        r.bus.send(window, loom::Message(loom::to_value(
+                               zengine::timer::TimerFired{gw::kPumpTimerId})));
+        r.drain();
+    }
+    gfx::WindowShown shown() {
+        r.bus.send_as_to_role(r.ears, sdl_office(),
+                              loom::Message(loom::to_value(gfx::WindowShowAsked{}), r.ears,
+                                            r.ears, r.next_corr++));
+        r.drain();
+        return r.heard.shown.empty() ? gfx::WindowShown{} : r.heard.shown.back();
+    }
+};
+
+/// SDL's own window for the one OS window the process holds.
+SDL_Window* the_os_window() {
+    const std::vector<SDL_WindowID> ids = os_windows();
+    return ids.size() == 1 ? SDL_GetWindowFromID(ids[0]) : nullptr;
+}
+
+/// The primary display's usable area as a platform that keeps some of it reports it, for one case.
+struct UsableBounds {
+    explicit UsableBounds(const char* rect) { SDL_SetHint(SDL_HINT_DISPLAY_USABLE_BOUNDS, rect); }
+    ~UsableBounds() { SDL_ResetHint(SDL_HINT_DISPLAY_USABLE_BOUNDS); }
+    UsableBounds(const UsableBounds&) = delete;
+    UsableBounds& operator=(const UsableBounds&) = delete;
+};
+
+} // namespace
+
+TEST_CASE("the OS window over SDL opens centred on its display's usable area, its top-left there "
+          "when it is larger, grows within it for an area placed past it, and goes to a "
+          "remembered place kept whole there") {
+    sdl_video_driver("dummy"); // a real SDL with no display, run inside the lane or out of it
+    // A usable area smaller than the window: SDL alone centres such a window on the whole
+    // display, past the usable area's corner; the window keeps its top-left on it.
+    UsableBounds usable("100,50,1000,600");
+    RealLit t;
+    SDL_Window* os = the_os_window();
+    REQUIRE(os != nullptr);
+    int x = 0, y = 0, w = 0, h = 0;
+    REQUIRE(SDL_GetWindowPosition(os, &x, &y));
+    CHECK(x == 100);
+    CHECK(y == 50);
+    CHECK(t.instance->placement() == gw::WindowPlacementValue{100, 50, false});
+
+    // Room enough: an area past the window grows it to the area, and the window, which nobody
+    // has placed, is centred again.
+    SDL_SetHint(SDL_HINT_DISPLAY_USABLE_BOUNDS, "100,50,3000,2000");
+    t.place_area(0, 0, 2400, 1500);
+    REQUIRE(SDL_GetWindowSize(os, &w, &h));
+    CHECK(w == 2400);
+    CHECK(h == 1500);
+    CHECK(t.instance->placement() == gw::WindowPlacementValue{400, 300, false});
+    t.pump();
+    CHECK(t.shown().rows.size() == static_cast<std::size_t>(1500 / gfx::kCellPx));
+
+    // A remembered place far off the display comes back whole on it...
+    t.instance->place(gw::WindowPlacementValue{-5000, 99999, false});
+    REQUIRE(SDL_GetWindowPosition(os, &x, &y));
+    CHECK(x == 100);
+    CHECK(y == 550);
+    CHECK(t.instance->placement() == gw::WindowPlacementValue{100, 550, false});
+    // ...and from there the window grows where it stands, moved in only as far as it must.
+    t.place_area(0, 0, 2900, 1900);
+    REQUIRE(SDL_GetWindowSize(os, &w, &h));
+    CHECK(w == 2900);
+    CHECK(h == 1900);
+    CHECK(t.instance->placement() == gw::WindowPlacementValue{100, 150, false});
+}
+
+TEST_CASE("the OS window over SDL copies to SDL's clipboard and reads it only when asked, and "
+          "reads back the picture it presented as a BMP of the pixels it drew") {
+    sdl_video_driver("dummy"); // a real SDL with no display, run inside the lane or out of it
+    RealLit t;
+    t.place_area(0, 0, 400, 200);
+    gfx::Sketch s;
+    s.fill_rect("red", 24, 12, 48, 24, gfx::exact(gfx::role::kAccent, 0xff0000));
+    s.fill_rect("blue", 100, 50, 10, 10, gfx::exact(gfx::role::kAccent, 0x0000ff));
+    t.draw(s);
+
+    // The clipboard: emptied, it reads as empty; what the window copies is SDL's, and what anyone
+    // copied is read back when asked.
+    t.instance->clipboard_copy("");
+    CHECK(t.instance->clipboard_text() == std::optional<std::string>(""));
+    t.instance->clipboard_copy("soup");
+    char* direct = SDL_GetClipboardText();
+    REQUIRE(direct != nullptr);
+    CHECK(std::string(direct) == "soup");
+    SDL_free(direct);
+    CHECK(t.instance->clipboard_text() == std::optional<std::string>("soup"));
+    REQUIRE(SDL_SetClipboardText("stock"));
+    CHECK(t.instance->clipboard_text() == std::optional<std::string>("stock"));
+
+    // The picture: the window's size in pixels, a BMP, each pixel what the window drew there.
+    const std::int64_t showings = t.shown().showings;
+    const auto p = t.instance->capture();
+    REQUIRE(p.has_value());
+    CHECK(p->format == "image/bmp");
+    CHECK(p->cell_px == gfx::kCellPx);
+    int w = 0, h = 0;
+    REQUIRE(SDL_GetWindowSizeInPixels(the_os_window(), &w, &h));
+    CHECK(p->width == w);
+    CHECK(p->height == h);
+    const std::size_t row = (static_cast<std::size_t>(w) * 3 + 3) & ~std::size_t{3};
+    REQUIRE(p->bytes.size() == 54 + row * static_cast<std::size_t>(h));
+    CHECK(p->bytes.substr(0, 2) == "BM");
+    const auto rgb = [&](int px, int py) { // the BMP's blue, green and red at a window pixel
+        const std::size_t at = 54 + static_cast<std::size_t>(h - 1 - py) * row +
+                               static_cast<std::size_t>(px) * 3;
+        const auto byte = [&](std::size_t i) {
+            return static_cast<std::uint32_t>(static_cast<unsigned char>(p->bytes[at + i]));
+        };
+        return (byte(2) << 16) | (byte(1) << 8) | byte(0);
+    };
+    const std::uint32_t ground = static_cast<std::uint32_t>(light::day_look().ground);
+    CHECK(rgb(30, 20) == 0xff0000u);
+    CHECK(rgb(105, 55) == 0x0000ffu);
+    CHECK(rgb(300, 150) == ground);  // in the area, where nothing was drawn
+    CHECK(rgb(1000, 600) == ground); // outside every area
+    CHECK(t.shown().showings == showings); // read back, not shown again
+}
+
+TEST_CASE("the OS window over SDL with no display has no clipboard to read, no placement, nothing "
+          "to move and no picture to read back") {
+    sdl_video_driver("zengine-no-such-driver");
+    {
+        RealLit t;
+        t.place_area(0, 0, 400, 200);
+        t.instance->clipboard_copy("soup");
+        CHECK_FALSE(t.instance->clipboard_text().has_value());
+        CHECK_FALSE(t.instance->placement().has_value());
+        t.instance->place(gw::WindowPlacementValue{10, 20, true});
+        CHECK_FALSE(t.instance->placement().has_value());
+        CHECK_FALSE(t.instance->capture().has_value());
+        CHECK(os_windows().empty());
+        CHECK(SDL_WasInit(SDL_INIT_VIDEO) == 0);
+    }
+    sdl_video_driver("dummy");
 }
 
 #endif // GRAPHICS_HAS_SDL

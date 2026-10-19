@@ -18,6 +18,9 @@ keeps, is [surface](surface.md); where the two meet is the last section here.
   and presses are one class over its medium (`graphics/window/window.hpp`); what a medium keeps
   painted, how it shows it and what it reads are the medium's alone (`window_terminal.hpp`,
   `window_sdl.hpp`). A medium never holds a node, a record or an element the store does not.
+- **A medium answers for its platform to C++ in its own process**: a close its desktop asked, the
+  clipboard, its place on the desktop, and the picture it last presented, read back -- never one a
+  drawing saying `more` holds back. The clipboard is read when a paste asks, never on the beat.
 - **Nothing on the path a picture takes but the drawer and its window.** The directory introduces;
   it never holds a node, a record or a painted cell, and a skin chosen or an area moved sends the
   window a word, never a drawing.
