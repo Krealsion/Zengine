@@ -299,10 +299,13 @@ void WorkshopWeave::on(const OfficeSettingCommitRequested& asked, loom::Mail& ma
     }
     const prefs_persist::Prefs before = prefs_;
     (void)prefs_persist::put_office_value(prefs_, asked.office, asked.key, value);
-    if (prefs_persist::kept_count(prefs_) > kMaxOfficeSettingsKept) {
+    // WITHIN THE FILE'S BOUNDS, so the file written is one the next launch reads.
+    if (prefs_persist::kept_count(prefs_) > kMaxOfficeSettingsKept ||
+        prefs_.offices.size() > kMaxSettingOffices) {
         prefs_ = before;
         refuse("Workshop keeps at most " + std::to_string(kMaxOfficeSettingsKept) +
-                   " office-wide settings",
+                   " office-wide settings, for at most " + std::to_string(kMaxSettingOffices) +
+                   " offices",
                current);
         return;
     }
