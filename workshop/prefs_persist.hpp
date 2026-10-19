@@ -6,9 +6,9 @@
 
 // WORKSHOP'S SETTINGS FILE -- a seventh durable artifact, and the second file of the
 // weaver-configuration kind: every office's office-wide settings Workshop keeps (Workshop's own
-// among them), the pin lists an editor shows a pane's settings in, and the locks that hold a
-// setting everywhere. A version-1 or version-2 file, which held three preferences as words, is
-// read as Workshop's own three settings.
+// among them), the pin lists an editor shows a pane's settings in, the locks that hold a setting
+// in one layout or everywhere, and each layout's baseline theme. A version-1 or version-2 file,
+// which held three preferences as words, is read as Workshop's own three settings.
 // Workshop law: agents/workshop/settings.md, agents/workshop/focus.md, agents/workshop/key-spelling.md
 
 #include "keymap.hpp"
@@ -49,9 +49,11 @@ inline constexpr std::int64_t kTitlesOnlyVersion = 1;
 /// not get to choose the cost of refusing it.
 inline constexpr std::uintmax_t kMaxPrefsBytes = 1u << 16;
 
-/// The most pin lists and everywhere locks the file keeps, and the longest target either names.
+/// The most pin lists, locks and layout baselines the file keeps, and the longest target a pin
+/// list or a lock names before any `@<layout>`.
 inline constexpr std::size_t kMaxPinLists = 32;
-inline constexpr std::size_t kMaxEverywhereLocks = 128;
+inline constexpr std::size_t kMaxLocks = 128;
+inline constexpr std::size_t kMaxLayoutThemes = 32;
 inline constexpr std::size_t kMaxSettingTargetLen = 128;
 
 /// The file's suggested name, beside the family's other defaults.
@@ -200,19 +202,14 @@ struct PinList {
     friend bool operator==(const PinList&, const PinList&) = default;
 };
 
-/// AN EVERYWHERE LOCK: a pane target (`<office>/<pane>`) pins its value, or `clear` pins its
-/// default; an office target freezes the office's one value and carries none.
-struct SettingLock {
-    std::string target;
-    std::string key;
-    std::optional<bool> flag = std::nullopt;
-    std::optional<std::int64_t> number = std::nullopt;
-    std::optional<std::string> text = std::nullopt;
-    bool clear = false;
-    ZEN_SHAPE(SettingLock, 1, ZEN_FIELD(target), ZEN_FIELD(key), ZEN_FIELD(flag),
-              ZEN_FIELD(number), ZEN_FIELD(text), ZEN_FIELD(clear));
-    friend bool operator==(const SettingLock&, const SettingLock&) = default;
-};
+/// A lock as the file keeps it (`settings_seam_vocabulary.hpp`), the shape the doors carry.
+using workshop::SettingLock;
+
+/// A LAYOUT'S BASELINE IS KEPT AS AN OFFICE OF ITS OWN, `@<layout>`, holding the theme's name and
+/// its fingerprint under these two keys.
+inline constexpr char kLayoutThemeOfficeMark = '@';
+inline constexpr const char* kLayoutThemeNameKey = "theme";
+inline constexpr const char* kLayoutThemeFingerprintKey = "fingerprint";
 
 /// A whole saved settings file: what it is, which version, and what it keeps.
 struct WorkshopPrefs {
@@ -333,11 +330,22 @@ inline bool put_office_value(Prefs& p, const std::string& office, const std::str
     return true;
 }
 
-/// How many settings the file keeps, every office's together.
+/// Whether an office entry is a layout's baseline (`@<layout>`) rather than an office.
+inline bool is_layout_theme_entry(std::string_view office) noexcept {
+    return !office.empty() && office.front() == kLayoutThemeOfficeMark;
+}
+
+/// How many offices the file keeps settings for, and how many settings, every office's together;
+/// a layout's baseline is neither.
+inline std::size_t office_count(const Prefs& p) noexcept {
+    return static_cast<std::size_t>(std::count_if(
+        p.offices.begin(), p.offices.end(),
+        [](const OfficeSettingsKept& o) { return !is_layout_theme_entry(o.office); }));
+}
 inline std::size_t kept_count(const Prefs& p) noexcept {
     std::size_t n = 0;
     for (const OfficeSettingsKept& o : p.offices) {
-        n += o.settings.size();
+        n += is_layout_theme_entry(o.office) ? 0 : o.settings.size();
     }
     return n;
 }
@@ -374,6 +382,111 @@ inline const SettingLock* lock_on(const Prefs& p, std::string_view target,
         }
     }
     return nullptr;
+}
+
+/// A pane target's name for one layout's list or lock: `<office>/<pane>@<layout>`.
+inline std::string layout_target(std::string_view target, std::string_view layout) {
+    return std::string(target) + "@" + std::string(layout);
+}
+
+/// PUT A LOCK under its target and key, in that order; one already there is replaced.
+inline void put_lock(Prefs& p, SettingLock lock) {
+    for (SettingLock& l : p.locks) {
+        if (l.target == lock.target && l.key == lock.key) {
+            l = std::move(lock);
+            return;
+        }
+    }
+    const auto at = std::find_if(p.locks.begin(), p.locks.end(), [&](const SettingLock& l) {
+        return std::tie(l.target, l.key) > std::tie(lock.target, lock.key);
+    });
+    p.locks.insert(at, std::move(lock));
+}
+
+/// TAKE THE LOCK ON `key` UNDER `target` AWAY. Says whether there was one.
+inline bool drop_lock(Prefs& p, std::string_view target, std::string_view key) {
+    return std::erase_if(p.locks, [&](const SettingLock& l) {
+               return l.target == target && l.key == key;
+           }) != 0;
+}
+
+/// A LAYOUT'S BASELINE, or a name of "" when the file keeps none for it.
+inline LayoutTheme layout_theme_of(const Prefs& p, std::string_view layout) {
+    LayoutTheme out;
+    const std::string office = std::string(1, kLayoutThemeOfficeMark) + std::string(layout);
+    if (const PaneSetting* name = office_value(p, office, kLayoutThemeNameKey)) {
+        out.name = name->text.value_or(std::string());
+    }
+    if (const PaneSetting* fingerprint = office_value(p, office, kLayoutThemeFingerprintKey)) {
+        out.fingerprint = fingerprint->number.value_or(0);
+    }
+    return out;
+}
+
+/// KEEP A LAYOUT'S BASELINE, or remove it with a name of "". Says whether anything changed.
+inline bool set_layout_theme(Prefs& p, std::string_view layout, const LayoutTheme& theme) {
+    const std::string office = std::string(1, kLayoutThemeOfficeMark) + std::string(layout);
+    if (theme.name.empty()) {
+        const bool name = put_office_value(p, office, kLayoutThemeNameKey, std::nullopt);
+        const bool fingerprint =
+            put_office_value(p, office, kLayoutThemeFingerprintKey, std::nullopt);
+        return name || fingerprint;
+    }
+    PaneSetting name;
+    name.text = theme.name;
+    PaneSetting fingerprint;
+    fingerprint.number = theme.fingerprint;
+    const bool named = put_office_value(p, office, kLayoutThemeNameKey, name);
+    const bool printed = put_office_value(p, office, kLayoutThemeFingerprintKey, fingerprint);
+    return named || printed;
+}
+
+/// WHAT THE FILE KEEPS FOR LAYOUT `from` -- its pin lists, its locks and its baseline -- KEPT FOR
+/// `to` INSTEAD; an entry `to` already has is kept and `from`'s dropped. With `to` empty, `from`'s
+/// are dropped. Says whether anything changed.
+inline bool move_layout_entries(Prefs& p, std::string_view from, std::string_view to) {
+    const auto base_of = [&](const std::string& target) -> std::optional<std::string> {
+        const std::size_t at = target.find('@');
+        if (at == std::string::npos || std::string_view(target).substr(at + 1) != from) {
+            return std::nullopt;
+        }
+        return target.substr(0, at);
+    };
+    const Prefs before = p;
+    std::vector<PinList> pins;
+    for (PinList& l : p.pins) {
+        if (const std::optional<std::string> base = base_of(l.target)) {
+            if (!to.empty() && pin_list(before, layout_target(*base, to)) == nullptr) {
+                pins.push_back(PinList{layout_target(*base, to), l.keys});
+            }
+            l.target.clear();
+        }
+    }
+    std::erase_if(p.pins, [](const PinList& l) { return l.target.empty(); });
+    for (PinList& l : pins) {
+        put_pin_list(p, std::move(l));
+    }
+    std::vector<SettingLock> locks;
+    for (SettingLock& l : p.locks) {
+        if (const std::optional<std::string> base = base_of(l.target)) {
+            if (!to.empty() && lock_on(before, layout_target(*base, to), l.key) == nullptr) {
+                SettingLock moved = l;
+                moved.target = layout_target(*base, to);
+                locks.push_back(std::move(moved));
+            }
+            l.target.clear();
+        }
+    }
+    std::erase_if(p.locks, [](const SettingLock& l) { return l.target.empty(); });
+    for (SettingLock& l : locks) {
+        put_lock(p, std::move(l));
+    }
+    const LayoutTheme theme = layout_theme_of(before, from);
+    (void)set_layout_theme(p, from, LayoutTheme{});
+    if (!to.empty() && !theme.name.empty() && layout_theme_of(before, to).name.empty()) {
+        (void)set_layout_theme(p, to, theme);
+    }
+    return !(p == before);
 }
 
 // ---- Workshop's own settings, read and written as values --------------------------------
@@ -550,13 +663,52 @@ inline std::string target_problem(std::string_view target, const char* what) {
     return std::string();
 }
 
+/// WHAT IS WRONG WITH A PIN LIST'S OR A LOCK'S TARGET, or empty: a target, and after its first `@`
+/// a layout's name as a layout is named (`check_setup_name`), spaces and all.
+inline std::string layout_target_problem(std::string_view target, const char* what) {
+    const std::size_t at = target.find('@');
+    if (std::string wrong = target_problem(target.substr(0, at), what); !wrong.empty()) {
+        return wrong;
+    }
+    if (at == std::string_view::npos) {
+        return std::string();
+    }
+    if (const Written named = check_setup_name(std::string(target.substr(at + 1)));
+        !named.accepted) {
+        return std::string(what) + " `" + std::string(target) + "` names its layout wrongly: " +
+               named.refusal;
+    }
+    return std::string();
+}
+
+/// WHAT IS WRONG WITH A BASELINE'S THEME NAME, or empty: 1 to `kMaxPaneSettingTextLen` bytes of
+/// `a`-`z`, `0`-`9` and `-`, as a theme's file is named.
+inline std::string layout_theme_name_problem(std::string_view name) {
+    if (name.empty() || name.size() > kMaxPaneSettingTextLen) {
+        return "a baseline's theme name is 1 to " + std::to_string(kMaxPaneSettingTextLen) +
+               " bytes";
+    }
+    for (const char c : name) {
+        if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-')) {
+            return "a baseline's theme name is `a`-`z`, `0`-`9` and `-` -- `" + std::string(name) +
+                   "` is not";
+        }
+    }
+    return std::string();
+}
+
 /// WHAT IS WRONG WITH WHAT THE FILE KEEPS, or empty: each list within its bound and in
 /// its order, nothing twice, every setting sound, and Workshop's own values ones its settings
 /// take. A key of Workshop's office this build does not declare is kept as it is.
 inline std::string kept_problem(const Prefs& p) {
-    if (p.offices.size() > kMaxSettingOffices) {
+    if (office_count(p) > kMaxSettingOffices) {
         return "the file keeps settings for at most " + std::to_string(kMaxSettingOffices) +
-               " offices -- it lists " + std::to_string(p.offices.size());
+               " offices -- it lists " + std::to_string(office_count(p));
+    }
+    if (p.offices.size() - office_count(p) > kMaxLayoutThemes) {
+        return "the file keeps at most " + std::to_string(kMaxLayoutThemes) +
+               " layout baselines -- it keeps " +
+               std::to_string(p.offices.size() - office_count(p));
     }
     if (kept_count(p) > kMaxOfficeSettingsKept) {
         return "the file keeps at most " + std::to_string(kMaxOfficeSettingsKept) +
@@ -565,11 +717,34 @@ inline std::string kept_problem(const Prefs& p) {
     const std::vector<workshop::v2::PaneSettingRow> own = workshop_office_rows();
     for (std::size_t i = 0; i < p.offices.size(); ++i) {
         const OfficeSettingsKept& o = p.offices[i];
-        if (std::string wrong = target_problem(o.office, "an office"); !wrong.empty()) {
-            return wrong;
-        }
         if (i > 0 && !(p.offices[i - 1].office < o.office)) {
             return "office `" + o.office + "` is listed twice or out of order";
+        }
+        if (is_layout_theme_entry(o.office)) {
+            // A LAYOUT'S BASELINE: the layout's name, then its theme's name and fingerprint alone.
+            const std::string layout = o.office.substr(1);
+            if (const Written named = check_setup_name(layout); !named.accepted) {
+                return "the baseline of `" + o.office + "` names its layout wrongly: " +
+                       named.refusal;
+            }
+            const PaneSetting* name = find_pane_setting(o.settings, kLayoutThemeNameKey);
+            const PaneSetting* fingerprint =
+                find_pane_setting(o.settings, kLayoutThemeFingerprintKey);
+            if (o.settings.size() != 2 || name == nullptr || fingerprint == nullptr ||
+                setting_kind(*name) != SettingKind::kText ||
+                setting_kind(*fingerprint) != SettingKind::kNumber ||
+                !(o.settings[0].key < o.settings[1].key)) {
+                return "the baseline of layout `" + layout + "` keeps `" +
+                       std::string(kLayoutThemeFingerprintKey) + "` (a number) and `" +
+                       kLayoutThemeNameKey + "` (a text), in that order, and nothing else";
+            }
+            if (std::string wrong = layout_theme_name_problem(*name->text); !wrong.empty()) {
+                return "the baseline of layout `" + layout + "`: " + wrong;
+            }
+            continue;
+        }
+        if (std::string wrong = target_problem(o.office, "an office"); !wrong.empty()) {
+            return wrong;
         }
         if (o.settings.size() > kMaxOfficeSettings) {
             return "office `" + o.office + "` keeps more than " +
@@ -603,7 +778,8 @@ inline std::string kept_problem(const Prefs& p) {
     }
     for (std::size_t i = 0; i < p.pins.size(); ++i) {
         const PinList& l = p.pins[i];
-        if (std::string wrong = target_problem(l.target, "a pin list's target"); !wrong.empty()) {
+        if (std::string wrong = layout_target_problem(l.target, "a pin list's target");
+            !wrong.empty()) {
             return wrong;
         }
         if (i > 0 && !(p.pins[i - 1].target < l.target)) {
@@ -624,13 +800,14 @@ inline std::string kept_problem(const Prefs& p) {
             }
         }
     }
-    if (p.locks.size() > kMaxEverywhereLocks) {
-        return "the file keeps at most " + std::to_string(kMaxEverywhereLocks) +
-               " locks -- it keeps " + std::to_string(p.locks.size());
+    if (p.locks.size() > kMaxLocks) {
+        return "the file keeps at most " + std::to_string(kMaxLocks) + " locks -- it keeps " +
+               std::to_string(p.locks.size());
     }
     for (std::size_t i = 0; i < p.locks.size(); ++i) {
         const SettingLock& l = p.locks[i];
-        if (std::string wrong = target_problem(l.target, "a lock's target"); !wrong.empty()) {
+        if (std::string wrong = layout_target_problem(l.target, "a lock's target");
+            !wrong.empty()) {
             return wrong;
         }
         if (std::string wrong = pane_setting_key_problem(l.key); !wrong.empty()) {
@@ -649,6 +826,20 @@ inline std::string kept_problem(const Prefs& p) {
         if (kind == SettingKind::kText && !pane_setting_text_ok(*l.text)) {
             return "the lock on `" + l.key + "` of `" + l.target + "` holds a text past " +
                    std::to_string(kMaxPaneSettingTextLen) + " bytes of printable ASCII";
+        }
+        // ONE LAYOUT'S LOCK NAMES A PANE, AND FREEZES WHAT THAT LAYOUT'S ROW HOLDS: it pins nothing.
+        const std::size_t at = l.target.find('@');
+        if (at != std::string::npos) {
+            const std::size_t slash = l.target.find('/');
+            if (slash == std::string::npos || slash > at) {
+                return "the lock on `" + l.key + "` of `" + l.target +
+                       "` names a layout but no pane -- a layout's lock is on " +
+                       "`<office>/<pane>@<layout>`";
+            }
+            if (kind != SettingKind::kNone || l.clear) {
+                return "the lock on `" + l.key + "` of `" + l.target +
+                       "` holds a value -- a layout's lock freezes its row and holds none";
+            }
         }
     }
     return std::string();

@@ -57,6 +57,8 @@ void WorkshopWeave::apply_setup_now() {
     // Membership-dependent session state first: every membership change comes through this door,
     // so it is the one place that notices a selection whose pane is no longer named.
     forget_removed_selection();
+    // A ROW THE LIVE DESK SEATS WEARS EVERY EVERYWHERE LOCK ON ITS PANE, one seated since included.
+    (void)pin_everywhere_locks(session_.setup.active);
     (void)reconcile(session_.panes, session_.setup.active);
 }
 
@@ -121,8 +123,10 @@ void WorkshopWeave::commit_layout_rename() {
         say(whole.refusal, true);
         return;
     }
+    const std::string was = layout_at(session_.setup, at).name;
     rename_layout(session_.setup, at, wanted);
     close_naming();
+    move_layout_prefs(was, wanted);
     // No `apply_setup`: a name is the one authored field no presentation reads. The painted row
     // and the link status are derived at the next composition.
     say("renamed layout " + quoted_setup_name(wanted) + link_note(at), false);
@@ -275,11 +279,13 @@ void WorkshopWeave::drop_layout(std::size_t at, loom::Mail& mail) {
         return; // the belt: a captured position the run no longer holds
     }
     const bool was_live = at == session_.setup.active_at;
-    const std::string gone = quoted_setup_name(layout_at(session_.setup, at).name);
+    const std::string name = layout_at(session_.setup, at).name;
+    const std::string gone = quoted_setup_name(name);
     if (!remove_layout(session_.setup, at)) {
         say("this is the only layout -- Workshop always has one desk", true);
         return;
     }
+    move_layout_prefs(name, std::string());
     if (was_live) {
         apply_setup(mail);
     }

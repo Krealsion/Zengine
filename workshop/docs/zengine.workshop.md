@@ -514,7 +514,7 @@ a setting in the layout.
 - **Answers:** `PaneSettingsShown`, to the asker alone: the row's `revision` (0 when the live layout
   has no such row), the `rows` of the pane's counted declaration with their tags, pins and summaries,
   the `settings` the row keeps, its `pins` in order (the list the pin scope reads), the keys a
-  lock in the settings file holds `everywhere` in `locks`, and `said`, the band's sentence
+  lock holds in `locks`, each `everywhere` or `layout` (this layout alone), and `said`, the band's sentence
   about the row (`stored and handed`, or `stored; not handed: ...`, and what the pane said it
   cannot use).
 - **Refuses:** `settings withheld: <why>` in `said`, with nothing read, to an asker that is not an
@@ -536,9 +536,9 @@ at the revision the asker read.
 - **Refuses:** `settings commit withheld: <why>`; `<office>/<pane> has no row on the live layout
   -- open it first`; `stale revision <n> -- the row of <office>/<pane> stands at <m>; read it
   again`; `a clear takes no value -- name the key alone`; ``<office>/<pane> has no counted setting
-  `<key>` -- a key no declaration takes is only cleared``; `<key> is locked everywhere by
-  Workshop's settings file -- nothing writes it while the lock stands`; `<key> takes <what it
-  takes>, not <the value>`. Each writes nothing.
+  `<key>` -- a key no declaration takes is only cleared``; `<key> is locked -- nothing writes it
+  while the lock stands, and only the weaver unlocks it`, for a lock everywhere or in the live
+  layout; `<key> takes <what it takes>, not <the value>`. Each writes nothing.
 - **Example:** `ask @zengine.workshop PaneSettingCommitRequested 1 provider=zengine.terminal
   pane=terminal revision=$r1.revision clear=false key=wheel-rows number=6`, from the Terminal.
 
@@ -601,6 +601,66 @@ asker read.
   unreadable settings file. Each writes nothing.
 - **Example:** `ask @zengine.workshop PaneSettingPinRequested 1 provider=zengine.terminal
   pane=terminal key=wheel-rows act=pin layout=-1`.
+
+### `PaneSettingLockRequested`
+
+`PaneSettingLockRequested` locks or unlocks one setting, in one layout or everywhere.
+
+- **Takes:** `target`, `<office>/<pane>`, or `<office>` for an office-wide setting; `key`; `act`,
+  `lock` or `unlock`; `scope`, `layout` (that layout's row alone) or `everywhere`; `layout`, a
+  layout's place, -1 the live one; `gesture`, for an unlock from a pane, the correlation of the
+  weaver's current act the pane was sent.
+- **Answers:** `PaneSettingLockActed{accepted, refusal, written}`, to the asker alone. A layout's
+  lock freezes the value that layout's row holds; `written` names the layout. An everywhere lock on
+  a pane pins the value its layout holds, or the default when the row keeps none, writes it into
+  every layout's row that seats the pane and gives it to a row seated later; `written` names those
+  layouts. An office-wide setting has one value, so its lock holds everywhere. Every write door
+  refuses or passes over a locked key. The locks are kept in Workshop's settings file.
+- **Refuses:** `lock withheld: <why>`; `` `<act>` is not a lock act -- lock or unlock ``;
+  `` `<scope>` is not where a lock holds -- layout or everywhere ``; `unlocking is the weaver's --
+  from the Terminal, or from a pane on the weaver's own current act`; a target naming `@`; no layout
+  at that place; an unreadable settings file; `an office-wide setting has one value in every layout
+  -- lock it everywhere`; a key the target neither declares nor keeps; a pane its layout does not
+  seat; locked already, or not locked; a lock everywhere asked to unlock in one layout; a value its
+  row's bounds refuse in some layout; `nothing changed: Workshop's settings file was not written --
+  <why>`. Each changes nothing.
+- **Example:** `ask @zengine.workshop PaneSettingLockRequested 1 target=zengine.terminal/terminal
+  key=wheel-rows act=lock scope=everywhere layout=-1 gesture=0`, from the Terminal.
+
+### `LayoutSettingsRequested`
+
+`LayoutSettingsRequested` reads every layout's rows at once.
+
+- **Takes:** nothing.
+- **Answers:** `LayoutSettingsShown{revision, active, layouts, declared, everywhere}`, to the asker
+  alone: each layout's place, name, baseline theme (`name` and `fingerprint`, a name of "" for
+  none) and rows, each row's `settings` and `locked` keys there; what each pane's counted
+  declaration takes, `workshop.skin` first, and each office's office-wide rows, with `pane` empty;
+  the everywhere locks; the live layout's place; and the `revision` it all stands at, which moves
+  with any row, layout, name, declaration, lock or baseline.
+- **Refuses:** an empty reading at `revision` 0, to an asker the settings doors do not serve.
+- **Example:** `ask @zengine.workshop LayoutSettingsRequested 1`.
+
+### `SettingsWriteRequested`
+
+`SettingsWriteRequested` writes many settings across layouts, and layouts' baselines, at the
+revision the asker read.
+
+- **Takes:** `revision`; `writes`, each a `layout` (-1 the live one; not read for an office),
+  `target`, `key` and a value in its kind's one field or `clear`; `baselines`, each a `layout` and
+  a `theme`, a name of "" removing it; `cause`, what the band says the batch was.
+- **Answers:** `SettingsWritten{accepted, refusal, revision, results, handed}`, to the asker alone:
+  each write's `outcome` -- `written`, `unchanged`, or passed over as `locked`, `not-taken` (no
+  counted declaration takes the key) or `not-in-layout` -- with why; the revision after it; and the
+  live rows and offices handed or applied. The baselines are kept in Workshop's settings file.
+- **Refuses:** whole, writing nothing: `settings writes withheld: <why>`; `stale revision <n> --
+  the layouts stand at <m>; read them again`; a batch past its bound; `write <i>: <why>` for a
+  write whose form, target, layout or value is wrong, or whose row or layout a bound refuses;
+  `baseline <i>: <why>`; an unreadable settings file; `nothing written: Workshop's settings file
+  was not written -- <why>`.
+- **Example:** a script applying a theme to every layout reads
+  [`LayoutSettingsRequested`](#layoutsettingsrequested), then sends one batch naming the revision
+  it read, a write per row the theme names and a baseline per layout.
 
 ### `TerminalActRequested`
 
@@ -945,8 +1005,8 @@ window that shows its area, `Drawn`.
   folder: read when the surface is ready, written by an accepted `KeymapEditRequested`
   ([Hotkeys and the keymap](hotkeys.md)).
 - **The settings file**, `--prefs <path>`, by default `workshop-prefs.json` beside the keymap:
-  every office's office-wide settings (Workshop's own among them), the pin lists and the
-  everywhere locks, read at launch and written by the settings doors and the presentation toggles
+  every office's office-wide settings (Workshop's own among them), the pin lists, the locks and
+  each layout's baseline theme, read at launch and written by the settings doors and the toggles
   only while it holds what this Workshop read or wrote; a file it could not read is never written.
 - `--isolated` runs with no session, keymap or preferences file. The load plan the host runs is
   [the load plan's](load-plan.md), not this weave's.

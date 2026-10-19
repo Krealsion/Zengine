@@ -16,6 +16,7 @@
 #include "keymap.hpp"
 #include "panes.hpp"
 #include "property.hpp"
+#include "settings_seam_vocabulary.hpp" // where a lock holds a setting
 #include "setup.hpp"
 #include "vocabulary.hpp"
 
@@ -672,12 +673,13 @@ struct PaneArrange {
 
 /// WHAT A SUBJECT'S SETTINGS ROWS ARE: the settings its pane's declaration gives while it counts,
 /// and the keys its row keeps that none of them declares, in key order, and the keys a lock holds
-/// everywhere. A row is built from each.
+/// on the live layout -- those it holds in this layout alone listed again. A row is built from each.
 // WL-SETTING-05 -- agents/workshop/settings.md
 struct SettingsSubject {
     std::vector<PaneSettingRow> declared;
     std::vector<std::string> kept;
     std::vector<std::string> locked;
+    std::vector<std::string> locked_here;
 
     bool any() const { return !declared.empty() || !kept.empty(); }
     friend bool operator==(const SettingsSubject&, const SettingsSubject&) = default;
@@ -1700,7 +1702,8 @@ Written write_pane_axis(Session& s, const PaneRef& ref, std::size_t axis,
 /// counts) and what the live layout's row keeps.
 SettingsSubject settings_subject(const Session& s, const PaneRef& ref,
                                  const std::vector<PaneSettingRow>* declared,
-                                 std::vector<std::string> locked = {});
+                                 std::vector<std::string> locked = {},
+                                 std::vector<std::string> locked_here = {});
 
 /// ONE SETTING AS A WEAVER READS IT in its row: the stored value, or the default when nothing is
 /// stored, spelled as it is typed -- and, for a stored value the setting does not take, why, and
@@ -1726,10 +1729,11 @@ std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref,
                                    const SettingsSubject& settings = {});
 
 /// Where a lock holds a setting, as a row says it, and the refusal of a write it holds.
-inline constexpr const char* kLockedEverywhere = "everywhere";
+inline constexpr const char* kLockedEverywhere = kLockScopeEverywhere;
+inline constexpr const char* kLockedInLayout = "in this layout";
 inline std::string locked_setting_refusal(const std::string& key) {
-    return key + " is locked everywhere by Workshop's settings file -- nothing writes it while "
-                 "the lock stands";
+    return key + " is locked -- nothing writes it while the lock stands, and only the weaver "
+                 "unlocks it";
 }
 
 /// THE INSPECTOR'S SUBJECT AS THE SEAM CARRIES IT: the reference, the inventory's name for it,
