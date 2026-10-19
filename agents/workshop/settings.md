@@ -113,8 +113,8 @@ WHY — `agents/decisions/a-settings-write-names-the-revision-it-read.md`
 LAW — The settings doors serve an office, the host's Terminal by `let_terminal_edit_settings`, and a guest whose row has `settings`; any other asker is answered withheld, with nothing read or written.
 
 MEANS
-- the host widens its Terminal to the asks, to Workshop's office alone, and to their answers: a row's read and commit, an office's read and commit, and a pin act;
-- a guest's `settings` is a word of the guests file's version 3, granted the same five asks to Workshop.
+- the host widens its Terminal to the asks, to Workshop's office alone, and their answers: a row's and an office's read and commit, a pin act, a lock act, every layout's reading and a batch;
+- a guest's `settings` is a word of the guests file's version 3, granted the same eight asks to Workshop.
 
 DOES NOT MEAN
 - that Loom's grant is the only wall: an ask a grant let through is judged again by the row.
@@ -137,15 +137,15 @@ WHY — `agents/decisions/office-wide-settings-live-in-workshops-settings-file.m
 
 ## WL-SETTING-11 — Workshop's settings file is read once and written only while its bytes are this host's
 
-LAW — Workshop's settings file, version 3, keeps offices' settings, pin lists and everywhere locks; read at start, it is written by its edit doors only while its bytes are the ones this host read or wrote.
+LAW — Workshop's settings file, version 3, keeps offices' settings, pin lists, locks and layouts' baselines; read at start, it is written by its edit doors only while its bytes are this host's.
 
 MEANS
 - versions 1 and 2 are read as Workshop's own settings; version 3 is judged whole, a key of Workshop's this build does not declare kept;
 - a file this run could not read refuses every office commit and pin act and is never written; a toggle stands for the run;
-- an everywhere lock refuses every write door naming its key: a row's commit, Info's, an office's.
+- a lock refuses every write door naming its key: a row's commit, Info's, an office's (WL-LOCK-01).
 
 DOES NOT MEAN
-- that a lock is made or removed here: the file is written by hand, and the doors that lock are later.
+- that a lock is made only by hand: the lock door writes the file (WL-LOCK-01).
 
 WHY — `agents/decisions/office-wide-settings-live-in-workshops-settings-file.md`
 
@@ -159,7 +159,7 @@ MEANS
 - refused, nothing written: the asker, the layout, no declaration, an unreadable file, a key not declared, pinned already, not pinned, an unknown act, the bound.
 
 DOES NOT MEAN
-- that a per-layout list follows a renamed layout: it is keyed by the name it was made under.
+- that two layouts sharing a name keep two lists: a list is kept under the name, and follows a rename (WL-LOCK-04).
 
 WHY — `agents/decisions/a-setting-is-found-by-its-tags-and-pins.md`
 
@@ -320,7 +320,7 @@ kept, and its settings are written by message"
 
 ### WL-SETTING-11
 `workshop/prefs_persist.hpp` WorkshopPrefs OfficeSettingsKept PinList SettingLock Prefs from_text
-kept_problem to_text kFormatVersion kWordsVersion kMaxPinLists kMaxEverywhereLocks
+kept_problem to_text kFormatVersion kWordsVersion kMaxPinLists kMaxLocks
 `workshop/weave_settings.cpp` write_prefs
 `workshop/weave_handlers.cpp` load_prefs
 `workshop/weave_input.cpp` state_presentation

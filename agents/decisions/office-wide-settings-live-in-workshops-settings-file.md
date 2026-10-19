@@ -11,7 +11,7 @@ silent writer.
 **Decision.** An office declares its office-wide settings by message, judged by a pane
 declaration's rules; Workshop declares its own in code. Both are read and written by the settings
 doors' askers at a revision, and kept in Workshop's preferences file, which grows to version 3:
-office settings, pin lists and everywhere locks as typed key-values, a default kept as its absence.
+office settings, pin lists and locks as typed key-values, a default kept as its absence.
 Versions 1 and 2 are read as Workshop's own three settings. The file is read once and written by
 the edit doors only while its bytes are the ones this host read or wrote; a file it could not read
 refuses every edit and is never written.
@@ -24,8 +24,8 @@ refuses every edit and is never written.
 - *Argued: writing on every edit whatever the file holds* — refused: two Workshops, or a hand
   editing the file, would lose each other's settings without a word.
 
-**Consequences.** A lock is authored in the file by hand until the doors that lock exist; every
-write door already refuses a locked key.
+**Consequences.** The lock door writes a lock into the file, beside one authored by hand; every
+write door refuses a locked key.
 
 **Laws supported.** [WL-SETTING-10](../workshop/settings.md),
 [WL-SETTING-11](../workshop/settings.md), [WL-SETTING-13](../workshop/settings.md).

@@ -29,7 +29,7 @@ void WorkshopWeave::refresh_inspected() {
     const SettingsSubject settings =
         settings_subject(session_, in.ref,
                          offered != nullptr ? counted_settings(*offered) : nullptr,
-                         locked_keys(in.ref));
+                         locked_keys(in.ref), layout_locked_keys(in.ref));
     const bool member = has_pane(session_.setup.active, in.ref);
     if (in.name != 0 && in.desk == session_.setup.put_live && in.member == member &&
         in.settings == settings) {
@@ -177,9 +177,7 @@ void WorkshopWeave::on(const PaneSettingsRequested& asked, loom::Mail& mail) {
         shown.rows = *rows;
     }
     shown.pins = effective_pins(ref);
-    for (const std::string& key : locked_keys(ref)) {
-        shown.locks.push_back(SettingLockShown{key, kLockedEverywhere});
-    }
+    shown.locks = locks_on(ref, session_.setup.active_at);
     const SetupPane* seat = pane_of(session_.setup.active, ref);
     if (seat == nullptr) {
         shown.said = ref_text(ref) + " has no row on the live layout";

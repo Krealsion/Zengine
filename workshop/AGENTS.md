@@ -74,6 +74,7 @@ with its files); the subjects are in the [WL router](../agents/workshop.md#where
 | [regions](../agents/workshop/regions.md) | `workshop_screen`, `workshop_host`, `workshop_panes` (builder) |
 | [session](../agents/workshop/session.md) | `workshop_persistence`, `workshop_panes` (editor), `workshop_document` |
 | [session-restore](../agents/workshop/session-restore.md) | `workshop_persistence`, `surface` |
+| [setting-locks](../agents/workshop/setting-locks.md) | `workshop_panes` (settings, guests, terminal) |
 | [settings](../agents/workshop/settings.md) | `workshop_panes` (settings, opening), `workshop_persistence` |
 | [setup-file](../agents/workshop/setup-file.md) | `workshop_panes` (window, seam), `workshop_persistence`, `workshop_screen` |
 | [tab-run](../agents/workshop/tab-run.md) | `workshop_screen`, `workshop_host`, `workshop_persistence` |
