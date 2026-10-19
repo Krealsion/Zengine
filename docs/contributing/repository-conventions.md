@@ -176,12 +176,13 @@ a new name with the honest promise. The old spelling is not reintroduced as a sy
 not given a different meaning later; what it used to mean is in Git history, not in a new
 definition.
 
-**A shape's name says its kind.** A request ends `Requested` (`PaneViewRequested`), and an answer
-saying how a request came out ends `Answered` or `Refused` (`PaneCloseAnswered`, `DrawnRefused`). A
-deed, something that happened, is said in the past tense (`BuildFinished`). An observation, a state
-or a picture whether published or answered, is a noun (`DeskStamps`, `DeskView`). A new shape is
-named by its kind. An existing name that does not follow this is not changed for it alone: a
-renamed shape is a new shape to every office that sends or reads it.
+**A shape's name says its kind.** A request ends `Requested` (`PaneViewRequested`). An answer,
+every reply to a request a reading included, ends `Answered` or `Refused` (`PaneCloseAnswered`,
+`DrawnRefused`). A deed, something that happened, is said in the past tense (`BuildFinished`). An
+observation, a state said unasked, is a noun (`DeskStamps`). A new shape is named by its kind. An
+existing name that does not follow this, as a noun answering a request does (`DeskView`,
+`PaneView`), is not changed for it alone: a renamed shape is a new shape to every office that
+sends or reads it.
 
 ## Source comment conventions
 
