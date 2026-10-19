@@ -17,8 +17,9 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `painter_abi.h`, `painter_export.hpp`, `term_paint.hpp`, `light_paint.hpp` | the skin seam (`zengine_painter`), `ZENGINE_EXPORT_PAINTER` and `ZENGINE_EXPORT_LIGHT_PAINTER`, the character painter and the painter for light |
 | `element_abi.h`, `element_export.hpp` | the element seam (`zengine_element`), `ZENGINE_EXPORT_ELEMENT` |
 | `window/store.hpp`, `window/seams.hpp`, `window/window.hpp` | the window's areas and judge; the libraries it opens; `Window<Medium>`, the window over its medium |
-| `window/compose.hpp`, `window/terminal_io.hpp`, `window/window_terminal.hpp` | the terminal's painted cells, composition and landing; the terminal's claim, size and ink; `TerminalMedium`, `WindowT<Terminal>` |
-| `window/window_sdl.hpp` | the medium of light over a pixel backend: `LightMedium`, `SdlWindowT<Backend>` |
+| `window/compose.hpp`, `window/terminal_io.hpp`, `window/window_terminal.hpp` | the terminal's painted cells, composition and landing; the terminal's claim, size, ink and copy sequence; `TerminalMedium`, `WindowT<Terminal>` |
+| `window/window_sdl.hpp` | the medium of light over a pixel backend: `LightMedium`, `SdlWindowT<Backend>`; the desktop's arithmetic, and the BMP a picture is read back as |
+| `window/window_sdl_backend.hpp` | the OS window's backend through SDL3, `ProcessSdlBackend` |
 | `window/window.cpp`, `window/window_sdl.cpp` | loadable weaves `zengine-window-terminal` and, where the build has SDL, `zengine-window-sdl` |
 | `directory.cpp` | loadable weave `zengine-graphics` |
 | `paint_classic.cpp`, `paint_block.cpp`, `paint_day.cpp`, `paint_night.cpp` | painter libraries `zengine-paint-classic`, `zengine-paint-block` (characters), `zengine-paint-day`, `zengine-paint-night` (light) |
@@ -41,9 +42,12 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
   Attention and Connections panes Workshop loads drawn, pressed and reloaded in a window, and a
   pane's refused drawing followed by a whole one; the OS window over the suite's own pixel
   backend, every operator painted, pressed, typed into, resized, asked to close and started again
-  from what it kept, and, where the build has SDL, its weave under SDL's dummy driver emptying SDL's
-  queue, claiming it while loaded, keeping its one OS window across a reload, and holding one again
-  once replaced; `tests/test_graphics.cpp`, `tests/graphics_rig.hpp`
+  from what it kept; both windows' clipboard, place on the desktop and last picture read back, and
+  the desktop's arithmetic and the BMP; and, where the build has SDL, its weave under SDL's dummy
+  driver emptying SDL's queue, claiming it while loaded, keeping its one OS window across a reload,
+  and holding one again once replaced, and its own backend centring, growing and placing its window,
+  copying to SDL's clipboard and reading its pixels back; `tests/test_graphics.cpp`,
+  `tests/graphics_rig.hpp`
 - `graphics_change_outside_list_refused` — an element's change outside its code's list does not
   compile (`tests/compile_negative/drawing_walls.cpp`, case 1)
 - `graphics_own_after_delivery_refused` — a drawing weave whose drawer replaces the

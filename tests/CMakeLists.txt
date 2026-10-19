@@ -482,7 +482,7 @@ zengine_test_definitions(zengine-input-tests
     "INPUT_SDL_READER_CPP=\"${CMAKE_SOURCE_DIR}/input/input_sdl.cpp\""
     "INPUT_SDL_TRANSLATE_HPP=\"${CMAKE_SOURCE_DIR}/input/translate_sdl.hpp\""
     "INPUT_SDL_TRANSLATE_CORE_HPP=\"${CMAKE_SOURCE_DIR}/input/translate_sdl_core.hpp\""
-    "WINDOW_SDL_CPP=\"${CMAKE_SOURCE_DIR}/graphics/window/window_sdl.cpp\"")
+    "WINDOW_SDL_BACKEND_HPP=\"${CMAKE_SOURCE_DIR}/graphics/window/window_sdl_backend.hpp\"")
 
 zengine_doctest_test(input zengine-input-tests)
 

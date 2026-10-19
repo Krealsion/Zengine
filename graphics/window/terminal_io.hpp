@@ -6,10 +6,11 @@
 
 // A terminal's output side and its size, as whoever paints it claims it: the one place this
 // repository asks an operating system how big a terminal is (the only `#if defined(_WIN32)` the
-// terminal medium needs), the modes a painter takes and gives back, the ink for each role, and the
-// claim itself, held for exactly its owner's lifetime. Read by the terminal window and by the
-// terminal Skins. Asked, not watched: no SIGWINCH handler and no thread, since a painter asks on
-// its beat, which is prompt enough. Reference: graphics/docs/zengine.window.terminal.md.
+// terminal medium needs), the modes a painter takes and gives back, the ink for each role, the
+// copy sequence, and the claim itself, held for exactly its owner's lifetime. Read by the terminal
+// window and by the terminal Skins. Asked, not watched: no SIGWINCH handler and no thread, since a
+// painter asks on its beat, which is prompt enough. Reference:
+// graphics/docs/zengine.window.terminal.md.
 
 #include "graphics/role.hpp"
 
@@ -136,6 +137,42 @@ inline constexpr bool kTuiPointerIsInBand =
 #else
     true;
 #endif
+
+/// Bytes in standard base64 (RFC 4648, padded with `=`), the one alphabet OSC 52 reads.
+inline std::string terminal_base64(std::string_view bytes) {
+    static constexpr char kAlphabet[] =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    const auto at = [&bytes](std::size_t i) {
+        return static_cast<std::uint32_t>(static_cast<unsigned char>(bytes[i]));
+    };
+    std::string out;
+    out.reserve(((bytes.size() + 2) / 3) * 4);
+    std::size_t i = 0;
+    for (; i + 3 <= bytes.size(); i += 3) {
+        const std::uint32_t n = (at(i) << 16) | (at(i + 1) << 8) | at(i + 2);
+        out.push_back(kAlphabet[(n >> 18) & 0x3Fu]);
+        out.push_back(kAlphabet[(n >> 12) & 0x3Fu]);
+        out.push_back(kAlphabet[(n >> 6) & 0x3Fu]);
+        out.push_back(kAlphabet[n & 0x3Fu]);
+    }
+    const std::size_t left = bytes.size() - i;
+    if (left == 0) {
+        return out;
+    }
+    const std::uint32_t n = (at(i) << 16) | (left == 2 ? at(i + 1) << 8 : 0u);
+    out.push_back(kAlphabet[(n >> 18) & 0x3Fu]);
+    out.push_back(kAlphabet[(n >> 12) & 0x3Fu]);
+    out.push_back(left == 2 ? kAlphabet[(n >> 6) & 0x3Fu] : '=');
+    out.push_back('=');
+    return out;
+}
+
+/// A copy, in a terminal's one voice for it: OSC 52 set-clipboard, written on the stream the
+/// painter owns. Whether the terminal honours it cannot be asked (xterm wants `allowWindowOps`; a
+/// pipe is no terminal), so writing it claims nothing about the system's clipboard.
+inline std::string terminal_clipboard_sequence(std::string_view text) {
+    return "\x1b]52;c;" + terminal_base64(text) + "\x07";
+}
 
 /// The terminal's output side, claimed for exactly its owner's lifetime -- alternate screen,
 /// hidden cursor, in-band pointer reporting, and on Windows VT processing and the UTF-8 codepage

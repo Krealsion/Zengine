@@ -31,9 +31,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <random>
 #include <set>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -60,6 +62,27 @@ struct WindowState {
 /// A window's size in cells.
 struct CellExtent {
     std::int64_t cols = 0, rows = 0;
+};
+
+/// Where a desktop window sits on its desktop: its normal (unmaximized) top-left, in the desktop's
+/// own units, and whether it is maximized now.
+struct WindowPlacementValue {
+    std::int64_t x = 0;
+    std::int64_t y = 0;
+    bool maximized = false;
+    friend bool operator==(const WindowPlacementValue&, const WindowPlacementValue&) = default;
+};
+
+/// A picture read back from what the window last presented: `text/cells` on a terminal (`cell_px`
+/// 0, `width` and `height` in cells, a row of `width` bytes a line) or `image/bmp` on an OS window
+/// (`cell_px` the light cell pitch, `width` and `height` in pixels).
+struct CapturedWindowPicture {
+    std::int64_t width = 0;
+    std::int64_t height = 0;
+    std::int64_t cell_px = 0;
+    std::string format;
+    std::string bytes;
+    friend bool operator==(const CapturedWindowPicture&, const CapturedWindowPicture&) = default;
 };
 
 template <class Medium>
@@ -247,6 +270,20 @@ public:
     /// request was last taken; a terminal never is.
     bool close_requested() const noexcept { return medium_.close_requested(); }
     bool take_close() noexcept { return medium_.take_close(); }
+
+    /// Text copied to the platform's clipboard: an OS window's, or a terminal's by its copy
+    /// sequence, which no terminal confirms.
+    void clipboard_copy(std::string_view text) { medium_.clipboard_copy(text); }
+    /// The platform clipboard's text now, read only when asked: empty when it holds none, and none
+    /// where no read exists (a terminal, or an OS window with no window).
+    std::optional<std::string> clipboard_text() { return medium_.clipboard_text(); }
+    /// Where the window sits on its desktop: none on a terminal, or for an OS window with no window
+    /// or one never seen unmaximized.
+    std::optional<WindowPlacementValue> placement() { return medium_.placement(); }
+    /// A remembered placement offered back: kept whole on a display; a terminal takes none.
+    void place(const WindowPlacementValue& want) { medium_.place(want); }
+    /// What the window last presented, read back; none before its first showing.
+    std::optional<CapturedWindowPicture> capture() { return medium_.capture(); }
 
     // ---- life ---------------------------------------------------------------------------------
 
