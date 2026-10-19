@@ -221,7 +221,7 @@ lands in no later draft, and one asked for by the draft still standing lands in 
 `workshop/weave.hpp` WorkshopWeave::paste_asks_
 `workshop/weave_pointer.cpp` answers_ask on(ClipboardText)
 `workshop/weave_seam.cpp` begin_clipboard_paste
-`surface/vocabulary.hpp` ClipboardText::readable
+`graphics/vocabulary.hpp` ClipboardText::readable
 `tests/test_workshop_document.cpp` "with nobody at the skin role, paste inserts nothing and breaks
 nothing"
 `tests/test_surface.cpp` "the terminal medium answers a clipboard read with its standing truth"
