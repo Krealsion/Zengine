@@ -93,6 +93,8 @@ void WorkshopWeave::hand_settings(loom::Mail& mail) {
             return u.revision != revision;
         });
     }
+    // ...AND EVERY DECLARING OFFICE ITS OFFICE-WIDE SETTINGS, on the same turns.
+    hand_office_settings(mail);
 }
 
 // WL-PANE-06 -- agents/workshop/panes-and-windows.md

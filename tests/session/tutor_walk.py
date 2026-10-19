@@ -300,8 +300,14 @@ def main():
         check("G2 while the tutor's mark stands, another guest's mark on the Builder is refused",
               "marks that pane already" in said, said)
         term.press(int(build.group(1)), int(build.group(2)))  # the weaver presses inside the mark
-        state, said = run("desk-whole/guide", {"pane": "zengine.builder-pane/builder",
-                                               "control": "builder.build", "words": "here"})
+        # THE PRESS STARTS A BUILD, AND THE BUILDER DRAWS AGAIN: a mark waits for its picture to
+        # settle, so the ask is made again, a little later, while Workshop says it has not.
+        for _ in range(24):
+            state, said = run("desk-whole/guide", {"pane": "zengine.builder-pane/builder",
+                                                   "control": "builder.build", "words": "here"})
+            if "is not on the desk, settled and uncovered, now" not in said:
+                break
+            time.sleep(0.5)
         check("G3 the weaver's press inside the mark ended it: another guest may mark the Builder now",
               said.startswith("desk/guide: shown"), said)
         run("desk-whole/guide", {"pane": "zengine.builder-pane/builder", "control": ""})

@@ -157,7 +157,8 @@ Written write_pane_axis(Session& s, const PaneRef& ref, std::size_t axis,
 
 // WL-SETTING-05 -- agents/workshop/settings.md
 SettingsSubject settings_subject(const Session& s, const PaneRef& ref,
-                                 const std::vector<PaneSettingRow>* declared) {
+                                 const std::vector<PaneSettingRow>* declared,
+                                 std::vector<std::string> locked) {
     SettingsSubject out;
     if (declared != nullptr) {
         out.declared = *declared;
@@ -173,6 +174,7 @@ SettingsSubject settings_subject(const Session& s, const PaneRef& ref,
             }
         }
     }
+    out.locked = std::move(locked);
     return out;
 }
 
@@ -398,6 +400,24 @@ std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref,
     if (settings.any()) {
         rows.push_back(Row::section("SETTINGS"));
         for (const PaneSettingRow& declared : settings.declared) {
+            bool locked = false;
+            for (const std::string& key : settings.locked) {
+                locked = locked || key == declared.key;
+            }
+            if (locked) {
+                // A LOCKED SETTING SAYS ITS LOCK IN ITS VALUE, and its write is refused, naming it.
+                rows.push_back(Row::edit(
+                    declared.key,
+                    Property<std::string>(
+                        [sp, ref, declared] {
+                            return pane_setting_text(*sp, ref, declared) + " -- locked " +
+                                   kLockedEverywhere;
+                        },
+                        [declared](std::string) {
+                            return Written::no(locked_setting_refusal(declared.key));
+                        })));
+                continue;
+            }
             rows.push_back(Row::edit(
                 declared.key,
                 Property<std::string>(
@@ -407,11 +427,16 @@ std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref,
                     })));
         }
         for (const std::string& key : settings.kept) {
+            bool locked = false;
+            for (const std::string& held : settings.locked) {
+                locked = locked || held == key;
+            }
             rows.push_back(Row::edit(
                 key, Property<std::string>(
                          [sp, ref, key] { return kept_setting_text(*sp, ref, key); },
-                         [sp, ref, key](std::string text) {
-                             return write_kept_setting(*sp, ref, key, text);
+                         [sp, ref, key, locked](std::string text) {
+                             return locked ? Written::no(locked_setting_refusal(key))
+                                           : write_kept_setting(*sp, ref, key, text);
                          })));
         }
     }

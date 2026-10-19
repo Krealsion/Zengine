@@ -26,8 +26,10 @@ void WorkshopWeave::refresh_inspected() {
     // a row made afresh, and a provider arriving or leaving is one only as its declaration starts
     // or stops counting.
     const RuntimePane* offered = session_.panes.runtime.find(in.ref.provider, in.ref.pane);
-    const SettingsSubject settings = settings_subject(
-        session_, in.ref, offered != nullptr ? counted_settings(*offered) : nullptr);
+    const SettingsSubject settings =
+        settings_subject(session_, in.ref,
+                         offered != nullptr ? counted_settings(*offered) : nullptr,
+                         locked_keys(in.ref));
     const bool member = has_pane(session_.setup.active, in.ref);
     if (in.name != 0 && in.desk == session_.setup.put_live && in.member == member &&
         in.settings == settings) {
@@ -169,14 +171,14 @@ void WorkshopWeave::on(const PaneSettingsRequested& asked, loom::Mail& mail) {
     }
     const PaneRef ref{asked.provider, asked.pane};
     const RuntimePane* offered = session_.panes.runtime.find(ref.provider, ref.pane);
+    load_prefs();
     if (const std::vector<v2::PaneSettingRow>* rows =
             offered != nullptr ? counted_settings_v2(*offered) : nullptr) {
         shown.rows = *rows;
-        for (const v2::PaneSettingRow& row : *rows) {
-            if (row.pinned) {
-                shown.pins.push_back(row.key);
-            }
-        }
+    }
+    shown.pins = effective_pins(ref);
+    for (const std::string& key : locked_keys(ref)) {
+        shown.locks.push_back(SettingLockShown{key, kLockedEverywhere});
     }
     const SetupPane* seat = pane_of(session_.setup.active, ref);
     if (seat == nullptr) {
@@ -216,6 +218,14 @@ void WorkshopWeave::on(const PaneSettingCommitRequested& asked, loom::Mail& mail
     const std::string name = offered != nullptr ? offered->name : ref_text(ref);
     const std::vector<PaneSetting> before = pane_of(session_.setup.active, ref)->settings;
     const int fields = (asked.flag ? 1 : 0) + (asked.number ? 1 : 0) + (asked.text ? 1 : 0);
+    // A LOCK HOLDS ITS KEY against every write, a clear included.
+    load_prefs();
+    for (const std::string& key : locked_keys(ref)) {
+        if (key == asked.key) {
+            refuse(locked_setting_refusal(asked.key), current);
+            return;
+        }
+    }
     std::string written;
     if (asked.clear) {
         // A CLEAR NAMES A KEY ALONE, declared or kept, and clearing an absent key changes nothing.

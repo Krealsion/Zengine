@@ -2762,67 +2762,155 @@ TEST_CASE("the host resolves the weaver's files through the one precedence") {
 
 // ---- The prefs file ------------------------------------------------------------------
 
-TEST_CASE("prefs round-trip, and the words are a closed set") {
+TEST_CASE("the settings file round-trips what it keeps: Workshop's own settings, another office's, pin lists and locks") {
     using prefs_persist::Presentation;
-    const auto swap = [](std::string text, const std::string& was, const std::string& now) {
-        const std::size_t at = text.find(was);
-        REQUIRE(at != std::string::npos);
-        text.replace(at, was.size(), now);
-        return text;
-    };
-    const std::string hidden = prefs_persist::to_text(Presentation{false});
-    CHECK(hidden.find("\"format\":\"zengine-workshop-prefs\"") != std::string::npos);
-    CHECK(hidden.find("\"titles\":\"hidden\"") != std::string::npos);
-    prefs_persist::LoadedPrefs read = prefs_persist::from_text(hidden);
-    REQUIRE(read.outcome.accepted);
+    using prefs_persist::Prefs;
+    // WORKSHOP'S OWN, KEPT AS ITS ABSENCE AT THE DEFAULT: the shown titles and the shipped
+    // spellings keep nothing.
+    CHECK(prefs_persist::prefs_of(Presentation{}) == Prefs{});
+    const Prefs hidden = prefs_persist::prefs_of(Presentation{false});
+    const std::string text = prefs_persist::to_text(hidden);
+    CHECK(text.find("\"format\":\"zengine-workshop-prefs\"") != std::string::npos);
+    CHECK(text.find("\"workshop.pane-titles\"") != std::string::npos);
+    prefs_persist::LoadedPrefs read = prefs_persist::from_text(text);
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
     CHECK_FALSE(read.prefs.titles_shown);
-    read = prefs_persist::from_text(prefs_persist::to_text(Presentation{}));
-    REQUIRE(read.outcome.accepted);
-    CHECK(read.prefs.titles_shown);
+    CHECK(read.kept == hidden);
 
-    // THE TWO SPELLINGS ARE SAVED APART, each in its own word, and read back apart.
-    const std::string spelled = prefs_persist::to_text(
-        Presentation{true, KeySpelling::kFull, KeySpelling::kShort});
-    CHECK(spelled.find("\"band_keys\":\"full\"") != std::string::npos);
-    CHECK(spelled.find("\"hotkeys_keys\":\"short\"") != std::string::npos);
-    read = prefs_persist::from_text(spelled);
-    REQUIRE(read.outcome.accepted);
+    // THE TWO SPELLINGS, THE PIN SCOPE AND THE RING, each Workshop's own key.
+    Prefs all = prefs_persist::prefs_of(Presentation{true, KeySpelling::kFull, KeySpelling::kShort});
+    REQUIRE(prefs_persist::put_workshop_value(
+        all, prefs_persist::kPinnedScopeKey, PaneSetting{"", {}, {}, std::string(kPinsPerLayout)}));
+    REQUIRE(prefs_persist::put_workshop_value(
+        all, prefs_persist::kFocusRingKey, PaneSetting{"", {}, {}, std::string("plain")}));
+    // ...ANOTHER OFFICE'S, KEPT BY FORM; A PIN LIST; AN EVERYWHERE LOCK.
+    REQUIRE(prefs_persist::put_office_value(all, "test.skin", "window.face",
+                                            PaneSetting{"", {}, 15, {}}));
+    prefs_persist::put_pin_list(all, prefs_persist::PinList{"zengine.terminal/terminal",
+                                                            {"wheel-rows", "legend"}});
+    all.locks.push_back(prefs_persist::SettingLock{"zengine.terminal/terminal", "legend", false,
+                                                   std::nullopt, std::nullopt, false});
+    read = prefs_persist::from_text(prefs_persist::to_text(all));
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    CHECK(read.kept == all);
     CHECK(read.prefs.band_keys == KeySpelling::kFull);
     CHECK(read.prefs.hotkeys_keys == KeySpelling::kShort);
+    CHECK(read.prefs.pins_per_layout);
+    CHECK(read.prefs.ring_plain);
+    // KEPT IN ORDER: offices by name, an office's settings by key.
+    REQUIRE(all.offices.size() == 2);
+    CHECK(all.offices[0].office == "test.skin");
+    CHECK(all.offices[1].office == prefs_persist::kWorkshopOffice);
+    // ...AND A VALUE PUT BACK AT ITS DEFAULT TAKES ITS KEY, AND AN OFFICE KEEPING NOTHING, AWAY.
+    REQUIRE(prefs_persist::put_office_value(all, "test.skin", "window.face", std::nullopt));
+    CHECK(prefs_persist::office_kept(all, "test.skin") == nullptr);
 
+    // A FOREIGN VERSION IS REFUSED BY ITS NUMBER, on the claim.
+    std::string future = prefs_persist::to_text(hidden);
+    const std::size_t at = future.find("\"version\":3");
+    REQUIRE(at != std::string::npos);
+    future.replace(at, 11, "\"version\":9");
+    read = prefs_persist::from_text(future);
+    CHECK_FALSE(read.outcome.accepted);
+    CHECK(read.outcome.refusal == "prefs version 9 -- this Workshop reads versions 1 to 3");
+    // The family's format identity: the other files' bytes are refused by name.
+    CHECK_FALSE(prefs_persist::from_text(keymap_persist::to_text(Keymap{})).outcome.accepted);
+}
+
+TEST_CASE("a version-3 settings file is judged whole: a value Workshop's settings do not take, a list out of order, a pin twice, a lock with two values") {
+    using prefs_persist::Prefs;
+    struct Case {
+        const char* what;
+        std::function<void(Prefs&)> make;
+        const char* said;
+    };
+    const std::vector<Case> cases = {
+        {"a value Workshop's setting does not take",
+         [](Prefs& p) {
+             p.offices = {prefs_persist::OfficeSettingsKept{
+                 prefs_persist::kWorkshopOffice,
+                 {PaneSetting{prefs_persist::kFocusRingKey, {}, {}, std::string("dotted")}}}};
+         },
+         "workshop.focus.ring takes one of accent, plain, not a text `dotted`"},
+        {"offices out of order",
+         [](Prefs& p) {
+             p.offices = {prefs_persist::OfficeSettingsKept{"z.office", {PaneSetting{"a", true, {}, {}}}},
+                          prefs_persist::OfficeSettingsKept{"a.office", {PaneSetting{"a", true, {}, {}}}}};
+         },
+         "office `a.office` is listed twice or out of order"},
+        {"a setting with two values",
+         [](Prefs& p) {
+             p.offices = {prefs_persist::OfficeSettingsKept{"a.office", {PaneSetting{"a", true, 1, {}}}}};
+         },
+         "office `a.office`: setting `a` holds more than one value -- a setting holds exactly one "
+         "of a flag, a number or a text"},
+        {"a pin twice",
+         [](Prefs& p) { p.pins = {prefs_persist::PinList{"a/b", {"x", "x"}}}; },
+         "pin list `a/b` pins `x` twice"},
+        {"a pin list past its bound",
+         [](Prefs& p) {
+             p.pins = {prefs_persist::PinList{"a/b", {"k1", "k2", "k3", "k4", "k5", "k6", "k7", "k8", "k9"}}};
+         },
+         "pin list `a/b` holds more than 8 keys"},
+        {"a lock with two values",
+         [](Prefs& p) {
+             p.locks = {prefs_persist::SettingLock{"a/b", "k", true, 2, std::nullopt, false}};
+         },
+         "the lock on `k` of `a/b` holds more than one value -- a lock holds one, `clear`, or none"},
+    };
+    for (const Case& c : cases) {
+        CAPTURE(c.what);
+        Prefs p;
+        c.make(p);
+        const prefs_persist::LoadedPrefs read = prefs_persist::from_text(prefs_persist::to_text(p));
+        CHECK_FALSE(read.outcome.accepted);
+        CHECK(read.outcome.refusal == c.said);
+    }
+    // A KEY OF WORKSHOP'S OFFICE THIS BUILD DOES NOT DECLARE IS KEPT AS IT IS: a newer file's.
+    Prefs newer;
+    newer.offices = {prefs_persist::OfficeSettingsKept{
+        prefs_persist::kWorkshopOffice, {PaneSetting{"workshop.later", true, {}, {}}}}};
+    const prefs_persist::LoadedPrefs read = prefs_persist::from_text(prefs_persist::to_text(newer));
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    CHECK(read.kept == newer);
+}
+
+TEST_CASE("a version-2 prefs file is read as Workshop's own three settings, and its words are still a closed set") {
+    const auto words = [](const char* titles, const char* band, const char* hotkeys) {
+        return loom::compat::serialize(loom::to_value(prefs_persist::v2::WorkshopPrefs{
+            prefs_persist::kFormat, prefs_persist::kWordsVersion, titles, band, hotkeys}));
+    };
+    prefs_persist::LoadedPrefs read = prefs_persist::from_text(words("hidden", "full", "short"));
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    CHECK_FALSE(read.prefs.titles_shown);
+    CHECK(read.prefs.band_keys == KeySpelling::kFull);
+    CHECK(read.prefs.hotkeys_keys == KeySpelling::kShort);
+    // ...KEPT AS WORKSHOP'S OWN KEYS, so the next write is version 3.
+    CHECK(prefs_persist::office_value(read.kept, prefs_persist::kWorkshopOffice,
+                                      prefs_persist::kPaneTitlesKey)
+              ->flag == false);
+    CHECK(prefs_persist::to_text(read.kept).find("\"version\":3") != std::string::npos);
     // `default` is the hand-author's word for the code's answer, for each word.
-    std::string authored = swap(prefs_persist::to_text(Presentation{}), "\"titles\":\"shown\"",
-                                "\"titles\":\"default\"");
-    authored = swap(authored, "\"band_keys\":\"short\"", "\"band_keys\":\"default\"");
-    authored = swap(authored, "\"hotkeys_keys\":\"full\"", "\"hotkeys_keys\":\"default\"");
-    read = prefs_persist::from_text(authored);
+    read = prefs_persist::from_text(words("default", "default", "default"));
     REQUIRE(read.outcome.accepted);
     CHECK(read.prefs.titles_shown == prefs_persist::kTitlesDefaultValue);
     CHECK(read.prefs.band_keys == prefs_persist::kBandKeysDefaultValue);
     CHECK(read.prefs.hotkeys_keys == prefs_persist::kHotkeysKeysDefaultValue);
-
+    CHECK(read.kept == prefs_persist::Prefs{});
     // A word outside the closed set is refused naming what was found and what works.
-    read = prefs_persist::from_text(swap(prefs_persist::to_text(Presentation{}),
-                                         "\"titles\":\"shown\"", "\"titles\":\"visible\""));
+    read = prefs_persist::from_text(words("visible", "short", "full"));
     CHECK_FALSE(read.outcome.accepted);
     CHECK(read.outcome.refusal.find("`visible`") != std::string::npos);
     CHECK(read.outcome.refusal.find("default, shown or hidden") != std::string::npos);
-    read = prefs_persist::from_text(swap(prefs_persist::to_text(Presentation{}),
-                                         "\"band_keys\":\"short\"", "\"band_keys\":\"tiny\""));
+    read = prefs_persist::from_text(words("shown", "tiny", "full"));
     CHECK_FALSE(read.outcome.accepted);
     CHECK(read.outcome.refusal.find("`tiny`") != std::string::npos);
     CHECK(read.outcome.refusal.find("default, short or full") != std::string::npos);
-
-    // A foreign version is refused by ITS number, on the claim.
-    const std::string future =
-        swap(prefs_persist::to_text(Presentation{}), "\"version\":2", "\"version\":9");
-    read = prefs_persist::from_text(future);
-    CHECK_FALSE(read.outcome.accepted);
-    CHECK(read.outcome.refusal == "prefs version 9 -- this Workshop reads versions 1 and 2");
-
-    // The family's format identity: the other files' bytes are refused by name.
-    read = prefs_persist::from_text(keymap_persist::to_text(Keymap{}));
-    CHECK_FALSE(read.outcome.accepted);
+    // ...and its own number is still its own: a version-2 file saying it is version 3 is refused.
+    prefs_persist::v2::WorkshopPrefs lying{prefs_persist::kFormat, prefs_persist::kFormatVersion,
+                                           "shown", "short", "full"};
+    CHECK_FALSE(prefs_persist::from_text(loom::compat::serialize(loom::to_value(lying)))
+                    .outcome.accepted);
 }
 
 TEST_CASE("a prefs file of the version that held the titles alone is read, its spellings the "
@@ -2839,7 +2927,7 @@ TEST_CASE("a prefs file of the version that held the titles alone is read, its s
     CHECK(read.prefs.band_keys == KeySpelling::kShort);
     CHECK(read.prefs.hotkeys_keys == KeySpelling::kFull);
 
-    // ...and its own number is still its own: a version-1 file saying it is version 2 is refused.
+    // ...and its own number is still its own: a version-1 file saying it is version 3 is refused.
     prefs_persist::v1::WorkshopPrefs lying = old;
     lying.format_version = prefs_persist::kFormatVersion;
     CHECK_FALSE(prefs_persist::from_text(loom::compat::serialize(loom::to_value(lying)))
@@ -2860,7 +2948,7 @@ TEST_CASE("a toggle writes the preference, and a reopened Workshop wears it") {
         // The toggle is the weaver stating the preference, so the toggle is the write --
         // and the write created the configuration root it landed in.
         REQUIRE(std::filesystem::exists(prefs));
-        CHECK(slurp(prefs).find("\"titles\":\"hidden\"") != std::string::npos);
+        CHECK(slurp(prefs).find("\"workshop.pane-titles\"") != std::string::npos);
         // The notice still says what the toggle did, with no complaint added.
         CHECK(t.notice().rfind("pane titles hidden", 0) == 0);
         CHECK_FALSE(t.session().notice_is_bad);
@@ -2870,11 +2958,34 @@ TEST_CASE("a toggle writes the preference, and a reopened Workshop wears it") {
     t.host.prefs_path = prefs;
     t.publish(loom::to_value(surface::SurfaceReady{}));
     CHECK_FALSE(t.session().pane_titles);
-    // ...and toggling back rewrites the same file.
+    // ...and toggling back rewrites the same file, the default kept as its absence.
     t.key(input::scan::kT);
     t.text("t");
     CHECK(t.session().pane_titles);
-    CHECK(slurp(prefs).find("\"titles\":\"shown\"") != std::string::npos);
+    CHECK(slurp(prefs).find("\"workshop.pane-titles\"") == std::string::npos);
+    CHECK(prefs_persist::from_text(slurp(prefs)).outcome.accepted);
+}
+
+TEST_CASE("a settings file another hand changed since this Workshop read it is never written over") {
+    TempDir dir("prefs-two-hands");
+    const std::string prefs = dir.file("workshop-prefs.json");
+    REQUIRE(prefs_persist::save_file(prefs, prefs_persist::Presentation{false}).accepted);
+    Live t;
+    t.host.prefs_path = prefs;
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    REQUIRE_FALSE(t.session().pane_titles);
+    // ANOTHER WORKSHOP, OR A HAND, WRITES THE FILE AFTER THIS ONE READ IT.
+    const std::string theirs = prefs_persist::to_text(
+        prefs_persist::Presentation{false, KeySpelling::kFull, KeySpelling::kFull});
+    spillout(prefs, theirs);
+    t.key(input::scan::kT);
+    t.text("t");
+    // THE TOGGLE STANDS FOR THIS RUN, AND THE FILE IS LEFT AS THE OTHER HAND WROTE IT.
+    CHECK(t.session().pane_titles);
+    CHECK(t.session().notice_is_bad);
+    CHECK(t.notice().find("the settings file changed since this Workshop read it") !=
+          std::string::npos);
+    CHECK(slurp(prefs) == theirs);
 }
 
 TEST_CASE("a restored hidden-titles preference still shows which pane holds the keyboard") {
@@ -2933,6 +3044,30 @@ TEST_CASE("a refused prefs file is spoken, stands, and is never overwritten") {
     CHECK(t.session().notice_is_bad);
     CHECK(t.notice().find("will not be overwritten") != std::string::npos);
     CHECK(slurp(prefs) == "{ not a prefs file");
+}
+
+TEST_CASE("a prefs file version 3 cannot read is refused whole, and its bytes stand") {
+    // A FILE OF THE RIGHT FORMAT HOLDING A VALUE WORKSHOP'S SETTINGS DO NOT TAKE: a wall like
+    // a malformed one, the defaults in force and the file never rewritten.
+    TempDir dir("prefs-bad-value");
+    const std::string prefs = dir.file("workshop-prefs.json");
+    prefs_persist::Prefs bad;
+    bad.offices = {prefs_persist::OfficeSettingsKept{
+        prefs_persist::kWorkshopOffice,
+        {PaneSetting{prefs_persist::kBandKeysKey, {}, {}, std::string("tiny")}}}};
+    const std::string text = prefs_persist::to_text(bad);
+    spillout(prefs, text);
+    Live t;
+    t.host.prefs_path = prefs;
+    t.publish(loom::to_value(surface::SurfaceReady{}));
+    const std::vector<Condition> now = attention_conditions(t.session());
+    const Condition* wall = condition_by_key(now, kPrefsWallKey);
+    REQUIRE(wall != nullptr);
+    CHECK(wall->detail.find("workshop.band-keys takes one of short, full") != std::string::npos);
+    CHECK(t.session().band_keys == prefs_persist::kBandKeysDefaultValue);
+    t.key(input::scan::kT);
+    t.text("t");
+    CHECK(slurp(prefs) == text);
 }
 
 TEST_CASE("no prefs path means the preference lives exactly as long as the run") {
