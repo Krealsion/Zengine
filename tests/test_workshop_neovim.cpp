@@ -312,15 +312,15 @@ TEST_CASE("the Neovim editor holding the office under a profile it refuses says 
     CHECK_MESSAGE(s.shows("ZENGINE_NEOVIM_PROFILE is `User`"), s.status());
 }
 
-TEST_CASE("the Neovim editor declares `profile` and `status`: a layout's `user` is the profile its next start runs where the variable names none, and `status` off gives Neovim the row above it") {
-    // ⚔ MUTATION: a start reading the variable alone -- the profile stays `clean`. And the row
-    // above Neovim drawn whatever `status` says -- the off picture still says NORMAL.
+TEST_CASE("the Neovim editor declares `profile` and `status`: `status` off gives Neovim the row above it, and a layout's `user` is the profile its next start runs where the variable names none") {
+    // ⚔ MUTATION: the row above Neovim drawn whatever `status` says -- the off picture still says
+    // NORMAL. And a start reading the variable alone -- the profile stays `clean`.
     SwitchRig s("nvim-settings");
     NeovimEnvironment env(s.root, NEOVIM_FIXTURE);
-    // A PROFILE THE VARIABLE NAMES AND THE EDITOR REFUSES: the first start never makes a Neovim.
-    set_env("ZENGINE_NEOVIM_PROFILE", "User");
+    // THE VARIABLE UNSET BEFORE THE IMAGE LOADS, and never touched after: a weave built against its
+    // own C runtime reads the environment it loaded with.
+    unset_env("ZENGINE_NEOVIM_PROFILE");
     s.open(standard_and_neovim(), nve::kNeovimEditorStem);
-    REQUIRE(s.read("running") == "false");
     const PaneRef editor{pane::kEditorPaneRole, pane::kEditorPane};
 
     // THE TWO SETTINGS, AS WORKSHOP COUNTS THEM: the profile one of the two words, never a file.
@@ -332,26 +332,23 @@ TEST_CASE("the Neovim editor declares `profile` and `status`: a layout's `user` 
                            std::nullopt, {"chrome"}, false, "show the status row above Neovim"}};
     CHECK(declared_settings(s.r, editor) == declared);
 
-    // THE VARIABLE GONE, THE LAYOUT'S `user` IS WHAT THE NEXT START RUNS -- an open's.
-    unset_env("ZENGINE_NEOVIM_PROFILE");
-    keep_settings(s.r, editor, {PaneSetting{nve::kSettingProfile, {}, {}, std::string("user")}});
-    CHECK(unused_settings(s.r, editor).empty());
-    (void)open_through_office(s, "a.cpp", "a\n");
-    REQUIRE(beat_until(s, [&] { return s.read("ready") == "true"; }));
-    CHECK(s.read("profile") == "user");
-
-    // THE STATUS ROW, ONCE THE OPEN'S NOTICE IS SPENT; THEN `status` OFF GIVES THE ROW TO NEOVIM.
-    press_pane(s.r, s.kind, 0, 0);
+    // THE PANE'S OWN START, IN ITS ROOM, AT THE DEFAULT: `clean`, said on the status row.
+    REQUIRE_MESSAGE(beat_until(s, [&] { return s.read("ready") == "true"; }), s.status());
+    CHECK(s.read("profile") == "clean");
+    press_pane(s.r, s.kind, 0, 0); // ...the start's notice spent by the weaver's next act
     s.r.key(input::scan::kEscape);
-    REQUIRE(beat_until(s, [&] { return s.status().find("NORMAL user") != std::string::npos; }));
-    keep_settings(s.r, editor, {PaneSetting{nve::kSettingProfile, {}, {}, std::string("user")},
-                                PaneSetting{nve::kSettingStatus, false, {}, {}}});
+    REQUIRE_MESSAGE(beat_until(s, [&] { return s.status().find("NORMAL clean") != std::string::npos; }),
+                    s.status());
+
+    // `status` OFF GIVES THE ROW TO NEOVIM, and a row that keeps nothing gives it back.
+    keep_settings(s.r, editor, {PaneSetting{nve::kSettingStatus, false, {}, {}}});
+    CHECK(unused_settings(s.r, editor).empty());
     beat(s);
     CHECK(s.status().find("NORMAL") == std::string::npos);
-    CHECK_FALSE(s.shows("NORMAL user"));
-    keep_settings(s.r, editor, {PaneSetting{nve::kSettingProfile, {}, {}, std::string("user")}});
+    CHECK_FALSE(s.shows("NORMAL clean"));
+    keep_settings(s.r, editor, {});
     beat(s);
-    CHECK(s.status().find("NORMAL user") != std::string::npos);
+    CHECK(s.status().find("NORMAL clean") != std::string::npos);
 
     // A PROFILE THAT NAMES A FILE IS NOT ONE IT TAKES, nor a number a flag: each is said, and the
     // defaults stand. The standard Editor's tab stop, kept in the same row, is passed over.
@@ -361,7 +358,39 @@ TEST_CASE("the Neovim editor declares `profile` and `status`: a layout's `user` 
     CHECK(unused_settings(s.r, editor) ==
           std::vector<std::string>{"profile: it takes one of clean, user", "status: it takes on or off"});
     beat(s);
-    CHECK(s.status().find("NORMAL user") != std::string::npos); // the running Neovim's profile stands
+    CHECK(s.status().find("NORMAL clean") != std::string::npos);
+
+    // THE LAYOUT'S `user`: the running Neovim keeps its profile, and the next start runs `user`.
+    keep_settings(s.r, editor, {PaneSetting{nve::kSettingProfile, {}, {}, std::string("user")}});
+    CHECK(unused_settings(s.r, editor).empty());
+    CHECK(s.read("profile") == "clean");
+    auto held = std::make_unique<ConsoleSeat>();
+    ConsoleSeat* console = held.get();
+    loom::Grant may_ask;
+    may_ask.allow_to_role(nve::NeovimStartRequested::zen_name, nve::NeovimStartRequested::zen_version,
+                          nve::kEditorOffice);
+    may_ask.allow_to_role(nve::NeovimStopRequested::zen_name, nve::NeovimStopRequested::zen_version,
+                          nve::kEditorOffice);
+    const loom::WeaveId console_id = s.r.bus.register_weave(std::move(held), std::move(may_ask),
+                                                            std::string("zengine.test.console"));
+    console->zen_set_self(console_id);
+    const auto ask = [&](auto shape) {
+        const std::size_t before = console->answers.size();
+        console->next = [shape](loom::Mail& mail) {
+            (void)mail.as_role("zengine.test.console").send_to_role(nve::kEditorOffice, shape);
+        };
+        (void)s.r.bus.send(console_id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
+        s.r.bus.drain_until_idle();
+        REQUIRE_MESSAGE(console->answers.size() == before + 1, "the ask was never answered");
+        return console->answers.back();
+    };
+    nve::NeovimStopRequested stop;
+    stop.discard = true;
+    (void)ask(stop);
+    REQUIRE_MESSAGE(s.read("running") == "false", s.status());
+    const std::string started = ask(nve::NeovimStartRequested{});
+    CHECK_MESSAGE(started.rfind("REFUSED", 0) != 0, started);
+    CHECK(s.read("profile") == "user");
 }
 
 TEST_CASE("WL-HAND-06: the Neovim editor names its own status row, and nothing of Neovim's screen") {
