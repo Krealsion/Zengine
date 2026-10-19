@@ -131,8 +131,12 @@ def says_stale(words):
 
 
 def says_in_flight(words):
+    """Whether `words` refuse a pane whose newest picture is not yet aimed: Workshop says a canvas
+    pane holds "no settled picture", and a text pane, or one not yet heard from, "no settled text
+    picture"."""
     w = (words or "").lower()
-    return "in flight" in w or "no settled picture" in w or "not yet aimed" in w
+    return "in flight" in w or "no settled picture" in w or "no settled text picture" in w or \
+        "not yet aimed" in w
 
 
 def items_of(view):

@@ -9,15 +9,15 @@ menu -- and every ask is kept. The checks read the files the reader wrote: AGENT
 first and holding no word the desk said; guide.md quoting the desk's words only in attributed
 blocks marked as data, on every page; desk.txt holding each word at its place and each part at
 its point; the glance writing each word at its own cell over a frame's edges; the paged pane
-whole, read again when its reading moved under a page; the in-flight,
-refused and covered panes said; an `out` inside a checkout, or a `panes` that is a link,
-refused with nothing written or removed; the desk number's span said; paging past 64 KiB, each
-page file one pane's; two panes whose provider and pane names would join as one string read and
-written apart, in either order and in one page or many; and a pinned character count for the
-fixture's sparse reading, so a reading drifting toward the whole grid is red. One check reads a
-menu as Workshop answers it on a window, from `desk_window_menu.json` beside them, which
-test_workshop_desk_read.cpp holds to Workshop's answer; the rest claim nothing about a real
-Workshop's answers.
+whole, read again when its reading moved under a page; a pane refused in either of Workshop's
+sentences for no settled picture asked again; the in-flight, refused and covered panes said; an
+`out` inside a checkout, or a `panes` that is a link, refused with nothing written or removed;
+the desk number's span said; paging past 64 KiB, each page file one pane's; two panes whose
+provider and pane names would join as one string read and written apart, in either order and in
+one page or many; and a pinned character count for the fixture's sparse reading, so a reading
+drifting toward the whole grid is red. One check reads a menu as Workshop answers it on a window,
+from `desk_window_menu.json` beside them, which test_workshop_desk_read.cpp holds to Workshop's
+answer; the rest claim nothing about a real Workshop's answers.
 
 Standalone: python desk_read_checks.py --tools <external-host/tools/desk> --runtime <loom runtime>
 (the runtime is the directory holding `loom_session`: an installed Loom's lib/loom/python, or
@@ -214,6 +214,29 @@ class FlickerPane(object):
                     total=len(self.words))
 
 
+#: Workshop's refusals of a pane holding no settled picture: one drawing a picture, and one drawing
+#: text rows or not yet heard from (`visible_body`, workshop/weave_desk_read.cpp).
+UNSETTLED_CANVAS = "pane view unavailable: no settled picture"
+UNSETTLED_TEXT = "pane view unavailable: no settled text picture"
+
+
+class UnsettledPane(object):
+    """A pane whose first `refusals` asks are refused in `sentence`, a pane holding no settled
+    picture, and then answered whole."""
+
+    def __init__(self, ident, words, sentence, refusals, canvas=False):
+        self.ident, self.words, self.sentence = ident, words, sentence
+        self.refusals, self.canvas = refusals, canvas
+
+    def answer(self, fields, refused):
+        if self.refusals:
+            self.refusals -= 1
+            raise refused(self.sentence)
+        answered = view(stamp(*self.ident, picture=5), self.words)
+        answered["canvas"] = self.canvas
+        return answered
+
+
 class Workshop(object):
     """The run's context, with Workshop and the guest door scripted behind its asks: each ask is
     answered from the fixture, or refused as the fixture says, and kept."""
@@ -314,10 +337,10 @@ class Workshop(object):
         self.alone[ident] = self.alone.get(ident, 0) + 1
         if ident == GAME:  # repaints every frame: never aimed when asked
             return view(stamp(*GAME, picture=40 + self.alone[ident]), in_flight=True)
-        if ident == TERMINAL:  # in flight once alone, then settled
+        if ident == TERMINAL:  # a text pane: refused once alone as unsettled, then settled
             self.terminal_asks += 1
             if self.terminal_asks == 1:
-                raise self.tool.Refused("no settled picture: picture in flight")
+                raise self.tool.Refused(UNSETTLED_TEXT)
             return view(stamp(*TERMINAL, picture=9), TERMINAL_WORDS)
         if ident == BUILDER:
             return self.builder.answer(fields, self.tool.Refused)
@@ -518,6 +541,28 @@ def run_checks(tools, runtime):
             for w in words:
                 self.assertIn("%d,%d %s" % (w["place"]["x"], w["place"]["y"] + 9, w["text"]),
                               section)
+
+        def test_a_pane_refused_for_no_settled_picture_is_asked_again_in_either_sentence(self):
+            # Workshop refuses a pane holding no settled picture in one sentence for a canvas
+            # pane and another for a text pane: either is asked again, as a picture in flight is,
+            # and past IN_FLIGHT_ASKS in a row is said in flight at every ask.
+            unsettled = ("zengine.unsettled", "board")
+            words = [word(0, "unsettled word zq-unsettled", 3, 60)]
+            for sentence, canvas in ((UNSETTLED_TEXT, False), (UNSETTLED_CANVAS, True)):
+                for refusals in (asks.IN_FLIGHT_ASKS - 1, asks.IN_FLIGHT_ASKS):
+                    with self.subTest(sentence=sentence, refusals=refusals):
+                        pane = UnsettledPane(unsettled, words, sentence, refusals, canvas)
+                        ctx = Workshop(tool, self.out, extra=[(unsettled, pane)])
+                        with patch.object(asks.time, "sleep"):
+                            read.run(ctx)
+                        section = self.section("zengine.unsettled/board")
+                        if refusals < asks.IN_FLIGHT_ASKS:
+                            self.assertIn("3,69 unsettled word zq-unsettled", section)
+                            self.assertEqual(ctx.alone[unsettled], refusals + 1)
+                        else:
+                            self.assertEqual(section[1:], ["(not read: its newest picture was in "
+                                                           "flight at every ask)"])
+                            self.assertEqual(ctx.alone[unsettled], asks.IN_FLIGHT_ASKS)
 
         def test_a_pane_moving_past_three_restarts_is_said(self):
             ctx = Workshop(tool, self.out)
