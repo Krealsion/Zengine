@@ -231,11 +231,11 @@ struct Axis {
     std::optional<std::int64_t> met;
 };
 
-/// One axis: the edges `moving` names come to the nearest line within reach, and a travel that
-/// would author a place or an extent the gesture door refuses is not taken. What is not written
-/// is not judged: a high pull leaves the place as it stood.
+/// One axis: the edges `moving` names come to the nearest line within `reach_px`, and a travel
+/// that would author a place or an extent the gesture door refuses is not taken. What is not
+/// written is not judged: a high pull leaves the place as it stood.
 Axis snap_axis(std::int64_t at, std::int64_t size, Moving moving,
-               const std::vector<std::int64_t>& lines) noexcept {
+               const std::vector<std::int64_t>& lines, std::int64_t reach_px) noexcept {
     if (moving == Moving::kNone) {
         return Axis{at, size, std::nullopt};
     }
@@ -259,7 +259,7 @@ Axis snap_axis(std::int64_t at, std::int64_t size, Moving moving,
         return s;
     };
     std::optional<Axis> best;
-    std::int64_t nearest = kPaneSnapReachPx + 1;
+    std::int64_t nearest = reach_px + 1;
     const auto meet = [&](std::int64_t edge) {
         for (const std::int64_t line : lines) {
             const std::int64_t gap =
@@ -309,10 +309,10 @@ PaneSnapLines pane_snap_lines(const Panes& panes, const Setup& setup, const Scre
 
 // WL-ARR-17 -- agents/workshop/arrangement-snap.md
 SnappedWindow snap_pane_window(const PaneWindowProposal& want, std::int64_t edge,
-                               const PaneSnapLines& lines) noexcept {
+                               const PaneSnapLines& lines, std::int64_t reach_px) noexcept {
     SnappedWindow out{want, std::nullopt, std::nullopt};
-    const Axis x = snap_axis(want.x, want.w, moving_x(edge), lines.xs);
-    const Axis y = snap_axis(want.y, want.h, moving_y(edge), lines.ys);
+    const Axis x = snap_axis(want.x, want.w, moving_x(edge), lines.xs, reach_px);
+    const Axis y = snap_axis(want.y, want.h, moving_y(edge), lines.ys, reach_px);
     out.want.x = x.at;
     out.want.w = x.size;
     out.met_x = x.met;

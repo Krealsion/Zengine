@@ -315,8 +315,9 @@ inline Written check_pane_size(const PaneSize& s, const char* which) {
 }
 
 /// WHAT A ROW'S SETTINGS MAY BE, judged by form alone: each one a setting (`pane_setting_problem`),
-/// in key order and once each, at most `kMaxPaneSettingsPerRow`, and none under `workshop.`,
-/// since this Workshop keeps no setting of its own and would drop a newer one's unread.
+/// in key order and once each, at most `kMaxPaneSettingsPerRow`, and none under `workshop.` but
+/// `workshop.skin`, which takes what its setting takes: a newer Workshop's word this one does not
+/// know would be dropped unread.
 // WL-SETTING-02 -- agents/workshop/settings.md
 inline Written check_pane_settings(const PaneRef& ref, const std::vector<PaneSetting>& settings) {
     const std::string whose = "`" + ref_text(ref) + "`";
@@ -332,8 +333,15 @@ inline Written check_pane_settings(const PaneRef& ref, const std::vector<PaneSet
             return Written::no(whose + ": " + wrong);
         }
         if (is_desk_setting_key(s.key)) {
-            return Written::no(whose + ": `" + s.key +
-                               "` is a Workshop setting this Workshop does not know");
+            if (s.key != kWorkshopSkinKey) {
+                return Written::no(whose + ": `" + s.key +
+                                   "` is a Workshop setting this Workshop does not know");
+            }
+            if (const std::string refused =
+                    pane_setting_refused_by(narrow_setting_row(workshop_skin_setting_row()), s);
+                !refused.empty()) {
+                return Written::no(whose + ": " + refused);
+            }
         }
         if (i > 0 && !(settings[i - 1].key < s.key)) {
             return Written::no(whose + ": a row keeps its settings in key order, once each -- `" +

@@ -3863,6 +3863,173 @@ TEST_CASE("a host with no skin libraries offers and chooses no skin, and places 
     CHECK(bare.directory->areas.count(apane::kAttentionPaneRole) == 1);
 }
 
+namespace {
+
+/// AN EDITOR'S OFFICE AT THE SETTINGS DOORS: it reads and writes Workshop's own settings and a
+/// pane's row by message, and keeps the answers.
+class SkinEditor
+    : public loom::WeaveBase<SkinEditor, ArrangedDirectoryState,
+                             loom::Accept<OfficeSettingsShown, PaneSettingsShown, PaneSettingActed,
+                                          SeatDo>,
+                             loom::Emit<OfficeSettingsRequested, OfficeSettingCommitRequested,
+                                        PaneSettingsRequested, PaneSettingCommitRequested>> {
+public:
+    void on(const OfficeSettingsShown& s, loom::Mail& mail) {
+        if (mail.answers_ask()) office.push_back(s);
+    }
+    void on(const PaneSettingsShown& s, loom::Mail& mail) {
+        if (mail.answers_ask()) rows.push_back(s);
+    }
+    void on(const PaneSettingActed& a, loom::Mail& mail) {
+        if (mail.answers_ask()) acted.push_back(a);
+    }
+    void on(const SeatDo&, loom::Mail& mail) {
+        auto run = std::move(next);
+        next = {};
+        if (run) run(mail);
+    }
+
+    std::function<void(loom::Mail&)> next;
+    std::vector<OfficeSettingsShown> office;
+    std::vector<PaneSettingsShown> rows;
+    std::vector<PaneSettingActed> acted;
+};
+
+constexpr const char* kSkinEditorOffice = "test.skin-editor";
+
+/// THE WINDOW DESK WITH AN EDITOR BESIDE IT, which writes Workshop's skin and the Attention pane's.
+struct SkinDesk : WindowDesk {
+    SkinEditor* editor = nullptr;
+    loom::WeaveId editor_id{};
+
+    SkinDesk() : WindowDesk(true) {
+        auto made = std::make_unique<SkinEditor>();
+        editor = made.get();
+        loom::Grant grant;
+        grant.allow_to_role(OfficeSettingsRequested::zen_name, OfficeSettingsRequested::zen_version,
+                            kWorkshopProvider);
+        grant.allow_to_role(OfficeSettingCommitRequested::zen_name,
+                            OfficeSettingCommitRequested::zen_version, kWorkshopProvider);
+        grant.allow_to_role(PaneSettingsRequested::zen_name, PaneSettingsRequested::zen_version,
+                            kWorkshopProvider);
+        grant.allow_to_role(PaneSettingCommitRequested::zen_name,
+                            PaneSettingCommitRequested::zen_version, kWorkshopProvider);
+        editor_id = r.bus.register_weave(std::move(made), std::move(grant), kSkinEditorOffice);
+        editor->zen_set_self(editor_id);
+    }
+
+    template <class Shape> void ask(const Shape& asked) {
+        editor->next = [asked](loom::Mail& mail) {
+            (void)mail.as_role(kSkinEditorOffice).send_to_role(kWorkshopProvider, asked);
+        };
+        (void)r.bus.send(editor_id, loom::Message(loom::to_value(SeatDo{}), {}, {}, 0));
+        r.bus.drain_until_idle();
+    }
+    PaneSettingActed acted() {
+        REQUIRE_FALSE(editor->acted.empty());
+        return editor->acted.back();
+    }
+    /// Workshop's own skin, written at the revision read now.
+    PaneSettingActed workshop_skin(const char* skin) {
+        ask(OfficeSettingsRequested{kWorkshopProvider});
+        REQUIRE_FALSE(editor->office.empty());
+        OfficeSettingCommitRequested c;
+        c.office = kWorkshopProvider;
+        c.revision = editor->office.back().revision;
+        c.key = "workshop.skin";
+        c.text = std::string(skin);
+        ask(c);
+        return acted();
+    }
+    /// ...and the Attention pane's row's, or its clear for none.
+    PaneSettingActed pane_skin(const char* skin) {
+        ask(PaneSettingsRequested{apane::kAttentionPaneRole, apane::kAttentionPane});
+        REQUIRE_FALSE(editor->rows.empty());
+        PaneSettingCommitRequested c;
+        c.provider = apane::kAttentionPaneRole;
+        c.pane = apane::kAttentionPane;
+        c.revision = editor->rows.back().revision;
+        c.key = "workshop.skin";
+        if (skin != nullptr) {
+            c.text = std::string(skin);
+        } else {
+            c.clear = true;
+        }
+        ask(c);
+        return acted();
+    }
+    /// The skins said to the directory since `from`, by area.
+    std::map<std::string, std::string> chosen_since(std::size_t from, std::size_t* count = nullptr) {
+        std::map<std::string, std::string> out;
+        for (std::size_t i = from; i < directory->chosen.size(); ++i) {
+            out[directory->chosen[i].area] = directory->chosen[i].skin;
+        }
+        if (count != nullptr) {
+            *count = directory->chosen.size() - from;
+        }
+        return out;
+    }
+};
+
+using Skins = std::map<std::string, std::string>;
+
+} // namespace
+
+TEST_CASE("each graphics area wears its pane row's `workshop.skin`, else Workshop's own, and a "
+          "skin is said only when an area's moved") {
+    // ⚔ MUTATION: every area given `classic` whatever is kept -- Workshop's `block` never reaches
+    // the directory, and neither does the row's.
+    SkinDesk d;
+    const std::string pane = apane::kAttentionPaneRole;
+    REQUIRE(d.directory->areas.count(pane) == 1);
+    REQUIRE(d.directory->areas.count(kWorkshopProvider) == 1);
+    std::size_t said = 0;
+
+    // WORKSHOP'S OWN, `block`: every area wears it, each said once.
+    std::size_t from = d.directory->chosen.size();
+    const PaneSettingActed wide = d.workshop_skin("block");
+    REQUIRE_MESSAGE(wide.accepted, wide.refusal);
+    CHECK(d.r.session().skin == "block");
+    CHECK(d.chosen_since(from, &said) == Skins{{kWorkshopProvider, "block"}, {pane, "block"}});
+    CHECK(said == 2);
+
+    // THE PANE'S ROW, `classic`: its area alone moves back, and the pane is handed none of it.
+    from = d.directory->chosen.size();
+    const PaneSettingActed own = d.pane_skin("classic");
+    REQUIRE_MESSAGE(own.accepted, own.refusal);
+    CHECK(own.handed == "stored and handed");
+    CHECK(d.chosen_since(from, &said) == Skins{{pane, "classic"}});
+    CHECK(said == 1);
+    const ExternalPane* held = d.r.session().panes.external_pane(d.kind);
+    REQUIRE(held != nullptr);
+    REQUIRE(held->settings_heard.has_value());
+    CHECK(find_pane_setting(*held->settings_heard, "workshop.skin") == nullptr);
+
+    // WORKSHOP'S OWN BACK TO `classic` moves Workshop's area alone: the row already says it.
+    from = d.directory->chosen.size();
+    REQUIRE(d.workshop_skin("classic").accepted);
+    CHECK(d.chosen_since(from) == Skins{{kWorkshopProvider, "classic"}});
+    // ...A CLEARED ROW TAKES WORKSHOP'S, `classic` too, so nothing more is said...
+    from = d.directory->chosen.size();
+    REQUIRE(d.pane_skin(nullptr).accepted);
+    CHECK(d.chosen_since(from).empty());
+    // ...AND A ROW SAYING `block` UNDER IT MOVES ITS AREA ALONE.
+    from = d.directory->chosen.size();
+    REQUIRE(d.pane_skin("block").accepted);
+    CHECK(d.chosen_since(from) == Skins{{pane, "block"}});
+
+    // A REPAINT THAT MOVED NOTHING SAYS NO SKIN.
+    from = d.directory->chosen.size();
+    d.r.key(input::scan::kGrave);
+    CHECK(d.chosen_since(from).empty());
+    // A DIRECTORY THAT STARTS AFRESH HEARS EVERY AREA'S SKIN AGAIN, the row's included.
+    from = d.directory->chosen.size();
+    d.directory_does();
+    CHECK(d.chosen_since(from, &said) == Skins{{kWorkshopProvider, "classic"}, {pane, "block"}});
+    CHECK(said == 2);
+    CHECK(d.refused.empty());
+}
+
 TEST_CASE("a pane's graphics area is named as its office draws there: `<office>.<pane>` for an "
           "office that seats each of its panes, its office for any other") {
     Panes panes;

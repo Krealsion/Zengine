@@ -133,8 +133,8 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         skins_chosen_.clear();
         graphics_asked_ = false;
         if (!host_->dir.empty()) {
-            to_directory(graphics::SkinOffered{"classic", host_->so("zengine-paint-classic")});
-            to_directory(graphics::SkinOffered{"block", host_->so("zengine-paint-block")});
+            to_directory(graphics::SkinOffered{kSkinClassic, host_->so("zengine-paint-classic")});
+            to_directory(graphics::SkinOffered{kSkinBlock, host_->so("zengine-paint-block")});
         }
     }
     // EACH OPEN PANE WHOSE OFFICE DRAWS IN A WINDOW, over its body, in the desk's order and above
@@ -145,6 +145,8 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
     const std::vector<std::int64_t> order =
         effective_pane_order(session_.setup.active, session_.panes);
     std::map<std::string, graphics::AreaPlaced> next;
+    // EACH AREA'S SKIN: its pane's row's `workshop.skin`, else Workshop's own.
+    std::map<std::string, std::string> skins;
     std::set<std::int64_t> kinds;
     for (std::size_t i = 0; i < order.size(); ++i) {
         const RuntimePane* row = session_.panes.runtime.of_kind(order[i]);
@@ -168,6 +170,14 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
             area, graphics::kTerminalWindow, row->provider, place.x, place.y, place.w, place.h,
             static_cast<std::int64_t>(i) + 1, false,
             accepts(row->provider, *loom::schema_of<input::PointerButton>())};
+        const SetupPane* seat =
+            pane_of(session_.setup.active, PaneRef{row->provider, row->pane});
+        const PaneSetting* own =
+            seat != nullptr ? find_pane_setting(seat->settings, kWorkshopSkinKey) : nullptr;
+        skins[area] = own != nullptr && own->text &&
+                              (*own->text == kSkinClassic || *own->text == kSkinBlock)
+                          ? *own->text
+                          : session_.skin;
         kinds.insert(order[i]);
     }
     // WORKSHOP'S OWN AREA, the whole screen: behind every pane's, and in front of them while a
@@ -176,6 +186,7 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
     next[kWorkshopProvider] = graphics::AreaPlaced{
         kWorkshopProvider, graphics::kTerminalWindow, kWorkshopProvider, 0, 0, sc.w, sc.h,
         front ? static_cast<std::int64_t>(order.size()) + 1 : 0, true, true};
+    skins[kWorkshopProvider] = session_.skin;
     for (const auto& [area, was] : areas_placed_) {
         if (next.count(area) == 0) {
             to_directory(graphics::AreaPlaced{area, "", was.owner, 0, 0, 0, 0, 0, false, false});
@@ -187,8 +198,11 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         if (was == areas_placed_.end() || !same_place(was->second, placed)) {
             to_directory(placed);
         }
-        if (!host_->dir.empty() && skins_chosen_.insert(area).second) {
-            to_directory(graphics::SkinChosen{area, "classic"});
+        // A SKIN IS SAID WHEN THE AREA'S CHOICE MOVED: placed afresh, or its setting changed.
+        const std::string& skin = skins[area];
+        if (!host_->dir.empty() && skins_chosen_[area] != skin) {
+            skins_chosen_[area] = skin;
+            to_directory(graphics::SkinChosen{area, skin});
         }
     }
     areas_placed_ = std::move(next);

@@ -61,10 +61,13 @@ inline constexpr std::int64_t kScreenMaxH = 400 * surface::kCanvasCellPx;
 // WL-GEO-03 -- agents/workshop/geometry.md; WL-FRONT-03 -- agents/workshop/planes.md
 inline constexpr std::int64_t kTopRows = 2;
 
-/// The right column (`placement::kSideRegion`): a place at the screen's right edge, fixed width
-/// in cells, reserving nothing -- a pane standing here covers room, as a stacked one does.
+/// The right column (`placement::kSideRegion`): a place at the screen's right edge, its width in
+/// cells, reserving nothing -- a pane standing here covers room, as a stacked one does. The width
+/// is `workshop.side-columns`, from `kMinSideCols` to `kMaxSideCols`; this is its default.
 // WL-GEO-03 -- agents/workshop/geometry.md
 inline constexpr std::int64_t kSideCols = 28;
+inline constexpr std::int64_t kMinSideCols = 16;
+inline constexpr std::int64_t kMaxSideCols = 64;
 
 /// The rows of text in the band under the workspace, fitted the same way.
 // WL-GEO-03 -- agents/workshop/geometry.md
@@ -81,8 +84,16 @@ static_assert(kTopRows + kBottomRows == 6,
 /// THE MINIMUM WIDTH, and the base the surplus is measured from: wide enough for a build
 /// recipe's tail on the 78x22 composition, where it is also the whole of the workspace.
 inline constexpr std::int64_t kStackW = 48;
-inline constexpr std::int64_t kStackRows = 9; ///< fallback height for providers without a preferred body size
+/// THE FALLBACK HEIGHT for providers without a preferred body size: `workshop.stack-rows`, from
+/// `kMinStackRows` to `kMaxStackRows`; this is its default.
+inline constexpr std::int64_t kStackRows = 9;
+inline constexpr std::int64_t kMinStackRows = 5;
+inline constexpr std::int64_t kMaxStackRows = 40;
 inline constexpr std::int64_t kStackGap = 1;  ///< a blank row between stacked panes
+
+static_assert(kMinSideCols <= kSideCols && kSideCols <= kMaxSideCols &&
+                  kMinStackRows <= kStackRows && kStackRows <= kMaxStackRows,
+              "each default is a value its setting takes");
 
 
 /// THE SCREEN'S FURNITURE, DERIVED IN ONE PLACE, in canvas pixels.
@@ -102,6 +113,11 @@ struct Screen {
     /// ...AND HOW BIG ONE CANVAS CELL OF THAT MEDIUM IS, in its own device pixels.
     // WL-GEO-08 -- agents/workshop/geometry.md
     std::int64_t cell_px = 0;
+    /// The right column's width and the overlay stack's fallback height, in cells, as the
+    /// session's settings choose them.
+    // WL-GEO-03 -- agents/workshop/geometry.md
+    std::int64_t side_cols = kSideCols;
+    std::int64_t stack_rows = kStackRows;
 };
 
 /// How tall `rows` rows of text stand in a band, inside `chrome` on each side: the face's lines
@@ -119,14 +135,18 @@ inline constexpr std::int64_t band_px_for(std::int64_t rows, std::int64_t text_a
 inline constexpr Screen screen_of(std::int64_t want_w, std::int64_t want_h,
                                   std::int64_t text_advance_px = 0,
                                   std::int64_t text_line_px = 0,
-                                  std::int64_t cell_px = 0) noexcept {
+                                  std::int64_t cell_px = 0,
+                                  std::int64_t side_cols = kSideCols,
+                                  std::int64_t stack_rows = kStackRows) noexcept {
     Screen s;
     // The medium's device unit is taken as reported: non-positive already means "my device unit
     // is the cell".
     s.cell_px = cell_px > 0 ? cell_px : 0;
     s.w = want_w < kScreenMinW ? kScreenMinW : (want_w > kScreenMaxW ? kScreenMaxW : want_w);
     s.h = want_h < kScreenMinH ? kScreenMinH : (want_h > kScreenMaxH ? kScreenMaxH : want_h);
-    s.side_x = s.w - surface::px_of_cells(kSideCols);
+    s.side_cols = std::clamp(side_cols, kMinSideCols, kMaxSideCols);
+    s.stack_rows = std::clamp(stack_rows, kMinStackRows, kMaxStackRows);
+    s.side_x = s.w - surface::px_of_cells(s.side_cols);
     // The room is the surface: nothing reserves the right column, so the room runs under it whole
     // and what a share means never depends on which panes are open
     // (docs/history/decisions/the-reserved-column.md).
@@ -284,7 +304,7 @@ inline constexpr PixelRect placement_bounds(std::int64_t where, std::size_t slot
     }
     if (where == placement::kSideRegion) {
         // From the workspace's top to its floor, against the right edge: over the material.
-        return PixelRect{sc.side_x, sc.room_y, surface::px_of_cells(kSideCols), sc.room_h};
+        return PixelRect{sc.side_x, sc.room_y, surface::px_of_cells(sc.side_cols), sc.room_h};
     }
     const std::int64_t n = slot >= static_cast<std::size_t>(kScreenMaxH)
                                ? kScreenMaxH
@@ -292,8 +312,8 @@ inline constexpr PixelRect placement_bounds(std::int64_t where, std::size_t slot
     // The width is the minimum plus half the room's surplus over it, floored so the odd pixel
     // stays the weaver's; `x + w < room_w` at every extent.
     const std::int64_t stack_w = surface::px_of_cells(kStackW);
-    return PixelRect{0, sc.room_y + n * surface::px_of_cells(kStackRows + kStackGap),
-                     stack_w + (sc.room_w - stack_w) / 2, surface::px_of_cells(kStackRows)};
+    return PixelRect{0, sc.room_y + n * surface::px_of_cells(sc.stack_rows + kStackGap),
+                     stack_w + (sc.room_w - stack_w) / 2, surface::px_of_cells(sc.stack_rows)};
 }
 
 // ---- THE CHROME A PANE WEARS, AND THE INTERIOR IT LEAVES --------------------------------
@@ -355,12 +375,18 @@ inline constexpr PixelRect chrome_outer_of(std::int64_t x, std::int64_t y, std::
     return PixelRect{x, y, w + 2 * kChromePx, h + 2 * kChromePx};
 }
 
-/// HOW MUCH ROOM ONE COARSE GROW GIVES A PANE, in canvas cells on both axes.
+/// HOW MUCH ROOM ONE COARSE GROW GIVES A PANE, in canvas cells on both axes:
+/// `workshop.arrange-step`, from `kMinArrangeStepCells` to `kMaxArrangeStepCells`; this is its
+/// default.
 // WL-ARR-10, WL-ARR-11 -- agents/workshop/arrangement.md
 inline constexpr std::int64_t kCoarseStepCells = 4;
+inline constexpr std::int64_t kMinArrangeStepCells = 2;
+inline constexpr std::int64_t kMaxArrangeStepCells = 16;
 
+static_assert(kMinArrangeStepCells <= kCoarseStepCells && kCoarseStepCells <= kMaxArrangeStepCells,
+              "the default step is a value its setting takes");
 static_assert(kStackRows + kCoarseStepCells - 2 * kChromeCells - 1 >= 8,
-              "one coarse grow must give a default stack pane's BODY the eight rows the "
+              "at the defaults, one coarse grow must give a stack pane's BODY the eight rows the "
               "tightest shipped form needs: the slot's rows, plus the step, less the chrome "
               "on both sides, less the pane's own title row");
 
@@ -479,7 +505,7 @@ inline constexpr StackCapacity stack_capacity(const Screen& sc) noexcept {
     const auto border = graphical ? chrome_grain(sc) + surface::kTextInsetPx : kChromePx;
     const auto text_row = graphical ? line + 2 * surface::kTextInsetPx : surface::kCanvasCellPx;
     return StackCapacity{stack_slots_that_fit(sc), sc.room_h, sc.room_w, line, column, border,
-                         surface::px_of_cells(kStackRows), surface::px_of_cells(kStackGap),
+                         surface::px_of_cells(sc.stack_rows), surface::px_of_cells(kStackGap),
                          graphical ? chrome_grain(sc) : kChromePx, text_row, text_row,
                          chrome_grain(sc)};
 }
@@ -593,14 +619,19 @@ inline constexpr std::int64_t kPaneEdgeBandPx = surface::kCanvasCellPx;
 
 /// HOW NEAR A LINE AN EDGE THE HAND MOVES COMES TO MEET IT, in canvas pixels: under a cell, so a
 /// terminal hand a cell away is not pulled across it, and at least half a cell, so a terminal hand
-/// at the nearest cell meets a line that falls inside it.
+/// at the nearest cell meets a line that falls inside it. The reach is `workshop.snap-reach`, from
+/// `kMinSnapReachPx` to `kMaxSnapReachPx`; this is its default.
 // WL-ARR-17 -- agents/workshop/arrangement-snap.md
 inline constexpr std::int64_t kPaneSnapReachPx = 8;
+inline constexpr std::int64_t kMinSnapReachPx = 6;
+inline constexpr std::int64_t kMaxSnapReachPx = 11;
 
-static_assert(kPaneSnapReachPx < surface::kCanvasCellPx &&
-                  2 * kPaneSnapReachPx >= surface::kCanvasCellPx,
-              "a snap reaches under a cell, so a terminal hand is never pulled a whole cell, and "
-              "at least half one, so every line falls within reach of a terminal hand's cell");
+static_assert(kMaxSnapReachPx < surface::kCanvasCellPx &&
+                  2 * kMinSnapReachPx >= surface::kCanvasCellPx &&
+                  kMinSnapReachPx <= kPaneSnapReachPx && kPaneSnapReachPx <= kMaxSnapReachPx,
+              "every reach the setting takes is under a cell, so a terminal hand is never pulled a "
+              "whole cell, and at least half one, so every line falls within reach of a terminal "
+              "hand's cell");
 
 /// THE ONE CELL-SIZED MARK AN AFFORDANCE IS DRAWN ON — at the pane's own
 /// edges.
@@ -815,12 +846,29 @@ struct Session {
     /// than in the accent's two: `workshop.focus.ring`.
     // WL-FOCUS-12 -- agents/workshop/focus.md
     bool selection_ring_plain = false;
+    /// THE PAINTER SKIN WORKSHOP'S OWN AREA WEARS, and every pane's whose row names none:
+    /// `workshop.skin`.
+    std::string skin = kSkinClassic;
+    /// WHETHER THE TERMINAL'S COMPLETION OFFERS A SHAPE'S REQUIRED FIELDS FIRST:
+    /// `workshop.completion-order`.
+    // WL-TERM-04 -- agents/workshop/terminal.md
+    bool completion_required_first = false;
+    /// The arrangement's measures as the weaver set them: the coarse step, the snap's reach, the
+    /// right column's width and the stack's fallback height.
+    // WL-ARR-10 -- agents/workshop/arrangement.md
+    std::int64_t arrange_step_cells = kCoarseStepCells;
+    // WL-ARR-17 -- agents/workshop/arrangement-snap.md
+    std::int64_t snap_reach_px = kPaneSnapReachPx;
+    // WL-GEO-03 -- agents/workshop/geometry.md
+    std::int64_t side_cols = kSideCols;
+    std::int64_t stack_rows = kStackRows;
 };
 
 /// This session's screen furniture. The one call; see `Screen`.
 // WL-GEO-02, WL-GEO-03, WL-GEO-04, WL-GEO-05 -- agents/workshop/geometry.md
 inline constexpr Screen screen_of(const Session& s) noexcept {
-    return screen_of(s.screen_w, s.screen_h, s.text_advance_px, s.text_line_px, s.cell_px);
+    return screen_of(s.screen_w, s.screen_h, s.text_advance_px, s.text_line_px, s.cell_px,
+                     s.side_cols, s.stack_rows);
 }
 
 /// THE CHAIN BELOW THE CONTEXTUAL SURFACE -- the branches a key falls to once no mode above
@@ -985,10 +1033,11 @@ struct SnappedWindow {
 };
 
 /// Each edge the hand moves -- both edges of both axes for a move (`kNoPaneEdge`), the pulled
-/// edges for a resize -- comes to the nearest line within `kPaneSnapReachPx`, the opposite edge
-/// held; a snap that would leave the place or the extent outside a pane's rules is not taken.
+/// edges for a resize -- comes to the nearest line within `reach_px`, the opposite edge held; a
+/// snap that would leave the place or the extent outside a pane's rules is not taken.
 SnappedWindow snap_pane_window(const PaneWindowProposal& want, std::int64_t edge,
-                               const PaneSnapLines& lines) noexcept;
+                               const PaneSnapLines& lines,
+                               std::int64_t reach_px = kPaneSnapReachPx) noexcept;
 
 // ---- Where a pointer is, in workspace cells --------------------------------------------
 

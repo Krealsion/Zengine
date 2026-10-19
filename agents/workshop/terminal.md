@@ -56,7 +56,7 @@ LAW — The completer reads which slot the weaver is standing in — verb, addre
 
 MEANS
 - an address offers `*` and what the host read off the bus (WL-TERM-16), or the forms without;
-- shapes are the catalog in the host's order; arguments offer field names, never values;
+- shapes are the catalog in the host's order; arguments offer field names, never values, in the shape's order or, by `workshop.completion-order`, required ones first;
 - a quoted token is left alone: the quote is not on the line the completer sees.
 
 DOES NOT MEAN — that it could cross as a picture. `compose` runs the real composition
@@ -204,9 +204,14 @@ reading changed" "the pane says what it is not showing, in the two senses that d
 
 ### WL-TERM-04
 `terminal/complete.hpp` read_command_line LineSlot TerminalVerb kTerminalVerbCount complete_line
-Completion Candidate kTerminalVerbs CommandLine::said starts_with named_already
+Completion Candidate kTerminalVerbs CommandLine::said starts_with named_already CompletionFieldOrder
 `terminal/door.hpp` submit_terminal_line slot_name
-`tests/test_workshop_host.cpp` "a half-typed line says which part of it the weaver is standing in"
+`workshop/screen.hpp` Session::completion_required_first
+`tests/test_workshop_panes_terminal.cpp` "`workshop.completion-order` puts a shape's required fields
+first in the Terminal's list, so accepting the first offer names what the message needs"
+`tests/test_workshop_host.cpp` "arguments offer a shape's fields in its order, or its required
+fields first and its optional ones after, each in its order"
+"a half-typed line says which part of it the weaver is standing in"
 "the verbs a weaver is offered are the verbs the submitter runs" "an address offers the three forms
 and never pretends to know the values" "arguments offer field NAMES, never values, and the heading
 is compose()'s verdict" "a quoted token is left alone, because the quote is not on the line the

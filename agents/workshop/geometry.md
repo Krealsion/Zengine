@@ -34,11 +34,12 @@ WHY — `agents/decisions/the-room-is-the-screen.md`
 
 ## WL-GEO-03 — The room is the surface, and the right column stands on it
 
-LAW — `room_w` is the screen's whole width; only the top and bottom bands come off the height. The right column is a PLACE `kSideCols` cells from the right edge, reserved out of nothing.
+LAW — `room_w` is the screen's whole width; only the top and bottom bands come off the height. The right column is a PLACE `Screen::side_cols` cells from the right edge, reserved out of nothing.
 
 MEANS
 - a pane's presence, place, size or removal changes no room, and neither does the column;
-- take the pane off the desk and the weaver gets thirty columns of workspace, not of nothing.
+- take the pane off the desk and the weaver gets thirty columns of workspace, not of nothing;
+- the column's width and the stack's fallback height are `workshop.side-columns` and `workshop.stack-rows`, and a commit re-fits the panes standing there.
 
 DOES NOT MEAN
 - that the bands are a pane's — `placement_bounds` merely defaults the Layouts pane to them.
@@ -198,10 +199,15 @@ legible" "the screen's extent is TOTAL over whatever a medium published"
 
 ### WL-GEO-03
 `workshop/screen.hpp` screen_of Screen::room_w Screen::room_h kTopRows kBottomRows placement_bounds
-kSideCols Screen::room_y
+kSideCols Screen::room_y Screen::side_cols Screen::stack_rows kMinSideCols kMaxSideCols kMinStackRows
+kMaxStackRows Session::side_cols Session::stack_rows stack_capacity
 `workshop/panes.hpp` kTopBand placement::kSideRegion
+`workshop/weave_settings.cpp` apply_workshop_settings
 `tests/test_workshop_screen.cpp` "the screen's furniture cannot see a pane, open or closed" "the
-reservation does not follow the Layouts pane"
+reservation does not follow the Layouts pane" "the right column is `workshop.side-columns` wide
+and a stacked pane `workshop.stack-rows` tall, read from Workshop's settings file"
+`tests/test_workshop_panes_settings.cpp` "Workshop's measures and its completion order apply when
+committed, are kept in the settings file, and a value outside what each takes is refused"
 
 ### WL-GEO-04
 `workshop/screen.hpp` screen_of Screen::side_x kStackRows kMinSide

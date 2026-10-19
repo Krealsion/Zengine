@@ -423,10 +423,10 @@ void WorkshopWeave::arrange_key(const zengine::input::KeyPressed& k, loom::Mail&
     // step moves no pane and meets the per-axis settlement (a shrink below one cell keeps that
     // axis and still changes the other).
     case Act::kManageGrow:
-        arrange_grow(+kCoarseStepCells, +kCoarseStepCells, mail);
+        arrange_grow(+session_.arrange_step_cells, +session_.arrange_step_cells, mail);
         break;
     case Act::kManageShrink:
-        arrange_grow(-kCoarseStepCells, -kCoarseStepCells, mail);
+        arrange_grow(-session_.arrange_step_cells, -session_.arrange_step_cells, mail);
         break;
     // -- ordering and removal, on the addressed pane --------------------------------
     case Act::kManageFront: spend_pane_action(Act::kManageFront, a.pane, mail); break;
@@ -617,7 +617,8 @@ void WorkshopWeave::arrange_motion(std::int64_t px_x, std::int64_t px_y, bool sn
             pane_window_proposal(g.edge, g.base_x, g.base_y, g.base_w, g.base_h,
                                  detail::minus(px_x, g.from_x), detail::minus(px_y, g.from_y));
         const SnappedWindow got = snap_pane_window(
-            want, g.edge, lines_after(want, PixelRect{g.base_x, g.base_y, g.base_w, g.base_h}));
+            want, g.edge, lines_after(want, PixelRect{g.base_x, g.base_y, g.base_w, g.base_h}),
+            session_.snap_reach_px);
         g.met_x = got.met_x;
         g.met_y = got.met_y;
         arrange_window(got.want, g.base_x, g.base_y, g.base_w, g.base_h, mail);
@@ -628,7 +629,8 @@ void WorkshopWeave::arrange_motion(std::int64_t px_x, std::int64_t px_y, bool sn
             PixelRect{detail::minus(px_x, g.grab_dx), detail::minus(px_y, g.grab_dy), 0, 0}, sc);
         const PixelRect base = managed_window_base();
         const PaneWindowProposal want{at.x, at.y, base.w, base.h, true, true};
-        const SnappedWindow got = snap_pane_window(want, kNoPaneEdge, lines_after(want, base));
+        const SnappedWindow got =
+            snap_pane_window(want, kNoPaneEdge, lines_after(want, base), session_.snap_reach_px);
         g.met_x = got.met_x;
         g.met_y = got.met_y;
         arrange_place(got.want.x, got.want.y, mail);

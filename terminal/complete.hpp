@@ -257,12 +257,21 @@ inline bool named_already(const CommandLine& cl, std::string_view field) {
 
 // ---- The completer ---------------------------------------------------------------------
 
+/// THE ORDER A SHAPE'S FIELDS ARE OFFERED IN: the shape's own, or its required fields first and
+/// its optional ones after them, each in the shape's order (`workshop.completion-order`).
+// WL-TERM-04 -- agents/workshop/terminal.md
+enum class CompletionFieldOrder : std::uint8_t {
+    Declared = 0,
+    RequiredFirst = 1,
+};
+
 /// WHAT THIS PARTICIPANT CAN SAY NEXT, given what has been typed so far -- and, for the address,
 /// where a line can go right now when the host read the bus for it (`reachable`; null is a host
 /// that lists nothing, which is offered the address FORMS instead).
 // WL-TERM-04 -- agents/workshop/terminal.md
 inline Completion complete_line(const loom::TerminalSession& me, const std::string& line,
-                                const std::vector<Destination>* reachable = nullptr) {
+                                const std::vector<Destination>* reachable = nullptr,
+                                CompletionFieldOrder field_order = CompletionFieldOrder::Declared) {
     const CommandLine cl = read_command_line(line);
     Completion out;
     out.slot = cl.slot;
@@ -465,21 +474,29 @@ inline Completion complete_line(const loom::TerminalSession& me, const std::stri
         // Once there is an `=` the weaver is typing a value, and a suggested value would be
         // invented: the field list stops, and `compose()`'s verdict stays on screen.
         const bool naming = cl.partial.find('=') == std::string::npos;
-        for (const loom::FieldDesc& f : d->fields) {
-            const std::string spelling = f.name + "=";
-            if (!naming || !detail::starts_with(spelling, cl.partial) ||
-                detail::named_already(cl, f.name)) {
-                continue;
+        // ONE PASS IN THE SHAPE'S ORDER, or two: the required fields, then the optional ones.
+        const bool split = field_order == CompletionFieldOrder::RequiredFirst;
+        for (const bool required_pass : {true, false}) {
+            for (const loom::FieldDesc& f : d->fields) {
+                const std::string spelling = f.name + "=";
+                if ((split && f.required != required_pass) || !naming ||
+                    !detail::starts_with(spelling, cl.partial) ||
+                    detail::named_already(cl, f.name)) {
+                    continue;
+                }
+                Candidate c;
+                c.kind = CandidateKind::Field;
+                // No trailing space: `count=` is finished only when a value follows it.
+                c.insert = spelling;
+                c.display = spelling;
+                c.detail = f.type + (f.required ? "  required" : "  optional");
+                c.shape = d->name;
+                c.version = d->version;
+                out.candidates.push_back(std::move(c));
             }
-            Candidate c;
-            c.kind = CandidateKind::Field;
-            // No trailing space: `count=` is finished only when a value follows it.
-            c.insert = spelling;
-            c.display = spelling;
-            c.detail = f.type + (f.required ? "  required" : "  optional");
-            c.shape = d->name;
-            c.version = d->version;
-            out.candidates.push_back(std::move(c));
+            if (!split) {
+                break;
+            }
         }
         // The heading is `compose()`'s own verdict over the finished arguments only: `compose` is
         // const, stops before sending, and is the ladder submission runs, so "ready" here means
