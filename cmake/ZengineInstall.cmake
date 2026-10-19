@@ -114,7 +114,8 @@ set(zengine_public_headers_component  component/motion.hpp
                                       component/row_map.hpp
                                       component/held_choice.hpp
                                       component/control_strip.hpp
-                                      component/columns.hpp)
+                                      component/columns.hpp
+                                      component/tab_strip.hpp)
 set(zengine_public_headers_operator   operator/operator.hpp
                                       operator/catalog.hpp
                                       operator/fold.hpp

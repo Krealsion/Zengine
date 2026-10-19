@@ -56,6 +56,9 @@ A weave joins the desk as a pane in five steps, each a message sent as its offic
 
 A walk through all five is [Make a Workshop tool](make-a-workshop-tool.md).
 
+Workshop's own settings are office-wide, one value for every layout, read and written by message
+([`OfficeSettingsRequested`](#officesettingsrequested)) and kept in its settings file.
+
 ## Commands
 
 ### `PaneLaunchRequested`
@@ -510,7 +513,8 @@ a setting in the layout.
 - **Takes:** `provider` and `pane`, the row's address.
 - **Answers:** `PaneSettingsShown`, to the asker alone: the row's `revision` (0 when the live layout
   has no such row), the `rows` of the pane's counted declaration with their tags, pins and summaries,
-  the `settings` the row keeps, its `pins` in order, no `locks`, and `said`, the band's sentence
+  the `settings` the row keeps, its `pins` in order (the list the pin scope reads), the keys a
+  lock in the settings file holds `everywhere` in `locks`, and `said`, the band's sentence
   about the row (`stored and handed`, or `stored; not handed: ...`, and what the pane said it
   cannot use).
 - **Refuses:** `settings withheld: <why>` in `said`, with nothing read, to an asker that is not an
@@ -531,10 +535,65 @@ at the revision the asker read.
 - **Refuses:** `settings commit withheld: <why>`; `<office>/<pane> has no row on the live layout
   -- open it first`; `stale revision <n> -- the row of <office>/<pane> stands at <m>; read it
   again`; `a clear takes no value -- name the key alone`; ``<office>/<pane> has no counted setting
-  `<key>` -- a key no declaration takes is only cleared``; `<key> takes <what it takes>, not <the
-  value>`. Each writes nothing.
+  `<key>` -- a key no declaration takes is only cleared``; `<key> is locked everywhere by
+  Workshop's settings file -- nothing writes it while the lock stands`; `<key> takes <what it
+  takes>, not <the value>`. Each writes nothing.
 - **Example:** `ask @zengine.workshop PaneSettingCommitRequested 1 provider=zengine.terminal
   pane=terminal revision=$r1.revision clear=false key=wheel-rows number=6`, from the Terminal.
+
+### `OfficeSettingsRequested`
+
+`OfficeSettingsRequested` asks for one office's office-wide settings
+([`settings_seam_vocabulary.hpp`](../settings_seam_vocabulary.hpp)).
+
+- **Takes:** `office`; `zengine.workshop` for Workshop's own.
+- **Answers:** `OfficeSettingsShown`, to the asker alone: the `revision` the settings stand at (0
+  when nothing declares for the office), the `rows` its declaration gives, the `settings` kept, the
+  `locks`, and `written`: `written`, or why the settings file does not hold them.
+- **Refuses:** `settings withheld: <why>` in `written`, to an asker the settings doors do not serve.
+- **Example:** `ask @zengine.workshop OfficeSettingsRequested 1 office=zengine.workshop`.
+
+Workshop's own, `office=zengine.workshop`:
+
+| setting | takes | default | what it does |
+|---|---|---|---|
+| `workshop.pane-titles` | `on` or `off` | `on` | draw title text on pane borders |
+| `workshop.band-keys` | `short` or `full` | `short` | how the bottom band spells a key |
+| `workshop.hotkeys-keys` | `short` or `full` | `full` | how the Hotkeys pane spells a key |
+| `workshop.pinned-scope` | `workshop-wide` or `per-layout` | `workshop-wide` | which pin list an editor's pin acts edit |
+| `workshop.focus.ring` | `accent` or `plain` | `accent` | the command-mode selection: the accent's two rings, or one in the chrome's ink |
+
+### `OfficeSettingCommitRequested`
+
+`OfficeSettingCommitRequested` asks Workshop to write one office-wide setting at the revision the
+asker read.
+
+- **Takes:** `office`, `revision`, `key`, and the value in its kind's one field, or `clear`.
+- **Answers:** `PaneSettingActed`, its `handed` saying `applied` (Workshop's own) or `handed` (an
+  office's holder), then `written` or `not written: <why>`; the band says the same.
+- **Refuses:** `nothing declares office-wide settings for `<office>` here`; `stale revision <n>
+  -- the settings of <office> stand at <m>; read them again`; `Workshop's settings file <path>
+  could not be read at launch and is never written over -- mend or remove it, then relaunch`; a key
+  not declared, a lock, or a value the setting does not take, in the words of
+  [`PaneSettingCommitRequested`](#panesettingcommitrequested). Each writes nothing.
+- **Example:** `ask @zengine.workshop OfficeSettingCommitRequested 1 office=zengine.workshop
+  revision=$r1.revision clear=false key=workshop.focus.ring text=plain`.
+
+### `PaneSettingPinRequested`
+
+`PaneSettingPinRequested` edits one pane's pin list: the settings an editor lists first, in order.
+
+- **Takes:** `provider` and `pane`; `key`; `act`, one of `pin`, `unpin`, `up`, `down` or `reset`
+  (back to the declared pins, naming no key); `layout`, a layout's place for a per-layout list, -1
+  the live one.
+- **Answers:** `PaneSettingPinActed{accepted, refusal, pins, scope}`, to the asker alone: the list
+  after the act and the scope it is kept in, `workshop-wide` or `per-layout`. The list is kept in
+  the settings file and never handed to the pane.
+- **Refuses:** `pins withheld: <why>`; ``<office>/<pane> declares no setting `<key>` to pin``;
+  `` `<key>` is pinned already ``; `` `<key>` is not pinned ``; a list past `kMaxPinsPerPane`; an
+  unreadable settings file. Each writes nothing.
+- **Example:** `ask @zengine.workshop PaneSettingPinRequested 1 provider=zengine.terminal
+  pane=terminal key=wheel-rows act=pin layout=-1`.
 
 ### `TerminalActRequested`
 
@@ -632,6 +691,13 @@ it takes, and at version 2 its tags, pin and summary ([settings](workshop-panes.
 Judged whole; a refusal is said on the band, `<name> @<office>: its settings were not taken --
 <why>`, and the settings in force stand. It counts while the incarnation that sent it holds the
 office.
+
+### `OfficeSettingsDeclared`
+
+`OfficeSettingsDeclared`, from an office: the office-wide settings it takes, judged whole by a
+pane declaration's rules and replaced by a later one; it counts while the incarnation that sent it
+holds the office. Workshop hands the holder `OfficeSettings` at each revision, when it accepts it.
+A refusal is said on the band, `office-wide settings of <office>: refused -- <why>`.
 
 ### `PaneSettingUnused`
 
@@ -866,8 +932,10 @@ window that shows its area, `Drawn`.
 - **The keymap file**, `--keymap <path>`, by default `workshop-keymap.json` in the per-user config
   folder: read when the surface is ready, written by an accepted `KeymapEditRequested`
   ([Hotkeys and the keymap](hotkeys.md)).
-- **The preferences file**, `--prefs <path>`, by default `workshop-prefs.json` beside the keymap:
-  titles, the band's keys and the Hotkeys view.
+- **The settings file**, `--prefs <path>`, by default `workshop-prefs.json` beside the keymap:
+  every office's office-wide settings (Workshop's own among them), the pin lists and the
+  everywhere locks, read at launch and written by the settings doors and the presentation toggles
+  only while it holds what this Workshop read or wrote; a file it could not read is never written.
 - `--isolated` runs with no session, keymap or preferences file. The load plan the host runs is
   [the load plan's](load-plan.md), not this weave's.
 

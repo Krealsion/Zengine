@@ -114,7 +114,7 @@ LAW — In command mode `focus.next`/`previous` walk the selectable panes in rea
 MEANS
 - selectable: open, takes the keys, on the canvas; reading order is top, then left, then front;
 - the neighbour is past the edge, else the centre: gap plus twice the misalignment, a tie in front;
-- `focus.enter` sends no press (WL-FOCUS-04); the selection wears `[` `]` corners, or rings where edges are finer.
+- `focus.enter` sends no press (WL-FOCUS-04); the selection wears `[` `]` corners, or rings where edges are finer: the accent's two, or `workshop.focus.ring` `plain`'s one in the chrome's ink.
 
 WHY — `agents/decisions/the-keyboard-reaches-a-pane.md`
 
@@ -266,6 +266,7 @@ canvas pane's wait in that same repaint: the room under the title and its rows a
 `workshop/keymap.hpp` focus.next focus.previous focus.left focus.right focus.up focus.down
 focus.enter
 `workshop/screen.hpp` selectable_panes cycle_pane spatial_neighbour paint_selection_ring
+Session::selection_ring_plain
 `workshop/screen_arrange.cpp` selectable_panes cycle_pane spatial_neighbour
 `workshop/screen_compose.cpp` paint_selection_ring paint_panes workshop_window_drawing
 `workshop/weave_input.cpp` command
@@ -274,7 +275,9 @@ whatever order they were authored in, and wraps both ways" "a direction selects 
 the selected pane's edge, and nothing past the desk's" "misalignment across the direction counts
 twice the gap along it" "two neighbours scored alike go to the one in front" "a pane overlapping the
 selected one is reached past its centre" "command mode marks the selected pane, with brackets where
-text is a cell and rings where an edge is finer, and the pane the keys are in wears none"
+text is a cell and rings where an edge is finer, and the pane the keys are in wears none" "`workshop.focus.ring` plain marks the
+selection in the chrome's ink, its corners where text is a cell and one ring where an edge is
+finer"
 `tests/test_workshop_panes_input.cpp` "Tab and the arrows move the keyboard's selection between
 panes and give none of them the keys" "Return gives the selected pane the keys with no press, and a
 typed key reaches it"

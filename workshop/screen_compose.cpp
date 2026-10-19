@@ -95,15 +95,22 @@ void paint_selection_ring(surface::SurfaceLayer& layer, const Session& s, const 
     if (b.empty()) {
         return;
     }
+    // THE STYLE `workshop.focus.ring` NAMES: the accent's two rings, or one in the chrome's ink.
+    const bool plain = s.selection_ring_plain;
+    const std::int64_t role = plain ? kPaneChrome : surface::role::kAccent;
     // WHERE AN EDGE IS FINER THAN A CELL, the rings, each as its four sides.
     const std::int64_t grain = chrome_grain(sc);
     if (grain < surface::kCanvasCellPx) {
-        for (const PixelRect& r : selection_rings(b, sc)) {
+        std::vector<PixelRect> rings = selection_rings(b, sc);
+        if (plain) {
+            rings.resize(1);
+        }
+        for (const PixelRect& r : rings) {
             for (const PixelRect& side : {PixelRect{r.x, r.y, r.w, grain},
                                           PixelRect{r.x, r.y + r.h - grain, r.w, grain},
                                           PixelRect{r.x, r.y, grain, r.h},
                                           PixelRect{r.x + r.w - grain, r.y, grain, r.h}}) {
-                layer.rects.push_back(wire_rect_of(side, surface::role::kAccent));
+                layer.rects.push_back(wire_rect_of(side, role));
             }
         }
         return;
@@ -118,7 +125,7 @@ void paint_selection_ring(surface::SurfaceLayer& layer, const Session& s, const 
     };
     for (const auto& [edge, glyph] : kCorners) {
         const PixelRect at = pane_edge_cell(b, edge);
-        layer.labels.push_back(surface::SurfaceLabel{at.x, at.y, glyph, surface::role::kAccent});
+        layer.labels.push_back(surface::SurfaceLabel{at.x, at.y, glyph, role});
     }
 }
 
@@ -490,11 +497,16 @@ WorkshopWindowDrawing workshop_window_drawing(const Session& s,
     if (const PixelRect b = selection_ring_rect(s, sc); !b.empty()) {
         const std::string group = desk + "/selection";
         out.sketch.group(group, 0, 0);
-        const std::vector<PixelRect> rings = selection_rings(b, sc);
+        std::vector<PixelRect> rings = selection_rings(b, sc);
+        if (s.selection_ring_plain) {
+            rings.resize(1); // `workshop.focus.ring` plain: one ring, in the chrome's ink
+        }
         for (std::size_t i = 0; i < rings.size(); ++i) {
             out.sketch.outline_rect(group + "/ring" + std::to_string(i), rings[i].x, rings[i].y,
                                     rings[i].w, rings[i].h,
-                                    graphics::by_role(surface::role::kAccent));
+                                    graphics::by_role(s.selection_ring_plain
+                                                          ? kPaneChrome
+                                                          : surface::role::kAccent));
         }
     }
     if (s.context.open) {

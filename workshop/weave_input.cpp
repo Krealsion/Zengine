@@ -47,21 +47,18 @@ void WorkshopWeave::state_presentation(Act a) {
                      "writes them"
                    : "the Hotkeys view and a pane's manual spell keys short";
     }
+    // THE TOGGLE IS WORKSHOP'S OWN SETTING STATED: kept where the settings door keeps it, so the
+    // file holds one truth.
+    prefs_persist::Presentation said = prefs_persist::presentation_of(prefs_);
+    said.titles_shown = session_.pane_titles;
+    said.band_keys = session_.band_keys;
+    said.hotkeys_keys = session_.hotkeys_keys;
+    prefs_persist::put_presentation(prefs_, said);
     bool bad = false;
     if (!host_->prefs_path.empty()) {
-        if (prefs_bad_) {
-            note += "; not saved: " + host_->prefs_path +
-                    " could not be read and will not be overwritten";
+        if (const std::string not_written = write_prefs(); !not_written.empty()) {
+            note += "; not saved: " + not_written;
             bad = true;
-        } else {
-            const Written wrote = prefs_persist::save_file(
-                host_->prefs_path, prefs_persist::Presentation{session_.pane_titles,
-                                                               session_.band_keys,
-                                                               session_.hotkeys_keys});
-            if (!wrote.accepted) {
-                note += "; not saved: " + wrote.refusal;
-                bad = true;
-            }
         }
     }
     say(note, bad);

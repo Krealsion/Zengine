@@ -168,8 +168,11 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::PaneRevealAnswered>(), // PaneRevealAnswered v1
         shape<::zengine::workshop::PaneRevealRequested>(), // PaneRevealRequested v1
         shape<::zengine::workshop::PowersDoorState>(), // PowersDoorState v1
-        shape<::zengine::workshop::prefs_persist::WorkshopPrefs>(), // WorkshopPrefs v2
+        shape<::zengine::workshop::prefs_persist::WorkshopPrefs>(), // WorkshopPrefs v3
+        shape<::zengine::workshop::prefs_persist::v2::WorkshopPrefs>(), // WorkshopPrefs v2
         shape<::zengine::workshop::prefs_persist::v1::WorkshopPrefs>(), // WorkshopPrefs v1
+        shape<::zengine::workshop::OfficeSettings>(), // OfficeSettings v1
+        shape<::zengine::workshop::OfficeSettingsDeclared>(), // OfficeSettingsDeclared v1
         shape<::zengine::workshop::QuitDeliveryRefusalNoted>(), // QuitDeliveryRefusalNoted v1
         shape<::zengine::workshop::recipe_persist::v1::WorkshopCMakeTarget>(), // WorkshopCMakeTarget v1
         shape<::zengine::workshop::recipe_persist::WorkshopCMakeTarget>(), // WorkshopCMakeTarget v2

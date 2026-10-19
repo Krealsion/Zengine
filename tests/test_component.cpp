@@ -17,6 +17,7 @@
 #include "component/held_choice.hpp"
 #include "component/list_window.hpp"
 #include "component/row_map.hpp"
+#include "component/tab_strip.hpp"
 #include "component/text_box.hpp"
 
 #include <algorithm>
@@ -1826,4 +1827,82 @@ TEST_CASE("Columns: widths come from the population within the budget, the last 
           "key    label      id");
     const std::vector<std::string> population = {"ctrl+t", "escape", "a"};
     CHECK(zengine::component::widest(population, [](const std::string& s) { return s; }) == 6);
+}
+
+TEST_CASE("setting_tabs: pinned when any setting is, all, every tag once in byte order, kept when a kept row is") {
+    CHECK(setting_tabs(true, {"text", "chrome", "help", "chrome", "input", "scroll"}, false) ==
+          std::vector<std::string>{"pinned", "all", "chrome", "help", "input", "scroll", "text"});
+    CHECK(setting_tabs(false, {"layout"}, true) ==
+          std::vector<std::string>{"all", "layout", "kept"});
+    CHECK(setting_tabs(false, {}, false) == std::vector<std::string>{"all"});
+    // THE STRIP'S OWN WORDS ARE NEVER A TAG'S, and an empty word is no tab.
+    CHECK(setting_tabs(false, {"all", "pinned", "kept", "", "a"}, false) ==
+          std::vector<std::string>{"all", "a"});
+}
+
+TEST_CASE("window_tab_strip: every tab when they fit, the active one `*word*`, each face's columns its own") {
+    const std::vector<std::string> tabs = {"pinned", "all", "chrome"};
+    const TabStrip s = window_tab_strip(tabs, 1, 40);
+    CHECK(s.text == "[pinned] *all* [chrome]");
+    CHECK(s.before == 0);
+    CHECK(s.after == 0);
+    REQUIRE(s.tabs.size() == 3);
+    for (const PlacedTab& t : s.tabs) {
+        CAPTURE(t.word);
+        CHECK(s.text.substr(static_cast<std::size_t>(t.first), static_cast<std::size_t>(t.width)) ==
+              tab_face(t.word, t.active));
+    }
+    CHECK(s.tabs[1].active);
+    CHECK_FALSE(s.tabs[0].active);
+    // AN ACTIVE INDEX PAST THE END IS THE FIRST TAB.
+    CHECK(window_tab_strip(tabs, 9, 40).text == "*pinned* [all] [chrome]");
+    CHECK(window_tab_strip({}, 0, 40).text.empty());
+}
+
+TEST_CASE("window_tab_strip: a narrow width grows a window outward from the active tab and counts what it leaves out on each side") {
+    const std::vector<std::string> tabs = {"pinned", "all", "chrome", "help", "input", "scroll", "text"};
+    const TabStrip s = window_tab_strip(tabs, 3, 24);
+    // GROWN A TAB AT A TIME, RIGHT BEFORE LEFT, while the counts' own width still fits.
+    CHECK(s.text == "<3 *help* [input] 2>");
+    CHECK(s.before == 3);
+    CHECK(s.after == 2);
+    CHECK(s.text.substr(static_cast<std::size_t>(s.before_first),
+                        static_cast<std::size_t>(s.before_width)) == "<3");
+    CHECK(s.text.substr(static_cast<std::size_t>(s.after_first),
+                        static_cast<std::size_t>(s.after_width)) == "2>");
+    // A COUNT MAKES ACTIVE THE HIDDEN TAB NEAREST IT.
+    CHECK(tabs[s.before_tab()] == "chrome");
+    CHECK(tabs[s.after_tab()] == "scroll");
+    for (std::int64_t columns = 0; columns <= 60; ++columns) {
+        CAPTURE(columns);
+        for (std::size_t active = 0; active < tabs.size(); ++active) {
+            CAPTURE(active);
+            const TabStrip w = window_tab_strip(tabs, active, columns);
+            // THE ACTIVE TAB IS ALWAYS SHOWN; WHAT FITS FITS; EVERY TAB IS SHOWN OR COUNTED.
+            REQUIRE_FALSE(w.tabs.empty());
+            const auto here = std::find_if(w.tabs.begin(), w.tabs.end(),
+                                           [](const PlacedTab& t) { return t.active; });
+            REQUIRE(here != w.tabs.end());
+            CHECK(here->index == active);
+            if (w.tabs.size() > 1) {
+                CHECK(static_cast<std::int64_t>(w.text.size()) <= columns);
+            }
+            CHECK(w.before + w.tabs.size() + w.after == tabs.size());
+            CHECK(w.before == w.tabs.front().index);
+        }
+    }
+    // WIDE ENOUGH, NOTHING IS COUNTED.
+    CHECK(window_tab_strip(tabs, 6, 200).before == 0);
+}
+
+TEST_CASE("window_tab_strip: the window is derived from the active tab, so a strip that loses tabs leaves no stale offset") {
+    std::vector<std::string> tabs = {"pinned", "all", "a", "b", "c", "d", "e", "f"};
+    const TabStrip before = window_tab_strip(tabs, 7, 20);
+    CHECK(before.tabs.back().word == "f");
+    CHECK(before.after == 0);
+    // THE SAME ACTIVE WORD, FEWER TAGS: the window is grown again from where that word is now.
+    tabs = {"pinned", "all", "f"};
+    const TabStrip after = window_tab_strip(tabs, 2, 20);
+    CHECK(after.text == "[pinned] [all] *f*");
+    CHECK(after.before == 0);
 }

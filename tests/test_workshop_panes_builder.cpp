@@ -3729,9 +3729,10 @@ TEST_CASE("WL-KEY-16: the band's spelling and the Hotkeys view's are set apart f
     CHECK(band().find("shift+b load after build") != std::string::npos); // the band kept its own
 
     // BOTH ARE THE WEAVER'S STATED PREFERENCES, saved apart.
-    const std::string saved = slurp(b.r.host.prefs_path);
-    CHECK(saved.find("\"band_keys\":\"full\"") != std::string::npos);
-    CHECK(saved.find("\"hotkeys_keys\":\"short\"") != std::string::npos);
+    const prefs_persist::LoadedPrefs saved = prefs_persist::load_file(b.r.host.prefs_path);
+    REQUIRE_MESSAGE(saved.outcome.accepted, saved.outcome.refusal);
+    CHECK(saved.prefs.band_keys == KeySpelling::kFull);
+    CHECK(saved.prefs.hotkeys_keys == KeySpelling::kShort);
 }
 
 TEST_CASE("WL-DESK-17: the manual key asks for the manual of the pane holding the keys; the Manual "

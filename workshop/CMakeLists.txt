@@ -105,6 +105,7 @@ add_library(zengine-workshop-logic STATIC
     weave_run.cpp
     weave_seam.cpp
     weave_session.cpp
+    weave_settings.cpp
     # The presentation owner's half of a managed opening, the opening manager itself, and
     # the host's turn of the bus (the pump seam a native showing failure reaches).
     weave_managed.cpp

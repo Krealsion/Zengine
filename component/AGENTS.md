@@ -14,6 +14,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `held_choice.hpp` | `HeldChoice<Key>`: a choice kept by identity across a list that moves |
 | `control_strip.hpp` | `ControlStrip`, `pack_controls`: labelled controls packed into a width |
 | `columns.hpp` | `Column`, `layout_columns`: a table's columns, laid out once for every row |
+| `tab_strip.hpp` | `setting_tabs`, `window_tab_strip`: a settings list's tabs, and what a width shows |
 | `motion.hpp` | `motion::Path`: linear and cubic Bezier sampling, elapsed-time `progress` |
 | `docs/component.md` | the reference page |
 
@@ -28,8 +29,8 @@ routes.
 
 ## Suites
 
-- `component` — `TextBox`, `ListWindow`, `RowMap`, `HeldChoice`, columns and control strips as
-  values: `tests/test_component.cpp`, its own executable linking only `zengine-component`
+- `component` — `TextBox`, `ListWindow`, `RowMap`, `HeldChoice`, columns, control strips and tab
+  strips as values: `tests/test_component.cpp`, its own executable linking only `zengine-component`
 
 Its cases in shared suites: `workshop_panes` (`tests/test_workshop_panes_terminal.cpp`, `_info.cpp`
 and `_input.cpp` for the text box; `_builder.cpp`, `_files.cpp`, `_output.cpp` and `_canvas.cpp` for
