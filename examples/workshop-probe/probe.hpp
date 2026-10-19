@@ -20,6 +20,8 @@
 #include <zen/weave/ask_book.hpp>
 #include <zen/weave/standard_shapes.hpp>
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -29,6 +31,15 @@
 #include <vector>
 
 namespace zengine::workshop_probe {
+
+/// THE OFFICES THAT HOLD WORKSHOP'S PICTURE, in the order a run asks them: the Skin, the OS window
+/// and the terminal window (`graphics/vocabulary.hpp`'s `kWindowOfficePrefix`, `kSdlWindow`,
+/// `kTerminalWindow`). A far Workshop loads one of them; the others are no office there.
+inline constexpr std::array<const char*, 3> kCaptureOffices = {
+    zengine::surface::kSkinRole,
+    "zengine.window.sdl",
+    "zengine.window.terminal",
+};
 
 /// RUN THE JOURNEY. Sent by the operator (the console's `send <probe> RunProbe 1 ...`), and
 /// answered when the journey settles or stops. Every parameter has a default a first run can
@@ -74,8 +85,8 @@ public:
     // Ask the link which far session it holds and as whom; open an input session with
     // zengine.input; inject the chord (Ctrl+P by default), settled on Workshop's bus; find this
     // link's session in zengine.guests' inventory by the far session, never the last admitted
-    // row; fetch zengine.skin's picture chunk by chunk; write it beside this host and read it
-    // back; close the session and answer the operator.
+    // row; fetch the picture by chunk from the first of `kCaptureOffices` that holds it; write it
+    // beside this host and read it back; close the session and answer the operator.
 
     void on(const RunProbe& run, loom::Mail& mail) {
         if (answer_.valid()) {
@@ -220,7 +231,9 @@ public:
              " connection(s); this session is '" + mine->established + "' (claimed '" +
              mine->claimed + "', weave " + std::to_string(mine->session) + ")");
         set_step(Step::Capture);
-        ask(mail, zengine::surface::kSkinRole, zengine::surface::SurfaceCaptureRequested{});
+        capture_office_at_ = 0;
+        first_capture_refusal_.clear();
+        ask(mail, capture_office(), zengine::surface::SurfaceCaptureRequested{});
     }
 
     void on(const zengine::surface::SurfaceCaptured& c, loom::Mail& mail) {
@@ -228,12 +241,13 @@ public:
             return;
         }
         if (!c.ok) {
-            fail(mail, "zengine.skin refused the capture: " + c.refusal);
+            fail(mail, std::string(capture_office()) + " refused the capture: " + c.refusal);
             return;
         }
         if (c.capture <= 0 || c.width <= 0 || c.height <= 0 || c.format.empty() || c.bytes <= 0 ||
             c.bytes > zengine::surface::kMaxCaptureBytes) {
-            fail(mail, "zengine.skin described capture " + std::to_string(c.capture) + " as " +
+            fail(mail, std::string(capture_office()) + " described capture " +
+                           std::to_string(c.capture) + " as " +
                            std::to_string(c.width) + "x" + std::to_string(c.height) + " '" +
                            c.format + "', " + std::to_string(c.bytes) +
                            " bytes -- not a picture this probe can fetch");
@@ -259,7 +273,8 @@ public:
         const std::int64_t size = static_cast<std::int64_t>(chunk.data.size());
         if (chunk.capture != capture_ || chunk.offset != fetched_ || chunk.total != picture_total_ ||
             size <= 0 || fetched_ + size > picture_total_) {
-            fail(mail, "zengine.skin sent a chunk of capture " + std::to_string(chunk.capture) +
+            fail(mail, std::string(capture_office()) + " sent a chunk of capture " +
+                           std::to_string(chunk.capture) +
                            " at " + std::to_string(chunk.offset) + " (" + std::to_string(size) +
                            " of " + std::to_string(chunk.total) + " bytes) where capture " +
                            std::to_string(capture_) + " at " + std::to_string(fetched_) + " of " +
@@ -343,6 +358,26 @@ public:
             finish(mail, false);
             return;
         }
+        // THE FAR BUS REFUSED THE PICTURE'S ASK -- no weave holds that office there, or it may not
+        // be asked -- so the next office is asked; once every one has refused, the run stops on the
+        // first refusal.
+        // A refusal while fetching stops the run: only the office that described the picture
+        // holds it.
+        if (step_ == Step::Capture && o.state == loom::link::kOutcomeDispatchRefused) {
+            if (first_capture_refusal_.empty()) {
+                first_capture_refusal_ = said;
+            }
+            if (capture_office_at_ + 1 < kCaptureOffices.size()) {
+                const std::string refused = capture_office();
+                ++capture_office_at_;
+                note(refused + " was not reached (" + o.reason + "); asking " +
+                     capture_office());
+                ask(mail, capture_office(), zengine::surface::SurfaceCaptureRequested{});
+                return;
+            }
+            fail(mail, first_capture_refusal_);
+            return;
+        }
         fail(mail, said);
     }
 
@@ -393,8 +428,11 @@ private:
                                 loom::link::ask_role(far_role, msg, settle), opened.correlation);
     }
 
+    /// The office this run's picture is asked of: the one that described it, while fetching.
+    const char* capture_office() const noexcept { return kCaptureOffices[capture_office_at_]; }
+
     void fetch(loom::Mail& mail) {
-        ask(mail, zengine::surface::kSkinRole,
+        ask(mail, capture_office(),
             zengine::surface::SurfaceCaptureChunkRequested{capture_, fetched_});
     }
 
@@ -523,6 +561,8 @@ private:
     std::int64_t capture_ = 0;
     std::int64_t picture_total_ = 0;
     std::int64_t fetched_ = 0;
+    std::size_t capture_office_at_ = 0;  ///< which of `kCaptureOffices` this run asks
+    std::string first_capture_refusal_;  ///< the first office's refusal, said when all refuse
 };
 
 } // namespace zengine::workshop_probe

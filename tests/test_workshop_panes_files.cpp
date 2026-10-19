@@ -2092,6 +2092,40 @@ TEST_CASE("the authoring line's caret is the medium's, where the line's is, and 
     CHECK(held_caret(*pane).row == surface::kNoCaret);
 }
 
+TEST_CASE("the authoring line asks the window that shows Files for a paste, the OS window or the terminal's, and the Skin only while none shows it") {
+    // ⚔ MUTATION: Files' paste asked of the Skin wherever its area is shown.
+    namespace gfx = zengine::graphics;
+    namespace pw = zengine::testing::pane_window;
+    for (const char* window : {gfx::kSdlWindow, gfx::kTerminalWindow}) {
+        CAPTURE(window);
+        FilesRig f("files-paste-window");
+        put_file(f.root / "oven.cpp", "// a weaver's weave\n");
+        f.open();
+        SkinSeat* skin = f.r.mount_skin_seat();
+        skin->platform = "ov";
+        f.letter(input::scan::kA, "a");
+        f.r.key(input::scan::kReturn); // choose the one candidate
+        for (int i = 0; i < 64; ++i) {
+            f.r.key(input::scan::kBackspace);
+        }
+
+        // NO WINDOW SHOWS IT YET: the paste is the Skin's.
+        f.r.key(input::scan::kV, input::mod::kCtrl);
+        CHECK(skin->clipboard_reads == 1);
+        CHECK(row_beginning(f.shown(), "recipe name> ov") >= 0);
+
+        // THE WINDOW TELLS THE PANE'S AREA ITS ROOM, and from then on is asked, not the Skin, and
+        // what it holds lands in the line.
+        pw::Window shown(f.r.bus, window);
+        shown.weave().platform = "en";
+        shown.room(files::kFilesRole, files::kFilesRole, 60, 20);
+        f.r.key(input::scan::kV, input::mod::kCtrl);
+        CHECK(shown.weave().clipboard_reads == 1);
+        CHECK(skin->clipboard_reads == 1);
+        CHECK(row_beginning(f.shown(), "recipe name> oven") >= 0);
+    }
+}
+
 TEST_CASE("the authoring line takes raw keys, and Escape abandons it whole") {
     // THE ONE PLACE THIS PANE READS A SCANCODE, and it is a component's editing gestures
     // rather than a command. Everything else the pane does arrives as a resolved id.

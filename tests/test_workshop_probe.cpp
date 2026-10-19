@@ -622,6 +622,100 @@ TEST_CASE("probe: a refused capture, and a chunk that does not continue the pict
     CHECK(has(skipped, "session 1 closed in cleanup"));
 }
 
+// =============================================================================
+// Which office holds the picture
+// =============================================================================
+
+namespace {
+
+/// The far Workshop holds its picture in `holder` alone: a capture or chunk asked of any other
+/// office is the far bus's refusal, as an office no weave holds there is.
+void picture_held_by(Rig& r, const std::string& holder) {
+    auto base = r.link->script;
+    r.link->script = [base, holder](const std::string& role, const loom::Value& asked) {
+        const std::string shape = asked.schema().name();
+        if ((shape == surface::SurfaceCaptureRequested::zen_name ||
+             shape == surface::SurfaceCaptureChunkRequested::zen_name) &&
+            role != holder) {
+            return outcome(loom::link::kOutcomeDispatchRefused, "NoRoleHolder: " + role);
+        }
+        return base(role, asked);
+    };
+}
+
+/// The offices each ask of `shape` went to, in order.
+std::vector<std::string> asked_of(const Rig& r, const char* shape) {
+    std::vector<std::string> roles;
+    for (const Asked& a : r.link->asked) {
+        if (a.shape == shape) {
+            roles.push_back(a.role);
+        }
+    }
+    return roles;
+}
+
+} // namespace
+
+TEST_CASE("probe: a picture no Skin holds is asked of the OS window, then the terminal window, and fetched from the office that described it") {
+    // ⚔ MUTATION: the capture asked of the Skin alone -- every window plan would stop at capture.
+    // ⚔ MUTATION: the chunks asked of the Skin after a window described the picture.
+    for (const char* holder : {"zengine.window.sdl", "zengine.window.terminal"}) {
+        CAPTURE(holder);
+        Rig r;
+        RemoveOnExit tidy{Rig::default_run().picture};
+        picture_held_by(r, holder);
+        const std::string said = r.run();
+        INFO("the run: " << said);
+        REQUIRE(starts(said, "PASS"));
+        CHECK(has(said, "zengine.skin was not reached (NoRoleHolder: zengine.skin); asking "
+                        "zengine.window.sdl"));
+        CHECK(has(said, "capture 1 at frame 5: 3x1 text/cells, 4 bytes"));
+        CHECK(has(said, "(4 of 4 bytes, text/cells, read back whole)"));
+        std::vector<std::string> captures = {"zengine.skin", "zengine.window.sdl"};
+        if (std::string(holder) == "zengine.window.terminal") {
+            captures.push_back(holder);
+        }
+        CHECK(asked_of(r, surface::SurfaceCaptureRequested::zen_name) == captures);
+        CHECK(asked_of(r, surface::SurfaceCaptureChunkRequested::zen_name) ==
+              std::vector<std::string>{holder, holder});
+        // THE NEXT RUN ASKS THE SKIN FIRST AGAIN: which office answered is this run's to learn.
+        const std::string again = r.run();
+        CHECK(starts(again, "PASS"));
+        CHECK(asked_of(r, surface::SurfaceCaptureRequested::zen_name).at(captures.size()) ==
+              "zengine.skin");
+    }
+}
+
+TEST_CASE("probe: when no office holds the picture the run stops on the first refusal, and a refusal while fetching asks no other office") {
+    // ⚔ MUTATION: the run stopped on the last office's refusal, which names a window the far
+    // Workshop never loaded rather than the Skin it was first asked of.
+    Rig r;
+    picture_held_by(r, "nobody");
+    const std::string said = r.run();
+    INFO("the run: " << said);
+    CHECK(starts(said, "STOPPED"));
+    CHECK(has(said, "link: dispatch-refused at capture (SurfaceCaptureRequested): NoRoleHolder: "
+                    "zengine.skin; session 1 closed in cleanup"));
+    CHECK(asked_of(r, surface::SurfaceCaptureRequested::zen_name) ==
+          std::vector<std::string>(zengine::workshop_probe::kCaptureOffices.begin(),
+                                   zengine::workshop_probe::kCaptureOffices.end()));
+    CHECK(r.asks_of(surface::SurfaceCaptureChunkRequested::zen_name) == 0);
+    // A CHUNK REFUSED MID-PICTURE: the office that described the picture is the only one that
+    // holds it, so the run stops there and asks no other office for a capture.
+    // ⚔ MUTATION: a dispatch refusal while fetching sent the run on to the next office.
+    Rig s;
+    s.answer_with(surface::SurfaceCaptureChunkRequested::zen_name, [](const loom::Value&) {
+        return outcome(loom::link::kOutcomeDispatchRefused, "NoRoleHolder: zengine.skin");
+    });
+    const std::string fetching = s.run();
+    INFO("refused while fetching: " << fetching);
+    CHECK(starts(fetching, "STOPPED"));
+    CHECK(has(fetching, "link: dispatch-refused at fetch (SurfaceCaptureChunkRequested)"));
+    CHECK(has(fetching, "session 1 closed in cleanup"));
+    CHECK(asked_of(s, surface::SurfaceCaptureRequested::zen_name) ==
+          std::vector<std::string>{"zengine.skin"});
+}
+
 TEST_CASE("probe: a lost link leaves the session to Workshop's door, and says so") {
     Rig r;
     r.answer_with(input::InjectInput::zen_name, [](const loom::Value&) {
