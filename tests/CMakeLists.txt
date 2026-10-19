@@ -819,6 +819,15 @@ target_link_libraries(zengine-message-draft-tests PRIVATE zengine-message-draft 
 target_include_directories(zengine-message-draft-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 zengine_doctest_test(message_draft zengine-message-draft-tests)
 
+# ---- THE SETTINGS THEMES SUITE: a theme file's form, its reading and writing, and resolution ---
+# Header-only (settings/theme_persist.hpp, settings/vocabulary.hpp): every file it writes is under a
+# temporary directory of its own.
+add_executable(zengine-settings-themes-tests test_settings_themes.cpp doctest_main.cpp)
+target_link_libraries(zengine-settings-themes-tests
+    PRIVATE zengine-settings-vocabulary loom::core zengine-warnings zengine-sanitize)
+target_include_directories(zengine-settings-themes-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+zengine_doctest_test(settings_themes zengine-settings-themes-tests)
+
 # ---- THE SOURCE-TRANSFER SUITE: the material editors exchange with Inventory, as pure functions --
 # The byte laws, the Terminal line (proved by Loom's lexer), reading a dropped pair, the capture
 # pairs and the C++ generator, whose exact outputs -- for a saved EnsureTimer, and for a value whose
@@ -1101,7 +1110,7 @@ file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/census-weaves-$<CONFIG>.txt"
 # It links the guests library and the view package, whose door and host tests/census_headers.hpp
 # includes, each with the manual its office answers from.
 zengine_workshop_suite(shapes SOURCES test_workshop_shapes.cpp test_shapes_census.cpp
-    LINKS zengine-workshop-guests zengine-view
+    LINKS zengine-workshop-guests zengine-view zengine-settings-vocabulary
     DEFINITIONS "ZENGINE_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\""
                 "ZENGINE_CENSUS_WEAVES=\"${CMAKE_CURRENT_BINARY_DIR}/census-weaves-$<CONFIG>.txt\""
                 "ZENGINE_CENSUS_NOW=\"${CMAKE_CURRENT_BINARY_DIR}/shapes-now-$<CONFIG>.txt\""

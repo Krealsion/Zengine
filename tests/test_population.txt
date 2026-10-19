@@ -96,6 +96,7 @@ manual                            script            always
 flow                              doctest           always  61
 
 message_draft                     doctest           always  11
+settings_themes                   doctest           always  18
 source_transfer                   doctest           always  11
 source_transfer_cpp               program           always
 inventory                         doctest           always  41

@@ -26,6 +26,8 @@
 #include "graphics/ops.hpp"
 #include "graphics/painting.hpp"
 #include "editor/source-transfer/vocabulary.hpp"
+#include "settings/theme_persist.hpp"
+#include "settings/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 #include "timer/vocabulary.hpp"
 #include "ui/vocabulary.hpp"
@@ -265,6 +267,27 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::snake::SnakeStep>(), // SnakeStep v1
         shape<::zengine::snake::SnakeNewGame>(), // SnakeNewGame v1
         shape<::zengine::snake::SnakeBoardState>(), // SnakeBoardState v1
+        // The theme file and the settings office's doors, which no weave declares.
+        shape<::zengine::settings::ThemeSetting>(), // ThemeSetting v1
+        shape<::zengine::settings::ThemeKey>(), // ThemeKey v1
+        shape<::zengine::settings::ThemeFile>(), // ThemeFile v1
+        shape<::zengine::settings::ResolvedThemeSetting>(), // ResolvedThemeSetting v1
+        shape<::zengine::settings::ResolvedThemeKey>(), // ResolvedThemeKey v1
+        shape<::zengine::settings::ThemeResolved>(), // ThemeResolved v1
+        shape<::zengine::settings::ThemeSummary>(), // ThemeSummary v1
+        shape<::zengine::settings::ThemeApplyRequested>(), // ThemeApplyRequested v1
+        shape<::zengine::settings::ThemeSkip>(), // ThemeSkip v1
+        shape<::zengine::settings::ThemeActed>(), // ThemeActed v1
+        shape<::zengine::settings::ThemeSaveRequested>(), // ThemeSaveRequested v1
+        shape<::zengine::settings::ThemeSnapshotRequested>(), // ThemeSnapshotRequested v1
+        shape<::zengine::settings::ThemePromoteRequested>(), // ThemePromoteRequested v1
+        shape<::zengine::settings::ThemeSaved>(), // ThemeSaved v1
+        shape<::zengine::settings::ThemesRequested>(), // ThemesRequested v1
+        shape<::zengine::settings::ThemesShown>(), // ThemesShown v1
+        shape<::zengine::settings::ThemeResolveRequested>(), // ThemeResolveRequested v1
+        shape<::zengine::settings::ThemeProvenanceRequested>(), // ThemeProvenanceRequested v1
+        shape<::zengine::settings::ThemeProvenanceEntry>(), // ThemeProvenanceEntry v1
+        shape<::zengine::settings::ThemeProvenanceShown>(), // ThemeProvenanceShown v1
         // Declared by the SDL skin alone, which a build without SDL has no manifest of.
         shape<::zengine::surface::SurfaceCloseRequested>(), // SurfaceCloseRequested v1
     };
