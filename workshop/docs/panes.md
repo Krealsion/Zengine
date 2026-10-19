@@ -185,7 +185,7 @@ be: a press is its own targeting. The keyboard steps between panes instead:
 | `Tab` / `Shift`+`Tab` | step the keyboard to the next / previous pane |
 | `← → ↑ ↓` | move that pane one cell |
 | `Shift`+arrows | resize it one cell — wider / narrower / taller / shorter, its top-left corner staying put |
-| `=` / `-` | **grow / shrink** it four cells on both axes at once — the coarse step, same anchor |
+| `=` / `-` | **grow / shrink** it four cells (`workshop.arrange-step`) on both axes at once — the coarse step, same anchor |
 | `Enter` | narrow to arranging exactly that pane |
 | `f` `b` `r` `l` | send to front / back, raise / lower one step |
 | `d` | remove that pane from the layout — the Pane Manager brings it back |
@@ -199,7 +199,7 @@ resize always grows from the top-left corner, and a move plus a resize composes 
 rectangle the handles can make.
 
 **Edges snap under the hand.** While you drag a pane or one of its edges, an edge you move
-comes to another pane's edge, or the room's, when it is within <!-- value kPaneSnapReachPx -->8<!-- /value --> pixels of it — so in a
+comes to another pane's edge, or the room's, when it is within <!-- value kPaneSnapReachPx -->8<!-- /value --> pixels of it (`workshop.snap-reach`) — so in a
 terminal, where your hand moves a cell at a time, an edge that falls inside a cell is still met
 — and while you hold the button a line across the room marks the edge it met, and the band
 adds `snapped to an edge`. Hold **`Alt`** to place it free of them. The arrow keys, `=`, `-` and a

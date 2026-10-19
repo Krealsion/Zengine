@@ -528,7 +528,8 @@ a setting in the layout.
 at the revision the asker read.
 
 - **Takes:** `provider`, `pane`, `revision`, `key`, and the value in its kind's one field --
-  `flag`, `number` or `text` -- or `clear` and no field for the setting's default.
+  `flag`, `number` or `text` -- or `clear` and no field for the setting's default. Every row takes
+  `workshop.skin`, the skin of the pane's graphics area, which the pane is never handed.
 - **Answers:** `PaneSettingActed{accepted, refusal, revision, handed}`, to the asker alone: the
   row's revision after the write, or as it stood, and how far the write got. The band says
   `committed <key> of <pane> = <value>; <how far>`, or `cleared <key> of <pane>; <how far>`.
@@ -562,6 +563,12 @@ Workshop's own, `office=zengine.workshop`:
 | `workshop.hotkeys-keys` | `short` or `full` | `full` | how the Hotkeys pane spells a key |
 | `workshop.pinned-scope` | `workshop-wide` or `per-layout` | `workshop-wide` | which pin list an editor's pin acts edit |
 | `workshop.focus.ring` | `accent` or `plain` | `accent` | the command-mode selection: the accent's two rings, or one in the chrome's ink |
+| `workshop.skin` | `classic` or `block` | `classic` | each graphics area's skin; a pane's row may keep its own |
+| `workshop.completion-order` | `declared` or `required-first` | `declared` | the order the Terminal offers a shape's fields |
+| `workshop.arrange-step` | 2 to 16 | 4 | cells one coarse grow or shrink moves |
+| `workshop.snap-reach` | 6 to 11 | 8 | canvas pixels a hand's edge snaps across |
+| `workshop.side-columns` | 16 to 64 | 28 | the right column's width in cells |
+| `workshop.stack-rows` | 5 to 40 | 9 | a stacked pane's height in rows, when it asks none |
 
 ### `OfficeSettingCommitRequested`
 
@@ -876,9 +883,10 @@ its outcome is said on the band, `editor switch <op>: <outcome>`.
 
 `GraphicsReady`, from `zengine.graphics` ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)):
 a graphics directory started afresh. While one is mounted Workshop is its arranger: it offers the
-`classic` and `block` skins, places each open pane whose office draws in a window over the pane's
-body, and its own area, `zengine.workshop`, across the screen, the one area that takes the
-window's keys and text, and asks its own room. With no directory it says nothing there.
+`classic` and `block` skins and chooses each area's (`workshop.skin`), places each open pane whose
+office draws in a window over its body, and its own area, `zengine.workshop`, across the screen,
+the one taking the window's keys and text, and asks its own room. With no directory it says
+nothing there.
 
 ### `WindowOffered`
 

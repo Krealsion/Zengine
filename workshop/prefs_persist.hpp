@@ -14,6 +14,7 @@
 #include "keymap.hpp"
 #include "pane_settings.hpp"
 #include "persist.hpp"
+#include "screen.hpp" // the arrangement's measures: each setting's default and bounds
 #include "settings_seam_vocabulary.hpp"
 
 #include <zen/admission.hpp>
@@ -62,13 +63,24 @@ inline constexpr const char* kDefaultPrefsFileName = "workshop-prefs.json";
 inline constexpr const char* kWorkshopOffice = "zengine.workshop";
 
 /// Workshop's own keys: whether the arrangeable panes wear their titles, how the band and the
-/// Hotkeys view spell a key, which pin list an editor edits, and how the keyboard's selection is
-/// ringed.
+/// Hotkeys view spell a key, which pin list an editor edits, how the keyboard's selection is
+/// ringed, the skin graphics areas wear, the order the Terminal offers a shape's fields in, and
+/// the arrangement's measures.
 inline constexpr const char* kPaneTitlesKey = "workshop.pane-titles";
 inline constexpr const char* kBandKeysKey = "workshop.band-keys";
 inline constexpr const char* kHotkeysKeysKey = "workshop.hotkeys-keys";
 inline constexpr const char* kPinnedScopeKey = "workshop.pinned-scope";
 inline constexpr const char* kFocusRingKey = "workshop.focus.ring";
+inline constexpr const char* kSkinKey = kWorkshopSkinKey;
+inline constexpr const char* kCompletionOrderKey = "workshop.completion-order";
+inline constexpr const char* kArrangeStepKey = "workshop.arrange-step";
+inline constexpr const char* kSnapReachKey = "workshop.snap-reach";
+inline constexpr const char* kSideColumnsKey = "workshop.side-columns";
+inline constexpr const char* kStackRowsKey = "workshop.stack-rows";
+
+/// The completion's two orders: the shape's own, or its required fields before its optional ones.
+inline constexpr const char* kCompletionDeclared = "declared";
+inline constexpr const char* kCompletionRequiredFirst = "required-first";
 
 /// The selection ring's two styles: the accent's two rings, or one ring in the chrome's ink.
 inline constexpr const char* kRingAccent = "accent";
@@ -109,6 +121,19 @@ inline std::vector<workshop::v2::PaneSettingRow> workshop_office_rows() {
         row.summary = summary;
         return row;
     };
+    // A NUMBER'S SUMMARY ENDS WITH ITS BOUNDS, read from them.
+    const auto number = [](const char* key, std::int64_t fallback, std::int64_t low,
+                           std::int64_t high, std::vector<std::string> tags, const char* summary) {
+        workshop::v2::PaneSettingRow row;
+        row.key = key;
+        row.number = fallback;
+        row.low = low;
+        row.high = high;
+        row.tags = std::move(tags);
+        row.summary = std::string(summary) + " (" + std::to_string(low) + " to " +
+                      std::to_string(high) + ")";
+        return row;
+    };
     workshop::v2::PaneSettingRow titles;
     titles.key = kPaneTitlesKey;
     titles.flag = kTitlesDefaultValue;
@@ -123,18 +148,37 @@ inline std::vector<workshop::v2::PaneSettingRow> workshop_office_rows() {
             text(kPinnedScopeKey, kPinsWorkshopWide, {kPinsWorkshopWide, kPinsPerLayout},
                  {"chrome", "settings"}, true, "pin order scope: workshop-wide or per-layout"),
             text(kFocusRingKey, kRingAccent, {kRingAccent, kRingPlain}, {"chrome", "focus"}, false,
-                 "command-mode selection ring style: accent or plain")};
+                 "command-mode selection ring style: accent or plain"),
+            workshop_skin_setting_row(),
+            text(kCompletionOrderKey, kCompletionDeclared,
+                 {kCompletionDeclared, kCompletionRequiredFirst}, {"completion", "input"}, false,
+                 "argument completion field order: declared or required-first"),
+            number(kArrangeStepKey, kCoarseStepCells, kMinArrangeStepCells, kMaxArrangeStepCells,
+                   {"input", "layout"}, "coarse pane resize step in cells"),
+            number(kSnapReachKey, kPaneSnapReachPx, kMinSnapReachPx, kMaxSnapReachPx,
+                   {"input", "layout"}, "edge snap reach in canvas pixels"),
+            number(kSideColumnsKey, kSideCols, kMinSideCols, kMaxSideCols, {"layout"},
+                   "right-column width in cells"),
+            number(kStackRowsKey, kStackRows, kMinStackRows, kMaxStackRows, {"layout"},
+                   "overlay stack fallback height in rows")};
 }
 
 /// WORKSHOP'S SETTINGS AS THE SESSION SPENDS THEM: whether the arrangeable panes wear their
 /// titles, how the band and the Hotkeys view each spell a key, whether pins are kept per layout,
-/// and whether the selection's ring is plain.
+/// whether the selection's ring is plain, the skin graphics areas wear, whether the completion
+/// offers required fields first, and the arrangement's measures.
 struct Presentation {
     bool titles_shown = kTitlesDefaultValue;
     KeySpelling band_keys = kBandKeysDefaultValue;
     KeySpelling hotkeys_keys = kHotkeysKeysDefaultValue;
     bool pins_per_layout = false;
     bool ring_plain = false;
+    std::string skin = kSkinClassic;
+    bool completion_required_first = false;
+    std::int64_t arrange_step_cells = kCoarseStepCells;
+    std::int64_t snap_reach_px = kPaneSnapReachPx;
+    std::int64_t side_cols = kSideCols;
+    std::int64_t stack_rows = kStackRows;
 };
 
 // ---- The file's own shape --------------------------------------------------------------
@@ -368,6 +412,22 @@ inline Presentation presentation_of(const Prefs& p) {
     out.pins_per_layout = scope.text && *scope.text == kPinsPerLayout;
     const PaneSetting ring = workshop_value(p, kFocusRingKey);
     out.ring_plain = ring.text && *ring.text == kRingPlain;
+    const PaneSetting skin = workshop_value(p, kSkinKey);
+    out.skin = skin.text && *skin.text == kSkinBlock ? kSkinBlock : kSkinClassic;
+    const PaneSetting order = workshop_value(p, kCompletionOrderKey);
+    out.completion_required_first = order.text && *order.text == kCompletionRequiredFirst;
+    // A NUMBER OUTSIDE ITS BOUNDS NEVER REACHES HERE from a file or a commit, both judged against
+    // the rows; one that did is held to them.
+    const auto measure = [&p](const char* key, std::int64_t fallback, std::int64_t low,
+                              std::int64_t high) {
+        const PaneSetting v = workshop_value(p, key);
+        return v.number ? std::clamp(*v.number, low, high) : fallback;
+    };
+    out.arrange_step_cells =
+        measure(kArrangeStepKey, kCoarseStepCells, kMinArrangeStepCells, kMaxArrangeStepCells);
+    out.snap_reach_px = measure(kSnapReachKey, kPaneSnapReachPx, kMinSnapReachPx, kMaxSnapReachPx);
+    out.side_cols = measure(kSideColumnsKey, kSideCols, kMinSideCols, kMaxSideCols);
+    out.stack_rows = measure(kStackRowsKey, kStackRows, kMinStackRows, kMaxStackRows);
     return out;
 }
 

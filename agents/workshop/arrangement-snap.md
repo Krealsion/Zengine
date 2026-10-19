@@ -6,7 +6,7 @@ cite by ID. The register's first file is [`arrangement.md`](arrangement.md). Rou
 
 ## WL-ARR-17 — A hand's place and size come to the edges near them; a key places exactly
 
-LAW — An edge a hand moves comes to the nearest legal line within `kPaneSnapReachPx`, the room's or another pane's on the screen, before the gesture door, unless Alt is held; keys and typed values never snap.
+LAW — An edge a hand moves comes to the nearest legal line within `workshop.snap-reach`, the room's or another pane's on screen, before the gesture door, unless Alt is held; keys and typed values never snap.
 
 MEANS
 - the line met is marked across the room on the affordance plane, a device unit wide, while held;
@@ -14,7 +14,8 @@ MEANS
 - a hand within reach of the room's edge comes to it; one beyond is refused as WL-ARR-06 says.
 
 DOES NOT MEAN
-- collision avoidance or an anchor: a snapped pane may stand over another, and nothing follows it.
+- collision avoidance or an anchor: a snapped pane may stand over another, and nothing follows it;
+- that a reach can pull a terminal hand a cell: every one it takes is under a cell and at least half one.
 
 WHY — `agents/decisions/a-hand-snaps-a-key-places.md`
 
@@ -27,13 +28,14 @@ WHY — `agents/decisions/a-hand-snaps-a-key-places.md`
 
 ### WL-ARR-17
 `workshop/screen.hpp` kPaneSnapReachPx PaneSnapLines SnappedWindow PaneWindowAxes pane_window_axes
-PaneGesture::met_x PaneGesture::met_y
+PaneGesture::met_x PaneGesture::met_y kMinSnapReachPx kMaxSnapReachPx Session::snap_reach_px
 `workshop/screen_gestures.cpp` pane_snap_lines snap_pane_window snap_axis pane_window_axes
 `workshop/weave_arrange.cpp` arrange_motion arrange_status
 `workshop/weave_pointer.cpp` on(PointerMoved)
 `workshop/screen_reveal.cpp` paint_pane_affordances
-`tests/test_workshop_screen.cpp` "a pane dragged near another pane's edge or the room's comes to it,
-and the edge met is marked across the room while held" "Alt held while dragging sets every snap
+`tests/test_workshop_screen.cpp` "the snap reaches as far as `workshop.snap-reach` says: eleven
+pixels meets an edge ten away, six misses one seven away" "a pane dragged near another pane's edge
+or the room's comes to it, and the edge met is marked across the room while held" "Alt held while dragging sets every snap
 aside, and the hand places to the pixel" "an edge pulled near another pane's edge or the room's
 comes to it, its opposite edge held" "the arrow keys and a typed value place exactly, near an edge
 or not" "in a terminal a hand moving by cells meets an edge between them, and the mark is a cell

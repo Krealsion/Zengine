@@ -142,7 +142,9 @@ Width scales with the surface; height does not. A larger pane is authored by arr
 drag a handle (right-click the pane → `arrange`, or `w` for the whole desk), press **`=`** for
 a coarse four-cell step on both axes, or `Shift`+arrows for one cell at a time. It persists
 correctly once authored. There is still no "fill the room" and no auto-fit. Detail in [pane
-geometry](panes.md#pane-geometry).
+geometry](panes.md#pane-geometry). The nine rows and the four-cell step are Workshop's settings
+`workshop.stack-rows` and `workshop.arrange-step`, one value for every layout
+([Workshop's own settings](zengine.workshop.md#officesettingsrequested)).
 
 The outermost part of that rectangle is the pane's visible edge. On a terminal that is one
 cell on each side, so the default pane shows 46 columns by 7 rows; in a window it is one

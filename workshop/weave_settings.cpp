@@ -159,6 +159,12 @@ void WorkshopWeave::apply_workshop_settings() {
     session_.band_keys = said.band_keys;
     session_.hotkeys_keys = said.hotkeys_keys;
     session_.selection_ring_plain = said.ring_plain;
+    session_.skin = said.skin;
+    session_.completion_required_first = said.completion_required_first;
+    session_.arrange_step_cells = said.arrange_step_cells;
+    session_.snap_reach_px = said.snap_reach_px;
+    session_.side_cols = said.side_cols;
+    session_.stack_rows = said.stack_rows;
 }
 
 // WL-SETTING-11 -- agents/workshop/settings.md

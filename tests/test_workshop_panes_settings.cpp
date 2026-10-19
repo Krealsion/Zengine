@@ -884,11 +884,29 @@ OfficeSettingCommitRequested workshop_text(std::int64_t revision, const char* ke
     return c;
 }
 
+/// ...and of its own number setting `key`.
+OfficeSettingCommitRequested workshop_number(std::int64_t revision, const char* key, std::int64_t n) {
+    OfficeSettingCommitRequested c;
+    c.office = kWorkshopProvider;
+    c.revision = revision;
+    c.key = key;
+    c.number = n;
+    return c;
+}
+
 PaneSettingCommitRequested number_at(std::int64_t revision, const char* key, std::int64_t n) {
     PaneSettingCommitRequested c;
     c.revision = revision;
     c.key = key;
     c.number = n;
+    return c;
+}
+
+PaneSettingCommitRequested text_at(std::int64_t revision, const char* key, const char* text) {
+    PaneSettingCommitRequested c;
+    c.revision = revision;
+    c.key = key;
+    c.text = std::string(text);
     return c;
 }
 
@@ -1307,10 +1325,55 @@ TEST_CASE("Workshop's own settings are read by message: what each takes, what is
     for (const v2::PaneSettingRow& row : shown.rows) {
         keys.push_back(row.key);
     }
-    CHECK(keys == std::vector<std::string>{"workshop.pane-titles", "workshop.band-keys",
-                                           "workshop.hotkeys-keys", "workshop.pinned-scope",
-                                           "workshop.focus.ring"});
+    CHECK(keys == std::vector<std::string>{
+                      "workshop.pane-titles", "workshop.band-keys", "workshop.hotkeys-keys",
+                      "workshop.pinned-scope", "workshop.focus.ring", "workshop.skin",
+                      "workshop.completion-order", "workshop.arrange-step", "workshop.snap-reach",
+                      "workshop.side-columns", "workshop.stack-rows"});
     CHECK(shown.rows == prefs_persist::workshop_office_rows());
+    // THREE PINNED BY DEFAULT, the most a declaration pins, and every row sound by a pane
+    // declaration's rules but its `workshop.` key.
+    std::vector<std::string> pinned;
+    std::vector<std::string> tags;
+    for (const v2::PaneSettingRow& row : shown.rows) {
+        if (row.pinned) {
+            pinned.push_back(row.key);
+        }
+        v2::PaneSettingRow as_pane = row;
+        as_pane.key = row.key.substr(std::string("workshop.").size());
+        CHECK_MESSAGE(v2::pane_setting_row_problem(as_pane).empty(), row.key);
+        for (const std::string& tag : row.tags) {
+            if (std::find(tags.begin(), tags.end(), tag) == tags.end()) {
+                tags.push_back(tag);
+            }
+        }
+    }
+    CHECK(pinned == std::vector<std::string>{"workshop.pane-titles", "workshop.pinned-scope",
+                                             "workshop.skin"});
+    CHECK(pinned.size() <= kMaxDefaultPins);
+    CHECK(tags.size() <= kMaxDeclaredTags);
+    const auto row_of = [&shown](const char* key) {
+        for (const v2::PaneSettingRow& row : shown.rows) {
+            if (row.key == key) {
+                return row;
+            }
+        }
+        FAIL("no row ", key);
+        return v2::PaneSettingRow{};
+    };
+    CHECK(row_of("workshop.skin").text == std::string("classic"));
+    CHECK(row_of("workshop.skin").choices == std::vector<std::string>{"classic", "block"});
+    CHECK(row_of("workshop.completion-order").text == std::string("declared"));
+    CHECK(row_of("workshop.completion-order").choices ==
+          std::vector<std::string>{"declared", "required-first"});
+    CHECK((row_of("workshop.arrange-step").number == 4 && row_of("workshop.arrange-step").low == 2 &&
+           row_of("workshop.arrange-step").high == 16));
+    CHECK((row_of("workshop.snap-reach").number == 8 && row_of("workshop.snap-reach").low == 6 &&
+           row_of("workshop.snap-reach").high == 11));
+    CHECK((row_of("workshop.side-columns").number == 28 &&
+           row_of("workshop.side-columns").low == 16 && row_of("workshop.side-columns").high == 64));
+    CHECK((row_of("workshop.stack-rows").number == 9 && row_of("workshop.stack-rows").low == 5 &&
+           row_of("workshop.stack-rows").high == 40));
     CHECK(shown.settings.empty());
     CHECK(shown.locks.empty());
     CHECK(shown.written == "isolated run -- no settings file");
@@ -1589,4 +1652,175 @@ TEST_CASE("an everywhere lock on a pane's setting refuses the message commit and
     CHECK(t.stored().empty());
     // A SETTING NO LOCK HOLDS IS WRITTEN AS EVER.
     CHECK(t.commit(number_at(shown.revision, "step", 4)).accepted);
+}
+
+TEST_CASE("Workshop's measures and its completion order apply when committed, are kept in the settings file, and a value outside what each takes is refused") {
+    TempDir dir("office-settings-measures");
+    RevisionRig t;
+    const std::string path = dir.file("workshop-prefs.json");
+    t.r.host.prefs_path = path;
+    t.open();
+    const Session& s = t.r.session();
+    REQUIRE(s.arrange_step_cells == kCoarseStepCells);
+    REQUIRE(s.snap_reach_px == kPaneSnapReachPx);
+    REQUIRE(s.side_cols == kSideCols);
+    REQUIRE(s.stack_rows == kStackRows);
+    REQUIRE_FALSE(s.completion_required_first);
+    std::int64_t rev = t.read_office(kWorkshopProvider).revision;
+
+    // EACH MEASURE, APPLIED THE MOMENT IT IS COMMITTED, and kept in the file.
+    struct Set {
+        const char* key;
+        std::int64_t value;
+    };
+    for (const Set& c : {Set{"workshop.arrange-step", 8}, Set{"workshop.snap-reach", 11},
+                         Set{"workshop.side-columns", 40}, Set{"workshop.stack-rows", 20}}) {
+        CAPTURE(c.key);
+        const PaneSettingActed a = t.commit_office(workshop_number(rev, c.key, c.value));
+        REQUIRE_MESSAGE(a.accepted, a.refusal);
+        CHECK(a.handed == "applied; written");
+        rev = a.revision;
+    }
+    CHECK(s.arrange_step_cells == 8);
+    CHECK(s.snap_reach_px == 11);
+    CHECK(s.side_cols == 40);
+    CHECK(s.stack_rows == 20);
+    // THE SCREEN TAKES THE COLUMN AND THE STACK AT ONCE: the column forty cells from the right
+    // edge, and each stacked slot twenty rows tall with its gap beneath.
+    const Screen sc = screen_of(s);
+    CHECK(sc.side_x == sc.w - cells_px(40));
+    CHECK(placement_bounds(placement::kSideRegion, 0, sc).w == cells_px(40));
+    CHECK(placement_bounds(placement::kOverlayStack, 0, sc).h == cells_px(20));
+    CHECK(placement_bounds(placement::kOverlayStack, 1, sc).y == sc.room_y + cells_px(21));
+    CHECK(stack_capacity(sc).fallback_height == cells_px(20));
+    // THE COMPLETION'S ORDER, a choice.
+    const PaneSettingActed order =
+        t.commit_office(workshop_text(rev, "workshop.completion-order", "required-first"));
+    REQUIRE_MESSAGE(order.accepted, order.refusal);
+    CHECK(s.completion_required_first);
+    rev = order.revision;
+
+    // READ BACK FROM THE FILE as the session spends them.
+    const prefs_persist::LoadedPrefs read = prefs_persist::load_file(path);
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    CHECK(read.prefs.arrange_step_cells == 8);
+    CHECK(read.prefs.snap_reach_px == 11);
+    CHECK(read.prefs.side_cols == 40);
+    CHECK(read.prefs.stack_rows == 20);
+    CHECK(read.prefs.completion_required_first);
+    const std::string kept = slurp(path);
+
+    // A VALUE OUTSIDE WHAT EACH TAKES IS REFUSED IN ITS WORDS, nothing applied or written.
+    struct Bad {
+        OfficeSettingCommitRequested asked;
+        std::string said;
+    };
+    const auto number = [rev](const char* key, std::int64_t n) {
+        return workshop_number(rev, key, n);
+    };
+    const std::vector<Bad> bad = {
+        {number("workshop.arrange-step", 1),
+         "workshop.arrange-step takes a whole number from 2 to 16, not a number `1`"},
+        {number("workshop.arrange-step", 17),
+         "workshop.arrange-step takes a whole number from 2 to 16, not a number `17`"},
+        {number("workshop.snap-reach", 5),
+         "workshop.snap-reach takes a whole number from 6 to 11, not a number `5`"},
+        {number("workshop.snap-reach", 12),
+         "workshop.snap-reach takes a whole number from 6 to 11, not a number `12`"},
+        {number("workshop.side-columns", 15),
+         "workshop.side-columns takes a whole number from 16 to 64, not a number `15`"},
+        {number("workshop.side-columns", 65),
+         "workshop.side-columns takes a whole number from 16 to 64, not a number `65`"},
+        {number("workshop.stack-rows", 4),
+         "workshop.stack-rows takes a whole number from 5 to 40, not a number `4`"},
+        {number("workshop.stack-rows", 41),
+         "workshop.stack-rows takes a whole number from 5 to 40, not a number `41`"},
+        {workshop_text(rev, "workshop.completion-order", "alphabetical"),
+         "workshop.completion-order takes one of declared, required-first, not a text "
+         "`alphabetical`"},
+        {workshop_text(rev, "workshop.stack-rows", "tall"),
+         "workshop.stack-rows takes a whole number from 5 to 40, not a text `tall`"},
+    };
+    for (const Bad& b : bad) {
+        CAPTURE(b.said);
+        const PaneSettingActed a = t.commit_office(b.asked);
+        CHECK_FALSE(a.accepted);
+        CHECK(a.refusal == b.said);
+        CHECK(a.revision == rev);
+    }
+    CHECK(s.arrange_step_cells == 8);
+    CHECK(s.stack_rows == 20);
+    CHECK(slurp(path) == kept);
+
+    // ...AND A FILE HOLDING ONE IS REFUSED WHOLE when it is read.
+    prefs_persist::Prefs wrong;
+    wrong.offices = {prefs_persist::OfficeSettingsKept{
+        kWorkshopProvider, {PaneSetting{"workshop.stack-rows", std::nullopt, 41, std::nullopt}}}};
+    const prefs_persist::LoadedPrefs refused =
+        prefs_persist::from_text(prefs_persist::to_text(wrong));
+    CHECK_FALSE(refused.outcome.accepted);
+    CHECK(refused.outcome.refusal ==
+          "workshop.stack-rows takes a whole number from 5 to 40, not a number `41`");
+}
+
+TEST_CASE("a row's `workshop.skin` is Workshop's word for its pane's area: taken on every row, kept as written, shown in Info, and never handed to the pane") {
+    RevisionRig t;
+    t.open();
+    const PaneSettingsShown before = t.read();
+    // A ROW TAKES IT, whatever its pane declares, and the pane is handed none of it.
+    const PaneSettingActed block = t.commit(text_at(before.revision, "workshop.skin", "block"));
+    REQUIRE_MESSAGE(block.accepted, block.refusal);
+    CHECK(block.handed == "stored and handed");
+    CHECK(t.stored() ==
+          std::vector<PaneSetting>{PaneSetting{"workshop.skin", std::nullopt, std::nullopt,
+                                               std::string("block")}});
+    REQUIRE_FALSE(t.seat->handed.empty());
+    CHECK(t.seat->handed.back().revision == block.revision);
+    CHECK(t.seat->handed.back().settings.empty());
+    const PaneSettingsShown shown = t.read();
+    CHECK(shown.settings == t.stored());
+    CHECK(shown.said == "stored and handed");
+    for (const v2::PaneSettingRow& row : shown.rows) {
+        CHECK(row.key != "workshop.skin"); // the pane's declaration, as the pane declared it
+    }
+    // INFO SHOWS IT AS A SETTING THE ROW TAKES, not a key kept for nobody.
+    REQUIRE(hand_inspect(t.r, dial_ref()).accepted);
+    CHECK(subject_value(t.r.session(), "workshop.skin", "SETTINGS") == "block");
+
+    // `classic` IS KEPT AS WRITTEN: its absence is Workshop's own skin, which may be `block`.
+    const PaneSettingActed classic = t.commit(text_at(block.revision, "workshop.skin", "classic"));
+    REQUIRE_MESSAGE(classic.accepted, classic.refusal);
+    CHECK(t.stored() ==
+          std::vector<PaneSetting>{PaneSetting{"workshop.skin", std::nullopt, std::nullopt,
+                                               std::string("classic")}});
+    CHECK(t.seat->handed.back().settings.empty());
+    // A SKIN IT DOES NOT TAKE, AND ANY OTHER `workshop.` KEY, ARE REFUSED, nothing written.
+    PaneSettingActed a = t.commit(text_at(classic.revision, "workshop.skin", "plain"));
+    CHECK_FALSE(a.accepted);
+    CHECK(a.refusal == "workshop.skin takes one of classic, block, not a text `plain`");
+    a = t.commit(text_at(classic.revision, "workshop.text", "x"));
+    CHECK_FALSE(a.accepted);
+    CHECK(a.refusal.find("has no counted setting `workshop.text`") != std::string::npos);
+    CHECK(t.stored().size() == 1);
+    // ...AND A CLEAR GIVES THE AREA BACK TO WORKSHOP'S OWN.
+    PaneSettingCommitRequested clear;
+    clear.revision = classic.revision;
+    clear.key = "workshop.skin";
+    clear.clear = true;
+    const PaneSettingActed cleared = t.commit(clear);
+    REQUIRE_MESSAGE(cleared.accepted, cleared.refusal);
+    CHECK(t.stored().empty());
+
+    // THE SETUP FILE'S CHECK READS A ROW KEEPING IT, and refuses one it does not take by name.
+    const PaneSetting skin_block{"workshop.skin", std::nullopt, std::nullopt, std::string("block")};
+    CHECK(check_pane_settings(dial_ref(), {skin_block}).accepted);
+    const Written plain = check_pane_settings(
+        dial_ref(), {PaneSetting{"workshop.skin", std::nullopt, std::nullopt, std::string("plain")}});
+    CHECK_FALSE(plain.accepted);
+    CHECK(plain.refusal == "`" + ref_text(dial_ref()) +
+                               "`: workshop.skin takes one of classic, block, not a text `plain`");
+    CHECK(check_pane_settings(dial_ref(), {PaneSetting{"workshop.skin", std::nullopt, 1,
+                                                       std::nullopt}})
+              .refusal.find("workshop.skin takes one of classic, block, not a number `1`") !=
+          std::string::npos);
 }
