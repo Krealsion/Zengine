@@ -12,8 +12,14 @@ loom::Grant workshop_grant() {
     speak.allow_to_any(surface::SurfaceCanvas::zen_name, surface::SurfaceCanvas::zen_version);
     speak.allow_to_any(surface::SurfaceText::zen_name, surface::SurfaceText::zen_version);
     speak.allow_to_any(surface::ClipboardCopy::zen_name, surface::ClipboardCopy::zen_version);
-    speak.allow_to_role(surface::ClipboardTextRequested::zen_name, surface::ClipboardTextRequested::zen_version, surface::kSkinRole);
-    speak.allow_to_role(surface::SurfacePlacementRemembered::zen_name, surface::SurfacePlacementRemembered::zen_version, surface::kSkinRole);
+    // A paste and the place remembered, to the Skin or a window, whichever holds the platform.
+    for (const std::string& medium :
+         {std::string(surface::kSkinRole),
+          std::string(graphics::kWindowOfficePrefix) + graphics::kTerminalWindow,
+          std::string(graphics::kWindowOfficePrefix) + graphics::kSdlWindow}) {
+        speak.allow_to_role(surface::ClipboardTextRequested::zen_name, surface::ClipboardTextRequested::zen_version, medium);
+        speak.allow_to_role(surface::SurfacePlacementRemembered::zen_name, surface::SurfacePlacementRemembered::zen_version, medium);
+    }
     speak.allow_to_any(PaneCatalogRequested::zen_name, PaneCatalogRequested::zen_version);
     speak.allow_to_any(PaneRoom::zen_name, PaneRoom::zen_version);
     speak.allow_to_any(PaneSettings::zen_name, PaneSettings::zen_version);

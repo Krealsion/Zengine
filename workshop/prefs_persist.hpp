@@ -413,7 +413,8 @@ inline Presentation presentation_of(const Prefs& p) {
     const PaneSetting ring = workshop_value(p, kFocusRingKey);
     out.ring_plain = ring.text && *ring.text == kRingPlain;
     const PaneSetting skin = workshop_value(p, kSkinKey);
-    out.skin = skin.text && *skin.text == kSkinBlock ? kSkinBlock : kSkinClassic;
+    out.skin = skin.text && is_workshop_skin_choice(*skin.text) ? *skin.text
+                                                                : std::string(kSkinClassic);
     const PaneSetting order = workshop_value(p, kCompletionOrderKey);
     out.completion_required_first = order.text && *order.text == kCompletionRequiredFirst;
     // A NUMBER OUTSIDE ITS BOUNDS NEVER REACHES HERE from a file or a commit, both judged against

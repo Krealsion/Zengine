@@ -326,6 +326,10 @@ public:
     bool shown() const noexcept { return !canvas_.window().empty(); }
     /// The office of the window that shows the area, which a drawing sent there addresses.
     std::string window_office() const { return canvas_.window_office(); }
+    /// The office that answers a paste asked from the area: the window showing it, else the Skin.
+    std::string clipboard_office() const {
+        return shown() ? canvas_.window_office() : std::string(surface::kSkinRole);
+    }
     /// The room that window gives the area, in pixels.
     std::int64_t width() const noexcept { return canvas_.width(); }
     std::int64_t height() const noexcept { return canvas_.height(); }

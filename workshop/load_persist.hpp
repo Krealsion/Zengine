@@ -65,10 +65,12 @@ inline std::string plan_in_force(const std::string& explicit_path, const std::st
     }
     return host_dir + "/" + kDefaultLoadPlanName;
 }
-/// ...and the two beside it, each passed with `--load-plan`: the desk in the terminal window
-/// (`zengine-graphics` and `zengine-window-terminal` in the medium's two rows), and the desk in
-/// an SDL window, staged only where the SDL skin and reader were built.
+/// ...and the three beside it, each passed with `--load-plan`: the desk in the terminal window
+/// (`zengine-graphics` and `zengine-window-terminal` in the medium's two rows), the desk in the OS
+/// window (`zengine-window-sdl` there, and SDL's reader in the input row), staged only where both
+/// were built, and the desk in an SDL skin, staged only where the SDL skin and reader were built.
 inline constexpr const char* kWindowLoadPlanName = "window-load-plan.json";
+inline constexpr const char* kSdlWindowLoadPlanName = "sdl-window-load-plan.json";
 inline constexpr const char* kGraphicalLoadPlanName = "graphical-load-plan.json";
 
 /// The ceiling: an order of magnitude above the largest legal plan, so a hostile file does not

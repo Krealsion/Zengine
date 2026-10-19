@@ -3785,14 +3785,18 @@ TEST_CASE("with a graphics directory, Workshop places an open pane's area over i
     // ...and neither the window's keys nor its presses: that office takes Workshop's words.
     CHECK_FALSE(pane().keys);
     CHECK_FALSE(pane().pointer);
-    // ALL OF IT SAID AS WORKSHOP'S OFFICE: the two skins offered once, each area's chosen once, and
-    // Workshop's room asked once.
+    // ALL OF IT SAID AS WORKSHOP'S OFFICE: the four skins offered once, each area's chosen once,
+    // and Workshop's room asked once.
     CHECK(d.directory->arrangers == std::set<std::string>{kWorkshopProvider});
-    REQUIRE(d.directory->offered.size() == 2);
+    REQUIRE(d.directory->offered.size() == 4);
     CHECK(d.directory->offered[0].skin == "classic");
     CHECK(d.directory->offered[0].library == d.r.host.so("zengine-paint-classic"));
     CHECK(d.directory->offered[1].skin == "block");
     CHECK(d.directory->offered[1].library == d.r.host.so("zengine-paint-block"));
+    CHECK(d.directory->offered[2].skin == "day");
+    CHECK(d.directory->offered[2].library == d.r.host.so("zengine-paint-day"));
+    CHECK(d.directory->offered[3].skin == "night");
+    CHECK(d.directory->offered[3].library == d.r.host.so("zengine-paint-night"));
     std::map<std::string, int> chosen;
     for (const gfx::SkinChosen& c : d.directory->chosen) {
         CHECK(c.skin == "classic");
@@ -3830,7 +3834,7 @@ TEST_CASE("with a graphics directory, Workshop places an open pane's area over i
     const std::size_t offered = d.directory->offered.size();
     const std::size_t again = d.directory->placed.size();
     d.directory_does();
-    CHECK(d.directory->offered.size() == offered + 2);
+    CHECK(d.directory->offered.size() == offered + 4);
     CHECK(d.directory->placed.size() == again + 2);
     CHECK(std::count(d.directory->asked.begin(), d.directory->asked.end(), own_room) == 2);
     // ...AND SO IS ANOTHER HOLDER OF ITS OFFICE, at the next repaint, though it says nothing.
@@ -3839,7 +3843,7 @@ TEST_CASE("with a graphics directory, Workshop places an open pane's area over i
     d.mount_directory();
     REQUIRE(d.directory_id.value != before);
     d.r.key(input::scan::kGrave);
-    CHECK(d.directory->offered.size() == 2);
+    CHECK(d.directory->offered.size() == 4);
     CHECK(d.directory->areas.count(kWorkshopProvider) == 1);
     CHECK(d.directory->areas.count(apane::kAttentionPaneRole) == 1);
     CHECK(d.directory->chosen.size() == 2);
@@ -4017,6 +4021,21 @@ TEST_CASE("each graphics area wears its pane row's `workshop.skin`, else Worksho
     from = d.directory->chosen.size();
     REQUIRE(d.pane_skin("block").accepted);
     CHECK(d.chosen_since(from) == Skins{{pane, "block"}});
+    // `night` AND `day` ARE SKINS AS THE OTHER TWO ARE: Workshop's own reaches its area, the
+    // row's its pane's, and each goes back as it came.
+    from = d.directory->chosen.size();
+    const PaneSettingActed night = d.workshop_skin("night");
+    REQUIRE_MESSAGE(night.accepted, night.refusal);
+    CHECK(d.r.session().skin == "night");
+    CHECK(d.chosen_since(from) == Skins{{kWorkshopProvider, "night"}});
+    from = d.directory->chosen.size();
+    const PaneSettingActed day = d.pane_skin("day");
+    REQUIRE_MESSAGE(day.accepted, day.refusal);
+    CHECK(d.chosen_since(from) == Skins{{pane, "day"}});
+    from = d.directory->chosen.size();
+    REQUIRE(d.workshop_skin("classic").accepted);
+    REQUIRE(d.pane_skin("block").accepted);
+    CHECK(d.chosen_since(from) == Skins{{kWorkshopProvider, "classic"}, {pane, "block"}});
 
     // A REPAINT THAT MOVED NOTHING SAYS NO SKIN.
     from = d.directory->chosen.size();
@@ -4475,6 +4494,39 @@ std::string terminal_window_office() {
     return std::string(gfx::kWindowOfficePrefix) + gfx::kTerminalWindow;
 }
 
+std::string sdl_window_office() {
+    return std::string(gfx::kWindowOfficePrefix) + gfx::kSdlWindow;
+}
+
+/// THE OS WINDOW AS WORKSHOP MEETS IT, in `zengine.window.sdl`: it says what a case hands it as
+/// its office, keeps every drawing and place offered back, and answers a paste with what its
+/// platform holds, counting each read.
+class SdlWindowSeat
+    : public loom::WeaveBase<SdlWindowSeat, DeskWindowState,
+                             loom::Accept<gfx::Drawn, surface::ClipboardTextRequested,
+                                          surface::SurfacePlacementRemembered, SeatDo>,
+                             loom::Emit<gfx::WindowOffered, gfx::AreaRoom,
+                                        surface::ClipboardText>> {
+public:
+    void on(const gfx::Drawn&, loom::Mail&) { ++state_.drawn; }
+    void on(const surface::ClipboardTextRequested&, loom::Mail& mail) {
+        ++reads;
+        (void)mail.answer(surface::ClipboardText{true, platform});
+    }
+    void on(const surface::SurfacePlacementRemembered& p, loom::Mail&) { offered.push_back(p); }
+    void on(const SeatDo&, loom::Mail& mail) {
+        auto run = std::move(next);
+        next = {};
+        if (run) run(mail);
+    }
+    std::int64_t drawn() const { return state_.drawn; }
+
+    std::function<void(loom::Mail&)> next;
+    std::vector<surface::SurfacePlacementRemembered> offered;
+    std::string platform;
+    int reads = 0;
+};
+
 } // namespace
 
 TEST_CASE("the terminal window offered before any skin brings Workshop up in it, the last session "
@@ -4546,6 +4598,100 @@ TEST_CASE("the terminal window offered before any skin brings Workshop up in it,
     // ...and a skin's hello brings Workshop up as it always does, the room asked again.
     r.ready();
     CHECK(seat->asks.size() == 2);
+
+    SUBCASE("the OS window offered the same way brings Workshop up in it: the skins offered, the "
+            "areas placed on it, the place remembered and a paste asked of it, never of the Skin") {
+        // ⚔ MUTATION: the offer of any window but the terminal's ignored -- nothing comes up.
+        TempDir os_dir("sdl-window-offered");
+        PaneRig o;
+        o.host.dir = "/zen/sdl-window-desk";
+        o.host.session_path = os_dir.file("session.json");
+        REQUIRE(session_persist::save_file(o.host.session_path,
+                                           one_layout(setup_of("Offered", {pane_kind::kLayouts})),
+                                           0, cells_px(100), cells_px(40),
+                                           session_persist::Placement{true, 40, 60, false})
+                    .accepted);
+        auto made_directory = std::make_unique<ArrangedDirectory>();
+        ArrangedDirectory* directory = made_directory.get();
+        directory->zen_set_self(o.bus.register_weave(std::move(made_directory), loom::Grant{},
+                                                     gfx::kGraphicsRole));
+        SkinSeat* skin = o.mount_skin_seat(); // the medium a paste asked before
+        o.mount_workshop();
+        auto made_window = std::make_unique<SdlWindowSeat>();
+        SdlWindowSeat* os = made_window.get();
+        loom::Grant says;
+        says.allow_to_any(gfx::WindowOffered::zen_name, gfx::WindowOffered::zen_version);
+        says.allow_to_any(gfx::AreaRoom::zen_name, gfx::AreaRoom::zen_version);
+        says.allow_to_any(surface::ClipboardText::zen_name, surface::ClipboardText::zen_version);
+        const loom::WeaveId os_id =
+            o.bus.register_weave(std::move(made_window), std::move(says), sdl_window_office());
+        os->zen_set_self(os_id);
+        const auto os_does = [&o, os, os_id](std::function<void(loom::Mail&)> what) {
+            os->next = std::move(what);
+            (void)o.bus.send(os_id, loom::Message(loom::to_value(SeatDo{}), {}, {}, 0));
+            o.bus.drain_until_idle();
+        };
+
+        os_does([](loom::Mail& m) {
+            (void)m.as_role(sdl_window_office())
+                .publish(gfx::WindowOffered{gfx::kSdlWindow, 90, 30, 3});
+        });
+        // UP IN IT, the last session restored first, and laid out in its room...
+        CHECK(o.session().setup.active.name == "Offered");
+        CHECK(o.session().screen_w == cells_px(90));
+        CHECK(o.session().screen_h == cells_px(30));
+        // ...ITS PLACE ON THE DESKTOP OFFERED TO IT, and not to the Skin...
+        REQUIRE(os->offered.size() == 1);
+        CHECK(os->offered[0].x == 40);
+        CHECK(os->offered[0].y == 60);
+        CHECK_FALSE(os->offered[0].maximized);
+        CHECK(skin->offered.empty());
+        // ...EVERY PAINTER SKIN OFFERED THE DIRECTORY, and Workshop's area placed on the OS window.
+        std::vector<std::string> offered;
+        for (const gfx::SkinOffered& s : directory->offered) {
+            offered.push_back(s.skin);
+        }
+        CHECK(offered == std::vector<std::string>{"classic", "block", "day", "night"});
+        REQUIRE(directory->areas.count(kWorkshopProvider) == 1);
+        CHECK(directory->areas.at(kWorkshopProvider).window == gfx::kSdlWindow);
+        // ...AND A PANE WHOSE OFFICE DRAWS IN A WINDOW, opened, placed on it too.
+        REQUIRE(o.load(apane::kAttentionPaneStem, WORKSHOP_SO_ATTENTION_PANE,
+                       apane::kAttentionPaneRole)
+                    .valid());
+        o.pick(PaneRef{apane::kAttentionPaneRole, apane::kAttentionPane});
+        REQUIRE(directory->areas.count(apane::kAttentionPaneRole) == 1);
+        CHECK(directory->areas.at(apane::kAttentionPaneRole).window == gfx::kSdlWindow);
+        for (const gfx::AreaPlaced& placed : directory->placed) {
+            CHECK(placed.window == gfx::kSdlWindow);
+        }
+
+        // THE WINDOW SHOWS WORKSHOP'S AREA: Workshop draws the desk there...
+        os_does([](loom::Mail& m) {
+            (void)m.as_role(sdl_window_office())
+                .send_to_role(kWorkshopProvider,
+                              gfx::AreaRoom{kWorkshopProvider, gfx::kSdlWindow, 1, cells_px(90),
+                                            cells_px(30), {}});
+        });
+        CHECK(os->drawn() > 0);
+        // ...AND A PASTE INTO THE NAME EDITOR IS ASKED OF IT, its answer landing in the line.
+        open_rename_on_live_tab(o);
+        REQUIRE(o.session().setup.naming.open);
+        os->platform = "Evening";
+        skin->platform = "Skin's";
+        o.key(input::scan::kA, input::mod::kCtrl);
+        o.key(input::scan::kV, input::mod::kCtrl);
+        CHECK(os->reads == 1);
+        CHECK(skin->clipboard_reads == 0);
+        CHECK(o.session().setup.naming.line.text() == "Evening");
+        // WHILE THE WINDOW SHOWS THE DESK IT IS ASKED, a skin's extent come since or not.
+        o.extent(100, 36);
+        os->platform = "Night";
+        o.key(input::scan::kA, input::mod::kCtrl);
+        o.key(input::scan::kV, input::mod::kCtrl);
+        CHECK(os->reads == 2);
+        CHECK(skin->clipboard_reads == 0);
+        CHECK(o.session().setup.naming.line.text() == "Night");
+    }
 }
 
 namespace {

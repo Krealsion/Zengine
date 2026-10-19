@@ -40,33 +40,38 @@ If a row is refused, Workshop names the artifact, says how many participated bef
 exits — the same behaviour as before, and still deliberate, because the row that fails may be the
 one that draws your screen.
 
-## The three shipped plans
+## The shipped plans
 
 | file | is |
 |---|---|
 | [`workshop/default-load-plan.json`](../default-load-plan.json) | the terminal Workshop |
 | [`workshop/window-load-plan.json`](../window-load-plan.json) | Workshop in the terminal window: the desk drawn through the graphics directory |
+| [`workshop/sdl-window-load-plan.json`](../sdl-window-load-plan.json) | Workshop in the OS window: the desk drawn through the graphics directory, staged only where the OS window and SDL's reader were built |
 | [`workshop/graphical-load-plan.json`](../graphical-load-plan.json) | the windowed Workshop, staged only where both SDL artifacts were built |
 
 The graphical plan differs from the default in exactly the medium's two rows, the third and the
 fourth. The window plan replaces the default's skin row, the third, with two rows, and every row
-from the default's fourth on follows them, one row later:
+from the default's fourth on follows them, one row later. The OS window's plan is the window plan
+with the window and the reader in the fourth and fifth rows:
 
-| row | default | window | graphical |
-|---|---|---|---|
-| third | `zengine-skin-tui-classic`, as `zengine.skin` | `zengine-graphics`, as `zengine.graphics` | `zengine-skin-sdl`, as `zengine.skin` |
-| fourth | `zengine-input`, as `zengine.input` | `zengine-window-terminal`, as `zengine.window.terminal` | `zengine-input-sdl`, as `zengine.input` |
-| fifth | `zengine-timer`, as `zengine.timer` | `zengine-input`, as `zengine.input` | `zengine-timer`, as `zengine.timer` |
+| row | default | window | OS window | graphical |
+|---|---|---|---|---|
+| third | `zengine-skin-tui-classic`, as `zengine.skin` | `zengine-graphics`, as `zengine.graphics` | `zengine-graphics`, as `zengine.graphics` | `zengine-skin-sdl`, as `zengine.skin` |
+| fourth | `zengine-input`, as `zengine.input` | `zengine-window-terminal`, as `zengine.window.terminal` | `zengine-window-sdl`, as `zengine.window.sdl` | `zengine-input-sdl`, as `zengine.input` |
+| fifth | `zengine-timer`, as `zengine.timer` | `zengine-input`, as `zengine.input` | `zengine-input-sdl`, as `zengine.input` | `zengine-timer`, as `zengine.timer` |
 
 In the window plan the [graphics directory](../../graphics/docs/zengine.graphics.md) introduces
 each pane's area and Workshop's own to the [terminal window](../../graphics/docs/zengine.window.terminal.md),
 which takes the process's terminal, shows what each one draws and sends the terminal's keys to their
 owners; no skin is loaded. [`zengine-input`](../../input/docs/zengine.input.md) follows them and
 serves input sessions, a guest's or a session tool's keys, while the terminal window holds the
-process's terminal.
+process's terminal. In the OS window's plan the directory introduces them to the
+[OS window](../../graphics/docs/zengine.window.sdl.md), which reads SDL's one event queue itself;
+SDL's reader, `zengine-input-sdl`, follows it, reads none of the queue while the window claims it,
+and serves input sessions.
 
-Everything else is identical, and Workshop's own code is identical under all three. Every plan also
-carries `zengine-operators-basic` (a provider only), `zengine-timer` (a provider **and** a
+Everything else is identical, and Workshop's own code is identical under all of them. Every plan
+also carries `zengine-operators-basic` (a provider only), `zengine-timer` (a provider **and** a
 weave), `zengine-introspection` and `zengine-composer`. And each authors two **choices** for the
 Editor's office: `standard`, the row that loads, and `neovim`, loaded only when you switch to it
 ([Neovim in Workshop](../../editor/docs/neovim.md)).

@@ -27,6 +27,7 @@
 #include "workshop/terminal_seam_vocabulary.hpp"
 
 #include "builder/vocabulary.hpp"
+#include "graphics/vocabulary.hpp"
 #include "input/input_weave.hpp"
 #include "input/vocabulary.hpp"
 #include "inventory/inventory-pane/vocabulary.hpp"
@@ -569,8 +570,20 @@ TEST_CASE("guests file: each power is exactly its grant, and a row with none may
 
     row.may = {guests::kPowerCapture};
     const loom::Grant cap = guests::grant_for(row);
-    CHECK(cap.permits_role(surface::SurfaceCaptureRequested::zen_name, 1, surface::kSkinRole));
-    CHECK(cap.permits_role(surface::SurfaceCaptureChunkRequested::zen_name, 1, surface::kSkinRole));
+    // THE PICTURE, of whichever medium shows the desk: the Skin, the OS window or the terminal
+    // window -- and of no other window.
+    const std::string window_office = zengine::graphics::kWindowOfficePrefix;
+    for (const std::string& medium :
+         {std::string(surface::kSkinRole), window_office + zengine::graphics::kSdlWindow,
+          window_office + zengine::graphics::kTerminalWindow}) {
+        CAPTURE(medium);
+        CHECK(cap.permits_role(surface::SurfaceCaptureRequested::zen_name, 1, medium));
+        CHECK(cap.permits_role(surface::SurfaceCaptureChunkRequested::zen_name, 1, medium));
+        CHECK_FALSE(in.permits_role(surface::SurfaceCaptureRequested::zen_name, 1, medium));
+        CHECK_FALSE(none.permits_role(surface::SurfaceCaptureChunkRequested::zen_name, 1, medium));
+    }
+    CHECK_FALSE(cap.permits_role(surface::SurfaceCaptureRequested::zen_name, 1,
+                                 window_office + "desk"));
     CHECK_FALSE(cap.permits_role(input::InjectInput::zen_name, 1, input::kInputRole));
     // THE DESK'S WORDS ARE `capture`'s, every reading of them asked of Workshop's office alone: the
     // pane and desk views at each version, the desk read whole, the inventory and the keymap.

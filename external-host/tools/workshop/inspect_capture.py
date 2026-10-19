@@ -5,7 +5,8 @@ a chord, or both together in that order), picture it again (loom-tool.json descr
 this file is the order and the checks).
 
 WHAT MOVES THE JOURNEY: only each owner's own answer to this run's own ask, through the link --
-the Input owner's session and injection answers, the guest door's inventory, the Skin's pictures.
+the Input owner's session and injection answers, the guest door's inventory, the pictures of the
+medium that shows the desk (the Skin or a window).
 Nothing is inferred from a picture or from having been admitted.
 
 `chord` IS OPTIONAL, AND OFTEN SHOULD BE LEFT EMPTY WITH A CLICK. A click alone is a whole,
@@ -20,7 +21,7 @@ only then. That is causal ordering for that work, not a delay; it says nothing a
 other hosts or work deferred to a later turn.
 
 AN ARMED PICTURE is different evidence: a capture asked for BEFORE the batch, for the next
-painted frame, which Workshop's Skin holds until a paint passes it. On an idle Workshop that
+painted frame, which Workshop's medium holds until a paint passes it. On an idle Workshop that
 capture is genuinely pending at its owner until the batch's own repaint answers it. It proves a
 far operation was waiting; it is not the "after" picture, because a paint unrelated to the batch
 could answer it too.
@@ -33,8 +34,8 @@ lost guest's session, never that it closed anything.
 
 from loom_session.tool import LinkOutcome, Refused
 
-from workshop_steps import (chord, chord_moments, clear_moments, click_moments, link_session,
-                            moment, own_row, picture, point)
+from workshop_steps import (capture_office, chord, chord_moments, clear_moments, click_moments,
+                            link_session, moment, own_row, picture, point)
 
 
 def run(ctx):
@@ -148,9 +149,10 @@ def journey(ctx):
     armed = None
     if ctx.inputs.get("arm"):
         ctx.step("arm the next picture")
-        armed = ctx.ask_async("zengine.skin", "SurfaceCaptureRequested",
+        office = capture_office(ctx)  # the office that answered the picture before
+        armed = ctx.ask_async(office, "SurfaceCaptureRequested",
                               {"after_frame": before["frame"]}, via=link)
-        ctx.note("capture armed at Workshop's Skin for the first frame after %d" % before["frame"])
+        ctx.note("capture armed at %s for the first frame after %d" % (office, before["frame"]))
 
     if ctx.inputs.get("hold"):
         ctx.hold(ctx.inputs["hold"], "held before the batch")
@@ -212,7 +214,7 @@ def journey(ctx):
 
     armed_frame = None
     if armed is not None:
-        # Fetched BEFORE the next picture is asked for: the Skin retains one picture at a time.
+        # Fetched BEFORE the next picture is asked for: the medium retains one picture at a time.
         ctx.step("collect the armed picture")
         taken, _ = picture(ctx, link, "armed", pending=armed)
         ctx.check(taken["frame"] > before["frame"],

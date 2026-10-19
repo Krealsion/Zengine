@@ -11,6 +11,12 @@
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 
+#include "terminal/vocabulary.hpp"
+
+#include <functional>
+#include <memory>
+#include <string>
+
 // ============================================================================
 // The authored window: the weaver arranges what their setup names, and never loses one
 // ============================================================================
@@ -2084,7 +2090,105 @@ TEST_CASE("on the shipped face the border is chrome and the first body pixel is 
     CHECK(occupied_at(r.session().panes, r.session().setup.active, sc, on_border).kind == kind);
 }
 
+namespace {
+
+namespace gfx = zengine::graphics;
+
+struct PasteWindowState {
+    std::int64_t drawn = 0;
+    ZEN_SHAPE(PasteWindowState, 1, ZEN_FIELD(drawn));
+};
+
+/// A GRAPHICS WINDOW THAT HOLDS THE PLATFORM'S CLIPBOARD, in `zengine.window.<name>`: it tells an
+/// area its room as its office, keeps nothing drawn there but a count, and answers a paste with
+/// what its platform holds, counting each read.
+class PasteWindow
+    : public loom::WeaveBase<PasteWindow, PasteWindowState,
+                             loom::Accept<gfx::Drawn, surface::ClipboardTextRequested, SeatDo>,
+                             loom::Emit<gfx::AreaRoom, surface::ClipboardText>> {
+public:
+    void on(const gfx::Drawn&, loom::Mail&) { ++state_.drawn; }
+    void on(const surface::ClipboardTextRequested&, loom::Mail& mail) {
+        ++reads;
+        (void)mail.answer(surface::ClipboardText{true, platform});
+    }
+    void on(const SeatDo&, loom::Mail& mail) {
+        auto run = std::move(next);
+        next = {};
+        if (run) run(mail);
+    }
+    std::function<void(loom::Mail&)> next;
+    std::string platform;
+    int reads = 0;
+};
+
+} // namespace
+
 TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot move it") {
+    SUBCASE("a pane a graphics window shows asks that window for a paste, the OS window or the "
+            "terminal's, and the Skin only while none shows it") {
+        // ⚔ MUTATION: the Terminal pane's paste asked of the Skin wherever its area is shown.
+        namespace term = zengine::terminal_pane;
+        for (const char* window : {gfx::kSdlWindow, gfx::kTerminalWindow}) {
+            CAPTURE(window);
+            PaneRig p;
+            p.mount_workshop();
+            (void)p.mount_terminal();
+            load::LoadPlan plan;
+            load::ArtifactIntent row;
+            row.stem = term::kTerminalPaneStem;
+            row.weave = load::WeaveIntent{term::kTerminalPaneRole};
+            plan.artifacts.push_back(row);
+            const load::Executed done = p.run_plan(plan);
+            REQUIRE_MESSAGE(done.ok, done.refusal);
+            p.ready();
+            p.extent(160, 48);
+            const PaneRef ref{term::kTerminalPaneRole, term::kTerminalPane};
+            p.pick(ref);
+            const RuntimePane* offered =
+                p.session().panes.runtime.find(term::kTerminalPaneRole, term::kTerminalPane);
+            REQUIRE(offered != nullptr);
+            const std::int64_t kind = offered->kind;
+            REQUIRE(p.session().panes.has(kind));
+            SkinSeat* skin = p.mount_skin_seat();
+            skin->platform = "SKIN";
+            const ui::Rect body = external_body_rect(p.session(), kind);
+            p.press_cell(body.x, body.y); // the keys go to the pane
+            REQUIRE(p.session().panes.keyboard == kind);
+
+            // NO WINDOW SHOWS IT YET: the paste is the Skin's.
+            p.key(input::scan::kV, input::mod::kCtrl);
+            CHECK(skin->clipboard_reads == 1);
+
+            // THE WINDOW TELLS THE PANE'S AREA ITS ROOM, and from then on asks it, not the Skin.
+            const std::string office = std::string(gfx::kWindowOfficePrefix) + window;
+            auto made = std::make_unique<PasteWindow>();
+            PasteWindow* shown = made.get();
+            loom::Grant says;
+            says.allow_to_any(gfx::AreaRoom::zen_name, gfx::AreaRoom::zen_version);
+            says.allow_to_any(surface::ClipboardText::zen_name,
+                              surface::ClipboardText::zen_version);
+            const loom::WeaveId id = p.bus.register_weave(std::move(made), std::move(says), office);
+            shown->zen_set_self(id);
+            shown->platform = "WINDOW";
+            shown->next = [office, window](loom::Mail& m) {
+                (void)m.as_role(office).send_to_role(
+                    term::kTerminalPaneRole,
+                    gfx::AreaRoom{term::kTerminalPaneRole, window, 1, 480, 120, {}});
+            };
+            (void)p.bus.send(id, loom::Message(loom::to_value(SeatDo{}), {}, {}, 0));
+            p.bus.drain_until_idle();
+            p.key(input::scan::kV, input::mod::kCtrl);
+            CHECK(shown->reads == 1);
+            CHECK(skin->clipboard_reads == 1);
+            std::string rows;
+            for (const std::string& one : pane_rows(p, kind)) {
+                rows += one + "\n";
+            }
+            CHECK(rows.find("WINDOW") != std::string::npos);
+        }
+    }
+
     // TWO CLAIMS AT ONCE, because they are the same number seen twice: the room a provider
     // is granted on the window is derived from the body it actually has, and NOTHING about
     // choosing a pane changes it.

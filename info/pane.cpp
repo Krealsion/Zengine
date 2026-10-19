@@ -729,7 +729,7 @@ private:
         paste_.epoch = properties_.draft_epoch();
         paste_.awaiting = true;
         (void)mail.as_role(pane::kInfoPaneRole)
-            .send_to_role(surface::kSkinRole, surface::ClipboardTextRequested{},
+            .send_to_role(canvases_.front().clipboard_office(), surface::ClipboardTextRequested{},
                           paste_.pending);
     }
 

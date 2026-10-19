@@ -674,7 +674,7 @@ private:
         paste_.revision = e_.buffer.revision();
         paste_.awaiting = true;
         (void)mail.as_role(pane::kEditorPaneRole)
-            .send_to_role(surface::kSkinRole, surface::ClipboardTextRequested{},
+            .send_to_role(window_.clipboard_office(), surface::ClipboardTextRequested{},
                           paste_.pending);
     }
 
