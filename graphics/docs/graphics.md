@@ -26,8 +26,9 @@ worked example: it draws its frame as nodes and its board as an element of its o
 ```text
 owner -> its window          Drawn (nodes and records), ElementPut once, then ElementChange
 window -> the owner          AreaRoom (this window, its incarnation, the room, what it holds)
-window -> the owner          DrawnRefused (why, in words), ActionRequested, PointerButton
-window -> the keys' owners   KeyPressed, TextEntered
+window -> the owner          DrawnRefused (why, in words), ActionRequested
+window -> pointer's owners   PointerButton, PointerMoved, PointerWheel (at the area's own point)
+window -> the keys' owners   KeyPressed, KeyReleased, TextEntered
 arranger -> directory        AreaPlaced, SkinOffered, SkinChosen, ElementCodeOffered
 window -> everyone           WindowOffered (as its own office, with its size and incarnation)
 directory -> window          AreaIntroduced, AreaWithdrawn, ElementCodeOffered
@@ -42,6 +43,12 @@ out in the terminal window's room while no skin has said its own
 ([`WindowOffered`](../../workshop/docs/zengine.workshop.md#windowoffered)).
 What each message does is the manual of the office that takes it: the window's for what an owner
 sends it, the directory's for what the arranger and a window send it.
+
+An area placed with `keys` hears every key, its release and its text. One placed with `pointer`
+hears, at its own point in pixels, a left press nothing drawn there took, and every other pointer
+moment that lands in it: any button let go, the middle or right button pressed, a move, the wheel.
+Either window, terminal or OS, routes them alike
+([`zengine.window.sdl`](zengine.window.sdl.md#use)).
 
 ## A node, and an element's record beside it
 

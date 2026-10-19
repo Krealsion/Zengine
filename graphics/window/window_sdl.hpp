@@ -62,11 +62,12 @@ struct ComposedLightFrame {
     std::vector<LightAreaShown> areas;
 };
 
-/// What a backend read: its keys, text and presses, and whether its picture must be drawn again
-/// (the desktop uncovered it).
+/// What a backend read: its keys, text and pointer, whether its picture must be drawn again (the
+/// desktop uncovered it), and whether the OS window was asked to close.
 struct PixelPolled {
     std::vector<zengine::input::InputEvent> events;
     bool redraw = false;
+    bool close = false;
 };
 
 /// A medium of light over a Backend: `claim()`, `size()` in pixels, `present(frame)`, true when it
@@ -221,13 +222,14 @@ public:
         return rows;
     }
 
-    /// A press at a pixel of the window (a press in cells at its cell's centre): the front-most
+    /// A point of the window in pixels (a point in cells at its cell's centre): the front-most
     /// area there, and the top node whose primitives hold the point; an area shows what lies
     /// behind it wherever it painted nothing there.
-    Landed land(const std::vector<WinArea>& areas, const zengine::input::PointerButton& b) const {
-        const bool cells = b.space == zengine::input::space::kCells;
-        const std::int64_t x = cells ? b.x * kCellPx + kCellPx / 2 : b.x;
-        const std::int64_t y = cells ? b.y * kCellPx + kCellPx / 2 : b.y;
+    Landed land(const std::vector<WinArea>& areas, std::int64_t at_x, std::int64_t at_y,
+                std::int64_t space) const {
+        const bool cells = space == zengine::input::space::kCells;
+        const std::int64_t x = cells ? at_x * kCellPx + kCellPx / 2 : at_x;
+        const std::int64_t y = cells ? at_y * kCellPx + kCellPx / 2 : at_y;
         Landed out;
         for (const WinArea* a : front_to_back(areas)) {
             if (x < a->x || y < a->y || x >= a->x + a->w || y >= a->y + a->h) {
@@ -263,8 +265,15 @@ public:
         if (polled.redraw) {
             dirty_ = true;
         }
+        if (polled.close) {
+            close_requested_ = true;
+        }
         return std::move(polled.events);
     }
+
+    /// Whether the OS window was asked to close since the request was last taken.
+    bool close_requested() const noexcept { return close_requested_; }
+    bool take_close() noexcept { return std::exchange(close_requested_, false); }
 
     std::int64_t showings() const { return showings_; }
     std::int64_t device_bytes() const { return device_bytes_; }
@@ -334,6 +343,7 @@ private:
     std::set<std::string> cell_libraries_; ///< libraries whose skin paints characters
     PixelSize size_{kDefaultWidth, kDefaultHeight};
     bool dirty_ = false;
+    bool close_requested_ = false;
     std::uint64_t versions_ = 0;
     std::int64_t showings_ = 0;
     std::int64_t device_bytes_ = 0;

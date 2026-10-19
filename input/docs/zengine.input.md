@@ -23,13 +23,13 @@ the two weaves differ:
   standard input in raw mode, and says a key's release right after its press, since a terminal
   reports whole keystrokes; pointer reports arrive only once the terminal Skin has turned them on.
   On Windows it reads the console's records, releases included. With no terminal (a pipe, a test
-  run) it reads nothing, and says nothing of it. When a terminal window
+  run) it reads nothing, and says nothing. When a terminal window
   (`zengine.window.terminal`) holds the process's terminal in the same run, it leaves the
   terminal's input to the window and serves input sessions alone.
 - **`zengine-input-sdl`** says pointer positions in window pixels, and a pointer moment carries no
-  modifiers. It is the one reader of SDL's event queue, which it shares with the window Skin, and
-  the window's close box reaches you as `SurfaceCloseRequested`, never as a key. With no display it
-  reads nothing, and says so once on standard error:
+  modifiers. It reads SDL's event queue, beside the window Skin, and the window's close box reaches
+  you as `SurfaceCloseRequested`, never as a key. It reads none of the queue an OS window holds.
+  With no display it reads nothing, and says so once on standard error:
   `zengine-input-sdl: SDL_Init(SDL_INIT_VIDEO) failed: <SDL's reason>`.
 
 A reload in place keeps the open session, which its holder goes on using and whose held keys are
@@ -61,7 +61,9 @@ the Timer for a repeating beat, `zengine.input.pump`, every `kPumpBeatMs` millis
 platform once ([the Timer binding](../../timer/docs/timer-binding.md)).
 
 The OS window ([`zengine.window.sdl`](../../graphics/docs/zengine.window.sdl.md)) reads SDL's queue
-itself, so a host loads it or `zengine-input-sdl`, never both.
+itself, and while it is loaded it claims the queue (`ZENGINE_WINDOW_SDL_INPUT_PID` in the process's
+environment, `input/window_claim.hpp`): `zengine-input-sdl` beside it reads none of the queue and
+serves input sessions alone, as `zengine-input` does beside a terminal window.
 
 ## Commands
 

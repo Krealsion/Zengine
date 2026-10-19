@@ -6,7 +6,7 @@
 
 // A window, over the medium it shows on: the whole job of showing what its areas' owners drew. It
 // keeps each area's nodes, records and presented elements in its state, presents an element from
-// code it loads, has what changed painted with the area's skin, routes a press, gives keys and
+// code it loads, has what changed painted with the area's skin, routes the pointer, gives keys and
 // their text to the areas that hear them, and tells each owner its room. What it keeps painted,
 // how it shows it and what it reads are its Medium's: characters on a terminal
 // (graphics/window/window_terminal.hpp), light in an OS window (graphics/window/window_sdl.hpp).
@@ -28,10 +28,13 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <random>
 #include <set>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -68,8 +71,9 @@ using WindowBase = typename zengine::With<
     loom::Accept<Drawn, ElementPut, ElementChange, AreaIntroduced, AreaWithdrawn,
                  ElementCodeOffered, GraphicsReady, WindowShowAsked>,
     loom::Emit<DrawnRefused, WindowOffered, AreaRoom, zengine::input::KeyPressed,
-               zengine::input::TextEntered, ActionRequested, zengine::input::PointerButton,
-               WindowShown>,
+               zengine::input::KeyReleased, zengine::input::TextEntered, ActionRequested,
+               zengine::input::PointerButton, zengine::input::PointerMoved,
+               zengine::input::PointerWheel, WindowShown>,
     zengine::timer::TimedWeave>;
 
 /// The window over `Medium`, which names it (`kWindow`), carries its manual (`kManual`), and
@@ -239,6 +243,11 @@ public:
         (void)mail.answer(s);
     }
 
+    /// Whether the window's medium was asked to close (an OS window's close box) since the
+    /// request was last taken; a terminal never is.
+    bool close_requested() const noexcept { return medium_.close_requested(); }
+    bool take_close() noexcept { return medium_.take_close(); }
+
     // ---- life ---------------------------------------------------------------------------------
 
     /// Started, or started again: a fresh window draws its incarnation (a reload carries the one
@@ -264,24 +273,73 @@ private:
 
     // ---- input --------------------------------------------------------------------------------
 
-    /// The window's own beat: its medium measured, and what it read sent on. A key and the text
-    /// it typed go alike, to the owner of each area placed to hear keys.
+    /// The window's own beat: its medium measured, and what it read sent on, in the order read. A
+    /// key, its release and the text it typed go alike, to the owner of each area placed to hear
+    /// keys. A left press goes where it lands (`press`); every other pointer moment -- a release,
+    /// another button, a move, the wheel -- to the area it lands in, when that area was placed to
+    /// hear the pointer. Moves read one after another go as one: the last point, the deltas summed.
     void on_pump(const zengine::timer::TimerFired&, loom::Mail& mail) {
+        namespace in = zengine::input;
         if (medium_.remeasure()) {
             offer(mail);
         }
-        for (const zengine::input::InputEvent& e : medium_.poll()) {
-            if (const auto* k = std::get_if<zengine::input::KeyPressed>(&e)) {
+        const std::vector<in::InputEvent> read = medium_.poll();
+        for (std::size_t i = 0; i < read.size(); ++i) {
+            const in::InputEvent& e = read[i];
+            if (const auto* k = std::get_if<in::KeyPressed>(&e)) {
                 to_keys(mail, *k);
-            } else if (const auto* t = std::get_if<zengine::input::TextEntered>(&e)) {
+            } else if (const auto* r = std::get_if<in::KeyReleased>(&e)) {
+                to_keys(mail, *r);
+            } else if (const auto* t = std::get_if<in::TextEntered>(&e)) {
                 to_keys(mail, *t);
-            } else if (const auto* b = std::get_if<zengine::input::PointerButton>(&e)) {
+            } else if (const auto* b = std::get_if<in::PointerButton>(&e)) {
                 if (b->pressed && b->button == 1) {
                     press(mail, *b);
+                } else {
+                    to_pointer(mail, *b);
                 }
+            } else if (const auto* m = std::get_if<in::PointerMoved>(&e)) {
+                in::PointerMoved run = *m;
+                while (i + 1 < read.size()) {
+                    const auto* next = std::get_if<in::PointerMoved>(&read[i + 1]);
+                    if (next == nullptr || next->space != run.space) {
+                        break;
+                    }
+                    run.x = next->x;
+                    run.y = next->y;
+                    run.dx = sum(run.dx, next->dx);
+                    run.dy = sum(run.dy, next->dy);
+                    run.modifiers = next->modifiers;
+                    ++i;
+                }
+                to_pointer(mail, run);
+            } else if (const auto* w = std::get_if<in::PointerWheel>(&e)) {
+                to_pointer(mail, *w);
             }
         }
         settle(false);
+    }
+
+    /// A pointer moment other than a left press, to the owner of the area it lands in when that
+    /// area was placed to hear the pointer: at the area's own point, in pixels, a move's deltas
+    /// in pixels too.
+    template <class Moment>
+    void to_pointer(loom::Mail& mail, Moment at) {
+        namespace in = zengine::input;
+        const Landed l = medium_.land(this->state_.areas, at.x, at.y, at.space);
+        if (l.area == nullptr || !l.area->pointer || l.area->owner.empty()) {
+            return;
+        }
+        if constexpr (std::is_same_v<Moment, in::PointerMoved>) {
+            if (at.space == in::space::kCells) {
+                at.dx = times_cell(at.dx);
+                at.dy = times_cell(at.dy);
+            }
+        }
+        at.x = l.x;
+        at.y = l.y;
+        at.space = in::space::kPixels;
+        (void)mail.as_role(office()).send_to_role(l.area->owner, at);
     }
 
     /// A key, or its text, to the owner of each area placed to hear keys, front to back.
@@ -298,7 +356,7 @@ private:
     /// the action its record names, to the area's owner; else, to an owner whose area was placed
     /// to hear the pointer, the press itself at the area's own point; else nothing.
     void press(loom::Mail& mail, const zengine::input::PointerButton& b) {
-        const Landed l = medium_.land(this->state_.areas, b);
+        const Landed l = medium_.land(this->state_.areas, b.x, b.y, b.space);
         if (l.area == nullptr) {
             return;
         }
@@ -533,6 +591,30 @@ private:
     // ---- small things ---------------------------------------------------------------------
 
     static std::string office() { return std::string(kWindowOfficePrefix) + Medium::kWindow; }
+
+    /// Pointer arithmetic held at int64's ends rather than past them.
+    static std::int64_t sum(std::int64_t a, std::int64_t b) {
+        constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
+        constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
+        if (b > 0 && a > kMax - b) {
+            return kMax;
+        }
+        if (b < 0 && a < kMin - b) {
+            return kMin;
+        }
+        return a + b;
+    }
+    static std::int64_t times_cell(std::int64_t cells) {
+        constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
+        constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
+        if (cells > kMax / kCellPx) {
+            return kMax;
+        }
+        if (cells < kMin / kCellPx) {
+            return kMin;
+        }
+        return cells * kCellPx;
+    }
 
     /// A random token of one width, its top bit set: a loaded weave cannot read its own id, and
     /// a window started afresh must differ from every one before it.

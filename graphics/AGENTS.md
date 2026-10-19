@@ -34,14 +34,16 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
   packing and landing, and a tripwire that no source here includes Surface; the window, the
   directory, the skins and the snake's board through the real kernel: said once, one change a
   tick shown once, a skin chosen, each participant replaced or reloaded, the room naming what the
-  window holds, a drawing weave shown once a beat, presses and keys, every bound refused in words,
+  window holds, a drawing weave shown once a beat, keys and their releases, presses, releases,
+  moves and the wheel routed to the area they land in, every bound refused in words,
   and each office's manual answering for every shape it accepts; every part in `elements/` drawn,
   changed and painted, and pressed through the window, its action asked or nothing sent; the
   Attention and Connections panes Workshop loads drawn, pressed and reloaded in a window, and a
   pane's refused drawing followed by a whole one; the OS window over the suite's own pixel
-  backend, every operator painted, pressed, typed into, resized and started again from what it
-  kept, and, where the build has SDL, its weave under SDL's dummy driver keeping its one OS window
-  across a reload, and holding one again once replaced; `tests/test_graphics.cpp`, `tests/graphics_rig.hpp`
+  backend, every operator painted, pressed, typed into, resized, asked to close and started again
+  from what it kept, and, where the build has SDL, its weave under SDL's dummy driver emptying SDL's
+  queue, claiming it while loaded, keeping its one OS window across a reload, and holding one again
+  once replaced; `tests/test_graphics.cpp`, `tests/graphics_rig.hpp`
 - `graphics_change_outside_list_refused` — an element's change outside its code's list does not
   compile (`tests/compile_negative/drawing_walls.cpp`, case 1)
 - `graphics_own_after_delivery_refused` — a drawing weave whose drawer replaces the
@@ -63,9 +65,10 @@ rows; it shares the rig.
   `ElementCodeOffered` and `RoomAsked` to `kGraphicsRole`, and `Drawn` to the window's office.
 - Beyond the snake: the terminal window reads its terminal with `input/terminal_reader.hpp` and
   claims its output with `window/terminal_io.hpp`; the OS window reads SDL's queue with
-  `input/translate_sdl.hpp` and shares SDL with the SDL Skin (`cmake/ZengineSdl.cmake`); both open
-  libraries with `operator/image.hpp`. `cmake/ZengineInstall.cmake` installs the headers
-  `zengine::graphics` carries.
+  `input/translate_sdl_core.hpp` and shares SDL with the SDL Skin (`cmake/ZengineSdl.cmake`); each
+  claims its input edge with `input/window_claim.hpp`; both open libraries with
+  `operator/image.hpp`. `cmake/ZengineInstall.cmake` installs the headers `zengine::graphics`
+  carries.
 
 ## Pages
 

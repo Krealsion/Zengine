@@ -476,11 +476,13 @@ zengine_manual(zengine-input-tests PRIVATE ${PROJECT_SOURCE_DIR}/input/docs/zeng
 zengine_test_definitions(zengine-input-tests
     "INPUT_SO=\"$<TARGET_FILE:zengine-input>\""
     "WORLD_V1_SO=\"$<TARGET_FILE:snake-world-v1>\""
-    # The SDL reader's own sources, for the tripwire that it never touches the clipboard: a
-    # claim about what code does not contain holds on every lane, those without SDL included,
+    # The SDL queue's readers' own sources, for the tripwire that they never touch the clipboard:
+    # a claim about what code does not contain holds on every lane, those without SDL included,
     # and running the code cannot prove it (VM-WALL-11).
     "INPUT_SDL_READER_CPP=\"${CMAKE_SOURCE_DIR}/input/input_sdl.cpp\""
-    "INPUT_SDL_TRANSLATE_HPP=\"${CMAKE_SOURCE_DIR}/input/translate_sdl.hpp\"")
+    "INPUT_SDL_TRANSLATE_HPP=\"${CMAKE_SOURCE_DIR}/input/translate_sdl.hpp\""
+    "INPUT_SDL_TRANSLATE_CORE_HPP=\"${CMAKE_SOURCE_DIR}/input/translate_sdl_core.hpp\""
+    "WINDOW_SDL_CPP=\"${CMAKE_SOURCE_DIR}/graphics/window/window_sdl.cpp\"")
 
 zengine_doctest_test(input zengine-input-tests)
 
