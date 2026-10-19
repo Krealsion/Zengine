@@ -2143,11 +2143,10 @@ TEST_CASE("the clipboard event class is IGNORED, and the reader's sources are cl
 
     // THE TRIPWIRE HALF: "this reader never touches the clipboard" is a claim about what the
     // source does NOT contain, so it is read off the source on every lane, the ones with no SDL
-    // included. The clipboard is read in one place, the Medium, under a paste ask. The prose is
-    // stripped first, as every source tripwire here reads: these files EXPLAIN what they refuse
-    // to contain, and a check that grepped the explanation would report an absence as a presence.
-    for (const char* path : {INPUT_SDL_READER_CPP, INPUT_SDL_TRANSLATE_HPP,
-                             INPUT_SDL_TRANSLATE_CORE_HPP, WINDOW_SDL_CPP}) {
+    // included. The clipboard is read under a paste ask alone. The prose is stripped first, as
+    // every source tripwire here reads: these files EXPLAIN what they refuse to contain, and a
+    // check that grepped the explanation would report an absence as a presence.
+    const auto code_of = [](const char* path) {
         std::ifstream in(path);
         REQUIRE(in.good());
         std::string code;
@@ -2157,11 +2156,37 @@ TEST_CASE("the clipboard event class is IGNORED, and the reader's sources are cl
             code += comment == std::string::npos ? line : line.substr(0, comment);
             code += '\n';
         }
+        return code;
+    };
+    for (const char* path : {INPUT_SDL_READER_CPP, INPUT_SDL_TRANSLATE_HPP,
+                             INPUT_SDL_TRANSLATE_CORE_HPP}) {
+        const std::string code = code_of(path);
         CAPTURE(path);
         CHECK(code.find("SDL_GetClipboardText") == std::string::npos);
         CHECK(code.find("SDL_HasClipboardText") == std::string::npos);
         CHECK(code.find("ClipboardChanged") == std::string::npos);
     }
+    // The OS window reads the clipboard when a paste asks it, and only then: nothing SDL's queue
+    // says of the clipboard is read, and the beat that empties the queue names no clipboard.
+    const std::string window = code_of(WINDOW_SDL_BACKEND_HPP);
+    CHECK(window.find("SDL_EVENT_CLIPBOARD_UPDATE") == std::string::npos);
+    CHECK(window.find("ClipboardChanged") == std::string::npos);
+    const std::size_t named = window.find("PixelPolled poll()");
+    REQUIRE(named != std::string::npos);
+    const std::size_t body = window.find('{', named);
+    REQUIRE(body != std::string::npos);
+    std::size_t end = body;
+    for (int depth = 0; end < window.size(); ++end) {
+        depth += window[end] == '{' ? 1 : window[end] == '}' ? -1 : 0;
+        if (depth == 0) {
+            break;
+        }
+    }
+    REQUIRE(end < window.size());
+    const std::string beat = window.substr(body, end - body);
+    CHECK(beat.find("SDL_PollEvent") != std::string::npos); // the body read is the queue's reader
+    CHECK(beat.find("Clipboard") == std::string::npos);
+    CHECK(window.find("SDL_GetClipboardText") != std::string::npos); // ...and a paste does read
 }
 
 // =============================================================================

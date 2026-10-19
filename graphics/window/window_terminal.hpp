@@ -6,9 +6,9 @@
 
 // The terminal window: the window (graphics/window/window.hpp) over a medium of characters and an
 // injected Terminal. It keeps each node painted as cells, composes the areas, writes its terminal
-// only the cells whose picture changed, and reads the terminal's keys and presses with Zengine's
-// parser. Reference: graphics/docs/zengine.window.terminal.md, its manual, compiled in and
-// answered.
+// only the cells whose picture changed, keeps what it showed, and reads the terminal's keys and
+// presses with Zengine's parser. Reference: graphics/docs/zengine.window.terminal.md, its manual,
+// compiled in and answered.
 
 #include "graphics/light_paint.hpp"
 #include "graphics/window/compose.hpp"
@@ -20,6 +20,7 @@
 
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
 #include <string_view>
@@ -153,7 +154,8 @@ public:
         }
     }
 
-    /// The cells marked since the last showing, composed and written as runs: one showing.
+    /// The cells marked since the last showing, composed and written as runs: one showing, its
+    /// glyphs kept where they now stand.
     void show(const std::vector<WinArea>& areas) {
         std::set<CellAt> in_window;
         for (const CellAt& c : dirty_) {
@@ -165,8 +167,10 @@ public:
         if (in_window.empty()) {
             return;
         }
-        const std::string bytes = ansi(compose(areas, cache_, in_window));
+        const std::vector<term::Cell> cells = compose(areas, cache_, in_window);
+        const std::string bytes = ansi(cells);
         terminal_.write(bytes);
+        keep_shown(cells);
         ++showings_;
         device_bytes_ += static_cast<std::int64_t>(bytes.size());
     }
@@ -206,10 +210,51 @@ public:
     bool close_requested() const noexcept { return false; }
     bool take_close() noexcept { return false; }
 
+    /// A copy offered to the terminal's clipboard by its copy sequence; no showing.
+    void clipboard_copy(std::string_view text) {
+        terminal_.write(terminal_clipboard_sequence(text));
+    }
+    /// No terminal route reads a system clipboard, so a paste here has no read: none, not a guess.
+    std::optional<std::string> clipboard_text() const { return std::nullopt; }
+    /// The terminal's window is its emulator's, which tells its programs nothing and takes no
+    /// instructions: no placement to say, and none to take.
+    std::optional<WindowPlacementValue> placement() const { return std::nullopt; }
+    void place(const WindowPlacementValue&) {}
+
+    /// The cells the terminal last showed, less their ink: a row of glyphs a line, each ending in a
+    /// newline, at the size they were shown at; none before the first showing.
+    std::optional<CapturedWindowPicture> capture() const {
+        if (showings_ == 0 || shown_rows_.empty()) {
+            return std::nullopt;
+        }
+        CapturedWindowPicture p;
+        p.width = static_cast<std::int64_t>(shown_rows_.front().size());
+        p.height = static_cast<std::int64_t>(shown_rows_.size());
+        p.format = "text/cells";
+        p.bytes.reserve(shown_rows_.size() * (shown_rows_.front().size() + 1));
+        for (const std::string& row : shown_rows_) {
+            p.bytes += row;
+            p.bytes += '\n';
+        }
+        return p;
+    }
+
     std::int64_t showings() const { return showings_; }
     std::int64_t device_bytes() const { return device_bytes_; }
 
 private:
+    /// A showing's cells laid over what the terminal showed before, at the window's size now: a
+    /// window measured at another size marks every cell, so its next showing covers the grid whole.
+    void keep_shown(const std::vector<term::Cell>& cells) {
+        shown_rows_.resize(static_cast<std::size_t>(rows_));
+        for (std::string& row : shown_rows_) {
+            row.resize(static_cast<std::size_t>(cols_), ' ');
+        }
+        for (const term::Cell& c : cells) {
+            shown_rows_[static_cast<std::size_t>(c.row)][static_cast<std::size_t>(c.col)] = c.glyph;
+        }
+    }
+
     /// The window's size in cells: its terminal's, or the unmeasured size where it has none.
     TerminalSize measure() const {
         const TerminalSize size = terminal_.size();
@@ -219,6 +264,7 @@ private:
     Terminal terminal_;
     Cache cache_;
     std::set<CellAt> dirty_;
+    std::vector<std::string> shown_rows_; ///< the glyphs on the terminal, as its showings left them
     std::int64_t cols_ = kUnmeasuredCols;
     std::int64_t rows_ = kUnmeasuredRows;
     std::int64_t showings_ = 0;

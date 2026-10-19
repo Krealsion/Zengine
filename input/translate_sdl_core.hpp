@@ -8,8 +8,8 @@
 // a reader passes an event's fields as plain values and SDL's constants are spelled locally, so
 // the lane that never opens a window pins the whole translation, and an SDL-gated build pins the
 // constants against the real headers. Both readers of SDL's queue translate here: the SDL Input
-// reader (input_sdl.cpp, through translate_sdl.hpp) and the OS window
-// (graphics/window/window_sdl.cpp). Reference: input/docs/input.md.
+// reader (input_sdl.cpp, through translate_sdl.hpp) and the OS window's backend
+// (graphics/window/window_sdl_backend.hpp). Reference: input/docs/input.md.
 
 // What SDL 3 knows (source-traced against 3.4.12): the key identity is SDL's scancode, the
 // wire's own space, so it passes through; entered text arrives committed (layout, dead keys,

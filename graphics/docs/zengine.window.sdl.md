@@ -6,7 +6,10 @@ to the office `zengine.window.sdl` (a window's office is `zengine.window.` and i
 and is built as `zengine-window-sdl`, a file a host loads, where the build has SDL. It keeps what
 each owner drew, paints it in pixels with the area's skin, draws the whole picture again when
 anything changed, and sends the window's keys, their text and its pointer to the owners. The
-directory, [`zengine.graphics`](zengine.graphics.md), introduces its areas to it.
+directory, [`zengine.graphics`](zengine.graphics.md), introduces its areas to it. C++ in its own
+process may also ask it for a close its desktop asked for, which it keeps and sends to no one
+(`close_requested`), the clipboard, its place on the desktop and the picture it last presented
+([the Graphics package](graphics.md#a-window-in-its-own-process)).
 
 ## About
 
@@ -17,10 +20,11 @@ once. A window replaced starts empty, with a new incarnation: each owner draws w
 hears its room, and says each element once.
 
 Activated, it opens a resizable OS window of `window::kDefaultWidth` by `window::kDefaultHeight`
-pixels (`graphics/window/window_sdl.hpp`), closed when it goes; reloaded, it leaves that window
-and its renderer to the instance after it, so the window is not made again. With
-`ZENGINE_SDL_NOT_FOCUSABLE=1` it never takes the keyboard. With no display, it says why once on
-its standard error, holds no SDL, and still keeps and composes its picture, at that size.
+pixels (`graphics/window/window_sdl.hpp`), centred on its display's usable area, and closes it
+when it goes; reloaded, it leaves that window to the instance after it. An area placed past its
+edge grows it, as far as its display holds it. With `ZENGINE_SDL_NOT_FOCUSABLE=1` it never takes
+the keyboard. With no display, it says why once on its standard error, holds no SDL, and still
+keeps and composes its picture, at that size.
 
 **Painting.** A node is painted once, when it changes, into pixel primitives -- rectangles, lines,
 runs of text, images -- each in its paint's exact colour, else the look's for its role: by the
@@ -36,7 +40,7 @@ holds it back. Uncovered or resized, it draws again.
 A left press lands on the top node whose primitives hold its pixel (within a pixel of a line),
 through an area wherever it painted nothing: an element there whose code takes it; else its
 record's action to the owner (`ActionRequested`); else, to an owner placed to hear the pointer, the
-press (`PointerButton`). A close asked of the OS window is kept (`close_requested`), sent to no one.
+press (`PointerButton`).
 
 ## Use
 

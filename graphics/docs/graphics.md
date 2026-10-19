@@ -8,7 +8,8 @@ room; nothing a picture is made of passes through it.
 
 A program spells the vocabulary with `#include "graphics/vocabulary.hpp"` and links
 `zengine::graphics`. This page is for whoever draws: the vocabulary, the canvas, a drawing weave,
-an element of your own, and the two seams a skin or an element's code is written against. The
+an element of your own, and the two seams a skin or an element's code is written against; and for
+a host, what a window answers to C++ in its own process. The
 package ships three weaves, each with its manual: the terminal window,
 [`zengine.window.terminal`](zengine.window.terminal.md), built as `zengine-window-terminal`; the OS
 window, [`zengine.window.sdl`](zengine.window.sdl.md), built as `zengine-window-sdl` where the build
@@ -222,3 +223,23 @@ characters by what it answers. Which library holds
 a skin or an element's code is the load plan's word, through the arranger and the directory, never
 a pane's. What a window says of a library it cannot open or read is
 [the window's manual](zengine.window.terminal.md#files).
+
+## A window in its own process
+
+C++ in a window's own process -- a host's, beside the window it loaded -- may ask the window
+(`Window<Medium>`, `graphics/window/window.hpp`) what no message does, and each medium answers for
+its platform:
+
+| ask | the terminal window | the OS window |
+|---|---|---|
+| `close_requested()`, `take_close()` | never asked to close | a close its desktop asked for, kept until it is taken |
+| `clipboard_copy(text)` | the text written to the terminal as OSC 52 (`window::terminal_clipboard_sequence`), which no terminal confirms | the text put on the platform's clipboard |
+| `clipboard_text()` | none: no terminal route reads a clipboard | the clipboard's text, read only when asked and never on the window's beat; empty when it holds no text, none with no window |
+| `placement()` | none: the terminal's window is its emulator's | its normal top-left on the desktop and whether it is maximized; none with no window, or one never seen unmaximized |
+| `place(want)` | nothing | moved to `want`, whole on a display; a maximize waits for the window's next picture and lands on the beat after it |
+| `capture()` | the cells it last showed, `text/cells`: a row of `width` glyphs a line, each ending in a newline, `cell_px` 0 | the picture it last presented, drawn again and read back: `image/bmp`, 24-bit and bottom-up (`window::bmp_of_bgr24`), in pixels, `cell_px` `kCellPx` |
+
+`capture()` answers none before the window has shown anything, and never shows what a drawing
+saying `more` still holds back. The OS window opens centred on its display's usable area, and an
+area placed past its edge grows it, as far as that display holds it, once for each new reach: a
+window a weaver made smaller is not grown back while its areas stay where they are.

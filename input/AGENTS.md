@@ -50,7 +50,7 @@ is Workshop's side, a press and a key reaching a pane.
   installs the headers and `zengine-input`; `input/terminal_reader.hpp`'s readers are the
   terminal window's input edge too (`graphics/window/window.cpp`); the OS window translates SDL's
   queue with `input/translate_sdl_core.hpp` and claims it with `input/window_claim.hpp`
-  (`graphics/window/window_sdl.cpp`); and the snake's world consumes the keys it is given
+  (`graphics/window/window_sdl_backend.hpp`); and the snake's world consumes the keys it is given
   (`examples/snake/world.cpp`).
 
 ## Pages

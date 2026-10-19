@@ -11,7 +11,7 @@ neovim_live                       doctest           neovim  21
 snake                             doctest           always  26
 timer                             doctest           always  85
 # Tripwires in this suite read the SDL queue's readers as text: input/input_sdl.cpp,
-# input/translate_sdl.hpp, input/translate_sdl_core.hpp and graphics/window/window_sdl.cpp
+# input/translate_sdl.hpp, input/translate_sdl_core.hpp and graphics/window/window_sdl_backend.hpp
 # (VM-WALL-11).
 input                             doctest           always  55
 # A case rides a gate only when it cannot exist without what the gate opens: arithmetic about a
@@ -20,8 +20,8 @@ input                             doctest           sdl     5
 surface                           doctest           always  113
 surface                           doctest           sdl     8
 # A tripwire in this suite reads graphics/ as text (VM-WALL-11).
-graphics                          doctest           always  75
-graphics                          doctest           sdl     4
+graphics                          doctest           always  83
+graphics                          doctest           sdl     7
 ui                                doctest           always  22
 component                         doctest           always  48
 editor                            doctest           always  20
