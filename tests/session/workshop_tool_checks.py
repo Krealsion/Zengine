@@ -2204,6 +2204,19 @@ def run_checks(tools, runtime):
                     self.assertLessEqual(held.clock_waits(),
                                          math.ceil(0.3 / hand.FALLBACK_PACE) + 1)
                     self.assertFalse([e for e in ctx.events if e["kind"] == "PointerButton"])
+            # A BUILDER READING THAT CANNOT BE MADE fails the run in its own words, never as a
+            # Builder that kept redrawing: only the point's refusals are counted against the bound.
+            ctx = ActWorkshop(steps, [], [])
+            held = hand.Hand(ctx, "workshop")
+            def unread():
+                raise ValueError("no visible word holding 'BUILDER'")
+            try:
+                with self.assertRaises(CheckFailed) as failed:
+                    builder.aimed(ctx, held, unread, lambda reading: reading, "header")
+            finally:
+                held.close()
+            self.assertEqual(str(failed.exception), "no visible word holding 'BUILDER'")
+            self.assertEqual(ctx.point_asks, 0)
             # A BUILDER WORKSHOP DOES NOT DESCRIBE, OR ONE SHOWING NO HEADER -- its reader open --
             # is not pressed: the run fails saying which.
             for read, panes, said in (
