@@ -253,7 +253,7 @@ inline bool NeovimEditorWeave::on_claim_published(const EditorDocument& publishe
             columns_ = candidate_.columns;
         }
         if (running()) {
-            (void)host_->resize(ui_rows(rows_), ui_cols(columns_));
+            (void)host_->resize(screen_rows(), ui_cols(columns_));
         }
         notice((doc_.modified ? "UNSAVED edits stand -- editing " : "editing ") + shown_path(doc_path()), false);
         candidate_ = Candidate{};
@@ -382,7 +382,7 @@ inline void NeovimEditorWeave::on(const EditorWarmRequested& asked, loom::Mail& 
         (void)mail.answer(EditorWarmed{asked.op, true, std::string(), started_words()});
         return;
     }
-    if (!running() && !start_embedded(ui_rows(rows_ > 0 ? rows_ : kDefaultRows),
+    if (!running() && !start_embedded(ui_rows(rows_ > 0 ? rows_ : kDefaultRows, chrome_rows()),
                                       ui_cols(columns_ > 0 ? columns_ : kDefaultCols))) {
         (void)mail.answer(EditorWarmed{asked.op, false, failure_, std::string()});
         return;

@@ -481,7 +481,8 @@ a step, a mode — in the layout's own setup row, beside the pane's place and si
   afresh whenever the desk put live, the row's settings, the counted declaration or the office's
   holder moved, so a holder is handed again at each new one. A pane that cannot use a value says
   so back, `PaneSettingUnused` naming the revision it was handed, and Workshop keeps it with the
-  row until a later revision is handed.
+  row until a later revision is handed. A pane in this tree takes a hand-off whole through
+  `take_pane_settings` (`workshop/pane_settings_taken.hpp`), which says each value it cannot use.
 - **A row is read and written by message** (`workshop/settings_seam_vocabulary.hpp`):
   `PaneSettingsRequested` answers the live layout's row for one pane -- its revision, the counted
   declaration, what it keeps, its pins and the band's sentence -- and `PaneSettingCommitRequested`

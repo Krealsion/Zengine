@@ -11,6 +11,9 @@
 // `user` (their own startup and plugins, opted into), or an init file (`-u <path>`).
 // Workshop law: agents/workshop/neovim.md
 
+// With the variable unset, a layout may choose `clean` or `user`; only the variable names an init
+// file, which is code Neovim runs.
+
 // The program is never a message: no shape, poke or plan row can name what runs. Inside Workshop
 // the owner attaches as Neovim's UI over the child's pipes (`--embed`); from a baseline Loom
 // Neovim runs headless and listens (`--embed --headless --listen <address>`), and the weaver
@@ -42,13 +45,17 @@ struct LaunchChoice {
     std::string profile = "clean";
 };
 
-inline LaunchChoice choice_from_environment() {
+/// THE CHOICE A START MAKES: the variables, and where the profile's is unset or empty, the word a
+/// layout keeps -- `clean` or `user`, and nothing else, so no setting names a file Neovim runs.
+inline LaunchChoice choice_from_environment(const std::string& kept_profile = std::string()) {
     LaunchChoice out;
     if (const char* p = std::getenv(kProgramVariable); p != nullptr && *p != '\0') {
         out.program = p;
     }
     if (const char* p = std::getenv(kProfileVariable); p != nullptr && *p != '\0') {
         out.profile = p;
+    } else if (kept_profile == "clean" || kept_profile == "user") {
+        out.profile = kept_profile;
     }
     return out;
 }

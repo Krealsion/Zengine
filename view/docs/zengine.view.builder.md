@@ -42,8 +42,8 @@ while it holds your keys.
 - **Make** an element by dragging a kind from `Add` onto the canvas; a click on a kind makes one
   below the last.
 - **Select** one by clicking it on the canvas or in the list; **move** it by dragging it, and
-  **size** it by dragging a handle. A place by hand snaps to the edges near it and to the `Grid`;
-  hold `Alt` to set every snap aside. The arrow keys move it a pixel, a cell with `Shift`; `Delete`
+  **size** it by dragging a handle. A place by hand snaps to the edges within the layout's
+  `snap-reach` and to the `Grid`; hold `Alt` to set every snap aside. The arrow keys move it a pixel, a cell with `Shift`; `Delete`
   removes it; `Escape` puts a choice or the selection down.
 - **Size** the view by its handles, or type into the `Size` boxes. Nothing sits outside the view:
   a value or a key that would cross its edge is refused in words.
@@ -57,6 +57,11 @@ while it holds your keys.
 Then [`view.run`](#viewrun) it, [`view.apply`](#viewapply) each change, and [`view.save`](#viewsave) it. Each command but
 [`view.choices`](#viewchoices) is a control on the bar. A value being typed is kept before any command acts; if it is refused, the
 command does nothing.
+
+Each layout keeps three settings for the pane, set in Info or by message
+([`PaneSettingCommitRequested`](../../workshop/docs/zengine.workshop.md#panesettingcommitrequested)):
+`snap-reach`, pinned, in pixels, and `new-width` and `new-height`, the size [`view.new`](#viewnew)
+makes a view at. A value one cannot use keeps its default and is said to Workshop.
 
 ## Commands
 
@@ -110,7 +115,7 @@ its pane opens.
 
 ### `view.new`
 
-Starts a new view, `my.view`, empty, with no file.
+Starts a new view, `my.view`, empty, with no file, at the layout's `new-width` and `new-height`.
 
 - **Takes:** nothing. No default key; the control `[New]`.
 - **Answers:** `new complete`; the canvas shows the new view from its corner.
@@ -195,7 +200,8 @@ numbered no gesture for it.
 ## Follow
 
 The View Builder publishes nothing. Its asks go to the view host, which answers it alone, and what
-it made of each is on its notice. To follow a running view, follow the view: it is a participant of
+it made of each is on its notice. It tells Workshop `PaneSettingUnused` when a layout hands it a
+setting it cannot use. To follow a running view, follow the view: it is a participant of
 its own, publishing its intents' shapes to whoever accepts them
 ([the view renderer](view.md#the-view-renderer)).
 

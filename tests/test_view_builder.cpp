@@ -18,7 +18,9 @@
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_operation.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
+#include "workshop/pane_settings.hpp"
 #include "workshop/pane_vocabulary.hpp"
+#include "workshop/settings_seam_vocabulary.hpp"
 
 #include <zen/kernel/kernel.hpp>
 
@@ -27,6 +29,7 @@
 #include <fstream>
 #include <iterator>
 #include <set>
+#include <tuple>
 
 namespace {
 namespace vb = zengine::view_builder;
@@ -430,7 +433,8 @@ public:
                 loom::schema_of<ws::PaneEscapeUnspent>(), loom::schema_of<ws::PanePassRequested>(),
                 loom::schema_of<ws::PaneRevealRequested>(), loom::schema_of<ws::PaneMenuRequested>(),
                 loom::schema_of<ws::PaneOperationRequested>(), loom::schema_of<ws::PaneValueCarryRequested>(),
-                loom::schema_of<ws::PaneQuitAnswered>(), loom::schema_of<vb::ViewEdited>()};
+                loom::schema_of<ws::PaneQuitAnswered>(), loom::schema_of<vb::ViewEdited>(),
+                loom::schema_of<ws::v2::PaneSettingsDeclared>(), loom::schema_of<ws::PaneSettingUnused>()};
     }
     void handle(const loom::Message& in, loom::Bus& bus) override {
         if (loom::same_identity(in.payload.schema(), *loom::schema_of<ws::PaneOperationRequested>()))
@@ -949,6 +953,79 @@ TEST_CASE("a place by hand snaps: an edge it moves comes to another element's or
     placed = vb::snap(m.description, 0, {333, 6, 144, 24, std::nullopt, std::nullopt}, Edges::both, Edges::none);
     CHECK(placed.x == 336); // its right edge to the view's, at 480
     CHECK(placed.met_x == 480);
+}
+
+TEST_CASE("the View Builder declares its snap reach and a new view's size as settings, and a layout's values reach the next placing hand and the next `new`") {
+    // ⚔ MUTATION: a place by hand snapping within `kSnapReach` whatever the layout keeps -- the
+    // element still comes to limit's edge -- and `new` making `kNewViewWidth` by `kNewViewHeight`.
+    Rig rig;
+    const auto said = [&rig]<class Shape>(Shape) {
+        std::vector<Shape> out;
+        for (const auto& m : rig.desk->heard)
+            if (loom::same_identity(m.payload.schema(), *loom::schema_of<Shape>()) &&
+                m.provenance.authored_role() == vb::kRole)
+                out.push_back(loom::from_value<Shape>(m.payload));
+        return out;
+    };
+    // THE THREE SETTINGS, AS THE DESK IS TOLD THEM BESIDE THE OFFER.
+    const auto declared = said(ws::v2::PaneSettingsDeclared{});
+    REQUIRE_FALSE(declared.empty());
+    CHECK(declared.back().pane == vb::kPane);
+    const auto pixels = [](const char* key, std::int64_t made, std::int64_t low, const char* says) {
+        return ws::v2::PaneSettingRow{key, std::nullopt, made, std::nullopt, {}, low, view::kMaxPixels,
+                                      {"layout"}, false, says};
+    };
+    CHECK(declared.back().rows ==
+          std::vector<ws::v2::PaneSettingRow>{
+              ws::v2::PaneSettingRow{vb::kSettingSnapReach, std::nullopt, vb::kSnapReach, std::nullopt, {}, 0,
+                                     vb::kMostSnapReach, {"layout", "input"}, true,
+                                     "snap reach in pixels when dragging"},
+              pixels(vb::kSettingNewWidth, vb::kNewViewWidth, view::kMinWidthPx,
+                     "initial width in pixels of a new view"),
+              pixels(vb::kSettingNewHeight, vb::kNewViewHeight, view::kMinHeightPx,
+                     "initial height in pixels of a new view")});
+
+    // A LAYOUT'S VALUES, HANDED AS WORKSHOP HANDS THEM: no reach, and a larger new view.
+    rig.host(ws::v2::PaneSettings{vb::kPane, 1,
+                                  {ws::PaneSetting{vb::kSettingNewHeight, {}, 300, {}},
+                                   ws::PaneSetting{vb::kSettingNewWidth, {}, 600, {}},
+                                   ws::PaneSetting{vb::kSettingSnapReach, {}, 0, {}}}});
+    CHECK(said(ws::PaneSettingUnused{}).empty());
+    for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
+    CHECK(rig.now().width == 600);
+    CHECK(rig.now().height == 300);
+    // ...the drag the default reach brings to limit's top, two pixels off, now lands where it is let go.
+    auto [x, y] = rig.middle(rig.now().elements[0]);
+    rig.pointer(ws::canvas_pointer::kPress, x, y, 7);
+    rig.pointer(ws::canvas_pointer::kMove, x + 10, y + 6, 7);
+    rig.pointer(ws::canvas_pointer::kRelease, x + 10, y + 6, 7);
+    CHECK(rig.now().elements[0].x == 10);
+    CHECK(rig.now().elements[0].y == 6);
+
+    // A HAND-OFF THAT KEEPS NOTHING IS EVERY SETTING AT ITS DEFAULT: the reach snaps again, and
+    // `new` makes today's size.
+    rig.host(ws::v2::PaneSettings{vb::kPane, 2, {}});
+    std::tie(x, y) = rig.middle(rig.now().elements[0]);
+    rig.pointer(ws::canvas_pointer::kPress, x, y, 8);
+    rig.pointer(ws::canvas_pointer::kMove, x, y - 5, 8);
+    rig.pointer(ws::canvas_pointer::kRelease, x, y - 5, 8);
+    CHECK(rig.now().elements[0].y == 0); // its top edge, a pixel off, to the view's
+    REQUIRE(rig.edit("new", {"other.view", "discard"}).ok);
+    CHECK(rig.now().width == vb::kNewViewWidth);
+    CHECK(rig.now().height == vb::kNewViewHeight);
+
+    // A REACH PAST A CELL leaves the default, said against the revision it was handed at; a key the
+    // pane does not declare is passed over.
+    rig.host(ws::v2::PaneSettings{vb::kPane, 3,
+                                  {ws::PaneSetting{vb::kSettingSnapReach, {}, vb::kMostSnapReach + 1, {}},
+                                   ws::PaneSetting{"zoom", true, {}, {}}}});
+    const auto unused = said(ws::PaneSettingUnused{});
+    REQUIRE(unused.size() == 1);
+    CHECK(unused[0].revision == 3);
+    CHECK(unused[0].key == vb::kSettingSnapReach);
+    CHECK(unused[0].why == "it takes a whole number from 0 to " + std::to_string(vb::kMostSnapReach));
+    REQUIRE(rig.edit("new", {"third.view", "discard"}).ok);
+    CHECK(rig.now().width == vb::kNewViewWidth);
 }
 
 TEST_CASE("each side of the selected element has a handle that moves that side alone, in a window and floored to cells in a terminal") {

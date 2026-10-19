@@ -163,11 +163,13 @@ inline std::pair<std::int64_t, std::int64_t> pan_reach(const view::Description& 
 }
 
 /// THE SNAP of a place made, moved or resized by hand: an edge the hand moves comes to an edge of
-/// another element or of the view within `kSnapReach` pixels; else, when the weaver set a grid,
-/// to its nearest line, and without one it stays at the whole pixel the hand left it on. The
-/// grid is at most `kMaxGrid` pixels apart. Alt held sets every snap aside, and the arrow keys
-/// and a typed value place exactly.
+/// another element or of the view within the reach a layout keeps, `kSnapReach` pixels unless it
+/// keeps another, and under a cell at most; else, when the weaver set a grid, to its nearest line,
+/// and without one it stays at the whole pixel the hand left it on. A reach of none snaps to no
+/// edge. The grid is at most `kMaxGrid` pixels apart. Alt held sets every snap aside, and the
+/// arrow keys and a typed value place exactly.
 inline constexpr std::int64_t kSnapReach = 6;
+inline constexpr std::int64_t kMostSnapReach = surface::kCanvasCellPx - 1;
 inline constexpr std::int64_t kMaxGrid = 96;
 
 /// Which edges of an element the hand moves along one axis: both (a move), the low or the high
@@ -185,7 +187,8 @@ struct Snapped {
 /// other elements' edges on that axis. A snap that would leave the view's rules, or reach past
 /// `limit`, the view's own far edge, is not taken.
 inline Snapped snap_axis(std::int64_t at, std::int64_t size, Edges moving, const std::vector<std::int64_t>& others,
-                         std::int64_t limit = view::kMaxSizePx, std::int64_t grid = 1) {
+                         std::int64_t limit = view::kMaxSizePx, std::int64_t grid = 1,
+                         std::int64_t reach = kSnapReach) {
     if (moving == Edges::none) return {at, size, std::nullopt};
     const auto end = at + size;
     const auto travelled = [&](std::int64_t travel) -> std::optional<Snapped> {
@@ -198,7 +201,7 @@ inline Snapped snap_axis(std::int64_t at, std::int64_t size, Edges moving, const
         return s;
     };
     std::optional<Snapped> best;
-    auto nearest = kSnapReach + 1;
+    auto nearest = reach + 1;
     const auto meet = [&](std::int64_t edge) {
         for (const auto to : others) {
             if (std::abs(to - edge) >= nearest) continue;
@@ -230,7 +233,7 @@ struct Place {
 /// A place by hand snapped on both axes against the view's own edges and every element of `d` but
 /// `placing`, the one being placed, whose own edges never pull it.
 inline Place snap(const view::Description& d, std::optional<std::size_t> placing, const Place& at, Edges along_x,
-                  Edges along_y, std::int64_t grid = 1) {
+                  Edges along_y, std::int64_t grid = 1, std::int64_t reach = kSnapReach) {
     std::vector<std::int64_t> xs{0, d.width}, ys{0, d.height};
     for (std::size_t i = 0; i < d.elements.size(); ++i) {
         if (placing && *placing == i) continue;
@@ -238,8 +241,8 @@ inline Place snap(const view::Description& d, std::optional<std::size_t> placing
         xs.insert(xs.end(), {e.x, e.x + e.w});
         ys.insert(ys.end(), {e.y, e.y + e.h});
     }
-    const auto x = snap_axis(at.x, at.w, along_x, xs, d.width, grid);
-    const auto y = snap_axis(at.y, at.h, along_y, ys, d.height, grid);
+    const auto x = snap_axis(at.x, at.w, along_x, xs, d.width, grid, reach);
+    const auto y = snap_axis(at.y, at.h, along_y, ys, d.height, grid, reach);
     return {x.at, y.at, x.size, y.size, x.met, y.met};
 }
 
@@ -247,7 +250,7 @@ inline Place snap(const view::Description& d, std::optional<std::size_t> placing
 /// moves snapped as an element's edge is, against every element's edges, and never inside an
 /// element it holds or past the size's bounds.
 inline Place sized_by_hand(const view::Description& d, std::int64_t width, std::int64_t height, bool along_x,
-                           bool along_y, std::int64_t grid = 1) {
+                           bool along_y, std::int64_t grid = 1, std::int64_t reach = kSnapReach) {
     std::vector<std::int64_t> xs, ys;
     std::int64_t right = view::kMinWidthPx, bottom = view::kMinHeightPx;
     for (const auto& e : d.elements) {
@@ -256,8 +259,8 @@ inline Place sized_by_hand(const view::Description& d, std::int64_t width, std::
         right = std::max(right, e.x + e.w);
         bottom = std::max(bottom, e.y + e.h);
     }
-    const auto x = snap_axis(0, width, along_x ? Edges::high : Edges::none, xs, view::kMaxSizePx, grid);
-    const auto y = snap_axis(0, height, along_y ? Edges::high : Edges::none, ys, view::kMaxSizePx, grid);
+    const auto x = snap_axis(0, width, along_x ? Edges::high : Edges::none, xs, view::kMaxSizePx, grid, reach);
+    const auto y = snap_axis(0, height, along_y ? Edges::high : Edges::none, ys, view::kMaxSizePx, grid, reach);
     Place out{0, 0, std::clamp<std::int64_t>(x.size, right, view::kMaxSizePx),
               std::clamp<std::int64_t>(y.size, bottom, view::kMaxSizePx), x.met, y.met};
     if (out.w != x.size) out.met_x.reset();

@@ -42,8 +42,8 @@ pane the selected element's values sit in boxes on the right; in a narrow one, b
 - **Move** it by dragging it, and **size** it by dragging a handle: a side's moves that side
   alone, a corner's the two sides it meets. What you place by hand moves by whole pixels and
   snaps to an edge: an edge you move comes to another element's edge, or the view's, within
-  <!-- value view_builder::kSnapReach -->6<!-- /value --> pixels, marked by a line across the
-  canvas while you hold it. Type a number into **Grid**, up to
+  <!-- value view_builder::kSnapReach -->6<!-- /value --> pixels unless the layout keeps another
+  `snap-reach`, marked by a line across the canvas while you hold it. Type a number into **Grid**, up to
   <!-- value view_builder::kMaxGrid -->96<!-- /value -->, and a place by hand snaps to a grid that
   many pixels apart as well, until you set it back to 1. Hold `Alt` while you drag to set every
   snap aside. The arrow keys move the selected element a pixel, and with `Shift` a cell, and a

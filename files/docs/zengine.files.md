@@ -27,6 +27,10 @@ entered; going up from inside it returns to the folder you walked in from. A lis
 Workshop gives the pane its room, when you walk somewhere, when you press
 [`files.refresh`](#filesrefresh), and when a build ends. Nothing watches the disk.
 
+Each layout keeps two settings for the pane: `wheel-rows`, pinned, the rows a wheel notch moves,
+and `listed-entries`, the entries a listing holds before its header says `stopped counting`. A
+value one cannot use keeps its default and is said to Workshop.
+
 Files is not a file manager: it renames, deletes, copies and creates nothing, has no search and no
 filter, and judges no file's contents. What a row knows is a name and whether it is a folder.
 [`files.use-recipes`](#filesuse-recipes) hands over a path and
@@ -320,7 +324,8 @@ Files publishes nothing for an observer: its rows are Workshop's to show, and wh
 owned elsewhere. Follow those owners instead: the recipe file in force through the Builder's
 `RecipeCatalog` ([Follow](../../builder/docs/zengine.builder.md#follow)), an open through the
 Editor, and a mark through the marks file ([Files](#files)). Files itself hears the Builder's
-`BuildStatus`, and lists the folder again when a build ends.
+`BuildStatus`, and lists the folder again when a build ends. It tells Workshop
+`PaneSettingUnused` when a layout hands it a setting it cannot use.
 
 ## Shows
 

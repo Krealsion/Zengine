@@ -45,6 +45,12 @@ only while a pane holds your keys: press into it first.
 
 A press on a power selects it and nothing more; `[ Sample ]` samples and selects nothing.
 
+Each layout keeps three settings for Powers, set in Info or by message
+([`PaneSettingCommitRequested`](../../workshop/docs/zengine.workshop.md#panesettingcommitrequested)): its first
+row's columns, `view-columns`, pinned, and `composite-columns`, each at least its control's label
+and padded past it, and `gap`, the spaces between the row's parts. A value one cannot use keeps
+the default and is said to Workshop; Loaded and Project take none.
+
 ## Commands
 
 The `Powers` pane's; `Loaded` and `Project` declare none.
@@ -151,7 +157,8 @@ A press on a weave's row of `Loaded` publishes `LoadedSelected` v1 as `zengine.i
 office it was bound to at load, empty when none. An observer accepts the shape and reads whose fact
 it is from the authored office. It is said once a press, again when the same row is pressed again,
 and never when a selection clears. The name is not a weave id and not proof the weave runs now, and
-hearing it grants no reach to the weave it names. Nothing else is said unasked.
+hearing it grants no reach to the weave it names. Nothing else is said unasked but
+`PaneSettingUnused`, to Workshop, when a layout hands a pane a setting it cannot use.
 
 ## Shows
 

@@ -378,6 +378,15 @@ public:
         return declared;
     }
 
+    /// THE LAYOUT'S CHROME WIDTHS: its row is said again where it shows, since its controls move.
+    void take_widths(const ChromeWidths& widths, loom::Mail& mail) {
+        if (widths == ui_.widths) {
+            return;
+        }
+        ui_.widths = widths;
+        say_powers(mail);
+    }
+
     /// A ROOM GRANTED: the reading goes with the projection, since until the door answers there is
     /// nothing to derive a view from or read a press against. What the weaver authored survives --
     /// the view, the query, the filter, both selections and the retained sample -- and the search

@@ -98,6 +98,9 @@ struct PowersUi {
     /// the ACTIVE contribution, because that is the construction whose code runs.
     bool composite_only = false;
 
+    /// The chrome row's widths, as the layout keeps them.
+    ChromeWidths widths;
+
     std::string selected_source;
     std::string selected_operator;
 
@@ -249,7 +252,7 @@ inline std::int64_t query_capacity(const PowersUi& ui, std::int64_t columns) {
     const std::vector<const workshop::PowerRow*> list = filtered_of(ui);
     const std::string marker = position_marker(cursor_in(list, ui.selected()),
                                                static_cast<std::int64_t>(list.size()));
-    const ChromeFit fit_of = fit_chrome(marker, columns);
+    const ChromeFit fit_of = fit_chrome(marker, columns, ui.widths);
     const std::int64_t room = fit_of.query_room - 1;
     return room > 0 ? room : 0;
 }
@@ -337,28 +340,38 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
     // ---- the chrome row, composed to the width it was given ----------------------
     {
         const std::string marker = position_marker(view.cursor, view.population);
-        const ChromeFit shape = fit_chrome(marker, columns);
+        const ChromeFit shape = fit_chrome(marker, columns, ui.widths);
         const bool sources = ui.view == powers_view::kSources;
         const std::string a =
             sources ? "[" + std::string(kSourcesWord) + "]" : std::string(kSourcesWord);
         const std::string b =
             sources ? std::string(kOperatorsWord) : "[" + std::string(kOperatorsWord) + "]";
+        // EACH CONTROL IN ITS COLUMN, padded to the width the layout keeps, and every segment
+        // after the gap it keeps.
+        const auto column_of = [](std::string& text, std::int64_t from, std::int64_t width) {
+            if (static_cast<std::int64_t>(text.size()) < from + width) {
+                text.resize(static_cast<std::size_t>(from + width), ' ');
+            }
+        };
+        const std::string gap(static_cast<std::size_t>(ui.widths.gap), ' ');
         std::string text = a + " " + b;
+        column_of(text, 0, ui.widths.view);
         const std::int64_t operators_at = static_cast<std::int64_t>(a.size()) + 1;
         if (shape.position) {
-            text += "  " + marker;
+            text += gap + marker;
         }
         std::int64_t composite_at = -1;
         if (shape.composite) {
-            composite_at = static_cast<std::int64_t>(text.size()) + detail::kGap;
-            text += std::string("  [") + (ui.composite_only ? "x" : " ") + "] " + kCompositeWord;
+            composite_at = static_cast<std::int64_t>(text.size()) + ui.widths.gap;
+            text += gap + "[" + (ui.composite_only ? "x" : " ") + "] " + kCompositeWord;
+            column_of(text, composite_at, ui.widths.composite);
         }
         std::int64_t caret_at = -1;
         if (shape.find) {
             const std::int64_t room = shape.query_room - 1;
             const std::string shown = ui.query.visible(room > 0 ? room : 0);
             const std::size_t at = ui.query.caret_column();
-            text += std::string("  ") + kFindLabel;
+            text += gap + kFindLabel;
             caret_at = static_cast<std::int64_t>(text.size() + (at <= shown.size() ? at : shown.size()));
             text += shown;
         }
