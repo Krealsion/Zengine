@@ -2,9 +2,9 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // `zengine::graphics` alone, as a stranger links it: an owner's picture painted for light by the
-// installed painter, read back and pressed, and the terminal's ink and size from the installed
-// claim -- with no other Zengine target on the link line, so a graphics header that needs Surface,
-// or another package, stops this compiling.
+// installed painter, read back and pressed, and the terminal's ink, size and copy sequence from the
+// installed claim -- with no other Zengine target on the link line, so a graphics header that needs
+// Surface, or another package, stops this compiling.
 
 #include "graphics/canvas.hpp"
 #include "graphics/light_paint.hpp"
@@ -58,5 +58,7 @@ int main() {
           "the terminal's ink for a role comes with the graphics package");
     const gfx::window::TerminalSize size = gfx::window::native_terminal_size();
     check(size.cols >= 0 && size.rows >= 0, "a terminal's size is asked, and never negative");
+    check(gfx::window::terminal_clipboard_sequence("soup") == "\x1b]52;c;c291cA==\x07",
+          "a copy is the terminal's OSC 52 sequence, its text in base64");
     return 0;
 }
