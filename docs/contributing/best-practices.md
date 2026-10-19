@@ -75,6 +75,8 @@ can move into its surface's own document.
 - **A case's name says what it proves.**
   [Source comment conventions](repository-conventions.md#source-comment-conventions)
 - **A name carries its terminating condition.** [Naming](repository-conventions.md#naming)
+- **A shape's name says its kind**: a request, an answer, a deed or an observation.
+  [Naming](repository-conventions.md#naming)
 
 ### Delivery
 
