@@ -1199,6 +1199,37 @@ TEST_CASE("the Hotkeys pane heads a pane's keys with the pane's name made drawab
     admitted();
 }
 
+TEST_CASE("the Hotkeys pane asks the window that shows it for a paste into a spelling, the OS window or the terminal's, and the Skin only while none shows it") {
+    // ⚔ MUTATION: the Hotkeys pane's paste asked of the Skin wherever its area is shown.
+    namespace gfx = zengine::graphics;
+    namespace pw = zengine::testing::pane_window;
+    for (const char* window : {gfx::kSdlWindow, gfx::kTerminalWindow}) {
+        CAPTURE(window);
+        Keys k("hotkeys-paste-window");
+        SkinSeat* skin = k.r.mount_skin_seat();
+        skin->platform = "ctrl+";
+        const std::int64_t quit = k.row_of("workshop.quit");
+        REQUIRE(quit >= 0);
+        k.right(quit);
+        k.choose("Modify (type a spelling)");
+
+        // NO WINDOW SHOWS IT YET: the paste is the Skin's.
+        k.r.key(input::scan::kV, input::mod::kCtrl);
+        CHECK(skin->clipboard_reads == 1);
+        CHECK_MESSAGE(row_containing(k.rows(), "key for workshop.quit: ctrl+") >= 0, k.text());
+
+        // THE WINDOW TELLS THE PANE'S AREA ITS ROOM, and from then on is asked, not the Skin, and
+        // what it holds lands in the spelling.
+        pw::Window shown(k.r.bus, window);
+        shown.weave().platform = "q";
+        shown.room(std::string(kDesktopRole) + "." + dp::kHotkeysPane, kDesktopRole, 120, 40);
+        k.r.key(input::scan::kV, input::mod::kCtrl);
+        CHECK(shown.weave().clipboard_reads == 1);
+        CHECK(skin->clipboard_reads == 1);
+        CHECK_MESSAGE(row_containing(k.rows(), "key for workshop.quit: ctrl+q") >= 0, k.text());
+    }
+}
+
 TEST_CASE("WL-DESK-14: content queued ahead of a raw press cannot retarget the row the hand aimed at -- the press is stamped with the picture the medium had, and refused as moved") {
     // THE PRODUCTION BOUNDARY, NOT AN IDEAL STAMP. The inventory swap reaches the real desktop,
     // which composes picture B and queues it; a RAW press is queued behind it, captured while the

@@ -1509,9 +1509,11 @@ private:
         }
     }
 
+    /// A paste is asked of the window that shows the pane's area, else the Skin.
     void begin_paste(loom::Mail& mail) {
+        const std::string office = room().clipboard_office();
         const loom::AskOpened opened = clip_asks_.open_to_role(
-            surface::kSkinRole, surface::ClipboardTextRequested::zen_name,
+            office, surface::ClipboardTextRequested::zen_name,
             surface::ClipboardTextRequested::zen_version);
         if (!opened) {
             return;
@@ -1520,8 +1522,7 @@ private:
         paste_epoch_ = role_.line.draft_epoch();
         pasting_ = true;
         (void)mail.as_role(pane::kBuilderPaneRole)
-            .send_to_role(surface::kSkinRole, surface::ClipboardTextRequested{},
-                          opened.correlation);
+            .send_to_role(office, surface::ClipboardTextRequested{}, opened.correlation);
     }
 
     // ---- The output reader (WL-OUT-04), defined in `output_reader.hpp` ----------------------
