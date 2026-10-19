@@ -270,15 +270,164 @@ private:
 
 using FakeWindow = gfx::window::WindowT<FakeTerminal>;
 
+/// What a window answered the suite's asker for its platform, by the correlation of the ask each
+/// answers, and what the window published as its office; every shape heard, in order.
+struct PlatformHeard {
+    std::vector<std::string> order;
+    std::vector<std::pair<std::uint64_t, gfx::ClipboardText>> texts;
+    std::vector<std::pair<std::uint64_t, gfx::SurfaceCaptured>> captures;
+    std::vector<std::pair<std::uint64_t, gfx::SurfaceCaptureChunk>> chunks;
+    std::vector<std::pair<std::uint64_t, std::string>> refused;
+    std::vector<gfx::SurfacePlacement> placements;
+    std::vector<gfx::WindowOffered> offers;
+    int closes = 0;
+};
+
+bool placed_at(const gfx::SurfacePlacement& p, std::int64_t x, std::int64_t y, bool maximized) {
+    return p.x == x && p.y == y && p.maximized == maximized;
+}
+
+struct GraphicsTestPlatform {
+    std::int64_t heard = 0;
+    ZEN_SHAPE(GraphicsTestPlatform, 1, ZEN_FIELD(heard));
+};
+
+class PlatformEars
+    : public loom::WeaveBase<
+          PlatformEars, GraphicsTestPlatform,
+          loom::Accept<gfx::ClipboardText, gfx::SurfaceCaptured, gfx::SurfaceCaptureChunk,
+                       loom::Refused, gfx::SurfacePlacement, gfx::SurfaceCloseRequested,
+                       gfx::WindowOffered>,
+          loom::Emit<gfx::ClipboardCopy, gfx::ClipboardTextRequested,
+                     gfx::SurfacePlacementRemembered, gfx::PumpSurface,
+                     gfx::SurfaceCaptureRequested, gfx::SurfaceCaptureChunkRequested>> {
+public:
+    PlatformEars(PlatformHeard& heard, std::string window)
+        : heard_(&heard), window_(std::move(window)) {}
+    void on(const gfx::ClipboardText& c, loom::Mail& mail) {
+        note("ClipboardText");
+        heard_->texts.emplace_back(mail.correlation(), c);
+    }
+    void on(const gfx::SurfaceCaptured& c, loom::Mail& mail) {
+        note("SurfaceCaptured");
+        heard_->captures.emplace_back(mail.correlation(), c);
+    }
+    void on(const gfx::SurfaceCaptureChunk& c, loom::Mail& mail) {
+        note("SurfaceCaptureChunk");
+        heard_->chunks.emplace_back(mail.correlation(), c);
+    }
+    void on(const loom::Refused& r, loom::Mail& mail) {
+        note("Refused");
+        heard_->refused.emplace_back(mail.correlation(), r.reason);
+    }
+    void on(const gfx::SurfacePlacement& p, loom::Mail& mail) {
+        if (mail.authored_from_role(window_)) {
+            note("SurfacePlacement");
+            heard_->placements.push_back(p);
+        }
+    }
+    void on(const gfx::SurfaceCloseRequested&, loom::Mail& mail) {
+        if (mail.authored_from_role(window_)) {
+            note("SurfaceCloseRequested");
+            ++heard_->closes;
+        }
+    }
+    void on(const gfx::WindowOffered& w, loom::Mail& mail) {
+        if (mail.authored_from_role(window_)) {
+            note("WindowOffered");
+            heard_->offers.push_back(w);
+        }
+    }
+
+private:
+    void note(const char* shape) {
+        ++state_.heard;
+        heard_->order.emplace_back(shape);
+    }
+    PlatformHeard* heard_;
+    std::string window_;
+};
+
+/// The suite as a participant asking a window for its platform: it asks the window's office and
+/// keeps each answer by its ask, publishes a copy, and hears what the window publishes.
+struct PlatformAsker {
+    Rig* r = nullptr;
+    std::string window;
+    loom::WeaveId id;
+    PlatformHeard heard;
+
+    void mount(Rig& rig, std::string office) {
+        r = &rig;
+        window = std::move(office);
+        auto made = std::make_unique<PlatformEars>(heard, window);
+        PlatformEars* raw = made.get();
+        loom::Grant g = loom::emit_default_grant(*raw);
+        id = r->bus.register_weave(std::move(made), std::move(g), "test.platform");
+        raw->zen_set_self(id);
+    }
+    /// One ask of the window, its correlation returned so the answer is known as this ask's.
+    template <class T>
+    std::uint64_t ask(const T& msg) {
+        const std::uint64_t corr = r->next_corr++;
+        r->bus.send_as_to_role(id, window, loom::Message(loom::to_value(msg), id, id, corr));
+        r->drain();
+        return corr;
+    }
+    void copy(const std::string& text) {
+        r->bus.publish_as(id, loom::Message(loom::to_value(gfx::ClipboardCopy{text})));
+        r->drain();
+    }
+    /// The answer to one ask, by value: a later answer grows the list it was kept in.
+    std::optional<gfx::SurfaceCaptured> captured(std::uint64_t corr) const {
+        for (const auto& [c, v] : heard.captures) {
+            if (c == corr) return v;
+        }
+        return std::nullopt;
+    }
+    std::optional<std::string> refused(std::uint64_t corr) const {
+        for (const auto& [c, v] : heard.refused) {
+            if (c == corr) return v;
+        }
+        return std::nullopt;
+    }
+    /// The retained picture `capture`, fetched chunk by chunk from the start; empty when a chunk
+    /// does not come.
+    std::string fetch(std::int64_t capture, std::int64_t total, std::size_t* asks = nullptr) {
+        std::string bytes;
+        std::size_t n = 0;
+        while (static_cast<std::int64_t>(bytes.size()) < total) {
+            const std::uint64_t corr = ask(gfx::SurfaceCaptureChunkRequested{
+                capture, static_cast<std::int64_t>(bytes.size())});
+            ++n;
+            const gfx::SurfaceCaptureChunk* got = nullptr;
+            for (const auto& [c, v] : heard.chunks) {
+                if (c == corr) got = &v;
+            }
+            if (got == nullptr || got->data.empty() || got->total != total ||
+                got->offset != static_cast<std::int64_t>(bytes.size())) {
+                return {};
+            }
+            bytes.append(got->data.begin(), got->data.end());
+        }
+        if (asks != nullptr) *asks = n;
+        return bytes;
+    }
+};
+
 /// A window whose terminal is the suite's, beside the directory: the window mounted in process at
-/// its office and activated as Loom's control door activates.
+/// its office and activated as Loom's control door activates. Asked to, the suite's asker is
+/// mounted first, and hears the window from its activation on.
 struct TypedWindow {
     Rig r;
     TermLog term;
+    PlatformAsker platform;
     loom::WeaveId window;
     FakeWindow* instance = nullptr;
-    TypedWindow() {
+    explicit TypedWindow(bool hear = false) {
         REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
+        if (hear) {
+            platform.mount(r, window_office());
+        }
         auto w = std::make_unique<FakeWindow>(FakeTerminal{&term});
         FakeWindow* raw = w.get();
         instance = raw;
@@ -1282,7 +1431,7 @@ struct Resized : TypedWindow {
     OwnerHeard heard;
     loom::WeaveId owner;
     std::int64_t epoch = 0;
-    Resized() {
+    explicit Resized(bool hear = false) : TypedWindow(hear) {
         auto o = std::make_unique<Owner>(heard);
         Owner* raw = o.get();
         loom::Grant g = loom::emit_default_grant(*raw);
@@ -1437,10 +1586,15 @@ TEST_CASE("an arranger following the window's offer places its area across the r
 TEST_CASE("the terminal window copies by OSC 52, reads no clipboard, has no placement to say or take, "
           "and reads back the cells it last showed, at the size it showed them, none before") {
     {
-        TypedWindow bare; // activated, and nothing shown yet
+        TypedWindow bare(true); // activated, and nothing shown yet
         CHECK_FALSE(bare.instance->capture().has_value());
+        const std::uint64_t asked = bare.platform.ask(gfx::SurfaceCaptureRequested{});
+        const std::optional<gfx::SurfaceCaptured> none = bare.platform.captured(asked);
+        REQUIRE(none.has_value());
+        CHECK_FALSE(none->ok);
+        CHECK(none->refusal == "this medium has no picture to read back right now");
     }
-    Resized t;
+    Resized t(true);
     Rig& r = t.r;
     FakeWindow& w = *t.instance;
 
@@ -1517,6 +1671,121 @@ TEST_CASE("the terminal window copies by OSC 52, reads no clipboard, has no plac
     CHECK(smaller->width == 60);
     CHECK(smaller->height == 20);
     CHECK(smaller->bytes.size() == 20u * 61u);
+
+    PlatformAsker& ask = t.platform;
+    SUBCASE("on the bus: a copy is the copy sequence, a paste reads none, and a place offered "
+            "back, a pump and the beat publish no place and no close") {
+        const std::size_t before = t.term.writes.size();
+        const std::int64_t shown_before = r.shown().showings;
+        const std::size_t offered = ask.heard.offers.size(); // activation's and the resizes'
+        ask.copy("stew");
+        REQUIRE(t.term.writes.size() == before + 1);
+        CHECK(t.term.writes.back() == gfx::window::terminal_clipboard_sequence("stew"));
+        CHECK(r.shown().showings == shown_before);
+        const std::uint64_t paste = ask.ask(gfx::ClipboardTextRequested{});
+        REQUIRE(ask.heard.texts.size() == 1);
+        CHECK(ask.heard.texts[0].first == paste);
+        CHECK_FALSE(ask.heard.texts[0].second.readable);
+        CHECK(ask.heard.texts[0].second.text.empty());
+
+        (void)ask.ask(gfx::SurfacePlacementRemembered{10, 20, true});
+        (void)ask.ask(gfx::PumpSurface{});
+        t.pump();
+        CHECK(ask.heard.placements.empty());
+        CHECK(ask.heard.closes == 0);
+        CHECK(ask.heard.offers.size() == offered); // the same size: nothing to offer again
+        CHECK(t.term.writes.size() == before + 1);
+
+        // A pump is the beat's work: at another size the window offers itself again.
+        t.term.size = {70, 24};
+        (void)ask.ask(gfx::PumpSurface{});
+        REQUIRE(ask.heard.offers.size() == offered + 1);
+        CHECK(ask.heard.offers.back().cols == 70);
+        CHECK(ask.heard.offers.back().rows == 24);
+        CHECK(ask.heard.offers.back().epoch == t.epoch);
+        CHECK(ask.heard.placements.empty());
+        CHECK(ask.heard.closes == 0);
+    }
+    SUBCASE("on the bus: a picture now, retained and fetched by chunk, and the chunk door's "
+            "refusals") {
+        const std::uint64_t early = ask.ask(gfx::SurfaceCaptureChunkRequested{1, 0});
+        REQUIRE(ask.refused(early).has_value());
+        CHECK(*ask.refused(early) == "no picture is retained; ask for a capture first");
+
+        // Larger than one chunk: 300 x 120 cells, a newline each row.
+        t.term.size = {300, 120};
+        t.pump();
+        const std::int64_t frame = r.shown().showings;
+        const std::uint64_t now = ask.ask(gfx::SurfaceCaptureRequested{});
+        const std::optional<gfx::SurfaceCaptured> one = ask.captured(now);
+        REQUIRE(one.has_value());
+        CHECK(one->ok);
+        CHECK(one->capture == 1);
+        CHECK(one->frame == frame);
+        CHECK(one->format == "text/cells");
+        CHECK(one->cell_px == 0);
+        CHECK(one->width == 300);
+        CHECK(one->height == 120);
+        REQUIRE(one->bytes == 120 * 301);
+        REQUIRE(one->bytes > gfx::kCaptureChunkBytes);
+        std::size_t asks = 0;
+        const std::string bytes = ask.fetch(one->capture, one->bytes, &asks);
+        CHECK(asks == 2);
+        CHECK(ask.heard.chunks.front().second.data.size() ==
+              static_cast<std::size_t>(gfx::kCaptureChunkBytes));
+        const auto direct = w.capture();
+        REQUIRE(direct.has_value());
+        CHECK(bytes == direct->bytes);
+        const std::uint64_t at_end = ask.ask(gfx::SurfaceCaptureChunkRequested{1, one->bytes});
+        REQUIRE(ask.heard.chunks.back().first == at_end);
+        CHECK(ask.heard.chunks.back().second.data.empty());
+
+        // A second picture replaces the first, and the first is gone.
+        const std::uint64_t next = ask.ask(gfx::SurfaceCaptureRequested{});
+        REQUIRE(ask.captured(next).has_value());
+        CHECK(ask.captured(next)->capture == 2);
+        const std::uint64_t gone = ask.ask(gfx::SurfaceCaptureChunkRequested{1, 0});
+        REQUIRE(ask.refused(gone).has_value());
+        CHECK(*ask.refused(gone) == "capture 1 is gone; the retained one is 2");
+        const std::uint64_t past =
+            ask.ask(gfx::SurfaceCaptureChunkRequested{2, one->bytes + 1});
+        REQUIRE(ask.refused(past).has_value());
+        CHECK(*ask.refused(past) == "offset " + std::to_string(one->bytes + 1) +
+                                        " is outside a picture of " +
+                                        std::to_string(one->bytes) + " bytes");
+        const std::uint64_t before_start = ask.ask(gfx::SurfaceCaptureChunkRequested{2, -1});
+        REQUIRE(ask.refused(before_start).has_value());
+        CHECK(*ask.refused(before_start) ==
+              "offset -1 is outside a picture of " + std::to_string(one->bytes) + " bytes");
+    }
+    SUBCASE("on the bus: a picture asked for after this showing waits through a drawing saying "
+            "more, is answered by the showing that passes it, and one waits at a time") {
+        const std::int64_t showings_now = r.shown().showings;
+        const std::uint64_t later = ask.ask(gfx::SurfaceCaptureRequested{showings_now});
+        CHECK(ask.heard.captures.empty());
+        const std::uint64_t second = ask.ask(gfx::SurfaceCaptureRequested{showings_now});
+        REQUIRE(ask.captured(second).has_value());
+        CHECK_FALSE(ask.captured(second)->ok);
+        CHECK(ask.captured(second)->refusal == "a capture is already waiting for frame " +
+                                                   std::to_string(showings_now + 1) +
+                                                   "; one waits at a time");
+        t.pump(); // a beat that shows nothing passes no frame
+        CHECK(!ask.captured(later).has_value());
+        draw("later", true);
+        CHECK(!ask.captured(later).has_value());
+        draw("later", false);
+        const std::optional<gfx::SurfaceCaptured> due = ask.captured(later);
+        REQUIRE(due.has_value());
+        CHECK(due->ok);
+        CHECK(due->frame == showings_now + 1);
+        CHECK(r.shown().showings == showings_now + 1);
+        const std::string bytes = ask.fetch(due->capture, due->bytes);
+        CHECK(bytes.substr(3 * 61, 8) == "  later ");
+        // Answered once: a later showing answers nothing more.
+        const std::size_t answered = ask.heard.captures.size();
+        draw("again", false);
+        CHECK(ask.heard.captures.size() == answered);
+    }
 }
 
 TEST_CASE("an area at its element bound still takes a change, and a record said again is itself") {
@@ -3414,6 +3683,24 @@ TEST_CASE("the terminal's claim, size and ink are the graphics package's, and Su
           "names the same things") {
     static_assert(std::is_same_v<zengine::surface::TerminalSize, gw::TerminalSize>);
     static_assert(std::is_same_v<zengine::surface::TuiTerminal, gw::TuiTerminal>);
+    // The platform's shapes are one set, each one type in either spelling, so a Skin and a window
+    // answer the same wire.
+    static_assert(std::is_same_v<zengine::surface::PumpSurface, gfx::PumpSurface>);
+    static_assert(std::is_same_v<zengine::surface::SurfaceCloseRequested,
+                                 gfx::SurfaceCloseRequested>);
+    static_assert(std::is_same_v<zengine::surface::SurfacePlacement, gfx::SurfacePlacement>);
+    static_assert(std::is_same_v<zengine::surface::SurfacePlacementRemembered,
+                                 gfx::SurfacePlacementRemembered>);
+    static_assert(std::is_same_v<zengine::surface::ClipboardCopy, gfx::ClipboardCopy>);
+    static_assert(std::is_same_v<zengine::surface::ClipboardTextRequested,
+                                 gfx::ClipboardTextRequested>);
+    static_assert(std::is_same_v<zengine::surface::ClipboardText, gfx::ClipboardText>);
+    static_assert(std::is_same_v<zengine::surface::SurfaceCaptureRequested,
+                                 gfx::SurfaceCaptureRequested>);
+    static_assert(std::is_same_v<zengine::surface::SurfaceCaptured, gfx::SurfaceCaptured>);
+    static_assert(std::is_same_v<zengine::surface::SurfaceCaptureChunkRequested,
+                                 gfx::SurfaceCaptureChunkRequested>);
+    static_assert(std::is_same_v<zengine::surface::SurfaceCaptureChunk, gfx::SurfaceCaptureChunk>);
     CHECK(zengine::surface::role::kGuide == 6); // the one set of roles, spelled in either namespace
     CHECK(std::string(zengine::surface::sgr_for_role(6)) == gw::sgr_for_role(6));
     CHECK(std::string(gw::sgr_for_role(static_cast<int>(gfx::role::kAccent))) == "\x1b[36m");
@@ -3749,10 +4036,18 @@ struct LitWindow {
 
     FakeSdlWindow* instance = nullptr;
 
+    PlatformAsker platform;
+
     /// `kept`, when given, is the state a window before this one left: this one revives it, as a
-    /// reload's successor does, before it is activated.
-    explicit LitWindow(const loom::Value* kept = nullptr) {
+    /// reload's successor does, before it is activated. With `hear`, the suite's asker is mounted
+    /// first and hears the window from its activation on, its backend's desktop place `at`.
+    explicit LitWindow(const loom::Value* kept = nullptr, bool hear = false,
+                       std::optional<gw::WindowPlacementValue> at = std::nullopt) {
         REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
+        light.placement = at;
+        if (hear) {
+            platform.mount(r, sdl_office());
+        }
         auto w = std::make_unique<FakeSdlWindow>(FakeSdlBackend{&light});
         if (kept != nullptr) {
             w->revive(*kept);
@@ -4050,18 +4345,30 @@ TEST_CASE("the OS window sends a release, another button, a move and the wheel t
     CHECK(back.moves[0].space == in::space::kPixels);
 }
 
-TEST_CASE("the OS window keeps a close its desktop asked for until it is taken; a terminal is "
-          "never asked") {
-    LitWindow t;
-    CHECK_FALSE(t.instance->close_requested());
+TEST_CASE("the OS window publishes a close its desktop asked for as its office, once for each ask, "
+          "on the beat or a pump; a terminal is never asked") {
+    LitWindow t(nullptr, true);
+    PlatformAsker& ask = t.platform;
+    t.pump();
+    CHECK(ask.heard.closes == 0);
     t.light.queued.close = true;
     t.pump();
-    CHECK(t.instance->close_requested());
-    t.pump(); // a beat that asks nothing leaves the request as it was
-    CHECK(t.instance->close_requested());
-    CHECK(t.instance->take_close());
-    CHECK_FALSE(t.instance->close_requested());
-    CHECK_FALSE(t.instance->take_close());
+    CHECK(ask.heard.closes == 1);
+    CHECK(t.r.count(0, gfx::SurfaceCloseRequested::zen_name, sdl_office()) == 1);
+    t.pump(); // a beat that asks nothing publishes nothing
+    CHECK(ask.heard.closes == 1);
+    SUBCASE("a pump is the beat's work, a close included") {
+        t.light.queued.close = true;
+        (void)ask.ask(gfx::PumpSurface{});
+        CHECK(ask.heard.closes == 2);
+        (void)ask.ask(gfx::PumpSurface{});
+        CHECK(ask.heard.closes == 2);
+    }
+    SUBCASE("a second ask is a second close") {
+        t.light.queued.close = true;
+        t.pump();
+        CHECK(ask.heard.closes == 2);
+    }
 
     gw::TerminalMedium<FakeTerminal> terminal;
     CHECK_FALSE(terminal.close_requested());
@@ -4214,6 +4521,50 @@ TEST_CASE("the OS window has its backend read back the last picture it presented
     // A backend that cannot read its picture back answers none, and so does the window.
     t.light.reading = false;
     CHECK_FALSE(t.instance->capture().has_value());
+
+    SUBCASE("on the bus: the picture now and by chunk, a picture asked for after this one answered "
+            "by the next presented, and none when the backend cannot read back") {
+        LitWindow b(nullptr, true);
+        PlatformAsker& ask = b.platform;
+        b.own("test.lit", 0, 0, 400, 200, "night");
+        b.say("test.lit", whole("test.lit", one));
+        const std::uint64_t now = ask.ask(gfx::SurfaceCaptureRequested{});
+        const std::optional<gfx::SurfaceCaptured> got = ask.captured(now);
+        REQUIRE(got.has_value());
+        CHECK(got->ok);
+        CHECK(got->capture == 1);
+        CHECK(got->frame == b.shown().showings);
+        CHECK(got->format == "image/bmp");
+        CHECK(got->cell_px == gfx::kCellPx);
+        CHECK(got->width == 1);
+        CHECK(got->height == 1);
+        const gw::CapturedWindowPicture expected =
+            LightLog::picture_of(b.light.frames.back().ground);
+        CHECK(got->bytes == static_cast<std::int64_t>(expected.bytes.size()));
+        CHECK(ask.fetch(got->capture, got->bytes) == expected.bytes);
+
+        const std::int64_t shown = b.shown().showings;
+        const std::uint64_t later = ask.ask(gfx::SurfaceCaptureRequested{shown});
+        b.pump(); // a beat that presents nothing passes no frame
+        CHECK(!ask.captured(later).has_value());
+        b.say("test.lit", gfx::Drawn{"test.lit", false, two.nodes(), {}, {}, {}, true});
+        CHECK(!ask.captured(later).has_value());
+        b.say("test.lit", gfx::Drawn{"test.lit", false, two.nodes(), {"gone"}, {}, {}, false});
+        const std::optional<gfx::SurfaceCaptured> due = ask.captured(later);
+        REQUIRE(due.has_value());
+        CHECK(due->ok);
+        CHECK(due->capture == 2);
+        CHECK(due->frame == shown + 1);
+        CHECK(b.light.captured.back() == b.light.frames.back());
+
+        b.light.reading = false;
+        const std::uint64_t unread = ask.ask(gfx::SurfaceCaptureRequested{});
+        REQUIRE(ask.captured(unread).has_value());
+        CHECK_FALSE(ask.captured(unread)->ok);
+        CHECK(ask.captured(unread)->refusal == "this medium has no picture to read back right now");
+        const std::uint64_t kept = ask.ask(gfx::SurfaceCaptureChunkRequested{2, 0});
+        CHECK(!ask.refused(kept).has_value()); // a refused capture leaves the retained one
+    }
 }
 
 TEST_CASE("the OS window's clipboard and its place on the desktop are its backend's: a copy handed "
@@ -4238,6 +4589,65 @@ TEST_CASE("the OS window's clipboard and its place on the desktop are its backen
     w.place(gw::WindowPlacementValue{300, 200, false});
     REQUIRE(t.light.placed.size() == 1);
     CHECK(t.light.placed[0] == gw::WindowPlacementValue{300, 200, false});
+
+    SUBCASE("on the bus: a copy handed on, and a paste answered from the clipboard read then") {
+        LitWindow b(nullptr, true);
+        PlatformAsker& ask = b.platform;
+        ask.copy("broth");
+        CHECK(b.light.copies == std::vector<std::string>{"broth"});
+        const std::uint64_t none = ask.ask(gfx::ClipboardTextRequested{});
+        b.light.clipboard = "stock";
+        const std::uint64_t some = ask.ask(gfx::ClipboardTextRequested{});
+        b.light.clipboard = "";
+        const std::uint64_t empty = ask.ask(gfx::ClipboardTextRequested{});
+        REQUIRE(ask.heard.texts.size() == 3);
+        CHECK(ask.heard.texts[0].first == none);
+        CHECK_FALSE(ask.heard.texts[0].second.readable);
+        CHECK(ask.heard.texts[1].first == some);
+        CHECK(ask.heard.texts[1].second.readable);
+        CHECK(ask.heard.texts[1].second.text == "stock");
+        CHECK(ask.heard.texts[2].first == empty);
+        CHECK(ask.heard.texts[2].second.readable);
+        CHECK(ask.heard.texts[2].second.text.empty());
+        CHECK(b.light.reads == 3);
+    }
+    SUBCASE("on the bus: its place said on activation before its offer, again only when it moved, "
+            "before the offer when its size moved too, and after a place offered back") {
+        LitWindow b(nullptr, true, gw::WindowPlacementValue{40, 30, false});
+        PlatformAsker& ask = b.platform;
+        REQUIRE(ask.heard.placements.size() == 1);
+        CHECK(placed_at(ask.heard.placements[0], 40, 30, false));
+        REQUIRE(ask.heard.order.size() >= 2);
+        CHECK(ask.heard.order[0] == "SurfacePlacement");
+        CHECK(ask.heard.order[1] == "WindowOffered");
+        CHECK(b.r.count(0, gfx::SurfacePlacement::zen_name, sdl_office()) == 1);
+
+        b.pump();
+        (void)ask.ask(gfx::PumpSurface{});
+        CHECK(ask.heard.placements.size() == 1); // where it was: nothing said
+
+        // Dragged and resized at once: its place first, then its room.
+        b.light.placement = gw::WindowPlacementValue{90, 70, false};
+        b.light.size = gw::PixelSize{1200, 600};
+        const std::size_t from = ask.heard.order.size();
+        b.pump();
+        REQUIRE(ask.heard.order.size() == from + 2);
+        CHECK(ask.heard.order[from] == "SurfacePlacement");
+        CHECK(ask.heard.order[from + 1] == "WindowOffered");
+        CHECK(placed_at(ask.heard.placements.back(), 90, 70, false));
+        CHECK(ask.heard.offers.back().cols == 1200 / gfx::kCellPx);
+
+        // A place offered back is the backend's to take; where the window is after is said.
+        (void)ask.ask(gfx::SurfacePlacementRemembered{90, 70, false});
+        REQUIRE(b.light.placed.size() == 1);
+        CHECK(b.light.placed[0] == gw::WindowPlacementValue{90, 70, false});
+        CHECK(ask.heard.placements.size() == 2); // it sits where it sat: nothing new
+        b.light.placement = gw::WindowPlacementValue{300, 200, true};
+        (void)ask.ask(gfx::SurfacePlacementRemembered{300, 200, true});
+        REQUIRE(ask.heard.placements.size() == 3);
+        CHECK(placed_at(ask.heard.placements.back(), 300, 200, true));
+        CHECK(ask.heard.closes == 0);
+    }
 }
 
 TEST_CASE("the OS window asks its backend to grow once for each new reach of its areas past it, and "

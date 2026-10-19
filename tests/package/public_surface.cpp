@@ -30,6 +30,7 @@
 #include "graphics/painter_export.hpp"
 #include "graphics/role.hpp"
 #include "graphics/term_paint.hpp"
+#include "graphics/vocabulary.hpp"
 #include "graphics/window/terminal_io.hpp"
 
 #include "operator/catalog.hpp"
@@ -65,6 +66,7 @@
 
 #include <cstdio>
 #include <string>
+#include <type_traits>
 #include <variant>
 #include <vector>
 
@@ -455,6 +457,16 @@ void graphics_surface() {
           "and the painter for light paints the same label as a run of text in pixels");
     static_assert(zengine::surface::role::kGuide == gfx::role::kGuide,
                   "Surface's roles are the graphics vocabulary's");
+    static_assert(std::is_same_v<zengine::surface::ClipboardCopy, gfx::ClipboardCopy> &&
+                      std::is_same_v<zengine::surface::SurfaceCaptured, gfx::SurfaceCaptured> &&
+                      std::is_same_v<zengine::surface::SurfacePlacement, gfx::SurfacePlacement>,
+                  "Surface's platform shapes are the graphics vocabulary's");
+    gfx::SurfaceCaptureChunk chunk;
+    chunk.data.assign(3, 0x2a);
+    const auto read = loom::claim_item<zengine::surface::SurfaceCaptureChunk>(
+        loom::bequeath_item(chunk));
+    check(read.has_value() && read->data.size() == 3,
+          "a chunk spelled either way crosses as the one shape");
     check(gfx::window::tui_leave_sequence(false).find("?1049l") != std::string::npos,
           "the terminal's claim gives the alternate screen back");
 }

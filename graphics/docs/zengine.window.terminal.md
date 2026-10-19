@@ -6,8 +6,9 @@ window's office is `zengine.window.` and its name, `terminal`) and is built as
 `zengine-window-terminal`, a file a host loads. It keeps what each owner drew, paints it with the
 area's skin, composes the areas, writes the terminal only the cells that changed, and sends the
 terminal's keys, their text and its pointer to the owners. The directory,
-[`zengine.graphics`](zengine.graphics.md), introduces its areas to it. C++ in its own process may
-also have it copy to the terminal's clipboard, and read back the cells it last showed
+[`zengine.graphics`](zengine.graphics.md), introduces its areas to it. It answers for its terminal
+too: a copy goes to the terminal's clipboard, a paste finds none to read, and the cells it last
+showed are read back by picture and chunk; C++ in its own process may ask the same directly
 ([the Graphics package](graphics.md#a-window-in-its-own-process)).
 
 ## About
@@ -132,6 +133,65 @@ reading the terminal.
 - **Refuses:** nothing.
 - **Example:** a suite asks it after each tick, and compares `rows` with what the game drew.
 
+### `ClipboardTextRequested`
+
+`ClipboardTextRequested` v1 asks what the platform clipboard holds, for a paste.
+
+- **Takes:** nothing.
+- **Answers:** `ClipboardText` v1, to the asker alone: `readable` false and `text` empty, since no
+  terminal route reads a clipboard; the asker pastes what its own process last copied.
+- **Refuses:** nothing.
+- **Example:** a pane asks when a weaver pastes, and on this window pastes its own last copy.
+
+### `SurfacePlacementRemembered`
+
+`SurfacePlacementRemembered` v1 offers back a place on the desktop a session remembered.
+
+- **Takes:** `x`, `y` and `maximized`, as an OS window said them.
+- **Answers:** nothing: a terminal's window is its emulator's, so this window takes no place and
+  says none (`SurfacePlacement`).
+- **Refuses:** nothing.
+- **Example:** a host restoring a session offers the place it kept; nothing moves.
+
+### `PumpSurface`
+
+`PumpSurface` v1 asks for the beat's work now.
+
+- **Takes:** nothing.
+- **Answers:** nothing; the window does what its beat does ([`TimerFired`](#timerfired)): it
+  measures the terminal, offering itself again at another size in cells, and sends on what the
+  terminal typed.
+- **Refuses:** nothing.
+- **Example:** a suite, or a host with no Timer, pumps the window after typing into its terminal.
+
+### `SurfaceCaptureRequested`
+
+`SurfaceCaptureRequested` v1 asks for a picture of the cells the window last showed.
+
+- **Takes:** `after_frame`: -1 for now; a count at or past the window's showings so far holds the
+  answer back until the showing that passes it.
+- **Answers:** `SurfaceCaptured` v1, to the asker alone, the picture retained in place of the last:
+  `ok`; `capture`, its number; `frame`, the showings when it was taken; `width` and `height` in
+  cells; `cell_px` 0; `format` `text/cells`, a row of `width` glyphs a line, each ending in a
+  newline; `bytes`, its size. A drawing saying `more` is not in it until shown.
+- **Refuses:** in `SurfaceCaptured`, `ok` false and `refusal`: `this medium has no picture to read
+  back right now`, before its first showing; `a capture is already waiting for frame <n>; one waits
+  at a time`; `this delivery cannot defer its answer`; `the picture is <n> bytes, over the <bound>
+  this window retains` (`kMaxCaptureBytes`).
+- **Example:** `SurfaceCaptureRequested{-1}`, then its bytes by chunk.
+
+### `SurfaceCaptureChunkRequested`
+
+`SurfaceCaptureChunkRequested` v1 fetches one chunk of the retained picture.
+
+- **Takes:** `capture`, the picture's number; `offset`, a byte of it.
+- **Answers:** `SurfaceCaptureChunk` v1, to the asker alone: `capture`, `offset`, `total`, and
+  `data`, at most `kCaptureChunkBytes` bytes from `offset`; on the last, `offset` and the size of
+  `data` make `total`.
+- **Refuses:** in `zen.Refused`: `no picture is retained; ask for a capture first`; `capture <n> is
+  gone; the retained one is <m>`; `offset <n> is outside a picture of <total> bytes`.
+- **Example:** `SurfaceCaptureChunkRequested{1, 0}`, then from each chunk's end until `total`.
+
 ## Hears
 
 ### `AreaIntroduced`
@@ -173,18 +233,23 @@ again.
 `TimerResolution` v1, from the Timer: what became of the window's order for its beat, kept by its
 timer binding.
 
+### `ClipboardCopy`
+
+`ClipboardCopy` v1, a weaver's copy: the text written to the terminal as its copy sequence, OSC 52,
+which no terminal confirms. It is no showing, and nothing answers it.
+
 ## Follow
 
-The window publishes `WindowOffered` v1 as its own office, on each activation, after
+As its own office the window publishes `WindowOffered` v1 on each activation, after
 `GraphicsReady`, and on a beat that finds its terminal at another size in cells: its name, its size
-in cells, its incarnation, which a resize leaves as it was. The directory keeps it; an arranger
-that follows it may lay out in that room. Everything else goes to one office. To an area's owner:
-`AreaRoom` v2 for each introduction (the area, this window, its incarnation, the area's size, the
-references of the elements it presents there); `DrawnRefused` v1; `ActionRequested` v1;
-`PointerButton` v1, `PointerMoved` v1 and `PointerWheel` v1 when placed to hear the pointer;
-`KeyPressed` v2, `KeyReleased` v2 and `TextEntered` v1 when placed to hear keys, a shape it does not
-take refused on the bus. To the Timer, its beat's order. An observer reads what it shows
-with `WindowShowAsked`.
+in cells and its incarnation, which a resize keeps. The directory keeps it; an arranger following
+it may lay out in that room. A terminal has no place on the desktop and no close box, so it never
+publishes `SurfacePlacement` or `SurfaceCloseRequested`. To an area's owner: `AreaRoom` v2 for
+each introduction; `DrawnRefused` v1; `ActionRequested` v1; `PointerButton` v1, `PointerMoved` v1
+and `PointerWheel` v1 when placed to hear the pointer; `KeyPressed` v2, `KeyReleased` v2 and
+`TextEntered` v1 when placed to hear keys, a shape it does not take refused on the bus. To an asker
+alone: `WindowShown` v1, `ClipboardText` v1, `SurfaceCaptured` v1, `SurfaceCaptureChunk` v1 and
+`zen.Refused`. To the Timer, its beat's order.
 
 ## Files
 

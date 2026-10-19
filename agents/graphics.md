@@ -18,9 +18,14 @@ keeps, is [surface](surface.md); where the two meet is the last section here.
   and presses are one class over its medium (`graphics/window/window.hpp`); what a medium keeps
   painted, how it shows it and what it reads are the medium's alone (`window_terminal.hpp`,
   `window_sdl.hpp`). A medium never holds a node, a record or an element the store does not.
-- **A medium answers for its platform to C++ in its own process**: a close its desktop asked, the
-  clipboard, its place on the desktop, and the picture it last presented, read back -- never one a
-  drawing saying `more` holds back. The clipboard is read when a paste asks, never on the beat.
+- **A window answers for its platform, on the bus and to C++ in its own process**: a copy, a
+  paste's read of the clipboard (`ClipboardText`), its place on the desktop and a place offered
+  back, a close its desktop asked for, the beat on request (`PumpSurface`), and the picture it last
+  presented, read back -- never one a drawing saying `more` holds back. The clipboard is read when a
+  paste asks, never on the beat. The OS window publishes its place when it changed, before its
+  offer when both did, and each close once, as its office; a terminal publishes neither. One
+  picture is retained and fetched by chunk, one capture waits for its showing at a time, and a
+  picture over `kMaxCaptureBytes` is refused whole.
 - **Nothing on the path a picture takes but the drawer and its window.** The directory introduces;
   it never holds a node, a record or a painted cell, and a skin chosen or an area moved sends the
   window a word, never a drawing.
@@ -85,5 +90,7 @@ keeps, is [surface](surface.md); where the two meet is the last section here.
   arrangement. A window claims the input edge it shares with an Input reader for its life
   (`input/window_claim.hpp`), and a reader beside it reads none of it: the terminal window the
   terminal's input, the OS window SDL's one queue.
-- Graphics includes nothing of Surface: its roles and the terminal's claim are its own, and
-  Surface's headers spell them for the Skins (`surface/vocabulary.hpp`, `surface/tui_terminal.hpp`).
+- Graphics includes nothing of Surface: its roles, the terminal's claim and the platform's shapes
+  (the clipboard, the place, the close, the pump and the capture) are its own, and Surface's headers
+  spell them for the Skins (`surface/vocabulary.hpp`, `surface/tui_terminal.hpp`). A window and a
+  Skin both hear every copy published, so a process shows through one of them.

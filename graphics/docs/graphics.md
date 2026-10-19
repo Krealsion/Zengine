@@ -8,8 +8,8 @@ room; nothing a picture is made of passes through it.
 
 A program spells the vocabulary with `#include "graphics/vocabulary.hpp"` and links
 `zengine::graphics`. This page is for whoever draws: the vocabulary, the canvas, a drawing weave,
-an element of your own, and the two seams a skin or an element's code is written against; and for
-a host, what a window answers to C++ in its own process. The
+an element of your own, and the two seams a skin or an element's code is written against; and
+what a window answers for its platform, on the bus and to C++ in its own process. The
 package ships three weaves, each with its manual: the terminal window,
 [`zengine.window.terminal`](zengine.window.terminal.md), built as `zengine-window-terminal`; the OS
 window, [`zengine.window.sdl`](zengine.window.sdl.md), built as `zengine-window-sdl` where the build
@@ -35,6 +35,11 @@ window -> everyone           WindowOffered (as its own office, with its size and
 directory -> window          AreaIntroduced, AreaWithdrawn, ElementCodeOffered
 owner -> directory           RoomAsked (an owner that started again)
 directory -> everyone        GraphicsReady (a directory that started afresh)
+anyone -> a window           ClipboardCopy, PumpSurface, SurfacePlacementRemembered
+asker -> a window            ClipboardTextRequested, SurfaceCaptureRequested,
+                             SurfaceCaptureChunkRequested
+window -> the asker          ClipboardText, SurfaceCaptured, SurfaceCaptureChunk, zen.Refused
+OS window -> everyone        SurfacePlacement, SurfaceCloseRequested (as its own office)
 ```
 
 The **arranger** is whoever a host lets reach the directory: in the snake's host, its operator;
@@ -50,6 +55,12 @@ hears, at its own point in pixels, a left press nothing drawn there took, and ev
 moment that lands in it: any button let go, the middle or right button pressed, a move, the wheel.
 Either window, terminal or OS, routes them alike
 ([`zengine.window.sdl`](zengine.window.sdl.md#use)).
+
+A window also answers for its platform, in the shapes Surface's Skin answers too, spelled here
+(`graphics/vocabulary.hpp`): a copy, a paste's read of the clipboard, its place on the desktop and a
+place offered back, a close its desktop asked for, the beat's work on request, and the picture it
+last presented, retained one at a time and fetched by chunk. What each window does with them is its
+manual's; a terminal reads no clipboard and has no place or close box, so it says none.
 
 ## A node, and an element's record beside it
 
@@ -227,12 +238,11 @@ a pane's. What a window says of a library it cannot open or read is
 ## A window in its own process
 
 C++ in a window's own process -- a host's, beside the window it loaded -- may ask the window
-(`Window<Medium>`, `graphics/window/window.hpp`) what no message does, and each medium answers for
-its platform:
+(`Window<Medium>`, `graphics/window/window.hpp`) directly for what its messages carry, and each
+medium answers for its platform:
 
 | ask | the terminal window | the OS window |
 |---|---|---|
-| `close_requested()`, `take_close()` | never asked to close | a close its desktop asked for, kept until it is taken |
 | `clipboard_copy(text)` | the text written to the terminal as OSC 52 (`window::terminal_clipboard_sequence`), which no terminal confirms | the text put on the platform's clipboard |
 | `clipboard_text()` | none: no terminal route reads a clipboard | the clipboard's text, read only when asked and never on the window's beat; empty when it holds no text, none with no window |
 | `placement()` | none: the terminal's window is its emulator's | its normal top-left on the desktop and whether it is maximized; none with no window, or one never seen unmaximized |
@@ -240,6 +250,8 @@ its platform:
 | `capture()` | the cells it last showed, `text/cells`: a row of `width` glyphs a line, each ending in a newline, `cell_px` 0 | the picture it last presented, drawn again and read back: `image/bmp`, 24-bit and bottom-up (`window::bmp_of_bgr24`), in pixels, `cell_px` `kCellPx` |
 
 `capture()` answers none before the window has shown anything, and never shows what a drawing
-saying `more` still holds back. The OS window opens centred on its display's usable area, and an
-area placed past its edge grows it, as far as that display holds it, once for each new reach: a
-window a weaver made smaller is not grown back while its areas stay where they are.
+saying `more` still holds back. A close its desktop asked for is published, not kept: the beat that
+reads it publishes `SurfaceCloseRequested` as the window's office, once. The OS window opens
+centred on its display's usable area, and an area placed past its edge grows it, as far as that
+display holds it, once for each new reach: a window a weaver made smaller is not grown back while
+its areas stay where they are.
