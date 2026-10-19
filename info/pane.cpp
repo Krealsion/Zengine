@@ -2,11 +2,11 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The Info pane: a loadable weave that offers Workshop the properties of the one pane a weaver
-// chose to inspect (`property_view.hpp`) -- plus independent typed value views
-// (`value_view.hpp`). The seam has three parts: a picture the host derives and publishes when
-// it changes (`PaneSubjectShown`), the one door that names the subject
-// (`InspectPaneRequested`), and a commit naming the rows its draft was typed for
-// (`PaneCommitRequested`); nothing here touches a desk or a definition.
+// chose to inspect (`property_view.hpp`) -- plus independent typed value views (`value_view.hpp`).
+// The host publishes the subject's picture (`PaneSubjectShown`); Info names the subject
+// (`InspectPaneRequested`) and asks for a commit or a pin act (`PaneCommitRequested`,
+// `PaneSettingPinRequested`). Nothing here touches a desk or a definition. The default pane takes
+// two settings of its own, the label column's width and the tab a new subject opens on.
 // Workshop law: agents/workshop/info-body.md
 
 // The subject is named by an office and nothing else moves it: the Pane Manager's `inspect in
@@ -23,7 +23,9 @@
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_document.hpp"
 #include "workshop/pane_seat.hpp"
+#include "workshop/pane_settings.hpp"
 #include "workshop/pane_vocabulary.hpp"
+#include "workshop/settings_seam_vocabulary.hpp"
 
 #include "activation/activation.hpp"
 #include "property_view.hpp"
@@ -47,6 +49,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -94,6 +97,7 @@ class InfoPaneWeave
                        InspectPaneRequested,
                        loom::Refused, PaneRoom, ws::PaneCanvasRoom, PaneKey,
                        PaneTextInput, PaneActionRequested, PaneInventory, PaneSubjectShown,
+                       ws::v2::PaneSubjectShown, ws::PaneSettingPinActed, ws::v2::PaneSettings,
                        PaneSubjectActed, loom::DispatchRefused, surface::ClipboardCopy,
                        surface::ClipboardText, ws::PaneCanvasPointer, ws::PaneCanvasRejected,
                        ws::PaneMenuAnswered, ws::PaneObservationAnswered, zengine::inventory::InventoryChanged,
@@ -104,7 +108,8 @@ class InfoPaneWeave
                      surface::ClipboardCopy, surface::ClipboardTextRequested, ws::v4::PaneContent,
                      ws::v5::PaneCanvasContent, ws::PaneCaret, ws::PanePassRequested,
                      ws::PaneMenuRequested, ws::PaneObservationRequested, ws::PaneObservationContinued,
-                     ws::PaneEscapeUnspent,
+                     ws::PaneEscapeUnspent, ws::PaneSettingPinRequested,
+                     ws::v2::PaneSettingsDeclared, ws::PaneSettingUnused,
                      ws::PaneObservationEnded, loom::PokeDescribe, ws::PaneLaunchRequested,
                      ws::PaneCloseRequested>> {
 public:
@@ -377,12 +382,71 @@ public:
     }
 
     /// WHAT THE SUBJECT LOOKS LIKE, SAID BY THE HOST, AND WHAT ITS ROWS ADDRESS: the property
-    /// view's reading (`PropertyView::shown`).
+    /// view's reading (`PropertyView::shown`). A host that says v1 says no row is a setting, so
+    /// every row is shown as it says them, with no strip.
     void on(const PaneSubjectShown& said, loom::Mail& mail) {
         if (!from_workshop(mail)) {
             return; // a stranger's opinion about a pane is not a reading of one
         }
+        properties_.shown(ws::widen_pane_subject(said));
+        settle(mail);
+    }
+    void on(const ws::v2::PaneSubjectShown& said, loom::Mail& mail) {
+        if (!from_workshop(mail)) {
+            return;
+        }
         properties_.shown(said);
+        settle(mail);
+    }
+
+    /// What the host made of a pin act the property view asked for (`PropertyView::pinned`).
+    void on(const ws::PaneSettingPinActed& said, loom::Mail& mail) {
+        if (!mail.answers_ask()) {
+            return;
+        }
+        properties_.pinned(said, mail);
+        settle(mail);
+    }
+
+    /// THE DEFAULT PANE'S OWN SETTINGS, as the host hands them: each read, and one it cannot use
+    /// said back against the revision it was handed at, its default standing in.
+    void on(const ws::v2::PaneSettings& handed, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || handed.pane != pane::kInfoPane) {
+            return;
+        }
+        std::int64_t columns = pane::kLabelColumnsDefault;
+        std::string tab = pane::kTabPinned;
+        const auto unused = [&](const std::string& key, const ws::PaneSetting& kept) {
+            std::optional<ws::PaneSettingRow> row;
+            for (const ws::v2::PaneSettingRow& r : setting_rows()) {
+                if (r.key == key) {
+                    row = ws::narrow_setting_row(r);
+                }
+            }
+            const std::string why = row ? ws::pane_setting_refused_by(*row, kept)
+                                        : std::string("not a setting Info takes");
+            (void)mail.as_role(pane::kInfoPaneRole)
+                .send_to_role(kWorkshopRole,
+                              ws::PaneSettingUnused{pane::kInfoPane, handed.revision, key,
+                                                    why.substr(0, ws::kMaxPaneSettingTextLen)});
+        };
+        for (const ws::PaneSetting& s : handed.settings) {
+            if (s.key == pane::kLabelColumnsSetting) {
+                if (s.number && *s.number >= pane::kLabelColumnsLow &&
+                    *s.number <= pane::kLabelColumnsHigh) {
+                    columns = *s.number;
+                } else {
+                    unused(s.key, s);
+                }
+            } else if (s.key == pane::kTabSetting) {
+                if (s.text && (*s.text == pane::kTabPinned || *s.text == pane::kTabAll)) {
+                    tab = *s.text;
+                } else {
+                    unused(s.key, s);
+                }
+            }
+        }
+        properties_.settings(columns, std::move(tab));
         settle(mail);
     }
 
@@ -426,7 +490,7 @@ public:
     void press(pane::ValueView& v, const ws::RowCell& at, bool current, loom::Mail& mail) {
         if (!value_mode(v)) {
             if (current) {
-                properties_.press(at.row);
+                properties_.press(at.row, at.column);
                 settle(mail);
             }
             return;
@@ -538,6 +602,12 @@ public:
             if (!v.is_default() && !v.offered) continue;
             offer(v, mail);
             declare(v, mail);
+            // THE DEFAULT PANE'S OWN SETTINGS, declared beside its offer.
+            if (v.is_default()) {
+                (void)mail.as_role(pane::kInfoPaneRole)
+                    .send_to_role(kWorkshopRole,
+                                  ws::v2::PaneSettingsDeclared{pane::kInfoPane, setting_rows()});
+            }
         }
         // ...AND WHAT THE HOST HOLDS NOW: the inventory, and the subject this office named --
         // which a reload of this image finds standing, because the host keeps it. Both are
@@ -550,6 +620,27 @@ public:
     }
 
 private:
+    /// THE SETTINGS THE DEFAULT PANE TAKES: how wide its label column is, and the tab a new
+    /// subject's settings open on.
+    static std::vector<ws::v2::PaneSettingRow> setting_rows() {
+        ws::v2::PaneSettingRow columns;
+        columns.key = pane::kLabelColumnsSetting;
+        columns.number = pane::kLabelColumnsDefault;
+        columns.low = pane::kLabelColumnsLow;
+        columns.high = pane::kLabelColumnsHigh;
+        columns.tags = {"layout"};
+        columns.pinned = true;
+        columns.summary = "width of the property label column";
+        ws::v2::PaneSettingRow tab;
+        tab.key = pane::kTabSetting;
+        tab.text = std::string(pane::kTabPinned);
+        tab.choices = {pane::kTabPinned, pane::kTabAll};
+        tab.tags = {"settings"};
+        tab.pinned = true;
+        tab.summary = "initial settings tab for a new subject";
+        return {columns, tab};
+    }
+
     /// WHAT THIS PANE ANSWERS TO RIGHT NOW -- re-declared whenever the mode changes.
     void declare(pane::ValueView& v, loom::Mail& mail) {
         PaneActions actions;

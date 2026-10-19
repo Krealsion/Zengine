@@ -153,6 +153,20 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/an-inspector-names-its-subject.md`
 
+## WL-INFO-16 — SETTINGS rows are shown under a tab their own words derive, and a pin is asked of the host
+
+LAW — Under SETTINGS one strip of tabs — `pinned`, `all`, each tag in byte order, `kept` — is derived each picture; only the active tab's rows are shown, the pinned ones in pin order.
+
+MEANS
+- a narrow strip grows out from the active tab, counting `<N` and `N>`; a face or count is the part `tab:<word>`, a count named for the nearest tab it hides;
+- `[` `]` step and wrap; `p` pins or unpins, shift+up and shift+down move, each a `PaneSettingPinRequested`, one at a time; a draft's row stays shown and the strip still;
+- a new subject opens on Info's `tab` setting, else `all`, and `label-columns` sets the label column; a host saying v1 marks no row a setting, so all show, no strip.
+
+DOES NOT MEAN
+- that a tab changes what the host sends: every row crosses, and a commit names its row's place among them.
+
+WHY — `agents/decisions/a-setting-is-found-by-its-tags-and-pins.md`
+
 ## Proven by
 
 ### WL-INFO-01
@@ -285,3 +299,29 @@ Info commit queued behind another desk put live, or another and back, is refused
 written and the pane says why" "an Info commit whose image was replaced before its answer is not the
 successor's: the successor holds no draft and says nothing of it, the subject stands, and the write
 shows as the owner's rows"
+
+### WL-INFO-16
+`component/tab_strip.hpp` setting_tabs window_tab_strip TabStrip PlacedTab tab_face
+`info/property_view.hpp` tabs active_tab entries under_tab choose_tab step_tab press_strip ask_pin
+pinned settings named_rows
+`info/pane.cpp` on(v2::PaneSubjectShown) on(PaneSettingPinActed) on(v2::PaneSettings)
+setting_rows
+`info/vocabulary.hpp` kActionTabPrevious kActionTabNext kTabPartPrefix kActionPin kActionPinUp
+kActionPinDown kLabelColumnsSetting kTabSetting
+`workshop/inspection_seam_vocabulary.hpp` v2::ShownProperty v2::PaneSubjectShown
+narrow_pane_subject widen_pane_subject
+`workshop/screen_pane_subject.cpp` pane_subject_shown
+`workshop/weave_inspection.cpp` inspected_subject publish_pane_subject on(PaneSubjectRequested)
+`workshop/weave.hpp` inspected_subject
+`tests/test_component.cpp` "setting_tabs: pinned when any setting is, all, every tag once in byte
+order, kept when a kept row is" "window_tab_strip: every tab when they fit, the active one
+`*word*`, each face's columns its own" "window_tab_strip: a narrow width grows a window outward
+from the active tab and counts what it leaves out on each side" "window_tab_strip: the window is
+derived from the active tab, so a strip that loses tabs leaves no stale offset"
+`tests/test_workshop_panes_info.cpp` "Info's settings rows are found by a tab strip under SETTINGS:
+pinned first, `]` and `[` step and wrap, and a tag shows its own rows" "a tab's face is a part
+named by its word, and a narrow Info counts the tabs it leaves out, each count named for the nearest
+one" "`p` pins and unpins the cursor's setting, and shift+up and shift+down move it
+among the pins, each asked of the host" "Info takes its own settings: the label column's width, and
+the tab a new subject opens on" "a host that says v1 shows Info every row as it says them, with no
+strip"

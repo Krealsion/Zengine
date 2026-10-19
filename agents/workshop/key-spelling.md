@@ -65,5 +65,7 @@ shift+letter binding swallows the capital its keystroke produced"
 `tests/test_workshop_panes_builder.cpp` "WL-KEY-16: the band's spelling and the Hotkeys view's are
 set apart from a pane's gear, each changing only its own surface, the `?` spelling as the Hotkeys
 view does"
-`tests/test_workshop_persistence.cpp` "prefs round-trip, and the words are a closed set" "a prefs
-file of the version that held the titles alone is read, its spellings the defaults"
+`tests/test_workshop_persistence.cpp` "the settings file round-trips what it keeps: Workshop's own
+settings, another office's, pin lists and locks" "a version-2 prefs file is read as Workshop's own
+three settings, and its words are still a closed set" "a prefs file of the version that held the
+titles alone is read, its spellings the defaults"

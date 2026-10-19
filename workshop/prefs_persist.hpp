@@ -4,12 +4,17 @@
 #ifndef ZENGINE_WORKSHOP_PREFS_PERSIST_HPP
 #define ZENGINE_WORKSHOP_PREFS_PERSIST_HPP
 
-// THE WEAVER'S PRESENTATION PREFERENCES -- a seventh durable artifact, and the second file
-// of the weaver-configuration kind.
-// Workshop law: agents/workshop/focus.md, agents/workshop/key-spelling.md
+// WORKSHOP'S SETTINGS FILE -- a seventh durable artifact, and the second file of the
+// weaver-configuration kind: every office's office-wide settings Workshop keeps (Workshop's own
+// among them), the pin lists an editor shows a pane's settings in, and the locks that hold a
+// setting everywhere. A version-1 or version-2 file, which held three preferences as words, is
+// read as Workshop's own three settings.
+// Workshop law: agents/workshop/settings.md, agents/workshop/focus.md, agents/workshop/key-spelling.md
 
 #include "keymap.hpp"
+#include "pane_settings.hpp"
 #include "persist.hpp"
+#include "settings_seam_vocabulary.hpp"
 
 #include <zen/admission.hpp>
 #include <zen/schema.hpp>
@@ -17,34 +22,59 @@
 #include <zen/value.hpp>
 #include <zen/weave/shape.hpp>
 
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <utility>
+#include <vector>
 
 namespace zengine::workshop::prefs_persist {
 
-/// What a Workshop preferences file says it is -- its own word, beside the family's
-/// others, so handing Workshop the wrong one of its own files is named rather than
-/// half-read.
+/// What a Workshop settings file says it is -- its own word, beside the family's others, so
+/// handing Workshop the wrong one of its own files is named rather than half-read.
 inline constexpr const char* kFormat = "zengine-workshop-prefs";
 
-/// The preferences format version this build writes. It reads this one and the one before it,
-/// whose file held the titles alone.
-inline constexpr std::int64_t kFormatVersion = 2;
+/// The format version this build writes. It reads this one and the two before it: version 2 held
+/// three preferences as words, version 1 the titles alone.
+inline constexpr std::int64_t kFormatVersion = 3;
+inline constexpr std::int64_t kWordsVersion = 2;
 inline constexpr std::int64_t kTitlesOnlyVersion = 1;
 
-/// Preferences are the smallest file of the family: a couple of words. The ceiling is the
-/// read side of the decoder's own materialisation law -- a hostile file does not get to
-/// choose the cost of refusing it.
+/// The ceiling is the read side of the decoder's own materialisation law -- a hostile file does
+/// not get to choose the cost of refusing it.
 inline constexpr std::uintmax_t kMaxPrefsBytes = 1u << 16;
+
+/// The most pin lists and everywhere locks the file keeps, and the longest target either names.
+inline constexpr std::size_t kMaxPinLists = 32;
+inline constexpr std::size_t kMaxEverywhereLocks = 128;
+inline constexpr std::size_t kMaxSettingTargetLen = 128;
 
 /// The file's suggested name, beside the family's other defaults.
 inline constexpr const char* kDefaultPrefsFileName = "workshop-prefs.json";
 
-// ---- The preference's words, and why they are words ------------------------------------
-// WL-FOCUS-11 -- agents/workshop/focus.md
+// ---- Workshop's own settings ----------------------------------------------------------
 
+/// The office Workshop's own settings are kept under.
+inline constexpr const char* kWorkshopOffice = "zengine.workshop";
+
+/// Workshop's own keys: whether the arrangeable panes wear their titles, how the band and the
+/// Hotkeys view spell a key, which pin list an editor edits, and how the keyboard's selection is
+/// ringed.
+inline constexpr const char* kPaneTitlesKey = "workshop.pane-titles";
+inline constexpr const char* kBandKeysKey = "workshop.band-keys";
+inline constexpr const char* kHotkeysKeysKey = "workshop.hotkeys-keys";
+inline constexpr const char* kPinnedScopeKey = "workshop.pinned-scope";
+inline constexpr const char* kFocusRingKey = "workshop.focus.ring";
+
+/// The selection ring's two styles: the accent's two rings, or one ring in the chrome's ink.
+inline constexpr const char* kRingAccent = "accent";
+inline constexpr const char* kRingPlain = "plain";
+
+// WL-FOCUS-11 -- agents/workshop/focus.md
 inline constexpr const char* kTitlesDefault = "default";
 inline constexpr const char* kTitlesShown = "shown";
 inline constexpr const char* kTitlesHidden = "hidden";
@@ -65,18 +95,96 @@ inline constexpr const char* kKeysWords = "default, short or full";
 inline constexpr KeySpelling kBandKeysDefaultValue = KeySpelling::kShort;
 inline constexpr KeySpelling kHotkeysKeysDefaultValue = KeySpelling::kFull;
 
-/// THE PREFERENCES AS VALUES: whether the arrangeable panes wear their titles, and how the band
-/// and the Hotkeys view each spell a key.
+/// WORKSHOP'S OWN OFFICE-WIDE SETTINGS, declared in code: what each takes, its default, the tags
+/// it is listed under, whether it is pinned by default, and what it does.
+inline std::vector<workshop::v2::PaneSettingRow> workshop_office_rows() {
+    const auto text = [](const char* key, const char* fallback, std::vector<std::string> choices,
+                         std::vector<std::string> tags, bool pinned, const char* summary) {
+        workshop::v2::PaneSettingRow row;
+        row.key = key;
+        row.text = fallback;
+        row.choices = std::move(choices);
+        row.tags = std::move(tags);
+        row.pinned = pinned;
+        row.summary = summary;
+        return row;
+    };
+    workshop::v2::PaneSettingRow titles;
+    titles.key = kPaneTitlesKey;
+    titles.flag = kTitlesDefaultValue;
+    titles.tags = {"chrome"};
+    titles.pinned = true;
+    titles.summary = "draw title text on pane borders";
+    return {titles,
+            text(kBandKeysKey, kKeysShort, {kKeysShort, kKeysFull}, {"chrome", "input"}, false,
+                 "show short or full hotkey hints on the bottom band"),
+            text(kHotkeysKeysKey, kKeysFull, {kKeysShort, kKeysFull}, {"chrome", "input"}, false,
+                 "show short or full key chords in the Hotkeys pane"),
+            text(kPinnedScopeKey, kPinsWorkshopWide, {kPinsWorkshopWide, kPinsPerLayout},
+                 {"chrome", "settings"}, true, "pin order scope: workshop-wide or per-layout"),
+            text(kFocusRingKey, kRingAccent, {kRingAccent, kRingPlain}, {"chrome", "focus"}, false,
+                 "command-mode selection ring style: accent or plain")};
+}
+
+/// WORKSHOP'S SETTINGS AS THE SESSION SPENDS THEM: whether the arrangeable panes wear their
+/// titles, how the band and the Hotkeys view each spell a key, whether pins are kept per layout,
+/// and whether the selection's ring is plain.
 struct Presentation {
     bool titles_shown = kTitlesDefaultValue;
     KeySpelling band_keys = kBandKeysDefaultValue;
     KeySpelling hotkeys_keys = kHotkeysKeysDefaultValue;
+    bool pins_per_layout = false;
+    bool ring_plain = false;
 };
 
 // ---- The file's own shape --------------------------------------------------------------
 
-/// A whole saved preferences file: what it is, which version of that it is, and the
-/// preferences as words.
+/// ONE OFFICE'S KEPT SETTINGS, in key order, a default kept as its absence.
+struct OfficeSettingsKept {
+    std::string office;
+    std::vector<PaneSetting> settings;
+    ZEN_SHAPE(OfficeSettingsKept, 1, ZEN_FIELD(office), ZEN_FIELD(settings));
+    friend bool operator==(const OfficeSettingsKept&, const OfficeSettingsKept&) = default;
+};
+
+/// ONE PANE'S PIN LIST, in pin order: `<office>/<pane>` for the Workshop-wide list, and
+/// `<office>/<pane>@<layout>` for one layout's.
+struct PinList {
+    std::string target;
+    std::vector<std::string> keys;
+    ZEN_SHAPE(PinList, 1, ZEN_FIELD(target), ZEN_FIELD(keys));
+    friend bool operator==(const PinList&, const PinList&) = default;
+};
+
+/// AN EVERYWHERE LOCK: a pane target (`<office>/<pane>`) pins its value, or `clear` pins its
+/// default; an office target freezes the office's one value and carries none.
+struct SettingLock {
+    std::string target;
+    std::string key;
+    std::optional<bool> flag = std::nullopt;
+    std::optional<std::int64_t> number = std::nullopt;
+    std::optional<std::string> text = std::nullopt;
+    bool clear = false;
+    ZEN_SHAPE(SettingLock, 1, ZEN_FIELD(target), ZEN_FIELD(key), ZEN_FIELD(flag),
+              ZEN_FIELD(number), ZEN_FIELD(text), ZEN_FIELD(clear));
+    friend bool operator==(const SettingLock&, const SettingLock&) = default;
+};
+
+/// A whole saved settings file: what it is, which version, and what it keeps.
+struct WorkshopPrefs {
+    std::string format;
+    std::int64_t format_version = 0;
+    std::vector<OfficeSettingsKept> offices;
+    std::vector<PinList> pins;
+    std::vector<SettingLock> locks;
+
+    ZEN_SHAPE(WorkshopPrefs, 3, ZEN_FIELD(format), ZEN_FIELD(format_version),
+              ZEN_FIELD(offices), ZEN_FIELD(pins), ZEN_FIELD(locks));
+};
+
+/// THE FILE AS VERSION 2 WROTE IT, three preferences as words, copied verbatim: read as Workshop's
+/// own three settings, and never written.
+namespace v2 {
 struct WorkshopPrefs {
     std::string format;
     std::int64_t format_version = 0;
@@ -87,9 +195,9 @@ struct WorkshopPrefs {
     ZEN_SHAPE(WorkshopPrefs, 2, ZEN_FIELD(format), ZEN_FIELD(format_version),
               ZEN_FIELD(titles), ZEN_FIELD(band_keys), ZEN_FIELD(hotkeys_keys));
 };
+} // namespace v2
 
-/// THE FILE AS VERSION 1 WROTE IT, the titles alone, copied verbatim: read as today's with each
-/// spelling at its default, and never written.
+/// ...AND AS VERSION 1 WROTE IT, the titles alone.
 namespace v1 {
 struct WorkshopPrefs {
     std::string format;
@@ -101,58 +209,234 @@ struct WorkshopPrefs {
 };
 } // namespace v1
 
-/// The envelope's shape version and the prefs format version are ONE NUMBER -- the
-/// family's coupling, for the family's reason: a foreign version is refused by ITS number,
-/// before its fields are judged against this shape.
+/// The envelope's shape version and the format version are ONE NUMBER -- the family's coupling,
+/// for the family's reason: a foreign version is refused by ITS number, before its fields are
+/// judged against this shape.
 static_assert(WorkshopPrefs::zen_version == static_cast<std::uint32_t>(kFormatVersion),
               "the prefs file's format version and its envelope's shape version are one "
               "number: a foreign version must be refused by ITS number, before its fields "
               "are judged against this shape");
+static_assert(v2::WorkshopPrefs::zen_version == static_cast<std::uint32_t>(kWordsVersion),
+              "the words file is read by its own number");
 static_assert(v1::WorkshopPrefs::zen_version == static_cast<std::uint32_t>(kTitlesOnlyVersion),
               "the titles-only file is read by its own number");
 
-// ---- Writing ---------------------------------------------------------------------------
+// ---- What the file keeps, as values ----------------------------------------------------
 
-/// The written word for a titles preference. A toggle is a stated preference, so a save
-/// writes the concrete word for what the weaver chose -- never `default`, which is the
-/// hand-author's word for "whatever the code answers".
-inline const char* titles_word(bool shown) { return shown ? kTitlesShown : kTitlesHidden; }
+/// THE SETTINGS FILE'S CONTENT: offices by name, each office's settings by key; pin lists by
+/// target; locks by target and key. A default is kept as its absence, and an office keeping
+/// nothing is not listed.
+struct Prefs {
+    std::vector<OfficeSettingsKept> offices;
+    std::vector<PinList> pins;
+    std::vector<SettingLock> locks;
+    friend bool operator==(const Prefs&, const Prefs&) = default;
+};
 
-/// ...and the written word for a spelling, by the same rule.
-inline const char* keys_word(KeySpelling spelling) { return spelling_word(spelling); }
+/// The settings an office keeps, or none.
+inline const OfficeSettingsKept* office_kept(const Prefs& p, std::string_view office) noexcept {
+    for (const OfficeSettingsKept& o : p.offices) {
+        if (o.office == office) {
+            return &o;
+        }
+    }
+    return nullptr;
+}
 
-inline WorkshopPrefs to_prefs(const Presentation& said) {
-    WorkshopPrefs out;
-    out.format = kFormat;
-    out.format_version = kFormatVersion;
-    out.titles = titles_word(said.titles_shown);
-    out.band_keys = keys_word(said.band_keys);
-    out.hotkeys_keys = keys_word(said.hotkeys_keys);
+/// THE VALUE AN OFFICE KEEPS UNDER `key`, or nullptr for its default.
+inline const PaneSetting* office_value(const Prefs& p, std::string_view office,
+                                       std::string_view key) noexcept {
+    const OfficeSettingsKept* o = office_kept(p, office);
+    return o == nullptr ? nullptr : find_pane_setting(o->settings, key);
+}
+
+/// KEEP `value` UNDER `key` FOR THE OFFICE, or clear it with none: in key order, the office
+/// listed only while it keeps something. Says whether anything changed.
+inline bool put_office_value(Prefs& p, const std::string& office, const std::string& key,
+                             const std::optional<PaneSetting>& value) {
+    auto at = std::find_if(p.offices.begin(), p.offices.end(),
+                           [&](const OfficeSettingsKept& o) { return o.office == office; });
+    if (!value) {
+        if (at == p.offices.end()) {
+            return false;
+        }
+        const std::size_t was = at->settings.size();
+        std::erase_if(at->settings, [&](const PaneSetting& s) { return s.key == key; });
+        const bool moved = at->settings.size() != was;
+        if (at->settings.empty()) {
+            p.offices.erase(at);
+        }
+        return moved;
+    }
+    if (at == p.offices.end()) {
+        at = p.offices.insert(
+            std::find_if(p.offices.begin(), p.offices.end(),
+                         [&](const OfficeSettingsKept& o) { return o.office > office; }),
+            OfficeSettingsKept{office, {}});
+    }
+    PaneSetting kept = *value;
+    kept.key = key;
+    for (PaneSetting& s : at->settings) {
+        if (s.key == key) {
+            const bool moved = !(s == kept);
+            s = std::move(kept);
+            return moved;
+        }
+    }
+    at->settings.insert(std::find_if(at->settings.begin(), at->settings.end(),
+                                     [&](const PaneSetting& s) { return s.key > key; }),
+                        std::move(kept));
+    return true;
+}
+
+/// How many settings the file keeps, every office's together.
+inline std::size_t kept_count(const Prefs& p) noexcept {
+    std::size_t n = 0;
+    for (const OfficeSettingsKept& o : p.offices) {
+        n += o.settings.size();
+    }
+    return n;
+}
+
+/// The pin list under `target`, or none.
+inline const PinList* pin_list(const Prefs& p, std::string_view target) noexcept {
+    for (const PinList& l : p.pins) {
+        if (l.target == target) {
+            return &l;
+        }
+    }
+    return nullptr;
+}
+
+/// PUT A PIN LIST under its target, in target order.
+inline void put_pin_list(Prefs& p, PinList list) {
+    for (PinList& l : p.pins) {
+        if (l.target == list.target) {
+            l = std::move(list);
+            return;
+        }
+    }
+    const auto at = std::find_if(p.pins.begin(), p.pins.end(),
+                                 [&](const PinList& l) { return l.target > list.target; });
+    p.pins.insert(at, std::move(list));
+}
+
+/// THE LOCK ON `key` UNDER `target`, or none.
+inline const SettingLock* lock_on(const Prefs& p, std::string_view target,
+                                  std::string_view key) noexcept {
+    for (const SettingLock& l : p.locks) {
+        if (l.target == target && l.key == key) {
+            return &l;
+        }
+    }
+    return nullptr;
+}
+
+// ---- Workshop's own settings, read and written as values --------------------------------
+
+/// The value Workshop's office keeps under `key`, or the declared default.
+inline PaneSetting workshop_value(const Prefs& p, std::string_view key) {
+    if (const PaneSetting* kept = office_value(p, kWorkshopOffice, key)) {
+        return *kept;
+    }
+    for (const workshop::v2::PaneSettingRow& row : workshop_office_rows()) {
+        if (row.key == key) {
+            return PaneSetting{row.key, row.flag, row.number, row.text};
+        }
+    }
+    return PaneSetting{std::string(key), std::nullopt, std::nullopt, std::nullopt};
+}
+
+/// WORKSHOP'S SETTINGS AS THE SESSION SPENDS THEM, read from what the file keeps.
+inline Presentation presentation_of(const Prefs& p) {
+    const auto spelled = [&p](const char* key, KeySpelling fallback) {
+        const PaneSetting v = workshop_value(p, key);
+        if (v.text && *v.text == kKeysFull) {
+            return KeySpelling::kFull;
+        }
+        if (v.text && *v.text == kKeysShort) {
+            return KeySpelling::kShort;
+        }
+        return fallback;
+    };
+    Presentation out;
+    const PaneSetting titles = workshop_value(p, kPaneTitlesKey);
+    out.titles_shown = titles.flag.value_or(kTitlesDefaultValue);
+    out.band_keys = spelled(kBandKeysKey, kBandKeysDefaultValue);
+    out.hotkeys_keys = spelled(kHotkeysKeysKey, kHotkeysKeysDefaultValue);
+    const PaneSetting scope = workshop_value(p, kPinnedScopeKey);
+    out.pins_per_layout = scope.text && *scope.text == kPinsPerLayout;
+    const PaneSetting ring = workshop_value(p, kFocusRingKey);
+    out.ring_plain = ring.text && *ring.text == kRingPlain;
     return out;
 }
 
-inline std::string to_text(const Presentation& said) {
-    return loom::compat::serialize(loom::to_value(to_prefs(said)));
+/// KEEP WORKSHOP'S SETTING `key` AT `value`: as its absence when it is the declared default.
+inline bool put_workshop_value(Prefs& p, const std::string& key, PaneSetting value) {
+    value.key = key;
+    if (value == workshop_value(Prefs{}, key)) {
+        return put_office_value(p, kWorkshopOffice, key, std::nullopt);
+    }
+    return put_office_value(p, kWorkshopOffice, key, value);
 }
+
+/// ...AND THE THREE A TOGGLE STATES, as the session holds them.
+inline void put_presentation(Prefs& p, const Presentation& said) {
+    PaneSetting titles;
+    titles.flag = said.titles_shown;
+    (void)put_workshop_value(p, kPaneTitlesKey, titles);
+    PaneSetting band;
+    band.text = std::string(spelling_word(said.band_keys));
+    (void)put_workshop_value(p, kBandKeysKey, band);
+    PaneSetting hotkeys;
+    hotkeys.text = std::string(spelling_word(said.hotkeys_keys));
+    (void)put_workshop_value(p, kHotkeysKeysKey, hotkeys);
+}
+
+/// A file keeping nothing but these three.
+inline Prefs prefs_of(const Presentation& said) {
+    Prefs out;
+    put_presentation(out, said);
+    return out;
+}
+
+// ---- Writing ---------------------------------------------------------------------------
+
+inline WorkshopPrefs to_prefs(const Prefs& kept) {
+    WorkshopPrefs out;
+    out.format = kFormat;
+    out.format_version = kFormatVersion;
+    out.offices = kept.offices;
+    out.pins = kept.pins;
+    out.locks = kept.locks;
+    return out;
+}
+
+inline std::string to_text(const Prefs& kept) {
+    return loom::compat::serialize(loom::to_value(to_prefs(kept)));
+}
+
+inline std::string to_text(const Presentation& said) { return to_text(prefs_of(said)); }
 
 // ---- Reading ---------------------------------------------------------------------------
 
-/// What reading produced: whether it worked, and the preferences if it did. Each is the
-/// EFFECTIVE value -- the authored word, or the code's answer where the word is `default`.
+/// What reading produced: whether it worked, Workshop's settings as the session spends them, and
+/// the whole of what the file keeps.
 struct LoadedPrefs {
     Written outcome;
     Presentation prefs;
+    Prefs kept;
 
     static LoadedPrefs no(std::string why) {
-        return LoadedPrefs{Written::no(std::move(why)), Presentation{}};
+        return LoadedPrefs{Written::no(std::move(why)), Presentation{}, Prefs{}};
     }
 };
 
-/// One sentence for a version this build does not read, shared by the envelope preflight
-/// and the field check so the two doors cannot word it differently.
+/// One sentence for a version this build does not read, shared by the envelope preflight and the
+/// field check so the two doors cannot word it differently.
 inline std::string wrong_version(std::int64_t found) {
     return "prefs version " + std::to_string(found) + " -- this Workshop reads versions " +
-           std::to_string(kTitlesOnlyVersion) + " and " + std::to_string(kFormatVersion);
+           std::to_string(kTitlesOnlyVersion) + " to " + std::to_string(kFormatVersion);
 }
 
 /// The titles value a written word means. False for a word outside the closed set.
@@ -190,10 +474,128 @@ inline bool keys_in(const std::string& word, KeySpelling fallback, KeySpelling& 
     return false;
 }
 
-/// Text to preferences. Total: every input is either a preferences file or a refusal with
-/// a reason, and nothing here throws. The version preflight reads the envelope's CLAIM
-/// first, so a future file is refused by its number rather than by the first field it
-/// renamed.
+/// WHAT IS WRONG WITH A TARGET OR AN OFFICE NAME, or empty: 1 to `kMaxSettingTargetLen` bytes of
+/// printable ASCII with no space.
+inline std::string target_problem(std::string_view target, const char* what) {
+    if (target.empty() || target.size() > kMaxSettingTargetLen) {
+        return std::string(what) + " is 1 to " + std::to_string(kMaxSettingTargetLen) + " bytes";
+    }
+    for (const char c : target) {
+        if (static_cast<unsigned char>(c) <= 0x20u || static_cast<unsigned char>(c) > 0x7Eu) {
+            return std::string(what) + " `" + std::string(target) +
+                   "` is printable ASCII with no space";
+        }
+    }
+    return std::string();
+}
+
+/// WHAT IS WRONG WITH WHAT THE FILE KEEPS, or empty: each list within its bound and in
+/// its order, nothing twice, every setting sound, and Workshop's own values ones its settings
+/// take. A key of Workshop's office this build does not declare is kept as it is.
+inline std::string kept_problem(const Prefs& p) {
+    if (p.offices.size() > kMaxSettingOffices) {
+        return "the file keeps settings for at most " + std::to_string(kMaxSettingOffices) +
+               " offices -- it lists " + std::to_string(p.offices.size());
+    }
+    if (kept_count(p) > kMaxOfficeSettingsKept) {
+        return "the file keeps at most " + std::to_string(kMaxOfficeSettingsKept) +
+               " office-wide settings -- it keeps " + std::to_string(kept_count(p));
+    }
+    const std::vector<workshop::v2::PaneSettingRow> own = workshop_office_rows();
+    for (std::size_t i = 0; i < p.offices.size(); ++i) {
+        const OfficeSettingsKept& o = p.offices[i];
+        if (std::string wrong = target_problem(o.office, "an office"); !wrong.empty()) {
+            return wrong;
+        }
+        if (i > 0 && !(p.offices[i - 1].office < o.office)) {
+            return "office `" + o.office + "` is listed twice or out of order";
+        }
+        if (o.settings.size() > kMaxOfficeSettings) {
+            return "office `" + o.office + "` keeps more than " +
+                   std::to_string(kMaxOfficeSettings) + " settings";
+        }
+        for (std::size_t j = 0; j < o.settings.size(); ++j) {
+            const PaneSetting& s = o.settings[j];
+            if (std::string wrong = pane_setting_problem(s); !wrong.empty()) {
+                return "office `" + o.office + "`: " + wrong;
+            }
+            if (j > 0 && !(o.settings[j - 1].key < s.key)) {
+                return "office `" + o.office + "` keeps `" + s.key + "` twice or out of order";
+            }
+            if (o.office != kWorkshopOffice) {
+                continue;
+            }
+            for (const workshop::v2::PaneSettingRow& row : own) {
+                if (row.key != s.key) {
+                    continue;
+                }
+                if (std::string wrong = workshop::v2::pane_setting_refused_by(row, s);
+                    !wrong.empty()) {
+                    return wrong;
+                }
+            }
+        }
+    }
+    if (p.pins.size() > kMaxPinLists) {
+        return "the file keeps at most " + std::to_string(kMaxPinLists) + " pin lists -- it keeps " +
+               std::to_string(p.pins.size());
+    }
+    for (std::size_t i = 0; i < p.pins.size(); ++i) {
+        const PinList& l = p.pins[i];
+        if (std::string wrong = target_problem(l.target, "a pin list's target"); !wrong.empty()) {
+            return wrong;
+        }
+        if (i > 0 && !(p.pins[i - 1].target < l.target)) {
+            return "pin list `" + l.target + "` is listed twice or out of order";
+        }
+        if (l.keys.size() > kMaxPinsPerPane) {
+            return "pin list `" + l.target + "` holds more than " +
+                   std::to_string(kMaxPinsPerPane) + " keys";
+        }
+        for (std::size_t j = 0; j < l.keys.size(); ++j) {
+            if (std::string wrong = pane_setting_key_problem(l.keys[j]); !wrong.empty()) {
+                return "pin list `" + l.target + "`: " + wrong;
+            }
+            for (std::size_t k = 0; k < j; ++k) {
+                if (l.keys[k] == l.keys[j]) {
+                    return "pin list `" + l.target + "` pins `" + l.keys[j] + "` twice";
+                }
+            }
+        }
+    }
+    if (p.locks.size() > kMaxEverywhereLocks) {
+        return "the file keeps at most " + std::to_string(kMaxEverywhereLocks) +
+               " locks -- it keeps " + std::to_string(p.locks.size());
+    }
+    for (std::size_t i = 0; i < p.locks.size(); ++i) {
+        const SettingLock& l = p.locks[i];
+        if (std::string wrong = target_problem(l.target, "a lock's target"); !wrong.empty()) {
+            return wrong;
+        }
+        if (std::string wrong = pane_setting_key_problem(l.key); !wrong.empty()) {
+            return "a lock on `" + l.target + "`: " + wrong;
+        }
+        if (i > 0 && !(std::tie(p.locks[i - 1].target, p.locks[i - 1].key) <
+                       std::tie(l.target, l.key))) {
+            return "the lock on `" + l.key + "` of `" + l.target +
+                   "` is listed twice or out of order";
+        }
+        const SettingKind kind = setting_kind(l);
+        if (kind == SettingKind::kSeveral || (l.clear && kind != SettingKind::kNone)) {
+            return "the lock on `" + l.key + "` of `" + l.target +
+                   "` holds more than one value -- a lock holds one, `clear`, or none";
+        }
+        if (kind == SettingKind::kText && !pane_setting_text_ok(*l.text)) {
+            return "the lock on `" + l.key + "` of `" + l.target + "` holds a text past " +
+                   std::to_string(kMaxPaneSettingTextLen) + " bytes of printable ASCII";
+        }
+    }
+    return std::string();
+}
+
+/// Text to settings. Total: every input is either a settings file or a refusal with a reason, and
+/// nothing here throws. The version preflight reads the envelope's CLAIM first, so a future file
+/// is refused by its number rather than by the first field it renamed.
 inline LoadedPrefs from_text(std::string_view bytes) {
     const loom::Unverified claim = loom::compat::parse(bytes);
     if (!claim.well_formed()) {
@@ -202,79 +604,103 @@ inline LoadedPrefs from_text(std::string_view bytes) {
         return LoadedPrefs::no("not a Workshop prefs file: " +
                                refused.first_error().message());
     }
-    // VERSION 1 HELD THE TITLES ALONE: admitted against its own shape, and read as today's file
-    // with each spelling `default`.
-    const bool titles_only = claim.claimed_name() == std::string(WorkshopPrefs::zen_name) &&
-                             claim.claimed_version() == v1::WorkshopPrefs::zen_version;
-    if (claim.claimed_name() == std::string(WorkshopPrefs::zen_name) && !titles_only &&
-        claim.claimed_version() != WorkshopPrefs::zen_version) {
-        return LoadedPrefs::no(
-            wrong_version(static_cast<std::int64_t>(claim.claimed_version())));
+    const bool ours = claim.claimed_name() == std::string(WorkshopPrefs::zen_name);
+    const std::uint32_t version = claim.claimed_version();
+    if (ours && version != WorkshopPrefs::zen_version &&
+        version != v2::WorkshopPrefs::zen_version && version != v1::WorkshopPrefs::zen_version) {
+        return LoadedPrefs::no(wrong_version(static_cast<std::int64_t>(version)));
     }
-    WorkshopPrefs file;
-    if (titles_only) {
-        const loom::Admission admitted =
-            loom::admit(claim, loom::schema_of<v1::WorkshopPrefs>(), loom::Report::FirstError);
-        if (!admitted.ok()) {
-            return LoadedPrefs::no(admitted.first_error().message());
+    std::string format;
+    std::int64_t format_version = 0;
+    std::int64_t expected = kFormatVersion;
+    LoadedPrefs loaded;
+    if (ours && version != WorkshopPrefs::zen_version) {
+        // AN EARLIER FILE HELD THREE WORDS, OR THE TITLES ALONE: admitted against its own shape,
+        // and read as Workshop's own settings, a word left out or `default` as the default.
+        v2::WorkshopPrefs old;
+        if (version == v1::WorkshopPrefs::zen_version) {
+            const loom::Admission admitted = loom::admit(
+                claim, loom::schema_of<v1::WorkshopPrefs>(), loom::Report::FirstError);
+            if (!admitted.ok()) {
+                return LoadedPrefs::no(admitted.first_error().message());
+            }
+            const v1::WorkshopPrefs one = loom::from_value<v1::WorkshopPrefs>(admitted.value());
+            old = v2::WorkshopPrefs{one.format, one.format_version, one.titles, kKeysDefault,
+                                    kKeysDefault};
+            expected = kTitlesOnlyVersion;
+        } else {
+            const loom::Admission admitted = loom::admit(
+                claim, loom::schema_of<v2::WorkshopPrefs>(), loom::Report::FirstError);
+            if (!admitted.ok()) {
+                return LoadedPrefs::no(admitted.first_error().message());
+            }
+            old = loom::from_value<v2::WorkshopPrefs>(admitted.value());
+            expected = kWordsVersion;
         }
-        const v1::WorkshopPrefs old = loom::from_value<v1::WorkshopPrefs>(admitted.value());
-        file.format = old.format;
-        file.format_version = old.format_version;
-        file.titles = old.titles;
-        file.band_keys = kKeysDefault;
-        file.hotkeys_keys = kKeysDefault;
+        format = old.format;
+        format_version = old.format_version;
+        Presentation words;
+        if (!titles_in(old.titles, words.titles_shown)) {
+            return LoadedPrefs::no("`" + old.titles + "` is not a pane-titles preference (" +
+                                   kTitlesWords + ")");
+        }
+        if (!keys_in(old.band_keys, kBandKeysDefaultValue, words.band_keys)) {
+            return LoadedPrefs::no("`" + old.band_keys +
+                                   "` is not a spelling for the band's keys (" + kKeysWords + ")");
+        }
+        if (!keys_in(old.hotkeys_keys, kHotkeysKeysDefaultValue, words.hotkeys_keys)) {
+            return LoadedPrefs::no("`" + old.hotkeys_keys +
+                                   "` is not a spelling for the Hotkeys view's keys (" +
+                                   kKeysWords + ")");
+        }
+        loaded.kept = prefs_of(words);
     } else {
         const loom::Admission admitted =
             loom::admit(claim, loom::schema_of<WorkshopPrefs>(), loom::Report::FirstError);
         if (!admitted.ok()) {
             return LoadedPrefs::no(admitted.first_error().message());
         }
-        file = loom::from_value<WorkshopPrefs>(admitted.value());
+        const WorkshopPrefs file = loom::from_value<WorkshopPrefs>(admitted.value());
+        format = file.format;
+        format_version = file.format_version;
+        loaded.kept = Prefs{file.offices, file.pins, file.locks};
     }
-    if (file.format != kFormat) {
-        return LoadedPrefs::no("not a Workshop prefs file: it says it is `" + file.format +
-                               "`");
+    if (format != kFormat) {
+        return LoadedPrefs::no("not a Workshop prefs file: it says it is `" + format + "`");
     }
-    if (file.format_version != (titles_only ? kTitlesOnlyVersion : kFormatVersion)) {
-        return LoadedPrefs::no(wrong_version(file.format_version));
+    if (format_version != expected) {
+        return LoadedPrefs::no(wrong_version(format_version));
     }
-    LoadedPrefs loaded;
-    if (!titles_in(file.titles, loaded.prefs.titles_shown)) {
-        return LoadedPrefs::no("`" + file.titles + "` is not a pane-titles preference (" +
-                               kTitlesWords + ")");
+    if (std::string wrong = kept_problem(loaded.kept); !wrong.empty()) {
+        return LoadedPrefs::no(wrong);
     }
-    if (!keys_in(file.band_keys, kBandKeysDefaultValue, loaded.prefs.band_keys)) {
-        return LoadedPrefs::no("`" + file.band_keys + "` is not a spelling for the band's keys (" +
-                               kKeysWords + ")");
-    }
-    if (!keys_in(file.hotkeys_keys, kHotkeysKeysDefaultValue, loaded.prefs.hotkeys_keys)) {
-        return LoadedPrefs::no("`" + file.hotkeys_keys +
-                               "` is not a spelling for the Hotkeys view's keys (" + kKeysWords +
-                               ")");
-    }
+    loaded.prefs = presentation_of(loaded.kept);
     loaded.outcome = Written::ok();
     return loaded;
 }
 
 // ---- The file itself -------------------------------------------------------------------
 
-/// Save the preferences, through the family's one safe write: a complete candidate to a
-/// sibling, then a rename over the destination. Through `write_file_making_room`, because
-/// this file's ordinary home is the per-user configuration root, which is created on the
-/// first write and never on a read.
-inline Written save_file(const std::string& path, const Presentation& said) {
-    return persist::write_file_making_room(path, to_text(said));
+/// Save the settings, through the family's one safe write: a complete candidate to a sibling,
+/// then a rename over the destination. Through `write_file_making_room`, because this file's
+/// ordinary home is the per-user configuration root, which is created on the first write and
+/// never on a read.
+inline Written save_file(const std::string& path, const Prefs& kept) {
+    return persist::write_file_making_room(path, to_text(kept));
 }
 
-/// Read preferences from a file. A missing file is not a refusal -- it is the defaults,
-/// silently -- so the caller that wants to distinguish "no file" from "a file this build
-/// refused" asks `std::filesystem::exists` first, exactly as the keymap load does.
+inline Written save_file(const std::string& path, const Presentation& said) {
+    return save_file(path, prefs_of(said));
+}
+
+/// Read settings from a file. A missing file is not a refusal -- it is the defaults, silently --
+/// so the caller that wants to distinguish "no file" from "a file this build refused" asks
+/// `std::filesystem::exists` first, exactly as the keymap load does.
 inline LoadedPrefs load_file(const std::string& path) {
     const persist::FileText read =
         persist::read_file(path, kMaxPrefsBytes, "a Workshop prefs file");
     if (!read.outcome.accepted) {
-        return LoadedPrefs{read.outcome, Presentation{}};
+        return LoadedPrefs{read.outcome, Presentation{}, Prefs{}};
     }
     return from_text(read.text);
 }

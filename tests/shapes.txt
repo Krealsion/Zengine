@@ -263,6 +263,12 @@ Node v1 0xbcaef33e0d89dbe3
 NodePaint v1 0x05f9f6a6c2e4ba98
 NodePlace v1 0x50443c10cee88b33
 OfferArtifact v1 0xf5ba6502a2561fcd
+OfficeSettingCommitRequested v1 0xa27f64f4ac7d0289
+OfficeSettings v1 0x4b048a2b0373f658
+OfficeSettingsDeclared v1 0x68c975d14c003ad8
+OfficeSettingsKept v1 0xd71c0fba579ffa83
+OfficeSettingsRequested v1 0xc72ad63d323aef9a
+OfficeSettingsShown v1 0xeb5b5fa3aa0a220b
 OpenSourceRequested v1 0x7202b83683b28f3b
 OpeningState v1 0x7bed74362789d96d
 OperatorState v1 0x5a9910fc3c9efdce
@@ -363,6 +369,8 @@ PaneRowPart v2 0x39fef02f9583ec28
 PaneSetting v1 0x734b46a0def3b4c5
 PaneSettingActed v1 0x309d126d859b68c3
 PaneSettingCommitRequested v1 0x03927a9c6037218c
+PaneSettingPinActed v1 0x8e1b178a7d151bad
+PaneSettingPinRequested v1 0xf6bea8484cdaef38
 PaneSettingRow v1 0x08e89ae1903ffd5a
 PaneSettingRow v2 0x4a14b26fa8096192
 PaneSettingUnused v1 0xa1796e6d75bd52c1
@@ -384,6 +392,7 @@ PaneStamp v2 0xf1f9e7ae3f50b4d7
 PaneSubjectActed v1 0x7e036a3483c1c5a4
 PaneSubjectRequested v1 0xa405e3a2d389e75c
 PaneSubjectShown v1 0x3956a00cb099e844
+PaneSubjectShown v2 0xd20b10d55bcce0e3
 PaneTextInput v1 0xabf9a61f8ca8d377
 PaneToggleAnswered v1 0x5c4d9d1c9d40203d
 PaneToggleRequested v1 0x90182c7b8e55f165
@@ -408,6 +417,7 @@ PaneWheel v1 0xf6d1debe710aafeb
 PaneWord v1 0x821f0e413965418f
 PathArgs v1 0x54684353c5f4eb52
 PictureFence v1 0x5ca5c125376c4d60
+PinList v1 0x5e56a4367e5c78ef
 PlanNames v1 0x1ddfffbffb2b5ae8
 PlanNamesRequested v1 0xa9378174047506d0
 PlanRowRequested v1 0xe5d37bbb8ab79820
@@ -464,6 +474,7 @@ SavedView v1 0x16bedef2a254852f
 SchemaIdentity v1 0xd6ff55096a9d98d2
 ScoreState v1 0x2a0e436c6672fb9d
 ScrollBarFace v1 0x444bc6439b4e716f
+SettingLock v1 0x5f8be7c8d3208026
 SettingLockShown v1 0x7e176756b72d1997
 SetupApplyRequested v1 0xdbed9509ec8b868a
 ShapeDocumentRequested v1 0x6a2a97debe09af6e
@@ -473,6 +484,7 @@ ShownCandidate v1 0x8ad594ca04e169db
 ShownEntry v2 0x5daa79b13f1620ff
 ShownModes v1 0xf2b326854977a7bc
 ShownProperty v1 0x33d6e471c262cd06
+ShownProperty v2 0x1cf0dc0e46d3c3b5
 SkinChosen v1 0xd468996ace38d835
 SkinOffered v1 0x3779030674e1456a
 SkinState v1 0x75193458bf021f5c
@@ -588,6 +600,7 @@ WorkshopPaneSize v3 0xca8a00e4b5a69d3f
 WorkshopPlacement v1 0x13de57bfd0689eb1
 WorkshopPrefs v1 0x0573adcad1d48236
 WorkshopPrefs v2 0x25041d12ed2a3b72
+WorkshopPrefs v3 0xf2307f8b9b736fc7
 WorkshopQuitRequested v1 0x939c86b9dedbb979
 WorkshopRecipe v1 0xd8c1a512233b91bc
 WorkshopRecipe v2 0xb74a467d96dc1a4e

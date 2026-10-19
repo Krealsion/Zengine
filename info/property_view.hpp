@@ -4,10 +4,10 @@
 #define ZENGINE_INFO_PROPERTY_VIEW_HPP
 
 // Info's pane-property view, the default pane `info` while it holds no value: the properties of
-// the one pane an office named as its subject (`InspectPaneRequested`, the Pane Manager's
-// `inspect in Info`), as the host says them (`PaneSubjectShown`), and a draft of one of them the
-// host writes when it is committed (`PaneCommitRequested`). It touches no desk: it asks.
-// Reference: info/docs/zengine.info.md.
+// the one pane an office named as its subject (`InspectPaneRequested`), as the host says them
+// (`PaneSubjectShown`), and a draft of one the host writes when committed (`PaneCommitRequested`).
+// It touches no desk: it asks. Under SETTINGS a strip of tabs filters the settings rows, and a pin
+// is asked of the host (`PaneSettingPinRequested`). Reference: info/docs/zengine.info.md.
 // Workshop law: agents/workshop/info-body.md
 
 // The view composes its rows and their press map once, in the room it was granted, and after
@@ -18,20 +18,25 @@
 #include "value_watch.hpp"
 
 #include "workshop/inspection_seam_vocabulary.hpp"
+#include "workshop/settings_seam_vocabulary.hpp"
 #include "workshop/pane_canvas_rows.hpp"
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_parts.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
+#include "component/tab_strip.hpp"
 #include "component/text_box.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 
 #include <zen/weave.hpp>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -58,8 +63,10 @@ public:
 
     bool drafting() const noexcept { return draft_.open; }
     bool committing() const noexcept { return committing_.awaiting; }
-    /// An ask of this view's still unanswered: a commit, or an inspect.
-    bool waiting() const noexcept { return committing_.awaiting || acting_.awaiting; }
+    /// An ask of this view's still unanswered: a commit, an inspect, or a pin act.
+    bool waiting() const noexcept {
+        return committing_.awaiting || acting_.awaiting || pinning_.awaiting;
+    }
     /// THE DRAFT INCARNATION (`component::TextBox::draft_epoch`) a paste is asked for.
     std::uint64_t draft_epoch() const { return draft_.line.draft_epoch(); }
 
@@ -82,12 +89,30 @@ public:
         notice_.clear();
     }
 
+    /// THE PANE'S OWN SETTINGS, as the host hands them: how wide the label column is, and the tab
+    /// a new subject's settings open on. The rows are said again with them.
+    void settings(std::int64_t label_columns, std::string tab) {
+        label_cols_ = label_columns;
+        first_tab_ = std::move(tab);
+        due_.say = true;
+    }
+
     // ---- The host's readings and answers ------------------------------------------------
 
     /// WHAT THE SUBJECT LOOKS LIKE, SAID BY THE HOST, AND WHAT ITS ROWS ADDRESS. Replaced WHOLE,
-    /// never merged -- published when it changes, or answered to this image's arrival.
-    void shown(const workshop::PaneSubjectShown& said) {
+    /// never merged -- published when it changes, or answered to this image's arrival. Another
+    /// pane opens on the tab this pane's `tab` setting names; the same pane keeps the tab chosen,
+    /// while its rows still derive it.
+    void shown(const workshop::v2::PaneSubjectShown& said) {
+        if (said.office != known_.office || said.pane != known_.pane) {
+            tab_.clear();
+            subject_tab_ = first_tab_; // the tab this subject opens on, kept while it stands
+        }
+        const std::vector<std::string> tabs_before = tabs();
         known_ = said;
+        if (tabs() != tabs_before) {
+            due_.declare = true; // a tab's own action is declared while the tab is shown
+        }
         // (!) A DRAFT WHOSE ROWS ARE NO LONGER SHOWN IS ABANDONED, and it is the one thing this
         // pane drops without being asked -- so it says so. The host names what the rows address:
         // another pane, another desk put live, or another layout of rows is another name, even
@@ -100,6 +125,19 @@ public:
         }
         clamp_cursor();
         due_.say = true;
+    }
+
+    /// WHAT THE HOST MADE OF A PIN ACT this view asked for, read against that ask: a refusal is the
+    /// host's own words; an accepted act says nothing here, and the picture that follows shows it.
+    void pinned(const workshop::PaneSettingPinActed& said, loom::Mail& mail) {
+        if (!pinning_.awaiting || mail.correlation() != pinning_.pending) {
+            return;
+        }
+        pinning_ = Asked{};
+        if (!said.accepted) {
+            notice_ = said.refusal;
+            due_.say = true;
+        }
     }
 
     /// What the owner made of an ask this view is waiting on, read against that ask: the
@@ -162,6 +200,13 @@ public:
             undelivered_commit(was, refused);
             return true;
         }
+        if (refused_ask(pinning_, refused, mail, workshop::PaneSettingPinRequested::zen_name,
+                        workshop::PaneSettingPinRequested::zen_version)) {
+            pinning_ = Asked{};
+            notice_ = std::string(kPinActWord) + kActUndelivered + " (" + refused.reason + ")";
+            due_.say = true;
+            return true;
+        }
         if (refused_ask(acting_, refused, mail, workshop::InspectPaneRequested::zen_name,
                         workshop::InspectPaneRequested::zen_version)) {
             const std::string act = acting_.act;
@@ -176,14 +221,19 @@ public:
 
     // ---- The weaver's acts ------------------------------------------------------------------
 
-    /// A PRESS NAMES A ROW OF THE VIEW'S ROOM, and this view knows what that row is because it
-    /// composed it: a property row moves the cursor there, read against the rows last composed.
-    void press(std::int64_t row) {
+    /// A PRESS NAMES A ROW AND A COLUMN OF THE VIEW'S ROOM, and this view knows what is there
+    /// because it composed it: a property row moves the cursor there, and a tab of the strip, or a
+    /// count of hidden ones, makes that tab active -- read against the rows last composed.
+    void press(std::int64_t row, std::int64_t column = 0) {
         const Placed at = placed(row);
         if (at.what == Placed::kNothing) {
             return; // a heading, a marker, a blank row
         }
         spend_notice();
+        if (at.what == Placed::kStrip) {
+            press_strip(column);
+            return;
+        }
         press_placed(at);
     }
 
@@ -257,6 +307,14 @@ public:
         if (id == kActionUp || id == kActionDown) {
             step_property(id == kActionUp ? -1 : +1);
             due_.say = true;
+            return;
+        }
+        if (id == kActionTabPrevious || id == kActionTabNext) {
+            step_tab(id == kActionTabPrevious ? -1 : +1);
+            return;
+        }
+        if (id == kActionPin || id == kActionPinUp || id == kActionPinDown) {
+            ask_pin(id, c);
         }
     }
 
@@ -280,6 +338,17 @@ public:
             row(kActionUp, "row up", input::scan::kUp);
             row(kActionDown, "row down", input::scan::kDown);
             row(kActionEdit, "edit", input::scan::kReturn);
+            row(kActionTabPrevious, "previous tab", input::scan::kLeftBracket);
+            row(kActionTabNext, "next tab", input::scan::kRightBracket);
+            row(kActionPin, "pin or unpin", input::scan::kP,
+                {workshop::cause_of<workshop::PaneSettingPinRequested>()});
+            const auto shifted = [&rows](const char* id, const char* label, std::int64_t sc) {
+                rows.push_back(workshop::v3::PaneActionRow{
+                    id, label, sc, input::mod::kShift, {},
+                    {workshop::cause_of<workshop::PaneSettingPinRequested>()}});
+            };
+            shifted(kActionPinUp, "pin up", input::scan::kUp);
+            shifted(kActionPinDown, "pin down", input::scan::kDown);
         }
         return rows;
     }
@@ -317,6 +386,7 @@ public:
         // when there is one -- a bound that grows when it is exceeded is not a bound.
         const std::int64_t reserved = 1 + (front_sentence().empty() ? 0 : 1);
         const std::int64_t budget = rows_ - reserved;
+        strip_ = component::TabStrip{};
         // THE LIST BEGINS HERE, AND THE GROUND IS WHAT SAYS SO: the front sentence above it is
         // alert ink, and the heading names whose properties follow.
         push(known_.subject == 0 ? std::string("PROPERTIES") : "PANE " + known_.name,
@@ -333,14 +403,75 @@ public:
     std::vector<workshop::PaneRowPart> named_rows(std::int64_t said) const {
         workshop::PartNames<workshop::PaneRowPart> names;
         for (const Row& r : composed_) {
-            if (r.row >= said || r.what != Placed::kProperty ||
-                r.index >= known_.properties.size()) {
+            if (r.row >= said) {
+                continue;
+            }
+            if (r.what == Placed::kStrip) {
+                // EACH TAB'S FACE, AND EACH COUNT, BY THE TAB A PRESS THERE MAKES ACTIVE: a count
+                // names the hidden tab nearest it, which no face names.
+                const std::vector<std::string> all = tabs();
+                const auto part = [&](std::size_t tab, std::int64_t first, std::int64_t width) {
+                    const std::int64_t begin = kPropertyMarkCols + first;
+                    const std::int64_t end = (std::min)(columns_, begin + width);
+                    if (tab < all.size() && begin < end) {
+                        (void)names.add(workshop::PaneRowPart{
+                            std::string(kTabPartPrefix) + all[tab], r.row, begin, end});
+                    }
+                };
+                if (strip_.before > 0) {
+                    part(strip_.before_tab(), strip_.before_first, strip_.before_width);
+                }
+                for (const component::PlacedTab& t : strip_.tabs) {
+                    part(t.index, t.first, t.width);
+                }
+                if (strip_.after > 0) {
+                    part(strip_.after_tab(), strip_.after_first, strip_.after_width);
+                }
+                continue;
+            }
+            if (r.what != Placed::kProperty || r.index >= known_.properties.size()) {
                 continue;
             }
             (void)names.add(workshop::PaneRowPart{"property:" + known_.properties[r.index].label,
                                                   r.row, 0, columns_});
         }
         return names.take();
+    }
+
+    /// THE SETTINGS TABS THE SUBJECT'S ROWS DERIVE (`component::setting_tabs`), and the active one:
+    /// the tab chosen while it is still derived, else the one the `tab` setting named when the
+    /// subject was first shown, else all.
+    std::vector<std::string> tabs() const {
+        bool any_setting = false;
+        bool any_pinned = false;
+        bool any_kept = false;
+        std::vector<std::string> tags;
+        for (const workshop::v2::ShownProperty& p : known_.properties) {
+            if (!p.setting) {
+                continue;
+            }
+            any_setting = true;
+            any_pinned = any_pinned || p.pin >= 0;
+            any_kept = any_kept || p.kept;
+            tags.insert(tags.end(), p.tags.begin(), p.tags.end());
+        }
+        if (!any_setting) {
+            return {};
+        }
+        return component::setting_tabs(any_pinned, std::move(tags), any_kept);
+    }
+    std::string active_tab() const {
+        const std::vector<std::string> all = tabs();
+        const auto has = [&all](const std::string& w) {
+            return std::find(all.begin(), all.end(), w) != all.end();
+        };
+        if (!tab_.empty() && has(tab_)) {
+            return tab_;
+        }
+        if (has(subject_tab_)) {
+            return subject_tab_;
+        }
+        return std::string(component::kAllTab);
     }
 
     /// The draft's caret and selection in the rows last composed, or none.
@@ -350,7 +481,14 @@ private:
     // ---- The measurements and the sentences ----------------------------------------------
 
     static constexpr std::int64_t kPropertyMarkCols = 1;  ///< the `>` that marks the cursor's row
-    static constexpr std::int64_t kPropertyLabelCols = 9; ///< the label column a value is measured after
+
+    /// A PIN ACT, as the sentences above name it, and the pane's own refusals of one: two at once,
+    /// and a cursor on no setting.
+    static constexpr const char* kPinActWord = "pin";
+    static constexpr const char* kPinNotSent = "pin not sent -- an earlier pin act is still unanswered";
+    static constexpr const char* kNotASetting =
+        "the cursor is on no setting -- `p` pins the setting the cursor is on";
+    static constexpr const char* kNotPinned = " is not pinned -- `p` pins it first";
 
     /// THE PANE'S OWN REFUSAL WHILE A DRAFT IS LIVE -- for every act the draft holds back: an
     /// office naming another subject.
@@ -464,34 +602,232 @@ private:
 
     // ---- The cursor ---------------------------------------------------------------------------
 
-    /// THE CURSOR MOVES OVER ROWS AND STEPS OVER SECTION HEADINGS, which hold no value.
+    /// ONE ROW THE VIEW SHOWS, in the order it shows them: a property by its place among the
+    /// host's rows, or the tab strip.
+    struct Entry {
+        bool strip = false;
+        std::size_t index = 0;
+    };
+
+    /// WHETHER A SETTINGS ROW IS SHOWN UNDER `tab`: every one under `all`, the pinned ones under
+    /// `pinned`, the kept ones under `kept`, and a tag's own under the tag.
+    static bool under_tab(const workshop::v2::ShownProperty& p, const std::string& tab) {
+        if (tab == component::kAllTab) {
+            return true;
+        }
+        if (tab == component::kPinnedTab) {
+            return p.pin >= 0;
+        }
+        if (tab == component::kKeptTab) {
+            return p.kept;
+        }
+        return std::find(p.tags.begin(), p.tags.end(), tab) != p.tags.end();
+    }
+
+    /// THE ROWS IN THE ORDER THE VIEW SHOWS THEM: every row but the settings, and in the settings'
+    /// place the strip and the active tab's settings -- pinned ones in pin order, the rest in the
+    /// host's order -- with the row a draft is typed into always among them.
+    std::vector<Entry> entries() const {
+        std::vector<Entry> out;
+        const std::string tab = active_tab();
+        bool placed_settings = false;
+        for (std::size_t i = 0; i < known_.properties.size(); ++i) {
+            if (!known_.properties[i].setting) {
+                out.push_back(Entry{false, i});
+                continue;
+            }
+            if (placed_settings) {
+                continue;
+            }
+            placed_settings = true;
+            out.push_back(Entry{true, 0});
+            std::vector<std::size_t> shown;
+            for (std::size_t j = 0; j < known_.properties.size(); ++j) {
+                const workshop::v2::ShownProperty& p = known_.properties[j];
+                const bool drafted = draft_.open && static_cast<std::int64_t>(j) == draft_.row;
+                if (p.setting && (under_tab(p, tab) || drafted)) {
+                    shown.push_back(j);
+                }
+            }
+            if (tab == component::kPinnedTab) {
+                std::stable_sort(shown.begin(), shown.end(), [this](std::size_t a, std::size_t z) {
+                    const std::int64_t pa = known_.properties[a].pin;
+                    const std::int64_t pz = known_.properties[z].pin;
+                    constexpr std::int64_t last = (std::numeric_limits<std::int64_t>::max)();
+                    return (pa < 0 ? last : pa) < (pz < 0 ? last : pz);
+                });
+            }
+            for (const std::size_t j : shown) {
+                out.push_back(Entry{false, j});
+            }
+        }
+        return out;
+    }
+
+    /// Where row `index` of the host's stands among the rows shown, or none.
+    static std::optional<std::size_t> shown_at(const std::vector<Entry>& shown, std::size_t index) {
+        for (std::size_t k = 0; k < shown.size(); ++k) {
+            if (!shown[k].strip && shown[k].index == index) {
+                return k;
+            }
+        }
+        return std::nullopt;
+    }
+
+    /// THE CURSOR MOVES OVER THE ROWS SHOWN, in the order shown, and steps over section headings
+    /// and the strip, which hold no value.
     void step_property(std::int64_t by) {
-        const std::int64_t n = static_cast<std::int64_t>(known_.properties.size());
-        std::int64_t at = cursor_;
+        const std::vector<Entry> shown = entries();
+        const std::optional<std::size_t> from = shown_at(shown, static_cast<std::size_t>(cursor_));
+        if (!from) {
+            clamp_cursor();
+            return;
+        }
+        std::int64_t at = static_cast<std::int64_t>(*from);
         while (true) {
             at += by;
-            if (at < 0 || at >= n) {
+            if (at < 0 || at >= static_cast<std::int64_t>(shown.size())) {
                 return; // at the edge: nothing moved
             }
-            if (!known_.properties[static_cast<std::size_t>(at)].section) {
-                cursor_ = at;
+            const Entry& e = shown[static_cast<std::size_t>(at)];
+            if (!e.strip && !known_.properties[e.index].section) {
+                cursor_ = static_cast<std::int64_t>(e.index);
                 return;
             }
         }
     }
 
-    /// KEEP THE CURSOR ON A ROW THAT EXISTS AND HOLDS A VALUE.
+    /// KEEP THE CURSOR ON A ROW THAT IS SHOWN AND HOLDS A VALUE: the first one shown at or after
+    /// it, else the last before it.
     void clamp_cursor() {
-        const std::int64_t total = static_cast<std::int64_t>(known_.properties.size());
-        if (cursor_ >= total) {
-            cursor_ = total == 0 ? 0 : total - 1;
-        }
+        const std::vector<Entry> shown = entries();
+        const auto value_at = [&](std::size_t k) {
+            return !shown[k].strip && !known_.properties[shown[k].index].section;
+        };
         if (cursor_ < 0) {
             cursor_ = 0;
         }
-        if (total > 0 && known_.properties[static_cast<std::size_t>(cursor_)].section) {
-            step_property(+1);
+        if (const std::optional<std::size_t> here = shown_at(shown, static_cast<std::size_t>(cursor_));
+            here && value_at(*here)) {
+            return;
         }
+        std::optional<std::size_t> best;
+        for (std::size_t k = 0; k < shown.size(); ++k) {
+            if (!value_at(k)) {
+                continue;
+            }
+            if (static_cast<std::int64_t>(shown[k].index) >= cursor_) {
+                best = k;
+                break;
+            }
+            best = k;
+        }
+        cursor_ = best ? static_cast<std::int64_t>(shown[*best].index) : 0;
+    }
+
+    // ---- The tabs and the pins ----------------------------------------------------------------
+
+    /// THE TAB `word` MADE ACTIVE, while it is derived: the cursor follows onto a row it shows.
+    void choose_tab(const std::string& word) {
+        const std::vector<std::string> all = tabs();
+        if (std::find(all.begin(), all.end(), word) == all.end()) {
+            return; // a tab no longer derived: nothing to show
+        }
+        tab_ = word;
+        clamp_cursor();
+        due_.say = true;
+    }
+
+    /// THE NEXT OR PREVIOUS TAB, wrapping at either end.
+    void step_tab(std::int64_t by) {
+        const std::vector<std::string> all = tabs();
+        if (all.empty()) {
+            return;
+        }
+        const std::string now = active_tab();
+        std::size_t at = 0;
+        for (std::size_t i = 0; i < all.size(); ++i) {
+            at = all[i] == now ? i : at;
+        }
+        const std::int64_t n = static_cast<std::int64_t>(all.size());
+        choose_tab(all[static_cast<std::size_t>(((static_cast<std::int64_t>(at) + by) % n + n) % n)]);
+    }
+
+    /// A PRESS ON THE STRIP: a tab's face makes it active, and a count the hidden tab nearest it.
+    void press_strip(std::int64_t column) {
+        if (draft_.open) {
+            return; // the strip holds still while a draft is typed: no tab hides its row
+        }
+        const std::vector<std::string> all = tabs();
+        const std::int64_t x = column - kPropertyMarkCols;
+        const auto inside = [x](std::int64_t first, std::int64_t width) {
+            return width > 0 && x >= first && x < first + width;
+        };
+        if (strip_.before > 0 && inside(strip_.before_first, strip_.before_width)) {
+            choose_tab(all.at(strip_.before_tab()));
+            return;
+        }
+        if (strip_.after > 0 && inside(strip_.after_first, strip_.after_width)) {
+            choose_tab(all.at(strip_.after_tab()));
+            return;
+        }
+        for (const component::PlacedTab& t : strip_.tabs) {
+            if (inside(t.first, t.width)) {
+                choose_tab(t.word);
+                return;
+            }
+        }
+    }
+
+    /// THE CURSOR'S SETTING PINNED OR UNPINNED, OR MOVED AMONG THE PINS, asked of the host: one
+    /// pin act outstanding, its ticket kept as an inspect's is.
+    void ask_pin(const std::string& id, ViewContext& c) {
+        if (known_.subject == 0) {
+            notice_ = kNoSubject;
+            due_.say = true;
+            return;
+        }
+        if (pinning_.awaiting) {
+            notice_ = kPinNotSent;
+            due_.say = true;
+            return;
+        }
+        const workshop::v2::ShownProperty* row =
+            cursor_ >= 0 && static_cast<std::size_t>(cursor_) < known_.properties.size()
+                ? &known_.properties[static_cast<std::size_t>(cursor_)]
+                : nullptr;
+        if (row == nullptr || !row->setting) {
+            notice_ = kNotASetting;
+            due_.say = true;
+            return;
+        }
+        workshop::PaneSettingPinRequested request;
+        request.provider = known_.office;
+        request.pane = known_.pane;
+        request.key = row->label;
+        if (id == kActionPin) {
+            request.act = row->pin >= 0 ? workshop::kUnpinAct : workshop::kPinAct;
+        } else if (row->pin < 0) {
+            notice_ = row->label + kNotPinned;
+            due_.say = true;
+            return;
+        } else {
+            request.act = id == kActionPinUp ? workshop::kPinUpAct : workshop::kPinDownAct;
+        }
+        const std::uint64_t correlation = ++c.asks;
+        Asked asking;
+        asking.awaiting = true;
+        asking.pending = correlation;
+        asking.act = kPinActWord;
+        asking.attempt = c.mail.as_role(kInfoPaneRole)
+                             .send_to_role(kWorkshopRole, std::move(request), correlation);
+        if (!asking.attempt.valid()) {
+            pinning_ = Asked{};
+            notice_ = std::string(kPinActWord) + kActNotQueued;
+            due_.say = true;
+            return;
+        }
+        pinning_ = std::move(asking);
     }
 
     // ---- The asks -----------------------------------------------------------------------
@@ -659,7 +995,7 @@ private:
         if (cursor_ < 0 || static_cast<std::size_t>(cursor_) >= known_.properties.size()) {
             return;
         }
-        const workshop::ShownProperty& row = known_.properties[static_cast<std::size_t>(cursor_)];
+        const workshop::v2::ShownProperty& row = known_.properties[static_cast<std::size_t>(cursor_)];
         if (!row.editable) {
             notice_ = not_authored(row.label);
             due_.say = true;
@@ -713,7 +1049,7 @@ private:
     /// press cannot land where a row is not -- the one-geometry rule, on the pane's side of
     /// the seam now that there is no shared painter to ask.
     struct Placed {
-        enum What { kNothing, kProperty };
+        enum What { kNothing, kProperty, kStrip };
         What what = kNothing;
         std::size_t index = 0;
     };
@@ -753,6 +1089,7 @@ private:
         due_.say = true;
     }
 
+
     // ---- Composing ----------------------------------------------------------------------
 
     /// THE SENTENCE IN FRONT OF THE BODY: the notice, while one stands.
@@ -773,14 +1110,29 @@ private:
         const std::size_t focus =
             draft_.open ? static_cast<std::size_t>(draft_.row)
                         : static_cast<std::size_t>(cursor_ < 0 ? 0 : cursor_);
-        const ListWindow win = list_window(known_.properties.size(), focus, share);
+        const std::vector<Entry> shown = entries();
+        const ListWindow win = list_window(shown.size(), shown_at(shown, focus).value_or(0), share);
         if (win.before > 0) {
             push(workshop::pane_text::omitted_text(win.before, "earlier"), surface::role::kMuted);
         }
-        const std::int64_t value_columns = columns_ - kPropertyMarkCols - kPropertyLabelCols;
+        const std::int64_t value_columns = columns_ - kPropertyMarkCols - label_cols_;
+        const std::vector<std::string> all_tabs = tabs();
+        const std::string tab = active_tab();
         for (std::size_t n = 0; n < win.count; ++n) {
-            const std::size_t i = win.first + n;
-            const workshop::ShownProperty& p = known_.properties[i];
+            const Entry& e = shown[win.first + n];
+            if (e.strip) {
+                // THE STRIP, one row under the heading: the active tab `*word*`, the rest `[word]`.
+                std::size_t active = 0;
+                for (std::size_t t = 0; t < all_tabs.size(); ++t) {
+                    active = all_tabs[t] == tab ? t : active;
+                }
+                strip_ = component::window_tab_strip(all_tabs, active, columns_ - kPropertyMarkCols);
+                mark(Placed::kStrip, 0);
+                push(" " + strip_.text, surface::role::kFill);
+                continue;
+            }
+            const std::size_t i = e.index;
+            const workshop::v2::ShownProperty& p = known_.properties[i];
             if (p.section) {
                 push(" " + p.label, surface::role::kAccent);
                 continue;
@@ -793,9 +1145,14 @@ private:
             } else if (!p.editable) {
                 role = surface::role::kMuted; // not the weaver's to author
             }
+            // THE MARK COLUMN: `>` on the cursor's row, `*` on a pinned setting shown under another
+            // tab than the pinned one.
+            const char* lead = here || editing                                ? ">"
+                               : p.pin >= 0 && tab != component::kPinnedTab ? "*"
+                                                                            : " ";
             std::string text =
-                std::string(here || editing ? ">" : " ") +
-                workshop::pane_text::pad(p.label, static_cast<std::size_t>(kPropertyLabelCols));
+                std::string(lead) +
+                workshop::pane_text::pad(p.label, static_cast<std::size_t>(label_cols_));
             if (editing) {
                 // THE WINDOW FOLLOWS THE CARET, so a long value scrolls to where the weaver is
                 // typing.
@@ -806,7 +1163,7 @@ private:
             }
             mark(Placed::kProperty, i);
             if (editing && value_columns > 0) {
-                const std::int64_t at = kPropertyMarkCols + kPropertyLabelCols;
+                const std::int64_t at = kPropertyMarkCols + label_cols_;
                 caret_.row = composed_.back().row;
                 caret_.column = at + static_cast<std::int64_t>(draft_.line.caret_column());
                 if (const auto span = draft_.line.visible_selection(value_columns); span.present()) {
@@ -858,7 +1215,16 @@ private:
 
     /// THE HOST'S LAST READING OF THE SUBJECT, and the name of what its rows address. Replaced
     /// whole; owned by nobody here; deliberately NOT in the state shape.
-    workshop::PaneSubjectShown known_;
+    workshop::v2::PaneSubjectShown known_;
+    /// THE TAB CHOSEN for this subject, empty for the one `first_tab_` names; view state, not
+    /// reload state, so a reloaded Info opens on its first tab. The strip as last composed.
+    std::string tab_;
+    component::TabStrip strip_;
+    /// THE PANE'S OWN SETTINGS (`label-columns`, `tab`), at their defaults until handed, and the
+    /// tab the subject shown now opened on.
+    std::int64_t label_cols_ = kLabelColumnsDefault;
+    std::string first_tab_ = kTabPinned;
+    std::string subject_tab_ = kTabPinned;
     std::int64_t cursor_ = 0; ///< which property row the weaver is on: an index over a stable list
 
     Draft draft_;
@@ -870,6 +1236,7 @@ private:
     Asked acting_;               ///< an inspect
     loom::DeferredAnswer relay_; ///< the office that asked for `acting_`, owed its answer
     SentCommit committing_;      ///< a commit
+    Asked pinning_;              ///< a pin act
 
     std::int64_t rows_ = 0;
     std::int64_t columns_ = 0;

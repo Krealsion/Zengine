@@ -293,19 +293,31 @@ bool holder_accepts_on(const loom::Switchboard& bus, std::string_view role,
 bool holder_emits_on(const loom::Switchboard& bus, std::string_view role,
                      const loom::Schema& shape);
 
-/// What a terminal participant may ask of a pane's settings and hear back: the read and the commit,
-/// known and granted to this office alone, and their answers accepted. The host widens the terminal
-/// it mounts with exactly this, so what a case typing the documented line proves is what it grants.
+/// What a terminal participant may ask of settings and hear back: a pane's row and an office's
+/// settings, each read and committed, and a pane's pin list edited -- known and granted to this
+/// office alone, and their answers accepted. The host widens the terminal it mounts with exactly
+/// this, so what a case typing the documented line proves is what it grants.
 // WL-SETTING-09 -- agents/workshop/settings.md
 inline void let_terminal_edit_settings(loom::TerminalVocabulary& vocab, loom::Grant& grant) {
     vocab.knows(loom::schema_of<PaneSettingsRequested>())
         .knows(loom::schema_of<PaneSettingCommitRequested>())
+        .knows(loom::schema_of<OfficeSettingsRequested>())
+        .knows(loom::schema_of<OfficeSettingCommitRequested>())
+        .knows(loom::schema_of<PaneSettingPinRequested>())
         .accepts(loom::schema_of<PaneSettingsShown>())
-        .accepts(loom::schema_of<PaneSettingActed>());
+        .accepts(loom::schema_of<PaneSettingActed>())
+        .accepts(loom::schema_of<OfficeSettingsShown>())
+        .accepts(loom::schema_of<PaneSettingPinActed>());
     grant.allow_to_role(PaneSettingsRequested::zen_name, PaneSettingsRequested::zen_version,
                         kWorkshopProvider);
     grant.allow_to_role(PaneSettingCommitRequested::zen_name,
                         PaneSettingCommitRequested::zen_version, kWorkshopProvider);
+    grant.allow_to_role(OfficeSettingsRequested::zen_name, OfficeSettingsRequested::zen_version,
+                        kWorkshopProvider);
+    grant.allow_to_role(OfficeSettingCommitRequested::zen_name,
+                        OfficeSettingCommitRequested::zen_version, kWorkshopProvider);
+    grant.allow_to_role(PaneSettingPinRequested::zen_name, PaneSettingPinRequested::zen_version,
+                        kWorkshopProvider);
 }
 
 /// The door onto the terminal participant, as this host composes it: over its own context.
@@ -341,6 +353,12 @@ class WorkshopWeave
                                           zengine::workshop::PaneSettingsRequested,
                                           zengine::workshop::PaneSettingCommitRequested,
                                           zengine::workshop::PaneSettingUnused,
+                                          // office-wide settings, declared, read and written by
+                                          // message, and a pane's pin list edited
+                                          zengine::workshop::OfficeSettingsDeclared,
+                                          zengine::workshop::OfficeSettingsRequested,
+                                          zengine::workshop::OfficeSettingCommitRequested,
+                                          zengine::workshop::PaneSettingPinRequested,
                                           zengine::workshop::PaneContent,
                                           zengine::workshop::PaneCaret,
                                           zengine::workshop::v2::PaneContent,
@@ -424,6 +442,9 @@ class WorkshopWeave
                                         zengine::workshop::v2::PaneSettings,
                                         zengine::workshop::PaneSettingsShown,
                                         zengine::workshop::PaneSettingActed,
+                                        zengine::workshop::OfficeSettings,
+                                        zengine::workshop::OfficeSettingsShown,
+                                        zengine::workshop::PaneSettingPinActed,
                                         zengine::workshop::PanePressed,
                                         zengine::workshop::v2::PanePressed,
                                         zengine::workshop::v3::PanePressed,
@@ -447,6 +468,7 @@ class WorkshopWeave
                                         zengine::workshop::PaneRevealAnswered,
                                         zengine::workshop::StandingConditions,
                                         zengine::workshop::PaneSubjectShown,
+                                        zengine::workshop::v2::PaneSubjectShown,
                                         zengine::workshop::PaneSubjectActed,
                                         zengine::workshop::TerminalValueAnswered,
                                         zengine::workshop::PresentationTrial,
@@ -821,6 +843,46 @@ public:
     /// office's holder; 0 when the live layout has no such row.
     std::int64_t settings_revision(const PaneRef& ref);
 
+    // ---- Office-wide settings and pins (WL-SETTING) -----------------------------------------
+
+    /// THE OFFICE-WIDE SETTINGS AN OFFICE TAKES, judged whole under its stamp by a pane
+    /// declaration's rules, and kept while the weave that sent them holds the office.
+    void on(const OfficeSettingsDeclared& declared, loom::Mail& mail);
+    /// ONE OFFICE'S SETTINGS, READ, answered to the asker alone and only to one this door serves.
+    void on(const OfficeSettingsRequested& asked, loom::Mail& mail);
+    /// ...AND ONE OF THEM WRITTEN at the revision the asker read: applied, kept in Workshop's
+    /// settings file, and handed to the office's holder; refused in words with nothing written.
+    void on(const OfficeSettingCommitRequested& asked, loom::Mail& mail);
+    /// ONE PANE'S PIN LIST EDITED, in the list the pin scope reads; refused in words with nothing
+    /// written.
+    void on(const PaneSettingPinRequested& asked, loom::Mail& mail);
+
+    /// WHAT AN OFFICE'S DECLARATION GIVES: Workshop's own, declared in code, or the counted
+    /// declaration of an office that sent one; nullptr when none counts.
+    const std::vector<v2::PaneSettingRow>* office_rows(std::string_view office) const;
+    /// THE REVISION AN OFFICE'S SETTINGS STAND AT, minted afresh when what it was minted for moved:
+    /// the counted rows, the kept settings or the office's holder; 0 when nothing declares.
+    std::int64_t office_revision(const std::string& office);
+    /// HAND EVERY DECLARING OFFICE ITS SETTINGS, when its holder takes them and has not been handed
+    /// these, at the revision they stand at.
+    void hand_office_settings(loom::Mail& mail);
+    /// Workshop's own settings, read from what its settings file keeps into what the session
+    /// spends.
+    void apply_workshop_settings();
+    /// WRITE WORKSHOP'S SETTINGS FILE as it now stands: empty when written, else why not -- an
+    /// isolated run, a file this run could not read, a file another hand changed since this host
+    /// read it, a write that failed.
+    std::string write_prefs();
+    /// THE PIN LIST A READING OF `ref` SHOWS, in pin order, and the target it is kept under in the
+    /// scope in force (`layout` a shelf position, -1 the live layout): the scope's own list, else,
+    /// per layout, the Workshop-wide one, else the declaration's own pins.
+    std::vector<std::string> effective_pins(const PaneRef& ref, std::int64_t layout = -1) const;
+    std::string pin_target(const PaneRef& ref, std::int64_t layout = -1) const;
+    /// The everywhere locks on `ref`'s settings, by key.
+    std::vector<std::string> locked_keys(const PaneRef& ref) const;
+    /// What Workshop's settings file keeps, as this run holds it.
+    const prefs_persist::Prefs& prefs() const noexcept { return prefs_; }
+
     // ---- The participating owner of the application's default behaviour (WL-DESK) --------
 
     /// The desktop declares what the application answers to, judged whole by `join_app_rows`; the
@@ -969,6 +1031,8 @@ public:
 
     /// SAY THE SUBJECT OUT LOUD, if it changed since it was last said (the inventory's rule).
     void publish_pane_subject(loom::Mail& mail);
+    /// The subject as v2 says it: its rows, the pins of the list the pin scope reads, the scope.
+    v2::PaneSubjectShown inspected_subject() const;
 
     /// A COMMIT TYPED FOR ROWS THAT ARE NO LONGER THE SUBJECT'S (WL-INFO-15).
     static constexpr const char* kPaneCommitSubjectGone =
@@ -1972,7 +2036,7 @@ private:
     std::string keymap_standing_;
     /// ...AND FOR THE INSPECTOR'S SUBJECT (WL-INFO-14): what was last said, and whether it has
     /// been said since a presenter last arrived.
-    PaneSubjectShown subject_said_;
+    v2::PaneSubjectShown subject_said_;
     bool subject_published_ = false;
     /// Which generation of the host's standing list this weave has taken.
     std::uint64_t conditions_taken_ = 0;
@@ -1983,10 +2047,36 @@ private:
     bool keymap_file_present_ = false;
     bool startup_spoken_ = false; ///< the one combined startup sentence has been said
 
-    /// What loading the PREFS file produced, the keymap's own bookkeeping one file over.
+    /// What loading the PREFS file produced, the keymap's own bookkeeping one file over: what it
+    /// keeps, whether it could be read, and its bytes as this host last read or wrote them and
+    /// whether it was there -- a write never overwrites a file another hand changed since.
     // WL-FOCUS-11 -- agents/workshop/focus.md
     bool prefs_loaded_ = false;
     bool prefs_bad_ = false;
+    prefs_persist::Prefs prefs_;
+    std::string prefs_bytes_;
+    bool prefs_file_present_ = false;
+
+    /// ONE OFFICE'S OFFICE-WIDE DECLARATION, counting while the weave that sent it holds the
+    /// office at the incarnation that sent it, and the revision last handed to its holder.
+    struct OfficeDeclaration {
+        std::string office;
+        std::vector<v2::PaneSettingRow> rows;
+        loom::WeaveId from{};
+        std::int64_t incarnation = 0;
+        std::int64_t handed = 0; ///< the revision last handed to the holder; 0 for none
+    };
+    std::vector<OfficeDeclaration> office_declarations_;
+    /// WHAT EACH OFFICE'S REVISION WAS MINTED FOR, the mint shared with the rows' (from one, never
+    /// reused); never persisted.
+    struct OfficeRevision {
+        std::string office;
+        std::int64_t revision = 0;
+        std::vector<v2::PaneSettingRow> rows;
+        std::vector<PaneSetting> settings;
+        loom::WeaveId holder{};
+    };
+    std::vector<OfficeRevision> office_revisions_;
 
     /// What this weave last said about what is true: its own last utterance, not a cache of the
     /// conditions, so the publication is silent when nothing changed.

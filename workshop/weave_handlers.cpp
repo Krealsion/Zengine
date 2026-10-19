@@ -123,7 +123,17 @@ void WorkshopWeave::load_prefs() {
     if (!std::filesystem::exists(host_->prefs_path)) {
         return;
     }
-    const prefs_persist::LoadedPrefs loaded = prefs_persist::load_file(host_->prefs_path);
+    // READ ONCE, AND THE BYTES KEPT: the baseline a write compares the file against, as the
+    // keymap's are, so a change by another hand since this read is seen rather than overwritten.
+    const persist::FileText read = persist::read_file(
+        host_->prefs_path, prefs_persist::kMaxPrefsBytes, "a Workshop prefs file");
+    if (read.outcome.accepted) {
+        prefs_bytes_ = read.text;
+        prefs_file_present_ = true;
+    }
+    const prefs_persist::LoadedPrefs loaded =
+        read.outcome.accepted ? prefs_persist::from_text(read.text)
+                              : prefs_persist::LoadedPrefs{read.outcome, {}, {}};
     if (!loaded.outcome.accepted) {
         // The keymap wall's twin: `prefs_bad_` blocks every later write. The condition is the
         // standing half; a toggle's refusal stays an event about the press.
@@ -133,9 +143,8 @@ void WorkshopWeave::load_prefs() {
                       loaded.outcome.refusal, surface::role::kAlert, std::string()});
         return;
     }
-    session_.pane_titles = loaded.prefs.titles_shown;
-    session_.band_keys = loaded.prefs.band_keys;
-    session_.hotkeys_keys = loaded.prefs.hotkeys_keys;
+    prefs_ = loaded.kept;
+    apply_workshop_settings();
 }
 
 // WL-ATTN-02 -- agents/workshop/attention.md

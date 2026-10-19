@@ -758,7 +758,8 @@ host's side is Workshop's law, [`workshop/settings.md`](workshop/settings.md).
   them. It counts only while the weave that sent it holds the office, at the incarnation that
   sent it -- a reloaded image declares again or takes nothing -- and nothing waits on it: it
   makes no pane appear, and no hand-off is held for it. Workshop takes either version and reads
-  both as one declaration; v2's tags, pins and summary are judged by form and never acted on.
+  both as one declaration; v2's tags, pins and summary are judged by form and never acted on,
+  the pins seeding the pin list an editor reads until it is edited (`PaneSettingPinRequested`).
 - **The hand-off waits on nothing but the door.** A seated pane whose office's holder accepts
   `PaneSettings` is handed its row's settings, whether or not, and whenever, it declared — before
   any room it is granted, at the top of every repaint and before the rooms a managed opening seats

@@ -39,7 +39,7 @@
 namespace zengine::external_host {
 
 struct GuestVocabularyState {
-    std::int64_t declared = 107; ///< top-level emitted shapes, excluding nested and substrate shapes
+    std::int64_t declared = 112; ///< top-level emitted shapes, excluding nested and substrate shapes
     ZEN_SHAPE(GuestVocabularyState, 1, ZEN_FIELD(declared));
 };
 
@@ -115,10 +115,16 @@ class GuestVocabulary final
                      zengine::workshop::OpenSourceRequested, zengine::workshop::SourceOpened,
                      // Where the Builder stands, answered to one observer (builder/vocabulary.hpp).
                      zengine::builder::BuildStatusRequested, zengine::builder::BuildStatus,
-                     // One pane's settings on the live layout, which the `settings` power reaches.
+                     // One pane's settings on the live layout and one office's, and a pane's pin
+                     // list, which the `settings` power reaches.
                      zengine::workshop::PaneSettingsRequested, zengine::workshop::PaneSettingsShown,
                      zengine::workshop::PaneSettingCommitRequested,
-                     zengine::workshop::PaneSettingActed>> {};
+                     zengine::workshop::PaneSettingActed,
+                     zengine::workshop::OfficeSettingsRequested,
+                     zengine::workshop::OfficeSettingsShown,
+                     zengine::workshop::OfficeSettingCommitRequested,
+                     zengine::workshop::PaneSettingPinRequested,
+                     zengine::workshop::PaneSettingPinActed>> {};
 
 } // namespace zengine::external_host
 
