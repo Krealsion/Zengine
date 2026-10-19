@@ -28,7 +28,7 @@ an element the window presents from the owner's data (`element_export.hpp`).
   window tell it, and what it says to each window
 - [The Graphics package](docs/graphics.md): drawing into a window -- who says what, the node and the
   element record, the seven operators, drawing with a canvas, a drawing weave, an element of your
-  own, and the two seams
+  own, the two seams, and what a window answers to C++ in its own process
 
 ## What is in this folder
 
