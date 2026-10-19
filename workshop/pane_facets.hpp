@@ -483,6 +483,8 @@ public:
 
     /// The pictures numbered in this room, and which a press may still name.
     CanvasPictures& pictures() noexcept { return pictures_; }
+    /// The office a paste is asked of: the window showing the area, else the Skin.
+    std::string clipboard_office() const { return window_.clipboard_office(); }
 
 private:
     std::vector<surface::SurfaceTextRow> composing_;
@@ -605,6 +607,9 @@ public:
 
     /// THAT PRESS WAS NOT THE PANE'S: Workshop's own pane menu opens where it was made.
     void pass_back(loom::Mail& mail) { (void)pane_menu::pass_back(mail, Office, Pane); }
+
+    /// The office a paste is asked of: the window showing the area, else the Skin.
+    std::string clipboard_office() const { return window_.clipboard_office(); }
 
     /// SHOW THE PICTURE, once the pane holds a room: the weave's `picture` drawn, sent to the
     /// window that shows the area as what changed there (nothing when nothing did), and to

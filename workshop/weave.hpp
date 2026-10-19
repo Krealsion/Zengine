@@ -1265,6 +1265,19 @@ private:
     /// OPEN THE CLIPBOARD CONVERSATION A CONSUMED PASTE REQUEST ASKED FOR.
     void begin_clipboard_paste(loom::Mail& mail);
 
+    /// THE OFFICE THAT HOLDS THE PLATFORM -- its clipboard and the window's place on the desktop:
+    /// the graphics window that shows Workshop's area; before it shows it, the window that offered
+    /// itself while no skin has named its unit; otherwise the Skin.
+    std::string medium_office() const {
+        if (window_.shown()) {
+            return window_.window_office();
+        }
+        if (window_offered_ && !medium_unit_known_) {
+            return std::string(graphics::kWindowOfficePrefix) + window_name_;
+        }
+        return surface::kSkinRole;
+    }
+
     /// The pending-paste record a settled conversation belongs to, removed and handed back; an id
     /// the list does not hold answers the empty record.
     PendingPaste take_pending_paste(std::uint64_t ask);
@@ -1708,6 +1721,9 @@ private:
     std::int64_t graphics_incarnation_ = 0;
     /// Workshop's own room was asked of this directory.
     bool graphics_asked_ = false;
+    /// The graphics window the desk's areas are placed on, and whether a window offered itself.
+    std::string window_name_ = graphics::kTerminalWindow;
+    bool window_offered_ = false;
     /// A click being given, so the press it makes is not taken for the window's own.
     bool window_clicking_ = false;
 

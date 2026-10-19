@@ -244,9 +244,18 @@ static_assert(graphics::kCellPx == surface::kCanvasCellPx,
               "canvas cell and its room in cells is the screen in cells");
 
 void WorkshopWeave::on(const graphics::WindowOffered& w, loom::Mail& mail) {
-    if (w.window != graphics::kTerminalWindow ||
+    if ((w.window != graphics::kTerminalWindow && w.window != graphics::kSdlWindow) ||
         !mail.authored_from_role(std::string(graphics::kWindowOfficePrefix) + w.window)) {
         return;
+    }
+    // THE WINDOW THE DESK IS PLACED ON: the one that offered itself, the terminal's or the OS's.
+    // Another one offering itself takes every area afresh.
+    window_offered_ = true;
+    if (window_name_ != w.window) {
+        window_name_ = w.window;
+        areas_placed_.clear();
+        skins_chosen_.clear();
+        graphics_asked_ = false;
     }
     // A HOST WITH NO SKIN COMES UP IN THE WINDOW, as a skin's hello brings it up: the session
     // restored first, and the window's room taken after it, as a skin's extent follows its hello.

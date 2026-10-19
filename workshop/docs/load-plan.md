@@ -275,6 +275,7 @@ build is a retry, and the host keeps running.
 |---|---|
 | shipped default | `workshop/default-load-plan.json`, staged beside the host binary |
 | shipped window | `workshop/window-load-plan.json`, staged beside the host binary |
+| shipped OS window | `workshop/sdl-window-load-plan.json`, staged only where the OS window and SDL's reader were built |
 | shipped graphical | `workshop/graphical-load-plan.json`, staged only where both SDL artifacts were built |
 | project plan | `<project>/workshop-plan.json`, written by `o` in the Builder; the plan in force when it exists and no `--load-plan` is given |
 | default lookup | `<directory of the executable>/default-load-plan.json`, when there is no project plan |
@@ -293,7 +294,9 @@ the two rows that name the medium and the reader, and presentation and input rem
 independent rows rather than one deduced from the other. The terminal window's puts two rows
 where the default's skin stands, the graphics directory, `zengine-graphics`, and the window,
 `zengine-window-terminal`, which shows the desk and reads its own terminal's keys; the default's
-input row follows them and serves input sessions.
+input row follows them and serves input sessions. The OS window's plan puts the OS window,
+`zengine-window-sdl`, where the terminal window stands, and SDL's reader in the input row, which
+serves input sessions while the window reads SDL's queue.
 
 ## Artifact names, and why they are stems
 

@@ -135,6 +135,8 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         if (!host_->dir.empty()) {
             to_directory(graphics::SkinOffered{kSkinClassic, host_->so("zengine-paint-classic")});
             to_directory(graphics::SkinOffered{kSkinBlock, host_->so("zengine-paint-block")});
+            to_directory(graphics::SkinOffered{kSkinDay, host_->so("zengine-paint-day")});
+            to_directory(graphics::SkinOffered{kSkinNight, host_->so("zengine-paint-night")});
         }
     }
     // EACH OPEN PANE WHOSE OFFICE DRAWS IN A WINDOW, over its body, in the desk's order and above
@@ -167,15 +169,14 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         }
         const std::string area = pane_window_area(session_.panes, *row);
         next[area] = graphics::AreaPlaced{
-            area, graphics::kTerminalWindow, row->provider, place.x, place.y, place.w, place.h,
+            area, window_name_, row->provider, place.x, place.y, place.w, place.h,
             static_cast<std::int64_t>(i) + 1, false,
             accepts(row->provider, *loom::schema_of<input::PointerButton>())};
         const SetupPane* seat =
             pane_of(session_.setup.active, PaneRef{row->provider, row->pane});
         const PaneSetting* own =
             seat != nullptr ? find_pane_setting(seat->settings, kWorkshopSkinKey) : nullptr;
-        skins[area] = own != nullptr && own->text &&
-                              (*own->text == kSkinClassic || *own->text == kSkinBlock)
+        skins[area] = own != nullptr && own->text && is_workshop_skin_choice(*own->text)
                           ? *own->text
                           : session_.skin;
         kinds.insert(order[i]);
@@ -184,7 +185,7 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
     // weaver arranges or a menu is open, or while a carried value or a guide mark stands over them.
     const bool front = desk_in_front(session_) || !window_overlays_.empty();
     next[kWorkshopProvider] = graphics::AreaPlaced{
-        kWorkshopProvider, graphics::kTerminalWindow, kWorkshopProvider, 0, 0, sc.w, sc.h,
+        kWorkshopProvider, window_name_, kWorkshopProvider, 0, 0, sc.w, sc.h,
         front ? static_cast<std::int64_t>(order.size()) + 1 : 0, true, true};
     skins[kWorkshopProvider] = session_.skin;
     for (const auto& [area, was] : areas_placed_) {

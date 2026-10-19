@@ -1245,9 +1245,23 @@ TEST_CASE("the Timer appears exactly ONCE in the shipped plan, participating in 
     CHECK(seen == 1);
 }
 
+namespace {
+
+/// The OS window's shipped plan, beside the terminal window's in the source tree.
+std::string sdl_window_plan_path() {
+    return (std::filesystem::path(WORKSHOP_WINDOW_PLAN).parent_path() /
+            load_persist::kSdlWindowLoadPlanName)
+        .string();
+}
+
+} // namespace
+
 TEST_CASE("the shipped plans carry no operator identity, no suffix and no path") {
-    for (const char* path : {WORKSHOP_DEFAULT_PLAN, WORKSHOP_WINDOW_PLAN, WORKSHOP_GRAPHICAL_PLAN}) {
+    const std::string sdl_window = sdl_window_plan_path();
+    for (const char* path : {WORKSHOP_DEFAULT_PLAN, WORKSHOP_WINDOW_PLAN, sdl_window.c_str(),
+                             WORKSHOP_GRAPHICAL_PLAN}) {
         const std::string text = file_text(path);
+        REQUIRE_MESSAGE(!text.empty(), path, " is a shipped plan");
         // PROVIDERS OWN THE VOCABULARY. A plan that copied an operator identity into
         // the project file would be a host authoring semantics one indirection out.
         for (const char* forbidden : {"math.max", "logic.select_int", "timer.normalize_delay",
@@ -1346,6 +1360,32 @@ TEST_CASE("the window plan puts the two medium rows where the default's skin sta
     CHECK(done.resolved[3].role == "zengine.input");
     CHECK(done.resolved[4].stem == "zengine-timer");
     CHECK(done.resolved[4].role == tmr::kTimerRole);
+
+    // THE OS WINDOW'S PLAN is this one with the OS window where the terminal window stands, and
+    // SDL's reader in the input row, which reads none of SDL's queue while the window claims it.
+    const load_persist::LoadedPlan os = load_persist::from_text(file_text(sdl_window_plan_path()));
+    REQUIRE_MESSAGE(os.outcome.accepted, os.outcome.refusal);
+    REQUIRE(os.plan.artifacts.size() == win.plan.artifacts.size());
+    CHECK(os.plan.choices == win.plan.choices);
+    for (std::size_t i = 0; i < win.plan.artifacts.size(); ++i) {
+        CAPTURE(win.plan.artifacts[i].stem);
+        if (i != 3 && i != 4) {
+            CHECK(os.plan.artifacts[i] == win.plan.artifacts[i]);
+        }
+    }
+    const load::ArtifactIntent& os_window = os.plan.artifacts[3];
+    CHECK(os_window.stem == "zengine-window-sdl");
+    CHECK_FALSE(os_window.provider.has_value());
+    REQUIRE(os_window.weave.has_value());
+    CHECK(os_window.weave->role == std::string(zengine::graphics::kWindowOfficePrefix) +
+                                       zengine::graphics::kSdlWindow);
+    CHECK_FALSE(os_window.optional);
+    const load::ArtifactIntent& reader = os.plan.artifacts[4];
+    CHECK(reader.stem == "zengine-input-sdl");
+    CHECK_FALSE(reader.provider.has_value());
+    REQUIRE(reader.weave.has_value());
+    CHECK(reader.weave->role == "zengine.input");
+    CHECK_FALSE(reader.optional);
 }
 
 TEST_CASE("a settled project's medium holds the terminal only when a terminal medium loaded on a "
@@ -1385,8 +1425,13 @@ TEST_CASE("a settled project's medium holds the terminal only when a terminal me
     refused.refusal = "artifact 'zengine-timer': weave load refused: open failed";
     CHECK_FALSE(load::medium_holds_terminal(refused, true));
 
-    // THE SDL SKIN paints a window of its own and leaves the terminal it was started from alone.
+    // THE SDL SKIN paints a window of its own and leaves the terminal it was started from alone,
+    // and so does the OS window.
     CHECK_FALSE(load::medium_holds_terminal(settled(loaded("zengine-skin-sdl", skin)), true));
+    CHECK_FALSE(load::medium_holds_terminal(
+        settled(loaded("zengine-window-sdl", std::string(zengine::graphics::kWindowOfficePrefix) +
+                                                 zengine::graphics::kSdlWindow)),
+        true));
 
     // A ROW THAT RUNS NO WEAVE holds nothing: a medium switched away or never loaded.
     load::ResolvedArtifact gone = loaded("zengine-window-terminal", window);

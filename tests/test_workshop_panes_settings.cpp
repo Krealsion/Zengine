@@ -1362,7 +1362,8 @@ TEST_CASE("Workshop's own settings are read by message: what each takes, what is
         return v2::PaneSettingRow{};
     };
     CHECK(row_of("workshop.skin").text == std::string("classic"));
-    CHECK(row_of("workshop.skin").choices == std::vector<std::string>{"classic", "block"});
+    CHECK(row_of("workshop.skin").choices ==
+          std::vector<std::string>{"classic", "block", "day", "night"});
     CHECK(row_of("workshop.completion-order").text == std::string("declared"));
     CHECK(row_of("workshop.completion-order").choices ==
           std::vector<std::string>{"declared", "required-first"});
@@ -1794,17 +1795,30 @@ TEST_CASE("a row's `workshop.skin` is Workshop's word for its pane's area: taken
           std::vector<PaneSetting>{PaneSetting{"workshop.skin", std::nullopt, std::nullopt,
                                                std::string("classic")}});
     CHECK(t.seat->handed.back().settings.empty());
+    // `day` AND `night` ARE TAKEN AS THE OTHER TWO ARE, kept as written and handed to no pane.
+    std::int64_t at = classic.revision;
+    for (const char* painter : {"day", "night"}) {
+        CAPTURE(painter);
+        const PaneSettingActed kept = t.commit(text_at(at, "workshop.skin", painter));
+        REQUIRE_MESSAGE(kept.accepted, kept.refusal);
+        CHECK(t.stored() == std::vector<PaneSetting>{PaneSetting{"workshop.skin", std::nullopt,
+                                                                 std::nullopt,
+                                                                 std::string(painter)}});
+        CHECK(t.seat->handed.back().settings.empty());
+        CHECK(check_pane_settings(dial_ref(), t.stored()).accepted);
+        at = kept.revision;
+    }
     // A SKIN IT DOES NOT TAKE, AND ANY OTHER `workshop.` KEY, ARE REFUSED, nothing written.
-    PaneSettingActed a = t.commit(text_at(classic.revision, "workshop.skin", "plain"));
+    PaneSettingActed a = t.commit(text_at(at, "workshop.skin", "plain"));
     CHECK_FALSE(a.accepted);
-    CHECK(a.refusal == "workshop.skin takes one of classic, block, not a text `plain`");
-    a = t.commit(text_at(classic.revision, "workshop.text", "x"));
+    CHECK(a.refusal == "workshop.skin takes one of classic, block, day, night, not a text `plain`");
+    a = t.commit(text_at(at, "workshop.text", "x"));
     CHECK_FALSE(a.accepted);
     CHECK(a.refusal.find("has no counted setting `workshop.text`") != std::string::npos);
     CHECK(t.stored().size() == 1);
     // ...AND A CLEAR GIVES THE AREA BACK TO WORKSHOP'S OWN.
     PaneSettingCommitRequested clear;
-    clear.revision = classic.revision;
+    clear.revision = at;
     clear.key = "workshop.skin";
     clear.clear = true;
     const PaneSettingActed cleared = t.commit(clear);
@@ -1817,10 +1831,12 @@ TEST_CASE("a row's `workshop.skin` is Workshop's word for its pane's area: taken
     const Written plain = check_pane_settings(
         dial_ref(), {PaneSetting{"workshop.skin", std::nullopt, std::nullopt, std::string("plain")}});
     CHECK_FALSE(plain.accepted);
-    CHECK(plain.refusal == "`" + ref_text(dial_ref()) +
-                               "`: workshop.skin takes one of classic, block, not a text `plain`");
+    CHECK(plain.refusal ==
+          "`" + ref_text(dial_ref()) +
+              "`: workshop.skin takes one of classic, block, day, night, not a text `plain`");
     CHECK(check_pane_settings(dial_ref(), {PaneSetting{"workshop.skin", std::nullopt, 1,
                                                        std::nullopt}})
-              .refusal.find("workshop.skin takes one of classic, block, not a number `1`") !=
+              .refusal.find(
+                  "workshop.skin takes one of classic, block, day, night, not a number `1`") !=
           std::string::npos);
 }

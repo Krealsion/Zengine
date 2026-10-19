@@ -818,16 +818,19 @@ void WorkshopWeave::begin_clipboard_paste(loom::Mail& mail) {
         break;
     }
     }
+    // ASKED OF THE OFFICE HOLDING THE PLATFORM -- the window showing the desk, or the Skin -- and
+    // settled only by that office's answer.
+    const std::string office = medium_office();
     const loom::AskOpened opened = paste_asks_.open_to_role(
-        zengine::surface::kSkinRole, zengine::surface::ClipboardTextRequested::zen_name,
+        office, zengine::surface::ClipboardTextRequested::zen_name,
         zengine::surface::ClipboardTextRequested::zen_version);
     if (!opened) {
         return; // the book is full: this paste is dropped, the outstanding ones stand
     }
     p.ask = opened.id;
     pending_pastes_.push_back(std::move(p));
-    (void)mail.send_to_role(zengine::surface::kSkinRole,
-                            zengine::surface::ClipboardTextRequested{}, opened.correlation);
+    (void)mail.send_to_role(office, zengine::surface::ClipboardTextRequested{},
+                            opened.correlation);
 }
 
 WorkshopWeave::PendingPaste WorkshopWeave::take_pending_paste(std::uint64_t ask) {
