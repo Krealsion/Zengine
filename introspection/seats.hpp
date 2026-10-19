@@ -461,7 +461,8 @@ public:
 
     /// A KEY WHILE POWERS HOLDS THE KEYBOARD: only the query field's editing vocabulary acts here;
     /// what the pane commands arrives as a resolved id (`on_action`). A copy is said once; a paste
-    /// is asked of the Skin, since only an owner can read the clipboard's current value.
+    /// is asked of the office that holds the platform (`begin_clipboard_paste`), since only an
+    /// owner can read the clipboard's current value.
     void on_key(Voice voice, const workshop::PaneKey& key) {
         const std::uint64_t copied_before = clip_.writes;
         const std::uint64_t pastes_before = clip_.paste_requests;
@@ -560,8 +561,8 @@ public:
         }
     }
 
-    /// The Skin's answer to a paste this pane asked for, the one road foreign clipboard text has
-    /// in: `answers_ask()` and the book's settlement, then the draft that asked must still be
+    /// The clipboard's answer to a paste this pane asked for, the one road foreign clipboard text
+    /// has in: `answers_ask()` and the book's settlement, then the draft that asked must still be
     /// there (`draft_epoch`).
     void on_clipboard(Voice voice, const surface::ClipboardText& a) {
         if (!voice.mail.answers_ask()) {
@@ -791,11 +792,13 @@ private:
                           describing_.pending);
     }
 
-    /// Ask the Skin what the platform clipboard holds, for a paste the query requested; the
-    /// epoch says the draft the answer is for is still in the box.
+    /// Ask what the platform clipboard holds, of the window that shows the pane's area, else the
+    /// Skin, for a paste the query requested; the epoch says the draft the answer is for is still
+    /// in the box.
     void begin_clipboard_paste(loom::Mail& mail) {
+        const std::string office = room().clipboard_office();
         const loom::AskOpened opened = clip_asks_.open_to_role(
-            surface::kSkinRole, surface::ClipboardTextRequested::zen_name,
+            office, surface::ClipboardTextRequested::zen_name,
             surface::ClipboardTextRequested::zen_version);
         if (!opened) {
             return;
@@ -804,8 +807,7 @@ private:
         paste_epoch_ = ui_.query.draft_epoch();
         pasting_ = true;
         (void)mail.as_role(kIntrospectionRole)
-            .send_to_role(surface::kSkinRole, surface::ClipboardTextRequested{},
-                          opened.correlation);
+            .send_to_role(office, surface::ClipboardTextRequested{}, opened.correlation);
     }
 
     /// ONE OUTSTANDING QUESTION OF ITS OWN, and the identity it asked about: a sample or a

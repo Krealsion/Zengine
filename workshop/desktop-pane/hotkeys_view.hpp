@@ -180,7 +180,7 @@ public:
     /// mirror rather than a second store: a paste on a medium that cannot be read answers with it.
     void copied(const std::string& text) { clip_.text = text; }
 
-    /// THE SKIN'S ANSWER TO THIS IMAGE'S OWN PASTE, landing only in the line that asked --
+    /// THE CLIPBOARD'S ANSWER TO THIS IMAGE'S OWN PASTE, landing only in the line that asked --
     /// the same line, still open, in the same draft (`TextBox::draft_epoch`).
     void pasted(const surface::ClipboardText& a, const Declared& keys_rows_decl,
                 loom::Mail& mail) {
@@ -207,7 +207,7 @@ public:
                      loom::Mail& mail) {
         if (refused_ask(paste_.awaiting, paste_.attempt, paste_.pending, refused, mail,
                         surface::ClipboardTextRequested::zen_name,
-                        surface::ClipboardTextRequested::zen_version, surface::kSkinRole)) {
+                        surface::ClipboardTextRequested::zen_version, paste_.office.c_str())) {
             paste_.awaiting = false;
             return true;
         }
@@ -561,13 +561,16 @@ private:
         return true;
     }
 
-    /// A PASTE IS AN ASK OF THE SKIN'S, ON ITS OWN RECORD: nothing queued means nothing is on its
-    /// way into the line, and neither that nor Loom's refusal of it touches the edit asked.
+    /// A PASTE IS AN ASK, ON ITS OWN RECORD, OF THE WINDOW THAT SHOWS THE PANE, ELSE THE SKIN:
+    /// nothing queued means nothing is on its way into the line, and neither that nor Loom's
+    /// refusal of it touches the edit asked. The record keeps the office asked, which a refusal
+    /// names.
     void begin_paste(loom::Mail& mail, const zengine::component::TextBox& line) {
         paste_.pending = ++asks_;
         paste_.epoch = line.draft_epoch();
+        paste_.office = keys_canvas_.clipboard_office();
         paste_.attempt = mail.as_role(kDesktopRole)
-                             .send_to_role(surface::kSkinRole, surface::ClipboardTextRequested{},
+                             .send_to_role(paste_.office, surface::ClipboardTextRequested{},
                                            paste_.pending);
         paste_.awaiting = paste_.attempt.valid();
     }
@@ -828,8 +831,8 @@ private:
         loom::Ticket attempt{};
     };
     Edit edit_;
-    /// THE NUMBER ITS NEXT ASK OF THE SKIN OR THE KEYMAP EDIT DOOR GOES OUT UNDER. One counter,
-    /// and never a record: which ask an answer is about is the records' to say (`paste_`,
+    /// THE NUMBER ITS NEXT ASK OF THE CLIPBOARD OR THE KEYMAP EDIT DOOR GOES OUT UNDER. One
+    /// counter, and never a record: which ask an answer is about is the records' to say (`paste_`,
     /// `edit_`), so one numbered after another does not replace it.
     std::uint64_t asks_ = 0;
     /// THE CLIPBOARD MIRROR THE LINE'S COPY, CUT AND PASTE WORK AGAINST, and the paste in flight.
@@ -839,6 +842,7 @@ private:
         loom::Ticket attempt{};
         std::uint64_t epoch = 0;
         bool awaiting = false;
+        std::string office = surface::kSkinRole;
     };
     Paste paste_;
 };
