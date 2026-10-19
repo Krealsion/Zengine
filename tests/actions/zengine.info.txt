@@ -2,6 +2,11 @@
 zengine.info - info.up up - - row up
 zengine.info - info.down down - - row down
 zengine.info - info.edit return - - edit
+zengine.info - info.tab-previous [ - - previous tab
+zengine.info - info.tab-next ] - - next tab
+zengine.info - info.pin p PaneSettingPinRequested/1 - pin or unpin
+zengine.info - info.pin-up shift+up PaneSettingPinRequested/1 - pin up
+zengine.info - info.pin-down shift+down PaneSettingPinRequested/1 - pin down
 zengine.info - info.view.new ctrl+n PaneLaunchRequested/1 - new value view
 zengine.info - info.commit return PaneCommitRequested/1 - commit
 zengine.info - info.cancel escape - - cancel
@@ -47,6 +52,11 @@ zengine.info - info.view.stop escape - - stop waiting
 zengine.info - info.up up - - row up
 zengine.info - info.down down - - row down
 zengine.info - info.edit return - - edit
+zengine.info - info.tab-previous [ - - previous tab
+zengine.info - info.tab-next ] - - next tab
+zengine.info - info.pin p PaneSettingPinRequested/1 - pin or unpin
+zengine.info - info.pin-up shift+up PaneSettingPinRequested/1 - pin up
+zengine.info - info.pin-down shift+down PaneSettingPinRequested/1 - pin down
 zengine.info - info.inventory ctrl+i - - inventory entry
 zengine.info - info.view.new ctrl+n PaneLaunchRequested/1 - new value view
 zengine.info - info.value.up up - - previous field

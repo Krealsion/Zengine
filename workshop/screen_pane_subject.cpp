@@ -157,7 +157,8 @@ Written write_pane_axis(Session& s, const PaneRef& ref, std::size_t axis,
 
 // WL-SETTING-05 -- agents/workshop/settings.md
 SettingsSubject settings_subject(const Session& s, const PaneRef& ref,
-                                 const std::vector<PaneSettingRow>* declared) {
+                                 const std::vector<v2::PaneSettingRow>* declared,
+                                 std::vector<std::string> locked) {
     SettingsSubject out;
     if (declared != nullptr) {
         out.declared = *declared;
@@ -165,7 +166,7 @@ SettingsSubject settings_subject(const Session& s, const PaneRef& ref,
     if (const SetupPane* seat = pane_of(s.setup.active, ref)) {
         for (const PaneSetting& stored : seat->settings) {
             bool takes = false;
-            for (const PaneSettingRow& row : out.declared) {
+            for (const v2::PaneSettingRow& row : out.declared) {
                 takes = takes || row.key == stored.key;
             }
             if (!takes) {
@@ -173,6 +174,7 @@ SettingsSubject settings_subject(const Session& s, const PaneRef& ref,
             }
         }
     }
+    out.locked = std::move(locked);
     return out;
 }
 
@@ -265,12 +267,14 @@ Written write_kept_setting(Session& s, const PaneRef& ref, const std::string& ke
 }
 
 // WL-INFO-14 -- agents/workshop/info-body.md
-PaneSubjectShown pane_subject_shown(const Session& s) {
-    PaneSubjectShown shown;
+v2::PaneSubjectShown pane_subject_shown(const Session& s, const std::vector<std::string>& pins,
+                                        const std::string& scope) {
+    v2::PaneSubjectShown shown;
     const InspectedPane& in = s.inspected;
     if (!in.addressed()) {
         return shown;
     }
+    shown.pins = scope;
     shown.office = in.ref.provider;
     shown.pane = in.ref.pane;
     shown.name = in.ref.pane;
@@ -282,28 +286,40 @@ PaneSubjectShown pane_subject_shown(const Session& s) {
     }
     shown.subject = in.name;
     // THE ROWS AS THEY STAND, VALUE INCLUDED: `Row::value()` is a fresh read through the
-    // owner's property, so what crosses is what the desk says at this instant.
+    // owner's property, so what crosses is what the desk says at this instant. The rows after the
+    // SETTINGS heading are the declared settings and then the kept keys (`pane_subject_rows`).
+    const SettingsSubject& settings = in.settings;
+    const std::size_t setting_rows = settings.declared.size() + settings.kept.size();
+    bool in_settings = false;
+    std::size_t at = 0;
     for (const Row& row : in.rows) {
-        shown.properties.push_back(
-            ShownProperty{row.label(), row.value(), row.editable(), row.section()});
+        v2::ShownProperty p;
+        p.label = row.label();
+        p.value = row.value();
+        p.editable = row.editable();
+        p.section = row.section();
+        if (p.section) {
+            in_settings = p.label == kSettingsSection;
+            at = 0;
+        } else if (in_settings && at < setting_rows) {
+            p.setting = true;
+            if (at < settings.declared.size()) {
+                p.tags = settings.declared[at].tags;
+                p.summary = settings.declared[at].summary;
+            } else {
+                p.kept = true;
+            }
+            for (std::size_t i = 0; i < pins.size(); ++i) {
+                p.pin = pins[i] == p.label ? static_cast<std::int64_t>(i) : p.pin;
+            }
+            for (const std::string& key : settings.locked) {
+                p.lock = key == p.label ? std::string(kLockedEverywhere) : p.lock;
+            }
+            ++at;
+        }
+        shown.properties.push_back(std::move(p));
     }
     return shown;
-}
-
-bool same_pane_subject(const PaneSubjectShown& a, const PaneSubjectShown& b) {
-    if (a.office != b.office || a.pane != b.pane || a.name != b.name || a.subject != b.subject ||
-        a.properties.size() != b.properties.size()) {
-        return false;
-    }
-    for (std::size_t i = 0; i < a.properties.size(); ++i) {
-        const ShownProperty& x = a.properties[i];
-        const ShownProperty& y = b.properties[i];
-        if (x.label != y.label || x.value != y.value || x.editable != y.editable ||
-            x.section != y.section) {
-            return false;
-        }
-    }
-    return true;
 }
 
 // WL-INFO-14 -- agents/workshop/info-body.md
@@ -396,8 +412,27 @@ std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref,
     // ---- SETTINGS: a row per setting the declaration gives, named by its key, and a kept row per
     // key the row stores that none of them takes. A pane with neither has no such section.
     if (settings.any()) {
-        rows.push_back(Row::section("SETTINGS"));
-        for (const PaneSettingRow& declared : settings.declared) {
+        rows.push_back(Row::section(kSettingsSection));
+        for (const v2::PaneSettingRow& widened : settings.declared) {
+            const PaneSettingRow declared = narrow_setting_row(widened);
+            bool locked = false;
+            for (const std::string& key : settings.locked) {
+                locked = locked || key == declared.key;
+            }
+            if (locked) {
+                // A LOCKED SETTING SAYS ITS LOCK IN ITS VALUE, and its write is refused, naming it.
+                rows.push_back(Row::edit(
+                    declared.key,
+                    Property<std::string>(
+                        [sp, ref, declared] {
+                            return pane_setting_text(*sp, ref, declared) + " -- locked " +
+                                   kLockedEverywhere;
+                        },
+                        [declared](std::string) {
+                            return Written::no(locked_setting_refusal(declared.key));
+                        })));
+                continue;
+            }
             rows.push_back(Row::edit(
                 declared.key,
                 Property<std::string>(
@@ -407,11 +442,16 @@ std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref,
                     })));
         }
         for (const std::string& key : settings.kept) {
+            bool locked = false;
+            for (const std::string& held : settings.locked) {
+                locked = locked || held == key;
+            }
             rows.push_back(Row::edit(
                 key, Property<std::string>(
                          [sp, ref, key] { return kept_setting_text(*sp, ref, key); },
-                         [sp, ref, key](std::string text) {
-                             return write_kept_setting(*sp, ref, key, text);
+                         [sp, ref, key, locked](std::string text) {
+                             return locked ? Written::no(locked_setting_refusal(key))
+                                           : write_kept_setting(*sp, ref, key, text);
                          })));
         }
     }

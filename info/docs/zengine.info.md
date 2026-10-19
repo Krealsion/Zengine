@@ -42,6 +42,16 @@ change its value. To open a value, drag an Inventory entry onto a view for a cop
 in Inventory and press the view to link it; <!-- key info.view.new -->`ctrl+n`<!-- /key --> opens
 another view.
 
+A pane's settings are rows under `SETTINGS`, under a strip of tabs: `pinned` (in pin order), `all`,
+each tag, and `kept` ([`tabs`](#tabs)). <!-- key info.tab-next -->`]`<!-- /key --> and
+<!-- key info.tab-previous -->`[`<!-- /key --> step through them; <!-- key info.pin -->`p`<!-- /key -->
+pins or unpins the cursor's setting. Info's own settings:
+
+| setting | takes | default | does |
+|---|---|---|---|
+| `label-columns` | <!-- value kLabelColumnsLow -->6<!-- /value --> to <!-- value kLabelColumnsHigh -->24<!-- /value --> | <!-- value kLabelColumnsDefault -->9<!-- /value --> | the label column's width |
+| `tab` | `pinned` or `all` | `pinned` | the tab a new subject opens on |
+
 A value view draws a control for each of its commands: `[Save]` acts, `(Save)` cannot act now and
 still answers when pressed, with its reason, `` Save unavailable: <the reason> ``. `[...]` opens
 the view's menu, which holds every command the width left out.
@@ -87,6 +97,65 @@ the cursor there.
   `` Window is not authored -- it is what the screen makes of the authored value `` for a row the
   screen makes, drawn dim.
 - **Example:** press <!-- key info.edit -->`return`<!-- /key --> on `Width` of `Layouts`.
+
+### `info.tab-previous`
+
+Shows the previous settings tab, the last after the first.
+
+- **Takes:** the strip of tabs over the inspected pane's settings. Default key
+  <!-- key info.tab-previous -->`[`<!-- /key -->; its label says `previous tab`. A press on a tab's
+  face, the part `tab:<word>`, shows that tab, and a press on a count, `<2`, the nearest tab it
+  leaves out.
+- **Answers:** the strip marks the tab `*word*`, and the settings under it are shown; the cursor
+  moves onto one of them when its row is not.
+- **Refuses:** nothing; with no settings there is no strip, and nothing moves.
+- **Example:** <!-- key info.tab-previous -->`[`<!-- /key --> on `*all*` shows `*pinned*`.
+
+### `info.tab-next`
+
+Shows the next settings tab, the first after the last.
+
+- **Takes:** the strip. Default key <!-- key info.tab-next -->`]`<!-- /key -->; its label says
+  `next tab`.
+- **Answers:** as [`info.tab-previous`](#infotab-previous).
+- **Refuses:** nothing.
+- **Example:** <!-- key info.tab-next -->`]`<!-- /key --> on `*pinned*` shows `*all*`.
+
+### `info.pin`
+
+Pins the setting the cursor is on, or unpins it when it is pinned.
+
+- **Takes:** a `SETTINGS` row. Default key <!-- key info.pin -->`p`<!-- /key -->; its label says
+  `pin or unpin`.
+- **Answers:** asks Workshop to edit the pane's pin list
+  ([`PaneSettingPinRequested`](../../workshop/docs/zengine.workshop.md#panesettingpinrequested)); the
+  picture that follows shows it, and Workshop's band says the list.
+- **Refuses:** `the cursor is on no setting -- `p` pins the setting the cursor is on`; `pin not sent
+  -- an earlier pin act is still unanswered`; Workshop's own words, as `` `legend` is pinned
+  already ``.
+- **Example:** on `wheel-rows` of `Terminal`, <!-- key info.pin -->`p`<!-- /key -->.
+
+### `info.pin-up`
+
+Moves the pinned setting the cursor is on one place up among the pins.
+
+- **Takes:** a pinned `SETTINGS` row. Default key <!-- key info.pin-up -->`shift+up`<!-- /key -->.
+- **Answers:** asks Workshop to move it
+  ([`PaneSettingPinRequested`](../../workshop/docs/zengine.workshop.md#panesettingpinrequested)), as
+  [`info.pin`](#infopin); at the top nothing moves.
+- **Refuses:** `<key> is not pinned -- `p` pins it first`, and as [`info.pin`](#infopin).
+- **Example:** under `*pinned*`, <!-- key info.pin-up -->`shift+up`<!-- /key -->.
+
+### `info.pin-down`
+
+Moves the pinned setting the cursor is on one place down among the pins.
+
+- **Takes:** a pinned `SETTINGS` row. Default key <!-- key info.pin-down -->`shift+down`<!-- /key -->.
+- **Answers:** asks Workshop to move it
+  ([`PaneSettingPinRequested`](../../workshop/docs/zengine.workshop.md#panesettingpinrequested)), as
+  [`info.pin`](#infopin); at the bottom nothing moves.
+- **Refuses:** as [`info.pin-up`](#infopin-up).
+- **Example:** <!-- key info.pin-down -->`shift+down`<!-- /key -->.
 
 ### `info.inventory`
 
@@ -501,7 +570,19 @@ which of Info's views are on the desk; a hidden view keeps its draft and ends it
 
 From Workshop alone: the pane inspected and its rows, whole, each time they change
 ([`workshop/inspection_seam_vocabulary.hpp`](../../workshop/inspection_seam_vocabulary.hpp)).
-Workshop names what the rows address; a draft opened on other rows is abandoned.
+Workshop names what the rows address; a draft opened on other rows is abandoned. Version 2 says, for
+each `SETTINGS` row, its tags, its place among the pins, its lock and whether it is kept, which the
+strip is made from; from a Workshop saying version 1, every row is shown and there is no strip.
+
+### `PaneSettings`
+
+From Workshop alone, version 2: the default pane's own settings and the revision they were handed
+at ([`workshop/pane_settings.hpp`](../../workshop/pane_settings.hpp)). A value Info cannot use is said
+back, `PaneSettingUnused`, and its default stands.
+
+### `PaneSettingPinActed`
+
+Workshop's answer to a pin act Info asked: a refusal is said above the rows.
 
 ### `InventoryChanged`
 
@@ -539,6 +620,12 @@ the rows Workshop holds for its pane, by their part names ([Shows](#shows)).
 dim row is not yours to author, and the row a draft is open on is lit. Each row's part is
 `property:<label>`. What the room cannot hold is counted, `... 3 more`. With nothing inspected,
 `PROPERTIES` over `(no subject -- 'inspect in Info' in the Pane Manager)`.
+
+### `tabs`
+
+Under `SETTINGS`, one row: `*pinned* [all] [chrome] [input]`, the active tab between stars, and
+`<1` and `2>` counting what a narrow pane leaves out. Each face's part, and each count's, is
+`tab:<word>`, a count named for the nearest tab it leaves out.
 
 ### `notice`
 

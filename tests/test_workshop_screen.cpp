@@ -5878,3 +5878,28 @@ TEST_CASE("command mode marks the selected pane, with brackets where text is a c
     CHECK(held.labels.empty());
     CHECK(window_selection_rings(d.s).empty());
 }
+
+TEST_CASE("`workshop.focus.ring` plain marks the selection in the chrome's ink, its corners where text is a cell and one ring where an edge is finer") {
+    PlacedDesk d({PixelRect{0, 0, 30 * kCell, 10 * kCell},
+                  PixelRect{40 * kCell, 0, 30 * kCell, 10 * kCell}});
+    d.s.panes.selected = d.kinds[1];
+    d.s.selection_ring_plain = true;
+    const Screen sc = screen_of(d.s);
+    surface::SurfaceLayer corners;
+    paint_selection_ring(corners, d.s, sc);
+    REQUIRE(corners.labels.size() == 4);
+    for (const surface::SurfaceLabel& l : corners.labels) {
+        CHECK(l.role == kPaneChrome);
+    }
+    // ...ONE RING IN A WINDOW, and one ring of sides where the canvas's edges are a device unit.
+    CHECK(window_selection_rings(d.s).size() == 1);
+    Session fine = d.s;
+    fine.cell_px = surface::kCanvasCellPx;
+    const Screen fine_sc = screen_of(fine);
+    surface::SurfaceLayer fine_ring;
+    paint_selection_ring(fine_ring, fine, fine_sc);
+    REQUIRE(fine_ring.rects.size() == 4);
+    for (const surface::SurfaceRect& side : fine_ring.rects) {
+        CHECK(side.role == kPaneChrome);
+    }
+}

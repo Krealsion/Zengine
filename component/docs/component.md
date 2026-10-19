@@ -3,7 +3,8 @@
 **Reference.** Reusable pieces of a weaver-facing tool that own their own semantic state and
 know nothing about the medium showing them. The stateful pieces are `TextBox`; four list
 mechanics — a window onto a list, a composition read backwards, a choice held by identity, and
-a table's columns; and a strip of labelled controls. A pure `motion::Path` also supplies
+a table's columns; a strip of labelled controls; and a strip of tabs over a settings list. A pure
+`motion::Path` also supplies
 linear/cubic Bezier sampling and elapsed-time progress.
 
 The rule this package is built on: **extract from repeated working behaviour, never from a list
@@ -17,6 +18,7 @@ Sources: [`component/text_box.hpp`](../text_box.hpp),
 [`component/held_choice.hpp`](../held_choice.hpp),
 [`component/control_strip.hpp`](../control_strip.hpp),
 [`component/columns.hpp`](../columns.hpp),
+[`component/tab_strip.hpp`](../tab_strip.hpp),
 [`component/motion.hpp`](../motion.hpp).
 
 ```text
@@ -53,6 +55,14 @@ component/control_strip.hpp Control{label, available}, pack_controls, control_fa
 component/columns.hpp       Column, layout_columns, column_offsets, table_line, widest
                                           a table laid out once for every row, cut from the
                                           last column to the first, never silently
+component/tab_strip.hpp     setting_tabs, window_tab_strip, tab_face
+                            TabStrip{text, tabs, before, after}, PlacedTab
+                                          the tabs a settings list derives -- pinned, all,
+                                          each tag in byte order, kept -- and what a width
+                                          shows of them: a window grown outward from the
+                                          active tab, `*word*`, counting `<N` and `N>` on
+                                          each side; derived each time, so no offset can go
+                                          stale when the tags change
 ```
 
 Each owns arithmetic and a value, and nothing else: no Loom, no medium, no policy.

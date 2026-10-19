@@ -21,6 +21,11 @@ loom::Grant workshop_grant() {
     // ...and one pane's settings read and written by message, answered to whoever asked.
     speak.allow_to_any(PaneSettingsShown::zen_name, PaneSettingsShown::zen_version);
     speak.allow_to_any(PaneSettingActed::zen_name, PaneSettingActed::zen_version);
+    // ...and an office's office-wide settings, handed to its holder and answered to whoever asked,
+    // and a pin act's answer.
+    speak.allow_to_any(OfficeSettings::zen_name, OfficeSettings::zen_version);
+    speak.allow_to_any(OfficeSettingsShown::zen_name, OfficeSettingsShown::zen_version);
+    speak.allow_to_any(PaneSettingPinActed::zen_name, PaneSettingPinActed::zen_version);
     speak.allow_to_any(PanePressed::zen_name, PanePressed::zen_version);
     speak.allow_to_any(v2::PanePressed::zen_name, v2::PanePressed::zen_version);
     speak.allow_to_any(loom::Refused::zen_name, loom::Refused::zen_version);
@@ -91,6 +96,7 @@ loom::Grant workshop_grant() {
     speak.allow_to_any(PaneSourceOpened::zen_name, PaneSourceOpened::zen_version);
     speak.allow_to_any(StandingConditions::zen_name, StandingConditions::zen_version);
     speak.allow_to_any(PaneSubjectShown::zen_name, PaneSubjectShown::zen_version);
+    speak.allow_to_any(v2::PaneSubjectShown::zen_name, v2::PaneSubjectShown::zen_version);
     speak.allow_to_any(PaneSubjectActed::zen_name, PaneSubjectActed::zen_version);
     speak.allow_to_any(TranscriptShown::zen_name, TranscriptShown::zen_version);
     speak.allow_to_any(TerminalActed::zen_name, TerminalActed::zen_version);

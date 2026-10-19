@@ -26,8 +26,10 @@ void WorkshopWeave::refresh_inspected() {
     // a row made afresh, and a provider arriving or leaving is one only as its declaration starts
     // or stops counting.
     const RuntimePane* offered = session_.panes.runtime.find(in.ref.provider, in.ref.pane);
-    const SettingsSubject settings = settings_subject(
-        session_, in.ref, offered != nullptr ? counted_settings(*offered) : nullptr);
+    const SettingsSubject settings =
+        settings_subject(session_, in.ref,
+                         offered != nullptr ? counted_settings_v2(*offered) : nullptr,
+                         locked_keys(in.ref));
     const bool member = has_pane(session_.setup.active, in.ref);
     if (in.name != 0 && in.desk == session_.setup.put_live && in.member == member &&
         in.settings == settings) {
@@ -64,6 +66,7 @@ void WorkshopWeave::on(const InspectPaneRequested& asked, loom::Mail& mail) {
         in.ref = ref;
         in.name = 0; // another pane: named afresh below, so no draft typed for the last one lands
     }
+    in.inspector = std::string(mail.authored_role());
     refresh_inspected();
     (void)mail.answer(PaneSubjectActed{true, std::string()});
     repaint(mail);
@@ -75,7 +78,23 @@ void WorkshopWeave::on(const PaneSubjectRequested&, loom::Mail& mail) {
         return;
     }
     refresh_inspected();
-    (void)mail.answer(pane_subject_shown(session_));
+    // IN THE NEWEST VERSION THE ASKER'S OFFICE TAKES: v2 says how a setting is found.
+    const v2::PaneSubjectShown said = inspected_subject();
+    if (host_->holder_accepts &&
+        host_->holder_accepts(mail.authored_role(), *loom::schema_of<v2::PaneSubjectShown>())) {
+        (void)mail.answer(said);
+        return;
+    }
+    (void)mail.answer(narrow_pane_subject(said));
+}
+
+// WL-INFO-16 -- agents/workshop/info-body.md
+v2::PaneSubjectShown WorkshopWeave::inspected_subject() const {
+    const PaneRef& ref = session_.inspected.ref;
+    return pane_subject_shown(session_, effective_pins(ref),
+                              prefs_persist::presentation_of(prefs_).pins_per_layout
+                                  ? kPinsPerLayout
+                                  : kPinsWorkshopWide);
 }
 
 // WL-INFO-14 -- agents/workshop/info-body.md
@@ -86,13 +105,20 @@ void WorkshopWeave::publish_pane_subject(loom::Mail& mail) {
         return;
     }
     refresh_inspected();
-    PaneSubjectShown said = pane_subject_shown(session_);
-    if (subject_published_ && same_pane_subject(said, subject_said_)) {
+    v2::PaneSubjectShown said = inspected_subject();
+    if (subject_published_ && said == subject_said_) {
         return; // no news is silence, and silence is what makes this seam terminate
     }
     subject_said_ = said;
     subject_published_ = true;
-    (void)mail.as_role(kWorkshopProvider).publish(std::move(said));
+    // IN THE NEWEST VERSION THE INSPECTOR'S OFFICE TAKES, as a picture is answered.
+    const std::string& inspector = session_.inspected.inspector;
+    if (host_->holder_accepts &&
+        host_->holder_accepts(inspector, *loom::schema_of<v2::PaneSubjectShown>())) {
+        (void)mail.as_role(kWorkshopProvider).publish(std::move(said));
+        return;
+    }
+    (void)mail.as_role(kWorkshopProvider).publish(narrow_pane_subject(said));
 }
 
 // WL-SETTING-05 -- agents/workshop/settings.md
@@ -169,14 +195,14 @@ void WorkshopWeave::on(const PaneSettingsRequested& asked, loom::Mail& mail) {
     }
     const PaneRef ref{asked.provider, asked.pane};
     const RuntimePane* offered = session_.panes.runtime.find(ref.provider, ref.pane);
+    load_prefs();
     if (const std::vector<v2::PaneSettingRow>* rows =
             offered != nullptr ? counted_settings_v2(*offered) : nullptr) {
         shown.rows = *rows;
-        for (const v2::PaneSettingRow& row : *rows) {
-            if (row.pinned) {
-                shown.pins.push_back(row.key);
-            }
-        }
+    }
+    shown.pins = effective_pins(ref);
+    for (const std::string& key : locked_keys(ref)) {
+        shown.locks.push_back(SettingLockShown{key, kLockedEverywhere});
     }
     const SetupPane* seat = pane_of(session_.setup.active, ref);
     if (seat == nullptr) {
@@ -216,6 +242,14 @@ void WorkshopWeave::on(const PaneSettingCommitRequested& asked, loom::Mail& mail
     const std::string name = offered != nullptr ? offered->name : ref_text(ref);
     const std::vector<PaneSetting> before = pane_of(session_.setup.active, ref)->settings;
     const int fields = (asked.flag ? 1 : 0) + (asked.number ? 1 : 0) + (asked.text ? 1 : 0);
+    // A LOCK HOLDS ITS KEY against every write, a clear included.
+    load_prefs();
+    for (const std::string& key : locked_keys(ref)) {
+        if (key == asked.key) {
+            refuse(locked_setting_refusal(asked.key), current);
+            return;
+        }
+    }
     std::string written;
     if (asked.clear) {
         // A CLEAR NAMES A KEY ALONE, declared or kept, and clearing an absent key changes nothing.

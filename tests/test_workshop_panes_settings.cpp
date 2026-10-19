@@ -682,10 +682,13 @@ namespace {
 class RevisionSeat
     : public loom::WeaveBase<RevisionSeat, SeatState,
                              loom::Accept<PaneCatalogRequested, PaneRoom, v2::PaneSettings,
-                                          PaneSettingsShown, PaneSettingActed, SeatDo>,
+                                          PaneSettingsShown, PaneSettingActed, OfficeSettings,
+                                          OfficeSettingsShown, PaneSettingPinActed, SeatDo>,
                              loom::Emit<PaneOffered, v2::PaneSettingsDeclared,
                                         PaneSettingsRequested, PaneSettingCommitRequested,
-                                        PaneSettingUnused>> {
+                                        PaneSettingUnused, OfficeSettingsDeclared,
+                                        OfficeSettingsRequested, OfficeSettingCommitRequested,
+                                        PaneSettingPinRequested>> {
 public:
     explicit RevisionSeat(std::string office) : office_(std::move(office)) {}
 
@@ -701,6 +704,16 @@ public:
     }
     void on(const PaneSettingActed& a, loom::Mail& mail) {
         if (mail.answers_ask()) acted.push_back(a);
+    }
+    void on(const OfficeSettings& s, loom::Mail& mail) {
+        office_handed.push_back(s);
+        authors.push_back(std::string(mail.authored_role()));
+    }
+    void on(const OfficeSettingsShown& s, loom::Mail& mail) {
+        if (mail.answers_ask()) office_shown.push_back(s);
+    }
+    void on(const PaneSettingPinActed& a, loom::Mail& mail) {
+        if (mail.answers_ask()) pin_acted.push_back(a);
     }
     void on(const SeatDo&, loom::Mail& mail) {
         if (next) {
@@ -725,6 +738,9 @@ public:
     std::vector<std::string> authors;
     std::vector<PaneSettingsShown> shown;
     std::vector<PaneSettingActed> acted;
+    std::vector<OfficeSettings> office_handed;
+    std::vector<OfficeSettingsShown> office_shown;
+    std::vector<PaneSettingPinActed> pin_acted;
 
 private:
     std::string office_;
@@ -741,6 +757,11 @@ RevisionSeat* mount_revision_seat(PaneRig& r, const std::string& office, loom::W
     grant.allow_to_any(PaneSettingCommitRequested::zen_name,
                        PaneSettingCommitRequested::zen_version);
     grant.allow_to_any(PaneSettingUnused::zen_name, PaneSettingUnused::zen_version);
+    grant.allow_to_any(OfficeSettingsDeclared::zen_name, OfficeSettingsDeclared::zen_version);
+    grant.allow_to_any(OfficeSettingsRequested::zen_name, OfficeSettingsRequested::zen_version);
+    grant.allow_to_any(OfficeSettingCommitRequested::zen_name,
+                       OfficeSettingCommitRequested::zen_version);
+    grant.allow_to_any(PaneSettingPinRequested::zen_name, PaneSettingPinRequested::zen_version);
     *id = r.bus.register_weave(std::move(seat), std::move(grant), office);
     raw->zen_set_self(*id);
     return raw;
@@ -826,7 +847,53 @@ struct RevisionRig {
         return row->settings;
     }
     const RuntimePane* row() { return r.session().panes.runtime.find(kDialOffice, kDial); }
+
+    /// ONE OFFICE'S SETTINGS READ, AND ONE OF THEM WRITTEN, by the editor.
+    OfficeSettingsShown read_office(const std::string& office) {
+        const std::size_t before = editor->office_shown.size();
+        drive(r, editor_id, editor, [office](RevisionSeat& s, loom::Mail& m) {
+            s.say(m, OfficeSettingsRequested{office});
+        });
+        REQUIRE(editor->office_shown.size() == before + 1);
+        return editor->office_shown.back();
+    }
+    PaneSettingActed commit_office(OfficeSettingCommitRequested asked) {
+        const std::size_t before = editor->acted.size();
+        drive(r, editor_id, editor, [asked](RevisionSeat& s, loom::Mail& m) { s.say(m, asked); });
+        REQUIRE(editor->acted.size() == before + 1);
+        return editor->acted.back();
+    }
+    /// ...AND ONE PIN ACT ON THE DIAL.
+    PaneSettingPinActed pin(const std::string& key, const char* act, std::int64_t layout = -1) {
+        const std::size_t before = editor->pin_acted.size();
+        drive(r, editor_id, editor, [key, act, layout](RevisionSeat& s, loom::Mail& m) {
+            s.say(m, PaneSettingPinRequested{kDialOffice, kDial, key, act, layout});
+        });
+        REQUIRE(editor->pin_acted.size() == before + 1);
+        return editor->pin_acted.back();
+    }
 };
+
+/// A commit of Workshop's own text setting `key`, at the revision read now.
+OfficeSettingCommitRequested workshop_text(std::int64_t revision, const char* key, const char* text) {
+    OfficeSettingCommitRequested c;
+    c.office = kWorkshopProvider;
+    c.revision = revision;
+    c.key = key;
+    c.text = std::string(text);
+    return c;
+}
+
+/// The pins the inspector's subject gives the dial's settings rows, by label.
+std::vector<std::pair<std::string, std::int64_t>> subject_pins(const RevisionRig& t) {
+    std::vector<std::pair<std::string, std::int64_t>> out;
+    for (const v2::ShownProperty& p : t.r.w->inspected_subject().properties) {
+        if (p.setting) {
+            out.emplace_back(p.label, p.pin);
+        }
+    }
+    return out;
+}
 
 PaneSettingCommitRequested number_at(std::int64_t revision, const char* key, std::int64_t n) {
     PaneSettingCommitRequested c;
@@ -1237,4 +1304,312 @@ TEST_CASE("a pane's word that it cannot use a setting is kept against its revisi
     duplicate_live_layout(t.r);
     unused(before_switch, "step", "the dial is jammed");
     CHECK_FALSE(standing().has_value());
+}
+
+// ---- Office-wide settings -----------------------------------------------------------------
+
+TEST_CASE("Workshop's own settings are read by message: what each takes, what is kept, the revision, and whether the file holds it") {
+    RevisionRig t;
+    t.open();
+    const OfficeSettingsShown shown = t.read_office(kWorkshopProvider);
+    CHECK(shown.office == kWorkshopProvider);
+    CHECK(shown.revision > 0);
+    std::vector<std::string> keys;
+    for (const v2::PaneSettingRow& row : shown.rows) {
+        keys.push_back(row.key);
+    }
+    CHECK(keys == std::vector<std::string>{"workshop.pane-titles", "workshop.band-keys",
+                                           "workshop.hotkeys-keys", "workshop.pinned-scope",
+                                           "workshop.focus.ring"});
+    CHECK(shown.rows == prefs_persist::workshop_office_rows());
+    CHECK(shown.settings.empty());
+    CHECK(shown.locks.empty());
+    CHECK(shown.written == "isolated run -- no settings file");
+    // READING AGAIN MOVES NOTHING; AN OFFICE NOTHING DECLARES FOR STANDS AT 0.
+    CHECK(t.read_office(kWorkshopProvider).revision == shown.revision);
+    CHECK(t.read_office("test.nobody").revision == 0);
+    CHECK(t.read_office("test.nobody").rows.empty());
+}
+
+TEST_CASE("a commit of Workshop's own setting applies it, keeps it in the settings file, and says both") {
+    TempDir dir("office-settings-workshop");
+    RevisionRig t;
+    t.r.host.prefs_path = dir.file("workshop-prefs.json");
+    t.open();
+    REQUIRE(t.r.session().pane_titles);
+    // THE TITLES, A FLAG.
+    OfficeSettingCommitRequested titles;
+    titles.office = kWorkshopProvider;
+    titles.revision = t.read_office(kWorkshopProvider).revision;
+    titles.key = "workshop.pane-titles";
+    titles.flag = false;
+    const PaneSettingActed hidden = t.commit_office(titles);
+    REQUIRE_MESSAGE(hidden.accepted, hidden.refusal);
+    CHECK(hidden.handed == "applied; written");
+    CHECK(hidden.revision > titles.revision);
+    CHECK_FALSE(t.r.session().pane_titles);
+    CHECK(t.r.last_notice() == "committed workshop.pane-titles = off of zengine.workshop; applied; written");
+    prefs_persist::LoadedPrefs read = prefs_persist::load_file(t.r.host.prefs_path);
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    CHECK_FALSE(read.prefs.titles_shown);
+    CHECK(t.read_office(kWorkshopProvider).written == "written");
+    // THE RING: plain draws one ring in the chrome's ink.
+    const PaneSettingActed plain = t.commit_office(
+        workshop_text(hidden.revision, "workshop.focus.ring", "plain"));
+    REQUIRE_MESSAGE(plain.accepted, plain.refusal);
+    CHECK(t.r.session().selection_ring_plain);
+    // THE PIN SCOPE.
+    const PaneSettingActed scope = t.commit_office(
+        workshop_text(plain.revision, "workshop.pinned-scope", "per-layout"));
+    REQUIRE_MESSAGE(scope.accepted, scope.refusal);
+    CHECK(t.r.w->inspected_subject().pins.empty()); // nothing inspected
+    read = prefs_persist::load_file(t.r.host.prefs_path);
+    REQUIRE(read.outcome.accepted);
+    CHECK(read.prefs.pins_per_layout);
+    CHECK(read.prefs.ring_plain);
+    // ...AND A CLEAR PUTS ONE BACK, kept as its absence.
+    OfficeSettingCommitRequested back;
+    back.office = kWorkshopProvider;
+    back.revision = scope.revision;
+    back.key = "workshop.pane-titles";
+    back.clear = true;
+    const PaneSettingActed cleared = t.commit_office(back);
+    REQUIRE_MESSAGE(cleared.accepted, cleared.refusal);
+    CHECK(t.r.session().pane_titles);
+    CHECK(prefs_persist::office_value(prefs_persist::load_file(t.r.host.prefs_path).kept,
+                                      kWorkshopProvider, "workshop.pane-titles") == nullptr);
+    // A VALUE ALREADY KEPT MINTS NOTHING.
+    const PaneSettingActed same = t.commit_office(
+        workshop_text(cleared.revision, "workshop.focus.ring", "plain"));
+    CHECK(same.accepted);
+    CHECK(same.handed == "unchanged");
+    CHECK(same.revision == cleared.revision);
+}
+
+TEST_CASE("an office commit is refused in words with nothing written: a stale revision, an office nothing declares for, a value not taken, a key not declared, a lock") {
+    // AN EVERYWHERE LOCK ON THE RING, written in the settings file before the launch.
+    TempDir dir("office-settings-refused");
+    prefs_persist::Prefs locked;
+    locked.locks = {prefs_persist::SettingLock{kWorkshopProvider, "workshop.focus.ring"}};
+    const std::string path = dir.file("workshop-prefs.json");
+    REQUIRE(prefs_persist::save_file(path, locked).accepted);
+    RevisionRig t;
+    t.r.host.prefs_path = path;
+    t.open();
+    const std::int64_t rev = t.read_office(kWorkshopProvider).revision;
+    PaneSettingActed a = t.commit_office(workshop_text(rev - 1, "workshop.focus.ring", "plain"));
+    CHECK_FALSE(a.accepted);
+    CHECK(a.refusal == "stale revision " + std::to_string(rev - 1) +
+                           " -- the settings of zengine.workshop stand at " + std::to_string(rev) +
+                           "; read them again");
+    a = t.commit_office(workshop_text(rev, "workshop.band-keys", "tiny"));
+    CHECK_FALSE(a.accepted);
+    CHECK(a.refusal == "workshop.band-keys takes one of short, full, not a text `tiny`");
+    a = t.commit_office(workshop_text(rev, "workshop.nothing", "x"));
+    CHECK_FALSE(a.accepted);
+    CHECK(a.refusal == "zengine.workshop declares no setting `workshop.nothing` -- a key no "
+                       "declaration takes is only cleared");
+    OfficeSettingCommitRequested nobody = workshop_text(0, "x", "y");
+    nobody.office = "test.nobody";
+    a = t.commit_office(nobody);
+    CHECK_FALSE(a.accepted);
+    CHECK(a.refusal == "nothing declares office-wide settings for `test.nobody` here");
+    CHECK_FALSE(t.r.session().selection_ring_plain);
+    // THE LOCK HOLDS ITS KEY, and the file is as it was.
+    a = t.commit_office(workshop_text(rev, "workshop.focus.ring", "plain"));
+    CHECK_FALSE(a.accepted);
+    CHECK(a.refusal == locked_setting_refusal("workshop.focus.ring"));
+    CHECK_FALSE(t.r.session().selection_ring_plain);
+    const std::vector<SettingLockShown> locks = t.read_office(kWorkshopProvider).locks;
+    REQUIRE(locks.size() == 1);
+    CHECK(locks[0].key == "workshop.focus.ring");
+    CHECK(locks[0].scope == "everywhere");
+    CHECK(prefs_persist::load_file(path).kept == locked);
+}
+
+TEST_CASE("an office declares the office-wide settings it takes, is handed what is kept, and its settings are written by message") {
+    RevisionRig t;
+    t.open();
+    v2::PaneSettingRow face;
+    face.key = "face";
+    face.number = 12;
+    face.low = 8;
+    face.high = 32;
+    face.tags = {"text"};
+    face.summary = "the face size";
+    drive(t.r, t.seat_id, t.seat,
+          [face](RevisionSeat& s, loom::Mail& m) { s.say(m, OfficeSettingsDeclared{{face}}); });
+    // HANDED AT ONCE, NOTHING KEPT, BY WORKSHOP'S OFFICE.
+    REQUIRE(t.seat->office_handed.size() == 1);
+    CHECK(t.seat->office_handed.back().settings.empty());
+    CHECK(t.seat->authors.back() == kWorkshopProvider);
+    const OfficeSettingsShown shown = t.read_office(kDialOffice);
+    CHECK(shown.rows == std::vector<v2::PaneSettingRow>{face});
+    CHECK(shown.revision == t.seat->office_handed.back().revision);
+    OfficeSettingCommitRequested bigger;
+    bigger.office = kDialOffice;
+    bigger.revision = shown.revision;
+    bigger.key = "face";
+    bigger.number = 15;
+    const PaneSettingActed wrote = t.commit_office(bigger);
+    REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
+    CHECK(wrote.handed == "handed; not written: isolated run -- no settings file; the change "
+                          "stands for this run");
+    REQUIRE(t.seat->office_handed.size() == 2);
+    CHECK(t.seat->office_handed.back().revision == wrote.revision);
+    CHECK(t.seat->office_handed.back().settings ==
+          std::vector<PaneSetting>{PaneSetting{"face", {}, 15, {}}});
+    // A VALUE OUT OF ITS RANGE IS REFUSED BY THE DECLARATION'S OWN WORDS.
+    bigger.revision = wrote.revision;
+    bigger.number = 99;
+    const PaneSettingActed big = t.commit_office(bigger);
+    CHECK_FALSE(big.accepted);
+    CHECK(big.refusal == "face takes a whole number from 8 to 32, not a number `99`");
+    // A DECLARATION REFUSED BY A PANE'S RULES IS SAID, AND THE ONE IN FORCE STANDS.
+    v2::PaneSettingRow own = face;
+    own.key = "workshop.face";
+    drive(t.r, t.seat_id, t.seat,
+          [own](RevisionSeat& s, loom::Mail& m) { s.say(m, OfficeSettingsDeclared{{own}}); });
+    CHECK(t.r.last_notice().rfind("office-wide settings of test.dial: refused -- setting "
+                                  "`workshop.face` is Workshop's own", 0) == 0);
+    CHECK(t.read_office(kDialOffice).rows == std::vector<v2::PaneSettingRow>{face});
+}
+
+// ---- Pins ---------------------------------------------------------------------------------
+
+TEST_CASE("a pin act pins, unpins and moves a pane's setting in the Workshop-wide list, and the subject's rows say each pin's place") {
+    TempDir dir("pins-workshop-wide");
+    RevisionRig t;
+    t.r.host.prefs_path = dir.file("workshop-prefs.json");
+    t.open();
+    REQUIRE(hand_inspect(t.r, dial_ref()).accepted);
+    // THE DECLARED PINS UNTIL AN ACT: legend.
+    CHECK(t.read().pins == std::vector<std::string>{"legend"});
+    CHECK(subject_pins(t) == std::vector<std::pair<std::string, std::int64_t>>{
+                                 {"legend", 0}, {"mode", -1}, {"step", -1}});
+    CHECK(t.r.w->inspected_subject().pins == "workshop-wide");
+    PaneSettingPinActed a = t.pin("step", "pin");
+    REQUIRE_MESSAGE(a.accepted, a.refusal);
+    CHECK(a.pins == std::vector<std::string>{"legend", "step"});
+    CHECK(a.scope == "workshop-wide");
+    a = t.pin("step", "up");
+    REQUIRE_MESSAGE(a.accepted, a.refusal);
+    CHECK(a.pins == std::vector<std::string>{"step", "legend"});
+    CHECK(subject_pins(t) == std::vector<std::pair<std::string, std::int64_t>>{
+                                 {"legend", 1}, {"mode", -1}, {"step", 0}});
+    CHECK(t.read().pins == std::vector<std::string>{"step", "legend"});
+    // UP AT THE TOP MOVES NOTHING; DOWN MOVES IT BACK.
+    CHECK(t.pin("step", "up").pins == std::vector<std::string>{"step", "legend"});
+    CHECK(t.pin("step", "down").pins == std::vector<std::string>{"legend", "step"});
+    a = t.pin("legend", "unpin");
+    REQUIRE(a.accepted);
+    CHECK(a.pins == std::vector<std::string>{"step"});
+    // KEPT IN WORKSHOP'S SETTINGS FILE, under the pane's target, and read back by a new run.
+    const prefs_persist::LoadedPrefs read = prefs_persist::load_file(t.r.host.prefs_path);
+    REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    REQUIRE(prefs_persist::pin_list(read.kept, "test.dial/dial") != nullptr);
+    CHECK(prefs_persist::pin_list(read.kept, "test.dial/dial")->keys ==
+          std::vector<std::string>{"step"});
+    // RESET PUTS THE LIST BACK TO THE DECLARED PINS.
+    a = t.pin("", "reset");
+    REQUIRE(a.accepted);
+    CHECK(a.pins == std::vector<std::string>{"legend"});
+    CHECK(prefs_persist::pin_list(prefs_persist::load_file(t.r.host.prefs_path).kept,
+                                  "test.dial/dial") == nullptr);
+}
+
+TEST_CASE("a pin act is refused in words with nothing written: a key not declared, one pinned already, one not pinned, an act not known, past the bound") {
+    RevisionRig t;
+    t.open();
+    PaneSettingPinActed a = t.pin("zoom", "pin");
+    CHECK_FALSE(a.accepted);
+    CHECK(a.refusal == "test.dial/dial declares no setting `zoom` to pin");
+    CHECK(a.pins == std::vector<std::string>{"legend"});
+    CHECK(t.pin("legend", "pin").refusal == "`legend` is pinned already");
+    CHECK(t.pin("step", "up").refusal == "`step` is not pinned -- pin it first");
+    CHECK(t.pin("step", "unpin").refusal == "`step` is not pinned");
+    CHECK(t.pin("step", "top").refusal == "`top` is not a pin act -- pin, unpin, up, down or reset");
+    CHECK(t.pin("legend", "reset").refusal ==
+          "`reset` names no key -- it puts the whole list back to the declared pins");
+    CHECK(t.pin("step", "pin", 7).refusal == "no layout at place 7 -- this Workshop holds 1");
+    CHECK(t.r.w->prefs().pins.empty());
+    // A GUEST WITHOUT `settings`, OR PERSONAL SPEECH, IS WITHHELD.
+    const std::size_t before = t.editor->pin_acted.size();
+    drive(t.r, t.editor_id, t.editor, [](RevisionSeat& s, loom::Mail& m) {
+        s.say(m, PaneSettingPinRequested{kDialOffice, kDial, "step", "pin", -1}, true);
+    });
+    REQUIRE(t.editor->pin_acted.size() == before + 1);
+    CHECK(t.editor->pin_acted.back().refusal.rfind("pins withheld: ", 0) == 0);
+}
+
+TEST_CASE("per-layout pins keep each layout's own list, a layout with none reading the Workshop-wide one") {
+    RevisionRig t;
+    t.open();
+    REQUIRE(t.pin("step", "pin").accepted); // Workshop-wide: legend, step
+    const std::int64_t rev = t.read_office(kWorkshopProvider).revision;
+    REQUIRE(t.commit_office(workshop_text(rev, "workshop.pinned-scope", "per-layout")).accepted);
+    // THIS LAYOUT HAS NO LIST OF ITS OWN: it reads the Workshop-wide one, and its first act copies it.
+    CHECK(t.read().pins == std::vector<std::string>{"legend", "step"});
+    PaneSettingPinActed a = t.pin("legend", "unpin");
+    REQUIRE_MESSAGE(a.accepted, a.refusal);
+    CHECK(a.scope == "per-layout");
+    CHECK(a.pins == std::vector<std::string>{"step"});
+    const std::string own = "test.dial/dial@" + t.r.session().setup.active.name;
+    REQUIRE(prefs_persist::pin_list(t.r.w->prefs(), own) != nullptr);
+    CHECK(prefs_persist::pin_list(t.r.w->prefs(), "test.dial/dial")->keys ==
+          std::vector<std::string>{"legend", "step"});
+    // ANOTHER LAYOUT, ASKED BY ITS PLACE, STILL READS THE WORKSHOP-WIDE LIST.
+    duplicate_live_layout(t.r);
+    const_cast<Session&>(t.r.session()).setup.active.name = "Copy";
+    layout_key(t.r, Act::kLayoutPrevious);
+    CHECK(t.read().pins == std::vector<std::string>{"step"});
+    a = t.pin("mode", "pin", 1);
+    REQUIRE_MESSAGE(a.accepted, a.refusal);
+    CHECK(a.pins == std::vector<std::string>{"legend", "step", "mode"});
+    CHECK(t.read().pins == std::vector<std::string>{"step"});
+}
+
+TEST_CASE("an everywhere lock on a pane's setting refuses the message commit and Info's row, and every reading says it") {
+    TempDir dir("pane-setting-locked");
+    prefs_persist::Prefs locked;
+    locked.locks = {prefs_persist::SettingLock{"test.dial/dial", "legend"}};
+    const std::string path = dir.file("workshop-prefs.json");
+    REQUIRE(prefs_persist::save_file(path, locked).accepted);
+    RevisionRig t;
+    t.r.host.prefs_path = path;
+    t.open();
+    REQUIRE(hand_inspect(t.r, dial_ref()).accepted);
+    const PaneSettingsShown shown = t.read();
+    REQUIRE(shown.locks.size() == 1);
+    CHECK(shown.locks[0].key == "legend");
+    CHECK(shown.locks[0].scope == "everywhere");
+    // THE MESSAGE COMMIT, A CLEAR INCLUDED, IS REFUSED BY THE LOCK, nothing written.
+    PaneSettingCommitRequested off;
+    off.revision = shown.revision;
+    off.key = "legend";
+    off.flag = false;
+    PaneSettingActed a = t.commit(off);
+    CHECK_FALSE(a.accepted);
+    CHECK(a.refusal == locked_setting_refusal("legend"));
+    PaneSettingCommitRequested clear;
+    clear.revision = shown.revision;
+    clear.key = "legend";
+    clear.clear = true;
+    CHECK(t.commit(clear).refusal == locked_setting_refusal("legend"));
+    CHECK(t.stored().empty());
+    // ...AND INFO'S ROW SAYS THE LOCK IN ITS VALUE, and its write is refused in the same words.
+    CHECK(subject_value(t.r.session(), "legend", "SETTINGS") == "on -- locked everywhere");
+    const Row* row = subject_row(t.r.session(), "legend", "SETTINGS");
+    REQUIRE(row != nullptr);
+    Row writable = *row;
+    CHECK(writable.commit_text("off") != Commit::Accepted);
+    CHECK(writable.refusal() == locked_setting_refusal("legend"));
+    CHECK(t.stored().empty());
+    bool lock_said = false;
+    for (const v2::ShownProperty& p : t.r.w->inspected_subject().properties) {
+        lock_said = lock_said || (p.label == "legend" && p.lock == "everywhere");
+    }
+    CHECK(lock_said);
+    // A SETTING NO LOCK HOLDS IS WRITTEN AS EVER.
+    CHECK(t.commit(number_at(shown.revision, "step", 4)).accepted);
 }
