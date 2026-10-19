@@ -6,9 +6,10 @@ to the office `zengine.window.sdl` (a window's office is `zengine.window.` and i
 and is built as `zengine-window-sdl`, a file a host loads, where the build has SDL. It keeps what
 each owner drew, paints it in pixels with the area's skin, draws the whole picture again when
 anything changed, and sends the window's keys, their text and its pointer to the owners. The
-directory, [`zengine.graphics`](zengine.graphics.md), introduces its areas to it. C++ in its own
-process may also ask it for a close its desktop asked for, which it keeps and sends to no one
-(`close_requested`), the clipboard, its place on the desktop and the picture it last presented
+directory, [`zengine.graphics`](zengine.graphics.md), introduces its areas to it. It answers for
+its desktop too: it copies to and reads the platform's clipboard, says and takes its place on the
+desktop, publishes a close its desktop asked for, and reads back the picture it last presented by
+picture and chunk; C++ in its own process may ask the clipboard, the place and the picture directly
 ([the Graphics package](graphics.md#a-window-in-its-own-process)).
 
 ## About
@@ -136,6 +137,68 @@ of the queue and serving input sessions alone. With no display, the window gives
 - **Refuses:** nothing.
 - **Example:** a suite asks it after a drawing, and finds the drawing's words in `rows`.
 
+### `ClipboardTextRequested`
+
+`ClipboardTextRequested` v1 asks what the platform clipboard holds, for a paste.
+
+- **Takes:** nothing.
+- **Answers:** `ClipboardText` v1, to the asker alone: `readable` true and the clipboard's text,
+  read now and never on the beat, empty when it holds none; with no window (no display), `readable`
+  false, and the asker pastes what its own process last copied.
+- **Refuses:** nothing.
+- **Example:** a pane asks when a weaver pastes, and pastes the `text` answered.
+
+### `SurfacePlacementRemembered`
+
+`SurfacePlacementRemembered` v1 offers back a place on the desktop a session remembered: a want,
+judged against the displays there are now.
+
+- **Takes:** `x`, `y` and `maximized`, as `SurfacePlacement` said them.
+- **Answers:** nothing to the sender; the window moves there, whole on a display, and a maximize
+  lands on the beat after its next picture. Where it is after is the next `SurfacePlacement`, and a
+  size in cells it changed is the next `WindowOffered`.
+- **Refuses:** nothing; with no display nothing moves.
+- **Example:** a host restoring a session offers the place the last `SurfacePlacement` said.
+
+### `PumpSurface`
+
+`PumpSurface` v1 asks for the beat's work now.
+
+- **Takes:** nothing.
+- **Answers:** nothing; the window does what its beat does ([`TimerFired`](#timerfired)): it says
+  its place when it changed, measures the OS window, empties SDL's queue and sends it on, and
+  publishes a close its desktop asked for.
+- **Refuses:** nothing.
+- **Example:** a suite, or a host with no Timer, pumps the window after a move or a close.
+
+### `SurfaceCaptureRequested`
+
+`SurfaceCaptureRequested` v1 asks for a picture of what the window last presented.
+
+- **Takes:** `after_frame`: -1 for now; a count at or past the pictures presented so far holds the
+  answer back until the picture that passes it.
+- **Answers:** `SurfaceCaptured` v1, to the asker alone, the picture retained in place of the last:
+  `ok`; `capture`, its number; `frame`, the pictures presented when it was taken; `width` and
+  `height` in pixels; `cell_px` `kCellPx`; `format` `image/bmp`, 24-bit and bottom-up; `bytes`, its
+  size. A drawing saying `more` is not in it until presented.
+- **Refuses:** in `SurfaceCaptured`, `ok` false and `refusal`: `this medium has no picture to read
+  back right now`, before its first picture; `a capture is already waiting for frame <n>; one waits
+  at a time`; `this delivery cannot defer its answer`; `the picture
+  is <n> bytes, over the <bound> this window retains` (`kMaxCaptureBytes`).
+- **Example:** `SurfaceCaptureRequested{-1}`, then its bytes by chunk.
+
+### `SurfaceCaptureChunkRequested`
+
+`SurfaceCaptureChunkRequested` v1 fetches one chunk of the retained picture.
+
+- **Takes:** `capture`, the picture's number; `offset`, a byte of it.
+- **Answers:** `SurfaceCaptureChunk` v1, to the asker alone: `capture`, `offset`, `total`, and
+  `data`, at most `kCaptureChunkBytes` bytes from `offset`; on the last, `offset` and the size of
+  `data` make `total`.
+- **Refuses:** in `zen.Refused`: `no picture is retained; ask for a capture first`; `capture <n> is
+  gone; the retained one is <m>`; `offset <n> is outside a picture of <total> bytes`.
+- **Example:** `SurfaceCaptureChunkRequested{1, 0}`, then from each chunk's end until `total`.
+
 ## Hears
 
 ### `AreaIntroduced`
@@ -163,10 +226,11 @@ code for a type the window presents draws each such element again, from the stat
 
 ### `TimerFired`
 
-`TimerFired` v1, from the Timer: the window's beat, `zengine.window.pump`. It measures the OS
-window, and at another size draws its picture again; at another size in cells it offers itself
-again (`WindowOffered`) with the new size and the same incarnation. Then it empties SDL's queue and
-sends the keys, their releases, their text and the pointer on.
+`TimerFired` v1, from the Timer: the window's beat, `zengine.window.pump`. It says its place when
+it changed (`SurfacePlacement`), then measures the OS window: at another size it draws its picture
+again, and at another size in cells offers itself again (`WindowOffered`), the same incarnation.
+Then it empties SDL's queue, sends the keys, their releases, their text and the pointer on, and
+publishes a close its desktop asked for (`SurfaceCloseRequested`).
 
 ### `TimerReady`
 
@@ -178,18 +242,24 @@ again.
 `TimerResolution` v1, from the Timer: what became of the window's order for its beat, kept by its
 timer binding.
 
+### `ClipboardCopy`
+
+`ClipboardCopy` v1, a weaver's copy: the text put on the platform's clipboard, with no showing and
+no answer. With no window there is no clipboard, and nothing is copied.
+
 ## Follow
 
-The window publishes `WindowOffered` v1 as its own office, on each activation, after
-`GraphicsReady`, and on a beat that finds the OS window at another size in cells: its name, `sdl`,
-its size in cells of `kCellPx` pixels, and its incarnation, which a resize leaves as it was. The
-directory keeps it; an arranger that follows it may lay out in that room. Everything else goes to
-one office. To an area's owner: `AreaRoom` v2 for each introduction (the area, this window, its
-incarnation, the area's size, the references of the elements it presents there); `DrawnRefused` v1;
-`ActionRequested` v1; `PointerButton` v1, `PointerMoved` v1 and `PointerWheel` v1 when placed to
-hear the pointer; `KeyPressed` v2, `KeyReleased` v2 and `TextEntered` v1 when placed to hear keys,
-a shape it does not take refused on the bus. To the Timer, its beat's order. An observer reads what
-it shows with `WindowShowAsked`.
+As its own office the window publishes `WindowOffered` v1 on each activation, after
+`GraphicsReady`, and on a beat that finds the OS window at another size in cells of `kCellPx`
+pixels: its name, `sdl`, that size and its incarnation, which a resize keeps. The directory keeps
+it; an arranger following it may lay out in that room. It publishes `SurfacePlacement` v1 when its
+place changed, before `WindowOffered` when both did: its normal top-left and whether it is
+maximized. It publishes `SurfaceCloseRequested` v1 once for each close its desktop asked for. To an
+area's owner: `AreaRoom` v2; `DrawnRefused` v1; `ActionRequested` v1; `PointerButton` v1,
+`PointerMoved` v1 and `PointerWheel` v1 when placed to hear the pointer; `KeyPressed` v2,
+`KeyReleased` v2 and `TextEntered` v1 when placed to hear keys. To an asker alone: `WindowShown`
+v1, `ClipboardText` v1, `SurfaceCaptured` v1, `SurfaceCaptureChunk` v1 and `zen.Refused`. To the
+Timer, its beat's order.
 
 ## Files
 

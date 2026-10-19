@@ -7,7 +7,8 @@
 // The graphics vocabulary: one primitive (a node), the element record beside it, and the messages
 // between an owner, the window that shows its area, and the directory that introduces the two.
 // An owner draws nodes into its window, or says an element once and then sends only its changes,
-// which code the window loads turns into nodes. The directory stays off that path.
+// which code the window loads turns into nodes. The directory stays off that path. A window also
+// answers for its platform: the clipboard, its place on the desktop, a close, and its last picture.
 // Reference: graphics/docs/graphics.md.
 
 #include "graphics/role.hpp"
@@ -263,6 +264,135 @@ struct WindowShown {
               ZEN_FIELD(device_bytes), ZEN_FIELD(painter_calls), ZEN_FIELD(element_calls),
               ZEN_FIELD(refusals), ZEN_FIELD(last_refusal));
 };
+
+// ---- what a medium answers for its platform -------------------------------------------------
+//
+// The clipboard, the window's place on its desktop, a close its desktop asked for, and the picture
+// last presented: each medium that shows -- a window's office, or Surface's Skin, which spells
+// these same shapes as its own -- answers them as far as its platform can.
+
+/// Give the medium a turn to service its platform now, such as an OS window's event queue: the
+/// work its own beat does, on request, for suites and for hosts with no Timer.
+struct PumpSurface {
+    ZEN_SHAPE(PumpSurface, 1);
+};
+
+/// The medium was asked to close, as by a window's close box: a lifecycle fact, not an input
+/// moment, so it is never confused with a weaver's quit key. Whoever hears it applies its own quit
+/// policy, which may be to stay. No terminal is asked; an OS window publishes it as its office.
+struct SurfaceCloseRequested {
+    ZEN_SHAPE(SurfaceCloseRequested, 1);
+};
+
+/// Where the medium's window sits on its desktop, in the platform's desktop units. A follower
+/// treats `x`/`y` as opaque: it may remember them and offer them back
+/// (`SurfacePlacementRemembered`), never interpret them. They are always the normal (unmaximized)
+/// window's top-left, remembered across a maximized stretch; `maximized` is the current state.
+/// Published when it changes, before the room when both change. A medium with no desktop window
+/// (every terminal) publishes nothing: `(0,0)` is a real place.
+struct SurfacePlacement {
+    std::int64_t x = 0;
+    std::int64_t y = 0;
+    bool maximized = false;
+    ZEN_SHAPE(SurfacePlacement, 1, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(maximized));
+};
+
+/// A remembered placement, offered back once by whoever restores a session: a want, not an
+/// instruction. The medium judges it against the displays that exist now, keeping the window whole
+/// on one, and with no display nothing moves. What comes back is the next `SurfacePlacement`, never
+/// an echo; a terminal does nothing.
+struct SurfacePlacementRemembered {
+    std::int64_t x = 0;
+    std::int64_t y = 0;
+    bool maximized = false;
+    ZEN_SHAPE(SurfacePlacementRemembered, 1, ZEN_FIELD(x), ZEN_FIELD(y),
+              ZEN_FIELD(maximized));
+};
+
+/// A weaver copied this text. A publication, because several parties hear it: the medium sets the
+/// platform clipboard as far as it can (on a terminal, OSC 52, with no claim that it took), and
+/// every participant that mirrors a clipboard keeps copy-and-paste true in-process.
+struct ClipboardCopy {
+    std::string text;
+    ZEN_SHAPE(ClipboardCopy, 1, ZEN_FIELD(text));
+};
+
+/// What does the platform clipboard hold now? Asked because a weaver pressed paste, and for no
+/// other reason: nothing observes the system clipboard, and this ask's answer is the one road its
+/// text has onto the bus. The asker settles the answer as any ask (`loom::AskBook`) and applies it
+/// to the draft that asked, or discards it.
+struct ClipboardTextRequested {
+    ZEN_SHAPE(ClipboardTextRequested, 1);
+};
+
+/// The medium's answer. `readable=false` (every terminal) means it cannot say, and the asker
+/// pastes what this process last copied; `readable=true` with empty `text` means the platform
+/// holds no text, and the paste inserts nothing. Two fields, so an empty platform clipboard never
+/// pastes a stale copy.
+struct ClipboardText {
+    bool readable = false;
+    std::string text;
+    ZEN_SHAPE(ClipboardText, 1, ZEN_FIELD(readable), ZEN_FIELD(text));
+};
+
+// A capture: what the medium presented, through its own medium. A picture is evidence of
+// presentation at one frame and of nothing else: it proves nothing about queued work.
+// `after_frame` defers the answer until a later frame is presented -- anyone's -- which is not the
+// frame that shows a given input: ordering after input is the injector's host's (a fence, or a link
+// ask's `settle`). One picture is retained at a time and fetched by chunk, one request may wait for
+// its frame at a time, and a picture over `kMaxCaptureBytes` is refused, never cut.
+
+/// TAKE A PICTURE, now or once a later frame has been presented. Answered `SurfaceCaptured`.
+struct SurfaceCaptureRequested {
+    /// Capture when `frames > after_frame`. -1 (the default) means now, whatever frame stands;
+    /// a value at or beyond the current count defers the answer to the frame that passes it.
+    std::int64_t after_frame = -1;
+    ZEN_SHAPE(SurfaceCaptureRequested, 1, ZEN_FIELD(after_frame));
+};
+
+/// THE PICTURE'S IDENTITY AND SHAPE -- not its bytes, which are fetched by chunk. `format` is
+/// the medium's honest word: `image/bmp` for a window of light (24-bit, bottom-up, as a BMP is),
+/// or `text/cells` for a terminal (`height` rows of `width` bytes, each plus a newline). `cell_px`
+/// is the graphical medium's cell size, so a pixel coordinate in the picture maps to the cell
+/// lattice a pointer moment is spelled in; 0 on a terminal, where a cell IS the unit.
+struct SurfaceCaptured {
+    bool ok = false;
+    std::int64_t capture = 0; ///< this picture's number; the chunk door names it
+    std::int64_t frame = 0;   ///< the medium's frame count when it was taken
+    std::int64_t width = 0;   ///< pixels, or cells on a terminal
+    std::int64_t height = 0;
+    std::int64_t cell_px = 0;
+    std::string format;
+    std::int64_t bytes = 0; ///< the whole picture's size, in bytes
+    std::string refusal;    ///< why not, when `ok` is false
+    ZEN_SHAPE(SurfaceCaptured, 1, ZEN_FIELD(ok), ZEN_FIELD(capture), ZEN_FIELD(frame),
+              ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(cell_px), ZEN_FIELD(format),
+              ZEN_FIELD(bytes), ZEN_FIELD(refusal));
+};
+
+/// FETCH ONE CHUNK of the retained picture, from `offset`. Answered `SurfaceCaptureChunk`, or
+/// `zen.Refused` when `capture` is no longer the one retained.
+struct SurfaceCaptureChunkRequested {
+    std::int64_t capture = 0;
+    std::int64_t offset = 0;
+    ZEN_SHAPE(SurfaceCaptureChunkRequested, 1, ZEN_FIELD(capture), ZEN_FIELD(offset));
+};
+
+struct SurfaceCaptureChunk {
+    std::int64_t capture = 0;
+    std::int64_t offset = 0;
+    std::int64_t total = 0; ///< the picture's size; `offset + data.size() == total` on the last
+    loom::Bytes data;
+    ZEN_SHAPE(SurfaceCaptureChunk, 1, ZEN_FIELD(capture), ZEN_FIELD(offset), ZEN_FIELD(total),
+              ZEN_FIELD(data));
+};
+
+/// The most bytes one chunk carries: small enough for any crossing's frame and any bus's
+/// decode budget, large enough that a screen is a few hundred round trips and not thousands.
+inline constexpr std::int64_t kCaptureChunkBytes = 32 * 1024;
+/// The largest picture a medium retains. A 4K window at 24 bits is under this; a larger one is
+/// refused with its size, never silently cut.
+inline constexpr std::int64_t kMaxCaptureBytes = 32 * 1024 * 1024;
 
 } // namespace zengine::graphics
 
