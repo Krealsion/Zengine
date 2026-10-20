@@ -893,8 +893,7 @@ struct WindowPicture {
   zengine::graphics::Sketch sketch;
   std::map<std::string, Hit> parts;
 };
-inline WindowPicture window_picture(const Model &model, std::int64_t width, std::int64_t height) {
-  const auto room = ws::canvas_window_room(kPane, width, height);
+inline WindowPicture window_picture(const Model &model, const ws::PaneCanvasRoom &room) {
   WindowPicture out{picture(model, room, 0), {}, {}};
   auto drawn = ws::canvas_sketch(named(out.picture), room);
   if (!drawn.over.empty()) {

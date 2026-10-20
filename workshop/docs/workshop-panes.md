@@ -705,8 +705,10 @@ of the weave; a member the facet calls only when present is optional.
   says the rows once without the notice when one stood and the act published no picture of its
   own. The graphics window that shows the area named `Office` (`graphics::AreaRoom`, from that
   window's office, runs `on_room` as Workshop's room does) is sent the same rows as a drawing
-  ([`workshop/pane_drawing.hpp`](../pane_drawing.hpp), `rows_drawing`): each row's text in its
-  role over its ground, cut into runs where a part begins or ends, each run a named part holds
+  ([`workshop/pane_drawing.hpp`](../pane_drawing.hpp), `rows_drawing`): the room's ground, the
+  whole of it, then each row's text a line of the window's text down and a character an advance of
+  it across (`AreaRoom::measure`), in its role over its ground, cut into runs where a part begins
+  or ends, each run a named part holds
   recorded as asking that part's name -- where parts overlap, the one a press on Workshop's rows
   reaches -- and in front of them the caret the pane says, a bar at the left of its cell, and its
   selection, the selected columns again in the accent role, each asking what the part beneath it
@@ -743,7 +745,9 @@ of the weave; a member the facet calls only when present is optional.
   shows, so a message the pane ignores repaints nothing; the weave calls `show` where its state
   changed and in `on_room`, which a window's room (`graphics::AreaRoom`, from that window's office)
   runs as Workshop's does. A pane Workshop seats draws for Workshop's room; one it seats nowhere,
-  for the window's, a row and a column each `graphics::kCellPx`. A press on a part is the weave's
+  for the window's, a row a line of its text and a column an advance of it. The picture sent the
+  window is set in the window's measure, the one sent Workshop a row a cell (`text()`, which the
+  weave's `picture` stands its rows by). A press on a part is the weave's
   `on_action(id, mail)` with the action the part's record names: the first button on Workshop's
   canvas, read against the picture it was aimed at (`fenced(mail)` otherwise), or in the window
   that shows the area the first button pressed on a part of the picture last shown there

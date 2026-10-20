@@ -552,11 +552,12 @@ again ([`inspect`](#inspect)) unless an inspection is already asked.
 
 ### `AreaRoom`
 
-`AreaRoom` v3, from the graphics window that shows the area `zengine.flow`, as that window's office
-([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): the pane's room there. It draws the
-picture a terminal Workshop that size would show, whole in a new window, incarnation or size, or
-an empty area, then only what changed; one more than a window keeps is the one that says `View limit
-reached`. Each time it starts it asks `zengine.graphics` for this room (`RoomAsked` v1).
+`AreaRoom` v4, from the graphics window that shows the area `zengine.flow`, as that window's office
+([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): the pane's room there, in the
+window's unit and text. It draws its picture for that room on its ground, whole in a new window,
+incarnation, size or measure, or an empty area, then only what changed; one more than a window
+keeps says `View limit reached`. Each time it starts it asks `zengine.graphics` for this room
+(`RoomAsked` v1).
 
 ### `DrawnRefused`
 

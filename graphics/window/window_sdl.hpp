@@ -214,8 +214,9 @@ struct PixelPolled {
     bool close = false;
 };
 
-/// A medium of light over a Backend: `claim()`, `size()` in pixels, `present(frame)`, true when it
-/// drew the picture, `poll()`, and `capture(frame)`, a presented picture drawn again and read back;
+/// A medium of light over a Backend: `claim()`, `size()` in pixels, `text()`, the measure of the
+/// face it draws text in, `present(frame)`, true when it drew the picture, `poll()`, and
+/// `capture(frame)`, a presented picture drawn again and read back;
 /// the clipboard's `clipboard_copy(text)` and `clipboard_text()`; and the desktop's `placement()`,
 /// `place(want)`, `grow(want)` toward a size in pixels, and `maximize()`.
 template <class Backend>
@@ -228,31 +229,34 @@ public:
     LightMedium() = default;
     explicit LightMedium(Backend backend) : backend_(std::move(backend)) {}
 
-    /// The OS window taken, and measured.
+    /// The OS window taken, and measured: its size, and the face it sets text in.
     void claim() {
         backend_.claim();
         size_ = measure();
+        text_ = backend_.text();
+        if (text_.advance <= 0 || text_.line <= 0) {
+            text_ = TextMeasure{};
+        }
         dirty_ = true;
     }
 
-    /// The OS window at another size: drawn again, and true when its size in cells changed.
+    /// The OS window at another size: drawn again, and true when it changed.
     bool remeasure() {
         const PixelSize now = measure();
         if (now.width == size_.width && now.height == size_.height) {
             return false;
         }
-        const CellExtent was = extent();
         size_ = now;
         dirty_ = true;
-        return was.cols != extent().cols || was.rows != extent().rows;
+        return true;
     }
 
-    CellExtent extent() const {
-        return CellExtent{size_.width / kCellPx, size_.height / kCellPx};
-    }
-    CellExtent offered() const { return extent(); }
+    /// The room offered to the window's followers: the window's pixels, every one.
+    PixelRoom offered() const { return PixelRoom{size_.width, size_.height}; }
     /// Its device pixels in one cell: every pixel shown.
     static constexpr std::int64_t kCellDevicePx = kCellPx;
+    /// How it sets text: the measure of its backend's face, taken when the window was.
+    TextMeasure text() const { return text_; }
 
     void clear() {
         cache_.clear();
@@ -355,23 +359,28 @@ public:
         }
     }
 
-    /// The window as a grid of cells, as text: each run of text one cell a character from the
-    /// cell its run starts in, front areas over the ones behind, trailing spaces left off.
+    /// The window as text, a character an advance of its face and a row a line of it: each
+    /// character of a run where it stands, inside its area, front areas over the ones behind,
+    /// trailing spaces left off.
     std::vector<std::string> rows_shown(const std::vector<WinArea>& areas) const {
-        const CellExtent e = extent();
-        std::vector<std::string> rows(static_cast<std::size_t>(e.rows),
-                                      std::string(static_cast<std::size_t>(e.cols), ' '));
+        const std::int64_t cols = size_.width / text_.advance;
+        const std::int64_t lines = size_.height / text_.line;
+        std::vector<std::string> rows(static_cast<std::size_t>(lines),
+                                      std::string(static_cast<std::size_t>(cols), ' '));
         for (const WinArea* a : back_to_front(areas)) {
-            const Place pl = place_of(*a);
             for (const auto& [path, k] : painted(a->area)) {
                 for (const light::TextRun& t : k->prims->texts) {
-                    const std::int64_t r = term::floor_cell(a->y + t.y);
-                    std::int64_t c = term::floor_cell(a->x + t.x);
+                    const std::int64_t y = a->y + t.y;
+                    const std::int64_t r = floor_div(y, text_.line);
+                    std::int64_t x = a->x + t.x;
                     for (const char ch : t.text) {
-                        if (pl.holds(c, r) && c >= 0 && r >= 0 && c < e.cols && r < e.rows) {
+                        const std::int64_t c = floor_div(x, text_.advance);
+                        const bool inside = x >= a->x && x + text_.advance <= a->x + a->w &&
+                                            y >= a->y && y < a->y + a->h;
+                        if (inside && c >= 0 && r >= 0 && c < cols && r < lines) {
                             rows[static_cast<std::size_t>(r)][static_cast<std::size_t>(c)] = ch;
                         }
-                        ++c;
+                        x += text_.advance;
                     }
                 }
             }
@@ -398,7 +407,7 @@ public:
             const Kept* best = nullptr;
             const std::string* best_path = nullptr;
             for (const auto& [path, k] : painted(a->area)) {
-                if (light::hits_node(*k->prims, x - a->x, y - a->y) &&
+                if (light::hits_node(*k->prims, x - a->x, y - a->y, text_) &&
                     (best == nullptr || best->key < k->key)) {
                     best = k;
                     best_path = path;
@@ -479,8 +488,9 @@ private:
         kRoomGiven,      ///< a picture presented: it lands on the next beat
     };
 
-    /// The backend asked to grow when the areas' extent is new and reaches past the window: once
-    /// an extent, so a window a weaver made smaller is not grown back until its areas move.
+    /// The backend asked to grow along an axis when the areas' reach along it grew past where it
+    /// last reached and past the window: so a window a weaver made smaller is not grown back until
+    /// its areas reach further, nor by areas placed again along the other axis, one at a time.
     void fit(const std::vector<WinArea>& areas) {
         PixelSize want;
         for (const WinArea& a : areas) {
@@ -490,9 +500,12 @@ private:
         if (want == asked_) {
             return;
         }
+        const bool wider = want.width > asked_.width && want.width > size_.width;
+        const bool taller = want.height > asked_.height && want.height > size_.height;
         asked_ = want;
-        if (want.width > size_.width || want.height > size_.height) {
-            backend_.grow(want);
+        if (wider || taller) {
+            backend_.grow(PixelSize{wider ? want.width : size_.width,
+                                    taller ? want.height : size_.height});
         }
     }
 
@@ -503,6 +516,11 @@ private:
             return at;
         }
         return at > kMax - span ? kMax : at + span;
+    }
+
+    /// `v` over `d`, rounded toward the lesser.
+    static std::int64_t floor_div(std::int64_t v, std::int64_t d) {
+        return v >= 0 ? v / d : -((-v + d - 1) / d);
     }
 
     static bool all_light(const PaintResult& r) {
@@ -562,6 +580,7 @@ private:
     std::map<std::string, std::map<std::string, Kept>> cache_;
     std::set<std::string> cell_libraries_; ///< libraries whose skin paints characters
     PixelSize size_{kDefaultWidth, kDefaultHeight};
+    TextMeasure text_;
     PixelSize asked_; ///< the areas' extent the backend was last asked about
     std::optional<ComposedLightFrame> last_frame_; ///< the last picture presented...
     std::vector<std::shared_ptr<const light::NodePrimitives>> last_held_; ///< ...and what it shows

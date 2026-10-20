@@ -946,28 +946,25 @@ its outcome is said on the band, `editor switch <op>: <outcome>`.
 
 `GraphicsReady`, from `zengine.graphics` ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)):
 a directory started afresh. Workshop, its arranger, offers the four skins, chooses each area's
-(`workshop.skin`), and places on the window each open pane whose office draws there, over its body,
-hearing the pointer if its office takes `AreaButtonChanged`; its own area, `zengine.workshop`,
-across the screen, taking the keys; and `zengine.workshop.overlay` in front, deaf to both. It asks
-its rooms.
+(`workshop.skin`), and places each open pane's frame (`zengine.workshop.pane.<kind>`) at its depth
+with the pane's own area over its body in front where its office draws there; its own area,
+taking the keys; and `zengine.workshop.overlay` in front, deaf. It asks its rooms.
 
 ### `WindowOffered`
 
-`WindowOffered` v2, from the terminal or OS window as its own office (`zengine.window.terminal`,
-`zengine.window.sdl`): its size in cells and its unit; Workshop's areas go on it. With no skin up,
+`WindowOffered` v3, from the terminal or OS window as its own office (`zengine.window.terminal`,
+`zengine.window.sdl`): its pixels, unit and text; Workshop's areas go on it. With no skin up,
 Workshop comes up in it; while no skin has said `SurfaceExtent`, it lays the panes out in the
-window's room, text a cell in the window's unit, again at each new size, and keeps its room for an
-offer of none. A skin's extent then owns the room. An offer from any other office, or of another
-window, is ignored.
+window's room, unit and text, again at each new size, and keeps its room for an offer of none. A
+skin's extent then owns the room. An offer from any other office or window is ignored.
 
 ### `AreaRoom`
 
-`AreaRoom` v3, from the graphics window that shows the area `zengine.workshop` or its overlay, as
-that window's office: Workshop's room there. It draws its desk -- Layouts, each pane's edge and
-header, a body its office does not draw, a menu, the band -- whole in a new window, incarnation or
-size, or an empty area, then only what changed. A pane's own area stands in front of it, but while a
-weaver arranges, a menu is open, or something is carried. The overlay draws the carried value and
-the guide marks.
+`AreaRoom` v4, from the graphics window that shows one of Workshop's areas, as that window's
+office: its room. A frame draws its pane's edge and header and a body its office does not draw; its
+own area the band, and every pane's frame while a weaver arranges, a menu is open or something is
+carried; the overlay a carried value and guide marks. Each draws whole in a new window,
+incarnation, size or measure, or an empty area, then what changed.
 
 ### `DrawnRefused`
 
@@ -976,8 +973,8 @@ a refused change is drawn again whole at once.
 
 ### `AreaButtonChanged`
 
-`AreaButtonChanged` v1, from the window that shows `zengine.workshop`: a button pressed or let go in
-Workshop's own area, at the screen's pixel there. It is that moment as `PointerButton` takes one,
+`AreaButtonChanged` v1, from the window that shows `zengine.workshop` or a frame: a button pressed or
+let go in one of Workshop's areas, at the screen's pixel there. It is that moment as `PointerButton` takes one,
 the press held to its own release: a tab, the chrome, the room, a menu, an arrangement, a body
 Workshop draws. A moment over a pane a window shows in its own area is never relayed to it.
 

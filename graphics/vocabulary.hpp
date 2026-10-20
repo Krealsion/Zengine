@@ -44,6 +44,15 @@ inline constexpr std::size_t kMaxAreas = 256;
 /// The pixels of one terminal cell: a window of characters floors each edge to its cell.
 inline constexpr std::int64_t kCellPx = 12;
 
+/// How a window sets text, in pixels: the advance from one character to the next and the height
+/// of a line. A window of light says its face's; a window of characters says the cell's, so text
+/// stands one character a cell there.
+struct TextMeasure {
+    std::int64_t advance = kCellPx;
+    std::int64_t line = kCellPx;
+    friend bool operator==(const TextMeasure&, const TextMeasure&) = default;
+};
+
 /// THE ONE PRIMITIVE. Its `path` is its owner's name for it, unique in its area, and its place: the
 /// segments before the last name the node it lives in. `op` names the operator that draws it, and
 /// `args` are that operator's operands, their shape implied by the operator (graphics/ops.hpp), so
@@ -218,17 +227,21 @@ struct AreaPointerLeft {
 // ---- the directory ------------------------------------------------------------------------
 
 /// A window, as its own office, to whoever follows it -- the directory, and an arranger laying out
-/// in its room -- on each activation: its name, its size in cells (none where it has no terminal
-/// to measure), its incarnation, and its device pixels in one cell (`cell_px`: `kCellPx` where it
-/// shows every pixel, none where its unit is the cell, as a terminal's). A window started afresh
-/// holds nothing, so its owners draw whole again.
+/// in its room -- on each activation: its name, its room in pixels (a terminal's cells, `kCellPx`
+/// pixels each; none where it has no terminal to measure), its incarnation, its device pixels in
+/// one cell (`cell_px`: `kCellPx` where it shows every pixel, none where its unit is the cell, as a
+/// terminal's), and how it sets text, a character's advance and a line's height in pixels: the
+/// face it draws with, measured, or the cell. A window started afresh holds nothing, so its owners
+/// draw whole again.
 struct WindowOffered {
     std::string window;
-    std::int64_t cols = 0, rows = 0;
+    std::int64_t width = 0, height = 0;
     std::int64_t epoch = 0;
     std::int64_t cell_px = 0;
-    ZEN_SHAPE(WindowOffered, 2, ZEN_FIELD(window), ZEN_FIELD(cols), ZEN_FIELD(rows),
-              ZEN_FIELD(epoch), ZEN_FIELD(cell_px));
+    std::int64_t text_advance_px = 0, text_line_px = 0;
+    ZEN_SHAPE(WindowOffered, 3, ZEN_FIELD(window), ZEN_FIELD(width), ZEN_FIELD(height),
+              ZEN_FIELD(epoch), ZEN_FIELD(cell_px), ZEN_FIELD(text_advance_px),
+              ZEN_FIELD(text_line_px));
 };
 
 /// The arranger -> the directory: where an area stands, in which window, whose office draws in it,
@@ -298,9 +311,11 @@ struct AreaWithdrawn {
 /// A window -> the owner of an area it was introduced, as the window's office: draw into this
 /// window, as of this incarnation, in this room; `elements` are the references of the owner's
 /// elements the window still presents there, and `empty` says the window holds none of the
-/// owner's drawing there, as when it shows the area afresh or gives it to this owner. An owner
-/// draws whole only when the window, its incarnation or its size changed or the area is empty, and
-/// says again only an element the window does not hold.
+/// owner's drawing there, as when it shows the area afresh or gives it to this owner. `cell_px`,
+/// `text_advance_px` and `text_line_px` are the window's, as it offers them, so an owner sets its
+/// text by the measure of the window that shows it. An owner draws whole only when the window, its
+/// incarnation, its size or its measure changed or the area is empty, and says again only an
+/// element the window does not hold.
 struct AreaRoom {
     std::string area;
     std::string window;
@@ -308,8 +323,17 @@ struct AreaRoom {
     std::int64_t w = 0, h = 0;
     std::vector<std::int64_t> elements;
     bool empty = false;
-    ZEN_SHAPE(AreaRoom, 3, ZEN_FIELD(area), ZEN_FIELD(window), ZEN_FIELD(epoch), ZEN_FIELD(w),
-              ZEN_FIELD(h), ZEN_FIELD(elements), ZEN_FIELD(empty));
+    std::int64_t cell_px = 0;
+    std::int64_t text_advance_px = kCellPx, text_line_px = kCellPx;
+    ZEN_SHAPE(AreaRoom, 4, ZEN_FIELD(area), ZEN_FIELD(window), ZEN_FIELD(epoch), ZEN_FIELD(w),
+              ZEN_FIELD(h), ZEN_FIELD(elements), ZEN_FIELD(empty), ZEN_FIELD(cell_px),
+              ZEN_FIELD(text_advance_px), ZEN_FIELD(text_line_px));
+
+    /// How the window sets text: its measure, or the cell's where it said none.
+    TextMeasure measure() const {
+        return TextMeasure{text_advance_px > 0 ? text_advance_px : kCellPx,
+                           text_line_px > 0 ? text_line_px : kCellPx};
+    }
 };
 
 /// An owner that starts again -> the directory, as its office: my room in this area. Answered by

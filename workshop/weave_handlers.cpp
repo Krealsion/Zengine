@@ -241,7 +241,7 @@ void WorkshopWeave::on(const graphics::GraphicsReady&, loom::Mail& mail) {
 
 static_assert(graphics::kCellPx == surface::kCanvasCellPx,
               "the window draws the desk one canvas pixel to one of its own, so its cell is the "
-              "canvas cell and its room in cells is the screen in cells");
+              "canvas cell and a terminal window's room in pixels is the screen in pixels");
 
 void WorkshopWeave::on(const graphics::WindowOffered& w, loom::Mail& mail) {
     if ((w.window != graphics::kTerminalWindow && w.window != graphics::kSdlWindow) ||
@@ -257,21 +257,24 @@ void WorkshopWeave::on(const graphics::WindowOffered& w, loom::Mail& mail) {
         areas_placed_.clear();
         skins_chosen_.clear();
         graphics_asked_ = false;
+        frames_.clear();
+        frames_asked_.clear();
     }
     // A HOST WITH NO SKIN COMES UP IN THE WINDOW, as a skin's hello brings it up: the session
     // restored first, and the window's room taken after it, as a skin's extent follows its hello.
     if (!surface_started_) {
         start_surface(mail);
     }
-    // THE WINDOW'S ROOM, WHILE NO MEDIUM HAS NAMED ITS UNIT: its cells, text a cell, and the device
-    // unit the window says -- the OS window's pixel, the terminal window's cell. A skin's
-    // `SurfaceExtent` owns the room from then on; until one comes, a window that offers another
-    // size is laid out in again.
-    if (medium_unit_known_ || w.cols <= 0 || w.rows <= 0) {
+    // THE WINDOW'S ROOM, WHILE NO MEDIUM HAS NAMED ITS UNIT: its pixels, the device unit it says
+    // -- the OS window's pixel, the terminal window's cell -- and its text: the face the OS window
+    // measured, a cell where the window's unit is the cell. A skin's `SurfaceExtent` owns the room
+    // from then on; until one comes, a window that offers another size is laid out in again.
+    if (medium_unit_known_ || w.width <= 0 || w.height <= 0) {
         return;
     }
-    if (!adopt_screen(session_, surface::px_of_cells(w.cols), surface::px_of_cells(w.rows), 0, 0,
-                      w.cell_px)) {
+    const bool every_pixel = w.cell_px > 0;
+    if (!adopt_screen(session_, w.width, w.height, every_pixel ? w.text_advance_px : 0,
+                      every_pixel ? w.text_line_px : 0, w.cell_px)) {
         return;
     }
     if (!(medium_placed_ && session_.place_maximized)) {
@@ -284,17 +287,22 @@ void WorkshopWeave::on(const graphics::WindowOffered& w, loom::Mail& mail) {
 void WorkshopWeave::on(const graphics::AreaRoom& r, loom::Mail& mail) {
     // A room said by anyone but the window it names, about another area, or the same again, is
     // nothing new (`WindowDrawing::room`).
+    FrameDrawing* frame = frame_of(r.area);
     const bool desk = window_.room(r, mail);
     const bool overlay = !desk && overlay_.room(r, mail);
+    const bool framed = !desk && !overlay && frame != nullptr && frame->drawing.room(r, mail);
     note_medium();
-    if (desk || overlay) {
+    if (desk || overlay || framed) {
         draw_window(mail);
     }
 }
 
 void WorkshopWeave::on(const graphics::DrawnRefused& refused, loom::Mail& mail) {
-    if (!window_.refused(refused, mail)) {
-        (void)overlay_.refused(refused, mail);
+    if (window_.refused(refused, mail) || overlay_.refused(refused, mail)) {
+        return;
+    }
+    if (FrameDrawing* frame = frame_of(refused.area)) {
+        (void)frame->drawing.refused(refused, mail);
     }
 }
 
@@ -324,12 +332,12 @@ struct WindowMoment {
 
 // WL-PRESS-04 -- agents/workshop/press-chain.md
 void WorkshopWeave::on(const graphics::AreaButtonChanged& b, loom::Mail& mail) {
-    if (!window_.from_window(b.area, mail)) {
+    if (!own_pointer_area(b.area, mail)) {
         return;
     }
-    const auto own = areas_placed_.find(kWorkshopProvider);
-    const std::int64_t x = b.x + (own != areas_placed_.end() ? own->second.x : 0);
-    const std::int64_t y = b.y + (own != areas_placed_.end() ? own->second.y : 0);
+    const auto [ox, oy] = area_origin(b.area);
+    const std::int64_t x = b.x + ox;
+    const std::int64_t y = b.y + oy;
     const WindowMoment moment{window_moment_, input_actor_};
     pointer_button(input::PointerButton{b.button, b.pressed, x, y, input::space::kPixels,
                                         b.modifiers},
@@ -337,24 +345,24 @@ void WorkshopWeave::on(const graphics::AreaButtonChanged& b, loom::Mail& mail) {
 }
 
 void WorkshopWeave::on(const graphics::AreaPointerMoved& m, loom::Mail& mail) {
-    if (!window_.from_window(m.area, mail)) {
+    if (!own_pointer_area(m.area, mail)) {
         return;
     }
-    const auto own = areas_placed_.find(kWorkshopProvider);
-    const std::int64_t x = m.x + (own != areas_placed_.end() ? own->second.x : 0);
-    const std::int64_t y = m.y + (own != areas_placed_.end() ? own->second.y : 0);
+    const auto [ox, oy] = area_origin(m.area);
+    const std::int64_t x = m.x + ox;
+    const std::int64_t y = m.y + oy;
     const WindowMoment moment{window_moment_, input_actor_};
     pointer_moved(input::PointerMoved{x, y, m.dx, m.dy, input::space::kPixels, m.modifiers}, mail);
 }
 
 // WL-PTR-10 -- agents/workshop/pointer.md
 void WorkshopWeave::on(const graphics::AreaWheelTurned& w, loom::Mail& mail) {
-    if (!window_.from_window(w.area, mail)) {
+    if (!own_pointer_area(w.area, mail)) {
         return;
     }
-    const auto own = areas_placed_.find(kWorkshopProvider);
-    const std::int64_t x = w.x + (own != areas_placed_.end() ? own->second.x : 0);
-    const std::int64_t y = w.y + (own != areas_placed_.end() ? own->second.y : 0);
+    const auto [ox, oy] = area_origin(w.area);
+    const std::int64_t x = w.x + ox;
+    const std::int64_t y = w.y + oy;
     const WindowMoment moment{window_moment_, input_actor_};
     pointer_wheel(input::PointerWheel{w.dx, w.dy, x, y, input::space::kPixels, w.modifiers}, mail);
 }
@@ -447,7 +455,7 @@ void WorkshopWeave::on(const graphics::AreaHoldEnded& e, loom::Mail& mail) {
         return;
     }
     const auto slot = static_cast<std::size_t>(e.button - 1);
-    if (window_.from_window(e.area, mail)) {
+    if (own_pointer_area(e.area, mail)) {
         // ITS RELEASE GOES WHERE IT LANDS, so whatever the button holds in Workshop's own area
         // ends here: a drag, and a press handed to a pane Workshop draws, which hears it lost.
         if (slot == 0) {
@@ -472,7 +480,7 @@ void WorkshopWeave::on(const graphics::AreaHoldEnded& e, loom::Mail& mail) {
 
 // WL-CANVAS-06 -- agents/workshop/canvas.md
 void WorkshopWeave::on(const graphics::AreaPointerLeft& l, loom::Mail& mail) {
-    if (window_.from_window(l.area, mail)) {
+    if (own_pointer_area(l.area, mail)) {
         leave_canvas_hover(mail);
     }
 }

@@ -107,8 +107,8 @@ from the window's own office, and `RoomAsked` only from the area's owner.
 
 - **Takes:** `area`, the owner's area. It is taken only from the area's owner, as its office.
 - **Answers:** the area is introduced to its window again, and the window answers the owner with
-  its room (`AreaRoom`): its window, the window's incarnation, its size, and the elements the
-  window still presents there.
+  its room (`AreaRoom`): its window, the window's incarnation, its size, the elements the window
+  still presents there, and how the window sets text.
 - **Refuses:** nothing; an area never placed, a sender that is not its owner, or an area whose
   window or skin is not known yet, changes nothing.
 - **Example:** a drawing weave (`graphics/drawing.hpp`) asks once in each life while no room has
@@ -118,11 +118,12 @@ from the window's own office, and `RoomAsked` only from the area's owner.
 
 ### `WindowOffered`
 
-`WindowOffered` v2, from a window as its own office, `zengine.window.<name>`, on each activation,
-after `GraphicsReady`, and on a resize: its name, its size in cells (none where it has nothing to
-measure), its incarnation and its device pixels in a cell (`kCellPx` for the OS window, none for
-the terminal's). The directory keeps it, then tells the window every element code and
-introduces each of its areas. A `WindowOffered` from any other office is ignored.
+`WindowOffered` v3, from a window as its own office, `zengine.window.<name>`, on each activation,
+after `GraphicsReady`, and on a resize: its name, its pixels (none with nothing to measure), its
+incarnation, its device pixels in a cell (`kCellPx` for the OS window, none for the terminal's) and
+its text's advance and line (the OS window's face, the terminal's cell). The directory keeps it,
+then tells the window every element code and introduces each of its areas. One from any other
+office is ignored.
 
 ## Follow
 

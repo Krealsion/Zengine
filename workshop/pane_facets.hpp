@@ -219,12 +219,14 @@ public:
     using Room::on;
 
     /// The room, from the window that shows the area, as that window's office. When the window,
-    /// its incarnation or its size changed, the window holds none of the pane's rows, so the
-    /// weave's `on_room` says them, and the window is sent them whole.
+    /// its incarnation, its size or its measure changed or the area is empty, the window holds none
+    /// of the pane's rows, so the weave's `on_room` says them, and the window is sent them whole:
+    /// a row a line of the window's text, a character an advance of it.
     template <class Self>
     void on(Self& self, const graphics::AreaRoom& r, loom::Mail& mail) {
         if (window_.room(r, mail)) {
-            this->window_room(r.h / graphics::kCellPx, r.w / graphics::kCellPx);
+            const RowsRoom room = window_.rows_room();
+            this->window_room(room.rows(), room.columns());
             self.on_room(mail);
         }
     }
@@ -494,8 +496,8 @@ public:
               std::vector<v2::PaneRowPart> parts, bool with_caret = true) {
         ++published_;
         if (window_.shown()) {
-            RowsDrawing drawn =
-                rows_drawing(rows, parts, this->columns(), with_caret ? caret_ : RowsCaret{});
+            RowsDrawing drawn = rows_drawing(rows, parts, window_.rows_room(), this->columns(),
+                                             with_caret ? caret_ : RowsCaret{});
             window_places_ = std::move(drawn.places);
             window_rows_ = static_cast<std::int64_t>(rows.size());
             window_.draw(drawn.sketch, mail);
@@ -579,12 +581,14 @@ public:
     using Room::on;
 
     /// The room, from the window that shows the area, as that window's office. When the window,
-    /// its incarnation or its size changed, the window holds none of the pane's drawing, so the
-    /// weave's `on_room` draws, and the window is sent the picture whole.
+    /// its incarnation, its size or its measure changed or the area is empty, the window holds none
+    /// of the pane's drawing, so the weave's `on_room` draws, and the window is sent the picture
+    /// whole.
     template <class Self>
     void on(Self& self, const graphics::AreaRoom& r, loom::Mail& mail) {
         if (window_.room(r, mail)) {
-            this->window_room(r.h / graphics::kCellPx, r.w / graphics::kCellPx);
+            const RowsRoom room = window_.rows_room();
+            this->window_room(room.rows(), room.columns());
             self.on_room(mail);
         }
     }
@@ -706,36 +710,49 @@ public:
     /// The office a paste is asked of: the window showing the area, else the Skin.
     std::string clipboard_office() const { return window_.clipboard_office(); }
 
-    /// SHOW THE PICTURE, once the pane holds a room: the weave's `picture` drawn, sent to the
-    /// window that shows the area as what changed there (nothing when nothing did), and to
-    /// Workshop, when it seats the pane, as rows numbered by the parts they name. Workshop hears
-    /// only a picture the weave shows, so a message the pane ignores repaints nothing.
+    /// How the picture being drawn sets its text: the window's measure for the window that shows
+    /// the area, the cell for Workshop's rows. The weave's `picture` stands its rows a line apart.
+    const graphics::TextMeasure& text() const noexcept { return text_; }
+
+    /// SHOW THE PICTURE, once the pane holds a room: the weave's `picture` drawn in the window's
+    /// measure over its room's ground, sent to the window that shows the area as what changed there
+    /// (nothing when nothing did), and drawn again a row a cell for Workshop, when it seats the
+    /// pane, as rows numbered by the parts they name. Workshop hears only a picture the weave
+    /// shows, so a message the pane ignores repaints nothing.
     template <class Self>
     void show(Self& self, loom::Mail& mail) {
         if (!this->granted() || this->rows() <= 0 || this->columns() <= 0) {
             return;
         }
-        graphics::Sketch sketch;
-        self.picture(sketch);
         if (window_.shown()) {
+            text_ = window_.text();
+            graphics::Sketch sketch;
+            // THE ROOM'S GROUND FIRST, all of it, so nothing behind the area shows through.
+            sketch.fill_rect("room", 0, 0, window_.width(), window_.height(),
+                             graphics::by_role(surface::role::kGround));
+            self.picture(sketch);
             window_actions_.clear();
             for (const graphics::ElementRecord& record : sketch.records()) {
                 if (!record.action.empty()) {
                     window_actions_.insert(record.action);
                 }
             }
-            // WHERE EACH PART STANDS IN THE WINDOW, read as a window of characters paints it, so
-            // a press there finds the part it lands on.
-            window_map_rows_ = window_.height() / graphics::kCellPx;
-            window_map_columns_ = window_.width() / graphics::kCellPx;
+            // WHERE EACH PART STANDS IN THE WINDOW, read in the window's measure, so a press there
+            // finds the part it lands on.
+            const RowsRoom room = window_.rows_room();
+            window_map_rows_ = room.rows();
+            window_map_columns_ = room.columns();
             window_map_.begin();
-            (void)drawn_rows(sketch, window_map_rows_, window_map_columns_, window_map_);
+            (void)drawn_rows(sketch, window_map_rows_, window_map_columns_, window_map_, text_);
             (void)window_map_.settle();
             window_.draw(sketch, mail);
         }
         if (!this->seated()) {
             return;
         }
+        text_ = graphics::TextMeasure{};
+        graphics::Sketch sketch;
+        self.picture(sketch);
         map_.begin();
         std::vector<surface::SurfaceTextRow> rows =
             drawn_rows(sketch, this->rows(), this->columns(), map_);
@@ -767,6 +784,7 @@ private:
     std::set<std::string> window_actions_; ///< the actions the picture last sent the window names
     component::RowMap<DrawnPart> window_map_; ///< the parts of the picture last sent the window
     std::int64_t window_map_rows_ = 0, window_map_columns_ = 0;
+    graphics::TextMeasure text_;           ///< how the picture being drawn sets its text
     bool asked_ = false;                   ///< the room asked in this life
     component::RowMap<DrawnPart> map_;     ///< the parts of the picture Workshop last held
     CanvasPictures pictures_;

@@ -43,10 +43,10 @@ the press itself (`AreaButtonChanged`).
 ## Use
 
 An owner is told its room first (`AreaRoom`), once the directory introduces its area; it then draws
-with [`Drawn`](#drawn), says an element once with [`ElementPut`](#elementput) and sends its changes
-with [`ElementChange`](#elementchange). A drawer usually does all three through a canvas or a
+with [`Drawn`](#drawn), says an element once with [`ElementPut`](#elementput) and sends changes
+with [`ElementChange`](#elementchange). A drawer does all three through a canvas or a
 drawing weave ([the Graphics package](graphics.md#a-drawing-weave)), which draw whole only on a new
-window, incarnation or size, or an empty area. To read what it shows, ask
+window, incarnation, size or measure, or an empty area. To read what it shows, ask
 [`WindowShowAsked`](#windowshowasked).
 
 Keys go to each owner placed to hear them, front to back: each key, its text and its release, which
@@ -242,11 +242,11 @@ which no terminal confirms. It is no showing, and nothing answers it.
 
 ## Follow
 
-As its own office the window publishes `WindowOffered` v2 on each activation, after `GraphicsReady`,
-and at each new terminal size: its name, size in cells (none with no terminal), incarnation, kept by
-a resize, and no pixels in a cell, its unit the cell. The directory keeps it; an arranger may lay
-out in it. It never publishes `SurfacePlacement` or `SurfaceCloseRequested`. To an area's owner:
-`AreaRoom` v3 for each introduction (`empty` while it holds none of the owner's drawing);
+As its own office the window publishes `WindowOffered` v3 on each activation, after `GraphicsReady`,
+and at each new terminal size: its name, its cells as `kCellPx` pixels (none with no terminal),
+incarnation, its unit the cell and text a cell. The directory keeps it; an arranger may lay out
+in it. It never publishes `SurfacePlacement` or `SurfaceCloseRequested`. To an area's owner:
+`AreaRoom` v4 for each introduction (`empty` while it holds none of the owner's drawing);
 `DrawnRefused` v1; `ActionRequested` v1; `AreaButtonChanged`, `AreaPointerMoved`, `AreaWheelTurned`,
 `AreaHoldEnded` and `AreaPointerLeft` v1 when placed to hear the pointer; `KeyPressed` v2,
 `KeyReleased` v2 and `TextEntered` v1 when placed to hear keys, a shape it does not take refused on

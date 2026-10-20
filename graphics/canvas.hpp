@@ -170,17 +170,21 @@ public:
     explicit Canvas(std::string office, std::string area = {})
         : office_(std::move(office)), area_(area.empty() ? office_ : std::move(area)) {}
 
-    /// The room the window that shows the area told. True when the window, its incarnation, or
-    /// its size changed, or the window says the area is empty: it holds none of this canvas's
-    /// nodes, so the next drawing goes whole, and of its elements only those the room names.
+    /// The room the window that shows the area told. True when the window, its incarnation, its
+    /// size or its measure changed, or the window says the area is empty: it holds none of this
+    /// canvas's nodes, so the next drawing goes whole, and of its elements only those the room
+    /// names.
     bool room(const AreaRoom& r) {
-        if (!r.empty && r.window == window_ && r.epoch == epoch_ && r.w == w_ && r.h == h_) {
+        if (!r.empty && r.window == window_ && r.epoch == epoch_ && r.w == w_ && r.h == h_ &&
+            r.cell_px == cell_px_ && r.measure() == text_) {
             return false;
         }
         window_ = r.window;
         epoch_ = r.epoch;
         w_ = r.w;
         h_ = r.h;
+        cell_px_ = r.cell_px;
+        text_ = r.measure();
         held_ = std::set<std::int64_t>(r.elements.begin(), r.elements.end());
         known_ = false;
         return true;
@@ -191,6 +195,10 @@ public:
     std::int64_t epoch() const { return epoch_; }
     std::int64_t width() const { return w_; }
     std::int64_t height() const { return h_; }
+    /// The window's device pixels in one cell (none where its unit is the cell), and how it sets
+    /// text, as its room said.
+    std::int64_t cell_px() const { return cell_px_; }
+    const TextMeasure& text() const { return text_; }
     const std::string& office() const { return office_; }
     const std::string& area() const { return area_; }
     std::string window_office() const { return std::string(kWindowOfficePrefix) + window_; }
@@ -296,6 +304,8 @@ private:
     std::int64_t epoch_ = 0;
     std::int64_t w_ = 0;
     std::int64_t h_ = 0;
+    std::int64_t cell_px_ = 0;
+    TextMeasure text_;
     std::set<std::int64_t> held_;
     bool known_ = false;
     Sketch sent_;

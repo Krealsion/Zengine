@@ -16,6 +16,7 @@
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/pointing.hpp"
+#include "workshop/pane_canvas_drawing.hpp"
 #include "workshop/pane_canvas_text.hpp"
 #include "workshop/pane_canvas_vocabulary.hpp"
 #include "workshop/pane_causes.hpp"
@@ -289,13 +290,14 @@ inline Picture picture(const Description& d, const Told& told, const Presentatio
     return out;
 }
 
-/// THE PICTURE IN A GRAPHICS WINDOW: the one picture (`picture`), each rectangle and run of text
-/// a node in the order drawn, named by what drew it -- `ground`, `box:<id>`, `text:<id>`, the
-/// notice's lines `notice` -- and each button's nodes recorded with its id, the action a press on
-/// them asks; in front, a focused number field's caret, `caret`, a bar in the accent role at the
-/// left of the cell it stands before, as Workshop's panes draw theirs. No name holds a `/`, so no
-/// node waits for a parent.
-inline graphics::Sketch sketch(const Description& d, const Picture& p) {
+/// THE PICTURE IN A GRAPHICS WINDOW, set as `room` sets text: each rectangle and run of text a node
+/// in the order drawn, named by what drew it -- `ground`, `box:<id>`, `text:<id>`, the notice's
+/// lines `notice` -- and each button's nodes recorded with its id, the action a press asks; in
+/// front, a focused number field's caret, `caret`, an accent bar at the left of the character it
+/// stands before. A run stands inset where the room is graphical. No name holds a `/`.
+inline graphics::Sketch sketch(const Description& d, const Picture& p,
+                               const ws::PaneCanvasRoom& room) {
+    const auto m = ws::canvas_text_metrics(room);
     graphics::Sketch out;
     std::map<std::string, std::size_t> named;
     const auto node = [&](const char* kind, const std::string& by, const char* none) {
@@ -312,27 +314,30 @@ inline graphics::Sketch sketch(const Description& d, const Picture& p) {
     }
     for (std::size_t i = 0; i < p.content.texts.size(); ++i) {
         const auto& t = p.content.texts[i];
-        out.text(node("text", p.texts_by[i], "notice"), t.x, t.y, t.text, graphics::by_role(t.role));
+        out.text(node("text", p.texts_by[i], "notice"), t.x + m.inset, t.y + m.inset, t.text,
+                 graphics::by_role(t.role));
     }
     for (const auto& t : p.content.texts) {
         if (t.caret_col < 0) continue;
-        const std::int64_t cx = t.x + t.caret_col * graphics::kCellPx;
-        out.line("caret", cx, t.y, cx, t.y + graphics::kCellPx - 1, graphics::by_role(ink::kAccent));
+        const std::int64_t cx = t.x + m.inset + t.caret_col * m.advance;
+        const std::int64_t cy = t.y + m.inset;
+        out.line("caret", cx, cy, cx, cy + m.line - 1, graphics::by_role(ink::kAccent));
         break;
     }
     return out;
 }
 
-/// A graphics window's room as a view draws in it: `width` by `height` pixels, a character a cell
-/// of `graphics::kCellPx` each way, so a window shows what a terminal Workshop shows.
-inline ws::PaneCanvasRoom window_room(std::int64_t width, std::int64_t height) {
-    return ws::PaneCanvasRoom{kPane, 1, width, height, graphics::kCellPx, false, 0, 0};
+/// A graphics window's room as a view draws in it: `width` by `height` pixels, in the window's unit
+/// and its text (`ws::canvas_window_room`).
+inline ws::PaneCanvasRoom window_room(std::int64_t width, std::int64_t height,
+                                      std::int64_t cell_px, const graphics::TextMeasure& text) {
+    return ws::canvas_window_room(kPane, width, height, cell_px, text);
 }
 
 /// A view drawn for a graphics window's room, from what it was told and its presentation.
 inline graphics::Sketch sketch(const Description& d, const Told& told, const Presentation& p,
-                               std::int64_t width, std::int64_t height) {
-    return sketch(d, picture(d, told, p, window_room(width, height), 1));
+                               const ws::PaneCanvasRoom& room) {
+    return sketch(d, picture(d, told, p, room, 1), room);
 }
 
 /// THE PICTURE AS IT IS SAID, each element named by its id over the place a press on it lands: a
@@ -452,10 +457,11 @@ public:
     /// The description its values are read against: the paired view's, else its own, else none.
     const Description* description() const;
 
-    /// ITS OWN DRAWING for a graphics window `width` by `height` pixels, and a press there on its
+    /// ITS OWN DRAWING for a graphics window's room (`window_room`), and a press there on its
     /// button `id`: its code run, true when it has code for one. An owner that holds a
-    /// `graphics::Canvas` draws the one and answers `graphics::ActionRequested` with the other.
-    graphics::Sketch sketch(std::int64_t width, std::int64_t height) const;
+    /// `graphics::Canvas` draws the one, in the room its canvas says, and answers
+    /// `graphics::ActionRequested` with the other.
+    graphics::Sketch sketch(const ws::PaneCanvasRoom& room) const;
     bool act(std::string_view id, loom::Bus& bus);
 
     /// Asks the paired view to draw what it was told, as its host asks: from host code, not from
@@ -547,12 +553,13 @@ public:
     /// action, and that window's office; none when no window shows it.
     std::optional<std::pair<std::string, graphics::Drawn>> window_farewell(const std::string& why) const {
         if (!window_.shown() || window_.width() <= 0 || window_.height() <= 0) return std::nullopt;
-        const auto room = window_room(window_.width(), window_.height());
+        const auto room =
+            window_room(window_.width(), window_.height(), window_.cell_px(), window_.text());
         Picture last;
         last.content = stopped_picture(description_, room, 1, why);
         last.rects_by.resize(last.content.rects.size());
         last.texts_by.resize(last.content.texts.size());
-        const auto drawn = sketch(description_, last);
+        const auto drawn = sketch(description_, last, room);
         return std::pair{window_.window_office(),
                          graphics::Drawn{window_.area(), true, drawn.nodes(), {}, drawn.records(), {}, false}};
     }
@@ -766,7 +773,9 @@ private:
     /// the picture whole (`ws::WindowDrawing`).
     void show_window(loom::Bus& bus) {
         if (!window_.shown() || window_.width() <= 0 || window_.height() <= 0) return;
-        const auto drawn = sketch(description_, told_, presentation_, window_.width(), window_.height());
+        const auto drawn = sketch(description_, told_, presentation_,
+                                  window_room(window_.width(), window_.height(), window_.cell_px(),
+                                              window_.text()));
         window_actions_.clear();
         for (const auto& record : drawn.records()) window_actions_.insert(record.action);
         // The mail only carries this view's statements as its office; it answers nothing.
@@ -993,9 +1002,9 @@ inline std::optional<std::string> Presenter::run(const Element& button, loom::Bu
     return std::string();
 }
 
-inline graphics::Sketch Presenter::sketch(std::int64_t width, std::int64_t height) const {
+inline graphics::Sketch Presenter::sketch(const ws::PaneCanvasRoom& room) const {
     const Description* d = description();
-    return d ? view::sketch(*d, told_, {}, width, height) : graphics::Sketch{};
+    return d ? view::sketch(*d, told_, {}, room) : graphics::Sketch{};
 }
 
 inline bool Presenter::act(std::string_view id, loom::Bus& bus) {

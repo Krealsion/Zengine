@@ -19,7 +19,7 @@ AreaPlaced v2 0xdc6d0878fcd494bf
 AreaPointerLeft v1 0x65e599b7bfc67495
 AreaPointerMoved v1 0x881949064fa30e61
 AreaPressed v1 0xd50bf5a67d178d4e
-AreaRoom v3 0x659d893d9ff9fd8e
+AreaRoom v4 0x13b64ef427486e52
 AreaWheelTurned v1 0xb79867fe7e7d1745
 AreaWithdrawn v1 0x124e9db05dd3b253
 ArrangementDoorState v2 0x84aaa708082f869a
@@ -87,7 +87,7 @@ DeskViewRequested v1 0xfe21c7047dbe8893
 DeskViewRequested v2 0x112785ac447f3fd0
 DesktopState v2 0x99a86d2ff5d2ed90
 DirectoryArea v3 0x4f4f7b508c5c67a0
-DirectoryState v4 0x317b6417315177c6
+DirectoryState v5 0x89cd5157c4d2fb7e
 Dismissal v1 0x2ef46c30c9e25ec4
 Drawn v1 0x74e64abe6e86fc07
 DrawnRefused v1 0x7475c98771250027
@@ -288,7 +288,7 @@ OperatorState v1 0x5a9910fc3c9efdce
 Paint v1 0x52d2e348ff6b1c63
 PaintNode v1 0xd25c5907b1026eb2
 PaintResult v1 0xf6f28b0522c96a8b
-PaintTask v1 0x57c2f5de4549ebd8
+PaintTask v2 0x48fd182cbff0a92c
 PaneActionRequested v1 0xbb7e7caf6998a112
 PaneActionRow v1 0x446fc3f42046e34e
 PaneActionRow v2 0x3377929ec8b56418
@@ -606,7 +606,7 @@ ViewRun v1 0xed2c4ab0b0598981
 ViewStart v2 0x89d8495312d2c751
 ViewStop v1 0x1e90d056a56b777c
 WinArea v3 0xf2a52f27ed664d39
-WindowOffered v2 0x3b78128884935d09
+WindowOffered v3 0x0426f2eb5138d05b
 WindowShowAsked v1 0x9ae7f3bd1654e34e
 WindowShown v1 0x67d34473f44e6144
 WindowState v3 0xf081bda17e75d085

@@ -442,6 +442,47 @@ TEST_CASE("nothing global opens it, and no key acts on it from anywhere else") {
         CHECK(window.weave().refusals.empty());
         u.r.bus.remove_observer(tap);
     }
+    SUBCASE("in a window that sets type, its rows stand a line of the window's face apart and a "
+            "character an advance, on the ground of its whole room, and a part is pressed where "
+            "its words are shown") {
+        namespace gfx = zengine::graphics;
+        namespace gw = zengine::graphics::window;
+        const char* area = pane::kTerminalPaneRole;
+        TerminalRig u;
+        u.open(160, 48, 0, true, false, /*pick=*/false);
+        zengine::testing::pane_window::Window window(u.r.bus);
+        const gfx::TextMeasure face{8, 18};
+        window.set_measure(face);
+        window.room(area, area, 40, 10);
+        REQUIRE(window.weave().heard.size() == 1);
+        const gw::WinArea* a = window.weave().find(area);
+        REQUIRE(a != nullptr);
+        CHECK(a->w == 40 * face.advance);
+        CHECK(a->h == 10 * face.line);
+        // THE ROOM'S GROUND FIRST, the whole of it, so nothing behind the area shows through.
+        REQUIRE_FALSE(a->nodes.empty());
+        const auto ground = gfx::from_body<gfx::RectArgs>(a->nodes.front().node.args);
+        REQUIRE(ground.has_value());
+        CHECK(a->nodes.front().node.op == gfx::op::kRect);
+        CHECK(ground->w == a->w);
+        CHECK(ground->h == a->h);
+        CHECK(ground->fill.role == gfx::role::kGround);
+        // EACH ROW A LINE OF THE FACE DOWN, each character an advance across.
+        bool line_row = false;
+        for (const gw::KeptNode& k : a->nodes) {
+            if (k.node.op != gfx::op::kText) continue;
+            const auto t = gfx::from_body<gfx::TextArgs>(k.node.args);
+            REQUIRE(t.has_value());
+            CHECK(t->y % face.line == 0);
+            CHECK(t->x % face.advance == 0);
+            line_row = line_row || (t->y == 9 * face.line && t->text.rfind(">", 0) == 0);
+        }
+        CHECK(line_row); // the line, on the last line of the window's room
+        const std::vector<std::string> shown = window.rows(area);
+        REQUIRE(shown.size() == 10);
+        CHECK(shown[9].rfind(">", 0) == 0);
+        CHECK(window.action_at(area, 0, 9) == "line");
+    }
     // NO GLOBAL CHORD OPENS IT: the Terminal is opened from the Pane Manager, and its keys reach
     // it only after a weaver has pressed into it.
     TerminalRig t;

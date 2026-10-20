@@ -48,12 +48,34 @@ target_link_libraries(zengine-paint-night PRIVATE zengine-graphics-vocabulary)
 
 # The OS window, through SDL3: built where this configuration has SDL (cmake/ZengineSdl.cmake), which
 # it shares with the SDL Skin and the SDL Input reader. Its manual is compiled in, as the terminal
-# window's is.
+# window's is, and so is its face: the font's bytes become a translation unit in the build tree,
+# nothing installed, staged or discovered at runtime (graphics/window/fonts/PROVENANCE.md).
 if(ZENGINE_SDL_LIB)
+    set(zengine_window_font_unit "${CMAKE_CURRENT_BINARY_DIR}/zengine_window_font.cpp")
+    add_custom_command(
+        OUTPUT ${zengine_window_font_unit}
+        COMMAND ${CMAKE_COMMAND}
+                -DZEN_EMBED_INPUT=${CMAKE_CURRENT_SOURCE_DIR}/window/fonts/JetBrainsMono-Regular.ttf
+                -DZEN_EMBED_OUTPUT=${zengine_window_font_unit}
+                -DZEN_EMBED_NAME=kWindowFontBytes
+                -DZEN_EMBED_NAMESPACE=zengine::graphics::window
+                -P ${CMAKE_SOURCE_DIR}/cmake/EmbedBinary.cmake
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/window/fonts/JetBrainsMono-Regular.ttf
+                ${CMAKE_SOURCE_DIR}/cmake/EmbedBinary.cmake
+        COMMENT "zengine-window-sdl: embedding JetBrains Mono into the weave"
+        VERBATIM)
+    # The face's bytes as objects of their own, so the graphics suite, which builds the backend in
+    # process, links the same face the weave does. A quarter of a million initializers of somebody
+    # else's data: the warning discipline is about code this repository wrote.
+    add_library(zengine-window-font OBJECT ${zengine_window_font_unit})
+    set_target_properties(zengine-window-font PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    target_compile_options(zengine-window-font PRIVATE -w)
     zengine_weave(zengine-window-sdl window/window_sdl.cpp MANUAL docs/zengine.window.sdl.md)
     target_link_libraries(zengine-window-sdl PRIVATE zengine-graphics-vocabulary
                                                      zengine-input-vocabulary
                                                      zengine-timer-vocabulary
-                                                     zengine-activation zengine-operator)
+                                                     zengine-activation zengine-operator
+                                                     zengine-window-font)
     zengine_sdl_weave(zengine-window-sdl)
+    target_link_libraries(zengine-window-sdl PRIVATE ${ZENGINE_SDL_TEXT_LIB})
 endif()
