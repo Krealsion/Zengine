@@ -1680,8 +1680,9 @@ TEST_CASE("the window offers itself as its own office to whoever follows it: the
     REQUIRE(heard.offers.size() == 1);
     CHECK(heard.from_window[0]);
     CHECK(heard.offers[0].window == gfx::kTerminalWindow);
-    CHECK(heard.offers[0].cols > 0);
-    CHECK(heard.offers[0].rows > 0);
+    // ...its terminal's size, or none where the suite's output is no terminal it can measure.
+    CHECK(((heard.offers[0].cols > 0 && heard.offers[0].rows > 0) ||
+           (heard.offers[0].cols == 0 && heard.offers[0].rows == 0)));
     std::set<std::uint64_t> to;
     for (std::size_t i = mark; i < r.log.size(); ++i) {
         if (r.log[i].shape != gfx::WindowOffered::zen_name) continue;
@@ -1791,11 +1792,13 @@ std::vector<gfx::WindowOffered> offers_to_directory(Rig& r, std::size_t from) {
     return out;
 }
 
-/// The terminal at another size, then one beat: the window offers itself once in its new room, the
-/// same incarnation, and writes one showing that covers every cell of the new size -- laid over a
-/// terminal still holding something else everywhere, nothing of that is left.
+/// The terminal at another size, then one beat: the window offers itself once in its new room
+/// (none where the terminal measures none), the same incarnation, and writes one showing that
+/// covers every cell of the new size -- laid over a terminal still holding something else
+/// everywhere, nothing of that is left.
 void check_resized(Resized& t, zengine::surface::TerminalSize size, std::int64_t cols,
                    std::int64_t rows) {
+    const bool measured = size.measured();
     Rig& r = t.r;
     const std::int64_t showings = r.shown().showings;
     const std::size_t writes = t.term.writes.size();
@@ -1805,8 +1808,8 @@ void check_resized(Resized& t, zengine::surface::TerminalSize size, std::int64_t
     const std::vector<gfx::WindowOffered> offers = offers_to_directory(r, mark);
     REQUIRE(offers.size() == 1);
     CHECK(offers[0].window == gfx::kTerminalWindow);
-    CHECK(offers[0].cols == cols);
-    CHECK(offers[0].rows == rows);
+    CHECK(offers[0].cols == (measured ? cols : 0));
+    CHECK(offers[0].rows == (measured ? rows : 0));
     CHECK(offers[0].epoch == t.epoch);
 
     REQUIRE(t.term.writes.size() == writes + 1);
@@ -1856,7 +1859,8 @@ TEST_CASE("the window measures its terminal each beat: at another size it shows 
     SUBCASE("a smaller terminal") {
         check_resized(t, {60, 20}, 60, 20);
     }
-    SUBCASE("a terminal that cannot be measured: the window shows the unmeasured size") {
+    SUBCASE("a terminal that cannot be measured: the window shows the unmeasured size, and offers "
+            "none") {
         check_resized(t, {0, 0}, gfx::window::kUnmeasuredCols, gfx::window::kUnmeasuredRows);
     }
 }

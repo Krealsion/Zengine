@@ -34,8 +34,8 @@ For a real window instead of a terminal, pass the graphical plan:
 build/workshop/zengine-workshop --load-plan workshop/graphical-load-plan.json
 ```
 
-Both are shipped files. They differ in exactly two rows — which skin claims the medium, and
-which input backend produces the moments — and Workshop's own code is identical under both.
+Both are shipped files. They differ in exactly two rows — which window shows the desk, and
+which input backend serves input sessions — and Workshop's own code is identical under both.
 See [load plans](load-plans.md).
 
 ### Arguments
@@ -254,16 +254,21 @@ privilege the [snake example](../../examples/snake/README.md) does not.
 
 ## Terminal and window differences
 
-| | terminal | SDL window |
+| | terminal window | OS window |
 |---|---|---|
-| how much room | the real terminal size, minus 3 reserved rows; a redirected or captured run, whose size cannot be measured, gets the 78x22 minimum -- and, when a restored session names a window size, that size from the frame after the first | the window's own size, and the person may resize it |
-| text in a bounded region | one row per cell row, cut at the region's width | set in a real typeface at its own advance and line height |
-| labels | the terminal's own font | an embedded 6x6 bitmap face, printable ASCII only; any other byte draws a visible unknown box |
-| colour | an SGR *and a glyph* per role, so a monochrome terminal is not lied to; plain text is the terminal's own text colour, on its own ground | RGB per role |
-| the title | two reserved slot lines | the window title carries the slot lines |
+| how much room | the whole terminal; a redirected or captured run, whose terminal cannot be measured, lays the desk out in the room the restored session names, else the 78x22 minimum | the window's own size, and the person may resize it |
+| text in a bounded region | one row per cell row, cut at the region's width | one row per cell row too, a cell of text to a cell, in the painter's face |
+| colour | each area painted by its skin's painter, the role's ink on the terminal | each area painted by its skin's painter, RGB per role |
+| the status line | not shown | not shown |
 | what needs attention | the Attention pane, where you put it | the Attention pane, where you put it |
 
-Neither is a degraded version of the other, and the same published intent produces both.
+![The Pane Manager and Info in the terminal window, 120 by 30 cells: the Layouts row on the first row, the frames drawn in characters](images/desk-terminal-window.png)
+
+![The Pane Manager and Info in the OS window, 1444 by 901 pixels: text a cell to a cell, each area painted by its skin's painter](images/desk-os-window.png)
+
+Neither is a degraded version of the other, and the same published intent produces both. The
+Skins' plans ([load plans](load-plans.md#the-shipped-plans)) show the desk as the Skins do: two
+slot rows above the canvas in a terminal, and text set in a typeface in the SDL window.
 
 ## Next
 

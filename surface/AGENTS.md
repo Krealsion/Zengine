@@ -39,8 +39,8 @@ terminal pair, and `input` (`tests/test_input.cpp`) the SDL Skin beside the SDL 
 
 - Staging: `workshop/CMakeLists.txt` stages `zengine-skin-tui-classic`, and `zengine-skin-sdl`
   where built.
-- Loading: `workshop/default-load-plan.json` loads `zengine-skin-tui-classic` as `zengine.skin`;
-  `workshop/graphical-load-plan.json` loads `zengine-skin-sdl` in that role.
+- Loading: `workshop/skin-load-plan.json` loads `zengine-skin-tui-classic` as `zengine.skin`;
+  `workshop/sdl-skin-load-plan.json` loads `zengine-skin-sdl` in that role.
 - Grants: `workshop/grant.cpp` (canvas, text, clipboard, placement), `workshop/workshop.cpp`
   (the terminal's `SurfaceText`), `workshop/guests.cpp` (capture, for the `capture` power).
 - Consumers: `workshop/screen.hpp` paints the screen as one `SurfaceCanvas`;

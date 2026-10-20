@@ -21,8 +21,8 @@ right-click a shipped pane → edit code → change it → Ctrl+s
 
 - **A Zengine checkout that is yours to edit.** The files the Editor opens and saves are that
   checkout's.
-- **An installed Loom**, and a compiler and CMake that build Zengine with the SDL skin (the
-  default) — what [Build it](../../README.md#build-it) asks for. The launch opens Workshop's window.
+- **An installed Loom**, and a compiler and CMake that build Zengine with SDL (the default) —
+  what [Build it](../../README.md#build-it) asks for. The launch opens Workshop in the OS window.
 - **CLion**, or a shell. The launch is one run configuration in CLion and one executable in a
   shell; both run the same thing.
 
@@ -138,7 +138,7 @@ holds no file the runtime loads.
 the Workshop you are working in, and building the launch starts nothing. The catalog is its
 choice, not the project's: run by hand, Workshop reads the project's `build-recipes.json` or the
 shipped default exactly as it always does, and `u` in [Files](../../files/docs/zengine.files.md#filesuse-recipes) switches catalogs while it
-runs. Without the SDL skin the launch refuses; the runtime script, then the runtime's
+runs. Without SDL the launch refuses; the runtime script, then the runtime's
 `zengine-workshop --recipes <runtime>/development-build-recipes.json` from a directory of your
 own, gives a terminal Workshop the same setup.
 
@@ -215,7 +215,7 @@ Every refusal copies nothing, starts nothing, and leaves the runtime as it was.
 | `… made from the build tree …, not from …` | the directory is another build tree's runtime, or this tree moved | another directory |
 | `… is not empty and is not a development runtime …` | `--runtime` names a directory of other files | an empty or new directory |
 | `… is not there -- build the tree first` | the tree has not built what a runtime copies | build, then Run |
-| `… staged no graphical load plan …` | the tree was configured with `-DZENGINE_SDL_SKIN=OFF` | configure with the SDL skin |
+| `… staged no graphical load plan …` | the tree was configured with `-DZENGINE_SDL_SKIN=OFF` | configure with SDL |
 
 ## The loop: point, change, build, reload
 

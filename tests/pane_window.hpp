@@ -317,15 +317,26 @@ public:
                            row * gfx::kCellPx + gfx::kCellPx / 2, 0},
             0);
     }
-    /// THE HOLD OF `button` IN `area` ENDED with no release, as the real window tells the owner.
-    void hold_ended(const std::string& area, std::int64_t button) {
+    /// THE HOLD OF `button` IN `area` ENDED with no release, as the real window tells the owner --
+    /// and, given an `arranger`, that office too.
+    void hold_ended(const std::string& area, std::int64_t button,
+                    const std::string& arranger = {}) {
         const gw::WinArea* a = w_->find(area);
-        say(a == nullptr ? std::string() : a->owner, gfx::AreaHoldEnded{area, button});
+        const std::string owner = a == nullptr ? std::string() : a->owner;
+        say(owner, gfx::AreaHoldEnded{area, button});
+        if (!arranger.empty() && arranger != owner) {
+            say(arranger, gfx::AreaHoldEnded{area, button});
+        }
     }
-    /// THE POINTER LEFT `area`, with no button held, as the real window tells the owner.
-    void left(const std::string& area) {
+    /// THE POINTER LEFT `area`, with no button held, as the real window tells the owner -- and,
+    /// given an `arranger`, that office too.
+    void left(const std::string& area, const std::string& arranger = {}) {
         const gw::WinArea* a = w_->find(area);
-        say(a == nullptr ? std::string() : a->owner, gfx::AreaPointerLeft{area});
+        const std::string owner = a == nullptr ? std::string() : a->owner;
+        say(owner, gfx::AreaPointerLeft{area});
+        if (!arranger.empty() && arranger != owner) {
+            say(arranger, gfx::AreaPointerLeft{area});
+        }
     }
     /// A PRESS AND ITS RELEASE AT A CELL OF `area`, under one fresh number.
     void click(const std::string& area, std::int64_t col, std::int64_t row, std::int64_t which = 1,

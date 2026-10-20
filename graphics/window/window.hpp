@@ -986,7 +986,7 @@ private:
     /// This window, as its own office, to whoever follows it: the directory, and an arranger that
     /// lays out in its room.
     void offer(loom::Mail& mail) {
-        const CellExtent size = medium_.extent();
+        const CellExtent size = medium_.offered();
         (void)mail.as_role(office()).publish(
             WindowOffered{Medium::kWindow, size.cols, size.rows, this->state_.epoch});
     }

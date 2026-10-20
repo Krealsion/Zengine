@@ -44,28 +44,29 @@ one that draws your screen.
 
 | file | is |
 |---|---|
-| [`workshop/default-load-plan.json`](../default-load-plan.json) | the terminal Workshop |
-| [`workshop/window-load-plan.json`](../window-load-plan.json) | Workshop in the terminal window: the desk drawn through the graphics directory |
-| [`workshop/sdl-window-load-plan.json`](../sdl-window-load-plan.json) | Workshop in the OS window: the desk drawn through the graphics directory, staged only where the OS window and SDL's reader were built |
-| [`workshop/graphical-load-plan.json`](../graphical-load-plan.json) | the windowed Workshop, staged only where both SDL artifacts were built |
+| [`workshop/default-load-plan.json`](../default-load-plan.json) | Workshop in the terminal window: the desk drawn through the graphics directory |
+| [`workshop/graphical-load-plan.json`](../graphical-load-plan.json) | Workshop in the OS window: the desk drawn through the graphics directory, staged only where the OS window and SDL's reader were built |
+| [`workshop/skin-load-plan.json`](../skin-load-plan.json) | Workshop in the terminal Skin |
+| [`workshop/sdl-skin-load-plan.json`](../sdl-skin-load-plan.json) | Workshop in the SDL Skin, staged only where both SDL artifacts were built |
 
-The graphical plan differs from the default in exactly the medium's two rows, the third and the
-fourth. The window plan replaces the default's skin row, the third, with two rows, and every row
-from the default's fourth on follows them, one row later. The OS window's plan is the window plan
-with the window and the reader in the fourth and fifth rows:
+The graphical plan differs from the default in exactly two rows, the fourth and the fifth: the
+window, and the reader in the input row. Each Skin's plan puts one row, its skin, where the
+default's third and fourth stand, and every row from the default's fifth on follows it, one row
+earlier. The SDL Skin's plan is the terminal Skin's with the SDL skin and SDL's reader in its
+third and fourth rows:
 
-| row | default | window | OS window | graphical |
+| row | default | graphical | terminal Skin | SDL Skin |
 |---|---|---|---|---|
-| third | `zengine-skin-tui-classic`, as `zengine.skin` | `zengine-graphics`, as `zengine.graphics` | `zengine-graphics`, as `zengine.graphics` | `zengine-skin-sdl`, as `zengine.skin` |
-| fourth | `zengine-input`, as `zengine.input` | `zengine-window-terminal`, as `zengine.window.terminal` | `zengine-window-sdl`, as `zengine.window.sdl` | `zengine-input-sdl`, as `zengine.input` |
-| fifth | `zengine-timer`, as `zengine.timer` | `zengine-input`, as `zengine.input` | `zengine-input-sdl`, as `zengine.input` | `zengine-timer`, as `zengine.timer` |
+| third | `zengine-graphics`, as `zengine.graphics` | `zengine-graphics`, as `zengine.graphics` | `zengine-skin-tui-classic`, as `zengine.skin` | `zengine-skin-sdl`, as `zengine.skin` |
+| fourth | `zengine-window-terminal`, as `zengine.window.terminal` | `zengine-window-sdl`, as `zengine.window.sdl` | `zengine-input`, as `zengine.input` | `zengine-input-sdl`, as `zengine.input` |
+| fifth | `zengine-input`, as `zengine.input` | `zengine-input-sdl`, as `zengine.input` | `zengine-timer`, as `zengine.timer` | `zengine-timer`, as `zengine.timer` |
 
-In the window plan the [graphics directory](../../graphics/docs/zengine.graphics.md) introduces
+In the default plan the [graphics directory](../../graphics/docs/zengine.graphics.md) introduces
 each pane's area and Workshop's own to the [terminal window](../../graphics/docs/zengine.window.terminal.md),
 which takes the process's terminal, shows what each one draws and sends the terminal's keys to their
 owners; no skin is loaded. [`zengine-input`](../../input/docs/zengine.input.md) follows them and
 serves input sessions, a guest's or a session tool's keys, while the terminal window holds the
-process's terminal. In the OS window's plan the directory introduces them to the
+process's terminal. In the graphical plan the directory introduces them to the
 [OS window](../../graphics/docs/zengine.window.sdl.md), which reads SDL's one event queue itself;
 SDL's reader, `zengine-input-sdl`, follows it, reads none of the queue while the window claims it,
 and serves input sessions.
@@ -119,6 +120,27 @@ Copy a shipped plan and change rows. Two things to know:
   row that loads it. Keep both of a shipped plan's Editor choices if you want to switch editors;
   the format is [the reference's](load-plan.md#the-file-format), the law
   [editor-switch.md](../../editor/docs/editor-switch.md).
+
+## A project plan that names a Skin
+
+A project's plan, `workshop-plan.json`, starts as a copy of the plan in force when the Builder's
+`o` first wrote it. One begun while the shipped default loaded the terminal Skin names
+`zengine-skin-tui-classic`, as `zengine.skin`, in its third row; one begun under the SDL Skin
+names `zengine-skin-sdl` there, and `zengine-input-sdl` after it. Launched from that project,
+Workshop loads the Skin its plan names, and the desk comes up in it as before.
+
+To move the project to the terminal window, put the default plan's two medium rows where the
+skin's row stands, and leave every other row as it is, the rows `o` added included:
+
+```json
+{ "artifact": "zengine-graphics", "provider": [], "weave": [ { "role": "zengine.graphics" } ], "optional": false },
+{ "artifact": "zengine-window-terminal", "provider": [], "weave": [ { "role": "zengine.window.terminal" } ], "optional": false },
+```
+
+For the OS window, the second of them is `zengine-window-sdl`, as `zengine.window.sdl`, and
+`zengine-input-sdl` stays in the input row. The two rows are copied as they stand in
+[`default-load-plan.json`](../default-load-plan.json) and
+[`graphical-load-plan.json`](../graphical-load-plan.json).
 
 ## When a record fails
 

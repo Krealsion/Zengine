@@ -336,7 +336,7 @@ void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom:
         count_gesture();
         // THE WEAVER'S OWN PRESS ENDS A GUIDE MARK IT LANDS IN; a guest's does not.
         if (!guide_marks_.empty() && (!input_actor_.known || input_actor_.local)) {
-            guide_pressed(mail, canvas_point_of(b.space, b.x, b.y));
+            guide_pressed(mail, canvas_point_of(b.space, b.x, b.y, session_.console_rows_above));
         }
     }
     // Arrangement is a mode and owns the pointer while open: every press is about a pane. A
@@ -344,7 +344,7 @@ void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom:
     // whole, so no context menu opens from it: a state-local reading, not a Back command. A release
     // still ends a drag that began before the mode did, so no gesture is stranded.
     if (session_.arrange.open) {
-        const PointedAt where = canvas_point_of(b.space, b.x, b.y);
+        const PointedAt where = canvas_point_of(b.space, b.x, b.y, session_.console_rows_above);
         // A SECONDARY RELEASE ENDS A HOLD BEGUN BEFORE THIS MODE OPENED: a mode never occludes
         // a release (WL-PRESS-06).
         if (!b.pressed && (b.button == 2 || b.button == 3)) {
@@ -390,7 +390,7 @@ void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom:
     // press outside dismisses and is consumed, so a click spent closing a menu selects, focuses and
     // sends nothing. A further right press re-targets rather than toggles.
     if (session_.context.open) {
-        const PointedAt where = canvas_point_of(b.space, b.x, b.y);
+        const PointedAt where = canvas_point_of(b.space, b.x, b.y, session_.console_rows_above);
         // A SECONDARY RELEASE ENDS A HOLD BEGUN BEFORE THE SURFACE OPENED (WL-PRESS-06).
         if (!b.pressed && (b.button == 2 || b.button == 3)) {
             (void)external_release(b.button, b, mail);
@@ -423,7 +423,7 @@ void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom:
             return;
         }
     }
-    const PointedAt at = canvas_point_of(b.space, b.x, b.y);
+    const PointedAt at = canvas_point_of(b.space, b.x, b.y, session_.console_rows_above);
     // THE SECOND BUTTON IS THE PANE'S FIRST (WL-PRESS-06). A secondary RELEASE is the hold's
     // pane's wherever the pointer is, and never asks the occupancy question; one that ends no
     // hold is dropped as every non-primary release always was.
@@ -627,7 +627,7 @@ void WorkshopWeave::pointer_moved(const zengine::input::PointerMoved& m, loom::M
     // motion does nothing.
     if (session_.arrange.open) {
         leave_canvas_hover(mail);
-        const PointedAt here = canvas_point_of(m.space, m.x, m.y);
+        const PointedAt here = canvas_point_of(m.space, m.x, m.y, session_.console_rows_above);
         if (!here.understood || !session_.pane_drag.active) {
             return;
         }
@@ -686,7 +686,7 @@ void WorkshopWeave::pointer_wheel(const zengine::input::PointerWheel& w, loom::M
         return;
     }
     const Screen sc = screen_of(session_);
-    const PointedAt at = canvas_point_of(w.space, w.x, w.y);
+    const PointedAt at = canvas_point_of(w.space, w.x, w.y, session_.console_rows_above);
     if (!at.understood) {
         return;
     }

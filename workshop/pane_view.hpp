@@ -42,9 +42,9 @@ struct PanePoint {
 
 // ---- THE DESK AND THE WORDS ON IT, as Workshop holds them --------------------------------------
 // Every place is in canvas pixels: a window pixel is one, and a terminal cell is
-// `surface::kCanvasCellPx` of them, its console row `surface::kTuiCanvasTopRow` below the canvas
-// row. A point to press (`x`, `y`) is in the input space the medium reads (`space`), as
-// `PanePoint`'s is. Reading grants nothing and moves nothing.
+// `surface::kCanvasCellPx` of them, its console row below the canvas row by the rows the medium
+// spends above the canvas (`Screen::rows_above`). A point to press (`x`, `y`) is in the input
+// space the medium reads (`space`), as `PanePoint`'s is. Reading grants nothing and moves nothing.
 
 /// A rectangle in canvas pixels; empty (`w` or `h` zero) where there is nothing to place.
 struct DeskRect {

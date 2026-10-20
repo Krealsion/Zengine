@@ -314,7 +314,7 @@ ContextPressAt context_press_at(const Session& s, const Screen& sc, std::int64_t
     if (!place.present) {
         return out;
     }
-    const ProseAt where = prose_at(space, x, y, place.fit);
+    const ProseAt where = prose_at(space, x, y, place.fit, sc.rows_above);
     if (!where.understood || where.column < 0 || where.column >= place.columns ||
         where.row < 0 || where.row >= place.rows) {
         return out;
@@ -424,7 +424,7 @@ PresentedPressAt presented_press_at(const Session& s, const Screen& sc, std::int
     if (!place.present) {
         return out;
     }
-    const ProseAt where = prose_at(space, x, y, place.fit);
+    const ProseAt where = prose_at(space, x, y, place.fit, sc.rows_above);
     if (!where.understood || where.column < 0 || where.column >= place.columns ||
         where.row < 0 || where.row >= place.rows ||
         where.row >= static_cast<std::int64_t>(s.presented.lines.size())) {

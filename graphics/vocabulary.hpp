@@ -218,8 +218,9 @@ struct AreaPointerLeft {
 // ---- the directory ------------------------------------------------------------------------
 
 /// A window, as its own office, to whoever follows it -- the directory, and an arranger laying out
-/// in its room -- on each activation: its name, its size in cells, and its incarnation. A window
-/// started afresh holds nothing, so its owners draw whole again.
+/// in its room -- on each activation: its name, its size in cells (none where it has no terminal
+/// to measure), and its incarnation. A window started afresh holds nothing, so its owners draw
+/// whole again.
 struct WindowOffered {
     std::string window;
     std::int64_t cols = 0, rows = 0;

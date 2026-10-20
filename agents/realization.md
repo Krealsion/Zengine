@@ -67,8 +67,8 @@ one artifact = one record, with ZERO OR MORE optional surfaces
   the one rule that spells a stem as a file (`HostContext::so`), which is why ONE plan is
   legal on Linux and Windows with no platform field.
 - **`--load-plan` is the door, and there is no compiled-in fallback plan**: a missing file
-  refuses by path and the host exits without mounting or loading anything. The graphical
-  arrangement is a second SHIPPED PLAN staged only where both SDL artifacts exist.
+  refuses by path and the host exits without mounting or loading anything. The OS window's
+  arrangement is a second SHIPPED PLAN staged only where the OS window and SDL's reader exist.
 - **Filesystem presence is not load authority.** The suite stages a real directory holding
   MORE artifacts than any plan names and proves an unlisted valid provider is neither opened
   nor mounted. A lookup table could not have asked the question.

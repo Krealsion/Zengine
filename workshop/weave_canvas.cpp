@@ -121,10 +121,9 @@ void WorkshopWeave::refresh_canvas_rooms(loom::Mail& mail) {
         // picture stays where it was drawn until then. A pane moved, by a title row too, keeps none.
         bool held = false;
         for (const CanvasHold& hold : canvas_holds_) held = held || (hold.active && hold.kind == pane.kind);
-        // ...as does a press a graphics window holds in the pane's area, until a mode, a menu or a
-        // carry puts the desk in front of it, which ends the window's hold.
-        for (const WindowHold& hold : pane_holds_)
-            held = held || (hold.active && hold.kind == pane.kind && !desk_in_front_of_panes());
+        // ...as does a press a graphics window holds in the pane's area, until the window says
+        // its release or that it ended the hold.
+        for (const WindowHold& hold : pane_holds_) held = held || (hold.active && hold.kind == pane.kind);
         const auto kept = canvas_body_place(where.rect, sc, c.title_rows);
         if (same_kind && held && !body.empty() && c.x == kept.x && c.y == kept.y &&
             c.width == kept.w && c.height == kept.h) {
@@ -264,7 +263,7 @@ bool WorkshopWeave::canvas_press(std::int64_t kind, const input::PointerButton& 
     if (placed_in_window(kind)) return false;
     const auto* row = session_.panes.runtime.of_kind(kind);
     const auto* pane = session_.panes.external_pane(kind);
-    const auto at = canvas_point_of(b.space, b.x, b.y);
+    const auto at = canvas_point_of(b.space, b.x, b.y, session_.console_rows_above);
     if (!row || !pane || pane->canvas.grant == 0 || !at.understood || b.button < 1 || b.button > 3)
         return false;
     const auto& c = pane->canvas;
@@ -313,7 +312,7 @@ bool WorkshopWeave::canvas_release(const input::PointerButton& b, loom::Mail& ma
     auto& held = canvas_holds_[slot];
     if (!held.active) return owed;
     auto event = held.event;
-    const auto at = canvas_point_of(b.space, b.x, b.y);
+    const auto at = canvas_point_of(b.space, b.x, b.y, session_.console_rows_above);
     if (at.understood) {
         event.x = surface::sub_px(at.px.x, held.origin_x);
         event.y = surface::sub_px(at.px.y, held.origin_y);
@@ -339,7 +338,7 @@ bool WorkshopWeave::canvas_release(const input::PointerButton& b, loom::Mail& ma
 bool WorkshopWeave::canvas_motion(const input::PointerMoved& m, loom::Mail& mail) {
     end_canvas_holds(mail);
     bool sent = false;
-    const auto at = canvas_point_of(m.space, m.x, m.y);
+    const auto at = canvas_point_of(m.space, m.x, m.y, session_.console_rows_above);
     for (std::size_t i = 0; i < 3; ++i) {
         auto& held = canvas_holds_[i];
         if (!held.active) continue;
@@ -362,7 +361,7 @@ void WorkshopWeave::canvas_hover(const input::PointerMoved& m, loom::Mail& mail)
     std::int64_t kind = kNoPaneKind;
     PaneCanvasHover over;
     loom::WeaveId owner{};
-    const auto at = canvas_point_of(m.space, m.x, m.y);
+    const auto at = canvas_point_of(m.space, m.x, m.y, session_.console_rows_above);
     if (at.understood && !session_.arrange.open && !session_.context.open && !session_.presented.open) {
         const Occupancy here = occupied_at(session_.panes, session_.setup.active, screen_of(session_), at);
         const auto* row = here.occupied ? session_.panes.runtime.of_kind(here.kind) : nullptr;
@@ -413,7 +412,7 @@ bool WorkshopWeave::canvas_wheel(std::int64_t kind, const input::PointerWheel& w
     const auto* row = session_.panes.runtime.of_kind(kind);
     const auto* pane = session_.panes.external_pane(kind);
     if (!row || !pane || pane->canvas.grant == 0) return false;
-    const auto at = canvas_point_of(w.space, w.x, w.y);
+    const auto at = canvas_point_of(w.space, w.x, w.y, session_.console_rows_above);
     const auto& c = pane->canvas;
     if (!canvas_takes_press(kind) || !at.understood ||
         !PixelRect{c.x, c.y, c.width, c.height}.contains_at(at.px.x, at.px.y, at.grain) ||

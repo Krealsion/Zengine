@@ -47,18 +47,21 @@ inline DeskRect desk_rect(const PixelRect& r) {
 }
 
 /// WHERE A FIT DRAWS ITS GLYPHS: the first glyph's corner, and one glyph's advance and line, in
-/// canvas pixels -- the face's where the fit sets type, one cell each where text is a cell.
+/// canvas pixels -- the face's where the fit sets type, one cell each where text is a cell -- and
+/// the console rows the medium spends above the canvas, which a point in cells counts.
 struct GlyphGrid {
     std::int64_t x = 0, y = 0;
     std::int64_t advance = surface::kCanvasCellPx, line = surface::kCanvasCellPx;
+    std::int64_t rows_above = surface::kTuiCanvasTopRow;
 };
 
-inline GlyphGrid glyph_grid(const surface::RegionFit& fit) {
+inline GlyphGrid glyph_grid(const surface::RegionFit& fit, std::int64_t rows_above) {
     if (fit.graphical()) {
         return GlyphGrid{fit.view.x + fit.origin_x, fit.view.y + fit.origin_y, fit.advance_px,
-                         fit.line_px};
+                         fit.line_px, rows_above};
     }
-    return GlyphGrid{fit.view.x, fit.view.y, surface::kCanvasCellPx, surface::kCanvasCellPx};
+    return GlyphGrid{fit.view.x, fit.view.y, surface::kCanvasCellPx, surface::kCanvasCellPx,
+                     rows_above};
 }
 
 /// The centre of one glyph, in the input space: a window's pixel, or the terminal cell a medium
@@ -71,7 +74,7 @@ inline void glyph_point(const GlyphGrid& g, std::int64_t row, std::int64_t colum
         return;
     }
     x = surface::cell_of_pixel(g.x + column * g.advance);
-    y = surface::cell_of_pixel(g.y + row * g.line) + surface::kTuiCanvasTopRow;
+    y = surface::cell_of_pixel(g.y + row * g.line) + g.rows_above;
 }
 
 /// ONE RUN OF GLYPHS AS A WORD: `text` drawn from `column` of `row` over its bytes' cells of the
@@ -343,7 +346,7 @@ inline std::vector<std::optional<UnitPoint>> own_points(const std::vector<UnitBo
 /// medium paints there in a terminal -- or none. False where the medium shows none of it.
 inline bool canvas_part_on(const PixelRect& body, const v2::PaneCanvasPart& part, const UnitBox& box,
                            const std::optional<UnitPoint>& point, const std::vector<PaneWord>& words,
-                           std::int64_t space, v2::PanePart& out) {
+                           std::int64_t space, std::int64_t rows_above, v2::PanePart& out) {
     const UnitBox px = units_of(body, part, 1);
     if (box.empty() || px.empty()) return false;
     out.name = part.name;
@@ -355,7 +358,7 @@ inline bool canvas_part_on(const PixelRect& body, const v2::PaneCanvasPart& part
         return true;
     }
     out.x = point->first;
-    out.y = space == input::space::kPixels ? point->second : point->second + surface::kTuiCanvasTopRow;
+    out.y = space == input::space::kPixels ? point->second : point->second + rows_above;
     out.space = space;
     return true;
 }
@@ -385,7 +388,7 @@ inline v2::DeskMenu desk_menu(const Session& s, const Screen& sc) {
         return menu; // granted and not shown yet: no line is drawn, so none is said
     }
     const ProsePlace place = prose_place(bounds, sc);
-    const GlyphGrid grid = glyph_grid(place.fit);
+    const GlyphGrid grid = glyph_grid(place.fit, sc.rows_above);
     const surface::SurfaceTextRegion& region = layer.texts.back();
     const std::int64_t space = input_space_of(sc);
     for (std::size_t i = 0; i < region.rows.size(); ++i) {

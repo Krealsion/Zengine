@@ -145,10 +145,11 @@ PaneBounds bounds_of(const Panes& panes, const Setup& setup, std::int64_t kind,
 
 // ---- PLACEMENT SPENT ON THE POINTER: a place a weaver can see is a place a hand meets ------
 
-PointedAt canvas_point_of(std::int64_t space, std::int64_t x, std::int64_t y) noexcept {
+PointedAt canvas_point_of(std::int64_t space, std::int64_t x, std::int64_t y,
+                          std::int64_t rows_above) noexcept {
     if (space == input::space::kCells) {
-        return PointedAt{true, surface::canvas_of_terminal_cells(x, y),
-                         surface::canvas_px_of_terminal_cells(x, y),
+        return PointedAt{true, surface::canvas_of_terminal_cells(x, y, rows_above),
+                         surface::canvas_px_of_terminal_cells(x, y, rows_above),
                          surface::kCellGrainPx};
     }
     if (space == input::space::kPixels) {

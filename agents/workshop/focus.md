@@ -272,7 +272,7 @@ room at once and the press is lost, in a window and in a terminal, titled or not
 the canvas pane that has the keys keeps its room while launches take its title row away and give it
 back, and its title is drawn again once it has the keys again" "a held press a menu takes ends its
 canvas pane's wait in that same repaint: the room under the title and its rows are granted at once"
-`workshop/weave_run.cpp` end_covered_holds
+`workshop/weave_handlers.cpp` on(AreaHoldEnded)
 `tests/test_workshop_desk.cpp` "with pane titles hidden, a press the window gives a canvas pane's area, which brings the
 keys and so the pane's title, keeps the pane's room until the window says its release"
 

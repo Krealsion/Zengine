@@ -41,9 +41,11 @@ inline constexpr CanvasPoint canvas_of_window_pixels(std::int64_t x, std::int64_
 }
 
 /// A pointer position in a terminal, as a canvas cell: a terminal cell is a canvas cell, offset
-/// by `kTuiCanvasTopRow`. The subtraction saturates, because the number arrives from the wire.
-inline constexpr CanvasPoint canvas_of_terminal_cells(std::int64_t x, std::int64_t y) noexcept {
-    return CanvasPoint{x, add_cells(y, -kTuiCanvasTopRow)};
+/// by the rows the medium spends above its canvas -- `kTuiCanvasTopRow` for a terminal Skin, none
+/// for a terminal window. The subtraction saturates, because the number arrives from the wire.
+inline constexpr CanvasPoint canvas_of_terminal_cells(
+    std::int64_t x, std::int64_t y, std::int64_t rows_above = kTuiCanvasTopRow) noexcept {
+    return CanvasPoint{x, add_cells(y, -rows_above)};
 }
 
 // ---- The same two projections in canvas pixels ------------------------------------------
@@ -68,9 +70,9 @@ inline constexpr CanvasPoint canvas_px_of_window_pixels(std::int64_t x,
 /// A pointer position in a terminal, in canvas pixels: the cell's own corner. A terminal cannot
 /// say anything finer than a cell, and its projection says so rather than inventing a pixel
 /// nobody reported.
-inline constexpr CanvasPoint canvas_px_of_terminal_cells(std::int64_t x,
-                                                         std::int64_t y) noexcept {
-    const CanvasPoint cell = canvas_of_terminal_cells(x, y);
+inline constexpr CanvasPoint canvas_px_of_terminal_cells(
+    std::int64_t x, std::int64_t y, std::int64_t rows_above = kTuiCanvasTopRow) noexcept {
+    const CanvasPoint cell = canvas_of_terminal_cells(x, y, rows_above);
     return CanvasPoint{px_of_cells(cell.x), px_of_cells(cell.y)};
 }
 

@@ -51,7 +51,7 @@ outside the package can see. Both live in `surface/pointing.hpp`:
 
 | function | rule | why that number |
 |---|---|---|
-| `canvas_of_terminal_cells(x, y)` | `y - kTuiCanvasTopRow`, saturating | the terminal Skins write `\x1b[3;1H`, because terminal rows 1–2 carry the `SurfaceText` slots |
+| `canvas_of_terminal_cells(x, y, rows_above)` | `y - rows_above`, saturating; `kTuiCanvasTopRow` unless said | the terminal Skins write `\x1b[3;1H`, because terminal rows 1–2 carry the `SurfaceText` slots; the terminal window draws canvas row 0 on its terminal's row 0, so Workshop counts none there (`Screen::rows_above`) |
 | `canvas_of_window_pixels(x, y)` | `cell_of_pixel` on each axis | the canvas starts at the window's ORIGIN — `plan_canvas` draws cell (0,0) at pixel (0,0), no margin and no scaling, one cell every `kCanvasCellPx` pixels |
 
 Each projection has a **pixel twin** (`canvas_px_of_window_pixels`,

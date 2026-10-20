@@ -4,7 +4,7 @@
 // THE GUEST JOURNEY ACROSS TWO REAL PROCESSES, the other half of what the guests suite proves in
 // one: a REAL `zengine-workshop` launched headless with a guests file, and THIS process as the
 // other host's participant -- admitted as the file's row, injecting the Pane Manager chord through
-// an input session, fetching a picture of what the terminal Skin presents. It does not prove the
+// an input session, fetching a picture of what the terminal window shows. It does not prove the
 // SDL window's pixels (a machine with a display witnesses those) or the platform's input edge (an
 // injected moment enters at the Input weave), and neither is inferred from a green here.
 
@@ -302,13 +302,16 @@ std::string read_file(const std::string& path) {
     return ss.str();
 }
 
+/// The office of the window the default plan shows the desk in, which takes the picture.
+constexpr const char* kMedium = "zengine.window.terminal";
+
 /// The picture a capture answered, fetched by chunk; empty when any chunk did not come whole.
 std::string fetch_picture(Guest& g, const surface::SurfaceCaptured& pic) {
     std::string picture;
     std::int64_t offset = 0;
     while (offset < pic.bytes) {
         const std::uint64_t c =
-            g.ask(surface::kSkinRole, surface::SurfaceCaptureChunkRequested{pic.capture, offset});
+            g.ask(kMedium, surface::SurfaceCaptureChunkRequested{pic.capture, offset});
         const std::optional<surface::SurfaceCaptureChunk> chunk =
             g.answer<surface::SurfaceCaptureChunk>(c);
         if (!chunk.has_value() || chunk->offset != offset || chunk->data.empty()) {
@@ -440,9 +443,9 @@ int main(int argc, char** argv) {
           "...with Loom's attestation that this is THE answer");
 
     // A picture BEFORE the chord, so the picture after it can be told apart from it.
-    const std::uint64_t before = g.ask(surface::kSkinRole, surface::SurfaceCaptureRequested{});
+    const std::uint64_t before = g.ask(kMedium, surface::SurfaceCaptureRequested{});
     const std::optional<surface::SurfaceCaptured> first = g.answer<surface::SurfaceCaptured>(before);
-    check(first.has_value() && first->ok, "the Skin took a picture before the chord");
+    check(first.has_value() && first->ok, "the window took a picture before the chord");
     const std::int64_t frame_before = first.has_value() ? first->frame : -1;
 
     input::InjectInput batch;
@@ -471,10 +474,10 @@ int main(int argc, char** argv) {
           "the desktop office described what it accepts (" + std::to_string(accepted) + " shapes)");
 
     // A picture asked for NOW, after the settlement: every paint the chord caused is behind it.
-    const std::uint64_t capture = g.ask(surface::kSkinRole, surface::SurfaceCaptureRequested{});
+    const std::uint64_t capture = g.ask(kMedium, surface::SurfaceCaptureRequested{});
     const std::optional<surface::SurfaceCaptured> pic = g.answer<surface::SurfaceCaptured>(capture, 10000);
     check(pic.has_value() && pic->ok && pic->frame > frame_before,
-          "the Skin captured a frame the chord's paint produced (" +
+          "the window captured a frame the chord's paint produced (" +
               std::to_string(pic.has_value() ? pic->frame : -1) + " > " +
               std::to_string(frame_before) + ")");
     std::string picture;
@@ -593,7 +596,7 @@ int main(int argc, char** argv) {
         return check(w.client->admitted(), "...and is admitted");
     };
     const auto look = [](Guest& w) {
-        const std::uint64_t asked = w.ask(surface::kSkinRole, surface::SurfaceCaptureRequested{});
+        const std::uint64_t asked = w.ask(kMedium, surface::SurfaceCaptureRequested{});
         const std::optional<surface::SurfaceCaptured> taken =
             w.answer<surface::SurfaceCaptured>(asked, 10000);
         return taken.has_value() && taken->ok ? fetch_picture(w, *taken) : std::string();
@@ -653,7 +656,8 @@ int main(int argc, char** argv) {
                       },
                       10000),
                   "its legend says alt+up panes: the keymap in that folder is in force");
-            check(legend.find("Pane Manager @zengine.desktop") == std::string::npos,
+            check(legend.find("Pane Manager @zengine.desktop") == std::string::npos &&
+                      legend.find("PANES -- ") == std::string::npos,
                   "...and the Pane Manager is not on the desk yet");
             if (check(session.has_value(), "the Input weave opened a session")) {
                 input::InjectInput chord;
@@ -704,17 +708,22 @@ int main(int argc, char** argv) {
         own.end();
     }
     {
-        // The restore's notice is drawn at startup, before a guest can ask for a picture: the
-        // terminal Skin's own output is where it stands.
+        // The desk it saved holds the Pane Manager Alt+Up opened, which a fresh desk does not; its
+        // rows are drawn whether or not the titles are.
         Child again;
         Guest w;
         const std::string again_out = work + "/own-again.out";
         if (launch_own(again, w, again_out)) {
-            check(until([&] {
-                      return read_file(again_out).find("reopened your last desk") !=
-                             std::string::npos;
-                  }, 10000),
+            std::string seen;
+            check(until(
+                      [&] {
+                          seen = look(w);
+                          return seen.find("PANES -- ") != std::string::npos;
+                      },
+                      10000),
                   "the next launch reopened the desk it saved there");
+            std::ofstream(work + "/own-again-capture.txt", std::ios::binary | std::ios::trunc)
+                << seen;
             check(quit(again, w), "...and quit again");
         }
         again.end();

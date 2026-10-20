@@ -814,7 +814,7 @@ TEST_CASE("WL-HAND-06: the shipped presenter names each row's line by its id, an
     const PanePart* second = nullptr;
     for (const PanePart& part : desk.menu.parts) {
         CAPTURE(part.name);
-        const PointedAt at = canvas_point_of(part.space, part.x, part.y);
+        const PointedAt at = canvas_point_of(part.space, part.x, part.y, s.console_rows_above);
         const PresentedPressAt hit = presented_press_at(s, screen_of(s), part.space, part.x, part.y, at);
         REQUIRE(hit.inside);
         bool same = false;
@@ -1828,7 +1828,7 @@ TEST_CASE("a release forwarded to an open menu carries its own press's number wh
     const Screen sc = screen_of(t.r.session());
     for (std::int64_t cy = 0; cy < 200 && x < 0; ++cy) {
         for (std::int64_t cx = 0; cx < 400 && x < 0; ++cx) {
-            const PointedAt at = canvas_point_of(input::space::kCells, cx, cy);
+            const PointedAt at = canvas_point_of(input::space::kCells, cx, cy, sc.rows_above);
             const PresentedPressAt hit = presented_press_at(t.r.session(), sc, input::space::kCells, cx, cy, at);
             if (hit.inside && hit.line == line) {
                 x = cx;
