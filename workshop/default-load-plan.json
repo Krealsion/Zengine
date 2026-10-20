@@ -27,11 +27,21 @@
         "optional": false
       },
       {
-        "artifact": "zengine-skin-tui-classic",
+        "artifact": "zengine-graphics",
         "provider": [],
         "weave": [
           {
-            "role": "zengine.skin"
+            "role": "zengine.graphics"
+          }
+        ],
+        "optional": false
+      },
+      {
+        "artifact": "zengine-window-terminal",
+        "provider": [],
+        "weave": [
+          {
+            "role": "zengine.window.terminal"
           }
         ],
         "optional": false

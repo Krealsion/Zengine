@@ -557,7 +557,7 @@ TEST_CASE("the record crosses as a picture, said only when the reading changed")
 TEST_CASE("a pane that loaded after the last publication still hears the reading") {
     // A PANE THAT ARRIVES AFTER THIS HOST LAST SPOKE HEARS THE RECORD: "said only when the reading
     // changed" would otherwise leave it showing "no participant was mounted on this bus" over a
-    // process that mounted one -- the shipped plan loads the Skin before the Terminal pane, and a
+    // process that mounted one -- a shipped plan loads its medium before the Terminal pane, and a
     // live header read exactly that. An offer is the one moment a new listener certainly exists
     // (`on(PaneOffered)` re-says the conditions and the document there), so the record is re-said
     // too. Driven as it happens: paint FIRST, load SECOND.

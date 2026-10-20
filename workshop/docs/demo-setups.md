@@ -61,9 +61,8 @@ the setup is ready -- every declared entry present, every declared hotkey read b
 desk pane showing its text rows or the picture it draws; a pane that has not shown within a few
 seconds is named in the note and in `not_showing`, since the rest of the desk is usable -- with the
 first task, the hotkeys, the guide's path and the
-preparation's own request counts. The default medium is SDL; `--tui` uses the classic terminal
-medium, whose retained cell picture can be inspected when output is redirected. A setup names
-the media it supports and refuses the others by name.
+preparation's own request counts. The default medium is the OS window; `--tui` uses the
+terminal window. A setup names the media it supports and refuses the others by name.
 
 What each answer means, and what to do:
 

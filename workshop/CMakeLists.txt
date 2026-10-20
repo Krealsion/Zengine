@@ -247,15 +247,15 @@ endforeach()
 # ---- The authored load plans, which are not artifacts ---------------------------------
 #
 # Staged by the same stamp rule, since the host resolves its default plan from its own directory.
-# The window plan always, as its two artifacts are staged above; the OS window's plan and the
-# graphical plan only where their artifacts exist: a file that can only refuse is not offered.
-# Not in `zengine_workshop_artifacts`: an artifact is a library this host may execute.
-set(zengine_workshop_plans default-load-plan.json window-load-plan.json)
+# The default (the terminal window) and the terminal Skin's always; the graphical plan (the OS
+# window) and the SDL Skin's only where their artifacts exist: a file that can only refuse is not
+# offered. Not in `zengine_workshop_artifacts`: an artifact is a library this host may execute.
+set(zengine_workshop_plans default-load-plan.json skin-load-plan.json)
 if(TARGET zengine-window-sdl AND TARGET zengine-input-sdl)
-    list(APPEND zengine_workshop_plans sdl-window-load-plan.json)
+    list(APPEND zengine_workshop_plans graphical-load-plan.json)
 endif()
 if(TARGET zengine-skin-sdl AND TARGET zengine-input-sdl)
-    list(APPEND zengine_workshop_plans graphical-load-plan.json)
+    list(APPEND zengine_workshop_plans sdl-skin-load-plan.json)
 endif()
 foreach(plan IN LISTS zengine_workshop_plans)
     set(stamp ${CMAKE_CURRENT_BINARY_DIR}/staged-${plan}.stamp)

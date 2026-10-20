@@ -496,8 +496,8 @@ No parent/child, no widget kinds, no colour, no z. Full reference:
 ## Workshop
 
 ```sh
-build/workshop/zengine-workshop                              # terminal, needs >= 78x22
-build/workshop/zengine-workshop --load-plan workshop/graphical-load-plan.json   # SDL window
+build/workshop/zengine-workshop                              # terminal window, needs >= 78x22
+build/workshop/zengine-workshop --load-plan workshop/graphical-load-plan.json   # OS window
 ```
 
 | argument | default | is |
@@ -717,9 +717,10 @@ no reordering, no retry, no deadline — and while one is outstanding the rest o
 running. There is no turn budget anywhere: an unanswered load stays unanswered rather than
 becoming a refusal somebody made up.
 
-Shipped plans: [`workshop/default-load-plan.json`](workshop/default-load-plan.json) (terminal),
-[`workshop/window-load-plan.json`](workshop/window-load-plan.json) (terminal window) and
-[`workshop/graphical-load-plan.json`](workshop/graphical-load-plan.json) (SDL window).
+Shipped plans: [`workshop/default-load-plan.json`](workshop/default-load-plan.json) (terminal
+window), [`workshop/graphical-load-plan.json`](workshop/graphical-load-plan.json) (OS window), and
+the Skins' [`workshop/skin-load-plan.json`](workshop/skin-load-plan.json) (terminal) and
+[`workshop/sdl-skin-load-plan.json`](workshop/sdl-skin-load-plan.json) (SDL).
 Reference: [workshop/docs/load-plan.md](workshop/docs/load-plan.md).
 
 ---
