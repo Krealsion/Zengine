@@ -45,7 +45,8 @@ LAW — The order is arrangement, the open contextual surface, then pane occupan
 
 MEANS
 - a new pane-internal gesture belongs in the resolved-owner arm, never above the walk;
-- a pane in front of another takes the press, whichever of them owns a control at that cell.
+- a pane in front of another takes the press, whichever of them owns a control at that cell;
+- in a graphics window the chain answers Workshop's own area (`on(AreaButtonChanged)`): a pane's area is its own, a moment over it never relayed (`placed_in_window`).
 
 WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 
@@ -60,7 +61,7 @@ WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 LAW — A secondary press in a pane's body reaches a `PaneButton` holder, consumed under a hold and continuation per button; a doorless body's right press opens the host's menu; chrome and modes are the host's.
 
 MEANS
-- the release is the hold's pane's wherever the pointer is; loss and arbitration end it `lost`;
+- the release is the hold's pane's wherever the pointer is; loss and arbitration end it `lost`; in a graphics window the pane's own, its pass-back citing the window's number;
 - a continuation is eligible while its hand's newest, unspent, its pane on the desk; a release is no act;
 - arrangement leaves on one, consumed whole; on a canvas the press reaches the pane as its pointer (WL-CANVAS-03).
 
@@ -110,6 +111,11 @@ gamma selects gamma once every delivery it caused has settled, and a later press
 through nothing"
 `tests/test_workshop_panes_input.cpp` "management chrome gets first refusal, and a mode takes the
 press whole"
+`workshop/weave_handlers.cpp` on(AreaButtonChanged) placed_in_window
+`tests/test_workshop_desk.cpp` "a press the graphics window gives Workshop's own area is the press it is, held to its own
+release, and one it gives a pane's area is the pane's, Workshop told where it landed" "Workshop's own area of the window answers each button as itself: a press on the room says
+so, a right press asks its menu about the room or a tab, re-asking it while one is open, a press
+on the gear anchors there, and a tab carried along the run reorders it"
 
 ### WL-PRESS-05
 `workshop/screen_chrome.cpp` occupied_at
@@ -141,3 +147,7 @@ recorded is dropped, so the physical release sends nothing and no second refusal
 failure stands on the tap"
 `tests/test_workshop_host.cpp` "one right press exits Arrange; only the NEXT one opens context" "a
 mode that owns the pointer answers a right press its own way"
+`workshop/weave_handlers.cpp` on(AreaPressed)
+`tests/test_workshop_desk.cpp` "a press in a pane's area of the window is the pane's, and under the window's number Workshop
+tells it where the keys were, hands its press back, opens its menu and carries what it drags out
+or picks up"

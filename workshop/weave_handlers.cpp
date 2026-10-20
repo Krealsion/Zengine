@@ -318,6 +318,7 @@ struct WindowMoment {
 
 } // namespace
 
+// WL-PRESS-04 -- agents/workshop/press-chain.md
 void WorkshopWeave::on(const graphics::AreaButtonChanged& b, loom::Mail& mail) {
     if (!window_.from_window(b.area, mail)) {
         return;
@@ -348,6 +349,7 @@ void WorkshopWeave::on(const graphics::AreaPointerMoved& m, loom::Mail& mail) {
     pointer_moved(input::PointerMoved{x, y, m.dx, m.dy, input::space::kPixels, m.modifiers}, mail);
 }
 
+// WL-PTR-10 -- agents/workshop/pointer.md
 void WorkshopWeave::on(const graphics::AreaWheelTurned& w, loom::Mail& mail) {
     if (!window_.from_window(w.area, mail)) {
         return;
@@ -363,6 +365,8 @@ bool WorkshopWeave::placed_in_window(std::int64_t kind) const {
     return window_moment_ && placed_kinds_.count(kind) != 0;
 }
 
+// WL-FOCUS-03 -- agents/workshop/focus.md; WL-CANVAS-05 -- agents/workshop/canvas.md
+// WL-CTX-08 -- agents/workshop/contextual.md; WL-GUIDE-06 -- agents/workshop/guide.md
 void WorkshopWeave::on(const graphics::AreaPressed& p, loom::Mail& mail) {
     if (p.window != window_name_ ||
         !mail.authored_from_role(std::string(graphics::kWindowOfficePrefix) + p.window) ||

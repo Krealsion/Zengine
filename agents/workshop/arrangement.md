@@ -19,6 +19,9 @@ WHY — `agents/decisions/one-press-one-gesture.md`
 
 LAW — Every branch that can see a release calls `end_held_gestures()`, because a gesture begun under one mode may be released under another; what to tell the weaver is the caller's.
 
+MEANS
+- in a graphics window the release comes to Workshop's own area, held there; a hold the window ends for an area Workshop placed in front ends here too (`end_covered_holds`).
+
 DOES NOT MEAN
 - that a gesture may end anywhere else — `end_held_gestures()` is the one release owner.
 
@@ -184,6 +187,10 @@ retains the refusal and can recover" "queued arrangement motions retain order th
 ### WL-ARR-02
 `workshop/weave_pointer.cpp` end_held_gestures
 `tests/test_workshop_screen.cpp` "a release ends a pane gesture whatever mode sees it"
+`workshop/weave_run.cpp` end_covered_holds
+`tests/test_workshop_desk.cpp` "a press the graphics window gives Workshop's own area is the press it is, held to its own
+release, and one it gives a pane's area is the pane's, Workshop told where it landed" "a press Workshop holds in its own
+area of the window ends when Workshop places a pane's area hearing the pointer in front of its own where the press was made"
 
 ### WL-ARR-03
 `workshop/weave_arrange.cpp` forget_removed_selection

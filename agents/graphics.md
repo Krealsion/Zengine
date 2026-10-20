@@ -48,6 +48,28 @@ keeps, is [surface](surface.md); where the two meet is the last section here.
   and a drawer that starts again says only what the window does not hold. An area given another
   owner starts empty. A drawing weave takes a room only from the office of the window it names.
 
+## Each owner hears the pointer in its own area
+
+- **An area placed to hear the pointer holds every point inside it**, painted or not, and its owner
+  is given every pointer moment there as the moment it was, naming the area: `AreaButtonChanged`,
+  `AreaPointerMoved`, `AreaWheelTurned`, at the area's own point in pixels. A record there takes no
+  press: the press goes as itself, element code still first. An area deaf to the pointer takes a
+  point only where what it drew names an action or presents an element, and lets the pointer through
+  elsewhere.
+- **A press holds its button for its area until that button's release**: its moves and its release
+  go there wherever the pointer is, and carry the press's number as their correlation. A hold ends
+  with no release when its area is withdrawn or handed over, or an area hearing the pointer comes to
+  stand in front of it where the press was made; the window tells `AreaHoldEnded` and makes up no
+  release. A reload ends every hold untold.
+- **The arranger learns where presses land, never the moment**: `AreaPressed` to the office that
+  placed an area another office owns, under the press's number. The directory names that office from
+  the placing's authorship (`AreaIntroduced::arranger`); a placing spoken personally names none.
+- A move with no button held that leaves an area hearing the pointer is told, `AreaPointerLeft`; so
+  is the pointer resting in an area handed to another owner, to the owner it had.
+- **What became of the pointer goes to the area's owner, and to its arranger when another office**:
+  `AreaHoldEnded` and `AreaPointerLeft` reach no other office, so none learns where the weaver's
+  pointer goes.
+
 ## Colour, pixels and operands
 
 - **A colour is a role or an exact value beside one** (`Paint`): a medium without colour shows the
