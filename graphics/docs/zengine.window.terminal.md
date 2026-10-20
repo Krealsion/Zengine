@@ -23,8 +23,8 @@ new incarnation: each owner draws whole once when it hears its room, and says ea
 It takes the terminal when activated, its output with the terminal's claim
 (`graphics/window/terminal_io.hpp`) and its input as the Input weave reads it
 (`input/terminal_reader.hpp`), and gives both back when it goes. With no terminal (a pipe, a suite)
-it writes and reads nothing and still composes its picture, at `window::kUnmeasuredCols` by
-`window::kUnmeasuredRows` (`graphics/window/window_terminal.hpp`), and offers no size.
+it reads and writes nothing, offers no size, and draws its picture as far as its areas reach
+(`graphics/window/window_terminal.hpp`: at least `kUnmeasuredCols` by `kUnmeasuredRows`).
 
 **Showing.** A node is painted once, when it changes, with its area's skin. The areas are composed
 front to back by their order, and the terminal is written only the cells whose picture changed, as
@@ -42,11 +42,11 @@ the press itself (`AreaButtonChanged`).
 
 ## Use
 
-An owner is told its room first (`AreaRoom`), once the directory introduces its area; it then
-draws with [`Drawn`](#drawn), says an element once with [`ElementPut`](#elementput) and sends its
-changes with [`ElementChange`](#elementchange). A drawer usually does all three through a canvas
-or a drawing weave ([the Graphics package](graphics.md#a-drawing-weave)), which draw whole only
-when the room names another window or incarnation. To read what the window shows, ask
+An owner is told its room first (`AreaRoom`), once the directory introduces its area; it then draws
+with [`Drawn`](#drawn), says an element once with [`ElementPut`](#elementput) and sends its changes
+with [`ElementChange`](#elementchange). A drawer usually does all three through a canvas or a
+drawing weave ([the Graphics package](graphics.md#a-drawing-weave)), which draw whole only on a new
+window, incarnation or size, or an empty area. To read what it shows, ask
 [`WindowShowAsked`](#windowshowasked).
 
 Keys go to each owner placed to hear them, front to back: each key, its text and its release, which
@@ -242,18 +242,17 @@ which no terminal confirms. It is no showing, and nothing answers it.
 
 ## Follow
 
-As its own office the window publishes `WindowOffered` v1 on each activation, after
-`GraphicsReady`, and on a beat finding its terminal at another size: its name, size in cells (none
-with no terminal) and incarnation, which a resize keeps. The directory keeps it, and an arranger
-may lay out in that room. With no desktop place or close box, a terminal never publishes `SurfacePlacement` or
-`SurfaceCloseRequested`. To an area's owner: `AreaRoom` v2 for each introduction; `DrawnRefused`
-v1; `ActionRequested` v1; `AreaButtonChanged`, `AreaPointerMoved`, `AreaWheelTurned`,
+As its own office the window publishes `WindowOffered` v2 on each activation, after `GraphicsReady`,
+and at each new terminal size: its name, size in cells (none with no terminal), incarnation, kept by
+a resize, and no pixels in a cell, its unit the cell. The directory keeps it; an arranger may lay
+out in it. It never publishes `SurfacePlacement` or `SurfaceCloseRequested`. To an area's owner:
+`AreaRoom` v3 for each introduction (`empty` while it holds none of the owner's drawing);
+`DrawnRefused` v1; `ActionRequested` v1; `AreaButtonChanged`, `AreaPointerMoved`, `AreaWheelTurned`,
 `AreaHoldEnded` and `AreaPointerLeft` v1 when placed to hear the pointer; `KeyPressed` v2,
 `KeyReleased` v2 and `TextEntered` v1 when placed to hear keys, a shape it does not take refused on
 the bus. To an arranger not the owner: `AreaPressed`, `AreaHoldEnded` and `AreaPointerLeft` v1. To
-an asker alone: `WindowShown` v1,
-`ClipboardText` v1, `SurfaceCaptured` v1, `SurfaceCaptureChunk` v1 and `zen.Refused`. To the Timer,
-its beat's order.
+an asker: `WindowShown` v1, `ClipboardText` v1, `SurfaceCaptured` v1, `SurfaceCaptureChunk` v1 and
+`zen.Refused`. To the Timer, its beat's order.
 
 ## Files
 

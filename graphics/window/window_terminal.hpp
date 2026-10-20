@@ -18,6 +18,7 @@
 #include "input/translate.hpp"
 #include "manuals/zengine.window.terminal.hpp" // this office's manual, compiled in from its page
 
+#include <algorithm>
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -29,9 +30,12 @@
 
 namespace zengine::graphics::window {
 
-/// The size a terminal window shows when its terminal cannot be measured: a pipe, a suite.
+/// The size a terminal window shows when its terminal cannot be measured -- a pipe, a suite --
+/// while its areas reach no further.
 inline constexpr std::int64_t kUnmeasuredCols = 80;
 inline constexpr std::int64_t kUnmeasuredRows = 24;
+/// The furthest its areas make such a window reach, in cells each way.
+inline constexpr std::int64_t kUnmeasuredReach = 1000;
 
 /// The bytes that show cells on a terminal: for each run, a cursor move (left out where the cursor
 /// already stands), the role's ink where it changes, and the glyphs.
@@ -94,6 +98,8 @@ public:
     /// The size offered to the window's followers: its terminal's, or none where it has none to
     /// measure, so an arranger keeps the room it lays out in.
     CellExtent offered() const { return terminal_.size().measured() ? extent() : CellExtent{}; }
+    /// Its device unit is the cell, which a window offers as no pixels in one.
+    static constexpr std::int64_t kCellDevicePx = 0;
 
     void clear() { cache_.clear(); }
     void cover(const WinArea& a, const std::string& path) {
@@ -158,8 +164,9 @@ public:
     }
 
     /// The cells marked since the last showing, composed and written as runs: one showing, its
-    /// glyphs kept where they now stand.
+    /// glyphs kept where they now stand. With no terminal it first reaches as far as its areas.
     void show(const std::vector<WinArea>& areas) {
+        reach(areas);
         std::set<CellAt> in_window;
         for (const CellAt& c : dirty_) {
             if (c.first >= 0 && c.second >= 0 && c.first < cols_ && c.second < rows_) {
@@ -246,6 +253,23 @@ public:
     std::int64_t device_bytes() const { return device_bytes_; }
 
 private:
+    /// With no terminal to measure, the window as large as its areas reach and no smaller than
+    /// the unmeasured size, to `kUnmeasuredReach` cells each way: every cell of a new size marked.
+    void reach(const std::vector<WinArea>& areas) {
+        if (terminal_.size().measured()) {
+            return;
+        }
+        std::int64_t cols = kUnmeasuredCols, rows = kUnmeasuredRows;
+        for (const WinArea& a : areas) {
+            const Place pl = place_of(a);
+            cols = (std::max)(cols, pl.col + pl.cols);
+            rows = (std::max)(rows, pl.row + pl.rows);
+        }
+        reach_cols_ = (std::min)(cols, kUnmeasuredReach);
+        reach_rows_ = (std::min)(rows, kUnmeasuredReach);
+        (void)remeasure();
+    }
+
     /// A showing's cells laid over what the terminal showed before, at the window's size now: a
     /// window measured at another size marks every cell, so its next showing covers the grid whole.
     void keep_shown(const std::vector<term::Cell>& cells) {
@@ -258,10 +282,10 @@ private:
         }
     }
 
-    /// The window's size in cells: its terminal's, or the unmeasured size where it has none.
+    /// The window's size in cells: its terminal's, or as far as its areas reach where it has none.
     TerminalSize measure() const {
         const TerminalSize size = terminal_.size();
-        return size.measured() ? size : TerminalSize{kUnmeasuredCols, kUnmeasuredRows};
+        return size.measured() ? size : TerminalSize{reach_cols_, reach_rows_};
     }
 
     Terminal terminal_;
@@ -270,6 +294,8 @@ private:
     std::vector<std::string> shown_rows_; ///< the glyphs on the terminal, as its showings left them
     std::int64_t cols_ = kUnmeasuredCols;
     std::int64_t rows_ = kUnmeasuredRows;
+    std::int64_t reach_cols_ = kUnmeasuredCols; ///< how far its areas reach, with no terminal
+    std::int64_t reach_rows_ = kUnmeasuredRows;
     std::int64_t showings_ = 0;
     std::int64_t device_bytes_ = 0;
 };

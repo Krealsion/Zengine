@@ -8,6 +8,7 @@
 #include "workshop_support.hpp"
 #include "census.hpp"
 #include "inventory_story.hpp"
+#include "pane_window.hpp"
 #include "operator/reference.hpp"
 #include "inventory/codec.hpp"
 #include "message-draft/transfer.hpp"
@@ -2191,4 +2192,26 @@ TEST_CASE("views: making a view offers only that view, so a view already on the 
     const RuntimePane* second = s.r.session().panes.runtime.find(slots::kRole, views.back().id);
     REQUIRE(second != nullptr);
     CHECK(s.r.session().panes.has(second->kind));
+}
+
+TEST_CASE("a graphics window shows Inventory and Info in the areas Workshop places them in") {
+    namespace pw = zengine::testing::pane_window;
+    InventoryStory s;
+    pw::Window w(s.r.bus);
+    for (const auto& [office, pane] : std::vector<std::pair<std::string, std::string>>{
+             {slots::kRole, "inventory"}, {"zengine.info", "info"}}) {
+        CAPTURE(office);
+        const RuntimePane* row = s.r.session().panes.runtime.find(office, pane);
+        REQUIRE(row != nullptr);
+        // THE AREA WORKSHOP PLACES the pane in is the one its office draws in, given its room.
+        const std::string area = pane_window_area(s.r.session().panes, *row);
+        const std::size_t heard = w.weave().heard.size();
+        w.room(area, office, 80, 20);
+        REQUIRE(w.weave().heard.size() > heard);
+        CHECK(w.weave().heard.back().area == area);
+        CHECK(w.weave().heard.back().whole);
+        const std::vector<std::string> shown = w.rows(area);
+        CHECK(std::any_of(shown.begin(), shown.end(),
+                          [](const std::string& line) { return !line.empty(); }));
+    }
 }

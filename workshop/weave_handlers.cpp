@@ -263,13 +263,15 @@ void WorkshopWeave::on(const graphics::WindowOffered& w, loom::Mail& mail) {
     if (!surface_started_) {
         start_surface(mail);
     }
-    // THE WINDOW'S ROOM, WHILE NO MEDIUM HAS NAMED ITS UNIT: its cells, as a terminal skin reports
-    // its own, text a cell and the device unit the cell. A skin's `SurfaceExtent` owns the room
-    // from then on; until one comes, a window that offers another size is laid out in again.
+    // THE WINDOW'S ROOM, WHILE NO MEDIUM HAS NAMED ITS UNIT: its cells, text a cell, and the device
+    // unit the window says -- the OS window's pixel, the terminal window's cell. A skin's
+    // `SurfaceExtent` owns the room from then on; until one comes, a window that offers another
+    // size is laid out in again.
     if (medium_unit_known_ || w.cols <= 0 || w.rows <= 0) {
         return;
     }
-    if (!adopt_screen(session_, surface::px_of_cells(w.cols), surface::px_of_cells(w.rows))) {
+    if (!adopt_screen(session_, surface::px_of_cells(w.cols), surface::px_of_cells(w.rows), 0, 0,
+                      w.cell_px)) {
         return;
     }
     if (!(medium_placed_ && session_.place_maximized)) {
