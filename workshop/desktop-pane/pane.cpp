@@ -253,13 +253,32 @@ public:
     /// A pane Workshop seats nowhere, composed again for the room a window gave it.
     void on_window_room(const std::string& pane_key, loom::Mail& mail) { say_pane(pane_key, mail); }
 
-    /// A PRESS ON A PART IN A WINDOW is a primary press on its place in the picture shown there,
-    /// which is the pane's current one. The window gives a press to the area's owner alone, so it
-    /// is never the press that brought the keys: a second press on the chosen row opens it.
+    /// A PRESS ASKED AS A PART'S ACTION, by a window that shows a pane in an area placed deaf to the
+    /// pointer: a primary press on its place in the picture shown there, which is the pane's current
+    /// one. Workshop sees no such press, so it is never the press that brought the keys: a second
+    /// press on the chosen row opens it.
     void on_window_press(const std::string& pane_key, std::int64_t row, std::int64_t column,
                          loom::Mail& mail) {
         primary_press(PanePress{pane_key, row, column, /*keys_went_here=*/true, /*current=*/true},
                       mail);
+    }
+
+    /// A HAND ON ONE OF THIS WEAVE'S PANES IN A WINDOW, read onto the rows shown there, its current
+    /// picture: as on Workshop's canvas, a primary press is the row's press, read against whether
+    /// the keys were already the pane's, a right press its menu under the window's number for the
+    /// press, the wheel walks the cursor; a middle press, motion and every release mean nothing.
+    void on_window_pointer(const std::string& pane_key, const ws::WindowPointer& p,
+                           bool keys_went_here, loom::Mail& mail) {
+        const PanePress pressed{pane_key, p.at.row, p.at.column, keys_went_here, /*current=*/true};
+        if (p.phase == ws::canvas_pointer::kWheel) {
+            wheel(pane_key, p.dy, mail);
+        } else if (p.phase != ws::canvas_pointer::kPress) {
+            return;
+        } else if (p.button == 1 && p.at.shown) {
+            primary_press(pressed, mail);
+        } else if (p.button == 3) {
+            second_button(pressed, mail);
+        }
     }
 
     /// A refused picture leaves the last good one showing; the next change draws again.

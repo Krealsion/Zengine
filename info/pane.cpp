@@ -279,8 +279,35 @@ public:
         }
     }
 
-    /// A PRESS ON A PART IN A WINDOW is a primary press on its place in the picture shown there,
-    /// which is the view's current one. A window carries no drag, so it arms no field pickup.
+    /// THE POINTER ON A VIEW IN A WINDOW, read onto the rows shown there, which are the view's
+    /// current picture: as on Workshop's canvas, a press arms a value view's field pickup under the
+    /// window's number for it, its motion spends it, the wheel walks the fields and a right press
+    /// opens the view's menu.
+    void on_window_pointer(const std::string& key, const ws::WindowPointer& p, bool,
+                           loom::Mail& mail) {
+        pane::ValueView* v = view_of(key);
+        if (!v) return;
+        const auto number = static_cast<std::int64_t>(p.press);
+        if (p.phase == ws::canvas_pointer::kWheel) {
+            if (value_mode(*v) && v->wheel(p.dy)) say(*v, mail);
+        } else if (p.phase == ws::canvas_pointer::kMove) {
+            if (value_mode(*v) && number != 0 && number == held_of(*v)) {
+                pane::ViewContext c{mail, asked_};
+                v->dragged(p.at.row, p.at.column, c);
+            }
+        } else if (p.phase == ws::canvas_pointer::kPress && p.button == 3) {
+            right_press(*v, p.at, /*current=*/true, mail);
+        } else if (p.phase == ws::canvas_pointer::kPress && p.button == 1) {
+            held_of(*v) = p.at.shown && value_mode(*v) ? number : 0;
+            if (p.at.shown) press(*v, p.at, /*current=*/true, mail);
+        } else if (p.button == 1) {
+            held_of(*v) = 0; // released, or a hold the window ended
+        }
+    }
+
+    /// A PRESS ASKED AS A PART'S ACTION, by a window that shows a view in an area placed deaf to the
+    /// pointer: a primary press on its place in the picture shown there, which is the view's
+    /// current one. No press of Workshop's stands behind it, so it arms no field pickup.
     void on_window_press(const std::string& key, std::int64_t row, std::int64_t column,
                          loom::Mail& mail) {
         pane::ValueView* v = view_of(key);

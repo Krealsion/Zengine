@@ -358,8 +358,8 @@ void draw_plane(graphics::Sketch& sk, const std::string& name, const surface::Su
     }
 }
 
-/// A PART A PRESS ASKS FOR BY NAME: the characters `row` shows at those columns drawn again over
-/// them, in its role, recorded with `action`, and where they stand kept in `out`.
+/// A PART NAMED BY ITS ACTION: the characters `row` shows at those columns drawn again over them,
+/// in its role, recorded with `action`.
 void draw_part(WorkshopWindowDrawing& out, const std::string& group, const std::string& action,
                const surface::RegionFit& fit, std::int64_t r, std::int64_t column,
                std::int64_t columns, const surface::SurfaceTextRow& row) {
@@ -372,10 +372,9 @@ void draw_part(WorkshopWindowDrawing& out, const std::string& group, const std::
                             : std::string();
     words.resize(static_cast<std::size_t>(columns), ' ');
     const PixelRect at = span_px(fit, r, column, columns);
-    const std::string node = group + "/part" + std::to_string(out.parts.size());
+    const std::string node = group + "/part" + std::to_string(out.sketch.records().size());
     out.sketch.text(node, at.x, at.y, words, graphics::by_role(row.role));
     out.sketch.action(node, action);
-    out.parts[action] = at;
 }
 
 /// A drawing's root renamed for its structure: the paths in their order, hashed. A node a change
@@ -411,14 +410,8 @@ graphics::Sketch rooted(const graphics::Sketch& built, const std::string& stem) 
 } // namespace
 
 WorkshopWindowDrawing workshop_window_drawing(const Session& s,
-                                              const std::set<std::int64_t>& placed,
-                                              const std::vector<surface::SurfaceLayer>& overlays) {
+                                              const std::set<std::int64_t>& placed, bool front) {
     const Screen sc = screen_of(s);
-    // AN OVERLAY STANDS OVER THE PANES' OWN AREAS, so the desk comes in front with it.
-    const auto drawn = [](const surface::SurfaceLayer& l) {
-        return !l.rects.empty() || !l.labels.empty() || !l.texts.empty();
-    };
-    const bool front = desk_in_front(s) || std::any_of(overlays.begin(), overlays.end(), drawn);
     const std::string desk = "desk";
     WorkshopWindowDrawing out;
     out.sketch.group(desk, 0, 0);
@@ -485,8 +478,7 @@ WorkshopWindowDrawing workshop_window_drawing(const Session& s,
                       body.columns - 1, 1, header);
         }
     }
-    // THE ARRANGEMENT'S RINGS, THEN A MENU, THEN THE BAND, THEN THE OVERLAYS, each over everything
-    // before it.
+    // THE ARRANGEMENT'S RINGS, THEN A MENU, THEN THE BAND, each over everything before it.
     {
         surface::SurfaceLayer layer;
         paint_pane_affordances(layer, s, sc);
@@ -544,13 +536,23 @@ WorkshopWindowDrawing workshop_window_drawing(const Session& s,
         layer.texts.push_back(band_region(s, sc));
         draw_plane(out.sketch, desk + "/band", layer, sc);
     }
-    for (std::size_t i = 0; i < overlays.size(); ++i) {
-        if (drawn(overlays[i])) {
-            draw_plane(out.sketch, desk + "/overlay" + std::to_string(i), overlays[i], sc);
-        }
-    }
     out.sketch = rooted(out.sketch, desk);
     return out;
+}
+
+graphics::Sketch workshop_overlay_drawing(const Session& s,
+                                          const std::vector<surface::SurfaceLayer>& overlays) {
+    const Screen sc = screen_of(s);
+    const std::string marks = "marks";
+    graphics::Sketch out;
+    out.group(marks, 0, 0);
+    for (std::size_t i = 0; i < overlays.size(); ++i) {
+        if (!overlays[i].rects.empty() || !overlays[i].labels.empty() ||
+            !overlays[i].texts.empty()) {
+            draw_plane(out, marks + "/plane" + std::to_string(i), overlays[i], sc);
+        }
+    }
+    return rooted(out, marks);
 }
 
 } // namespace zengine::workshop

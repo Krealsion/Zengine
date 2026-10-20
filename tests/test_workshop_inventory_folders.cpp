@@ -220,6 +220,40 @@ TEST_CASE("WL-HAND-06: Inventory names its entries, folders, crumbs and controls
         CHECK(pane_rows(s.r, s.source)[static_cast<std::size_t>(chosen.row)].rfind(">", 0) == 0);
         CHECK(w.weave().heard.size() == drawn);
     }
+    SUBCASE("a graphics window that gives Inventory its pointer: an entry pressed there is the "
+            "view's own press, whose pickup asks Workshop under the window's number for the press") {
+        namespace pw = zengine::testing::pane_window;
+        const std::string area = std::string(slots::kRole) + ".inventory";
+        pw::Window w(s.r.bus);
+        w.room(area, slots::kRole, 120, 40);
+        REQUIRE(w.click(area, std::string("control:inventory.parent")));
+        CHECK_MESSAGE(s.row_of(s.source, "(Up) Root") == 1, s.shown(s.source));
+        std::optional<v2::PaneRowPart> entry;
+        for (const auto& [name, part] : held_parts(s.r.session(), s.source)) {
+            if (!entry && name.rfind("entry:", 0) == 0) entry = part;
+        }
+        REQUIRE(entry.has_value());
+        const loom::WeaveId office = s.r.bus.role_holder(slots::kRole);
+        std::vector<std::int64_t> gestures;
+        const loom::ObserverId tap = s.r.bus.add_observer([&](const loom::BusEvent& e) {
+            if (e.kind != loom::EventKind::Delivered || e.sender != office ||
+                e.schema_name != PaneOperationRequested::zen_name || e.payload == nullptr) {
+                return;
+            }
+            if (e.schema_version == 1) {
+                gestures.push_back(loom::from_value<PaneOperationRequested>(*e.payload).gesture);
+            } else {
+                gestures.push_back(loom::from_value<v2::PaneOperationRequested>(*e.payload).gesture);
+            }
+        });
+        const auto cell = w.cell_of(area, entry->name);
+        REQUIRE(cell.has_value());
+        const std::uint64_t n = w.next_press();
+        w.button(area, cell->first, cell->second, true, n);
+        s.r.bus.remove_observer(tap);
+        REQUIRE_FALSE(gestures.empty());
+        CHECK(gestures.front() == static_cast<std::int64_t>(n));
+    }
 }
 
 TEST_CASE("inventory folders: names conflict only among siblings, and a refused name changes nothing") {

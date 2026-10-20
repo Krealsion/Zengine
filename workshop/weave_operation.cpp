@@ -626,8 +626,17 @@ bool WorkshopWeave::release_value_drag(const input::PointerButton& button, loom:
     if (button.button != 1 || !drag.gesture || drag.gesture != latest_of(drag.actor) || drag.released ||
         !input_actor_.known || input_actor_.local != drag.actor.local ||
         input_actor_.participant != drag.actor.participant) return false;
-    // The release is retained even when it precedes the asynchronous acquisition answer.
+    // The release is retained even when it precedes the asynchronous acquisition answer, and one
+    // let go away from its press moved, whoever heard the motion between.
     drag.released = true;
+    if (button.space == drag.space) {
+        const std::uint64_t threshold = button.space == input::space::kPixels ? 4 : 1;
+        const auto distance = [](std::int64_t a, std::int64_t b) -> std::uint64_t {
+            return a >= b ? std::uint64_t(a) - std::uint64_t(b) : std::uint64_t(b) - std::uint64_t(a);
+        };
+        if (distance(button.x, drag.x) >= threshold || distance(button.y, drag.y) >= threshold)
+            drag.moved = true;
+    }
     if (button.space == drag.space && !session_.arrange.open && !session_.context.open && !session_.presented.open) {
         const auto point = canvas_point_of(button.space, button.x, button.y);
         const auto owner = occupied_at(session_.panes, session_.setup.active, screen_of(session_), point);

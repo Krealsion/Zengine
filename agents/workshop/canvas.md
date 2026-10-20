@@ -34,7 +34,7 @@ LAW — A canvas gesture retains its press's grant, picture and identity through
 
 MEANS
 - press and wheel use the existing medium fence to identify their picture;
-- a release reaches its held owner outside the pane and through modal surfaces;
+- a release reaches its held owner outside the pane and through modal surfaces; in a graphics window the window's hold carries it, and `AreaHoldEnded` is the loss;
 - room, owner or mode changes end custody; a secondary press may ask for a menu or be handed back.
 
 WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
@@ -58,7 +58,7 @@ WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 LAW — A primary canvas press is its provider's to continue as a prose press is: under its number the provider may carry a value out, and once the carry begins the press's hold ends as lost.
 
 MEANS
-- the press's number approves one acquisition, and the press begins a value drag;
+- the press's number approves one acquisition, and the press begins a value drag; a graphics window numbers its press, and the desk in front for the carry ends its hold;
 - motion and the release after the carry begins are the carry's, never the canvas's;
 - a release before the carry is retained, as for a prose drag; an unmoved click carries nothing.
 
@@ -69,7 +69,7 @@ WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 LAW — A provider that accepts `PaneCanvasHover` is told where a pointer holding no button rests on its canvas, and once when it leaves; resting moves no selection, focus, key or gesture.
 
 MEANS
-- the canvas on top under the pointer, from geometry Workshop holds, once per local place;
+- the canvas on top under the pointer, from geometry Workshop holds, once per local place; in a graphics window, the window's word (`AreaPointerMoved`, `AreaPointerLeft`);
 - a leave when the pointer moves off its body, a mode, menu or sweep takes it, or a press begins;
 - a carried value over a canvas is told with `carrying`; a fresh room puts the hover down unsaid.
 
@@ -135,6 +135,13 @@ end_canvas_holds
 motion and outside release" "a right press a canvas picture hands back opens the host's pane menu at
 the press; one it keeps opens nothing" "pane canvas resize loses capture and wheel names a local
 point in the latest picture"
+`workshop/pane_drawing.hpp` WindowPointer
+`editor/editor-pane/transfers.hpp` on_window
+`tests/test_workshop_panes_editor.cpp` "in a graphics window that gives the Editor its pointer, a press there, its moves under its
+number and its release sweep a selection as on Workshop's canvas, and a hold the window ends is
+the press lost"
+`tests/test_flow_pane.cpp` "WL-HAND-06: Flow names its controls, its nodes and ports by their place,
+and every place a press means something"
 
 ### WL-CANVAS-04
 `workshop/pane_carry.hpp` PaneCanvasValueDrop PaneCanvasDrop
@@ -163,6 +170,12 @@ press does: the hold ends as lost when the carry begins, the value lands where t
 a click carries nothing"
 `tests/test_flow_pane.cpp` "a press on a declared message asks under that press to drag its shape
 out, and still opens it; a right press on a found operator is handed back"
+`workshop/weave_handlers.cpp` on(AreaPressed)
+`workshop/weave_run.cpp` desk_in_front_of_panes
+`workshop/weave_operation.cpp` release_value_drag
+`tests/test_workshop_desk.cpp` "a press in a pane's area of the window is the pane's, and under the window's number Workshop
+tells it where the keys were, hands its press back, opens its menu and carries what it drags out
+or picks up"
 
 ### WL-CANVAS-06
 `workshop/pane_canvas_vocabulary.hpp` PaneCanvasHover
@@ -172,6 +185,8 @@ out, and still opens it; a right press on a found operator is handed back"
 rests and that it left; resting selects, focuses and presses nothing" "a described view offers its
 own pane through the view host, Workshop seats and draws it, a press reaches it, and a stop leaves a
 picture that says so"
+`view/view-builder/pane.cpp` rest
+`tests/test_view_builder.cpp` "in a terminal the builder's picture and its drags are floored to cells"
 
 ### WL-CANVAS-07
 `graphics/role.hpp` kMediumGround

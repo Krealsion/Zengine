@@ -70,11 +70,12 @@ Public contracts: [Flow reference](../flow/docs/flow-reference.md),
   (`workshop::canvas_sketch`); one more than a window keeps is the recovery picture. Its room is
   the window's word alone (`AreaRoom`, as that window's office), asked of `zengine.graphics` once a
   life. A refused change goes whole at once; a refused whole picture is said in the notice and
-  draws nothing more until the next change, so a window that keeps refusing starts no loop. A
-  press there names a part the picture last sent there names, and is that place's first-button
-  press: a node selected, anything else performed. It begins no drag and carries nothing, and a
-  write it confirms waits, since no Workshop gesture made it. A window's room ends no Workshop
-  gesture or picture map.
+  draws nothing more until the next change, so a window that keeps refusing starts no loop. The
+  window's pointer there is read against the picture last sent there as Workshop's canvas pointer
+  is against Workshop's: a node held and dragged, a control done, a press's moves and release under
+  the window's number for it, a hold the window ends the drag's end. Where a window shows the area
+  deaf to the pointer, a press there names a part and is that place's first-button press, which
+  begins no drag and carries nothing. A window's room ends no Workshop gesture or picture map.
 - The pane carries a declared message's shape out, with every shape it nests
   (`flow::shape::carried`), from a press's drag or a right press on its row in Messages. A
   dropped description is read with the shapes it carries and nothing else

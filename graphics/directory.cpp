@@ -26,11 +26,13 @@ namespace {
 
 namespace gfx = zengine::graphics;
 
-/// An area as the directory keeps it: where it was placed, and the skin chosen for it.
+/// An area as the directory keeps it: where it was placed and by which office, and the skin chosen
+/// for it.
 struct DirectoryArea {
     gfx::AreaPlaced placed;
+    std::string arranger;
     std::string skin;
-    ZEN_SHAPE(DirectoryArea, 2, ZEN_FIELD(placed), ZEN_FIELD(skin));
+    ZEN_SHAPE(DirectoryArea, 3, ZEN_FIELD(placed), ZEN_FIELD(arranger), ZEN_FIELD(skin));
 };
 
 struct DirectoryState {
@@ -38,7 +40,7 @@ struct DirectoryState {
     std::vector<DirectoryArea> areas;
     std::vector<gfx::SkinOffered> skins;
     std::vector<gfx::ElementCodeOffered> codes;
-    ZEN_SHAPE(DirectoryState, 2, ZEN_FIELD(windows), ZEN_FIELD(areas), ZEN_FIELD(skins),
+    ZEN_SHAPE(DirectoryState, 3, ZEN_FIELD(windows), ZEN_FIELD(areas), ZEN_FIELD(skins),
               ZEN_FIELD(codes));
 };
 
@@ -75,11 +77,12 @@ public:
         }
     }
 
-    /// The arranger: where an area stands. Moved to another window, it leaves the one it was in.
+    /// The arranger: where an area stands, kept with the office the placing was authored as, which
+    /// the window names the area's arranger. Moved to another window, it leaves the one it was in.
     void on(const gfx::AreaPlaced& p, loom::Mail& mail) {
         DirectoryArea* a = find(p.area);
         if (a == nullptr) {
-            state_.areas.push_back(DirectoryArea{p, {}});
+            state_.areas.push_back(DirectoryArea{p, {}, {}});
             a = &state_.areas.back();
         } else {
             if (a->placed.window != p.window && window_of(a->placed.window) != nullptr) {
@@ -88,6 +91,7 @@ public:
             }
             a->placed = p;
         }
+        a->arranger = std::string(mail.authored_role());
         introduce(mail, *a);
     }
 
@@ -192,8 +196,9 @@ private:
         const gfx::AreaPlaced& p = a.placed;
         (void)mail.as_role(gfx::kGraphicsRole)
             .send_to_role(office_of(p.window),
-                          gfx::AreaIntroduced{p.area, p.owner, p.x, p.y, p.w, p.h, p.order,
-                                              p.keys, p.pointer, skin->skin, skin->library});
+                          gfx::AreaIntroduced{p.area, p.owner, a.arranger, p.x, p.y, p.w, p.h,
+                                              p.order, p.keys, p.pointer, skin->skin,
+                                              skin->library});
     }
 
     zengine::ActivationCursor activation_;

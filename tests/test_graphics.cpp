@@ -53,6 +53,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <map>
 #include <memory>
 #include <optional>
 #include <set>
@@ -1020,156 +1021,476 @@ TEST_CASE("a press nothing drawn there takes, in an area not placed to hear the 
     SentBy window(t.r.bus, t.window);
     t.press(13, 10); // the head's cell: board cell (12,8), one cell in from the border, below row 0
     CHECK(window.sent.empty()); // no press, no pointer event, and so no refusal either
-    CHECK(t.r.read<zengine::input::PointerButton>(mark).empty());
+    CHECK(t.r.read<gfx::AreaButtonChanged>(mark).empty());
     for (std::size_t i = mark; i < t.r.log.size(); ++i) {
         CHECK(t.r.log[i].addressed_role != snake::kWorldRole);
     }
 }
 
-/// AN OWNER OF AN AREA PLACED TO HEAR THE POINTER: it keeps each press the window gives it.
-struct PointerHeard {
-    std::vector<zengine::input::PointerButton> pressed;
-};
-
-class PointerOwner
-    : public loom::WeaveBase<PointerOwner, GraphicsTestOwner,
-                             loom::Accept<gfx::AreaRoom, zengine::input::PointerButton>,
-                             loom::Emit<>> {
-public:
-    explicit PointerOwner(PointerHeard& heard) : heard_(&heard) {}
-    void on(const gfx::AreaRoom&, loom::Mail&) { ++state_.heard; }
-    void on(const zengine::input::PointerButton& b, loom::Mail& mail) {
-        if (mail.authored_from_role(window_office())) heard_->pressed.push_back(b);
-    }
-
-private:
-    PointerHeard* heard_;
-};
-
-TEST_CASE("a press nothing drawn there takes reaches the owner of an area placed to hear the "
-          "pointer, at the area's own point") {
-    Typed t;
-    PointerHeard heard;
-    auto owner = std::make_unique<PointerOwner>(heard);
-    PointerOwner* raw = owner.get();
-    loom::Grant g = loom::emit_default_grant(*raw);
-    raw->zen_set_self(t.r.bus.register_weave(std::move(owner), std::move(g), "test.pointer"));
-    // BESIDE THE BOARD, EMPTY: nothing is drawn there, so nothing there takes a press.
-    gfx::AreaPlaced placed{"test.pointer", gfx::kTerminalWindow, "test.pointer", 52 * gfx::kCellPx,
-                           0, 10 * gfx::kCellPx, 2 * gfx::kCellPx, 1, false};
-    placed.pointer = true;
-    t.r.to_role(gfx::kGraphicsRole, placed);
-    t.r.to_role(gfx::kGraphicsRole, gfx::SkinChosen{"test.pointer", "classic"});
-    t.r.drain();
-    t.press(54, 1);
-    REQUIRE(heard.pressed.size() == 1);
-    CHECK(heard.pressed[0].button == 1);
-    CHECK(heard.pressed[0].pressed);
-    CHECK(heard.pressed[0].x == 2 * gfx::kCellPx + gfx::kCellPx / 2);
-    CHECK(heard.pressed[0].y == gfx::kCellPx + gfx::kCellPx / 2);
-    CHECK(heard.pressed[0].space == zengine::input::space::kPixels); // the area's pixels
-    // ...AND THE SAME PRESS ON THE BOARD, PLACED WITHOUT IT, STILL REACHES NO ONE.
-    t.press(13, 10);
-    CHECK(heard.pressed.size() == 1);
-}
-
-/// AN OWNER PLACED TO HEAR THE WHOLE POINTER: every moment the window gives it, in order.
+/// AN OWNER OF AN AREA, as the window's office tells it: every pointer moment it is given, in
+/// order, each with the number its delivery carried; the actions it is asked; and what a window
+/// told it of the holds and hover there. Asked to, it draws `words` at its corner,
+/// naming `action` when one is given.
 struct MomentsHeard {
-    std::vector<zengine::input::PointerButton> buttons;
-    std::vector<zengine::input::PointerMoved> moves;
-    std::vector<zengine::input::PointerWheel> wheels;
+    std::vector<std::pair<gfx::AreaButtonChanged, std::uint64_t>> buttons;
+    std::vector<std::pair<gfx::AreaPointerMoved, std::uint64_t>> moves;
+    std::vector<gfx::AreaWheelTurned> wheels;
+    std::vector<gfx::AreaHoldEnded> ended;
+    std::vector<gfx::AreaPointerLeft> left;
+    std::vector<gfx::ActionRequested> actions;
     std::vector<std::string> order;
     bool empty() const { return order.empty(); }
 };
 
+bool from_a_window(const loom::Mail& mail) {
+    return mail.authored_role().rfind(gfx::kWindowOfficePrefix, 0) == 0;
+}
+
 class MomentsOwner
     : public loom::WeaveBase<MomentsOwner, GraphicsTestOwner,
-                             loom::Accept<gfx::AreaRoom, zengine::input::PointerButton,
-                                          zengine::input::PointerMoved,
-                                          zengine::input::PointerWheel>,
-                             loom::Emit<>> {
+                             loom::Accept<gfx::AreaRoom, gfx::AreaButtonChanged,
+                                          gfx::AreaPointerMoved, gfx::AreaWheelTurned,
+                                          gfx::AreaHoldEnded, gfx::AreaPointerLeft,
+                                          gfx::ActionRequested>,
+                             loom::Emit<gfx::Drawn>> {
 public:
-    explicit MomentsOwner(MomentsHeard& heard) : heard_(&heard) {}
-    void on(const gfx::AreaRoom&, loom::Mail&) { ++state_.heard; }
-    void on(const zengine::input::PointerButton& b, loom::Mail& mail) {
-        if (!mail.authored_from_role(window_office())) return;
-        heard_->buttons.push_back(b);
+    MomentsOwner(MomentsHeard& heard, std::string office, std::string words,
+                 std::string action)
+        : heard_(&heard), office_(std::move(office)), words_(std::move(words)),
+          action_(std::move(action)) {}
+    void on(const gfx::AreaRoom& r, loom::Mail& mail) {
+        ++state_.heard;
+        if (words_.empty() || !from_a_window(mail)) {
+            return;
+        }
+        gfx::Sketch s;
+        s.text("words", 0, 0, words_, gfx::by_role(gfx::role::kFill));
+        if (!action_.empty()) {
+            s.action("words", action_);
+        }
+        (void)mail.as_role(office_).send_to_role(
+            std::string(gfx::kWindowOfficePrefix) + r.window,
+            gfx::Drawn{r.area, true, s.nodes(), {}, s.records(), {}, false});
+    }
+    void on(const gfx::AreaButtonChanged& b, loom::Mail& mail) {
+        if (!from_a_window(mail)) return;
+        heard_->buttons.emplace_back(b, mail.correlation());
         heard_->order.push_back("button");
     }
-    void on(const zengine::input::PointerMoved& m, loom::Mail& mail) {
-        if (!mail.authored_from_role(window_office())) return;
-        heard_->moves.push_back(m);
+    void on(const gfx::AreaPointerMoved& m, loom::Mail& mail) {
+        if (!from_a_window(mail)) return;
+        heard_->moves.emplace_back(m, mail.correlation());
         heard_->order.push_back("move");
     }
-    void on(const zengine::input::PointerWheel& w, loom::Mail& mail) {
-        if (!mail.authored_from_role(window_office())) return;
+    void on(const gfx::AreaWheelTurned& w, loom::Mail& mail) {
+        if (!from_a_window(mail)) return;
         heard_->wheels.push_back(w);
         heard_->order.push_back("wheel");
+    }
+    void on(const gfx::AreaHoldEnded& e, loom::Mail& mail) {
+        if (!from_a_window(mail)) return;
+        heard_->ended.push_back(e);
+        heard_->order.push_back("ended");
+    }
+    void on(const gfx::AreaPointerLeft& l, loom::Mail& mail) {
+        if (!from_a_window(mail)) return;
+        heard_->left.push_back(l);
+        heard_->order.push_back("left");
+    }
+    void on(const gfx::ActionRequested& a, loom::Mail& mail) {
+        if (!from_a_window(mail)) return;
+        heard_->actions.push_back(a);
+        heard_->order.push_back("action");
     }
 
 private:
     MomentsHeard* heard_;
+    std::string office_, words_, action_;
 };
 
-TEST_CASE("the terminal window sends a release, another button, a move and the wheel to the owner "
-          "of the area they land in, at its own point in pixels, only when it was placed to hear "
-          "the pointer") {
-    TypedWindow t;
-    t.r.to_role(gfx::kGraphicsRole, gfx::SkinOffered{"classic", PAINT_CLASSIC_SO});
-    t.r.drain();
-    const auto mount = [&t](MomentsHeard& heard, const char* office, std::int64_t row,
-                            bool pointer) {
-        auto made = std::make_unique<MomentsOwner>(heard);
+/// AN ARRANGER THE SUITE SPEAKS AS: it places areas under its own office, and keeps where the
+/// window tells it presses landed, each with the number its delivery carried, and what the window
+/// tells it of the holds and hover in the areas it placed.
+struct PressesHeard {
+    std::vector<std::pair<gfx::AreaPressed, std::uint64_t>> pressed;
+    std::vector<gfx::AreaButtonChanged> own;
+    std::vector<gfx::AreaHoldEnded> ended;
+    std::vector<gfx::AreaPointerLeft> left;
+};
+
+class ArrangerOwner
+    : public loom::WeaveBase<ArrangerOwner, GraphicsTestOwner,
+                             loom::Accept<gfx::AreaRoom, gfx::AreaPressed, gfx::AreaButtonChanged,
+                                          gfx::AreaHoldEnded, gfx::AreaPointerLeft>,
+                             loom::Emit<gfx::AreaPlaced, gfx::SkinChosen>> {
+public:
+    explicit ArrangerOwner(PressesHeard& heard) : heard_(&heard) {}
+    void on(const gfx::AreaRoom&, loom::Mail&) { ++state_.heard; }
+    void on(const gfx::AreaPressed& p, loom::Mail& mail) {
+        if (from_a_window(mail)) heard_->pressed.emplace_back(p, mail.correlation());
+    }
+    void on(const gfx::AreaButtonChanged& b, loom::Mail& mail) {
+        if (from_a_window(mail)) heard_->own.push_back(b);
+    }
+    void on(const gfx::AreaHoldEnded& e, loom::Mail& mail) {
+        if (from_a_window(mail)) heard_->ended.push_back(e);
+    }
+    void on(const gfx::AreaPointerLeft& l, loom::Mail& mail) {
+        if (from_a_window(mail)) heard_->left.push_back(l);
+    }
+
+private:
+    PressesHeard* heard_;
+};
+
+constexpr const char* kArranger = "test.arranger";
+
+/// THE TERMINAL WINDOW WITH OWNERS OF THE SUITE'S OWN, each area placed by the suite as root, or
+/// by the suite's arranger under its office.
+struct PointerDesk : TypedWindow {
+    PressesHeard presses;
+    loom::WeaveId arranger;
+    std::vector<std::unique_ptr<MomentsHeard>> heard;
+    PointerDesk() {
+        r.to_role(gfx::kGraphicsRole, gfx::SkinOffered{"classic", PAINT_CLASSIC_SO});
+        auto made = std::make_unique<ArrangerOwner>(presses);
+        ArrangerOwner* raw = made.get();
+        loom::Grant g = loom::emit_default_grant(*raw);
+        arranger = r.bus.register_weave(std::move(made), std::move(g), kArranger);
+        raw->zen_set_self(arranger);
+        r.drain();
+    }
+    /// An owner of `office`, its area placed at cell (`col`, `row`), `w` by `h` cells.
+    MomentsHeard& own(const char* office, std::int64_t col, std::int64_t row, std::int64_t w,
+                      std::int64_t h, std::int64_t order, bool pointer, bool by_arranger = false,
+                      std::string words = {}, std::string action = {}) {
+        heard.push_back(std::make_unique<MomentsHeard>());
+        auto made = std::make_unique<MomentsOwner>(*heard.back(), office, std::move(words),
+                                                   std::move(action));
         MomentsOwner* raw = made.get();
         loom::Grant g = loom::emit_default_grant(*raw);
-        raw->zen_set_self(t.r.bus.register_weave(std::move(made), std::move(g), office));
-        gfx::AreaPlaced placed{office, gfx::kTerminalWindow, office, 10 * gfx::kCellPx,
-                               row * gfx::kCellPx, 20 * gfx::kCellPx, 5 * gfx::kCellPx, 1, false};
+        raw->zen_set_self(r.bus.register_weave(std::move(made), std::move(g), office));
+        place(office, office, col, row, w, h, order, pointer, by_arranger);
+        r.to_role(gfx::kGraphicsRole, gfx::SkinChosen{office, "classic"});
+        r.drain();
+        return *heard.back();
+    }
+    void place(const char* area, const char* owner, std::int64_t col, std::int64_t row,
+               std::int64_t w, std::int64_t h, std::int64_t order, bool pointer,
+               bool by_arranger = false) {
+        constexpr std::int64_t c = gfx::kCellPx;
+        gfx::AreaPlaced placed{area,  gfx::kTerminalWindow, owner, col * c, row * c, w * c, h * c,
+                               order, false};
         placed.pointer = pointer;
-        t.r.to_role(gfx::kGraphicsRole, placed);
-        t.r.to_role(gfx::kGraphicsRole, gfx::SkinChosen{office, "classic"});
-        t.r.drain();
-    };
-    MomentsHeard hearing, deaf;
-    mount(hearing, "test.hearing", 2, true);
-    mount(deaf, "test.deaf", 8, false);
-    // A window cell's centre, in the pixels of an area whose corner stands at cell (10, row0).
-    const auto local = [](std::int64_t cell, std::int64_t origin) {
-        return cell * gfx::kCellPx + gfx::kCellPx / 2 - origin * gfx::kCellPx;
-    };
+        if (by_arranger) {
+            r.bus.office_send_to_role_as(arranger, kArranger, gfx::kGraphicsRole,
+                                         loom::Message(loom::to_value(placed)));
+        } else {
+            r.to_role(gfx::kGraphicsRole, placed);
+        }
+        r.drain();
+    }
+    /// A button pressed (`M`) or let go (`m`) at a cell, 0-based, as an SGR report: 0 left,
+    /// 1 middle, 2 right.
+    void button(int code, int col, int row, bool down) {
+        type("\x1b[<" + std::to_string(code) + ";" + std::to_string(col + 1) + ";" +
+             std::to_string(row + 1) + (down ? "M" : "m"));
+    }
+    /// The pointer moved to a cell with no button held, or with the left one held.
+    void move(int col, int row, bool held = false) {
+        type("\x1b[<" + std::to_string(held ? 32 : 35) + ";" + std::to_string(col + 1) + ";" +
+             std::to_string(row + 1) + "M");
+    }
+};
 
-    t.type("\x1b[<0;13;4m");                 // the left button let go at cell (12, 3)
+/// A window cell's centre, in the pixels of an area whose corner stands at cell `origin`.
+std::int64_t local(std::int64_t cell, std::int64_t origin) {
+    return cell * gfx::kCellPx + gfx::kCellPx / 2 - origin * gfx::kCellPx;
+}
+
+TEST_CASE("the terminal window gives the owner of an area placed to hear the pointer each moment "
+          "there as the moment it was, naming the area, at its own point in pixels, and an area "
+          "placed without it none") {
+    PointerDesk t;
+    MomentsHeard& hearing = t.own("test.hearing", 10, 2, 20, 5, 1, true);
+    MomentsHeard& deaf = t.own("test.deaf", 10, 8, 20, 5, 1, false);
+
+    t.button(0, 12, 3, false); // the left button let go at cell (12, 3), no press held for it
     // The right button pressed at (13, 4) and dragged with it held to (15, 4), then (16, 5).
     t.type("\x1b[<2;14;5M\x1b[<34;16;5M\x1b[<34;17;6M");
-    t.type("\x1b[<64;15;4M");                // the wheel turned up at (14, 3)
-    CHECK(hearing.order == std::vector<std::string>{"button", "button", "move", "wheel"});
-    REQUIRE(hearing.buttons.size() == 2);
-    CHECK(hearing.buttons[0].button == 1);
-    CHECK_FALSE(hearing.buttons[0].pressed);
-    CHECK(hearing.buttons[0].x == local(12, 10));
-    CHECK(hearing.buttons[0].y == local(3, 2));
-    CHECK(hearing.buttons[0].space == zengine::input::space::kPixels);
-    CHECK(hearing.buttons[1].button == 3);
-    CHECK(hearing.buttons[1].pressed);
-    CHECK(hearing.buttons[1].x == local(13, 10));
+    t.button(2, 16, 5, false);
+    t.type("\x1b[<64;15;4M"); // the wheel turned up at (14, 3)
+    CHECK(hearing.order ==
+          std::vector<std::string>{"button", "button", "move", "button", "wheel"});
+    REQUIRE(hearing.buttons.size() == 3);
+    const gfx::AreaButtonChanged& released = hearing.buttons[0].first;
+    CHECK(released.area == "test.hearing");
+    CHECK(released.button == 1);
+    CHECK_FALSE(released.pressed);
+    CHECK(released.x == local(12, 10));
+    CHECK(released.y == local(3, 2));
+    CHECK(hearing.buttons[0].second == 0); // a release no press of this window's holds
+    CHECK(hearing.buttons[1].first.button == 3);
+    CHECK(hearing.buttons[1].first.pressed);
+    CHECK(hearing.buttons[1].first.x == local(13, 10));
     // TWO MOVES READ IN ONE BEAT GO AS ONE: the last point, the deltas summed, in pixels.
     REQUIRE(hearing.moves.size() == 1);
-    CHECK(hearing.moves[0].x == local(16, 10));
-    CHECK(hearing.moves[0].y == local(5, 2));
-    CHECK(hearing.moves[0].dx == 3 * gfx::kCellPx);
-    CHECK(hearing.moves[0].dy == gfx::kCellPx);
-    CHECK(hearing.moves[0].space == zengine::input::space::kPixels);
+    CHECK(hearing.moves[0].first.x == local(16, 10));
+    CHECK(hearing.moves[0].first.y == local(5, 2));
+    CHECK(hearing.moves[0].first.dx == 3 * gfx::kCellPx);
+    CHECK(hearing.moves[0].first.dy == gfx::kCellPx);
     REQUIRE(hearing.wheels.size() == 1);
+    CHECK(hearing.wheels[0].area == "test.hearing");
     CHECK(hearing.wheels[0].dy == doctest::Approx(1.0));
     CHECK(hearing.wheels[0].x == local(14, 10));
     CHECK(hearing.wheels[0].y == local(3, 2));
-    CHECK(hearing.wheels[0].space == zengine::input::space::kPixels);
 
     // THE SAME MOMENTS IN AN AREA PLACED WITHOUT THE POINTER, OR IN NONE, REACH NO ONE.
-    t.type("\x1b[<0;13;10m\x1b[<2;14;11M\x1b[<34;16;11M\x1b[<64;15;10M");
-    t.type("\x1b[<0;60;20m\x1b[<2;60;20M\x1b[<34;61;21M\x1b[<64;60;20M");
+    t.type("\x1b[<0;13;10m\x1b[<2;14;11M\x1b[<34;16;11M\x1b[<2;16;11m\x1b[<64;15;10M");
+    t.type("\x1b[<0;60;20m\x1b[<2;60;20M\x1b[<34;61;21M\x1b[<2;61;21m\x1b[<64;60;20M");
     CHECK(deaf.empty());
-    CHECK(hearing.order.size() == 4);
+    CHECK(hearing.order.size() == 5);
+}
+
+TEST_CASE("a press holds its button for the area that took it: every move while it is held, and "
+          "its release, go to that area wherever the pointer is, all under the press's number") {
+    PointerDesk t;
+    MomentsHeard& hearing = t.own("test.hearing", 10, 2, 20, 5, 1, true);
+    MomentsHeard& other = t.own("test.other", 40, 2, 20, 5, 1, true);
+
+    t.button(0, 12, 3, true);
+    t.move(45, 4, true);      // over the other area, the button held
+    t.button(0, 70, 20, false); // let go outside every area
+    REQUIRE(hearing.buttons.size() == 2);
+    const std::uint64_t press = hearing.buttons[0].second;
+    CHECK(press != 0);
+    REQUIRE(hearing.moves.size() == 1);
+    CHECK(hearing.moves[0].first.x == local(45, 10)); // outside its own area, in its own pixels
+    CHECK(hearing.moves[0].second == press);
+    CHECK_FALSE(hearing.buttons[1].first.pressed);
+    CHECK(hearing.buttons[1].first.x == local(70, 10));
+    CHECK(hearing.buttons[1].first.y == local(20, 2));
+    CHECK(hearing.buttons[1].second == press);
+    CHECK(other.empty()); // the pointer crossed it, held by another's press
+
+    // ONCE LET GO, A MOVE IS THE AREA'S IT LANDS IN, and the next press has a number of its own.
+    t.move(45, 4);
+    REQUIRE(other.moves.size() == 1);
+    CHECK(other.moves[0].second == 0);
+    t.button(0, 46, 4, true);
+    REQUIRE(other.buttons.size() == 1);
+    CHECK(other.buttons[0].second != 0);
+    CHECK(other.buttons[0].second != press);
+    CHECK(hearing.moves.size() == 1);
+}
+
+TEST_CASE("the window tells the arranger of an area another office owns where each press there and "
+          "its release landed, under the press's number, and no arranger that owns the area") {
+    PointerDesk t;
+    MomentsHeard& owned = t.own("test.hearing", 10, 2, 20, 5, 1, true, /*by_arranger=*/true);
+    MomentsHeard& rooted = t.own("test.rooted", 40, 2, 20, 5, 1, true);
+    t.place(kArranger, kArranger, 10, 10, 20, 5, 1, true, /*by_arranger=*/true);
+    t.r.to_role(gfx::kGraphicsRole, gfx::SkinChosen{kArranger, "classic"});
+    t.r.drain();
+
+    t.button(2, 12, 3, true);
+    t.button(2, 50, 15, false); // let go elsewhere: still the press's area's release
+    REQUIRE(owned.buttons.size() == 2);
+    REQUIRE(t.presses.pressed.size() == 2);
+    const gfx::AreaPressed& down = t.presses.pressed[0].first;
+    CHECK(down.window == gfx::kTerminalWindow);
+    CHECK(down.area == "test.hearing");
+    CHECK(down.button == 3);
+    CHECK(down.pressed);
+    CHECK(down.x == 12 * gfx::kCellPx + gfx::kCellPx / 2); // the window's own pixels
+    CHECK(down.y == 3 * gfx::kCellPx + gfx::kCellPx / 2);
+    CHECK(t.presses.pressed[0].second == owned.buttons[0].second);
+    CHECK_FALSE(t.presses.pressed[1].first.pressed);
+    CHECK(t.presses.pressed[1].first.x == 50 * gfx::kCellPx + gfx::kCellPx / 2);
+    CHECK(t.presses.pressed[1].second == owned.buttons[0].second);
+
+    // An area placed by personal speech names no arranger, and one the arranger owns is its own.
+    t.button(0, 45, 3, true);
+    t.button(0, 45, 3, false);
+    t.button(0, 12, 12, true);
+    t.button(0, 12, 12, false);
+    CHECK(rooted.buttons.size() == 2);
+    CHECK(t.presses.own.size() == 2);
+    CHECK(t.presses.pressed.size() == 2);
+}
+
+TEST_CASE("in an area placed to hear the pointer a press on a part naming an action is the press "
+          "it is, and in one placed without it the action is asked") {
+    PointerDesk t;
+    MomentsHeard& hearing = t.own("test.hearing", 10, 2, 20, 5, 1, true, false, "act", "act");
+    MomentsHeard& deaf = t.own("test.deaf", 10, 8, 20, 5, 1, false, false, "act", "act");
+    REQUIRE(t.r.screen().find("act") != std::string::npos);
+
+    t.button(0, 11, 2, true);
+    t.button(0, 11, 2, false);
+    CHECK(hearing.actions.empty());
+    REQUIRE(hearing.buttons.size() == 2);
+    CHECK(hearing.buttons[0].first.pressed);
+    CHECK(hearing.buttons[0].first.x == local(11, 10));
+
+    t.button(0, 11, 8, true);
+    t.button(0, 11, 8, false);
+    REQUIRE(deaf.actions.size() == 1);
+    CHECK(deaf.actions[0].area == "test.deaf");
+    CHECK(deaf.actions[0].action == "act");
+    CHECK(deaf.buttons.empty());
+}
+
+TEST_CASE("an area placed to hear the pointer takes every point inside it, painted there or not, "
+          "and an area placed without it lets the pointer through wherever nothing it drew there "
+          "takes a press") {
+    PointerDesk t;
+    MomentsHeard& back = t.own("test.back", 0, 0, 40, 10, 1, true, false, "back");
+    MomentsHeard& front = t.own("test.front", 5, 0, 10, 4, 2, true);
+    MomentsHeard& lid = t.own("test.lid", 20, 0, 10, 4, 3, false, false, "lid");
+    MomentsHeard& knob = t.own("test.knob", 30, 0, 10, 4, 3, false, false, "knob", "turn");
+
+    t.button(0, 6, 0, true); // the front area painted nothing here; behind it, the back drew
+    t.button(0, 6, 0, false);
+    CHECK(front.buttons.size() == 2);
+    CHECK(back.empty());
+
+    t.button(0, 21, 0, true); // the lid's words name nothing: the press is the back's
+    t.button(0, 21, 0, false);
+    REQUIRE(back.buttons.size() == 2);
+    CHECK(back.buttons[0].first.x == local(21, 0));
+    t.move(22, 0);
+    CHECK(back.moves.size() == 1);
+    CHECK(lid.empty());
+
+    t.button(0, 31, 0, true); // the knob's words name an action: its owner is asked it
+    REQUIRE(knob.actions.size() == 1);
+    CHECK(knob.actions[0].action == "turn");
+    CHECK(back.buttons.size() == 2);
+}
+
+TEST_CASE("a press held for an area ends with no release when the area is withdrawn, handed to "
+          "another owner, or covered where it was made by an area placed to hear the pointer in "
+          "front of it, and the window tells the area's owner, and its arranger when another "
+          "office, that it ended -- and no one else") {
+    PointerDesk t;
+    MomentsHeard& hearing = t.own("test.hearing", 10, 2, 20, 5, 1, true);
+    MomentsHeard& beside = t.own("test.beside", 40, 2, 10, 5, 2, true);
+
+    SUBCASE("an area in front elsewhere leaves the hold standing; one covering the press ends it") {
+        t.button(0, 12, 3, true);
+        t.place("test.beside", "test.beside", 40, 2, 10, 5, 5, true); // in front, not over it
+        t.move(14, 4, true);
+        CHECK(hearing.ended.empty());
+        CHECK(hearing.moves.size() == 1);
+        MomentsHeard& cover = t.own("test.cover", 11, 2, 5, 3, 2, true);
+        REQUIRE(hearing.ended.size() == 1);
+        CHECK(hearing.ended[0].area == "test.hearing");
+        CHECK(hearing.ended[0].button == 1);
+        CHECK(beside.ended.empty()); // an owner of another area hears nothing of it
+        CHECK(cover.ended.empty());
+        CHECK(t.presses.ended.empty()); // an area placed personally names no arranger
+        // THE RELEASE THEN GOES WHERE IT LANDS: the area in front hears it, numbered by no press.
+        t.button(0, 12, 3, false);
+        CHECK(hearing.buttons.size() == 1);
+        REQUIRE(cover.buttons.size() == 1);
+        CHECK_FALSE(cover.buttons[0].first.pressed);
+        CHECK(cover.buttons[0].second == 0);
+    }
+    SUBCASE("withdrawn") {
+        t.button(2, 12, 3, true);
+        t.r.to_role(gfx::kGraphicsRole,
+                    gfx::AreaPlaced{"test.hearing", "", "test.hearing", 0, 0, 0, 0, 0, false});
+        t.r.drain();
+        REQUIRE(hearing.ended.size() == 1);
+        CHECK(hearing.ended[0].button == 3);
+        t.button(2, 12, 3, false);
+        CHECK(hearing.buttons.size() == 1);
+    }
+    SUBCASE("handed to another owner") {
+        t.button(0, 12, 3, true);
+        MomentsHeard& heir = t.own("test.heir", 60, 20, 1, 1, 1, true);
+        t.place("test.hearing", "test.heir", 10, 2, 20, 5, 1, true);
+        REQUIRE(hearing.ended.size() == 1);
+        CHECK(heir.ended.empty()); // told to the owner the press was held for
+        t.button(0, 12, 3, false);
+        CHECK(hearing.buttons.size() == 1);
+        CHECK(heir.buttons.size() == 1); // the area's new owner hears the release where it lands
+    }
+    SUBCASE("in an area another office placed, its arranger is told too") {
+        MomentsHeard& placed = t.own("test.placed", 10, 10, 20, 5, 1, true, /*by_arranger=*/true);
+        t.button(0, 12, 12, true);
+        t.r.bus.office_send_to_role_as(
+            t.arranger, kArranger, gfx::kGraphicsRole,
+            loom::Message(loom::to_value(
+                gfx::AreaPlaced{"test.placed", "", "test.placed", 0, 0, 0, 0, 0, false})));
+        t.r.drain();
+        REQUIRE(placed.ended.size() == 1);
+        REQUIRE(t.presses.ended.size() == 1);
+        CHECK(t.presses.ended[0].area == "test.placed");
+        CHECK(t.presses.ended[0].button == 1);
+        CHECK(hearing.ended.empty());
+        CHECK(beside.ended.empty());
+    }
+}
+
+TEST_CASE("the pointer leaving an area placed to hear it, with no button held, is told once, when "
+          "the next move lands elsewhere, to the area's owner and its arranger when another office, "
+          "and to no one else") {
+    PointerDesk t;
+    MomentsHeard& a = t.own("test.a", 10, 2, 10, 5, 1, true);
+    MomentsHeard& b = t.own("test.b", 30, 2, 10, 5, 1, true);
+    t.move(12, 3);
+    t.move(13, 3);
+    CHECK(a.left.empty());
+    t.move(32, 3);
+    REQUIRE(a.left.size() == 1);
+    CHECK(a.left[0].area == "test.a");
+    CHECK(b.left.empty()); // the area it landed in hears its move, not where it came from
+    t.move(60, 20);
+    REQUIRE(b.left.size() == 1);
+    CHECK(b.left[0].area == "test.b");
+    t.move(61, 20);
+    CHECK(a.left.size() == 1);
+    CHECK(b.left.size() == 1);
+    CHECK(a.order == std::vector<std::string>{"move", "move", "left"});
+    CHECK(t.presses.left.empty()); // an area placed personally names no arranger
+
+    SUBCASE("in an area another office placed, its arranger is told too") {
+        MomentsHeard& placed = t.own("test.placed", 10, 10, 10, 5, 1, true, /*by_arranger=*/true);
+        t.move(12, 12);
+        t.move(60, 20);
+        REQUIRE(placed.left.size() == 1);
+        REQUIRE(t.presses.left.size() == 1);
+        CHECK(t.presses.left[0].area == "test.placed");
+        CHECK(a.left.size() == 1);
+        CHECK(b.left.size() == 1);
+    }
+    SUBCASE("an area handed to another owner while the pointer rests in it: the owner it had is "
+            "told the pointer left, and the new one is not") {
+        MomentsHeard& heir = t.own("test.heir", 60, 0, 1, 1, 1, true);
+        t.move(12, 3);
+        t.place("test.a", "test.heir", 10, 2, 10, 5, 1, true);
+        REQUIRE(a.left.size() == 2);
+        CHECK(heir.left.empty());
+        t.move(60, 20);
+        CHECK(heir.left.empty());
+        CHECK(a.left.size() == 2);
+    }
+}
+
+TEST_CASE("the directory names the office an area was placed as its arranger, and a placing said "
+          "personally names none") {
+    PointerDesk t;
+    const std::size_t mark = t.r.log.size();
+    (void)t.own("test.hearing", 10, 2, 20, 5, 1, true, /*by_arranger=*/true);
+    (void)t.own("test.rooted", 40, 2, 20, 5, 1, true);
+    std::map<std::string, std::string> arranger;
+    for (const gfx::AreaIntroduced& i : t.r.read<gfx::AreaIntroduced>(mark, gfx::kGraphicsRole)) {
+        arranger[i.area] = i.arranger;
+    }
+    CHECK(arranger.at("test.hearing") == kArranger);
+    CHECK(arranger.at("test.rooted").empty());
 }
 
 TEST_CASE("the new-game button is the world's action, and a new game reaches the board as a change") {
@@ -3972,10 +4293,11 @@ struct LitHeard {
     std::vector<gfx::AreaRoom> rooms;
     std::vector<std::string> refused;
     std::vector<std::string> said;
-    std::vector<zengine::input::PointerButton> pressed;
-    std::vector<zengine::input::PointerMoved> moves;
-    std::vector<zengine::input::PointerWheel> wheels;
+    std::vector<std::pair<gfx::AreaButtonChanged, std::uint64_t>> pressed;
+    std::vector<std::pair<gfx::AreaPointerMoved, std::uint64_t>> moves;
+    std::vector<gfx::AreaWheelTurned> wheels;
     std::vector<gfx::ActionRequested> actions;
+    std::vector<gfx::AreaHoldEnded> ended;
 };
 
 class LitOwner
@@ -3983,8 +4305,8 @@ class LitOwner
           LitOwner, GraphicsTestOwner,
           loom::Accept<gfx::AreaRoom, gfx::DrawnRefused, zengine::input::KeyPressed,
                        zengine::input::KeyReleased, zengine::input::TextEntered,
-                       zengine::input::PointerButton, zengine::input::PointerMoved,
-                       zengine::input::PointerWheel, gfx::ActionRequested>,
+                       gfx::AreaButtonChanged, gfx::AreaPointerMoved, gfx::AreaWheelTurned,
+                       gfx::AreaHoldEnded, gfx::ActionRequested>,
           loom::Emit<gfx::Drawn, gfx::ElementPut, gfx::ElementChange>> {
 public:
     explicit LitOwner(LitHeard& heard) : heard_(&heard) {}
@@ -4003,14 +4325,21 @@ public:
     void on(const zengine::input::TextEntered& e, loom::Mail& mail) {
         if (mail.authored_from_role(sdl_office())) heard_->said.push_back("text " + e.text);
     }
-    void on(const zengine::input::PointerButton& b, loom::Mail& mail) {
-        if (mail.authored_from_role(sdl_office())) heard_->pressed.push_back(b);
+    void on(const gfx::AreaButtonChanged& b, loom::Mail& mail) {
+        if (mail.authored_from_role(sdl_office())) {
+            heard_->pressed.emplace_back(b, mail.correlation());
+        }
     }
-    void on(const zengine::input::PointerMoved& m, loom::Mail& mail) {
-        if (mail.authored_from_role(sdl_office())) heard_->moves.push_back(m);
+    void on(const gfx::AreaPointerMoved& m, loom::Mail& mail) {
+        if (mail.authored_from_role(sdl_office())) {
+            heard_->moves.emplace_back(m, mail.correlation());
+        }
     }
-    void on(const zengine::input::PointerWheel& w, loom::Mail& mail) {
+    void on(const gfx::AreaWheelTurned& w, loom::Mail& mail) {
         if (mail.authored_from_role(sdl_office())) heard_->wheels.push_back(w);
+    }
+    void on(const gfx::AreaHoldEnded& e, loom::Mail& mail) {
+        if (mail.authored_from_role(sdl_office())) heard_->ended.push_back(e);
     }
     void on(const gfx::ActionRequested& a, loom::Mail& mail) {
         if (mail.authored_from_role(sdl_office())) heard_->actions.push_back(a);
@@ -4106,6 +4435,14 @@ struct LitWindow {
     void press(std::int64_t x, std::int64_t y) {
         light.queued.events.emplace_back(zengine::input::PointerButton{
             1, true, x, y, zengine::input::space::kPixels, zengine::input::mod::kNone});
+        pump();
+    }
+    /// A left press and its release at one pixel.
+    void click(std::int64_t x, std::int64_t y) {
+        for (const bool down : {true, false}) {
+            light.queued.events.emplace_back(zengine::input::PointerButton{
+                1, down, x, y, zengine::input::space::kPixels, zengine::input::mod::kNone});
+        }
         pump();
     }
 
@@ -4223,11 +4560,12 @@ TEST_CASE("a terminal window refuses a skin that paints light, in words, and sho
     }
 }
 
-TEST_CASE("a press on the OS window lands on the top node painted at its pixel: a record's action "
-          "to its owner, else the press to an owner placed to hear the pointer, else nothing") {
+TEST_CASE("a left press on the OS window lands on the top node painted at its pixel: in an area "
+          "placed to hear the pointer the press itself, a part's or not, and in one placed without "
+          "it a record's action, nothing drawn there taking it letting it through") {
     LitWindow t;
     LitHeard& back = t.own("test.back", 0, 0, 400, 200, "night", 0, false, /*pointer=*/true);
-    LitHeard& front = t.own("test.front", 100, 50, 100, 50, "night", 1);
+    LitHeard& front = t.own("test.front", 100, 50, 200, 50, "night", 1);
     gfx::Sketch b;
     b.fill_rect("plate", 0, 0, 400, 200, gfx::by_role(gfx::role::kGround));
     b.fill_rect("button", 10, 10, 50, 20, gfx::by_role(gfx::role::kAccent));
@@ -4235,39 +4573,50 @@ TEST_CASE("a press on the OS window lands on the top node painted at its pixel: 
     t.say("test.back", whole("test.back", b));
     gfx::Sketch f;
     f.text("lid", 10, 10, "lid", gfx::by_role(gfx::role::kFill));
+    f.fill_rect("knob", 150, 10, 20, 20, gfx::by_role(gfx::role::kAccent));
+    f.action("knob", "turn");
     t.say("test.front", whole("test.front", f));
 
-    t.press(20, 15); // the button
-    REQUIRE(back.actions.size() == 1);
-    CHECK(back.actions[0].area == "test.back");
-    CHECK(back.actions[0].action == "serve");
-    CHECK(back.pressed.empty());
-
-    t.press(300, 150); // the plate: no action, and the owner hears the pointer
-    REQUIRE(back.pressed.size() == 1);
-    CHECK(back.pressed[0].x == 300);
-    CHECK(back.pressed[0].y == 150);
-    CHECK(back.pressed[0].space == zengine::input::space::kPixels);
-
-    t.press(150, 90); // in the front area, where it painted nothing: what lies behind takes it
+    t.click(20, 15); // the button: a part of an area that hears the pointer is pressed as itself
+    CHECK(back.actions.empty());
     REQUIRE(back.pressed.size() == 2);
-    CHECK(back.pressed[1].x == 150);
-    CHECK(back.pressed[1].y == 90);
+    CHECK(back.pressed[0].first.area == "test.back");
+    CHECK(back.pressed[0].first.x == 20);
+    CHECK(back.pressed[0].first.y == 15);
+    CHECK(back.pressed[0].second != 0);
+    CHECK(back.pressed[1].second == back.pressed[0].second);
 
-    t.press(115, 65); // the lid: the front area's, which names no action and hears no pointer
-    CHECK(back.pressed.size() == 2);
-    CHECK(back.actions.size() == 1);
+    t.click(300, 150); // the plate
+    REQUIRE(back.pressed.size() == 4);
+    CHECK(back.pressed[2].first.x == 300);
+    CHECK(back.pressed[2].first.y == 150);
+
+    t.click(150, 90); // in the front area, where it painted nothing: what lies behind takes it
+    REQUIRE(back.pressed.size() == 6);
+    CHECK(back.pressed[4].first.x == 150);
+    CHECK(back.pressed[4].first.y == 90);
+
+    t.click(115, 65); // the lid names nothing, in an area deaf to the pointer: the back takes it
+    REQUIRE(back.pressed.size() == 8);
+    CHECK(back.pressed[6].first.x == 115);
     CHECK(front.pressed.empty());
-    CHECK(front.actions.empty());
 
-    t.press(500, 300); // outside every area
-    CHECK(back.pressed.size() == 2);
+    t.click(255, 65); // the knob names an action: its owner is asked it
+    REQUIRE(front.actions.size() == 1);
+    CHECK(front.actions[0].area == "test.front");
+    CHECK(front.actions[0].action == "turn");
+    CHECK(back.pressed.size() == 8);
+
+    t.click(500, 300); // outside every area
+    CHECK(back.pressed.size() == 8);
 
     // A press in cells lands at its cell's centre.
     t.light.queued.events.emplace_back(zengine::input::PointerButton{
         1, true, 1, 1, zengine::input::space::kCells, zengine::input::mod::kNone});
     t.pump();
-    CHECK(back.actions.size() == 2);
+    REQUIRE(back.pressed.size() == 9);
+    CHECK(back.pressed[8].first.x == gfx::kCellPx + gfx::kCellPx / 2);
+    CHECK(back.pressed[8].first.y == gfx::kCellPx + gfx::kCellPx / 2);
 }
 
 TEST_CASE("keys, their text and their releases go from the OS window to the owner of each area "
@@ -4285,8 +4634,9 @@ TEST_CASE("keys, their text and their releases go from the OS window to the owne
     CHECK(deaf.said.empty());
 }
 
-TEST_CASE("the OS window sends a release, another button, a move and the wheel to the owner of the "
-          "area they land in, at its own pixel, only when it was placed to hear the pointer") {
+TEST_CASE("the OS window gives a release, another button, a move and the wheel to the owner of "
+          "the area they land in, at its own pixel, only when it was placed to hear the pointer, "
+          "and a held press its moves and its release wherever they land") {
     namespace in = zengine::input;
     LitWindow t;
     LitHeard& back = t.own("test.back", 0, 0, 400, 200, "night", 0, false, /*pointer=*/true);
@@ -4294,55 +4644,70 @@ TEST_CASE("the OS window sends a release, another button, a move and the wheel t
     LitHeard& deaf = t.own("test.deaf", 0, 300, 400, 100, "night", 2);
     auto& q = t.light.queued.events;
     q.emplace_back(in::PointerButton{1, false, 120, 70, in::space::kPixels, in::mod::kNone});
-    q.emplace_back(in::PointerButton{3, true, 10, 12, in::space::kPixels, in::mod::kNone});
     q.emplace_back(in::PointerMoved{130, 80, 2, 3, in::space::kPixels, in::mod::kNone});
     q.emplace_back(in::PointerMoved{140, 85, 10, 5, in::space::kPixels, in::mod::kNone});
     q.emplace_back(in::PointerWheel{0.0, -1.5, 20, 30, in::space::kPixels, in::mod::kNone});
     q.emplace_back(in::PointerButton{2, true, 50, 350, in::space::kPixels, in::mod::kNone});
     q.emplace_back(in::PointerMoved{60, 360, 10, 10, in::space::kPixels, in::mod::kNone});
     q.emplace_back(in::PointerWheel{1.0, 0.0, 60, 360, in::space::kPixels, in::mod::kNone});
+    q.emplace_back(in::PointerButton{2, false, 60, 360, in::space::kPixels, in::mod::kNone});
     q.emplace_back(in::PointerButton{1, false, 500, 500, in::space::kPixels, in::mod::kNone});
     t.pump();
 
-    // The front area's: the release at its own pixel, and two moves read in one beat as one.
+    // The front area's: the release at its own pixel, no press holding it, and two moves read in
+    // one beat as one.
     REQUIRE(front.pressed.size() == 1);
-    CHECK(front.pressed[0].button == 1);
-    CHECK_FALSE(front.pressed[0].pressed);
-    CHECK(front.pressed[0].x == 20);
-    CHECK(front.pressed[0].y == 20);
-    CHECK(front.pressed[0].space == in::space::kPixels);
+    CHECK(front.pressed[0].first.button == 1);
+    CHECK_FALSE(front.pressed[0].first.pressed);
+    CHECK(front.pressed[0].first.x == 20);
+    CHECK(front.pressed[0].first.y == 20);
+    CHECK(front.pressed[0].second == 0);
     REQUIRE(front.moves.size() == 1);
-    CHECK(front.moves[0].x == 40);
-    CHECK(front.moves[0].y == 35);
-    CHECK(front.moves[0].dx == 12);
-    CHECK(front.moves[0].dy == 8);
+    CHECK(front.moves[0].first.x == 40);
+    CHECK(front.moves[0].first.y == 35);
+    CHECK(front.moves[0].first.dx == 12);
+    CHECK(front.moves[0].first.dy == 8);
     CHECK(front.wheels.empty());
-    // The back area's: the right press and the wheel.
-    REQUIRE(back.pressed.size() == 1);
-    CHECK(back.pressed[0].button == 3);
-    CHECK(back.pressed[0].pressed);
-    CHECK(back.pressed[0].x == 10);
-    CHECK(back.pressed[0].y == 12);
+    // The back area's: the wheel.
     REQUIRE(back.wheels.size() == 1);
     CHECK(back.wheels[0].dy == doctest::Approx(-1.5));
     CHECK(back.wheels[0].x == 20);
     CHECK(back.wheels[0].y == 30);
-    CHECK(back.wheels[0].space == in::space::kPixels);
-    CHECK(back.moves.empty());
+    CHECK(back.pressed.empty());
     // Placed without the pointer, or outside every area: nothing.
     CHECK(deaf.pressed.empty());
     CHECK(deaf.moves.empty());
     CHECK(deaf.wheels.empty());
 
-    // A move in cells lands at its cell's centre, its deltas in pixels.
+    // THE RIGHT BUTTON HELD IN THE BACK AREA: its moves go there wherever they land, in cells at
+    // their cell's centre and in pixels, and so does its release, under the press's number.
+    q.emplace_back(in::PointerButton{3, true, 10, 12, in::space::kPixels, in::mod::kNone});
+    q.emplace_back(in::PointerMoved{150, 70, 1, 1, in::space::kPixels, in::mod::kNone});
+    t.pump();
     q.emplace_back(in::PointerMoved{1, 1, 2, -1, in::space::kCells, in::mod::kNone});
     t.pump();
-    REQUIRE(back.moves.size() == 1);
-    CHECK(back.moves[0].x == gfx::kCellPx + gfx::kCellPx / 2);
-    CHECK(back.moves[0].y == gfx::kCellPx + gfx::kCellPx / 2);
-    CHECK(back.moves[0].dx == 2 * gfx::kCellPx);
-    CHECK(back.moves[0].dy == -gfx::kCellPx);
-    CHECK(back.moves[0].space == in::space::kPixels);
+    q.emplace_back(in::PointerButton{3, false, 120, 350, in::space::kPixels, in::mod::kNone});
+    t.pump();
+    REQUIRE(back.pressed.size() == 2);
+    CHECK(back.pressed[0].first.button == 3);
+    CHECK(back.pressed[0].first.pressed);
+    CHECK(back.pressed[0].first.x == 10);
+    CHECK(back.pressed[0].first.y == 12);
+    const std::uint64_t press = back.pressed[0].second;
+    CHECK(press != 0);
+    REQUIRE(back.moves.size() == 2);
+    CHECK(back.moves[0].first.x == 150); // over the front area, held by the back's press
+    CHECK(back.moves[0].second == press);
+    CHECK(back.moves[1].first.x == gfx::kCellPx + gfx::kCellPx / 2);
+    CHECK(back.moves[1].first.y == gfx::kCellPx + gfx::kCellPx / 2);
+    CHECK(back.moves[1].first.dx == 2 * gfx::kCellPx);
+    CHECK(back.moves[1].first.dy == -gfx::kCellPx);
+    CHECK_FALSE(back.pressed[1].first.pressed);
+    CHECK(back.pressed[1].first.x == 120);
+    CHECK(back.pressed[1].first.y == 350);
+    CHECK(back.pressed[1].second == press);
+    CHECK(front.moves.size() == 1);
+    CHECK(deaf.pressed.empty());
 }
 
 TEST_CASE("the OS window publishes a close its desktop asked for as its office, once for each ask, "
@@ -4884,14 +5249,14 @@ TEST_CASE("the OS window empties SDL's own queue: a key's release, a move, anoth
     w.pump();
     CHECK(w.heard.said == std::vector<std::string>{"up Q"});
     REQUIRE(w.heard.moves.size() == 1);
-    CHECK(w.heard.moves[0].x == 30);
-    CHECK(w.heard.moves[0].y == 20);
-    CHECK(w.heard.moves[0].dx == 4);
-    CHECK(w.heard.moves[0].dy == -1);
+    CHECK(w.heard.moves[0].first.x == 30);
+    CHECK(w.heard.moves[0].first.y == 20);
+    CHECK(w.heard.moves[0].first.dx == 4);
+    CHECK(w.heard.moves[0].first.dy == -1);
     REQUIRE(w.heard.pressed.size() == 1);
-    CHECK(w.heard.pressed[0].button == 3);
-    CHECK_FALSE(w.heard.pressed[0].pressed);
-    CHECK(w.heard.pressed[0].x == 31);
+    CHECK(w.heard.pressed[0].first.button == 3);
+    CHECK_FALSE(w.heard.pressed[0].first.pressed);
+    CHECK(w.heard.pressed[0].first.x == 31);
     REQUIRE(w.heard.wheels.size() == 1);
     CHECK(w.heard.wheels[0].dy == doctest::Approx(-1.0)); // flipped, put back
     CHECK(w.heard.wheels[0].x == 32);

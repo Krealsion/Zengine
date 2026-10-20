@@ -142,7 +142,8 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
     // EACH OPEN PANE WHOSE OFFICE DRAWS IN A WINDOW, over its body, in the desk's order and above
     // Workshop's own area; a pane that does not, or whose last word was refused, is drawn by
     // Workshop. The window's keys and text are Workshop's alone, whichever pane they are typed
-    // into: its keymap decides first, and a pane hears them as `PaneKey` and `PaneTextInput`.
+    // into: its keymap decides first, and a pane hears them as `PaneKey` and `PaneTextInput`. Its
+    // pointer is the pane's own where its office hears the window's (`AreaButtonChanged`).
     const Screen sc = screen_of(session_);
     const std::vector<std::int64_t> order =
         effective_pane_order(session_.setup.active, session_.panes);
@@ -171,7 +172,7 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         next[area] = graphics::AreaPlaced{
             area, window_name_, row->provider, place.x, place.y, place.w, place.h,
             static_cast<std::int64_t>(i) + 1, false,
-            accepts(row->provider, *loom::schema_of<input::PointerButton>())};
+            accepts(row->provider, *loom::schema_of<graphics::AreaButtonChanged>())};
         const SetupPane* seat =
             pane_of(session_.setup.active, PaneRef{row->provider, row->pane});
         const PaneSetting* own =
@@ -182,12 +183,19 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         kinds.insert(order[i]);
     }
     // WORKSHOP'S OWN AREA, the whole screen: behind every pane's, and in front of them while a
-    // weaver arranges or a menu is open, or while a carried value or a guide mark stands over them.
-    const bool front = desk_in_front(session_) || !window_overlays_.empty();
+    // weaver arranges, a menu is open or something is carried. Its overlay stands in front of all,
+    // hearing nothing, so a guide mark or the carried value stands over the panes without taking
+    // a press from the pane under it.
+    const auto panes_order = static_cast<std::int64_t>(order.size());
     next[kWorkshopProvider] = graphics::AreaPlaced{
         kWorkshopProvider, window_name_, kWorkshopProvider, 0, 0, sc.w, sc.h,
-        front ? static_cast<std::int64_t>(order.size()) + 1 : 0, true, true};
+        desk_in_front_of_panes() ? panes_order + 1 : 0, true, true};
     skins[kWorkshopProvider] = session_.skin;
+    next[kWorkshopOverlayArea] = graphics::AreaPlaced{
+        kWorkshopOverlayArea, window_name_, kWorkshopProvider, 0, 0, sc.w, sc.h, panes_order + 2,
+        false, false};
+    skins[kWorkshopOverlayArea] = session_.skin;
+    end_covered_holds(next);
     for (const auto& [area, was] : areas_placed_) {
         if (next.count(area) == 0) {
             to_directory(graphics::AreaPlaced{area, "", was.owner, 0, 0, 0, 0, 0, false, false});
@@ -208,30 +216,92 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
     }
     areas_placed_ = std::move(next);
     placed_kinds_ = std::move(kinds);
-    if (!graphics_asked_ && !window_.shown()) {
+    tell_keys(mail);
+    if (!graphics_asked_ && (!window_.shown() || !overlay_.shown())) {
         graphics_asked_ = true;
         to_directory(graphics::RoomAsked{kWorkshopProvider});
+        to_directory(graphics::RoomAsked{kWorkshopOverlayArea});
+    }
+}
+
+bool WorkshopWeave::desk_in_front_of_panes() const {
+    return desk_in_front(session_) || !carried_.data.empty();
+}
+
+// WL-FOCUS-04 -- agents/workshop/focus.md
+void WorkshopWeave::tell_keys(loom::Mail& mail) {
+    const std::int64_t typing = typing_pane(session_);
+    std::map<std::int64_t, std::pair<std::uint64_t, bool>> told;
+    for (const std::int64_t kind : placed_kinds_) {
+        const RuntimePane* row = session_.panes.runtime.of_kind(kind);
+        if (row == nullptr || !host_->holder_accepts ||
+            !host_->holder_accepts(row->provider, *loom::schema_of<PaneKeys>())) {
+            continue;
+        }
+        // A HOLDER IS KNOWN BY ITS WEAVE AND ITS INCARNATION: one started again knows nothing.
+        const loom::WeaveId holder =
+            host_->role_holder ? host_->role_holder(row->provider) : loom::WeaveId{};
+        const std::uint64_t life =
+            holder.value ^ (host_->incarnation_of && holder.valid()
+                                ? static_cast<std::uint64_t>(host_->incarnation_of(holder)) << 32
+                                : 0);
+        const std::pair<std::uint64_t, bool> now{life, typing == kind};
+        const auto was = keys_told_.find(kind);
+        if (was == keys_told_.end() || was->second != now) {
+            (void)mail.as_role(kWorkshopProvider)
+                .send_to_role(row->provider, PaneKeys{row->pane, now.second});
+        }
+        told[kind] = now;
+    }
+    keys_told_ = std::move(told);
+}
+
+// WL-ARR-02 -- agents/workshop/arrangement.md; WL-FOCUS-11 -- agents/workshop/focus.md
+void WorkshopWeave::end_covered_holds(const std::map<std::string, graphics::AreaPlaced>& next) {
+    const auto covered = [&next](const std::string& area, std::int64_t x, std::int64_t y) {
+        const auto held = next.find(area);
+        if (held == next.end()) {
+            return true;
+        }
+        for (const auto& [name, a] : next) {
+            if (name != area && a.pointer && a.order > held->second.order && x >= a.x &&
+                y >= a.y && x < a.x + a.w && y < a.y + a.h) {
+                return true;
+            }
+        }
+        return false;
+    };
+    bool own_ended = false;
+    for (WindowHold& hold : own_holds_) {
+        if (hold.active && covered(hold.area, hold.x, hold.y)) {
+            hold = WindowHold{};
+            own_ended = true;
+        }
+    }
+    if (own_ended) {
+        (void)end_held_gestures();
+    }
+    for (WindowHold& hold : pane_holds_) {
+        if (!hold.active) {
+            continue;
+        }
+        const auto placed = next.find(hold.area);
+        const RuntimePane* row = session_.panes.runtime.of_kind(hold.kind);
+        if (placed == next.end() || row == nullptr || placed->second.owner != row->provider ||
+            covered(hold.area, hold.x, hold.y)) {
+            hold = WindowHold{};
+        }
     }
 }
 
 void WorkshopWeave::draw_window(loom::Mail& mail) {
-    if (!window_.shown()) {
-        return;
+    if (window_.shown()) {
+        window_.draw(
+            workshop_window_drawing(session_, placed_kinds_, desk_in_front_of_panes()).sketch,
+            mail);
     }
-    WorkshopWindowDrawing drawn =
-        workshop_window_drawing(session_, placed_kinds_, window_overlays_);
-    window_parts_ = std::move(drawn.parts);
-    window_.draw(drawn.sketch, mail);
-}
-
-void WorkshopWeave::window_click(std::int64_t x, std::int64_t y, loom::Mail& mail) {
-    struct Clicking {
-        bool& on;
-        ~Clicking() { on = false; }
-    } clicking{window_clicking_};
-    window_clicking_ = true;
-    for (const bool down : {true, false}) {
-        on(input::PointerButton{1, down, x, y, input::space::kPixels, input::mod::kNone}, mail);
+    if (overlay_.shown()) {
+        overlay_.draw(workshop_overlay_drawing(session_, window_overlays_), mail);
     }
 }
 
@@ -438,6 +508,7 @@ bool WorkshopWeave::hold_input(HeldInput held) {
         return true;
     }
     held.actor = input_actor_;
+    held.window = window_moment_;
     held_input_.push_back(std::move(held));
     return true;
 }
@@ -449,10 +520,18 @@ void WorkshopWeave::replay_held(loom::Mail& mail) {
     struct RestoreActor {
         InputActor& current;
         InputActor before;
-        ~RestoreActor() { current = before; }
-    } restore{input_actor_, input_actor_};
+        bool& window;
+        bool was_window;
+        ~RestoreActor() {
+            current = before;
+            window = was_window;
+        }
+    } restore{input_actor_, input_actor_, window_moment_, window_moment_};
     for (const HeldInput& held : replay) {
         input_actor_ = held.actor;
+        // A MOMENT A WINDOW GAVE WORKSHOP'S OWN AREA IS REPLAYED AS ONE, so it reaches no pane
+        // that window shows in an area of its own (`placed_in_window`).
+        window_moment_ = held.window;
         switch (held.kind) {
         case HeldInput::Kind::kKey: on(held.key, mail); break;
         case HeldInput::Kind::kText: on(held.text, mail); break;

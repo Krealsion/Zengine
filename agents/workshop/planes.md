@@ -40,7 +40,7 @@ WHY — `agents/decisions/two-bands.md`
 LAW — The selection is a press's memory: session-only, never persisted, none at start, resolved to a pane by one reader; it has four writers and no other.
 
 MEANS
-- the press line, `enter_arrange_pane` after admission, a pane's reveal, Escape's fallthrough;
+- the press line (in a graphics window also `on(AreaPressed)`), `enter_arrange_pane` after admission, a pane's reveal, Escape's fallthrough;
 - a refused Arrange leaves the selection exactly where it was.
 
 WHY — `agents/decisions/the-selection-lift.md`
@@ -107,6 +107,7 @@ begins"
 `tests/test_workshop_screen.cpp` "the selection lift never reaches the file, and no session starts
 with one" "contextual Arrange lifts the pane it addressed, not the one in front" "every pane a
 weaver can point at can be arranged, and the refusals are blind"
+`workshop/weave_handlers.cpp` on(AreaPressed)
 
 ### WL-FRONT-05
 `workshop/setup_reconcile.hpp` effective_pane_order presentation_order

@@ -31,12 +31,12 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <map>
 #include <optional>
 #include <random>
 #include <set>
 #include <string>
 #include <string_view>
-#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -48,14 +48,15 @@ inline constexpr const char* kPumpTimerId = "zengine.window.pump";
 inline constexpr std::int64_t kPumpBeatMs = 10;
 
 /// What a window keeps across a reload: its incarnation, its areas with everything drawn in them,
-/// the element code offered for each type, and the next handle it names an element by.
+/// the element code offered for each type, and the next handle it names an element by. A press it
+/// holds is not kept: a reload ends every hold, untold, and a release goes where it lands.
 struct WindowState {
     std::int64_t epoch = 0;
     std::vector<WinArea> areas;
     std::vector<ElementCodeOffered> codes;
     std::int64_t next_handle = 1;
     std::int64_t refusals = 0;
-    ZEN_SHAPE(WindowState, 2, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
+    ZEN_SHAPE(WindowState, 3, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
               ZEN_FIELD(next_handle), ZEN_FIELD(refusals));
 };
 
@@ -97,10 +98,9 @@ using WindowBase = typename zengine::With<
                  SurfaceCaptureRequested, SurfaceCaptureChunkRequested>,
     loom::Emit<DrawnRefused, WindowOffered, AreaRoom, zengine::input::KeyPressed,
                zengine::input::KeyReleased, zengine::input::TextEntered, ActionRequested,
-               zengine::input::PointerButton, zengine::input::PointerMoved,
-               zengine::input::PointerWheel, WindowShown, SurfaceCloseRequested,
-               SurfacePlacement, ClipboardText, SurfaceCaptured, SurfaceCaptureChunk,
-               loom::Refused>,
+               AreaButtonChanged, AreaPointerMoved, AreaWheelTurned, AreaPressed, AreaHoldEnded,
+               AreaPointerLeft, WindowShown, SurfaceCloseRequested, SurfacePlacement, ClipboardText,
+               SurfaceCaptured, SurfaceCaptureChunk, loom::Refused>,
     zengine::timer::TimedWeave>;
 
 /// The window over `Medium`, which names it (`kWindow`), carries its manual (`kManual`), and
@@ -110,9 +110,10 @@ class Window : public WindowBase<Medium> {
 public:
     using WindowBase<Medium>::on;
 
-    Window() : pump_(declare_pump()) {}
+    Window() : pump_(declare_pump()), next_press_(first_press()) {}
     template <class Device>
-    explicit Window(Device device) : medium_(std::move(device)), pump_(declare_pump()) {}
+    explicit Window(Device device)
+        : medium_(std::move(device)), pump_(declare_pump()), next_press_(first_press()) {}
 
     // ---- drawing -------------------------------------------------------------------------
 
@@ -146,7 +147,9 @@ public:
     // ---- what the directory says --------------------------------------------------------------
 
     /// An area introduced, or introduced again: kept, painted again where it moved or another skin
-    /// paints it, emptied when another owner draws in it, and its owner told its room.
+    /// paints it, emptied when another owner draws in it, and its owner told its room. A press held
+    /// for it ends when it changes hands, and the pointer resting in it leaves it, each told to the
+    /// owner it had; so does a press held for an area it now stands in front of (`end_covered`).
     void on(const AreaIntroduced& i, loom::Mail& mail) {
         if (!mail.authored_from_role(kGraphicsRole)) {
             return;
@@ -175,8 +178,14 @@ public:
             a->nodes.clear();
             a->records.clear();
             a->presented.clear();
+            end_holds(mail, a->area);
+            if (hovered_ == a->area) {
+                to_owner_and_arranger(mail, *a, AreaPointerLeft{a->area});
+                hovered_.clear();
+            }
         }
         a->owner = i.owner;
+        a->arranger = i.arranger;
         a->x = i.x;
         a->y = i.y;
         a->w = i.w;
@@ -194,6 +203,7 @@ public:
         }
         settle(mail, false);
         room(mail, *a);
+        end_covered(mail);
     }
 
     void on(const AreaWithdrawn& w, loom::Mail& mail) {
@@ -207,6 +217,10 @@ public:
         medium_.cover_area(*a);
         const std::string library = a->library;
         medium_.drop_area(w.area);
+        end_holds(mail, w.area);
+        if (hovered_ == w.area) {
+            hovered_.clear();
+        }
         std::erase_if(this->state_.areas, [&](const WinArea& k) { return k.area == w.area; });
         close_unused(library);
         settle(mail, false);
@@ -382,13 +396,24 @@ private:
 
     // ---- input --------------------------------------------------------------------------------
 
+    /// A point of the window in pixels: one in cells stands at its cell's centre.
+    struct Point {
+        std::int64_t x = 0, y = 0;
+    };
+    static Point point_of(std::int64_t x, std::int64_t y, std::int64_t space) {
+        if (space != zengine::input::space::kCells) {
+            return Point{x, y};
+        }
+        return Point{sum(times_cell(x), kCellPx / 2), sum(times_cell(y), kCellPx / 2)};
+    }
+
     void on_pump(const zengine::timer::TimerFired&, loom::Mail& mail) { service_pump(mail); }
 
     /// The beat: the window's place said, then its medium measured, then what it read sent on, in
     /// the order read, and a close its desktop asked for published. A key, its release and its text
-    /// go alike, to the owner of each area placed to hear keys. A left press goes where it lands
-    /// (`press`); every other pointer moment to the area it lands in, when that area was placed to
-    /// hear the pointer. Moves read one after another go as one: the last point, the deltas summed.
+    /// go alike, to the owner of each area placed to hear keys. A button goes where it lands, or,
+    /// let go, to the area its press is held for (`button`); a move and the wheel as `motion` and
+    /// `wheel` say. Moves read one after another go as one: the last point, the deltas summed.
     void service_pump(loom::Mail& mail) {
         namespace in = zengine::input;
         report_placement(mail);
@@ -405,11 +430,7 @@ private:
             } else if (const auto* t = std::get_if<in::TextEntered>(&e)) {
                 to_keys(mail, *t);
             } else if (const auto* b = std::get_if<in::PointerButton>(&e)) {
-                if (b->pressed && b->button == 1) {
-                    press(mail, *b);
-                } else {
-                    to_pointer(mail, *b);
-                }
+                button(mail, *b);
             } else if (const auto* m = std::get_if<in::PointerMoved>(&e)) {
                 in::PointerMoved run = *m;
                 while (i + 1 < read.size()) {
@@ -424,37 +445,15 @@ private:
                     run.modifiers = next->modifiers;
                     ++i;
                 }
-                to_pointer(mail, run);
+                motion(mail, run);
             } else if (const auto* w = std::get_if<in::PointerWheel>(&e)) {
-                to_pointer(mail, *w);
+                wheel(mail, *w);
             }
         }
         if (medium_.take_close()) {
             (void)mail.as_role(office()).publish(SurfaceCloseRequested{});
         }
         settle(mail, false);
-    }
-
-    /// A pointer moment other than a left press, to the owner of the area it lands in when that
-    /// area was placed to hear the pointer: at the area's own point, in pixels, a move's deltas
-    /// in pixels too.
-    template <class Moment>
-    void to_pointer(loom::Mail& mail, Moment at) {
-        namespace in = zengine::input;
-        const Landed l = medium_.land(this->state_.areas, at.x, at.y, at.space);
-        if (l.area == nullptr || !l.area->pointer || l.area->owner.empty()) {
-            return;
-        }
-        if constexpr (std::is_same_v<Moment, in::PointerMoved>) {
-            if (at.space == in::space::kCells) {
-                at.dx = times_cell(at.dx);
-                at.dy = times_cell(at.dy);
-            }
-        }
-        at.x = l.x;
-        at.y = l.y;
-        at.space = in::space::kPixels;
-        (void)mail.as_role(office()).send_to_role(l.area->owner, at);
     }
 
     /// A key, or its text, to the owner of each area placed to hear keys, front to back.
@@ -467,33 +466,194 @@ private:
         }
     }
 
-    /// A press where the medium lands it: the element presented there, if its code takes it; else
-    /// the action its record names, to the area's owner; else, to an owner whose area was placed
-    /// to hear the pointer, the press itself at the area's own point; else nothing.
-    void press(loom::Mail& mail, const zengine::input::PointerButton& b) {
+    /// A button pressed where the medium lands it: the element presented there, if its code takes a
+    /// left press; else, in an area not placed to hear the pointer, the action a left press's
+    /// record names, to the area's owner; else, in an area placed to hear it, the press itself,
+    /// held for that area until its release and told to the area's arranger. A button let go goes
+    /// to the area its press is held for, wherever it lands; one no hold names, where it lands.
+    void button(loom::Mail& mail, const zengine::input::PointerButton& b) {
+        const Point at = point_of(b.x, b.y, b.space);
+        if (!b.pressed) {
+            const auto held = holds_.find(b.button);
+            if (held != holds_.end()) {
+                const Hold hold = held->second;
+                holds_.erase(held);
+                const WinArea* a = find(hold.area);
+                if (a != nullptr && a->pointer && !a->owner.empty()) {
+                    tell(mail, *a, b, at, hold.press);
+                }
+                return;
+            }
+            const Landed l = medium_.land(this->state_.areas, b.x, b.y, b.space);
+            if (l.area != nullptr && l.area->pointer && !l.area->owner.empty()) {
+                to_owner(mail, *l.area,
+                         AreaButtonChanged{l.area->area, b.button, false, l.x, l.y, b.modifiers},
+                         0);
+            }
+            return;
+        }
+        if (holds_.count(b.button) != 0) {
+            end_hold(mail, b.button); // its release was never read
+        }
         const Landed l = medium_.land(this->state_.areas, b.x, b.y, b.space);
         if (l.area == nullptr) {
             return;
         }
         WinArea* a = find(l.area->area);
-        Presented* p = presented_at(*a, l.path);
-        if (p != nullptr && act(mail, *a, *p,
-                                ElementEvent{event::kPress, p->handle, p->path, p->state, 0, {},
-                                             l.path})) {
+        if (b.button == 1) {
+            Presented* p = presented_at(*a, l.path);
+            if (p != nullptr && act(mail, *a, *p,
+                                    ElementEvent{event::kPress, p->handle, p->path, p->state, 0,
+                                                 {}, l.path})) {
+                return;
+            }
+            const ElementRecord* r = record_of(*a, l.path);
+            if (!a->pointer && p == nullptr && r != nullptr && !r->action.empty()) {
+                (void)mail.as_role(office()).send_to_role(a->owner,
+                                                          ActionRequested{a->area, r->action});
+                return;
+            }
+        }
+        if (!a->pointer || a->owner.empty()) {
             return;
         }
-        const ElementRecord* r = record_of(*a, l.path);
-        if (p == nullptr && r != nullptr && !r->action.empty()) {
-            (void)mail.as_role(office()).send_to_role(a->owner,
-                                                      ActionRequested{a->area, r->action});
+        const std::uint64_t press = next_press_++;
+        holds_[b.button] = Hold{a->area, at.x, at.y, press};
+        tell(mail, *a, b, at, press);
+    }
+
+    /// A button's moment, to the owner of the area its press is held for or landed in at the
+    /// area's point, and to the area's arranger, when another office, at the window's: both under
+    /// the press's number.
+    void tell(loom::Mail& mail, const WinArea& a, const zengine::input::PointerButton& b,
+              const Point& at, std::uint64_t press) {
+        to_owner(mail, a,
+                 AreaButtonChanged{a.area, b.button, b.pressed, sum(at.x, -a.x), sum(at.y, -a.y),
+                            b.modifiers},
+                 press);
+        if (!a.arranger.empty() && a.arranger != a.owner) {
+            (void)mail.as_role(office()).send_to_role(
+                a.arranger,
+                AreaPressed{std::string(Medium::kWindow), a.area, b.button, b.pressed, at.x, at.y},
+                press);
+        }
+    }
+
+    /// A move: to each area a held press holds the pointer for, at that area's point; with none
+    /// held, to the area it lands in when that area hears the pointer, the area the last unheld
+    /// move landed in told first that the pointer left it.
+    void motion(loom::Mail& mail, zengine::input::PointerMoved m) {
+        namespace in = zengine::input;
+        if (m.space == in::space::kCells) {
+            m.dx = times_cell(m.dx);
+            m.dy = times_cell(m.dy);
+        }
+        if (!holds_.empty()) {
+            const Point at = point_of(m.x, m.y, m.space);
+            std::set<std::string> told;
+            for (const auto& [button, hold] : holds_) {
+                const WinArea* a = find(hold.area);
+                if (a == nullptr || !a->pointer || a->owner.empty() ||
+                    !told.insert(hold.area).second) {
+                    continue;
+                }
+                to_owner(mail, *a,
+                         AreaPointerMoved{a->area, sum(at.x, -a->x), sum(at.y, -a->y), m.dx, m.dy,
+                                    m.modifiers},
+                         hold.press);
+            }
             return;
         }
-        if (a->pointer) {
-            zengine::input::PointerButton at = b;
-            at.x = l.x;
-            at.y = l.y;
-            at.space = zengine::input::space::kPixels;
-            (void)mail.as_role(office()).send_to_role(a->owner, at);
+        const Landed l = medium_.land(this->state_.areas, m.x, m.y, m.space);
+        const WinArea* over =
+            l.area != nullptr && l.area->pointer && !l.area->owner.empty() ? l.area : nullptr;
+        const std::string now = over != nullptr ? over->area : std::string();
+        if (!hovered_.empty() && hovered_ != now) {
+            const WinArea* left = find(hovered_);
+            if (left != nullptr) {
+                to_owner_and_arranger(mail, *left, AreaPointerLeft{hovered_});
+            }
+        }
+        hovered_ = now;
+        if (over != nullptr) {
+            to_owner(mail, *over,
+                     AreaPointerMoved{over->area, l.x, l.y, m.dx, m.dy, m.modifiers}, 0);
+        }
+    }
+
+    /// The wheel, to the area it lands in when that area hears the pointer.
+    void wheel(loom::Mail& mail, const zengine::input::PointerWheel& w) {
+        const Landed l = medium_.land(this->state_.areas, w.x, w.y, w.space);
+        if (l.area != nullptr && l.area->pointer && !l.area->owner.empty()) {
+            to_owner(mail, *l.area,
+                     AreaWheelTurned{l.area->area, w.dx, w.dy, l.x, l.y, w.modifiers}, 0);
+        }
+    }
+
+    template <class Moment>
+    void to_owner(loom::Mail& mail, const WinArea& a, const Moment& moment, std::uint64_t press) {
+        (void)mail.as_role(office()).send_to_role(a.owner, moment, press);
+    }
+
+    /// What became of the pointer in an area, to its owner and to its arranger when another office:
+    /// no other office hears where the pointer goes.
+    template <class Said>
+    void to_owner_and_arranger(loom::Mail& mail, const WinArea& a, const Said& said) {
+        if (!a.owner.empty()) {
+            (void)mail.as_role(office()).send_to_role(a.owner, said);
+        }
+        if (!a.arranger.empty() && a.arranger != a.owner) {
+            (void)mail.as_role(office()).send_to_role(a.arranger, said);
+        }
+    }
+
+    /// A press held for an area, ended with no release: forgotten, and told to the area's owner
+    /// and arranger while the area still names them.
+    void end_hold(loom::Mail& mail, std::int64_t button) {
+        const auto held = holds_.find(button);
+        if (held == holds_.end()) {
+            return;
+        }
+        const std::string area = held->second.area;
+        holds_.erase(held);
+        const WinArea* a = find(area);
+        if (a != nullptr) {
+            to_owner_and_arranger(mail, *a, AreaHoldEnded{area, button});
+        }
+    }
+
+    /// Every press held for `area` ended: it was withdrawn, or handed to another owner.
+    void end_holds(loom::Mail& mail, const std::string& area) {
+        std::vector<std::int64_t> ended;
+        for (const auto& [button, hold] : holds_) {
+            if (hold.area == area) {
+                ended.push_back(button);
+            }
+        }
+        for (const std::int64_t button : ended) {
+            end_hold(mail, button);
+        }
+    }
+
+    /// Every press held for an area that another area placed to hear the pointer now stands in
+    /// front of, where the press was made.
+    void end_covered(loom::Mail& mail) {
+        std::vector<std::int64_t> ended;
+        for (const auto& [button, hold] : holds_) {
+            const WinArea* held = find(hold.area);
+            if (held == nullptr) {
+                continue;
+            }
+            for (const WinArea& a : this->state_.areas) {
+                if (a.area != held->area && a.pointer && a.order > held->order &&
+                    hold.x >= a.x && hold.y >= a.y && hold.x < a.x + a.w && hold.y < a.y + a.h) {
+                    ended.push_back(button);
+                    break;
+                }
+            }
+        }
+        for (const std::int64_t button : ended) {
+            end_hold(mail, button);
         }
     }
 
@@ -797,6 +957,10 @@ private:
         return static_cast<std::int64_t>((r & 0x1fffffffffffffffULL) | (1ULL << 61));
     }
 
+    /// The number the first press is given: random, so a window reloaded or started again names no
+    /// press another of its lives named.
+    static std::uint64_t first_press() { return static_cast<std::uint64_t>(token()); }
+
     WinArea* find(const std::string& area) {
         for (WinArea& a : this->state_.areas) {
             if (a.area == area) {
@@ -863,8 +1027,19 @@ private:
         CapturedWindowPicture picture;
     };
 
+    /// A press held for an area until its button's release: the area, where the press was made in
+    /// the window's pixels, and the press's number.
+    struct Hold {
+        std::string area;
+        std::int64_t x = 0, y = 0;
+        std::uint64_t press = 0;
+    };
+
     Medium medium_;
     typename WindowBase<Medium>::Handle pump_;
+    std::map<std::int64_t, Hold> holds_; ///< by button
+    std::uint64_t next_press_;           ///< from a random start, so a reload names no press again
+    std::string hovered_; ///< the area hearing the pointer that the last unheld move landed in
     Painters painters_;
     ElementCodes codes_;
     std::string last_refusal_;

@@ -7,7 +7,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 
 | path | what it is |
 |---|---|
-| `vocabulary.hpp` | messages: `Node`, `ElementRecord`, `Drawn`, `ElementPut`, `ElementChange`, the directory's, `WindowShown`; `kGraphicsRole` |
+| `vocabulary.hpp` | messages: `Node`, `ElementRecord`, `Drawn`, `ElementPut`, `ElementChange`, the pointer in an area (`AreaButtonChanged` ... `AreaPointerLeft`), the directory's, `WindowShown`; `kGraphicsRole` |
 | `role.hpp` | the theme's roles, `role::kFill` ... `role::kNone`, which Surface spells too |
 | `ops.hpp`, `implied.hpp` | the seven operators' operands, a `Paint`; a body without its envelope |
 | `canvas.hpp` | `Sketch`, `Canvas`, `difference`: an owner's drawing, sent as what changed |
@@ -35,8 +35,10 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
   packing and landing, and a tripwire that no source here includes Surface; the window, the
   directory, the skins and the snake's board through the real kernel: said once, one change a
   tick shown once, a skin chosen, each participant replaced or reloaded, the room naming what the
-  window holds, a drawing weave shown once a beat, keys and their releases, presses, releases,
-  moves and the wheel routed to the area they land in, every bound refused in words,
+  window holds, a drawing weave shown once a beat, keys and their releases, every pointer moment
+  given to the area hearing the pointer it lands in, a press held for its area until its release
+  or a hold's end, the arranger told where presses land, an area deaf to the pointer letting it
+  through, every bound refused in words,
   and each office's manual answering for every shape it accepts; every part in `elements/` drawn,
   changed and painted, and pressed through the window, its action asked or nothing sent; the
   Attention and Connections panes Workshop loads drawn, pressed and reloaded in a window, and a
@@ -86,5 +88,6 @@ rows; it shares the rig.
 
 - An element's code draws what it is told; a game's or a pane's rules stay with its owner.
 - A part in `elements/` draws the state its owner set and asks for no action of its own: a press
-  on it reaches the owner only as the action the owner named when it drew the part.
+  on it reaches the owner as the action the owner named when it drew the part, or, in an area
+  placed to hear the pointer, as the press itself.
 - A value a page quotes is marked and registered in `tests/code_values.txt`.

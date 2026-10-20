@@ -310,11 +310,10 @@ WorkshopWeave::GesturesEnded WorkshopWeave::end_held_gestures() {
 // WL-GUEST-06 -- agents/workshop/guests.md
 void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail) {
     if (duplicate_input(mail)) return;
-    // A PRESS THE GRAPHICS WINDOW SHOWING WORKSHOP'S AREA GAVE IT, which says no release: a click.
-    if (b.pressed && !window_clicking_ && window_.from_window(window_.area(), mail)) {
-        window_click(b.x, b.y, mail);
-        return;
-    }
+    pointer_button(b, mail);
+}
+
+void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom::Mail& mail) {
     if (quitting_) {
         HeldInput held;
         held.kind = HeldInput::Kind::kButton;
@@ -587,6 +586,10 @@ void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail)
 // WL-PANE-05 -- agents/workshop/panes-and-windows.md; WL-ARR-01 -- agents/workshop/arrangement.md
 void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) {
     if (duplicate_input(mail)) return;
+    pointer_moved(m, mail);
+}
+
+void WorkshopWeave::pointer_moved(const zengine::input::PointerMoved& m, loom::Mail& mail) {
     if (quitting_) {
         HeldInput held;
         held.kind = HeldInput::Kind::kMoved;
@@ -667,6 +670,10 @@ void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) 
 // WL-PTR-10 -- agents/workshop/pointer.md; WL-GUEST-06 -- agents/workshop/guests.md
 void WorkshopWeave::on(const zengine::input::PointerWheel& w, loom::Mail& mail) {
     if (duplicate_input(mail)) return;
+    pointer_wheel(w, mail);
+}
+
+void WorkshopWeave::pointer_wheel(const zengine::input::PointerWheel& w, loom::Mail& mail) {
     if (quitting_) {
         HeldInput held;
         held.kind = HeldInput::Kind::kWheel;

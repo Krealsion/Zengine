@@ -190,12 +190,40 @@ at its next change.
 
 ### `ActionRequested`
 
-`ActionRequested` v1, from that window: a press on one of the pane's places there, by the name its
-Workshop picture gives that place -- `control:view.<action>`, `kind:<kind>`, `list:<id>`,
-`element:<id>`, `box:<field>` -- which is a click there, let go where it was pressed: a kind
-makes one below the last, an element or its row is selected, a box opens with the caret after its
-value. It begins no drag and carries nothing, and Workshop refuses a save it asks, having
-numbered no gesture for it.
+`ActionRequested` v1, from a window showing the area deaf to the pointer: a press on one of the
+pane's places there, by the name its Workshop picture gives it -- `control:view.<action>`,
+`kind:<kind>`, `list:<id>`, `element:<id>`, `box:<field>` -- a click let go where it was pressed:
+a kind makes one below the last, an element or its row is selected, a box opens with the caret
+after its value. It begins no drag and carries nothing, and Workshop refuses a save it asks.
+
+### `AreaButtonChanged`
+
+`AreaButtonChanged` v1, from that window: a button pressed or let go in the pane's area, at its
+point in the picture last drawn there, which is that press on Workshop's canvas: a kind held to make
+where it is let go, an element held to move or resize, a box opened with the caret where it was
+pressed, the canvas panned by the middle button, a right press on what a button says offered to
+carry out and elsewhere handed back. Its moves and its release carry the window's number for the
+press.
+
+### `AreaPointerMoved`
+
+`AreaPointerMoved` v1, from that window: the pointer moved in the pane's area. While a press there
+is held it drags as on Workshop's canvas; with none held it marks the element it rests on.
+
+### `AreaWheelTurned`
+
+`AreaWheelTurned` v1, from that window: the wheel over the pane's area, which scrolls the element
+list as on Workshop's canvas.
+
+### `AreaHoldEnded`
+
+`AreaHoldEnded` v1, from that window, about the pane's area: the press held there ended with no
+release, a lost press, which puts back what its drag moved.
+
+### `AreaPointerLeft`
+
+`AreaPointerLeft` v1, from that window, about the pane's area: the pointer left it, and the mark of
+what it rested on goes.
 
 ## Follow
 

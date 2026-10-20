@@ -10,7 +10,7 @@ contextual surface's own laws — pointing, the popup, the catalog, spending, th
 LAW — A pane's menu request is judged where it would open and granted to the presenter's office; it moves no keys or selection, and the host answers only asks it refused or no presenter can.
 
 MEANS
-- a continuation of one gesture: a secondary press, a declared key, or a PRIMARY press;
+- a continuation of one gesture: a secondary press, a declared key, or a PRIMARY press -- in a graphics window numbered by the window;
 - one at a time: a newer menu, a right press, the host's menu, the pane leaving withdraw it;
 - the host keeps custody, place and its standard rows beneath the pane's, spending one chosen.
 
@@ -88,6 +88,9 @@ put it"
 `tests/test_workshop_panes_builder.cpp` "a Builder menu choice that opens the role line takes the
 keyboard across the door it waits on" "a Builder menu choice that opens no line leaves the keyboard
 where the weaver put it"
+`tests/test_workshop_desk.cpp` "a press in a pane's area of the window is the pane's, and under the window's number Workshop
+tells it where the keys were, hands its press back, opens its menu and carries what it drags out
+or picks up"
 
 ### WL-CTX-10
 `workshop/presenter_vocabulary.hpp` HeldMenu HeldMenu::standard HeldMenu::pane_name PresenterReady

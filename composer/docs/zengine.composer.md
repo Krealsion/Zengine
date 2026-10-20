@@ -222,8 +222,26 @@ nothing is sent until Compose's rows change, and that drawing goes whole.
 
 ### `ActionRequested`
 
-`ActionRequested` v1, from that window: a press on one of Compose's rows there, by the row's name,
-which is the press Workshop's canvas makes on that row.
+`ActionRequested` v1, from that window, where it shows Compose's area deaf to the pointer: a press
+on one of Compose's rows there, by the row's name, which is the press Workshop's canvas makes on that
+row.
+
+### `AreaButtonChanged`
+
+`AreaButtonChanged` v1, from that window: a button pressed in Compose's area, at its point. The
+first button on a row is the press Workshop's canvas makes on that row, read against whether the
+keys were already Compose's as Workshop last said; the third is handed back, under the window's
+number for the press, so Workshop's own pane menu opens there. A release means nothing.
+
+### `AreaPointerMoved`
+
+`AreaPointerMoved` v1, from that window: the pointer moved in Compose's area. It means nothing to
+rows.
+
+### `AreaWheelTurned`
+
+`AreaWheelTurned` v1, from that window: the wheel over Compose's area, which is the wheel on
+Workshop's canvas.
 
 ## Follow
 

@@ -276,11 +276,11 @@ public:
         say(mail);
     }
 
-    /// A PRESS ON THE CANVAS acts only while the picture (and room) it was aimed at was drawn
-    /// under what the transcript's rows mean now -- on a value it picks the value up, elsewhere,
-    /// and anywhere in a graphics window, where no carry begins, it means what a press on that row
-    /// means. Motion, release and loss are nothing: no sweep here, and a pickup's drag is
-    /// Workshop's once the carry begins.
+    /// A PRESS ON THE CANVAS, or in a graphics window, acts only while the picture it was aimed at
+    /// was drawn under what the transcript's rows mean now -- on a value it picks the value up;
+    /// elsewhere, and on a part a window asked as an action, where no carry begins, it means what a
+    /// press on that row means. Motion, release and loss are nothing: no sweep here, and a pickup's
+    /// drag is Workshop's once the carry begins.
     void press(const ws::RowPress& at, loom::Mail& mail) {
         if (const auto* subject = at.window ? nullptr : room().map().at(at.row, at.column)) {
             acquire(*subject, true, mail);

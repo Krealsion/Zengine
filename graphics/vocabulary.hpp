@@ -129,11 +129,90 @@ struct ElementChange {
               ZEN_FIELD(more));
 };
 
-/// Window -> the area's owner: perform this action, named by the element a press landed in.
+/// Window -> the area's owner: perform this action, named by the element a left press landed in,
+/// in an area not placed to hear the pointer.
 struct ActionRequested {
     std::string area;
     std::string action;
     ZEN_SHAPE(ActionRequested, 1, ZEN_FIELD(area), ZEN_FIELD(action));
+};
+
+// ---- the pointer in an area ---------------------------------------------------------------
+//
+// A window gives the owner of an area placed to hear the pointer every pointer moment there, as
+// the moment it was, with the area it landed in and its point in that area's pixels; `modifiers`
+// are the input vocabulary's bits. A press holds its button for its area until that button's
+// release: the release, and every move while it is held, go to that area wherever the pointer is,
+// at a point that may lie outside it. A press, the moves it holds and its release carry one number,
+// the press's, as their delivery's correlation, and a continuation an owner sends about the press
+// cites it; a release no hold names carries none.
+
+/// Window -> the owner of an area placed to hear the pointer: a button pressed or let go there,
+/// 1 left, 2 middle, 3 right.
+struct AreaButtonChanged {
+    std::string area;
+    std::int64_t button = 0;
+    bool pressed = false;
+    std::int64_t x = 0, y = 0;
+    std::int64_t modifiers = 0;
+    ZEN_SHAPE(AreaButtonChanged, 1, ZEN_FIELD(area), ZEN_FIELD(button), ZEN_FIELD(pressed),
+              ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(modifiers));
+};
+
+/// Window -> the owner of an area placed to hear the pointer: the pointer moved there, or moved
+/// anywhere while a press in the area is held; moves read together go as one, at the last point,
+/// their deltas, in pixels, summed.
+struct AreaPointerMoved {
+    std::string area;
+    std::int64_t x = 0, y = 0;
+    std::int64_t dx = 0, dy = 0;
+    std::int64_t modifiers = 0;
+    ZEN_SHAPE(AreaPointerMoved, 1, ZEN_FIELD(area), ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(dx),
+              ZEN_FIELD(dy), ZEN_FIELD(modifiers));
+};
+
+/// Window -> the owner of an area placed to hear the pointer: the wheel turned there, +1.0 a notch
+/// away from the weaver, `dx` a horizontal wheel's.
+struct AreaWheelTurned {
+    std::string area;
+    double dx = 0, dy = 0;
+    std::int64_t x = 0, y = 0;
+    std::int64_t modifiers = 0;
+    ZEN_SHAPE(AreaWheelTurned, 1, ZEN_FIELD(area), ZEN_FIELD(dx), ZEN_FIELD(dy), ZEN_FIELD(x),
+              ZEN_FIELD(y), ZEN_FIELD(modifiers));
+};
+
+/// Window -> the arranger of an area placed to hear the pointer, when another office owns it: a
+/// button pressed or let go in that area, at the window's own point in pixels, under the press's
+/// number. Where presses land is the arranger's to know, as a desktop raises what was clicked; the
+/// moment itself is the owner's.
+struct AreaPressed {
+    std::string window;
+    std::string area;
+    std::int64_t button = 0;
+    bool pressed = false;
+    std::int64_t x = 0, y = 0;
+    ZEN_SHAPE(AreaPressed, 1, ZEN_FIELD(window), ZEN_FIELD(area), ZEN_FIELD(button),
+              ZEN_FIELD(pressed), ZEN_FIELD(x), ZEN_FIELD(y));
+};
+
+/// A window, as its office, to the area's owner and to its arranger when another office: the press
+/// held for `area` ended with no release, because the area was withdrawn or handed to another
+/// owner, or an area placed to hear the pointer now stands in front of it where the press was
+/// made. Its button's release, when it comes, goes where it lands. No other office hears it, and an
+/// office that keeps no gesture need not accept it.
+struct AreaHoldEnded {
+    std::string area;
+    std::int64_t button = 0;
+    ZEN_SHAPE(AreaHoldEnded, 1, ZEN_FIELD(area), ZEN_FIELD(button));
+};
+
+/// A window, as its office, to the area's owner and to its arranger when another office: the
+/// pointer, moving with no button held, left `area`, an area placed to hear the pointer that its
+/// last move landed in. Told as `AreaHoldEnded` is.
+struct AreaPointerLeft {
+    std::string area;
+    ZEN_SHAPE(AreaPointerLeft, 1, ZEN_FIELD(area));
 };
 
 // ---- the directory ------------------------------------------------------------------------
@@ -151,7 +230,8 @@ struct WindowOffered {
 
 /// The arranger -> the directory: where an area stands, in which window, whose office draws in it,
 /// its order among the window's areas (a higher order stands in front), whether the window gives
-/// its keys to the owner, and whether it gives the owner a press nothing drawn there takes.
+/// its keys to the owner, and whether it gives the owner its pointer (`AreaButtonChanged` and the
+/// rest).
 struct AreaPlaced {
     std::string area;
     std::string window;
@@ -188,20 +268,22 @@ struct ElementCodeOffered {
 };
 
 /// The directory -> a window: this area is yours, drawn by `owner`, here, painted by the skin in
-/// `library`. Said again whenever any of it changes, to a window that offers itself again, and
-/// when the owner asks its room; the window answers each with the owner's room.
+/// `library`; `arranger` is the office that placed it, as its placing was authored, empty for
+/// personal speech. Said again whenever any of it changes, to a window that offers itself again,
+/// and when the owner asks its room; the window answers each with the owner's room.
 struct AreaIntroduced {
     std::string area;
     std::string owner;
+    std::string arranger;
     std::int64_t x = 0, y = 0, w = 0, h = 0;
     std::int64_t order = 0;
     bool keys = false;
     bool pointer = false;
     std::string skin;
     std::string library;
-    ZEN_SHAPE(AreaIntroduced, 2, ZEN_FIELD(area), ZEN_FIELD(owner), ZEN_FIELD(x), ZEN_FIELD(y),
-              ZEN_FIELD(w), ZEN_FIELD(h), ZEN_FIELD(order), ZEN_FIELD(keys), ZEN_FIELD(pointer),
-              ZEN_FIELD(skin), ZEN_FIELD(library));
+    ZEN_SHAPE(AreaIntroduced, 3, ZEN_FIELD(area), ZEN_FIELD(owner), ZEN_FIELD(arranger),
+              ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h), ZEN_FIELD(order),
+              ZEN_FIELD(keys), ZEN_FIELD(pointer), ZEN_FIELD(skin), ZEN_FIELD(library));
 };
 
 /// The directory -> a window: this area is no longer yours.

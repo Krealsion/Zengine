@@ -75,6 +75,8 @@ loom::Grant workshop_grant() {
     speak.allow_to_any(v1::PaneCanvasPointer::zen_name, v1::PaneCanvasPointer::zen_version);
     speak.allow_to_any(v1::PaneCanvasHover::zen_name, v1::PaneCanvasHover::zen_version);
     speak.allow_to_any(PaneKey::zen_name, PaneKey::zen_version);
+    // ...and whether the keys reach a pane a graphics window shows in an area of its own.
+    speak.allow_to_any(PaneKeys::zen_name, PaneKeys::zen_version);
     speak.allow_to_any(PaneTextInput::zen_name, PaneTextInput::zen_version);
     speak.allow_to_any(PaneWheel::zen_name, PaneWheel::zen_version);
     speak.allow_to_any(PaneActionRequested::zen_name, PaneActionRequested::zen_version);

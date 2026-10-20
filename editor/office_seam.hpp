@@ -572,6 +572,17 @@ public:
         return at == places_.end() ? std::nullopt : std::optional<ws::RowCell>(at->second);
     }
 
+    /// A POINTER MOMENT THE WINDOW SHOWING THE AREA GAVE IT, as that window's office, read onto
+    /// the rows drawn there (`ws::WindowDrawing::pointer`). None for another area or speaker.
+    template <class Moment>
+    std::optional<ws::WindowPointer> pointer(const Moment& moment, const loom::Mail& mail) const {
+        return window_.pointer(moment, mail, rows(), columns());
+    }
+    std::optional<ws::WindowPointer> pointer(const graphics::AreaHoldEnded& ended,
+                                             const loom::Mail& mail) const {
+        return window_.pointer(ended, mail);
+    }
+
     /// THE EDITOR'S ROWS, DRAWN in the window that shows the area, as many as its room holds, the
     /// caret and the selection standing in them (`ws::rows_drawing`): what changed there since the
     /// drawing last sent, or the whole after a new room or a refused change.

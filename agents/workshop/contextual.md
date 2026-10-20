@@ -79,8 +79,8 @@ WHY — `agents/decisions/pointing-is-not-selection.md`
 LAW — `KeyContext::kContext` tops the modes beneath it: inside, navigate or choose (`context_press_at`); outside, dismissal, consumed whole; a pass-back opens the host's rows for that pane, once, at its cell.
 
 MEANS
-- a further right press re-targets, offering a pane under it its press first;
-- a pass-back is a continuation (WL-PRESS-06): stale, zero, spent or foreign moves nothing;
+- a further right press re-targets, offering a pane under it its press first -- one a graphics window shows in its own area is sent nothing;
+- a pass-back is a continuation (WL-PRESS-06): stale, zero, spent or foreign moves nothing; in a graphics window it cites the window's number;
 - a right press in a doorless body opens the same rows at the press: a body press is not lost.
 
 DOES NOT MEAN
@@ -167,3 +167,9 @@ with the door is offered it first, and a doorless body opens the host's menu whe
 pass-back on the press's own turn opens the menu, and the release still reaches the pane under it"
 "WL-CTX-08: a stale correlation, a zero one, and a pass-back from an office that did not offer the
 pane all move nothing"
+`workshop/weave_handlers.cpp` on(AreaPressed)
+`tests/test_workshop_desk.cpp` "a press in a pane's area of the window is the pane's, and under the window's number Workshop
+tells it where the keys were, hands its press back, opens its menu and carries what it drags out
+or picks up" "Workshop's own area of the window answers each button as itself: a press on the room says
+so, a right press asks its menu about the room or a tab, re-asking it while one is open, a press
+on the gear anchors there, and a tab carried along the run reorders it"

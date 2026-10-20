@@ -140,8 +140,27 @@ Shape: [`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp).
 
 ### `ActionRequested`
 
-`ActionRequested` v1, from that window: a press on the reset button there asks `reset`, which is
-[`reset`](#reset). An action the pane's last drawing there does not name does nothing.
+`ActionRequested` v1, from that window, where it shows the pane's area deaf to the pointer: a press
+on the reset button there asks `reset`, which is [`reset`](#reset). An action the pane's last
+drawing there does not name does nothing.
+Shape: [`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp).
+
+### `AreaButtonChanged`
+
+`AreaButtonChanged` v1, from that window: a button pressed in the pane's area, at its point. The
+first button on the reset button asks `reset`, which is [`reset`](#reset); the third is handed back,
+so Workshop's own pane menu opens there. A release, or a press on nothing the drawing names, does
+nothing.
+Shape: [`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp).
+
+### `AreaPointerMoved`
+
+`AreaPointerMoved` v1, from that window: the pointer moved in the pane's area. It does nothing.
+Shape: [`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp).
+
+### `AreaWheelTurned`
+
+`AreaWheelTurned` v1, from that window: the wheel over the pane's area. It does nothing.
 Shape: [`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp).
 
 ## Follow
