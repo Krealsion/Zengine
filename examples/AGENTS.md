@@ -38,7 +38,8 @@ root routes; the presenter's half of a pane's menu is `agents/workshop/pane-menu
 - `workshop_probe` — the probe weave on one bus behind a scripted link: when it may say
   PASS, what moves it, what it closes (`tests/test_workshop_probe.cpp`)
 
-Its cases in shared suites: `workshop_panes` loads Tally, Guard and the numbered presenter
+Its cases in shared suites: `workshop_panes_seam`, `workshop_panes_project`, `workshop_panes_hand`
+and `workshop_panes_inspect` load Tally, Guard and the numbered presenter
 (`tests/test_workshop_panes_button.cpp`, `_code.cpp`, `_desktop.cpp`, `_introspection.cpp`);
 snake's weaves ride `graphics` (`tests/test_graphics.cpp`), `input` (`tests/test_input.cpp`),
 `timer` (`tests/test_timer.cpp`), `audit_probes` (`tests/test_audit_probes.cpp`) and `surface`

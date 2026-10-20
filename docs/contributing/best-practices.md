@@ -103,7 +103,9 @@ The host, `workshop/`, and the panes that reach it. Workshop's law is in the reg
 [its router](../../agents/workshop.md#where-the-law-is) lists, what crosses the pane seam is
 [the pane protocol's](../../agents/panes.md), a register's proofs name the cases that pin its
 law, and the router of each folder, its `AGENTS.md`, names the suites. The Workshop entry
-`workshop_<subject>` runs `build/tests/zengine-workshop-<subject>-tests`.
+`workshop_<subject>` runs `build/tests/zengine-workshop-<subject>-tests`; each
+`workshop_panes_<part>` runs `build/tests/zengine-workshop-panes-tests` with its part's
+`--source-file`.
 
 ### Every pane
 

@@ -2,9 +2,9 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The Workshop panes suite -- the shipped introspection panes: the resolved arrangement and the
-// power stack, as panes. One source of the `workshop_panes` entry, whose units split by subject
-// where one object cannot hold them all (VM-POP-12); a new case goes to its subject's. Cases
-// drive the real weave on a real bus against real loaded artifacts, from `PaneRig`
+// power stack, as panes. One source of the panes program, run in `workshop_panes_inspect`, whose
+// units split by subject where one object cannot hold them all (VM-POP-12); a new case goes to its
+// subject's. Cases drive the real weave on a real bus against real loaded artifacts, from `PaneRig`
 // (`workshop_support.hpp`).
 
 // main() and the framework live in doctest_main.cpp -- the shared one that

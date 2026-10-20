@@ -15,12 +15,12 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 ## Law
 
 - [attention](../agents/workshop/attention.md) `WL-ATTN` — a thing that happened and a thing that is
-  true are two surfaces; witnessed by `workshop_host`, then `workshop_panes` (attention, seam,
-  canvas)
+  true are two surfaces; witnessed by `workshop_host`, then `workshop_panes_inspect` (attention),
+  `workshop_panes_seam` (seam, canvas)
 
 ## Suites
 
-No entry of its own. Its cases in shared suites: `workshop_panes`
+No entry of its own. Its cases in shared suites: `workshop_panes_inspect`
 (`tests/test_workshop_panes_attention.cpp`, the loaded pane against the host's real publication),
 and `graphics` (`tests/test_graphics.cpp`, the loaded pane drawn, pressed and reloaded in a window).
 The conditions it shows are the host's, witnessed in `workshop_host`

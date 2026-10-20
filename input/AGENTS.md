@@ -33,7 +33,7 @@ its backends' rules are in the Surface register, `agents/surface.md`, which `sur
 
 The SDL reader's cases in `input` run under the `sdl` gate. Shared suites that run the real
 Input weave: `workshop_guests` (`tests/test_workshop_guests.cpp`) and `workshop_probe`
-(`tests/test_workshop_probe.cpp`); `workshop_panes` (`tests/test_workshop_panes_input.cpp`)
+(`tests/test_workshop_probe.cpp`); `workshop_panes_hand` (`tests/test_workshop_panes_input.cpp`)
 is Workshop's side, a press and a key reaching a pane.
 
 ## Host side

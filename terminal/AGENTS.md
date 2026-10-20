@@ -26,19 +26,20 @@ and only `pane.cpp` includes them, after the class.
 ## Law
 
 - [terminal-pane](../agents/workshop/terminal-pane.md) — the Terminal pane's line and record;
-  witnessed by `workshop_panes` (terminal, legend)
-- [terminal](../agents/workshop/terminal.md) — the Terminal; witnessed by `workshop_panes`
-  (terminal, inventory info, powers), then `workshop_host`
+  witnessed by `workshop_panes_terminal` (terminal), `workshop_panes_settings` (legend)
+- [terminal](../agents/workshop/terminal.md) — the Terminal; witnessed by `workshop_panes_terminal`
+  (terminal, powers), `workshop_panes_info` (inventory info), then `workshop_host`
 
 ## Suites
 
-No CTest entry of its own. Its cases in shared suites: `workshop_panes`
-(`tests/test_workshop_panes_terminal.cpp`, `tests/test_workshop_panes_legend.cpp`, and Terminal
-cases in `tests/test_workshop_inventory_info.cpp`, `tests/test_workshop_panes_powers.cpp` and
-`tests/test_workshop_panes_guests.cpp`), which also reads `pane.cpp` and `CMakeLists.txt` as
-text; `workshop_host` (`tests/test_workshop_host.cpp`, the line's completion vocabulary);
-`workshop_load` (`tests/test_workshop_load.cpp`, the shipped plan's row); `workshop_files`
-(`tests/test_workshop_files.cpp`, the development catalog's entry).
+No CTest entry of its own. Its cases in shared suites: `workshop_panes_terminal`
+(`tests/test_workshop_panes_terminal.cpp`, which also reads `pane.cpp` and `CMakeLists.txt` as text,
+and Terminal cases in `tests/test_workshop_panes_powers.cpp`), `workshop_panes_settings`
+(`tests/test_workshop_panes_legend.cpp`), and Terminal cases in `workshop_panes_info`
+(`tests/test_workshop_inventory_info.cpp`) and `workshop_panes_hand`
+(`tests/test_workshop_panes_guests.cpp`); `workshop_host` (`tests/test_workshop_host.cpp`, the
+line's completion vocabulary); `workshop_load` (`tests/test_workshop_load.cpp`, the shipped plan's
+row); `workshop_files` (`tests/test_workshop_files.cpp`, the development catalog's entry).
 
 ## Host side
 

@@ -34,9 +34,10 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 - `flow_pane` — the loaded `zengine-flow-pane` through the real kernel: authoring, runs, reload,
   dialogs, gestures, carried shapes and the discovery door, in `tests/test_flow_pane.cpp`
 
-Its cases in shared suites: `workshop_panes` (`tests/test_workshop_panes_powers.cpp`: Flow
-asking the discovery door, its action census driver and its answered manual;
-`tests/test_workshop_inventory_info.cpp`: values and shapes dragged onto Flow's canvas),
+Its cases in shared suites: `workshop_panes_terminal` (`tests/test_workshop_panes_powers.cpp`:
+Flow asking the discovery door, its action census driver and its answered manual),
+`workshop_panes_info` (`tests/test_workshop_inventory_info.cpp`: values and shapes dragged onto
+Flow's canvas),
 `workshop_files` (`tests/test_workshop_files.cpp`: the pane's recipe entry)
 and `workshop_shapes` (`tests/census_headers.hpp`: its shapes). Outside CTest,
 `tests/package/run.cmake` builds `tests/package/flow_author.cpp` and `tests/package/flow_host.cpp`

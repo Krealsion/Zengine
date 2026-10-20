@@ -113,6 +113,7 @@ public:
 
 Zengine suite `timer` exercises the cursor through the Timer and its binding: an unattested
 activation, a replay, a newer sequence and a second operator's lineage. A value door is exercised
-where it is accepted: Compose's discovery in `workshop_panes` (`tests/test_workshop_panes_input.cpp`)
-and the discovery door in `workshop_panes` (`tests/test_workshop_panes_powers.cpp`) and
-`workshop_load`; the installed-package witness compiles one from `tests/package/public_surface.cpp`.
+where it is accepted: Compose's discovery in `workshop_panes_hand`
+(`tests/test_workshop_panes_input.cpp`) and the discovery door in `workshop_panes_terminal`
+(`tests/test_workshop_panes_powers.cpp`) and `workshop_load`; the installed-package witness compiles
+one from `tests/package/public_surface.cpp`.

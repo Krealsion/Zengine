@@ -25,9 +25,9 @@ Its law is the section "The Composer is a schema-directed message form" of the p
 
 - `composer` — drafts and views as values: what composes and shows (`tests/test_composer.cpp`)
 
-Its cases in shared suites: `workshop_panes` (`tests/test_workshop_panes_input.cpp`, with its
-action census driver, `tests/actions/zengine.composer.txt`, and its manual witnesses;
-`tests/test_workshop_inventory_info.cpp`), `workshop_document`
+Its cases in shared suites: `workshop_panes_hand` (`tests/test_workshop_panes_input.cpp`, with its
+action census driver, `tests/actions/zengine.composer.txt`, and its manual witnesses),
+`workshop_panes_info` (`tests/test_workshop_inventory_info.cpp`), `workshop_document`
 (`tests/test_workshop_document.cpp`), `workshop_shapes` (`tests/census_headers.hpp`) and
 `workshop_files` (`tests/test_workshop_files.cpp`, its development catalog row).
 

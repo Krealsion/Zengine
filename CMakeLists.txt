@@ -180,10 +180,25 @@ function(zengine_record_test entry kind)
 endfunction()
 
 # A doctest-bearing runtime binary: the population question is "how many cases did it
-# select", and the answer must clear the floor test_population.txt declares for it.
+# select", and the answer must clear the floor test_population.txt declares for it. Arguments
+# after `ARGS` select the entry's cases out of the program: the entry runs with them, and the
+# record keeps them, so the verifier asks its questions with them too (VM-POP-22).
 function(zengine_doctest_test entry target)
-    add_test(NAME ${entry} COMMAND ${target})
-    zengine_record_test(${entry} doctest "set(ZENGINE_EXE_${entry} \"$<TARGET_FILE:${target}>\")")
+    cmake_parse_arguments(DT "" "" "ARGS" ${ARGN})
+    if(DT_UNPARSED_ARGUMENTS)
+        message(FATAL_ERROR
+            "zengine_doctest_test(${entry}): unrecognized argument(s) '${DT_UNPARSED_ARGUMENTS}'. "
+            "The program's own arguments go after ARGS.")
+    endif()
+    add_test(NAME ${entry} COMMAND ${target} ${DT_ARGS})
+    set(recorded "set(ZENGINE_EXE_${entry} \"$<TARGET_FILE:${target}>\")")
+    if(DT_ARGS)
+        # Read back as CMake source, like a compile test's diagnostic.
+        string(REPLACE "\\" "\\\\" quoted "${DT_ARGS}")
+        string(REPLACE "\"" "\\\"" quoted "${quoted}")
+        string(APPEND recorded "\nset(ZENGINE_ARGS_${entry} \"${quoted}\")")
+    endif()
+    zengine_record_test(${entry} doctest "${recorded}")
 endfunction()
 
 # A plain program with no doctest population: the contract is that the entry exists and CTest
