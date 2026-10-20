@@ -131,6 +131,9 @@ own rules, and a rect that floors to nothing is dropped, not the picture"
 `workshop/weave_canvas.cpp` canvas_press canvas_motion canvas_release canvas_wheel lose_canvas_hold
 end_canvas_holds
 `workshop/weave_external.cpp` end_refused_button
+`workshop/weave_handlers.cpp` on(AreaHoldEnded)
+`tests/test_workshop_desk.cpp` "a hold the window ends in Workshop's own area loses the press Workshop handed a pane it
+draws there, a canvas's and a second button's alike, and a hold of another button ends neither"
 `tests/test_workshop_panes_canvas.cpp` "pane canvas capture keeps the press picture through repaint
 motion and outside release" "a right press a canvas picture hands back opens the host's pane menu at
 the press; one it keeps opens nothing" "pane canvas resize loses capture and wheel names a local
@@ -181,6 +184,9 @@ or picks up"
 `workshop/pane_canvas_vocabulary.hpp` PaneCanvasHover
 `workshop/weave_canvas.cpp` canvas_hover leave_canvas_hover refresh_canvas_rooms
 `workshop/weave_pointer.cpp` on(PointerMoved) on(PointerButton)
+`workshop/weave_handlers.cpp` on(AreaPointerLeft)
+`tests/test_workshop_desk.cpp` "the pointer leaving Workshop's own area of the window puts down the hover of the canvas
+Workshop draws under it, and a pane's area it leaves is the pane's to answer"
 `tests/test_workshop_panes_canvas.cpp` "a canvas that accepts the hover door hears where the pointer
 rests and that it left; resting selects, focuses and presses nothing" "a described view offers its
 own pane through the view host, Workshop seats and draws it, a press reaches it, and a stop leaves a

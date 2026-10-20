@@ -5382,8 +5382,9 @@ TEST_CASE("Workshop's own area of the window answers each button as itself: a pr
     CHECK(p.d.refused.empty());
 }
 
-TEST_CASE("a press Workshop holds in its own area of the window ends when Workshop places a pane's "
-          "area hearing the pointer in front of its own where the press was made") {
+TEST_CASE("a press Workshop holds in its own area of the window ends when the window says it ended "
+          "the hold, and not before: an area Workshop places in front of the press is the window's "
+          "to judge") {
     PointerDesk p;
     const Session& s = p.d.r.session();
     const std::string desk = kWorkshopProvider;
@@ -5411,8 +5412,7 @@ TEST_CASE("a press Workshop holds in its own area of the window ends when Worksh
     REQUIRE(s.text_drag.active);
 
     // THE ATTENTION PANE CLOSED, the stack closes up: the pane's area comes to stand in front of
-    // Workshop's where the press was made, so the window holds that press for Workshop no longer,
-    // and Workshop lets the sweep go.
+    // Workshop's where the press was made. Whether that ends the press is the window's word.
     p.d.r.pick(PaneRef{apane::kAttentionPaneRole, apane::kAttentionPane});
     const std::int64_t x = col * gfx::kCellPx + gfx::kCellPx / 2;
     const std::int64_t y = row * gfx::kCellPx + gfx::kCellPx / 2;
@@ -5421,8 +5421,231 @@ TEST_CASE("a press Workshop holds in its own area of the window ends when Worksh
     REQUIRE(pane.pointer);
     REQUIRE(pane.order > own.order);
     REQUIRE((x >= pane.x && y >= pane.y && x < pane.x + pane.w && y < pane.y + pane.h));
+    CHECK(s.text_drag.active);
+
+    // ANOTHER BUTTON'S HOLD, OR A PANE'S, ENDS NOTHING OF THIS PRESS...
+    p.window.hold_ended(desk, 3);
+    p.window.hold_ended(p.area, 1, desk);
+    CHECK(s.text_drag.active);
+    // ...AND THE WINDOW'S WORD THAT IT ENDED THIS ONE lets the sweep go.
+    p.window.hold_ended(desk, 1);
     CHECK_FALSE(s.text_drag.active);
     CHECK(p.d.refused.empty());
+}
+
+namespace {
+
+/// A CANVAS WORKSHOP DRAWS IN ITS OWN AREA OF THE WINDOW, its office taking no area of its own: it
+/// hears its canvas pointer and where the pointer rests on it.
+class DrawnCanvasSeat
+    : public loom::WeaveBase<DrawnCanvasSeat, DeskSeatState,
+                             loom::Accept<PaneCatalogRequested, PaneRoom, PaneCanvasRoom,
+                                          PaneCanvasPointer, PaneCanvasHover, SeatDo>,
+                             loom::Emit<PaneOffered, PaneCanvasContent>> {
+public:
+    std::vector<PaneCanvasRoom> rooms;
+    std::vector<PaneCanvasPointer> pointers;
+    std::vector<PaneCanvasHover> hovers;
+    std::function<void(loom::Mail&)> next;
+    void on(const PaneCatalogRequested&, loom::Mail&) {}
+    void on(const PaneRoom&, loom::Mail&) {}
+    void on(const PaneCanvasRoom& r, loom::Mail&) { rooms.push_back(r); }
+    void on(const PaneCanvasPointer& e, loom::Mail&) { pointers.push_back(e); }
+    void on(const PaneCanvasHover& h, loom::Mail&) { hovers.push_back(h); }
+    void on(const SeatDo&, loom::Mail& mail) {
+        auto run = std::move(next);
+        next = {};
+        if (run) run(mail);
+    }
+};
+
+/// ...AND A PANE OF ROWS Workshop draws there, which hears its second button.
+class DrawnRowsSeat
+    : public loom::WeaveBase<DrawnRowsSeat, DeskSeatState,
+                             loom::Accept<PaneCatalogRequested, PaneRoom, PaneButton, SeatDo>,
+                             loom::Emit<PaneOffered, PaneContent>> {
+public:
+    std::vector<PaneButton> buttons;
+    std::function<void(loom::Mail&)> next;
+    void on(const PaneCatalogRequested&, loom::Mail&) {}
+    void on(const PaneRoom&, loom::Mail&) {}
+    void on(const PaneButton& b, loom::Mail&) { buttons.push_back(b); }
+    void on(const SeatDo&, loom::Mail& mail) {
+        auto run = std::move(next);
+        next = {};
+        if (run) run(mail);
+    }
+};
+
+constexpr const char* kDrawnCanvasOffice = "zengine.test.desk-drawn-canvas";
+constexpr const char* kDrawnRowsOffice = "zengine.test.desk-drawn-rows";
+
+/// THE DESK OF `WindowDesk`, the stand-in terminal window showing Workshop's two areas and the
+/// Attention pane's, and two panes Workshop draws in its own: a canvas and a pane of rows. A tap
+/// keeps every word the window tells Workshop about a hold or a leave that Loom refused.
+struct DrawnDesk {
+    WindowDesk d{true};
+    pw::Window window{d.r.bus, gfx::kTerminalWindow};
+    DrawnCanvasSeat* canvas = nullptr;
+    DrawnRowsSeat* rows = nullptr;
+    loom::WeaveId canvas_id{}, rows_id{};
+    std::int64_t canvas_kind = kNoPaneKind, rows_kind = kNoPaneKind;
+    std::vector<std::string> notices_refused;
+    loom::ObserverId tap{};
+    const std::string desk = kWorkshopProvider;
+    const std::string attention = apane::kAttentionPaneRole;
+
+    DrawnDesk() {
+        const Session& s = d.r.session();
+        const Screen sc = screen_of(s);
+        window.room(desk, desk, sc.w / gfx::kCellPx, sc.h / gfx::kCellPx);
+        window.room(kWorkshopOverlayArea, desk, sc.w / gfx::kCellPx, sc.h / gfx::kCellPx);
+        tap = d.r.bus.add_observer([this](const loom::BusEvent& e) {
+            if (e.kind == loom::EventKind::Refused && e.target == d.r.workshop_id &&
+                (e.schema_name == gfx::AreaHoldEnded::zen_name ||
+                 e.schema_name == gfx::AreaPointerLeft::zen_name)) {
+                notices_refused.push_back(e.schema_name);
+            }
+        });
+        canvas_id = mount(canvas, kDrawnCanvasOffice);
+        rows_id = mount(rows, kDrawnRowsOffice);
+        does(canvas_id, canvas, [](loom::Mail& m) {
+            (void)m.as_role(kDrawnCanvasOffice)
+                .send_to_role(kWorkshopProvider, PaneOffered{"canvas", "Canvas", "a picture"});
+        });
+        does(rows_id, rows, [](loom::Mail& m) {
+            (void)m.as_role(kDrawnRowsOffice)
+                .send_to_role(kWorkshopProvider, PaneOffered{"rows", "Rows", "some rows"});
+        });
+        d.r.pick(PaneRef{kDrawnCanvasOffice, "canvas"});
+        d.r.pick(PaneRef{kDrawnRowsOffice, "rows"});
+        canvas_kind = s.panes.runtime.find(kDrawnCanvasOffice, "canvas")->kind;
+        rows_kind = s.panes.runtime.find(kDrawnRowsOffice, "rows")->kind;
+        REQUIRE(s.panes.has(canvas_kind));
+        REQUIRE(s.panes.has(rows_kind));
+        REQUIRE_FALSE(canvas->rooms.empty());
+        const PaneCanvasRoom room = canvas->rooms.back();
+        does(canvas_id, canvas, [room](loom::Mail& m) {
+            PaneCanvasContent picture;
+            picture.pane = "canvas";
+            picture.grant = room.grant;
+            picture.picture = 1;
+            picture.rects.push_back(
+                PaneCanvasRect{0, 0, room.width, room.height, surface::role::kAccent});
+            (void)m.as_role(kDrawnCanvasOffice).send_to_role(kWorkshopProvider, picture);
+        });
+        does(rows_id, rows, [](loom::Mail& m) {
+            (void)m.as_role(kDrawnRowsOffice)
+                .send_to_role(kWorkshopProvider,
+                              PaneContent{"rows",
+                                          std::vector<surface::SurfaceTextRow>(
+                                              4, surface::SurfaceTextRow{"words here",
+                                                                         surface::role::kFill})});
+        });
+        REQUIRE(d.directory->areas.count(kDrawnCanvasOffice) == 0);
+        REQUIRE(d.directory->areas.count(kDrawnRowsOffice) == 0);
+        const gfx::AreaPlaced& placed = d.directory->areas.at(attention);
+        window.room(attention, attention, placed.w / gfx::kCellPx, placed.h / gfx::kCellPx);
+        window.at(attention, placed.x, placed.y);
+    }
+    DrawnDesk(const DrawnDesk&) = delete;
+    DrawnDesk& operator=(const DrawnDesk&) = delete;
+    ~DrawnDesk() { d.r.bus.remove_observer(tap); }
+
+    template <class Seat>
+    loom::WeaveId mount(Seat*& seat, const char* office) {
+        auto made = std::make_unique<Seat>();
+        seat = made.get();
+        loom::Grant grant;
+        grant.allow_to_role(PaneOffered::zen_name, PaneOffered::zen_version, kWorkshopProvider);
+        grant.allow_to_role(PaneContent::zen_name, PaneContent::zen_version, kWorkshopProvider);
+        grant.allow_to_role(PaneCanvasContent::zen_name, PaneCanvasContent::zen_version,
+                            kWorkshopProvider);
+        const loom::WeaveId id = d.r.bus.register_weave(std::move(made), std::move(grant), office);
+        seat->zen_set_self(id);
+        return id;
+    }
+    template <class Seat>
+    void does(loom::WeaveId id, Seat* seat, std::function<void(loom::Mail&)> what) {
+        seat->next = std::move(what);
+        (void)d.r.bus.send(id, loom::Message(loom::to_value(SeatDo{}), {}, {}, 0));
+        d.r.bus.drain_until_idle();
+    }
+    /// A cell of Workshop's own area inside the canvas's picture.
+    std::pair<std::int64_t, std::int64_t> canvas_cell() {
+        const ExternalPane* pane = d.r.session().panes.external_pane(canvas_kind);
+        REQUIRE(pane != nullptr);
+        REQUIRE(pane->canvas.heard);
+        return {pane->canvas.x / gfx::kCellPx + 1, pane->canvas.y / gfx::kCellPx + 1};
+    }
+    /// A cell of Workshop's own area on the rows pane's first body row.
+    std::pair<std::int64_t, std::int64_t> rows_cell() {
+        const Session& s = d.r.session();
+        const ExternalBodyPlace body =
+            external_body_place(external_pane_rect(s, rows_kind), screen_of(s),
+                                external_title_rows(s.panes, rows_kind, s.pane_titles));
+        return {body.region_x / gfx::kCellPx + 1, body.region_y / gfx::kCellPx + body.header_rows};
+    }
+};
+
+} // namespace
+
+TEST_CASE("a hold the window ends in Workshop's own area loses the press Workshop handed a pane it "
+          "draws there, a canvas's and a second button's alike, and a hold of another button ends "
+          "neither") {
+    DrawnDesk p;
+    // A PRESS ON THE CANVAS is the canvas's, held to its release.
+    const auto [ccol, crow] = p.canvas_cell();
+    const std::uint64_t n = p.window.next_press();
+    p.window.button(p.desk, ccol, crow, true, n);
+    REQUIRE(p.canvas->pointers.size() == 1);
+    REQUIRE(p.canvas->pointers.back().phase == canvas_pointer::kPress);
+    p.window.hold_ended(p.desk, 2);
+    CHECK(p.canvas->pointers.size() == 1);
+    p.window.hold_ended(p.desk, 1);
+    REQUIRE(p.canvas->pointers.size() == 2);
+    CHECK(p.canvas->pointers.back().phase == canvas_pointer::kLost);
+    CHECK(p.canvas->pointers.back().button == 1);
+    // ...and its release, landing where the window gives it, finds no hold to end.
+    p.window.button(p.desk, ccol, crow, false, n);
+    CHECK(p.canvas->pointers.size() == 2);
+
+    // A RIGHT PRESS ON THE ROWS is the rows pane's, held to its release; the window ending it owes
+    // the pane its release, lost.
+    const auto [rcol, rrow] = p.rows_cell();
+    const std::uint64_t m = p.window.next_press();
+    p.window.button(p.desk, rcol, rrow, true, m, 3);
+    REQUIRE(p.rows->buttons.size() == 1);
+    REQUIRE(p.rows->buttons.back().pressed);
+    p.window.hold_ended(p.desk, 1);
+    CHECK(p.rows->buttons.size() == 1);
+    p.window.hold_ended(p.desk, 3);
+    REQUIRE(p.rows->buttons.size() == 2);
+    CHECK_FALSE(p.rows->buttons.back().pressed);
+    CHECK(p.rows->buttons.back().lost);
+    p.window.button(p.desk, rcol, rrow, false, m, 3);
+    CHECK(p.rows->buttons.size() == 2);
+    CHECK(p.notices_refused.empty());
+    CHECK(p.d.refused.empty());
+}
+
+TEST_CASE("the pointer leaving Workshop's own area of the window puts down the hover of the canvas "
+          "Workshop draws under it, and a pane's area it leaves is the pane's to answer") {
+    DrawnDesk p;
+    const auto [col, row] = p.canvas_cell();
+    p.window.move(p.desk, col, row);
+    REQUIRE(p.canvas->hovers.size() == 1);
+    REQUIRE(p.canvas->hovers.back().over);
+    // A PANE'S AREA LEFT, told Workshop as its arranger, is no word about Workshop's canvas.
+    p.window.left(p.attention, p.desk);
+    CHECK(p.canvas->hovers.size() == 1);
+    p.window.left(p.desk);
+    REQUIRE(p.canvas->hovers.size() == 2);
+    CHECK_FALSE(p.canvas->hovers.back().over);
+    // Said once: another leave finds nothing resting there.
+    p.window.left(p.desk);
+    CHECK(p.canvas->hovers.size() == 2);
+    CHECK(p.notices_refused.empty());
 }
 
 TEST_CASE("a weaver's press in a pane's area of the window ends a guest's guide mark standing "
@@ -5493,8 +5716,8 @@ TEST_CASE("with pane titles hidden, a press the window gives a canvas pane's are
     CHECK_FALSE(pane->canvas.title_waits);
     CHECK(pane->canvas.grant != kept);
 
-    // A MENU OPENED WHILE A PRESS IS HELD THERE puts the desk in front of the press, which the
-    // window ends; the room the title row takes is granted at once.
+    // A MENU OPENED WHILE A PRESS IS HELD THERE puts the desk in front of the press; the room
+    // the title row takes waits for the window's word that it ended the hold, then is granted.
     press_outside(d.r, d.kind);
     REQUIRE(external_title_rows(d.r.session().panes, d.kind, false) == 0);
     const std::int64_t before = pane->canvas.grant;
@@ -5506,6 +5729,9 @@ TEST_CASE("with pane titles hidden, a press the window gives a canvas pane's are
     REQUIRE(pane->canvas.grant == before);
     window.click(kWorkshopProvider, 0, sc.notice_y / gfx::kCellPx - 1, 3);
     REQUIRE(d.r.session().context.open);
+    CHECK(pane->canvas.title_waits);
+    CHECK(pane->canvas.grant == before);
+    window.hold_ended(area, 1, kWorkshopProvider);
     CHECK_FALSE(pane->canvas.title_waits);
     CHECK(pane->canvas.grant != before);
     // ...and closing the menu brings no wait back: that press holds nothing now, so the keys
