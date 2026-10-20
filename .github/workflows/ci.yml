@@ -163,11 +163,14 @@ jobs:
           tar -xzf "$RUNNER_TEMP/nvim-linux-x86_64.tar.gz" -C "$RUNNER_TEMP"
           "$RUNNER_TEMP/nvim-linux-x86_64/bin/nvim" --version
 
-      # THE COMPILER CACHE holds intermediates only: objects ccache keys by the compiler, its
-      # command line and every byte the source read, one store per job and runner image. Every run
-      # restores the store `main`'s last run saved; only a run on `main` saves one, and a pull
-      # request's run never does. A product is never taken from it: the objects only feed this
-      # job's links, and Loom's build above has no launcher.
+      # THE COMPILER CACHE holds intermediates only: objects ccache keys by the compiler's bytes
+      # (its `content` check, not the compiler's file time), its command line and every byte the
+      # source read. One store per job and compiler, named by a digest of the bytes of the compilers
+      # the configure finds; the runner image is no part of the name, so a runner on a new image
+      # with the same compiler restores `main`'s newest store and rebuilds only what the image
+      # changed. Every run restores the newest store `main` saved for its job and compiler; only a
+      # run on `main` saves one, and a pull request's run never does. A product is never taken from
+      # it: the objects only feed this job's links, and Loom's build above has no launcher.
       - name: Fetch pinned ccache 4.13.6
         id: ccache
         run: |
@@ -178,20 +181,24 @@ jobs:
           mkdir "$RUNNER_TEMP/ccache-bin"
           tar -xJf "$RUNNER_TEMP/ccache.tar.xz" -C "$RUNNER_TEMP/ccache-bin" --strip-components=1
           "$RUNNER_TEMP/ccache-bin/ccache" --version | head -n 1
+          compilers="$(readlink -f "$(command -v cc)") $(readlink -f "$(command -v c++)")"
+          compiler="$(sha256sum $compilers | cut -d ' ' -f 1 | sha256sum | cut -c 1-16)"
+          echo "Runner image $ImageOS-$ImageVersion; compilers $compilers ($(c++ --version | head -n 1)); store compiler $compiler"
           {
             echo "ZEN_CCACHE=$RUNNER_TEMP/ccache-bin/ccache"
             echo "ZEN_CCACHE_SINCE=$(date +%s)"
             echo "CCACHE_DIR=$RUNNER_TEMP/ccache"
             echo "CCACHE_MAXSIZE=3G"
+            echo "CCACHE_COMPILERCHECK=content"
           } >> "$GITHUB_ENV"
-          echo "image=$ImageOS-$ImageVersion" >> "$GITHUB_OUTPUT"
+          echo "compiler=$compiler" >> "$GITHUB_OUTPUT"
 
       - name: Restore the compiler cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/ccache
-          key: ccache-linux-debug-${{ steps.ccache.outputs.image }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: ccache-linux-debug-${{ steps.ccache.outputs.image }}-
+          key: ccache-linux-debug-${{ steps.ccache.outputs.compiler }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ccache-linux-debug-${{ steps.ccache.outputs.compiler }}-
 
       - name: Configure Zengine as a stranger
         run: |
@@ -261,7 +268,7 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/ccache
-          key: ccache-linux-debug-${{ steps.ccache.outputs.image }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: ccache-linux-debug-${{ steps.ccache.outputs.compiler }}-${{ github.run_id }}-${{ github.run_attempt }}
 
   # THE STANDING SANITIZER WITNESS, a separate job so the ordinary lane's result stays
   # readable on its own: `verify.cmake` asks whether the intended population ran and passed,
@@ -334,20 +341,24 @@ jobs:
           mkdir "$RUNNER_TEMP/ccache-bin"
           tar -xJf "$RUNNER_TEMP/ccache.tar.xz" -C "$RUNNER_TEMP/ccache-bin" --strip-components=1
           "$RUNNER_TEMP/ccache-bin/ccache" --version | head -n 1
+          compilers="$(readlink -f "$(command -v cc)") $(readlink -f "$(command -v c++)")"
+          compiler="$(sha256sum $compilers | cut -d ' ' -f 1 | sha256sum | cut -c 1-16)"
+          echo "Runner image $ImageOS-$ImageVersion; compilers $compilers ($(c++ --version | head -n 1)); store compiler $compiler"
           {
             echo "ZEN_CCACHE=$RUNNER_TEMP/ccache-bin/ccache"
             echo "ZEN_CCACHE_SINCE=$(date +%s)"
             echo "CCACHE_DIR=$RUNNER_TEMP/ccache"
             echo "CCACHE_MAXSIZE=3G"
+            echo "CCACHE_COMPILERCHECK=content"
           } >> "$GITHUB_ENV"
-          echo "image=$ImageOS-$ImageVersion" >> "$GITHUB_OUTPUT"
+          echo "compiler=$compiler" >> "$GITHUB_OUTPUT"
 
       - name: Restore the compiler cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/ccache
-          key: ccache-linux-asan-${{ steps.ccache.outputs.image }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: ccache-linux-asan-${{ steps.ccache.outputs.image }}-
+          key: ccache-linux-asan-${{ steps.ccache.outputs.compiler }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ccache-linux-asan-${{ steps.ccache.outputs.compiler }}-
 
       - name: Configure Zengine as a stranger, instrumented
         run: |
@@ -400,7 +411,7 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/ccache
-          key: ccache-linux-asan-${{ steps.ccache.outputs.image }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: ccache-linux-asan-${{ steps.ccache.outputs.compiler }}-${{ github.run_id }}-${{ github.run_attempt }}
 
   # THE TWO WINDOWS LANES ARE TWO STANDARD LIBRARIES, and a claim about "Windows" names the
   # one it was measured on. MinGW-w64/libstdc++ is the maintainers' daily build, so this lane is
@@ -478,18 +489,23 @@ jobs:
           Expand-Archive -LiteralPath $zip -DestinationPath $bin
           $exe = (Get-ChildItem -LiteralPath $bin -Recurse -Filter ccache.exe | Select-Object -First 1).FullName
           & $exe --version | Select-Object -First 1
+          $compilers = 'C:/mingw64/bin/gcc.exe', 'C:/mingw64/bin/g++.exe'
+          $digests = ($compilers | ForEach-Object { (Get-FileHash -Algorithm SHA256 -LiteralPath $_).Hash.ToLowerInvariant() }) -join "`n"
+          $compiler = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($digests))).Substring(0, 16).ToLowerInvariant()
+          "Runner image $env:ImageOS-$env:ImageVersion; compilers $($compilers -join ' ') ($(& $compilers[1] --version | Select-Object -First 1)); store compiler $compiler"
           "ZEN_CCACHE=$($exe -replace '\\', '/')" >> $env:GITHUB_ENV
           "ZEN_CCACHE_SINCE=$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())" >> $env:GITHUB_ENV
           "CCACHE_DIR=$(Join-Path $env:RUNNER_TEMP 'ccache')" >> $env:GITHUB_ENV
           "CCACHE_MAXSIZE=3G" >> $env:GITHUB_ENV
-          "image=$env:ImageOS-$env:ImageVersion" >> $env:GITHUB_OUTPUT
+          "CCACHE_COMPILERCHECK=content" >> $env:GITHUB_ENV
+          "compiler=$compiler" >> $env:GITHUB_OUTPUT
 
       - name: Restore the compiler cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/ccache
-          key: ccache-mingw-debug-${{ steps.ccache.outputs.image }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: ccache-mingw-debug-${{ steps.ccache.outputs.image }}-
+          key: ccache-mingw-debug-${{ steps.ccache.outputs.compiler }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ccache-mingw-debug-${{ steps.ccache.outputs.compiler }}-
 
       - name: Configure Zengine as a stranger with MinGW-w64
         shell: pwsh
@@ -538,7 +554,7 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/ccache
-          key: ccache-mingw-debug-${{ steps.ccache.outputs.image }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: ccache-mingw-debug-${{ steps.ccache.outputs.compiler }}-${{ github.run_id }}-${{ github.run_attempt }}
 
   # The MSVC stranger, ADVISORY: MSVC is the toolchain released Windows users build with, but
   # not the maintainers' daily build, so a red here cannot yet be proven or repaired locally as a
@@ -616,8 +632,8 @@ jobs:
           cmake --build $loomBuild
           cmake --install $loomBuild --prefix $loomPrefix
 
-      # The compiler cache as in the MinGW-w64 job, in a store of this job's own; not in the
-      # nightly run, which adds nothing.
+      # The compiler cache as in the MinGW-w64 job, in a store of this job's own, its compiler the
+      # `cl.exe` the developer shell finds first; not in the nightly run, which adds nothing.
       - name: Fetch pinned ccache 4.13.6
         id: ccache
         if: ${{ env.ZEN_MSVC_BARE != 'true' }}
@@ -634,19 +650,28 @@ jobs:
           Expand-Archive -LiteralPath $zip -DestinationPath $bin
           $exe = (Get-ChildItem -LiteralPath $bin -Recurse -Filter ccache.exe | Select-Object -First 1).FullName
           & $exe --version | Select-Object -First 1
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          Import-Module (Join-Path $vs 'Common7\Tools\Microsoft.VisualStudio.DevShell.dll')
+          Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64' | Out-Null
+          $compilers = @((Get-Command cl.exe).Source)
+          $digests = ($compilers | ForEach-Object { (Get-FileHash -Algorithm SHA256 -LiteralPath $_).Hash.ToLowerInvariant() }) -join "`n"
+          $compiler = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($digests))).Substring(0, 16).ToLowerInvariant()
+          "Runner image $env:ImageOS-$env:ImageVersion; compilers $($compilers -join ' ') (cl.exe $((Get-Item -LiteralPath $compilers[0]).VersionInfo.FileVersion)); store compiler $compiler"
           "ZEN_CCACHE=$($exe -replace '\\', '/')" >> $env:GITHUB_ENV
           "ZEN_CCACHE_SINCE=$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())" >> $env:GITHUB_ENV
           "CCACHE_DIR=$(Join-Path $env:RUNNER_TEMP 'ccache')" >> $env:GITHUB_ENV
           "CCACHE_MAXSIZE=3G" >> $env:GITHUB_ENV
-          "image=$env:ImageOS-$env:ImageVersion" >> $env:GITHUB_OUTPUT
+          "CCACHE_COMPILERCHECK=content" >> $env:GITHUB_ENV
+          "compiler=$compiler" >> $env:GITHUB_OUTPUT
 
       - name: Restore the compiler cache
         if: ${{ env.ZEN_MSVC_BARE != 'true' }}
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/ccache
-          key: ccache-msvc-debug-${{ steps.ccache.outputs.image }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: ccache-msvc-debug-${{ steps.ccache.outputs.image }}-
+          key: ccache-msvc-debug-${{ steps.ccache.outputs.compiler }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ccache-msvc-debug-${{ steps.ccache.outputs.compiler }}-
 
       - name: Configure Zengine as a stranger with MSVC
         shell: pwsh
@@ -739,4 +764,4 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/ccache
-          key: ccache-msvc-debug-${{ steps.ccache.outputs.image }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: ccache-msvc-debug-${{ steps.ccache.outputs.compiler }}-${{ github.run_id }}-${{ github.run_attempt }}
