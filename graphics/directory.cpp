@@ -40,7 +40,7 @@ struct DirectoryState {
     std::vector<DirectoryArea> areas;
     std::vector<gfx::SkinOffered> skins;
     std::vector<gfx::ElementCodeOffered> codes;
-    ZEN_SHAPE(DirectoryState, 3, ZEN_FIELD(windows), ZEN_FIELD(areas), ZEN_FIELD(skins),
+    ZEN_SHAPE(DirectoryState, 4, ZEN_FIELD(windows), ZEN_FIELD(areas), ZEN_FIELD(skins),
               ZEN_FIELD(codes));
 };
 

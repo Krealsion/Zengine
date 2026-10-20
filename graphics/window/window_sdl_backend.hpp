@@ -570,10 +570,17 @@ private:
             SDL_RenderLine(renderer_, static_cast<float>(ox + l.x1), static_cast<float>(oy + l.y1),
                            static_cast<float>(ox + l.x2), static_cast<float>(oy + l.y2));
         }
+        // Each character in its own cell, SDL's face centred in it.
+        constexpr std::int64_t inset = (light::kAdvance - SDL_DEBUG_TEXT_FONT_CHARACTER_SIZE) / 2;
         for (const light::TextRun& t : p.texts) {
             ink(t.rgba);
-            SDL_RenderDebugText(renderer_, static_cast<float>(ox + t.x),
-                                static_cast<float>(oy + t.y + 2), t.text.c_str());
+            std::int64_t x = ox + t.x + inset;
+            for (const char ch : t.text) {
+                const char glyph[2] = {ch, '\0'};
+                SDL_RenderDebugText(renderer_, static_cast<float>(x),
+                                    static_cast<float>(oy + t.y + inset), glyph);
+                x += light::kAdvance;
+            }
         }
         if (p.images.empty()) {
             return;

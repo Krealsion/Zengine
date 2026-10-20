@@ -244,7 +244,7 @@ surface::SurfaceCanvas paint(const Session& s) {
 std::string pane_window_area(const Panes& panes, const RuntimePane& row) {
     // The offices that seat each of their panes in an area of its own, whatever they offer now.
     static constexpr const char* kSeatingOffices[] = {"zengine.desktop", "zengine.introspection",
-                                                     "zengine.info", "zengine.inventory"};
+                                                     "zengine.info", "zengine.inventory-pane"};
     bool seats = std::any_of(std::begin(kSeatingOffices), std::end(kSeatingOffices),
                              [&](const char* office) { return row.provider == office; });
     seats = seats || std::count_if(panes.runtime.entries.begin(), panes.runtime.entries.end(),

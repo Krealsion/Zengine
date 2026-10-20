@@ -147,8 +147,9 @@ public:
     PaneWindow& weave() { return *w_; }
     const std::string& name() const { return w_->window(); }
 
-    /// THE ROOM OF `area`, `cols` by `rows` cells, told its owner as this window's office. A new
-    /// `epoch` is a window started again, which holds nothing of the area's.
+    /// THE ROOM OF `area`, `cols` by `rows` cells, told its owner as this window's office, empty
+    /// while it holds none of the owner's drawing. A new `epoch` is a window started again, which
+    /// holds nothing of the area's.
     void room(const std::string& area, const std::string& owner, std::int64_t cols,
               std::int64_t rows, std::int64_t epoch = 1) {
         gw::WinArea* a = w_->find(area);
@@ -164,7 +165,8 @@ public:
         a->owner = owner;
         a->w = cols * gfx::kCellPx;
         a->h = rows * gfx::kCellPx;
-        say(owner, gfx::AreaRoom{area, w_->window(), epoch, a->w, a->h, {}});
+        say(owner, gfx::AreaRoom{area, w_->window(), epoch, a->w, a->h, {},
+                                 a->nodes.empty() && a->records.empty()});
     }
 
     /// WHAT `area` SHOWS, row by row, its nodes in the window's paint order read as Workshop reads

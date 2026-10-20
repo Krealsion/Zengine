@@ -94,7 +94,7 @@ and the `action` a press anywhere in it asks of the area's owner.
 | `ellipse` | a box, a fill and an outline | the cells whose centre falls inside | a span a pixel row; its outline in lines |
 | `line` | two points and an ink | a walk of cells in `- | / \` | a line |
 | `path` | SVG path data (`M L H V C Q Z`), a fill and an outline | curves flattened; cells by centre | curves flattened; spans a pixel row, even-odd |
-| `text` | a point, words and an ink | one cell a character; outside ASCII, `?` | a run of text, `light::kAdvance` pixels a character; outside ASCII, `?` |
+| `text` | a point, words and an ink | one cell a character; outside ASCII, `?` | a run of text, one cell a character (`light::kAdvance`); outside ASCII, `?` |
 | `image` | a box and pixels, four bytes each | a luminance ramp, one glyph a cell | its pixels, scaled into its box |
 
 Coordinates are the area's pixels; a terminal floors each edge to its cell of
@@ -111,11 +111,13 @@ sends only the nodes that changed. A beat queues its picture (`draw`), an elemen
 elements: every message but the last says `more` follows, and the window shows once, after the
 last. A tick that changes the snake's board and its score is one showing.
 
-A canvas draws whole when its window is new, started again, or resized. The window tells the room
-(`AreaRoom`): its name, its incarnation, its width and height (`width()`, `height()`), and the
-references of the owner's elements it still presents there. `room` answers whether the window, its
-incarnation, or its size changed, and `holds` whether the window presents an element, so an owner
-says again only what the window does not hold.
+A canvas draws whole when its window is new, started again, or resized, or the window says the
+area is empty. The window tells the room (`AreaRoom`): its name, its incarnation, its width and
+height (`width()`, `height()`), the references of the owner's elements it still presents there,
+and whether it holds none of the owner's drawing there (`empty`): an area shown afresh, or given to
+this owner. `room` answers whether the window, its incarnation or its size changed or the area is
+empty, and `holds` whether the window presents an element, so an owner says again only what the
+window does not hold.
 
 ## A drawing weave
 

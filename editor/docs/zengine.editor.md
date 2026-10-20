@@ -251,7 +251,7 @@ lose them`, unless `discard` is true; answered `Neovim ended (status 0)`.
 
 ### `AreaRoom`
 
-`AreaRoom` v2, from the graphics window that shows the area `zengine.editor`, as that window's
+`AreaRoom` v3, from the graphics window that shows the area `zengine.editor`, as that window's
 office ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): the Editor's room there. The
 holder draws the pane Workshop is shown, the caret a bar, the selection in the accent role: whole
 when the room changed, then only what changed. Seated nowhere, it composes for this room, Neovim

@@ -28,9 +28,9 @@ the keyboard. With no display, it says why once on its standard error, holds no 
 keeps and composes its picture, at that size.
 
 **Painting.** A node is painted once, when it changes, into pixel primitives -- rectangles, lines,
-runs of text, images -- each in its paint's exact colour, else the look's for its role: by the
-area's skin when it paints light, else by the window itself, in the day look for the skin named
-`day` and the night look for any other.
+runs of text a cell a character, images -- each in its paint's exact colour, else the look's for its
+role: by the area's skin when it paints light, else by the window itself, in the day look for the
+skin named `day` and the night look for any other.
 
 **Showing.** When anything changed, the window draws its whole picture again -- the back-most
 area's ground, then the areas back to front, each clipped to its bounds -- and presents it; `more`
@@ -43,11 +43,11 @@ a node holding the pixels its primitives hold, within a pixel of a line.
 
 ## Use
 
-An owner is told its room first (`AreaRoom`), once the directory introduces its area; it then
-draws with [`Drawn`](#drawn), says an element once with [`ElementPut`](#elementput) and sends its
-changes with [`ElementChange`](#elementchange). A drawer usually does all three through a canvas
-or a drawing weave ([the Graphics package](graphics.md#a-drawing-weave)), which draw whole only
-when the room names another window or incarnation. To read what the window shows, ask
+An owner is told its room first (`AreaRoom`), once the directory introduces its area; it then draws
+with [`Drawn`](#drawn), says an element once with [`ElementPut`](#elementput) and sends its changes
+with [`ElementChange`](#elementchange). A drawer usually does all three through a canvas or a
+drawing weave ([the Graphics package](graphics.md#a-drawing-weave)), which draw whole only on a new
+window, incarnation or size, or an empty area. To read what it shows, ask
 [`WindowShowAsked`](#windowshowasked).
 
 Keys go to each owner placed to hear them: each key, its text and its release. An owner placed to
@@ -247,17 +247,17 @@ no answer. With no window there is no clipboard, and nothing is copied.
 
 ## Follow
 
-As its own office the window publishes `WindowOffered` v1 on each activation, after
-`GraphicsReady`, and when a beat finds another size in `kCellPx` cells: its name, that size and
-its incarnation, which a resize keeps; the directory keeps it, and an arranger may lay out in
-that room. It publishes `SurfacePlacement` v1 when its place changed, before `WindowOffered` when
-both did: its normal top-left and whether it is maximized; and `SurfaceCloseRequested` v1 for each
-close its desktop asked. To an area's owner: `AreaRoom` v2; `DrawnRefused` v1;
-`ActionRequested` v1; `AreaButtonChanged`, `AreaPointerMoved`, `AreaWheelTurned`, `AreaHoldEnded`
-and `AreaPointerLeft` v1 when placed to hear the pointer; `KeyPressed` v2, `KeyReleased` v2 and
-`TextEntered` v1 when placed to hear keys. To an arranger not the owner: `AreaPressed`,
-`AreaHoldEnded` and `AreaPointerLeft` v1. To an asker: `WindowShown` v1, `ClipboardText` v1,
-`SurfaceCaptured` v1, `SurfaceCaptureChunk` v1 and `zen.Refused`. To the Timer, its beat's order.
+As its own office the window publishes `WindowOffered` v2 on each activation, after `GraphicsReady`,
+and at each new size in `kCellPx` cells: its name, that size, its incarnation, kept by a resize, and
+`kCellPx` pixels in a cell; the directory keeps it. It publishes `SurfacePlacement` v1 when its
+place changed, before `WindowOffered` when both did: its normal top-left and if maximized; and
+`SurfaceCloseRequested` v1 for each close asked. To an area's owner: `AreaRoom` v3 (`empty` while it
+holds none of the owner's drawing); `DrawnRefused` v1; `ActionRequested` v1; `AreaButtonChanged`,
+`AreaPointerMoved`, `AreaWheelTurned`, `AreaHoldEnded` and `AreaPointerLeft` v1 when placed to hear
+the pointer; `KeyPressed` v2, `KeyReleased` v2 and `TextEntered` v1 when placed to hear keys. To an
+arranger not the owner: `AreaPressed`, `AreaHoldEnded` and `AreaPointerLeft` v1. To an asker:
+`WindowShown` v1, `ClipboardText` v1, `SurfaceCaptured` v1, `SurfaceCaptureChunk` v1 and
+`zen.Refused`. To the Timer, its beat's order.
 
 ## Files
 

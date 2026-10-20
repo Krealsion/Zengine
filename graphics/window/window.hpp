@@ -987,17 +987,18 @@ private:
     /// lays out in its room.
     void offer(loom::Mail& mail) {
         const CellExtent size = medium_.offered();
-        (void)mail.as_role(office()).publish(
-            WindowOffered{Medium::kWindow, size.cols, size.rows, this->state_.epoch});
+        (void)mail.as_role(office()).publish(WindowOffered{
+            Medium::kWindow, size.cols, size.rows, this->state_.epoch, Medium::kCellDevicePx});
     }
 
-    /// An area's room, to its owner: this window, its incarnation, the area's size, and the
-    /// references of the elements presented there.
+    /// An area's room, to its owner: this window, its incarnation, the area's size, the references
+    /// of the elements presented there, and whether it holds none of the owner's drawing.
     void room(loom::Mail& mail, const WinArea& a) {
         if (a.owner.empty()) {
             return;
         }
-        AreaRoom r{a.area, Medium::kWindow, this->state_.epoch, a.w, a.h, {}};
+        AreaRoom r{a.area, Medium::kWindow, this->state_.epoch, a.w, a.h, {},
+                   a.nodes.empty() && a.records.empty() && a.presented.empty()};
         for (const Presented& p : a.presented) {
             r.elements.push_back(p.ref);
         }

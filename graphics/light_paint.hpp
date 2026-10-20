@@ -30,9 +30,9 @@
 
 namespace zengine::graphics::light {
 
-/// The width of one character of text, the renderer's own face of 8 pixels a character, and the
-/// height of a line of text: a cell's.
-inline constexpr std::int64_t kAdvance = 8;
+/// The width of one character of text and the height of a line: a cell's, so text stands one cell
+/// a character, as a window of light reads it and as every owner sets text in cells.
+inline constexpr std::int64_t kAdvance = kCellPx;
 inline constexpr std::int64_t kLine = kCellPx;
 
 /// The tag that opens a node painted for light: 'L', 'G', 'T' and this layout's version.

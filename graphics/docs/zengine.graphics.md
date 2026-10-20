@@ -118,9 +118,10 @@ from the window's own office, and `RoomAsked` only from the area's owner.
 
 ### `WindowOffered`
 
-`WindowOffered` v1, from a window as its own office, `zengine.window.<name>`, on each activation,
+`WindowOffered` v2, from a window as its own office, `zengine.window.<name>`, on each activation,
 after `GraphicsReady`, and on a resize: its name, its size in cells (none where it has nothing to
-measure) and its incarnation. The directory keeps it, then tells the window every element code and
+measure), its incarnation and its device pixels in a cell (`kCellPx` for the OS window, none for
+the terminal's). The directory keeps it, then tells the window every element code and
 introduces each of its areas. A `WindowOffered` from any other office is ignored.
 
 ## Follow

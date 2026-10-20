@@ -219,14 +219,16 @@ struct AreaPointerLeft {
 
 /// A window, as its own office, to whoever follows it -- the directory, and an arranger laying out
 /// in its room -- on each activation: its name, its size in cells (none where it has no terminal
-/// to measure), and its incarnation. A window started afresh holds nothing, so its owners draw
-/// whole again.
+/// to measure), its incarnation, and its device pixels in one cell (`cell_px`: `kCellPx` where it
+/// shows every pixel, none where its unit is the cell, as a terminal's). A window started afresh
+/// holds nothing, so its owners draw whole again.
 struct WindowOffered {
     std::string window;
     std::int64_t cols = 0, rows = 0;
     std::int64_t epoch = 0;
-    ZEN_SHAPE(WindowOffered, 1, ZEN_FIELD(window), ZEN_FIELD(cols), ZEN_FIELD(rows),
-              ZEN_FIELD(epoch));
+    std::int64_t cell_px = 0;
+    ZEN_SHAPE(WindowOffered, 2, ZEN_FIELD(window), ZEN_FIELD(cols), ZEN_FIELD(rows),
+              ZEN_FIELD(epoch), ZEN_FIELD(cell_px));
 };
 
 /// The arranger -> the directory: where an area stands, in which window, whose office draws in it,
@@ -295,16 +297,19 @@ struct AreaWithdrawn {
 
 /// A window -> the owner of an area it was introduced, as the window's office: draw into this
 /// window, as of this incarnation, in this room; `elements` are the references of the owner's
-/// elements the window still presents there. An owner draws whole only when the window or its
-/// incarnation changed, and says again only an element the window does not hold.
+/// elements the window still presents there, and `empty` says the window holds none of the
+/// owner's drawing there, as when it shows the area afresh or gives it to this owner. An owner
+/// draws whole only when the window, its incarnation or its size changed or the area is empty, and
+/// says again only an element the window does not hold.
 struct AreaRoom {
     std::string area;
     std::string window;
     std::int64_t epoch = 0;
     std::int64_t w = 0, h = 0;
     std::vector<std::int64_t> elements;
-    ZEN_SHAPE(AreaRoom, 2, ZEN_FIELD(area), ZEN_FIELD(window), ZEN_FIELD(epoch), ZEN_FIELD(w),
-              ZEN_FIELD(h), ZEN_FIELD(elements));
+    bool empty = false;
+    ZEN_SHAPE(AreaRoom, 3, ZEN_FIELD(area), ZEN_FIELD(window), ZEN_FIELD(epoch), ZEN_FIELD(w),
+              ZEN_FIELD(h), ZEN_FIELD(elements), ZEN_FIELD(empty));
 };
 
 /// An owner that starts again -> the directory, as its office: my room in this area. Answered by
