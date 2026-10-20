@@ -38,10 +38,8 @@ holds it back. Uncovered or resized, it draws again.
 
 **Keys and the pointer.** It empties SDL's queue on its own beat, the Timer's
 `zengine.window.pump` every `window::kPumpBeatMs` milliseconds, and sends what it read on in order.
-A left press lands on the top node whose primitives hold its pixel (within a pixel of a line),
-through an area wherever it painted nothing: an element there whose code takes it; else its
-record's action to the owner (`ActionRequested`); else, to an owner placed to hear the pointer, the
-press (`PointerButton`).
+A pointer moment lands as on a terminal ([`zengine.window.terminal`](zengine.window.terminal.md#about)),
+a node holding the pixels its primitives hold, within a pixel of a line.
 
 ## Use
 
@@ -52,11 +50,11 @@ or a drawing weave ([the Graphics package](graphics.md#a-drawing-weave)), which 
 when the room names another window or incarnation. To read what the window shows, ask
 [`WindowShowAsked`](#windowshowasked).
 
-Keys go to each owner placed to hear them: each key, its text and its release. Every pointer
-moment but a left press -- any button let go, the middle or right button pressed, a move, the
-wheel -- goes to the owner of the area it lands in, when placed to hear the pointer. Each reaches
-it at the area's own point in pixels, a move's deltas in pixels too; moves read in one beat go as
-one, at the last point, their deltas summed.
+Keys go to each owner placed to hear them: each key, its text and its release. An owner placed to
+hear the pointer is given each pointer moment in its area as it was, in the area's pixels
+(`AreaButtonChanged`, `AreaPointerMoved`, `AreaWheelTurned`); moves read in one beat go as one. A
+press holds its button for its area until its release, under one number; its arranger hears where
+it landed (`AreaPressed`; [the Graphics package](graphics.md#who-says-what)).
 
 Who may send: whoever the host's grant lets reach `zengine.window.sdl`. The window takes a drawing
 or an element only from the area's owner, as that office, and refuses anyone else's; it takes the
@@ -203,16 +201,16 @@ judged against the displays there are now.
 
 ### `AreaIntroduced`
 
-`AreaIntroduced` v2, from the directory: an area, its owner, place, order, keys, pointer and skin.
-The window keeps it, paints it again where another skin or library paints it, draws its picture
-again where it moved, empties it when another owner draws in it, and tells the owner its room
-(`AreaRoom`). Past `kMaxAreas` it is not shown, and `WindowShown` reports `the window shows <bound>
-areas: '<area>' is not shown`.
+`AreaIntroduced` v3, from the directory: an area, its owner, its arranger, place, order, keys,
+pointer and skin. The window keeps it, paints it again where another skin or library paints it,
+draws its picture again where it moved, empties it when another owner draws in it, ends a press
+held for it or now covered by it, and tells the owner its room (`AreaRoom`). Past `kMaxAreas` it is
+not shown, and `WindowShown` reports `the window shows <bound> areas: '<area>' is not shown`.
 
 ### `AreaWithdrawn`
 
-`AreaWithdrawn` v1, from the directory: the area is no longer this window's. What it held goes,
-and the picture is drawn again without it.
+`AreaWithdrawn` v1, from the directory: the area is no longer this window's. What it held goes, a
+press held for it ends, and the picture is drawn again without it.
 
 ### `ElementCodeOffered`
 
@@ -250,16 +248,16 @@ no answer. With no window there is no clipboard, and nothing is copied.
 ## Follow
 
 As its own office the window publishes `WindowOffered` v1 on each activation, after
-`GraphicsReady`, and on a beat that finds the OS window at another size in cells of `kCellPx`
-pixels: its name, `sdl`, that size and its incarnation, which a resize keeps. The directory keeps
-it; an arranger following it may lay out in that room. It publishes `SurfacePlacement` v1 when its
-place changed, before `WindowOffered` when both did: its normal top-left and whether it is
-maximized. It publishes `SurfaceCloseRequested` v1 once for each close its desktop asked for. To an
-area's owner: `AreaRoom` v2; `DrawnRefused` v1; `ActionRequested` v1; `PointerButton` v1,
-`PointerMoved` v1 and `PointerWheel` v1 when placed to hear the pointer; `KeyPressed` v2,
-`KeyReleased` v2 and `TextEntered` v1 when placed to hear keys. To an asker alone: `WindowShown`
-v1, `ClipboardText` v1, `SurfaceCaptured` v1, `SurfaceCaptureChunk` v1 and `zen.Refused`. To the
-Timer, its beat's order.
+`GraphicsReady`, and when a beat finds another size in `kCellPx` cells: its name, that size and
+its incarnation, which a resize keeps; the directory keeps it, and an arranger may lay out in
+that room. It publishes `SurfacePlacement` v1 when its place changed, before `WindowOffered` when
+both did: its normal top-left and whether it is maximized; and `SurfaceCloseRequested` v1 for each
+close its desktop asked. To an area's owner: `AreaRoom` v2; `DrawnRefused` v1;
+`ActionRequested` v1; `AreaButtonChanged`, `AreaPointerMoved`, `AreaWheelTurned`, `AreaHoldEnded`
+and `AreaPointerLeft` v1 when placed to hear the pointer; `KeyPressed` v2, `KeyReleased` v2 and
+`TextEntered` v1 when placed to hear keys. To an arranger not the owner: `AreaPressed`,
+`AreaHoldEnded` and `AreaPointerLeft` v1. To an asker: `WindowShown` v1, `ClipboardText` v1,
+`SurfaceCaptured` v1, `SurfaceCaptureChunk` v1 and `zen.Refused`. To the Timer, its beat's order.
 
 ## Files
 

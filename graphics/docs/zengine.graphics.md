@@ -52,8 +52,11 @@ from the window's own office, and `RoomAsked` only from the area's owner.
 - **Takes:** `area`, the area's name; `window`, the window's name (`terminal`); `owner`, the
   office that draws in it; `x`, `y`, `w`, `h`, its place and size in the window's pixels; `order`,
   its place among the window's areas, a higher order in front; `keys`, true for the window to give
-  the owner its keys and their text; `pointer`, true for the window to give the owner a press that nothing drawn
-  in the area takes (else such a press sends nothing).
+  the owner its keys and their text; `pointer`, true for the window to give the owner every
+  pointer moment in the area, the area holding every point inside it (else only a press on a part
+  naming an action reaches the owner, as that action). The office the placing is authored as is
+  kept as the area's arranger, which the window tells where presses land in an area another office
+  owns; a placing spoken personally names none.
 - **Answers:** nothing to the sender. Once the window has offered itself and the area's chosen
   skin is offered, `AreaIntroduced` goes to the window's office, and the window tells the owner its
   room. An area already placed in another window is first withdrawn from it (`AreaWithdrawn`). An
@@ -124,7 +127,8 @@ directory keeps it, then tells the window every element code and introduces each
 
 The directory publishes `GraphicsReady` v1 as `zengine.graphics` each time it starts: everyone
 offers, places and chooses again. Everything else it says goes to one window's office alone:
-`AreaIntroduced` v2 (an area, its owner, place, order, keys, pointer, skin and the skin's library),
+`AreaIntroduced` v3 (an area, its owner, its arranger, place, order, keys, pointer, skin and the
+skin's library),
 `AreaWithdrawn` v1 (an area no longer that window's) and `ElementCodeOffered` v1. It never
 answers its senders; an owner learns its area is shown when its window tells it its room.
 

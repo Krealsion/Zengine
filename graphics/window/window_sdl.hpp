@@ -380,8 +380,8 @@ public:
     }
 
     /// A point of the window in pixels (a point in cells at its cell's centre): the front-most
-    /// area there, and the top node whose primitives hold the point; an area shows what lies
-    /// behind it wherever it painted nothing there.
+    /// area there that takes it, and the top node whose primitives hold the point, as the
+    /// terminal lands one (`window::land`).
     Landed land(const std::vector<WinArea>& areas, std::int64_t at_x, std::int64_t at_y,
                 std::int64_t space) const {
         const bool cells = space == zengine::input::space::kCells;
@@ -392,9 +392,6 @@ public:
             if (x < a->x || y < a->y || x >= a->x + a->w || y >= a->y + a->h) {
                 continue;
             }
-            if (out.area == nullptr) {
-                out.area = a;
-            }
             const Kept* best = nullptr;
             const std::string* best_path = nullptr;
             for (const auto& [path, k] : painted(a->area)) {
@@ -404,9 +401,9 @@ public:
                     best_path = path;
                 }
             }
-            if (best != nullptr) {
+            if (a->pointer || (best != nullptr && takes_press(*a, *best_path))) {
                 out.area = a;
-                out.path = *best_path;
+                out.path = best != nullptr ? *best_path : std::string();
                 break;
             }
         }

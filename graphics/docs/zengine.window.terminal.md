@@ -33,11 +33,12 @@ showing back; the next message from that drawer without it shows everything sinc
 message the window handles shows what it changed.
 
 **Keys and the pointer.** The window reads its terminal on its own beat, the Timer's
-`zengine.window.pump` every `window::kPumpBeatMs` milliseconds, with Zengine's parser, and sends
-what it read on in order. A left press lands on the top node painted at its cell: an element
-presented there whose code takes the press handles it; else the action of the record it lies in
-goes to the area's owner (`ActionRequested`); else the press, to an owner placed to hear the
-pointer (`PointerButton`); else nothing.
+`zengine.window.pump` every `window::kPumpBeatMs` milliseconds, and sends what it read on in
+order. A pointer moment lands in the front-most area that takes its cell: one
+placed to hear the pointer takes every cell in it, any other only where it drew an action or an
+element. A left press on an element whose code takes it is the element's; else, in an area deaf to
+the pointer, its record's action goes to the owner (`ActionRequested`); else, in one hearing it,
+the press itself (`AreaButtonChanged`).
 
 ## Use
 
@@ -49,11 +50,11 @@ when the room names another window or incarnation. To read what the window shows
 [`WindowShowAsked`](#windowshowasked).
 
 Keys go to each owner placed to hear them, front to back: each key, its text and its release, which
-a terminal reports right after the press. Every pointer moment but a left press -- any button let
-go, the middle or right button pressed, a move, the wheel -- goes to the owner of the area its cell
-lands in, when placed to hear the pointer. Each reaches it at the area's own point in pixels, its
-cell's centre, a move's deltas in pixels too; moves read in one beat go as one, at the last point,
-their deltas summed.
+a terminal reports just after the press. An owner placed to hear the pointer is given each pointer
+moment in its area as it was, at its cell's centre in the area's pixels (`AreaButtonChanged`,
+`AreaPointerMoved`, `AreaWheelTurned`); moves read in one beat go as one. A press holds its button
+for its area until its release, under one number; its arranger hears where it landed
+(`AreaPressed`; [the Graphics package](graphics.md#who-says-what)).
 
 Who may send: whoever the host's grant lets reach `zengine.window.terminal` (the snake's host
 grants its operator `Drawn`). The window takes a drawing or an element only from the area's owner,
@@ -196,15 +197,16 @@ reading the terminal.
 
 ### `AreaIntroduced`
 
-`AreaIntroduced` v2, from the directory: an area, its owner, place, order, keys, pointer and skin.
-The window keeps it, paints it again where it moved or another skin paints it, empties it when
-another owner draws in it, and tells the owner its room (`AreaRoom`). Past `kMaxAreas` it is not
-shown, and `WindowShown` reports `the window shows <bound> areas: '<area>' is not shown`.
+`AreaIntroduced` v3, from the directory: an area, its owner, its arranger, place, order, keys,
+pointer and skin. The window keeps it, paints it again where it moved or another skin paints it,
+empties it when another owner draws in it, ends a press held for it or now covered by it, and tells
+the owner its room (`AreaRoom`). Past `kMaxAreas` it is not shown, and `WindowShown` reports `the
+window shows <bound> areas: '<area>' is not shown`.
 
 ### `AreaWithdrawn`
 
-`AreaWithdrawn` v1, from the directory: the area is no longer this window's. What it held goes,
-and the cells it covered are shown again.
+`AreaWithdrawn` v1, from the directory: the area is no longer this window's. What it held goes, a
+press held for it ends, and the cells it covered are shown again.
 
 ### `ElementCodeOffered`
 
@@ -241,15 +243,17 @@ which no terminal confirms. It is no showing, and nothing answers it.
 ## Follow
 
 As its own office the window publishes `WindowOffered` v1 on each activation, after
-`GraphicsReady`, and on a beat that finds its terminal at another size in cells: its name, its size
-in cells and its incarnation, which a resize keeps. The directory keeps it; an arranger following
-it may lay out in that room. A terminal has no place on the desktop and no close box, so it never
-publishes `SurfacePlacement` or `SurfaceCloseRequested`. To an area's owner: `AreaRoom` v2 for
-each introduction; `DrawnRefused` v1; `ActionRequested` v1; `PointerButton` v1, `PointerMoved` v1
-and `PointerWheel` v1 when placed to hear the pointer; `KeyPressed` v2, `KeyReleased` v2 and
-`TextEntered` v1 when placed to hear keys, a shape it does not take refused on the bus. To an asker
-alone: `WindowShown` v1, `ClipboardText` v1, `SurfaceCaptured` v1, `SurfaceCaptureChunk` v1 and
-`zen.Refused`. To the Timer, its beat's order.
+`GraphicsReady`, and on a beat that finds its terminal at another size in cells: its name, size in
+cells and incarnation, which a resize keeps. The directory keeps it, and an arranger may lay out in
+that room. With no desktop place or close box, a terminal never publishes `SurfacePlacement` or
+`SurfaceCloseRequested`. To an area's owner: `AreaRoom` v2 for each introduction; `DrawnRefused`
+v1; `ActionRequested` v1; `AreaButtonChanged`, `AreaPointerMoved`, `AreaWheelTurned`,
+`AreaHoldEnded` and `AreaPointerLeft` v1 when placed to hear the pointer; `KeyPressed` v2,
+`KeyReleased` v2 and `TextEntered` v1 when placed to hear keys, a shape it does not take refused on
+the bus. To an arranger not the owner: `AreaPressed`, `AreaHoldEnded` and `AreaPointerLeft` v1. To
+an asker alone: `WindowShown` v1,
+`ClipboardText` v1, `SurfaceCaptured` v1, `SurfaceCaptureChunk` v1 and `zen.Refused`. To the Timer,
+its beat's order.
 
 ## Files
 
