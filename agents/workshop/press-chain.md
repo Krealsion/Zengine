@@ -128,8 +128,12 @@ omitted tab has no span and cannot be pressed" "no press outside the painted run
 ### WL-PRESS-06
 `workshop/pane_vocabulary.hpp` PaneButton PanePassRequested
 `workshop/weave.hpp` SecondaryHold SecondaryContinuation external_button external_release
-end_lost_holds end_refused_button
-`workshop/weave_external.cpp` external_button external_release end_lost_holds end_refused_button
+lose_secondary_hold end_lost_holds end_refused_button
+`workshop/weave_external.cpp` external_button external_release lose_secondary_hold end_lost_holds
+end_refused_button
+`workshop/weave_handlers.cpp` on(AreaHoldEnded)
+`tests/test_workshop_desk.cpp` "a hold the window ends in Workshop's own area loses the press Workshop handed a pane it
+draws there, a canvas's and a second button's alike, and a hold of another button ends neither"
 `workshop/weave_code.cpp` on(DispatchRefused)
 `workshop/weave_pointer.cpp` on(PointerButton)
 `workshop/weave_session.cpp` apply_setup

@@ -354,17 +354,7 @@ bool WorkshopWeave::external_button(std::int64_t kind, std::int64_t button,
     // ARBITRATION, NEVER SILENCE: a press of a button believed to be down means its release was
     // never reported (a lost focus, a window that swallowed it); the old hold ends aloud, with a
     // `lost` release owed to its pane, before the new press is recorded.
-    if (secondary_hold_[s].active) {
-        if (const RuntimePane* old = session_.panes.runtime.of_kind(secondary_hold_[s].kind)) {
-            (void)mail.as_role(kWorkshopProvider)
-                .send_to_role(old->provider, PaneButton{old->pane, button, false, 0, 0, true, 0});
-        }
-        const std::uint64_t ended = secondary_hold_[s].correlation;
-        secondary_hold_[s] = SecondaryHold{};
-        each_hand([&](Hand& h) {
-            if (h.secondary_cont[s].correlation == ended) h.secondary_cont[s] = SecondaryContinuation{};
-        });
-    }
+    lose_secondary_hold(s, mail);
     // THIS PRESS IS A GESTURE FOR THE OTHER BUTTON'S CONTINUATION -- of the same hand.
     for (SecondaryContinuation& other : hand().secondary_cont) {
         if (other.live && other.button != button) {
@@ -444,6 +434,25 @@ bool WorkshopWeave::external_release(std::int64_t button, const zengine::input::
         .send_to_role(row->provider, PaneButton{row->pane, button, false, prow, pcol, false, 0});
     note_routed(kind);
     return true;
+}
+
+// WL-PRESS-06 -- agents/workshop/press-chain.md
+void WorkshopWeave::lose_secondary_hold(std::size_t s, loom::Mail& mail) {
+    SecondaryHold& h = secondary_hold_[s];
+    if (!h.active) {
+        return;
+    }
+    if (const RuntimePane* row = session_.panes.runtime.of_kind(h.kind)) {
+        (void)mail.as_role(kWorkshopProvider)
+            .send_to_role(row->provider, PaneButton{row->pane, h.button, false, 0, 0, true, 0});
+    }
+    const std::uint64_t ended = h.correlation;
+    h = SecondaryHold{};
+    each_hand([&](Hand& hd) {
+        if (hd.secondary_cont[s].correlation == ended) {
+            hd.secondary_cont[s] = SecondaryContinuation{};
+        }
+    });
 }
 
 // WL-PRESS-06 -- agents/workshop/press-chain.md

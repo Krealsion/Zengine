@@ -984,15 +984,25 @@ Workshop draws. A moment over a pane a window shows in its own area is never rel
 ### `AreaPointerMoved`
 
 `AreaPointerMoved` v1, from that window: the pointer moved in Workshop's own area, or while a press
-made there is held, as `PointerMoved` takes it. A press Workshop holds there ends when Workshop
-places an area hearing the pointer in front of its own where the press was made, so it takes no
-`AreaHoldEnded`, nor `AreaPointerLeft`: a window telling it either, as an area's owner or arranger,
-is refused at its door.
+made there is held, as `PointerMoved` takes it.
 
 ### `AreaWheelTurned`
 
 `AreaWheelTurned` v1, from that window: the wheel in Workshop's own area, as `PointerWheel` takes
 it.
+
+### `AreaHoldEnded`
+
+`AreaHoldEnded` v1, from that window, to Workshop as its own area's owner and as each pane area's
+arranger: a press held there ended with no release. In its own area every gesture that button holds
+ends, and a pane Workshop draws there that the press reached hears it lost. In a pane's area the
+pane's room no longer waits for that press.
+
+### `AreaPointerLeft`
+
+`AreaPointerLeft` v1, from that window, told as `AreaHoldEnded` is: the pointer left an area with
+no button held. Leaving Workshop's own area it rests on no canvas Workshop draws there, which hears
+that it left. A pane's area it left is the pane's to answer.
 
 ### `AreaPressed`
 

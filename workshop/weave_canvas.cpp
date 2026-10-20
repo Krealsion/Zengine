@@ -121,10 +121,9 @@ void WorkshopWeave::refresh_canvas_rooms(loom::Mail& mail) {
         // picture stays where it was drawn until then. A pane moved, by a title row too, keeps none.
         bool held = false;
         for (const CanvasHold& hold : canvas_holds_) held = held || (hold.active && hold.kind == pane.kind);
-        // ...as does a press a graphics window holds in the pane's area, until a mode, a menu or a
-        // carry puts the desk in front of it, which ends the window's hold.
-        for (const WindowHold& hold : pane_holds_)
-            held = held || (hold.active && hold.kind == pane.kind && !desk_in_front_of_panes());
+        // ...as does a press a graphics window holds in the pane's area, until the window says
+        // its release or that it ended the hold.
+        for (const WindowHold& hold : pane_holds_) held = held || (hold.active && hold.kind == pane.kind);
         const auto kept = canvas_body_place(where.rect, sc, c.title_rows);
         if (same_kind && held && !body.empty() && c.x == kept.x && c.y == kept.y &&
             c.width == kept.w && c.height == kept.h) {
