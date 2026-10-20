@@ -1108,97 +1108,99 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     const load_persist::LoadedPlan got = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
     REQUIRE_MESSAGE(got.outcome.accepted, got.outcome.refusal);
     const load::LoadPlan& p = got.plan;
-    REQUIRE(p.artifacts.size() == 20); // includes the storage owner and its separate presentation
+    REQUIRE(p.artifacts.size() == 21); // includes the storage owner and its separate presentation
 
-    CHECK(p.artifacts[19].stem == "zengine-inventory-pane");
+    CHECK(p.artifacts[20].stem == "zengine-inventory-pane");
+    REQUIRE(p.artifacts[20].weave.has_value());
+    CHECK(p.artifacts[20].weave->role == "zengine.inventory-pane");
+    CHECK_FALSE(p.artifacts[20].provider.has_value());
+    CHECK(p.artifacts[20].optional);
+    CHECK(p.artifacts[19].stem == "zengine-inventory");
     REQUIRE(p.artifacts[19].weave.has_value());
-    CHECK(p.artifacts[19].weave->role == "zengine.inventory-pane");
-    CHECK_FALSE(p.artifacts[19].provider.has_value());
+    CHECK(p.artifacts[19].weave->role == "zengine.inventory");
     CHECK(p.artifacts[19].optional);
-    CHECK(p.artifacts[18].stem == "zengine-inventory");
-    REQUIRE(p.artifacts[18].weave.has_value());
-    CHECK(p.artifacts[18].weave->role == "zengine.inventory");
-    CHECK(p.artifacts[18].optional);
     CHECK(p.artifacts[0].stem == "zengine-operators-basic");
     CHECK(p.artifacts[1].stem == "zengine-workshop-session-history");
-    CHECK(p.artifacts[2].stem == "zengine-skin-tui-classic");
-    CHECK(p.artifacts[3].stem == "zengine-input");
-    CHECK(p.artifacts[4].stem == "zengine-timer");
-    CHECK(p.artifacts[5].stem == "zengine-introspection");
-    CHECK(p.artifacts[6].stem == "zengine-composer");
+    CHECK(p.artifacts[2].stem == "zengine-graphics");
+    CHECK(p.artifacts[3].stem == "zengine-window-terminal");
+    CHECK(p.artifacts[4].stem == "zengine-input");
+    CHECK(p.artifacts[5].stem == "zengine-timer");
+    CHECK(p.artifacts[6].stem == "zengine-introspection");
+    CHECK(p.artifacts[7].stem == "zengine-composer");
     // THE PROJECT BROWSER ARRIVES BY A PLAN ROW, like everything else: the only thing that
     // makes it present in a run is this line in an editable file, and a weaver who removes it
     // gets a Workshop with no Files pane and no error. ...AND THE DESKTOP, the party that owns
     // the application's DEFAULTS -- which gestures open which tool, what Escape means where
     // nothing more specific claimed it, what stands in the empty room. Remove it and Workshop
     // still runs, paints and quits, with no defaults and an empty floor (WL-DESK-01).
-    CHECK(p.artifacts[7].stem == "zengine-desktop-pane");
-    REQUIRE(p.artifacts[7].weave.has_value());
-    CHECK(p.artifacts[7].weave->role == "zengine.desktop");
-    CHECK_FALSE(p.artifacts[7].provider.has_value());
-    CHECK(p.artifacts[8].stem == "zengine-files");
+    CHECK(p.artifacts[8].stem == "zengine-desktop-pane");
     REQUIRE(p.artifacts[8].weave.has_value());
-    CHECK(p.artifacts[8].weave->role == "zengine.files");
+    CHECK(p.artifacts[8].weave->role == "zengine.desktop");
     CHECK_FALSE(p.artifacts[8].provider.has_value());
+    CHECK(p.artifacts[9].stem == "zengine-files");
+    REQUIRE(p.artifacts[9].weave.has_value());
+    CHECK(p.artifacts[9].weave->role == "zengine.files");
+    CHECK_FALSE(p.artifacts[9].provider.has_value());
     // ...AND SO DOES THE BUILDER PANE. The TOOL is mounted in this host's `main` and is not in
     // this file; this row loads the SEAT a weaver sits in to spend it. Remove the line and
     // Workshop still builds -- nothing on the screen can ask it to.
-    CHECK(p.artifacts[9].stem == "zengine-builder-pane");
-    REQUIRE(p.artifacts[9].weave.has_value());
-    CHECK(p.artifacts[9].weave->role == "zengine.builder-pane");
-    CHECK_FALSE(p.artifacts[9].provider.has_value());
+    CHECK(p.artifacts[10].stem == "zengine-builder-pane");
+    REQUIRE(p.artifacts[10].weave.has_value());
+    CHECK(p.artifacts[10].weave->role == "zengine.builder-pane");
+    CHECK_FALSE(p.artifacts[10].provider.has_value());
     // ...AND THE ATTENTION PANE, so a weaver can remove it: a Workshop with no Attention pane
     // still knows every condition and says the loudest one on the compact indicator, and
     // nothing on the desk lists them.
-    CHECK(p.artifacts[10].stem == "zengine-attention-pane");
-    REQUIRE(p.artifacts[10].weave.has_value());
-    CHECK(p.artifacts[10].weave->role == "zengine.attention");
-    CHECK_FALSE(p.artifacts[10].provider.has_value());
+    CHECK(p.artifacts[11].stem == "zengine-attention-pane");
+    REQUIRE(p.artifacts[11].weave.has_value());
+    CHECK(p.artifacts[11].weave->role == "zengine.attention");
+    CHECK_FALSE(p.artifacts[11].provider.has_value());
     // ...AND THE CONNECTIONS PANE: the other hosts connected to this Workshop, shown by a
     // pane that arrives by a row and holds nothing -- the guest door owns the fact.
-    CHECK(p.artifacts[11].stem == "zengine-connections-pane");
-    REQUIRE(p.artifacts[11].weave.has_value());
-    CHECK(p.artifacts[11].weave->role == "zengine.connections");
-    CHECK_FALSE(p.artifacts[11].provider.has_value());
+    CHECK(p.artifacts[12].stem == "zengine-connections-pane");
+    REQUIRE(p.artifacts[12].weave.has_value());
+    CHECK(p.artifacts[12].weave->role == "zengine.connections");
+    CHECK_FALSE(p.artifacts[12].provider.has_value());
     // ...AND THE TERMINAL PANE, so a weaver can remove it: a Workshop with no Terminal pane
     // still MOUNTS the participant and prints its identity at boot, and nothing on the desk
     // can type at it.
-    CHECK(p.artifacts[13].stem == "zengine-terminal-pane");
-    REQUIRE(p.artifacts[13].weave.has_value());
-    CHECK(p.artifacts[13].weave->role == "zengine.terminal");
-    CHECK_FALSE(p.artifacts[13].provider.has_value());
+    CHECK(p.artifacts[14].stem == "zengine-terminal-pane");
+    REQUIRE(p.artifacts[14].weave.has_value());
+    CHECK(p.artifacts[14].weave->role == "zengine.terminal");
+    CHECK_FALSE(p.artifacts[14].provider.has_value());
     // ...AND THE EDITOR PANE: the image that holds a weaver's source document, a weave in the
     // room like every other pane's.
-    CHECK(p.artifacts[14].stem == "zengine-editor-pane");
-    REQUIRE(p.artifacts[14].weave.has_value());
-    CHECK(p.artifacts[14].weave->role == "zengine.editor");
-    CHECK_FALSE(p.artifacts[14].provider.has_value());
+    CHECK(p.artifacts[15].stem == "zengine-editor-pane");
+    REQUIRE(p.artifacts[15].weave.has_value());
+    CHECK(p.artifacts[15].weave->role == "zengine.editor");
+    CHECK_FALSE(p.artifacts[15].provider.has_value());
     // ...AND THE MENU PRESENTER, LAST: it presents a pane's offered menu, holding
     // `zengine.presenter` because this line grants it. Name another artifact here and it
     // replaces this one; remove the line and panes' menus are refused in words, with every
     // management route the host keeps for itself still there (WL-CTX-09).
-    CHECK(p.artifacts[15].stem == "zengine-menu-presenter");
-    REQUIRE(p.artifacts[15].weave.has_value());
-    CHECK(p.artifacts[15].weave->role == "zengine.presenter");
-    CHECK_FALSE(p.artifacts[15].provider.has_value());
-    CHECK(p.artifacts[16].stem == "zengine-flow-pane");
+    CHECK(p.artifacts[16].stem == "zengine-menu-presenter");
     REQUIRE(p.artifacts[16].weave.has_value());
-    CHECK(p.artifacts[16].weave->role == "zengine.flow");
+    CHECK(p.artifacts[16].weave->role == "zengine.presenter");
     CHECK_FALSE(p.artifacts[16].provider.has_value());
+    CHECK(p.artifacts[17].stem == "zengine-flow-pane");
+    REQUIRE(p.artifacts[17].weave.has_value());
+    CHECK(p.artifacts[17].weave->role == "zengine.flow");
+    CHECK_FALSE(p.artifacts[17].provider.has_value());
     // ...AND THE VIEW BUILDER BESIDE IT, a pane like Flow's: the views it runs are registered by
     // the view host this host composes, never loaded by a row.
-    CHECK(p.artifacts[17].stem == "zengine-view-builder");
-    REQUIRE(p.artifacts[17].weave.has_value());
-    CHECK(p.artifacts[17].weave->role == "zengine.view.builder");
-    CHECK_FALSE(p.artifacts[17].provider.has_value());
+    CHECK(p.artifacts[18].stem == "zengine-view-builder");
+    REQUIRE(p.artifacts[18].weave.has_value());
+    CHECK(p.artifacts[18].weave->role == "zengine.view.builder");
+    CHECK_FALSE(p.artifacts[18].provider.has_value());
     // AND THE SHIPPED PLAN AUTHORS WHICH ROWS ARE ESSENTIAL: the services a Workshop cannot be
     // seen, driven or timed without stop everything, and every PANE is a tool a weaver can be
     // told about instead. The file says it row by row; a weaver who disagrees edits the file.
-    for (std::size_t i = 0; i < 5; ++i) {
+    for (std::size_t i = 0; i < 6; ++i) {
         CAPTURE(p.artifacts[i].stem);
-        CHECK_FALSE(p.artifacts[i].optional); // operators, session history, skin, input, timer
+        CHECK_FALSE(p.artifacts[i].optional); // operators, session history, the medium's two
+                                              // rows, input, timer
     }
-    for (std::size_t i = 5; i < p.artifacts.size(); ++i) {
+    for (std::size_t i = 6; i < p.artifacts.size(); ++i) {
         CAPTURE(p.artifacts[i].stem);
         CHECK(p.artifacts[i].optional);
     }
@@ -1213,14 +1215,14 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     // supplies, and nothing in this system works that out for itself.
     CHECK(p.artifacts[0].provider.has_value());
     CHECK_FALSE(p.artifacts[0].weave.has_value());
-    CHECK(p.artifacts[4].provider.has_value());
-    CHECK(p.artifacts[4].weave.has_value());
-    CHECK(p.artifacts[4].weave->role == tmr::kTimerRole);
+    CHECK(p.artifacts[5].provider.has_value());
+    CHECK(p.artifacts[5].weave.has_value());
+    CHECK(p.artifacts[5].weave->role == tmr::kTimerRole);
 
     // AND THE SESSION CONVERSIONS PRECEDE EVERY WEAVE ROW, this arrangement's whole answer to
     // startup ordering: a provider-only row is performed inside `begin()`, and the first weave
     // row opens a conversation and returns -- so every row above it is live before one
-    // delivery, and the session is read from `SurfaceReady`, which needs a Skin, a weave row.
+    // delivery, and the session is read once a window offers itself, which needs a weave row.
     // Authored order is the mechanism, the same that puts the basic provider before the Timer.
     CHECK(p.artifacts[1].provider.has_value());
     CHECK_FALSE(p.artifacts[1].weave.has_value());
@@ -1245,21 +1247,9 @@ TEST_CASE("the Timer appears exactly ONCE in the shipped plan, participating in 
     CHECK(seen == 1);
 }
 
-namespace {
-
-/// The OS window's shipped plan, beside the terminal window's in the source tree.
-std::string sdl_window_plan_path() {
-    return (std::filesystem::path(WORKSHOP_WINDOW_PLAN).parent_path() /
-            load_persist::kSdlWindowLoadPlanName)
-        .string();
-}
-
-} // namespace
-
 TEST_CASE("the shipped plans carry no operator identity, no suffix and no path") {
-    const std::string sdl_window = sdl_window_plan_path();
-    for (const char* path : {WORKSHOP_DEFAULT_PLAN, WORKSHOP_WINDOW_PLAN, sdl_window.c_str(),
-                             WORKSHOP_GRAPHICAL_PLAN}) {
+    for (const char* path : {WORKSHOP_DEFAULT_PLAN, WORKSHOP_GRAPHICAL_PLAN, WORKSHOP_SKIN_PLAN,
+                             WORKSHOP_SDL_SKIN_PLAN}) {
         const std::string text = file_text(path);
         REQUIRE_MESSAGE(!text.empty(), path, " is a shipped plan");
         // PROVIDERS OWN THE VOCABULARY. A plan that copied an operator identity into
@@ -1275,37 +1265,47 @@ TEST_CASE("the shipped plans carry no operator identity, no suffix and no path")
     }
 }
 
-TEST_CASE("the graphical plan differs from the default in exactly the two medium rows") {
-    const load_persist::LoadedPlan tui = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
-    const load_persist::LoadedPlan sdl =
-        load_persist::from_text(file_text(WORKSHOP_GRAPHICAL_PLAN));
-    REQUIRE(tui.outcome.accepted);
-    REQUIRE_MESSAGE(sdl.outcome.accepted, sdl.outcome.refusal);
-    REQUIRE(tui.plan.artifacts.size() == sdl.plan.artifacts.size());
-    int different = 0;
-    for (std::size_t i = 0; i < tui.plan.artifacts.size(); ++i) {
-        if (!(tui.plan.artifacts[i] == sdl.plan.artifacts[i])) {
-            ++different;
-            // ...and what differs is the STEM. Presentation and input stay two
-            // independent rows: neither is deduced from the other.
-            CHECK(tui.plan.artifacts[i].weave->role == sdl.plan.artifacts[i].weave->role);
-            CHECK(tui.plan.artifacts[i].stem != sdl.plan.artifacts[i].stem);
+TEST_CASE("the graphical plan differs from the default in exactly the two medium rows, and the "
+          "SDL Skin's plan from the terminal Skin's") {
+    for (const auto& [terminal, graphical] :
+         {std::pair<const char*, const char*>{WORKSHOP_DEFAULT_PLAN, WORKSHOP_GRAPHICAL_PLAN},
+          std::pair<const char*, const char*>{WORKSHOP_SKIN_PLAN, WORKSHOP_SDL_SKIN_PLAN}}) {
+        CAPTURE(graphical);
+        const load_persist::LoadedPlan tui = load_persist::from_text(file_text(terminal));
+        const load_persist::LoadedPlan sdl = load_persist::from_text(file_text(graphical));
+        REQUIRE(tui.outcome.accepted);
+        REQUIRE_MESSAGE(sdl.outcome.accepted, sdl.outcome.refusal);
+        REQUIRE(tui.plan.artifacts.size() == sdl.plan.artifacts.size());
+        int different = 0;
+        for (std::size_t i = 0; i < tui.plan.artifacts.size(); ++i) {
+            if (!(tui.plan.artifacts[i] == sdl.plan.artifacts[i])) {
+                ++different;
+                // ...and what differs is the STEM, and a window's office, which is its own.
+                // Presentation and input stay two independent rows: neither is deduced from
+                // the other.
+                const std::string& role = tui.plan.artifacts[i].weave->role;
+                const std::string& other = sdl.plan.artifacts[i].weave->role;
+                const std::string window = zengine::graphics::kWindowOfficePrefix;
+                CHECK((role == other ||
+                       (role.rfind(window, 0) == 0 && other.rfind(window, 0) == 0)));
+                CHECK(tui.plan.artifacts[i].stem != sdl.plan.artifacts[i].stem);
+            }
         }
+        CHECK(different == 2);
     }
-    CHECK(different == 2);
 }
 
-TEST_CASE("the window plan puts the two medium rows where the default's skin stands, and they "
-          "realize beside the input weave") {
-    const load_persist::LoadedPlan tui = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
-    const load_persist::LoadedPlan win = load_persist::from_text(file_text(WORKSHOP_WINDOW_PLAN));
+TEST_CASE("the default plan puts the two medium rows where the terminal Skin's plan has its skin, "
+          "and they realize beside the input weave") {
+    const load_persist::LoadedPlan tui = load_persist::from_text(file_text(WORKSHOP_SKIN_PLAN));
+    const load_persist::LoadedPlan win = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
     REQUIRE(tui.outcome.accepted);
     REQUIRE_MESSAGE(win.outcome.accepted, win.outcome.refusal);
     REQUIRE(win.plan.artifacts.size() == tui.plan.artifacts.size() + 1);
     CHECK(win.plan.choices == tui.plan.choices);
     CHECK(win.plan.artifacts[0] == tui.plan.artifacts[0]);
     CHECK(win.plan.artifacts[1] == tui.plan.artifacts[1]);
-    // ...and every row from the default's input weave on, one row later: the reader that serves
+    // ...and every row from the Skin's input weave on, one row later: the reader that serves
     // input sessions stays, and so does every pane.
     for (std::size_t i = 3; i < tui.plan.artifacts.size(); ++i) {
         CAPTURE(tui.plan.artifacts[i].stem);
@@ -1363,7 +1363,7 @@ TEST_CASE("the window plan puts the two medium rows where the default's skin sta
 
     // THE OS WINDOW'S PLAN is this one with the OS window where the terminal window stands, and
     // SDL's reader in the input row, which reads none of SDL's queue while the window claims it.
-    const load_persist::LoadedPlan os = load_persist::from_text(file_text(sdl_window_plan_path()));
+    const load_persist::LoadedPlan os = load_persist::from_text(file_text(WORKSHOP_GRAPHICAL_PLAN));
     REQUIRE_MESSAGE(os.outcome.accepted, os.outcome.refusal);
     REQUIRE(os.plan.artifacts.size() == win.plan.artifacts.size());
     CHECK(os.plan.choices == win.plan.choices);

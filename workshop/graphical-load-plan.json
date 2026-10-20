@@ -27,11 +27,21 @@
         "optional": false
       },
       {
-        "artifact": "zengine-skin-sdl",
+        "artifact": "zengine-graphics",
         "provider": [],
         "weave": [
           {
-            "role": "zengine.skin"
+            "role": "zengine.graphics"
+          }
+        ],
+        "optional": false
+      },
+      {
+        "artifact": "zengine-window-sdl",
+        "provider": [],
+        "weave": [
+          {
+            "role": "zengine.window.sdl"
           }
         ],
         "optional": false

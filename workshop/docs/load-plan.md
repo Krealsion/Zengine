@@ -273,10 +273,10 @@ build is a retry, and the host keeps running.
 
 | | |
 |---|---|
-| shipped default | `workshop/default-load-plan.json`, staged beside the host binary |
-| shipped window | `workshop/window-load-plan.json`, staged beside the host binary |
-| shipped OS window | `workshop/sdl-window-load-plan.json`, staged only where the OS window and SDL's reader were built |
-| shipped graphical | `workshop/graphical-load-plan.json`, staged only where both SDL artifacts were built |
+| shipped default | `workshop/default-load-plan.json`, the terminal window, staged beside the host binary |
+| shipped graphical | `workshop/graphical-load-plan.json`, the OS window, staged only where the OS window and SDL's reader were built |
+| shipped terminal Skin | `workshop/skin-load-plan.json`, staged beside the host binary |
+| shipped SDL Skin | `workshop/sdl-skin-load-plan.json`, staged only where both SDL artifacts were built |
 | project plan | `<project>/workshop-plan.json`, written by `o` in the Builder; the plan in force when it exists and no `--load-plan` is given |
 | default lookup | `<directory of the executable>/default-load-plan.json`, when there is no project plan |
 | override | `--load-plan <path>`, used exactly as given |
@@ -290,13 +290,13 @@ what actually ran was the host's own opinion of one.
 *choosing* one are different acts, and choosing one by editing a literal in the host is an
 experiment nobody else can repeat — which is exactly what a plan file makes repeatable. The
 graphical arrangement is therefore another shipped plan; it differs from the default in exactly
-the two rows that name the medium and the reader, and presentation and input remain two
-independent rows rather than one deduced from the other. The terminal window's puts two rows
-where the default's skin stands, the graphics directory, `zengine-graphics`, and the window,
-`zengine-window-terminal`, which shows the desk and reads its own terminal's keys; the default's
-input row follows them and serves input sessions. The OS window's plan puts the OS window,
-`zengine-window-sdl`, where the terminal window stands, and SDL's reader in the input row, which
-serves input sessions while the window reads SDL's queue.
+the two rows that name the window and the reader, and presentation and input remain two
+independent rows rather than one deduced from the other. The default puts two rows before the
+input row: the graphics directory, `zengine-graphics`, and the window, `zengine-window-terminal`,
+which shows the desk and reads its own terminal's keys; the input row follows them and serves
+input sessions. The graphical plan puts the OS window, `zengine-window-sdl`, where the terminal
+window stands, and SDL's reader in the input row, which serves input sessions while the window
+reads SDL's queue. Each Skin's plan puts its skin where the default's two medium rows stand.
 
 ## Artifact names, and why they are stems
 
