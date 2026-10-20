@@ -109,8 +109,8 @@ the line and the caret it asks about (WL-TERM-11); a paste records the draft tha
 (WL-TEXT-09, a check the pane makes for itself). Both were found in review, and both are the
 same finding: a call across the pane seam is a round trip, and a weaver keeps typing across it.
 
-**Consequences.** The participant's rule is narrower than Workshop's in the same shape: it may
-say `SurfaceText` only to whoever holds the skin's office. Measured on the minimum window when
+**Consequences.** The participant's rules are narrower than Workshop's: it may say only what
+the host's one call grants it, each to the office it asks. Measured on the minimum window when
 the region gained real type: 83 columns where the cell grid held 56, 8 rows where it held 13, and
 a plan sixteen times cheaper. `SurfaceTextRow` gained `background` for the selected row. Opening
 the pane mid-drag no longer strands a gesture; clicking a completion row selects it and Tab
@@ -131,4 +131,4 @@ what they reached for never appeared.
 [WL-TERM-05](../workshop/terminal.md), [WL-TERM-06](../workshop/terminal.md),
 [WL-TERM-07](../workshop/terminal.md), [WL-TERM-08](../workshop/terminal.md),
 [WL-TERM-09](../workshop/terminal.md), [WL-TERM-10](../workshop/terminal.md),
-[WL-TERM-11](../workshop/terminal.md).
+[WL-TERM-11](../workshop/terminal.md), [WL-TERM-20](../workshop/terminal.md).

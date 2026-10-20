@@ -26,6 +26,7 @@
 #include "host_pump.hpp"      // the host's turn of the bus, and the pump seam it owns
 #include "opening.hpp"        // the opening manager this host mounts
 #include "editor_switch.hpp"  // the editor switch this host mounts
+#include "terminal_speech.hpp" // what the Terminal participant this host mounts may say
 #include "pane_migration.hpp" // the retired references this host converts, one of which it manages
 #include "provenance.hpp"     // what stands behind an office's running code, from three owners
 #include "guest_door.hpp"     // the other hosts this Workshop admits, and the door they come through
@@ -136,6 +137,22 @@ std::string exe_dir() {
     return slash == std::string::npos ? "." : path.substr(0, slash);
 #endif
 }
+
+/// The lines this host keeps until the terminal is its own again, printed when it is destroyed:
+/// what a terminal medium's screen would take away with it as it leaves.
+struct LastWords {
+    std::string held;
+
+    LastWords() = default;
+    LastWords(const LastWords&) = delete;
+    LastWords& operator=(const LastWords&) = delete;
+    ~LastWords() {
+        if (!held.empty()) {
+            std::fputs(held.c_str(), stdout);
+            std::fflush(stdout);
+        }
+    }
+};
 
 } // namespace
 
@@ -508,6 +525,11 @@ int main(int argc, char** argv) {
     };
     std::fflush(stdout);
 
+    // ---- What this host says last ---------------------------------------------------------------
+    // Declared before the bus and the Kernel, so it is destroyed after every weave, a terminal
+    // medium included, and speaks to the terminal that medium gave back.
+    LastWords last_words;
+
     loom::Switchboard bus;
 
     // ---- What this host remembers ---------------------------------------------------------------
@@ -601,29 +623,10 @@ int main(int argc, char** argv) {
 
     // ---- The terminal participant Workshop presents ---------------------------------------------
     // An ordinary weave on this process's one bus. The host chooses what it may know and what it
-    // may say; whether it may say something is the Kernel's answer.
+    // may say, in one call (WL-TERM-20); whether it may say something is the Kernel's answer.
     loom::TerminalVocabulary terminal_vocab;
-    terminal_vocab
-        // The one ordinary verb: a line of text on the screen's score slot.
-        .knows(loom::schema_of<surface::SurfaceText>())
-        // ...and one it must never be able to use: knowing it makes the Kernel's refusal real.
-        .knows(loom::schema_of<surface::SurfaceCanvas>())
-        .accepts(loom::schema_of<loom::Ack>())
-        .accepts(loom::schema_of<loom::Result>())
-        .accepts(loom::schema_of<loom::Refused>());
-
-    // Its baseline is one rule, scoped to an office: SurfaceText to whoever holds `zengine.skin`.
-    // Being a terminal confers nothing else.
     loom::Grant terminal_grant;
-    terminal_grant.allow_to_role(surface::SurfaceText::zen_name,
-                                 surface::SurfaceText::zen_version, surface::kSkinRole);
-    // ...and the four questions a weaver asks the editor switch, to its office only (WL-SWITCH-07).
-    let_terminal_switch_editors(terminal_vocab, terminal_grant);
-    // ...and the two a weaver asks the discovery door, to its office only: finding grants nothing
-    // more (WL-TERM-18).
-    let_terminal_find_powers(terminal_vocab, terminal_grant);
-    // ...and one pane's settings read and written, to this office only (WL-SETTING-09).
-    let_terminal_edit_settings(terminal_vocab, terminal_grant);
+    let_terminal_speak(terminal_vocab, terminal_grant);
     const loom::MountedTerminal terminal = loom::host_mount_terminal(
         bus, std::make_unique<loom::TerminalSession>("workshop", std::move(terminal_vocab)),
         std::move(terminal_grant));
@@ -911,77 +914,79 @@ int main(int argc, char** argv) {
     load::PlanExecutor executor(
         bus, operators, operator_host, voice, manager, answers,
         [&host](const std::string& stem) { return host.so(stem); },
-        [&host, &operators, &project_refused](const load::Executed& done) {
+        [&host, &operators, &project_refused, &last_words](const load::Executed& done) {
             // Said artifact by artifact, in order: resolved truth, never written back to the plan.
             // Said when realization settles, after the medium has taken the terminal: a medium
             // that holds it would have these lines scrolled into its picture, so they are said
-            // only to a standard output none holds, and a refusal always. The Project pane shows
-            // the arrangement either way.
-            const bool print_settled =
-                !load::medium_holds_terminal(done, surface::native_terminal_size().measured());
-            if (print_settled) {
+            // only to a standard output none holds. A refusal is always said: while a medium holds
+            // the terminal, last, once the medium has given it back. The Project pane shows the
+            // arrangement either way.
+            const bool held =
+                load::medium_holds_terminal(done, surface::native_terminal_size().measured());
+            const bool refused = !done.refusal.empty();
+            const bool say = !held || refused;
+            std::string said;
+            const auto line = [&said](const std::string& text) {
+                said += "zengine-workshop - " + text + "\n";
+            };
+            if (say) {
                 for (const load::ResolvedArtifact& row : done.resolved) {
-                    std::string said = row.stem;
+                    std::string loaded = row.stem;
                     if (row.provider_mounted) {
-                        said += " | provider '" + row.provider + "' supplied " +
-                                std::to_string(row.contributed);
+                        loaded += " | provider '" + row.provider + "' supplied " +
+                                  std::to_string(row.contributed);
                     }
                     if (row.weave_loaded) {
-                        said += " | weave #" + std::to_string(row.weave.value) + " as " + row.role;
-                        said += row.offer == op::OfferOutcome::Offered
-                                    ? " (this host's operator resolution offered)"
-                                    : " (ordinary weave: it declares no operator surface)";
+                        loaded +=
+                            " | weave #" + std::to_string(row.weave.value) + " as " + row.role;
+                        loaded += row.offer == op::OfferOutcome::Offered
+                                      ? " (this host's operator resolution offered)"
+                                      : " (ordinary weave: it declares no operator surface)";
                     }
-                    std::printf("zengine-workshop - loaded: %s\n", said.c_str());
+                    line("loaded: " + loaded);
                 }
             }
             // And where this run stopped, named: one row, never a count.
-            if (print_settled && !done.waiting_on.empty()) {
-                std::printf("zengine-workshop - waiting to be built: %s (build it, and its "
-                            "authored participation is performed then -- every authored row "
-                            "after it is waiting on this one)\n",
-                            done.waiting_on.c_str());
+            if (say && !done.waiting_on.empty()) {
+                line("waiting to be built: " + done.waiting_on +
+                     " (build it, and its authored participation is performed then -- every "
+                     "authored row after it is waiting on this one)");
             }
             // The tools that are not here, named: an optional row that refused is an unavailable
             // tool, said with its reason and kept as a standing condition for the run (WL-ATTN-01),
             // whether or not the line is printed. The compact row is what a terminal weaver can
             // still read.
             for (std::size_t i = 0; i < done.unavailable.size(); ++i) {
-                if (print_settled) {
-                    std::printf("zengine-workshop - unavailable: %s\n",
-                                done.unavailable[i].c_str());
+                if (say) {
+                    line("unavailable: " + done.unavailable[i]);
                 }
                 host.standing_conditions.push_back(zengine::workshop::unavailable_tool(
                     done.unavailable_stems[i], done.unavailable[i]));
                 ++host.conditions_generation;
             }
-            if (done.ok) {
-                if (print_settled) {
-                    std::printf("zengine-workshop - operators: %zu resolvable, from %zu "
-                                "provider(s)\n",
-                                operators.size(), operators.providers().size());
-                    std::fflush(stdout);
-                }
-                // Completion ends nothing: the host goes on being a host.
+            if (done.ok && say) {
+                line("operators: " + std::to_string(operators.size()) + " resolvable, from " +
+                     std::to_string(operators.providers().size()) + " provider(s)");
+            }
+            // Completion ends nothing: the host goes on being a host. Nor does waiting. A refusal
+            // is one because somebody said it, so `refusal` is tested, not `ok`.
+            if (!refused) {
+                std::fputs(said.c_str(), stdout);
+                std::fflush(stdout);
                 return;
             }
-            // Nor does waiting. A refusal is one because somebody said it, so `refusal` is tested,
-            // not `ok`.
-            if (done.refusal.empty()) {
-                if (print_settled) {
-                    std::fflush(stdout);
-                }
-                return;
+            // This host's failure policy: a refused startup project ends this Workshop. A refusal
+            // may come before the window that would show the desk, so surviving one could leave a
+            // process a weaver cannot see or quit. Say what stood before it.
+            line(done.refusal);
+            line("the authored plan was not completed; " + std::to_string(done.resolved.size()) +
+                 " artifact(s) participated before it stopped. Exiting.");
+            if (held) {
+                last_words.held += said;
+            } else {
+                std::fputs(said.c_str(), stdout);
+                std::fflush(stdout);
             }
-            // This host's failure policy: a refused startup project ends this Workshop. The
-            // shipped plan's second row is the Skin, so surviving a refusal would leave a process a
-            // weaver cannot see or quit. Say what stood before it.
-            std::printf("zengine-workshop - %s\n"
-                        "zengine-workshop - the authored plan was not completed; %zu "
-                        "artifact(s) participated before it stopped. Exiting.\n",
-                        done.refusal.c_str(), done.resolved.size());
-            std::fflush(stdout);
-            std::fflush(stdout);
             project_refused = true;
             // The door `q` leaves by: `host.quit`, and `request_stop` to end the turn in flight.
             host.quit = true;

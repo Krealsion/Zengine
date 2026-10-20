@@ -97,10 +97,10 @@ struct Executed {
 };
 
 /// Whether a realized project's medium -- `zengine.window.terminal` or a terminal Skin -- holds the
-/// process's measured terminal, so the host does not print the settled banner over it. Never for a
-/// refused project, whose host prints why it is leaving.
+/// process's measured terminal, so the host does not print the settled banner over it. A refused
+/// project's medium holds it too until it is unloaded, and its host says why it is leaving then.
 inline bool medium_holds_terminal(const Executed& done, bool terminal_measured) {
-    if (!terminal_measured || !done.refusal.empty()) {
+    if (!terminal_measured) {
         return false;
     }
     const std::string window =

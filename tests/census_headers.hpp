@@ -239,7 +239,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         // What crosses the window's two seams, and the operands of the seven operators: bytes in
         // process, in no weave's manifest.
         shape<::zengine::graphics::PaintNode>(), // PaintNode v1
-        shape<::zengine::graphics::PaintTask>(), // PaintTask v1
+        shape<::zengine::graphics::PaintTask>(), // PaintTask v2
         shape<::zengine::graphics::NodePaint>(), // NodePaint v1
         shape<::zengine::graphics::PaintResult>(), // PaintResult v1
         shape<::zengine::graphics::ElementEvent>(), // ElementEvent v1

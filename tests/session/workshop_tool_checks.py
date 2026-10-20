@@ -410,13 +410,13 @@ class CanvasTerminal(CanvasPane):
     it carries named `entry:<observation>`, a blank row drawing no word -- and the line being
     typed, named `line`. A press on a value's row picks that value up, as a drag's start."""
     ROWS = [("TERMINAL -- weave #3", None),
-            ("> send @zengine.skin SurfaceText 1 slot=score text=one", None),
-            ("^ SurfaceText v1 -> @zengine.skin  SUBMITTED", "entry:4"),
+            ("> send @zengine.powers FindPowers 2 text=one", None),
+            ("^ FindPowers v2 -> @zengine.powers  SUBMITTED", "entry:4"),
             ("", None),
             ("> ask @zengine.editor-switch EditorSwitchStatusRequested 1", None),
             ("v EditorSwitchAnswered v1 from #2", "entry:6"),
-            ("> send @zengine.skin SurfaceText 1 slot=score text=two", None),
-            ("^ SurfaceText v1 -> @zengine.skin  SUBMITTED", "entry:8"),
+            ("> send @zengine.powers FindPowers 2 text=two", None),
+            ("^ FindPowers v2 -> @zengine.powers  SUBMITTED", "entry:8"),
             (">    Tab: what can this terminal say?  Up: recall a command", "line")]
 
     def __init__(self, **kw):
@@ -2265,7 +2265,7 @@ def run_checks(tools, runtime):
             ctx = CanvasWorkshop(steps, {self.TERMINAL: terminal})
             held = hand.Hand(ctx, "workshop")
             try:
-                sent = held.last_part(*self.TERMINAL, "entry:", "^ SurfaceText")
+                sent = held.last_part(*self.TERMINAL, "entry:", "^ FindPowers")
                 held.drag(sent, {"x": 700, "y": 400, "space": 2}, 400)
                 answer = held.last_part(*self.TERMINAL, "entry:", "v EditorSwitchAnswered")
                 with self.assertRaisesRegex(ValueError,

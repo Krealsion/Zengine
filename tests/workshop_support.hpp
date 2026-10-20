@@ -771,11 +771,10 @@ struct Live {
     }
 
     /// MOUNT THE PARTICIPANT THE WAY THE HOST DOES -- on this bus, beside Workshop's own weave,
-    /// the pointer handed over through the HostContext `request_stop` travels through. Its one
-    /// rule is the host's, SurfaceText to whoever holds `zengine.skin` at delivery, where
-    /// Workshop's is `to_any`: the two differ by rule, not vocabulary. `widen` is the canary lever
-    /// -- Workshop's wider rule -- without which "a pane's publication reaches nobody" measures
-    /// nothing. `shapes` mounts extra declared shapes, so a completion list can outgrow its room.
+    /// handed over as `request_stop` is -- with this rig's one rule, SurfaceText to whoever holds
+    /// `zengine.skin`. `widen` is the canary lever, Workshop's own `to_any` rule, without which "a
+    /// pane's publication reaches nobody" measures nothing. `shapes` mounts extra declared shapes,
+    /// so a completion list can outgrow its room.
     loom::TerminalSession* mount_terminal(bool widen = false, int shapes = 0) {
         loom::TerminalVocabulary vocab;
         vocab.knows(loom::schema_of<surface::SurfaceText>())
@@ -2865,12 +2864,11 @@ struct PaneRig {
         return opening;
     }
 
-    /// THE TERMINAL PARTICIPANT, MOUNTED THE WAY THE HOST MOUNTS IT -- one narrow grant, owned by
-    /// the bus, and handed to Workshop as a non-owning pointer. It is mounted here and not in the
-    /// pane, which is the seam's whole shape: the pane under test cannot construct one, reach this
-    /// one or speak as it, so every case drives the pane and asks THIS object what it heard.
-    /// `widen` lets it say `SurfaceText` to any target, so a case can address a weave by id and
-    /// measure what the BUS says about the target rather than what the grant does.
+    /// THE TERMINAL PARTICIPANT, MOUNTED THE WAY THE HOST MOUNTS IT -- owned by the bus, handed to
+    /// Workshop as a non-owning pointer, and out of the pane's reach, so every case drives the pane
+    /// and asks THIS object what it heard. Its grant is this rig's, SurfaceText to whoever holds
+    /// `zengine.skin`; `widen` lets it say that to any target, so a case can address a weave by id
+    /// and measure what the BUS says about the target rather than what the grant does.
     loom::TerminalSession* mount_terminal(int shapes = 0, bool widen = false) {
         loom::TerminalVocabulary vocab;
         vocab.knows(loom::schema_of<surface::SurfaceText>())
