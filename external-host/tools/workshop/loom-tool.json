@@ -94,7 +94,7 @@
           "name": "click",
           "type": "text",
           "default": "",
-          "help": "point at a pane before the chord: 'x,y' in the SDL skin's pixels, or 'x,y@console' / 'x,y@canvas' in the terminal skins' cells -- empty presses the chord with no click first. With `chord` also empty, the click is the whole batch"
+          "help": "point at a pane before the chord: 'x,y' in a window's pixels, or 'x,y@console' / 'x,y@canvas' in a terminal's cells -- empty presses the chord with no click first. With `chord` also empty, the click is the whole batch"
         },
         {
           "name": "button",

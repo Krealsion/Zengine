@@ -128,7 +128,7 @@ ExternalPressAt WorkshopWeave::cell_point(const VisibleBody& visible, std::int64
     } else {
         space = input::space::kCells;
         x = surface::cell_of_pixel(body.region_x)+cell;
-        y = surface::cell_of_pixel(body.region_y)+row+body.header_rows+surface::kTuiCanvasTopRow;
+        y = surface::cell_of_pixel(body.region_y)+row+body.header_rows+session_.console_rows_above;
     }
     return external_press_at(session_.panes, session_.setup.active, sc, visible.kind,
                              session_.pane_titles, space, x, y);
@@ -298,7 +298,7 @@ std::vector<PaneWord> WorkshopWeave::visible_words(const VisibleBody& visible,
     const auto* content = visible.content;
     if (!visible.canvas) {
         const auto& body = visible.body;
-        const GlyphGrid grid = glyph_grid(body.fit);
+        const GlyphGrid grid = glyph_grid(body.fit, session_.console_rows_above);
         for (std::int64_t row = 0;
              row < body.rows && row < static_cast<std::int64_t>(content->shown.size()); ++row) {
             std::string text = without_trailing_blanks(
@@ -331,7 +331,7 @@ std::vector<PaneWord> WorkshopWeave::visible_words(const VisibleBody& visible,
         // run may be blank to the row's end to carry a ground there, as a row is padded.
         std::string text = without_trailing_blanks(placed.text.text);
         if (text.empty() && placed.text.caret_col < 0) continue;
-        keep(glyph_grid(fit), std::move(text), 0);
+        keep(glyph_grid(fit, session_.console_rows_above), std::move(text), 0);
     }
     if (!canvas_takes_press(visible.kind)) {
         for (PaneWord& w : out) no_point(w);
@@ -376,7 +376,8 @@ std::vector<v2::PanePart> WorkshopWeave::visible_parts(const VisibleBody& visibl
         for (std::size_t i = 0; i < parts.size(); ++i) {
             v2::PanePart drawn;
             if (!parts[i].name.empty() && canvas_part_on(visible.canvas_body, parts[i], boxes[i],
-                                                         points[i], words, space, drawn)) {
+                                                         points[i], words, space,
+                                                         session_.console_rows_above, drawn)) {
                 if (!pressed) no_point(drawn);
                 out.push_back(std::move(drawn));
             }
@@ -384,7 +385,7 @@ std::vector<v2::PanePart> WorkshopWeave::visible_parts(const VisibleBody& visibl
         return out;
     }
     const auto& body = visible.body;
-    const GlyphGrid grid = glyph_grid(body.fit);
+    const GlyphGrid grid = glyph_grid(body.fit, session_.console_rows_above);
     const std::map<std::int64_t, std::vector<std::size_t>> owners = row_owners(content->parts);
     for (std::size_t i = 0; i < content->parts.size(); ++i) {
         const v2::PaneRowPart& part = content->parts[i];
@@ -572,7 +573,7 @@ std::string WorkshopWeave::layouts_reading(v6::PaneView& out) const {
     paint_layouts(layer, session_, bounds.rect, sc, kPaneChrome);
     if (layer.texts.empty()) return "pane has no visible body";
     const ExternalBodyPlace place = external_body_place(bounds.rect, sc, 0);
-    const GlyphGrid grid = glyph_grid(place.fit);
+    const GlyphGrid grid = glyph_grid(place.fit, session_.console_rows_above);
     const std::int64_t space = input_space_of(sc);
     const surface::SurfaceTextRegion& region = layer.texts.back();
     std::vector<PaneWord> words;
@@ -650,7 +651,7 @@ v3::DeskView WorkshopWeave::desk_view_v3() const {
     const surface::SurfaceTextRegion band = band_region(session_, sc);
     const surface::RegionFit fit =
         surface::fit_region(band.x, band.y, band.w, band.h, sc.text_advance_px, sc.text_line_px);
-    const GlyphGrid grid = glyph_grid(fit);
+    const GlyphGrid grid = glyph_grid(fit, session_.console_rows_above);
     for (std::size_t i = 0; i < band.rows.size(); ++i) {
         std::string text = without_trailing_blanks(band.rows[i].text);
         if (text.empty()) continue;
@@ -990,9 +991,11 @@ void WorkshopWeave::on(const v2::PanePointRequested& asked, loom::Mail& mail) {
         const DeskRect& place = words[at_word].place;
         reply.space = input_space_of(screen_of(session_));
         const WordGlyphs& drawn = glyphs[at_word];
-        glyph_point(GlyphGrid{place.x, place.y, drawn.advance, place.h}, 0, asked.column,
-                    reply.space, reply.x, reply.y);
-        const PointedAt at = canvas_point_of(reply.space, reply.x, reply.y);
+        glyph_point(
+            GlyphGrid{place.x, place.y, drawn.advance, place.h, session_.console_rows_above}, 0,
+            asked.column, reply.space, reply.x, reply.y);
+        const PointedAt at =
+            canvas_point_of(reply.space, reply.x, reply.y, session_.console_rows_above);
         resolved = at.understood &&
                    visible.canvas_body.contains_at(at.px.x, at.px.y, at.grain) &&
                    PixelRect{place.x, place.y, place.w, place.h}.contains_at(at.px.x, at.px.y, at.grain);
@@ -1053,9 +1056,10 @@ void WorkshopWeave::on(const v3::PanePointRequested& asked, loom::Mail& mail) {
     }
     reply.space = input_space_of(screen_of(session_));
     glyph_point(GlyphGrid{surface::add_cells(body.x, lattice.x), surface::add_cells(body.y, lattice.y),
-                          lattice.advance, lattice.line},
+                          lattice.advance, lattice.line, session_.console_rows_above},
                 asked.row, asked.column, reply.space, reply.x, reply.y);
-    const PointedAt at = canvas_point_of(reply.space, reply.x, reply.y);
+    const PointedAt at =
+        canvas_point_of(reply.space, reply.x, reply.y, session_.console_rows_above);
     const RowCell cell = row_cell_at(lattice, surface::sub_px(at.px.x, body.x), surface::sub_px(at.px.y, body.y));
     if (!at.understood || !body.contains_at(at.px.x, at.px.y, at.grain) || !cell.shown ||
         cell.row != asked.row || cell.column != asked.column) {

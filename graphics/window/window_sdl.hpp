@@ -250,6 +250,7 @@ public:
     CellExtent extent() const {
         return CellExtent{size_.width / kCellPx, size_.height / kCellPx};
     }
+    CellExtent offered() const { return extent(); }
 
     void clear() {
         cache_.clear();

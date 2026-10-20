@@ -131,18 +131,33 @@ def clear_moments(ctx):
 
 
 # The console rows a terminal skin spends above its canvas (surface/pointing.hpp kTuiCanvasTopRow):
-# a canvas cell's row is that many console rows higher.
+# a canvas cell's row is that many console rows higher. The terminal window spends none.
 CANVAS_TOP_ROW = 2
-CELLS = {"console": 0, "canvas": CANVAS_TOP_ROW}
+CELLS = ("console", "canvas")
 
 
-def point(spelling):
+def rows_above(ctx, link):
+    """The console rows above the canvas in the medium that shows the desk: a terminal skin's
+    ``CANVAS_TOP_ROW``, none in a window -- read off the office that holds the picture, asked for
+    one first when this run has not."""
+    office = getattr(ctx, "_capture_office", None) or ask_picture(ctx, link)[0]
+    return CANVAS_TOP_ROW if office == "zengine.skin" else 0
+
+
+def cells_point(ctx, link, spelling):
+    """``point`` for a spelling a run was given, the medium's rows above the canvas learned only
+    for a point spelled in canvas cells."""
+    canvas = spelling.partition("@")[2] == "canvas"
+    return point(spelling, rows_above(ctx, link) if canvas else CANVAS_TOP_ROW)
+
+
+def point(spelling, canvas_rows=CANVAS_TOP_ROW):
     """``(x, y, space)`` for a point spelled ``"126,42"`` (a window's pixels, the SDL skin's own
     unit) or a terminal cell that says which cells it means: ``"10,3@console"`` (the terminal's own
     cell, counted as its console counts rows) or ``"10,3@canvas"`` (a canvas cell, as a pane's
-    place and the desk count it -- the same column, ``CANVAS_TOP_ROW`` console rows lower). A bare
-    ``"10,3c"`` names neither and is refused. Empty means an empty point, for callers that make
-    one optional."""
+    place and the desk count it -- the same column, ``canvas_rows`` console rows lower: a terminal
+    skin's ``CANVAS_TOP_ROW``, the terminal window's none). A bare ``"10,3c"`` names neither and is
+    refused. Empty means an empty point, for callers that make one optional."""
     if not spelling:
         raise ValueError("an empty point")
     body, at, cells = spelling.partition("@")
@@ -151,7 +166,7 @@ def point(spelling):
                          % (spelling, cells))
     if not at and body.rstrip().endswith(("c", "C")):
         raise ValueError("'%s' does not say which cells: 'x,y@console' (the terminal's own rows) or "
-                         "'x,y@canvas' (a canvas cell, %d console rows lower)" % (spelling, CANVAS_TOP_ROW))
+                         "'x,y@canvas' (a canvas cell, as a pane's place counts it)" % spelling)
     parts = body.split(",")
     spelled = "'%s' is not a point ('x,y' pixels, or 'x,y@console' / 'x,y@canvas' cells)" % spelling
     if len(parts) != 2:
@@ -161,7 +176,7 @@ def point(spelling):
     except ValueError:
         raise ValueError(spelled)
     if at:
-        return x, y + CELLS[cells], SPACE_CELLS
+        return x, y + (canvas_rows if cells == "canvas" else 0), SPACE_CELLS
     return x, y, SPACE_PIXELS
 
 
@@ -198,7 +213,7 @@ def click_moments(ctx, spelling, button="left"):
     input is optional for exactly this reason: a caller testing a click's own menu-opening
     effect leaves it empty, settles on the click alone, and reads or acts on the result in a
     separate, later run."""
-    x, y, space = point(spelling)
+    x, y, space = cells_point(ctx, ctx.inputs["link"], spelling)
     b = button_of(button)
     return [moment(ctx, "PointerButton", button=b, pressed=True, x=x, y=y, space=space),
             moment(ctx, "PointerButton", button=b, pressed=False, x=x, y=y, space=space)]

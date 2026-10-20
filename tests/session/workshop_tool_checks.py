@@ -1327,6 +1327,8 @@ def run_checks(tools, runtime):
             self.assertEqual(steps.point("126,42"), (126, 42, steps.SPACE_PIXELS))
             self.assertEqual(steps.point("2,3@console"), (2, 3, steps.SPACE_CELLS))
             self.assertEqual(steps.point("2,3@canvas"), (2, 3 + steps.CANVAS_TOP_ROW, steps.SPACE_CELLS))
+            # ...and in the terminal window, which spends no console row above the canvas.
+            self.assertEqual(steps.point("2,3@canvas", 0), (2, 3, steps.SPACE_CELLS))
             for bad in ("2,3c", "2,3@screen", "2,3@", "2@canvas"):
                 with self.subTest(bad=bad):
                     with self.assertRaisesRegex(ValueError, "@console"):

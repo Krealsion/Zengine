@@ -23,8 +23,8 @@ new incarnation: each owner draws whole once when it hears its room, and says ea
 It takes the terminal when activated, its output with the terminal's claim
 (`graphics/window/terminal_io.hpp`) and its input as the Input weave reads it
 (`input/terminal_reader.hpp`), and gives both back when it goes. With no terminal (a pipe, a suite)
-it writes and reads nothing, and still keeps and composes its picture, at
-`window::kUnmeasuredCols` by `window::kUnmeasuredRows` (`graphics/window/window_terminal.hpp`).
+it writes and reads nothing and still composes its picture, at `window::kUnmeasuredCols` by
+`window::kUnmeasuredRows` (`graphics/window/window_terminal.hpp`), and offers no size.
 
 **Showing.** A node is painted once, when it changes, with its area's skin. The areas are composed
 front to back by their order, and the terminal is written only the cells whose picture changed, as
@@ -243,9 +243,9 @@ which no terminal confirms. It is no showing, and nothing answers it.
 ## Follow
 
 As its own office the window publishes `WindowOffered` v1 on each activation, after
-`GraphicsReady`, and on a beat that finds its terminal at another size in cells: its name, size in
-cells and incarnation, which a resize keeps. The directory keeps it, and an arranger may lay out in
-that room. With no desktop place or close box, a terminal never publishes `SurfacePlacement` or
+`GraphicsReady`, and on a beat finding its terminal at another size: its name, size in cells (none
+with no terminal) and incarnation, which a resize keeps. The directory keeps it, and an arranger
+may lay out in that room. With no desktop place or close box, a terminal never publishes `SurfacePlacement` or
 `SurfaceCloseRequested`. To an area's owner: `AreaRoom` v2 for each introduction; `DrawnRefused`
 v1; `ActionRequested` v1; `AreaButtonChanged`, `AreaPointerMoved`, `AreaWheelTurned`,
 `AreaHoldEnded` and `AreaPointerLeft` v1 when placed to hear the pointer; `KeyPressed` v2,

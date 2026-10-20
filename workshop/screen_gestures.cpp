@@ -326,7 +326,8 @@ SnappedWindow snap_pane_window(const PaneWindowProposal& want, std::int64_t edge
 
 // WL-GEO-01 -- agents/workshop/geometry.md
 ProseAt prose_at(std::int64_t space, std::int64_t x, std::int64_t y,
-                 const surface::RegionFit& fit) noexcept {
+                 const surface::RegionFit& fit,
+                 std::int64_t rows_above) noexcept {
     // The press is read in the unit of the medium that said it: a window's pixel, a terminal's
     // cell -- the unit text set in cells was drawn from.
     surface::CanvasPoint at;
@@ -335,7 +336,7 @@ ProseAt prose_at(std::int64_t space, std::int64_t x, std::int64_t y,
         at = surface::canvas_px_of_window_pixels(x, y);
         grain = 1;
     } else if (space == input::space::kCells) {
-        at = surface::canvas_px_of_terminal_cells(x, y);
+        at = surface::canvas_px_of_terminal_cells(x, y, rows_above);
     } else {
         return ProseAt{};
     }

@@ -599,7 +599,7 @@ bool WorkshopWeave::drop_on_canvas(const RuntimePane& pane, const ExternalPane& 
 
 void WorkshopWeave::begin_value_drag(const input::PointerButton& b) {
     value_drag_ = {};
-    drag_pointer_ = canvas_point_of(b.space, b.x, b.y);
+    drag_pointer_ = canvas_point_of(b.space, b.x, b.y, session_.console_rows_above);
     value_drag_.gesture = gestures_;
     value_drag_.actor = input_actor_;
     value_drag_.x = b.x; value_drag_.y = b.y; value_drag_.space = b.space;
@@ -610,7 +610,7 @@ bool WorkshopWeave::move_value_drag(const input::PointerMoved& motion, loom::Mai
         input_actor_.local != drag.actor.local || input_actor_.participant != drag.actor.participant)
         return false;
     if (motion.space != drag.space) return false;
-    drag_pointer_ = canvas_point_of(motion.space, motion.x, motion.y);
+    drag_pointer_ = canvas_point_of(motion.space, motion.x, motion.y, session_.console_rows_above);
     const std::uint64_t threshold = motion.space == input::space::kPixels ? 4 : 1;
     const auto distance = [](std::int64_t a, std::int64_t b) -> std::uint64_t {
         return a >= b ? std::uint64_t(a) - std::uint64_t(b) : std::uint64_t(b) - std::uint64_t(a);
@@ -638,7 +638,7 @@ bool WorkshopWeave::release_value_drag(const input::PointerButton& button, loom:
             drag.moved = true;
     }
     if (button.space == drag.space && !session_.arrange.open && !session_.context.open && !session_.presented.open) {
-        const auto point = canvas_point_of(button.space, button.x, button.y);
+        const auto point = canvas_point_of(button.space, button.x, button.y, session_.console_rows_above);
         const auto owner = occupied_at(session_.panes, session_.setup.active, screen_of(session_), point);
         if (point.understood && owner.occupied && is_runtime_kind(owner.kind)) {
             drag.target = owner.kind;
