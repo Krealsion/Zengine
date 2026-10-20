@@ -992,7 +992,71 @@ TEST_CASE("an area given another owner starts empty, its room naming none of the
     const auto rooms = b.r.read<gfx::AreaRoom>(mark, window_office());
     REQUIRE(rooms.size() == 1);
     CHECK(rooms[0].elements.empty());
+    CHECK(rooms[0].empty);
     CHECK(b.r.shown().elements == 0);
+}
+
+TEST_CASE("an area withdrawn and placed again at the same size starts empty, its room says so, and "
+          "its owner draws it whole") {
+    Drawing d;
+    d.beat();
+    REQUIRE(d.r.shown().rows[0] == "beats 1");
+    REQUIRE(d.r.shown().elements == 1);
+    const auto place = [&](const std::string& window) {
+        d.r.to_role(gfx::kGraphicsRole,
+                    gfx::AreaPlaced{kDrawer, window, kDrawer, 0, 0, 50 * gfx::kCellPx,
+                                    22 * gfx::kCellPx, 0, true});
+        d.r.drain();
+    };
+    // PLACED AGAIN WHERE IT STANDS, the window keeps the drawing and says so.
+    std::size_t mark = d.r.log.size();
+    place(gfx::kTerminalWindow);
+    auto rooms = d.r.read<gfx::AreaRoom>(mark, window_office());
+    REQUIRE(rooms.size() == 1);
+    CHECK_FALSE(rooms[0].empty);
+    CHECK(rooms[0].elements == std::vector<std::int64_t>{1});
+    // WITHDRAWN, then placed again in the same window, incarnation and size: nothing of it is
+    // left there, the room says the area is empty, and the owner's picture and element come back.
+    place("");
+    CHECK(d.r.shown().elements == 0);
+    mark = d.r.log.size();
+    place(gfx::kTerminalWindow);
+    rooms = d.r.read<gfx::AreaRoom>(mark, window_office());
+    REQUIRE(rooms.size() == 1);
+    CHECK(rooms[0].empty);
+    CHECK(rooms[0].elements.empty());
+    CHECK(d.r.shown().rows[0] == "beats 1");
+    CHECK(d.r.shown().elements == 1);
+}
+
+TEST_CASE("a terminal window with no terminal to measure shows as far as its areas reach, and no "
+          "less than its unmeasured size") {
+    Drawing d; // the suite's terminal is no terminal: a pipe
+    d.beat();
+    REQUIRE(d.r.shown().rows.size() == static_cast<std::size_t>(gfx::window::kUnmeasuredRows));
+    d.r.to_role(gfx::kGraphicsRole,
+                gfx::AreaPlaced{kDrawer, gfx::kTerminalWindow, kDrawer, 100 * gfx::kCellPx,
+                                30 * gfx::kCellPx, 50 * gfx::kCellPx, 22 * gfx::kCellPx, 0, true});
+    d.r.drain();
+    const gfx::WindowShown shown = d.r.shown();
+    REQUIRE(shown.rows.size() == 52);
+    CHECK(shown.rows[30].substr(100) == "beats 1");
+    // BACK WHERE IT STARTED, the window is its unmeasured size again.
+    d.r.to_role(gfx::kGraphicsRole,
+                gfx::AreaPlaced{kDrawer, gfx::kTerminalWindow, kDrawer, 0, 0, 50 * gfx::kCellPx,
+                                22 * gfx::kCellPx, 0, true});
+    d.r.drain();
+    CHECK(d.r.shown().rows.size() == static_cast<std::size_t>(gfx::window::kUnmeasuredRows));
+    CHECK(d.r.shown().rows[0] == "beats 1");
+}
+
+TEST_CASE("a canvas told its area is empty draws whole again, in the same window and room") {
+    gfx::Canvas canvas("test.area");
+    REQUIRE(canvas.room(gfx::AreaRoom{"test.area", "terminal", 7, 240, 120, {3}}));
+    CHECK(canvas.holds(3));
+    CHECK_FALSE(canvas.room(gfx::AreaRoom{"test.area", "terminal", 7, 240, 120, {3}}));
+    CHECK(canvas.room(gfx::AreaRoom{"test.area", "terminal", 7, 240, 120, {}, true}));
+    CHECK_FALSE(canvas.holds(3));
 }
 
 /// EVERYTHING ONE PARTICIPANT SENDS while this is held, delivered or refused: its shape's name.
@@ -1811,6 +1875,7 @@ void check_resized(Resized& t, zengine::surface::TerminalSize size, std::int64_t
     CHECK(offers[0].cols == (measured ? cols : 0));
     CHECK(offers[0].rows == (measured ? rows : 0));
     CHECK(offers[0].epoch == t.epoch);
+    CHECK(offers[0].cell_px == 0); // its unit is the cell
 
     REQUIRE(t.term.writes.size() == writes + 1);
     const gfx::WindowShown after = r.shown();
@@ -1859,9 +1924,9 @@ TEST_CASE("the window measures its terminal each beat: at another size it shows 
     SUBCASE("a smaller terminal") {
         check_resized(t, {60, 20}, 60, 20);
     }
-    SUBCASE("a terminal that cannot be measured: the window shows the unmeasured size, and offers "
-            "none") {
-        check_resized(t, {0, 0}, gfx::window::kUnmeasuredCols, gfx::window::kUnmeasuredRows);
+    SUBCASE("a terminal that cannot be measured: the window shows the unmeasured size, as far down "
+            "as its area reaches, and offers none") {
+        check_resized(t, {0, 0}, gfx::window::kUnmeasuredCols, 3 + 22); // the area's row and height
     }
 }
 
@@ -3916,7 +3981,7 @@ TEST_CASE("a group's clip cuts what its children paint for light: quads, lines, 
     CHECK(nodes[1].lines[0].x1 == 10);
     CHECK(nodes[1].lines[0].x2 == 29);
     REQUIRE(nodes[2].texts.size() == 1);
-    CHECK(nodes[2].texts[0].text == "ab"); // two whole characters in twenty pixels
+    CHECK(nodes[2].texts[0].text == "a"); // one whole character, a cell, in twenty pixels
     CHECK(nodes[3].empty());               // a line whose top is outside the clip
     REQUIRE(nodes[4].images.size() == 1);
     CHECK(nodes[4].images[0].x == 20);
@@ -3983,6 +4048,23 @@ TEST_CASE("a point lands on a node painted for light where it painted, and withi
     CHECK(light::hits_node(n, 101, 25)); // a pixel from the line
     CHECK_FALSE(light::hits_node(n, 102, 25));
     CHECK_FALSE(light::hits_node(n, 100, 52)); // past its end
+}
+
+TEST_CASE("in light a run of text stands one cell a character, as a window reads it and as an "
+          "owner sets a mark at its column") {
+    gfx::Sketch s;
+    s.group("g", 0, 0, 3 * gfx::kCellPx, gfx::kCellPx);
+    s.text("g/row", 0, 0, "abcdef", gfx::by_role(gfx::role::kFill));
+    s.text("mark", 40, 0, "xyz", gfx::by_role(gfx::role::kFill));
+    const std::vector<light::NodePrimitives> nodes = lit(s, light::day_look()); // the group paints none
+    REQUIRE(nodes.size() == 2);
+    // A CLIP THREE CELLS WIDE holds three characters of a run.
+    REQUIRE(nodes[0].texts.size() == 1);
+    CHECK(nodes[0].texts[0].text == "abc");
+    // A RUN'S BOX is its characters' cells: three characters, three cells.
+    REQUIRE(nodes[1].texts.size() == 1);
+    CHECK(light::hits_node(nodes[1], 40 + 3 * gfx::kCellPx - 1, 0));
+    CHECK_FALSE(light::hits_node(nodes[1], 40 + 3 * gfx::kCellPx, 0));
 }
 
 TEST_CASE("no source in the graphics package includes Surface") {
@@ -4771,6 +4853,7 @@ TEST_CASE("the OS window resized offers itself again in its new size in cells, u
     CHECK(again[0].cols == 1200 / gfx::kCellPx);
     CHECK(again[0].rows == 600 / gfx::kCellPx);
     CHECK(again[0].epoch == epoch);
+    CHECK(again[0].cell_px == gfx::kCellPx); // it shows every pixel
     CHECK(t.light.frames.size() > frames);
     CHECK(t.light.frames.back().width == 1200);
     CHECK(t.shown().rows.size() == static_cast<std::size_t>(600 / gfx::kCellPx));

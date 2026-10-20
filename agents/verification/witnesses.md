@@ -110,6 +110,12 @@ METHOD — Read the live weave's own painted state on its slot before and after,
 BECAUSE — a state read through a new Terminal shape widens the overlay's grant for a witness's
 convenience; a weave that paints its own fields needs no authority the weaver did not give it.
 
+## VM-WIT-26 — A console witness takes the size of the window that shows it
+
+METHOD — Size a console witness to the terminal window that shows it, and read its rows at that size: a buffer wider than its window wraps every row, so the desk reads broken.
+BECAUSE — a 160x50 console inside a 120x30 Windows Terminal window wrapped every row and its
+picture read as a product defect; launched at the window's own 120x30, the same desk read whole.
+
 ## Seen
 
 ### VM-WIT-01
@@ -161,4 +167,7 @@ nowhere yet
 nowhere yet
 
 ### VM-WIT-25
+nowhere yet
+
+### VM-WIT-26
 nowhere yet

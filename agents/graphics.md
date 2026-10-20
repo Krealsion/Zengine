@@ -42,11 +42,12 @@ keeps, is [surface](surface.md); where the two meet is the last section here.
   never-presented element stays.
 - A window's incarnation is a random token drawn on its first activation and carried by its state:
   a loaded weave cannot read its own id. Owners draw whole only when the window, its incarnation,
-  or its size changed (`AreaRoom`, `Canvas::room`).
+  or its size changed, or the window says the area is empty (`AreaRoom`, `Canvas::room`).
 - **The window tells the room.** It answers every introduction of an area with the owner's room,
   naming the elements it still presents there, so a drawer's state keeps no window or incarnation
   and a drawer that starts again says only what the window does not hold. An area given another
-  owner starts empty. A drawing weave takes a room only from the office of the window it names.
+  owner, or withdrawn and introduced again, starts empty, and its room says so (`empty`). A drawing
+  weave takes a room only from the office of the window it names.
 
 ## Each owner hears the pointer in its own area
 

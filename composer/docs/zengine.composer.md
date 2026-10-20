@@ -209,9 +209,9 @@ in the field that asked, and nowhere once that form or field has changed.
 
 ### `AreaRoom`
 
-`AreaRoom` v2, from the graphics window that shows the area `zengine.composer`, as that window's
+`AreaRoom` v3, from the graphics window that shows the area `zengine.composer`, as that window's
 office ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): Compose's room there. Compose
-draws its rows in it, its caret a bar, whole when the window, its incarnation or its size changed,
+draws its rows in it, its caret a bar, whole in a new window, incarnation or size, or an empty area,
 and after that only what changed.
 
 ### `DrawnRefused`
