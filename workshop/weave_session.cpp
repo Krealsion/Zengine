@@ -454,6 +454,7 @@ std::string WorkshopWeave::restore_notice_text(const RestoreNotice& n, std::int6
 // WL-SESSION-14 -- agents/workshop/session-restore.md
 bool WorkshopWeave::respell_restore_notice(std::int64_t cell_px) {
     medium_unit_known_ = true;
+    note_medium();
     if (!restore_notice_) {
         return false;
     }

@@ -251,6 +251,7 @@ void WorkshopWeave::on(const graphics::WindowOffered& w, loom::Mail& mail) {
     // THE WINDOW THE DESK IS PLACED ON: the one that offered itself, the terminal's or the OS's.
     // Another one offering itself takes every area afresh.
     window_offered_ = true;
+    note_medium();
     if (window_name_ != w.window) {
         window_name_ = w.window;
         areas_placed_.clear();
@@ -283,6 +284,7 @@ void WorkshopWeave::on(const graphics::AreaRoom& r, loom::Mail& mail) {
     // nothing new (`WindowDrawing::room`).
     const bool desk = window_.room(r, mail);
     const bool overlay = !desk && overlay_.room(r, mail);
+    note_medium();
     if (desk || overlay) {
         draw_window(mail);
     }
@@ -381,7 +383,7 @@ void WorkshopWeave::on(const graphics::AreaPressed& p, loom::Mail& mail) {
     const WindowMoment moment{window_moment_, input_actor_};
     const std::uint64_t press = mail.correlation();
     const auto slot = static_cast<std::size_t>(p.button - 1);
-    const PointedAt at = canvas_point_of(input::space::kPixels, p.x, p.y);
+    const PointedAt at = canvas_point_of(input::space::kPixels, p.x, p.y, session_.console_rows_above);
     if (!p.pressed) {
         // THE RELEASE ENDS THE HOLD AND RESTORES NO ELIGIBILITY: the release is no gesture.
         WindowHold& held = pane_holds_[slot];

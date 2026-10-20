@@ -954,11 +954,11 @@ its rooms.
 ### `WindowOffered`
 
 `WindowOffered` v1, from the terminal or OS window as its own office (`zengine.window.terminal`,
-`zengine.window.sdl`): its size in cells; Workshop's areas go on it. With no skin up yet, Workshop
-comes up in it as `SurfaceReady` brings it up; and while no skin has said `SurfaceExtent`, it lays
-the same panes out in the window's room, a cell of text a cell, again each time the window offers
-another size. A skin's extent then owns the room. An offer from any other office, or of another
-window, is ignored.
+`zengine.window.sdl`): its size in cells; Workshop's areas go on it. With no skin up, Workshop
+comes up in it; while no skin has said `SurfaceExtent`, it lays the panes out in the window's
+room, a cell of text a cell, again at each other size offered, and keeps its room for an offer of
+none. A skin's extent then owns the room. An offer from any other office, or of another window,
+is ignored.
 
 ### `AreaRoom`
 

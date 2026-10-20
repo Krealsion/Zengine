@@ -1587,13 +1587,13 @@ inline void open_rename_on_live_tab(Rig& r) {
     }
     REQUIRE(column >= 0);
     r.clock.together();
+    // The band's row, the canvas's first, on the console row the medium puts it on.
+    const std::int64_t row = r.session().console_rows_above;
     for (int press = 0; press < 2; ++press) {
-        r.publish(loom::to_value(input::PointerButton{1, true, column,
-                                                      surface::kTuiCanvasTopRow,
-                                                      input::space::kCells, input::mod::kNone}));
-        r.publish(loom::to_value(input::PointerButton{1, false, column,
-                                                      surface::kTuiCanvasTopRow,
-                                                      input::space::kCells, input::mod::kNone}));
+        r.publish(loom::to_value(input::PointerButton{1, true, column, row, input::space::kCells,
+                                                      input::mod::kNone}));
+        r.publish(loom::to_value(input::PointerButton{1, false, column, row, input::space::kCells,
+                                                      input::mod::kNone}));
     }
     r.clock.apart();
 }

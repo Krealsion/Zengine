@@ -2,14 +2,15 @@
 # Copyright (c) 2026 Joshua DeMoss
 """Press, request Zengine-owned timed motion, release; retain before, held and after evidence."""
 from hand import Hand
-from workshop_steps import MODIFIERS, button_of, link_session, picture, point
+from workshop_steps import MODIFIERS, button_of, cells_point, link_session, picture
 
 
 def run(ctx):
-    start, end = point(ctx.inputs["start"]), point(ctx.inputs["end"])
+    link = ctx.inputs["link"]
+    start = cells_point(ctx, link, ctx.inputs["start"])
+    end = cells_point(ctx, link, ctx.inputs["end"])
     if start[2] != end[2]:
         raise ValueError("start and end must use the same coordinate space")
-    link = ctx.inputs["link"]
     link_session(ctx, link)
     hand = Hand(ctx, link)
     before, _ = picture(ctx, link, "before")

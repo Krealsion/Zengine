@@ -2706,12 +2706,12 @@ TEST_CASE("the hand meets exactly the pixels and cells a pane paints") {
     const Screen sc = screen_of(t.session());
     const Occupancy on = occupied_at(
         t.session().panes, t.session().setup.active, sc,
-        canvas_point_of(input::space::kPixels, left_px, mid_y));
+        canvas_point_of(input::space::kPixels, left_px, mid_y, sc.rows_above));
     CHECK(on.occupied);
     CHECK(on.kind == stock::kKind);
     const Occupancy off = occupied_at(
         t.session().panes, t.session().setup.active, sc,
-        canvas_point_of(input::space::kPixels, left_px - 1, mid_y));
+        canvas_point_of(input::space::kPixels, left_px - 1, mid_y, sc.rows_above));
     CHECK_FALSE(off.occupied);
 
     // AND THE RIGHT EDGE, half-open exactly as painted: the last painted pixel answers,
@@ -2719,21 +2719,21 @@ TEST_CASE("the hand meets exactly the pixels and cells a pane paints") {
     const std::int64_t right_px = (surface::add_cells(at.x, at.w));
     const Occupancy inside = occupied_at(
         t.session().panes, t.session().setup.active, sc,
-        canvas_point_of(input::space::kPixels, right_px - 1, mid_y));
+        canvas_point_of(input::space::kPixels, right_px - 1, mid_y, sc.rows_above));
     CHECK(inside.occupied);
     const Occupancy past = occupied_at(
         t.session().panes, t.session().setup.active, sc,
-        canvas_point_of(input::space::kPixels, right_px, mid_y));
+        canvas_point_of(input::space::kPixels, right_px, mid_y, sc.rows_above));
     CHECK_FALSE(past.occupied);
 
     // A TERMINAL'S HAND: cell 6 holds the pane's first painted cell and answers; cell 5 is
     // before it and does not.
     const std::int64_t mid_row = surface::cell_of_pixel(mid_y) + surface::kTuiCanvasTopRow;
     CHECK(occupied_at(t.session().panes, t.session().setup.active, sc,
-                      canvas_point_of(input::space::kCells, 6, mid_row))
+                      canvas_point_of(input::space::kCells, 6, mid_row, sc.rows_above))
               .kind == stock::kKind);
     CHECK_FALSE(occupied_at(t.session().panes, t.session().setup.active, sc,
-                            canvas_point_of(input::space::kCells, 5, mid_row))
+                            canvas_point_of(input::space::kCells, 5, mid_row, sc.rows_above))
                     .occupied);
 }
 

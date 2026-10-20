@@ -91,6 +91,9 @@ public:
     }
 
     CellExtent extent() const { return CellExtent{cols_, rows_}; }
+    /// The size offered to the window's followers: its terminal's, or none where it has none to
+    /// measure, so an arranger keeps the room it lays out in.
+    CellExtent offered() const { return terminal_.size().measured() ? extent() : CellExtent{}; }
 
     void clear() { cache_.clear(); }
     void cover(const WinArea& a, const std::string& path) {

@@ -239,7 +239,7 @@ void WorkshopWeave::external_drag(std::int64_t kind, const zengine::input::Point
     if (!body.present) {
         return; // a room too small for a row: the sweep waits for one, and sends nothing
     }
-    const ProseAt at = prose_at(m.space, m.x, m.y, body.fit);
+    const ProseAt at = prose_at(m.space, m.x, m.y, body.fit, session_.console_rows_above);
     if (!at.understood) {
         return;
     }
@@ -422,7 +422,7 @@ bool WorkshopWeave::external_release(std::int64_t button, const zengine::input::
                 where.rect, sc, external_title_rows(session_.panes, kind, session_.pane_titles));
             if (body.present) {
                 const ProseAt at =
-                    prose_at(b.space, b.x, b.y, body.fit);
+                    prose_at(b.space, b.x, b.y, body.fit, session_.console_rows_above);
                 if (at.understood) {
                     prow = at.row - body.header_rows;
                     pcol = at.column;
@@ -962,7 +962,7 @@ bool WorkshopWeave::menu_button(const zengine::input::PointerButton& b, loom::Ma
         withdraw_menu("a newer press", mail);
         return false;
     }
-    const PointedAt where = canvas_point_of(b.space, b.x, b.y);
+    const PointedAt where = canvas_point_of(b.space, b.x, b.y, session_.console_rows_above);
     if (!where.understood) {
         return true;
     }

@@ -1364,6 +1364,13 @@ private:
         return surface::kSkinRole;
     }
 
+    /// THE CONSOLE ROWS ABOVE THE CANVAS, kept with the medium that shows the desk: a terminal
+    /// Skin's slots, none in a graphics window (`Session::console_rows_above`).
+    void note_medium() {
+        session_.console_rows_above =
+            medium_office() == surface::kSkinRole ? surface::kTuiCanvasTopRow : 0;
+    }
+
     /// The pending-paste record a settled conversation belongs to, removed and handed back; an id
     /// the list does not hold answers the empty record.
     PendingPaste take_pending_paste(std::uint64_t ask);
