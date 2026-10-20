@@ -48,7 +48,7 @@ from loom_session.tool import Refused
 
 from hand import (FALLBACK_PACE, NO_PRESS, POINT_TRIES, Hand, no_settled_picture, on_row, rows_of,
                   takes_no_press)
-from workshop_steps import chord_moments, moment, picture, png_of, point
+from workshop_steps import cells_point, chord_moments, moment, picture, png_of, point
 
 VERBS = ("press", "type", "open", "select", "into", "click", "part", "at", "rest", "wheel",
          "control", "menu", "desk", "expect", "absent", "rows", "picture", "wait", "settings")
@@ -346,7 +346,7 @@ def act(ctx, hand, verb, step):
     if verb == "rest":
         # THE POINTER RESTS where it is put, with no button held -- a window pixel "x,y" or a
         # terminal cell that names its cells. A canvas pane that asks for its hover is told where.
-        x, y, space = point(arg)
+        x, y, space = cells_point(ctx, ctx.inputs["link"], arg)
         hand.inject([moment(ctx, "PointerMoved", x=x, y=y, space=space)])
         return {"x": x, "y": y}
     if verb == "wheel":

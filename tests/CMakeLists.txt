@@ -1325,7 +1325,7 @@ zengine_workshop_suite(load SOURCES test_workshop_load.cpp
           zengine-graphics zengine-window-terminal zengine-input
     DEFINITIONS "WORKSHOP_LOAD_STAGE_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/load-plan-stage\""
                 "TIMER_SO=\"$<TARGET_FILE:zengine-timer>\""
-                # The window plan's two medium rows and the input weave after them, realized as
+                # The default plan's two medium rows and the input weave after them, realized as
                 # the plan names them.
                 "GRAPHICS_SO=\"$<TARGET_FILE:zengine-graphics>\""
                 "WINDOW_TERMINAL_SO=\"$<TARGET_FILE:zengine-window-terminal>\""
@@ -1350,8 +1350,9 @@ zengine_workshop_suite(load SOURCES test_workshop_load.cpp
                 # The plan files this repository SHIPS, read as files rather than as a
                 # description of files.
                 "WORKSHOP_DEFAULT_PLAN=\"${CMAKE_SOURCE_DIR}/workshop/default-load-plan.json\""
-                "WORKSHOP_WINDOW_PLAN=\"${CMAKE_SOURCE_DIR}/workshop/window-load-plan.json\""
-                "WORKSHOP_GRAPHICAL_PLAN=\"${CMAKE_SOURCE_DIR}/workshop/graphical-load-plan.json\"")
+                "WORKSHOP_GRAPHICAL_PLAN=\"${CMAKE_SOURCE_DIR}/workshop/graphical-load-plan.json\""
+                "WORKSHOP_SKIN_PLAN=\"${CMAKE_SOURCE_DIR}/workshop/skin-load-plan.json\""
+                "WORKSHOP_SDL_SKIN_PLAN=\"${CMAKE_SOURCE_DIR}/workshop/sdl-skin-load-plan.json\"")
 # The panes suite (above) also embeds the Connections pane's page and the Demo controls', whose
 # weave it compiles in, which their answers are compared to.
 zengine_manual(zengine-workshop-panes-tests PRIVATE ${PROJECT_SOURCE_DIR}/external-host/docs/zengine.connections.md)

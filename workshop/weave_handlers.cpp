@@ -251,6 +251,7 @@ void WorkshopWeave::on(const graphics::WindowOffered& w, loom::Mail& mail) {
     // THE WINDOW THE DESK IS PLACED ON: the one that offered itself, the terminal's or the OS's.
     // Another one offering itself takes every area afresh.
     window_offered_ = true;
+    note_medium();
     if (window_name_ != w.window) {
         window_name_ = w.window;
         areas_placed_.clear();
@@ -283,6 +284,7 @@ void WorkshopWeave::on(const graphics::AreaRoom& r, loom::Mail& mail) {
     // nothing new (`WindowDrawing::room`).
     const bool desk = window_.room(r, mail);
     const bool overlay = !desk && overlay_.room(r, mail);
+    note_medium();
     if (desk || overlay) {
         draw_window(mail);
     }
@@ -326,12 +328,6 @@ void WorkshopWeave::on(const graphics::AreaButtonChanged& b, loom::Mail& mail) {
     const auto own = areas_placed_.find(kWorkshopProvider);
     const std::int64_t x = b.x + (own != areas_placed_.end() ? own->second.x : 0);
     const std::int64_t y = b.y + (own != areas_placed_.end() ? own->second.y : 0);
-    // ITS OWN HOLD, AS THE WINDOW HOLDS IT: where the press was made, until its release.
-    if (b.button >= 1 && b.button <= 3) {
-        own_holds_[static_cast<std::size_t>(b.button - 1)] =
-            b.pressed ? WindowHold{true, kNoPaneKind, b.area, mail.correlation(), x, y}
-                      : WindowHold{};
-    }
     const WindowMoment moment{window_moment_, input_actor_};
     pointer_button(input::PointerButton{b.button, b.pressed, x, y, input::space::kPixels,
                                         b.modifiers},
@@ -387,7 +383,7 @@ void WorkshopWeave::on(const graphics::AreaPressed& p, loom::Mail& mail) {
     const WindowMoment moment{window_moment_, input_actor_};
     const std::uint64_t press = mail.correlation();
     const auto slot = static_cast<std::size_t>(p.button - 1);
-    const PointedAt at = canvas_point_of(input::space::kPixels, p.x, p.y);
+    const PointedAt at = canvas_point_of(input::space::kPixels, p.x, p.y, session_.console_rows_above);
     if (!p.pressed) {
         // THE RELEASE ENDS THE HOLD AND RESTORES NO ELIGIBILITY: the release is no gesture.
         WindowHold& held = pane_holds_[slot];
@@ -414,7 +410,7 @@ void WorkshopWeave::on(const graphics::AreaPressed& p, loom::Mail& mail) {
     if (!guide_marks_.empty()) {
         guide_pressed(mail, at);
     }
-    pane_holds_[slot] = WindowHold{true, kind, p.area, press, p.x, p.y};
+    pane_holds_[slot] = WindowHold{true, kind, p.area, press};
     if (slot == 0) {
         // A primary press chooses the pane and moves the keys, as on Workshop's canvas, and is
         // the pane's to continue: under the window's number it may ask to carry a value out.
@@ -440,6 +436,43 @@ void WorkshopWeave::on(const graphics::AreaPressed& p, loom::Mail& mail) {
     }
     note_routed(kind);
     repaint(mail);
+}
+
+// WL-ARR-02 -- agents/workshop/arrangement.md; WL-FOCUS-11 -- agents/workshop/focus.md
+// WL-PRESS-06 -- agents/workshop/press-chain.md; WL-CANVAS-03 -- agents/workshop/canvas.md
+void WorkshopWeave::on(const graphics::AreaHoldEnded& e, loom::Mail& mail) {
+    if (e.button < 1 || e.button > 3) {
+        return;
+    }
+    const auto slot = static_cast<std::size_t>(e.button - 1);
+    if (window_.from_window(e.area, mail)) {
+        // ITS RELEASE GOES WHERE IT LANDS, so whatever the button holds in Workshop's own area
+        // ends here: a drag, and a press handed to a pane Workshop draws, which hears it lost.
+        if (slot == 0) {
+            (void)end_held_gestures();
+        }
+        lose_canvas_hold(slot, mail);
+        if (slot > 0) {
+            lose_secondary_hold(slot - 1, mail);
+        }
+        repaint(mail);
+        return;
+    }
+    if (!mail.authored_from_role(std::string(graphics::kWindowOfficePrefix) + window_name_)) {
+        return;
+    }
+    WindowHold& held = pane_holds_[slot];
+    if (held.active && held.area == e.area) {
+        held = WindowHold{};
+        repaint(mail);
+    }
+}
+
+// WL-CANVAS-06 -- agents/workshop/canvas.md
+void WorkshopWeave::on(const graphics::AreaPointerLeft& l, loom::Mail& mail) {
+    if (window_.from_window(l.area, mail)) {
+        leave_canvas_hover(mail);
+    }
 }
 
 // WL-SESSION-08, WL-SESSION-09 -- agents/workshop/session-restore.md

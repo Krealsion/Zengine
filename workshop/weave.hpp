@@ -442,11 +442,14 @@ class WorkshopWeave
                                           zengine::graphics::AreaRoom,
                                           zengine::graphics::DrawnRefused,
                                           // the pointer in its own area, as the window gives it,
-                                          // and where a press in a pane's area landed
+                                          // where a press in a pane's area landed, and a hold
+                                          // the window ended or an area the pointer left
                                           zengine::graphics::AreaButtonChanged,
                                           zengine::graphics::AreaPointerMoved,
                                           zengine::graphics::AreaWheelTurned,
                                           zengine::graphics::AreaPressed,
+                                          zengine::graphics::AreaHoldEnded,
+                                          zengine::graphics::AreaPointerLeft,
                                           loom::DispatchRefused>,
                              loom::Emit<loom::Ack, loom::Refused, GuideAnswered, PaneView, PanePoint, DeskView, v2::DeskView, v2::PaneView, v2::PanePoint, v3::PaneView, v4::PaneView, v5::PaneView, v6::PaneView, DeskRead, v2::DeskRead, DeskStamps, v2::DeskStamps, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, PaneCanvasValueDrop, v1::PaneCanvasValueDrop, PaneCanvasDrop, zengine::workshop::PaneCanvasRoom,
                                         zengine::workshop::v2::PaneCanvasRoom,
@@ -1215,9 +1218,7 @@ public:
     void on(const graphics::DrawnRefused& refused, loom::Mail& mail);
     /// THE POINTER IN WORKSHOP'S OWN AREA, from the window that shows it: each moment the moment
     /// it was, through the one pointer path every moment takes, at the screen's pixel. A press
-    /// begun there is Workshop's until its release, or until Workshop places an area hearing the
-    /// pointer in front of its own where the press was made, which ends its gesture as the window
-    /// ends its hold (`arrange_graphics`).
+    /// begun there is Workshop's until its release, or until the window ends its hold.
     void on(const graphics::AreaButtonChanged& b, loom::Mail& mail);
     void on(const graphics::AreaPointerMoved& m, loom::Mail& mail);
     void on(const graphics::AreaWheelTurned& w, loom::Mail& mail);
@@ -1227,6 +1228,13 @@ public:
     /// until the release, and keeps the press, under the window's number for it, for the
     /// continuations a pane sends about it (WL-FOCUS-03, WL-CANVAS-05, WL-CTX-08, WL-CTX-09).
     void on(const graphics::AreaPressed& p, loom::Mail& mail);
+    /// A HOLD THE WINDOW ENDED WITH NO RELEASE, told Workshop as its own area's owner and as each
+    /// pane area's arranger: in its own area, every gesture that button holds there ends; in a
+    /// pane's, the press Workshop kept for it is forgotten, and the pane's room no longer waits.
+    void on(const graphics::AreaHoldEnded& e, loom::Mail& mail);
+    /// THE POINTER LEFT AN AREA, told as a hold's end is: leaving Workshop's own area, it rests on
+    /// no canvas Workshop draws there. A pane's area it left is the pane's to answer.
+    void on(const graphics::AreaPointerLeft& l, loom::Mail& mail);
 
     /// The session, for a suite that wants to check where a gesture left things.
     /// Read-only: every change still goes through a message and a gesture.
@@ -1354,6 +1362,13 @@ private:
             return std::string(graphics::kWindowOfficePrefix) + window_name_;
         }
         return surface::kSkinRole;
+    }
+
+    /// THE CONSOLE ROWS ABOVE THE CANVAS, kept with the medium that shows the desk: a terminal
+    /// Skin's slots, none in a graphics window (`Session::console_rows_above`).
+    void note_medium() {
+        session_.console_rows_above =
+            medium_office() == surface::kSkinRole ? surface::kTuiCanvasTopRow : 0;
     }
 
     /// The pending-paste record a settled conversation belongs to, removed and handed back; an id
@@ -1647,6 +1662,9 @@ private:
     /// true iff a hold ended. It never restores a continuation's eligibility.
     bool external_release(std::int64_t button, const zengine::input::PointerButton& b,
                           loom::Mail& mail);
+    /// A HOLD WHOSE RELEASE WILL NOT COME -- a press of its button again, or a window that ended
+    /// it -- ends aloud: its pane is owed a `lost` release, and its continuation drops.
+    void lose_secondary_hold(std::size_t s, loom::Mail& mail);
     /// A HOLD WHOSE PANE LEFT THE DESK ends with a `lost` release owed to it; a CONTINUATION
     /// whose pane left the desk is dropped whether or not its hold is still active -- closing
     /// invalidates the continuation independently of the physical button; and a menu presented
@@ -1785,11 +1803,6 @@ private:
     /// TELL EACH PANE A WINDOW SHOWS IN AN AREA OF ITS OWN WHETHER THE KEYS REACH IT, when that
     /// changed or its office has a new holder (`PaneKeys`).
     void tell_keys(loom::Mail& mail);
-    /// END WHAT A NEW PLACING ENDS IN THE WINDOW: Workshop's own gesture, held from a press in its
-    /// area, when an area hearing the pointer now stands in front of it where the press was made;
-    /// and Workshop's record of a press held in a pane's area that is gone, handed over or covered
-    /// the same way -- each as the window ends the hold.
-    void end_covered_holds(const std::map<std::string, graphics::AreaPlaced>& next);
     /// The window that shows Workshop's own area, and what was last drawn there.
     WindowDrawing window_{kWorkshopProvider, kWorkshopProvider};
     /// The window that shows Workshop's overlay, the area in front of every pane's where the
@@ -1814,16 +1827,14 @@ private:
     bool window_offered_ = false;
     /// A moment the window gave Workshop's own area is being answered (`placed_in_window`).
     bool window_moment_ = false;
-    /// A PRESS HELD IN A GRAPHICS WINDOW, by button: in Workshop's own area, where it was made on
-    /// the screen; in a pane's, that pane, its area and the window's number for the press.
+    /// A PRESS A GRAPHICS WINDOW HOLDS IN A PANE'S AREA, by button: that pane, its area and the
+    /// window's number for the press, until its release or until the window ends the hold.
     struct WindowHold {
         bool active = false;
         std::int64_t kind = kNoPaneKind;
         std::string area;
         std::uint64_t press = 0;
-        std::int64_t x = 0, y = 0;
     };
-    std::array<WindowHold, 3> own_holds_{};
     std::array<WindowHold, 3> pane_holds_{};
     /// What each pane a window shows was last told about the keys, and its office's holder then.
     std::map<std::int64_t, std::pair<std::uint64_t, bool>> keys_told_;

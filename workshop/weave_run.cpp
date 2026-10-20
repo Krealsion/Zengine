@@ -195,7 +195,6 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         kWorkshopOverlayArea, window_name_, kWorkshopProvider, 0, 0, sc.w, sc.h, panes_order + 2,
         false, false};
     skins[kWorkshopOverlayArea] = session_.skin;
-    end_covered_holds(next);
     for (const auto& [area, was] : areas_placed_) {
         if (next.count(area) == 0) {
             to_directory(graphics::AreaPlaced{area, "", was.owner, 0, 0, 0, 0, 0, false, false});
@@ -254,44 +253,6 @@ void WorkshopWeave::tell_keys(loom::Mail& mail) {
         told[kind] = now;
     }
     keys_told_ = std::move(told);
-}
-
-// WL-ARR-02 -- agents/workshop/arrangement.md; WL-FOCUS-11 -- agents/workshop/focus.md
-void WorkshopWeave::end_covered_holds(const std::map<std::string, graphics::AreaPlaced>& next) {
-    const auto covered = [&next](const std::string& area, std::int64_t x, std::int64_t y) {
-        const auto held = next.find(area);
-        if (held == next.end()) {
-            return true;
-        }
-        for (const auto& [name, a] : next) {
-            if (name != area && a.pointer && a.order > held->second.order && x >= a.x &&
-                y >= a.y && x < a.x + a.w && y < a.y + a.h) {
-                return true;
-            }
-        }
-        return false;
-    };
-    bool own_ended = false;
-    for (WindowHold& hold : own_holds_) {
-        if (hold.active && covered(hold.area, hold.x, hold.y)) {
-            hold = WindowHold{};
-            own_ended = true;
-        }
-    }
-    if (own_ended) {
-        (void)end_held_gestures();
-    }
-    for (WindowHold& hold : pane_holds_) {
-        if (!hold.active) {
-            continue;
-        }
-        const auto placed = next.find(hold.area);
-        const RuntimePane* row = session_.panes.runtime.of_kind(hold.kind);
-        if (placed == next.end() || row == nullptr || placed->second.owner != row->provider ||
-            covered(hold.area, hold.x, hold.y)) {
-            hold = WindowHold{};
-        }
-    }
 }
 
 void WorkshopWeave::draw_window(loom::Mail& mail) {
