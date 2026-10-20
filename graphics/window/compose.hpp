@@ -152,8 +152,11 @@ inline std::vector<term::Cell> compose(const std::vector<WinArea>& areas, const 
     return out;
 }
 
-/// Where a press landed: the front-most area at the point (none outside every area), the top node
-/// painted there ("" where the area painted nothing), and the point in the area's pixels.
+/// Where a pointer moment landed: the front-most area at the point that takes it (none where no
+/// area does), the top node that area painted there ("" where it painted nothing), and the point
+/// in the area's pixels. An area placed to hear the pointer takes every point inside it, painted or
+/// not; any other takes a point only where what it drew there takes a press (`takes_press`), and
+/// lets the pointer through to the areas behind it everywhere else.
 struct Landed {
     const WinArea* area = nullptr;
     std::string path;
@@ -167,9 +170,6 @@ inline Landed land(const std::vector<WinArea>& areas, const Cache& cache, std::i
         const Place pl = place_of(*a);
         if (!pl.holds(col, row)) {
             continue;
-        }
-        if (out.area == nullptr) {
-            out.area = a;
         }
         const Painted* p = cache.of(a->area);
         const PaintedNode* best = nullptr;
@@ -185,9 +185,9 @@ inline Landed land(const std::vector<WinArea>& areas, const Cache& cache, std::i
                 }
             }
         }
-        if (best != nullptr) {
+        if (a->pointer || (best != nullptr && takes_press(*a, best_path))) {
             out.area = a;
-            out.path = best_path;
+            out.path = best != nullptr ? best_path : std::string();
             break;
         }
     }

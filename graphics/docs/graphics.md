@@ -28,7 +28,10 @@ worked example: it draws its frame as nodes and its board as an element of its o
 owner -> its window          Drawn (nodes and records), ElementPut once, then ElementChange
 window -> the owner          AreaRoom (this window, its incarnation, the room, what it holds)
 window -> the owner          DrawnRefused (why, in words), ActionRequested
-window -> pointer's owners   PointerButton, PointerMoved, PointerWheel (at the area's own point)
+window -> pointer's owners   AreaButtonChanged, AreaPointerMoved, AreaWheelTurned
+                             (at the area's own point, a press's moments under its number)
+window -> an area's arranger AreaPressed (where a press in an area another office owns landed)
+window -> owner, arranger    AreaHoldEnded, AreaPointerLeft (to the arranger when another office)
 window -> the keys' owners   KeyPressed, KeyReleased, TextEntered
 arranger -> directory        AreaPlaced, SkinOffered, SkinChosen, ElementCodeOffered
 window -> everyone           WindowOffered (as its own office, with its size and incarnation)
@@ -51,10 +54,15 @@ What each message does is the manual of the office that takes it: the window's f
 sends it, the directory's for what the arranger and a window send it.
 
 An area placed with `keys` hears every key, its release and its text. One placed with `pointer`
-hears, at its own point in pixels, a left press nothing drawn there took, and every other pointer
-moment that lands in it: any button let go, the middle or right button pressed, a move, the wheel.
-Either window, terminal or OS, routes them alike
-([`zengine.window.sdl`](zengine.window.sdl.md#use)).
+holds every point inside it, painted or not, and hears, at its own point in pixels, every pointer
+moment there as the moment it was: a button pressed or let go, a part's or not
+(`AreaButtonChanged`), a move (`AreaPointerMoved`), the wheel (`AreaWheelTurned`). A press holds its
+button for the area until its release, so its moves and its release reach the area wherever the
+pointer goes, all three under the press's number; the area's arranger, when another office, hears
+where each press and release landed (`AreaPressed`), as a desktop raises what was clicked. An area
+placed without the pointer takes only the points where what it drew names an action or presents an
+element, and lets the pointer through to the areas behind it everywhere else. Either window,
+terminal or OS, routes them alike ([`zengine.window.terminal`](zengine.window.terminal.md#use)).
 
 A window also answers for its platform, in the shapes Surface's Skin answers too, spelled here
 (`graphics/vocabulary.hpp`): a copy, a paste's read of the clipboard, its place on the desktop and a
@@ -185,8 +193,8 @@ An element is presented by code the window opens, as it opens a skin. Its owner 
 and then sends each change by that reference and the change's index among the changes the code
 takes (`ElementChange`); the type implies each change's shape, so a change is its body alone. The
 code draws what it is told -- the rules stay the owner's. A press it does not take reaches the
-owner as the action its record names (`ActionRequested`), or, where the area was placed with
-`pointer` true, as the press itself (`PointerButton`); otherwise it sends nothing.
+owner as the press itself (`AreaButtonChanged`) where the area was placed with `pointer` true, or
+else as the action its record names (`ActionRequested`); otherwise it sends nothing.
 
 `graphics/element_export.hpp` exports one with a struct and a macro:
 
