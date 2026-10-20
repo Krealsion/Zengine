@@ -1719,34 +1719,34 @@ endforeach()
 # At -j<n> CTest starts entries in descending COST, and a declared COST outranks the one it
 # measures into Testing/Temporary/CTestCostData.txt, so this table orders every parallel run, a
 # fresh tree's too. A value is the seconds an entry took in its slowest CI build job at 289f50c,
-# for every entry of 5 s or more (a panes part's: its share by cases of the program's time there);
+# for every entry of 5 s or more (a panes part's: at efdc170, in the sanitizer job, its slowest);
 # an entry left out runs by the cost CTest measured for it, or after these while it has none.
 file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/test_population.txt zengine_cost_population
      REGEX "^[A-Za-z0-9_]+[ \t]")
 foreach(zengine_cost_row IN ITEMS
+        "workshop_panes_project:698"
+        "workshop_panes_info:581"
         "neovim_journey:275"
+        "workshop_panes_hand:257"
+        "workshop_panes_terminal:252"
         "workshop_desk:225"
-        "workshop_panes_hand:216"
-        "workshop_panes_project:209"
-        "workshop_panes_seam:206"
-        "workshop_panes_info:193"
         "story_journey:183"
         "graphics:149"
-        "workshop_panes_editor:142"
-        "workshop_panes_inspect:125"
+        "workshop_panes_editor:130"
         "workshop_neovim:103"
         "workshop_shapes:72"
-        "workshop_panes_terminal:71"
-        "workshop_panes_settings:60"
         "workshop_persistence:50"
         "workshop_journey:48"
         "surface:47"
         "builder:41"
         "tutorial_walks:40"
         "source_comments:40"
+        "workshop_panes_inspect:36"
+        "workshop_panes_settings:36"
         "workshop_load:34"
         "inventory:32"
         "law_register:31"
+        "workshop_panes_seam:29"
         "code_values:24"
         "tutor_walk:24"
         "flow_pane:20"
