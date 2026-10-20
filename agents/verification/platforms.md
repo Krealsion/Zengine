@@ -123,7 +123,7 @@ at launch, and became `?` under MSVC. A test in another code page passes what sh
 `docs/contributing/supported-toolchains.md`
 
 ### VM-PLAT-03
-`tests/CMakeLists.txt` workshop_panes
+`tests/CMakeLists.txt` zengine_workshop_suite
 `tools/coff-census.py`
 
 ### VM-PLAT-04

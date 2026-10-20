@@ -38,10 +38,11 @@ half alone; the provider builds only where the Loom exports `loom::kernel`.
   `tests/test_operator_migration.cpp`, with `tests/operator_stranger.cpp`,
   `tests/weavelib/operator_consumer_weave.cpp` and the provider fixtures in `tests/weavelib/`
 
-Its cases in shared suites: `workshop_panes` (`tests/test_workshop_panes_powers.cpp`,
-`tests/test_workshop_panes_sampling.cpp`), `workshop_load` (`tests/test_workshop_load.cpp`:
-providers mounted and consumers offered from a plan) and `timer` (`tests/test_timer.cpp`).
-Outside CTest, `tests/package/public_surface.cpp` compiles its installed headers.
+Its cases in shared suites: `workshop_panes_terminal` (`tests/test_workshop_panes_powers.cpp`),
+`workshop_panes_inspect` (`tests/test_workshop_panes_sampling.cpp`), `workshop_load`
+(`tests/test_workshop_load.cpp`: providers mounted and consumers offered from a plan) and `timer`
+(`tests/test_timer.cpp`). Outside CTest, `tests/package/public_surface.cpp` compiles its installed
+headers.
 
 ## Host side
 

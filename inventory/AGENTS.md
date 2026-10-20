@@ -37,7 +37,7 @@ routed by the root.
 
 - `inventory` — the codec and the weave, mounted with a trusted grant: `tests/test_inventory.cpp`
 
-Its cases in shared suites: `workshop_panes` (`tests/test_workshop_inventory_info.cpp`,
+Its cases in shared suites: `workshop_panes_info` (`tests/test_workshop_inventory_info.cpp`,
 `tests/test_workshop_inventory_folders.cpp`, `tests/test_workshop_info_views.cpp`, on the rig
 `tests/inventory_story.hpp`); `workshop_guests` (`tests/test_workshop_guests.cpp`, the guest
 `inventory` and `toolbox` powers). `workshop_journey` reads captured pairs with

@@ -24,13 +24,14 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 ## Law
 
 - [authoring](../agents/workshop/authoring.md) `WL-AUTH` — the two authored files gain a writer, and
-  it is the weaver's own act; witnessed by `workshop_panes` (files: the chooser; builder: `o`),
+  it is the weaver's own act; witnessed by `workshop_panes_project` (files: the chooser; builder:
+  `o`),
   `workshop_load` (the append door and the plan writer), `workshop_files`
 - [build-output](../agents/workshop/build-output.md) — what a build said; witnessed by `builder`
-  (the runner's bytes, the kept record), then `workshop_panes` (output)
+  (the runner's bytes, the kept record), then `workshop_panes_project` (output)
 - [project](../agents/workshop/project.md) `WL-PROJ` — the project anchor and the recipe catalog;
-  witnessed by `workshop_files` and `workshop_panes` (builder, editor), then `workshop_load` and
-  `files_weave`
+  witnessed by `workshop_files` and `workshop_panes_project` (builder), `workshop_panes_editor`
+  (editor), then `workshop_load` and `files_weave`
 
 The build conversation's own law, `agents/realization.md`, and a pane's code,
 `agents/workshop/code.md` (`WL-CODE`: a running pane followed to its source and on to its build, the
@@ -41,7 +42,7 @@ development launch), are routed by [workshop/AGENTS.md](../workshop/AGENTS.md).
 - `builder` — real child processes (`cmake -E …`, `tests/slow_build.cmake`) through the tool and
   runner mounted in-process: `tests/test_builder.cpp`, over the fixture tree `tests/buildfixture/`
 
-Its cases in shared suites: `workshop_panes` (`tests/test_workshop_panes_builder.cpp`,
+Its cases in shared suites: `workshop_panes_project` (`tests/test_workshop_panes_builder.cpp`,
 `tests/test_workshop_panes_output.cpp`, `tests/test_workshop_panes_code.cpp`), `workshop_files`
 (`tests/test_workshop_files.cpp`), `workshop_load` (`tests/test_workshop_load.cpp`).
 
