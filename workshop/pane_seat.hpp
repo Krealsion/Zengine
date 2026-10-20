@@ -156,6 +156,23 @@ public:
         return at == window_places_.end() ? std::nullopt : std::optional<RowCell>(at->second);
     }
 
+    /// A POINTER MOMENT THE WINDOW SHOWING THE AREA GAVE IT, as that window's office, read onto the
+    /// rows last drawn there (`WindowDrawing::pointer`). None for another area or speaker.
+    template <class Moment>
+    std::optional<WindowPointer> window_pointer(const Moment& moment,
+                                                const loom::Mail& mail) const {
+        return window_.pointer(moment, mail, static_cast<std::int64_t>(said_rows_.size()),
+                               columns_);
+    }
+    std::optional<WindowPointer> window_pointer(const graphics::AreaHoldEnded& ended,
+                                                const loom::Mail& mail) const {
+        return window_.pointer(ended, mail);
+    }
+
+    /// Whether the keys reach the pane now, as Workshop last said (`PaneKeys`).
+    bool keys_here() const noexcept { return keys_here_; }
+    void keys_here(bool here) noexcept { keys_here_ = here; }
+
     /// THE ROOM ASKED OF THE GRAPHICS DIRECTORY, as the office, while no window has said it: a
     /// pane reloaded into a window draws there again.
     void ask_room(loom::Mail& mail) const {
@@ -257,6 +274,7 @@ private:
     std::vector<PaneRowPart> said_parts_;
     RowsCaret said_caret_;
     std::map<std::string, RowCell> window_places_;
+    bool keys_here_ = false;
 };
 
 /// THE OFFICE OF SEVERAL PANES AS WORKSHOP AND THE WINDOWS HEAR IT: its activation, its offers on
@@ -270,7 +288,9 @@ class MultiPaneFacet {
 public:
     using Accept = loom::Accept<loom::Activated, PaneCatalogRequested, PaneDocumentRequested,
                                 graphics::AreaRoom, graphics::DrawnRefused,
-                                graphics::ActionRequested>;
+                                graphics::ActionRequested, graphics::AreaButtonChanged,
+                                graphics::AreaPointerMoved, graphics::AreaWheelTurned,
+                                graphics::AreaHoldEnded, PaneKeys>;
     using Emit = loom::Emit<PaneDocumentShown, graphics::Drawn, graphics::RoomAsked>;
 
     /// An accepted activation offers the panes, or is the weave's `on_activated`, which does; then
@@ -326,6 +346,41 @@ public:
         }
     }
 
+    /// THE POINTER IN A WINDOW, given by the window that shows one of the panes' areas as its
+    /// office, a hold it ended included: the moment read onto the rows drawn there, to the weave's
+    /// `on_window_pointer(pane, pointer, keys_went_here, mail)` where it has one -- else a
+    /// first-button press on a shown cell to its `on_window_press`. Whether the keys were already
+    /// the pane's is the last `PaneKeys` Workshop said about it.
+    template <class Self>
+    void on(Self& self, const graphics::AreaButtonChanged& b, loom::Mail& mail) {
+        window_moment(self, b.area, b, mail);
+    }
+    template <class Self>
+    void on(Self& self, const graphics::AreaPointerMoved& m, loom::Mail& mail) {
+        window_moment(self, m.area, m, mail);
+    }
+    template <class Self>
+    void on(Self& self, const graphics::AreaWheelTurned& w, loom::Mail& mail) {
+        window_moment(self, w.area, w, mail);
+    }
+    template <class Self>
+    void on(Self& self, const graphics::AreaHoldEnded& e, loom::Mail& mail) {
+        window_moment(self, e.area, e, mail);
+    }
+
+    /// Whether the keys reach one of the panes now, as Workshop says.
+    template <class Self>
+    void on(Self& self, const PaneKeys& keys, loom::Mail& mail) {
+        if (!from_workshop(mail)) {
+            return;
+        }
+        self.each_seat([&keys](PaneCanvasSeat& seat) {
+            if (seat.pane() == keys.pane) {
+                seat.keys_here(keys.here);
+            }
+        });
+    }
+
     /// Workshop asking who has panes. A weave that judges Workshop's word itself -- counting what
     /// it refused -- does so in `workshop_said`.
     template <class Self>
@@ -358,6 +413,22 @@ public:
     const ActivationCursor& activation() const noexcept { return activation_; }
 
 private:
+    template <class Self, class Moment>
+    static void window_moment(Self& self, const std::string& area, const Moment& moment,
+                              loom::Mail& mail) {
+        PaneCanvasSeat* seat = seat_of_area(self, area);
+        const std::optional<WindowPointer> p =
+            seat == nullptr ? std::nullopt : seat->window_pointer(moment, mail);
+        if (!p) {
+            return;
+        }
+        if constexpr (requires { self.on_window_pointer(seat->pane(), *p, true, mail); }) {
+            self.on_window_pointer(seat->pane(), *p, seat->keys_here(), mail);
+        } else if (p->phase == canvas_pointer::kPress && p->button == 1 && p->at.shown) {
+            self.on_window_press(seat->pane(), p->at.row, p->at.column, mail);
+        }
+    }
+
     /// The seat whose pane a window shows in `area`, or nullptr.
     template <class Self>
     static PaneCanvasSeat* seat_of_area(Self& self, const std::string& area) {

@@ -1760,29 +1760,36 @@ surface::SurfaceCanvas paint(const Session& s);
 
 // ---- THE DESK IN A GRAPHICS WINDOW: each pane's own area, and Workshop's behind them ----------
 
+/// THE AREA OF WORKSHOP'S OWN IN FRONT OF EVERY PANE'S, where a graphics window shows the carried
+/// value and the guide marks; it hears neither the keys nor the pointer, so a press on a mark
+/// reaches what lies under it.
+inline constexpr const char* kWorkshopOverlayArea = "zengine.workshop.overlay";
+
 /// THE AREA A GRAPHICS WINDOW SHOWS AN OPEN PANE'S BODY IN, by the name its office draws there: an
 /// office seating several panes names each `<office>.<pane>` (`PaneCanvasSeat::area_of`), any
 /// other its office.
 std::string pane_window_area(const Panes& panes, const RuntimePane& row);
 
-/// WHETHER WORKSHOP'S OWN AREA STANDS IN FRONT OF EVERY PANE'S: while arranging or while a menu is
-/// open, the surfaces a weaver's next press goes to -- and while a repaint lays an overlay above
-/// the picture (`workshop_window_drawing`).
+/// WHETHER THE SESSION PUTS WORKSHOP'S OWN AREA IN FRONT OF EVERY PANE'S: while arranging or while a
+/// menu is open, the surfaces a weaver's next press goes to. The weave adds a carry.
 bool desk_in_front(const Session& s) noexcept;
 
 /// WORKSHOP'S DESK AS A GRAPHICS WINDOW DRAWS IT -- every plane `paint` composes, but the bodies of
-/// the panes in `placed`, which their offices draw in areas of their own, and then `overlays`, the
-/// planes a repaint lays above the picture -- and where each press its parts name stands on the
-/// screen. With no overlay it draws nothing for them; with one, it is drawn as the desk in front
-/// of the panes' areas is, which leaves their bodies to them.
+/// the panes in `placed`, which their offices draw in areas of their own. Standing behind the
+/// panes' areas (`front` false), it paints ground under each such body, so a pane in front covers
+/// what it drew for one behind; in front, it leaves their bodies to them.
 struct WorkshopWindowDrawing {
     graphics::Sketch sketch;
-    std::map<std::string, PixelRect> parts; ///< each action a press asks, and where it stands
 };
 
-WorkshopWindowDrawing workshop_window_drawing(
-    const Session& s, const std::set<std::int64_t>& placed,
-    const std::vector<surface::SurfaceLayer>& overlays = {});
+WorkshopWindowDrawing workshop_window_drawing(const Session& s,
+                                              const std::set<std::int64_t>& placed,
+                                              bool front = false);
+
+/// THE PLANES A REPAINT LAYS ABOVE THE PICTURE -- the carried value, the guide marks -- as the
+/// overlay a graphics window shows in front of every pane's area (`kWorkshopOverlayArea`).
+graphics::Sketch workshop_overlay_drawing(const Session& s,
+                                          const std::vector<surface::SurfaceLayer>& overlays);
 
 } // namespace zengine::workshop
 

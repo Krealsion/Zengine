@@ -343,6 +343,7 @@ PaneInventory v2 0x1192a362435cf759
 PaneInventoryRequested v1 0x29171ca94718bab2
 PaneKey v1 0x81d1ae85778938d5
 PaneKeyboardRequested v1 0x5cd8e823a5d71066
+PaneKeys v1 0x9ae0ed26d625210d
 PaneLaunchAnswered v1 0xee9e1f5d925c7826
 PaneLaunchRequested v1 0x1ea7c19728e01914
 PaneManageRequested v1 0xd40fd2597ec1cc09

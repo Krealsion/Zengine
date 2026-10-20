@@ -429,8 +429,19 @@ struct PaneButton {
               ZEN_FIELD(row), ZEN_FIELD(column), ZEN_FIELD(lost), ZEN_FIELD(picture));
 };
 
+/// Workshop -> the office of a pane a graphics window shows in an area of its own, as Workshop's
+/// office: the keys now reach the pane (`here`), or no longer do, said each time that changes. A
+/// press the window gives the pane is read against the last of these it heard before that press:
+/// whether the keys were already the pane's when it was made.
+struct PaneKeys {
+    std::string pane;
+    bool here = false;
+    ZEN_SHAPE(PaneKeys, 1, ZEN_FIELD(pane), ZEN_FIELD(here));
+};
+
 /// Provider -> Workshop: that press was not mine -- open your own surface for my pane. Echoes the
-/// press's correlation; the host's pane menu opens once, while the press is the latest act.
+/// press's correlation; the host's pane menu opens once, while the press is the latest act. A
+/// press a graphics window gave the pane echoes the window's number for it.
 struct PanePassRequested {
     std::string pane;
     ZEN_SHAPE(PanePassRequested, 1, ZEN_FIELD(pane));

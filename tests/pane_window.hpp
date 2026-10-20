@@ -5,11 +5,11 @@
 #define ZENGINE_TESTS_PANE_WINDOW_HPP
 
 // A graphics window as a pane's office meets one, for the suites that drive a pane in a window: a
-// participant in a `zengine.window.*` office that tells an area its room as that office, keeps what
-// the area's owner draws there by the real window's own judge and store
-// (graphics/window/store.hpp), refuses what that judge refuses or what a case tells it to, and
-// lands a press on a cell as the real window does (graphics/window/compose.hpp). It paints with the
-// character painter, not a skin library, and reads an area back as Workshop reads a drawing.
+// participant in a `zengine.window.*` office that tells an area its room, keeps what its owner
+// draws there by the real window's judge and store (graphics/window/store.hpp), refuses what that
+// judge or a case refuses, and gives a press as the real window does: a part's action where the
+// area is deaf to the pointer, else the moments themselves. It paints with the character painter,
+// not a skin library, and reads an area back as Workshop reads a drawing.
 
 #include "graphics/painting.hpp"
 #include "graphics/term_paint.hpp"
@@ -56,7 +56,9 @@ class PaneWindow
     : public loom::WeaveBase<PaneWindow, PaneWindowState,
                              loom::Accept<gfx::Drawn, PaneWindowDo, surface::ClipboardTextRequested>,
                              loom::Emit<gfx::AreaRoom, gfx::DrawnRefused, gfx::ActionRequested,
-                                        surface::ClipboardText>> {
+                                        gfx::AreaButtonChanged, gfx::AreaPointerMoved,
+                                        gfx::AreaWheelTurned, gfx::AreaPressed, gfx::AreaHoldEnded,
+                                        gfx::AreaPointerLeft, surface::ClipboardText>> {
 public:
     explicit PaneWindow(std::string window) : window_(std::move(window)) {}
 
@@ -128,6 +130,12 @@ public:
         grant.allow_to_any(gfx::AreaRoom::zen_name, gfx::AreaRoom::zen_version);
         grant.allow_to_any(gfx::DrawnRefused::zen_name, gfx::DrawnRefused::zen_version);
         grant.allow_to_any(gfx::ActionRequested::zen_name, gfx::ActionRequested::zen_version);
+        grant.allow_to_any(gfx::AreaButtonChanged::zen_name, gfx::AreaButtonChanged::zen_version);
+        grant.allow_to_any(gfx::AreaPointerMoved::zen_name, gfx::AreaPointerMoved::zen_version);
+        grant.allow_to_any(gfx::AreaWheelTurned::zen_name, gfx::AreaWheelTurned::zen_version);
+        grant.allow_to_any(gfx::AreaPressed::zen_name, gfx::AreaPressed::zen_version);
+        grant.allow_to_any(gfx::AreaHoldEnded::zen_name, gfx::AreaHoldEnded::zen_version);
+        grant.allow_to_any(gfx::AreaPointerLeft::zen_name, gfx::AreaPointerLeft::zen_version);
         grant.allow_to_any(surface::ClipboardText::zen_name, surface::ClipboardText::zen_version);
         const std::string office = w_->office();
         id_ = bus_.register_weave(std::move(weave), std::move(grant), office);
@@ -265,6 +273,77 @@ public:
         say(owner, gfx::ActionRequested{area, action});
     }
 
+    /// WHERE `area` STANDS IN THE WINDOW, in pixels: what a press there tells its arranger.
+    void at(const std::string& area, std::int64_t x, std::int64_t y) {
+        if (gw::WinArea* a = w_->find(area)) {
+            a->x = x;
+            a->y = y;
+        }
+    }
+
+    /// A NUMBER FOR A PRESS, as the window gives one: the press, its moves and its release carry it.
+    std::uint64_t next_press() { return ++presses_; }
+
+    /// A BUTTON PRESSED (`down`) OR LET GO AT A CELL OF `area`, as the real window gives an area
+    /// placed to hear the pointer: `AreaButtonChanged` at the cell's centre in the area's pixels,
+    /// told the area's owner under `press` as this window's office -- and, given an `arranger`,
+    /// `AreaPressed` at the window's pixel, told it under the same number.
+    void button(const std::string& area, std::int64_t col, std::int64_t row, bool down,
+                std::uint64_t press, std::int64_t which = 1, const std::string& arranger = {}) {
+        const gw::WinArea* a = w_->find(area);
+        const std::string owner = a == nullptr ? std::string() : a->owner;
+        const std::int64_t x = col * gfx::kCellPx + gfx::kCellPx / 2;
+        const std::int64_t y = row * gfx::kCellPx + gfx::kCellPx / 2;
+        say(owner, gfx::AreaButtonChanged{area, which, down, x, y, 0}, press);
+        if (!arranger.empty()) {
+            const std::int64_t ox = a == nullptr ? 0 : a->x;
+            const std::int64_t oy = a == nullptr ? 0 : a->y;
+            say(arranger, gfx::AreaPressed{w_->window(), area, which, down, ox + x, oy + y}, press);
+        }
+    }
+    /// A MOVE TO A CELL OF `area`, while `press` holds it or (0) with none held.
+    void move(const std::string& area, std::int64_t col, std::int64_t row, std::uint64_t press = 0) {
+        const gw::WinArea* a = w_->find(area);
+        say(a == nullptr ? std::string() : a->owner,
+            gfx::AreaPointerMoved{area, col * gfx::kCellPx + gfx::kCellPx / 2,
+                            row * gfx::kCellPx + gfx::kCellPx / 2, 0, 0, 0},
+            press);
+    }
+    /// THE WHEEL AT A CELL OF `area`, `dy` notches.
+    void wheel(const std::string& area, std::int64_t col, std::int64_t row, double dy) {
+        const gw::WinArea* a = w_->find(area);
+        say(a == nullptr ? std::string() : a->owner,
+            gfx::AreaWheelTurned{area, 0, dy, col * gfx::kCellPx + gfx::kCellPx / 2,
+                           row * gfx::kCellPx + gfx::kCellPx / 2, 0},
+            0);
+    }
+    /// THE HOLD OF `button` IN `area` ENDED with no release, as the real window tells the owner.
+    void hold_ended(const std::string& area, std::int64_t button) {
+        const gw::WinArea* a = w_->find(area);
+        say(a == nullptr ? std::string() : a->owner, gfx::AreaHoldEnded{area, button});
+    }
+    /// THE POINTER LEFT `area`, with no button held, as the real window tells the owner.
+    void left(const std::string& area) {
+        const gw::WinArea* a = w_->find(area);
+        say(a == nullptr ? std::string() : a->owner, gfx::AreaPointerLeft{area});
+    }
+    /// A PRESS AND ITS RELEASE AT A CELL OF `area`, under one fresh number.
+    void click(const std::string& area, std::int64_t col, std::int64_t row, std::int64_t which = 1,
+               const std::string& arranger = {}) {
+        const std::uint64_t press = next_press();
+        button(area, col, row, true, press, which, arranger);
+        button(area, col, row, false, press, which, arranger);
+    }
+    /// ...ON THE PART `action` NAMES, at the first cell asking it: false when none does.
+    bool click(const std::string& area, const std::string& action) {
+        const auto at = cell_of(area, action);
+        if (!at) {
+            return false;
+        }
+        click(area, at->first, at->second);
+        return true;
+    }
+
     /// A DRAWING OF `area` REFUSED, told its owner as this window's office, whatever it last drew.
     void refuse(const std::string& area, const std::string& reason) {
         const gw::WinArea* a = w_->find(area);
@@ -274,9 +353,9 @@ public:
 private:
     /// Make the window say `shape` to `to` inside its own delivery, and let the bus settle.
     template <class Shape>
-    void say(const std::string& to, const Shape& shape) {
-        w_->next = [to, shape](PaneWindow& w, loom::Mail& mail) {
-            (void)mail.as_role(w.office()).send_to_role(to, shape);
+    void say(const std::string& to, const Shape& shape, std::uint64_t correlation = 0) {
+        w_->next = [to, shape, correlation](PaneWindow& w, loom::Mail& mail) {
+            (void)mail.as_role(w.office()).send_to_role(to, shape, correlation);
         };
         (void)bus_.send(id_, loom::Message(loom::to_value(PaneWindowDo{}), loom::WeaveId{},
                                            loom::WeaveId{}, 0));
@@ -336,6 +415,7 @@ private:
     PaneWindow* w_ = nullptr;
     loom::WeaveId id_{};
     std::map<std::string, std::int64_t> epochs_;
+    std::uint64_t presses_ = std::uint64_t{1} << 40; ///< a press's number, past any a desk mints
 };
 
 /// THE GRAPHICS DIRECTORY AS AN OWNER MEETS IT: the `zengine.graphics` office, keeping each room

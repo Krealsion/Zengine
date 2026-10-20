@@ -83,7 +83,8 @@ class EditorPaneWeave
                        EditorAdoptRequested, EditorLiveRequested, EditorRetireRequested,
                        ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
                        ws::PaneCarryAnswered, graphics::AreaRoom, graphics::DrawnRefused,
-                       graphics::ActionRequested, ws::v2::PaneSettings>,
+                       graphics::ActionRequested, graphics::AreaButtonChanged, graphics::AreaPointerMoved,
+                       graphics::AreaWheelTurned, graphics::AreaHoldEnded, ws::v2::PaneSettings>,
           loom::Emit<PaneOffered, ws::v3::PaneActions, ws::v5::PaneCanvasContent,
                      ws::v4::PaneContent, ws::v2::PaneCaret,
                      ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
@@ -163,9 +164,20 @@ public:
         (void)window_.refused(refused, mail);
     }
 
-    /// A PRESS ON A PART IN THE WINDOW, by the part's name: the press Workshop's canvas makes at the
-    /// first column of that part, on no picture a carry could begin from, and leaving no sweep
-    /// armed, since the window says the press and its release as one act.
+    /// THE POINTER IN THE WINDOW, given by the window that shows the area as its office and read
+    /// onto the rows drawn there: what it is on Workshop's canvas (`pointer`), its press, moves and
+    /// release under the window's number for the press, and a hold the window ended a loss.
+    void on(const graphics::AreaButtonChanged& b, loom::Mail& mail) { on_window(window_.pointer(b, mail), mail); }
+    void on(const graphics::AreaPointerMoved& m, loom::Mail& mail) { on_window(window_.pointer(m, mail), mail); }
+    void on(const graphics::AreaWheelTurned& w, loom::Mail& mail) { on_window(window_.pointer(w, mail), mail); }
+    void on(const graphics::AreaHoldEnded& e, loom::Mail& mail) {
+        on_window(window_.pointer(e, mail), mail);
+    }
+
+    /// A PRESS ASKED AS A PART'S ACTION, by a window that shows the area placed deaf to the pointer:
+    /// the press Workshop's canvas makes at the first column of that part, on no picture a carry
+    /// could begin from, and leaving no sweep armed, since the window says the press and its release
+    /// as one act.
     void on(const graphics::ActionRequested& asked, loom::Mail& mail) {
         if (const std::optional<ws::RowCell> at = window_.part(asked, mail)) {
             press_at(at->row, at->column, false, mail);
@@ -299,6 +311,9 @@ public:
     // ---- The pointer, defined in `transfers.hpp` --------------------------------------------
 
     void on(const ws::PaneCanvasPointer& event, loom::Mail& mail);
+    void on_window(const std::optional<ws::WindowPointer>& p, loom::Mail& mail);
+    void pointer(std::int64_t phase, std::int64_t button, const ws::RowCell& at,
+                 std::int64_t gesture, bool same_room, bool current, double dy, loom::Mail& mail);
     void press_at(std::int64_t prow, std::int64_t pcol, bool current, loom::Mail& mail);
     void dragged(std::int64_t drow, std::int64_t dcol, loom::Mail& mail);
     void wheel(double dy, loom::Mail& mail);

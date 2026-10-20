@@ -491,6 +491,39 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
         CHECK(listed.parts[i].name == (taken.insert(name).second ? name : std::string()));
     }
 
+    SUBCASE("in a graphics window that gives Flow its pointer, a node pressed there and moved under "
+            "the press's number moves, as on Workshop's canvas, and a hold the window ends leaves "
+            "it where it stands") {
+        std::string node;
+        for (const auto& p : said.parts)
+            if (p.name.rfind("node:", 0) == 0) node = p.name;
+        REQUIRE_FALSE(node.empty());
+        pw::Window window(rig.bus, "flowtest");
+        window.room(fp::kRole, fp::kRole, 170, 65);
+        rig.pump();
+        REQUIRE(window.press(fp::kRole, "control:page-graph"));
+        rig.pump();
+        const auto x_of = [&]() -> std::int64_t {
+            for (const auto& p : rig.presenter->named.back().parts)
+                if (p.name == node) return p.x;
+            return -1;
+        };
+        const auto cell = window.cell_of(fp::kRole, node);
+        REQUIRE(cell.has_value());
+        const std::int64_t before = x_of();
+        REQUIRE(before >= 0);
+        const std::uint64_t n = window.next_press();
+        window.button(fp::kRole, cell->first, cell->second, true, n);
+        window.move(fp::kRole, cell->first + 6, cell->second, n);
+        rig.pump();
+        const std::int64_t moved = x_of();
+        CHECK(moved > before);
+        window.hold_ended(fp::kRole, 1);
+        window.move(fp::kRole, cell->first + 12, cell->second, n);
+        rig.pump();
+        CHECK(x_of() == moved);
+    }
+
     SUBCASE("in a graphics window: its room asked once a life, its picture drawn there whole and "
             "then as what changed, under the names Workshop's parts carry; a press there is the "
             "first-button press on Workshop's canvas, and a refused change is drawn whole again "

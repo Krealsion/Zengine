@@ -281,26 +281,161 @@ void WorkshopWeave::on(const graphics::WindowOffered& w, loom::Mail& mail) {
 void WorkshopWeave::on(const graphics::AreaRoom& r, loom::Mail& mail) {
     // A room said by anyone but the window it names, about another area, or the same again, is
     // nothing new (`WindowDrawing::room`).
-    if (window_.room(r, mail)) {
+    const bool desk = window_.room(r, mail);
+    const bool overlay = !desk && overlay_.room(r, mail);
+    if (desk || overlay) {
         draw_window(mail);
     }
 }
 
 void WorkshopWeave::on(const graphics::DrawnRefused& refused, loom::Mail& mail) {
-    (void)window_.refused(refused, mail);
+    if (!window_.refused(refused, mail)) {
+        (void)overlay_.refused(refused, mail);
+    }
 }
 
-void WorkshopWeave::on(const graphics::ActionRequested& asked, loom::Mail& mail) {
-    if (!window_.from_window(asked.area, mail)) {
+namespace {
+
+/// WHILE A MOMENT A GRAPHICS WINDOW GAVE IS ANSWERED: `on` holds true, and the moment is the
+/// weaver's own local hand's, as the platform's input is.
+template <class Actor>
+struct WindowMoment {
+    bool& on;
+    Actor& actor;
+    bool was_on;
+    Actor was;
+    WindowMoment(bool& flag, Actor& who) : on(flag), actor(who), was_on(flag), was(who) {
+        on = true;
+        actor = Actor{true, true, loom::WeaveId{}};
+    }
+    ~WindowMoment() {
+        on = was_on;
+        actor = was;
+    }
+    WindowMoment(const WindowMoment&) = delete;
+    WindowMoment& operator=(const WindowMoment&) = delete;
+};
+
+} // namespace
+
+void WorkshopWeave::on(const graphics::AreaButtonChanged& b, loom::Mail& mail) {
+    if (!window_.from_window(b.area, mail)) {
         return;
     }
-    // Resolved against the drawing last sent, which every repaint renews: a part it does not name
-    // is no press.
-    const auto part = window_parts_.find(asked.action);
-    if (part != window_parts_.end()) {
-        window_click(part->second.x + part->second.w / 2, part->second.y + part->second.h / 2,
-                     mail);
+    const auto own = areas_placed_.find(kWorkshopProvider);
+    const std::int64_t x = b.x + (own != areas_placed_.end() ? own->second.x : 0);
+    const std::int64_t y = b.y + (own != areas_placed_.end() ? own->second.y : 0);
+    // ITS OWN HOLD, AS THE WINDOW HOLDS IT: where the press was made, until its release.
+    if (b.button >= 1 && b.button <= 3) {
+        own_holds_[static_cast<std::size_t>(b.button - 1)] =
+            b.pressed ? WindowHold{true, kNoPaneKind, b.area, mail.correlation(), x, y}
+                      : WindowHold{};
     }
+    const WindowMoment moment{window_moment_, input_actor_};
+    pointer_button(input::PointerButton{b.button, b.pressed, x, y, input::space::kPixels,
+                                        b.modifiers},
+                   mail);
+}
+
+void WorkshopWeave::on(const graphics::AreaPointerMoved& m, loom::Mail& mail) {
+    if (!window_.from_window(m.area, mail)) {
+        return;
+    }
+    const auto own = areas_placed_.find(kWorkshopProvider);
+    const std::int64_t x = m.x + (own != areas_placed_.end() ? own->second.x : 0);
+    const std::int64_t y = m.y + (own != areas_placed_.end() ? own->second.y : 0);
+    const WindowMoment moment{window_moment_, input_actor_};
+    pointer_moved(input::PointerMoved{x, y, m.dx, m.dy, input::space::kPixels, m.modifiers}, mail);
+}
+
+void WorkshopWeave::on(const graphics::AreaWheelTurned& w, loom::Mail& mail) {
+    if (!window_.from_window(w.area, mail)) {
+        return;
+    }
+    const auto own = areas_placed_.find(kWorkshopProvider);
+    const std::int64_t x = w.x + (own != areas_placed_.end() ? own->second.x : 0);
+    const std::int64_t y = w.y + (own != areas_placed_.end() ? own->second.y : 0);
+    const WindowMoment moment{window_moment_, input_actor_};
+    pointer_wheel(input::PointerWheel{w.dx, w.dy, x, y, input::space::kPixels, w.modifiers}, mail);
+}
+
+bool WorkshopWeave::placed_in_window(std::int64_t kind) const {
+    return window_moment_ && placed_kinds_.count(kind) != 0;
+}
+
+void WorkshopWeave::on(const graphics::AreaPressed& p, loom::Mail& mail) {
+    if (p.window != window_name_ ||
+        !mail.authored_from_role(std::string(graphics::kWindowOfficePrefix) + p.window) ||
+        p.button < 1 || p.button > 3 || quitting_) {
+        return;
+    }
+    // THE PANE WHOSE AREA IT IS, among those this desk placed in that window.
+    std::int64_t kind = kNoPaneKind;
+    for (const std::int64_t placed : placed_kinds_) {
+        const RuntimePane* row = session_.panes.runtime.of_kind(placed);
+        if (row != nullptr && pane_window_area(session_.panes, *row) == p.area) {
+            kind = placed;
+        }
+    }
+    if (kind == kNoPaneKind) {
+        return;
+    }
+    const WindowMoment moment{window_moment_, input_actor_};
+    const std::uint64_t press = mail.correlation();
+    const auto slot = static_cast<std::size_t>(p.button - 1);
+    const PointedAt at = canvas_point_of(input::space::kPixels, p.x, p.y);
+    if (!p.pressed) {
+        // THE RELEASE ENDS THE HOLD AND RESTORES NO ELIGIBILITY: the release is no gesture.
+        WindowHold& held = pane_holds_[slot];
+        if (held.active && held.press == press) {
+            held = WindowHold{};
+        }
+        if (slot > 0) {
+            each_hand([&](Hand& h) {
+                SecondaryContinuation& c = h.secondary_cont[slot - 1];
+                if (c.live && !c.released && c.correlation == press) c.released = true;
+            });
+        }
+        if (slot == 0) {
+            (void)release_value_drag(
+                input::PointerButton{1, false, p.x, p.y, input::space::kPixels, input::mod::kNone},
+                mail);
+        }
+        repaint(mail);
+        return;
+    }
+    count_gesture();
+    leave_canvas_hover(mail);
+    // THE WEAVER'S OWN PRESS ENDS A GUIDE MARK IT LANDS IN; the press itself is the pane's.
+    if (!guide_marks_.empty()) {
+        guide_pressed(mail, at);
+    }
+    pane_holds_[slot] = WindowHold{true, kind, p.area, press, p.x, p.y};
+    if (slot == 0) {
+        // A primary press chooses the pane and moves the keys, as on Workshop's canvas, and is
+        // the pane's to continue: under the window's number it may ask to carry a value out.
+        session_.panes.selected = kind;
+        session_.panes.keyboard = kind_takes_keyboard(kind) ? kind : kNoPaneKind;
+        keep_act(hand(), hand().press_sent = GestureSent{kind, hand().latest, press});
+        begin_value_drag(
+            input::PointerButton{1, true, p.x, p.y, input::space::kPixels, input::mod::kNone});
+    } else {
+        // A secondary press is the pane's, which may hand it back or ask for its menu under the
+        // window's number, and a gesture for the other button's continuation.
+        for (SecondaryContinuation& other : hand().secondary_cont) {
+            if (other.live && other.button != p.button) other.interrupted = true;
+        }
+        SecondaryContinuation& c = hand().secondary_cont[slot - 1];
+        c = SecondaryContinuation{};
+        c.live = true;
+        c.kind = kind;
+        c.button = p.button;
+        c.correlation = press;
+        c.gesture_at_press = hand().latest;
+        c.cell = at;
+    }
+    note_routed(kind);
+    repaint(mail);
 }
 
 // WL-SESSION-08, WL-SESSION-09 -- agents/workshop/session-restore.md
@@ -331,9 +466,11 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
         return;
     }
     count_gesture();
-    if (!carried_.data.empty() && k.scancode == input::scan::kEscape &&
-        input_actor_.known && input_actor_.local == carried_.actor.local &&
-        input_actor_.participant == carried_.actor.participant) {
+    // ESCAPE PUTS DOWN WHAT ITS OWN HAND CARRIES: the weaver's hand is its attributed local input
+    // and its unattributed input alike, a graphics window's keys among them.
+    const Hand* carrier = carried_.data.empty() ? nullptr : find_hand(carried_.actor);
+    if (carrier != nullptr && k.scancode == input::scan::kEscape &&
+        find_hand(input_actor_) == carrier) {
         carried_ = {};
         say("Reference put down", false);
         repaint(mail);
