@@ -132,6 +132,8 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         areas_placed_.clear();
         skins_chosen_.clear();
         graphics_asked_ = false;
+        frames_.clear();
+        frames_asked_.clear();
         if (!host_->dir.empty()) {
             to_directory(graphics::SkinOffered{kSkinClassic, host_->so("zengine-paint-classic")});
             to_directory(graphics::SkinOffered{kSkinBlock, host_->so("zengine-paint-block")});
@@ -139,11 +141,11 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
             to_directory(graphics::SkinOffered{kSkinNight, host_->so("zengine-paint-night")});
         }
     }
-    // EACH OPEN PANE WHOSE OFFICE DRAWS IN A WINDOW, over its body, in the desk's order and above
-    // Workshop's own area; a pane that does not, or whose last word was refused, is drawn by
-    // Workshop. The window's keys and text are Workshop's alone, whichever pane they are typed
-    // into: its keymap decides first, and a pane hears them as `PaneKey` and `PaneTextInput`. Its
-    // pointer is the pane's own where its office hears the window's (`AreaButtonChanged`).
+    // EACH OPEN PANE AT ITS DEPTH in the desk's order, above Workshop's own area: its frame in an
+    // area of Workshop's over its bounds, and its body, where its office draws in a window and its
+    // last word was not refused, in the pane's own area just in front; else the frame draws it. The
+    // window's keys are Workshop's alone, its keymap deciding first, and a pane hears them as
+    // `PaneKey` and `PaneTextInput`; its pointer is the pane's where its office hears the window's.
     const Screen sc = screen_of(session_);
     const std::vector<std::int64_t> order =
         effective_pane_order(session_.setup.active, session_.panes);
@@ -151,12 +153,25 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
     // EACH AREA'S SKIN: its pane's row's `workshop.skin`, else Workshop's own.
     std::map<std::string, std::string> skins;
     std::set<std::int64_t> kinds;
+    std::map<std::string, std::int64_t> frames;
     for (std::size_t i = 0; i < order.size(); ++i) {
         const RuntimePane* row = session_.panes.runtime.of_kind(order[i]);
+        const PaneBounds framed = bounds_of(session_.panes, session_.setup.active, order[i], sc);
+        if (framed.open && !framed.rect.empty() &&
+            (order[i] == pane_kind::kLayouts || (is_runtime_kind(order[i]) && row != nullptr))) {
+            const std::string frame = pane_frame_area(order[i]);
+            next[frame] = graphics::AreaPlaced{
+                frame, window_name_, kWorkshopProvider, framed.rect.x, framed.rect.y,
+                framed.rect.w, framed.rect.h, 2 * static_cast<std::int64_t>(i) + 1, false, true};
+            frames[frame] = order[i];
+        }
         const ExternalPane* ext = session_.panes.external_pane(order[i]);
         if (!is_runtime_kind(order[i]) || row == nullptr ||
             (ext != nullptr && !ext->refusal.empty()) ||
             !accepts(row->provider, *loom::schema_of<graphics::AreaRoom>())) {
+            if (frames.count(pane_frame_area(order[i])) != 0) {
+                skins[pane_frame_area(order[i])] = session_.skin;
+            }
             continue;
         }
         const PaneBounds where = bounds_of(session_.panes, session_.setup.active, order[i], sc);
@@ -171,7 +186,7 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         const std::string area = pane_window_area(session_.panes, *row);
         next[area] = graphics::AreaPlaced{
             area, window_name_, row->provider, place.x, place.y, place.w, place.h,
-            static_cast<std::int64_t>(i) + 1, false,
+            2 * static_cast<std::int64_t>(i) + 2, false,
             accepts(row->provider, *loom::schema_of<graphics::AreaButtonChanged>())};
         const SetupPane* seat =
             pane_of(session_.setup.active, PaneRef{row->provider, row->pane});
@@ -180,13 +195,16 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         skins[area] = own != nullptr && own->text && is_workshop_skin_choice(*own->text)
                           ? *own->text
                           : session_.skin;
+        if (frames.count(pane_frame_area(order[i])) != 0) {
+            skins[pane_frame_area(order[i])] = skins[area]; // its frame wears its skin
+        }
         kinds.insert(order[i]);
     }
     // WORKSHOP'S OWN AREA, the whole screen: behind every pane's, and in front of them while a
     // weaver arranges, a menu is open or something is carried. Its overlay stands in front of all,
     // hearing nothing, so a guide mark or the carried value stands over the panes without taking
     // a press from the pane under it.
-    const auto panes_order = static_cast<std::int64_t>(order.size());
+    const auto panes_order = 2 * static_cast<std::int64_t>(order.size());
     next[kWorkshopProvider] = graphics::AreaPlaced{
         kWorkshopProvider, window_name_, kWorkshopProvider, 0, 0, sc.w, sc.h,
         desk_in_front_of_panes() ? panes_order + 1 : 0, true, true};
@@ -215,11 +233,28 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
     }
     areas_placed_ = std::move(next);
     placed_kinds_ = std::move(kinds);
+    // A FRAME WITHDRAWN TAKES WHAT WAS DRAWN THERE WITH IT; one placed afresh draws whole.
+    for (auto it = frames_.begin(); it != frames_.end();) {
+        if (frames.count(it->first) != 0) {
+            ++it;
+            continue;
+        }
+        frames_asked_.erase(it->first);
+        it = frames_.erase(it);
+    }
+    for (const auto& [frame, kind] : frames) {
+        frames_.try_emplace(frame, FrameDrawing{kind, WindowDrawing{kWorkshopProvider, frame}});
+    }
     tell_keys(mail);
     if (!graphics_asked_ && (!window_.shown() || !overlay_.shown())) {
         graphics_asked_ = true;
         to_directory(graphics::RoomAsked{kWorkshopProvider});
         to_directory(graphics::RoomAsked{kWorkshopOverlayArea});
+    }
+    for (const auto& [frame, drawn] : frames_) {
+        if (!drawn.drawing.shown() && frames_asked_.insert(frame).second) {
+            to_directory(graphics::RoomAsked{frame});
+        }
     }
 }
 
@@ -257,13 +292,40 @@ void WorkshopWeave::tell_keys(loom::Mail& mail) {
 
 void WorkshopWeave::draw_window(loom::Mail& mail) {
     if (window_.shown()) {
-        window_.draw(
-            workshop_window_drawing(session_, placed_kinds_, desk_in_front_of_panes()).sketch,
-            mail);
+        window_.draw(workshop_window_drawing(session_).sketch, mail);
+    }
+    for (auto& [frame, drawn] : frames_) {
+        if (drawn.drawing.shown()) {
+            drawn.drawing.draw(
+                workshop_frame_drawing(session_, drawn.kind, placed_kinds_.count(drawn.kind) != 0)
+                    .sketch,
+                mail);
+        }
     }
     if (overlay_.shown()) {
         overlay_.draw(workshop_overlay_drawing(session_, window_overlays_), mail);
     }
+}
+
+WorkshopWeave::FrameDrawing* WorkshopWeave::frame_of(const std::string& area) {
+    const auto it = frames_.find(area);
+    return it == frames_.end() ? nullptr : &it->second;
+}
+
+bool WorkshopWeave::own_pointer_area(const std::string& area, const loom::Mail& mail) {
+    if (window_.from_window(area, mail)) {
+        return true;
+    }
+    const FrameDrawing* frame = frame_of(area);
+    return frame != nullptr && frame->drawing.from_window(area, mail);
+}
+
+std::pair<std::int64_t, std::int64_t> WorkshopWeave::area_origin(const std::string& area) const {
+    const auto at = areas_placed_.find(area);
+    if (at == areas_placed_.end()) {
+        return {0, 0};
+    }
+    return {at->second.x, at->second.y};
 }
 
 // WL-ATTN-12 -- agents/workshop/attention.md

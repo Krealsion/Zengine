@@ -776,7 +776,8 @@ TEST_CASE("a view says it is waiting until told, says its intent as its own part
         own.on_action("increment", [&] { (void)own.set("counter", "7"); });
         CHECK(own.act("increment", owned.bus));
         CHECK_FALSE(own.act("count", owned.bus));
-        const auto alone = own.sketch(20 * gfx::kCellPx, 11 * gfx::kCellPx);
+        const auto alone =
+            own.sketch(view::window_room(20 * gfx::kCellPx, 11 * gfx::kCellPx, 0, {}));
         const auto label = std::find_if(alone.nodes().begin(), alone.nodes().end(),
                                         [](const auto& n) { return n.path == "text:count"; });
         REQUIRE(label != alone.nodes().end());

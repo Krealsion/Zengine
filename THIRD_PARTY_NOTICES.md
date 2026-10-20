@@ -5,7 +5,8 @@ Bundled third-party material actually present in this repository:
 | Component | Location | Copyright | License | License text |
 |---|---|---|---|---|
 | doctest | `tests/third_party/doctest.h` | Copyright (c) 2016-2023 Viktor Kirilov | MIT | stated in the file's own header; canonical text at <https://opensource.org/licenses/MIT> |
-| JetBrains Mono 2.304, Regular | `surface/fonts/JetBrainsMono-Regular.ttf` | Copyright 2020 The JetBrains Mono Project Authors | SIL Open Font License 1.1 (no Reserved Font Name declared) | `surface/fonts/OFL.txt`, verbatim from upstream |
+| JetBrains Mono 2.304, Regular | `graphics/window/fonts/JetBrainsMono-Regular.ttf` | Copyright 2020 The JetBrains Mono Project Authors | SIL Open Font License 1.1 (no Reserved Font Name declared) | `graphics/window/fonts/OFL.txt`, verbatim from upstream |
+| JetBrains Mono 2.304, Regular (the same bytes) | `surface/fonts/JetBrainsMono-Regular.ttf` | Copyright 2020 The JetBrains Mono Project Authors | SIL Open Font License 1.1 (no Reserved Font Name declared) | `surface/fonts/OFL.txt`, verbatim from upstream |
 | Airstream font | `quarry/Resources/TTFs/Airstream.ttf` | Nick's Fonts | Nick's Fonts freeware EULA | `quarry/Resources/TTFs/Nick's Fonts License.txt` |
 | Basic font | `quarry/Resources/TTFs/Basic-Regular.ttf` | its original authors (unverified) | no adjacent notice; terms unverified | — |
 | Elounda font | `quarry/Resources/TTFs/Elounda-Regular.otf` | its original authors (unverified) | no adjacent notice; terms unverified | — |
@@ -15,14 +16,15 @@ they are excluded from the repository's first-party MPL-2.0 claim, and their
 provenance is recorded as unresolved in [LICENSING.md](LICENSING.md).
 
 **JetBrains Mono is different in kind from those three, and deliberately so.** It
-is the face the graphical Skin sets its text in, it is unmodified upstream bytes,
-its provenance is written down in full beside it
-([surface/fonts/PROVENANCE.md](surface/fonts/PROVENANCE.md) — upstream release,
+is the face the OS window and the graphical Skin set their text in, it is
+unmodified upstream bytes, its provenance is written down in full beside each copy
+([graphics/window/fonts/PROVENANCE.md](graphics/window/fonts/PROVENANCE.md),
+[surface/fonts/PROVENANCE.md](surface/fonts/PROVENANCE.md) — upstream release,
 SHA-256, size), and it is **distributed by this repository**: the build compiles
-its bytes into `zengine-skin-sdl`, so a copy of that weave carries a copy of the
-font. The OFL permits exactly that and asks that the copyright notice and the
-licence travel with it; `surface/fonts/OFL.txt` is that, and this row is the
-notice.
+its bytes into `zengine-window-sdl` and `zengine-skin-sdl`, so a copy of either
+weave carries a copy of the font. The OFL permits exactly that and asks that the
+copyright notice and the licence travel with it; the `OFL.txt` beside each copy is
+that, and these rows are the notice.
 
 Not bundled, fetched at build time only (and therefore not distributed by
 this repository) — all three used when `ZENGINE_SDL_SKIN=ON`, all three fetched

@@ -37,8 +37,8 @@ public:
         : canvas_(std::move(office), std::move(area)) {}
 
     /// The room, from the window that shows the area, as that window's office. When the window,
-    /// its incarnation, or its size changed, the drawer's `on_room` runs and its picture goes
-    /// whole at the end of the delivery.
+    /// its incarnation, its size or its measure changed, or the area is empty, the drawer's
+    /// `on_room` runs and its picture goes whole at the end of the delivery.
     template <class Self>
     void on(Self& self, const AreaRoom& r, loom::Mail& mail) {
         if (r.area != canvas_.area() ||

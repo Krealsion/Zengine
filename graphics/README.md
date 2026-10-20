@@ -14,7 +14,8 @@ a button, a checkbox, a list, a grid, an icon, an image, a scroll view and a tex
 small class the owner keeps and changes, and draws into its `Sketch`: its nodes at its path, and
 its face (`ButtonFace`, `ListRowFace`, ...) as the record there, so a reader reads what the part is
 and shows. A press on a part asks the owner for the action the owner named when it drew the part,
-and sends nothing when it named none or the part is disabled. A part is drawn by its owner, unlike
+and sends nothing when it named none or the part is disabled. A part that sets text is given the
+measure of the window that shows it (`set_measure`, from `AreaRoom::measure`). A part is drawn by its owner, unlike
 an element the window presents from the owner's data (`element_export.hpp`).
 
 ## Pages

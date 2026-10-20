@@ -1784,17 +1784,29 @@ std::string pane_window_area(const Panes& panes, const RuntimePane& row);
 /// menu is open, the surfaces a weaver's next press goes to. The weave adds a carry.
 bool desk_in_front(const Session& s) noexcept;
 
-/// WORKSHOP'S DESK AS A GRAPHICS WINDOW DRAWS IT -- every plane `paint` composes, but the bodies of
-/// the panes in `placed`, which their offices draw in areas of their own. Standing behind the
-/// panes' areas (`front` false), it paints ground under each such body, so a pane in front covers
-/// what it drew for one behind; in front, it leaves their bodies to them.
+/// THE AREA OF WORKSHOP'S OWN A GRAPHICS WINDOW SHOWS A PANE'S FRAME IN, at the pane's own depth:
+/// its edge, its header and a body its office does not draw, just behind the pane's own area.
+std::string pane_frame_area(std::int64_t kind);
+
+/// WORKSHOP'S DESK AS A GRAPHICS WINDOW DRAWS IT: what stands about the panes -- the arrangement's
+/// rings, the selection's, a menu, the band -- each pane's frame standing at its depth in an area
+/// of its own (`workshop_frame_drawing`). Behind the panes or in front of them, while a weaver
+/// arranges or a menu is open, it draws nothing of a pane, so every pane shows as it stands.
 struct WorkshopWindowDrawing {
     graphics::Sketch sketch;
 };
 
-WorkshopWindowDrawing workshop_window_drawing(const Session& s,
-                                              const std::set<std::int64_t>& placed,
-                                              bool front = false);
+WorkshopWindowDrawing workshop_window_drawing(const Session& s);
+
+/// ONE PANE'S FRAME AS A GRAPHICS WINDOW DRAWS IT in `pane_frame_area(kind)`, placed over the
+/// pane's bounds (`at`): its edge and header over its ground, and its body where `own_area` is
+/// false, as the desk draws them. Empty for a pane the desk does not show.
+struct WorkshopFrameDrawing {
+    graphics::Sketch sketch;
+    PixelRect at;
+};
+
+WorkshopFrameDrawing workshop_frame_drawing(const Session& s, std::int64_t kind, bool own_area);
 
 /// THE PLANES A REPAINT LAYS ABOVE THE PICTURE -- the carried value, the guide marks -- as the
 /// overlay a graphics window shows in front of every pane's area (`kWorkshopOverlayArea`).

@@ -334,7 +334,11 @@ TEST_CASE("WL-HAND-06: the Pane Manager names each row and its mark by the pane'
             named.push_back({"pane:" + std::to_string(i), i, 0, 40});
             named.push_back({"mark:" + std::to_string(i), i, 2, 6});
         }
-        const zengine::workshop::RowsDrawing big = zengine::workshop::rows_drawing(many, named, 40);
+        const zengine::workshop::RowsDrawing big = zengine::workshop::rows_drawing(
+            many, named,
+            zengine::workshop::RowsRoom{40 * zengine::graphics::kCellPx,
+                                        3000 * zengine::graphics::kCellPx, {}},
+            40);
         zengine::graphics::Drawn all;
         all.area = "bounds";
         all.whole = true;

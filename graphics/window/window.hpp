@@ -65,6 +65,11 @@ struct CellExtent {
     std::int64_t cols = 0, rows = 0;
 };
 
+/// A window's room as it offers it, in pixels; none where it has nothing to measure.
+struct PixelRoom {
+    std::int64_t width = 0, height = 0;
+};
+
 /// Where a desktop window sits on its desktop: its normal (unmaximized) top-left, in the desktop's
 /// own units, and whether it is maximized now.
 struct WindowPlacementValue {
@@ -831,6 +836,9 @@ private:
             return;
         }
         PaintTask task;
+        const TextMeasure text = medium_.text();
+        task.text_advance = text.advance;
+        task.text_line = text.line;
         for (const KeptNode& k : a.nodes) {
             if (send.count(k.node.path) != 0) {
                 task.nodes.push_back(
@@ -986,19 +994,24 @@ private:
     /// This window, as its own office, to whoever follows it: the directory, and an arranger that
     /// lays out in its room.
     void offer(loom::Mail& mail) {
-        const CellExtent size = medium_.offered();
-        (void)mail.as_role(office()).publish(WindowOffered{
-            Medium::kWindow, size.cols, size.rows, this->state_.epoch, Medium::kCellDevicePx});
+        const PixelRoom size = medium_.offered();
+        const TextMeasure text = medium_.text();
+        (void)mail.as_role(office()).publish(
+            WindowOffered{Medium::kWindow, size.width, size.height, this->state_.epoch,
+                          Medium::kCellDevicePx, text.advance, text.line});
     }
 
     /// An area's room, to its owner: this window, its incarnation, the area's size, the references
-    /// of the elements presented there, and whether it holds none of the owner's drawing.
+    /// of the elements presented there, whether it holds none of the owner's drawing, and how this
+    /// window sets text.
     void room(loom::Mail& mail, const WinArea& a) {
         if (a.owner.empty()) {
             return;
         }
+        const TextMeasure text = medium_.text();
         AreaRoom r{a.area, Medium::kWindow, this->state_.epoch, a.w, a.h, {},
-                   a.nodes.empty() && a.records.empty() && a.presented.empty()};
+                   a.nodes.empty() && a.records.empty() && a.presented.empty(),
+                   Medium::kCellDevicePx, text.advance, text.line};
         for (const Presented& p : a.presented) {
             r.elements.push_back(p.ref);
         }

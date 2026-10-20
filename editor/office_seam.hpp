@@ -535,9 +535,9 @@ public:
     bool in_window() const noexcept { return window_.shown(); }
     /// The office a paste is asked of: the window showing the area, else the Skin.
     std::string clipboard_office() const { return window_.clipboard_office(); }
-    /// The window's room in rows and columns, `graphics::kCellPx` pixels a cell.
-    std::int64_t rows() const noexcept { return window_.height() / graphics::kCellPx; }
-    std::int64_t columns() const noexcept { return window_.width() / graphics::kCellPx; }
+    /// The window's room in rows and columns: a line of its text and an advance of it.
+    std::int64_t rows() const noexcept { return window_.rows_room().rows(); }
+    std::int64_t columns() const noexcept { return window_.rows_room().columns(); }
 
     /// THE ROOM ASKED OF THE GRAPHICS DIRECTORY, as the office, while no window has said it.
     void ask_room(loom::Mail& mail) const {
@@ -548,8 +548,8 @@ public:
     }
 
     /// THE ROOM, said by the window that shows the area as that window's office: true when the
-    /// window, its incarnation or its size changed, so the window holds none of the drawing and the
-    /// next goes whole.
+    /// window, its incarnation, its size or its measure changed or the area is empty, so the window
+    /// holds none of the drawing and the next goes whole.
     bool room(const graphics::AreaRoom& r, const loom::Mail& mail) { return window_.room(r, mail); }
 
     /// A DRAWING THE WINDOW REFUSED leaves what it shows as it was: a refused change is followed at
@@ -591,7 +591,8 @@ public:
         if (!in_window() || rows() <= 0 || columns() <= 0) {
             return;
         }
-        ws::RowsDrawing drawn = ws::rows_drawing(said, parts, columns(), caret, rows());
+        ws::RowsDrawing drawn =
+            ws::rows_drawing(said, parts, window_.rows_room(), columns(), caret, rows());
         places_ = std::move(drawn.places);
         window_.draw(drawn.sketch, mail);
     }

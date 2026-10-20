@@ -95,9 +95,18 @@ TEST_CASE("Flow shows an actionable bounded picture instead of a partial dense g
         auto stacked = graph(60);
         for (auto& place : stacked.workspace.graph.places) { place.x = 24 * unit; place.y = 3 * unit; }
         CHECK_FALSE(text_has(pane::picture(stacked, room(), 3), "View limit reached"));
-        const auto window = pane::window_picture(stacked, 100 * cell, 45 * cell);
+        const auto window = pane::window_picture(
+            stacked, ws::canvas_window_room(pane::kPane, 100 * cell, 45 * cell, 0, {}));
         CHECK(text_has(window.picture, "View limit reached"));
         CHECK(window.sketch.nodes().size() <= gfx::kMaxNodesPerArea);
+        // THE ROOM'S GROUND FIRST, all of it, so nothing behind the area shows through.
+        REQUIRE_FALSE(window.sketch.nodes().empty());
+        const auto ground = gfx::from_body<gfx::RectArgs>(window.sketch.nodes().front().args);
+        REQUIRE(ground.has_value());
+        CHECK(window.sketch.nodes().front().op == gfx::op::kRect);
+        CHECK((ground->x == 0 && ground->y == 0 && ground->w == 100 * cell &&
+               ground->h == 45 * cell));
+        CHECK(ground->fill.role == zengine::surface::role::kGround);
         CHECK(window.parts.count("control:ask-save") == 1);
         CHECK(window.parts.count("control:zoom-in") == 1);
         CHECK(std::none_of(window.parts.begin(), window.parts.end(),
@@ -106,7 +115,7 @@ TEST_CASE("Flow shows an actionable bounded picture instead of a partial dense g
         many.rects.push_back({0, 0, 120, 120, zengine::surface::role::kGround});
         for (std::size_t i = 0; i <= gfx::kMaxElementsPerArea; ++i)
             many.parts.push_back({"part " + std::to_string(i), 0, 0, cell, cell});
-        const auto said = ws::canvas_sketch(many, ws::canvas_window_room("flow", 120, 120));
+        const auto said = ws::canvas_sketch(many, ws::canvas_window_room("flow", 120, 120, 0, {}));
         CHECK(said.over.find("more than a graphics window keeps") != std::string::npos);
         CHECK(said.sketch.records().empty());
         CHECK(said.sketch.nodes().size() == 3);

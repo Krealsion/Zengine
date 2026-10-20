@@ -26,7 +26,8 @@ worked example: it draws its frame as nodes and its board as an element of its o
 
 ```text
 owner -> its window          Drawn (nodes and records), ElementPut once, then ElementChange
-window -> the owner          AreaRoom (this window, its incarnation, the room, what it holds)
+window -> the owner          AreaRoom (this window, its incarnation, the room, what it holds,
+                             and how it sets text)
 window -> the owner          DrawnRefused (why, in words), ActionRequested
 window -> pointer's owners   AreaButtonChanged, AreaPointerMoved, AreaWheelTurned
                              (at the area's own point, a press's moments under its number)
@@ -34,7 +35,7 @@ window -> an area's arranger AreaPressed (where a press in an area another offic
 window -> owner, arranger    AreaHoldEnded, AreaPointerLeft (to the arranger when another office)
 window -> the keys' owners   KeyPressed, KeyReleased, TextEntered
 arranger -> directory        AreaPlaced, SkinOffered, SkinChosen, ElementCodeOffered
-window -> everyone           WindowOffered (as its own office, with its size and incarnation)
+window -> everyone           WindowOffered (as its own office: its pixels, incarnation and text)
 directory -> window          AreaIntroduced, AreaWithdrawn, ElementCodeOffered
 owner -> directory           RoomAsked (an owner that started again)
 directory -> everyone        GraphicsReady (a directory that started afresh)
@@ -48,7 +49,7 @@ OS window -> everyone        SurfacePlacement, SurfaceCloseRequested (as its own
 The **arranger** is whoever a host lets reach the directory: in the snake's host, its operator;
 in Workshop, its own weave, which places each pane's area and its own
 ([`zengine.workshop`](../../workshop/docs/zengine.workshop.md#graphicsready)), and lays its desk
-out in the terminal window's room while no skin has said its own
+out in the window's room, in its unit and its text, while no skin has said its own
 ([`WindowOffered`](../../workshop/docs/zengine.workshop.md#windowoffered)).
 What each message does is the manual of the office that takes it: the window's for what an owner
 sends it, the directory's for what the arranger and a window send it.
@@ -94,7 +95,7 @@ and the `action` a press anywhere in it asks of the area's owner.
 | `ellipse` | a box, a fill and an outline | the cells whose centre falls inside | a span a pixel row; its outline in lines |
 | `line` | two points and an ink | a walk of cells in `- | / \` | a line |
 | `path` | SVG path data (`M L H V C Q Z`), a fill and an outline | curves flattened; cells by centre | curves flattened; spans a pixel row, even-odd |
-| `text` | a point, words and an ink | one cell a character; outside ASCII, `?` | a run of text, one cell a character (`light::kAdvance`); outside ASCII, `?` |
+| `text` | a point, words and an ink | one cell a character; outside ASCII, `?` | a run of text, a character every advance of the window's face (`PaintTask::text_advance`); outside ASCII, `?` |
 | `image` | a box and pixels, four bytes each | a luminance ramp, one glyph a cell | its pixels, scaled into its box |
 
 Coordinates are the area's pixels; a terminal floors each edge to its cell of
@@ -111,13 +112,17 @@ sends only the nodes that changed. A beat queues its picture (`draw`), an elemen
 elements: every message but the last says `more` follows, and the window shows once, after the
 last. A tick that changes the snake's board and its score is one showing.
 
-A canvas draws whole when its window is new, started again, or resized, or the window says the
-area is empty. The window tells the room (`AreaRoom`): its name, its incarnation, its width and
-height (`width()`, `height()`), the references of the owner's elements it still presents there,
-and whether it holds none of the owner's drawing there (`empty`): an area shown afresh, or given to
-this owner. `room` answers whether the window, its incarnation or its size changed or the area is
-empty, and `holds` whether the window presents an element, so an owner says again only what the
-window does not hold.
+A canvas draws whole when its window is new, started again, resized or sets text another way, or
+the window says the area is empty. The window tells the room (`AreaRoom`): its name, its
+incarnation, its width and height (`width()`, `height()`), the references of the owner's elements
+it still presents there, whether it holds none of the owner's drawing there (`empty`): an area
+shown afresh, or given to this owner; and how it sets text (`text()`, a `TextMeasure`: a
+character's advance and a line's height in pixels, the OS window's face or a terminal's cell, and
+`cell_px()`, its device pixels in a cell). An owner places its text by that measure, a row a line
+and a character an advance, and paints its area's ground: what it leaves unpainted shows what
+stands behind it. `room` answers whether the window, its incarnation, its size or its measure
+changed or the area is empty, and `holds` whether the window presents an element, so an owner says
+again only what the window does not hold.
 
 ## A drawing weave
 

@@ -1374,9 +1374,10 @@ private:
   void show_window(loom::Mail &mail) {
     if (!window_.shown() || window_.width() <= 0 || window_.height() <= 0)
       return;
-    auto drawn = pane::window_picture(model_, window_.width(), window_.height());
+    window_room_ = ws::canvas_window_room(pane::kPane, window_.width(), window_.height(),
+                                          window_.cell_px(), window_.text());
+    auto drawn = pane::window_picture(model_, window_room_);
     window_parts_ = std::move(drawn.parts);
-    window_room_ = ws::canvas_window_room(pane::kPane, window_.width(), window_.height());
     window_shown_ = std::move(drawn.picture);
     window_.draw(drawn.sketch, mail);
   }

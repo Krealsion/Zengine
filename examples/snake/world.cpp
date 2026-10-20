@@ -173,6 +173,7 @@ public:
         }
         f.group("board", 0, c);
         gfx::Button new_game("new-game", " new game ");
+        new_game.set_measure(canvas().text());
         new_game.set_bounds(0, (state_.height + 3) * c, 12 * c, c);
         new_game.sketch(f, kNewGame);
     }

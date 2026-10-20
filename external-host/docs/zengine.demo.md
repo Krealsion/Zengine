@@ -126,10 +126,10 @@ Shape: [`workshop/pane_document.hpp`](../../workshop/pane_document.hpp).
 
 ### `AreaRoom`
 
-`AreaRoom` v3, from the graphics window that shows the area `zengine.demo`, as that window's office:
-the pane's room there. In a new window, incarnation or size, or an empty area, the pane draws the
-lines the room holds there whole (`Drawn`), the reset button the part `control:reset`, and after
-that sends the window only what changed. Shape:
+`AreaRoom` v4, from the graphics window that shows the area `zengine.demo`, as that window's office:
+the pane's room there and the window's text. In a new window, incarnation, size or measure, or an
+empty area, the pane draws the lines the room holds there whole (`Drawn`), a line of that text
+each, the reset button the part `control:reset`, then only what changed. Shape:
 [`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp).
 
 ### `DrawnRefused`
