@@ -715,14 +715,19 @@ of the weave; a member the facet calls only when present is optional.
   drawing is not sent again, nor are those rows unchanged, and the next rows go whole
   (`WindowDrawing`, which an office of several panes keeps for each pane too, and both Editors,
   Flow and the View Builder keep for their areas). A pane Workshop seats nowhere composes for the
-  window's room and sends Workshop nothing. `graphics::ActionRequested` from that window naming a
-  part of the rows it was last sent is `press(RowPress, mail)` at the part's place -- a cell only
-  it holds, else the first a press reaches it at -- with `window` set and `keys_went_here` not:
-  Workshop saw no press, so it reported no keys there, and no carry or other Workshop gesture begins there. A row a second press would
-  activate is reached there only through a control the pane draws for it. An id `answers(id)` admits is `on_action(id, mail)`;
-  any other is no act. An act Workshop must approve is refused from a window press, which is no
-  Workshop gesture. The room is asked once each life while no window has said it
-  (`graphics::RoomAsked`).
+  window's room and sends Workshop nothing. The window's pointer in the area
+  (`graphics::AreaButtonChanged`, `AreaPointerMoved`, `AreaWheelTurned`, from that window's office)
+  is read on the rows it was last sent: the first button pressed on a shown cell is
+  `press(RowPress, mail)` there, `keys_went_here` as Workshop's last `PaneKeys` said; the third is
+  `right_press` on what the cell means, else passed back under the window's number for the press;
+  the wheel is `wheel(dy, mail)`; a move and a release mean nothing. A press there is a Workshop
+  gesture -- Workshop heard where it landed -- so an act it must approve may continue it under that
+  number. Where a window shows the area deaf to the pointer, `graphics::ActionRequested` naming a
+  part of the rows is `press(RowPress, mail)` at the part's place -- a cell only it holds, else the
+  first a press reaches it at -- with `window` set and `keys_went_here` not: no Workshop gesture
+  stands behind it, and an act Workshop must approve is refused. An id `answers(id)` admits is
+  `on_action(id, mail)`; any other is no act. The room is asked once each life while no window has
+  said it (`graphics::RoomAsked`).
 - **`PaneDrawingFacet<Pane, Office, Page, Offer>`: a pane that draws one picture.** `PaneFacet`,
   and the weave's `picture(graphics::Sketch&)` -- named nodes and element records, as any drawer
   draws ([A drawing weave](../../graphics/docs/graphics.md#a-drawing-weave)) -- shown by
@@ -740,10 +745,12 @@ of the weave; a member the facet calls only when present is optional.
   runs as Workshop's does. A pane Workshop seats draws for Workshop's room; one it seats nowhere,
   for the window's, a row and a column each `graphics::kCellPx`. A press on a part is the weave's
   `on_action(id, mail)` with the action the part's record names: the first button on Workshop's
-  canvas, read against the picture it was aimed at (`fenced(mail)` otherwise), or
-  `graphics::ActionRequested` from the window that shows the area, for an action the picture last
-  shown there names or one `answers(id)` admits. The third button in Workshop is passed back, and
-  the wheel is `wheel(dy, mail)`, as `PaneRowsFacet`'s. The room is asked once each life while no
+  canvas, read against the picture it was aimed at (`fenced(mail)` otherwise), or in the window
+  that shows the area the first button pressed on a part of the picture last shown there
+  (`graphics::AreaButtonChanged`), or, where the window shows the area deaf to the pointer,
+  `graphics::ActionRequested` for an action that picture names or one `answers(id)` admits. The
+  third button, in Workshop or the window, is passed back, and the wheel is `wheel(dy, mail)`, as
+  `PaneRowsFacet`'s. The room is asked once each life while no
   window has said it (`graphics::RoomAsked`), so a pane reloaded into a window draws there again.
   Operators other than text are the window's alone.
 - **`PaneActionFacet<Pane, Office>`: the actions a pane declares.** `declare(mail, rows, mode,

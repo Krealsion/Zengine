@@ -30,7 +30,8 @@ LAW — The pressed branch reads `selected = occupied ? kind : none`, then `keyb
 
 MEANS
 - `typing_pane` and `external_press_at` are read above those lines, because both writes move them;
-- putting the line in the routing arms would be four decisions about one fact.
+- putting the line in the routing arms would be four decisions about one fact;
+- in a graphics window the line is also `on(AreaPressed)`: a primary press in a pane's area moves both as here.
 
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
@@ -39,13 +40,13 @@ WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 LAW — A pane activates a row on a press only when Workshop reports its keys were already there, read before the press moved them; two presses from cold buys "no single press replaces what is open".
 
 MEANS
-- the pane decides from `keys_went_here`; a mode having the keys is "not here";
+- the pane decides from `keys_went_here`; a mode having the keys is "not here"; in a graphics window, from Workshop's last `PaneKeys`;
 - a canvas pointer always states it, and a v1 press none;
 - a press crosses once, as v2 exactly when the office's current holder accepts it.
 
 DOES NOT MEAN
 - that a version chosen arrives: a new holder lacking its door refuses, one with it may take it;
-- that anything is retried, kept or said when the keys leave a pane, or that Compose keeps it: it acts on the press that brings it the keys.
+- that anything is retried or kept when the keys leave a pane, or said but by `PaneKeys` in a window, or that Compose keeps it: it acts on the press that brings it the keys.
 
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
@@ -102,7 +103,7 @@ LAW — Pane titles are a preference a key flips and saves; one resolution answe
 
 MEANS
 - painter, press path and room grant spend the answer through `ExternalBodyPlace::header_rows`;
-- the press path spends the answer the pressed picture had, before the keys moved (WL-FOCUS-03);
+- the press path spends the answer the pressed picture had, before the keys moved (WL-FOCUS-03); a press a graphics window holds keeps the room as a held canvas press does;
 - a title's row goes or returns by the grant-on-change door, a held canvas press's once it ends: till then its picture and rows stay in the room it kept, and a pane that moved keeps none.
 
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
@@ -161,6 +162,9 @@ them"
 `tests/test_workshop_panes_files.cpp` "a press selects, and a second press on the same row
 activates" "with pane titles hidden, a first press on the row painted gamma selects gamma once every
 delivery it caused has settled, and a later press opens gamma"
+`workshop/weave_handlers.cpp` on(AreaPressed)
+`tests/test_workshop_desk.cpp` "a press the graphics window gives Workshop's own area is the press it is, held to its own
+release, and one it gives a pane's area is the pane's, Workshop told where it landed"
 
 ### WL-FOCUS-04
 `workshop/screen_arrange.cpp` typing_pane
@@ -186,6 +190,13 @@ entry"
 accepts it, and as the unchanged v1 to one that accepts only v1" "a holder replaced between the
 version choice and the delivery refuses that one v2 press, attributed to its gesture, author and
 office, and nothing is sent again"
+`workshop/weave_run.cpp` tell_keys
+`workshop/pane_vocabulary.hpp` PaneKeys
+`tests/test_workshop_desk.cpp` "a press in a pane's area of the window is the pane's, and under the window's number Workshop
+tells it where the keys were, hands its press back, opens its menu and carries what it drags out
+or picks up"
+`tests/test_workshop_panes_files.cpp` "WL-HAND-06: Files names its entries by name and its controls by
+operation"
 
 ### WL-FOCUS-05
 `workshop/panes.hpp` keyboard_pane Panes::keyboard
@@ -261,6 +272,9 @@ room at once and the press is lost, in a window and in a terminal, titled or not
 the canvas pane that has the keys keeps its room while launches take its title row away and give it
 back, and its title is drawn again once it has the keys again" "a held press a menu takes ends its
 canvas pane's wait in that same repaint: the room under the title and its rows are granted at once"
+`workshop/weave_run.cpp` end_covered_holds
+`tests/test_workshop_desk.cpp` "with pane titles hidden, a press the window gives a canvas pane's area, which brings the
+keys and so the pane's title, keeps the pane's room until the window says its release"
 
 ### WL-FOCUS-12
 `workshop/keymap.hpp` focus.next focus.previous focus.left focus.right focus.up focus.down

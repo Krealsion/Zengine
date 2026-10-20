@@ -265,10 +265,35 @@ the pane changes.
 
 ### `ActionRequested`
 
-`ActionRequested` v1, from that window: a press on a part of the pane there, by its name, `status`
-or `line:<n>`. It is the press Workshop's canvas makes at that part's first column: on a line the
-caret moves to the line's first shown column, and on `status` nothing moves. It leaves no sweep
-and begins no carry. The Neovim-backed Editor names only `status`.
+`ActionRequested` v1, from that window, where it shows the pane's area deaf to the pointer: a press
+on a part of the pane there, by its name, `status` or `line:<n>`. It is the press Workshop's canvas
+makes at that part's first column: on a line the caret moves to the line's first shown column, and
+on `status` nothing moves. It leaves no sweep and begins no carry. The Neovim-backed Editor names
+only `status`.
+
+### `AreaButtonChanged`
+
+`AreaButtonChanged` v1, from that window: a button pressed or let go in the pane's area, at its
+point on the rows there, which is that press on Workshop's canvas: the first button places the
+caret and arms the sweep, or remembers the highlight or the status row to carry out; the third
+offers the pane's rows or is handed back; the release ends the sweep. Its moves and release carry
+the window's number for the press, which a carry it asks continues. For the Neovim-backed Editor
+each is Neovim's own mouse.
+
+### `AreaPointerMoved`
+
+`AreaPointerMoved` v1, from that window: the pointer moved while the press in the pane's area is
+held, which sweeps the selection or begins the remembered carry, as on Workshop's canvas.
+
+### `AreaWheelTurned`
+
+`AreaWheelTurned` v1, from that window: the wheel over the pane's area, which scrolls as on
+Workshop's canvas.
+
+### `AreaHoldEnded`
+
+`AreaHoldEnded` v1, from that window, about the pane's area: the press held there ended with no
+release, which ends the sweep as a release does.
 
 ## Follow
 

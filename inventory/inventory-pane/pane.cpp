@@ -184,9 +184,20 @@ public:
     }
     /// A view Workshop seats nowhere, composed again for the room a window gave it.
     void on_window_room(const std::string& id,loom::Mail& m) { if(known(id)) { fit(id); refresh(m); draw(m); } }
-    /// A PRESS ON A PART IN A WINDOW is a primary press on its place in the picture shown there, the
-    /// view's current one; the window gives it to the area's owner alone, so a second press on a
-    /// folder opens it. A window carries no drag, so a press on an entry selects it and picks up nothing.
+    /// THE POINTER ON A VIEW IN A WINDOW, read onto the rows shown there, the view's current
+    /// picture: a press, the wheel and a right press as on Workshop's canvas, the keys' place told
+    /// by Workshop, and a press on an entry dragging it out under the window's number for it.
+    void on_window_pointer(const std::string& id,const ws::WindowPointer& p,bool keys_went_here,loom::Mail& m) {
+        if(!known(id)) return;
+        if(p.phase==ws::canvas_pointer::kWheel) { wheel(id,p.dy,m); return; }
+        if(p.phase!=ws::canvas_pointer::kPress) return;
+        if(p.button==3) right_press(id,p.at,/*current=*/true,m);
+        else if(p.button==1 && p.at.shown) press(id,p.at.row,p.at.column,/*current=*/true,keys_went_here,/*carry=*/true,m);
+    }
+    /// A PRESS ASKED AS A PART'S ACTION, by a window that shows a view in an area placed deaf to the
+    /// pointer: a primary press on its place in the picture shown there, the view's current one; the
+    /// window gives it to the area's owner alone, so a second press on a folder opens it. No press of
+    /// Workshop's stands behind it, so a press on an entry selects it and picks up nothing.
     void on_window_press(const std::string& id,std::int64_t row,std::int64_t column,loom::Mail& m) {
         if(known(id)) press(id,row,column,/*current=*/true,/*keys_went_here=*/true,/*carry=*/false,m);
     }

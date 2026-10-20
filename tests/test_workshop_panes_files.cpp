@@ -925,6 +925,44 @@ TEST_CASE("WL-HAND-06: Files names its entries by name and its controls by opera
         CHECK_FALSE(window_says("zulu.cpp"));
         CHECK(window.weave().refusals.empty());
     }
+    SUBCASE("in a graphics window that gives Files its pointer, a press on the selected entry "
+            "activates it only where Workshop last said the keys were already Files'") {
+        const char* area = files::kFilesRole;
+        zengine::testing::pane_window::Window window(f.r.bus);
+        window.room(area, area, 160, 48);
+        const auto keys = [&](bool here) {
+            f.r.bus.office_send_to_role_as(f.r.workshop_id, kWorkshopProvider, area,
+                                           loom::Message(loom::to_value(
+                                               PaneKeys{files::kProjectFilesPane, here})));
+            f.r.bus.drain_until_idle();
+        };
+        // THE SELECTED FILE, PRESSED WITH THE KEYS ELSEWHERE: selected, and nothing asked.
+        window.click(area, 2, zulu.row);
+        CHECK(f.at_cursor().find("zulu.cpp") != std::string::npos);
+        CHECK_FALSE(any_row(f.shown(), "needs a current attributed input gesture"));
+        // ...AND WITH THE KEYS ALREADY FILES': opened, which Workshop must approve, and with no
+        // press of Workshop's under the window's number it refuses in its words.
+        keys(true);
+        window.click(area, 2, zulu.row);
+        CHECK(any_row(f.shown(), "needs a current attributed input gesture"));
+        // THE WHEEL THERE WALKS THE CURSOR, as on Workshop's canvas.
+        const std::string was = f.at_cursor();
+        window.wheel(area, 2, zulu.row, 1.0);
+        CHECK(f.at_cursor() != was);
+        // A RIGHT PRESS BESIDE THE ROWS IS HANDED BACK under the window's number for it.
+        std::vector<std::uint64_t> passed;
+        const loom::ObserverId tap = f.r.bus.add_observer([&](const loom::BusEvent& e) {
+            if (e.kind == loom::EventKind::Delivered &&
+                e.schema_name == PanePassRequested::zen_name && e.authored_role == area) {
+                passed.push_back(e.correlation);
+            }
+        });
+        const std::uint64_t right = window.next_press();
+        window.button(area, 2, 40, true, right, 3);
+        f.r.bus.remove_observer(tap);
+        CHECK(passed == std::vector<std::uint64_t>{right});
+        CHECK(window.weave().refusals.empty());
+    }
 }
 
 TEST_CASE("the wheel moves the cursor, and a header press names no entry") {

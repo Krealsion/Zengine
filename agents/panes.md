@@ -250,11 +250,23 @@ A canvas picture drawn in a graphics window too is projected by `workshop::canva
 (`workshop/pane_canvas_drawing.hpp`), composed for the window's room as a terminal Workshop's
 (`canvas_window_room`): its rectangles, labels and runs in Workshop's paint order under a `picture`
 group, then each named part painted again over its own place, clipped there, under a `parts` group
-whose record asks the part's name, a later part over an earlier one. A window lands a press only on
-what it painted, so a part is pressed wherever the picture shows it and an unnamed one nowhere.
-Every node is named by its place in its group, so a node a change adds goes after its siblings and
-paints where the picture paints it. A picture past an area's node or record bound is that bound said
-in words on the ground, never a drawing the window refuses.
+whose record asks the part's name, a later part over an earlier one. In an area deaf to the
+pointer a window lands a press only where what it painted names an action, so a part is pressed
+wherever the picture shows it and an unnamed one nowhere. Every node is named by its place in its
+group, so a node a change adds goes after its siblings and paints where the picture paints it. A
+picture past an area's node or record bound is that bound said in words on the ground, never a
+drawing the window refuses.
+
+A pane a graphics window shows in an area of its own hears the window's pointer there where its
+office takes `AreaButtonChanged`, `AreaPointerMoved` and `AreaWheelTurned`, as every shipped pane's does: each moment in
+its area as the moment it was, a press's moves and release held to it under the window's number for
+the press ([the Graphics package](../graphics/docs/graphics.md#who-says-what)). Workshop relays it
+none of them. The pane reads each against the drawing it last sent its window, as its canvas pointer
+reads Workshop's (`WindowPointer`, `workshop/pane_drawing.hpp`). A continuation it sends about the
+press -- a carry, a pass-back, a menu -- cites the window's number, which Workshop kept from the
+window's word that the press landed there (`AreaPressed`). Whether the keys were already its own is
+Workshop's last **`PaneKeys v1` `{pane, here}`**, said to its office whenever the keys come or go. A
+hold the window ends is the press lost (`AreaHoldEnded`).
 
 ## The keyboard crosses as two shapes
 

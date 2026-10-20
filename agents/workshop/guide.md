@@ -76,7 +76,7 @@ MEANS
 - an ended mark is told to its guest, why, and never comes back on whatever later bears the name.
 
 DOES NOT MEAN
-- that a guest's press ends one: only the weaver's, and the press still reaches its pane.
+- that a guest's press ends one: only the weaver's, and the press still reaches its pane, through Workshop's overlay in a graphics window, which hears no pointer.
 
 WHY — `agents/decisions/a-guest-reads-and-points-by-door.md`
 
@@ -150,3 +150,8 @@ as the window's plan draws it, and its label names the guest" "a mark's part rea
 without it, and a mark is no cover" "a mark ends, and never comes back, when its part leaves a settled
 picture, and its guest is told why" "a mark ends when its guest's session ends, and a guest's own press
 refused at the bus never ends one"
+`workshop/weave_handlers.cpp` on(AreaPressed)
+`workshop/screen_compose.cpp` workshop_overlay_drawing
+`tests/test_workshop_desk.cpp` "a weaver's press in a pane's area of the window ends a guest's guide mark standing there,
+and the press is the pane's" "a guest's guide mark stands over the panes in Workshop's overlay
+in the window, which hears no pointer, the desk staying behind them, and goes with the mark"

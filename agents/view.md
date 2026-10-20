@@ -130,10 +130,12 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
 - The graphics window that shows the area `zengine.view.builder` is sent the builder's picture,
   composed for the window's room from a copy of its presentation, so the window moves nothing
   Workshop's pane shows, and projected as any canvas picture is (`workshop::canvas_sketch`). Its
-  room, its refusals and its ask once a life are Flow's ([flow](flow.md)). A press there names a
-  part the picture last sent there names, and is that place's first-button press let go without
-  moving: a kind is made, an element or its row selected, a box opened with its caret after its
-  value. It begins no drag and carries nothing.
+  room, its refusals and its ask once a life are Flow's ([flow](flow.md)). Its pointer there is
+  read against the picture last sent there as Workshop's canvas pointer is: a press, its moves and
+  its release under the window's number for it, a hold the window ends a lost press, and a move
+  with no press held marking what it rests on until the pointer leaves the area. Where a window
+  shows the area deaf to the pointer, a press names a part and is that place's first-button press
+  let go without moving, which begins no drag and carries nothing.
 - `tests/test_view.cpp` witnesses the format, the rules, registration and grant, publication,
   refusal, in-place and fresh apply, a replacement that cannot register, stop, the terminal
   picture, the picture in a window, its changes, refusals and presses, and the presenter, against

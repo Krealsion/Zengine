@@ -2143,6 +2143,38 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
     CHECK(rig.now().elements[0].x == 2 * sp::kCanvasCellPx);
     CHECK(rig.now().elements[0].y == sp::kCanvasCellPx);
 
+    SUBCASE("in a graphics window that gives the builder its pointer, the pointer resting on an "
+            "element marks it until it leaves the area, and an element pressed there and moved "
+            "under the press's number moves by whole cells, as on Workshop's canvas") {
+        pw::Window window(rig.bus, "builder");
+        window.room(vb::kRole, vb::kRole, 110, 30);
+        rig.pump();
+        // RESTING ON AN ELEMENT NOT SELECTED MARKS IT; the pointer leaving the area puts it down.
+        const auto rests = vb::element_area(rig.design(), rig.now().elements[1]);
+        const auto marked = [&] {
+            return rig.marked(zengine::surface::role::kFill, rests, gfx::kCellPx);
+        };
+        REQUIRE_FALSE(marked());
+        const auto [mx, my] = rig.middle(rig.now().elements[1]);
+        window.move(vb::kRole, mx / gfx::kCellPx, my / gfx::kCellPx);
+        rig.pump();
+        CHECK(marked());
+        window.left(vb::kRole);
+        rig.pump();
+        CHECK_FALSE(marked());
+        // AN ELEMENT PRESSED, MOVED UNDER ITS NUMBER AND LET GO MOVES WITH THE HAND.
+        const auto before = rig.now().elements[0];
+        const auto place = vb::element_area(rig.design(), before);
+        const std::int64_t col = (place.x + unit) / gfx::kCellPx, row = place.y / gfx::kCellPx;
+        const std::uint64_t n = window.next_press();
+        window.button(vb::kRole, col, row, true, n);
+        window.move(vb::kRole, col + 2, row + 1, n);
+        window.button(vb::kRole, col + 2, row + 1, false, n);
+        rig.pump();
+        CHECK(rig.now().elements[0].x > before.x);
+        CHECK(rig.now().elements[0].y > before.y);
+    }
+
     SUBCASE("in a graphics window: its room asked once a life, the terminal's picture drawn there "
             "whole and then as what changed, under the names Workshop's parts carry; a press there "
             "is that press let go without moving, and a refused change is drawn whole again once "

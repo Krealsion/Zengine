@@ -94,7 +94,10 @@ WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
 ## WL-TEXT-10 — A medium that cannot be read falls back to the mirror
 
-LAW — On a medium that answers `readable=false` the paste falls back to the in-process mirror; an ask with nobody at the Skin's role stays open, bounded by the book, and inserts nothing.
+LAW — On a medium that answers `readable=false` the paste falls back to the in-process mirror; an ask with nobody at the medium's office stays open, bounded by the book, and inserts nothing.
+
+MEANS
+- the medium's office is the graphics window that shows the area, else the Skin (`medium_office`).
 
 WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
@@ -225,6 +228,7 @@ lands in no later draft, and one asked for by the draft still standing lands in 
 `tests/test_workshop_document.cpp` "with nobody at the skin role, paste inserts nothing and breaks
 nothing"
 `tests/test_surface.cpp` "the terminal medium answers a clipboard read with its standing truth"
+`workshop/weave.hpp` WorkshopWeave::medium_office
 
 ### WL-TEXT-11
 `component/CMakeLists.txt` zengine-component

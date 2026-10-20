@@ -19,6 +19,7 @@
 #include "surface/region.hpp"
 #include "surface/vocabulary.hpp"
 #include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_canvas_vocabulary.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
 #include <zen/weave.hpp>
@@ -311,6 +312,32 @@ RowsDrawing rows_drawing(const std::vector<surface::SurfaceTextRow>& rows,
     return out;
 }
 
+/// WHERE A POINT OF A PANE'S AREA FALLS ON THE ROWS DRAWN THERE (`rows_drawing`): the row and
+/// column of the cell holding it, shown while it lies within `rows` by `columns`.
+inline RowCell window_cell(std::int64_t x, std::int64_t y, std::int64_t rows,
+                           std::int64_t columns) {
+    RowCell out;
+    out.row = surface::floor_div_px(y, graphics::kCellPx);
+    out.column = surface::floor_div_px(x, graphics::kCellPx);
+    out.shown = out.row >= 0 && out.row < rows && out.column >= 0 && out.column < columns;
+    return out;
+}
+
+/// ONE POINTER MOMENT A GRAPHICS WINDOW GAVE A PANE'S AREA, as the pane reads it: its phase in the
+/// canvas pointer's words (`canvas_pointer::kPress` ... `kWheel`, a hold the window ended being
+/// `kLost`), the button, the point in the area's pixels and the cell of the rows drawn there
+/// holding it, the modifiers, the wheel's turn, and the press's number, which the press, its moves
+/// and its release carry and a continuation about the press cites.
+struct WindowPointer {
+    std::int64_t phase = canvas_pointer::kPress;
+    std::int64_t button = 0;
+    std::int64_t x = 0, y = 0;
+    RowCell at;
+    std::int64_t modifiers = 0;
+    double dx = 0, dy = 0;
+    std::uint64_t press = 0;
+};
+
 /// THE GRAPHICS WINDOW THAT SHOWS A PANE'S AREA, as the office drawing there keeps it: the canvas
 /// it draws with (`graphics::Canvas`) and the drawing it last sent. A drawing the window refused
 /// leaves what it shows as it was. A refused change was read against a drawing the window does not
@@ -354,6 +381,55 @@ public:
         return about == area() && shown() && mail.authored_from_role(canvas_.window_office());
     }
 
+    /// A POINTER MOMENT THE WINDOW SHOWING THE AREA GAVE IT, as that window's office, read onto
+    /// the rows drawn there, `rows` by `columns`: a button pressed or let go, a move, the wheel, or
+    /// a hold the window ended. None for another area or speaker.
+    std::optional<WindowPointer> pointer(const graphics::AreaButtonChanged& b,
+                                         const loom::Mail& mail, std::int64_t rows,
+                                         std::int64_t columns) const {
+        if (!from_window(b.area, mail)) {
+            return std::nullopt;
+        }
+        WindowPointer p = at(b.x, b.y, rows, columns, mail);
+        p.phase = b.pressed ? canvas_pointer::kPress : canvas_pointer::kRelease;
+        p.button = b.button;
+        p.modifiers = b.modifiers;
+        return p;
+    }
+    std::optional<WindowPointer> pointer(const graphics::AreaPointerMoved& m,
+                                         const loom::Mail& mail, std::int64_t rows,
+                                         std::int64_t columns) const {
+        if (!from_window(m.area, mail)) {
+            return std::nullopt;
+        }
+        WindowPointer p = at(m.x, m.y, rows, columns, mail);
+        p.phase = canvas_pointer::kMove;
+        p.modifiers = m.modifiers;
+        return p;
+    }
+    std::optional<WindowPointer> pointer(const graphics::AreaWheelTurned& w, const loom::Mail& mail,
+                                         std::int64_t rows, std::int64_t columns) const {
+        if (!from_window(w.area, mail)) {
+            return std::nullopt;
+        }
+        WindowPointer p = at(w.x, w.y, rows, columns, mail);
+        p.phase = canvas_pointer::kWheel;
+        p.modifiers = w.modifiers;
+        p.dx = w.dx;
+        p.dy = w.dy;
+        return p;
+    }
+    std::optional<WindowPointer> pointer(const graphics::AreaHoldEnded& e,
+                                         const loom::Mail& mail) const {
+        if (!from_window(e.area, mail)) {
+            return std::nullopt;
+        }
+        WindowPointer p;
+        p.phase = canvas_pointer::kLost;
+        p.button = e.button;
+        return p;
+    }
+
     /// DRAW `sketch` IN THE WINDOW THAT SHOWS THE AREA: what changed since the drawing it holds,
     /// nothing when nothing did, or the whole of it when it holds none. Nothing while no window
     /// shows the area, nor while it refused this drawing whole.
@@ -381,6 +457,16 @@ public:
     }
 
 private:
+    static WindowPointer at(std::int64_t x, std::int64_t y, std::int64_t rows,
+                            std::int64_t columns, const loom::Mail& mail) {
+        WindowPointer p;
+        p.x = x;
+        p.y = y;
+        p.at = window_cell(x, y, rows, columns);
+        p.press = mail.correlation();
+        return p;
+    }
+
     void send(loom::Mail& mail) {
         drew_whole_ = fresh_;
         fresh_ = false;

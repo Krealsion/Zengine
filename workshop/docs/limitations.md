@@ -158,14 +158,14 @@ whole form comes back; the default itself is unchanged.
 Panes are also drawn **over** the material you are building. There is no docking, no tiling and
 no reflow.
 
-### Pointing without pressing reaches nobody in a terminal
+### Pointing without pressing reaches nobody in a POSIX terminal
 
 A text pane never uses an idle pointer — a cut row is [not read past](panes.md#a-value-a-pane-had-to-cut-stays-cut)
 — but a canvas pane may ask where one rests: the [View Builder](../../view/docs/view-builder.md) marks the
-element under it. **In the graphical window a hover is reported.** In a terminal Workshop asks
-for button-event mouse reporting only — presses, releases and drags — so an idle pointer is
-reported to nobody, and the builder marks only where a value carried with a held button would
-land.
+element under it. **In the graphical window, and in a Windows console, a hover is reported.** In a
+POSIX terminal Workshop asks for button-event mouse reporting only — presses, releases and drags —
+so an idle pointer is reported to nobody, and the builder marks only where a value carried with a
+held button would land.
 Asking terminals for every idle motion would pay for that gesture on every keystroke of every
 session, which is not a trade this application has chosen to make.
 
