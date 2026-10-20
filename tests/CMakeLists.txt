@@ -722,7 +722,7 @@ zengine_doctest_test(composer zengine-composer-tests)
 # ---- the Files suite: the pure half, in the package that owns it ------------------------
 # The listing, the marks and their durable file, linked against `zengine-files-os` (the two
 # platform bodies) and not `zengine-workshop-logic`, so a green proves the pure half portable.
-# The weave's interaction over the pane protocol is proved in `workshop_panes`.
+# The weave's interaction over the pane protocol is proved in `workshop_panes_project`.
 add_executable(zengine-files-tests test_files.cpp doctest_main.cpp)
 target_link_libraries(zengine-files-tests
     PRIVATE zengine-files-os zengine-workshop-vocabulary zengine-warnings zengine-sanitize)
@@ -972,12 +972,74 @@ set(ZENGINE_WORKSHOP_FIXTURES
 
 # One Workshop suite: the shared link line, artifact paths and includes plus what this one alone
 # needs, so the suites agree by construction (a second copy of a link line is a second answer).
-# `SOURCES` is a list because a suite is not a file (VM-POP-12): every source gets the target's
-# definitions, includes and link line. Both arms fail closed, since a mistyped keyword would
-# otherwise be dropped silently and a test family go missing while everything reports green.
+# `SOURCES` is a list because a suite is not a file (VM-POP-12); `PART <name> <sources...>` groups
+# in its place run the one program as an entry a part, `workshop_<suite>_<part>` (VM-POP-22).
+# Every arm fails closed: a mistyped keyword would otherwise be dropped silently and a test family
+# go missing while everything reports green.
 function(zengine_workshop_suite entry)
-    cmake_parse_arguments(WS "" "" "SOURCES;DEFINITIONS;NEEDS;LINKS" ${ARGN})
-    if(NOT WS_SOURCES)
+    # The parts are walked here: cmake_parse_arguments keeps one list per keyword, which would
+    # run every part's sources together.
+    set(keywords PART SOURCES DEFINITIONS NEEDS LINKS)
+    set(rest "")
+    set(parts "")
+    set(part "")
+    set(naming FALSE)
+    foreach(arg IN LISTS ARGN)
+        if(naming)
+            if(arg IN_LIST keywords OR NOT arg MATCHES "^[a-z][a-z0-9_]*$")
+                message(FATAL_ERROR
+                    "zengine_workshop_suite(${entry}): PART needs a name of lower-case letters, "
+                    "digits and underscores before its sources, not '${arg}'.")
+            endif()
+            if(arg IN_LIST parts)
+                message(FATAL_ERROR
+                    "zengine_workshop_suite(${entry}): the part '${arg}' is named twice. One "
+                    "name, one entry.")
+            endif()
+            list(APPEND parts ${arg})
+            set(part ${arg})
+            set(part_sources_${arg} "")
+            set(naming FALSE)
+        elseif(arg STREQUAL "PART")
+            set(naming TRUE)
+        elseif(arg IN_LIST keywords)
+            set(part "")
+            list(APPEND rest ${arg})
+        elseif(NOT part STREQUAL "")
+            list(APPEND part_sources_${part} ${arg})
+        else()
+            list(APPEND rest ${arg})
+        endif()
+    endforeach()
+    if(naming)
+        message(FATAL_ERROR "zengine_workshop_suite(${entry}): PART at the end, with no name.")
+    endif()
+    cmake_parse_arguments(WS "" "" "SOURCES;DEFINITIONS;NEEDS;LINKS" ${rest})
+    if(parts AND WS_SOURCES)
+        message(FATAL_ERROR
+            "zengine_workshop_suite(${entry}): SOURCES beside PART. A source outside every part "
+            "would be compiled with no entry to run its cases.")
+    endif()
+    set(sources ${WS_SOURCES})
+    foreach(p IN LISTS parts)
+        if(NOT part_sources_${p})
+            message(FATAL_ERROR
+                "zengine_workshop_suite(${entry}): the part '${p}' names no source. Its entry "
+                "would select zero cases.")
+        endif()
+        foreach(source IN LISTS part_sources_${p})
+            string(MD5 key "${source}")
+            if(DEFINED owner_${key})
+                message(FATAL_ERROR
+                    "zengine_workshop_suite(${entry}): ${source} is in the part "
+                    "'${owner_${key}}' and in '${p}'. A source belongs to one part, or its "
+                    "cases would run twice.")
+            endif()
+            set(owner_${key} ${p})
+            list(APPEND sources ${source})
+        endforeach()
+    endforeach()
+    if(NOT sources)
         message(FATAL_ERROR
             "zengine_workshop_suite(${entry}): no SOURCES. A suite with no source would "
             "build an empty binary that selects zero cases.")
@@ -989,7 +1051,7 @@ function(zengine_workshop_suite entry)
             "would not be compiled and its cases would vanish from the population.")
     endif()
     set(target zengine-workshop-${entry}-tests)
-    add_executable(${target} ${WS_SOURCES} doctest_main.cpp)
+    add_executable(${target} ${sources} doctest_main.cpp)
     target_link_libraries(${target} PRIVATE ${ZENGINE_WORKSHOP_LIBS} ${WS_LINKS})
     target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
     # The suite's own name: the suites run at once, and a temporary directory belongs to one
@@ -997,7 +1059,22 @@ function(zengine_workshop_suite entry)
     zengine_test_definitions(${target}
         "ZENGINE_WORKSHOP_SUITE=\"${entry}\"" ${ZENGINE_WORKSHOP_DEFS} ${WS_DEFINITIONS})
     add_dependencies(${target} ${ZENGINE_WORKSHOP_FIXTURES} ${WS_NEEDS})
-    zengine_doctest_test(workshop_${entry} ${target})
+    if(NOT parts)
+        zengine_doctest_test(workshop_${entry} ${target})
+    endif()
+    # ONE `--source-file`, its patterns joined by commas: doctest reads an option once, from its
+    # last occurrence, so a second flag would select the second's files alone (VM-POP-23). A
+    # pattern is the source's whole name behind `*`, which matches its `__FILE__` under either
+    # separator.
+    foreach(p IN LISTS parts)
+        set(patterns "")
+        foreach(source IN LISTS part_sources_${p})
+            get_filename_component(name "${source}" NAME)
+            list(APPEND patterns "*${name}")
+        endforeach()
+        string(REPLACE ";" "," patterns "${patterns}")
+        zengine_doctest_test(workshop_${entry}_${p} ${target} ARGS "--source-file=${patterns}")
+    endforeach()
 endfunction()
 
 # THE EDITOR SWITCH, IN A LIVE WORKSHOP WITH NO NEOVIM: the real Editor and copies of it under
@@ -1124,35 +1201,49 @@ zengine_workshop_suite(shapes SOURCES test_workshop_shapes.cpp test_shapes_censu
 # case rests on from quietly going false.
 zengine_workshop_suite(panes
     LINKS loom::history zengine-view zengine-workshop-guests
-    SOURCES test_workshop_demo.cpp
-            test_workshop_panes_seam.cpp
-            test_workshop_panes_window.cpp
-            test_workshop_panes_button.cpp
-            test_workshop_panes_canvas.cpp
-            test_workshop_panes_desktop.cpp
-            test_workshop_panes_input.cpp
-            test_workshop_panes_introspection.cpp
-            test_workshop_panes_sampling.cpp
-            test_workshop_panes_powers.cpp
-            test_workshop_panes_actions.cpp
-            test_workshop_panes_files.cpp
-            test_workshop_panes_builder.cpp
-            test_workshop_panes_view_builder.cpp
-            test_workshop_panes_attention.cpp
-            test_workshop_panes_info.cpp
-            test_workshop_inventory_info.cpp
-            test_workshop_inventory_folders.cpp
-            test_workshop_info_views.cpp
-            test_workshop_panes_terminal.cpp
-            test_workshop_panes_settings.cpp
-            test_workshop_panes_legend.cpp
-            test_workshop_panes_editor.cpp
-            test_workshop_editor_transfers.cpp
-            test_workshop_panes_opening.cpp
-            test_workshop_panes_code.cpp
-            test_workshop_panes_output.cpp
-            test_workshop_panes_guests.cpp
-            test_workshop_panes_guide.cpp
+    # By subject, each part one entry, workshop_panes_<part>:
+    # what an office may offer and who speaks for it, the room and where a pane sits, its canvas,
+    # the second button and the menu presenter, the demo controls;
+    PART seam test_workshop_demo.cpp
+              test_workshop_panes_seam.cpp
+              test_workshop_panes_window.cpp
+              test_workshop_panes_canvas.cpp
+              test_workshop_panes_button.cpp
+    # the weaver's hand crossing the seam: presses and keys, declared actions, the Pane Manager
+    # and Hotkeys, a guest's hand and a guest that teaches;
+    PART hand test_workshop_panes_input.cpp
+              test_workshop_panes_actions.cpp
+              test_workshop_panes_desktop.cpp
+              test_workshop_panes_guests.cpp
+              test_workshop_panes_guide.cpp
+    # the panes that read the running system: introspection and what sampling costs, Attention
+    # and Connections, the View Builder's rows;
+    PART inspect test_workshop_panes_introspection.cpp
+                 test_workshop_panes_sampling.cpp
+                 test_workshop_panes_attention.cpp
+                 test_workshop_panes_view_builder.cpp
+    # Info and Inventory through their real images;
+    PART info test_workshop_panes_info.cpp
+              test_workshop_inventory_info.cpp
+              test_workshop_inventory_folders.cpp
+              test_workshop_info_views.cpp
+    # a pane's settings across the seam, and one setting end to end;
+    PART settings test_workshop_panes_settings.cpp
+                  test_workshop_panes_legend.cpp
+    # the Terminal as a loaded weave, and finding powers through it;
+    PART terminal test_workshop_panes_terminal.cpp
+                  test_workshop_panes_powers.cpp
+    # the Builder, Files, a pane's code and a build's output, with the action census, which
+    # drives every office's census and press drivers: they register in every process of the
+    # program, whatever it selects;
+    PART project test_workshop_panes_builder.cpp
+                 test_workshop_panes_files.cpp
+                 test_workshop_panes_code.cpp
+                 test_workshop_panes_output.cpp
+    # the Editor and its typed carry, and the opening manager.
+    PART editor test_workshop_panes_editor.cpp
+                test_workshop_editor_transfers.cpp
+                test_workshop_panes_opening.cpp
     NEEDS zengine-composer zengine-inventory zengine-inventory-pane zengine-builder-pane-reworded
           zengine-editor-pane zengine-neovim-editor zengine-neovim-fixture zengine-demo-control
     DEFINITIONS "WORKSHOP_SO_INVENTORY_PANE=\"$<TARGET_FILE:zengine-inventory-pane>\""
@@ -1627,17 +1718,21 @@ endforeach()
 # ---- longest first under a parallel CTest -----------------------------------------------
 # At -j<n> CTest starts entries in descending COST, and a declared COST outranks the one it
 # measures into Testing/Temporary/CTestCostData.txt, so this table orders every parallel run, a
-# fresh tree's too: the longest entries start at once and the rest pack in beside them. A value is
-# the seconds an entry took in its slowest CI build job at 289f50c, for every entry of 5 s or more;
+# fresh tree's too. A value is the seconds an entry took in its slowest CI build job at 289f50c,
+# for every entry of 5 s or more (a panes part's: at efdc170, in the sanitizer job, its slowest);
 # an entry left out runs by the cost CTest measured for it, or after these while it has none.
 file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/test_population.txt zengine_cost_population
      REGEX "^[A-Za-z0-9_]+[ \t]")
 foreach(zengine_cost_row IN ITEMS
-        "workshop_panes:1222"
+        "workshop_panes_project:698"
+        "workshop_panes_info:581"
         "neovim_journey:275"
+        "workshop_panes_hand:257"
+        "workshop_panes_terminal:252"
         "workshop_desk:225"
         "story_journey:183"
         "graphics:149"
+        "workshop_panes_editor:130"
         "workshop_neovim:103"
         "workshop_shapes:72"
         "workshop_persistence:50"
@@ -1646,9 +1741,12 @@ foreach(zengine_cost_row IN ITEMS
         "builder:41"
         "tutorial_walks:40"
         "source_comments:40"
+        "workshop_panes_inspect:36"
+        "workshop_panes_settings:36"
         "workshop_load:34"
         "inventory:32"
         "law_register:31"
+        "workshop_panes_seam:29"
         "code_values:24"
         "tutor_walk:24"
         "flow_pane:20"

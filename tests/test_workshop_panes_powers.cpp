@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Workshop panes suite -- the Terminal finding powers. A source (VM-POP-12) of the
-// `workshop_panes` entry: a live Workshop on a real bus with the basic provider mounted, the
-// discovery door mounted as the host mounts it, and the Terminal participant widened by the host's
-// own call, a line typed through Workshop's own door, from `PaneRig` (`workshop_support.hpp`); and
-// Flow's pane, loaded beside them, driven for its action census and asked for its manual.
+// The Workshop panes suite -- the Terminal finding powers. A source (VM-POP-12) of the panes
+// program, run in `workshop_panes_terminal`: a live Workshop on a real bus with the basic provider
+// mounted, the discovery door mounted as the host mounts it, and the Terminal participant widened
+// by the host's own call, a line typed through Workshop's own door, from `PaneRig`
+// (`workshop_support.hpp`); and Flow's pane, loaded beside them, driven for its action census and
+// asked for its manual.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).

@@ -6,7 +6,8 @@ cite by ID. Router: [`../workshop.md`](../workshop.md).
 ⚠ THE BROWSER IS NOT THIS HOST'S CODE. It is `Zengine/files/`, a loadable weave in the office
 `zengine.files`, offering `project-files` and arriving by a plan row. This register stayed here
 because what it states is a law both sides keep: most of it constrains the package, and the last
-two entries constrain the host. Values are proved in `files_weave`, gestures in `workshop_panes`.
+two entries constrain the host. Values are proved in `files_weave`, gestures in
+`workshop_panes_project`.
 
 ## WL-FILES-01 — The browser owns no source truth
 

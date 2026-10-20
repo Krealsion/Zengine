@@ -21,7 +21,8 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 ## Law
 
 - [text-box](../agents/workshop/text-box.md) — the text box; witnessed by `component`, then
-  `workshop_document` and `workshop_panes` (terminal, info, input)
+  `workshop_document` and `workshop_panes_terminal` (terminal), `workshop_panes_info` (info),
+  `workshop_panes_hand` (input)
 
 The controls a pane draws for a hand, over `control_strip.hpp`, `list_window.hpp` and `row_map.hpp`,
 are `agents/workshop/pane-controls.md` (`WL-HAND`), which [workshop/AGENTS.md](../workshop/AGENTS.md)
@@ -32,13 +33,14 @@ routes.
 - `component` — `TextBox`, `ListWindow`, `RowMap`, `HeldChoice`, columns, control strips and tab
   strips as values: `tests/test_component.cpp`, its own executable linking only `zengine-component`
 
-Its cases in shared suites: `workshop_panes` (`tests/test_workshop_panes_terminal.cpp`, `_info.cpp`
-and `_input.cpp` for the text box; `_builder.cpp`, `_files.cpp`, `_output.cpp` and `_canvas.cpp` for
-the controls), `workshop_document` (`tests/test_workshop_document.cpp`: the name editor and the
-Composer's fields) and `input` (`tests/test_input.cpp` pins `text_box.hpp`'s key
-spellings to the wire's). Outside CTest, `tests/package/run.cmake` builds
-`tests/package/public_surface.cpp` and `tests/package/pane_menu_consumer.cpp` against the
-installed headers.
+Its cases in shared suites: `workshop_panes_terminal`, `workshop_panes_info` and
+`workshop_panes_hand` (`tests/test_workshop_panes_terminal.cpp`, `_info.cpp` and `_input.cpp`) for
+the text box, `workshop_panes_project` (`_builder.cpp`, `_files.cpp`, `_output.cpp`) and
+`workshop_panes_seam` (`_canvas.cpp`) for the controls, `workshop_document`
+(`tests/test_workshop_document.cpp`: the name editor and the Composer's fields) and `input`
+(`tests/test_input.cpp` pins `text_box.hpp`'s key spellings to the wire's). Outside CTest,
+`tests/package/run.cmake` builds `tests/package/public_surface.cpp` and
+`tests/package/pane_menu_consumer.cpp` against the installed headers.
 
 ## Host side
 

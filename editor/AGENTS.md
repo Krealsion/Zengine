@@ -26,10 +26,10 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 - [editor-switch](../agents/workshop/editor-switch.md) — switching the Editor; witnessed by
   `workshop_editor_switch`, then `workshop_load` (the choices, the record)
 - [editor-transfers](../agents/workshop/editor-transfers.md) — what the Editor carries out and takes
-  in; witnessed by `workshop_panes` (editor transfers), then `source_transfer`; the `open` power in
-  `workshop_guests`
-- [editor](../agents/workshop/editor.md) — the Editor; witnessed by `workshop_panes` (editor,
-  opening), then `workshop_load`; the buffer in `editor`
+  in; witnessed by `workshop_panes_editor` (editor transfers), then `source_transfer`; the `open`
+  power in `workshop_guests`
+- [editor](../agents/workshop/editor.md) — the Editor; witnessed by `workshop_panes_editor`
+  (editor, opening), then `workshop_load`; the buffer in `editor`
 - [neovim-transfers](../agents/workshop/neovim-transfers.md) — what the Neovim-backed Editor carries
   out and takes in; witnessed by `workshop_neovim` (its transfers source), then `neovim_live`
 - [neovim](../agents/workshop/neovim.md) — the Neovim-backed Editor; witnessed by `workshop_neovim`
@@ -57,7 +57,7 @@ routed by [workshop/AGENTS.md](../workshop/AGENTS.md).
 - `workshop_neovim` — the Neovim-backed Editor in a live Workshop, always and behind gate `neovim`;
   `tests/test_workshop_neovim.cpp`, `tests/test_workshop_neovim_transfers.cpp`
 
-Its cases in shared suites: `workshop_panes` (`tests/test_workshop_panes_editor.cpp`,
+Its cases in shared suites: `workshop_panes_editor` (`tests/test_workshop_panes_editor.cpp`,
 `tests/test_workshop_editor_transfers.cpp`), `workshop_files` (`tests/test_workshop_files.cpp`),
 `workshop_load` (`tests/test_workshop_load.cpp`), `workshop_guests`
 (`tests/test_workshop_guests.cpp`); its shapes in `workshop_shapes` (`tests/census_headers.hpp`).

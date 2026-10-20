@@ -24,9 +24,9 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 Consumers' suites spend it too: `composer` (`tests/test_composer.cpp`), `flow`
 (`tests/test_flow_graph.cpp`), `inventory` (`tests/test_inventory.cpp`), `source_transfer`
 (`tests/test_source_transfer.cpp`), `view_builder` (`tests/test_view_builder.cpp`) and
-`workshop_panes` (`tests/test_workshop_info_views.cpp`, `tests/test_workshop_inventory_info.cpp`).
-The installed-package witness `tests/package/message_draft_consumer.cpp` is no CTest entry;
-`tests/package/run.cmake` runs it.
+`workshop_panes_info` (`tests/test_workshop_info_views.cpp`,
+`tests/test_workshop_inventory_info.cpp`). The installed-package witness
+`tests/package/message_draft_consumer.cpp` is no CTest entry; `tests/package/run.cmake` runs it.
 
 ## Host side
 

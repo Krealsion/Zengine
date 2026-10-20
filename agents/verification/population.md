@@ -69,17 +69,17 @@ surviving smoke test, from the supported default Windows package.
 
 ## VM-POP-11 — The Workshop family is split by subject
 
-METHOD — The Workshop family is nine entries split by SUBJECT; pick the one your change can falsify and build that target alone.
+METHOD — The Workshop family is split into entries by SUBJECT, the panes program's into parts (VM-POP-22); pick the one your change can falsify, build its target and run that entry alone.
 BECAUSE — one file behind one entry had reached thirty thousand lines: thirty seconds of
 compiling before an assertion could run, and a nineteen-second test the scheduler could hand to
 one worker, a floor neither the machine nor the population explained.
 
 ## VM-POP-12 — A suite is not a file
 
-METHOD — A SUITE IS NOT A FILE: sources in the entry's `SOURCES` list share its definitions by construction, and a source left out drops cases, which the floor catches and the build does not.
-BECAUSE — `panes` is five sources under one entry and one floor because one MinGW Debug object
-could no longer name all of its instantiations; a source dropped from the list builds and links
-green, and only the floor said it was gone.
+METHOD — A SUITE IS NOT A FILE: sources in a suite's `SOURCES` list, or in its `PART` groups, share its definitions by construction, and a source left out drops cases, which a floor catches and the build does not.
+BECAUSE — `panes` is many sources under one program because one MinGW Debug object could no
+longer name all of its instantiations; a source dropped from a list builds and links green, and
+only a floor says it is gone.
 
 ## VM-POP-13 — The shared support header costs emission
 
@@ -138,6 +138,19 @@ BECAUSE — three delayed-paste cases moved from the extracted terminal line to 
 layout-name editor, kept passing, and left the extracted line with no such check at all: the
 counts balanced, the sentence said "repointed rather than deleted", the protection was gone.
 
+## VM-POP-22 — One program may serve several entries, each its own sources' cases
+
+METHOD — One doctest program may run as several entries, each selecting its sources' cases with one `--source-file`; a source is in one part, and the entries' counts sum to the program's.
+BECAUSE — the panes program as one entry ran alone for twenty minutes under ASan while three
+workers waited; separate programs cannot hold it, since the action census needs every office's
+drivers in the process that runs it, and parts with floors alone let a case fall between them.
+
+## VM-POP-23 — A doctest option is read once, from its last occurrence
+
+METHOD — doctest reads each option once, from its last occurrence on the command line, so a second `--source-file` or `--test-case` replaces the first: give an entry one flag, its patterns joined by commas.
+BECAUSE — two `--source-file` flags select the second's files alone, and a run of half a part's
+cases looks like a pass; only the program's count against its entries' says so.
+
 ## Seen
 
 ### VM-POP-01
@@ -179,7 +192,7 @@ nowhere yet
 `tests/test_population.txt`
 
 ### VM-POP-12
-`tests/CMakeLists.txt` workshop_panes
+`tests/CMakeLists.txt` zengine_workshop_suite
 `tests/test_population.txt`
 
 ### VM-POP-13
@@ -211,3 +224,13 @@ nowhere yet
 `tests/test_workshop_panes_terminal.cpp` "clipboard text lands in the draft that asked for it, or
 nowhere"
 `tests/test_population.txt`
+
+### VM-POP-22
+`CMakeLists.txt` zengine_doctest_test
+`tests/CMakeLists.txt` zengine_workshop_suite
+`tests/check_population.cmake` zengine_check_population zengine_cases_not_once
+`tests/test_population.txt`
+
+### VM-POP-23
+`tests/CMakeLists.txt` zengine_workshop_suite
+`tests/check_population.cmake` zengine_cases_not_once

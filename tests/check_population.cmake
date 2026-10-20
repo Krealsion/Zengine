@@ -11,15 +11,16 @@ cmake_minimum_required(VERSION 3.16)
 
 # ---- asking a doctest binary about itself ----------------------------------------------
 
-# How many cases the binary selects with no filter. 0 is a legitimate answer to a QUERY
-# (nothing ran), and it is exactly the answer the floor exists to catch.
+# How many cases the binary selects with the entry's own arguments (none: every case). 0 is a
+# legitimate answer to a QUERY (nothing ran), and it is exactly the answer the floor exists to
+# catch.
 function(zengine_case_count exe out_var)
-    execute_process(COMMAND "${exe}" --count
+    execute_process(COMMAND "${exe}" ${ARGN} --count
                     OUTPUT_VARIABLE captured ERROR_VARIABLE errors RESULT_VARIABLE rc)
     if(NOT rc EQUAL 0)
         message(FATAL_ERROR
-            "population: `${exe} --count` failed (exit ${rc}). A test binary that cannot even "
-            "be asked for its inventory has no population to report.\n${captured}${errors}")
+            "population: `${exe} ${ARGN} --count` failed (exit ${rc}). A test binary that cannot "
+            "even be asked for its inventory has no population to report.\n${captured}${errors}")
     endif()
     if(NOT captured MATCHES "filters: ([0-9]+)")
         message(FATAL_ERROR
@@ -31,10 +32,11 @@ function(zengine_case_count exe out_var)
 endfunction()
 
 # The canary: every floor is read out of the binary that must refuse an empty population, so each
-# run proves the refusal is still compiled in, with a filter that matches nothing. Without it, a
-# binary back on a stock doctest main would report its counts and pass every floor (VM-POP-04).
+# run proves the refusal is still compiled in, with a filter that matches nothing, beside the
+# entry's own arguments. Without it, a binary back on a stock doctest main would report its
+# counts and pass every floor (VM-POP-04).
 function(zengine_assert_refuses_empty_population entry exe)
-    execute_process(COMMAND "${exe}" "--test-case=zengine_no_such_case_population_canary"
+    execute_process(COMMAND "${exe}" ${ARGN} "--test-case=zengine_no_such_case_population_canary"
                     OUTPUT_VARIABLE captured ERROR_VARIABLE errors RESULT_VARIABLE rc)
     if(rc EQUAL 70 AND "${captured}${errors}" MATCHES "EMPTY TEST POPULATION")
         return()
@@ -48,6 +50,76 @@ function(zengine_assert_refuses_empty_population entry exe)
         "what turns that into a failure. Every case floor this check reports is read out of "
         "this same binary, so a binary that no longer knows 'nothing ran' is not success "
         "cannot be trusted to answer for its own population either.\n${captured}${errors}")
+endfunction()
+
+# The cases `exe` selects with the given arguments, each as `file:line name` (doctest's XML list).
+function(zengine_case_list exe out_var)
+    execute_process(COMMAND "${exe}" ${ARGN} --reporters=xml --list-test-cases
+                    OUTPUT_VARIABLE captured ERROR_VARIABLE errors RESULT_VARIABLE rc)
+    if(NOT rc EQUAL 0)
+        message(FATAL_ERROR
+            "population: `${exe} ${ARGN} --list-test-cases` failed (exit ${rc}).\n${errors}")
+    endif()
+    # A list item keeps no `;`, and an unbalanced bracket would stop CMake splitting the list.
+    string(REPLACE ";" "," captured "${captured}")
+    string(REPLACE "[" "(" captured "${captured}")
+    string(REPLACE "]" ")" captured "${captured}")
+    # doctest leaves an empty attribute out, and a case outside every suite has an empty one.
+    set(one_case
+        "<TestCase name=\"([^\"]*)\"( testsuite=\"[^\"]*\")? filename=\"([^\"]*)\" line=\"([0-9]+)\"")
+    string(REGEX MATCHALL "${one_case}" found "${captured}")
+    set(listed "")
+    foreach(one IN LISTS found)
+        string(REGEX REPLACE "^${one_case}$" "\\3:\\4 \\1" one "${one}")
+        string(REPLACE "&quot;" "\"" one "${one}")
+        string(REPLACE "&apos;" "'" one "${one}")
+        string(REPLACE "&lt;" "<" one "${one}")
+        string(REPLACE "&gt;" ">" one "${one}")
+        string(REPLACE "&amp;" "&" one "${one}")
+        list(APPEND listed "${one}")
+    endforeach()
+    set(${out_var} "${listed}" PARENT_SCOPE)
+endfunction()
+
+# Names the cases of a program its entries do not select exactly once, when each entry selects by
+# one `--source-file`: those no entry's patterns match, and those an entry shares with another.
+function(zengine_cases_not_once exe entries out_var)
+    set(all "")
+    foreach(entry IN LISTS entries)
+        list(LENGTH ZENGINE_ARGS_${entry} n)
+        if(NOT n EQUAL 1 OR NOT "${ZENGINE_ARGS_${entry}}" MATCHES "^--source-file=(.+)$")
+            string(CONCAT why "  (not named: '${entry}' does not select by one --source-file "
+                              "alone, so list each entry's cases with --list-test-cases)\n")
+            set(${out_var} "${why}" PARENT_SCOPE)
+            return()
+        endif()
+        set(patterns_${entry} "${CMAKE_MATCH_1}")
+        list(APPEND all "${CMAKE_MATCH_1}")
+    endforeach()
+    string(REPLACE ";" "," all "${all}")
+    set(named "")
+    zengine_case_list("${exe}" none "--source-file-exclude=${all}")
+    foreach(one IN LISTS none)
+        string(APPEND named "  no entry selects: ${one}\n")
+    endforeach()
+    foreach(entry IN LISTS entries)
+        set(others "")
+        foreach(other IN LISTS entries)
+            if(NOT other STREQUAL entry)
+                list(APPEND others "${patterns_${other}}")
+            endif()
+        endforeach()
+        string(REPLACE ";" "," others "${others}")
+        zengine_case_list("${exe}" mine ${ZENGINE_ARGS_${entry}})
+        zengine_case_list("${exe}" alone ${ZENGINE_ARGS_${entry}} "--source-file-exclude=${others}")
+        if(alone)
+            list(REMOVE_ITEM mine ${alone})
+        endif()
+        foreach(one IN LISTS mine)
+            string(APPEND named "  '${entry}' and another entry select: ${one}\n")
+        endforeach()
+    endforeach()
+    set(${out_var} "${named}" PARENT_SCOPE)
 endfunction()
 
 # ---- the contract ------------------------------------------------------------------------
@@ -216,6 +288,7 @@ function(zengine_check_population manifest build_dir registered)
     # ---- each kind's contract, for the entries that are there ----------------------------
 
     set(report "")
+    set(programs "")
     foreach(entry IN LISTS sorted_expected)
         list(FIND sorted_registered "${entry}" idx)
         if(idx EQUAL -1)
@@ -256,8 +329,15 @@ function(zengine_check_population manifest build_dir registered)
 
         if(kind STREQUAL "doctest")
             set(minimum "${floor_${entry}}")
-            zengine_assert_refuses_empty_population("${entry}" "${exe}")
-            zengine_case_count("${exe}" count)
+            zengine_assert_refuses_empty_population("${entry}" "${exe}" ${ZENGINE_ARGS_${entry}})
+            zengine_case_count("${exe}" count ${ZENGINE_ARGS_${entry}})
+            # Gathered by program, for the whole below.
+            string(MD5 program "${exe}")
+            if(NOT DEFINED entries_of_${program})
+                list(APPEND programs "${exe}")
+            endif()
+            list(APPEND entries_of_${program} "${entry}")
+            set(count_${entry} "${count}")
             if(count LESS minimum)
                 string(CONCAT msg
                     "FLOOR: ${entry} selected ${count} cases, below declared floor "
@@ -302,6 +382,34 @@ function(zengine_check_population manifest build_dir registered)
             string(APPEND report "  ${entry}: program, ${exe}\n")
         else()
             string(APPEND report "  ${entry}: script, run over the source tree\n")
+        endif()
+    endforeach()
+
+    # ---- one program, several entries: every case once ------------------------------------
+    # Each entry's floor holds its own part, so a case no entry selects would leave every floor
+    # green: the program's unfiltered count must be the sum of its entries' (VM-POP-22).
+    foreach(exe IN LISTS programs)
+        string(MD5 program "${exe}")
+        list(LENGTH entries_of_${program} shared)
+        if(shared LESS 2)
+            continue()
+        endif()
+        zengine_case_count("${exe}" whole)
+        set(sum 0)
+        set(each "")
+        foreach(entry IN LISTS entries_of_${program})
+            math(EXPR sum "${sum} + ${count_${entry}}")
+            string(APPEND each "    ${entry}: ${count_${entry}}\n")
+        endforeach()
+        string(APPEND report
+               "  ${exe}: ${whole} cases, run by ${shared} entries summing to ${sum}\n")
+        if(NOT sum EQUAL whole)
+            zengine_cases_not_once("${exe}" "${entries_of_${program}}" named)
+            string(CONCAT msg
+                "WHOLE: ${exe} holds ${whole} cases, and the ${shared} entries that run it select "
+                "${sum}. A case no entry selects runs nowhere while every floor stays green, and a "
+                "case two entries select runs twice. Each entry's count:\n${each}${named}")
+            list(APPEND problems "${msg}")
         endif()
     endforeach()
 

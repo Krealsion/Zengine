@@ -24,7 +24,7 @@ One part, the folder itself; the pure half keeps `namespace zengine::workshop`.
 ## Law
 
 - [files](../agents/workshop/files.md) `WL-FILES` — the browser over the machine, paths, marks and
-  roots; witnessed by `files_weave` (values), `workshop_panes` (files) and `workshop_files`
+  roots; witnessed by `files_weave` (values), `workshop_panes_project` (files) and `workshop_files`
 
 ## Suites
 
@@ -32,8 +32,8 @@ One part, the folder itself; the pure half keeps `namespace zengine::workshop`.
   and their file, roots, catalog refusals, and that the image links no host target (it reads
   `files/CMakeLists.txt` and `workshop/CMakeLists.txt`); `tests/test_files.cpp`
 
-Its cases in shared suites: `workshop_panes` (`tests/test_workshop_panes_files.cpp`, the pane
-through the real `zengine-files` image) and `workshop_files` (`tests/test_workshop_files.cpp`,
+Its cases in shared suites: `workshop_panes_project` (`tests/test_workshop_panes_files.cpp`, the
+pane through the real `zengine-files` image) and `workshop_files` (`tests/test_workshop_files.cpp`,
 the doors it asks). Its marks file's shapes are counted by `workshop_shapes`
 (`tests/census_headers.hpp`).
 

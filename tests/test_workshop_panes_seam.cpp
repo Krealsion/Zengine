@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Workshop panes suite -- the protocol and the provider seam: what an office may offer, who
-// may speak for it, how Workshop discovers it, the room it grants, what it retains, and how a
-// pane ends. One source of the `workshop_panes` entry, whose units split by subject where one
-// object cannot hold them all (VM-POP-12); a new case goes to its subject's. Cases drive the real
-// weave on a real bus against real loaded artifacts, from `PaneRig` (`workshop_support.hpp`).
+// The Workshop panes suite -- the protocol and the provider seam: what an office may offer, who may
+// speak for it, how Workshop discovers it, the room it grants, what it retains, and how a pane
+// ends. One source of the panes program, run in `workshop_panes_seam`, whose units split by subject
+// where one object cannot hold them all (VM-POP-12); a new case goes to its subject's. Cases drive
+// the real weave on a real bus against real loaded artifacts, from `PaneRig`
+// (`workshop_support.hpp`).
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).

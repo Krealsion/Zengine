@@ -22,7 +22,7 @@ holds one.
 
 ## Suites
 
-No CTest entry of its own. Its cases in shared suites: `workshop_panes`
+No CTest entry of its own. Its cases in shared suites: `workshop_panes_project`
 (`tests/test_workshop_panes_builder.cpp`: the action census, the Builder's answered manual against
 its declared ids in every mode, a section or a pane it does not have refused, a reload in place with
 other words) and `builder` (`tests/test_builder.cpp`: the office's answer by content id, and its page
