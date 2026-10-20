@@ -5,13 +5,14 @@
 #define ZENGINE_GRAPHICS_WINDOW_WINDOW_SDL_BACKEND_HPP
 
 // The OS window's pixel backend, through SDL3: the window it opens, centred and kept whole on a
-// display; each picture drawn and presented, or drawn again and read back; SDL's queue emptied and
-// translated by Zengine's own SDL translator (input/translate_sdl_core.hpp) under its claim on the
-// queue (input/window_claim.hpp); and the clipboard, read only when asked. Reloaded, it leaves its
-// window and renderer to the instance after it through SDL's global properties. The weave is
+// display; each picture drawn, in its face (graphics/window/window_sdl_face.hpp), and presented or
+// read back; SDL's queue emptied and translated by input/translate_sdl_core.hpp under its claim on
+// the queue (input/window_claim.hpp); and the clipboard, read only when asked. Reloaded, it leaves
+// its window and renderer to the instance after it through SDL's global properties. The weave is
 // graphics/window/window_sdl.cpp.
 
 #include "graphics/window/window_sdl.hpp"
+#include "graphics/window/window_sdl_face.hpp"
 
 #include "input/translate_sdl_core.hpp"
 #include "input/window_claim.hpp"
@@ -74,12 +75,14 @@ public:
     ProcessSdlBackend(const ProcessSdlBackend&) = delete;
     ProcessSdlBackend& operator=(const ProcessSdlBackend&) = delete;
 
-    /// SDL's video taken, and the window an instance before this one left, or a new one.
+    /// SDL's video taken, and the window an instance before this one left, or a new one; and the
+    /// face opened and measured, which needs no window.
     void claim() {
         if (claimed_) {
             return;
         }
         claimed_ = true;
+        face_.open();
         if (!SDL_Init(SDL_INIT_VIDEO)) {
             complain("SDL_Init(SDL_INIT_VIDEO)", kNoWindow);
             release_sdl(); // a failed init still allocated: see release_sdl
@@ -99,6 +102,9 @@ public:
         }
         open();
     }
+
+    /// The measure of the face text is set in.
+    TextMeasure text() const { return face_.measure(); }
 
     PixelSize size() const {
         int w = 0, h = 0;
@@ -570,17 +576,9 @@ private:
             SDL_RenderLine(renderer_, static_cast<float>(ox + l.x1), static_cast<float>(oy + l.y1),
                            static_cast<float>(ox + l.x2), static_cast<float>(oy + l.y2));
         }
-        // Each character in its own cell, SDL's face centred in it.
-        constexpr std::int64_t inset = (light::kAdvance - SDL_DEBUG_TEXT_FONT_CHARACTER_SIZE) / 2;
         for (const light::TextRun& t : p.texts) {
-            ink(t.rgba);
-            std::int64_t x = ox + t.x + inset;
-            for (const char ch : t.text) {
-                const char glyph[2] = {ch, '\0'};
-                SDL_RenderDebugText(renderer_, static_cast<float>(x),
-                                    static_cast<float>(oy + t.y + inset), glyph);
-                x += light::kAdvance;
-            }
+            face_.draw(renderer_, static_cast<float>(ox + t.x), static_cast<float>(oy + t.y),
+                       t.rgba, t.text);
         }
         if (p.images.empty()) {
             return;
@@ -623,6 +621,7 @@ private:
             destroy(m.made);
         }
         textures_.clear();
+        face_.drop();
     }
 
     SDL_Window* window_ = nullptr;
@@ -640,6 +639,7 @@ private:
     std::vector<SDL_Vertex> batch_;
     std::vector<int> indices_;
     std::map<std::string, Made> textures_;
+    SdlFace face_;
 };
 
 } // namespace zengine::graphics::window

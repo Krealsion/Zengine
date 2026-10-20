@@ -30,11 +30,15 @@ struct PaintNode {
 };
 
 /// Window -> painter: paint these nodes, each with every ancestor present, at this many pixels a
-/// cell.
+/// cell, setting text as the window does: a character every `text_advance` pixels, a line
+/// `text_line` tall.
 struct PaintTask {
     std::vector<PaintNode> nodes;
     std::int64_t grain = kCellPx;
-    ZEN_SHAPE(PaintTask, 1, ZEN_FIELD(nodes), ZEN_FIELD(grain));
+    std::int64_t text_advance = kCellPx;
+    std::int64_t text_line = kCellPx;
+    ZEN_SHAPE(PaintTask, 2, ZEN_FIELD(nodes), ZEN_FIELD(grain), ZEN_FIELD(text_advance),
+              ZEN_FIELD(text_line));
 };
 
 /// One node as painted for a medium of characters: its cells in the area's cells, packed as runs

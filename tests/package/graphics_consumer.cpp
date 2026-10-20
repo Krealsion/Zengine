@@ -48,8 +48,15 @@ int main() {
     check(label && label->texts.size() == 1 && label->texts[0].text == "soup" &&
               label->texts[0].rgba == gfx::light::rgba_of(0x112233),
           "a text is one run, in its exact colour");
-    check(gfx::light::hits_node(*plate, 10, 10) && !gfx::light::hits_node(*plate, 60, 10),
+    const gfx::TextMeasure face{8, 18};
+    check(gfx::light::hits_node(*plate, 10, 10, face) &&
+              !gfx::light::hits_node(*plate, 60, 10, face),
           "a point lands on what was painted, and nowhere else");
+    check(gfx::light::hits_node(*label, label->texts[0].x + 4 * face.advance - 1,
+                                label->texts[0].y, face) &&
+              !gfx::light::hits_node(*label, label->texts[0].x + 4 * face.advance,
+                                     label->texts[0].y, face),
+          "a run of text is pressed over its characters, a character an advance of the face");
     check(!gfx::light::unpack_node(loom::Bytes{1, 2, 3}).has_value(),
           "bytes a character painter wrote are not read as light");
 

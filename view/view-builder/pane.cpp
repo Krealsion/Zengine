@@ -1226,7 +1226,8 @@ private:
     /// the window never moves what Workshop's pane shows.
     void show_window(loom::Mail& mail) {
         if (!window_.shown() || window_.width() <= 0 || window_.height() <= 0) return;
-        const auto room = ws::canvas_window_room(vb::kPane, window_.width(), window_.height());
+        const auto room = ws::canvas_window_room(vb::kPane, window_.width(), window_.height(),
+                                                 window_.cell_px(), window_.text());
         auto shown = shown_;
         const auto drawn = vb::picture(model_, shown, room, 0);
         window_room_ = room;

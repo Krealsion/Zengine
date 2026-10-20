@@ -22,15 +22,16 @@ hears its room, and says each element once.
 
 Activated, it opens a resizable OS window of `window::kDefaultWidth` by `window::kDefaultHeight`
 pixels (`graphics/window/window_sdl.hpp`), centred on its display's usable area, and closes it
-when it goes; reloaded, it leaves that window to the instance after it. An area placed past its
-edge grows it, as far as its display holds it. With `ZENGINE_SDL_NOT_FOCUSABLE=1` it never takes
-the keyboard. With no display, it says why once on its standard error, holds no SDL, and still
-keeps and composes its picture, at that size.
+when it goes; reloaded, it leaves it to the instance after it. An area placed past its edge grows
+it, as far as its display holds it. With `ZENGINE_SDL_NOT_FOCUSABLE=1` it never takes the
+keyboard. With no display, it says why once, holds no SDL, and still keeps and composes its
+picture, at that size. Its text is its face, the embedded JetBrains Mono (SDL's debug face where
+that will not open), measured as it takes its window: a character's advance and a line's height.
 
 **Painting.** A node is painted once, when it changes, into pixel primitives -- rectangles, lines,
-runs of text a cell a character, images -- each in its paint's exact colour, else the look's for its
-role: by the area's skin when it paints light, else by the window itself, in the day look for the
-skin named `day` and the night look for any other.
+runs of text in the face, images -- each in its paint's exact colour, else the look's for its role:
+by the area's skin when it paints light, else by the window, in the day look for the skin `day` and
+the night look for any other.
 
 **Showing.** When anything changed, the window draws its whole picture again -- the back-most
 area's ground, then the areas back to front, each clipped to its bounds -- and presents it; `more`
@@ -44,10 +45,10 @@ a node holding the pixels its primitives hold, within a pixel of a line.
 ## Use
 
 An owner is told its room first (`AreaRoom`), once the directory introduces its area; it then draws
-with [`Drawn`](#drawn), says an element once with [`ElementPut`](#elementput) and sends its changes
-with [`ElementChange`](#elementchange). A drawer usually does all three through a canvas or a
+with [`Drawn`](#drawn), says an element once with [`ElementPut`](#elementput) and sends changes
+with [`ElementChange`](#elementchange). A drawer does all three through a canvas or a
 drawing weave ([the Graphics package](graphics.md#a-drawing-weave)), which draw whole only on a new
-window, incarnation or size, or an empty area. To read what it shows, ask
+window, incarnation, size or measure, or an empty area. To read what it shows, ask
 [`WindowShowAsked`](#windowshowasked).
 
 Keys go to each owner placed to hear them: each key, its text and its release. An owner placed to
@@ -154,7 +155,7 @@ judged against the displays there are now.
 - **Takes:** `x`, `y` and `maximized`, as `SurfacePlacement` said them.
 - **Answers:** nothing to the sender; the window moves there, whole on a display, and a maximize
   lands on the beat after its next picture. Where it is after is the next `SurfacePlacement`, and a
-  size in cells it changed is the next `WindowOffered`.
+  size it changed is the next `WindowOffered`.
 - **Refuses:** nothing; with no display nothing moves.
 - **Example:** a host restoring a session offers the place the last `SurfacePlacement` said.
 
@@ -226,7 +227,7 @@ code for a type the window presents draws each such element again, from the stat
 
 `TimerFired` v1, from the Timer: the window's beat, `zengine.window.pump`. It says its place when
 it changed (`SurfacePlacement`), then measures the OS window: at another size it draws its picture
-again, and at another size in cells offers itself again (`WindowOffered`), the same incarnation.
+again and offers itself again (`WindowOffered`), the same incarnation.
 Then it empties SDL's queue, sends the keys, their releases, their text and the pointer on, and
 publishes a close its desktop asked for (`SurfaceCloseRequested`).
 
@@ -247,12 +248,12 @@ no answer. With no window there is no clipboard, and nothing is copied.
 
 ## Follow
 
-As its own office the window publishes `WindowOffered` v2 on each activation, after `GraphicsReady`,
-and at each new size in `kCellPx` cells: its name, that size, its incarnation, kept by a resize, and
-`kCellPx` pixels in a cell; the directory keeps it. It publishes `SurfacePlacement` v1 when its
-place changed, before `WindowOffered` when both did: its normal top-left and if maximized; and
-`SurfaceCloseRequested` v1 for each close asked. To an area's owner: `AreaRoom` v3 (`empty` while it
-holds none of the owner's drawing); `DrawnRefused` v1; `ActionRequested` v1; `AreaButtonChanged`,
+As its own office the window publishes `WindowOffered` v3 on each activation, after `GraphicsReady`,
+and at each new size: its name, its pixels, its incarnation, `kCellPx` pixels in a cell and its
+face's measure; the directory keeps it. It publishes `SurfacePlacement` v1 when its place changed,
+before `WindowOffered` when both did; and `SurfaceCloseRequested` v1 for each close asked. To an
+area's owner: `AreaRoom` v4 (`empty` while it holds none of the owner's drawing, and its face);
+`DrawnRefused` v1; `ActionRequested` v1; `AreaButtonChanged`,
 `AreaPointerMoved`, `AreaWheelTurned`, `AreaHoldEnded` and `AreaPointerLeft` v1 when placed to hear
 the pointer; `KeyPressed` v2, `KeyReleased` v2 and `TextEntered` v1 when placed to hear keys. To an
 arranger not the owner: `AreaPressed`, `AreaHoldEnded` and `AreaPointerLeft` v1. To an asker:

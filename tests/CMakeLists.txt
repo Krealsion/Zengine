@@ -1698,7 +1698,8 @@ if(TARGET zengine-window-sdl)
     zengine_test_definitions(zengine-graphics-tests
         GRAPHICS_HAS_SDL=1
         "WINDOW_SDL_SO=\"$<TARGET_FILE:zengine-window-sdl>\"")
-    target_link_libraries(zengine-graphics-tests PRIVATE ${ZENGINE_SDL_LIB})
+    target_link_libraries(zengine-graphics-tests PRIVATE ${ZENGINE_SDL_LIB} ${ZENGINE_SDL_TEXT_LIB}
+                                                         zengine-window-font)
     set_tests_properties(graphics PROPERTIES
         ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_VIDEODRIVER=dummy;ZENGINE_SDL_NOT_FOCUSABLE=1")
     set_property(GLOBAL APPEND PROPERTY ZENGINE_ACTIVE_GATES "sdl")

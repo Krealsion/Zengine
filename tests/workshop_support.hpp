@@ -1587,13 +1587,21 @@ inline void open_rename_on_live_tab(Rig& r) {
     }
     REQUIRE(column >= 0);
     r.clock.together();
-    // The band's row, the canvas's first, on the console row the medium puts it on.
-    const std::int64_t row = r.session().console_rows_above;
+    // The band's row, the canvas's first, on the console row the medium puts it on; in a medium
+    // that sets type, the middle of the tab's first character, in pixels.
+    std::int64_t x = column, y = r.session().console_rows_above;
+    std::int64_t space = input::space::kCells;
+    const Screen sc = screen_of(r.session());
+    if (sc.text_advance_px > 0) {
+        const surface::RegionFit fit = layouts_body(r.session(), sc).fit;
+        x = fit.view.x + fit.origin_x + column * fit.advance_px + fit.advance_px / 2;
+        y = fit.view.y + fit.origin_y + band_tab_row(r.session(), sc) * fit.line_px +
+            fit.line_px / 2;
+        space = input::space::kPixels;
+    }
     for (int press = 0; press < 2; ++press) {
-        r.publish(loom::to_value(input::PointerButton{1, true, column, row, input::space::kCells,
-                                                      input::mod::kNone}));
-        r.publish(loom::to_value(input::PointerButton{1, false, column, row, input::space::kCells,
-                                                      input::mod::kNone}));
+        r.publish(loom::to_value(input::PointerButton{1, true, x, y, space, input::mod::kNone}));
+        r.publish(loom::to_value(input::PointerButton{1, false, x, y, space, input::mod::kNone}));
     }
     r.clock.apart();
 }

@@ -1808,6 +1808,22 @@ private:
     /// The window that shows Workshop's overlay, the area in front of every pane's where the
     /// carried value and the guide marks stand, deaf to the keys and the pointer.
     WindowDrawing overlay_{kWorkshopProvider, kWorkshopOverlayArea};
+    /// The window that shows each pane's frame, by its area (`pane_frame_area`), each at its
+    /// pane's depth: the pane's kind, and what was last drawn there.
+    struct FrameDrawing {
+        std::int64_t kind = 0;
+        WindowDrawing drawing;
+    };
+    std::map<std::string, FrameDrawing> frames_;
+    /// The frame areas whose room was asked of this directory.
+    std::set<std::string> frames_asked_;
+    /// THE FRAME AREA `area` NAMES, or none.
+    FrameDrawing* frame_of(const std::string& area);
+    /// WHETHER `area` IS ONE OF WORKSHOP'S OWN THAT HEARS THE POINTER -- its desk or a pane's frame
+    /// -- said by the window that shows it as that window's office.
+    bool own_pointer_area(const std::string& area, const loom::Mail& mail);
+    /// Where an area of Workshop's own stands in the window: what its points are offset by.
+    std::pair<std::int64_t, std::int64_t> area_origin(const std::string& area) const;
     /// The planes the last repaint laid above the picture -- the carried value, the guide marks
     /// -- drawn in the overlay there.
     std::vector<surface::SurfaceLayer> window_overlays_;

@@ -13,6 +13,10 @@
 namespace {
 namespace demo = zengine::demo;
 namespace gfx = zengine::graphics;
+/// A room `columns` by `rows` of a window whose text is the cell.
+RowsRoom cell_room(std::int64_t columns, std::int64_t rows) {
+    return RowsRoom{columns * gfx::kCellPx, rows * gfx::kCellPx, {}};
+}
 struct DemoTestPump { ZEN_SHAPE(DemoTestPump, 1); };
 class DemoHand final : public loom::WeaveBase<DemoHand, DemoTestPump,
     loom::Accept<DemoTestPump, loom::Ack, loom::Refused, demo::DemoWork, demo::DemoStatus,
@@ -224,6 +228,57 @@ TEST_CASE("demo button trusts Workshop and service close settles outstanding wai
 }
 
 TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state beneath it") {
+    SUBCASE("rows drawn for a window that sets type stand a line of its face apart and a "
+            "character an advance, on the ground of the whole room, read back and pressed in that "
+            "face") {
+        namespace surface = zengine::surface;
+        const gfx::TextMeasure face{8, 18};
+        const std::vector<surface::SurfaceTextRow> rows{
+            {"[a] one   [x] [y]", surface::role::kFill}, {"plain", surface::role::kMuted}};
+        const std::vector<v2::PaneRowPart> parts{{"entry:one", 0, 0, 20, true},
+                                                 {"control:a", 0, 0, 3, true},
+                                                 {"control:x", 0, 10, 3, true}};
+        const RowsRoom room{20 * face.advance, 4 * face.line, face};
+        const RowsDrawing drawing = rows_drawing(rows, parts, room, room.columns());
+        // THE ROOM'S GROUND, ALL OF IT, before anything else: no row leaves a blank behind it.
+        REQUIRE_FALSE(drawing.sketch.nodes().empty());
+        const gfx::Node& first = drawing.sketch.nodes().front();
+        REQUIRE(first.op == gfx::op::kRect);
+        const auto ground = gfx::from_body<gfx::RectArgs>(first.args);
+        REQUIRE(ground.has_value());
+        CHECK(ground->x == 0);
+        CHECK(ground->y == 0);
+        CHECK(ground->w == room.width);
+        CHECK(ground->h == room.height);
+        CHECK(ground->fill.role == gfx::role::kGround);
+        // EACH RUN where the face sets it: its column an advance across, its row a line down.
+        bool plain = false, control = false;
+        for (const gfx::Node& n : drawing.sketch.nodes()) {
+            if (n.op != gfx::op::kText) continue;
+            const auto t = gfx::from_body<gfx::TextArgs>(n.args);
+            REQUIRE(t.has_value());
+            plain = plain || (t->text == "plain" && t->x == 0 && t->y == face.line);
+            control = control || (t->text == "[x]" && t->x == 10 * face.advance && t->y == 0);
+        }
+        CHECK(plain);
+        CHECK(control);
+        // READ BACK IN THE FACE, each part where it was said...
+        zengine::component::RowMap<DrawnPart> map;
+        const std::vector<surface::SurfaceTextRow> shown =
+            drawn_rows(drawing.sketch, room.rows(), room.columns(), map, face);
+        REQUIRE(shown.size() >= 2);
+        CHECK(shown[1].text == "plain");
+        REQUIRE(map.at(0, 11) != nullptr);
+        CHECK(map.at(0, 11)->action == "control:x");
+        // ...AND A POINT LANDS ON THE CHARACTER HOLDING IT: the eleventh's last pixel, the first
+        // row's last.
+        const RowCell at = window_cell(11 * face.advance - 1, face.line - 1, room.rows(),
+                                       room.columns(), face);
+        CHECK(at.shown);
+        CHECK(at.row == 0);
+        CHECK(at.column == 10);
+        CHECK(window_cell(4 * face.advance, face.line, room.rows(), room.columns(), face).row == 1);
+    }
     SUBCASE("rows drawn for a graphics window ask, cell by cell, for the part a press there "
             "reaches: a control inside a named row is its own, and an unnamed run is no part") {
         namespace surface = zengine::surface;
@@ -234,7 +289,7 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
                                                  {"control:a", 0, 0, 3, true},
                                                  {"control:x", 0, 10, 3, true},
                                                  {"", 0, 14, 3, true}};
-        const RowsDrawing drawing = rows_drawing(rows, parts, 20);
+        const RowsDrawing drawing = rows_drawing(rows, parts, cell_room(20, 2), 20);
         zengine::component::RowMap<DrawnPart> map;
         const std::vector<surface::SurfaceTextRow> shown = drawn_rows(drawing.sketch, 2, 20, map);
         REQUIRE(shown.size() == 2);
@@ -266,7 +321,8 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
         // overlap reaches the later one.
         const RowsDrawing overlap = rows_drawing(
             std::vector<surface::SurfaceTextRow>{{"abcdefghij", surface::role::kFill}},
-            std::vector<v2::PaneRowPart>{{"left", 0, 0, 6, true}, {"right", 0, 3, 7, true}}, 10);
+            std::vector<v2::PaneRowPart>{{"left", 0, 0, 6, true}, {"right", 0, 3, 7, true}},
+            cell_room(10, 1), 10);
         REQUIRE(overlap.places.size() == 2);
         CHECK(overlap.places.at("left").column == 0);
         CHECK(overlap.places.at("right").column == 6);
@@ -301,7 +357,7 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
             CHECK(text->ink.role == surface::role::kAccent);
             return *text;
         };
-        const RowsDrawing plain = rows_drawing(rows, parts, 10);
+        const RowsDrawing plain = rows_drawing(rows, parts, cell_room(10, 3), 10);
         CHECK(node(plain, "caret") == nullptr);
         CHECK(node(plain, "sel0.0") == nullptr);
         // FROM THE FIRST ROW'S SEVENTH COLUMN TO THE SECOND ROW'S FIFTH, cut where the part
@@ -313,7 +369,7 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
         caret.sel_begin_col = 6;
         caret.sel_end_row = 1;
         caret.sel_end_col = 5;
-        const RowsDrawing marked = rows_drawing(rows, parts, 10, caret);
+        const RowsDrawing marked = rows_drawing(rows, parts, cell_room(10, 3), 10, caret);
         const gfx::TextArgs first = words(marked, "sel0.0");
         CHECK(first.text == "row");
         CHECK(first.x == 6 * gfx::kCellPx);
@@ -344,7 +400,7 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
         CHECK(marked.sketch.nodes().back().path == "caret");
         CHECK(node(marked, "row2.0") < node(marked, "sel0.0"));
         // ONE ROW ASKED FOR: the rows after it go, and the marks on them.
-        const RowsDrawing capped = rows_drawing(rows, parts, 10, caret, 1);
+        const RowsDrawing capped = rows_drawing(rows, parts, cell_room(10, 3), 10, caret, 1);
         CHECK(node(capped, "row0.0") != nullptr);
         CHECK(node(capped, "row1.0") == nullptr);
         CHECK(node(capped, "sel0.0") != nullptr);
@@ -366,7 +422,7 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
         beyond.sel_begin_col = 2;
         beyond.sel_end_row = past;
         beyond.sel_end_col = 5;
-        const RowsDrawing bounded = rows_drawing(many, each, 10, beyond);
+        const RowsDrawing bounded = rows_drawing(many, each, cell_room(10, 3), 10, beyond);
         CHECK(node(bounded, "row0.0") != nullptr);
         CHECK(node(bounded, "row" + std::to_string(past) + ".0") == nullptr);
         CHECK(node(bounded, "sel" + std::to_string(past) + ".0") == nullptr);
@@ -408,6 +464,39 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
     CHECK(said.parts[1].name == "status");
     CHECK(row_parts_problem(said.parts, static_cast<std::int64_t>(said.rows.size()), 56).empty());
 
+    SUBCASE("in a window that sets type, the same lines a line of its face apart, and a press on "
+            "the words of the button resets") {
+        // ⚔ MUTATION: the picture set a row a cell in every window -- its lines stand 12 pixels
+        // apart in a face 18 tall.
+        DemoRig w; w.ready();
+        zengine::testing::pane_window::Window window(w.bus, "light");
+        const gfx::TextMeasure face{8, 18};
+        window.set_measure(face);
+        window.room(demo::kRole, demo::kRole, 40, 10);
+        const zengine::graphics::window::WinArea* a = window.weave().find(demo::kRole);
+        REQUIRE(a != nullptr);
+        // THE ROOM'S GROUND FIRST, the whole of it.
+        REQUIRE_FALSE(a->nodes.empty());
+        const auto ground = gfx::from_body<gfx::RectArgs>(a->nodes.front().node.args);
+        REQUIRE(ground.has_value());
+        CHECK(a->nodes.front().node.op == gfx::op::kRect);
+        CHECK((ground->w == a->w && ground->h == a->h));
+        CHECK(ground->fill.role == gfx::role::kGround);
+        std::set<std::int64_t> lines;
+        for (const zengine::graphics::window::KeptNode& n : a->nodes) {
+            if (n.node.op != gfx::op::kText) continue;
+            const auto t = gfx::from_body<gfx::TextArgs>(n.node.args);
+            REQUIRE(t.has_value());
+            lines.insert(t->y);
+        }
+        CHECK(lines == std::set<std::int64_t>{0, face.line, 2 * face.line});
+        CHECK(window.rows(demo::kRole) ==
+              std::vector<std::string>{"Example", "[ Reset demo ]", "ready: ready"});
+        w.worker.say(demo::kRole, demo::DemoWorkRequested{});
+        REQUIRE(w.worker.hand->work.size() == 1);
+        REQUIRE(window.press_words(demo::kRole, "Reset demo"));
+        CHECK(w.worker.hand->work.size() == 2);
+    }
     SUBCASE("in a graphics window, the same lines under the same names, and the window's press on "
             "the button resets") {
         // A WINDOW'S ROOM, the pane seated nowhere: its three lines, drawn whole.
