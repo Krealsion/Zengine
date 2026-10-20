@@ -41,8 +41,9 @@ No register of its own. Workshop's side is in `agents/workshop/guests.md` (a gue
 
 `demo_recipes`, `tutorial_walks` and `workshop_journey` need the `session` gate; the journey also
 runs the `workshop_*_checks.py` and `desk_*_checks.py` beside it. Its parts' cases in shared suites:
-`workshop_panes` (`tests/test_workshop_panes_attention.cpp`, the Connections pane and its manual;
-`tests/test_workshop_demo.cpp`, the demo controls, their census and their manual); `graphics`
+`workshop_panes_inspect` (`tests/test_workshop_panes_attention.cpp`, the Connections pane and its
+manual); `workshop_panes_seam` (`tests/test_workshop_demo.cpp`, the demo controls, their census
+and their manual); `graphics`
 (`tests/test_graphics.cpp`, the Connections pane drawn in a window); the Connections pane's stem and source in
 `workshop_load` and `workshop_files`. The guest door, its manual among its cases, is
 `workshop_guests` (`tests/test_workshop_guests.cpp`).

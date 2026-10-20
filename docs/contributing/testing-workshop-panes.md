@@ -1,10 +1,11 @@
 # Testing a loaded Workshop pane
 
 Use the real pane artifact when the claim depends on routing, permissions, layout or replies.
-[`tests/workshop_support.hpp`](../../tests/workshop_support.hpp) supplies `PaneRig`, shared by
-the `workshop_panes` suite. The test that owns the behavior supplies its actor and any controlled
-peer. Search the test sources for `InventoryStory` for an example of input from a participant
-with explicit grants. Its defaults are a fixture choice, not Workshop's default user authority.
+[`tests/workshop_support.hpp`](../../tests/workshop_support.hpp) supplies `PaneRig`, shared by the
+panes suite, one program run as the eight `workshop_panes_<part>` entries. The test that owns the
+behavior supplies its actor and any controlled peer. Search the test sources for `InventoryStory`
+for an example of input from a participant with explicit grants. Its defaults are a fixture choice,
+not Workshop's default user authority.
 
 ## Arrange the same boundary you intend to prove
 

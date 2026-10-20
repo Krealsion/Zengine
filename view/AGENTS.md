@@ -28,12 +28,14 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 - `view` — the description's format and rules, the view host, the renderer: `tests/test_view.cpp`
 - `view_builder` — edits, canvas, carries, run, files, the weave: `tests/test_view_builder.cpp`
 
-Its cases in shared suites: `workshop_panes` (`tests/test_workshop_panes_view_builder.cpp`, its
-census driver and manual witness, `tests/test_workshop_panes_canvas.cpp`,
-`tests/test_workshop_panes_actions.cpp`, `tests/test_workshop_inventory_info.cpp`,
-`tests/test_workshop_panes_guests.cpp`) and `workshop_desk` (`tests/test_workshop_desk.cpp`).
-The builder is also named in `workshop_load` (`tests/test_workshop_load.cpp`), `workshop_files`
-(`tests/test_workshop_files.cpp`) and `workshop_shapes` (`tests/test_workshop_shapes.cpp`).
+Its cases in shared suites: `workshop_panes_inspect` (`tests/test_workshop_panes_view_builder.cpp`,
+its census driver and manual witness), `workshop_panes_seam`
+(`tests/test_workshop_panes_canvas.cpp`), `workshop_panes_hand`
+(`tests/test_workshop_panes_actions.cpp`, `tests/test_workshop_panes_guests.cpp`),
+`workshop_panes_info` (`tests/test_workshop_inventory_info.cpp`) and `workshop_desk`
+(`tests/test_workshop_desk.cpp`). The builder is also named in `workshop_load`
+(`tests/test_workshop_load.cpp`), `workshop_files` (`tests/test_workshop_files.cpp`) and
+`workshop_shapes` (`tests/test_workshop_shapes.cpp`).
 
 ## Host side
 

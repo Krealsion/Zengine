@@ -26,10 +26,11 @@ system can show what it is", the Powers pane), which the root routes; the manual
 
 ## Suites
 
-No CTest entry of its own. Its cases in shared suites: `workshop_panes`
+No CTest entry of its own. Its cases in shared suites: `workshop_panes_inspect`
 (`tests/test_workshop_panes_introspection.cpp` and `tests/test_workshop_panes_sampling.cpp`,
-which also read this folder's sources as text, `tests/test_workshop_panes_powers.cpp` and
-`tests/test_workshop_panes_input.cpp`; the panes' manual witness and their census driver, whose
+which also read this folder's sources as text), `workshop_panes_terminal`
+(`tests/test_workshop_panes_powers.cpp`) and `workshop_panes_hand`
+(`tests/test_workshop_panes_input.cpp`); the panes' manual witness and their census driver, whose
 rows are `tests/actions/zengine.introspection.txt`, are the first file's, and each door's manual
 witness stands beside its cases),
 `workshop_screen` (`tests/test_workshop_screen.cpp`), `workshop_load`

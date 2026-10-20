@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Workshop panes suite -- the weaver's hand crossing the external pane seam: a press that
-// names a row, and the keyboard that reaches a pane. One source of the `workshop_panes` entry,
-// whose units split by subject where one object cannot hold them all (VM-POP-12); a new case
-// goes to the unit whose subject it is. Cases drive the real weave on a real bus against real
-// loaded artifacts, from `PaneRig` (`workshop_support.hpp`).
+// The Workshop panes suite -- the weaver's hand crossing the external pane seam: a press that names
+// a row, and the keyboard that reaches a pane. One source of the panes program, run in
+// `workshop_panes_hand`, whose units split by subject where one object cannot hold them all
+// (VM-POP-12); a new case goes to the unit whose subject it is. Cases drive the real weave on a
+// real bus against real loaded artifacts, from `PaneRig` (`workshop_support.hpp`).
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).

@@ -4,8 +4,9 @@
 // The Workshop panes suite -- a pane's declared actions (WL-KEY-15): the three shapes, the join
 // under the office stamp and the collision law, the weaver's override in both load orders, the
 // legend and the hotkey view, the resolved id crossing the seam instead of the key, and the real
-// Powers pane acting on the id. One source of the `workshop_panes` entry, whose units split by
-// subject where one object cannot hold them all (VM-POP-12); a new case goes to its subject's.
+// Powers pane acting on the id. One source of the panes program, run in `workshop_panes_hand`,
+// whose units split by subject where one object cannot hold them all (VM-POP-12); a new case goes
+// to its subject's.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).

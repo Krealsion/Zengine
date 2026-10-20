@@ -28,5 +28,5 @@ feature's router, [`editor/AGENTS.md`](../AGENTS.md).
   `common.hpp` names into the unnamed namespace and the aspect headers call as `office::`.
 - `tests/CMakeLists.txt` builds `pane.cpp` six more times under other names: five under one test
   switch each, and one plain; each switch's block stands in the member it changes.
-- The `workshop_panes` case "the image that holds a document cannot reach the host" reads
+- The `workshop_panes_editor` case "the image that holds a document cannot reach the host" reads
   `pane.cpp` as text and refuses the host's names in it.

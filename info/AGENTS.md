@@ -20,9 +20,10 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 ## Law
 
 - [info-body](../agents/workshop/info-body.md) `WL-INFO` — Info's pane-property view in
-  `info/property_view.hpp`; witnessed by `workshop_panes` (info, settings)
+  `info/property_view.hpp`; witnessed by `workshop_panes_info` (info), `workshop_panes_settings`
+  (settings)
 - [info-controls](../agents/workshop/info-controls.md) — the Info controls; witnessed by
-  `workshop_panes` (info)
+  `workshop_panes_info` (info)
 
 The value views' law (`info/value_view.hpp`: the views, drafts, presets, field pickup) is in
 `agents/inventory.md`, which [inventory/AGENTS.md](../inventory/AGENTS.md) routes; the subject rows
@@ -31,7 +32,7 @@ Info shows and the settings it writes are `agents/workshop/pane-manager.md` and
 
 ## Suites
 
-No entry of its own. Its cases in shared suites: `workshop_panes`
+No entry of its own. Its cases in shared suites: `workshop_panes_info`
 (`tests/test_workshop_panes_info.cpp`, the loaded pane over the host's rows;
 `tests/test_workshop_info_views.cpp`, the value views; `tests/test_workshop_inventory_info.cpp`,
 Inventory through Info) and `workshop_persistence` (`tests/test_workshop_persistence.cpp`, the

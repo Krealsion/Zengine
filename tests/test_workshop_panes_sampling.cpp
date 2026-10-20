@@ -2,9 +2,9 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The Workshop panes suite -- the live seam, what browsing and sampling cost. A source (VM-POP-12)
-// of the `workshop_panes` entry, whose units split by subject where one object cannot hold them
-// all; a new case goes to its subject's. Cases drive the real weave on a real bus against real
-// loaded artifacts, from `PaneRig` (`workshop_support.hpp`).
+// of the panes program, run in `workshop_panes_inspect`, whose units split by subject where one
+// object cannot hold them all; a new case goes to its subject's. Cases drive the real weave on a
+// real bus against real loaded artifacts, from `PaneRig` (`workshop_support.hpp`).
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
 // refuses a run selecting zero cases (POP-01).

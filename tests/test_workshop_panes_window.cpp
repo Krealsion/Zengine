@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Workshop panes suite -- where a pane sits, and the hand that moves it: the authored
-// window, order and recovery, the units a weaver reads and authors, the two arrangement scopes
-// and the one graphical boundary. One source of the `workshop_panes` entry, whose units split
-// by subject where one object cannot hold them all (VM-POP-12); a new case goes to the unit
+// The Workshop panes suite -- where a pane sits, and the hand that moves it: the authored window,
+// order and recovery, the units a weaver reads and authors, the two arrangement scopes and the one
+// graphical boundary. One source of the panes program, run in `workshop_panes_seam`, whose units
+// split by subject where one object cannot hold them all (VM-POP-12); a new case goes to the unit
 // whose subject it is. Cases start from `PaneRig` or `Live` (`workshop_support.hpp`).
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
