@@ -129,7 +129,7 @@ def prerequisites(args, setup):
         wanted = [build / "workshop" / ("zengine-workshop" + EXE),
                   build / "external-host" / ("zengine-guest-vocabulary" + LIB),
                   build / "workshop" / ("zengine-demo-control" + LIB),
-                  build / "workshop" / ("default-load-plan.json" if args.tui else "graphical-load-plan.json")]
+                  build / "workshop" / setup.load_plan(args.tui)]
         wanted += [build / "workshop" / (a + LIB) for a in (setup.get("requires") or {}).get("artifacts", [])]
         if project.get("runtime") == "development":
             wanted.append(build / "workshop" / "development-runtime.cmake")
@@ -215,7 +215,7 @@ def launch(args, source, root):
         host_dir = root / "runtime"
     cwd = make_project(args, setup, root, build, prefix) if project.get("recipes") else wdir
     first_files(setup, wdir)
-    plan = json.loads((host_dir / ("default-load-plan.json" if args.tui else "graphical-load-plan.json")).read_text(encoding="utf-8"))
+    plan = json.loads((host_dir / setup.load_plan(args.tui)).read_text(encoding="utf-8"))
     plan["fields"]["artifacts"].append({"artifact": "zengine-demo-control", "provider": [],
                                         "weave": [{"role": "zengine.demo"}], "optional": False})
     if args.neovim:

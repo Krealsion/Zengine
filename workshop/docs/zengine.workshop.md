@@ -953,19 +953,19 @@ its rooms.
 
 ### `WindowOffered`
 
-`WindowOffered` v1, from the terminal or OS window as its own office (`zengine.window.terminal`,
-`zengine.window.sdl`): its size in cells; Workshop's areas go on it. With no skin up, Workshop
-comes up in it; while no skin has said `SurfaceExtent`, it lays the panes out in the window's
-room, a cell of text a cell, again at each other size offered, and keeps its room for an offer of
-none. A skin's extent then owns the room. An offer from any other office, or of another window,
-is ignored.
+`WindowOffered` v2, from the terminal or OS window as its own office (`zengine.window.terminal`,
+`zengine.window.sdl`): its size in cells and its unit; Workshop's areas go on it. With no skin up,
+Workshop comes up in it; while no skin has said `SurfaceExtent`, it lays the panes out in the
+window's room, text a cell in the window's unit, again at each new size, and keeps its room for an
+offer of none. A skin's extent then owns the room. An offer from any other office, or of another
+window, is ignored.
 
 ### `AreaRoom`
 
-`AreaRoom` v2, from the graphics window that shows the area `zengine.workshop` or its overlay, as
+`AreaRoom` v3, from the graphics window that shows the area `zengine.workshop` or its overlay, as
 that window's office: Workshop's room there. It draws its desk -- Layouts, each pane's edge and
-header, a body its office does not draw, a menu, the band -- whole when the window, its incarnation
-or its size changed, then only what changed. A pane's own area stands in front of it, but while a
+header, a body its office does not draw, a menu, the band -- whole in a new window, incarnation or
+size, or an empty area, then only what changed. A pane's own area stands in front of it, but while a
 weaver arranges, a menu is open, or something is carried. The overlay draws the carried value and
 the guide marks.
 

@@ -251,6 +251,8 @@ public:
         return CellExtent{size_.width / kCellPx, size_.height / kCellPx};
     }
     CellExtent offered() const { return extent(); }
+    /// Its device pixels in one cell: every pixel shown.
+    static constexpr std::int64_t kCellDevicePx = kCellPx;
 
     void clear() {
         cache_.clear();

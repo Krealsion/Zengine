@@ -10,7 +10,8 @@
   "viewport": [
    120,
    59
-  ]
+  ],
+  "skin": true
  },
  "authority": {
   "may": [

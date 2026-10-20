@@ -4049,6 +4049,31 @@ TEST_CASE("each graphics area wears its pane row's `workshop.skin`, else Worksho
     CHECK(d.refused.empty());
 }
 
+TEST_CASE("a pane placed off the cell grid has its body under its title row: at once where the "
+          "window shows every pixel, on the next cell where its unit is the cell") {
+    Session s;
+    s.screen_w = cells_px(120);
+    s.screen_h = cells_px(60);
+    const PixelRect pane{cells_px(10) + 5, 503, cells_px(40), cells_px(12)};
+    // THE OS WINDOW'S UNIT, ITS PIXEL: the title row is drawn from the region's top a cell tall,
+    // and the body stands where it ends, at the title's column.
+    s.cell_px = surface::kCanvasCellPx;
+    Screen sc = screen_of(s);
+    ExternalBodyPlace titled = external_body_place(pane, sc, 1);
+    REQUIRE(titled.header_rows == 1);
+    PixelRect body = canvas_body_place(pane, sc, 1);
+    CHECK(body.y == titled.region_y + surface::kCanvasCellPx);
+    CHECK(body.x == titled.region_x);
+    // A TERMINAL'S UNIT, ITS CELL: the terminal floors the title row to its cell, and the body is
+    // the cell under it.
+    s.cell_px = 0;
+    sc = screen_of(s);
+    titled = external_body_place(pane, sc, 1);
+    body = canvas_body_place(pane, sc, 1);
+    CHECK(body.y == surface::px_of_cells(surface::cell_of_pixel(titled.region_y) + 1));
+    CHECK(body.x == surface::px_of_cells(surface::cell_of_pixel(titled.region_x)));
+}
+
 TEST_CASE("a pane's graphics area is named as its office draws there: `<office>.<pane>` for an "
           "office that seats each of its panes, its office for any other") {
     Panes panes;
@@ -4066,7 +4091,7 @@ TEST_CASE("a pane's graphics area is named as its office draws there: `<office>.
     CHECK(pane_window_area(panes, first) == "zengine.test.two.first");
     CHECK(pane_window_area(panes, second) == "zengine.test.two.second");
     for (const char* office :
-         {"zengine.desktop", "zengine.introspection", "zengine.info", "zengine.inventory"}) {
+         {"zengine.desktop", "zengine.introspection", "zengine.info", "zengine.inventory-pane"}) {
         CAPTURE(office);
         CHECK(pane_window_area(panes, offered(office, "seat")) == std::string(office) + ".seat");
     }
@@ -4705,12 +4730,15 @@ TEST_CASE("the terminal window offered before any skin brings Workshop up in it,
 
         os_does([](loom::Mail& m) {
             (void)m.as_role(sdl_window_office())
-                .publish(gfx::WindowOffered{gfx::kSdlWindow, 90, 30, 3});
+                .publish(gfx::WindowOffered{gfx::kSdlWindow, 90, 30, 3, gfx::kCellPx});
         });
-        // UP IN IT, the last session restored first, and laid out in its room...
+        // UP IN IT, the last session restored first, and laid out in its room, text a cell and
+        // the device unit the pixel, as the window says...
         CHECK(o.session().setup.active.name == "Offered");
         CHECK(o.session().screen_w == cells_px(90));
         CHECK(o.session().screen_h == cells_px(30));
+        CHECK(o.session().text_advance_px == 0);
+        CHECK(o.session().cell_px == gfx::kCellPx);
         // ...ITS PLACE ON THE DESKTOP OFFERED TO IT, and not to the Skin...
         REQUIRE(os->offered.size() == 1);
         CHECK(os->offered[0].x == 40);
