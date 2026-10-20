@@ -228,6 +228,7 @@ bool WorkshopWeave::desk_in_front_of_panes() const {
     return desk_in_front(session_) || !carried_.data.empty();
 }
 
+// WL-FOCUS-04 -- agents/workshop/focus.md
 void WorkshopWeave::tell_keys(loom::Mail& mail) {
     const std::int64_t typing = typing_pane(session_);
     std::map<std::int64_t, std::pair<std::uint64_t, bool>> told;
@@ -255,6 +256,7 @@ void WorkshopWeave::tell_keys(loom::Mail& mail) {
     keys_told_ = std::move(told);
 }
 
+// WL-ARR-02 -- agents/workshop/arrangement.md; WL-FOCUS-11 -- agents/workshop/focus.md
 void WorkshopWeave::end_covered_holds(const std::map<std::string, graphics::AreaPlaced>& next) {
     const auto covered = [&next](const std::string& area, std::int64_t x, std::int64_t y) {
         const auto held = next.find(area);
