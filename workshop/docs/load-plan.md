@@ -135,7 +135,9 @@ implies the whole sequence.
 `zengine-workshop - loaded: ...`, a waiting row as `waiting to be built: ...`, each unavailable row
 as `unavailable: ...` and the operators it can resolve as `operators: ...`. It prints these lines
 to standard output when no terminal medium holds a measured terminal there — the terminal window,
-or a terminal skin, whose picture the lines would scroll — and always for a refused startup. The
+or a terminal skin, whose picture the lines would scroll. A refused startup's lines and its refusal
+are always printed: where a terminal medium held the terminal, last, once Workshop has unloaded it
+and the terminal is yours again. The
 [`Project` pane](../../introspection/docs/zengine.introspection.md#arrangement) shows the same
 arrangement live, from the executor's own rows, whatever the medium.
 

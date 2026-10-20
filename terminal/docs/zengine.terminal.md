@@ -21,7 +21,7 @@ A line is a verb, an address, a shape, its version, then `field=value` arguments
 command grammar:
 
 ```text
-send @zengine.skin SurfaceText 1 slot=hello text=there
+send @zengine.powers FindPowers 2 text=larger
 ask  @zengine.editor-switch EditorSwitchStatusRequested 1
 ```
 
@@ -31,7 +31,7 @@ delivered, or `*` for everyone that accepts the shape. It is not a shell: it sta
 knows no `cd` and no pipeline.
 
 The record shows each entry wrapped across as many rows as it needs: `> ` a command you typed,
-`!! ` a refusal, `-- ` a notice, `^ SurfaceText v1 -> @zengine.skin  SUBMITTED` a message authored,
+`!! ` a refusal, `-- ` a notice, `^ FindPowers v2 -> @zengine.powers  SUBMITTED` a message authored,
 `v <shape> v<n> from #4` one received, and the same with `  [Loom: answers ask 3]` after it, the
 answer to an ask. `SUBMITTED` means authored: a sender is not told its fate.
 
@@ -94,17 +94,17 @@ Typing asks too: the list follows the word you are in.
   ([`TerminalCompletionRequested`](../../workshop/terminal_seam_vocabulary.hpp)), read at the moment
   you ask and kept by nobody; the list stands above the line ([`candidate`](#candidate)). At the
   verb, `send` and `ask`. At the address, under `where it goes -- on this bus now; not permission,
-  nor a promise at send`: `*`, each office held now, `@zengine.skin   held by #4 now; reaches
-  whoever holds it when sent`, then each weave by id, `#4   @zengine.skin; accepts SurfaceText,
-  SurfaceCanvas +3`. Then the shapes the participant knows, under `shapes this terminal KNOWS --
+  nor a promise at send`: `*`, each office held now, `@zengine.powers   held by #12 now; reaches
+  whoever holds it when sent`, then each weave by id, `#12   @zengine.powers; accepts
+  ShapeDocumentRequested, FindPowers, FindPowers +1`. Then the shapes the participant knows, under `shapes this terminal KNOWS --
   knowing one is not authority to send it`, their versions, and field names, never values; over the
-  arguments, the verdict on the line, `SurfaceText v1 -- ready; Return submits it` or what is
+  arguments, the verdict on the line, `FindPowers v2 -- ready; Return submits it` or what is
   missing. Taking a candidate replaces the word you were typing.
 - **Refuses:** with the caret inside the line, `completion follows the END of the line -- this
   caret is inside it`, and no candidate. A heading with no candidates is an answer:
   `no verb begins with 'x'; this pane speaks two`.
 - **Example:** type `send @zen`, press <!-- key terminal.complete -->`tab`<!-- /key --> on
-  `@zengine.skin`.
+  `@zengine.powers`.
 
 ### `terminal.previous`
 

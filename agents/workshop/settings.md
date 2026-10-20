@@ -287,7 +287,7 @@ its revision, said, and goes when a newer one is handed"
 `workshop/weave.hpp` let_terminal_edit_settings
 `workshop/weave_inspection.cpp` settings_asker_refused
 `workshop/weave_settings.cpp` on(OfficeSettingsRequested) on(PaneSettingPinRequested)
-`workshop/workshop.cpp` let_terminal_edit_settings
+`workshop/terminal_speech.hpp` let_terminal_edit_settings
 `workshop/guests.cpp` grant_for read_guests_file
 `workshop/guests.hpp` kPowerSettings
 `workshop/actor_scope.hpp` kPowerSettings
