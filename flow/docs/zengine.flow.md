@@ -566,10 +566,34 @@ refused Flow's picture: <the reason>`, and the pane draws there again at its nex
 
 ### `ActionRequested`
 
-`ActionRequested` v1, from that window: a press on one of the pane's places there, by the name its
-Workshop picture gives that place -- `node:<id>`, `port:<id>.<n>`, `control:<action>` -- which is a
-click on that place: a node is selected and anything else is done. It begins no drag and carries
-nothing, and a write it confirms waits, since Workshop numbered no gesture for it.
+`ActionRequested` v1, from that window, where it shows Flow's area deaf to the pointer: a press on
+one of the pane's places there, by the name its Workshop picture gives that place -- `node:<id>`,
+`port:<id>.<n>`, `control:<action>` -- which is a click on that place: a node is selected and
+anything else is done. It begins no drag and carries nothing, and a write it confirms waits, since
+Workshop numbered no gesture for it.
+
+### `AreaButtonChanged`
+
+`AreaButtonChanged` v1, from that window: a button pressed or let go in Flow's area, at its point in
+the picture last drawn there, which is that press on Workshop's canvas: a node selected and held for
+a drag, a place's control done, a declared message offered to carry out, the graph panned by a press
+on nothing, a right press handed back. Its moves and its release carry the window's number for the
+press, which a carry it asks continues.
+
+### `AreaPointerMoved`
+
+`AreaPointerMoved` v1, from that window: the pointer moved while a press in Flow's area is held,
+which moves the held node or pans the graph, as on Workshop's canvas.
+
+### `AreaWheelTurned`
+
+`AreaWheelTurned` v1, from that window: the wheel over Flow's area, which scrolls the graph or the
+page as on Workshop's canvas.
+
+### `AreaHoldEnded`
+
+`AreaHoldEnded` v1, from that window, about Flow's area: the press held there ended with no
+release, and the drag ends where it stands.
 
 ## Follow
 

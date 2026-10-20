@@ -56,33 +56,58 @@ inline void NeovimEditorWeave::on(const ws::PaneCanvasPointer& event, loom::Mail
         return;
     }
     const ws::RowCell at = ws::row_cell_at(ws::canvas_rows(canvas_), event.x, event.y);
-    const bool same_room = event.grant == canvas_.grant;
-    const bool press = event.phase == ws::canvas_pointer::kPress;
-    const bool ended = event.phase == ws::canvas_pointer::kRelease || event.phase == ws::canvas_pointer::kLost;
-    if (press && same_room && event.button == 1) {
-        pressed_ = at.shown ? event.gesture : 0;
+    pointer(event.phase, event.button, at, event.gesture, event.grant == canvas_.grant, event.grant,
+            event.picture, event.dy, mail);
+}
+
+/// THE POINTER IN THE WINDOW that shows the pane's area, read onto the rows drawn there: a press is
+/// numbered by the window and aimed at the rows it was last given, a move is the held left
+/// press's, and a hold the window ended is the loss of the press held.
+inline void NeovimEditorWeave::on_window(const std::optional<ws::WindowPointer>& p,
+                                         loom::Mail& mail) {
+    if (!p) {
+        return;
+    }
+    const bool lost = p->phase == ws::canvas_pointer::kLost;
+    const std::int64_t gesture =
+        lost && p->button == 1 ? pressed_ : static_cast<std::int64_t>(p->press);
+    pointer(p->phase, p->phase == ws::canvas_pointer::kMove ? 1 : p->button, p->at, gesture, true,
+            kInWindow, 0, p->dy, mail);
+}
+
+/// ONE MOMENT OF THE POINTER, on either medium, at a cell of the rows Neovim's screen stands on:
+/// `same_room` when it was aimed at the room the pane holds now, `grant` and `picture` naming what
+/// it was aimed at (`fresh`).
+inline void NeovimEditorWeave::pointer(std::int64_t phase, std::int64_t button,
+                                       const ws::RowCell& at, std::int64_t gesture, bool same_room,
+                                       std::int64_t grant, std::int64_t picture, double dy,
+                                       loom::Mail& mail) {
+    const bool press = phase == ws::canvas_pointer::kPress;
+    const bool ended = phase == ws::canvas_pointer::kRelease || phase == ws::canvas_pointer::kLost;
+    if (press && same_room && button == 1) {
+        pressed_ = at.shown ? gesture : 0;
         if (at.shown) {
-            press_at(at.row, at.column, event.grant, event.picture, mail);
+            press_at(at.row, at.column, grant, picture, mail);
         }
-    } else if (event.phase == ws::canvas_pointer::kMove && event.button == 1 && pressed_ != 0 &&
-               event.gesture == pressed_) {
+    } else if (phase == ws::canvas_pointer::kMove && button == 1 && pressed_ != 0 &&
+               gesture == pressed_) {
         dragged(at.row, at.column, mail);
-    } else if (ended && event.button == 1 && event.gesture == pressed_ && pressed_ != 0) {
+    } else if (ended && button == 1 && gesture == pressed_ && pressed_ != 0) {
         pressed_ = 0;
         if (!grab_.started) {
             release_drag();
             flush(mail);
         }
-    } else if (press && same_room && event.button == 3) {
+    } else if (press && same_room && button == 3) {
         if (!at.shown) {
             (void)ws::pane_menu::pass_back(mail, nve::kEditorOffice, nve::kEditorPane);
             return;
         }
-        right_press(at.row, at.column, event.grant, event.picture, mail);
-    } else if (ended && event.button == 3) {
+        right_press(at.row, at.column, grant, picture, mail);
+    } else if (ended && button == 3) {
         right_release(at.row, at.column, mail);
-    } else if (event.phase == ws::canvas_pointer::kWheel && same_room) {
-        wheel(event.dy, mail);
+    } else if (phase == ws::canvas_pointer::kWheel && same_room) {
+        wheel(dy, mail);
     }
 }
 

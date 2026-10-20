@@ -53,26 +53,47 @@ inline void EditorPaneWeave::on(const ws::PaneCanvasPointer& event, loom::Mail& 
     const ws::RowCell at = ws::row_cell_at(ws::canvas_rows(canvas_), event.x, event.y);
     const bool same_room = event.grant == canvas_.grant;
     const bool current = same_room && pictures_.current(event.grant, event.picture);
-    if (event.phase == ws::canvas_pointer::kPress && same_room && event.button == 1) {
-        held_ = at.shown ? event.gesture : 0;
+    pointer(event.phase, event.button, at, event.gesture, same_room, current, event.dy, mail);
+}
+
+/// THE POINTER IN THE WINDOW that shows the pane's area, read onto the rows drawn there, which are
+/// the picture the pane holds now: a press is numbered by the window, and a hold the window ended
+/// is the loss of the press held.
+inline void EditorPaneWeave::on_window(const std::optional<ws::WindowPointer>& p,
+                                       loom::Mail& mail) {
+    if (!p) {
+        return;
+    }
+    const std::int64_t gesture =
+        p->phase == ws::canvas_pointer::kLost ? held_ : static_cast<std::int64_t>(p->press);
+    pointer(p->phase, p->phase == ws::canvas_pointer::kMove ? 1 : p->button, p->at, gesture,
+            true, true, p->dy, mail);
+}
+
+/// ONE MOMENT OF THE POINTER, on either medium, at a cell of the rows the pane holds: `same_room`
+/// when it was aimed at the room the pane holds now, `current` when at the picture it shows now.
+inline void EditorPaneWeave::pointer(std::int64_t phase, std::int64_t button,
+                                     const ws::RowCell& at, std::int64_t gesture, bool same_room,
+                                     bool current, double dy, loom::Mail& mail) {
+    if (phase == ws::canvas_pointer::kPress && same_room && button == 1) {
+        held_ = at.shown ? gesture : 0;
         if (at.shown) {
             press_at(at.row, at.column, current, mail);
         } else if (!holding_.active) {
             end_grab();
             drag_ = Drag{};
         }
-    } else if (event.phase == ws::canvas_pointer::kPress && same_room && event.button == 3) {
+    } else if (phase == ws::canvas_pointer::kPress && same_room && button == 3) {
         right_press(at, current, mail);
-    } else if (event.phase == ws::canvas_pointer::kMove && event.button == 1 && held_ != 0 &&
-               event.gesture == held_) {
+    } else if (phase == ws::canvas_pointer::kMove && button == 1 && held_ != 0 &&
+               gesture == held_) {
         dragged(at.row, at.column, mail);
-    } else if ((event.phase == ws::canvas_pointer::kRelease ||
-                event.phase == ws::canvas_pointer::kLost) &&
-               event.button == 1 && event.gesture == held_) {
+    } else if ((phase == ws::canvas_pointer::kRelease || phase == ws::canvas_pointer::kLost) &&
+               button == 1 && gesture == held_) {
         held_ = 0;
         drag_ = Drag{};
-    } else if (event.phase == ws::canvas_pointer::kWheel && same_room) {
-        wheel(event.dy, mail);
+    } else if (phase == ws::canvas_pointer::kWheel && same_room) {
+        wheel(dy, mail);
     }
 }
 

@@ -177,7 +177,7 @@ bool holder_emits_on(const loom::Switchboard& bus, std::string_view role,
 // WL-PRESS-04 -- agents/workshop/press-chain.md; WL-FOCUS-04 -- agents/workshop/focus.md
 bool WorkshopWeave::external_press(std::int64_t kind, const ExternalPressAt& at,
                                    bool keys_went_here, loom::Mail& mail) {
-    if (!at.named) {
+    if (!at.named || placed_in_window(kind)) {
         return false;
     }
     const RuntimePane* row = session_.panes.runtime.of_kind(kind);
@@ -313,7 +313,7 @@ void WorkshopWeave::external_wheel(std::int64_t kind, const zengine::input::Poin
     const ExternalPressAt at =
         external_press_at(session_.panes, session_.setup.active, screen_of(session_), kind,
                           session_.pane_titles, w.space, w.x, w.y);
-    if (!at.named) {
+    if (!at.named || placed_in_window(kind)) {
         return;
     }
     const RuntimePane* row = session_.panes.runtime.of_kind(kind);
@@ -336,7 +336,7 @@ std::size_t secondary_slot(std::int64_t button) noexcept { return button == 2 ? 
 bool WorkshopWeave::external_button(std::int64_t kind, std::int64_t button,
                                     const ExternalPressAt& at, const PointedAt& cell,
                                     loom::Mail& mail) {
-    if (!at.named || (button != 2 && button != 3)) {
+    if (!at.named || (button != 2 && button != 3) || placed_in_window(kind)) {
         return false;
     }
     const RuntimePane* row = session_.panes.runtime.of_kind(kind);

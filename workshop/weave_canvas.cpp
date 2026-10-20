@@ -121,6 +121,10 @@ void WorkshopWeave::refresh_canvas_rooms(loom::Mail& mail) {
         // picture stays where it was drawn until then. A pane moved, by a title row too, keeps none.
         bool held = false;
         for (const CanvasHold& hold : canvas_holds_) held = held || (hold.active && hold.kind == pane.kind);
+        // ...as does a press a graphics window holds in the pane's area, until a mode, a menu or a
+        // carry puts the desk in front of it, which ends the window's hold.
+        for (const WindowHold& hold : pane_holds_)
+            held = held || (hold.active && hold.kind == pane.kind && !desk_in_front_of_panes());
         const auto kept = canvas_body_place(where.rect, sc, c.title_rows);
         if (same_kind && held && !body.empty() && c.x == kept.x && c.y == kept.y &&
             c.width == kept.w && c.height == kept.h) {
@@ -257,6 +261,7 @@ void WorkshopWeave::admit_canvas_content(const v6::PaneCanvasContent& content, l
 
 bool WorkshopWeave::canvas_press(std::int64_t kind, const input::PointerButton& b,
                                  bool keys_went_here, loom::Mail& mail) {
+    if (placed_in_window(kind)) return false;
     const auto* row = session_.panes.runtime.of_kind(kind);
     const auto* pane = session_.panes.external_pane(kind);
     const auto at = canvas_point_of(b.space, b.x, b.y);
@@ -366,7 +371,10 @@ void WorkshopWeave::canvas_hover(const input::PointerMoved& m, loom::Mail& mail)
             host_->holder_accepts(row->provider, pane->canvas.legacy
                                                      ? *loom::schema_of<v1::PaneCanvasHover>()
                                                      : *loom::schema_of<PaneCanvasHover>());
-        if (row && pane && canvas_takes_press(here.kind) && hears) {
+        // A window's moment over a pane in an area of its own is that area's to hear, but for
+        // what a carry tells the pane it would land on, which is the carry's.
+        const bool relayed = !placed_in_window(here.kind) || !carried_.data.empty();
+        if (row && pane && canvas_takes_press(here.kind) && hears && relayed) {
             const auto& c = pane->canvas;
             if (PixelRect{c.x, c.y, c.width, c.height}.contains_at(at.px.x, at.px.y, at.grain)) {
                 kind = here.kind;
@@ -401,6 +409,7 @@ void WorkshopWeave::leave_canvas_hover(loom::Mail& mail) {
 }
 
 bool WorkshopWeave::canvas_wheel(std::int64_t kind, const input::PointerWheel& w, loom::Mail& mail) {
+    if (placed_in_window(kind)) return true;
     const auto* row = session_.panes.runtime.of_kind(kind);
     const auto* pane = session_.panes.external_pane(kind);
     if (!row || !pane || pane->canvas.grant == 0) return false;

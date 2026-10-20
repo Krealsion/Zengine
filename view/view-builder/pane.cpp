@@ -112,7 +112,8 @@ class ViewBuilderPane final
           loom::Accept<ws::PaneCanvasPointer, ws::PaneCanvasHover, ws::PaneKey, ws::PaneTextInput,
                        ws::ActionsJudged, ws::PaneQuitRequested, ws::PaneCanvasValueDrop,
                        ws::PaneCarryAnswered, vb::ViewEdit, view::ViewAnswer, ws::ProjectRoot,
-                       gfx::AreaRoom, gfx::DrawnRefused, gfx::ActionRequested,
+                       gfx::AreaRoom, gfx::DrawnRefused, gfx::ActionRequested, gfx::AreaButtonChanged,
+                       gfx::AreaPointerMoved, gfx::AreaWheelTurned, gfx::AreaHoldEnded, gfx::AreaPointerLeft,
                        ws::v2::PaneSettings>,
           loom::Emit<ws::PaneContent, ws::v4::PaneCanvasContent, ws::PaneEscapeUnspent,
                      ws::PanePassRequested, ws::PaneQuitAnswered, ws::PaneOperationRequested,
@@ -317,6 +318,45 @@ public:
     }
     void on(const ws::PaneCanvasPointer& event, loom::Mail& mail) {
         if (!host(mail, event.pane) || event.grant != canvas_room().grant) return;
+        pointer(event, mail);
+    }
+    /// THE POINTER IN THE WINDOW, given by the window that shows the builder's area as its office:
+    /// what it is on Workshop's canvas, read against the picture last drawn there and the room it
+    /// was drawn in, a press's moves and release under the window's number for it, a hold the window
+    /// ended a lost press. A move with no press held marks what the pointer rests on, and the
+    /// pointer leaving the area puts the mark down.
+    void on(const gfx::AreaButtonChanged& b, loom::Mail& mail) { on_window(window_.pointer(b, mail, 0, 0), mail); }
+    void on(const gfx::AreaPointerMoved& m, loom::Mail& mail) {
+        const auto p = window_.pointer(m, mail, 0, 0);
+        if (p && p->press == 0 && !held_) {
+            rest(true, p->x, p->y, window_shown_ ? &*window_shown_ : nullptr, false, mail);
+            return;
+        }
+        on_window(p, mail);
+    }
+    void on(const gfx::AreaWheelTurned& w, loom::Mail& mail) { on_window(window_.pointer(w, mail, 0, 0), mail); }
+    void on(const gfx::AreaHoldEnded& e, loom::Mail& mail) { on_window(window_.pointer(e, mail), mail); }
+    void on(const gfx::AreaPointerLeft& left, loom::Mail& mail) {
+        if (window_.from_window(left.area, mail)) rest(false, 0, 0, nullptr, false, mail);
+    }
+    void on_window(const std::optional<ws::WindowPointer>& p, loom::Mail& mail) {
+        if (!p) return;
+        if (p->phase == ws::canvas_pointer::kPress) rest(false, 0, 0, nullptr, false, mail);
+        const std::int64_t gesture = p->phase == ws::canvas_pointer::kLost
+                                         ? (held_ ? held_->gesture : 0)
+                                         : static_cast<std::int64_t>(p->press);
+        const ws::PaneCanvasPointer event{vb::kPane, 0,    0,    gesture,      p->phase,
+                                          p->button, p->x, p->y, p->modifiers, p->dx,
+                                          p->dy,     false};
+        struct InWindow {
+            bool& on;
+            ~InWindow() { on = false; }
+        } in_window{window_hand_};
+        window_hand_ = true;
+        pointer(event, mail);
+    }
+    /// ONE MOMENT OF THE POINTER, on either medium (`aimed`, `hand_room`).
+    void pointer(const ws::PaneCanvasPointer& event, loom::Mail& mail) {
         const bool ours = held_ && held_->gesture == event.gesture;
         if (event.phase == ws::canvas_pointer::kMove) {
             if (ours) drag(event, mail);
@@ -336,13 +376,21 @@ public:
     /// label it would land on. Nothing else moves.
     void on(const ws::PaneCanvasHover& hover, loom::Mail& mail) {
         if (!host(mail, hover.pane) || hover.grant != canvas_room().grant) return;
-        std::optional<std::size_t> over, landing;
-        if (hover.over && !pictures_.empty()) {
+        const vb::Picture* picture = nullptr;
+        if (!pictures_.empty()) {
             const auto pictured = std::find_if(pictures_.begin(), pictures_.end(),
                                                [&](const auto& p) { return p.content.picture == hover.picture; });
-            const auto& picture = pictured == pictures_.end() ? pictures_.back() : *pictured;
-            if (const auto* hit = picture.hit(hover.x, hover.y)) over = element_of(*hit);
-            if (over && hover.carrying) {
+            picture = pictured == pictures_.end() ? &pictures_.back() : &*pictured;
+        }
+        rest(hover.over, hover.x, hover.y, picture, hover.carrying, mail);
+    }
+    /// WHERE THE POINTER RESTS, over `picture` at a point, or nowhere: the mark, as both media say.
+    void rest(bool over_canvas, std::int64_t x, std::int64_t y, const vb::Picture* picture,
+              bool carrying, loom::Mail& mail) {
+        std::optional<std::size_t> over, landing;
+        if (over_canvas && picture != nullptr) {
+            if (const auto* hit = picture->hit(x, y)) over = element_of(*hit);
+            if (over && carrying) {
                 if (model_.description.elements.at(*over).kind == view::Kind::label) landing = over;
                 over.reset();
             }
@@ -369,9 +417,9 @@ public:
         model_.notice = "The graphics window refused the View Builder's picture: " + refused.reason;
         show_workshop(mail);
     }
-    /// A PRESS IN THE WINDOW on a part the picture last drawn there names, asked by that window's
-    /// office: what a first-button press on that place of Workshop's canvas does, let go without
-    /// moving (`choose`).
+    /// A PRESS ASKED AS A PART'S ACTION, by a window that shows the builder's area placed deaf to
+    /// the pointer: what a first-button press on that place of Workshop's canvas does, let go
+    /// without moving (`choose`).
     void on(const gfx::ActionRequested& asked, loom::Mail& mail) {
         if (!window_.from_window(asked.area, mail)) return;
         const auto part = window_parts_.find(asked.action);
@@ -546,9 +594,8 @@ private:
     }
 
     void press(const ws::PaneCanvasPointer& event, loom::Mail& mail) {
-        const auto pictured = std::find_if(pictures_.begin(), pictures_.end(),
-                                           [&](const auto& p) { return p.content.picture == event.picture; });
-        const auto* hit = pictured == pictures_.end() ? nullptr : pictured->hit(event.x, event.y);
+        const vb::Picture* pictured = aimed(event.picture);
+        const auto* hit = pictured == nullptr ? nullptr : pictured->hit(event.x, event.y);
         if (event.button == 3) {
             // A RIGHT PRESS ON WHAT A BUTTON SAYS offers to carry its intent's shape; anywhere else
             // it means nothing here, and is handed back for Workshop's pane menu.
@@ -564,14 +611,14 @@ private:
         }
         if (event.button == 2) {
             // A MIDDLE PRESS ON THE DESIGN CANVAS pans it while the hand holds it.
-            if (pictured != pictures_.end() && pictured->design.contains(event.x, event.y, canvas_room().grain))
+            if (pictured != nullptr && pictured->design.contains(event.x, event.y, hand_room().grain))
                 held_ = Held{.gesture = event.gesture, .what = Held::What::pan, .x = event.x, .y = event.y,
                              .design = pictured->design, .pan_x = shown_.pan_x,
                              .pan_y = shown_.pan_y};
             return;
         }
         if (event.button != 1) return;
-        if (pictured == pictures_.end()) {
+        if (pictured == nullptr) {
             model_.notice = "That picture has changed; choose again.";
             show(mail);
             return;
@@ -648,7 +695,7 @@ private:
         const auto dx = event.x - h.x, dy = event.y - h.y;
         if (h.what == Held::What::pan) {
             // The view follows the hand, within the pan's reach.
-            const auto [reach_x, reach_y] = vb::pan_reach(model_.description, h.design, view::notice_band(canvas_room()));
+            const auto [reach_x, reach_y] = vb::pan_reach(model_.description, h.design, view::notice_band(hand_room()));
             const auto x = std::clamp<std::int64_t>(h.pan_x - dx, 0, reach_x);
             const auto y = std::clamp<std::int64_t>(h.pan_y - dy, 0, reach_y);
             if (x == shown_.pan_x && y == shown_.pan_y) return;
@@ -657,14 +704,14 @@ private:
             show(mail);
             return;
         }
-        const auto threshold = std::max<std::int64_t>(canvas_room().grain, 4);
+        const auto threshold = std::max<std::int64_t>(hand_room().grain, 4);
         if (!h.moved && std::abs(dx) < threshold && std::abs(dy) < threshold) return;
         h.moved = true;
         if (h.what == Held::What::make) {
             shown_.ghost.reset();
             shown_.met_x.reset();
             shown_.met_y.reset();
-            if (h.design.contains(event.x, event.y, canvas_room().grain)) {
+            if (h.design.contains(event.x, event.y, hand_room().grain)) {
                 const auto at = made_at(h, event);
                 shown_.ghost = vb::Presentation::Ghost{h.kind, at.x, at.y};
                 shown_.met_x = at.met_x;
@@ -765,7 +812,7 @@ private:
         if (h.what == Held::What::make) {
             if (released && !h.moved) {
                 perform("add", {view::kind_word(h.kind)}, mail);
-            } else if (released && h.design.contains(event.x, event.y, canvas_room().grain)) {
+            } else if (released && h.design.contains(event.x, event.y, hand_room().grain)) {
                 const auto at = made_at(h, event);
                 perform("add", {view::kind_word(h.kind), std::to_string(at.x), std::to_string(at.y)}, mail);
             } else if (released) {
@@ -802,7 +849,8 @@ private:
 
     /// The wheel over the left column scrolls the element list.
     void scroll(const ws::PaneCanvasPointer& event, loom::Mail& mail) {
-        if (pictures_.empty() || event.x >= pictures_.back().design.x || !std::isfinite(event.dy)) return;
+        const vb::Picture* last = window_hand_ ? aimed(0) : pictures_.empty() ? nullptr : &pictures_.back();
+        if (last == nullptr || event.x >= last->design.x || !std::isfinite(event.dy)) return;
         const auto rows = static_cast<std::int64_t>(model_.first_row) - static_cast<std::int64_t>(std::clamp(event.dy, -10.0, 10.0));
         model_.first_row = static_cast<std::size_t>(std::clamp<std::int64_t>(rows, 0, static_cast<std::int64_t>(view::kMaxElements)));
         model_.selected.reset();
@@ -863,7 +911,7 @@ private:
     /// The caret where the box was pressed, at the medium's measured advance, counted from the
     /// scroll the picture drew the box at.
     void place_caret(const vb::Hit& hit, const ws::PaneCanvasPointer& event) {
-        const auto metrics = ws::canvas_text_metrics(canvas_room());
+        const auto metrics = ws::canvas_text_metrics(hand_room());
         const auto column = (event.x - hit.at.x - metrics.inset) / std::max<std::int64_t>(1, metrics.advance);
         auto& text = shown_.box->text;
         text.place(text.position_at_column(column));
@@ -1181,6 +1229,8 @@ private:
         const auto room = ws::canvas_window_room(vb::kPane, window_.width(), window_.height());
         auto shown = shown_;
         const auto drawn = vb::picture(model_, shown, room, 0);
+        window_room_ = room;
+        window_shown_ = drawn;
         const auto said = ws::canvas_sketch(vb::named(drawn, model_.description), room);
         std::set<std::string> named;
         for (const auto& record : said.sketch.records()) named.insert(record.action);
@@ -1211,6 +1261,15 @@ private:
     const Room& room() const { return this->template facet<Room>(); }
     /// The canvas room this pane holds, or the last one granted (`PaneFacet`).
     const ws::PaneCanvasRoom& canvas_room() const { return room().canvas_room(); }
+    /// THE PICTURE A HAND AIMED AT, `picture` of those Workshop's canvas holds, or, for a hand in
+    /// the window, the one last drawn there; and the room it stands in.
+    const vb::Picture* aimed(std::int64_t picture) const {
+        if (window_hand_) return window_shown_ ? &*window_shown_ : nullptr;
+        const auto pictured = std::find_if(pictures_.begin(), pictures_.end(),
+                                           [&](const auto& p) { return p.content.picture == picture; });
+        return pictured == pictures_.end() ? nullptr : &*pictured;
+    }
+    const ws::PaneCanvasRoom& hand_room() const { return window_hand_ ? window_room_ : canvas_room(); }
     Asks& asks() { return this->template facet<Asks>(); }
     /// This image's one outstanding menu (`PaneMenuFacet`).
     Menu& menu() { return this->template facet<Menu>(); }
@@ -1233,6 +1292,9 @@ private:
     bool kept_ = false;
     std::int64_t picture_number_ = 0;
     std::deque<vb::Picture> pictures_;
+    std::optional<vb::Picture> window_shown_; ///< the picture last drawn in the window, and its room
+    ws::PaneCanvasRoom window_room_;
+    bool window_hand_ = false; ///< the moment being read is the window's
     ws::WindowDrawing window_{vb::kRole, vb::kRole}; ///< its area in the window that shows it
     std::map<std::string, vb::Hit> window_parts_;   ///< the parts the picture last sent there names
     bool room_asked_ = false;                       ///< its area's room asked in this life

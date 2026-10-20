@@ -186,9 +186,11 @@ private:
 };
 
 /// ONE FIRST-BUTTON PRESS ON A SHOWN ROW OF THE PANE'S CURRENT PICTURE, as a prose press names
-/// it, and whether Workshop reported the keys were already reaching the pane when it was made. A
-/// press made in a graphics window (`window`) never says so, since Workshop saw no press there,
-/// and Workshop's own gestures, a carry among them, do not reach there.
+/// it, and whether the keys were already reaching the pane when it was made: Workshop says so on
+/// its canvas's press, and in a graphics window the last `PaneKeys` it sent says so. A press a
+/// window asked as a part's action (`window`), in an area placed deaf to the pointer, never says
+/// so, since Workshop saw no press there, and Workshop's own gestures, a carry among them, do not
+/// reach there.
 struct RowPress {
     std::int64_t row = 0, column = 0;
     bool keys_went_here = false;
@@ -210,7 +212,8 @@ public:
     using Accept = loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PaneCanvasRoom,
                                 PaneCanvasRejected, PaneDocumentRequested, PaneCanvasPointer,
                                 graphics::AreaRoom, graphics::DrawnRefused,
-                                graphics::ActionRequested>;
+                                graphics::ActionRequested, graphics::AreaButtonChanged,
+                                graphics::AreaPointerMoved, graphics::AreaWheelTurned, PaneKeys>;
     using Emit = loom::Emit<Offer, PaneDocumentShown, v5::PaneContent, v6::PaneCanvasContent,
                             PaneCaret, PanePassRequested, graphics::Drawn, graphics::RoomAsked>;
     using Room::on;
@@ -259,6 +262,60 @@ public:
             if (self.answers(asked.action)) {
                 self.on_action(asked.action, mail);
             }
+        }
+    }
+
+    /// THE POINTER IN THE WINDOW, given by the window that shows the area as its office: a press
+    /// of the first button on a shown cell of the rows last sent there is the weave's `press`, read
+    /// against whether the keys were already the pane's (`PaneKeys`); one of the third is its
+    /// `right_press` on what the cell means, else passed back under the window's number for the
+    /// press, so Workshop's own pane menu opens where it was made.
+    template <class Self>
+    void on([[maybe_unused]] Self& self, const graphics::AreaButtonChanged& b, loom::Mail& mail) {
+        const std::optional<WindowPointer> p =
+            window_.pointer(b, mail, window_rows_, this->columns());
+        if (!p || p->phase != canvas_pointer::kPress) {
+            return;
+        }
+        const RowPress press{p->at.row, p->at.column, keys_here_};
+        if (p->button == 1) {
+            if constexpr (requires { self.press(press, mail); }) {
+                if (p->at.shown) {
+                    self.press(press, mail);
+                }
+            }
+            return;
+        }
+        if (p->button != 3) {
+            return;
+        }
+        const Meaning* meant = p->at.shown ? map_.at(p->at.row, p->at.column) : nullptr;
+        if constexpr (requires { self.right_press(*meant, press, mail); }) {
+            if (meant != nullptr && self.right_press(*meant, press, mail)) {
+                return;
+            }
+        }
+        pass_back(mail);
+    }
+
+    /// A move and a release in the window mean nothing to rows; the wheel is the weave's `wheel`.
+    template <class Self>
+    void on(Self&, const graphics::AreaPointerMoved&, loom::Mail&) {}
+    template <class Self>
+    void on([[maybe_unused]] Self& self, const graphics::AreaWheelTurned& w,
+            [[maybe_unused]] loom::Mail& mail) {
+        if constexpr (requires { self.wheel(w.dy, mail); }) {
+            if (window_.pointer(w, mail, window_rows_, this->columns())) {
+                self.wheel(w.dy, mail);
+            }
+        }
+    }
+
+    /// Whether the keys reach the pane now, as Workshop last said.
+    template <class Self>
+    void on(Self&, const PaneKeys& keys, loom::Mail& mail) {
+        if (Room::from_workshop(mail, keys.pane)) {
+            keys_here_ = keys.here;
         }
     }
 
@@ -440,6 +497,7 @@ public:
             RowsDrawing drawn =
                 rows_drawing(rows, parts, this->columns(), with_caret ? caret_ : RowsCaret{});
             window_places_ = std::move(drawn.places);
+            window_rows_ = static_cast<std::int64_t>(rows.size());
             window_.draw(drawn.sketch, mail);
         }
         if (this->granted() && !this->seated()) {
@@ -494,6 +552,8 @@ private:
     std::uint64_t published_ = 0;
     WindowDrawing window_{Office, Office};
     std::map<std::string, RowCell> window_places_; ///< where each part of the rows last sent lands
+    std::int64_t window_rows_ = 0;                 ///< how many rows were last sent there
+    bool keys_here_ = false;                       ///< the keys reach the pane, as Workshop last said
     bool asked_ = false;                           ///< the room asked in this life
 };
 
@@ -512,7 +572,8 @@ public:
     using Accept = loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, PaneCanvasRoom,
                                 PaneCanvasRejected, PaneDocumentRequested, PaneCanvasPointer,
                                 graphics::AreaRoom, graphics::DrawnRefused,
-                                graphics::ActionRequested>;
+                                graphics::ActionRequested, graphics::AreaButtonChanged,
+                                graphics::AreaPointerMoved, graphics::AreaWheelTurned>;
     using Emit = loom::Emit<Offer, PaneDocumentShown, v5::PaneContent, v6::PaneCanvasContent,
                             PanePassRequested, graphics::Drawn, graphics::RoomAsked>;
     using Room::on;
@@ -552,6 +613,40 @@ public:
         }
         if (admitted) {
             act(self, asked.action, mail);
+        }
+    }
+
+    /// THE POINTER IN THE WINDOW, given by the window that shows the area as its office: the first
+    /// button pressed on a part of the picture last sent there asks the part's action; the third
+    /// is passed back under the window's number for the press, so Workshop's own pane menu opens
+    /// where it was made; the wheel is the weave's `wheel`. A move and a release mean nothing.
+    template <class Self>
+    void on(Self& self, const graphics::AreaButtonChanged& b, loom::Mail& mail) {
+        const std::optional<WindowPointer> p =
+            window_.pointer(b, mail, window_map_rows_, window_map_columns_);
+        if (!p || p->phase != canvas_pointer::kPress) {
+            return;
+        }
+        if (p->button == 3) {
+            pass_back(mail);
+            return;
+        }
+        const DrawnPart* part = p->at.shown && p->button == 1
+                                    ? window_map_.at(p->at.row, p->at.column)
+                                    : nullptr;
+        if (part != nullptr && !part->action.empty()) {
+            act(self, part->action, mail);
+        }
+    }
+    template <class Self>
+    void on(Self&, const graphics::AreaPointerMoved&, loom::Mail&) {}
+    template <class Self>
+    void on([[maybe_unused]] Self& self, const graphics::AreaWheelTurned& w,
+            [[maybe_unused]] loom::Mail& mail) {
+        if constexpr (requires { self.wheel(w.dy, mail); }) {
+            if (window_.pointer(w, mail, window_map_rows_, window_map_columns_)) {
+                self.wheel(w.dy, mail);
+            }
         }
     }
 
@@ -629,6 +724,13 @@ public:
                     window_actions_.insert(record.action);
                 }
             }
+            // WHERE EACH PART STANDS IN THE WINDOW, read as a window of characters paints it, so
+            // a press there finds the part it lands on.
+            window_map_rows_ = window_.height() / graphics::kCellPx;
+            window_map_columns_ = window_.width() / graphics::kCellPx;
+            window_map_.begin();
+            (void)drawn_rows(sketch, window_map_rows_, window_map_columns_, window_map_);
+            (void)window_map_.settle();
             window_.draw(sketch, mail);
         }
         if (!this->seated()) {
@@ -663,6 +765,8 @@ private:
 
     WindowDrawing window_{Office, Office};
     std::set<std::string> window_actions_; ///< the actions the picture last sent the window names
+    component::RowMap<DrawnPart> window_map_; ///< the parts of the picture last sent the window
+    std::int64_t window_map_rows_ = 0, window_map_columns_ = 0;
     bool asked_ = false;                   ///< the room asked in this life
     component::RowMap<DrawnPart> map_;     ///< the parts of the picture Workshop last held
     CanvasPictures pictures_;

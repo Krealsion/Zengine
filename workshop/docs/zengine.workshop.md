@@ -945,11 +945,11 @@ its outcome is said on the band, `editor switch <op>: <outcome>`.
 ### `GraphicsReady`
 
 `GraphicsReady`, from `zengine.graphics` ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)):
-a graphics directory started afresh. While one is mounted Workshop is its arranger: it offers the
-`classic`, `block`, `day` and `night` skins and chooses each area's (`workshop.skin`), places on
-the window that offered itself each open pane whose office draws in a window, over its body, and
-its own area, `zengine.workshop`, across the screen, which takes the window's keys and text, and
-asks its own room.
+a directory started afresh. Workshop, its arranger, offers the four skins, chooses each area's
+(`workshop.skin`), and places on the window each open pane whose office draws there, over its body,
+hearing the pointer if its office takes `AreaButtonChanged`; its own area, `zengine.workshop`,
+across the screen, taking the keys; and `zengine.workshop.overlay` in front, deaf to both. It asks
+its rooms.
 
 ### `WindowOffered`
 
@@ -962,23 +962,45 @@ window, is ignored.
 
 ### `AreaRoom`
 
-`AreaRoom` v2, from the graphics window that shows the area `zengine.workshop`, as that window's
-office: Workshop's room there. It draws its desk -- Layouts, each pane's edge and header, a body
-its office does not draw, a menu, the band -- whole when the window, its incarnation or its size
-changed, then only what changed. A pane's own area stands in front of it, but while a weaver
-arranges, a menu is open, or a carried value or a guide mark stands over the desk, drawn on top.
+`AreaRoom` v2, from the graphics window that shows the area `zengine.workshop` or its overlay, as
+that window's office: Workshop's room there. It draws its desk -- Layouts, each pane's edge and
+header, a body its office does not draw, a menu, the band -- whole when the window, its incarnation
+or its size changed, then only what changed. A pane's own area stands in front of it, but while a
+weaver arranges, a menu is open, or something is carried. The overlay draws the carried value and
+the guide marks.
 
 ### `DrawnRefused`
 
 `DrawnRefused` v1, from that window: a drawing it refused, and why. What it shows stays as it was;
 a refused change is drawn again whole at once.
 
-### `ActionRequested`
+### `AreaButtonChanged`
 
-`ActionRequested` v1, from that window: a press on a part of the desk there, by its name --
-`layout:<n>`, `layout:new`, `focus:<kind>`, `settings:<kind>`, `manual:<kind>`, `menu:<line>` --
-is a click at the part's middle, as `PointerButton` takes one. A press there on no part reaches
-Workshop as a `PointerButton` from that window, and is a click too.
+`AreaButtonChanged` v1, from the window that shows `zengine.workshop`: a button pressed or let go in
+Workshop's own area, at the screen's pixel there. It is that moment as `PointerButton` takes one,
+the press held to its own release: a tab, the chrome, the room, a menu, an arrangement, a body
+Workshop draws. A moment over a pane a window shows in its own area is never relayed to it.
+
+### `AreaPointerMoved`
+
+`AreaPointerMoved` v1, from that window: the pointer moved in Workshop's own area, or while a press
+made there is held, as `PointerMoved` takes it. A press Workshop holds there ends when Workshop
+places an area hearing the pointer in front of its own where the press was made, so it takes no
+`AreaHoldEnded`, nor `AreaPointerLeft`: a window telling it either, as an area's owner or arranger,
+is refused at its door.
+
+### `AreaWheelTurned`
+
+`AreaWheelTurned` v1, from that window: the wheel in Workshop's own area, as `PointerWheel` takes
+it.
+
+### `AreaPressed`
+
+`AreaPressed` v1, from the window, to the arranger of a pane's area: a button pressed or let go
+there, at the window's pixel, under the window's number for the press. The pane heard the press
+itself; Workshop counts the gesture, selects the pane and gives it the keys on a primary press,
+ends a guide mark it lands in, holds the pane's room against a title row until the release, and
+keeps the number, which the pane's carry, pass-back or menu then cites.
 
 ## Follow
 
@@ -991,7 +1013,8 @@ once a pane is inspected; `TranscriptShown`, the terminal's record; `PaneSourceO
 Edit Code open; and `PaneQuitRequested`, the question a quit asks. To the skin it says
 `SurfaceCanvas` and `SurfaceText`, the picture and the band. To a graphics directory it says
 `SkinOffered`, `AreaPlaced`, `SkinChosen` and `RoomAsked`, each only when it moved, and to the
-window that shows its area, `Drawn`.
+window that shows its area, `Drawn`. To the office of a pane a window shows in its own area it
+says `PaneKeys` whenever the keys come to the pane or leave it.
 
 ## Files
 

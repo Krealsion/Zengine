@@ -1767,6 +1767,40 @@ TEST_CASE("printable text edits the source, and command letters stop being comma
     CHECK_FALSE(e.r.session().context.open);
 }
 
+TEST_CASE("in a graphics window that gives the Editor its pointer, a press there, its moves under "
+          "its number and its release sweep a selection as on Workshop's canvas, and a hold the "
+          "window ends is the press lost") {
+    namespace pw = zengine::testing::pane_window;
+    const char* area = pane::kEditorPaneRole;
+    EditorRig w("edit-window-sweep");
+    w.open();
+    (void)w.open_file("w.cpp", "one\ntwo\nthree\n");
+    pw::Window window(w.r.bus);
+    window.room(area, area, 40, 10);
+    const std::int64_t first = w.chrome();
+    // PRESSED ON THE FIRST LINE, MOVED TO THE SECOND'S THIRD COLUMN: swept from where it pressed.
+    const std::uint64_t n = window.next_press();
+    window.button(area, 0, first, true, n);
+    CHECK(w.read("caret_row") == "0");
+    window.move(area, 2, first + 1, n);
+    CHECK(w.read("anchor_row") == "0");
+    CHECK(w.read("anchor_byte") == "0");
+    CHECK(w.read("caret_row") == "1");
+    CHECK(w.read("caret_byte") == "2");
+    // ...LET GO, a move under its number sweeps nothing more.
+    window.button(area, 2, first + 1, false, n);
+    window.move(area, 3, first + 2, n);
+    CHECK(w.read("caret_row") == "1");
+    // A HOLD THE WINDOW ENDED IS THE PRESS LOST: a move under its number sweeps nothing.
+    const std::uint64_t m = window.next_press();
+    window.button(area, 0, first + 2, true, m);
+    window.hold_ended(area, 1);
+    window.move(area, 2, first + 2, m);
+    CHECK(w.read("caret_row") == "2");
+    CHECK(w.read("caret_byte") == "0");
+    CHECK(window.weave().refusals.empty());
+}
+
 TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by its number, wherever the window stands") {
     SUBCASE("a graphics window that shows the office's area is drawn the rows Workshop is told, "
             "named alike: whole first, then what changed; a press on a line there puts the caret "

@@ -239,6 +239,28 @@ public:
     /// A pane Workshop seats nowhere, granted the room a window gave it: its owner asked again.
     void on_window_room(const std::string& pane, loom::Mail& mail) { grant(mail, pane); }
 
+    /// A HAND ON A PANE IN A WINDOW, read onto the rows shown there, the picture under the press
+    /// map in force: as on Workshop's canvas, a primary press is the press a row was, its motion a
+    /// drag, its release or a hold the window ended the drag's end, the wheel the wheel, and a
+    /// right press is handed back under the window's number for it.
+    void on_window_pointer(const std::string& pane, const ws::WindowPointer& p, bool,
+                           loom::Mail& mail) {
+        namespace cp = ws::canvas_pointer;
+        const bool powers = pane == kPowersPane;
+        if (p.phase == cp::kWheel) {
+            if (powers) powers_.wheel(speaking(mail), p.dy);
+            if (pane == kLoadedPane) loaded_.wheel(speaking(mail), p.dy);
+        } else if (p.phase == cp::kMove) {
+            if (powers) powers_.drag(speaking(mail), p.at.row, p.at.column);
+        } else if (p.phase == cp::kRelease || p.phase == cp::kLost) {
+            if (powers) powers_.release();
+        } else if (p.button == 3) {
+            (void)ws::pane_menu::pass_back(mail, kIntrospectionRole, pane);
+        } else if (p.button == 1 && p.at.shown) {
+            primary_press(pane, p.at.row, p.at.column, mail);
+        }
+    }
+
     /// A PRESS ON A PART IN A WINDOW is a primary press on its place in the picture shown there,
     /// and its release: a window carries no drag, so no carry stays armed.
     void on_window_press(const std::string& pane, std::int64_t row, std::int64_t column,

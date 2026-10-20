@@ -80,7 +80,8 @@ class FlowPane final
                        ws::PaneQuitRequested, pane::FlowEdit, fh::FlowAnswer,
                        fh::FlowCatalogAnswer, fh::FlowChanged, ws::PowersFound,
                        ws::PaneCanvasValueDrop, ws::PaneCarryAnswered, gfx::AreaRoom,
-                       gfx::DrawnRefused, gfx::ActionRequested>,
+                       gfx::DrawnRefused, gfx::ActionRequested, gfx::AreaButtonChanged,
+                       gfx::AreaPointerMoved, gfx::AreaWheelTurned, gfx::AreaHoldEnded>,
           loom::Emit<ws::PaneContent, ws::v4::PaneCanvasContent, ws::PaneEscapeUnspent,
                      ws::PanePassRequested, ws::PaneQuitAnswered, pane::FlowEdited, fh::FlowRun,
                      fh::FlowApply, fh::FlowSend, fh::FlowInspect, fh::FlowStop, fh::FlowCatalog,
@@ -277,6 +278,34 @@ public:
   void on(const ws::PaneCanvasPointer &event, loom::Mail &mail) {
     if (!host(mail, event.pane) || event.grant != canvas_room().grant)
       return;
+    const auto shown =
+        std::find_if(pictures_.begin(), pictures_.end(),
+                     [&](const auto &p) { return p.content.picture == event.picture; });
+    pointer(event, shown == pictures_.end() ? nullptr : &*shown, canvas_room(), mail);
+  }
+  /// THE POINTER IN THE WINDOW, given by the window that shows Flow's area as its office: what it
+  /// is on Workshop's canvas, read against the picture last drawn there and the room it was drawn
+  /// in, a press's moves and release under the window's number for it, a hold the window ended a
+  /// loss of the drag.
+  void on(const gfx::AreaButtonChanged &b, loom::Mail &mail) { on_window(window_.pointer(b, mail, 0, 0), mail); }
+  void on(const gfx::AreaPointerMoved &m, loom::Mail &mail) { on_window(window_.pointer(m, mail, 0, 0), mail); }
+  void on(const gfx::AreaWheelTurned &w, loom::Mail &mail) { on_window(window_.pointer(w, mail, 0, 0), mail); }
+  void on(const gfx::AreaHoldEnded &e, loom::Mail &mail) { on_window(window_.pointer(e, mail), mail); }
+  void on_window(const std::optional<ws::WindowPointer> &p, loom::Mail &mail) {
+    if (!p)
+      return;
+    const std::int64_t gesture = p->phase == ws::canvas_pointer::kLost
+                                     ? (drag_ ? drag_->gesture : 0)
+                                     : static_cast<std::int64_t>(p->press);
+    const ws::PaneCanvasPointer event{pane::kPane, 0,        0,    gesture,       p->phase,
+                                      p->button,   p->x,     p->y, p->modifiers, p->dx,
+                                      p->dy,       false};
+    pointer(event, window_shown_ ? &*window_shown_ : nullptr, window_room_, mail);
+  }
+  /// ONE MOMENT OF THE POINTER, on either medium, about `pictured`, the picture it was aimed at
+  /// (none when that picture is gone), drawn in `room`.
+  void pointer(const ws::PaneCanvasPointer &event, const pane::Picture *pictured,
+               const ws::PaneCanvasRoom &room, loom::Mail &mail) {
     try {
       if (event.phase == ws::canvas_pointer::kLost ||
           event.phase == ws::canvas_pointer::kRelease) {
@@ -293,7 +322,7 @@ public:
                                    std::int64_t{100000000});
         const auto ey = std::clamp(event.y, std::int64_t{-100000000},
                                    std::int64_t{100000000});
-        const pane::GridProjection grid(canvas_room());
+        const pane::GridProjection grid(room);
         const auto dx = grid.grid_x(ex - drag_->x), dy = grid.grid_y(ey - drag_->y);
         if (drag_->node_id == 0) {
           model_.workspace.pan_x =
@@ -316,10 +345,7 @@ public:
         return;
       }
       if (event.phase == ws::canvas_pointer::kWheel) {
-        const auto pictured = std::find_if(
-            pictures_.begin(), pictures_.end(),
-            [&](const auto &p) { return p.content.picture == event.picture; });
-        if (pictured == pictures_.end() ||
+        if (pictured == nullptr ||
             pictured->revision !=
                 model_.workspace.graph.project.definition.revision)
           return;
@@ -328,7 +354,7 @@ public:
         const auto dy =
             static_cast<std::int64_t>(std::clamp(event.dy, -100.0, 100.0));
         if (model_.page == pane::Page::Graph &&
-            event.x > pane::GridProjection(canvas_room()).x(22 * pane::unit)) {
+            event.x > pane::GridProjection(room).x(22 * pane::unit)) {
           model_.workspace.pan_y =
               std::clamp(model_.workspace.pan_y + dy * 2 * pane::unit,
                          std::int64_t{-10000000}, std::int64_t{10000000});
@@ -348,18 +374,15 @@ public:
       if (event.button == 3) {
         // A RIGHT PRESS ON A DECLARED MESSAGE offers to carry its shape out; anywhere else it is
         // handed back, so Workshop's pane menu opens where it landed.
-        if (const auto shape = pressed_message(event)) {
+        if (const auto shape = pressed_message(event, pictured)) {
           menu().send(mail, menu().offer(shape->name()).row("carry", "Carry " + shape->name()));
           return;
         }
         (void)ws::pane_menu::pass_back(mail, pane::kRole, event.pane);
         return;
       }
-      const auto it =
-          std::find_if(pictures_.begin(), pictures_.end(), [&](const auto &p) {
-            return p.content.picture == event.picture;
-          });
-      if (it == pictures_.end() ||
+      const pane::Picture *it = pictured;
+      if (it == nullptr ||
           it->revision != model_.workspace.graph.project.definition.revision) {
         model_.notice = "That picture has changed; choose again.";
         show(mail);
@@ -381,7 +404,7 @@ public:
         return;
       // A PRESS ON A DECLARED MESSAGE may drag its shape out: asked under the press, it is
       // carried only if the hand moves before it lets go, and the press still opens the row.
-      if (const auto shape = pressed_message(event))
+      if (const auto shape = pressed_message(event, pictured))
         carry(shape, mail.correlation(), true, mail);
       const auto chosen = *hit;
       if (chosen.action == "node") {
@@ -416,8 +439,8 @@ public:
     model_.notice = "The graphics window refused Flow's picture: " + refused.reason;
     show_workshop(mail);
   }
-  /// A PRESS IN THE WINDOW on a part the picture last drawn there names, asked by that window's
-  /// office: what a first-button press on that place of Workshop's canvas does, a node selected and
+  /// A PRESS ASKED AS A PART'S ACTION, by a window that shows Flow's area placed deaf to the
+  /// pointer: what a first-button press on that place of Workshop's canvas does, a node selected and
   /// anything else performed. No drag begins and nothing is carried, since no hand holds a press
   /// Workshop numbered there.
   void on(const gfx::ActionRequested &asked, loom::Mail &mail) {
@@ -713,10 +736,9 @@ private:
   };
   /// The declared message a press landed on, in the picture it was aimed at: an accepted
   /// message's row or an emitted one's, on the Messages page.
-  std::shared_ptr<const loom::Schema> pressed_message(const ws::PaneCanvasPointer &event) const {
-    const auto it = std::find_if(pictures_.begin(), pictures_.end(),
-                                 [&](const auto &p) { return p.content.picture == event.picture; });
-    if (it == pictures_.end() || it->revision != model_.workspace.graph.project.definition.revision)
+  std::shared_ptr<const loom::Schema> pressed_message(const ws::PaneCanvasPointer &event,
+                                                      const pane::Picture *it) const {
+    if (it == nullptr || it->revision != model_.workspace.graph.project.definition.revision)
       return nullptr;
     const auto *hit = it->hit(event.x, event.y);
     if (!hit || hit->args.empty() ||
@@ -1354,6 +1376,8 @@ private:
       return;
     auto drawn = pane::window_picture(model_, window_.width(), window_.height());
     window_parts_ = std::move(drawn.parts);
+    window_room_ = ws::canvas_window_room(pane::kPane, window_.width(), window_.height());
+    window_shown_ = std::move(drawn.picture);
     window_.draw(drawn.sketch, mail);
   }
   void show_workshop(loom::Mail &mail) {
@@ -1401,6 +1425,8 @@ private:
   std::optional<Drag> drag_;
   ws::WindowDrawing window_{pane::kRole, pane::kRole}; ///< its area in the window that shows it
   std::map<std::string, pane::Hit> window_parts_; ///< the parts the picture last sent there names
+  std::optional<pane::Picture> window_shown_;     ///< the picture last sent there, and its room
+  ws::PaneCanvasRoom window_room_;
   bool room_asked_ = false;                       ///< its area's room asked in this life
   zengine::component::Clipboard clipboard_;
   /// An Add waiting on the host request numbered `request` -- the catalog request that will

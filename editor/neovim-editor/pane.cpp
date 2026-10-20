@@ -144,7 +144,8 @@ using NeovimEditorBase = zengine::With<ws::PaneManualFacet<
                  nve::NeovimStartRequested, nve::NeovimStopRequested, nve::NeovimStatusRequested,
                  ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
                  ws::PaneCarryAnswered, graphics::AreaRoom, graphics::DrawnRefused,
-                 graphics::ActionRequested, ws::v2::PaneSettings>,
+                 graphics::ActionRequested, graphics::AreaButtonChanged, graphics::AreaPointerMoved,
+                 graphics::AreaWheelTurned, graphics::AreaHoldEnded, ws::v2::PaneSettings>,
     loom::Emit<PaneOffered, ws::v3::PaneActions, ws::v5::PaneCanvasContent, ws::v4::PaneContent,
                ws::v2::PaneCaret,
                ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
@@ -347,9 +348,20 @@ public:
         (void)window_.refused(refused, mail);
     }
 
-    /// A PRESS ON A PART IN THE WINDOW, by the part's name: Neovim's own press at the first column
-    /// of that part, on no picture a carry could begin from, and released at once, since the window
-    /// says the press and its release as one act.
+    /// THE POINTER IN THE WINDOW, given by the window that shows the area as its office and read
+    /// onto the rows drawn there: Neovim's own mouse, as on Workshop's canvas (`pointer`), its
+    /// press, moves and release under the window's number for the press, a hold the window ended a
+    /// loss.
+    void on(const graphics::AreaButtonChanged& b, loom::Mail& mail) { on_window(window_.pointer(b, mail), mail); }
+    void on(const graphics::AreaPointerMoved& m, loom::Mail& mail) { on_window(window_.pointer(m, mail), mail); }
+    void on(const graphics::AreaWheelTurned& w, loom::Mail& mail) { on_window(window_.pointer(w, mail), mail); }
+    void on(const graphics::AreaHoldEnded& e, loom::Mail& mail) {
+        on_window(window_.pointer(e, mail), mail);
+    }
+
+    /// A PRESS ASKED AS A PART'S ACTION, by a window that shows the area placed deaf to the pointer:
+    /// Neovim's own press at the first column of that part, on no picture a carry could begin from,
+    /// and released at once, since the window says the press and its release as one act.
     void on(const graphics::ActionRequested& asked, loom::Mail& mail) {
         if (const std::optional<ws::RowCell> at = window_.part(asked, mail)) {
             press_at(at->row, at->column, 0, 0, mail);
@@ -458,6 +470,10 @@ public:
     // ---- The pointer, in transfers.hpp ----------------------------------------------------------
 
     void on(const ws::PaneCanvasPointer& event, loom::Mail& mail);
+    void on_window(const std::optional<ws::WindowPointer>& p, loom::Mail& mail);
+    void pointer(std::int64_t phase, std::int64_t button, const ws::RowCell& at,
+                 std::int64_t gesture, bool same_room, std::int64_t grant, std::int64_t picture,
+                 double dy, loom::Mail& mail);
     void press_at(std::int64_t row, std::int64_t column, std::int64_t grant, std::int64_t picture,
                   loom::Mail& mail);
     void dragged(std::int64_t row, std::int64_t column, loom::Mail& mail);
@@ -1002,8 +1018,11 @@ private:
 
     /// IS THIS A PICTURE OF THE SCREEN THE PANE SHOWS, AND DOES NEOVIM'S SCREEN STILL READ AS IT?
     /// Drawn in this room under what the pane shows now, and Neovim drew nothing since.
+    /// Whether the picture a hand aimed at, `picture` of `grant`, still shows what Neovim holds;
+    /// `kInWindow` as the grant names the rows the window showing the area was last given.
     bool fresh(std::int64_t grant, std::int64_t picture) const {
-        if (!granted_ || !on_canvas() || grant != canvas_.grant || !pictures_.current(grant, picture)) {
+        const bool canvas = on_canvas() && grant == canvas_.grant && pictures_.current(grant, picture);
+        if (!granted_ || (grant != kInWindow && !canvas)) {
             return false;
         }
         std::vector<surface::SurfaceTextRow> rows;
@@ -1236,6 +1255,8 @@ private:
     ws::PaneCanvasRoom canvas_;
     ws::CanvasPictures pictures_;
     std::int64_t pressed_ = 0;
+    /// The grant a hand in the window names: no canvas grant is below one.
+    static constexpr std::int64_t kInWindow = -1;
     bool on_canvas() const { return canvas_.grant > 0 && canvas_.width > 0 && canvas_.height > 0; }
     Preview preview_;
 
