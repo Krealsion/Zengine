@@ -125,14 +125,16 @@ public:
     }
 
     /// THE ROOM A GRAPHICS WINDOW GIVES THE PANE, said by the window that shows its area as that
-    /// window's office: true when the window, its incarnation or its size changed, so the window
-    /// holds none of the pane's picture.
+    /// window's office: true when the window, its incarnation, its size or its measure changed or
+    /// the area is empty, so the window holds none of the pane's picture. The pane composes a row a
+    /// line of the window's text and a character an advance of it.
     bool window_room(const graphics::AreaRoom& r, const loom::Mail& mail) {
         if (!window_.room(r, mail)) {
             return false;
         }
-        window_rows_ = r.h / graphics::kCellPx;
-        window_columns_ = r.w / graphics::kCellPx;
+        const RowsRoom room = window_.rows_room();
+        window_rows_ = room.rows();
+        window_columns_ = room.columns();
         fit();
         return true;
     }
@@ -188,7 +190,8 @@ public:
         if (!in_window() || rows_ <= 0 || columns_ <= 0) {
             return;
         }
-        RowsDrawing drawn = rows_drawing(said_rows_, said_parts_, columns_, said_caret_);
+        RowsDrawing drawn =
+            rows_drawing(said_rows_, said_parts_, window_.rows_room(), columns_, said_caret_);
         window_places_ = std::move(drawn.places);
         window_.draw(drawn.sketch, mail);
     }

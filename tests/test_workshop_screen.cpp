@@ -5778,7 +5778,7 @@ constexpr std::int64_t kCell = surface::kCanvasCellPx;
 /// The rectangles a window's drawing outlines in the selection's group.
 std::vector<PixelRect> window_selection_rings(const Session& s) {
     namespace gfx = zengine::graphics;
-    const WorkshopWindowDrawing drawn = workshop_window_drawing(s, {}, {});
+    const WorkshopWindowDrawing drawn = workshop_window_drawing(s);
     std::vector<PixelRect> out;
     for (const auto& node : drawn.sketch.nodes()) {
         if (node.path.find("/selection/") == std::string::npos) {

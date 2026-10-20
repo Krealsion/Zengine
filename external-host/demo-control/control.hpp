@@ -49,14 +49,14 @@ public:
     /// a graphics window's. A refused picture leaves the last good one showing; a later paint
     /// draws again.
     void on_room(loom::Mail& m) { paint(m); }
-    /// WHAT THE CONTROLS SHOW, a line a cell high each: the setup's name, the reset button and
-    /// where the demo stands, each part recorded with what a press on it asks. A line past the
+    /// WHAT THE CONTROLS SHOW, a line of the room's text each: the setup's name, the reset button
+    /// and where the demo stands, each part recorded with what a press on it asks. A line past the
     /// room is neither drawn nor recorded.
     void picture(graphics::Sketch& f) const {
         const ControlDrawing& room = drawing();
         const auto line = [&](const std::string& path, std::int64_t row, const std::string& text) {
             if (row >= room.rows()) return false;
-            f.text(path, 0, row * graphics::kCellPx,
+            f.text(path, 0, row * room.text().line,
                    ws::pane_text::drawable(ws::pane_text::fit(text, room.columns())),
                    graphics::by_role(surface::role::kFill));
             return true;

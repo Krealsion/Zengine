@@ -23,11 +23,17 @@
 
 namespace zengine::workshop {
 
-/// A graphics window's room as a pane draws in it: `width` by `height` pixels, a character a cell
-/// of `graphics::kCellPx` each way, so a window shows what a terminal Workshop shows.
+/// A graphics window's room as a pane draws in it: `width` by `height` pixels, in the window's unit
+/// and its text. A window that shows every pixel (`cell_px` above zero) is a graphical room a pixel
+/// a grain, its text set in `text`; one whose unit is the cell is a room of cells, a character a
+/// cell.
 inline PaneCanvasRoom canvas_window_room(const std::string& pane, std::int64_t width,
-                                         std::int64_t height) {
-    return PaneCanvasRoom{pane, 1, width, height, graphics::kCellPx, false, 0, 0};
+                                         std::int64_t height, std::int64_t cell_px,
+                                         const graphics::TextMeasure& text) {
+    if (cell_px <= 0) {
+        return PaneCanvasRoom{pane, 1, width, height, graphics::kCellPx, false, 0, 0};
+    }
+    return PaneCanvasRoom{pane, 1, width, height, 1, true, text.advance, text.line};
 }
 
 /// A CANVAS PICTURE AS A WINDOW DRAWS IT, and why the picture itself could not be: a drawing past
@@ -37,17 +43,19 @@ struct CanvasSketch {
     std::string over; ///< why the picture was not drawn, or ""
 };
 
-/// THE PICTURE, drawn for the room it was composed in. Its nodes stand in two groups -- `picture`,
-/// what it shows, and `parts`, each named part's place painted again -- and are named by their
-/// place in their group, so a node a change adds goes after its siblings and paints where the
-/// picture paints it. A part's group is recorded with the part's name as its action; a part with
-/// no name is pressed nowhere.
+/// THE PICTURE, drawn for the room it was composed in, over the room's ground, the whole of it, so
+/// nothing behind the area shows through. Its nodes stand in two groups -- `picture`, what it
+/// shows, and `parts`, each named part's place painted again -- and are named by their place in
+/// their group, so a node a change adds goes after its siblings and paints where the picture paints
+/// it; a run of text's words stand inset in its box where the room is graphical. A part's group is
+/// recorded with the part's name as its action; a part with no name is pressed nowhere.
 inline CanvasSketch canvas_sketch(const v4::PaneCanvasContent& c, const PaneCanvasRoom& room) {
     struct Drawn {
         const char* op;
         std::int64_t x, y, w, h;
         std::int64_t role;
         const std::string* words;
+        std::int64_t inset = 0; ///< where its words begin inside its box
     };
     const auto metrics = canvas_text_metrics(room);
     const auto across = [&](std::size_t bytes, std::int64_t advance) {
@@ -64,7 +72,7 @@ inline CanvasSketch canvas_sketch(const v4::PaneCanvasContent& c, const PaneCanv
     }
     for (const PaneCanvasText& t : c.texts) {
         drawn.push_back({graphics::op::kText, t.x, t.y, across(t.text.size(), metrics.advance),
-                         metrics.line + 2 * metrics.inset, t.role, &t.text});
+                         metrics.line + 2 * metrics.inset, t.role, &t.text, metrics.inset});
     }
     const auto meets = [](const Drawn& d, const PaneCanvasPart& p) {
         return d.x < p.x + p.w && p.x < d.x + d.w && d.y < p.y + p.h && p.y < d.y + d.h;
@@ -73,7 +81,7 @@ inline CanvasSketch canvas_sketch(const v4::PaneCanvasContent& c, const PaneCanv
     // What a window would keep, judged before anything is drawn: two groups, the picture, and
     // each named part's group with what it paints again, counted no further than a bound.
     const auto pressed = [](const PaneCanvasPart& p) { return !p.name.empty() && p.w > 0 && p.h > 0; };
-    std::size_t nodes = 2 + drawn.size(), records = 0;
+    std::size_t nodes = 3 + drawn.size(), records = 0;
     for (const PaneCanvasPart& p : c.parts) records += pressed(p) ? std::size_t{1} : std::size_t{0};
     for (auto p = c.parts.begin(); p != c.parts.end() && records <= graphics::kMaxElementsPerArea &&
                                    nodes <= graphics::kMaxNodesPerArea;
@@ -87,10 +95,10 @@ inline CanvasSketch canvas_sketch(const v4::PaneCanvasContent& c, const PaneCanv
         out.over = "this picture is more than a graphics window keeps, " +
                    std::to_string(graphics::kMaxNodesPerArea) + " nodes and " +
                    std::to_string(graphics::kMaxElementsPerArea) + " pressed parts";
-        out.sketch.group("picture", 0, 0);
-        out.sketch.fill_rect("picture/0", 0, 0, room.width, room.height,
+        out.sketch.fill_rect("ground", 0, 0, room.width, room.height,
                              graphics::by_role(surface::role::kGround));
-        out.sketch.text("picture/1", 0, 0, out.over, graphics::by_role(surface::role::kAlert));
+        out.sketch.group("picture", 0, 0);
+        out.sketch.text("picture/0", 0, 0, out.over, graphics::by_role(surface::role::kAlert));
         return out;
     }
 
@@ -99,9 +107,12 @@ inline CanvasSketch canvas_sketch(const v4::PaneCanvasContent& c, const PaneCanv
         if (d.words == nullptr) {
             out.sketch.fill_rect(path, d.x - dx, d.y - dy, d.w, d.h, graphics::by_role(d.role));
         } else {
-            out.sketch.text(path, d.x - dx, d.y - dy, *d.words, graphics::by_role(d.role));
+            out.sketch.text(path, d.x + d.inset - dx, d.y + d.inset - dy, *d.words,
+                            graphics::by_role(d.role));
         }
     };
+    out.sketch.fill_rect("ground", 0, 0, room.width, room.height,
+                         graphics::by_role(surface::role::kGround));
     out.sketch.group("picture", 0, 0);
     for (std::size_t i = 0; i < drawn.size(); ++i) {
         put("picture/" + std::to_string(i), drawn[i], 0, 0);

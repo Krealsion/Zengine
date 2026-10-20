@@ -42,7 +42,14 @@ keeps, is [surface](surface.md); where the two meet is the last section here.
   never-presented element stays.
 - A window's incarnation is a random token drawn on its first activation and carried by its state:
   a loaded weave cannot read its own id. Owners draw whole only when the window, its incarnation,
-  or its size changed, or the window says the area is empty (`AreaRoom`, `Canvas::room`).
+  its size or its measure changed, or the window says the area is empty (`AreaRoom`,
+  `Canvas::room`).
+- **The window says how it sets text, and every owner places its text by it.** A window that shows
+  every pixel offers its room in pixels and the face it draws with, measured: a character's advance
+  and a line's height (`WindowOffered`, `AreaRoom`, `PaintTask`); a terminal window's text is the
+  cell. Nothing in a window that shows every pixel is set a character a cell. Each owner paints its
+  area's ground, so nothing behind a pane shows through what it leaves blank; no window paints an
+  area's ground for its owner.
 - **The window tells the room.** It answers every introduction of an area with the owner's room,
   naming the elements it still presents there, so a drawer's state keeps no window or incarnation
   and a drawer that starts again says only what the window does not hold. An area given another

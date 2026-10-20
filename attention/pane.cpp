@@ -310,14 +310,15 @@ private:
     void say(loom::Mail& mail) { room().show(*this, mail); }
 
 public:
-    /// WHAT THE PANE SHOWS, one row a cell high: the notice, the glance, and the list `say_view`
-    /// composes. A row the room has no place for is neither drawn nor named.
+    /// WHAT THE PANE SHOWS, one row a line of the room's text high: the notice, the glance, and the
+    /// list `say_view` composes. A row the room has no place for is neither drawn nor named.
     void picture(gfx::Sketch& f) {
         const std::int64_t rows = room().rows(), columns = room().columns();
+        const std::int64_t height = room().text().line;
         std::int64_t row = 0;
         const auto line = [&](const std::string& path, const std::string& text,
                               std::int64_t role) {
-            f.text(path, 0, row * gfx::kCellPx, drawable(fit(text, columns)), gfx::by_role(role));
+            f.text(path, 0, row * height, drawable(fit(text, columns)), gfx::by_role(role));
             ++row;
         };
         // A notice, when there is one, leads: a pane has only its own room, so its first row

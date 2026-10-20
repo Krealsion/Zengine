@@ -95,11 +95,18 @@ public:
     }
 
     CellExtent extent() const { return CellExtent{cols_, rows_}; }
-    /// The size offered to the window's followers: its terminal's, or none where it has none to
-    /// measure, so an arranger keeps the room it lays out in.
-    CellExtent offered() const { return terminal_.size().measured() ? extent() : CellExtent{}; }
+    /// The room offered to the window's followers: its terminal's cells, `kCellPx` pixels each, or
+    /// none where it has none to measure, so an arranger keeps the room it lays out in.
+    PixelRoom offered() const {
+        if (!terminal_.size().measured()) {
+            return {};
+        }
+        return PixelRoom{cols_ * kCellPx, rows_ * kCellPx};
+    }
     /// Its device unit is the cell, which a window offers as no pixels in one.
     static constexpr std::int64_t kCellDevicePx = 0;
+    /// It sets text one character a cell.
+    static constexpr TextMeasure text() { return TextMeasure{kCellPx, kCellPx}; }
 
     void clear() { cache_.clear(); }
     void cover(const WinArea& a, const std::string& path) {

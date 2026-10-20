@@ -232,17 +232,18 @@ public:
     }
 
     /// The status line, plain ASCII: how it looks is the skin's business. Beneath it, a button
-    /// for each gesture.
+    /// for each gesture, each set by the measure of the window that shows the area.
     void picture(gfx::Sketch& f) const {
-        const std::int64_t c = gfx::kCellPx;
+        const gfx::TextMeasure m = canvas().text();
         f.text("status", 0, 0, ctx_->status, gfx::by_role(gfx::role::kFill));
         std::int64_t x = 0;
         for (const Control& k : kControls) {
-            const auto cells = static_cast<std::int64_t>(std::string(k.label).size()) + 2;
+            const auto characters = static_cast<std::int64_t>(std::string(k.label).size()) + 2;
             gfx::Button button(k.action, k.label);
-            button.set_bounds(x, c, cells * c, c);
+            button.set_measure(m);
+            button.set_bounds(x, m.line, characters * m.advance, m.line);
             button.sketch(f, k.action);
-            x += (cells + 1) * c;
+            x += (characters + 1) * m.advance;
         }
     }
 

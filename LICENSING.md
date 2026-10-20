@@ -45,19 +45,21 @@ not the copyright owner and not an LLC.
 Files or directories carrying their own license or copyright notice remain
 under those terms. Bundled third-party material is listed in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md); today that is the doctest
-test framework, the JetBrains Mono typeface the graphical skin sets its text in
-(`surface/fonts/`, SIL OFL 1.1, provenance in
-[surface/fonts/PROVENANCE.md](surface/fonts/PROVENANCE.md)), and the font files
+test framework, the JetBrains Mono typeface the OS window and the graphical skin
+set their text in (`graphics/window/fonts/` and `surface/fonts/`, SIL OFL 1.1,
+provenance in [graphics/window/fonts/PROVENANCE.md](graphics/window/fonts/PROVENANCE.md)
+and [surface/fonts/PROVENANCE.md](surface/fonts/PROVENANCE.md)), and the font files
 inside the quarry (below). SDL, SDL_ttf and FreeType, when the SDL
 skin is enabled, are fetched at build time and are not distributed in this
 repository.
 
-`surface/fonts/` is **not** first-party material and is excluded from the
-MPL-2.0 claim above. Its bytes are unmodified upstream bytes and remain under
-the SIL Open Font License 1.1, whose text travels with them in
-`surface/fonts/OFL.txt`. The build compiles those bytes into the SDL skin weave,
-so anything distributing that weave is distributing the font and carries the
-OFL's notice obligation with it — which is what the notices file records.
+`graphics/window/fonts/` and `surface/fonts/` are **not** first-party material
+and are excluded from the MPL-2.0 claim above. Their bytes are unmodified upstream
+bytes and remain under the SIL Open Font License 1.1, whose text travels with them
+in the `OFL.txt` beside each. The build compiles those bytes into the OS window
+weave and the SDL skin weave, so anything distributing either weave is
+distributing the font and carries the OFL's notice obligation with it — which is
+what the notices file records.
 
 ## `quarry/` — the quarry
 

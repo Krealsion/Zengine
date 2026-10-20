@@ -93,14 +93,14 @@ actions among them.
 - A prose room, from a host with no canvas, gets one row saying the view needs a canvas.
 - In a [graphics window](../../graphics/docs/graphics.md) whose area bears the view's name, it
   draws the same picture. It asks its area's room when it starts (`graphics::RoomAsked`) and
-  draws in the room a window gives (`graphics::AreaRoom`) as a terminal does,
-  `graphics::kCellPx` pixels to a character (`view::sketch`): each rectangle and run of text a
-  node named by what drew it -- `ground`, `box:<id>`, `text:<id>`, and `notice` for the notice's
-  lines -- and each button's nodes asking its id. A focused number field's caret is drawn there
-  as Workshop's panes draw theirs: `caret`, a bar in the accent role at the left of the cell it
-  stands before, in front of the rest. A press there (`graphics::ActionRequested`) on a button the
+  draws in the room a window gives (`graphics::AreaRoom`), in the window's unit and its text: the
+  OS window's face, a character an advance of it, or a terminal's cell (`view::sketch`): each
+  rectangle and run of text a node named by what drew it -- `ground`, `box:<id>`, `text:<id>`,
+  and `notice` for the notice's lines -- and each button's nodes asking its id. A focused number
+  field's caret is drawn there as Workshop's panes draw theirs: `caret`, a bar in the accent role
+  at the left of the character it stands before, in front of the rest. A press there (`graphics::ActionRequested`) on a button the
   picture last sent there names uses it as a press in Workshop does. A change is sent as what
-  changed; a new window, incarnation or size gets the picture whole, a refused change is sent
+  changed; a new window, incarnation, size or measure gets the picture whole, a refused change is sent
   again whole, and a refused whole drawing is said on the notice row, the window sent nothing more
   until the picture changes.
 

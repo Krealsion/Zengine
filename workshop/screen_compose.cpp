@@ -329,8 +329,11 @@ void draw_region(graphics::Sketch& sk, const std::string& name,
 /// ONE PLANE `paint` COMPOSES, drawn in the group `name`: its rects filled in their roles, its
 /// labels, its regions, in that order. The rect `frame` is a backdrop a region covers but its
 /// edge: drawn as a graphics window wears an edge, a ring in its role, on ground where `opaque`.
+/// Each label stands on its own ground where `grounded`, a line of the window's text tall and an
+/// advance of it a character: a plane over the panes covers only what it draws.
 void draw_plane(graphics::Sketch& sk, const std::string& name, const surface::SurfaceLayer& layer,
-                const Screen& sc, const PixelRect& frame = {}, bool opaque = true) {
+                const Screen& sc, const PixelRect& frame = {}, bool opaque = true,
+                bool grounded = false) {
     sk.group(name, 0, 0);
     for (std::size_t i = 0; i < layer.rects.size(); ++i) {
         const surface::SurfaceRect& r = layer.rects[i];
@@ -348,10 +351,18 @@ void draw_plane(graphics::Sketch& sk, const std::string& name, const surface::Su
         }
         sk.outline_rect(at, r.x, r.y, r.w, r.h, graphics::by_role(r.role));
     }
+    const std::int64_t advance =
+        sc.text_advance_px > 0 ? sc.text_advance_px : surface::kCanvasCellPx;
+    const std::int64_t line = sc.text_line_px > 0 ? sc.text_line_px : surface::kCanvasCellPx;
     for (std::size_t i = 0; i < layer.labels.size(); ++i) {
         const surface::SurfaceLabel& l = layer.labels[i];
-        sk.text(name + "/label" + std::to_string(i), l.x, l.y, l.text,
-                graphics::by_role(l.role));
+        const std::string at = name + "/label" + std::to_string(i);
+        if (grounded && !l.text.empty()) {
+            sk.fill_rect(at + "-ground", l.x, l.y,
+                         static_cast<std::int64_t>(l.text.size()) * advance, line,
+                         graphics::by_role(surface::role::kGround));
+        }
+        sk.text(at, l.x, l.y, l.text, graphics::by_role(l.role));
     }
     for (std::size_t i = 0; i < layer.texts.size(); ++i) {
         draw_region(sk, name + "/text" + std::to_string(i), layer.texts[i], sc);
@@ -407,77 +418,74 @@ graphics::Sketch rooted(const graphics::Sketch& built, const std::string& stem) 
     return out;
 }
 
+/// ONE PANE, `kind`, drawn in a group under `desk` as `paint_panes` paints it, over `b`: its edge,
+/// its header and what stands in for a body not yet heard, on ground, and its body where `own_area`
+/// is false; the header's presses, and the Layouts row's tabs, as their parts.
+void draw_pane(WorkshopWindowDrawing& out, const Session& s, std::int64_t kind,
+               const PixelRect& b, const Screen& sc, bool own_area, const std::string& desk) {
+    const std::int64_t chrome = kind == selected_pane(s.panes) ? kPaneChromeSelected : kPaneChrome;
+    surface::SurfaceLayer layer;
+    if (kind == pane_kind::kLayouts) {
+        const std::string group = desk + "/layouts";
+        paint_layouts(layer, s, b, sc, chrome);
+        draw_plane(out.sketch, group, layer, sc, b);
+        const std::int64_t tab_row = band_tab_row(s, sc);
+        if (tab_row != kNoBandRow) {
+            const ExternalBodyPlace place = layouts_body(s, sc);
+            const BandStatus band = band_status(s, place);
+            const surface::SurfaceTextRow row{band.text, surface::role::kMuted};
+            for (const LayoutTab& tab : band.tabs) {
+                draw_part(out, group, "layout:" + std::to_string(tab.at), place.fit, tab_row,
+                          tab.column, tab.columns, row);
+            }
+            draw_part(out, group, "layout:new", place.fit, tab_row, band.create_column,
+                      band.create_columns, row);
+        }
+        return;
+    }
+    const RuntimePane* row = s.panes.runtime.of_kind(kind);
+    if (!is_runtime_kind(kind) || row == nullptr) {
+        return;
+    }
+    const std::string group = desk + "/pane" + std::to_string(kind);
+    paint_external(layer, s.panes, kind, b, sc, s.pane_titles, chrome, !own_area);
+    draw_plane(out.sketch, group, layer, sc, b);
+    const ExternalBodyPlace body =
+        external_body_place(b, sc, external_title_rows(s.panes, kind, s.pane_titles));
+    const bool titled = body.header_rows > 0 && !layer.texts.empty() &&
+                        layer.texts.back().x == body.region_x &&
+                        layer.texts.back().y == body.region_y && !layer.texts.back().rows.empty();
+    if (!titled) {
+        return;
+    }
+    // THE HEADER'S PRESSES: the title puts the pane in front, and the `?` and the gear, where the
+    // row wears them, are pressed as their own (`chrome_mark_at`).
+    const surface::SurfaceTextRow& header = layer.texts.back().rows.front();
+    const ExternalPane* pane = s.panes.external_pane(kind);
+    const bool marks = pane != nullptr && pane->manual && body.columns >= kChromeMarksMinColumns;
+    const std::int64_t marks_cols =
+        static_cast<std::int64_t>(std::char_traits<char>::length(kChromeMarks));
+    draw_part(out, group, "focus:" + std::to_string(kind), body.fit, 0, 0,
+              marks ? body.columns - marks_cols - 1 : body.columns, header);
+    if (marks) {
+        draw_part(out, group, "settings:" + std::to_string(kind), body.fit, 0,
+                  body.columns - marks_cols, 1, header);
+        draw_part(out, group, "manual:" + std::to_string(kind), body.fit, 0, body.columns - 1, 1,
+                  header);
+    }
+}
+
 } // namespace
 
-WorkshopWindowDrawing workshop_window_drawing(const Session& s,
-                                              const std::set<std::int64_t>& placed, bool front) {
+std::string pane_frame_area(std::int64_t kind) {
+    return std::string(kWorkshopProvider) + ".pane." + std::to_string(kind);
+}
+
+WorkshopWindowDrawing workshop_window_drawing(const Session& s) {
     const Screen sc = screen_of(s);
     const std::string desk = "desk";
     WorkshopWindowDrawing out;
     out.sketch.group(desk, 0, 0);
-    // EVERY PANE BACK TO FRONT, as `paint_panes` paints them: a pane whose office draws its body in
-    // an area of its own wears its edge, its header and what stands in for a body not yet heard,
-    // over ground while the desk stands behind the areas, so a pane in front covers the one behind.
-    const std::int64_t lifted = selected_pane(s.panes);
-    for (const std::int64_t kind : effective_pane_order(s.setup.active, s.panes)) {
-        const PixelRect b = bounds_of(s.panes, s.setup.active, kind, sc).rect;
-        if (b.w <= 0 || b.h <= 0) {
-            continue;
-        }
-        const std::int64_t chrome = kind == lifted ? kPaneChromeSelected : kPaneChrome;
-        surface::SurfaceLayer layer;
-        if (kind == pane_kind::kLayouts) {
-            const std::string group = desk + "/layouts";
-            paint_layouts(layer, s, b, sc, chrome);
-            draw_plane(out.sketch, group, layer, sc, b);
-            const std::int64_t tab_row = band_tab_row(s, sc);
-            if (tab_row != kNoBandRow) {
-                const ExternalBodyPlace place = layouts_body(s, sc);
-                const BandStatus band = band_status(s, place);
-                const surface::SurfaceTextRow row{band.text, surface::role::kMuted};
-                for (const LayoutTab& tab : band.tabs) {
-                    draw_part(out, group, "layout:" + std::to_string(tab.at), place.fit, tab_row,
-                              tab.column, tab.columns, row);
-                }
-                draw_part(out, group, "layout:new", place.fit, tab_row, band.create_column,
-                          band.create_columns, row);
-            }
-            continue;
-        }
-        const RuntimePane* row = s.panes.runtime.of_kind(kind);
-        if (!is_runtime_kind(kind) || row == nullptr) {
-            continue;
-        }
-        const bool own_area = placed.count(kind) != 0;
-        const std::string group = desk + "/pane" + std::to_string(kind);
-        paint_external(layer, s.panes, kind, b, sc, s.pane_titles, chrome, !own_area);
-        draw_plane(out.sketch, group, layer, sc, b, !own_area || !front);
-        const ExternalBodyPlace body =
-            external_body_place(b, sc, external_title_rows(s.panes, kind, s.pane_titles));
-        const bool titled = body.header_rows > 0 && !layer.texts.empty() &&
-                            layer.texts.back().x == body.region_x &&
-                            layer.texts.back().y == body.region_y &&
-                            !layer.texts.back().rows.empty();
-        if (!titled) {
-            continue;
-        }
-        // THE HEADER'S PRESSES: the title puts the pane in front, and the `?` and the gear, where
-        // the row wears them, are pressed as their own (`chrome_mark_at`).
-        const surface::SurfaceTextRow& header = layer.texts.back().rows.front();
-        const ExternalPane* pane = s.panes.external_pane(kind);
-        const bool marks = pane != nullptr && pane->manual &&
-                           body.columns >= kChromeMarksMinColumns;
-        const std::int64_t marks_cols =
-            static_cast<std::int64_t>(std::char_traits<char>::length(kChromeMarks));
-        draw_part(out, group, "focus:" + std::to_string(kind), body.fit, 0, 0,
-                  marks ? body.columns - marks_cols - 1 : body.columns, header);
-        if (marks) {
-            draw_part(out, group, "settings:" + std::to_string(kind), body.fit, 0,
-                      body.columns - marks_cols, 1, header);
-            draw_part(out, group, "manual:" + std::to_string(kind), body.fit, 0,
-                      body.columns - 1, 1, header);
-        }
-    }
     // THE ARRANGEMENT'S RINGS, THEN A MENU, THEN THE BAND, each over everything before it.
     {
         surface::SurfaceLayer layer;
@@ -540,6 +548,24 @@ WorkshopWindowDrawing workshop_window_drawing(const Session& s,
     return out;
 }
 
+WorkshopFrameDrawing workshop_frame_drawing(const Session& s, std::int64_t kind, bool own_area) {
+    const Screen sc = screen_of(s);
+    WorkshopFrameDrawing out;
+    const PaneBounds where = bounds_of(s.panes, s.setup.active, kind, sc);
+    if (!where.open || where.rect.w <= 0 || where.rect.h <= 0) {
+        return out;
+    }
+    // DRAWN AS THE DESK DRAWS IT, in the desk's pixels, under a group that carries them to the
+    // area's own corner.
+    out.at = where.rect;
+    const std::string frame = "frame";
+    WorkshopWindowDrawing drawn;
+    drawn.sketch.group(frame, -out.at.x, -out.at.y);
+    draw_pane(drawn, s, kind, out.at, sc, own_area, frame);
+    out.sketch = rooted(drawn.sketch, frame);
+    return out;
+}
+
 graphics::Sketch workshop_overlay_drawing(const Session& s,
                                           const std::vector<surface::SurfaceLayer>& overlays) {
     const Screen sc = screen_of(s);
@@ -549,7 +575,8 @@ graphics::Sketch workshop_overlay_drawing(const Session& s,
     for (std::size_t i = 0; i < overlays.size(); ++i) {
         if (!overlays[i].rects.empty() || !overlays[i].labels.empty() ||
             !overlays[i].texts.empty()) {
-            draw_plane(out, marks + "/plane" + std::to_string(i), overlays[i], sc);
+            draw_plane(out, marks + "/plane" + std::to_string(i), overlays[i], sc, {}, true,
+                       true);
         }
     }
     return rooted(out, marks);

@@ -123,26 +123,29 @@ public:
                            by_role(focused_ ? role::kAccent : role::kMuted)};
     }
 
-    /// Draws the box at its path, its text a cell in from its left edge; a press on it asks
+    /// How the window showing it sets text (`AreaRoom::measure`): its text and cursor stand by it.
+    void set_measure(const TextMeasure& measure) { measure_ = measure; }
+
+    /// Draws the box at its path, its text a character in from its left edge; a press on it asks
     /// `action` of the area's owner while it is enabled, and nothing when `action` is empty.
     void sketch(Sketch& s, const std::string& action = {}) const {
         const TextBoxFace f = face();
         const bool hint = text_.empty() && !focused_;
         const std::string& shown = hint ? placeholder_ : text_;
-        // A character a cell: the window of characters that holds the cursor, where the box's
-        // width bounds it.
-        const std::int64_t room = w_ / kCellPx - 2;
+        const std::int64_t advance = measure_.advance, line = measure_.line;
+        // The window of characters that holds the cursor, where the box's width bounds it.
+        const std::int64_t room = w_ / advance - 2;
         const std::int64_t at = characters(std::string_view(text_).substr(0, cursor_));
         const std::int64_t first =
             room > 0 && !hint ? std::max<std::int64_t>(0, at - room + 1) : 0;
-        const std::int64_t ty = h_ >= 3 * kCellPx ? (h_ / kCellPx - 1) / 2 * kCellPx : 0;
+        const std::int64_t ty = h_ >= 3 * line ? (h_ / line - 1) / 2 * line : 0;
         s.group(path_, x_, y_, w_, h_);
         s.rect(path_ + "/box", 0, 0, w_, h_, f.fill, f.border);
-        s.text(path_ + "/text", kCellPx, ty, window(shown, first, room),
+        s.text(path_ + "/text", advance, ty, window(shown, first, room),
                hint ? by_role(role::kMuted) : f.ink);
         if (focused_) {
-            const std::int64_t cx = (1 + at - first) * kCellPx;
-            s.line(path_ + "/cursor", cx, ty, cx, ty + kCellPx - 1, by_role(role::kAccent));
+            const std::int64_t cx = (1 + at - first) * advance;
+            s.line(path_ + "/cursor", cx, ty, cx, ty + line - 1, by_role(role::kAccent));
         }
         s.record(path_, f, enabled_ ? action : std::string());
     }
@@ -190,6 +193,7 @@ private:
     std::string text_;
     std::size_t cursor_ = 0;
     std::int64_t x_ = 0, y_ = 0, w_ = 0, h_ = 0;
+    TextMeasure measure_;
     bool focused_ = false;
     bool enabled_ = true;
 };

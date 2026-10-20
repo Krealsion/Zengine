@@ -1059,6 +1059,23 @@ TEST_CASE("a canvas told its area is empty draws whole again, in the same window
     CHECK_FALSE(canvas.holds(3));
 }
 
+TEST_CASE("a canvas told its window sets text in another measure draws whole again, and keeps the "
+          "measure for its owner") {
+    gfx::Canvas canvas("test.area");
+    REQUIRE(canvas.room(gfx::AreaRoom{"test.area", "sdl", 7, 240, 120, {}, false, gfx::kCellPx,
+                                      8, 18}));
+    CHECK(canvas.cell_px() == gfx::kCellPx);
+    CHECK(canvas.text() == gfx::TextMeasure{8, 18});
+    CHECK_FALSE(canvas.room(gfx::AreaRoom{"test.area", "sdl", 7, 240, 120, {}, false,
+                                          gfx::kCellPx, 8, 18}));
+    CHECK(canvas.room(gfx::AreaRoom{"test.area", "sdl", 7, 240, 120, {}, false, gfx::kCellPx, 7,
+                                    16}));
+    CHECK(canvas.text() == gfx::TextMeasure{7, 16});
+    // A ROOM THAT SAYS NO MEASURE is a window whose text is the cell.
+    CHECK(canvas.room(gfx::AreaRoom{"test.area", "terminal", 7, 240, 120, {}, false, 0, 0, 0}));
+    CHECK(canvas.text() == gfx::TextMeasure{});
+}
+
 /// EVERYTHING ONE PARTICIPANT SENDS while this is held, delivered or refused: its shape's name.
 struct SentBy {
     loom::Switchboard& bus;
@@ -1744,9 +1761,13 @@ TEST_CASE("the window offers itself as its own office to whoever follows it: the
     REQUIRE(heard.offers.size() == 1);
     CHECK(heard.from_window[0]);
     CHECK(heard.offers[0].window == gfx::kTerminalWindow);
-    // ...its terminal's size, or none where the suite's output is no terminal it can measure.
-    CHECK(((heard.offers[0].cols > 0 && heard.offers[0].rows > 0) ||
-           (heard.offers[0].cols == 0 && heard.offers[0].rows == 0)));
+    // ...its terminal's size in pixels, a cell's each, or none where the suite's output is no
+    // terminal it can measure, and its text a cell.
+    CHECK(((heard.offers[0].width > 0 && heard.offers[0].height > 0) ||
+           (heard.offers[0].width == 0 && heard.offers[0].height == 0)));
+    CHECK(heard.offers[0].width % gfx::kCellPx == 0);
+    CHECK(heard.offers[0].text_advance_px == gfx::kCellPx);
+    CHECK(heard.offers[0].text_line_px == gfx::kCellPx);
     std::set<std::uint64_t> to;
     for (std::size_t i = mark; i < r.log.size(); ++i) {
         if (r.log[i].shape != gfx::WindowOffered::zen_name) continue;
@@ -1802,9 +1823,8 @@ public:
         heard_->offers.push_back(w);
         heard_->from_window.push_back(true);
         (void)mail.send_to_role(gfx::kGraphicsRole,
-                                gfx::AreaPlaced{kOwner, w.window, kOwner, 0, 0,
-                                                w.cols * gfx::kCellPx, w.rows * gfx::kCellPx, 0,
-                                                true});
+                                gfx::AreaPlaced{kOwner, w.window, kOwner, 0, 0, w.width, w.height,
+                                                0, true});
     }
 
 private:
@@ -1872,10 +1892,12 @@ void check_resized(Resized& t, zengine::surface::TerminalSize size, std::int64_t
     const std::vector<gfx::WindowOffered> offers = offers_to_directory(r, mark);
     REQUIRE(offers.size() == 1);
     CHECK(offers[0].window == gfx::kTerminalWindow);
-    CHECK(offers[0].cols == (measured ? cols : 0));
-    CHECK(offers[0].rows == (measured ? rows : 0));
+    CHECK(offers[0].width == (measured ? cols * gfx::kCellPx : 0));
+    CHECK(offers[0].height == (measured ? rows * gfx::kCellPx : 0));
     CHECK(offers[0].epoch == t.epoch);
-    CHECK(offers[0].cell_px == 0); // its unit is the cell
+    CHECK(offers[0].cell_px == 0); // its unit is the cell...
+    CHECK(offers[0].text_advance_px == gfx::kCellPx); // ...and its text a cell a character
+    CHECK(offers[0].text_line_px == gfx::kCellPx);
 
     REQUIRE(t.term.writes.size() == writes + 1);
     const gfx::WindowShown after = r.shown();
@@ -1946,8 +1968,8 @@ TEST_CASE("an arranger following the window's offer places its area across the r
     t.pump();
     // THE ARRANGER HEARD THE NEW ROOM, from the window, in the incarnation it had...
     REQUIRE(heard.offers.size() == 1);
-    CHECK(heard.offers[0].cols == 100);
-    CHECK(heard.offers[0].rows == 36);
+    CHECK(heard.offers[0].width == 100 * gfx::kCellPx);
+    CHECK(heard.offers[0].height == 36 * gfx::kCellPx);
     CHECK(heard.offers[0].epoch == t.epoch);
     // ...AND PLACED ITS AREA ACROSS IT, which the directory introduced to the window there...
     const auto introduced = r.read<gfx::AreaIntroduced>(mark, gfx::kGraphicsRole);
@@ -2090,8 +2112,8 @@ TEST_CASE("the terminal window copies by OSC 52, reads no clipboard, has no plac
         t.term.size = {70, 24};
         (void)ask.ask(gfx::PumpSurface{});
         REQUIRE(ask.heard.offers.size() == offered + 1);
-        CHECK(ask.heard.offers.back().cols == 70);
-        CHECK(ask.heard.offers.back().rows == 24);
+        CHECK(ask.heard.offers.back().width == 70 * gfx::kCellPx);
+        CHECK(ask.heard.offers.back().height == 24 * gfx::kCellPx);
         CHECK(ask.heard.offers.back().epoch == t.epoch);
         CHECK(ask.heard.placements.empty());
         CHECK(ask.heard.closes == 0);
@@ -3677,7 +3699,7 @@ TEST_CASE("a pane's drawing its window refused leaves the window as it was, and 
     drawn = r.read<gfx::Drawn>(mark, kTestPane);
     REQUIRE(drawn.size() == 1);
     CHECK(drawn[0].whole);
-    CHECK(put_paths(drawn[0]) == Paths{"words"});
+    CHECK(put_paths(drawn[0]) == Paths{"room", "words"});
     CHECK(r.read<gfx::DrawnRefused>(mark, window_office()).empty());
     CHECK(row_says(r.shown().rows, 0, "turn 2"));
 }
@@ -3690,7 +3712,7 @@ TEST_CASE("the Attention pane draws in a graphics window: whole on its room, the
     std::vector<gfx::Drawn> drawn = a.drawn(0);
     REQUIRE(drawn.size() == 1);
     CHECK(drawn[0].whole);
-    CHECK(put_paths(drawn[0]) == Paths{"glance"});
+    CHECK(put_paths(drawn[0]) == Paths{"room", "glance"});
     CHECK(drawn[0].said.empty());
     CHECK(row_says(a.r.shown().rows, 0, "ATTENTION (waiting)"));
 
@@ -3816,7 +3838,7 @@ TEST_CASE("the Connections pane draws in a graphics window: whole on its room, e
     std::vector<gfx::Drawn> drawn = r.read<gfx::Drawn>(0, cpane::kConnectionsPaneRole);
     REQUIRE(drawn.size() == 1);
     CHECK(drawn[0].whole);
-    CHECK(put_paths(drawn[0]) == Paths{"waiting"});
+    CHECK(put_paths(drawn[0]) == Paths{"room", "waiting"});
     CHECK(row_says(r.shown().rows, 0, "CONNECTIONS (waiting for the guest door)"));
 
     ws::v3::GuestConnections said;
@@ -4039,32 +4061,51 @@ TEST_CASE("a point lands on a node painted for light where it painted, and withi
     n.texts.push_back(light::TextRun{40, 0, 0, "abc"});
     n.images.push_back(light::ImageBlit{0, 40, 8, 8, 1, 1, loom::Bytes{0, 0, 0, 0}});
     n.lines.push_back(light::Line{100, 0, 100, 50, 0});
-    CHECK(light::hits_node(n, 10, 10));
-    CHECK(light::hits_node(n, 14, 14));
-    CHECK_FALSE(light::hits_node(n, 15, 15));
-    CHECK(light::hits_node(n, 40 + 3 * light::kAdvance - 1, light::kLine - 1)); // the run's box
-    CHECK_FALSE(light::hits_node(n, 40 + 3 * light::kAdvance, 0));
-    CHECK(light::hits_node(n, 7, 47));
-    CHECK(light::hits_node(n, 101, 25)); // a pixel from the line
-    CHECK_FALSE(light::hits_node(n, 102, 25));
-    CHECK_FALSE(light::hits_node(n, 100, 52)); // past its end
+    const gfx::TextMeasure face{8, 18};
+    CHECK(light::hits_node(n, 10, 10, face));
+    CHECK(light::hits_node(n, 14, 14, face));
+    CHECK_FALSE(light::hits_node(n, 15, 15, face));
+    CHECK(light::hits_node(n, 40 + 3 * 8 - 1, 18 - 1, face)); // the run's box, in its face
+    CHECK_FALSE(light::hits_node(n, 40 + 3 * 8, 0, face));
+    CHECK_FALSE(light::hits_node(n, 40, 18, face));
+    CHECK(light::hits_node(n, 7, 47, face));
+    CHECK(light::hits_node(n, 101, 25, face)); // a pixel from the line
+    CHECK_FALSE(light::hits_node(n, 102, 25, face));
+    CHECK_FALSE(light::hits_node(n, 100, 52, face)); // past its end
 }
 
-TEST_CASE("in light a run of text stands one cell a character, as a window reads it and as an "
-          "owner sets a mark at its column") {
+TEST_CASE("in light a run of text stands a character every advance of the window's face, as the "
+          "task says it, and a line of that face tall") {
     gfx::Sketch s;
-    s.group("g", 0, 0, 3 * gfx::kCellPx, gfx::kCellPx);
+    s.group("g", 0, 0, 3 * 8, 18);
     s.text("g/row", 0, 0, "abcdef", gfx::by_role(gfx::role::kFill));
     s.text("mark", 40, 0, "xyz", gfx::by_role(gfx::role::kFill));
-    const std::vector<light::NodePrimitives> nodes = lit(s, light::day_look()); // the group paints none
+    gfx::PaintTask task;
+    task.text_advance = 8;
+    task.text_line = 18;
+    std::int64_t rank = 1;
+    for (const gfx::Node& n : s.nodes()) {
+        task.nodes.push_back(gfx::PaintNode{n.path, {rank++}, n.op, n.args});
+    }
+    std::vector<light::NodePrimitives> nodes;
+    for (const gfx::NodePaint& np : light::paint_task(task, light::day_look()).nodes) {
+        auto p = light::unpack_node(np.cells);
+        REQUIRE(p.has_value());
+        nodes.push_back(std::move(*p)); // the group paints none
+    }
     REQUIRE(nodes.size() == 2);
-    // A CLIP THREE CELLS WIDE holds three characters of a run.
+    // A CLIP THREE ADVANCES WIDE holds three characters of a run, not two of a cell's.
     REQUIRE(nodes[0].texts.size() == 1);
     CHECK(nodes[0].texts[0].text == "abc");
-    // A RUN'S BOX is its characters' cells: three characters, three cells.
+    // A RUN'S BOX is its characters' advances, a line tall.
+    const gfx::TextMeasure face{8, 18};
     REQUIRE(nodes[1].texts.size() == 1);
-    CHECK(light::hits_node(nodes[1], 40 + 3 * gfx::kCellPx - 1, 0));
-    CHECK_FALSE(light::hits_node(nodes[1], 40 + 3 * gfx::kCellPx, 0));
+    CHECK(light::hits_node(nodes[1], 40 + 3 * 8 - 1, 17, face));
+    CHECK_FALSE(light::hits_node(nodes[1], 40 + 3 * 8, 0, face));
+    // A TASK THAT SAYS NO MEASURE sets its text a cell a character.
+    const std::vector<light::NodePrimitives> cells = lit(s, light::day_look());
+    REQUIRE(cells.size() == 2);
+    CHECK(cells[0].texts[0].text == "ab");
 }
 
 TEST_CASE("no source in the graphics package includes Surface") {
@@ -4282,6 +4323,7 @@ struct LightLog {
         bool operator==(const Frame&) const = default;
     };
     gw::PixelSize size{gw::kDefaultWidth, gw::kDefaultHeight};
+    gfx::TextMeasure face{8, 18}; ///< the face it sets text in, as the OS window's measures
     gw::PixelPolled queued;
     std::vector<Frame> frames;
     int claims = 0;
@@ -4339,6 +4381,7 @@ public:
     explicit FakeSdlBackend(LightLog* log) : log_(log) {}
     void claim() { ++log_->claims; }
     gw::PixelSize size() const { return log_->size; }
+    gfx::TextMeasure text() const { return log_->face; }
     bool present(const gw::ComposedLightFrame& frame) {
         if (!log_->drawing) {
             return false;
@@ -4577,7 +4620,7 @@ TEST_CASE("the OS window paints every operator for light, holds a drawing saying
     const gfx::WindowShown s = t.shown();
     CHECK(s.window == gfx::kSdlWindow);
     CHECK(s.nodes == 8);
-    CHECK(s.rows.size() == static_cast<std::size_t>(gw::kDefaultHeight / gfx::kCellPx));
+    CHECK(s.rows.size() == static_cast<std::size_t>(gw::kDefaultHeight / t.light.face.line));
     CHECK(any_row_has(s, "hi?!"));
     CHECK(s.rows[0].rfind("tail", 0) == 0);
     CHECK(s.showings == static_cast<std::int64_t>(t.light.frames.size()));
@@ -4586,6 +4629,48 @@ TEST_CASE("the OS window paints every operator for light, holds a drawing saying
     t.say("test.lit", gfx::Drawn{"test.nowhere", false, {}, {}, {}, {}, false});
     REQUIRE(o.refused.size() == 1);
     CHECK(o.refused[0] == "window 'sdl' shows no area 'test.nowhere'");
+}
+
+TEST_CASE("the OS window sets text in the face it measured: its owners are told it, a skin sets "
+          "each run a character an advance, the window reads its text so, and a press lands on a "
+          "run's characters") {
+    LitWindow t;
+    const gfx::TextMeasure face = t.light.face;
+    REQUIRE_FALSE(face == gfx::TextMeasure{});
+    LitHeard& o = t.own("test.day", 0, 0, 40 * face.advance, 4 * face.line, "day");
+    REQUIRE_FALSE(o.rooms.empty());
+    CHECK(o.rooms.back().cell_px == gfx::kCellPx);
+    CHECK(o.rooms.back().text_advance_px == face.advance);
+    CHECK(o.rooms.back().text_line_px == face.line);
+    gfx::Sketch s;
+    s.group("g", 0, face.line, 3 * face.advance, face.line);
+    s.text("g/row", 0, 0, "abcdef", gfx::by_role(gfx::role::kFill));
+    s.text("word", 5 * face.advance, 0, "go", gfx::by_role(gfx::role::kFill));
+    s.action("word", "go.on");
+    t.say("test.day", whole("test.day", s));
+    REQUIRE(o.refused.empty());
+    // THE DAY SKIN, painter code in its own library, set each run by the face the task carried: a
+    // clip three advances wide keeps three characters.
+    const LightLog::Area* a = t.light.area("test.day");
+    REQUIRE(a != nullptr);
+    std::vector<std::string> runs;
+    for (const light::NodePrimitives& n : a->nodes) {
+        for (const light::TextRun& r : n.texts) {
+            runs.push_back(r.text);
+        }
+    }
+    CHECK(runs == std::vector<std::string>{"abc", "go"});
+    // READ AS TEXT a character an advance of the face and a row a line of it.
+    const gfx::WindowShown shown = t.shown();
+    REQUIRE(shown.rows.size() >= 2);
+    CHECK(shown.rows[0] == "     go");
+    CHECK(shown.rows[1] == "abc");
+    // A PRESS ON THE RUN'S LAST CHARACTER is a press on the run; one past it is not.
+    t.click(7 * face.advance - 1, face.line - 1);
+    REQUIRE(o.actions.size() == 1);
+    CHECK(o.actions[0].action == "go.on");
+    t.click(7 * face.advance, face.line - 1);
+    CHECK(o.actions.size() == 1);
 }
 
 TEST_CASE("the OS window paints an area whose skin paints characters in its own look, and one "
@@ -4826,21 +4911,24 @@ TEST_CASE("the OS window publishes a close its desktop asked for as its office, 
     CHECK_FALSE(terminal.take_close());
 }
 
-TEST_CASE("the OS window resized offers itself again in its new size in cells, under the same "
+TEST_CASE("the OS window resized offers itself again in its new size in pixels, under the same "
           "incarnation, and draws its picture again at any new size") {
     LitWindow t;
     t.own("test.lit", 0, 0, 100, 100, "night");
     const auto offers = t.r.read<gfx::WindowOffered>(0, sdl_office());
     REQUIRE_FALSE(offers.empty());
-    CHECK(offers.back().cols == gw::kDefaultWidth / gfx::kCellPx);
-    CHECK(offers.back().rows == gw::kDefaultHeight / gfx::kCellPx);
+    CHECK(offers.back().width == gw::kDefaultWidth);
+    CHECK(offers.back().height == gw::kDefaultHeight);
     const std::int64_t epoch = offers.back().epoch;
 
     std::size_t mark = t.r.log.size();
     std::size_t frames = t.light.frames.size();
-    t.light.size = gw::PixelSize{gw::kDefaultWidth + 5, gw::kDefaultHeight + 5}; // the same cells
+    t.light.size = gw::PixelSize{gw::kDefaultWidth + 5, gw::kDefaultHeight + 5}; // in a cell
     t.pump();
-    CHECK(t.r.read<gfx::WindowOffered>(mark, sdl_office()).empty());
+    const auto pixels = t.r.read<gfx::WindowOffered>(mark, sdl_office());
+    REQUIRE(pixels.size() == 1); // every pixel is its room, none floored to a cell
+    CHECK(pixels[0].width == gw::kDefaultWidth + 5);
+    CHECK(pixels[0].height == gw::kDefaultHeight + 5);
     CHECK(t.light.frames.size() == frames + 1);
 
     mark = t.r.log.size();
@@ -4850,13 +4938,16 @@ TEST_CASE("the OS window resized offers itself again in its new size in cells, u
     const auto again = t.r.read<gfx::WindowOffered>(mark, sdl_office());
     REQUIRE(again.size() == 1);
     CHECK(again[0].window == gfx::kSdlWindow);
-    CHECK(again[0].cols == 1200 / gfx::kCellPx);
-    CHECK(again[0].rows == 600 / gfx::kCellPx);
+    CHECK(again[0].width == 1200);
+    CHECK(again[0].height == 600);
     CHECK(again[0].epoch == epoch);
-    CHECK(again[0].cell_px == gfx::kCellPx); // it shows every pixel
+    CHECK(again[0].cell_px == gfx::kCellPx); // it shows every pixel...
+    CHECK(again[0].text_advance_px == t.light.face.advance); // ...and sets text in its face
+    CHECK(again[0].text_line_px == t.light.face.line);
     CHECK(t.light.frames.size() > frames);
     CHECK(t.light.frames.back().width == 1200);
-    CHECK(t.shown().rows.size() == static_cast<std::size_t>(600 / gfx::kCellPx));
+    // READ AS TEXT, a row a line of its face.
+    CHECK(t.shown().rows.size() == static_cast<std::size_t>(600 / t.light.face.line));
 
     mark = t.r.log.size();
     t.pump(); // nothing changed: nothing offered, nothing drawn
@@ -5087,7 +5178,7 @@ TEST_CASE("the OS window's clipboard and its place on the desktop are its backen
         CHECK(ask.heard.order[from] == "SurfacePlacement");
         CHECK(ask.heard.order[from + 1] == "WindowOffered");
         CHECK(placed_at(ask.heard.placements.back(), 90, 70, false));
-        CHECK(ask.heard.offers.back().cols == 1200 / gfx::kCellPx);
+        CHECK(ask.heard.offers.back().width == 1200);
 
         // A place offered back is the backend's to take; where the window is after is said.
         (void)ask.ask(gfx::SurfacePlacementRemembered{90, 70, false});
@@ -5099,6 +5190,25 @@ TEST_CASE("the OS window's clipboard and its place on the desktop are its backen
         REQUIRE(ask.heard.placements.size() == 3);
         CHECK(placed_at(ask.heard.placements.back(), 300, 200, true));
         CHECK(ask.heard.closes == 0);
+    }
+}
+
+TEST_CASE("an OS window a weaver made narrower and a pixel taller is not grown back while its "
+          "areas are placed again for it one at a time") {
+    LitWindow t;
+    t.own("test.desk", 0, 0, gw::kDefaultWidth, gw::kDefaultHeight, "night");
+    t.own("test.over", 0, 0, gw::kDefaultWidth, gw::kDefaultHeight, "night", 1);
+    REQUIRE(t.light.grown.empty());
+    t.light.size = gw::PixelSize{gw::kDefaultWidth - 156, gw::kDefaultHeight + 1};
+    t.pump();
+    // THE FIRST AREA PLACED FOR THE NEW ROOM reaches a pixel further down and less far across;
+    // the other still reaches across the old room, no further than it did.
+    for (const char* area : {"test.desk", "test.over"}) {
+        t.r.to_role(gfx::kGraphicsRole,
+                    gfx::AreaPlaced{area, gfx::kSdlWindow, area, 0, 0, gw::kDefaultWidth - 156,
+                                    gw::kDefaultHeight + 1, 0, false});
+        t.r.drain();
+        CHECK(t.light.grown.empty());
     }
 }
 
@@ -5119,10 +5229,11 @@ TEST_CASE("the OS window asks its backend to grow once for each new reach of its
     t.light.size = gw::PixelSize{1200, 700};
     t.pump();
     CHECK(t.light.grown.size() == 1);
-    // ...and an area placed further out asks again, for the whole reach.
+    // ...and an area placed further out asks again, along the axis it reaches further on: the
+    // width the weaver chose stays.
     t.own("test.tall", 0, 0, 100, 1200, "night", 2);
     REQUIRE(t.light.grown.size() == 2);
-    CHECK(t.light.grown[1] == gw::PixelSize{2000, 1200});
+    CHECK(t.light.grown[1] == gw::PixelSize{1200, 1200});
 
     // A remembered maximize waits for the next picture, and lands on the beat after it, once.
     t.instance->place(gw::WindowPlacementValue{50, 60, true});
@@ -5265,7 +5376,12 @@ TEST_CASE("the OS window with no display to open on keeps and composes its pictu
         const gfx::WindowShown s = w.shown();
         CHECK(s.window == gfx::kSdlWindow);
         CHECK(any_row_has(s, "lit"));
-        CHECK(s.rows.size() == static_cast<std::size_t>(gw::kDefaultHeight / gfx::kCellPx));
+        // ITS FACE MEASURED with no window to draw in: the embedded face's, not SDL's debug face.
+        REQUIRE_FALSE(w.heard.rooms.empty());
+        const gfx::TextMeasure face = w.heard.rooms.back().measure();
+        CHECK(face.advance > 0);
+        CHECK_FALSE(face == gw::kDebugFace);
+        CHECK(s.rows.size() == static_cast<std::size_t>(gw::kDefaultHeight / face.line));
         CHECK(s.showings == 0); // nothing was drawn, so nothing was shown
         CHECK(os_windows().empty());
         CHECK(SDL_WasInit(SDL_INIT_VIDEO) == 0);
@@ -5447,7 +5563,9 @@ TEST_CASE("the OS window over SDL opens centred on its display's usable area, it
     CHECK(h == 1500);
     CHECK(t.instance->placement() == gw::WindowPlacementValue{400, 300, false});
     t.pump();
-    CHECK(t.shown().rows.size() == static_cast<std::size_t>(1500 / gfx::kCellPx));
+    REQUIRE_FALSE(t.heard.rooms.empty());
+    CHECK(t.shown().rows.size() ==
+          static_cast<std::size_t>(1500 / t.heard.rooms.back().measure().line));
 
     // A remembered place far off the display comes back whole on it...
     t.instance->place(gw::WindowPlacementValue{-5000, 99999, false});

@@ -109,15 +109,16 @@ private:
     }
 
 public:
-    /// WHAT THE PANE SHOWS, one line a cell high, each named for what it says; a connection's
+    /// WHAT THE PANE SHOWS, a line of the room's text each, named for what it says; a connection's
     /// lines stand under `rows/<n>`, the n-th connection said. A row past the room is not drawn.
     void picture(gfx::Sketch& f) const {
         const std::int64_t rows = room().rows(), columns = room().columns();
+        const std::int64_t height = room().text().line;
         std::int64_t row = 0;
         const auto line = [&](const std::string& path, const std::string& text,
                               std::int64_t role) {
             if (row < rows) {
-                f.text(path, 0, row * gfx::kCellPx, drawable(fit(text, columns)),
+                f.text(path, 0, row * height, drawable(fit(text, columns)),
                        gfx::by_role(role));
                 ++row;
             }

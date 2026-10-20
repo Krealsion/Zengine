@@ -30,11 +30,6 @@
 
 namespace zengine::graphics::light {
 
-/// The width of one character of text and the height of a line: a cell's, so text stands one cell
-/// a character, as a window of light reads it and as every owner sets text in cells.
-inline constexpr std::int64_t kAdvance = kCellPx;
-inline constexpr std::int64_t kLine = kCellPx;
-
 /// The tag that opens a node painted for light: 'L', 'G', 'T' and this layout's version.
 inline constexpr std::array<std::uint8_t, 4> kTag = {'L', 'G', 'T', 1};
 
@@ -265,7 +260,8 @@ inline std::uint32_t rgba_of(std::int64_t rgb) {
 
 class Painter {
 public:
-    explicit Painter(const Look& look) : look_(look) {}
+    /// A painter in `look`, setting text as `text` says: the window's face, measured.
+    explicit Painter(const Look& look, const TextMeasure& text = {}) : look_(look), text_(text) {}
 
     /// One node's primitives, drawn in `space`. Operands that do not read as their operator's
     /// paint nothing; an operator this medium does not know paints its name, muted.
@@ -473,8 +469,8 @@ private:
     }
 
     /// Printable ASCII as itself, any other character (all of its UTF-8 bytes) as one '?', a
-    /// character every `kAdvance` pixels; a character outside the clip is left out, and a line
-    /// whose top is outside it is not drawn. Text in the medium's ground paints as `kFill`.
+    /// character every advance of the window's face; a character outside the clip is left out, and
+    /// a line whose top is outside it is not drawn. Text in the medium's ground paints as `kFill`.
     void text(std::int64_t x, std::int64_t y, const std::string& s, const Paint& ink) const {
         if (ink.none()) {
             return;
@@ -493,7 +489,7 @@ private:
             }
             const char glyph = (ch >= 0x20 && ch < 0x7f) ? static_cast<char>(ch) : '?';
             const bool inside =
-                !space_.clipped || (at >= space_.cx0 && at + kAdvance <= space_.cx1);
+                !space_.clipped || (at >= space_.cx0 && at + text_.advance <= space_.cx1);
             if (inside) {
                 if (shown.empty()) {
                     first = at;
@@ -502,7 +498,7 @@ private:
             } else if (!shown.empty()) {
                 break;
             }
-            at += kAdvance;
+            at += text_.advance;
         }
         if (shown.empty()) {
             return;
@@ -548,13 +544,21 @@ private:
     }
 
     Look look_;
+    TextMeasure text_;
     mutable term::Space space_;
     mutable NodePrimitives* out_ = nullptr;
 };
 
-/// A whole task painted for light: each node but a group, its primitives packed in its cells.
+/// The measure a task asks text set by: its own, or the cell's where it says none.
+inline TextMeasure measure_of(const PaintTask& task) {
+    return TextMeasure{task.text_advance > 0 ? task.text_advance : kCellPx,
+                       task.text_line > 0 ? task.text_line : kCellPx};
+}
+
+/// A whole task painted for light: each node but a group, its primitives packed in its cells, its
+/// text set by the task's measure.
 inline PaintResult paint_task(const PaintTask& task, const Look& look) {
-    const Painter painter(look);
+    const Painter painter(look, measure_of(task));
     const auto at = term::spaces(task.nodes);
     PaintResult out;
     for (const PaintNode& n : task.nodes) {
@@ -569,9 +573,10 @@ inline PaintResult paint_task(const PaintTask& task, const Look& look) {
 }
 
 /// Whether a point of the area, in its pixels, lands on what a node painted: inside a quad, a
-/// run of text's box (`kAdvance` a character, `kLine` tall) or an image's, or within a pixel of
-/// a line.
-inline bool hits_node(const NodePrimitives& n, std::int64_t x, std::int64_t y) {
+/// run of text's box (an advance of `text` a character, a line of it tall) or an image's, or
+/// within a pixel of a line.
+inline bool hits_node(const NodePrimitives& n, std::int64_t x, std::int64_t y,
+                      const TextMeasure& text) {
     const auto inside = [&](std::int64_t bx, std::int64_t by, std::int64_t bw, std::int64_t bh) {
         return x >= bx && y >= by && x < bx + bw && y < by + bh;
     };
@@ -581,7 +586,8 @@ inline bool hits_node(const NodePrimitives& n, std::int64_t x, std::int64_t y) {
         }
     }
     for (const TextRun& t : n.texts) {
-        if (inside(t.x, t.y, static_cast<std::int64_t>(t.text.size()) * kAdvance, kLine)) {
+        if (inside(t.x, t.y, static_cast<std::int64_t>(t.text.size()) * text.advance,
+                   text.line)) {
             return true;
         }
     }

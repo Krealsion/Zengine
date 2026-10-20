@@ -60,8 +60,8 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
   moved there whole from a cell boundary less the pan, by whole grains, so the lattice holds on
   both media and what is designed is what runs. Nothing of the view is drawn outside the design
   area. Over it the builder draws marks alone, never an element.
-- A graphics window is sent that picture too: `view::sketch` sets it, drawn in the window's room as
-  a terminal draws it, as nodes named by what drew them (`box:<id>`, `text:<id>`) with no `/`, so
+- A graphics window is sent that picture too: `view::sketch` sets it, drawn in the window's room in
+  its unit and its text (`ws::canvas_window_room`), as nodes named by what drew them (`box:<id>`, `text:<id>`) with no `/`, so
   none waits for a parent, each button's nodes recorded with its id as their action. The view's
   area is its name, its room is the window's word alone (`AreaRoom`, as that window's office), and
   what changed goes as a change through `graphics::Canvas`. A refused change goes whole at once; a

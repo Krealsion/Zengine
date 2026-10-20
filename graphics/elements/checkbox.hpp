@@ -50,6 +50,9 @@ public:
     void toggle() { checked_ = !checked_; }
     void set_enabled(bool enabled) { enabled_ = enabled; }
     void hover(bool hovered) { hovered_ = hovered; }
+    /// How the window showing it sets text (`AreaRoom::measure`): its label stands four
+    /// characters in.
+    void set_measure(const TextMeasure& text) { text_ = text; }
 
     const std::string& path() const { return path_; }
     const std::string& label() const { return label_; }
@@ -73,7 +76,7 @@ public:
         s.group(path_, x_, y_, w_, h_);
         s.fill_rect(path_ + "/face", 0, 0, w_, h_, f.box_fill);
         s.text(path_ + "/mark", 0, 0, checked_ ? "[x]" : "[ ]", f.check_ink);
-        s.text(path_ + "/label", 4 * kCellPx, 0, label_, f.label_ink);
+        s.text(path_ + "/label", 4 * text_.advance, 0, label_, f.label_ink);
         s.record(path_, f, enabled_ ? action : std::string());
     }
 
@@ -82,6 +85,7 @@ private:
     std::string label_;
     bool checked_ = false;
     std::int64_t x_ = 0, y_ = 0, w_ = 0, h_ = 0;
+    TextMeasure text_;
     bool enabled_ = true;
     bool hovered_ = false;
 };

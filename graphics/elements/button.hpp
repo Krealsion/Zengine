@@ -51,6 +51,8 @@ public:
         enabled_ = enabled;
         pressed_ = pressed_ && enabled;
     }
+    /// How the window showing it sets text (`AreaRoom::measure`): its label is centred by it.
+    void set_measure(const TextMeasure& text) { text_ = text; }
     void press() { pressed_ = enabled_; }
     void release() { pressed_ = false; }
     void hover(bool hovered) { hovered_ = hovered; }
@@ -80,9 +82,10 @@ public:
     void sketch(Sketch& s, const std::string& action = {}) const {
         const ButtonFace f = face();
         const std::string words = enabled_ ? "[" + label_ + "]" : "(" + label_ + ")";
-        const auto cells = static_cast<std::int64_t>(words.size());
-        const std::int64_t tx = std::max<std::int64_t>(0, (w_ / kCellPx - cells) / 2) * kCellPx;
-        const std::int64_t ty = std::max<std::int64_t>(0, (h_ / kCellPx - 1) / 2) * kCellPx;
+        const auto characters = static_cast<std::int64_t>(words.size());
+        const std::int64_t tx =
+            std::max<std::int64_t>(0, (w_ / text_.advance - characters) / 2) * text_.advance;
+        const std::int64_t ty = std::max<std::int64_t>(0, (h_ / text_.line - 1) / 2) * text_.line;
         s.group(path_, x_, y_, w_, h_);
         s.fill_rect(path_ + "/face", 0, 0, w_, h_, f.fill);
         s.text(path_ + "/label", tx, ty, words, f.ink);
@@ -93,6 +96,7 @@ private:
     std::string path_;
     std::string label_;
     std::int64_t x_ = 0, y_ = 0, w_ = 0, h_ = 0;
+    TextMeasure text_;
     bool enabled_ = true;
     bool pressed_ = false;
     bool hovered_ = false;

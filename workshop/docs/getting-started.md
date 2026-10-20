@@ -257,14 +257,14 @@ privilege the [snake example](../../examples/snake/README.md) does not.
 | | terminal window | OS window |
 |---|---|---|
 | how much room | the whole terminal; a redirected or captured run, whose terminal cannot be measured, lays the desk out in the room the restored session names, else the 78x22 minimum, and its picture holds that room | the window's own size, and the person may resize it |
-| text in a bounded region | one row per cell row, cut at the region's width | one row per cell row too, each character in a cell of its own |
+| text in a bounded region | one row per cell row, cut at the region's width | one row per line of the window's face, a character every advance of it, cut at the region's width |
 | colour | each area painted by its skin's painter, the role's ink on the terminal | each area painted by its skin's painter, RGB per role |
 | the status line | not shown | not shown |
 | what needs attention | the Attention pane, where you put it | the Attention pane, where you put it |
 
 ![The Pane Manager and Info in the terminal window, 120 by 30 cells: the Layouts row on the first row, the frames drawn in characters](images/desk-terminal-window.png)
 
-![The Pane Manager and Info in the OS window, 1444 by 901 pixels: each character in its own cell, each area painted by its skin's painter](images/desk-os-window.png)
+![The Pane Manager and Info in the OS window, 1444 by 901 pixels: text in the window's face, each pane on its own ground, each area painted by its skin's painter](images/desk-os-window.png)
 
 Neither is a degraded version of the other, and the same published intent produces both. The
 Skins' plans ([load plans](load-plans.md#the-shipped-plans)) show the desk as the Skins do: two

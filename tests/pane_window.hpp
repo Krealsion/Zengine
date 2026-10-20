@@ -7,9 +7,9 @@
 // A graphics window as a pane's office meets one, for the suites that drive a pane in a window: a
 // participant in a `zengine.window.*` office that tells an area its room, keeps what its owner
 // draws there by the real window's judge and store (graphics/window/store.hpp), refuses what that
-// judge or a case refuses, and gives a press as the real window does: a part's action where the
-// area is deaf to the pointer, else the moments themselves. It paints with the character painter,
-// not a skin library, and reads an area back as Workshop reads a drawing.
+// judge or a case refuses, and gives a press as the real window does. It paints with the character
+// painter and reads an area back as Workshop reads a drawing, its text a cell a character or, given
+// a face's measure, set as a window that shows every pixel sets it.
 
 #include "graphics/painting.hpp"
 #include "graphics/term_paint.hpp"
@@ -147,9 +147,16 @@ public:
     PaneWindow& weave() { return *w_; }
     const std::string& name() const { return w_->window(); }
 
-    /// THE ROOM OF `area`, `cols` by `rows` cells, told its owner as this window's office, empty
-    /// while it holds none of the owner's drawing. A new `epoch` is a window started again, which
-    /// holds nothing of the area's.
+    /// THE FACE THIS WINDOW SETS TEXT IN, as a window of light measures one: its rooms say it and
+    /// every pixel shown, and a row, a character and a press on one stand by it.
+    void set_measure(const gfx::TextMeasure& face) {
+        face_ = face;
+        cell_px_ = gfx::kCellPx;
+    }
+
+    /// THE ROOM OF `area`, `cols` characters by `rows` lines of its text, told its owner as this
+    /// window's office, empty while it holds none of the owner's drawing. A new `epoch` is a window
+    /// started again, which holds nothing of the area's.
     void room(const std::string& area, const std::string& owner, std::int64_t cols,
               std::int64_t rows, std::int64_t epoch = 1) {
         gw::WinArea* a = w_->find(area);
@@ -163,10 +170,11 @@ public:
         }
         epochs_[area] = epoch;
         a->owner = owner;
-        a->w = cols * gfx::kCellPx;
-        a->h = rows * gfx::kCellPx;
+        a->w = cols * face_.advance;
+        a->h = rows * face_.line;
         say(owner, gfx::AreaRoom{area, w_->window(), epoch, a->w, a->h, {},
-                                 a->nodes.empty() && a->records.empty()});
+                                 a->nodes.empty() && a->records.empty(), cell_px_, face_.advance,
+                                 face_.line});
     }
 
     /// WHAT `area` SHOWS, row by row, its nodes in the window's paint order read as Workshop reads
@@ -195,7 +203,7 @@ public:
         component::RowMap<workshop::DrawnPart> map;
         map.begin();
         for (const surface::SurfaceTextRow& row :
-             workshop::drawn_rows(sketch, a->h / gfx::kCellPx, a->w / gfx::kCellPx, map)) {
+             workshop::drawn_rows(sketch, a->h / face_.line, a->w / face_.advance, map, face_)) {
             const std::size_t end = row.text.find_last_not_of(' ');
             out.push_back(end == std::string::npos ? std::string() : row.text.substr(0, end + 1));
         }
@@ -205,7 +213,11 @@ public:
     /// The action a press on the cell `col`, `row` of `area` asks, as the real window lands it.
     std::string action_at(const std::string& area, std::int64_t col, std::int64_t row) {
         const gw::WinArea* a = w_->find(area);
-        return a == nullptr ? std::string() : landed(*a, painted(*a), col, row);
+        if (a == nullptr) {
+            return std::string();
+        }
+        const gw::WinArea cells = on_cells(*a);
+        return landed(cells, painted(cells), col, row);
     }
 
     /// Every action a press somewhere in `area` asks.
@@ -294,8 +306,8 @@ public:
                 std::uint64_t press, std::int64_t which = 1, const std::string& arranger = {}) {
         const gw::WinArea* a = w_->find(area);
         const std::string owner = a == nullptr ? std::string() : a->owner;
-        const std::int64_t x = col * gfx::kCellPx + gfx::kCellPx / 2;
-        const std::int64_t y = row * gfx::kCellPx + gfx::kCellPx / 2;
+        const std::int64_t x = col * face_.advance + face_.advance / 2;
+        const std::int64_t y = row * face_.line + face_.line / 2;
         say(owner, gfx::AreaButtonChanged{area, which, down, x, y, 0}, press);
         if (!arranger.empty()) {
             const std::int64_t ox = a == nullptr ? 0 : a->x;
@@ -307,16 +319,16 @@ public:
     void move(const std::string& area, std::int64_t col, std::int64_t row, std::uint64_t press = 0) {
         const gw::WinArea* a = w_->find(area);
         say(a == nullptr ? std::string() : a->owner,
-            gfx::AreaPointerMoved{area, col * gfx::kCellPx + gfx::kCellPx / 2,
-                            row * gfx::kCellPx + gfx::kCellPx / 2, 0, 0, 0},
+            gfx::AreaPointerMoved{area, col * face_.advance + face_.advance / 2,
+                                  row * face_.line + face_.line / 2, 0, 0, 0},
             press);
     }
     /// THE WHEEL AT A CELL OF `area`, `dy` notches.
     void wheel(const std::string& area, std::int64_t col, std::int64_t row, double dy) {
         const gw::WinArea* a = w_->find(area);
         say(a == nullptr ? std::string() : a->owner,
-            gfx::AreaWheelTurned{area, 0, dy, col * gfx::kCellPx + gfx::kCellPx / 2,
-                           row * gfx::kCellPx + gfx::kCellPx / 2, 0},
+            gfx::AreaWheelTurned{area, 0, dy, col * face_.advance + face_.advance / 2,
+                                 row * face_.line + face_.line / 2, 0},
             0);
     }
     /// THE HOLD OF `button` IN `area` ENDED with no release, as the real window tells the owner --
@@ -375,6 +387,21 @@ private:
         bus_.drain_until_idle();
     }
 
+    /// `area` as a window of characters would keep it: its room and each node's place read from
+    /// this window's face onto the cell lattice, a character a cell and a line a row.
+    gw::WinArea on_cells(const gw::WinArea& a) const {
+        if (face_ == gfx::TextMeasure{}) {
+            return a;
+        }
+        gw::WinArea out = a;
+        out.w = a.w / face_.advance * gfx::kCellPx;
+        out.h = a.h / face_.line * gfx::kCellPx;
+        for (gw::KeptNode& k : out.nodes) {
+            k.node.args = workshop::on_cells(k.node, face_);
+        }
+        return out;
+    }
+
     /// `area`'s nodes painted by the character painter and kept as the window keeps them.
     static gw::Cache painted(const gw::WinArea& a) {
         const auto at = gw::index_of(a);
@@ -398,10 +425,14 @@ private:
         return cache;
     }
 
-    /// The action of the record a press on that cell lands in, as the window's `press` reads it.
+    /// The action of the record a press on that cell of the area lands in, as the window's `press`
+    /// reads it.
     static std::string landed(const gw::WinArea& a, const gw::Cache& cache, std::int64_t col,
                               std::int64_t row) {
-        const std::vector<gw::WinArea> one{a};
+        gw::WinArea at_corner = a; // the area's cells counted from its own corner
+        at_corner.x = 0;
+        at_corner.y = 0;
+        const std::vector<gw::WinArea> one{at_corner};
         const gw::Landed l = gw::land(one, cache, col, row);
         const gfx::ElementRecord* r = l.area == nullptr ? nullptr : gw::record_of(a, l.path);
         return r == nullptr ? std::string() : r->action;
@@ -414,10 +445,11 @@ private:
         if (a == nullptr) {
             return;
         }
-        const gw::Cache cache = painted(*a);
-        for (std::int64_t r = 0; r < a->h / gfx::kCellPx; ++r) {
-            for (std::int64_t c = 0; c < a->w / gfx::kCellPx; ++c) {
-                if (visit(*a, cache, c, r)) {
+        const gw::WinArea cells = on_cells(*a);
+        const gw::Cache cache = painted(cells);
+        for (std::int64_t r = 0; r < cells.h / gfx::kCellPx; ++r) {
+            for (std::int64_t c = 0; c < cells.w / gfx::kCellPx; ++c) {
+                if (visit(cells, cache, c, r)) {
                     return;
                 }
             }
@@ -429,6 +461,8 @@ private:
     loom::WeaveId id_{};
     std::map<std::string, std::int64_t> epochs_;
     std::uint64_t presses_ = std::uint64_t{1} << 40; ///< a press's number, past any a desk mints
+    gfx::TextMeasure face_;   ///< how it sets text: the cell, or a face's measure
+    std::int64_t cell_px_ = 0; ///< its device pixels in a cell: none while text is the cell
 };
 
 /// THE GRAPHICS DIRECTORY AS AN OWNER MEETS IT: the `zengine.graphics` office, keeping each room

@@ -209,10 +209,11 @@ in the field that asked, and nowhere once that form or field has changed.
 
 ### `AreaRoom`
 
-`AreaRoom` v3, from the graphics window that shows the area `zengine.composer`, as that window's
-office ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): Compose's room there. Compose
-draws its rows in it, its caret a bar, whole in a new window, incarnation or size, or an empty area,
-and after that only what changed.
+`AreaRoom` v4, from the graphics window that shows the area `zengine.composer`, as that window's
+office ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): Compose's room there and the
+window's text. Compose draws its rows in it over the room's ground, a line of that text each, its
+caret a bar, whole in a new window, incarnation, size or measure, or an empty area, then only what
+changed.
 
 ### `DrawnRefused`
 

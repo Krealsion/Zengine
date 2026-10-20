@@ -44,23 +44,54 @@ struct DrawnPart {
     bool operator==(const DrawnPart&) const = default;
 };
 
-/// A DRAWING ON THE ROWS OF A ROOM `rows` BY `columns`: each text node's characters where a window
-/// of characters paints them (`graphics::kCellPx` pixels a cell, offset and clipped by the groups
-/// along its path), a row in the role of the first text drawn on it; and each record a part,
-/// recorded in `map`, on the row its subtree's first shown text stands on, over the columns its
-/// text covers there. What falls outside the room is neither said nor named, and the operators
-/// other than text are the window's alone.
+/// A node's operands with its place read from a drawing set in `text` onto the cell lattice: a
+/// group's offset and clip and a text's start, a character's advance a cell across and a line a
+/// cell down. Any other node is as drawn.
+inline loom::Bytes on_cells(const graphics::Node& n, const graphics::TextMeasure& text) {
+    const auto across = [&](std::int64_t v) {
+        return surface::floor_div_px(v, text.advance) * graphics::kCellPx;
+    };
+    const auto down = [&](std::int64_t v) {
+        return surface::floor_div_px(v, text.line) * graphics::kCellPx;
+    };
+    if (n.op == graphics::op::kGroup) {
+        if (auto g = graphics::from_body<graphics::GroupArgs>(n.args)) {
+            g->x = across(g->x);
+            g->y = down(g->y);
+            g->clip_w = across(g->clip_w);
+            g->clip_h = down(g->clip_h);
+            return graphics::body_of(*g);
+        }
+    } else if (n.op == graphics::op::kText) {
+        if (auto t = graphics::from_body<graphics::TextArgs>(n.args)) {
+            t->x = across(t->x);
+            t->y = down(t->y);
+            return graphics::body_of(*t);
+        }
+    }
+    return n.args;
+}
+
+/// A DRAWING ON THE ROWS OF A ROOM `rows` BY `columns`, set in `measure`: each text node's
+/// characters where a window of characters paints them (offset and clipped by the groups along its
+/// path), a character an advance of `measure` and a row a line of it, a row in the role of the
+/// first text drawn on it; and each record a part, recorded in `map`, on the row its subtree's
+/// first shown text stands on, over the columns its text covers there. What falls outside the room
+/// is neither said nor named, and the operators other than text are the window's alone.
 inline std::vector<surface::SurfaceTextRow> drawn_rows(const graphics::Sketch& sketch,
                                                        std::int64_t rows, std::int64_t columns,
-                                                       component::RowMap<DrawnPart>& map) {
+                                                       component::RowMap<DrawnPart>& map,
+                                                       const graphics::TextMeasure& measure = {}) {
     std::vector<surface::SurfaceTextRow> out;
     if (rows <= 0 || columns <= 0) {
         return out;
     }
+    const bool lattice = measure == graphics::TextMeasure{};
     std::vector<graphics::PaintNode> nodes;
     nodes.reserve(sketch.nodes().size());
     for (const graphics::Node& n : sketch.nodes()) {
-        nodes.push_back(graphics::PaintNode{n.path, {}, n.op, n.args});
+        nodes.push_back(
+            graphics::PaintNode{n.path, {}, n.op, lattice ? n.args : on_cells(n, measure)});
     }
     const std::map<std::string, graphics::term::Space> at = graphics::term::spaces(nodes);
     const graphics::term::Painter painter{graphics::term::Look{}};
@@ -71,7 +102,7 @@ inline std::vector<surface::SurfaceTextRow> drawn_rows(const graphics::Sketch& s
     };
     std::map<std::string, Run> shown;
     std::vector<bool> roled;
-    for (const graphics::Node& n : sketch.nodes()) {
+    for (const graphics::PaintNode& n : nodes) {
         if (n.op != graphics::op::kText) {
             continue;
         }
@@ -134,6 +165,16 @@ inline std::vector<surface::SurfaceTextRow> drawn_rows(const graphics::Sketch& s
     return out;
 }
 
+/// THE ROOM A PANE'S ROWS ARE DRAWN IN: its area's size in pixels and how the window showing it
+/// sets text, so a row stands a line of it and a character an advance of it.
+struct RowsRoom {
+    std::int64_t width = 0, height = 0;
+    graphics::TextMeasure text;
+    /// The characters a row holds and the rows the room holds.
+    std::int64_t columns() const { return width / text.advance; }
+    std::int64_t rows() const { return height / text.line; }
+};
+
 /// A PANE'S ROWS AS A GRAPHICS WINDOW DRAWS THEM, and where a press reaches each part they name.
 struct RowsDrawing {
     graphics::Sketch sketch;
@@ -141,22 +182,27 @@ struct RowsDrawing {
     std::map<std::string, RowCell> places;
 };
 
-/// ROWS AND THEIR PARTS DRAWN, in a room `columns` wide: each row's text where a window of
-/// characters paints it, in its role over its ground (a lit row's nodes named apart above it), cut
-/// where a part begins or ends; each run a part holds a node asking the part's name, held where
-/// parts overlap by the one a press on Workshop's rows reaches; `caret` in front. No row past
-/// `max_rows` (when above 0) or the window's bounds on nodes or records is drawn. The parts are
-/// `PaneRowPart`s or `v2::PaneRowPart`s; the row's text says availability.
+/// ROWS AND THEIR PARTS DRAWN, `columns` wide in `room`: the room's ground, all of it, then each
+/// row a line of the window's text and a character an advance of it, in its role over its ground
+/// (a lit row's nodes named apart above it), cut where a part begins or ends; each run a part holds
+/// a node asking the part's name, held where parts overlap by the one a press on Workshop's rows
+/// reaches; `caret` in front. No row past `max_rows` (above 0) or the window's bounds is drawn. The
+/// parts are `PaneRowPart`s or `v2::PaneRowPart`s; the row's text says availability.
 template <class Part>
 RowsDrawing rows_drawing(const std::vector<surface::SurfaceTextRow>& rows,
-                         const std::vector<Part>& parts, std::int64_t columns,
-                         const RowsCaret& caret = {}, std::int64_t max_rows = 0) {
+                         const std::vector<Part>& parts, const RowsRoom& room,
+                         std::int64_t columns, const RowsCaret& caret = {},
+                         std::int64_t max_rows = 0) {
     struct Run {
         std::string node, words, action;
         std::int64_t x = 0;
     };
     RowsDrawing out;
-    std::size_t nodes = 0, records = 0;
+    const std::int64_t advance = room.text.advance;
+    const std::int64_t line = room.text.line;
+    out.sketch.fill_rect("room", 0, 0, room.width, room.height,
+                         graphics::by_role(surface::role::kGround));
+    std::size_t nodes = 1, records = 0;
     const std::size_t shown =
         max_rows > 0 ? (std::min)(rows.size(), static_cast<std::size_t>(max_rows)) : rows.size();
     std::size_t r = 0;
@@ -215,13 +261,13 @@ RowsDrawing rows_drawing(const std::vector<surface::SurfaceTextRow>& rows,
         nodes += drawn;
         records += asks;
         if (lit) {
-            out.sketch.fill_rect("ground" + std::to_string(r), 0, row * graphics::kCellPx,
-                                 (std::max)(extent, columns) * graphics::kCellPx, graphics::kCellPx,
+            out.sketch.fill_rect("ground" + std::to_string(r), 0, row * line,
+                                 (std::max)(extent, columns) * advance, line,
                                  graphics::by_role(rows[r].background));
         }
         for (const Run& one : runs) {
-            out.sketch.text(one.node, one.x * graphics::kCellPx, row * graphics::kCellPx,
-                            one.words, graphics::by_role(rows[r].role));
+            out.sketch.text(one.node, one.x * advance, row * line, one.words,
+                            graphics::by_role(rows[r].role));
             if (!one.action.empty()) {
                 out.sketch.action(one.node, one.action);
             }
@@ -290,7 +336,7 @@ RowsDrawing rows_drawing(const std::vector<surface::SurfaceTextRow>& rows,
                 return out;
             }
             const auto from = static_cast<std::size_t>(a);
-            out.sketch.text(node, a * graphics::kCellPx, m * graphics::kCellPx,
+            out.sketch.text(node, a * advance, m * line,
                             text.substr(from, static_cast<std::size_t>(b - a)),
                             graphics::by_role(surface::role::kAccent));
             ask(node, asks);
@@ -303,22 +349,20 @@ RowsDrawing rows_drawing(const std::vector<surface::SurfaceTextRow>& rows,
     const std::int64_t column = (std::min)(caret.column, columns - 1);
     const std::string asks = asked_at(caret.row, column);
     if (room_for(asks)) {
-        out.sketch.line("caret", column * graphics::kCellPx, caret.row * graphics::kCellPx,
-                        column * graphics::kCellPx,
-                        caret.row * graphics::kCellPx + graphics::kCellPx - 1,
-                        graphics::by_role(surface::role::kAccent));
+        out.sketch.line("caret", column * advance, caret.row * line, column * advance,
+                        caret.row * line + line - 1, graphics::by_role(surface::role::kAccent));
         ask("caret", asks);
     }
     return out;
 }
 
-/// WHERE A POINT OF A PANE'S AREA FALLS ON THE ROWS DRAWN THERE (`rows_drawing`): the row and
-/// column of the cell holding it, shown while it lies within `rows` by `columns`.
+/// WHERE A POINT OF A PANE'S AREA FALLS ON THE ROWS DRAWN THERE (`rows_drawing`, set by `text`):
+/// the row and column of the character holding it, shown while it lies within `rows` by `columns`.
 inline RowCell window_cell(std::int64_t x, std::int64_t y, std::int64_t rows,
-                           std::int64_t columns) {
+                           std::int64_t columns, const graphics::TextMeasure& text) {
     RowCell out;
-    out.row = surface::floor_div_px(y, graphics::kCellPx);
-    out.column = surface::floor_div_px(x, graphics::kCellPx);
+    out.row = surface::floor_div_px(y, text.line);
+    out.column = surface::floor_div_px(x, text.advance);
     out.shown = out.row >= 0 && out.row < rows && out.column >= 0 && out.column < columns;
     return out;
 }
@@ -357,14 +401,20 @@ public:
     std::string clipboard_office() const {
         return shown() ? canvas_.window_office() : std::string(surface::kSkinRole);
     }
-    /// The room that window gives the area, in pixels.
+    /// The room that window gives the area, in pixels, and how it sets text there.
     std::int64_t width() const noexcept { return canvas_.width(); }
     std::int64_t height() const noexcept { return canvas_.height(); }
+    const graphics::TextMeasure& text() const noexcept { return canvas_.text(); }
+    /// The window's device pixels in one cell: none where its unit is the cell.
+    std::int64_t cell_px() const noexcept { return canvas_.cell_px(); }
+    /// The rows drawn there, as `rows_drawing` takes them: the whole room, set by the window.
+    RowsRoom rows_room() const { return RowsRoom{width(), height(), text()}; }
     /// The window refused the whole drawing last sent, and no room or other drawing came since.
     bool refused_whole() const noexcept { return refused_whole_; }
 
     /// THE ROOM A WINDOW TELLS OF THE AREA, as that window's office: true when the window, its
-    /// incarnation or its size changed, so it holds none of the drawing and the next goes whole.
+    /// incarnation, its size or its measure changed or the area is empty, so it holds none of the
+    /// drawing and the next goes whole.
     bool room(const graphics::AreaRoom& r, const loom::Mail& mail) {
         if (r.area != area() ||
             !mail.authored_from_role(std::string(graphics::kWindowOfficePrefix) + r.window) ||
@@ -457,12 +507,12 @@ public:
     }
 
 private:
-    static WindowPointer at(std::int64_t x, std::int64_t y, std::int64_t rows,
-                            std::int64_t columns, const loom::Mail& mail) {
+    WindowPointer at(std::int64_t x, std::int64_t y, std::int64_t rows, std::int64_t columns,
+                     const loom::Mail& mail) const {
         WindowPointer p;
         p.x = x;
         p.y = y;
-        p.at = window_cell(x, y, rows, columns);
+        p.at = window_cell(x, y, rows, columns, text());
         p.press = mail.correlation();
         return p;
     }
