@@ -23,6 +23,7 @@
 #include "manuals/zengine.input.hpp" // the office's page, as the suite carries it
 #include "office_manual.hpp"
 
+#include "surface/vocabulary.hpp" // the canvas that makes the SDL Skin open its window
 #include "timer/vocabulary.hpp" // the weave's own beat is part of its contract
 #include "vocabulary.hpp"       // snake's — the chain lane speaks both packages
 
@@ -1378,7 +1379,7 @@ TEST_CASE("sdl: a close request is LIFECYCLE, and it is not any kind of key") {
     // not happening.
     const std::vector<SdlEvent> e = sdl_close_to_events();
     REQUIRE(e.size() == 1);
-    CHECK(std::holds_alternative<zengine::surface::SurfaceCloseRequested>(e[0]));
+    CHECK(std::holds_alternative<zengine::graphics::SurfaceCloseRequested>(e[0]));
     CHECK_FALSE(std::holds_alternative<KeyPressed>(e[0]));
     CHECK_FALSE(std::holds_alternative<PointerButton>(e[0]));
 }
@@ -1481,7 +1482,7 @@ class SdlEars
     : public loom::WeaveBase<SdlEars, EarsState,
                              loom::Accept<KeyPressed, KeyReleased, TextEntered, PointerMoved,
                                           PointerButton, PointerWheel,
-                                          zengine::surface::SurfaceCloseRequested>,
+                                          zengine::graphics::SurfaceCloseRequested>,
                              loom::Emit<>> {
 public:
     explicit SdlEars(std::vector<SdlEvent>& heard) : heard_(&heard) {}
@@ -1491,7 +1492,7 @@ public:
     void on(const PointerMoved& e, loom::Mail&) { note(e); }
     void on(const PointerButton& e, loom::Mail&) { note(e); }
     void on(const PointerWheel& e, loom::Mail&) { note(e); }
-    void on(const zengine::surface::SurfaceCloseRequested& e, loom::Mail&) { note(e); }
+    void on(const zengine::graphics::SurfaceCloseRequested& e, loom::Mail&) { note(e); }
 
 private:
     template <class E>
@@ -1519,7 +1520,7 @@ TEST_CASE("the weave's EMIT SET is whatever its reader can hand it, and order is
                        PointerMoved{120, 36, 5, -2, space::kPixels, mod::kNone},
                        PointerButton{1, true, 77, 5, space::kPixels, mod::kNone},
                        PointerWheel{0.0, 0.25, 40, 8, space::kPixels, mod::kNone},
-                       zengine::surface::SurfaceCloseRequested{}});
+                       zengine::graphics::SurfaceCloseRequested{}});
 
     const loom::WeaveId weave =
         loom::mount<InputWeaveT<FakeSdlReader>>(bus, FakeSdlReader{&batches});
@@ -1536,7 +1537,7 @@ TEST_CASE("the weave's EMIT SET is whatever its reader can hand it, and order is
     CHECK(sdl_at<PointerMoved>(heard, 3).space == space::kPixels);
     CHECK(sdl_at<PointerButton>(heard, 4).x == 77);
     CHECK(sdl_at<PointerWheel>(heard, 5).dy == doctest::Approx(0.25));
-    CHECK(std::holds_alternative<zengine::surface::SurfaceCloseRequested>(heard[6]));
+    CHECK(std::holds_alternative<zengine::graphics::SurfaceCloseRequested>(heard[6]));
 }
 
 TEST_CASE("the weave arranges its own beat: activation asks, TimerReady asks again, "
@@ -1796,7 +1797,7 @@ TEST_CASE("the SDL reader owns the real queue: pushed events come out as Zen mes
     r.pump_input_by_role();
 
     REQUIRE(heard.size() == 1);
-    CHECK(std::holds_alternative<zengine::surface::SurfaceCloseRequested>(heard[0]));
+    CHECK(std::holds_alternative<zengine::graphics::SurfaceCloseRequested>(heard[0]));
 
     // SDL_EVENT_QUIT is the same lifecycle fact by another path -- some
     // platforms deliver an application quit that way and never as a window
@@ -1807,7 +1808,7 @@ TEST_CASE("the SDL reader owns the real queue: pushed events come out as Zen mes
     push(quit);
     r.pump_input_by_role();
     REQUIRE(heard.size() == 1);
-    CHECK(std::holds_alternative<zengine::surface::SurfaceCloseRequested>(heard[0]));
+    CHECK(std::holds_alternative<zengine::graphics::SurfaceCloseRequested>(heard[0]));
 
     // ---- the ignored classes really are ignored ----------------------------
     heard.clear();
@@ -1907,10 +1908,10 @@ TEST_CASE("both SDL weaves live: the Skin services its window and takes NOTHING 
     // The Skin is given its hands FIRST -- twice -- which is precisely when the
     // old code would have swallowed both events.
     r.bus.send_to_role("zengine.skin",
-                       loom::Message(loom::to_value(zengine::surface::PumpSurface{})));
+                       loom::Message(loom::to_value(zengine::graphics::PumpSurface{})));
     r.bus.drain_until_idle();
     r.bus.send_to_role("zengine.skin",
-                       loom::Message(loom::to_value(zengine::surface::PumpSurface{})));
+                       loom::Message(loom::to_value(zengine::graphics::PumpSurface{})));
     r.bus.drain_until_idle();
     CHECK(r.poke(skin, loom::PokeRead{"pumps"}).text == "2"); // it really did run
 
@@ -1918,7 +1919,7 @@ TEST_CASE("both SDL weaves live: the Skin services its window and takes NOTHING 
     r.pump_input_by_role();
     REQUIRE(heard.size() == 2);
     CHECK(sdl_at<KeyPressed>(heard, 0).scancode == scan::kQ);
-    CHECK(std::holds_alternative<zengine::surface::SurfaceCloseRequested>(heard[1]));
+    CHECK(std::holds_alternative<zengine::graphics::SurfaceCloseRequested>(heard[1]));
 }
 
 TEST_CASE("ambient clipboard text cannot reach the bus — seeded, changed, never seen") {

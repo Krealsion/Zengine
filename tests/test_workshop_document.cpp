@@ -336,7 +336,7 @@ TEST_CASE("the name editor selects with the same keys and says it in characters"
     t.host.setup_path = dir.file("setup.json");
     // A PANE COPIES -- publishing `ClipboardCopy`, as every pane does with its own selection
     // -- and this host's name editor pastes it: the two boxes are in two images.
-    t.publish(loom::to_value(surface::ClipboardCopy{"Morning"}));
+    t.publish(loom::to_value(gfx::ClipboardCopy{"Morning"}));
 
     // THE EDITOR IS OPENED BY DOUBLE-CLICKING THE TAB: `s` saves, and renaming is the layout
     // operation reached from the tab a weaver points at.
@@ -476,8 +476,8 @@ TEST_CASE("the real Composer's fields speak the vocabulary across the seam") {
         auto seat = std::make_unique<SkinSeat>();
         skin = seat.get();
         loom::Grant grant;
-        grant.allow_to_any(surface::ClipboardText::zen_name,
-                           surface::ClipboardText::zen_version);
+        grant.allow_to_any(gfx::ClipboardText::zen_name,
+                           gfx::ClipboardText::zen_version);
         const loom::WeaveId id =
             r.bus.register_weave(std::move(seat), std::move(grant), surface::kSkinRole);
         skin->zen_set_self(id);
@@ -560,10 +560,10 @@ namespace {
 /// A participant with a real, bus-stamped identity that speaks a well-formed answer shape
 /// at Workshop on command — the forgery the answers_ask wall exists to refuse.
 class RogueAnswerer : public loom::WeaveBase<RogueAnswerer, SeenState, loom::Accept<SeatDo>,
-                                             loom::Emit<surface::ClipboardText>> {
+                                             loom::Emit<gfx::ClipboardText>> {
 public:
     void on(const SeatDo&, loom::Mail& mail) {
-        (void)mail.send(target, surface::ClipboardText{true, "EVIL"}, correlation);
+        (void)mail.send(target, gfx::ClipboardText{true, "EVIL"}, correlation);
     }
     loom::WeaveId target{};
     std::uint64_t correlation = 0;
@@ -580,7 +580,7 @@ TEST_CASE("an unsolicited ClipboardText enters no box and no mirror") {
     open_rename_on_tab(t, t.session().setup.active_at);
     REQUIRE(t.session().setup.naming.open);
     (void)t.bus.send(t.workshop_id,
-                     loom::Message(loom::to_value(surface::ClipboardText{true, "EVIL"}),
+                     loom::Message(loom::to_value(gfx::ClipboardText{true, "EVIL"}),
                                    loom::WeaveId{}, loom::WeaveId{}, 1));
     t.bus.drain_until_idle();
     CHECK(t.session().setup.naming.line.text() == "Default");
@@ -602,8 +602,8 @@ TEST_CASE("an unsolicited ClipboardText enters no box and no mirror") {
         auto weave = std::make_unique<RogueAnswerer>();
         RogueAnswerer* rogue = weave.get();
         loom::Grant grant;
-        grant.allow_to_any(surface::ClipboardText::zen_name,
-                           surface::ClipboardText::zen_version);
+        grant.allow_to_any(gfx::ClipboardText::zen_name,
+                           gfx::ClipboardText::zen_version);
         rogue_id = t.bus.register_weave(std::move(weave), std::move(grant));
         rogue->zen_set_self(rogue_id);
         rogue->target = t.workshop_id;
@@ -803,7 +803,7 @@ TEST_CASE("a same-context collision is refused naming both actions and the gestu
     REQUIRE(wall != nullptr);
     CHECK(wall->detail.find("setup.name") != std::string::npos);
     CHECK(wall->compact.find("default bindings stand") != std::string::npos);
-    CHECK(wall->role == surface::role::kAlert);
+    CHECK(wall->role == gfx::role::kAlert);
     const std::size_t before = layout_count(t.session().setup);
     t.key(input::scan::kEquals);
     CHECK(layout_count(t.session().setup) == before + 1); // the default still adds one
@@ -1400,7 +1400,7 @@ TEST_CASE("two bands compose their budgets, and the selector is row 0") {
 
     // THE SHIPPED FACE: the same rows, each band as tall as its rows of type -- two at the top
     // (the identity, then the workspace fact) and four at the foot (the notice and the legend).
-    Session sdl = screen_session(kScreenMinW, kScreenMinH, 8, 18, surface::kCanvasCellPx);
+    Session sdl = screen_session(kScreenMinW, kScreenMinH, 8, 18, gfx::kCellPx);
     sdl.notice = "a notice";
     const Screen ssc = screen_of(sdl);
     const surface::SurfaceCanvas sdl_canvas = paint(sdl);

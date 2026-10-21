@@ -12,12 +12,16 @@
 // refuses a run selecting zero cases (POP-01).
 #include "doctest.h"
 
+#include "graphics/pixels.hpp"
+#include "graphics/vocabulary.hpp"
 #include "surface/pointing.hpp"
 #include "surface/region.hpp"
 #include "surface/skin.hpp"
 #include "surface/skin_sdl_plan.hpp"
 #include "surface/skin_tui.hpp"
 #include "surface/vocabulary.hpp"
+#include "workshop/pane_text_fit.hpp"
+#include "workshop/screen.hpp"
 
 #include "lifecycle_door.hpp"
 #include "office_manual.hpp"
@@ -53,6 +57,24 @@
 #include <vector>
 
 using namespace zengine::surface;
+using namespace zengine::graphics;
+using zengine::workshop::RegionFit;
+using zengine::workshop::RegionPixels;
+using zengine::workshop::RegionViewport;
+using zengine::graphics::window::TerminalSize;
+using zengine::graphics::window::TuiTerminal;
+using zengine::workshop::fit_region;
+using zengine::workshop::kTextInsetPx;
+using zengine::graphics::window::kTuiPointerOff;
+using zengine::graphics::window::kTuiPointerOn;
+using zengine::graphics::window::native_terminal_size;
+using zengine::workshop::prose_column_of_pixel;
+using zengine::workshop::prose_row_of_pixel;
+using zengine::workshop::region_px_for;
+using zengine::workshop::selection_span_of_row;
+using zengine::graphics::window::sgr_for_role;
+using zengine::graphics::window::tui_enter_sequence;
+using zengine::graphics::window::tui_leave_sequence;
 using loom::schema_of;
 
 namespace {
@@ -971,7 +993,7 @@ namespace {
 class Raster {
 public:
     explicit Raster(const SurfaceCanvas& c)
-        : w_(canvas_extent(c.width) * kCanvasCellPx), h_(canvas_extent(c.height) * kCanvasCellPx),
+        : w_(canvas_extent(c.width) * kCellPx), h_(canvas_extent(c.height) * kCellPx),
           px_(static_cast<std::size_t>(w_ * h_), PlanInk{0, 0, 0}) {
         for (const PlanRect& r : plan_layer_quads(plane(c), c.width, c.height)) {
             // A quad outside the surface it claims to be drawing on is the defect
@@ -999,9 +1021,9 @@ public:
     /// there, which is what "a label was dropped" looks like from the outside.
     int ink_in_cell(std::int64_t cx, std::int64_t cy) const {
         int n = 0;
-        for (std::int64_t y = 0; y < kCanvasCellPx; ++y) {
-            for (std::int64_t x = 0; x < kCanvasCellPx; ++x) {
-                const PlanInk p = at(cx * kCanvasCellPx + x, cy * kCanvasCellPx + y);
+        for (std::int64_t y = 0; y < kCellPx; ++y) {
+            for (std::int64_t x = 0; x < kCellPx; ++x) {
+                const PlanInk p = at(cx * kCellPx + x, cy * kCellPx + y);
                 if (!(p == kCanvasBackground) && !(p == PlanInk{0, 0, 0})) {
                     ++n;
                 }
@@ -1012,9 +1034,9 @@ public:
 
     /// The ink colour of a cell that has some, as the medium would show it.
     PlanInk ink_colour(std::int64_t cx, std::int64_t cy) const {
-        for (std::int64_t y = 0; y < kCanvasCellPx; ++y) {
-            for (std::int64_t x = 0; x < kCanvasCellPx; ++x) {
-                const PlanInk p = at(cx * kCanvasCellPx + x, cy * kCanvasCellPx + y);
+        for (std::int64_t y = 0; y < kCellPx; ++y) {
+            for (std::int64_t x = 0; x < kCellPx; ++x) {
+                const PlanInk p = at(cx * kCellPx + x, cy * kCellPx + y);
                 if (!(p == kCanvasBackground) && !(p == PlanInk{0, 0, 0})) {
                     return p;
                 }
@@ -1118,7 +1140,7 @@ TEST_CASE("canvas plan: a label reaches pixels, in the cell the publisher named"
     // it, so 'A' and 'B' are different pictures in adjacent cells rather than one
     // run of text drifting off the grid.
     CHECK(kGlyphScale == 2);
-    CHECK(r.at(2 * kCanvasCellPx, 1 * kCanvasCellPx) == kCanvasBackground);
+    CHECK(r.at(2 * kCellPx, 1 * kCellPx) == kCanvasBackground);
     CHECK_FALSE(r.ink_in_cell(2, 1) == r.ink_in_cell(3, 1)); // A and B differ
 }
 
@@ -1130,12 +1152,12 @@ TEST_CASE("canvas plan: a label takes its whole cell, and lands over the rects")
 
     // The rect is under everything...
     CHECK(r.at(0, 0) == ink_for_role(role::kAlert));
-    CHECK(r.at(3 * kCanvasCellPx, 0) == ink_for_role(role::kAlert));
+    CHECK(r.at(3 * kCellPx, 0) == ink_for_role(role::kAlert));
     // ...but the label's own cell is the label's: the terminal's `put` overwrites
     // both the glyph and the role of a cell a label lands on, so the closest this
     // medium can do is clear the cell and draw the glyph on it. A name written on
     // an object must not have to compete with the object's own fill.
-    CHECK(r.at(1 * kCanvasCellPx, 0) == kCanvasBackground);
+    CHECK(r.at(1 * kCellPx, 0) == kCanvasBackground);
     CHECK(r.ink_colour(1, 0) == ink_for_role(role::kAccent));
 }
 
@@ -1165,17 +1187,17 @@ TEST_CASE("canvas plan: role decides the ink, and an unknown role is still drawn
     // Raster's ink helper treats black as untouched, so compare the actual glyph pixels with the
     // same A in accent ink instead.
     std::size_t black_pixels = 0;
-    for (std::int64_t y = 0; y < kCanvasCellPx; ++y) {
-        for (std::int64_t x = 0; x < kCanvasCellPx; ++x) {
+    for (std::int64_t y = 0; y < kCellPx; ++y) {
+        for (std::int64_t x = 0; x < kCellPx; ++x) {
             const bool glyph = r.at(x, y) == PlanInk{112, 232, 240};
-            CHECK(r.at(4 * kCanvasCellPx + x, y) ==
+            CHECK(r.at(4 * kCellPx + x, y) ==
                   (glyph ? PlanInk{0, 0, 0} : kCanvasBackground));
             if (glyph) ++black_pixels;
         }
     }
     CHECK(black_pixels > 0);
-    CHECK(r.at(5 * kCanvasCellPx, 0) == PlanInk{0, 0, 0});
-    CHECK(r.at(6 * kCanvasCellPx - 1, kCanvasCellPx - 1) == PlanInk{0, 0, 0});
+    CHECK(r.at(5 * kCellPx, 0) == PlanInk{0, 0, 0});
+    CHECK(r.at(6 * kCellPx - 1, kCellPx - 1) == PlanInk{0, 0, 0});
 }
 
 TEST_CASE("canvas plan: the medium's own ground is the window's own background, and no ink") {
@@ -1188,8 +1210,8 @@ TEST_CASE("canvas plan: the medium's own ground is the window's own background, 
     const Raster r(c);
     CHECK(ink_for_role(role::kMediumGround) == kCanvasBackground);
     CHECK(r.at(0, 0) == PlanInk{0, 0, 0});
-    CHECK(r.at(kCanvasCellPx, 0) == kCanvasBackground);
-    CHECK(r.at(2 * kCanvasCellPx - 1, kCanvasCellPx - 1) == kCanvasBackground);
+    CHECK(r.at(kCellPx, 0) == kCanvasBackground);
+    CHECK(r.at(2 * kCellPx - 1, kCellPx - 1) == kCanvasBackground);
     // ...and text named in it is drawn, in kFill's ink.
     CHECK(text_ink_for_role(role::kMediumGround) == ink_for_role(role::kFill));
     CHECK(r.ink_colour(2, 0) == ink_for_role(role::kFill));
@@ -1255,7 +1277,7 @@ TEST_CASE("canvas plan: clipping is per cell, against the canvas and nothing els
         constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
         SurfaceCanvas c = canvas_of(4, 2);
         // Every one of these would be undefined behaviour under a naive
-        // `x + i` or `cell * kCanvasCellPx`; all of them must simply clip.
+        // `x + i` or `cell * kCellPx`; all of them must simply clip.
         plane(c).labels.push_back(cell_label(kMax, 0, "AB", role::kFill));
         plane(c).labels.push_back(cell_label(kMin, 0, "AB", role::kFill));
         plane(c).labels.push_back(cell_label(0, kMax, "AB", role::kFill));
@@ -1268,8 +1290,8 @@ TEST_CASE("canvas plan: clipping is per cell, against the canvas and nothing els
         // And an extent is its own pixels, never negative.
         CHECK(canvas_extent(kMax) == kMax);
         CHECK(canvas_extent(kMin) == 0);
-        CHECK(canvas_window_size(canvas_of(78, 22)).w == 78 * kCanvasCellPx);
-        CHECK(canvas_window_size(canvas_of(78, 22)).h == 22 * kCanvasCellPx);
+        CHECK(canvas_window_size(canvas_of(78, 22)).w == 78 * kCellPx);
+        CHECK(canvas_window_size(canvas_of(78, 22)).h == 22 * kCellPx);
     }
 }
 
@@ -1330,8 +1352,8 @@ TEST_CASE("canvas plan: rectangles are clipped to the canvas, like the terminal'
     REQUIRE(quads.size() == 1);
     CHECK(quads[0].x == 0);
     CHECK(quads[0].y == 0);
-    CHECK(quads[0].w == 3 * kCanvasCellPx);
-    CHECK(quads[0].h == 2 * kCanvasCellPx);
+    CHECK(quads[0].w == 3 * kCellPx);
+    CHECK(quads[0].h == 2 * kCellPx);
 
     // An empty or inverted rect is nothing, not a negative quad.
     SurfaceCanvas none = canvas_of(3, 2);
@@ -1369,7 +1391,7 @@ TEST_CASE("canvas plan: the two media place the same label in the same cell") {
 // that builds no SDL is the one most likely to break them.
 
 TEST_CASE("pointing: a window pixel lands on the cell a weaver is looking at") {
-    constexpr std::int64_t kCell = kCanvasCellPx;
+    constexpr std::int64_t kCell = kCellPx;
 
     // The three that decide the boundary policy, stated in terms of the CELL
     // SIZE rather than of 12 -- there is one owner of that number and this test
@@ -1420,9 +1442,9 @@ TEST_CASE("pointing: the two media disagree about the numbers and agree about th
             const CanvasPoint want{cx, cy};
             CHECK(canvas_of_terminal_cells(cx, cy + kTuiCanvasTopRow) == want);
             // every pixel of that cell, not merely its corner
-            for (std::int64_t p = 0; p < kCanvasCellPx; ++p) {
-                CHECK(canvas_of_window_pixels(cx * kCanvasCellPx + p,
-                                              cy * kCanvasCellPx + p) == want);
+            for (std::int64_t p = 0; p < kCellPx; ++p) {
+                CHECK(canvas_of_window_pixels(cx * kCellPx + p,
+                                              cy * kCellPx + p) == want);
             }
         }
     }
@@ -1446,8 +1468,8 @@ TEST_CASE("region: with no text metric a region is exactly its own cells") {
     CHECK(f.origin_x == 0);
     CHECK(f.origin_y == 0);
     CHECK_FALSE(f.graphical());
-    CHECK(f.view == RegionViewport{3 * kCanvasCellPx, 4 * kCanvasCellPx, 20 * kCanvasCellPx,
-                                   6 * kCanvasCellPx});
+    CHECK(f.view == RegionViewport{3 * kCellPx, 4 * kCellPx, 20 * kCellPx,
+                                   6 * kCellPx});
 
     // A metric is two numbers or it is none: half an answer describes half a line
     // of text, so either missing half means cells.
@@ -1742,8 +1764,8 @@ TEST_CASE("region plan: the plan bounds its own work, and carries the clip in it
     REQUIRE(off.size() == 1);
     CHECK(off[0].view.x == 0);
     CHECK(off[0].view.y == 0);
-    CHECK(off[0].origin_x == kTextInsetPx - kCanvasCellPx);
-    CHECK(off[0].origin_y == kTextInsetPx - kCanvasCellPx);
+    CHECK(off[0].origin_x == kTextInsetPx - kCellPx);
+    CHECK(off[0].origin_y == kTextInsetPx - kCellPx);
 
     // A region entirely off the surface is not in the plan at all.
     plane(c).texts[0].x = cells_px(9000);
@@ -1841,7 +1863,7 @@ TEST_CASE("canvas plan: the bitmap face paints a ground as the cell's own quad")
     const PlanInk muted = ink_for_role(role::kMuted);
     const auto quad_at = [&](std::int64_t x, std::int64_t y) {
         for (const PlanRect& q : quads) {
-            if (q.x == x && q.y == y && q.w == kCanvasCellPx && q.h == kCanvasCellPx) {
+            if (q.x == x && q.y == y && q.w == kCellPx && q.h == kCellPx) {
                 return PlanInk{q.r, q.g, q.b};
             }
         }
@@ -1850,10 +1872,10 @@ TEST_CASE("canvas plan: the bitmap face paints a ground as the cell's own quad")
     // Every cell of the grounded row wears it -- including the one padded to the region's
     // width, which is what makes a selection bar a BAR rather than the length of its text.
     CHECK(quad_at(0, 0) == muted);
-    CHECK(quad_at(kCanvasCellPx, 0) == muted);
-    CHECK(quad_at(2 * kCanvasCellPx, 0) == muted);
+    CHECK(quad_at(kCellPx, 0) == muted);
+    CHECK(quad_at(2 * kCellPx, 0) == muted);
     // ...and the row that asked for nothing is the canvas background, exactly as before.
-    CHECK(quad_at(0, kCanvasCellPx) == kCanvasBackground);
+    CHECK(quad_at(0, kCellPx) == kCanvasBackground);
 }
 
 TEST_CASE("golden: the terminal medium says a ground in SGR, once, and puts it back") {
@@ -1904,8 +1926,8 @@ TEST_CASE("pointing: a pixel inside a region lands on a prose column and row") {
     // resolved with the fit the rows were DRAWN with rather than with a metric
     // read separately.
     const RegionFit fit = fit_region(cells_px(22), cells_px(9), cells_px(56), cells_px(13), 8, 18);
-    const std::int64_t x0 = 22 * kCanvasCellPx + kTextInsetPx;
-    const std::int64_t y0 = 9 * kCanvasCellPx + kTextInsetPx;
+    const std::int64_t x0 = 22 * kCellPx + kTextInsetPx;
+    const std::int64_t y0 = 9 * kCellPx + kTextInsetPx;
 
     CHECK(prose_column_of_pixel(x0, fit) == 0);
     CHECK(prose_column_of_pixel(x0 + 7, fit) == 0);
@@ -1927,9 +1949,9 @@ TEST_CASE("pointing: a pixel inside a region lands on a prose column and row") {
     // Under a cell-projection fit it degrades to the cell answer, which is the
     // truthful one for a medium whose character IS a cell.
     const RegionFit cells = fit_region(cells_px(22), cells_px(9), cells_px(56), cells_px(13), 0, 0);
-    CHECK(prose_column_of_pixel(22 * kCanvasCellPx + 5, cells) == 0);
-    CHECK(prose_column_of_pixel(23 * kCanvasCellPx, cells) == 1);
-    CHECK(prose_row_of_pixel(10 * kCanvasCellPx, cells) == 1);
+    CHECK(prose_column_of_pixel(22 * kCellPx + 5, cells) == 0);
+    CHECK(prose_column_of_pixel(23 * kCellPx, cells) == 1);
+    CHECK(prose_row_of_pixel(10 * kCellPx, cells) == 1);
 
     // Total over the number line, both fits: these are wire values on both sides.
     constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
@@ -3176,7 +3198,7 @@ TEST_CASE("an ordinary region over material ERASES it, in both media") {
         return c;
     };
     const SurfaceExtent metric{20, 10, 8, 18};
-    const PlanSize window{20 * kCanvasCellPx, 10 * kCanvasCellPx};
+    const PlanSize window{20 * kCellPx, 10 * kCellPx};
 
     // ATTEMPT A -- an ordinary region over the material's rectangle. The quad is still planned
     // and is then covered whole by the region's own ground; the character medium pads twelve
@@ -3258,7 +3280,7 @@ TEST_CASE("a region whose ground is BENEATH draws its rows and disturbs nothing"
 
     // THE GRAPHICAL MEDIUM: the material's quad is planned and NOTHING is planned over it.
     const PlanLayer planned =
-        plan_canvas(c, SurfaceExtent{14, 6, 8, 18}, PlanSize{14 * kCanvasCellPx, 6 * kCanvasCellPx})
+        plan_canvas(c, SurfaceExtent{14, 6, 8, 18}, PlanSize{14 * kCellPx, 6 * kCellPx})
             .front();
     REQUIRE(planned.regions.size() == 1);
     CHECK(planned.regions.front().ground == kGroundBeneath);
@@ -3312,7 +3334,7 @@ TEST_CASE("a row inside a BENEATH region may still name a ground of its own") {
     CHECK(canvas_body(c).find("\x1b[39m############\x1b[0m") != std::string::npos);
 
     const PlanLayer planned =
-        plan_canvas(c, SurfaceExtent{14, 6, 8, 18}, PlanSize{14 * kCanvasCellPx, 6 * kCanvasCellPx})
+        plan_canvas(c, SurfaceExtent{14, 6, 8, 18}, PlanSize{14 * kCellPx, 6 * kCellPx})
             .front();
     REQUIRE(planned.regions.size() == 1);
     REQUIRE(planned.regions.front().rows.size() == 2);
@@ -3362,7 +3384,7 @@ TEST_CASE("a ground this vocabulary does not know OWNS its room") {
     CHECK(canvas_body(c).find("[36mhi    [39m#") != std::string::npos);
 
     const PlanLayer planned =
-        plan_canvas(c, SurfaceExtent{8, 4, 8, 18}, PlanSize{8 * kCanvasCellPx, 4 * kCanvasCellPx})
+        plan_canvas(c, SurfaceExtent{8, 4, 8, 18}, PlanSize{8 * kCellPx, 4 * kCellPx})
             .front();
     REQUIRE(planned.regions.size() == 1);
     CHECK(planned.regions.front().ground == kGroundOwn); // normalized before the edge sees it
@@ -3398,7 +3420,7 @@ TEST_CASE("an ordinary region keeps every byte of its old behaviour, by DEFAULT"
 
     // AND THE GRAPHICAL MEDIUM STILL CLEARS ITS WHOLE VIEWPORT FIRST.
     const PlanLayer planned =
-        plan_canvas(c, SurfaceExtent{8, 4, 8, 18}, PlanSize{8 * kCanvasCellPx, 4 * kCanvasCellPx})
+        plan_canvas(c, SurfaceExtent{8, 4, 8, 18}, PlanSize{8 * kCellPx, 4 * kCellPx})
             .front();
     REQUIRE(planned.regions.size() == 1);
     CHECK(planned.regions.front().ground == kGroundOwn);
@@ -3688,18 +3710,18 @@ TEST_CASE("the SDL window is the person's to resize, and says how much room it h
         int x = 0;
         int y = 0;
         REQUIRE(SDL_GetWindowPosition(win, &x, &y));
-        CHECK(x == display.x + (display.w - 78 * static_cast<int>(kCanvasCellPx)) / 2);
-        CHECK(y == display.y + (display.h - 22 * static_cast<int>(kCanvasCellPx)) / 2);
+        CHECK(x == display.x + (display.w - 78 * static_cast<int>(kCellPx)) / 2);
+        CHECK(y == display.y + (display.h - 22 * static_cast<int>(kCellPx)) / 2);
     }
 
     // ...WITH A FLOOR, and the floor is the first picture's own size. 78x22 cells at
-    // kCanvasCellPx is what a Workshop asks for, and it is what this window will never be
+    // kCellPx is what a Workshop asks for, and it is what this window will never be
     // dragged below.
     int min_w = 0;
     int min_h = 0;
     REQUIRE(SDL_GetWindowMinimumSize(win, &min_w, &min_h));
-    CHECK(min_w == 78 * kCanvasCellPx);
-    CHECK(min_h == 22 * kCanvasCellPx);
+    CHECK(min_w == 78 * kCellPx);
+    CHECK(min_h == 22 * kCellPx);
 
     // AND IT SAID SO, in canvas pixels, unprompted.
     REQUIRE(heard.size() == 1);
@@ -3729,7 +3751,7 @@ TEST_CASE("the SDL window is the person's to resize, and says how much room it h
     CHECK(heard.size() == 2); // and nothing changed, so nothing was said
 
     // SMALLER AGAIN, within the minimum: the same numbers, in reverse.
-    REQUIRE(SDL_SetWindowSize(win, 78 * kCanvasCellPx, 22 * kCanvasCellPx));
+    REQUIRE(SDL_SetWindowSize(win, 78 * kCellPx, 22 * kCellPx));
     r.intent(skin, PumpSurface{});
     REQUIRE(heard.size() == 3);
     CHECK(heard[2].width == cells_px(78));
@@ -3740,23 +3762,23 @@ TEST_CASE("the SDL window is the person's to resize, and says how much room it h
     // special case.
     SDL_Rect usable{};
     REQUIRE(SDL_GetDisplayUsableBounds(SDL_GetDisplayForWindow(win), &usable));
-    REQUIRE(usable.w >= 80 * kCanvasCellPx);
+    REQUIRE(usable.w >= 80 * kCellPx);
     c.width = cells_px(80);
     c.height = cells_px(22);
     r.intent(skin, c);
     REQUIRE(SDL_GetWindowSize(win, &now_w, &now_h));
-    CHECK(now_w == 80 * kCanvasCellPx);
-    CHECK(now_h == 22 * kCanvasCellPx);
+    CHECK(now_w == 80 * kCellPx);
+    CHECK(now_h == 22 * kCellPx);
     // ...AND, NOBODY HAVING MOVED IT, IT IS CENTRED AGAIN at its grown size.
     {
         int x = 0;
         int y = 0;
         REQUIRE(SDL_GetWindowPosition(win, &x, &y));
-        CHECK(x == usable.x + (usable.w - 80 * static_cast<int>(kCanvasCellPx)) / 2);
+        CHECK(x == usable.x + (usable.w - 80 * static_cast<int>(kCellPx)) / 2);
     }
     // ...BUT NO FURTHER THAN ITS DISPLAY HOLDS IT: a picture wider than the display grows the
     // window to the display's usable width, and the rest is clipped.
-    c.width = cells_px(usable.w / static_cast<int>(kCanvasCellPx) + 40);
+    c.width = cells_px(usable.w / static_cast<int>(kCellPx) + 40);
     r.intent(skin, c);
     REQUIRE(SDL_GetWindowSize(win, &now_w, &now_h));
     int left = 0;
@@ -3765,7 +3787,7 @@ TEST_CASE("the SDL window is the person's to resize, and says how much room it h
     int right = 0;
     (void)SDL_GetWindowBordersSize(win, &top, &left, &bottom, &right);
     CHECK(now_w == usable.w - left - right);
-    CHECK(now_h == 22 * kCanvasCellPx);
+    CHECK(now_h == 22 * kCellPx);
 }
 
 TEST_CASE("the SDL skin opens a real face and publishes what it MEASURED") {
@@ -3809,8 +3831,8 @@ TEST_CASE("the SDL skin opens a real face and publishes what it MEASURED") {
     CHECK(advance > 0);
     CHECK(line > 0);
     CHECK(line > advance);        // a monospace line is taller than a character is wide
-    CHECK(advance < kCanvasCellPx); // ...and at this size, narrower than a cell
-    CHECK(line < 4 * kCanvasCellPx);
+    CHECK(advance < kCellPx); // ...and at this size, narrower than a cell
+    CHECK(line < 4 * kCellPx);
 
     // AND THE PUBLISHER CAN DO ARITHMETIC WITH IT. This is the whole reason the
     // metric travels: `fit_region` here and `fit_region` in Workshop are the same
@@ -3818,8 +3840,8 @@ TEST_CASE("the SDL skin opens a real face and publishes what it MEASURED") {
     // answer in this process.
     const RegionFit fit = fit_region(pane, heard[0]);
     CHECK(fit.graphical());
-    CHECK(fit.columns > pane.w / kCanvasCellPx); // real type is narrower than a cell: MORE columns
-    CHECK(fit.rows < pane.h / kCanvasCellPx);    // ...and taller than one: fewer rows
+    CHECK(fit.columns > pane.w / kCellPx); // real type is narrower than a cell: MORE columns
+    CHECK(fit.rows < pane.h / kCellPx);    // ...and taller than one: fewer rows
     CHECK(fit.rows >= 1);
 
     // A SECOND FRAME SAYS NOTHING NEW. The metric is a fact about the face, not
@@ -4140,10 +4162,10 @@ TEST_CASE("the bitmap face grounds a selected cell in the selection band") {
     int band_quads = 0;
     int background_quads = 0;
     for (const PlanRect& q : quads) {
-        if (q.w == kCanvasCellPx && q.h == kCanvasCellPx && q.y == 0) {
+        if (q.w == kCellPx && q.h == kCellPx && q.y == 0) {
             if (PlanInk{q.r, q.g, q.b} == kSelectionBand) {
                 ++band_quads;
-                CHECK(q.x == 1 * kCanvasCellPx); // exactly the selected cell
+                CHECK(q.x == 1 * kCellPx); // exactly the selected cell
             } else if (PlanInk{q.r, q.g, q.b} == kCanvasBackground) {
                 ++background_quads;
             }
@@ -4176,7 +4198,7 @@ TEST_CASE("the bitmap face shows a caret's cell inverted, inside a selection too
     const PlanInk ink = ink_for_role(role::kFill);
     const auto cell_fill = [](const std::vector<PlanRect>& quads, std::int64_t cell) {
         for (const PlanRect& q : quads) {
-            if (q.w == kCanvasCellPx && q.h == kCanvasCellPx && q.x == cell * kCanvasCellPx)
+            if (q.w == kCellPx && q.h == kCellPx && q.x == cell * kCellPx)
                 return PlanInk{q.r, q.g, q.b};
         }
         return PlanInk{};
@@ -4184,8 +4206,8 @@ TEST_CASE("the bitmap face shows a caret's cell inverted, inside a selection too
     const auto glyph_inks = [](const std::vector<PlanRect>& quads, std::int64_t cell) {
         std::vector<PlanInk> inks;
         for (const PlanRect& q : quads) {
-            const bool whole = q.w == kCanvasCellPx && q.h == kCanvasCellPx;
-            if (!whole && q.x >= cell * kCanvasCellPx && q.x < (cell + 1) * kCanvasCellPx)
+            const bool whole = q.w == kCellPx && q.h == kCellPx;
+            if (!whole && q.x >= cell * kCellPx && q.x < (cell + 1) * kCellPx)
                 inks.push_back(PlanInk{q.r, q.g, q.b});
         }
         return inks;
@@ -4495,9 +4517,9 @@ std::vector<std::string> wux2_rows(const std::string& body) {
 TEST_CASE("the pixel and cell conversions are exact, floored, and total") {
     // THE CELL IS TWELVE CANVAS PIXELS, and a window's device pixel is a canvas pixel: the two
     // grains a hand reports at.
-    CHECK(kCanvasCellPx == 12);
+    CHECK(kCellPx == 12);
     CHECK(kPixelGrainPx == 1);
-    CHECK(kCellGrainPx == kCanvasCellPx);
+    CHECK(kCellGrainPx == kCellPx);
 
     // CELLS <-> PIXELS, exact one way and floored the other, negatives included.
     CHECK(px_of_cells(0) == 0);
@@ -4512,26 +4534,26 @@ TEST_CASE("the pixel and cell conversions are exact, floored, and total") {
         CAPTURE(cell);
         // The cell lattice embeds exactly: cell -> pixels -> cell is the identity.
         CHECK(cell_of_pixel(px_of_cells(cell)) == cell);
-        CHECK(cell_of_pixel(px_of_cells(cell) + kCanvasCellPx - 1) == cell);
+        CHECK(cell_of_pixel(px_of_cells(cell) + kCellPx - 1) == cell);
     }
 
     // SATURATION: the ends of the number line stay on it.
     constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
-    CHECK(px_of_cells(kMax) == kMaxCellsInPixels * kCanvasCellPx);
-    CHECK(px_of_cells(-kMax) == -kMaxCellsInPixels * kCanvasCellPx);
-    CHECK(cell_of_pixel(kMax) == kMax / kCanvasCellPx);
-    CHECK(cell_of_pixel(-kMax) == -kMax / kCanvasCellPx - 1);
+    CHECK(px_of_cells(kMax) == kMaxCellsInPixels * kCellPx);
+    CHECK(px_of_cells(-kMax) == -kMaxCellsInPixels * kCellPx);
+    CHECK(cell_of_pixel(kMax) == kMax / kCellPx);
+    CHECK(cell_of_pixel(-kMax) == -kMax / kCellPx - 1);
 }
 
 TEST_CASE("a medium's own device unit, and whether it can say a value exactly") {
     // The same arithmetic with the layout number taken from whatever the medium REPORTED, so an
     // application spelling a weaver's geometry and a medium drawing it cannot come to disagree
     // about where an edge inside a device unit lands.
-    CHECK(device_of_px(0, kCanvasCellPx) == 0);
-    for (std::int64_t v = -4 * kCanvasCellPx; v <= 4 * kCanvasCellPx; ++v) {
+    CHECK(device_of_px(0, kCellPx) == 0);
+    for (std::int64_t v = -4 * kCellPx; v <= 4 * kCellPx; ++v) {
         CAPTURE(v);
         // THE SHIPPED WINDOW: a device pixel per canvas pixel.
-        REQUIRE(device_of_px(v, kCanvasCellPx) == v);
+        REQUIRE(device_of_px(v, kCellPx) == v);
         // A MEDIUM WHOSE DEVICE UNIT IS THE CELL ANSWERS IN CELLS -- the vocabulary's zero.
         REQUIRE(device_of_px(v, 0) == cell_of_pixel(v));
         REQUIRE(device_of_px(v, -1) == cell_of_pixel(v));
@@ -4549,20 +4571,20 @@ TEST_CASE("a medium's own device unit, and whether it can say a value exactly") 
     CHECK(device_of_px(kMax, 1) >= 0);
 
     // ---- CAN THIS MEDIUM SAY THIS VALUE AT ALL? --------------------------------------
-    CHECK(px_exact_in_device(0, kCanvasCellPx));
+    CHECK(px_exact_in_device(0, kCellPx));
     CHECK(px_exact_in_device(0, 0));
 
     // A WHOLE-CELL VALUE IS EXACT EVERYWHERE.
     CHECK(px_exact_in_device(px_of_cells(40), 0));
-    CHECK(px_exact_in_device(px_of_cells(40), kCanvasCellPx));
+    CHECK(px_exact_in_device(px_of_cells(40), kCellPx));
     CHECK(px_exact_in_device(px_of_cells(-3), 0));
 
     // EVERY PIXEL IS EXACT ON THE WINDOW, AND ONLY THE CELL'S MULTIPLES IN A TERMINAL. That
     // difference is the whole of authored-versus-projected.
-    for (std::int64_t v = -2 * kCanvasCellPx; v < 2 * kCanvasCellPx; ++v) {
+    for (std::int64_t v = -2 * kCellPx; v < 2 * kCellPx; ++v) {
         CAPTURE(v);
-        REQUIRE(px_exact_in_device(v, kCanvasCellPx));
-        REQUIRE(px_exact_in_device(v, 0) == (v % kCanvasCellPx == 0));
+        REQUIRE(px_exact_in_device(v, kCellPx));
+        REQUIRE(px_exact_in_device(v, 0) == (v % kCellPx == 0));
         if (px_exact_in_device(v, 0)) {
             // AN EXACT VALUE ROUND-TRIPS THROUGH ITS OWN MEDIUM: what "exact" claims.
             REQUIRE(px_of_cells(device_of_px(v, 0)) == v);
@@ -4578,16 +4600,16 @@ TEST_CASE("a medium's own device unit, and whether it can say a value exactly") 
 TEST_CASE("the smallest span a medium can SHOW is one of its own device units") {
     // THE OTHER DIRECTION OF THE SAME LAW: this answers what a publisher drawing a BOUNDARY
     // asks -- the thinnest thing this face will present.
-    CHECK(px_of_one_device(0) == kCanvasCellPx);  // a terminal: the cell IS the unit
-    CHECK(px_of_one_device(-4) == kCanvasCellPx); // ...and nonsense reads the same way
-    CHECK(px_of_one_device(kCanvasCellPx) == 1);  // the window: one pixel
-    CHECK(px_of_one_device(kCanvasCellPx) == kPixelGrainPx);
-    CHECK(px_of_one_device(kCanvasCellPx) < px_of_one_device(0));
+    CHECK(px_of_one_device(0) == kCellPx);  // a terminal: the cell IS the unit
+    CHECK(px_of_one_device(-4) == kCellPx); // ...and nonsense reads the same way
+    CHECK(px_of_one_device(kCellPx) == 1);  // the window: one pixel
+    CHECK(px_of_one_device(kCellPx) == kPixelGrainPx);
+    CHECK(px_of_one_device(kCellPx) < px_of_one_device(0));
 
     // IT IS THE SMALLEST SPAN THAT READS BACK AS ONE UNIT, on every cell size a medium could
     // report -- including the ones the pixel does not divide evenly, where a division would
     // answer zero and a boundary would disappear.
-    for (std::int64_t cell = 1; cell <= 3 * kCanvasCellPx; ++cell) {
+    for (std::int64_t cell = 1; cell <= 3 * kCellPx; ++cell) {
         CAPTURE(cell);
         const std::int64_t one = px_of_one_device(cell);
         REQUIRE(one >= 1);
@@ -4598,7 +4620,7 @@ TEST_CASE("the smallest span a medium can SHOW is one of its own device units") 
     }
 
     // A MEDIUM FINER THAN THE PIXEL GETS THE FINEST THING THAT CAN BE SAID AT ALL: one pixel.
-    CHECK(px_of_one_device(kCanvasCellPx * 100) == 1);
+    CHECK(px_of_one_device(kCellPx * 100) == 1);
     CHECK(px_of_one_device((std::numeric_limits<std::int64_t>::max)()) == 1);
 }
 
@@ -4626,10 +4648,10 @@ TEST_CASE("each medium reports the device unit its own canvas is laid out at") {
     CHECK(fresh_extent.cell_px == 0);
 
     // THE SHIPPED GRAPHICAL FACE DRAWS A CANVAS PIXEL ON A WINDOW PIXEL: its room is every
-    // pixel it has, and a canvas cell is `kCanvasCellPx` of them.
+    // pixel it has, and a canvas cell is `kCellPx` of them.
     CHECK(extent_of_drawable(PlanSize{1205, 487}).width == 1205);
     CHECK(extent_of_drawable(PlanSize{1205, 487}).height == 487);
-    CHECK(px_of_cells(1) == kCanvasCellPx);
+    CHECK(px_of_cells(1) == kCellPx);
 }
 
 TEST_CASE("one quantization law -- a span lands on device units by flooring both edges") {
@@ -4639,7 +4661,7 @@ TEST_CASE("one quantization law -- a span lands on device units by flooring both
     // at every extent up to two cells, for the pixel grain and the cell grain both.
     for (const std::int64_t g : {kPixelGrainPx, kCellGrainPx}) {
         CAPTURE(g);
-        for (std::int64_t begin = -kCanvasCellPx; begin <= kCanvasCellPx; ++begin) {
+        for (std::int64_t begin = -kCellPx; begin <= kCellPx; ++begin) {
             for (const std::int64_t len : {1, 3, 4, 13, 12, 24}) {
                 const std::int64_t first = floor_div_px(begin, g);
                 const std::int64_t past = floor_div_px(begin + len, g);
@@ -4656,11 +4678,11 @@ TEST_CASE("one quantization law -- a span lands on device units by flooring both
         }
     }
     // A WHOLE-CELL SPAN IS ORDINARY CONTAINMENT on both media.
-    CHECK(px_span_contains(px_of_cells(3), px_of_cells(2), px_of_cells(3), kCanvasCellPx));
+    CHECK(px_span_contains(px_of_cells(3), px_of_cells(2), px_of_cells(3), kCellPx));
     CHECK_FALSE(px_span_contains(px_of_cells(3), px_of_cells(2), px_of_cells(5),
-                                 kCanvasCellPx));
+                                 kCellPx));
     CHECK_FALSE(px_span_contains(px_of_cells(3), px_of_cells(2), px_of_cells(3) - 1,
-                                 kCanvasCellPx));
+                                 kCellPx));
     // A DEGENERATE SPAN CONTAINS NOTHING, and a grain nobody could mean answers false.
     CHECK_FALSE(px_span_contains(10, 0, 10, kPixelGrainPx));
     CHECK_FALSE(px_span_contains(10, -5, 10, kPixelGrainPx));
@@ -4702,8 +4724,8 @@ TEST_CASE("a rect is one quad at its own pixels, and its floored cells in a term
     const std::vector<PlanRect> eq =
         plan_layer_quads(exact.layers[0], exact.width, exact.height, SurfaceExtent{});
     REQUIRE(eq.size() == 1);
-    CHECK(eq[0].x == 2 * kCanvasCellPx);
-    CHECK(eq[0].w == 3 * kCanvasCellPx);
+    CHECK(eq[0].x == 2 * kCellPx);
+    CHECK(eq[0].w == 3 * kCellPx);
 }
 
 TEST_CASE("a label anchors at its pixel and floors to its cell in a terminal") {
@@ -4761,7 +4783,7 @@ TEST_CASE("a region fits at its pixels and covers its cells") {
     REQUIRE(out.size() >= 2);
     CHECK(out[0].label.x == 30);
     CHECK(out[0].label.y == 12);
-    CHECK(out[1].label.y == 12 + kCanvasCellPx);
+    CHECK(out[1].label.y == 12 + kCellPx);
     CHECK(out[0].label.text.size() == 21); // padded to the covered cells
 }
 
@@ -5106,7 +5128,7 @@ TEST_CASE("region_px_for is fit_region read backwards, and minimal") {
     // axis -- a pixel where the medium sets type, a cell where text is a cell -- no longer does.
     const std::int64_t metrics[][2] = {{8, 18}, {7, 15}, {9, 21}, {0, 0}};
     for (const auto& m : metrics) {
-        const std::int64_t less = m[0] > 0 ? 1 : kCanvasCellPx;
+        const std::int64_t less = m[0] > 0 ? 1 : kCellPx;
         for (std::int64_t columns = 1; columns <= 48; columns += 7) {
             for (std::int64_t rows = 1; rows <= 20; rows += 3) {
                 CAPTURE(m[0]);

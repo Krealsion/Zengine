@@ -13,7 +13,7 @@
 #include "translate_sdl_core.hpp"
 #include "vocabulary.hpp"
 
-#include "surface/vocabulary.hpp"
+#include "graphics/vocabulary.hpp"
 
 #include <cstdint>
 #include <utility>
@@ -22,14 +22,14 @@
 
 namespace zengine::input {
 
-/// One translated SDL event: the Input variant plus one, `surface::SurfaceCloseRequested` -- a
+/// One translated SDL event: the Input variant plus one, `graphics::SurfaceCloseRequested` -- a
 /// window fact on SDL's one process-global queue, carried as the surface fact it is rather than
 /// as a fake key. The weave derives its Emit set from this variant, so only the SDL reader
 /// declares the extra shape. No clipboard shape: clipboard read follows paste intent, answered
 /// by the Medium (`ClipboardTextRequested`, surface/vocabulary.hpp), and this reader ignores
 /// the clipboard events.
 using SdlEvent = std::variant<KeyPressed, KeyReleased, TextEntered, PointerMoved, PointerButton,
-                              PointerWheel, zengine::surface::SurfaceCloseRequested>;
+                              PointerWheel, zengine::graphics::SurfaceCloseRequested>;
 
 /// Input's moments as the SDL reader's events, in order.
 inline std::vector<SdlEvent> sdl_events_of(std::vector<InputEvent> moments) {
@@ -77,7 +77,7 @@ inline std::vector<SdlEvent> sdl_mouse_wheel_to_events(float dx, float dy,
 /// duplicate is harmless while a close that did nothing on one platform is not.
 inline std::vector<SdlEvent> sdl_close_to_events() {
     std::vector<SdlEvent> out;
-    out.push_back(zengine::surface::SurfaceCloseRequested{});
+    out.push_back(zengine::graphics::SurfaceCloseRequested{});
     return out;
 }
 

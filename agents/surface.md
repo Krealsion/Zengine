@@ -72,7 +72,7 @@ regions on one canvas may each carry one.
 `SurfaceTextRegion` carries `sel_begin_row/col` and `sel_end_row/col` — two caret-like
 positions in **reading order** (begin inclusive, end exclusive, `kNoSelection` = none), in the
 region's own prose lattice. The per-row arithmetic is ONE function both media consume:
-`selection_span_of_row` (`surface/region.hpp`) — begin row from `sel_begin_col` to its own
+`selection_span_of_row` (`workshop/pane_text_fit.hpp`) — begin row from `sel_begin_col` to its own
 end, middle rows whole, end row to `sel_end_col`, everything clamped into the text that
 exists, and a range that is absent, empty or not in reading order answers the empty span for
 every row. Do not re-derive a span at a call site; two spellings of it is a highlight that
@@ -241,7 +241,7 @@ SurfaceLabel            it is not a rectangle at all: this CELL is the meaning. 
   v2, `SurfaceCanvas` v6. A layer IS a list of regions and a canvas IS a list of layers, so
   their wire identity moved without either gaining a field.
 - **A one-cell row cannot be semantic text, whatever it means.** A canvas cell is
-  `kCanvasCellPx` = <!-- value kCanvasCellPx -->12<!-- /value --> device pixels and this repository's face has an 18-pixel line, so
+  `kCellPx` = <!-- value kCellPx -->12<!-- /value --> device pixels and this repository's face has an 18-pixel line, so
   `fit_region` answers zero rows for a one-cell region and hands it back to the cell projection.
   `floor((12h - 2*kTextInsetPx) / 18)` is the whole table: **h=1 → 0 rows, h=2 and h=3 → 1,
   h=4 and h=5 → 2, h=7 → 4, h=9 → 5.** So a migration is always of a RUN of rows, never of one
@@ -287,7 +287,7 @@ between two planes     the complete earlier plane, then the complete later one o
 
 ## The canvas is pixels, and each medium floors at its own grain
 
-The canvas is laid out in canvas pixels, `kCanvasCellPx` (vocabulary.hpp) to the cell: every
+The canvas is laid out in canvas pixels, `kCellPx` (`graphics/vocabulary.hpp`) to the cell: every
 geometry shape says its coordinates and extents in them, with no remainder field and no second
 lattice. The shipped window draws a canvas pixel as a device pixel; a terminal floors the same
 picture to its cells. A publisher that thinks in whole cells multiplies once, and says exactly
@@ -328,7 +328,7 @@ what it always said.
     the application does the arithmetic. The one-measurer rule, spent a second time, and
     the text metric's precedent exactly.
   - **⚠ It is NOT the text metric and must not be derived from one.** A window whose font
-    failed to open publishes `{w, h, 0, 0, kCanvasCellPx}`: it sets no type and still lays
+    failed to open publishes `{w, h, 0, 0, kCellPx}`: it sets no type and still lays
     its canvas out in pixels. `RegionFit::graphical()` answers a question about TYPE; this
     answers a question about GEOMETRY. `report_extent` guards the whole value, because the
     three facts move independently — a window opened late reports its unit late.
@@ -337,7 +337,7 @@ what it always said.
     stale claim about somebody else's monitor), and no authored geometry is expressed in it.
   - **AND THE OTHER DIRECTION IS `px_of_one_device(cell_px)`**: the smallest span
     this medium can SHOW, said in canvas pixels — what a publisher drawing a BOUNDARY asks.
-    `kCanvasCellPx` when the device unit is the cell, one pixel for the shipped window,
+    `kCellPx` when the device unit is the cell, one pixel for the shipped window,
     and a CEILING rather than a division so a cell size the canvas pixel does not divide
     evenly still answers a span `device_of_px` reads back as one whole unit. Its consumers are
     Workshop's pane chrome —
@@ -484,15 +484,15 @@ and later runs, with an unrelated paint in between).
 ## Do not assume
 
 - A metric identifies a graphical medium — `RegionFit::graphical()` is the partition, and a
-  window whose font failed to open publishes `{w,h,0,0,kCanvasCellPx}` and still lays its
-  canvas out at `kCanvasCellPx`. The last field is the honest question to ask
+  window whose font failed to open publishes `{w,h,0,0,kCellPx}` and still lays its
+  canvas out at `kCellPx`. The last field is the honest question to ask
   about GEOMETRY, and it still does not answer "what kind of medium is this": it says what
   this medium's device unit IS, which is the only part a consumer ever needed.
 - A canvas pixel is any medium's device pixel — it is the shipped window's, drawn 1:1; a
   terminal's device unit is twelve of them, and a future medium reports its own `cell_px`.
 - `fit_region`'s 6-argument form takes cells — it takes canvas PIXELS, like every geometry
   shape; the cells a region covers are its capacity where a face sets no type.
-- `kCanvasCellPx` is a standing fact Workshop may hold — `surface/pointing.hpp` forbids it; a
+- `kCellPx` is a standing fact Workshop may hold — `surface/pointing.hpp` forbids it; a
   pointer may spend it only because the event carries `input::space::kPixels`, a stamp on that
   moment. What a consumer may hold is the number the MEDIUM reported
   (`SurfaceExtent::cell_px`): the same value on the shipped face, and a fact the medium

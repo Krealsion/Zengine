@@ -54,11 +54,11 @@ struct PaneWindowDo {
 /// holds, counting each read.
 class PaneWindow
     : public loom::WeaveBase<PaneWindow, PaneWindowState,
-                             loom::Accept<gfx::Drawn, PaneWindowDo, surface::ClipboardTextRequested>,
+                             loom::Accept<gfx::Drawn, PaneWindowDo, graphics::ClipboardTextRequested>,
                              loom::Emit<gfx::AreaRoom, gfx::DrawnRefused, gfx::ActionRequested,
                                         gfx::AreaButtonChanged, gfx::AreaPointerMoved,
                                         gfx::AreaWheelTurned, gfx::AreaPressed, gfx::AreaHoldEnded,
-                                        gfx::AreaPointerLeft, surface::ClipboardText>> {
+                                        gfx::AreaPointerLeft, graphics::ClipboardText>> {
 public:
     explicit PaneWindow(std::string window) : window_(std::move(window)) {}
 
@@ -92,9 +92,9 @@ public:
         }
     }
 
-    void on(const surface::ClipboardTextRequested&, loom::Mail& mail) {
+    void on(const graphics::ClipboardTextRequested&, loom::Mail& mail) {
         ++clipboard_reads;
-        (void)mail.answer(surface::ClipboardText{true, platform});
+        (void)mail.answer(graphics::ClipboardText{true, platform});
     }
 
     gw::WinArea* find(const std::string& area) {
@@ -136,7 +136,7 @@ public:
         grant.allow_to_any(gfx::AreaPressed::zen_name, gfx::AreaPressed::zen_version);
         grant.allow_to_any(gfx::AreaHoldEnded::zen_name, gfx::AreaHoldEnded::zen_version);
         grant.allow_to_any(gfx::AreaPointerLeft::zen_name, gfx::AreaPointerLeft::zen_version);
-        grant.allow_to_any(surface::ClipboardText::zen_name, surface::ClipboardText::zen_version);
+        grant.allow_to_any(graphics::ClipboardText::zen_name, graphics::ClipboardText::zen_version);
         const std::string office = w_->office();
         id_ = bus_.register_weave(std::move(weave), std::move(grant), office);
         w_->zen_set_self(id_);

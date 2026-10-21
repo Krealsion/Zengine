@@ -13,6 +13,7 @@
 
 #include "component/text_box.hpp"
 #include "graphics/canvas.hpp"
+#include "graphics/pixels.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/pointing.hpp"
@@ -49,7 +50,7 @@
 
 namespace zengine::view {
 namespace ws = zengine::workshop;
-namespace ink = zengine::surface::role;
+namespace ink = zengine::graphics::role;
 
 /// The office every pane answers, and the key of the one pane a view offers in its own office.
 inline constexpr const char* kWorkshopRole = "zengine.workshop";
@@ -84,8 +85,8 @@ struct Picture {
     std::int64_t grain = 1;
     const Hit* hit(std::int64_t x, std::int64_t y) const {
         for (auto at = hits.rbegin(); at != hits.rend(); ++at)
-            if (surface::px_span_contains(at->x, at->w, x, grain) &&
-                surface::px_span_contains(at->y, at->h, y, grain))
+            if (graphics::px_span_contains(at->x, at->w, x, grain) &&
+                graphics::px_span_contains(at->y, at->h, y, grain))
                 return &*at;
         return nullptr;
     }
@@ -172,7 +173,7 @@ inline component::TextBox field_box(const Presentation& p, const Element& e) {
 /// The notice's rows beneath a view's size, in pixels: `kNoticeRows` lines of the medium's text.
 inline std::int64_t notice_band(const ws::PaneCanvasRoom& room) {
     const auto m = ws::canvas_text_metrics(room);
-    return static_cast<std::int64_t>(kNoticeRows) * surface::add_cells(m.line, 2 * m.inset);
+    return static_cast<std::int64_t>(kNoticeRows) * graphics::add_cells(m.line, 2 * m.inset);
 }
 
 /// The room a view is drawn in: its size and its notice rows beneath, within the room its pane
@@ -199,7 +200,7 @@ inline Picture picture(const Description& d, const Told& told, const Presentatio
     out.rects_by.emplace_back();
     std::string by; // the element drawing now
     const auto metrics = ws::canvas_text_metrics(room);
-    const auto line = surface::add_cells(metrics.line, 2 * metrics.inset);
+    const auto line = graphics::add_cells(metrics.line, 2 * metrics.inset);
     // The notice row is the room's last rows, beneath the size: a long sentence, a refusal in its
     // owner's words, goes on above rather than being cut where the room ends, as far as the
     // elements leave room. Only a pane smaller than the view brings it over an element.
@@ -215,7 +216,7 @@ inline Picture picture(const Description& d, const Told& told, const Presentatio
         wrap(ws::pane_text::ascii_spelling(p.notice.empty() ? waiting_sentence(d, told) : p.notice),
              columns, std::min(kNoticeRows, free_rows));
     const auto notice_y = std::max<std::int64_t>(
-        0, surface::floor_div_px(room.height - line * static_cast<std::int64_t>(notice_lines.size()),
+        0, graphics::floor_div_px(room.height - line * static_cast<std::int64_t>(notice_lines.size()),
                                  out.grain) * out.grain);
     const auto text = [&](std::int64_t x, std::int64_t y, std::string words, std::int64_t role,
                           ws::CanvasTextBox clip, std::int64_t caret = surface::kNoCaret) {
@@ -231,10 +232,10 @@ inline Picture picture(const Description& d, const Told& told, const Presentatio
     };
     // A line sits on the medium's own lattice inside its element, so a terminal's cell holds it
     // wherever in the cell the element's pixels begin; centred in what the element leaves.
-    const auto down = [&](std::int64_t v) { return surface::floor_div_px(v, out.grain) * out.grain; };
+    const auto down = [&](std::int64_t v) { return graphics::floor_div_px(v, out.grain) * out.grain; };
     const auto up = [&](std::int64_t v) { return down(v) == v ? v : down(v) + out.grain; };
     const auto centred = [&](const ws::CanvasTextBox& box) {
-        const auto top = up(box.y), room_left = down(surface::add_cells(box.y, box.h)) - top;
+        const auto top = up(box.y), room_left = down(graphics::add_cells(box.y, box.h)) - top;
         return room_left < line ? top : top + down((room_left - line) / 2);
     };
     for (const auto& e : d.elements) {

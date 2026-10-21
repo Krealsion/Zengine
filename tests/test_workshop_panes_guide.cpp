@@ -209,7 +209,7 @@ const v2::PanePart* part_named(const v6::PaneView& view, const std::string& name
 std::vector<surface::SurfaceLabel> guide_labels(const surface::SurfaceCanvas& c) {
     std::vector<surface::SurfaceLabel> out;
     for (const surface::SurfaceLabel& l : all_labels(c)) {
-        if (l.role == surface::role::kGuide) out.push_back(l);
+        if (l.role == gfx::role::kGuide) out.push_back(l);
     }
     return out;
 }
@@ -217,7 +217,7 @@ std::vector<surface::SurfaceLabel> guide_labels(const surface::SurfaceCanvas& c)
 std::vector<surface::SurfaceRect> guide_rects(const surface::SurfaceCanvas& c) {
     std::vector<surface::SurfaceRect> out;
     for (const surface::SurfaceRect& r : all_rects(c)) {
-        if (r.role == surface::role::kGuide) out.push_back(r);
+        if (r.role == gfx::role::kGuide) out.push_back(r);
     }
     return out;
 }
@@ -334,7 +334,7 @@ TEST_CASE("a mark in a terminal is its part's own cells in the guide role: every
     CHECK(guide_rects(c).empty());
     // ITS INK IS A COLOUR AND NO ATTRIBUTE, as every role's is, so the cells after it are drawn in
     // their own ink, neither reversed nor bold.
-    const std::string ink = surface::sgr_for_role(static_cast<int>(surface::role::kGuide));
+    const std::string ink = gfx::window::sgr_for_role(static_cast<int>(gfx::role::kGuide));
     REQUIRE(ink.rfind("\x1b[", 0) == 0);
     const std::string params = ink.substr(2, ink.size() - 3);
     for (std::size_t at = 0; at <= params.size();) {
@@ -406,9 +406,9 @@ TEST_CASE("a mark in a window is an outline one pixel wide around its part insid
         CHECK_FALSE(over);
     }
     // THE WINDOW'S PLAN DRAWS THEM IN THE GUIDE ROLE'S INK, which is no other role's.
-    const surface::PlanInk ink = surface::ink_for_role(surface::role::kGuide);
-    for (const std::int64_t other : {surface::role::kFill, surface::role::kAccent, surface::role::kMuted,
-                                     surface::role::kAlert}) {
+    const surface::PlanInk ink = surface::ink_for_role(gfx::role::kGuide);
+    for (const std::int64_t other : {gfx::role::kFill, gfx::role::kAccent, gfx::role::kMuted,
+                                     gfx::role::kAlert}) {
         CHECK_FALSE(ink == surface::ink_for_role(other));
     }
     std::size_t inked = 0;

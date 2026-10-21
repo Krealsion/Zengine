@@ -11,6 +11,7 @@
 #include "workshop/pane_vocabulary.hpp"
 
 #include "activation/activation.hpp"
+#include "graphics/role.hpp"
 #include "surface/vocabulary.hpp"
 
 #include <zen/kernel/export.hpp>
@@ -23,6 +24,7 @@
 namespace {
 
 namespace surface = zengine::surface;
+namespace gfx = zengine::graphics;
 using zengine::workshop::PaneCatalogRequested;
 using zengine::workshop::PaneContent;
 using zengine::workshop::PaneOffered;
@@ -101,13 +103,13 @@ public:
         said.rows.push_back(surface::SurfaceTextRow{
             fitted("hello -- " + std::to_string(room.rows) + "x" + std::to_string(room.columns),
                    room.columns),
-            surface::role::kFill});
+            gfx::role::kFill});
         // ...and the remaining rows are filled to the row budget exactly, so a suite
         // reading the pane can tell "this provider spent its whole grant" from "this
         // provider had nothing more to say".
         for (std::int64_t i = 1; i < room.rows; ++i) {
             said.rows.push_back(surface::SurfaceTextRow{
-                fitted("row " + std::to_string(i), room.columns), surface::role::kMuted});
+                fitted("row " + std::to_string(i), room.columns), gfx::role::kMuted});
         }
         // DELIBERATELY AS THIS OFFICE. `mail.send_to_role(...)` would be PERSONAL
         // speech from a weave that happens to hold the office, and Workshop refuses

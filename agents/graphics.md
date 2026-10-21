@@ -81,8 +81,8 @@ keeps, is [surface](surface.md); where the two meet is the last section here.
 ## Colour, pixels and operands
 
 - **A colour is a role or an exact value beside one** (`Paint`): a medium without colour shows the
-  role. The roles are the graphics vocabulary's (`graphics/role.hpp`), which Surface spells as its
-  own; no medium invents one.
+  role. The roles are the graphics vocabulary's (`graphics/role.hpp`), the one set every drawer
+  names; no medium invents one.
 - **A skin paints for one medium, and says which in its bytes**: a node painted for light opens
   with its tag (`light::kTag`). A terminal window refuses a skin that paints light, in words; an OS
   window paints an area whose skin paints characters itself, in the look the skin's name chooses.
@@ -120,7 +120,7 @@ keeps, is [surface](surface.md); where the two meet is the last section here.
   arrangement. A window claims the input edge it shares with an Input reader for its life
   (`input/window_claim.hpp`), and a reader beside it reads none of it: the terminal window the
   terminal's input, the OS window SDL's one queue.
-- Graphics includes nothing of Surface: its roles, the terminal's claim and the platform's shapes
-  (the clipboard, the place, the close, the pump and the capture) are its own, and Surface's headers
-  spell them for the Skins (`surface/vocabulary.hpp`, `surface/tui_terminal.hpp`). A window and a
-  Skin both hear every copy published, so a process shows through one of them.
+- Graphics includes nothing of Surface: its roles, the terminal's claim, the platform's shapes
+  (the clipboard, the place, the close, the pump and the capture) and the pixel arithmetic
+  (`graphics/pixels.hpp`) are its own, and the Skins spell them by their graphics names. A window
+  and a Skin both hear every copy published, so a process shows through one of them.

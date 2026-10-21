@@ -26,6 +26,7 @@
 namespace {
 
 using namespace zengine::surface;
+using namespace zengine::graphics;
 
 /// What went wrong, in SDL's own words, on stderr: a surface that cannot exist says why (a WSL
 /// SDL3 with only the dummy and offscreen drivers once showed nothing but "no window"). Not a
@@ -119,7 +120,7 @@ public:
         CapturedPicture p;
         p.width = bgr->w;
         p.height = bgr->h;
-        p.cell_px = kCanvasCellPx;
+        p.cell_px = kCellPx;
         p.format = "image/bmp";
         p.bytes = bmp_of(*bgr);
         SDL_DestroySurface(bgr);
@@ -324,9 +325,9 @@ public:
         SurfaceExtent e = extent_of_drawable(drawable());
         e.text_advance_px = text_.advance_px();
         e.text_line_px = text_.line_px();
-        // A canvas cell is `kCanvasCellPx` of this window's pixels: `plan_canvas` draws a canvas
+        // A canvas cell is `kCellPx` of this window's pixels: `plan_canvas` draws a canvas
         // pixel on a window pixel, consulted rather than restated.
-        e.cell_px = kCanvasCellPx;
+        e.cell_px = kCellPx;
         return e;
     }
 

@@ -20,6 +20,7 @@
 #include "workshop/pane_vocabulary.hpp"
 
 #include "component/row_map.hpp"
+#include "graphics/role.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 
@@ -201,16 +202,16 @@ public:
         };
         if (manual_.office.empty() && manual_.word.empty()) {
             push("MANUAL -- press the ? at the top right of a pane to read its manual here",
-                 surface::role::kMuted);
+                 graphics::role::kMuted);
             publish_manual(mail, std::move(out));
             return;
         }
         push("MANUAL -- " + manual_.office + (manual_.pane.empty() ? "" : "/" + manual_.pane),
-             surface::role::kAccent);
+             graphics::role::kAccent);
         if (!manual_.words || !keys_heard) {
             push(manual_.words ? std::string("waiting for the keys in force") : manual_.word,
-                 manual_.asked != 0 || manual_.words ? surface::role::kMuted
-                                                     : surface::role::kAlert);
+                 manual_.asked != 0 || manual_.words ? graphics::role::kMuted
+                                                     : graphics::role::kAlert);
             publish_manual(mail, std::move(out));
             return;
         }
@@ -224,7 +225,7 @@ public:
         }
         if (end < lines.size()) {
             push("  v " + std::to_string(lines.size() - end) + " more lines below",
-                 surface::role::kMuted);
+                 graphics::role::kMuted);
         }
         publish_manual(mail, std::move(out));
     }

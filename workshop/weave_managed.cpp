@@ -568,7 +568,7 @@ void WorkshopWeave::on(const ManagedOpenProgress& said, loom::Mail& mail) {
             Condition{key, "opening " + tail(said.path),
                       "waiting for " + said.awaiting + " to " + said.stage + " -- your work "
                                                                              "is untouched",
-                      surface::role::kAccent, std::string()});
+                      graphics::role::kAccent, std::string()});
     }
     repaint(mail);
 }
@@ -620,7 +620,7 @@ void WorkshopWeave::on(const EditorSwitchProgress& said, loom::Mail& mail) {
                  cancel;
     }
     session_.conditions.establish(Condition{key, "switching the Editor to " + said.destination,
-                                            detail, surface::role::kAccent, std::string()});
+                                            detail, graphics::role::kAccent, std::string()});
     repaint(mail);
 }
 

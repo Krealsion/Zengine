@@ -44,7 +44,7 @@ void WorkshopWeave::load_keymap(loom::Mail& mail) {
         keymap_standing_ = "refused, so the shipped bindings stand: " + loaded.outcome.refusal;
         session_.conditions.establish(
             Condition{kKeymapWallKey, "keymap refused -- default bindings stand",
-                      loaded.outcome.refusal, surface::role::kAlert, std::string()});
+                      loaded.outcome.refusal, graphics::role::kAlert, std::string()});
         return;
     }
     session_.keymap = loaded.keymap;
@@ -140,7 +140,7 @@ void WorkshopWeave::load_prefs() {
         prefs_bad_ = true;
         session_.conditions.establish(
             Condition{kPrefsWallKey, "preferences refused -- defaults stand",
-                      loaded.outcome.refusal, surface::role::kAlert, std::string()});
+                      loaded.outcome.refusal, graphics::role::kAlert, std::string()});
         return;
     }
     prefs_ = loaded.kept;
@@ -239,7 +239,7 @@ void WorkshopWeave::on(const graphics::GraphicsReady&, loom::Mail& mail) {
     show_in_graphics(mail);
 }
 
-static_assert(graphics::kCellPx == surface::kCanvasCellPx,
+static_assert(graphics::kCellPx == graphics::kCellPx,
               "the window draws the desk one canvas pixel to one of its own, so its cell is the "
               "canvas cell and a terminal window's room in pixels is the screen in pixels");
 
@@ -486,7 +486,7 @@ void WorkshopWeave::on(const graphics::AreaPointerLeft& l, loom::Mail& mail) {
 }
 
 // WL-SESSION-08, WL-SESSION-09 -- agents/workshop/session-restore.md
-void WorkshopWeave::on(const zengine::surface::SurfacePlacement& p, loom::Mail&) {
+void WorkshopWeave::on(const zengine::graphics::SurfacePlacement& p, loom::Mail&) {
     medium_placed_ = true;
     session_.placement_known = true;
     session_.place_x = p.x;
@@ -495,7 +495,7 @@ void WorkshopWeave::on(const zengine::surface::SurfacePlacement& p, loom::Mail&)
 }
 
 // WL-SESSION-13 -- agents/workshop/session.md
-void WorkshopWeave::on(const zengine::surface::SurfaceCloseRequested&, loom::Mail& mail) {
+void WorkshopWeave::on(const zengine::graphics::SurfaceCloseRequested&, loom::Mail& mail) {
     quit(mail);
 }
 
@@ -640,7 +640,7 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
         }
     }
     if (session_.clipboard.writes != copied_before) {
-        mail.publish(zengine::surface::ClipboardCopy{session_.clipboard.text});
+        mail.publish(zengine::graphics::ClipboardCopy{session_.clipboard.text});
     }
     if (session_.clipboard.paste_requests != pastes_before) {
         begin_clipboard_paste(mail);

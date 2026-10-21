@@ -175,7 +175,8 @@ WHY — `agents/decisions/the-desk-is-read-in-workshops-numbers.md`
 `workshop/screen_external.cpp` external_body_place paint_external external_press_at
 `workshop/weave_external.cpp` external_drag external_release
 `workshop/screen_gestures.cpp` prose_at
-`surface/pointing.hpp` prose_column_of_pixel prose_row_of_pixel floor_to_grain
+`workshop/screen.hpp` prose_column_of_pixel prose_row_of_pixel
+`graphics/pixels.hpp` floor_to_grain
 `workshop/weave_desk_read.cpp` cell_point cell_center
 `tests/test_workshop_panes_terminal.cpp` "a press on the input row places the caret where the weaver
 aimed"
@@ -223,7 +224,7 @@ SENTENCE is never shortened"
 ### WL-GEO-06
 `workshop/screen.hpp` PixelRect pixels_of_cells cells_covered
 `workshop/screen_chrome.cpp` project_pane
-`surface/vocabulary.hpp` kCanvasCellPx
+`graphics/vocabulary.hpp` kCellPx
 `ui/layout.hpp` Rect
 `workshop/setup.hpp` kPixels kPanePxMin
 `tests/test_workshop_screen.cpp` "a one-pixel drag moves a pane by exactly one pixel of lattice"
@@ -236,7 +237,7 @@ every medium"
 `workshop/screen.hpp` PixelRect::contains_at PointedAt PointedAt::px
 `workshop/screen_arrange.cpp` pane_edge_at
 `surface/skin_tui.hpp` canvas_body
-`surface/pointing.hpp` px_span_contains kPixelGrainPx kCellGrainPx
+`graphics/pixels.hpp` px_span_contains kPixelGrainPx kCellGrainPx
 `tests/test_workshop_screen.cpp` "the hand meets exactly the pixels and cells a pane paints" "the
 TUI projects a pane onto its covered cells and rewrites nothing"
 `tests/test_surface.cpp` "one quantization law -- a span lands on device units by flooring both
@@ -255,7 +256,7 @@ Screen::cell_px Screen::text_advance_px
 `workshop/screen_pane_state.cpp` geometry_unit geometry_spelling geometry_amount_text
 pixel_rect_text pane_window_text
 `workshop/screen.hpp` GeometrySpelling
-`surface/region.hpp` device_of_px
+`graphics/pixels.hpp` device_of_px
 `tests/test_workshop_screen.cpp` "one authored value, spelled in whatever unit the active face
 reported"
 `tests/test_surface.cpp` "a medium's own device unit, and whether it can say a value exactly"

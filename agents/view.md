@@ -9,7 +9,7 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
 - A view description is presentation as data: its size, elements inside it, the field a label
   shows, the intent a button says. It holds no business value, no resolved geometry and no
   position in cells or in a fraction of a pixel. Places and sizes are whole pixels,
-  `surface::kCanvasCellPx` to a cell. No element sits outside the view's size, and its notice
+  `graphics::kCellPx` to a cell. No element sits outside the view's size, and its notice
   rows lie beneath the size, `view::kNoticeRows` lines of the medium's text (`view::notice_band`),
   so no size the rules accept puts an element under the notice.
 - `view::problem` is the one set of rules. Every door applies it -- the writer, the reader, the

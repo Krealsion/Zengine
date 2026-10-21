@@ -234,7 +234,7 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
         namespace surface = zengine::surface;
         const gfx::TextMeasure face{8, 18};
         const std::vector<surface::SurfaceTextRow> rows{
-            {"[a] one   [x] [y]", surface::role::kFill}, {"plain", surface::role::kMuted}};
+            {"[a] one   [x] [y]", gfx::role::kFill}, {"plain", gfx::role::kMuted}};
         const std::vector<v2::PaneRowPart> parts{{"entry:one", 0, 0, 20, true},
                                                  {"control:a", 0, 0, 3, true},
                                                  {"control:x", 0, 10, 3, true}};
@@ -283,7 +283,7 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
             "reaches: a control inside a named row is its own, and an unnamed run is no part") {
         namespace surface = zengine::surface;
         const std::vector<surface::SurfaceTextRow> rows{
-            {"[a] one   [x] [y]", surface::role::kFill}, {"plain", surface::role::kMuted}};
+            {"[a] one   [x] [y]", gfx::role::kFill}, {"plain", gfx::role::kMuted}};
         // IN THE ORDER A PRESS READS THEM: the row entire, then the runs inside it.
         const std::vector<v2::PaneRowPart> parts{{"entry:one", 0, 0, 20, true},
                                                  {"control:a", 0, 0, 3, true},
@@ -320,7 +320,7 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
         // TWO PARTS THAT OVERLAP: each lands on a cell it alone holds, though a press on the
         // overlap reaches the later one.
         const RowsDrawing overlap = rows_drawing(
-            std::vector<surface::SurfaceTextRow>{{"abcdefghij", surface::role::kFill}},
+            std::vector<surface::SurfaceTextRow>{{"abcdefghij", gfx::role::kFill}},
             std::vector<v2::PaneRowPart>{{"left", 0, 0, 6, true}, {"right", 0, 3, 7, true}},
             cell_room(10, 1), 10);
         REQUIRE(overlap.places.size() == 2);
@@ -332,9 +332,9 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
             "when it stands past it, and neither on a row past the rows asked for") {
         namespace surface = zengine::surface;
         namespace gfx = zengine::graphics;
-        const std::vector<surface::SurfaceTextRow> rows{{"first row", surface::role::kFill},
-                                                        {"second", surface::role::kFill},
-                                                        {"third", surface::role::kFill}};
+        const std::vector<surface::SurfaceTextRow> rows{{"first row", gfx::role::kFill},
+                                                        {"second", gfx::role::kFill},
+                                                        {"third", gfx::role::kFill}};
         const std::vector<v2::PaneRowPart> parts{{"one", 0, 0, 10, true}, {"two", 1, 0, 3, true}};
         const auto node = [](const RowsDrawing& d, const std::string& path) -> const gfx::Node* {
             for (const gfx::Node& n : d.sketch.nodes()) {
@@ -354,7 +354,7 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
             CHECK(n->op == gfx::op::kText);
             const std::optional<gfx::TextArgs> text = gfx::from_body<gfx::TextArgs>(n->args);
             REQUIRE(text.has_value());
-            CHECK(text->ink.role == surface::role::kAccent);
+            CHECK(text->ink.role == gfx::role::kAccent);
             return *text;
         };
         const RowsDrawing plain = rows_drawing(rows, parts, cell_room(10, 3), 10);
@@ -394,7 +394,7 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
         CHECK(line->x2 == 9 * gfx::kCellPx);
         CHECK(line->y1 == gfx::kCellPx);
         CHECK(line->y2 == 2 * gfx::kCellPx - 1);
-        CHECK(line->ink.role == surface::role::kAccent);
+        CHECK(line->ink.role == gfx::role::kAccent);
         CHECK(asks(marked, "caret").empty());
         // THE MARKS STAND IN FRONT: drawn after every row.
         CHECK(marked.sketch.nodes().back().path == "caret");
@@ -412,7 +412,7 @@ TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state bene
         std::vector<v2::PaneRowPart> each;
         const auto past = static_cast<std::int64_t>(gfx::kMaxElementsPerArea) + 20;
         for (std::int64_t i = 0; i < past + 10; ++i) {
-            many.push_back({"xxxxxx", surface::role::kFill});
+            many.push_back({"xxxxxx", gfx::role::kFill});
             each.push_back({"p" + std::to_string(i), i, 0, 2, true});
         }
         RowsCaret beyond;

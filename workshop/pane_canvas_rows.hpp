@@ -14,6 +14,9 @@
 #include "pane_canvas_vocabulary.hpp"
 #include "pane_vocabulary.hpp"
 #include "surface/region.hpp"
+#include "pane_text_fit.hpp"
+#include "graphics/pixels.hpp"
+#include "graphics/role.hpp"
 #include "surface/vocabulary.hpp"
 
 #include <algorithm>
@@ -40,11 +43,11 @@ struct CanvasRows {
     constexpr bool empty() const noexcept { return columns <= 0 || rows <= 0; }
     /// Where row `row` stands.
     constexpr std::int64_t row_y(std::int64_t row) const noexcept {
-        return surface::add_cells(y, surface::mul_px(row, line));
+        return graphics::add_cells(y, graphics::mul_px(row, line));
     }
     /// Where column `column` stands.
     constexpr std::int64_t column_x(std::int64_t column) const noexcept {
-        return surface::add_cells(x, surface::mul_px(column, advance));
+        return graphics::add_cells(x, graphics::mul_px(column, advance));
     }
 };
 
@@ -57,7 +60,7 @@ inline CanvasRows canvas_rows(const PaneCanvasRoom& room) {
     out.line = m.line;
     out.width = room.width;
     out.height = room.height;
-    const std::int64_t across = room.width - surface::mul_px(2, m.inset);
+    const std::int64_t across = room.width - graphics::mul_px(2, m.inset);
     out.columns = across > 0 ? across / m.advance : 0;
     out.rows = room.height / m.line;
     return out;
@@ -74,8 +77,8 @@ struct RowCell {
 inline RowCell row_cell_at(const CanvasRows& rows, std::int64_t x, std::int64_t y) {
     RowCell out;
     if (rows.advance <= 0 || rows.line <= 0) return out;
-    out.row = surface::floor_div_px(surface::sub_px(y, rows.y), rows.line);
-    out.column = surface::floor_div_px(surface::sub_px(x, rows.x), rows.advance);
+    out.row = graphics::floor_div_px(graphics::sub_px(y, rows.y), rows.line);
+    out.column = graphics::floor_div_px(graphics::sub_px(x, rows.x), rows.advance);
     out.shown = out.row >= 0 && out.row < rows.rows && out.column >= 0 && out.column < rows.columns;
     return out;
 }
@@ -108,7 +111,7 @@ inline v5::PaneCanvasContent rows_picture(const PaneCanvasRoom& room, std::int64
     out.picture = picture;
     if (room.width <= 0 || room.height <= 0) return out;
     out.rects.push_back(
-        PaneCanvasRect{0, 0, room.width, room.height, surface::role::kMediumGround});
+        PaneCanvasRect{0, 0, room.width, room.height, graphics::role::kMediumGround});
     const CanvasRows lattice = canvas_rows(room);
     if (lattice.empty()) return out;
     surface::SurfaceTextRegion selected; // the selection's per-row arithmetic is surface's
@@ -121,19 +124,19 @@ inline v5::PaneCanvasContent rows_picture(const PaneCanvasRoom& room, std::int64
         const surface::SurfaceTextRow& row = rows[static_cast<std::size_t>(r)];
         std::string text = row.text.substr(0, static_cast<std::size_t>(lattice.columns));
         const auto length = static_cast<std::int64_t>(text.size());
-        const surface::RowSpan span = surface::selection_span_of_row(selected, r, length);
+        const RowSpan span = selection_span_of_row(selected, r, length);
         const bool has_caret = caret.row == r && caret.column >= 0 && caret.column <= length;
         std::size_t keep = text.find_last_not_of(' ');
         keep = keep == std::string::npos ? 0 : keep + 1;
         if (span.present()) keep = (std::max)(keep, static_cast<std::size_t>(span.end));
         if (has_caret) keep = (std::max)(keep, static_cast<std::size_t>(caret.column) + 1);
         keep = (std::min)(keep, static_cast<std::size_t>(lattice.columns));
-        text.resize(row.background != surface::role::kNone
+        text.resize(row.background != graphics::role::kNone
                         ? static_cast<std::size_t>(lattice.columns)
                         : keep,
                     ' ');
         if (text.empty() && !has_caret) continue;
-        if (row.background != surface::role::kNone) {
+        if (row.background != graphics::role::kNone) {
             out.rects.push_back(
                 PaneCanvasRect{0, lattice.row_y(r), room.width, lattice.line, row.background});
         }
@@ -147,7 +150,7 @@ inline v5::PaneCanvasContent rows_picture(const PaneCanvasRoom& room, std::int64
         if (part.row < 0 || part.row >= lattice.rows || part.columns <= 0) continue;
         out.parts.push_back(PaneCanvasPart{part.name, lattice.column_x(part.column),
                                            lattice.row_y(part.row),
-                                           surface::mul_px(part.columns, lattice.advance),
+                                           graphics::mul_px(part.columns, lattice.advance),
                                            lattice.line});
     }
     return out;
@@ -166,7 +169,7 @@ inline v6::PaneCanvasContent rows_picture(const PaneCanvasRoom& room, std::int64
         if (part.row < 0 || part.row >= lattice.rows || part.columns <= 0) continue;
         out.parts.push_back(v2::PaneCanvasPart{part.name, lattice.column_x(part.column),
                                                lattice.row_y(part.row),
-                                               surface::mul_px(part.columns, lattice.advance),
+                                               graphics::mul_px(part.columns, lattice.advance),
                                                lattice.line, part.available});
     }
     return out;

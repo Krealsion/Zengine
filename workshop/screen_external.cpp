@@ -56,8 +56,8 @@ bool rows_shown(const ExternalPane& pane) noexcept {
 /// The mark a refused picture wears where no title row shows it: at the picture's corner, on the
 /// medium's own ground.
 v2::PaneCanvasText refused_mark_run() {
-    v2::PaneCanvasText run{0, 0, kExternalRefusedMark, surface::role::kAlert};
-    run.background = surface::role::kMediumGround;
+    v2::PaneCanvasText run{0, 0, kExternalRefusedMark, graphics::role::kAlert};
+    run.background = graphics::role::kMediumGround;
     return run;
 }
 
@@ -75,10 +75,10 @@ PixelRect refused_mark_cover(const ExternalPane& pane, const PixelRect& canvas, 
     // Where a medium paints it: a window its row's ground, one line at the region's text origin
     // across its width; a terminal the region's cells.
     const surface::SurfaceTextRegion region = canvas_text_region(placed, canvas.x, canvas.y);
-    const surface::RegionFit fit = surface::fit_region(region.x, region.y, region.w, region.h,
+    const RegionFit fit = fit_region(region.x, region.y, region.w, region.h,
                                                        sc.text_advance_px, sc.text_line_px);
     if (fit.graphical())
-        return PixelRect{fit.view.x, surface::add_cells(fit.view.y, fit.origin_y), fit.view.w,
+        return PixelRect{fit.view.x, graphics::add_cells(fit.view.y, fit.origin_y), fit.view.w,
                          fit.line_px};
     return PixelRect{region.x, region.y, region.w, region.h};
 }
@@ -188,7 +188,7 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
     const auto said = [&](surface::SurfaceTextRegion r) {
         if (!with_body) {
             const auto rows = static_cast<std::int64_t>(r.rows.size());
-            r.h = (std::min)(r.h, surface::region_px_for(1, rows, body.fit.advance_px,
+            r.h = (std::min)(r.h, region_px_for(1, rows, body.fit.advance_px,
                                                          body.fit.line_px).h);
         }
         layer.texts.push_back(std::move(r));
@@ -201,7 +201,7 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
     const bool marks = pane != nullptr && pane->manual;
     if (body.header_rows > 0) {
         region.rows.push_back(surface::SurfaceTextRow{
-            external_header_row(*row, typing, marks, body.columns), surface::role::kAccent});
+            external_header_row(*row, typing, marks, body.columns), graphics::role::kAccent});
     }
     // A pane with room for the header and nothing else still says whose it is: `present` is asked
     // after the header is written.
@@ -236,11 +236,11 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
             if (!region.rows.empty()) {
                 region.rows[0].text =
                     external_header_row(*row, typing, marks, body.columns, mark + " ");
-                if (refused) region.rows[0].role = surface::role::kAlert;
+                if (refused) region.rows[0].role = graphics::role::kAlert;
             } else if (with_body) {
                 v6::PaneCanvasContent notice;
                 notice.texts.push_back(refused ? refused_mark_run()
-                                               : v2::PaneCanvasText{0, 0, mark, surface::role::kAlert});
+                                               : v2::PaneCanvasText{0, 0, mark, graphics::role::kAlert});
                 paint_pane_canvas(layer, canvas, notice, sc.text_advance_px,
                                   sc.text_line_px, chrome_grain(sc));
             }
@@ -248,8 +248,8 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
         if (!region.rows.empty()) {
             const auto inside = pane_inside(b, sc).rect;
             const auto header = wire_rect_of(PixelRect{inside.x, inside.y, inside.w,
-                                                       surface::sub_px(canvas.y, inside.y)},
-                                              surface::role::kFill);
+                                                       graphics::sub_px(canvas.y, inside.y)},
+                                              graphics::role::kFill);
             region.h = header.h;
             layer.texts.push_back(std::move(region));
         }
@@ -259,9 +259,9 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
         region.rows.push_back(
             pane->refusal.empty()
                 ? surface::SurfaceTextRow{detail::fit(kExternalWaiting, body.columns),
-                                          surface::role::kMuted}
+                                          graphics::role::kMuted}
                 : surface::SurfaceTextRow{detail::fit(pane->refusal, body.columns),
-                                          surface::role::kAlert});
+                                          graphics::role::kAlert});
     } else if (with_body) {
         region.rows.insert(region.rows.end(), pane->shown.begin(), pane->shown.end());
         // The pane's own caret, merged here and nowhere else: the header is the region's first

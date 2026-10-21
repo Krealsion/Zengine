@@ -22,12 +22,15 @@
 
 #include "component/text_box.hpp" // the editable line, the caret in it, and its window
 #include "graphics/canvas.hpp"   // the desk drawn for a graphics window
+#include "graphics/pixels.hpp"
+#include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"  // `space` -- which medium's numbers a pointer reported in
 #include "surface/pointing.hpp"  // and what that medium's layout makes of them
 #include "surface/region.hpp"    // and how much prose a bounded region of it holds
 #include "surface/vocabulary.hpp"
 #include "ui/layout.hpp"
 #include "ui/vocabulary.hpp"
+#include "pane_text_fit.hpp"
 
 #include <zen/terminal/session.hpp> // the participant this host holds, for the door
 
@@ -49,13 +52,13 @@ namespace zengine::workshop {
 /// The smallest surface this screen is laid out on, in canvas pixels -- 78 by 22 cells -- and,
 /// deliberately, the extent it uses when nothing tells it otherwise.
 // WL-GEO-02 -- agents/workshop/geometry.md
-inline constexpr std::int64_t kScreenMinW = 78 * surface::kCanvasCellPx;
-inline constexpr std::int64_t kScreenMinH = 22 * surface::kCanvasCellPx;
+inline constexpr std::int64_t kScreenMinW = 78 * graphics::kCellPx;
+inline constexpr std::int64_t kScreenMinH = 22 * graphics::kCellPx;
 
 /// The largest surface this screen will lay out, in canvas pixels: 640 by 400 cells.
 // WL-SESSION-07 -- agents/workshop/session-restore.md
-inline constexpr std::int64_t kScreenMaxW = 640 * surface::kCanvasCellPx;
-inline constexpr std::int64_t kScreenMaxH = 400 * surface::kCanvasCellPx;
+inline constexpr std::int64_t kScreenMaxW = 640 * graphics::kCellPx;
+inline constexpr std::int64_t kScreenMaxH = 400 * graphics::kCellPx;
 
 /// THE ROWS OF TEXT RESERVED AT THE TOP OF THE SCREEN, and they are the first thing a weaver
 /// reads. The band is as tall as these rows of the active medium's type need (`screen_of`).
@@ -129,7 +132,7 @@ struct Screen {
 inline constexpr std::int64_t band_px_for(std::int64_t rows, std::int64_t text_advance_px,
                                           std::int64_t text_line_px,
                                           std::int64_t chrome) noexcept {
-    return surface::add_cells(surface::region_px_for(1, rows, text_advance_px, text_line_px).h,
+    return graphics::add_cells(region_px_for(1, rows, text_advance_px, text_line_px).h,
                               2 * chrome);
 }
 
@@ -152,14 +155,14 @@ inline constexpr Screen screen_of(std::int64_t want_w, std::int64_t want_h,
     s.h = want_h < kScreenMinH ? kScreenMinH : (want_h > kScreenMaxH ? kScreenMaxH : want_h);
     s.side_cols = std::clamp(side_cols, kMinSideCols, kMaxSideCols);
     s.stack_rows = std::clamp(stack_rows, kMinStackRows, kMaxStackRows);
-    s.side_x = s.w - surface::px_of_cells(s.side_cols);
+    s.side_x = s.w - graphics::px_of_cells(s.side_cols);
     // The room is the surface: nothing reserves the right column, so the room runs under it whole
     // and what a share means never depends on which panes are open
     // (docs/history/decisions/the-reserved-column.md).
     s.room_w = s.w;
     // The fit is resolved here because the screen carries the metric, which arrives on the bus.
-    const surface::RegionFit fit =
-        surface::fit_region(0, 0, s.w, s.h, text_advance_px, text_line_px);
+    const RegionFit fit =
+        fit_region(0, 0, s.w, s.h, text_advance_px, text_line_px);
     // The metric as the fit resolved it: a non-positive advance or line already means "text is a
     // cell", so a screen never carries half a metric.
     s.text_advance_px = fit.advance_px;
@@ -169,14 +172,14 @@ inline constexpr Screen screen_of(std::int64_t want_w, std::int64_t want_h,
     // whole cells, the Layouts pane drawing no boundary in its two. A metric whose bands would
     // leave no room of a cell is not spent on them: the cell bands stand instead.
     const bool type = s.text_advance_px > 0 && s.text_line_px > 0;
-    std::int64_t top = surface::px_of_cells(kTopRows);
-    std::int64_t band = surface::px_of_cells(kBottomRows);
+    std::int64_t top = graphics::px_of_cells(kTopRows);
+    std::int64_t band = graphics::px_of_cells(kBottomRows);
     if (type) {
         const std::int64_t typed_top = band_px_for(kTopRows, s.text_advance_px, s.text_line_px,
-                                                   surface::px_of_one_device(s.cell_px));
+                                                   graphics::px_of_one_device(s.cell_px));
         const std::int64_t typed_band =
             band_px_for(kBottomRows, s.text_advance_px, s.text_line_px, 0);
-        if (surface::add_cells(typed_top, typed_band) <= s.h - surface::kCanvasCellPx) {
+        if (graphics::add_cells(typed_top, typed_band) <= s.h - graphics::kCellPx) {
             top = typed_top;
             band = typed_band;
         }
@@ -193,27 +196,27 @@ inline constexpr Screen screen_of(std::int64_t want_w, std::int64_t want_h,
 /// every number the 78x22 composition was written with, in pixels.
 inline constexpr Screen kMinScreen = screen_of(kScreenMinW, kScreenMinH);
 
-static_assert(kMinScreen.side_x == 50 * surface::kCanvasCellPx,
+static_assert(kMinScreen.side_x == 50 * graphics::kCellPx,
               "the right column has not moved on the minimum screen");
 static_assert(kMinScreen.room_w == kMinScreen.w,
               "the room IS the surface: nothing comes off its width. The 48 this read before "
               "was 78 less the right column's 28 and the two-cell gap beside it, and those "
               "thirty columns are the room's");
-static_assert(kMinScreen.room_h == 16 * surface::kCanvasCellPx,
+static_assert(kMinScreen.room_h == 16 * graphics::kCellPx,
               "the workspace's documented default height");
-static_assert(kMinScreen.notice_y == 18 * surface::kCanvasCellPx, "the bottom band");
+static_assert(kMinScreen.notice_y == 18 * graphics::kCellPx, "the bottom band");
 // THE MINIMUM COMPOSITION'S THREE REGIONS, WRITTEN OUT.
-static_assert(kMinScreen.room_y == 2 * surface::kCanvasCellPx,
+static_assert(kMinScreen.room_y == 2 * graphics::kCellPx,
               "where text is a cell, the top band owns rows 0 and 1");
 static_assert(kMinScreen.room_y + kMinScreen.room_h == kMinScreen.notice_y,
               "the workspace's floor IS the bottom band's top -- no pixel between them, and "
               "none reserved twice");
-static_assert(screen_of(kScreenMinW, kScreenMinH, 8, 18, surface::kCanvasCellPx).room_y ==
-                  2 * 18 + 2 * surface::kTextInsetPx + 2,
+static_assert(screen_of(kScreenMinW, kScreenMinH, 8, 18, graphics::kCellPx).room_y ==
+                  2 * 18 + 2 * kTextInsetPx + 2,
               "where a face sets type, the top band is the Layouts pane's two rows of it, "
               "inside a boundary of one device pixel");
-static_assert(screen_of(kScreenMinW, kScreenMinH, 8, 18, surface::kCanvasCellPx).notice_y ==
-                  kScreenMinH - (4 * 18 + 2 * surface::kTextInsetPx),
+static_assert(screen_of(kScreenMinW, kScreenMinH, 8, 18, graphics::kCellPx).notice_y ==
+                  kScreenMinH - (4 * 18 + 2 * kTextInsetPx),
               "...and the bottom band is the tool's four");
 
 
@@ -235,29 +238,29 @@ struct PixelRect {
     // WL-GEO-07 -- agents/workshop/geometry.md
     constexpr bool contains_at(std::int64_t sx, std::int64_t sy,
                                std::int64_t grain) const noexcept {
-        return surface::px_span_contains(x, w, sx, grain) &&
-               surface::px_span_contains(y, h, sy, grain);
+        return graphics::px_span_contains(x, w, sx, grain) &&
+               graphics::px_span_contains(y, h, sy, grain);
     }
 };
 
 /// A cell rectangle in canvas pixels — exact, saturating, the one door a cell-counted layout
 /// walks through on its way to being arrangement truth.
 inline constexpr PixelRect pixels_of_cells(const ui::Rect& r) noexcept {
-    return PixelRect{surface::px_of_cells(r.x), surface::px_of_cells(r.y),
-                     surface::px_of_cells(r.w), surface::px_of_cells(r.h)};
+    return PixelRect{graphics::px_of_cells(r.x), graphics::px_of_cells(r.y),
+                     graphics::px_of_cells(r.w), graphics::px_of_cells(r.h)};
 }
 
 /// THE CELLS A PIXEL RECTANGLE COVERS — the cell-grain quantization law as a rectangle:
 /// [floor(left), floor(right)) per axis.
 // WL-GEO-06 -- agents/workshop/geometry.md
 inline constexpr ui::Rect cells_covered(const PixelRect& f) noexcept {
-    const std::int64_t x0 = surface::cell_of_pixel(f.x);
-    const std::int64_t y0 = surface::cell_of_pixel(f.y);
+    const std::int64_t x0 = graphics::cell_of_pixel(f.x);
+    const std::int64_t y0 = graphics::cell_of_pixel(f.y);
     if (f.w <= 0 || f.h <= 0) {
         return ui::Rect{x0, y0, 0, 0};
     }
-    return ui::Rect{x0, y0, surface::cell_of_pixel(surface::add_cells(f.x, f.w)) - x0,
-                    surface::cell_of_pixel(surface::add_cells(f.y, f.h)) - y0};
+    return ui::Rect{x0, y0, graphics::cell_of_pixel(graphics::add_cells(f.x, f.w)) - x0,
+                    graphics::cell_of_pixel(graphics::add_cells(f.y, f.h)) - y0};
 }
 
 /// A pixel rectangle as a published `SurfaceRect`; a negative extent publishes as none.
@@ -270,14 +273,14 @@ inline constexpr surface::SurfaceRect wire_rect_of(const PixelRect& f,
 /// at (0, `room_y`) -- directly under the top band, whatever height that band was fitted to.
 // WL-PANE-11 -- agents/workshop/panes-and-windows.md
 inline constexpr PixelRect canvas_of_room(PixelRect r, const Screen& sc) noexcept {
-    r.y = surface::add_cells(r.y, sc.room_y);
+    r.y = graphics::add_cells(r.y, sc.room_y);
     return r;
 }
 
 /// ...AND A RECTANGLE ON THE CANVAS AS A PLACE IN THE ROOM, for what a hand or a readout measures.
 // WL-PANE-11 -- agents/workshop/panes-and-windows.md
 inline constexpr PixelRect room_of_canvas(PixelRect r, const Screen& sc) noexcept {
-    r.y = surface::add_cells(r.y, -sc.room_y);
+    r.y = graphics::add_cells(r.y, -sc.room_y);
     return r;
 }
 
@@ -286,9 +289,9 @@ inline constexpr PixelRect clip_to_canvas_px(const PixelRect& r, const Screen& s
     const std::int64_t x0 = r.x < 0 ? 0 : r.x;
     const std::int64_t y0 = r.y < 0 ? 0 : r.y;
     const std::int64_t x1 =
-        surface::add_cells(r.x, r.w) < sc.w ? surface::add_cells(r.x, r.w) : sc.w;
+        graphics::add_cells(r.x, r.w) < sc.w ? graphics::add_cells(r.x, r.w) : sc.w;
     const std::int64_t y1 =
-        surface::add_cells(r.y, r.h) < sc.h ? surface::add_cells(r.y, r.h) : sc.h;
+        graphics::add_cells(r.y, r.h) < sc.h ? graphics::add_cells(r.y, r.h) : sc.h;
     if (x1 <= x0 || y1 <= y0) {
         return PixelRect{};
     }
@@ -310,16 +313,16 @@ inline constexpr PixelRect placement_bounds(std::int64_t where, std::size_t slot
     }
     if (where == placement::kSideRegion) {
         // From the workspace's top to its floor, against the right edge: over the material.
-        return PixelRect{sc.side_x, sc.room_y, surface::px_of_cells(sc.side_cols), sc.room_h};
+        return PixelRect{sc.side_x, sc.room_y, graphics::px_of_cells(sc.side_cols), sc.room_h};
     }
     const std::int64_t n = slot >= static_cast<std::size_t>(kScreenMaxH)
                                ? kScreenMaxH
                                : static_cast<std::int64_t>(slot);
     // The width is the minimum plus half the room's surplus over it, floored so the odd pixel
     // stays the weaver's; `x + w < room_w` at every extent.
-    const std::int64_t stack_w = surface::px_of_cells(kStackW);
-    return PixelRect{0, sc.room_y + n * surface::px_of_cells(sc.stack_rows + kStackGap),
-                     stack_w + (sc.room_w - stack_w) / 2, surface::px_of_cells(sc.stack_rows)};
+    const std::int64_t stack_w = graphics::px_of_cells(kStackW);
+    return PixelRect{0, sc.room_y + n * graphics::px_of_cells(sc.stack_rows + kStackGap),
+                     stack_w + (sc.room_w - stack_w) / 2, graphics::px_of_cells(sc.stack_rows)};
 }
 
 // ---- THE CHROME A PANE WEARS, AND THE INTERIOR IT LEAVES --------------------------------
@@ -328,12 +331,12 @@ inline constexpr PixelRect placement_bounds(std::int64_t where, std::size_t slot
 /// The coarsest honest boundary, one every medium can show: one canvas cell, and the ceiling
 /// `chrome_outer_of` reserves for a surface sized by its own content.
 inline constexpr std::int64_t kChromeCells = 1;
-inline constexpr std::int64_t kChromePx = surface::px_of_cells(kChromeCells);
+inline constexpr std::int64_t kChromePx = graphics::px_of_cells(kChromeCells);
 
 /// ONE UNIT OF THE ACTIVE FACE, in canvas pixels -- what this screen's chrome costs before the
 /// interior's own presentation gets a say (`pane_inside` below is where it gets one).
 inline constexpr std::int64_t chrome_grain(const Screen& sc) noexcept {
-    return surface::px_of_one_device(sc.cell_px);
+    return graphics::px_of_one_device(sc.cell_px);
 }
 
 /// The rectangle inside a pane's chrome: `outer` less `chrome_px` on every side, empty
@@ -346,15 +349,39 @@ inline constexpr PixelRect pane_interior(const PixelRect& outer,
     if (w <= 0 || h <= 0) {
         return PixelRect{};
     }
-    return PixelRect{surface::add_cells(outer.x, chrome_px),
-                    surface::add_cells(outer.y, chrome_px), w, h};
+    return PixelRect{graphics::add_cells(outer.x, chrome_px),
+                    graphics::add_cells(outer.y, chrome_px), w, h};
+}
+
+/// Which prose column of a bounded text region a canvas pixel is on: subtract where the region's
+/// text starts, floor by one character, with the `fit` its rows were drawn with and the device
+/// unit (`grain`) of the medium the pixel came from. A projection, not a hit test: a negative
+/// column or one past `columns` means "not on this region's prose". Under a cell fit a character
+/// is a cell set from the region's edge as the medium drew it, floored to its unit: a window
+/// counts from the edge's own pixel, and a terminal from the cell the edge floors to.
+inline constexpr std::int64_t prose_column_of_pixel(std::int64_t px, const RegionFit& fit,
+                                                    std::int64_t grain = graphics::kCellPx) noexcept {
+    if (!fit.graphical()) {
+        return graphics::floor_div_px(graphics::sub_px(px, graphics::floor_to_grain(fit.view.x, grain)), graphics::kCellPx);
+    }
+    return graphics::floor_div_px(graphics::sub_px(px, graphics::add_cells(fit.view.x, fit.origin_x)), fit.advance_px);
+}
+
+/// WHICH PROSE ROW OF A BOUNDED TEXT REGION A CANVAS PIXEL IS ON. The other axis
+/// of `prose_column_of_pixel`, same rules, same non-answers.
+inline constexpr std::int64_t prose_row_of_pixel(std::int64_t py, const RegionFit& fit,
+                                                 std::int64_t grain = graphics::kCellPx) noexcept {
+    if (!fit.graphical()) {
+        return graphics::floor_div_px(graphics::sub_px(py, graphics::floor_to_grain(fit.view.y, grain)), graphics::kCellPx);
+    }
+    return graphics::floor_div_px(graphics::sub_px(py, graphics::add_cells(fit.view.y, fit.origin_y)), fit.line_px);
 }
 
 /// THE INTERIOR OF A PANE AND THE PRESENTATION IT GETS, RESOLVED TOGETHER.
 // WL-CHROME-05 -- agents/workshop/chrome.md
 struct PaneInside {
     PixelRect rect{};              ///< the interior: `outer` less the chrome on every side
-    surface::RegionFit fit{};     ///< ...resolved with the ACTIVE medium's own text metric
+    RegionFit fit{};     ///< ...resolved with the ACTIVE medium's own text metric
     std::int64_t chrome_px = 0;    ///< what one side of that boundary cost
 };
 
@@ -398,9 +425,9 @@ static_assert(kStackRows + kCoarseStepCells - 2 * kChromeCells - 1 >= 8,
 
 // ---- THE CHROME'S VOICE: three roles, and the vocabulary is the one that exists ---------
 // WL-CHROME-07, WL-CHROME-08 -- agents/workshop/chrome.md
-inline constexpr std::int64_t kPaneChrome = surface::role::kFill;
-inline constexpr std::int64_t kPaneChromeSelected = surface::role::kAccent;
-inline constexpr std::int64_t kTransientChrome = surface::role::kMuted;
+inline constexpr std::int64_t kPaneChrome = graphics::role::kFill;
+inline constexpr std::int64_t kPaneChromeSelected = graphics::role::kAccent;
+inline constexpr std::int64_t kTransientChrome = graphics::role::kMuted;
 
 // ---- AUTHORED INTENT, PROJECTED ONTO THIS SCREEN -------------------------------------
 // WL-PANE-08, WL-PANE-09 -- agents/workshop/panes-and-windows.md
@@ -456,10 +483,10 @@ static_assert(kMinStack.x + kMinStack.w < kMinScreen.room_w,
               "which at the smallest screen it did NOT before: 48 of 48 left nothing, and 63 "
               "of 78 leaves fifteen");
 // AND THE HALF-SHARE IS THE SAME ARITHMETIC IT WAS, over a bigger room.
-static_assert(kMinStack.w == 63 * surface::kCanvasCellPx,
+static_assert(kMinStack.w == 63 * graphics::kCellPx,
               "48 + (78 - 48)/2 cells -- the half-share on the minimum screen, spelled out");
 static_assert(placement_bounds(placement::kOverlayStack, 0, screen_of(kScreenMinW + 1, kScreenMinH))
-                      .w == 63 * surface::kCanvasCellPx,
+                      .w == 63 * graphics::kCellPx,
               "an odd surplus is FLOORED: 576 + (937 - 576)/2 is 756, not 757 -- the odd pixel "
               "stays the weaver's");
 static_assert(placement_bounds(placement::kOverlayStack, 0, screen_of(2400, 720)).w ==
@@ -505,13 +532,13 @@ inline constexpr std::size_t stack_slots_that_fit(const Screen& sc) noexcept {
 inline constexpr StackCapacity stack_capacity(const Screen& sc) noexcept {
     const bool graphical = sc.text_advance_px > 0 && sc.text_line_px > 0;
     const auto line = graphical ? std::min(sc.text_line_px, std::int64_t{8192})
-                                : surface::kCanvasCellPx;
+                                : graphics::kCellPx;
     const auto column = graphical ? std::min(sc.text_advance_px, std::int64_t{8192})
-                                  : surface::kCanvasCellPx;
-    const auto border = graphical ? chrome_grain(sc) + surface::kTextInsetPx : kChromePx;
-    const auto text_row = graphical ? line + 2 * surface::kTextInsetPx : surface::kCanvasCellPx;
+                                  : graphics::kCellPx;
+    const auto border = graphical ? chrome_grain(sc) + kTextInsetPx : kChromePx;
+    const auto text_row = graphical ? line + 2 * kTextInsetPx : graphics::kCellPx;
     return StackCapacity{stack_slots_that_fit(sc), sc.room_h, sc.room_w, line, column, border,
-                         surface::px_of_cells(sc.stack_rows), surface::px_of_cells(kStackGap),
+                         graphics::px_of_cells(sc.stack_rows), graphics::px_of_cells(kStackGap),
                          graphical ? chrome_grain(sc) : kChromePx, text_row, text_row,
                          chrome_grain(sc)};
 }
@@ -540,7 +567,7 @@ struct PointedAt {
     /// distinguish (one window pixel or one terminal cell).
     // WL-GEO-07 -- agents/workshop/geometry.md
     surface::CanvasPoint px;
-    std::int64_t grain = surface::kCellGrainPx;
+    std::int64_t grain = graphics::kCellGrainPx;
 };
 
 PointedAt canvas_point_of(std::int64_t space, std::int64_t x, std::int64_t y,
@@ -622,7 +649,7 @@ inline constexpr const char* pane_edge_mark(std::int64_t edge) noexcept {
 /// HOW DEEP AN EDGE'S GRAB BAND REACHES INTO THE PANE, in canvas pixels: one cell —
 /// exactly the ring the affordances have always occupied.
 // WL-ARR-01 -- agents/workshop/arrangement.md
-inline constexpr std::int64_t kPaneEdgeBandPx = surface::kCanvasCellPx;
+inline constexpr std::int64_t kPaneEdgeBandPx = graphics::kCellPx;
 
 /// HOW NEAR A LINE AN EDGE THE HAND MOVES COMES TO MEET IT, in canvas pixels: under a cell, so a
 /// terminal hand a cell away is not pulled across it, and at least half a cell, so a terminal hand
@@ -633,8 +660,8 @@ inline constexpr std::int64_t kPaneSnapReachPx = 8;
 inline constexpr std::int64_t kMinSnapReachPx = 6;
 inline constexpr std::int64_t kMaxSnapReachPx = 11;
 
-static_assert(kMaxSnapReachPx < surface::kCanvasCellPx &&
-                  2 * kMinSnapReachPx >= surface::kCanvasCellPx &&
+static_assert(kMaxSnapReachPx < graphics::kCellPx &&
+                  2 * kMinSnapReachPx >= graphics::kCellPx &&
                   kMinSnapReachPx <= kPaneSnapReachPx && kPaneSnapReachPx <= kMaxSnapReachPx,
               "every reach the setting takes is under a cell, so a terminal hand is never pulled a "
               "whole cell, and at least half one, so every line falls within reach of a terminal "
@@ -1062,7 +1089,7 @@ struct ProseAt {
 };
 
 ProseAt prose_at(std::int64_t space, std::int64_t x, std::int64_t y,
-                 const surface::RegionFit& fit,
+                 const RegionFit& fit,
                  std::int64_t rows_above) noexcept;
 
 // ---- A bounded list: what it shows, and what it must say it cannot ---------------------------
@@ -1098,7 +1125,7 @@ struct ProsePlace {
     std::int64_t rows = 0;    ///< prose rows of the ACTIVE medium's type that fit the rectangle
     std::int64_t columns = 0; ///< ...and how many characters fit across one of them
     /// The resolution itself, so a press inverse spends the fit the painter was handed.
-    surface::RegionFit fit{};
+    RegionFit fit{};
     /// The interior the fit was resolved for: the published region is the rectangle measured.
     PixelRect inside{};
     std::int64_t chrome_px = 0;
@@ -1182,21 +1209,21 @@ std::string geometry_amount_text(std::int64_t px, std::int64_t cell_px,
 // WL-PED-06 -- agents/workshop/pane-manager.md
 inline constexpr std::int64_t px_of_device_amount(std::int64_t amount,
                                                     std::int64_t cell_px) noexcept {
-    const std::int64_t bound = (std::numeric_limits<std::int64_t>::max)() / surface::kCanvasCellPx;
+    const std::int64_t bound = (std::numeric_limits<std::int64_t>::max)() / graphics::kCellPx;
     const std::int64_t a = amount > bound ? bound : (amount < -bound ? -bound : amount);
     if (cell_px <= 0) {
-        return a * surface::kCanvasCellPx;
+        return a * graphics::kCellPx;
     }
-    const std::int64_t num = a * surface::kCanvasCellPx;
+    const std::int64_t num = a * graphics::kCellPx;
     if (num < 0) {
         return -((-num + cell_px - 1) / cell_px);
     }
     return (num + cell_px - 1) / cell_px;
 }
 
-static_assert(px_of_device_amount(10, 0) == 10 * surface::kCanvasCellPx,
+static_assert(px_of_device_amount(10, 0) == 10 * graphics::kCellPx,
               "on a cell medium a typed cell count is that many whole cells");
-static_assert(px_of_device_amount(120, surface::kCanvasCellPx) == 10 * surface::kCanvasCellPx,
+static_assert(px_of_device_amount(120, graphics::kCellPx) == 10 * graphics::kCellPx,
               "on the shipped window a typed pixel count is exact where the grain divides");
 
 /// WHAT A WEAVER TYPED FOR ONE GEOMETRY AMOUNT: `10`, `10 cells`, `120px` -- a whole number,
@@ -1393,7 +1420,7 @@ struct ExternalBodyPlace {
     std::int64_t region_y = 0;
     std::int64_t region_w = 0;
     std::int64_t region_h = 0;
-    surface::RegionFit fit{};
+    RegionFit fit{};
     /// The header rows this resolution reserved: the painter and the press path spend this number.
     std::int64_t header_rows = 0;
     std::int64_t rows = 0;    ///< prose rows -- the `PaneRoom` budget's first half
@@ -1534,9 +1561,9 @@ inline constexpr PixelRect band_bounds(const Screen& sc) noexcept {
     return PixelRect{0, sc.notice_y, sc.w, sc.h - sc.notice_y};
 }
 
-inline constexpr surface::RegionFit band_fit(const Screen& sc) noexcept {
+inline constexpr RegionFit band_fit(const Screen& sc) noexcept {
     const PixelRect b = band_bounds(sc);
-    return surface::fit_region(b.x, b.y, b.w, b.h, sc.text_advance_px, sc.text_line_px);
+    return fit_region(b.x, b.y, b.w, b.h, sc.text_advance_px, sc.text_line_px);
 }
 
 /// How much of the name the one-line editor can show at this extent: one measurer, so the text

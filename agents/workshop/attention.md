@@ -98,7 +98,7 @@ WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-11 — The condition path holds no timer, no callback and no history
 
-LAW — `workshop/attention.hpp` includes exactly `surface/vocabulary.hpp`; nothing in the path schedules, calls back, records or persists, and displaying a condition implies no history.
+LAW — `workshop/attention.hpp` includes exactly `graphics/role.hpp`; nothing in the path schedules, calls back, records or persists, and displaying a condition implies no history.
 
 MEANS
 - the wire form is the SEAM's; the internal type still crosses nothing;

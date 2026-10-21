@@ -19,7 +19,7 @@ pane's canvas and in a graphics window. A view is made and run in the
 | `shows` | a label showing one field of a view-model shape: the shape, closure and all, and a scalar field of it |
 | `intents` | a button's intent: a shape whose name begins with the view's name and a `.`, every field a required `Int` filled from a number field |
 
-A place or size is a whole pixel, `surface::kCanvasCellPx` pixels to a canvas cell, from 0 to
+A place or size is a whole pixel, `graphics::kCellPx` pixels to a canvas cell, from 0 to
 `view::kMaxPixels`. Nothing in a description is a cell, a fraction of a pixel, a resolved
 rectangle or a business value. `view::problem` names the first rule a description breaks, in
 one sentence, and every door applies it.

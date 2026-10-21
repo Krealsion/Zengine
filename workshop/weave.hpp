@@ -44,6 +44,7 @@
 #include "pane_causes.hpp" // the form a declaration's causes and modes are admitted in
 #include "operator/catalog.hpp" // the conversions this run has, looked up at a load
 #include "surface/vocabulary.hpp"
+#include "graphics/vocabulary.hpp"
 #include "terminal/door.hpp" // the door onto the terminal participant, composed below
 
 #include <zen/terminal/input_lex.hpp> // ONE command grammar, Loom's -- never a second one here
@@ -348,10 +349,10 @@ class WorkshopWeave
                                           zengine::input::PointerWheel,
                                           zengine::surface::SurfaceReady,
                                           zengine::surface::SurfaceExtent,
-                                          zengine::surface::SurfacePlacement,
-                                          zengine::surface::SurfaceCloseRequested,
-                                          zengine::surface::ClipboardText,
-                                          zengine::surface::ClipboardCopy,
+                                          zengine::graphics::SurfacePlacement,
+                                          zengine::graphics::SurfaceCloseRequested,
+                                          zengine::graphics::ClipboardText,
+                                          zengine::graphics::ClipboardCopy,
                                           zengine::workshop::PaneOffered,
                                           zengine::workshop::v2::PaneOffered,
                                           zengine::workshop::v3::PaneOffered,
@@ -460,9 +461,9 @@ class WorkshopWeave
                                         zengine::workshop::PaneCanvasRejected,
                                         zengine::surface::SurfaceCanvas,
                                         zengine::surface::SurfaceText,
-                                        zengine::surface::ClipboardCopy,
-                                        zengine::surface::ClipboardTextRequested,
-                                        zengine::surface::SurfacePlacementRemembered,
+                                        zengine::graphics::ClipboardCopy,
+                                        zengine::graphics::ClipboardTextRequested,
+                                        zengine::graphics::SurfacePlacementRemembered,
                                         zengine::workshop::PaneCatalogRequested,
                                         zengine::workshop::PaneRoom,
                                         zengine::workshop::PaneSettings,
@@ -571,11 +572,11 @@ public:
     void on(const zengine::surface::SurfaceExtent& e, loom::Mail& mail);
 
     /// THE MEDIUM SAID WHERE ITS WINDOW SITS. Remember it, whole and opaque.
-    void on(const zengine::surface::SurfacePlacement& p, loom::Mail&);
+    void on(const zengine::graphics::SurfacePlacement& p, loom::Mail&);
 
     /// THE SURFACE WAS ASKED TO CLOSE -- by the window manager, the close box,
     /// the platform. Workshop applies the quit policy it already has.
-    void on(const zengine::surface::SurfaceCloseRequested&, loom::Mail&);
+    void on(const zengine::graphics::SurfaceCloseRequested&, loom::Mail&);
 
     void on(const input::AttributedInput& event, loom::Mail& mail);
     void on(const PaneViewRequested& asked, loom::Mail& mail);
@@ -772,11 +773,11 @@ public:
                        std::int64_t y, loom::Mail& mail);
 
     /// ANOTHER PARTICIPANT'S COPY — a pane provider's field, mirrored under the no-echo rule.
-    void on(const zengine::surface::ClipboardCopy& c, loom::Mail&);
+    void on(const zengine::graphics::ClipboardCopy& c, loom::Mail&);
 
     /// THE SKIN'S ANSWER TO A PASTE THIS WEAVE REQUESTED — the one road foreign clipboard
     /// text has into this application, and it is walked only under a weaver's paste.
-    void on(const zengine::surface::ClipboardText& a, loom::Mail& mail);
+    void on(const zengine::graphics::ClipboardText& a, loom::Mail& mail);
 
 
     /// TEXT the weaver actually entered — the platform's answer, not a guess made

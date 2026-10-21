@@ -12,6 +12,7 @@
 // medium that cannot, on every lane. A real Medium claims its surface RAII-style.
 // Surface law: agents/surface.md
 
+#include "graphics/vocabulary.hpp"
 #include "vocabulary.hpp"
 
 #include "activation/activation.hpp" // the skin arranges its own time from its activation
@@ -45,12 +46,12 @@ class SkinT
     : public zengine::With<
           zengine::manual::ManualFacet<zengine::manual::pages::zengine_skin::kManual>>::
           Weave<SkinT<Medium>, SkinState,
-                loom::Accept<SurfaceCanvas, SurfaceText, ClipboardCopy, ClipboardTextRequested,
-                             SurfacePlacementRemembered, PumpSurface, SurfaceCaptureRequested,
-                             SurfaceCaptureChunkRequested, loom::Activated,
+                loom::Accept<SurfaceCanvas, SurfaceText, graphics::ClipboardCopy, graphics::ClipboardTextRequested,
+                             graphics::SurfacePlacementRemembered, graphics::PumpSurface, graphics::SurfaceCaptureRequested,
+                             graphics::SurfaceCaptureChunkRequested, loom::Activated,
                              zengine::timer::TimerReady, zengine::timer::TimerFired>,
-                loom::Emit<SurfaceReady, SurfaceExtent, SurfacePlacement, ClipboardText,
-                           SurfaceCaptured, SurfaceCaptureChunk, loom::Refused,
+                loom::Emit<SurfaceReady, SurfaceExtent, graphics::SurfacePlacement, graphics::ClipboardText,
+                           graphics::SurfaceCaptured, graphics::SurfaceCaptureChunk, loom::Refused,
                            zengine::timer::StartRoleTimer>> {
 public:
     SkinT() = default;
@@ -68,7 +69,7 @@ public:
 
     /// A PICTURE OF WHAT THIS MEDIUM PRESENTS (vocabulary.hpp says what it proves). Now, or on
     /// the paint that passes `after_frame`; one may wait at a time.
-    void on(const SurfaceCaptureRequested& asked, loom::Mail& mail) {
+    void on(const graphics::SurfaceCaptureRequested& asked, loom::Mail& mail) {
         announce_surface_once(mail);
         if (asked.after_frame >= 0 && asked.after_frame >= this->state_.frames) {
             if (pending_capture_.valid()) {
@@ -89,7 +90,7 @@ public:
     }
 
     /// ONE CHUNK OF THE RETAINED PICTURE, or a refusal naming which picture is retained now.
-    void on(const SurfaceCaptureChunkRequested& asked, loom::Mail& mail) {
+    void on(const graphics::SurfaceCaptureChunkRequested& asked, loom::Mail& mail) {
         if (retained_.number == 0 || asked.capture != retained_.number) {
             (void)mail.answer(loom::Refused{
                 retained_.number == 0
@@ -105,12 +106,12 @@ public:
                                             " bytes"});
             return;
         }
-        SurfaceCaptureChunk chunk;
+        graphics::SurfaceCaptureChunk chunk;
         chunk.capture = retained_.number;
         chunk.offset = asked.offset;
         chunk.total = total;
-        const std::int64_t n = total - asked.offset < kCaptureChunkBytes ? total - asked.offset
-                                                                          : kCaptureChunkBytes;
+        const std::int64_t n = total - asked.offset < graphics::kCaptureChunkBytes ? total - asked.offset
+                                                                          : graphics::kCaptureChunkBytes;
         const auto begin = retained_.picture.bytes.begin() + asked.offset;
         chunk.data.assign(begin, begin + n);
         (void)mail.answer(chunk);
@@ -124,7 +125,7 @@ public:
 
     /// A weaver copied text: hand it to the medium. Uncounted, because SkinState is a wire shape
     /// and a field there is a version.
-    void on(const ClipboardCopy& c, loom::Mail& mail) {
+    void on(const graphics::ClipboardCopy& c, loom::Mail& mail) {
         announce_surface_once(mail);
         medium_.clipboard_copy(c.text);
     }
@@ -132,16 +133,16 @@ public:
     /// A weaver asked to paste: read the medium's platform clipboard now, and answer the one
     /// participant that asked. `mail.answer` carries Loom's answer provenance, so the asker can
     /// require this delivery to be the answer to its ask.
-    void on(const ClipboardTextRequested&, loom::Mail& mail) {
+    void on(const graphics::ClipboardTextRequested&, loom::Mail& mail) {
         announce_surface_once(mail);
         const std::optional<std::string> text = medium_.clipboard_text();
-        (void)mail.answer(ClipboardText{text.has_value(), text.value_or(std::string())});
+        (void)mail.answer(graphics::ClipboardText{text.has_value(), text.value_or(std::string())});
     }
 
     /// A remembered placement offered back: the medium judges it. What is reported after is
     /// where the window is, through the ordinary change-guarded report, and the extent is re-read
     /// because a remembered maximize is a resize.
-    void on(const SurfacePlacementRemembered& p, loom::Mail& mail) {
+    void on(const graphics::SurfacePlacementRemembered& p, loom::Mail& mail) {
         announce_surface_once(mail);
         medium_.place(p);
         report_placement(mail);
@@ -150,7 +151,7 @@ public:
 
     /// Execution time, not intent: service the medium's OS surface, on
     /// direct request (suites, diagnostics, timer-less hosts).
-    void on(const PumpSurface&, loom::Mail& mail) {
+    void on(const graphics::PumpSurface&, loom::Mail& mail) {
         announce_surface_once(mail);
         medium_.pump();
         ++this->state_.pumps;
@@ -201,8 +202,8 @@ private:
         CapturedPicture picture;
     };
 
-    static SurfaceCaptured refused_capture(std::string why) {
-        SurfaceCaptured c;
+    static graphics::SurfaceCaptured refused_capture(std::string why) {
+        graphics::SurfaceCaptured c;
         c.ok = false;
         c.refusal = std::move(why);
         return c;
@@ -211,20 +212,20 @@ private:
     /// READ THE MEDIUM'S PICTURE and retain it, replacing the previous one. The medium may
     /// have nothing to show (no window yet, no terminal) and says so; a picture over the bound
     /// is refused whole rather than cut.
-    SurfaceCaptured take_capture() {
+    graphics::SurfaceCaptured take_capture() {
         std::optional<CapturedPicture> picture = medium_.capture();
         if (!picture.has_value()) {
             return refused_capture("this medium has no picture to read back right now");
         }
-        if (static_cast<std::int64_t>(picture->bytes.size()) > kMaxCaptureBytes) {
+        if (static_cast<std::int64_t>(picture->bytes.size()) > graphics::kMaxCaptureBytes) {
             return refused_capture("the picture is " + std::to_string(picture->bytes.size()) +
-                                   " bytes, over the " + std::to_string(kMaxCaptureBytes) +
+                                   " bytes, over the " + std::to_string(graphics::kMaxCaptureBytes) +
                                    " this Skin retains");
         }
         retained_.number = ++captures_;
         retained_.frame = this->state_.frames;
         retained_.picture = std::move(*picture);
-        SurfaceCaptured c;
+        graphics::SurfaceCaptured c;
         c.ok = true;
         c.capture = retained_.number;
         c.frame = retained_.frame;
@@ -291,7 +292,7 @@ private:
     /// absent rather than zeroed, since `(0,0)` is a real place. A plain member, for the
     /// extent's reason.
     void report_placement(loom::Mail& mail) {
-        const std::optional<SurfacePlacement> now = medium_.placement();
+        const std::optional<graphics::SurfacePlacement> now = medium_.placement();
         if (!now.has_value()) {
             return; // no desktop placement fact: silence, never zeroes
         }
@@ -307,7 +308,7 @@ private:
     bool announced_ = false;
     SurfaceExtent reported_{}; ///< the last extent said out loud, per incarnation
     bool placement_said_ = false;    ///< whether any placement has been said, per incarnation
-    SurfacePlacement said_placement_{}; ///< ...and the last one that was
+    graphics::SurfacePlacement said_placement_{}; ///< ...and the last one that was
     zengine::ActivationCursor activation_; ///< per-incarnation, never state
     Medium medium_;
     Retained retained_;

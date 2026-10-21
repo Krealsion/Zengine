@@ -94,18 +94,18 @@ TEST_CASE("the pane protocol is four shapes, and none of them carries a provider
 TEST_CASE("a pane's content round-trips through the wire with its semantics intact") {
     PaneContent said;
     said.pane = "hello";
-    said.rows.push_back(surface::SurfaceTextRow{"first", surface::role::kAccent,
-                                                surface::role::kMuted});
-    said.rows.push_back(surface::SurfaceTextRow{"second", surface::role::kMuted});
+    said.rows.push_back(surface::SurfaceTextRow{"first", gfx::role::kAccent,
+                                                gfx::role::kMuted});
+    said.rows.push_back(surface::SurfaceTextRow{"second", gfx::role::kMuted});
     const loom::Value v = loom::to_value(said);
     const PaneContent back = loom::from_value<PaneContent>(v);
     CHECK(back.pane == "hello");
     REQUIRE(back.rows.size() == 2);
     CHECK(back.rows[0].text == "first");
-    CHECK(back.rows[0].role == surface::role::kAccent);
-    CHECK(back.rows[0].background == surface::role::kMuted);
+    CHECK(back.rows[0].role == gfx::role::kAccent);
+    CHECK(back.rows[0].background == gfx::role::kMuted);
     CHECK(back.rows[1].text == "second");
-    CHECK(back.rows[1].background == surface::role::kNone);
+    CHECK(back.rows[1].background == gfx::role::kNone);
 
     PaneOffered offer{"hello", "Hello", "a bounded external greeting"};
     const PaneOffered offer_back = loom::from_value<PaneOffered>(loom::to_value(offer));
@@ -558,7 +558,7 @@ TEST_CASE("personal and wrong-office content cannot alter a valid cache") {
 
     PaneContent real;
     real.pane = kHelloPane;
-    real.rows.push_back(surface::SurfaceTextRow{"the true row", surface::role::kFill});
+    real.rows.push_back(surface::SurfaceTextRow{"the true row", gfx::role::kFill});
     r.drive(mine, [real](ProviderSeat& s, loom::Mail& m) { s.say(m, real); });
 
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
@@ -571,7 +571,7 @@ TEST_CASE("personal and wrong-office content cannot alter a valid cache") {
     // PERSONAL SPEECH from the actual holder changes nothing...
     PaneContent forged;
     forged.pane = kHelloPane;
-    forged.rows.push_back(surface::SurfaceTextRow{"a forged row", surface::role::kFill});
+    forged.rows.push_back(surface::SurfaceTextRow{"a forged row", gfx::role::kFill});
     r.drive(mine, [forged](ProviderSeat& s, loom::Mail& m) { s.say_personally(m, forged); });
     CHECK(r.session().panes.external_pane(kind)->shown[0].text == "the true row");
 
@@ -756,7 +756,7 @@ TEST_CASE("setup bytes carry no descriptor, room or handle") {
     r.pick(hello_ref());
     PaneContent said;
     said.pane = kHelloPane;
-    said.rows.push_back(surface::SurfaceTextRow{"cached prose", surface::role::kFill});
+    said.rows.push_back(surface::SurfaceTextRow{"cached prose", gfx::role::kFill});
     r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
     REQUIRE(r.session().panes.external_pane(r.session().panes.runtime.entries[0].kind)->heard);
 
@@ -943,7 +943,7 @@ TEST_CASE("an oversubscribed authored setup seats every reference, the column be
     // GROWTH LAYS THE SAME PANES OUT DOWN ONE COLUMN, with no gesture at all...
     PaneContent said;
     said.pane = kHelloPane;
-    said.rows.push_back(surface::SurfaceTextRow{"present", surface::role::kFill});
+    said.rows.push_back(surface::SurfaceTextRow{"present", gfx::role::kFill});
     r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
     r.extent(78, 42);
     CHECK(top_of(hello) > top_of(other));
@@ -991,7 +991,7 @@ cells_covered(bounds_of(r.session().panes, r.session().setup.active, kind, sc).r
     CHECK(inside == ui::Rect{1, 3, 61, 7});
     CHECK(cells_covered(PixelRect{body.region_x, body.region_y, body.region_w, body.region_h}) ==
           inside);
-    const surface::RegionFit fit = surface::fit_region(cells_px(inside.x), cells_px(inside.y), cells_px(inside.w), cells_px(inside.h),
+    const RegionFit fit = fit_region(cells_px(inside.x), cells_px(inside.y), cells_px(inside.w), cells_px(inside.h),
                                                        sc.text_advance_px, sc.text_line_px);
     CHECK(seat->rooms[0].rows == fit.rows - kExternalHeaderRows);
     CHECK(seat->rooms[0].columns == fit.columns);
@@ -1055,7 +1055,7 @@ TEST_CASE("an unchanged prose capacity sends no second room; a changed one sends
     CHECK(cells_covered(PixelRect{graphical.region_x, graphical.region_y, graphical.region_w,
                                   graphical.region_h})
               .w == 72);
-    const surface::RegionFit gfit = surface::fit_region(
+    const RegionFit gfit = fit_region(
         graphical.region_x, graphical.region_y, graphical.region_w, graphical.region_h, 9, 18);
     CHECK(gfit.graphical());
     CHECK(seat->rooms[2].rows == gfit.rows - kExternalHeaderRows);
@@ -1080,7 +1080,7 @@ TEST_CASE("a new room clears the old rows before it is sent") {
     said.pane = kHelloPane;
     said.rows.push_back(surface::SurfaceTextRow{
         std::string(static_cast<std::size_t>(external_body_of(r.session(), kind).columns), 'w'),
-        surface::role::kFill});
+        gfx::role::kFill});
     r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
     REQUIRE(r.session().panes.external_pane(kind)->shown.size() == 1);
 
@@ -1156,7 +1156,7 @@ TEST_CASE("an external grant follows the widened body through fit_region") {
         // DERIVED, NOT DUPLICATED: the body Workshop resolved, put through the one function
         // production puts it through.
         const ExternalBodyPlace place = external_body_of(r.session(), kind);
-        const surface::RegionFit fit = surface::fit_region(
+        const RegionFit fit = fit_region(
             place.region_x, place.region_y, place.region_w, place.region_h, g.advance, g.line);
         CHECK(seat->rooms.back().rows == fit.rows - kExternalHeaderRows);
         CHECK(seat->rooms.back().columns == fit.columns);
@@ -1190,9 +1190,9 @@ TEST_CASE("valid content is shown through a region at the exact granted body bou
 
     PaneContent said;
     said.pane = kHelloPane;
-    said.rows.push_back(surface::SurfaceTextRow{"one", surface::role::kAccent,
-                                                surface::role::kMuted});
-    said.rows.push_back(surface::SurfaceTextRow{"two", surface::role::kFill});
+    said.rows.push_back(surface::SurfaceTextRow{"one", gfx::role::kAccent,
+                                                gfx::role::kMuted});
+    said.rows.push_back(surface::SurfaceTextRow{"two", gfx::role::kFill});
     r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
 
     shown = external_rows(r.last_canvas(), body);
@@ -1202,9 +1202,9 @@ TEST_CASE("valid content is shown through a region at the exact granted body bou
     // THE SEMANTIC ROLE AND GROUND SURVIVE UNTRANSLATED. Workshop makes no palette
     // decision for a provider and mints no provider theme.
     const ExternalPane* pane = r.session().panes.external_pane(kind);
-    CHECK(pane->shown[0].role == surface::role::kAccent);
-    CHECK(pane->shown[0].background == surface::role::kMuted);
-    CHECK(pane->shown[1].background == surface::role::kNone);
+    CHECK(pane->shown[0].role == gfx::role::kAccent);
+    CHECK(pane->shown[0].background == gfx::role::kMuted);
+    CHECK(pane->shown[1].background == gfx::role::kNone);
 
     // ONE CANVAS, AND THE HEADER IS WORKSHOP'S. A weaver can tell whose pane this is.
     const std::string stack = stack_text(r.last_canvas());
@@ -1236,7 +1236,7 @@ TEST_CASE("an external pane's own text cannot bury the surface that recovers it"
     PaneContent loud;
     loud.pane = kHelloPane;
     for (std::int64_t i = 0; i < granted->rows; ++i) {
-        loud.rows.push_back(surface::SurfaceTextRow{"ZZZZZZZZ", surface::role::kFill});
+        loud.rows.push_back(surface::SurfaceTextRow{"ZZZZZZZZ", gfx::role::kFill});
     }
     r.drive(seat, [loud](ProviderSeat& s, loom::Mail& m) { s.say(m, loud); });
     REQUIRE(external_rows(r.last_canvas(), body).size() ==
@@ -1295,7 +1295,7 @@ TEST_CASE("content beyond the granted room is not cached, and cannot leave stale
 
     PaneContent good;
     good.pane = kHelloPane;
-    good.rows.push_back(surface::SurfaceTextRow{"a good row", surface::role::kFill});
+    good.rows.push_back(surface::SurfaceTextRow{"a good row", gfx::role::kFill});
     r.drive(seat, [good](ProviderSeat& s, loom::Mail& m) { s.say(m, good); });
     REQUIRE(external_rows(r.last_canvas(), body).size() == 1);
 
@@ -1304,7 +1304,7 @@ TEST_CASE("content beyond the granted room is not cached, and cannot leave stale
     tall.pane = kHelloPane;
     const std::int64_t too_tall = granted_rows + 1;
     for (std::int64_t i = 0; i < too_tall; ++i) {
-        tall.rows.push_back(surface::SurfaceTextRow{"r", surface::role::kFill});
+        tall.rows.push_back(surface::SurfaceTextRow{"r", gfx::role::kFill});
     }
     r.drive(seat, [tall](ProviderSeat& s, loom::Mail& m) { s.say(m, tall); });
     pane = r.session().panes.external_pane(kind);
@@ -1323,7 +1323,7 @@ TEST_CASE("content beyond the granted room is not cached, and cannot leave stale
         CHECK(refused->compact.find("zengine.test.workshop-hello/hello") != std::string::npos);
         CHECK(refused->detail.find(std::to_string(too_tall) + " rows into a pane granted " +
                                    std::to_string(granted_rows)) != std::string::npos);
-        CHECK(refused->role == surface::role::kAlert);
+        CHECK(refused->role == gfx::role::kAlert);
     }
     CHECK(r.glance().find("zengine.test.workshop-hello/hello") != std::string::npos);
     // THE STALE ROW IS GONE FROM THE PICTURE, replaced by Workshop's own sentence.
@@ -1348,9 +1348,9 @@ TEST_CASE("content beyond the granted room is not cached, and cannot leave stale
     // by anything that copied as it validated.
     PaneContent wide;
     wide.pane = kHelloPane;
-    wide.rows.push_back(surface::SurfaceTextRow{"fits", surface::role::kFill});
+    wide.rows.push_back(surface::SurfaceTextRow{"fits", gfx::role::kFill});
     wide.rows.push_back(surface::SurfaceTextRow{
-        std::string(static_cast<std::size_t>(granted_cols) + 1, 'x'), surface::role::kFill});
+        std::string(static_cast<std::size_t>(granted_cols) + 1, 'x'), gfx::role::kFill});
     r.drive(seat, [wide](ProviderSeat& s, loom::Mail& m) { s.say(m, wide); });
     pane = r.session().panes.external_pane(kind);
     CHECK(pane->shown.empty());
@@ -1367,7 +1367,7 @@ TEST_CASE("content beyond the granted room is not cached, and cannot leave stale
     PaneContent edge;
     edge.pane = kHelloPane;
     edge.rows.push_back(surface::SurfaceTextRow{
-        std::string(static_cast<std::size_t>(granted_cols), 'e'), surface::role::kFill});
+        std::string(static_cast<std::size_t>(granted_cols), 'e'), gfx::role::kFill});
     r.drive(seat, [edge](ProviderSeat& s, loom::Mail& m) { s.say(m, edge); });
     CHECK(r.session().panes.external_pane(kind)->shown.size() == 1);
 }
@@ -1392,7 +1392,7 @@ TEST_CASE("a refusal stands until ACCEPTED CONTENT replaces it, a new room inclu
     PaneContent tall;
     tall.pane = kHelloPane;
     for (std::int64_t i = 0; i <= granted_rows; ++i) {
-        tall.rows.push_back(surface::SurfaceTextRow{"r", surface::role::kFill});
+        tall.rows.push_back(surface::SurfaceTextRow{"r", gfx::role::kFill});
     }
     r.drive(seat, [tall](ProviderSeat& s, loom::Mail& m) { s.say(m, tall); });
     const std::string content_key = pane_content_key(hello_ref());
@@ -1419,7 +1419,7 @@ TEST_CASE("a refusal stands until ACCEPTED CONTENT replaces it, a new room inclu
     const std::vector<Condition> now = r.conditions();
     const Condition* still = condition_by_key(now, content_key);
     REQUIRE(still != nullptr);
-    CHECK(still->role == surface::role::kAlert);
+    CHECK(still->role == gfx::role::kAlert);
 
     // ...AND THE PANE GOES ON SAYING IT, rather than showing a weaver an empty box.
     const ui::Rect body = external_body_rect(r.session(), kind);
@@ -1430,7 +1430,7 @@ TEST_CASE("a refusal stands until ACCEPTED CONTENT replaces it, a new room inclu
     // ONLY ACCEPTED CONTENT TAKES IT AWAY.
     PaneContent good;
     good.pane = kHelloPane;
-    good.rows.push_back(surface::SurfaceTextRow{"a good row", surface::role::kFill});
+    good.rows.push_back(surface::SurfaceTextRow{"a good row", gfx::role::kFill});
     r.drive(seat, [good](ProviderSeat& s, loom::Mail& m) { s.say(m, good); });
     const ExternalPane* healed = r.session().panes.external_pane(kind);
     CHECK(healed->heard);
@@ -1468,7 +1468,7 @@ TEST_CASE("a row carrying a byte a canvas cannot draw is refused whole") {
                                    std::string("caf\xC3\xA9"), std::string("del\x7F")}) {
         PaneContent said;
         said.pane = kHelloPane;
-        said.rows.push_back(surface::SurfaceTextRow{bad, surface::role::kFill});
+        said.rows.push_back(surface::SurfaceTextRow{bad, gfx::role::kFill});
         r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
         INFO("row bytes: ", bad.size());
         CHECK(r.session().panes.external_pane(kind)->shown.empty());
@@ -1490,7 +1490,7 @@ TEST_CASE("content for a closed or never-offered pane does nothing at all") {
     // by talking about it: discovery and presentation are two doors.
     PaneContent said;
     said.pane = kHelloPane;
-    said.rows.push_back(surface::SurfaceTextRow{"unasked for", surface::role::kFill});
+    said.rows.push_back(surface::SurfaceTextRow{"unasked for", gfx::role::kFill});
     r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
     CHECK(r.session().panes.open.size() == 1); // the Layouts pane, and nothing else
     CHECK(r.session().panes.external.empty());
@@ -1499,7 +1499,7 @@ TEST_CASE("content for a closed or never-offered pane does nothing at all") {
     // A PANE KEY THIS OFFICE NEVER OFFERED CREATES NO CATALOG ROW EITHER.
     PaneContent unknown;
     unknown.pane = "never-offered";
-    unknown.rows.push_back(surface::SurfaceTextRow{"nor this", surface::role::kFill});
+    unknown.rows.push_back(surface::SurfaceTextRow{"nor this", gfx::role::kFill});
     r.drive(seat, [unknown](ProviderSeat& s, loom::Mail& m) { s.say(m, unknown); });
     CHECK(r.session().panes.runtime.entries.size() == catalog_before);
     CHECK(r.session().panes.external.empty());
@@ -1585,7 +1585,7 @@ TEST_CASE("closing an external pane destroys only Workshop's copy") {
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     PaneContent said;
     said.pane = kHelloPane;
-    said.rows.push_back(surface::SurfaceTextRow{"remembered", surface::role::kFill});
+    said.rows.push_back(surface::SurfaceTextRow{"remembered", gfx::role::kFill});
     r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
     REQUIRE(r.session().panes.external_pane(kind)->heard);
     const std::int64_t said_count = seat->said;
@@ -1618,7 +1618,7 @@ TEST_CASE("a valid re-offer refreshes the descriptor and the open pane, without 
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     PaneContent said;
     said.pane = kHelloPane;
-    said.rows.push_back(surface::SurfaceTextRow{"the old answer", surface::role::kFill});
+    said.rows.push_back(surface::SurfaceTextRow{"the old answer", gfx::role::kFill});
     r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
     REQUIRE(r.session().panes.external_pane(kind)->heard);
     const std::size_t rooms_before = seat->rooms.size();

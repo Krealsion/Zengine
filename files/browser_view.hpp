@@ -16,7 +16,7 @@
 #include "workshop/path_admission.hpp"
 
 #include "component/list_window.hpp"
-#include "surface/vocabulary.hpp"
+#include "graphics/role.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -117,16 +117,16 @@ inline void FilesWeave::say_browser() {
         header += "  " + why;
     }
     header += "  " + where();
-    push_row(header, surface::role::kAccent);
+    push_row(header, zengine::graphics::role::kAccent);
     const std::vector<ControlRow> controls = browser_controls();
     const std::int64_t body_rows = body_budget(room().strip_rows(controls));
     if (body_rows > 0) {
         if (!listing_.known) {
             push_row(listing_.refusal.empty() ? "nothing has been listed yet"
                                               : listing_.refusal,
-                     surface::role::kMuted);
+                     zengine::graphics::role::kMuted);
         } else if (total == 0) {
-            push_row("this directory is empty", surface::role::kMuted);
+            push_row("this directory is empty", zengine::graphics::role::kMuted);
         } else {
             say_entries(total, static_cast<std::size_t>(body_rows));
         }
@@ -147,8 +147,8 @@ inline void FilesWeave::say_entries(std::size_t total, std::size_t body_rows) {
         const bool here = i == static_cast<std::size_t>(state_.cursor);
         const FileRow& row = listing_.rows[i];
         push_row(std::string(here ? "> " : "  ") + row_text(row),
-                 here ? surface::role::kAccent
-                      : (row.openable ? surface::role::kFill : surface::role::kMuted),
+                 here ? zengine::graphics::role::kAccent
+                      : (row.openable ? zengine::graphics::role::kFill : zengine::graphics::role::kMuted),
                  FilesMeaning{files_row::kEntry, i, {}, row.name});
     });
 }

@@ -49,7 +49,6 @@
 #include "surface/cells.hpp"
 #include "surface/pointing.hpp"
 #include "surface/region.hpp"
-#include "surface/terminal_size.hpp"
 #include "surface/vocabulary.hpp"
 
 #include "timer/binding.hpp"
@@ -147,13 +146,14 @@ void timer_surface() {
 // ---- zengine::surface ------------------------------------------------------------------
 void surface_surface() {
     namespace sf = zengine::surface;
+    namespace gfx = zengine::graphics;
 
     // Canvas pixels, twelve to a cell: ten cells by two.
     sf::SurfaceTextRegion region;
-    region.x = 2 * sf::kCanvasCellPx;
-    region.y = 1 * sf::kCanvasCellPx;
-    region.w = 10 * sf::kCanvasCellPx;
-    region.h = 2 * sf::kCanvasCellPx;
+    region.x = 2 * gfx::kCellPx;
+    region.y = 1 * gfx::kCellPx;
+    region.w = 10 * gfx::kCellPx;
+    region.h = 2 * gfx::kCellPx;
     region.rows.push_back(sf::SurfaceTextRow{"hello"});
     region.rows.push_back(sf::SurfaceTextRow{"stranger"});
 
@@ -169,7 +169,7 @@ void surface_surface() {
     check(p.y == 5 - sf::kTuiCanvasTopRow, "a terminal row is a canvas row, minus the slots");
 
     // Answers on every platform, including one with no terminal on the other end.
-    const sf::TerminalSize size = sf::native_terminal_size();
+    const gfx::window::TerminalSize size = gfx::window::native_terminal_size();
     check(size.cols >= 0 && size.rows >= 0, "a terminal size is never negative");
 }
 
@@ -317,7 +317,7 @@ void pane_surface() {
     check(drawn.texts.size() == 1 && !drawn.texts[0].padded && drawn.texts[0].text == "Tally: 3" &&
               drawn.parts.size() == 1 && drawn.parts[0].name == "row:count",
           "a pane's rows are drawn on its canvas naming the parts they named");
-    check(!drawn.rects.empty() && drawn.rects[0].role == zengine::surface::role::kMediumGround,
+    check(!drawn.rects.empty() && drawn.rects[0].role == zengine::graphics::role::kMediumGround,
           "a pane's rows drawn on its canvas lie on the medium's own ground, as a prose body's");
     const ws::RowCell cell = ws::row_cell_at(ws::canvas_rows(room), 3 * ws::kPaneCanvasUnit, 0);
     check(cell.shown && cell.row == 0 && cell.column == 3 && pictures.current(7, drawn.picture),
@@ -455,15 +455,15 @@ void graphics_surface() {
     }
     check(label.find("OK") != std::string::npos,
           "and the painter for light paints the same label as a run of text in pixels");
-    static_assert(zengine::surface::role::kGuide == gfx::role::kGuide,
+    static_assert(zengine::graphics::role::kGuide == gfx::role::kGuide,
                   "Surface's roles are the graphics vocabulary's");
-    static_assert(std::is_same_v<zengine::surface::ClipboardCopy, gfx::ClipboardCopy> &&
-                      std::is_same_v<zengine::surface::SurfaceCaptured, gfx::SurfaceCaptured> &&
-                      std::is_same_v<zengine::surface::SurfacePlacement, gfx::SurfacePlacement>,
+    static_assert(std::is_same_v<zengine::graphics::ClipboardCopy, gfx::ClipboardCopy> &&
+                      std::is_same_v<zengine::graphics::SurfaceCaptured, gfx::SurfaceCaptured> &&
+                      std::is_same_v<zengine::graphics::SurfacePlacement, gfx::SurfacePlacement>,
                   "Surface's platform shapes are the graphics vocabulary's");
     gfx::SurfaceCaptureChunk chunk;
     chunk.data.assign(3, 0x2a);
-    const auto read = loom::claim_item<zengine::surface::SurfaceCaptureChunk>(
+    const auto read = loom::claim_item<zengine::graphics::SurfaceCaptureChunk>(
         loom::bequeath_item(chunk));
     check(read.has_value() && read->data.size() == 3,
           "a chunk spelled either way crosses as the one shape");

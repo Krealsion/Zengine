@@ -67,6 +67,7 @@ namespace builder = zengine::builder;
 namespace input = zengine::input;
 namespace inv = zengine::inventory;
 namespace surface = zengine::surface;
+namespace gfx = zengine::graphics;
 namespace ws = zengine::workshop;
 namespace guests = zengine::workshop::guests;
 
@@ -565,7 +566,7 @@ TEST_CASE("guests file: each power is exactly its grant, and a row with none may
     CHECK(in.permits_role(input::InjectInput::zen_name, 1, input::kInputRole));
     CHECK(in.permits_role(input::InputSessionClosed::zen_name, 1, input::kInputRole));
     CHECK_FALSE(in.permits_role(input::InjectInput::zen_name, 1, surface::kSkinRole));
-    CHECK_FALSE(in.permits_role(surface::SurfaceCaptureRequested::zen_name, 1, surface::kSkinRole));
+    CHECK_FALSE(in.permits_role(gfx::SurfaceCaptureRequested::zen_name, 1, surface::kSkinRole));
     CHECK_FALSE(in.permits(loom::DescribeAccepted::zen_name, 1, loom::WeaveId{7}));
 
     row.may = {guests::kPowerCapture};
@@ -577,12 +578,12 @@ TEST_CASE("guests file: each power is exactly its grant, and a row with none may
          {std::string(surface::kSkinRole), window_office + zengine::graphics::kSdlWindow,
           window_office + zengine::graphics::kTerminalWindow}) {
         CAPTURE(medium);
-        CHECK(cap.permits_role(surface::SurfaceCaptureRequested::zen_name, 1, medium));
-        CHECK(cap.permits_role(surface::SurfaceCaptureChunkRequested::zen_name, 1, medium));
-        CHECK_FALSE(in.permits_role(surface::SurfaceCaptureRequested::zen_name, 1, medium));
-        CHECK_FALSE(none.permits_role(surface::SurfaceCaptureChunkRequested::zen_name, 1, medium));
+        CHECK(cap.permits_role(gfx::SurfaceCaptureRequested::zen_name, 1, medium));
+        CHECK(cap.permits_role(gfx::SurfaceCaptureChunkRequested::zen_name, 1, medium));
+        CHECK_FALSE(in.permits_role(gfx::SurfaceCaptureRequested::zen_name, 1, medium));
+        CHECK_FALSE(none.permits_role(gfx::SurfaceCaptureChunkRequested::zen_name, 1, medium));
     }
-    CHECK_FALSE(cap.permits_role(surface::SurfaceCaptureRequested::zen_name, 1,
+    CHECK_FALSE(cap.permits_role(gfx::SurfaceCaptureRequested::zen_name, 1,
                                  window_office + "desk"));
     CHECK_FALSE(cap.permits_role(input::InjectInput::zen_name, 1, input::kInputRole));
     // THE DESK'S WORDS ARE `capture`'s, every reading of them asked of Workshop's office alone: the
@@ -633,7 +634,7 @@ TEST_CASE("guests file: each power is exactly its grant, and a row with none may
     CHECK(stow.permits_role(inv::InventoryCaptureDescribe::zen_name, 1, inv::kInventoryRole));
     CHECK_FALSE(stow.permits(loom::DescribeAccepted::zen_name, 1, loom::WeaveId{7}));
     CHECK_FALSE(stow.permits_role(input::InjectInput::zen_name, 1, input::kInputRole));
-    CHECK_FALSE(stow.permits_role(surface::SurfaceCaptureRequested::zen_name, 1, surface::kSkinRole));
+    CHECK_FALSE(stow.permits_role(gfx::SurfaceCaptureRequested::zen_name, 1, surface::kSkinRole));
     // ...and whatever its powers, a row may ask for its own, and where the plan is.
     for (const loom::Grant& any : {none, in, cap, look, stow}) {
         CHECK(any.permits_role(ws::GuestRowDescribedRequested::zen_name,
@@ -871,8 +872,8 @@ struct WidthMedium {
     void clipboard_copy(const std::string&) {}
     std::optional<std::string> clipboard_text() { return std::nullopt; }
     surface::SurfaceExtent extent() const { return {}; }
-    std::optional<surface::SurfacePlacement> placement() { return std::nullopt; }
-    void place(const surface::SurfacePlacementRemembered&) {}
+    std::optional<gfx::SurfacePlacement> placement() { return std::nullopt; }
+    void place(const gfx::SurfacePlacementRemembered&) {}
     std::optional<surface::CapturedPicture> capture() {
         if (painted == 0) {
             return std::nullopt;
@@ -919,14 +920,14 @@ public:
 class OrderAgent : public loom::WeaveBase<OrderAgent, EarsState,
                                           loom::Accept<input::PumpInput, input::InputSessionOpened,
                                                        input::InputInjected, loom::Ack, loom::Refused,
-                                                       surface::SurfaceCaptured>,
+                                                       gfx::SurfaceCaptured>,
                                           loom::Emit<input::InputSessionRequested, input::InjectInput,
-                                                     surface::SurfaceCaptureRequested>> {
+                                                     gfx::SurfaceCaptureRequested>> {
 public:
     std::function<void(loom::Mail&)> next_;
     std::int64_t session = 0;
     bool capture_on_admission = true;
-    std::vector<surface::SurfaceCaptured> pictures;
+    std::vector<gfx::SurfaceCaptured> pictures;
     std::vector<std::string> said;
     void on(const input::PumpInput&, loom::Mail& mail) {
         if (next_) {
@@ -944,12 +945,12 @@ public:
         }
         said.push_back("injected " + std::to_string(i.admitted));
         if (capture_on_admission) {
-            (void)mail.send_to_role(surface::kSkinRole, surface::SurfaceCaptureRequested{});
+            (void)mail.send_to_role(surface::kSkinRole, gfx::SurfaceCaptureRequested{});
         }
     }
     void on(const loom::Ack&, loom::Mail&) {}
     void on(const loom::Refused& r, loom::Mail&) { said.push_back("refused: " + r.reason); }
-    void on(const surface::SurfaceCaptured& c, loom::Mail& mail) {
+    void on(const gfx::SurfaceCaptured& c, loom::Mail& mail) {
         if (mail.answers_ask()) {
             pictures.push_back(c);
         }
@@ -1029,7 +1030,7 @@ TEST_CASE("order: a picture taken on the injection's answer can miss what the in
         (void)m.send_to_role(input::kInputRole, batch);
     });
     REQUIRE(r.agent->pictures.size() == 1);
-    const surface::SurfaceCaptured& shot = r.agent->pictures[0];
+    const gfx::SurfaceCaptured& shot = r.agent->pictures[0];
     INFO("the picture: width " << shot.width << " at frame " << shot.frame << "; the medium then "
                                << "shows width " << r.skin->medium().width << " at frame "
                                << r.skin->frames());
@@ -1077,10 +1078,10 @@ TEST_CASE("order: a picture asked for after the injection SETTLES shows what the
         CHECK(newer_before_settled);
         // THE PICTURE, ASKED FOR NOW: after everything the injection set in motion.
         r.act([](loom::Mail& m) {
-            (void)m.send_to_role(surface::kSkinRole, surface::SurfaceCaptureRequested{});
+            (void)m.send_to_role(surface::kSkinRole, gfx::SurfaceCaptureRequested{});
         });
         REQUIRE(r.agent->pictures.size() == shots + 1);
-        const surface::SurfaceCaptured& shot = r.agent->pictures.back();
+        const gfx::SurfaceCaptured& shot = r.agent->pictures.back();
         INFO("run for width " << width << ": the picture is width " << shot.width << " at frame "
                               << shot.frame);
         CHECK(shot.ok);
@@ -1146,12 +1147,12 @@ TEST_CASE("order: through the real door, a settle-requested injection is told Se
     }));
     CHECK(answered_first);
     CHECK(skin->medium().width == 20); // the desk's paint is done by the time Settled is told
-    g.ask(surface::kSkinRole, 3, surface::SurfaceCaptureRequested{});
+    g.ask(surface::kSkinRole, 3, gfx::SurfaceCaptureRequested{});
     REQUIRE(r.beat_until([&] {
         g.poll();
-        return g.answered<surface::SurfaceCaptured>(3).has_value();
+        return g.answered<gfx::SurfaceCaptured>(3).has_value();
     }));
-    CHECK(g.answered<surface::SurfaceCaptured>(3)->width == 20);
+    CHECK(g.answered<gfx::SurfaceCaptured>(3)->width == 20);
     CHECK(r.bus.fences_held() == 0); // the door let its fence go once it told the guest
 }
 
@@ -1498,12 +1499,12 @@ TEST_CASE("grant: a row that reads by pane is granted the newest reads, the keym
         CAPTURE(old.second);
         CHECK_FALSE(g.permits_role(old.first, old.second, "zengine.workshop"));
     }
-    CHECK_FALSE(g.permits_role(surface::SurfaceCaptureRequested::zen_name, 1, surface::kSkinRole));
+    CHECK_FALSE(g.permits_role(gfx::SurfaceCaptureRequested::zen_name, 1, surface::kSkinRole));
     // A ROW THAT READS EVERY PANE keeps the whole desk, the picture, and every pane's manual.
     row.capture = {"*"};
     row.guide = {"*"};
     const loom::Grant whole = guests::grant_for(row);
-    CHECK(whole.permits_role(surface::SurfaceCaptureRequested::zen_name, 1, surface::kSkinRole));
+    CHECK(whole.permits_role(gfx::SurfaceCaptureRequested::zen_name, 1, surface::kSkinRole));
     CHECK(whole.permits_role(ws::DeskReadRequested::zen_name, 1, "zengine.workshop"));
     CHECK(whole.permits_role(ws::PaneDocumentRequested::zen_name, 1, "zengine.editor"));
 }
@@ -2240,8 +2241,8 @@ TEST_CASE("observation: the desk's words and pictures need capture, every row is
     };
     // THE WEAVER'S COPIED TEXT, from Workshop and from a text pane alike.
     const std::vector<Asked> copied = {
-        {"zengine.workshop", surface::ClipboardCopy::zen_name, surface::ClipboardCopy::zen_version},
-        {"zengine.editor", surface::ClipboardCopy::zen_name, surface::ClipboardCopy::zen_version},
+        {"zengine.workshop", gfx::ClipboardCopy::zen_name, gfx::ClipboardCopy::zen_version},
+        {"zengine.editor", gfx::ClipboardCopy::zen_name, gfx::ClipboardCopy::zen_version},
     };
     const guests::ObserveScope builds{builder::kBuilderRole, builder::BuildStatus::zen_name,
                                       builder::BuildStatus::zen_version};
@@ -2299,8 +2300,8 @@ TEST_CASE("observation: the desk's words and pictures need capture, every row is
     const loom::observe::ShapeRef conditions{ws::StandingConditions::zen_name,
                                              ws::StandingConditions::zen_version};
     const loom::observe::ShapeRef keys{ws::KeymapShown::zen_name, ws::KeymapShown::zen_version};
-    const loom::observe::ShapeRef clipboard{surface::ClipboardCopy::zen_name,
-                                            surface::ClipboardCopy::zen_version};
+    const loom::observe::ShapeRef clipboard{gfx::ClipboardCopy::zen_name,
+                                            gfx::ClipboardCopy::zen_version};
     CHECK(ask(2, "zengine.workshop", {conditions}).allowed);
     CHECK(ask(2, "zengine.workshop", {conditions, keys}).allowed);
     // ...and one shape it may not observe refuses the whole ask.

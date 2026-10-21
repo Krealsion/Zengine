@@ -101,8 +101,7 @@ set(zengine_public_headers_timer      timer/vocabulary.hpp
 set(zengine_public_headers_surface    surface/vocabulary.hpp
                                       surface/cells.hpp
                                       surface/region.hpp
-                                      surface/pointing.hpp
-                                      surface/terminal_size.hpp)
+                                      surface/pointing.hpp)
 set(zengine_public_headers_input      input/vocabulary.hpp
                                       input/translate.hpp
                                       input/input_weave.hpp)
@@ -144,6 +143,7 @@ set(zengine_public_headers_workshop   workshop/setup_control.hpp workshop/pane_o
                                       workshop/pane_causes.hpp
                                       workshop/pane_canvas_vocabulary.hpp
                                       workshop/pane_canvas_text.hpp
+                                      workshop/pane_text_fit.hpp
                                       workshop/pane_canvas_rows.hpp
                                       workshop/pane_menu.hpp
                                       workshop/pane_escape.hpp
@@ -152,13 +152,14 @@ set(zengine_public_headers_workshop   workshop/setup_control.hpp workshop/pane_o
 # ...and the Neovim-backed Editor's asks, under its own directory for the same reason.
 set(zengine_public_headers_editor/neovim-editor editor/neovim-editor/vocabulary.hpp)
 # The graphics vocabulary an owner draws with, its roles, the elements, the two painters' code (for
-# characters and for light) and the two seams a skin or an element's code is written against; the
-# windows and the directory are artifacts. Beside them, the terminal's claim and size, which a
-# terminal Skin's header spells for Surface (`surface/terminal_size.hpp`).
+# characters and for light), the two seams a skin or an element's code is written against and the
+# pixel arithmetic; the windows and the directory are artifacts. Beside them, the terminal's claim
+# and size.
 set(zengine_public_headers_graphics graphics/vocabulary.hpp graphics/role.hpp graphics/ops.hpp
     graphics/implied.hpp graphics/painting.hpp graphics/term_paint.hpp graphics/light_paint.hpp
     graphics/canvas.hpp graphics/drawing.hpp graphics/elements.hpp graphics/element_abi.h
-    graphics/element_export.hpp graphics/painter_abi.h graphics/painter_export.hpp)
+    graphics/element_export.hpp graphics/painter_abi.h graphics/painter_export.hpp
+    graphics/pixels.hpp)
 set(zengine_public_headers_graphics/window graphics/window/terminal_io.hpp)
 set(zengine_public_headers_graphics/elements graphics/elements/button.hpp
     graphics/elements/checkbox.hpp graphics/elements/grid.hpp graphics/elements/icon.hpp

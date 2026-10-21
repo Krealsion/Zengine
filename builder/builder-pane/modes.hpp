@@ -19,7 +19,7 @@
 
 #include "component/list_window.hpp"
 #include "component/text_box.hpp"
-#include "surface/vocabulary.hpp"
+#include "graphics/role.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -133,7 +133,7 @@ inline void BuilderPaneWeave::say_recipes() {
     if (!known_.source.empty()) {
         head += " in " + known_.source;
     }
-    push_row(head, surface::role::kAccent);
+    push_row(head, zengine::graphics::role::kAccent);
     const std::vector<ControlRow> controls = list_controls();
     const std::int64_t body_rows =
         rows() - 1 - (notice_.empty() ? 0 : 1) - room().strip_rows(controls);
@@ -149,7 +149,7 @@ inline void BuilderPaneWeave::say_recipes() {
             const bool chosen = row.recipe == state_.chosen;
             push_row(std::string(here ? "> " : "  ") + row.recipe + " -> " + row.artifact +
                          (chosen ? "   (chosen)" : ""),
-                     here ? surface::role::kAccent : surface::role::kFill,
+                     here ? zengine::graphics::role::kAccent : zengine::graphics::role::kFill,
                      BuilderMeaning{builder_row::kRecipe, i, {}, row.recipe});
         });
     }
@@ -311,10 +311,10 @@ inline void BuilderPaneWeave::say_role() {
         room().caret().column = static_cast<std::int64_t>(
             ascii_spelling(prompt + shown.substr(0, role_.line.caret_column())).size());
     }
-    push_row(prompt + shown, surface::role::kAccent,
+    push_row(prompt + shown, zengine::graphics::role::kAccent,
              BuilderMeaning{builder_row::kLine, 0, {}, role_.stem});
     push_row(labelled_row("loads", role_.stem + " (built by `" + role_.recipe + "`)"),
-             surface::role::kMuted);
+             zengine::graphics::role::kMuted);
     say_controls(role_controls());
 }
 

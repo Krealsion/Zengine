@@ -28,6 +28,7 @@
 
 namespace cmp = zengine::composer;
 namespace surface = zengine::surface;
+namespace gfx = zengine::graphics;
 
 namespace {
 
@@ -596,7 +597,7 @@ TEST_CASE("a required field nobody has authored is in the ALERT role") {
     for (const cmp::RenderedRow& r : v.rows) {
         if (r.row.text.find("id:Text  (required)") != std::string::npos) {
             found = true;
-            CHECK(r.row.role == surface::role::kAlert);
+            CHECK(r.row.role == gfx::role::kAlert);
         }
     }
     CHECK(found);
@@ -715,7 +716,7 @@ TEST_CASE("every row of every projection fits the room it was granted") {
                     }
                     // A blank row is `role::kFill`, never `role::kNone` -- that value
                     // is the absence of a BACKGROUND and is not a Skin ink.
-                    REQUIRE(r.row.role != surface::role::kNone);
+                    REQUIRE(r.row.role != gfx::role::kNone);
                 }
             }
         }
@@ -912,7 +913,7 @@ TEST_CASE("the notice outranks the list, because a refusal nobody can see is wor
     }
     c.snapshot = snapshot_of(std::move(roots));
     c.notice = "field 'delay_ms' (Int) cannot take this value";
-    c.notice_role = surface::role::kAlert;
+    c.notice_role = gfx::role::kAlert;
     for (std::int64_t rows = 3; rows <= 10; ++rows) {
         CAPTURE(rows);
         const cmp::ComposerView v = cmp::project(c, rows, 60);

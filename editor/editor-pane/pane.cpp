@@ -77,8 +77,8 @@ class EditorPaneWeave
                        PaneActionRequested, PaneQuitRequested, OpenSourceRequested,
                        PrepareSourceRequested, ws::v2::PrepareSourceRequested,
                        ManagedOpenProgress, ManagedOpenSettled,
-                       SourceOpened, loom::DispatchRefused, ProjectRoot, surface::ClipboardCopy,
-                       surface::ClipboardText, EditorHandoffJudgeRequested, EditorWarmRequested,
+                       SourceOpened, loom::DispatchRefused, ProjectRoot, graphics::ClipboardCopy,
+                       graphics::ClipboardText, EditorHandoffJudgeRequested, EditorWarmRequested,
                        EditorPreparationTick, EditorHandoffRequested, EditorHandoffEnded,
                        EditorAdoptRequested, EditorLiveRequested, EditorRetireRequested,
                        ws::PaneCanvasValueDrop, ws::PaneMenuAnswered, ws::PaneOperationAnswered,
@@ -90,8 +90,8 @@ class EditorPaneWeave
                      ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
                      PaneQuitAnswered, SourceOpened, SourcePrepared, ws::v2::SourcePrepared,
                      OpenSourceRequested,
-                     ProjectRootRequested, surface::ClipboardCopy,
-                     surface::ClipboardTextRequested, EditorHandoffJudged, EditorWarmed,
+                     ProjectRootRequested, graphics::ClipboardCopy,
+                     graphics::ClipboardTextRequested, EditorHandoffJudged, EditorWarmed,
                      EditorHandoffOffered, EditorAdopted, EditorLive, EditorRetired,
                      ws::PaneMenuRequested, ws::PanePassRequested, ws::PaneOperationRequested,
                      ws::PaneValueCarryRequested, graphics::Drawn, graphics::RoomAsked,
@@ -345,7 +345,7 @@ public:
         if (clip_.writes != copied_before) {
             // A COPY IS SAID TO THE PROCESS ONCE: the Skin offers it to the platform's
             // clipboard and every other text-holding participant mirrors it.
-            mail.publish(surface::ClipboardCopy{clip_.text});
+            mail.publish(graphics::ClipboardCopy{clip_.text});
         }
         if (clip_.paste_requests != pastes_before) {
             begin_paste(mail);
@@ -468,7 +468,7 @@ public:
 
     // ---- The clipboard -------------------------------------------------------------------
 
-    void on(const surface::ClipboardCopy& said, loom::Mail&) {
+    void on(const graphics::ClipboardCopy& said, loom::Mail&) {
         // WHAT THE PROCESS SAYS IT COPIED -- this pane's own copies included, which is why
         // it is a mirror rather than a second store: a paste answers with this.
         clip_.text = said.text;
@@ -479,7 +479,7 @@ public:
     /// document strands the payload silently, and one that moved gets a sentence instead of a
     /// paste. The outstanding paste is cleared the moment its authenticated answer is consumed,
     /// before the payload is judged, so a stale answer leaves no paste in flight behind it.
-    void on(const surface::ClipboardText& a, loom::Mail& mail) {
+    void on(const graphics::ClipboardText& a, loom::Mail& mail) {
         if (!mail.answers_ask() || !paste_.awaiting || mail.correlation() != paste_.pending) {
             return;
         }
@@ -689,7 +689,7 @@ private:
         paste_.revision = e_.buffer.revision();
         paste_.awaiting = true;
         (void)mail.as_role(pane::kEditorPaneRole)
-            .send_to_role(window_.clipboard_office(), surface::ClipboardTextRequested{},
+            .send_to_role(window_.clipboard_office(), graphics::ClipboardTextRequested{},
                           paste_.pending);
     }
 
@@ -893,18 +893,18 @@ private:
         };
         if (rows >= 1 && !status) {
             if (!note.empty()) {
-                push(note, bad ? surface::role::kAlert : surface::role::kMuted);
+                push(note, bad ? graphics::role::kAlert : graphics::role::kMuted);
             }
         } else if (rows >= 1) {
             const bool notice_row = !note.empty() && rows >= kNoticeNeedsRows;
             if (!note.empty() && !notice_row) {
-                push(note, bad ? surface::role::kAlert : surface::role::kMuted);
+                push(note, bad ? graphics::role::kAlert : graphics::role::kMuted);
             } else {
-                push(status_text(doc, columns), surface::role::kAccent);
+                push(status_text(doc, columns), graphics::role::kAccent);
                 out.status_row = true;
             }
             if (notice_row) {
-                push(note, bad ? surface::role::kAlert : surface::role::kMuted);
+                push(note, bad ? graphics::role::kAlert : graphics::role::kMuted);
             }
         }
         out.chrome_rows = static_cast<std::int64_t>(out.rows.size());
@@ -920,7 +920,7 @@ private:
                 out.rows.push_back(surface::SurfaceTextRow{
                     ws::expanded_slice(doc.buffer.line(r), view.first_col, text_cols,
                                        doc.buffer.tab_width()),
-                    surface::role::kFill});
+                    graphics::role::kFill});
             }
         }
         out.view = view;

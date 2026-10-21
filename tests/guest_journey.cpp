@@ -11,8 +11,8 @@
 // And a weaver's own files: another Workshop, not isolated, whose roots and keymap stand in a
 // folder named beyond ASCII, reads them, saves its session there and reopens it.
 
+#include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
 #include "workshop/setup_control.hpp"
 
 #include <zen/bridge/client.hpp>
@@ -55,7 +55,7 @@ extern char** environ;
 namespace {
 
 namespace input = zengine::input;
-namespace surface = zengine::surface;
+namespace gfx = zengine::graphics;
 
 int failures = 0;
 
@@ -306,14 +306,14 @@ std::string read_file(const std::string& path) {
 constexpr const char* kMedium = "zengine.window.terminal";
 
 /// The picture a capture answered, fetched by chunk; empty when any chunk did not come whole.
-std::string fetch_picture(Guest& g, const surface::SurfaceCaptured& pic) {
+std::string fetch_picture(Guest& g, const gfx::SurfaceCaptured& pic) {
     std::string picture;
     std::int64_t offset = 0;
     while (offset < pic.bytes) {
         const std::uint64_t c =
-            g.ask(kMedium, surface::SurfaceCaptureChunkRequested{pic.capture, offset});
-        const std::optional<surface::SurfaceCaptureChunk> chunk =
-            g.answer<surface::SurfaceCaptureChunk>(c);
+            g.ask(kMedium, gfx::SurfaceCaptureChunkRequested{pic.capture, offset});
+        const std::optional<gfx::SurfaceCaptureChunk> chunk =
+            g.answer<gfx::SurfaceCaptureChunk>(c);
         if (!chunk.has_value() || chunk->offset != offset || chunk->data.empty()) {
             return std::string();
         }
@@ -443,8 +443,8 @@ int main(int argc, char** argv) {
           "...with Loom's attestation that this is THE answer");
 
     // A picture BEFORE the chord, so the picture after it can be told apart from it.
-    const std::uint64_t before = g.ask(kMedium, surface::SurfaceCaptureRequested{});
-    const std::optional<surface::SurfaceCaptured> first = g.answer<surface::SurfaceCaptured>(before);
+    const std::uint64_t before = g.ask(kMedium, gfx::SurfaceCaptureRequested{});
+    const std::optional<gfx::SurfaceCaptured> first = g.answer<gfx::SurfaceCaptured>(before);
     check(first.has_value() && first->ok, "the window took a picture before the chord");
     const std::int64_t frame_before = first.has_value() ? first->frame : -1;
 
@@ -474,8 +474,8 @@ int main(int argc, char** argv) {
           "the desktop office described what it accepts (" + std::to_string(accepted) + " shapes)");
 
     // A picture asked for NOW, after the settlement: every paint the chord caused is behind it.
-    const std::uint64_t capture = g.ask(kMedium, surface::SurfaceCaptureRequested{});
-    const std::optional<surface::SurfaceCaptured> pic = g.answer<surface::SurfaceCaptured>(capture, 10000);
+    const std::uint64_t capture = g.ask(kMedium, gfx::SurfaceCaptureRequested{});
+    const std::optional<gfx::SurfaceCaptured> pic = g.answer<gfx::SurfaceCaptured>(capture, 10000);
     check(pic.has_value() && pic->ok && pic->frame > frame_before,
           "the window captured a frame the chord's paint produced (" +
               std::to_string(pic.has_value() ? pic->frame : -1) + " > " +
@@ -596,9 +596,9 @@ int main(int argc, char** argv) {
         return check(w.client->admitted(), "...and is admitted");
     };
     const auto look = [](Guest& w) {
-        const std::uint64_t asked = w.ask(kMedium, surface::SurfaceCaptureRequested{});
-        const std::optional<surface::SurfaceCaptured> taken =
-            w.answer<surface::SurfaceCaptured>(asked, 10000);
+        const std::uint64_t asked = w.ask(kMedium, gfx::SurfaceCaptureRequested{});
+        const std::optional<gfx::SurfaceCaptured> taken =
+            w.answer<gfx::SurfaceCaptured>(asked, 10000);
         return taken.has_value() && taken->ok ? fetch_picture(w, *taken) : std::string();
     };
     // Asked to quit, it saves its session and ends. A pane still settling work refuses the quit

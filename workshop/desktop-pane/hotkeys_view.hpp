@@ -25,6 +25,7 @@
 #include "component/list_window.hpp"
 #include "component/row_map.hpp"
 #include "component/text_box.hpp"
+#include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 
@@ -182,7 +183,7 @@ public:
 
     /// THE CLIPBOARD'S ANSWER TO THIS IMAGE'S OWN PASTE, landing only in the line that asked --
     /// the same line, still open, in the same draft (`TextBox::draft_epoch`).
-    void pasted(const surface::ClipboardText& a, const Declared& keys_rows_decl,
+    void pasted(const graphics::ClipboardText& a, const Declared& keys_rows_decl,
                 loom::Mail& mail) {
         if (!mail.answers_ask() || !paste_.awaiting || mail.correlation() != paste_.pending) {
             return;
@@ -206,8 +207,8 @@ public:
     bool ask_refused(const loom::DispatchRefused& refused, const Declared& keys_rows_decl,
                      loom::Mail& mail) {
         if (refused_ask(paste_.awaiting, paste_.attempt, paste_.pending, refused, mail,
-                        surface::ClipboardTextRequested::zen_name,
-                        surface::ClipboardTextRequested::zen_version, paste_.office.c_str())) {
+                        graphics::ClipboardTextRequested::zen_name,
+                        graphics::ClipboardTextRequested::zen_version, paste_.office.c_str())) {
             paste_.awaiting = false;
             return true;
         }
@@ -378,7 +379,7 @@ public:
             }
         };
         if (!keys_heard_) {
-            push("HOTKEYS (waiting)", surface::role::kMuted, KeysMeaning{});
+            push("HOTKEYS (waiting)", graphics::role::kMuted, KeysMeaning{});
             publish_keys(mail, std::move(out));
             return;
         }
@@ -390,7 +391,7 @@ public:
         }
         push("HOTKEYS -- " + std::to_string(bindings) + " in force; * moved by your file; "
              "right-click or `m` on a row to change it",
-             surface::role::kAccent, KeysMeaning{});
+             graphics::role::kAccent, KeysMeaning{});
         // THE SPELLING LINE, UNDER THE HEADING, while one is open, its caret where it stands.
         ws::RowsCaret caret;
         if (typing_.active) {
@@ -400,7 +401,7 @@ public:
             if (room > 0) {
                 typing_.line.keep_caret_visible(room);
                 const auto at = static_cast<std::int64_t>(out.size());
-                push(prompt + typing_.line.visible(room), surface::role::kAccent,
+                push(prompt + typing_.line.visible(room), graphics::role::kAccent,
                      KeysMeaning{keys_row::kFooter, 0, {}});
                 if (static_cast<std::int64_t>(out.size()) > at) {
                     caret.row = at;
@@ -408,7 +409,7 @@ public:
                                                              typing_.line.caret_column());
                 }
             } else {
-                push(prompt, surface::role::kAccent, KeysMeaning{keys_row::kFooter, 0, {}});
+                push(prompt, graphics::role::kAccent, KeysMeaning{keys_row::kFooter, 0, {}});
             }
         }
         // WHERE A KEY IS MOVED, said last and reserved first: the grammar a weaver writes, the file
@@ -474,14 +475,14 @@ public:
             budget > 0 ? static_cast<std::size_t>(budget) : 0);
         keys_first_ = w.first;
         if (const std::size_t earlier = component::earlier_marker(w); earlier > 0) {
-            push("  ^ " + std::to_string(earlier) + " more above", surface::role::kMuted,
+            push("  ^ " + std::to_string(earlier) + " more above", graphics::role::kMuted,
                  KeysMeaning{keys_row::kMarker, 0, {}});
         }
         for (std::size_t i = w.first; i < w.end(); ++i) {
             const KeysLine& line = lines_[i];
             if (!line.binding) {
                 push(drawable(keymap_.rows[i + 1 < lines_.size() ? lines_[i + 1].shown : 0].group),
-                     surface::role::kAccent, KeysMeaning{keys_row::kGroup, i, {}});
+                     graphics::role::kAccent, KeysMeaning{keys_row::kGroup, i, {}});
                 continue;
             }
             const ws::ShownBinding& b = keymap_.rows[line.shown];
@@ -494,7 +495,7 @@ public:
             const std::int64_t at = static_cast<std::int64_t>(out.size());
             const std::string text = fit(std::string(here ? "> " : "  ") + cells, room_columns);
             const std::string ref = binding_key(b);
-            push(text, here ? surface::role::kAccent : surface::role::kFill,
+            push(text, here ? graphics::role::kAccent : graphics::role::kFill,
                  KeysMeaning{keys_row::kBinding, i, ref});
             // THE KEY CELL IS A CONTROL INSIDE THE ROW -- the same meaning, recorded so a press on
             // the key is a press on the binding wherever the columns put it.
@@ -504,11 +505,11 @@ public:
                 KeysMeaning{keys_row::kBinding, i, ref});
         }
         if (const std::size_t more = component::more_marker(w); more > 0) {
-            push("  v " + std::to_string(more) + " more below", surface::role::kMuted,
+            push("  v " + std::to_string(more) + " more below", graphics::role::kMuted,
                  KeysMeaning{keys_row::kMarker, 1, {}});
         }
         for (std::int64_t i = 0; i < footer_rows; ++i) {
-            push(footer[static_cast<std::size_t>(i)], surface::role::kMuted,
+            push(footer[static_cast<std::size_t>(i)], graphics::role::kMuted,
                  KeysMeaning{keys_row::kFooter, static_cast<std::size_t>(i) + 1, {}});
         }
         publish_keys(mail, std::move(out), caret);
@@ -553,7 +554,7 @@ private:
             return false;
         }
         if (clip_.writes != copied_before) {
-            mail.publish(surface::ClipboardCopy{clip_.text});
+            mail.publish(graphics::ClipboardCopy{clip_.text});
         }
         if (clip_.paste_requests != pastes_before) {
             begin_paste(mail, line);
@@ -570,7 +571,7 @@ private:
         paste_.epoch = line.draft_epoch();
         paste_.office = keys_canvas_.clipboard_office();
         paste_.attempt = mail.as_role(kDesktopRole)
-                             .send_to_role(paste_.office, surface::ClipboardTextRequested{},
+                             .send_to_role(paste_.office, graphics::ClipboardTextRequested{},
                                            paste_.pending);
         paste_.awaiting = paste_.attempt.valid();
     }

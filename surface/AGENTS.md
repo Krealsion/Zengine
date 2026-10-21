@@ -7,11 +7,9 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 
 | path | what it is |
 |---|---|
-| `vocabulary.hpp` | messages: canvas, text, extent, placement, clipboard, capture; `kSkinRole` |
-| `region.hpp`, `cells.hpp` | the shared arithmetic: `fit_region`, cell projection, selections |
+| `vocabulary.hpp` | messages: canvas, text, extent, ready; `kSkinRole` |
+| `region.hpp`, `cells.hpp` | the cell projection and the clipping the Skins share; `fit_region` and the selection's span are `workshop/pane_text_fit.hpp`'s, the arithmetic `graphics/pixels.hpp`'s |
 | `pointing.hpp` | a pointer on the canvas: [pointer spaces](../workshop/docs/pointer-spaces.md) |
-| `terminal_size.hpp` | a terminal's size, spelled for Surface: the terminal window's question (`graphics/window/terminal_io.hpp`) |
-| `tui_terminal.hpp` | `TuiTerminal`, the terminal's claimed output side, its modes and each role's ink, spelled for Surface from the same header |
 | `skin.hpp` | `SkinT`, the Skin weave shell over an injected Medium |
 | `skin_tui.hpp` | the terminal medium: `TuiMedium` |
 | `skin_tui_classic.cpp` | loadable weave `zengine-skin-tui-classic` |
@@ -49,7 +47,7 @@ terminal pair, and `input` (`tests/test_input.cpp`) the SDL Skin beside the SDL 
 - Beyond Workshop: `cmake/ZengineSdl.cmake` shares one SDL with `input/input_sdl.cpp`;
   `cmake/EmbedBinary.cmake` embeds the font; `cmake/ZengineInstall.cmake` installs the headers
   and the terminal pair; the terminal Skins claim their terminal with the terminal window's own
-  claim (`graphics/window/terminal_io.hpp`), which `tui_terminal.hpp` spells for Surface.
+  claim (`graphics/window/terminal_io.hpp`).
 
 ## Pages
 

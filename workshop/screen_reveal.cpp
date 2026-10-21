@@ -27,13 +27,13 @@ void paint_pane_affordances(surface::SurfaceLayer& layer, const Session& s,
         if (s.pane_drag.met_x.has_value()) {
             layer.rects.push_back(wire_rect_of(
                 PixelRect{inside(*s.pane_drag.met_x, sc.room_w), sc.room_y, grain, sc.room_h},
-                surface::role::kAccent));
+                graphics::role::kAccent));
         }
         if (s.pane_drag.met_y.has_value()) {
             layer.rects.push_back(wire_rect_of(
-                PixelRect{0, surface::add_cells(sc.room_y, inside(*s.pane_drag.met_y, sc.room_h)),
+                PixelRect{0, graphics::add_cells(sc.room_y, inside(*s.pane_drag.met_y, sc.room_h)),
                           sc.room_w, grain},
-                surface::role::kAccent));
+                graphics::role::kAccent));
         }
     }
     const auto ring = [&](const PaneRef& ref, bool emphasized) {
@@ -53,7 +53,7 @@ void paint_pane_affordances(surface::SurfaceLayer& layer, const Session& s,
             const bool chosen = held ? s.pane_drag.edge == edge : emphasized;
             layer.labels.push_back(surface::SurfaceLabel{
                 at.x, at.y, std::string(pane_edge_glyph(edge)),
-                chosen ? surface::role::kAccent : surface::role::kMuted});
+                chosen ? graphics::role::kAccent : graphics::role::kMuted});
         }
     };
     if (!s.arrange.desk) {
