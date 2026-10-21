@@ -1988,7 +1988,7 @@ TEST_CASE("the restore notice says the room in the unit the medium names: pixels
         Live w;
         w.host.session_path = session;
         w.publish(loom::to_value(surface::SurfaceReady{}));
-        w.publish(loom::to_value(surface::SurfaceExtent{cells_px(120), cells_px(75), 8, 18, surface::kCanvasCellPx}));
+        w.publish(loom::to_value(surface::SurfaceExtent{cells_px(120), cells_px(75), 8, 18, gfx::kCellPx}));
         CHECK(w.notice() == "reopened your last desk \"Default\" -- 1440x900 px");
     }
     // A TERMINAL's unit is the cell.
@@ -2008,7 +2008,7 @@ TEST_CASE("the restore notice says the room in the unit the medium names: pixels
         k.text("t");
         const std::string said = k.notice();
         REQUIRE(said.rfind("pane titles hidden", 0) == 0);
-        k.publish(loom::to_value(surface::SurfaceExtent{cells_px(120), cells_px(75), 8, 18, surface::kCanvasCellPx}));
+        k.publish(loom::to_value(surface::SurfaceExtent{cells_px(120), cells_px(75), 8, 18, gfx::kCellPx}));
         CHECK(k.notice() == said);
     }
 }
@@ -3031,7 +3031,7 @@ TEST_CASE("a refused prefs file is spoken, stands, and is never overwritten") {
         const Condition* wall = condition_by_key(now, kPrefsWallKey);
         REQUIRE(wall != nullptr);
         CHECK(wall->compact.find("defaults stand") != std::string::npos);
-        CHECK(wall->role == surface::role::kAlert);
+        CHECK(wall->role == gfx::role::kAlert);
     }
     CHECK(t.glance().find("preferences refused") != std::string::npos);
     CHECK(t.session().pane_titles);
@@ -3198,7 +3198,7 @@ TEST_CASE("the desk remembers where its window sat, and offers it back") {
         t.host.session_path = session;
         t.publish(loom::to_value(surface::SurfaceReady{}));
         // The medium notices its window and says so; Workshop remembers, opaquely.
-        t.publish(loom::to_value(surface::SurfacePlacement{240, 180, false}));
+        t.publish(loom::to_value(gfx::SurfacePlacement{240, 180, false}));
         CHECK(t.session().placement_known);
         CHECK(t.session().place_x == 240);
         CHECK(t.session().place_y == 180);
@@ -3248,7 +3248,7 @@ TEST_CASE("a maximized close remembers the NORMAL room beside the maximized stat
         CHECK(t.session().normal_h == cells_px(40));
         // ...then maximizes. The medium reports placement BEFORE the grown extent
         // (skin.hpp's pinned order), so the gate is closed when the big room arrives.
-        t.publish(loom::to_value(surface::SurfacePlacement{300, 200, true}));
+        t.publish(loom::to_value(gfx::SurfacePlacement{300, 200, true}));
         t.publish(loom::to_value(surface::SurfaceExtent{cells_px(200), cells_px(80), 0, 0}));
         CHECK(t.session().screen_w == cells_px(200)); // the live screen follows the window
         CHECK(t.session().normal_w == cells_px(120)); // the remembered normal room does not
@@ -3269,11 +3269,11 @@ TEST_CASE("unmaximizing reopens the gate, and the normal room tracks again") {
     Live t;
     t.publish(loom::to_value(surface::SurfaceReady{}));
     t.publish(loom::to_value(surface::SurfaceExtent{cells_px(120), cells_px(40), 0, 0}));
-    t.publish(loom::to_value(surface::SurfacePlacement{300, 200, true}));
+    t.publish(loom::to_value(gfx::SurfacePlacement{300, 200, true}));
     t.publish(loom::to_value(surface::SurfaceExtent{cells_px(200), cells_px(80), 0, 0}));
     REQUIRE(t.session().normal_w == cells_px(120));
     // The weaver unmaximizes: placement first, then the shrunken extent.
-    t.publish(loom::to_value(surface::SurfacePlacement{300, 200, false}));
+    t.publish(loom::to_value(gfx::SurfacePlacement{300, 200, false}));
     t.publish(loom::to_value(surface::SurfaceExtent{cells_px(130), cells_px(44), 0, 0}));
     CHECK(t.session().normal_w == cells_px(130));
     CHECK(t.session().normal_h == cells_px(44));
@@ -3324,10 +3324,10 @@ inline constexpr std::int64_t kHostilePlaceY = 53;  //  4 cells + 5 px
 inline constexpr std::int64_t kHostileWidth = 417;  // 34 cells + 9 px
 inline constexpr std::int64_t kHostileHeight = 233; // 19 cells + 5 px
 
-static_assert(kHostilePlaceX % surface::kCanvasCellPx != 0, "must not divide evenly");
-static_assert(kHostilePlaceY % surface::kCanvasCellPx != 0, "must not divide evenly");
-static_assert(kHostileWidth % surface::kCanvasCellPx != 0, "must not divide evenly");
-static_assert(kHostileHeight % surface::kCanvasCellPx != 0, "must not divide evenly");
+static_assert(kHostilePlaceX % gfx::kCellPx != 0, "must not divide evenly");
+static_assert(kHostilePlaceY % gfx::kCellPx != 0, "must not divide evenly");
+static_assert(kHostileWidth % gfx::kCellPx != 0, "must not divide evenly");
+static_assert(kHostileHeight % gfx::kCellPx != 0, "must not divide evenly");
 
 /// A desk holding exactly that, authored through the ordinary value doors.
 inline Setup hostile_desk() {
@@ -3384,7 +3384,7 @@ TEST_CASE("a read-only visit through the other medium writes the SAME BYTES") {
         // NOW THE SAME DESK ON THE SHIPPED WINDOW, at the same room -- so the ONLY thing
         // that changed about this run is which unit the weaver is reading in.
         t.publish(loom::to_value(
-            surface::SurfaceExtent{cells_px(140), cells_px(44), 8, 18, surface::kCanvasCellPx}));
+            surface::SurfaceExtent{cells_px(140), cells_px(44), 8, 18, gfx::kCellPx}));
         t.key(input::scan::kTab);
         for (int i = 0; i < 32 && t.session().arrange.pane != ref_of(stock::kKind); ++i) {
             t.key(input::scan::kTab);
@@ -3432,8 +3432,8 @@ TEST_CASE("the medium's device unit reaches no durable file") {
         t.host.session_path = path;
         t.publish(loom::to_value(surface::SurfaceReady{}));
         t.publish(loom::to_value(
-            surface::SurfaceExtent{cells_px(140), cells_px(44), 8, 18, surface::kCanvasCellPx}));
-        REQUIRE(t.session().cell_px == surface::kCanvasCellPx);
+            surface::SurfaceExtent{cells_px(140), cells_px(44), 8, 18, gfx::kCellPx}));
+        REQUIRE(t.session().cell_px == gfx::kCellPx);
         live(t).setup.active = hostile_desk();
         t.key(input::scan::kQ);
     }
@@ -3448,11 +3448,11 @@ TEST_CASE("the medium's device unit reaches no durable file") {
     // reading and leave a weaver on a window reading cells.
     Live t;
     t.host.session_path = path;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(200), cells_px(60), 8, 18, surface::kCanvasCellPx}));
-    REQUIRE(t.session().cell_px == surface::kCanvasCellPx);
+    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(200), cells_px(60), 8, 18, gfx::kCellPx}));
+    REQUIRE(t.session().cell_px == gfx::kCellPx);
     t.publish(loom::to_value(surface::SurfaceReady{}));
     CHECK(t.session().screen_w == cells_px(140));                      // the restore DID land...
-    CHECK(t.session().cell_px == surface::kCanvasCellPx);     // ...and cost nothing
+    CHECK(t.session().cell_px == gfx::kCellPx);     // ...and cost nothing
     CHECK(std::string(geometry_unit(t.session().cell_px)) == "px");
 }
 
@@ -3655,11 +3655,11 @@ TEST_CASE("crossing media never writes a device value into any layout") {
     // round on its way through.
     REQUIRE(add_pane(live(t).setup.active, ref_of(second::kKind)));
     REQUIRE(author_pane_place(live(t).setup.active, ref_of(second::kKind),
-                              surface::px_of_cells(3) + 17, surface::px_of_cells(4) + 5)
+                              gfx::px_of_cells(3) + 17, gfx::px_of_cells(4) + 5)
                 .accepted);
     REQUIRE(author_pane_size(live(t).setup.active, ref_of(second::kKind),
-                             PaneSize{pane_unit::kPixels, surface::px_of_cells(20) + 11},
-                             PaneSize{pane_unit::kPixels, surface::px_of_cells(9) + 23})
+                             PaneSize{pane_unit::kPixels, gfx::px_of_cells(20) + 11},
+                             PaneSize{pane_unit::kPixels, gfx::px_of_cells(9) + 23})
                 .accepted);
     live(t).setup.active.name = "Fine";
     const Setup fine = t.session().setup.active;
@@ -3668,7 +3668,7 @@ TEST_CASE("crossing media never writes a device value into any layout") {
     live(t).setup.active.name = "Whole";
     REQUIRE(add_pane(live(t).setup.active, ref_of(second::kKind)));
     REQUIRE(author_pane_place(live(t).setup.active, ref_of(second::kKind),
-                              surface::px_of_cells(6), surface::px_of_cells(2))
+                              gfx::px_of_cells(6), gfx::px_of_cells(2))
                 .accepted);
     const Setup whole = t.session().setup.active;
     REQUIRE(fine != whole);
@@ -5796,7 +5796,7 @@ TEST_CASE("the legacy road converts too, because the browser is older than it") 
     // ...AND THE UNIT TRANSLATION THAT ROAD EXISTS FOR STILL HAPPENED. The two conversions
     // are independent and both are owed.
     CHECK(read.setup.panes[0].place.mode == pane_unit::kPixels);
-    CHECK(read.setup.panes[0].width.amount == surface::px_of_cells(28));
+    CHECK(read.setup.panes[0].width.amount == gfx::px_of_cells(28));
 }
 
 TEST_CASE("a file naming BOTH spellings is refused for naming one pane twice") {

@@ -21,7 +21,7 @@ PaneInside pane_inside_at(const PixelRect& outer, const Screen& sc,
     if (p.rect.w <= 0 || p.rect.h <= 0) {
         return p;
     }
-    p.fit = surface::fit_region(p.rect.x, p.rect.y, p.rect.w, p.rect.h,
+    p.fit = fit_region(p.rect.x, p.rect.y, p.rect.w, p.rect.h,
                                      sc.text_advance_px, sc.text_line_px);
     return p;
 }
@@ -150,12 +150,12 @@ PointedAt canvas_point_of(std::int64_t space, std::int64_t x, std::int64_t y,
     if (space == input::space::kCells) {
         return PointedAt{true, surface::canvas_of_terminal_cells(x, y, rows_above),
                          surface::canvas_px_of_terminal_cells(x, y, rows_above),
-                         surface::kCellGrainPx};
+                         graphics::kCellGrainPx};
     }
     if (space == input::space::kPixels) {
         return PointedAt{true, surface::canvas_of_window_pixels(x, y),
                          surface::canvas_px_of_window_pixels(x, y),
-                         surface::kPixelGrainPx};
+                         graphics::kPixelGrainPx};
     }
     return PointedAt{};
 }
@@ -191,9 +191,9 @@ Occupancy occupied_at(const Panes& panes, const Setup& setup, const Screen& sc,
                       std::int64_t cx, std::int64_t cy) {
     return occupied_at(panes, setup, sc,
                        PointedAt{true, surface::CanvasPoint{cx, cy},
-                                 surface::CanvasPoint{surface::px_of_cells(cx),
-                                                      surface::px_of_cells(cy)},
-                                 surface::kCellGrainPx});
+                                 surface::CanvasPoint{graphics::px_of_cells(cx),
+                                                      graphics::px_of_cells(cy)},
+                                 graphics::kCellGrainPx});
 }
 
 } // namespace zengine::workshop

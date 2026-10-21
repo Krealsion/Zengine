@@ -33,6 +33,7 @@
 #include "component/list_window.hpp"
 #include "component/row_map.hpp"
 #include "component/text_box.hpp"
+#include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 
@@ -60,6 +61,7 @@ namespace {
 namespace component = zengine::component;
 namespace input = zengine::input;
 namespace surface = zengine::surface;
+namespace gfx = zengine::graphics;
 namespace ws = zengine::workshop;
 namespace files = zengine::files;
 namespace pane_menu = zengine::workshop::pane_menu;
@@ -209,12 +211,12 @@ class FilesWeave
     : public zengine::With<Rows, Asks, Actions, Menu>::Weave<
           FilesWeave, files::FilesState,
           loom::Accept<PaneKey, PaneTextInput, ProjectRoot, RecipeOutcome, SourceOpened,
-                       zengine::builder::BuildStatus, surface::ClipboardCopy,
-                       surface::ClipboardText, ws::v2::PaneSettings>,
+                       zengine::builder::BuildStatus, gfx::ClipboardCopy,
+                       gfx::ClipboardText, ws::v2::PaneSettings>,
           loom::Emit<ProjectRootRequested, RecipeUseRequested, RecipeAuthorRequested,
                      OpenSourceRequested, zengine::builder::StatusRequested,
-                     ws::PaneKeyboardRequested, ws::PaneEscapeUnspent, surface::ClipboardCopy,
-                     surface::ClipboardTextRequested, ws::v2::PaneSettingsDeclared,
+                     ws::PaneKeyboardRequested, ws::PaneEscapeUnspent, gfx::ClipboardCopy,
+                     gfx::ClipboardTextRequested, ws::v2::PaneSettingsDeclared,
                      ws::PaneSettingUnused>> {
 public:
     PaneOffered offering() const {
@@ -396,7 +398,7 @@ public:
         }
         notice_.clear();
         if (clip_.writes != copied_before) {
-            mail.publish(surface::ClipboardCopy{clip_.text});
+            mail.publish(gfx::ClipboardCopy{clip_.text});
         }
         if (clip_.paste_requests != pastes_before) {
             begin_paste(mail);
@@ -906,13 +908,13 @@ public:
         say(mail);
     }
 
-    void on(const surface::ClipboardCopy& said, loom::Mail&) {
+    void on(const gfx::ClipboardCopy& said, loom::Mail&) {
         if (admissible(said.text)) {
             clip_.text = said.text;
         }
     }
 
-    void on(const surface::ClipboardText& a, loom::Mail& mail) {
+    void on(const gfx::ClipboardText& a, loom::Mail& mail) {
         if (!mail.answers_ask()) {
             return;
         }
@@ -1327,8 +1329,8 @@ private:
     void begin_paste(loom::Mail& mail) {
         const std::string office = room().clipboard_office();
         const loom::AskOpened opened = clip_asks_.open_to_role(
-            office, surface::ClipboardTextRequested::zen_name,
-            surface::ClipboardTextRequested::zen_version);
+            office, gfx::ClipboardTextRequested::zen_name,
+            gfx::ClipboardTextRequested::zen_version);
         if (!opened) {
             return;
         }
@@ -1336,7 +1338,7 @@ private:
         paste_epoch_ = authoring_.line.draft_epoch();
         pasting_ = true;
         (void)mail.as_role(files::kFilesRole)
-            .send_to_role(office, surface::ClipboardTextRequested{}, opened.correlation);
+            .send_to_role(office, gfx::ClipboardTextRequested{}, opened.correlation);
     }
 
     // ---- Saying what the pane shows -----------------------------------------------------
@@ -1378,7 +1380,7 @@ private:
         // last act. A one-row room keeps its header instead, which is the pane's identity and
         // where it is standing; there is nothing useful to say in one row twice.
         if (!notice_.empty() && rows() > 1) {
-            push_row(notice_, surface::role::kAccent);
+            push_row(notice_, gfx::role::kAccent);
         }
         if (chooser_.open) {
             say_chooser();

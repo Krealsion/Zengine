@@ -10,10 +10,12 @@
 // type are decided here, and plumbing is all the edge can get wrong.
 // Surface law: agents/surface.md
 
-#include "cells.hpp"
+#include "graphics/pixels.hpp"
+#include "graphics/vocabulary.hpp"
 #include "region.hpp"
 #include "skin_sdl_glyphs.hpp"
 #include "vocabulary.hpp"
+#include "workshop/pane_text_fit.hpp"
 
 #include <cstdint>
 #include <limits>
@@ -60,12 +62,12 @@ inline constexpr PlanInk kCanvasBackground{18, 18, 24};
 
 inline constexpr PlanInk ink_for_role(std::int64_t role) noexcept {
     switch (role) {
-    case role::kAccent: return PlanInk{112, 232, 240};
-    case role::kMuted: return PlanInk{96, 96, 108};
-    case role::kAlert: return PlanInk{232, 72, 72};
-    case role::kGround: return PlanInk{0, 0, 0};
-    case role::kMediumGround: return kCanvasBackground;
-    case role::kGuide: return PlanInk{236, 120, 236};
+    case graphics::role::kAccent: return PlanInk{112, 232, 240};
+    case graphics::role::kMuted: return PlanInk{96, 96, 108};
+    case graphics::role::kAlert: return PlanInk{232, 72, 72};
+    case graphics::role::kGround: return PlanInk{0, 0, 0};
+    case graphics::role::kMediumGround: return kCanvasBackground;
+    case graphics::role::kGuide: return PlanInk{236, 120, 236};
     default: return PlanInk{176, 176, 188};
     }
 }
@@ -73,7 +75,7 @@ inline constexpr PlanInk ink_for_role(std::int64_t role) noexcept {
 /// The ink text is drawn in: its role's, except the medium's ground, which is no ink and draws
 /// as `kFill`, as it does where a terminal has no ink of its own background to give it.
 inline constexpr PlanInk text_ink_for_role(std::int64_t role) noexcept {
-    return ink_for_role(role == role::kMediumGround ? role::kFill : role);
+    return ink_for_role(role == graphics::role::kMediumGround ? graphics::role::kFill : role);
 }
 
 /// The band under selected text, this medium's answer to the terminal's reverse video: the
@@ -85,10 +87,10 @@ inline constexpr PlanInk kSelectionBand{40, 64, 112};
 /// One glyph pixel, in device pixels. Chosen so a glyph fills a canvas cell
 /// exactly: no resampling, no partial cells, and a label's Nth character sits in
 /// the canvas cell the publisher named and nowhere else.
-inline constexpr std::int64_t kGlyphScale = kCanvasCellPx / kGlyphCols;
-static_assert(kCanvasCellPx % kGlyphCols == 0,
+inline constexpr std::int64_t kGlyphScale = graphics::kCellPx / kGlyphCols;
+static_assert(graphics::kCellPx % kGlyphCols == 0,
               "a canvas cell must be a whole number of glyph pixels wide");
-static_assert(kCanvasCellPx % kGlyphRows == 0,
+static_assert(graphics::kCellPx % kGlyphRows == 0,
               "a canvas cell must be a whole number of glyph pixels tall");
 
 /// The canvas extent this plan will actually work in, in canvas pixels: what was published,
@@ -132,8 +134,8 @@ inline std::vector<PlanRect> plan_layer_quads(const SurfaceLayer& layer, std::in
                                          std::int64_t ph, PlanInk ink) {
         const std::int64_t x0 = x > 0 ? x : 0;
         const std::int64_t y0 = y > 0 ? y : 0;
-        const std::int64_t x1 = add_cells(x, pw) < w_px ? add_cells(x, pw) : w_px;
-        const std::int64_t y1 = add_cells(y, ph) < h_px ? add_cells(y, ph) : h_px;
+        const std::int64_t x1 = graphics::add_cells(x, pw) < w_px ? graphics::add_cells(x, pw) : w_px;
+        const std::int64_t y1 = graphics::add_cells(y, ph) < h_px ? graphics::add_cells(y, ph) : h_px;
         if (x1 <= x0 || y1 <= y0) {
             return;
         }
@@ -166,7 +168,7 @@ inline std::vector<PlanRect> plan_layer_quads(const SurfaceLayer& layer, std::in
                                 std::int64_t sel_end, std::int64_t caret) {
         // The anchor is a canvas pixel, and every byte advances a whole cell from it.
         const std::int64_t label_y = l.y;
-        if (add_cells(label_y, kCanvasCellPx) <= 0 || label_y >= h_px) {
+        if (graphics::add_cells(label_y, graphics::kCellPx) <= 0 || label_y >= h_px) {
             return; // no pixel row of this canvas belongs to it
         }
         const PlanInk ink = text_ink_for_role(l.role);
@@ -175,8 +177,8 @@ inline std::vector<PlanRect> plan_layer_quads(const SurfaceLayer& layer, std::in
         const std::int64_t label_x = l.x;
         for (std::size_t i = 0; i < l.text.size(); ++i) {
             const std::int64_t cell_x =
-                add_cells(label_x, static_cast<std::int64_t>(i) * kCanvasCellPx);
-            if (add_cells(cell_x, kCanvasCellPx) <= 0) {
+                graphics::add_cells(label_x, static_cast<std::int64_t>(i) * graphics::kCellPx);
+            if (graphics::add_cells(cell_x, graphics::kCellPx) <= 0) {
                 continue; // before the canvas starts; a later character may land
             }
             if (cell_x >= w_px) {
@@ -187,12 +189,12 @@ inline std::vector<PlanRect> plan_layer_quads(const SurfaceLayer& layer, std::in
                 static_cast<std::int64_t>(i) >= sel_begin && static_cast<std::int64_t>(i) < sel_end;
             PlanInk glyph_ink = ink;
             if (static_cast<std::int64_t>(i) == caret) {
-                quad(cell_x, cell_y, kCanvasCellPx, kCanvasCellPx, ink);
+                quad(cell_x, cell_y, graphics::kCellPx, graphics::kCellPx, ink);
                 glyph_ink = in_selection ? kSelectionBand : under;
             } else if (in_selection) {
-                quad(cell_x, cell_y, kCanvasCellPx, kCanvasCellPx, kSelectionBand);
+                quad(cell_x, cell_y, graphics::kCellPx, graphics::kCellPx, kSelectionBand);
             } else if (takes_the_cell) {
-                quad(cell_x, cell_y, kCanvasCellPx, kCanvasCellPx, under);
+                quad(cell_x, cell_y, graphics::kCellPx, graphics::kCellPx, under);
             }
             const Glyph& g = glyph_of(static_cast<unsigned char>(l.text[i]));
             for (int gy = 0; gy < kGlyphRows; ++gy) {
@@ -215,7 +217,7 @@ inline std::vector<PlanRect> plan_layer_quads(const SurfaceLayer& layer, std::in
 
     for (const SurfaceLabel& l : layer.labels) {
         // A bare label always takes its cell and is never selected: selection is a region's.
-        draw_label(l, role::kNone, kGroundOwn, 0, 0, -1);
+        draw_label(l, graphics::role::kNone, kGroundOwn, 0, 0, -1);
     }
     for (const ProjectedRow& p : projected) {
         // Last IN THIS LAYER: a region is the topmost thing its own presentation draws.
@@ -275,7 +277,7 @@ struct PlanSelectionBand {
 /// whole viewport before any row, so a label of a panel beneath in the same plane cannot show
 /// through -- as the cell projection pads each row to the region's width.
 struct PlanTextRegion {
-    RegionViewport view{};
+    workshop::RegionViewport view{};
     std::int64_t origin_x = 0;
     std::int64_t origin_y = 0;
     std::int64_t line_px = 0;
@@ -297,7 +299,7 @@ struct PlanTextRegion {
 /// come off the `RegionFit`, so the caret is placed by the numbers that drew the text. A caret
 /// at column `columns`, after the last character a row shows, is legitimate: the inset leaves
 /// room for its `kCaretWidthPx` bar inside the viewport.
-inline constexpr PlanCaret plan_caret(const RegionFit& fit, std::int64_t local_origin_x,
+inline constexpr PlanCaret plan_caret(const workshop::RegionFit& fit, std::int64_t local_origin_x,
                                       std::int64_t local_origin_y, std::int64_t caret_row,
                                       std::int64_t caret_col, PlanInk ink) noexcept {
     PlanCaret c;
@@ -305,8 +307,8 @@ inline constexpr PlanCaret plan_caret(const RegionFit& fit, std::int64_t local_o
         return c; // no caret, or one this region's prose does not have room for
     }
     c.present = true;
-    c.x = add_cells(local_origin_x, mul_px(caret_col, fit.advance_px));
-    c.y = add_cells(local_origin_y, mul_px(caret_row, fit.line_px));
+    c.x = graphics::add_cells(local_origin_x, graphics::mul_px(caret_col, fit.advance_px));
+    c.y = graphics::add_cells(local_origin_y, graphics::mul_px(caret_row, fit.line_px));
     c.w = kCaretWidthPx;
     c.h = fit.line_px;
     c.ink = ink;
@@ -325,8 +327,8 @@ inline std::vector<PlanTextRegion> plan_layer_regions(const SurfaceLayer& layer,
         return out; // text is a cell here: plan_layer_quads drew them
     }
     for (const SurfaceTextRegion& r : layer.texts) {
-        const RegionFit fit = fit_region(r, metric);
-        const RegionViewport clipped = clip_viewport(fit.view, surface.w, surface.h);
+        const workshop::RegionFit fit = fit_region(r, metric);
+        const workshop::RegionViewport clipped = clip_viewport(fit.view, surface.w, surface.h);
         if (clipped.empty() || fit.columns <= 0 || fit.rows <= 0 || !fit.graphical()) {
             // Off the surface, nothing fits, or its bounds hold no row of the face and
             // `plan_layer_quads` drew it as cells; `graphical()` keeps the two lists disjoint.
@@ -334,8 +336,8 @@ inline std::vector<PlanTextRegion> plan_layer_regions(const SurfaceLayer& layer,
         }
         PlanTextRegion p;
         p.view = clipped;
-        p.origin_x = sub_px(add_cells(fit.view.x, fit.origin_x), clipped.x);
-        p.origin_y = sub_px(add_cells(fit.view.y, fit.origin_y), clipped.y);
+        p.origin_x = graphics::sub_px(graphics::add_cells(fit.view.x, fit.origin_x), clipped.x);
+        p.origin_y = graphics::sub_px(graphics::add_cells(fit.view.y, fit.origin_y), clipped.y);
         p.line_px = fit.line_px;
         // Whose rectangle this is, carried through as the publisher answered it.
         p.ground = r.ground == kGroundBeneath ? kGroundBeneath : kGroundOwn;
@@ -353,13 +355,13 @@ inline std::vector<PlanTextRegion> plan_layer_regions(const SurfaceLayer& layer,
             }
             // The row's selected span over the cut text, placed through the fit that placed
             // the row, so the band and the glyphs are one picture.
-            const RowSpan span = selection_span_of_row(r, static_cast<std::int64_t>(i),
+            const workshop::RowSpan span = workshop::selection_span_of_row(r, static_cast<std::int64_t>(i),
                                                        static_cast<std::int64_t>(text.size()));
             if (span.present()) {
                 p.selection.push_back(PlanSelectionBand{
-                    add_cells(p.origin_x, mul_px(span.begin, fit.advance_px)),
-                    add_cells(p.origin_y, mul_px(static_cast<std::int64_t>(i), fit.line_px)),
-                    mul_px(span.end - span.begin, fit.advance_px), fit.line_px});
+                    graphics::add_cells(p.origin_x, graphics::mul_px(span.begin, fit.advance_px)),
+                    graphics::add_cells(p.origin_y, graphics::mul_px(static_cast<std::int64_t>(i), fit.line_px)),
+                    graphics::mul_px(span.end - span.begin, fit.advance_px), fit.line_px});
             }
             const std::int64_t ground = r.rows[i].background;
             p.rows.push_back(PlanTextRow{std::move(text), text_ink_for_role(r.rows[i].role),
@@ -371,7 +373,7 @@ inline std::vector<PlanTextRegion> plan_layer_regions(const SurfaceLayer& layer,
         const PlanInk caret_ink =
             (r.caret_row >= 0 && static_cast<std::size_t>(r.caret_row) < p.rows.size())
                 ? p.rows[static_cast<std::size_t>(r.caret_row)].ink
-                : ink_for_role(role::kFill);
+                : ink_for_role(graphics::role::kFill);
         p.caret = plan_caret(fit, p.origin_x, p.origin_y, r.caret_row, r.caret_col, caret_ink);
         out.push_back(std::move(p));
     }
@@ -419,22 +421,22 @@ inline SurfaceLayer attention_chip_layer(const std::string& text, std::int64_t c
         return layer; // NOTHING TO SAY, AND NOTHING DRAWN -- empty is the retraction
     }
     const std::int64_t advance =
-        metric.text_advance_px > 0 ? metric.text_advance_px : kCanvasCellPx;
-    const std::int64_t line = metric.text_line_px > 0 ? metric.text_line_px : kCanvasCellPx;
+        metric.text_advance_px > 0 ? metric.text_advance_px : graphics::kCellPx;
+    const std::int64_t line = metric.text_line_px > 0 ? metric.text_line_px : graphics::kCellPx;
     const std::int64_t want_w =
-        add_cells(mul_px(static_cast<std::int64_t>(text.size()), advance), 2 * kTextInsetPx);
-    const std::int64_t cells_w = want_w / kCanvasCellPx + (want_w % kCanvasCellPx != 0 ? 1 : 0);
-    const std::int64_t want_h = add_cells(line, 2 * kTextInsetPx);
-    const std::int64_t cells_h = want_h / kCanvasCellPx + (want_h % kCanvasCellPx != 0 ? 1 : 0);
+        graphics::add_cells(graphics::mul_px(static_cast<std::int64_t>(text.size()), advance), 2 * workshop::kTextInsetPx);
+    const std::int64_t cells_w = want_w / graphics::kCellPx + (want_w % graphics::kCellPx != 0 ? 1 : 0);
+    const std::int64_t want_h = graphics::add_cells(line, 2 * workshop::kTextInsetPx);
+    const std::int64_t cells_h = want_h / graphics::kCellPx + (want_h % graphics::kCellPx != 0 ? 1 : 0);
     SurfaceTextRegion region;
-    const std::int64_t box_w = px_of_cells(cells_w);
+    const std::int64_t box_w = graphics::px_of_cells(cells_w);
     region.w = box_w < canvas_w ? box_w : canvas_w;
-    region.h = px_of_cells(cells_h);
+    region.h = graphics::px_of_cells(cells_h);
     region.x = canvas_w - region.w;
     region.y = 0;
     // The row names its own ground: the region clears to the canvas ground and the row paints
     // its strip over it, so the chip reads as a box with a hairline around it, not a slab.
-    region.rows.push_back(SurfaceTextRow{text, role::kFill, role::kAlert});
+    region.rows.push_back(SurfaceTextRow{text, graphics::role::kFill, graphics::role::kAlert});
     layer.texts.push_back(std::move(region));
     return layer;
 }

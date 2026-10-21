@@ -421,8 +421,8 @@ TEST_CASE("portable slots: one batched drag moves into a row and a forged transf
     InventoryStory s(191,true); s.append(1,"A"); const auto a=s.entry("A").reference;
     const auto row=s.create("row"); const auto kind=s.r.session().panes.runtime.find(slots::kRole,row)->kind;
     for(auto& p:s.r.session().setup.active.panes) if(p.ref.pane==row) {
-        p.place={pane_unit::kPixels,2*surface::kCanvasCellPx,34*surface::kCanvasCellPx};
-        p.width={pane_unit::kPixels,72*surface::kCanvasCellPx}; p.height={pane_unit::kPixels,10*surface::kCanvasCellPx};
+        p.place={pane_unit::kPixels,2*gfx::kCellPx,34*gfx::kCellPx};
+        p.width={pane_unit::kPixels,72*gfx::kCellPx}; p.height={pane_unit::kPixels,10*gfx::kCellPx};
     }
     s.r.extent(179,60); s.r.extent(180,60); // a same-size extent reseats nothing: the view is placed now
     auto press=s.button_at(s.source,2,true),release=s.button_at(kind,1,false),move=release;
@@ -736,9 +736,9 @@ TEST_CASE("Compose drops are data and submission spends the input actor's exact 
         r.pick(composer_ref());
         const auto compose_kind = r.session().panes.runtime.find(kComposerOffice, "compose")->kind;
         for (auto& p : r.session().setup.active.panes) if (p.ref.provider == kComposerOffice) {
-            p.place = {pane_unit::kPixels, 85*surface::kCanvasCellPx, 4*surface::kCanvasCellPx};
-            p.width = {pane_unit::kPixels, 80*surface::kCanvasCellPx};
-            p.height = {pane_unit::kPixels, 24*surface::kCanvasCellPx};
+            p.place = {pane_unit::kPixels, 85*gfx::kCellPx, 4*gfx::kCellPx};
+            p.width = {pane_unit::kPixels, 80*gfx::kCellPx};
+            p.height = {pane_unit::kPixels, 24*gfx::kCellPx};
         }
         r.extent(180, 60);
         // The picture Compose drew before it had a target: a drop aimed at it is stale once the
@@ -806,9 +806,9 @@ static std::int64_t compose_on_canvas_for_inventory(InventoryStory& s) {
     r.pick(composer_ref());
     const auto compose_kind = r.session().panes.runtime.find(kComposerOffice, "compose")->kind;
     for (auto& p : r.session().setup.active.panes) if (p.ref.provider == kComposerOffice) {
-        p.place = {pane_unit::kPixels, 85*surface::kCanvasCellPx, 4*surface::kCanvasCellPx};
-        p.width = {pane_unit::kPixels, 80*surface::kCanvasCellPx};
-        p.height = {pane_unit::kPixels, 24*surface::kCanvasCellPx};
+        p.place = {pane_unit::kPixels, 85*gfx::kCellPx, 4*gfx::kCellPx};
+        p.width = {pane_unit::kPixels, 80*gfx::kCellPx};
+        p.height = {pane_unit::kPixels, 24*gfx::kCellPx};
     }
     r.extent(180, 60);
     auto selector = std::make_unique<InventoryHand>(); auto* raw = selector.get();
@@ -840,9 +840,9 @@ TEST_CASE("portable slots: an entry's transfer placed on a picture its view drew
     const auto row = s.create("row");
     const auto kind = s.r.session().panes.runtime.find(slots::kRole, row)->kind;
     for (auto& p : s.r.session().setup.active.panes) if (p.ref.pane == row) {
-        p.place = {pane_unit::kPixels, 2 * surface::kCanvasCellPx, 34 * surface::kCanvasCellPx};
-        p.width = {pane_unit::kPixels, 72 * surface::kCanvasCellPx};
-        p.height = {pane_unit::kPixels, 10 * surface::kCanvasCellPx};
+        p.place = {pane_unit::kPixels, 2 * gfx::kCellPx, 34 * gfx::kCellPx};
+        p.width = {pane_unit::kPixels, 72 * gfx::kCellPx};
+        p.height = {pane_unit::kPixels, 10 * gfx::kCellPx};
     }
     s.r.extent(179, 60); s.r.extent(180, 60); // a same-size extent reseats nothing: the view is placed now
     // The row view's picture while it holds nothing, then B moved into it: other rows, another
@@ -935,9 +935,9 @@ TEST_CASE("a drop whose pane leaves before it is delivered is said not delivered
         s.r.pick({"zengine.terminal", "terminal"});
         const auto kind = s.r.session().panes.runtime.find("zengine.terminal", "terminal")->kind;
         for (auto& p : s.r.session().setup.active.panes) if (p.ref.provider == "zengine.terminal") {
-            p.place = {pane_unit::kPixels, 2 * surface::kCanvasCellPx, 31 * surface::kCanvasCellPx};
-            p.width = {pane_unit::kPixels, 80 * surface::kCanvasCellPx};
-            p.height = {pane_unit::kPixels, 24 * surface::kCanvasCellPx};
+            p.place = {pane_unit::kPixels, 2 * gfx::kCellPx, 31 * gfx::kCellPx};
+            p.width = {pane_unit::kPixels, 80 * gfx::kCellPx};
+            p.height = {pane_unit::kPixels, 24 * gfx::kCellPx};
         }
         s.r.bus.send(terminal->id(), loom::Message(loom::to_value(loom::Ack{})));
         s.r.extent(181, 60);
@@ -999,7 +999,7 @@ TEST_CASE("a reference placed on the mark a refused picture wears is not placed 
     REQUIRE(info.canvas.heard);
     v5::PaneCanvasContent refused = fifth_picture(info.canvas.content);
     refused.picture = info.picture + 1;
-    refused.labels.push_back(PaneCanvasLabel{0, 0, "caf\xC3\xA9", surface::role::kFill});
+    refused.labels.push_back(PaneCanvasLabel{0, 0, "caf\xC3\xA9", gfx::role::kFill});
     const loom::WeaveId holder = s.r.bus.role_holder("zengine.info");
     REQUIRE(s.r.bus.office_send_to_role_as(holder, "zengine.info", kWorkshopProvider,
         loom::Message(loom::to_value(refused), holder, holder, 0)).valid());
@@ -1171,7 +1171,7 @@ TEST_CASE("the wheel walks Inventory's selection a notch at a time on its canvas
     const ExternalPane old = *s.r.session().panes.external_pane(s.source);
     for (auto& p : s.r.session().setup.active.panes)
         if (p.ref.provider == slots::kRole && p.ref.pane == "inventory")
-            p.width = {pane_unit::kPixels, 78 * surface::kCanvasCellPx};
+            p.width = {pane_unit::kPixels, 78 * gfx::kCellPx};
     s.r.extent(179, 60); s.r.extent(180, 60); // a room of another width: a new grant
     REQUIRE(s.r.session().panes.external_pane(s.source)->canvas.grant != old.canvas.grant);
     s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider, slots::kRole,
@@ -1189,7 +1189,7 @@ TEST_CASE("Inventory sends a view's picture again after Workshop refuses one dra
     REQUIRE(shows_canvas(old));
     for (auto& p : s.r.session().setup.active.panes)
         if (p.ref.provider == slots::kRole && p.ref.pane == "inventory")
-            p.width = {pane_unit::kPixels, 78 * surface::kCanvasCellPx};
+            p.width = {pane_unit::kPixels, 78 * gfx::kCellPx};
     s.r.extent(179, 60); s.r.extent(180, 60); // a room of another width: a new grant, drawn in
     const ExternalPane now = *s.r.session().panes.external_pane(s.source);
     REQUIRE(now.canvas.grant != old.canvas.grant);
@@ -1266,7 +1266,7 @@ TEST_CASE("pane view reports the words the pane draws, each where a press names 
     CHECK(s.hand->refusals.back().find("covered") != std::string::npos);
     s.r.session().context.open = false;
     for (auto& p : s.r.session().setup.active.panes) if (p.ref.provider == "zengine.inventory-pane")
-        p.place.y = 55 * surface::kCanvasCellPx;
+        p.place.y = 55 * gfx::kCellPx;
     s.r.extent(180, 60);
     query();
     REQUIRE(s.hand->refusals.size() == 2);
@@ -1283,9 +1283,9 @@ TEST_CASE("presets are independent partial data until filled and explicitly auth
         REQUIRE(r.session().keymap.app_row_of_id("desktop.deselect") != nullptr);
         REQUIRE(r.session().keymap.app_row_of_id("desktop.panes") != nullptr);
         for (auto& p : r.session().setup.active.panes) if (p.ref.provider == kComposerOffice) {
-            p.place = {pane_unit::kPixels, 85*surface::kCanvasCellPx, 32*surface::kCanvasCellPx};
-            p.width = {pane_unit::kPixels, 80*surface::kCanvasCellPx};
-            p.height = {pane_unit::kPixels, 24*surface::kCanvasCellPx};
+            p.place = {pane_unit::kPixels, 85*gfx::kCellPx, 32*gfx::kCellPx};
+            p.width = {pane_unit::kPixels, 80*gfx::kCellPx};
+            p.height = {pane_unit::kPixels, 24*gfx::kCellPx};
         }
         r.extent(180, 60);
         auto selector = std::make_unique<InventoryHand>(); auto* raw = selector.get();
@@ -1392,9 +1392,9 @@ TEST_CASE("terminal capture: primary drag stores exact authored content and name
     s.r.pick({"zengine.terminal", "terminal"});
     const auto kind = s.r.session().panes.runtime.find("zengine.terminal", "terminal")->kind;
     for (auto& p : s.r.session().setup.active.panes) if (p.ref.provider == "zengine.terminal") {
-        p.place = {pane_unit::kPixels, 2 * surface::kCanvasCellPx, 31 * surface::kCanvasCellPx};
-        p.width = {pane_unit::kPixels, 80 * surface::kCanvasCellPx};
-        p.height = {pane_unit::kPixels, 24 * surface::kCanvasCellPx};
+        p.place = {pane_unit::kPixels, 2 * gfx::kCellPx, 31 * gfx::kCellPx};
+        p.width = {pane_unit::kPixels, 80 * gfx::kCellPx};
+        p.height = {pane_unit::kPixels, 24 * gfx::kCellPx};
     }
     const auto sent = terminal->send(loom::Address::to_role("zengine.skin"),
         surface::SurfaceText::zen_name, 1, {{std::string("slot"), loom::FieldValue{std::string("score")}}, {std::string("text"), loom::FieldValue{std::string("captured original")}}});
@@ -1445,8 +1445,8 @@ TEST_CASE("terminal capture: retrieval and Inventory storage need separate curre
         REQUIRE(s.r.run_plan(plan).ok); s.r.pick({"zengine.terminal","terminal"});
         const auto kind=s.r.session().panes.runtime.find("zengine.terminal","terminal")->kind;
         for(auto& p:s.r.session().setup.active.panes) if(p.ref.provider=="zengine.terminal") {
-            p.place={pane_unit::kPixels,2*surface::kCanvasCellPx,31*surface::kCanvasCellPx};
-            p.width={pane_unit::kPixels,80*surface::kCanvasCellPx}; p.height={pane_unit::kPixels,24*surface::kCanvasCellPx};
+            p.place={pane_unit::kPixels,2*gfx::kCellPx,31*gfx::kCellPx};
+            p.width={pane_unit::kPixels,80*gfx::kCellPx}; p.height={pane_unit::kPixels,24*gfx::kCellPx};
         }
         s.r.bus.send(terminal->id(),loom::Message(loom::to_value(loom::Ack{})));
         s.r.extent(181,60);
@@ -1472,9 +1472,9 @@ TEST_CASE("terminal capture: wrapped rows and context pickup preserve identity w
     s.r.pick({"zengine.terminal", "terminal"});
     const auto kind = s.r.session().panes.runtime.find("zengine.terminal", "terminal")->kind;
     for (auto& pane : s.r.session().setup.active.panes) if (pane.ref.provider == "zengine.terminal") {
-        pane.place = {pane_unit::kPixels, 2 * surface::kCanvasCellPx, 31 * surface::kCanvasCellPx};
-        pane.width = {pane_unit::kPixels, 24 * surface::kCanvasCellPx};
-        pane.height = {pane_unit::kPixels, 26 * surface::kCanvasCellPx};
+        pane.place = {pane_unit::kPixels, 2 * gfx::kCellPx, 31 * gfx::kCellPx};
+        pane.width = {pane_unit::kPixels, 24 * gfx::kCellPx};
+        pane.height = {pane_unit::kPixels, 26 * gfx::kCellPx};
     }
     REQUIRE(terminal->send(loom::Address::to_role(surface::kSkinRole), surface::SurfaceText::zen_name, 1,
         {{"slot", loom::FieldValue{std::string("score")}}, {"text", loom::FieldValue{std::string("wrapped")}}}));
@@ -1613,7 +1613,7 @@ TEST_CASE("a value released on the mark a refused picture wears is not placed th
     REQUIRE(flow.canvas.heard);
     v5::PaneCanvasContent refused = fifth_picture(flow.canvas.content);
     refused.picture = flow.picture + 1;
-    refused.labels.push_back(PaneCanvasLabel{0, 0, "caf\xC3\xA9", surface::role::kFill});
+    refused.labels.push_back(PaneCanvasLabel{0, 0, "caf\xC3\xA9", gfx::role::kFill});
     const auto* row = s.r.session().panes.runtime.of_kind(s.flow);
     REQUIRE(row != nullptr);
     const loom::WeaveId holder = s.r.bus.role_holder(row->provider);
@@ -1724,8 +1724,8 @@ void press_text(InventoryStory& s, std::int64_t kind, const std::string& start, 
         if (t.text.rfind(start, 0) == 0) {
             input::InjectedEvent e;
             e.kind = "PointerButton"; e.button = button; e.pressed = true; e.space = input::space::kCells;
-            e.x = (c.x + t.x) / surface::kCanvasCellPx + 1;
-            e.y = (c.y + t.y) / surface::kCanvasCellPx + surface::kTuiCanvasTopRow;
+            e.x = (c.x + t.x) / gfx::kCellPx + 1;
+            e.y = (c.y + t.y) / gfx::kCellPx + surface::kTuiCanvasTopRow;
             s.event(e);
             e.pressed = false;
             s.event(e);
@@ -1758,8 +1758,8 @@ input::InjectedEvent at_text(InventoryStory& s, std::int64_t kind, const std::st
     e.kind = what; e.button = 1; e.space = input::space::kCells;
     for (const auto& t : c.content.texts)
         if (t.text.rfind(start, 0) == 0) {
-            e.x = (c.x + t.x) / surface::kCanvasCellPx + 1;
-            e.y = (c.y + t.y) / surface::kCanvasCellPx + surface::kTuiCanvasTopRow;
+            e.x = (c.x + t.x) / gfx::kCellPx + 1;
+            e.y = (c.y + t.y) / gfx::kCellPx + surface::kTuiCanvasTopRow;
             return e;
         }
     std::string all;
@@ -1774,14 +1774,14 @@ input::InjectedEvent at_local(InventoryStory& s, std::int64_t kind, std::int64_t
     REQUIRE(pane != nullptr);
     input::InjectedEvent e;
     e.kind = what; e.button = 1; e.space = input::space::kCells;
-    e.x = (pane->canvas.x + x) / surface::kCanvasCellPx;
-    e.y = (pane->canvas.y + y) / surface::kCanvasCellPx + surface::kTuiCanvasTopRow;
+    e.x = (pane->canvas.x + x) / gfx::kCellPx;
+    e.y = (pane->canvas.y + y) / gfx::kCellPx + surface::kTuiCanvasTopRow;
     return e;
 }
 /// The View Builder's design area, read off its picture: the ground the view's own picture brought.
 zengine::view_builder::Area design_of(InventoryStory& s) {
     for (const auto& r : s.r.session().panes.external_pane(s.builder)->canvas.content.rects)
-        if (r.role == surface::role::kGround && (r.x != 0 || r.y != 0)) return {r.x, r.y, r.w, r.h};
+        if (r.role == gfx::role::kGround && (r.x != 0 || r.y != 0)) return {r.x, r.y, r.w, r.h};
     FAIL("the builder drew no design area");
     return {};
 }
@@ -1949,13 +1949,13 @@ TEST_CASE("shapes cross between Flow and the View Builder by dragging: the inten
     auto from = at_text(s, s.flow, "0 tally.Total");
     from.pressed = true;
     s.event(from);
-    auto over = at_local(s, s.builder, label.x + 2 * surface::kCanvasCellPx, label.y + surface::kCanvasCellPx / 2, "PointerMoved");
+    auto over = at_local(s, s.builder, label.x + 2 * gfx::kCellPx, label.y + gfx::kCellPx / 2, "PointerMoved");
     over.dx = over.x - from.x; over.dy = over.y - from.y;
     s.event(over);
     const auto landing = [&] {
         const auto& rects = s.r.session().panes.external_pane(s.builder)->canvas.content.rects;
         return std::any_of(rects.begin(), rects.end(), [&](const auto& r) {
-            return r.role == surface::role::kAccent && r.y == label.y + label.h && r.h == 2 * surface::kCanvasCellPx;
+            return r.role == gfx::role::kAccent && r.y == label.y + label.h && r.h == 2 * gfx::kCellPx;
         });
     };
     CHECK(landing());
@@ -2135,9 +2135,9 @@ TEST_CASE("views: every view Inventory makes is offered beside the other panes, 
         REQUIRE(add_pane(desk, ref));
         for (SetupPane& row : desk.panes) {
             if (row.ref == ref) {
-                row.place = {pane_unit::kPixels, x * surface::kCanvasCellPx, y * surface::kCanvasCellPx};
-                row.width = {pane_unit::kPixels, w * surface::kCanvasCellPx};
-                row.height = {pane_unit::kPixels, h * surface::kCanvasCellPx};
+                row.place = {pane_unit::kPixels, x * gfx::kCellPx, y * gfx::kCellPx};
+                row.width = {pane_unit::kPixels, w * gfx::kCellPx};
+                row.height = {pane_unit::kPixels, h * gfx::kCellPx};
             }
         }
     };

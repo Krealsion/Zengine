@@ -11,7 +11,7 @@ was declared and refused, and the screen's fixed parts were whole cells that hel
 the shipped face than they were sized for. The window's picture is the one a weaver sees whole;
 a terminal's is that picture floored to its cells.
 
-**Decision.** Workshop's unit is the whole canvas pixel, twelve to the cell (`kCanvasCellPx`).
+**Decision.** Workshop's unit is the whole canvas pixel, twelve to the cell (`kCellPx`).
 Everything Workshop lays out, resolves, hit-tests and says is whole pixels, as `PixelRect`; a cell
 value enters by one multiply (`pixels_of_cells`) and leaves only by `cells_covered`. The picture
 crosses to each Skin in pixels: the window draws it 1:1, a terminal floors every span by the one

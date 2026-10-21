@@ -13,7 +13,6 @@
 #include "panes.hpp"
 #include "session_persist.hpp"
 #include "setup_persist.hpp"
-#include "surface/region.hpp"
 
 #include <zen/schema.hpp>
 #include <zen/value.hpp>
@@ -277,8 +276,8 @@ place_v2_to_v3(const setup_persist::v2::WorkshopPanePlace& w) {
     }
     if (w.mode == setup_persist::v2::kUnitCells) {
         out.mode = setup_persist::v3::kUnitSubcells;
-        out.x = surface::px_of_cells(w.x) * setup_persist::v3::kSubsPerPixel;
-        out.y = surface::px_of_cells(w.y) * setup_persist::v3::kSubsPerPixel;
+        out.x = setup_persist::px_of_saved_cells(w.x) * setup_persist::v3::kSubsPerPixel;
+        out.y = setup_persist::px_of_saved_cells(w.y) * setup_persist::v3::kSubsPerPixel;
         return out;
     }
     throw std::invalid_argument(
@@ -297,7 +296,7 @@ size_v2_to_v3(const setup_persist::v2::WorkshopPaneSize& w, const char* which) {
     }
     if (w.mode == setup_persist::v2::kUnitCells) {
         out.mode = setup_persist::v3::kUnitSubcells;
-        out.amount = surface::px_of_cells(w.amount) * setup_persist::v3::kSubsPerPixel;
+        out.amount = setup_persist::px_of_saved_cells(w.amount) * setup_persist::v3::kSubsPerPixel;
         return out;
     }
     if (w.mode == setup_persist::kUnitPixels) {
@@ -512,8 +511,8 @@ inline v7::WorkshopSession session_v6_to_v7(const v6::WorkshopSession& old) {
     v7::WorkshopSession out;
     out.format = old.format;
     out.format_version = kV7FormatVersion;
-    out.viewport = session_persist::WorkshopViewport{surface::px_of_cells(old.viewport.width),
-                                                     surface::px_of_cells(old.viewport.height)};
+    out.viewport = session_persist::WorkshopViewport{setup_persist::px_of_saved_cells(old.viewport.width),
+                                                     setup_persist::px_of_saved_cells(old.viewport.height)};
     out.layouts.reserve(old.layouts.size());
     for (std::size_t at = 0; at < old.layouts.size(); ++at) {
         const v6::WorkshopLayout& layout = old.layouts[at];

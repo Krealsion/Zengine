@@ -97,15 +97,15 @@ struct AnswerNow {
 };
 
 class SlowSkin : public loom::WeaveBase<SlowSkin, SeenState,
-                                        loom::Accept<surface::ClipboardTextRequested, AnswerNow>,
-                                        loom::Emit<surface::ClipboardText>> {
+                                        loom::Accept<gfx::ClipboardTextRequested, AnswerNow>,
+                                        loom::Emit<gfx::ClipboardText>> {
 public:
     std::string text;
     bool held = false;
     int asked = 0;
     loom::DeferredAnswer answer;
 
-    void on(const surface::ClipboardTextRequested&, loom::Mail& mail) {
+    void on(const gfx::ClipboardTextRequested&, loom::Mail& mail) {
         ++asked;
         answer = mail.defer_answer();
         held = answer.valid();
@@ -115,7 +115,7 @@ public:
             return;
         }
         held = false;
-        (void)loom::answer_deferred(answer, mail, surface::ClipboardText{true, text});
+        (void)loom::answer_deferred(answer, mail, gfx::ClipboardText{true, text});
     }
 };
 
@@ -439,7 +439,7 @@ struct EditorRig {
         auto seat = std::make_unique<SlowSkin>();
         slow = seat.get();
         loom::Grant grant;
-        grant.allow_to_any(surface::ClipboardText::zen_name, surface::ClipboardText::zen_version);
+        grant.allow_to_any(gfx::ClipboardText::zen_name, gfx::ClipboardText::zen_version);
         slow_id = r.bus.register_weave(std::move(seat), std::move(grant), surface::kSkinRole);
         slow->zen_set_self(slow_id);
     }
@@ -1565,7 +1565,7 @@ TEST_CASE("an orderly quit refuses while source is unsaved, and proceeds once it
     CHECK(e.r.session().notice.find("a.cpp") != std::string::npos);
     CHECK(e.r.session().notice.find("Workshop stays open") != std::string::npos);
     // THE SAME DOOR FROM THE NATIVE CLOSE BOX.
-    e.r.publish(loom::to_value(surface::SurfaceCloseRequested{}));
+    e.r.publish(loom::to_value(gfx::SurfaceCloseRequested{}));
     CHECK_FALSE(e.r.host.quit);
     // SAVE, AND THE NEXT `q` ENDS THE PROCESS WITHOUT CEREMONY.
     e.focus();
@@ -1858,7 +1858,7 @@ TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by
         const std::optional<gfx::TextArgs> words = gfx::from_body<gfx::TextArgs>(selected->args);
         REQUIRE(words.has_value());
         CHECK(words->text == "tw");
-        CHECK(words->ink.role == surface::role::kAccent);
+        CHECK(words->ink.role == gfx::role::kAccent);
         CHECK(window.action_at(area, 0, second) == "line:2");
         CHECK(window.rows(area)[static_cast<std::size_t>(second)] == "two");
 
@@ -5277,7 +5277,7 @@ inline void hold_the_editor(EditorRig& e) {
 /// THE MEDIUM'S CLOSE BOX: while a quit is in flight it says what the quit is waiting for, and
 /// otherwise it asks afresh -- the one door that can tell the two apart without a key.
 inline void close_box(EditorRig& e) {
-    e.r.publish(loom::to_value(surface::SurfaceCloseRequested{}));
+    e.r.publish(loom::to_value(gfx::SurfaceCloseRequested{}));
 }
 
 /// THE HOST'S WAKE-UP, sent the way the watch sends it: a root delivery that carries nothing.

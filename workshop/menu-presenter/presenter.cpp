@@ -26,6 +26,7 @@
 
 #include "activation/activation.hpp"
 #include "component/list_window.hpp"
+#include "graphics/role.hpp"
 #include "surface/vocabulary.hpp"
 
 #include <zen/kernel/export.hpp>
@@ -43,6 +44,7 @@ namespace {
 
 namespace ws = zengine::workshop;
 namespace surface = zengine::surface;
+namespace gfx = zengine::graphics;
 namespace component = zengine::component;
 
 /// WHO GRANTS A MENU AND DRAWS IT.
@@ -244,7 +246,7 @@ private:
         if (earlier > 0) {
             said.lines.push_back(surface::SurfaceTextRow{
                 drawable("  ... " + std::to_string(earlier) + " earlier", columns),
-                surface::role::kMuted});
+                gfx::role::kMuted});
         }
         // THE RULE NAMES THE PANE THE STANDARD ROWS ACT ON, as wide as the widest row's line.
         std::size_t widest = 0;
@@ -259,13 +261,13 @@ private:
             const ws::PaneMenuRow* row = row_of(entry, standard);
             if (row == nullptr) {
                 said.lines.push_back(surface::SurfaceTextRow{
-                    drawable(rule_line(state_.pane_name, widest), columns), surface::role::kMuted});
+                    drawable(rule_line(state_.pane_name, widest), columns), gfx::role::kMuted});
                 continue;
             }
             const bool here = entry == state_.cursor;
             said.lines.push_back(surface::SurfaceTextRow{
                 drawable(std::string(here ? "> " : "  ") + row->label, columns),
-                here ? surface::role::kAccent : surface::role::kFill});
+                here ? gfx::role::kAccent : gfx::role::kFill});
             // THE LINE IS NAMED BY ITS ROW'S ID, as the id the choice comes back as: a requester's
             // row and a standard row alike, the first line to carry an id keeping it.
             const auto width = static_cast<std::int64_t>(said.lines.back().text.size());
@@ -278,7 +280,7 @@ private:
         if (more > 0) {
             said.lines.push_back(surface::SurfaceTextRow{
                 drawable("  ... " + std::to_string(more) + " more", columns),
-                surface::role::kMuted});
+                gfx::role::kMuted});
         }
         (void)mail.as_role(ws::kPresenterRole).send_to_role(kWorkshopRole, said);
     }

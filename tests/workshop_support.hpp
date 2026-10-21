@@ -64,6 +64,7 @@
 #include "timer/vocabulary.hpp"
 #include "surface/skin_tui.hpp"
 #include "surface/vocabulary.hpp"
+#include "graphics/vocabulary.hpp"
 #include "ui/layout.hpp"
 #include "ui/vocabulary.hpp"
 
@@ -107,6 +108,7 @@ namespace component = zengine::component;
 namespace input = zengine::input;
 namespace op = zengine::op;
 namespace surface = zengine::surface;
+namespace gfx = zengine::graphics;
 namespace ui = zengine::ui;
 namespace load = zengine::workshop::load;
 
@@ -192,7 +194,7 @@ inline std::string plain_cells(const surface::SurfaceCanvas& c) {
 /// A CELL COUNT IN CANVAS PIXELS -- the one multiply a case that thinks in whole cells performs
 /// to author or compare pane geometry, which is in pixels. Short because it appears wherever a
 /// case says "40 cells".
-inline constexpr std::int64_t cells_px(std::int64_t cells) { return cells * surface::kCanvasCellPx; }
+inline constexpr std::int64_t cells_px(std::int64_t cells) { return cells * gfx::kCellPx; }
 
 /// WHERE THE ROOM STARTS, IN CELLS, ON A SCREEN WHERE TEXT IS A CELL: under the top band's rows.
 /// The cases that think in workspace cells stand on such a screen; a case on a face that sets type
@@ -203,10 +205,10 @@ static_assert(kMinScreen.room_y == cells_px(kRoomCellY),
               "the cell-medium room starts where the screen says it does");
 
 /// THE SCREEN'S BOUNDS IN CELLS, for the cases that sweep screens a cell at a time.
-inline constexpr std::int64_t kScreenMinCols = kScreenMinW / surface::kCanvasCellPx;
-inline constexpr std::int64_t kScreenMinRows = kScreenMinH / surface::kCanvasCellPx;
-inline constexpr std::int64_t kScreenMaxCols = kScreenMaxW / surface::kCanvasCellPx;
-inline constexpr std::int64_t kScreenMaxRows = kScreenMaxH / surface::kCanvasCellPx;
+inline constexpr std::int64_t kScreenMinCols = kScreenMinW / gfx::kCellPx;
+inline constexpr std::int64_t kScreenMinRows = kScreenMinH / gfx::kCellPx;
+inline constexpr std::int64_t kScreenMaxCols = kScreenMaxW / gfx::kCellPx;
+inline constexpr std::int64_t kScreenMaxRows = kScreenMaxH / gfx::kCellPx;
 
 /// A SCREEN'S FURNITURE IN CELLS, each edge floored as a terminal shows it: what a case that
 /// thinks in cells compares its cell coordinates against. On a screen where text is a cell every
@@ -215,13 +217,13 @@ struct ScreenCells {
     std::int64_t w = 0, h = 0, side_x = 0, room_y = 0, room_w = 0, room_h = 0, notice_y = 0;
 };
 inline ScreenCells cells_of(const Screen& sc) {
-    const auto c = [](std::int64_t px) { return surface::cell_of_pixel(px); };
+    const auto c = [](std::int64_t px) { return gfx::cell_of_pixel(px); };
     return ScreenCells{c(sc.w),      c(sc.h),      c(sc.side_x), c(sc.room_y),
                        c(sc.room_w), c(sc.room_y + sc.room_h) - c(sc.room_y), c(sc.notice_y)};
 }
 
 /// THE BOTTOM BAND'S FIRST LEGEND ROW, in cells: the row under the notice.
-inline std::int64_t help_row(const Screen& sc) { return surface::cell_of_pixel(sc.notice_y) + 1; }
+inline std::int64_t help_row(const Screen& sc) { return gfx::cell_of_pixel(sc.notice_y) + 1; }
 
 /// THE PLANE A CASE THAT BUILDS ITS OWN CANVAS BY HAND WORKS ON, created on first use.
 /// A case exercising ONE painter is asking about one presentation, which is one plane.
@@ -305,7 +307,7 @@ inline std::vector<surface::SurfaceLabel> cell_text_of(const surface::SurfaceCan
 /// a weaver would see at a place: a label's pixel anchor lands on the cell a terminal floors it to.
 inline std::string label_at(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y) {
     for (const surface::SurfaceLabel& l : cell_text_of(c)) {
-        if (surface::cell_of_pixel(l.x) == x && surface::cell_of_pixel(l.y) == y) {
+        if (gfx::cell_of_pixel(l.x) == x && gfx::cell_of_pixel(l.y) == y) {
             return l.text;
         }
     }
@@ -318,7 +320,7 @@ inline std::string label_at(const surface::SurfaceCanvas& c, std::int64_t x, std
 inline std::int64_t caret_at(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y) {
     for (const surface::SurfaceLayer& l : c.layers) {
         for (const surface::ProjectedRow& p : surface::project_text_regions(l)) {
-            if (surface::cell_of_pixel(p.label.x) == x && surface::cell_of_pixel(p.label.y) == y) {
+            if (gfx::cell_of_pixel(p.label.x) == x && gfx::cell_of_pixel(p.label.y) == y) {
                 return p.caret;
             }
         }
@@ -342,7 +344,7 @@ inline std::string inspector_row(const surface::SurfaceCanvas& c, std::int64_t x
 /// THE SENTENCE THE TOOL IS SAYING, as a weaver reads it: the bottom band's first row, read
 /// through the cell projection with the region's padding trimmed, as the Inspector's rows are.
 inline std::string notice_line(const surface::SurfaceCanvas& c, const Screen& sc) {
-    return inspector_row(c, 0, surface::cell_of_pixel(sc.notice_y));
+    return inspector_row(c, 0, gfx::cell_of_pixel(sc.notice_y));
 }
 
 
@@ -354,7 +356,7 @@ inline std::string notice_line(const surface::SurfaceCanvas& c, const Screen& sc
 inline std::string topmost_at(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y) {
     std::string seen;
     for (const surface::SurfaceLabel& l : cell_text_of(c)) {
-        if (surface::cell_of_pixel(l.x) == x && surface::cell_of_pixel(l.y) == y) {
+        if (gfx::cell_of_pixel(l.x) == x && gfx::cell_of_pixel(l.y) == y) {
             seen = l.text;
         }
     }
@@ -537,10 +539,10 @@ private:
 /// written by a payload and cannot be chosen by whoever composed the message,
 /// which is what makes it the one right instrument for "which identity spoke".
 class SkinSeat : public loom::WeaveBase<SkinSeat, SeenState,
-                                        loom::Accept<surface::SurfaceText, surface::ClipboardCopy,
-                                                     surface::ClipboardTextRequested,
-                                                     surface::SurfacePlacementRemembered>,
-                                        loom::Emit<loom::Ack, surface::ClipboardText>> {
+                                        loom::Accept<surface::SurfaceText, gfx::ClipboardCopy,
+                                                     gfx::ClipboardTextRequested,
+                                                     gfx::SurfacePlacementRemembered>,
+                                        loom::Emit<loom::Ack, gfx::ClipboardText>> {
 public:
     void on(const surface::SurfaceText& t, loom::Mail& mail) {
         ++state_.frames;
@@ -556,7 +558,7 @@ public:
     /// The platform's clipboard, as the real media hold it: a readable medium takes every copy the
     /// process says (the SDL skin's SDL_SetClipboardText), an unreadable one lets the offer pass
     /// (the terminal's OSC 52 claims nothing).
-    void on(const surface::ClipboardCopy& c, loom::Mail&) {
+    void on(const gfx::ClipboardCopy& c, loom::Mail&) {
         if (readable_medium) {
             platform = c.text;
         }
@@ -565,15 +567,15 @@ public:
     /// A paste ask: answered the way SkinT answers it — the medium's current value, or
     /// the honest cannot-say — and counted, because "read exactly once, exactly on
     /// request" is a custody claim the cases pin.
-    void on(const surface::ClipboardTextRequested&, loom::Mail& mail) {
+    void on(const gfx::ClipboardTextRequested&, loom::Mail& mail) {
         ++clipboard_reads;
-        (void)mail.answer(surface::ClipboardText{readable_medium, readable_medium ? platform
+        (void)mail.answer(gfx::ClipboardText{readable_medium, readable_medium ? platform
                                                                                   : std::string()});
     }
 
     /// A remembered placement offered back at restore: recorded the way the real media receive
     /// it, so a case can assert exactly what the desk's memory handed over.
-    void on(const surface::SurfacePlacementRemembered& p, loom::Mail&) {
+    void on(const gfx::SurfacePlacementRemembered& p, loom::Mail&) {
         offered.push_back(p);
     }
 
@@ -589,7 +591,7 @@ public:
 
     std::vector<surface::SurfaceText> heard;
     std::vector<loom::WeaveId> from;
-    std::vector<surface::SurfacePlacementRemembered> offered; ///< placement offers at restore
+    std::vector<gfx::SurfacePlacementRemembered> offered; ///< placement offers at restore
     bool readable_medium = true; ///< false = the terminal's standing truth
     std::string platform;        ///< what "the platform clipboard" holds, when readable
     int clipboard_reads = 0;
@@ -807,8 +809,8 @@ struct Live {
         SkinSeat* raw = seat.get();
         loom::Grant grant;
         grant.allow_to_any(loom::Ack::zen_name, loom::Ack::zen_version);
-        grant.allow_to_any(surface::ClipboardText::zen_name,
-                           surface::ClipboardText::zen_version);
+        grant.allow_to_any(gfx::ClipboardText::zen_name,
+                           gfx::ClipboardText::zen_version);
         const loom::WeaveId id =
             bus.register_weave(std::move(seat), std::move(grant), surface::kSkinRole);
         raw->zen_set_self(id);
@@ -839,7 +841,7 @@ struct Live {
     /// below reads in the coordinates a weaver thinks in.
     std::int64_t term_x(std::int64_t wx) const { return wx; }
     std::int64_t term_y(std::int64_t wy) const {
-        return wy + surface::cell_of_pixel(screen_of(w->session()).room_y) +
+        return wy + gfx::cell_of_pixel(screen_of(w->session()).room_y) +
                surface::kTuiCanvasTopRow;
     }
 
@@ -847,9 +849,9 @@ struct Live {
     /// cell's top-left corner. Deliberately the inverse of the graphical Skin's
     /// own layout and not of the terminal's -- the two media report different
     /// numbers for one place (workshop/docs/pointer-spaces.md).
-    std::int64_t px_x(std::int64_t wx) const { return wx * surface::kCanvasCellPx; }
+    std::int64_t px_x(std::int64_t wx) const { return wx * gfx::kCellPx; }
     std::int64_t px_y(std::int64_t wy) const {
-        return screen_of(w->session()).room_y + wy * surface::kCanvasCellPx;
+        return screen_of(w->session()).room_y + wy * gfx::kCellPx;
     }
 
     /// A PRESS AT AN EXACT POSITION IN THE MEDIUM'S OWN NUMBERS -- a window pixel or a terminal
@@ -919,7 +921,7 @@ struct Live {
     /// `+ cell/2` puts the event in the MIDDLE of the cell rather than on its
     /// corner, which is where a weaver's pointer actually is and is what makes a
     /// truncating (rather than flooring) projection visible.
-    static std::int64_t mid(std::int64_t p) { return p + surface::kCanvasCellPx / 2; }
+    static std::int64_t mid(std::int64_t p) { return p + gfx::kCellPx / 2; }
     void press_px(std::int64_t wx, std::int64_t wy) {
         publish(loom::to_value(input::PointerButton{1, true, mid(px_x(wx)), mid(px_y(wy)),
                                                     input::space::kPixels, input::mod::kNone}));
@@ -934,7 +936,7 @@ struct Live {
     }
 
     /// The window manager asked the surface to close.
-    void close_requested() { publish(loom::to_value(surface::SurfaceCloseRequested{})); }
+    void close_requested() { publish(loom::to_value(gfx::SurfaceCloseRequested{})); }
 
     const Session& session() const { return w->session(); }
     std::string notice() const { return w->session().notice; }
@@ -1200,8 +1202,8 @@ inline std::string rect_text(const surface::SurfaceCanvas& c, const ui::Rect& b)
     std::vector<std::string> rows(rows_n);
     std::vector<bool> said(rows_n, false);
     for (const surface::SurfaceLabel& l : cell_text_of(c)) {
-        const std::int64_t lx = surface::cell_of_pixel(l.x);
-        const std::int64_t ly = surface::cell_of_pixel(l.y);
+        const std::int64_t lx = gfx::cell_of_pixel(l.x);
+        const std::int64_t ly = gfx::cell_of_pixel(l.y);
         if (lx == b.x && ly >= b.y && ly < b.y + b.h) {
             const std::size_t at = static_cast<std::size_t>(ly - b.y);
             rows[at] = l.text;
@@ -1592,7 +1594,7 @@ inline void open_rename_on_live_tab(Rig& r) {
     std::int64_t space = input::space::kCells;
     const Screen sc = screen_of(r.session());
     if (sc.text_advance_px > 0) {
-        const surface::RegionFit fit = layouts_body(r.session(), sc).fit;
+        const RegionFit fit = layouts_body(r.session(), sc).fit;
         x = fit.view.x + fit.origin_x + column * fit.advance_px + fit.advance_px / 2;
         y = fit.view.y + fit.origin_y + band_tab_row(r.session(), sc) * fit.line_px +
             fit.line_px / 2;
@@ -3170,7 +3172,7 @@ struct PaneRig {
     /// window's real face metric and the canvas cell it really lays out at. Named, so a
     /// case reads as "the weaver is on the window" rather than as four numbers.
     void extent_on_window(std::int64_t width, std::int64_t height) {
-        extent(width, height, 8, 18, surface::kCanvasCellPx);
+        extent(width, height, 8, 18, gfx::kCellPx);
     }
 
     void key(std::int64_t sc, std::int64_t mods = input::mod::kNone) {
@@ -3436,7 +3438,7 @@ struct PaneRig {
         SkinSeat* raw = seat.get();
         loom::Grant grant;
         grant.allow_to_any(loom::Ack::zen_name, loom::Ack::zen_version);
-        grant.allow_to_any(surface::ClipboardText::zen_name, surface::ClipboardText::zen_version);
+        grant.allow_to_any(gfx::ClipboardText::zen_name, gfx::ClipboardText::zen_version);
         const loom::WeaveId id =
             bus.register_weave(std::move(seat), std::move(grant), surface::kSkinRole);
         raw->zen_set_self(id);
@@ -3624,10 +3626,10 @@ inline PixelRect menu_bounds(const Session& s) {
     return s.presented.open ? presented_bounds(s, screen_of(s)) : context_bounds(s, screen_of(s));
 }
 inline std::int64_t context_cell_x(const Session& s) {
-    return surface::cell_of_pixel(menu_bounds(s).x) + kChromeCells + 1;
+    return gfx::cell_of_pixel(menu_bounds(s).x) + kChromeCells + 1;
 }
 inline std::int64_t context_entry_cell_y(const Session& s, std::size_t index) {
-    return surface::cell_of_pixel(menu_bounds(s).y) + kChromeCells +
+    return gfx::cell_of_pixel(menu_bounds(s).y) + kChromeCells +
            static_cast<std::int64_t>(index);
 }
 
@@ -3788,7 +3790,7 @@ inline std::vector<surface::SurfaceTextRegion> regions_at(const surface::Surface
                                                           std::int64_t x, std::int64_t y) {
     std::vector<surface::SurfaceTextRegion> out;
     for (const surface::SurfaceTextRegion& r : all_texts(c)) {
-        if (surface::cell_of_pixel(r.x) == x && surface::cell_of_pixel(r.y) == y) {
+        if (gfx::cell_of_pixel(r.x) == x && gfx::cell_of_pixel(r.y) == y) {
             out.push_back(r);
         }
     }
@@ -3813,7 +3815,7 @@ inline Session screen_session(std::int64_t w, std::int64_t h, std::int64_t advan
 /// It is the inverse of `plan_canvas`'s layout and NOT of the terminal's, because the
 /// two media report different numbers for one place (workshop/docs/pointer-spaces.md).
 inline std::int64_t cell_mid_px(std::int64_t cell) {
-    return cell * surface::kCanvasCellPx + surface::kCanvasCellPx / 2;
+    return cell * gfx::kCellPx + gfx::kCellPx / 2;
 }
 
 /// THE PANE RECTANGLE AN EXTERNAL PANE OCCUPIES -- the painter's own, through the one
@@ -3838,7 +3840,7 @@ inline CanvasRows held_canvas_rows(const ExternalPane& pane) {
 /// over the whole room it was granted, as `rows_picture` lays it beneath a pane's rows.
 inline bool wears_medium_ground(const ExternalPane& pane) {
     const auto& rects = pane.canvas.content.rects;
-    return shows_canvas(pane) && !rects.empty() && rects.front().role == surface::role::kMediumGround &&
+    return shows_canvas(pane) && !rects.empty() && rects.front().role == gfx::role::kMediumGround &&
            rects.front().x == 0 && rects.front().y == 0 && rects.front().w == pane.canvas.width &&
            rects.front().h == pane.canvas.height;
 }
@@ -4031,7 +4033,7 @@ inline std::vector<std::string> canvas_rows_shown(const Session& s, const surfac
         bool found = false;
         for (const surface::SurfaceTextRegion& r : layer.texts) {
             if (r.rows.size() != 1) continue;
-            const surface::RegionFit fit = surface::fit_region(r.x, r.y, r.w, r.h, sc.text_advance_px,
+            const RegionFit fit = fit_region(r.x, r.y, r.w, r.h, sc.text_advance_px,
                                                                sc.text_line_px);
             const std::int64_t gx = fit.graphical() ? r.x + fit.origin_x : r.x;
             const std::int64_t gy = fit.graphical() ? r.y + fit.origin_y : r.y;
@@ -4072,7 +4074,7 @@ inline std::vector<std::string> canvas_rows_shown(const Session& s, const surfac
     std::vector<const surface::SurfaceLayer*> grounded;
     for (const surface::SurfaceLayer& layer : c.layers) {
         for (const surface::SurfaceRect& rect : layer.rects) {
-            if (rect.role == surface::role::kMediumGround && rect.x == body.x && rect.y == body.y) {
+            if (rect.role == gfx::role::kMediumGround && rect.x == body.x && rect.y == body.y) {
                 grounded.push_back(&layer);
                 break;
             }
@@ -4593,7 +4595,7 @@ inline std::vector<std::string> pane_rows(PaneRig& r, std::int64_t kind) {
 inline std::vector<std::string> band_lines(PaneRig& r) {
     std::vector<std::string> out;
     const Screen sc = screen_of(r.session());
-    const std::int64_t help_y = surface::cell_of_pixel(sc.notice_y) + 1;
+    const std::int64_t help_y = gfx::cell_of_pixel(sc.notice_y) + 1;
     for (const std::int64_t y : {help_y, help_y + 1}) {
         const std::string row = inspector_row(r.last_canvas(), 0, y);
         if (!row.empty()) {

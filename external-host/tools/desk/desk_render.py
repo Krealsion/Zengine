@@ -36,7 +36,7 @@ SECTION_BYTES = 65536
 #: A grid written whole is paged by row band past this many cells.
 DENSE_CELLS = 262144
 #: The medium's own text cell, in canvas pixels: the SDL face's glyph (skin_sdl_text.hpp) and the
-#: terminal's cell (surface::kCanvasCellPx).
+#: terminal's cell (graphics::kCellPx).
 WINDOW_CELL = (8, 18)
 TERMINAL_CELL = (12, 12)
 #: Input spaces (zengine/input/vocabulary.hpp `space::`): 0 is no point at all.

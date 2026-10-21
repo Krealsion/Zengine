@@ -12,6 +12,7 @@
 #include "workshop/pane_vocabulary.hpp"
 
 #include "activation/activation.hpp"
+#include "graphics/role.hpp"
 #include "surface/vocabulary.hpp"
 
 #include <zen/kernel/export.hpp>
@@ -27,6 +28,7 @@ namespace {
 
 namespace ws = zengine::workshop;
 namespace surface = zengine::surface;
+namespace gfx = zengine::graphics;
 
 // ---- CHANGE THIS FIRST ------------------------------------------------------------------------
 //
@@ -38,12 +40,12 @@ std::vector<surface::SurfaceTextRow> rows_for(const ws::pane_menu::HeldButton& g
                               : guard.lost ? "guard dropped -- the host could not keep the hold"
                                            : "guard down";
     return {
-        surface::SurfaceTextRow{first, guard.held ? surface::role::kAccent
-                                                  : surface::role::kMuted},
+        surface::SurfaceTextRow{first, guard.held ? gfx::role::kAccent
+                                                  : gfx::role::kMuted},
         surface::SurfaceTextRow{"blocks so far: " + std::to_string(blocks),
-                                surface::role::kFill},
+                                gfx::role::kFill},
         surface::SurfaceTextRow{"hold the right button in me; no menu opens here",
-                                surface::role::kMuted},
+                                gfx::role::kMuted},
     };
 }
 

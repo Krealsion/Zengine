@@ -16,13 +16,13 @@ inline PixelRect canvas_body_place(const PixelRect& pane_rect, const Screen& sc,
     if (inside.rect.empty() || inside.fit.rows <= header_rows || inside.fit.columns <= 0) return {};
     const auto grain = chrome_grain(sc);
     const auto header = header_rows == 0 ? 0 : inside.fit.graphical()
-        ? surface::mul_px(surface::add_cells(2 * inside.fit.origin_y,
-                                             surface::mul_px(header_rows, inside.fit.line_px)), grain)
-        : surface::px_of_cells(header_rows);
-    const auto x = surface::floor_div_px(inside.rect.x, grain) * grain;
-    const auto y = surface::floor_div_px(surface::add_cells(inside.rect.y, header), grain) * grain;
-    const auto right = surface::floor_div_px(surface::add_cells(inside.rect.x, inside.rect.w), grain) * grain;
-    const auto bottom = surface::floor_div_px(surface::add_cells(inside.rect.y, inside.rect.h), grain) * grain;
+        ? graphics::mul_px(graphics::add_cells(2 * inside.fit.origin_y,
+                                             graphics::mul_px(header_rows, inside.fit.line_px)), grain)
+        : graphics::px_of_cells(header_rows);
+    const auto x = graphics::floor_div_px(inside.rect.x, grain) * grain;
+    const auto y = graphics::floor_div_px(graphics::add_cells(inside.rect.y, header), grain) * grain;
+    const auto right = graphics::floor_div_px(graphics::add_cells(inside.rect.x, inside.rect.w), grain) * grain;
+    const auto bottom = graphics::floor_div_px(graphics::add_cells(inside.rect.y, inside.rect.h), grain) * grain;
     return right > x && bottom > y ? PixelRect{x, y, right - x, bottom - y} : PixelRect{};
 }
 
@@ -40,8 +40,8 @@ inline PixelRect canvas_clip_rect(const PaneCanvasRect& r, std::int64_t width,
                                 std::int64_t height) {
     const auto left = (std::max)(std::int64_t{0}, r.x);
     const auto top = (std::max)(std::int64_t{0}, r.y);
-    const auto right = (std::min)(width, surface::add_cells(r.x, r.w));
-    const auto bottom = (std::min)(height, surface::add_cells(r.y, r.h));
+    const auto right = (std::min)(width, graphics::add_cells(r.x, r.w));
+    const auto bottom = (std::min)(height, graphics::add_cells(r.y, r.h));
     return r.w > 0 && r.h > 0 && right > left && bottom > top
         ? PixelRect{left, top, right - left, bottom - top} : PixelRect{};
 }
@@ -55,8 +55,8 @@ void paint_pane_canvas(surface::SurfaceLayer& layer, const PixelRect& body, cons
     for (const auto& rect : content.rects) {
         auto clipped = canvas_clip_rect(rect, body.w, body.h);
         if (clipped.empty()) continue;
-        clipped.x = surface::add_cells(body.x, clipped.x);
-        clipped.y = surface::add_cells(body.y, clipped.y);
+        clipped.x = graphics::add_cells(body.x, clipped.x);
+        clipped.y = graphics::add_cells(body.y, clipped.y);
         layer.rects.push_back(wire_rect_of(clipped, rect.role));
     }
     for (const auto& label : content.labels) {
@@ -65,15 +65,15 @@ void paint_pane_canvas(surface::SurfaceLayer& layer, const PixelRect& body, cons
         std::size_t first = 0;
         auto x = label.x;
         while (first < label.text.size() && x < 0) {
-            x = surface::add_cells(x, kPaneCanvasUnit);
+            x = graphics::add_cells(x, kPaneCanvasUnit);
             ++first;
         }
         if (x > body.w - kPaneCanvasUnit || first == label.text.size()) continue;
         const auto room = (body.w - x) / kPaneCanvasUnit;
         const auto count = (std::min)(label.text.size() - first, static_cast<std::size_t>(room));
         if (count == 0) continue;
-        layer.labels.push_back(surface::SurfaceLabel{surface::add_cells(body.x, x),
-                                                     surface::add_cells(body.y, label.y),
+        layer.labels.push_back(surface::SurfaceLabel{graphics::add_cells(body.x, x),
+                                                     graphics::add_cells(body.y, label.y),
                                                      label.text.substr(first, count), label.role});
     }
     const PaneCanvasRoom room{content.pane, content.grant, body.w, body.h, grain,

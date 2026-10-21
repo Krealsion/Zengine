@@ -34,6 +34,7 @@
 #include "component/text_box.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
+#include "graphics/vocabulary.hpp"
 
 #include "manuals/zengine.info.hpp" // this weave's manual, compiled in from its page
 
@@ -56,6 +57,7 @@ namespace {
 namespace component = zengine::component;
 namespace input = zengine::input;
 namespace surface = zengine::surface;
+namespace gfx = zengine::graphics;
 namespace ws = zengine::workshop;
 namespace pane = zengine::info_pane;
 
@@ -94,14 +96,14 @@ class InfoPaneWeave
                        InspectPaneRequested,
                        loom::Refused, PaneRoom, ws::PaneCanvasRoom, PaneKey,
                        PaneTextInput, PaneActionRequested, PaneInventory, PaneSubjectShown,
-                       PaneSubjectActed, loom::DispatchRefused, surface::ClipboardCopy,
-                       surface::ClipboardText, ws::PaneCanvasPointer, ws::PaneCanvasRejected,
+                       PaneSubjectActed, loom::DispatchRefused, gfx::ClipboardCopy,
+                       gfx::ClipboardText, ws::PaneCanvasPointer, ws::PaneCanvasRejected,
                        ws::PaneMenuAnswered, ws::PaneObservationAnswered, zengine::inventory::InventoryChanged,
                        loom::PokeStructure, ws::PaneLaunchAnswered, ws::PaneCloseAnswered>,
           loom::Emit<ws::PaneValueCarryRequested, PaneOperationRequested, zengine::inventory::InventoryRead, zengine::inventory::InventoryAdd,
                      zengine::inventory::InventoryWrite, PaneOffered, PaneActions, PaneInventoryRequested,
                      PaneSubjectRequested, InspectPaneRequested, PaneSubjectActed, PaneCommitRequested,
-                     surface::ClipboardCopy, surface::ClipboardTextRequested, ws::v4::PaneContent,
+                     gfx::ClipboardCopy, gfx::ClipboardTextRequested, ws::v4::PaneContent,
                      ws::v5::PaneCanvasContent, ws::PaneCaret, ws::PanePassRequested,
                      ws::PaneMenuRequested, ws::PaneObservationRequested, ws::PaneObservationContinued,
                      ws::PaneEscapeUnspent,
@@ -483,7 +485,7 @@ public:
             return; // a key that means nothing to the line is no act: the notice stands, unsaid
         }
         if (clip_.writes != copied_before) {
-            mail.publish(surface::ClipboardCopy{clip_.text});
+            mail.publish(gfx::ClipboardCopy{clip_.text});
         }
         if (clip_.paste_requests != pastes_before) {
             begin_paste(mail);
@@ -531,13 +533,13 @@ public:
         settle(mail);
     }
 
-    void on(const surface::ClipboardCopy& said, loom::Mail&) {
+    void on(const gfx::ClipboardCopy& said, loom::Mail&) {
         // WHAT THE PROCESS SAYS IT COPIED -- this pane's own copies included, which is why
         // it is a mirror rather than a second store: a paste answers with this.
         clip_.text = said.text;
     }
 
-    void on(const surface::ClipboardText& a, loom::Mail& mail) {
+    void on(const gfx::ClipboardText& a, loom::Mail& mail) {
         if (!mail.answers_ask() || !paste_.awaiting || mail.correlation() != paste_.pending) {
             return;
         }
@@ -756,7 +758,7 @@ private:
         paste_.epoch = properties_.draft_epoch();
         paste_.awaiting = true;
         (void)mail.as_role(pane::kInfoPaneRole)
-            .send_to_role(canvases_.front().clipboard_office(), surface::ClipboardTextRequested{},
+            .send_to_role(canvases_.front().clipboard_office(), gfx::ClipboardTextRequested{},
                           paste_.pending);
     }
 

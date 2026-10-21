@@ -210,7 +210,7 @@ visible pane occupies the pointer space it covers"
 `workshop/screen_external.cpp` external_body_place paint_external
 `workshop/screen.hpp` kExternalHeaderRows
 `workshop/weave_external.cpp` refresh_external_rooms
-`surface/region.hpp` fit_region
+`workshop/pane_text_fit.hpp` fit_region
 `workshop/panes.hpp` ExternalPane
 `tests/test_workshop_panes_seam.cpp` "an external grant follows the widened body through fit_region"
 "opening an external pane grants exactly the fit_region room, authored as Workshop"

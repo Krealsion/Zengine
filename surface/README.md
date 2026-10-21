@@ -7,8 +7,8 @@ owns the screen, paints it in a terminal or in a real window.**
 Each element names a role, such as accent or alert, rather than a colour, so one picture reads in
 a monochrome terminal and in a window alike. A program spells the messages with
 `#include "surface/vocabulary.hpp"` and links `zengine::surface`. An installed Zengine also
-carries `surface/region.hpp`, `surface/cells.hpp`, `surface/pointing.hpp` and
-`surface/terminal_size.hpp`, and the terminal Skin in its two libraries:
+carries `surface/region.hpp`, `surface/cells.hpp` and `surface/pointing.hpp`, and the terminal
+Skin in its two libraries:
 `zengine-skin-tui-classic`, and `zengine-skin-tui-block`, the same Skin built a second time so a
 running Skin has another library to be replaced by.
 
@@ -29,9 +29,8 @@ running Skin has another library to be replaced by.
 | | |
 |---|---|
 | `vocabulary.hpp` | the messages: what a weave publishes to be drawn, and what the Skin reports back |
-| `region.hpp`, `cells.hpp` | how much text a region holds, and the arithmetic every Skin shares |
+| `region.hpp`, `cells.hpp` | a region's text as the cells a terminal Skin draws, and the spans it clips; how much text a region holds is `workshop/pane_text_fit.hpp`'s, the pixel arithmetic `graphics/pixels.hpp`'s |
 | `pointing.hpp` | where a pointer lands on the canvas ([Pointer spaces](../workshop/docs/pointer-spaces.md)) |
-| `terminal_size.hpp`, `tui_terminal.hpp` | how big the terminal is, and its claimed output side: the terminal window's own (`graphics/window/terminal_io.hpp`), spelled for Surface |
 | `skin.hpp` | what every Skin has in common |
 | `skin_tui.hpp`, `skin_tui_classic.cpp`, `skin_tui_block.cpp` | the terminal Skin, `zengine-skin-tui-classic`, and `zengine-skin-tui-block`, the same Skin built as a second library for live replacement |
 | `skin_sdl.cpp`, `skin_sdl_plan.hpp`, `skin_sdl_text.hpp`, `skin_sdl_glyphs.hpp` | the window Skin, `zengine-skin-sdl`, built where SDL is available |

@@ -14,7 +14,7 @@ actually see").
 **Decision.** The medium says it. `SurfaceExtent` carries `cell_px` beside the text metric;
 `adopt_screen` takes it and `Session::cell_px` holds it; zero means "my device unit IS the
 cell", every terminal's permanent answer. Workshop derives no unit, and a change of unit alone
-is a change. One derivation — five pure functions over `surface::device_of_px`, the same
+is a change. One derivation — five pure functions over `graphics::device_of_px`, the same
 arithmetic the shipped face paints and hit-tests by — spells a pane's geometry in the face's
 unit: no unit type, no registry, no per-medium table, no second conversion constant. A value not
 exact in the face's unit wears `~`, and the line says `(~ projected)` once. Looking is not

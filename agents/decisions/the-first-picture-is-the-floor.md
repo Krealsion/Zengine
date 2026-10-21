@@ -36,7 +36,7 @@ conversation, then re-maximizes, one beat after the picture that supplies the ro
   14 checks, 11 of 14 with the one-beat delay alone, 14 of 14 as shipped (`209c7da`).
 
 **Consequences.** A restored window is the weaver's size floored to whole cells, at most
-`kCanvasCellPx − 1` pixels short on each axis. The remembered room is an ordinary later picture,
+`kCellPx − 1` pixels short on each axis. The remembered room is an ordinary later picture,
 a want rather than a floor. A maximized close writes the room the weaver chose with `maximized`
 beside it, and a flag merely restored never gates a placement-less run's tracking.
 

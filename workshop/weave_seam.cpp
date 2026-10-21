@@ -822,14 +822,14 @@ void WorkshopWeave::begin_clipboard_paste(loom::Mail& mail) {
     // settled only by that office's answer.
     const std::string office = medium_office();
     const loom::AskOpened opened = paste_asks_.open_to_role(
-        office, zengine::surface::ClipboardTextRequested::zen_name,
-        zengine::surface::ClipboardTextRequested::zen_version);
+        office, zengine::graphics::ClipboardTextRequested::zen_name,
+        zengine::graphics::ClipboardTextRequested::zen_version);
     if (!opened) {
         return; // the book is full: this paste is dropped, the outstanding ones stand
     }
     p.ask = opened.id;
     pending_pastes_.push_back(std::move(p));
-    (void)mail.send_to_role(office, zengine::surface::ClipboardTextRequested{},
+    (void)mail.send_to_role(office, zengine::graphics::ClipboardTextRequested{},
                             opened.correlation);
 }
 

@@ -20,7 +20,7 @@
 
 #include "component/list_window.hpp"
 #include "component/text_box.hpp"
-#include "surface/vocabulary.hpp"
+#include "graphics/role.hpp"
 
 #include <zen/weave.hpp>
 
@@ -509,7 +509,7 @@ inline std::vector<FilesWeave::ControlRow> FilesWeave::authoring_controls() cons
 inline void FilesWeave::say_chooser() {
     push_row("pick something buildable -- " + std::to_string(chooser_.candidates.size()) +
                  (chooser_.candidates.size() == 1 ? " candidate" : " candidates"),
-             surface::role::kAccent);
+             zengine::graphics::role::kAccent);
     const std::vector<ControlRow> controls = chooser_controls();
     const std::int64_t body_rows = body_budget(room().strip_rows(controls));
     if (body_rows > 0) {
@@ -522,7 +522,7 @@ inline void FilesWeave::say_chooser() {
             const BuildCandidate& c = chooser_.candidates[i];
             push_row(std::string(here ? "> " : "  ") + c.name +
                          (c.tree ? "/  (configured tree)" : ""),
-                     here ? surface::role::kAccent : surface::role::kFill,
+                     here ? zengine::graphics::role::kAccent : zengine::graphics::role::kFill,
                      FilesMeaning{files_row::kCandidate, i, {}, c.name});
         });
     }
@@ -538,7 +538,7 @@ inline void FilesWeave::say_chooser() {
 inline void FilesWeave::say_authoring() {
     push_row(std::string("author `") + authoring_.chosen.name + "` -- " +
                  (authoring_.chosen.tree ? "a configured tree" : "a source file"),
-             surface::role::kAccent);
+             zengine::graphics::role::kAccent);
     const std::vector<ControlRow> controls = authoring_controls();
     const std::int64_t body_rows = body_budget(room().strip_rows(controls));
     if (body_rows > 0) {
@@ -555,7 +555,7 @@ inline void FilesWeave::say_authoring() {
         if (win.unsaid_cut() && spent < body_rows) {
             push_row("  ... " + std::to_string(win.before + win.after) +
                          " more fields -- this pane's menu names every one",
-                     surface::role::kMuted);
+                     zengine::graphics::role::kMuted);
         }
     }
     say_controls(controls);
@@ -584,14 +584,14 @@ inline void FilesWeave::say_field(std::size_t i) {
             room().caret().column =
                 prompt_cols + static_cast<std::int64_t>(authoring_.line.caret_column());
         }
-        push_row(prompt + authoring_.line.visible(cols), surface::role::kAccent,
+        push_row(prompt + authoring_.line.visible(cols), zengine::graphics::role::kAccent,
                  FilesMeaning{files_row::kLine, i, {}, field.name});
         return;
     }
     const std::string held = authoring_.filled[i] && !authoring_.values[i].empty()
                                  ? authoring_.values[i]
                                  : std::string(field.required ? "(required)" : "(none)");
-    push_row("  " + std::string(field.name) + ": " + held, surface::role::kMuted,
+    push_row("  " + std::string(field.name) + ": " + held, zengine::graphics::role::kMuted,
              FilesMeaning{files_row::kField, i, {}, field.name});
 }
 

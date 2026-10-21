@@ -14,12 +14,14 @@
 #include "graphics/canvas.hpp"
 #include "graphics/ops.hpp"
 #include "graphics/painting.hpp"
+#include "graphics/pixels.hpp"
 #include "graphics/term_paint.hpp"
 #include "graphics/vocabulary.hpp"
 #include "surface/region.hpp"
 #include "surface/vocabulary.hpp"
 #include "workshop/pane_canvas_rows.hpp"
 #include "workshop/pane_canvas_vocabulary.hpp"
+#include "pane_text_fit.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
 #include <zen/weave.hpp>
@@ -49,10 +51,10 @@ struct DrawnPart {
 /// cell down. Any other node is as drawn.
 inline loom::Bytes on_cells(const graphics::Node& n, const graphics::TextMeasure& text) {
     const auto across = [&](std::int64_t v) {
-        return surface::floor_div_px(v, text.advance) * graphics::kCellPx;
+        return graphics::floor_div_px(v, text.advance) * graphics::kCellPx;
     };
     const auto down = [&](std::int64_t v) {
-        return surface::floor_div_px(v, text.line) * graphics::kCellPx;
+        return graphics::floor_div_px(v, text.line) * graphics::kCellPx;
     };
     if (n.op == graphics::op::kGroup) {
         if (auto g = graphics::from_body<graphics::GroupArgs>(n.args)) {
@@ -201,7 +203,7 @@ RowsDrawing rows_drawing(const std::vector<surface::SurfaceTextRow>& rows,
     const std::int64_t advance = room.text.advance;
     const std::int64_t line = room.text.line;
     out.sketch.fill_rect("room", 0, 0, room.width, room.height,
-                         graphics::by_role(surface::role::kGround));
+                         graphics::by_role(graphics::role::kGround));
     std::size_t nodes = 1, records = 0;
     const std::size_t shown =
         max_rows > 0 ? (std::min)(rows.size(), static_cast<std::size_t>(max_rows)) : rows.size();
@@ -228,7 +230,7 @@ RowsDrawing rows_drawing(const std::vector<surface::SurfaceTextRow>& rows,
                 ++cover[static_cast<std::size_t>(c)];
             }
         }
-        const bool lit = rows[r].background != surface::role::kNone;
+        const bool lit = rows[r].background != graphics::role::kNone;
         const std::string prefix = (lit ? "lit" : "row") + std::to_string(r) + ".";
         std::vector<Run> runs;
         std::size_t asks = 0;
@@ -323,7 +325,7 @@ RowsDrawing rows_drawing(const std::vector<surface::SurfaceTextRow>& rows,
     for (std::int64_t m = 0; m < marked; ++m) {
         const std::string& text = rows[static_cast<std::size_t>(m)].text;
         const auto length = (std::min)(static_cast<std::int64_t>(text.size()), columns);
-        const surface::RowSpan span = surface::selection_span_of_row(selected, m, length);
+        const RowSpan span = selection_span_of_row(selected, m, length);
         std::size_t run = 0;
         for (std::int64_t a = span.begin; a < span.end;) {
             const std::string asks = asked_at(m, a);
@@ -338,7 +340,7 @@ RowsDrawing rows_drawing(const std::vector<surface::SurfaceTextRow>& rows,
             const auto from = static_cast<std::size_t>(a);
             out.sketch.text(node, a * advance, m * line,
                             text.substr(from, static_cast<std::size_t>(b - a)),
-                            graphics::by_role(surface::role::kAccent));
+                            graphics::by_role(graphics::role::kAccent));
             ask(node, asks);
             a = b;
         }
@@ -350,7 +352,7 @@ RowsDrawing rows_drawing(const std::vector<surface::SurfaceTextRow>& rows,
     const std::string asks = asked_at(caret.row, column);
     if (room_for(asks)) {
         out.sketch.line("caret", column * advance, caret.row * line, column * advance,
-                        caret.row * line + line - 1, graphics::by_role(surface::role::kAccent));
+                        caret.row * line + line - 1, graphics::by_role(graphics::role::kAccent));
         ask("caret", asks);
     }
     return out;
@@ -361,8 +363,8 @@ RowsDrawing rows_drawing(const std::vector<surface::SurfaceTextRow>& rows,
 inline RowCell window_cell(std::int64_t x, std::int64_t y, std::int64_t rows,
                            std::int64_t columns, const graphics::TextMeasure& text) {
     RowCell out;
-    out.row = surface::floor_div_px(y, text.line);
-    out.column = surface::floor_div_px(x, text.advance);
+    out.row = graphics::floor_div_px(y, text.line);
+    out.column = graphics::floor_div_px(x, text.advance);
     out.shown = out.row >= 0 && out.row < rows && out.column >= 0 && out.column < columns;
     return out;
 }

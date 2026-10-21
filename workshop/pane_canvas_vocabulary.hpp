@@ -3,6 +3,8 @@
 #ifndef ZENGINE_WORKSHOP_PANE_CANVAS_VOCABULARY_HPP
 #define ZENGINE_WORKSHOP_PANE_CANVAS_VOCABULARY_HPP
 
+#include "graphics/pixels.hpp"
+#include "graphics/vocabulary.hpp"
 #include "surface/region.hpp"
 #include "surface/vocabulary.hpp"
 #include <zen/weave/shape.hpp>
@@ -17,7 +19,7 @@ namespace zengine::workshop {
 // pointer custody; the provider owns hit testing and the meaning of its picture. No screen
 // coordinates cross. `kPaneCanvasUnit` is one canvas cell: a label byte's advance, and the grain
 // of a medium whose device unit is the cell.
-inline constexpr std::int64_t kPaneCanvasUnit = surface::kCanvasCellPx;
+inline constexpr std::int64_t kPaneCanvasUnit = graphics::kCellPx;
 inline constexpr std::size_t kPaneCanvasMaxRects = 4096;
 inline constexpr std::size_t kPaneCanvasMaxLabels = 2048;
 inline constexpr std::size_t kPaneCanvasMaxLabelBytes = 4096;
@@ -27,7 +29,7 @@ inline constexpr std::size_t kPaneCanvasMaxTextBytes = 131072;
 
 struct PaneCanvasRect {
     std::int64_t x = 0, y = 0, w = 0, h = 0;
-    std::int64_t role = surface::role::kFill;
+    std::int64_t role = graphics::role::kFill;
     ZEN_SHAPE(PaneCanvasRect, 1, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
               ZEN_FIELD(role));
 };
@@ -36,7 +38,7 @@ struct PaneCanvasRect {
 struct PaneCanvasLabel {
     std::int64_t x = 0, y = 0;
     std::string text;
-    std::int64_t role = surface::role::kFill;
+    std::int64_t role = graphics::role::kFill;
     ZEN_SHAPE(PaneCanvasLabel, 1, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(text), ZEN_FIELD(role));
 };
 
@@ -46,7 +48,7 @@ struct PaneCanvasLabel {
 struct PaneCanvasText {
     std::int64_t x = 0, y = 0;
     std::string text;
-    std::int64_t role = surface::role::kFill;
+    std::int64_t role = graphics::role::kFill;
     std::int64_t caret_col = surface::kNoCaret;
     std::int64_t sel_begin_col = surface::kNoSelection, sel_end_col = surface::kNoSelection;
     ZEN_SHAPE(PaneCanvasText, 1, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(text), ZEN_FIELD(role),
@@ -122,11 +124,11 @@ namespace v2 {
 struct PaneCanvasText {
     std::int64_t x = 0, y = 0;
     std::string text;
-    std::int64_t role = surface::role::kFill;
+    std::int64_t role = graphics::role::kFill;
     std::int64_t caret_col = surface::kNoCaret;
     std::int64_t sel_begin_col = surface::kNoSelection, sel_end_col = surface::kNoSelection;
     bool padded = true;
-    std::int64_t background = surface::role::kNone;
+    std::int64_t background = graphics::role::kNone;
     ZEN_SHAPE(PaneCanvasText, 2, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(text), ZEN_FIELD(role),
               ZEN_FIELD(caret_col), ZEN_FIELD(sel_begin_col), ZEN_FIELD(sel_end_col),
               ZEN_FIELD(padded), ZEN_FIELD(background));
@@ -185,7 +187,7 @@ struct PaneCanvasContent {
 /// A run of an earlier picture as the current form says it: padded, as every earlier run is.
 inline v2::PaneCanvasText canvas_text_of(const PaneCanvasText& t) {
     return v2::PaneCanvasText{t.x, t.y, t.text, t.role, t.caret_col, t.sel_begin_col,
-                              t.sel_end_col, true, surface::role::kNone};
+                              t.sel_end_col, true, graphics::role::kNone};
 }
 
 /// An earlier part as the current form says it: available, as every earlier part is read.
@@ -317,13 +319,13 @@ struct PaneCanvasHover {
 
 /// A sub-unit coordinate of an earlier picture as a canvas pixel: floored, as the window drew it.
 inline constexpr std::int64_t px_of_legacy_subs(std::int64_t subs) noexcept {
-    return surface::floor_div_px(subs, kPaneCanvasLegacySubs);
+    return graphics::floor_div_px(subs, kPaneCanvasLegacySubs);
 }
 
 /// A canvas pixel as an earlier door's sub-units: exact.
 inline constexpr std::int64_t legacy_subs_of_px(std::int64_t px) noexcept {
-    return surface::mul_px(px < 0 ? 0 : px, kPaneCanvasLegacySubs) -
-           surface::mul_px(px < 0 ? -px : 0, kPaneCanvasLegacySubs);
+    return graphics::mul_px(px < 0 ? 0 : px, kPaneCanvasLegacySubs) -
+           graphics::mul_px(px < 0 ? -px : 0, kPaneCanvasLegacySubs);
 }
 
 /// An earlier picture, as its own doors said it: the same fields in sub-units, so it is judged by
@@ -345,9 +347,9 @@ inline PaneCanvasContent canvas_content_of_legacy(const v2::PaneCanvasContent& o
         const std::int64_t x = px_of_legacy_subs(r.x);
         const std::int64_t y = px_of_legacy_subs(r.y);
         const std::int64_t w =
-            r.w > 0 ? px_of_legacy_subs(surface::add_cells(r.x, r.w)) - x : r.w;
+            r.w > 0 ? px_of_legacy_subs(graphics::add_cells(r.x, r.w)) - x : r.w;
         const std::int64_t h =
-            r.h > 0 ? px_of_legacy_subs(surface::add_cells(r.y, r.h)) - y : r.h;
+            r.h > 0 ? px_of_legacy_subs(graphics::add_cells(r.y, r.h)) - y : r.h;
         if (r.w > 0 && r.h > 0 && (w <= 0 || h <= 0)) {
             continue;
         }

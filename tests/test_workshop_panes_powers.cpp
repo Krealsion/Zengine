@@ -185,6 +185,7 @@ TEST_CASE("the host's Terminal finds powers as its ordinary verb, speaks only to
         CAPTURE(rule.shape_name);
         CHECK_FALSE(rule.any_target);
         CHECK(widening.count(rule.target_role) == 1);
+        CHECK(rule.shape_name != zengine::graphics::Drawn::zen_name);
     }
     // ITS ORDINARY VERB is the discovery door's find, at the version this build asks with...
     CHECK(grant.permits_role(kFindPowersName, kFindPowersVersion, kPowersRole));

@@ -218,9 +218,9 @@ WorkshopWeave::GuideDrawing WorkshopWeave::guide_drawing(const GuideMark& mark) 
     out.settled = true;
     const std::int64_t g = chrome_grain(sc);
     const bool cells = g > 1;
-    const std::int64_t line = place.fit.graphical() ? place.fit.line_px : surface::kCanvasCellPx;
+    const std::int64_t line = place.fit.graphical() ? place.fit.line_px : graphics::kCellPx;
     // A LABEL'S BYTES EACH TAKE A CANVAS CELL, in every medium (the Skins' label rule).
-    const std::int64_t advance = surface::kCanvasCellPx;
+    const std::int64_t advance = graphics::kCellPx;
     const PixelRect body = content->canvas.heard
         ? shown_canvas_place(content->canvas, bounds.rect, sc, titles)
         : PixelRect{place.region_x, place.region_y + place.header_rows * line, place.region_w,
@@ -234,12 +234,12 @@ WorkshopWeave::GuideDrawing WorkshopWeave::guide_drawing(const GuideMark& mark) 
     if (found == nullptr) return out;
     out.shown = true;
     const DeskRect& r = found->place;
-    const std::int64_t role = surface::role::kGuide;
+    const std::int64_t role = graphics::role::kGuide;
     if (cells) {
         // THE PART'S OWN CELLS, in the guide role: no cell beside it is drawn over.
         const PixelRect own = clipped(PixelRect{r.x, r.y, r.w, r.h}, body);
         out.drawn = own;
-        const std::int64_t fits = own.w / surface::kCanvasCellPx;
+        const std::int64_t fits = own.w / graphics::kCellPx;
         std::string text = found->text.substr(0, static_cast<std::size_t>(std::max<std::int64_t>(fits, 0)));
         if (static_cast<std::int64_t>(text.size()) < fits) text.append(static_cast<std::size_t>(fits) - text.size(), ' ');
         if (own.w > 0) out.labels.push_back(surface::SurfaceLabel{own.x, own.y, text, role});

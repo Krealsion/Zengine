@@ -415,7 +415,7 @@ surface::SurfaceCanvas canvas;
 canvas.width = 78;
 canvas.height = 22;
 surface::SurfaceLayer layer;
-layer.rects.push_back(surface::SurfaceRect{0, 0, 20, 3, surface::role::kAccent});
+layer.rects.push_back(surface::SurfaceRect{0, 0, 20, 3, graphics::role::kAccent});
 layer.labels.push_back(surface::SurfaceLabel{1, 1, "hello"});
 canvas.layers.push_back(std::move(layer));
 mail.publish(canvas);

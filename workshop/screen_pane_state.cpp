@@ -37,7 +37,7 @@ ProsePlace prose_place(const PixelRect& b, const Screen& sc) {
 // WL-RGN-01 -- agents/workshop/regions.md
 surface::SurfaceTextRegion prose_region(const ProsePlace& place) {
     surface::SurfaceTextRegion region;
-    const surface::SurfaceRect wire = wire_rect_of(place.inside, surface::role::kFill);
+    const surface::SurfaceRect wire = wire_rect_of(place.inside, graphics::role::kFill);
     region.x = wire.x;
     region.y = wire.y;
     region.w = wire.w;
@@ -101,18 +101,18 @@ bool rects_cover(const PixelRect& mine, const std::vector<PixelRect>& ahead) {
     }
     // Exact to the pixel, by edge compression: the union is constant between edges, so one point
     // per stripe answers, never a pixel walk. A sliver of one pixel still means `open`.
-    std::vector<std::int64_t> xs{mine.x, surface::add_cells(mine.x, mine.w)};
-    std::vector<std::int64_t> ys{mine.y, surface::add_cells(mine.y, mine.h)};
+    std::vector<std::int64_t> xs{mine.x, graphics::add_cells(mine.x, mine.w)};
+    std::vector<std::int64_t> ys{mine.y, graphics::add_cells(mine.y, mine.h)};
     for (const PixelRect& r : ahead) {
         xs.push_back(r.x);
-        xs.push_back(surface::add_cells(r.x, r.w));
+        xs.push_back(graphics::add_cells(r.x, r.w));
         ys.push_back(r.y);
-        ys.push_back(surface::add_cells(r.y, r.h));
+        ys.push_back(graphics::add_cells(r.y, r.h));
     }
     std::sort(xs.begin(), xs.end());
     std::sort(ys.begin(), ys.end());
-    const std::int64_t right = surface::add_cells(mine.x, mine.w);
-    const std::int64_t bottom = surface::add_cells(mine.y, mine.h);
+    const std::int64_t right = graphics::add_cells(mine.x, mine.w);
+    const std::int64_t bottom = graphics::add_cells(mine.y, mine.h);
     for (std::size_t yi = 0; yi + 1 < ys.size(); ++yi) {
         const std::int64_t y = ys[yi];
         if (y < mine.y || y >= bottom || ys[yi + 1] == y) {
@@ -125,8 +125,8 @@ bool rects_cover(const PixelRect& mine, const std::vector<PixelRect>& ahead) {
             }
             bool hidden = false;
             for (const PixelRect& r : ahead) {
-                if (x >= r.x && x < surface::add_cells(r.x, r.w) && y >= r.y &&
-                    y < surface::add_cells(r.y, r.h)) {
+                if (x >= r.x && x < graphics::add_cells(r.x, r.w) && y >= r.y &&
+                    y < graphics::add_cells(r.y, r.h)) {
                     hidden = true;
                     break;
                 }
@@ -168,8 +168,8 @@ const char* geometry_unit(std::int64_t cell_px) {
 
 // WL-GEO-09, WL-GEO-10 -- agents/workshop/geometry.md
 GeometrySpelling geometry_spelling(std::int64_t px, std::int64_t cell_px) {
-    return GeometrySpelling{std::to_string(surface::device_of_px(px, cell_px)),
-                            surface::px_exact_in_device(px, cell_px)};
+    return GeometrySpelling{std::to_string(graphics::device_of_px(px, cell_px)),
+                            graphics::px_exact_in_device(px, cell_px)};
 }
 
 std::string geometry_amount_text(std::int64_t px, std::int64_t cell_px,
@@ -273,8 +273,8 @@ bool pane_window_partly_default(const SetupPane* row) {
 // WL-CTX-03 -- agents/workshop/contextual.md
 PixelRect popup_bounds_at(std::int64_t want_cols, std::int64_t want_rows,
                           std::int64_t x, std::int64_t y, const Screen& sc) {
-    const surface::RegionPixels inner =
-        surface::region_px_for(want_cols, want_rows, sc.text_advance_px, sc.text_line_px);
+    const RegionPixels inner =
+        region_px_for(want_cols, want_rows, sc.text_advance_px, sc.text_line_px);
     const PixelRect outer = chrome_outer_of(0, 0, inner.w, inner.h);
     const std::int64_t floor_y = sc.room_y + sc.room_h;
     const std::int64_t w = outer.w > sc.w ? sc.w : outer.w;

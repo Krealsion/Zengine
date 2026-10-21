@@ -196,7 +196,7 @@ TEST_CASE("a drop whose pane leaves before it is delivered is said not delivered
     loom::WeaveId seat_id{};
     const std::string office = "zengine.test.rows";
     const std::int64_t rows = s.r.mount_sweep(office, "rows",
-                                              {surface::SurfaceTextRow{"drop here", surface::role::kFill}},
+                                              {surface::SurfaceTextRow{"drop here", gfx::role::kFill}},
                                               &seat, &seat_id);
     REQUIRE(rows != kNoPaneKind);
     // The drop is queued and said sent; the pane leaves before the bus dispatches it.
@@ -368,7 +368,7 @@ TEST_CASE("in a window, a value placed on the Editor's inset beside its rows is 
     // THE FIRST WINDOW PIXEL OF THE ROOM, on the first document row: inside the room, and left of
     // the lattice's first column, in the inset a window keeps beside the rows.
     const CanvasRows lattice = held_canvas_rows(*seat);
-    const std::int64_t grain = surface::kPixelGrainPx;
+    const std::int64_t grain = gfx::kPixelGrainPx;
     const std::int64_t px = (seat->canvas.x + grain - 1) / grain;
     REQUIRE(px * grain - seat->canvas.x < lattice.x);
     input::InjectedEvent press;

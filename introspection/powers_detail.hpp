@@ -269,23 +269,23 @@ inline Detail detail_rows(const workshop::PowerRow& row, const workshop::PowerDe
              ? std::string("  yields (not reported)")
              : "  yields " + printable(row.outputs.name) + " v" +
                    std::to_string(row.outputs.version),
-         surface::role::kMuted);
+         graphics::role::kMuted);
     if (is_source_power(row)) {
-        line(std::string("  ") + kSampleControl, surface::role::kAccent, true);
+        line(std::string("  ") + kSampleControl, graphics::role::kAccent, true);
     }
     if (!row.about.empty()) {
-        line("  " + printable(row.about), surface::role::kFill);
+        line("  " + printable(row.about), graphics::role::kFill);
     }
     if (!row.offered) {
-        line(kNotOfferedLine, surface::role::kMuted);
+        line(kNotOfferedLine, graphics::role::kMuted);
     }
-    line("  " + printable(row.signature), surface::role::kMuted);
+    line("  " + printable(row.signature), graphics::role::kMuted);
     if (described == nullptr) {
         // The answer about this identity has not come: what is in force, from its row alone.
         line("  active    " + (row.provider.empty() ? std::string(kHostItself)
                                                     : printable(row.provider)) +
                  (is_composite_power(row) ? kCompositeBadge : ""),
-             surface::role::kFill);
+             graphics::role::kFill);
         return d;
     }
     for (std::size_t i = described->stack.size(); i > 0; --i) {
@@ -299,7 +299,7 @@ inline Detail detail_rows(const workshop::PowerRow& row, const workshop::PowerDe
         if (!live && !c.about.empty()) {
             said += " -- " + printable(c.about);
         }
-        line(std::move(said), live ? surface::role::kFill : surface::role::kMuted);
+        line(std::move(said), live ? graphics::role::kFill : graphics::role::kMuted);
     }
     return d;
 }

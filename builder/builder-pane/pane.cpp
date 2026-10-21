@@ -26,6 +26,7 @@
 #include "component/list_window.hpp"
 #include "component/row_map.hpp"
 #include "component/text_box.hpp"
+#include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 
@@ -49,6 +50,7 @@ namespace {
 namespace component = zengine::component;
 namespace input = zengine::input;
 namespace surface = zengine::surface;
+namespace gfx = zengine::graphics;
 namespace ws = zengine::workshop;
 namespace pane = zengine::builder_pane;
 namespace builder = zengine::builder;
@@ -192,13 +194,13 @@ class BuilderPaneWeave
           BuilderPaneWeave, pane::BuilderPaneState,
           loom::Accept<PaneKey, PaneTextInput, builder::BuildStatus, builder::RecipeCatalog,
                        ProjectFrontierSaid, PlanNames, PlanRowWritten, RecipeSourceSaid,
-                       SourceOpened, surface::ClipboardCopy, surface::ClipboardText,
+                       SourceOpened, gfx::ClipboardCopy, gfx::ClipboardText,
                        PaneSourceOpened, builder::BuildOutputSaid>,
           loom::Emit<builder::StatusRequested, builder::BuildRequested, builder::PromoteArtifact,
                      builder::RevertArtifact, ProjectFrontierRequested, PlanNamesRequested,
                      PlanRowRequested, RecipeSourceRequested, OpenSourceRequested,
-                     ws::PaneKeyboardRequested, ws::PaneEscapeUnspent, surface::ClipboardCopy,
-                     surface::ClipboardTextRequested, builder::BuildOutputRequested>> {
+                     ws::PaneKeyboardRequested, ws::PaneEscapeUnspent, gfx::ClipboardCopy,
+                     gfx::ClipboardTextRequested, builder::BuildOutputRequested>> {
 public:
     PaneOffered offering() const {
         return PaneOffered{pane::kBuilderPane, pane::kBuilderPaneName, pane::kBuilderPaneSummary,
@@ -239,7 +241,7 @@ public:
         }
         notice_.clear();
         if (clip_.writes != copied_before) {
-            mail.publish(surface::ClipboardCopy{clip_.text});
+            mail.publish(gfx::ClipboardCopy{clip_.text});
         }
         if (clip_.paste_requests != pastes_before) {
             begin_paste(mail);
@@ -907,13 +909,13 @@ public:
 
     // ---- The clipboard the role line spends -----------------------------------------
 
-    void on(const surface::ClipboardCopy& said, loom::Mail&) {
+    void on(const gfx::ClipboardCopy& said, loom::Mail&) {
         if (admissible(said.text)) {
             clip_.text = said.text;
         }
     }
 
-    void on(const surface::ClipboardText& a, loom::Mail& mail) {
+    void on(const gfx::ClipboardText& a, loom::Mail& mail) {
         if (!mail.answers_ask()) {
             return;
         }
@@ -1513,8 +1515,8 @@ private:
     void begin_paste(loom::Mail& mail) {
         const std::string office = room().clipboard_office();
         const loom::AskOpened opened = clip_asks_.open_to_role(
-            office, surface::ClipboardTextRequested::zen_name,
-            surface::ClipboardTextRequested::zen_version);
+            office, gfx::ClipboardTextRequested::zen_name,
+            gfx::ClipboardTextRequested::zen_version);
         if (!opened) {
             return;
         }
@@ -1522,7 +1524,7 @@ private:
         paste_epoch_ = role_.line.draft_epoch();
         pasting_ = true;
         (void)mail.as_role(pane::kBuilderPaneRole)
-            .send_to_role(office, surface::ClipboardTextRequested{}, opened.correlation);
+            .send_to_role(office, gfx::ClipboardTextRequested{}, opened.correlation);
     }
 
     // ---- The output reader (WL-OUT-04), defined in `output_reader.hpp` ----------------------
@@ -1592,7 +1594,7 @@ private:
             return;
         }
         if (!notice_.empty() && rows() > 1) {
-            push_row(notice_, surface::role::kAccent);
+            push_row(notice_, gfx::role::kAccent);
         }
         if (role_.open) {
             say_role();

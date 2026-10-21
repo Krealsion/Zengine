@@ -12,7 +12,7 @@ namespace ws = zengine::workshop;
 namespace flow = zengine::flow;
 constexpr auto unit = pane::unit;
 /// A room's cell, in its pixels: one character where no face is measured.
-constexpr std::int64_t cell = zengine::surface::kCanvasCellPx;
+constexpr std::int64_t cell = zengine::graphics::kCellPx;
 
 ws::PaneCanvasRoom room() { return {"flow", 7, 100 * cell, 45 * cell, 1, true}; }
 pane::Model graph(std::size_t nodes) {
@@ -106,13 +106,13 @@ TEST_CASE("Flow shows an actionable bounded picture instead of a partial dense g
         CHECK(window.sketch.nodes().front().op == gfx::op::kRect);
         CHECK((ground->x == 0 && ground->y == 0 && ground->w == 100 * cell &&
                ground->h == 45 * cell));
-        CHECK(ground->fill.role == zengine::surface::role::kGround);
+        CHECK(ground->fill.role == zengine::graphics::role::kGround);
         CHECK(window.parts.count("control:ask-save") == 1);
         CHECK(window.parts.count("control:zoom-in") == 1);
         CHECK(std::none_of(window.parts.begin(), window.parts.end(),
                            [](const auto& part) { return part.second.action == "node"; }));
         ws::v4::PaneCanvasContent many;
-        many.rects.push_back({0, 0, 120, 120, zengine::surface::role::kGround});
+        many.rects.push_back({0, 0, 120, 120, zengine::graphics::role::kGround});
         for (std::size_t i = 0; i <= gfx::kMaxElementsPerArea; ++i)
             many.parts.push_back({"part " + std::to_string(i), 0, 0, cell, cell});
         const auto said = ws::canvas_sketch(many, ws::canvas_window_room("flow", 120, 120, 0, {}));
@@ -258,7 +258,7 @@ TEST_CASE("Flow projects native text and hit regions through independent measure
     CHECK(view.content.labels.empty());
     REQUIRE_FALSE(view.content.texts.empty());
     REQUIRE_FALSE(view.content.rects.empty());
-    CHECK(view.content.rects.front().role == zengine::surface::role::kGround);
+    CHECK(view.content.rects.front().role == zengine::graphics::role::kGround);
     CHECK(view.content.rects.front().w == native_room.width);
     CHECK(view.content.rects.front().h == native_room.height);
     REQUIRE(action_has(view, "node"));

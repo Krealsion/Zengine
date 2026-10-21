@@ -18,10 +18,13 @@
 #include "screen.hpp"
 #include "setup.hpp"
 
+#include "graphics/pixels.hpp"
+#include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/pointing.hpp"
 #include "surface/region.hpp"
 #include "surface/vocabulary.hpp"
+#include "pane_text_fit.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -51,16 +54,16 @@ inline DeskRect desk_rect(const PixelRect& r) {
 /// the console rows the medium spends above the canvas, which a point in cells counts.
 struct GlyphGrid {
     std::int64_t x = 0, y = 0;
-    std::int64_t advance = surface::kCanvasCellPx, line = surface::kCanvasCellPx;
+    std::int64_t advance = graphics::kCellPx, line = graphics::kCellPx;
     std::int64_t rows_above = surface::kTuiCanvasTopRow;
 };
 
-inline GlyphGrid glyph_grid(const surface::RegionFit& fit, std::int64_t rows_above) {
+inline GlyphGrid glyph_grid(const RegionFit& fit, std::int64_t rows_above) {
     if (fit.graphical()) {
         return GlyphGrid{fit.view.x + fit.origin_x, fit.view.y + fit.origin_y, fit.advance_px,
                          fit.line_px, rows_above};
     }
-    return GlyphGrid{fit.view.x, fit.view.y, surface::kCanvasCellPx, surface::kCanvasCellPx,
+    return GlyphGrid{fit.view.x, fit.view.y, graphics::kCellPx, graphics::kCellPx,
                      rows_above};
 }
 
@@ -73,8 +76,8 @@ inline void glyph_point(const GlyphGrid& g, std::int64_t row, std::int64_t colum
         y = g.y + row * g.line + g.line / 2;
         return;
     }
-    x = surface::cell_of_pixel(g.x + column * g.advance);
-    y = surface::cell_of_pixel(g.y + row * g.line) + g.rows_above;
+    x = graphics::cell_of_pixel(g.x + column * g.advance);
+    y = graphics::cell_of_pixel(g.y + row * g.line) + g.rows_above;
 }
 
 /// ONE RUN OF GLYPHS AS A WORD: `text` drawn from `column` of `row` over its bytes' cells of the
@@ -211,9 +214,9 @@ inline std::string words_inside(const std::vector<PaneWord>& words, const DeskRe
         const std::int64_t advance = w.place.w / bytes;
         if (advance <= 0) continue;
         const std::int64_t first = (std::max<std::int64_t>)(
-            0, -surface::floor_div_px(w.place.x - place.x, advance));
+            0, -graphics::floor_div_px(w.place.x - place.x, advance));
         const std::int64_t end = (std::min<std::int64_t>)(
-            bytes, surface::floor_div_px(place.x + place.w - w.place.x, advance));
+            bytes, graphics::floor_div_px(place.x + place.w - w.place.x, advance));
         if (end <= first) continue;
         const std::string piece =
             w.text.substr(static_cast<std::size_t>(first), static_cast<std::size_t>(end - first));
@@ -231,12 +234,12 @@ struct UnitBox {
 
 /// A part's local rectangle on the body, cut to it, in the medium's units.
 inline UnitBox units_of(const PixelRect& body, const v2::PaneCanvasPart& part, std::int64_t unit) {
-    const std::int64_t left = surface::add_cells(body.x, part.x);
-    const std::int64_t top = surface::add_cells(body.y, part.y);
-    return UnitBox{surface::floor_div_px((std::max)(body.x, left), unit),
-                   surface::floor_div_px((std::max)(body.y, top), unit),
-                   surface::floor_div_px((std::min)(body.x + body.w, surface::add_cells(left, part.w)), unit),
-                   surface::floor_div_px((std::min)(body.y + body.h, surface::add_cells(top, part.h)), unit)};
+    const std::int64_t left = graphics::add_cells(body.x, part.x);
+    const std::int64_t top = graphics::add_cells(body.y, part.y);
+    return UnitBox{graphics::floor_div_px((std::max)(body.x, left), unit),
+                   graphics::floor_div_px((std::max)(body.y, top), unit),
+                   graphics::floor_div_px((std::min)(body.x + body.w, graphics::add_cells(left, part.w)), unit),
+                   graphics::floor_div_px((std::min)(body.y + body.h, graphics::add_cells(top, part.h)), unit)};
 }
 
 /// A unit of a medium, by its column and row.
@@ -433,7 +436,7 @@ inline bool drawn_label(const PaneCanvasLabel& label, const PixelRect& body, std
     std::size_t first = 0;
     x = label.x;
     while (first < label.text.size() && x < 0) {
-        x = surface::add_cells(x, kPaneCanvasUnit);
+        x = graphics::add_cells(x, kPaneCanvasUnit);
         ++first;
     }
     if (x > body.w - kPaneCanvasUnit || first == label.text.size()) return false;

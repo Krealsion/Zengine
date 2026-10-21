@@ -10,6 +10,7 @@
 
 #include "workshop/pane_vocabulary.hpp"
 
+#include "graphics/role.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 #include "timer/binding.hpp"
@@ -28,6 +29,7 @@ namespace {
 
 namespace ws = zengine::workshop;
 namespace surface = zengine::surface;
+namespace gfx = zengine::graphics;
 using zengine::timer::TimedWeave;
 using zengine::timer::TimerFired;
 
@@ -245,7 +247,7 @@ std::vector<surface::SurfaceTextRow> picture(const TdState& s) {
     rows.push_back({"TOWER DEFENSE   wave " + std::to_string(s.wave) + "/" + std::to_string(kWaves) +
                         "   gold " + std::to_string(s.gold) + "   lives " + std::to_string(s.lives) +
                         "   " + phase_words(s),
-                    surface::role::kAccent});
+                    gfx::role::kAccent});
     for (int y = 0; y < kHeight; ++y) {
         std::string row = " ";
         for (int x = 0; x < kWidth; ++x) {
@@ -256,9 +258,9 @@ std::vector<surface::SurfaceTextRow> picture(const TdState& s) {
             row += glyph(s, x, y);
             row += here ? ']' : ' ';
         }
-        rows.push_back({row, surface::role::kFill});
+        rows.push_back({row, gfx::role::kFill});
     }
-    rows.push_back({s.message, s.phase >= kWon ? surface::role::kAlert : surface::role::kFill});
+    rows.push_back({s.message, s.phase >= kWon ? gfx::role::kAlert : gfx::role::kFill});
     return rows;
 }
 

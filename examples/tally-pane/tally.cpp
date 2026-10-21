@@ -11,6 +11,7 @@
 #include "workshop/pane_vocabulary.hpp"
 
 #include "activation/activation.hpp"
+#include "graphics/role.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 
@@ -27,6 +28,7 @@ namespace {
 
 namespace ws = zengine::workshop;
 namespace surface = zengine::surface;
+namespace gfx = zengine::graphics;
 
 // ---- CHANGE THIS FIRST ------------------------------------------------------------------------
 //
@@ -34,8 +36,8 @@ namespace surface = zengine::surface;
 // because it changes the code and not the state's shape.
 std::vector<surface::SurfaceTextRow> rows_for(std::int64_t count) {
     return {
-        surface::SurfaceTextRow{"Tally: " + std::to_string(count), surface::role::kAccent},
-        surface::SurfaceTextRow{"press into me, then Space adds one", surface::role::kMuted},
+        surface::SurfaceTextRow{"Tally: " + std::to_string(count), gfx::role::kAccent},
+        surface::SurfaceTextRow{"press into me, then Space adds one", gfx::role::kMuted},
     };
 }
 

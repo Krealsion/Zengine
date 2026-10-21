@@ -9,6 +9,7 @@
 // Loom stamped on the message, `mail.authored_role()`, which no payload can write. Workshop sends
 // each gesture and asks nothing back; a shape a pane does not accept is refused at Loom's gate.
 
+#include "graphics/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 
 #include <zen/weave/shape.hpp>
@@ -53,7 +54,7 @@ struct PaneOffered {
 
 /// The widest, and the tallest, canvas body a pane may ask for, in canvas pixels
 /// (`v3::PaneOffered`): the text comfort's bound, in pixels.
-inline constexpr std::int64_t kMaxPaneBodyPx = kMaxPaneComfort * surface::kCanvasCellPx;
+inline constexpr std::int64_t kMaxPaneBodyPx = kMaxPaneComfort * graphics::kCellPx;
 
 namespace v3 {
 /// A canvas pane's initial body: `width` by `height` canvas pixels, each 1..`kMaxPaneBodyPx`, and

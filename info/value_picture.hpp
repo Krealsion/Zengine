@@ -111,22 +111,23 @@ public:
         map_.begin();
         caret_ = {};
         const auto width = s.columns;
-        const auto push = [&](std::string text, std::int64_t role, std::int64_t ground = surface::role::kNone) {
+        const auto push = [&](std::string text, std::int64_t role, std::int64_t ground = graphics::role::kNone) {
             if (static_cast<std::int64_t>(out.rows.size()) < s.rows)
                 out.rows.push_back({workshop::pane_text::drawable(workshop::pane_text::fit(std::move(text), width)), role, ground});
         };
         if (!s.used) {
-            push(s.title + " -- unused view slot", surface::role::kAccent, surface::role::kMuted);
+            push(s.title + " -- unused view slot", graphics::role::kAccent, graphics::role::kMuted);
             controls(s, out, 1);
-            push("Or drop an Inventory value here. Views close with Close; data stays in Inventory.", surface::role::kMuted);
+            push("Or drop an Inventory value here. Views close with Close; data stays in Inventory.",
+                 graphics::role::kMuted);
             out.picture = map_.settle();
             return out;
         }
-        push(s.title + " | " + s.subject, surface::role::kAccent, surface::role::kMuted);
-        if (s.rows >= 4) push(s.state, s.alert ? surface::role::kAlert : surface::role::kMuted);
+        push(s.title + " | " + s.subject, graphics::role::kAccent, graphics::role::kMuted);
+        if (s.rows >= 4) push(s.state, s.alert ? graphics::role::kAlert : graphics::role::kMuted);
         if (!s.typing.empty()) {
-            if (!s.notice.empty()) push(s.notice, surface::role::kAlert);
-            push(s.typing, surface::role::kFill);
+            if (!s.notice.empty()) push(s.notice, graphics::role::kAlert);
+            push(s.typing, graphics::role::kFill);
             const std::int64_t room = std::max<std::int64_t>(0, width - 2);
             line.keep_caret_visible(room);
             if (room > 0 && static_cast<std::int64_t>(out.rows.size()) < s.rows) {
@@ -139,17 +140,17 @@ public:
                     caret_.sel_end_col = 2 + span.end;
                 }
             }
-            push("> " + line.visible(room), surface::role::kAccent);
-            push("Enter keeps it; Escape cancels", surface::role::kMuted);
+            push("> " + line.visible(room), graphics::role::kAccent);
+            push("Enter keeps it; Escape cancels", graphics::role::kMuted);
             out.picture = map_.settle();
             return out;
         }
         controls(s, out, s.rows >= 10 ? 2 : 1);
-        if (!s.notice.empty()) push(s.notice, surface::role::kAlert);
-        if (s.rows >= 12 && !s.detail.empty()) push(s.detail, surface::role::kMuted);
+        if (!s.notice.empty()) push(s.notice, graphics::role::kAlert);
+        if (s.rows >= 12 && !s.detail.empty()) push(s.detail, graphics::role::kMuted);
         if (!s.holds_value) {
             push("Drag an Inventory entry here for a copy; right-click an entry, Grab live, then click here to link it.",
-                 surface::role::kMuted);
+                 graphics::role::kMuted);
             out.picture = map_.settle();
             return out;
         }
@@ -157,15 +158,15 @@ public:
         const auto window = component::cursor_window(s.fields.size(), s.selected, first, budget);
         first = window.first;
         if (const std::size_t earlier = component::earlier_marker(window); earlier > 0)
-            push(workshop::pane_text::omitted_text(earlier, "earlier"), surface::role::kMuted);
+            push(workshop::pane_text::omitted_text(earlier, "earlier"), graphics::role::kMuted);
         for (std::size_t i = window.first; i < window.end(); ++i) {
             const FieldLine& f = s.fields[i];
             map_.row(static_cast<std::int64_t>(out.rows.size()), Meaning{Meaning::kField, {}, f.ref});
             push(std::string(f.here ? ">" : " ") + f.mark + f.label + ": " + f.summary + (f.missing ? " (required)" : ""),
-                 f.metadata ? surface::role::kMuted : surface::role::kFill);
+                 f.metadata ? graphics::role::kMuted : graphics::role::kFill);
         }
         if (const std::size_t more = component::more_marker(window); more > 0)
-            push(workshop::pane_text::omitted_text(more, "more"), surface::role::kMuted);
+            push(workshop::pane_text::omitted_text(more, "more"), graphics::role::kMuted);
         out.picture = map_.settle();
         return out;
     }
@@ -198,7 +199,7 @@ private:
                 text += word;
                 ++next;
             }
-            out.rows.push_back({workshop::pane_text::drawable(text), surface::role::kFill, surface::role::kNone});
+            out.rows.push_back({workshop::pane_text::drawable(text), graphics::role::kFill, graphics::role::kNone});
             last_row = row; last_text = text;
             if (next >= items.size()) break;
         }

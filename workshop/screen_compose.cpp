@@ -97,10 +97,10 @@ void paint_selection_ring(surface::SurfaceLayer& layer, const Session& s, const 
     }
     // THE STYLE `workshop.focus.ring` NAMES: the accent's two rings, or one in the chrome's ink.
     const bool plain = s.selection_ring_plain;
-    const std::int64_t role = plain ? kPaneChrome : surface::role::kAccent;
+    const std::int64_t role = plain ? kPaneChrome : graphics::role::kAccent;
     // WHERE AN EDGE IS FINER THAN A CELL, the rings, each as its four sides.
     const std::int64_t grain = chrome_grain(sc);
-    if (grain < surface::kCanvasCellPx) {
+    if (grain < graphics::kCellPx) {
         std::vector<PixelRect> rings = selection_rings(b, sc);
         if (plain) {
             rings.resize(1);
@@ -131,7 +131,7 @@ void paint_selection_ring(surface::SurfaceLayer& layer, const Session& s, const 
 
 surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc) {
     const PixelRect b = band_bounds(sc);
-    const surface::RegionFit fit = band_fit(sc);
+    const RegionFit fit = band_fit(sc);
     surface::SurfaceTextRegion band;
     band.x = b.x;
     band.y = b.y;
@@ -145,7 +145,7 @@ surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc) {
 
     const std::string notice = s.notice.empty() ? std::string() : detail::fit(s.notice, columns);
     const std::int64_t notice_role =
-        s.notice_is_bad ? surface::role::kAlert : surface::role::kFill;
+        s.notice_is_bad ? graphics::role::kAlert : graphics::role::kFill;
 
     // The legend takes what the notice leaves. While an external pane holds the keyboard and the
     // legend is full, the first legend row still says so: that sentence is keyboard-ownership
@@ -198,7 +198,7 @@ surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc) {
     if (budget >= 2) {
         push(notice, notice_role);
         for (std::string& row : legend) {
-            push(std::move(row), surface::role::kMuted);
+            push(std::move(row), graphics::role::kMuted);
         }
     } else if (!notice.empty()) {
         // One row: the tool's own voice while it has something to say.
@@ -208,7 +208,7 @@ surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc) {
             help_rows(s.keymap, s.band_keys, keyboard_context(s), columns, 1,
                       keyboard_pane(s.panes));
         if (!pairs.empty()) {
-            push(pairs.front(), surface::role::kMuted);
+            push(pairs.front(), graphics::role::kMuted);
         }
     }
     return band;
@@ -262,10 +262,10 @@ namespace {
 
 /// The pixels `columns` characters stand on from `column` of a fitted region's row `row`: the
 /// medium's type where it sets type, a cell a character where text is a cell.
-PixelRect span_px(const surface::RegionFit& f, std::int64_t row, std::int64_t column,
+PixelRect span_px(const RegionFit& f, std::int64_t row, std::int64_t column,
                   std::int64_t columns) {
-    const std::int64_t advance = f.graphical() ? f.advance_px : surface::kCanvasCellPx;
-    const std::int64_t line = f.graphical() ? f.line_px : surface::kCanvasCellPx;
+    const std::int64_t advance = f.graphical() ? f.advance_px : graphics::kCellPx;
+    const std::int64_t line = f.graphical() ? f.line_px : graphics::kCellPx;
     return PixelRect{f.view.x + f.origin_x + column * advance, f.view.y + f.origin_y + row * line,
                      columns * advance, line};
 }
@@ -278,8 +278,8 @@ void draw_region(graphics::Sketch& sk, const std::string& name,
     if (g.w <= 0 || g.h <= 0) {
         return;
     }
-    const surface::RegionFit fit =
-        surface::fit_region(g.x, g.y, g.w, g.h, sc.text_advance_px, sc.text_line_px);
+    const RegionFit fit =
+        fit_region(g.x, g.y, g.w, g.h, sc.text_advance_px, sc.text_line_px);
     sk.group(name, g.x, g.y, g.w, g.h);
     const auto local = [&](std::int64_t row, std::int64_t column, std::int64_t columns) {
         PixelRect at = span_px(fit, row, column, columns);
@@ -288,12 +288,12 @@ void draw_region(graphics::Sketch& sk, const std::string& name,
         return at;
     };
     if (g.ground != surface::kGroundBeneath) {
-        sk.fill_rect(name + "/ground", 0, 0, g.w, g.h, graphics::by_role(surface::role::kGround));
+        sk.fill_rect(name + "/ground", 0, 0, g.w, g.h, graphics::by_role(graphics::role::kGround));
     }
     for (std::size_t r = 0; r < g.rows.size(); ++r) {
         const surface::SurfaceTextRow& row = g.rows[r];
         const PixelRect at = local(static_cast<std::int64_t>(r), 0, 0);
-        if (row.background != surface::role::kNone) {
+        if (row.background != graphics::role::kNone) {
             sk.fill_rect(name + "/bg" + std::to_string(r), 0, at.y, g.w, at.h,
                          graphics::by_role(row.background));
         }
@@ -315,14 +315,14 @@ void draw_region(graphics::Sketch& sk, const std::string& name,
             sk.text(name + "/sel" + std::to_string(r), at.x, at.y,
                     text.substr(static_cast<std::size_t>(first),
                                 static_cast<std::size_t>(last - first)),
-                    graphics::by_role(surface::role::kAccent));
+                    graphics::by_role(graphics::role::kAccent));
         }
     }
     if (g.caret_row >= 0 && g.caret_row < static_cast<std::int64_t>(g.rows.size()) &&
         g.caret_col >= 0) {
         const PixelRect at = local(g.caret_row, g.caret_col, 1);
         sk.line(name + "/caret", at.x, at.y, at.x, at.y + at.h - 1,
-                graphics::by_role(surface::role::kAccent));
+                graphics::by_role(graphics::role::kAccent));
     }
 }
 
@@ -347,20 +347,20 @@ void draw_plane(graphics::Sketch& sk, const std::string& name, const surface::Su
         }
         if (opaque) {
             sk.fill_rect(at + "-ground", r.x, r.y, r.w, r.h,
-                         graphics::by_role(surface::role::kGround));
+                         graphics::by_role(graphics::role::kGround));
         }
         sk.outline_rect(at, r.x, r.y, r.w, r.h, graphics::by_role(r.role));
     }
     const std::int64_t advance =
-        sc.text_advance_px > 0 ? sc.text_advance_px : surface::kCanvasCellPx;
-    const std::int64_t line = sc.text_line_px > 0 ? sc.text_line_px : surface::kCanvasCellPx;
+        sc.text_advance_px > 0 ? sc.text_advance_px : graphics::kCellPx;
+    const std::int64_t line = sc.text_line_px > 0 ? sc.text_line_px : graphics::kCellPx;
     for (std::size_t i = 0; i < layer.labels.size(); ++i) {
         const surface::SurfaceLabel& l = layer.labels[i];
         const std::string at = name + "/label" + std::to_string(i);
         if (grounded && !l.text.empty()) {
             sk.fill_rect(at + "-ground", l.x, l.y,
                          static_cast<std::int64_t>(l.text.size()) * advance, line,
-                         graphics::by_role(surface::role::kGround));
+                         graphics::by_role(graphics::role::kGround));
         }
         sk.text(at, l.x, l.y, l.text, graphics::by_role(l.role));
     }
@@ -372,7 +372,7 @@ void draw_plane(graphics::Sketch& sk, const std::string& name, const surface::Su
 /// A PART NAMED BY ITS ACTION: the characters `row` shows at those columns drawn again over them,
 /// in its role, recorded with `action`.
 void draw_part(WorkshopWindowDrawing& out, const std::string& group, const std::string& action,
-               const surface::RegionFit& fit, std::int64_t r, std::int64_t column,
+               const RegionFit& fit, std::int64_t r, std::int64_t column,
                std::int64_t columns, const surface::SurfaceTextRow& row) {
     if (columns <= 0 || column < 0) {
         return;
@@ -433,7 +433,7 @@ void draw_pane(WorkshopWindowDrawing& out, const Session& s, std::int64_t kind,
         if (tab_row != kNoBandRow) {
             const ExternalBodyPlace place = layouts_body(s, sc);
             const BandStatus band = band_status(s, place);
-            const surface::SurfaceTextRow row{band.text, surface::role::kMuted};
+            const surface::SurfaceTextRow row{band.text, graphics::role::kMuted};
             for (const LayoutTab& tab : band.tabs) {
                 draw_part(out, group, "layout:" + std::to_string(tab.at), place.fit, tab_row,
                           tab.column, tab.columns, row);
@@ -506,7 +506,7 @@ WorkshopWindowDrawing workshop_window_drawing(const Session& s) {
                                     rings[i].w, rings[i].h,
                                     graphics::by_role(s.selection_ring_plain
                                                           ? kPaneChrome
-                                                          : surface::role::kAccent));
+                                                          : graphics::role::kAccent));
         }
     }
     if (s.context.open) {

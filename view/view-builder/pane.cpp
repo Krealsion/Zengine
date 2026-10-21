@@ -49,7 +49,6 @@ namespace vb = zengine::view_builder;
 namespace view = zengine::view;
 namespace ws = zengine::workshop;
 namespace input = zengine::input;
-namespace surface = zengine::surface;
 namespace gfx = zengine::graphics;
 constexpr const char* workshop_role = "zengine.workshop";
 
@@ -860,7 +859,7 @@ private:
     /// Arrow keys move the selected element a pixel, or a cell with Shift; one that would cross
     /// the view's edge is refused in words.
     bool nudge(const ws::PaneKey& key) {
-        const std::int64_t step = (key.modifiers & input::mod::kShift) != 0 ? surface::kCanvasCellPx : 1;
+        const std::int64_t step = (key.modifiers & input::mod::kShift) != 0 ? gfx::kCellPx : 1;
         std::int64_t dx = 0, dy = 0;
         if (key.scancode == input::scan::kLeft) dx = -step;
         else if (key.scancode == input::scan::kRight) dx = step;

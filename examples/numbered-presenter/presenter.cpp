@@ -13,6 +13,7 @@
 
 #include "activation/activation.hpp"
 #include "component/list_window.hpp"
+#include "graphics/role.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 
@@ -28,6 +29,7 @@ namespace {
 
 namespace ws = zengine::workshop;
 namespace surface = zengine::surface;
+namespace gfx = zengine::graphics;
 namespace component = zengine::component;
 namespace scan = zengine::input::scan;
 
@@ -242,7 +244,7 @@ private:
         said.picture = pictures_.shown(w.first, w.count, earlier > 0, state_.menu);
         if (earlier > 0) {
             said.lines.push_back(surface::SurfaceTextRow{
-                fitted("  ^ " + std::to_string(earlier) + " above"), surface::role::kMuted});
+                fitted("  ^ " + std::to_string(earlier) + " above"), gfx::role::kMuted});
         }
         for (std::size_t i = w.first; i < w.end(); ++i) {
             const bool here = static_cast<std::int64_t>(i) == state_.cursor;
@@ -250,11 +252,11 @@ private:
             const ws::PaneMenuRow& row = row_of(static_cast<std::int64_t>(i), standard);
             said.lines.push_back(
                 surface::SurfaceTextRow{line_for(i, row.label, here, state_.room_columns),
-                                        here ? surface::role::kAccent : surface::role::kFill});
+                                        here ? gfx::role::kAccent : gfx::role::kFill});
         }
         if (more > 0) {
             said.lines.push_back(surface::SurfaceTextRow{
-                fitted("  v " + std::to_string(more) + " below"), surface::role::kMuted});
+                fitted("  v " + std::to_string(more) + " below"), gfx::role::kMuted});
         }
         (void)mail.as_role(ws::kPresenterRole).send_to_role(kWorkshopRole, said);
     }

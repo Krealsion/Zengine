@@ -11,6 +11,7 @@
 // loom.link.workshop`, and the same for `loom.link.StatusRequested`), and what the link's session
 // may say to Workshop is Workshop's guests file. Built against the installed packages alone.
 
+#include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
@@ -75,7 +76,7 @@ class ProbeWeave final
           ProbeWeave, ProbeState,
           loom::Accept<RunProbe, loom::link::Status, zengine::input::InputSessionOpened,
                        zengine::input::InputInjected, zengine::workshop::GuestConnections,
-                       zengine::surface::SurfaceCaptured, zengine::surface::SurfaceCaptureChunk,
+                       zengine::graphics::SurfaceCaptured, zengine::graphics::SurfaceCaptureChunk,
                        loom::Ack, loom::Refused, loom::link::Outcome>,
           loom::Emit<loom::link::Ask, loom::link::StatusRequested, loom::Result>> {
 public:
@@ -233,11 +234,11 @@ public:
         set_step(Step::Capture);
         capture_office_at_ = 0;
         first_capture_refusal_.clear();
-        ask(mail, capture_office(), zengine::surface::SurfaceCaptureRequested{});
+        ask(mail, capture_office(), zengine::graphics::SurfaceCaptureRequested{});
     }
 
-    void on(const zengine::surface::SurfaceCaptured& c, loom::Mail& mail) {
-        if (!answer_to(mail, Step::Capture, zengine::surface::SurfaceCaptureRequested::zen_name)) {
+    void on(const zengine::graphics::SurfaceCaptured& c, loom::Mail& mail) {
+        if (!answer_to(mail, Step::Capture, zengine::graphics::SurfaceCaptureRequested::zen_name)) {
             return;
         }
         if (!c.ok) {
@@ -245,7 +246,7 @@ public:
             return;
         }
         if (c.capture <= 0 || c.width <= 0 || c.height <= 0 || c.format.empty() || c.bytes <= 0 ||
-            c.bytes > zengine::surface::kMaxCaptureBytes) {
+            c.bytes > zengine::graphics::kMaxCaptureBytes) {
             fail(mail, std::string(capture_office()) + " described capture " +
                            std::to_string(c.capture) + " as " +
                            std::to_string(c.width) + "x" + std::to_string(c.height) + " '" +
@@ -265,9 +266,9 @@ public:
     }
 
     /// ONE CHUNK: it must continue THIS picture, at exactly the offset asked for, within its size.
-    void on(const zengine::surface::SurfaceCaptureChunk& chunk, loom::Mail& mail) {
+    void on(const zengine::graphics::SurfaceCaptureChunk& chunk, loom::Mail& mail) {
         if (!answer_to(mail, Step::Fetch,
-                       zengine::surface::SurfaceCaptureChunkRequested::zen_name)) {
+                       zengine::graphics::SurfaceCaptureChunkRequested::zen_name)) {
             return;
         }
         const std::int64_t size = static_cast<std::int64_t>(chunk.data.size());
@@ -372,7 +373,7 @@ public:
                 ++capture_office_at_;
                 note(refused + " was not reached (" + o.reason + "); asking " +
                      capture_office());
-                ask(mail, capture_office(), zengine::surface::SurfaceCaptureRequested{});
+                ask(mail, capture_office(), zengine::graphics::SurfaceCaptureRequested{});
                 return;
             }
             fail(mail, first_capture_refusal_);
@@ -433,7 +434,7 @@ private:
 
     void fetch(loom::Mail& mail) {
         ask(mail, capture_office(),
-            zengine::surface::SurfaceCaptureChunkRequested{capture_, fetched_});
+            zengine::graphics::SurfaceCaptureChunkRequested{capture_, fetched_});
     }
 
     /// The one wall, and what may move the run: Loom's answer to a conversation this probe opened,

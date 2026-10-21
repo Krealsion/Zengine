@@ -130,8 +130,8 @@ kind's field"
 
 ### WL-SETUP-02
 `workshop/setup_persist.hpp` v2 v3 v4 setup_in from_text setup_in_v2 v3::to_v4 v4::to_current
-v3::kSubsPerPixel at_least_a_cell kCanvasRoomTopPx room_place_of_canvas
-`surface/vocabulary.hpp` kCanvasCellPx
+v3::kSubsPerPixel at_least_a_cell kCanvasRoomTopPx room_place_of_canvas px_of_saved_cells
+`workshop/setup.hpp` kSavedCellPx
 `workshop/session_history.hpp` place_v2_to_v3 desk_v2_to_v3 desk_v3_to_v4 desk_v4_to_v5
 `tests/test_workshop_screen.cpp` "a version-2 whole-cell setup loads at exactly its old picture" "a
 fine setup opens where the window painted it, its place in the room" "a place in an older file keeps

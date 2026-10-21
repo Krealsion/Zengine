@@ -1340,7 +1340,7 @@ TEST_CASE("a search the door refuses is said in the door's words, never as an em
     rig.text(std::string(ws::kMaxPowersQueryBytes + 1, 'x'));
     REQUIRE_FALSE(rig.answers.empty());
     const auto refused = rig.label("a query carries", true);
-    CHECK(refused.role == zengine::surface::role::kAlert);
+    CHECK(refused.role == zengine::graphics::role::kAlert);
     CHECK_FALSE(rig.shows("none offered match"));
 }
 

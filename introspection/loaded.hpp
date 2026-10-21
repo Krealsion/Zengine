@@ -15,6 +15,7 @@
 // every grant, replaced whole by the next reading. No mirror of what is loaded, no diff, no
 // arrival or departure, no timestamp.
 
+#include "graphics/role.hpp"
 #include "surface/vocabulary.hpp"
 #include "workshop/pane_text.hpp"
 
@@ -62,7 +63,7 @@ inline constexpr std::int64_t kNoEntry = -1;
 
 /// Fit `text` into `columns`, and say so when it did not fit. A second copy of
 /// `workshop::detail::fit`, deliberately: a provider is a stranger to Workshop's private
-/// composition. Not a second measurer: `surface::fit_region` measured, and this spends it.
+/// composition. Not a second measurer: `workshop::fit_region` measured, and this spends it.
 inline std::string fit(std::string text, std::int64_t columns) {
     if (columns <= 0) {
         return {};
@@ -125,10 +126,10 @@ inline std::string entry_row(const LoadedWeave& w, bool chosen, std::int64_t col
 /// The semantic roles an entry row carries, selected and not. Two lines, in one
 /// place, for `entry_row`'s reason exactly.
 inline constexpr std::int64_t entry_role(bool chosen) noexcept {
-    return chosen ? surface::role::kAccent : surface::role::kFill;
+    return chosen ? graphics::role::kAccent : graphics::role::kFill;
 }
 inline constexpr std::int64_t entry_ground(bool chosen) noexcept {
-    return chosen ? surface::role::kMuted : surface::role::kNone;
+    return chosen ? graphics::role::kMuted : graphics::role::kNone;
 }
 
 /// Is this name still among these entries? Asked of the population, not the projection: a
@@ -221,7 +222,7 @@ inline LoadedView project_loaded(const std::vector<LoadedWeave>& weaves, std::in
         return view;
     }
     say(surface::SurfaceTextRow{fit("loaded weaves -- " + std::to_string(weaves.size()), columns),
-                                surface::role::kAccent},
+                                graphics::role::kAccent},
         kNoEntry);
 
     std::int64_t left = rows - 1;
@@ -254,7 +255,7 @@ inline LoadedView project_loaded(const std::vector<LoadedWeave>& weaves, std::in
                             (origin ? std::to_string(origin) + " earlier, " : "") +
                             std::to_string(weaves.size() - origin - shown) + " more",
                         columns),
-                    surface::role::kMuted},
+                    graphics::role::kMuted},
                 kNoEntry);
             --budget;
         }
@@ -263,13 +264,13 @@ inline LoadedView project_loaded(const std::vector<LoadedWeave>& weaves, std::in
     // is the LAST claim on the budget, so it never costs an entry or a note.
     if (budget > 0 && caveat > 0) {
         // `role::kFill`, not `role::kNone`: that is the absence of a background, never an ink.
-        say(surface::SurfaceTextRow{std::string(), surface::role::kFill}, kNoEntry);
+        say(surface::SurfaceTextRow{std::string(), graphics::role::kFill}, kNoEntry);
     }
     if (caveat > 0) {
-        say(surface::SurfaceTextRow{fit(kNotInProcess, columns), surface::role::kMuted}, kNoEntry);
+        say(surface::SurfaceTextRow{fit(kNotInProcess, columns), graphics::role::kMuted}, kNoEntry);
     }
     if (source > 0) {
-        say(surface::SurfaceTextRow{fit(kSnapshotSource, columns), surface::role::kMuted},
+        say(surface::SurfaceTextRow{fit(kSnapshotSource, columns), graphics::role::kMuted},
             kNoEntry);
     }
     return view;

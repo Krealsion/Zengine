@@ -196,7 +196,7 @@ forgets its far past first" "component: undo restores text, caret and selection;
 ### WL-TEXT-08
 `workshop/screen.hpp` Session::clipboard
 `component/text_box.hpp` Clipboard Clipboard::writes
-`surface/vocabulary.hpp` ClipboardCopy
+`graphics/vocabulary.hpp` ClipboardCopy
 `workshop/weave_pointer.cpp` on(ClipboardCopy)
 `tests/test_component.cpp` "component: copy, cut and paste move text through the owner's clipboard"
 "component: copy with nothing selected leaves the clipboard alone"
@@ -209,7 +209,8 @@ forgets its far past first" "component: undo restores text, caret and selection;
 `terminal/pane.cpp` begin_paste on(ClipboardText) Paste
 `files/files.cpp` paste_epoch_
 `info/pane.cpp` begin_paste on(ClipboardText) Paste::epoch
-`surface/vocabulary.hpp` ClipboardTextRequested kSkinRole
+`surface/vocabulary.hpp` kSkinRole
+`graphics/vocabulary.hpp` ClipboardTextRequested
 `tests/test_workshop_document.cpp` "paste reads the platform current, not the mirror stale" "an
 unsolicited ClipboardText enters no box and no mirror"
 `tests/test_component.cpp` "paste is a request the owner applies, and set/clear name the draft"

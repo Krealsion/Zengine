@@ -355,7 +355,7 @@ void paint_layouts(surface::SurfaceLayer& layer, const Session& s, const PixelRe
         identity = band_status(s, place).text;
     }
 
-    band.rows.push_back(surface::SurfaceTextRow{std::move(identity), surface::role::kMuted});
+    band.rows.push_back(surface::SurfaceTextRow{std::move(identity), graphics::role::kMuted});
     if (caret_col != surface::kNoCaret) {
         band.caret_row = 0;
         band.caret_col = caret_col;
@@ -372,7 +372,7 @@ void paint_layouts(surface::SurfaceLayer& layer, const Session& s, const PixelRe
     if (budget >= 2 && !naming) {
         band.rows.push_back(
             surface::SurfaceTextRow{detail::fit(workspace_text(s), columns),
-                                    surface::role::kMuted});
+                                    graphics::role::kMuted});
     }
     layer.texts.push_back(std::move(band));
 }

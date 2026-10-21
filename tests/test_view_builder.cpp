@@ -108,7 +108,7 @@ namespace {
 /// its measured text.
 ws::PaneCanvasRoom window_room(std::int64_t grant = 1) {
     return {vb::kPane, grant, 1320, 640,
-            zengine::surface::kPixelGrainPx, true, 8, 16};
+            zengine::graphics::kPixelGrainPx, true, 8, 16};
 }
 ws::PaneCanvasRoom terminal_room(std::int64_t grant = 1) { return {vb::kPane, grant, 110 * unit, 30 * unit, unit, false}; }
 } // namespace
@@ -167,7 +167,7 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
         CHECK(boxes == std::vector<std::string>{"id", "label", "x", "y", "w", "h"});
         const auto total = vb::element_area(area, m.description.elements[4]);
         CHECK(std::any_of(pic.content.rects.begin(), pic.content.rects.end(), [&](const auto& r) {
-            return r.role == zengine::surface::role::kAccent && r.y + r.h == total.y && r.x <= total.x;
+            return r.role == zengine::graphics::role::kAccent && r.y + r.h == total.y && r.x <= total.x;
         }));
         const auto listed = [&](const std::string& start) {
             return std::any_of(pic.content.texts.begin(), pic.content.texts.end(),
@@ -180,7 +180,6 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
     // area's corner less the pan: what lies wholly inside the area is there once, moved, and
     // nothing of the view lies outside it.
     {
-        namespace sp = zengine::surface;
         auto wide = panel_model();
         wide.command("size", {"1400", "1000"});
         wide.command("element", {"4", "total", "Total", "900", "700", "192", "24"});
@@ -216,8 +215,10 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
             CHECK_FALSE((t.text.rfind("start", 0) == 0 && t.x >= area.x)); // panned past: never drawn
         // An element across the area's right edge is cut there: nothing of the view crosses it.
         auto across = wide;
-        across.command("element", {"0", "start", "start", std::to_string(480 + sp::floor_div_px(area.w, sp::kPixelGrainPx) - 50),
-                                   "320", "144", "24", "0"});
+        across.command("element",
+                       {"0", "start", "start",
+                        std::to_string(480 + gfx::floor_div_px(area.w, gfx::kPixelGrainPx) - 50),
+                        "320", "144", "24", "0"});
         vb::Presentation same;
         same.pan_x = 480;
         same.pan_y = 300;
@@ -227,13 +228,13 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
             return r.x >= area.x && r.x < right && r.x + r.w > right;
         }));
         CHECK(std::any_of(cut.content.rects.begin(), cut.content.rects.end(), [&](const auto& r) {
-            return r.role == zengine::surface::role::kMuted && r.x == right - 50 && r.x + r.w == right;
+            return r.role == zengine::graphics::role::kMuted && r.x == right - 50 && r.x + r.w == right;
         }));
         // A pan past its reach is held to it: the view's right edge, and a cell beyond it where
         // its handles sit, at the area's right edge.
         panned.pan_x = 9000;
         (void)vb::picture(wide, panned, room, 4);
-        CHECK(panned.pan_x == 1400 + 12 - sp::floor_div_px(area.w, sp::kPixelGrainPx));
+        CHECK(panned.pan_x == 1400 + 12 - gfx::floor_div_px(area.w, gfx::kPixelGrainPx));
     }
     // An empty view says what to do, in the list's place.
     vb::Presentation none;
@@ -607,7 +608,7 @@ struct Rig {
     /// The design area, read off the latest picture: the ground the view's own picture brought.
     vb::Area design() const {
         for (const auto& r : picture().rects)
-            if (r.role == zengine::surface::role::kGround && (r.x != 0 || r.y != 0)) return {r.x, r.y, r.w, r.h};
+            if (r.role == zengine::graphics::role::kGround && (r.x != 0 || r.y != 0)) return {r.x, r.y, r.w, r.h};
         FAIL("no design area in the picture");
         return {};
     }
@@ -770,7 +771,6 @@ TEST_CASE("a right press on what a button says offers to carry its intent, and t
 }
 
 TEST_CASE("a kind dragged from the palette is made where it is let go on the design canvas, in whole pixels; a click makes one below the last; let go elsewhere, nothing is made") {
-    namespace sp = zengine::surface;
     Rig rig;
     REQUIRE(rig.edit("new", {"tally.panel", "discard"}).ok);
     const auto chip = [&](const std::string& title) {
@@ -784,9 +784,9 @@ TEST_CASE("a kind dragged from the palette is made where it is let go on the des
     rig.pointer(ws::canvas_pointer::kMove, area.x + 30, area.y + 40, 1);
     // Where it would be made is marked while the hand holds it, and nothing is made yet.
     CHECK(rig.now().elements.empty());
-    CHECK(rig.marked(zengine::surface::role::kMuted,
+    CHECK(rig.marked(zengine::graphics::role::kMuted,
                      vb::element_area(area, view::Element{"", view::Kind::number, "", 30, 40, 144, 24, ""}),
-                     sp::kPixelGrainPx));
+                     gfx::kPixelGrainPx));
     rig.pointer(ws::canvas_pointer::kRelease, area.x + 30, area.y + 40, 1);
     auto d = rig.now();
     REQUIRE(d.elements.size() == 1);
@@ -812,8 +812,7 @@ TEST_CASE("a kind dragged from the palette is made where it is let go on the des
 }
 
 TEST_CASE("an element dragged on the design canvas moves and a corner resizes it, in whole pixels and snapped to the others' edges; a value typed in its box or an arrow key places it exactly; a lost drag puts it back") {
-    namespace sp = zengine::surface;
-    namespace ink = zengine::surface::role;
+    namespace ink = zengine::graphics::role;
     TempDir dir;
     Rig rig;
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
@@ -831,7 +830,7 @@ TEST_CASE("an element dragged on the design canvas moves and a corner resizes it
     const auto line = [&](std::int64_t py) {
         return std::any_of(rig.picture().rects.begin(), rig.picture().rects.end(), [&](const auto& r) {
             return r.role == ink::kAccent && r.x == area.x && r.w == area.w && r.y == area.y + py &&
-                   r.h == sp::kPixelGrainPx;
+                   r.h == gfx::kPixelGrainPx;
         });
     };
     CHECK(line(28));
@@ -1029,7 +1028,6 @@ TEST_CASE("the View Builder declares its snap reach and a new view's size as set
 }
 
 TEST_CASE("each side of the selected element has a handle that moves that side alone, in a window and floored to cells in a terminal") {
-    namespace sp = zengine::surface;
     Rig rig;
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
     REQUIRE(rig.edit("select", {"4"}).ok);
@@ -1073,15 +1071,15 @@ TEST_CASE("each side of the selected element has a handle that moves that side a
     // IN A TERMINAL a side's handle is the cell beside that side's middle, outside the element, so
     // it is never a corner's; a drag of it in cells moves that side alone.
     rig.host(terminal_room(++rig.grant));
-    const auto unit_px = sp::kCanvasCellPx;
+    const auto unit_px = gfx::kCellPx;
     e = rig.now().elements[4];
     at = vb::element_area(rig.design(), e);
-    const auto down = [](std::int64_t v) { return sp::floor_div_px(v, unit) * unit; };
+    const auto down = [](std::int64_t v) { return gfx::floor_div_px(v, unit) * unit; };
     const auto right = down(at.x + at.w - 1) + unit;
     const auto middle = std::min(down(at.y + at.h / 2), down(at.y + at.h - 1));
     std::vector<std::string> sides;
     for (const auto& r : rig.picture().rects)
-        if (r.role == zengine::surface::role::kAccent && r.x == right && r.y == middle && r.w == unit && r.h == unit)
+        if (r.role == zengine::graphics::role::kAccent && r.x == right && r.y == middle && r.w == unit && r.h == unit)
             sides.push_back("right");
     CHECK(sides == std::vector<std::string>{"right"});
     drag(right, middle, 2 * unit, unit, 24);
@@ -1093,8 +1091,7 @@ TEST_CASE("each side of the selected element has a handle that moves that side a
 }
 
 TEST_CASE("the middle button pans the design canvas: an element past its edge is seen, pressed, dragged and dropped on where it is drawn, nothing of the view is drawn outside the canvas, and the pan is never saved") {
-    namespace sp = zengine::surface;
-    namespace ink = zengine::surface::role;
+    namespace ink = zengine::graphics::role;
     TempDir dir;
     Rig rig;
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
@@ -1136,7 +1133,7 @@ TEST_CASE("the middle button pans the design canvas: an element past its edge is
     CHECK(rig.drawn("start: 0") == nullptr); // panned past, so not drawn
     // RESTING on it marks it where it is drawn.
     rig.hover(distant.x + distant.w / 2, distant.y + distant.h / 2);
-    CHECK(rig.marked(ink::kFill, distant, sp::kPixelGrainPx));
+    CHECK(rig.marked(ink::kFill, distant, gfx::kPixelGrainPx));
     // PRESSED AND DRAGGED where it is drawn: selected and moved.
     rig.pointer(ws::canvas_pointer::kPress, distant.x + distant.w / 2, distant.y + distant.h / 2, 31);
     CHECK(rig.text("far (button) ") != nullptr);
@@ -1203,7 +1200,6 @@ TEST_CASE("the middle button pans the design canvas: an element past its edge is
 }
 
 TEST_CASE("in a terminal the middle button pans the design canvas by whole cells") {
-    namespace sp = zengine::surface;
     Rig rig;
     rig.host(terminal_room(++rig.grant));
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
@@ -1230,8 +1226,8 @@ TEST_CASE("in a terminal the middle button pans the design canvas by whole cells
     rig.pointer(ws::canvas_pointer::kPress, at.x + unit, at.y, 51);
     rig.pointer(ws::canvas_pointer::kMove, at.x + 2 * unit, at.y + unit, 51);
     rig.pointer(ws::canvas_pointer::kRelease, at.x + 2 * unit, at.y + unit, 51);
-    CHECK(rig.now().elements[5].x == 1200 + sp::kCanvasCellPx);
-    CHECK(rig.now().elements[5].y == 600 + sp::kCanvasCellPx);
+    CHECK(rig.now().elements[5].x == 1200 + gfx::kCellPx);
+    CHECK(rig.now().elements[5].y == 600 + gfx::kCellPx);
 }
 
 namespace {
@@ -1247,8 +1243,7 @@ std::string first_version_bytes(const view::Description& d) {
 } // namespace
 
 TEST_CASE("the view's size is set by its handles on the design canvas or typed into its boxes; the canvas draws the view in exactly its size; its edges snap as an element's do, and an element's to them; a view saved without a size opens with the size it needs") {
-    namespace sp = zengine::surface;
-    namespace ink = zengine::surface::role;
+    namespace ink = zengine::graphics::role;
     TempDir dir;
     Rig rig;
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
@@ -1338,7 +1333,6 @@ TEST_CASE("the view's size is set by its handles on the design canvas or typed i
 }
 
 TEST_CASE("nothing sits outside the view: a dragged element stops at its edge, a typed value or a key that would cross it is refused in words, and the size cannot shrink past an element") {
-    namespace sp = zengine::surface;
     Rig rig;
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
     const auto area = rig.design();
@@ -1418,7 +1412,6 @@ TEST_CASE("nothing sits outside the view: a dragged element stops at its edge, a
 }
 
 TEST_CASE("the grid is the weaver's: none by default, so a place by hand moves by whole pixels and only an edge pulls it; set, a place by hand snaps to it until it is set back to one; Alt held sets every snap aside") {
-    namespace sp = zengine::surface;
     Rig rig;
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
     const auto px = [](std::int64_t v) { return v; };
@@ -1483,7 +1476,6 @@ TEST_CASE("the grid is the weaver's: none by default, so a place by hand moves b
 }
 
 TEST_CASE("a view shrunk to its elements while its notice shows keeps every element in sight: the notice's rows lie beneath its size on the design canvas, in a window and in a terminal") {
-    namespace sp = zengine::surface;
     Rig rig;
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
     rig.drop(loom::encode_schema(*total_shape()), "  total  label");
@@ -1513,8 +1505,8 @@ TEST_CASE("a view shrunk to its elements while its notice shows keeps every elem
 }
 
 TEST_CASE("the pointer resting on an element marks it and its row; a carried value marks the label it would land on; leaving puts the marks down") {
-    namespace ink = zengine::surface::role;
-    const auto thin = zengine::surface::kPixelGrainPx;
+    namespace ink = zengine::graphics::role;
+    const auto thin = zengine::graphics::kPixelGrainPx;
     Rig rig;
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
     REQUIRE(rig.edit("select", {"3"}).ok);
@@ -1615,7 +1607,7 @@ TEST_CASE("a box scrolled to show its caret is pressed where it shows: the caret
     // Typing at its end scrolls the box: it shows the label's tail, not its front.
     const auto* scrolled = [&]() -> const ws::PaneCanvasText* {
         for (const auto& t : rig.picture().texts)
-            if (t.role == zengine::surface::role::kAccent && !t.text.empty() &&
+            if (t.role == zengine::graphics::role::kAccent && !t.text.empty() &&
                 long_label.size() >= t.text.size() &&
                 long_label.compare(long_label.size() - t.text.size(), t.text.size(), t.text) == 0)
                 return &t;
@@ -2123,7 +2115,6 @@ TEST_CASE("a launch record whose view file is missing keeps that file and its ru
 }
 
 TEST_CASE("in a terminal the builder's picture and its drags are floored to cells") {
-    namespace sp = zengine::surface;
     Rig rig;
     rig.host(terminal_room(++rig.grant));
     for (const auto& e : panel_edits()) REQUIRE(rig.edit(e.front(), std::vector<std::string>(e.begin() + 1, e.end())).ok);
@@ -2140,8 +2131,8 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
     rig.pointer(ws::canvas_pointer::kPress, x, y, 40);
     rig.pointer(ws::canvas_pointer::kMove, x + 2 * unit, y + unit, 40);
     rig.pointer(ws::canvas_pointer::kRelease, x + 2 * unit, y + unit, 40);
-    CHECK(rig.now().elements[0].x == 2 * sp::kCanvasCellPx);
-    CHECK(rig.now().elements[0].y == sp::kCanvasCellPx);
+    CHECK(rig.now().elements[0].x == 2 * gfx::kCellPx);
+    CHECK(rig.now().elements[0].y == gfx::kCellPx);
 
     SUBCASE("in a graphics window that gives the builder its pointer, the pointer resting on an "
             "element marks it until it leaves the area, and an element pressed there and moved "
@@ -2152,7 +2143,7 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
         // RESTING ON AN ELEMENT NOT SELECTED MARKS IT; the pointer leaving the area puts it down.
         const auto rests = vb::element_area(rig.design(), rig.now().elements[1]);
         const auto marked = [&] {
-            return rig.marked(zengine::surface::role::kFill, rests, gfx::kCellPx);
+            return rig.marked(zengine::graphics::role::kFill, rests, gfx::kCellPx);
         };
         REQUIRE_FALSE(marked());
         const auto [mx, my] = rig.middle(rig.now().elements[1]);
