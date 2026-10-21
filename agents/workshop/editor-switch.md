@@ -154,7 +154,8 @@ on(EditorHandoffOffered)
 weaver consents, and a consent the losses moved past is asked for again"
 
 ### WL-SWITCH-07
-`workshop/workshop.cpp` EditorSwitchHost let_terminal_switch_editors editor_switch_grant
+`workshop/workshop.cpp` EditorSwitchHost editor_switch_grant
+`workshop/terminal_speech.hpp` let_terminal_switch_editors
 `workshop/editor_switch.hpp` let_terminal_switch_editors progress publish_said
 `workshop/weave_managed.cpp` on(EditorSwitchProgress)
 `tests/test_workshop_editor_switch.cpp` "the documented Terminal lines, typed through Workshop's own

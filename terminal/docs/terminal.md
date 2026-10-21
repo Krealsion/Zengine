@@ -44,11 +44,11 @@ An old address or authenticated-answer fact in metadata grants no permission to 
 The original participant retains its command/answer history; the pane never owns that session.
 
 The maintained `workshop/terminal-inventory-demo` tool exercises command and reply capture,
-then fills a command preset with a reply field. Start the `presets` demo setup first; see
-[the external-host guide](../../external-host/docs/external-host.md). The guest can copy content but cannot borrow
-the original Terminal sender's permission to execute it.
+then fills a command preset with a reply field in a second Info view. Start the `presets` demo
+setup first; see [the external-host guide](../../external-host/docs/external-host.md). The guest
+can copy content but cannot borrow the original Terminal sender's permission to execute it.
 
-![A saved Terminal answer fills a captured command preset](images/terminal-inventory-refilled.png)
+![The Terminal's find and its answer captured in Inventory; Info holds the answer, and Info 2 the linked preset, its text filled from the answer's active field](images/terminal-inventory-refilled.png)
 
 ## Finding a power
 

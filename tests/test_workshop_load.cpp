@@ -1389,7 +1389,7 @@ TEST_CASE("the default plan puts the two medium rows where the terminal Skin's p
 }
 
 TEST_CASE("a settled project's medium holds the terminal only when a terminal medium loaded on a "
-          "measured terminal and nothing refused") {
+          "measured terminal, a refused one's until it is unloaded") {
     const auto loaded = [](const char* stem, const std::string& role) {
         load::ResolvedArtifact row;
         row.stem = stem;
@@ -1419,11 +1419,16 @@ TEST_CASE("a settled project's medium holds the terminal only when a terminal me
         CHECK_FALSE(load::medium_holds_terminal(done, false));
     }
 
-    // A REFUSED STARTUP is said in full, whatever holds the terminal: the host is leaving.
+    // A REFUSED STARTUP's medium holds the terminal until the host leaves, so its words wait for
+    // the terminal to be given back; with no terminal medium they are said at once.
     load::Executed refused = settled(loaded("zengine-window-terminal", window));
     refused.ok = false;
     refused.refusal = "artifact 'zengine-timer': weave load refused: open failed";
-    CHECK_FALSE(load::medium_holds_terminal(refused, true));
+    CHECK(load::medium_holds_terminal(refused, true));
+    CHECK_FALSE(load::medium_holds_terminal(refused, false));
+    load::Executed refused_bare;
+    refused_bare.refusal = refused.refusal;
+    CHECK_FALSE(load::medium_holds_terminal(refused_bare, true));
 
     // THE SDL SKIN paints a window of its own and leaves the terminal it was started from alone,
     // and so does the OS window.

@@ -175,6 +175,20 @@ MEANS
 
 WHY — `agents/decisions/powers-are-found-through-one-door.md`
 
+## WL-TERM-20 — What the Terminal may say is the host's one call, and none of it reaches a medium
+
+LAW — The host mounts its Terminal with `let_terminal_speak`: the discovery door's find, its ordinary verb, the editor switch's questions and a pane's settings, each to its own office alone.
+
+MEANS
+- no rule reaches a window, a medium or everyone: being a terminal confers nothing else;
+- `Drawn` is known, so the completer describes it, and no rule sends it;
+- a case reads the grant through the call the host makes, so the two cannot differ.
+
+DOES NOT MEAN — that a line could draw had a rule allowed it: a line cannot type its lists, so
+the participant never composes one.
+
+WHY — `agents/decisions/the-terminal-is-a-participant.md`
+
 ## Proven by
 
 ### WL-TERM-01
@@ -284,7 +298,13 @@ current actor authority"
 ### WL-TERM-18
 `workshop/powers_door.hpp` let_terminal_find_powers PowersDoor
 `workshop/powers_vocabulary.hpp` allow_finding_powers find_powers_schema find_powers_v1_schema
-`workshop/workshop.cpp` let_terminal_find_powers
+`workshop/terminal_speech.hpp` let_terminal_find_powers
 `tests/test_workshop_panes_powers.cpp` "the documented discovery lines, typed through Workshop's own
 door, answer what the door derives" "the Terminal may ask the discovery door its two questions, and
 nothing more"
+
+### WL-TERM-20
+`workshop/terminal_speech.hpp` let_terminal_speak
+`workshop/workshop.cpp` let_terminal_speak
+`tests/test_workshop_panes_powers.cpp` "the host's Terminal finds powers as its ordinary verb, speaks
+only to the offices that widen it, and draws in no window"

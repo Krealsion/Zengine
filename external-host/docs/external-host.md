@@ -1080,7 +1080,7 @@ same maintained tool package.
 
 The [Terminal capture story](../../terminal/docs/terminal.md#dragging-a-command-or-reply-into-inventory) is available
 as `workshop/terminal-inventory-demo`. It captures actual submitted and received data, creates a
-preset, fills it from the saved reply through Info, and checks execution authority separately.
+preset, and fills it from the saved reply in a second Info view, field to field.
 Use the `presets` demo setup, Reset before a repeat, and a fresh short ASCII word for `label`.
 
 The [independent Info views](../../info/docs/info-views.md#the-inspection-workbench) story is `workshop/workbench`:

@@ -63,8 +63,8 @@ seconds is named in the note and in `not_showing`, since the rest of the desk is
 first task, the hotkeys, the guide's path and the
 preparation's own request counts. The default medium is the OS window; `--tui` uses the
 terminal window. A setup names the media it supports and refuses the others by name. A setup that
-names a Skin (`presets` and `editor-materials`, whose stories send the Skin a Terminal command)
-shows its desk in the Skin's plan instead: the SDL Skin's, or with `--tui` the terminal Skin's
+names a Skin shows its desk in the Skin's plan instead: the SDL Skin's, or with `--tui` the terminal
+Skin's
 ([the shipped plans](load-plans.md#the-shipped-plans)).
 
 What each answer means, and what to do:
