@@ -140,11 +140,18 @@ jobs:
 
       # Loom's tests and examples stay off, as in both Windows jobs: Zengine consumes the installed
       # prefix alone, and Loom runs its own lanes in its own repository.
+      #
+      # NO DEBUG INFORMATION in the GCC jobs, LINE TABLES in the sanitizer's (VM-LANE-26): no job
+      # reads debug information -- a failing case names its file and line from the source, and
+      # nothing in Zengine or its Loom reads it as it runs -- so this job builds with `-g0`, and the
+      # ASan job with `-g1`, which keeps the line table its reports name file and line from. Only
+      # these configure lines set it; Zengine's CMake and a weaver's Debug build keep CMake's `-g`.
       - name: Build and install Loom to a fresh prefix
         run: |
           loom_prefix="$RUNNER_TEMP/loom-prefix"
           test ! -e "$loom_prefix"
           cmake -S "$RUNNER_TEMP/loom-src" -B "$RUNNER_TEMP/loom-build" -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_FLAGS_DEBUG=-g0 \
             -DZEN_BUILD_TESTS=OFF -DZEN_BUILD_EXAMPLES=OFF
           cmake --build "$RUNNER_TEMP/loom-build" --parallel "$(nproc)"
           cmake --install "$RUNNER_TEMP/loom-build" --prefix "$loom_prefix"
@@ -204,6 +211,8 @@ jobs:
         run: |
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_FLAGS_DEBUG=-g0 \
+            -DCMAKE_CXX_FLAGS_DEBUG=-g0 \
             -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/loom-prefix" \
             -DCMAKE_C_COMPILER_LAUNCHER="$ZEN_CCACHE" \
             -DCMAKE_CXX_COMPILER_LAUNCHER="$ZEN_CCACHE" \
@@ -309,12 +318,13 @@ jobs:
       # than an oversight: this lane instruments the targets Zengine AUTHORS, and the
       # Loom runs the identical lane over itself in its own repository. ASan's allocator
       # is process-wide regardless, so a Loom allocation freed and then read by Zengine
-      # code is still caught here.
+      # code is still caught here. Line tables, so its reports name file and line (VM-LANE-26).
       - name: Build and install Loom to a fresh prefix
         run: |
           loom_prefix="$RUNNER_TEMP/loom-prefix"
           test ! -e "$loom_prefix"
           cmake -S "$RUNNER_TEMP/loom-src" -B "$RUNNER_TEMP/loom-build" -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_FLAGS_DEBUG=-g1 \
             -DZEN_BUILD_TESTS=OFF -DZEN_BUILD_EXAMPLES=OFF
           cmake --build "$RUNNER_TEMP/loom-build" --parallel "$(nproc)"
           cmake --install "$RUNNER_TEMP/loom-build" --prefix "$loom_prefix"
@@ -364,6 +374,8 @@ jobs:
         run: |
           cmake -S . -B build-san \
             -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_FLAGS_DEBUG=-g1 \
+            -DCMAKE_CXX_FLAGS_DEBUG=-g1 \
             -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/loom-prefix" \
             -DCMAKE_C_COMPILER_LAUNCHER="$ZEN_CCACHE" \
             -DCMAKE_CXX_COMPILER_LAUNCHER="$ZEN_CCACHE" \
@@ -454,6 +466,7 @@ jobs:
             throw "Expected Loom $env:LOOM_SHA, got $actual"
           }
 
+      # No debug information, as in the Linux stranger lane (VM-LANE-26).
       - name: Build and install kernel-full Loom to a fresh prefix
         shell: pwsh
         run: |
@@ -465,6 +478,7 @@ jobs:
           }
           cmake -S $loomSource -B $loomBuild -G Ninja `
             -DCMAKE_BUILD_TYPE=Debug `
+            -DCMAKE_CXX_FLAGS_DEBUG=-g0 `
             -DCMAKE_C_COMPILER=C:/mingw64/bin/gcc.exe `
             -DCMAKE_CXX_COMPILER=C:/mingw64/bin/g++.exe `
             -DZEN_BUILD_TESTS=OFF `
@@ -513,6 +527,8 @@ jobs:
           $loomPrefix = Join-Path $env:RUNNER_TEMP 'loom-prefix'
           cmake -S . -B build-win -G Ninja `
             -DCMAKE_BUILD_TYPE=Debug `
+            -DCMAKE_C_FLAGS_DEBUG=-g0 `
+            -DCMAKE_CXX_FLAGS_DEBUG=-g0 `
             -DCMAKE_C_COMPILER=C:/mingw64/bin/gcc.exe `
             -DCMAKE_CXX_COMPILER=C:/mingw64/bin/g++.exe `
             "-DCMAKE_C_COMPILER_LAUNCHER=$env:ZEN_CCACHE" `
