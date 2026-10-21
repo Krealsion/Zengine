@@ -163,6 +163,12 @@ METHOD — The MSVC stranger builds with nothing added only in the nightly run o
 BECAUSE — every other run's MSVC job adds the compiler cache and embedded debug information on its
 configure line; neither can stand in for a Loom export, but neither is nothing.
 
+## VM-LANE-26 — CI's GCC jobs build line tables, set on their configure lines alone
+
+METHOD — CI's GCC jobs build Debug with line tables (`-g1`), set on the job's configure lines for Zengine and its Loom alone; Zengine's CMake and a weaver's Debug build keep CMake's `-g`.
+BECAUSE — no job reads a type or a local from the debug information, and a sanitizer's report
+names file and line from the line table alone; a weaver debugging their own build reads both.
+
 ## Seen
 
 ### VM-LANE-01
@@ -254,3 +260,6 @@ nowhere yet
 
 ### VM-LANE-25
 `.github/workflows/ci.yml` ZEN_MSVC_BARE
+
+### VM-LANE-26
+`.github/workflows/ci.yml` CMAKE_CXX_FLAGS_DEBUG
