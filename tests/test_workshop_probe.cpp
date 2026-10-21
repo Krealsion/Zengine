@@ -32,7 +32,7 @@ TEST_SUITE_BEGIN("workshop_probe");
 namespace {
 
 namespace input = zengine::input;
-namespace surface = zengine::surface;
+namespace gfx = zengine::graphics;
 namespace ws = zengine::workshop;
 using zengine::workshop_probe::ProbeWeave;
 using zengine::workshop_probe::RunProbe;
@@ -103,10 +103,10 @@ class LoopLink
           // The far requests it carries are declared here so this bus resolves them, as the
           // far bus would: nothing on this bus accepts the door's or the Skin's shapes.
           loom::Emit<input::InputSessionRequested, input::InjectInput, input::InputSessionClosed,
-                     ws::GuestConnectionsRequested, surface::SurfaceCaptureRequested,
-                     surface::SurfaceCaptureChunkRequested, input::InputSessionOpened,
+                     ws::GuestConnectionsRequested, gfx::SurfaceCaptureRequested,
+                     gfx::SurfaceCaptureChunkRequested, input::InputSessionOpened,
                      input::InputInjected, loom::Ack, loom::Refused, ws::GuestConnections,
-                     surface::SurfaceCaptured, surface::SurfaceCaptureChunk, loom::link::Outcome,
+                     gfx::SurfaceCaptured, gfx::SurfaceCaptureChunk, loom::link::Outcome,
                      loom::link::Status>> {
 public:
     /// Decides what happens to one ask: (far role, the asked value).
@@ -281,8 +281,8 @@ public:
 /// A four-byte picture, "abc\n", and the chunk door over it.
 const std::string kPicture = "abc\n";
 
-surface::SurfaceCaptured captured_ok() {
-    surface::SurfaceCaptured c;
+gfx::SurfaceCaptured captured_ok() {
+    gfx::SurfaceCaptured c;
     c.ok = true;
     c.capture = 1;
     c.frame = 5;
@@ -293,10 +293,10 @@ surface::SurfaceCaptured captured_ok() {
     return c;
 }
 
-surface::SurfaceCaptureChunk chunk_of(const loom::Value& asked) {
-    const surface::SurfaceCaptureChunkRequested want =
-        loom::from_value<surface::SurfaceCaptureChunkRequested>(asked);
-    surface::SurfaceCaptureChunk c;
+gfx::SurfaceCaptureChunk chunk_of(const loom::Value& asked) {
+    const gfx::SurfaceCaptureChunkRequested want =
+        loom::from_value<gfx::SurfaceCaptureChunkRequested>(asked);
+    gfx::SurfaceCaptureChunk c;
     c.capture = want.capture;
     c.offset = want.offset;
     c.total = static_cast<std::int64_t>(kPicture.size());
@@ -361,10 +361,10 @@ struct Rig {
             if (shape == ws::GuestConnectionsRequested::zen_name) {
                 return answer(inventory);
             }
-            if (shape == surface::SurfaceCaptureRequested::zen_name) {
+            if (shape == gfx::SurfaceCaptureRequested::zen_name) {
                 return answer(captured_ok());
             }
-            if (shape == surface::SurfaceCaptureChunkRequested::zen_name) {
+            if (shape == gfx::SurfaceCaptureChunkRequested::zen_name) {
                 return answer(chunk_of(asked));
             }
             return outcome(loom::link::kOutcomeRefused, "the script has no answer for " + shape);
@@ -452,7 +452,7 @@ TEST_CASE("probe: the injection is settled before the picture is asked for") {
         } else {
             CHECK_FALSE(a.settle);
         }
-        if (a.shape == surface::SurfaceCaptureRequested::zen_name) {
+        if (a.shape == gfx::SurfaceCaptureRequested::zen_name) {
             capture = i;
         }
     }
@@ -460,7 +460,7 @@ TEST_CASE("probe: the injection is settled before the picture is asked for") {
     REQUIRE(capture < r.link->asked.size());
     CHECK(inject < capture);
     // The capture is asked for once, NOW -- after settlement -- not after a remembered frame.
-    CHECK(r.asks_of(surface::SurfaceCaptureRequested::zen_name) == 1);
+    CHECK(r.asks_of(gfx::SurfaceCaptureRequested::zen_name) == 1);
 }
 
 TEST_CASE("probe: a refusal after the session opened still closes it, and the next run opens one") {
@@ -508,7 +508,7 @@ TEST_CASE("probe: an inventory that does not list this link's session stops the 
     INFO("a renamed row: " << renamed);
     CHECK(starts(renamed, "STOPPED"));
     CHECK(has(renamed, "not admitted as 'agent'"));
-    CHECK(r.asks_of(surface::SurfaceCaptureRequested::zen_name) == 0); // no picture of either
+    CHECK(r.asks_of(gfx::SurfaceCaptureRequested::zen_name) == 0); // no picture of either
 }
 
 TEST_CASE("probe: the row it names is this link's own session, whoever else is admitted") {
@@ -587,8 +587,8 @@ TEST_CASE("probe: answer-shaped words from a participant that is not the link mo
 
 TEST_CASE("probe: a refused capture, and a chunk that does not continue the picture, stop and clean up") {
     Rig r;
-    r.answer_with(surface::SurfaceCaptureRequested::zen_name, [](const loom::Value&) {
-        surface::SurfaceCaptured c;
+    r.answer_with(gfx::SurfaceCaptureRequested::zen_name, [](const loom::Value&) {
+        gfx::SurfaceCaptured c;
         c.ok = false;
         c.refusal = "this medium has no picture to read back right now";
         return answer(c);
@@ -600,8 +600,8 @@ TEST_CASE("probe: a refused capture, and a chunk that does not continue the pict
     CHECK(has(refused, "session 1 closed in cleanup"));
     // A chunk from another picture.
     Rig s;
-    s.answer_with(surface::SurfaceCaptureChunkRequested::zen_name, [](const loom::Value& asked) {
-        surface::SurfaceCaptureChunk c = chunk_of(asked);
+    s.answer_with(gfx::SurfaceCaptureChunkRequested::zen_name, [](const loom::Value& asked) {
+        gfx::SurfaceCaptureChunk c = chunk_of(asked);
         c.capture = 9;
         return answer(c);
     });
@@ -612,8 +612,8 @@ TEST_CASE("probe: a refused capture, and a chunk that does not continue the pict
     CHECK(has(foreign, "session 1 closed in cleanup"));
     // A chunk at the wrong offset.
     Rig t;
-    t.answer_with(surface::SurfaceCaptureChunkRequested::zen_name, [](const loom::Value& asked) {
-        surface::SurfaceCaptureChunk c = chunk_of(asked);
+    t.answer_with(gfx::SurfaceCaptureChunkRequested::zen_name, [](const loom::Value& asked) {
+        gfx::SurfaceCaptureChunk c = chunk_of(asked);
         c.offset += 1;
         return answer(c);
     });
@@ -634,8 +634,8 @@ void picture_held_by(Rig& r, const std::string& holder) {
     auto base = r.link->script;
     r.link->script = [base, holder](const std::string& role, const loom::Value& asked) {
         const std::string shape = asked.schema().name();
-        if ((shape == surface::SurfaceCaptureRequested::zen_name ||
-             shape == surface::SurfaceCaptureChunkRequested::zen_name) &&
+        if ((shape == gfx::SurfaceCaptureRequested::zen_name ||
+             shape == gfx::SurfaceCaptureChunkRequested::zen_name) &&
             role != holder) {
             return outcome(loom::link::kOutcomeDispatchRefused, "NoRoleHolder: " + role);
         }
@@ -675,13 +675,13 @@ TEST_CASE("probe: a picture no Skin holds is asked of the OS window, then the te
         if (std::string(holder) == "zengine.window.terminal") {
             captures.push_back(holder);
         }
-        CHECK(asked_of(r, surface::SurfaceCaptureRequested::zen_name) == captures);
-        CHECK(asked_of(r, surface::SurfaceCaptureChunkRequested::zen_name) ==
+        CHECK(asked_of(r, gfx::SurfaceCaptureRequested::zen_name) == captures);
+        CHECK(asked_of(r, gfx::SurfaceCaptureChunkRequested::zen_name) ==
               std::vector<std::string>{holder, holder});
         // THE NEXT RUN ASKS THE SKIN FIRST AGAIN: which office answered is this run's to learn.
         const std::string again = r.run();
         CHECK(starts(again, "PASS"));
-        CHECK(asked_of(r, surface::SurfaceCaptureRequested::zen_name).at(captures.size()) ==
+        CHECK(asked_of(r, gfx::SurfaceCaptureRequested::zen_name).at(captures.size()) ==
               "zengine.skin");
     }
 }
@@ -696,15 +696,15 @@ TEST_CASE("probe: when no office holds the picture the run stops on the first re
     CHECK(starts(said, "STOPPED"));
     CHECK(has(said, "link: dispatch-refused at capture (SurfaceCaptureRequested): NoRoleHolder: "
                     "zengine.skin; session 1 closed in cleanup"));
-    CHECK(asked_of(r, surface::SurfaceCaptureRequested::zen_name) ==
+    CHECK(asked_of(r, gfx::SurfaceCaptureRequested::zen_name) ==
           std::vector<std::string>(zengine::workshop_probe::kCaptureOffices.begin(),
                                    zengine::workshop_probe::kCaptureOffices.end()));
-    CHECK(r.asks_of(surface::SurfaceCaptureChunkRequested::zen_name) == 0);
+    CHECK(r.asks_of(gfx::SurfaceCaptureChunkRequested::zen_name) == 0);
     // A CHUNK REFUSED MID-PICTURE: the office that described the picture is the only one that
     // holds it, so the run stops there and asks no other office for a capture.
     // ⚔ MUTATION: a dispatch refusal while fetching sent the run on to the next office.
     Rig s;
-    s.answer_with(surface::SurfaceCaptureChunkRequested::zen_name, [](const loom::Value&) {
+    s.answer_with(gfx::SurfaceCaptureChunkRequested::zen_name, [](const loom::Value&) {
         return outcome(loom::link::kOutcomeDispatchRefused, "NoRoleHolder: zengine.skin");
     });
     const std::string fetching = s.run();
@@ -712,7 +712,7 @@ TEST_CASE("probe: when no office holds the picture the run stops on the first re
     CHECK(starts(fetching, "STOPPED"));
     CHECK(has(fetching, "link: dispatch-refused at fetch (SurfaceCaptureChunkRequested)"));
     CHECK(has(fetching, "session 1 closed in cleanup"));
-    CHECK(asked_of(s, surface::SurfaceCaptureRequested::zen_name) ==
+    CHECK(asked_of(s, gfx::SurfaceCaptureRequested::zen_name) ==
           std::vector<std::string>{"zengine.skin"});
 }
 

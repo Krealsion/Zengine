@@ -19,7 +19,7 @@
 #include "vocabulary.hpp"
 
 #include "activation/activation.hpp"
-#include "surface/vocabulary.hpp"
+#include "graphics/vocabulary.hpp"
 #include "workshop/arrangement_vocabulary.hpp"
 #include "workshop/pane_canvas_rows.hpp"
 #include "workshop/pane_carry.hpp"
@@ -51,7 +51,7 @@
 
 namespace {
 
-namespace surface = zengine::surface;
+namespace gfx = zengine::graphics;
 namespace ws = zengine::workshop;
 namespace intro = zengine::introspection;
 using intro::kArrangementPane;
@@ -91,14 +91,14 @@ class IntrospectionWeave
                        ws::PaneTextInput, ws::PaneActionRequested, loom::Result,
                        ws::PaneOperationAnswered, ws::PaneCarryAnswered, loom::Refused,
                        ws::ResolvedArrangement, ws::v2::ResolvedArrangement, ws::PowersFound,
-                       ws::PowerDescribed, ws::SourceSampled, surface::ClipboardCopy,
-                       surface::ClipboardText, ws::v2::PaneSettings>,
+                       ws::PowerDescribed, ws::SourceSampled, gfx::ClipboardCopy,
+                       gfx::ClipboardText, ws::v2::PaneSettings>,
           loom::Emit<ws::v2::PaneOffered, ws::v3::PaneActions, ws::v4::PaneContent,
                      ws::v5::PaneCanvasContent, ws::PaneCaret, ws::PanePassRequested,
                      intro::LoadedSelected, loom::ListLoaded, ws::ArrangementRequested,
                      ws::DescribePower, ws::SampleRequested, ws::PaneOperationRequested,
-                     ws::PaneValueCarryRequested, ws::PaneEscapeUnspent, surface::ClipboardCopy,
-                     surface::ClipboardTextRequested, ws::v2::PaneSettingsDeclared,
+                     ws::PaneValueCarryRequested, ws::PaneEscapeUnspent, gfx::ClipboardCopy,
+                     gfx::ClipboardTextRequested, ws::v2::PaneSettingsDeclared,
                      ws::PaneSettingUnused>> {
 public:
     // ---- What its office calls --------------------------------------------------------------
@@ -317,9 +317,9 @@ public:
         }
     }
 
-    void on(const surface::ClipboardCopy& said, loom::Mail&) { powers_.on_copy(said); }
+    void on(const gfx::ClipboardCopy& said, loom::Mail&) { powers_.on_copy(said); }
 
-    void on(const surface::ClipboardText& a, loom::Mail& mail) {
+    void on(const gfx::ClipboardText& a, loom::Mail& mail) {
         powers_.on_clipboard(speaking(mail), a);
     }
 

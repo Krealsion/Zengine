@@ -13,7 +13,7 @@
 namespace {
 
 using SkinTuiClassic =
-    zengine::surface::SkinT<zengine::surface::TuiMedium<zengine::surface::TuiTerminal>>;
+    zengine::surface::SkinT<zengine::surface::TuiMedium<zengine::graphics::window::TuiTerminal>>;
 
 } // namespace
 

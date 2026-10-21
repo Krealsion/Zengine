@@ -70,6 +70,6 @@ Layouts through the doors leaves the reservation alone"
 `workshop/screen_pane_state.cpp` parse_face_amount geometry_unit
 `workshop/screen.hpp` px_of_device_amount FaceAmount
 `workshop/screen_pane_subject.cpp` pane_geometry_typeable
-`surface/region.hpp` device_of_px
+`graphics/pixels.hpp` device_of_px
 `tests/test_workshop_host.cpp` "a typed amount is read and written in the face's own unit" "a typed
 value that is not admissible is refused, and the authored row is untouched"

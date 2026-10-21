@@ -22,6 +22,7 @@
 #include "resolved.hpp"      // `kHostResolution`, `kPowersSource`, `elision`, the census words
 
 #include "component/text_box.hpp"
+#include "graphics/role.hpp"
 #include "surface/vocabulary.hpp"
 #include "workshop/powers_vocabulary.hpp"
 
@@ -302,7 +303,7 @@ namespace detail {
 struct Sayer {
     PowersView& view;
     std::int64_t say(std::string text, std::int64_t role,
-                     std::int64_t ground = surface::role::kNone) const {
+                     std::int64_t ground = graphics::role::kNone) const {
         view.rows.push_back(surface::SurfaceTextRow{std::move(text), role, ground});
         return static_cast<std::int64_t>(view.rows.size()) - 1;
     }
@@ -377,7 +378,7 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
         }
         const std::string drawn = fit(text, columns);
         const std::int64_t solid = detail::solid_columns(drawn, text.size());
-        const std::int64_t row = say.say(drawn, surface::role::kAccent);
+        const std::int64_t row = say.say(drawn, graphics::role::kAccent);
         if (caret_at >= 0 && drawn.size() == text.size()) {
             view.caret_row = row;
             view.caret_col = caret_at;
@@ -445,7 +446,7 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
     if (view.population == 0) {
         if (list_budget > 0 && !ui.reading.ok && !ui.reading.reason.empty()) {
             // A search the door refused is not a search nothing matched: its sentence is the list.
-            say.say(fit(printable(ui.reading.reason), columns), surface::role::kAlert);
+            say.say(fit(printable(ui.reading.reason), columns), graphics::role::kAlert);
             --list_budget;
         } else if (list_budget > 0) {
             // An empty catalog view and a search nothing matched are different facts.
@@ -453,7 +454,7 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
             const bool sources = ui.view == powers_view::kSources;
             say.say(fit(searching ? kNoneMatch : (sources ? kNoSourcesHere : kNoOperatorsHere),
                         columns),
-                    surface::role::kMuted);
+                    graphics::role::kMuted);
             --list_budget;
         }
     } else if (list_budget > 0) {
@@ -472,12 +473,12 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
         }
         if (w.before > 0 || w.after > 0) {
             // A count, not an entry: it carries no span.
-            say.say(powers_omission(w, columns), surface::role::kMuted);
+            say.say(powers_omission(w, columns), graphics::role::kMuted);
         }
         list_budget -= entries;
     }
     if (beyond > 0 && list_budget > 0) {
-        say.say(beyond_page(beyond, columns), surface::role::kMuted);
+        say.say(beyond_page(beyond, columns), graphics::role::kMuted);
     }
 
     // ---- the selected detail ------------------------------------------------------
@@ -503,18 +504,18 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
         }
         const std::size_t hidden = static_cast<std::size_t>(have - shown);
         say.say(detail::sample_header(ui.sample.ok, ui.sample.identity, hidden, columns),
-                ui.sample.ok ? surface::role::kMuted : surface::role::kAlert);
+                ui.sample.ok ? graphics::role::kMuted : graphics::role::kAlert);
         for (std::int64_t i = 0; i < shown; ++i) {
             say.say(fit("  " + printable(body[static_cast<std::size_t>(i)]), columns),
-                    ui.sample.ok ? surface::role::kFill : surface::role::kAlert);
+                    ui.sample.ok ? graphics::role::kFill : graphics::role::kAlert);
         }
         if (hidden > 0 && shown < room) {
-            say.say(elision(hidden, columns), surface::role::kMuted);
+            say.say(elision(hidden, columns), graphics::role::kMuted);
         }
     }
 
     if (caveat > 0) {
-        say.say(fit(kHostResolution, columns), surface::role::kMuted);
+        say.say(fit(kHostResolution, columns), graphics::role::kMuted);
     }
     if (census > 0) {
         // The catalog census, a different question from the position marker: that counts the
@@ -523,10 +524,10 @@ inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
         say.say(fit(powers_said(identities) + (identities == 1 ? " resolves" : " resolve") +
                         " here -- from " + providers_said(ui.reading.providers),
                     columns),
-                surface::role::kMuted);
+                graphics::role::kMuted);
     }
     if (source > 0) {
-        say.say(fit(kPowersSource, columns), surface::role::kMuted);
+        say.say(fit(kPowersSource, columns), graphics::role::kMuted);
     }
     return view;
 }

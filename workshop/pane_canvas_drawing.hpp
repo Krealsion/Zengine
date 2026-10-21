@@ -12,7 +12,6 @@
 #include "graphics/canvas.hpp"
 #include "graphics/ops.hpp"
 #include "graphics/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
 #include "workshop/pane_canvas_text.hpp"
 #include "workshop/pane_canvas_vocabulary.hpp"
 
@@ -96,9 +95,9 @@ inline CanvasSketch canvas_sketch(const v4::PaneCanvasContent& c, const PaneCanv
                    std::to_string(graphics::kMaxNodesPerArea) + " nodes and " +
                    std::to_string(graphics::kMaxElementsPerArea) + " pressed parts";
         out.sketch.fill_rect("ground", 0, 0, room.width, room.height,
-                             graphics::by_role(surface::role::kGround));
+                             graphics::by_role(graphics::role::kGround));
         out.sketch.group("picture", 0, 0);
-        out.sketch.text("picture/0", 0, 0, out.over, graphics::by_role(surface::role::kAlert));
+        out.sketch.text("picture/0", 0, 0, out.over, graphics::by_role(graphics::role::kAlert));
         return out;
     }
 
@@ -112,7 +111,7 @@ inline CanvasSketch canvas_sketch(const v4::PaneCanvasContent& c, const PaneCanv
         }
     };
     out.sketch.fill_rect("ground", 0, 0, room.width, room.height,
-                         graphics::by_role(surface::role::kGround));
+                         graphics::by_role(graphics::role::kGround));
     out.sketch.group("picture", 0, 0);
     for (std::size_t i = 0; i < drawn.size(); ++i) {
         put("picture/" + std::to_string(i), drawn[i], 0, 0);

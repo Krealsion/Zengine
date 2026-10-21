@@ -330,7 +330,7 @@ TEST_CASE("WL-HAND-06: the Pane Manager names each row and its mark by the pane'
         std::vector<zengine::workshop::PaneRowPart> named;
         for (std::int64_t i = 0; i < 3000; ++i) {
             many.push_back(surface::SurfaceTextRow{"  [    ] row " + std::to_string(i),
-                                                   surface::role::kFill});
+                                                   gfx::role::kFill});
             named.push_back({"pane:" + std::to_string(i), i, 0, 40});
             named.push_back({"mark:" + std::to_string(i), i, 2, 6});
         }

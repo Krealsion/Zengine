@@ -16,7 +16,7 @@ namespace zengine::workshop {
 
 // WL-ARR-09 -- agents/workshop/arrangement.md
 PixelRect pane_edge_cell(const PixelRect& r, std::int64_t edge) noexcept {
-    const std::int64_t cell = surface::kCanvasCellPx;
+    const std::int64_t cell = graphics::kCellPx;
     const std::int64_t x0 = r.x;
     const std::int64_t x1 = r.w > cell ? r.x + r.w - cell : r.x;
     const std::int64_t y0 = r.y;
@@ -44,12 +44,12 @@ std::int64_t pane_edge_at(const PixelRect& r, std::int64_t sx, std::int64_t sy,
     }
     const std::int64_t band_w = r.w < kPaneEdgeBandPx ? r.w : kPaneEdgeBandPx;
     const std::int64_t band_h = r.h < kPaneEdgeBandPx ? r.h : kPaneEdgeBandPx;
-    const bool left = surface::px_span_contains(r.x, band_w, sx, grain);
+    const bool left = graphics::px_span_contains(r.x, band_w, sx, grain);
     const bool right =
-        surface::px_span_contains(surface::add_cells(r.x, r.w - band_w), band_w, sx, grain);
-    const bool top = surface::px_span_contains(r.y, band_h, sy, grain);
+        graphics::px_span_contains(graphics::add_cells(r.x, r.w - band_w), band_w, sx, grain);
+    const bool top = graphics::px_span_contains(r.y, band_h, sy, grain);
     const bool bottom =
-        surface::px_span_contains(surface::add_cells(r.y, r.h - band_h), band_h, sy, grain);
+        graphics::px_span_contains(graphics::add_cells(r.y, r.h - band_h), band_h, sy, grain);
     if (top && left) {
         return pane_edge::kTopLeft;
     }

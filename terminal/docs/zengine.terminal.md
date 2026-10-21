@@ -96,10 +96,10 @@ Typing asks too: the list follows the word you are in.
   verb, `send` and `ask`. At the address, under `where it goes -- on this bus now; not permission,
   nor a promise at send`: `*`, each office held now, `@zengine.powers   held by #12 now; reaches
   whoever holds it when sent`, then each weave by id, `#12   @zengine.powers; accepts
-  ShapeDocumentRequested, FindPowers, FindPowers +1`. Then the shapes the participant knows, under `shapes this terminal KNOWS --
-  knowing one is not authority to send it`, their versions, and field names, never values; over the
-  arguments, the verdict on the line, `FindPowers v2 -- ready; Return submits it` or what is
-  missing. Taking a candidate replaces the word you were typing.
+  ShapeDocumentRequested, FindPowers, FindPowers +1`. Then the shapes the participant knows, under
+  `shapes this terminal KNOWS -- knowing one is not authority to send it`, their versions, and
+  field names, never values; over the arguments, the verdict on the line, `FindPowers v2 -- ready;
+  Return submits it` or what is missing. Taking a candidate replaces the word you were typing.
 - **Refuses:** with the caret inside the line, `completion follows the END of the line -- this
   caret is inside it`, and no candidate. A heading with no candidates is an answer:
   `no verb begins with 'x'; this pane speaks two`.

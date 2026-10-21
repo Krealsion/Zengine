@@ -369,7 +369,7 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
                       last.outcome.refusal +
                           " (the file is left exactly as it is, and this run will not "
                           "write over it)",
-                      surface::role::kAlert, std::string()});
+                      graphics::role::kAlert, std::string()});
         return;
     }
     // ---- The viewport, then the desk into it ------------
@@ -388,14 +388,14 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
     // Remembered first, so the next save carries it whether or not a medium acts on it, then
     // offered to the medium holding the surface, the window or the Skin (`medium_office`): a want,
     // not an instruction, since only the medium sees the displays
-    // (`surface::SurfacePlacementRemembered`, `placement_within`).
+    // (`graphics::SurfacePlacementRemembered`, `placement_within`).
     if (last.placement.known) {
         session_.placement_known = true;
         session_.place_x = last.placement.x;
         session_.place_y = last.placement.y;
         session_.place_maximized = last.placement.maximized;
         mail.send_to_role(medium_office(),
-                          zengine::surface::SurfacePlacementRemembered{
+                          zengine::graphics::SurfacePlacementRemembered{
                               last.placement.x, last.placement.y,
                               last.placement.maximized});
     }

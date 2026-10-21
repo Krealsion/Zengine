@@ -43,8 +43,8 @@
 #include "workshop/pane_vocabulary.hpp"
 
 #include "activation/activation.hpp"
+#include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -59,7 +59,7 @@
 namespace {
 
 namespace input = zengine::input;
-namespace surface = zengine::surface;
+namespace gfx = zengine::graphics;
 namespace ws = zengine::workshop;
 namespace pane = zengine::desktop_pane;
 namespace pane_menu = zengine::workshop::pane_menu;
@@ -127,8 +127,8 @@ class DesktopWeave
                        PaneCloseAnswered, PaneToggleAnswered, ActionsJudged,
                        ActionsWithdrawn, KeymapShown, KeymapEditAnswered, PaneKey, PaneTextInput,
                        ws::PaneCanvasRoom, ws::PaneCanvasPointer, ws::PaneCanvasRejected,
-                       PaneMenuAnswered, loom::DispatchRefused, surface::ClipboardCopy,
-                       surface::ClipboardText, ws::PaneDocumentShown, PaneSubjectActed,
+                       PaneMenuAnswered, loom::DispatchRefused, gfx::ClipboardCopy,
+                       gfx::ClipboardText, ws::PaneDocumentShown, PaneSubjectActed,
                        ws::v2::PaneSettings>,
           loom::Emit<ws::PaneShortcutsAnswered, ws::PaneShortcutsRequested, ws::PaneShortcutsWithdrawn,
                      ws::PaneShortcutInvoked, PaneOffered, PaneActions, ws::v4::PaneContent,
@@ -138,7 +138,7 @@ class DesktopWeave
                      KeymapRequested, KeymapEditRequested, PaneMenuRequested, PanePassRequested,
                      PaneKeyboardRequested, PaneManageRequested, InspectPaneRequested,
                      ws::PaneEscapeUnspent, ws::PaneDocumentRequested,
-                     surface::ClipboardCopy, surface::ClipboardTextRequested,
+                     gfx::ClipboardCopy, gfx::ClipboardTextRequested,
                      ws::v2::PaneSettingsDeclared, ws::PaneSettingUnused>> {
 public:
     // ---- What its office calls --------------------------------------------------------------
@@ -377,10 +377,10 @@ public:
     }
 
     /// WHAT THE PROCESS SAYS IT COPIED, mirrored for the Hotkeys pane's spelling line.
-    void on(const surface::ClipboardCopy& said, loom::Mail&) { hotkeys_.copied(said.text); }
+    void on(const gfx::ClipboardCopy& said, loom::Mail&) { hotkeys_.copied(said.text); }
 
     /// THE SKIN'S ANSWER TO THIS IMAGE'S OWN PASTE, for the line that asked.
-    void on(const surface::ClipboardText& a, loom::Mail& mail) {
+    void on(const gfx::ClipboardText& a, loom::Mail& mail) {
         hotkeys_.pasted(a, keys_rows_, mail);
     }
 

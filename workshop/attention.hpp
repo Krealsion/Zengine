@@ -7,7 +7,7 @@
 // WHAT IS TRUE RIGHT NOW, AND WORTH A WEAVER'S ATTENTION
 // Workshop law: agents/workshop/attention.md
 
-#include "surface/vocabulary.hpp"
+#include "graphics/role.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -24,7 +24,7 @@ struct Condition {
     std::string key;
     std::string compact;
     std::string detail;
-    std::int64_t role = surface::role::kAccent;
+    std::int64_t role = graphics::role::kAccent;
     std::string action;
 
     /// WHAT A DISMISSAL IS MEASURED AGAINST -- the condition's content, as one opaque token.
@@ -40,7 +40,7 @@ struct Condition {
 // WL-ATTN-01 -- agents/workshop/attention.md
 inline Condition unavailable_tool(const std::string& stem, const std::string& said) {
     return Condition{"load.unavailable/" + stem, stem + " is not in this Workshop", said,
-                     surface::role::kAlert, "build its artifact, then launch again"};
+                     graphics::role::kAlert, "build its artifact, then launch again"};
 }
 
 /// A DEVELOPMENT HOST, for the whole run: the guests file names `host: development`, so a guest with
@@ -50,7 +50,7 @@ inline Condition development_host() {
     return Condition{"guests.host", "a development host: guests may write and build here",
                      "the guests file names this an agent's own host: a guest's hand writes files, "
                      "types into panes and reaches the editor and the Terminal, as the weaver's does",
-                     surface::role::kAccent, ""};
+                     graphics::role::kAccent, ""};
 }
 
 /// ONE GUESTS-FILE ROW AND WHAT ITS POWERS DO NOT REACH HERE, keyed by the row's place in the file
@@ -63,7 +63,7 @@ inline Condition guest_row_losses(std::size_t row, const std::string& name, std:
     return Condition{"guests.row/" + std::to_string(row),
                      "guest '" + name + "' (version " + std::to_string(version) + ") does not reach "
                          "everything its powers name here",
-                     "not here: " + detail, surface::role::kAccent, ""};
+                     "not here: " + detail, graphics::role::kAccent, ""};
 }
 
 /// WHAT A ROW'S POWERS REACH NOW THAT THEY DID NOT WHEN IT WAS WRITTEN, said beside the row as
@@ -75,7 +75,7 @@ inline Condition guest_row_gains(std::size_t row, const std::string& name, std::
     return Condition{"guests.gain/" + std::to_string(row),
                      "guest '" + name + "' (version " + std::to_string(version) + ") reaches more "
                          "here than its powers once did",
-                     "also: " + detail, surface::role::kAccent, ""};
+                     "also: " + detail, graphics::role::kAccent, ""};
 }
 
 /// WHAT ONE ROW READS AND POINTS AT, AND ITS ROLE, keyed by its place in the file: a row's reach is
@@ -88,16 +88,16 @@ inline Condition guest_row_scopes(std::size_t row, const std::string& name, std:
     return Condition{"guests.scope/" + std::to_string(row),
                      "guest '" + name + "' (version " + std::to_string(version) + ") reads and points "
                          "only where its row says",
-                     detail, surface::role::kMuted, ""};
+                     detail, graphics::role::kMuted, ""};
 }
 
 /// HOW LOUD, AS AN ORDER.
 // WL-ATTN-07 -- agents/workshop/attention.md
 inline int attention_rank(std::int64_t role) noexcept {
     switch (role) {
-    case surface::role::kAlert: return 0;
-    case surface::role::kAccent: return 1;
-    case surface::role::kFill: return 2;
+    case graphics::role::kAlert: return 0;
+    case graphics::role::kAccent: return 1;
+    case graphics::role::kFill: return 2;
     default: return 3;
     }
 }

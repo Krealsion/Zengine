@@ -6165,9 +6165,9 @@ public:
 /// right to the exact incarnation that asked (ANS-02/03), which is the fact the reload case
 /// below reads off the bus.
 class SkinStandIn : public loom::WeaveBase<SkinStandIn, HostSeatState,
-                                           loom::Accept<zengine::surface::ClipboardTextRequested,
+                                           loom::Accept<zengine::graphics::ClipboardTextRequested,
                                                         Nudge>,
-                                           loom::Emit<zengine::surface::ClipboardText>> {
+                                           loom::Emit<zengine::graphics::ClipboardText>> {
 public:
     std::string text;
     bool held = false;
@@ -6175,7 +6175,7 @@ public:
     loom::DeferredAnswer answer;
     loom::Ticket spent{};
 
-    void on(const zengine::surface::ClipboardTextRequested&, loom::Mail& mail) {
+    void on(const zengine::graphics::ClipboardTextRequested&, loom::Mail& mail) {
         ++asked;
         answer = mail.defer_answer();
         held = answer.valid();
@@ -6185,7 +6185,7 @@ public:
             return;
         }
         held = false;
-        spent = loom::answer_deferred(answer, mail, zengine::surface::ClipboardText{true, text});
+        spent = loom::answer_deferred(answer, mail, zengine::graphics::ClipboardText{true, text});
     }
 };
 
@@ -6288,8 +6288,8 @@ struct EditorReloadRig {
         auto seat = std::make_unique<SkinStandIn>();
         skin = seat.get();
         loom::Grant grant;
-        grant.allow_to_any(zengine::surface::ClipboardText::zen_name,
-                           zengine::surface::ClipboardText::zen_version);
+        grant.allow_to_any(zengine::graphics::ClipboardText::zen_name,
+                           zengine::graphics::ClipboardText::zen_version);
         skin_id = rig.bus.register_weave(std::move(seat), std::move(grant),
                                          std::string(zengine::surface::kSkinRole));
         skin->zen_set_self(skin_id);

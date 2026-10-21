@@ -20,6 +20,7 @@
 #include "workshop/terminal_seam_vocabulary.hpp"
 
 #include "component/text_box.hpp"
+#include "graphics/role.hpp"
 #include "surface/vocabulary.hpp"
 
 #include <zen/weave.hpp>
@@ -251,7 +252,7 @@ inline void TerminalPaneWeave::say(loom::Mail& mail) {
 
     // A REFUSAL THE DOOR GAVE, over the top row, where a weaver will see it.
     if (notice) {
-        push(notice_, surface::role::kAlert);
+        push(notice_, zengine::graphics::role::kAlert);
     }
 
     // THE HEADER NAMES THE IDENTITY whose record this is. A presentation may hold
@@ -261,13 +262,13 @@ inline void TerminalPaneWeave::say(loom::Mail& mail) {
         push(known_.attached
                  ? "TERMINAL -- weave #" + std::to_string(known_.participant)
                  : "TERMINAL -- no participant was mounted on this bus",
-             surface::role::kAccent);
+             zengine::graphics::role::kAccent);
     }
     if (legend) {
         // WHERE THE SETTING SHOWS, SO WHERE A VALUE IT CANNOT USE IS SAID.
         legend_row_ = static_cast<std::int64_t>(out.size());
         push(legend_problem_.empty() ? legend_text() : legend_problem_,
-             legend_problem_.empty() ? surface::role::kMuted : surface::role::kAlert);
+             legend_problem_.empty() ? zengine::graphics::role::kMuted : zengine::graphics::role::kAlert);
     }
 
     // THE LIST'S SHARE, DECIDED BEFORE THE TRANSCRIPT'S so the transcript gets what is
@@ -314,7 +315,7 @@ inline void TerminalPaneWeave::say(loom::Mail& mail) {
         if (below > 0 && !bottom) {
             said += " -- " + std::to_string(below) + " more rows below";
         }
-        push(std::move(said), surface::role::kMuted);
+        push(std::move(said), zengine::graphics::role::kMuted);
     }
     for (std::int64_t i = 0; i < view; ++i) {
         const std::int64_t at = top + i;
@@ -327,18 +328,18 @@ inline void TerminalPaneWeave::say(loom::Mail& mail) {
             }
         }
         push(at < record.total() ? record.rows[static_cast<std::size_t>(at)] : std::string(),
-             surface::role::kFill);
+             zengine::graphics::role::kFill);
     }
     if (bottom) {
         bottom_marker_row_ = static_cast<std::int64_t>(out.size());
-        push(below_text(below), surface::role::kMuted);
+        push(below_text(below), zengine::graphics::role::kMuted);
     }
     if (list_wanted > 0 && list_open) {
         list_first_row_ = static_cast<std::int64_t>(out.size());
         list_row_count_ = static_cast<std::int64_t>(list_wanted);
         say_list(list_wanted, push);
     } else if (list_wanted > 0) {
-        push(history, surface::role::kMuted);
+        push(history, zengine::graphics::role::kMuted);
     }
 
     // THE LINE BEING TYPED, AND -- while there is nothing on it -- the gesture that
@@ -351,7 +352,7 @@ inline void TerminalPaneWeave::say(loom::Mail& mail) {
     const bool prompting = line_.empty() && !list_open;
     push(prompting ? prompt_ + "    Tab: what can this terminal say?  Up: recall a command"
                    : prompt_ + " " + line_.visible(visible > 0 ? visible : 0),
-         known_.attached ? surface::role::kAccent : surface::role::kAlert);
+         known_.attached ? zengine::graphics::role::kAccent : zengine::graphics::role::kAlert);
 
     if (static_cast<std::int64_t>(out.size()) > rows()) {
         out.resize(static_cast<std::size_t>(rows()));
@@ -397,7 +398,7 @@ template <typename Push> inline void TerminalPaneWeave::say_list(std::size_t roo
                              : std::to_string(first + 1) + "-" + std::to_string(last)) +
                   " of " + std::to_string(offered_.candidates.size()) + "  " + heading;
     }
-    push(std::move(heading), surface::role::kMuted);
+    push(std::move(heading), zengine::graphics::role::kMuted);
     for (std::size_t i = first; i < last; ++i) {
         const ShownCandidate& c = offered_.candidates[i];
         const bool chosen = i == selected_;
@@ -408,7 +409,7 @@ template <typename Push> inline void TerminalPaneWeave::say_list(std::size_t roo
             // names and a list in a large one shows names and meanings.
             text += "   " + c.detail;
         }
-        push(std::move(text), chosen ? surface::role::kAccent : surface::role::kFill);
+        push(std::move(text), chosen ? zengine::graphics::role::kAccent : zengine::graphics::role::kFill);
     }
 }
 

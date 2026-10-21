@@ -16,7 +16,7 @@
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_text.hpp"
 
-#include "surface/vocabulary.hpp"
+#include "graphics/role.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -351,7 +351,7 @@ inline void BuilderPaneWeave::publish(Facts facts, const std::string& said_detai
 inline void BuilderPaneWeave::say_builder() {
     struct Fact {
         std::string text;
-        std::int64_t role = surface::role::kFill;
+        std::int64_t role = zengine::graphics::role::kFill;
         std::int64_t priority = 0; ///< smaller survives longer; all distinct
         BuilderMeaning meaning{};  ///< what a press on this row names, where it names one
     };
@@ -368,14 +368,14 @@ inline void BuilderPaneWeave::say_builder() {
     if (!known_.source.empty()) {
         head += "  " + known_.source;
     }
-    facts.push_back(Fact{head, surface::role::kAccent, 0});
+    facts.push_back(Fact{head, zengine::graphics::role::kAccent, 0});
 
     if (!heard_) {
         // NOT THE SAME AS "NEVER BUILT", and the pane must not show it as though it were.
         // This is a fact about this pane -- it has asked and is waiting -- and the
         // recipe's own history is not knowable from here until the tool says it.
         facts.push_back(Fact{labelled_row("recipe", "(the Builder has not answered yet)"),
-                             surface::role::kMuted, 1});
+                             zengine::graphics::role::kMuted, 1});
         publish(std::move(facts), std::string(), controls);
         return;
     }
@@ -388,7 +388,7 @@ inline void BuilderPaneWeave::say_builder() {
     const std::size_t held = known_.recipes.size();
     if (held == 0) {
         facts.push_back(Fact{labelled_row("recipe", "(this project has no build recipes)"),
-                             surface::role::kMuted, 3});
+                             zengine::graphics::role::kMuted, 3});
     } else {
         const std::size_t at = cursor_row();
         // THE ROW THAT NAMES THE CHOICE IS ALSO A WAY INTO THE LIST: a press on it opens
@@ -399,7 +399,7 @@ inline void BuilderPaneWeave::say_builder() {
                                                        known_.recipes[at].artifact + "  (" +
                                                        std::to_string(at + 1) + "/" +
                                                        std::to_string(held) + ")"),
-                             surface::role::kFill, 3,
+                             zengine::graphics::role::kFill, 3,
                              BuilderMeaning{builder_row::kRecipe, at, {},
                                             known_.recipes[at].recipe}});
     }
@@ -426,7 +426,7 @@ inline void BuilderPaneWeave::say_builder() {
             said += std::to_string(makers) + " recipes";
         }
         said += ", blocks " + std::to_string(frontier_blocked_) + ")";
-        facts.push_back(Fact{labelled_row("project", said), surface::role::kAccent, 2});
+        facts.push_back(Fact{labelled_row("project", said), zengine::graphics::role::kAccent, 2});
     }
     // WHAT THIS PANE IS WATCHING beats what it was last told: the tool's last OUTCOME is
     // still the previous build's while a new one runs, and showing that would answer
@@ -447,13 +447,13 @@ inline void BuilderPaneWeave::say_builder() {
                         : labelled_row("last", std::string(builder::name_of_outcome(s.outcome)) +
                                                   carried),
              unanswered || s.outcome == builder::outcome::kRunning
-                 ? surface::role::kAccent
+                 ? zengine::graphics::role::kAccent
                  : (s.outcome == builder::outcome::kFailed ||
                             s.outcome == builder::outcome::kNotStarted ||
                             s.outcome == builder::outcome::kNoArtifact ||
                             s.outcome == builder::outcome::kUnknownRecipe
-                        ? surface::role::kAlert
-                        : surface::role::kFill),
+                        ? zengine::graphics::role::kAlert
+                        : zengine::graphics::role::kFill),
              1});
     // THE EXIT STATUS IS ONLY SHOWN WHEN THERE WAS ONE. A `0` printed after a build that
     // never started reads as success, which is the exact wrong answer at the exact moment
@@ -466,13 +466,13 @@ inline void BuilderPaneWeave::say_builder() {
                                          : std::string("--"),
                                      11) +
                                      "asks " + std::to_string(s.builds) + " ever"),
-             surface::role::kMuted, 6});
+             zengine::graphics::role::kMuted, 6});
     // WHAT WAS ACTUALLY RUN, as the runner reported it. The first fact a constrained
     // budget gives up: it is an echo of the weaver's own act.
     facts.push_back(Fact{labelled_row("ran", s.command.empty()
                                                 ? std::string("(nothing has run yet)")
                                                 : s.command),
-                         surface::role::kMuted, 7});
+                         zengine::graphics::role::kMuted, 7});
     // A BUILD OUTCOME AND A REALIZATION OUTCOME ARE TWO ANSWERS AND THIS PANE SHOWS TWO.
     // The row has three faces: ARMED (`[x] load after build`), THE BUTTON (an artifact is
     // built, nothing was asked about realizing it, nothing is armed), and OTHERWISE the
@@ -482,13 +482,13 @@ inline void BuilderPaneWeave::say_builder() {
                         s.outcome == builder::outcome::kSucceeded &&
                         s.realization == builder::realization::kNotAsked;
     std::string realize_face;
-    std::int64_t realize_role = surface::role::kMuted;
+    std::int64_t realize_role = zengine::graphics::role::kMuted;
     if (state_.arm && s.realization == builder::realization::kNotAsked) {
         realize_face = "[x] load after build";
-        realize_role = surface::role::kAccent;
+        realize_role = zengine::graphics::role::kAccent;
     } else if (button) {
         realize_face = "-- (load-after-build loads " + s.artifact + " now)";
-        realize_role = surface::role::kAccent;
+        realize_role = zengine::graphics::role::kAccent;
     } else if (s.realization == builder::realization::kNotAsked) {
         realize_face = "-- (load-after-build arms it)";
     } else {
@@ -503,10 +503,10 @@ inline void BuilderPaneWeave::say_builder() {
             realize_face += " -- " + s.realized_detail;
         }
         realize_role = s.realization == builder::realization::kRefused
-                           ? surface::role::kAlert
+                           ? zengine::graphics::role::kAlert
                            : (s.realization == builder::realization::kRealized
-                                  ? surface::role::kFill
-                                  : surface::role::kMuted);
+                                  ? zengine::graphics::role::kFill
+                                  : zengine::graphics::role::kMuted);
     }
     facts.push_back(Fact{labelled_row("realize", realize_face), realize_role, 4});
     // THREE ROWS FOR WHAT THE BUILD SAID, because this is the row budget a weaver spends
@@ -517,7 +517,7 @@ inline void BuilderPaneWeave::say_builder() {
     const std::size_t said_max = 3 - shift;
     const std::int64_t said_priorities[3] = {5, 8, 9};
     for (std::size_t i = 0; i < said_max; ++i) {
-        facts.push_back(Fact{std::string(), surface::role::kMuted, said_priorities[i]});
+        facts.push_back(Fact{std::string(), zengine::graphics::role::kMuted, said_priorities[i]});
     }
     publish(std::move(facts), s.detail, controls);
 }

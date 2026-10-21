@@ -111,7 +111,7 @@ WHY — `agents/decisions/a-panes-manual-is-shown-by-the-application.md`
 ### WL-CHROME-01
 `workshop/screen_chrome.cpp` pane_inside pane_interior
 `workshop/screen.hpp` pane_interior chrome_grain kChromeCells kChromePx
-`surface/region.hpp` px_of_one_device
+`graphics/pixels.hpp` px_of_one_device
 `tests/test_workshop_screen.cpp` "a pane's interior is its outer rectangle less one cell of chrome"
 "the chrome a pane wears is one unit of the face in front of the weaver" "the graphical boundary is
 one device pixel, drawn INSIDE the pane"

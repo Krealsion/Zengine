@@ -106,8 +106,8 @@ std::pair<std::int64_t, std::int64_t> cell_of_run(PaneRig& r, std::int64_t kind,
     const auto& c = pane->canvas;
     for (const auto& run : c.content.texts) {
         if (run.text.rfind(start, 0) == 0) {
-            return {(c.x + run.x) / surface::kCanvasCellPx + into,
-                    (c.y + run.y) / surface::kCanvasCellPx};
+            return {(c.x + run.x) / gfx::kCellPx + into,
+                    (c.y + run.y) / gfx::kCellPx};
         }
     }
     FAIL("no run beginning `" << start << "` in\n" << picture_text(r, kind));
@@ -376,9 +376,9 @@ std::int64_t compose_at_notes(InventoryStory& s, const char* office = kNotesOffi
     const std::int64_t compose = row->kind;
     for (auto& p : r.session().setup.active.panes) {
         if (p.ref.provider != kComposerOffice) continue;
-        p.place = {pane_unit::kPixels, 85 * surface::kCanvasCellPx, 4 * surface::kCanvasCellPx};
-        p.width = {pane_unit::kPixels, 80 * surface::kCanvasCellPx};
-        p.height = {pane_unit::kPixels, 24 * surface::kCanvasCellPx};
+        p.place = {pane_unit::kPixels, 85 * gfx::kCellPx, 4 * gfx::kCellPx};
+        p.width = {pane_unit::kPixels, 80 * gfx::kCellPx};
+        p.height = {pane_unit::kPixels, 24 * gfx::kCellPx};
     }
     // An unchanged room repaints nothing, so the room moves and comes back.
     r.extent(180, 59);

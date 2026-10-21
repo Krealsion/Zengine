@@ -20,7 +20,7 @@
 #include "input/vocabulary.hpp"
 #include "inventory/vocabulary.hpp"
 #include "inventory/inventory-pane/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
+#include "graphics/vocabulary.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
@@ -80,9 +80,9 @@ class GuestVocabulary final
                      zengine::input::InputSessionRequested, zengine::input::InputSessionOpened,
                      zengine::input::PointerMotionRequested, zengine::input::InjectInput, zengine::input::InputInjected,
                      zengine::input::InputSessionClosed,
-                     zengine::surface::SurfaceCaptureRequested, zengine::surface::SurfaceCaptured,
-                     zengine::surface::SurfaceCaptureChunkRequested,
-                     zengine::surface::SurfaceCaptureChunk,
+                     zengine::graphics::SurfaceCaptureRequested, zengine::graphics::SurfaceCaptured,
+                     zengine::graphics::SurfaceCaptureChunkRequested,
+                     zengine::graphics::SurfaceCaptureChunk,
                      zengine::workshop::GuestConnectionsRequested,
                      zengine::workshop::GuestConnections,
                      // The door's inventory with each row's powers, version and losses.

@@ -96,8 +96,8 @@ struct CanvasRig {
         PaneCanvasContent p;
         p.pane = canvas_pane; p.grant = seat->rooms.back().grant; p.picture = number;
         p.rects.push_back(PaneCanvasRect{0, 0, 2 * kPaneCanvasUnit, kPaneCanvasUnit,
-                                       surface::role::kAccent});
-        p.labels.push_back(PaneCanvasLabel{0, kPaneCanvasUnit, "node", surface::role::kFill});
+                                       gfx::role::kAccent});
+        p.labels.push_back(PaneCanvasLabel{0, kPaneCanvasUnit, "node", gfx::role::kFill});
         return p;
     }
     void publish(std::int64_t number = 1) {
@@ -129,28 +129,28 @@ struct CanvasRig {
 }
 
 TEST_CASE("pane canvas rejects malformed pictures whole and budgets data before rendering") {
-    PaneCanvasContent c{canvas_pane, 1, 1, {{-9, -7, 10, 20, surface::role::kAccent}}, {}};
+    PaneCanvasContent c{canvas_pane, 1, 1, {{-9, -7, 10, 20, gfx::role::kAccent}}, {}};
     CHECK(canvas_content_problem(c).empty());
     c.rects[0].w = 0;
     CHECK_FALSE(canvas_content_problem(c).empty());
     c.rects[0].w = 1;
-    c.rects[0].role = surface::role::kGround;
+    c.rects[0].role = gfx::role::kGround;
     CHECK(canvas_content_problem(c).empty());
-    c.rects[0].role = surface::role::kMediumGround;
+    c.rects[0].role = gfx::role::kMediumGround;
     CHECK(canvas_content_problem(c).empty());
     c.rects[0].role = 99;
     CHECK_FALSE(canvas_content_problem(c).empty());
     // THE MEDIUM'S OWN GROUND IS A GROUND AND NO INK: a run may lie on it, and no text is drawn
     // in it.
-    c.rects[0].role = surface::role::kAccent;
+    c.rects[0].role = gfx::role::kAccent;
     v5::PaneCanvasContent run{canvas_pane, 1, 1, {}, {}, {}, {}};
-    run.texts.push_back(v2::PaneCanvasText{0, 0, "ab", surface::role::kFill});
-    run.texts[0].background = surface::role::kMediumGround;
+    run.texts.push_back(v2::PaneCanvasText{0, 0, "ab", gfx::role::kFill});
+    run.texts[0].background = gfx::role::kMediumGround;
     CHECK(canvas_content_problem(run).empty());
-    run.texts[0].role = surface::role::kMediumGround;
+    run.texts[0].role = gfx::role::kMediumGround;
     CHECK_FALSE(canvas_content_problem(run).empty());
-    run.texts[0].role = surface::role::kFill;
-    run.labels.push_back(PaneCanvasLabel{0, 0, "a", surface::role::kMediumGround});
+    run.texts[0].role = gfx::role::kFill;
+    run.labels.push_back(PaneCanvasLabel{0, 0, "a", gfx::role::kMediumGround});
     CHECK_FALSE(canvas_content_problem(run).empty());
     c.rects.clear();
     c.labels.resize(kPaneCanvasMaxLabels + 1);
@@ -161,7 +161,7 @@ TEST_CASE("pane canvas rejects malformed pictures whole and budgets data before 
     c.labels.push_back(PaneCanvasLabel{0, 0, "a", 0});
     CHECK_FALSE(canvas_content_problem(c).empty());
     c.labels.clear();
-    c.labels.push_back(PaneCanvasLabel{0, 0, "line\nbreak", surface::role::kFill});
+    c.labels.push_back(PaneCanvasLabel{0, 0, "line\nbreak", gfx::role::kFill});
     CHECK_FALSE(canvas_content_problem(c).empty());
     c.labels[0].text = std::string(kPaneCanvasMaxLabelBytes, 'a');
     CHECK(canvas_content_problem(c).empty());
@@ -189,7 +189,7 @@ TEST_CASE("pane canvas clips every primitive at its local boundary before transl
     const auto clipped = canvas_clip_rect(PaneCanvasRect{-unit, -unit, largest, largest, 0}, body.w, body.h);
     CHECK(clipped == PixelRect{0, 0, body.w, body.h});
     PaneCanvasContent c{canvas_pane, 1, 1,
-        {{-unit, -unit, 3 * unit, 3 * unit, surface::role::kAccent}},
+        {{-unit, -unit, 3 * unit, 3 * unit, gfx::role::kAccent}},
         {{-unit, 0, "ABCDE", 0}, {0, -1, "hidden", 0}, {0, body.h - unit + 1, "hidden", 0}}};
     surface::SurfaceLayer layer;
     paint_pane_canvas(layer, body, c);
@@ -263,8 +263,8 @@ TEST_CASE("a canvas provider that speaks only the earlier doors is answered in t
     // A RECT FROM SUB-UNIT 2 TO 50 WAS PAINTED ON PIXELS 0 TO 12, and lands there.
     v2::PaneCanvasContent old;
     old.pane = canvas_pane; old.grant = seat->rooms.back().grant; old.picture = 1;
-    old.rects.push_back(PaneCanvasRect{2, 5, 48, 47, surface::role::kAccent});
-    old.labels.push_back(PaneCanvasLabel{9, 48, "node", surface::role::kFill});
+    old.rects.push_back(PaneCanvasRect{2, 5, 48, 47, gfx::role::kAccent});
+    old.labels.push_back(PaneCanvasLabel{9, 48, "node", gfx::role::kFill});
     drive([old](LegacyCanvasSeat&, loom::Mail& m) {
         (void)m.as_role(canvas_office).send_to_role(kWorkshopProvider, old);
     });
@@ -284,8 +284,8 @@ TEST_CASE("a canvas provider that speaks only the earlier doors is answered in t
         input::space::kCells, input::mod::kNone}));
     REQUIRE(seat->pointers.size() == 1);
     CHECK(seat->pointers.back().phase == canvas_pointer::kPress);
-    const std::int64_t at_x = surface::px_of_cells(surface::cell_of_pixel(got.x) + 1) - got.x;
-    const std::int64_t at_y = surface::px_of_cells(surface::cell_of_pixel(got.y) + 1) - got.y;
+    const std::int64_t at_x = gfx::px_of_cells(gfx::cell_of_pixel(got.x) + 1) - got.x;
+    const std::int64_t at_y = gfx::px_of_cells(gfx::cell_of_pixel(got.y) + 1) - got.y;
     CHECK(seat->pointers.back().x == kPaneCanvasLegacySubs * at_x);
     CHECK(seat->pointers.back().y == kPaneCanvasLegacySubs * at_y);
 }
@@ -329,9 +329,9 @@ TEST_CASE("an older canvas picture is judged by its own rules, and a rect that f
     // it: the picture is kept without it. The same sliver three sub-units over reaches pixel 1.
     v2::PaneCanvasContent old;
     old.pane = canvas_pane; old.grant = seat->rooms.back().grant; old.picture = 1;
-    old.rects.push_back(PaneCanvasRect{0, 0, 1, 48, surface::role::kAccent});
-    old.rects.push_back(PaneCanvasRect{3, 0, 1, 48, surface::role::kAccent});
-    old.rects.push_back(PaneCanvasRect{8, 8, 40, 40, surface::role::kFill});
+    old.rects.push_back(PaneCanvasRect{0, 0, 1, 48, gfx::role::kAccent});
+    old.rects.push_back(PaneCanvasRect{3, 0, 1, 48, gfx::role::kAccent});
+    old.rects.push_back(PaneCanvasRect{8, 8, 40, 40, gfx::role::kFill});
     send(old);
     CHECK(seat->rejected.empty());
     const auto& got = r.session().panes.external_pane(kind)->canvas;
@@ -347,7 +347,7 @@ TEST_CASE("an older canvas picture is judged by its own rules, and a rect that f
     // picture stays.
     v2::PaneCanvasContent bad = old;
     bad.picture = 2;
-    bad.rects.push_back(PaneCanvasRect{4, 4, 0, 8, surface::role::kFill});
+    bad.rects.push_back(PaneCanvasRect{4, 4, 0, 8, gfx::role::kFill});
     send(bad);
     REQUIRE(seat->rejected.size() == 1);
     CHECK(seat->rejected.back().picture == 2);
@@ -490,11 +490,11 @@ TEST_CASE("a canvas picture refused for what it holds is said in its pane and in
     CHECK(said() == why);
     CHECK(t.view().canvas.heard);
     CHECK(external_title_rows(t.r.session().panes, t.kind, false) == 0);
-    std::int64_t ground = surface::role::kFill;
+    std::int64_t ground = gfx::role::kFill;
     for (const auto& region : all_texts(t.r.last_canvas()))
         for (const auto& row : region.rows)
             if (row.text.find(kExternalRefusedMark) != std::string::npos) ground = row.background;
-    CHECK(ground == surface::role::kMediumGround);
+    CHECK(ground == gfx::role::kMediumGround);
 }
 
 TEST_CASE("pane canvas capture keeps the press picture through repaint motion and outside release") {
@@ -603,8 +603,8 @@ TEST_CASE("a right press a canvas picture hands back opens the host's pane menu 
     CHECK(t.r.session().context.subject == context_subject::kPane);
     CHECK(t.r.session().context.pane == (PaneRef{canvas_office, canvas_pane}));
     CHECK(t.r.session().context.anchored);
-    CHECK(surface::cell_of_pixel(t.r.session().context.anchor_x) == (t.view().canvas.x + kPaneCanvasUnit) / kPaneCanvasUnit);
-    CHECK(surface::cell_of_pixel(t.r.session().context.anchor_y) == (t.view().canvas.y + kPaneCanvasUnit) / kPaneCanvasUnit);
+    CHECK(gfx::cell_of_pixel(t.r.session().context.anchor_x) == (t.view().canvas.x + kPaneCanvasUnit) / kPaneCanvasUnit);
+    CHECK(gfx::cell_of_pixel(t.r.session().context.anchor_y) == (t.view().canvas.y + kPaneCanvasUnit) / kPaneCanvasUnit);
 }
 
 TEST_CASE("pane canvas grants turn over on reoffer and old content and capture cannot survive") {
@@ -665,13 +665,13 @@ TEST_CASE("pane canvas resize loses capture and wheel names a local point in the
     CHECK(t.seat->pointers.back().phase == canvas_pointer::kLost);
     REQUIRE(!t.seat->rooms.empty());
     CHECK(t.seat->rooms.back().grant != old);
-    CHECK(t.seat->rooms.back().grain == surface::kPixelGrainPx);
+    CHECK(t.seat->rooms.back().grain == gfx::kPixelGrainPx);
     CHECK(t.seat->rooms.back().graphical);
     t.publish();
     const auto c = t.view().canvas;
     t.r.publish(loom::to_value(input::PointerWheel{0, -1,
-        (c.x + kPaneCanvasUnit) / surface::kPixelGrainPx,
-        (c.y + kPaneCanvasUnit) / surface::kPixelGrainPx, input::space::kPixels, input::mod::kCtrl}));
+        (c.x + kPaneCanvasUnit) / gfx::kPixelGrainPx,
+        (c.y + kPaneCanvasUnit) / gfx::kPixelGrainPx, input::space::kPixels, input::mod::kCtrl}));
     REQUIRE(t.seat->pointers.size() == 3);
     const auto wheel = t.seat->pointers.back();
     CHECK(wheel.phase == canvas_pointer::kWheel);
@@ -682,7 +682,7 @@ TEST_CASE("pane canvas resize loses capture and wheel names a local point in the
 
 TEST_CASE("pane canvas measured text admission bounds all bytes and its editing positions") {
     PaneCanvasContent c{canvas_pane, 1, 1, {}, {},
-        {{0, 0, "ABCD", surface::role::kFill, 2, 1, 3}}};
+        {{0, 0, "ABCD", gfx::role::kFill, 2, 1, 3}}};
     CHECK(canvas_content_problem(c).empty());
     c.texts[0].caret_col = 5;
     CHECK_FALSE(canvas_content_problem(c).empty());
@@ -693,7 +693,7 @@ TEST_CASE("pane canvas measured text admission bounds all bytes and its editing 
     CHECK_FALSE(canvas_content_problem(c).empty());
     c.texts[0].sel_begin_col = -1;
     CHECK_FALSE(canvas_content_problem(c).empty());
-    c.texts[0] = {0, 0, "\xC3\xA9", surface::role::kFill};
+    c.texts[0] = {0, 0, "\xC3\xA9", gfx::role::kFill};
     CHECK_FALSE(canvas_content_problem(c).empty());
     c.texts[0].text = "line\nbreak";
     CHECK_FALSE(canvas_content_problem(c).empty());
@@ -707,7 +707,7 @@ TEST_CASE("pane canvas measured text admission bounds all bytes and its editing 
     CHECK(canvas_content_problem(c).empty());
     c.labels.assign(kPaneCanvasMaxTextBytes / kPaneCanvasMaxLabelBytes,
                     PaneCanvasLabel{0, 0, std::string(kPaneCanvasMaxLabelBytes, 'a'), 0});
-    c.texts.assign(1, PaneCanvasText{0, 0, "x", surface::role::kFill});
+    c.texts.assign(1, PaneCanvasText{0, 0, "x", gfx::role::kFill});
     CHECK_FALSE(canvas_content_problem(c).empty());
     c.labels.back().text.pop_back();
     CHECK(canvas_content_problem(c).empty());
@@ -722,18 +722,18 @@ TEST_CASE("pane canvas measured text shares its fit with existing surface type a
     const auto metric = canvas_text_metrics(room);
     CHECK(metric.advance == 8);
     CHECK(metric.line == 18);
-    CHECK(metric.inset == surface::kTextInsetPx);
+    CHECK(metric.inset == kTextInsetPx);
     CHECK(metric.graphical);
-    const PaneCanvasText text{6, 4, "ABCD", surface::role::kAccent, 2, 1, 3};
+    const PaneCanvasText text{6, 4, "ABCD", gfx::role::kAccent, 2, 1, 3};
     const auto placed = clip_canvas_text(text, {0, 0, room.width, room.height}, room);
     REQUIRE(placed.visible());
     CHECK(placed.bounds.x == 6);
     CHECK(placed.bounds.y == 4);
-    CHECK(placed.bounds.w == 4 * 8 + 2 * surface::kTextInsetPx);
-    CHECK(placed.bounds.h == 18 + 2 * surface::kTextInsetPx);
+    CHECK(placed.bounds.w == 4 * 8 + 2 * kTextInsetPx);
+    CHECK(placed.bounds.h == 18 + 2 * kTextInsetPx);
     CHECK(placed.fit.columns == 4);
     CHECK(placed.fit.rows == 1);
-    PaneCanvasContent c{canvas_pane, 1, 1, {}, {{0, 0, "old", surface::role::kFill}}, {text}};
+    PaneCanvasContent c{canvas_pane, 1, 1, {}, {{0, 0, "old", gfx::role::kFill}}, {text}};
     surface::SurfaceLayer layer;
     const PixelRect body{101, 93, room.width, room.height};
     paint_pane_canvas(layer, body, c, room.text_advance_px, room.text_line_px, room.grain);
@@ -743,7 +743,7 @@ TEST_CASE("pane canvas measured text shares its fit with existing surface type a
     const auto& region = layer.texts[0];
     CHECK(region.ground == surface::kGroundBeneath);
     REQUIRE(region.rows.size() == 1);
-    CHECK(region.rows[0].background == surface::role::kNone);
+    CHECK(region.rows[0].background == gfx::role::kNone);
     CHECK(region.rows[0].text == "ABCD");
     CHECK(region.caret_row == 0);
     CHECK(region.caret_col == 2);
@@ -754,7 +754,7 @@ TEST_CASE("pane canvas measured text shares its fit with existing surface type a
     CHECK(fit.rows == placed.fit.rows);
     CHECK(fit.view.x == placed.fit.view.x + 101);
     CHECK(fit.view.y == placed.fit.view.y + 93);
-    CHECK(surface::prose_column_of_pixel(fit.view.x + fit.origin_x + 2 * fit.advance_px, fit) ==
+    CHECK(prose_column_of_pixel(fit.view.x + fit.origin_x + 2 * fit.advance_px, fit) ==
           2);
     CHECK(PaneCanvasRoom::zen_version == 3);
     CHECK(PaneCanvasContent::zen_version == 3);
@@ -764,7 +764,7 @@ TEST_CASE("pane canvas measured text shares its fit with existing surface type a
 
 TEST_CASE("pane canvas text clipping preserves surviving positions through both edges") {
     PaneCanvasRoom room{canvas_pane, 1, 36, 44, 1, true, 8, 18};
-    const PaneCanvasText source{-5, 1, "ABCDE", surface::role::kFill, 2, 0, 5};
+    const PaneCanvasText source{-5, 1, "ABCDE", gfx::role::kFill, 2, 0, 5};
     const auto text = clip_canvas_text(source, {0, 0, room.width, room.height}, room);
     REQUIRE(text.visible());
     CHECK(text.first_column == 1);
@@ -776,7 +776,7 @@ TEST_CASE("pane canvas text clipping preserves surviving positions through both 
     CHECK(text.text.sel_end_col == 3);
     CHECK(text.fit.columns == 3);
     CHECK_FALSE(clip_canvas_text(source, {0, 2, room.width, room.height - 2}, room).visible());
-    const auto empty_caret = clip_canvas_text({0, 0, "", surface::role::kFill, 0},
+    const auto empty_caret = clip_canvas_text({0, 0, "", gfx::role::kFill, 0},
                                                {0, 0, room.width, room.height}, room);
     REQUIRE(empty_caret.visible());
     CHECK(empty_caret.fit.graphical());
@@ -879,7 +879,7 @@ TEST_CASE("an unpadded run stands its first character at its own place, and runs
     // A WINDOW'S FACE: an 8-pixel advance, an 18-pixel line, and a two-pixel inset around a
     // region. A body as tall as five lines holds five unpadded runs a line apart, each glyph row
     // exactly where it says; padded runs at that pitch hold four, each region needing its inset.
-    constexpr std::int64_t advance = 8, line = 18, inset = surface::kTextInsetPx;
+    constexpr std::int64_t advance = 8, line = 18, inset = kTextInsetPx;
     const PaneCanvasRoom room{canvas_pane, 1, 40 * advance + 2 * inset, 5 * line, 1, true,
                               advance, line};
     std::size_t unpadded = 0, padded = 0;
@@ -920,7 +920,7 @@ TEST_CASE("an unpadded run stands its first character at its own place, and runs
     REQUIRE(bare_left.visible());
     CHECK(bare_left.bounds.x == -inset);
     const auto on_ground = clip_canvas_run(v2::PaneCanvasText{0, 0, "abc", 0, -1, -1, -1, false,
-                                                              surface::role::kMuted},
+                                                              gfx::role::kMuted},
                                            {0, 0, room.width, room.height}, room);
     REQUIRE(on_ground.visible());
     CHECK(on_ground.bounds.x >= 0);
@@ -946,27 +946,27 @@ TEST_CASE("an unpadded run stands its first character at its own place, and runs
     judged.texts[0].padded = false;
     CHECK(canvas_content_problem(judged).empty());
     // A RUN MAY NAME A GROUND UNDER ITS CHARACTERS, as a prose row does, and the region carries it.
-    judged.texts[0].background = surface::role::kMuted;
+    judged.texts[0].background = gfx::role::kMuted;
     CHECK(canvas_content_problem(judged).empty());
     judged.texts[0].background = 99;
     CHECK(canvas_content_problem(judged).find("ground") != std::string_view::npos);
-    v2::PaneCanvasText grounded{0, 0, "ab  ", surface::role::kAccent, -1, -1, -1, false,
-                                surface::role::kMuted};
+    v2::PaneCanvasText grounded{0, 0, "ab  ", gfx::role::kAccent, -1, -1, -1, false,
+                                gfx::role::kMuted};
     const auto placed_ground = clip_canvas_run(grounded, {0, 0, cells.width, cells.height}, cells);
     REQUIRE(placed_ground.visible());
-    CHECK(placed_ground.background == surface::role::kMuted);
+    CHECK(placed_ground.background == gfx::role::kMuted);
     surface::SurfaceLayer layer;
     layer.texts.push_back(canvas_text_region(placed_ground));
     const auto rows = surface::project_text_regions(layer);
     REQUIRE(rows.size() == 1);
     CHECK(rows[0].label.text == "ab  ");      // the blanks carry the ground to the run's end
-    CHECK(rows[0].background == surface::role::kMuted);
+    CHECK(rows[0].background == gfx::role::kMuted);
 }
 
 TEST_CASE("a pane's rows drawn on its canvas stand where its prose rows would, name the same parts, and a place reads back to its row and column") {
     // A WINDOW'S FACE and A TERMINAL'S CELLS: the lattice holds the rows and columns a prose body
     // of the room's size holds, and each row stands one line below the last.
-    constexpr std::int64_t advance = 8, line = 18, inset = surface::kTextInsetPx;
+    constexpr std::int64_t advance = 8, line = 18, inset = kTextInsetPx;
     const PaneCanvasRoom window{canvas_pane, 4, 30 * advance + 2 * inset + 5, 6 * line + 7, 1, true,
                                 advance, line};
     const CanvasRows face = canvas_rows(window);
@@ -984,11 +984,11 @@ TEST_CASE("a pane's rows drawn on its canvas stand where its prose rows would, n
     CHECK(canvas_rows(PaneCanvasRoom{canvas_pane, 6, 0, 0, 1, true, advance, line}).empty());
 
     const std::vector<surface::SurfaceTextRow> rows = {
-        {"HEADING", surface::role::kAccent},
-        {"> chosen   ", surface::role::kAccent, surface::role::kMuted},
-        {"  other    ", surface::role::kFill},
-        {"", surface::role::kFill},
-        {"typed", surface::role::kFill}};
+        {"HEADING", gfx::role::kAccent},
+        {"> chosen   ", gfx::role::kAccent, gfx::role::kMuted},
+        {"  other    ", gfx::role::kFill},
+        {"", gfx::role::kFill},
+        {"typed", gfx::role::kFill}};
     const std::vector<PaneRowPart> parts = {{"row:chosen", 1, 0, 30},
                                             {"mark:chosen", 1, 0, 2},
                                             {"", 2, 0, 30},
@@ -1011,7 +1011,7 @@ TEST_CASE("a pane's rows drawn on its canvas stand where its prose rows would, n
         CHECK(canvas_parts_problem(p.parts).empty());
         // THE MEDIUM'S OWN GROUND beneath everything, as a prose body's is cleared.
         REQUIRE_FALSE(p.rects.empty());
-        CHECK(p.rects[0].role == surface::role::kMediumGround);
+        CHECK(p.rects[0].role == gfx::role::kMediumGround);
         CHECK(p.rects[0].w == room.width);
         CHECK(p.rects[0].h == room.height);
         // ONE UNPADDED RUN A ROW, a row's own blanks dropped, an empty row drawn as nothing.
@@ -1022,20 +1022,20 @@ TEST_CASE("a pane's rows drawn on its canvas stand where its prose rows would, n
         }
         CHECK(p.texts[0].text == "HEADING");
         CHECK(p.texts[0].y == lattice.row_y(0));
-        CHECK(p.texts[0].role == surface::role::kAccent);
+        CHECK(p.texts[0].role == gfx::role::kAccent);
         // A ROW WITH A GROUND carries it blank to the row's end, and lies on it across the room's
         // whole width, where a window's lattice stops short of the edge.
         CHECK(p.texts[1].text.size() == static_cast<std::size_t>(lattice.columns));
         CHECK(p.texts[1].text.rfind("> chosen", 0) == 0);
-        CHECK(p.texts[1].background == surface::role::kMuted);
+        CHECK(p.texts[1].background == gfx::role::kMuted);
         REQUIRE(p.rects.size() == 2);
-        CHECK(p.rects[1].role == surface::role::kMuted);
+        CHECK(p.rects[1].role == gfx::role::kMuted);
         CHECK(p.rects[1].x == 0);
         CHECK(p.rects[1].y == lattice.row_y(1));
         CHECK(p.rects[1].w == room.width);
         CHECK(p.rects[1].h == lattice.line);
         CHECK(p.texts[2].text == "  other");
-        CHECK(p.texts[2].background == surface::role::kNone);
+        CHECK(p.texts[2].background == gfx::role::kNone);
         // THE CARET AND THE SELECTION stand in the run of their row.
         CHECK(p.texts[3].text == "typed "); // the caret after the last character has its blank
         CHECK(p.texts[3].y == lattice.row_y(4));
@@ -1145,7 +1145,7 @@ TEST_CASE("pane canvas text metric changes renew the grant even when its body st
     const auto room_count = t.seat->rooms.size();
     t.button(1, true);
     REQUIRE(t.seat->pointers.back().phase == canvas_pointer::kPress);
-    t.r.extent(150, 65, 9, 18, surface::kCanvasCellPx);
+    t.r.extent(150, 65, 9, 18, gfx::kCellPx);
     REQUIRE(t.seat->rooms.size() == room_count + 1);
     const auto next = t.seat->rooms.back();
     CHECK(next.width == first.width);
@@ -1297,7 +1297,7 @@ TEST_CASE("a weaver keys a described view's button by naming its id in their key
     r.mount_workshop();
     r.host.role_holder = [&r](std::string_view office) { return r.bus.role_holder(office); };
     r.ready();
-    r.extent(160, 90, 8, 18, surface::kCanvasCellPx);
+    r.extent(160, 90, 8, 18, gfx::kCellPx);
     view::Host views(r.bus);
     views.mount();
     auto asker = std::make_unique<ViewAsker>();
@@ -1362,7 +1362,7 @@ TEST_CASE("a view asks for its size in pixels and its pane grants exactly that r
     r.mount_workshop();
     r.host.role_holder = [&r](std::string_view office) { return r.bus.role_holder(office); };
     r.ready();
-    r.extent(160, 90, 8, 18, surface::kCanvasCellPx); // the shipped window's face
+    r.extent(160, 90, 8, 18, gfx::kCellPx); // the shipped window's face
     view::Host views(r.bus);
     views.mount();
     auto asker = std::make_unique<ViewAsker>();
@@ -1392,7 +1392,7 @@ TEST_CASE("a view asks for its size in pixels and its pane grants exactly that r
         REQUIRE(r.session().panes.has(row->kind));
 
         // IN THE WINDOW: the size to the pixel, and the notice's three rows of the face beneath it.
-        const auto band = 3 * (18 + 2 * surface::kTextInsetPx);
+        const auto band = 3 * (18 + 2 * kTextInsetPx);
         const auto* pane = r.session().panes.external_pane(row->kind);
         REQUIRE(pane);
         CHECK(pane->canvas.width == size.w);
@@ -1412,8 +1412,8 @@ TEST_CASE("a view asks for its size in pixels and its pane grants exactly that r
         REQUIRE(pane);
         const auto up = [](std::int64_t px) { return (px + 11) / 12 * 12; };
         CHECK(pane->canvas.width == up(size.w));
-        CHECK(pane->canvas.height == up(size.h) + 3 * surface::kCanvasCellPx);
-        CHECK(pane->canvas.grain == surface::kCanvasCellPx);
+        CHECK(pane->canvas.height == up(size.h) + 3 * gfx::kCellPx);
+        CHECK(pane->canvas.grain == gfx::kCellPx);
     }
 }
 

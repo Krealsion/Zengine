@@ -17,7 +17,6 @@
 #include "workshop/pane_vocabulary.hpp"
 
 #include "graphics/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
 
 #include "manuals/zengine.connections.hpp" // this pane's manual, compiled in from its page
 
@@ -33,7 +32,6 @@
 namespace {
 
 namespace gfx = zengine::graphics;
-namespace surface = zengine::surface;
 namespace ws = zengine::workshop;
 namespace pane = zengine::connections_pane;
 
@@ -124,23 +122,23 @@ public:
             }
         };
         if (!heard_) {
-            line("waiting", "CONNECTIONS (waiting for the guest door)", surface::role::kMuted);
+            line("waiting", "CONNECTIONS (waiting for the guest door)", gfx::role::kMuted);
             return;
         }
         if (known_.listen.empty()) {
             line("header", "CONNECTIONS -- this Workshop accepts no guests",
-                 surface::role::kAccent);
-            line("listen", "  launch with --guests <file> to listen", surface::role::kMuted);
+                 gfx::role::kAccent);
+            line("listen", "  launch with --guests <file> to listen", gfx::role::kMuted);
             return;
         }
         line("header",
              "CONNECTIONS -- " + std::to_string(known_.rows.size()) +
                  (known_.rows.size() == 1 ? " connection" : " connections") + " at " +
                  known_.listen + (development_host() ? " -- a development host" : ""),
-             surface::role::kAccent);
+             gfx::role::kAccent);
         const std::size_t budget = rows > 1 ? static_cast<std::size_t>(rows - 1) : 0;
         if (known_.rows.empty() && budget > 0) {
-            line("nobody", "  nobody is connected", surface::role::kMuted);
+            line("nobody", "  nobody is connected", gfx::role::kMuted);
         }
         // A CONNECTION IS SAID WHOLE OR COUNTED: one a guests-file row admitted brings its
         // version line, and its reach line when it names a role or doors; they stand together
@@ -152,7 +150,7 @@ public:
             const bool last = known_.rows.size() - shown == 1;
             if (last ? used + need > budget : used + need >= budget) {
                 line("more", "  " + omitted_text(known_.rows.size() - shown, "more"),
-                     surface::role::kMuted);
+                     gfx::role::kMuted);
                 ++used;
                 break;
             }
@@ -174,7 +172,7 @@ public:
             line("refused",
                  "  refused " + std::to_string(known_.refused) + ", shed " +
                      std::to_string(known_.shed) + " (all time)",
-                 surface::role::kMuted);
+                 gfx::role::kMuted);
         }
     }
 
@@ -240,12 +238,12 @@ private:
 
     static std::int64_t role_of(const GuestConnection& c) {
         if (c.state == "admitted") {
-            return surface::role::kFill;
+            return gfx::role::kFill;
         }
         if (c.state == "awaiting-decision") {
-            return surface::role::kAlert;
+            return gfx::role::kAlert;
         }
-        return surface::role::kMuted;
+        return gfx::role::kMuted;
     }
 
     GuestConnections known_;

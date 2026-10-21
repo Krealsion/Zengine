@@ -24,7 +24,6 @@
 #include "component/list_window.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
 
 #include "manuals/zengine.attention.hpp" // this pane's manual, compiled in from its page
 
@@ -44,7 +43,6 @@ namespace {
 
 namespace gfx = zengine::graphics;
 namespace input = zengine::input;
-namespace surface = zengine::surface;
 namespace ws = zengine::workshop;
 namespace pane = zengine::attention_pane;
 
@@ -325,7 +323,7 @@ public:
         // carries it, and it is cleared by the weaver's next act rather than by being said
         // (`agents/panes.md`).
         if (!notice_.empty() && rows > 1) {
-            line("notice", notice_, surface::role::kAccent);
+            line("notice", notice_, gfx::role::kAccent);
         }
         // A CONDITION IS NAMED BY ITS KEY, `condition:<key>`, on the row that says it, and a
         // press there asks for it; the notice and the glance are named for what they are, and
@@ -374,13 +372,13 @@ private:
             // THE HOST HAS NOT SAID ANYTHING YET, WHICH IS NOT THE SAME AS NOTHING BEING
             // WRONG. A pane opened before the first publication has no reading at all, and
             // an empty list here would read as an all-clear this pane has no grounds for.
-            push("ATTENTION (waiting)", surface::role::kMuted);
+            push("ATTENTION (waiting)", gfx::role::kMuted);
             return;
         }
         if (known_.empty()) {
             // NOTHING IS WRONG, SAID IN WORDS. A weaver who put this pane on their desk is
             // owed an answer, and an empty box is not one.
-            push("nothing needs your attention right now", surface::role::kMuted);
+            push("nothing needs your attention right now", gfx::role::kMuted);
             return;
         }
         // THE GLANCE LEADS: the loudest condition the host says is true and how many more, in
@@ -400,7 +398,7 @@ private:
             // than saying the all-clear.
             push("  all conditions hidden -- " + std::to_string(known_.size()) +
                      (known_.size() == 1 ? " is" : " are") + " still true",
-                 surface::role::kMuted);
+                 gfx::role::kMuted);
             return;
         }
         // The cursor's own block is composed and reserved before the list is windowed: a window
@@ -434,7 +432,7 @@ private:
             win.markers = 1;
         }
         if (win.before > 0) {
-            push("  " + omitted_text(win.before, "earlier"), surface::role::kMuted);
+            push("  " + omitted_text(win.before, "earlier"), gfx::role::kMuted);
         }
         for (std::size_t i = win.first; i < win.end(); ++i) {
             const StandingCondition& c = shown[i];
@@ -445,14 +443,14 @@ private:
             }
             const std::size_t said = block.size() > reserve ? reserve - 1 : block.size();
             for (std::size_t line = 0; line < said; ++line) {
-                push("    " + block[line], surface::role::kMuted);
+                push("    " + block[line], gfx::role::kMuted);
             }
             if (said < block.size()) {
-                push("    " + omitted_text(block.size() - said, "more"), surface::role::kMuted);
+                push("    " + omitted_text(block.size() - said, "more"), gfx::role::kMuted);
             }
         }
         if (win.after > 0) {
-            push("  " + omitted_text(win.after, "more"), surface::role::kMuted);
+            push("  " + omitted_text(win.after, "more"), gfx::role::kMuted);
         }
     }
 

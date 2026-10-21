@@ -104,7 +104,7 @@ otherwise.
   `readable` false: no terminal can say, and the asker pastes what this process last copied
   ([`ClipboardCopy`](#clipboardcopy)). The SDL Skin whose SDL did not start answers the same.
 - **Refuses:** nothing.
-- **Example:** Workshop's paste: `mail.send_to_role(zengine::surface::kSkinRole, zengine::surface::ClipboardTextRequested{}, corr);`,
+- **Example:** Workshop's paste: `mail.send_to_role(zengine::surface::kSkinRole, zengine::graphics::ClipboardTextRequested{}, corr);`,
   settling the answer as any ask.
 
 ### `SurfacePlacementRemembered`
@@ -137,7 +137,7 @@ otherwise.
   this window and nothing is taking them.`, and names what to load: `zengine-input-sdl` as
   `zengine.input`.
 - **Refuses:** nothing.
-- **Example:** `bus.send_to_role(zengine::surface::kSkinRole, loom::Message(loom::to_value(zengine::surface::PumpSurface{})));`
+- **Example:** `bus.send_to_role(zengine::surface::kSkinRole, loom::Message(loom::to_value(zengine::graphics::PumpSurface{})));`
 
 ### `SurfaceCaptureRequested`
 
@@ -153,7 +153,7 @@ or a link ask's `settle`).
   `frame` it shows, `width` and `height`, `cell_px`, `format` and its size in `bytes`. The Skin keeps
   this one picture, replacing the last. The SDL Skin draws the last picture again, reads it back and
   presents it, so what you get is what the window shows: `image/bmp`, 24-bit, in window pixels,
-  `cell_px` `kCanvasCellPx`. A terminal Skin answers the cells it painted: `text/cells`, one row of
+  `cell_px` `kCellPx`. A terminal Skin answers the cells it painted: `text/cells`, one row of
   `width` bytes a line, `cell_px` 0.
 - **Refuses:** `ok` false, in `refusal`: `a capture is already waiting for frame 4; one waits at a
   time`; `this delivery cannot defer its answer`; `this medium has no picture to read back right
@@ -195,8 +195,8 @@ does what [`PumpSurface`](#pumpsurface) does; a firing of another id is ignored.
 Each Skin publishes, from `zengine.skin`: `SurfaceReady` v1 once per incarnation, when it is
 activated, or when nothing activated it, on the first message about its medium that reaches it;
 `SurfaceExtent` v4 when the room changes and only then, never zeroes (a terminal's cells times
-`kCanvasCellPx`, less `kTuiReservedRows` rows, with text a cell; the window's pixels, its face's
-advance and line, and `cell_px` `kCanvasCellPx`); with no answer (no terminal, no window yet) it
+`kCellPx`, less `kTuiReservedRows` rows, with text a cell; the window's pixels, its face's
+advance and line, and `cell_px` `kCellPx`); with no answer (no terminal, no window yet) it
 says nothing. The SDL Skin also publishes `SurfacePlacement` v1 when the window moves or is
 maximized, before the extent, always the normal window's top-left; a terminal Skin never does. On
 activation and on `TimerReady` a Skin sends `StartRoleTimer` v1 to `zengine.timer`:

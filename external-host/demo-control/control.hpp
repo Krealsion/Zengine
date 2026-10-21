@@ -58,7 +58,7 @@ public:
             if (row >= room.rows()) return false;
             f.text(path, 0, row * room.text().line,
                    ws::pane_text::drawable(ws::pane_text::fit(text, room.columns())),
-                   graphics::by_role(surface::role::kFill));
+                   graphics::by_role(graphics::role::kFill));
             return true;
         };
         (void)line("name", 0, state_.name);

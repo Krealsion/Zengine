@@ -37,9 +37,6 @@
 #include "manuals/zengine.graphics.hpp"
 #include "manuals/zengine.window.sdl.hpp"
 #include "manuals/zengine.window.terminal.hpp"
-#include "surface/terminal_size.hpp"
-#include "surface/tui_terminal.hpp"
-#include "surface/vocabulary.hpp"
 #include "workshop/attention_seam_vocabulary.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
 #include "workshop/pane_facets.hpp"
@@ -238,7 +235,7 @@ struct TermLog {
     std::string typed;
     std::string written;
     std::vector<std::string> writes;              ///< each write, one showing each
-    zengine::surface::TerminalSize size{80, 30};  ///< its size in cells, the suite's to change
+    zengine::graphics::window::TerminalSize size{80, 30};  ///< its size in cells, the suite's to change
 };
 
 class FakeTerminal {
@@ -246,7 +243,7 @@ public:
     FakeTerminal() = default;
     explicit FakeTerminal(TermLog* log) : log_(log) {}
     void claim() {}
-    zengine::surface::TerminalSize size() const {
+    zengine::graphics::window::TerminalSize size() const {
         return log_ != nullptr ? log_->size : TermLog{}.size;
     }
     void write(std::string_view bytes) {
@@ -1880,7 +1877,7 @@ std::vector<gfx::WindowOffered> offers_to_directory(Rig& r, std::size_t from) {
 /// (none where the terminal measures none), the same incarnation, and writes one showing that
 /// covers every cell of the new size -- laid over a terminal still holding something else
 /// everywhere, nothing of that is left.
-void check_resized(Resized& t, zengine::surface::TerminalSize size, std::int64_t cols,
+void check_resized(Resized& t, zengine::graphics::window::TerminalSize size, std::int64_t cols,
                    std::int64_t rows) {
     const bool measured = size.measured();
     Rig& r = t.r;
@@ -3596,7 +3593,7 @@ bool shows(const std::vector<std::string>& rows, const std::string& words) {
 }
 
 ws::StandingCondition condition(const char* key, const char* compact, const char* detail) {
-    return ws::StandingCondition{key, compact, detail, zengine::surface::role::kAlert, ""};
+    return ws::StandingCondition{key, compact, detail, zengine::graphics::role::kAlert, ""};
 }
 
 /// THE ATTENTION PANE, the library Workshop loads, in a window whose terminal is the suite's: its
@@ -4127,30 +4124,7 @@ TEST_CASE("no source in the graphics package includes Surface") {
     CHECK(including.empty());
 }
 
-TEST_CASE("the terminal's claim, size and ink are the graphics package's, and Surface's spelling "
-          "names the same things") {
-    static_assert(std::is_same_v<zengine::surface::TerminalSize, gw::TerminalSize>);
-    static_assert(std::is_same_v<zengine::surface::TuiTerminal, gw::TuiTerminal>);
-    // The platform's shapes are one set, each one type in either spelling, so a Skin and a window
-    // answer the same wire.
-    static_assert(std::is_same_v<zengine::surface::PumpSurface, gfx::PumpSurface>);
-    static_assert(std::is_same_v<zengine::surface::SurfaceCloseRequested,
-                                 gfx::SurfaceCloseRequested>);
-    static_assert(std::is_same_v<zengine::surface::SurfacePlacement, gfx::SurfacePlacement>);
-    static_assert(std::is_same_v<zengine::surface::SurfacePlacementRemembered,
-                                 gfx::SurfacePlacementRemembered>);
-    static_assert(std::is_same_v<zengine::surface::ClipboardCopy, gfx::ClipboardCopy>);
-    static_assert(std::is_same_v<zengine::surface::ClipboardTextRequested,
-                                 gfx::ClipboardTextRequested>);
-    static_assert(std::is_same_v<zengine::surface::ClipboardText, gfx::ClipboardText>);
-    static_assert(std::is_same_v<zengine::surface::SurfaceCaptureRequested,
-                                 gfx::SurfaceCaptureRequested>);
-    static_assert(std::is_same_v<zengine::surface::SurfaceCaptured, gfx::SurfaceCaptured>);
-    static_assert(std::is_same_v<zengine::surface::SurfaceCaptureChunkRequested,
-                                 gfx::SurfaceCaptureChunkRequested>);
-    static_assert(std::is_same_v<zengine::surface::SurfaceCaptureChunk, gfx::SurfaceCaptureChunk>);
-    CHECK(zengine::surface::role::kGuide == 6); // the one set of roles, spelled in either namespace
-    CHECK(std::string(zengine::surface::sgr_for_role(6)) == gw::sgr_for_role(6));
+TEST_CASE("the terminal's ink and its pointer modes are the graphics package's") {
     CHECK(std::string(gw::sgr_for_role(static_cast<int>(gfx::role::kAccent))) == "\x1b[36m");
     CHECK(std::string(gw::sgr_for_role(static_cast<int>(gfx::role::kGuide))) == "\x1b[95m");
     CHECK(std::string(gw::sgr_for_role(static_cast<int>(gfx::role::kMediumGround))) == "\x1b[39m");

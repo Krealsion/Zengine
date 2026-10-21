@@ -13,7 +13,7 @@
 #include "activation/activation.hpp"
 #include "input/vocabulary.hpp"
 #include "introspection/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
+#include "graphics/vocabulary.hpp"
 #include "workshop/pane_canvas_rows.hpp"
 #include "workshop/pane_facets.hpp"
 #include "workshop/pane_vocabulary.hpp"
@@ -51,7 +51,7 @@ namespace {
 
 namespace ws = zengine::workshop;
 namespace inv = zengine::inventory;
-namespace surface = zengine::surface;
+namespace gfx = zengine::graphics;
 namespace input = zengine::input;
 using zengine::composer::kComposePane;
 using zengine::composer::kComposePaneName;
@@ -125,8 +125,8 @@ class ComposerWeave final
           ComposerWeave, ComposerState,
           loom::Accept<ws::PaneResetRequested, ws::PaneCanvasValueDrop, ws::PaneCanvasDrop,
                        ws::PaneOperationAnswered, inv::InventoryEntry, loom::DispatchRefused,
-                       PaneKey, PaneTextInput, LoadedSelected, surface::ClipboardCopy,
-                       surface::ClipboardText, AcceptedShapes, loom::Refused>,
+                       PaneKey, PaneTextInput, LoadedSelected, gfx::ClipboardCopy,
+                       gfx::ClipboardText, AcceptedShapes, loom::Refused>,
           loom::Emit<ws::PaneOperationRequested, ws::PaneEscapeUnspent>> {
 public:
     // ---- the pane protocol: the facets call these ---------------------------
@@ -243,7 +243,7 @@ public:
         send_value_.reset();
         composing_.notice = send_attempt_.valid() ? "SUBMITTED -- queued; outcome belongs to the receiver"
                                                  : "Submission could not be queued";
-        composing_.notice_role = send_attempt_.valid() ? surface::role::kAccent : surface::role::kAlert;
+        composing_.notice_role = send_attempt_.valid() ? gfx::role::kAccent : gfx::role::kAlert;
         say(mail);
     }
 
@@ -280,7 +280,7 @@ public:
         const std::uint64_t pastes_before = clip_.paste_requests;
         if (edit_field(key.scancode, key.modifiers)) {
             if (clip_.writes != copied_before) {
-                mail.publish(surface::ClipboardCopy{clip_.text});
+                mail.publish(gfx::ClipboardCopy{clip_.text});
             }
             if (clip_.paste_requests != pastes_before) {
                 begin_clipboard_paste(mail);
@@ -326,7 +326,7 @@ public:
         restoring_ = false; // the weaver chose another target: the carried form goes with the old one
         composing_.cursor = 0;
         composing_.notice.clear();
-        composing_.notice_role = surface::role::kMuted;
+        composing_.notice_role = gfx::role::kMuted;
         // EVERY PREVIOUS TARGET'S VOCABULARY AND DRAFT GO NOW, before anything is
         // asked. A snapshot belongs to the target it was read from, and a draft
         // belongs to a shape out of that snapshot; carrying either across would put
@@ -352,9 +352,9 @@ public:
     /// paste into a field here -- the mirror's only feed, since the platform clipboard is read at
     /// paste time through the Skin. The writes counter is untouched: it counts this pane's
     /// copies, so a key's publish never echoes another participant's copy.
-    void on(const surface::ClipboardCopy& copied, loom::Mail&) { clip_.text = copied.text; }
+    void on(const gfx::ClipboardCopy& copied, loom::Mail&) { clip_.text = copied.text; }
 
-    void on(const surface::ClipboardText& a, loom::Mail& mail) {
+    void on(const gfx::ClipboardText& a, loom::Mail& mail) {
         if (!mail.answers_ask()) {
             return;
         }
@@ -416,7 +416,7 @@ public:
         composing_.cursor = 0;
         composing_.stage = stage::kCatalog;
         composing_.notice = "up/down move, enter chooses";
-        composing_.notice_role = surface::role::kMuted;
+        composing_.notice_role = gfx::role::kMuted;
         if (std::exchange(restoring_, false)) reopen();
         say(mail);
     }
@@ -558,7 +558,7 @@ private:
                                                      zengine::composer::form_items(composing_.draft) - 1);
         composing_.notice = carried_notice_.empty() ? "The form was kept across a reload -- review, then Submit"
                                                     : carried_notice_;
-        composing_.notice_role = carried_notice_.empty() ? surface::role::kAccent : surface::role::kAlert;
+        composing_.notice_role = carried_notice_.empty() ? gfx::role::kAccent : gfx::role::kAlert;
     }
 
     // ---- discovery ----------------------------------------------------------
@@ -633,7 +633,7 @@ private:
         composing_.stage = stage::kForm;
         composing_.cursor = 0;
         composing_.notice = "up/down move, tab include, enter acts, esc back";
-        composing_.notice_role = surface::role::kMuted;
+        composing_.notice_role = gfx::role::kMuted;
         say(mail);
     }
 
@@ -647,7 +647,7 @@ private:
         composing_.stage = stage::kCatalog;
         composing_.cursor = 0;
         composing_.notice.clear();
-        composing_.notice_role = surface::role::kMuted;
+        composing_.notice_role = gfx::role::kMuted;
         say(mail);
     }
 
@@ -705,8 +705,8 @@ private:
         }
         const std::string clipboard = room().clipboard_office();
         const loom::AskOpened opened = clip_asks_.open_to_role(
-            clipboard, surface::ClipboardTextRequested::zen_name,
-            surface::ClipboardTextRequested::zen_version);
+            clipboard, gfx::ClipboardTextRequested::zen_name,
+            gfx::ClipboardTextRequested::zen_version);
         if (!opened) {
             return;
         }
@@ -717,7 +717,7 @@ private:
         p.epoch = d->value.draft_epoch();
         pending_pastes_.push_back(p);
         (void)mail.as_role(kComposerRole)
-            .send_to_role(clipboard, surface::ClipboardTextRequested{}, opened.correlation);
+            .send_to_role(clipboard, gfx::ClipboardTextRequested{}, opened.correlation);
     }
 
     // ---- submission ---------------------------------------------------------
@@ -762,7 +762,7 @@ private:
     bool busy() const { return send_value_.has_value() || storage_.busy(); }
     void storage_notice(loom::Mail& mail) {
         composing_.notice = storage_.result ? "Stored as a new inventory entry" : storage_.notice;
-        composing_.notice_role = surface::role::kAccent;
+        composing_.notice_role = gfx::role::kAccent;
         say(mail);
     }
     void store(loom::Mail& mail, bool preset = false) {
@@ -828,14 +828,14 @@ private:
             }
             ++draft_generation_;
             composing_.notice = "Copied data into form -- review, then Submit";
-            composing_.notice_role = surface::role::kAccent;
+            composing_.notice_role = gfx::role::kAccent;
         } catch (const std::exception& e) { complain(std::string("Drop refused: ") + e.what()); }
         say(mail);
     }
 
     void complain(std::string what) {
         composing_.notice = std::move(what);
-        composing_.notice_role = surface::role::kAlert;
+        composing_.notice_role = gfx::role::kAlert;
     }
 
     /// The rows as `project` composes them for the room, each with what it means, published by the

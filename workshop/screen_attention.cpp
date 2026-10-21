@@ -43,7 +43,7 @@ std::vector<Condition> attention_conditions(const Session& s,
         out.push_back(Condition{pane_content_key(ref),
                                 "`" + ref_text(ref) + "` refused an update",
                                 pane.refusal_why.empty() ? pane.refusal : pane.refusal_why,
-                                surface::role::kAlert, std::string()});
+                                graphics::role::kAlert, std::string()});
     }
 
     // DERIVED: a setting a pane was handed and said it cannot use. The pane holds the word against
@@ -57,7 +57,7 @@ std::vector<Condition> attention_conditions(const Session& s,
         for (const ExternalPane::UnusedSetting& u : pane.settings_unused) {
             out.push_back(Condition{pane_setting_unused_key(ref, u.key),
                                     "`" + ref_text(ref) + "` cannot use its setting " + u.key,
-                                    u.why, surface::role::kAccent, std::string()});
+                                    u.why, graphics::role::kAccent, std::string()});
         }
     }
 
@@ -71,7 +71,7 @@ std::vector<Condition> attention_conditions(const Session& s,
         }
         out.push_back(Condition{pane_window_key(row.ref),
                                 "`" + ref_text(row.ref) + "` " + pane_state_word(state),
-                                std::string(pane_state_remedy(state)), surface::role::kAccent,
+                                std::string(pane_state_remedy(state)), graphics::role::kAccent,
                                 "workshop.manage"});
     }
 
@@ -85,7 +85,7 @@ std::vector<Condition> attention_conditions(const Session& s,
                       (frontier.blocked == 1 ? "" : "s") + " behind it";
         }
         out.push_back(Condition{kFrontierKey, "project waiting on `" + frontier.artifact + "`",
-                                detail, surface::role::kAccent, "builder.frontier"});
+                                detail, graphics::role::kAccent, "builder.frontier"});
     }
 
     std::sort(out.begin(), out.end(), ranks_before);
@@ -256,15 +256,15 @@ void paint_context(surface::SurfaceLayer& layer, const Session& s, const Screen&
     const std::size_t cursor = context_cursor_bound(menu.cursor, rows.size());
     const ListWindow win = list_window(rows.size(), cursor, budget);
     if (win.before > 0) {
-        say("  " + omitted_text(win.before, "earlier"), surface::role::kMuted);
+        say("  " + omitted_text(win.before, "earlier"), graphics::role::kMuted);
     }
     for (std::size_t i = win.first; i < win.first + win.count; ++i) {
         const bool here = i == cursor;
         say(std::string(here ? "> " : "  ") + context_row_text(s, rows[i], label_cols),
-            here ? surface::role::kAccent : surface::role::kFill);
+            here ? graphics::role::kAccent : graphics::role::kFill);
     }
     if (win.after > 0) {
-        say("  " + omitted_text(win.after, "more"), surface::role::kMuted);
+        say("  " + omitted_text(win.after, "more"), graphics::role::kMuted);
     }
     layer.texts.push_back(std::move(region));
 }

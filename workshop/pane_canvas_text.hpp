@@ -5,6 +5,9 @@
 
 #include "pane_canvas_vocabulary.hpp"
 #include "surface/pointing.hpp"
+#include "pane_text_fit.hpp"
+#include "graphics/pixels.hpp"
+#include "graphics/role.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <limits>
@@ -28,7 +31,7 @@ inline constexpr CanvasTextMetrics canvas_text_metrics(const PaneCanvasRoom& roo
     if (room.text_advance_px > 0 && room.text_line_px > 0) {
         out.advance = room.text_advance_px;
         out.line = room.text_line_px;
-        out.inset = surface::kTextInsetPx;
+        out.inset = kTextInsetPx;
         out.graphical = true;
     }
     return out;
@@ -37,10 +40,10 @@ inline constexpr CanvasTextMetrics canvas_text_metrics(const PaneCanvasRoom& roo
 struct CanvasTextLayout {
     PaneCanvasText text;
     /// The ground a run names under its characters (`v2::PaneCanvasText::background`).
-    std::int64_t background = surface::role::kNone;
+    std::int64_t background = graphics::role::kNone;
     CanvasTextBox bounds;
     std::size_t first_column = 0;
-    surface::RegionFit fit;
+    RegionFit fit;
     bool visible() const noexcept { return !bounds.empty(); }
 };
 
@@ -61,22 +64,22 @@ inline CanvasTextLayout clip_canvas_text_by(const PaneCanvasText& text, const Ca
     if (clip.empty() || room.width <= 0 || room.height <= 0) return out;
     const auto m = canvas_text_metrics(room);
     const auto floor_at = [&](std::int64_t v) {
-        const auto units = surface::floor_div_px(v, m.grain);
+        const auto units = graphics::floor_div_px(v, m.grain);
         const auto least = (std::numeric_limits<std::int64_t>::min)();
         return units < least / m.grain ? least : units * m.grain;
     };
     const auto ceil_at = [&](std::int64_t v) {
         const auto low = floor_at(v);
-        return low == v ? low : surface::add_cells(low, m.grain);
+        return low == v ? low : graphics::add_cells(low, m.grain);
     };
-    const auto left = ceil_at(surface::sub_px((std::max)(std::int64_t{0}, clip.x), slack_left));
-    const auto top = ceil_at(surface::sub_px((std::max)(std::int64_t{0}, clip.y), slack));
-    const auto right = floor_at((std::min)(room.width, surface::add_cells(clip.x, clip.w)));
-    const auto bottom = floor_at(surface::add_cells(
-        (std::min)(room.height, surface::add_cells(clip.y, clip.h)), slack));
+    const auto left = ceil_at(graphics::sub_px((std::max)(std::int64_t{0}, clip.x), slack_left));
+    const auto top = ceil_at(graphics::sub_px((std::max)(std::int64_t{0}, clip.y), slack));
+    const auto right = floor_at((std::min)(room.width, graphics::add_cells(clip.x, clip.w)));
+    const auto bottom = floor_at(graphics::add_cells(
+        (std::min)(room.height, graphics::add_cells(clip.y, clip.h)), slack));
     if (right <= left || bottom <= top) return out;
-    const auto pad = surface::mul_px(2, m.inset);
-    const auto height = surface::add_cells(m.line, pad);
+    const auto pad = graphics::mul_px(2, m.inset);
+    const auto height = graphics::add_cells(m.line, pad);
     const auto y = floor_at(text.y);
     if (y < top || y >= bottom || height > bottom - y) return out;
     const auto length = (std::min)(text.text.size(), kPaneCanvasMaxTextRunBytes);
@@ -86,7 +89,7 @@ inline CanvasTextLayout clip_canvas_text_by(const PaneCanvasText& text, const Ca
     std::size_t first = 0;
     auto x = floor_at(text.x);
     while (x < left && first < length) {
-        x = surface::add_cells(x, m.advance);
+        x = graphics::add_cells(x, m.advance);
         ++first;
     }
     if (x < left || x >= right || pad >= right - x) return out;
@@ -108,10 +111,10 @@ inline CanvasTextLayout clip_canvas_text_by(const PaneCanvasText& text, const Ca
         }
     }
     const auto columns = static_cast<std::int64_t>((std::max)(std::size_t{1}, take));
-    const auto width = surface::add_cells(surface::mul_px(columns, m.advance), pad);
+    const auto width = graphics::add_cells(graphics::mul_px(columns, m.advance), pad);
     out.bounds = {x, y, width, height};
     out.first_column = first;
-    out.fit = surface::fit_region(x, y, width, height,
+    out.fit = fit_region(x, y, width, height,
                                       room.text_advance_px, room.text_line_px);
     return out;
 }
@@ -132,9 +135,9 @@ inline CanvasTextLayout clip_canvas_run(const v2::PaneCanvasText& text, const Ca
     PaneCanvasText run{text.x, text.y, text.text, text.role, text.caret_col, text.sel_begin_col,
                        text.sel_end_col};
     const auto inset = text.padded ? std::int64_t{0} : canvas_text_metrics(room).inset;
-    run.x = surface::sub_px(run.x, inset);
-    run.y = surface::sub_px(run.y, inset);
-    const auto left = text.background == surface::role::kNone ? inset : std::int64_t{0};
+    run.x = graphics::sub_px(run.x, inset);
+    run.y = graphics::sub_px(run.y, inset);
+    const auto left = text.background == graphics::role::kNone ? inset : std::int64_t{0};
     CanvasTextLayout out = detail::clip_canvas_text_by(run, clip, room, inset, left);
     if (out.visible()) out.background = text.background;
     return out;
@@ -145,8 +148,8 @@ inline surface::SurfaceTextRegion canvas_text_region(const CanvasTextLayout& tex
                                                        std::int64_t offset_y = 0) {
     surface::SurfaceTextRegion region;
     if (!text.visible()) return region;
-    region.x = surface::add_cells(text.bounds.x, offset_x);
-    region.y = surface::add_cells(text.bounds.y, offset_y);
+    region.x = graphics::add_cells(text.bounds.x, offset_x);
+    region.y = graphics::add_cells(text.bounds.y, offset_y);
     region.w = text.bounds.w;
     region.h = text.bounds.h;
     region.ground = surface::kGroundBeneath;

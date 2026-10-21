@@ -422,10 +422,10 @@ TEST_CASE("a running view asks its pane for its size, and draws in its size what
     REQUIRE(p != nullptr);
     const auto size_w = 600, size_h = 300;
     CHECK(std::any_of(p->rects.begin(), p->rects.end(), [&](const auto& r) {
-        return r.role == zengine::surface::role::kGround && r.x == 0 && r.y == 0 && r.w == 12 * 80 && r.h == 12 * 40;
+        return r.role == zengine::graphics::role::kGround && r.x == 0 && r.y == 0 && r.w == 12 * 80 && r.h == 12 * 40;
     }));
     for (const auto& r : p->rects) {
-        if (r.role == zengine::surface::role::kGround) continue;
+        if (r.role == zengine::graphics::role::kGround) continue;
         CHECK(r.x + r.w <= size_w);
         CHECK(r.y + r.h <= size_h);
     }
@@ -935,7 +935,7 @@ TEST_CASE("WL-HAND-06: a running view names each element by its id over the plac
             CHECK(bar->x2 == bar->x1);
             CHECK(bar->y1 == words->y);
             CHECK(bar->y2 == words->y + gfx::kCellPx - 1);
-            CHECK(bar->ink.role == zengine::surface::role::kAccent);
+            CHECK(bar->ink.role == zengine::graphics::role::kAccent);
             CHECK(w.window->action("caret").empty());
             CHECK(w.window->refused.empty());
         };
@@ -1070,7 +1070,7 @@ TEST_CASE("a refusal answered to a view shows on its notice row, and what it was
     CHECK(has(rig.words("tally.panel"), "Total: 45|"));
     const auto* picture = rig.latest("tally.panel");
     REQUIRE(picture != nullptr);
-    CHECK(picture->texts.back().role == zengine::surface::role::kAlert);
+    CHECK(picture->texts.back().role == zengine::graphics::role::kAlert);
 
     rig.fill("tally.panel", d.elements[2], "1");
     rig.fill("tally.panel", d.elements[1], "2000000");
@@ -1098,7 +1098,7 @@ TEST_CASE("a refusal answered to a view shows on its notice row, and what it was
                                    12, false, 0, 0};
     std::string notice;
     for (const auto& t : view::picture(d, {}, refusal, asked, 1).content.texts)
-        if (t.role == zengine::surface::role::kAlert) notice += t.text + " ";
+        if (t.role == zengine::graphics::role::kAlert) notice += t.text + " ";
     CHECK(has(notice, "from 0 toward 10"));
     CHECK_FALSE(has(notice, "..."));
 }
@@ -1146,7 +1146,7 @@ TEST_CASE("the names and refusals a view only carries reach its notice row spell
     rig.tell("tally.panel", ws::PaneTextInput{view::kPane, "1\xC2\xB2"});
     CHECK(has(rig.words("tally.panel"), "start: 0|"));
     CHECK(has(rig.words("tally.panel"), "not typed -- a number field holds plain ASCII|"));
-    CHECK(rig.latest("tally.panel")->texts.back().role == zengine::surface::role::kAlert);
+    CHECK(rig.latest("tally.panel")->texts.back().role == zengine::graphics::role::kAlert);
     CHECK(judged().empty());
 }
 
@@ -1384,14 +1384,14 @@ TEST_CASE("a view's terminal picture is the window's picture floored to cells, i
     focused.focus = "step";
     const auto marked = view::picture(d, {}, focused, terminal, 3);
     for (const auto& r : marked.content.rects)
-        if (r.role != zengine::surface::role::kGround) CHECK(r.role == zengine::surface::role::kMuted);
+        if (r.role != zengine::graphics::role::kGround) CHECK(r.role == zengine::graphics::role::kMuted);
     for (const auto& t : marked.content.texts) {
         if (t.text.rfind("step: ", 0) == 0) {
-            CHECK(t.role == zengine::surface::role::kAccent);
+            CHECK(t.role == zengine::graphics::role::kAccent);
             CHECK(t.caret_col >= 0);
         }
-        if (t.text == "Count") CHECK(t.role == zengine::surface::role::kAccent);
-        if (t.text.rfind("start: ", 0) == 0) CHECK(t.role == zengine::surface::role::kFill);
+        if (t.text == "Count") CHECK(t.role == zengine::graphics::role::kAccent);
+        if (t.text.rfind("start: ", 0) == 0) CHECK(t.role == zengine::graphics::role::kFill);
     }
     // Presses read the same map in both media.
     CHECK(a.hits.size() == b.hits.size());

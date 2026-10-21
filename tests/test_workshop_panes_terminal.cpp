@@ -928,7 +928,7 @@ TEST_CASE("WL-HAND-06: the Terminal names the line being typed and each candidat
         CHECK(words->text == "hello");
         CHECK(words->x == all.sel_begin_col * gfx::kCellPx);
         CHECK(words->y == t.input_row() * gfx::kCellPx);
-        CHECK(words->ink.role == surface::role::kAccent);
+        CHECK(words->ink.role == gfx::role::kAccent);
         CHECK(kept("sel" + std::to_string(t.input_row()) + ".1") == nullptr);
         for (std::int64_t c = all.sel_begin_col; c < all.sel_end_col; ++c) {
             CAPTURE(c);

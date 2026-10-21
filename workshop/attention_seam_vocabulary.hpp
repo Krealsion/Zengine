@@ -11,7 +11,7 @@
 // <gesture> <label>`), never an id the pane could press. Unlike the in-host model (WL-ATTN-11),
 // these shapes ride the ordinary bus.
 
-#include "surface/vocabulary.hpp"
+#include "graphics/role.hpp"
 
 #include <zen/weave/shape.hpp>
 
@@ -27,7 +27,7 @@ struct StandingCondition {
     std::string key;
     std::string compact;
     std::string detail;
-    std::int64_t role = surface::role::kAccent;
+    std::int64_t role = graphics::role::kAccent;
 
     /// What a weaver could press, in words composed against the effective keymap, or empty. Words
     /// and not an id: the pane cannot read a keymap.

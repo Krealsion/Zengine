@@ -281,8 +281,8 @@ bool WorkshopWeave::canvas_press(std::int64_t kind, const input::PointerButton& 
     lose_canvas_hold(slot, mail);
     if (canvas_gestures_ == (std::numeric_limits<std::int64_t>::max)()) return true;
     PaneCanvasPointer event{row->pane, c.grant, pane->stamp.aimed, ++canvas_gestures_,
-        canvas_pointer::kPress, b.button, surface::sub_px(at.px.x, c.x),
-        surface::sub_px(at.px.y, c.y), b.modifiers, 0, 0, keys_went_here};
+        canvas_pointer::kPress, b.button, graphics::sub_px(at.px.x, c.x),
+        graphics::sub_px(at.px.y, c.y), b.modifiers, 0, 0, keys_went_here};
     const auto correlation = ++gesture_asks_;
     const auto sent = send_canvas_pointer(c.owner, event, c.legacy, mail, correlation);
     if (!sent.valid()) return true;
@@ -314,8 +314,8 @@ bool WorkshopWeave::canvas_release(const input::PointerButton& b, loom::Mail& ma
     auto event = held.event;
     const auto at = canvas_point_of(b.space, b.x, b.y, session_.console_rows_above);
     if (at.understood) {
-        event.x = surface::sub_px(at.px.x, held.origin_x);
-        event.y = surface::sub_px(at.px.y, held.origin_y);
+        event.x = graphics::sub_px(at.px.x, held.origin_x);
+        event.y = graphics::sub_px(at.px.y, held.origin_y);
     }
     event.phase = at.understood ? canvas_pointer::kRelease : canvas_pointer::kLost;
     event.modifiers = b.modifiers;
@@ -345,8 +345,8 @@ bool WorkshopWeave::canvas_motion(const input::PointerMoved& m, loom::Mail& mail
         sent = true;
         if (!at.understood) { lose_canvas_hold(i, mail); continue; }
         held.event.phase = canvas_pointer::kMove;
-        held.event.x = surface::sub_px(at.px.x, held.origin_x);
-        held.event.y = surface::sub_px(at.px.y, held.origin_y);
+        held.event.x = graphics::sub_px(at.px.x, held.origin_x);
+        held.event.y = graphics::sub_px(at.px.y, held.origin_y);
         held.event.modifiers = m.modifiers;
         (void)send_canvas_pointer(held.owner, held.event, held.legacy, mail);
         note_routed(held.kind);
@@ -379,7 +379,7 @@ void WorkshopWeave::canvas_hover(const input::PointerMoved& m, loom::Mail& mail)
                 kind = here.kind;
                 owner = c.owner;
                 over = PaneCanvasHover{row->pane, c.grant, pane->stamp.aimed,
-                                       surface::sub_px(at.px.x, c.x), surface::sub_px(at.px.y, c.y),
+                                       graphics::sub_px(at.px.x, c.x), graphics::sub_px(at.px.y, c.y),
                                        true, !carried_.data.empty()};
             }
         }
@@ -420,8 +420,8 @@ bool WorkshopWeave::canvas_wheel(std::int64_t kind, const input::PointerWheel& w
     if (canvas_gestures_ == (std::numeric_limits<std::int64_t>::max)()) return true;
     (void)send_canvas_pointer(c.owner,
         PaneCanvasPointer{row->pane, c.grant, pane->stamp.aimed, ++canvas_gestures_,
-            canvas_pointer::kWheel, 0, surface::sub_px(at.px.x, c.x),
-            surface::sub_px(at.px.y, c.y), w.modifiers, w.dx, w.dy, typing_pane(session_) == kind},
+            canvas_pointer::kWheel, 0, graphics::sub_px(at.px.x, c.x),
+            graphics::sub_px(at.px.y, c.y), w.modifiers, w.dx, w.dy, typing_pane(session_) == kind},
         c.legacy, mail);
     note_routed(kind);
     return true;

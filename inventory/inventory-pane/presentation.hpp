@@ -67,7 +67,7 @@ inline void location(std::vector<surface::SurfaceTextRow>& rows, View& v, const 
     const auto solid = component::solid_columns(drawn, text.size());
     for (const auto& [first, size, meaning] : spans)
         v.map.span(row, static_cast<std::int64_t>(first), static_cast<std::int64_t>(size), solid, meaning);
-    rows.push_back({drawn, surface::role::kFill, surface::role::kNone});
+    rows.push_back({drawn, graphics::role::kFill, graphics::role::kNone});
 }
 inline bool active(const InventoryViews& s, const std::string& id) {
     for (const auto& v : s.views) if (v.id == id) return v.active;
@@ -101,7 +101,7 @@ inline std::vector<surface::SurfaceTextRow> render(const InventoryViews& s, cons
     View& v, const std::vector<inventory::InventorySummary>& entries, const std::string& notice,
     const std::string& edit_label = {}, const std::string& edit_text = {}, const Browse& browse = {}) {
     namespace ws = workshop;
-    namespace role = surface::role;
+    namespace role = graphics::role;
     v.map.begin();
     std::vector<surface::SurfaceTextRow> rows;
     const auto push = [&](std::string text, std::int64_t style) {

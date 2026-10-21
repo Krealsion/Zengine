@@ -600,16 +600,16 @@ PointedAt WorkshopWeave::cell_of_body_place(std::int64_t kind, std::int64_t row,
     const std::int64_t c = column >= 0 && column < body.fit.columns ? column : 0;
     // The place's first pixel, in the fit the body was granted: a character and a line of the
     // medium's type, or a cell each where text is a cell.
-    const std::int64_t advance = body.fit.graphical() ? body.fit.advance_px : surface::kCanvasCellPx;
-    const std::int64_t line = body.fit.graphical() ? body.fit.line_px : surface::kCanvasCellPx;
+    const std::int64_t advance = body.fit.graphical() ? body.fit.advance_px : graphics::kCellPx;
+    const std::int64_t line = body.fit.graphical() ? body.fit.line_px : graphics::kCellPx;
     out.understood = true;
-    out.px.x = surface::add_cells(surface::add_cells(body.fit.view.x, body.fit.origin_x),
-                                  surface::mul_px(c, advance));
-    out.px.y = surface::add_cells(surface::add_cells(body.fit.view.y, body.fit.origin_y),
-                                  surface::mul_px(body.header_rows + r, line));
-    out.cell.x = surface::cell_of_pixel(out.px.x);
-    out.cell.y = surface::cell_of_pixel(out.px.y);
-    out.grain = body.fit.graphical() ? surface::kPixelGrainPx : surface::kCellGrainPx;
+    out.px.x = graphics::add_cells(graphics::add_cells(body.fit.view.x, body.fit.origin_x),
+                                  graphics::mul_px(c, advance));
+    out.px.y = graphics::add_cells(graphics::add_cells(body.fit.view.y, body.fit.origin_y),
+                                  graphics::mul_px(body.header_rows + r, line));
+    out.cell.x = graphics::cell_of_pixel(out.px.x);
+    out.cell.y = graphics::cell_of_pixel(out.px.y);
+    out.grain = body.fit.graphical() ? graphics::kPixelGrainPx : graphics::kCellGrainPx;
     return out;
 }
 
@@ -1077,8 +1077,8 @@ void WorkshopWeave::on(const MenuClosed& closed, loom::Mail& mail) {
             c.cell.understood = ended.anchored;
             c.cell.px.x = ended.anchor_x;
             c.cell.px.y = ended.anchor_y;
-            c.cell.cell.x = surface::cell_of_pixel(ended.anchor_x);
-            c.cell.cell.y = surface::cell_of_pixel(ended.anchor_y);
+            c.cell.cell.x = graphics::cell_of_pixel(ended.anchor_x);
+            c.cell.cell.y = graphics::cell_of_pixel(ended.anchor_y);
             c.spent = false;
             chooser->choice_answered = c;
             keep_act(*chooser, GestureSent{c.kind, c.gesture, c.correlation});

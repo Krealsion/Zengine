@@ -149,7 +149,7 @@ struct AttentionRig {
 };
 
 inline Condition thing(const char* key, const char* compact, const char* detail,
-                       std::int64_t role = surface::role::kAlert,
+                       std::int64_t role = gfx::role::kAlert,
                        const char* action = "") {
     return Condition{key, compact, detail, role, action};
 }
@@ -258,7 +258,7 @@ TEST_CASE("the pane shows every current condition in its owner's own words") {
     f.open();
     f.establish(thing("a.one", "the first thing", "a sentence its owner already had"));
     f.establish(thing("b.two", "the second thing", "and one for the second",
-                      surface::role::kAccent));
+                      gfx::role::kAccent));
 
     // ALL OF THEM, not only the loudest the glance names -- and in the host's own ranking.
     CHECK(f.paints("the first thing (+1 more)"));
@@ -350,12 +350,12 @@ TEST_CASE("a press on a condition's row in the Attention pane puts the cursor th
         }
     }
     REQUIRE(second != nullptr);
-    const std::int64_t column = surface::cell_of_pixel(seat->canvas.x + second->x) + 2;
-    const std::int64_t row = surface::cell_of_pixel(seat->canvas.y + second->y);
+    const std::int64_t column = gfx::cell_of_pixel(seat->canvas.x + second->x) + 2;
+    const std::int64_t row = gfx::cell_of_pixel(seat->canvas.y + second->y);
 
     // THE GLANCE'S ROW, shown and named nothing: a press there moves nothing.
     const std::int64_t below = held_parts(f.r.session(), f.kind).at("condition:b.two").row;
-    const std::int64_t glance = surface::cell_of_pixel(seat->canvas.y + second->y - below * second->h);
+    const std::int64_t glance = gfx::cell_of_pixel(seat->canvas.y + second->y - below * second->h);
     const std::vector<std::string> before = f.shown();
     REQUIRE(before.front().find("the first thing (+1 more)") == 0);
     f.r.press_cell(column, glance);
@@ -439,14 +439,14 @@ TEST_CASE("the Attention pane leads with the glance: the loudest condition that 
     f.open();
     CHECK(f.shown().front() == "nothing needs your attention right now");
     f.unfocus(); // `establish` repaints with a key, which must not be this pane's
-    f.establish(thing("b.quiet", "a quiet thing", "why the quiet", surface::role::kAccent));
-    f.establish(thing("a.loud", "a loud thing", "why the loud", surface::role::kAlert));
+    f.establish(thing("b.quiet", "a quiet thing", "why the quiet", gfx::role::kAccent));
+    f.establish(thing("a.loud", "a loud thing", "why the loud", gfx::role::kAlert));
     f.focus();
 
     // THE LOUDEST, WHATEVER ITS ARRIVAL, AND THE COUNT OF THE REST, IN THE LOUDEST'S ROLE.
     REQUIRE_FALSE(f.held_runs().empty());
     CHECK(f.held_runs()[0].text == "a loud thing (+1 more)");
-    CHECK(f.held_runs()[0].role == surface::role::kAlert);
+    CHECK(f.held_runs()[0].role == gfx::role::kAlert);
 
     // A PANE ONE ROW TALL IS THE GLANCE, alone.
     author_test_pane_room(f.r, f.kind, 1, 60);
@@ -556,7 +556,7 @@ TEST_CASE("an id the Attention pane never declared is no act: the notice, the hi
     f.open();
     f.unfocus(); // `establish` repaints with a key, which must not be this pane's
     f.establish(thing("a.one", "the first thing", "why the first"));
-    f.establish(thing("b.two", "the second thing", "why the second", surface::role::kAccent));
+    f.establish(thing("b.two", "the second thing", "why the second", gfx::role::kAccent));
     f.focus();
     REQUIRE(f.listed("the first thing"));
     REQUIRE(f.listed("the second thing"));
@@ -635,7 +635,7 @@ TEST_CASE("an Attention pane whose every current condition is hidden says they a
 
     // TWO, BOTH HIDDEN: the count is what is hidden.
     f.unfocus();
-    f.establish(thing("b.two", "the second thing", "why the second", surface::role::kAccent));
+    f.establish(thing("b.two", "the second thing", "why the second", gfx::role::kAccent));
     f.focus();
     REQUIRE(f.listed("the second thing"));
     f.letter(input::scan::kD, "d");
@@ -674,7 +674,7 @@ TEST_CASE("the action a condition names arrives as words and not as a name") {
     // could not press it if it wanted to and a weaver sees the key they themselves bound.
     AttentionRig f;
     f.open();
-    f.establish(thing("test.thing", "a thing", "why it is a thing", surface::role::kAlert,
+    f.establish(thing("test.thing", "a thing", "why it is a thing", gfx::role::kAlert,
                       "workshop.manage"));
     CHECK(f.text().find("try: w arrange desk") != std::string::npos);
     CHECK(f.text().find("workshop.manage") == std::string::npos);
@@ -691,7 +691,7 @@ TEST_CASE("a condition carrying a byte a canvas cannot draw is still shown") {
     f.establish(Condition{"test.wall", "a wall",
                           std::string("line one") + "\n" + "line two" +
                               "\t" + "and back",
-                          surface::role::kAlert, std::string()});
+                          gfx::role::kAlert, std::string()});
 
     // THE PANE'S PICTURE WAS ACCEPTED, which is the whole claim: no refusal, no cleared
     // rows, and no condition about a condition.
@@ -723,7 +723,7 @@ TEST_CASE("the pane never publishes more rows than the room it was granted") {
             std::string("a long explanation that will certainly have to be wrapped across "
                         "several rows of any column this pane is ever given, ") +
                 std::to_string(i),
-            i % 2 == 0 ? surface::role::kAlert : surface::role::kAccent, "workshop.manage"});
+            i % 2 == 0 ? gfx::role::kAlert : gfx::role::kAccent, "workshop.manage"});
     }
     // EVERY EXTENT THIS COMPOSITION IS HONEST AT, and the cursor walked the whole way down
     // each of them -- the cursor's own reserved block is what the arithmetic turns on.
@@ -872,9 +872,9 @@ TEST_CASE("the Connections pane draws the guest door's reading as its own pictur
     CHECK(shown[2] == "  #2 'stranger' (unverified)  awaiting-decision");
     const auto& runs = pane->canvas.content.texts;
     REQUIRE(runs.size() >= 3);
-    CHECK(runs[0].role == surface::role::kAccent);
-    CHECK(runs[1].role == surface::role::kFill);
-    CHECK(runs[2].role == surface::role::kAlert);
+    CHECK(runs[0].role == gfx::role::kAccent);
+    CHECK(runs[1].role == gfx::role::kFill);
+    CHECK(runs[2].role == gfx::role::kAlert);
     // NOTHING IN IT IS ACTED ON, so it names no part.
     CHECK(pane->canvas.content.parts.empty());
 
@@ -1030,7 +1030,7 @@ TEST_CASE("a pane that draws its rows on its canvas wears the medium's own groun
         REQUIRE(shows_canvas(*pane));
         const auto& body = pane->canvas;
         REQUIRE_FALSE(body.content.rects.empty());
-        CHECK(body.content.rects[0].role == surface::role::kMediumGround);
+        CHECK(body.content.rects[0].role == gfx::role::kMediumGround);
 
         // WHAT THE MEDIUM DRAWS of the body: its own ground, and nothing black.
         const surface::SurfaceCanvas& canvas = r.last_canvas();
@@ -1057,13 +1057,13 @@ TEST_CASE("a pane that draws its rows on its canvas wears the medium's own groun
         } else {
             const surface::CanvasGrids cells = surface::rasterize_canvas(canvas);
             std::size_t own = 0;
-            for (std::int64_t y = surface::cell_of_pixel(body.y);
-                 y < surface::cell_of_pixel(body.y + body.height); ++y) {
-                for (std::int64_t x = surface::cell_of_pixel(body.x);
-                     x < surface::cell_of_pixel(body.x + body.width); ++x) {
+            for (std::int64_t y = gfx::cell_of_pixel(body.y);
+                 y < gfx::cell_of_pixel(body.y + body.height); ++y) {
+                for (std::int64_t x = gfx::cell_of_pixel(body.x);
+                     x < gfx::cell_of_pixel(body.x + body.width); ++x) {
                     const auto ground = cells.grounds[static_cast<std::size_t>(y * cells.w + x)];
-                    CHECK(ground != surface::role::kGround);
-                    if (ground == surface::role::kMediumGround) ++own;
+                    CHECK(ground != gfx::role::kGround);
+                    if (ground == gfx::role::kMediumGround) ++own;
                 }
             }
             CHECK(own > 0);

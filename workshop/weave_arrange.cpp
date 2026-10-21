@@ -243,8 +243,8 @@ void WorkshopWeave::arrange_nudge(std::int64_t dx, std::int64_t dy, loom::Mail& 
     }
     // THE RESOLVED CORNER, NEVER THE CLIPPED ONE -- see `managed_bounds`.
     const PixelRect from = managed_window_base();
-    arrange_place(detail::step(from.x, dx * surface::kCanvasCellPx),
-                  detail::step(from.y, dy * surface::kCanvasCellPx), mail);
+    arrange_place(detail::step(from.x, dx * graphics::kCellPx),
+                  detail::step(from.y, dy * graphics::kCellPx), mail);
 }
 
 // WL-ARR-05, WL-ARR-06 -- agents/workshop/arrangement.md
@@ -295,7 +295,7 @@ void WorkshopWeave::arrange_grow(std::int64_t dx, std::int64_t dy, loom::Mail& m
     // THE RESOLVED WINDOW, NEVER THE VISIBLE ONE -- see `managed_bounds`.
     const PixelRect base = managed_window_base();
     arrange_resize(pane_edge::kBottomRight, base.x, base.y, base.w, base.h,
-                   dx * surface::kCanvasCellPx, dy * surface::kCanvasCellPx, mail);
+                   dx * graphics::kCellPx, dy * graphics::kCellPx, mail);
 }
 
 // WL-CTX-07 -- agents/workshop/contextual.md

@@ -124,7 +124,7 @@ TEST_CASE("a press in the body names the row under the header, in both media") {
         // lattice would land on a different row and this case would go red. With a
         // face of 18 pixels in cells of 12 the two disagree from the second line on.
         REQUIRE(body.fit.graphical());
-        REQUIRE(body.fit.line_px != surface::kCanvasCellPx);
+        REQUIRE(body.fit.line_px != gfx::kCellPx);
 
         for (std::int64_t row = 0; row < body.rows; ++row) {
             seat->presses.clear();
@@ -192,7 +192,7 @@ TEST_CASE("text a window sets in cells, in a body too short for a row of its fac
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
-        s.say(m, PaneContent{kHelloPane, {surface::SurfaceTextRow{"abcdefgh", surface::role::kFill}}});
+        s.say(m, PaneContent{kHelloPane, {surface::SurfaceTextRow{"abcdefgh", gfx::role::kFill}}});
     });
     r.extent_on_window(150, 60);
     Session& live_session = const_cast<Session&>(r.session());
@@ -201,30 +201,30 @@ TEST_CASE("text a window sets in cells, in a body too short for a row of its fac
     std::int64_t step = 0;
     const auto author = [&](std::int64_t x, std::int64_t y, std::int64_t h) {
         REQUIRE(author_pane_size(live_session.setup.active, hello_ref(),
-                                 PaneSize{pane_unit::kPixels, 30 * surface::kCanvasCellPx},
+                                 PaneSize{pane_unit::kPixels, 30 * gfx::kCellPx},
                                  PaneSize{pane_unit::kPixels, h})
                     .accepted);
         REQUIRE(place_at_canvas(live_session, hello_ref(), x, y).accepted);
         r.extent_on_window(150, 60 + (step++ % 2)); // reseat at the authored window
         return external_body_of(r.session(), kind);
     };
-    const std::int64_t x0 = 5 * surface::kCanvasCellPx, y0 = 10 * surface::kCanvasCellPx;
+    const std::int64_t x0 = 5 * gfx::kCellPx, y0 = 10 * gfx::kCellPx;
     const auto past_line = [](std::int64_t at) {
-        return ((6 - at) % surface::kCanvasCellPx + surface::kCanvasCellPx) % surface::kCanvasCellPx;
+        return ((6 - at) % gfx::kCellPx + gfx::kCellPx) % gfx::kCellPx;
     };
     const auto on_line_past = [](std::int64_t at) {
-        return surface::floor_div_px(at, surface::kCanvasCellPx) * surface::kCanvasCellPx + 6 == at;
+        return gfx::floor_div_px(at, gfx::kCellPx) * gfx::kCellPx + 6 == at;
     };
     bool found = false;
-    for (std::int64_t h = surface::kCanvasCellPx; h <= 3 * surface::kCanvasCellPx && !found; ++h) {
-        for (std::int64_t dy = 0; dy < surface::kCanvasCellPx && !found; ++dy) {
+    for (std::int64_t h = gfx::kCellPx; h <= 3 * gfx::kCellPx && !found; ++h) {
+        for (std::int64_t dy = 0; dy < gfx::kCellPx && !found; ++dy) {
             const ExternalBodyPlace probe = author(x0, y0 + dy, h);
             if (!probe.present || probe.fit.graphical() || !on_line_past(probe.region_y)) {
                 continue;
             }
             const ExternalBodyPlace body = author(x0 + past_line(probe.region_x), y0 + dy, h);
             found = body.present && !body.fit.graphical() && body.columns >= 8 &&
-                    body.region_h > surface::px_of_cells(body.header_rows) + 4 &&
+                    body.region_h > gfx::px_of_cells(body.header_rows) + 4 &&
                     on_line_past(body.region_x) && on_line_past(body.region_y);
         }
     }
@@ -232,7 +232,7 @@ TEST_CASE("text a window sets in cells, in a body too short for a row of its fac
     const ExternalBodyPlace body = external_body_of(r.session(), kind);
     // ...and the provider answers the room it was granted there, so its picture is settled.
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
-        s.say(m, PaneContent{kHelloPane, {surface::SurfaceTextRow{"abcdefgh", surface::role::kFill}}});
+        s.say(m, PaneContent{kHelloPane, {surface::SurfaceTextRow{"abcdefgh", gfx::role::kFill}}});
     });
 
     // THE INSPECTION DOOR READS IT, aiming at the drawn glyphs.
@@ -256,11 +256,11 @@ TEST_CASE("text a window sets in cells, in a body too short for a row of its fac
 
     // A PRESS ON THE RIGHT HALF OF EACH GLYPH NAMES THAT GLYPH'S COLUMN, aimed into the glyph's
     // part the body holds.
-    const std::int64_t glyph_y = body.region_y + surface::px_of_cells(body.header_rows) + 4;
+    const std::int64_t glyph_y = body.region_y + gfx::px_of_cells(body.header_rows) + 4;
     for (std::int64_t column = 0; column < 8; ++column) {
         CAPTURE(column);
         seat->presses.clear();
-        const std::int64_t x = body.region_x + surface::px_of_cells(column) + 9;
+        const std::int64_t x = body.region_x + gfx::px_of_cells(column) + 9;
         r.press_pixel(x, glyph_y);
         r.publish(loom::to_value(input::PointerButton{1, false, x, glyph_y, input::space::kPixels,
                                                       input::mod::kNone}));
@@ -570,7 +570,7 @@ TEST_CASE("marking a row changes that row and nothing else about the view") {
         // one: a weaver in a terminal with no colour can still see which row is chosen.
         CHECK(after.rows[i].text.rfind(intro::kSelectedMark, 0) == 0);
         CHECK(before.rows[i].text.rfind(intro::kUnselectedMark, 0) == 0);
-        CHECK(after.rows[i].role == surface::role::kAccent);
+        CHECK(after.rows[i].role == gfx::role::kAccent);
         CHECK(after.rows[i].text.find("weave-1") != std::string::npos);
         // AND THE WIDTH IS UNMOVED, because the mark spends the indent the row already
         // had. A list cannot start cutting names because something in it was selected.
@@ -1163,7 +1163,7 @@ TEST_CASE("the same gesture in a terminal names the same row of the same room") 
     (void)px.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
     px.pick(intro_ref());
     const std::int64_t gkind = px.session().panes.runtime.entries[0].kind;
-    px.extent(1000, 700, 8, 18, surface::kCanvasCellPx); // a window reports its device scale
+    px.extent(1000, 700, 8, 18, gfx::kCellPx); // a window reports its device scale
     const ExternalBodyPlace gbody = external_body_of(px.session(), gkind);
     REQUIRE(gbody.fit.graphical());
     px.press_pixel(gbody.fit.view.x + gbody.fit.origin_x + gbody.fit.advance_px +
@@ -2177,7 +2177,7 @@ struct ComposeRig {
                         r.session().setup.active, composer_ref(),
                         PaneSize{pane_unit::kDefault, 0},
                         PaneSize{pane_unit::kPixels,
-                                 surface::px_of_cells(kStackRows + 2 * kChromeCells)})
+                                 gfx::px_of_cells(kStackRows + 2 * kChromeCells)})
                         .accepted);
             r.extent(240, 81); // one more row, so the authored height is reconciled
         }
@@ -3392,9 +3392,9 @@ TEST_CASE("a text pane's sweep crosses as PaneDragged from a press on one of its
     SweepSeat* seat = nullptr;
     const std::string pane = "sweep";
     const std::int64_t kind = r.mount_sweep("zengine.test.sweep", pane,
-                                            {surface::SurfaceTextRow{"one", surface::role::kFill},
-                                             surface::SurfaceTextRow{"two", surface::role::kFill},
-                                             surface::SurfaceTextRow{"three", surface::role::kFill}},
+                                            {surface::SurfaceTextRow{"one", gfx::role::kFill},
+                                             surface::SurfaceTextRow{"two", gfx::role::kFill},
+                                             surface::SurfaceTextRow{"three", gfx::role::kFill}},
                                             &seat);
     REQUIRE(kind != kNoPaneKind);
     const ui::Rect body = external_body_rect(r.session(), kind);
@@ -3465,8 +3465,8 @@ TEST_CASE("a wheel in an overlap reaches only the pane visibly in front, and the
     // PUT `second` OVER `hello`, offset so a strip of `hello` stays uncovered.
     const ui::Rect hello = cells_covered(external_pane_rect(r.session(), hello_kind));
     REQUIRE(place_at_canvas(const_cast<Session&>(r.session()), second_ref,
-                              surface::px_of_cells(hello.x + 4),
-                              surface::px_of_cells(hello.y + 3))
+                              gfx::px_of_cells(hello.x + 4),
+                              gfx::px_of_cells(hello.y + 3))
                 .accepted);
     r.extent(160, 61); // reseat at the authored place
     const ui::Rect second = cells_covered(external_pane_rect(r.session(), second_kind));

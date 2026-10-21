@@ -18,6 +18,7 @@
 #include <zen/weave/shape.hpp>
 
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -70,7 +71,20 @@ inline constexpr const char* kSizeWords = "default or pixels";
 
 /// Where the room began on the canvas when a place was measured from the canvas -- a version 2 or
 /// 3 setup, and every session before version 7: two cells down.
-inline constexpr std::int64_t kCanvasRoomTopPx = 2 * surface::kCanvasCellPx;
+inline constexpr std::int64_t kCanvasRoomTopPx = 2 * kSavedCellPx;
+
+/// A whole-cell amount an older file wrote, in pixels: `kSavedCellPx` to the cell, saturating
+/// at both ends.
+inline constexpr std::int64_t px_of_saved_cells(std::int64_t cells) noexcept {
+    constexpr std::int64_t bound = (std::numeric_limits<std::int64_t>::max)() / kSavedCellPx;
+    if (cells >= bound) {
+        return bound * kSavedCellPx;
+    }
+    if (cells <= -bound) {
+        return -bound * kSavedCellPx;
+    }
+    return cells * kSavedCellPx;
+}
 
 /// A place such a file measured from the canvas, as a place in the room: two cells less, and one
 /// above that room's top at the room's top, the nearest place the room has.
@@ -373,8 +387,8 @@ inline bool place_in(const WorkshopPanePlace& w, PanePlace& out) {
         return true;
     }
     if (w.mode == kUnitCells) {
-        out = PanePlace{pane_unit::kPixels, surface::px_of_cells(w.x),
-                        room_place_of_canvas(surface::px_of_cells(w.y))};
+        out = PanePlace{pane_unit::kPixels, px_of_saved_cells(w.x),
+                        room_place_of_canvas(px_of_saved_cells(w.y))};
         return true;
     }
     return false;
@@ -386,7 +400,7 @@ inline bool size_in(const WorkshopPaneSize& w, PaneSize& out) {
         return true;
     }
     if (w.mode == kUnitCells) {
-        out = PaneSize{pane_unit::kPixels, surface::px_of_cells(w.amount)};
+        out = PaneSize{pane_unit::kPixels, px_of_saved_cells(w.amount)};
         return true;
     }
     if (w.mode == kUnitPixels) {
@@ -454,13 +468,13 @@ inline constexpr std::int64_t kSubsPerPixel = 4;
 
 /// A `subcells` coordinate as the pixel the window painted it on: floored.
 inline constexpr std::int64_t px_of_subcells(std::int64_t subs) noexcept {
-    return surface::floor_div_px(subs, kSubsPerPixel);
+    return graphics::floor_div_px(subs, kSubsPerPixel);
 }
 
 /// A `subcells` extent from `at` as the pixels the window painted: its far edge floored, less
 /// its near edge floored.
 inline constexpr std::int64_t px_extent_of_subcells(std::int64_t at, std::int64_t extent) noexcept {
-    return px_of_subcells(surface::add_cells(at, extent)) - px_of_subcells(at);
+    return px_of_subcells(graphics::add_cells(at, extent)) - px_of_subcells(at);
 }
 
 /// ONE DESK OF VERSION 3 AS VERSION 4, LANDED ON THE PIXELS THE WINDOW PAINTED IT AT. A

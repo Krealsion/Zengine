@@ -328,7 +328,7 @@ TEST_CASE("WL-GEO-01: in a terminal, a right press and its release name the colu
     drive_seat(t.r, t.guard_id, t.guard, [](ButtonSeat&, loom::Mail& m) {
         (void)m.as_role(kGuardOffice).send_to_role(
             kWorkshopProvider,
-            PaneContent{kGuardPane, {surface::SurfaceTextRow{"abcdef", surface::role::kFill}}});
+            PaneContent{kGuardPane, {surface::SurfaceTextRow{"abcdef", gfx::role::kFill}}});
         (void)m.as_role(kGuardOffice).send_to_role(kWorkshopProvider, PaneCaret{kGuardPane, 0, 2});
     });
     const ExternalPane* pane = t.r.session().panes.external_pane(t.guard_kind);
@@ -374,8 +374,8 @@ TEST_CASE("WL-PRESS-06: a right press in a doorless pane's body opens the host's
     CHECK(t.r.session().context.subject == context_subject::kPane);
     CHECK(t.r.session().context.pane == hello_ref());
     CHECK(t.r.session().context.anchored);
-    CHECK(surface::cell_of_pixel(t.r.session().context.anchor_x) == px);
-    CHECK(surface::cell_of_pixel(t.r.session().context.anchor_y) == py);
+    CHECK(gfx::cell_of_pixel(t.r.session().context.anchor_x) == px);
+    CHECK(gfx::cell_of_pixel(t.r.session().context.anchor_y) == py);
     CHECK(t.hello->presses.empty());
     CHECK(t.guard->buttons.empty());
     CHECK(t.r.session().panes.keyboard == keyboard_before);
@@ -435,8 +435,8 @@ TEST_CASE("WL-CTX-08: a further right press while the host's menu is open asks a
     t.r.right_press_cell(hello.x + 3, hello.y + 2);
     REQUIRE(t.r.session().context.open);
     CHECK(t.r.session().context.pane == hello_ref());
-    CHECK(surface::cell_of_pixel(t.r.session().context.anchor_x) == hello.x + 3);
-    CHECK(surface::cell_of_pixel(t.r.session().context.anchor_y) == hello.y + 2);
+    CHECK(gfx::cell_of_pixel(t.r.session().context.anchor_x) == hello.x + 3);
+    CHECK(gfx::cell_of_pixel(t.r.session().context.anchor_y) == hello.y + 2);
     CHECK(t.hello->presses.empty());
 }
 
@@ -667,8 +667,8 @@ TEST_CASE("WL-CTX-09: a menu requested on the press's own turn is granted to the
     // the pane's: only its own standard rows, granted beneath them.
     const PresentedMenu& menu = t.r.session().presented;
     CHECK(menu.anchored);
-    CHECK(surface::cell_of_pixel(menu.anchor_x) == body_x(t.r, t.guard_kind, 3));
-    CHECK(surface::cell_of_pixel(menu.anchor_y) == body_y(t.r, t.guard_kind, 1));
+    CHECK(gfx::cell_of_pixel(menu.anchor_x) == body_x(t.r, t.guard_kind, 3));
+    CHECK(gfx::cell_of_pixel(menu.anchor_y) == body_y(t.r, t.guard_kind, 1));
     CHECK(menu.office == kGuardOffice);
     CHECK(menu.pane == kGuardPane);
     CHECK(menu.subject == "subject-1");
@@ -1043,7 +1043,7 @@ TEST_CASE("WL-CTX-09: a menu opened by a declared key continues that keystroke -
     CHECK(t.guard->action_correlations[0] != 0);
     REQUIRE(t.foreign_open());
     CHECK(t.r.session().presented.anchored);
-    CHECK(surface::cell_of_pixel(t.r.session().presented.anchor_y) == body_y(t.r, t.guard_kind, 0));
+    CHECK(gfx::cell_of_pixel(t.r.session().presented.anchor_y) == body_y(t.r, t.guard_kind, 0));
     t.r.key(input::scan::kEscape);
     CHECK_FALSE(t.menu_open());
     REQUIRE(t.guard->answers.size() == 1);

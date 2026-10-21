@@ -11,6 +11,7 @@
 #include "legacy_pane_protocol.hpp"
 
 #include "activation/activation.hpp"
+#include "graphics/role.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 
@@ -24,6 +25,7 @@
 namespace {
 
 namespace surface = zengine::surface;
+namespace gfx = zengine::graphics;
 namespace input = zengine::input;
 using legacy_protocol::PaneActionRequested;
 using legacy_protocol::PaneActionRow;
@@ -119,13 +121,13 @@ private:
         said.pane = kPaneKey;
         said.rows.push_back(surface::SurfaceTextRow{
             fitted("an old pane -- " + std::to_string(rows_) + "x" + std::to_string(columns_)),
-            surface::role::kFill});
+            gfx::role::kFill});
         if (rows_ > 1) {
             said.rows.push_back(surface::SurfaceTextRow{
                 fitted(state_.acted == 0 ? std::string("acted 0")
                                          : "acted " + std::to_string(state_.acted) + ": " +
                                                state_.last_action),
-                surface::role::kMuted});
+                gfx::role::kMuted});
         }
         (void)mail.as_role(kOffice).send_to_role(kWorkshopRole, said);
     }

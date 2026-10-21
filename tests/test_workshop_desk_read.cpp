@@ -192,9 +192,9 @@ struct ReadRig {
         std::size_t placed = 0;
         for (SetupPane& p : r.session().setup.active.panes) {
             if (p.ref.provider != canvases.at(at).office || p.ref.pane != kReadPane) continue;
-            p.place = {pane_unit::kPixels, x * surface::kCanvasCellPx, y * surface::kCanvasCellPx};
-            p.width = {pane_unit::kPixels, w * surface::kCanvasCellPx};
-            p.height = {pane_unit::kPixels, h * surface::kCanvasCellPx};
+            p.place = {pane_unit::kPixels, x * gfx::kCellPx, y * gfx::kCellPx};
+            p.width = {pane_unit::kPixels, w * gfx::kCellPx};
+            p.height = {pane_unit::kPixels, h * gfx::kCellPx};
             ++placed;
         }
         REQUIRE(placed == 1);
@@ -339,7 +339,7 @@ v4::PaneCanvasContent labelled(std::size_t pane) {
     v4::PaneCanvasContent p;
     for (std::size_t i = 0; i < kPaneCanvasMaxLabels; ++i) {
         p.labels.push_back(PaneCanvasLabel{0, static_cast<std::int64_t>(i % 4) * kPaneCanvasUnit,
-                                           label_text(pane, i), surface::role::kFill});
+                                           label_text(pane, i), gfx::role::kFill});
     }
     return p;
 }
@@ -357,11 +357,11 @@ v4::PaneCanvasContent full_picture() {
     v4::PaneCanvasContent p;
     for (std::size_t i = 0; i < kPaneCanvasMaxLabels; ++i) {
         p.labels.push_back(PaneCanvasLabel{0, static_cast<std::int64_t>(i % 4) * kPaneCanvasUnit,
-                                           full_word(i), surface::role::kFill});
+                                           full_word(i), gfx::role::kFill});
     }
     for (std::size_t i = 0; i < kPaneCanvasMaxTexts; ++i) {
         p.texts.push_back(PaneCanvasText{0, static_cast<std::int64_t>(4 + i % 4) * kPaneCanvasUnit,
-                                         full_word(kPaneCanvasMaxLabels + i), surface::role::kFill});
+                                         full_word(kPaneCanvasMaxLabels + i), gfx::role::kFill});
     }
     for (std::size_t i = 0; i < kMaxPaneParts; ++i) {
         const auto column = static_cast<std::int64_t>(i % 32);
@@ -389,7 +389,7 @@ v4::PaneCanvasContent high_text_picture() {
     v4::PaneCanvasContent p;
     for (std::size_t i = 0; i < kPaneCanvasMaxTextBytes / kHighTextBytes; ++i) {
         p.labels.push_back(PaneCanvasLabel{0, static_cast<std::int64_t>(i % 4) * kPaneCanvasUnit,
-                                           high_text_word(i), surface::role::kFill});
+                                           high_text_word(i), gfx::role::kFill});
     }
     for (std::size_t i = 0; i < kHighTextParts; ++i) {
         p.parts.push_back(PaneCanvasPart{"over" + std::to_string(i), 0, 0,
@@ -809,10 +809,10 @@ loom::Grant capture_grant() {
           loom::schema_of<PaneInventoryRequested>(), loom::schema_of<KeymapRequested>()}) {
         grant.allow_to_role(shape->name(), shape->version(), kWorkshopProvider);
     }
-    grant.allow_to_role(surface::SurfaceCaptureRequested::zen_name,
-                        surface::SurfaceCaptureRequested::zen_version, surface::kSkinRole);
-    grant.allow_to_role(surface::SurfaceCaptureChunkRequested::zen_name,
-                        surface::SurfaceCaptureChunkRequested::zen_version, surface::kSkinRole);
+    grant.allow_to_role(gfx::SurfaceCaptureRequested::zen_name,
+                        gfx::SurfaceCaptureRequested::zen_version, surface::kSkinRole);
+    grant.allow_to_role(gfx::SurfaceCaptureChunkRequested::zen_name,
+                        gfx::SurfaceCaptureChunkRequested::zen_version, surface::kSkinRole);
     return grant;
 }
 
@@ -842,7 +842,7 @@ TEST_CASE("a capture guest's asks for the desk, a pane's page, the inventory and
     d.place(0, 4, 4, 32, 12);
     d.reseat();
     v4::PaneCanvasContent picture;
-    picture.labels.push_back(PaneCanvasLabel{0, 0, "guest words", surface::role::kFill});
+    picture.labels.push_back(PaneCanvasLabel{0, 0, "guest words", gfx::role::kFill});
     d.draw(0, picture);
     const auto ask_all = [office](loom::Mail& m) {
         (void)m.send_to_role(kWorkshopProvider, DeskReadRequested{});
@@ -928,7 +928,7 @@ TEST_CASE("a picture at the canvas text limit under overlapping parts reads whol
     d.reseat();
     // A SMALL PICTURE FIRST: the desk read carries its reading whole, in the one turn.
     v4::PaneCanvasContent small;
-    small.labels.push_back(PaneCanvasLabel{0, 0, "small", surface::role::kFill});
+    small.labels.push_back(PaneCanvasLabel{0, 0, "small", gfx::role::kFill});
     d.draw(0, small);
     DeskRead desk;
     REQUIRE(d.read(desk).empty());
@@ -1173,7 +1173,7 @@ v2::StampedPane entry_for(const v2::DeskStamps& notice, const std::string& offic
 v4::PaneCanvasContent typed(const std::string& text, bool caret) {
     v4::PaneCanvasContent p;
     p.texts.push_back(PaneCanvasText{0, 0, text.empty() ? std::string(" ") : text,
-                                     surface::role::kFill,
+                                     gfx::role::kFill,
                                      caret ? static_cast<std::int64_t>(text.size()) : surface::kNoCaret});
     return p;
 }
@@ -1181,7 +1181,7 @@ v4::PaneCanvasContent typed(const std::string& text, bool caret) {
 /// A picture saying `word` alone.
 v4::PaneCanvasContent saying(const std::string& word) {
     v4::PaneCanvasContent p;
-    p.labels.push_back(PaneCanvasLabel{0, 0, word, surface::role::kFill});
+    p.labels.push_back(PaneCanvasLabel{0, 0, word, gfx::role::kFill});
     return p;
 }
 

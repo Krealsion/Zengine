@@ -212,7 +212,7 @@ public:
     /// ONE ROW AS A PICTURE in `room`, numbered `number`, the row's characters a part named `document`.
     static v5::PaneCanvasContent picture(const PaneCanvasRoom& room, std::int64_t number,
                                          const std::string& text) {
-        return rows_picture(room, number, {surface::SurfaceTextRow{text, surface::role::kFill}},
+        return rows_picture(room, number, {surface::SurfaceTextRow{text, gfx::role::kFill}},
                             {PaneRowPart{"document", 0, 0, static_cast<std::int64_t>(text.size())}});
     }
     void on(const v2::PrepareSourceRequested& asked, loom::Mail& mail) {
@@ -1194,8 +1194,8 @@ TEST_CASE("the picture a managed opening shows says its words and its named part
         if (window) {
             o.click(mid_x, mid_y, input::space::kPixels);
         } else {
-            o.click(surface::cell_of_pixel(mid_x),
-                    surface::cell_of_pixel(mid_y) + surface::kTuiCanvasTopRow, input::space::kCells);
+            o.click(gfx::cell_of_pixel(mid_x),
+                    gfx::cell_of_pixel(mid_y) + surface::kTuiCanvasTopRow, input::space::kCells);
         }
         CHECK(o.editor->pointers.empty());
         // THE HOLDER DRAWS ITS OWN, and the points return: a press at the part's reaches the holder
@@ -1243,8 +1243,8 @@ TEST_CASE("a canvas room that moves while the document is prepared refuses its a
     REQUIRE(shows_canvas(*pane));
     const std::int64_t rows = pane->rows, columns = pane->columns, width = pane->canvas.width;
     std::int64_t wider = 0;
-    for (std::int64_t px = 1; px < surface::kCanvasCellPx && wider == 0; ++px) {
-        o.r.extent_px(cells_px(160) + px, cells_px(48), 8, 18, surface::kCanvasCellPx);
+    for (std::int64_t px = 1; px < gfx::kCellPx && wider == 0; ++px) {
+        o.r.extent_px(cells_px(160) + px, cells_px(48), 8, 18, gfx::kCellPx);
         pane = o.pane();
         REQUIRE(pane != nullptr);
         if (pane->rows == rows && pane->columns == columns && pane->canvas.width != width) wider = px;
@@ -1257,7 +1257,7 @@ TEST_CASE("a canvas room that moves while the document is prepared refuses its a
     o.ask_b();
     REQUIRE(o.asker->opens.empty());
     REQUIRE(o.editor->holding());
-    o.r.extent_px(cells_px(160) + wider, cells_px(48), 8, 18, surface::kCanvasCellPx);
+    o.r.extent_px(cells_px(160) + wider, cells_px(48), 8, 18, gfx::kCellPx);
     o.drive([](CanvasEditor& e, loom::Mail& m) { e.answer_held(m); });
     o.serve();
     REQUIRE(o.asker->opens.size() == 1);

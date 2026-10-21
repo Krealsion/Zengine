@@ -10,7 +10,6 @@
 // performed. A desktop that failed to load leaves no defaults, never a process a weaver cannot
 // leave.
 
-#include "surface/vocabulary.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
 #include <zen/weave/shape.hpp>

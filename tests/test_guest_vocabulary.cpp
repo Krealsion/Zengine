@@ -16,6 +16,7 @@
 #include "workshop/pane_document.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
+#include "graphics/vocabulary.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
 #include "workshop/pane_view.hpp"
@@ -35,6 +36,7 @@ using zengine::external_host::GuestVocabulary;
 std::vector<std::shared_ptr<const loom::Schema>> guest_shapes() {
     namespace in = zengine::input;
     namespace su = zengine::surface;
+    namespace gfx = zengine::graphics;
     namespace ws = zengine::workshop;
     return {loom::schema_of<zengine::inventory_pane::InventoryToolboxSave>(),
             loom::schema_of<zengine::inventory_pane::InventoryToolboxRestore>(),
@@ -76,9 +78,9 @@ std::vector<std::shared_ptr<const loom::Schema>> guest_shapes() {
             loom::schema_of<ws::PaneDocumentShown>(), loom::schema_of<ws::PaneDocumentSection>(),
             loom::schema_of<in::InjectInput>(),           loom::schema_of<in::InjectedEvent>(),
             loom::schema_of<in::InputInjected>(),         loom::schema_of<in::InputSessionClosed>(),
-            loom::schema_of<su::SurfaceCaptureRequested>(), loom::schema_of<su::SurfaceCaptured>(),
-            loom::schema_of<su::SurfaceCaptureChunkRequested>(),
-            loom::schema_of<su::SurfaceCaptureChunk>(),
+            loom::schema_of<gfx::SurfaceCaptureRequested>(), loom::schema_of<gfx::SurfaceCaptured>(),
+            loom::schema_of<gfx::SurfaceCaptureChunkRequested>(),
+            loom::schema_of<gfx::SurfaceCaptureChunk>(),
             loom::schema_of<ws::GuestConnectionsRequested>(), loom::schema_of<ws::GuestConnections>(),
             loom::schema_of<ws::GuestConnection>(),
             // ...and at version 2: each row's powers, the file's host and version, and its losses.

@@ -10,11 +10,12 @@
 // Sink lacking `size()` would look exactly like an unmeasurable terminal, on every lane.
 // Surface law: agents/surface.md
 
+#include "graphics/pixels.hpp"
+#include "graphics/vocabulary.hpp"
+#include "graphics/window/terminal_io.hpp"
 #include "cells.hpp"
 #include "pointing.hpp"
 #include "region.hpp"
-#include "terminal_size.hpp"
-#include "tui_terminal.hpp"
 #include "vocabulary.hpp"
 
 #if defined(_WIN32)
@@ -45,8 +46,8 @@ namespace zengine::surface {
 /// terminal as on a dark one. `ground` is `role::kNone` where the terminal's own shows.
 inline const char* sgr_for_cell(int role, int ground) noexcept {
     switch (role) {
-    case 1: case 2: case 3: case 4: case 6: return sgr_for_role(role);
-    default: return ground < 0 ? sgr_for_role(role) : "\x1b[37m";
+    case 1: case 2: case 3: case 4: case 6: return graphics::window::sgr_for_role(role);
+    default: return ground < 0 ? graphics::window::sgr_for_role(role) : "\x1b[37m";
     }
 }
 
@@ -97,8 +98,8 @@ inline CanvasGrids rasterize_canvas(const zengine::surface::SurfaceCanvas& c) {
     CanvasGrids grids;
     // The picture is in canvas pixels; this medium's unit is the cell, and it shows the cells
     // the extent covers whole.
-    const std::int64_t w = c.width > 0 ? zengine::surface::cell_of_pixel(c.width) : 0;
-    const std::int64_t h = c.height > 0 ? zengine::surface::cell_of_pixel(c.height) : 0;
+    const std::int64_t w = c.width > 0 ? zengine::graphics::cell_of_pixel(c.width) : 0;
+    const std::int64_t h = c.height > 0 ? zengine::graphics::cell_of_pixel(c.height) : 0;
     grids.w = w;
     grids.h = h;
     if (w == 0 || h == 0) {
@@ -120,7 +121,7 @@ inline CanvasGrids rasterize_canvas(const zengine::surface::SurfaceCanvas& c) {
     // claiming a background. A beneath region keeps the prior ground wherever
     // its row asks for none; an owned region clears it.
     std::vector<signed char>& grounds = grids.grounds;
-    grounds.assign(cells, static_cast<signed char>(zengine::surface::role::kNone));
+    grounds.assign(cells, static_cast<signed char>(zengine::graphics::role::kNone));
     // The fourth grid, written only by a region's selected span: a separate channel, because
     // reverse video composes with every ink and ground. No selection, no byte of it.
     std::vector<signed char>& selected = grids.selected;
@@ -131,7 +132,7 @@ inline CanvasGrids rasterize_canvas(const zengine::surface::SurfaceCanvas& c) {
     carets.assign(cells, static_cast<signed char>(0));
 
     const auto put = [&](std::int64_t x, std::int64_t y, char g, std::int64_t role,
-                         std::int64_t ground = zengine::surface::role::kNone,
+                         std::int64_t ground = zengine::graphics::role::kNone,
                          bool in_selection = false, bool keep_ground = false,
                          bool caret = false) {
         if (x < 0 || y < 0 || x >= w || y >= h) {
@@ -140,22 +141,22 @@ inline CanvasGrids rasterize_canvas(const zengine::surface::SurfaceCanvas& c) {
         const std::size_t i = static_cast<std::size_t>(y * w + x);
         glyphs[i] = g;
         roles[i] = static_cast<signed char>(role);
-        if (!keep_ground || ground != zengine::surface::role::kNone)
+        if (!keep_ground || ground != zengine::graphics::role::kNone)
             grounds[i] = static_cast<signed char>(ground);
         selected[i] = static_cast<signed char>(in_selection ? 1 : 0);
         carets[i] = static_cast<signed char>(caret ? 1 : 0);
     };
 
     const auto write_label = [&](const zengine::surface::SurfaceLabel& l,
-                                 std::int64_t ground = zengine::surface::role::kNone,
+                                 std::int64_t ground = zengine::graphics::role::kNone,
                                  std::int64_t sel_begin = 0, std::int64_t sel_end = 0,
                                  bool keep_ground = false, std::int64_t caret = -1) {
         // The anchor is a canvas pixel: its cell is the floor, and each byte is one cell on.
-        const std::int64_t x0 = zengine::surface::cell_of_pixel(l.x);
-        const std::int64_t y0 = zengine::surface::cell_of_pixel(l.y);
+        const std::int64_t x0 = zengine::graphics::cell_of_pixel(l.x);
+        const std::int64_t y0 = zengine::graphics::cell_of_pixel(l.y);
         for (std::size_t i = 0; i < l.text.size(); ++i) {
             const std::int64_t col = static_cast<std::int64_t>(i);
-            put(add_cells(x0, col), y0, l.text[i], l.role, ground,
+            put(graphics::add_cells(x0, col), y0, l.text[i], l.role, ground,
                 col >= sel_begin && col < sel_end, keep_ground, col == caret);
         }
     };
@@ -172,17 +173,17 @@ inline CanvasGrids rasterize_canvas(const zengine::surface::SurfaceCanvas& c) {
                 continue; // nothing of it to cover
             }
             // A pixel rect covers the cells its floored edges span: [floor(L/12), floor(R/12)).
-            const std::int64_t x0 = zengine::surface::cell_of_pixel(r.x);
-            const std::int64_t y0 = zengine::surface::cell_of_pixel(r.y);
+            const std::int64_t x0 = zengine::graphics::cell_of_pixel(r.x);
+            const std::int64_t y0 = zengine::graphics::cell_of_pixel(r.y);
             const CellSpan xs =
-                clip_span(x0, zengine::surface::cell_of_pixel(add_cells(r.x, r.w)) - x0, w);
+                clip_span(x0, zengine::graphics::cell_of_pixel(graphics::add_cells(r.x, r.w)) - x0, w);
             const CellSpan ys =
-                clip_span(y0, zengine::surface::cell_of_pixel(add_cells(r.y, r.h)) - y0, h);
-            const bool ground = r.role == zengine::surface::role::kGround ||
-                                r.role == zengine::surface::role::kMediumGround;
+                clip_span(y0, zengine::graphics::cell_of_pixel(graphics::add_cells(r.y, r.h)) - y0, h);
+            const bool ground = r.role == zengine::graphics::role::kGround ||
+                                r.role == zengine::graphics::role::kMediumGround;
             for (std::int64_t y = ys.begin; y < ys.end; ++y) {
                 for (std::int64_t x = xs.begin; x < xs.end; ++x) {
-                    put(x, y, g, r.role, ground ? r.role : zengine::surface::role::kNone);
+                    put(x, y, g, r.role, ground ? r.role : zengine::graphics::role::kNone);
                 }
             }
         }
@@ -243,7 +244,7 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
         std::string_view open_ink;
         // The ground in effect, tracked apart but reset together: `\x1b[0m` also clears a
         // ground still meant to show, so a reset re-states it. With no ground, no byte of this.
-        int open_bg = zengine::surface::role::kNone;
+        int open_bg = zengine::graphics::role::kNone;
         // ...and whether reverse video is in effect, for the ground's reason. A selected cell is
         // reversed and so is the cell a caret stands on: a caret inside a selection is the one
         // cell of it shown plain, and every caret is underlined besides, so a caret just past a
@@ -254,8 +255,8 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
             const std::size_t i = static_cast<std::size_t>(y * w + x);
             const int role = static_cast<int>(roles[i]);
             // The terminal's own ground is no ground byte: what it wears where nothing is set.
-            const int ground = grounds[i] == zengine::surface::role::kMediumGround
-                                   ? static_cast<int>(zengine::surface::role::kNone)
+            const int ground = grounds[i] == zengine::graphics::role::kMediumGround
+                                   ? static_cast<int>(zengine::graphics::role::kNone)
                                    : static_cast<int>(grounds[i]);
             const bool caret = carets[i] != 0;
             const bool reversed = (selected[i] != 0) != caret;
@@ -263,7 +264,7 @@ inline std::string canvas_body(const zengine::surface::SurfaceCanvas& c) {
             if (role != open || ink != open_ink) {
                 out += ink;
                 if (role < 0) {
-                    open_bg = zengine::surface::role::kNone; // the reset took the ground too
+                    open_bg = zengine::graphics::role::kNone; // the reset took the ground too
                     open_sel = false;                        // ...and the selection with it
                     open_caret = false;                      // ...and a caret's underline
                 }
@@ -300,16 +301,16 @@ inline constexpr std::int64_t kTuiScrollGuardRows = 1; ///< where the last row's
 inline constexpr std::int64_t kTuiReservedRows = kTuiCanvasTopRow + kTuiScrollGuardRows;
 
 /// What a terminal of this size has room for, as a canvas extent in canvas pixels (its cells
-/// times `kCanvasCellPx`); pure, so every lane pins it.
+/// times `kCellPx`); pure, so every lane pins it.
 /// A character is a cell here, so the text metric and `cell_px` are zero: "text is a cell" and
 /// "my device unit is the cell". An unmeasured terminal and one with no row to spare both
 /// answer `{}`, which `SkinT::report_extent` turns into silence; publishing zero would claim
 /// there is no room, which is false in both cases.
-inline constexpr SurfaceExtent tui_canvas_extent(const TerminalSize& t) noexcept {
+inline constexpr SurfaceExtent tui_canvas_extent(const graphics::window::TerminalSize& t) noexcept {
     if (!t.measured() || t.rows <= kTuiReservedRows) {
         return SurfaceExtent{};
     }
-    return SurfaceExtent{px_of_cells(t.cols), px_of_cells(t.rows - kTuiReservedRows), 0, 0, 0};
+    return SurfaceExtent{graphics::px_of_cells(t.cols), graphics::px_of_cells(t.rows - kTuiReservedRows), 0, 0, 0};
 }
 
 /// STANDARD BASE64, because OSC 52 speaks nothing else. Pure and total; no padding
@@ -369,7 +370,7 @@ public:
     /// A canvas lands from row 3 down, claiming everything below it on the first frame.
     void canvas(const zengine::surface::SurfaceCanvas& c, bool first) {
         // The rows the picture covers, in this medium's cells.
-        const std::int64_t rows = c.height > 0 ? zengine::surface::cell_of_pixel(c.height) : 0;
+        const std::int64_t rows = c.height > 0 ? zengine::graphics::cell_of_pixel(c.height) : 0;
         std::string out = "\x1b[3;1H";
         if (first) {
             out += "\x1b[0J";
@@ -397,10 +398,10 @@ public:
         }
         CapturedPicture p;
         // In cells, as the bytes are: the picture's pixel extent floored to the cells it covers.
-        p.width = last_canvas_->width > 0 ? zengine::surface::cell_of_pixel(last_canvas_->width)
+        p.width = last_canvas_->width > 0 ? zengine::graphics::cell_of_pixel(last_canvas_->width)
                                           : 0;
         p.height =
-            last_canvas_->height > 0 ? zengine::surface::cell_of_pixel(last_canvas_->height) : 0;
+            last_canvas_->height > 0 ? zengine::graphics::cell_of_pixel(last_canvas_->height) : 0;
         p.cell_px = 0;
         p.format = "text/cells";
         p.bytes = canvas_cells(*last_canvas_);
@@ -438,8 +439,8 @@ public:
 
     /// A terminal application has no desktop placement: the emulator owns the window, tells its
     /// guests nothing and takes no instructions, so the absence is the whole honest answer.
-    std::optional<SurfacePlacement> placement() { return std::nullopt; }
-    void place(const SurfacePlacementRemembered&) {}
+    std::optional<graphics::SurfacePlacement> placement() { return std::nullopt; }
+    void place(const graphics::SurfacePlacementRemembered&) {}
 
     /// How much room there is, asked of the Sink because the Sink holds the terminal:
     /// `TuiTerminal` answers; a string in a suite and a pipe have no terminal to ask, and an
