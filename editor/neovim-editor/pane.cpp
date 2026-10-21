@@ -137,8 +137,8 @@ using NeovimEditorBase = zengine::With<ws::PaneManualFacet<
                  ws::PaneCanvasRejected, PaneKey, PaneTextInput, PaneActionRequested, PaneQuitRequested,
                  OpenSourceRequested, PrepareSourceRequested, ws::v2::PrepareSourceRequested,
                  ManagedOpenProgress, ManagedOpenSettled,
-                 SourceOpened, loom::DispatchRefused, ProjectRoot, surface::ClipboardCopy,
-                 surface::ClipboardText, EditorHandoffJudgeRequested, EditorWarmRequested,
+                 SourceOpened, loom::DispatchRefused, ProjectRoot, graphics::ClipboardCopy,
+                 graphics::ClipboardText, EditorHandoffJudgeRequested, EditorWarmRequested,
                  EditorPreparationTick, EditorHandoffRequested, EditorHandoffEnded,
                  EditorAdoptRequested, EditorLiveRequested, EditorRetireRequested,
                  nve::NeovimStartRequested, nve::NeovimStopRequested, nve::NeovimStatusRequested,
@@ -151,7 +151,7 @@ using NeovimEditorBase = zengine::With<ws::PaneManualFacet<
                ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
                PaneQuitAnswered, SourceOpened, SourcePrepared, ws::v2::SourcePrepared,
                OpenSourceRequested,
-               ProjectRootRequested, surface::ClipboardCopy, surface::ClipboardTextRequested,
+               ProjectRootRequested, graphics::ClipboardCopy, graphics::ClipboardTextRequested,
                EditorHandoffJudged, EditorWarmed, EditorHandoffOffered, EditorAdopted, EditorLive,
                EditorRetired, timer::EnsureTimer, timer::CancelTimer, loom::Result, loom::Refused,
                ws::PaneMenuRequested, ws::PaneOperationRequested, ws::PaneValueCarryRequested,
@@ -549,10 +549,10 @@ public:
 
     // ---- The clipboard ---------------------------------------------------------------------------
 
-    void on(const surface::ClipboardCopy& said, loom::Mail&) { clip_ = said.text; }
+    void on(const graphics::ClipboardCopy& said, loom::Mail&) { clip_ = said.text; }
 
     /// THE SKIN'S ANSWER TO A PASTE NEOVIM ASKED FOR, handed to the request Neovim is waiting on.
-    void on(const surface::ClipboardText& a, loom::Mail& mail) {
+    void on(const graphics::ClipboardText& a, loom::Mail& mail) {
         if (!mail.answers_ask()) {
             return;
         }
@@ -808,12 +808,14 @@ private:
         (void)settle_held(); // a change Neovim held, answered since -- or ended with it (WL-NVIM-13)
         for (const nv::ClipboardCopy& copy : seen.copies) {
             clip_ = join_lines(copy.lines, copy.regtype == "V" || copy.regtype == "line");
-            (void)mail.publish(surface::ClipboardCopy{clip_});
+            (void)mail.publish(graphics::ClipboardCopy{clip_});
         }
         for (const std::uint32_t id : seen.paste_requests) {
             const std::uint64_t correlation = ++asked_;
             const loom::Ticket asked = mail.as_role(nve::kEditorOffice)
-                                           .send_to_role(window_.clipboard_office(), surface::ClipboardTextRequested{}, correlation);
+                                           .send_to_role(window_.clipboard_office(),
+                                                         graphics::ClipboardTextRequested{},
+                                                         correlation);
             if (asked.valid()) {
                 pastes_.emplace(correlation, id);
             } else {
@@ -1042,9 +1044,10 @@ private:
         const std::int64_t chrome = chrome_rows();
         if (!notice_.empty()) {
             rows.push_back(surface::SurfaceTextRow{drawable(fit(notice_, room_cols)),
-                                                   notice_bad_ ? surface::role::kAlert : surface::role::kMuted});
+                                                   notice_bad_ ? graphics::role::kAlert : graphics::role::kMuted});
         } else if (chrome > 0) {
-            rows.push_back(surface::SurfaceTextRow{drawable(fit(status_text(room_cols), room_cols)), surface::role::kAccent});
+            rows.push_back(surface::SurfaceTextRow{drawable(fit(status_text(room_cols), room_cols)),
+                                                   graphics::role::kAccent});
         }
         if (!running() || !host_->ready()) {
             return;
@@ -1056,7 +1059,7 @@ private:
             for (std::size_t i = 0;
                  i < preview_.lines.size() && static_cast<std::int64_t>(i) + chrome < room_rows; ++i) {
                 rows.push_back(surface::SurfaceTextRow{preview_line(preview_.lines[i], text_cols),
-                                                       surface::role::kFill});
+                                                       graphics::role::kFill});
             }
             return;
         }
@@ -1084,11 +1087,11 @@ private:
         }
         for (std::int64_t r = 0; r < shown_rows; ++r) {
             const nv::Screen::Row& row = screen.rows[static_cast<std::size_t>(r)];
-            std::int64_t role = surface::role::kFill;
+            std::int64_t role = graphics::role::kFill;
             switch (row.kind) {
-            case nv::RowKind::Chrome: role = surface::role::kAccent; break;
-            case nv::RowKind::Muted: role = surface::role::kMuted; break;
-            case nv::RowKind::Alert: role = surface::role::kAlert; break;
+            case nv::RowKind::Chrome: role = graphics::role::kAccent; break;
+            case nv::RowKind::Muted: role = graphics::role::kMuted; break;
+            case nv::RowKind::Alert: role = graphics::role::kAlert; break;
             case nv::RowKind::Text: break;
             }
             // A ROW'S BLANKS GO, BUT NOT THE ONES THE CARET OR THE RANGE STANDS ON: Neovim's cursor on
@@ -1125,10 +1128,10 @@ private:
             return;
         }
         prepared.rows.push_back(surface::SurfaceTextRow{
-            drawable(fit("saved NORMAL -- " + tail_of_path(path, room_cols - 16), room_cols)), surface::role::kAccent});
+            drawable(fit("saved NORMAL -- " + tail_of_path(path, room_cols - 16), room_cols)), graphics::role::kAccent});
         const std::int64_t text_cols = room_cols - kCaretCols > 0 ? room_cols - kCaretCols : 0;
         for (std::size_t i = 0; i < lines.size() && static_cast<std::int64_t>(i) + kChromeRows < room_rows; ++i) {
-            prepared.rows.push_back(surface::SurfaceTextRow{preview_line(lines[i], text_cols), surface::role::kFill});
+            prepared.rows.push_back(surface::SurfaceTextRow{preview_line(lines[i], text_cols), graphics::role::kFill});
         }
         prepared.caret_row = surface::kNoCaret;
     }

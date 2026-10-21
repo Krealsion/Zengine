@@ -22,6 +22,7 @@
 #include "input/vocabulary.hpp"
 #include "operator/reference.hpp"
 #include "surface/vocabulary.hpp"
+#include "graphics/vocabulary.hpp"
 #include "workshop/arrangement_vocabulary.hpp"
 #include "workshop/pane_canvas_rows.hpp"
 #include "workshop/pane_carry.hpp"
@@ -471,7 +472,7 @@ public:
             return; // a key this pane's field has no word for changes nothing, says nothing
         }
         if (clip_.writes != copied_before) {
-            voice.mail.publish(surface::ClipboardCopy{clip_.text});
+            voice.mail.publish(graphics::ClipboardCopy{clip_.text});
         }
         if (clip_.paste_requests != pastes_before) {
             begin_clipboard_paste(voice.mail);
@@ -555,7 +556,7 @@ public:
 
     /// A copy said anywhere in the process, mirrored so a Terminal copy pastes into the query and
     /// gated as typing is. `writes` counts only this pane's copies, so nothing echoes.
-    void on_copy(const surface::ClipboardCopy& said) {
+    void on_copy(const graphics::ClipboardCopy& said) {
         if (workshop::pane_text::admissible(said.text)) {
             clip_.text = said.text;
         }
@@ -564,7 +565,7 @@ public:
     /// The clipboard's answer to a paste this pane asked for, the one road foreign clipboard text
     /// has in: `answers_ask()` and the book's settlement, then the draft that asked must still be
     /// there (`draft_epoch`).
-    void on_clipboard(Voice voice, const surface::ClipboardText& a) {
+    void on_clipboard(Voice voice, const graphics::ClipboardText& a) {
         if (!voice.mail.answers_ask()) {
             return;
         }
@@ -798,8 +799,8 @@ private:
     void begin_clipboard_paste(loom::Mail& mail) {
         const std::string office = room().clipboard_office();
         const loom::AskOpened opened = clip_asks_.open_to_role(
-            office, surface::ClipboardTextRequested::zen_name,
-            surface::ClipboardTextRequested::zen_version);
+            office, graphics::ClipboardTextRequested::zen_name,
+            graphics::ClipboardTextRequested::zen_version);
         if (!opened) {
             return;
         }
@@ -807,7 +808,7 @@ private:
         paste_epoch_ = ui_.query.draft_epoch();
         pasting_ = true;
         (void)mail.as_role(kIntrospectionRole)
-            .send_to_role(office, surface::ClipboardTextRequested{}, opened.correlation);
+            .send_to_role(office, graphics::ClipboardTextRequested{}, opened.correlation);
     }
 
     /// ONE OUTSTANDING QUESTION OF ITS OWN, and the identity it asked about: a sample or a

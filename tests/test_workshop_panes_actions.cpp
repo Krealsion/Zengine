@@ -1243,7 +1243,7 @@ public:
     void on(const PaneCatalogRequested&, loom::Mail&) {}
     void on(const PaneRoom& room, loom::Mail& mail) {
         std::vector<surface::SurfaceTextRow> rows;
-        rows.push_back(surface::SurfaceTextRow{"an old pane", surface::role::kFill});
+        rows.push_back(surface::SurfaceTextRow{"an old pane", gfx::role::kFill});
         (void)room;
         (void)mail.as_role(office_).send_to_role(kWorkshopProvider,
                                                  PaneContent{"old", std::move(rows)});

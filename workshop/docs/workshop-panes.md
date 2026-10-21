@@ -827,14 +827,16 @@ Caret and selection use ASCII source-byte columns; negative means absent and the
 range is `[begin,end)`. The existing Surface text renderer supplies the type, caret and
 highlight. Its ground stays beneath the text, so a graph or button background shows through.
 
-Use the installed `workshop/pane_canvas_text.hpp` for the same sizing the host uses.
+Use the installed `workshop/pane_canvas_text.hpp` for the same sizing the host uses; the
+`workshop/pane_text_fit.hpp` it includes holds `fit_region`, the one answer to how much prose a
+region holds.
 `canvas_text_metrics(room)` returns advance, line height, inset and device grain in local
 pixels; the complete one-row region is `line + 2*inset` tall. `clip_canvas_text(run, clip,
 room)` returns the visible adjusted run and its exact padded `bounds`, suitable for hit tests.
 The clip may be a sidebar or graph viewport inside the room. For example:
 
 ```cpp
-PaneCanvasText run{0, 0, "Configure", surface::role::kFill};
+PaneCanvasText run{0, 0, "Configure", graphics::role::kFill};
 auto placed = clip_canvas_text(run, {0, 0, room.width, room.height}, room);
 if (placed.visible()) {
     content.texts.push_back(placed.text);
@@ -1422,8 +1424,8 @@ Workshop answers each part beside the pane's words, and a menu's named lines bes
   `input::space::kUnknown`, which no consumer reads and `InjectInput` refuses; `workshop/act` never
   presses one. Every part of a canvas picture that takes no press is said so too
   ([`PaneViewRequested`](zengine.workshop.md#paneviewrequested)). A point is in the medium's own units: a window's pixel, or a terminal's cell. A
-  terminal shows a span `[begin, end)` on the cells from `floor(begin / kCanvasCellPx)` up to
-  `floor(end / kCanvasCellPx)`, that one left out, so a canvas part it paints on no cell is not
+  terminal shows a span `[begin, end)` on the cells from `floor(begin / kCellPx)` up to
+  `floor(end / kCellPx)`, that one left out, so a canvas part it paints on no cell is not
   said there.
 - **A part the body does not show is not said**, and one it cuts is said as far as it shows.
 - **Workshop names its own surfaces' parts**: its menu's lines by the action or the group each

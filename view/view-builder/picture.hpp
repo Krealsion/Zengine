@@ -13,6 +13,8 @@
 #include "view/view.hpp"
 
 #include "component/text_box.hpp"
+#include "graphics/pixels.hpp"
+#include "graphics/vocabulary.hpp"
 #include "surface/pointing.hpp"
 #include "workshop/pane_canvas_text.hpp"
 #include "workshop/pane_canvas_vocabulary.hpp"
@@ -27,14 +29,14 @@
 
 namespace zengine::view_builder {
 namespace ws = zengine::workshop;
-namespace ink = zengine::surface::role;
+namespace ink = zengine::graphics::role;
 
 /// A rectangle of the picture in local pixels.
 struct Area {
     std::int64_t x = 0, y = 0, w = 0, h = 0;
     bool empty() const noexcept { return w <= 0 || h <= 0; }
     bool contains(std::int64_t px, std::int64_t py, std::int64_t grain) const {
-        return surface::px_span_contains(x, w, px, grain) && surface::px_span_contains(y, h, py, grain);
+        return graphics::px_span_contains(x, w, px, grain) && graphics::px_span_contains(y, h, py, grain);
     }
     Area within(const Area& o) const {
         const auto left = std::max(x, o.x), top = std::max(y, o.y);
@@ -157,7 +159,7 @@ inline Area element_area(const Area& view, const view::Element& e) {
 /// `notice` pixels of them, are in the canvas.
 inline std::pair<std::int64_t, std::int64_t> pan_reach(const view::Description& d, const Area& design,
                                                        std::int64_t notice) {
-    const auto beyond = surface::kCanvasCellPx;
+    const auto beyond = graphics::kCellPx;
     return {std::max<std::int64_t>(0, d.width + beyond - design.w),
             std::max<std::int64_t>(0, d.height + std::max(beyond, notice) - design.h)};
 }
@@ -169,7 +171,7 @@ inline std::pair<std::int64_t, std::int64_t> pan_reach(const view::Description& 
 /// edge. The grid is at most `kMaxGrid` pixels apart. Alt held sets every snap aside, and the
 /// arrow keys and a typed value place exactly.
 inline constexpr std::int64_t kSnapReach = 6;
-inline constexpr std::int64_t kMostSnapReach = surface::kCanvasCellPx - 1;
+inline constexpr std::int64_t kMostSnapReach = graphics::kCellPx - 1;
 inline constexpr std::int64_t kMaxGrid = 96;
 
 /// Which edges of an element the hand moves along one axis: both (a move), the low or the high
@@ -217,7 +219,7 @@ inline Snapped snap_axis(std::int64_t at, std::int64_t size, Edges moving, const
     if (best) return *best;
     if (grid <= 1) return {at, size, std::nullopt};
     const auto edge = moving == Edges::high ? end : at;
-    const auto below = surface::floor_div_px(edge, grid) * grid;
+    const auto below = graphics::floor_div_px(edge, grid) * grid;
     const bool nearer_below = edge - below < below + grid - edge;
     for (const auto line : {nearer_below ? below : below + grid, nearer_below ? below + grid : below})
         if (auto s = travelled(line - edge)) return *s;
@@ -287,7 +289,7 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
     out.content.rects.push_back({0, 0, room.width, room.height, ink::kGround});
     const auto metrics = ws::canvas_text_metrics(room);
     const auto advance = std::max<std::int64_t>(1, metrics.advance);
-    const auto line = surface::add_cells(metrics.line, 2 * metrics.inset);
+    const auto line = graphics::add_cells(metrics.line, 2 * metrics.inset);
     const auto columns = std::max<std::int64_t>(1, (room.width - 2 * metrics.inset) / advance);
     const auto rows = std::max<std::int64_t>(1, room.height / std::max<std::int64_t>(1, line));
     const auto& d = m.description;
@@ -297,9 +299,9 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
     // element list; the design area beside it; the selected element's values in a column of their
     // own on the right where the room is wide, else below the list; the status and the notice
     // across the last three rows.
-    const auto cell = surface::kCanvasCellPx;
+    const auto cell = graphics::kCellPx;
     const auto up_to_cell = [&](std::int64_t v) { return (v + cell - 1) / cell * cell; };
-    const auto rule = room.graphical ? surface::kPixelGrainPx : out.grain;
+    const auto rule = room.graphical ? graphics::kPixelGrainPx : out.grain;
     const bool beside = columns >= 110;
     const auto side = beside ? std::clamp<std::int64_t>(columns / 4, 30, 36)
                              : std::min(columns, std::clamp<std::int64_t>(columns * 2 / 5, 30, 40));
@@ -551,7 +553,7 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
         const auto [reach_x, reach_y] = pan_reach(d, area, view::notice_band(room));
         p.pan_x = std::clamp<std::int64_t>(p.pan_x, 0, reach_x);
         p.pan_y = std::clamp<std::int64_t>(p.pan_y, 0, reach_y);
-        const auto grained = [&](std::int64_t px) { return surface::floor_div_px(px, out.grain) * out.grain; };
+        const auto grained = [&](std::int64_t px) { return graphics::floor_div_px(px, out.grain) * out.grain; };
         const auto left = grained(p.pan_x), top = grained(p.pan_y);
         out.view = {area.x - left, area.y - top, d.width,
                     d.height + view::notice_band(room)};
@@ -584,7 +586,7 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
                 if (!inside.empty()) out.content.rects.push_back({inside.x, inside.y, inside.w, inside.h, role});
             }
         };
-        const auto thin = room.graphical ? surface::kPixelGrainPx : out.grain;
+        const auto thin = room.graphical ? graphics::kPixelGrainPx : out.grain;
         for (std::size_t i = 0; i < d.elements.size(); ++i) {
             const auto at = element_area(out.view, d.elements[i]).within(area);
             if (!at.empty()) out.hits.push_back({at, "element", {std::to_string(i)}});
@@ -593,7 +595,7 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
         // their corner, in the fill's ink so a terminal tells it from the rule, that a drag sets
         // the size by; in a terminal each is the cell beyond the edge.
         {
-            const auto down = [&](std::int64_t v) { return surface::floor_div_px(v, out.grain) * out.grain; };
+            const auto down = [&](std::int64_t v) { return graphics::floor_div_px(v, out.grain) * out.grain; };
             const auto up = [&](std::int64_t v) { return down(v) == v ? v : down(v) + out.grain; };
             const auto size_h = d.height;
             const auto right = out.view.x + out.view.w, bottom = out.view.y + size_h;
@@ -641,7 +643,7 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
             const auto at = element_area(out.view, d.elements[*m.selected]);
             outline(at, ink::kAccent, thin);
             const auto size = room.graphical ? 8 : out.grain;
-            const auto down = [&](std::int64_t v) { return surface::floor_div_px(v, out.grain) * out.grain; };
+            const auto down = [&](std::int64_t v) { return graphics::floor_div_px(v, out.grain) * out.grain; };
             const std::pair<int, int> sides[] = {{0, -1}, {0, 1}, {-1, 0}, {1, 0}, {-1, -1}, {1, -1}, {-1, 1}, {1, 1}};
             for (const auto& [sx, sy] : sides) {
                 Area handle;

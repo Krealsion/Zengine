@@ -13,7 +13,7 @@
 
 #include "builder/builder-pane/vocabulary.hpp"
 #include "builder/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
+#include "graphics/role.hpp"
 #include "workshop/pane_text.hpp"
 
 #include <cstddef>
@@ -167,7 +167,7 @@ inline void BuilderPaneWeave::say_output() {
     if (!output_.heard) {
         const bool asking_page = asks().holds(of_kind(Act::kPage));
         push_row(head + (asking_page ? " -- asking the Builder" : " -- no page read"),
-                 asking_page ? surface::role::kAccent : surface::role::kAlert);
+                 asking_page ? zengine::graphics::role::kAccent : zengine::graphics::role::kAlert);
         say_controls(output_controls());
         return;
     }
@@ -178,7 +178,7 @@ inline void BuilderPaneWeave::say_output() {
         }
         push_row(head + " -- not kept any more: this Builder keeps the output of " +
                      (keeps.empty() ? std::string("no build") : keeps),
-                 surface::role::kAlert);
+                 zengine::graphics::role::kAlert);
         say_controls(output_controls());
         return;
     }
@@ -228,9 +228,9 @@ inline void BuilderPaneWeave::say_output() {
     if (shown_.op != 0 && shown_.op != output_.op) {
         head += " -- build #" + std::to_string(shown_.op) + " is newer";
     }
-    push_row(head, surface::role::kAccent);
+    push_row(head, zengine::graphics::role::kAccent);
     for (std::string& line : body) {
-        push_row(line, surface::role::kFill);
+        push_row(line, zengine::graphics::role::kFill);
     }
     say_controls(output_controls());
 }

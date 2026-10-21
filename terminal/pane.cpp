@@ -35,6 +35,7 @@
 #include "workshop/pane_settings.hpp"
 #include "workshop/settings_seam_vocabulary.hpp"
 #include <zen/weave/dispatch_refusal.hpp>
+#include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 
@@ -57,6 +58,7 @@ namespace {
 namespace component = zengine::component;
 namespace input = zengine::input;
 namespace surface = zengine::surface;
+namespace gfx = zengine::graphics;
 namespace ws = zengine::workshop;
 namespace pane = zengine::terminal_pane;
 
@@ -107,13 +109,13 @@ class TerminalPaneWeave
           TerminalPaneWeave, pane::TerminalPaneState,
           loom::Accept<ws::v2::PaneSettings, ws::TerminalValueAnswered, ws::PaneCarryAnswered,
                        loom::DispatchRefused, PaneKey, PaneTextInput, TranscriptShown,
-                       TerminalActed, TerminalCompletionOffered, surface::ClipboardCopy,
-                       surface::ClipboardText>,
+                       TerminalActed, TerminalCompletionOffered, gfx::ClipboardCopy,
+                       gfx::ClipboardText>,
           loom::Emit<ws::v2::PaneSettingsDeclared, ws::PaneSettingUnused, PaneEscapeUnspent,
                      ws::TerminalValueRequested,
                      ws::PaneValueCarryRequested, TerminalActRequested,
-                     TerminalCompletionRequested, surface::ClipboardCopy,
-                     surface::ClipboardTextRequested>> {
+                     TerminalCompletionRequested, gfx::ClipboardCopy,
+                     gfx::ClipboardTextRequested>> {
 public:
     /// THE LINE A RELOAD KEPT, PUT BACK -- with the caret at its end, which is where the
     /// completer requires it and where a weaver about to keep typing wants it -- then the offer.
@@ -430,7 +432,7 @@ public:
         // the recalled line -- which is the draft from here on.
         settle_recall();
         if (clip_.writes != copied_before) {
-            mail.publish(surface::ClipboardCopy{clip_.text});
+            mail.publish(gfx::ClipboardCopy{clip_.text});
         }
         if (clip_.paste_requests != pastes_before) {
             begin_paste(mail);
@@ -479,7 +481,7 @@ public:
         return false;
     }
 
-    void on(const surface::ClipboardCopy& said, loom::Mail&) {
+    void on(const gfx::ClipboardCopy& said, loom::Mail&) {
         // WHAT THE PROCESS SAYS IT COPIED -- this pane's own copies included, which is why
         // it is a mirror rather than a second store: a paste answers with this.
         clip_.text = said.text;
@@ -491,7 +493,7 @@ public:
     /// (WL-TEXT-09). It goes in through `TextBox::paste` -- one undo entry, `pasteable_line`
     /// flattening tabs and line breaks -- and the gate judges the text that would land: what is
     /// still undrawable is refused whole, aloud, on the notice row.
-    void on(const surface::ClipboardText& a, loom::Mail& mail) {
+    void on(const gfx::ClipboardText& a, loom::Mail& mail) {
         if (!mail.answers_ask() || !paste_.awaiting || mail.correlation() != paste_.pending) {
             return;
         }
@@ -615,7 +617,7 @@ private:
         paste_.epoch = line_.draft_epoch();
         paste_.awaiting = true;
         (void)mail.as_role(pane::kTerminalPaneRole)
-            .send_to_role(room().clipboard_office(), surface::ClipboardTextRequested{},
+            .send_to_role(room().clipboard_office(), gfx::ClipboardTextRequested{},
                           paste_.pending);
     }
 

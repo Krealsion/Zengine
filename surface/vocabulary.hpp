@@ -30,13 +30,8 @@ struct SurfaceText {
     ZEN_SHAPE(SurfaceText, 1, ZEN_FIELD(slot), ZEN_FIELD(text));
 };
 
-/// The visual role of a canvas element: semantic, never a colour -- each Skin picks the ink, so one
-/// canvas reads correctly in a monochrome terminal and in a window. The roles are the graphics
-/// vocabulary's, one set for every medium (graphics/role.hpp).
-namespace role = zengine::graphics::role;
-
 /// One filled rectangle, in canvas pixels: one device pixel in the shipped window, and a twelfth
-/// of a character cell in a terminal, whose Skin floors each edge to its cells (`kCanvasCellPx`).
+/// of a character cell in a terminal, whose Skin floors each edge to its cells (`kCellPx`).
 /// A layer's rects paint in list order, so a publisher puts a rect behind another by publishing
 /// it earlier; there is no z field.
 struct SurfaceRect {
@@ -44,19 +39,19 @@ struct SurfaceRect {
     std::int64_t y = 0;
     std::int64_t w = 0;
     std::int64_t h = 0;
-    std::int64_t role = role::kFill;
+    std::int64_t role = graphics::role::kFill;
     ZEN_SHAPE(SurfaceRect, 3, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h),
               ZEN_FIELD(role));
 };
 
 /// One run of plain text anchored at a canvas pixel, drawn over its layer's rects: one canvas
-/// cell (`kCanvasCellPx` pixels) per byte in every medium. A Skin says which bytes it has a glyph
+/// cell (`kCellPx` pixels) per byte in every medium. A Skin says which bytes it has a glyph
 /// for and draws something visible for the rest; no Skin drops a character silently.
 struct SurfaceLabel {
     std::int64_t x = 0;
     std::int64_t y = 0;
     std::string text;
-    std::int64_t role = role::kFill;
+    std::int64_t role = graphics::role::kFill;
     ZEN_SHAPE(SurfaceLabel, 3, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(text), ZEN_FIELD(role));
 };
 
@@ -67,8 +62,8 @@ struct SurfaceLabel {
 /// cell projection is one cell per byte and would split a multi-byte sequence.
 struct SurfaceTextRow {
     std::string text;
-    std::int64_t role = role::kFill;
-    std::int64_t background = role::kNone;
+    std::int64_t role = graphics::role::kFill;
+    std::int64_t background = graphics::role::kNone;
     ZEN_SHAPE(SurfaceTextRow, 2, ZEN_FIELD(text), ZEN_FIELD(role), ZEN_FIELD(background));
 };
 
@@ -139,20 +134,16 @@ struct SurfaceCanvas {
     ZEN_SHAPE(SurfaceCanvas, 9, ZEN_FIELD(width), ZEN_FIELD(height), ZEN_FIELD(layers));
 };
 
-/// One canvas cell, in canvas pixels: the width of one label byte, and the character cell a
-/// terminal floors the pixel picture to. In the shipped window a canvas pixel is a device pixel.
-inline constexpr std::int64_t kCanvasCellPx = 12;
-
 /// How much room the active surface has, in canvas pixels: a fact only the medium holds, offered
 /// to publishers (one that ignores it keeps its own extent, and the Skin clips). A terminal's
-/// room is its cells times `kCanvasCellPx`. Published when it changes; a medium with no answer
+/// room is its cells times `kCellPx`. Published when it changes; a medium with no answer
 /// publishes nothing rather than zeroes.
 ///
 /// `text_advance_px` and `text_line_px` are one character's advance and the row pitch, in the
 /// medium's device pixels, when it sets real type; zero means text is a cell. The medium
 /// measures, the publisher fits: one measurer, so a publisher's "12 more" stays true. `cell_px`
 /// is the medium's device pixels per canvas cell; zero means its device unit is the cell. It is
-/// not the text metric: a window whose font failed publishes `{w, h, 0, 0, kCanvasCellPx}`.
+/// not the text metric: a window whose font failed publishes `{w, h, 0, 0, kCellPx}`.
 /// No font family, size or DPI: the result of measuring, never its mechanism.
 struct SurfaceExtent {
     std::int64_t width = 0;
@@ -169,24 +160,6 @@ struct SurfaceExtent {
 struct SurfaceReady {
     ZEN_SHAPE(SurfaceReady, 1);
 };
-
-// The Skin's pump, close, placement, clipboard and capture shapes are the graphics vocabulary's,
-// one set for every medium that shows (graphics/vocabulary.hpp says what each means and proves).
-// A Skin answers them to `kSkinRole`; under SDL the Input reader publishes `SurfaceCloseRequested`,
-// because it owns the one event queue.
-using zengine::graphics::PumpSurface;
-using zengine::graphics::SurfaceCloseRequested;
-using zengine::graphics::SurfacePlacement;
-using zengine::graphics::SurfacePlacementRemembered;
-using zengine::graphics::ClipboardCopy;
-using zengine::graphics::ClipboardTextRequested;
-using zengine::graphics::ClipboardText;
-using zengine::graphics::SurfaceCaptureRequested;
-using zengine::graphics::SurfaceCaptured;
-using zengine::graphics::SurfaceCaptureChunkRequested;
-using zengine::graphics::SurfaceCaptureChunk;
-using zengine::graphics::kCaptureChunkBytes;
-using zengine::graphics::kMaxCaptureBytes;
 
 /// WHAT A MEDIUM HANDS THE SHELL WHEN ASKED FOR ITS PICTURE. Plain bytes and their shape; the
 /// shell numbers and retains it.

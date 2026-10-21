@@ -300,9 +300,9 @@ PaneSnapLines pane_snap_lines(const Panes& panes, const Setup& setup, const Scre
             continue;
         }
         out.xs.push_back(r.x);
-        out.xs.push_back(surface::add_cells(r.x, r.w));
+        out.xs.push_back(graphics::add_cells(r.x, r.w));
         out.ys.push_back(r.y);
-        out.ys.push_back(surface::add_cells(r.y, r.h));
+        out.ys.push_back(graphics::add_cells(r.y, r.h));
     }
     return out;
 }
@@ -326,12 +326,12 @@ SnappedWindow snap_pane_window(const PaneWindowProposal& want, std::int64_t edge
 
 // WL-GEO-01 -- agents/workshop/geometry.md
 ProseAt prose_at(std::int64_t space, std::int64_t x, std::int64_t y,
-                 const surface::RegionFit& fit,
+                 const RegionFit& fit,
                  std::int64_t rows_above) noexcept {
     // The press is read in the unit of the medium that said it: a window's pixel, a terminal's
     // cell -- the unit text set in cells was drawn from.
     surface::CanvasPoint at;
-    std::int64_t grain = surface::kCanvasCellPx;
+    std::int64_t grain = graphics::kCellPx;
     if (space == input::space::kPixels) {
         at = surface::canvas_px_of_window_pixels(x, y);
         grain = 1;
@@ -340,8 +340,8 @@ ProseAt prose_at(std::int64_t space, std::int64_t x, std::int64_t y,
     } else {
         return ProseAt{};
     }
-    return ProseAt{true, surface::prose_column_of_pixel(at.x, fit, grain),
-                   surface::prose_row_of_pixel(at.y, fit, grain)};
+    return ProseAt{true, prose_column_of_pixel(at.x, fit, grain),
+                   prose_row_of_pixel(at.y, fit, grain)};
 }
 
 // ---- A bounded list: what it shows, and what it must say it cannot ---------------------------

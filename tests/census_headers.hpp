@@ -28,7 +28,7 @@
 #include "editor/source-transfer/vocabulary.hpp"
 #include "settings/theme_persist.hpp"
 #include "settings/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
+#include "graphics/vocabulary.hpp"
 #include "timer/vocabulary.hpp"
 #include "ui/vocabulary.hpp"
 #include "view/view-builder/vocabulary.hpp"
@@ -289,7 +289,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::settings::ThemeProvenanceEntry>(), // ThemeProvenanceEntry v1
         shape<::zengine::settings::ThemeProvenanceShown>(), // ThemeProvenanceShown v1
         // Declared by the SDL skin alone, which a build without SDL has no manifest of.
-        shape<::zengine::surface::SurfaceCloseRequested>(), // SurfaceCloseRequested v1
+        shape<zengine::graphics::SurfaceCloseRequested>(), // SurfaceCloseRequested v1
     };
 }
 

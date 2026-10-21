@@ -433,7 +433,7 @@ public:
                 text += "  +" + std::to_string(strip.dropped) + " in menu";
             }
             const std::int64_t row = next_row();
-            if (!push(surface::SurfaceTextRow{fit_row(text), surface::role::kFill})) {
+            if (!push(surface::SurfaceTextRow{fit_row(text), graphics::role::kFill})) {
                 return;
             }
             const std::int64_t solid = component::solid_columns(
@@ -459,7 +459,7 @@ public:
             if (omitted > 0) {
                 (void)push(surface::SurfaceTextRow{
                     fit_row("  " + pane_text::omitted_text(omitted, which)),
-                    surface::role::kMuted});
+                    graphics::role::kMuted});
                 ++asked;
             }
         };
@@ -729,7 +729,7 @@ public:
             graphics::Sketch sketch;
             // THE ROOM'S GROUND FIRST, all of it, so nothing behind the area shows through.
             sketch.fill_rect("room", 0, 0, window_.width(), window_.height(),
-                             graphics::by_role(surface::role::kGround));
+                             graphics::by_role(graphics::role::kGround));
             self.picture(sketch);
             window_actions_.clear();
             for (const graphics::ElementRecord& record : sketch.records()) {

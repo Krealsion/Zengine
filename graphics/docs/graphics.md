@@ -99,9 +99,11 @@ and the `action` a press anywhere in it asks of the area's owner.
 | `image` | a box and pixels, four bytes each | a luminance ramp, one glyph a cell | its pixels, scaled into its box |
 
 Coordinates are the area's pixels; a terminal floors each edge to its cell of
-<!-- value kCellPx -->12<!-- /value --> pixels. A colour is a `Paint`: a theme role (`graphics/role.hpp`),
-or an exact `0xRRGGBB` beside the role a medium without colour shows it as. An operator a skin does
-not know is painted as its name, muted, never silently dropped.
+<!-- value kCellPx -->12<!-- /value --> pixels. `graphics/pixels.hpp` is the arithmetic on both:
+sums and floors that cannot overflow, a pixel in a medium's device unit, and the grain a hit test
+floors by. A colour is a `Paint`: a theme role (`graphics/role.hpp`), or an exact `0xRRGGBB` beside
+the role a medium without colour shows it as. An operator a skin does not know is painted as its
+name, muted, never silently dropped.
 
 ## Drawing: a canvas, and one showing a beat
 

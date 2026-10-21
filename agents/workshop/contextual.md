@@ -112,7 +112,7 @@ front" "every pane a weaver can point at can be arranged, and the refusals are b
 `workshop/screen_attention.cpp` context_bounds context_entry_text
 `workshop/screen_pane_state.cpp` popup_bounds_at
 `workshop/screen.hpp` kContextMaxCols chrome_outer_of
-`surface/region.hpp` region_px_for
+`workshop/pane_text_fit.hpp` region_px_for
 `tests/test_workshop_screen.cpp` "the popup opens at the press's own cell, and its extent is its
 content" "the popup shifts to stay usable inside the room, at every boundary" "the keyboard entrance
 has no pointer and invents none" "entering a group stays at the anchor, and the popup resizes to it"

@@ -80,14 +80,13 @@ kMaxAppActionRows               workshop/keymap.hpp                       kMaxAp
 kMaxPaneActionRows              workshop/keymap.hpp                       kMaxPaneActionRows
 
 # ---- the surface and input
-kCanvasCellPx                   surface/vocabulary.hpp                    kCanvasCellPx
 kNoCaret                        surface/vocabulary.hpp                    kNoCaret
 kNoSelection                    surface/vocabulary.hpp                    kNoSelection
-kCellGrainPx                    surface/pointing.hpp                      kCellGrainPx
-kPixelGrainPx                   surface/pointing.hpp                      kPixelGrainPx
+kCellGrainPx                    graphics/pixels.hpp                       kCellGrainPx
+kPixelGrainPx                   graphics/pixels.hpp                       kPixelGrainPx
 kTuiCanvasTopRow                surface/pointing.hpp                      kTuiCanvasTopRow
 kTuiReservedRows                surface/skin_tui.hpp                      kTuiReservedRows
-kTextInsetPx                    surface/region.hpp                        kTextInsetPx
+kTextInsetPx                    workshop/pane_text_fit.hpp                kTextInsetPx
 kMaxScancode                    input/vocabulary.hpp                      kMaxScancode
 kMaxHeldKeys                    input/vocabulary.hpp                      kMaxHeldKeys
 kRootContext                    ui/vocabulary.hpp                         kRootContext

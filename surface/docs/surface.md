@@ -8,7 +8,8 @@ face, this is what you publish; what the Skin holding `zengine.skin` does with e
 Source: [`surface/vocabulary.hpp`](../vocabulary.hpp) ·
 [`surface/region.hpp`](../region.hpp) ·
 [`surface/skin_tui.hpp`](../skin_tui.hpp) ·
-[`surface/terminal_size.hpp`](../terminal_size.hpp).
+[`workshop/pane_text_fit.hpp`](../../workshop/pane_text_fit.hpp) ·
+[`graphics/pixels.hpp`](../../graphics/pixels.hpp).
 
 Visual intent in, output out. No game, world, or pane weave talks to the terminal, a window,
 or a renderer: they **publish** intent, and a **Skin** — a replaceable loadable weave holding
@@ -28,7 +29,7 @@ regions over those. Each
 element carries a semantic **role** — `kFill`/`kAccent`/`kMuted`/`kAlert`/`kGround`/`kMediumGround`/`kGuide` — never a colour, so
 the terminal media pick an SGR *and a glyph* per role (colour alone would be a lie on a
 monochrome terminal) while the SDL medium picks RGB, from one unchanged publisher. Every
-coordinate and extent is a whole **canvas pixel**, `kCanvasCellPx` (<!-- value kCanvasCellPx -->12<!-- /value -->) to a cell: the window
+coordinate and extent is a whole **canvas pixel**, `kCellPx` (<!-- value kCellPx -->12<!-- /value -->) to a cell: the window
 draws the picture 1:1, and a terminal — whose coarsest address is a cell — floors it to the cells
 it covers, so one picture lands somewhere real in every medium. It is a *drawing* vocabulary and pointedly not a layout one — no parent/child, no
 anchors, no percentages; whoever publishes has already decided where things go.
@@ -67,7 +68,7 @@ across an authored object is a `kGroundBeneath` region; and `SurfaceLabel` stays
 where the cell itself is the unit — one affordance glyph over the ring that fills it, chrome
 sharing a row with another publisher's sentence. None of the three is deprecated and none is a
 fallback for the others. One arithmetic decides the rest for you: a canvas cell is
-`kCanvasCellPx` and this repository's face has an 18-pixel line, so `fit_region` answers *zero*
+`kCellPx` and this repository's face has an 18-pixel line, so `fit_region` answers *zero*
 rows for a region one cell tall and hands it back to the cell projection — a single-row label
 published as a single-cell region is the same picture it always was.
 
@@ -146,10 +147,10 @@ focus, and two regions may each carry one), and not blinking — there is no clo
 and `sel_end_row`/`sel_end_col` are two caret-like positions — begin inclusive, end exclusive,
 in **reading order** — and the text between them is what a weaver's next gesture acts on. On the
 begin row the range covers from `sel_begin_col` to that row's own end, every row between whole,
-and the end row up to `sel_end_col`; `surface/region.hpp` owns that per-row arithmetic in one
-function (`selection_span_of_row`) both media consume, so the highlight cannot cover different
-characters in different media. Each medium then answers in its own voice: the character medium
-sets exactly the selected cells in **reverse video** (composing with whatever ink and ground
+and the end row up to `sel_end_col`; `workshop/pane_text_fit.hpp` owns that per-row arithmetic
+in one function (`selection_span_of_row`) both media consume, so the highlight cannot cover
+different characters in different media. Each medium then answers in its own voice: the character
+medium sets exactly the selected cells in **reverse video** (composing with whatever ink and ground
 they already wear — and a `\x1b[0m` reset restores it, so the goldens of a selection-free canvas
 are byte-identical), and the graphical medium fills a **band** under the glyphs
 (`kSelectionBand`, resolved per row from the same `RegionFit` that placed the text; the bitmap
@@ -176,7 +177,7 @@ cell tall** holds `(12 - 2*inset) / 18` = zero rows of it. Without the fallback 
 resolves to a graphical fit with no capacity and both media then draw **nothing**:
 `plan_text_regions` skips a fit with no rows, and `plan_canvas` has already decided the
 regions were the other list's. A bounded region that silently vanishes is the one answer
-`region.hpp` exists to make impossible, so `fit_region` falls back — and because the publisher
+`fit_region` exists to make impossible, so it falls back — and because the publisher
 asks the same function for its capacity, the publisher, the window and the terminal all get
 one answer. The split between the two draw lists is the predicate
 `fit_region(r, metric).graphical()` rather than a test on the metric alone, so they remain
@@ -197,7 +198,7 @@ publishing zeroes: "I have no opinion" and "there is no room" are different sent
 which is the contract `SurfaceCanvas` already states.
 
 How big a terminal is, the one question here put to an operating system, is the terminal window's
-(`graphics/window/terminal_io.hpp`), which `surface/terminal_size.hpp` spells for Surface:
+(`graphics/window/terminal_io.hpp`):
 `ioctl(TIOCGWINSZ)` on POSIX, `GetConsoleScreenBufferInfo`'s
 **visible window** on Windows (never `dwSize`, which is the 9,001-row scrollback buffer). A
 redirected, piped or captured run has no terminal at the far end, and measures nothing.

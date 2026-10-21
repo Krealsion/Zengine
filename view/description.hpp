@@ -8,8 +8,8 @@
 // resolved geometry, and its saved bytes are `zengine.view.Description`, refused by version
 // number before a field is read. Law: agents/view.md. Reference: view/docs/view.md.
 
+#include "graphics/vocabulary.hpp"
 #include "maker/files.hpp"
-#include "surface/vocabulary.hpp"
 
 #include <zen/gate.hpp>
 #include <zen/kernel/schema_codec.hpp>
@@ -45,7 +45,7 @@ inline constexpr std::size_t kMaxIdBytes = 32;
 inline constexpr std::size_t kMaxLabelBytes = 64;
 /// The longest text a number field holds.
 inline constexpr std::size_t kMaxFieldTextBytes = 32;
-/// A place or a size in whole pixels, `surface::kCanvasCellPx` to a cell, at most this.
+/// A place or a size in whole pixels, `graphics::kCellPx` to a cell, at most this.
 inline constexpr std::int64_t kMaxPixels = 8192;
 /// A view's own size in whole pixels: at least room for a few columns and a notice row, and at
 /// most as far as any element may reach, so every element a place allows fits in some size.
@@ -171,7 +171,7 @@ inline std::pair<std::int64_t, std::int64_t> fitting_size(const Description& d) 
         right = std::max(right, e.x + e.w);
         bottom = std::max(bottom, e.y + e.h);
     }
-    const auto cell = surface::kCanvasCellPx;
+    const auto cell = graphics::kCellPx;
     const auto cells = [&](std::int64_t px) { return (px + cell - 1) / cell; };
     const auto columns = std::clamp<std::int64_t>(cells(right) + 2, 40, 200);
     const auto rows = std::clamp<std::int64_t>(cells(bottom) + static_cast<std::int64_t>(kNoticeRows) + 1, 4, 60);

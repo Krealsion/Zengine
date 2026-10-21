@@ -487,10 +487,10 @@ loom::Grant grant_for(const GuestRow& row) {
                  {std::string(surface::kSkinRole),
                   std::string(graphics::kWindowOfficePrefix) + graphics::kTerminalWindow,
                   std::string(graphics::kWindowOfficePrefix) + graphics::kSdlWindow}) {
-                g.allow_to_role(surface::SurfaceCaptureRequested::zen_name,
-                                surface::SurfaceCaptureRequested::zen_version, medium);
-                g.allow_to_role(surface::SurfaceCaptureChunkRequested::zen_name,
-                                surface::SurfaceCaptureChunkRequested::zen_version, medium);
+                g.allow_to_role(graphics::SurfaceCaptureRequested::zen_name,
+                                graphics::SurfaceCaptureRequested::zen_version, medium);
+                g.allow_to_role(graphics::SurfaceCaptureChunkRequested::zen_name,
+                                graphics::SurfaceCaptureChunkRequested::zen_version, medium);
             }
         } else if (power == kPowerInspect) {
             g.allow_to_any(loom::DescribeAccepted::zen_name, loom::DescribeAccepted::zen_version);
@@ -779,7 +779,7 @@ loom::observe::ObservePolicy observation_of(
                     ": it says when the desk's words or its picture moved, which a row follows "
                     "only with `capture`");
             }
-            if (asked.name == surface::ClipboardCopy::zen_name) {
+            if (asked.name == graphics::ClipboardCopy::zen_name) {
                 return loom::observe::ObserveVerdict::refuse(
                     "guest '" + row->name + "' may not observe " + asked.name + " v" +
                     std::to_string(asked.version) + " from " + r.producer +

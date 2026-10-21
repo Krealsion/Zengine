@@ -567,8 +567,8 @@ bool WorkshopWeave::drop_on_canvas(const RuntimePane& pane, const ExternalPane& 
         return true;
     }
     const auto correlation = ++gesture_asks_;
-    const std::int64_t x = surface::sub_px(point.px.x, at.body.x);
-    const std::int64_t y = surface::sub_px(point.px.y, at.body.y);
+    const std::int64_t x = graphics::sub_px(point.px.x, at.body.x);
+    const std::int64_t y = graphics::sub_px(point.px.y, at.body.y);
     const auto sent = !value
         ? mail.as_role(kWorkshopProvider).send_to_role(pane.provider,
               PaneCanvasDrop{pane.pane, at.grant, at.picture, x, y, carried_.data}, correlation)

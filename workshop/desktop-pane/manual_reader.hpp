@@ -10,6 +10,7 @@
 // reading the words. Pure, so the Manual pane composes from it and a case reads it alone.
 // Workshop law: agents/workshop/desktop-presenting.md
 
+#include "graphics/role.hpp"
 #include "manual/manual.hpp"
 #include "surface/vocabulary.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
@@ -264,7 +265,7 @@ inline std::vector<surface::SurfaceTextRow> manual_lines(const ws::PaneDocumentS
         for (const std::string& paragraph : paragraphs(text)) {
             const bool item = paragraph.rfind("- ", 0) == 0 || paragraph.rfind("* ", 0) == 0;
             if (!first && !(item && last_item)) {
-                line(std::string(), surface::role::kFill);
+                line(std::string(), graphics::role::kFill);
             }
             first = false;
             last_item = item;
@@ -281,11 +282,11 @@ inline std::vector<surface::SurfaceTextRow> manual_lines(const ws::PaneDocumentS
             continue;
         }
         if (!rows.empty()) {
-            line(std::string(), surface::role::kFill);
+            line(std::string(), graphics::role::kFill);
         }
         if (s.group != group) {
             group = s.group;
-            line(group, surface::role::kAccent);
+            line(group, graphics::role::kAccent);
         }
         if (command && s.key != group_key(s.group)) {
             // The default a command's own marker writes is its heading's too, for a command that is
@@ -297,9 +298,9 @@ inline std::vector<surface::SurfaceTextRow> manual_lines(const ws::PaneDocumentS
                     break;
                 }
             }
-            line(s.key + " -- " + keys_of(keymap, s.key, written), surface::role::kAccent);
+            line(s.key + " -- " + keys_of(keymap, s.key, written), graphics::role::kAccent);
         }
-        words(with_keys(s, keymap), surface::role::kFill);
+        words(with_keys(s, keymap), graphics::role::kFill);
     }
     return rows;
 }

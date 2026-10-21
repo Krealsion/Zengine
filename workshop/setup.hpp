@@ -7,7 +7,6 @@
 // What a weaver calls the arrangement they are working in, and what that may mean.
 // Workshop law: agents/workshop/setup-file.md (+8 registers; agents/workshop.md routes)
 
-#include "surface/vocabulary.hpp" // `kCanvasCellPx` -- the cell an authored minimum is one of
 #include "pane_settings.hpp"
 #include "panes.hpp"
 #include "property.hpp"
@@ -84,10 +83,14 @@ inline constexpr std::int64_t kPixels = 2;
 inline constexpr std::int64_t kRightColumn = 3;
 } // namespace pane_unit
 
+/// A cell as a setup or a session file counts it, in pixels: the files' own number, which no
+/// medium's cell changes.
+inline constexpr std::int64_t kSavedCellPx = 12;
+
 /// THE SMALLEST AUTHORED EXTENT, in canvas pixels: one cell, the bound the setup law has always
 /// enforced.
 // WL-GEO-06 -- agents/workshop/geometry.md
-inline constexpr std::int64_t kPanePxMin = ui::kMinCells * surface::kCanvasCellPx;
+inline constexpr std::int64_t kPanePxMin = ui::kMinCells * kSavedCellPx;
 
 /// WHERE A WEAVER PUT A PANE -- one fact, both coordinates.
 // WL-PANE-11 -- agents/workshop/panes-and-windows.md; WL-SETUP-03 -- agents/workshop/setup-file.md

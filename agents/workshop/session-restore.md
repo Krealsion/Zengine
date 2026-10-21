@@ -122,7 +122,7 @@ and the room, and nothing runtime"
 ### WL-SESSION-08
 `workshop/weave.hpp` SurfacePlacementRemembered SurfacePlacement
 `workshop/weave_handlers.cpp` on(SurfacePlacement)
-`surface/vocabulary.hpp` SurfacePlacement SurfacePlacementRemembered
+`graphics/vocabulary.hpp` SurfacePlacement SurfacePlacementRemembered
 `surface/skin_sdl_plan.hpp` placement_within
 `workshop/session_persist.hpp` kPlacementNone WorkshopPlacement Placement
 `workshop/screen.hpp` Session::placement_known Session::place_x Session::place_y

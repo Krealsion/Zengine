@@ -37,6 +37,7 @@ an element the window presents from the owner's data (`element_export.hpp`).
 |---|---|
 | `vocabulary.hpp` | the messages: the node, the element record, drawing, elements, the directory, a window's report |
 | `role.hpp` | the theme's roles: what a colour means, in every medium |
+| `pixels.hpp` | arithmetic on pixels and cells that cannot overflow, a pixel in a medium's device unit, and the grain a hit test floors by |
 | `ops.hpp` | the seven operators and their operands, and a `Paint` |
 | `implied.hpp` | a value's body without its envelope, where an operator or a type implies its shape |
 | `canvas.hpp` | what an owner draws with: a `Sketch`, a `Canvas`, `difference` |

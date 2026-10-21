@@ -362,7 +362,7 @@ TEST_CASE("the surface says how much room it has, and Workshop paints that much"
     // genuinely bigger, in cells -- and nothing is painted over it where no pane stands.
     CHECK(cells_of(sc).room_w == 100);
     CHECK(cells_of(sc).room_h == 27);
-    CHECK_FALSE(has_rect(c, kRoomCellX, kRoomCellY, 100, 27, surface::role::kMuted));
+    CHECK_FALSE(has_rect(c, kRoomCellX, kRoomCellY, 100, 27, gfx::role::kMuted));
     // The workspace fact lives in the band's own row, and it moved with the extent: what a
     // share resolves against is said where the tool speaks. It is the whole surface, so the
     // room runs under the pane rather than stopping short of the edge.
@@ -402,7 +402,7 @@ TEST_CASE("a run no medium measures is exactly the run Workshop had before") {
     CHECK(cells_of(screen_of(s)).w == 78);
     CHECK(cells_of(screen_of(s)).h == 22);
     CHECK(cells_of(screen_of(s)).room_h == 16);
-    CHECK_FALSE(has_rect(c, kRoomCellX, kRoomCellY, 78, 16, surface::role::kMuted));
+    CHECK_FALSE(has_rect(c, kRoomCellX, kRoomCellY, 78, 16, gfx::role::kMuted));
     // THE COMPOSITION, 78 by 22 -- the workspace at its full extent, the bands where they
     // belong -- with no objects column: a default `Session` opens what `kDefaultPanes` names,
     // and a run with no medium has no load plan. The two help rows hold what the keymap
@@ -508,7 +508,7 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKin
     const ui::Rect inside = pane_body_cells(stack);
     std::size_t stacked_rows = 0;
     for (const surface::SurfaceLabel& l : cell_text_of(with)) {
-        const std::int64_t lx = surface::cell_of_pixel(l.x), ly = surface::cell_of_pixel(l.y);
+        const std::int64_t lx = gfx::cell_of_pixel(l.x), ly = gfx::cell_of_pixel(l.y);
         if (lx == inside.x && ly >= inside.y && ly < inside.y + inside.h) {
             // Every stacked row is padded to the pane's own INTERIOR width, so in a
             // character medium the spaces erase the workspace under it rather
@@ -614,7 +614,7 @@ TEST_CASE("each pane is painted where the placement path says it is") {
     // than a constant.
     std::size_t seen_stack = 0;
     for (const surface::SurfaceLabel& l : cell_text_of(c)) {
-        const std::int64_t lx = surface::cell_of_pixel(l.x), ly = surface::cell_of_pixel(l.y);
+        const std::int64_t lx = gfx::cell_of_pixel(l.x), ly = gfx::cell_of_pixel(l.y);
         if (lx == builder_cells.x && ly >= builder_cells.y &&
             ly < builder_cells.y + builder_cells.h) {
             CHECK(l.text.size() == static_cast<std::size_t>(builder_cells.w));
@@ -896,7 +896,7 @@ TEST_CASE("the terminal's own size becomes Workshop's screen, growing and shrink
         CAPTURE(want.rows);
         const std::size_t before = t.canvases.size();
         t.publish(loom::to_value(
-            surface::tui_canvas_extent(surface::TerminalSize{want.cols, want.rows})));
+            surface::tui_canvas_extent(gfx::window::TerminalSize{want.cols, want.rows})));
         REQUIRE(t.canvases.size() > before);
 
         CHECK(t.session().screen_w == cells_px(want.screen_w));
@@ -917,9 +917,9 @@ TEST_CASE("the terminal's own size becomes Workshop's screen, growing and shrink
         // NO ROW PAINTS OUTSIDE ITS BOUNDS: the rasterized picture is exactly as many rows as
         // the canvas claims, each exactly as wide.
         const std::vector<std::string> rows = rasterized(c);
-        REQUIRE(rows.size() == static_cast<std::size_t>(surface::cell_of_pixel(c.height)));
+        REQUIRE(rows.size() == static_cast<std::size_t>(gfx::cell_of_pixel(c.height)));
         for (const std::string& row : rows) {
-            CHECK(row.size() == static_cast<std::size_t>(surface::cell_of_pixel(c.width)));
+            CHECK(row.size() == static_cast<std::size_t>(gfx::cell_of_pixel(c.width)));
         }
 
         // AND THE SAME EXTENT AGAIN IS NOT A REPAINT. The skin already guards its publishing;
@@ -927,17 +927,17 @@ TEST_CASE("the terminal's own size becomes Workshop's screen, growing and shrink
         // see one screen rather than a flicker.
         const std::size_t settled = t.canvases.size();
         t.publish(loom::to_value(
-            surface::tui_canvas_extent(surface::TerminalSize{want.cols, want.rows})));
+            surface::tui_canvas_extent(gfx::window::TerminalSize{want.cols, want.rows})));
         CHECK(t.canvases.size() == settled);
     }
 
     // GROWING AND SHRINKING ARE ONE MECHANISM, walked as a hand on an edge would walk it.
     for (std::int64_t rows = 30; rows <= 44; ++rows) {
-        t.publish(loom::to_value(surface::tui_canvas_extent(surface::TerminalSize{100, rows})));
+        t.publish(loom::to_value(surface::tui_canvas_extent(gfx::window::TerminalSize{100, rows})));
         CHECK(t.session().screen_h == cells_px(rows - surface::kTuiReservedRows));
     }
     for (std::int64_t rows = 44; rows >= 30; --rows) {
-        t.publish(loom::to_value(surface::tui_canvas_extent(surface::TerminalSize{100, rows})));
+        t.publish(loom::to_value(surface::tui_canvas_extent(gfx::window::TerminalSize{100, rows})));
         CHECK(t.session().screen_h == cells_px(rows - surface::kTuiReservedRows));
     }
 }
@@ -948,7 +948,7 @@ TEST_CASE("a terminal below the composition's minimum is published, not fictiona
     // a weaver sees the documented consequence of a stated minimum meeting a surface below it.
     Live t;
     const surface::SurfaceExtent small =
-        surface::tui_canvas_extent(surface::TerminalSize{60, 15});
+        surface::tui_canvas_extent(gfx::window::TerminalSize{60, 15});
 
     // THE MEASUREMENT IS THE TRUTH AND IT IS SMALL. 15 rows less the layout's three is 12,
     // and the medium says twelve rather than rounding up to a number that would fit.
@@ -967,9 +967,9 @@ TEST_CASE("a terminal below the composition's minimum is published, not fictiona
     // to the one screen, so a weaver dragging an edge around inside that region sees no
     // flicker, and Workshop never paints a size no medium reported.
     const std::size_t settled = t.canvases.size();
-    for (const surface::TerminalSize& tiny :
-         {surface::TerminalSize{40, 10}, surface::TerminalSize{78, 24},
-          surface::TerminalSize{20, 5}}) {
+    for (const gfx::window::TerminalSize& tiny :
+         {gfx::window::TerminalSize{40, 10}, gfx::window::TerminalSize{78, 24},
+          gfx::window::TerminalSize{20, 5}}) {
         t.publish(loom::to_value(surface::tui_canvas_extent(tiny)));
     }
     CHECK(t.canvases.size() == settled);
@@ -978,8 +978,8 @@ TEST_CASE("a terminal below the composition's minimum is published, not fictiona
     // A TERMINAL WITH NO ROOM AT ALL SAYS NOTHING, and nothing is exactly what a publisher
     // should hear: `{0,0}` off the bus is refused by `adopt_screen` for the same reason the
     // medium never publishes it -- "there is no room" is a sentence nobody may say.
-    CHECK(surface::tui_canvas_extent(surface::TerminalSize{120, 2}).height == 0);
-    t.publish(loom::to_value(surface::tui_canvas_extent(surface::TerminalSize{120, 2})));
+    CHECK(surface::tui_canvas_extent(gfx::window::TerminalSize{120, 2}).height == 0);
+    t.publish(loom::to_value(surface::tui_canvas_extent(gfx::window::TerminalSize{120, 2})));
     CHECK(t.canvases.size() == settled);
     CHECK(t.session().screen_w == kScreenMinW);
 }
@@ -1001,7 +1001,7 @@ TEST_CASE("Workshop puts nothing on the attention slot, healthy or not: what is 
 
     // A WALL: true, said across the seam, the glance a presenter leads with...
     live(t).conditions.establish(Condition{"test.wall", "a wall", "why it is a wall",
-                                           surface::role::kAlert, std::string()});
+                                           gfx::role::kAlert, std::string()});
     t.key(input::scan::kDown);
     CHECK(t.glance() == "a wall");
     // ...AND STILL NOTHING ON THE SLOT: no Skin is handed it to draw outside the panes.
@@ -1022,7 +1022,7 @@ TEST_CASE("an unavailable tool is named by its artifact on the host's own condit
     CHECK(gone.key == "load.unavailable/zengine-desktop-pane");
     CHECK(gone.compact == "zengine-desktop-pane is not in this Workshop");
     CHECK(gone.detail == said); // the refusing layer's own sentence, whole
-    CHECK(gone.role == surface::role::kAlert);
+    CHECK(gone.role == gfx::role::kAlert);
     CHECK(gone.action == "build its artifact, then launch again");
 
     // ...SAID ACROSS THE SEAM, in the host's own order: the glance a presenter leads with names the
@@ -1118,13 +1118,13 @@ TEST_CASE("a held condition stands until its owner retracts it") {
     CHECK(attention_conditions(s).empty());
 
     s.conditions.establish(Condition{"test.wall", "a wall", "why it is a wall",
-                                     surface::role::kAlert, std::string()});
+                                     gfx::role::kAlert, std::string()});
     REQUIRE(attention_conditions(s).size() == 1);
     CHECK(attention_glance(standing_conditions(s, {})) == "a wall");
 
     // AN UPDATE UNDER THE SAME KEY IS ONE CONDITION, not a second row.
     s.conditions.establish(Condition{"test.wall", "the same wall", "a better reason",
-                                     surface::role::kAlert, std::string()});
+                                     gfx::role::kAlert, std::string()});
     REQUIRE(attention_conditions(s).size() == 1);
     CHECK(attention_conditions(s).front().detail == "a better reason");
 
@@ -1160,7 +1160,7 @@ TEST_CASE("a derived condition enters and leaves attention with its subject") {
     CHECK(off.front().compact.find(ref_text(builder)) != std::string::npos);
     // THE REMEDY IS `pane_state`'S OWN COLUMN, said where a weaver can read it.
     CHECK(off.front().detail == std::string(pane_state_remedy(pane_state::kOffRoom)));
-    CHECK(off.front().role == surface::role::kAccent); // actionable, not an error
+    CHECK(off.front().role == gfx::role::kAccent); // actionable, not an error
     CHECK(off.front().action == "workshop.manage");
 
     // ...AND IT IS GONE THE MOMENT THE PLACE IS RESET. No retract call exists on this
@@ -1225,7 +1225,7 @@ TEST_CASE("the project frontier is a condition while it waits and nothing after"
         CHECK(waiting->compact.find("zengine-thing") != std::string::npos);
         CHECK(waiting->detail.find("2 authored rows behind it") != std::string::npos);
         // WAITING IS NOT A FAILURE, and the role says so.
-        CHECK(waiting->role == surface::role::kAccent);
+        CHECK(waiting->role == gfx::role::kAccent);
         CHECK(waiting->action == "builder.frontier");
     }
     CHECK(t.glance().find("project waiting") != std::string::npos);
@@ -1275,7 +1275,7 @@ TEST_CASE("an alert condition opens nothing") {
     const std::vector<Condition> now = t.conditions();
     const Condition* wall = condition_by_key(now, kPrefsWallKey);
     REQUIRE(wall != nullptr);
-    REQUIRE(wall->role == surface::role::kAlert);
+    REQUIRE(wall->role == gfx::role::kAlert);
 
     for (int beat = 0; beat < 4; ++beat) {
         t.publish(loom::to_value(surface::SurfaceReady{}));
@@ -1345,7 +1345,7 @@ TEST_CASE("a condition names an action and what crosses is the weaver's own gest
     Keyed t(path);
     Session& s = const_cast<Session&>(t.session());
     s.conditions.establish(Condition{"test.thing", "a thing", "why it is a thing",
-                                     surface::role::kAlert, "workshop.manage"});
+                                     gfx::role::kAlert, "workshop.manage"});
     t.publish(loom::to_value(surface::SurfaceReady{}));
 
     // THE SENTENCE THAT CROSSES CARRIES THE WEAVER'S GESTURE, not the default: one truth,
@@ -1369,11 +1369,11 @@ TEST_CASE("the glance is ranked by truth, and says how many it is not saying") {
     Session s;
     // Established in the OPPOSITE order to the one they rank in, so a projection that
     // ordered by arrival would pick the wrong winner.
-    s.conditions.establish(Condition{"b.quiet", "a quiet thing", "why", surface::role::kAccent,
+    s.conditions.establish(Condition{"b.quiet", "a quiet thing", "why", gfx::role::kAccent,
                                      std::string()});
     s.conditions.establish(Condition{"a.quiet", "another quiet thing", "why",
-                                     surface::role::kAccent, std::string()});
-    s.conditions.establish(Condition{"z.loud", "a loud thing", "why", surface::role::kAlert,
+                                     gfx::role::kAccent, std::string()});
+    s.conditions.establish(Condition{"z.loud", "a loud thing", "why", gfx::role::kAlert,
                                      std::string()});
     const std::vector<Condition> shown = attention_conditions(s);
     REQUIRE(shown.size() == 3);
@@ -1389,9 +1389,9 @@ TEST_CASE("the glance is ranked by truth, and says how many it is not saying") {
     CHECK(attention_glance(standing_conditions(s, {})) == "a loud thing");
 
     // AND RANKING IS TOTAL OVER A ROLE THIS VOCABULARY DOES NOT HAVE YET.
-    CHECK(attention_rank(surface::role::kAlert) < attention_rank(surface::role::kAccent));
-    CHECK(attention_rank(surface::role::kAccent) < attention_rank(surface::role::kFill));
-    CHECK(attention_rank(surface::role::kFill) < attention_rank(9999));
+    CHECK(attention_rank(gfx::role::kAlert) < attention_rank(gfx::role::kAccent));
+    CHECK(attention_rank(gfx::role::kAccent) < attention_rank(gfx::role::kFill));
+    CHECK(attention_rank(gfx::role::kFill) < attention_rank(9999));
 }
 
 TEST_CASE("what is true is said across the seam, in the host's own order and words") {
@@ -1402,9 +1402,9 @@ TEST_CASE("what is true is said across the seam, in the host's own order and wor
     Live t;
     Session& s = const_cast<Session&>(t.session());
     s.conditions.establish(Condition{"b.quiet", "a quiet thing", "why it is quiet",
-                                     surface::role::kAccent, std::string()});
+                                     gfx::role::kAccent, std::string()});
     s.conditions.establish(Condition{"z.loud", "a loud thing", "why it is loud",
-                                     surface::role::kAlert, "workshop.manage"});
+                                     gfx::role::kAlert, "workshop.manage"});
     t.publish(loom::to_value(surface::SurfaceReady{}));
     REQUIRE_FALSE(t.said_conditions.empty());
     const StandingConditions& said = t.said_conditions.back();
@@ -1417,7 +1417,7 @@ TEST_CASE("what is true is said across the seam, in the host's own order and wor
     CHECK(said.rows[1].key == "b.quiet");
     CHECK(said.rows[0].compact == "a loud thing");
     CHECK(said.rows[0].detail == "why it is loud");
-    CHECK(said.rows[0].role == surface::role::kAlert);
+    CHECK(said.rows[0].role == gfx::role::kAlert);
 
     // ...AND THE ACTION CROSSES AS PROSE, NOT AS A NAME: the pane is handed the sentence,
     // resolved through the keymap in force -- so an id never reaches the far side and nothing
@@ -1447,7 +1447,7 @@ TEST_CASE("nothing new is nothing said, which is what stops the seam looping") {
     // ...AND NEWS IS SAID THE ONCE. One condition arrives, one publication follows it.
     Session& s = const_cast<Session&>(t.session());
     s.conditions.establish(Condition{"test.wall", "a wall", "why it is a wall",
-                                     surface::role::kAlert, std::string()});
+                                     gfx::role::kAlert, std::string()});
     t.key(input::scan::kDown);
     REQUIRE(t.said_conditions.size() == after_first + 1);
     CHECK(t.said_conditions.back().rows.size() == 1);
@@ -1508,7 +1508,7 @@ TEST_CASE("the condition path carries no timer, no callback and no history") {
     // ...and the one package include it has is the ONE vocabulary it spends: no Workshop
     // header, and nothing of the substrate at all. A condition has no wire form, so it
     // cannot be sent, recorded, logged or persisted, and this is where that is enforced.
-    CHECK(text.find("#include \"surface/vocabulary.hpp\"") != std::string::npos);
+    CHECK(text.find("#include \"graphics/role.hpp\"") != std::string::npos);
     CHECK(text.find("#include \"screen.hpp\"") == std::string::npos);
     CHECK(text.find("#include \"panes.hpp\"") == std::string::npos);
     CHECK(text.find("<zen/") == std::string::npos);
@@ -1838,8 +1838,8 @@ TEST_CASE("input spent on the open surface does not leak through it") {
         // without the surface this press would be answered by whatever occupies it, or
         // by the room -- with it open, the press is spent whole on dismissal.
         const PixelRect b = context_bounds(t.session(), screen_of(t.session()));
-        REQUIRE(surface::cell_of_pixel(b.x) >= 2); // the anchored popup sits right of here
-        t.press_canvas(surface::cell_of_pixel(b.x) - 2, surface::cell_of_pixel(b.y));
+        REQUIRE(gfx::cell_of_pixel(b.x) >= 2); // the anchored popup sits right of here
+        t.press_canvas(gfx::cell_of_pixel(b.x) - 2, gfx::cell_of_pixel(b.y));
         CHECK_FALSE(t.menu().open);
         CHECK(t.session().panes.selected == selected_before); // nothing was selected
         CHECK_FALSE(t.session().pane_drag.active);             // nothing was taken hold of
@@ -1850,7 +1850,7 @@ TEST_CASE("input spent on the open surface does not leak through it") {
         // The heading row: inside the rectangle, on no population row.
         t.press_canvas(
             context_cell_x(t.session()),
-            surface::cell_of_pixel(context_bounds(t.session(), screen_of(t.session())).y));
+            gfx::cell_of_pixel(context_bounds(t.session(), screen_of(t.session())).y));
         CHECK(t.menu().open); // not a dismissal
         CHECK(t.notice() == notice_before);
     }
@@ -2041,7 +2041,7 @@ TEST_CASE("a switch returns membership, geometry and front order as authored") {
     pick(t, second::kKind);
     REQUIRE(t.session().panes.has(second::kKind));
     REQUIRE(author_pane_place(live(t).setup.active, second_ref(),
-                              surface::px_of_cells(3), surface::px_of_cells(4))
+                              gfx::px_of_cells(3), gfx::px_of_cells(4))
                 .accepted);
     const Setup first = t.session().setup.active;
 
@@ -2049,7 +2049,7 @@ TEST_CASE("a switch returns membership, geometry and front order as authored") {
     // LAYOUT TWO: a different membership, a different place, a different front order.
     open_stock_pane(t);
     REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind),
-                              surface::px_of_cells(9), surface::px_of_cells(2))
+                              gfx::px_of_cells(9), gfx::px_of_cells(2))
                 .accepted);
     REQUIRE(send_to_back(live(t).setup.active, ref_of(stock::kKind)));
     const Setup second = t.session().setup.active;
@@ -2639,7 +2639,7 @@ TEST_CASE("a typed place moves Layouts through the gesture door, and its tabs fo
     // ...AND SO DID THE TABS: the run's body is at the new row, and the press inverse
     // answers there and not at the old one.
     CHECK(layouts_body(t.session(), sc).region_y == sc.room_y + cells_px(20));
-    const std::int64_t room_row = surface::cell_of_pixel(sc.room_y);
+    const std::int64_t room_row = gfx::cell_of_pixel(sc.room_y);
     CHECK(band_tab_at(t.session(), sc, input::space::kCells, 2,
                       room_row + 20 + surface::kTuiCanvasTopRow)
               .hit);
@@ -2757,7 +2757,7 @@ TEST_CASE("looking never authors") {
     CHECK(subject_value(t.session(), "X") == "-");
     CHECK(t.session().setup.active == born);
     // THE FACE CHANGES: the same value, spelled in pixels, and nothing written.
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(60), 8, 18, surface::kCanvasCellPx}));
+    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(60), 8, 18, gfx::kCellPx}));
     // ...where the top band is as tall as the face's two rows of type in their boundary.
     CHECK(subject_value(t.session(), "Window") == "@0,-42 1920x42 px");
     CHECK(subject_value(t.session(), "X") == "-");
@@ -2909,7 +2909,7 @@ TEST_CASE("a typed amount is read and written in the face's own unit") {
     // pixels back; a cell face does the same in cells; a unit the face did not report is
     // refused rather than converted.
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(60), 8, 18, surface::kCanvasCellPx}));
+    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(60), 8, 18, gfx::kCellPx}));
     const PaneRef layouts = ref_of(pane_kind::kLayouts);
     REQUIRE(hand_inspect(t, layouts).accepted);
     CHECK(hand_commit(t, "X", "120").accepted);

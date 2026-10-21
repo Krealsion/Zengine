@@ -142,7 +142,7 @@ and each refuses the others"
 `workshop/weave_handlers.cpp` on(SurfaceCloseRequested)
 `workshop/weave.hpp` HostContext::session_path
 `workshop/persist.hpp` write_file
-`surface/vocabulary.hpp` SurfaceCloseRequested
+`graphics/vocabulary.hpp` SurfaceCloseRequested
 `workshop/session_persist.hpp` save_file
 `tests/test_workshop_panes_editor.cpp` "a guest's quit is answered in the words of what kept
 Workshop open, and Ack once it ends"

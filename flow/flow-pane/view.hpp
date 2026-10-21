@@ -5,17 +5,18 @@
 #include "flow/flow-pane/find.hpp"
 #include "flow/flow-pane/model.hpp"
 #include "flow/flow-pane/vocabulary.hpp"
+#include "graphics/pixels.hpp"
+#include "graphics/role.hpp"
 #include "workshop/pane_canvas_drawing.hpp"
 #include "workshop/pane_canvas_text.hpp"
 #include "workshop/pane_parts.hpp"
-#include "surface/pointing.hpp"
 #include <limits>
 #include <map>
 #include <set>
 
 namespace zengine::flow_pane {
 namespace ws = zengine::workshop;
-namespace ink = zengine::surface::role;
+namespace ink = zengine::graphics::role;
 /// Flow's authored grid: `unit` to one character of the medium's text, the unit its saved node
 /// places and its pan are in. Presentation scales it to the room's pixels (`GridProjection`).
 inline constexpr std::int64_t unit = 48;
@@ -25,8 +26,8 @@ struct Hit {
   std::vector<std::string> args;
   std::int64_t subject = 0;
   bool contains(std::int64_t px, std::int64_t py, std::int64_t grain) const {
-    return zengine::surface::px_span_contains(x, w, px, grain) &&
-           zengine::surface::px_span_contains(y, h, py, grain);
+    return zengine::graphics::px_span_contains(x, w, px, grain) &&
+           zengine::graphics::px_span_contains(y, h, py, grain);
   }
 };
 struct Picture {
@@ -63,7 +64,7 @@ struct GridProjection {
   explicit GridProjection(const ws::PaneCanvasRoom &room) {
     const auto metrics = ws::canvas_text_metrics(room);
     advance = metrics.advance;
-    row = zengine::surface::add_cells(metrics.line, 2 * metrics.inset);
+    row = zengine::graphics::add_cells(metrics.line, 2 * metrics.inset);
     const auto pad = 2 * metrics.inset * unit;
     padding = pad / advance + (pad % advance != 0 ? 1 : 0);
   }
@@ -71,21 +72,21 @@ struct GridProjection {
                              std::int64_t divisor) {
     // Saturation only affects coordinates already far outside an ordinary room.
     // A hostile metric must not turn clipping into signed multiplication overflow.
-    if (value >= 0) return zengine::surface::mul_px(value, factor) / divisor;
+    if (value >= 0) return zengine::graphics::mul_px(value, factor) / divisor;
     const auto magnitude = value == (std::numeric_limits<std::int64_t>::min)()
         ? (std::numeric_limits<std::int64_t>::max)() : -value;
-    return -zengine::surface::mul_px(magnitude, factor) / divisor;
+    return -zengine::graphics::mul_px(magnitude, factor) / divisor;
   }
   std::int64_t x(std::int64_t value) const { return scaled(value, advance, unit); }
   std::int64_t y(std::int64_t value) const { return scaled(value, row, unit); }
   std::int64_t grid_x(std::int64_t value) const { return scaled(value, unit, advance); }
   std::int64_t grid_y(std::int64_t value) const { return scaled(value, unit, row); }
   template <class Box> void map(Box &box) const {
-    const auto right = x(zengine::surface::add_cells(box.x, box.w));
-    const auto bottom = y(zengine::surface::add_cells(box.y, box.h));
+    const auto right = x(zengine::graphics::add_cells(box.x, box.w));
+    const auto bottom = y(zengine::graphics::add_cells(box.y, box.h));
     box.x = x(box.x); box.y = y(box.y);
-    box.w = zengine::surface::sub_px(right, box.x);
-    box.h = zengine::surface::sub_px(bottom, box.y);
+    box.w = zengine::graphics::sub_px(right, box.x);
+    box.h = zengine::graphics::sub_px(bottom, box.y);
   }
 };
 
@@ -95,8 +96,8 @@ inline Picture project_picture(Picture view, const ws::PaneCanvasRoom &room) {
     grid.map(r);
     const auto left = std::max(std::int64_t{0}, r.x);
     const auto top = std::max(std::int64_t{0}, r.y);
-    const auto right = std::min(room.width, zengine::surface::add_cells(r.x, r.w));
-    const auto bottom = std::min(room.height, zengine::surface::add_cells(r.y, r.h));
+    const auto right = std::min(room.width, zengine::graphics::add_cells(r.x, r.w));
+    const auto bottom = std::min(room.height, zengine::graphics::add_cells(r.y, r.h));
     r.x = left; r.y = top;
     r.w = std::max(std::int64_t{0}, right - left);
     r.h = std::max(std::int64_t{0}, bottom - top);
@@ -190,9 +191,9 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
       view.content.rects.push_back({x, y, w, h, role});
   };
   const auto grain = view.grain;
-  const auto stroke_x = std::max(std::int64_t{4}, zengine::surface::add_cells(
+  const auto stroke_x = std::max(std::int64_t{4}, zengine::graphics::add_cells(
       grid.grid_x(grain), grid.x(grid.grid_x(grain)) < grain ? 1 : 0));
-  const auto stroke_y = std::max(std::int64_t{4}, zengine::surface::add_cells(
+  const auto stroke_y = std::max(std::int64_t{4}, zengine::graphics::add_cells(
       grid.grid_y(grain), grid.y(grid.grid_y(grain)) < grain ? 1 : 0));
   auto stroke = [&](std::int64_t x, std::int64_t y, std::int64_t w,
                     std::int64_t h, std::int64_t role) {

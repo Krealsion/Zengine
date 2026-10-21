@@ -11,7 +11,8 @@ target_include_directories(zengine-surface-vocabulary INTERFACE
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/zengine>)
 add_library(zengine::surface ALIAS zengine-surface-vocabulary)
 # vocabulary.hpp includes <zen/weave/shape.hpp>; the geometry headers beside it
-# (cells/region/pointing/terminal_size) need nothing else. Declared here for the same
+# (cells/region/pointing) add only graphics' pixels and the pane helpers' fitting, headers
+# under the same include root. Declared here for the same
 # reason as the Timer's: a link that only ever worked transitively is not a declaration.
 target_link_libraries(zengine-surface-vocabulary INTERFACE loom::core)
 

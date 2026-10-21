@@ -571,11 +571,11 @@ TEST_CASE("the heading and the subject's properties are the pane's rows, over th
     REQUIRE_FALSE(lattice.empty());
     std::size_t grounded = 0;
     for (const v2::PaneCanvasText& run : seat->canvas.content.texts) {
-        if (run.background == surface::role::kNone) continue;
+        if (run.background == gfx::role::kNone) continue;
         ++grounded;
         CHECK(run.y == lattice.y); // the heading's row, the lattice's first
-        CHECK(run.background == surface::role::kMuted);
-        CHECK(run.role == surface::role::kAccent);
+        CHECK(run.background == gfx::role::kMuted);
+        CHECK(run.role == gfx::role::kAccent);
     }
     CHECK(grounded == 1);
 }
@@ -2592,7 +2592,7 @@ TEST_CASE("Info draws its properties on its canvas on the medium's own ground, a
         CHECK(bar->x2 == column * gfx::kCellPx);
         CHECK(bar->y1 == row * gfx::kCellPx);
         CHECK(bar->y2 == row * gfx::kCellPx + gfx::kCellPx - 1);
-        CHECK(bar->ink.role == surface::role::kAccent);
+        CHECK(bar->ink.role == gfx::role::kAccent);
         CHECK(asks("caret") == "property:Width");
     };
     CHECK(value_of(f.property_row("Width")) == "77"); // nothing written into the value
@@ -2619,7 +2619,7 @@ TEST_CASE("Info draws its properties on its canvas on the medium's own ground, a
         CHECK(words->text == "7");
         CHECK(words->x == 10 * gfx::kCellPx);
         CHECK(words->y == row * gfx::kCellPx);
-        CHECK(words->ink.role == surface::role::kAccent);
+        CHECK(words->ink.role == gfx::role::kAccent);
         CHECK(asks(sel) == "property:Width");
         CHECK(marks() == 2);
         std::vector<std::string> shown = f.shown();

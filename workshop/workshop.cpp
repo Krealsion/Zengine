@@ -36,9 +36,10 @@
 #include "builder/runner.hpp"
 #include "builder/vocabulary.hpp"
 #include "builder/weave.hpp"
+#include "graphics/role.hpp"
+#include "graphics/window/terminal_io.hpp"
 #include "operator/catalog.hpp"
 #include "operator/host_surface.hpp"
-#include "surface/terminal_size.hpp"
 #include "surface/vocabulary.hpp"
 #include "timer/vocabulary.hpp"
 
@@ -87,6 +88,7 @@ namespace builder = zengine::builder;
 namespace manual = zengine::manual;
 namespace op = zengine::op;
 namespace surface = zengine::surface;
+namespace gfx = zengine::graphics;
 namespace timer = zengine::timer;
 
 /// Mount an in-process weave into an office with the grant the host chose: `mount_granted` plus
@@ -399,7 +401,7 @@ int main(int argc, char** argv) {
             host.standing_conditions.push_back(
                 Condition{std::string(kLegacyShadowedKeyPrefix) + what,
                           std::string("older local ") + what + " file is not read",
-                          did.note, surface::role::kAccent, std::string()});
+                          did.note, gfx::role::kAccent, std::string()});
             return;
         }
         if (!transition.empty()) {
@@ -922,7 +924,7 @@ int main(int argc, char** argv) {
             // the terminal, last, once the medium has given it back. The Project pane shows the
             // arrangement either way.
             const bool held =
-                load::medium_holds_terminal(done, surface::native_terminal_size().measured());
+                load::medium_holds_terminal(done, gfx::window::native_terminal_size().measured());
             const bool refused = !done.refusal.empty();
             const bool say = !held || refused;
             std::string said;

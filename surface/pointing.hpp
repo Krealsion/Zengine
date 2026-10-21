@@ -12,9 +12,7 @@
 // stamped with. They describe the shipped Skins; a second graphical layout needs its own.
 // Reference: workshop/docs/pointer-spaces.md.
 
-#include "cells.hpp"
-#include "region.hpp"
-#include "vocabulary.hpp"
+#include "graphics/pixels.hpp"
 
 #include <cstdint>
 
@@ -35,9 +33,9 @@ struct CanvasPoint {
 inline constexpr std::int64_t kTuiCanvasTopRow = 2;
 
 /// A pointer position in the graphical Skin's window, as a canvas cell: the canvas starts at the
-/// window's origin, one cell every `kCanvasCellPx` pixels.
+/// window's origin, one cell every `kCellPx` pixels.
 inline constexpr CanvasPoint canvas_of_window_pixels(std::int64_t x, std::int64_t y) noexcept {
-    return CanvasPoint{cell_of_pixel(x), cell_of_pixel(y)};
+    return CanvasPoint{graphics::cell_of_pixel(x), graphics::cell_of_pixel(y)};
 }
 
 /// A pointer position in a terminal, as a canvas cell: a terminal cell is a canvas cell, offset
@@ -45,20 +43,14 @@ inline constexpr CanvasPoint canvas_of_window_pixels(std::int64_t x, std::int64_
 /// for a terminal window. The subtraction saturates, because the number arrives from the wire.
 inline constexpr CanvasPoint canvas_of_terminal_cells(
     std::int64_t x, std::int64_t y, std::int64_t rows_above = kTuiCanvasTopRow) noexcept {
-    return CanvasPoint{x, add_cells(y, -rows_above)};
+    return CanvasPoint{x, graphics::add_cells(y, -rows_above)};
 }
 
 // ---- The same two projections in canvas pixels ------------------------------------------
 //
 // A pane gesture spends the pointer's own resolution, so each projection has a pixel twin. The
-// grain beside each is that medium's device unit in canvas pixels, carried with the point
+// medium's grain (`graphics::kPixelGrainPx`, `graphics::kCellGrainPx`) is carried with the point
 // because a hit test must quantize a rectangle exactly as the medium painted it.
-
-/// The shipped graphical Skin's device unit, in canvas pixels: one window pixel.
-inline constexpr std::int64_t kPixelGrainPx = 1;
-
-/// A character medium's device unit, in canvas pixels: one canvas cell.
-inline constexpr std::int64_t kCellGrainPx = kCanvasCellPx;
 
 /// A pointer position in the graphical Skin's window, in canvas pixels: the canvas starts at the
 /// window's origin and a window pixel is a canvas pixel, so a pane follows a hand pixel for pixel.
@@ -73,53 +65,7 @@ inline constexpr CanvasPoint canvas_px_of_window_pixels(std::int64_t x,
 inline constexpr CanvasPoint canvas_px_of_terminal_cells(
     std::int64_t x, std::int64_t y, std::int64_t rows_above = kTuiCanvasTopRow) noexcept {
     const CanvasPoint cell = canvas_of_terminal_cells(x, y, rows_above);
-    return CanvasPoint{px_of_cells(cell.x), px_of_cells(cell.y)};
-}
-
-/// Does a press at this device unit land on this span? The paint rule read backwards: a medium
-/// of grain `g` shows [begin, begin + extent) on units [floor(begin/g), floor(end/g)), so both
-/// sides are floored by the same grain before comparing. Comparing the raw pixel is off by up to
-/// one device unit at an edge inside a unit -- an edge a hand passes through.
-inline constexpr bool px_span_contains(std::int64_t begin, std::int64_t extent,
-                                       std::int64_t press_px, std::int64_t grain) noexcept {
-    if (extent <= 0 || grain <= 0) {
-        return false;
-    }
-    const std::int64_t unit = floor_div_px(press_px, grain);
-    return unit >= floor_div_px(begin, grain) &&
-           unit < floor_div_px(add_cells(begin, extent), grain);
-}
-
-/// A canvas pixel floored to a medium's device unit: the pixel itself in a window, the corner of
-/// its cell in a terminal. A unit that is not positive is the cell.
-inline constexpr std::int64_t floor_to_grain(std::int64_t px, std::int64_t grain) noexcept {
-    const std::int64_t unit = grain > 0 ? grain : kCanvasCellPx;
-    return mul_px(floor_div_px(px, unit), unit);
-}
-
-/// Which prose column of a bounded text region a canvas pixel is on: subtract where the
-/// region's text starts, floor by one character. It takes the region's `fit`, so the column is
-/// resolved with the metric its rows were drawn with, and the device unit (`grain`) of the medium
-/// the pixel came from. A projection, not a hit test: a negative column or one past `columns`
-/// means "not on this region's prose". Under a cell fit a character is a cell set from the
-/// region's edge as the medium drew it, floored to its unit: a window counts from the edge's own
-/// pixel, and a terminal from the cell the edge floors to.
-inline constexpr std::int64_t prose_column_of_pixel(std::int64_t px, const RegionFit& fit,
-                                                    std::int64_t grain = kCanvasCellPx) noexcept {
-    if (!fit.graphical()) {
-        return floor_div_px(sub_px(px, floor_to_grain(fit.view.x, grain)), kCanvasCellPx);
-    }
-    return floor_div_px(sub_px(px, add_cells(fit.view.x, fit.origin_x)), fit.advance_px);
-}
-
-/// WHICH PROSE ROW OF A BOUNDED TEXT REGION A CANVAS PIXEL IS ON. The other axis
-/// of `prose_column_of_pixel`, same rules, same non-answers.
-inline constexpr std::int64_t prose_row_of_pixel(std::int64_t py, const RegionFit& fit,
-                                                 std::int64_t grain = kCanvasCellPx) noexcept {
-    if (!fit.graphical()) {
-        return floor_div_px(sub_px(py, floor_to_grain(fit.view.y, grain)), kCanvasCellPx);
-    }
-    return floor_div_px(sub_px(py, add_cells(fit.view.y, fit.origin_y)), fit.line_px);
+    return CanvasPoint{graphics::px_of_cells(cell.x), graphics::px_of_cells(cell.y)};
 }
 
 } // namespace zengine::surface

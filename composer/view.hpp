@@ -12,10 +12,11 @@
 // One measurer, twice over: the geometry that draws a thing and the geometry that hits it are
 // one function -- the row map `project` builds is what `meaning_at_row` reads, and
 // `value_capacity` is asked by both the projector and the caret-window reconciliation. It
-// measures nothing itself (`surface::fit_region` did, on Workshop's side), holds no state and
+// measures nothing itself (`workshop::fit_region` did, on Workshop's side), holds no state and
 // knows no bus: a test can hand it a draft and a budget and ask what a weaver would see.
 
 #include "composer/draft.hpp"
+#include "graphics/role.hpp"
 #include "surface/vocabulary.hpp"
 
 #include <zen/kind.hpp>
@@ -103,7 +104,7 @@ inline constexpr const char* kElided = "...";
 /// Fit `text` into `columns`, and say so when it did not fit. A copy, as introspection's is: a
 /// provider is a stranger to Workshop's own composition. `workshop/pane_text.hpp` now shares one
 /// between the pane weaves, and this pane has not moved to it. Not a second measurer: the
-/// measuring was `surface::fit_region`'s, and this spends the number.
+/// measuring was `workshop::fit_region`'s, and this spends the number.
 inline std::string fit(std::string text, std::int64_t columns) {
     if (columns <= 0) {
         return {};
@@ -281,7 +282,7 @@ struct Composing {
     MessageDraft draft;
     std::int64_t cursor = 0;   ///< into the roots in the catalog, into `form_items` in the form
     std::string notice;        ///< the last thing this pane has to say about what it did
-    std::int64_t notice_role = surface::role::kMuted;
+    std::int64_t notice_role = graphics::role::kMuted;
 };
 
 /// WHICH ITEM A ROW OF THIS VIEW NAMES, or nothing.
@@ -355,7 +356,7 @@ struct Sayer {
     ComposerView& view;
     std::string under;
     void operator()(std::string text, std::int64_t role, RowMeaning means = RowMeaning{},
-                    std::int64_t ground = surface::role::kNone) const {
+                    std::int64_t ground = graphics::role::kNone) const {
         if (means.what != meaning::kNothing) {
             means.part = part_name(composing, means);
             means.under = under;
@@ -383,16 +384,16 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
 
     // ---- the target line, always -------------------------------------------
     if (c.stage == stage::kNoTarget) {
-        say(fit("no weave selected", columns), surface::role::kMuted);
+        say(fit("no weave selected", columns), graphics::role::kMuted);
         --left;
         if (left > 0) {
-            say(fit("press a row in the Loaded pane", columns), surface::role::kMuted);
+            say(fit("press a row in the Loaded pane", columns), graphics::role::kMuted);
             --left;
         }
         return view;
     }
     if (c.stage == stage::kNoRole) {
-        say(fit("selected " + c.library, columns), surface::role::kFill);
+        say(fit("selected " + c.library, columns), graphics::role::kFill);
         --left;
         if (left > 0) {
             // AN OBSERVED ABSENCE, AND NOT A GUESS. The kernel binds a role at load
@@ -400,12 +401,12 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
             // library holds none. Nothing here manufactures a WeaveId, addresses the
             // library by name, or sweeps for a participant that might answer.
             say(fit("(no messaging role observed -- nothing to address)", columns),
-                surface::role::kMuted);
+                graphics::role::kMuted);
             --left;
         }
         return view;
     }
-    say(target_row_text(c, columns), surface::role::kAccent);
+    say(target_row_text(c, columns), graphics::role::kAccent);
     --left;
 
     // ---- the notice, reserved before anything variable ---------------------
@@ -417,14 +418,14 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
             // Transport refusal is observed separately. A delivered request still
             // need not receive an application answer; elapsed time invents no outcome.
             say(fit("asked what it accepts -- no answer observed yet", columns),
-                surface::role::kMuted);
+                graphics::role::kMuted);
             --left;
         }
     } else if (c.stage == stage::kCatalog) {
         const std::int64_t population = static_cast<std::int64_t>(c.snapshot.roots.size());
         if (left > 0) {
             say(fit("accepted messages -- " + std::to_string(population), columns),
-                surface::role::kAccent);
+                graphics::role::kAccent);
             --left;
         }
         const Window w = window_of(population, c.cursor, left);
@@ -437,9 +438,9 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
             say(fit(std::string(chosen ? kSelectedMark : kUnselectedMark) + root->name() + " v" +
                         std::to_string(root->version()),
                     columns),
-                chosen ? surface::role::kAccent : surface::role::kFill,
+                chosen ? graphics::role::kAccent : graphics::role::kFill,
                 RowMeaning{meaning::kMessage, i},
-                chosen ? surface::role::kMuted : surface::role::kNone);
+                chosen ? graphics::role::kMuted : graphics::role::kNone);
         }
         left -= w.count;
         // THE MARKER IS A ROW OF THE BUDGET, so a budget with no rows left has no
@@ -448,7 +449,7 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
         // says the list is incomplete at that size is the HEADING, which stated the
         // population before the list was offered anything.
         if (left > 0 && (w.before > 0 || w.after > 0)) {
-            say(fit(omission_text(w), columns), surface::role::kMuted);
+            say(fit(omission_text(w), columns), graphics::role::kMuted);
             --left;
         }
     } else if (c.stage == stage::kForm && c.draft.valid()) {
@@ -456,7 +457,7 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
             say(fit(c.draft.schema->name() + " v" + std::to_string(c.draft.schema->version()) +
                         " -> @" + c.role,
                     columns),
-                surface::role::kAccent);
+                graphics::role::kAccent);
             --left;
         }
         // The two controls are a fixed demand, subtracted before the fields are offered
@@ -471,15 +472,15 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
             const loom::Field& f = c.draft.field(which);
             const FieldDraft& d = c.draft.fields[which];
             const bool editing = chosen && d.present && typeable(f.type.kind);
-            std::int64_t role = surface::role::kFill;
+            std::int64_t role = graphics::role::kFill;
             if (chosen) {
-                role = surface::role::kAccent;
+                role = graphics::role::kAccent;
             } else if (composability(f.type.kind) != Composability::kScalar) {
-                role = surface::role::kMuted;
+                role = graphics::role::kMuted;
             } else if (!d.present && f.required) {
                 // A REQUIRED FIELD NOBODY HAS AUTHORED IS SOMETHING THE WEAVER MUST
                 // SEE -- it is the one thing standing between this draft and a send.
-                role = surface::role::kAlert;
+                role = graphics::role::kAlert;
             }
             const FieldRow field = field_row(c.draft, which, chosen, editing, columns);
             if (field.caret != surface::kNoCaret) {
@@ -487,18 +488,18 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
                 view.caret_col = field.caret;
             }
             say(field.text, role, RowMeaning{meaning::kField, i},
-                chosen ? surface::role::kMuted : surface::role::kNone);
+                chosen ? graphics::role::kMuted : graphics::role::kNone);
         }
         left -= w.count;
         if (left > 0 && (w.before > 0 || w.after > 0)) {
-            say(fit(omission_text(w), columns), surface::role::kMuted);
+            say(fit(omission_text(w), columns), graphics::role::kMuted);
             --left;
         }
         if (controls > 0) {
             // Anchored to the foot, so spare room falls between the fields and the controls,
             // and the two targets do not move as a weaver scrolls.
             while (left > controls) {
-                say(std::string(), surface::role::kFill);
+                say(std::string(), graphics::role::kFill);
                 --left;
             }
             const bool on_submit = c.cursor == submit_index(c.draft);
@@ -507,11 +508,11 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
             // signal, never the only one: a terminal has no ground to tint.
             say(fit(std::string(on_submit ? kSelectedMark : kUnselectedMark) + "[ Submit ]",
                     columns),
-                on_submit ? surface::role::kAccent : surface::role::kFill,
-                RowMeaning{meaning::kSubmit, 0}, surface::role::kMuted);
+                on_submit ? graphics::role::kAccent : graphics::role::kFill,
+                RowMeaning{meaning::kSubmit, 0}, graphics::role::kMuted);
             say(fit(std::string(on_back ? kSelectedMark : kUnselectedMark) + "[ Back ]", columns),
-                on_back ? surface::role::kAccent : surface::role::kFill,
-                RowMeaning{meaning::kBack, 0}, surface::role::kMuted);
+                on_back ? graphics::role::kAccent : graphics::role::kFill,
+                RowMeaning{meaning::kBack, 0}, graphics::role::kMuted);
             left -= controls;
         }
     }
@@ -522,7 +523,7 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
     // ...and the library line only out of GENUINE slack: it is the DIAGNOSTIC
     // identity, useful and never necessary, so it takes a row nothing else wanted.
     if (left > 0 && !c.library.empty()) {
-        say(library_row_text(c, columns), surface::role::kMuted);
+        say(library_row_text(c, columns), graphics::role::kMuted);
     }
     return view;
 }

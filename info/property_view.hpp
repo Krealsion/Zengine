@@ -25,6 +25,7 @@
 #include "workshop/pane_vocabulary.hpp"
 
 #include "component/text_box.hpp"
+#include "graphics/role.hpp"
 #include "input/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 
@@ -303,7 +304,7 @@ public:
         composed_.clear();
         caret_ = {};
         const auto push = [&out, this](std::string text, std::int64_t role,
-                                       std::int64_t ground = surface::role::kNone) {
+                                       std::int64_t ground = graphics::role::kNone) {
             out.push_back(surface::SurfaceTextRow{
                 workshop::pane_text::drawable(workshop::pane_text::fit(std::move(text), columns_)),
                 role, ground});
@@ -320,7 +321,7 @@ public:
         // THE LIST BEGINS HERE, AND THE GROUND IS WHAT SAYS SO: the front sentence above it is
         // alert ink, and the heading names whose properties follow.
         push(known_.subject == 0 ? std::string("PROPERTIES") : "PANE " + known_.name,
-             surface::role::kAccent, surface::role::kMuted);
+             graphics::role::kAccent, graphics::role::kMuted);
         if (budget > 0) {
             say_properties(static_cast<std::size_t>(budget), push, mark);
         }
@@ -767,7 +768,7 @@ private:
     void say_properties(std::size_t share, Push&& push, Mark&& mark) {
         if (known_.subject == 0) {
             (void)share; // said whatever the share is: an empty list is offered nothing
-            push(kNoSubjectRow, surface::role::kMuted);
+            push(kNoSubjectRow, graphics::role::kMuted);
             return;
         }
         const std::size_t focus =
@@ -775,23 +776,23 @@ private:
                         : static_cast<std::size_t>(cursor_ < 0 ? 0 : cursor_);
         const ListWindow win = list_window(known_.properties.size(), focus, share);
         if (win.before > 0) {
-            push(workshop::pane_text::omitted_text(win.before, "earlier"), surface::role::kMuted);
+            push(workshop::pane_text::omitted_text(win.before, "earlier"), graphics::role::kMuted);
         }
         const std::int64_t value_columns = columns_ - kPropertyMarkCols - kPropertyLabelCols;
         for (std::size_t n = 0; n < win.count; ++n) {
             const std::size_t i = win.first + n;
             const workshop::ShownProperty& p = known_.properties[i];
             if (p.section) {
-                push(" " + p.label, surface::role::kAccent);
+                push(" " + p.label, graphics::role::kAccent);
                 continue;
             }
             const bool here = i == focus;
             const bool editing = draft_.open && i == static_cast<std::size_t>(draft_.row);
-            std::int64_t role = surface::role::kFill;
+            std::int64_t role = graphics::role::kFill;
             if (editing) {
-                role = surface::role::kAlert; // a live draft is never quiet
+                role = graphics::role::kAlert; // a live draft is never quiet
             } else if (!p.editable) {
-                role = surface::role::kMuted; // not the weaver's to author
+                role = graphics::role::kMuted; // not the weaver's to author
             }
             std::string text =
                 std::string(here || editing ? ">" : " ") +
@@ -818,7 +819,7 @@ private:
             push(std::move(text), role);
         }
         if (win.after > 0) {
-            push(workshop::pane_text::omitted_text(win.after, "more"), surface::role::kMuted);
+            push(workshop::pane_text::omitted_text(win.after, "more"), graphics::role::kMuted);
         }
     }
 
@@ -832,7 +833,7 @@ private:
             out.insert(out.begin(), surface::SurfaceTextRow{
                                         workshop::pane_text::drawable(
                                             workshop::pane_text::fit(front_sentence(), columns_)),
-                                        surface::role::kAlert});
+                                        graphics::role::kAlert});
         }
         if (static_cast<std::int64_t>(out.size()) > rows_) {
             out.resize(static_cast<std::size_t>(rows_));
