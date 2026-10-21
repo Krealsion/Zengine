@@ -14,6 +14,7 @@ def run(ctx):
     ctx.check(label.isascii() and label.isalnum() and len(label) <= 40, 'use a short ASCII word for label')
     inv, info = ('zengine.inventory-pane', 'inventory'), ('zengine.info', 'info')
     comp, term = ('zengine.composer', 'compose'), ('zengine.terminal', 'terminal')
+    preset = ('zengine.info', 'info.2')
 
     def entries():
         return hand.ask('zengine.inventory', 'InventoryList', {})['entries']
@@ -47,63 +48,74 @@ def run(ctx):
         hand.text(name); hand.key('enter')
 
     ctx.check(not any(e['label'].startswith(label) for e in entries()), 'choose a fresh label')
-    ctx.step('select the real skin as the receiving command target')
-    # The skin's weave is named for its medium (zengine-skin-<medium>), so its Loaded row is found
-    # by what it says: the one row naming a skin, as Workshop reads it in a text or a canvas pane.
-    hand.click(hand.row('zengine.introspection', 'loaded', 'zengine-skin-', scroll=True))
-    hand.click(hand.row(*comp, 'SurfaceText v1', scroll=True))
-    setup = layout('presets')
-    panes = setup['fields']['panes']
-    panes[:] = [p for p in panes if p['provider'] in (inv[0], info[0], comp[0], 'zengine.demo')]
-    for p in panes:
-        if p['provider'] == inv[0]:
-            p['place']['y'] = str(24 * 12); p['height']['amount'] = str(15 * 12)
-    panes.append({'provider': term[0], 'pane': term[1],
-                  'place': {'mode': 'pixels', 'x': '12', 'y': '0'},
-                  'width': {'mode': 'pixels', 'amount': str(50 * 12)},
-                  'height': {'mode': 'pixels', 'amount': str(22 * 12)}, 'front': str(len(panes)),
-                  'settings': []})
-    for index, pane in enumerate(panes):
-        pane['front'] = str(index)
-    hand.ask('zengine.workshop', 'SetupApplyRequested', {'setup': json.dumps(setup)}, settle=True)
+
+    def desk(views):
+        # The desk's Compose gives its place to a second Info view, once one is open: the preset is
+        # finished there, field to field, while the first view holds the answer it is filled from.
+        setup = layout('presets')
+        panes = setup['fields']['panes']
+        kept = (inv[0], info[0], 'zengine.demo') + ((comp[0],) if views else ())
+        panes[:] = [p for p in panes if p['provider'] in kept]
+        for p in panes:
+            if p['provider'] == inv[0]:
+                p['place']['y'] = str(24 * 12); p['height']['amount'] = str(15 * 12)
+            if p['provider'] == comp[0]:
+                p['provider'], p['pane'] = preset
+        panes.append({'provider': term[0], 'pane': term[1],
+                      'place': {'mode': 'pixels', 'x': '12', 'y': '0'},
+                      'width': {'mode': 'pixels', 'amount': str(50 * 12)},
+                      'height': {'mode': 'pixels', 'amount': str(22 * 12)}, 'front': str(len(panes)),
+                      'settings': []})
+        for index, pane in enumerate(panes):
+            pane['front'] = str(index)
+        hand.ask('zengine.workshop', 'SetupApplyRequested', {'setup': json.dumps(setup)}, settle=True)
+
+    ctx.step('lay the Terminal out beside Inventory and Info, and open a second Info view')
+    desk(False)
+    # Info offers a value view the first time one is opened, so the desk can name it only then;
+    # the new view opens in front, wherever Workshop finds it room, until the desk places it.
+    hand.click(hand.first(*info)); hand.key('ctrl+n')
+    hand.row(*preset, 'New view')
+    desk(True)
 
     ctx.step('run an existing Terminal query and capture its real typed answer')
     command('ask @zengine.editor-switch EditorSwitchStatusRequested 1')
     reply = named_drop(latest('v EditorSwitchAnswered'), label + ' answer')
     ctx.produce('answer.bin', reply['pair'])
     ctx.step('capture an authored message without replaying it')
-    command('send @zengine.skin SurfaceText 1 slot=score text=' + label)
-    original = named_drop(latest('^ SurfaceText'), label + ' command')
+    command('send @zengine.powers FindPowers 2 text=' + label)
+    original = named_drop(latest('^ FindPowers'), label + ' command')
     ctx.produce('command.bin', original['pair'])
     picture(ctx, ctx.inputs['link'], 'captured')
 
     ctx.step('make an incomplete preset from the captured command')
     hand.drag(hand.row(*inv, label + ' command', scroll=True), hand.first(*info), 400)
     hand.key('ctrl+b'); hand.click(hand.row(*info, 'text:')); hand.key('ctrl+u')
-    hand.row(*info, 'text: absent (required)')
+    hand.row(*info, 'text: absent')
     before = entries(); hand.key('ctrl+s')
     added = [e for e in entries() if e['reference'] not in [x['reference'] for x in before]]
     ctx.check(len(added) == 1, 'preset save did not create one entry')
     # Rename the new preset using its visible row and ordinary context action.
     rename_selected(hand.row(*inv, added[0]['label'] + ' : ', scroll=True), label + ' preset')
-    hand.drag(hand.row(*inv, label + ' preset', scroll=True), hand.first(*comp), 400)
-    hand.row(*comp, 'text:')
+    incomplete = read(added[0])['pair']
 
-    ctx.step('fill the preset from the saved answer through Info')
+    ctx.step('link the preset in the second view and fill it from the saved answer, field to field')
+    hand.click(hand.row(*inv, label + ' preset', scroll=True)); hand.key('ctrl+enter')
+    hand.click(hand.first(*preset))
+    hand.row(*preset, 'PRESET LINKED')
     hand.drag(hand.row(*inv, label + ' answer', scroll=True), hand.first(*info), 400)
-    field = hand.row(*info, 'active:')
-    hand.click(field); hand.key('ctrl+g')
-    hand.click(hand.row(*comp, 'text:'))
-    hand.row(*comp, 'Copied data into form')
+    hand.row(*info, 'active:')
+    hand.field(*preset, 'text')
+    hand.drag(hand.field(*info, 'active'), hand.field(*preset, 'text'), 500)
+    hand.row(*preset, '*text:')
+    picture(ctx, ctx.inputs['link'], 'refilled')
+    hand.control(*preset, 'Save')
+    hand.row(*preset, 'saved rev')
+    ctx.check(read(added[0])['pair'] != incomplete, 'the filled preset was not stored')
     ctx.check(read(original)['pair'] == original['pair'], 'reusing the command changed its stored source')
     ctx.check(read(reply)['pair'] == reply['pair'], 'reusing the answer changed its stored source')
-    picture(ctx, ctx.inputs['link'], 'refilled')
-    # This guest has inventory/capture power, not SurfaceText execution power. Submission must
-    # refuse without silently borrowing the Terminal participant's grant.
-    hand.key('ctrl+enter')
-    hand.row(*comp, 'no authority')
     ctx.produce('result.json', json.dumps({'command': original['reference'], 'answer': reply['reference'],
         'preset': added[0]['reference'], 'entries': entries(), 'request_calls': dict(measured.calls),
         'outcomes': dict(measured.outcomes)}, indent=2).encode())
     hand.close()
-    return 'Captured actual authored/reply data, named independent copies, refilled a preset, and refused execution without current authority.'
+    return 'Captured actual authored/reply data, named independent copies, and filled an incomplete preset from the reply in a second Info view.'

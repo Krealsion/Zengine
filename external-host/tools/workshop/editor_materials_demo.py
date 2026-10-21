@@ -176,9 +176,9 @@ def run(ctx):
         """A real Terminal submission, captured into Commands as `<label> command`: the newest
         value the Terminal says was submitted, its row named `entry:<observation>`, dragged."""
         hand.click(hand.row(*TERM, ">    Tab:"))
-        hand.text("send @zengine.skin SurfaceText 1 slot=score text=" + label)
+        hand.text("send @zengine.powers FindPowers 2 text=" + label)
         hand.key("enter")
-        sent = hand.last_part(*TERM, "entry:", "^ SurfaceText")
+        sent = hand.last_part(*TERM, "entry:", "^ FindPowers")
         to_root(hand)
         hand.drag(sent, folder_row(hand, "Commands"), 400)
         command, path = name_new(label + " command")
@@ -244,18 +244,18 @@ def run(ctx):
         last = cell(hand, "int main()")
         hand.drag(hand.row(*INV, label + " command"), last, 400, ctx.inputs["bend"])
         hand.key("down"); hand.key("enter")  # Generate C++ that builds it
-        ctx.check(says(hand, "make_surface_text_v1"), "no generated C++ was inserted")
+        ctx.check(says(hand, "make_find_powers_v2"), "no generated C++ was inserted")
         shot("generated")
         hand.click(status_row(hand))
         hand.key("ctrl+z")
-        ctx.check(not says(hand, "make_surface_text_v1"), "one undo did not remove the generated C++")
+        ctx.check(not says(hand, "make_find_powers_v2"), "one undo did not remove the generated C++")
         ctx.check(Path(beat).read_text(encoding="ascii") == BEAT, "generation wrote the file")
         note("C++ generated and undone")
 
         ctx.step("in a text file the command is its Terminal line; the place refuses over unsaved work")
         open_source(notes)
         hand.drag(hand.row(*INV, label + " command"), cell(hand, "Dropped here:", len("Dropped here:")), 400, 0)
-        ctx.check(says(hand, "send @zengine.skin SurfaceText 1"), "the Terminal line was not inserted")
+        ctx.check(says(hand, "send @zengine.powers FindPowers 2"), "the Terminal line was not inserted")
         shot("terminal-line")
         to_root(hand)
         open_path(hand, ["Places"])
@@ -346,16 +346,16 @@ def run(ctx):
         hand.click(status_row(hand))
         hand.key("escape")  # Neovim stops waiting and runs the held insertion where it was aimed
         waits(hand, "inserted the Terminal line")
-        ctx.check(says(hand, "send @zengine.skin SurfaceText 1"), "the held line did not go in")
+        ctx.check(says(hand, "send @zengine.powers FindPowers 2"), "the held line did not go in")
         resolved = status_row(hand)["text"]
         shot("nvim-held-inserted")
         hand.click(status_row(hand))
         typed("u")
         for _ in range(100):
-            if not says(hand, "send @zengine.skin SurfaceText 1"):
+            if not says(hand, "send @zengine.powers FindPowers 2"):
                 break
             time.sleep(0.05)
-        ctx.check(not says(hand, "send @zengine.skin SurfaceText 1"), "u did not take the held line back")
+        ctx.check(not says(hand, "send @zengine.powers FindPowers 2"), "u did not take the held line back")
         ctx.check(Path(beat).read_text(encoding="ascii") == BEAT, "the held drop wrote the file")
         settled.append(True)
         note("held drop said, run when Neovim stopped waiting, and undone", held=held, resolved=resolved)

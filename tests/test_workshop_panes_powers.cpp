@@ -17,6 +17,9 @@
 
 #include "flow/flow-pane/vocabulary.hpp"
 #include "manuals/zengine.powers.hpp"
+#include "workshop/terminal_speech.hpp"
+
+#include <set>
 
 namespace {
 
@@ -36,8 +39,8 @@ public:
     void on(const TerminalActed& said, loom::Mail&) { acted.push_back(said); }
 };
 
-/// THE TERMINAL AS THE HOST MOUNTS IT: its one baseline rule, then the discovery door's two asks
-/// through the host's own call, so what a typed line proves is what the host grants.
+/// THE TERMINAL AS THE HOST MOUNTS IT, by the host's own call, so what a typed line proves is what
+/// the host grants.
 struct FindingRig {
     PaneRig r;
     loom::TerminalSession* terminal = nullptr;
@@ -52,14 +55,8 @@ struct FindingRig {
         const load::Executed done = r.run_plan(std::move(plan));
         REQUIRE_MESSAGE(done.ok, done.refusal);
         loom::TerminalVocabulary vocab;
-        vocab.knows(loom::schema_of<surface::SurfaceText>())
-            .accepts(loom::schema_of<loom::Ack>())
-            .accepts(loom::schema_of<loom::Result>())
-            .accepts(loom::schema_of<loom::Refused>());
         loom::Grant grant;
-        grant.allow_to_role(surface::SurfaceText::zen_name, surface::SurfaceText::zen_version,
-                            surface::kSkinRole);
-        let_terminal_find_powers(vocab, grant);
+        let_terminal_speak(vocab, grant);
         const loom::MountedTerminal mounted = loom::host_mount_terminal(
             r.bus, std::make_unique<loom::TerminalSession>("workshop", std::move(vocab)),
             std::move(grant));
@@ -173,6 +170,62 @@ TEST_CASE("the Terminal may ask the discovery door its two questions, and nothin
     s.r.bus.remove_observer(tap);
     REQUIRE(denied.size() == 1);
     CHECK(denied[0].reason == loom::RefusalReason::CapabilityDenied);
+}
+
+TEST_CASE("the host's Terminal finds powers as its ordinary verb, speaks only to the offices that "
+          "widen it, and draws in no window") {
+    // WHAT THE HOST GRANTS: every rule to one of the three offices that widen it -- none to a
+    // medium, a window or everyone.
+    loom::TerminalVocabulary vocab;
+    loom::Grant grant;
+    let_terminal_speak(vocab, grant);
+    const std::set<std::string> widening{kPowersRole, kEditorSwitchRole, kWorkshopProvider};
+    REQUIRE_FALSE(grant.rules().empty());
+    for (const loom::SendRule& rule : grant.rules()) {
+        CAPTURE(rule.shape_name);
+        CHECK_FALSE(rule.any_target);
+        CHECK(widening.count(rule.target_role) == 1);
+    }
+    // ITS ORDINARY VERB is the discovery door's find, at the version this build asks with...
+    CHECK(grant.permits_role(kFindPowersName, kFindPowersVersion, kPowersRole));
+    // ...AND DRAWING IS A WORD IT KNOWS AND MAY NOT SAY: the completer describes it, and no rule
+    // above sends it.
+    CHECK(vocab.find(zengine::graphics::Drawn::zen_name, zengine::graphics::Drawn::zen_version) !=
+          nullptr);
+
+    // THE LIVE PARTICIPANT: the ordinary line, sent, reaches the door and is answered in the
+    // Terminal...
+    FindingRig s;
+    std::vector<std::string> delivered;
+    const loom::ObserverId tap = s.r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (e.kind == loom::EventKind::Delivered) {
+            delivered.push_back(e.schema_name);
+        }
+    });
+    const std::size_t heard_before =
+        of_kind(*s.terminal, loom::TranscriptKind::Received).size() +
+        of_kind(*s.terminal, loom::TranscriptKind::AnswerReceived).size();
+    (void)s.typed("send @zengine.powers FindPowers 2 text=larger");
+    CHECK(std::count(delivered.begin(), delivered.end(), std::string(kFindPowersName)) == 1);
+    std::vector<loom::TranscriptEntry> heard = of_kind(*s.terminal, loom::TranscriptKind::Received);
+    for (const loom::TranscriptEntry& e :
+         of_kind(*s.terminal, loom::TranscriptKind::AnswerReceived)) {
+        heard.push_back(e);
+    }
+    REQUIRE(heard.size() == heard_before + 1);
+    CHECK(std::any_of(heard.begin(), heard.end(), [](const loom::TranscriptEntry& e) {
+        return e.shape == PowersFound::zen_name;
+    }));
+
+    // ...AND A DRAWING AIMED AT EVERYONE REACHES NO ONE: its lists cannot be typed, so the line
+    // is never sent.
+    delivered.clear();
+    (void)s.typed("send * Drawn 1 area=desk");
+    s.r.bus.remove_observer(tap);
+    CHECK(std::count(delivered.begin(), delivered.end(),
+                     std::string(zengine::graphics::Drawn::zen_name)) == 0);
+    CHECK(of_kind(*s.terminal, loom::TranscriptKind::Submitted).back().shape ==
+          std::string(kFindPowersName));
 }
 
 TEST_CASE("the discovery door answers its page for every shape it accepts, in every version") {
