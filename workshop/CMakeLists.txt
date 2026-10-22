@@ -225,7 +225,7 @@ if(TARGET zengine-input-sdl)
     list(APPEND zengine_workshop_artifacts zengine-input-sdl)
 endif()
 # THE APP HOST BESIDE WORKSHOP (app/docs/app.md): `zengine-app`, the program an exported app's
-# launchers start, and its own weave, as the installed package places them. Built only where this
+# launchers start, and its own weave, which it opens from its own directory. Built only where this
 # Loom can host it (app/CMakeLists.txt asks the same), and defined after this directory, so named
 # by the condition rather than by its target.
 set(zengine_workshop_programs "")

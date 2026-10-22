@@ -33,7 +33,7 @@ plan's executor), [view](view.md) and [flow host](flow-host.md) (the two hosts i
   through the load plan's codec, `app.json`, the two files and the two launchers, each written
   whole. It writes no decision and starts nothing: `app-authority.json`, `app-session.json` and
   every other file in the folder are never touched, and no artifact is copied there.
-- `zengine-app` stands beside Workshop's program: installed, both in the package's `bin`; in a
-  build, Workshop's directory stages it and `zengine-app-weave` (`workshop/CMakeLists.txt`). What
-  Workshop writes or starts for an app names the program beside the one running
+- `zengine-app` stands beside Workshop's program: a build stages it and `zengine-app-weave` in
+  Workshop's directory (`workshop/CMakeLists.txt`); the installed package carries `zengine-app` and
+  no Workshop. What Workshop writes or starts for an app names the program beside the one running
   (`app/program.hpp`).

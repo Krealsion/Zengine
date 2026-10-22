@@ -5,8 +5,8 @@
 #define ZENGINE_APP_PROGRAM_HPP
 
 // Where the running program stands, and the app host's program beside it (app/docs/app.md):
-// `zengine-app` stands beside Workshop's program, in a build tree and in the installed package, so
-// what Workshop writes or starts for an app names the program beside the one running.
+// a build stages `zengine-app` beside Workshop's program, so what Workshop writes or starts for an
+// app names the program beside the one running.
 
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
