@@ -1169,7 +1169,7 @@ int main(int argc, char** argv) {
 
     // THE CHOICE THE LAST SESSION REMEMBERED (WL-SWITCH-08): each switchable office starts on the
     // authored choice that held it at quit, while the plan still authors it; the project's plan
-    // file is never changed, and `--isolated` reads no session.
+    // file is never changed, and a run with no session file reads none.
     load::LoadPlan begun = read_plan.plan;
     if (!host.session_path.empty()) {
         const session_persist::LoadedSession last = session_persist::load_file(host.session_path);

@@ -96,7 +96,7 @@ LAW — The session file records which authored choice held each switchable offi
 MEANS
 - the project's plan file is never changed; only the start's reading of it is;
 - a remembered choice the plan no longer authors loads nothing, and the start says so once;
-- `--isolated` reads no session, so every office starts on the plan's own row.
+- a run with no session file -- `--isolated` without `--session` -- reads none, so every office starts on the plan's own row.
 
 WHY — `agents/decisions/an-editor-is-replaced-not-routed.md`
 
