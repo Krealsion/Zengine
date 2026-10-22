@@ -26,6 +26,8 @@
 #include "surface/vocabulary.hpp"
 #include "pane_text_fit.hpp"
 
+#include <zen/weave/standard_shapes.hpp>
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -34,9 +36,14 @@
 #include <string>
 #include <tuple>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace zengine::workshop::desk_read {
+
+/// What a reading's handler says: the shape, or a refusal in words.
+template <class T>
+using Said = std::variant<T, loom::Refused>;
 
 /// THE SPACE A POINT ON THIS SCREEN IS READ IN: a window's pixels where the medium sets type, a
 /// terminal's cells where text is a cell -- the space `cell_center` answers in.
@@ -51,11 +58,16 @@ inline DeskRect desk_rect(const PixelRect& r) {
 
 /// WHERE A FIT DRAWS ITS GLYPHS: the first glyph's corner, and one glyph's advance and line, in
 /// canvas pixels -- the face's where the fit sets type, one cell each where text is a cell -- and
-/// the console rows the medium spends above the canvas, which a point in cells counts.
+/// the console rows the medium spends above the canvas, which a point in cells counts. Every grid
+/// is told those rows, by the session that knows its medium: none in a window.
 struct GlyphGrid {
     std::int64_t x = 0, y = 0;
     std::int64_t advance = graphics::kCellPx, line = graphics::kCellPx;
-    std::int64_t rows_above = surface::kTuiCanvasTopRow;
+    std::int64_t rows_above = 0;
+    constexpr GlyphGrid(std::int64_t at_x, std::int64_t at_y, std::int64_t glyph_advance,
+                        std::int64_t glyph_line, std::int64_t console_rows_above) noexcept
+        : x(at_x), y(at_y), advance(glyph_advance), line(glyph_line),
+          rows_above(console_rows_above) {}
 };
 
 inline GlyphGrid glyph_grid(const RegionFit& fit, std::int64_t rows_above) {
@@ -112,27 +124,11 @@ inline void no_point(PanePart& out) {
     out.y = 0;
     out.space = input::space::kUnknown;
 }
-inline void no_point(v2::PanePart& out) {
-    out.x = 0;
-    out.y = 0;
-    out.space = input::space::kUnknown;
-}
 
 /// A PART SAYS ITS AVAILABILITY AS ITS PANE SAID IT; a part of a version that says none, and a part
 /// Workshop names itself, is said as available.
-inline void say_available(PanePart&, const PaneRowPart&) {}
-inline void say_available(v2::PanePart& out, const PaneRowPart&) { out.available = true; }
-inline void say_available(v2::PanePart& out, const v2::PaneRowPart& part) { out.available = part.available; }
-
-/// Parts as a version before availability says them.
-inline std::vector<PanePart> first_parts(const std::vector<v2::PanePart>& parts) {
-    std::vector<PanePart> out;
-    out.reserve(parts.size());
-    for (const v2::PanePart& p : parts) {
-        out.push_back(PanePart{p.name, p.text, p.place, p.x, p.y, p.space});
-    }
-    return out;
-}
+inline void say_available(PanePart& out, const PaneRowPart&) { out.available = true; }
+inline void say_available(PanePart& out, const v2::PaneRowPart& part) { out.available = part.available; }
 
 /// ...AND NEITHER HAS A WORD OF A PICTURE THAT TAKES NO PRESS.
 inline void no_point(PaneWord& out) {
@@ -349,7 +345,7 @@ inline std::vector<std::optional<UnitPoint>> own_points(const std::vector<UnitBo
 /// medium paints there in a terminal -- or none. False where the medium shows none of it.
 inline bool canvas_part_on(const PixelRect& body, const v2::PaneCanvasPart& part, const UnitBox& box,
                            const std::optional<UnitPoint>& point, const std::vector<PaneWord>& words,
-                           std::int64_t space, std::int64_t rows_above, v2::PanePart& out) {
+                           std::int64_t space, std::int64_t rows_above, PanePart& out) {
     const UnitBox px = units_of(body, part, 1);
     if (box.empty() || px.empty()) return false;
     out.name = part.name;
@@ -368,8 +364,8 @@ inline bool canvas_part_on(const PixelRect& body, const v2::PaneCanvasPart& part
 
 /// THE MENU ON THE SCREEN, read from the painter's own composition of it: Workshop's contextual
 /// menu, or a pane's as its presenter showed it, and the lines each names. At most one is open.
-inline v2::DeskMenu desk_menu(const Session& s, const Screen& sc) {
-    v2::DeskMenu menu;
+inline DeskMenu desk_menu(const Session& s, const Screen& sc) {
+    DeskMenu menu;
     surface::SurfaceLayer layer;
     PixelRect bounds;
     if (s.presented.open) {
@@ -463,7 +459,7 @@ inline PixelRect overlap(const PixelRect& a, const PixelRect& b) {
 /// A cover says what covers (`by`) and where (`rect`), as `WorkshopWeave::covers_of` names each.
 template <class Cover>
 void cover_reading(const std::vector<Cover>& covers, const PixelRect& rect,
-                   std::vector<PaneWord>& words, std::vector<v2::PanePart>& parts, PaneCover& out) {
+                   std::vector<PaneWord>& words, std::vector<PanePart>& parts, PaneCover& out) {
     out = PaneCover{};
     std::int64_t x0 = 0, y0 = 0, x1 = 0, y1 = 0;
     bool any = false;
@@ -489,50 +485,21 @@ void cover_reading(const std::vector<Cover>& covers, const PixelRect& rect,
                                [&](const PaneWord& w) { return covered(w.place); }),
                 words.end());
     parts.erase(std::remove_if(parts.begin(), parts.end(),
-                               [&](const v2::PanePart& p) { return covered(p.place); }),
+                               [&](const PanePart& p) { return covered(p.place); }),
                 parts.end());
     out.words = before - static_cast<std::int64_t>(words.size() + parts.size());
 }
 
 /// WHILE A MENU IS OPEN, A PRIMARY PRESS OUTSIDE IT REACHES NOTHING BESIDE IT -- it closes the
 /// menu, or is refused: what a pane still says there keeps its words and place, and no point.
-inline void without_points(std::vector<PaneWord>& words, std::vector<v2::PanePart>& parts) {
+inline void without_points(std::vector<PaneWord>& words, std::vector<PanePart>& parts) {
     for (PaneWord& w : words) no_point(w);
-    for (v2::PanePart& p : parts) no_point(p);
+    for (PanePart& p : parts) no_point(p);
 }
 
-inline bool same_stamp(const PaneStamp& a, const v6::PaneView& b) {
+inline bool same_stamp(const PaneStamp& a, const PaneStamp& b) {
     return a.provider == b.provider && a.pane == b.pane && a.holder == b.holder &&
-           a.incarnation == b.incarnation && a.grant == b.grant && a.picture == b.picture;
-}
-
-inline bool same_stamp(const v2::PaneStamp& a, const v2::PaneStamp& b) {
-    return a.provider == b.provider && a.pane == b.pane && a.holder == b.holder &&
-           a.incarnation == b.incarnation && a.grant == b.grant && a.fingerprint == b.fingerprint;
-}
-
-inline PaneStamp stamp_from(const v6::PaneView& v) {
-    return PaneStamp{v.provider, v.pane, v.holder, v.incarnation, v.grant, v.picture};
-}
-
-inline v2::PaneStamp fingerprint_stamp_from(const v6::PaneView& v) {
-    return v2::PaneStamp{v.provider, v.pane, v.holder, v.incarnation, v.grant, v.fingerprint};
-}
-
-/// THE FOURTH VERSION OF A READING: the sixth's, its parts saying no availability and its stamp the
-/// picture's number -- a reading judged by numbers (`pane_reading`), so in flight while a number
-/// handed out is not yet aimed at.
-inline v4::PaneView fourth_version(const v6::PaneView& v) {
-    return v4::PaneView{v.provider, v.pane,        v.picture,     v.canvas, v.words,
-                        first_parts(v.parts),      v.holder,      v.incarnation,
-                        v.grant,    v.covered,     v.in_flight,   v.from,   v.total};
-}
-
-/// THE FIFTH VERSION OF A READING: the sixth's, its parts saying no availability.
-inline v5::PaneView fifth_version(const v6::PaneView& v) {
-    return v5::PaneView{v.provider,  v.pane,    v.picture,     v.canvas, v.words,
-                        first_parts(v.parts),   v.holder,      v.incarnation,
-                        v.grant,     v.fingerprint, v.covered, v.in_flight, v.from, v.total};
+           a.incarnation == b.incarnation && a.epoch == b.epoch && a.fingerprint == b.fingerprint;
 }
 
 /// THE FINGERPRINT A STAMP NAMES: what the picture aimed at shows, and none for a canvas picture
@@ -642,18 +609,9 @@ View in_flight_page(View whole, std::int64_t from) {
     return whole;
 }
 
-inline bool same_stamps(const std::vector<v2::PaneStamp>& a, const std::vector<v2::PaneStamp>& b) {
+inline bool same_stamps(const std::vector<PaneStamp>& a, const std::vector<PaneStamp>& b) {
     return std::equal(a.begin(), a.end(), b.begin(), b.end(),
-                      [](const v2::PaneStamp& x, const v2::PaneStamp& y) {
-                          return same_stamp(x, y);
-                      });
-}
-
-inline bool same_panes(const std::vector<v2::StampedPane>& a, const std::vector<v2::StampedPane>& b) {
-    return std::equal(a.begin(), a.end(), b.begin(), b.end(),
-                      [](const v2::StampedPane& x, const v2::StampedPane& y) {
-                          return same_stamp(x.stamp, y.stamp) && x.aimed == y.aimed;
-                      });
+                      [](const PaneStamp& x, const PaneStamp& y) { return same_stamp(x, y); });
 }
 
 } // namespace zengine::workshop::desk_read

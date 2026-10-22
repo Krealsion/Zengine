@@ -533,12 +533,16 @@ TEST_CASE("a typed send leaves through the PARTICIPANT's door, not the pane's") 
     TerminalRig t;
     t.open();
     const loom::WeaveId door = t.r.mount_powers();
-    // EVERY FIND DELIVERED TO THE DOOR, by the stamp of the weave that sent it.
+    // EVERY FIND DELIVERED TO THE DOOR, by the stamp of the weave that sent it, and what it said.
     std::vector<loom::WeaveId> senders;
+    std::vector<std::string> texts;
     const loom::ObserverId tap = t.r.bus.add_observer([&](const loom::BusEvent& e) {
         if (e.kind == loom::EventKind::Delivered && e.target == door &&
             e.schema_name == find_powers_schema()->name()) {
             senders.push_back(e.sender);
+            const loom::Cell* text = e.payload != nullptr ? e.payload->get("text") : nullptr;
+            texts.push_back(text != nullptr && text->kind() == loom::Kind::Text ? text->as_text()
+                                                                               : std::string());
         }
     });
     t.focus();
@@ -550,6 +554,9 @@ TEST_CASE("a typed send leaves through the PARTICIPANT's door, not the pane's") 
     // It says the TERMINAL authored this, not Workshop and not the pane.
     CHECK(senders.front() == t.r.terminal_id);
     CHECK(senders.front() != t.r.workshop_id);
+    // ...AND WHAT ARRIVED IS WHAT WAS TYPED: the field the line set, as it set it.
+    REQUIRE(texts.size() == 1);
+    CHECK(texts.front() == "there");
     // The participant recorded a SUBMITTED entry, which is what the pane draws.
     const std::vector<loom::TranscriptEntry> record = t.record();
     bool submitted = false;

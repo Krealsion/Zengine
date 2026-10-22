@@ -558,7 +558,8 @@ TEST_CASE("guests file: each power is exactly its grant, and a row with none may
     CHECK_FALSE(none.permits_role(ws::GuestRowDescribedRequested::zen_name,
                                   ws::GuestRowDescribedRequested::zen_version, "zengine.workshop"));
     CHECK_FALSE(none.permits_role(ws::GuestConnectionsRequested::zen_name, 1, ws::kGuestsRole));
-    CHECK_FALSE(none.permits_role(ws::DeskReadRequested::zen_name, 1, "zengine.workshop"));
+    CHECK_FALSE(none.permits_role(ws::DeskReadRequested::zen_name, ws::DeskReadRequested::zen_version,
+                                 "zengine.workshop"));
 
     row.may = {guests::kPowerInput};
     const loom::Grant in = guests::grant_for(row);
@@ -587,20 +588,11 @@ TEST_CASE("guests file: each power is exactly its grant, and a row with none may
                                  window_office + "desk"));
     CHECK_FALSE(cap.permits_role(input::InjectInput::zen_name, 1, input::kInputRole));
     // THE DESK'S WORDS ARE `capture`'s, every reading of them asked of Workshop's office alone: the
-    // pane and desk views at each version, the desk read whole, the inventory and the keymap.
+    // desk read whole, a pane's page and a point in it, the inventory and the keymap.
     const std::vector<std::pair<const char*, std::uint32_t>> reads = {
-        {ws::PaneViewRequested::zen_name, ws::PaneViewRequested::zen_version},
-        {ws::v2::PaneViewRequested::zen_name, ws::v2::PaneViewRequested::zen_version},
-        {ws::v3::PaneViewRequested::zen_name, ws::v3::PaneViewRequested::zen_version},
-        {ws::v4::PaneViewRequested::zen_name, ws::v4::PaneViewRequested::zen_version},
-        {ws::PanePointRequested::zen_name, ws::PanePointRequested::zen_version},
-        {ws::v2::PanePointRequested::zen_name, ws::v2::PanePointRequested::zen_version},
-        {ws::v3::PanePointRequested::zen_name, ws::v3::PanePointRequested::zen_version},
-        {ws::DeskViewRequested::zen_name, ws::DeskViewRequested::zen_version},
-        {ws::v2::DeskViewRequested::zen_name, ws::v2::DeskViewRequested::zen_version},
         {ws::DeskReadRequested::zen_name, ws::DeskReadRequested::zen_version},
-        {ws::v2::DeskReadRequested::zen_name, ws::v2::DeskReadRequested::zen_version},
-        {ws::v5::PaneViewRequested::zen_name, ws::v5::PaneViewRequested::zen_version},
+        {ws::PaneViewRequested::zen_name, ws::PaneViewRequested::zen_version},
+        {ws::PanePointRequested::zen_name, ws::PanePointRequested::zen_version},
         {ws::PaneInventoryRequested::zen_name, ws::PaneInventoryRequested::zen_version},
         {ws::KeymapRequested::zen_name, ws::KeymapRequested::zen_version}};
     for (const std::pair<const char*, std::uint32_t>& read : reads) {
@@ -1458,21 +1450,25 @@ TEST_CASE("grant: a row that reads by pane is granted the newest reads, the keym
     const loom::Grant g = guests::grant_for(row);
     const auto door = [](const char* text) { return *loom::Door::parse(text); };
     // THE READS IT KEEPS, door-less, so they are delivered...
-    CHECK(g.permits_role(ws::v2::DeskReadRequested::zen_name, 2, "zengine.workshop"));
-    CHECK(g.permits_role(ws::v5::PaneViewRequested::zen_name, 5, "zengine.workshop"));
-    CHECK(g.permits_role(ws::v6::PaneViewRequested::zen_name, 6, "zengine.workshop"));
+    CHECK(g.permits_role(ws::DeskReadRequested::zen_name, ws::DeskReadRequested::zen_version,
+                         "zengine.workshop"));
+    CHECK(g.permits_role(ws::PaneViewRequested::zen_name, ws::PaneViewRequested::zen_version,
+                         "zengine.workshop"));
+    CHECK(g.permits_role(ws::PanePointRequested::zen_name, ws::PanePointRequested::zen_version,
+                         "zengine.workshop"));
     CHECK(g.permits_role(ws::KeymapRequested::zen_name, 1, "zengine.workshop"));
     CHECK(g.permits_role(ws::PaneInventoryRequested::zen_name, 1, "zengine.workshop"));
     CHECK(g.permits_role(ws::GuideRequested::zen_name, 1, "zengine.workshop"));
     // ...THE DOORS WORKSHOP ASKS LOOM ABOUT, by containment...
     const loom::LiveAuthority live = g.live();
-    CHECK(live.permits_role(ws::v2::DeskReadRequested::zen_name, 2, "zengine.workshop",
+    constexpr auto read_version = ws::DeskReadRequested::zen_version;
+    CHECK(live.permits_role(ws::DeskReadRequested::zen_name, read_version, "zengine.workshop",
                             door("zengine.builder-pane/builder")));
-    CHECK(live.permits_role(ws::v2::DeskReadRequested::zen_name, 2, "zengine.workshop",
+    CHECK(live.permits_role(ws::DeskReadRequested::zen_name, read_version, "zengine.workshop",
                             door("zengine.desktop/launcher")));
-    CHECK_FALSE(live.permits_role(ws::v2::DeskReadRequested::zen_name, 2, "zengine.workshop",
+    CHECK_FALSE(live.permits_role(ws::DeskReadRequested::zen_name, read_version, "zengine.workshop",
                                   door("zengine.desktop/hotkeys")));
-    CHECK_FALSE(live.permits_role(ws::v2::DeskReadRequested::zen_name, 2, "zengine.workshop",
+    CHECK_FALSE(live.permits_role(ws::DeskReadRequested::zen_name, read_version, "zengine.workshop",
                                   door("zengine.editor/editor")));
     CHECK(live.permits_role(ws::GuideRequested::zen_name, 1, "zengine.workshop",
                             door("zengine.builder-pane/builder")));
@@ -1482,30 +1478,15 @@ TEST_CASE("grant: a row that reads by pane is granted the newest reads, the keym
     CHECK(g.permits_role(ws::PaneDocumentRequested::zen_name, 1, "zengine.builder-pane"));
     CHECK(g.permits_role(ws::PaneDocumentRequested::zen_name, 1, "zengine.desktop"));
     CHECK_FALSE(g.permits_role(ws::PaneDocumentRequested::zen_name, 1, "zengine.editor"));
-    // ...AND NONE OF WHAT CARRIES EVERY PANE: the older reads and the Skin's picture.
-    for (const std::pair<const char*, std::uint32_t>& old :
-         std::vector<std::pair<const char*, std::uint32_t>>{
-             {ws::PaneViewRequested::zen_name, ws::PaneViewRequested::zen_version},
-             {ws::v2::PaneViewRequested::zen_name, ws::v2::PaneViewRequested::zen_version},
-             {ws::v3::PaneViewRequested::zen_name, ws::v3::PaneViewRequested::zen_version},
-             {ws::v4::PaneViewRequested::zen_name, ws::v4::PaneViewRequested::zen_version},
-             {ws::PanePointRequested::zen_name, ws::PanePointRequested::zen_version},
-             {ws::v2::PanePointRequested::zen_name, ws::v2::PanePointRequested::zen_version},
-             {ws::v3::PanePointRequested::zen_name, ws::v3::PanePointRequested::zen_version},
-             {ws::DeskViewRequested::zen_name, ws::DeskViewRequested::zen_version},
-             {ws::v2::DeskViewRequested::zen_name, ws::v2::DeskViewRequested::zen_version},
-             {ws::DeskReadRequested::zen_name, ws::DeskReadRequested::zen_version}}) {
-        CAPTURE(old.first);
-        CAPTURE(old.second);
-        CHECK_FALSE(g.permits_role(old.first, old.second, "zengine.workshop"));
-    }
+    // ...AND NOT WHAT CARRIES EVERY PANE: the picture.
     CHECK_FALSE(g.permits_role(gfx::SurfaceCaptureRequested::zen_name, 1, surface::kSkinRole));
     // A ROW THAT READS EVERY PANE keeps the whole desk, the picture, and every pane's manual.
     row.capture = {"*"};
     row.guide = {"*"};
     const loom::Grant whole = guests::grant_for(row);
     CHECK(whole.permits_role(gfx::SurfaceCaptureRequested::zen_name, 1, surface::kSkinRole));
-    CHECK(whole.permits_role(ws::DeskReadRequested::zen_name, 1, "zengine.workshop"));
+    CHECK(whole.permits_role(ws::DeskReadRequested::zen_name, ws::DeskReadRequested::zen_version,
+                           "zengine.workshop"));
     CHECK(whole.permits_role(ws::PaneDocumentRequested::zen_name, 1, "zengine.editor"));
 }
 
@@ -1533,7 +1514,7 @@ TEST_CASE("observation: the weaver's input is heard only with keystrokes, no gue
                                   ws::StandingConditions::zen_name, ws::DeskStamps::zen_name}) {
             row->observe.push_back({"zengine.workshop", shape, 1});
         }
-        row->observe.push_back({"zengine.workshop", ws::v2::DeskStamps::zen_name, ws::v2::DeskStamps::zen_version});
+        row->observe.push_back({"zengine.workshop", ws::DeskStamps::zen_name, ws::DeskStamps::zen_version});
         row->observe.push_back({ws::kGuestsRole, ws::GuestConnections::zen_name, 1});
         file.rows.push_back(*row);
     }
@@ -1575,10 +1556,10 @@ TEST_CASE("observation: the weaver's input is heard only with keystrokes, no gue
         CHECK(ask(2, "zengine.workshop", shape, 1).allowed);
     }
     // ...THE NOTICE AT EVERY VERSION: the second, each pane's aimed picture beside its stamp, too.
-    const auto scoped = ask(1, "zengine.workshop", ws::v2::DeskStamps::zen_name, ws::v2::DeskStamps::zen_version);
+    const auto scoped = ask(1, "zengine.workshop", ws::DeskStamps::zen_name, ws::DeskStamps::zen_version);
     CHECK_FALSE(scoped.allowed);
     CHECK(scoped.reason.find("the row reads only the panes its `capture` names") != std::string::npos);
-    CHECK(ask(2, "zengine.workshop", ws::v2::DeskStamps::zen_name, ws::v2::DeskStamps::zen_version).allowed);
+    CHECK(ask(2, "zengine.workshop", ws::DeskStamps::zen_name, ws::DeskStamps::zen_version).allowed);
 }
 
 TEST_CASE("guests file: build grants no shape -- no guest is granted BuildRequested, a realization ask or a build door") {
@@ -2327,7 +2308,7 @@ class NoticeOffice
 public:
     void on(const NoticeTurn& turn, loom::Mail& mail) {
         (void)mail.as_role("zengine.workshop")
-            .publish(ws::DeskStamps{turn.desk, {ws::v2::PaneStamp{"zengine.info", "info", 7, 1, 0,
+            .publish(ws::DeskStamps{turn.desk, {ws::PaneStamp{"zengine.info", "info", 7, 1, 0,
                                                                   turn.desk * 11}}});
     }
 };

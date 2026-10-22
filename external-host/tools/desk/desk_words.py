@@ -34,8 +34,8 @@ like an instruction included.
   says whose facts it holds. A section your row cannot read, or that this Workshop does not
   answer yet, is said absent.
 - `desk.txt`: the sparse reading of the whole desk. Its first lines say the desk; then Workshop's
-  own words (the band and the arrange readout), the status slot, the menu when one is open, and
-  every pane front to back.
+  own words (the band and the arrange readout), the menu when one is open, and every pane front
+  to back.
 - `glance.txt`: the glance, the desk drawn at the medium's own text cell, frames and words where
   they stand: where things are. Take coordinates from `desk.txt`, never from the glance.
 - `panes/<office>.<pane>.txt`: one pane's sparse reading, the same lines as its section of
@@ -66,22 +66,21 @@ the window's pixels in a window, and in a terminal 12 canvas pixels to each of i
   pixels, the canvas's own; `points=cells` is the terminal's console cells, whose rows stand 2
   below the canvas's. `name@-` is a part with no point of its own: no press reaches it. A part
   with no name, `@x,y`, is a place its pane names nothing.
-- A header line, `== Name office/pane state front=N at x,y wxh stamp=H/I/G/F`: the pane's name as
+- A header line, `== Name office/pane state front=N at x,y wxh stamp=H/I/E/F`: the pane's name as
   its office gives it, its reference, its state (`open`, `covered`, `off-room`, `unresolved`), its
   rank from the front (0 in front), its visible rectangle in canvas pixels, and the stamp its
   reading stands on; `selected` and `keys` when it is selected or the keyboard points at it.
 
 ## Stamps, and when a reading is stale
 
-A stamp, `H/I/G/F`, names what a pane's reading stands on: the holder (the weave holding the
-pane's office), that holder's incarnation, the canvas room Workshop granted the picture (0 for a
-text pane) and `F`, the fingerprint of what the picture shows, in sixteen hex digits. Whatever
-the pane shows changing moves the fingerprint, and the same picture sent again keeps it; a
-resize, a move, a title row shown or hidden or a metric renewed moves the room grant; a reload
-moves the incarnation. A reading is stale once any of the four moved, and the desk moves while
-you read: read again before you act on an old reading. `desk=N` on the first line moves whenever the desk itself moves -- a pane's
-place, state, rank, selection or keys, the room, arranging, the menu, the band or the status; a
-pane's own words move its stamp, not this number.
+A stamp, `H/I/E/F`, names what a pane's reading stands on: the holder (the weave holding the
+pane's office), that holder's incarnation, `E`, the incarnation of the window that shows the desk,
+in hex, and `F`, the fingerprint of what the pane shows, in sixteen hex digits. Whatever the pane
+shows changing moves the fingerprint, and the same picture shown again keeps it; a reload moves the
+incarnation, and a window started again moves `E`. A reading is stale once any of the four moved,
+and the desk moves while you read: read again before you act on an old reading. `desk=N` on the
+first line moves whenever the desk itself moves -- a pane's place, state, rank, selection or keys,
+the room, arranging, the menu or the band; a pane's own words move its stamp, not this number.
 
 - `stamp=... read after the desk read, which named ...`: the pane was read after the desk, on
   another picture than the one the desk read named.
@@ -122,7 +121,7 @@ the `workshop` package where your session's catalog holds it.
   into `changes.txt`, keeping the reading files current: Workshop says when the desk moved, and
   the watch reads again only what moved. `panes` (a JSON list of `["<office>", "<pane>"]`) watches
   those panes alone, writing their changes and files only. It needs your row's `capture` and an
-  `observe` entry naming `zengine.workshop` `DeskStamps` 2 (or 1).
+  `observe` entry naming `zengine.workshop` `DeskStamps` 3.
 - `workshop/act`, `workshop/inspect-capture`: press, type and check, where your row may.
 - `workshop/observe`: follow what an office publishes, as your row's `observe` lists.
 
@@ -196,7 +195,7 @@ by message, without a hand, is not answered by this Workshop: absent here."""
 FOLLOW = """Follow the desk with `desk/watch`: Workshop says when the desk moved -- its number, or a
 pane's stamp -- and the watch reads again only what moved, writing each change into `changes.txt`
 as the smaller of its changed lines and the lines as they now stand. It needs `capture` and an
-`observe` entry naming `zengine.workshop` `DeskStamps` 2 or 1 (section 1 lists your row's).
+`observe` entry naming `zengine.workshop` `DeskStamps` 3 (section 1 lists your row's).
 Follow what any other office publishes with `workshop/observe`, for the shapes your row's `observe`
 lists."""
 

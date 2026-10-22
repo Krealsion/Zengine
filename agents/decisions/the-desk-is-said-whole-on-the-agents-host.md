@@ -22,27 +22,26 @@ and the keymap, and `capture`'s widening is said; an observe row reads only what
 The agent's own reader, `desk/read`, in a tool package of its own, writes the reading as files on
 the agent's host: `AGENTS.md` first, in its own fixed words, then the guide and the readings.
 
-**Alternatives considered.**
-- *Decoded cells as a reply's only bound* -- tried: a legal picture, its text at the canvas byte
-  limit and 512 parts over it, fit one decoded value in one page past Loom's frame, and the
-  channel refusing that frame failed, so a guest over the bridge never had the answer; case `"a picture at the canvas text limit under
-  overlapping parts reads whole, each page and the desk read inside one reply's bytes"`.
-- *The picture as the agent's way of seeing* -- argued against: it carries no names, parts, points
-  or stamps, and it cannot be compared with the last reading.
-- *The grid written whole as the ordinary read* -- argued against: most of it is blank, and its
-  cost grows with the window, not with what is said.
-- *The presentation rendered in Workshop's host code* -- argued against: Workshop says what it
-  owns in its own numbers; the reading is the reader's, on the agent's host.
-- *A covered pane refused whole, as before* -- argued against: a menu over one corner hid every
-  word; now the visible words are said and the cover named, and no covered word is given a point.
-- *`capture` widened silently* -- argued against: a row written for a picture now reads the desk's
-  words, so the widening is said at launch and on Attention.
-- *A 33rd tool in the workshop package* -- argued against: Loom's limit is 32 tools a package; the
-  reader has a package of its own.
+**Alternatives considered.** - *Decoded cells as a reply's only bound* -- tried: a legal picture,
+its text at the canvas byte limit and 512 parts over it, fit one decoded value in one page past
+Loom's frame, and the channel refusing that frame failed, so a guest over the bridge never had the
+answer; case `"a picture at the canvas text limit under overlapping parts reads whole, each page and
+the desk read inside one reply's bytes"`. - *The picture as the agent's way of seeing* -- argued
+against: it carries no names, parts, points or stamps, and it cannot be compared with the last
+reading. - *The grid written whole as the ordinary read* -- argued against: most of it is blank, and
+its cost grows with the window, not with what is said. - *The presentation rendered in Workshop's
+host code* -- argued against: Workshop says what it owns in its own numbers; the reading is the
+reader's, on the agent's host. - *A covered pane refused whole, as before* -- argued against: a menu
+over one corner hid every word; now the visible words are said and the cover named, and no covered
+word is given a point. - *`capture` widened silently* -- argued against: a row written for a picture
+now reads the desk's words, so the widening is said at launch and on Attention. - *A 33rd tool in
+the workshop package* -- argued against: Loom's limit is 32 tools a package; the reader has a
+package of its own.
 
-**Consequences.** An agent reads the whole desk in one ask, or a few, and writes it for its model
-as text; a reading names the stamps it stands on. Old `capture` rows read more than they did. The
-earlier `PaneView` versions still refuse a covered pane whole.
+**Consequences.** An agent reads the whole desk in one ask, or a few, and writes it for its model as
+text; a reading names the stamps it stands on. Old `capture` rows read more than they did. One
+version of each reading stands now, and a pane drawing in an area of its own is read from the window
+([a pane is read from the window that shows it](a-pane-is-read-from-the-window-that-shows-it.md)).
 
 **Laws supported.** [WL-READ-01](../workshop/desk-read.md),
 [WL-READ-02](../workshop/desk-read.md), [WL-READ-03](../workshop/desk-read.md),

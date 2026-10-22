@@ -243,15 +243,15 @@ TEST_CASE("text a window sets in cells, in a body too short for a row of its fac
     const loom::WeaveId asker_id = r.bus.register_weave(std::move(asker), std::move(grant));
     raw->zen_set_self(asker_id);
     raw->next = [](loom::Mail& m) {
-        (void)m.send_to_role(kWorkshopProvider, PaneViewRequested{kHelloOffice, kHelloPane});
+        (void)m.send_to_role(kWorkshopProvider, PaneViewRequested{kHelloOffice, kHelloPane, 0, {}});
     };
     (void)r.bus.send(asker_id, loom::Message(loom::to_value(SeatDo{}), {}, {}, 0));
     r.bus.drain_until_idle();
     CHECK_MESSAGE(raw->refusals.empty(), (raw->refusals.empty() ? std::string() : raw->refusals[0]));
     CHECK(raw->views.size() == 1);
     if (raw->views.size() == 1) {
-        REQUIRE_FALSE(raw->views[0].rows.empty());
-        CHECK(raw->views[0].rows[0].text.rfind("abcdefgh", 0) == 0);
+        REQUIRE_FALSE(raw->views[0].words.empty());
+        CHECK(raw->views[0].words[0].text.rfind("abcdefgh", 0) == 0);
     }
 
     // A PRESS ON THE RIGHT HALF OF EACH GLYPH NAMES THAT GLYPH'S COLUMN, aimed into the glyph's

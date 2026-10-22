@@ -26,7 +26,6 @@ struct InventoryHandState { ZEN_SHAPE(InventoryHandState, 1); };
 struct InventoryHandDo { ZEN_SHAPE(InventoryHandDo, 1); };
 class InventoryHand : public loom::WeaveBase<InventoryHand, InventoryHandState,
     loom::Accept<InventoryHandDo, input::InputSessionOpened, input::InputInjected, PaneView, PanePoint,
-        v2::PaneView, v2::PanePoint,
         inv::InventoryListed, inv::v2::InventoryListed, inv::InventoryFolderState, inv::InventoryEntry,
         slots::InventoryToolboxFinished, loom::Refused>,
     loom::Emit<intro::LoadedSelected, input::InputSessionRequested, input::InjectInput>> {
@@ -39,16 +38,12 @@ public:
     void on(const inv::v2::InventoryListed& v, loom::Mail&) { organized = v; }
     std::vector<inv::InventoryFolderState> folders;
     void on(const inv::InventoryFolderState& v, loom::Mail&) { folders.push_back(v); }
-    std::vector<PaneView> views;
     std::vector<std::string> refusals;
     bool expect_refusal = false;
-    void on(const PaneView& v, loom::Mail&) { views.push_back(v); }
-    std::vector<PanePoint> points;
-    void on(const PanePoint& p, loom::Mail&) { points.push_back(p); }
-    std::vector<v2::PaneView> words;
-    void on(const v2::PaneView& v, loom::Mail&) { words.push_back(v); }
-    std::vector<v2::PanePoint> word_points;
-    void on(const v2::PanePoint& p, loom::Mail&) { word_points.push_back(p); }
+    std::vector<PaneView> words;
+    void on(const PaneView& v, loom::Mail&) { words.push_back(v); }
+    std::vector<PanePoint> word_points;
+    void on(const PanePoint& p, loom::Mail&) { word_points.push_back(p); }
     std::vector<inv::InventoryEntry> entries;
     std::vector<slots::InventoryToolboxFinished> toolboxes;
     void on(const slots::InventoryToolboxFinished& v, loom::Mail& mail) { CHECK(mail.answers_ask()); toolboxes.push_back(v); }
@@ -93,9 +88,11 @@ struct InventoryStory {
                             bool no_canvas = false) {
         r.mount_workshop();
         if (no_canvas) {
+            // No canvas, and no area of its own in a window: Workshop draws its rows as prose.
             r.host.holder_accepts = [accepts = r.host.holder_accepts](std::string_view role,
                                                                       const loom::Schema& shape) {
-                return shape.name() != PaneCanvasRoom::zen_name && accepts(role, shape);
+                return shape.name() != PaneCanvasRoom::zen_name &&
+                       shape.name() != zengine::graphics::AreaRoom::zen_name && accepts(role, shape);
             };
         }
         if (with_powers) {
@@ -205,8 +202,8 @@ struct InventoryStory {
         actor_grant.allow_to_role(input::InjectInput::zen_name, 1, input::kInputRole);
         actor_grant.allow_to_role(inv::InventoryList::zen_name, 1, inv::kInventoryRole);
         actor_grant.allow_to_role(inv::v2::InventoryList::zen_name, 2, inv::kInventoryRole);
-        actor_grant.allow_to_role(PaneViewRequested::zen_name, 1, "zengine.workshop");
-        actor_grant.allow_to_role(v2::PaneViewRequested::zen_name, 2, "zengine.workshop");
+        actor_grant.allow_to_role(PaneViewRequested::zen_name, PaneViewRequested::zen_version,
+                                  "zengine.workshop");
         if (permissions & 256) actor_grant.allow_to_role(TerminalValueRequested::zen_name, 1, "zengine.workshop");
         if (permissions & 1) actor_grant.allow_to_role(inv::InventoryLocate::zen_name, 1, inv::kInventoryRole);
         if (permissions & 2) actor_grant.allow_to_role(inv::InventoryRead::zen_name, 1, inv::kInventoryRole);
@@ -226,8 +223,8 @@ struct InventoryStory {
         if (permissions & 128) actor_grant.allow_to_role(zengine::inventory_pane::InventoryViewEdit::zen_name, 1, "zengine.inventory-pane");
         if (permissions & 1024) actor_grant.allow_to_any(loom::PokeDescribe::zen_name, loom::PokeDescribe::zen_version);
         if (permissions & 2048) {
-            actor_grant.allow_to_role(PanePointRequested::zen_name, 1, "zengine.workshop");
-            actor_grant.allow_to_role(v2::PanePointRequested::zen_name, 2, "zengine.workshop");
+            actor_grant.allow_to_role(PanePointRequested::zen_name, PanePointRequested::zen_version,
+                                      "zengine.workshop");
         }
         actor_grant.allow_to_role(inv::InventoryCaptureAdd::zen_name, 1, inv::kInventoryRole);
         if (permissions & 512) {

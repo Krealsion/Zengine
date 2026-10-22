@@ -126,7 +126,7 @@ LAW — A row without `capture` is refused, in words, every observed publication
 MEANS
 - the desk's words and picture are `SurfaceCanvas`, `SurfaceText`, `TranscriptShown`, `PaneSubjectShown`, `PaneInventory`, `KeymapShown` and `StandingConditions`, from any producer;
 - `capture` reads the desk said whole, the inventory and the keymap; it is said at launch and on Attention;
-- `DeskStamps`, the notice that the desk moved, says no word but follows them, so needs `capture` too.
+- `DeskStamps`, the notice that the desk moved, says no word but follows them, so needs `capture` too, and so do a window's `WindowShown` and `AreaShown`.
 
 DOES NOT MEAN
 - that `ClipboardCopy` is anyone's yet: it needs `clipboard`, which no file of this version grants.
@@ -136,6 +136,20 @@ WHY — `agents/decisions/the-desk-is-said-whole-on-the-agents-host.md`
 ## WL-GUEST-12 — A guest may wait for the plan at rest
 
 LAW — The port file says the door listens, not that the plan is realized; `GuestPlanRequested` says where it is, held by `wait` until at rest, naming rows only to `capture` or `inspect`.
+
+## WL-GUEST-13 — While a window shows the desk, it lands a guest's pointer as that guest's hand
+
+LAW — While a window shows the desk it lands an injected pointer moment as the hand it names; on a weaver's host with a guest door, the editor's, Terminal's and Hotkeys pane's areas take the weaver's alone.
+
+MEANS
+- an injected press or wheel there reaches nobody, and Workshop says why in WL-GUEST-06's words (`AreaHandRefused`): the window, telling no guest from another participant, refuses every one;
+- Workshop takes the hand from every moment the window gives it: a guest's press elsewhere moves keys and selection as the weaver's does, and ends no guide mark;
+- keys are not the window's: they reach Workshop as they did, one behind a pointer moment the window may not have landed waiting for it, so a batch is taken in order.
+
+DOES NOT MEAN
+- that a press in a window is aimed at the picture it was read with: the window lands it by what it shows when it reads it; where no window shows the desk, Workshop lands it.
+
+WHY — `agents/decisions/a-window-lands-every-hand.md`
 
 ## Do not assume
 
@@ -209,7 +223,8 @@ before Workshop answers it"
 number when another hand acts between, and chooses the row its press armed"
 
 ### WL-GUEST-06
-`workshop/weave_operation.cpp` refused_toward drop_carry accept_carry
+`workshop/weave_operation.cpp` refused_toward drop_carry accept_carry weaver_only_pane
+`workshop/weave_handlers.cpp` on(AreaHandRefused)
 `workshop/actor_scope.hpp` refuse_toward refuse_text refuse_carry
 `workshop/weave_external.cpp` external_key
 `workshop/weave_pointer.cpp` on(TextEntered) on(PointerButton) on(PointerWheel)
@@ -276,3 +291,19 @@ Attention"
 `workshop/guest_door.hpp` on(GuestPlanRequested) plan_for
 `tests/test_workshop_guests.cpp` "door: a guest admitted while the plan loads waits for it at rest,
 then its first ask is answered"
+
+### WL-GUEST-13
+`graphics/window/window.hpp` reaches refuse_hand
+`workshop/weave_operation.cpp` weaver_only_pane release_held_input send_key_fence
+`workshop/weave_handlers.cpp` on(AreaPressed) on(AreaHandRefused)
+`tests/test_workshop_inventory_folders.cpp` "inventory folders: a queued press aimed at an earlier picture
+never acts on the row's next occupant"
+`tests/test_graphics.cpp` "a participant's press the input office injects lands in the window as
+that hand's: its owner and its arranger hear the hand, its release ends its own hold, the weaver's
+press beside it holds its own, and a moment the platform gave or another office said is not taken"
+"an area placed for the weaver's hand alone refuses a participant's press and wheel, its arranger
+told, drops the moves and the release after, and takes the weaver's own"
+`tests/test_workshop_editor_transfers.cpp` "on a weaver's host a guest's wheel and value drop toward
+the Editor are refused, and the Editor hears neither"
+`tests/test_workshop_panes_guests.cpp` "on a development host the same guest types into the Editor and
+saves, types a Terminal line, and toggles titles"

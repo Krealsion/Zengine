@@ -311,11 +311,28 @@ TEST_CASE("a drop aimed at a picture the text has since left is refused and chan
     s.click(s.inventory, s.row_of(s.inventory, "word"), 2);
     s.key(input::scan::kReturn); // pick up a copy
     REQUIRE(s.r.last_notice().find("Carrying") != std::string::npos);
-    // ONE POLL: the wheel scrolls the Editor, and the press that places the copy was read with it
-    // -- aimed at the picture the wheel is about to replace.
-    input::InjectedEvent wheel = s.at(s.editor, 5, 3, "PointerWheel");
-    wheel.wheel_dy = -1.0;
-    s.batch({wheel, s.at(s.editor, 5, 3, "PointerButton", true), s.at(s.editor, 5, 3, "PointerButton", false)});
+    // THE PICTURE MOVES UNDER THE DROP: once the window has landed the press that places the copy,
+    // and before Workshop has taken it and sent its drop, the window gives the Editor a wheel, which
+    // the Editor takes first: the drop is aimed at the picture the wheel replaces.
+    const RuntimePane* row = s.r.session().panes.runtime.of_kind(s.editor);
+    REQUIRE(row != nullptr);
+    const std::string area = pane_window_area(s.r.session().panes, *row);
+    const std::string office = std::string(gfx::kWindowOfficePrefix) + gfx::kTerminalWindow;
+    const loom::WeaveId window = s.r.bus.role_holder(office);
+    REQUIRE(window.valid());
+    bool wheeled = false;
+    const loom::ObserverId tap = s.r.bus.add_observer([&](const loom::BusEvent& event) {
+        if (!wheeled && event.kind == loom::EventKind::Delivered &&
+            event.schema_name == input::AttributedInput::zen_name && event.target == window) {
+            wheeled = true;
+            (void)s.r.bus.office_send_to_role_as(
+                window, office, ed::kEditorPaneRole,
+                loom::Message(loom::to_value(gfx::AreaWheelTurned{area, 0, -3.0, 10, 10, 0, true, 0})));
+        }
+    });
+    s.batch({s.at(s.editor, 5, 3, "PointerButton", true), s.at(s.editor, 5, 3, "PointerButton", false)});
+    s.r.bus.remove_observer(tap);
+    REQUIRE(wheeled);
     INFO(s.notice());
     CHECK(s.notice().find("moved under the drop") != std::string::npos);
     CHECK(s.doc().text == lines);
@@ -329,8 +346,9 @@ TEST_CASE("a press aimed at a picture where the text it lands on was not yet sel
     s.click_doc(0, 0);
     s.key(input::scan::kEnd, input::mod::kShift);
     REQUIRE(s.doc().caret_byte == 6);
-    // ONE POLL: Shift+Down grows the selection over the second line, and the press on that line
-    // was read with it -- aimed at the picture where the line was not yet highlighted.
+    // ONE POLL: a press on the second line, and Shift+Down after it, which grows the selection over
+    // that line: the window lands the press first, on the picture where the line was not yet
+    // highlighted, and the key waits behind it.
     input::InjectedEvent grow;
     grow.kind = "KeyPressed";
     grow.scancode = input::scan::kDown;
@@ -343,7 +361,7 @@ TEST_CASE("a press aimed at a picture where the text it lands on was not yet sel
     move.kind = "PointerMoved";
     move.dx = release.x - press.x;
     move.dy = release.y - press.y;
-    s.batch({grow, grown, press, move, release});
+    s.batch({press, grow, grown, move, release});
     CHECK(s.stored().empty());
     const auto d = s.doc();
     CHECK(d.anchor_row == 1);
@@ -550,7 +568,11 @@ TEST_CASE("on a weaver's host a guest's wheel and value drop toward the Editor a
     CHECK(s.doc().first_row == 0);
 
     // THE TWIN, ON A DEVELOPMENT HOST: the same wheel scrolls, and the same drop reopens the location.
+    // (A host is one or the other for a whole run: the desk is laid out again here, so the window
+    // places the Editor's area as the host now says, for the weaver's hand alone or for any.)
     s.r.host.host_fact.development = true;
+    s.r.extent(181, 60);
+    s.r.extent(180, 60);
     wheel();
     CHECK(s.doc().first_row > 0);
     s.drag(s.inventory, s.row_of(s.inventory, "a.txt at 3"), 2, s.editor, s.chrome() + 0, 1);

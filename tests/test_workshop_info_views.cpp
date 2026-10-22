@@ -1216,18 +1216,17 @@ TEST_CASE("pane point: a point names the cell a control is drawn on, and a moved
     const auto entries = s.saved_entries().size();
     // The view's words, as Workshop holds them, and the one the control stands in.
     s.act([&](loom::Mail& m) {
-        m.send_to_role("zengine.workshop", v2::PaneViewRequested{info::kInfoPaneRole, "info.2"});
+        m.send_to_role("zengine.workshop", PaneViewRequested{info::kInfoPaneRole, "info.2", 0, {}});
     });
     REQUIRE(s.hand->words.size() == 1);
-    const v2::PaneView view = s.hand->words.back();
-    CHECK(view.canvas);
+    const PaneView view = s.hand->words.back();
     const auto word = std::find_if(view.words.begin(), view.words.end(), [](const PaneWord& w) {
         return w.text.find("[Save copy]") != std::string::npos;
     });
     REQUIRE(word != view.words.end());
     const auto column = static_cast<std::int64_t>(word->text.find("[Save copy]")) + 2;
     s.act([&](loom::Mail& m) {
-        m.send_to_role("zengine.workshop", v2::PanePointRequested{info::kInfoPaneRole, "info.2", view.picture,
+        m.send_to_role("zengine.workshop", PanePointRequested{info::kInfoPaneRole, "info.2", view.stamp.fingerprint,
                                                                   word->word, column});
     });
     REQUIRE(s.hand->word_points.size() == 1);
@@ -1237,13 +1236,13 @@ TEST_CASE("pane point: a point names the cell a control is drawn on, and a moved
     e.pressed = true; s.event(e); e.pressed = false; s.event(e);
     CHECK_MESSAGE(s.saved_entries().size() == entries + 1, s.shown(a));
     s.hand->expect_refusal = true;
-    const auto now = s.r.session().panes.external_pane(a)->stamp.aimed;
+    const std::int64_t other = view.stamp.fingerprint + 1; // a reading the pane does not stand on
     s.act([&](loom::Mail& m) {
-        m.send_to_role("zengine.workshop", v2::PanePointRequested{info::kInfoPaneRole, "info.2", now + 1,
+        m.send_to_role("zengine.workshop", PanePointRequested{info::kInfoPaneRole, "info.2", other,
                                                                   word->word, column});
     });
     REQUIRE(s.hand->refusals.size() == 1);
-    CHECK(s.hand->refusals.back().find("picture moved") != std::string::npos);
+    CHECK(s.hand->refusals.back().find("what the pane shows moved") != std::string::npos);
 }
 
 /// THE FIELD ROW A VIEW'S SELECTION MARKS, as it is drawn, or "".

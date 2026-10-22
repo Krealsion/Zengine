@@ -59,10 +59,15 @@ class Owners:
         return self.ctx.ask(role, shape, fields, via=self.link, **kwargs)
 
     def view(self, provider, pane):
-        """A pane's words and parts as Workshop shows them (PaneView version 3): a text pane's
-        rows, or the picture a canvas pane drew."""
-        return self.ask("zengine.workshop", "PaneViewRequested", {"provider": provider, "pane": pane},
-                        version=3)
+        """A pane's words and parts as Workshop shows them (PaneView version 7), its first page: what
+        the pane shows, its stamp's fields at its top."""
+        stamp = {"provider": "", "pane": "", "holder": 0, "incarnation": 0, "epoch": 0,
+                 "fingerprint": 0}
+        view = dict(self.ask("zengine.workshop", "PaneViewRequested",
+                             {"provider": provider, "pane": pane, "from": 0, "stamp": stamp},
+                             version=7))
+        view.update(view.get("stamp") or {})
+        return view
 
     def edit(self, **fields):
         # Inventory's configuration door: every declared field is written.
@@ -404,9 +409,9 @@ def shown(hand, provider, pane):
     while True:
         try:
             view = hand.view(provider, pane)
-            if view.get("canvas") or view["words"] or view.get("parts"):
+            if view["words"] or view.get("parts"):
                 return None
-            why = "no rows"
+            why = "what it shows is in flight" if view.get("in_flight") else "no rows"
         except Exception as refused:
             why = str(refused)
         if time.monotonic() >= deadline:

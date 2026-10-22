@@ -338,11 +338,11 @@ TEST_CASE("inventory folders: a queued press aimed at an earlier picture never a
         s.entry("Inside A").reference, {s.folders().owner, ""}, {s.folders().owner, a}})));
     s.r.bus.drain_until_idle();
     const auto folder_row = s.row_of(s.source, "A/");
-    s.click(s.source, folder_row); // selects A
-    // One batch: Enter opens A, then a press, motion and release aimed where "A/" was painted.
-    auto press = s.button_at(s.source, folder_row, true), release = s.button_at(s.info, 0, false);
-    auto move = release; move.kind = "PointerMoved"; move.dx = release.x - press.x; move.dy = release.y - press.y;
-    s.batch({s.key_down(input::scan::kReturn), press, move, release});
+    // One batch: a press and its release aimed where "A/" is painted, which select A and bring the
+    // keys, then Enter, which opens A: the window lands the click before Enter is taken, which waits
+    // behind it, so the click never reaches the row's next occupant.
+    auto press = s.button_at(s.source, folder_row, true), release = s.button_at(s.source, folder_row, false);
+    s.batch({press, release, s.key_down(input::scan::kReturn)});
     REQUIRE_MESSAGE(s.row_of(s.source, "Root > A") == 1, s.shown(s.source));
     REQUIRE(s.row_of(s.source, "Inside A") == folder_row); // the next occupant of that row
     CHECK_MESSAGE(s.shown(s.info).find("story.RuntimeItem") == std::string::npos, s.shown(s.info));

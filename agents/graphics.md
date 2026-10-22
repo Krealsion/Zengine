@@ -78,6 +78,34 @@ keeps, is [surface](surface.md); where the two meet is the last section here.
   `AreaHoldEnded` and `AreaPointerLeft` reach no other office, so none learns where the weaver's
   pointer goes.
 
+## Every moment says whose hand it is
+
+- **The window lands a participant's pointer as it lands the weaver's.** It takes
+  `input::AttributedInput` from `zengine.input`'s office alone, and lands a press, a move or a wheel
+  that office injected for a participant by its own judge, as one its platform gave. A moment the
+  platform gave (`local`) is the window's own to read; keys and text are not taken there.
+- **Every moment it gives names the hand**: `AreaButtonChanged`, `AreaPointerMoved`,
+  `AreaWheelTurned` and `AreaPressed` say `local`, or the `actor` the input office named. Each hand
+  holds its own presses, so a guest's press and release never end or take the weaver's.
+- **An area placed for the weaver's hand alone refuses every injected hand**
+  (`AreaPlaced::weaver_only`): a participant's press or wheel landing there reaches nobody, its
+  arranger is told (`AreaHandRefused`), and the moves and the release after it are dropped. The
+  weaver's own hand reaches it as any area.
+
+## A window says what an area shows, to its arranger
+
+- **The office that placed an area asks, and only it**: `AreaShowAsked` is answered `AreaShown`,
+  and anyone else is refused in words. The answer is what the window holds painted, after its own
+  composition: each run of text on one line, and each record naming an action as the part it
+  names, with the box its drawing shows, in the area's pixels; a cell or point another office's
+  area in front paints over is not said, and one the asker's own area paints over is.
+- **A part's point is where the window's own judge lands a press on it**, or none; its availability
+  is what its record says (`PartFace`), else available.
+- **Asking again costs nothing when nothing moved**: an area's `version` moves with its drawing, its
+  place, and any area that meets it, and an ask `since` the version still standing is answered
+  `same`, with nothing else. `waiting` says the owner owes a whole drawing for the room it was told.
+- Past `kMaxAreaWords` runs of text a reading is refused whole, in words, rather than said in part.
+
 ## Colour, pixels and operands
 
 - **A colour is a role or an exact value beside one** (`Paint`): a medium without colour shows the

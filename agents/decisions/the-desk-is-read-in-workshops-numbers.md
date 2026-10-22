@@ -10,13 +10,14 @@ witness counted pixels and a walk chose a row by where it fell. A canvas pane's 
 Builder's `[Label]`, a Flow node's name -- were refused as a picture, not text rows.
 
 **Decision.** Workshop answers the desk (`DeskViewRequested`, answered by `DeskView`) from the
-numbers it owns: `bounds_of`'s resolved and visible rectangles, `pane_state_of`'s word, the rank
-in the effective order, the selection and the keys, the arranging flag, and a menu's lines from
-the painter's own composition of it. A pane's words (`PaneView` version 2 on) are a text pane's rows
-or a canvas pane's labels and runs, each placed as the painter clips it, with the point a press
-names it by; `PanePoint` version 2 resolves one character of one word. Every place is the
-canvas's, in its pixels: a terminal draws it on the cells it floors to. The first versions are
-served as they were.
+numbers it owns: `bounds_of`'s resolved and visible rectangles, `pane_state_of`'s word, the rank in
+the effective order, the selection and the keys, the arranging flag, and a menu's lines from the
+painter's own composition of it. A pane's words (`PaneView` version 2 on) are a text pane's rows or
+a canvas pane's labels and runs, each placed as the painter clips it, with the point a press names
+it by; `PanePoint` version 2 resolves one character of one word. Every place is the canvas's, in its
+pixels: a terminal draws it on the cells it floors to. One version of each reading stands now, and a
+pane drawing in an area of its own is read from the window ([a pane is read from the window that
+shows it](a-pane-is-read-from-the-window-that-shows-it.md)).
 
 **Alternatives considered.**
 - *Reading the places off the composed picture* — tried, as the proof rather than the answer:

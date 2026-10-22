@@ -43,20 +43,15 @@ loom::Grant workshop_grant() {
     speak.allow_to_any(loom::Ack::zen_name, loom::Ack::zen_version);
     speak.allow_to_any(PaneView::zen_name, PaneView::zen_version);
     speak.allow_to_any(PanePoint::zen_name, PanePoint::zen_version);
-    speak.allow_to_any(DeskView::zen_name, DeskView::zen_version);
-    speak.allow_to_any(v2::PaneView::zen_name, v2::PaneView::zen_version);
-    speak.allow_to_any(v2::PanePoint::zen_name, v2::PanePoint::zen_version);
-    speak.allow_to_any(v3::PaneView::zen_name, v3::PaneView::zen_version);
-    speak.allow_to_any(v2::DeskView::zen_name, v2::DeskView::zen_version);
-    speak.allow_to_any(v4::PaneView::zen_name, v4::PaneView::zen_version);
     speak.allow_to_any(DeskRead::zen_name, DeskRead::zen_version);
-    speak.allow_to_any(v5::PaneView::zen_name, v5::PaneView::zen_version);
-    speak.allow_to_any(v2::DeskRead::zen_name, v2::DeskRead::zen_version);
-    speak.allow_to_any(v6::PaneView::zen_name, v6::PaneView::zen_version);
     // ...and the notice that the desk moved, published to whoever follows it, a relay's listener
     // among them, which holds no office.
     speak.allow_to_any(DeskStamps::zen_name, DeskStamps::zen_version);
-    speak.allow_to_any(v2::DeskStamps::zen_name, v2::DeskStamps::zen_version);
+    // ...and what each pane's area shows, asked of the window that shows the desk.
+    for (const char* window : {graphics::kTerminalWindow, graphics::kSdlWindow}) {
+        speak.allow_to_role(graphics::AreaShowAsked::zen_name, graphics::AreaShowAsked::zen_version,
+                            std::string(graphics::kWindowOfficePrefix) + window);
+    }
     speak.allow_to_any(PaneObservationAnswered::zen_name, PaneObservationAnswered::zen_version);
     speak.allow_to_any(PaneOperationAnswered::zen_name, PaneOperationAnswered::zen_version);
     speak.allow_to_any(ActorScopeJudged::zen_name, ActorScopeJudged::zen_version);

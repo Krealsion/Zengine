@@ -199,7 +199,7 @@ def calm(ctx, hand):
             return None
         first = view["rows"][0]
         return first if not first["text"] else hand.word_point(*BUILDER, first["row"], 0,
-                                                               view["picture"])
+                                                               view["fingerprint"])
     for _ in range(4):
         view, at = aimed(ctx, hand, lambda: pressing(ctx, hand), aim, "first word")
         if at is None:
@@ -221,7 +221,7 @@ def keys_into(ctx, hand):
         return view, header[0]
     def aim(reading):
         view, row = reading
-        return hand.word_point(*BUILDER, row["row"], 0, view["picture"])
+        return hand.word_point(*BUILDER, row["row"], 0, view["fingerprint"])
     _, at = aimed(ctx, hand, read, aim, "header")
     hand.inject([moment(ctx, "PointerButton", button=1, pressed=p, x=at["x"], y=at["y"],
                         space=at["space"]) for p in (True, False)])

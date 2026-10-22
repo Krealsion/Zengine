@@ -69,9 +69,93 @@ bool WorkshopWeave::duplicate_input(const loom::Mail& mail) const {
            mail.sender() == attributed_producer_;
 }
 
+// AN INJECTED BATCH IS TAKEN IN ITS ORDER: while a window shows the desk it lands a participant's
+// pointer moments and Workshop takes its keys, so a key behind a pointer moment the window may not
+// have landed yet waits until the window answers an ask sent after that moment (WL-GUEST-13).
 void WorkshopWeave::on(const input::AttributedInput& event, loom::Mail& mail) {
     if (!mail.authored_from_role(input::kInputRole) ||
         (event.local ? event.actor != 0 : event.actor <= 0)) return;
+    attributed_producer_ = mail.sender();
+    const std::string& kind = event.event.kind;
+    const bool pointer = kind == "PointerButton" || kind == "PointerMoved" || kind == "PointerWheel";
+    if (event.local || !window_.shown()) {
+        apply_attributed(event, mail);
+        return;
+    }
+    if (pointer) {
+        apply_attributed(event, mail); // ends a carry it ends, and leaves the moment to the window
+        if (batch_held_.empty() || !batch_held_.back().pointer) {
+            batch_held_.push_back(BatchInput{++held_seq_, true, {}});
+        } else {
+            batch_held_.back().seq = ++held_seq_;
+        }
+        return;
+    }
+    const bool behind = std::any_of(batch_held_.begin(), batch_held_.end(), [&](const BatchInput& h) {
+        return !h.pointer || h.seq > fence_covers_;
+    });
+    if (!behind) {
+        batch_held_.clear();
+        apply_attributed(event, mail);
+        return;
+    }
+    if (batch_held_.size() >= kMaxBatchHeld) {
+        say("Input refused: too many keys wait behind the pointer; send them again", true);
+        return;
+    }
+    batch_held_.push_back(BatchInput{++held_seq_, false, event});
+    release_held_input(mail);
+}
+
+// THE KEYS NO UNLANDED POINTER MOMENT STANDS BEFORE, taken in order; the first such moment asks the
+// window once more, or, with no window to ask, waits for nothing.
+void WorkshopWeave::release_held_input(loom::Mail& mail) {
+    while (!batch_held_.empty()) {
+        if (batch_held_.front().pointer && batch_held_.front().seq > fence_covers_) {
+            if (key_fence_ != 0) return;
+            if (send_key_fence(mail)) return;
+            fence_covers_ = held_seq_;
+            continue;
+        }
+        const BatchInput next = std::move(batch_held_.front());
+        batch_held_.erase(batch_held_.begin());
+        if (!next.pointer) apply_attributed(next.event, mail);
+    }
+}
+
+// AN ASK THE WINDOW ANSWERS ONLY ONCE IT HAS LANDED EVERY MOMENT BEFORE IT: what Workshop's overlay
+// shows, since the version it last said.
+bool WorkshopWeave::send_key_fence(loom::Mail& mail) {
+    if (!window_.shown()) return false;
+    const std::string office = std::string(graphics::kWindowOfficePrefix) + window_name_;
+    const loom::AskOpened opened = area_asks_.open_to_role(
+        office, graphics::AreaShowAsked::zen_name, graphics::AreaShowAsked::zen_version);
+    if (!opened) return false;
+    const loom::Ticket sent =
+        mail.as_role(kWorkshopProvider)
+            .send_to_role(office, graphics::AreaShowAsked{kWorkshopOverlayArea, fence_since_},
+                          opened.correlation);
+    if (!sent.valid()) {
+        (void)area_asks_.forget(opened.id);
+        return false;
+    }
+    key_fence_ = opened.id;
+    fence_sent_covers_ = held_seq_;
+    return true;
+}
+
+// ...ANSWERED: every pointer moment before it is landed, and the keys behind them go.
+bool WorkshopWeave::take_key_fence(std::uint64_t ask, const graphics::AreaShown* shown,
+                                   loom::Mail& mail) {
+    if (key_fence_ == 0 || ask != key_fence_) return false;
+    key_fence_ = 0;
+    fence_covers_ = fence_sent_covers_;
+    fence_since_ = shown != nullptr ? shown->version : 0;
+    release_held_input(mail);
+    return true;
+}
+
+void WorkshopWeave::apply_attributed(const input::AttributedInput& event, loom::Mail& mail) {
     if (!carried_.data.empty() && !carried_.actor.local) {
         const auto authority = host_->input_authority
             ? host_->input_authority(carried_.actor.participant) : loom::GrantAuthority{};
@@ -81,7 +165,6 @@ void WorkshopWeave::on(const input::AttributedInput& event, loom::Mail& mail) {
             repaint(mail);
         }
     }
-    attributed_producer_ = mail.sender();
     struct RestoreInput {
         InputActor& actor;
         bool& applying;
@@ -101,6 +184,10 @@ void WorkshopWeave::on(const input::AttributedInput& event, loom::Mail& mail) {
         carried_ = {}; value_drag_ = {};
         say("Value drag cancelled by a new gesture", false);
     }
+    // A PARTICIPANT'S POINTER IS THE WINDOW'S TO LAND while one shows the desk: it takes the input
+    // office's moments as the hand they name, and says the hand on every moment it gives.
+    const bool pointer = e.kind == "PointerButton" || e.kind == "PointerMoved" || e.kind == "PointerWheel";
+    if (pointer && !event.local && window_.shown()) return;
     if (e.kind == "KeyPressed") on(input::KeyPressed{e.scancode, e.name, e.modifiers}, mail);
     else if (e.kind == "TextEntered") on(input::TextEntered{e.text}, mail);
     else if (e.kind == "PointerButton")
@@ -257,12 +344,19 @@ std::string WorkshopWeave::refused_toward(const InputActor& actor, std::int64_t 
     const RuntimePane* row = session_.panes.runtime.of_kind(kind);
     if (row == nullptr) return {};
     const scope::GuestRowFacts guest = guest_of(actor);
-    if (!guest.admitted || host_->host_fact.development) return {};
+    if (!guest.admitted || !weaver_only_pane(*row)) return {};
     if (row->provider == kEditorRole) return scope::refuse_toward(guest, host_->host_fact, "the editor");
     if (row->provider == kTerminalRole) return scope::refuse_toward(guest, host_->host_fact, "the Terminal");
-    if (row->provider == kDesktopRole && row->pane == kHotkeysPane)
-        return scope::refuse_toward(guest, host_->host_fact, "the Hotkeys pane, which edits the keymap file,");
-    return {};
+    return scope::refuse_toward(guest, host_->host_fact, "the Hotkeys pane, which edits the keymap file,");
+}
+
+// ...AND SO PLACED IN A WINDOW while a guest door listens on a weaver's host: the window, which
+// cannot tell a guest's hand from another participant's, then lands no injected hand there.
+// WL-GUEST-06 -- agents/workshop/guests.md
+bool WorkshopWeave::weaver_only_pane(const RuntimePane& row) const {
+    if (host_->host_fact.development || !host_->guest_row) return false;
+    return row.provider == kEditorRole || row.provider == kTerminalRole ||
+           (row.provider == kDesktopRole && row.pane == kHotkeysPane);
 }
 
 void WorkshopWeave::refuse_input(const std::string& why, loom::Mail& mail) {

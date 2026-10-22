@@ -51,14 +51,17 @@ struct PaneWindowDo {
 /// THE STAND-IN ITSELF: the areas it keeps, every drawing its areas' owners sent it, the refusals
 /// it answered, and the drawings it heard from anyone but an area's owner, which it ignores. It
 /// holds the platform's clipboard as the real windows do, and answers a paste with what that
-/// holds, counting each read.
+/// holds, counting each read. Asked what an area shows, it says it as the terminal window reads
+/// its cells (`gw::read_area`), to the office that owns the area or placed it.
 class PaneWindow
     : public loom::WeaveBase<PaneWindow, PaneWindowState,
-                             loom::Accept<gfx::Drawn, PaneWindowDo, graphics::ClipboardTextRequested>,
+                             loom::Accept<gfx::Drawn, PaneWindowDo, graphics::ClipboardTextRequested,
+                                          gfx::AreaShowAsked>,
                              loom::Emit<gfx::AreaRoom, gfx::DrawnRefused, gfx::ActionRequested,
                                         gfx::AreaButtonChanged, gfx::AreaPointerMoved,
                                         gfx::AreaWheelTurned, gfx::AreaPressed, gfx::AreaHoldEnded,
-                                        gfx::AreaPointerLeft, graphics::ClipboardText>> {
+                                        gfx::AreaPointerLeft, graphics::ClipboardText,
+                                        gfx::AreaShown, loom::Refused>> {
 public:
     explicit PaneWindow(std::string window) : window_(std::move(window)) {}
 
@@ -97,6 +100,33 @@ public:
         (void)mail.answer(graphics::ClipboardText{true, platform});
     }
 
+    void on(const gfx::AreaShowAsked& asked, loom::Mail& mail) {
+        ++area_reads;
+        const gw::WinArea* a = find(asked.area);
+        if (a == nullptr || !read) {
+            (void)mail.answer(loom::Refused{"window '" + window_ + "' shows no area '" + asked.area + "'"});
+            return;
+        }
+        gfx::AreaShown s;
+        s.window = window_;
+        s.area = a->area;
+        s.epoch = 1;
+        s.version = state_.drawn + 1; // moved by every drawing it hears
+        if (asked.since != 0 && asked.since == s.version) {
+            s.same = true;
+            (void)read(*a, s);
+            s.words.clear();
+            s.parts.clear();
+            (void)mail.answer(s);
+            return;
+        }
+        if (const std::string why = read(*a, s); !why.empty()) {
+            (void)mail.answer(loom::Refused{why});
+            return;
+        }
+        (void)mail.answer(s);
+    }
+
     gw::WinArea* find(const std::string& area) {
         for (gw::WinArea& a : areas) {
             if (a.area == area) {
@@ -114,6 +144,9 @@ public:
     std::function<void(PaneWindow&, loom::Mail&)> next;
     std::string platform;    ///< what the platform clipboard holds
     int clipboard_reads = 0; ///< the pastes asked of this window
+    int area_reads = 0;      ///< the areas asked of this window
+    /// How an area is read, by the case's hand on this window (`Window`), which knows its face.
+    std::function<std::string(const gw::WinArea&, gfx::AreaShown&)> read;
 
 private:
     std::string window_;
@@ -137,9 +170,11 @@ public:
         grant.allow_to_any(gfx::AreaHoldEnded::zen_name, gfx::AreaHoldEnded::zen_version);
         grant.allow_to_any(gfx::AreaPointerLeft::zen_name, gfx::AreaPointerLeft::zen_version);
         grant.allow_to_any(graphics::ClipboardText::zen_name, graphics::ClipboardText::zen_version);
+        grant.allow_to_any(gfx::AreaShown::zen_name, gfx::AreaShown::zen_version);
         const std::string office = w_->office();
         id_ = bus_.register_weave(std::move(weave), std::move(grant), office);
         w_->zen_set_self(id_);
+        w_->read = [this](const gw::WinArea& a, gfx::AreaShown& s) { return read_area(a, s); };
     }
     Window(const Window&) = delete;
     Window& operator=(const Window&) = delete;
@@ -400,6 +435,38 @@ private:
             k.node.args = workshop::on_cells(k.node, face_);
         }
         return out;
+    }
+
+    /// WHAT `a` SHOWS, as the terminal window reads its cells, with nothing in front of it: its
+    /// words and parts in the area's pixels, by this window's face.
+    std::string read_area(const gw::WinArea& a, gfx::AreaShown& s) const {
+        const gfx::TextMeasure face = face_;
+        s.advance = face.advance;
+        s.line = face.line;
+        gw::WinArea cells = on_cells(a);
+        cells.x = 0;
+        cells.y = 0;
+        const gw::Cache cache = painted(cells);
+        const std::vector<gw::WinArea> one{cells};
+        const std::string why =
+            gw::read_area(one, cache, cells, cells.w / gfx::kCellPx, cells.h / gfx::kCellPx, std::string(),
+                          s.words, s.parts);
+        // ...SAID BY THE FACE: a cell of the lattice is a character's advance by a line.
+        const auto across = [&](std::int64_t px) { return px / gfx::kCellPx * face.advance; };
+        const auto down = [&](std::int64_t px) { return px / gfx::kCellPx * face.line; };
+        for (gfx::AreaWord& w : s.words) {
+            w.x = across(w.x);
+            w.y = down(w.y);
+        }
+        for (gfx::AreaPart& p : s.parts) {
+            p.x = across(p.x);
+            p.y = down(p.y);
+            p.w = across(p.w);
+            p.h = down(p.h);
+            p.px = across(p.px) + (p.px % gfx::kCellPx) * face.advance / gfx::kCellPx;
+            p.py = down(p.py) + (p.py % gfx::kCellPx) * face.line / gfx::kCellPx;
+        }
+        return why;
     }
 
     /// `area`'s nodes painted by the character painter and kept as the window keeps them.
