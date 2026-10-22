@@ -56,8 +56,8 @@ plan artifacts.
 ## The view renderer
 
 `view::View` is the participant's behaviour. It accepts the shapes its labels show, `zen.Refused`,
-the pane conversation and a graphics window's; it emits its intents and those conversations, its
-actions among them.
+the pane conversation and a graphics window's, the window's keys and text among them; it emits
+its intents and those conversations, its actions among them.
 
 - It offers one pane, `view`, as its office, asking for its size in canvas pixels, never more
   than `workshop::kMaxPaneBodyPx` of either, and its notice rows of text beneath
@@ -103,6 +103,12 @@ actions among them.
   changed; a new window, incarnation, size or measure gets the picture whole, a refused change is sent
   again whole, and a refused whole drawing is said on the notice row, the window sent nothing more
   until the picture changes.
+- A window gives its keys only to an area placed to hear them, as an app's own weave places a
+  view's ([running an app on its own](../../app/docs/app.md)); Workshop places none so. A view
+  takes `KeyPressed` and `TextEntered` from the office of the window that shows its area as it
+  takes Workshop's `PaneKey` and `PaneTextInput`: Tab moves the focus between its number fields,
+  keys edit the focused one, and Return uses its control. The same from any other office changes
+  nothing, and an Escape it has no use for goes nowhere, since Workshop did not send it.
 
 `view::picture(description, told, presentation, room, number)` is the one drawing of a view and
 is pure. The View Builder draws its design canvas with it too, in a room exactly the view's

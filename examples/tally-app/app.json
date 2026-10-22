@@ -1,0 +1,28 @@
+{
+  "zen": 1,
+  "schema": "ZengineAppFile",
+  "version": 1,
+  "fields": {
+    "name": "tally",
+    "window": {
+      "title": "tally",
+      "width": "320",
+      "height": "260",
+      "skin": "day"
+    },
+    "views": [
+      {
+        "file": "tally.view",
+        "session": "tally.panel",
+        "x": "8",
+        "y": "8"
+      }
+    ],
+    "flows": [
+      {
+        "file": "tally.flow",
+        "session": "tally"
+      }
+    ]
+  }
+}
