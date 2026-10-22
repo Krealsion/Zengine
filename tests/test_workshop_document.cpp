@@ -1045,6 +1045,11 @@ TEST_CASE("a ctrl+shift+letter binding is accepted, and its collapse on the POSI
               .find("collapses to plain ctrl+letter") != std::string::npos);
     CHECK(posix_gap(Gesture{input::scan::kG, input::mod::kCtrl}) == nullptr);
     CHECK(posix_gap(Gesture{input::scan::kG, input::mod::kShift}) == nullptr); // a capital
+    // CTRL+SPACE ARRIVES, as byte 0; ctrl+2 sends that byte too, so it is the one said.
+    CHECK(posix_gap(Gesture{input::scan::kSpace, input::mod::kCtrl}) == nullptr);
+    const char* two = posix_gap(Gesture{input::scan::k2, input::mod::kCtrl});
+    REQUIRE(two != nullptr);
+    CHECK(std::string(two).find("byte-identical to ctrl+space") != std::string::npos);
     // AND ON A DIGIT THE OLDER RULE STILL ANSWERS: shift on a non-letter is not observable.
     CHECK(std::string(posix_gap(Gesture{input::scan::k1, input::mod::kCtrl | input::mod::kShift}))
               .find("shift is not observable") != std::string::npos);

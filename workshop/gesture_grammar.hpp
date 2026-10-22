@@ -294,6 +294,9 @@ inline const char* posix_gap(const Gesture& g) noexcept {
         return "ctrl+h/i/j/m are byte-identical to backspace/tab/newline/return on a POSIX "
                "terminal";
     }
+    if ((g.modifiers & mod::kCtrl) != 0 && g.scancode == scan::k2) {
+        return "ctrl+2 is byte-identical to ctrl+space on a POSIX terminal";
+    }
     if ((g.modifiers & mod::kShift) != 0 && !is_letter_scan(g.scancode) &&
         !is_posix_editing_scan(g.scancode) && g.scancode != scan::kTab) {
         // Tab is the one non-letter whose shifted form a terminal spells on its own:
