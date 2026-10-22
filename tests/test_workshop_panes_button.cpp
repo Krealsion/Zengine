@@ -940,6 +940,27 @@ TEST_CASE("WL-CTX-09: a right press on a pane's menu ends it, the presenter answ
     CHECK(t.hello->presses.empty());
 }
 
+TEST_CASE("WL-CTX-10: the shipped presenter reloaded in its own place while a menu is open draws it again where it stands, and a key moves it there") {
+    Rigged t;
+    t.guard->menu_on_press = true;
+    t.right_in_guard();
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    const std::string area = t.r.session().presented.area;
+    // THE SAME IMAGE, RELOADED: its menu takes the same room, so the window says no new room, and
+    // the new image asks for the one its area has.
+    t.r.enqueue_reload("zengine-menu-presenter", WORKSHOP_SO_MENU_PRESENTER);
+    t.r.bus.drain_until_idle();
+    REQUIRE(t.r.load_refusals.empty());
+    REQUIRE(t.foreign_open());
+    CHECK(t.r.session().presented.area == area);
+    t.r.key(input::scan::kDown);
+    CHECK(presented_texts(t.r)[1] == "> Second row");
+    t.r.key(input::scan::kReturn);
+    REQUIRE(t.guard->answers.size() == 1);
+    CHECK(t.guard->answers[0].id == "seat.second");
+}
+
 TEST_CASE("WL-CTX-09: a standard row chosen on a pane's menu is spent by the host on that pane, and the pane is answered unchosen and performs nothing") {
     Rigged t;
     t.guard->menu_on_press = true;
