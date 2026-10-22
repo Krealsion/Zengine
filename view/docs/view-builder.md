@@ -187,6 +187,8 @@ counting as it did here. Quit Workshop and the app goes on.
 An app already there is replaced only when you press **Export app** a second time, the bar saying
 `[Export: replace?]`, and what its console decided stays.
 
+![The tally panel opened from tally.view and exported: Exported, with the folder it wrote and each artifact its console will ask about](images/view-builder-export.png)
+
 In a terminal Workshop the builder works as it does in a window, its picture floored to cells: a
 drag moves an element by whole cells, 12 pixels each, the middle button pans by whole cells, and
 a value typed into its box is still a pixel. A side's handle is the cell beside the middle of
