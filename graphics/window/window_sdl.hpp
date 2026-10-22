@@ -663,11 +663,10 @@ public:
     }
 
     /// SHAPED by an office that arranges in it: the backend sets the title and the size, kept
-    /// within its display. What the areas reach now counts as already asked, so what was placed
-    /// for the old size does not grow the window back; an area reaching further still does.
-    void shape(const std::string& title, const PixelSize& want, const std::vector<WinArea>& areas) {
+    /// within its display. As after a weaver's resize, the areas grow it again only once they reach
+    /// further than they did (`fit`).
+    void shape(const std::string& title, const PixelSize& want) {
         backend_.shape(title, want);
-        asked_ = reach(areas);
         dirty_ = true;
     }
 
@@ -700,7 +699,11 @@ private:
     /// last reached and past the window: so a window a weaver made smaller is not grown back until
     /// its areas reach further, nor by areas placed again along the other axis, one at a time.
     void fit(const std::vector<WinArea>& areas) {
-        const PixelSize want = reach(areas);
+        PixelSize want;
+        for (const WinArea& a : areas) {
+            want.width = (std::max)(want.width, far_edge(a.x, a.w));
+            want.height = (std::max)(want.height, far_edge(a.y, a.h));
+        }
         if (want == asked_) {
             return;
         }
@@ -711,16 +714,6 @@ private:
             backend_.grow(PixelSize{wider ? want.width : size_.width,
                                     taller ? want.height : size_.height});
         }
-    }
-
-    /// How far the areas reach across and down.
-    static PixelSize reach(const std::vector<WinArea>& areas) {
-        PixelSize want;
-        for (const WinArea& a : areas) {
-            want.width = (std::max)(want.width, far_edge(a.x, a.w));
-            want.height = (std::max)(want.height, far_edge(a.y, a.h));
-        }
-        return want;
     }
 
     /// Where an area ends along one axis, held at int64's end rather than past it.

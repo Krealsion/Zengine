@@ -5977,8 +5977,12 @@ TEST_CASE("an OS window takes its title and its size from an office that arrange
     const std::size_t offers = t.platform.heard.offers.size();
 
     // AN OFFICE THAT ARRANGES NOTHING HERE, and a shaping naming another window: nothing changes.
-    t.say("test.other", gfx::WindowShaped{gfx::kSdlWindow, "other", 320, 260});
-    t.say("test.app", gfx::WindowShaped{gfx::kSdlWindow, "an owner, not an arranger", 320, 260});
+    auto made = std::make_unique<Arranger>();
+    Arranger* raw = made.get();
+    loom::Grant g = loom::emit_default_grant(*raw);
+    const loom::WeaveId stranger = t.r.bus.register_weave(std::move(made), std::move(g), "test.stranger");
+    raw->zen_set_self(stranger);
+    say_as(t, stranger, "test.stranger", gfx::WindowShaped{gfx::kSdlWindow, "stranger", 320, 260});
     say_as(t, arranger, "test.arranger", gfx::WindowShaped{gfx::kTerminalWindow, "tally", 320, 260});
     CHECK(t.light.shaped.empty());
     CHECK(t.light.size == gw::PixelSize{gw::kDefaultWidth, gw::kDefaultHeight});
