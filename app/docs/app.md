@@ -46,8 +46,8 @@ It writes no decision and copies no artifact. Its last words name each artifact 
 will ask about on the first start. An app already there is replaced only after a second press, and
 only those six files: `app-authority.json` and every other file in the folder stay.
 
-`zengine-app` stands beside Workshop's program: in an installed package both are in its `bin`, and
-a build stages it in Workshop's directory with `zengine-app-weave`.
+`zengine-app` stands beside Workshop's program: a build stages it in Workshop's directory with
+`zengine-app-weave`.
 
 ### `app.json`
 

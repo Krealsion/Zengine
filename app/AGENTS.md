@@ -38,7 +38,7 @@ installed-package witness, `tests/package/run.cmake` (not a CTest entry), starts
   `view/host.hpp`.
 - The decisions, the warden and the `authority` command are Loom's installed `loom::host-policy`.
 - The root `CMakeLists.txt` adds this folder after `workshop/`, and `examples/tally-app/` after it.
-- Installed: `zengine-app` and `zengine-app-weave`, `cmake/ZengineInstall.cmake`; in a build,
+- Installed: `zengine-app` and `zengine-app-weave`, `cmake/ZengineInstall.cmake`. In a build,
   staged beside Workshop too (`workshop/CMakeLists.txt`), where the View Builder's Export app
   (`view/view-builder/pane.cpp`) names it in an app's launchers.
 
