@@ -51,8 +51,9 @@ persistence, generated-runtime support, and the public control vocabularies
 `zengine-flow` executable installs to `bin` when a Loom kernel is available. A plain hyphenated name on a link line means the
 target is internal, and that difference is the boundary made visible.
 
-**Fourteen artifacts** install to `lib/zengine/`, named by `ZENGINE_RUNTIME_ARTIFACTS` and located
-by `ZENGINE_ARTIFACT_DIR`: `zengine-timer`, `zengine-input`, `zengine-inventory`, the two TUI skins,
+**Fifteen artifacts** install to `lib/zengine/`, named by `ZENGINE_RUNTIME_ARTIFACTS` and located
+by `ZENGINE_ARTIFACT_DIR`: `zengine-app-weave` (an app's own weave, which `zengine-app` runs),
+`zengine-timer`, `zengine-input`, `zengine-inventory`, the two TUI skins,
 `zengine-neovim-editor` (whose one runtime need beyond the Loom is a Neovim, found when it
 starts one), `zengine-operators-basic`, `zengine-guest-vocabulary` (booted by another
 Loom host, a session, to speak Workshop's guest shapes), and the graphics directory and terminal
@@ -66,7 +67,10 @@ setups, each feature's tutorials (`<feature>/docs/tutorials/<name>/`) among them
 `demo.py export` so the files a tutorial shares from elsewhere in the tree travel with it; and
 `share/zengine/loom-tools/desk`, the agent's desk reader, a package of its own because `workshop`
 holds as many tools as Loom lets one package hold. The generic
-`zengine-inventory-read` executable installs to `bin` and reads those tools' saved pairs.
+`zengine-inventory-read` executable installs to `bin` and reads those tools' saved pairs, and so
+does `zengine-app`, the host an app runs in with no Workshop (`app/docs/app.md`): it opens the
+artifacts from `lib/zengine/` by a path relative to its own, so it names no machine's layout, and
+with the OS window out it runs an app whose window is the terminal window.
 
 **One CMake function rides along**, `zengine_code_page(<target>...)`: `cmake/ZengineCodePage.cmake`
 and the manifest it gives install beside the package config, which includes the module. A stranger's
@@ -77,7 +81,7 @@ every program of its own and, on Windows, refuses one whose manifest names no UT
 
 **ARTIFACT is the noun, and the distinction is load-bearing.** An artifact is the
 physical loadable file; *weave* and *provider* are runtime SURFACES an artifact may expose.
-Nine of the fourteen above are weaves; `zengine-operators-basic` is a provider and the four
+Ten of the fifteen above are weaves; `zengine-operators-basic` is a provider and the four
 painters are painter code, none of the five a weave (enforced by `zengine_provider()` in the top-level
 `CMakeLists.txt`). The public
 package variables must therefore name the physical thing: a variable named after one surface
@@ -92,8 +96,8 @@ Workshop, because its executable carries `ZENGINE_BUILDER_CMAKE`, the absolute p
 that configured it (`cmake/ZengineInstall.cmake`), so installing it would ship one machine's layout;
 the implementation in `flow/flow-host/runtime.hpp` and the Flow pane model/view,
 because these currently implement Workshop session policy and presentation; the view package
-(`view/`) and the View Builder, because Workshop composes the view host and is the one consumer
-of the description format. Their control
+(`view/`) and the View Builder, because this repository's own hosts, Workshop and `zengine-app`,
+compose the view host and are the description format's consumers. Their control
 vocabularies are public through `zengine::flow`, so another participant can drive them; the rest of the Workshop/Builder/introspection/composer vocabularies and the
 pane weaves that spend them (`zengine-files`, `zengine-builder-pane`), because they are Workshop
 being Workshop — a stranger's pane needs only the pane protocol, which is in, since a pane

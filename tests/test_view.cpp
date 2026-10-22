@@ -1013,6 +1013,75 @@ TEST_CASE("WL-HAND-06: a running view names each element by its id over the plac
     }
 }
 
+TEST_CASE("a view takes the keys and the text of the window that shows its area as it takes Workshop's, and the same from any other office changes nothing") {
+    Rig rig;
+    const auto d = panel();
+    REQUIRE(rig.ask(view::ViewRun{"app", bytes_of(d)}).ok);
+    rig.room("tally.panel");
+    const auto w = mount_window(rig, "tally.panel");
+    window_says(rig, w, "tally.panel", area_room("tally.panel", 40, 16));
+    REQUIRE(w.window->drawn.size() == 1);
+    namespace in = zengine::input;
+    const auto key = [&](std::int64_t scancode) {
+        window_says(rig, w, "tally.panel", in::KeyPressed{scancode, "", in::mod::kNone});
+    };
+    const auto text = [&](const std::string& typed) {
+        window_says(rig, w, "tally.panel", in::TextEntered{typed});
+    };
+    // ...each field reached by Tab, emptied by Backspace and typed into, all from the window.
+    const auto fill = [&](const std::string& typed) {
+        key(in::scan::kTab);
+        for (int i = 0; i < 4; ++i) key(in::scan::kBackspace);
+        text(typed);
+    };
+    CHECK_FALSE(w.window->holds("caret"));
+    fill("10");
+    CHECK(w.window->holds("caret"));
+    CHECK(has(w.window->words("text:start").value_or(""), "start: 10"));
+    fill("0");
+    fill("-2");
+    CHECK(has(w.window->words("text:limit").value_or(""), "limit: 0"));
+    CHECK(has(w.window->words("text:step").value_or(""), "step: -2"));
+    // ...Workshop's picture of the view is the same one: the fields are the view's, not the window's.
+    CHECK(has(rig.words("tally.panel"), "step: -2"));
+
+    // A PRESS THERE says the intent with what was typed: only typed keys make 30.
+    window_says(rig, w, "tally.panel", gfx::ActionRequested{"tally.panel", "count"});
+    CHECK(rig.total() == 30);
+    CHECK(w.window->words("text:total") == "Total: 30");
+
+    // THE SAME FROM ANY OTHER OFFICE changes nothing: another window's, Workshop's, a stranger's.
+    const auto drawn = w.window->drawn.size();
+    const std::string sdl = std::string(gfx::kWindowOfficePrefix) + gfx::kSdlWindow;
+    auto other = std::make_unique<Listener>(std::vector<std::shared_ptr<const loom::Schema>>{});
+    const auto other_id = rig.bus.register_weave(std::move(other), loom::Grant{}.allow_any(), sdl);
+    auto stranger = std::make_unique<Listener>(std::vector<std::shared_ptr<const loom::Schema>>{});
+    const auto stranger_id =
+        rig.bus.register_weave(std::move(stranger), loom::Grant{}.allow_any(), "viewtest.stranger");
+    for (const auto& [id, office] : {std::pair{other_id, sdl}, std::pair{stranger_id, std::string("viewtest.stranger")},
+                                     std::pair{rig.desk_id, std::string(view::kWorkshopRole)}}) {
+        for (const auto& said : {loom::to_value(in::KeyPressed{in::scan::kBackspace, "", in::mod::kNone}),
+                                 loom::to_value(in::TextEntered{"7"})})
+            (void)rig.bus.office_send_to_role_as(id, office, "tally.panel",
+                                                 loom::Message(said, id, {}, ++rig.correlation));
+        rig.pump();
+    }
+    CHECK(w.window->drawn.size() == drawn);
+    CHECK(has(w.window->words("text:step").value_or(""), "step: -2"));
+
+    // AN ESCAPE FROM THE WINDOW the view has no use for goes nowhere: Workshop did not send it.
+    const auto escapes = [&] {
+        return std::count_if(rig.desk->heard.begin(), rig.desk->heard.end(), [](const loom::Message& m) {
+            return loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneEscapeUnspent>());
+        });
+    };
+    key(in::scan::kEscape); // the focus goes
+    CHECK_FALSE(w.window->holds("caret"));
+    const auto before = escapes();
+    key(in::scan::kEscape);
+    CHECK(escapes() == before);
+}
+
 TEST_CASE("a view declares one action per intent -- its button's id, no default key, causing the intent's shape -- and a PaneActionRequested naming it says the intent as a press does") {
     Rig rig;
     const auto d = panel();

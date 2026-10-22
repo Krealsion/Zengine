@@ -46,7 +46,8 @@ against the installed package.
 ## Host side
 
 - `workshop/workshop.cpp` constructs and mounts `flow_host::RuntimeHost` over Workshop's own bus
-  and operator catalog, in the office `zengine.flow.host`.
+  and operator catalog, in the office `zengine.flow.host`; an app's host does too, over its own
+  (`app/host.hpp`), its flows run by `zengine-app-weave` (`app/weave.cpp`).
 - `workshop/default-load-plan.json` and `workshop/graphical-load-plan.json` load
   `zengine-flow-pane` as optional role `zengine.flow`; `workshop/CMakeLists.txt` stages it and
   lists it among the recipe catalog's pane weaves.

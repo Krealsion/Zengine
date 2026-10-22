@@ -38,8 +38,9 @@ front pages, and the index of the pages no one folder owns.
 | [terminal/](../terminal/README.md) | the Terminal: type a command to the weaves on the bus |
 | [view/](../view/README.md) | a view described as data, the view host, and the View Builder |
 
-**The host** — [workshop/](../workshop/README.md): Workshop, the interactive environment for
-weavers, with the Pane Manager, Hotkeys and the menus.
+**The hosts** — [workshop/](../workshop/README.md): Workshop, the interactive environment for
+weavers, with the Pane Manager, Hotkeys and the menus; and [app/](../app/README.md): the host an
+app made in Workshop runs in on its own, its console deciding what runs.
 
 **Libraries** — what a program links or a weave builds on by name:
 
