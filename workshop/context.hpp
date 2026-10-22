@@ -58,9 +58,20 @@ struct ContextMenu {
     std::int64_t anchor_y = 0;
 };
 
+/// ONE PRESS THE WINDOW LANDED IN A PRESENTED MENU'S AREA: the window's number for it, which the
+/// presenter's word about it cites, and the weaver's act it was.
+struct MenuPress {
+    std::uint64_t press = 0;
+    std::uint64_t act = 0;
+};
+
+/// THE MOST PRESSES A PRESENTED MENU KEEPS, newest last: a choice cites one just made.
+inline constexpr std::size_t kMaxMenuPresses = 16;
+
 /// A pane's own menu, presented by the presenter participant on a popup this host granted
-/// (`workshop/presenter_vocabulary.hpp`). The host keeps what custody and display need, and
-/// nothing of the offer's meaning: no rows, no ids, no cursor.
+/// (`workshop/presenter_vocabulary.hpp`), in an area of the presenter's own inside the popup's
+/// frame. The host keeps what custody, place and frame need, and nothing of the offer's meaning:
+/// no rows, no ids, no cursor, no lines.
 // WL-CTX-09 -- agents/workshop/pane-menu.md
 struct PresentedMenu {
     bool open = false;
@@ -74,10 +85,11 @@ struct PresentedMenu {
     std::int64_t anchor_y = 0;
     std::int64_t room_rows = 0;    ///< the room granted with it
     std::int64_t room_columns = 0;
-    std::vector<surface::SurfaceTextRow> lines; ///< as the presenter last showed them
-    std::vector<PaneRowPart> parts;             ///< ...and the lines it named, by row id
-    std::int64_t picture = 0;      ///< the presenter's number for those lines, as admitted
-    PictureStamp stamp;            ///< ...and the one a press names (the host's fence)
+    std::string area;              ///< the presenter's area for it, this menu's alone
+    std::int64_t rows = 0;         ///< the lines the presenter said it draws there; 0: none yet
+    std::int64_t columns = 0;      ///< ...and the widest, in characters
+    std::int64_t picture = 0;      ///< the presenter's number for what they mean, as taken
+    std::vector<MenuPress> presses; ///< the window's presses in its area, newest last
     std::uint64_t first_input = 0; ///< the weaver's act count when it was granted
     std::uint64_t last_input = 0;  ///< the newest act forwarded to it
     /// THE GRANT'S QUEUED ATTEMPT (Loom's `Ticket::seq`). Every sentence this host queues to the

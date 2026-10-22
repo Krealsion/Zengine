@@ -436,7 +436,6 @@ class WorkshopWeave
                                           // the presenter participant's half of a pane's menu:
                                           // what it shows, when it ends it, and that it arrived
                                           zengine::workshop::MenuShown,
-                                          zengine::workshop::v2::MenuShown,
                                           zengine::workshop::MenuClosed,
                                           zengine::workshop::MenuReturned,
                                           zengine::workshop::PresenterReady,
@@ -627,6 +626,16 @@ public:
                              PaneView& out) const;
     /// ...for a pane that draws in an area of its own: as the window last said the area shows.
     std::string area_reading(const RuntimePane& row, PaneView& out) const;
+    /// WHAT A WINDOW SAID AN AREA AT `rect` SHOWS, as the desk read says words and parts: in the
+    /// desk's pixels, each point in the space the medium reads, a word numbered by its place.
+    void shown_words_and_parts(const graphics::AreaShown& shown, const PixelRect& rect,
+                               std::vector<PaneWord>& words, std::vector<PanePart>& parts) const;
+    /// A PANE'S MENU AS THE WINDOW SAYS ITS PRESENTER'S AREA SHOWS IT, into `menu`: a word a line,
+    /// numbered by its line, and each row's line a part named by the row's id. Nothing while the
+    /// window has not said it.
+    void presented_menu_reading(DeskMenu& menu) const;
+    /// The presented menu's area, while one is placed in the window; else empty.
+    std::string presented_area() const;
     /// ...for a pane that draws in no window: as Workshop draws what it sent.
     std::string drawn_reading(const RuntimePane& row, PaneView& out) const;
     /// THE PANE WORKSHOP PRESENTS ITSELF, Layouts, read as it is painted, its tabs named parts.
@@ -1201,12 +1210,10 @@ public:
     /// THE HOST'S OWN FENCE, COMING ROUND: the first hop sends it round once more, the second
     /// makes every picture handed out before it the one a press is stamped with.
     void on(const PictureFence& fence, loom::Mail& mail);
-    /// THE PRESENTER SHOWS THE OPEN MENU'S LINES -- drawn when they fit the room granted, the menu
-    /// withdrawn in words when they cannot be drawn.
+    /// THE PRESENTER SAYS HOW MUCH OF ITS AREA THE OPEN MENU TAKES -- the area placed to fit, inside
+    /// the popup's frame, when it is the area granted and fits the room; else the menu is withdrawn
+    /// in words.
     void on(const MenuShown& shown, loom::Mail& mail);
-    /// ...and naming the lines that show rows, judged with them.
-    void on(const v2::MenuShown& shown, loom::Mail& mail);
-    void admit_menu_lines(const v2::MenuShown& shown, loom::Mail& mail);
     /// THE PRESENTER ENDED THE OPEN MENU AND ANSWERED ITS REQUESTER; a choice is recorded as the
     /// continuation of the act the presenter names, if that act was one this host forwarded to
     /// it. One about a menu already withdrawn says nothing more is owed, and its record goes.
@@ -1749,9 +1756,15 @@ private:
                             loom::Mail& mail);
     /// A KEY WHILE A PANE'S MENU IS PRESENTED: named by the weaver's contextual rows, forwarded.
     void menu_key(const zengine::input::KeyPressed& k, loom::Mail& mail);
-    /// A BUTTON WHILE A PANE'S MENU IS PRESENTED; true when the button was spent on the menu, false
-    /// when the menu was withdrawn and the press must be routed as it would have been without it.
+    /// A BUTTON THIS HOST HEARS WHILE A PANE'S MENU IS PRESENTED; true when the button was spent on
+    /// the menu, false when the menu was withdrawn and the press must be routed as it would have
+    /// been without it.
     bool menu_button(const zengine::input::PointerButton& b, loom::Mail& mail);
+    /// A PRESS THE WINDOW LANDED IN THE PRESENTED MENU'S AREA, under its number `press`: the
+    /// presenter's to read, this host's to count as the act it is, a right one ending the menu.
+    void menu_pressed(const graphics::AreaPressed& p, std::uint64_t press, loom::Mail& mail);
+    /// THE ACT A PRESS IN A PRESENTED MENU'S AREA WAS, by the window's number for it; 0 for none.
+    std::uint64_t act_of_menu_press(const PresentedMenu& menu, std::uint64_t press) const;
     /// IS THIS THE PRESENTER'S WORD ABOUT THE MENU THAT IS OPEN? Authored from its office, about
     /// the number this host granted.
     bool about_open_menu(std::int64_t menu, const loom::Mail& mail) const;

@@ -1179,16 +1179,17 @@ seam between Workshop and the participant in `zengine.presenter`:
 ```text
 MenuGranted     Workshop -> presenter   present this offer as menu n, for office/pane, in a room
                                         of rows x columns, with the host's standard rows to show
-                                        beneath it and the pane's name; under the request's
-                                        correlation
-MenuShown       presenter -> Workshop   menu n shows these lines now, numbered as picture p
-v2::MenuShown   presenter -> Workshop   the same, naming each line by the id of the row it shows
+                                        beneath it and the pane's name, in area a of the window
+                                        that shows the desk; under the request's correlation
+MenuShown       presenter -> Workshop   menu n is drawn in area a, r lines of at most c
+                                        characters, numbered as picture p; no lines
 MenuInput       Workshop -> presenter   the weaver did this to menu n: a key (with the verb the
-                                        weaver's contextual rows name), or a press / release on a
-                                        line, or a press outside; act number g, picture p
+                                        weaver's contextual rows name), or a press outside; act
+                                        number g
 MenuClosed      presenter -> Workshop   menu n is over and its requester is answered, chosen
-                                        at act g or not -- or the standard row s was chosen at
-                                        act g, which Workshop spends
+                                        at act g, or under the window's number for the press in
+                                        area a that chose, or not -- or the standard row s was
+                                        chosen so, which Workshop spends
 MenuReturned    presenter -> Workshop   menu n is not mine to carry: I hold no such menu, so
                                         take the interaction back, and here is why
 MenuWithdrawn   Workshop -> presenter   menu n is over because the host ended it, and why
@@ -1197,13 +1198,17 @@ HeldMenu        state                   the open menu, as the shipped presenters
                                         a reload
 ```
 
-Workshop keeps what is fixed: which ask is eligible, one menu at a time, where the popup opens,
-drawing the presenter's lines inside the granted room, which of the weaver's keys and presses
-reach it, when custody moves, and the standard rows: which it grants, and spending the one
-chosen, while the act that chose it is its hand's latest. The presenter decides everything
-about the menu itself —
-whether an offer can be shown, how its lines read, what a key or press means, when it ends — and
-answers the requester, which is why a pane authenticates a choice from `zengine.presenter`.
+Workshop keeps what is fixed: which ask is eligible, one menu at a time, where the popup opens
+and its frame, the presenter's area inside it -- named for that menu alone, placed in front of
+the desk and sized to what the presenter says the menu takes, for the weaver's hand alone where
+the pane is -- the weaver's keys, which it forwards, when custody moves, and the standard rows:
+which it grants, and spending the one chosen, while the act that chose it is its hand's latest.
+A press in the presenter's area is the presenter's, from the window, and the act it is
+Workshop's. With no window showing the desk, a pane's menu is refused in words. The presenter
+decides everything about the menu itself — whether an offer can be shown, how its lines read and
+are drawn (`MenuDrawing`, an optional helper beside the shapes), what a key or press means, when
+it ends — and answers the requester, which is why a pane authenticates a choice from
+`zengine.presenter`.
 
 Replacing it is ordinary: name another artifact in the load plan's `zengine.presenter` row, or
 reload another image in its place. `examples/numbered-presenter` is one — numbered rows, the
@@ -1369,9 +1374,10 @@ v5::PaneContent         provider  -> Workshop   v4's, each part a v2::PaneRowPar
 v4::PaneCanvasContent   provider  -> Workshop   v3's picture + `parts`, each
                                                 PaneCanvasPart{name, x, y, w, h}
 v6::PaneCanvasContent   provider  -> Workshop   v5's, each part a v2::PaneCanvasPart + `available`
-v2::MenuShown           presenter -> Workshop   MenuShown's lines + `parts`, each line by the id
-                                                of the row it shows
 ```
+
+A presenter names its menu's lines in its own drawing, each by the id of the row it shows (a
+record's action, `MenuDrawing`), and the desk read says them as the window shows them.
 
 - **A name is the pane's.** Workshop judges its form and carries it as the pane said it; it names
   nothing inside a pane. A name is 1 to `kMaxPanePartNameLen` (256) bytes of printable ASCII, not

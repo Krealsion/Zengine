@@ -106,15 +106,19 @@ public:
         }
         state_ = ws::HeldMenu{g.menu,  static_cast<std::int64_t>(mail.correlation()),
                               g.office, g.pane, g.subject, g.rows, 0, g.room_rows, g.room_columns,
-                              g.standard, g.pane_name};
+                              g.standard, g.pane_name, g.area};
         standard_held = state_.standard.size();
         pane_name_held = state_.pane_name;
+        // HOW MUCH OF ITS AREA THE MENU TAKES: a line a row, as wide as the widest. A presenter in
+        // a window draws them there (`workshop::MenuDrawing`); this bus has none.
         ws::MenuShown shown;
         shown.menu = g.menu;
         shown.picture = 1;
-        for (std::size_t i = 0; i < g.rows.size(); ++i) {
-            shown.lines.push_back(zengine::surface::SurfaceTextRow{
-                std::string(i == 0 ? "> " : "  ") + g.rows[i].label, 0});
+        shown.area = g.area;
+        shown.rows = static_cast<std::int64_t>(g.rows.size());
+        for (const ws::PaneMenuRow& row : g.rows) {
+            const auto width = static_cast<std::int64_t>(row.label.size()) + 2;
+            shown.columns = width > shown.columns ? width : shown.columns;
         }
         (void)mail.as_role(ws::kPresenterRole).send_to_role(kWorkshop, shown);
     }
@@ -222,12 +226,14 @@ public:
         (void)mail.as_role(kWorkshop).send_to_role(
             ws::kPresenterRole,
             ws::MenuGranted{menus_, kRequester, asked.pane, asked.subject, asked.rows, 8, 30,
-                            {ws::PaneMenuRow{"host.arrange", "arrange"}}, "Requester"},
+                            {ws::PaneMenuRow{"host.arrange", "arrange"}}, "Requester",
+                            "zengine.presenter.menu." + std::to_string(menus_)},
             mail.correlation());
     }
     void on(const ws::MenuShown& shown, loom::Mail& mail) {
         if (mail.authored_from_role(ws::kPresenterRole) && shown.menu == menus_) {
-            lines = shown.lines;
+            shown_rows = shown.rows;
+            shown_area = shown.area;
         }
     }
     void on(const ws::MenuClosed& closed, loom::Mail& mail) {
@@ -277,7 +283,8 @@ public:
         }
     }
 
-    std::vector<zengine::surface::SurfaceTextRow> lines;
+    std::int64_t shown_rows = 0;
+    std::string shown_area;
     std::int64_t chosen_at = 0;
 
 private:
@@ -360,8 +367,8 @@ void live_menu() {
     poke(bus, host_id, Poke{1, 7, ""});
     check(requester->asked.pending(), "the ask is pending after it was sent");
     check(requester->asked.correlation() == 47, "the ask continues the press's own number");
-    check(host->lines.size() == 2 && host->lines[0].text == "> Open",
-          "the stranger's presenter showed the offered rows");
+    check(host->shown_rows == 2 && host->shown_area == "zengine.presenter.menu.1",
+          "the stranger's presenter showed the offered rows in the area granted");
     check(presenter->standard_held == 1, "...and holds the host's standard row the grant carried");
     check(presenter->pane_name_held == "Requester", "...and the name of the pane it acts on");
 

@@ -439,6 +439,25 @@ void Windows::pump() {
     }
 }
 
+void Windows::hand(const std::vector<zengine::input::InputEvent>& moments) {
+    if (!up()) {
+        return;
+    }
+    queue(moments);
+    impl_->pump(impl_->up);
+}
+
+void Windows::queue(const std::vector<zengine::input::InputEvent>& moments) {
+    Impl& m = *impl_;
+    for (const zengine::input::InputEvent& e : moments) {
+        if (m.up == gfx::kTerminalWindow) {
+            m.term.moments.push_back(e);
+        } else if (m.up == gfx::kSdlWindow) {
+            m.light.queued.events.push_back(e);
+        }
+    }
+}
+
 std::vector<Quad> Windows::quads() {
     Impl& m = *impl_;
     const bool sdl = m.up == gfx::kSdlWindow;

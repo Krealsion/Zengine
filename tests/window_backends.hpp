@@ -35,6 +35,7 @@ namespace light = zengine::graphics::light;
 /// the bytes the suite queued, parsed by Zengine's own parser as a terminal's are.
 struct TermLog {
     std::string typed;
+    std::vector<zengine::input::InputEvent> moments; ///< read before what is typed, as given
     std::string written;
     std::vector<std::string> writes;              ///< each write, one showing each
     zengine::graphics::window::TerminalSize size{80, 30};  ///< its size in cells, the suite's to change
@@ -56,13 +57,21 @@ public:
         }
     }
     std::vector<zengine::input::InputEvent> poll() {
-        if (log_ == nullptr || log_->typed.empty()) {
+        if (log_ == nullptr) {
             return {};
+        }
+        std::vector<zengine::input::InputEvent> out = std::move(log_->moments);
+        log_->moments.clear();
+        if (log_->typed.empty()) {
+            return out;
         }
         const std::string bytes = std::move(log_->typed);
         log_->typed.clear();
-        return zengine::input::terminal_bytes_to_events(
-            reinterpret_cast<const unsigned char*>(bytes.data()), bytes.size());
+        for (auto& e : zengine::input::terminal_bytes_to_events(
+                 reinterpret_cast<const unsigned char*>(bytes.data()), bytes.size())) {
+            out.push_back(std::move(e));
+        }
+        return out;
     }
 
 private:

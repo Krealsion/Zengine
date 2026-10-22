@@ -31,13 +31,15 @@ zengine_manual(zengine-workshop-vocabulary INTERFACE docs/zengine.project.md)
 #
 # `workshop/pane_vocabulary.hpp` needs only the surface row type and <zen/weave/shape.hpp>, and is
 # exported on its own (`zengine::pane`, cmake/ZengineInstall.cmake) so a pane built against the
-# installed package can arrive by a plan row. In-tree panes reach it by include path.
+# installed package can arrive by a plan row. In-tree panes reach it by include path. The presenter
+# seam beside it (`workshop/presenter_vocabulary.hpp`) draws a menu with the graphics canvas.
 add_library(zengine-pane-vocabulary INTERFACE)
 target_include_directories(zengine-pane-vocabulary INTERFACE
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/zengine>)
 add_library(zengine::pane ALIAS zengine-pane-vocabulary)
-target_link_libraries(zengine-pane-vocabulary INTERFACE zengine-surface-vocabulary loom::core)
+target_link_libraries(zengine-pane-vocabulary INTERFACE zengine-surface-vocabulary
+                                                        zengine-graphics-vocabulary loom::core)
 # The manuals of two doors among the vocabulary's headers, the discovery door (`powers_door.hpp`)
 # and the sample door (`sample_door.hpp`), compiled into whatever mounts them: each answers a
 # shape's section from its page (`ShapeDocumentRequested`, manual/vocabulary.hpp).

@@ -1825,7 +1825,7 @@ std::vector<std::string> bp_open_menu(BuilderRig& b) {
 /// WALK THE PRESENTER'S CURSOR TO THE ROW READING `row` AND TAKE IT, as a weaver with the keys
 /// does. The presenter opens standing on its first row.
 void bp_choose_row(BuilderRig& b, const std::string& row) {
-    const std::int64_t at = presented_line_of(b.r.session(), row);
+    const std::int64_t at = presented_line_of(b.r, row);
     REQUIRE_MESSAGE(at >= 0, "no menu row read `", row, "` in\n",
                     bp_picture(context_rows_on(b.r.shown(), b.r.session())));
     for (std::int64_t i = 0; i < at; ++i) {
@@ -2533,7 +2533,7 @@ const std::string kNoBuild = "guest 'agent' may not build here: its row has no `
 /// WALK THE PRESENTER'S CURSOR TO THE ROW READING `row` AND TAKE IT, with the guest's injected
 /// keys: `bp_choose_row`, by the other hand.
 void guest_choose_row(BuilderRig& b, guest_hand::GuestHand& g, const std::string& row) {
-    const std::int64_t at = presented_line_of(b.r.session(), row);
+    const std::int64_t at = presented_line_of(b.r, row);
     REQUIRE_MESSAGE(at >= 0, "no menu row read `", row, "` in\n",
                     bp_picture(context_rows_on(b.r.shown(), b.r.session())));
     for (std::int64_t i = 0; i < at; ++i) {
@@ -2846,7 +2846,7 @@ TEST_CASE("a guest's choice in a menu the weaver opened is judged for the guest,
     guest_hand::GuestHand g(b.r, {"input"}, /*development=*/true);
     g.weaver_key(input::scan::kM, input::mod::kShift);
     REQUIRE(menu_shown(b.r.session()));
-    const std::int64_t at = presented_line_of(b.r.session(), "build `snake`");
+    const std::int64_t at = presented_line_of(b.r, "build `snake`");
     REQUIRE(at >= 0);
     for (std::int64_t i = 0; i < at; ++i) {
         g.key(input::scan::kDown);

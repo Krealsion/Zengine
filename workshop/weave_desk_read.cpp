@@ -277,6 +277,7 @@ DeskView WorkshopWeave::desk_view() const {
     }
     out.arranging = session_.arrange.open;
     out.menu = desk_menu(session_, sc);
+    if (session_.presented.open) presented_menu_reading(out.menu);
     const surface::SurfaceTextRegion band = band_region(session_, sc);
     const RegionFit fit =
         fit_region(band.x, band.y, band.w, band.h, sc.text_advance_px, sc.text_line_px);
@@ -412,11 +413,26 @@ std::string WorkshopWeave::area_reading(const RuntimePane& row, PaneView& out) c
         out.in_flight = true;
         return {};
     }
-    // EVERY POINT IN THE SPACE THE MEDIUM READS, as Workshop's own words say theirs: the window's
-    // pixel, or the terminal window's cell.
+    std::vector<PaneWord> words;
+    std::vector<PanePart> parts;
+    shown_words_and_parts(shown, rect, words, parts);
+    cover_reading(covers_of(row.kind, rect), rect, words, parts, out.covered);
+    if (session_.presented.open || session_.context.open) without_points(words, parts);
+    out.total = static_cast<std::int64_t>(words.size() + parts.size());
+    out.words = std::move(words);
+    out.parts = std::move(parts);
+    return {};
+}
+
+// EVERY POINT IN THE SPACE THE MEDIUM READS, as Workshop's own words say theirs: the window's
+// pixel, or the terminal window's cell; a part's where the window's own judge lands a press on it.
+void WorkshopWeave::shown_words_and_parts(const graphics::AreaShown& shown, const PixelRect& rect,
+                                          std::vector<PaneWord>& words,
+                                          std::vector<PanePart>& parts) const {
+    const std::int64_t advance = shown.advance > 0 ? shown.advance : graphics::kCellPx;
+    const std::int64_t line = shown.line > 0 ? shown.line : graphics::kCellPx;
     const std::int64_t space = input_space_of(screen_of(session_));
     const std::int64_t rows_above = session_.console_rows_above;
-    std::vector<PaneWord> words;
     for (std::size_t i = 0; i < shown.words.size(); ++i) {
         const graphics::AreaWord& said = shown.words[i];
         const auto bytes = static_cast<std::int64_t>(said.text.size());
@@ -429,7 +445,6 @@ std::string WorkshopWeave::area_reading(const RuntimePane& row, PaneView& out) c
         w.space = space;
         words.push_back(std::move(w));
     }
-    std::vector<PanePart> parts;
     for (const graphics::AreaPart& said : shown.parts) {
         PanePart p;
         p.name = said.name;
@@ -446,12 +461,35 @@ std::string WorkshopWeave::area_reading(const RuntimePane& row, PaneView& out) c
         }
         parts.push_back(std::move(p));
     }
-    cover_reading(covers_of(row.kind, rect), rect, words, parts, out.covered);
-    if (session_.presented.open || session_.context.open) without_points(words, parts);
-    out.total = static_cast<std::int64_t>(words.size() + parts.size());
-    out.words = std::move(words);
-    out.parts = std::move(parts);
-    return {};
+}
+
+std::string WorkshopWeave::presented_area() const {
+    if (!session_.presented.open || areas_placed_.count(session_.presented.area) == 0) {
+        return {};
+    }
+    return session_.presented.area;
+}
+
+// A PANE'S MENU, READ FROM THE WINDOW: what the window last said its presenter's area shows, in the
+// desk's pixels -- each line a word numbered by its line, each row's line a part named by the row's
+// id, at the point the window lands a press on it. None while the window has said nothing, or the
+// presenter owes it a drawing.
+// WL-READ-08 -- agents/workshop/desk-read.md
+void WorkshopWeave::presented_menu_reading(DeskMenu& menu) const {
+    const std::string area = presented_area();
+    const auto taken = area.empty() ? area_readings_.end() : area_readings_.find(area);
+    if (taken == area_readings_.end() || taken->second.number == 0 ||
+        !taken->second.refused.empty() || taken->second.shown.waiting) {
+        return;
+    }
+    const graphics::AreaPlaced& placed = areas_placed_.at(area);
+    const PixelRect rect{placed.x, placed.y, placed.w, placed.h};
+    const graphics::AreaShown& shown = taken->second.shown;
+    const std::int64_t line = shown.line > 0 ? shown.line : graphics::kCellPx;
+    shown_words_and_parts(shown, rect, menu.lines, menu.parts);
+    for (std::size_t i = 0; i < shown.words.size() && i < menu.lines.size(); ++i) {
+        menu.lines[i].word = graphics::floor_div_px(shown.words[i].y, line);
+    }
 }
 
 // A PANE THAT DRAWS IN NO WINDOW, AS WORKSHOP DRAWS IT: its words and parts from what it sent,
@@ -667,6 +705,8 @@ void WorkshopWeave::take_area_answer(loom::Mail& mail, std::uint64_t ask,
     }
     reading.number = (std::max)(reading.number, asked.number);
     const std::int64_t after = reading.refused.empty() ? shown_fingerprint(reading.shown) : 0;
+    // WHAT A PANE'S MENU SHOWS IS THE DESK'S OWN WORD, so its number moves with it.
+    if ((!had || before != after) && asked.area == presented_area()) desk_owed_ = true;
     finish_desk_waits(mail);
     if (!had || before != after) {
         if (!guide_marks_.empty()) repaint(mail);
@@ -756,9 +796,13 @@ bool WorkshopWeave::wait_on_areas(loom::Mail& mail, DeskWait wait, const std::ve
 // WL-READ-06 -- agents/workshop/desk-read.md
 void WorkshopWeave::look_at_areas(loom::Mail& mail) {
     finish_desk_waits(mail);
+    std::vector<std::string> areas;
     for (const PaneRef& ref : presented_refs()) {
         const std::string area = drawn_area(ref);
-        if (area.empty()) continue;
+        if (!area.empty()) areas.push_back(area);
+    }
+    if (const std::string menu = presented_area(); !menu.empty()) areas.push_back(menu);
+    for (const std::string& area : areas) {
         const bool open = std::any_of(area_asked_.begin(), area_asked_.end(),
                                       [&](const AreaAsk& a) { return a.area == area; });
         if (!open) (void)ask_area(mail, area);
@@ -981,6 +1025,8 @@ void WorkshopWeave::on(const DeskReadRequested&, loom::Mail& mail) {
             areas.push_back(area);
         }
     }
+    // ...AND A PANE'S MENU, which its presenter draws in an area of its own.
+    if (const std::string menu = presented_area(); !menu.empty()) areas.push_back(menu);
     if (areas.empty()) {
         answer_now(mail, desk_read_now(mail, mail.sender()));
         publish_desk_stamps(mail);

@@ -8,16 +8,20 @@
 // pane protocol so a presenter built against the package can hold `zengine.presenter` and be
 // replaced like any loaded weave
 // (workshop/docs/workshop-panes.md#the-menu-presenter-and-replacing-it).
-// The requester owns what its rows mean and every operation; Workshop owns input custody, the
-// popup, one menu at a time, and the standard rows it adds beneath the requester's -- its own pane
-// menu, which it spends itself; the presenter owns the menu's presentation and lifetime, and
+// The requester owns what its rows mean and every operation; Workshop owns the keys, the popup's
+// place and frame, one menu at a time, and the standard rows it adds beneath the requester's -- its
+// own pane menu, which it spends itself; the presenter owns the menu's presentation and lifetime,
+// draws it in an area of its own of the window that shows the desk, hears the pointer there, and
 // answers the requester exactly once per grant (`PaneMenuAnswered`, as this office). A menu's
 // number is Workshop's, minted per grant; a word about any other number moves nothing.
 
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
-#include "surface/vocabulary.hpp"
+#include "graphics/canvas.hpp"
+#include "graphics/pixels.hpp"
+#include "graphics/role.hpp"
+#include "graphics/vocabulary.hpp"
 
 #include <zen/weave.hpp>
 #include <zen/weave/shape.hpp>
@@ -26,6 +30,7 @@
 #include <cstdint>
 #include <initializer_list>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace zengine::workshop {
@@ -41,8 +46,10 @@ inline constexpr std::size_t kMaxMenuLineLen = 256;
 /// host's own pane menu for that pane, shown beneath the requester's rows in the same menu: a
 /// choice of one is the host's to spend (`MenuClosed::standard`), never the requester's.
 /// `pane_name` is that pane's name as the weaver knows it, for whatever sets the standard rows
-/// apart to say whose they are. A grant while another menu is open replaces it: the older one was
-/// withdrawn first.
+/// apart to say whose they are. `area` is where the menu stands: an area of the window that shows
+/// the desk, named for this menu alone and owned by the presenter's office, which Workshop places
+/// inside the popup's frame once the presenter says how much of it the menu takes (`MenuShown`).
+/// A grant while another menu is open replaces it: the older one was withdrawn first.
 struct MenuGranted {
     std::int64_t menu = 0;
     std::string office;
@@ -53,43 +60,32 @@ struct MenuGranted {
     std::int64_t room_columns = 0;
     std::vector<PaneMenuRow> standard;
     std::string pane_name;
-    ZEN_SHAPE(MenuGranted, 2, ZEN_FIELD(menu), ZEN_FIELD(office), ZEN_FIELD(pane),
+    std::string area;
+    ZEN_SHAPE(MenuGranted, 3, ZEN_FIELD(menu), ZEN_FIELD(office), ZEN_FIELD(pane),
               ZEN_FIELD(subject), ZEN_FIELD(rows), ZEN_FIELD(room_rows), ZEN_FIELD(room_columns),
-              ZEN_FIELD(standard), ZEN_FIELD(pane_name));
+              ZEN_FIELD(standard), ZEN_FIELD(pane_name), ZEN_FIELD(area));
 };
 
-/// Presenter -> Workshop: menu `menu` shows these lines now, top to bottom; a press on line i is
-/// forwarded as line i. `picture` numbers what the lines mean -- kept by a highlight moving,
-/// changed when a line would now choose something else.
+/// Presenter -> Workshop: menu `menu` is drawn in its area `area`, `rows` lines of at most
+/// `columns` characters each, so Workshop sizes the area to it, inside the room granted. The lines
+/// themselves are the presenter's, drawn in the area and read from the window. `picture` numbers
+/// what the lines mean -- kept by a highlight moving, changed when a line would now choose
+/// something else.
 struct MenuShown {
     std::int64_t menu = 0;
     std::int64_t picture = 0;
-    std::vector<surface::SurfaceTextRow> lines;
-    ZEN_SHAPE(MenuShown, 1, ZEN_FIELD(menu), ZEN_FIELD(picture), ZEN_FIELD(lines));
+    std::string area;
+    std::int64_t rows = 0;
+    std::int64_t columns = 0;
+    ZEN_SHAPE(MenuShown, 3, ZEN_FIELD(menu), ZEN_FIELD(picture), ZEN_FIELD(area), ZEN_FIELD(rows),
+              ZEN_FIELD(columns));
 };
 
-namespace v2 {
-
-/// `MenuShown` naming its lines: a line that shows a row is named by the row's id, as a pane's
-/// row is named (`PaneRowPart`, its `row` the line), under v4 content's rule -- a name once, on a
-/// line it shows, inside the room granted. A marker or a rule is named nothing.
-struct MenuShown {
-    std::int64_t menu = 0;
-    std::int64_t picture = 0;
-    std::vector<surface::SurfaceTextRow> lines;
-    std::vector<zengine::workshop::PaneRowPart> parts;
-    ZEN_SHAPE(MenuShown, 2, ZEN_FIELD(menu), ZEN_FIELD(picture), ZEN_FIELD(lines),
-              ZEN_FIELD(parts));
-};
-
-} // namespace v2
-
-/// WHAT KIND OF ACT A `MenuInput` CARRIES.
+/// WHAT KIND OF ACT A `MenuInput` CARRIES. A press inside the menu is the presenter's own, heard
+/// in its area from the window (`graphics::AreaButtonChanged`).
 namespace menu_input {
 inline constexpr std::int64_t kKey = 1;     ///< a key went down: `verb`, `scancode`, `modifiers`
-inline constexpr std::int64_t kPress = 2;   ///< a button went down on the popup: `button`, `line`
-inline constexpr std::int64_t kRelease = 3; ///< ...and came up, wherever the hand is: `line` or -1
-inline constexpr std::int64_t kOutside = 4; ///< a press outside the popup, spent on it: `button`
+inline constexpr std::int64_t kOutside = 4; ///< a press outside the menu, spent on it: `button`
 } // namespace menu_input
 
 /// What the weaver's keymap calls a key while a menu is open (the contextual rows); what each means
@@ -102,9 +98,9 @@ inline constexpr std::int64_t kChoose = 3;
 inline constexpr std::int64_t kBack = 4;
 } // namespace menu_verb
 
-/// Workshop -> presenter: the weaver did this to menu `menu`, in the order read. `input` counts the
-/// weaver's acts (a release carries its press's number); `line` is -1 for none; `picture` is what
-/// the medium held when the act was read, so a press aimed at replaced lines can be refused.
+/// Workshop -> presenter: the weaver did this to menu `menu`, in the order read: a key, or a press
+/// outside the menu. `input` counts the weaver's acts; `line` is -1; `picture` is the number of
+/// the presenter's own that Workshop last took (`MenuShown`).
 struct MenuInput {
     std::int64_t menu = 0;
     std::int64_t input = 0;
@@ -121,10 +117,11 @@ struct MenuInput {
 };
 
 /// Presenter -> Workshop: menu `menu` is over and its requester answered -- `chosen` at act
-/// `input` (0 when no act ended it). A choice is recorded as that act's continuation. `standard`
-/// is the id of the granted standard row chosen at that act, "" for none; the requester is then
-/// answered unchosen, and Workshop spends the row. Not `MenuReturned`: "answered" and "not mine
-/// to carry" are different facts.
+/// `input` (0 when no act ended it). Ended by a press in the menu's area, it is sent under that
+/// press's number, which names the act, and `input` is 0. A choice is recorded as that act's
+/// continuation. `standard` is the id of the granted standard row chosen at that act, "" for none;
+/// the requester is then answered unchosen, and Workshop spends the row. Not `MenuReturned`:
+/// "answered" and "not mine to carry" are different facts.
 struct MenuClosed {
     std::int64_t menu = 0;
     bool chosen = false;
@@ -162,7 +159,8 @@ struct PresenterReady {
 
 /// The menu the shipped presenters carry across a reload, and so their handoff contract: an image
 /// keeping it may replace another that keeps it and continue the weaver's interaction. It holds
-/// everything needed to answer the requester and show the menu again; `menu` 0 is none.
+/// everything needed to answer the requester and show the menu again, in the area it stands in;
+/// `menu` 0 is none.
 struct HeldMenu {
     std::int64_t menu = 0;
     std::int64_t correlation = 0;
@@ -175,10 +173,11 @@ struct HeldMenu {
     std::int64_t room_columns = 0;
     std::vector<PaneMenuRow> standard;
     std::string pane_name;
-    ZEN_SHAPE(HeldMenu, 2, ZEN_FIELD(menu), ZEN_FIELD(correlation), ZEN_FIELD(office),
+    std::string area;
+    ZEN_SHAPE(HeldMenu, 3, ZEN_FIELD(menu), ZEN_FIELD(correlation), ZEN_FIELD(office),
               ZEN_FIELD(pane), ZEN_FIELD(subject), ZEN_FIELD(rows), ZEN_FIELD(cursor),
               ZEN_FIELD(room_rows), ZEN_FIELD(room_columns), ZEN_FIELD(standard),
-              ZEN_FIELD(pane_name));
+              ZEN_FIELD(pane_name), ZEN_FIELD(area));
 };
 
 // ---- the presenter's side, for a presenter that keeps `HeldMenu` --------------------------------
@@ -208,6 +207,9 @@ inline std::string menu_refusal_of(const MenuGranted& g, std::int64_t marks) {
     if (g.room_rows <= 0 || g.room_columns <= marks) {
         return "no room to present a menu here";
     }
+    if (g.area.empty()) {
+        return "no area to present the menu in";
+    }
     return std::string();
 }
 
@@ -223,7 +225,8 @@ inline HeldMenu held_menu_of(const MenuGranted& g, std::uint64_t correlation) {
                     g.room_rows,
                     g.room_columns,
                     g.standard,
-                    g.pane_name};
+                    g.pane_name,
+                    g.area};
 }
 
 /// I HOLD THE OFFICE, CARRYING `held` (its menu 0 for none): said on every activation, so after a
@@ -254,13 +257,15 @@ inline void answer_menu_requester(loom::Mail& mail, const HeldMenu& held, bool c
 }
 
 /// END THE HELD MENU: the host first (it closes the popup and, for a choice, records the act
-/// `input` that made it, or spends the standard row `standard` names), then the requester's one
-/// answer. Nothing is held after.
+/// that made it -- Workshop's `input`, or the window's `press` in the menu's area -- or spends the
+/// standard row `standard` names), then the requester's one answer. Nothing is held after.
 inline void close_held_menu(loom::Mail& mail, HeldMenu& held, bool chosen, const std::string& id,
                             const std::string& why, std::int64_t input,
-                            const std::string& standard = std::string()) {
+                            const std::string& standard = std::string(),
+                            std::uint64_t press = 0) {
     (void)mail.as_role(kPresenterRole)
-        .send_to_role(pane_menu::kWorkshopRole, MenuClosed{held.menu, chosen, input, standard});
+        .send_to_role(pane_menu::kWorkshopRole, MenuClosed{held.menu, chosen, input, standard},
+                      press);
     answer_menu_requester(mail, held, chosen, id, why);
     held = HeldMenu{};
 }
@@ -329,8 +334,6 @@ public:
         menu_ = menu;
         return picture_;
     }
-    /// Is `in` aimed at the lines shown now, and not at lines since replaced?
-    bool matches(const MenuInput& in) const noexcept { return in.picture == picture_; }
 
 private:
     std::int64_t picture_ = 0;
@@ -338,6 +341,136 @@ private:
     std::size_t count_ = 0;
     bool earlier_ = false;
     std::int64_t menu_ = 0;
+};
+
+/// ONE LINE OF A MENU AS ITS PRESENTER DRAWS IT: its words, the role they are drawn in, and the id
+/// of the row it shows, which names the line in the window ("" for a marker or a rule).
+struct MenuLine {
+    std::string text;
+    std::int64_t role = graphics::role::kFill;
+    std::string row;
+    bool operator==(const MenuLine&) const = default;
+};
+
+/// THE AREA A MENU STANDS IN, AS THE PRESENTER DRAWING THERE KEEPS IT: the canvas it draws with,
+/// the lines it last drew, and the line a pointer moment there falls on. One area a menu, so a
+/// moment about any other area is about another menu, and nothing here. A drawing the window
+/// refused leaves what it shows as it was: a refused change sends the lines again at once, whole;
+/// a refused whole drawing waits for other lines.
+class MenuDrawing {
+public:
+    explicit MenuDrawing(std::string office = kPresenterRole) : office_(std::move(office)) {}
+
+    /// THE AREA THE HELD MENU STANDS IN ("" for none): another holds none of this drawing.
+    void stand_in(const std::string& area) {
+        if (area == area_) {
+            return;
+        }
+        area_ = area;
+        canvas_ = graphics::Canvas(office_, area.empty() ? office_ : area);
+        lines_.clear();
+        fresh_ = true;
+        drew_whole_ = true;
+        refused_whole_ = false;
+        asked_ = false;
+    }
+    const std::string& area() const noexcept { return area_; }
+    /// A window shows the area.
+    bool shown() const noexcept { return !area_.empty() && !canvas_.window().empty(); }
+
+    /// THE ROOM A WINDOW TELLS OF THE AREA, as that window's office: true when the window holds none
+    /// of the drawing, or the area's size or the window's measure changed, so the lines go again.
+    bool room(const graphics::AreaRoom& r, const loom::Mail& mail) {
+        if (area_.empty() || r.area != area_ ||
+            !mail.authored_from_role(std::string(graphics::kWindowOfficePrefix) + r.window) ||
+            !canvas_.room(r)) {
+            return false;
+        }
+        fresh_ = true;
+        refused_whole_ = false;
+        return true;
+    }
+
+    /// Whether `mail` is the word of the window that shows the area, about `about`.
+    bool from_window(const std::string& about, const loom::Mail& mail) const {
+        return shown() && about == area_ && mail.authored_from_role(canvas_.window_office());
+    }
+
+    /// A DRAWING THE WINDOW SHOWING THE AREA REFUSED, as that window's office: true when it was.
+    bool refused(const graphics::DrawnRefused& refusal, loom::Mail& mail) {
+        if (!from_window(refusal.area, mail)) {
+            return false;
+        }
+        canvas_.forget();
+        fresh_ = true;
+        if (!drew_whole_) {
+            send(mail);
+        } else if (!lines_.empty()) {
+            refused_whole_ = true;
+        }
+        return true;
+    }
+
+    /// DRAW `lines` IN THE AREA: its ground, then each a line of the window's text from the top, a
+    /// line that shows a row named by the row's id; only what changed since the drawing the window
+    /// holds. Nothing while no window shows the area, nor the same lines after a refused whole.
+    void draw(const std::vector<MenuLine>& lines, loom::Mail& mail) {
+        if (!shown() || (refused_whole_ && lines == lines_)) {
+            return;
+        }
+        lines_ = lines;
+        send(mail);
+    }
+
+    /// THE LINE A POINT OF THE AREA FALLS ON, said by the window that shows it, as that window's
+    /// office: -1 for a point past the lines drawn, another area, or another speaker.
+    std::int64_t line_at(const std::string& area, std::int64_t x, std::int64_t y,
+                         const loom::Mail& mail) const {
+        if (!from_window(area, mail) || x < 0 || y < 0 || x >= canvas_.width() ||
+            y >= canvas_.height() || canvas_.text().line <= 0) {
+            return -1;
+        }
+        const std::int64_t line = graphics::floor_div_px(y, canvas_.text().line);
+        return line < static_cast<std::int64_t>(lines_.size()) ? line : -1;
+    }
+
+    /// THE AREA'S ROOM ASKED of the directory, once an area, while no window has said it: a
+    /// presenter carrying a menu across a reload draws it again where it stands.
+    void ask_room(loom::Mail& mail) {
+        if (area_.empty() || shown() || asked_) {
+            return;
+        }
+        asked_ = true;
+        (void)mail.as_role(office_).send_to_role(graphics::kGraphicsRole,
+                                                 graphics::RoomAsked{area_});
+    }
+
+private:
+    void send(loom::Mail& mail) {
+        drew_whole_ = fresh_;
+        fresh_ = false;
+        refused_whole_ = false;
+        const std::int64_t line = canvas_.text().line;
+        graphics::Sketch sketch;
+        sketch.fill_rect("ground", 0, 0, canvas_.width(), canvas_.height(),
+                         graphics::by_role(graphics::role::kGround));
+        for (std::size_t i = 0; i < lines_.size(); ++i) {
+            const std::string node = "line" + std::to_string(i);
+            sketch.text(node, 0, static_cast<std::int64_t>(i) * line, lines_[i].text,
+                        graphics::by_role(lines_[i].role));
+            if (!lines_[i].row.empty()) {
+                sketch.action(node, lines_[i].row);
+            }
+        }
+        canvas_.draw(sketch);
+        canvas_.show(mail);
+    }
+
+    std::string office_;
+    std::string area_;
+    graphics::Canvas canvas_{office_};
+    std::vector<MenuLine> lines_;
+    bool fresh_ = true, drew_whole_ = true, refused_whole_ = false, asked_ = false;
 };
 
 } // namespace zengine::workshop
