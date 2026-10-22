@@ -605,6 +605,22 @@ TEST_CASE("terminal: Ctrl is a MEASURED modifier, and the dressed name is gone")
     CHECK(as<KeyPressed>(term("\x03"), 0).modifiers == mod::kCtrl);
 }
 
+TEST_CASE("terminal: byte 0 is Ctrl+Space, a key with Ctrl measured that types nothing") {
+    // Ctrl+Space, Ctrl+@ and Ctrl+2 all send byte 0: one byte, one name, as 0x08 is Backspace.
+    std::size_t i = 0;
+    auto ev = term(std::string_view("\0", 1));
+    expect_stroke(ev, i, scan::kSpace, "Space", mod::kCtrl);
+    CHECK(i == ev.size());
+    CHECK(typed(ev).empty());
+    // ...between other keys, in order, and a plain space is still text.
+    i = 0;
+    ev = term(std::string_view("a\0 ", 3));
+    expect_typed(ev, i, scan::kA, "A", "a");
+    expect_stroke(ev, i, scan::kSpace, "Space", mod::kCtrl);
+    expect_typed(ev, i, scan::kSpace, "Space", " ");
+    CHECK(i == ev.size());
+}
+
 TEST_CASE("terminal: the arrow sequences, and an unknown sequence leaks nothing") {
     std::size_t i = 0;
     auto ev = term("\x1b[A\x1b[B\x1b[C\x1b[D");

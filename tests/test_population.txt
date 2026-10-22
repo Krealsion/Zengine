@@ -13,7 +13,7 @@ timer                             doctest           always  85
 # Tripwires in this suite read the SDL queue's readers as text: input/input_sdl.cpp,
 # input/translate_sdl.hpp, input/translate_sdl_core.hpp and graphics/window/window_sdl_backend.hpp
 # (VM-WALL-11).
-input                             doctest           always  55
+input                             doctest           always  56
 # A case rides a gate only when it cannot exist without what the gate opens: arithmetic about a
 # medium counts in `always`, where every lane proves it.
 input                             doctest           sdl     5

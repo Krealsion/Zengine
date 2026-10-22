@@ -287,12 +287,13 @@ declare, is kept as any unknown id is and answered by nothing; one naming `run`,
 `stop` moves Flow's rows of those ids, and one naming `inventory.up` or `inventory.down` the
 Inventory pane's.
 
-**What is said:** a gesture with a known backend gap is accepted and the gap is named once at
-load. The honest example: a plain POSIX terminal reports `shift` only on letters, never on
-`space` or the digits; it cannot produce `ctrl+h/i/j/m` distinctly from backspace, tab,
-newline and return; `alt` arrives only on the editing keys and `super` never. A graphical
-window has none of these limits. Workshop cannot see which backend feeds it, so it applies
-what you authored and tells you which terminals cannot say it.
+**What is said:** a gesture with a known backend gap is accepted and the gap is named once at load.
+The honest example: a plain POSIX terminal reports `shift` only on letters, never on `space` or the
+digits; it cannot produce `ctrl+h/i/j/m` distinctly from backspace, tab, newline and return, nor
+`ctrl+2` from `ctrl+space`, which send one byte; `ctrl` arrives on the letters, `space` and the
+editing keys only; `alt` arrives only on the editing keys and `super` never. A graphical window has
+none of these limits. Workshop cannot see which backend feeds it, so it applies what you authored
+and tells you which terminals cannot say it.
 
 **Resetting** is `Reset to default` on the row in the Hotkeys pane, or deleting the file, or the
 rows you regret. An absent file *is* the defaults; nothing is stored anywhere else.
