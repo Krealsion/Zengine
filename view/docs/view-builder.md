@@ -173,6 +173,22 @@ next launch.
 **Stop** ends the panel: its pane first says it stopped, and once Workshop sees its participant
 gone it says it is waiting for the provider. No field or button is left that looks live.
 
+## Make an app of it
+
+An app is the panel and its flow running on their own, with no Workshop
+([running an app on its own](../../app/docs/app.md)). Save the panel as `tally.view`; in Flow,
+**Export** `tally` as `tally.flow` beside it; then press **Export app**. Like **Save**, it asks
+Workshop whether the hand that pressed it may write, and on a weaver's host a guest's is refused.
+It writes `apps/tally/` in the project and says what the app's console will ask the first time it
+starts. Start the app with `apps/tally/run.cmd` on Windows or `apps/tally/run.sh` elsewhere: its
+console asks about each artifact once, `authority trust <artifact>`, and its window shows the panel,
+counting as it did here. Quit Workshop and the app goes on.
+
+An app already there is replaced only when you press **Export app** a second time, the bar saying
+`[Export: replace?]`, and what its console decided stays.
+
+![The tally panel opened from tally.view and exported: Exported, with the folder it wrote and each artifact its console will ask about](images/view-builder-export.png)
+
 In a terminal Workshop the builder works as it does in a window, its picture floored to cells: a
 drag moves an element by whole cells, 12 pixels each, the middle button pans by whole cells, and
 a value typed into its box is still a pixel. A side's handle is the cell beside the middle of

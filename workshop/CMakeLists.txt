@@ -224,6 +224,15 @@ endif()
 if(TARGET zengine-input-sdl)
     list(APPEND zengine_workshop_artifacts zengine-input-sdl)
 endif()
+# THE APP HOST BESIDE WORKSHOP (app/docs/app.md): `zengine-app`, the program an exported app's
+# launchers start, and its own weave, which it opens from its own directory. Built only where this
+# Loom can host it (app/CMakeLists.txt asks the same), and defined after this directory, so named
+# by the condition rather than by its target.
+set(zengine_workshop_programs "")
+if(TARGET loom::kernel AND TARGET loom::host-policy)
+    list(APPEND zengine_workshop_artifacts zengine-app-weave)
+    list(APPEND zengine_workshop_programs zengine-app)
+endif()
 # Each copy is a rule with its own OUTPUT and DEPENDS, on the artifact's clock: a POST_BUILD copy
 # runs only when the host relinks, so an edited Skin went on loading stale. The host's directory
 # is spelled out: `$<TARGET_FILE_DIR:zengine-workshop>` would make these rules depend on the host
@@ -234,7 +243,7 @@ else()
     set(zengine_workshop_dir ${CMAKE_CURRENT_BINARY_DIR})
 endif()
 set(zengine_workshop_staged "")
-foreach(artifact IN LISTS zengine_workshop_artifacts)
+foreach(artifact IN LISTS zengine_workshop_artifacts zengine_workshop_programs)
     set(stamp ${CMAKE_CURRENT_BINARY_DIR}/staged-${artifact}.stamp)
     add_custom_command(OUTPUT ${stamp}
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -346,7 +355,7 @@ ${zengine_development_rows}
 # stale it, and a rebuilt host or service does.
 set(zengine_development_copies "$<TARGET_FILE:zengine-workshop>")
 set(zengine_development_replaceable "")
-foreach(artifact IN LISTS zengine_workshop_artifacts)
+foreach(artifact IN LISTS zengine_workshop_artifacts zengine_workshop_programs)
     list(APPEND zengine_development_copies "$<TARGET_FILE:${artifact}>")
     if(artifact IN_LIST zengine_workshop_pane_weaves)
         list(APPEND zengine_development_replaceable "$<TARGET_FILE:${artifact}>")
