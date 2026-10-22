@@ -807,11 +807,16 @@ target_include_directories(zengine-view-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR
 zengine_doctest_test(view zengine-view-tests)
 add_executable(zengine-view-builder-tests test_view_builder.cpp doctest_main.cpp)
 target_link_libraries(zengine-view-builder-tests PRIVATE zengine-view zengine-flow zengine-activation
-    loom::kernel zengine-warnings zengine-sanitize)
+    zengine-app-folder loom::kernel zengine-warnings zengine-sanitize)
 target_include_directories(zengine-view-builder-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 zengine_test_definitions(zengine-view-builder-tests
-    "VIEW_BUILDER_ARTIFACT=\"$<TARGET_FILE:zengine-view-builder>\"")
-add_dependencies(zengine-view-builder-tests zengine-view-builder)
+    "VIEW_BUILDER_ARTIFACT=\"$<TARGET_FILE:zengine-view-builder>\""
+    "TALLY_APP_DIR=\"${CMAKE_SOURCE_DIR}/examples/tally-app\"")
+add_dependencies(zengine-view-builder-tests zengine-view-builder zengine-app)
+# An export's launchers start the app host beside the program running it: here, this suite.
+add_custom_command(TARGET zengine-view-builder-tests POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:zengine-app>
+            $<TARGET_FILE_DIR:zengine-view-builder-tests>)
 zengine_doctest_test(view_builder zengine-view-builder-tests)
 
 # ---- THE APP HOST: an app's folder run with no Workshop, its console deciding each row --------

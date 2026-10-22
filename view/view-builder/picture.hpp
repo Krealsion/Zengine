@@ -364,14 +364,16 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
         return col + width + 1;
     };
 
-    // The bar. A New or Open over an unsaved view waits for its second press.
+    // The bar. A New or Open over an unsaved view waits for its second press, and so does an
+    // Export app over an app already there.
     std::int64_t col = 0;
     col = button(col, 0, p.armed == "new" ? "New: discard?" : "New", "new");
     col = button(col, 0, p.armed == "open" ? "Open: discard?" : "Open", "open");
     col = button(col, 0, m.dirty ? "Save*" : "Save", "save");
     col = button(col, 0, m.running ? "Running" : "Run", "run");
     col = button(col, 0, "Apply", "apply");
-    button(col, 0, "Stop", "stop");
+    col = button(col, 0, "Stop", "stop");
+    button(col, 0, p.armed == "export" ? "Export: replace?" : "Export app", "export");
 
     // WORDS BEFORE A CONTROL give way to it: cut to `fit` columns, ending `...`, so the control
     // after them is drawn whole inside its column, where it can be pressed.
@@ -702,7 +704,7 @@ inline std::string part_name(const Hit& hit, const view::Description& d) {
     };
     const std::string& a = hit.action;
     if (a == "new" || a == "open" || a == "save" || a == "run" || a == "apply" || a == "stop" ||
-        a == "choices")
+        a == "export" || a == "choices")
         return "control:view." + a;
     if (a == "canvas") return "canvas";
     if (a == "kind" && !hit.args.empty()) return "kind:" + hit.args[0];

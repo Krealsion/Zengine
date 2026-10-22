@@ -3,6 +3,8 @@
 // The View Builder: a pane beside Flow where a view is made by hand on a design canvas the view
 // draws itself on, and run through the view host. Law: agents/view.md. Manual:
 // view/docs/zengine.view.builder.md.
+#include "app/folder.hpp"
+#include "app/program.hpp"
 #include "view/view-builder/picture.hpp"
 #include "view/view-builder/vocabulary.hpp"
 #include "view/vocabulary.hpp"
@@ -71,14 +73,16 @@ std::pair<std::shared_ptr<const loom::Schema>, std::optional<std::string>> label
 
 /// ONE THING THE BUILDER ASKED AND STILL WAITS ON (`AskFacet`): where the project is; a request
 /// of the view host, by its action, and whether it asks again what a reload carried; a save, with
-/// the file File named when it was asked; or an intent's shape being carried out, with the gesture
-/// it continues and the bytes Workshop will carry.
+/// the file File named when it was asked; an export, with the view's file it makes the app from
+/// and whether the weaver pressed again to replace an app already there; or an intent's shape
+/// being carried out, with the gesture it continues and the bytes Workshop will carry.
 struct ViewBuilderAsk {
-    enum class Kind { kRoot, kHost, kSave, kCarry };
+    enum class Kind { kRoot, kHost, kSave, kExport, kCarry };
     Kind kind = Kind::kHost;
     std::string action; ///< the host request's action
     bool again = false; ///< a resume asking whether the view a reload carried as running still runs
-    std::string path;   ///< the file a save writes
+    std::string path;   ///< the file a save writes, or the view's file an export makes its app from
+    bool replace = false; ///< an export: the app's folder was there, and the weaver pressed again
     std::uint64_t gesture = 0;
     std::string label;
     loom::Bytes bytes;
@@ -140,6 +144,8 @@ public:
         // nothing waiting, and a successor never holds one.
         if (asks().forget(of_kind(ViewBuilderAsk::Kind::kSave)) > 0)
             model_.notice = "The save waiting for Workshop was dropped; save again";
+        if (asks().forget(of_kind(ViewBuilderAsk::Kind::kExport)) > 0)
+            model_.notice = "The export waiting for Workshop was dropped; export again";
         if (!restored_) {
             restored_ = true;
             // A FIRST IMAGE IS A LAUNCH, and runs again what the builder ran: its project file says
@@ -273,6 +279,7 @@ public:
         // A row's id is `view.` and the control it presses.
         const std::string control = id.rfind("view.", 0) == 0 ? id.substr(5) : std::string();
         if (control == "save") ask_save(mail);
+        else if (control == "export") ask_export(mail);
         else if (control == "choices") more_choices();
         else if (control == "open" || control == "run" || control == "new" || control == "apply" || control == "stop")
             perform(control, {}, mail);
@@ -463,8 +470,14 @@ public:
         }
         carry(intent->shape, mail.correlation(), false, mail);
     }
-    /// WORKSHOP'S WORD ON A SAVE, or on a carry: each is the exact ask `AskFacet` held.
+    /// WORKSHOP'S WORD ON A SAVE, an export or a carry: each is the exact ask `AskFacet` held.
     void on_approval(const ViewBuilderAsk& asked, const ws::PaneOperationAnswered& answer, loom::Mail& mail) {
+        if (asked.kind == ViewBuilderAsk::Kind::kExport) {
+            if (!answer.allowed) model_.notice = "Not exported: " + answer.reason;
+            else export_app(asked);
+            show(mail);
+            return;
+        }
         if (asked.kind == ViewBuilderAsk::Kind::kSave) {
             // ALLOWED, THE SAVE WRITES THE FILE NAMED WHEN IT WAS ASKED, and is remembered as any
             // save is, while File still names that file; refused, the refusal is said, and nothing
@@ -543,6 +556,8 @@ public:
     void on_refused(const ViewBuilderAsk& asked, const loom::DispatchRefused& refused, loom::Mail& mail) {
         if (asked.kind == ViewBuilderAsk::Kind::kSave)
             model_.notice = "Not saved: Workshop could not be asked to allow it (" + refused.reason + ")";
+        else if (asked.kind == ViewBuilderAsk::Kind::kExport)
+            model_.notice = "Not exported: Workshop could not be asked to allow it (" + refused.reason + ")";
         else if (asked.kind == ViewBuilderAsk::Kind::kHost)
             model_.notice = asked.action + " was not delivered: " + refused.reason;
         else
@@ -638,7 +653,8 @@ private:
             show(mail);
             return;
         }
-        if (chosen.action != "new" && chosen.action != "open") shown_.armed.clear();
+        if (chosen.action != "new" && chosen.action != "open" && chosen.action != "export")
+            shown_.armed.clear();
         const auto index = element_of(chosen);
         if (chosen.action == "box") {
             if (!shown_.box || !same_box(chosen)) focus(chosen);
@@ -680,6 +696,8 @@ private:
             shown_.choices_from = std::stoul(chosen.args.at(0));
         } else if (chosen.action == "save") {
             ask_save(mail);
+        } else if (chosen.action == "export") {
+            ask_export(mail);
         } else {
             perform(chosen.action, chosen.args, mail);
         }
@@ -1058,6 +1076,71 @@ private:
         if (asks().approve(mail, std::move(saving), mail.correlation(), {ws::scope::kWrite}) != Asks::Asked::kHeld)
             model_.notice = "Not saved: Workshop could not be asked to allow it";
     }
+    /// EXPORT THE SAVED VIEW AS AN APP (app/folder.hpp): judged first, with nothing written; an
+    /// app already there waits for a second press; then asked of Workshop as a save is, class
+    /// `write` for the hand that pressed it, and written only on its yes. One export waits at a
+    /// time.
+    void ask_export(loom::Mail& mail) {
+        if (asks().holds(of_kind(ViewBuilderAsk::Kind::kExport))) {
+            model_.notice = "An export is waiting for Workshop's answer; export again once it comes";
+            return;
+        }
+        if (model_.dirty || file_.empty()) {
+            shown_.armed.clear();
+            model_.notice = "Not exported: save the view first; an app is made from its saved file";
+            return;
+        }
+        const auto judged = zengine::app::judge_export({project_dir_, file_, zengine::app::app_program()});
+        if (!judged.ok) {
+            shown_.armed.clear();
+            model_.notice = "Not exported: " + judged.refusal;
+            return;
+        }
+        if (judged.exists && shown_.armed != "export") {
+            shown_.armed = "export";
+            model_.notice = judged.folder + " is there: press Export again to replace the app's files in it; "
+                            "its decisions and every other file stay";
+            return;
+        }
+        shown_.armed.clear();
+        ViewBuilderAsk exporting = asking(ViewBuilderAsk::Kind::kExport);
+        exporting.path = file_;
+        exporting.replace = judged.exists;
+        if (asks().approve(mail, std::move(exporting), mail.correlation(), {ws::scope::kWrite}) != Asks::Asked::kHeld)
+            model_.notice = "Not exported: Workshop could not be asked to allow it";
+    }
+    /// ...ALLOWED, IT IS JUDGED AGAIN ON THE WORLD AS IT IS NOW and written: the same view's file,
+    /// still saved, and no app there that the weaver was not asked about.
+    void export_app(const ViewBuilderAsk& asked) {
+        if (model_.dirty || file_ != asked.path) {
+            model_.notice = "Not exported: the view changed while Workshop was asked; export again";
+            return;
+        }
+        const auto judged = zengine::app::judge_export({project_dir_, file_, zengine::app::app_program()});
+        if (!judged.ok) {
+            model_.notice = "Not exported: " + judged.refusal;
+            return;
+        }
+        if (judged.exists && !asked.replace) {
+            shown_.armed = "export";
+            model_.notice = judged.folder + " appeared while Workshop was asked: press Export again to replace "
+                            "the app's files in it";
+            return;
+        }
+        const auto written = zengine::app::write_export(judged);
+        if (!written.ok) {
+            std::string had;
+            for (const auto& name : written.written) had += (had.empty() ? "" : ", ") + name;
+            model_.notice = "Not exported: " + written.refusal +
+                            (had.empty() ? std::string() : " (written before it stopped: " + had + ")");
+            return;
+        }
+        std::string stems;
+        for (const auto& stem : judged.stems) stems += (stems.empty() ? "" : ", ") + stem;
+        model_.notice = "Exported " + judged.folder + ": start it with its " + zengine::app::kLauncherCmd +
+                        " or " + zengine::app::kLauncherSh + "; its console asks about " + stems +
+                        " on its first start";
+    }
     void declare(loom::Mail& mail) {
         this->template facet<Actions>().declare(
             mail, {{"view.save", "Save the view", input::scan::kS, input::mod::kCtrl},
@@ -1065,6 +1148,8 @@ private:
                    {"view.run", "Run the view", input::scan::kR, input::mod::kCtrl, {},
                     {ws::cause_of<view::ViewRun>()}},
                    {"view.new", "Start a new view", input::scan::kUnknown, input::mod::kNone},
+                   {"view.export", "Export the saved view as an app", input::scan::kUnknown,
+                    input::mod::kNone},
                    {"view.apply", "Apply to the running view", input::scan::kUnknown,
                     input::mod::kNone, {}, {ws::cause_of<view::ViewApply>()}},
                    {"view.stop", "Stop the running view", input::scan::kUnknown,

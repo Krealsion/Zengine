@@ -6,6 +6,13 @@ add_library(zengine-app-vocabulary INTERFACE)
 target_include_directories(zengine-app-vocabulary INTERFACE ${CMAKE_SOURCE_DIR})
 target_link_libraries(zengine-app-vocabulary INTERFACE zengine-maker loom::core)
 
+# An app's folder written from a saved view and its flow (`folder.hpp`): what the View Builder's
+# Export app writes, through the load plan's codec and the view's and the flow's own gates.
+add_library(zengine-app-folder INTERFACE)
+target_link_libraries(zengine-app-folder INTERFACE zengine-app-vocabulary zengine-workshop-load
+                                                   zengine-view zengine-flow
+                                                   zengine-graphics-vocabulary)
+
 # Everything else needs a Loom that hosts loadable weaves and installs its deciding half: an app's
 # console decides in Loom's authority store, through Loom's `authority` command.
 if(NOT TARGET loom::kernel OR NOT TARGET loom::host-policy)
