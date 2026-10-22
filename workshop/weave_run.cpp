@@ -102,7 +102,7 @@ namespace {
 bool same_place(const graphics::AreaPlaced& a, const graphics::AreaPlaced& b) {
     return a.area == b.area && a.window == b.window && a.owner == b.owner && a.x == b.x &&
            a.y == b.y && a.w == b.w && a.h == b.h && a.order == b.order && a.keys == b.keys &&
-           a.pointer == b.pointer;
+           a.pointer == b.pointer && a.weaver_only == b.weaver_only;
 }
 
 } // namespace
@@ -187,7 +187,8 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         next[area] = graphics::AreaPlaced{
             area, window_name_, row->provider, place.x, place.y, place.w, place.h,
             2 * static_cast<std::int64_t>(i) + 2, false,
-            accepts(row->provider, *loom::schema_of<graphics::AreaButtonChanged>())};
+            accepts(row->provider, *loom::schema_of<graphics::AreaButtonChanged>()),
+            weaver_only_pane(*row)};
         const SetupPane* seat =
             pane_of(session_.setup.active, PaneRef{row->provider, row->pane});
         const PaneSetting* own =

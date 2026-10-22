@@ -3,19 +3,21 @@
 """The asks desk/read makes of a running Workshop, through the link, under the guest's own row --
 and what each came to, as values the readings are written from.
 
-THE DESK IN ONE TURN. `DeskReadRequested` v2 answers the desk (`DeskView` v3), every presented
-pane's stamp front to back, and as many panes' readings (`PaneView` v5) as one decoded value and
+THE DESK IN ONE TURN. `DeskReadRequested` v3 answers the desk (`DeskView` v4), every presented
+pane's stamp front to back, and as many panes' readings (`PaneView` v7) as one decoded value and
 one reply's bytes hold. A stamp past the last reading names a pane this reader asks alone, by
-`PaneViewRequested` v5: from item 0 under an empty stamp, then page after page from the next item
+`PaneViewRequested` v7: from item 0 under an empty stamp, then page after page from the next item
 under the stamp the first page answered, until the page that reaches `total`. Workshop holds
-nothing between the asks. A stamp names a pane's picture by the fingerprint of what it shows, so
-the same picture sent again keeps it and every change moves it.
+nothing between the asks. A stamp names a pane by its holder, that holder's incarnation, the
+window's incarnation and the fingerprint of what the pane shows, so the same picture shown again
+keeps it and every change moves it. A reading carries its stamp as a field of its own; this reader
+lifts the stamp's fields into the reading as it arrives, so a reading names its pane at its top.
 
 WHAT A PANE'S READ CAN COME TO, each bounded and said, never raised:
   - a page refused as stale or as past a reading that shrank, or answered under another stamp or
     cover, starts that pane again from item 0 -- and one answered in flight, IN_FLIGHT_WAIT
     later -- at most STALE_RESTARTS times; then "not read: its picture moved while it was read";
-  - a pane whose newest picture is not yet aimed (`in_flight`, or a refusal saying so) is asked
+  - a pane whose newest picture is still in flight (`in_flight`, or a refusal saying so) is asked
     alone again IN_FLIGHT_WAIT later, at most IN_FLIGHT_ASKS times in a row; then "not read: its
     newest picture was in flight at every ask";
   - any other refusal is written in its owner's words.
@@ -68,11 +70,14 @@ IN_FLIGHT = "not read: its newest picture was in flight at every ask"
 REFUSALS = (Refused, DispatchRefused, SendRefused, NotAnswered, LinkOutcome, UnknownShape,
             ShapeError)
 
-EMPTY_STAMP = {"provider": "", "pane": "", "holder": 0, "incarnation": 0, "grant": 0,
+EMPTY_STAMP = {"provider": "", "pane": "", "holder": 0, "incarnation": 0, "epoch": 0,
                "fingerprint": 0}
-#: What a stamp is judged on: its holder, that holder's incarnation, the room and the picture's
-#: fingerprint.
-STAMP_FIELDS = ("holder", "incarnation", "grant", "fingerprint")
+#: What a stamp is judged on: its holder, that holder's incarnation, the window's incarnation and
+#: the fingerprint of what the pane shows.
+STAMP_FIELDS = ("holder", "incarnation", "epoch", "fingerprint")
+#: The versions this reader asks.
+DESK_READ_VERSION = 3
+PANE_VIEW_VERSION = 7
 
 
 def refusal_words(err):
@@ -111,9 +116,28 @@ def key_of(item):
     return key(item.get("provider", ""), item.get("pane", ""))
 
 
+def lifted(view):
+    """A reading with its stamp's fields at its top, as this reader reads it; anything else as
+    it came."""
+    if not isinstance(view, dict) or not isinstance(view.get("stamp"), dict):
+        return view
+    out = dict(view)
+    out.update(view["stamp"])
+    return out
+
+
+def lifted_read(desk_read):
+    """A desk read with each reading it carries lifted."""
+    if not isinstance(desk_read, dict):
+        return desk_read
+    out = dict(desk_read)
+    out["panes"] = [lifted(v) for v in (desk_read.get("panes") or [])]
+    return out
+
+
 def stamp_of(view):
-    """The stamp a pane's reading stands on: its holder, incarnation, room grant and the
-    fingerprint of what its picture shows."""
+    """The stamp a pane's reading stands on: its holder, incarnation, the window's incarnation
+    and the fingerprint of what it shows."""
     out = {"provider": view.get("provider", ""), "pane": view.get("pane", "")}
     out.update((f, view.get(f, 0)) for f in STAMP_FIELDS)
     return out
@@ -131,9 +155,9 @@ def says_stale(words):
 
 
 def says_in_flight(words):
-    """Whether `words` refuse a pane whose newest picture is not yet aimed: Workshop says a canvas
-    pane holds "no settled picture", and a text pane, or one not yet heard from, "no settled text
-    picture"."""
+    """Whether `words` refuse a pane whose newest picture is still in flight: Workshop says a
+    canvas pane holds "no settled picture", and a text pane, or one not yet heard from, "no settled
+    text picture"."""
     w = (words or "").lower()
     return "in flight" in w or "no settled picture" in w or "no settled text picture" in w or \
         "not yet aimed" in w
@@ -146,12 +170,9 @@ def items_of(view):
 class Asker(object):
     """The run's asks through one link, each answered or said in words, and counted."""
 
-    def __init__(self, ctx, link, view_version=5):
+    def __init__(self, ctx, link):
         self.ctx, self.link = ctx, link
         self.asks = 0
-        #: The page version `page` asks: 5, as a desk read carries its readings, or 6, each part
-        #: with whether its operation applies now (`available`).
-        self.view_version = view_version
 
     def ask(self, office, shape, version, fields):
         """``(fields, None)`` for an answer, ``(None, words)`` for anything else."""
@@ -164,9 +185,12 @@ class Asker(object):
         return fields_of(answer), None
 
     def page(self, provider, pane, start, stamp):
-        return self.ask(WORKSHOP, "PaneViewRequested", self.view_version,
-                        {"provider": provider, "pane": pane, "from": start,
-                         "stamp": dict(stamp or EMPTY_STAMP)})
+        given = dict(EMPTY_STAMP)
+        given.update((f, (stamp or {}).get(f, given[f])) for f in given)
+        answer, words = self.ask(WORKSHOP, "PaneViewRequested", PANE_VIEW_VERSION,
+                                 {"provider": provider, "pane": pane, "from": start,
+                                  "stamp": given})
+        return lifted(answer), words
 
 
 def said(words, stamp=None, pages=0):
@@ -290,12 +314,12 @@ def desk_number(desk_read):
 def ask_desk(asker):
     """One desk read. Refused for its rate, it is asked once more after the wait Workshop names
     (at most a second); any other refusal, or a second one, is the answer."""
-    answer, words = asker.ask(WORKSHOP, "DeskReadRequested", 2, {})
+    answer, words = asker.ask(WORKSHOP, "DeskReadRequested", DESK_READ_VERSION, {})
     wait = RATE.search(words or "")
     if answer is None and wait:
         time.sleep(min(int(wait.group(1)), 1000) / 1000.0)
-        answer, words = asker.ask(WORKSHOP, "DeskReadRequested", 2, {})
-    return answer, words
+        answer, words = asker.ask(WORKSHOP, "DeskReadRequested", DESK_READ_VERSION, {})
+    return lifted_read(answer), words
 
 
 def read_desk(asker):

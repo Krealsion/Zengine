@@ -2,35 +2,34 @@
 # Copyright (c) 2026 Joshua DeMoss
 """Small orchestration helpers. Zengine owns geometry, motion, drops and permissions.
 
-A pane is read by its words (PaneView version 3) wherever a reader finds a row by what it says or
+A pane is read by its words (PaneView version 7) wherever a reader finds a row by what it says or
 a part by its name -- `row`, `row_starting`, `part`, `last_part`, `first`, `control`, `spot`,
-`field`, `rows_of` -- so a text pane and a pane that draws a canvas picture read alike: a text
-pane's word is its row, a canvas pane's each text run or label it drew, and a row it leaves blank
-is no word. `point` and `lattice_point` name one cell of a pane's text lattice by its row and
-column (PanePoint, asked by version 3): a text pane's painted cell, or the cell of the lattice a
-canvas pane sets its text on, a blank row's and the one after a row's last character too. `view`
-reads a text pane's rows by number (version 1), which a canvas pane does not answer.
+`field`, `rows_of` -- so a text pane and a pane that draws a picture read alike: a word is a run of
+its text on one line, and a row it leaves blank is no word. A reading carries its stamp as a field
+of its own; `words` lifts the stamp's fields into the reading, so a reading names its pane, holder
+and fingerprint at its top. `word_point` names one character of one word (PanePoint, asked by
+version 4); `point` and `lattice_point` name one cell of the text a pane sets on its place, by its
+row and column, reckoned from the reading's place and text measure -- a blank row's cell and the
+one after a row's last character too.
 
-A canvas picture that takes no press -- the one a managed opening shows, until its pane draws its
-own, or one its office's holder no longer holds -- says its words and parts with no point
+A picture that takes no press -- the one a managed opening shows, until its pane draws its own, or
+one its office's holder no longer holds -- says its words and parts with no point
 (`takes_no_press`), and refuses a point asked of it; every helper here that presses reads the pane
 again until one does (`pressing`).
 
-A POINT IS ASKED OF THE PICTURE ITS READING READ (`Hand.aimed`), and Workshop refuses one where the
-pane drew another since: the pane is read and aimed again, at most POINT_TRIES times -- or, while
-that newer picture, a canvas pane's or a text pane's, is not yet aimed at (`no_settled_picture`),
-once it may have settled, for at most the reader's seconds. `row`, `pointed` and `lattice_point`
-aim so, and every helper built on them.
+A POINT IS ASKED OF THE READING IT READ (`Hand.aimed`), and Workshop refuses one where the pane
+shows something else since: the pane is read and aimed again, at most POINT_TRIES times -- or,
+while what it shows is still in flight (`no_settled_picture`), once it may have settled, for at
+most the reader's seconds. `row`, `pointed` and `lattice_point` aim so, and every helper built on
+them.
 
-A WAIT IS FOR THE DESK TO MOVE. Workshop says when its desk moved (`DeskStamps` v2, the desk
-number, every presented pane's stamp and the picture each is aimed at), so a helper waiting for a
-pane to say something reads it again when that pane's stamp, its aimed picture or the desk number
-moved, not on a clock (`Notices`, `Hand.wait`) -- a picture whose number is not yet aimed at
-(`no_settled_picture`) included, which its aimed number moving marks. A row whose `observe` names
-`DeskStamps` 1 and not 2 follows the first version, which names no aimed picture: an unsettled
-picture is read again every FALLBACK_PACE seconds, and the run says so. A row naming neither is
-read again every FALLBACK_PACE seconds at every wait, and the run says so too."""
+A WAIT IS FOR THE DESK TO MOVE. Workshop says when its desk moved (`DeskStamps` v3, the desk number
+and every presented pane's stamp), so a helper waiting for a pane to say something reads it again
+when that pane's stamp or the desk number moved, not on a clock (`Notices`, `Hand.wait`). A row
+whose `observe` does not name it is read again every FALLBACK_PACE seconds at every wait, and the
+run says so."""
 import json
+import re
 import time
 from collections import Counter
 
@@ -64,45 +63,67 @@ NO_PRESS = ("Workshop gave its words and parts no point, as it does at the pictu
 
 
 def takes_no_press(view):
-    """Whether a pane's picture takes no press now: a canvas pane saying every word and part it
-    draws with no point -- 0, 0 in no space -- as Workshop says the picture a managed opening shows
-    until its pane draws its own, or one its office's holder no longer holds. A press there reaches
+    """Whether a pane's picture takes no press now: a pane saying every word and part it shows
+    with no point -- 0, 0 in no space -- as Workshop says the picture a managed opening shows until
+    its pane draws its own, or one its office's holder no longer holds. A press there reaches
     nothing; the pane is read again."""
     said = (view["words"] + view.get("parts", [])) if view else []
-    return bool(view) and bool(view.get("canvas")) and bool(said) and all(
-        s.get("space", 0) == 0 for s in said)
+    return bool(view) and bool(said) and all(s.get("space", 0) == 0 for s in said)
 
 
-#: How many readings a point is aimed from while Workshop refuses it because the pane's picture
+#: How many readings a point is aimed from while Workshop refuses it because what the pane shows
 #: moved between the reading and the point; past it the aiming fails naming the pane.
 POINT_TRIES = 3
+#: Workshop's words for a point asked of a reading the pane has moved off.
+MOVED = "what the pane shows moved"
 #: How long, in seconds, a reader waits for a pane's picture to settle: a reading's (`pressing`),
 #: and a point's while the picture it would land on is not yet aimed at (`Hand.aimed`).
 SETTLE_SECONDS = 10
 
 
+#: How `words` says a reading answered in flight: as a refusal, so every reader waits on it alike.
+IN_FLIGHT = "pane view unavailable: no settled picture -- what the pane shows is in flight"
+
+
 def no_settled_picture(refused):
-    """Whether Workshop refused a reading or a point because the pane holds no settled picture: its
-    newest one -- a canvas pane's, or a text pane's, as each refusal says -- not yet aimed at. The
-    pane's aimed number moving ends it (`Hand.wait`, `unsettled`)."""
+    """Whether Workshop refused a reading or a point because the pane holds no settled picture,
+    or answered one in flight (`IN_FLIGHT`). The pane's stamp moving ends it (`Hand.wait`)."""
     said = str(refused)
     return "no settled picture" in said or "no settled text picture" in said
 
 
 def rows_of(view):
-    """A pane's words in the shape a reader of rows takes: `{picture, canvas, rows}`, each row
-    `{row, text, x, y, space}` -- `row` the word's number, which is a text pane's row; `text` its
-    characters without the blanks after the last; `x, y, space` the point a press names it by."""
-    return {"provider": view["provider"], "pane": view["pane"], "picture": view["picture"],
-            "canvas": view.get("canvas", False),
+    """A pane's words in the shape a reader of rows takes: `{provider, pane, fingerprint, rows}`,
+    each row `{row, text, x, y, space}` -- `row` the word's number; `text` its characters without
+    the blanks after the last; `x, y, space` the point a press names it by."""
+    return {"provider": view["provider"], "pane": view["pane"],
+            "fingerprint": view.get("fingerprint", 0),
             "rows": [{"row": w["word"], "text": w["text"], "x": w["x"], "y": w["y"],
                       "space": w["space"]} for w in view["words"]]}
 
 
-#: The notice Workshop publishes when its desk moved, and the first version, which a row naming
-#: only it follows: it names no aimed picture.
-DESK_NOTICE = ("DeskStamps", 2)
-DESK_NOTICE_V1 = ("DeskStamps", 1)
+def lifted(view):
+    """A reading, an answer's fields or a dict, with its stamp's fields at its top, as this hand
+    reads it."""
+    view = getattr(view, "fields", view)
+    if not isinstance(view, dict) or not isinstance(view.get("stamp"), dict):
+        return view
+    out = dict(view)
+    out.update(view["stamp"])
+    return out
+
+
+#: The notice Workshop publishes when its desk moved.
+DESK_NOTICE = ("DeskStamps", 3)
+#: The versions of the desk's reads this hand asks.
+DESK_READ_VERSION = 3
+PANE_VIEW_VERSION = 7
+PANE_POINT_VERSION = 4
+#: The input space of a window's pixels, and of a terminal's cells (input/vocabulary.hpp).
+PIXELS = 2
+CELLS = 1
+#: A terminal's cell in the desk's pixels (graphics::kCellPx).
+CELL_PX = 12
 #: How often a wait reads again when the notice cannot be followed, in seconds.
 FALLBACK_PACE = 0.2
 #: The notices a hand's subscription may hold untaken: one acknowledgement serves half of them.
@@ -119,7 +140,6 @@ class Notices:
         self.ctx, self.link = ctx, link
         self.sub = None
         self.why = None      # why notices are not followed, once found: the waits read on a clock
-        self.unaimed = None  # why an unsettled picture is read on a clock: the first version
         self.seen = None     # the newest notice taken: (desk number, {(office, pane): stamp})
         self.clock_waits = 0
 
@@ -128,30 +148,20 @@ class Notices:
         if observe is None:
             self.why = "this run's context follows no publication"
             return
-        refused = []
-        for notice in (DESK_NOTICE, DESK_NOTICE_V1):
-            try:
-                self.sub = observe("zengine.workshop", [notice], via=self.link, latest=[notice[0]],
-                                   window=NOTICE_WINDOW, label="a hand's waits")
-            except (Refused, DispatchRefused, SendRefused, LinkOutcome) as err:
-                refused.append(str(err))
-                continue
-            if notice == DESK_NOTICE_V1:
-                self.unaimed = ("the row follows DeskStamps 1, which names no aimed picture: %s"
-                                % refused[0])
-            return
-        self.why = "Workshop's notice could not be followed: %s" % "; ".join(refused)
+        try:
+            self.sub = observe("zengine.workshop", [DESK_NOTICE], via=self.link,
+                               latest=[DESK_NOTICE[0]], window=NOTICE_WINDOW,
+                               label="a hand's waits")
+        except (Refused, DispatchRefused, SendRefused, LinkOutcome) as err:
+            self.why = "Workshop's notice could not be followed: %s" % err
 
     def moved(self, notice, pane):
         """Whether `notice` moved what a wait for `pane` waits on since the last one taken: the
-        desk number, or `pane`'s stamp and aimed picture (every pane's, for a wait for the desk).
-        A second-version entry is `{stamp, aimed}`; a first-version one, the stamp alone."""
+        desk number, or `pane`'s stamp (every pane's, for a wait for the desk)."""
         said = {}
-        for entry in notice.get("panes") or []:
-            s = entry.get("stamp", entry)
+        for s in notice.get("panes") or []:
             said[(s.get("provider", ""), s.get("pane", ""))] = (
-                s.get("holder"), s.get("incarnation"), s.get("grant"), s.get("fingerprint"),
-                entry.get("aimed"))
+                s.get("holder"), s.get("incarnation"), s.get("epoch"), s.get("fingerprint"))
         before, self.seen = self.seen, (notice.get("desk", 0), said)
         if before is None or before[0] != self.seen[0]:
             return True
@@ -160,14 +170,14 @@ class Notices:
         return before[1].get(pane) != said.get(pane)
 
     def wait(self, seconds, pane=None, unsettled=False):
-        """Until the desk moves -- for `pane` (office, pane), its stamp, its aimed picture or the
-        desk number; for none, any of it -- or `seconds` pass. `unsettled`: the wait is for a
-        picture to be aimed at, which only the second version's notice marks."""
+        """Until the desk moves -- for `pane` (office, pane), its stamp or the desk number; for
+        none, any of it -- or `seconds` pass. `unsettled`: the wait is for what a pane shows to
+        settle, which moves its stamp."""
         if self.sub is None and self.why is None:
             self.follow()
             if self.sub is not None:
                 return
-        if self.sub is None or (unsettled and self.unaimed is not None):
+        if self.sub is None:
             self.clock_waits += 1
             time.sleep(max(0.0, min(seconds, FALLBACK_PACE)))
             return
@@ -220,12 +230,12 @@ class Hand:
 
     def wait(self, seconds, pane=None, unsettled=False):
         """Until the desk moves, for `pane` (office, pane) or for the desk, or `seconds` pass
-        (`Notices.wait`); `unsettled`, for a picture to be aimed at."""
+        (`Notices.wait`); `unsettled`, for what a pane shows to settle."""
         self.notices.wait(seconds, pane, unsettled)
 
     def waits_said(self):
         """How this hand's waits waited, in words, when not by Workshop's notice; else None."""
-        return self.notices.why or self.notices.unaimed
+        return self.notices.why
 
     def clock_waits(self):
         """How many of this hand's waits read again on a clock, not at Workshop's notice."""
@@ -241,19 +251,35 @@ class Hand:
                        "input did not admit the requested moments")
         return answer
 
-    def view(self, provider, pane):
-        """A text pane's rows by number (PaneView version 1); a pane that draws a picture is
-        refused. `point` takes its picture from `words`, which reads either."""
-        return self.ask("zengine.workshop", "PaneViewRequested", {"provider": provider, "pane": pane})
-
     def words(self, provider, pane):
-        """A pane's words and named parts as Workshop holds them (PaneView version 3): a text pane's
-        rows or a canvas pane's labels and runs, each with its place in canvas pixels and the point a
-        press names it by, and beside them every part the pane names, under the pane's own name.
-        `unsettled` says whether the last such read was refused for a picture not yet aimed at."""
+        """A pane's words and named parts as Workshop holds them (PaneView version 7), read whole:
+        each run of its text with its place in the desk's pixels and the point a press names it by,
+        and beside them every part the pane names, under the pane's own name; the place it shows in
+        and its text measure; its stamp's fields at its top. A reading in flight is raised as a
+        refusal saying so (`IN_FLIGHT`). `unsettled` says whether the last such read was."""
+        stamp = {"provider": "", "pane": "", "holder": 0, "incarnation": 0, "epoch": 0,
+                 "fingerprint": 0}
         try:
-            view = self.ask("zengine.workshop", "PaneViewRequested",
-                            {"provider": provider, "pane": pane}, version=3)
+            view = lifted(self.ask("zengine.workshop", "PaneViewRequested",
+                                   {"provider": provider, "pane": pane, "from": 0, "stamp": stamp},
+                                   version=PANE_VIEW_VERSION))
+            if view.get("in_flight"):
+                raise Refused(IN_FLIGHT)
+            words, parts = list(view.get("words") or []), list(view.get("parts") or [])
+            while len(words) + len(parts) < view.get("total", 0):
+                page = lifted(self.ask("zengine.workshop", "PaneViewRequested",
+                                       {"provider": provider, "pane": pane,
+                                        "from": len(words) + len(parts),
+                                        "stamp": dict(view["stamp"])},
+                                       version=PANE_VIEW_VERSION))
+                if page.get("in_flight"):
+                    raise Refused(IN_FLIGHT)
+                held = len(page.get("words") or []) + len(page.get("parts") or [])
+                if held == 0:
+                    break
+                words += list(page.get("words") or [])
+                parts += list(page.get("parts") or [])
+            view = dict(view, words=words, parts=parts, **{"from": 0})
         except Refused as refused:
             self.unsettled = no_settled_picture(refused)
             raise
@@ -286,30 +312,43 @@ class Hand:
             # THE PICTURE THAT FIRST TAKES A PRESS MOVES THE PANE'S STAMP, so it is waited for.
             self.wait(end - time.monotonic(), (provider, pane))
 
-    def word_point(self, provider, pane, word, column, picture):
-        """Where one character of one of those words is now; refused if the picture moved."""
+    def word_point(self, provider, pane, word, column, fingerprint):
+        """Where one character of one of those words is now (PanePointRequested version 4), for a
+        reading at `fingerprint`; refused if what the pane shows moved."""
         return self.ask("zengine.workshop", "PanePointRequested", {"provider": provider, "pane": pane,
-                        "picture": picture, "word": word, "column": column}, version=2)
+                        "fingerprint": fingerprint, "word": word, "column": column},
+                        version=PANE_POINT_VERSION)
 
     def desk(self):
-        """The desk by Workshop's own numbers (DeskView version 2): every pane on it with its state,
-        rank from the front, place and size, selection and keys; the room; arranging; the menu, and
-        the lines it names. A desk read settles nothing a pane read left `unsettled`: a wait on the
-        desk waits on its notice."""
+        """The desk by Workshop's own numbers (DeskView version 4, from a desk read): every pane on
+        it with its state, rank from the front, place and size, selection and keys; the room;
+        arranging; the menu, and the lines it names. A desk read past Workshop's rate is asked once
+        more after the wait Workshop names. A desk read settles nothing a pane read left
+        `unsettled`: a wait on the desk waits on its notice."""
         self.unsettled = False
-        return self.ask("zengine.workshop", "DeskViewRequested", {}, version=2)
+        try:
+            read = self.ask("zengine.workshop", "DeskReadRequested", {}, version=DESK_READ_VERSION)
+        except Refused as refused:
+            wait = re.search(r"read again in (\d+) ms", str(refused))
+            if wait is None:
+                raise
+            time.sleep(min(int(wait.group(1)), 1000) / 1000.0)
+            read = self.ask("zengine.workshop", "DeskReadRequested", {}, version=DESK_READ_VERSION)
+        return read["desk"]
 
-    def seek(self, provider, pane, find, scroll, toward=(1, -1), notches=256):
+    def seek(self, provider, pane, find, scroll, toward=(1, -1), notches=256,
+             seconds=SETTLE_SECONDS):
         """Read the pane's words until `find(view)` names something, searching toward each edge
         with ordinary wheel input when `scroll`: one notch at a time at the first word's point, in
         each of the wheel directions `toward` in turn (1 away from the weaver, -1 toward), at most
         `notches` each, until the words stop changing -- a stable view is the edge, not a reason to
-        retry it. Returns `(view, found)`, `found` None when no view named anything."""
+        retry it. Each reading waits for a press to land within `seconds` (`pressing`). Returns
+        `(view, found)`, `found` None when no view named anything."""
         view = None
         for direction in (toward if scroll else (0,)):
             previous = None
             for _ in range(notches):
-                view = self.pressing(provider, pane)
+                view = self.pressing(provider, pane, seconds)
                 found = find(view)
                 if found is not None:
                     return view, found
@@ -332,11 +371,11 @@ class Hand:
 
     def aimed(self, provider, pane, read, aim, what, seconds=SETTLE_SECONDS):
         """`(reading, point)`: `read()` reads the pane, `aim(reading)` asks Workshop where to press
-        on that reading. A point refused because the pane's picture moved since the reading is read
-        and aimed again, at most POINT_TRIES times; then ValueError naming `what`. One refused
-        because the pane holds no settled picture -- a newer one, not yet aimed at -- is read and
-        aimed again once that picture may have settled (at its aimed number moving, `wait`), for at
-        most `seconds`; then that refusal is raised. Any other refusal is raised at once."""
+        on that reading. A point refused because what the pane shows moved since the reading
+        (`MOVED`) is read and aimed again, at most POINT_TRIES times; then ValueError naming
+        `what`. One refused because the pane holds no settled picture -- a newer one in flight -- is
+        read and aimed again once that picture may have settled (at its stamp moving, `wait`), for
+        at most `seconds`; then that refusal is raised. Any other refusal is raised at once."""
         end = time.monotonic() + seconds
         moved = 0
         while True:
@@ -349,7 +388,7 @@ class Hand:
                         raise
                     self.wait(end - time.monotonic(), (provider, pane), unsettled=True)
                     continue
-                if "picture moved" not in str(refused):
+                if MOVED not in str(refused):
                     raise
                 moved += 1
                 if moved >= POINT_TRIES:
@@ -367,8 +406,10 @@ class Hand:
             found = [w for w in view["words"] if contains in w["text"]]
             self.ctx.check(len(found) <= 1, "ambiguous visible row: " + contains)
             return found[0] if found else None
+        end = time.monotonic() + seconds
         def read():
-            view, w = self.seek(provider, pane, find, scroll)
+            view, w = self.seek(provider, pane, find, scroll,
+                                seconds=max(0.0, end - time.monotonic()))
             if w is None:
                 self.last_view(view)
                 raise ValueError("visible row not found: " + contains)
@@ -376,7 +417,7 @@ class Hand:
         def aim(reading):
             view, w = reading
             return w if len(w["text"]) < 3 else self.word_point(provider, pane, w["word"], 2,
-                                                                view["picture"])
+                                                                view["fingerprint"])
         (_, w), at = self.aimed(provider, pane, read, aim, "visible row %r" % contains, seconds)
         return {"row": w["word"], "text": w["text"], "x": at["x"], "y": at["y"],
                 "space": at["space"]}
@@ -401,8 +442,9 @@ class Hand:
         point)`, aimed as `aimed` aims, for at most `seconds`: a pane that redrew between the
         reading and the point is read again, as a canvas pane numbers every picture it sends. No
         word chosen raises ValueError naming `what` and keeps `last-view.json`."""
+        end = time.monotonic() + seconds
         def read():
-            view = self.pressing(provider, pane)
+            view = self.pressing(provider, pane, max(0.0, end - time.monotonic()))
             w = pick(view)
             if w is None:
                 self.last_view(view)
@@ -412,7 +454,7 @@ class Hand:
             view, w = reading
             at = column(w)
             return w if at is None else self.word_point(provider, pane, w["word"], at,
-                                                        view["picture"])
+                                                        view["fingerprint"])
         (_, w), at = self.aimed(provider, pane, read, aim, what, seconds)
         return w, at
 
@@ -465,22 +507,52 @@ class Hand:
             raise ValueError("%s/%s draws no word" % (provider, pane))
         return {"row": w["word"], "text": w["text"], "x": w["x"], "y": w["y"], "space": w["space"]}
 
-    def point(self, provider, pane, row, column, picture):
-        """Where one cell of a pane's text lattice is now, by its row and column counted from 0
-        (PanePointRequested version 3, answered as PanePoint): a text pane's painted cell, or the
-        centre of the cell of the lattice a canvas pane sets its text on -- any cell of it, a blank
-        row's and the one after a row's last character too. Refused if the picture moved, and past
-        the lattice."""
-        return self.ask("zengine.workshop", "PanePointRequested", {"provider": provider, "pane": pane,
-                        "picture": picture, "row": row, "column": column}, version=3)
+    def point(self, view, row, column):
+        """Where one cell of the text a pane sets on its place stands in `view`, a reading of it,
+        by its row and column counted from 0: the centre of that cell, reckoned from the reading's
+        place (`area`) and its text measure (`advance`, `line`), in the space the medium reads --
+        any cell of it, a blank row's and the one after a row's last character too. Refused past
+        its place. In a terminal a cell is named as Workshop names a word's -- its console cell,
+        the rows above the desk counted in, as the reading's own words count them."""
+        area, advance, line = view.get("area") or {}, view.get("advance", 0), view.get("line", 0)
+        left, top = area.get("x", 0) + column * advance, area.get("y", 0) + row * line
+        inside = (advance > 0 and line > 0 and column >= 0 and row >= 0 and
+                  left < area.get("x", 0) + area.get("w", 0) and
+                  top < area.get("y", 0) + area.get("h", 0))
+        if not inside:
+            raise Refused("pane point unavailable: outside the pane's place")
+        space, rows_above = self.cells_of(view)
+        if space == CELLS:
+            return {"row": row, "column": column, "x": left // CELL_PX,
+                    "y": top // CELL_PX + rows_above, "space": CELLS}
+        return {"row": row, "column": column, "x": left + advance // 2, "y": top + line // 2,
+                "space": PIXELS}
+
+    def cells_of(self, view):
+        """`(space, rows above)`: the input space a reading's points stand in, and in a terminal the
+        console rows above the desk, as its first word with a point says them; the desk's space,
+        with none above, where no word has one."""
+        for w in view.get("words") or []:
+            if w.get("space") == PIXELS:
+                return PIXELS, 0
+            if w.get("space") == CELLS:
+                return CELLS, w["y"] - w["place"]["y"] // CELL_PX
+        return self.space(), 0
+
+    def space(self):
+        """The input space the medium reads, as the desk says it: read once, then kept."""
+        if getattr(self, "_space", None) is None:
+            self._space = self.desk().get("space", PIXELS) or PIXELS
+        return self._space
 
     def lattice_point(self, provider, pane, pick, what, seconds=SETTLE_SECONDS):
         """The cell `pick(view)` chooses from the pane's words now -- `(row, column)` of its text
-        lattice, counted from 0 -- and where Workshop says it is (`point`), as `(cell, point)`,
-        aimed as `aimed` aims, for at most `seconds`. No cell chosen raises ValueError naming
-        `what` and keeps `last-view.json`."""
+        lattice, counted from 0 -- and where it stands in that reading (`point`), as
+        `(cell, point)`, read once its picture takes a press, for at most `seconds`. No cell chosen
+        raises ValueError naming `what` and keeps `last-view.json`."""
+        end = time.monotonic() + seconds
         def read():
-            view = self.pressing(provider, pane)
+            view = self.pressing(provider, pane, max(0.0, end - time.monotonic()))
             cell = pick(view)
             if cell is None:
                 self.last_view(view)
@@ -488,7 +560,7 @@ class Hand:
             return view, cell
         def aim(reading):
             view, cell = reading
-            return self.point(provider, pane, cell[0], cell[1], view["picture"])
+            return self.point(view, cell[0], cell[1])
         (_, cell), at = self.aimed(provider, pane, read, aim, what, seconds)
         return cell, at
 

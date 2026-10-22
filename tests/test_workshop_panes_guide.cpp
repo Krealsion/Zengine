@@ -50,16 +50,16 @@ struct TutorState {
 /// and may try the sends its row does not grant, so a case sees the bus refuse them.
 class TutorWeave
     : public loom::WeaveBase<TutorWeave, TutorState,
-                             loom::Accept<SeatDo, GuideAnswered, v6::PaneView, v2::DeskRead,
+                             loom::Accept<SeatDo, GuideAnswered, PaneView, DeskRead,
                                           KeymapShown, PaneDocumentShown, loom::Refused>,
-                             loom::Emit<GuideRequested, v6::PaneViewRequested, v2::DeskReadRequested,
+                             loom::Emit<GuideRequested, PaneViewRequested, DeskReadRequested,
                                         KeymapRequested, PaneDocumentRequested,
                                         input::InputSessionRequested, input::InjectInput>> {
 public:
     std::function<void(TutorWeave&, loom::Mail&)> next;
     std::vector<GuideAnswered> guides;
-    std::vector<v6::PaneView> views;
-    std::vector<v2::DeskRead> desks;
+    std::vector<PaneView> views;
+    std::vector<DeskRead> desks;
     std::vector<KeymapShown> keys;
     std::vector<PaneDocumentShown> docs;
     std::vector<std::string> refusals;
@@ -73,8 +73,8 @@ public:
         }
     }
     void on(const GuideAnswered& a, loom::Mail&) { guides.push_back(a); }
-    void on(const v6::PaneView& v, loom::Mail&) { views.push_back(v); }
-    void on(const v2::DeskRead& d, loom::Mail&) { desks.push_back(d); }
+    void on(const PaneView& v, loom::Mail&) { views.push_back(v); }
+    void on(const DeskRead& d, loom::Mail&) { desks.push_back(d); }
     void on(const KeymapShown& k, loom::Mail&) { keys.push_back(k); }
     void on(const PaneDocumentShown& d, loom::Mail&) { docs.push_back(d); }
     void on(const loom::Refused& r, loom::Mail&) { refusals.push_back(r.reason); }
@@ -167,28 +167,28 @@ struct TutorDesk {
     std::string read_refused(Tutor& t, const std::string& office, const std::string& pane_key) {
         const std::size_t views = t.weave->views.size(), refused = t.weave->refusals.size();
         t.act(b.r.bus, [&](TutorWeave&, loom::Mail& mail) {
-            (void)mail.send_to_role(kWorkshopProvider, v6::PaneViewRequested{office, pane_key, 0, {}});
+            (void)mail.send_to_role(kWorkshopProvider, PaneViewRequested{office, pane_key, 0, {}});
         });
         if (t.weave->views.size() > views) return {};
         REQUIRE(t.weave->refusals.size() == refused + 1);
         return t.weave->refusals.back();
     }
 
-    v6::PaneView read(Tutor& t, const std::string& office, const std::string& pane_key) {
+    PaneView read(Tutor& t, const std::string& office, const std::string& pane_key) {
         const std::size_t views = t.weave->views.size();
         t.act(b.r.bus, [&](TutorWeave&, loom::Mail& mail) {
-            (void)mail.send_to_role(kWorkshopProvider, v6::PaneViewRequested{office, pane_key, 0, {}});
+            (void)mail.send_to_role(kWorkshopProvider, PaneViewRequested{office, pane_key, 0, {}});
         });
         REQUIRE_MESSAGE(t.weave->views.size() == views + 1,
                         (t.weave->refusals.empty() ? std::string() : t.weave->refusals.back()));
         return t.weave->views.back();
     }
 
-    v2::DeskRead desk(Tutor& t) {
+    DeskRead desk(Tutor& t) {
         const std::size_t before = t.weave->desks.size();
         b.r.clock.now += 1000; // past the desk read's rate
         t.act(b.r.bus, [](TutorWeave&, loom::Mail& mail) {
-            (void)mail.send_to_role(kWorkshopProvider, v2::DeskReadRequested{});
+            (void)mail.send_to_role(kWorkshopProvider, DeskReadRequested{});
         });
         REQUIRE(t.weave->desks.size() == before + 1);
         return t.weave->desks.back();
@@ -196,7 +196,7 @@ struct TutorDesk {
 
     /// THE WEAVER'S OWN PRESS AND RELEASE at the point a part's reading names, in its medium's
     /// space: what the platform reports, attributed to no guest.
-    void weaver_press(const v2::PanePart& part) {
+    void weaver_press(const PanePart& part) {
         for (const bool down : {true, false}) {
             (void)b.r.bus.publish(loom::Message(
                 loom::to_value(input::PointerButton{1, down, part.x, part.y, part.space, input::mod::kNone}),
@@ -206,8 +206,8 @@ struct TutorDesk {
     }
 };
 
-const v2::PanePart* part_named(const v6::PaneView& view, const std::string& name) {
-    for (const v2::PanePart& p : view.parts) {
+const PanePart* part_named(const PaneView& view, const std::string& name) {
+    for (const PanePart& p : view.parts) {
         if (p.name == name) return &p;
     }
     return nullptr;
@@ -297,12 +297,12 @@ TEST_CASE("the Tutor's walk on a weaver's host, in a terminal and in a window: i
     Tutor& tutor = d.admit(tutor_row("tutor", {"zengine.builder-pane/" "*", launcher_door()},
                                      {"zengine.builder-pane/" "*", launcher_door()}));
     // READ: the Builder, its Build control drawn and usable.
-    const v6::PaneView before = d.read(tutor, pane::kBuilderPaneRole, pane::kBuilderPane);
-    const v2::PanePart* build = part_named(before, "control:" + std::string(pane::kActionBuild));
+    const PaneView before = d.read(tutor, pane::kBuilderPaneRole, pane::kBuilderPane);
+    const PanePart* build = part_named(before, "control:" + std::string(pane::kActionBuild));
     REQUIRE_MESSAGE(build != nullptr, d.b.text());
     REQUIRE(build->available);
     CHECK(build->space == (window ? input::space::kPixels : input::space::kCells));
-    const v2::DeskRead first = d.desk(tutor);
+    const DeskRead first = d.desk(tutor);
     // MARK: by the address a press names, the guest named in the answer.
     const GuideAnswered marked = d.mark(tutor, builder_door(), pane::kActionBuild);
     REQUIRE_MESSAGE(marked.shown, marked.said);
@@ -320,9 +320,9 @@ TEST_CASE("the Tutor's walk on a weaver's host, in a terminal and in a window: i
     CHECK(d.b.tool->asked.size() == builds + 1);
     // THE DESK MOVES: the Builder's stamp is another picture's.
     d.b.tool_says();
-    const v2::DeskRead after = d.desk(tutor);
-    const auto stamp_of_builder = [](const v2::DeskRead& r) {
-        for (const v2::PaneStamp& s : r.stamps) {
+    const DeskRead after = d.desk(tutor);
+    const auto stamp_of_builder = [](const DeskRead& r) {
+        for (const PaneStamp& s : r.stamps) {
             if (s.provider == pane::kBuilderPaneRole) return s.fingerprint;
         }
         return std::int64_t{0};
@@ -359,8 +359,8 @@ TEST_CASE("a mark in a terminal is its part's own cells in the guide role: every
         at = end + 1;
     }
     // THE PART'S OWN CELLS, in the guide role, saying what they said.
-    const v6::PaneView view = d.read(tutor, pane::kBuilderPaneRole, pane::kBuilderPane);
-    const v2::PanePart* build = part_named(view, "control:" + std::string(pane::kActionBuild));
+    const PaneView view = d.read(tutor, pane::kBuilderPaneRole, pane::kBuilderPane);
+    const PanePart* build = part_named(view, "control:" + std::string(pane::kActionBuild));
     REQUIRE(build != nullptr);
     const std::int64_t part_col = gfx::cell_of_pixel(build->place.x);
     const std::int64_t part_row = gfx::cell_of_pixel(build->place.y);
@@ -417,8 +417,8 @@ TEST_CASE("a mark in a window is an outline one pixel wide around its part insid
     TutorDesk d("guide-window");
     d.on_window();
     Tutor& tutor = d.admit(tutor_row("tutor", {"zengine.builder-pane/" "*"}, {"zengine.builder-pane/" "*"}));
-    const v6::PaneView view = d.read(tutor, pane::kBuilderPaneRole, pane::kBuilderPane);
-    const v2::PanePart* build = part_named(view, "control:" + std::string(pane::kActionBuild));
+    const PaneView view = d.read(tutor, pane::kBuilderPaneRole, pane::kBuilderPane);
+    const PanePart* build = part_named(view, "control:" + std::string(pane::kActionBuild));
     REQUIRE(build != nullptr);
     const GuideAnswered marked = d.mark(tutor, builder_door(), pane::kActionBuild);
     REQUIRE_MESSAGE(marked.shown, marked.said);
@@ -444,10 +444,10 @@ TEST_CASE("a mark in a window is an outline one pixel wide around its part insid
 TEST_CASE("a mark's part reads the same with the mark as without it, and a mark is no cover") {
     TutorDesk d("guide-reading");
     Tutor& tutor = d.admit(tutor_row("tutor", {"zengine.builder-pane/" "*"}, {"zengine.builder-pane/" "*"}));
-    const v6::PaneView before = d.read(tutor, pane::kBuilderPaneRole, pane::kBuilderPane);
+    const PaneView before = d.read(tutor, pane::kBuilderPaneRole, pane::kBuilderPane);
     REQUIRE(d.mark(tutor, builder_door(), pane::kActionBuild).shown);
-    const v6::PaneView after = d.read(tutor, pane::kBuilderPaneRole, pane::kBuilderPane);
-    CHECK(after.fingerprint == before.fingerprint);
+    const PaneView after = d.read(tutor, pane::kBuilderPaneRole, pane::kBuilderPane);
+    CHECK(after.stamp.fingerprint == before.stamp.fingerprint);
     CHECK(after.covered.by.empty());
     REQUIRE(after.parts.size() == before.parts.size());
     for (std::size_t i = 0; i < after.parts.size(); ++i) {
@@ -477,7 +477,7 @@ TEST_CASE("a mark ends, and never comes back, when its part leaves a settled pic
     CHECK_FALSE(mark_drawn(d));
     // ...AND CLOSES IT: the control is back, and the mark is not.
     d.b.r.key(input::scan::kEscape);
-    const v6::PaneView back = d.read(tutor, pane::kBuilderPaneRole, pane::kBuilderPane);
+    const PaneView back = d.read(tutor, pane::kBuilderPaneRole, pane::kBuilderPane);
     REQUIRE(part_named(back, "control:" + std::string(pane::kActionBuild)) != nullptr);
     CHECK_FALSE(mark_drawn(d));
     // A NEWER MARK REPLACES THE SESSION'S ONE, and an empty control clears it.
@@ -602,20 +602,19 @@ TEST_CASE("a row that reads by pane reads the Builder's words and the Editor's p
     const std::string refused = d.read_refused(tutor, "zengine.editor", "editor");
     CHECK(says(refused, "pane view withheld: pane zengine.editor/editor is outside guest 'tutor''s `capture` doors"));
     // THE DESK: the Editor said as its place, name and holder; no fingerprint, no reading, and no
-    // band, status or desk number, which move with every pane's words.
-    const v2::DeskRead desk = d.desk(tutor);
+    // band or desk number, which move with every pane's words.
+    const DeskRead desk = d.desk(tutor);
     bool editor_placed = false;
     for (const DeskPane& p : desk.desk.panes) editor_placed = editor_placed || p.provider == "zengine.editor";
     CHECK(editor_placed);
-    for (const v2::PaneStamp& s : desk.stamps) {
+    for (const PaneStamp& s : desk.stamps) {
         if (s.provider != "zengine.editor") continue;
         CHECK(s.fingerprint == 0);
         CHECK(s.incarnation == 0);
         CHECK(s.holder != 0);
     }
-    for (const v5::PaneView& v : desk.panes) CHECK(v.provider != "zengine.editor");
+    for (const PaneView& v : desk.panes) CHECK(v.stamp.provider != "zengine.editor");
     CHECK(desk.desk.words.empty());
-    CHECK(desk.desk.slots.empty());
     CHECK(desk.desk.desk == 0);
     // THE KEYMAP: the Builder's rows and the rows above every pane, and none of the Editor's.
     tutor.act(d.b.r.bus, [](TutorWeave&, loom::Mail& mail) {

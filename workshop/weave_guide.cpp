@@ -70,22 +70,36 @@ std::pair<std::string, std::string> subject_pane(const std::string& part) {
 // shows it now -- in that order, so a refusal by door says nothing of what the pane shows.
 // WL-GUIDE-04 -- agents/workshop/guide.md; WL-GUIDE-05 -- agents/workshop/guide.md
 void WorkshopWeave::on(const GuideRequested& asked, loom::Mail& mail) {
-    const loom::WeaveId sender = mail.sender();
+    guide_requested(asked, mail.sender(), mail, nullptr, false);
+}
+
+// ...ASKED FOR `sender`, answered now or, once the window said what its pane shows, through `due`:
+// a mark on a pane that draws in an area of its own waits for the window's reading taken after the
+// ask, unless `fresh` says it was.
+void WorkshopWeave::guide_requested(const GuideRequested& asked, loom::WeaveId sender,
+                                    loom::Mail& mail, loom::DeferredAnswer* due, bool fresh) {
+    const auto say = [&](GuideAnswered answered) {
+        if (due != nullptr) {
+            (void)loom::answer_deferred(*due, mail, std::move(answered));
+        } else {
+            (void)mail.answer(std::move(answered));
+        }
+    };
     const scope::GuestRowFacts guest =
         host_->guest_row ? host_->guest_row(sender) : scope::GuestRowFacts{};
     if (!guest.admitted) {
-        (void)mail.answer(GuideAnswered{false, "only a guest a guest door admitted draws a guide mark"});
+        say(GuideAnswered{false, "only a guest a guest door admitted draws a guide mark"});
         return;
     }
     const std::uint64_t key = sender.value;
     if (asked.control.empty()) {
         const bool had = guide_marks_.erase(key) > 0;
-        (void)mail.answer(GuideAnswered{false, had ? "cleared" : "no mark of this session stood"});
+        say(GuideAnswered{false, had ? "cleared" : "no mark of this session stood"});
         if (had) repaint(mail);
         return;
     }
     if (asked.words.size() > kGuideWordsBytes || !printable_ascii(asked.words)) {
-        (void)mail.answer(GuideAnswered{false, "refused: a mark's words are at most " +
+        say(GuideAnswered{false, "refused: a mark's words are at most " +
                                                    std::to_string(kGuideWordsBytes) +
                                                    " bytes of printable ASCII"});
         return;
@@ -97,7 +111,7 @@ void WorkshopWeave::on(const GuideRequested& asked, loom::Mail& mail) {
     const std::optional<loom::Door> door =
         pane.empty() ? std::nullopt : loom::Door::parse(asked.pane, &why);
     if (!pane.empty() && (!door || pane == "*" || pane.find(':') != std::string::npos)) {
-        (void)mail.answer(GuideAnswered{false, "refused: '" + asked.pane +
+        say(GuideAnswered{false, "refused: '" + asked.pane +
                                                    "' is not a pane; a mark names <office>/<pane>"});
         return;
     }
@@ -109,13 +123,13 @@ void WorkshopWeave::on(const GuideRequested& asked, loom::Mail& mail) {
             const loom::AuthorityView live = mail.describe_authority(cap);
             if (!live.available || !live.permits_role(GuideRequested::zen_name, GuideRequested::zen_version,
                                                       kWorkshopProvider, *door)) {
-                (void)mail.answer(GuideAnswered{false, "refused: pane " + asked.pane + " is outside guest '" +
+                say(GuideAnswered{false, "refused: pane " + asked.pane + " is outside guest '" +
                                                            guest.name + "''s `guide` doors"});
                 return;
             }
         }
         if (const std::string withheld = read_withheld(mail, sender, office, pane); !withheld.empty()) {
-            (void)mail.answer(GuideAnswered{false, "refused: " + withheld});
+            say(GuideAnswered{false, "refused: " + withheld});
             return;
         }
     }
@@ -129,7 +143,7 @@ void WorkshopWeave::on(const GuideRequested& asked, loom::Mail& mail) {
     const auto [subject_office, subject_pane_key] = subject_pane(part);
     if (const std::string only = scope::weaver_only_pane(subject_office, subject_pane_key);
         !subject_office.empty() && !only.empty()) {
-        (void)mail.answer(GuideAnswered{false, "refused: a press of " + part + " opens a pane only the "
+        say(GuideAnswered{false, "refused: a press of " + part + " opens a pane only the "
                                                    "weaver's hand reaches: " + only});
         return;
     }
@@ -147,7 +161,7 @@ void WorkshopWeave::on(const GuideRequested& asked, loom::Mail& mail) {
             const std::string only = scope::weaver_only_pane(target.substr(0, s),
                                                              s == std::string::npos ? "" : target.substr(s + 1));
             if (!only.empty()) {
-                (void)mail.answer(GuideAnswered{false, "refused: a press of " + id + " opens a pane only "
+                say(GuideAnswered{false, "refused: a press of " + id + " opens a pane only "
                                                            "the weaver's hand reaches: " + only});
                 return;
             }
@@ -159,37 +173,48 @@ void WorkshopWeave::on(const GuideRequested& asked, loom::Mail& mail) {
     };
     // AN APPLICATION ROW, OR A CONTROL WITH NO PART, IS A KEY: answered with the weaver's own.
     if (pane.empty()) {
-        (void)mail.answer(GuideAnswered{false, binding == nullptr
+        say(GuideAnswered{false, binding == nullptr
             ? "not shown: " + office + " declares no row " + id + " in force"
             : "not shown: " + office + ":" + id + " is a key, with no part to mark; the weaver's key is " + key_of()});
         return;
     }
     for (const auto& [other, m] : guide_marks_) {
         if (other != key && m.office == office && m.pane == pane) {
-            (void)mail.answer(GuideAnswered{false, "refused: guest '" + m.who +
+            say(GuideAnswered{false, "refused: guest '" + m.who +
                                                        "' marks that pane already; one guest mark a pane"});
             return;
         }
     }
     if (guide_marks_.count(key) == 0 && guide_marks_.size() >= kGuideMarks) {
-        (void)mail.answer(GuideAnswered{false, "refused: the desk holds " + std::to_string(kGuideMarks) +
+        say(GuideAnswered{false, "refused: the desk holds " + std::to_string(kGuideMarks) +
                                                    " guide marks already, one a session"});
         return;
     }
-    const PaneStamp now = stamp_of(office, pane, 0, 0);
+    // A PANE THAT DRAWS IN AN AREA OF ITS OWN IS MARKED ON WHAT THE WINDOW SAYS IT SHOWS NOW.
+    if (!fresh) {
+        if (const std::string area = drawn_area(PaneRef{office, pane}); !area.empty()) {
+            DeskWait wait;
+            wait.kind = DeskWait::Kind::kGuide;
+            wait.asker = sender;
+            wait.guide = asked;
+            (void)wait_on_areas(mail, std::move(wait), {area});
+            return;
+        }
+    }
+    const PaneStamp now = stamp_of(office, pane);
     GuideMark mark{office, pane, part, collapsed(asked.words), guest.name, now.holder, now.incarnation, {}, false};
     const GuideDrawing drawing = guide_drawing(mark);
     if (!drawing.settled || !drawing.shown) {
         std::string said = "not shown: " + asked.pane + " shows no part " + part + " now";
         if (binding != nullptr) said += "; " + id + " is in force, and the weaver's key is " + key_of();
         if (!drawing.settled) said = "not shown: " + asked.pane + " is not on the desk, settled and uncovered, now";
-        (void)mail.answer(GuideAnswered{false, said});
+        say(GuideAnswered{false, said});
         return;
     }
     mark.drawn = drawing.drawn;
     mark.labelled = drawing.labelled;
     guide_marks_[key] = mark;
-    (void)mail.answer(GuideAnswered{true, "marked " + part + " in " + asked.pane + " for the weaver, as guest '" +
+    say(GuideAnswered{true, "marked " + part + " in " + asked.pane + " for the weaver, as guest '" +
                                               guest.name + "'; " +
                                               (drawing.labelled ? "its label stands beside it"
                                                                 : "its label is not drawn: no free row of the "
@@ -203,32 +228,27 @@ void WorkshopWeave::on(const GuideRequested& asked, loom::Mail& mail) {
 WorkshopWeave::GuideDrawing WorkshopWeave::guide_drawing(const GuideMark& mark) const {
     GuideDrawing out;
     // SETTLED AS A READING IS: what the pane shows now, by fingerprint, with nothing over it.
-    v6::PaneView view;
+    PaneView view;
     if (!pane_reading(mark.office, mark.pane, view).empty() || view.in_flight || !view.covered.by.empty()) {
         return out;
     }
     const RuntimePane* row = session_.panes.runtime.find(mark.office, mark.pane);
-    const ExternalPane* content = row == nullptr ? nullptr : session_.panes.external_pane(row->kind);
-    if (content == nullptr) return out;
+    if (row == nullptr) return out;
     const Screen sc = screen_of(session_);
     const auto bounds = bounds_of(session_.panes, session_.setup.active, row->kind, sc);
-    const std::int64_t titles = external_title_rows(session_.panes, row->kind, session_.pane_titles);
-    const ExternalBodyPlace place = external_body_place(bounds.rect, sc, titles);
-    if (!bounds.open || !place.present) return out;
+    if (!bounds.open || view.area.w <= 0 || view.area.h <= 0) return out;
     out.settled = true;
     const std::int64_t g = chrome_grain(sc);
     const bool cells = g > 1;
-    const std::int64_t line = place.fit.graphical() ? place.fit.line_px : graphics::kCellPx;
-    // A LABEL'S BYTES EACH TAKE A CANVAS CELL, in every medium (the Skins' label rule).
-    const std::int64_t advance = graphics::kCellPx;
-    const PixelRect body = content->canvas.heard
-        ? shown_canvas_place(content->canvas, bounds.rect, sc, titles)
-        : PixelRect{place.region_x, place.region_y + place.header_rows * line, place.region_w,
-                    place.region_h - place.header_rows * line};
+    // A LABEL IS SET BY THE FACE'S MEASURE, as the window sets the overlay's text.
+    const std::int64_t advance = sc.text_advance_px > 0 ? sc.text_advance_px : graphics::kCellPx;
+    const std::int64_t line = sc.text_line_px > 0 ? sc.text_line_px : graphics::kCellPx;
+    // THE BODY THE PANE SHOWS IN: where its reading stands.
+    const PixelRect body{view.area.x, view.area.y, view.area.w, view.area.h};
     const std::vector<PaneWord>& words = view.words;
-    const std::vector<v2::PanePart>& parts = view.parts;
-    const v2::PanePart* found = nullptr;
-    for (const v2::PanePart& p : parts) {
+    const std::vector<PanePart>& parts = view.parts;
+    const PanePart* found = nullptr;
+    for (const PanePart& p : parts) {
         if (p.name == mark.part && p.place.w > 0 && p.place.h > 0) found = &p;
     }
     if (found == nullptr) return out;
@@ -261,12 +281,12 @@ WorkshopWeave::GuideDrawing WorkshopWeave::guide_drawing(const GuideMark& mark) 
     if (room <= 0) return out;
     if (static_cast<std::int64_t>(label.size()) > room) label.resize(static_cast<std::size_t>(room));
     const std::int64_t width = cells ? body.w : static_cast<std::int64_t>(label.size()) * advance;
-    for (const std::int64_t y : {r.y - (cells ? 0 : g) - advance, r.y + r.h + (cells ? 0 : g)}) {
-        const PixelRect spot{x, y, width, advance};
-        if (y < body.y || y + advance > body.y + body.h) continue;
+    for (const std::int64_t y : {r.y - (cells ? 0 : g) - line, r.y + r.h + (cells ? 0 : g)}) {
+        const PixelRect spot{x, y, width, line};
+        if (y < body.y || y + line > body.y + body.h) continue;
         bool free = true;
         for (const PaneWord& w : words) free = free && !meets(spot, w.place);
-        for (const v2::PanePart& p : parts) free = free && !meets(spot, p.place);
+        for (const PanePart& p : parts) free = free && !meets(spot, p.place);
         if (!free) continue;
         out.labels.push_back(surface::SurfaceLabel{x, y, label, role});
         out.labelled = true;
@@ -300,7 +320,7 @@ surface::SurfaceLayer WorkshopWeave::guide_layer(loom::Mail& mail) {
             ended.emplace_back(session, std::string());
             continue;
         }
-        const PaneStamp now = stamp_of(mark.office, mark.pane, 0, 0);
+        const PaneStamp now = stamp_of(mark.office, mark.pane);
         if (now.holder != mark.holder || now.incarnation != mark.incarnation) {
             ended.emplace_back(session, "the pane's holder changed");
             continue;

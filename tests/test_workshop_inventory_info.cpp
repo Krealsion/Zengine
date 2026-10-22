@@ -577,7 +577,9 @@ TEST_CASE("inventory Info: a receiver leaving before delivery reports the failed
     bool removed = false;
     RemoveObserver watch{t.r.bus, t.r.bus.add_observer([&](const loom::BusEvent& event) {
         if (!removed && event.kind == loom::EventKind::Delivered &&
-            event.schema_name == input::AttributedInput::zen_name && event.target == t.r.workshop_id) {
+            (event.schema_name == gfx::AreaPressed::zen_name ||
+             event.schema_name == gfx::AreaButtonChanged::zen_name) &&
+            event.target == t.r.workshop_id) {
             // Delivered is observed after Workshop's handler queued the drop, before the
             // bus dispatches it. Remove the destination at that exact host boundary.
             removed = t.r.kernel.unload_role("zengine.info");
@@ -1243,13 +1245,12 @@ TEST_CASE("a right press on Inventory's rows offers its menu, and one beside the
     CHECK(s.r.session().context.open);
 }
 
-TEST_CASE("pane view reports the words the pane draws, each where a press names it, and refuses hidden content") {
+TEST_CASE("pane view reports the words the pane draws, each where a press names it, and names what hides them") {
     InventoryStory s;
     s.append(12, "visible item");
     auto query = [&] { s.act([](loom::Mail& m) { m.send_to_role("zengine.workshop",
-        v2::PaneViewRequested{"zengine.inventory-pane", "inventory"}); }); };
+        PaneViewRequested{"zengine.inventory-pane", "inventory", 0, {}}); }); };
     query(); REQUIRE(s.hand->words.size() == 1);
-    CHECK(s.hand->words.back().canvas);
     const auto rows = pane_rows(s.r, s.source);
     REQUIRE_FALSE(s.hand->words.back().words.empty());
     for (const auto& word : s.hand->words.back().words) {
@@ -1261,19 +1262,18 @@ TEST_CASE("pane view reports the words the pane draws, each where a press names 
         while (!text.empty() && text.back() == ' ') text.pop_back();
         CHECK(rows[static_cast<std::size_t>(at.row)] == text); // the word on the row a press there names
     }
-    s.hand->expect_refusal = true;
-    s.r.session().context.open = true;
+    const auto covered_by = [&](const std::string& what) {
+        const auto& by = s.hand->words.back().covered.by;
+        return std::find(by.begin(), by.end(), what) != by.end();
+    };
+    // ARRANGING OVER THE DESK: the reading names it, and says no word of the pane.
+    s.r.session().arrange.open = true;
     query();
-    CHECK(s.hand->words.size() == 1);
-    REQUIRE(s.hand->refusals.size() == 1);
-    CHECK(s.hand->refusals.back().find("covered") != std::string::npos);
-    s.r.session().context.open = false;
-    for (auto& p : s.r.session().setup.active.panes) if (p.ref.provider == "zengine.inventory-pane")
-        p.place.y = 55 * gfx::kCellPx;
-    s.r.extent(180, 60);
-    query();
-    REQUIRE(s.hand->refusals.size() == 2);
-    CHECK(s.hand->refusals.back().find("outside") != std::string::npos);
+    REQUIRE(s.hand->words.size() == 2);
+    CHECK(covered_by("arranging"));
+    CHECK(s.hand->words.back().words.empty());
+    CHECK(s.hand->words.back().covered.words > 0);
+    s.r.session().arrange.open = false;
 }
 
 TEST_CASE("presets are independent partial data until filled and explicitly authorized by the current actor") {
@@ -1862,12 +1862,22 @@ TEST_CASE("a press on a canvas pane drags a value out as a prose press does: the
     const auto* flow = s.r.session().panes.runtime.of_kind(s.flow);
     REQUIRE(flow != nullptr);
     const auto flow_id = s.r.bus.role_holder(flow->provider);
-    std::vector<PaneCanvasPointer> told_flow;
+    // WHAT FLOW IS TOLD OF ITS PRESS, by phase: by the window, whose area it draws in, or by
+    // Workshop, where Workshop draws it.
+    std::vector<std::int64_t> told_flow;
     std::vector<PaneCanvasValueDrop> drops;
     const loom::ObserverId tap = s.r.bus.add_observer([&](const loom::BusEvent& e) {
         if (e.kind != loom::EventKind::Delivered || !e.payload) return;
         if (e.target == flow_id && e.schema_name == PaneCanvasPointer::zen_name)
-            told_flow.push_back(loom::from_value<PaneCanvasPointer>(*e.payload));
+            told_flow.push_back(loom::from_value<PaneCanvasPointer>(*e.payload).phase);
+        if (e.target == flow_id && e.schema_name == gfx::AreaButtonChanged::zen_name)
+            told_flow.push_back(loom::from_value<gfx::AreaButtonChanged>(*e.payload).pressed
+                                    ? canvas_pointer::kPress
+                                    : canvas_pointer::kRelease);
+        if (e.target == flow_id && e.schema_name == gfx::AreaPointerMoved::zen_name)
+            told_flow.push_back(canvas_pointer::kMove);
+        if (e.target == flow_id && e.schema_name == gfx::AreaHoldEnded::zen_name)
+            told_flow.push_back(canvas_pointer::kLost);
         if (e.schema_name == PaneCanvasValueDrop::zen_name)
             drops.push_back(loom::from_value<PaneCanvasValueDrop>(*e.payload));
     });
@@ -1878,9 +1888,8 @@ TEST_CASE("a press on a canvas pane drags a value out as a prose press does: the
     auto click = at_text(s, s.flow, "0 tally.Total");
     click.pressed = true; s.event(click);
     REQUIRE(told_flow.size() == 2);
-    CHECK(told_flow[0].phase == canvas_pointer::kPress);
-    CHECK(told_flow[1].phase == canvas_pointer::kLost);
-    CHECK(told_flow[1].gesture == told_flow[0].gesture);
+    CHECK(told_flow[0] == canvas_pointer::kPress);
+    CHECK(told_flow[1] == canvas_pointer::kLost);
     click.pressed = false; s.event(click);
     CHECK(told_flow.size() == 2);
     CHECK(drops.empty());
@@ -1899,7 +1908,7 @@ TEST_CASE("a press on a canvas pane drags a value out as a prose press does: the
     to.pressed = false; s.event(to);
     INFO(s.r.last_notice());
     REQUIRE(told_flow.size() == 2);
-    CHECK(told_flow[1].phase == canvas_pointer::kLost);
+    CHECK(told_flow[1] == canvas_pointer::kLost);
     REQUIRE(drops.size() == 1);
     CHECK(drops[0].pane == vb::kPane);
     CHECK(drops[0].source_office == flow->provider);
@@ -1913,7 +1922,7 @@ TEST_CASE("a press on a canvas pane drags a value out as a prose press does: the
     REQUIRE_FALSE(pictured(s, s.builder, "shows tally.Total"));
     drag_between(s, at_text(s, s.flow, "0 tally.Total"), at_text(s, s.builder, "> label1  label"));
     REQUIRE(told_flow.size() == 3);
-    CHECK(told_flow[2].phase == canvas_pointer::kRelease);
+    CHECK(told_flow[2] == canvas_pointer::kRelease);
     REQUIRE(drops.size() == 1);
     CHECK(pictured(s, s.builder, "shows tally.Total.total"));
 }
@@ -2008,18 +2017,6 @@ TEST_CASE("escape: Loaded and Powers let go of the row a weaver chose first, and
         CHECK(s.r.session().panes.keyboard == kNoPaneKind);
         CHECK(s.r.session().panes.has(c.kind));
     }
-}
-
-TEST_CASE("a text view of a pane that draws a picture is refused in words that say so") {
-    // `demo.py` reads a desk pane as shown when Workshop gives its rows or says it draws a picture;
-    // the View Builder draws one, and a pane with no picture yet is refused in other words.
-    InventoryStory s(191, false, false, false, false, true);
-    s.hand->expect_refusal = true;
-    s.act([](loom::Mail& m) {
-        m.send_to_role("zengine.workshop", PaneViewRequested{"zengine.view.builder", "view-builder"});
-    });
-    REQUIRE(s.hand->refusals.size() == 1);
-    CHECK(s.hand->refusals.back() == "pane view unavailable: the pane draws a picture, not text rows");
 }
 
 namespace {

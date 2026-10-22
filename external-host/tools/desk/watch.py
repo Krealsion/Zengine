@@ -3,8 +3,8 @@
 """desk/watch -- follow a running Workshop's desk as it moves, and write each change for a model,
 into the one directory `out` names.
 
-Workshop says when its desk moved: `DeskStamps`, the desk number and every presented pane's stamp,
-published at the end of each delivery that moved either. Each notice is the whole state, so the
+Workshop says when its desk moved: `DeskStamps` v3, the desk number and every presented pane's
+stamp, published when either moved. Each notice is the whole state, so the
 relay may keep only the newest while this reader is behind (`latest`), and the newest stands for
 every one before it. This reader asks nothing until it is told.
 
@@ -43,9 +43,7 @@ import desk_changes as changes
 import desk_words as words
 import read
 
-NOTICE = ("DeskStamps", 2)
-#: ...and the first version, followed where a row names only it: the stamps are the same.
-NOTICE_V1 = ("DeskStamps", 1)
+NOTICE = ("DeskStamps", 3)
 #: How long a watch follows the desk, in seconds, by default and at most.
 DEFAULT_SECONDS = 60.0
 MAX_SECONDS = 3600.0
@@ -86,9 +84,8 @@ def stamps_of(reading):
 
 
 def notice_stamps(notice):
-    """Each pane's stamp a notice names: a second-version entry's `stamp`, a first-version entry
-    itself."""
-    return [entry.get("stamp", entry) for entry in notice.get("panes") or []]
+    """Each pane's stamp a notice names."""
+    return list(notice.get("panes") or [])
 
 
 def moved(reading, notice):
@@ -209,18 +206,13 @@ def run(ctx):
     agents = os.path.join(out, "AGENTS.md")
     read.write(agents, words.AGENTS_MD)  # first, and before any ask: the reader's own words only
     ctx.step("follow")
-    sub, refused = None, []
-    for notice in (NOTICE, NOTICE_V1):
-        try:
-            sub = ctx.observe(desk_asks.WORKSHOP, [notice], via=link, latest=[notice[0]],
-                              window=1, label="desk/watch (run %s)" % ctx.name)
-            break
-        except (Refused, DispatchRefused, SendRefused, LinkOutcome) as err:
-            refused.append(err)
-    if sub is None:
+    try:
+        sub = ctx.observe(desk_asks.WORKSHOP, [NOTICE], via=link, latest=[NOTICE[0]],
+                          window=1, label="desk/watch (run %s)" % ctx.name)
+    except (Refused, DispatchRefused, SendRefused, LinkOutcome) as err:
         ctx.fail("refused: this row may not follow the desk: %s. A row follows it with `capture` "
-                 "and an `observe` entry naming zengine.workshop DeskStamps 2"
-                 % desk_asks.refusal_words(refused[0]))
+                 "and an `observe` entry naming zengine.workshop DeskStamps %d"
+                 % (desk_asks.refusal_words(err), NOTICE[1]))
     ctx.step("read")
     watch = Watch(ctx, link)
     reading = desk_asks.read_all(ctx, link)

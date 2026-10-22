@@ -552,9 +552,12 @@ document's picture, which this Workshop no longer publishes, so it waits, showin
   files.
 - **A desk read is consistent pane by pane, not across the desk.** Each pane's reading stands on
   its own stamp and the desk on its number; a reading gathered over several asks can hold panes
-  from different moments, and `desk/read` says which. `PaneView` versions 1 to 3 still refuse a
-  covered pane whole; versions 4 and 5 say what shows of it
+  from different moments, and `desk/read` says which. A covered pane says what shows of it
   ([the desk, read by message](../../external-host/docs/external-host.md#the-desk-a-panes-words-and-timed-drag-stories)).
+- **In a window, a press is landed when the window reads it.** A press injected in one batch with a
+  wheel or a key is landed on what the window shows when it reads the press, and its owner judges it
+  against its own state then; where no window shows the desk, Workshop lands it against the picture
+  read with it.
 - **The desk's notice says where it stands, not each change.** A follower told `DeskStamps` reads
   again what moved since its own last reading; what moved and moved back between two notices it
   took is not said. A holder leaving between Workshop's deliveries is said at its next repaint,

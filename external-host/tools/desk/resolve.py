@@ -280,7 +280,7 @@ def read(ctx, asker):
     desk, desk_refused = desk_asks.ask_desk(asker)
     ctx.step("inventory")
     inventory, _ = asker.ask(WORKSHOP, "PaneInventoryRequested", 1, {})
-    pager = desk_asks.Asker(ctx, asker.link, view_version=6)
+    pager = desk_asks.Asker(ctx, asker.link)
 
     def read_view(office, pane):
         got = desk_asks.read_pane(pager, office, pane)

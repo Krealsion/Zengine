@@ -391,6 +391,199 @@ public:
         return rows;
     }
 
+    /// What one area shows, in its pixels (`AreaShown`): its text runs line by line, joined where
+    /// one ends as the next begins, each character inside the area and the window and drawn over by
+    /// no area in front but one `reader` owns; and each record naming an action as a part -- the box
+    /// its subtree spans, cut to the area, and the point nearest its middle a press reaches it by,
+    /// none shown, none said. "" when said, else why not.
+    std::string read_area(const std::vector<WinArea>& areas, const WinArea& a,
+                          const std::string& reader, std::vector<AreaWord>& words,
+                          std::vector<AreaPart>& parts) const {
+        const std::int64_t adv = text_.advance, line = text_.line;
+        std::vector<std::pair<const WinArea*, PaintedNodes>> front;
+        for (const WinArea* f : front_to_back(areas)) {
+            if (f->area == a.area) {
+                break;
+            }
+            if (f->owner != reader && f->x < a.x + a.w && f->x + f->w > a.x && f->y < a.y + a.h &&
+                f->y + f->h > a.y) {
+                front.emplace_back(f, painted(f->area));
+            }
+        }
+        // Whether a point of the window, in its pixels, shows this area: inside it and the window,
+        // and drawn over by no area in front.
+        const auto shows = [&](std::int64_t wx, std::int64_t wy) {
+            if (wx < a.x || wy < a.y || wx >= a.x + a.w || wy >= a.y + a.h || wx < 0 || wy < 0 ||
+                wx >= size_.width || wy >= size_.height) {
+                return false;
+            }
+            for (const auto& [f, nodes] : front) {
+                if (wx < f->x || wy < f->y || wx >= f->x + f->w || wy >= f->y + f->h) {
+                    continue;
+                }
+                for (const auto& [path, k] : nodes) {
+                    if (light::hits_node(*k->prims, wx - f->x, wy - f->y, text_)) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        };
+        const PaintedNodes own = painted(a.area);
+        // THE WORDS: every character where it stands, a later node's over an earlier one's.
+        std::map<std::pair<std::int64_t, std::int64_t>, char> chars; // (y, x) in the area
+        for (const auto& [path, k] : own) {
+            for (const light::TextRun& t : k->prims->texts) {
+                std::int64_t x = t.x;
+                for (const char ch : t.text) {
+                    chars[{t.y, x}] = ch;
+                    x += adv;
+                }
+            }
+        }
+        std::string run;
+        std::int64_t run_x = 0, run_y = 0, next_x = 0;
+        bool open = false;
+        const auto flush = [&]() {
+            run.erase(run.find_last_not_of(' ') + 1);
+            if (!run.empty()) {
+                words.push_back(AreaWord{run_x, run_y, run});
+            }
+            run.clear();
+            open = false;
+        };
+        for (const auto& [at, ch] : chars) {
+            const auto [y, x] = at;
+            const bool inside = x >= 0 && x + adv <= a.w && y >= 0 && y < a.h &&
+                                shows(a.x + x + adv / 2, a.y + y + line / 2);
+            if (open && (!inside || y != run_y || x != next_x)) {
+                flush();
+            }
+            if (!inside) {
+                continue;
+            }
+            if (!open) {
+                open = true;
+                run_x = x;
+                run_y = y;
+            }
+            run.push_back(ch);
+            next_x = x + adv;
+        }
+        if (open) {
+            flush();
+        }
+        if (words.size() > kMaxAreaWords) {
+            return "area '" + a.area + "' shows more than " + std::to_string(kMaxAreaWords) +
+                   " runs of text";
+        }
+        // THE PARTS: each record naming an action, by its subtree's primitives.
+        const std::map<std::string, const ElementRecord*> reached = records_by_node(a);
+        // The top node of this area at a point of the area, as a press finds it; none outside all.
+        const auto top_at = [&](std::int64_t x, std::int64_t y) -> const std::string* {
+            const std::string* top = nullptr;
+            for (const auto& [path, k] : own) {
+                if (light::hits_node(*k->prims, x, y, text_)) {
+                    top = path; // paint order: the last that holds the point is on top
+                }
+            }
+            return top;
+        };
+        for (const ElementRecord& rec : a.records) {
+            if (rec.action.empty() || rec.path.empty()) {
+                continue;
+            }
+            bool any = false;
+            std::int64_t x0 = 0, y0 = 0, x1 = 0, y1 = 0; // the box, its far edges exclusive
+            std::vector<std::pair<std::int64_t, std::int64_t>> points; // its own, in the area
+            const auto span = [&](std::int64_t bx, std::int64_t by, std::int64_t bw,
+                                  std::int64_t bh) {
+                if (bw <= 0 || bh <= 0) {
+                    return;
+                }
+                x0 = any ? (std::min)(x0, bx) : bx;
+                y0 = any ? (std::min)(y0, by) : by;
+                x1 = any ? (std::max)(x1, bx + bw) : bx + bw;
+                y1 = any ? (std::max)(y1, by + bh) : by + bh;
+                any = true;
+            };
+            for (const auto& [path, k] : own) {
+                if (!under(*path, rec.path)) {
+                    continue;
+                }
+                const auto r = reached.find(*path);
+                const bool mine = r != reached.end() && r->second == &rec;
+                const light::NodePrimitives& p = *k->prims;
+                // A box's own points: five by five across it, its middle among them.
+                const auto grid = [&](std::int64_t bx, std::int64_t by, std::int64_t bw,
+                                      std::int64_t bh) {
+                    for (std::int64_t i = 0; i < 5; ++i) {
+                        for (std::int64_t j = 0; j < 5; ++j) {
+                            points.emplace_back(bx + (2 * i + 1) * bw / 10,
+                                                by + (2 * j + 1) * bh / 10);
+                        }
+                    }
+                };
+                for (const light::Quad& q : p.quads) {
+                    span(q.x, q.y, q.w, q.h);
+                    if (mine) grid(q.x, q.y, q.w, q.h);
+                }
+                for (const light::TextRun& t : p.texts) {
+                    const auto n = static_cast<std::int64_t>(t.text.size());
+                    span(t.x, t.y, n * adv, line);
+                    for (std::int64_t i = 0; mine && i < n; ++i) {
+                        points.emplace_back(t.x + i * adv + adv / 2, t.y + line / 2);
+                    }
+                }
+                for (const light::ImageBlit& im : p.images) {
+                    span(im.x, im.y, im.w, im.h);
+                    if (mine) grid(im.x, im.y, im.w, im.h);
+                }
+                for (const light::Line& l : p.lines) {
+                    span((std::min)(l.x1, l.x2), (std::min)(l.y1, l.y2),
+                         (std::max)(l.x1, l.x2) - (std::min)(l.x1, l.x2) + 1,
+                         (std::max)(l.y1, l.y2) - (std::min)(l.y1, l.y2) + 1);
+                    if (mine) points.emplace_back((l.x1 + l.x2) / 2, (l.y1 + l.y2) / 2);
+                }
+            }
+            x0 = (std::max<std::int64_t>)(x0, 0);
+            y0 = (std::max<std::int64_t>)(y0, 0);
+            x1 = (std::min)(x1, a.w);
+            y1 = (std::min)(y1, a.h);
+            if (!any || x1 <= x0 || y1 <= y0) {
+                continue;
+            }
+            const std::int64_t cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+            std::stable_sort(points.begin(), points.end(), [&](const auto& l, const auto& r) {
+                const auto far = [&](const auto& p) {
+                    return (p.first - cx) * (p.first - cx) + (p.second - cy) * (p.second - cy);
+                };
+                return far(l) < far(r);
+            });
+            AreaPart part{rec.action, record_available(rec), x0, y0, x1 - x0, y1 - y0, false, 0,
+                          0};
+            bool seen = shows(a.x + cx, a.y + cy);
+            for (const auto& [px, py] : points) {
+                if (px < x0 || py < y0 || px >= x1 || py >= y1 || !shows(a.x + px, a.y + py)) {
+                    continue;
+                }
+                seen = true;
+                const std::string* top = top_at(px, py);
+                const auto r = top == nullptr ? reached.end() : reached.find(*top);
+                if (r != reached.end() && r->second == &rec) {
+                    part.pressed = true;
+                    part.px = px;
+                    part.py = py;
+                    break;
+                }
+            }
+            if (seen) {
+                parts.push_back(std::move(part));
+            }
+        }
+        return {};
+    }
+
     /// A point of the window in pixels (a point in cells at its cell's centre): the front-most
     /// area there that takes it, and the top node whose primitives hold the point, as the
     /// terminal lands one (`window::land`).

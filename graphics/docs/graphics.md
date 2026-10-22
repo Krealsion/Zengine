@@ -31,7 +31,10 @@ window -> the owner          AreaRoom (this window, its incarnation, the room, w
 window -> the owner          DrawnRefused (why, in words), ActionRequested
 window -> pointer's owners   AreaButtonChanged, AreaPointerMoved, AreaWheelTurned
                              (at the area's own point, a press's moments under its number)
-window -> an area's arranger AreaPressed (where a press in an area another office owns landed)
+window -> an area's arranger AreaPressed (where a press in an area another office owns landed),
+                             AreaHandRefused (an injected hand refused in an area the weaver's alone),
+                             AreaShown (what the area shows, asked by AreaShowAsked)
+input office -> a window     AttributedInput (a participant's moment, landed as that hand's)
 window -> owner, arranger    AreaHoldEnded, AreaPointerLeft (to the arranger when another office)
 window -> the keys' owners   KeyPressed, KeyReleased, TextEntered
 arranger -> directory        AreaPlaced, SkinOffered, SkinChosen, ElementCodeOffered

@@ -17,6 +17,7 @@
 #include <fstream>
 #include <iterator>
 #include <map>
+#include <set>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -43,6 +44,10 @@ public:
     /// AN OFFICE LEFT OUT: nothing it says or is said is kept -- a window and its directory, which
     /// every repaint speaks to, in a conversation about something else.
     void without(std::string office) { left_out_.push_back(std::move(office)); }
+
+    /// A FIELD SAID AS `<varies>` wherever it stands, at any depth: a number a run draws afresh, as
+    /// a window's incarnation is, which no kept conversation could hold.
+    void varies(std::string field) { varying_.insert(std::move(field)); }
 
     /// Stop listening; what was heard stays.
     void stop() {
@@ -88,7 +93,7 @@ private:
         return role.empty() ? "weave " + std::to_string(id.value) : role;
     }
 
-    static std::string cell_text(const loom::Cell& c, int depth) {
+    std::string cell_text(const loom::Cell& c, int depth) const {
         switch (c.kind()) {
         case loom::Kind::Int: return std::to_string(c.as_int());
         case loom::Kind::Float: {
@@ -110,13 +115,14 @@ private:
         return "?";
     }
 
-    static std::string fields_text(const loom::Value& v, int depth = 0) {
+    std::string fields_text(const loom::Value& v, int depth = 0) const {
         std::string out = "{";
         bool first = true;
         for (const loom::Field& f : v.schema().fields()) {
             const loom::Cell* c = v.get(f.name);
             if (c == nullptr) continue;
-            out += (first ? "" : ", ") + f.name + ": " + cell_text(*c, depth);
+            out += (first ? "" : ", ") + f.name + ": " +
+                   (varying_.count(f.name) != 0 ? std::string("<varies>") : cell_text(*c, depth));
             first = false;
         }
         return out + "}";
@@ -153,6 +159,7 @@ private:
     loom::ObserverId tap_{};
     std::map<std::uint64_t, std::string> labels_;
     std::vector<std::string> left_out_;
+    std::set<std::string> varying_;
     std::vector<std::string> lines_;
 };
 

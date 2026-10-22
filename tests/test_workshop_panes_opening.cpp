@@ -962,11 +962,11 @@ struct PointAskerState {
 /// AN ORDINARY WEAVE GRANTED WORKSHOP'S READING DOORS: a pane's words, and one cell's point.
 class PointAsker
     : public loom::WeaveBase<PointAsker, PointAskerState,
-                             loom::Accept<SeatDo, v3::PaneView, PanePoint, loom::Refused>,
-                             loom::Emit<v3::PaneViewRequested, v3::PanePointRequested>> {
+                             loom::Accept<SeatDo, PaneView, PanePoint, loom::Refused>,
+                             loom::Emit<PaneViewRequested, PanePointRequested>> {
 public:
     std::function<void(loom::Mail&)> next;
-    std::vector<v3::PaneView> views;
+    std::vector<PaneView> views;
     std::vector<PanePoint> points;
     std::vector<std::string> refusals;
     void on(const SeatDo&, loom::Mail& m) {
@@ -974,7 +974,7 @@ public:
         next = {};
         if (run) run(m);
     }
-    void on(const v3::PaneView& v, loom::Mail&) { views.push_back(v); }
+    void on(const PaneView& v, loom::Mail&) { views.push_back(v); }
     void on(const PanePoint& p, loom::Mail&) { points.push_back(p); }
     void on(const loom::Refused& r, loom::Mail&) { refusals.push_back(r.reason); }
 };
@@ -1047,19 +1047,22 @@ struct PictureOpen {
         }
     }
     /// THE EDITOR PANE'S WORDS AND PARTS, asked as any participant asks.
-    v3::PaneView view() {
-        ask([](loom::Mail& m) { (void)m.send_to_role(kWorkshopProvider, v3::PaneViewRequested{kEditorRole, "editor"}); });
+    PaneView view() {
+        ask([](loom::Mail& m) {
+            (void)m.send_to_role(kWorkshopProvider, PaneViewRequested{kEditorRole, "editor", 0, {}});
+        });
         REQUIRE(reader->refusals.empty());
         REQUIRE_FALSE(reader->views.empty());
         return reader->views.back();
     }
-    /// ...AND THE POINT OF ONE CELL OF ITS LATTICE at the picture they were read at: the picture,
-    /// and the point's refusal or "".
-    std::string point(std::int64_t row, std::int64_t column, std::int64_t& picture) {
-        picture = view().picture;
-        const std::int64_t seen = picture;
-        ask([seen, row, column](loom::Mail& m) {
-            (void)m.send_to_role(kWorkshopProvider, v3::PanePointRequested{kEditorRole, "editor", seen, row, column});
+    /// ...AND THE POINT OF ONE CHARACTER OF ONE WORD of the reading they were read at: what it
+    /// stood on, and the point's refusal or "".
+    std::string point(std::int64_t word, std::int64_t column, std::int64_t& fingerprint) {
+        fingerprint = view().stamp.fingerprint;
+        const std::int64_t seen = fingerprint;
+        ask([seen, word, column](loom::Mail& m) {
+            (void)m.send_to_role(kWorkshopProvider,
+                                 PanePointRequested{kEditorRole, "editor", seen, word, column});
         });
         return reader->refusals.empty() ? std::string() : reader->refusals.back();
     }
@@ -1078,9 +1081,9 @@ private:
             auto made = std::make_unique<PointAsker>();
             reader = made.get();
             loom::Grant grant;
-            grant.allow_to_role(v3::PaneViewRequested::zen_name, v3::PaneViewRequested::zen_version,
+            grant.allow_to_role(PaneViewRequested::zen_name, PaneViewRequested::zen_version,
                                 kWorkshopProvider);
-            grant.allow_to_role(v3::PanePointRequested::zen_name, v3::PanePointRequested::zen_version,
+            grant.allow_to_role(PanePointRequested::zen_name, PanePointRequested::zen_version,
                                 kWorkshopProvider);
             reader_id = r.bus.register_weave(std::move(made), std::move(grant));
             reader->zen_set_self(reader_id);
@@ -1147,15 +1150,15 @@ TEST_CASE("a holder that draws nothing after the commitment still shows the pict
     CHECK(pane->picture == 0);
     REQUIRE_FALSE(o.editor->rooms.empty());
     CHECK(o.editor->rooms.back().grant == pane->canvas.grant);
-    // ITS WORDS ARE READ AT ONCE, AND A CELL'S POINT IS READ AGAIN: the shown picture takes no
-    // press until the holder draws its own there, which then does.
-    std::int64_t picture = -1;
-    const std::string refused = o.point(0, 1, picture);
-    CHECK(picture == 0);
-    CHECK_MESSAGE(refused.find("picture moved; read it again") != std::string::npos, refused);
+    // ITS WORDS ARE READ AT ONCE, AND A CHARACTER'S POINT IS READ AGAIN: the shown picture takes
+    // no press until the holder draws its own there, which then does.
+    std::int64_t stamped = -1;
+    const std::string refused = o.point(0, 1, stamped);
+    CHECK(stamped == 0);
+    CHECK_MESSAGE(refused.find("no press reaches that word now") != std::string::npos, refused);
     o.drive([](CanvasEditor& e, loom::Mail& m) { e.draw(m); });
-    CHECK(o.point(0, 1, picture).empty());
-    CHECK(picture > 0);
+    CHECK(o.point(0, 1, stamped).empty());
+    CHECK(stamped != 0);
 }
 
 TEST_CASE("the picture a managed opening shows says its words and its named part with no point, and "
@@ -1170,9 +1173,8 @@ TEST_CASE("the picture a managed opening shows says its words and its named part
         REQUIRE(o.pane()->picture == 0);
         // ITS WORD AND ITS PART KEEP THEIR TEXT AND PLACES AND SAY NO POINT, a space input refuses:
         // the shown picture takes no press.
-        const v3::PaneView shown = o.view();
-        CHECK(shown.canvas);
-        CHECK(shown.picture == 0);
+        const PaneView shown = o.view();
+        CHECK(shown.stamp.fingerprint == 0);
         REQUIRE(shown.words.size() == 1);
         REQUIRE(shown.parts.size() == 1);
         const PaneWord word = shown.words[0];
@@ -1201,8 +1203,8 @@ TEST_CASE("the picture a managed opening shows says its words and its named part
         // THE HOLDER DRAWS ITS OWN, and the points return: a press at the part's reaches the holder
         // at the picture it drew.
         o.drive([](CanvasEditor& e, loom::Mail& m) { e.draw(m); });
-        const v3::PaneView drawn = o.view();
-        CHECK(drawn.picture > 0);
+        const PaneView drawn = o.view();
+        CHECK(drawn.stamp.fingerprint != 0);
         REQUIRE(drawn.words.size() == 1);
         REQUIRE(drawn.parts.size() == 1);
         CHECK(drawn.parts[0].name == "document");
@@ -1213,7 +1215,7 @@ TEST_CASE("the picture a managed opening shows says its words and its named part
         o.click(drawn.parts[0].x, drawn.parts[0].y, drawn.parts[0].space);
         REQUIRE_FALSE(o.editor->pointers.empty());
         CHECK(o.editor->pointers.front().phase == canvas_pointer::kPress);
-        CHECK(o.editor->pointers.front().picture == drawn.picture);
+        CHECK(o.editor->pointers.front().picture == o.pane()->stamp.aimed);
     }
 }
 

@@ -154,12 +154,12 @@ LAW — A desk and a pane's words are answered from what Workshop owns, in canva
 
 MEANS
 - a canvas pane's labels and runs are words as a text pane's rows are, and so are a menu's lines;
-- the point a word or a lattice cell gives is resolved by the measurer a press is, so a press there lands on it; a picture taking none -- numbered none, or not its holder's -- gives none;
+- a word's point is resolved by the measurer a press is, and a reading's place and text measure give any cell; a picture taking none -- numbered none, or not its holder's -- gives none;
 - reading grants nothing and moves nothing: a press is ordinary input.
 
 DOES NOT MEAN
 - that a word is named: its number is its place in one answer, and a pane names its parts;
-- that a covered word is said: the fourth reading says a pane's visible words and its cover (WL-READ-05), the earlier ones refuse it whole.
+- that a covered word is said: a reading says a pane's visible words and its cover (WL-READ-05).
 
 WHY — `agents/decisions/the-desk-is-read-in-workshops-numbers.md`
 
@@ -177,7 +177,7 @@ WHY — `agents/decisions/the-desk-is-read-in-workshops-numbers.md`
 `workshop/screen_gestures.cpp` prose_at
 `workshop/screen.hpp` prose_column_of_pixel prose_row_of_pixel
 `graphics/pixels.hpp` floor_to_grain
-`workshop/weave_desk_read.cpp` cell_point cell_center
+`workshop/desk_read.hpp` glyph_point
 `tests/test_workshop_panes_terminal.cpp` "a press on the input row places the caret where the weaver
 aimed"
 `tests/test_workshop_screen.cpp` "what a pane is painted at and what it occupies are one resolved
@@ -185,9 +185,7 @@ truth"
 `tests/test_workshop_panes_input.cpp` "text a window sets in cells, in a body too short for a row of
 its face, is drawn, pressed and aimed at from one origin"
 `tests/test_workshop_desk.cpp` "a character's point is the cell showing it, a caret moving none, and
-a press on a cell reaches the pane as the column of the character it shows" "the first version's
-rows are read in a body one to three columns wide with a terminal's caret in it, each row's point
-inside the body"
+a press on a cell reaches the pane as the column of the character it shows"
 `tests/test_workshop_panes_button.cpp` "WL-GEO-01: in a terminal, a right press and its release name
 the column of the character each cell shows, a caret moving none"
 `tests/test_workshop_panes_editor.cpp` "in a terminal, a press on a character past the caret puts
@@ -283,7 +281,7 @@ actually is"
 `tests/test_workshop_screen.cpp` "which parts of a pane's window the weaver has not authored"
 
 ### WL-GEO-13
-`workshop/weave_desk_read.cpp` desk_view visible_words on(v3::PanePointRequested)
+`workshop/weave_desk_read.cpp` visible_words pane_point
 `workshop/desk_read.hpp` word_on glyph_point
 `workshop/weave_canvas.cpp` canvas_takes_press
 `tests/test_workshop_desk.cpp` "every place the desk and the words give is where the medium draws
@@ -294,9 +292,7 @@ column of the character it shows" "a row as wide as its pane with a caret in it 
 character, at a place inside the pane, the caret past its end on its last cell" "a word that is only
 a caret is pressed on the caret's own cell, inside its place, in a text row and in a canvas field at
 the body's right edge" "a part whose one cell holds the caret at the body's right edge has a point
-there, and a press on it reaches the pane" "every cell of a canvas pane's text lattice has a point,
-a blank one and the one after a row's last character too, and a press there reaches the pane at that
-cell; a text pane's cell is the first version's" "a canvas picture its office's holder no longer
+there, and a press on it reaches the pane" "a canvas picture its office's holder no longer
 holds says its words and parts with no point, gives none, and a press where one was reaches nothing"
 "with pane titles hidden, a refused picture's mark is Workshop's own: the pane view waits while it
 covers the picture, a press on it reaches no provider and a right press opens Workshop's menu, and

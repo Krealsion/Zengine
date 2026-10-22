@@ -165,39 +165,33 @@ every exit: a request stopped before its answer ends the lease that answer grant
 reload keeps the WeaveId, an arriving image sends `PaneObservationEnded{pane, 0}` -- every lease
 it holds on that pane -- for each pane it may observe from.
 
-`PanePointRequested` answers one painted cell's input-space point through `visible_text_body`
-and the press measurer (`cell_center`), refusing a moved picture exactly as `PaneViewRequested`
-versions 1 to 3 refuse a covered pane. It reads presentation; pressing the point is ordinary
-input. Version 2
-of both answers a canvas pane too: its words are its labels and runs as the painter clips them,
-through `visible_body` and `visible_words`, each with its place in canvas pixels and the point a
-press names it by; a canvas word's point is checked against the body its press lands in, and a
-picture that takes no press (`canvas_takes_press`) gives a word or part none and refuses a point,
-as its press reaches nothing. Version
-3 of the point names a cell of a pane's text lattice -- a text pane's painted cell, as version 1
-answers, or a canvas pane's cell of the lattice its room's text stands on (`canvas_rows`), blank
-or past a row's last character -- read back to that cell of the room its press lands in.
-`DeskViewRequested` answers the desk from Workshop's own numbers (WL-GEO-13). Workshop names
+`PanePointRequested` answers where one character of a word of a reading is now, refusing it
+when what the pane shows moved. It reads presentation; pressing the point is ordinary input. A
+pane's reading says a text pane's rows and a canvas pane's labels and runs as the painter clips
+them (`visible_words`), each with its place in canvas pixels and the point a press names it by,
+and its place and text measure, from which any cell of its lattice is reckoned; a picture that
+takes no press (`canvas_takes_press`) gives a word or part none, as its press reaches nothing. A
+pane drawing in an area of its own is read from the window that shows it (WL-READ-08). The desk is
+answered from Workshop's own numbers (WL-GEO-13). Workshop names
 nothing inside a pane: a word's number is its place in one answer. A pane names its parts
 (WL-HAND-06): `v4::PaneContent` and `v4::PaneCanvasContent` (and `v5`) carry `parts` -- a run of a row's
 columns, a rectangle of the picture -- and `v2::MenuShown` a presenter's lines by the rows' ids,
 each judged with the picture it names and refused whole with it (`row_parts_problem`,
 `canvas_parts_problem`), listed in the order the pane reads a press, a place it names nothing
-unnamed. `PaneView` version 3 says each beside the words with its place and its point, a place of
-its own a press reaches -- none for a part with no such place, or of a picture that takes no
-press -- and `DeskView` version 2 a
-menu's named lines; a name is carried as the pane said it, and a press on a part is ordinary
+unnamed. `PaneView` says each beside the words with its place and its point, a place of its own
+a press reaches -- none for a part with no such place, or of a picture that takes no press -- and
+`DeskView` a menu's named lines; a name is carried as the pane said it, and a press on a part is ordinary
 input at that point. Workshop names only its own surfaces' parts: its menu's lines and Layouts'
 tabs, `layout:<name>` and `layout:+` (WL-READ-04).
 
-`DeskReadRequested` answers the desk said whole, in one turn: `DeskView` version 3, every
+`DeskReadRequested` answers the desk said whole, in one turn: `DeskView`, every
 presented pane's stamp and as many readings as one decoded value and one reply's bytes hold
 (WL-READ-01). A page is asked under its stamp and refused as stale when that moved (WL-READ-02),
 and says a covered pane's visible words with the cover named, a point only where a press lands
 (WL-READ-05); desk reads are at most `kDeskReadsPerSecond` a second, each asker (WL-READ-03).
-Version 2's stamps, and `PaneView` version 5's, name a picture by the fingerprint of what the pane
-sent, so a pane does nothing for it (WL-READ-07), and Workshop publishes `DeskStamps` at the end of
-each delivery that moved the desk number, a stamp or a picture aimed at (WL-READ-06). A guest session whose row holds `capture`
+A stamp names what a pane shows, and where, by a fingerprint, so a pane does nothing for it
+(WL-READ-07), and Workshop publishes `DeskStamps` at the end of each delivery that moved the desk
+number or a stamp (WL-READ-06). A guest session whose row holds `capture`
 is answered these, `PaneInventoryRequested` and `KeymapRequested` (WL-DESK-09, WL-DESK-11,
 WL-GUEST-11). The shapes: [the desk, said whole](../workshop/docs/workshop-panes.md#the-desk-said-whole).
 

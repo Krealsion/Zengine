@@ -11,6 +11,7 @@
 #include "attention/vocabulary.hpp"
 #include "surface/skin_sdl_plan.hpp"
 #include "surface/skin_tui.hpp"
+#include "workshop/desk_read.hpp"
 #include "workshop/pane_canvas_text.hpp"
 #include "workshop/screen_canvas.hpp"
 #include "view/view-builder/picture.hpp"
@@ -26,6 +27,7 @@
 #include <set>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -41,40 +43,22 @@ struct DeskAskerState {
 /// WHO ASKS: an ordinary weave granted the desk's door, keeping every answer and refusal.
 class DeskAsker
     : public loom::WeaveBase<DeskAsker, DeskAskerState,
-                             loom::Accept<SeatDo, DeskView, v2::DeskView, v2::PaneView, v3::PaneView,
-                                          v4::PaneView, DeskRead, v2::PanePoint, PaneView, PanePoint,
-                                          loom::Refused>,
-                             loom::Emit<DeskViewRequested, v2::DeskViewRequested,
-                                        v2::PaneViewRequested, v3::PaneViewRequested,
-                                        v4::PaneViewRequested, DeskReadRequested,
-                                        v2::PanePointRequested, PaneViewRequested,
-                                        PanePointRequested, v3::PanePointRequested>> {
+                             loom::Accept<SeatDo, DeskRead, PaneView, PanePoint, loom::Refused>,
+                             loom::Emit<DeskReadRequested, PaneViewRequested, PanePointRequested>> {
 public:
     std::function<void(loom::Mail&)> next;
-    std::vector<DeskView> desks;
-    std::vector<v2::DeskView> named_desks;
-    std::vector<v2::PaneView> views;
-    std::vector<v3::PaneView> named_views;
-    std::vector<v4::PaneView> pages;
     std::vector<DeskRead> reads;
-    std::vector<v2::PanePoint> points;
-    std::vector<PaneView> first_views;
-    std::vector<PanePoint> first_points;
+    std::vector<PaneView> pages;
+    std::vector<PanePoint> points;
     std::vector<std::string> refusals;
     void on(const SeatDo&, loom::Mail& m) {
         auto run = std::move(next);
         next = {};
         if (run) run(m);
     }
-    void on(const DeskView& d, loom::Mail&) { desks.push_back(d); }
-    void on(const v2::DeskView& d, loom::Mail&) { named_desks.push_back(d); }
-    void on(const v2::PaneView& v, loom::Mail&) { views.push_back(v); }
-    void on(const v3::PaneView& v, loom::Mail&) { named_views.push_back(v); }
-    void on(const v4::PaneView& v, loom::Mail&) { pages.push_back(v); }
     void on(const DeskRead& d, loom::Mail&) { reads.push_back(d); }
-    void on(const v2::PanePoint& p, loom::Mail&) { points.push_back(p); }
-    void on(const PaneView& v, loom::Mail&) { first_views.push_back(v); }
-    void on(const PanePoint& p, loom::Mail&) { first_points.push_back(p); }
+    void on(const PaneView& v, loom::Mail&) { pages.push_back(v); }
+    void on(const PanePoint& p, loom::Mail&) { points.push_back(p); }
     void on(const loom::Refused& r, loom::Mail&) { refusals.push_back(r.reason); }
 };
 
@@ -101,16 +85,9 @@ struct DeskRig {
         auto made = std::make_unique<DeskAsker>();
         asker = made.get();
         loom::Grant grant;
-        for (const auto& shape : {loom::schema_of<DeskViewRequested>(),
-                                  loom::schema_of<v2::DeskViewRequested>(),
-                                  loom::schema_of<v2::PaneViewRequested>(),
-                                  loom::schema_of<v3::PaneViewRequested>(),
-                                  loom::schema_of<v4::PaneViewRequested>(),
-                                  loom::schema_of<DeskReadRequested>(),
-                                  loom::schema_of<v2::PanePointRequested>(),
+        for (const auto& shape : {loom::schema_of<DeskReadRequested>(),
                                   loom::schema_of<PaneViewRequested>(),
-                                  loom::schema_of<PanePointRequested>(),
-                                  loom::schema_of<v3::PanePointRequested>()}) {
+                                  loom::schema_of<PanePointRequested>()}) {
             grant.allow_to_role(shape->name(), shape->version(), kWorkshopProvider);
         }
         asker_id = r.bus.register_weave(std::move(made), std::move(grant));
@@ -121,26 +98,6 @@ struct DeskRig {
         asker->next = std::move(what);
         (void)r.bus.send(asker_id, loom::Message(loom::to_value(SeatDo{}), {}, {}, 0));
         r.bus.drain_until_idle();
-    }
-
-    /// The desk, asked through the bus as any participant asks it.
-    DeskView desk() {
-        asker->refusals.clear();
-        const std::size_t before = asker->desks.size();
-        ask([](loom::Mail& m) { (void)m.send_to_role(kWorkshopProvider, DeskViewRequested{}); });
-        REQUIRE(asker->refusals.empty());
-        REQUIRE(asker->desks.size() == before + 1);
-        return asker->desks.back();
-    }
-
-    /// The desk with the menu's named lines, as its second version says it.
-    v2::DeskView named_desk() {
-        asker->refusals.clear();
-        const std::size_t before = asker->named_desks.size();
-        ask([](loom::Mail& m) { (void)m.send_to_role(kWorkshopProvider, v2::DeskViewRequested{}); });
-        REQUIRE(asker->refusals.empty());
-        REQUIRE(asker->named_desks.size() == before + 1);
-        return asker->named_desks.back();
     }
 
     /// The desk said whole, or the refusal's reason.
@@ -154,8 +111,16 @@ struct DeskRig {
         return std::string();
     }
 
+    /// The desk, as a desk read says it.
+    DeskView desk() {
+        DeskRead whole;
+        const std::string why = read(whole);
+        REQUIRE(why.empty());
+        return whole.desk;
+    }
+
     /// One page of a pane's reading, or the refusal's reason.
-    std::string page(const v4::PaneViewRequested& asked, v4::PaneView& out) {
+    std::string page(const PaneViewRequested& asked, PaneView& out) {
         asker->refusals.clear();
         const std::size_t before = asker->pages.size();
         ask([&](loom::Mail& m) { (void)m.send_to_role(kWorkshopProvider, asked); });
@@ -165,62 +130,23 @@ struct DeskRig {
         return std::string();
     }
 
-    /// A pane's words and named parts, or the refusal's reason when Workshop will not say them.
-    std::string parts(const std::string& provider, const std::string& pane, v3::PaneView& out) {
-        asker->refusals.clear();
-        const std::size_t before = asker->named_views.size();
-        ask([&](loom::Mail& m) {
-            (void)m.send_to_role(kWorkshopProvider, v3::PaneViewRequested{provider, pane});
-        });
-        if (!asker->refusals.empty()) return asker->refusals.back();
-        REQUIRE(asker->named_views.size() == before + 1);
-        out = asker->named_views.back();
-        return std::string();
+    /// A pane's words and named parts as it stands, or the refusal's reason when Workshop will not
+    /// say them.
+    std::string parts(const std::string& provider, const std::string& pane, PaneView& out) {
+        return page(PaneViewRequested{provider, pane, 0, {}}, out);
     }
-
-    /// A pane's words, or the refusal's reason (and no words) when Workshop will not say them.
-    std::string words(const std::string& provider, const std::string& pane, v2::PaneView& out) {
-        asker->refusals.clear();
-        const std::size_t before = asker->views.size();
-        ask([&](loom::Mail& m) {
-            (void)m.send_to_role(kWorkshopProvider, v2::PaneViewRequested{provider, pane});
-        });
-        if (!asker->refusals.empty()) return asker->refusals.back();
-        REQUIRE(asker->views.size() == before + 1);
-        out = asker->views.back();
-        return std::string();
+    std::string words(const std::string& provider, const std::string& pane, PaneView& out) {
+        return parts(provider, pane, out);
     }
 
     /// Where one character of one word is, or the refusal's reason.
-    std::string point(const v2::PanePointRequested& asked, v2::PanePoint& out) {
+    std::string point(const PanePointRequested& asked, PanePoint& out) {
         asker->refusals.clear();
         const std::size_t before = asker->points.size();
         ask([&](loom::Mail& m) { (void)m.send_to_role(kWorkshopProvider, asked); });
         if (!asker->refusals.empty()) return asker->refusals.back();
         REQUIRE(asker->points.size() == before + 1);
         out = asker->points.back();
-        return std::string();
-    }
-
-    /// ...and the first version's point for a row and a column, or the refusal's reason.
-    std::string first_point(const PanePointRequested& asked, PanePoint& out) {
-        asker->refusals.clear();
-        const std::size_t before = asker->first_points.size();
-        ask([&](loom::Mail& m) { (void)m.send_to_role(kWorkshopProvider, asked); });
-        if (!asker->refusals.empty()) return asker->refusals.back();
-        REQUIRE(asker->first_points.size() == before + 1);
-        out = asker->first_points.back();
-        return std::string();
-    }
-
-    /// ...and the third version's point for a cell of a pane's text lattice, or the refusal's reason.
-    std::string lattice_point(const v3::PanePointRequested& asked, PanePoint& out) {
-        asker->refusals.clear();
-        const std::size_t before = asker->first_points.size();
-        ask([&](loom::Mail& m) { (void)m.send_to_role(kWorkshopProvider, asked); });
-        if (!asker->refusals.empty()) return asker->refusals.back();
-        REQUIRE(asker->first_points.size() == before + 1);
-        out = asker->first_points.back();
         return std::string();
     }
 
@@ -508,6 +434,18 @@ bool inside_locally(const PaneCanvasPointer& e, const DeskRect& place, const Ext
 
 } // namespace
 
+// A GRID OF GLYPHS NAMES THE CONSOLE ROWS ABOVE IT EVERY TIME it is made: no default stands in
+// for them, so none can take a Skin's rows where a window shows the desk.
+TEST_CASE("a glyph grid is made with the console rows above it named, from no default") {
+    using I = std::int64_t;
+    using zengine::workshop::desk_read::GlyphGrid;
+    CHECK_FALSE(std::is_default_constructible_v<GlyphGrid>);
+    CHECK_FALSE(std::is_constructible_v<GlyphGrid, I, I, I, I>);
+    CHECK(std::is_constructible_v<GlyphGrid, I, I, I, I, I>);
+    const GlyphGrid in_window{0, 0, 12, 12, 0};
+    CHECK(in_window.rows_above == 0);
+}
+
 TEST_CASE("a text pane's words are its rows, each with its place and size, and a press at a word's point or a character's lands on that row and column") {
     for (const bool window : {false, true}) {
         CAPTURE(window);
@@ -516,11 +454,15 @@ TEST_CASE("a text pane's words are its rows, each with its place and size, and a
             d.r.extent_on_window(150, 60);
         }
         say_rows(d);
-        v2::PaneView view;
+        PaneView view;
         REQUIRE(d.words(kAlphaOffice, "alpha", view).empty());
-        CHECK_FALSE(view.canvas);
-        // An unnumbered provider's picture is zero, as the first version says.
-        CHECK(view.picture == d.r.session().panes.external_pane(d.alpha_kind)->stamp.aimed);
+        // ITS STAMP NAMES WHAT IT SHOWS: read again unchanged, the same fingerprint.
+        CHECK(view.stamp.fingerprint != 0);
+        {
+            PaneView again;
+            REQUIRE(d.words(kAlphaOffice, "alpha", again).empty());
+            CHECK(again.stamp.fingerprint == view.stamp.fingerprint);
+        }
         REQUIRE(view.words.size() == 2);
         CHECK(view.words[0].text == "first row");
         CHECK(view.words[1].text == "press [Save] here");
@@ -545,8 +487,8 @@ TEST_CASE("a text pane's words are its rows, each with its place and size, and a
         }
         // ...AND A CHARACTER'S POINT, ASKED BY ITS COLUMN, IS A PRESS ON THAT COLUMN.
         const std::int64_t save = static_cast<std::int64_t>(view.words[1].text.find("[Save]")) + 1;
-        v2::PanePoint at;
-        REQUIRE(d.point(v2::PanePointRequested{kAlphaOffice, "alpha", view.picture, 1, save}, at).empty());
+        PanePoint at;
+        REQUIRE(d.point(PanePointRequested{kAlphaOffice, "alpha", view.stamp.fingerprint, 1, save}, at).empty());
         CHECK(at.space == view.words[1].space);
         d.alpha->presses.clear();
         d.click(at.x, at.y, at.space);
@@ -554,12 +496,12 @@ TEST_CASE("a text pane's words are its rows, each with its place and size, and a
         CHECK(d.alpha->presses[0].row == 1);
         CHECK(d.alpha->presses[0].column == save);
 
-        // A PICTURE THE CALLER DID NOT READ, A WORD OR A COLUMN THERE IS NOT: refused, by name.
-        CHECK(d.point(v2::PanePointRequested{kAlphaOffice, "alpha", view.picture + 1, 1, 0}, at)
-                  .find("picture moved") != std::string::npos);
-        CHECK(d.point(v2::PanePointRequested{kAlphaOffice, "alpha", view.picture, 2, 0}, at)
+        // A READING THE CALLER DID NOT READ, A WORD OR A COLUMN THERE IS NOT: refused, by name.
+        CHECK(d.point(PanePointRequested{kAlphaOffice, "alpha", view.stamp.fingerprint + 1, 1, 0}, at)
+                  .find("shows moved") != std::string::npos);
+        CHECK(d.point(PanePointRequested{kAlphaOffice, "alpha", view.stamp.fingerprint, 2, 0}, at)
                   .find("outside") != std::string::npos);
-        CHECK(d.point(v2::PanePointRequested{kAlphaOffice, "alpha", view.picture, 0, 9}, at)
+        CHECK(d.point(PanePointRequested{kAlphaOffice, "alpha", view.stamp.fingerprint, 0, 9}, at)
                   .find("outside") != std::string::npos);
     }
 }
@@ -569,9 +511,8 @@ TEST_CASE("a canvas pane's words are its labels and text runs, each where it is 
         CAPTURE(window);
         SketchRig d;
         d.medium(window);
-        v2::PaneView view;
+        PaneView view;
         REQUIRE(d.words(kCanvasOffice, kCanvasPane, view).empty());
-        CHECK(view.canvas);
         REQUIRE(view.words.size() == 4);
         CHECK(view.words[0].text == "node one");
         CHECK(view.words[1].text == "[Label]");
@@ -599,12 +540,12 @@ TEST_CASE("a canvas pane's words are its labels and text runs, each where it is 
             REQUIRE_FALSE(d.sketch->pointers.empty());
             const PaneCanvasPointer& press = d.sketch->pointers.front();
             CHECK(press.phase == canvas_pointer::kPress);
-            CHECK(press.picture == view.picture);
+            CHECK(press.picture == pane.stamp.aimed);
             CHECK(inside_locally(press, w.place, pane));
         }
         // ONE CHARACTER OF A CANVAS WORD, by its column: inside that character's own cell.
-        v2::PanePoint at;
-        REQUIRE(d.point(v2::PanePointRequested{kCanvasOffice, kCanvasPane, view.picture, 1, 1}, at).empty());
+        PanePoint at;
+        REQUIRE(d.point(PanePointRequested{kCanvasOffice, kCanvasPane, view.stamp.fingerprint, 1, 1}, at).empty());
         d.sketch->pointers.clear();
         d.click(at.x, at.y, at.space);
         REQUIRE_FALSE(d.sketch->pointers.empty());
@@ -613,7 +554,7 @@ TEST_CASE("a canvas pane's words are its labels and text runs, each where it is 
                              DeskRect{l.x + kPaneCanvasUnit, l.y, kPaneCanvasUnit, l.h}, pane));
         // ...AND ONE AFTER THE CARET, which moves no character: `d`, the run's fifth byte, stands
         // in its fifth cell in a terminal and its fifth advance in a window.
-        REQUIRE(d.point(v2::PanePointRequested{kCanvasOffice, kCanvasPane, view.picture, 3, 4}, at).empty());
+        REQUIRE(d.point(PanePointRequested{kCanvasOffice, kCanvasPane, view.stamp.fingerprint, 3, 4}, at).empty());
         const DeskRect typed = view.words[3].place;
         if (window) {
             const auto advance = d.r.session().text_advance_px;
@@ -621,13 +562,6 @@ TEST_CASE("a canvas pane's words are its labels and text runs, each where it is 
         } else {
             CHECK(at.x == gfx::cell_of_pixel(typed.x) + 4);
         }
-        // THE FIRST VERSION STILL ANSWERS IN ROWS, AND STILL SAYS A PICTURE IS NOT ROWS.
-        d.asker->refusals.clear();
-        d.ask([](loom::Mail& m) {
-            (void)m.send_to_role(kWorkshopProvider, PaneViewRequested{kCanvasOffice, kCanvasPane});
-        });
-        REQUIRE(d.asker->refusals.size() == 1);
-        CHECK(d.asker->refusals[0].find("picture, not text rows") != std::string::npos);
     }
 }
 
@@ -643,7 +577,7 @@ TEST_CASE("a canvas pane a held press gave the keys, its title waiting with pane
         REQUIRE_FALSE(d.r.session().pane_titles);
         REQUIRE(external_title_rows(d.r.session().panes, d.sketch_kind, false) == 0);
         d.draw(); // in the room the hidden title gave back
-        v2::PaneView before;
+        PaneView before;
         REQUIRE(d.words(kCanvasOffice, kCanvasPane, before).empty());
         REQUIRE(before.words.size() == 4);
         const ExternalPane kept = *d.r.session().panes.external_pane(d.sketch_kind);
@@ -662,7 +596,7 @@ TEST_CASE("a canvas pane a held press gave the keys, its title waiting with pane
         CHECK(d.sketch->prose_rooms.size() == prose_before);
         // READ WHERE IT IS PAINTED, before the pane draws again, as it may never: the words stand
         // in the room the press kept, where the painter draws the picture.
-        const auto read = [&](v2::PaneView& view) {
+        const auto read = [&](PaneView& view) {
             const std::string refused = d.words(kCanvasOffice, kCanvasPane, view);
             REQUIRE_MESSAGE(refused.empty(), refused);
             REQUIRE(view.words.size() == 4);
@@ -677,16 +611,16 @@ TEST_CASE("a canvas pane a held press gave the keys, its title waiting with pane
                         return true;
             return false;
         };
-        v2::PaneView unredrawn;
+        PaneView unredrawn;
         read(unredrawn);
-        CHECK(unredrawn.picture == before.picture);
+        CHECK(unredrawn.stamp.fingerprint == before.stamp.fingerprint);
         CHECK(painted_at(kept.canvas));
         // ...AND ONCE IT DRAWS AGAIN in the room it still holds, that picture read in it.
         d.draw();
         REQUIRE(held.canvas.grant == kept.canvas.grant);
-        v2::PaneView during;
+        PaneView during;
         read(during);
-        CHECK(during.picture == d.number);
+        CHECK(d.r.session().panes.external_pane(d.sketch_kind)->stamp.aimed == d.number);
         CHECK(painted_at(kept.canvas));
         // ...under no title: the title waits for the press, over the row the picture still holds.
         const RuntimePane* row = d.r.session().panes.runtime.of_kind(d.sketch_kind);
@@ -702,9 +636,9 @@ TEST_CASE("a canvas pane a held press gave the keys, its title waiting with pane
         CHECK_FALSE(titled());
         // ...AND A POINT THERE: the release at it reaches the pane inside that word, in the room
         // the press was aimed at.
-        v2::PanePoint at;
+        PanePoint at;
         const std::string unpointed =
-            d.point(v2::PanePointRequested{kCanvasOffice, kCanvasPane, during.picture, 1, 1}, at);
+            d.point(PanePointRequested{kCanvasOffice, kCanvasPane, during.stamp.fingerprint, 1, 1}, at);
         REQUIRE_MESSAGE(unpointed.empty(), unpointed);
         d.sketch->pointers.clear();
         d.r.publish(loom::to_value(input::PointerButton{1, false, at.x, at.y, at.space, input::mod::kNone}));
@@ -747,7 +681,7 @@ TEST_CASE("a held press keeps a canvas pane's room only from its title row: a pa
     };
     author(20, 16);
     d.draw();
-    v2::PaneView view;
+    PaneView view;
     REQUIRE(d.words(kCanvasOffice, kCanvasPane, view).empty());
     const ExternalPane before = *d.r.session().panes.external_pane(d.sketch_kind);
     // A SECONDARY PRESS HELD ON THE PANE: its hold is the canvas's, and the keys stay where they are.
@@ -786,7 +720,7 @@ TEST_CASE("a canvas pane whose title waits for a held press, moved while it wait
     };
     author(20, 16);
     d.draw();
-    v2::PaneView view;
+    PaneView view;
     REQUIRE(d.words(kCanvasOffice, kCanvasPane, view).empty());
     const ExternalPane before = *d.r.session().panes.external_pane(d.sketch_kind);
     // A PRIMARY PRESS HELD ON THE PANE takes the keys, and the room their title row takes waits.
@@ -847,7 +781,7 @@ TEST_CASE("a pane moved one title row's height while a press is held, its title 
             const std::int64_t step =
                 canvas_body_place(at.rect, sc, kExternalHeaderRows).y - canvas_body_place(at.rect, sc, 0).y;
             REQUIRE(step > 0);
-            v2::PaneView view;
+            PaneView view;
             REQUIRE(d.words(kCanvasOffice, kCanvasPane, view).empty());
             const ExternalPane before = *d.r.session().panes.external_pane(d.sketch_kind);
             // A SECONDARY PRESS HELD ON THE PANE: the keys, and so its title rows, stay as they are.
@@ -885,7 +819,7 @@ TEST_CASE("a held press on the canvas pane that has the keys keeps its room whil
     REQUIRE_FALSE(d.r.session().pane_titles);
     d.draw();
     // THE KEYS COME TO THE PANE by a click, and its title with them, in the room that title makes.
-    v2::PaneView view;
+    PaneView view;
     REQUIRE(d.words(kCanvasOffice, kCanvasPane, view).empty());
     const PaneWord& w = view.words[2];
     d.click(w.x, w.y, w.space);
@@ -936,7 +870,7 @@ TEST_CASE("a held press a menu takes ends its canvas pane's wait in that same re
     d.r.text("t");
     REQUIRE_FALSE(d.r.session().pane_titles);
     d.draw();
-    v2::PaneView view;
+    PaneView view;
     REQUIRE(d.words(kCanvasOffice, kCanvasPane, view).empty());
     const ExternalPane kept = *d.r.session().panes.external_pane(d.sketch_kind);
     // A PRESS HELD ON THE PANE gives it the keys, and the room their title row makes waits for it.
@@ -960,19 +894,31 @@ TEST_CASE("a held press a menu takes ends its canvas pane's wait in that same re
     CHECK(d.sketch->pointers.back().phase == canvas_pointer::kLost);
 }
 
-TEST_CASE("a pane's words are refused while a menu covers it or arranging is open, and the desk still answers") {
+TEST_CASE("a pane's words are covered while a menu is open or arranging, no point a press would land on, and the desk still answers") {
     DeskRig d;
     say_rows(d);
-    v2::PaneView view;
+    PaneView view;
     REQUIRE(d.words(kAlphaOffice, "alpha", view).empty());
+    const auto covered_by = [](const PaneView& v, const std::string& what) {
+        return std::find(v.covered.by.begin(), v.covered.by.end(), what) != v.covered.by.end();
+    };
     d.r.key(input::scan::kA);
     REQUIRE(d.r.session().context.open);
-    CHECK(d.words(kAlphaOffice, "alpha", view).find("covered by an interaction") != std::string::npos);
+    PaneView under_menu;
+    REQUIRE(d.words(kAlphaOffice, "alpha", under_menu).empty());
+    CHECK(covered_by(under_menu, "menu"));
+    for (const PaneWord& w : under_menu.words) {
+        CAPTURE(w.text);
+        CHECK(w.space == input::space::kUnknown);
+    }
     CHECK(d.desk().menu.open);
     d.r.key(input::scan::kEscape);
     d.r.key(input::scan::kW);
     REQUIRE(d.r.session().arrange.open);
-    CHECK(d.words(kAlphaOffice, "alpha", view).find("covered by an interaction") != std::string::npos);
+    PaneView arranged;
+    REQUIRE(d.words(kAlphaOffice, "alpha", arranged).empty());
+    CHECK(covered_by(arranged, "arranging"));
+    CHECK(arranged.words.empty());
     CHECK(d.desk().arranging);
     // A PANE NOBODY OFFERED is no pane at all.
     CHECK(d.words("zengine.test.nobody", "none", view).find("unknown") != std::string::npos);
@@ -1091,7 +1037,7 @@ TEST_CASE("every place the desk and the words give is where the medium draws it,
         std::vector<PaneWord> words;
         for (const auto& [office, pane] : {std::pair{kAlphaOffice, "alpha"}, std::pair{kBetaOffice, "beta"},
                                            std::pair{kCanvasOffice, kCanvasPane}}) {
-            v2::PaneView view;
+            PaneView view;
             REQUIRE(d.words(office, pane, view).empty());
             REQUIRE_FALSE(view.words.empty());
             words.insert(words.end(), view.words.begin(), view.words.end());
@@ -1201,12 +1147,12 @@ TEST_CASE("a character's point is the cell showing it, a caret moving none, and 
         });
         for (std::int64_t column = 0; column < static_cast<std::int64_t>(text.size()); ++column) {
             CAPTURE(column);
-            v2::PaneView view;
+            PaneView view;
             REQUIRE(d.words(kAlphaOffice, "alpha", view).empty());
             REQUIRE(view.words.size() == 1);
             REQUIRE(view.words[0].text == text);
-            v2::PanePoint at;
-            REQUIRE(d.point(v2::PanePointRequested{kAlphaOffice, "alpha", view.picture, 0, column}, at)
+            PanePoint at;
+            REQUIRE(d.point(PanePointRequested{kAlphaOffice, "alpha", view.stamp.fingerprint, 0, column}, at)
                         .empty());
             if (window) {
                 // A window draws the caret as a bar between two characters, which moves none.
@@ -1218,13 +1164,6 @@ TEST_CASE("a character's point is the cell showing it, a caret moving none, and 
                 const surface::CanvasGrids grid = surface::rasterize_canvas(paint(d.r.session()));
                 CHECK(terminal_glyph_at(grid, at.x, at.y) == text[static_cast<std::size_t>(column)]);
             }
-            // ...the first version names the same cell for that row and column...
-            PanePoint first;
-            REQUIRE(d.first_point(PanePointRequested{kAlphaOffice, "alpha", view.picture, 0, column},
-                                  first)
-                        .empty());
-            CHECK(first.x == at.x);
-            CHECK(first.y == at.y);
             // ...and a press there reaches the pane as that column.
             d.alpha->presses.clear();
             d.click(at.x, at.y, at.space);
@@ -1235,7 +1174,7 @@ TEST_CASE("a character's point is the cell showing it, a caret moving none, and 
         if (!window) {
             // THE CARET STANDS ON THE CELL OF THE CHARACTER IT SITS BEFORE, inverted, and a press
             // there is that character's column, the caret's own.
-            v2::PaneView view;
+            PaneView view;
             REQUIRE(d.words(kAlphaOffice, "alpha", view).empty());
             const surface::CanvasGrids grid = surface::rasterize_canvas(paint(d.r.session()));
             const std::int64_t row = gfx::cell_of_pixel(view.words[0].place.y);
@@ -1272,7 +1211,7 @@ TEST_CASE("a row as wide as its pane with a caret in it says every character, at
             s.say(m, PaneContent{"alpha", {surface::SurfaceTextRow{full, gfx::role::kFill}}});
             s.caret(m, PaneCaret{"alpha", 0, at_end ? body.columns : 3});
         });
-        v2::PaneView view;
+        PaneView view;
         REQUIRE(d.words(kAlphaOffice, "alpha", view).empty());
         REQUIRE(view.words.size() == 1);
         const PaneWord& w = view.words[0];
@@ -1292,93 +1231,16 @@ TEST_CASE("a row as wide as its pane with a caret in it says every character, at
             CHECK(grid.carets[static_cast<std::size_t>(row * grid.w + caret_cell)] != 0);
         }
         // THE LAST CHARACTER SHOWN HAS A POINT, AND A PRESS THERE IS ITS COLUMN...
-        v2::PanePoint at;
-        REQUIRE(d.point(v2::PanePointRequested{kAlphaOffice, "alpha", view.picture, 0, shown - 1}, at)
+        PanePoint at;
+        REQUIRE(d.point(PanePointRequested{kAlphaOffice, "alpha", view.stamp.fingerprint, 0, shown - 1}, at)
                     .empty());
         d.alpha->presses.clear();
         d.click(at.x, at.y, at.space);
         REQUIRE(d.alpha->presses.size() == 1);
         CHECK(d.alpha->presses[0].column == shown - 1);
-        // ...AND A COLUMN PAST THE BODY HAS NONE, in either version.
-        CHECK(d.point(v2::PanePointRequested{kAlphaOffice, "alpha", view.picture, 0, shown}, at)
+        // ...AND A COLUMN PAST THE BODY HAS NONE.
+        CHECK(d.point(PanePointRequested{kAlphaOffice, "alpha", view.stamp.fingerprint, 0, shown}, at)
                   .find("outside") != std::string::npos);
-        PanePoint first;
-        CHECK(d.first_point(PanePointRequested{kAlphaOffice, "alpha", view.picture, 0, shown}, first)
-                  .find("outside") != std::string::npos);
-    }
-}
-
-TEST_CASE("every cell of a canvas pane's text lattice has a point, a blank one and the one after a row's last character too, and a press there reaches the pane at that cell; a text pane's cell is the first version's") {
-    for (const bool window : {false, true}) {
-        CAPTURE(window);
-        SketchRig d;
-        if (window) d.medium(true);
-        // THE PANE'S ROWS ON ITS LATTICE: a row, a blank one, and a longer row.
-        REQUIRE_FALSE(d.sketch->rooms.empty());
-        const PaneCanvasRoom room = d.sketch->rooms.back();
-        const CanvasRows lattice = canvas_rows(room);
-        REQUIRE(lattice.rows > 3);
-        const std::vector<surface::SurfaceTextRow> rows{{"abc", gfx::role::kFill},
-                                                        {"", gfx::role::kFill},
-                                                        {"defg", gfx::role::kFill}};
-        const v5::PaneCanvasContent drawn = rows_picture(room, ++d.number, rows);
-        d.drive([drawn](SketchSeat&, loom::Mail& m) {
-            (void)m.as_role(kCanvasOffice).send_to_role(kWorkshopProvider, drawn);
-        });
-        v2::PaneView view;
-        REQUIRE(d.words(kCanvasOffice, kCanvasPane, view).empty());
-        REQUIRE(view.picture == d.number);
-        // ...THE CELL AFTER A ROW'S LAST CHARACTER, A BLANK ROW'S CELL AND A ROW'S LAST CELL: each a
-        // point a press reaches the pane at, as that cell of its lattice.
-        for (const auto& [row, column] : {std::pair<std::int64_t, std::int64_t>{0, 3}, {1, 0}, {2, 1},
-                                          {0, lattice.columns - 1}}) {
-            CAPTURE(row);
-            CAPTURE(column);
-            PanePoint at;
-            REQUIRE(d.lattice_point(v3::PanePointRequested{kCanvasOffice, kCanvasPane, view.picture, row,
-                                                           column},
-                                    at)
-                        .empty());
-            CHECK(at.row == row);
-            CHECK(at.column == column);
-            d.sketch->pointers.clear();
-            d.click(at.x, at.y, at.space);
-            REQUIRE_FALSE(d.sketch->pointers.empty());
-            const PaneCanvasPointer& pressed = d.sketch->pointers.front();
-            REQUIRE(pressed.phase == canvas_pointer::kPress);
-            const RowCell cell = row_cell_at(lattice, pressed.x, pressed.y);
-            CHECK(cell.shown);
-            CHECK(cell.row == row);
-            CHECK(cell.column == column);
-        }
-        // ...AND NONE PAST THE LATTICE, OR FOR A PICTURE SINCE MOVED.
-        PanePoint none;
-        CHECK(d.lattice_point(v3::PanePointRequested{kCanvasOffice, kCanvasPane, view.picture,
-                                                     lattice.rows, 0},
-                              none)
-                  .find("outside the pane's text lattice") != std::string::npos);
-        CHECK(d.lattice_point(v3::PanePointRequested{kCanvasOffice, kCanvasPane, view.picture, 0,
-                                                     lattice.columns},
-                              none)
-                  .find("outside the pane's text lattice") != std::string::npos);
-        CHECK(d.lattice_point(v3::PanePointRequested{kCanvasOffice, kCanvasPane, view.picture + 1, 0, 0},
-                              none)
-                  .find("picture moved") != std::string::npos);
-        // A TEXT PANE'S CELL IS THE ONE THE FIRST VERSION NAMES.
-        say_rows(d);
-        REQUIRE(d.words(kAlphaOffice, "alpha", view).empty());
-        for (std::int64_t column = 0; column < 4; ++column) {
-            CAPTURE(column);
-            PanePoint first, third;
-            REQUIRE(d.first_point(PanePointRequested{kAlphaOffice, "alpha", view.picture, 1, column}, first)
-                        .empty());
-            REQUIRE(d.lattice_point(v3::PanePointRequested{kAlphaOffice, "alpha", view.picture, 1, column},
-                                    third)
-                        .empty());
-            CHECK(third.x == first.x);
-            CHECK(third.y == first.y);
-            CHECK(third.space == first.space);
-        }
     }
 }
 
@@ -1392,7 +1254,7 @@ TEST_CASE("a word that is only a caret is pressed on the caret's own cell, insid
                                            surface::SurfaceTextRow{"below", gfx::role::kFill}}});
             s.caret(m, PaneCaret{"alpha", 0, 0});
         });
-        v2::PaneView view;
+        PaneView view;
         REQUIRE(d.words(kAlphaOffice, "alpha", view).empty());
         REQUIRE(view.words.size() == 2);
         const PaneWord& w = view.words[0];
@@ -1423,7 +1285,7 @@ TEST_CASE("a word that is only a caret is pressed on the caret's own cell, insid
         d.drive([p](SketchSeat&, loom::Mail& m) {
             (void)m.as_role(kCanvasOffice).send_to_role(kWorkshopProvider, p);
         });
-        v2::PaneView view;
+        PaneView view;
         REQUIRE(d.words(kCanvasOffice, kCanvasPane, view).empty());
         REQUIRE(view.words.size() == 1);
         const PaneWord& w = view.words[0];
@@ -1436,54 +1298,6 @@ TEST_CASE("a word that is only a caret is pressed on the caret's own cell, insid
         REQUIRE_FALSE(d.sketch->pointers.empty());
         CHECK(inside_locally(d.sketch->pointers.front(), w.place, pane));
     }
-}
-
-TEST_CASE("the first version's rows are read in a body one to three columns wide with a terminal's caret in it, each row's point inside the body") {
-    std::size_t seen = 0;
-    for (std::int64_t cells = 3; cells <= 12; ++cells) {
-        CAPTURE(cells);
-        DeskRig d;
-        REQUIRE(author_pane_size(d.r.session().setup.active, PaneRef{kAlphaOffice, "alpha"},
-                                 PaneSize{pane_unit::kPixels, cells * gfx::kCellPx},
-                                 PaneSize{pane_unit::kPixels, 8 * gfx::kCellPx})
-                    .accepted);
-        // A new extent lays the desk out again, granting the pane the room its size gives.
-        d.r.extent(151, 60);
-        const ExternalBodyPlace body = external_body_of(d.r.session(), d.alpha_kind);
-        if (!body.present || body.columns < 1 || body.columns > 3) continue;
-        ++seen;
-        CAPTURE(body.columns);
-        // Rows as wide as the body, so the content fits the room it was granted.
-        const auto width = static_cast<std::size_t>(body.columns);
-        d.r.drive(d.alpha, [&](ProviderSeat& s, loom::Mail& m) {
-            s.say(m, PaneContent{"alpha", {surface::SurfaceTextRow{std::string("abc").substr(0, width),
-                                                                   gfx::role::kFill},
-                                           surface::SurfaceTextRow{std::string("def").substr(0, width),
-                                                                   gfx::role::kFill}}});
-            s.caret(m, PaneCaret{"alpha", 0, 0});
-        });
-        const ExternalPane& held = *d.r.session().panes.external_pane(d.alpha_kind);
-        REQUIRE(held.columns == body.columns);
-        REQUIRE(held.heard);
-        REQUIRE(held.caret_row == 0);
-        d.asker->refusals.clear();
-        d.ask([](loom::Mail& m) {
-            (void)m.send_to_role(kWorkshopProvider, PaneViewRequested{kAlphaOffice, "alpha"});
-        });
-        const std::string refused = d.asker->refusals.empty() ? std::string() : d.asker->refusals.back();
-        REQUIRE_MESSAGE(refused.empty(), refused);
-        REQUIRE_FALSE(d.asker->first_views.empty());
-        const PaneView& rows = d.asker->first_views.back();
-        REQUIRE(rows.rows.size() == 2);
-        for (const PaneViewRow& row : rows.rows) {
-            CAPTURE(row.row);
-            d.alpha->presses.clear();
-            d.click(row.x, row.y, row.space);
-            REQUIRE(d.alpha->presses.size() == 1);
-            CHECK(d.alpha->presses[0].row == row.row);
-        }
-    }
-    CHECK(seen > 0);
 }
 
 namespace {
@@ -1540,7 +1354,7 @@ TEST_CASE("a part whose one cell holds the caret at the body's right edge has a 
                                            0, 0, {PaneRowPart{"control:edge", 0, edge, 1}}});
             s.caret(m, PaneCaret{"alpha", 0, edge});
         });
-        v3::PaneView view;
+        PaneView view;
         REQUIRE(d.parts(kAlphaOffice, "alpha", view).empty());
         const PanePart* part = part_named(view.parts, "control:edge");
         REQUIRE(part != nullptr);
@@ -1580,7 +1394,7 @@ TEST_CASE("a text pane's named parts are said under the pane's own names over th
                                             PaneRowPart{"field:empty", 2, 0, 4}}});
             s.caret(m, PaneCaret{"alpha", 1, 2});
         });
-        v3::PaneView view;
+        PaneView view;
         REQUIRE(d.parts(kAlphaOffice, "alpha", view).empty());
         REQUIRE(view.words.size() == 3);
         REQUIRE(view.parts.size() == 3);
@@ -1615,7 +1429,7 @@ TEST_CASE("a text pane's named parts are said under the pane's own names over th
         press_lands(d, *save, NamedRun{"control:save", 1, 6, 12});
         press_lands(d, *empty, NamedRun{"field:empty", 2, 0, 4});
         // ...AND THE SECOND VERSION STILL SAYS THE WORDS, naming nothing.
-        v2::PaneView words;
+        PaneView words;
         REQUIRE(d.words(kAlphaOffice, "alpha", words).empty());
         CHECK(words.words.size() == 3);
     }
@@ -1647,7 +1461,7 @@ TEST_CASE("a part's point is a place of its own: beside a control a row holds, o
                                             PaneRowPart{"row:go", 2, 0, body.columns},
                                             PaneRowPart{"control:go", 2, 0, 4}}});
         });
-        v3::PaneView view;
+        PaneView view;
         REQUIRE(d.parts(kAlphaOffice, "alpha", view).empty());
         REQUIRE(view.parts.size() == 7);
         const PanePart* row = part_named(view.parts, "pane:files");
@@ -1741,14 +1555,14 @@ TEST_CASE("a part keeps its name across its pane's redraws, and is said and pres
     };
     draw({"alpha", "[Save]"},
          {PaneRowPart{"row:alpha", 0, 0, body.columns}, PaneRowPart{"control:save", 1, 0, 6}});
-    v3::PaneView before;
+    PaneView before;
     REQUIRE(d.parts(kAlphaOffice, "alpha", before).empty());
     const PanePart* was = part_named(before.parts, "control:save");
     REQUIRE(was != nullptr);
     // THE REDRAW: a row arrives above, and the control moves right along its own row.
     draw({"a notice", "alpha", "x [Save]"},
          {PaneRowPart{"row:alpha", 1, 0, body.columns}, PaneRowPart{"control:save", 2, 2, 6}});
-    v3::PaneView after;
+    PaneView after;
     REQUIRE(d.parts(kAlphaOffice, "alpha", after).empty());
     CHECK(names_of(after.parts) == names_of(before.parts));
     const PanePart* now = part_named(after.parts, "control:save");
@@ -1827,9 +1641,8 @@ TEST_CASE("a canvas pane's named parts are said where its body shows them, with 
                       PaneCanvasPart{"edge", room.width - u / 2, 6 * u, u, u},
                       PaneCanvasPart{"gone", room.width + u, 0, u, u}});
         REQUIRE(d.sketch->rejected.empty());
-        v3::PaneView view;
+        PaneView view;
         REQUIRE(d.parts(kCanvasOffice, kCanvasPane, view).empty());
-        CHECK(view.canvas);
         // A PART THE ROOM DOES NOT SHOW IS NOT SAID; one it cuts is said as far as it shows.
         CHECK(names_of(view.parts) == std::vector<std::string>{"edge", "field:typed", "node", "tool:label"});
         const ExternalPane& pane = *d.r.session().panes.external_pane(d.sketch_kind);
@@ -1853,7 +1666,7 @@ TEST_CASE("a canvas pane's named parts are said where its body shows them, with 
             d.click(p.x, p.y, p.space);
             REQUIRE_FALSE(d.sketch->pointers.empty());
             CHECK(d.sketch->pointers.front().phase == canvas_pointer::kPress);
-            CHECK(d.sketch->pointers.front().picture == view.picture);
+            CHECK(d.sketch->pointers.front().picture == pane.stamp.aimed);
             if (window) {
                 CHECK(inside_locally(d.sketch->pointers.front(), p.place, pane));
             } else {
@@ -1915,31 +1728,27 @@ TEST_CASE("with pane titles hidden, a refused picture's mark is Workshop's own: 
             return a.w > 0 && a.h > 0 && b.w > 0 && b.h > 0 && a.x < b.x + b.w && b.x < a.x + a.w &&
                    a.y < b.y + b.h && b.y < a.y + a.h;
         };
-        const auto word_named = [](const v3::PaneView& view, const std::string& text) {
+        const auto word_named = [](const PaneView& view, const std::string& text) {
             PaneWord found;
             for (const PaneWord& w : view.words)
                 if (w.text == text) found = w;
             return found;
         };
-        // THE PANE VIEW WAITS while the mark covers its picture: no word, part or point is said.
+        // WHAT THE MARK COVERS IS UNREAD: no point is said for a word under it.
         const auto unread = [](SketchRig& d, const PaneWord& word) {
-            v3::PaneView view;
-            CHECK_FALSE(d.parts(kCanvasOffice, kCanvasPane, view).empty());
-            v2::PaneView words;
-            CHECK_FALSE(d.words(kCanvasOffice, kCanvasPane, words).empty());
-            const std::int64_t picture = d.r.session().panes.external_pane(d.sketch_kind)->stamp.aimed;
-            v2::PanePoint at;
-            CHECK_FALSE(d.point(v2::PanePointRequested{kCanvasOffice, kCanvasPane, picture, word.word,
-                                                       0}, at).empty());
-            PanePoint cell;
-            CHECK_FALSE(d.lattice_point(v3::PanePointRequested{kCanvasOffice, kCanvasPane, picture, 0,
-                                                               0}, cell).empty());
+            PaneView now;
+            REQUIRE(d.parts(kCanvasOffice, kCanvasPane, now).empty());
+            PanePoint at;
+            CHECK_FALSE(d.point(PanePointRequested{kCanvasOffice, kCanvasPane,
+                                                   now.stamp.fingerprint, word.word, 0},
+                                at)
+                            .empty());
         };
 
         // NO PRESS HELD: the mark stands at the picture's corner, over `node one`.
         SketchRig d;
         hidden(d);
-        v3::PaneView before;
+        PaneView before;
         REQUIRE(d.parts(kCanvasOffice, kCanvasPane, before).empty());
         const PaneWord node_one = word_named(before, "node one");
         REQUIRE_FALSE(node_one.text.empty());
@@ -1951,8 +1760,8 @@ TEST_CASE("with pane titles hidden, a refused picture's mark is Workshop's own: 
         unread(d, node_one);
         // THE FOURTH READING SAYS THE PICTURE BESIDE THE MARK: the mark named as its cover, and
         // nothing under it said.
-        v4::PaneView marked;
-        REQUIRE(d.page(v4::PaneViewRequested{kCanvasOffice, kCanvasPane, 0, PaneStamp{}}, marked).empty());
+        PaneView marked;
+        REQUIRE(d.page(PaneViewRequested{kCanvasOffice, kCanvasPane, 0, PaneStamp{}}, marked).empty());
         REQUIRE_FALSE(marked.in_flight);
         const std::vector<std::string>& marked_by = marked.covered.by;
         CHECK(std::find(marked_by.begin(), marked_by.end(), "refused mark") != marked_by.end());
@@ -1982,8 +1791,8 @@ TEST_CASE("with pane titles hidden, a refused picture's mark is Workshop's own: 
             d.r.extent(149, 60);
         }
         REQUIRE(d.r.session().panes.external_pane(d.sketch_kind)->canvas.preview);
-        v4::PaneView after_room;
-        const std::string unawaited = d.page(v4::PaneViewRequested{kCanvasOffice, kCanvasPane, 0, PaneStamp{}},
+        PaneView after_room;
+        const std::string unawaited = d.page(PaneViewRequested{kCanvasOffice, kCanvasPane, 0, PaneStamp{}},
                                              after_room);
         CHECK_MESSAGE(unawaited.empty(), unawaited);
         CHECK(after_room.in_flight);
@@ -1991,15 +1800,15 @@ TEST_CASE("with pane titles hidden, a refused picture's mark is Workshop's own: 
         // refusal is said in words, the preview still painted.
         refuse(d);
         REQUIRE(d.r.session().panes.external_pane(d.sketch_kind)->canvas.preview);
-        v4::PaneView answered;
-        const std::string refused_too = d.page(v4::PaneViewRequested{kCanvasOffice, kCanvasPane, 0, PaneStamp{}},
+        PaneView answered;
+        const std::string refused_too = d.page(PaneViewRequested{kCanvasOffice, kCanvasPane, 0, PaneStamp{}},
                                                answered);
         CHECK_MESSAGE(refused_too.find("refused the pane's last update") != std::string::npos, refused_too);
 
         // THE PICTURE BESIDE THE MARK takes a press as before: it is still the one admitted.
         SketchRig beside;
         hidden(beside);
-        v3::PaneView shown;
+        PaneView shown;
         REQUIRE(beside.parts(kCanvasOffice, kCanvasPane, shown).empty());
         const PaneWord measured = word_named(shown, "measured words");
         REQUIRE_FALSE(measured.text.empty());
@@ -2014,7 +1823,7 @@ TEST_CASE("with pane titles hidden, a refused picture's mark is Workshop's own: 
         // stands at the corner and the view waits, until the release gives the mark the title row.
         SketchRig held;
         hidden(held);
-        v3::PaneView start;
+        PaneView start;
         REQUIRE(held.parts(kCanvasOffice, kCanvasPane, start).empty());
         const PaneWord pressed = word_named(start, "measured words");
         REQUIRE_FALSE(pressed.text.empty());
@@ -2053,7 +1862,7 @@ TEST_CASE("a canvas part's point is its own: a part with another over its centre
                                                 PaneCanvasPart{"tiny", u / 4, 0, u / 2, u / 2}};
         d.draw_named(parts);
         REQUIRE(d.sketch->rejected.empty());
-        v3::PaneView view;
+        PaneView view;
         REQUIRE(d.parts(kCanvasOffice, kCanvasPane, view).empty());
         // A PART SMALLER THAN A CELL AND INSIDE ONE paints on no cell of a terminal, so it is not
         // said there; a window shows it.
@@ -2129,7 +1938,7 @@ TEST_CASE("a part under another is pressed where a press reaches it as its pane 
                 CAPTURE(d.sketch->rejected.front().reason);
                 return;
             }
-            v3::PaneView view;
+            PaneView view;
             REQUIRE(d.parts(kCanvasOffice, kCanvasPane, view).empty());
             CHECK(names_of(view.parts) == said);
             for (const PanePart& part : view.parts) {
@@ -2173,7 +1982,7 @@ TEST_CASE("two overlapping buttons in a running view are each pressed where the 
             view::picture(v, {}, view::Presentation{}, d.sketch->rooms.back(), ++d.number);
         draw_as_sketch(d, view::named(v, drawn));
         REQUIRE(d.sketch->rejected.empty());
-        v3::PaneView said;
+        PaneView said;
         REQUIRE(d.parts(kCanvasOffice, kCanvasPane, said).empty());
         for (const std::string id : {"first", "second"}) {
             CAPTURE(id);
@@ -2210,7 +2019,7 @@ TEST_CASE("the View Builder's two overlapping elements are each pressed where th
         const vb::Picture drawn = vb::picture(m, shown, d.sketch->rooms.back(), ++d.number);
         draw_as_sketch(d, vb::named(drawn, m.description));
         REQUIRE(d.sketch->rejected.empty());
-        v3::PaneView said;
+        PaneView said;
         REQUIRE(d.parts(kCanvasOffice, kCanvasPane, said).empty());
         for (const std::size_t at : {std::size_t{0}, std::size_t{1}}) {
             const std::string& id = m.description.elements[at].id;
@@ -2252,7 +2061,7 @@ TEST_CASE("a canvas part's own place is sought over all of it, and a part with n
                                                 PaneCanvasPart{"", 18 * u, 0, u, 2 * u}};
         d.draw_named(parts);
         REQUIRE(d.sketch->rejected.empty());
-        v3::PaneView view;
+        PaneView view;
         REQUIRE(d.parts(kCanvasOffice, kCanvasPane, view).empty());
         CHECK(names_of(view.parts) ==
               std::vector<std::string>{"centred", "cover:left", "cover:right", "covered", "lined"});
@@ -2301,15 +2110,15 @@ TEST_CASE("a canvas picture its office's holder no longer holds says its words a
         d.medium(window);
         d.draw_named({PaneCanvasPart{"node", kPaneCanvasUnit, 0, 8 * kPaneCanvasUnit, kPaneCanvasUnit}});
         REQUIRE(d.sketch->rejected.empty());
-        v3::PaneView held;
+        PaneView held;
         REQUIRE(d.parts(kCanvasOffice, kCanvasPane, held).empty());
         REQUIRE(held.parts.size() == 1);
         REQUIRE(held.parts[0].space != input::space::kUnknown);
         // THE OFFICE HELD BY NO ONE NOW, the picture standing until the desk grants its room afresh.
         d.r.host.role_holder = [](std::string_view) { return loom::WeaveId{}; };
-        v3::PaneView now;
+        PaneView now;
         REQUIRE(d.parts(kCanvasOffice, kCanvasPane, now).empty());
-        CHECK(now.picture == held.picture);
+        CHECK(now.stamp.fingerprint == held.stamp.fingerprint);
         REQUIRE(now.words.size() == held.words.size());
         for (std::size_t i = 0; i < now.words.size(); ++i) {
             CAPTURE(now.words[i].text);
@@ -2327,13 +2136,10 @@ TEST_CASE("a canvas picture its office's holder no longer holds says its words a
         CHECK(now.parts[0].x == 0);
         CHECK(now.parts[0].y == 0);
         CHECK(now.parts[0].space == input::space::kUnknown);
-        // NEITHER POINT DOOR GIVES ONE...
-        v2::PanePoint character;
-        CHECK(d.point(v2::PanePointRequested{kCanvasOffice, kCanvasPane, now.picture, 0, 0}, character)
-                  .find("takes no press") != std::string::npos);
-        PanePoint cell;
-        CHECK(d.lattice_point(v3::PanePointRequested{kCanvasOffice, kCanvasPane, now.picture, 0, 0}, cell)
-                  .find("takes no press") != std::string::npos);
+        // THE POINT DOOR GIVES NONE...
+        PanePoint character;
+        CHECK(d.point(PanePointRequested{kCanvasOffice, kCanvasPane, now.stamp.fingerprint, 0, 0}, character)
+                  .find("no press reaches that word now") != std::string::npos);
         // ...AS A PRESS WHERE THE PART'S POINT WAS REACHES NOTHING.
         d.sketch->pointers.clear();
         d.click(held.parts[0].x, held.parts[0].y, held.parts[0].space);
@@ -2369,7 +2175,7 @@ TEST_CASE("a picture of as many parts as it may name gives each a point a press 
         }
         d.draw_named(parts);
         REQUIRE(d.sketch->rejected.empty());
-        v3::PaneView view;
+        PaneView view;
         REQUIRE(d.parts(kCanvasOffice, kCanvasPane, view).empty());
         // WHICH PART EACH UNIT OF THE BODY GIVES A PRESS TO, as every shipped canvas pane reads one.
         const std::int64_t across = room.width / grain, down = room.height / grain;
@@ -2443,7 +2249,7 @@ TEST_CASE("a row part is pressed where its row map gives it the press, not on a 
                                             surface::SurfaceTextRow{"one two three", gfx::role::kFill}},
                                            0, 0, parts});
         });
-        v3::PaneView view;
+        PaneView view;
         REQUIRE(d.parts(kAlphaOffice, "alpha", view).empty());
         CHECK(names_of(view.parts) ==
               std::vector<std::string>{"field:narrow", "field:wide", "row:one", "row:runs"});
@@ -2494,7 +2300,7 @@ TEST_CASE("the desk names the lines of Workshop's own menu by the action or grou
         REQUIRE(d.r.session().context.open);
         const Session& s = d.r.session();
         const Screen sc = screen_of(s);
-        const v2::DeskView desk = d.named_desk();
+        const DeskView desk = d.desk();
         REQUIRE(desk.menu.open);
         const std::vector<std::string> names = context_line_names(s, sc);
         REQUIRE(names.size() == desk.menu.lines.size());
@@ -2539,9 +2345,8 @@ TEST_CASE("a pane's names survive the canvas: its next image draws a picture und
                                            {PaneRowPart{"row:first", 0, 0, body.columns},
                                             PaneRowPart{"control:save", 1, 6, 6}}});
         });
-        v3::PaneView rows;
+        PaneView rows;
         REQUIRE(d.parts(kAlphaOffice, "alpha", rows).empty());
-        REQUIRE_FALSE(rows.canvas);
         REQUIRE(rows.parts.size() == 2);
 
         // THE PANE'S NEXT IMAGE DRAWS ON THE CANVAS: the office's holder goes, and one that takes a
@@ -2584,9 +2389,8 @@ TEST_CASE("a pane's names survive the canvas: its next image draws a picture und
         REQUIRE(next->rejected.empty());
 
         // EVERY NAME AN AGENT WROTE AGAINST THE ROWS FINDS ITS PART IN THE PICTURE.
-        v3::PaneView drawn;
+        PaneView drawn;
         REQUIRE(d.parts(kAlphaOffice, "alpha", drawn).empty());
-        CHECK(drawn.canvas);
         CHECK(names_of(drawn.parts) == names_of(rows.parts));
         const ExternalPane& pane = *d.r.session().panes.external_pane(d.alpha_kind);
         for (const PanePart& before : rows.parts) {
@@ -2634,9 +2438,8 @@ TEST_CASE("a canvas pane's rows set on its room's lattice are words on its parts
             (void)mail.as_role(kCanvasOffice).send_to_role(kWorkshopProvider, p);
         });
         REQUIRE(d.sketch->rejected.empty());
-        v3::PaneView view;
+        PaneView view;
         REQUIRE(d.parts(kCanvasOffice, kCanvasPane, view).empty());
-        CHECK(view.canvas);
         // ONE WORD A ROW, its text the row's, on the row its parts stand on.
         REQUIRE(view.words.size() == 2);
         const ExternalPane& pane = *d.r.session().panes.external_pane(d.sketch_kind);
@@ -2685,7 +2488,7 @@ TEST_CASE("every place a named part gives is where the medium draws its words, i
                                             PaneRowPart{"word:here", 1, 13, 4}}});
             s.caret(m, PaneCaret{"alpha", 1, 2});
         });
-        v3::PaneView view;
+        PaneView view;
         REQUIRE(d.parts(kAlphaOffice, "alpha", view).empty());
         REQUIRE(view.parts.size() == 3);
         const Session& s = d.r.session();
@@ -2731,16 +2534,17 @@ TEST_CASE("the conversation of reading the desk, a pane's words and a character'
     DeskRig d;
     say_rows(d);
     zengine::tests::Timeline heard(d.r.bus);
+    heard.varies("epoch"); // the window's incarnation, drawn afresh each run
     for (const char* office : {gfx::kGraphicsRole, "zengine.window.terminal", "zengine.window.sdl"}) {
         heard.without(office);
     }
     heard.name(d.asker_id, "asker");
     heard.name(d.r.painter_id, "painter");
     (void)d.desk();
-    v2::PaneView view;
+    PaneView view;
     REQUIRE(d.words(kAlphaOffice, "alpha", view).empty());
-    v2::PanePoint at;
-    REQUIRE(d.point(v2::PanePointRequested{kAlphaOffice, "alpha", view.picture, 1, 7}, at).empty());
+    PanePoint at;
+    REQUIRE(d.point(PanePointRequested{kAlphaOffice, "alpha", view.stamp.fingerprint, 1, 7}, at).empty());
     heard.stop();
     const std::string differs = kept_conversation(heard, "desk-words-point");
     CHECK_MESSAGE(differs.empty(), differs);
@@ -2749,7 +2553,7 @@ TEST_CASE("the conversation of reading the desk, a pane's words and a character'
 TEST_CASE("the conversation of a press on a word is kept") {
     DeskRig d;
     say_rows(d);
-    v2::PaneView view;
+    PaneView view;
     REQUIRE(d.words(kAlphaOffice, "alpha", view).empty());
     zengine::tests::Timeline heard(d.r.bus);
     for (const char* office : {gfx::kGraphicsRole, "zengine.window.terminal", "zengine.window.sdl"}) {
@@ -2782,10 +2586,10 @@ TEST_CASE("the conversation of opening a pane is kept") {
 namespace {
 
 /// THE READING A DESK READ GAVE ONE PANE, or nullptr where it named the pane by its stamp alone.
-const v4::PaneView* reading_of(const DeskRead& read, const std::string& provider,
+const PaneView* reading_of(const DeskRead& read, const std::string& provider,
                                const std::string& pane) {
-    for (const v4::PaneView& v : read.panes) {
-        if (v.provider == provider && v.pane == pane) return &v;
+    for (const PaneView& v : read.panes) {
+        if (v.stamp.provider == provider && v.stamp.pane == pane) return &v;
     }
     return nullptr;
 }
@@ -2799,17 +2603,7 @@ const PaneStamp* stamp_in(const DeskRead& read, const std::string& provider, con
 }
 
 /// What a reading stands on, as a page that continues it names it.
-PaneStamp stamp_of_reading(const v4::PaneView& v) {
-    return PaneStamp{v.provider, v.pane, v.holder, v.incarnation, v.grant, v.picture};
-}
-
-/// The status the rig's painter last heard Workshop publish.
-std::string published_status(const PaneRig& r) {
-    for (std::size_t i = r.notes.size(); i > 0; --i) {
-        if (r.notes[i - 1].slot == surface::kSlotStatus) return r.notes[i - 1].text;
-    }
-    return std::string();
-}
+PaneStamp stamp_of_reading(const PaneView& v) { return v.stamp; }
 
 /// The canvas pixels two rectangles share, or an empty rectangle.
 PixelRect overlap_of(const PixelRect& a, const PixelRect& b) {
@@ -2879,8 +2673,8 @@ TEST_CASE("a desk read's words stand where the medium draws them, Workshop's own
         REQUIRE(reading_of(read, kCanvasOffice, kCanvasPane) != nullptr);
         REQUIRE(reading_of(read, kWorkshopProvider, pane_key::kLayouts) != nullptr);
         std::vector<PaneWord> words;
-        for (const v4::PaneView& v : read.panes) {
-            CAPTURE(v.pane);
+        for (const PaneView& v : read.panes) {
+            CAPTURE(v.stamp.pane);
             CHECK_FALSE(v.in_flight);
             CHECK(v.covered.by.empty());
             REQUIRE_FALSE(v.words.empty());
@@ -2914,15 +2708,6 @@ TEST_CASE("a desk read's words stand where the medium draws them, Workshop's own
             CHECK(w.x < gfx::cell_of_pixel(w.place.x + w.place.w));
             CHECK(w.y == gfx::cell_of_pixel(w.place.y));
         }
-
-        // THE STATUS SLOT: the text the medium was handed for it, a word with no place.
-        REQUIRE(read.desk.slots.size() == 1);
-        CHECK(read.desk.slots[0].slot == surface::kSlotStatus);
-        CHECK_FALSE(read.desk.slots[0].text.empty());
-        CHECK(read.desk.slots[0].text == published_status(d.r));
-        for (const PaneWord& w : words) {
-            CHECK(w.text != read.desk.slots[0].text);
-        }
     }
 }
 
@@ -2952,7 +2737,7 @@ TEST_CASE("a part's listed point presses that part, one in the middle of a row t
                                          {"control:save", 1, 6, 12}};
         DeskRead read;
         REQUIRE(d.read(read).empty());
-        const v4::PaneView* named = reading_of(read, kAlphaOffice, "alpha");
+        const PaneView* named = reading_of(read, kAlphaOffice, "alpha");
         REQUIRE(named != nullptr);
         REQUIRE(named->parts.size() == runs.size());
         // EACH PART'S POINT, PRESSED AS ORDINARY INPUT, reaches the pane on that part's row, at a
@@ -2965,7 +2750,7 @@ TEST_CASE("a part's listed point presses that part, one in the middle of a row t
         }
 
         // `layout:+` IS PRESSED AT ITS POINT, and a layout is made.
-        const v4::PaneView* layouts = reading_of(read, kWorkshopProvider, pane_key::kLayouts);
+        const PaneView* layouts = reading_of(read, kWorkshopProvider, pane_key::kLayouts);
         REQUIRE(layouts != nullptr);
         const PanePart* plus = part_named(layouts->parts, "layout:+");
         REQUIRE(plus != nullptr);
@@ -3038,16 +2823,16 @@ TEST_CASE("a covered pane says its visible words only, and what covers it: a pan
     d.r.drive(front, [](ProviderSeat& s, loom::Mail& m) {
         s.say(m, PaneContent{"front", {surface::SurfaceTextRow{"in front", gfx::role::kFill}}});
     });
-    const auto page = [&d](v4::PaneView& out) {
-        return d.page(v4::PaneViewRequested{kAlphaOffice, "alpha", 0, PaneStamp{}}, out);
+    const auto page = [&d](PaneView& out) {
+        return d.page(PaneViewRequested{kAlphaOffice, "alpha", 0, PaneStamp{}}, out);
     };
-    const auto items = [](const v4::PaneView& v) {
+    const auto items = [](const PaneView& v) {
         return static_cast<std::int64_t>(v.words.size() + v.parts.size());
     };
 
     // ALPHA IN FRONT: nothing covers it, and its whole reading is said, each part with its point.
     press_body(d.r, d.alpha_kind);
-    v4::PaneView whole;
+    PaneView whole;
     REQUIRE(page(whole).empty());
     REQUIRE(whole.covered.by.empty());
     REQUIRE(whole.covered.words == 0);
@@ -3085,7 +2870,7 @@ TEST_CASE("a covered pane says its visible words only, and what covers it: a pan
     REQUIRE(hidden > 0);
     REQUIRE_FALSE(shown_words.empty());
     REQUIRE_FALSE(shown_parts.empty());
-    v4::PaneView behind;
+    PaneView behind;
     REQUIRE(page(behind).empty());
     CHECK(behind.covered.by == std::vector<std::string>{"Front"});
     CHECK(behind.covered.words == hidden);
@@ -3095,15 +2880,13 @@ TEST_CASE("a covered pane says its visible words only, and what covers it: a pan
     for (const PanePart& p : behind.parts) said_parts.push_back(p.name);
     CHECK(said_parts == shown_parts);
     CHECK(behind.total == items(behind));
-    // ...THE SAME IN THE DESK READ, and the third version still refuses the pane whole.
+    // ...THE SAME IN THE DESK READ.
     DeskRead read;
     REQUIRE(d.read(read).empty());
-    const v4::PaneView* in_read = reading_of(read, kAlphaOffice, "alpha");
+    const PaneView* in_read = reading_of(read, kAlphaOffice, "alpha");
     REQUIRE(in_read != nullptr);
     CHECK(in_read->covered.words == hidden);
     CHECK(texts_of(in_read->words) == shown_words);
-    v3::PaneView refused;
-    CHECK(d.parts(kAlphaOffice, "alpha", refused).find("another pane overlaps it") != std::string::npos);
 
     // WORKSHOP'S MENU, opened by a right press on alpha's title row, over alpha's words.
     press_outside(d.r, d.alpha_kind); // the keys are Workshop's
@@ -3114,7 +2897,7 @@ TEST_CASE("a covered pane says its visible words only, and what covers it: a pan
     REQUIRE(s.context.open);
     const PixelRect menu = context_bounds(s, screen_of(s));
     REQUIRE(overlap_of(menu, alpha_at.rect).w > 0);
-    v4::PaneView under_menu;
+    PaneView under_menu;
     REQUIRE(page(under_menu).empty());
     const std::vector<std::string>& by = under_menu.covered.by;
     CHECK(std::find(by.begin(), by.end(), "menu") != by.end());
@@ -3127,7 +2910,6 @@ TEST_CASE("a covered pane says its visible words only, and what covers it: a pan
         CHECK_FALSE(place_meets(p.place, menu));
     }
     CHECK(under_menu.covered.words + items(under_menu) == items(whole));
-    CHECK(d.parts(kAlphaOffice, "alpha", refused).find("covered by an interaction") != std::string::npos);
     // ...AND BESIDE THE MENU NOTHING HAS A POINT: a press outside an open menu is spent closing it,
     // so what alpha and Layouts still say keeps its place and no point a press would land on.
     REQUIRE(items(under_menu) > 0);
@@ -3141,7 +2923,7 @@ TEST_CASE("a covered pane says its visible words only, and what covers it: a pan
     }
     DeskRead with_menu;
     REQUIRE(d.read(with_menu).empty());
-    const v4::PaneView* layouts_beside = reading_of(with_menu, kWorkshopProvider, pane_key::kLayouts);
+    const PaneView* layouts_beside = reading_of(with_menu, kWorkshopProvider, pane_key::kLayouts);
     REQUIRE(layouts_beside != nullptr);
     REQUIRE_FALSE(layouts_beside->parts.empty());
     for (const PanePart& p : layouts_beside->parts) {
@@ -3155,7 +2937,7 @@ TEST_CASE("a covered pane says its visible words only, and what covers it: a pan
     d.r.key(input::scan::kW);
     REQUIRE(s.arrange.open);
     const PaneBounds arranged_at = bounds_of(s.panes, s.setup.active, d.alpha_kind, screen_of(s));
-    v4::PaneView arranged;
+    PaneView arranged;
     REQUIRE(page(arranged).empty());
     CHECK(arranged.words.empty());
     CHECK(arranged.parts.empty());
@@ -3163,7 +2945,6 @@ TEST_CASE("a covered pane says its visible words only, and what covers it: a pan
     CHECK(std::find(over.begin(), over.end(), "arranging") != over.end());
     CHECK(arranged.covered.words == items(whole));
     CHECK(same(arranged.covered.rect, arranged_at.rect));
-    CHECK(d.parts(kAlphaOffice, "alpha", refused).find("covered by an interaction") != std::string::npos);
 }
 
 TEST_CASE("Layouts and the band are read as Workshop draws them: tabs as named parts, the band's words "
@@ -3190,7 +2971,7 @@ TEST_CASE("Layouts and the band are read as Workshop draws them: tabs as named p
     REQUIRE(d.read(read).empty());
 
     // A PART FOR EVERY PAINTED TAB AND FOR `+`, each named apart, on the tab row, with a point.
-    const v4::PaneView* layouts = reading_of(read, kWorkshopProvider, pane_key::kLayouts);
+    const PaneView* layouts = reading_of(read, kWorkshopProvider, pane_key::kLayouts);
     REQUIRE(layouts != nullptr);
     REQUIRE_FALSE(layouts->words.empty());
     std::vector<std::string> want = expected;
@@ -3264,7 +3045,7 @@ TEST_CASE("Layouts and the band are read as Workshop draws them: tabs as named p
     const PixelRect foot{low.rect.x, low_sc.notice_y, low.rect.w, low.rect.y + low.rect.h - low_sc.notice_y};
     DeskRead under;
     REQUIRE(d.read(under).empty());
-    const v4::PaneView* layouts_low = reading_of(under, kWorkshopProvider, pane_key::kLayouts);
+    const PaneView* layouts_low = reading_of(under, kWorkshopProvider, pane_key::kLayouts);
     REQUIRE(layouts_low != nullptr);
     const std::vector<std::string>& by = layouts_low->covered.by;
     CHECK(std::find(by.begin(), by.end(), "band") != by.end());
@@ -3278,32 +3059,30 @@ TEST_CASE("Layouts and the band are read as Workshop draws them: tabs as named p
     }
 }
 
-TEST_CASE("a stamp names holder, incarnation, room and picture: a reading after t or a reload in place is "
-          "stale even at an equal picture number") {
+TEST_CASE("a stamp names holder, incarnation and what the pane shows where: a reading after t or a "
+          "reload in place is stale even at an equal picture number") {
     SketchRig d;
-    const auto page = [&d](const PaneStamp& stamp, v4::PaneView& out) {
-        return d.page(v4::PaneViewRequested{kCanvasOffice, kCanvasPane, 0, stamp}, out);
+    const auto page = [&d](const PaneStamp& stamp, PaneView& out) {
+        return d.page(PaneViewRequested{kCanvasOffice, kCanvasPane, 0, stamp}, out);
     };
     // THE PANE AS IT STANDS, asked under no stamp: its office's holder, that holder's incarnation,
-    // the room it was granted, and its picture.
-    v4::PaneView first;
+    // and what it shows where.
+    PaneView first;
     REQUIRE(page(PaneStamp{}, first).empty());
     REQUIRE_FALSE(first.in_flight);
-    {
-        const ExternalPane& pane = *d.r.session().panes.external_pane(d.sketch_kind);
-        CHECK(first.picture == pane.stamp.aimed);
-        CHECK(first.grant == pane.canvas.grant);
-    }
-    CHECK(first.holder == static_cast<std::int64_t>(d.sketch_id.value));
-    CHECK(first.incarnation == static_cast<std::int64_t>(d.r.bus.participant(d.sketch_id).incarnation));
+    const std::int64_t kept_number = d.r.session().panes.external_pane(d.sketch_kind)->stamp.aimed;
+    CHECK(first.stamp.fingerprint != 0);
+    CHECK(first.stamp.holder == static_cast<std::int64_t>(d.sketch_id.value));
+    CHECK(first.stamp.incarnation ==
+          static_cast<std::int64_t>(d.r.bus.participant(d.sketch_id).incarnation));
     const PaneStamp kept = stamp_of_reading(first);
-    v4::PaneView continued;
+    PaneView continued;
     const std::string unrefused = page(kept, continued);
     REQUIRE_MESSAGE(unrefused.empty(), unrefused);
-    CHECK(continued.picture == kept.picture);
+    CHECK(continued.stamp.fingerprint == kept.fingerprint);
     // A PAGE PAST THE READING its stamp still names -- a cover moved and shrank it -- is refused in
     // words saying to read it again from the start.
-    const std::string past = d.page(v4::PaneViewRequested{kCanvasOffice, kCanvasPane, first.total + 1, kept},
+    const std::string past = d.page(PaneViewRequested{kCanvasOffice, kCanvasPane, first.total + 1, kept},
                                     continued);
     CHECK_MESSAGE(past.find("read it again from the start") != std::string::npos, past);
 
@@ -3314,7 +3093,7 @@ TEST_CASE("a stamp names holder, incarnation, room and picture: a reading after 
     REQUIRE_FALSE(d.r.session().pane_titles);
     // ...ITS NEW ROOM OUT AND NOT YET DRAWN FOR: the pane's next picture is in flight, said with no
     // word, and a page under the stamp before it is stale.
-    v4::PaneView awaited;
+    PaneView awaited;
     const std::string unawaited = page(PaneStamp{}, awaited);
     REQUIRE_MESSAGE(unawaited.empty(), unawaited);
     CHECK(awaited.in_flight);
@@ -3322,15 +3101,15 @@ TEST_CASE("a stamp names holder, incarnation, room and picture: a reading after 
     CHECK(awaited.parts.empty());
     const std::string while_awaited = page(kept, continued);
     CHECK_MESSAGE(while_awaited.find("stale") != std::string::npos, while_awaited);
-    d.number = kept.picture - 1;
+    d.number = kept_number - 1;
     d.draw();
-    v4::PaneView retitled;
+    PaneView retitled;
     REQUIRE(page(PaneStamp{}, retitled).empty());
     REQUIRE_FALSE(retitled.in_flight);
-    REQUIRE(retitled.picture == kept.picture);
-    CHECK(retitled.grant != kept.grant);
-    CHECK(retitled.holder == kept.holder);
-    CHECK(retitled.incarnation == kept.incarnation);
+    REQUIRE(d.r.session().panes.external_pane(d.sketch_kind)->stamp.aimed == kept_number);
+    CHECK(retitled.stamp.fingerprint != kept.fingerprint); // the same picture, in another room
+    CHECK(retitled.stamp.holder == kept.holder);
+    CHECK(retitled.stamp.incarnation == kept.incarnation);
     const std::string after_t = page(kept, continued);
     CHECK_MESSAGE(after_t.find("stale") != std::string::npos, after_t);
     const PaneStamp now = stamp_of_reading(retitled);
@@ -3339,13 +3118,12 @@ TEST_CASE("a stamp names holder, incarnation, room and picture: a reading after 
     // A RELOAD IN PLACE: the same holder at the same id, in its next incarnation, the same room and
     // picture -- and a page under the stamp before it is stale.
     REQUIRE(d.r.bus.swap_state(d.sketch_id, d.r.bus.snapshot_bytes(d.sketch_id)).revived);
-    v4::PaneView reloaded;
+    PaneView reloaded;
     const std::string unread = page(PaneStamp{}, reloaded);
     REQUIRE_MESSAGE(unread.empty(), unread);
-    CHECK(reloaded.holder == now.holder);
-    CHECK(reloaded.incarnation != now.incarnation);
-    CHECK(reloaded.grant == now.grant);
-    CHECK(reloaded.picture == now.picture);
+    CHECK(reloaded.stamp.holder == now.holder);
+    CHECK(reloaded.stamp.incarnation != now.incarnation);
+    CHECK(reloaded.stamp.fingerprint == now.fingerprint);
     const std::string after_reload = page(now, continued);
     CHECK_MESSAGE(after_reload.find("stale") != std::string::npos, after_reload);
     // ...AND THE DESK READ NAMES THE PANE BY THE STAMP IT STANDS ON NOW.
@@ -3353,19 +3131,20 @@ TEST_CASE("a stamp names holder, incarnation, room and picture: a reading after 
     REQUIRE(d.read(read).empty());
     const PaneStamp* in_read = stamp_in(read, kCanvasOffice, kCanvasPane);
     REQUIRE(in_read != nullptr);
-    CHECK(in_read->holder == reloaded.holder);
-    CHECK(in_read->incarnation == reloaded.incarnation);
-    CHECK(in_read->grant == reloaded.grant);
-    CHECK(in_read->picture == reloaded.picture);
+    CHECK(in_read->holder == reloaded.stamp.holder);
+    CHECK(in_read->incarnation == reloaded.stamp.incarnation);
+    CHECK(in_read->fingerprint == reloaded.stamp.fingerprint);
 }
 
 TEST_CASE("a pane whose newest picture is in flight is read as in flight, with no word, and the desk still "
           "reads") {
     SketchRig d;
     say_rows(d);
-    // A PICTURE SENT AND THE DESK ASKED BEHIND IT IN ONE TURN: the ask is answered before the fence
-    // behind that picture comes round, so the picture is the pane's newest and not yet aimed at.
-    const PaneCanvasContent newest = d.picture();
+    // A CHANGED PICTURE SENT AND THE DESK ASKED BEHIND IT IN ONE TURN: the ask is answered before
+    // the fence behind that picture comes round, so the picture is the pane's newest and not yet
+    // aimed at. (One sent again unchanged is read at once.)
+    PaneCanvasContent newest = d.picture();
+    newest.labels[0].text = "node two";
     d.sketch->next = [newest](SketchSeat&, loom::Mail& m) {
         (void)m.as_role(kCanvasOffice).send_to_role(kWorkshopProvider, newest);
     };
@@ -3378,19 +3157,18 @@ TEST_CASE("a pane whose newest picture is in flight is read as in flight, with n
     REQUIRE(d.asker->refusals.empty());
     REQUIRE(d.asker->reads.size() == before + 1);
     const DeskRead during = d.asker->reads.back();
-    const v4::PaneView* sketch = reading_of(during, kCanvasOffice, kCanvasPane);
+    const PaneView* sketch = reading_of(during, kCanvasOffice, kCanvasPane);
     REQUIRE(sketch != nullptr);
     CHECK(sketch->in_flight);
     CHECK(sketch->words.empty());
     CHECK(sketch->parts.empty());
     CHECK(sketch->total == 0);
-    CHECK(sketch->picture != newest.picture);
     // THE REST OF THE DESK IS READ in that same answer.
     CHECK(during.panes.size() == during.stamps.size());
     for (const auto& [office, pane] : {std::pair{kAlphaOffice, "alpha"}, std::pair{kBetaOffice, "beta"},
                                        std::pair{kWorkshopProvider, pane_key::kLayouts}}) {
         CAPTURE(pane);
-        const v4::PaneView* other = reading_of(during, office, pane);
+        const PaneView* other = reading_of(during, office, pane);
         REQUIRE(other != nullptr);
         CHECK_FALSE(other->in_flight);
         CHECK_FALSE(other->words.empty());
@@ -3399,22 +3177,22 @@ TEST_CASE("a pane whose newest picture is in flight is read as in flight, with n
     REQUIRE(d.r.session().panes.external_pane(d.sketch_kind)->stamp.aimed == newest.picture);
     DeskRead after;
     REQUIRE(d.read(after).empty());
-    const v4::PaneView* drawn = reading_of(after, kCanvasOffice, kCanvasPane);
+    const PaneView* drawn = reading_of(after, kCanvasOffice, kCanvasPane);
     REQUIRE(drawn != nullptr);
     CHECK_FALSE(drawn->in_flight);
-    CHECK(drawn->picture == newest.picture);
     CHECK_FALSE(drawn->words.empty());
 
     // A LATER PAGE ASKED WHILE A NEWER PICTURE IS IN FLIGHT says so too, under the stamp it
     // continues, rather than being refused as past a reading of no items.
-    v4::PaneView settled;
-    REQUIRE(d.page(v4::PaneViewRequested{kCanvasOffice, kCanvasPane, 0, PaneStamp{}}, settled).empty());
+    PaneView settled;
+    REQUIRE(d.page(PaneViewRequested{kCanvasOffice, kCanvasPane, 0, PaneStamp{}}, settled).empty());
     REQUIRE(settled.total > 1);
-    const PaneCanvasContent newer = d.picture();
+    PaneCanvasContent newer = d.picture();
+    newer.labels[0].text = "node three";
     d.sketch->next = [newer](SketchSeat&, loom::Mail& m) {
         (void)m.as_role(kCanvasOffice).send_to_role(kWorkshopProvider, newer);
     };
-    const v4::PaneViewRequested later{kCanvasOffice, kCanvasPane, 1, stamp_of_reading(settled)};
+    const PaneViewRequested later{kCanvasOffice, kCanvasPane, 1, stamp_of_reading(settled)};
     d.asker->next = [later](loom::Mail& m) { (void)m.send_to_role(kWorkshopProvider, later); };
     d.asker->refusals.clear();
     const std::size_t pages_before = d.asker->pages.size();
@@ -3423,18 +3201,18 @@ TEST_CASE("a pane whose newest picture is in flight is read as in flight, with n
     d.r.bus.drain_until_idle();
     REQUIRE_MESSAGE(d.asker->refusals.empty(), d.asker->refusals.front());
     REQUIRE(d.asker->pages.size() == pages_before + 1);
-    const v4::PaneView flying = d.asker->pages.back();
+    const PaneView flying = d.asker->pages.back();
     CHECK(flying.in_flight);
     CHECK(flying.from == 1);
     CHECK(flying.words.empty());
     CHECK(flying.parts.empty());
 
     // A TEXT PANE'S NEW ROOM, NOT YET ANSWERED, is in flight as well...
-    const auto alpha_page = [&d](v4::PaneView& out) {
-        return d.page(v4::PaneViewRequested{kAlphaOffice, "alpha", 0, PaneStamp{}}, out);
+    const auto alpha_page = [&d](PaneView& out) {
+        return d.page(PaneViewRequested{kAlphaOffice, "alpha", 0, PaneStamp{}}, out);
     };
     d.r.extent(149, 60);
-    v4::PaneView awaited;
+    PaneView awaited;
     const std::string unawaited = alpha_page(awaited);
     REQUIRE_MESSAGE(unawaited.empty(), unawaited);
     CHECK(awaited.in_flight);
@@ -3445,7 +3223,7 @@ TEST_CASE("a pane whose newest picture is in flight is read as in flight, with n
                                        0, 0, {PaneRowPart{"control:far", 5, 0, 3}}});
     });
     REQUIRE_FALSE(d.r.session().panes.external_pane(d.alpha_kind)->refusal.empty());
-    v4::PaneView refused;
+    PaneView refused;
     const std::string why = alpha_page(refused);
     CHECK_MESSAGE(why.find("refused the pane's last update") != std::string::npos, why);
 
@@ -3467,9 +3245,9 @@ TEST_CASE("a pane whose newest picture is in flight is read as in flight, with n
         REQUIRE_FALSE(sketch_now.canvas.heard);
         REQUIRE_FALSE(sketch_now.canvas.preview);
     }
-    v4::PaneView none_kept;
+    PaneView none_kept;
     const std::string kept_none =
-        d.page(v4::PaneViewRequested{kCanvasOffice, kCanvasPane, 0, PaneStamp{}}, none_kept);
+        d.page(PaneViewRequested{kCanvasOffice, kCanvasPane, 0, PaneStamp{}}, none_kept);
     CHECK_MESSAGE(kept_none.find("refused the pane's last update") != std::string::npos, kept_none);
 
     // A PANE WHOSE PROVIDER LEFT waits for one, and no reading says it is in flight: its picture
@@ -3478,8 +3256,8 @@ TEST_CASE("a pane whose newest picture is in flight is read as in flight, with n
     auto gone = d.r.bus.unregister_weave(d.sketch_id);
     REQUIRE(gone);
     d.r.extent(150, 60);
-    v4::PaneView waiting;
-    const std::string waits = d.page(v4::PaneViewRequested{kCanvasOffice, kCanvasPane, 0, PaneStamp{}}, waiting);
+    PaneView waiting;
+    const std::string waits = d.page(PaneViewRequested{kCanvasOffice, kCanvasPane, 0, PaneStamp{}}, waiting);
     CHECK_MESSAGE(waits.find("waiting for the provider") != std::string::npos, waits);
 }
 
@@ -4941,7 +4719,7 @@ TEST_CASE("in the terminal window a point in cells is the window's own cell, wit
     REQUIRE(s.context.open);
     const Screen sc = screen_of(s);
     CHECK(sc.rows_above == 0);
-    const v2::DeskView desk = r.w->desk_view();
+    const DeskView desk = r.w->desk_view();
     REQUIRE(desk.menu.open);
     REQUIRE_FALSE(desk.menu.parts.empty());
     const std::vector<ContextEntry> population = context_population(s.context);
@@ -4975,13 +4753,13 @@ TEST_CASE("in the terminal window a row's point is the cell the window shows it 
         s.say(m, PaneContent{"alpha", {surface::SurfaceTextRow{text, gfx::role::kFill},
                                        surface::SurfaceTextRow{text, gfx::role::kFill}}});
     });
-    v2::PaneView view;
+    PaneView view;
     REQUIRE(d.words(kAlphaOffice, "alpha", view).empty());
     REQUIRE(view.words.size() == 2);
     for (const std::int64_t row : {std::int64_t{0}, std::int64_t{1}}) {
         CAPTURE(row);
         PanePoint at;
-        REQUIRE(d.first_point(PanePointRequested{kAlphaOffice, "alpha", view.picture, row, 3}, at)
+        REQUIRE(d.point(PanePointRequested{kAlphaOffice, "alpha", view.stamp.fingerprint, row, 3}, at)
                     .empty());
         REQUIRE(at.space == input::space::kCells);
         CHECK(at.y == gfx::cell_of_pixel(view.words[static_cast<std::size_t>(row)].place.y));
@@ -5004,7 +4782,7 @@ TEST_CASE("in the terminal window a canvas part's point is the window's own cell
     d.draw_named(
         {PaneCanvasPart{"top", 0, 0, 4 * u, u}, PaneCanvasPart{"low", 0, 2 * u, 4 * u, u}});
     REQUIRE(d.sketch->rejected.empty());
-    v3::PaneView view;
+    PaneView view;
     REQUIRE(d.parts(kCanvasOffice, kCanvasPane, view).empty());
     REQUIRE(view.parts.size() == 2);
     for (const PanePart& part : view.parts) {
@@ -5279,7 +5057,7 @@ class WindowSeat
                        PaneCarryAnswered, PaneMenuAnswered, SeatDo>,
           loom::Emit<PaneOffered, v4::PaneContent, PaneOperationRequested,
                      PaneValueCarryRequested, PaneCarryRequested, PanePassRequested,
-                     PaneMenuRequested>> {
+                     PaneMenuRequested, gfx::Drawn>> {
 public:
     explicit WindowSeat(WindowSeatHeard& heard) : heard_(&heard) {}
     void on(const PaneCatalogRequested&, loom::Mail&) {}
@@ -5310,7 +5088,8 @@ private:
 constexpr const char* kWindowSeatOffice = "zengine.test.desk-window-seat";
 
 /// THE DESK OF `WindowDesk`, the stand-in terminal window telling Workshop its two rooms, and a
-/// pane beside Attention whose office hears the window's pointer, its area shown there too.
+/// pane beside Attention whose office hears the window's pointer and draws its row in its area, the
+/// area shown there too.
 struct PointerDesk {
     WindowDesk d{true};
     pw::Window window{d.r.bus, gfx::kTerminalWindow};
@@ -5340,6 +5119,7 @@ struct PointerDesk {
                  {PaneMenuRequested::zen_name, PaneMenuRequested::zen_version}}) {
             grant.allow_to_role(name, version, kWorkshopProvider);
         }
+        grant.allow_to_role(gfx::Drawn::zen_name, gfx::Drawn::zen_version, window.weave().office());
         seat_id = d.r.bus.register_weave(std::move(made), std::move(grant), kWindowSeatOffice);
         seat->zen_set_self(seat_id);
         does([](loom::Mail& m) {
@@ -5365,7 +5145,25 @@ struct PointerDesk {
         REQUIRE(placed.pointer);
         window.room(area, area, placed.w / gfx::kCellPx, placed.h / gfx::kCellPx);
         window.at(area, placed.x, placed.y);
+        // ITS ROW IN ITS OWN AREA, as a pane placed in a window draws: what the window says it shows.
+        draw_row("[go] there");
         press_outside(d.r, kind);
+    }
+    /// The seat's one row drawn whole in its own area, `[go]` its part.
+    void draw_row(const std::string& text) {
+        const auto& placed = d.directory->areas.at(area);
+        const RowsRoom room{placed.w, placed.h, gfx::TextMeasure{}};
+        const RowsDrawing drawing =
+            rows_drawing(std::vector<surface::SurfaceTextRow>{{text, gfx::role::kFill}},
+                         std::vector<PaneRowPart>{PaneRowPart{"control:go", 0, 0, 4}}, room,
+                         room.columns());
+        const std::string office = window.weave().office();
+        const std::string at = area;
+        does([&drawing, office, at](loom::Mail& m) {
+            (void)m.as_role(kWindowSeatOffice)
+                .send_to_role(office, gfx::Drawn{at, true, drawing.sketch.nodes(), {},
+                                                 drawing.sketch.records(), {}, false});
+        });
     }
     void does(std::function<void(loom::Mail&)> what) {
         seat->next = std::move(what);
@@ -5966,6 +5764,54 @@ TEST_CASE("a weaver's press in a pane's area of the window ends a guest's guide 
     CHECK(guest->answers.size() > answered);
     REQUIRE(p.heard.buttons.size() == 2);
     CHECK(p.heard.buttons[0].first.pressed);
+}
+
+// A PANE THAT DRAWS IN AN AREA OF ITS OWN IS READ FROM THE WINDOW: the words and parts the window
+// says it shows there, not Workshop's own record of what the pane once sent it.
+TEST_CASE("a pane drawing in an area of its own is read as the window says it shows there: its words, "
+          "its parts with the point a press reaches them by, and a stamp that moves when it draws "
+          "again") {
+    PointerDesk p;
+    auto made = std::make_unique<DeskAsker>();
+    DeskAsker* asker = made.get();
+    loom::Grant grant;
+    grant.allow_to_role(PaneViewRequested::zen_name, PaneViewRequested::zen_version, kWorkshopProvider);
+    const loom::WeaveId asker_id = p.d.r.bus.register_weave(std::move(made), std::move(grant));
+    asker->zen_set_self(asker_id);
+    const auto page = [&](PaneView& out) {
+        asker->refusals.clear();
+        const std::size_t before = asker->pages.size();
+        asker->next = [](loom::Mail& m) {
+            (void)m.send_to_role(kWorkshopProvider,
+                                 PaneViewRequested{kWindowSeatOffice, "seat", 0, PaneStamp{}});
+        };
+        (void)p.d.r.bus.send(asker_id, loom::Message(loom::to_value(SeatDo{}), {}, {}, 0));
+        p.d.r.bus.drain_until_idle();
+        if (!asker->refusals.empty()) return asker->refusals.back();
+        REQUIRE(asker->pages.size() == before + 1);
+        out = asker->pages.back();
+        return std::string();
+    };
+
+    const int asked_before = p.window.weave().area_reads;
+    PaneView seen;
+    const std::string first = page(seen);
+    REQUIRE_MESSAGE(first.empty(), first);
+    CHECK(p.window.weave().area_reads > asked_before); // the window was asked
+    REQUIRE_FALSE(seen.in_flight);
+    REQUIRE(seen.words.size() == 1);
+    CHECK(seen.words[0].text == "[go] there");
+    REQUIRE(seen.parts.size() == 1);
+    CHECK(seen.parts[0].name == "control:go");
+    CHECK(seen.parts[0].space != input::space::kUnknown);
+    CHECK(seen.stamp.fingerprint != 0);
+    // THE PANE DRAWS OTHER WORDS IN ITS AREA, telling Workshop nothing: the window's words are read.
+    p.draw_row("[go] elsewhere");
+    PaneView again;
+    REQUIRE(page(again).empty());
+    REQUIRE(again.words.size() == 1);
+    CHECK(again.words[0].text == "[go] elsewhere");
+    CHECK(again.stamp.fingerprint != seen.stamp.fingerprint);
 }
 
 TEST_CASE("with pane titles hidden, a press the window gives a canvas pane's area, which brings the "

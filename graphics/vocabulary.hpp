@@ -41,6 +41,9 @@ inline constexpr std::size_t kMaxPathBytes = 256;
 inline constexpr std::size_t kMaxPathDepth = 16;
 inline constexpr std::size_t kMaxArgsBytes = 64 * 1024;
 inline constexpr std::size_t kMaxAreas = 256;
+/// The most runs of text one reading of an area says (`AreaShown`): an area showing more is refused
+/// its reading, in words, rather than said in part.
+inline constexpr std::size_t kMaxAreaWords = 4096;
 /// The pixels of one terminal cell: a window of characters floors each edge to its cell.
 inline constexpr std::int64_t kCellPx = 12;
 
@@ -85,6 +88,14 @@ struct ElementRecord {
     std::string action;
     ZEN_SHAPE(ElementRecord, 1, ZEN_FIELD(path), ZEN_FIELD(type), ZEN_FIELD(data),
               ZEN_FIELD(action));
+};
+
+/// What a named part of a drawing says of itself, as its record's value beside the action it
+/// names: whether what the action does applies now. A window says it in its reading of the area
+/// (`AreaShown`); a part said with any other record, or none, reads available.
+struct PartFace {
+    bool available = true;
+    ZEN_SHAPE(PartFace, 1, ZEN_FIELD(available));
 };
 
 /// What one drawer changed in one area, applied together. `whole` first removes everything the
@@ -155,6 +166,10 @@ struct ActionRequested {
 // at a point that may lie outside it. A press, the moves it holds and its release carry one number,
 // the press's, as their delivery's correlation, and a continuation an owner sends about the press
 // cites it; a release no hold names carries none.
+//
+// Every moment says whose hand made it: `local` for the weaver's own, which the window reads from
+// its platform, and else `actor`, the participant the input office names for an injected moment
+// (`input::AttributedInput`). Each hand holds its own presses.
 
 /// Window -> the owner of an area placed to hear the pointer: a button pressed or let go there,
 /// 1 left, 2 middle, 3 right.
@@ -164,8 +179,11 @@ struct AreaButtonChanged {
     bool pressed = false;
     std::int64_t x = 0, y = 0;
     std::int64_t modifiers = 0;
-    ZEN_SHAPE(AreaButtonChanged, 1, ZEN_FIELD(area), ZEN_FIELD(button), ZEN_FIELD(pressed),
-              ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(modifiers));
+    bool local = true;
+    std::int64_t actor = 0;
+    ZEN_SHAPE(AreaButtonChanged, 2, ZEN_FIELD(area), ZEN_FIELD(button), ZEN_FIELD(pressed),
+              ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(modifiers), ZEN_FIELD(local),
+              ZEN_FIELD(actor));
 };
 
 /// Window -> the owner of an area placed to hear the pointer: the pointer moved there, or moved
@@ -176,8 +194,10 @@ struct AreaPointerMoved {
     std::int64_t x = 0, y = 0;
     std::int64_t dx = 0, dy = 0;
     std::int64_t modifiers = 0;
-    ZEN_SHAPE(AreaPointerMoved, 1, ZEN_FIELD(area), ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(dx),
-              ZEN_FIELD(dy), ZEN_FIELD(modifiers));
+    bool local = true;
+    std::int64_t actor = 0;
+    ZEN_SHAPE(AreaPointerMoved, 2, ZEN_FIELD(area), ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(dx),
+              ZEN_FIELD(dy), ZEN_FIELD(modifiers), ZEN_FIELD(local), ZEN_FIELD(actor));
 };
 
 /// Window -> the owner of an area placed to hear the pointer: the wheel turned there, +1.0 a notch
@@ -187,22 +207,38 @@ struct AreaWheelTurned {
     double dx = 0, dy = 0;
     std::int64_t x = 0, y = 0;
     std::int64_t modifiers = 0;
-    ZEN_SHAPE(AreaWheelTurned, 1, ZEN_FIELD(area), ZEN_FIELD(dx), ZEN_FIELD(dy), ZEN_FIELD(x),
-              ZEN_FIELD(y), ZEN_FIELD(modifiers));
+    bool local = true;
+    std::int64_t actor = 0;
+    ZEN_SHAPE(AreaWheelTurned, 2, ZEN_FIELD(area), ZEN_FIELD(dx), ZEN_FIELD(dy), ZEN_FIELD(x),
+              ZEN_FIELD(y), ZEN_FIELD(modifiers), ZEN_FIELD(local), ZEN_FIELD(actor));
 };
 
 /// Window -> the arranger of an area placed to hear the pointer, when another office owns it: a
 /// button pressed or let go in that area, at the window's own point in pixels, under the press's
-/// number. Where presses land is the arranger's to know, as a desktop raises what was clicked; the
-/// moment itself is the owner's.
+/// number, and whose hand pressed it. Where presses land is the arranger's to know, as a desktop
+/// raises what was clicked; the moment itself is the owner's.
 struct AreaPressed {
     std::string window;
     std::string area;
     std::int64_t button = 0;
     bool pressed = false;
     std::int64_t x = 0, y = 0;
-    ZEN_SHAPE(AreaPressed, 1, ZEN_FIELD(window), ZEN_FIELD(area), ZEN_FIELD(button),
-              ZEN_FIELD(pressed), ZEN_FIELD(x), ZEN_FIELD(y));
+    bool local = true;
+    std::int64_t actor = 0;
+    ZEN_SHAPE(AreaPressed, 2, ZEN_FIELD(window), ZEN_FIELD(area), ZEN_FIELD(button),
+              ZEN_FIELD(pressed), ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(local), ZEN_FIELD(actor));
+};
+
+/// Window -> the arranger of an area placed for the weaver's hand alone (`AreaPlaced::weaver_only`):
+/// a guest's press or wheel landed there and was refused, given to nobody, at the window's own
+/// point in pixels. The arranger says why; the moves and the release that follow it are dropped.
+struct AreaHandRefused {
+    std::string window;
+    std::string area;
+    std::int64_t actor = 0;
+    std::int64_t x = 0, y = 0;
+    ZEN_SHAPE(AreaHandRefused, 1, ZEN_FIELD(window), ZEN_FIELD(area), ZEN_FIELD(actor),
+              ZEN_FIELD(x), ZEN_FIELD(y));
 };
 
 /// A window, as its office, to the area's owner and to its arranger when another office: the press
@@ -246,8 +282,9 @@ struct WindowOffered {
 
 /// The arranger -> the directory: where an area stands, in which window, whose office draws in it,
 /// its order among the window's areas (a higher order stands in front), whether the window gives
-/// its keys to the owner, and whether it gives the owner its pointer (`AreaButtonChanged` and the
-/// rest).
+/// its keys to the owner, whether it gives the owner its pointer (`AreaButtonChanged` and the
+/// rest), and whether the weaver's own hand alone reaches it: a guest's press there is refused
+/// (`AreaHandRefused`).
 struct AreaPlaced {
     std::string area;
     std::string window;
@@ -256,9 +293,10 @@ struct AreaPlaced {
     std::int64_t order = 0;
     bool keys = false;
     bool pointer = false;
-    ZEN_SHAPE(AreaPlaced, 2, ZEN_FIELD(area), ZEN_FIELD(window), ZEN_FIELD(owner), ZEN_FIELD(x),
+    bool weaver_only = false;
+    ZEN_SHAPE(AreaPlaced, 3, ZEN_FIELD(area), ZEN_FIELD(window), ZEN_FIELD(owner), ZEN_FIELD(x),
               ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h), ZEN_FIELD(order), ZEN_FIELD(keys),
-              ZEN_FIELD(pointer));
+              ZEN_FIELD(pointer), ZEN_FIELD(weaver_only));
 };
 
 /// The arranger -> the directory: a skin is painter code in this library, from the load plan.
@@ -285,7 +323,7 @@ struct ElementCodeOffered {
 
 /// The directory -> a window: this area is yours, drawn by `owner`, here, painted by the skin in
 /// `library`; `arranger` is the office that placed it, as its placing was authored, empty for
-/// personal speech. Said again whenever any of it changes, to a window that offers itself again,
+/// personal speech; `weaver_only` as it was placed. Said again whenever any of it changes, to a window that offers itself again,
 /// and when the owner asks its room; the window answers each with the owner's room.
 struct AreaIntroduced {
     std::string area;
@@ -297,9 +335,11 @@ struct AreaIntroduced {
     bool pointer = false;
     std::string skin;
     std::string library;
-    ZEN_SHAPE(AreaIntroduced, 3, ZEN_FIELD(area), ZEN_FIELD(owner), ZEN_FIELD(arranger),
+    bool weaver_only = false;
+    ZEN_SHAPE(AreaIntroduced, 4, ZEN_FIELD(area), ZEN_FIELD(owner), ZEN_FIELD(arranger),
               ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h), ZEN_FIELD(order),
-              ZEN_FIELD(keys), ZEN_FIELD(pointer), ZEN_FIELD(skin), ZEN_FIELD(library));
+              ZEN_FIELD(keys), ZEN_FIELD(pointer), ZEN_FIELD(skin), ZEN_FIELD(library),
+              ZEN_FIELD(weaver_only));
 };
 
 /// The directory -> a window: this area is no longer yours.
@@ -375,6 +415,61 @@ struct WindowShown {
               ZEN_FIELD(areas), ZEN_FIELD(nodes), ZEN_FIELD(elements), ZEN_FIELD(showings),
               ZEN_FIELD(device_bytes), ZEN_FIELD(painter_calls), ZEN_FIELD(element_calls),
               ZEN_FIELD(refusals), ZEN_FIELD(last_refusal));
+};
+
+/// An area's arranger -> the window that shows it: what the area shows now. `since` is the
+/// `version` of the last answer the arranger took, or 0; an area whose version is still that is
+/// answered `same`, with nothing else. Window -> the arranger: `AreaShown`; anyone else, and an
+/// area this window does not show, is refused in words.
+struct AreaShowAsked {
+    std::string area;
+    std::int64_t since = 0;
+    ZEN_SHAPE(AreaShowAsked, 1, ZEN_FIELD(area), ZEN_FIELD(since));
+};
+
+/// One run of text as an area shows it: what its text says on one line, its characters side by
+/// side, from `x`, `y` in the area's pixels, each the window's advance wide and a line high. A run
+/// ends where no text stands, where an area in front shows instead, or at the area's edge; the
+/// blanks after its last character are left off.
+struct AreaWord {
+    std::int64_t x = 0, y = 0;
+    std::string text;
+    ZEN_SHAPE(AreaWord, 1, ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(text));
+};
+
+/// One named part as an area shows it: a record naming an action, which is its name. `x`, `y`,
+/// `w`, `h` bound what its drawing shows, in the area's pixels; `pressed` says a press at `px`, `py`
+/// reaches it, as the window lands a press, and no press reaches it where nothing of it can be
+/// pressed. `available` is what its record says (`PartFace`), else true.
+struct AreaPart {
+    std::string name;
+    bool available = true;
+    std::int64_t x = 0, y = 0, w = 0, h = 0;
+    bool pressed = false;
+    std::int64_t px = 0, py = 0;
+    ZEN_SHAPE(AreaPart, 1, ZEN_FIELD(name), ZEN_FIELD(available), ZEN_FIELD(x), ZEN_FIELD(y),
+              ZEN_FIELD(w), ZEN_FIELD(h), ZEN_FIELD(pressed), ZEN_FIELD(px), ZEN_FIELD(py));
+};
+
+/// What one area shows after the window's composition, to the office that placed it: its words
+/// and its named parts in the area's pixels, as many as the area holds and no more. `version`
+/// moves whenever what the area shows may have moved -- its drawing, its place, or an area that
+/// meets it; `same` answers an ask whose `since` is still the version, saying nothing more.
+/// `waiting` says the window told the owner a room it must draw whole and none has come since.
+/// `advance` and `line` are the window's text measure.
+struct AreaShown {
+    std::string window;
+    std::string area;
+    std::int64_t epoch = 0;
+    std::int64_t version = 0;
+    bool same = false;
+    bool waiting = false;
+    std::int64_t advance = kCellPx, line = kCellPx;
+    std::vector<AreaWord> words;
+    std::vector<AreaPart> parts;
+    ZEN_SHAPE(AreaShown, 1, ZEN_FIELD(window), ZEN_FIELD(area), ZEN_FIELD(epoch),
+              ZEN_FIELD(version), ZEN_FIELD(same), ZEN_FIELD(waiting), ZEN_FIELD(advance),
+              ZEN_FIELD(line), ZEN_FIELD(words), ZEN_FIELD(parts));
 };
 
 // ---- what a medium answers for its platform -------------------------------------------------

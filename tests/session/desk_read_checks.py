@@ -4,8 +4,8 @@
 
 Each ask is answered from canned values -- the desk in one turn with stamps naming panes past its
 readings, a pane read in two pages whose second page is refused once as stale, panes in flight,
-a refusal, a covered pane, a pane not presented, Workshop's own words, the status slot and an open
-menu -- and every ask is kept. The checks read the files the reader wrote: AGENTS.md written
+a refusal, a covered pane, a pane not presented, Workshop's own words and an open menu -- and
+every ask is kept. The checks read the files the reader wrote: AGENTS.md written
 first and holding no word the desk said; guide.md quoting the desk's words only in attributed
 blocks marked as data, on every page; desk.txt holding each word at its place and each part at
 its point; the glance writing each word at its own cell over a frame's edges; the paged pane
@@ -38,7 +38,7 @@ from unittest.mock import call, patch
 
 #: desk.txt of the fixture below, in characters, as this reader writes it now; the pin is that
 #: count and a tenth: a sparse reading stays under a pinned count.
-FIXTURE_SPARSE_CHARS = 2321
+FIXTURE_SPARSE_CHARS = 2266
 SPARSE_PIN = FIXTURE_SPARSE_CHARS + FIXTURE_SPARSE_CHARS // 10
 
 PIXELS = 2
@@ -62,18 +62,18 @@ def part(name, x, y, space=PIXELS):
             "x": x if space else 0, "y": y if space else 0, "space": space}
 
 
-def stamp(provider, pane, picture, holder=7, incarnation=1, grant=3):
+def stamp(provider, pane, picture, holder=7, incarnation=1, epoch=3):
     """A stamp whose fingerprint is `picture`: the fixture names each picture by one number."""
     return {"provider": provider, "pane": pane, "holder": holder, "incarnation": incarnation,
-            "grant": grant, "fingerprint": picture}
+            "epoch": epoch, "fingerprint": picture}
 
 
 def view(s, words=(), parts=(), start=0, total=None, covered=None, in_flight=False):
+    """A reading as `PaneView` version 7 says it: its stamp, the place it shows in and its text
+    measure, its words and parts, what covers it, and where this page starts."""
     words, parts = list(words), list(parts)
-    return {"provider": s["provider"], "pane": s["pane"], "picture": s["fingerprint"],
-            "fingerprint": s["fingerprint"],
-            "canvas": False, "words": words, "parts": parts, "holder": s["holder"],
-            "incarnation": s["incarnation"], "grant": s["grant"],
+    return {"stamp": dict(s), "area": rect(0, 0, 0, 0), "advance": 8, "line": 18,
+            "words": words, "parts": parts,
             "covered": covered or {"by": [], "words": 0, "rect": rect(0, 0, 0, 0)},
             "in_flight": in_flight, "from": start,
             "total": len(words) + len(parts) if total is None else total}
@@ -154,7 +154,7 @@ DISTINCT = "zq-"
 
 
 class PagedPane(object):
-    """A pane answering `PaneViewRequested` v5 a few items a page, under its own stamp. `moves`
+    """A pane answering `PaneViewRequested` v7 a few items a page, under its own stamp. `moves`
     continuation pages are refused as stale, the picture moving each time; `covers` continuation
     pages are answered under the same stamp with a menu newly over the pane; `shrinks`
     continuation pages are refused as past a reading a cover shrank; `flights` continuation pages
@@ -290,15 +290,15 @@ class Workshop(object):
             return copy.deepcopy(ROW)
         assert office == "zengine.workshop", (office, shape)
         if shape == "DeskReadRequested":
-            assert version == 2
+            assert version == 3
             if self.desk_refusals:
                 raise self.tool.Refused(self.desk_refusals.pop(0))
             number = self.desk_numbers.pop(0) if len(self.desk_numbers) > 1 else \
                 self.desk_numbers[0]
             return self.desk_read(number)
         if shape == "PaneViewRequested":
-            assert version == 5 and set(fields) == {"provider", "pane", "from", "stamp"}
-            assert set(fields["stamp"]) == {"provider", "pane", "holder", "incarnation", "grant",
+            assert version == 7 and set(fields) == {"provider", "pane", "from", "stamp"}
+            assert set(fields["stamp"]) == {"provider", "pane", "holder", "incarnation", "epoch",
                                             "fingerprint"}
             return self.pane(fields)
         if shape == "PaneInventoryRequested":
@@ -328,8 +328,7 @@ class Workshop(object):
                          for e in self.extra]
         desk = {"desk": number, "width": 1920, "height": 1080, "cell_px": 0, "space": PIXELS,
                 "room": rect(0, 42, 1920, 1000), "panes": panes, "arranging": False,
-                "menu": copy.deepcopy(MENU), "words": copy.deepcopy(BAND_WORDS),
-                "slots": [{"slot": "status", "text": "saved keymap.hpp zq-status-slot"}]}
+                "menu": copy.deepcopy(MENU), "words": copy.deepcopy(BAND_WORDS)}
         return copy.deepcopy({"desk": desk, "stamps": stamps, "panes": readings})
 
     def pane(self, fields):
@@ -450,7 +449,6 @@ def run_checks(tools, runtime):
                 self.assertIn("  %s@%d,%d" % (p["name"], p["x"], p["y"]), lines)
             self.assertIn("  gutter@-", lines)
             self.assertIn("  @600,140", lines)
-            self.assertIn("slot status: saved keymap.hpp zq-status-slot", lines)
             self.assertIn("== menu zengine.workshop at 600,300 240x60", lines)
             self.assertIn("== Editor zengine.editor/editor open front=0 at 446,54 990x574 "
                           "stamp=7/1/3/0000000000000005 selected keys", lines)
