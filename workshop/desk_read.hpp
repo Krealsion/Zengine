@@ -269,7 +269,7 @@ inline std::vector<std::optional<UnitPoint>> own_points(const std::vector<UnitBo
         std::size_t c0 = 0, c1 = 0, b0 = 0, b1 = 0;
         std::int64_t cx = 0, cy = 0;
         bool centre = false;
-        std::int64_t far = -1, row = 0, width = 0, left = 0;
+        std::int64_t distance = -1, row = 0, width = 0, left = 0;
     };
     std::vector<Seen> seen(boxes.size());
     for (std::size_t i = 0; i < boxes.size(); ++i) {
@@ -317,10 +317,10 @@ inline std::vector<std::optional<UnitPoint>> own_points(const std::vector<UnitBo
                 s.centre = s.centre ||
                            (s.cy >= top && s.cy <= bottom && s.cx >= left && s.cx < left + width);
                 const std::int64_t row = (std::clamp)(s.cy, top, bottom);
-                const std::int64_t far = row > s.cy ? row - s.cy : s.cy - row;
-                if (s.far < 0 || std::make_tuple(far, row, -width, left) <
-                                     std::make_tuple(s.far, s.row, -s.width, s.left)) {
-                    s.far = far;
+                const std::int64_t distance = row > s.cy ? row - s.cy : s.cy - row;
+                if (s.distance < 0 || std::make_tuple(distance, row, -width, left) <
+                                     std::make_tuple(s.distance, s.row, -s.width, s.left)) {
+                    s.distance = distance;
                     s.row = row;
                     s.width = width;
                     s.left = left;
@@ -333,7 +333,7 @@ inline std::vector<std::optional<UnitPoint>> own_points(const std::vector<UnitBo
         const Seen& s = seen[i];
         if (s.centre) {
             out[i] = UnitPoint{s.cx, s.cy};
-        } else if (s.far >= 0) {
+        } else if (s.distance >= 0) {
             out[i] = UnitPoint{s.left + (s.width - 1) / 2, s.row};
         }
     }
