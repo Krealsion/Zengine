@@ -202,17 +202,29 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         kinds.insert(order[i]);
     }
     // WORKSHOP'S OWN AREA, the whole screen: behind every pane's, and in front of them while a
-    // weaver arranges, a menu is open or something is carried. Its overlay stands in front of all,
-    // hearing nothing, so a guide mark or the carried value stands over the panes without taking
-    // a press from the pane under it.
+    // weaver arranges, a menu is open or something is carried. A pane's menu stands in front of
+    // it, in its presenter's own area inside the popup's frame, hearing the pointer there, for the
+    // weaver's hand alone where the pane is. The overlay stands in front of all, hearing nothing,
+    // so a guide mark or the carried value stands over the panes without taking a press from the
+    // pane under it.
     const auto panes_order = 2 * static_cast<std::int64_t>(order.size());
     next[kWorkshopProvider] = graphics::AreaPlaced{
         kWorkshopProvider, window_name_, kWorkshopProvider, 0, 0, sc.w, sc.h,
         desk_in_front_of_panes() ? panes_order + 1 : 0, true, true};
     skins[kWorkshopProvider] = session_.skin;
+    const PixelRect menu = presented_area_place(session_, sc);
+    const bool menu_placed = session_.presented.open && !menu.empty();
+    if (menu_placed) {
+        const RuntimePane* about =
+            session_.panes.runtime.find(session_.presented.office, session_.presented.pane);
+        next[session_.presented.area] = graphics::AreaPlaced{
+            session_.presented.area, window_name_, kPresenterRole, menu.x, menu.y, menu.w, menu.h,
+            panes_order + 2, false, true, about != nullptr && weaver_only_pane(*about)};
+        skins[session_.presented.area] = session_.skin;
+    }
     next[kWorkshopOverlayArea] = graphics::AreaPlaced{
-        kWorkshopOverlayArea, window_name_, kWorkshopProvider, 0, 0, sc.w, sc.h, panes_order + 2,
-        false, false};
+        kWorkshopOverlayArea, window_name_, kWorkshopProvider, 0, 0, sc.w, sc.h,
+        panes_order + (menu_placed ? 3 : 2), false, false};
     skins[kWorkshopOverlayArea] = session_.skin;
     for (const auto& [area, was] : areas_placed_) {
         if (next.count(area) == 0) {

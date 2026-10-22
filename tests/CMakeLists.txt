@@ -245,7 +245,7 @@ target_link_libraries(zengine-example-guard
 zengine_weave(zengine-example-numbered-presenter
               ${CMAKE_SOURCE_DIR}/examples/numbered-presenter/presenter.cpp)
 target_link_libraries(zengine-example-numbered-presenter
-    PRIVATE zengine-pane-vocabulary zengine-surface-vocabulary zengine-input-vocabulary
+    PRIVATE zengine-pane-vocabulary zengine-graphics-vocabulary zengine-input-vocabulary
             zengine-activation zengine-component zengine-warnings zengine-sanitize)
 
 # A PANE PROVIDER BUILT AGAINST THE PUBLISHED PROTOCOL ALONE: its own image, compiled from

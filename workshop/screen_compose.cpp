@@ -50,8 +50,9 @@ void paint_panes(surface::SurfaceCanvas& c, const Session& s, const Screen& sc) 
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
         paint_context(layer, s, sc);
     });
-    // ...AND A PANE'S MENU, AS ITS PRESENTER SHOWED IT, in the same position for the same reason:
-    // it is the surface the weaver's next keys and presses go to. At most one of the two is open.
+    // ...AND A PANE'S MENU'S FRAME, in the same position for the same reason: it is the surface the
+    // weaver's next keys and presses go to. At most one of the two is open; the menu's lines are
+    // its presenter's, drawn in an area of its own in a window.
     detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
         paint_presented(layer, s, sc);
     });
@@ -527,17 +528,10 @@ WorkshopWindowDrawing workshop_window_drawing(const Session& s) {
         }
     }
     if (s.presented.open) {
+        // A PANE'S MENU: its frame here, its lines in the presenter's own area inside it.
         surface::SurfaceLayer layer;
         paint_presented(layer, s, sc);
-        const std::string group = desk + "/presented";
-        const PixelRect b = presented_bounds(s, sc);
-        draw_plane(out.sketch, group, layer, sc, b);
-        const ProsePlace place = prose_place(b, sc);
-        const std::size_t lines = layer.texts.empty() ? 0 : layer.texts.back().rows.size();
-        for (std::size_t i = 0; i < lines; ++i) {
-            draw_part(out, group, "menu:" + std::to_string(i), place.fit,
-                      static_cast<std::int64_t>(i), 0, place.columns, layer.texts.back().rows[i]);
-        }
+        draw_plane(out.sketch, desk + "/presented", layer, sc, presented_bounds(s, sc));
     }
     {
         surface::SurfaceLayer layer;

@@ -9,8 +9,8 @@ what it said or where it fell. The panes already knew what each row and control 
 map records it for the press -- and nothing said it across the seam.
 
 **Decision.** A pane names the parts a weaver acts on, from what each means: a run of a row's
-columns (`PaneRowPart`, on `v4::PaneContent`, and a presented menu's lines on `v2::MenuShown`) or
-a rectangle of its picture (`PaneCanvasPart`, on `v4::PaneCanvasContent`). The names travel with
+columns (`PaneRowPart`, on `v4::PaneContent`; a presented menu's lines in its presenter's own
+drawing, read from the window) or a rectangle of its picture (`PaneCanvasPart`, on `v4::PaneCanvasContent`). The names travel with
 the picture they name, judged with it -- a name once, on what the picture says -- and refused
 whole with it. Workshop answers each beside its words, place and point (`PanePart`, on
 `v3::PaneView` and `v2::DeskView`'s menu) and names its own menu's lines by their actions. A

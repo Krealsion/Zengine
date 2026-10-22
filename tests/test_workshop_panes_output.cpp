@@ -597,7 +597,7 @@ std::vector<std::string> out_open_menu(OutputRig& o) {
 
 /// WALK THE PRESENTER'S CURSOR TO THE ROW READING `row` AND TAKE IT.
 void out_choose_row(OutputRig& o, const std::string& row) {
-    const std::int64_t at = presented_line_of(o.r.session(), row);
+    const std::int64_t at = presented_line_of(o.r, row);
     REQUIRE_MESSAGE(at >= 0, "no menu row read `", row, "`");
     for (std::int64_t i = 0; i < at; ++i) {
         o.r.key(input::scan::kDown);

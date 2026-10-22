@@ -479,7 +479,7 @@ TEST_CASE("WL-DESK-14: a right press on a row offers its menu -- show, manage an
     // `open Beta` BY MOUSE ON THE MENU ROW.
     d.right(beta, kNameCol);
     REQUIRE(menu_shown(d.r.session()));
-    d.r.press_cell(context_cell_x(d.r.session()), context_entry_cell_y(d.r.session(), 0));
+    d.r.window_click(context_cell_x(d.r.session()), context_entry_cell_y(d.r.session(), 0));
     CHECK(d.open("beta"));
     // THE MENU KEY, on the marked row, from the keyboard: the same rows, now with close.
     d.r.press_cell(body_x(d.r, d.launcher, kNameCol), body_y(d.r, d.launcher, d.row_of("Beta")));
@@ -612,7 +612,7 @@ struct Keys {
         REQUIRE(menu_shown(r.session()));
         // THE PRESENTER'S LINES, READ AS A WEAVER READS THEM: the cursor starts on the first row,
         // and Down walks it to the line that reads `label`.
-        const std::int64_t at = presented_line_of(r.session(), label);
+        const std::int64_t at = presented_line_of(r, label);
         REQUIRE_MESSAGE(at >= 0, "no menu line reads ", label);
         for (std::int64_t i = 0; i < at; ++i) {
             r.key(input::scan::kDown);
@@ -1236,19 +1236,23 @@ TEST_CASE("the Hotkeys pane asks the window that shows it for a paste into a spe
                /*on_skin=*/true);
         SkinStandIn* skin = k.skin;
         skin->platform = "ctrl+";
+        // A WINDOW SHOWS WORKSHOP'S OWN AREA, where a pane's menu can stand, and not yet the pane's.
+        pw::Window shown(k.r.bus, window);
+        shown.room(kWorkshopProvider, kWorkshopProvider, 120, 40);
         const std::int64_t quit = k.row_of("workshop.quit");
         REQUIRE(quit >= 0);
         k.right(quit);
-        k.choose("Modify (type a spelling)");
+        REQUIRE(menu_shown(k.r.session()));
+        k.r.key(input::scan::kDown); // the binding's second row, Modify (type a spelling)
+        k.r.key(input::scan::kReturn);
 
-        // NO WINDOW SHOWS IT YET: the paste is the Skin's.
+        // NO WINDOW SHOWS THE PANE YET: the paste is the Skin's.
         k.r.key(input::scan::kV, input::mod::kCtrl);
         CHECK(skin->clipboard_reads == 1);
         CHECK_MESSAGE(row_containing(k.rows(), "key for workshop.quit: ctrl+") >= 0, k.text());
 
         // THE WINDOW TELLS THE PANE'S AREA ITS ROOM, and from then on is asked, not the Skin, and
         // what it holds lands in the spelling.
-        pw::Window shown(k.r.bus, window);
         shown.weave().platform = "q";
         shown.room(std::string(kDesktopRole) + "." + dp::kHotkeysPane, kDesktopRole, 120, 40);
         k.r.key(input::scan::kV, input::mod::kCtrl);
@@ -1346,21 +1350,22 @@ TEST_CASE("WL-KEY-17: a mouse choice and its own release take the keyboard for a
     k.right(row);
     REQUIRE(menu_shown(k.r.session()));
     const std::size_t entry = typed ? 1 : 0;
-    REQUIRE(presented_line_of(k.r.session(), typed ? "Modify (type a spelling)"
+    REQUIRE(presented_line_of(k.r, typed ? "Modify (type a spelling)"
                                                     : "Modify (press a key)") ==
             static_cast<std::int64_t>(entry));
     const auto x = context_cell_x(k.r.session());
     const auto y = context_entry_cell_y(k.r.session(), entry);
-    // ONE ACTUAL CLICK'S TWO TRANSITIONS; nothing else a weaver did comes between them.
-    queue_button(k.r, 1, true, x, y);
+    // ONE ACTUAL CLICK'S TWO TRANSITIONS, on the window's platform; nothing else a weaver did
+    // comes between them.
+    k.r.window_queue_button(x, y, true);
     if (separated) {
-        k.r.bus.drain_until_idle();
+        k.r.window_beat();
     }
-    queue_button(k.r, 1, false, x, y);
+    k.r.window_queue_button(x, y, false);
     if (newer) {
-        queue_key(k.r, input::scan::kDown, input::mod::kNone); // a genuinely newer act
+        k.r.window_queue_key(input::scan::kDown); // a genuinely newer act
     }
-    k.r.bus.drain_until_idle();
+    k.r.window_beat();
     REQUIRE_FALSE(k.r.session().presented.open);
     CHECK(k.text().find(typed ? "type the key for `desktop.terminal`"
                               : "press the key for `desktop.terminal`") != std::string::npos);
@@ -1455,7 +1460,7 @@ TEST_CASE("WL-CTX-10: a reloaded desktop cancels its predecessor's menu -- withd
     REQUIRE_FALSE(d.open("alpha"));
     d.right(d.row_of("Alpha"), kNameCol);
     REQUIRE(menu_shown(d.r.session()));
-    REQUIRE(presented_texts(d.r.session())[0] == "> show Alpha");
+    REQUIRE(presented_texts(d.r)[0] == "> show Alpha");
     std::size_t activations = 0;
     const auto tap = d.r.bus.add_observer([&](const loom::BusEvent& event) {
         if (event.kind == loom::EventKind::Delivered && event.target == d.desktop &&
@@ -1540,7 +1545,7 @@ TEST_CASE("WL-CTX-10: an ordinary replacement presenter holds the office -- the 
     k.right(row);
     REQUIRE(menu_shown(k.r.session()));
     // PRESENTED ITS WAY: numbered rows, the cursor marked -- the rows are still the desktop's.
-    const std::vector<std::string> lines = presented_texts(k.r.session());
+    const std::vector<std::string> lines = presented_texts(k.r);
     REQUIRE(lines.size() == 7 + kStandardRows); // the host's own rows numbered on, no rule
     CHECK(lines[0] == "> 1 Modify (press a key)");
     CHECK(lines[1] == "  2 Modify (type a spelling)");
@@ -1549,9 +1554,9 @@ TEST_CASE("WL-CTX-10: an ordinary replacement presenter holds the office -- the 
         k.r.bus.drain_until_idle();
     } else {
         const auto x = context_cell_x(k.r.session());
-        queue_button(k.r, 1, true, x, context_entry_cell_y(k.r.session(), 0));
-        queue_button(k.r, 1, false, x, context_entry_cell_y(k.r.session(), slide_off ? 1 : 0));
-        k.r.bus.drain_until_idle();
+        k.r.window_queue_button(x, context_entry_cell_y(k.r.session(), 0), true);
+        k.r.window_queue_button(x, context_entry_cell_y(k.r.session(), slide_off ? 1 : 0), false);
+        k.r.window_beat();
         if (slide_off) {
             // NOTHING CHOSEN: the press armed row 1 and the release came up on row 2. The menu is
             // still open, and the keys are still where they were.
@@ -1576,14 +1581,14 @@ TEST_CASE("WL-CTX-10: the replacement presenter presents the Pane Manager's menu
     Desk d(std::string(), 160, 60, WORKSHOP_SO_NUMBERED_PRESENTER);
     d.right(d.row_of("Alpha"), kNameCol);
     REQUIRE(menu_shown(d.r.session()));
-    const std::vector<std::string> lines = presented_texts(d.r.session());
+    const std::vector<std::string> lines = presented_texts(d.r);
     REQUIRE(lines.size() == 3 + kStandardRows);
     CHECK(lines[0] == "> 1 show Alpha");
     CHECK(lines[2] == "  3 inspect in Info");
     CHECK(lines[3] == "  4 arrange");
     // WRAPPING IS THIS PRESENTER'S: up from the first row lands on the last, the host's own.
     d.r.key(input::scan::kUp);
-    CHECK(presented_texts(d.r.session())[2 + kStandardRows] == "> 8 hide pane");
+    CHECK(presented_texts(d.r)[2 + kStandardRows] == "> 8 hide pane");
     queue_digit(d.r, input::scan::k1, "1");
     d.r.bus.drain_until_idle();
     CHECK(d.open("alpha"));
@@ -1646,7 +1651,7 @@ TEST_CASE("WL-DESK-14: choosing `inspect in Info` on a row makes that pane Info'
         load_info(d);
         d.right(d.row_of("Beta"), kNameCol);
         REQUIRE(menu_shown(d.r.session()));
-        d.r.press_cell(context_cell_x(d.r.session()), context_entry_cell_y(d.r.session(), 2));
+        d.r.window_click(context_cell_x(d.r.session()), context_entry_cell_y(d.r.session(), 2));
         inspected_beta(d);
     }
     SUBCASE("by a replacement presenter's digit") {
@@ -1654,7 +1659,7 @@ TEST_CASE("WL-DESK-14: choosing `inspect in Info` on a row makes that pane Info'
         load_info(d);
         d.right(d.row_of("Beta"), kNameCol);
         REQUIRE(menu_shown(d.r.session()));
-        REQUIRE(presented_texts(d.r.session())[2] == "  3 inspect in Info");
+        REQUIRE(presented_texts(d.r)[2] == "  3 inspect in Info");
         queue_digit(d.r, input::scan::k3, "3");
         d.r.bus.drain_until_idle();
         inspected_beta(d);
@@ -1675,7 +1680,7 @@ TEST_CASE("WL-DESK-14: an `inspect in Info` that cannot be carried out is said i
         // ALPHA SHOWN ON THE DESK FIRST, by its row's menu, so Info has its size to draft.
         d.right(d.row_of("Alpha"), kNameCol);
         REQUIRE(menu_shown(d.r.session()));
-        d.r.press_cell(context_cell_x(d.r.session()), context_entry_cell_y(d.r.session(), 0));
+        d.r.window_click(context_cell_x(d.r.session()), context_entry_cell_y(d.r.session(), 0));
         REQUIRE(d.open("alpha"));
         inspect_by_keys(d, "Alpha");
         REQUIRE(d.r.session().inspected.ref == (PaneRef{"zengine.test.tools", "alpha"}));
@@ -1714,7 +1719,7 @@ TEST_CASE("WL-CTX-10: the presenter reloaded in place by another image while a m
     REQUIRE(row >= 0);
     k.right(row);
     REQUIRE(menu_shown(k.r.session()));
-    REQUIRE(presented_texts(k.r.session())[0] == "> Modify (press a key)");
+    REQUIRE(presented_texts(k.r)[0] == "> Modify (press a key)");
     k.r.key(input::scan::kDown); // the cursor on "Modify (type a spelling)"
     const std::int64_t menu = k.r.session().presented.menu;
     const std::uint64_t asked = k.r.session().presented.correlation;
@@ -1727,7 +1732,7 @@ TEST_CASE("WL-CTX-10: the presenter reloaded in place by another image while a m
     REQUIRE(k.r.session().presented.open);
     CHECK(k.r.session().presented.menu == menu);
     CHECK(k.r.session().presented.correlation == asked);
-    const std::vector<std::string> lines = presented_texts(k.r.session());
+    const std::vector<std::string> lines = presented_texts(k.r);
     REQUIRE(lines.size() == 7 + kStandardRows);
     CHECK(lines[0] == "  1 Modify (press a key)");
     CHECK(lines[1] == "> 2 Modify (type a spelling)");

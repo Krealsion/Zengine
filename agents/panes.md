@@ -175,10 +175,10 @@ pane drawing in an area of its own is read from the window that shows it (WL-REA
 answered from Workshop's own numbers (WL-GEO-13). Workshop names
 nothing inside a pane: a word's number is its place in one answer. A pane names its parts
 (WL-HAND-06): `v4::PaneContent` and `v4::PaneCanvasContent` (and `v5`) carry `parts` -- a run of a row's
-columns, a rectangle of the picture -- and `v2::MenuShown` a presenter's lines by the rows' ids,
-each judged with the picture it names and refused whole with it (`row_parts_problem`,
+columns, a rectangle of the picture -- each judged with the picture it names and refused whole with it (`row_parts_problem`,
 `canvas_parts_problem`), listed in the order the pane reads a press, a place it names nothing
-unnamed. `PaneView` says each beside the words with its place and its point, a place of its own
+unnamed; a presenter names its menu's lines by the rows' ids in its own drawing, read from the
+window too. `PaneView` says each beside the words with its place and its point, a place of its own
 a press reaches -- none for a part with no such place, or of a picture that takes no press -- and
 `DeskView` a menu's named lines; a name is carried as the pane said it, and a press on a part is ordinary
 input at that point. Workshop names only its own surfaces' parts: its menu's lines and Layouts'
@@ -406,13 +406,14 @@ and the participant holding `zengine.presenter`, `workshop/presenter_vocabulary.
 `MenuGranted`, `MenuInput` and `MenuWithdrawn` Workshop → presenter, `MenuShown`, `MenuClosed`
 and `PresenterReady` presenter → Workshop, and `HeldMenu`, the reload state the shipped
 presenters share. The pane shapes ADDED
-to the protocol and revised nothing. `MenuGranted v2`, `MenuClosed v2` and `HeldMenu v2` carry
-the host's standard rows (`standard`, below) and the name of the pane they act on
-(`pane_name`); a holder that accepts only `MenuGranted v1` does
-not hold the office for this host, so a menu is refused where it would open, in words. Several
-NEST — `PaneMenuRequested` and `MenuGranted` carry
-`vector<PaneMenuRow>`, `v3::PaneContent` and `MenuShown` surface rows, `v4::PaneContent` and
-`v2::MenuShown` `PaneRowPart`s too — and since Loom ABI v9 a
+to the protocol and revised nothing. `MenuGranted v3` and `HeldMenu v3` carry the host's standard
+rows (`standard`, below), the name of the pane they act on (`pane_name`) and the area the menu
+stands in (`area`), and `MenuClosed v2` the standard row chosen; `MenuShown v3` names that area
+and how much of it the menu takes, and carries no lines. A holder that accepts only an older
+`MenuGranted` does not hold the office for this host, so a menu is refused where it would open,
+in words. Several NEST — `PaneMenuRequested` and `MenuGranted` carry
+`vector<PaneMenuRow>`, `v3::PaneContent` surface rows, `v4::PaneContent` `PaneRowPart`s too — and
+since Loom ABI v9 a
 nested component is agreed at admission like any other declared shape; these admit because
 every party declares them from the one installed header, not because they are flat. The host's
 side is law in `workshop/press-chain.md` (WL-PRESS-06), `workshop/contextual.md` (WL-CTX-08),
@@ -459,8 +460,9 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
   the same hand is a newer act, so the late request is refused and the keys stay where the newer
   press put them.
   An eligible ask is GRANTED to whoever holds `zengine.presenter` (`grant_menu`): the host keeps
-  custody and place — `PresentedMenu`: whose menu, what about, where, the lines last shown, which
-  acts it may name — and none of the pane's rows. Beneath them it grants its own pane menu for
+  custody and place — `PresentedMenu`: whose menu, what about, where, the area it stands in and
+  how much of it the presenter said it takes, which acts it may name — and none of the pane's
+  rows. Beneath them it grants its own pane menu for
   that pane, the STANDARD ROWS (`MenuGranted::standard`: the catalog's pane rows, ids and labels
   as its own menu shows them), so one menu holds both; a standard row chosen comes back named on
   `MenuClosed::standard`, the presenter answers the requester unchosen, and the host spends the
@@ -468,10 +470,13 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
   own menu there) as the choosing act's continuation, while that act is its hand's latest.
   No pane performs a standard row and the host performs no pane's row. While it is open the
   weaver's keys are named by the contextual
-  rows and forwarded (`menu_key`, `MenuInput::verb`), presses inside or outside are forwarded
-  with the line and the picture the medium held (`menu_button`), the character a forwarded key
-  made is part of that key's act, and the popup draws the lines the presenter shows within the
-  room the grant named (`paint_presented`; lines that overflow it lose the menu, in words). The
+  rows and forwarded (`menu_key`, `MenuInput::verb`), a press outside is forwarded
+  (`menu_button`), and the character a forwarded key made is part of that key's act. The popup's
+  frame is the host's (`paint_presented`); the presenter draws the menu in an area of its own
+  inside it, named for that menu alone, which the host places in front of the desk sized to what
+  the presenter says it takes (`MenuShown`; past the room the grant named, or in another area, it
+  loses the menu, in words). A press there is the presenter's, heard from the window, and the act
+  it is the host's (`menu_pressed`), which a choice said under the press's number continues. The
   host withdraws the menu when custody moves — a newer menu, a right press, its own menu, the
   pane leaving the desk or being offered again — and the presenter answers it unchosen in the
   host's words. The PRESENTER owns the rest (WL-CTX-10): what can be presented (the row bounds),
@@ -495,7 +500,8 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
   image for a menu it does not hold -- is GIVEN BACK (`MenuReturned`, with the image's words)
   rather than dropped, and the host settles that requester: the open menu ends answered, a
   withdrawn one's kept record is answered and forgotten, and a menu already over takes nothing.
-  With no presenter a menu is refused where it would open. These are these consumers' policies,
+  With no presenter, or no window showing the desk, a menu is refused where it would open. These
+  are these consumers' policies,
   not a rule every participant must follow.
 - **The host learns a presenter left from Loom, by the exact attempt, and answers THAT menu.**
   Every sentence the host queues to the presenter's office from a grant until that menu ends is

@@ -178,7 +178,7 @@ GuestRowDescribedRequested v2 0x5aca9e352a5534ee
 GuestVocabularyState v1 0x3f20502e8bc320e5
 GuideAnswered v1 0x3387378ec94f6332
 GuideRequested v1 0x449d827435acac26
-HeldMenu v2 0x25a83fd1db508fa4
+HeldMenu v3 0x5dbbe6b75c9b3f4c
 IconFace v1 0xb017239cc19ae603
 ImageArgs v1 0x8085ca3e3649508e
 ImageFace v1 0x8eb8210b11c0bd26
@@ -265,11 +265,10 @@ LookAtBuilds v1 0x6c73869dadfb0a65
 ManagedOpenProgress v1 0x2bca6433e225c0dd
 ManagedOpenSettled v1 0x0ce78f6ff9da0bb6
 MenuClosed v2 0xf3aed09d09eabfda
-MenuGranted v2 0x660a54f1416bfb86
+MenuGranted v3 0x4e61041ae781ccbe
 MenuInput v1 0x72beb3bd58221b91
 MenuReturned v1 0x2ebe17f3ee281c8e
-MenuShown v1 0x8880f6fd5475e230
-MenuShown v2 0xfafad45e5093a833
+MenuShown v3 0x82d8842753c1e64d
 MenuWithdrawn v1 0x5d4547eeb3e57fbe
 ModeCauses v1 0xf0a98b0403aadda4
 NeovimEditorState v1 0x5de22f665f5bb6d1
