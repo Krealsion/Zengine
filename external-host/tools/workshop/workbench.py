@@ -43,12 +43,13 @@ def named(hand, label):
 
 
 def still_open(hand, view):
-    """Is this pane on the desk? A closed pane's view is refused, and that refusal is the answer."""
+    """Is this pane on the desk? A closed pane's view is refused, and that refusal is the answer:
+    a pane closed or unknown, or one not presented."""
     try:
         hand.words(*view)
         return True
     except Exception as refused:
-        if "closed, unknown" in str(refused):
+        if "closed or unknown" in str(refused) or "not presented" in str(refused):
             return False
         raise
 

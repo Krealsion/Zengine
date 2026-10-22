@@ -66,8 +66,10 @@ public:
     static constexpr const zengine::manual::Manual& kManual =
         zengine::manual::pages::zengine_window_terminal::kManual;
 
-    TerminalMedium() = default;
-    explicit TerminalMedium(Terminal terminal) : terminal_(std::move(terminal)) {}
+    TerminalMedium() { dirty_.size(cols_, rows_); }
+    explicit TerminalMedium(Terminal terminal) : terminal_(std::move(terminal)) {
+        dirty_.size(cols_, rows_);
+    }
 
     /// The terminal taken, and measured.
     void claim() {
@@ -75,6 +77,7 @@ public:
         const TerminalSize size = measure();
         cols_ = size.cols;
         rows_ = size.rows;
+        dirty_.size(cols_, rows_);
     }
 
     /// The terminal at another size in cells: every cell of the window at the new size marked to
@@ -86,11 +89,8 @@ public:
         }
         cols_ = size.cols;
         rows_ = size.rows;
-        for (std::int64_t r = 0; r < rows_; ++r) {
-            for (std::int64_t c = 0; c < cols_; ++c) {
-                dirty_.insert({c, r});
-            }
-        }
+        dirty_.size(cols_, rows_);
+        dirty_.mark_all();
         return true;
     }
 
@@ -174,17 +174,11 @@ public:
     /// glyphs kept where they now stand. With no terminal it first reaches as far as its areas.
     void show(const std::vector<WinArea>& areas) {
         reach(areas);
-        std::set<CellAt> in_window;
-        for (const CellAt& c : dirty_) {
-            if (c.first >= 0 && c.second >= 0 && c.first < cols_ && c.second < rows_) {
-                in_window.insert(c);
-            }
-        }
-        dirty_.clear();
-        if (in_window.empty()) {
+        if (dirty_.empty()) {
             return;
         }
-        const std::vector<term::Cell> cells = compose(areas, cache_, in_window);
+        const std::vector<term::Cell> cells = compose(areas, cache_, dirty_);
+        dirty_.clear();
         const std::string bytes = ansi(cells);
         terminal_.write(bytes);
         keep_shown(cells);
@@ -194,12 +188,9 @@ public:
 
     /// The window's rows as text, trailing spaces left off.
     std::vector<std::string> rows_shown(const std::vector<WinArea>& areas) const {
-        std::set<CellAt> all;
-        for (std::int64_t r = 0; r < rows_; ++r) {
-            for (std::int64_t c = 0; c < cols_; ++c) {
-                all.insert({c, r});
-            }
-        }
+        DirtyCells all;
+        all.size(cols_, rows_);
+        all.mark_all();
         std::vector<std::string> rows(static_cast<std::size_t>(rows_),
                                       std::string(static_cast<std::size_t>(cols_), ' '));
         for (const term::Cell& c : compose(areas, cache_, all)) {
@@ -209,6 +200,14 @@ public:
             r.erase(r.find_last_not_of(' ') + 1);
         }
         return rows;
+    }
+
+    /// What one area shows of the terminal, in the area's pixels: its words and named parts
+    /// (`window::read_area`), areas `reader` owns hiding nothing. "" when said, else why not.
+    std::string read_area(const std::vector<WinArea>& areas, const WinArea& a,
+                          const std::string& reader, std::vector<AreaWord>& words,
+                          std::vector<AreaPart>& parts) const {
+        return window::read_area(areas, cache_, a, cols_, rows_, reader, words, parts);
     }
 
     /// A point of the terminal, in cells (a point in pixels in the cell that holds it): the top
@@ -297,7 +296,7 @@ private:
 
     Terminal terminal_;
     Cache cache_;
-    std::set<CellAt> dirty_;
+    DirtyCells dirty_; ///< the cells to show again, over the terminal's size
     std::vector<std::string> shown_rows_; ///< the glyphs on the terminal, as its showings left them
     std::int64_t cols_ = kUnmeasuredCols;
     std::int64_t rows_ = kUnmeasuredRows;

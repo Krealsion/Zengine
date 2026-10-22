@@ -182,7 +182,7 @@ class Monitor(object):
             except ValueError as taken:
                 raise Inconclusive(str(taken))
         def aim(view):
-            return hand.point(provider, pane, row, column, view["picture"])
+            return hand.point(view, row, column)
         try:
             _, at = hand.aimed(provider, pane, read, aim, "cell %d,%d" % (row, column),
                                self._left())
@@ -218,7 +218,7 @@ class Monitor(object):
             view = None
         rows = [r["text"] for r in view["rows"]] if view else None
         self.ctx.produce(name + ".json", json.dumps({
-            "provider": provider, "pane": pane, "picture": view["picture"] if view else None,
+            "provider": provider, "pane": pane, "fingerprint": view["fingerprint"] if view else None,
             "rows": rows}, indent=1).encode())
         return rows
 

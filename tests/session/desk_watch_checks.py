@@ -43,7 +43,7 @@ def word(n, text, x, y, h=18):
 
 
 ROW = {"name": "watcher", "may": ["input", "capture"],
-       "observe": [{"producer": "zengine.workshop", "shape": "DeskStamps", "version": 1}],
+       "observe": [{"producer": "zengine.workshop", "shape": "DeskStamps", "version": 3}],
        "host": "development"}
 
 
@@ -62,7 +62,7 @@ class Pane(object):
 
     def stamp(self):
         return {"provider": self.provider, "pane": self.pane, "holder": 7, "incarnation": 1,
-                "grant": 0, "fingerprint": self.print}
+                "epoch": 0, "fingerprint": self.print}
 
     def show(self, lines):
         self.lines = list(lines)
@@ -70,11 +70,8 @@ class Pane(object):
 
     def view(self):
         words = [word(i, t, self.x + 3, 60 + 18 * i) for i, t in enumerate(self.lines)]
-        s = self.stamp()
-        return {"provider": self.provider, "pane": self.pane, "picture": 0, "canvas": False,
-                "words": words, "parts": [], "holder": s["holder"],
-                "incarnation": s["incarnation"], "grant": s["grant"],
-                "fingerprint": s["fingerprint"],
+        return {"stamp": self.stamp(), "area": rect(self.x, 42, 480, 500), "advance": 8,
+                "line": 18, "words": words, "parts": [],
                 "covered": {"by": [], "words": 0, "rect": rect(0, 0, 0, 0)}, "in_flight": False,
                 "from": 0, "total": len(words)}
 
@@ -107,7 +104,7 @@ class Desk(object):
                   "keys": p.selected} for i, p in enumerate(self.panes)]
         desk = {"desk": self.number, "width": 1920, "height": 1080, "cell_px": 0,
                 "space": PIXELS, "room": rect(0, 42, 1920, 1000), "panes": panes,
-                "arranging": False, "menu": {"open": False}, "words": [], "slots": []}
+                "arranging": False, "menu": {"open": False}, "words": []}
         return {"desk": desk, "stamps": [p.stamp() for p in self.panes],
                 "panes": [p.view() for p in self.panes]}
 
@@ -132,9 +129,9 @@ class Subscription(object):
     would -- a notice of the whole state, a gap, an ending -- in order, numbered. Past the script,
     a wait runs out."""
 
-    def __init__(self, tool_items, desk, script, clock, version=2):
+    def __init__(self, tool_items, desk, script, clock, version=3):
         self.items, self.desk, self.script, self.clock = tool_items, desk, list(script), clock
-        self.version = version  # the notice's version subscribed: v2's panes are {stamp, aimed}
+        self.version = version  # the notice's version subscribed
         self.seq = 0
         self.ended = None
         self.released = False
@@ -144,8 +141,6 @@ class Subscription(object):
         self.seq += 1
         if kind == "observed":
             told = copy.deepcopy(self.desk.stamps())
-            if self.version == 2:
-                told["panes"] = [{"stamp": s, "aimed": 1} for s in told["panes"]]
             return self.items.Observation("DeskStamps", self.version, told,
                                           {"seq": self.seq}, 0.0)
         if kind == "gap":
@@ -237,14 +232,14 @@ class Workshop(object):
         if shape == "GuestRowDescribedRequested":
             return copy.deepcopy(ROW)
         if shape == "DeskReadRequested":
-            assert version == 2
+            assert version == 3
             if self.desk.refusals:
                 self.desk.refusals -= 1
                 raise self.tool.Refused("desk read refused: at most 4 a second, each asker -- read "
                                         "again in 400 ms")
             return copy.deepcopy(self.desk.desk_read())
         if shape == "PaneViewRequested":
-            assert version == 5
+            assert version == 7
             p = self.desk.pane((fields["provider"], fields["pane"]))
             s = fields["stamp"]
             if s["holder"] and s["fingerprint"] != p.print:
@@ -385,7 +380,7 @@ def run_checks(tools, runtime):
             producer, shapes, via, latest, asked_before = ctx.observed[0][:5]
             self.assertEqual((producer, via, latest, asked_before),
                              ("zengine.workshop", "workshop", ["DeskStamps"], 0))
-            self.assertEqual(shapes, [("DeskStamps", 2)])
+            self.assertEqual(shapes, [("DeskStamps", 3)])
             entries = self.entries()
             self.assertEqual(len(entries), 2, self.file("changes.txt"))
             self.assertTrue(entries[0].startswith("== change 1 -- notice 1: desk 5"))
@@ -628,22 +623,14 @@ def run_checks(tools, runtime):
 
         def test_a_row_the_relay_refuses_fails_in_words_with_agents_md_written(self):
             with self.assertRaises(loom_tool.ToolFailed) as raised:
-                self.watch([], refuse="guest 'watcher' may not observe DeskStamps v1: it says "
+                self.watch([], refuse="guest 'watcher' may not observe DeskStamps v3: it says "
                                       "when the desk's words or its picture moved")
             self.assertIn("refused: this row may not follow the desk", str(raised.exception))
-            self.assertIn("observe` entry naming zengine.workshop DeskStamps 2",
+            self.assertIn("observe` entry naming zengine.workshop DeskStamps 3",
                           str(raised.exception))
             self.assertEqual(sorted(os.listdir(self.out)), ["AGENTS.md", "panes"])  # unheld
             self.assertEqual(os.listdir(os.path.join(self.out, "panes")), [])
             self.assertEqual(len(raised.exception.args), 1)
-
-        def test_a_row_naming_only_the_first_notice_is_followed_by_it(self):
-            ctx, summary = self.watch([words_of(INFO, ["PANES -- 3", "info changed"])],
-                                      refuse="guest 'watcher' may not observe DeskStamps v2: its "
-                                             "row's observe list does not name it",
-                                      refused_versions=(2,))
-            self.assertEqual([o[1] for o in ctx.observed], [[("DeskStamps", 2)], [("DeskStamps", 1)]])
-            self.assertTrue(self.entries()[0].startswith("== change 1 -- notice 1: desk 5"))
 
         def test_panes_not_a_list_of_pairs_is_refused_before_anything(self):
             with self.assertRaises(loom_tool.ToolFailed) as raised:

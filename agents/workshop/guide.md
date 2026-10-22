@@ -26,7 +26,7 @@ WHY — `agents/decisions/a-guest-reads-and-points-by-door.md`
 LAW — A row of version 3 whose `capture` is not `*` reads a pane's words only where Loom says its `capture` doors hold that pane, asked at the read; another pane is its place, catalog name and holder.
 
 MEANS
-- the doors are door rules on `DeskReadRequested` v2, so a later grant widens the read with no relaunch;
+- the doors are door rules on `DeskReadRequested`, so a later grant widens the read with no relaunch;
 - it is granted the desk read, the newest pages, the inventory, the keymap and its offices' manuals;
 - it hears no band, status, desk number or `DeskStamps`, no older read, no Skin picture or desk publication.
 
@@ -107,7 +107,7 @@ its role and doors beneath its connection"
 ### WL-GUIDE-02
 `workshop/guests.cpp` grant_for observation_of
 `workshop/weave_guest_read.cpp` reads_by_pane read_withheld withheld_stamp withhold_desk
-`workshop/weave_desk_read.cpp` answer_page
+`workshop/weave_desk_read.cpp` pane_page
 `workshop/weave_desktop.cpp` on(KeymapRequested)
 `tests/test_workshop_guests.cpp` "grant: a row that reads by pane is granted the newest reads, the keymap,
 the inventory and its doors' manuals as Loom door rules, and never the older reads or the Skin's picture"

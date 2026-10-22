@@ -35,7 +35,6 @@ using zengine::external_host::GuestVocabulary;
 
 std::vector<std::shared_ptr<const loom::Schema>> guest_shapes() {
     namespace in = zengine::input;
-    namespace su = zengine::surface;
     namespace gfx = zengine::graphics;
     namespace ws = zengine::workshop;
     return {loom::schema_of<zengine::inventory_pane::InventoryToolboxSave>(),
@@ -45,35 +44,23 @@ std::vector<std::shared_ptr<const loom::Schema>> guest_shapes() {
             loom::schema_of<zengine::demo::DemoServiceOpened>(), loom::schema_of<zengine::demo::DemoWorkFinished>(),
             loom::schema_of<zengine::demo::DemoReadyRequested>(), loom::schema_of<zengine::demo::DemoStatus>(),
             loom::schema_of<in::InputSessionRequested>(), loom::schema_of<in::InputSessionOpened>(),
-            loom::schema_of<in::PointerMotionRequested>(), loom::schema_of<ws::PaneViewRequested>(),
-            loom::schema_of<ws::PaneView>(), loom::schema_of<ws::PaneViewRow>(),
-            loom::schema_of<ws::DeskViewRequested>(), loom::schema_of<ws::DeskView>(),
-            loom::schema_of<ws::DeskPane>(), loom::schema_of<ws::DeskMenu>(),
-            loom::schema_of<ws::PaneWord>(), loom::schema_of<ws::DeskRect>(),
-            loom::schema_of<ws::v2::PaneViewRequested>(), loom::schema_of<ws::v2::PaneView>(),
-            loom::schema_of<ws::v2::PanePointRequested>(), loom::schema_of<ws::v2::PanePoint>(),
-            // A pane's named parts beside its words, and the desk with its menu's named lines.
-            loom::schema_of<ws::v3::PaneViewRequested>(), loom::schema_of<ws::v3::PaneView>(),
-            loom::schema_of<ws::v3::PanePointRequested>(),
-            loom::schema_of<ws::PanePart>(), loom::schema_of<ws::v2::DeskViewRequested>(),
-            loom::schema_of<ws::v2::DeskView>(), loom::schema_of<ws::v2::DeskMenu>(),
-            // The desk read whole and a pane's page, with the stamp, the cover and the status slot
-            // they carry; and the inventory of panes and the keymap a `capture` guest reads.
+            loom::schema_of<in::PointerMotionRequested>(),
+            // The desk read whole, a pane's page and a point in it, with the desk, the stamp, the
+            // cover and the parts they carry, and the notice that the desk moved; the inventory of
+            // panes and the keymap a `capture` guest reads; a guide mark and its answer, and a
+            // pane's manual.
             loom::schema_of<ws::DeskReadRequested>(), loom::schema_of<ws::DeskRead>(),
-            loom::schema_of<ws::v3::DeskView>(), loom::schema_of<ws::PaneStamp>(),
-            loom::schema_of<ws::v4::PaneViewRequested>(), loom::schema_of<ws::v4::PaneView>(),
-            loom::schema_of<ws::PaneCover>(), loom::schema_of<su::SurfaceText>(),
-            // ...the same by fingerprint, and the notice that the desk moved.
-            loom::schema_of<ws::v2::DeskReadRequested>(), loom::schema_of<ws::v2::DeskRead>(),
-            loom::schema_of<ws::v2::PaneStamp>(), loom::schema_of<ws::v5::PaneViewRequested>(),
-            loom::schema_of<ws::v5::PaneView>(), loom::schema_of<ws::DeskStamps>(),
-            loom::schema_of<ws::v2::DeskStamps>(), loom::schema_of<ws::v2::StampedPane>(),
+            loom::schema_of<ws::DeskView>(), loom::schema_of<ws::DeskPane>(),
+            loom::schema_of<ws::DeskMenu>(), loom::schema_of<ws::PaneWord>(),
+            loom::schema_of<ws::DeskRect>(), loom::schema_of<ws::PaneStamp>(),
+            loom::schema_of<ws::PaneViewRequested>(), loom::schema_of<ws::PaneView>(),
+            loom::schema_of<ws::PaneCover>(), loom::schema_of<ws::PanePart>(),
+            loom::schema_of<ws::PanePointRequested>(), loom::schema_of<ws::PanePoint>(),
+            loom::schema_of<ws::DeskStamps>(),
             loom::schema_of<ws::PaneInventoryRequested>(), loom::schema_of<ws::PaneInventory>(),
             loom::schema_of<ws::InventoryPane>(), loom::schema_of<ws::KeymapRequested>(),
             loom::schema_of<ws::KeymapShown>(), loom::schema_of<ws::ShownBinding>(),
-            // Each part's availability, a guide mark and its answer, and a pane's manual.
-            loom::schema_of<ws::v6::PaneViewRequested>(), loom::schema_of<ws::v6::PaneView>(),
-            loom::schema_of<ws::v2::PanePart>(), loom::schema_of<ws::GuideRequested>(),
+            loom::schema_of<ws::GuideRequested>(),
             loom::schema_of<ws::GuideAnswered>(), loom::schema_of<ws::PaneDocumentRequested>(),
             loom::schema_of<ws::PaneDocumentShown>(), loom::schema_of<ws::PaneDocumentSection>(),
             loom::schema_of<in::InjectInput>(),           loom::schema_of<in::InjectedEvent>(),

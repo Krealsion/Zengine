@@ -104,13 +104,13 @@ def waits(hand, text, seconds=10):
 
 
 def menu_covers_editor(hand):
-    """A presented menu covers the pane it opened over, and Workshop refuses that pane's view under
-    it -- the one observation of an open menu this hand has."""
+    """A presented menu covers the pane it opened over: the Editor's reading names the menu among
+    what covers it -- the one observation of an open menu this hand has."""
     try:
-        hand.words(*EDITOR)
-    except Exception as refused:  # loom_session's Refused, in the view's own words
-        return "covered by an interaction" in str(refused)
-    return False
+        view = hand.words(*EDITOR)
+    except Exception:  # loom_session's Refused: a pane not read is covered by nothing it says
+        return False
+    return "menu" in ((view.get("covered") or {}).get("by") or [])
 
 
 def run(ctx):

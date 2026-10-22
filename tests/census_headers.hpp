@@ -237,13 +237,9 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::PictureFence>(), // PictureFence v1
         shape<::zengine::workshop::WithdrawalFence>(), // WithdrawalFence v1
         shape<::zengine::workshop::WorkshopState>(), // WorkshopState v1
-        // ...the declarations only Workshop still accepts, from a desktop built before causes, and
-        // the reading whose parts say their availability, which only Workshop speaks.
+        // ...and the declarations only Workshop still accepts, from a desktop built before causes.
         shape<::zengine::workshop::AppActionRow>(), // AppActionRow v1
         shape<::zengine::workshop::AppActions>(), // AppActions v1
-        shape<::zengine::workshop::v2::PanePart>(), // PanePart v2
-        shape<::zengine::workshop::v6::PaneView>(), // PaneView v6
-        shape<::zengine::workshop::v6::PaneViewRequested>(), // PaneViewRequested v6
         shape<::zengine::composer::ComposerCommandContext>(), // ComposerCommandContext v1
         shape<::zengine::snake::OperatorState>(), // OperatorState v1
         // What crosses the window's two seams, and the operands of the seven operators: bytes in
@@ -263,7 +259,9 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::graphics::PathArgs>(), // PathArgs v1
         shape<::zengine::graphics::TextArgs>(), // TextArgs v1
         shape<::zengine::graphics::ImageArgs>(), // ImageArgs v1
-        // The faces the parts an owner draws record beside their nodes (graphics/elements.hpp).
+        // The faces the parts an owner draws record beside their nodes (graphics/vocabulary.hpp,
+        // graphics/elements.hpp).
+        shape<::zengine::graphics::PartFace>(), // PartFace v1
         shape<::zengine::graphics::ButtonFace>(), // ButtonFace v1
         shape<::zengine::graphics::CheckboxFace>(), // CheckboxFace v1
         shape<::zengine::graphics::ListRowFace>(), // ListRowFace v1

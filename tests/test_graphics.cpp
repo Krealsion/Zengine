@@ -5087,6 +5087,445 @@ TEST_CASE("the OS window asks its backend to grow once for each new reach of its
     CHECK(t.light.maximized == 1);
 }
 
+// ---- what an area shows, read by its arranger, and whose hand a moment is ----------------------
+
+namespace {
+
+/// What an arranger the suite speaks as was told by a window: each reading of an area it asked,
+/// each refusal of one, where presses landed, and each guest's moment refused.
+struct ReaderHeard {
+    std::vector<gfx::AreaShown> shown;
+    std::vector<std::string> refused;
+    std::vector<std::pair<gfx::AreaPressed, std::uint64_t>> pressed;
+    std::vector<gfx::AreaHandRefused> hands;
+};
+
+/// AN ARRANGER OF ITS OWN OFFICE: it places areas as that office, so a window names it their
+/// arranger, and asks what each shows.
+class ReaderArranger
+    : public loom::WeaveBase<ReaderArranger, GraphicsTestOwner,
+                             loom::Accept<gfx::AreaShown, loom::Refused, gfx::AreaPressed,
+                                          gfx::AreaHandRefused>,
+                             loom::Emit<gfx::AreaPlaced, gfx::SkinChosen, gfx::AreaShowAsked,
+                                        gfx::Drawn>> {
+public:
+    explicit ReaderArranger(ReaderHeard& heard) : heard_(&heard) {}
+    void on(const gfx::AreaShown& s, loom::Mail& mail) {
+        if (mail.answers_ask()) heard_->shown.push_back(s);
+    }
+    void on(const loom::Refused& r, loom::Mail& mail) {
+        if (mail.answers_ask()) heard_->refused.push_back(r.reason);
+    }
+    void on(const gfx::AreaPressed& p, loom::Mail& mail) {
+        if (from_a_window(mail)) heard_->pressed.emplace_back(p, mail.correlation());
+    }
+    void on(const gfx::AreaHandRefused& h, loom::Mail& mail) {
+        if (from_a_window(mail)) heard_->hands.push_back(h);
+    }
+
+private:
+    ReaderHeard* heard_;
+};
+
+/// An owner that draws one sketch whole in its area each time a window tells it its room, when it
+/// has one to draw.
+class SketchOwner
+    : public loom::WeaveBase<SketchOwner, GraphicsTestOwner,
+                             loom::Accept<gfx::AreaRoom, gfx::AreaButtonChanged>,
+                             loom::Emit<gfx::Drawn>> {
+public:
+    SketchOwner(std::string office, std::optional<gfx::Sketch> sketch,
+                std::vector<gfx::AreaButtonChanged>& buttons)
+        : office_(std::move(office)), sketch_(std::move(sketch)), buttons_(&buttons) {}
+    void on(const gfx::AreaRoom& r, loom::Mail& mail) {
+        if (!from_a_window(mail) || !sketch_) {
+            return;
+        }
+        (void)mail.as_role(office_).send_to_role(
+            std::string(gfx::kWindowOfficePrefix) + r.window,
+            gfx::Drawn{r.area, true, sketch_->nodes(), {}, sketch_->records(), {}, false});
+    }
+    void on(const gfx::AreaButtonChanged& b, loom::Mail& mail) {
+        if (from_a_window(mail)) buttons_->push_back(b);
+    }
+
+private:
+    std::string office_;
+    std::optional<gfx::Sketch> sketch_;
+    std::vector<gfx::AreaButtonChanged>* buttons_;
+};
+
+/// The input office as the suite speaks it: a participant's moment published under its hand.
+class InputOffice
+    : public loom::WeaveBase<InputOffice, GraphicsTestOwner, loom::Accept<>,
+                             loom::Emit<zengine::input::AttributedInput>> {};
+
+/// A window of either medium with an arranger that reads it, owners that draw sketches, and the
+/// input office, all the suite's.
+struct ReadDesk {
+    Rig& r;
+    std::string window;
+    ReaderHeard heard;
+    loom::WeaveId arranger, input;
+    std::vector<std::unique_ptr<std::vector<gfx::AreaButtonChanged>>> buttons;
+    std::map<std::string, loom::WeaveId> owners;
+    static constexpr const char* kReader = "test.reader";
+
+    ReadDesk(Rig& rig, std::string window_name) : r(rig), window(std::move(window_name)) {
+        r.to_role(gfx::kGraphicsRole, gfx::SkinOffered{"classic", PAINT_CLASSIC_SO});
+        auto made = std::make_unique<ReaderArranger>(heard);
+        ReaderArranger* raw = made.get();
+        loom::Grant g = loom::emit_default_grant(*raw);
+        arranger = r.bus.register_weave(std::move(made), std::move(g), kReader);
+        raw->zen_set_self(arranger);
+        auto in = std::make_unique<InputOffice>();
+        InputOffice* in_raw = in.get();
+        loom::Grant ig = loom::emit_default_grant(*in_raw);
+        input = r.bus.register_weave(std::move(in), std::move(ig), zengine::input::kInputRole);
+        in_raw->zen_set_self(input);
+        r.drain();
+    }
+    std::string office() const { return std::string(gfx::kWindowOfficePrefix) + window; }
+
+    /// An owner of `area` drawing `sketch` (or nothing), placed by the reader in pixels.
+    std::vector<gfx::AreaButtonChanged>& own(const std::string& area,
+                                             std::optional<gfx::Sketch> sketch, std::int64_t x,
+                                             std::int64_t y, std::int64_t w, std::int64_t h,
+                                             std::int64_t order, bool pointer = false,
+                                             bool weaver_only = false) {
+        buttons.push_back(std::make_unique<std::vector<gfx::AreaButtonChanged>>());
+        auto made = std::make_unique<SketchOwner>(area, std::move(sketch), *buttons.back());
+        SketchOwner* raw = made.get();
+        loom::Grant g = loom::emit_default_grant(*raw);
+        const loom::WeaveId id = r.bus.register_weave(std::move(made), std::move(g), area);
+        raw->zen_set_self(id);
+        owners[area] = id;
+        gfx::AreaPlaced placed{area, window, area, x, y, w, h, order, false, pointer, weaver_only};
+        as_reader(gfx::kGraphicsRole, placed);
+        as_reader(gfx::kGraphicsRole, gfx::SkinChosen{area, "classic"});
+        return *buttons.back();
+    }
+    template <class T>
+    void as_reader(const std::string& role, const T& msg) {
+        r.bus.office_send_to_role_as(arranger, kReader, role, loom::Message(loom::to_value(msg)));
+        r.drain();
+    }
+    /// What `area` shows, asked by the reader since `since`; the answer, or none when refused.
+    std::optional<gfx::AreaShown> read(const std::string& area, std::int64_t since = 0) {
+        const std::size_t before = heard.shown.size();
+        r.bus.office_send_to_role_as(
+            arranger, kReader, office(),
+            loom::Message(loom::to_value(gfx::AreaShowAsked{area, since}), arranger, arranger,
+                          r.next_corr++));
+        r.drain();
+        if (heard.shown.size() == before) {
+            return std::nullopt;
+        }
+        return heard.shown.back();
+    }
+    /// A participant's pointer moment, published by the input office under its hand.
+    void inject(std::int64_t actor, zengine::input::InjectedEvent e, bool local = false) {
+        r.bus.office_publish_as(
+            input, zengine::input::kInputRole,
+            loom::Message(loom::to_value(zengine::input::AttributedInput{local, actor, e})));
+        r.drain();
+    }
+    static zengine::input::InjectedEvent button(std::int64_t x, std::int64_t y, bool down,
+                                                std::int64_t which = 1) {
+        zengine::input::InjectedEvent e;
+        e.kind = "PointerButton";
+        e.button = which;
+        e.pressed = down;
+        e.x = x;
+        e.y = y;
+        e.space = zengine::input::space::kPixels;
+        return e;
+    }
+    static zengine::input::InjectedEvent wheel(std::int64_t x, std::int64_t y) {
+        zengine::input::InjectedEvent e;
+        e.kind = "PointerWheel";
+        e.wheel_dy = 1.0;
+        e.x = x;
+        e.y = y;
+        e.space = zengine::input::space::kPixels;
+        return e;
+    }
+    static zengine::input::InjectedEvent move(std::int64_t x, std::int64_t y) {
+        zengine::input::InjectedEvent e;
+        e.kind = "PointerMoved";
+        e.x = x;
+        e.y = y;
+        e.space = zengine::input::space::kPixels;
+        return e;
+    }
+};
+
+/// A button pressed (`M`) or let go (`m`) at a cell, 0-based, as the terminal reports it.
+std::string sgr(int code, int col, int row, bool down) {
+    return "\x1b[<" + std::to_string(code) + ";" + std::to_string(col + 1) + ";" +
+           std::to_string(row + 1) + (down ? "M" : "m");
+}
+
+bool same_word(const gfx::AreaWord& w, std::int64_t x, std::int64_t y, const std::string& text) {
+    return w.x == x && w.y == y && w.text == text;
+}
+
+} // namespace
+
+TEST_CASE("an area's arranger reads what the terminal window shows of it: its text by row in the "
+          "area's pixels, each part by its box and the cell a press reaches it by, what another's "
+          "area in front paints over left out and its own hiding nothing, and asked again since its "
+          "version, the same") {
+    TypedWindow t;
+    ReadDesk d(t.r, gfx::kTerminalWindow);
+    constexpr std::int64_t c = gfx::kCellPx;
+    const gfx::Paint ink = gfx::by_role(gfx::role::kFill);
+    gfx::Sketch s;
+    s.text("title", 0, 0, "Pane title", ink);
+    s.text("open", 0, c, "  [open]", ink);
+    s.text("rest", 8 * c, c, " Layouts", ink);
+    s.action("open", "open");
+    s.record("rest", gfx::PartFace{false}, "layouts");
+    d.own("test.read", s, 2 * c, c, 30 * c, 5 * c, 1);
+
+    const std::optional<gfx::AreaShown> first = d.read("test.read");
+    REQUIRE(first.has_value());
+    CHECK(first->window == gfx::kTerminalWindow);
+    CHECK(first->area == "test.read");
+    CHECK(first->epoch == t.r.shown().epoch);
+    CHECK(first->version != 0);
+    CHECK_FALSE(first->same);
+    CHECK_FALSE(first->waiting);
+    CHECK(first->advance == c);
+    CHECK(first->line == c);
+    // TWO TEXT NODES SIDE BY SIDE ON ONE ROW ARE ONE RUN; each row's blanks after its last word off.
+    REQUIRE(first->words.size() == 2);
+    CHECK(same_word(first->words[0], 0, 0, "Pane title"));
+    CHECK(same_word(first->words[1], 0, c, "  [open] Layouts"));
+    REQUIRE(first->parts.size() == 2);
+    const gfx::AreaPart& open = first->parts[0];
+    CHECK(open.name == "open");
+    CHECK(open.available);
+    CHECK(open.x == 0);
+    CHECK(open.y == c);
+    CHECK(open.w == 8 * c);
+    CHECK(open.h == c);
+    CHECK(open.pressed);
+    CHECK(open.px == 3 * c + c / 2); // the middle of its own cells
+    CHECK(open.py == c + c / 2);
+    const gfx::AreaPart& layouts = first->parts[1];
+    CHECK(layouts.name == "layouts");
+    CHECK_FALSE(layouts.available); // as its record says it
+    CHECK(layouts.x == 8 * c);
+    CHECK(layouts.w == 8 * c);
+
+    // ASKED AGAIN SINCE ITS VERSION, AND NOTHING MOVED: the same, and nothing more said.
+    const std::optional<gfx::AreaShown> again = d.read("test.read", first->version);
+    REQUIRE(again.has_value());
+    CHECK(again->same);
+    CHECK(again->version == first->version);
+    CHECK(again->words.empty());
+    CHECK(again->parts.empty());
+
+    // AN AREA IN FRONT PAINTING OVER FOUR OF ITS CELLS: those cells are not what it shows.
+    gfx::Sketch over;
+    over.text("lid", 0, 0, "XXXX", ink);
+    d.own("test.front", over, 5 * c, 2 * c, 4 * c, c, 2);
+    const std::optional<gfx::AreaShown> covered = d.read("test.read", first->version);
+    REQUIRE(covered.has_value());
+    CHECK_FALSE(covered->same);
+    CHECK(covered->version != first->version);
+    REQUIRE(covered->words.size() == 3);
+    CHECK(same_word(covered->words[1], 0, c, "  ["));
+    CHECK(same_word(covered->words[2], 7 * c, c, "] Layouts"));
+    REQUIRE(covered->parts.size() == 2);
+    CHECK(covered->parts[0].x == 0);
+    CHECK(covered->parts[0].w == 8 * c); // its box spans what shows of it, either side
+    CHECK(covered->parts[0].px == c + c / 2); // the middle of its own cells that show
+
+    // AN AREA THE ARRANGER ITSELF OWNS, IN FRONT, OVER ITS TITLE: what the arranger draws is its own
+    // to know, and hides nothing of the area it reads.
+    const std::string lid = "test.reader-lid";
+    d.as_reader(gfx::kGraphicsRole, gfx::AreaPlaced{lid, gfx::kTerminalWindow, ReadDesk::kReader,
+                                                    2 * c, c, 4 * c, c, 3, false, false, false});
+    d.as_reader(gfx::kGraphicsRole, gfx::SkinChosen{lid, "classic"});
+    gfx::Sketch mine;
+    mine.text("lid", 0, 0, "YYYY", ink);
+    d.as_reader(d.office(), gfx::Drawn{lid, true, mine.nodes(), {}, mine.records(), {}, false});
+    const std::optional<gfx::AreaShown> drawn = d.read(lid);
+    REQUIRE(drawn.has_value());
+    REQUIRE(drawn->words.size() == 1);
+    CHECK(same_word(drawn->words[0], 0, 0, "YYYY")); // the arranger's own area shows it
+    const std::optional<gfx::AreaShown> through = d.read("test.read");
+    REQUIRE(through.has_value());
+    REQUIRE(through->words.size() == 3);
+    CHECK(same_word(through->words[0], 0, 0, "Pane title"));
+
+    // ANYONE BUT ITS ARRANGER, AND AN AREA THE WINDOW DOES NOT SHOW, ARE REFUSED IN WORDS.
+    t.r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{"test.mine", gfx::kTerminalWindow, "test.read",
+                                                    0, 10 * c, 4 * c, c, 0, false});
+    t.r.to_role(gfx::kGraphicsRole, gfx::SkinChosen{"test.mine", "classic"});
+    t.r.drain();
+    CHECK_FALSE(d.read("test.mine").has_value());
+    CHECK_FALSE(d.read("test.nowhere").has_value());
+    REQUIRE(d.heard.refused.size() == 2);
+    CHECK(d.heard.refused[0] == "area 'test.mine' is read only by the office that placed it");
+    CHECK(d.heard.refused[1] == "window 'terminal' shows no area 'test.nowhere'");
+}
+
+TEST_CASE("an area whose owner was told a room it must draw whole reads waiting until the owner "
+          "draws, and its owner's drawing moves its version") {
+    TypedWindow t;
+    ReadDesk d(t.r, gfx::kTerminalWindow);
+    constexpr std::int64_t c = gfx::kCellPx;
+    d.own("test.blank", std::nullopt, 0, 0, 10 * c, 2 * c, 1);
+    const std::optional<gfx::AreaShown> before = d.read("test.blank");
+    REQUIRE(before.has_value());
+    CHECK(before->waiting);
+    CHECK(before->words.empty());
+
+    gfx::Sketch s;
+    s.text("t", 0, 0, "drawn", gfx::by_role(gfx::role::kFill));
+    t.r.bus.office_send_to_role_as(d.owners["test.blank"], "test.blank", window_office(),
+                                   loom::Message(loom::to_value(whole("test.blank", s))));
+    t.r.drain();
+    const std::optional<gfx::AreaShown> after = d.read("test.blank", before->version);
+    REQUIRE(after.has_value());
+    CHECK_FALSE(after->waiting);
+    CHECK_FALSE(after->same);
+    REQUIRE(after->words.size() == 1);
+    CHECK(after->words[0].text == "drawn");
+}
+
+TEST_CASE("an area's arranger reads what the OS window shows of it: its runs of text in its face's "
+          "measure, each part by the box its primitives span and the point nearest its middle a "
+          "press reaches it by, what an area in front draws over left out") {
+    LitWindow t;
+    ReadDesk d(t.r, gfx::kSdlWindow);
+    const gfx::Paint ink = gfx::by_role(gfx::role::kFill);
+    gfx::Sketch s;
+    s.text("a", 0, 0, "lid", ink);
+    s.text("b", 24, 0, " on", ink); // 8 pixels a character: it begins where "lid" ends
+    s.text("c", 0, 36, "far", ink);
+    s.fill_rect("knob", 100, 40, 20, 20, gfx::by_role(gfx::role::kAccent));
+    s.action("knob", "turn");
+    d.own("test.read", s, 10, 20, 300, 100, 1);
+
+    const std::optional<gfx::AreaShown> first = d.read("test.read");
+    REQUIRE(first.has_value());
+    CHECK(first->window == gfx::kSdlWindow);
+    CHECK(first->advance == 8);
+    CHECK(first->line == 18);
+    REQUIRE(first->words.size() == 2);
+    CHECK(same_word(first->words[0], 0, 0, "lid on"));
+    CHECK(same_word(first->words[1], 0, 36, "far"));
+    REQUIRE(first->parts.size() == 1);
+    const gfx::AreaPart& knob = first->parts[0];
+    CHECK(knob.name == "turn");
+    CHECK(knob.available);
+    CHECK(knob.x == 100);
+    CHECK(knob.y == 40);
+    CHECK(knob.w == 20);
+    CHECK(knob.h == 20);
+    CHECK(knob.pressed);
+    CHECK(knob.px == 110);
+    CHECK(knob.py == 50);
+
+    // AN AREA IN FRONT DRAWS OVER "on" AND THE KNOB'S MIDDLE: neither is what the area shows there.
+    gfx::Sketch over;
+    over.fill_rect("lid", 0, 0, 30, 18, gfx::by_role(gfx::role::kGround));
+    over.fill_rect("cap", 80, 35, 30, 30, gfx::by_role(gfx::role::kGround));
+    d.own("test.front", over, 10 + 26, 20, 200, 100, 2);
+    const std::optional<gfx::AreaShown> covered = d.read("test.read", first->version);
+    REQUIRE(covered.has_value());
+    CHECK_FALSE(covered->same);
+    REQUIRE(covered->words.size() == 2);
+    CHECK(same_word(covered->words[0], 0, 0, "lid"));
+    REQUIRE(covered->parts.size() == 1);
+    CHECK(covered->parts[0].pressed); // the nearest point of its own still showing, off its middle
+    CHECK(covered->parts[0].px == 102);
+    CHECK(covered->parts[0].py == 50);
+}
+
+TEST_CASE("a participant's press the input office injects lands in the window as that hand's: its "
+          "owner and its arranger hear the hand, its release ends its own hold, the weaver's press "
+          "beside it holds its own, and a moment the platform gave or another office said is not "
+          "taken") {
+    TypedWindow t;
+    ReadDesk d(t.r, gfx::kTerminalWindow);
+    constexpr std::int64_t c = gfx::kCellPx;
+    std::vector<gfx::AreaButtonChanged>& owner =
+        d.own("test.hearing", std::nullopt, 10 * c, 2 * c, 20 * c, 5 * c, 1, /*pointer=*/true);
+
+    d.inject(77, ReadDesk::button(12 * c + 6, 3 * c + 6, true));
+    REQUIRE(owner.size() == 1);
+    CHECK_FALSE(owner[0].local);
+    CHECK(owner[0].actor == 77);
+    CHECK(owner[0].x == 2 * c + 6);
+    REQUIRE(d.heard.pressed.size() == 1);
+    CHECK_FALSE(d.heard.pressed[0].first.local);
+    CHECK(d.heard.pressed[0].first.actor == 77);
+    const std::uint64_t guest_press = d.heard.pressed[0].second;
+
+    // THE WEAVER'S OWN PRESS OF THE SAME BUTTON HOLDS ITS OWN, under a number of its own.
+    t.type(sgr(0, 14, 3, true));
+    REQUIRE(owner.size() == 2);
+    CHECK(owner[1].local);
+    CHECK(owner[1].actor == 0);
+    REQUIRE(d.heard.pressed.size() == 2);
+    CHECK(d.heard.pressed[1].second != guest_press);
+
+    // THE GUEST'S RELEASE, OUTSIDE EVERY AREA, IS ITS HOLD'S: told as its hand's, under its number.
+    d.inject(77, ReadDesk::button(70 * c, 20 * c, false));
+    REQUIRE(owner.size() == 3);
+    CHECK_FALSE(owner[2].pressed);
+    CHECK(owner[2].actor == 77);
+    REQUIRE(d.heard.pressed.size() == 3);
+    CHECK(d.heard.pressed[2].second == guest_press);
+    t.type(sgr(0, 14, 3, false));
+    REQUIRE(owner.size() == 4);
+    CHECK(owner[3].local);
+    CHECK(d.heard.pressed[3].second == d.heard.pressed[1].second);
+
+    // A MOMENT THE PLATFORM GAVE is the window's own to read; one another office said is no one's.
+    d.inject(0, ReadDesk::button(12 * c, 3 * c, true), /*local=*/true);
+    (void)t.r.bus.publish(loom::Message(
+        loom::to_value(
+            zengine::input::AttributedInput{false, 77, ReadDesk::button(12 * c, 3 * c, true)}),
+        loom::WeaveId{}, loom::WeaveId{}, 0));
+    t.r.drain();
+    CHECK(owner.size() == 4);
+}
+
+TEST_CASE("an area placed for the weaver's hand alone refuses a participant's press and wheel, its "
+          "arranger told, drops the moves and the release after, and takes the weaver's own") {
+    TypedWindow t;
+    ReadDesk d(t.r, gfx::kTerminalWindow);
+    constexpr std::int64_t c = gfx::kCellPx;
+    std::vector<gfx::AreaButtonChanged>& owner =
+        d.own("test.weaver", std::nullopt, 0, 0, 20 * c, 5 * c, 1, /*pointer=*/true,
+              /*weaver_only=*/true);
+
+    d.inject(9, ReadDesk::button(3 * c + 6, 2 * c + 6, true));
+    d.inject(9, ReadDesk::move(4 * c, 2 * c));
+    d.inject(9, ReadDesk::button(4 * c, 2 * c, false));
+    d.inject(9, ReadDesk::wheel(5 * c, 3 * c));
+    CHECK(owner.empty());
+    CHECK(d.heard.pressed.empty());
+    REQUIRE(d.heard.hands.size() == 2);
+    CHECK(d.heard.hands[0].window == gfx::kTerminalWindow);
+    CHECK(d.heard.hands[0].area == "test.weaver");
+    CHECK(d.heard.hands[0].actor == 9);
+    CHECK(d.heard.hands[0].x == 3 * c + 6);
+    CHECK(d.heard.hands[0].y == 2 * c + 6);
+    CHECK(d.heard.hands[1].actor == 9);
+
+    t.type(sgr(0, 3, 2, true));
+    REQUIRE(owner.size() == 1);
+    CHECK(owner[0].local);
+    CHECK(d.heard.hands.size() == 2);
+}
+
 #if defined(GRAPHICS_HAS_SDL)
 
 namespace {
