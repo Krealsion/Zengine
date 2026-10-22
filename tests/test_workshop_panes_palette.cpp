@@ -12,6 +12,7 @@
 
 #include "workshop_support.hpp"
 #include "census.hpp"
+#include "timeline.hpp"
 
 #include "workshop/command_vocabulary.hpp"
 #include "workshop/desktop-pane/vocabulary.hpp"
@@ -508,4 +509,42 @@ TEST_CASE("WL-KEY-19: two Shift taps of one hand open the palette; a held Shift,
     hands.tap(0);
     hands.tap(0);
     CHECK_FALSE(on_desk(r, kPaletteRole, kPalettePane));
+}
+
+TEST_CASE("WL-DESK-18: the space a window types with Ctrl+Space types nowhere -- not in the pane "
+          "holding the keys, not in the palette's filter") {
+    PaneRig r;
+    ProviderSeat* tools = nullptr;
+    start(r, tools);
+    REQUIRE(r.load("zengine-palette", WORKSHOP_SO_PALETTE, kPaletteRole).valid());
+    REQUIRE(r.load_refusals.empty());
+    const auto texts_to = [](const zengine::tests::Timeline& heard, const std::string& office) {
+        std::vector<std::string> out;
+        for (const std::string& line : heard.lines()) {
+            if (line.find("-> " + office) != std::string::npos &&
+                line.find("PaneTextInput") != std::string::npos) {
+                out.push_back(line);
+            }
+        }
+        return out;
+    };
+    // THE PANE HOLDING THE KEYS TAKES TEXT: a letter typed reaches it.
+    r.text("a");
+    REQUIRE(tools->typed.size() == 1);
+    CHECK(tools->typed.back().text == "a");
+
+    // CTRL+SPACE AS THE WINDOWS CONSOLE SAYS IT: the key, then its space as text, no key of its own.
+    zengine::tests::Timeline heard(r.bus);
+    r.key(input::scan::kSpace, input::mod::kCtrl);
+    r.text(" ");
+    REQUIRE(on_desk(r, kPaletteRole, kPalettePane));
+    CHECK(tools->typed.size() == 1);                // nothing more in the pane it opened over
+    CHECK(texts_to(heard, kPaletteRole).empty());    // ...and nothing in the palette's filter
+    // ...WHILE A CHARACTER TYPED AFTER IT IS THE FILTER'S, so the palette does take text.
+    r.text("x");
+    heard.stop();
+    const std::vector<std::string> to_palette = texts_to(heard, kPaletteRole);
+    REQUIRE(to_palette.size() == 1);
+    CHECK(to_palette.front().find("\"x\"") != std::string::npos);
+    CHECK(tools->typed.size() == 1);
 }
