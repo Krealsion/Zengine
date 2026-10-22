@@ -19,7 +19,8 @@
 //     Shift          inferred for letters from the byte's case (CapsLock gives the same byte);
 //                    measured on the CSI keys from xterm's `1;m` parameter, and on back-tab
 //                    (`ESC [ Z`), whose final carries it.
-//     Ctrl           Ctrl+letter (control bytes 1..26), and the CSI keys' `1;m` parameter.
+//     Ctrl           Ctrl+letter (control bytes 1..26), Ctrl+Space (byte 0, which Ctrl+@ and
+//                    Ctrl+2 send too), and the CSI keys' `1;m` parameter.
 //     Alt            not for ordinary keys (the ESC prefix is byte-identical to Escape then a
 //                    key, and Escape is load-bearing); measured on the CSI keys.
 //     Super          never: xterm's Meta bit is not read as kSuper.
@@ -308,6 +309,13 @@ private:
         case '\r':
         case '\n': detail::emit_stroke(out, scan::kReturn, "Return", mod::kNone); return;
         default: break;
+        }
+        // Byte 0 is Ctrl+Space, the key most terminals send it for; Ctrl+@ and Ctrl+2 send the
+        // same byte, so it has the one name, as 0x08 is Backspace and never Ctrl+H. Ctrl is
+        // measured, and the key types nothing.
+        if (b == 0) {
+            detail::emit_stroke(out, scan::kSpace, scancode_name(scan::kSpace), mod::kCtrl);
+            return;
         }
         // Every other control byte in 1..26 is Ctrl + that letter, and the
         // terminal genuinely reports it — so Ctrl is a MEASURED modifier here,
