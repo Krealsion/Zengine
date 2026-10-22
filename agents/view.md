@@ -78,8 +78,11 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
 - A view takes `KeyPressed` and `TextEntered` from the office of the window that shows its area,
   which gives keys only to an area placed to hear them, onto the handlers `PaneKey` and
   `PaneTextInput` reach; from any other office they change nothing. Workshop places no pane's area
-  to hear keys, so in Workshop a view's keys are Workshop's alone. Its pointer stays Workshop's: a
-  window's press reaches it as `ActionRequested` on a button the picture names.
+  to hear keys, so in Workshop a view's keys are Workshop's alone. It hears that window's pointer
+  too (`AreaButtonChanged`), read against the picture it last sent there by the handler a canvas
+  press reaches. Workshop places a pane's area to hear the pointer where its office accepts it, so
+  in Workshop's window a press reaches the view there, once, and Workshop, the area's arranger,
+  only selects the pane; an area deaf to the pointer gives it `ActionRequested` on a button.
 - A Zengine host composes the host beside the Flow host and holds no view behaviour: Workshop,
   and an app's own host ([app](app.md)), where the app's own weave asks it. The View Builder
   is an ordinary pane in `zengine.view.builder`: it edits a description through

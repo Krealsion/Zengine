@@ -395,6 +395,29 @@ TEST_CASE("the app's weave runs its flow and its view, and its panel is drawn in
     CHECK_FALSE(run.host->ended());
 }
 
+TEST_CASE("a field of the app's view is clicked into in its window and typed into, and Count gives what was typed") {
+    // MUTATION: the app's weave placing its views deaf to the pointer -- the click focuses nothing.
+    AppFolder folder("click");
+    Run run(folder);
+    REQUIRE(run.open());
+    run.host->begin();
+    for (const char* stem : {"zengine-operators-basic", "zengine-app-weave", "zengine-graphics"})
+        run.command(std::string("authority trust ") + stem);
+    REQUIRE(run.host->executor().state() == zengine::workshop::load::Realization::Complete);
+    run.mount_window();
+    REQUIRE(has(run.shown(), "Total: waiting"));
+
+    // STEP CLICKED, emptied and typed into: no Tab, only the press put it in focus. 0 to 10 by 2.
+    const zengine::view::Element step = zengine::examples::tally_app::panel().elements[2];
+    REQUIRE(step.id == "step");
+    run.click(8 + step.x + step.w / 2, 8 + step.y + step.h / 2);
+    for (int i = 0; i < 4; ++i) run.key(in::scan::kBackspace);
+    run.text("2");
+    CHECK(has(run.shown(), "step: 2"));
+    run.press_count();
+    CHECK(has(run.shown(), "Total: 20"));
+}
+
 TEST_CASE("the close of the app's own window ends the run, exit 0; a close any other office says ends nothing") {
     AppFolder folder("close");
     Run run(folder);

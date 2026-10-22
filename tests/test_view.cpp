@@ -1082,6 +1082,100 @@ TEST_CASE("a view takes the keys and the text of the window that shows its area 
     CHECK(escapes() == before);
 }
 
+TEST_CASE("a view hears the pointer of the window that shows its area as it hears Workshop's: a field pressed takes the focus and what is typed, a button pressed is used once, and the same from any other office changes nothing") {
+    // MUTATION: a view that hears no pointer of its window -- a press on a field there focuses nothing.
+    Rig rig;
+    const auto d = panel();
+    REQUIRE(rig.ask(view::ViewRun{"app", bytes_of(d)}).ok);
+    rig.room("tally.panel");
+    const auto w = mount_window(rig, "tally.panel");
+    window_says(rig, w, "tally.panel", area_room("tally.panel", 40, 16));
+    REQUIRE(w.window->drawn.size() == 1);
+    namespace in = zengine::input;
+    const auto element = [&d](const std::string& id) {
+        return *std::find_if(d.elements.begin(), d.elements.end(), [&](const auto& e) { return e.id == id; });
+    };
+    const auto button = [&](std::int64_t which, bool pressed, std::int64_t x, std::int64_t y) {
+        return gfx::AreaButtonChanged{"tally.panel", which, pressed, x, y, in::mod::kNone, true, 0};
+    };
+    const auto press_at = [&](std::int64_t x, std::int64_t y, std::int64_t which = 1) {
+        window_says(rig, w, "tally.panel", button(which, true, x, y));
+        window_says(rig, w, "tally.panel", button(which, false, x, y));
+    };
+    const auto press = [&](const std::string& id, std::int64_t which = 1) {
+        const auto e = element(id);
+        press_at(e.x + e.w / 2, e.y + e.h / 2, which);
+    };
+    std::size_t intents = 0;
+    const auto tap = rig.bus.add_observer([&](const loom::BusEvent& e) {
+        if (e.kind == loom::EventKind::Delivered && e.target == rig.tally.id) ++intents;
+    });
+
+    // A FIELD PRESSED takes the focus, its caret at its end, and the window's keys and text after.
+    CHECK_FALSE(w.window->holds("caret"));
+    press("step");
+    CHECK(w.window->holds("caret"));
+    for (int i = 0; i < 4; ++i)
+        window_says(rig, w, "tally.panel", in::KeyPressed{in::scan::kBackspace, "", in::mod::kNone});
+    window_says(rig, w, "tally.panel", in::TextEntered{"2"});
+    CHECK(has(w.window->words("text:step").value_or(""), "step: 2"));
+    CHECK(has(rig.words("tally.panel"), "step: 2|")); // the field is the view's, not the window's
+
+    // A BUTTON PRESSED is used, once a press: 0 to 10 by 2.
+    press("count");
+    CHECK(intents == 1);
+    CHECK(rig.total() == 20);
+    CHECK(w.window->words("text:total") == "Total: 20");
+
+    // A PRESS ON NOTHING of the view takes the focus away; a move, the wheel and a middle press
+    // change nothing.
+    press("limit");
+    CHECK(w.window->holds("caret"));
+    press_at(400, 12);
+    CHECK_FALSE(w.window->holds("caret"));
+    const auto drawn = w.window->drawn.size();
+    const auto limit = element("limit");
+    window_says(rig, w, "tally.panel",
+                gfx::AreaPointerMoved{"tally.panel", limit.x + 4, limit.y + 4, 1, 1, in::mod::kNone, true, 0});
+    window_says(rig, w, "tally.panel",
+                gfx::AreaWheelTurned{"tally.panel", 0, 1, limit.x + 4, limit.y + 4, in::mod::kNone, true, 0});
+    press("limit", 2);
+    CHECK(w.window->drawn.size() == drawn);
+
+    // A RIGHT PRESS is handed back to Workshop under the press's number.
+    const auto passes = [&] {
+        return std::count_if(rig.desk->heard.begin(), rig.desk->heard.end(), [](const loom::Message& m) {
+            return loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PanePassRequested>());
+        });
+    };
+    const auto before = passes();
+    window_says(rig, w, "tally.panel", button(3, true, 400, 12));
+    const auto press_number = rig.correlation;
+    REQUIRE(passes() == before + 1);
+    CHECK(rig.desk->heard.back().correlation == press_number);
+
+    // THE SAME FROM ANY OTHER OFFICE changes nothing: another window's, Workshop's, a stranger's.
+    const std::string sdl = std::string(gfx::kWindowOfficePrefix) + gfx::kSdlWindow;
+    auto other = std::make_unique<Listener>(std::vector<std::shared_ptr<const loom::Schema>>{});
+    const auto other_id = rig.bus.register_weave(std::move(other), loom::Grant{}.allow_any(), sdl);
+    auto stranger = std::make_unique<Listener>(std::vector<std::shared_ptr<const loom::Schema>>{});
+    const auto stranger_id =
+        rig.bus.register_weave(std::move(stranger), loom::Grant{}.allow_any(), "viewtest.stranger");
+    const auto count = element("count");
+    for (const auto& [id, office] : {std::pair{other_id, sdl}, std::pair{stranger_id, std::string("viewtest.stranger")},
+                                     std::pair{rig.desk_id, std::string(view::kWorkshopRole)}}) {
+        for (const auto& [x, y] : {std::pair{limit.x + 4, limit.y + 4}, std::pair{count.x + 4, count.y + 4}})
+            (void)rig.bus.office_send_to_role_as(id, office, "tally.panel",
+                                                 loom::Message(loom::to_value(button(1, true, x, y)), id, {},
+                                                               ++rig.correlation));
+        rig.pump();
+    }
+    rig.bus.remove_observer(tap);
+    CHECK(w.window->drawn.size() == drawn);
+    CHECK_FALSE(w.window->holds("caret"));
+    CHECK(intents == 1);
+}
+
 TEST_CASE("a view declares one action per intent -- its button's id, no default key, causing the intent's shape -- and a PaneActionRequested naming it says the intent as a press does") {
     Rig rig;
     const auto d = panel();

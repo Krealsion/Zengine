@@ -196,8 +196,8 @@ private:
 
     /// The window as the app arranges it, once the directory, a window and the app's own file are
     /// all known: its skin offered by the host's path, each view's area at its place, its size and
-    /// its notice rows in the window's text, hearing the window's keys; the app's line across the
-    /// window's foot; and the skin chosen for each.
+    /// its notice rows in the window's text, hearing the window's keys and pointer; the app's line
+    /// across the window's foot; and the skin chosen for each.
     void arrange(loom::Mail& mail) {
         if (!directory_ || window_.window.empty() || !told_) {
             return;
@@ -220,10 +220,8 @@ private:
         const std::int64_t line = window_.text_line_px > 0 ? window_.text_line_px : gfx::kCellPx;
         std::vector<std::string> areas;
         for (const Placed& v : views_) {
-            gfx::AreaPlaced placed{v.area, window_.window, v.area, v.x, v.y, v.w,
-                                   v.h + v.notice_rows * line, 1, true};
-            placed.pointer = false;
-            to_directory(placed);
+            to_directory(gfx::AreaPlaced{v.area, window_.window, v.area, v.x, v.y, v.w,
+                                         v.h + v.notice_rows * line, 1, true, true});
             areas.push_back(v.area);
         }
         to_directory(gfx::AreaPlaced{kStatusArea, window_.window, app::kAppRole, 0,
