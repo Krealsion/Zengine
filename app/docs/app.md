@@ -143,15 +143,16 @@ console, before its rows were decided ([the launcher](../../launcher/docs/zengin
   flow, then each view, in its own session, as its office;
 - on the graphics directory's start and the window's offer, it offers the skin `app.json` names
   from the host's artifact directory, places each view's area where `app.json` says, hearing the
-  window's keys, and chooses the skin; once its own line has its room in a window it says that
-  window's title and size from `app.json`, once each time the window starts, and places its line
-  at the foot of each size the window offers;
+  window's keys and pointer, and chooses the skin; once its own line has its room in a window it
+  says that window's title and size from `app.json`, once each time the window starts, and places
+  its line at the foot of each size the window offers;
 - when something went wrong -- `app.json`, a file, a refused run -- it says so on a line of its own
   at the window's foot.
 
-A view placed to hear its window's keys takes them, and their text, from the window that shows its
-area: Tab moves between its number fields, keys edit the one in focus, and a press on a button
-uses it. Its notice rows say what it said and what was refused, the flow's refusals among them.
+A view placed to hear its window's keys and pointer takes them, and their text, from the window
+that shows its area: a press on a number field puts it in focus, Tab moves between them, keys edit
+the one in focus, and a press on a button uses it. Its notice rows say what it said and what was
+refused, the flow's refusals among them.
 
 ![The tally app in its own OS window: as it starts; Count giving 45; 10, 0 and -2 typed giving 30; and 0, 10, 0 refused by the flow's fold](images/tally-app.png)
 
