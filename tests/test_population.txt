@@ -116,4 +116,4 @@ inventory                         doctest           always  41
 flow_pane                         doctest           always  27
 view                              doctest           always  20
 app_host                          doctest           always  7
-view_builder                      doctest           always  33
+view_builder                      doctest           always  39

@@ -3,6 +3,7 @@ zengine.view.builder - view.save ctrl+s - - Save the view
 zengine.view.builder - view.open ctrl+o - - Open a view
 zengine.view.builder - view.run ctrl+r ViewRun/1 - Run the view
 zengine.view.builder - view.new unbound - - Start a new view
+zengine.view.builder - view.export unbound - - Export the saved view as an app
 zengine.view.builder - view.apply unbound ViewApply/1 - Apply to the running view
 zengine.view.builder - view.stop unbound ViewStop/1 - Stop the running view
 zengine.view.builder - view.choices unbound - - More field choices

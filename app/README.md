@@ -7,8 +7,8 @@ words, and kept in the app's folder.
 
 ## Pages
 
-- [Running an app on its own](docs/app.md): an app's folder, `app.json`, starting it, its console,
-  and what runs the view and the flow.
+- [Running an app on its own](docs/app.md): an app's folder, making one in Workshop, `app.json`,
+  starting it, its console, and what runs the view and the flow.
 
 ![The tally app in its own OS window, typed into and counting](docs/images/tally-app.png)
 
@@ -20,6 +20,8 @@ words, and kept in the app's folder.
 | `host.hpp` | the app host: what the program composes over its bus, and the console's words |
 | `weave.cpp` | `zengine-app-weave`, the app's own weave: runs its flows and views, arranges its window |
 | `files.hpp` | reading `app.json` and the app's files |
+| `folder.hpp` | an app's folder written from a saved view and its flow: the View Builder's Export app |
+| `program.hpp` | where the running program stands, and `zengine-app` beside it |
 | `vocabulary.hpp` | the offices, the place door's asks, and `app.json`'s shapes |
 | `CMakeLists.txt` | how the folder builds, and the artifacts staged beside the program |
 | `docs/` | the page above and its picture |

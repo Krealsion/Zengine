@@ -15,8 +15,8 @@ is the office it runs under and the namespace of what it says.
 
 The pane draws the view you are making with the view's own picture code, at its own pixels, on the
 design canvas in its middle, so what you see there is what runs. Along the top is the bar, `[New]`
-`[Open]` `[Save]` `[Run]` `[Apply]` `[Stop]`; `[Save*]` says the view is unsaved, `[Running]` that
-it runs. Down the left: the view's name in `View`, its file in `File`, `Add` with `[Label]`
+`[Open]` `[Save]` `[Run]` `[Apply]` `[Stop]` `[Export app]`; `[Save*]` says the view is unsaved,
+`[Running]` that it runs. Down the left: the view's name in `View`, its file in `File`, `Add` with `[Label]`
 `[Number]` `[Button]`, its `Size` and the `Grid` in boxes, and the list of its elements. The
 selected element's values sit in boxes on the right in a wide pane, below the list in a narrow one.
 Beneath the canvas a row says the view's name, `running` or `stopped`, and its file; the last two
@@ -54,7 +54,8 @@ while it holds your keys.
 - **Carry** what a button says: drag its `says` words out, or right-press them and choose `Carry`.
   Drop a shape or a field on a label, on the canvas or its row, and the label shows it.
 
-Then [`view.run`](#viewrun) it, [`view.apply`](#viewapply) each change, and [`view.save`](#viewsave) it. Each command but
+Then [`view.run`](#viewrun) it, [`view.apply`](#viewapply) each change, [`view.save`](#viewsave) it
+and [`view.export`](#viewexport) it as an app. Each command but
 [`view.choices`](#viewchoices) is a control on the bar. A value being typed is kept before any command acts; if it is refused, the
 command does nothing.
 
@@ -123,6 +124,33 @@ Starts a new view, `my.view`, empty, with no file, at the layout's `new-width` a
   New again to discard it`, and the bar says `[New: discard?]`; `stop the running view before
   starting another`.
 - **Example:** press `[New]`, then type the view's name under `View`.
+
+### `view.export`
+
+Makes an app of the saved view and its flow: a folder that runs with no Workshop, in an app host of
+its own, `zengine-app` ([the app host](../../app/docs/app.md)). The app is named after the view's
+file, and its flow is the `.flow` beside that file with the same name, as Flow's
+[`ask-export`](../../flow/docs/zengine.flow.md#ask-export) writes it.
+
+- **Takes:** the view's saved file, `tally.flow` beside `tally.view`, and the project. No default
+  key; the control `[Export app]`.
+- **Answers:** asks Workshop to allow a write for the hand that pressed it, as
+  [`view.save`](#viewsave) does, and writes nothing until it answers; then writes
+  `<project>/apps/tally/` ([Files](#files)) and says `Exported <the folder>: start it with its
+  run.cmd or run.sh; its console asks about zengine-operators-basic, zengine-app-weave,
+  zengine-graphics, zengine-window-sdl, zengine-timer on its first start`. It writes no decision:
+  the app's console asks each of those once, and the app's folder keeps what it says.
+- **Refuses:** each after `Not exported: `: `save the view first; an app is made from its saved
+  file`; `no tally.flow beside tally.view: export its flow from Flow as tally.flow first`; a `.flow`
+  or a view's file that is not one; `'my tally' is not a plain folder name`; `no project
+  directory`; `no zengine-app beside this Workshop`; Workshop's reason, as a guest's on a weaver's
+  host; `the view changed while Workshop was asked; export again`; the file door's reason, naming
+  what was written before it stopped. Also `An export is waiting for Workshop's answer; export again
+  once it comes`, and `The export waiting for Workshop was dropped; export again` after a reload.
+  Over an app already there, the first press says `<the folder> is there: press Export again to
+  replace the app's files in it`, and the bar says `[Export: replace?]`.
+- **Example:** save the tally panel as `tally.view`, export `tally` from Flow as `tally.flow`, press
+  `[Export app]`.
 
 ### `view.apply`
 
@@ -248,6 +276,12 @@ its own, publishing its intents' shapes to whoever accepts them
   `Could not open <the file>: <the reason>`, or `Could not run <the file> again: <the reason>`. A
   view file it could not open leaves `view-builder.json` as it was until you open, save or start a
   view, so putting the file back brings the view back.
+- **`apps/<name>/`**, in the project's directory, written by [`view.export`](#viewexport): the app's
+  plan `app-plan.json`, `app.json`, `<name>.view` and `<name>.flow` copied from the files it was made
+  from, and the launchers `run.cmd` and `run.sh`, which start the `zengine-app` beside Workshop on
+  that folder ([an app's folder](../../app/docs/app.md#an-apps-folder)). An export again replaces
+  those six files and touches nothing else there: `app-authority.json`, where the app's console
+  keeps its decisions, stays.
 
 ## See also
 

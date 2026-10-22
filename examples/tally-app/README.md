@@ -1,8 +1,9 @@
 # The tally app
 
-An app's folder written by hand: the tally panel -- three number fields, a Count button and the
-total -- and the tally flow that counts, run by `zengine-app` with no Workshop running
-([running an app on its own](../../app/docs/app.md)).
+An app's folder: the tally panel -- three number fields, a Count button and the total -- and the
+tally flow that counts, run by `zengine-app` with no Workshop running
+([running an app on its own](../../app/docs/app.md)). Its plan is the one the View Builder's Export
+app writes, byte for byte; its `app.json` is written by hand.
 
 | file | what it is |
 |---|---|
