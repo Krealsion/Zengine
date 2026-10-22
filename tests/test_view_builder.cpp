@@ -3,6 +3,7 @@
 #include "doctest.h"
 #include "app/folder.hpp"
 #include "app/program.hpp"
+#include "launcher/vocabulary.hpp"
 #include "control_parts.hpp"
 #include "flow/shape.hpp"
 #include "input/vocabulary.hpp"
@@ -2480,4 +2481,63 @@ TEST_CASE("the export's own judgement: a program that is not there, and launcher
     CHECK(zengine::app::launcher_cmd("tally", "C:/a 100%/zengine-app.exe").find("100%%") != std::string::npos);
     CHECK(zengine::app::launcher_sh("/home/o'neil/zengine-app") ==
           "#!/bin/sh\nexec '/home/o'\\''neil/zengine-app' \"$(dirname \"$0\")\"\n");
+}
+
+namespace {
+/// `zengine.launcher`, as far as the View Builder needs it: what it was asked, and a start said.
+class LauncherStub final : public loom::Weave {
+public:
+    std::vector<zengine::launcher::Launch> asked;
+    loom::WeaveId self{};
+    std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
+        return {loom::schema_of<zengine::launcher::Launch>()};
+    }
+    std::vector<std::shared_ptr<const loom::Schema>> emitted_schemas() const override {
+        return {loom::schema_of<zengine::launcher::Launched>()};
+    }
+    void handle(const loom::Message& in, loom::Bus& bus) override {
+        const auto l = loom::from_value<zengine::launcher::Launch>(in.payload);
+        asked.push_back(l);
+        (void)bus.answer(loom::Message(
+            loom::to_value(zengine::launcher::Launched{true, l.kind, l.name, 4242, "started"}), self));
+    }
+    loom::Value snapshot() const override { return loom::Value(loom::make_schema("vbtest.Launcher", 1, {})); }
+    loom::Value policy() const override { return zengine::maker::default_value(loom::lifecycle_policy_schema()); }
+    void revive(const loom::Value&) override {}
+};
+
+LauncherStub* mount_launcher(Rig& rig) {
+    auto stub = std::make_unique<LauncherStub>();
+    LauncherStub* raw = stub.get();
+    raw->self = rig.bus.register_weave(std::move(stub), loom::Grant{}.allow_any(), zengine::launcher::kLauncherRole);
+    return raw;
+}
+} // namespace
+
+TEST_CASE("Run app asks Workshop for a build and a write for the hand, then the launcher for the app the saved view was exported as, and says what started") {
+    // MUTATION: Run app asking the launcher before Workshop -- a refused hand still starts the app.
+    ExportRig x;
+    x.press_export();
+    REQUIRE(x.rig.says("Exported"));
+    LauncherStub* launcher = mount_launcher(x.rig);
+
+    // REFUSED BY WORKSHOP: the launcher is never asked.
+    x.rig.desk->allow = false;
+    const auto before = x.rig.desk->heard.size();
+    x.rig.press("[Run app]");
+    CHECK(x.rig.says("Not started: not now"));
+    CHECK(launcher->asked.empty());
+    std::vector<std::string> classes;
+    for (auto i = before; i < x.rig.desk->heard.size(); ++i)
+        if (loom::same_identity(x.rig.desk->heard[i].payload.schema(), *loom::schema_of<ws::v2::PaneOperationRequested>()))
+            classes = loom::from_value<ws::v2::PaneOperationRequested>(x.rig.desk->heard[i].payload).classes;
+    CHECK(classes == std::vector<std::string>{ws::scope::kBuild, ws::scope::kWrite});
+
+    // ALLOWED: the launcher is asked for the app by its name, and its answer said.
+    x.rig.desk->allow = true;
+    x.rig.press("[Run app]");
+    REQUIRE(launcher->asked.size() == 1);
+    CHECK(launcher->asked[0].kind == zengine::launcher::kKindApp);
+    CHECK(launcher->asked[0].name == "tally");
+    CHECK(x.rig.says("Started the app tally (process 4242)"));
 }

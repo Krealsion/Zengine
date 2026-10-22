@@ -4,12 +4,12 @@
 #ifndef ZENGINE_BUILDER_RUN_HPP
 #define ZENGINE_BUILDER_RUN_HPP
 
-// Starts a build's operating-system process, and holds it after the call that started it
-// returns: one of the two places in Zengine that start a process, the Neovim editor's child
-// (editor/neovim/child.hpp) the other. Not a shell: `start_recipe` takes a program and an argument
-// vector, and nothing anywhere takes a command line. `RunningRecipe` is the custody, move-only
-// and reaped exactly once, and a `look()` is bounded and never blocks. No environment authoring,
-// no isolation, no stdin, no cancel, no timeout: the child is exactly as privileged as the host.
+// Starts a build's operating-system process and holds it after the call returns: one of three
+// places in Zengine that start a process, with the Neovim editor's child (editor/neovim/child.hpp)
+// and the launcher (launcher/start.hpp). Not a shell: `start_recipe` takes a program and an
+// argument vector. `RunningRecipe` is the custody, move-only and reaped exactly once, and a
+// `look()` is bounded and never blocks. No environment authoring, no isolation, no stdin, no
+// cancel, no timeout: the child is exactly as privileged as the host.
 // Builder law: agents/realization.md
 
 // One platform asymmetry, kept: on Windows `CreateProcess` fails where it is called; on POSIX

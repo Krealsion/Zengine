@@ -28,6 +28,9 @@ inline constexpr const char* kPlanName = "app-plan.json";
 inline constexpr const char* kAppFileName = "app.json";
 inline constexpr const char* kAuthorityName = "app-authority.json";
 
+/// The folder in a project an app is written in, by its name: `<project>/apps/<name>/`.
+inline constexpr const char* kAppsFolder = "apps";
+
 /// The largest `app.json` read, in bytes: far above any app's, so a hostile file does not choose
 /// the cost of refusing it.
 inline constexpr std::uintmax_t kMaxAppFileBytes = 1u << 16;

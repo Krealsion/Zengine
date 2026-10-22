@@ -807,7 +807,7 @@ target_include_directories(zengine-view-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR
 zengine_doctest_test(view zengine-view-tests)
 add_executable(zengine-view-builder-tests test_view_builder.cpp doctest_main.cpp)
 target_link_libraries(zengine-view-builder-tests PRIVATE zengine-view zengine-flow zengine-activation
-    zengine-app-folder loom::kernel zengine-warnings zengine-sanitize)
+    zengine-app-folder zengine-launcher-vocabulary loom::kernel zengine-warnings zengine-sanitize)
 target_include_directories(zengine-view-builder-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 zengine_test_definitions(zengine-view-builder-tests
     "VIEW_BUILDER_ARTIFACT=\"$<TARGET_FILE:zengine-view-builder>\""
@@ -835,6 +835,20 @@ add_dependencies(zengine-app-host-tests zengine-app)
 zengine_manual(zengine-app-host-tests PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.terminal.md)
 zengine_manual(zengine-app-host-tests PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.sdl.md)
 zengine_doctest_test(app_host zengine-app-host-tests)
+
+# ---- THE LAUNCHER: what Workshop may start, judged against its configured catalog -------------
+# Its judgement as the weave makes it (launcher/catalog.hpp), a real detached start of the app host
+# on the tally app, and the weave loaded, answering only the View Builder and Files.
+add_executable(zengine-launcher-tests test_launcher.cpp doctest_main.cpp)
+target_link_libraries(zengine-launcher-tests PRIVATE zengine-launcher-catalog zengine-activation
+    loom::kernel zengine-warnings zengine-sanitize)
+target_include_directories(zengine-launcher-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+zengine_test_definitions(zengine-launcher-tests
+    "LAUNCHER_ARTIFACT=\"$<TARGET_FILE:zengine-launcher>\""
+    "APP_PROGRAM=\"$<TARGET_FILE:zengine-app>\""
+    "TALLY_APP_DIR=\"${CMAKE_SOURCE_DIR}/examples/tally-app\"")
+add_dependencies(zengine-launcher-tests zengine-launcher zengine-app)
+zengine_doctest_test(launcher zengine-launcher-tests)
 
 add_executable(zengine-message-draft-tests test_message_draft.cpp doctest_main.cpp)
 target_link_libraries(zengine-message-draft-tests PRIVATE zengine-message-draft zengine-warnings zengine-sanitize)

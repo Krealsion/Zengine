@@ -24,6 +24,7 @@ info              feature
 input             library
 introspection     feature
 inventory         feature
+launcher          feature
 maker             library
 manual            library
 message-draft     library

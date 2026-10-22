@@ -209,6 +209,16 @@
           }
         ],
         "optional": true
+      },
+      {
+        "artifact": "zengine-launcher",
+        "provider": [],
+        "weave": [
+          {
+            "role": "zengine.launcher"
+          }
+        ],
+        "optional": true
       }
     ],
     "choices": [
