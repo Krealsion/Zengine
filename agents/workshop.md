@@ -30,6 +30,7 @@ consumer-specific behavior of its extracted panes.
 | the Editor, its document and what it carries, the project anchor and recipes, Files, paths, marks, roots | [editor](workshop/editor.md) · [editor-transfers](workshop/editor-transfers.md) `WL-EDIT` · [project](workshop/project.md) `WL-PROJ` · [files](workshop/files.md) `WL-FILES` |
 | opening a source: the manager, the joint publication, a refusal's attribution, the host's authority and pump seam | [opening](workshop/opening.md) `WL-OPEN` |
 | switching the Editor: a plan's choices for an office, the coordinator, the handoff, consent, what realization records | [editor-switch](workshop/editor-switch.md) `WL-SWITCH` |
+| the quick setup a first start shows: its one setting, Done and Skip, the Neovim box | [first-run](workshop/first-run.md) `WL-FIRST` |
 | the Neovim-backed Editor: screen, keys, switch transfer and losses, second terminal, carry | [neovim](workshop/neovim.md) · [transfers](workshop/neovim-transfers.md) `WL-NVIM` |
 | a pane's code: the join from an office to its artifact and recipes, Edit Code, the Builder following it, an editing entry, a development catalog, runtime and launch | [code](workshop/code.md) `WL-CODE` |
 | what a build said: the runner's bytes, the tool's kept output by operation, the Builder's reader, a row spelled in ASCII | [build-output](workshop/build-output.md) `WL-OUT` |

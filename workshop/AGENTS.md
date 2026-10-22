@@ -52,6 +52,7 @@ program with its files); the subjects are in the
 | [desktop-presenting](../agents/workshop/desktop-presenting.md) | `workshop_panes_hand` (actions, desktop), `workshop_document` |
 | [document](../agents/workshop/document.md) | `workshop_document` |
 | [document-file](../agents/workshop/document-file.md) | `workshop_persistence`, `workshop_document` |
+| [first-run](../agents/workshop/first-run.md) | `workshop_panes_hand` (first_run) |
 | [focus](../agents/workshop/focus.md) | `workshop_panes_hand` (input), `workshop_panes_project` (files), `workshop_desk`, `workshop_document` |
 | [geometry](../agents/workshop/geometry.md) | `workshop_screen`, `workshop_desk`, `workshop_panes_seam` (window), `workshop_panes_editor` (opening) |
 | [guests](../agents/workshop/guests.md) | `workshop_panes_hand` (guests), `workshop_panes_project` (builder), `workshop_guests`, `workshop_host` |

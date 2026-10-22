@@ -178,6 +178,10 @@ the right of its title: press it to read what the pane is and every command it h
 
 ## Your first five minutes
 
+**At your first start, the quick setup asks first**, in front and holding the keys: whether to
+edit text with Neovim, and where the ready-to-use setups are. Done or Skip puts it away for good;
+find it again in the Pane Manager as Quick setup ([its manual](zengine.first-run.md)).
+
 **A fresh Workshop opens onto your desk**: the Layouts row, Info at the right, and the room.
 The Layouts row says `>Default< +` beside `setup: none` — the one layout you have, marked as the
 one you are on, related to no Setup file yet. `none` is not a warning: Workshop remembers that

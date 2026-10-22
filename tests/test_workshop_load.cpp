@@ -1108,9 +1108,15 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     const load_persist::LoadedPlan got = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
     REQUIRE_MESSAGE(got.outcome.accepted, got.outcome.refusal);
     const load::LoadPlan& p = got.plan;
-    REQUIRE(p.artifacts.size() == 23); // includes the storage owner and its separate presentation
+    REQUIRE(p.artifacts.size() == 24); // includes the storage owner and its separate presentation
 
-    // THE PALETTE LAST, optional: a Workshop without it finds nothing by name and keeps every key.
+    // THE QUICK SETUP LAST, optional: a Workshop without it starts on the desk alone.
+    CHECK(p.artifacts[23].stem == "zengine-first-run");
+    REQUIRE(p.artifacts[23].weave.has_value());
+    CHECK(p.artifacts[23].weave->role == "zengine.first-run");
+    CHECK(p.artifacts[23].optional);
+    // THE PALETTE BEFORE IT, optional: a Workshop without it finds nothing by name and
+    // keeps every key.
     CHECK(p.artifacts[22].stem == "zengine-palette");
     REQUIRE(p.artifacts[22].weave.has_value());
     CHECK(p.artifacts[22].weave->role == "zengine.palette");
@@ -1311,13 +1317,18 @@ TEST_CASE("the default plan puts the two medium rows where the terminal Skin's p
     const load_persist::LoadedPlan win = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
     REQUIRE(tui.outcome.accepted);
     REQUIRE_MESSAGE(win.outcome.accepted, win.outcome.refusal);
-    // THE PALETTE ASIDE, which draws only in a window's area, so the Skin's plan loads none.
+    // THE PALETTE AND THE QUICK SETUP ASIDE, which draw only in a window's area, so the
+    // Skin's plan loads neither.
     auto rows = win.plan.artifacts;
     rows.erase(std::remove_if(rows.begin(), rows.end(),
-                              [](const auto& a) { return a.stem == "zengine-palette"; }),
+                              [](const auto& a) {
+                                  return a.stem == "zengine-palette" ||
+                                         a.stem == "zengine-first-run";
+                              }),
                rows.end());
-    REQUIRE(rows.size() + 1 == win.plan.artifacts.size());
+    REQUIRE(rows.size() + 2 == win.plan.artifacts.size());
     REQUIRE(rows.size() == tui.plan.artifacts.size() + 1);
+    CHECK(win.plan.artifacts.back().stem == "zengine-first-run");
     CHECK(win.plan.choices == tui.plan.choices);
     CHECK(rows[0] == tui.plan.artifacts[0]);
     CHECK(rows[1] == tui.plan.artifacts[1]);
