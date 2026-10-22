@@ -80,6 +80,11 @@ inline constexpr std::size_t kMaxAreaAsks = 256;
 /// suite can build one without linking the host.
 struct HostContext {
     bool quit = false;
+    /// WHICH AUTHORED CHOICE HOLDS EACH SWITCHABLE OFFICE NOW, read at quit for the session file;
+    /// and what the start said of a remembered choice the plan no longer authors, said once.
+    // WL-SWITCH-08 -- agents/workshop/editor-switch.md
+    std::function<std::vector<session_persist::WorkshopChoice>()> chosen;
+    std::string choice_note;
     std::function<void()> request_stop;
     std::string dir;
 

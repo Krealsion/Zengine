@@ -604,6 +604,7 @@ WindowState v4 0x082568f129b94e3d
 WithdrawalFence v1 0x84f263bbb46b652c
 WorkshopCMakeTarget v1 0x9e240d00291fccca
 WorkshopCMakeTarget v2 0x7d80363632515662
+WorkshopChoice v1 0x055a1b8162c2b26d
 WorkshopKeymap v1 0x084e0a64c07d43dd
 WorkshopKeymap v2 0xd628ed2c757d023e
 WorkshopKeymapRow v1 0xba12530c2f6c05a5
@@ -643,6 +644,7 @@ WorkshopSession v5 0x6f5b0dfc72bfa501
 WorkshopSession v6 0x65ddb2477e598d18
 WorkshopSession v7 0xcac415773fb5880a
 WorkshopSession v8 0x520a73e48f9d3ed1
+WorkshopSession v9 0xc0d49edb80731ff2
 WorkshopSetup v2 0xae5ff77848290ca3
 WorkshopSetup v3 0x9002adbbcadc4175
 WorkshopSetup v4 0x54df6e46cb27fac7

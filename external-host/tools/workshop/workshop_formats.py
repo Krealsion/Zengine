@@ -17,7 +17,7 @@ launcher's row that may capture or guide names every pane, `*`, written and neve
 import copy
 
 SETUP_VERSION = 5
-SESSION_VERSION = 8
+SESSION_VERSION = 9
 GUESTS_VERSION = 3
 
 # The guests file's `host`: a weaver's, where a guest writes no file, types into no pane and
@@ -112,4 +112,5 @@ def session(desk, viewport, link=""):
         "format": SESSION_FORMAT, "format_version": str(SESSION_VERSION),
         "viewport": {"width": str(width), "height": str(height)}, "active": "0",
         "placement": {"mode": "none", "x": "0", "y": "0", "window": "normal"},
-        "layouts": [{"desk": fields, "link": {"path": str(link), "known": known}}]}}
+        "layouts": [{"desk": fields, "link": {"path": str(link), "known": known}}],
+        "choices": []}}

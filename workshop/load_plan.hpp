@@ -14,6 +14,7 @@
 #include <cstddef>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace zengine::workshop::load {
@@ -187,6 +188,42 @@ inline Written check_artifact(const ArtifactIntent& a) {
         }
     }
     return Written::ok();
+}
+
+/// A remembered choice: an office, and the name of the choice that held it.
+using RememberedChoice = std::pair<std::string, std::string>;
+
+/// THE PLAN A START BEGINS: each remembered choice -- an office and a choice's name, as the last
+/// session left them -- loaded in place of the row loading that office, while the plan still
+/// authors it. A choice its own row already loads changes nothing. Returns the remembered choices
+/// the plan no longer authors, which load nothing and are said.
+// WL-SWITCH-08 -- agents/workshop/editor-switch.md
+inline auto remember_choices(LoadPlan& plan, const std::vector<RememberedChoice>& remembered)
+    -> std::vector<RememberedChoice> {
+    std::vector<RememberedChoice> unauthored;
+    for (const auto& [role, name] : remembered) {
+        const ChoiceIntent* chosen = nullptr;
+        for (const ChoiceIntent& c : plan.choices) {
+            if (c.role == role && c.name == name) {
+                chosen = &c;
+            }
+        }
+        if (chosen == nullptr) {
+            unauthored.emplace_back(role, name);
+            continue;
+        }
+        bool loaded = false;
+        for (const ArtifactIntent& row : plan.artifacts) {
+            loaded = loaded || row.stem == chosen->stem;
+        }
+        for (ArtifactIntent& row : plan.artifacts) {
+            if (!loaded && row.weave.has_value() && row.weave->role == role) {
+                row.stem = chosen->stem;
+                loaded = true;
+            }
+        }
+    }
+    return unauthored;
 }
 
 /// The choices' own law, over the whole plan. A choice not named in `artifacts` is the ordinary
