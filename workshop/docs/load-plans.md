@@ -119,7 +119,9 @@ Copy a shipped plan and change rows. Two things to know:
   may hold the office and the word a weaver switches to it by, and exactly one of them is also the
   row that loads it. Keep both of a shipped plan's Editor choices if you want to switch editors;
   the format is [the reference's](load-plan.md#the-file-format), the law
-  [editor-switch.md](../../editor/docs/editor-switch.md).
+  [editor-switch.md](../../editor/docs/editor-switch.md). The choice holding an office at quit is
+  remembered in your session, not in the plan, and the next start loads it while the plan still
+  authors it ([Neovim in Workshop](../../editor/docs/neovim.md#switch-while-you-work)).
 
 ## A project plan that names a Skin
 

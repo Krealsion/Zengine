@@ -39,7 +39,7 @@ inline constexpr const char* kFormat = "zengine-workshop-session";
 // WL-MIG-01, WL-MIG-04, WL-MIG-06 -- agents/workshop/migration.md
 // WL-GEO-11 -- agents/workshop/geometry.md
 // WL-SESSION-05 -- agents/workshop/session-restore.md
-inline constexpr std::int64_t kFormatVersion = 8;
+inline constexpr std::int64_t kFormatVersion = 9;
 
 /// Where the last session lives when the host does not say otherwise.
 inline constexpr const char* kDefaultSessionFileName = "workshop-session.json";
@@ -107,9 +107,22 @@ struct WorkshopLayout {
     ZEN_SHAPE(WorkshopLayout, 3, ZEN_FIELD(desk), ZEN_FIELD(link));
 };
 
+/// WHICH AUTHORED CHOICE HELD AN OFFICE AT QUIT, by the office and the choice's name: what the
+/// next start loads in place of the plan's row while the plan still authors it.
+// WL-SWITCH-08 -- agents/workshop/editor-switch.md
+struct WorkshopChoice {
+    std::string role;
+    std::string choice;
+
+    ZEN_SHAPE(WorkshopChoice, 1, ZEN_FIELD(role), ZEN_FIELD(choice));
+};
+
+/// How many offices' choices a session may remember: one an office the plan authors choices for.
+inline constexpr std::size_t kMaxRememberedChoices = 16;
+
 /// A WHOLE SAVED SESSION: what it is, which version of that it is, the room it was in, the
-/// LAYOUTS that were in the room and which one the weaver was standing on, and where the
-/// room's window sat on the desktop.
+/// LAYOUTS that were in the room and which one the weaver was standing on, where the room's
+/// window sat on the desktop, and which authored choice held each switchable office.
 // WL-SESSION-04 -- agents/workshop/session.md; WL-SESSION-05 -- agents/workshop/session-restore.md
 struct WorkshopSession {
     std::string format;
@@ -119,10 +132,12 @@ struct WorkshopSession {
     std::int64_t active = 0;
     WorkshopPlacement placement;
 
-    // WL-MIG-03 -- agents/workshop/migration.md; WL-SESSION-05 -- agents/workshop/session-restore.md
-    ZEN_SHAPE(WorkshopSession, 8, ZEN_FIELD(format), ZEN_FIELD(format_version),
+    // WL-SWITCH-08 -- agents/workshop/editor-switch.md
+    std::vector<WorkshopChoice> choices;
+
+    ZEN_SHAPE(WorkshopSession, 9, ZEN_FIELD(format), ZEN_FIELD(format_version),
               ZEN_FIELD(viewport), ZEN_FIELD(layouts), ZEN_FIELD(active),
-              ZEN_FIELD(placement));
+              ZEN_FIELD(placement), ZEN_FIELD(choices));
 };
 
 /// THE ENVELOPE'S SHAPE VERSION AND THE SESSION FORMAT VERSION ARE ONE NUMBER, for the
@@ -184,7 +199,8 @@ inline WorkshopSetupLink to_link(const SetupLink& link) {
 /// one stands, and the viewport and the placement are written as the session held them.
 inline WorkshopSession to_session(const std::vector<Layout>& run, std::size_t active,
                                   std::int64_t viewport_w, std::int64_t viewport_h,
-                                  const Placement& place) {
+                                  const Placement& place,
+                                  const std::vector<WorkshopChoice>& choices = {}) {
     WorkshopSession out;
     out.format = kFormat;
     out.format_version = kFormatVersion;
@@ -200,14 +216,16 @@ inline WorkshopSession to_session(const std::vector<Layout>& run, std::size_t ac
     out.placement.y = place.known ? place.y : 0;
     out.placement.window =
         place.known && place.maximized ? kWindowMaximized : kWindowNormal;
+    out.choices = choices;
     return out;
 }
 
 inline std::string to_text(const std::vector<Layout>& run, std::size_t active,
                            std::int64_t viewport_w, std::int64_t viewport_h,
-                           const Placement& place) {
+                           const Placement& place,
+                           const std::vector<WorkshopChoice>& choices = {}) {
     return loom::compat::serialize(
-        loom::to_value(to_session(run, active, viewport_w, viewport_h, place)));
+        loom::to_value(to_session(run, active, viewport_w, viewport_h, place, choices)));
 }
 
 // ---- Reading -------------------------------------------------------------------
@@ -232,6 +250,8 @@ struct LoadedSession {
     /// The number is here so the restore can say it ONCE, however many desks carried it:
     /// a weaver is told that a pane moved, not told it eight times.
     pane_migration::Converted converted;
+    /// Which authored choice held each switchable office at quit.
+    std::vector<WorkshopChoice> choices;
 
     static LoadedSession no(std::string why) {
         LoadedSession bad;
@@ -453,11 +473,18 @@ inline LoadedSession current_in(const loom::Value& admitted) {
     if (!placed.accepted) {
         return LoadedSession::no(placed.refusal);
     }
+    // THE CHOICES ARE BOUNDED; whether the plan still authors each is the load's to judge.
+    if (file.choices.size() > kMaxRememberedChoices) {
+        return LoadedSession::no("a session remembers at most " +
+                                 std::to_string(kMaxRememberedChoices) + " offices' choices");
+    }
     // THE VIEWPORT IS JUDGED AND NOT REFUSED (inside `loaded_from`). A well-formed session
     // whose size this build will not open at is still a session, and the desks in it are
     // still the weaver's.
-    return loaded_from(std::move(run), active, file.viewport.width, file.viewport.height,
-                       place, converted);
+    LoadedSession loaded = loaded_from(std::move(run), active, file.viewport.width,
+                                       file.viewport.height, place, converted);
+    loaded.choices = file.choices;
+    return loaded;
 }
 
 /// Text to a session. Total: every input is either a session or a refusal with a reason, and
@@ -500,9 +527,10 @@ inline LoadedSession from_text(std::string_view bytes,
 // WL-SESSION-13 -- agents/workshop/session.md
 inline Written save_file(const std::string& path, const std::vector<Layout>& run,
                          std::size_t active, std::int64_t viewport_w,
-                         std::int64_t viewport_h, const Placement& place) {
+                         std::int64_t viewport_h, const Placement& place,
+                         const std::vector<WorkshopChoice>& choices = {}) {
     return persist::write_file_making_room(
-        path, to_text(run, active, viewport_w, viewport_h, place));
+        path, to_text(run, active, viewport_w, viewport_h, place, choices));
 }
 
 /// Read the last session from a file.

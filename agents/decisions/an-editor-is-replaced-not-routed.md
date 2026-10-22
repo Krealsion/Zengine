@@ -37,4 +37,5 @@ today; a swapper pane and a confirmation modal are later presentations of the sa
 **Laws supported.** [WL-SWITCH-01](../workshop/editor-switch.md),
 [WL-SWITCH-02](../workshop/editor-switch.md), [WL-SWITCH-03](../workshop/editor-switch.md),
 [WL-SWITCH-04](../workshop/editor-switch.md), [WL-SWITCH-05](../workshop/editor-switch.md),
-[WL-SWITCH-06](../workshop/editor-switch.md), [WL-SWITCH-07](../workshop/editor-switch.md).
+[WL-SWITCH-06](../workshop/editor-switch.md), [WL-SWITCH-07](../workshop/editor-switch.md),
+[WL-SWITCH-08](../workshop/editor-switch.md).

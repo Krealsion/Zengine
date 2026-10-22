@@ -427,6 +427,10 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
     if (last.converted.total() > 0) {
         notice.tail += "; " + pane_migration::converted_note(last.converted);
     }
+    // ...and once, a choice it remembered that this plan no longer authors (WL-SWITCH-08).
+    if (!host_->choice_note.empty()) {
+        notice.tail += "; " + host_->choice_note;
+    }
     notice.bad = !last.declined.empty();
     say(restore_notice_text(notice, session_.cell_px), notice.bad);
     // A MEDIUM THAT HAS NAMED NO UNIT YET was spelled the cell; the first `SurfaceExtent` says
@@ -489,7 +493,8 @@ void WorkshopWeave::save_last_session() {
     // new vector, so saving cannot reorder what it saves.
     const Written written = session_persist::save_file(
         host_->session_path, layout_run(session_.setup), session_.setup.active_at,
-        session_.normal_w, session_.normal_h, place);
+        session_.normal_w, session_.normal_h, place,
+        host_->chosen ? host_->chosen() : std::vector<session_persist::WorkshopChoice>{});
     if (written.accepted) {
         return;
     }
