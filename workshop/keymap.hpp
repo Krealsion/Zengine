@@ -430,6 +430,9 @@ struct PaneRows {
     std::vector<std::string> gaps;
 };
 
+/// The namespace of the application's own rows' ids, the desktop's (`desktop.terminal`).
+inline constexpr const char* kApplicationIdPrefix = "desktop.";
+
 /// One application row a participating owner declared, as in force: id, label, gesture now, and
 /// where in the chain it is answered (`app_precedence`). No `Act` or `KeyContext`: execution is
 /// the declarer's. No `supersedes`, by law: supersession runs from the specific to the general,

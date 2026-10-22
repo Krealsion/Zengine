@@ -980,6 +980,8 @@ set(ZENGINE_WORKSHOP_DEFS
     "WORKSHOP_SO_MENU_PRESENTER=\"$<TARGET_FILE:zengine-menu-presenter>\""
     "WORKSHOP_SO_NUMBERED_PRESENTER=\"$<TARGET_FILE:zengine-example-numbered-presenter>\""
     "WORKSHOP_SO_INTROSPECTION=\"$<TARGET_FILE:zengine-introspection>\""
+    # The Command Palette, whose runs Workshop's door performs.
+    "WORKSHOP_SO_PALETTE=\"$<TARGET_FILE:zengine-palette>\""
     # The loaded panes are shared definitions, not one suite's: `PaneRig::artifact_path`
     # (workshop_support.hpp) resolves a plan row's stem to a file in every suite with the rig.
     "WORKSHOP_SO_FILES=\"$<TARGET_FILE:zengine-files>\""
@@ -1023,7 +1025,7 @@ set(ZENGINE_WORKSHOP_FIXTURES
     zengine-failing-editor zengine-editor-throwing
     zengine-operators-basic zengine-provider-min zengine-provider-a
     zengine-provider-source zengine-example-tally zengine-example-guard
-    zengine-menu-presenter zengine-example-numbered-presenter)
+    zengine-menu-presenter zengine-example-numbered-presenter zengine-palette)
 
 # One Workshop suite: the shared link line, artifact paths and includes plus what this one alone
 # needs, so the suites agree by construction (a second copy of a link line is a second answer).
@@ -1269,6 +1271,7 @@ zengine_workshop_suite(panes
     PART hand test_workshop_panes_input.cpp
               test_workshop_panes_actions.cpp
               test_workshop_panes_desktop.cpp
+              test_workshop_panes_palette.cpp
               test_workshop_panes_guests.cpp
               test_workshop_panes_guide.cpp
     # the panes that read the running system: introspection and what sampling costs, Attention

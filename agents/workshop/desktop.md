@@ -134,6 +134,21 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
+## WL-DESK-18 — A command run by name is the path its key takes, for the hand that chose it
+
+LAW — A command the palette names runs only under its own row's unspent number, from its holder; the palette is put down, keys back, and the command performed by its key's path, judged for that hand
+
+MEANS
+- a pane is shown as a launch shows it; Workshop's own row runs by its key in command mode;
+- an application row is asked of the desktop; a pane's row is sent under a number that hand owns;
+- `desktop.palette` (`Ctrl+space`) toggles the palette above every mode, its space never typed.
+
+DOES NOT MEAN
+- that the palette grants anything: a guest's run is refused where its key would be;
+- that a window's press on a line runs it: only a key Workshop numbered does.
+
+WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
+
 ## Do not assume
 
 - That the desktop can take a gesture from a pane — a pane stands in for an above-the-modes
@@ -249,3 +264,15 @@ unloads nothing: a launch finds its unsaved source exactly as it was"
 `workshop/desktop-pane/vocabulary.hpp` kActionPanes
 `tests/test_workshop_panes_desktop.cpp` "WL-DESK-13: Ctrl+P is a strict visibility toggle judged by
 the host -- open becomes closed, closed becomes open and focused, whatever the desktop last heard"
+
+### WL-DESK-18
+`workshop/command_vocabulary.hpp` CommandRunRequested CommandRunAnswered
+`workshop/weave_command.cpp` on(CommandRunRequested) palette_closed
+`workshop/weave_desktop.cpp` launch_pane close_pane
+`workshop/desktop-pane/vocabulary.hpp` kActionPalette
+`workshop/palette/palette.cpp` Palette
+`tests/test_workshop_panes_palette.cpp` "WL-DESK-18: ctrl+space shows the palette over the pane
+holding the keys, its Return runs the entry chosen by its key's path as that hand, and Escape puts
+it down with the keys given back"
+`tests/test_workshop_panes_palette.cpp` "WL-DESK-18: a run is refused under any number but the
+palette's own unspent row and from any office but the palette's, and nothing is run"

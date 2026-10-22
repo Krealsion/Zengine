@@ -66,6 +66,8 @@ CheckboxFace v1 0x8aadf34014dc981e
 ClipboardCopy v1 0x8337bbbb720ac461
 ClipboardText v1 0x3eafa2dd0dbf73ac
 ClipboardTextRequested v1 0x9d7f1ee84c7858bf
+CommandRunAnswered v1 0x44c3e4b5c9de0fe1
+CommandRunRequested v1 0xbc768162a8e4e806
 ComposerCommandContext v1 0x50d30a1f2e258fc9
 ComposerFieldState v1 0xb308cce02ecc3dad
 ComposerState v2 0xa220f1db53259959
@@ -295,6 +297,7 @@ Paint v1 0x52d2e348ff6b1c63
 PaintNode v1 0xd25c5907b1026eb2
 PaintResult v1 0xf6f28b0522c96a8b
 PaintTask v2 0x48fd182cbff0a92c
+PaletteState v1 0xf2c339f77a3a2a13
 PaneActionRequested v1 0xbb7e7caf6998a112
 PaneActionRow v1 0x446fc3f42046e34e
 PaneActionRow v2 0x3377929ec8b56418

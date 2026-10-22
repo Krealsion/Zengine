@@ -134,6 +134,11 @@ kMaxPowerRows                   workshop/powers_vocabulary.hpp            kMaxPo
 kMaxPowersQueryBytes            workshop/powers_vocabulary.hpp            kMaxPowersQueryBytes
 kMaxPowersAnswerBytes           workshop/powers_vocabulary.hpp            kMaxPowersAnswerBytes
 
+# ---- the command palette's bounds
+kMaxEntries                     workshop/palette/entries.hpp              kMaxEntries
+kMaxFilterBytes                 workshop/palette/entries.hpp              kMaxFilterBytes
+kMaxHistory                     workshop/palette/entries.hpp              kMaxHistory
+
 # ---- the evaluator's bounds
 kEvaluationSpends               operator/catalog.hpp                      kEvaluationSpends
 kEvaluationDepth                operator/catalog.hpp                      kEvaluationDepth

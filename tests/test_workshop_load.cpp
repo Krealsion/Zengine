@@ -1108,9 +1108,14 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     const load_persist::LoadedPlan got = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
     REQUIRE_MESSAGE(got.outcome.accepted, got.outcome.refusal);
     const load::LoadPlan& p = got.plan;
-    REQUIRE(p.artifacts.size() == 22); // includes the storage owner and its separate presentation
+    REQUIRE(p.artifacts.size() == 23); // includes the storage owner and its separate presentation
 
-    // THE LAUNCHER LAST, optional: a Workshop without it starts no app and no demo.
+    // THE PALETTE LAST, optional: a Workshop without it finds nothing by name and keeps every key.
+    CHECK(p.artifacts[22].stem == "zengine-palette");
+    REQUIRE(p.artifacts[22].weave.has_value());
+    CHECK(p.artifacts[22].weave->role == "zengine.palette");
+    CHECK(p.artifacts[22].optional);
+    // THE LAUNCHER BEFORE IT, optional: a Workshop without it starts no app and no demo.
     CHECK(p.artifacts[21].stem == "zengine-launcher");
     REQUIRE(p.artifacts[21].weave.has_value());
     CHECK(p.artifacts[21].weave->role == "zengine.launcher");
@@ -1306,26 +1311,32 @@ TEST_CASE("the default plan puts the two medium rows where the terminal Skin's p
     const load_persist::LoadedPlan win = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
     REQUIRE(tui.outcome.accepted);
     REQUIRE_MESSAGE(win.outcome.accepted, win.outcome.refusal);
-    REQUIRE(win.plan.artifacts.size() == tui.plan.artifacts.size() + 1);
+    // THE PALETTE ASIDE, which draws only in a window's area, so the Skin's plan loads none.
+    auto rows = win.plan.artifacts;
+    rows.erase(std::remove_if(rows.begin(), rows.end(),
+                              [](const auto& a) { return a.stem == "zengine-palette"; }),
+               rows.end());
+    REQUIRE(rows.size() + 1 == win.plan.artifacts.size());
+    REQUIRE(rows.size() == tui.plan.artifacts.size() + 1);
     CHECK(win.plan.choices == tui.plan.choices);
-    CHECK(win.plan.artifacts[0] == tui.plan.artifacts[0]);
-    CHECK(win.plan.artifacts[1] == tui.plan.artifacts[1]);
+    CHECK(rows[0] == tui.plan.artifacts[0]);
+    CHECK(rows[1] == tui.plan.artifacts[1]);
     // ...and every row from the Skin's input weave on, one row later: the reader that serves
     // input sessions stays, and so does every pane.
     for (std::size_t i = 3; i < tui.plan.artifacts.size(); ++i) {
         CAPTURE(tui.plan.artifacts[i].stem);
-        CHECK(win.plan.artifacts[i + 1] == tui.plan.artifacts[i]);
+        CHECK(rows[i + 1] == tui.plan.artifacts[i]);
     }
-    REQUIRE(win.plan.artifacts[4].weave.has_value());
-    CHECK(win.plan.artifacts[4].stem == "zengine-input");
-    CHECK(win.plan.artifacts[4].weave->role == "zengine.input");
-    REQUIRE(win.plan.artifacts[5].weave.has_value());
-    CHECK(win.plan.artifacts[5].weave->role == tmr::kTimerRole);
+    REQUIRE(rows[4].weave.has_value());
+    CHECK(rows[4].stem == "zengine-input");
+    CHECK(rows[4].weave->role == "zengine.input");
+    REQUIRE(rows[5].weave.has_value());
+    CHECK(rows[5].weave->role == tmr::kTimerRole);
 
     // THE MEDIUM'S TWO ROWS: the directory and the window where the skin stood, each a required
     // weave in the office its own code answers to, and neither a provider.
-    const load::ArtifactIntent& directory = win.plan.artifacts[2];
-    const load::ArtifactIntent& window = win.plan.artifacts[3];
+    const load::ArtifactIntent& directory = rows[2];
+    const load::ArtifactIntent& window = rows[3];
     CHECK(directory.stem == "zengine-graphics");
     CHECK_FALSE(directory.provider.has_value());
     REQUIRE(directory.weave.has_value());
@@ -1343,7 +1354,7 @@ TEST_CASE("the default plan puts the two medium rows where the terminal Skin's p
     // weaves loaded, at their offices, by the real Kernel from the staged artifacts.
     PlanRig rig;
     const load::Executed done = rig.realize(plan_of(
-        {win.plan.artifacts[0], directory, window, win.plan.artifacts[4], win.plan.artifacts[5]}));
+        {rows[0], directory, window, rows[4], rows[5]}));
     REQUIRE_MESSAGE(done.ok, done.refusal);
     REQUIRE(done.resolved.size() == 5);
     for (std::size_t i : {std::size_t{1}, std::size_t{2}, std::size_t{3}, std::size_t{4}}) {

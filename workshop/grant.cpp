@@ -94,6 +94,7 @@ loom::Grant workshop_grant() {
     speak.allow_to_any(KeymapEditAnswered::zen_name, KeymapEditAnswered::zen_version);
     speak.allow_to_any(PaneInventory::zen_name, PaneInventory::zen_version);
     speak.allow_to_any(KeymapShown::zen_name, KeymapShown::zen_version);
+    speak.allow_to_any(CommandRunAnswered::zen_name, CommandRunAnswered::zen_version);
     speak.allow_to_any(PaneDragged::zen_name, PaneDragged::zen_version);
     speak.allow_to_any(PaneQuitRequested::zen_name, PaneQuitRequested::zen_version);
     speak.allow_to_any(PaneRevealAnswered::zen_name, PaneRevealAnswered::zen_version);

@@ -1,0 +1,5 @@
+# The action census's rows for zengine.palette; the form is tests/actions.txt's. ASCII only.
+zengine.palette - palette.up up - - previous entry
+zengine.palette - palette.down down - - next entry
+zengine.palette - palette.run return CommandRunRequested/1 - run the entry
+zengine.palette - palette.close escape CommandRunRequested/1 - put the palette down

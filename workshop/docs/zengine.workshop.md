@@ -390,6 +390,29 @@ one role, about one subject.
   reaches.
 - **Example:** the desktop continues a pane's global binding to Inventory.
 
+### `CommandRunRequested`
+
+`CommandRunRequested` asks Workshop to run a command by name: what the
+[palette](zengine.palette.md) lists ([`command_vocabulary.hpp`](../command_vocabulary.hpp)).
+
+- **Takes:** `kind` -- `action`, `pane` or `close` -- and the command's address: an action's
+  declarer `office`, its `pane` for a pane's row, and its `id`; a pane's `office` and `pane`. Only
+  `zengine.palette`'s holder asks, under the correlation of the palette's own row this Workshop
+  sent it for a key, still that hand's latest gesture; the ask spends it.
+- **Answers:** `CommandRunAnswered{ran, refusal}` on the asking delivery, after putting the palette
+  down and giving the keys back to the pane it opened over. Then, as that hand: a pane is shown and
+  focused as a launch shows it; Workshop's own row is dispatched by its key in command mode, the
+  keys Workshop's; an application row is asked of the desktop on the pane holding the keys; a
+  pane's row seats and focuses its pane and is sent it under a new correlation recorded as that
+  hand's act, so the pane's next ask is judged for that hand. `ran` says the step was taken, not
+  what the pane then did.
+- **Refuses:** `a command runs only under the palette's own row, as its hand's latest key`; `<pane>
+  @<office> is not a pane this Workshop has`; `<id> answers to no key in command mode here`; `<id>
+  is not one of the application's rows`; `<id> is not a row in force of <pane>`; a guest's run
+  toward a place only the weaver's hand reaches, in the words its key would get. A refusal is said
+  on the band too.
+- **Example:** the palette runs `flow.run` for the hand that pressed Return on it.
+
 ### `PaneMenuRequested`
 
 `PaneMenuRequested` asks Workshop to present the pane's own menu, continuing the gesture it was

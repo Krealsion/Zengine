@@ -309,6 +309,10 @@ PaneLaunchAnswered WorkshopWeave::launch_pane(const PaneRef& ref, loom::Mail& ma
     }
     // And it focuses either way: a launch of a pane already on the desk puts the weaver in it,
     // selected and holding the keys if it takes them, and never closes it.
+    // THE PALETTE OPENS OVER A PANE, and remembers which, to give the keys back to it.
+    if (ref.provider == kPaletteRole && ref.pane == kPalettePane && session_.panes.keyboard != kind) {
+        palette_over_ = session_.panes.keyboard;
+    }
     session_.panes.selected = kind;
     session_.panes.keyboard = kind_takes_keyboard(kind) ? kind : kNoPaneKind;
     out.focused = true;
@@ -392,6 +396,7 @@ PaneCloseAnswered WorkshopWeave::close_pane(const PaneRef& ref, loom::Mail& mail
     // holder, its state and its outstanding asks stay, since participation is the desk's fact and
     // a provider's lifetime is realization's.
     apply_setup(mail);
+    palette_closed(ref);
     out.closed = true;
     return out;
 }

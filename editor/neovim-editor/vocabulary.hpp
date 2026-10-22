@@ -42,6 +42,10 @@ inline constexpr const char* kActionWrite = "neovim.write";
 /// Neovim's own `<C-o>` (jump back; one Normal command from Insert), on the chord Workshop's
 /// retired `document.open` used -- named as what it stands in for, for the same reason.
 inline constexpr const char* kActionJumpOlder = "neovim.jump-older";
+/// Neovim's own `<C-Space>`, kept for it: the row stands in for the desktop's palette key
+/// (`desktop.palette`) while Neovim holds the keys, as a pane whose keys are another program's may.
+inline constexpr const char* kActionCtrlSpace = "neovim.ctrl-space";
+inline constexpr const char* kPaletteKey = "desktop.palette";
 /// Carry a copy of the Visual selection to a receiving pane by pick-and-place -- on `ctrl+r`,
 /// declared only while Neovim is in Visual or Select mode, where Neovim gives it no meaning; in
 /// every other mode `ctrl+r` is Neovim's own (redo, Insert's register).
