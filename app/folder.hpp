@@ -31,8 +31,6 @@
 
 namespace zengine::app {
 
-/// The folder an export writes apps in, inside the project.
-inline constexpr const char* kAppsFolder = "apps";
 /// The file the app host writes while it runs; an export never touches it.
 inline constexpr const char* kSessionName = "app-session.json";
 /// The two launchers an export writes.

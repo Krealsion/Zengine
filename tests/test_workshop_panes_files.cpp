@@ -22,6 +22,8 @@
 #include "workshop/recipes.hpp"
 
 #include "builder/vocabulary.hpp"
+#include "launcher/vocabulary.hpp"
+#include "maker/weave.hpp"
 
 #include <algorithm>
 #include <fstream>
@@ -4059,4 +4061,77 @@ TEST_CASE("Files asks class open for the path before it sends the open") {
     f.r.key(input::scan::kReturn);
     REQUIRE(any_row(f.shown(), "inner.cpp"));
     CHECK(seen.said.size() == 3);
+}
+
+namespace {
+/// `zengine.launcher`, as far as Files needs it: every start said as started.
+class FilesLauncherStub final : public loom::Weave {
+public:
+    loom::WeaveId self{};
+    std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
+        return {loom::schema_of<zengine::launcher::Launch>()};
+    }
+    std::vector<std::shared_ptr<const loom::Schema>> emitted_schemas() const override {
+        return {loom::schema_of<zengine::launcher::Launched>()};
+    }
+    void handle(const loom::Message& in, loom::Bus& bus) override {
+        const auto l = loom::from_value<zengine::launcher::Launch>(in.payload);
+        (void)bus.answer(loom::Message(
+            loom::to_value(zengine::launcher::Launched{true, l.kind, l.name, 4242, "started"}), self));
+    }
+    loom::Value snapshot() const override { return loom::Value(loom::make_schema("filestest.Launcher", 1, {})); }
+    loom::Value policy() const override { return zengine::maker::default_value(loom::lifecycle_policy_schema()); }
+    void revive(const loom::Value&) override {}
+};
+} // namespace
+
+TEST_CASE("a right press on a folder in the project's apps/ offers to start that app, and the start is asked of Workshop and then of the launcher") {
+    // MUTATION: Files offering a start on any folder -- a folder outside apps/ offers it too.
+    FilesRig f("files-start");
+    std::filesystem::create_directories(f.root / "apps" / "tally");
+    std::filesystem::create_directories(f.root / "elsewhere");
+    f.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_presenter=*/true);
+
+    // A FOLDER THAT IS NO APP offers no start.
+    f.point_at("elsewhere/");
+    std::int64_t row = row_beginning(f.shown(), "> elsewhere/");
+    REQUIRE(row >= 0);
+    files_button(f.r, f.kind, 3, true, row, 0);
+    REQUIRE(menu_shown(f.r.session()));
+    CHECK_FALSE(any_row(context_rows_on(f.r.shown(), f.r.session()), "start the app"));
+    f.r.key(input::scan::kEscape);
+
+    // IN apps/, the folder is an app.
+    f.point_at("apps/");
+    f.r.key(input::scan::kReturn);
+    f.point_at("tally/");
+    row = row_beginning(f.shown(), "> tally/");
+    REQUIRE(row >= 0);
+    files_button(f.r, f.kind, 3, true, row, 0);
+    REQUIRE(menu_shown(f.r.session()));
+    const std::vector<std::string> offered = context_rows_on(f.r.shown(), f.r.session());
+    INFO("the menu offered\n", picture(offered));
+    REQUIRE(any_row(offered, "start the app `tally`"));
+    // ITS ROW, SECOND: Workshop allows the weaver's hand, and the launcher is asked -- none holds
+    // its office here, so the ask is refused in its words and nothing started.
+    f.r.key(input::scan::kDown);
+    f.r.key(input::scan::kReturn);
+    CHECK_FALSE(menu_shown(f.r.session()));
+    CHECK(f.first().find("nothing was started -- the launcher could not be asked") != std::string::npos);
+
+    // WITH THE LAUNCHER, the start is said with what follows as this platform starts an app.
+    auto stub = std::make_unique<FilesLauncherStub>();
+    FilesLauncherStub* launcher = stub.get();
+    launcher->self = f.r.bus.register_weave(std::move(stub), loom::Grant{}.allow_any(), zengine::launcher::kLauncherRole);
+    row = row_beginning(f.shown(), "> tally/");
+    INFO("the pane shows: ", picture(f.shown()));
+    REQUIRE(row >= 0);
+    files_button(f.r, f.kind, 3, true, row, 0);
+    REQUIRE(menu_shown(f.r.session()));
+    f.r.key(input::scan::kDown);
+    f.r.key(input::scan::kReturn);
+    INFO("the pane says: ", f.first());
+    // ...as far as the pane's width shows it.
+    CHECK(f.first().find(std::string("started the app `tally`, process 4242: ") +
+                         std::string(zengine::launcher::kStartedAppGoesOn).substr(0, 60)) != std::string::npos);
 }

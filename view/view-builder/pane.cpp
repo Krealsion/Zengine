@@ -5,6 +5,7 @@
 // view/docs/zengine.view.builder.md.
 #include "app/folder.hpp"
 #include "app/program.hpp"
+#include "launcher/vocabulary.hpp"
 #include "view/view-builder/picture.hpp"
 #include "view/view-builder/vocabulary.hpp"
 #include "view/vocabulary.hpp"
@@ -74,14 +75,16 @@ std::pair<std::shared_ptr<const loom::Schema>, std::optional<std::string>> label
 /// ONE THING THE BUILDER ASKED AND STILL WAITS ON (`AskFacet`): where the project is; a request
 /// of the view host, by its action, and whether it asks again what a reload carried; a save, with
 /// the file File named when it was asked; an export, with the view's file it makes the app from
-/// and whether the weaver pressed again to replace an app already there; or an intent's shape
-/// being carried out, with the gesture it continues and the bytes Workshop will carry.
+/// and whether the weaver pressed again to replace an app already there; a start of the app, by
+/// its name, first asked of Workshop and then of the launcher; or an intent's shape being carried
+/// out, with the gesture it continues and the bytes Workshop will carry.
 struct ViewBuilderAsk {
-    enum class Kind { kRoot, kHost, kSave, kExport, kCarry };
+    enum class Kind { kRoot, kHost, kSave, kExport, kStart, kLaunch, kCarry };
     Kind kind = Kind::kHost;
     std::string action; ///< the host request's action
     bool again = false; ///< a resume asking whether the view a reload carried as running still runs
-    std::string path;   ///< the file a save writes, or the view's file an export makes its app from
+    std::string path;   ///< the file a save writes, the view's file an export makes its app from,
+                        ///< or the app a start names
     bool replace = false; ///< an export: the app's folder was there, and the weaver pressed again
     std::uint64_t gesture = 0;
     std::string label;
@@ -115,12 +118,14 @@ class ViewBuilderPane final
           loom::Accept<ws::PaneCanvasPointer, ws::PaneCanvasHover, ws::PaneKey, ws::PaneTextInput,
                        ws::ActionsJudged, ws::PaneQuitRequested, ws::PaneCanvasValueDrop,
                        ws::PaneCarryAnswered, vb::ViewEdit, view::ViewAnswer, ws::ProjectRoot,
+                       zengine::launcher::Launched,
                        gfx::AreaRoom, gfx::DrawnRefused, gfx::ActionRequested, gfx::AreaButtonChanged,
                        gfx::AreaPointerMoved, gfx::AreaWheelTurned, gfx::AreaHoldEnded, gfx::AreaPointerLeft,
                        ws::v2::PaneSettings>,
           loom::Emit<ws::PaneContent, ws::v4::PaneCanvasContent, ws::PaneEscapeUnspent,
                      ws::PanePassRequested, ws::PaneQuitAnswered, ws::PaneOperationRequested,
                      ws::PaneValueCarryRequested, vb::ViewEdited, view::ViewRun, view::ViewResume,
+                     zengine::launcher::Launch,
                      view::ViewApply, view::ViewStop, ws::ProjectRootRequested, gfx::Drawn,
                      gfx::RoomAsked, ws::v2::PaneSettingsDeclared, ws::PaneSettingUnused>> {
 public:
@@ -146,6 +151,9 @@ public:
             model_.notice = "The save waiting for Workshop was dropped; save again";
         if (asks().forget(of_kind(ViewBuilderAsk::Kind::kExport)) > 0)
             model_.notice = "The export waiting for Workshop was dropped; export again";
+        if (asks().forget(of_kind(ViewBuilderAsk::Kind::kStart)) +
+                asks().forget(of_kind(ViewBuilderAsk::Kind::kLaunch)) > 0)
+            model_.notice = "The app's start waiting for an answer was dropped; run it again";
         if (!restored_) {
             restored_ = true;
             // A FIRST IMAGE IS A LAUNCH, and runs again what the builder ran: its project file says
@@ -280,6 +288,7 @@ public:
         const std::string control = id.rfind("view.", 0) == 0 ? id.substr(5) : std::string();
         if (control == "save") ask_save(mail);
         else if (control == "export") ask_export(mail);
+        else if (control == "run-app") ask_start(mail);
         else if (control == "choices") more_choices();
         else if (control == "open" || control == "run" || control == "new" || control == "apply" || control == "stop")
             perform(control, {}, mail);
@@ -478,6 +487,12 @@ public:
             show(mail);
             return;
         }
+        if (asked.kind == ViewBuilderAsk::Kind::kStart) {
+            if (!answer.allowed) model_.notice = "Not started: " + answer.reason;
+            else launch(asked.path, mail);
+            show(mail);
+            return;
+        }
         if (asked.kind == ViewBuilderAsk::Kind::kSave) {
             // ALLOWED, THE SAVE WRITES THE FILE NAMED WHEN IT WAS ASKED, and is remembered as any
             // save is, while File still names that file; refused, the refusal is said, and nothing
@@ -550,6 +565,14 @@ public:
         remember();
         show(mail);
     }
+    /// THE LAUNCHER'S ANSWER to this builder's own start: the process it started, or why not.
+    void on(const zengine::launcher::Launched& answer, loom::Mail& mail) {
+        if (!asks().answered(mail, of_kind(ViewBuilderAsk::Kind::kLaunch))) return;
+        model_.notice = answer.ok ? "Started the app " + answer.name + " (process " + std::to_string(answer.pid) +
+                                        "): " + zengine::launcher::kStartedAppGoesOn
+                                  : "Not started: " + answer.reason;
+        show(mail);
+    }
     /// LOOM'S WORD THAT EXACTLY ONE OF THE BUILDER'S ASKS WAS REFUSED BEFORE ANY HANDLER RAN,
     /// matched by `AskFacet`: a save Workshop never heard, or a request of the view host. The
     /// project's and a carry's refusals say nothing.
@@ -558,6 +581,10 @@ public:
             model_.notice = "Not saved: Workshop could not be asked to allow it (" + refused.reason + ")";
         else if (asked.kind == ViewBuilderAsk::Kind::kExport)
             model_.notice = "Not exported: Workshop could not be asked to allow it (" + refused.reason + ")";
+        else if (asked.kind == ViewBuilderAsk::Kind::kStart)
+            model_.notice = "Not started: Workshop could not be asked to allow it (" + refused.reason + ")";
+        else if (asked.kind == ViewBuilderAsk::Kind::kLaunch)
+            model_.notice = "Not started: the launcher could not be asked (" + refused.reason + ")";
         else if (asked.kind == ViewBuilderAsk::Kind::kHost)
             model_.notice = asked.action + " was not delivered: " + refused.reason;
         else
@@ -698,6 +725,8 @@ private:
             ask_save(mail);
         } else if (chosen.action == "export") {
             ask_export(mail);
+        } else if (chosen.action == "run-app") {
+            ask_start(mail);
         } else {
             perform(chosen.action, chosen.args, mail);
         }
@@ -1141,6 +1170,37 @@ private:
                         " or " + zengine::app::kLauncherSh + "; its console asks about " + stems +
                         " on its first start";
     }
+    /// RUN THE APP THE SAVED VIEW WAS EXPORTED AS, kept by nobody: a start is asked of Workshop
+    /// for the hand that pressed it as a Save and a Build are, classes `build` and `write`, then of
+    /// the launcher by the app's name, which it looks up in the project's `apps/` itself. One start
+    /// waits at a time.
+    void ask_start(loom::Mail& mail) {
+        if (asks().holds(of_kind(ViewBuilderAsk::Kind::kStart)) ||
+            asks().holds(of_kind(ViewBuilderAsk::Kind::kLaunch))) {
+            model_.notice = "A start is waiting for its answer; run the app again once it comes";
+            return;
+        }
+        if (file_.empty()) {
+            model_.notice = "Not started: save the view and export it first; the app is named after its file";
+            return;
+        }
+        ViewBuilderAsk starting = asking(ViewBuilderAsk::Kind::kStart);
+        starting.path = std::filesystem::path(file_).stem().string();
+        if (asks().approve(mail, std::move(starting), mail.correlation(),
+                           {ws::scope::kBuild, ws::scope::kWrite}) != Asks::Asked::kHeld)
+            model_.notice = "Not started: Workshop could not be asked to allow it";
+    }
+    /// ...ALLOWED, THE LAUNCHER IS ASKED, and its answer is said.
+    void launch(const std::string& name, loom::Mail& mail) {
+        ViewBuilderAsk launching = asking(ViewBuilderAsk::Kind::kLaunch);
+        launching.path = name;
+        if (asks().ask(mail, zengine::launcher::kLauncherRole,
+                       zengine::launcher::Launch{zengine::launcher::kKindApp, name},
+                       std::move(launching)) != Asks::Asked::kHeld)
+            model_.notice = "Not started: the launcher could not be asked";
+        else
+            model_.notice = "Starting the app " + name;
+    }
     void declare(loom::Mail& mail) {
         this->template facet<Actions>().declare(
             mail, {{"view.save", "Save the view", input::scan::kS, input::mod::kCtrl},
@@ -1150,6 +1210,8 @@ private:
                    {"view.new", "Start a new view", input::scan::kUnknown, input::mod::kNone},
                    {"view.export", "Export the saved view as an app", input::scan::kUnknown,
                     input::mod::kNone},
+                   {"view.run-app", "Run the exported app on its own", input::scan::kUnknown,
+                    input::mod::kNone, {}, {ws::cause_of<zengine::launcher::Launch>()}},
                    {"view.apply", "Apply to the running view", input::scan::kUnknown,
                     input::mod::kNone, {}, {ws::cause_of<view::ViewApply>()}},
                    {"view.stop", "Stop the running view", input::scan::kUnknown,

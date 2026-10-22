@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2026 Joshua DeMoss
+
+// Written by Zengine's configure from launcher/configured.hpp.in, for one build tree: the demo
+// service the launcher may start, fixed here (launcher/catalog.hpp). Empty where this build was
+// configured with no demo service.
+
+#ifndef ZENGINE_LAUNCHER_CONFIGURED_HPP
+#define ZENGINE_LAUNCHER_CONFIGURED_HPP
+
+#include <utility>
+#include <vector>
+
+namespace zengine::launcher::configured {
+
+inline constexpr const char* kPython = "@zengine_launcher_python@";
+inline constexpr const char* kDemoScript = "@zengine_launcher_demo_script@";
+inline constexpr const char* kBuild = "@zengine_launcher_build@";
+inline constexpr const char* kLoomPrefix = "@zengine_launcher_loom_prefix@";
+/// The folder of the demo service's own setups, where Files' way to the demos leads.
+inline constexpr const char* kDemosFolder = "@zengine_launcher_demos_folder@";
+
+/// Each setup the demo service lists, by name, and the directory holding its `setup.json`.
+inline std::vector<std::pair<const char*, const char*>> demo_setups() {
+    return {@zengine_launcher_setups@};
+}
+
+} // namespace zengine::launcher::configured
+
+#endif // ZENGINE_LAUNCHER_CONFIGURED_HPP

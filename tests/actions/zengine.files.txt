@@ -9,6 +9,8 @@ zengine.files - files.mark m - - mark this place
 zengine.files - files.next-mark n - - next mark
 zengine.files - files.previous-mark shift+n - - previous mark
 zengine.files - files.pick-buildable a - - pick buildable
+zengine.files - files.start unbound Launch/1 - start this app or demo
+zengine.files - files.demos unbound - - go to the demos
 zengine.files - files.menu shift+m - - this pane's menu
 zengine.files - files.up up - - row up
 zengine.files - files.down down - - row down

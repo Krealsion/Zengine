@@ -69,7 +69,7 @@ workshop_panes_settings           doctest           always  56
 # Tripwires in this part read the Terminal pane's source and CMake file as text (VM-WALL-11).
 workshop_panes_terminal           doctest           always  66
 # Tripwires in this part read the Builder pane's source and CMake file as text (VM-WALL-11).
-workshop_panes_project            doctest           always  195
+workshop_panes_project            doctest           always  196
 # Tripwires in this part read Workshop's presentation sources, workshop/workshop.cpp and the
 # Editor pane's source and CMake file as text (VM-WALL-11).
 workshop_panes_editor             doctest           always  132
@@ -116,4 +116,5 @@ inventory                         doctest           always  41
 flow_pane                         doctest           always  27
 view                              doctest           always  20
 app_host                          doctest           always  7
-view_builder                      doctest           always  39
+launcher                          doctest           always  5
+view_builder                      doctest           always  40
