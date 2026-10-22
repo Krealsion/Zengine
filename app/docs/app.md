@@ -156,6 +156,8 @@ refused, the flow's refusals among them.
 
 ![The tally app in its own OS window: as it starts; Count giving 45; 10, 0 and -2 typed giving 30; and 0, 10, 0 refused by the flow's fold](images/tally-app.png)
 
+![The tally app's step field put in focus by a click, 2 typed into it, and Count giving 20](images/tally-app-field-clicked.png)
+
 Order the plan's rows as the probe does: the providers first, so a flow's operators resolve when it
 runs; then the app's weave, so it hears the directory's and the window's offers; then the
 directory and the window; and the Timer last, whose loading starts time.
