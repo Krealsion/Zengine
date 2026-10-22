@@ -216,17 +216,18 @@ void component_surface() {
     const auto path = zengine::component::motion::Path::curved({0,0}, {100,0}, 40);
     const auto point = path.at(zengine::component::motion::progress(500,1000));
     check(std::abs(point.x - 50) < 1e-9 && std::abs(point.y - 30) < 1e-9, "installed motion sampler preserves its curve and elapsed time");
-    check(loom::schema_of<zengine::workshop::PaneViewRequested>()->fields().size() == 2,
-          "installed visible-pane query names a provider and pane");
-    check(loom::schema_of<zengine::workshop::PanePointRequested>()->find("picture") != nullptr &&
+    check(loom::schema_of<zengine::workshop::PaneViewRequested>()->find("stamp") != nullptr &&
+          loom::schema_of<zengine::workshop::PaneView>()->find("area") != nullptr,
+          "installed pane reading pages under a stamp and names the place it shows in");
+    check(loom::schema_of<zengine::workshop::PanePointRequested>()->find("fingerprint") != nullptr &&
           loom::schema_of<zengine::workshop::PanePoint>()->find("space") != nullptr,
-          "installed point query names the picture it read and answers in the input space");
+          "installed point query names the reading it read and answers in the input space");
     check(loom::schema_of<zengine::workshop::DeskView>()->find("panes") != nullptr &&
           loom::schema_of<zengine::workshop::DeskPane>()->find("visible") != nullptr,
           "installed desk answer names every pane and the part of it the canvas has");
-    check(loom::schema_of<zengine::workshop::v3::PaneView>()->find("parts") != nullptr &&
+    check(loom::schema_of<zengine::workshop::PaneView>()->find("parts") != nullptr &&
           loom::schema_of<zengine::workshop::PanePart>()->find("name") != nullptr &&
-          loom::schema_of<zengine::workshop::v2::DeskMenu>()->find("parts") != nullptr,
+          loom::schema_of<zengine::workshop::DeskMenu>()->find("parts") != nullptr,
           "installed answers carry each named part beside a pane's words and a menu's lines");
     zengine::component::TextBox box;
     box.type("sourdough");
