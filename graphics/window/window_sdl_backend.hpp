@@ -307,6 +307,42 @@ public:
         keep_whole();
     }
 
+    /// SHAPED: the title set, and the window sized to `want`, a side of 0 keeping its own, within
+    /// its display's usable area with its frame (`shaped_within`), then kept whole there. A
+    /// maximized window takes the title and keeps the platform's size.
+    void shape(const std::string& title, const PixelSize& want) {
+        if (window_ == nullptr) {
+            return;
+        }
+        if (!SDL_SetWindowTitle(window_, title.c_str())) {
+            complain("SDL_SetWindowTitle", "the window keeps its title.");
+        }
+        if (maximized()) {
+            return;
+        }
+        const std::optional<Frame> f = frame_of();
+        if (!f.has_value()) {
+            return;
+        }
+        const PixelSize have{f->w - f->left - f->right, f->h - f->top - f->bottom};
+        PixelSize sized{want.width > 0 ? want.width : have.width,
+                        want.height > 0 ? want.height : have.height};
+        const std::vector<DesktopSpan> usable = usable_displays();
+        if (!usable.empty()) {
+            sized = shaped_within(want, have, f->left + f->right, f->top + f->bottom,
+                                  home_display(f->x, f->y, f->w, f->h, usable));
+        }
+        if (sized == have) {
+            return;
+        }
+        if (!SDL_SetWindowSize(window_, as_int(sized.width), as_int(sized.height))) {
+            complain("SDL_SetWindowSize", "the window keeps its size.");
+            return;
+        }
+        (void)SDL_SyncWindow(window_);
+        keep_whole();
+    }
+
     /// The window maximized, once the medium has given it its room. A refusal is said once a want:
     /// the medium does not ask again.
     void maximize() {

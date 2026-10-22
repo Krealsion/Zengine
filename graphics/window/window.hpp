@@ -65,6 +65,13 @@ struct CellExtent {
     std::int64_t cols = 0, rows = 0;
 };
 
+/// A window's size in pixels; non-positive is no window to measure.
+struct PixelSize {
+    std::int64_t width = 0, height = 0;
+    bool measured() const { return width > 0 && height > 0; }
+    friend bool operator==(const PixelSize&, const PixelSize&) = default;
+};
+
 /// A window's room as it offers it, in pixels; none where it has nothing to measure.
 struct PixelRoom {
     std::int64_t width = 0, height = 0;
@@ -101,7 +108,7 @@ using WindowBase = typename zengine::With<
                  ElementCodeOffered, GraphicsReady, WindowShowAsked, AreaShowAsked,
                  zengine::input::AttributedInput, ClipboardCopy, ClipboardTextRequested,
                  SurfacePlacementRemembered, PumpSurface, SurfaceCaptureRequested,
-                 SurfaceCaptureChunkRequested>,
+                 SurfaceCaptureChunkRequested, WindowShaped>,
     loom::Emit<DrawnRefused, WindowOffered, AreaRoom, zengine::input::KeyPressed,
                zengine::input::KeyReleased, zengine::input::TextEntered, ActionRequested,
                AreaButtonChanged, AreaPointerMoved, AreaWheelTurned, AreaPressed, AreaHoldEnded,
@@ -384,6 +391,45 @@ public:
             touch_all();
             offer(mail);
         }
+    }
+
+    /// SHAPED BY AN OFFICE THAT ARRANGES IN IT: its title and its size, the medium's to set. A
+    /// shaping from any other office, or naming another window, changes nothing. A size that
+    /// changed offers the window again, so its arrangers place for it.
+    void on(const WindowShaped& s, loom::Mail& mail) {
+        if (s.window != Medium::kWindow) {
+            return;
+        }
+        const auto& areas = this->state_.areas;
+        if (std::none_of(areas.begin(), areas.end(), [&mail](const WinArea& a) {
+                return !a.arranger.empty() && mail.authored_from_role(a.arranger);
+            })) {
+            return;
+        }
+        medium_.shape(whole_title(s.title), PixelSize{s.width, s.height}, areas);
+        if (medium_.remeasure()) {
+            offer(mail);
+        }
+    }
+
+    /// A title as a window takes it: each control character a space, and at most
+    /// `kMaxWindowTitleBytes`, cut where a character begins.
+    static std::string whole_title(const std::string& title) {
+        std::string out = title.substr(0, kMaxWindowTitleBytes);
+        if (out.size() < title.size()) {
+            std::size_t end = out.size();
+            while (end > 0 && (static_cast<unsigned char>(title[end]) & 0xC0u) == 0x80u) {
+                --end;
+            }
+            out.resize(end);
+        }
+        for (char& c : out) {
+            const auto u = static_cast<unsigned char>(c);
+            if (u < 0x20u || u == 0x7Fu) {
+                c = ' ';
+            }
+        }
+        return out;
     }
 
     /// The beat's work, asked for now.

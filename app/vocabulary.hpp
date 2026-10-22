@@ -57,9 +57,9 @@ struct AppPlaceSaid {
 
 // ---- app.json ------------------------------------------------------------------------------
 
-/// The app's window as `app.json` writes it. The app's weave reads `skin`, the painter it asks
-/// the window to paint its areas with (`day`, `night`, `classic` or `block`); `title`, `width` and
-/// `height` are written for the window and not read yet.
+/// The app's window as `app.json` writes it: its title and its size in pixels, which the app's
+/// weave says to the window it arranges in (`WindowShaped`), and `skin`, the painter it asks the
+/// window to paint its areas with (`day`, `night`, `classic` or `block`).
 struct ZengineAppWindow {
     std::string title;
     std::int64_t width = 0;
