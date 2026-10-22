@@ -239,10 +239,6 @@ void WorkshopWeave::on(const graphics::GraphicsReady&, loom::Mail& mail) {
     show_in_graphics(mail);
 }
 
-static_assert(graphics::kCellPx == graphics::kCellPx,
-              "the window draws the desk one canvas pixel to one of its own, so its cell is the "
-              "canvas cell and a terminal window's room in pixels is the screen in pixels");
-
 void WorkshopWeave::on(const graphics::WindowOffered& w, loom::Mail& mail) {
     if ((w.window != graphics::kTerminalWindow && w.window != graphics::kSdlWindow) ||
         !mail.authored_from_role(std::string(graphics::kWindowOfficePrefix) + w.window)) {
@@ -272,9 +268,14 @@ void WorkshopWeave::on(const graphics::WindowOffered& w, loom::Mail& mail) {
     if (medium_unit_known_ || w.width <= 0 || w.height <= 0) {
         return;
     }
+    // ...AND THE RESTORE'S SENTENCE, said before the window named its unit, said in it.
+    const bool respelled = spell_restore_notice(w.cell_px);
     const bool every_pixel = w.cell_px > 0;
     if (!adopt_screen(session_, w.width, w.height, every_pixel ? w.text_advance_px : 0,
                       every_pixel ? w.text_line_px : 0, w.cell_px)) {
+        if (respelled) {
+            repaint(mail);
+        }
         return;
     }
     if (!(medium_placed_ && session_.place_maximized)) {

@@ -1195,7 +1195,7 @@ TEST_CASE("the picture a managed opening shows says its words and its named part
             o.click(mid_x, mid_y, input::space::kPixels);
         } else {
             o.click(gfx::cell_of_pixel(mid_x),
-                    gfx::cell_of_pixel(mid_y) + surface::kTuiCanvasTopRow, input::space::kCells);
+                    gfx::cell_of_pixel(mid_y), input::space::kCells);
         }
         CHECK(o.editor->pointers.empty());
         // THE HOLDER DRAWS ITS OWN, and the points return: a press at the part's reaches the holder

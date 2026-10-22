@@ -1476,8 +1476,10 @@ private:
     static std::string restore_notice_text(const RestoreNotice& n, std::int64_t cell_px);
 
     /// A MEDIUM NAMED ITS UNIT: the restore's sentence, said before any medium had named one, is
-    /// said again in this one while nothing has been said since. True when it was.
+    /// said again in this one while nothing has been said since. True when it was. A Skin naming
+    /// it takes the room from then on (`respell_restore_notice`); a window offering itself does not.
     bool respell_restore_notice(std::int64_t cell_px);
+    bool spell_restore_notice(std::int64_t cell_px);
 
     // ---- PANE MANAGEMENT: arrange the windows, and never lose one -------------
 

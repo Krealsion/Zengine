@@ -150,11 +150,11 @@ struct ProjectRig {
     }
 
     void resize_screen(std::int64_t h) {
-        t.publish(loom::to_value(surface::SurfaceExtent{cells_px(78), cells_px(h), 0, 0}));
+        t.extent_px(cells_px(78), cells_px(h), 0, 0);
     }
     const Session& session() const { return t.w->session(); }
     std::string notice() const { return session().notice; }
-    std::string shown() const { return stack_text(t.canvases.back()); }
+    std::string shown() { return stack_text(t.shown()); }
 
     /// Put the keys where a weaver's ordinary commands land, by pressing a pane that is
     /// always there.

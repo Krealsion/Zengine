@@ -115,14 +115,14 @@ struct CanvasRig {
         const auto c = view().canvas;
         r.publish(loom::to_value(input::PointerButton{button, down,
             (c.x + x) / kPaneCanvasUnit,
-            (c.y + y) / kPaneCanvasUnit + surface::kTuiCanvasTopRow,
+            (c.y + y) / kPaneCanvasUnit,
             input::space::kCells, input::mod::kNone}));
     }
     /// The pointer moved to a local place of the canvas, with no button held.
     void move(std::int64_t x, std::int64_t y) {
         const auto c = view().canvas;
         r.publish(loom::to_value(input::PointerMoved{(c.x + x) / kPaneCanvasUnit,
-            (c.y + y) / kPaneCanvasUnit + surface::kTuiCanvasTopRow, 0, 0, input::space::kCells,
+            (c.y + y) / kPaneCanvasUnit, 0, 0, input::space::kCells,
             input::mod::kNone}));
     }
 };
@@ -280,7 +280,7 @@ TEST_CASE("a canvas provider that speaks only the earlier doors is answered in t
     // A PRESS ONE CELL INTO THE BODY reaches it at that cell's corner, in sub-units.
     r.publish(loom::to_value(input::PointerButton{1, true,
         (got.x + kPaneCanvasUnit) / kPaneCanvasUnit,
-        (got.y + kPaneCanvasUnit) / kPaneCanvasUnit + surface::kTuiCanvasTopRow,
+        (got.y + kPaneCanvasUnit) / kPaneCanvasUnit,
         input::space::kCells, input::mod::kNone}));
     REQUIRE(seat->pointers.size() == 1);
     CHECK(seat->pointers.back().phase == canvas_pointer::kPress);
@@ -388,13 +388,13 @@ TEST_CASE("a canvas picture refused for what it holds is said in its pane and in
         });
     };
     const auto shown = [&t](const std::string& words) {
-        for (const auto& region : all_texts(t.r.last_canvas()))
+        for (const auto& region : all_texts(paint(t.r.session())))
             for (const auto& row : region.rows)
                 if (row.text.find(words) != std::string::npos) return true;
         return false;
     };
     const auto drawn = [&t](const std::string& words) {
-        for (const auto& label : all_labels(t.r.last_canvas()))
+        for (const auto& label : all_labels(paint(t.r.session())))
             if (label.text == words) return true;
         return false;
     };
@@ -491,7 +491,7 @@ TEST_CASE("a canvas picture refused for what it holds is said in its pane and in
     CHECK(t.view().canvas.heard);
     CHECK(external_title_rows(t.r.session().panes, t.kind, false) == 0);
     std::int64_t ground = gfx::role::kFill;
-    for (const auto& region : all_texts(t.r.last_canvas()))
+    for (const auto& region : all_texts(paint(t.r.session())))
         for (const auto& row : region.rows)
             if (row.text.find(kExternalRefusedMark) != std::string::npos) ground = row.background;
     CHECK(ground == gfx::role::kMediumGround);
@@ -637,7 +637,7 @@ TEST_CASE("pane canvas provider replacement cannot acquire its predecessor's hel
     SUBCASE("after host custody but before the press is delivered") {
         const auto c = t.view().canvas;
         (void)t.r.bus.publish(loom::Message(loom::to_value(input::PointerButton{1, true,
-            c.x / kPaneCanvasUnit + 1, c.y / kPaneCanvasUnit + surface::kTuiCanvasTopRow + 1,
+            c.x / kPaneCanvasUnit + 1, c.y / kPaneCanvasUnit + 1,
             input::space::kCells, 0}), {}, {}, 0));
         REQUIRE(t.r.bus.pump_pending() >= 1);
         REQUIRE(t.seat->pointers.empty());
@@ -1176,9 +1176,9 @@ TEST_CASE("pane canvas resize preview keeps only the same provider's picture and
     CHECK(t.view().canvas.content.grant == old_picture.grant);
     CHECK(t.seat->pointers.back().phase == canvas_pointer::kLost);
     bool old_words = false, updating = false;
-    for (const auto& label : all_labels(t.r.last_canvas()))
+    for (const auto& label : all_labels(paint(t.r.session())))
         if (label.text == "node") old_words = true;
-    for (const auto& region : all_texts(t.r.last_canvas()))
+    for (const auto& region : all_texts(paint(t.r.session())))
         for (const auto& row : region.rows)
             if (row.text.find("(updating)") != std::string::npos) updating = true;
     CHECK(old_words);
@@ -1565,11 +1565,11 @@ TEST_CASE("a described view offers its own pane through the view host, Workshop 
     const auto at = [&](std::int64_t px_x, std::int64_t px_y) {
         r.publish(loom::to_value(input::PointerButton{1, true,
             (c.x + px_x) / kPaneCanvasUnit,
-            (c.y + px_y) / kPaneCanvasUnit + surface::kTuiCanvasTopRow,
+            (c.y + px_y) / kPaneCanvasUnit,
             input::space::kCells, input::mod::kNone}));
         r.publish(loom::to_value(input::PointerButton{1, false,
             (c.x + px_x) / kPaneCanvasUnit,
-            (c.y + px_y) / kPaneCanvasUnit + surface::kTuiCanvasTopRow,
+            (c.y + px_y) / kPaneCanvasUnit,
             input::space::kCells, input::mod::kNone}));
     };
     CHECK(words().find("Count|") != std::string::npos);
@@ -1579,7 +1579,7 @@ TEST_CASE("a described view offers its own pane through the view host, Workshop 
         if (e.schema_name == PaneCanvasHover::zen_name) ++hovers;
     });
     r.publish(loom::to_value(input::PointerMoved{(c.x + 12) / kPaneCanvasUnit,
-        (c.y + 36) / kPaneCanvasUnit + surface::kTuiCanvasTopRow, 0, 0,
+        (c.y + 36) / kPaneCanvasUnit, 0, 0,
         input::space::kCells, input::mod::kNone}));
     r.bus.remove_observer(tap);
     CHECK(hovers == 0);

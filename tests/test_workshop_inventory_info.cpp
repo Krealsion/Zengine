@@ -371,7 +371,10 @@ TEST_CASE("portable slots: active context collision refuses atomically and keeps
     const auto left=s.create("row",a),right=s.create("column",b);
     s.bind(a); s.bind(b); s.context(left,true); s.context(right,true);
     auto state=s.layout(); CHECK(state.views[0].active); CHECK_FALSE(state.views[1].active);
-    CHECK_MESSAGE(s.shown(s.source).find("refused")!=std::string::npos,s.shown(s.source));
+    // The refusal is the pane's notice; a view it places over the notice's start hides "refused".
+    std::string said; for (const auto& row : held_canvas_text(*s.r.session().panes.external_pane(s.source))) said += row;
+    CHECK_MESSAGE(said.find("refused")!=std::string::npos,said);
+    CHECK_MESSAGE(s.shown(s.source).find("retained: `alt+1` is authored for")!=std::string::npos,s.shown(s.source));
     s.context(left,false); s.context(right,true);
     state=s.layout(); CHECK_FALSE(state.views[0].active); CHECK(state.views[1].active);
     slots::InventoryViewEdit op; op.operation="bind"; op.entry=b; op.text=inv::kInventoryRole;
@@ -1725,7 +1728,7 @@ void press_text(InventoryStory& s, std::int64_t kind, const std::string& start, 
             input::InjectedEvent e;
             e.kind = "PointerButton"; e.button = button; e.pressed = true; e.space = input::space::kCells;
             e.x = (c.x + t.x) / gfx::kCellPx + 1;
-            e.y = (c.y + t.y) / gfx::kCellPx + surface::kTuiCanvasTopRow;
+            e.y = (c.y + t.y) / gfx::kCellPx;
             s.event(e);
             e.pressed = false;
             s.event(e);
@@ -1743,7 +1746,7 @@ void choose(InventoryStory& s, const std::string& label) {
     input::InjectedEvent e;
     e.kind = "PointerButton"; e.button = 1; e.pressed = true; e.space = input::space::kCells;
     e.x = context_cell_x(s.r.session());
-    e.y = context_entry_cell_y(s.r.session(), static_cast<std::size_t>(line)) + surface::kTuiCanvasTopRow;
+    e.y = context_entry_cell_y(s.r.session(), static_cast<std::size_t>(line));
     s.event(e);
     e.pressed = false;
     s.event(e);
@@ -1759,7 +1762,7 @@ input::InjectedEvent at_text(InventoryStory& s, std::int64_t kind, const std::st
     for (const auto& t : c.content.texts)
         if (t.text.rfind(start, 0) == 0) {
             e.x = (c.x + t.x) / gfx::kCellPx + 1;
-            e.y = (c.y + t.y) / gfx::kCellPx + surface::kTuiCanvasTopRow;
+            e.y = (c.y + t.y) / gfx::kCellPx;
             return e;
         }
     std::string all;
@@ -1775,7 +1778,7 @@ input::InjectedEvent at_local(InventoryStory& s, std::int64_t kind, std::int64_t
     input::InjectedEvent e;
     e.kind = what; e.button = 1; e.space = input::space::kCells;
     e.x = (pane->canvas.x + x) / gfx::kCellPx;
-    e.y = (pane->canvas.y + y) / gfx::kCellPx + surface::kTuiCanvasTopRow;
+    e.y = (pane->canvas.y + y) / gfx::kCellPx;
     return e;
 }
 /// The View Builder's design area, read off its picture: the ground the view's own picture brought.
@@ -2176,13 +2179,14 @@ TEST_CASE("views: making a view offers only that view, so a view already on the 
     REQUIRE(s.r.session().panes.has(kind)); // launched as it was made
     const std::vector<std::string> before = pane_rows(s.r, kind);
     REQUIRE_FALSE(before.empty());
-    // A SECOND VIEW MADE: every picture published meanwhile shows the first view as it was.
-    const std::size_t from = s.r.canvases.size();
+    // A SECOND VIEW MADE: every showing of the window meanwhile shows the first view as it was.
+    s.r.windows.watch();
     (void)s.create("row");
-    REQUIRE(s.r.canvases.size() > from);
+    const std::vector<DeskShown> showings = s.r.windows.showings();
+    REQUIRE_FALSE(showings.empty());
     std::size_t blank = 0;
-    for (std::size_t i = from; i < s.r.canvases.size(); ++i) {
-        if (canvas_rows_shown(s.r.session(), s.r.canvases[i], kind) != before) {
+    for (const DeskShown& shown : showings) {
+        if (canvas_rows_shown(s.r.session(), shown, kind) != before) {
             ++blank;
         }
     }

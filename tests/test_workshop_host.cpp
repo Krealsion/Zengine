@@ -345,16 +345,16 @@ TEST_CASE("the surface says how much room it has, and Workshop paints that much"
     // END TO END, on a real bus: the one message that travels medium -> application, and the
     // canvas that comes back out.
     Live t;
-    t.publish(loom::to_value(surface::SurfaceReady{}));
-    REQUIRE_FALSE(t.canvases.empty());
-    CHECK(t.canvases.back().width == kMinScreen.w);
-    CHECK(t.canvases.back().height == kMinScreen.h);
+    t.ready();
+    REQUIRE_FALSE((t.pictures == 0));
+    CHECK(paint(t.session()).width == kMinScreen.w);
+    CHECK(paint(t.session()).height == kMinScreen.h);
 
-    const std::size_t before = t.canvases.size();
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(100), cells_px(33)}));
-    REQUIRE(t.canvases.size() > before);
+    const std::size_t before = t.pictures;
+    t.extent_px(cells_px(100), cells_px(33));
+    REQUIRE(t.pictures > before);
 
-    const surface::SurfaceCanvas& c = t.canvases.back();
+    const surface::SurfaceCanvas c = paint(t.session());
     const Screen sc = screen_of(t.session());
     CHECK(c.width == cells_px(100));
     CHECK(c.height == cells_px(33));
@@ -366,26 +366,26 @@ TEST_CASE("the surface says how much room it has, and Workshop paints that much"
     // The workspace fact lives in the band's own row, and it moved with the extent: what a
     // share resolves against is said where the tool speaks. It is the whole surface, so the
     // room runs under the pane rather than stopping short of the edge.
-    CHECK(workspace_row(c, t.session(), sc) == "workspace 100x27 cells");
+    CHECK(workspace_row(t.shown(), t.session(), sc) == "workspace 100x27 cells");
     CHECK(cells_of(sc).side_x == 72);
 
     // AN EXTENT THAT CHANGES NOTHING REPAINTS NOTHING. Two different extents clamp to one
     // screen, and a weaver dragging across that boundary must not see the tool flicker.
-    const std::size_t settled = t.canvases.size();
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(100), cells_px(33)}));
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(100), cells_px(33)}));
-    CHECK(t.canvases.size() == settled);
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(2), cells_px(2)}));
-    REQUIRE(t.canvases.size() > settled);
-    CHECK(t.canvases.back().width == kMinScreen.w); // back to the minimum, not to 2
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(1), cells_px(1)}));
-    CHECK(t.canvases.size() == settled + 1);
+    const std::size_t settled = t.pictures;
+    t.extent_px(cells_px(100), cells_px(33));
+    t.extent_px(cells_px(100), cells_px(33));
+    CHECK(t.pictures == settled);
+    t.extent_px(cells_px(2), cells_px(2));
+    REQUIRE(t.pictures > settled);
+    CHECK(paint(t.session()).width == kMinScreen.w); // back to the minimum, not to 2
+    t.extent_px(cells_px(1), cells_px(1));
+    CHECK(t.pictures == settled + 1);
 
     // An absurd one is bounded before any arithmetic touches it.
     t.publish(loom::to_value(surface::SurfaceExtent{
         (std::numeric_limits<std::int64_t>::max)(), (std::numeric_limits<std::int64_t>::max)()}));
-    CHECK(t.canvases.back().width == kScreenMaxW);
-    CHECK(t.canvases.back().height == kScreenMaxH);
+    CHECK(paint(t.session()).width == kScreenMaxW);
+    CHECK(paint(t.session()).height == kScreenMaxH);
 }
 
 TEST_CASE("a run no medium measures is exactly the run Workshop had before") {
@@ -494,11 +494,10 @@ TEST_CASE("a stacked pane covers the workspace, and may reach the right column")
 
     // WITHOUT A PANE, the screen carries no stacked rows; the opening gestures are said by
     // the band's legend and the hotkey view, not by a row-0 hint.
-    const surface::SurfaceCanvas bare = t.canvases.back();
-    CHECK(stack_text(bare).empty());
+    CHECK(stack_text(t.shown()).empty());
 
     open_stock_pane(t);
-    const surface::SurfaceCanvas with = t.canvases.back();
+    const surface::SurfaceCanvas with = paint(t.session());
     const Screen sc = screen_of(t.session());
     // THE BOUNDS THE PLACEMENT PATH GIVES IT, and the rows are read against those rather than
     // against a column this case knows independently -- through the cell projection every
@@ -525,7 +524,7 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKin
     CHECK(stacked_rows == static_cast<std::size_t>(inside.h));
     // AND THE BAND ABOVE IT IS UNTOUCHED BY ANY OF THIS: the Layouts band is the neighbour a
     // stacked pane has.
-    CHECK_FALSE(stack_text(with).empty());
+    CHECK_FALSE(stack_text(t.shown()).empty());
     CHECK(t.session().panes.has(pane_kind::kLayouts));
 }
 
@@ -585,7 +584,6 @@ TEST_CASE("each pane is painted where the placement path says it is") {
     (void)mount_tool(t, "zengine-snake");
     open_stock_pane(t);
     const Screen sc = screen_of(t.session());
-    const surface::SurfaceCanvas c = t.canvases.back();
 
     const PaneBounds band =
         bounds_of(t.session().panes, t.session().setup.active, pane_kind::kLayouts, sc);
@@ -601,7 +599,7 @@ TEST_CASE("each pane is painted where the placement path says it is") {
     // ARE INSIDE ITS OWN CHROME: the rectangle the path hands it is unchanged, and the
     // boundary it draws is subtracted from it once.
     const ui::Rect builder_cells = pane_body_cells(builder.rect);
-    CHECK(label_at(c, builder_cells.x, builder_cells.y).find("Editor") > 0);
+    CHECK(label_at(t.shown(), builder_cells.x, builder_cells.y).find("Editor") > 0);
     CHECK(builder.rect == placement_bounds(placement::kOverlayStack, 0, sc));
 
     // AND THE TWO PLACES DO NOT OVERLAP: the band is above the stack's first slot, which is
@@ -612,6 +610,7 @@ TEST_CASE("each pane is painted where the placement path says it is") {
     // AND THE STACKED PANE PAINTS NO ROW OUTSIDE ITS OWN BOUNDS. Every row of it is padded
     // to the width its bounds gave it -- the erasing mechanism following the pane rather
     // than a constant.
+    const surface::SurfaceCanvas c = paint(t.session());
     std::size_t seen_stack = 0;
     for (const surface::SurfaceLabel& l : cell_text_of(c)) {
         const std::int64_t lx = gfx::cell_of_pixel(l.x), ly = gfx::cell_of_pixel(l.y);
@@ -831,7 +830,7 @@ TEST_CASE("a built-in pane needs no weave, and opening one speaks to no office")
     CHECK_FALSE(t.w->session().panes.has(pane_kind::kLayouts));
     pick(t, pane_kind::kLayouts); // the launch door
     CHECK(t.w->session().panes.has(pane_kind::kLayouts));
-    CHECK(pane_shown(t.canvases.back(), t.session(), pane_kind::kLayouts).find("Default") !=
+    CHECK(pane_shown(t.shown(), t.session(), pane_kind::kLayouts).find("Default") !=
           std::string::npos);
 
     // AND NO MESSAGE WENT TO THE ONE OFFICE WORKSHOP KNOWS ABOUT. With the
@@ -873,13 +872,13 @@ namespace {
 
 TEST_CASE("the terminal's own size becomes Workshop's screen, growing and shrinking") {
     Live t;
-    t.publish(loom::to_value(surface::SurfaceReady{}));
-    REQUIRE_FALSE(t.canvases.empty());
+    t.ready();
+    REQUIRE_FALSE((t.pictures == 0));
 
     // BEFORE ANY MEDIUM SPEAKS: the documented minimum, which is what a redirected run keeps
     // for its whole life.
-    CHECK(t.canvases.back().width == kScreenMinW);
-    CHECK(t.canvases.back().height == kScreenMinH);
+    CHECK(paint(t.session()).width == kScreenMinW);
+    CHECK(paint(t.session()).height == kScreenMinH);
 
     struct Want {
         std::int64_t cols;
@@ -894,17 +893,17 @@ TEST_CASE("the terminal's own size becomes Workshop's screen, growing and shrink
                              Want{78, 25, kScreenMinCols, kScreenMinRows}}) {
         CAPTURE(want.cols);
         CAPTURE(want.rows);
-        const std::size_t before = t.canvases.size();
+        const std::size_t before = t.pictures;
         t.publish(loom::to_value(
             surface::tui_canvas_extent(gfx::window::TerminalSize{want.cols, want.rows})));
-        REQUIRE(t.canvases.size() > before);
+        REQUIRE(t.pictures > before);
 
         CHECK(t.session().screen_w == cells_px(want.screen_w));
         CHECK(t.session().screen_h == cells_px(want.screen_h));
 
         // THE CANVAS IS THE SCREEN, and the screen FITS IN THE TERMINAL: what a publisher
         // paints plus what the layout spends on itself is never more than the room there is.
-        const surface::SurfaceCanvas& c = t.canvases.back();
+        const surface::SurfaceCanvas c = paint(t.session());
         CHECK(c.width == cells_px(want.screen_w));
         CHECK(c.height == cells_px(want.screen_h));
         CHECK(c.width <= cells_px(want.cols));
@@ -925,10 +924,10 @@ TEST_CASE("the terminal's own size becomes Workshop's screen, growing and shrink
         // AND THE SAME EXTENT AGAIN IS NOT A REPAINT. The skin already guards its publishing;
         // this second guard is what makes a weaver dragging an edge across a clamp boundary
         // see one screen rather than a flicker.
-        const std::size_t settled = t.canvases.size();
+        const std::size_t settled = t.pictures;
         t.publish(loom::to_value(
             surface::tui_canvas_extent(gfx::window::TerminalSize{want.cols, want.rows})));
-        CHECK(t.canvases.size() == settled);
+        CHECK(t.pictures == settled);
     }
 
     // GROWING AND SHRINKING ARE ONE MECHANISM, walked as a hand on an edge would walk it.
@@ -966,13 +965,13 @@ TEST_CASE("a terminal below the composition's minimum is published, not fictiona
     // ...AND THE CLAMP IS NOT A SECOND MEASUREMENT. Every terminal below the minimum resolves
     // to the one screen, so a weaver dragging an edge around inside that region sees no
     // flicker, and Workshop never paints a size no medium reported.
-    const std::size_t settled = t.canvases.size();
+    const std::size_t settled = t.pictures;
     for (const gfx::window::TerminalSize& tiny :
          {gfx::window::TerminalSize{40, 10}, gfx::window::TerminalSize{78, 24},
           gfx::window::TerminalSize{20, 5}}) {
         t.publish(loom::to_value(surface::tui_canvas_extent(tiny)));
     }
-    CHECK(t.canvases.size() == settled);
+    CHECK(t.pictures == settled);
     CHECK(t.session().screen_w == kScreenMinW);
 
     // A TERMINAL WITH NO ROOM AT ALL SAYS NOTHING, and nothing is exactly what a publisher
@@ -980,7 +979,7 @@ TEST_CASE("a terminal below the composition's minimum is published, not fictiona
     // medium never publishes it -- "there is no room" is a sentence nobody may say.
     CHECK(surface::tui_canvas_extent(gfx::window::TerminalSize{120, 2}).height == 0);
     t.publish(loom::to_value(surface::tui_canvas_extent(gfx::window::TerminalSize{120, 2})));
-    CHECK(t.canvases.size() == settled);
+    CHECK(t.pictures == settled);
     CHECK(t.session().screen_w == kScreenMinW);
 }
 
@@ -989,7 +988,7 @@ TEST_CASE("Workshop puts nothing on the attention slot, healthy or not: what is 
     // ⚔ MUTATION: `repaint` publishing the glance on `kSlotScore` -- the medium would draw
     // it outside every pane, and the last check goes red.
     Live t;
-    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.ready();
     CHECK(t.conditions().empty());
     // THE ANSWER IS STILL SAID OUT LOUD. "Is anything wrong?" is a question a weaver is entitled
     // to ask when the answer is no -- so the seam carries one publication with no rows, which the
@@ -1032,7 +1031,7 @@ TEST_CASE("an unavailable tool is named by its artifact on the host's own condit
     t.host.standing_conditions.push_back(
         unavailable_tool("zengine-files", "artifact 'zengine-files': weave load refused"));
     ++t.host.conditions_generation;
-    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.ready();
     CHECK(t.glance() == "zengine-desktop-pane is not in this Workshop (+1 more)");
     const std::vector<Condition> now = t.conditions();
     REQUIRE(now.size() == 2);
@@ -1049,7 +1048,7 @@ TEST_CASE("a development host and each row's losses stand as conditions on Atten
     const auto stand = [](const guests::GuestsFile& file, Live& t) {
         for (const Condition& c : guests::conditions_of(file)) t.host.standing_conditions.push_back(c);
         ++t.host.conditions_generation;
-        t.publish(loom::to_value(surface::SurfaceReady{}));
+        t.ready();
         return t.conditions();
     };
     const auto row = [](std::vector<std::string> may) {
@@ -1210,7 +1209,7 @@ TEST_CASE("the project frontier is a condition while it waits and nothing after"
     Live t;
     ProjectFrontier live;
     t.host.frontier = [&live] { return live; };
-    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.ready();
     CHECK(t.conditions().empty());
     CHECK(t.glance().empty());
 
@@ -1243,7 +1242,7 @@ TEST_CASE("event sentences stay events, and a condition needs no sentence") {
     spillout(prefs, "{ not a prefs file");
     Live t;
     t.host.prefs_path = prefs;
-    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.ready();
     const std::string standing = t.glance();
     REQUIRE_FALSE(standing.empty());
 
@@ -1271,14 +1270,14 @@ TEST_CASE("an alert condition opens nothing") {
     spillout(prefs, "{ not a prefs file");
     Live t;
     t.host.prefs_path = prefs;
-    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.ready();
     const std::vector<Condition> now = t.conditions();
     const Condition* wall = condition_by_key(now, kPrefsWallKey);
     REQUIRE(wall != nullptr);
     REQUIRE(wall->role == gfx::role::kAlert);
 
     for (int beat = 0; beat < 4; ++beat) {
-        t.publish(loom::to_value(surface::SurfaceReady{}));
+        t.ready();
         t.key(input::scan::kTab);
         CHECK_FALSE(t.session().context.open);
         CHECK_FALSE(t.session().arrange.open);
@@ -1300,7 +1299,7 @@ TEST_CASE("showing a condition writes no history") {
     loom::Recorder history(t.bus);
     loom::Logger journal(t.bus);
     t.host.prefs_path = prefs;
-    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.ready();
     REQUIRE(condition_by_key(t.conditions(), kPrefsWallKey) != nullptr);
 
     // THE WHOLE LIFECYCLE: establish (above), read, hide, re-read, close.
@@ -1346,7 +1345,7 @@ TEST_CASE("a condition names an action and what crosses is the weaver's own gest
     Session& s = const_cast<Session&>(t.session());
     s.conditions.establish(Condition{"test.thing", "a thing", "why it is a thing",
                                      gfx::role::kAlert, "workshop.manage"});
-    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.key(input::scan::kEscape); // an unbound key: a repaint, which says what is true
 
     // THE SENTENCE THAT CROSSES CARRIES THE WEAVER'S GESTURE, not the default: one truth,
     // projected once.
@@ -1405,7 +1404,7 @@ TEST_CASE("what is true is said across the seam, in the host's own order and wor
                                      gfx::role::kAccent, std::string()});
     s.conditions.establish(Condition{"z.loud", "a loud thing", "why it is loud",
                                      gfx::role::kAlert, "workshop.manage"});
-    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.ready();
     REQUIRE_FALSE(t.said_conditions.empty());
     const StandingConditions& said = t.said_conditions.back();
     REQUIRE(said.rows.size() == 2);
@@ -1433,7 +1432,7 @@ TEST_CASE("nothing new is nothing said, which is what stops the seam looping") {
     // the host compares against its own last utterance. ⚔ MUTATION, MEASURED: drop the
     // `same_conditions` arm; the count climbs across repaints with no news in them.
     Live t;
-    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.ready();
     const std::size_t after_first = t.said_conditions.size();
     REQUIRE(after_first >= 1); // even "nothing is wrong" is said once, and it is an answer
 
@@ -1655,7 +1654,7 @@ TEST_CASE("contextual Arrange admission precedes binding") {
     // TWO PANES, ON A SCREEN THAT SEATS TWO. The first subcase captures a pane and then
     // pushes THAT pane off the screen, so it needs a second pane to point at -- and both
     // built-ins are in the stack now, which the minimum screen has one slot of.
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(120), cells_px(44), 0, 0}));
+    t.extent_px(cells_px(120), cells_px(44), 0, 0);
     open_pane(t, second_ref());
     open_pane(t, ref_of(stock::kKind));
 
@@ -1907,7 +1906,7 @@ TEST_CASE("one right press exits Arrange; only the NEXT one opens context") {
     // THE RELEASE OF THAT SAME PRESS is a non-primary release on the ordinary path, and
     // it is dropped exactly as every second-button release always was -- nothing opens.
     t.publish(loom::to_value(input::PointerButton{3, false, slot.x + 1,
-                                                  slot.y + 1 + surface::kTuiCanvasTopRow,
+                                                  slot.y + 1,
                                                   input::space::kCells, input::mod::kNone}));
     CHECK_FALSE(t.menu().open);
     CHECK_FALSE(t.session().arrange.open);
@@ -2559,7 +2558,7 @@ TEST_CASE("at the minimum width the `+` yields to the tab and the status") {
 
 TEST_CASE("the subject's rows say identity, then AUTHORED, then RESOLVED") {
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(132), cells_px(46), 0, 0}));
+    t.extent_px(cells_px(132), cells_px(46), 0, 0);
     REQUIRE(hand_inspect(t, ref_of(pane_kind::kLayouts)).accepted);
     const Session& s = t.session();
     const std::vector<Row>& rows = s.inspected.rows;
@@ -2613,7 +2612,7 @@ TEST_CASE("a typed place moves Layouts through the gesture door, and its tabs fo
     // itself; a commit through the inspector's door changes its authored Y; the pane path --
     // paint, occupancy, the tab press inverse -- follows with nothing added.
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(132), cells_px(46), 0, 0}));
+    t.extent_px(cells_px(132), cells_px(46), 0, 0);
     const PaneRef layouts = ref_of(pane_kind::kLayouts);
     REQUIRE(hand_inspect(t, layouts).accepted);
     const Screen sc = screen_of(t.session());
@@ -2641,10 +2640,10 @@ TEST_CASE("a typed place moves Layouts through the gesture door, and its tabs fo
     CHECK(layouts_body(t.session(), sc).region_y == sc.room_y + cells_px(20));
     const std::int64_t room_row = gfx::cell_of_pixel(sc.room_y);
     CHECK(band_tab_at(t.session(), sc, input::space::kCells, 2,
-                      room_row + 20 + surface::kTuiCanvasTopRow)
+                      room_row + 20)
               .hit);
     CHECK_FALSE(band_tab_at(t.session(), sc, input::space::kCells, 2,
-                            surface::kTuiCanvasTopRow)
+                            0)
                     .hit);
     CHECK(occupied_at(t.session().panes, t.session().setup.active, sc, 2, room_row + 20).kind ==
           pane_kind::kLayouts);
@@ -2675,7 +2674,7 @@ TEST_CASE("a typed place reseats the stack through `apply_setup`") {
     open_stock_pane(t);
     REQUIRE(t.session().panes.has(stock::kKind));
     REQUIRE(add_pane(live(t).setup.active, second_ref())); // past the doors: nothing reconciles it
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(80), cells_px(22), 0, 0})); // nor does a new room
+    t.extent_px(cells_px(80), cells_px(22), 0, 0); // nor does a new room
     REQUIRE(has_pane(t.session().setup.active, second_ref()));
     REQUIRE_FALSE(t.session().panes.has(second::kKind)); // authored, and not seated
     REQUIRE(hand_inspect(t, stock_ref()).accepted);
@@ -2691,7 +2690,7 @@ TEST_CASE("a typed value that is not admissible is refused, and the authored row
     // ⚔ MUTATION: clamping a typed value to the room or to the lattice. Every
     // comparison against `before` below is value identity over the whole desk.
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(132), cells_px(46), 0, 0}));
+    t.extent_px(cells_px(132), cells_px(46), 0, 0);
     const PaneRef layouts = ref_of(pane_kind::kLayouts);
     REQUIRE(hand_inspect(t, layouts).accepted);
     REQUIRE(hand_commit(t, "X", "10").accepted);
@@ -2751,13 +2750,13 @@ TEST_CASE("looking never authors") {
     CHECK(t.session().setup.active == born);
     // THE SCREEN CHANGES; THE RESOLVED ROW CHANGES; THE AUTHORED ROWS DO NOT.
     const std::string small = subject_value(t.session(), "Window");
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(60), 0, 0}));
+    t.extent_px(cells_px(160), cells_px(60), 0, 0);
     CHECK(subject_value(t.session(), "Window") != small);
     CHECK(subject_value(t.session(), "Window") == "@0,-2 160x2 cells");
     CHECK(subject_value(t.session(), "X") == "-");
     CHECK(t.session().setup.active == born);
     // THE FACE CHANGES: the same value, spelled in pixels, and nothing written.
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(60), 8, 18, gfx::kCellPx}));
+    t.extent_px(cells_px(160), cells_px(60), 8, 18, gfx::kCellPx);
     // ...where the top band is as tall as the face's two rows of type in their boundary.
     CHECK(subject_value(t.session(), "Window") == "@0,-42 1920x42 px");
     CHECK(subject_value(t.session(), "X") == "-");
@@ -2775,7 +2774,7 @@ TEST_CASE("a closed pane and an unresolved row are subjects with honest facts") 
     // below is closed and launched again through the doors and stands throughout.
     // ⚔ MUTATION: filtering unresolved refs out of the inventory, or out of the setup.
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(132), cells_px(46), 0, 0}));
+    t.extent_px(cells_px(132), cells_px(46), 0, 0);
     const PaneRef closed = stock_ref();
     REQUIRE_FALSE(t.session().panes.has(stock::kKind));
     REQUIRE(hand_inspect(t, closed).accepted);
@@ -2834,7 +2833,7 @@ TEST_CASE("editing a pane in a layout related to a current Setup makes it modifi
     // The verdict below is `link_status`, derived by comparing the desk to the known value,
     // and the inspection holds no flag of its own.
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(132), cells_px(46), 0, 0}));
+    t.extent_px(cells_px(132), cells_px(46), 0, 0);
     link_live_setup(live(t).setup, "somewhere.json");
     REQUIRE(live_status(t.session().setup) == setup_link::kCurrent);
     REQUIRE(hand_inspect(t, ref_of(pane_kind::kLayouts)).accepted);
@@ -2854,7 +2853,7 @@ TEST_CASE("moving, resizing and closing Layouts through the doors leaves the res
     // ⚔ MUTATION: coupling `screen_of`'s reservation to the Layouts pane. Every
     // comparison below moves.
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(132), cells_px(46), 0, 0}));
+    t.extent_px(cells_px(132), cells_px(46), 0, 0);
     const Screen before = screen_of(t.session());
     REQUIRE(hand_inspect(t, ref_of(pane_kind::kLayouts)).accepted);
     REQUIRE(hand_commit(t, "Y", "30").accepted);
@@ -2881,8 +2880,8 @@ TEST_CASE("a pane edit survives a restart through the session, and the subject d
         Live t;
         t.host.session_path = session;
         t.host.setup_path = dir.file("s.json");
-        t.publish(loom::to_value(surface::SurfaceReady{}));
-        t.publish(loom::to_value(surface::SurfaceExtent{cells_px(132), cells_px(46), 0, 0}));
+        t.ready();
+        t.extent_px(cells_px(132), cells_px(46), 0, 0);
         REQUIRE(hand_inspect(t, ref_of(pane_kind::kLayouts)).accepted);
         REQUIRE(hand_commit(t, "Y", "20").accepted);
         t.key(input::scan::kQ);
@@ -2892,8 +2891,8 @@ TEST_CASE("a pane edit survives a restart through the session, and the subject d
     Live back;
     back.host.session_path = session;
     back.host.setup_path = dir.file("elsewhere.json");
-    back.publish(loom::to_value(surface::SurfaceReady{}));
-    back.publish(loom::to_value(surface::SurfaceExtent{cells_px(132), cells_px(46), 0, 0}));
+    back.ready();
+    back.extent_px(cells_px(132), cells_px(46), 0, 0);
     const SetupPane* row = pane_of(back.session().setup.active, ref_of(pane_kind::kLayouts));
     REQUIRE(row != nullptr);
     CHECK(row->place == PanePlace{pane_unit::kPixels, 0, cells_px(20)});
@@ -2909,7 +2908,7 @@ TEST_CASE("a typed amount is read and written in the face's own unit") {
     // pixels back; a cell face does the same in cells; a unit the face did not report is
     // refused rather than converted.
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(60), 8, 18, gfx::kCellPx}));
+    t.extent_px(cells_px(160), cells_px(60), 8, 18, gfx::kCellPx);
     const PaneRef layouts = ref_of(pane_kind::kLayouts);
     REQUIRE(hand_inspect(t, layouts).accepted);
     CHECK(hand_commit(t, "X", "120").accepted);
@@ -2925,7 +2924,7 @@ TEST_CASE("a typed amount is read and written in the face's own unit") {
     // face authors cells.
     CHECK(hand_commit(t, "X", "126").accepted);
     CHECK(subject_value(t.session(), "X") == "126 px");
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(60), 0, 0, 0}));
+    t.extent_px(cells_px(160), cells_px(60), 0, 0, 0);
     CHECK(subject_value(t.session(), "X") == "~10 cells (~ projected)");
     CHECK(hand_commit(t, "X", "11 cells").accepted);
     CHECK(pane_of(t.session().setup.active, layouts)->place.x == cells_px(11));
@@ -2945,7 +2944,7 @@ TEST_CASE("Escape clears the ordinary selection last, and the inspected subject 
     // subject beside the selection, reddens the matching check below.
     Live t;
     mount_desktop(t);
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(132), cells_px(46), 0, 0}));
+    t.extent_px(cells_px(132), cells_px(46), 0, 0);
     const PaneRef layouts = ref_of(pane_kind::kLayouts);
     REQUIRE(hand_inspect(t, layouts).accepted); // an inspector names Layouts
 
@@ -3001,7 +3000,7 @@ TEST_CASE("every more-specific Escape meaning answers first, and deselection wai
     // surface would still be open with the selection already gone.
     Live t;
     mount_desktop(t);
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(132), cells_px(46), 0, 0}));
+    t.extent_px(cells_px(132), cells_px(46), 0, 0);
 
     // THE CONTEXTUAL SURFACE: a mode above every pane. Select a pane that takes no keys so `a`
     // still reaches command mode -- the Layouts band, which the catalog says does not take the
@@ -3027,7 +3026,7 @@ TEST_CASE("a desk with no unoccupied cell still reaches selection = none") {
     // bands is some pane's, so there is no blank pixel to press, and Escape is the way down.
     Live t;
     mount_desktop(t);
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(132), cells_px(46), 0, 0}));
+    t.extent_px(cells_px(132), cells_px(46), 0, 0);
     open_pane(t, ref_of(stock::kKind));
     const Screen sc = screen_of(t.session());
     // The Builder over the whole room, the side column included -- an authored place is
@@ -3039,8 +3038,8 @@ TEST_CASE("a desk with no unoccupied cell still reaches selection = none") {
                          PaneSize{pane_unit::kPixels,
                                   sc.room_h});
     REQUIRE_MESSAGE(sized.accepted, sized.refusal);
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(132), cells_px(47), 0, 0})); // reseat
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(132), cells_px(46), 0, 0}));
+    t.extent_px(cells_px(132), cells_px(47), 0, 0); // reseat
+    t.extent_px(cells_px(132), cells_px(46), 0, 0);
     const Screen now = screen_of(t.session());
     std::int64_t unoccupied = 0;
     for (std::int64_t y = 0; y < cells_of(now).notice_y; ++y) {
@@ -3069,7 +3068,7 @@ TEST_CASE("a desk with no unoccupied cell still reaches selection = none") {
 TEST_CASE("a code-backed subject's interior is a read-only capture, and an unresolved one is "
           "nothing to inspect") {
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(132), cells_px(46), 0, 0}));
+    t.extent_px(cells_px(132), cells_px(46), 0, 0);
     REQUIRE(hand_inspect(t, ref_of(pane_kind::kLayouts)).accepted);
     const std::vector<Row>& rows = t.session().inspected.rows;
     std::size_t at = rows.size();

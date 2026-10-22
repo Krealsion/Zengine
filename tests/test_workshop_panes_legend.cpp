@@ -367,7 +367,7 @@ TEST_CASE("an Info commit queued behind a layout switch is refused, and neither 
     const Gesture next = t.r.session().keymap.gesture_of(Act::kLayoutNext);
     enqueue(loom::to_value(input::KeyPressed{input::scan::kReturn, "", input::mod::kNone}));
     enqueue(loom::to_value(input::PointerButton{1, true, 0,
-                                                screen_of(t.r.session()).h - 1 + surface::kTuiCanvasTopRow,
+                                                screen_of(t.r.session()).h - 1,
                                                 input::space::kCells, input::mod::kNone}));
     enqueue(loom::to_value(input::KeyPressed{next.scancode, "", next.modifiers}));
     t.r.bus.drain_until_idle();

@@ -1399,7 +1399,7 @@ void bp_button(PaneRig& r, std::int64_t kind, std::int64_t button, bool pressed,
     const ui::Rect body = external_body_rect(r.session(), kind);
     r.publish(loom::to_value(input::PointerButton{
         button, pressed, body.x + column,
-        body.y + kExternalHeaderRows + row + surface::kTuiCanvasTopRow, input::space::kCells,
+        body.y + kExternalHeaderRows + row, input::space::kCells,
         input::mod::kNone}));
 }
 
@@ -1712,7 +1712,7 @@ TEST_CASE("a right press offers the Builder's own rows, and a menu from another 
         bp_button(b.r, b.kind, 3, true, recipe, 0);
         REQUIRE(menu_shown(b.r.session()));
         const std::vector<std::string> offered =
-            context_rows_on(b.r.last_canvas(), b.r.session());
+            context_rows_on(b.r.shown(), b.r.session());
         INFO("the menu offered\n", bp_picture(offered));
         CHECK(any_row(offered, "choose a recipe from the list..."));
         // EVERY ROW THAT CAN NAME ITS SUBJECT DOES -- the three that act on the weaver's CHOICE
@@ -1813,7 +1813,7 @@ namespace {
 /// THE ROWS OF THE MENU THE PANE HAS OPEN.
 std::vector<std::string> bp_menu_rows(BuilderRig& b) {
     REQUIRE(menu_shown(b.r.session()));
-    return context_rows_on(b.r.last_canvas(), b.r.session());
+    return context_rows_on(b.r.shown(), b.r.session());
 }
 
 /// OPEN THE PANE'S OWN MENU BY ITS CONTROL, and return what it offered.
@@ -1827,7 +1827,7 @@ std::vector<std::string> bp_open_menu(BuilderRig& b) {
 void bp_choose_row(BuilderRig& b, const std::string& row) {
     const std::int64_t at = presented_line_of(b.r.session(), row);
     REQUIRE_MESSAGE(at >= 0, "no menu row read `", row, "` in\n",
-                    bp_picture(context_rows_on(b.r.last_canvas(), b.r.session())));
+                    bp_picture(context_rows_on(b.r.shown(), b.r.session())));
     for (std::int64_t i = 0; i < at; ++i) {
         b.r.key(input::scan::kDown);
     }
@@ -2464,8 +2464,8 @@ TEST_CASE("the Builder's role line asks the window that shows the pane for a pas
         CAPTURE(window);
         BuilderRig b("bld-paste-window");
         b.tool->catalog = catalog_of({{"one", "a"}});
+        SkinStandIn* skin = mount_skin_stand_in(b.r);
         b.open();
-        SkinSeat* skin = b.r.mount_skin_seat();
         skin->platform = "zengine.";
         b.r.key(input::scan::kO);
         REQUIRE_MESSAGE(b.text().find("type the role") != std::string::npos, b.text());
@@ -2535,7 +2535,7 @@ const std::string kNoBuild = "guest 'agent' may not build here: its row has no `
 void guest_choose_row(BuilderRig& b, guest_hand::GuestHand& g, const std::string& row) {
     const std::int64_t at = presented_line_of(b.r.session(), row);
     REQUIRE_MESSAGE(at >= 0, "no menu row read `", row, "` in\n",
-                    bp_picture(context_rows_on(b.r.last_canvas(), b.r.session())));
+                    bp_picture(context_rows_on(b.r.shown(), b.r.session())));
     for (std::int64_t i = 0; i < at; ++i) {
         g.key(input::scan::kDown);
     }
@@ -3473,7 +3473,7 @@ HeaderMarks header_marks(BuilderRig& b, std::int64_t kind) {
     out.y = rect.y;
     out.manual_x = rect.x + rect.w - 1;
     out.gear_x = rect.x + rect.w - 3;
-    const std::vector<std::string> rows = external_region_rows(b.r.last_canvas(), rect);
+    const std::vector<std::string> rows = external_region_rows(b.r.shown(), rect);
     out.row = rows.empty() ? std::string() : rows.front();
     return out;
 }

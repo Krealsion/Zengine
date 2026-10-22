@@ -54,7 +54,7 @@ struct Views : InventoryStory {
                 MESSAGE("row " << p.ref.provider << "/" << p.ref.pane << " mode=" << static_cast<int>(p.place.mode) << " x=" << p.place.x << " y=" << p.place.y);
             for (const auto& line : pane_rows(r, kind)) MESSAGE("| " << line);
         }
-        const auto y = rect.y + row + surface::kTuiCanvasTopRow +
+        const auto y = rect.y + row +
                        external_title_rows(r.session().panes, kind, r.session().pane_titles);
         for (std::int64_t dx = -2; dx < 6; ++dx) {
             const auto at = external_press_at(r.session().panes, r.session().setup.active, screen_of(r.session()),

@@ -40,6 +40,10 @@ public:
     /// A weave with no office, said by the name a case gives it.
     void name(loom::WeaveId id, std::string label) { labels_[id.value] = std::move(label); }
 
+    /// AN OFFICE LEFT OUT: nothing it says or is said is kept -- a window and its directory, which
+    /// every repaint speaks to, in a conversation about something else.
+    void without(std::string office) { left_out_.push_back(std::move(office)); }
+
     /// Stop listening; what was heard stays.
     void stop() {
         if (bus_ != nullptr) {
@@ -118,7 +122,19 @@ private:
         return out + "}";
     }
 
+    bool left_out(const loom::BusEvent& ev) const {
+        for (const std::string& office : left_out_) {
+            if (ev.authored_role == office || ev.addressed_role == office ||
+                (bus_ != nullptr && (bus_->role_of(ev.sender) == office ||
+                                     (ev.target.valid() && bus_->role_of(ev.target) == office)))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     void heard(const loom::BusEvent& ev) {
+        if (left_out(ev)) return;
         const std::string shape = ev.schema_name + " v" + std::to_string(ev.schema_version);
         const std::string route = who(ev.sender) + " -> " +
                                   (ev.target.valid() ? who(ev.target)
@@ -136,6 +152,7 @@ private:
     loom::Switchboard* bus_ = nullptr;
     loom::ObserverId tap_{};
     std::map<std::uint64_t, std::string> labels_;
+    std::vector<std::string> left_out_;
     std::vector<std::string> lines_;
 };
 

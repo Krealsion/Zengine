@@ -379,14 +379,14 @@ TEST_CASE("management chrome gets first refusal, and a mode takes the press whol
     SUBCASE("a second button is not the primary one") {
         seat->presses.clear();
         r.publish(loom::to_value(input::PointerButton{3, true, pane_rect.x + 1,
-                                                      body_y + surface::kTuiCanvasTopRow,
+                                                      body_y,
                                                       input::space::kCells, input::mod::kNone}));
         CHECK(seat->presses.empty());
     }
     SUBCASE("a position in a space this application does not recognise") {
         seat->presses.clear();
         r.publish(loom::to_value(input::PointerButton{
-            1, true, pane_rect.x + 1, body_y + surface::kTuiCanvasTopRow, 4242, input::mod::kNone}));
+            1, true, pane_rect.x + 1, body_y, 4242, input::mod::kNone}));
         CHECK(seat->presses.empty());
     }
 }
@@ -417,8 +417,8 @@ TEST_CASE("Workshop gained one sentence and no knowledge of what a pane's rows m
     // several rows, a resize -- Workshop says exactly these shapes, and never a `PaneContent`.
     // Each is deliberate: `StandingConditions` and `TranscriptShown` are readings the panes that
     // show them cannot make (WL-ATTN-12, WL-TERM-03), `PaneLaunchAnswered` goes to the office
-    // that asked (WL-DESK-03), and `PaneSubjectShown` waits for an inspector (WL-INFO-14). A
-    // sentence somebody adds by accident fails here.
+    // that asked (WL-DESK-03), `PaneSubjectShown` waits for an inspector (WL-INFO-14), and the
+    // window's are its areas, their skins, rooms and drawing. An accidental sentence fails here.
     PaneRig r;
     std::vector<std::string> said;
     loom::WeaveId who{};
@@ -445,10 +445,13 @@ TEST_CASE("Workshop gained one sentence and no knowledge of what a pane's rows m
     std::vector<std::string> distinct = said;
     std::sort(distinct.begin(), distinct.end());
     distinct.erase(std::unique(distinct.begin(), distinct.end()), distinct.end());
-    const std::vector<std::string> allowed{"PaneCatalogRequested", "PaneLaunchAnswered",
+    const std::vector<std::string> allowed{"AreaPlaced",           "Drawn",
+                                           "PaneCatalogRequested", "PaneLaunchAnswered",
                                            "PanePressed",          "PaneRoom",
-                                           "StandingConditions",   "SurfaceCanvas",
-                                           "SurfaceText",          "TranscriptShown"};
+                                           "RoomAsked",            "SkinChosen",
+                                           "SkinOffered",          "StandingConditions",
+                                           "SurfaceCanvas",        "SurfaceText",
+                                           "TranscriptShown"};
     CHECK(distinct == allowed);
 
     // AND THE SENTENCES IT SENT ARE IDENTICAL IN SHAPE WHATEVER THE ROWS SAID. Three
@@ -671,7 +674,7 @@ TEST_CASE("pressing a loaded row selects the entry that row actually showed") {
     const ui::Rect body = external_body_rect(r.session(), kind);
     std::vector<std::string> shown = loaded_rows(r, kind);
     REQUIRE(shown.size() >= 3);
-    REQUIRE(shown[0] == "loaded weaves -- 2");
+    REQUIRE(shown[0] == "loaded weaves -- 3");
 
     // THE ROW A WEAVER WOULD AIM AT, found by reading the canvas rather than by
     // arithmetic: whatever the pane is showing at prose row 1 is what a press there
@@ -694,9 +697,10 @@ TEST_CASE("pressing a loaded row selects the entry that row actually showed") {
     CHECK(ears.heard[0].pane == std::string(kIntroPane));
     CHECK(ears.heard[0].library == named);
     CHECK(ears.authors[0] == std::string(kIntroOffice)); // authored as the office, verifiably
-    // THE IDENTITY IS THE LOADED LIBRARY'S NAME, and it is one of the two names the
-    // kernel actually has -- never a WeaveId and never a participant identity.
-    CHECK((named == std::string(intro::kIntrospectionStem) || named == "zengine-workshop-hello"));
+    // THE IDENTITY IS THE LOADED LIBRARY'S NAME, and it is one of the names the kernel actually
+    // has -- the window's directory among them -- never a WeaveId and never a participant identity.
+    CHECK((named == std::string(intro::kIntrospectionStem) || named == "zengine-workshop-hello" ||
+           named == "zengine-graphics"));
 
     SUBCASE("another row moves the selection, and the mark with it") {
         REQUIRE(is_entry_row(shown[2]));
@@ -808,7 +812,7 @@ TEST_CASE("a press is read against the snapshot the weaver saw, not a fresh one"
     r.extent(140, 40);
     const ui::Rect body = external_body_rect(r.session(), kind);
     const std::vector<std::string> shown = loaded_rows(r, kind);
-    REQUIRE(shown[0] == "loaded weaves -- 2");
+    REQUIRE(shown[0] == "loaded weaves -- 3");
 
     // WHICH ROW SHOWS THE LIBRARY THAT IS ABOUT TO GO AWAY -- read off the canvas,
     // because the order is the kernel's and this case does not get to assume it.
@@ -874,14 +878,16 @@ TEST_CASE("interpreting a press asks the Weave Manager nothing") {
     r.bus.remove_observer(tap);
     CHECK(std::count(said.begin(), said.end(), std::string("zen.ListLoaded")) == asks_before);
 
-    // AND THE WHOLE OUTBOUND VOCABULARY IS SIX SHAPES: the three introspection sentences -- its
-    // offer, its question and its picture, drawn in the room Workshop granted -- the selection,
-    // and the Powers pane's declared actions and settings, spoken beside its offer (WL-KEY-15).
+    // AND THE WHOLE OUTBOUND VOCABULARY IS SEVEN SHAPES: the introspection sentences -- its
+    // offer, its question and its picture, drawn in the room Workshop granted and in its own area
+    // of the window -- the selection, and the Powers pane's declared actions and settings, spoken
+    // beside its offer (WL-KEY-15).
     std::vector<std::string> distinct = said;
     std::sort(distinct.begin(), distinct.end());
     distinct.erase(std::unique(distinct.begin(), distinct.end()), distinct.end());
-    const std::vector<std::string> allowed{"LoadedSelected", "PaneActions", "PaneCanvasContent",
-                                           "PaneOffered", "PaneSettingsDeclared", "zen.ListLoaded"};
+    const std::vector<std::string> allowed{"Drawn", "LoadedSelected", "PaneActions",
+                                           "PaneCanvasContent", "PaneOffered",
+                                           "PaneSettingsDeclared", "zen.ListLoaded"};
     CHECK(distinct == allowed);
     // NAMED NEGATIVELY, because the interesting half of an authority audit is what is
     // ABSENT. Being able to say which weave a weaver pointed at is not being able to
@@ -1086,14 +1092,16 @@ TEST_CASE("a selected library that goes away clears its mark when the absence is
                           r.session().panes.external_pane(kind)->columns + 1);
     r.extent(150, 40);
     const std::vector<std::string> after = loaded_rows(r, kind);
-    CHECK(after[0] == "loaded weaves -- 1");
+    CHECK(after[0] == "loaded weaves -- 2");
     CHECK_FALSE(any_row(after, intro::kSelectedMark));
     CHECK(ears.heard.size() == 1);
 
     // ...and a press now selects what is actually there, with no residue of the old one.
+    REQUIRE(after.size() >= 2);
     r.press_cell(body.x + 1, body.y + kExternalHeaderRows + 1);
     REQUIRE(ears.heard.size() == 2);
-    CHECK(ears.heard[1].library == std::string(intro::kIntrospectionStem));
+    CHECK(ears.heard[1].library == named_by(after[1]));
+    CHECK(ears.heard[1].library != "zengine-workshop-hello");
 }
 
 TEST_CASE("the fact travels as data and moves no authority with it") {
@@ -1111,8 +1119,10 @@ TEST_CASE("the fact travels as data and moves no authority with it") {
     r.pick(intro_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     const ui::Rect body = external_body_rect(r.session(), kind);
-    r.press_cell(body.x + 1, body.y + kExternalHeaderRows + 1);
+    // ITS OWN ROW, the second: the window's directory is the other weave loaded, named first.
+    r.press_cell(body.x + 1, body.y + kExternalHeaderRows + 2);
     REQUIRE(ears.heard.size() == 1);
+    REQUIRE(ears.heard[0].library == std::string(intro::kIntrospectionStem));
 
     // THE PAYLOAD IS THREE STRINGS AND ITS SCHEMA SAYS SO -- no id, no handle, no grant,
     // no token, no capability, and nothing a listener could present to anybody.
@@ -1615,7 +1625,7 @@ TEST_CASE("a provider that never asked for keys is unchanged") {
     r.pick(PaneRef{kHelloOffice, kHelloPane});
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     const ui::Rect body = external_body_rect(r.session(), kind);
-    const std::vector<std::string> before = external_rows(r.last_canvas(), body);
+    const std::vector<std::string> before = external_rows(r.shown(), body);
     REQUIRE_FALSE(before.empty());
 
     std::vector<std::string> refused;
@@ -1634,7 +1644,7 @@ TEST_CASE("a provider that never asked for keys is unchanged") {
     CHECK(std::find(refused.begin(), refused.end(), std::string(PaneTextInput::zen_name)) !=
           refused.end());
     // ...and the pane is still showing exactly what it showed.
-    CHECK(external_rows(r.last_canvas(), body) == before);
+    CHECK(external_rows(r.shown(), body) == before);
 }
 
 TEST_CASE("the screen says which pane the keys are going to, in two places") {
@@ -1652,14 +1662,14 @@ TEST_CASE("the screen says which pane the keys are going to, in two places") {
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
     const ui::Rect body = external_body_rect(r.session(), kind);
 
-    const auto header = [&]() { return external_region_rows(r.last_canvas(), body).at(0); };
+    const auto header = [&]() { return external_region_rows(r.shown(), body).at(0); };
     // The band is one region and its legend rows are the last two of the five-cell budget;
     // read them through the cell projection, padding trimmed.
     const auto band = [&]() {
         std::vector<std::string> out;
         const Screen sc = screen_of(r.session());
         for (const std::int64_t y : {help_row(sc), help_row(sc) + 1}) {
-            const std::string row = inspector_row(r.last_canvas(), 0, y);
+            const std::string row = inspector_row(r.shown(), 0, y);
             if (!row.empty()) {
                 out.push_back(row);
             }
@@ -1918,7 +1928,7 @@ TEST_CASE("a holder replaced between the version choice and the delivery refuses
     const ui::Rect body = external_body_rect(r.session(), kind);
     (void)r.bus.publish(loom::Message(
         loom::to_value(input::PointerButton{1, true, body.x + 1,
-                                            body.y + kExternalHeaderRows + surface::kTuiCanvasTopRow,
+                                            body.y + kExternalHeaderRows,
                                             input::space::kCells, input::mod::kNone}),
         loom::WeaveId{}, loom::WeaveId{}, 0));
     REQUIRE(r.bus.pump_pending() >= 1);
@@ -2289,9 +2299,9 @@ struct ComposeRig {
     void press_row(std::int64_t row) {
         const ui::Rect body = external_body_rect(r.session(), kind);
         input(input::PointerButton{1, true, body.x + 1,
-            body.y + kExternalHeaderRows + row + surface::kTuiCanvasTopRow, input::space::kCells, 0});
+            body.y + kExternalHeaderRows + row, input::space::kCells, 0});
         input(input::PointerButton{1, false, body.x + 1,
-            body.y + kExternalHeaderRows + row + surface::kTuiCanvasTopRow, input::space::kCells, 0});
+            body.y + kExternalHeaderRows + row, input::space::kCells, 0});
     }
     /// Point the keyboard at this pane without meaning anything by it: row 0 of the
     /// body is the target line, which names no item.
@@ -2907,7 +2917,7 @@ TEST_CASE("a right press on Compose's canvas is handed back, and Workshop's own 
     const std::int64_t row = r.row_of("CancelTimer v1");
     REQUIRE_FALSE(r.r.session().context.open);
     const ui::Rect body = external_body_rect(r.r.session(), r.kind);
-    const std::int64_t y = body.y + kExternalHeaderRows + row + surface::kTuiCanvasTopRow;
+    const std::int64_t y = body.y + kExternalHeaderRows + row;
     r.input(input::PointerButton{3, true, body.x + 1, y, input::space::kCells, 0});
     r.input(input::PointerButton{3, false, body.x + 1, y, input::space::kCells, 0});
     CHECK(r.r.session().context.open);
