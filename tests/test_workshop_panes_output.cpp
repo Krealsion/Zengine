@@ -586,7 +586,7 @@ std::string out_picture(const std::vector<std::string>& rows) {
 /// THE ROWS OF THE MENU THE READER HAS OPEN.
 std::vector<std::string> out_menu_rows(OutputRig& o) {
     REQUIRE(menu_shown(o.r.session()));
-    return context_rows_on(o.r.last_canvas(), o.r.session());
+    return context_rows_on(o.r.shown(), o.r.session());
 }
 
 /// OPEN THE PANE'S OWN MENU BY ITS CONTROL, and return what it offered.

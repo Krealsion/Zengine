@@ -216,14 +216,14 @@ std::int64_t kind_of(PaneRig& r, const char* office, const char* pane) {
 
 /// A secondary button transition at a canvas cell, as the terminal medium reports it.
 void button_cell(PaneRig& r, std::int64_t button, bool pressed, std::int64_t cx, std::int64_t cy) {
-    r.publish(loom::to_value(input::PointerButton{button, pressed, cx, cy + surface::kTuiCanvasTopRow,
+    r.publish(loom::to_value(input::PointerButton{button, pressed, cx, cy,
                                                   input::space::kCells, input::mod::kNone}));
 }
 
 /// ...QUEUED WITHOUT BEING HANDLED, so a case can order the host's turns itself.
 void queue_button(PaneRig& r, std::int64_t button, bool pressed, std::int64_t cx, std::int64_t cy) {
     (void)r.bus.publish(loom::Message(
-        loom::to_value(input::PointerButton{button, pressed, cx, cy + surface::kTuiCanvasTopRow,
+        loom::to_value(input::PointerButton{button, pressed, cx, cy,
                                             input::space::kCells, input::mod::kNone}),
         loom::WeaveId{}, loom::WeaveId{}, 0));
 }
@@ -335,7 +335,7 @@ TEST_CASE("WL-GEO-01: in a terminal, a right press and its release name the colu
     REQUIRE(pane != nullptr);
     REQUIRE(pane->caret_col == 2);
     // THE TERMINAL'S OWN ROW (`abcdef`), the caret standing on `c` and moving no character.
-    const surface::CanvasGrids grid = surface::rasterize_canvas(t.r.last_canvas());
+    const surface::CanvasGrids grid = surface::rasterize_canvas(paint(t.r.session()));
     const std::int64_t y = body_y(t.r, t.guard_kind, 0);
     const std::int64_t x0 = body_x(t.r, t.guard_kind, 0);
     const auto cell_showing = [&](char glyph) {
@@ -673,7 +673,7 @@ TEST_CASE("WL-CTX-09: a menu requested on the press's own turn is granted to the
     CHECK(menu.pane == kGuardPane);
     CHECK(menu.subject == "subject-1");
     // PRESENTED: the rows the pane wrote first, as the presenter lays them out, then the host's.
-    const std::vector<std::string> painted = context_rows_on(t.r.last_canvas(), t.r.session());
+    const std::vector<std::string> painted = context_rows_on(t.r.shown(), t.r.session());
     REQUIRE(painted.size() == 3 + kStandardLines.size());
     CHECK(painted[0] == "> First row");
     CHECK(painted[1] == "  Second row");
@@ -766,7 +766,7 @@ TEST_CASE("WL-CTX-09: a pane's menu shows its own rows first and the host's stan
     std::vector<std::string> want = {"> First row", "  Second row", "  -- Guard --"};
     want.insert(want.end(), kStandardLines.begin(), kStandardLines.end());
     CHECK(presented_texts(t.r.session()) == want);
-    CHECK(context_rows_on(t.r.last_canvas(), t.r.session()) == want);
+    CHECK(context_rows_on(t.r.shown(), t.r.session()) == want);
     // THE RULE IS NO ROW: Down from the pane's last row lands on the first standard row, Up returns.
     t.r.key(input::scan::kDown);
     t.r.key(input::scan::kDown);
@@ -1003,7 +1003,7 @@ TEST_CASE("WL-CTX-09: a newer menu replaces an open one, which its presenter ans
     CHECK(t.guard->answer_authors[0] == kPresenterRole);
     REQUIRE(t.foreign_open());
     CHECK(t.r.session().presented.office == kGuardTwoOffice);
-    const std::vector<std::string> painted = context_rows_on(t.r.last_canvas(), t.r.session());
+    const std::vector<std::string> painted = context_rows_on(t.r.shown(), t.r.session());
     REQUIRE(painted.size() == 2 + kStandardLines.size());
     CHECK(painted[0] == "> The other pane's row");
     button_cell(t.r, 3, false, body_x(t.r, other_kind, 1), body_y(t.r, other_kind, 0));
@@ -1161,7 +1161,7 @@ TEST_CASE("WL-CTX-09: a menu with more rows than the room is windowed by the pre
     t.right_in_guard();
     t.right_in_guard(false);
     REQUIRE(t.foreign_open());
-    const std::vector<std::string> painted = context_rows_on(t.r.last_canvas(), t.r.session());
+    const std::vector<std::string> painted = context_rows_on(t.r.shown(), t.r.session());
     REQUIRE(!painted.empty());
     CAPTURE(painted.size());
     CAPTURE(painted.back());
@@ -1514,7 +1514,7 @@ TEST_CASE("WL-CTX-10: a withdrawal that queues nothing is answered at once, and 
     const input::PointerButton press{3,
                                      true,
                                      body_x(t.r, t.guard_kind, 1),
-                                     body_y(t.r, t.guard_kind, 0) + surface::kTuiCanvasTopRow,
+                                     body_y(t.r, t.guard_kind, 0),
                                      input::space::kCells,
                                      input::mod::kNone};
     const loom::Message in(loom::to_value(press));

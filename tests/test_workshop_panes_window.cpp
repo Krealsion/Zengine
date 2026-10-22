@@ -1074,7 +1074,7 @@ TEST_CASE("the `w` that opens the desk arrangement does not type itself") {
 
 TEST_CASE("the keyboard alone reaches every window operation") {
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(44), 0, 0}));
+    t.extent_px(cells_px(160), cells_px(44), 0, 0);
     // TWO OVERLAY PANES, so ordering is observable at all.
     open_pane(t, ref_of(stock::kKind));
     REQUIRE(t.session().panes.has(stock::kKind));
@@ -1205,7 +1205,7 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active,
 
 TEST_CASE("escape unwinds one level and rolls nothing back") {
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(44), 0, 0}));
+    t.extent_px(cells_px(160), cells_px(44), 0, 0);
     open_pane(t, ref_of(second::kKind));
     enter_arrange_desk(t);
     select_pane(t, ref_of(second::kKind));
@@ -1259,14 +1259,14 @@ TEST_CASE("a hand and a key author the same setup values") {
     };
 
     Live keyed;
-    keyed.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(44), 0, 0}));
+    keyed.extent_px(cells_px(160), cells_px(44), 0, 0);
     open_pane(keyed, ref_of(stock::kKind));
     arrange_by_key(keyed);
     const PanePlace by_key =
         pane_of(keyed.session().setup.active, ref_of(stock::kKind))->place;
 
     Live handed;
-    handed.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(44), 0, 0}));
+    handed.extent_px(cells_px(160), cells_px(44), 0, 0);
     open_pane(handed, ref_of(stock::kKind));
     enter_arrange_desk(handed);
     select_pane(handed, ref_of(stock::kKind));
@@ -1278,12 +1278,12 @@ cells_covered(bounds_of(handed.session().panes, handed.session().setup.active,
     // grab offset is a plain subtraction, so the pane's corner lands where the key put it.
     const std::int64_t gx = rect.x + rect.w / 2;
     const std::int64_t gy = rect.y + rect.h / 2;
-    handed.press_at(gx, gy + surface::kTuiCanvasTopRow, input::space::kCells);
-    handed.publish(loom::to_value(input::PointerMoved{gx + 3, gy + 2 + surface::kTuiCanvasTopRow,
+    handed.press_at(gx, gy, input::space::kCells);
+    handed.publish(loom::to_value(input::PointerMoved{gx + 3, gy + 2,
                                                       0, 0, input::space::kCells,
                                                       input::mod::kNone}));
     handed.publish(loom::to_value(input::PointerButton{1, false, gx + 3,
-                                                       gy + 2 + surface::kTuiCanvasTopRow,
+                                                       gy + 2,
                                                        input::space::kCells, input::mod::kNone}));
     const PanePlace by_hand =
         pane_of(handed.session().setup.active, ref_of(stock::kKind))->place;
@@ -1294,7 +1294,7 @@ cells_covered(bounds_of(handed.session().panes, handed.session().setup.active,
 
 TEST_CASE("one press claims one gesture, and crossing anything does not move it") {
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(44), 0, 0}));
+    t.extent_px(cells_px(160), cells_px(44), 0, 0);
     open_pane(t, ref_of(stock::kKind));
     enter_arrange_desk(t);
     select_pane(t, ref_of(stock::kKind));
@@ -1304,7 +1304,7 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active,
                                     stock::kKind, sc).rect);
     const std::int64_t gx = rect.x + 2;
     const std::int64_t gy = rect.y + 2;
-    t.press_at(gx, gy + surface::kTuiCanvasTopRow, input::space::kCells);
+    t.press_at(gx, gy, input::space::kCells);
     REQUIRE(t.session().pane_drag.active);
     CHECK(t.session().pane_drag.pane == ref_of(stock::kKind));
 
@@ -1317,7 +1317,7 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, second::kKi
     // ...kept in the room, where a place is measured from.
     const std::int64_t room_row = gfx::cell_of_pixel(sc.room_y);
     t.publish(loom::to_value(input::PointerMoved{side.x + 1,
-                                                 room_row + side.y + 3 + surface::kTuiCanvasTopRow, 0, 0,
+                                                 room_row + side.y + 3, 0, 0,
                                                  input::space::kCells, input::mod::kNone}));
     CHECK(t.session().pane_drag.pane == ref_of(stock::kKind));
     CHECK(pane_of(t.session().setup.active, ref_of(stock::kKind))->place.mode ==
@@ -1326,19 +1326,19 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, second::kKi
     // AN ORDERING CHANGE MID-DRAG DOES NOT TRANSFER CUSTODY EITHER.
     REQUIRE(send_to_back(live(t).setup.active, ref_of(stock::kKind)));
     t.publish(loom::to_value(input::PointerMoved{side.x + 2,
-                                                 room_row + side.y + 4 + surface::kTuiCanvasTopRow, 0, 0,
+                                                 room_row + side.y + 4, 0, 0,
                                                  input::space::kCells, input::mod::kNone}));
     CHECK(t.session().pane_drag.pane == ref_of(stock::kKind));
 
     // AND THE RELEASE ENDS IT WHEREVER THE HAND LANDS.
-    t.publish(loom::to_value(input::PointerButton{1, false, 0, surface::kTuiCanvasTopRow,
+    t.publish(loom::to_value(input::PointerButton{1, false, 0, 0,
                                                   input::space::kCells, input::mod::kNone}));
     CHECK_FALSE(t.session().pane_drag.active);
 }
 
 TEST_CASE("outside arrangement, an addressed pane behind another clicks through nothing") {
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(200), cells_px(60), 0, 0}));
+    t.extent_px(cells_px(200), cells_px(60), 0, 0);
     // THE PANE THIS ONE HIDES BEHIND IS OPENED FIRST: Info is a weave and arrives with its
     // office, so a case that needs two panes on the desk opens both.
     open_pane(t, ref_of(second::kKind));
@@ -1382,7 +1382,7 @@ TEST_CASE("outside arrangement, an addressed pane behind another clicks through 
     CHECK(here.what == std::string(second::kName));
     REQUIRE(t.session().panes.selected != second::kKind);
 
-    t.press_at(at_x, at_y + surface::kTuiCanvasTopRow, input::space::kCells);
+    t.press_at(at_x, at_y, input::space::kCells);
 
     // THE PANE ON TOP TOOK IT...
     CHECK(t.session().panes.selected == second::kKind);
@@ -1419,7 +1419,7 @@ TEST_CASE("move writes only place, resize only size, and order only front") {
 
 TEST_CASE("clearing the selected pane clears its gesture safely") {
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(44), 0, 0}));
+    t.extent_px(cells_px(160), cells_px(44), 0, 0);
     open_pane(t, ref_of(stock::kKind));
     enter_arrange_desk(t);
     select_pane(t, ref_of(stock::kKind));
@@ -1427,14 +1427,14 @@ TEST_CASE("clearing the selected pane clears its gesture safely") {
     const ui::Rect rect =
 cells_covered(bounds_of(t.session().panes, t.session().setup.active,
                                     stock::kKind, sc).rect);
-    t.press_at(rect.x + 1, rect.y + 1 + surface::kTuiCanvasTopRow, input::space::kCells);
+    t.press_at(rect.x + 1, rect.y + 1, input::space::kCells);
     REQUIRE(t.session().pane_drag.active);
 
     // THE TARGET LEAVES THE SETUP UNDER THE HAND. A motion then ends the gesture rather than
     // writing to a row that is no longer there.
     REQUIRE(remove_pane(live(t).setup.active, ref_of(stock::kKind)));
     t.publish(loom::to_value(input::PointerMoved{rect.x + 4,
-                                                 rect.y + 4 + surface::kTuiCanvasTopRow, 0, 0,
+                                                 rect.y + 4, 0, 0,
                                                  input::space::kCells, input::mod::kNone}));
     CHECK_FALSE(t.session().pane_drag.active);
     CHECK_FALSE(has_pane(t.session().setup.active, ref_of(stock::kKind)));
@@ -1476,7 +1476,7 @@ TEST_CASE("the arrangement notice speaks the unit the FACE reported") {
     // language is the medium's own answer about its canvas, never a constant Workshop
     // holds. Nothing here authors anything: the two readings are of one desk.
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(200), cells_px(60), 0, 0, 0}));
+    t.extent_px(cells_px(200), cells_px(60), 0, 0, 0);
     open_pane(t, ref_of(stock::kKind));
     Setup& desk = live(t).setup.active;
     const PaneRef builder = ref_of(stock::kKind);
@@ -1559,7 +1559,7 @@ TEST_CASE("the notice says where a pane the weaver did not place actually is") {
 
 TEST_CASE("the coarse step is the resize seam with a bigger delta") {
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(200), cells_px(60), 0, 0, 0}));
+    t.extent_px(cells_px(200), cells_px(60), 0, 0, 0);
     open_pane(t, ref_of(second::kKind));
     open_pane(t, ref_of(stock::kKind));
     const PaneRef builder = ref_of(stock::kKind);
@@ -1618,7 +1618,7 @@ TEST_CASE("the coarse step is ordinary action vocabulary, not pane chrome") {
     // other gesture is -- the keymap, the band's legend, and the effective keymap the Hotkeys
     // pane lists -- and nowhere else.
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(200), cells_px(60), 0, 0, 0}));
+    t.extent_px(cells_px(200), cells_px(60), 0, 0, 0);
 
     // IT IS AN ACTION WITH A DURABLE ID, which is what a weaver's own keymap file rebinds --
     // and the id is in the catalog for BOTH scopes, which is what the file can say.
@@ -1648,7 +1648,7 @@ TEST_CASE("the coarse step is ordinary action vocabulary, not pane chrome") {
     const Screen sc = screen_of(t.session());
     std::string band;
     for (const std::int64_t y : {help_row(sc), help_row(sc) + 1}) {
-        band += inspector_row(t.canvases.back(), 0, y) + " | ";
+        band += inspector_row(t.shown(), 0, y) + " | ";
     }
     INFO(band);
     CHECK(band.find("grow") != std::string::npos);
@@ -1665,7 +1665,7 @@ TEST_CASE("a coarse shrink meets the same per-axis refusal a fine one does") {
     // the independent axis still settles. The coarse step inherits this because it IS the same
     // proposal, not because it repeats the rule.
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(200), cells_px(60), 0, 0, 0}));
+    t.extent_px(cells_px(200), cells_px(60), 0, 0, 0);
     open_pane(t, ref_of(stock::kKind));
     const PaneRef builder = ref_of(stock::kKind);
     Setup& desk = live(t).setup.active;
@@ -1690,7 +1690,7 @@ TEST_CASE("stepping names the pane, its state and its authored window in words")
     // the pane's STATE word -- which keeps an invisible pane recoverable by ear: step to it, read
     // what it is, reset it.
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(200), cells_px(60), 0, 0}));
+    t.extent_px(cells_px(200), cells_px(60), 0, 0);
     open_pane(t, ref_of(second::kKind));
     enter_arrange_desk(t);
     select_pane(t, ref_of(second::kKind));
@@ -1837,7 +1837,7 @@ TEST_CASE("input spent on the open surface reaches no provider") {
 
 TEST_CASE("the one-pane scope is bound -- another pane cannot be drawn into it") {
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(200), cells_px(60), 0, 0}));
+    t.extent_px(cells_px(200), cells_px(60), 0, 0);
     // THE OTHER PANE IS OPENED, NOT INHERITED. This case needs a second pane with a
     // rectangle of its own to press into; the desk's Info row is a weave with no office
     // here, and an unresolved row has no rectangle.
@@ -1972,7 +1972,7 @@ TEST_CASE("an arrow steps the AUTHORED value, not the medium's floor") {
     // fine enough to say the value back. Only a value the medium CANNOT say, moved one step,
     // tells them apart: an off-lattice place on a character medium, which floors at the cell.
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(44), 0, 0})); // no metric: cells
+    t.extent_px(cells_px(160), cells_px(44), 0, 0); // no metric: cells
     open_pane(t, ref_of(stock::kKind));
     const std::int64_t x = gfx::px_of_cells(12) + 7; // deliberately off the lattice
     const std::int64_t y = gfx::px_of_cells(6) + 5;
@@ -2141,6 +2141,7 @@ TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot mo
             plan.artifacts.push_back(row);
             const load::Executed done = p.run_plan(plan);
             REQUIRE_MESSAGE(done.ok, done.refusal);
+            SkinStandIn* skin = mount_skin_stand_in(p);
             p.ready();
             p.extent(160, 48);
             const PaneRef ref{term::kTerminalPaneRole, term::kTerminalPane};
@@ -2150,7 +2151,6 @@ TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot mo
             REQUIRE(offered != nullptr);
             const std::int64_t kind = offered->kind;
             REQUIRE(p.session().panes.has(kind));
-            SkinSeat* skin = p.mount_skin_seat();
             skin->platform = "SKIN";
             const ui::Rect body = external_body_rect(p.session(), kind);
             p.press_cell(body.x, body.y); // the keys go to the pane
@@ -2256,7 +2256,7 @@ TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot mo
         }
         return surface::SurfaceTextRegion{};
     };
-    const surface::SurfaceTextRegion chosen_picture = published(r.last_canvas());
+    const surface::SurfaceTextRegion chosen_picture = published(paint(r.session()));
     REQUIRE(chosen_picture.w > 0);
     CHECK(chosen_picture.x == on_window.region_x);
     CHECK(chosen_picture.y == on_window.region_y);
@@ -2269,7 +2269,7 @@ TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot mo
     CHECK(after.rows == on_window.rows);
     CHECK(after.columns == on_window.columns);
     CHECK(after.fit == on_window.fit);
-    const surface::SurfaceTextRegion plain_picture = published(r.last_canvas());
+    const surface::SurfaceTextRegion plain_picture = published(paint(r.session()));
     REQUIRE(plain_picture.w > 0);
     CHECK(plain_picture.x == chosen_picture.x);
     CHECK(plain_picture.y == chosen_picture.y);
@@ -2527,7 +2527,7 @@ TEST_CASE("an inactive layout's rows are dormant, not maintained") {
 
 TEST_CASE("unchanged arrangement motion retains its gesture without another picture") {
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(60), 8, 18, gfx::kCellPx}));
+    t.extent_px(cells_px(160), cells_px(60), 8, 18, gfx::kCellPx);
     open_pane(t, ref_of(stock::kKind));
     enter_arrange_desk(t);
     select_pane(t, ref_of(stock::kKind));
@@ -2542,13 +2542,13 @@ TEST_CASE("unchanged arrangement motion retains its gesture without another pict
     t.motion_at(x + 4, y + 2, input::space::kPixels);
     const SetupPane arranged = *pane_of(t.session().setup.active, ref_of(stock::kKind));
     const std::string notice = t.session().notice;
-    const auto painted = t.canvases.size();
+    const auto painted = t.pictures;
     for (int i = 0; i < 32; ++i) {
         (void)t.bus.publish(loom::Message(loom::to_value(input::PointerMoved{
             x + 4, y + 2, 0, 0, input::space::kPixels, input::mod::kNone}), {}, {}, 0));
     }
     t.bus.drain_until_idle();
-    CHECK(t.canvases.size() == painted);
+    CHECK(t.pictures == painted);
     CHECK(*pane_of(t.session().setup.active, ref_of(stock::kKind)) == arranged);
     CHECK(t.session().arrange.pane == ref_of(stock::kKind));
     CHECK(t.session().pane_drag.active);
@@ -2560,18 +2560,18 @@ TEST_CASE("unchanged arrangement motion retains its gesture without another pict
     live(t).notice = "an intervening notice";
     live(t).notice_is_bad = true;
     t.motion_at(x + 4, y + 2, input::space::kPixels);
-    CHECK(t.canvases.size() == painted + 1);
+    CHECK(t.pictures == painted + 1);
     CHECK(t.session().notice == notice);
     CHECK_FALSE(t.session().notice_is_bad);
     t.publish(loom::to_value(input::PointerButton{
         1, false, x + 4, y + 2, input::space::kPixels, input::mod::kNone}));
     CHECK_FALSE(t.session().pane_drag.active);
-    CHECK(t.canvases.size() == painted + 2);
+    CHECK(t.pictures == painted + 2);
 }
 
 TEST_CASE("repeated refused arrangement motion retains the refusal and can recover") {
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(60), 8, 18, gfx::kCellPx}));
+    t.extent_px(cells_px(160), cells_px(60), 8, 18, gfx::kCellPx);
     open_pane(t, ref_of(stock::kKind));
     enter_arrange_desk(t);
     select_pane(t, ref_of(stock::kKind));
@@ -2582,11 +2582,11 @@ TEST_CASE("repeated refused arrangement motion retains the refusal and can recov
     t.press_at(x, y, input::space::kPixels);
     REQUIRE(t.session().pane_drag.sizing);
     const SetupPane original = *pane_of(t.session().setup.active, ref_of(stock::kKind));
-    const auto painted = t.canvases.size();
+    const auto painted = t.pictures;
     t.motion_at(x - 10000, y, input::space::kPixels);
     REQUIRE(t.session().notice_is_bad);
     const std::string refusal = t.session().notice;
-    CHECK(t.canvases.size() == painted + 1);
+    CHECK(t.pictures == painted + 1);
     for (int i = 0; i < 8; ++i) {
         t.motion_at(x - 10000, y, input::space::kPixels);
     }
@@ -2594,17 +2594,17 @@ TEST_CASE("repeated refused arrangement motion retains the refusal and can recov
     CHECK(t.session().pane_drag.active);
     CHECK(t.session().notice == refusal);
     CHECK(t.session().notice_is_bad);
-    CHECK(t.canvases.size() == painted + 1);
+    CHECK(t.pictures == painted + 1);
     t.motion_at(x + 3, y, input::space::kPixels);
     CHECK_FALSE(t.session().notice_is_bad);
-    CHECK(t.canvases.size() == painted + 2);
+    CHECK(t.pictures == painted + 2);
     CHECK(pane_of(t.session().setup.active, ref_of(stock::kKind))->width.amount ==
           bounds.resolved.w + 3 * gfx::kPixelGrainPx);
 }
 
 TEST_CASE("queued arrangement motions retain order through release") {
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(60), 8, 18, gfx::kCellPx}));
+    t.extent_px(cells_px(160), cells_px(60), 8, 18, gfx::kCellPx);
     open_pane(t, ref_of(stock::kKind));
     enter_arrange_desk(t);
     select_pane(t, ref_of(stock::kKind));
@@ -2614,7 +2614,7 @@ TEST_CASE("queued arrangement motions retain order through release") {
     const auto y = (bounds.rect.y + bounds.rect.h) - 1;
     t.press_at(x, y, input::space::kPixels);
     REQUIRE(t.session().pane_drag.sizing);
-    const auto painted = t.canvases.size();
+    const auto painted = t.pictures;
     for (int i = 1; i <= 8; ++i) {
         (void)t.bus.publish(loom::Message(loom::to_value(input::PointerMoved{
             x + i, y + i, 1, 1, input::space::kPixels, input::mod::kNone}), {}, {}, 0));
@@ -2629,6 +2629,6 @@ TEST_CASE("queued arrangement motions retain order through release") {
     REQUIRE(row != nullptr);
     CHECK(row->width.amount == bounds.resolved.w + 8 * gfx::kPixelGrainPx);
     CHECK(row->height.amount == bounds.resolved.h + 8 * gfx::kPixelGrainPx);
-    CHECK(t.canvases.size() == painted + 9);
+    CHECK(t.pictures == painted + 9);
     CHECK(t.bus.pending() == 0);
 }

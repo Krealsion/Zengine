@@ -14,8 +14,8 @@
 #include "builder_rig.hpp"
 
 #include "builder/builder-pane/vocabulary.hpp"
+#include "graphics/light_paint.hpp"
 #include "input/vocabulary.hpp"
-#include "surface/skin_sdl_plan.hpp"
 #include "workshop/desktop-pane/vocabulary.hpp"
 #include "workshop/guests.hpp"
 #include "workshop/guide_vocabulary.hpp"
@@ -128,8 +128,18 @@ struct TutorDesk {
             return scope::GuestRowFacts{};
         };
         b.tool->catalog = catalog_of({{"tally", "tally"}});
+        // A MARK IS A ROLE'S INK, so the desk wears a skin a terminal draws roles in: `block`.
+        prefs_persist::Prefs prefs;
+        prefs_persist::put_office_value(prefs, kWorkshopProvider, "workshop.skin",
+                                        PaneSetting{"workshop.skin", std::nullopt, std::nullopt,
+                                                    std::string("block")});
+        b.r.host.prefs_path = (b.root / "workshop-prefs.json").generic_string();
+        REQUIRE(prefs_persist::save_file(b.r.host.prefs_path, prefs).accepted);
         b.open(160, 48, with_editor, true, true, false, /*with_desktop=*/true);
     }
+
+    /// THE SAME DESK ON THE OS WINDOW.
+    void on_window() { b.r.extent_on_window(160, 48); }
 
     Tutor& admit(guests::GuestRow row) {
         auto t = std::make_unique<Tutor>();
@@ -184,8 +194,6 @@ struct TutorDesk {
         return t.weave->desks.back();
     }
 
-    const surface::SurfaceCanvas& canvas() { return b.r.canvases.back(); }
-
     /// THE WEAVER'S OWN PRESS AND RELEASE at the point a part's reading names, in its medium's
     /// space: what the platform reports, attributed to no guest.
     void weaver_press(const v2::PanePart& part) {
@@ -205,21 +213,30 @@ const v2::PanePart* part_named(const v6::PaneView& view, const std::string& name
     return nullptr;
 }
 
-/// THE GUIDE ROLE'S LABELS IN A PICTURE: what a guest's marks drew.
-std::vector<surface::SurfaceLabel> guide_labels(const surface::SurfaceCanvas& c) {
-    std::vector<surface::SurfaceLabel> out;
-    for (const surface::SurfaceLabel& l : all_labels(c)) {
-        if (l.role == gfx::role::kGuide) out.push_back(l);
+namespace rw = zengine::testing::rig_windows;
+
+/// THE CELLS A TERMINAL WINDOW SHOWS IN THE GUIDE ROLE'S INK: what a guest's marks drew there.
+std::vector<rw::Cell> guide_cells(TutorDesk& d) {
+    std::vector<rw::Cell> out;
+    for (const rw::Cell& c : d.b.r.windows.cells()) {
+        if (c.role == gfx::role::kGuide) out.push_back(c);
     }
     return out;
 }
 
-std::vector<surface::SurfaceRect> guide_rects(const surface::SurfaceCanvas& c) {
-    std::vector<surface::SurfaceRect> out;
-    for (const surface::SurfaceRect& r : all_rects(c)) {
-        if (r.role == gfx::role::kGuide) out.push_back(r);
+/// THE QUADS THE OS WINDOW DRAWS IN THE GUIDE ROLE'S INK: a mark's outline there.
+std::vector<rw::Quad> guide_quads(TutorDesk& d) {
+    std::vector<rw::Quad> out;
+    for (const rw::Quad& q : d.b.r.windows.quads()) {
+        if (q.role == gfx::role::kGuide) out.push_back(q);
     }
     return out;
+}
+
+/// WHETHER ANY MARK IS DRAWN, in either window: a cell or a quad in the guide role's ink.
+bool mark_drawn(TutorDesk& d) {
+    return d.b.r.windows.window() == gfx::kSdlWindow ? !guide_quads(d).empty()
+                                                       : !guide_cells(d).empty();
 }
 
 /// THE OFFICE THAT HOLDS INPUT, as a case needs one: it counts what reaches it.
@@ -276,7 +293,7 @@ TEST_CASE("the Tutor's walk on a weaver's host, in a terminal and in a window: i
     SUBCASE("in a window") { window = true; }
     CAPTURE(window);
     TutorDesk d("guide-walk");
-    if (window) d.b.r.extent_on_window(160, 48);
+    if (window) d.on_window();
     Tutor& tutor = d.admit(tutor_row("tutor", {"zengine.builder-pane/" "*", launcher_door()},
                                      {"zengine.builder-pane/" "*", launcher_door()}));
     // READ: the Builder, its Build control drawn and usable.
@@ -290,8 +307,8 @@ TEST_CASE("the Tutor's walk on a weaver's host, in a terminal and in a window: i
     const GuideAnswered marked = d.mark(tutor, builder_door(), pane::kActionBuild);
     REQUIRE_MESSAGE(marked.shown, marked.said);
     CHECK(says(marked.said, "marked control:builder.build in zengine.builder-pane/builder for the weaver, as guest 'tutor'"));
-    if (window) CHECK(guide_rects(d.canvas()).size() == 4);
-    else CHECK_FALSE(guide_labels(d.canvas()).empty());
+    if (window) CHECK(guide_quads(d).size() == 4);
+    else CHECK_FALSE(guide_cells(d).empty());
     // THE WEAVER PRESSES INSIDE IT, at the point its reading names: the mark ends, its guest is
     // told, and the press builds.
     const std::size_t builds = d.b.tool->asked.size();
@@ -299,8 +316,7 @@ TEST_CASE("the Tutor's walk on a weaver's host, in a terminal and in a window: i
     REQUIRE_FALSE(tutor.weave->guides.empty());
     CHECK(says(tutor.weave->guides.back().said, "ended: the weaver pressed it"));
     CHECK_FALSE(tutor.weave->guides.back().shown);
-    CHECK(guide_labels(d.canvas()).empty());
-    CHECK(guide_rects(d.canvas()).empty());
+    CHECK_FALSE(mark_drawn(d));
     CHECK(d.b.tool->asked.size() == builds + 1);
     // THE DESK MOVES: the Builder's stamp is another picture's.
     d.b.tool_says();
@@ -325,13 +341,11 @@ TEST_CASE("the Tutor's walk on a weaver's host, in a terminal and in a window: i
 TEST_CASE("a mark in a terminal is its part's own cells in the guide role: every row of the pane reads as before, and its label stands on a body row wholly free or is not drawn, the guest told which") {
     TutorDesk d("guide-terminal");
     Tutor& tutor = d.admit(tutor_row("tutor", {"zengine.builder-pane/" "*"}, {"zengine.builder-pane/" "*"}));
-    const std::vector<std::string> plain = rasterized(d.canvas());
+    const std::vector<std::string> plain = d.b.r.shown().rows;
     const GuideAnswered marked = d.mark(tutor, builder_door(), pane::kActionBuild);
     REQUIRE_MESSAGE(marked.shown, marked.said);
-    const surface::SurfaceCanvas& c = d.canvas();
-    const std::vector<std::string> shown = rasterized(c);
-    // NO OUTLINE CELL: a terminal mark draws no rectangle.
-    CHECK(guide_rects(c).empty());
+    const std::vector<std::string> shown = d.b.r.shown().rows;
+    const std::vector<rw::Cell> inked = guide_cells(d);
     // ITS INK IS A COLOUR AND NO ATTRIBUTE, as every role's is, so the cells after it are drawn in
     // their own ink, neither reversed nor bold.
     const std::string ink = gfx::window::sgr_for_role(static_cast<int>(gfx::role::kGuide));
@@ -348,14 +362,27 @@ TEST_CASE("a mark in a terminal is its part's own cells in the guide role: every
     const v6::PaneView view = d.read(tutor, pane::kBuilderPaneRole, pane::kBuilderPane);
     const v2::PanePart* build = part_named(view, "control:" + std::string(pane::kActionBuild));
     REQUIRE(build != nullptr);
-    bool on_part = false;
-    for (const surface::SurfaceLabel& l : guide_labels(c)) {
-        if (l.x == build->place.x && l.y == build->place.y) {
-            on_part = true;
-            CHECK(l.text == build->text);
+    const std::int64_t part_col = gfx::cell_of_pixel(build->place.x);
+    const std::int64_t part_row = gfx::cell_of_pixel(build->place.y);
+    std::string on_part;
+    for (const rw::Cell& cell : inked) {
+        if (cell.row == part_row && cell.col >= part_col &&
+            cell.col < part_col + static_cast<std::int64_t>(build->text.size())) {
+            on_part += cell.glyph;
         }
     }
-    CHECK(on_part);
+    CHECK(on_part == build->text);
+    // NO OUTLINE CELL: a terminal mark draws no rectangle -- the guide's ink stands on the part's
+    // own cells and on the label's row, and nowhere else.
+    for (const rw::Cell& cell : inked) {
+        CAPTURE(cell.col);
+        CAPTURE(cell.row);
+        const bool on_the_part = cell.row == part_row && cell.col >= part_col &&
+                                 cell.col < part_col + static_cast<std::int64_t>(build->text.size());
+        const auto row = static_cast<std::size_t>(cell.row);
+        const bool on_the_label = row < shown.size() && row < plain.size() && shown[row] != plain[row];
+        CHECK((on_the_part || on_the_label));
+    }
     // EVERY ROW READS AS BEFORE, but a label's own row, which was wholly blank inside the body.
     REQUIRE(shown.size() == plain.size());
     const bool labelled = says(marked.said, "its label stands beside it");
@@ -377,7 +404,7 @@ TEST_CASE("a mark in a terminal is its part's own cells in the guide role: every
     const GuideAnswered crowded = d.mark(tutor, builder_door(), "part:recipe:tally");
     REQUIRE_MESSAGE(crowded.shown, crowded.said);
     CHECK_MESSAGE(says(crowded.said, "its label is not drawn: no free row of the pane's body beside it"), crowded.said);
-    const std::vector<std::string> crowded_rows = rasterized(d.canvas());
+    const std::vector<std::string> crowded_rows = d.b.r.shown().rows;
     REQUIRE(crowded_rows.size() == plain.size());
     for (std::size_t row = 0; row < plain.size(); ++row) {
         CAPTURE(row);
@@ -388,38 +415,29 @@ TEST_CASE("a mark in a terminal is its part's own cells in the guide role: every
 
 TEST_CASE("a mark in a window is an outline one pixel wide around its part inside the pane's body, in the guide role's ink as the window's plan draws it, and its label names the guest") {
     TutorDesk d("guide-window");
-    d.b.r.extent_on_window(160, 48);
+    d.on_window();
     Tutor& tutor = d.admit(tutor_row("tutor", {"zengine.builder-pane/" "*"}, {"zengine.builder-pane/" "*"}));
     const v6::PaneView view = d.read(tutor, pane::kBuilderPaneRole, pane::kBuilderPane);
     const v2::PanePart* build = part_named(view, "control:" + std::string(pane::kActionBuild));
     REQUIRE(build != nullptr);
     const GuideAnswered marked = d.mark(tutor, builder_door(), pane::kActionBuild);
     REQUIRE_MESSAGE(marked.shown, marked.said);
-    const surface::SurfaceCanvas& c = d.canvas();
-    const std::vector<surface::SurfaceRect> edges = guide_rects(c);
+    const std::vector<rw::Quad> edges = guide_quads(d);
     REQUIRE(edges.size() == 4);
     const DeskRect& r = build->place;
-    for (const surface::SurfaceRect& e : edges) {
+    for (const rw::Quad& e : edges) {
         CHECK((e.w == 1 || e.h == 1));
         // AROUND THE PART, never over it.
         const bool over = e.x < r.x + r.w && r.x < e.x + e.w && e.y < r.y + r.h && r.y < e.y + e.h;
         CHECK_FALSE(over);
     }
-    // THE WINDOW'S PLAN DRAWS THEM IN THE GUIDE ROLE'S INK, which is no other role's.
-    const surface::PlanInk ink = surface::ink_for_role(gfx::role::kGuide);
+    // THE WINDOW DRAWS THEM IN THE GUIDE ROLE'S INK, which is no other role's in its look.
+    const gfx::light::Look look = gfx::light::night_look();
     for (const std::int64_t other : {gfx::role::kFill, gfx::role::kAccent, gfx::role::kMuted,
                                      gfx::role::kAlert}) {
-        CHECK_FALSE(ink == surface::ink_for_role(other));
+        CHECK(look.colour.at(gfx::role::kGuide) != look.colour.at(other));
     }
-    std::size_t inked = 0;
-    for (const surface::SurfaceLayer& layer : c.layers) {
-        for (const surface::PlanRect& q : surface::plan_layer_quads(layer, c.width, c.height)) {
-            inked += (q.r == ink.r && q.g == ink.g && q.b == ink.b) ? 1 : 0;
-        }
-    }
-    CHECK(inked >= 4);
-    bool named = false;
-    for (const surface::SurfaceLabel& l : guide_labels(c)) named = named || says(l.text, "tutor: \"build this one\"");
+    const bool named = says(d.b.r.shown().text(), "tutor: \"build this one\"");
     CHECK(named == says(marked.said, "its label stands beside it"));
 }
 
@@ -456,21 +474,19 @@ TEST_CASE("a mark ends, and never comes back, when its part leaves a settled pic
     REQUIRE_FALSE(tutor.weave->guides.empty());
     CHECK_MESSAGE(says(tutor.weave->guides.back().said, "ended: its part control:builder.build left the pane's picture"),
                   tutor.weave->guides.back().said);
-    CHECK(guide_labels(d.canvas()).empty());
+    CHECK_FALSE(mark_drawn(d));
     // ...AND CLOSES IT: the control is back, and the mark is not.
     d.b.r.key(input::scan::kEscape);
     const v6::PaneView back = d.read(tutor, pane::kBuilderPaneRole, pane::kBuilderPane);
     REQUIRE(part_named(back, "control:" + std::string(pane::kActionBuild)) != nullptr);
-    CHECK(guide_labels(d.canvas()).empty());
+    CHECK_FALSE(mark_drawn(d));
     // A NEWER MARK REPLACES THE SESSION'S ONE, and an empty control clears it.
     REQUIRE(d.mark(tutor, builder_door(), pane::kActionBuild).shown);
     REQUIRE(d.mark(tutor, builder_door(), pane::kActionOutput, "the output").shown);
-    std::size_t labels = 0;
-    for (const surface::SurfaceLabel& l : guide_labels(d.canvas())) labels += says(l.text, "build this one") ? 1u : 0u;
-    CHECK(labels == 0);
+    CHECK_FALSE(says(d.b.r.shown().text(), "build this one"));
     const GuideAnswered cleared = d.mark(tutor, builder_door(), "");
     CHECK(cleared.said == "cleared");
-    CHECK(guide_labels(d.canvas()).empty());
+    CHECK_FALSE(mark_drawn(d));
 }
 
 TEST_CASE("a mark ends when its guest's session ends, and a guest's own press refused at the bus never ends one") {
@@ -496,11 +512,11 @@ TEST_CASE("a mark ends when its guest's session ends, and a guest's own press re
     });
     CHECK(refused == 2);
     CHECK(heard == 0);
-    CHECK_FALSE(guide_labels(d.canvas()).empty());
+    CHECK(mark_drawn(d));
     // ITS SESSION ENDS: the next picture draws no mark of it.
     d.b.r.bus.unregister_weave(tutor.id);
     d.b.regrant();
-    CHECK(guide_labels(d.canvas()).empty());
+    CHECK_FALSE(mark_drawn(d));
 }
 
 // ============================================================================
@@ -544,7 +560,7 @@ TEST_CASE("a mark beyond the row's guide doors is refused in the same words whet
     CHECK_FALSE(shown_part.shown);
     CHECK(shown_part.said == no_part.said);
     CHECK(says(shown_part.said, "is outside guest 'tutor''s `guide` doors"));
-    CHECK(guide_labels(d.canvas()).empty());
+    CHECK_FALSE(mark_drawn(d));
     // A ROW THAT MAY NOT GUIDE: its ask never reaches Workshop.
     Tutor& reader = d.admit(tutor_row("reader", {"*"}, {}, {guests::kPowerCapture}));
     std::size_t delivered = 0;

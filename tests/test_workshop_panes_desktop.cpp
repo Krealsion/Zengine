@@ -79,7 +79,7 @@ std::string marked(const std::vector<std::string>& rows) {
 }
 
 void button_cell(PaneRig& r, std::int64_t button, bool pressed, std::int64_t cx, std::int64_t cy) {
-    r.publish(loom::to_value(input::PointerButton{button, pressed, cx, cy + surface::kTuiCanvasTopRow,
+    r.publish(loom::to_value(input::PointerButton{button, pressed, cx, cy + r.console_rows(),
                                                   input::space::kCells, input::mod::kNone}));
 }
 
@@ -90,7 +90,7 @@ void queue_key(PaneRig& r, std::int64_t scancode, std::int64_t modifiers) {
 
 void queue_button(PaneRig& r, std::int64_t button, bool pressed, std::int64_t cx, std::int64_t cy) {
     (void)r.bus.publish(loom::Message(
-        loom::to_value(input::PointerButton{button, pressed, cx, cy + surface::kTuiCanvasTopRow,
+        loom::to_value(input::PointerButton{button, pressed, cx, cy + r.console_rows(),
                                             input::space::kCells, input::mod::kNone}),
         loom::WeaveId{}, loom::WeaveId{}, 0));
 }
@@ -111,7 +111,11 @@ struct Desk {
     std::int64_t launcher = kNoPaneKind;
 
     explicit Desk(const std::string& keymap_path = std::string(), std::int64_t width = 160,
-                  std::int64_t height = 60, const char* presenter_image = WORKSHOP_SO_MENU_PRESENTER) {
+                  std::int64_t height = 60, const char* presenter_image = WORKSHOP_SO_MENU_PRESENTER,
+                  bool on_skin = false) {
+        if (on_skin) {
+            (void)mount_skin_stand_in(r);
+        }
         if (!keymap_path.empty()) {
             r.host.keymap_path = keymap_path;
         }
@@ -193,7 +197,8 @@ TEST_CASE("WL-DESK-14: a press on a row's mark shows or hides that pane; a press
 }
 
 TEST_CASE("WL-HAND-06: the Pane Manager names each row and its mark by the pane's reference") {
-    Desk d;
+    // ON A SKIN: a window of the case's own shows the Pane Manager beside the desk.
+    Desk d(std::string(), 160, 60, WORKSHOP_SO_MENU_PRESENTER, /*on_skin=*/true);
     for (const char* pane : {"alpha", "beta", "gamma"}) {
         CAPTURE(pane);
         const std::string ref = std::string("zengine.test.tools/") + pane;
@@ -456,7 +461,7 @@ TEST_CASE("WL-DESK-14: a right press on a row offers its menu -- show, manage an
     const std::int64_t beta = d.row_of("Beta");
     d.right(beta, kNameCol);
     REQUIRE(menu_shown(d.r.session()));
-    const std::vector<std::string> painted = context_rows_on(d.r.last_canvas(), d.r.session());
+    const std::vector<std::string> painted = context_rows_on(d.r.shown(), d.r.session());
     REQUIRE(painted.size() == 3 + 1 + kStandardRows); // the desktop's, a rule, the host's own
     CHECK(painted[0] == "> show Beta");
     CHECK(painted[1] == "  manage Beta >");
@@ -481,7 +486,7 @@ TEST_CASE("WL-DESK-14: a right press on a row offers its menu -- show, manage an
     REQUIRE(d.r.session().panes.keyboard == d.launcher);
     d.r.key(input::scan::kM);
     REQUIRE(menu_shown(d.r.session()));
-    const std::vector<std::string> again = context_rows_on(d.r.last_canvas(), d.r.session());
+    const std::vector<std::string> again = context_rows_on(d.r.shown(), d.r.session());
     REQUIRE(again.size() == 4 + 1 + kStandardRows);
     CHECK(again[0] == "> focus Beta");
     CHECK(again[1] == "  hide Beta");
@@ -536,10 +541,16 @@ struct Keys {
     PaneRig r;
     loom::WeaveId presenter{};
     std::int64_t hotkeys = kNoPaneKind;
+    /// THE SKIN'S PLATFORM, seated first when a case's claim is the Skin path's own.
+    SkinStandIn* skin = nullptr;
 
     explicit Keys(const char* name, const std::string& file_text = std::string(),
-                  bool isolated = false, const char* presenter_image = WORKSHOP_SO_MENU_PRESENTER)
+                  bool isolated = false, const char* presenter_image = WORKSHOP_SO_MENU_PRESENTER,
+                  bool on_skin = false)
         : dir(name), path(dir.file("keymap.json")) {
+        if (on_skin) {
+            skin = mount_skin_stand_in(r);
+        }
         if (!file_text.empty()) {
             write_keymap_file(path, file_text);
         }
@@ -581,6 +592,18 @@ struct Keys {
         return -1;
     }
     void right(std::int64_t row, std::int64_t col = 4) {
+        // On a face, the window's pixel at the middle of that glyph, where the window draws it.
+        if (const ExternalBodyPlace place = external_body_of(r.session(), hotkeys); place.fit.graphical()) {
+            const RegionFit& fit = place.fit;
+            const std::int64_t px = fit.view.x + fit.origin_x + col * fit.advance_px + fit.advance_px / 2;
+            const std::int64_t py =
+                fit.view.y + fit.origin_y + (place.header_rows + row) * fit.line_px + fit.line_px / 2;
+            for (const bool down : {true, false}) {
+                r.publish(loom::to_value(input::PointerButton{3, down, px, py, input::space::kPixels,
+                                                              input::mod::kNone}));
+            }
+            return;
+        }
         button_cell(r, 3, true, body_x(r, hotkeys, col), body_y(r, hotkeys, row));
         button_cell(r, 3, false, body_x(r, hotkeys, col), body_y(r, hotkeys, row));
     }
@@ -763,7 +786,7 @@ TEST_CASE("WL-KEY-17: right-click a binding, Modify (press a key): the change is
     CHECK(k.rows()[static_cast<std::size_t>(row)].find("ctrl+t") != std::string::npos);
     k.right(row);
     REQUIRE(menu_shown(k.r.session()));
-    const std::vector<std::string> painted = context_rows_on(k.r.last_canvas(), k.r.session());
+    const std::vector<std::string> painted = context_rows_on(k.r.shown(), k.r.session());
     REQUIRE(painted.size() == 7 + 1 + kStandardRows);
     CHECK(painted[0] == "> Modify (press a key)");
     CHECK(painted[4] == "  Remove `ctrl+t`");
@@ -1131,7 +1154,7 @@ TEST_CASE("the Hotkeys pane heads a pane's keys with the pane's name made drawab
     // party chose is drawn as this pane draws every other party's words, one mark for each such
     // character; a spelling is the keymap file's grammar, so text outside it is never typed.
     Keys k("hotkeys-undrawable");
-    SkinSeat* skin = k.r.mount_skin_seat(); // the medium a paste asks
+    k.r.on_os_window(); // the medium a paste asks
     ProviderSeat* tools = k.r.mount_provider("zengine.test.tools");
     k.r.drive(tools, [](ProviderSeat& s, loom::Mail& m) {
         s.offer(m, PaneOffered{"cafe", "Caf\xC3\xA9", "a fixture"});
@@ -1195,10 +1218,10 @@ TEST_CASE("the Hotkeys pane heads a pane's keys with the pane's name made drawab
     k.choose("Modify (type a spelling)");
     k.r.text("ctrl+");
     CHECK(spelling_shown().find(not_typed) == std::string::npos);
-    skin->platform = "\xC3\xA9";
-    const int reads = skin->clipboard_reads;
+    k.r.windows.set_clipboard("\xC3\xA9");
+    const int reads = k.r.windows.clipboard_reads();
     k.r.key(input::scan::kV, input::mod::kCtrl);
-    CHECK(skin->clipboard_reads == reads + 1);
+    CHECK(k.r.windows.clipboard_reads() == reads + 1);
     CHECK(spelling_shown().find(not_typed) != std::string::npos);
     admitted();
 }
@@ -1209,8 +1232,9 @@ TEST_CASE("the Hotkeys pane asks the window that shows it for a paste into a spe
     namespace pw = zengine::testing::pane_window;
     for (const char* window : {gfx::kSdlWindow, gfx::kTerminalWindow}) {
         CAPTURE(window);
-        Keys k("hotkeys-paste-window");
-        SkinSeat* skin = k.r.mount_skin_seat();
+        Keys k("hotkeys-paste-window", std::string(), false, WORKSHOP_SO_MENU_PRESENTER,
+               /*on_skin=*/true);
+        SkinStandIn* skin = k.skin;
         skin->platform = "ctrl+";
         const std::int64_t quit = k.row_of("workshop.quit");
         REQUIRE(quit >= 0);
@@ -1590,7 +1614,7 @@ bool drafting(Desk& d, std::int64_t info) {
 void inspect_by_keys(Desk& d, const std::string& name) {
     d.right(d.row_of(name), kNameCol);
     REQUIRE(menu_shown(d.r.session()));
-    const std::vector<std::string> rows = context_rows_on(d.r.last_canvas(), d.r.session());
+    const std::vector<std::string> rows = context_rows_on(d.r.shown(), d.r.session());
     const auto at = std::find(rows.begin(), rows.end(), "  inspect in Info");
     REQUIRE(at != rows.end());
     for (auto i = rows.begin(); i != at; ++i) {

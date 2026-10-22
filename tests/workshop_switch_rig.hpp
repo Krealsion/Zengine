@@ -101,7 +101,6 @@ struct SwitchRig {
     std::uint64_t reads = 0;
     EditorSwitchCoordinator* switcher = nullptr;
     loom::WeaveId switcher_id{};
-    SkinSeat* skin = nullptr;
 
     /// HELD HERE, because the project door keeps the path it is handed by reference.
     std::string marks_path;
@@ -132,7 +131,6 @@ struct SwitchRig {
         }
         r.mount_opening();
         mount_project_door();
-        skin = r.mount_skin_seat();
         load::LoadPlan plan;
         load::ArtifactIntent seat;
         seat.stem = start;

@@ -195,8 +195,7 @@ UNWITNESSED — the handed document carried back when Neovim ends before it serv
 `editor/neovim/lua.hpp` kModule
 `editor/neovim-editor/pane.cpp` absorb on(ClipboardText)
 `editor/neovim-editor/common.hpp` join_lines paste_lines
-`tests/test_workshop_neovim.cpp` "a copy in Neovim reaches the Skin, and a paste in Neovim asks the
-Skin"
+`tests/test_workshop_neovim.cpp` "a copy in Neovim reaches its medium, and a paste in Neovim asks it"
 `workshop/pane_drawing.hpp` WindowDrawing::clipboard_office
 
 ### WL-NVIM-08

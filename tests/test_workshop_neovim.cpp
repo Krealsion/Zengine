@@ -147,7 +147,10 @@ public:
     bool refuse = false;
 
     void on(const zengine::timer::EnsureTimer& order, loom::Mail& mail) {
-        orders.push_back(order);
+        // THE EDITOR'S ORDERS are kept; the window the desk is shown in orders its own beat too.
+        if (order.id.rfind("zengine.neovim-editor.", 0) == 0) {
+            orders.push_back(order);
+        }
         namespace timer = zengine::timer;
         const bool readable = timer::continuity_from(order.preferred).has_value();
         const bool refused = refuse || !readable;
@@ -898,22 +901,23 @@ TEST_CASE("Neovim ended from inside leaves the office held with no document, sai
     CHECK(s.read("path").empty());
 }
 
-TEST_CASE("a copy in Neovim reaches the Skin, and a paste in Neovim asks the Skin") {
+TEST_CASE("a copy in Neovim reaches its medium, and a paste in Neovim asks it") {
     SwitchRig s("nvim-clipboard");
     NeovimEnvironment env(s.root, NEOVIM_PROGRAM);
+    s.r.on_os_window(); // the medium whose platform clipboard a paste reads
     s.open(standard_and_neovim(), nve::kNeovimEditorStem);
     REQUIRE(beat_until(s, [&] { return s.read("ready") == "true"; }));
     REQUIRE(open_through_office(s, "clip.txt", "copy me\n").accepted);
     focus(s);
     // A LINEWISE COPY is its line and its newline -- once.
     s.type("\"+yy");
-    REQUIRE(beat_until(s, [&] { return s.skin->platform == "copy me\n"; }));
-    // A PASTE ASKS THE SKIN, once, and what the medium holds lands where Neovim put it.
-    s.skin->platform = "pasted";
-    const int reads = s.skin->clipboard_reads;
+    REQUIRE(beat_until(s, [&] { return s.r.windows.clipboard() == std::optional<std::string>("copy me\n"); }));
+    // A PASTE ASKS THE MEDIUM, once, and what it holds lands where Neovim put it.
+    s.r.windows.set_clipboard("pasted");
+    const int reads = s.r.windows.clipboard_reads();
     s.type("\"+P");
     REQUIRE(beat_until(s, [&] { return s.shows("pastedcopy me"); }));
-    CHECK(s.skin->clipboard_reads == reads + 1);
+    CHECK(s.r.windows.clipboard_reads() == reads + 1);
 }
 
 TEST_CASE("an unfinished command in Neovim is reset by a switch and said, and a prompt refuses the switch until it is answered") {
