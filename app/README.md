@@ -10,6 +10,8 @@ words, and kept in the app's folder.
 - [Running an app on its own](docs/app.md): an app's folder, `app.json`, starting it, its console,
   and what runs the view and the flow.
 
+![The tally app in its own OS window, typed into and counting](docs/images/tally-app.png)
+
 ## What is in this folder
 
 | | |
@@ -20,7 +22,7 @@ words, and kept in the app's folder.
 | `files.hpp` | reading `app.json` and the app's files |
 | `vocabulary.hpp` | the offices, the place door's asks, and `app.json`'s shapes |
 | `CMakeLists.txt` | how the folder builds, and the artifacts staged beside the program |
-| `docs/` | the page above |
+| `docs/` | the page above and its picture |
 
 An app written by hand: [`examples/tally-app/`](../examples/tally-app/README.md).
 
