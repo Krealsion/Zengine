@@ -563,7 +563,15 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
         (void)hold_input(std::move(held));
         return;
     }
+    shift_press_ = is_shift_scan(k.scancode);
     count_gesture();
+    shift_press_ = false;
+    // A SHIFT TAPPED TWICE is a double Shift where a row answers to it; otherwise the press goes on
+    // as every Shift press does.
+    if (is_shift_scan(k.scancode) && shift_tapped(k, mail)) {
+        repaint(mail);
+        return;
+    }
     // ESCAPE PUTS DOWN WHAT ITS OWN HAND CARRIES: the weaver's hand is its attributed local input
     // and its unattributed input alike, a graphics window's keys among them.
     const Hand* carrier = carried_.data.empty() ? nullptr : find_hand(carried_.actor);
