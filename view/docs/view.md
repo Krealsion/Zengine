@@ -98,8 +98,12 @@ its intents and those conversations, its actions among them.
   rectangle and run of text a node named by what drew it -- `ground`, `box:<id>`, `text:<id>`,
   and `notice` for the notice's lines -- and each button's nodes asking its id. A focused number
   field's caret is drawn there as Workshop's panes draw theirs: `caret`, a bar in the accent role
-  at the left of the character it stands before, in front of the rest. A press there (`graphics::ActionRequested`) on a button the
-  picture last sent there names uses it as a press in Workshop does. A change is sent as what
+  at the left of the character it stands before, in front of the rest. It hears that window's
+  pointer (`graphics::AreaButtonChanged`), from the window's office alone, read against the picture
+  it last sent there as a press in Workshop is: a left press focuses a number field, uses a button,
+  or takes the focus away, a right press is handed back to Workshop, and a move or the wheel changes
+  nothing. A window showing the area deaf to the pointer asks instead for a press on a button the
+  picture names (`graphics::ActionRequested`), used the same way. A change is sent as what
   changed; a new window, incarnation, size or measure gets the picture whole, a refused change is sent
   again whole, and a refused whole drawing is said on the notice row, the window sent nothing more
   until the picture changes.
