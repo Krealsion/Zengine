@@ -136,7 +136,9 @@ withdrawn menu's record is forgotten when its fence comes round twice, and ordin
 "WL-CTX-10: a withdrawal a fresh holder does not carry is given back, and the host settles who
 asked" "WL-CTX-10: an act reaching an image that refused the grant is given back and takes nothing"
 "WL-CTX-10: a menu its image answered is not reopened by a give-back behind it" "WL-CTX-10: a
-give-back is one office's word about one menu, and settles no other"
+give-back is one office's word about one menu, and settles no other" "WL-CTX-10: the shipped
+presenter reloaded in its own place while a menu is open draws it again where it stands, and a key
+moves it there"
 `tests/test_workshop_panes_desktop.cpp` "WL-CTX-10: a reloaded desktop cancels its predecessor's
 menu -- withdrawn when the successor offers its pane again, and a choice about it acts on nothing"
 "WL-CTX-10: the desktop acts only on the presenter's answer to an ask of this image's own -- not the
