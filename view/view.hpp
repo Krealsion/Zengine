@@ -575,7 +575,9 @@ public:
                        loom::schema_of<ws::PaneCanvasRejected>(), loom::schema_of<ws::PaneKey>(),
                        loom::schema_of<ws::PaneTextInput>(), loom::schema_of<ws::PaneRevealAnswered>(),
                        loom::schema_of<ws::PaneActionRequested>(), loom::schema_of<ws::ActionsJudged>(),
-                       loom::schema_of<input::KeyPressed>(), loom::schema_of<input::TextEntered>()})
+                       loom::schema_of<input::KeyPressed>(), loom::schema_of<input::TextEntered>(),
+                       loom::schema_of<graphics::AreaButtonChanged>(), loom::schema_of<graphics::AreaPointerMoved>(),
+                       loom::schema_of<graphics::AreaWheelTurned>()})
             out.push_back(std::move(s));
         return out;
     }
@@ -641,6 +643,21 @@ public:
             show(bus);
             return;
         }
+        if (is(loom::schema_of<graphics::AreaButtonChanged>())) {
+            // A PRESS IN THE WINDOW THAT SHOWS ITS AREA, as that window's office, read against the
+            // picture last drawn there as a press on Workshop's canvas is read against its own.
+            const auto b = loom::from_value<graphics::AreaButtonChanged>(in.payload);
+            const loom::Mail mail(bus, in, self_);
+            if (!b.pressed || !window_.from_window(b.area, mail) || !window_picture_) return;
+            if (b.button == 3) {
+                say(bus, ws::PanePassRequested{kPane}, in.correlation); // Workshop's, as on its canvas
+            } else if (b.button == 1) {
+                left_press(*window_picture_, b.x, b.y, bus);
+            }
+            return;
+        }
+        if (is(loom::schema_of<graphics::AreaPointerMoved>()) || is(loom::schema_of<graphics::AreaWheelTurned>()))
+            return; // a move and the wheel mean nothing to a view
         if (is(loom::schema_of<detail::ViewRedraw>())) {
             if (!host) return;
             declare(bus); // a change in place may name other buttons
@@ -776,9 +793,9 @@ private:
     /// the picture whole (`ws::WindowDrawing`).
     void show_window(loom::Bus& bus) {
         if (!window_.shown() || window_.width() <= 0 || window_.height() <= 0) return;
-        const auto drawn = sketch(description_, told_, presentation_,
-                                  window_room(window_.width(), window_.height(), window_.cell_px(),
-                                              window_.text()));
+        const auto room = window_room(window_.width(), window_.height(), window_.cell_px(), window_.text());
+        window_picture_ = picture(description_, told_, presentation_, room, 1);
+        const auto drawn = sketch(description_, *window_picture_, room);
         window_actions_.clear();
         for (const auto& record : drawn.records()) window_actions_.insert(record.action);
         // The mail only carries this view's statements as its office; it answers nothing.
@@ -812,7 +829,13 @@ private:
             return p.content.picture == event.picture;
         });
         if (pictured == pictures_.end()) return;
-        const auto* hit = pictured->hit(event.x, event.y);
+        left_press(*pictured, event.x, event.y, bus);
+    }
+
+    /// A LEFT PRESS AT `x`, `y` of `pictured`, on Workshop's canvas or in the window that shows its
+    /// area: a number field focused, a button used, or the focus taken away.
+    void left_press(const Picture& pictured, std::int64_t x, std::int64_t y, loom::Bus& bus) {
+        const auto* hit = pictured.hit(x, y);
         const auto* e = hit ? description_.element(hit->element) : nullptr;
         if (!e) {
             presentation_.focus.reset();
@@ -935,6 +958,7 @@ private:
     std::shared_ptr<Presenter> presenter_;
     ws::WindowDrawing window_;              ///< its area in the window that shows it
     std::set<std::string> window_actions_;  ///< the buttons the picture last sent there names
+    std::optional<Picture> window_picture_; ///< that picture, which a press there is read against
     bool room_asked_ = false;
 };
 

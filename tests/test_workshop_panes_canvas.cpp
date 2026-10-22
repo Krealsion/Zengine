@@ -1518,6 +1518,14 @@ TEST_CASE("a described view offers its own pane through the view host, Workshop 
     r.host.role_holder = [&r](std::string_view office) { return r.bus.role_holder(office); };
     r.ready();
     r.extent(150, 65);
+    std::vector<zengine::graphics::AreaPlaced> placed;
+    const auto placing = r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (e.kind == loom::EventKind::Delivered && e.payload != nullptr &&
+            e.schema_name == zengine::graphics::AreaPlaced::zen_name) {
+            const auto p = loom::from_value<zengine::graphics::AreaPlaced>(*e.payload);
+            if (p.area == "tally.panel") placed.push_back(p);
+        }
+    });
     view::Host views(r.bus);
     views.mount();
     auto asker = std::make_unique<ViewAsker>();
@@ -1588,6 +1596,30 @@ TEST_CASE("a described view offers its own pane through the view host, Workshop 
     std::string sentence;
     for (const auto& t : r.session().panes.external_pane(row->kind)->canvas.content.texts) sentence += t.text + " ";
     CHECK(sentence.find("said tally.panel.Count; nothing accepts it") != std::string::npos);
+
+    // ITS AREA IN WORKSHOP'S WINDOW HEARS THE POINTER, placed by Workshop as its office accepts it.
+    r.bus.remove_observer(placing);
+    REQUIRE_FALSE(placed.empty());
+    CHECK(placed.back().pointer);
+    CHECK(placed.back().owner == "tally.panel");
+
+    // ONE PRESS ON WORKSHOP'S CANVAS, ONE INTENT: it reaches the view through Workshop, as before,
+    // and not again through its area.
+    auto hears = std::make_unique<Hears>(said);
+    Hears* counted = hears.get();
+    (void)r.bus.register_weave(std::move(hears), loom::Grant{});
+    const loom::WeaveId view_id = r.bus.role_holder("tally.panel");
+    std::size_t through_window = 0, through_canvas = 0;
+    const auto route = r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (e.kind != loom::EventKind::Delivered || e.target != view_id) return;
+        if (e.schema_name == zengine::graphics::AreaButtonChanged::zen_name) ++through_window;
+        if (e.schema_name == PaneCanvasPointer::zen_name) ++through_canvas;
+    });
+    at(12, 36);
+    r.bus.remove_observer(route);
+    CHECK(counted->heard.size() == 1);
+    CHECK(through_canvas >= 1);
+    CHECK(through_window == 0);
 
     // Stopped: the last picture Workshop holds says so, and no control is left looking live.
     (void)r.bus.send_as_to_role(client_id, view::kViewHostRole,
