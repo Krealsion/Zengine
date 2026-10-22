@@ -45,6 +45,8 @@ The palette holds at most <!-- value kMaxEntries -->1024<!-- /value --> entries 
 it left out past that; the filter holds at most <!-- value kMaxFilterBytes -->64<!-- /value -->
 characters, and the run remembers <!-- value kMaxHistory -->32<!-- /value --> choices.
 
+![The palette open below Flow, filtered by `apply` to Flow's row with no key](images/palette-apply.png)
+
 ## Commands
 
 ### `palette.up`
