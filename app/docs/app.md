@@ -67,9 +67,10 @@ Read as the load plan is, a Loom value in JSON, its integers written as quoted s
 }
 ```
 
-- `window.skin` is the painter the window paints the app's areas with: `day` or `night` in an OS
-  window, `classic` or `block` in the terminal window. `title`, `width` and `height` are written
-  and not read yet: the OS window opens at its own size and grows to hold what it is given.
+- `window.title`, `width` and `height` name the app's window and size it, in pixels: the OS window
+  takes them, keeping a size within its display, and a side of 0 keeps its own; the terminal window
+  keeps the terminal's. `window.skin` is the painter the window paints the app's areas with: `day`
+  or `night` in an OS window, `classic` or `block` in the terminal window.
 - Each view runs in its own session, its area at `x`, `y` in the window's pixels, its size the
   view's own and its notice rows beneath. Each flow runs in its own session. At most eight of each.
 - A file is a plain name in the app's folder; a path is refused.
@@ -140,7 +141,9 @@ console, before its rows were decided ([the launcher](../../launcher/docs/zengin
   flow, then each view, in its own session, as its office;
 - on the graphics directory's start and the window's offer, it offers the skin `app.json` names
   from the host's artifact directory, places each view's area where `app.json` says, hearing the
-  window's keys, and chooses the skin;
+  window's keys, and chooses the skin; once its own line has its room in a window it says that
+  window's title and size from `app.json`, once each time the window starts, and places its line
+  at the foot of each size the window offers;
 - when something went wrong -- `app.json`, a file, a refused run -- it says so on a line of its own
   at the window's foot.
 

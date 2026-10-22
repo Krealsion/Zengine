@@ -70,7 +70,7 @@ class AppWeave
           loom::Accept<loom::Activated, app::AppPlaceSaid, gfx::GraphicsReady, gfx::WindowOffered,
                        flow_host::FlowAnswer, view::ViewAnswer>,
           loom::Emit<app::AppPlaceAsked, flow_host::FlowRun, view::ViewRun, gfx::AreaPlaced,
-                     gfx::SkinOffered, gfx::SkinChosen>> {
+                     gfx::SkinOffered, gfx::SkinChosen, gfx::WindowShaped>> {
 public:
     using Weave::on;
 
@@ -135,6 +135,22 @@ public:
         if (mail.answers_ask() && !a.ok) {
             say("the view '" + a.session + "' did not run: " + a.reason);
         }
+    }
+
+    /// THE APP'S LINE GIVEN ITS ROOM in the app's window: the window holds this weave as an
+    /// arranger now, so it is told `app.json`'s title and size, once each incarnation of it.
+    void on_room(const gfx::AreaRoom& r, loom::Mail& mail) {
+        if (!read_ || r.window != window_.window || shaped_epoch_ == r.epoch) {
+            return;
+        }
+        shaped_epoch_ = r.epoch;
+        const app::ZengineAppWindow& w = file_.window;
+        if (w.title.empty() && w.width <= 0 && w.height <= 0) {
+            return;
+        }
+        (void)mail.as_role(app::kAppRole)
+            .send_to_role(std::string(gfx::kWindowOfficePrefix) + r.window,
+                          gfx::WindowShaped{r.window, w.title, w.width, w.height});
     }
 
     void picture(gfx::Sketch& f) const {
@@ -223,6 +239,7 @@ private:
     bool told_ = false;      ///< the host said where the app is
     bool read_ = false;      ///< app.json was read and admitted
     bool directory_ = false; ///< the graphics directory said it started
+    std::int64_t shaped_epoch_ = -1; ///< the window's incarnation this weave last shaped
     app::AppPlaceSaid place_;
     app::ZengineAppFile file_;
     gfx::WindowOffered window_;

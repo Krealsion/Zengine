@@ -23,7 +23,11 @@ keeps, is [surface](surface.md); where the two meet is the last section here.
   back, a close its desktop asked for, the beat on request (`PumpSurface`), and the picture it last
   presented, read back -- never one a drawing saying `more` holds back. The clipboard is read when a
   paste asks, never on the beat. The OS window publishes its place when it changed, before its
-  offer when both did, and each close once, as its office; a terminal publishes neither. One
+  offer when both did, and each close once, as its office; a terminal publishes neither. A
+  window's title and size are said by an office that arranges an area in it (`WindowShaped`),
+  judged by the window from the arrangers its areas were introduced with, and from no other; the
+  OS window keeps the size within its display (`window::shaped_within`) and counts its areas'
+  reach then as asked, and the terminal keeps its emulator's. One
   picture is retained and fetched by chunk, one capture waits for its showing at a time, and a
   picture over `kMaxCaptureBytes` is refused whole.
 - **Nothing on the path a picture takes but the drawer and its window.** The directory introduces;
