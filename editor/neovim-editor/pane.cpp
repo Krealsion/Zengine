@@ -441,6 +441,8 @@ public:
             send_input(mail, "<Cmd>write<CR>");
         } else if (asked.id == nve::kActionJumpOlder) {
             send_input(mail, "<C-o>");
+        } else if (asked.id == nve::kActionCtrlSpace) {
+            send_input(mail, "<C-Space>");
         } else if (asked.id == nve::kActionExtract) {
             // THE KEYBOARD ROUTE (WL-NVIM-10), declared only while a selection stands. The weaver may
             // have left Visual mode after the row was declared: then `ctrl+r` was Neovim's own key
@@ -903,6 +905,11 @@ private:
         actions.rows.push_back(ws::v3::PaneActionRow{nve::kActionJumpOlder, "jump back (<C-o>)",
                                                      zengine::input::scan::kO, zengine::input::mod::kCtrl,
                                                      ws::kOwnableDocumentOpen});
+        // CTRL+SPACE IS NEOVIM'S while it holds the keys (completion, `<C-@>`'s insert), so the row
+        // stands in for the palette's key there; the palette is a Pane Manager row away.
+        actions.rows.push_back(ws::v3::PaneActionRow{nve::kActionCtrlSpace, "<C-Space> to Neovim",
+                                                     zengine::input::scan::kSpace,
+                                                     zengine::input::mod::kCtrl, nve::kPaletteKey});
         // The two carries' rows say what their press may send: the carry, once Workshop allows it.
         const std::vector<ws::ActionCause> carried{ws::cause_of<ws::PaneValueCarryRequested>()};
         actions.rows.push_back(ws::v3::PaneActionRow{nve::kActionLocation, "carry this file's location",

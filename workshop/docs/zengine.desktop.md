@@ -113,6 +113,21 @@ pane holding your keys.
 - **Example:** press the `?` on the Builder pane; the Manual shows `MANUAL --
   zengine.builder-pane/builder`.
 
+### `desktop.palette`
+
+Shows the [Command Palette](zengine.palette.md) over the pane holding your keys, or hides it:
+everything you can do by name, run by Workshop as your key would run it.
+
+- **Takes:** nothing. Default key <!-- key desktop.palette -->`ctrl+space`<!-- /key -->, above
+  every mode; it types no space into the pane it opens over. A pane whose keys are another
+  program's may keep the key for that program (Neovim does).
+- **Answers:** asks Workshop to show or hide the palette
+  ([`PaneToggleRequested`](zengine.workshop.md#panetogglerequested)), which Workshop judges against
+  the desk as it is.
+- **Refuses:** nothing; a plan that loads no palette shows `zengine.palette` as nothing offering it.
+- **Example:** in the Editor, press <!-- key desktop.palette -->`ctrl+space`<!-- /key -->, type
+  `save`, press Return.
+
 ## Commands in the Pane Manager
 
 The Pane Manager lists every pane Workshop can show, one row each. The marker `>` stands on the row
