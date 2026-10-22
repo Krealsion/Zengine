@@ -35,7 +35,8 @@ happen to spell; a lone `ESC` is held until an empty poll resolves it as the Esc
 reports are SGR (`ESC [ < b ; x ; y M/m`), 1-based and translated to the 0-based contract, and
 the CSI editing keys are named too: the arrows, Home, End and Delete in their
 bare, tilde-numbered and `1;m`-modified spellings, with the modifier parameter *measured* (xterm's
-1 + Shift/Alt/Ctrl bitmask; the Meta bit is deliberately not claimed). The **Win32 console**
+1 + Shift/Alt/Ctrl bitmask; the Meta bit is deliberately not claimed). A control byte is Ctrl with
+its letter, and byte 0 is Ctrl+Space, which Ctrl+@ and Ctrl+2 send too. The **Win32 console**
 reads `INPUT_RECORD`s: `uChar.UnicodeChar` is the text, `dwControlKeyState` the modifiers,
 `dwMousePosition` the position — all present on the record and all preserved — and its VK table
 names Home, End and Delete. The SDL **Reader** drains the window's one process-global event
