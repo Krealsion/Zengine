@@ -1789,9 +1789,9 @@ TEST_CASE("a wire dragged from an output and let go on empty graph room asks wha
 
         // IN A SHORT WINDOW the list keeps to the graph's room: no row of it reaches the two
         // lines at the foot, the draft's and the notice.
-        w.window.room(fp::kRole, fp::kRole, 170, 22, 2);
+        w.window.room(fp::kRole, fp::kRole, 170, 16, 2);
         rig.pump();
-        w.drag(w.at("source-node:0"), w.empty(60, 140, 10, 16));
+        w.drag(w.at("source-field:input"), w.empty(60, 140, 4, 8));
         REQUIRE(w.showing("what takes it"));
         const auto shown = w.window.rows(fp::kRole);
         REQUIRE(shown.size() >= 2);
