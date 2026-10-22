@@ -2,8 +2,10 @@
 
 **Manual.** The view host: the weave that runs described views, answering to the office
 `zengine.view.host` (an office is the name a weave answers to). Given a view's description, it
-registers the view as a participant of its own, changes it, and stops it. Workshop mounts it; it
-is not a file you load, and the [View Builder](zengine.view.builder.md) is the weave that asks it.
+registers the view as a participant of its own, changes it, and stops it. A Zengine host mounts
+it -- Workshop, and an app's own host, `zengine-app` -- so it is not a file you load. In Workshop
+the [View Builder](zengine.view.builder.md) is the weave that asks it, and in an app the app's own
+weave ([running an app on its own](../../app/docs/app.md)).
 
 ## About
 

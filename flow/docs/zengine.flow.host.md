@@ -3,8 +3,10 @@
 **Manual.** The Flow host: the weave that runs Flow projects on the host's own bus, answering to
 the office `zengine.flow.host` (an office is the name a weave answers to). Given a project, it
 registers the project's definition as a participant of its own, changes its behaviour, sends it
-examples, reports what it did, and stops it. Workshop mounts it; it is not a file you load, and
-the [Flow pane](zengine.flow.md) is the weave that asks it.
+examples, reports what it did, and stops it. A Zengine host mounts it -- Workshop, and an app's
+own host, `zengine-app` -- so it is not a file you load. In Workshop the [Flow pane](zengine.flow.md)
+is the weave that asks it, and in an app the app's own weave
+([running an app on its own](../../app/docs/app.md)).
 
 ## About
 

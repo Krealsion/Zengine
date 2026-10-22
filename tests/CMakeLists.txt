@@ -814,6 +814,23 @@ zengine_test_definitions(zengine-view-builder-tests
 add_dependencies(zengine-view-builder-tests zengine-view-builder)
 zengine_doctest_test(view_builder zengine-view-builder-tests)
 
+# ---- THE APP HOST: an app's folder run with no Workshop, its console deciding each row --------
+# The host as `zengine-app` composes it (app/host.hpp), over the artifacts the build stages beside
+# that program, the tally app's folder (examples/tally-app/) and the suites' pixel window.
+add_executable(zengine-app-host-tests test_app_host.cpp doctest_main.cpp)
+target_link_libraries(zengine-app-host-tests PRIVATE zengine-app-host zengine-input-vocabulary
+    zengine-warnings zengine-sanitize)
+target_include_directories(zengine-app-host-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party
+    ${CMAKE_SOURCE_DIR})
+zengine_test_definitions(zengine-app-host-tests
+    "APP_ARTIFACTS_DIR=\"$<TARGET_FILE_DIR:zengine-app>\""
+    "TALLY_APP_DIR=\"${CMAKE_SOURCE_DIR}/examples/tally-app\"")
+add_dependencies(zengine-app-host-tests zengine-app)
+# The windows the suite mounts in process carry their offices' pages.
+zengine_manual(zengine-app-host-tests PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.terminal.md)
+zengine_manual(zengine-app-host-tests PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.sdl.md)
+zengine_doctest_test(app_host zengine-app-host-tests)
+
 add_executable(zengine-message-draft-tests test_message_draft.cpp doctest_main.cpp)
 target_link_libraries(zengine-message-draft-tests PRIVATE zengine-message-draft zengine-warnings zengine-sanitize)
 target_include_directories(zengine-message-draft-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
@@ -1203,10 +1220,10 @@ foreach(weave IN LISTS zengine_census_weaves)
 endforeach()
 file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/census-weaves-$<CONFIG>.txt"
      CONTENT "${zengine_census_lines}")
-# It links the guests library and the view package, whose door and host tests/census_headers.hpp
-# includes, each with the manual its office answers from.
+# It links the guests library, the view package and the app host, whose doors and hosts
+# tests/census_headers.hpp includes, each with the manual its office answers from.
 zengine_workshop_suite(shapes SOURCES test_workshop_shapes.cpp test_shapes_census.cpp
-    LINKS zengine-workshop-guests zengine-view zengine-settings-vocabulary
+    LINKS zengine-workshop-guests zengine-view zengine-settings-vocabulary zengine-app-host
     DEFINITIONS "ZENGINE_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}\""
                 "ZENGINE_CENSUS_WEAVES=\"${CMAKE_CURRENT_BINARY_DIR}/census-weaves-$<CONFIG>.txt\""
                 "ZENGINE_CENSUS_NOW=\"${CMAKE_CURRENT_BINARY_DIR}/shapes-now-$<CONFIG>.txt\""

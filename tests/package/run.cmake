@@ -267,6 +267,59 @@ if(NOT reader_rc EQUAL 2 OR NOT reader_said MATCHES "usage: zengine-inventory-re
 endif()
 message(STATUS "package witness: the installed inventory reader starts ok")
 
+# ---- the installed app host, deciding an app's rows at its console ------------------------
+# `zengine-app` on an app of the tally's view and flow, its plan the basic operators and the app's
+# own weave, both opened from the package's artifact directory by the program's relative path:
+# each row waits until the console trusts it, the provider's among them, and a second start whose
+# builds stand asks nothing. Built and installed where the Loom installs its deciding half.
+find_program(app_host zengine-app PATHS "${prefix}/bin" NO_DEFAULT_PATH)
+if(NOT app_host)
+    message(STATUS "package witness: no zengine-app in this install (no loom::kernel or no "
+                   "loom::host-policy): the installed app host is DECLARED ABSENT")
+else()
+    set(app_dir "${work}/app")
+    file(REMOVE_RECURSE "${app_dir}")
+    file(MAKE_DIRECTORY "${app_dir}")
+    foreach(file app.json tally.view tally.flow)
+        file(COPY "${repo}/examples/tally-app/${file}" DESTINATION "${app_dir}")
+    endforeach()
+    file(WRITE "${app_dir}/app-plan.json" [=[{
+  "zen": 1,
+  "schema": "WorkshopLoadFile",
+  "version": 1,
+  "fields": {
+    "format": "zengine-workshop-load-plan",
+    "format_version": "1",
+    "artifacts": [
+      { "artifact": "zengine-operators-basic", "provider": [ { "mode": "normal" } ], "weave": [] },
+      { "artifact": "zengine-app-weave", "provider": [], "weave": [ { "role": "zengine.app" } ] }
+    ]
+  }
+}
+]=])
+    file(WRITE "${work}/app-first.txt"
+         "authority trust zengine-app-weave\nauthority trust zengine-operators-basic\nstatus\nquit\n")
+    file(WRITE "${work}/app-again.txt" "status\nquit\n")
+    execute_process(COMMAND "${app_host}" "${app_dir}" INPUT_FILE "${work}/app-first.txt"
+                    RESULT_VARIABLE app_rc OUTPUT_VARIABLE app_said ERROR_VARIABLE app_said)
+    if(NOT app_rc EQUAL 0
+       OR NOT app_said MATCHES "waiting on this console: zengine-operators-basic"
+       OR NOT app_said MATCHES "running: 2 of 2 artifacts"
+       OR NOT app_said MATCHES "zengine-app-weave  running")
+        message(FATAL_ERROR "package witness: the installed app host decides its rows at its "
+                            "console FAILED (exit ${app_rc}):\n${app_said}")
+    endif()
+    execute_process(COMMAND "${app_host}" "${app_dir}" INPUT_FILE "${work}/app-again.txt"
+                    RESULT_VARIABLE app_rc OUTPUT_VARIABLE app_said ERROR_VARIABLE app_said)
+    if(NOT app_rc EQUAL 0 OR app_said MATCHES "waiting on this console"
+       OR NOT app_said MATCHES "running: 2 of 2 artifacts")
+        message(FATAL_ERROR "package witness: the installed app host's second start asks nothing "
+                            "FAILED (exit ${app_rc}):\n${app_said}")
+    endif()
+    message(STATUS "package witness: the installed app host decides its rows at its console, and "
+                   "its second start asks nothing ok")
+endif()
+
 # ---- ...and the same program's genuine failure --------------------------------------------
 # The arm above passes only if the successful run reported no refusal, which diagnostics that had
 # stopped working would also satisfy. So the same program without the Timer service fails for

@@ -14,6 +14,7 @@ them and their practices are. It states no law. The repository's own rules are t
 | `snake/score.cpp` | loadable weave `snake-score`, role `snake.score` |
 | `snake/play.cpp` | executable `zengine-snake`, the playable host; state: `play_state.hpp` |
 | `snake/vocabulary.hpp` | snake's shapes and role `snake.world`; `logic.hpp`: the pure simulation |
+| `tally-app/` | an app's folder `zengine-app` runs; `fixture.cpp`, `zengine-tally-app-fixture`, writes its view and flow from `tally.hpp` |
 | `tally-pane/tally.cpp` | loadable weave `zengine-example-tally`, role `example.tally` |
 | `guard-pane/guard.cpp` | loadable weave `zengine-example-guard`, role `example.guard` |
 | `numbered-presenter/presenter.cpp` | loadable weave `zengine-example-numbered-presenter` |
@@ -57,6 +58,8 @@ witness, `tests/package/run.cmake` (not a CTest entry), builds `workshop-probe/`
 - The probe's seam vocabulary: `workshop/guest_seam_vocabulary.hpp`; the guest door:
   `workshop/guest_door.hpp`.
 - `external-host/demo.py` reads `tower-defense/setup.json` (`workshop/docs/demo-setups.md`).
+- `tally-app/` is built by the root `CMakeLists.txt`, after `app/`, and staged beside `zengine-app`
+  with its launchers; the `app_host` suite (`tests/test_app_host.cpp`, `app/`'s router) reads it.
 - The snake draws through `graphics/`: `snake/play.cpp` loads the directory and the terminal
   window and arranges them; `cmake/ZengineInstall.cmake` installs nothing from here.
 
@@ -64,6 +67,7 @@ witness, `tests/package/run.cmake` (not a CTest entry), builds `workshop-probe/`
 
 - [snake — a worked example](snake/README.md)
 - [Tower Defense, made from inside Workshop](tower-defense/README.md)
+- [The tally app](tally-app/README.md)
 - Walkthroughs: [Tally](../builder/docs/edit-a-running-pane.md),
   [Guard and the numbered presenter](../workshop/docs/panes.md#the-second-button--the-panes-first),
   [the probe](../external-host/docs/external-host.md),

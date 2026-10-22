@@ -574,7 +574,8 @@ public:
                        loom::schema_of<ws::PaneCanvasRoom>(), loom::schema_of<ws::PaneCanvasPointer>(),
                        loom::schema_of<ws::PaneCanvasRejected>(), loom::schema_of<ws::PaneKey>(),
                        loom::schema_of<ws::PaneTextInput>(), loom::schema_of<ws::PaneRevealAnswered>(),
-                       loom::schema_of<ws::PaneActionRequested>(), loom::schema_of<ws::ActionsJudged>()})
+                       loom::schema_of<ws::PaneActionRequested>(), loom::schema_of<ws::ActionsJudged>(),
+                       loom::schema_of<input::KeyPressed>(), loom::schema_of<input::TextEntered>()})
             out.push_back(std::move(s));
         return out;
     }
@@ -646,6 +647,18 @@ public:
             show(bus);
             return;
         }
+        if (is(loom::schema_of<input::KeyPressed>()) || is(loom::schema_of<input::TextEntered>())) {
+            // A KEY OR ITS TEXT FROM THE WINDOW THAT SHOWS ITS AREA, as that window's office, which
+            // gives its keys only to an area placed to hear them: taken as Workshop's are.
+            if (!window_.shown() || in.provenance.authored_role() != window_.window_office()) return;
+            if (is(loom::schema_of<input::KeyPressed>())) {
+                const auto k = loom::from_value<input::KeyPressed>(in.payload);
+                key(ws::PaneKey{kPane, k.scancode, k.modifiers}, in, bus, /*workshop_sent=*/false);
+            } else {
+                type(loom::from_value<input::TextEntered>(in.payload).text, bus);
+            }
+            return;
+        }
         if (is(loom::schema_of<loom::Refused>())) {
             // Shown only when Loom attests it answers this view's own delivery (ANS-01); the
             // correlation then says which of its intents it answers.
@@ -715,19 +728,8 @@ public:
             show(bus);
         } else if (is(loom::schema_of<ws::PaneTextInput>())) {
             const auto typed = loom::from_value<ws::PaneTextInput>(in.payload);
-            if (typed.pane != kPane || !presentation_.focus) return;
-            auto& box = field(*presentation_.focus);
-            if (!ws::pane_text::admissible(typed.text)) {
-                presentation_.notice = "not typed -- a number field holds plain ASCII";
-                presentation_.alert = true;
-            } else if (box.size() + typed.text.size() > kMaxFieldTextBytes) {
-                presentation_.notice = "a number field holds at most " +
-                                       std::to_string(kMaxFieldTextBytes) + " bytes";
-                presentation_.alert = true;
-            } else {
-                box.type(typed.text);
-            }
-            show(bus);
+            if (typed.pane != kPane) return;
+            type(typed.text, bus);
         }
     }
 
@@ -824,13 +826,15 @@ private:
         show(bus);
     }
 
-    void key(const ws::PaneKey& k, const loom::Message& in, loom::Bus& bus) {
+    /// A key, from Workshop or from the window that shows its area. An Escape it has no use for is
+    /// handed back to Workshop when Workshop sent it, and goes nowhere when the window did.
+    void key(const ws::PaneKey& k, const loom::Message& in, loom::Bus& bus, bool workshop_sent = true) {
         if (k.pane != kPane) return;
         if (k.scancode == input::scan::kTab) {
             focus_next();
         } else if (k.scancode == input::scan::kEscape) {
             if (!presentation_.focus) {
-                say(bus, ws::PaneEscapeUnspent{kPane}, in.correlation);
+                if (workshop_sent) say(bus, ws::PaneEscapeUnspent{kPane}, in.correlation);
                 return;
             }
             presentation_.focus.reset();
@@ -848,6 +852,23 @@ private:
             if (!field(*presentation_.focus).consume(k.scancode, k.modifiers, clipboard_)) return;
         } else {
             return;
+        }
+        show(bus);
+    }
+
+    /// Text typed into the focused field, from Workshop or from the window that shows its area.
+    void type(const std::string& text, loom::Bus& bus) {
+        if (!presentation_.focus) return;
+        auto& box = field(*presentation_.focus);
+        if (!ws::pane_text::admissible(text)) {
+            presentation_.notice = "not typed -- a number field holds plain ASCII";
+            presentation_.alert = true;
+        } else if (box.size() + text.size() > kMaxFieldTextBytes) {
+            presentation_.notice = "a number field holds at most " +
+                                   std::to_string(kMaxFieldTextBytes) + " bytes";
+            presentation_.alert = true;
+        } else {
+            box.type(text);
         }
         show(bus);
     }

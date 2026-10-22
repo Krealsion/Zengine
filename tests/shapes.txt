@@ -12,6 +12,13 @@ AppActionRow v1 0x22b5f069b3060f7a
 AppActionRow v2 0xc22ff4c6b4f5b155
 AppActions v1 0x8ed795b4ebd1f55e
 AppActions v2 0xaa9bfdae36d5f9ed
+AppCloseState v1 0x7c77a0925c1f2e26
+AppPlaceAsked v1 0x70c73abc4263bf9d
+AppPlaceDoorState v1 0x0baa14257b7d55a9
+AppPlaceSaid v1 0x98559a8e12d914fd
+AppSeatState v1 0x67a2c2548c13a19f
+AppSeatTurn v1 0x36399baf25a3a238
+AppWeaveState v1 0xc02ad7e96a18cc59
 AreaButtonChanged v1 0x82fe93637d2dc3db
 AreaHoldEnded v1 0xa4f07cf674bfae98
 AreaIntroduced v3 0xb166223ecdde2fe5
@@ -668,3 +675,7 @@ WorkshopState v1 0x9815b24979528431
 WorkshopViewport v1 0x59b55f2ed1ff5e6f
 WorkshopViewport v2 0xb92f878bc30f5f8e
 WorkspaceFile v1 0xf9b41ed5ee8a4680
+ZengineAppFile v1 0x0150c4c592624776
+ZengineAppFlow v1 0xebce87f7842a4812
+ZengineAppView v1 0x7adb4751b1e06214
+ZengineAppWindow v1 0x6a52f3394ea47a9f
