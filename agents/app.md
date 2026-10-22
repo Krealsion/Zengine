@@ -27,3 +27,13 @@ plan's executor), [view](view.md) and [flow host](flow-host.md) (the two hosts i
   each view as its office, and on the directory's `GraphicsReady` and the window's `WindowOffered`
   offers the skin by the host's artifact directory, places each view's area hearing the window's
   keys, and chooses the skin. A file `app.json` names is a plain name in the app's folder.
+- An app's folder is written by `app/folder.hpp` alone (the View Builder's Export app calls it):
+  everything judged first -- the view and the flow read back through their own gates, `app.json`
+  through `app/files.hpp`, the name a plain folder name, the program present -- then the plan
+  through the load plan's codec, `app.json`, the two files and the two launchers, each written
+  whole. It writes no decision and starts nothing: `app-authority.json`, `app-session.json` and
+  every other file in the folder are never touched, and no artifact is copied there.
+- `zengine-app` stands beside Workshop's program: installed, both in the package's `bin`; in a
+  build, Workshop's directory stages it and `zengine-app-weave` (`workshop/CMakeLists.txt`). What
+  Workshop writes or starts for an app names the program beside the one running
+  (`app/program.hpp`).

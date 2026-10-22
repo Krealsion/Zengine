@@ -6,20 +6,9 @@
 // `authority` grammar, and goes on until the app's window is closed or `quit` is said here.
 
 #include "app/host.hpp"
+#include "app/program.hpp"
 
 #include <zen/host/line_input.hpp>
-
-#if defined(_WIN32)
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-#else
-#include <unistd.h>
-#endif
 
 #include <cstddef>
 #include <cstdio>
@@ -28,42 +17,6 @@
 #include <string>
 
 namespace {
-
-/// The directory this program stands in.
-std::string exe_dir() {
-#if defined(_WIN32)
-    // In the UTF-8 code page a path's bytes can outnumber its UTF-16 units, so the buffer grows
-    // until the whole path fits: up to three bytes for each of a path's 32,767 units at most.
-    std::string path(MAX_PATH, '\0');
-    for (;;) {
-        const DWORD n =
-            ::GetModuleFileNameA(nullptr, path.data(), static_cast<DWORD>(path.size()));
-        if (n == 0) {
-            return ".";
-        }
-        if (n < path.size()) {
-            path.resize(n);
-            break;
-        }
-        if (path.size() > std::size_t{3} * 32767) {
-            return ".";
-        }
-        path.resize(path.size() * 2);
-    }
-    const std::size_t slash = path.find_last_of("\\/");
-    return slash == std::string::npos ? "." : path.substr(0, slash);
-#else
-    char buf[4096];
-    const ssize_t n = ::readlink("/proc/self/exe", buf, sizeof(buf) - 1);
-    if (n <= 0) {
-        return ".";
-    }
-    buf[n] = '\0';
-    std::string path(buf);
-    const std::size_t slash = path.find_last_of('/');
-    return slash == std::string::npos ? "." : path.substr(0, slash);
-#endif
-}
 
 constexpr const char* kLibrarySuffix =
 #if defined(_WIN32)
@@ -104,10 +57,9 @@ int main(int argc, char** argv) {
     }
 
     loom::Switchboard bus;
+    const std::string artifacts = artifact_dir(zengine::app::program_dir());
     zengine::app::AppHost host(
-        bus,
-        zengine::app::AppPlace{folder.generic_string(), artifact_dir(exe_dir()), kLibrarySuffix},
-        std::cout);
+        bus, zengine::app::AppPlace{folder.generic_string(), artifacts, kLibrarySuffix}, std::cout);
     std::string why;
     if (!host.open(&why)) {
         std::cout << "zengine-app - " << why << "\nzengine-app - nothing was loaded.\n";

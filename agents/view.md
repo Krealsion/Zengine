@@ -133,6 +133,12 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
   values column (`view_builder::lay_choices`), and More where the rows cannot hold them. A
   control in the values column (Remove, Unshow, an intent's box) is drawn whole inside it: the
   words before it give way, cut to end in `...`.
+- Export app makes an app of the saved view through `app/folder.hpp` and nothing of its own
+  ([app host](app.md)): an unsaved view or one with no file is refused before anything is asked; a
+  hand's export asks Workshop for class `write` under its gesture, as Save does, one at a time; an
+  app folder already there waits for a second press; and on Workshop's yes the export is judged
+  again, on the view's file as it is then, before anything is written. The launchers name the
+  `zengine-app` beside the program running the builder (`app::app_program`).
 - The graphics window that shows the area `zengine.view.builder` is sent the builder's picture,
   composed for the window's room from a copy of its presentation, so the window moves nothing
   Workshop's pane shows, and projected as any canvas picture is (`workshop::canvas_sketch`). Its
@@ -148,8 +154,9 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
   a window that admits by the window's own judge (`graphics/window/store.hpp`);
   `tests/test_view_builder.cpp` the one renderer, the palette, the drags, the snap,
   the side handles, the pan, the size, nothing outside it, the grid, the boxes, the marks and the
-  terminal floor, the builder in a graphics window, the run again at a launch, and the launch
-  record across a reload, a failed write and a missing view file; `tests/test_view.cpp` also the
+  terminal floor, the builder in a graphics window, the run again at a launch, the launch
+  record across a reload, a failed write and a missing view file, and Export app: the folder, the
+  probe's plan byte for byte, Workshop's refusal, the second press and each refusal; `tests/test_view.cpp` also the
   size, a version 1 description, a view asking for its size,
   and a resumed view; the panes suite the view and the builder through Workshop's real seat,
   pointer route, drag carry and canvas admission.

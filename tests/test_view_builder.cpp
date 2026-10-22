@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 #include "doctest.h"
+#include "app/folder.hpp"
+#include "app/program.hpp"
 #include "control_parts.hpp"
 #include "flow/shape.hpp"
 #include "input/vocabulary.hpp"
@@ -14,6 +16,7 @@
 #include "view/view-builder/picture.hpp"
 #include "view/view-builder/vocabulary.hpp"
 #include "view/host.hpp"
+#include "workshop/actor_scope.hpp"
 #include "workshop/pane_canvas.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_operation.hpp"
@@ -433,12 +436,14 @@ public:
                 loom::schema_of<ws::v4::PaneCanvasContent>(),
                 loom::schema_of<ws::PaneEscapeUnspent>(), loom::schema_of<ws::PanePassRequested>(),
                 loom::schema_of<ws::PaneRevealRequested>(), loom::schema_of<ws::PaneMenuRequested>(),
-                loom::schema_of<ws::PaneOperationRequested>(), loom::schema_of<ws::PaneValueCarryRequested>(),
+                loom::schema_of<ws::PaneOperationRequested>(), loom::schema_of<ws::v2::PaneOperationRequested>(),
+                loom::schema_of<ws::PaneValueCarryRequested>(),
                 loom::schema_of<ws::PaneQuitAnswered>(), loom::schema_of<vb::ViewEdited>(),
                 loom::schema_of<ws::v2::PaneSettingsDeclared>(), loom::schema_of<ws::PaneSettingUnused>()};
     }
     void handle(const loom::Message& in, loom::Bus& bus) override {
-        if (loom::same_identity(in.payload.schema(), *loom::schema_of<ws::PaneOperationRequested>()))
+        if (loom::same_identity(in.payload.schema(), *loom::schema_of<ws::PaneOperationRequested>()) ||
+            loom::same_identity(in.payload.schema(), *loom::schema_of<ws::v2::PaneOperationRequested>()))
             (void)bus.answer(loom::Message(loom::to_value(ws::PaneOperationAnswered{allow, allow ? "" : "not now"}), self));
         if (loom::same_identity(in.payload.schema(), *loom::schema_of<ws::PaneCanvasContent>()) &&
             in.provenance.authored_role() == vb::kRole)
@@ -2295,4 +2300,184 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
         rig.reload();
         CHECK(rig.directory->times(vb::kRole, vb::kRole) == 2);
     }
+}
+
+namespace {
+std::string bytes_of(const std::filesystem::path& path) {
+    std::ifstream in(path, std::ios::binary);
+    return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+}
+
+void write_bytes(const std::filesystem::path& path, const std::string& bytes) {
+    std::ofstream(path, std::ios::binary) << bytes;
+}
+
+/// A PROJECT HOLDING THE TALLY APP'S VIEW AND FLOW, as the View Builder saves the one and Flow's
+/// Export writes the other (`examples/tally-app/`), the view opened in the builder.
+struct ExportRig {
+    TempDir project;
+    std::filesystem::path view_file = project.directory / "tally.view";
+    std::filesystem::path apps = project.directory / "apps" / "tally";
+    Rig rig{project.directory.generic_string()};
+    ExportRig() {
+        std::filesystem::copy_file(std::filesystem::path(TALLY_APP_DIR) / "tally.view", view_file);
+        std::filesystem::copy_file(std::filesystem::path(TALLY_APP_DIR) / "tally.flow",
+                                   project.directory / "tally.flow");
+        const auto opened = rig.edit("open", {view_file.generic_string(), "discard"});
+        REQUIRE_MESSAGE(opened.ok, opened.reason);
+    }
+    void press_export() { rig.press(rig.text("[Export: replace?]") ? "[Export: replace?]" : "[Export app]"); }
+};
+} // namespace
+
+TEST_CASE("Export app writes the app's folder from the saved view and its flow: the probe's plan byte for byte, an app.json the app host reads, the two files, and launchers starting the app host beside this program") {
+    // MUTATION: the export writing the plan by hand rather than through the load plan's codec, or
+    // with another row -- the plan's bytes differ from the probe's.
+    ExportRig x;
+    x.press_export();
+    INFO(x.rig.notice());
+    REQUIRE(x.rig.says("Exported"));
+    CHECK(x.rig.says("zengine-operators-basic"));
+    const auto probe = std::filesystem::path(TALLY_APP_DIR);
+    CHECK(bytes_of(x.apps / "app-plan.json") == bytes_of(probe / "app-plan.json"));
+    const auto app = zengine::app::read_app((x.apps / "app.json").generic_string());
+    REQUIRE_MESSAGE(app.ok, app.refusal);
+    CHECK(app.app.name == "tally");
+    CHECK(app.app.window.title == "tally");
+    CHECK(app.app.window.skin == "day");
+    REQUIRE(app.app.views.size() == 1);
+    CHECK(app.app.views[0].file == "tally.view");
+    CHECK(app.app.views[0].session == "tally.panel");
+    REQUIRE(app.app.flows.size() == 1);
+    CHECK(app.app.flows[0].file == "tally.flow");
+    CHECK(app.app.flows[0].session == "tally");
+    // THE WINDOW HOLDS THE VIEW where it stands, and its notice rows below it.
+    const auto view = view::open_description(x.view_file.generic_string());
+    CHECK(app.app.window.width >= app.app.views[0].x + view.width);
+    CHECK(app.app.window.height >= app.app.views[0].y + view.height);
+    CHECK(bytes_of(x.apps / "tally.view") == bytes_of(x.view_file));
+    CHECK(bytes_of(x.apps / "tally.flow") == bytes_of(x.project.directory / "tally.flow"));
+    // THE LAUNCHERS start the app host that stands beside this program, on their own folder.
+    auto program = std::filesystem::path(zengine::app::app_program());
+    REQUIRE(std::filesystem::is_regular_file(program));
+    const auto cmd = bytes_of(x.apps / "run.cmd");
+    CHECK(has_words(cmd, program.make_preferred().string()));
+    CHECK(has_words(cmd, "\"%~dp0.\""));
+    const auto sh = bytes_of(x.apps / "run.sh");
+    CHECK(sh.rfind("#!/bin/sh\nexec '", 0) == 0);
+    CHECK(has_words(sh, zengine::app::app_program()));
+    // NOTHING THE CONSOLE KEEPS, AND NO ARTIFACT: the folder holds the export's six files alone.
+    std::set<std::string> names;
+    for (const auto& entry : std::filesystem::directory_iterator(x.apps)) names.insert(entry.path().filename().string());
+    CHECK(names == std::set<std::string>{"app-plan.json", "app.json", "tally.view", "tally.flow", "run.cmd", "run.sh"});
+}
+
+TEST_CASE("an export Workshop refuses writes nothing, and says why") {
+    // MUTATION: the export writing before Workshop answers -- the folder is there after a refusal.
+    ExportRig x;
+    x.rig.desk->allow = false;
+    const auto asked = x.rig.desk->heard.size();
+    x.press_export();
+    // ASKED AS A SAVE IS: Workshop is asked for class `write`, under the press.
+    bool write_asked = false;
+    for (auto i = asked; i < x.rig.desk->heard.size(); ++i) {
+        const auto& m = x.rig.desk->heard[i];
+        if (loom::same_identity(m.payload.schema(), *loom::schema_of<ws::v2::PaneOperationRequested>()))
+            write_asked = loom::from_value<ws::v2::PaneOperationRequested>(m.payload).classes ==
+                          std::vector<std::string>{ws::scope::kWrite};
+    }
+    CHECK(write_asked);
+    CHECK(x.rig.says("Not exported: not now"));
+    CHECK_FALSE(std::filesystem::exists(x.project.directory / "apps"));
+}
+
+TEST_CASE("an app already there is replaced only after a second press, and its decisions and every other file stay") {
+    // MUTATION: an export over an existing folder without the second press -- app.json is the
+    // export's after one press.
+    ExportRig x;
+    std::filesystem::create_directories(x.apps);
+    write_bytes(x.apps / "app.json", "the weaver's own");
+    write_bytes(x.apps / "app-authority.json", "decided");
+    write_bytes(x.apps / "app-session.json", "running");
+    write_bytes(x.apps / "notes.txt", "kept");
+    x.press_export();
+    CHECK(x.rig.says("press Export again"));
+    CHECK(x.rig.text("[Export: replace?]") != nullptr);
+    CHECK(bytes_of(x.apps / "app.json") == "the weaver's own");
+    CHECK_FALSE(std::filesystem::exists(x.apps / "app-plan.json"));
+    // ANOTHER PRESS PUTS THE ASK DOWN...
+    x.rig.press("[Save]");
+    CHECK(x.rig.text("[Export app]") != nullptr);
+    x.press_export();
+    CHECK(bytes_of(x.apps / "app.json") == "the weaver's own");
+    // ...AND THE SECOND PRESS REPLACES THE APP'S FILES, AND NO OTHER.
+    x.press_export();
+    REQUIRE(x.rig.says("Exported"));
+    CHECK(zengine::app::read_app((x.apps / "app.json").generic_string()).ok);
+    CHECK(bytes_of(x.apps / "app-authority.json") == "decided");
+    CHECK(bytes_of(x.apps / "app-session.json") == "running");
+    CHECK(bytes_of(x.apps / "notes.txt") == "kept");
+}
+
+TEST_CASE("an export with nothing to make an app from is refused in words, and writes nothing") {
+    // An unsaved view.
+    {
+        ExportRig x;
+        REQUIRE(x.rig.edit("add", {"label"}).ok);
+        x.press_export();
+        CHECK(x.rig.says("save the view first"));
+        CHECK_FALSE(std::filesystem::exists(x.project.directory / "apps"));
+    }
+    // No flow beside the view's file.
+    {
+        ExportRig x;
+        std::filesystem::remove(x.project.directory / "tally.flow");
+        x.press_export();
+        CHECK(x.rig.says("no tally.flow beside"));
+        CHECK_FALSE(std::filesystem::exists(x.project.directory / "apps"));
+    }
+    // A flow file that is not a flow.
+    {
+        ExportRig x;
+        write_bytes(x.project.directory / "tally.flow", "not a flow");
+        x.press_export();
+        CHECK(x.rig.says("is not a flow"));
+        CHECK_FALSE(std::filesystem::exists(x.project.directory / "apps"));
+    }
+    // A view's file whose name is no plain folder name.
+    {
+        ExportRig x;
+        const auto spaced = x.project.directory / "my tally.view";
+        std::filesystem::copy_file(x.view_file, spaced);
+        std::filesystem::copy_file(x.project.directory / "tally.flow", x.project.directory / "my tally.flow");
+        REQUIRE(x.rig.edit("open", {spaced.generic_string(), "discard"}).ok);
+        x.press_export();
+        CHECK(x.rig.says("not a plain folder name"));
+        CHECK_FALSE(std::filesystem::exists(x.project.directory / "apps"));
+    }
+    // No project: nowhere to write an app.
+    {
+        TempDir dir;
+        std::filesystem::copy_file(std::filesystem::path(TALLY_APP_DIR) / "tally.view", dir.directory / "tally.view");
+        Rig rig;
+        REQUIRE(rig.edit("open", {(dir.directory / "tally.view").generic_string(), "discard"}).ok);
+        rig.press("[Export app]");
+        CHECK(rig.says("no project directory"));
+    }
+}
+
+TEST_CASE("the export's own judgement: a program that is not there, and launchers that keep every path whole") {
+    // MUTATION: a launcher that leaves a percent sign single -- the command file reads it as a
+    // variable and starts another path.
+    TempDir dir;
+    std::filesystem::copy_file(std::filesystem::path(TALLY_APP_DIR) / "tally.view", dir.directory / "tally.view");
+    std::filesystem::copy_file(std::filesystem::path(TALLY_APP_DIR) / "tally.flow", dir.directory / "tally.flow");
+    const auto view_file = (dir.directory / "tally.view").generic_string();
+    const auto gone = zengine::app::judge_export({dir.directory.generic_string(), view_file,
+                                                  (dir.directory / "nowhere" / "zengine-app").generic_string()});
+    CHECK_FALSE(gone.ok);
+    CHECK(has_words(gone.refusal, "beside this Workshop"));
+    CHECK(zengine::app::launcher_cmd("tally", "C:/a 100%/zengine-app.exe").find("100%%") != std::string::npos);
+    CHECK(zengine::app::launcher_sh("/home/o'neil/zengine-app") ==
+          "#!/bin/sh\nexec '/home/o'\\''neil/zengine-app' \"$(dirname \"$0\")\"\n");
 }
