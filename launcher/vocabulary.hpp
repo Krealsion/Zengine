@@ -26,6 +26,18 @@ inline constexpr const char* kKindDemo = "demo";
 /// The longest name a launch may give, in bytes.
 inline constexpr std::size_t kMaxLaunchName = 64;
 
+/// What an app the launcher started does next on this platform, as a start's notice says it: on
+/// Windows it has a console of its own; on POSIX it reads none, so a row of its plan no console
+/// has decided ends it, and its `app.log` says which.
+#if defined(_WIN32)
+inline constexpr const char* kStartedAppGoesOn =
+    "its console asks what it may run, and it goes on without Workshop";
+#else
+inline constexpr const char* kStartedAppGoesOn =
+    "it goes on without Workshop, with no console: an undecided row ends it, said in its app.log; "
+    "run.sh in a terminal decides it";
+#endif
+
 /// An office -> `zengine.launcher`: start the catalog's `kind` named `name`. Answered `Launched`.
 struct Launch {
     std::string kind;

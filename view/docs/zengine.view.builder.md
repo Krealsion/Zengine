@@ -161,7 +161,8 @@ after Workshop quits ([the launcher](../../launcher/docs/zengine.launcher.md)).
 - **Answers:** asks Workshop to allow a build and a write for the hand that pressed it, then asks
   the launcher for the app by its name ([`Launch`](../../launcher/docs/zengine.launcher.md#launch));
   `Starting the app tally`, then `Started the app tally (process 4242): its console asks what it
-  may run, and it goes on without Workshop`.
+  may run, and it goes on without Workshop`; on POSIX, `...: it goes on without Workshop, with no
+  console: an undecided row ends it, said in its app.log; run.sh in a terminal decides it`.
 - **Refuses:** `Not started: save the view and export it first; the app is named after its file`;
   `Not started: <Workshop's reason>`, as a guest's on a weaver's host; `Not started: <the
   launcher's reason>`, as `no app 'tally' in <project>/apps`; `A start is waiting for its answer;

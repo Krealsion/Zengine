@@ -17,6 +17,7 @@
 
 #include <zen/kernel/kernel.hpp>
 
+#include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -35,7 +36,10 @@
 #include <windows.h>
 #else
 #include <csignal>
+#include <netinet/in.h>
+#include <sys/socket.h>
 #include <sys/types.h>
+#include <unistd.h>
 #endif
 
 namespace {
@@ -212,6 +216,50 @@ TEST_CASE("an app starts detached as the process the launcher names: zengine-app
     CHECK_FALSE(never.ok);
     CHECK(has(never.trouble, "could not start"));
 }
+
+#if defined(__linux__)
+TEST_CASE("a POSIX start hands on its three standard streams and nothing else of the starter's") {
+    // MUTATION: a start that closes nothing -- the started process holds the starter's socket.
+    // A LISTENING SOCKET the starter holds, open across an exec, as a door's may be.
+    const int door = ::socket(AF_INET, SOCK_STREAM, 0);
+    REQUIRE(door >= 0);
+    sockaddr_in at{};
+    at.sin_family = AF_INET;
+    at.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    REQUIRE(::bind(door, reinterpret_cast<sockaddr*>(&at), sizeof(at)) == 0);
+    REQUIRE(::listen(door, 1) == 0);
+    socklen_t len = sizeof(at);
+    REQUIRE(::getsockname(door, reinterpret_cast<sockaddr*>(&at), &len) == 0);
+
+    const launcher::Started started = launcher::start_detached({"/bin/sleep", {"5"}, "", ""});
+    REQUIRE_MESSAGE(started.ok, started.trouble);
+    bool exec_done = false;
+    for (int i = 0; i < 50 && !exec_done; ++i) {
+        exec_done = runs(started.pid, "sleep");
+        if (!exec_done) std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    REQUIRE(exec_done);
+    // No descriptor of the started process is the starter's socket (its loader may still hold a
+    // library of its own open, so what else it holds is not counted).
+    std::error_code ec;
+    const fs::path socket = fs::read_symlink("/proc/self/fd/" + std::to_string(door), ec);
+    REQUIRE_FALSE(ec);
+    std::vector<std::string> held;
+    for (const auto& entry : fs::directory_iterator("/proc/" + std::to_string(started.pid) + "/fd", ec))
+        held.push_back(fs::read_symlink(entry.path(), ec).string());
+    CHECK_FALSE(held.empty());
+    CHECK(std::find(held.begin(), held.end(), socket.string()) == held.end());
+
+    // THE STARTER LETS ITS SOCKET GO, and its port is free while the started process runs on.
+    ::close(door);
+    const int again = ::socket(AF_INET, SOCK_STREAM, 0);
+    REQUIRE(again >= 0);
+    CHECK(::bind(again, reinterpret_cast<sockaddr*>(&at), sizeof(at)) == 0);
+    ::close(again);
+    end(started.pid);
+    CHECK(gone_within(started.pid, 10));
+}
+#endif
 
 namespace {
 /// `zengine.project`: where the project is.

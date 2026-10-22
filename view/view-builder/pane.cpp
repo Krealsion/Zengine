@@ -569,7 +569,7 @@ public:
     void on(const zengine::launcher::Launched& answer, loom::Mail& mail) {
         if (!asks().answered(mail, of_kind(ViewBuilderAsk::Kind::kLaunch))) return;
         model_.notice = answer.ok ? "Started the app " + answer.name + " (process " + std::to_string(answer.pid) +
-                                        "): its console asks what it may run, and it goes on without Workshop"
+                                        "): " + zengine::launcher::kStartedAppGoesOn
                                   : "Not started: " + answer.reason;
         show(mail);
     }

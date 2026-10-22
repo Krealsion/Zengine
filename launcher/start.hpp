@@ -7,8 +7,8 @@
 // A PROCESS STARTED DETACHED AND KEPT BY NOBODY (launcher/docs/zengine.launcher.md): it outlives
 // whoever started it. On Windows it has a console and a process group of its own, inherits no
 // handle, and breaks away from a job where the job allows it; on POSIX it leads a session of its
-// own, its input empty and its output appended to a log. Not a shell: a program and an argument
-// vector, and nothing takes a command line. The caller learns its id and nothing after.
+// own, its input empty, its output appended to a log, and no other descriptor open. Not a shell: a
+// program and an argument vector. The caller learns its id and nothing after.
 
 #include <cerrno>
 #include <cstdint>
@@ -29,6 +29,9 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#if defined(__linux__)
+#include <sys/syscall.h>
+#endif
 #endif
 
 namespace zengine::launcher {
@@ -91,6 +94,22 @@ inline std::wstring quoted(const std::wstring& arg) {
     out += L'"';
     return out;
 }
+#else
+/// Closes every descriptor from 3 up but `keep`, between a fork and an exec.
+inline void close_all_but(int keep, long open_max) {
+#if defined(__linux__) && defined(SYS_close_range)
+    const unsigned k = static_cast<unsigned>(keep);
+    if ((k <= 3u || ::syscall(SYS_close_range, 3u, k - 1u, 0u) == 0) &&
+        ::syscall(SYS_close_range, k + 1u, ~0u, 0u) == 0) {
+        return;
+    }
+#endif
+    for (long fd = 3; fd < open_max; ++fd) {
+        if (fd != keep) {
+            (void)::close(static_cast<int>(fd));
+        }
+    }
+}
 #endif
 
 } // namespace detail
@@ -149,6 +168,20 @@ inline Started start_detached(const StartPlan& plan) {
         return out;
     }
     (void)::fcntl(back[1], F_SETFD, FD_CLOEXEC);
+    if (back[1] < 3) { // a starter with a standard stream closed: kept clear of the three
+        const int moved = ::fcntl(back[1], F_DUPFD_CLOEXEC, 3);
+        ::close(back[1]);
+        back[1] = moved;
+    }
+    if (back[1] < 0) {
+        ::close(back[0]);
+        out.trouble = std::string("could not make a pipe: ") + std::strerror(errno);
+        return out;
+    }
+    long open_max = ::sysconf(_SC_OPEN_MAX);
+    if (open_max < 0 || open_max > 65536) {
+        open_max = 65536;
+    }
     const pid_t child = ::fork();
     if (child < 0) {
         ::close(back[0]);
@@ -176,6 +209,8 @@ inline Started start_detached(const StartPlan& plan) {
             (void)::dup2(sink, 1);
             (void)::dup2(sink, 2);
         }
+        // Nothing of the starter's goes on but those three: the pipe back closes at the exec.
+        detail::close_all_but(back[1], open_max);
         if (!plan.dir.empty() && ::chdir(plan.dir.c_str()) != 0) {
             const int e = errno;
             (void)!::write(back[1], &e, sizeof(e));

@@ -21,9 +21,10 @@ The catalog holds two kinds:
 
 A start is detached: on Windows the process has a console and a process group of its own, inherits
 no handle, and leaves Workshop's job where the job allows it; on POSIX it leads a session of its
-own, reads nothing, and appends what it writes to `app.log` in an app's folder, or
-`demo-runs/<name>.log` for a demo. The launcher keeps nothing of it: its answer is the process's
-id, which says it started, not that it runs.
+own, reads nothing, appends what it writes to `app.log` in an app's folder, or
+`demo-runs/<name>.log` for a demo, and holds no descriptor of Workshop's but those three. The
+launcher keeps nothing of it: its answer is the process's id, which says it started, not that it
+runs.
 
 At its start the launcher asks `zengine.project` where the project is; a start asked before that
 answer is refused.
@@ -64,7 +65,10 @@ project is. Apps and demo roots are found there.
 ## Follow
 
 The launcher publishes nothing. Its only word is its answer to the asker. What it started says
-for itself: an app opens its console and its window.
+for itself. On Windows an app opens its console and its window. On POSIX it has no console: a row
+of its plan no console has decided ends it at once, exit 5, said in its `app.log`, so an app's
+first start is from a terminal, its `run.sh`, where its console decides its rows; a start from
+Workshop after that runs. Each start's notice says which of these follows.
 
 ## See also
 

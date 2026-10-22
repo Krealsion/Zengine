@@ -2540,4 +2540,6 @@ TEST_CASE("Run app asks Workshop for a build and a write for the hand, then the 
     CHECK(launcher->asked[0].kind == zengine::launcher::kKindApp);
     CHECK(launcher->asked[0].name == "tally");
     CHECK(x.rig.says("Started the app tally (process 4242)"));
+    // WHAT FOLLOWS, as this platform starts an app: on POSIX, that it has no console.
+    CHECK(x.rig.says(std::string("(process 4242): ") + zengine::launcher::kStartedAppGoesOn));
 }
