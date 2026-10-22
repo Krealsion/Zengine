@@ -189,6 +189,15 @@ An app already there is replaced only when you press **Export app** a second tim
 
 ![The tally panel opened from tally.view and exported: Exported, with the folder it wrote and each artifact its console will ask about](images/view-builder-export.png)
 
+**Run app** starts the exported app from here, as a process of its own: Workshop first asks whether
+the hand that pressed may build and write, then the launcher starts `zengine-app` on `apps/tally/`
+in a console of its own ([`zengine.launcher`](../../launcher/docs/zengine.launcher.md)). Quit
+Workshop and the app goes on. On Linux it has no console, so start it first from a terminal with
+its `run.sh` and decide its rows there; until then, a start from here ends at the first row
+undecided, and its `app.log` says which. In Files, a right press on a folder in `apps/` offers the same start.
+
+![Run app pressed after the export: Started the app tally, its process, and that it goes on without Workshop](images/view-builder-run-app.png)
+
 In a terminal Workshop the builder works as it does in a window, its picture floored to cells: a
 drag moves an element by whole cells, 12 pixels each, the middle button pans by whole cells, and
 a value typed into its box is still a pixel. A side's handle is the cell beside the middle of

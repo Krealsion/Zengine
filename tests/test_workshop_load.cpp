@@ -1108,8 +1108,13 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     const load_persist::LoadedPlan got = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
     REQUIRE_MESSAGE(got.outcome.accepted, got.outcome.refusal);
     const load::LoadPlan& p = got.plan;
-    REQUIRE(p.artifacts.size() == 21); // includes the storage owner and its separate presentation
+    REQUIRE(p.artifacts.size() == 22); // includes the storage owner and its separate presentation
 
+    // THE LAUNCHER LAST, optional: a Workshop without it starts no app and no demo.
+    CHECK(p.artifacts[21].stem == "zengine-launcher");
+    REQUIRE(p.artifacts[21].weave.has_value());
+    CHECK(p.artifacts[21].weave->role == "zengine.launcher");
+    CHECK(p.artifacts[21].optional);
     CHECK(p.artifacts[20].stem == "zengine-inventory-pane");
     REQUIRE(p.artifacts[20].weave.has_value());
     CHECK(p.artifacts[20].weave->role == "zengine.inventory-pane");

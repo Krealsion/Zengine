@@ -127,7 +127,8 @@ itself, and the one the app's weave arranges.
 
 Other exits: 2, the folder is not one; 3, its plan or its decisions could not be read, or another
 `zengine-app` runs it; 4, a row the console had decided was refused as it loaded; 5, the console's
-input ended while the plan still waited on it.
+input ended while the plan still waited on it, as when Workshop starts an app on POSIX, with no
+console, before its rows were decided ([the launcher](../../launcher/docs/zengine.launcher.md)).
 
 ## What runs the view and the flow
 

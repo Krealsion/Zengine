@@ -373,7 +373,8 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
     col = button(col, 0, m.running ? "Running" : "Run", "run");
     col = button(col, 0, "Apply", "apply");
     col = button(col, 0, "Stop", "stop");
-    button(col, 0, p.armed == "export" ? "Export: replace?" : "Export app", "export");
+    col = button(col, 0, p.armed == "export" ? "Export: replace?" : "Export app", "export");
+    button(col, 0, "Run app", "run-app");
 
     // WORDS BEFORE A CONTROL give way to it: cut to `fit` columns, ending `...`, so the control
     // after them is drawn whole inside its column, where it can be pressed.
@@ -704,7 +705,7 @@ inline std::string part_name(const Hit& hit, const view::Description& d) {
     };
     const std::string& a = hit.action;
     if (a == "new" || a == "open" || a == "save" || a == "run" || a == "apply" || a == "stop" ||
-        a == "export" || a == "choices")
+        a == "export" || a == "run-app" || a == "choices")
         return "control:view." + a;
     if (a == "canvas") return "canvas";
     if (a == "kind" && !hit.args.empty()) return "kind:" + hit.args[0];

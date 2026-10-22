@@ -213,6 +213,32 @@ measured in bytes.
 - **Example:** in a folder holding `oven.cpp`, press
   <!-- key files.pick-buildable -->`a`<!-- /key -->.
 
+### `files.start`
+
+Starts what the selected folder is, as a process of its own that goes on after Workshop quits: an
+app, a folder directly in the project's `apps/`; or a demo, one of the setups the demo service
+lists, in its own folder ([the launcher](../../launcher/docs/zengine.launcher.md)). The menu offers
+it, `` start the app `tally` ``, only on such a folder.
+
+- **Takes:** the selected folder. No default key; the menu's row.
+- **Answers:** asks Workshop to allow a build and a write for the hand that pressed it, then asks the
+  launcher ([`Launch`](../../launcher/docs/zengine.launcher.md#launch)): `` starting the app
+  `tally` ``, then `` started the app `tally`, process 4242: `` and what follows on this platform,
+  as the View Builder's [`view.run-app`](../../view/docs/zengine.view.builder.md#viewrun-app) says
+  it; for a demo, `it goes on without Workshop`.
+- **Refuses:** `nothing here starts: an app is a folder in the project's apps/, and a demo is one of
+  the demos`; `` nothing was started -- `` and Workshop's or the launcher's reason.
+- **Example:** in the project's `apps/`, right-press `tally` and choose `` start the app `tally` ``.
+
+### `files.demos`
+
+Goes to the demos: the folder of the setups the demo service holds, where a setup's menu starts it.
+
+- **Takes:** nothing. No default key; the menu's row `go to the demos`.
+- **Answers:** `at the demos: start one from its menu`, and that folder listed.
+- **Refuses:** `this Workshop was configured with no demo service`.
+- **Example:** right-press anywhere in the listing and choose `go to the demos`.
+
 ### `files.menu`
 
 Opens this pane's menu about what is selected: every command of the step you are in, each spelled

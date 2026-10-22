@@ -15,7 +15,7 @@ is the office it runs under and the namespace of what it says.
 
 The pane draws the view you are making with the view's own picture code, at its own pixels, on the
 design canvas in its middle, so what you see there is what runs. Along the top is the bar, `[New]`
-`[Open]` `[Save]` `[Run]` `[Apply]` `[Stop]` `[Export app]`; `[Save*]` says the view is unsaved,
+`[Open]` `[Save]` `[Run]` `[Apply]` `[Stop]` `[Export app]` `[Run app]`; `[Save*]` says the view is unsaved,
 `[Running]` that it runs. Down the left: the view's name in `View`, its file in `File`, `Add` with `[Label]`
 `[Number]` `[Button]`, its `Size` and the `Grid` in boxes, and the list of its elements. The
 selected element's values sit in boxes on the right in a wide pane, below the list in a narrow one.
@@ -151,6 +151,23 @@ file, and its flow is the `.flow` beside that file with the same name, as Flow's
   replace the app's files in it`, and the bar says `[Export: replace?]`.
 - **Example:** save the tally panel as `tally.view`, export `tally` from Flow as `tally.flow`, press
   `[Export app]`.
+
+### `view.run-app`
+
+Starts the app the saved view was exported as, on its own: a process of the app host's that goes on
+after Workshop quits ([the launcher](../../launcher/docs/zengine.launcher.md)).
+
+- **Takes:** the view's saved file, whose name the app has. No default key; the control `[Run app]`.
+- **Answers:** asks Workshop to allow a build and a write for the hand that pressed it, then asks
+  the launcher for the app by its name ([`Launch`](../../launcher/docs/zengine.launcher.md#launch));
+  `Starting the app tally`, then `Started the app tally (process 4242): its console asks what it
+  may run, and it goes on without Workshop`; on POSIX, `...: it goes on without Workshop, with no
+  console: an undecided row ends it, said in its app.log; run.sh in a terminal decides it`.
+- **Refuses:** `Not started: save the view and export it first; the app is named after its file`;
+  `Not started: <Workshop's reason>`, as a guest's on a weaver's host; `Not started: <the
+  launcher's reason>`, as `no app 'tally' in <project>/apps`; `A start is waiting for its answer;
+  run the app again once it comes`.
+- **Example:** after `[Export app]`, press `[Run app]`.
 
 ### `view.apply`
 

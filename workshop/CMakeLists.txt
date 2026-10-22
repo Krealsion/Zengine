@@ -235,6 +235,8 @@ if(TARGET loom::kernel AND TARGET loom::host-policy)
     list(APPEND zengine_workshop_artifacts zengine-app-weave)
     list(APPEND zengine_workshop_programs zengine-app)
 endif()
+# ...and the launcher, which starts an app or a demo from Workshop (launcher/CMakeLists.txt).
+list(APPEND zengine_workshop_artifacts zengine-launcher)
 # Each copy is a rule with its own OUTPUT and DEPENDS, on the artifact's clock: a POST_BUILD copy
 # runs only when the host relinks, so an edited Skin went on loading stale. The host's directory
 # is spelled out: `$<TARGET_FILE_DIR:zengine-workshop>` would make these rules depend on the host

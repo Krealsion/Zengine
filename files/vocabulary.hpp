@@ -63,6 +63,10 @@ inline constexpr const char* kActionMark = "files.mark";
 inline constexpr const char* kActionNextMark = "files.next-mark";
 inline constexpr const char* kActionPreviousMark = "files.previous-mark";
 inline constexpr const char* kActionPickBuildable = "files.pick-buildable";
+/// Start what the selected row is, kept by nobody: an app directly in the project's `apps/`, or a
+/// demo the demo service lists; and go to the folder of the demos (`zengine.launcher`).
+inline constexpr const char* kActionStart = "files.start";
+inline constexpr const char* kActionDemos = "files.demos";
 
 // ---- The chooser and the authoring prompt, as the pane's own modes ------------------------
 //
@@ -104,6 +108,8 @@ inline constexpr const char* kActionMenu = "files.menu";
 inline constexpr const char* kMenuOpen = "files.menu.open";
 inline constexpr const char* kMenuUseRecipes = "files.menu.use-recipes";
 inline constexpr const char* kMenuPickBuildable = "files.menu.pick-buildable";
+inline constexpr const char* kMenuStart = "files.menu.start";
+inline constexpr const char* kMenuDemos = "files.menu.demos";
 inline constexpr const char* kMenuMark = "files.menu.mark";
 inline constexpr const char* kMenuParent = "files.menu.parent";
 inline constexpr const char* kMenuRefresh = "files.menu.refresh";

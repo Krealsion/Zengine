@@ -315,6 +315,8 @@ add_subdirectory(workshop)
 # the artifacts it stages, and the hand-written app it runs.
 add_subdirectory(app)
 add_subdirectory(examples/tally-app)
+# The launcher, which starts an app or a demo from Workshop, after the app host whose folder it reads.
+add_subdirectory(launcher)
 
 # ---- the compile-judged lane's fixtures -------------------------------------------------
 # OFF here and ON only in the small tree tests/CMakeLists.txt configures for the compile tests,
