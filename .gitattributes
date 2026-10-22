@@ -15,3 +15,7 @@
 
 # Toolbox files are serialized typed values, bytes a line-ending conversion would corrupt.
 *.toolbox -text
+
+# An app's view and flow are Loom's canonical binary, as the View Builder and Flow save them.
+*.view -text
+*.flow -text

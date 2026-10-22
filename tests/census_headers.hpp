@@ -9,6 +9,8 @@
 #ifndef ZENGINE_TESTS_CENSUS_HEADERS_HPP
 #define ZENGINE_TESTS_CENSUS_HEADERS_HPP
 
+#include "app/host.hpp"
+#include "app/vocabulary.hpp"
 #include "builder/runner.hpp"
 #include "builder/vocabulary.hpp"
 #include "builder/weave.hpp"
@@ -75,6 +77,14 @@ std::shared_ptr<const loom::Schema> shape() {
 inline std::vector<std::shared_ptr<const loom::Schema>> census_header_shapes() {
     return {
 shape<::zengine::builder::RunnerState>(), // RunnerState v2
+        shape<::zengine::app::AppCloseState>(), // AppCloseState v1
+        shape<::zengine::app::AppPlaceDoorState>(), // AppPlaceDoorState v1
+        shape<::zengine::app::AppSeatState>(), // AppSeatState v1
+        shape<::zengine::app::AppSeatTurn>(), // AppSeatTurn v1
+        shape<::zengine::app::ZengineAppFile>(), // ZengineAppFile v1
+        shape<::zengine::app::ZengineAppFlow>(), // ZengineAppFlow v1
+        shape<::zengine::app::ZengineAppView>(), // ZengineAppView v1
+        shape<::zengine::app::ZengineAppWindow>(), // ZengineAppWindow v1
         shape<::zengine::builder::ArtifactPromoted>(), // ArtifactPromoted v2
         shape<::zengine::builder::ArtifactRealized>(), // ArtifactRealized v3
         shape<::zengine::builder::BuildAsked>(), // BuildAsked v1

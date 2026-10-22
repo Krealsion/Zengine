@@ -75,7 +75,13 @@ Routed behind [AGENTS.md](../AGENTS.md) for `view/` and `view/view-builder/`. Al
   view that runs. It holds code, so it never crosses a participant boundary: a loadable weave
   reaches a view by its shapes and intents, or keeps a presenter of its own description and draws
   it into its own `graphics::Canvas` (`Presenter::sketch`, `Presenter::act`).
-- Workshop composes the host beside the Flow host and holds no view behaviour. The View Builder
+- A view takes `KeyPressed` and `TextEntered` from the office of the window that shows its area,
+  which gives keys only to an area placed to hear them, onto the handlers `PaneKey` and
+  `PaneTextInput` reach; from any other office they change nothing. Workshop places no pane's area
+  to hear keys, so in Workshop a view's keys are Workshop's alone. Its pointer stays Workshop's: a
+  window's press reaches it as `ActionRequested` on a button the picture names.
+- A Zengine host composes the host beside the Flow host and holds no view behaviour: Workshop,
+  and an app's own host ([app](app.md)), where the app's own weave asks it. The View Builder
   is an ordinary pane in `zengine.view.builder`: it edits a description through
   `view_builder::Model`, every edit whole or refused whole, and asks the host to run, apply and
   stop one session of its office. By hand: a kind dragged from its palette is made where it is

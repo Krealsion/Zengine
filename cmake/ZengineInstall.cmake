@@ -181,6 +181,12 @@ if(TARGET zengine-flow-tool)
     install(TARGETS zengine-flow-tool RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
 install(TARGETS zengine-inventory-read RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+# The host an app runs in with no Workshop: it opens the artifacts below by a path relative to its
+# own (app/CMakeLists.txt), so it names no machine's layout. Built where the Loom installs its
+# deciding half.
+if(TARGET zengine-app)
+    install(TARGETS zengine-app RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif()
 
 foreach(pkg IN ITEMS maker flow flow/flow-host flow/flow-pane message-draft inventory editor/source-transfer activation timer surface input ui component operator workshop editor/neovim-editor graphics graphics/elements graphics/window)
     install(FILES ${zengine_public_headers_${pkg}}
@@ -200,6 +206,7 @@ set(ZENGINE_INSTALL_ARTIFACTDIR ${CMAKE_INSTALL_LIBDIR}/zengine)
 # distributor); introspection and the
 # composer, shown only inside a Workshop run; the snake example; every test fixture.
 set(zengine_installable_artifacts
+    zengine-app-weave            # weave: an app's own weave, which zengine-app runs
     zengine-timer                # weave
     zengine-input                # weave
     zengine-inventory            # weave
