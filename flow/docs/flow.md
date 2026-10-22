@@ -103,6 +103,8 @@ selected node; with none selected, it edits the search line.
 
 ![A selected port listing what could fill it: what is in scope, a typed constant, then what the door finds](images/flow-port.png)
 
+![A wire from input.start let go on empty graph room: the list of what takes an Int, narrowed to add, a row a port](images/flow-wire-drop.png)
+
 ![A fold's open body slot: the rail lists what a fold could spend, and math.add's preview offers each way to thread the count and the accumulator](images/flow-fold-body.png)
 
 ## Carry material into Flow
