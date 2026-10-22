@@ -168,6 +168,95 @@ inline Picture finish_picture(Picture view, const ws::PaneCanvasRoom &room) {
       bytes <= ws::kPaneCanvasMaxTextBytes) return view;
   return recovery_picture(std::move(view), room);
 }
+/// THE SEARCH AT THE HAND: a box where the wire was let go, kept inside the graph's viewport,
+/// saying what the wire carries, the search line typed into, and the rows a choice makes from,
+/// the one the keys are on marked. The graph's words under it are hidden, and a press inside it
+/// lands on it.
+template <class Rect, class Stroke, class Label>
+void wire_list(const Model &model, Picture &view, std::size_t graph_labels, std::int64_t left,
+               std::int64_t right, std::int64_t upper, std::int64_t lower, bool cell_caret,
+               Rect &&rect, Stroke &&stroke, Label &&label) {
+  const auto &search = *model.wire_search;
+  const auto rows = wire_rows(model);
+  const auto choice = wire_choice(model, rows);
+  // At most ten rows, and no more than the graph's room holds under the two lines above them.
+  const auto room_rows = (lower - upper - unit / 2) / unit - 2;
+  const std::size_t visible =
+      static_cast<std::size_t>(std::clamp<std::int64_t>(room_rows, 1, 10));
+  const std::int64_t w = 36 * unit;
+  const auto listed = std::max<std::size_t>(1, std::min(rows.size(), visible));
+  const std::int64_t h = static_cast<std::int64_t>(listed + 2) * unit + unit / 2;
+  const auto bx = std::max(left, std::min(search.x, right - w));
+  const auto by = std::max(upper, std::min(search.y, lower - h));
+  for (auto i = graph_labels; i < view.content.texts.size(); ++i) {
+    const auto &t = view.content.texts[i];
+    auto &c = view.text_clips[i];
+    if (t.y < by || t.y >= by + h)
+      continue;
+    if (t.x >= bx && t.x < bx + w)
+      c.w = 0;
+    else if (t.x < bx)
+      c.w = std::max<std::int64_t>(0, std::min(c.x + c.w, bx) - c.x);
+  }
+  rect(bx, by, w, h, ink::kGround);
+  stroke(bx, by, w, 4, ink::kAccent);
+  stroke(bx, by + h, w, 4, ink::kAccent);
+  stroke(bx, by, 4, h, ink::kAccent);
+  stroke(bx + w, by, 4, h, ink::kAccent);
+  // The clip begins a row above the box: a clip's top rounds up to the device grain, and the
+  // box's first line is set exactly on it.
+  const ws::CanvasTextBox inside{bx, by - unit, w, h + unit};
+  const auto first_label = view.content.texts.size();
+  view.hits.push_back({bx, by, w, h, "wire-list", {"box"}, 0});
+  std::string carries;
+  if (search.from.source) {
+    const auto type = source_type(model, *search.from.source);
+    carries = "From " + flow::binding_text(*search.from.source) + " : " + type.value_or("?") +
+              " -- what takes it";
+  } else if (const auto port = wire_port(model)) {
+    carries = "Into %" + std::to_string(port->node) + " " + port->field.name + " : " +
+              port->type + " -- what fills it";
+  }
+  label(bx + unit / 2, by, carries, ink::kAccent);
+  {
+    const std::string prefix = "find: ";
+    auto text = model.search;
+    const auto columns =
+        std::max<std::int64_t>(1, w / unit - static_cast<std::int64_t>(prefix.size()) - 2);
+    text.keep_caret_visible(columns);
+    const bool after = cell_caret && text.caret_column() >= text.visible(columns).size();
+    label(bx + unit / 2, by + unit, prefix + text.visible(columns) + (after ? " " : ""));
+    auto &run = view.content.texts.back();
+    const auto prefix_columns = static_cast<std::int64_t>(prefix.size());
+    run.caret_col = prefix_columns + static_cast<std::int64_t>(text.caret_column());
+    const auto selection = text.visible_selection(columns);
+    if (selection.present()) {
+      run.sel_begin_col = prefix_columns + selection.begin;
+      run.sel_end_col = prefix_columns + selection.end;
+    }
+  }
+  std::int64_t y = by + 2 * unit;
+  if (rows.empty())
+    label(bx + unit / 2, y, search.answered ? "none offered match" : "(asking the door)",
+          ink::kMuted);
+  // The list scrolls to keep the row the keys are on in sight.
+  const std::size_t first = choice && *choice >= visible ? *choice + 1 - visible : 0;
+  for (std::size_t i = first; i < rows.size() && i < first + visible; ++i) {
+    const auto &row = rows[i];
+    const bool on = choice && *choice == i;
+    const auto role = !row.kind.empty() ? (on ? ink::kAccent : ink::kFill)
+                      : row.label.rfind("+ ", 0) == 0 ? ink::kMuted
+                                                      : ink::kAccent;
+    // The row the keys are on is marked where its indent stands.
+    const bool indented = row.label.rfind("  ", 0) == 0;
+    label(bx + unit / 2, y, on && indented ? "> " + row.label.substr(2) : row.label, role);
+    if (!row.kind.empty())
+      view.hits.push_back({bx, y, w, unit, "wire-row", {std::to_string(i)}, 0});
+    y += unit;
+  }
+  for (auto i = first_label; i < view.content.texts.size(); ++i)
+    view.text_clips[i] = inside;
+}
 inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room,
                        std::int64_t sequence) {
   const GridProjection grid(canvas_room);
@@ -374,9 +463,11 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
       label(0, y, prefix + text.visible(columns) + (after ? " " : ""));
       auto &run = view.content.texts.back();
       const auto prefix_columns = static_cast<std::int64_t>(prefix.size());
-      run.caret_col = prefix_columns + static_cast<std::int64_t>(text.caret_column());
+      // While a wire's search is open, the line is typed into there, and its caret stands there.
+      if (!model.wire_search)
+        run.caret_col = prefix_columns + static_cast<std::int64_t>(text.caret_column());
       const auto selection = text.visible_selection(columns);
-      if (selection.present()) {
+      if (selection.present() && !model.wire_search) {
         run.sel_begin_col = prefix_columns + selection.begin;
         run.sel_end_col = prefix_columns + selection.end;
       }
@@ -546,7 +637,10 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
         const std::string port = a < port_names.size() ? port_names[a] : std::to_string(a);
         const auto &binding = node.arguments[a];
         const auto py = ny + (static_cast<std::int64_t>(a + 1) + extra(n)) * unit;
-        const bool marked = chosen_port && chosen_port->node == n && chosen_port->port == a;
+        const bool lit = model.wire_drawn && model.wire_drawn->lit &&
+                         model.wire_drawn->lit->place == id && model.wire_drawn->lit->port == a;
+        const bool marked =
+            lit || (chosen_port && chosen_port->node == n && chosen_port->port == a);
         label(x + unit / 2, py,
               "o " + port + " = " +
                   (binding.from() == zengine::op::Binding::From::Input &&
@@ -587,6 +681,16 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
         // A unit of slack before the box: a node dragged off the device grain rounds its clip's
         // edges up, which must not take the first glyph or the first row of the node's words.
         node_clips.push_back({i, ws::CanvasTextBox{x - unit, ny - unit, node_width + unit, h + unit}});
+    }
+    // A WIRE IN THE HAND, drawn from where it was pressed to the hand, in the ink of wires.
+    if (const auto &w = model.wire_drawn) {
+      const auto mx = (w->from_x + w->to_x) / 2;
+      stroke(std::min(w->from_x, mx), w->from_y,
+             std::max<std::int64_t>(4, std::abs(mx - w->from_x)), 4, ink::kAccent);
+      stroke(mx, std::min(w->from_y, w->to_y), 4,
+             std::max<std::int64_t>(4, std::abs(w->to_y - w->from_y)), ink::kAccent);
+      stroke(std::min(mx, w->to_x), w->to_y,
+             std::max<std::int64_t>(4, std::abs(w->to_x - mx)), 4, ink::kAccent);
     }
     // The graph owns a viewport within the pane. Its content and hit regions
     // are clipped by the same rectangle, so panning cannot cover controls. A
@@ -692,6 +796,9 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
     button(room.width - 22 * unit, bottom - unit, "Reset view", "fit");
     button(room.width - 9 * unit, bottom - unit, "-", "zoom-out");
     button(room.width - 4 * unit, bottom - unit, "+", "zoom-in");
+    if (model.wire_search)
+      wire_list(model, view, label_begin, left, right, upper, lower, cell_caret, rect, stroke,
+                label);
     return finish_body();
   }
   if (model.page == Page::Events) {

@@ -81,14 +81,53 @@ inline std::optional<std::size_t> body_slot_node(const Model& m) {
     return std::nullopt;
 }
 
-/// THE QUESTION FLOW ASKS THE DOOR: the search line's text and, with a port selected, its type as
-/// what a power must yield, or with a fold's body slot open, what a fold could spend. Only powers
-/// their contributors offer: a participant's own reaction, such as a running definition's trigger
-/// body, is never Flow's to offer.
+/// WHAT A WIRE'S OUTPUT END CARRIES, in Loom's spelling: node %n's answer, or a field in scope --
+/// a state field, or a field of the trigger's message no state field shadows; none when its node
+/// is gone or its ports are not described.
+inline std::optional<std::string> source_type(const Model& m, const op::Binding& source) {
+    const auto& def = m.workspace.graph.project.definition;
+    if (def.on.empty()) return std::nullopt;
+    try {
+        if (source.from() == op::Binding::From::Node) {
+            const auto ports =
+                m.workspace.graph.node_ports(m.trigger(), source.node_index(), m.palette);
+            const auto described = loom::describe_schema(*ports.outputs).fields;
+            if (described.size() != 1) return std::nullopt;
+            return described.front().type;
+        }
+        if (source.from() != op::Binding::From::Input) return std::nullopt;
+        for (const auto& schema : {def.state, def.on.at(m.trigger()).message}) {
+            const auto described = loom::describe_schema(*schema).fields;
+            for (std::size_t i = 0; i < described.size(); ++i)
+                if (schema->fields()[i].name == source.input_name()) return described[i].type;
+        }
+    } catch (const std::exception&) {
+    }
+    return std::nullopt;
+}
+
+/// The port a wire's search wires into, as `selected_port` reads one.
+inline std::optional<PortView> wire_port(const Model& m) {
+    if (!m.wire_search || !m.wire_search->from.port) return std::nullopt;
+    Model probe = m;
+    probe.filling = m.wire_search->from.port;
+    return selected_port(probe);
+}
+
+/// THE QUESTION FLOW ASKS THE DOOR: the search line's text and, with a wire's search open, what
+/// takes its output's type or yields its port's; with a port selected, its type as what a power
+/// must yield; or with a fold's body slot open, what a fold could spend. Only powers their
+/// contributors offer: a participant's own reaction, such as a running definition's trigger body,
+/// is never Flow's to offer.
 inline workshop::FindPowers flow_question(const Model& m) {
     workshop::FindPowers asked;
     if (!m.search.text().empty()) asked.text = m.search.text();
-    if (body_slot_node(m)) asked.fits = workshop::kFitsFold;
+    if (m.wire_search && m.wire_search->from.source) {
+        // A type the wire cannot name asks for nothing it could not wire: no power carries it.
+        asked.takes = source_type(m, *m.wire_search->from.source).value_or(std::string("?"));
+    } else if (m.wire_search) {
+        asked.yields = wire_port(m) ? wire_port(m)->type : std::string("?");
+    } else if (body_slot_node(m)) asked.fits = workshop::kFitsFold;
     else if (const auto port = selected_port(m)) asked.yields = port->type;
     asked.offered = true;
     asked.limit = workshop::kMaxPowerRows;
@@ -168,6 +207,99 @@ inline std::vector<op::Fold> fold_choices(const Model& m, const workshop::PowerR
                 op::detail::same_type(acc.type, found->outputs->fields().front().type))
                 out.push_back({count.name, acc.name});
     return out;
+}
+
+/// ONE ROW OF A WIRE'S SEARCH, and what choosing it does: `scope` binds the port from what is in
+/// scope (`args` the binding), `constant` opens the binding editor, `power` makes a node from the
+/// door's row (`args` its reference, then the port it is wired at from an output), `fold` makes
+/// the fold (`args` its counting port), `unread` is a power whose ports Flow has not read, and a
+/// heading or a count chooses nothing.
+struct WireRow {
+    std::string label, kind;
+    std::vector<std::string> args;
+};
+
+/// WHAT A WIRE'S SEARCH LISTS, from the door's last answer to its question. From an output of type
+/// T: each power in force with a port of exactly T, one row a port, grouped as the rail groups
+/// them, and the fold's counting ports when T is `Int`. From an input port of type T: what is in
+/// scope of T, a typed constant for `Int` and `Bool`, then each power that yields T; the fold,
+/// whose answer is its body's, is chosen from the rail. Nothing while the door has not answered.
+inline std::vector<WireRow> wire_rows(const Model& m) {
+    std::vector<WireRow> out;
+    if (!m.wire_search) return out;
+    const auto& from = m.wire_search->from;
+    const auto port = wire_port(m);
+    if (from.port) {
+        if (!port) return out;
+        const auto scope = in_scope(m, *port);
+        if (!scope.empty()) out.push_back({"In scope", "", {}});
+        for (const auto& candidate : scope)
+            out.push_back({"  " + candidate.label, "scope", {candidate.bind}});
+        if (takes_constant(*port))
+            out.push_back({"  " + std::string(loom::name_of(port->field.type.kind)) + " constant",
+                           "constant", {}});
+    }
+    if (!m.wire_search->answered || !m.discovered_read || !m.discovered.ok) return out;
+    const auto taken = from.source ? source_type(m, *from.source) : std::nullopt;
+    for (const auto& [kind, heading] : kGroups) {
+        bool headed = false;
+        const auto head = [&] {
+            if (!headed) out.push_back({heading, "", {}});
+            headed = true;
+        };
+        for (const auto& row : m.discovered.rows) {
+            if (row.kind != kind) continue;
+            const std::vector<std::string> reference{row.identity,
+                                                     std::to_string(row.inputs.content_id),
+                                                     std::to_string(row.outputs.content_id)};
+            if (row.kind == workshop::kFormKind) {
+                if (!from.source || taken != "Int") continue;
+                head();
+                const char* counting[] = {op::kFoldStart, op::kFoldLimit, op::kFoldStep};
+                for (std::size_t p = 0; p < 3; ++p)
+                    out.push_back({"  fold -> " + std::string(counting[p]), "fold",
+                                   {std::to_string(p)}});
+                continue;
+            }
+            head();
+            if (from.port) {
+                out.push_back({"  " + row.identity, "power", reference});
+                continue;
+            }
+            const auto found =
+                std::find_if(m.palette.begin(), m.palette.end(),
+                             [&](const auto& p) { return p.identity == row.identity; });
+            if (found == m.palette.end()) {
+                out.push_back(
+                    {"  " + row.identity + " (its ports not read yet)", "unread", {row.identity}});
+                continue;
+            }
+            const auto described = loom::describe_schema(*found->inputs).fields;
+            for (std::size_t p = 0; p < described.size(); ++p) {
+                if (!taken || described[p].type != *taken) continue;
+                auto args = reference;
+                args.push_back(std::to_string(p));
+                out.push_back({"  " + row.identity + " -> " + found->inputs->fields()[p].name,
+                               "power", std::move(args)});
+            }
+        }
+    }
+    const auto listed = static_cast<std::int64_t>(m.discovered.rows.size());
+    if (m.discovered.total > listed)
+        out.push_back({"+ " + std::to_string(m.discovered.total - listed) +
+                           " more match -- narrow the search", "", {}});
+    return out;
+}
+
+/// The row of a wire's search the keys are on: the first choosable row at or after the one
+/// selected, or none.
+inline std::optional<std::size_t> wire_choice(const Model& m, const std::vector<WireRow>& rows) {
+    if (!m.wire_search) return std::nullopt;
+    for (std::size_t i = m.wire_search->selected; i < rows.size(); ++i)
+        if (!rows[i].kind.empty()) return i;
+    for (std::size_t i = std::min(m.wire_search->selected, rows.size()); i-- > 0;)
+        if (!rows[i].kind.empty()) return i;
+    return std::nullopt;
 }
 
 /// One thing a dropped value can become here, and the control that makes it so.
