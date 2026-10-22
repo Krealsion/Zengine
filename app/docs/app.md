@@ -71,6 +71,8 @@ Read as the load plan is, a Loom value in JSON, its integers written as quoted s
   takes them, keeping a size within its display, and a side of 0 keeps its own; the terminal window
   keeps the terminal's. `window.skin` is the painter the window paints the app's areas with: `day`
   or `night` in an OS window, `classic` or `block` in the terminal window.
+
+  ![The tally app's OS window, titled tally and 320 by 260 as its app.json asks, Count giving 45](images/tally-app-window.png)
 - Each view runs in its own session, its area at `x`, `y` in the window's pixels, its size the
   view's own and its notice rows beneath. Each flow runs in its own session. At most eight of each.
 - A file is a plain name in the app's folder; a path is refused.
