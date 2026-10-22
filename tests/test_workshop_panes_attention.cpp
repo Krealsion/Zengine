@@ -1033,7 +1033,7 @@ TEST_CASE("a pane that draws its rows on its canvas wears the medium's own groun
         CHECK(body.content.rects[0].role == gfx::role::kMediumGround);
 
         // WHAT THE MEDIUM DRAWS of the body: its own ground, and nothing black.
-        const surface::SurfaceCanvas& canvas = r.last_canvas();
+        const surface::SurfaceCanvas canvas = paint(r.session());
         if (window) {
             const Session& s = r.session();
             const surface::SurfaceExtent metric{canvas.width, canvas.height, s.text_advance_px,

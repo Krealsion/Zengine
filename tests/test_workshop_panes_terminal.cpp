@@ -241,7 +241,7 @@ struct TerminalRig {
         REQUIRE(shows_canvas(*held));
         const CanvasRows lattice = held_canvas_rows(*held);
         const std::int64_t y = held->canvas.y + lattice.row_y(input_row());
-        const std::vector<surface::SurfaceTextRegion> texts = all_texts(r.last_canvas());
+        const std::vector<surface::SurfaceTextRegion> texts = all_texts(paint(r.session()));
         for (const surface::SurfaceTextRegion& one : texts) {
             if (one.rows.size() == 1 && one.y == y && one.x >= held->canvas.x &&
                 one.x < held->canvas.x + held->canvas.width) {
@@ -527,31 +527,29 @@ TEST_CASE("a weaver presses in, types a line, and the participant runs it") {
 }
 
 TEST_CASE("a typed send leaves through the PARTICIPANT's door, not the pane's") {
-    // THE CLAIM THE PARTICIPANT EXISTS FOR: what reaches the skin was authored by the TERMINAL's
-    // identity -- the bus stamp says so, and a payload cannot write a bus stamp. The pane's own
-    // identity is a third weave that said nothing to anybody.
+    // THE CLAIM THE PARTICIPANT EXISTS FOR: what reaches the discovery door was authored by the
+    // TERMINAL's identity -- the bus stamp says so, and a payload cannot write a bus stamp. The
+    // pane's own identity is a third weave that said nothing to anybody.
     TerminalRig t;
     t.open();
-    SkinSeat* skin = t.r.mount_skin_seat();
-    t.focus();
-    t.type("send @zengine.skin SurfaceText 1 slot=hello text=there");
-    t.submit();
-    // THE SLOT THE WEAVER AUTHORED, out of everything this skin heard -- Workshop publishes
-    // its own status text to the same office constantly, so the case names the message
-    // rather than taking the last one.
-    REQUIRE(skin->heard.size() == skin->from.size());
-    std::size_t at = skin->heard.size();
-    for (std::size_t i = 0; i < skin->heard.size(); ++i) {
-        if (skin->heard[i].slot == "hello") {
-            at = i;
+    const loom::WeaveId door = t.r.mount_powers();
+    // EVERY FIND DELIVERED TO THE DOOR, by the stamp of the weave that sent it.
+    std::vector<loom::WeaveId> senders;
+    const loom::ObserverId tap = t.r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (e.kind == loom::EventKind::Delivered && e.target == door &&
+            e.schema_name == find_powers_schema()->name()) {
+            senders.push_back(e.sender);
         }
-    }
-    REQUIRE_MESSAGE(at < skin->heard.size(), "the authored SurfaceText never arrived");
-    CHECK(skin->heard[at].text == "there");
+    });
+    t.focus();
+    t.type("send @zengine.powers FindPowers 2 text=there");
+    t.submit();
+    t.r.bus.remove_observer(tap);
+    REQUIRE_MESSAGE(senders.size() == 1, "the authored FindPowers never arrived");
     // THE BUS STAMP: it cannot be written by a payload or chosen by whoever composed the message.
     // It says the TERMINAL authored this, not Workshop and not the pane.
-    CHECK(skin->from[at] == t.r.terminal_id);
-    CHECK(skin->from[at] != t.r.workshop_id);
+    CHECK(senders.front() == t.r.terminal_id);
+    CHECK(senders.front() != t.r.workshop_id);
     // The participant recorded a SUBMITTED entry, which is what the pane draws.
     const std::vector<loom::TranscriptEntry> record = t.record();
     bool submitted = false;
@@ -829,7 +827,7 @@ TEST_CASE("the list is rows INSIDE the pane, above the line it belongs to") {
     REQUIRE(shows_canvas(*held));
     const auto& body = held->canvas;
     std::size_t drawn = 0;
-    for (const surface::SurfaceTextRegion& one : all_texts(t.r.canvases.back())) {
+    for (const surface::SurfaceTextRegion& one : all_texts(paint(t.r.session()))) {
         if (one.x >= body.x && one.x < body.x + body.width && one.y >= body.y &&
             one.y < body.y + body.height) {
             ++drawn;
@@ -969,9 +967,9 @@ TEST_CASE("WL-HAND-06: the Terminal names the line being typed and each candidat
 
         // A VALUE IN THE RECORD, PRESSED THERE, PICKS NOTHING UP: no carry begins in a window. The
         // line is run as the window asks it.
-        (void)t.r.mount_skin_seat();
+        (void)t.r.mount_powers();
         t.clear_line();
-        t.type("send @zengine.skin SurfaceText 1 slot=hello text=there");
+        t.type("send @zengine.powers FindPowers 2 text=there");
         window.ask(area, pane::kActionSubmit);
         REQUIRE(t.text().find("SUBMITTED") != std::string::npos);
         std::string entry;
@@ -1298,9 +1296,8 @@ TEST_CASE("clipboard text lands in the draft that asked for it, or nowhere") {
     // the different command a weaver typed after abandoning it.
     TerminalRig t;
     t.open();
-    SkinSeat* skin = t.r.mount_skin_seat();
-    REQUIRE(skin != nullptr);
-    skin->platform = "OLD";
+    t.r.on_os_window();
+    t.r.windows.set_clipboard("OLD");
     t.focus();
     t.type("abc");
 
@@ -1315,15 +1312,15 @@ TEST_CASE("clipboard text lands in the draft that asked for it, or nowhere") {
 
     // THE READ REALLY HAPPENED, so the absence below is a measurement and not a vacancy:
     // the staging reached the state where the payload was in the pane's hands.
-    CHECK(skin->clipboard_reads == 1);
+    CHECK(t.r.windows.clipboard_reads() == 1);
     CHECK(t.input_text().rfind("> new", 0) == 0);
     CHECK(t.text().find("OLD") == std::string::npos);
 
     // AND A PASTE INTO THE DRAFT THAT ASKED STILL LANDS, which is the half a check that
     // discarded everything would also pass.
-    skin->platform = "OK";
+    t.r.windows.set_clipboard("OK");
     t.r.key(input::scan::kV, input::mod::kCtrl);
-    CHECK(skin->clipboard_reads == 2);
+    CHECK(t.r.windows.clipboard_reads() == 2);
     CHECK(t.input_text().rfind("> newOK", 0) == 0);
 }
 
@@ -1334,9 +1331,8 @@ TEST_CASE("an edit is not a new draft, and a submit is") {
     // and they are what a paste is bound to.
     TerminalRig t;
     t.open();
-    SkinSeat* skin = t.r.mount_skin_seat();
-    REQUIRE(skin != nullptr);
-    skin->platform = "OLD";
+    t.r.on_os_window();
+    t.r.windows.set_clipboard("OLD");
     t.focus();
     t.type("ab");
 
@@ -1370,9 +1366,8 @@ TEST_CASE("a paste is one gesture, and undo gives back the line it landed in") {
     // burst before it, so one undo would take the paste and the typed word together.
     TerminalRig t;
     t.open();
-    SkinSeat* skin = t.r.mount_skin_seat();
-    REQUIRE(skin != nullptr);
-    skin->platform = "OLD";
+    t.r.on_os_window();
+    t.r.windows.set_clipboard("OLD");
     t.focus();
     t.type("keep");
     t.r.key(input::scan::kV, input::mod::kCtrl);
@@ -1400,18 +1395,17 @@ TEST_CASE("what the clipboard holds is normalized to fit a line, or refused alou
     // normalization; this case owns the pane's door spending it.
     TerminalRig t;
     t.open();
-    SkinSeat* skin = t.r.mount_skin_seat();
-    REQUIRE(skin != nullptr);
+    t.r.on_os_window();
     t.focus();
 
-    skin->platform = "two\r\nlines";
+    t.r.windows.set_clipboard("two\r\nlines");
     t.r.key(input::scan::kV, input::mod::kCtrl);
     CHECK(t.input_text().rfind("> two lines", 0) == 0); // the CRLF pair is ONE space
 
     // AS MANY AS THE LAYERS THERE ARE, and not one more: the first Escape dismisses a LIST if
     // one is open and only then clears, and an Escape with nothing left puts the pane down.
     t.clear_line();
-    skin->platform = "a\tb\nc";
+    t.r.windows.set_clipboard("a\tb\nc");
     t.r.key(input::scan::kV, input::mod::kCtrl);
     CHECK(t.input_text().rfind("> a b c", 0) == 0);
 
@@ -1421,7 +1415,7 @@ TEST_CASE("what the clipboard holds is normalized to fit a line, or refused alou
     // This pane's typed door already refuses one; the difference here is that the door speaks.
     t.clear_line();
     t.type("hold");
-    skin->platform = "na\xC3\xAFve";
+    t.r.windows.set_clipboard("na\xC3\xAFve");
     t.r.key(input::scan::kV, input::mod::kCtrl);
     CHECK(t.text().find("outside plain ASCII") != std::string::npos);
     CHECK(t.input_text().rfind("> hold", 0) == 0); // ...and the line is untouched
@@ -1429,14 +1423,14 @@ TEST_CASE("what the clipboard holds is normalized to fit a line, or refused alou
 
     // A READABLE BUT EMPTY CLIPBOARD PASTES NOTHING -- and in particular not the mirror's
     // last value, which is the stale answer the ask exists to avoid.
-    const int reads = skin->clipboard_reads;
-    skin->platform = "";
+    const int reads = t.r.windows.clipboard_reads();
+    t.r.windows.set_clipboard("");
     t.r.key(input::scan::kV, input::mod::kCtrl);
-    CHECK(skin->clipboard_reads == reads + 1); // the read really happened
+    CHECK(t.r.windows.clipboard_reads() == reads + 1); // the read really happened
     CHECK(t.input_text().rfind("> hold", 0) == 0);
 
     // A PASTE OVER A SELECTION REPLACES IT, which `paste` does and a bare `type` would not.
-    skin->platform = "gone";
+    t.r.windows.set_clipboard("gone");
     t.r.key(input::scan::kA, input::mod::kCtrl);
     t.r.key(input::scan::kV, input::mod::kCtrl);
     CHECK(t.input_text().rfind("> gone", 0) == 0);
@@ -1448,7 +1442,7 @@ TEST_CASE("what the clipboard holds is normalized to fit a line, or refused alou
     // medium's own standing truth, which is what keeps copy-here paste-there working there.
     t.r.key(input::scan::kA, input::mod::kCtrl);
     t.r.key(input::scan::kC, input::mod::kCtrl);
-    skin->readable_medium = false;
+    t.r.windows.set_clipboard(std::nullopt);
     t.r.key(input::scan::kEnd);
     t.r.key(input::scan::kV, input::mod::kCtrl);
     CHECK(t.input_text().rfind("> holdhold", 0) == 0);
@@ -1705,8 +1699,7 @@ TEST_CASE("after a lock the recalled line is an ordinary draft whose undo stops 
     TerminalRig t;
     t.open();
     t.give_room(12, 100);
-    SkinSeat* skin = t.r.mount_skin_seat();
-    REQUIRE(skin != nullptr);
+    t.r.on_os_window();
     run(t, "beta");
     t.r.key(input::scan::kUp);
     t.r.key(input::scan::kTab);
@@ -1719,21 +1712,20 @@ TEST_CASE("after a lock the recalled line is an ordinary draft whose undo stops 
 
     t.r.key(input::scan::kA, input::mod::kCtrl);
     t.r.key(input::scan::kC, input::mod::kCtrl);
-    CHECK(skin->platform == "beta");
+    CHECK(t.r.windows.clipboard() == std::optional<std::string>("beta"));
 }
 
 TEST_CASE("a paste asked for before a recall does not land in the recalled line") {
     TerminalRig t;
     t.open();
     t.give_room(12, 100);
-    SkinSeat* skin = t.r.mount_skin_seat();
-    REQUIRE(skin != nullptr);
+    t.r.on_os_window();
     run(t, "beta");
-    skin->platform = "OLD";
+    t.r.windows.set_clipboard("OLD");
     t.enqueue_key(input::scan::kV, input::mod::kCtrl);
     t.enqueue_key(input::scan::kUp);
     t.settle();
-    CHECK(skin->clipboard_reads == 1);
+    CHECK(t.r.windows.clipboard_reads() == 1);
     CHECK(t.input_text() == "> beta");
 }
 
@@ -2099,15 +2091,29 @@ TEST_CASE("reading keys leave a recall and the line as they were") {
 
 namespace {
 
-/// A WEAVE THAT RECORDS WHAT REACHES IT, seated in `office` -- the skin seat's own class, in an
-/// office of the case's choosing, so a delivery or its absence is a measurement.
+/// A WEAVE THAT RECORDS EVERY `SurfaceText` THAT REACHES IT, and who sent it -- the shape the rig's
+/// terminal is granted, so a line a case types can be measured arriving.
+class TextRecorder : public loom::WeaveBase<TextRecorder, SeenState,
+                                            loom::Accept<surface::SurfaceText>, loom::Emit<>> {
+public:
+    void on(const surface::SurfaceText& t, loom::Mail& mail) {
+        ++state_.frames;
+        heard.push_back(t);
+        from.push_back(mail.sender());
+    }
+    std::vector<surface::SurfaceText> heard;
+    std::vector<loom::WeaveId> from;
+};
+
+/// A RECORDER seated in `office`, an office of the case's choosing, so a delivery or its absence
+/// is a measurement.
 struct Probe {
-    SkinSeat* seat = nullptr;
+    TextRecorder* seat = nullptr;
     loom::WeaveId id{};
 };
 
 Probe mount_probe(TerminalRig& t, const std::string& office) {
-    auto seat = std::make_unique<SkinSeat>();
+    auto seat = std::make_unique<TextRecorder>();
     Probe p;
     p.seat = seat.get();
     loom::Grant grant;
@@ -2117,7 +2123,7 @@ Probe mount_probe(TerminalRig& t, const std::string& office) {
     return p;
 }
 
-bool heard_slot(const SkinSeat& seat, const std::string& slot) {
+bool heard_slot(const TextRecorder& seat, const std::string& slot) {
     for (const surface::SurfaceText& one : seat.heard) {
         if (one.slot == slot) {
             return true;

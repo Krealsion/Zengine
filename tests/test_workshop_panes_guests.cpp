@@ -151,7 +151,7 @@ struct Weaver {
     /// A primary press and its release at a canvas cell, as the terminal medium reports them.
     void click_cell(std::int64_t x, std::int64_t y) {
         for (const bool down : {true, false}) {
-            physical->push_back(input::PointerButton{1, down, x, y + surface::kTuiCanvasTopRow,
+            physical->push_back(input::PointerButton{1, down, x, y,
                                                      input::space::kCells, input::mod::kNone});
         }
         pump();
@@ -185,7 +185,7 @@ void guest_click_on(InventoryStory& s, std::int64_t kind, const std::string& sta
     e.pressed = true;
     e.space = input::space::kCells;
     e.x = x;
-    e.y = y + surface::kTuiCanvasTopRow;
+    e.y = y;
     s.event(e);
     e.pressed = false;
     s.event(e);
@@ -472,7 +472,7 @@ struct HotkeysDesk {
     void right(std::int64_t row) {
         const auto [x, y] = cell(row);
         for (const bool down : {true, false}) {
-            r.publish(loom::to_value(input::PointerButton{3, down, x, y + surface::kTuiCanvasTopRow,
+            r.publish(loom::to_value(input::PointerButton{3, down, x, y,
                                                           input::space::kCells, input::mod::kNone}));
         }
     }

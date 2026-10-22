@@ -651,7 +651,9 @@ TEST_CASE("the provider answers Workshop and nobody else") {
     // AN UNAUTHENTICATED CATALOG REQUEST -- a root publication, carrying no authored
     // role at all. A provider that answered this would hand its catalog to whoever
     // asked, including a weave holding no office.
-    r.publish(loom::to_value(PaneCatalogRequested{}));
+    (void)r.bus.publish(loom::Message(loom::to_value(PaneCatalogRequested{}), loom::WeaveId{},
+                                      loom::WeaveId{}, 0));
+    r.bus.drain_until_idle();
     CHECK(r.session().panes.runtime.entries.empty());
 
     // The same shape, authored as `zengine.workshop`, is answered.
@@ -1051,10 +1053,11 @@ TEST_CASE("an unchanged prose capacity sends no second room; a changed one sends
     const Screen typed = screen_of(r.session());
     CHECK(typed.text_advance_px == 9);
     const ExternalBodyPlace graphical = external_body_of(r.session(), kind);
-    // the widened body's INTERIOR, before the face is consulted
+    // the widened body's INTERIOR, before the face is consulted: inside a border one window
+    // pixel wide, so it touches every cell of the slot but its first and last
     CHECK(cells_covered(PixelRect{graphical.region_x, graphical.region_y, graphical.region_w,
                                   graphical.region_h})
-              .w == 72);
+              .w == 73);
     const RegionFit gfit = fit_region(
         graphical.region_x, graphical.region_y, graphical.region_w, graphical.region_h, 9, 18);
     CHECK(gfit.graphical());
@@ -1099,7 +1102,7 @@ TEST_CASE("a new room clears the old rows before it is sent") {
     // AND THE PANE SAYS THE SENTENCE IT HAS ALWAYS SAID WHILE IT WAITS. `waiting` is a fact
     // about THIS PANE -- a room has been granted and nothing valid has answered it -- and
     // a wider window is not news about the provider.
-    CHECK(stack_text(r.last_canvas()).find(kExternalWaiting) != std::string::npos);
+    CHECK(stack_text(r.shown()).find(kExternalWaiting) != std::string::npos);
 
     // A REAL FACE, over the same widened body: the other lever, and the cache is cleared
     // for the identical reason.
@@ -1139,14 +1142,15 @@ TEST_CASE("an external grant follows the widened body through fit_region") {
         std::int64_t columns;
     };
     std::size_t said = seat->rooms.size();
-    // EACH IS THE PANE'S INTERIOR, two cells less on both axes than its rectangle: the visible
-    // boundary comes out of it.
+    // EACH IS THE PANE'S INTERIOR: two cells less on both axes than its rectangle in a cell
+    // medium, its visible boundary coming out of it; a pixel less on each side in the OS window,
+    // which shows every pixel.
     for (const Grant& g : std::vector<Grant>{{120, 40, 0, 0, 6, 82},
                                              {200, 60, 0, 0, 6, 122},
                                              {78, 22, 0, 0, 6, 61},
-                                             {78, 22, 8, 18, 3, 91},
-                                             {120, 40, 8, 18, 3, 122},
-                                             {200, 60, 8, 18, 3, 182}}) {
+                                             {78, 22, 8, 18, 4, 93},
+                                             {120, 40, 8, 18, 4, 125},
+                                             {200, 60, 8, 18, 4, 185}}) {
         CAPTURE(g.w);
         CAPTURE(g.h);
         CAPTURE(g.advance);
@@ -1184,7 +1188,7 @@ TEST_CASE("valid content is shown through a region at the exact granted body bou
     // BEFORE ANYTHING ARRIVES the pane says it is waiting -- a fact about this PANE,
     // never about the provider.
     const ui::Rect body = external_body_rect(r.session(), kind);
-    std::vector<std::string> shown = external_rows(r.last_canvas(), body);
+    std::vector<std::string> shown = external_rows(r.shown(), body);
     REQUIRE(shown.size() == 1);
     CHECK(shown[0] == std::string(kExternalWaiting));
 
@@ -1195,9 +1199,13 @@ TEST_CASE("valid content is shown through a region at the exact granted body bou
     said.rows.push_back(surface::SurfaceTextRow{"two", gfx::role::kFill});
     r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
 
-    shown = external_rows(r.last_canvas(), body);
+    shown = external_rows(r.shown(), body);
     REQUIRE(shown.size() == 2);
-    CHECK(shown[0] == "one");
+    // THE FIRST ROW'S GROUND RUNS TO THE BODY'S EDGE AND NO FURTHER: a muted ground is drawn as
+    // the window's muted fill, to exactly the granted bounds.
+    CHECK(shown[0].rfind("one", 0) == 0);
+    CHECK(shown[0].find_first_not_of('.', 3) == std::string::npos);
+    CHECK(static_cast<std::int64_t>(shown[0].size()) == body.w);
     CHECK(shown[1] == "two");
     // THE SEMANTIC ROLE AND GROUND SURVIVE UNTRANSLATED. Workshop makes no palette
     // decision for a provider and mints no provider theme.
@@ -1207,7 +1215,7 @@ TEST_CASE("valid content is shown through a region at the exact granted body bou
     CHECK(pane->shown[1].background == gfx::role::kNone);
 
     // ONE CANVAS, AND THE HEADER IS WORKSHOP'S. A weaver can tell whose pane this is.
-    const std::string stack = stack_text(r.last_canvas());
+    const std::string stack = stack_text(r.shown());
     CHECK(stack.find("Hello @zengine.test.workshop-hello") != std::string::npos);
 }
 
@@ -1239,7 +1247,7 @@ TEST_CASE("an external pane's own text cannot bury the surface that recovers it"
         loud.rows.push_back(surface::SurfaceTextRow{"ZZZZZZZZ", gfx::role::kFill});
     }
     r.drive(seat, [loud](ProviderSeat& s, loom::Mail& m) { s.say(m, loud); });
-    REQUIRE(external_rows(r.last_canvas(), body).size() ==
+    REQUIRE(external_rows(r.shown(), body).size() ==
             static_cast<std::size_t>(granted->rows));
 
     // THE CONTEXTUAL SURFACE, OVER IT. A right press on the pane opens the pane's own menu at the
@@ -1249,7 +1257,7 @@ TEST_CASE("an external pane's own text cannot bury the surface that recovers it"
     r.right_press_cell(body.x + 1, body.y);
     REQUIRE(r.session().context.open);
     std::string menu;
-    for (const std::string& row : context_rows_on(r.last_canvas(), r.session())) {
+    for (const std::string& row : context_rows_on(r.shown(), r.session())) {
         menu += row + "\n";
     }
     INFO(menu);
@@ -1264,16 +1272,16 @@ TEST_CASE("an external pane's own text cannot bury the surface that recovers it"
     r.key(input::scan::kW);
     r.text("w");
     REQUIRE(r.session().arrange.open);
-    const std::string arranging = stack_text(r.last_canvas());
+    const std::string arranging = stack_text(r.shown());
     INFO(arranging);
     CHECK(arranging.find("+ WINDOW") == std::string::npos);
     CHECK(arranging.find("ZZZZZZZZ") != std::string::npos);
 
     // THE CONTROL: the provider's rows really are still being published either way.
-    CHECK(external_rows(r.last_canvas(), body).size() ==
+    CHECK(external_rows(r.shown(), body).size() ==
           static_cast<std::size_t>(granted->rows));
     r.key(input::scan::kEscape);
-    CHECK(stack_text(r.last_canvas()).find("ZZZZZZZZ") != std::string::npos);
+    CHECK(stack_text(r.shown()).find("ZZZZZZZZ") != std::string::npos);
 }
 
 TEST_CASE("content beyond the granted room is not cached, and cannot leave stale rows") {
@@ -1297,7 +1305,7 @@ TEST_CASE("content beyond the granted room is not cached, and cannot leave stale
     good.pane = kHelloPane;
     good.rows.push_back(surface::SurfaceTextRow{"a good row", gfx::role::kFill});
     r.drive(seat, [good](ProviderSeat& s, loom::Mail& m) { s.say(m, good); });
-    REQUIRE(external_rows(r.last_canvas(), body).size() == 1);
+    REQUIRE(external_rows(r.shown(), body).size() == 1);
 
     // ONE ROW TOO MANY.
     PaneContent tall;
@@ -1327,7 +1335,7 @@ TEST_CASE("content beyond the granted room is not cached, and cannot leave stale
     }
     CHECK(r.glance().find("zengine.test.workshop-hello/hello") != std::string::npos);
     // THE STALE ROW IS GONE FROM THE PICTURE, replaced by Workshop's own sentence.
-    std::vector<std::string> after = external_rows(r.last_canvas(), body);
+    std::vector<std::string> after = external_rows(r.shown(), body);
     REQUIRE(after.size() == 1);
     CHECK(after[0] == detail::fit(kExternalRefused, granted_cols)); // fitted, cut marked
     CHECK(after[0].find("a good row") == std::string::npos);
@@ -1338,7 +1346,7 @@ TEST_CASE("content beyond the granted room is not cached, and cannot leave stale
     CHECK(pane->heard);
     CHECK(pane->refusal.empty());
     CHECK(pane->refusal_why.empty()); // the reason went with the refusal it explained
-    CHECK(external_rows(r.last_canvas(), body)[0] == "a good row");
+    CHECK(external_rows(r.shown(), body)[0] == "a good row");
     // ...AND THE CONDITION IS GONE BECAUSE ITS TRUTH RESOLVED. Nobody retracted it
     // and nothing was said over it: it stopped being returned.
     CHECK(condition_by_key(r.conditions(), content_key) == nullptr);
@@ -1423,7 +1431,7 @@ TEST_CASE("a refusal stands until ACCEPTED CONTENT replaces it, a new room inclu
 
     // ...AND THE PANE GOES ON SAYING IT, rather than showing a weaver an empty box.
     const ui::Rect body = external_body_rect(r.session(), kind);
-    const std::vector<std::string> rows = external_rows(r.last_canvas(), body);
+    const std::vector<std::string> rows = external_rows(r.shown(), body);
     REQUIRE_FALSE(rows.empty());
     CHECK(rows[0].rfind(detail::fit(kExternalRefused, after->columns), 0) == 0);
 
@@ -1564,13 +1572,13 @@ TEST_CASE("a read-only pane that ignores presses is unchanged when Workshop send
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     const ui::Rect body = external_body_rect(r.session(), kind);
-    const std::vector<std::string> before = external_rows(r.last_canvas(), body);
+    const std::vector<std::string> before = external_rows(r.shown(), body);
     REQUIRE_FALSE(before.empty());
 
     for (std::int64_t row = 0; row < 4; ++row) {
         r.press_cell(body.x + 2, body.y + kExternalHeaderRows + row);
     }
-    CHECK(external_rows(r.last_canvas(), body) == before);
+    CHECK(external_rows(r.shown(), body) == before);
     CHECK(r.session().notice != "nothing there"); // the presses were the pane's, not the room's
 }
 
@@ -1638,7 +1646,7 @@ TEST_CASE("a valid re-offer refreshes the descriptor and the open pane, without 
     CHECK(pane->awaiting);
     CHECK(seat->rooms.size() == rooms_before + 1);
     const ui::Rect body = external_body_rect(r.session(), kind);
-    CHECK(external_rows(r.last_canvas(), body)[0] == std::string(kExternalWaiting));
+    CHECK(external_rows(r.shown(), body)[0] == std::string(kExternalWaiting));
 }
 
 TEST_CASE("silence is waiting, and Workshop never says unavailable") {
@@ -1657,7 +1665,7 @@ TEST_CASE("silence is waiting, and Workshop never says unavailable") {
         r.key(input::scan::kEscape);
     }
     const ui::Rect body = external_body_rect(r.session(), kind);
-    CHECK(external_rows(r.last_canvas(), body)[0] == std::string(kExternalWaiting));
+    CHECK(external_rows(r.shown(), body)[0] == std::string(kExternalWaiting));
     CHECK(r.session().panes.runtime.entries.size() == 1);
     CHECK(has_pane(r.session().setup.active, hello_ref()));
     CHECK(r.session().panes.has(kind));
@@ -1666,7 +1674,7 @@ TEST_CASE("silence is waiting, and Workshop never says unavailable") {
     for (const surface::SurfaceText& note : r.notes) {
         CHECK(note.text.find("unavailable") == std::string::npos);
     }
-    CHECK(stack_text(r.last_canvas()).find("unavailable") == std::string::npos);
+    CHECK(stack_text(r.shown()).find("unavailable") == std::string::npos);
     CHECK(setup_rest_text(r.session().setup, r.session().panes,
                             r.session().keymap, KeySpelling::kShort)
               .find("unavailable") == std::string::npos);
@@ -1781,7 +1789,7 @@ TEST_CASE("a caret is judged against the CONTENT, and merged with the header's o
     // NAMED, NOT BOUND INTO A TEMPORARY. `all_texts` answers BY VALUE, so a pointer into the
     // range of a `for (... : all_texts(...))` dies at the semicolon -- the exact defect the
     // sanitizer lane exists for.
-    const std::vector<surface::SurfaceTextRegion> texts = all_texts(t.r.last_canvas());
+    const std::vector<surface::SurfaceTextRegion> texts = all_texts(paint(t.r.session()));
     const surface::SurfaceTextRegion* region = nullptr;
     for (const surface::SurfaceTextRegion& one : texts) {
         if (covered_cells(one).x == body.x && covered_cells(one).y == body.y) {
@@ -1832,9 +1840,9 @@ TEST_CASE("a caret naming a row the content does not have is refused WHOLE") {
     CHECK(t.r.last_notice() == std::string("Hello @") + kHelloOffice +
                                    ": selected backwards -- the end precedes the begin");
     // ...ONCE: the same caret again, as a pane answering a repaint would say it, paints nothing.
-    const std::size_t painted = t.r.canvases.size();
+    const std::size_t painted = t.r.pictures;
     t.say_caret(PaneCaret{"hello", 0, 0, 0, 3, 0, 1});
-    CHECK(t.r.canvases.size() == painted);
+    CHECK(t.r.pictures == painted);
     CHECK(t.pane()->caret_row == surface::kNoCaret);
 }
 

@@ -312,7 +312,7 @@ TEST_CASE("a notice a weaver's own path makes too long is marked on screen, not 
     REQUIRE(t.notice().size() > static_cast<std::size_t>(cells_of(kMinScreen).w));
     CHECK(t.notice().find(t.host.setup_path) != std::string::npos);
 
-    const std::string shown = label_at(t.canvases.back(), 0, cells_of(kMinScreen).notice_y);
+    const std::string shown = label_at(t.shown(), 0, cells_of(kMinScreen).notice_y);
     CHECK(shown.size() == static_cast<std::size_t>(cells_of(kMinScreen).w));
     CHECK(shown.compare(shown.size() - 3, 3, "...") == 0);
     CHECK(t.notice().compare(0, shown.size() - 3, shown, 0, shown.size() - 3) == 0);
@@ -332,11 +332,7 @@ TEST_CASE("a notice a weaver's own path makes too long is marked on screen, not 
 TEST_CASE("the name editor selects with the same keys and says it in characters") {
     TempDir dir("text0-naming");
     Live t;
-    (void)t.mount_skin_seat(); // the cross-consumer paste below asks it, like every paste
     t.host.setup_path = dir.file("setup.json");
-    // A PANE COPIES -- publishing `ClipboardCopy`, as every pane does with its own selection
-    // -- and this host's name editor pastes it: the two boxes are in two images.
-    t.publish(loom::to_value(gfx::ClipboardCopy{"Morning"}));
 
     // THE EDITOR IS OPENED BY DOUBLE-CLICKING THE TAB: `s` saves, and renaming is the layout
     // operation reached from the tab a weaver points at.
@@ -351,7 +347,7 @@ TEST_CASE("the name editor selects with the same keys and says it in characters"
     t.key(input::scan::kA, input::mod::kCtrl);
     CHECK(t.session().setup.naming.line.selected_text() == "Default");
     const std::vector<surface::SurfaceTextRegion> at_bands =
-        regions_at(t.canvases.back(), 0, 0);
+        regions_at(paint(t.session()), 0, 0);
     REQUIRE(at_bands.size() == 1);
     const surface::SurfaceTextRegion& editor = at_bands.front();
     REQUIRE_FALSE(editor.rows.empty());
@@ -367,8 +363,14 @@ TEST_CASE("the name editor selects with the same keys and says it in characters"
     CHECK(editor.sel_end_row == 0);
     CHECK(editor.sel_end_col == prompt + 7);
     // ...and the cell projection stands the caret on a cell, moving no character of the row.
-    CHECK(label_at(t.canvases.back(), 0, 0).find("layout name> Default") == 0);
+    CHECK(label_at(t.shown(), 0, 0).find("layout name> Default") == 0);
 
+    // ON THE OS WINDOW, whose platform clipboard a paste can read, A PANE COPIES -- publishing
+    // `ClipboardCopy`, as every pane does with its own selection -- and this host's name editor
+    // pastes it: the two boxes are in two images.
+    t.on_os_window();
+    REQUIRE(t.session().setup.naming.open);
+    t.publish(loom::to_value(gfx::ClipboardCopy{"Morning"}));
     // Paste replaces the selection: the name a weaver copied in a PANE arrives here.
     t.key(input::scan::kV, input::mod::kCtrl);
     CHECK(t.session().setup.naming.line.text() == "Morning");
@@ -470,18 +472,8 @@ TEST_CASE("the real Composer's fields speak the vocabulary across the seam") {
     }
     REQUIRE(form_open);
 
-    // A readable medium at the Skin's role, for the provider's own paste conversation.
-    SkinSeat* skin = nullptr;
-    {
-        auto seat = std::make_unique<SkinSeat>();
-        skin = seat.get();
-        loom::Grant grant;
-        grant.allow_to_any(gfx::ClipboardText::zen_name,
-                           gfx::ClipboardText::zen_version);
-        const loom::WeaveId id =
-            r.bus.register_weave(std::move(seat), std::move(grant), surface::kSkinRole);
-        skin->zen_set_self(id);
-    }
+    // A medium whose platform clipboard can be read, for the provider's own paste conversation.
+    r.on_os_window();
 
     // Type into the field under the cursor (typing makes it present), select all, copy.
     r.text("hello");
@@ -489,16 +481,17 @@ TEST_CASE("the real Composer's fields speak the vocabulary across the seam") {
     r.key(input::scan::kC, input::mod::kCtrl);
     CHECK_FALSE(r.host.quit); // ^c crossed the seam instead of quitting
     CHECK(r.session().clipboard.text == "hello"); // ...and the copy reached the mirror
-    CHECK(skin->platform == "hello");             // ...and the platform, through the Skin
+    // ...and the platform, through the window
+    CHECK(r.windows.clipboard() == std::optional<std::string>("hello"));
 
     // The other direction: the platform's clipboard changes SILENTLY -- some unrelated
     // application copied; no event travels, nothing here hears it -- and the weaver's paste is
     // what asks. The provider's field gets the platform's CURRENT text, visible in the pane's
     // published rows, which is the only window this case has.
-    skin->platform = "pasted-in";
+    r.windows.set_clipboard("pasted-in");
     r.key(input::scan::kA, input::mod::kCtrl);
     r.key(input::scan::kV, input::mod::kCtrl);
-    CHECK(skin->clipboard_reads == 1); // the provider asked, once, because of the paste
+    CHECK(r.windows.clipboard_reads() == 1); // the provider asked, once, because of the paste
     bool shown = false;
     for (const std::string& row :
          pane_rows(r, compose_kind)) {
@@ -518,7 +511,7 @@ TEST_CASE("the real Composer's fields speak the vocabulary across the seam") {
     // asked in was dropped -- the paste and the Escape enqueued in one batch, as one poll
     // delivers them -- and the payload lands nowhere. `esc` drops the draft whole, so the
     // form that asked does not exist whatever form a weaver opens next.
-    skin->platform = "SECRET";
+    r.windows.set_clipboard("SECRET");
     const auto enqueue_key = [&r](std::int64_t sc, std::int64_t mods) {
         (void)r.bus.publish(loom::Message(loom::to_value(input::KeyPressed{sc, "", mods}),
                                           loom::WeaveId{}, loom::WeaveId{}, 0));
@@ -535,7 +528,7 @@ TEST_CASE("the real Composer's fields speak the vocabulary across the seam") {
     (void)r.bus.publish(loom::Message(loom::to_value(input::TextEntered{"z"}),
                                       loom::WeaveId{}, loom::WeaveId{}, 0)); // typed: present
     r.bus.drain_until_idle();
-    CHECK(skin->clipboard_reads == 2); // the request was real; the read happened
+    CHECK(r.windows.clipboard_reads() == 2); // the request was real; the read happened
     bool typed_visible = false;
     for (const std::string& row :
          pane_rows(r, compose_kind)) {
@@ -621,7 +614,6 @@ TEST_CASE("paste reads the platform current, not the mirror stale") {
     // paste -- never a mirror populated earlier. The platform moves silently between two
     // pastes (no event; nothing here may watch), and each paste gets its own moment's truth.
     Live t;
-    SkinSeat* skin = t.mount_skin_seat();
     open_rename_on_tab(t, t.session().setup.active_at); // the host's own box
     REQUIRE(t.session().setup.naming.open);
     t.key(input::scan::kA, input::mod::kCtrl);
@@ -631,15 +623,17 @@ TEST_CASE("paste reads the platform current, not the mirror stale") {
     t.key(input::scan::kA, input::mod::kCtrl);
     t.key(input::scan::kC, input::mod::kCtrl); // mirror = "stale", platform = "stale"
     REQUIRE(t.session().clipboard.text == "stale");
-    skin->platform = "fresh"; // an unrelated application copies; nothing travels
+    t.on_os_window(); // the medium whose platform clipboard a paste reads
+    REQUIRE(t.session().setup.naming.open);
+    t.windows.set_clipboard("fresh"); // an unrelated application copies; nothing travels
     t.key(input::scan::kA, input::mod::kCtrl);
     t.key(input::scan::kV, input::mod::kCtrl);
     CHECK(t.session().setup.naming.line.text() == "fresh");
-    skin->platform = "newer"; // ...and again, between two pastes
+    t.windows.set_clipboard("newer"); // ...and again, between two pastes
     t.key(input::scan::kA, input::mod::kCtrl);
     t.key(input::scan::kV, input::mod::kCtrl);
     CHECK(t.session().setup.naming.line.text() == "newer");
-    CHECK(skin->clipboard_reads == 2);
+    CHECK(t.windows.clipboard_reads() == 2);
 }
 
 TEST_CASE("with nobody at the skin role, paste inserts nothing and breaks nothing") {
@@ -649,6 +643,7 @@ TEST_CASE("with nobody at the skin role, paste inserts nothing and breaks nothin
     // and pressing it past the book's capacity stays quiet rather than becoming a crash
     // or a queue.
     Live t;
+    t.in_window = false; // no window shows this desk, and nobody holds the Skin's office
     open_rename_on_tab(t, t.session().setup.active_at); // the host's own box
     REQUIRE(t.session().setup.naming.open);
     t.key(input::scan::kA, input::mod::kCtrl);
@@ -737,8 +732,8 @@ TEST_CASE("an authored override changes dispatch AND every displayed spelling") 
     // (The legend packs the command rows in catalog order and wraps; this pair is its second
     // row's on the minimum screen.)
     const Screen sc = screen_of(t.session());
-    const std::string legend = label_at(t.canvases.back(), 0, help_row(sc)) + " | " +
-                               label_at(t.canvases.back(), 0, help_row(sc) + 1);
+    const std::string legend = label_at(t.shown(), 0, help_row(sc)) + " | " +
+                               label_at(t.shown(), 0, help_row(sc) + 1);
     CHECK(legend.find("g new layout") != std::string::npos);
     CHECK(legend.find("= new layout") == std::string::npos);
     CHECK(keymap_text(t.session()).find("command mode | g | new layout | layout.new *") !=
@@ -1192,16 +1187,16 @@ TEST_CASE("the legend's three modes project the band, and hidden unbinds nothing
     const Screen sc = screen_of(compact.session());
     // The legend rows are rows of the band's one region, so they are read through the cell
     // projection with the region's padding trimmed.
-    CHECK(inspector_row(compact.canvases.back(), 0, help_row(sc)) ==
+    CHECK(inspector_row(compact.shown(), 0, help_row(sc)) ==
           "^t terminal | ^p panes | ^k hotkeys");
-    CHECK(inspector_row(compact.canvases.back(), 0, help_row(sc) + 1).empty());
+    CHECK(inspector_row(compact.shown(), 0, help_row(sc) + 1).empty());
 
     write_keymap_file(path, keymap_file_text("hidden", {}));
     Keyed hidden(path);
     // Blank rows -- and ONLY blank rows: the band's geometry is `screen_of`'s
     // and the notice and setup line are untouched.
-    CHECK(inspector_row(hidden.canvases.back(), 0, help_row(sc)).empty());
-    CHECK(inspector_row(hidden.canvases.back(), 0, help_row(sc) + 1).empty());
+    CHECK(inspector_row(hidden.shown(), 0, help_row(sc)).empty());
+    CHECK(inspector_row(hidden.shown(), 0, help_row(sc) + 1).empty());
     // Hidden never makes the full list unreachable: the binding is dispatch's,
     // and the legend is read by nothing but the band's painter.
     DesktopSeat* desk = mount_desktop(hidden);
@@ -1211,7 +1206,7 @@ TEST_CASE("the legend's three modes project the band, and hidden unbinds nothing
 
     write_keymap_file(path, keymap_file_text("full", {}));
     Keyed full(path);
-    CHECK(label_at(full.canvases.back(), 0, help_row(sc)).rfind("q quit", 0) == 0);
+    CHECK(label_at(full.shown(), 0, help_row(sc)).rfind("q quit", 0) == 0);
 }
 
 TEST_CASE("a written gesture is modifier words in one order out, any order in, and never twice") {
@@ -1586,7 +1581,7 @@ TEST_CASE("hiding titles returns the row; the keyboard's pane keeps its own") {
     CHECK(first->rooms.back().rows == titled_rows + kExternalHeaderRows);
     REQUIRE(second->rooms.size() == 2);
     const auto shown_rows = [&](std::int64_t kind) {
-        return external_region_rows(r.last_canvas(), external_body_rect(r.session(), kind));
+        return external_region_rows(r.shown(), external_body_rect(r.session(), kind));
     };
     CHECK(shown_rows(a).at(0).find("Seat @") == std::string::npos);
 

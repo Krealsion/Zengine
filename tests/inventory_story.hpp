@@ -269,7 +269,7 @@ struct InventoryStory {
         const auto rect = external_body_rect(r.session(), kind);
         input::InjectedEvent e; e.kind = "PointerButton"; e.button = button; e.pressed = true;
         e.space = input::space::kCells; e.x = rect.x + 1;
-        e.y = rect.y + row + surface::kTuiCanvasTopRow +
+        e.y = rect.y + row +
             external_title_rows(r.session().panes, kind, r.session().pane_titles);
         REQUIRE(external_press_at(r.session().panes, r.session().setup.active,
             screen_of(r.session()), kind, r.session().pane_titles, e.space, e.x, e.y).named);
@@ -315,7 +315,7 @@ struct InventoryStory {
         const auto rect = external_body_rect(r.session(), kind);
         input::InjectedEvent e; e.kind = "PointerButton"; e.button = 1; e.pressed = down;
         e.space = input::space::kCells; e.x = rect.x + 1;
-        e.y = rect.y + row + surface::kTuiCanvasTopRow +
+        e.y = rect.y + row +
             external_title_rows(r.session().panes, kind, r.session().pane_titles);
         return e;
     }
@@ -451,7 +451,7 @@ struct InventoryStory {
     }
     void physical_click(std::int64_t kind) {
         const auto rect = external_body_rect(r.session(), kind);
-        const auto y = rect.y + surface::kTuiCanvasTopRow +
+        const auto y = rect.y +
             external_title_rows(r.session().panes, kind, r.session().pane_titles);
         physical->push_back(input::PointerButton{1, true, rect.x + 1, y, input::space::kCells, 0});
         physical->push_back(input::PointerButton{1, false, rect.x + 1, y, input::space::kCells, 0});

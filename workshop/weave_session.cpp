@@ -455,6 +455,10 @@ std::string WorkshopWeave::restore_notice_text(const RestoreNotice& n, std::int6
 bool WorkshopWeave::respell_restore_notice(std::int64_t cell_px) {
     medium_unit_known_ = true;
     note_medium();
+    return spell_restore_notice(cell_px);
+}
+
+bool WorkshopWeave::spell_restore_notice(std::int64_t cell_px) {
     if (!restore_notice_) {
         return false;
     }

@@ -507,8 +507,7 @@ TEST_CASE("a sample refused in words a canvas cannot draw is shown on the Powers
 
 TEST_CASE("the query is typed, edited, copied and pasted through the shipped seams") {
     PaneRig r;
-    SkinSeat* skin = r.mount_skin_seat(); // the medium that owns the platform clipboard
-    REQUIRE(skin != nullptr);
+    r.on_os_window(); // the medium that owns the platform clipboard
     const std::int64_t kind = open_powers(r);
     make_taller(r, intro::kPowersPane, 18);
     focus_pane(r, kind);
@@ -561,14 +560,14 @@ TEST_CASE("the query is typed, edited, copied and pasted through the shipped sea
     r.key(input::scan::kC, input::mod::kCtrl);
     // THE COPY REACHED THE MEDIUM THAT OWNS THE PLATFORM CLIPBOARD, which is the only
     // place a copy can honestly be said to have landed.
-    CHECK(skin->platform == "rec");
+    CHECK(r.windows.clipboard() == std::optional<std::string>("rec"));
 
     // AND A PASTE IS A READ PERFORMED BECAUSE THE WEAVER ASKED: the Skin is asked once, at the
     // paste, and is never watched.
-    const int reads_before = skin->clipboard_reads;
+    const int reads_before = r.windows.clipboard_reads();
     r.key(input::scan::kEnd);
     r.key(input::scan::kV, input::mod::kCtrl);
-    CHECK(skin->clipboard_reads == reads_before + 1);
+    CHECK(r.windows.clipboard_reads() == reads_before + 1);
     CHECK(pane_rows(r, kind)[0].find("find:recrec") != std::string::npos);
 
     // A QUERY PAST THE DOOR'S BOUND IS ASKED ALL THE SAME, and the door's refusal is what the list

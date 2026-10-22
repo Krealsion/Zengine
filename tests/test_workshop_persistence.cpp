@@ -128,7 +128,7 @@ TEST_CASE("an old object document is left exactly as it is: a launch names it on
     Live t;
     t.host.retired_document = path;
     t.host.setup_path = dir.file("setup.json");
-    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.ready();
     CHECK(t.notice().find("object document " + path + " left as it is") != std::string::npos);
     CHECK(t.notice().find("nothing here reads or writes it") != std::string::npos);
     // `^s` AND `^o` ARE NOBODY'S, and a setup save beside the file writes only its own file.
@@ -1165,7 +1165,7 @@ TEST_CASE("the same setup resolves to different bounds under a different extent"
     // unresolved row has no rectangle to move. Both are overlay panes, so the smaller of
     // the two extents this case compares has to hold two stack slots or the launch door
     // refuses the second for room and the case would be measuring one pane twice.
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(120), cells_px(44), 0, 0}));
+    t.extent_px(cells_px(120), cells_px(44), 0, 0);
     open_stock_pane(t);
     open_pane(t, ref_of(second::kKind));
     REQUIRE(t.session().panes.has(second::kKind));
@@ -1180,7 +1180,7 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, second::kKi
     const ui::Rect builder_small =
 cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKind, small).rect);
 
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(140), cells_px(44), 0, 0}));
+    t.extent_px(cells_px(140), cells_px(44), 0, 0);
 
     const Screen large = screen_of(t.session());
     const ui::Rect info_large =
@@ -1210,7 +1210,7 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKin
                   .rect) == info_large);
 
     // A text metric moves the same picture again, and the setup is untouched.
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(140), cells_px(44), 8, 18}));
+    t.extent_px(cells_px(140), cells_px(44), 8, 18);
     CHECK(t.session().setup.active == authored);
     CHECK((live_status(t.session().setup) == setup_link::kCurrent));
     CHECK(slurp(t.host.setup_path) == bytes);
@@ -1320,7 +1320,7 @@ TEST_CASE("the top row says the ACTIVE layout's Setup association") {
     // A SUCCESSFUL SAVE ESTABLISHES THE ASSOCIATION, and the row says the artifact and
     // the verdict.
     save_setup(t);
-    const std::string saved = setup_row(t.canvases.back(), sc);
+    const std::string saved = setup_row(t.shown(), sc);
     INFO(saved);
     CHECK(saved.find(">Default<") == 0);
     CHECK(saved.find("setup: ") != std::string::npos);
@@ -1328,7 +1328,7 @@ TEST_CASE("the top row says the ACTIVE layout's Setup association") {
 
     // ...AND MUTATING THE DESK MAKES IT `modified`, DERIVED rather than flagged.
     pick(t, stock::kKind);
-    const std::string moved = setup_row(t.canvases.back(), sc);
+    const std::string moved = setup_row(t.shown(), sc);
     INFO(moved);
     CHECK(moved.find("| modified") != std::string::npos);
     CHECK(moved.find("| current") == std::string::npos);
@@ -1350,7 +1350,7 @@ TEST_CASE("the top row says the ACTIVE layout's Setup association") {
     wordy.host.setup_path = std::string(90, 'p');
     (void)first_frame(wordy);
     save_setup(wordy);
-    const std::string cut = setup_row(wordy.canvases.back(), screen_of(wordy.session()));
+    const std::string cut = setup_row(wordy.shown(), screen_of(wordy.session()));
     INFO(cut);
     CHECK(static_cast<std::int64_t>(cut.size()) <= cells_of(kMinScreen).w);
     CHECK(cut.find(">Default<") == 0);
@@ -1359,8 +1359,8 @@ TEST_CASE("the top row says the ACTIVE layout's Setup association") {
     CHECK(cut.find("...") != std::string::npos); // the cut is marked, never silent
 
     // A wider surface spends the room it gained on the path itself.
-    wordy.publish(loom::to_value(surface::SurfaceExtent{cells_px(200), cells_px(40), 0, 0}));
-    const std::string roomy = setup_row(wordy.canvases.back(), screen_of(wordy.session()));
+    wordy.extent_px(cells_px(200), cells_px(40), 0, 0);
+    const std::string roomy = setup_row(wordy.shown(), screen_of(wordy.session()));
     INFO(roomy);
     CHECK(roomy.find(std::string(90, 'p')) != std::string::npos);
     CHECK(roomy.find("r restore") != std::string::npos);
@@ -1373,13 +1373,13 @@ TEST_CASE("the setup line becomes the name editor while a weaver is typing") {
 
     open_rename_on_tab(t, t.session().setup.active_at);
     const Screen sc = screen_of(t.session());
-    const std::string row = setup_row(t.canvases.back(), sc);
+    const std::string row = setup_row(t.shown(), sc);
     INFO(row);
     CHECK(row.find("layout name> Default") == 0);
     // THE CARET STANDS AFTER THE NAME, where `s` left it, on the blank past its last letter. A
     // one-cell-tall bounded region would hold zero rows of a real face, so this editor shows its
     // caret the way the cell projection shows a region's, moving no character.
-    CHECK(caret_at(t.canvases.back(), 0, 0) ==
+    CHECK(caret_at(paint(t.session()), 0, 0) ==
           static_cast<std::int64_t>(row.find("Default") + std::string("Default").size()));
     CHECK(row.find("enter renames") != std::string::npos);
     CHECK(row.find("esc cancels") != std::string::npos);
@@ -1390,9 +1390,10 @@ TEST_CASE("the setup line becomes the name editor while a weaver is typing") {
     t.key(input::scan::kLeft);
     t.text("X");
     CHECK(t.session().setup.naming.line.text() == "DefauXlt");
-    const std::string typed = setup_row(t.canvases.back(), sc);
-    CHECK(caret_at(t.canvases.back(), 0, 0) ==
-          static_cast<std::int64_t>(typed.find("DefauXlt") + std::string("DefauX").size()));
+    const std::string typed = setup_row(t.shown(), sc);
+    // (The window draws the caret as a bar over the letter it stands before.)
+    CHECK(caret_at(paint(t.session()), 0, 0) ==
+          static_cast<std::int64_t>(typed.find("DefauX") + std::string("DefauX").size()));
 }
 
 TEST_CASE("the name editor takes the keys, and the contextual surface keeps its own") {
@@ -1585,7 +1586,7 @@ TEST_CASE("a name that could impersonate the setup line is one SPAN on it") {
     REQUIRE((live_status(t.session().setup) == setup_link::kCurrent));
 
     const Screen sc = screen_of(t.session());
-    const std::string row = setup_row(t.canvases.back(), sc);
+    const std::string row = setup_row(t.shown(), sc);
     INFO(row);
 
     // THE LAYOUT TABS PAINT THE AUTHORED BYTES BARE, so the identity's boundary is not a
@@ -1676,7 +1677,7 @@ TEST_CASE("the save notice and the restore notice spell the name the same way") 
     // ⚠ AND THE TAB RUN IS NOT ONE OF THEM: it paints the AUTHORED bytes, so the escaped
     // spelling is nowhere on the row -- a consumer that deliberately does not use this owner,
     // not a caller improvising a second spelling of it.
-    const std::string row = setup_row(t.canvases.back(), screen_of(t.session()));
+    const std::string row = setup_row(t.shown(), screen_of(t.session()));
     INFO(row);
     CHECK(row.find(token) == std::string::npos);
     CHECK(row.compare(0, authored.size() + 2, ">" + authored + "<") == 0);
@@ -1701,12 +1702,12 @@ TEST_CASE("the name editor edits the authored bytes, never the escaped spelling"
     CHECK(t.session().setup.naming.line.text()[6] == '\\'); // the raw backslash, stored as one
 
     const Screen sc = screen_of(t.session());
-    const std::string row = setup_row(t.canvases.back(), sc);
+    const std::string row = setup_row(t.shown(), sc);
     INFO(row);
     // The editing row is not a quoted sentence, so it is not an escaped one either: the
     // prompt, the raw name, the caret where the weaver's hand left it, and the hint.
     CHECK(row.find(std::string("layout name> ") + authored) == 0);
-    CHECK(caret_at(t.canvases.back(), 0, 0) ==
+    CHECK(caret_at(paint(t.session()), 0, 0) ==
           static_cast<std::int64_t>(std::string("layout name> ").size() + authored.size()));
     CHECK(row.find(quoted_setup_name(authored)) == std::string::npos);
 
@@ -1745,8 +1746,8 @@ TEST_CASE("an ordinary setup name presents exactly as it did before") {
 
     name_setup(t, "Morning build");
     CHECK(t.notice().find("saved setup \"Morning build\" to ") == 0);
-    CHECK(setup_row(t.canvases.back(), sc).find(">Morning build<") == 0);
-    CHECK(setup_row(t.canvases.back(), sc).find("| current") != std::string::npos);
+    CHECK(setup_row(t.shown(), sc).find(">Morning build<") == 0);
+    CHECK(setup_row(t.shown(), sc).find("| current") != std::string::npos);
 
     t.key(input::scan::kR);
     CHECK(t.notice().find("restored setup \"Morning build\" from ") == 0);
@@ -1764,7 +1765,7 @@ TEST_CASE("a bare name at the bound is its own length, and the row is still cut"
     Live modest;
     modest.host.setup_path = dir.file("m.json");
     name_setup(modest, repeated(12, '"'));
-    const std::string easy = setup_row(modest.canvases.back(), screen_of(modest.session()));
+    const std::string easy = setup_row(modest.shown(), screen_of(modest.session()));
     INFO(easy);
     CHECK(easy.compare(0, 14, ">" + repeated(12, '"') + "<") == 0);
     CHECK(easy.find("\\\"") == std::string::npos); // not one escape on the row
@@ -1781,7 +1782,7 @@ TEST_CASE("a bare name at the bound is its own length, and the row is still cut"
     REQUIRE(t.session().setup.active.name == authored);
     REQUIRE((live_status(t.session().setup) == setup_link::kCurrent));
 
-    const std::string cut = setup_row(t.canvases.back(), screen_of(t.session()));
+    const std::string cut = setup_row(t.shown(), screen_of(t.session()));
     INFO(cut);
     CHECK(static_cast<std::int64_t>(cut.size()) == cells_of(kMinScreen).w);
     CHECK(cut.substr(cut.size() - 3) == "...");
@@ -1799,8 +1800,8 @@ TEST_CASE("a bare name at the bound is its own length, and the row is still cut"
     CHECK((live_status(t.session().setup) == setup_link::kCurrent));
     CHECK(setup_persist::load_file(t.host.setup_path).setup.name == authored);
 
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(240), cells_px(40), 0, 0}));
-    const std::string roomy = setup_row(t.canvases.back(), screen_of(t.session()));
+    t.extent_px(cells_px(240), cells_px(40), 0, 0);
+    const std::string roomy = setup_row(t.shown(), screen_of(t.session()));
     INFO(roomy);
     CHECK(roomy.find("...") == std::string::npos);
     CHECK(roomy.compare(0, authored.size() + 2, ">" + authored + "<") == 0);
@@ -1927,8 +1928,8 @@ void arrange_and_close(const std::string& session_path, const std::string& setup
     t.host.session_path = session_path;
     t.host.setup_path = setup_path;
     REQUIRE(setup_persist::save_file(setup_path, desk).accepted);
-    t.publish(loom::to_value(surface::SurfaceReady{}));
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(width), cells_px(height)}));
+    t.ready();
+    t.extent_px(cells_px(width), cells_px(height));
     t.key(input::scan::kR);
     REQUIRE(t.session().setup.active == desk);
     REQUIRE(t.session().screen_w == cells_px(width));
@@ -1954,10 +1955,11 @@ TEST_CASE("the desk and the room come back, with no gesture at all") {
     // may depend on the named-setup file still being where it was, or on it being
     // readable, or on it existing at all.
     Live back;
+    back.in_window = false; // a restored room is a Skin's to keep; a window offers its own
     back.host.session_path = session;
     back.host.setup_path = dir.file("somewhere-else.json");
-    REQUIRE(back.canvases.empty());
-    back.publish(loom::to_value(surface::SurfaceReady{}));
+    REQUIRE((back.pictures == 0));
+    back.ready();
 
     // THE DESK, whole: the same panes, the same authored geometry, the same order.
     CHECK(back.session().setup.active == desk);
@@ -1982,33 +1984,34 @@ TEST_CASE("the restore notice says the room in the unit the medium names: pixels
     REQUIRE(session_persist::save_file(session, one_layout(setup_of("Default", {pane_kind::kLayouts})), 0,
                                        cells_px(120), cells_px(75), session_persist::Placement{})
                 .accepted);
-    // A WINDOW names its device pixel after its first picture, and the notice standing then says
+    // A WINDOW names its device pixel when it offers itself, and the notice standing then says
     // the room in pixels.
     {
         Live w;
         w.host.session_path = session;
-        w.publish(loom::to_value(surface::SurfaceReady{}));
-        w.publish(loom::to_value(surface::SurfaceExtent{cells_px(120), cells_px(75), 8, 18, gfx::kCellPx}));
+        w.on_os_window();
+        w.ready();
+        w.extent_px(cells_px(120), cells_px(75), 8, 18, gfx::kCellPx);
         CHECK(w.notice() == "reopened your last desk \"Default\" -- 1440x900 px");
     }
     // A TERMINAL's unit is the cell.
     {
         Live t;
         t.host.session_path = session;
-        t.publish(loom::to_value(surface::SurfaceReady{}));
-        t.publish(loom::to_value(surface::SurfaceExtent{cells_px(120), cells_px(75), 0, 0, 0}));
+        t.ready();
+        t.extent_px(cells_px(120), cells_px(75), 0, 0, 0);
         CHECK(t.notice() == "reopened your last desk \"Default\" -- 120x75 cells");
     }
     // A NOTICE SAID SINCE STANDS: the restore's is not said again over it.
     {
         Live k;
         k.host.session_path = session;
-        k.publish(loom::to_value(surface::SurfaceReady{}));
+        k.ready();
         k.key(input::scan::kT);
         k.text("t");
         const std::string said = k.notice();
         REQUIRE(said.rfind("pane titles hidden", 0) == 0);
-        k.publish(loom::to_value(surface::SurfaceExtent{cells_px(120), cells_px(75), 8, 18, gfx::kCellPx}));
+        k.extent_px(cells_px(120), cells_px(75), 8, 18, gfx::kCellPx);
         CHECK(k.notice() == said);
     }
 }
@@ -2024,14 +2027,16 @@ TEST_CASE("the FIRST picture of a run is the floor, and the room is the second")
     arrange_and_close(session, dir.file("setup.json"), arranged_desk("Wide"), 132, 48);
 
     Live back;
+    back.in_window = false; // a restored room is a Skin's to keep; a window offers its own
     back.host.session_path = session;
-    back.publish(loom::to_value(surface::SurfaceReady{}));
+    back.ready();
 
-    REQUIRE(back.canvases.size() >= 2);
-    CHECK(back.canvases.front().width == kScreenMinW);
-    CHECK(back.canvases.front().height == kScreenMinH);
-    CHECK(back.canvases.back().width == cells_px(132));
-    CHECK(back.canvases.back().height == cells_px(48));
+    REQUIRE(back.pictures >= 2);
+    REQUIRE_FALSE(back.picture_rooms.empty());
+    CHECK(back.picture_rooms.front().first == kScreenMinW);
+    CHECK(back.picture_rooms.front().second == kScreenMinH);
+    CHECK(paint(back.session()).width == cells_px(132));
+    CHECK(paint(back.session()).height == cells_px(48));
 }
 
 TEST_CASE("the room is taken back only ONCE, however often a surface says hello") {
@@ -2043,14 +2048,14 @@ TEST_CASE("the room is taken back only ONCE, however often a surface says hello"
 
     Live back;
     back.host.session_path = session;
-    back.publish(loom::to_value(surface::SurfaceReady{}));
+    back.ready();
     REQUIRE(back.session().setup.active.name == "First");
 
     // the weaver changes their mind about the desk, and a Skin is replaced under them
     pick(back, stock::kKind); // remove the Builder the restored desk brought
     const Setup after = back.session().setup.active;
     REQUIRE_FALSE(after == arranged_desk("First"));
-    back.publish(loom::to_value(surface::SurfaceReady{}));
+    back.ready();
     CHECK(back.session().setup.active == after);
 }
 
@@ -2067,9 +2072,10 @@ TEST_CASE("the second session replaces the first, room and desk both") {
     REQUIRE(author_pane_place(second, ref_of(second::kKind), 2, 3).accepted);
     {
         Live t;
+        t.in_window = false; // a restored room is a Skin's to keep; a window offers its own
         t.host.session_path = session;
         t.host.setup_path = dir.file("second-setup.json");
-        t.publish(loom::to_value(surface::SurfaceReady{}));
+        t.ready();
         REQUIRE(t.session().setup.active.name == "First");
         REQUIRE(t.session().screen_w == cells_px(100));
         // ⚠ THE RESTORED LAYOUT CAME BACK WITH ITS ASSOCIATION, and `r` acts on THAT artifact
@@ -2078,7 +2084,7 @@ TEST_CASE("the second session replaces the first, room and desk both") {
         // association acquires one through. So the file rewritten is the one the layout names.
         REQUIRE(t.session().setup.active_link.path == dir.file("first-setup.json"));
         REQUIRE(setup_persist::save_file(t.session().setup.active_link.path, second).accepted);
-        t.publish(loom::to_value(surface::SurfaceExtent{cells_px(140), cells_px(50)}));
+        t.extent_px(cells_px(140), cells_px(50));
         t.key(input::scan::kR);
         REQUIRE_MESSAGE(t.session().setup.active == second, t.notice());
         t.close_requested(); // the close BOX, and it is the same door `q` is
@@ -2089,8 +2095,9 @@ TEST_CASE("the second session replaces the first, room and desk both") {
     CHECK(slurp(session) != first_bytes);
 
     Live back;
+    back.in_window = false; // a restored room is a Skin's to keep; a window offers its own
     back.host.session_path = session;
-    back.publish(loom::to_value(surface::SurfaceReady{}));
+    back.ready();
     CHECK(back.session().setup.active == second);
     CHECK(back.session().screen_w == cells_px(140));
     CHECK(back.session().screen_h == cells_px(50));
@@ -2103,7 +2110,7 @@ TEST_CASE("a first launch is not an error, and needs no file to exist") {
     TempDir dir("wux0-c");
     Live t;
     t.host.session_path = dir.file("never-written.json");
-    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.ready();
 
     CHECK(t.session().setup.active == default_setup());
     CHECK(t.session().screen_w == kScreenMinW);
@@ -2119,7 +2126,7 @@ TEST_CASE("a first launch is not an error, and needs no file to exist") {
 TEST_CASE("a host that chose no session file restores nothing and writes nothing") {
     Live t;
     REQUIRE(t.host.session_path.empty());
-    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.ready();
     CHECK(t.session().setup.active == default_setup());
     CHECK_FALSE(t.session().notice_is_bad);
     t.key(input::scan::kQ);
@@ -2162,7 +2169,7 @@ TEST_CASE("a malformed session costs the desk and nothing else") {
         Live t;
         t.host.session_path = dir.file("session.json");
         spillout(t.host.session_path, bytes);
-        t.publish(loom::to_value(surface::SurfaceReady{}));
+        t.ready();
 
         // IT DID NOT CRASH, IT SAID SO, AND IT OPENED.
         CHECK(t.session().notice_is_bad);
@@ -2256,7 +2263,7 @@ TEST_CASE("a hostile room is declined, and the desk still comes back") {
         REQUIRE(session_persist::save_file(t.host.session_path, one_layout(desk), 0, cells_px(c.w), cells_px(c.h),
                                            session_persist::Placement{})
                     .accepted);
-        t.publish(loom::to_value(surface::SurfaceReady{}));
+        t.ready();
 
         // THE DESK CAME BACK. Throwing away a good desk over a bad number would be
         // the corrupt-save-makes-Workshop-useless failure, committed by the code
@@ -2266,7 +2273,7 @@ TEST_CASE("a hostile room is declined, and the desk still comes back") {
         // its floor, exactly as a first launch does.
         CHECK(t.session().screen_w == kScreenMinW);
         CHECK(t.session().screen_h == kScreenMinH);
-        CHECK(t.canvases.back().width == kScreenMinW);
+        CHECK(paint(t.session()).width == kScreenMinW);
         // AND IT NEVER CLAIMS THE SIZE CAME BACK. The value that was declined is
         // named, because a weaver looking at their own file can act on it.
         CHECK(t.session().notice_is_bad);
@@ -2297,8 +2304,8 @@ TEST_CASE("an automatic save never touches the file a weaver named") {
     REQUIRE(setup_persist::save_file(t.host.setup_path, named).accepted);
     const std::string setup_bytes = slurp(t.host.setup_path);
 
-    t.publish(loom::to_value(surface::SurfaceReady{}));
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(120), cells_px(44)}));
+    t.ready();
+    t.extent_px(cells_px(120), cells_px(44));
     pick(t, stock::kKind); // arrange something the named setup does not have
     t.key(input::scan::kQ);
 
@@ -2328,7 +2335,7 @@ TEST_CASE("a restored session never touches the file a weaver named, either") {
     Live t;
     t.host.session_path = session;
     t.host.setup_path = setup;
-    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.ready();
     REQUIRE(t.session().setup.active.name == "Loose");
     CHECK(slurp(setup) == setup_bytes);
 
@@ -2447,6 +2454,7 @@ TEST_CASE("a restored desk opens every pane it names, in the room it restored") 
     REQUIRE(stack_slots_that_fit(screen_of(cells_px(120), cells_px(60))) >= 2);
 
     PaneRig r;
+    r.in_window = false; // a restored room is a Skin's to keep; a window offers its own
     r.host.session_path = session;
     r.mount_workshop();
     admit_stock(r.session().panes); // the stand-in, first, as a `Live` would have it
@@ -2478,7 +2486,7 @@ TEST_CASE("the startup notice counts no pane nobody has had a turn to offer") {
 
     Live t;
     t.host.session_path = session;
-    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.ready();
 
     REQUIRE(t.session().setup.active == mixed);
     CHECK(t.notice().find("reopened your last desk") == 0);
@@ -2487,8 +2495,8 @@ TEST_CASE("the startup notice counts no pane nobody has had a turn to offer") {
 
     // ...AND THE COUNT IS NOT LOST, it is simply owned by the surface that recomputes it.
     // The setup line carries it live, off the same `unresolved_panes` call, every paint.
-    REQUIRE_FALSE(t.canvases.empty());
-    CHECK(setup_row(t.canvases.back(), screen_of(t.session())).find("1 unresolved") !=
+    REQUIRE_FALSE((t.pictures == 0));
+    CHECK(setup_row(t.shown(), screen_of(t.session())).find("1 unresolved") !=
           std::string::npos);
 }
 
@@ -2499,7 +2507,7 @@ TEST_CASE("`r` keeps its unresolved note -- a weaver asking is asking later") {
     Setup mixed = setup_of("Mixed", {second::kKind});
     REQUIRE(add_pane(mixed, hello_ref()));
     REQUIRE(setup_persist::save_file(t.host.setup_path, mixed).accepted);
-    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.ready();
     t.key(input::scan::kR);
     CHECK(t.notice().find("1 pane unresolved") != std::string::npos);
 }
@@ -2940,7 +2948,7 @@ TEST_CASE("a toggle writes the preference, and a reopened Workshop wears it") {
     {
         Live t;
         t.host.prefs_path = prefs;
-        t.publish(loom::to_value(surface::SurfaceReady{}));
+        t.ready();
         REQUIRE(t.session().pane_titles);
         t.key(input::scan::kT);
         t.text("t");
@@ -2956,7 +2964,7 @@ TEST_CASE("a toggle writes the preference, and a reopened Workshop wears it") {
     // ANOTHER PROCESS, ANOTHER DAY: the preference is applied before the first paint.
     Live t;
     t.host.prefs_path = prefs;
-    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.ready();
     CHECK_FALSE(t.session().pane_titles);
     // ...and toggling back rewrites the same file, the default kept as its absence.
     t.key(input::scan::kT);
@@ -2972,7 +2980,7 @@ TEST_CASE("a settings file another hand changed since this Workshop read it is n
     REQUIRE(prefs_persist::save_file(prefs, prefs_persist::Presentation{false}).accepted);
     Live t;
     t.host.prefs_path = prefs;
-    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.ready();
     REQUIRE_FALSE(t.session().pane_titles);
     // ANOTHER WORKSHOP, OR A HAND, WRITES THE FILE AFTER THIS ONE READ IT.
     const std::string theirs = prefs_persist::to_text(
@@ -3006,7 +3014,7 @@ TEST_CASE("a restored hidden-titles preference still shows which pane holds the 
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
     REQUIRE(kind != kNoPaneKind);
     const auto shown_rows = [&](std::int64_t k) {
-        return external_region_rows(r.last_canvas(), external_body_rect(r.session(), k));
+        return external_region_rows(r.shown(), external_body_rect(r.session(), k));
     };
     // Hidden titles: the pane is bare...
     CHECK(shown_rows(kind).at(0).find("Seat @") == std::string::npos);
@@ -3022,7 +3030,7 @@ TEST_CASE("a refused prefs file is spoken, stands, and is never overwritten") {
     spillout(prefs, "{ not a prefs file");
     Live t;
     t.host.prefs_path = prefs;
-    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.ready();
     // THE REFUSAL IS A STANDING CONDITION, and the defaults stand. It is not
     // on the notice line because the notice line is for things that HAPPENED, and this is
     // a wall that is still there at the next launch.
@@ -3059,7 +3067,7 @@ TEST_CASE("a prefs file version 3 cannot read is refused whole, and its bytes st
     spillout(prefs, text);
     Live t;
     t.host.prefs_path = prefs;
-    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.ready();
     const std::vector<Condition> now = attention_conditions(t.session());
     const Condition* wall = condition_by_key(now, kPrefsWallKey);
     REQUIRE(wall != nullptr);
@@ -3074,7 +3082,7 @@ TEST_CASE("no prefs path means the preference lives exactly as long as the run")
     // `--isolated`'s promise, at the weave: an empty path reads nothing and writes
     // nothing, and the toggle still works -- silently local, complaint-free.
     Live t;
-    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.ready();
     t.key(input::scan::kT);
     t.text("t");
     CHECK_FALSE(t.session().pane_titles);
@@ -3196,7 +3204,7 @@ TEST_CASE("the desk remembers where its window sat, and offers it back") {
     {
         Live t;
         t.host.session_path = session;
-        t.publish(loom::to_value(surface::SurfaceReady{}));
+        t.ready();
         // The medium notices its window and says so; Workshop remembers, opaquely.
         t.publish(loom::to_value(gfx::SurfacePlacement{240, 180, false}));
         CHECK(t.session().placement_known);
@@ -3211,12 +3219,12 @@ TEST_CASE("the desk remembers where its window sat, and offers it back") {
     // role, exactly once, before any medium has said anything.
     Live t;
     t.host.session_path = session;
-    SkinSeat* skin = t.mount_skin_seat();
-    t.publish(loom::to_value(surface::SurfaceReady{}));
-    REQUIRE(skin->offered.size() == 1);
-    CHECK(skin->offered[0].x == 240);
-    CHECK(skin->offered[0].y == 180);
-    CHECK_FALSE(skin->offered[0].maximized);
+    t.on_os_window();
+    t.ready();
+    REQUIRE(t.windows.placed().size() == 1);
+    CHECK(t.windows.placed()[0].x == 240);
+    CHECK(t.windows.placed()[0].y == 180);
+    CHECK_FALSE(t.windows.placed()[0].maximized);
     // ...and the session remembers it even if no medium ever answers.
     CHECK(t.session().placement_known);
 }
@@ -3229,9 +3237,9 @@ TEST_CASE("a session with no placement offers nothing") {
                 .accepted);
     Live t;
     t.host.session_path = session;
-    SkinSeat* skin = t.mount_skin_seat();
-    t.publish(loom::to_value(surface::SurfaceReady{}));
-    CHECK(skin->offered.empty());
+    t.on_os_window();
+    t.ready();
+    CHECK(t.windows.placed().empty());
     CHECK_FALSE(t.session().placement_known);
 }
 
@@ -3241,15 +3249,15 @@ TEST_CASE("a maximized close remembers the NORMAL room beside the maximized stat
     {
         Live t;
         t.host.session_path = session;
-        t.publish(loom::to_value(surface::SurfaceReady{}));
+        t.ready();
         // The weaver sizes their normal window...
-        t.publish(loom::to_value(surface::SurfaceExtent{cells_px(120), cells_px(40), 0, 0}));
+        t.extent_px(cells_px(120), cells_px(40), 0, 0);
         CHECK(t.session().normal_w == cells_px(120));
         CHECK(t.session().normal_h == cells_px(40));
         // ...then maximizes. The medium reports placement BEFORE the grown extent
         // (skin.hpp's pinned order), so the gate is closed when the big room arrives.
         t.publish(loom::to_value(gfx::SurfacePlacement{300, 200, true}));
-        t.publish(loom::to_value(surface::SurfaceExtent{cells_px(200), cells_px(80), 0, 0}));
+        t.extent_px(cells_px(200), cells_px(80), 0, 0);
         CHECK(t.session().screen_w == cells_px(200)); // the live screen follows the window
         CHECK(t.session().normal_w == cells_px(120)); // the remembered normal room does not
         CHECK(t.session().normal_h == cells_px(40));
@@ -3267,14 +3275,14 @@ TEST_CASE("a maximized close remembers the NORMAL room beside the maximized stat
 
 TEST_CASE("unmaximizing reopens the gate, and the normal room tracks again") {
     Live t;
-    t.publish(loom::to_value(surface::SurfaceReady{}));
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(120), cells_px(40), 0, 0}));
+    t.ready();
+    t.extent_px(cells_px(120), cells_px(40), 0, 0);
     t.publish(loom::to_value(gfx::SurfacePlacement{300, 200, true}));
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(200), cells_px(80), 0, 0}));
+    t.extent_px(cells_px(200), cells_px(80), 0, 0);
     REQUIRE(t.session().normal_w == cells_px(120));
     // The weaver unmaximizes: placement first, then the shrunken extent.
     t.publish(loom::to_value(gfx::SurfacePlacement{300, 200, false}));
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(130), cells_px(44), 0, 0}));
+    t.extent_px(cells_px(130), cells_px(44), 0, 0);
     CHECK(t.session().normal_w == cells_px(130));
     CHECK(t.session().normal_h == cells_px(44));
 }
@@ -3293,9 +3301,9 @@ TEST_CASE("a run whose medium reports no placement RETAINS the remembered one") 
     {
         Live t;
         t.host.session_path = session;
-        t.publish(loom::to_value(surface::SurfaceReady{}));
+        t.ready();
         // A terminal-shaped run: extents arrive, placements never do.
-        t.publish(loom::to_value(surface::SurfaceExtent{cells_px(100), cells_px(33), 0, 0}));
+        t.extent_px(cells_px(100), cells_px(33), 0, 0);
         t.key(input::scan::kQ);
     }
     const session_persist::LoadedSession read = session_persist::load_file(session);
@@ -3359,16 +3367,16 @@ TEST_CASE("a read-only visit through the other medium writes the SAME BYTES") {
     {
         Live t;
         t.host.session_path = never;
-        t.publish(loom::to_value(surface::SurfaceReady{}));
-        t.publish(loom::to_value(surface::SurfaceExtent{cells_px(140), cells_px(44), 0, 0, 0}));
+        t.ready();
+        t.extent_px(cells_px(140), cells_px(44), 0, 0, 0);
         live(t).setup.active = hostile_desk();
         t.key(input::scan::kQ);
     }
     {
         Live t;
         t.host.session_path = crossed;
-        t.publish(loom::to_value(surface::SurfaceReady{}));
-        t.publish(loom::to_value(surface::SurfaceExtent{cells_px(140), cells_px(44), 0, 0, 0}));
+        t.ready();
+        t.extent_px(cells_px(140), cells_px(44), 0, 0, 0);
         live(t).setup.active = hostile_desk();
 
         // LOOK AT IT IN CELLS. Every number is a projection this medium cannot say.
@@ -3383,8 +3391,7 @@ TEST_CASE("a read-only visit through the other medium writes the SAME BYTES") {
 
         // NOW THE SAME DESK ON THE SHIPPED WINDOW, at the same room -- so the ONLY thing
         // that changed about this run is which unit the weaver is reading in.
-        t.publish(loom::to_value(
-            surface::SurfaceExtent{cells_px(140), cells_px(44), 8, 18, gfx::kCellPx}));
+        t.extent_px(cells_px(140), cells_px(44), 8, 18, gfx::kCellPx);
         t.key(input::scan::kTab);
         for (int i = 0; i < 32 && t.session().arrange.pane != ref_of(stock::kKind); ++i) {
             t.key(input::scan::kTab);
@@ -3394,7 +3401,7 @@ TEST_CASE("a read-only visit through the other medium writes the SAME BYTES") {
         CHECK(t.notice().find("(~ projected)") == std::string::npos);
 
         // ...AND BACK, which is the direction that would show a write having happened.
-        t.publish(loom::to_value(surface::SurfaceExtent{cells_px(140), cells_px(44), 0, 0, 0}));
+        t.extent_px(cells_px(140), cells_px(44), 0, 0, 0);
         t.key(input::scan::kTab);
         for (int i = 0; i < 32 && t.session().arrange.pane != ref_of(stock::kKind); ++i) {
             t.key(input::scan::kTab);
@@ -3430,9 +3437,8 @@ TEST_CASE("the medium's device unit reaches no durable file") {
     {
         Live t;
         t.host.session_path = path;
-        t.publish(loom::to_value(surface::SurfaceReady{}));
-        t.publish(loom::to_value(
-            surface::SurfaceExtent{cells_px(140), cells_px(44), 8, 18, gfx::kCellPx}));
+        t.ready();
+        t.extent_px(cells_px(140), cells_px(44), 8, 18, gfx::kCellPx);
         REQUIRE(t.session().cell_px == gfx::kCellPx);
         live(t).setup.active = hostile_desk();
         t.key(input::scan::kQ);
@@ -3447,10 +3453,11 @@ TEST_CASE("the medium's device unit reaches no durable file") {
     // remembered viewport through the same door -- must not reset it to the character
     // reading and leave a weaver on a window reading cells.
     Live t;
+    t.in_window = false; // a restored room is a Skin's to keep; a window offers its own
     t.host.session_path = path;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(200), cells_px(60), 8, 18, gfx::kCellPx}));
+    t.extent_px(cells_px(200), cells_px(60), 8, 18, gfx::kCellPx);
     REQUIRE(t.session().cell_px == gfx::kCellPx);
-    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.ready();
     CHECK(t.session().screen_w == cells_px(140));                      // the restore DID land...
     CHECK(t.session().cell_px == gfx::kCellPx);     // ...and cost nothing
     CHECK(std::string(geometry_unit(t.session().cell_px)) == "px");
@@ -3468,9 +3475,9 @@ TEST_CASE("a restored maximized flag alone does not gate this run's viewport") {
         session_persist::save_file(session, one_layout(arranged_desk("D")), 0, cells_px(110), cells_px(38), place).accepted);
     Live t;
     t.host.session_path = session;
-    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.ready();
     // ...but THIS run's medium never says so (a terminal), so resizes track normally.
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(100), cells_px(33), 0, 0}));
+    t.extent_px(cells_px(100), cells_px(33), 0, 0);
     CHECK(t.session().normal_w == cells_px(100));
     CHECK(t.session().normal_h == cells_px(33));
 }
@@ -3532,7 +3539,7 @@ TEST_CASE("`s` writes the live layout and leaves the shelf alone") {
     CHECK(after[0] == before[0]);
     // The verdict is about the LIVE layout against its own artifact, and says so.
     CHECK((live_status(t.session().setup) == setup_link::kCurrent));
-    CHECK(setup_row(t.canvases.back(), screen_of(t.session())).find("| current") !=
+    CHECK(setup_row(t.shown(), screen_of(t.session())).find("| current") !=
           std::string::npos);
     // ...AND THE SHELVED LAYOUT GAINED NO ASSOCIATION: saving one desk is not a
     // reason for an unrelated one to acquire a relationship to that file.
@@ -3587,8 +3594,8 @@ TEST_CASE("the whole layout run rides the session, and comes back") {
         Live t;
         t.host.session_path = session;
         t.host.setup_path = dir.file("s.json");
-        t.publish(loom::to_value(surface::SurfaceReady{}));
-        t.publish(loom::to_value(surface::SurfaceExtent{cells_px(120), cells_px(44)}));
+        t.ready();
+        t.extent_px(cells_px(120), cells_px(44));
 
         live(t).setup.active.name = "First";
         layout_new(t);
@@ -3628,7 +3635,7 @@ TEST_CASE("the whole layout run rides the session, and comes back") {
     Live back;
     back.host.session_path = session;
     back.host.setup_path = dir.file("elsewhere.json");
-    back.publish(loom::to_value(surface::SurfaceReady{}));
+    back.ready();
     CHECK(layout_count(back.session().setup) == 3);
     CHECK(back.session().setup.active_at == 1);
     CHECK(back.session().setup.active == second_authored);
@@ -3647,8 +3654,8 @@ TEST_CASE("crossing media never writes a device value into any layout") {
     TempDir dir("wux9-media");
     Live t;
     t.host.setup_path = dir.file("s.json");
-    t.publish(loom::to_value(surface::SurfaceReady{}));
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(120), cells_px(44)}));
+    t.ready();
+    t.extent_px(cells_px(120), cells_px(44));
 
     // TWO LAYOUTS WITH DISTINCT FINE-LATTICE GEOMETRY -- one of them deliberately NOT on
     // a cell boundary, which is the value a character medium cannot say and must not
@@ -3677,12 +3684,12 @@ TEST_CASE("crossing media never writes a device value into any layout") {
     // back -- switching, repainting and reading all the way.
     for (int round = 0; round < 2; ++round) {
         CAPTURE(round);
-        t.publish(loom::to_value(surface::SurfaceExtent{cells_px(120), cells_px(44), 8, 18, 12}));
+        t.extent_px(cells_px(120), cells_px(44), 8, 18, 12);
         layout_next(t);
         (void)paint(t.session());
         layout_next(t);
         (void)paint(t.session());
-        t.publish(loom::to_value(surface::SurfaceExtent{cells_px(120), cells_px(44), 0, 0, 0}));
+        t.extent_px(cells_px(120), cells_px(44), 0, 0, 0);
         layout_next(t);
         (void)paint(t.session());
         layout_next(t);
@@ -3947,9 +3954,10 @@ TEST_CASE("an old session with no conversion live refuses and changes nothing") 
     // named by this very build -- and a run that did not mount it does not open it.
     const op::ImageCounts before = op::image_counts();
     Live t;
+    t.in_window = false; // it counts every image opened, and a window's painters are images
     t.host.session_path = path;
     REQUIRE(t.host.conversions == nullptr);
-    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.ready();
 
     CHECK(t.session().notice_is_bad);
     CHECK(t.notice().find("session version 1 cannot be read") != std::string::npos);
@@ -3974,9 +3982,10 @@ TEST_CASE("with the conversion mounted, the desk comes back through the weave") 
     MountedHistory history;
     REQUIRE(history.mounted.ok);
     Live t;
+    t.in_window = false; // a restored room is a Skin's to keep; a window offers its own
     t.host.session_path = path;
     t.host.conversions = &history.catalog;
-    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.ready();
 
     // ...and it is an ORDINARY restore: the same notice, the same room, the same desk.
     CHECK_FALSE(t.session().notice_is_bad);
@@ -4008,9 +4017,10 @@ TEST_CASE("reading an old session does not rewrite it; the next close does") {
     REQUIRE(history.mounted.ok);
     {
         Live t;
+        t.in_window = false; // a restored room is a Skin's to keep; a window offers its own
         t.host.session_path = path;
         t.host.conversions = &history.catalog;
-        t.publish(loom::to_value(surface::SurfaceReady{}));
+        t.ready();
         REQUIRE(t.session().setup.active.name == "Yesterday");
         // 1-3. THE MIGRATION SUCCEEDED IN MEMORY AND THE FILE IS BYTE-IDENTICAL. Reading is
         // reading; there is no "migration complete, rewrite now" path and there must not be.
@@ -4026,9 +4036,10 @@ TEST_CASE("reading an old session does not rewrite it; the next close does") {
 
     // 5. ...SO THE NEXT RUN NEEDS NO CONVERTER AT ALL.
     Live back;
+    back.in_window = false; // a restored room is a Skin's to keep; a window offers its own
     back.host.session_path = path;
     REQUIRE(back.host.conversions == nullptr);
-    back.publish(loom::to_value(surface::SurfaceReady{}));
+    back.ready();
     CHECK_FALSE(back.session().notice_is_bad);
     CHECK(back.session().setup.active.name == "Yesterday");
     CHECK(back.session().screen_w == cells_px(120));
@@ -4194,7 +4205,7 @@ TEST_CASE("a session this run could not read is never written over") {
         {
             Live t;
             t.host.session_path = path;
-            t.publish(loom::to_value(surface::SurfaceReady{}));
+            t.ready();
             // Every case here says SOMETHING bad -- a declined viewport is a complaint too --
             // so the notice cannot be the discriminator, and the condition is.
             CHECK(t.session().notice_is_bad);
@@ -4224,7 +4235,7 @@ TEST_CASE("the file survives the run that could not read it, and opens later") {
     {
         Live without;
         without.host.session_path = path;
-        without.publish(loom::to_value(surface::SurfaceReady{}));
+        without.ready();
         REQUIRE(without.session().notice_is_bad);
         without.key(input::scan::kQ);
         REQUIRE(without.host.quit);
@@ -4236,7 +4247,7 @@ TEST_CASE("the file survives the run that could not read it, and opens later") {
     Live with;
     with.host.session_path = path;
     with.host.conversions = &history.catalog;
-    with.publish(loom::to_value(surface::SurfaceReady{}));
+    with.ready();
     CHECK_FALSE(with.session().notice_is_bad);
     CHECK(with.session().setup.active.name == "Yesterday");
     CHECK(with.session().conditions.find(kSessionWallKey) == nullptr);
@@ -4760,9 +4771,10 @@ TEST_CASE("a version-3 file with no conversion live refuses and is not rewritten
     const op::ImageCounts before = op::image_counts();
     {
         Live t;
+        t.in_window = false; // it counts every image opened, and a window's painters are images
         t.host.session_path = path;
         REQUIRE(t.host.conversions == nullptr);
-        t.publish(loom::to_value(surface::SurfaceReady{}));
+        t.ready();
 
         CHECK(t.session().notice_is_bad);
         CHECK(t.notice().find("session version 3 cannot be read") != std::string::npos);
@@ -4786,7 +4798,7 @@ TEST_CASE("a version-3 file with no conversion live refuses and is not rewritten
     Live back;
     back.host.session_path = path;
     back.host.conversions = &history.catalog;
-    back.publish(loom::to_value(surface::SurfaceReady{}));
+    back.ready();
     CHECK_FALSE(back.session().notice_is_bad);
     CHECK(back.session().setup.active.name == "Yesterday");
     CHECK(layout_count(back.session().setup) == 1);
@@ -4807,8 +4819,8 @@ TEST_CASE("three layouts, closed on the middle, come back and stay separate") {
         Live t;
         t.host.session_path = session;
         t.host.setup_path = dir.file("s.json");
-        t.publish(loom::to_value(surface::SurfaceReady{}));
-        t.publish(loom::to_value(surface::SurfaceExtent{cells_px(120), cells_px(44)}));
+        t.ready();
+        t.extent_px(cells_px(120), cells_px(44));
 
         live(t).setup.active = materialized(layout_of("Home", 7));
         layout_new(t);
@@ -4830,8 +4842,8 @@ TEST_CASE("three layouts, closed on the middle, come back and stay separate") {
     Live back;
     back.host.session_path = session;
     back.host.setup_path = dir.file("elsewhere.json");
-    back.publish(loom::to_value(surface::SurfaceReady{}));
-    back.publish(loom::to_value(surface::SurfaceExtent{cells_px(120), cells_px(44)}));
+    back.ready();
+    back.extent_px(cells_px(120), cells_px(44));
 
     // ALL THREE, IN ORDER, WITH THEIR NAMES AND THEIR EXACT AUTHORED VALUES.
     REQUIRE(layout_count(back.session().setup) == 3);
@@ -4874,7 +4886,7 @@ TEST_CASE("the position that comes back is the one the weaver stood on") {
             Live t;
             t.host.session_path = session;
             t.host.setup_path = dir.file("s.json");
-            t.publish(loom::to_value(surface::SurfaceReady{}));
+            t.ready();
             if (layout_count(t.session().setup) == 1) {
                 live(t).setup.active.name = "Home";
                 layout_new(t);
@@ -4892,7 +4904,7 @@ TEST_CASE("the position that comes back is the one the weaver stood on") {
         Live back;
         back.host.session_path = session;
         back.host.setup_path = dir.file("s.json");
-        back.publish(loom::to_value(surface::SurfaceReady{}));
+        back.ready();
         CHECK(layout_count(back.session().setup) == 3);
         CHECK(back.session().setup.active_at == stand_on);
     }
@@ -4913,7 +4925,7 @@ TEST_CASE("`s` and `r` still mean the live layout, across a save and a restart")
         Live t;
         t.host.session_path = session;
         t.host.setup_path = setup;
-        t.publish(loom::to_value(surface::SurfaceReady{}));
+        t.ready();
         live(t).setup.active = materialized(layout_of("Home", 7));
         layout_new(t);
         live(t).setup.active = materialized(layout_of("Code", 19));
@@ -4946,7 +4958,7 @@ TEST_CASE("`s` and `r` still mean the live layout, across a save and a restart")
     Live back;
     back.host.session_path = session;
     back.host.setup_path = setup;
-    back.publish(loom::to_value(surface::SurfaceReady{}));
+    back.ready();
     REQUIRE(layout_count(back.session().setup) == 3);
     layout_next(back);
     REQUIRE(back.session().setup.active_at == 1);
@@ -4974,8 +4986,8 @@ TEST_CASE("crossing media never rewrites a persisted layout's geometry") {
     Live t;
     t.host.session_path = session;
     t.host.setup_path = dir.file("s.json");
-    t.publish(loom::to_value(surface::SurfaceReady{}));
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(120), cells_px(44)}));
+    t.ready();
+    t.extent_px(cells_px(120), cells_px(44));
     REQUIRE(install_layout_run(live(t).setup, authored, 1));
 
     // LOOK AT EVERY LAYOUT, on a medium whose cells cannot say a sub-cell remainder.
@@ -5158,8 +5170,8 @@ TEST_CASE("the whole run and every association come back after a restart") {
         Live t;
         t.host.session_path = session;
         t.host.setup_path = artifact;
-        t.publish(loom::to_value(surface::SurfaceReady{}));
-        t.publish(loom::to_value(surface::SurfaceExtent{cells_px(120), cells_px(44)}));
+        t.ready();
+        t.extent_px(cells_px(120), cells_px(44));
 
         // ⚠ ONE `--setup` PATH MEANS ONE ARTIFACT PER RUN, so both saves land on the same
         // file and the shared-artifact law decides the two verdicts: the layout that wrote
@@ -5199,8 +5211,8 @@ TEST_CASE("the whole run and every association come back after a restart") {
     Live back;
     back.host.session_path = session;
     back.host.setup_path = dir.file("somewhere-else.json");
-    back.publish(loom::to_value(surface::SurfaceReady{}));
-    back.publish(loom::to_value(surface::SurfaceExtent{cells_px(120), cells_px(44)}));
+    back.ready();
+    back.extent_px(cells_px(120), cells_px(44));
 
     REQUIRE(layout_count(back.session().setup) == 3);
     CHECK(layout_run(back.session().setup) == authored);
@@ -5531,8 +5543,8 @@ TEST_CASE("the weaver sees no loss, and the next run spends no conversion") {
         Live t;
         t.host.session_path = session;
         t.host.conversions = &history.catalog;
-        t.publish(loom::to_value(surface::SurfaceReady{}));
-        t.publish(loom::to_value(surface::SurfaceExtent{cells_px(132), cells_px(41)}));
+        t.ready();
+        t.extent_px(cells_px(132), cells_px(41));
         REQUIRE_MESSAGE(!t.session().notice_is_bad, t.notice());
 
         // THE RUN IS BACK, standing where the weaver left it.
@@ -5625,13 +5637,13 @@ TEST_CASE("a version-5 file with no conversion live refuses, and is not rewritte
 
     Live t;
     t.host.session_path = path; // no `conversions` hook: this arrangement mounts none
-    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.ready();
     CHECK(t.session().notice_is_bad);
     CHECK(t.notice().find("`zengine.migrate.WorkshopSession.v5-to-v8`") != std::string::npos);
     // ...and it claims nothing it cannot know.
     CHECK(t.notice().find("install") == std::string::npos);
 
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(132), cells_px(41)}));
+    t.extent_px(cells_px(132), cells_px(41));
     t.key(input::scan::kQ);
     REQUIRE(t.host.quit);
     CHECK(slurp(path) == before); // byte-identical after an orderly close
@@ -5882,8 +5894,8 @@ TEST_CASE("the weaver is told once, in the pane's own durable names") {
 
     Live t;
     t.host.session_path = path;
-    t.publish(loom::to_value(surface::SurfaceReady{}));
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(132), cells_px(41)}));
+    t.ready();
+    t.extent_px(cells_px(132), cells_px(41));
     REQUIRE_MESSAGE(!t.session().notice_is_bad, t.notice());
 
     const std::string said = t.notice();
@@ -6007,8 +6019,8 @@ TEST_CASE("a session with nothing to convert says nothing about it") {
 
     Live t;
     t.host.session_path = path;
-    t.publish(loom::to_value(surface::SurfaceReady{}));
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(132), cells_px(41)}));
+    t.ready();
+    t.extent_px(cells_px(132), cells_px(41));
     REQUIRE_MESSAGE(!t.session().notice_is_bad, t.notice());
     CHECK(t.notice().find("reopened your last desk") != std::string::npos);
     CHECK(t.notice().find("project-files") == std::string::npos);
@@ -6220,7 +6232,7 @@ TEST_CASE("a setup holding a Workshop setting is refused by name, and `r` leaves
     // key and nothing else.
     const std::string bytes = setup_persist::to_text(newer);
     spillout(t.host.setup_path, bytes);
-    t.publish(loom::to_value(surface::SurfaceReady{}));
+    t.ready();
     const Setup before = t.session().setup.active;
 
     t.key(input::scan::kR);
@@ -6239,7 +6251,7 @@ TEST_CASE("a layout's settings come back with its desk after a restart") {
 
     Live back;
     back.host.session_path = session;
-    back.publish(loom::to_value(surface::SurfaceReady{}));
+    back.ready();
     CHECK(back.session().setup.active == desk);
     REQUIRE(pane_of(back.session().setup.active, ref_of(stock::kKind)) != nullptr);
     CHECK(pane_of(back.session().setup.active, ref_of(stock::kKind))->settings ==

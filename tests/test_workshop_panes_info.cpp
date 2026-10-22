@@ -278,8 +278,7 @@ struct InfoRig {
     void enqueue_unfocus() {
         (void)r.bus.publish(loom::Message(
             loom::to_value(input::PointerButton{1, true, 0,
-                                                screen_of(r.session()).h - 1 +
-                                                    surface::kTuiCanvasTopRow,
+                                                screen_of(r.session()).h - 1,
                                                 input::space::kCells, input::mod::kNone}),
             loom::WeaveId{}, loom::WeaveId{}, 0));
     }
@@ -1447,14 +1446,13 @@ TEST_CASE("a clipboard answer asked for by an Info draft that has closed lands i
     // A PASTE BELONGS TO THE DRAFT THAT ASKED (`agents/decisions/a-paste-is-a-conversation.md`).
     InfoRig f;
     f.open();
-    SkinSeat* skin = f.r.mount_skin_seat();
-    REQUIRE(skin != nullptr);
-    skin->platform = "PASTED";
+    f.r.on_os_window();
+    f.r.windows.set_clipboard("PASTED");
     f.draft_on("Width");
 
     // THE DRAFT THAT ASKED STILL STANDS: the text lands in it.
     f.r.key(input::scan::kV, input::mod::kCtrl);
-    CHECK(skin->clipboard_reads == 1);
+    CHECK(f.r.windows.clipboard_reads() == 1);
     CHECK(value_of(f.property_row("Width")) == "-PASTED");
 
     // ASKED, THEN THAT DRAFT CANCELLED AND ANOTHER OPENED ON THE SAME PROPERTY BEFORE THE ANSWER.
@@ -1463,7 +1461,7 @@ TEST_CASE("a clipboard answer asked for by an Info draft that has closed lands i
     f.enqueue_action(pane::kActionCancel);
     f.enqueue_action(pane::kActionEdit);
     f.settle();
-    CHECK(skin->clipboard_reads == 2); // the read really happened, so the absence is measured
+    CHECK(f.r.windows.clipboard_reads() == 2); // the read really happened, so the absence is measured
     CHECK(f.declared() == kDrafting);
     CHECK(value_of(f.property_row("Width")) == "-");
     CHECK(f.layouts_width() == "-");
@@ -2191,7 +2189,9 @@ inline constexpr const char* kInspectorOffice = "zengine.test.inspector";
 
 TEST_CASE("an Info commit Loom refuses at dispatch is released: the draft and its text stand, the "
           "next Return is written, and a cancel's promise is replaced") {
+    // ON A SKIN: Workshop started again is started by a Skin's hello; a window offers once.
     InfoRig f;
+    mount_skin_stand_in(f.r);
     f.open();
     f.draft_holding("Width", "77");
 

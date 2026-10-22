@@ -137,7 +137,7 @@ struct GuestHand {
         e.pressed = down;
         e.space = input::space::kCells;
         e.x = cx;
-        e.y = cy + surface::kTuiCanvasTopRow;
+        e.y = cy;
         return e;
     }
     void inject(std::vector<input::InjectedEvent> events) {
@@ -168,9 +168,9 @@ struct GuestHand {
         pump();
     }
     void weaver_press_cell(std::int64_t cx, std::int64_t cy, std::int64_t button = 1) {
-        weaver->push_back(input::PointerButton{button, true, cx, cy + surface::kTuiCanvasTopRow,
+        weaver->push_back(input::PointerButton{button, true, cx, cy,
                                                input::space::kCells, input::mod::kNone});
-        weaver->push_back(input::PointerButton{button, false, cx, cy + surface::kTuiCanvasTopRow,
+        weaver->push_back(input::PointerButton{button, false, cx, cy,
                                                input::space::kCells, input::mod::kNone});
         pump();
     }
