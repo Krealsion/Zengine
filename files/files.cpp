@@ -29,7 +29,10 @@
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_escape.hpp"
 
+#include "app/vocabulary.hpp"
 #include "builder/vocabulary.hpp"
+#include "launcher/configured.hpp"
+#include "launcher/vocabulary.hpp"
 #include "component/list_window.hpp"
 #include "component/row_map.hpp"
 #include "component/text_box.hpp"
@@ -172,13 +175,14 @@ struct FilesMeaning {
 /// is read against.
 struct FilesAsk {
     enum class Kind {
-        kOpen, kUseRecipes, kMark, kAuthor, ///< acts waiting on Workshop's word
-        kRoot, kOpening, kRecipes           ///< the project and opening offices' asks
+        kOpen, kUseRecipes, kMark, kAuthor, kStart, ///< acts waiting on Workshop's word
+        kRoot, kOpening, kRecipes, kLaunch          ///< the project, opening and launcher's asks
     };
     Kind kind = Kind::kRoot;
     std::string subject;         ///< the entry or candidate a refusal names
     std::string path;            ///< the file opened or taken as recipes, resolved
-    std::string place;           ///< the place marked, or the directory the draft is about
+    std::string place;           ///< the place marked, the directory the draft is about, or the
+                                 ///< kind a start names
     RecipeAuthorRequested draft; ///< the draft as it stood at the ask
     bool was_author = false;     ///< the recipes ask: a written row, not a catalog taken
     std::string id;              ///< ...what the weaver called the row, for the accepted sentence
@@ -211,10 +215,10 @@ class FilesWeave
     : public zengine::With<Rows, Asks, Actions, Menu>::Weave<
           FilesWeave, files::FilesState,
           loom::Accept<PaneKey, PaneTextInput, ProjectRoot, RecipeOutcome, SourceOpened,
-                       zengine::builder::BuildStatus, gfx::ClipboardCopy,
+                       zengine::builder::BuildStatus, zengine::launcher::Launched, gfx::ClipboardCopy,
                        gfx::ClipboardText, ws::v2::PaneSettings>,
           loom::Emit<ProjectRootRequested, RecipeUseRequested, RecipeAuthorRequested,
-                     OpenSourceRequested, zengine::builder::StatusRequested,
+                     OpenSourceRequested, zengine::builder::StatusRequested, zengine::launcher::Launch,
                      ws::PaneKeyboardRequested, ws::PaneEscapeUnspent, gfx::ClipboardCopy,
                      gfx::ClipboardTextRequested, ws::v2::PaneSettingsDeclared,
                      ws::PaneSettingUnused>> {
@@ -498,7 +502,8 @@ public:
     /// painted, when a menu is offered, and again when either is spent. An id with no subject
     /// of its own answers empty and is never subject-checked.
     std::string subject_of(const std::string& id) const {
-        if (id == files::kActionOpen || id == files::kActionUseRecipes) {
+        if (id == files::kActionOpen || id == files::kActionUseRecipes ||
+            id == files::kActionStart) {
             const FileRow* row = ws::row_at(listing_, static_cast<std::size_t>(state_.cursor));
             return row == nullptr ? std::string() : row->name;
         }
@@ -564,7 +569,7 @@ public:
     /// that act on an ENTRY need the row to be the row the menu named.
     static bool subject_needed(const std::string& id) {
         return id == files::kActionOpen || id == files::kActionUseRecipes ||
-               id == files::kActionChoose;
+               id == files::kActionChoose || id == files::kActionStart;
     }
 
     void perform(const std::string& id, loom::Mail& mail) {
@@ -588,6 +593,10 @@ public:
             say(mail);
         } else if (id == files::kActionPickBuildable) {
             pick_buildable(mail);
+        } else if (id == files::kActionStart) {
+            start(mail);
+        } else if (id == files::kActionDemos) {
+            demos(mail);
         } else if (id == files::kActionChoose) {
             chooser_choose(mail);
         } else if (id == files::kActionCommitField) {
@@ -704,6 +713,12 @@ public:
             if (!here->directory) {
                 offer.row(files::kMenuUseRecipes, "use `" + name + "` as this project's recipes");
             }
+            if (const auto launch = startable()) {
+                offer.row(files::kMenuStart, "start the " + launch->kind + " `" + name + "`");
+            }
+        }
+        if (*zengine::launcher::configured::kDemosFolder != '\0') {
+            offer.row(files::kMenuDemos, "go to the demos");
         }
         offer.row(files::kMenuPickBuildable, "pick something buildable here");
         offer.row(files::kMenuMark, marks_.marked(state_.current_dir)
@@ -763,6 +778,8 @@ public:
         } kRows[] = {{files::kMenuOpen, files::kActionOpen},
                      {files::kMenuUseRecipes, files::kActionUseRecipes},
                      {files::kMenuPickBuildable, files::kActionPickBuildable},
+                     {files::kMenuStart, files::kActionStart},
+                     {files::kMenuDemos, files::kActionDemos},
                      {files::kMenuMark, files::kActionMark},
                      {files::kMenuParent, files::kActionParent},
                      {files::kMenuRefresh, files::kActionRefresh},
@@ -862,8 +879,20 @@ public:
         case FilesAsk::Kind::kUseRecipes: take_recipes(approved, mail); return;
         case FilesAsk::Kind::kMark: toggle_mark(approved.place, mail); return;
         case FilesAsk::Kind::kAuthor: send_recipe(approved, mail); return;
+        case FilesAsk::Kind::kStart: launch(approved, mail); return;
         default: return;
         }
+    }
+
+    /// THE LAUNCHER'S ANSWER to this pane's own start: the process it started, or why not.
+    void on(const zengine::launcher::Launched& said, loom::Mail& mail) {
+        if (!asks().answered(mail, of_kind(FilesAsk::Kind::kLaunch))) {
+            return;
+        }
+        notice_ = said.ok ? "started the " + said.kind + " `" + said.name + "`, process " +
+                                std::to_string(said.pid) + ": it goes on without Workshop"
+                          : "nothing was started -- " + said.reason;
+        say(mail);
     }
 
     /// THE BUS'S WORD THAT ONE OF THIS PANE'S ATTEMPTS WAS REFUSED BEFORE ANY HANDLER RAN
@@ -877,6 +906,9 @@ public:
             notice_ = "`" + ws::shown_name(asked.subject) +
                       "` was not opened -- the open could not reach " + ws::kOpeningRole + " (" +
                       refused.reason + ")";
+            break;
+        case FilesAsk::Kind::kLaunch:
+            notice_ = "nothing was started -- the launcher could not be asked (" + refused.reason + ")";
             break;
         case FilesAsk::Kind::kRoot:
         case FilesAsk::Kind::kRecipes: return;
@@ -1023,6 +1055,9 @@ private:
         row(files::kActionNextMark, "next mark", input::scan::kN);
         row(files::kActionPreviousMark, "previous mark", input::scan::kN, input::mod::kShift);
         row(files::kActionPickBuildable, "pick buildable", input::scan::kA);
+        row(files::kActionStart, "start this app or demo", input::scan::kUnknown, input::mod::kNone,
+            {ws::cause_of<zengine::launcher::Launch>()});
+        row(files::kActionDemos, "go to the demos", input::scan::kUnknown);
         // THE KEYBOARD'S WAY TO THE ROWS A RIGHT PRESS OFFERS. `m` is already this pane's
         // mark, so the menu takes the shifted one rather than moving a key a weaver has.
         row(files::kActionMenu, "this pane's menu", input::scan::kM, input::mod::kShift);
@@ -1038,9 +1073,13 @@ private:
     /// the ask and the answer replaces nothing; a full book refuses the newest act in words.
     void ask_approval(FilesAsk next, const char* action_class, const std::string& subject,
                       loom::Mail& mail) {
+        ask_approval(std::move(next), std::vector<std::string>{action_class}, subject, mail);
+    }
+    void ask_approval(FilesAsk next, std::vector<std::string> classes, const std::string& subject,
+                      loom::Mail& mail) {
         const std::string undone = not_done(next);
         switch (
-            asks().approve(mail, std::move(next), mail.correlation(), {action_class}, subject)) {
+            asks().approve(mail, std::move(next), mail.correlation(), std::move(classes), subject)) {
         case Asks::Asked::kHeld: return;
         case Asks::Asked::kFull:
             notice_ = undone + " -- " + std::to_string(Asks::kApprovals) +
@@ -1059,6 +1098,7 @@ private:
         case FilesAsk::Kind::kMark:
             return marks_.marked(a.place) ? "no mark was forgotten" : "nothing was marked";
         case FilesAsk::Kind::kAuthor: return "no recipe was written";
+        case FilesAsk::Kind::kStart: return "nothing was started";
         default: break;
         }
         return "nothing was done";
@@ -1286,6 +1326,77 @@ private:
         refresh();
         const std::string why = ws::provenance_words(went.from);
         notice_ = "at " + went.path + (why.empty() ? std::string() : " (" + why + ")");
+    }
+
+    // ---- Start an app or a demo (zengine.launcher) ---------------------------------------
+
+    /// WHAT THE SELECTED ROW STARTS, if anything: a folder directly in the project's `apps/` is
+    /// an app, and a setup's own folder the demo service lists is a demo. The launcher judges
+    /// again whatever it is asked.
+    std::optional<zengine::launcher::Launch> startable() const {
+        namespace fs = std::filesystem;
+        const FileRow* row = ws::row_at(listing_, static_cast<std::size_t>(state_.cursor));
+        if (row == nullptr || !row->directory || state_.current_dir.empty()) {
+            return std::nullopt;
+        }
+        const auto same = [](const fs::path& a, const fs::path& b) {
+            return a.lexically_normal().generic_string() == b.lexically_normal().generic_string();
+        };
+        const fs::path here(state_.current_dir);
+        if (!marks_.origin.empty() && same(here, fs::path(marks_.origin) / zengine::app::kAppsFolder)) {
+            return zengine::launcher::Launch{zengine::launcher::kKindApp, row->name};
+        }
+        for (const auto& [name, dir] : zengine::launcher::configured::demo_setups()) {
+            if (row->name == name && same(here / row->name, fs::path(dir))) {
+                return zengine::launcher::Launch{zengine::launcher::kKindDemo, row->name};
+            }
+        }
+        return std::nullopt;
+    }
+
+    /// START WHAT THE ROW IS, asked of Workshop first as a Save and a Build are, classes `build`
+    /// and `write` for the hand that pressed it; allowed, asked of the launcher.
+    void start(loom::Mail& mail) {
+        const auto launch = startable();
+        if (!launch) {
+            notice_ = "nothing here starts: an app is a folder in the project's apps/, and a demo is "
+                      "one of the demos";
+            say(mail);
+            return;
+        }
+        FilesAsk next = asking(FilesAsk::Kind::kStart);
+        next.subject = launch->name;
+        next.place = launch->kind;
+        ask_approval(std::move(next), std::vector<std::string>{ws::scope::kBuild, ws::scope::kWrite},
+                     std::string(), mail);
+    }
+
+    void launch(const FilesAsk& approved, loom::Mail& mail) {
+        FilesAsk asked = asking(FilesAsk::Kind::kLaunch);
+        asked.subject = approved.subject;
+        asked.place = approved.place;
+        if (asks().ask(mail, zengine::launcher::kLauncherRole,
+                       zengine::launcher::Launch{approved.place, approved.subject},
+                       std::move(asked)) != Asks::Asked::kHeld) {
+            notice_ = "nothing was started -- the launcher could not be asked";
+        } else {
+            notice_ = "starting the " + approved.place + " `" + approved.subject + "`";
+        }
+        say(mail);
+    }
+
+    /// THE WAY TO THE DEMOS: the folder of the demo service's own setups, where a right press on
+    /// one starts it.
+    void demos(loom::Mail& mail) {
+        const std::string folder = zengine::launcher::configured::kDemosFolder;
+        if (folder.empty()) {
+            notice_ = "this Workshop was configured with no demo service";
+        } else {
+            state_.current_dir = ws::admit_location(folder);
+            refresh();
+            notice_ = "at the demos: start one from its menu";
+        }
+        say(mail);
     }
 
     // ---- Use as recipes -----------------------------------------------------------------

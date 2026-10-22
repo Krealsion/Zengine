@@ -4060,3 +4060,38 @@ TEST_CASE("Files asks class open for the path before it sends the open") {
     REQUIRE(any_row(f.shown(), "inner.cpp"));
     CHECK(seen.said.size() == 3);
 }
+
+TEST_CASE("a right press on a folder in the project's apps/ offers to start that app, and the start is asked of Workshop and then of the launcher") {
+    // MUTATION: Files offering a start on any folder -- a folder outside apps/ offers it too.
+    FilesRig f("files-start");
+    std::filesystem::create_directories(f.root / "apps" / "tally");
+    std::filesystem::create_directories(f.root / "elsewhere");
+    f.open(160, 48, /*with_editor=*/false, /*with_manager=*/true, /*with_presenter=*/true);
+
+    // A FOLDER THAT IS NO APP offers no start.
+    f.point_at("elsewhere/");
+    std::int64_t row = row_beginning(f.shown(), "> elsewhere/");
+    REQUIRE(row >= 0);
+    files_button(f.r, f.kind, 3, true, row, 0);
+    REQUIRE(menu_shown(f.r.session()));
+    CHECK_FALSE(any_row(context_rows_on(f.r.shown(), f.r.session()), "start the app"));
+    f.r.key(input::scan::kEscape);
+
+    // IN apps/, the folder is an app.
+    f.point_at("apps/");
+    f.r.key(input::scan::kReturn);
+    f.point_at("tally/");
+    row = row_beginning(f.shown(), "> tally/");
+    REQUIRE(row >= 0);
+    files_button(f.r, f.kind, 3, true, row, 0);
+    REQUIRE(menu_shown(f.r.session()));
+    const std::vector<std::string> offered = context_rows_on(f.r.shown(), f.r.session());
+    INFO("the menu offered\n", picture(offered));
+    REQUIRE(any_row(offered, "start the app `tally`"));
+    // ITS ROW, SECOND: Workshop allows the weaver's hand, and the launcher is asked -- none holds
+    // its office here, so the ask is refused in its words and nothing started.
+    f.r.key(input::scan::kDown);
+    f.r.key(input::scan::kReturn);
+    CHECK_FALSE(menu_shown(f.r.session()));
+    CHECK(f.first().find("nothing was started -- the launcher could not be asked") != std::string::npos);
+}

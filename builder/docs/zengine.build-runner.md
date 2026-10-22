@@ -9,7 +9,8 @@ Builder what it sees. Workshop mounts it; it is not a file you load, and no pane
 
 The runner is the weave in Workshop that holds a build's command and starts its process; the
 Neovim editor, when it holds the editor's office, starts `nvim` too
-([Neovim](../../editor/docs/neovim.md)). The runner is `BuildRunnerWeave`, in
+([Neovim](../../editor/docs/neovim.md)), and the launcher starts an app or a demo that outlives
+Workshop ([`zengine.launcher`](../../launcher/docs/zengine.launcher.md)). The runner is `BuildRunnerWeave`, in
 [`builder/runner.hpp`](../runner.hpp), mounted by Workshop's host itself. It reads two things the
 host owns and never keeps a copy of either: the host's recipe catalog, the recipes the
 [recipe file](recipes.md) gives, and the one CMake program Workshop was configured with

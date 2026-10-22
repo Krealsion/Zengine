@@ -23,4 +23,5 @@ endif()
 zengine_weave(zengine-files files.cpp MANUAL docs/zengine.files.md)
 target_link_libraries(zengine-files PRIVATE zengine-files-os zengine-workshop-vocabulary
                                             zengine-component zengine-input-vocabulary
-                                            zengine-activation)
+                                            zengine-activation zengine-app-vocabulary
+                                            zengine-launcher-vocabulary)
