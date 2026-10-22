@@ -276,5 +276,5 @@ reads it publishes `SurfaceCloseRequested` as the window's office, once. The OS 
 centred on its display's usable area, and an area placed past its edge grows it, as far as that
 display holds it, once for each new reach: a window a weaver made smaller is not grown back while
 its areas stay where they are. An office that arranges an area in a window names it and sizes it
-(`WindowShaped`): the OS window keeps the size within its display, and is not grown back by what
-its areas reached before; the terminal keeps its own.
+(`WindowShaped`): the OS window keeps the size within its display and, as after a weaver's
+resize, is not grown back while its areas reach no further; the terminal keeps its own.

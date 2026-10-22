@@ -288,7 +288,7 @@ inline constexpr std::size_t kMaxWindowTitleBytes = 256;
 /// it and only when it names that window; anything else changes nothing. An OS window sets both,
 /// keeping a size past its display's usable area within it, a side of 0 keeping that side as it is,
 /// and a title cut to `kMaxWindowTitleBytes`; a terminal keeps its own size and title. A window
-/// whose size changed offers itself again, and what its areas reached before does not grow it back.
+/// whose size changed offers itself again, and its areas grow it back only by reaching further.
 struct WindowShaped {
     std::string window;
     std::string title;

@@ -406,7 +406,7 @@ public:
             })) {
             return;
         }
-        medium_.shape(whole_title(s.title), PixelSize{s.width, s.height}, areas);
+        medium_.shape(whole_title(s.title), PixelSize{s.width, s.height});
         if (medium_.remeasure()) {
             offer(mail);
         }
