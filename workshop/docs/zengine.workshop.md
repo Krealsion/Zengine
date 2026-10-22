@@ -548,7 +548,7 @@ Workshop's own, `office=zengine.workshop`:
 | setting | takes | default | what it does |
 |---|---|---|---|
 | `workshop.pane-titles` | `on` or `off` | `on` | draw title text on pane borders |
-| `workshop.band-keys` | `short` or `full` | `short` | how the bottom band spells a key |
+| `workshop.band-keys` | `short` or `full` | `full` | how the bottom band spells a key |
 | `workshop.hotkeys-keys` | `short` or `full` | `full` | how the Hotkeys pane spells a key |
 | `workshop.pinned-scope` | `workshop-wide` or `per-layout` | `workshop-wide` | which pin list an editor's pin acts edit |
 | `workshop.focus.ring` | `accent` or `plain` | `accent` | the command-mode selection: the accent's two rings, or one in the chrome's ink |

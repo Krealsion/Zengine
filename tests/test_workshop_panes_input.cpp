@@ -1702,7 +1702,7 @@ TEST_CASE("the screen says which pane the keys are going to, in two places") {
         CHECK(lines[0].find("press elsewhere") != std::string::npos);
         CHECK(lines[0].find("q quit") == std::string::npos); // it would be a lie
         // the way out, and the application's
-        CHECK(lines[1] == "^q leave pane | ^t terminal | ^p panes | ^k hotkeys");
+        CHECK(lines[1] == "ctrl+q leave pane | ctrl+t terminal | ctrl+p panes | ctrl+k hotkeys");
         CHECK(lines[1].find("^c") == std::string::npos); // that one would be a lie now too
     }
 

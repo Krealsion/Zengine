@@ -1381,8 +1381,8 @@ TEST_CASE("the setup line becomes the name editor while a weaver is typing") {
     // caret the way the cell projection shows a region's, moving no character.
     CHECK(caret_at(paint(t.session()), 0, 0) ==
           static_cast<std::int64_t>(row.find("Default") + std::string("Default").size()));
-    CHECK(row.find("enter renames") != std::string::npos);
-    CHECK(row.find("esc cancels") != std::string::npos);
+    CHECK(row.find("return renames") != std::string::npos);
+    CHECK(row.find("escape cancels") != std::string::npos);
     CHECK(static_cast<std::int64_t>(row.size()) <= cells_of(sc).w);
 
     // The caret follows the weaver's hand, and a character typed at it lands there.
@@ -2932,7 +2932,7 @@ TEST_CASE("a prefs file of the version that held the titles alone is read, its s
     const prefs_persist::LoadedPrefs read = prefs_persist::from_text(text);
     REQUIRE(read.outcome.accepted);
     CHECK_FALSE(read.prefs.titles_shown);
-    CHECK(read.prefs.band_keys == KeySpelling::kShort);
+    CHECK(read.prefs.band_keys == KeySpelling::kFull);
     CHECK(read.prefs.hotkeys_keys == KeySpelling::kFull);
 
     // ...and its own number is still its own: a version-1 file saying it is version 3 is refused.
@@ -2984,7 +2984,7 @@ TEST_CASE("a settings file another hand changed since this Workshop read it is n
     REQUIRE_FALSE(t.session().pane_titles);
     // ANOTHER WORKSHOP, OR A HAND, WRITES THE FILE AFTER THIS ONE READ IT.
     const std::string theirs = prefs_persist::to_text(
-        prefs_persist::Presentation{false, KeySpelling::kFull, KeySpelling::kFull});
+        prefs_persist::Presentation{false, KeySpelling::kShort, KeySpelling::kFull});
     spillout(prefs, theirs);
     t.key(input::scan::kT);
     t.text("t");
