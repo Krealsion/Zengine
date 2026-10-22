@@ -126,7 +126,7 @@ struct Rig {
                 loom::schema_of<ws::PaneRoom>(), loom::schema_of<ws::PaneCanvasRoom>(),
                 loom::schema_of<ws::PaneCanvasPointer>(), loom::schema_of<ws::PaneKey>(),
                 loom::schema_of<ws::PaneTextInput>(), loom::schema_of<ws::PaneCanvasValueDrop>(),
-                loom::schema_of<fp::FlowEdit>()})
+                loom::schema_of<fp::FlowEdit>(), loom::schema_of<ws::PaneActionRequested>()})
             host_grant.allow_to_role(schema->name(), schema->version(), fp::kRole);
         host_grant.allow_to_any(ws::PaneQuitRequested::zen_name, ws::PaneQuitRequested::zen_version);
         host_grant.allow_to_any(ws::PaneOperationAnswered::zen_name, ws::PaneOperationAnswered::zen_version);
@@ -1661,4 +1661,386 @@ TEST_CASE("a dropped value offers what it can be here: its shape declared, then 
     rig.key(in::scan::kEscape);
     CHECK_FALSE(rig.shows("Dropped tally.Total v1"));
     CHECK(rig.workspace().graph.project.definition.emits.empty());
+}
+
+namespace {
+using Cell = std::pair<std::int64_t, std::int64_t>;
+
+/// THE FLOW PANE IN A WINDOW OF ITS OWN, a terminal's, its graph shown.
+struct WireWindow {
+    Rig& rig;
+    pw::Window window;
+    explicit WireWindow(Rig& r) : rig(r), window(r.bus, "flowtest") {
+        window.room(fp::kRole, fp::kRole, 170, 65);
+        rig.pump();
+        REQUIRE(window.press(fp::kRole, "control:page-graph"));
+        rig.pump();
+    }
+    /// The first cell whose press asks `part`.
+    Cell at(const std::string& part) {
+        const auto cell = window.cell_of(fp::kRole, part);
+        INFO("no cell asks " << part);
+        REQUIRE(cell.has_value());
+        return *cell;
+    }
+    /// The first cell, in columns [c0, c1) and rows [r0, r1), where a press asks nothing.
+    Cell empty(std::int64_t c0, std::int64_t c1, std::int64_t r0, std::int64_t r1) {
+        for (auto r = r0; r < r1; ++r)
+            for (auto c = c0; c < c1; ++c)
+                if (window.action_at(fp::kRole, c, r).empty()) return {c, r};
+        FAIL("no empty cell there");
+        return {0, 0};
+    }
+    /// The first cell showing `words` right of the rail, where the graph and its search are; none
+    /// when no row shows them there.
+    std::optional<Cell> showing(const std::string& words) {
+        const auto rows = window.rows(fp::kRole);
+        for (std::size_t r = 0; r < rows.size(); ++r)
+            if (const auto c = rows[r].find(words, 22); c != std::string::npos)
+                return Cell{static_cast<std::int64_t>(c), static_cast<std::int64_t>(r)};
+        return std::nullopt;
+    }
+    void press(Cell c, std::uint64_t n) {
+        window.button(fp::kRole, c.first, c.second, true, n);
+        rig.pump();
+    }
+    void move(Cell c, std::uint64_t n) {
+        window.move(fp::kRole, c.first, c.second, n);
+        rig.pump();
+    }
+    void release(Cell c, std::uint64_t n) {
+        window.button(fp::kRole, c.first, c.second, false, n);
+        rig.pump();
+    }
+    /// A WIRE DRAGGED: pressed at `from`, moved to `to`, let go there, under one number.
+    void drag(Cell from, Cell to) {
+        const auto n = window.next_press();
+        press(from, n);
+        move(to, n);
+        release(to, n);
+    }
+    void click(Cell c) { window.click(fp::kRole, c.first, c.second); rig.pump(); }
+    /// Empty graph room, well right of the nodes the fixture places.
+    Cell room() { return empty(100, 140, 25, 40); }
+};
+
+std::int64_t place_id(Rig& rig, std::int64_t node) {
+    for (const auto& p : rig.workspace().graph.places)
+        if (p.node == node) return p.id;
+    FAIL("no place for node " << node);
+    return 0;
+}
+std::string port_part(Rig& rig, std::int64_t node, std::size_t port) {
+    return "port:" + std::to_string(place_id(rig, node)) + "." + std::to_string(port);
+}
+const op::Binding& argument(Rig& rig, std::size_t node, std::size_t port) {
+    static flow::Workspace held;
+    held = rig.workspace();
+    return held.graph.project.definition.on.front().body.nodes.at(node).arguments.at(port);
+}
+bool from_node(const op::Binding& b, std::size_t n) {
+    return b.from() == op::Binding::From::Node && b.node_index() == n;
+}
+} // namespace
+
+TEST_CASE("a wire dragged from an output and let go on empty graph room asks what takes its type, "
+          "a row a port, and a row chosen makes the node where the hand let go, wired from it") {
+    SUBCASE("in a terminal's window, by its cells") {
+        Rig rig;
+        rig.graph_semantically();
+        WireWindow w(rig);
+        const auto before = rig.workspace();
+        const auto room = w.room();
+        w.drag(w.at("source-node:0"), room);
+
+        // THE SEARCH AT THE HAND, in the window and on Workshop's canvas alike, its question the
+        // output's type as what a power takes.
+        CHECK(w.showing("From %0 : Int -- what takes it"));
+        CHECK(rig.shows("From %0 : Int -- what takes it"));
+        REQUIRE_FALSE(rig.questions.empty());
+        CHECK(rig.questions.back().takes == std::optional<std::string>("Int"));
+        CHECK_FALSE(rig.questions.back().yields.has_value());
+        // ...A ROW A PORT of that type, and nothing made yet.
+        const auto lhs = w.showing("math.add -> lhs");
+        const auto rhs = w.showing("math.add -> rhs");
+        REQUIRE(lhs);
+        REQUIRE(rhs);
+        CHECK(w.showing("math.max -> lhs"));
+        CHECK(lhs->first == rhs->first);
+        CHECK(lhs->second != rhs->second);
+        CHECK(flow::workspace_bytes(rig.workspace()) == flow::workspace_bytes(before));
+
+        // CHOSEN: the node made after what it reads, its chosen port wired from it, in one edit.
+        w.click(*rhs);
+        const auto after = rig.workspace();
+        const auto& body = after.graph.project.definition.on.front().body;
+        REQUIRE(body.nodes.size() == 2);
+        CHECK(body.nodes[1].identity == "math.add");
+        CHECK(from_node(body.nodes[1].arguments.at(1), 0));
+        CHECK(body.nodes[1].arguments.at(0).from() == op::Binding::From::Input);
+        CHECK(body.nodes[1].arguments.at(0).input_name().empty());
+        CHECK(rig.shows("Added %1 math.add, wired from %0"));
+        CHECK(rig.shows_part("Delete node")); // the node made is selected
+        CHECK_FALSE(w.showing("what takes it"));
+        // ...WHERE THE HAND LET GO: its header stands at the release's cell.
+        const auto header = w.at("node:" + std::to_string(place_id(rig, 1)));
+        CHECK(std::abs(header.first - room.first) <= 1);
+        CHECK(std::abs(header.second - room.second) <= 1);
+
+        // IN A SHORT WINDOW the list keeps to the graph's room: no row of it reaches the two
+        // lines at the foot, the draft's and the notice.
+        w.window.room(fp::kRole, fp::kRole, 170, 16, 2);
+        rig.pump();
+        w.drag(w.at("source-field:input"), w.empty(60, 140, 4, 8));
+        REQUIRE(w.showing("what takes it"));
+        const auto shown = w.window.rows(fp::kRole);
+        REQUIRE(shown.size() >= 2);
+        for (std::size_t r = shown.size() - 2; r < shown.size(); ++r)
+            CHECK(shown[r].find(" -> ") == std::string::npos);
+    }
+    SUBCASE("on Workshop's canvas, by its pixels") {
+        Rig rig;
+        rig.graph_semantically();
+        auto press = rig.press_for("[-> state.value]");
+        rig.host(press);
+        auto motion = press;
+        motion.phase = ws::canvas_pointer::kMove;
+        motion.x = 125 * unit;
+        motion.y = 32 * unit;
+        rig.host(motion);
+        auto release = motion;
+        release.phase = ws::canvas_pointer::kRelease;
+        rig.host(release);
+        CHECK(rig.shows("From %0 : Int -- what takes it"));
+        CHECK(rig.questions.back().takes == std::optional<std::string>("Int"));
+        rig.click("  math.add -> rhs");
+        const auto after = rig.workspace();
+        const auto& body = after.graph.project.definition.on.front().body;
+        REQUIRE(body.nodes.size() == 2);
+        CHECK(body.nodes[1].identity == "math.add");
+        CHECK(from_node(body.nodes[1].arguments.at(1), 0));
+        const auto title = rig.label("%1 math.add");
+        CHECK(std::abs(title.x - motion.x) <= unit);
+        CHECK(std::abs(title.y - motion.y) <= unit);
+    }
+}
+
+TEST_CASE("a wire dragged from an input port and let go on empty graph room asks what fills it: in "
+          "scope, a constant, then what yields its type, each made at the hand") {
+    {
+        Rig rig;
+        rig.graph_semantically();
+        WireWindow w(rig);
+        const auto room = w.room();
+        w.drag(w.at(port_part(rig, 0, 1)), room);
+        CHECK(rig.shows("Into %0 rhs : Int -- what fills it"));
+        REQUIRE_FALSE(rig.questions.empty());
+        CHECK(rig.questions.back().yields == std::optional<std::string>("Int"));
+        CHECK_FALSE(rig.questions.back().takes.has_value());
+        // IN THE ORDER A MAKER REACHES FOR THEM.
+        const auto scope = w.showing("input.input");
+        const auto constant = w.showing("Int constant");
+        const auto found = w.showing("  math.add");
+        REQUIRE(scope);
+        REQUIRE(constant);
+        REQUIRE(found);
+        CHECK(scope->second < constant->second);
+        CHECK(constant->second < found->second);
+
+        // AN IN SCOPE ROW binds the port and makes nothing.
+        w.click(*scope);
+        CHECK(rig.workspace().graph.project.definition.on.front().body.nodes.size() == 1);
+        CHECK(argument(rig, 0, 1).input_name() == "input");
+
+        // A FOUND POWER is placed before the port's node, wired into the port, at the hand.
+        w.drag(w.at(port_part(rig, 0, 1)), room);
+        const auto add = w.showing("  math.add");
+        REQUIRE(add);
+        w.click(*add);
+        const auto made = rig.workspace();
+        const auto& body = made.graph.project.definition.on.front().body;
+        REQUIRE(body.nodes.size() == 2);
+        CHECK(body.nodes[0].identity == "math.add");
+        CHECK(from_node(body.nodes[1].arguments.at(1), 0));
+        CHECK(rig.shows("Added %0 math.add, wired into %1 rhs"));
+        const auto header = w.at("node:" + std::to_string(place_id(rig, 0)));
+        CHECK(std::abs(header.first - room.first) <= 1);
+        CHECK(std::abs(header.second - room.second) <= 1);
+
+        // THE CONSTANT ROW opens the binding editor, as the rail's does.
+        w.drag(w.at(port_part(rig, 1, 0)), w.room());
+        const auto typed = w.showing("Int constant");
+        REQUIRE(typed);
+        w.click(*typed);
+        (void)rig.label("> Value: 0", true);
+    }
+}
+
+TEST_CASE("a wire let go on the other end binds from either end; before the threshold or back on "
+          "its origin it was a click; anywhere off the graph it is put down") {
+    Rig rig;
+    rig.graph_semantically();
+    rig.edit_ok("add-node", rig.ref("math.add"));
+    WireWindow w(rig);
+
+    // FROM AN OUTPUT ONTO A PORT, the port lit while the wire is over it.
+    {
+        const auto n = w.window.next_press();
+        const auto port = w.at(port_part(rig, 1, 0));
+        CHECK(rig.label("o lhs = [unwired]").role == gfx::role::kFill);
+        w.press(w.at("source-node:0"), n);
+        w.move(port, n);
+        CHECK(rig.label("o lhs = [unwired]").role == gfx::role::kAccent);
+        w.release(port, n);
+    }
+    CHECK(from_node(argument(rig, 1, 0), 0));
+    CHECK_FALSE(rig.shows_part("what takes it"));
+
+    // FROM A PORT ONTO AN OUTPUT.
+    w.drag(w.at(port_part(rig, 1, 1)), w.at("source-node:0"));
+    CHECK(from_node(argument(rig, 1, 1), 0));
+
+    // FROM A PORT ONTO WHAT IS IN SCOPE: the press selected the port, so the rail lists it.
+    {
+        const auto n = w.window.next_press();
+        w.press(w.at(port_part(rig, 1, 1)), n);
+        (void)rig.label("For %1 rhs : Int");
+        const auto field = w.at("scope:1:1:$input");
+        w.move(field, n);
+        w.release(field, n);
+        CHECK(argument(rig, 1, 1).input_name() == "input");
+    }
+
+    const auto bound = rig.workspace();
+    // BEFORE THE THRESHOLD: a click, the wire in hand, no list.
+    {
+        const auto n = w.window.next_press();
+        const auto out = w.at("source-node:0");
+        w.press(out, n);
+        w.release(out, n);
+        CHECK(rig.shows("Choose an input port to connect node 0"));
+        CHECK_FALSE(rig.shows_part("what takes it"));
+        rig.key(in::scan::kEscape);
+    }
+    // MOVED AWAY AND BACK ON ITS ORIGIN: a click all the same.
+    {
+        const auto n = w.window.next_press();
+        const auto out = w.at("source-node:0");
+        w.press(out, n);
+        w.move(w.room(), n);
+        w.move(out, n);
+        w.release(out, n);
+        CHECK(rig.shows("Choose an input port to connect node 0"));
+        CHECK_FALSE(rig.shows_part("what takes it"));
+        rig.key(in::scan::kEscape);
+    }
+    // OFF THE GRAPH, on the rail's empty room: put down, nothing made.
+    w.drag(w.at("source-node:0"), w.empty(1, 20, 40, 60));
+    CHECK(rig.shows("The wire was put down: let go off the graph; nothing was made"));
+    CHECK(flow::workspace_bytes(rig.workspace()) == flow::workspace_bytes(bound));
+    // ...and nothing is left in hand: a press on a port now selects it rather than binding it.
+    w.click(w.at(port_part(rig, 1, 0)));
+    (void)rig.label("For %1 lhs : Int");
+}
+
+TEST_CASE("every way out of a wire's search makes nothing: Escape, a press outside its list, which "
+          "is spent on nothing more, and an edit from elsewhere") {
+    Rig rig;
+    rig.graph_semantically();
+    WireWindow w(rig);
+    // Nothing selected, so a press spent on a node would show.
+    for (int put_down = 0; put_down < 4 && rig.shows_part("Delete node"); ++put_down)
+        rig.key(in::scan::kEscape);
+    REQUIRE_FALSE(rig.shows_part("Delete node"));
+    const auto before = flow::workspace_bytes(rig.workspace());
+    const auto escapes = escapes_unspent(*rig.presenter);
+    // NOTHING HALF MADE: a node whose wire is refused is not made either.
+    auto refused = rig.ref("math.add");
+    refused.insert(refused.end(), {"%0", "9", "0", "0"});
+    CHECK_FALSE(rig.edit("add-node-from", refused).ok);
+    CHECK(flow::workspace_bytes(rig.workspace()) == before);
+
+    // ESCAPE closes it and puts the wire down; the pane keeps the key.
+    w.drag(w.at("source-node:0"), w.room());
+    REQUIRE(rig.shows("From %0 : Int -- what takes it"));
+    rig.key(in::scan::kEscape);
+    CHECK_FALSE(rig.shows_part("what takes it"));
+    CHECK(rig.shows("The wire was put down: Escape; nothing was made"));
+    CHECK(escapes_unspent(*rig.presenter) == escapes);
+    CHECK(flow::workspace_bytes(rig.workspace()) == before);
+    // ...nothing is left in hand: a press on a port selects it rather than binding it.
+    w.click(w.at(port_part(rig, 0, 1)));
+    (void)rig.label("For %0 rhs : Int");
+    CHECK(flow::workspace_bytes(rig.workspace()) == before);
+    rig.key(in::scan::kEscape);
+
+    // A PRESS INSIDE THE LIST on none of its rows keeps it open.
+    w.drag(w.at("source-node:0"), w.room());
+    const auto heading = w.showing("From %0 : Int");
+    REQUIRE(heading);
+    w.click(*heading);
+    CHECK(rig.shows("From %0 : Int -- what takes it"));
+    // A PRESS OUTSIDE IT closes it, and is not also a press on the node it landed on.
+    w.click(w.at("node:" + std::to_string(place_id(rig, 0))));
+    CHECK_FALSE(rig.shows_part("what takes it"));
+    CHECK_FALSE(rig.shows_part("Delete node"));
+    CHECK(rig.shows("The wire was put down: a press outside its list; nothing was made"));
+    CHECK(flow::workspace_bytes(rig.workspace()) == before);
+
+    // TYPED TEXT narrows the list; Return makes nothing when no row is left.
+    w.drag(w.at("source-node:0"), w.room());
+    rig.text("zzzz");
+    CHECK(w.showing("find: zzzz"));
+    rig.key(in::scan::kReturn);
+    CHECK(flow::workspace_bytes(rig.workspace()) == before);
+    // AN EDIT FROM ELSEWHERE closes it: the graph it was let go on has changed.
+    rig.edit_ok("add-node", rig.ref("math.add"));
+    CHECK_FALSE(rig.shows_part("what takes it"));
+    CHECK(rig.workspace().graph.project.definition.on.front().body.nodes.size() == 2);
+}
+
+TEST_CASE("ctrl+n's find-wire opens the same search for a wire held by clicks or a port selected, "
+          "the keys choose in it, and a row whose ports changed since is refused") {
+    Rig rig;
+    rig.graph_semantically();
+    WireWindow w(rig);
+    const auto before = flow::workspace_bytes(rig.workspace());
+
+    // NOTHING HELD: said, nothing opened.
+    rig.host(ws::PaneActionRequested{fp::kPane, "find-wire"});
+    CHECK(rig.shows_part("Hold a wire first"));
+    CHECK_FALSE(rig.shows_part("what takes it"));
+
+    // A WIRE HELD BY A CLICK on an output.
+    w.click(w.at("source-node:0"));
+    rig.host(ws::PaneActionRequested{fp::kPane, "find-wire"});
+    CHECK(rig.shows("From %0 : Int -- what takes it"));
+    CHECK(rig.questions.back().takes == std::optional<std::string>("Int"));
+    rig.key(in::scan::kEscape);
+
+    // A PORT SELECTED: the keys move to the constant and choose it.
+    w.click(w.at(port_part(rig, 0, 1)));
+    rig.host(ws::PaneActionRequested{fp::kPane, "find-wire"});
+    REQUIRE(rig.shows("Into %0 rhs : Int -- what fills it"));
+    CHECK(w.showing("> state.value"));
+    rig.key(in::scan::kDown);
+    rig.key(in::scan::kDown);
+    CHECK(w.showing("> Int constant"));
+    rig.key(in::scan::kReturn);
+    (void)rig.label("> Value: 0", true);
+    rig.key(in::scan::kEscape);
+    CHECK(flow::workspace_bytes(rig.workspace()) == before);
+
+    // A ROW WHOSE PORTS CHANGED since Flow read them: the door finds math.add as it is now, Flow
+    // read it as it was, and the row is refused in words, nothing made.
+    REQUIRE(rig.catalog.unmount("flowtest.basic"));
+    REQUIRE(rig.catalog.mount("flowtest.reshaped",
+        {op::make_operator<&op::add_int>(op::kAddInt, {"lhs", "rhs"}, "sum")}));
+    w.drag(w.at("source-node:0"), w.room());
+    const auto row = w.showing("math.add -> lhs");
+    REQUIRE(row);
+    w.click(*row);
+    (void)rig.label("'math.add' is not the operator this reference was found at: its ports "
+                    "changed since; find it again");
+    CHECK(flow::workspace_bytes(rig.workspace()) == before);
 }
