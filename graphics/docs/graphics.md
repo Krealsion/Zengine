@@ -38,6 +38,7 @@ input office -> a window     AttributedInput (a participant's moment, landed as 
 window -> owner, arranger    AreaHoldEnded, AreaPointerLeft (to the arranger when another office)
 window -> the keys' owners   KeyPressed, KeyReleased, TextEntered
 arranger -> directory        AreaPlaced, SkinOffered, SkinChosen, ElementCodeOffered
+arranger -> its window       WindowShaped (its title and size, from an office arranging there)
 window -> everyone           WindowOffered (as its own office: its pixels, incarnation and text)
 directory -> window          AreaIntroduced, AreaWithdrawn, ElementCodeOffered
 owner -> directory           RoomAsked (an owner that started again)
@@ -274,4 +275,6 @@ saying `more` still holds back. A close its desktop asked for is published, not 
 reads it publishes `SurfaceCloseRequested` as the window's office, once. The OS window opens
 centred on its display's usable area, and an area placed past its edge grows it, as far as that
 display holds it, once for each new reach: a window a weaver made smaller is not grown back while
-its areas stay where they are.
+its areas stay where they are. An office that arranges an area in a window names it and sizes it
+(`WindowShaped`): the OS window keeps the size within its display and, as after a weaver's
+resize, is not grown back while its areas reach no further; the terminal keeps its own.

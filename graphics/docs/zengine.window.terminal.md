@@ -213,6 +213,15 @@ reading the terminal.
   gone; the retained one is <m>`; `offset <n> is outside a picture of <total> bytes`.
 - **Example:** `SurfaceCaptureChunkRequested{1, 0}`, then from each chunk's end until `total`.
 
+### `WindowShaped`
+
+`WindowShaped` v1 names a window and sizes it, said by an office that arranges an area in it.
+
+- **Takes:** `window`, `title`, `width` and `height`, as an OS window takes them.
+- **Answers:** nothing: the terminal's size and title are its emulator's, so this window keeps them.
+- **Refuses:** nothing.
+- **Example:** an app's weave says its window's title and size; the terminal stays as it is.
+
 ## Hears
 
 ### `AreaIntroduced`

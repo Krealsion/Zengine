@@ -38,13 +38,6 @@ namespace zengine::graphics::window {
 inline constexpr std::int64_t kDefaultWidth = 1600;
 inline constexpr std::int64_t kDefaultHeight = 900;
 
-/// A window's size in pixels; non-positive is no window to measure.
-struct PixelSize {
-    std::int64_t width = 0, height = 0;
-    bool measured() const { return width > 0 && height > 0; }
-    friend bool operator==(const PixelSize&, const PixelSize&) = default;
-};
-
 // ---- The window on its desktop ------------------------------------------------------------------
 //
 // Where an OS window sits and how large it grows, as pure arithmetic every lane pins: the backend
@@ -125,6 +118,19 @@ inline PixelSize grown_within(const PixelSize& want, const PixelSize& have, std:
     const auto axis = [](std::int64_t want_v, std::int64_t have_v, std::int64_t room) {
         const std::int64_t grown = (std::min)(want_v, room);
         return (std::max)(grown, have_v);
+    };
+    return PixelSize{axis(want.width, have.width, display.w - frame_w),
+                     axis(want.height, have.height, display.h - frame_h)};
+}
+
+/// How large a shaped window is: `want`, a side of 0 or less keeping `have`'s, each side at least
+/// a pixel and no larger than `display`'s usable area holds with the frame's own `frame_w` and
+/// `frame_h` around it. Unlike a growth, a shaping may make the window smaller.
+inline PixelSize shaped_within(const PixelSize& want, const PixelSize& have, std::int64_t frame_w,
+                               std::int64_t frame_h, const DesktopSpan& display) {
+    const auto axis = [](std::int64_t want_v, std::int64_t have_v, std::int64_t room) {
+        const std::int64_t asked = want_v > 0 ? want_v : have_v;
+        return (std::max)(std::int64_t{1}, (std::min)(asked, room));
     };
     return PixelSize{axis(want.width, have.width, display.w - frame_w),
                      axis(want.height, have.height, display.h - frame_h)};
@@ -218,7 +224,7 @@ struct PixelPolled {
 /// face it draws text in, `present(frame)`, true when it drew the picture, `poll()`, and
 /// `capture(frame)`, a presented picture drawn again and read back;
 /// the clipboard's `clipboard_copy(text)` and `clipboard_text()`; and the desktop's `placement()`,
-/// `place(want)`, `grow(want)` toward a size in pixels, and `maximize()`.
+/// `place(want)`, `grow(want)` toward a size in pixels, `shape(title, want)`, and `maximize()`.
 template <class Backend>
 class LightMedium {
 public:
@@ -654,6 +660,14 @@ public:
     void place(const WindowPlacementValue& want) {
         backend_.place(want);
         maximize_ = want.maximized ? Maximize::kWaitingForRoom : Maximize::kNone;
+    }
+
+    /// SHAPED by an office that arranges in it: the backend sets the title and the size, kept
+    /// within its display. As after a weaver's resize, the areas grow it again only once they reach
+    /// further than they did (`fit`).
+    void shape(const std::string& title, const PixelSize& want) {
+        backend_.shape(title, want);
+        dirty_ = true;
     }
 
     /// The last picture presented, drawn again by the backend and read back; none before one.

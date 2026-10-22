@@ -597,6 +597,7 @@ ViewStart v2 0x89d8495312d2c751
 ViewStop v1 0x1e90d056a56b777c
 WinArea v4 0x29acbdac54281a75
 WindowOffered v3 0x0426f2eb5138d05b
+WindowShaped v1 0x65fc824d06476f98
 WindowShowAsked v1 0x9ae7f3bd1654e34e
 WindowShown v1 0x67d34473f44e6144
 WindowState v4 0x082568f129b94e3d

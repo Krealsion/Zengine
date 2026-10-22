@@ -440,3 +440,28 @@ TEST_CASE("an app.json the app's weave cannot read is said on the app's own line
     REQUIRE(line != nullptr);
     CHECK(line->y > 0);
 }
+
+TEST_CASE("the app's window takes the title and the size its app.json says, once a window, and the app's line stands at its new foot") {
+    // MUTATION: the app's weave saying nothing of its window -- it stays 1600 by 900, untitled.
+    AppFolder folder("shaped");
+    Run run(folder);
+    REQUIRE(run.open());
+    run.host->begin();
+    for (const char* stem : {"zengine-operators-basic", "zengine-app-weave", "zengine-graphics"})
+        run.command(std::string("authority trust ") + stem);
+    run.mount_window();
+    const app::ReadApp file = app::read_app((folder.dir / app::kAppFileName).generic_string());
+    REQUIRE(file.ok);
+    REQUIRE(run.light.shaped.size() == 1);
+    CHECK(run.light.shaped[0].first == file.app.window.title);
+    CHECK(run.light.shaped[0].second == gw::PixelSize{file.app.window.width, file.app.window.height});
+    CHECK(run.light.size == gw::PixelSize{file.app.window.width, file.app.window.height});
+    // THE APP'S LINE at the shaped window's foot, and the window not grown back past it.
+    const LightLog::Area* line = run.light.area(app::kAppRole);
+    REQUIRE(line != nullptr);
+    CHECK(line->y + line->h == file.app.window.height);
+    CHECK(run.light.grown.empty());
+    // ...and the next beats shape it no more.
+    run.pump();
+    CHECK(run.light.shaped.size() == 1);
+}
