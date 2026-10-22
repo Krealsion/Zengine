@@ -229,7 +229,7 @@ struct Run {
     }
     /// A press on Count, at its middle: the panel's area stands at (8, 8), as `app.json` says.
     void press_count() {
-        const auto& b = zengine::examples::tally_app::panel().elements[3];
+        const zengine::view::Element b = zengine::examples::tally_app::panel().elements[3];
         click(8 + b.x + b.w / 2, 8 + b.y + b.h / 2);
     }
 };
