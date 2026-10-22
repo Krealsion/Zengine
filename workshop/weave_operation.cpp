@@ -52,6 +52,9 @@ void WorkshopWeave::drop_kept(std::uint64_t correlation) {
 void WorkshopWeave::count_gesture() {
     ++gestures_;
     Hand& h = hand();
+    if (!shift_press_) {
+        h.shift_tap = {};
+    }
     h.actor = input_actor_;
     h.latest = gestures_;
     if (recent_acts_.size() >= kMaxRecentActs) recent_acts_.erase(recent_acts_.begin());
@@ -189,6 +192,7 @@ void WorkshopWeave::apply_attributed(const input::AttributedInput& event, loom::
     const bool pointer = e.kind == "PointerButton" || e.kind == "PointerMoved" || e.kind == "PointerWheel";
     if (pointer && !event.local && window_.shown()) return;
     if (e.kind == "KeyPressed") on(input::KeyPressed{e.scancode, e.name, e.modifiers}, mail);
+    else if (e.kind == "KeyReleased") on(input::KeyReleased{e.scancode, e.name, e.modifiers}, mail);
     else if (e.kind == "TextEntered") on(input::TextEntered{e.text}, mail);
     else if (e.kind == "PointerButton")
         on(input::PointerButton{e.button, e.pressed, e.x, e.y, e.space, e.modifiers}, mail);

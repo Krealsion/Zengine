@@ -352,6 +352,7 @@ class WorkshopWeave
                            manual::ManualFacet<manual::pages::zengine_workshop::kManual>>::
           Weave<WorkshopWeave, WorkshopState,
                              loom::Accept<PaneShortcutInvoked, CommandRunRequested, PaneViewRequested, PanePointRequested, DeskReadRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::workshop::v2::PaneCanvasContent, zengine::workshop::v4::PaneCanvasContent, zengine::workshop::v5::PaneCanvasContent, zengine::workshop::v6::PaneCanvasContent, v2::PaneOperationRequested, ActorScopeRequested, zengine::input::KeyPressed, zengine::input::TextEntered,
+                                          zengine::input::KeyReleased,
                                           zengine::input::PointerButton,
                                           zengine::input::PointerMoved,
                                           zengine::input::PointerWheel,
@@ -717,6 +718,12 @@ public:
     /// A COMMAND THE PALETTE'S OWN ROW RAN BY NAME (`command_vocabulary.hpp`), performed by its key's
     /// or press's path as the hand that pressed that row, and answered.
     void on(const CommandRunRequested& asked, loom::Mail& mail);
+    /// SHIFT LET GO: half of a tap toward a double Shift (`shift_tapped`); every other release
+    /// is no act.
+    void on(const zengine::input::KeyReleased& k, loom::Mail& mail);
+    /// A SHIFT PRESS, as its hand's second tap within a double-click's time: whether a double
+    /// Shift was answered by a row in force, which then spends the press.
+    bool shift_tapped(const zengine::input::KeyPressed& k, loom::Mail& mail);
     /// The palette left the desk: the keys go back to the pane that held them when it opened.
     void palette_closed(const PaneRef& ref);
     /// The current gesture of `pane` approves one operation -- a named (shape, version, role) send,
@@ -2140,6 +2147,15 @@ private:
         AppAsked app_asked;
         /// The character this hand's own keystroke produced, which is not text it typed (WL-KEY-12).
         std::string swallow_text;
+        /// THIS HAND'S SHIFT, toward a double Shift: held now alone, or tapped once -- pressed and
+        /// let go with nothing else -- at `first_ms`. Any other key, text, press or wheel of the
+        /// hand forgets it.
+        struct ShiftTap {
+            bool held = false;
+            bool repeated = false;
+            bool tapped = false;
+            std::int64_t first_ms = 0;
+        } shift_tap;
         /// EVERY ACT THIS HAND SENT A PANE -- an action, a press, a shortcut, a menu's choice --
         /// newest last and bounded: what a classed ask naming no send may spend while it is
         /// unspent, whatever this hand did since, for no send rides on it.
@@ -2190,6 +2206,8 @@ private:
     void press_settings(std::int64_t kind, const PointedAt& at);
     /// Monotonic from one: zero is never a gesture's number, and no record matches another kind's.
     std::uint64_t gesture_asks_ = 0;
+    /// Set while a Shift press is being counted, so counting it keeps its own tap.
+    bool shift_press_ = false;
     /// The pane that held the keys when the palette last took them, which it gives them back to.
     std::int64_t palette_over_ = kNoPaneKind;
     /// The quit in flight: its ask, the answers still owed, the refusals, the gestures held.

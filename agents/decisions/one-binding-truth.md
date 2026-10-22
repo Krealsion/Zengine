@@ -49,5 +49,6 @@ legend rows reclaim no geometry and unbind nothing.
 [WL-KEY-05](../workshop/keyboard.md), [WL-KEY-06](../workshop/keyboard.md),
 [WL-KEY-07](../workshop/keyboard.md), [WL-KEY-08](../workshop/keyboard.md),
 [WL-KEY-09](../workshop/keyboard.md), [WL-KEY-12](../workshop/keyboard.md),
+[WL-KEY-19](../workshop/keyboard.md),
 [WL-KEY-13](../workshop/key-spelling.md), [WL-KEY-14](../workshop/key-spelling.md),
 [WL-KEY-17](../workshop/keymap-edit.md), [WL-KEY-18](../workshop/keymap-edit.md).

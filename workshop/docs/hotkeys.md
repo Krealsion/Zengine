@@ -127,7 +127,10 @@ facts, or which of them did not happen. While a key is being captured, only `Esc
 is a key of the pane's; every other key is the one you meant. A chord that opens a tool above
 every mode — `Ctrl`+`p`, `Ctrl`+`t`, `Ctrl`+`k` — cannot be captured, because it does what it
 does before the pane sees it: type its spelling instead. A modifier pressed alone is refused as
-not a key this keymap can name; press the whole chord, or type it.
+not a key this keymap can name; press the whole chord, or type it. The one exception is
+`double-shift`, Shift tapped twice alone and quickly, which Workshop reads per hand from Shift's
+presses and the release between them; it takes no modifier, a terminal cannot report it, and you
+type it, as Shift alone cannot be captured.
 
 **What is refused, and why nothing changes.** An edit is judged exactly as your file is judged at
 launch: the whole map — Workshop's rows, the desktop's, and every pane's rows in force — with

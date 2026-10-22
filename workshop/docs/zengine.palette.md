@@ -4,7 +4,9 @@
 pane -- and runs the one you choose. It is the weave in the office `zengine.palette`, built as
 `zengine-palette` and loaded by a row of the shipped plans that load a window. Open it from
 anywhere with <!-- key desktop.palette -->`ctrl+space`<!-- /key -->, the desktop's
-[`desktop.palette`](zengine.desktop.md#desktoppalette), or as any pane from the Pane Manager.
+[`desktop.palette`](zengine.desktop.md#desktoppalette); in the OS window by tapping Shift twice,
+<!-- key desktop.palette-shift -->`double-shift`<!-- /key -->; or as any pane from the Pane
+Manager.
 
 ## About
 
