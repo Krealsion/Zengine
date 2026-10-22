@@ -97,58 +97,66 @@ inline std::vector<const WinArea*> front_to_back(const std::vector<WinArea>& are
 
 /// The window's cells at `dirty`: each from the front-most area that painted it there, its top
 /// node by paint order; an area shows what lies behind it wherever it painted nothing; else blank.
+/// The cells are settled on a grid over the box `dirty` spans, front area first.
 inline std::vector<term::Cell> compose(const std::vector<WinArea>& areas, const Cache& cache,
                                        const std::set<CellAt>& dirty) {
+    if (dirty.empty()) {
+        return {};
+    }
+    const std::int64_t c0 = dirty.begin()->first, c1 = dirty.rbegin()->first;
+    std::int64_t r0 = dirty.begin()->second, r1 = r0;
+    for (const CellAt& d : dirty) {
+        r0 = (std::min)(r0, d.second);
+        r1 = (std::max)(r1, d.second);
+    }
+    const std::int64_t w = c1 - c0 + 1;
+    const auto at = [&](std::int64_t c, std::int64_t r) {
+        return static_cast<std::size_t>((r - r0) * w + (c - c0));
+    };
+    const auto n = static_cast<std::size_t>(w * (r1 - r0 + 1));
+    std::vector<char> wanted(n, 0);
+    for (const CellAt& d : dirty) {
+        wanted[at(d.first, d.second)] = 1;
+    }
+    // Each cell's top so far: the area that holds it (its place front first) and the node.
     struct Top {
-        std::vector<std::int64_t> key;
+        std::size_t area = 0;
+        const std::vector<std::int64_t>* key = nullptr;
         char glyph = ' ';
         std::int64_t role = role::kFill;
     };
+    std::vector<Top> tops(n);
     const auto front = front_to_back(areas);
-    std::map<std::string, std::map<CellAt, Top>> tops;
-    for (const WinArea* a : front) {
-        const Painted* p = cache.of(a->area);
+    for (std::size_t i = 0; i < front.size(); ++i) {
+        const Painted* p = cache.of(front[i]->area);
         if (p == nullptr) {
             continue;
         }
-        const Place pl = place_of(*a);
-        auto& t = tops[a->area];
-        for (const auto& [path, n] : *p) {
-            for (const term::Cell& c : n.cells) {
-                if (dirty.count({pl.col + c.col, pl.row + c.row}) == 0) {
+        const Place pl = place_of(*front[i]);
+        for (const auto& [path, node] : *p) {
+            for (const term::Cell& c : node.cells) {
+                const std::int64_t col = pl.col + c.col, row = pl.row + c.row;
+                if (col < c0 || col > c1 || row < r0 || row > r1 || !pl.holds(col, row) ||
+                    wanted[at(col, row)] == 0) {
                     continue;
                 }
-                auto [it, fresh] = t.try_emplace({c.col, c.row}, Top{n.key, c.glyph, c.role});
-                if (!fresh && it->second.key < n.key) {
-                    it->second = Top{n.key, c.glyph, c.role};
+                Top& t = tops[at(col, row)];
+                if (t.key == nullptr || (t.area == i && *t.key < node.key)) {
+                    t = Top{i, &node.key, c.glyph, c.role};
                 }
             }
         }
     }
     std::vector<term::Cell> out;
-    for (const auto& [c, r] : dirty) {
-        term::Cell cell{c, r, ' ', role::kFill};
-        for (const WinArea* a : front) {
-            const Place pl = place_of(*a);
-            if (!pl.holds(c, r)) {
-                continue;
-            }
-            const auto t = tops.find(a->area);
-            if (t == tops.end()) {
-                continue;
-            }
-            const auto hit = t->second.find({c - pl.col, r - pl.row});
-            if (hit != t->second.end()) {
-                cell.glyph = hit->second.glyph;
-                cell.role = hit->second.role;
-                break;
+    out.reserve(dirty.size());
+    for (std::int64_t r = r0; r <= r1; ++r) {
+        for (std::int64_t c = c0; c <= c1; ++c) {
+            if (wanted[at(c, r)] != 0) {
+                const Top& t = tops[at(c, r)];
+                out.push_back(term::Cell{c, r, t.glyph, t.role});
             }
         }
-        out.push_back(cell);
     }
-    std::sort(out.begin(), out.end(), [](const term::Cell& a, const term::Cell& b) {
-        return a.row != b.row ? a.row < b.row : a.col < b.col;
-    });
     return out;
 }
 

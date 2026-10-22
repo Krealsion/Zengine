@@ -362,8 +362,7 @@ struct FilesRig {
         const ui::Rect body = external_body_rect(r.session(), kind);
         (void)r.bus.publish(loom::Message(
             loom::to_value(input::PointerButton{1, true, body.x,
-                                                body.y + kExternalHeaderRows + row +
-                                                    surface::kTuiCanvasTopRow,
+                                                body.y + kExternalHeaderRows + row,
                                                 input::space::kCells, input::mod::kNone}),
             loom::WeaveId{}, loom::WeaveId{}, 0));
     }
@@ -936,7 +935,9 @@ TEST_CASE("WL-HAND-06: Files names its entries by name and its controls by opera
                                                PaneKeys{files::kProjectFilesPane, here})));
             f.r.bus.drain_until_idle();
         };
-        // THE SELECTED FILE, PRESSED WITH THE KEYS ELSEWHERE: selected, and nothing asked.
+        // THE SELECTED FILE, PRESSED WITH THE KEYS ELSEWHERE: selected, and nothing asked. The
+        // desk's window shows Files with the keys, so Workshop is first heard saying they left.
+        keys(false);
         window.click(area, 2, zulu.row);
         CHECK(f.at_cursor().find("zulu.cpp") != std::string::npos);
         CHECK_FALSE(any_row(f.shown(), "needs a current attributed input gesture"));
@@ -1246,6 +1247,8 @@ TEST_CASE("the keys leave Files by a press into the Editor and Files is told not
     // press's hold: there is no departure message, by design (the vocabulary's "no focus-changed
     // notification"). The fact has to come with the press, from the party that routes the keys.
     FilesRig f("files-leave-by-press");
+    // ON A SKIN: a window that shows Files is told where the keys went (`PaneKeys`).
+    mount_skin_stand_in(f.r);
     put_file(f.root / "alpha.cpp", "the alpha source\n");
     put_file(f.root / "beta.cpp", "the beta source\n");
     f.open(160, 48, /*with_editor=*/true, /*with_manager=*/true);
@@ -1400,7 +1403,7 @@ TEST_CASE("with pane titles hidden, a first press on the row painted gamma selec
     CHECK(row_beginning(held, "Files ") == 0);
     REQUIRE(static_cast<std::int64_t>(held.size()) > aimed);
     CHECK(held[static_cast<std::size_t>(aimed)].find("gamma.cpp") != std::string::npos);
-    f.r.publish(loom::to_value(input::PointerButton{1, false, body.x, body.y + aimed + surface::kTuiCanvasTopRow,
+    f.r.publish(loom::to_value(input::PointerButton{1, false, body.x, body.y + aimed,
                                                     input::space::kCells, input::mod::kNone}));
     const std::vector<std::string> after = f.shown();
     const std::string now = picture(after);
@@ -2138,8 +2141,8 @@ TEST_CASE("the authoring line asks the window that shows Files for a paste, the 
         CAPTURE(window);
         FilesRig f("files-paste-window");
         put_file(f.root / "oven.cpp", "// a weaver's weave\n");
+        SkinStandIn* skin = mount_skin_stand_in(f.r);
         f.open();
-        SkinSeat* skin = f.r.mount_skin_seat();
         skin->platform = "ov";
         f.letter(input::scan::kA, "a");
         f.r.key(input::scan::kReturn); // choose the one candidate
@@ -2906,7 +2909,7 @@ void files_button(PaneRig& r, std::int64_t kind, std::int64_t button, bool press
     const ui::Rect body = external_body_rect(r.session(), kind);
     r.publish(loom::to_value(input::PointerButton{
         button, pressed, body.x + column,
-        body.y + kExternalHeaderRows + row + surface::kTuiCanvasTopRow, input::space::kCells,
+        body.y + kExternalHeaderRows + row, input::space::kCells,
         input::mod::kNone}));
 }
 
@@ -3177,7 +3180,7 @@ TEST_CASE("a right press on an entry offers this pane's rows, and the choice act
         files_button(f.r, f.kind, 3, true, row, 0);
         REQUIRE(menu_shown(f.r.session()));
         const std::vector<std::string> offered =
-            context_rows_on(f.r.last_canvas(), f.r.session());
+            context_rows_on(f.r.shown(), f.r.session());
         REQUIRE_FALSE(offered.empty());
         INFO("the menu offered\n", picture(offered));
         CHECK(any_row(offered, "open `recipes.json`"));
@@ -3316,7 +3319,7 @@ TEST_CASE("in a room too short for every control the strip says how many are in 
     // THE ROUTE STILL WORKS: pressing `[menu]` opens the rows the strip could not seat.
     press_pane(f.r, f.kind, menu.row, menu.column + 1);
     REQUIRE(menu_shown(f.r.session()));
-    const std::vector<std::string> offered = context_rows_on(f.r.last_canvas(), f.r.session());
+    const std::vector<std::string> offered = context_rows_on(f.r.shown(), f.r.session());
     CHECK(any_row(offered, "pick something buildable here"));
     CHECK(any_row(offered, "up a directory"));
 }
@@ -3342,7 +3345,7 @@ void open_authoring(FilesRig& f) {
 /// THE ROWS OF THE MENU THE PANE HAS OPEN.
 std::vector<std::string> menu_rows(FilesRig& f) {
     REQUIRE(menu_shown(f.r.session()));
-    return context_rows_on(f.r.last_canvas(), f.r.session());
+    return context_rows_on(f.r.shown(), f.r.session());
 }
 
 /// OPEN THE PANE'S OWN MENU BY ITS CONTROL, and return what it offered.
@@ -3548,7 +3551,7 @@ TEST_CASE("a Files menu choice that begins authoring takes the keyboard the menu
     REQUIRE(menu_shown(f.r.session()));
     // THE MENU ITSELF TOOK NOTHING: pointing is not typing.
     CHECK(typing_pane(f.r.session()) != f.kind);
-    const std::vector<std::string> offered = context_rows_on(f.r.last_canvas(), f.r.session());
+    const std::vector<std::string> offered = context_rows_on(f.r.shown(), f.r.session());
     INFO("offered\n", picture(offered));
     f.r.key(input::scan::kReturn);
     REQUIRE(any_row(f.shown(), "recipe name> oven"));

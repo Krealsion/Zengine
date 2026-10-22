@@ -1486,7 +1486,7 @@ TEST_CASE("an application row is joined, is requested above the modes, and reach
     // ⚔ MUTATION: deleting the above-modes arm in `on(KeyPressed)` -- `asked()` stays empty.
     // ⚔ MUTATION: joining app rows without applying `authored` -- the moved-key half fails.
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(132), cells_px(46), 0, 0}));
+    t.extent_px(cells_px(132), cells_px(46), 0, 0);
     DesktopSeat* desk = mount_desktop(t);
     REQUIRE(desk != nullptr);
     REQUIRE(t.session().keymap.app.size() == 4);
@@ -1596,7 +1596,7 @@ TEST_CASE("WL-DESK-02: the host asks the desktop for the default row, and only a
     // stand-in that answered at once reset the host's record before the wrong answer arrived,
     // so the gesture test refused it and the mutation stayed green.
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(132), cells_px(46), 0, 0}));
+    t.extent_px(cells_px(132), cells_px(46), 0, 0);
     DesktopSeat* desk = mount_desktop(t);
     REQUIRE(desk != nullptr);
     desk->autoanswer = false;
@@ -2027,7 +2027,7 @@ TEST_CASE("a verdict answers the declaration it judges: a refused attempt is nam
     // ⚔ MUTATION: answering the verdict with an ordinary send -- the correlation is zero and
     // `answers_ask()` is false.
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(132), cells_px(46), 0, 0}));
+    t.extent_px(cells_px(132), cells_px(46), 0, 0);
     DesktopSeat* desk = mount_desktop(t);
     REQUIRE(desk->verdicts().size() == 1); // the mount's own declaration
     const std::int64_t first = desk->verdicts()[0].said.declaration;

@@ -1535,7 +1535,7 @@ TEST_CASE("a provider-only artifact is in Arrangement and NOT in Loaded") {
     REQUIRE_FALSE(loaded.empty());
     CHECK_FALSE(any_row(loaded, "zengine-operators-basic"));
     // ...and the Loaded pane is still exactly what it always was: the KERNEL's map.
-    CHECK(loaded[0] == "loaded weaves -- 2");
+    CHECK(loaded[0] == "loaded weaves -- 3");
     CHECK(any_row(loaded, std::string(intro::kIntrospectionStem) + " @" + kIntroOffice));
     CHECK(any_row(loaded, intro::kNotInProcess));
     CHECK_FALSE(r.kernel.is_loaded("zengine-operators-basic"));
@@ -1565,7 +1565,7 @@ TEST_CASE("the Loaded pane spells a weave's name and role, and its picture is dr
     }
     const std::vector<std::string> shown = pane_rows(r, kind);
     REQUIRE_FALSE(shown.empty());
-    CHECK(shown[0] == "loaded weaves -- 2");
+    CHECK(shown[0] == "loaded weaves -- 3");
     const std::int64_t at = row_with_text(shown, "plain-caf?");
     REQUIRE(at >= 0);
     CHECK(shown[static_cast<std::size_t>(at)] == "  plain-caf? @test.pl?in");
@@ -2088,18 +2088,37 @@ TEST_CASE("a host with no doors leaves the Project and Powers panes WAITING") {
     // for its own project and its powers. A host that mounts no door holds neither
     // `zengine.arrangement` nor `zengine.powers`, each ask reaches nobody, and each pane says
     // the honest thing -- never `unavailable`, which is a fate nothing here has observed.
+    // ON A SKIN, read as Workshop paints the desk (`paint`): a window shows such a body blank.
     PaneRig r;
+    mount_skin_stand_in(r);
     r.mount_workshop();
     (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
     r.ready();
     r.extent(160, 48); // room for two stacked panes, so both are really on the canvas
+    // WHAT WORKSHOP PAINTS UNDER A PANE'S HEADER, each row's trailing blanks cut.
+    const auto painted_under = [&r](const std::string& header) {
+        std::vector<std::string> out;
+        for (const surface::SurfaceLayer& layer : paint(r.session()).layers) {
+            for (const surface::SurfaceTextRegion& region : layer.texts) {
+                if (region.rows.empty() || region.rows[0].text.find(header) == std::string::npos) {
+                    continue;
+                }
+                for (std::size_t i = 1; i < region.rows.size(); ++i) {
+                    std::string row = region.rows[i].text;
+                    row.erase(row.find_last_not_of(' ') + 1);
+                    out.push_back(row);
+                }
+            }
+        }
+        while (!out.empty() && out.back().empty()) out.pop_back();
+        return out;
+    };
     r.pick(PaneRef{kIntroOffice, intro::kArrangementPane});
-    const std::vector<std::string> shown =
-        pane_rows(r, intro_row(r, intro::kArrangementPane)->kind);
+    const std::vector<std::string> shown = painted_under("Project @");
     REQUIRE(shown.size() == 1);
     CHECK(shown[0] == std::string(kExternalWaiting));
     r.pick(PaneRef{kIntroOffice, intro::kPowersPane});
-    const std::vector<std::string> powers = pane_rows(r, intro_row(r, intro::kPowersPane)->kind);
+    const std::vector<std::string> powers = painted_under("Powers @");
     REQUIRE(powers.size() == 1);
     CHECK(powers[0] == std::string(kExternalWaiting));
     // ...and the Loaded pane, whose owner is the Kernel and is always there, is fine.
@@ -2310,7 +2329,7 @@ TEST_CASE("Powers asks the window that shows it for a paste into its query, the 
     for (const char* window : {gfx::kSdlWindow, gfx::kTerminalWindow}) {
         CAPTURE(window);
         PaneRig r;
-        SkinSeat* skin = r.mount_skin_seat();
+        SkinStandIn* skin = mount_skin_stand_in(r);
         const std::int64_t kind = open_powers(r);
         make_taller(r, intro::kPowersPane, 18);
         focus_pane(r, kind);

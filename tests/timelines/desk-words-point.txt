@@ -6,4 +6,4 @@ asker -> zengine.workshop  PaneViewRequested v2  {provider: "zengine.test.desk-a
 zengine.workshop -> asker  PaneView v2  {provider: "zengine.test.desk-alpha", pane: "alpha", picture: 0, canvas: false, words: [2]}
 host -> asker  SeatDo v1  {}
 asker -> zengine.workshop  PanePointRequested v2  {provider: "zengine.test.desk-alpha", pane: "alpha", picture: 0, word: 1, column: 7}
-zengine.workshop -> asker  PanePoint v2  {provider: "zengine.test.desk-alpha", pane: "alpha", picture: 0, word: 1, column: 7, x: 8, y: 7, space: 1}
+zengine.workshop -> asker  PanePoint v2  {provider: "zengine.test.desk-alpha", pane: "alpha", picture: 0, word: 1, column: 7, x: 8, y: 5, space: 1}

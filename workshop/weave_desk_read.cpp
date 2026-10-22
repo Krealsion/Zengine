@@ -315,7 +315,7 @@ std::vector<PaneWord> WorkshopWeave::visible_words(const VisibleBody& visible,
         std::int64_t x = 0;
         if (!drawn_label(label, body, text, x)) continue;
         const GlyphGrid grid{graphics::add_cells(body.x, x), graphics::add_cells(body.y, label.y),
-                             kPaneCanvasUnit, kPaneCanvasUnit};
+                             kPaneCanvasUnit, kPaneCanvasUnit, session_.console_rows_above};
         keep(grid, std::move(text), 0);
     }
     const PaneCanvasRoom room{picture.pane, picture.grant, body.w, body.h, content->canvas.grain,

@@ -891,12 +891,26 @@ zengine_compile_test(graphics_own_after_delivery_refused zengine-cn-graphics-aft
 zengine_compile_test(graphics_drawer_compiles zengine-cn-graphics-drawer-ok)
 
 # ---- the Workshop suites --------------------------------------------------------------
+# The windows the rigs show their desk in (rig_windows.hpp): the terminal window and the OS window
+# over the suites' own devices (window_backends.hpp), compiled once here rather than in every unit
+# that includes the rig. It names no path: the suite gives it the directory's.
+add_library(zengine-workshop-rig-windows STATIC rig_windows.cpp)
+target_link_libraries(zengine-workshop-rig-windows
+    PUBLIC loom::kernel loom::switchboard loom::core
+    PRIVATE zengine-graphics-vocabulary zengine-input-vocabulary zengine-timer-vocabulary
+            zengine-activation zengine-warnings zengine-sanitize)
+target_include_directories(zengine-workshop-rig-windows PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+zengine_manual(zengine-workshop-rig-windows PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.terminal.md)
+zengine_manual(zengine-workshop-rig-windows PRIVATE ${PROJECT_SOURCE_DIR}/graphics/docs/zengine.window.sdl.md)
+
 # One entry per subject (VM-POP-11), an entry holding several sources where one object cannot
-# (VM-POP-12), and tests/workshop_support.hpp what several need (VM-POP-13). They prove Workshop
-# headless, its screen a returned canvas; a Skin carrying it to a weaver is the Surface suite's
-# and the live run's. A case that loads a product loads the library a weaver runs. Only
-# `workshop_load` loads the real Timer: in a rig that drains to idle its beat never returns.
+# (VM-POP-12), and tests/workshop_support.hpp what several need (VM-POP-13). They prove Workshop in
+# a window, its desk read there (rig_windows.hpp). A case that loads a product loads the library a
+# weaver runs. Only `workshop_load` loads the real Timer: in a rig that drains to idle its beat
+# never returns.
 set(ZENGINE_WORKSHOP_LIBS
+    zengine-workshop-rig-windows
     loom::kernel loom::switchboard loom::core loom::terminal
     # The vocabulary is the headers and the logic their bodies, compiled once
     # (workshop/CMakeLists.txt): a suite that included the bodies would emit them all again.
@@ -914,6 +928,10 @@ set(ZENGINE_WORKSHOP_DEFS
     # into a new file is not on it. `presentation_sources()` (workshop_support.hpp) walks it,
     # asserts a floor on what it found and excludes the host's side of the seam by name.
     "WORKSHOP_SOURCE_DIR=\"${CMAKE_SOURCE_DIR}/workshop\""
+    # THE WINDOWS' DIRECTORY, which the rig loads beside its window, and the painters a window
+    # opens, staged beside the host where Workshop offers them from (`arrange_graphics`).
+    "GRAPHICS_SO=\"$<TARGET_FILE:zengine-graphics>\""
+    "WORKSHOP_SKINS_DIR=\"$<TARGET_FILE_DIR:zengine-workshop>\""
     "WORKSHOP_SO_HELLO=\"$<TARGET_FILE:zengine-workshop-hello>\""
     # ...AND THE WEAVER'S EXAMPLE PANE, with its source: the Edit Code cases load the image
     # and open the file, so the path a recipe names is the file this tree compiled.
@@ -961,6 +979,7 @@ set(ZENGINE_WORKSHOP_DEFS
     # cannot see a body there, so answers of 1, 2, 3 tell an evaluation from a cached answer.
     "PROVIDER_SOURCE_SO=\"$<TARGET_FILE:zengine-provider-source>\"")
 set(ZENGINE_WORKSHOP_FIXTURES
+    zengine-graphics zengine-workshop-staging
     zengine-workshop-hello zengine-introspection zengine-files zengine-builder-pane
     zengine-attention-pane zengine-info-pane zengine-desktop-pane zengine-terminal-pane
     zengine-connections-pane zengine-flow-pane zengine-view-builder

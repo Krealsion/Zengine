@@ -223,7 +223,6 @@ struct EditorRig {
     PaneRig r;
     std::int64_t kind = 0;
     DoorAsker* asker = nullptr;
-    SkinSeat* skin = nullptr;
     SlowSkin* slow = nullptr;
     loom::WeaveId slow_id{};
     /// What the host's recipe seam answers -- the fact the read-only project door spends.
@@ -282,8 +281,6 @@ struct EditorRig {
         }
         if (slow_skin) {
             mount_slow_skin();
-        } else {
-            skin = r.mount_skin_seat();
         }
         load::LoadPlan plan;
         load::ArtifactIntent seat;
@@ -408,7 +405,7 @@ struct EditorRig {
     };
     Aim aim() {
         const ui::Rect body = external_body_rect(r.session(), kind);
-        return Aim{body.x, body.y + kExternalHeaderRows + surface::kTuiCanvasTopRow, chrome()};
+        return Aim{body.x, body.y + kExternalHeaderRows + r.console_rows(), chrome()};
     }
     void enqueue_press_doc(const Aim& at, std::int64_t row, std::int64_t col) {
         const std::int64_t x = at.x + pane_cell_of(r.session(), kind, at.above + row, col);
@@ -435,7 +432,11 @@ struct EditorRig {
         return {held.row, held.column};
     }
 
+    /// A SKIN THAT ANSWERS A PASTE LATE, for the cases whose claim is a late answer: seated before
+    /// the rig's window comes up, which then never does (`own_medium`).
     void mount_slow_skin() {
+        REQUIRE(!r.windows.up());
+        r.in_window = false;
         auto seat = std::make_unique<SlowSkin>();
         slow = seat.get();
         loom::Grant grant;
@@ -617,7 +618,6 @@ struct EditorRig {
         r.mount_workshop();
         r.mount_opening();
         mount_project_door();
-        skin = r.mount_skin_seat();
         loom::Grant offer;
         offer.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
         if (deaf) {
@@ -655,7 +655,6 @@ struct EditorRig {
         r.mount_workshop();
         r.mount_opening();
         mount_project_door();
-        skin = r.mount_skin_seat();
         load::LoadPlan plan;
         load::ArtifactIntent seat;
         seat.stem = pane::kEditorPaneStem;
@@ -1707,8 +1706,7 @@ TEST_CASE("an edit racing the exit check is judged at the answer, and a refused 
     const ui::Rect body = external_body_rect(e.r.session(), e.kind);
     (void)e.r.bus.publish(loom::Message(
         loom::to_value(input::PointerButton{1, true, body.x + 2,
-                                            body.y + kExternalHeaderRows + 1 +
-                                                surface::kTuiCanvasTopRow,
+                                            body.y + kExternalHeaderRows + 1,
                                             input::space::kCells, input::mod::kNone}),
         loom::WeaveId{}, loom::WeaveId{}, 0));
     e.enqueue_text("?");
@@ -1968,6 +1966,7 @@ TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by
 
 TEST_CASE("^c copies, does not quit, and the copy reaches the platform clipboard") {
     EditorRig e("edit-copy");
+    e.r.on_os_window(); // the medium whose platform clipboard a paste reads
     e.open();
     e.open_file("a.cpp", "one two\n");
     e.press_doc(0, 0);
@@ -1976,7 +1975,7 @@ TEST_CASE("^c copies, does not quit, and the copy reaches the platform clipboard
     e.key(input::scan::kRight, input::mod::kShift);
     e.key(input::scan::kC, input::mod::kCtrl);
     CHECK_FALSE(e.r.host.quit);
-    CHECK(e.skin->platform == "one");
+    CHECK(e.r.windows.clipboard() == std::optional<std::string>("one"));
     CHECK(e.doc_row(0) == "one two");
 }
 
@@ -2029,16 +2028,17 @@ TEST_CASE("an empty Editor pane takes the keys and does nothing with them") {
 
 TEST_CASE("copy here, paste there -- multiline, through the medium's own answer") {
     EditorRig e("edit-paste");
+    e.r.on_os_window(); // the medium whose platform clipboard a paste reads
     e.open();
     e.open_file("a.cpp", "one\ntwo\n");
     e.press_doc(0, 0);
     e.key(input::scan::kA, input::mod::kCtrl);
     e.key(input::scan::kC, input::mod::kCtrl);
-    CHECK(e.skin->platform == "one\ntwo\n");
-    e.skin->platform = "alpha\nbeta";
+    CHECK(e.r.windows.clipboard() == std::optional<std::string>("one\ntwo\n"));
+    e.r.windows.set_clipboard("alpha\nbeta");
     e.press_doc(1, 3);
     e.key(input::scan::kV, input::mod::kCtrl);
-    CHECK(e.skin->clipboard_reads == 1);
+    CHECK(e.r.windows.clipboard_reads() == 1);
     CHECK(e.doc_row(1) == "twoalpha");
     CHECK(e.doc_row(2) == "beta");
     CHECK(e.dirty());
@@ -2109,10 +2109,11 @@ TEST_CASE("a paste still arriving refuses another source, and its answer lands w
 TEST_CASE("a clipboard holding non-ASCII refuses the paste, and typed non-ASCII is refused "
           "with a sentence") {
     EditorRig e("edit-ascii");
+    e.r.on_os_window(); // the medium whose platform clipboard a paste reads
     e.open();
     e.open_file("a.cpp", "one\n");
     e.press_doc(0, 3);
-    e.skin->platform = "caf\xc3\xa9";
+    e.r.windows.set_clipboard("caf\xc3\xa9");
     e.key(input::scan::kV, input::mod::kCtrl);
     CHECK(e.says("outside plain ASCII"));
     CHECK(e.doc_row(0) == "one");
@@ -2122,7 +2123,7 @@ TEST_CASE("a clipboard holding non-ASCII refuses the paste, and typed non-ASCII 
     CHECK(e.doc_row(0) == "one");
     CHECK(e.clean());
     // ...and a clipboard with breaks and tabs is flattened rather than refused.
-    e.skin->platform = "a\tb\r\nc";
+    e.r.windows.set_clipboard("a\tb\r\nc");
     e.press_doc(0, 3);
     e.key(input::scan::kV, input::mod::kCtrl);
     CHECK(e.doc_row(0) == "onea    b"); // the tab byte, shown at its stop
@@ -2213,7 +2214,7 @@ TEST_CASE("in a terminal, a press on a character past the caret puts the caret b
     const auto cell_showing = [&e](char glyph) {
         const ui::Rect body = external_body_rect(e.r.session(), e.kind);
         const std::int64_t y = body.y + kExternalHeaderRows + e.chrome();
-        const surface::CanvasGrids grid = surface::rasterize_canvas(e.r.last_canvas());
+        const surface::CanvasGrids grid = surface::rasterize_canvas(paint(e.r.session()));
         std::int64_t found = -1;
         for (std::int64_t x = body.x; x < body.x + body.w && x < grid.w; ++x) {
             if (grid.glyphs[static_cast<std::size_t>(y * grid.w + x)] != glyph) continue;
@@ -3248,8 +3249,9 @@ TEST_CASE("room lost before the commitment refuses the open, and nothing is auth
     CHECK(e.r.session().notice == said.refusal);
     CHECK(e.read("path") == a_path);
     CHECK(e.read("text") == "one\n");
-    // ...AND A WINDOW BIG ENOUGH SHOWS THE DOCUMENT THAT WAS THERE, not the one refused.
-    e.r.extent(160, 48);
+    // ...AND A WINDOW BIG ENOUGH SHOWS THE DOCUMENT THAT WAS THERE, not the one refused: the
+    // medium that shrank grows back, as it said the room before.
+    e.r.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(48), 0, 0}));
     REQUIRE(in_sight());
     CHECK(e.doc_row(0) == "one");
 }
@@ -3297,7 +3299,7 @@ TEST_CASE("a resize after the commitment is an ordinary presentation change") {
         CHECK(top()); // the shrink's doing, after the commitment
         CHECK(keyboard_pane(e.r.session().panes) == e.kind);
         // ...AND A WINDOW BIG ENOUGH STACKS IT BEHIND THE OTHER AGAIN, WITH NO SECOND REQUEST.
-        e.r.extent(160, 48);
+        e.r.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(48), 0, 0}));
         CHECK_FALSE(top());
         CHECK(e.doc_row(0) == "two");
         CHECK(e.doc_row(0) != a_path);
@@ -5361,7 +5363,7 @@ TEST_CASE("gestures queued behind a quit the held Editor cannot be asked are rep
     CHECK(e.r.session().notice.find("dropped") == std::string::npos);
     // A BURST PAST THE HOLD: the quit, then 300 motions over the bare bottom row, one batch.
     e.enqueue_key(input::scan::kQ);
-    const std::int64_t bottom = screen_of(e.r.session()).h - 1 + surface::kTuiCanvasTopRow;
+    const std::int64_t bottom = screen_of(e.r.session()).h - 1;
     for (std::int64_t i = 0; i < 300; ++i) {
         (void)e.r.bus.publish(loom::Message(
             loom::to_value(input::PointerMoved{i % 3, bottom, 0, 0, input::space::kCells,
