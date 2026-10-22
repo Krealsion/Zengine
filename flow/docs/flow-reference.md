@@ -57,8 +57,12 @@ and host checks. Saving a draft does not run or apply it.
 **A node is added by an operator reference**: an identity and the two content ids it was found
 at, `zengine.OperatorRef`'s three fields, as the Flow pane's [`FlowEdit`](zengine.flow.md#flowedit)
 spells them. `add-node(identity, authored_in, authored_out[, before])` adds a step at the end, or before node `before`, renumbering every node binding, the result and
-the layout places that follow; `add-node-into(identity, authored_in, authored_out, node, port)`
-places it before `node` and wires it into that port in the same edit. A reference the graph's
+the layout places that follow; `add-node-into(identity, authored_in, authored_out, node, port[,
+x, y])` places it before `node` and wires it into that port in the same edit, and
+`add-node-from(identity, authored_in, authored_out, source, port[, x, y])` places it after what
+`source` names -- `%n`, after node `n`, or `$field`, at the trigger's start -- and wires that port
+from it; `add-fold-from(source, port[, x, y])` does so for the fold's counting ports. Given `x` and
+`y`, the new node's layout place is there. A reference the graph's
 ports now describe at other content ids is refused in words and never re-bound, as is one nothing
 supplies. `add-fold([before])` places the evaluator's [fold](../../operator/docs/operator-providers.md#the-fold) with
 its body unchosen and `step` bound to the constant 1, which the maker sees and changes like any

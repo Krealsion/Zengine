@@ -29,6 +29,24 @@ struct Dropped { loom::Value value; std::optional<PortChoice> port; };
 /// An operator reference dropped on a fold's body slot, by that slot's place: the reference the
 /// body is chosen from, whatever the door finds under its identity now.
 struct SlotReference { std::int64_t slot = 0; zengine::op::OperatorRef ref; };
+/// One end of a wire a hand holds: an output -- a node's answer or a field in scope -- or an input
+/// port, by its node's stable place.
+struct WireEnd { std::optional<zengine::op::Binding> source; std::optional<PortChoice> port; };
+/// A wire dragged from where it was pressed to the hand, in the picture's grid units, and the
+/// port it would bind to there, lit.
+struct WireDrawn {
+    std::int64_t from_x = 0, from_y = 0, to_x = 0, to_y = 0;
+    std::optional<PortChoice> lit;
+};
+/// THE SEARCH A WIRE LET GO ON EMPTY GRAPH ROOM OPENED: the end it wires, where the list stands in
+/// the picture's grid, where a node made from it is placed in the graph, the draft's revision it
+/// was opened against, the row the keys are on, and whether the door has answered its question.
+struct WireSearch {
+    WireEnd from;
+    std::int64_t x = 0, y = 0, place_x = 0, place_y = 0, revision = 0;
+    std::size_t selected = 0;
+    bool answered = false;
+};
 
 class Model {
 public:
@@ -55,6 +73,9 @@ public:
     std::optional<std::int64_t> body_slot;
     std::optional<SlotReference> slot_reference;
     std::optional<Dropped> dropped;
+    /// A wire being dragged, and the search one let go on empty room opened; neither is saved.
+    std::optional<WireDrawn> wire_drawn;
+    std::optional<WireSearch> wire_search;
     zengine::workshop::PowersFound discovered;
     bool discovered_read = false;
     std::string preview, preview_kind;
@@ -174,12 +195,27 @@ public:
         return {};
     }
     static bool writes_file(const std::string& action) { return !writing(action).empty(); }
+    /// A wire's source as `bind` spells one: `$field` or `%node`.
+    static zengine::op::Binding wire_source(const std::string& text) {
+        if (text.size() > 1 && text[0] == '$') return zengine::op::Binding::input(text.substr(1));
+        if (text.size() > 1 && text[0] == '%')
+            return zengine::op::Binding::node(flow::index_of(text.substr(1)));
+        throw std::invalid_argument("a wire's source is $field or %node");
+    }
 private:
+    /// Set node `n`'s place in the graph, within the workspace's bounds.
+    void place_at(std::size_t n, const std::string& xs, const std::string& ys) {
+        auto& p = workspace.graph.place(trigger(), n);
+        const auto x = flow::integer(xs), y = flow::integer(ys);
+        if (x < -10000000 || x > 10000000 || y < -10000000 || y > 10000000)
+            throw std::invalid_argument("node position is outside workspace bounds");
+        p.x = x; p.y = y;
+    }
     Action perform(const std::string& action, const std::vector<std::string>& args) {
         const auto previous_notice = notice;
         auto need = [&](std::size_t size) { if (args.size() != size) throw std::invalid_argument(action + " expects " + std::to_string(size) + " arguments"); };
         if (action == "describe") {
-            notice = "new(name,discard), state-field(name,type,required), message(name), message-field(index,name,type,required), trigger(message,output), add-node(identity,authored_in,authored_out[,before]), add-node-into(identity,authored_in,authored_out,node,port), add-fold([before]), fold-body(node,identity,authored_in,authored_out,count,accumulator), emitted-message(name), emitted-field(index,name,type,required), emit(index,field=$state|field=constant...), emit-remove(index), generate(directory), bind(node,port,$field|%node|constant), result(node), move(node,x,y), remove(node), save(path), open(path,discard), export-project(path), import-project(path,discard), preset(name), drafts, draft-open(index), run, apply, send, inspect, stop";
+            notice = "new(name,discard), state-field(name,type,required), message(name), message-field(index,name,type,required), trigger(message,output), add-node(identity,authored_in,authored_out[,before]), add-node-into(identity,authored_in,authored_out,node,port[,x,y]), add-node-from(identity,authored_in,authored_out,$field|%node,port[,x,y]), add-fold([before]), add-fold-from($field|%node,port[,x,y]), fold-body(node,identity,authored_in,authored_out,count,accumulator), emitted-message(name), emitted-field(index,name,type,required), emit(index,field=$state|field=constant...), emit-remove(index), generate(directory), bind(node,port,$field|%node|constant), result(node), move(node,x,y), remove(node), save(path), open(path,discard), export-project(path), import-project(path,discard), preset(name), drafts, draft-open(index), run, apply, send, inspect, stop";
         } else if (action == "new") {
             need(2); if (dirty && args[1] != "discard") throw std::invalid_argument("save the draft or explicitly choose discard");
             if (running) throw std::invalid_argument("stop this project's session before creating another");
@@ -207,11 +243,47 @@ private:
             node = workspace.graph.add(trigger(), reference(args[0], args[1], args[2]), palette, before);
             page = Page::Graph; touched();
         } else if (action == "add-node-into") {
-            // Placed before the node whose port it fills, and wired into that port, in one edit.
-            need(5); const auto into = flow::index_of(args[3]), port = flow::index_of(args[4]);
+            // Placed before the node whose port it fills, and wired into that port, in one edit;
+            // given a place, it stands there in the graph.
+            if (args.size() != 5 && args.size() != 7)
+                throw std::invalid_argument(
+                    "add-node-into expects an identity, the two content ids it was found at, the "
+                    "node and its port, and optionally the place x and y");
+            const auto into = flow::index_of(args[3]), port = flow::index_of(args[4]);
             const auto added = workspace.graph.add(trigger(), reference(args[0], args[1], args[2]), palette, into);
             workspace.graph.bind(trigger(), into + 1, port, zengine::op::Binding::node(added), palette);
+            if (args.size() == 7) place_at(added, args[5], args[6]);
             node = added; filling.reset(); page = Page::Graph; touched();
+        } else if (action == "add-node-from" || action == "add-fold-from") {
+            // A power, or the fold, placed after what it reads -- after node %n, or at the
+            // trigger's start for a field -- one of its ports wired from it, in one edit; given a
+            // place, it stands there in the graph.
+            const bool fold = action == "add-fold-from";
+            const std::size_t given = fold ? 2 : 5;
+            if (args.size() != given && args.size() != given + 2)
+                throw std::invalid_argument(
+                    action + " expects " +
+                    (fold ? std::string()
+                          : std::string("an identity, the two content ids it was found at, ")) +
+                    "the source ($field or %node) and the port, and optionally the place x and y");
+            const auto source = wire_source(args[given - 2]);
+            const auto port = flow::index_of(args[given - 1]);
+            std::size_t after = 0;
+            if (source.from() == zengine::op::Binding::From::Node) {
+                const auto& nodes = workspace.graph.project.definition.on.at(trigger()).body.nodes;
+                if (source.node_index() >= nodes.size())
+                    throw std::invalid_argument("there is no node " +
+                                                std::to_string(source.node_index()) +
+                                                " to wire from");
+                after = source.node_index() + 1;
+            }
+            const auto added =
+                fold ? workspace.graph.add_fold(trigger(), after)
+                     : workspace.graph.add(trigger(), reference(args[0], args[1], args[2]), palette,
+                                           after);
+            workspace.graph.bind(trigger(), added, port, source, palette);
+            if (args.size() == given + 2) place_at(added, args[given], args[given + 1]);
+            node = added; connecting.reset(); filling.reset(); page = Page::Graph; touched();
         } else if (action == "emitted-message") {
             need(1); (void)workspace.graph.message(args[0], {}, true); page = Page::Messages; touched();
         } else if (action == "emitted-field") {
@@ -269,10 +341,7 @@ private:
         } else if (action == "remove") {
             need(1); workspace.graph.remove(trigger(), flow::index_of(args[0])); node.reset(); connecting.reset(); touched();
         } else if (action == "move") {
-            need(3); auto& p = workspace.graph.place(trigger(), flow::index_of(args[0]));
-            const auto x = flow::integer(args[1]), y = flow::integer(args[2]);
-            if (x < -10000000 || x > 10000000 || y < -10000000 || y > 10000000) throw std::invalid_argument("node position is outside workspace bounds");
-            p.x = x; p.y = y; touched();
+            need(3); place_at(flow::index_of(args[0]), args[1], args[2]); touched();
         } else if (action == "export-project") {
             need(1); const auto errors = workspace.graph.problems(palette);
             if (!errors.empty()) throw std::invalid_argument(errors.front());

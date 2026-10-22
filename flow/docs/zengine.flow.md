@@ -53,9 +53,10 @@ keeps its state.
 Most commands open a dialog first; [`dialog-confirm`](#dialog-confirm) does what it asks. While a
 dialog is open every other command says `Confirm or cancel the open dialog before another edit`.
 Outside a dialog, what you type goes to the search line on the Graph page; the Escape key puts down
-one thing per press (a dropped value, the wire in hand, the selected port, an open body slot, the
-preview, the selected node, the search line) and only then hands the pane back to Workshop; the
-Delete key removes the selected node; Return adds the previewed row.
+one thing per press (a wire's search and its wire, a dropped value, the wire in hand, the selected
+port, an open body slot, the preview, the selected node, the search line) and only then hands the
+pane back to Workshop; the Delete key removes the selected node; Return adds the previewed row.
+While a wire's search is open, the arrow keys move among its rows and Return makes the one marked.
 
 ## Commands
 
@@ -120,6 +121,33 @@ Writes the definition as a C++ project that builds into a weave like any other.
   choose a new output directory`; the draft's first problem; the writes' refusals. Nothing is
   written then.
 - **Example:** press <!-- key ask-generate -->`ctrl+g`<!-- /key -->, confirm.
+
+### `find-wire`
+
+Opens a wire's search for the wire in hand, or the port selected: what a node made from that wire
+could be. Letting a dragged wire go on empty graph room opens the same search where it was let go
+([`graph`](#graph)).
+
+- **Takes:** a wire held by a press on an output or a field under In scope, or a selected input
+  port. Default key <!-- key find-wire -->`ctrl+n`<!-- /key -->; no control of its own.
+- **Answers:** a list at the graph's centre, `From <%n or $field> : <type> -- what takes it` or
+  `Into %n <port> : <type> -- what fills it`, the search line above its rows, and asks the discovery
+  door ([`FindPowers`](../../introspection/docs/zengine.powers.md#findpowers)): from an output, each
+  power with a port of exactly that type, a row a port (`math.add -> lhs`), and the fold's counting
+  ports for an `Int`; from a port, what is in scope of its type, a typed constant for `Int` and
+  `Bool`, then each power that yields it. A row chosen makes the node, placed after what it reads
+  (at the trigger's start for a field) or before the port's node, where the list was opened, wired,
+  and selected, in one edit: `Added %k <power>, wired from <%n or $field>` or `Added %k <power>,
+  wired into %m <port>`; an In scope row binds the port, `Bound %n <port> to <binding>`; the
+  constant row opens the binding editor. Escape, or a press outside the list, closes it and puts the
+  wire down: `The wire was put down: <why>; nothing was made`.
+- **Refuses:** `Hold a wire first -- click an output or a field In scope, or select a port -- then
+  ask for a new node from it`; `A new node from the wire needs the graph shown`; a row whose ports
+  changed since it was found, `'<power>' is not the operator this reference was found at: its
+  ports changed since; find it again`; `The graph changed since the wire was let go; nothing was
+  made -- let it go again`. Nothing is made then.
+- **Example:** press a node's output, press <!-- key find-wire -->`ctrl+n`<!-- /key -->, type `add`,
+  press Return.
 
 ### `ask-discard`
 
@@ -577,14 +605,15 @@ Workshop numbered no gesture for it.
 
 `AreaButtonChanged` v1, from that window: a button pressed or let go in Flow's area, at its point in
 the picture last drawn there, which is that press on Workshop's canvas: a node selected and held for
-a drag, a place's control done, a declared message offered to carry out, the graph panned by a press
-on nothing, a right press handed back. Its moves and its release carry the window's number for the
-press, which a carry it asks continues.
+a drag, a wire's end held for a drag, a place's control done, a declared message offered to carry
+out, the graph panned by a press on nothing, a right press handed back. Its moves and its release
+carry the window's number for the press, which a carry it asks continues.
 
 ### `AreaPointerMoved`
 
 `AreaPointerMoved` v1, from that window: the pointer moved while a press in Flow's area is held,
-which moves the held node or pans the graph, as on Workshop's canvas.
+which moves the held node, pans the graph or draws the held wire to the hand, as on Workshop's
+canvas.
 
 ### `AreaWheelTurned`
 
@@ -610,7 +639,9 @@ on the bus like any weave's, and any subscriber hears them.
 The Graph page: the trigger list with `[Add trigger]` and `[Emit]`, the search line `find: `, the
 rail of what is in scope and what the door found, the active trigger's nodes and wires, and a
 preview of the row you chose with its `[Add]`. A press selects a node, a port or a row; drag a node
-to move it, blank room to pan.
+to move it, blank room to pan. Drag a wire from an output, an In scope field or a port: let go on
+its other end it binds, on empty room it opens [`find-wire`](#find-wire)'s list, elsewhere it is
+put down.
 
 ### `state`
 
