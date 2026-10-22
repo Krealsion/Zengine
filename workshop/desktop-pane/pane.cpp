@@ -30,6 +30,7 @@
 
 #include "manuals/zengine.desktop.hpp" // this weave's manual, compiled in from its page
 
+#include "workshop/command_vocabulary.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/inspection_seam_vocabulary.hpp"
 #include "workshop/pane_canvas_rows.hpp"
@@ -314,6 +315,13 @@ public:
         }
         if (asked.id == pane::kActionHotkeys) {
             pane::launch(mail, pane::kDesktopRole, pane::kHotkeysPane, launches_);
+            return;
+        }
+        if (asked.id == pane::kActionPalette) {
+            // Shown over the pane holding the keys, or hidden: the host judges which.
+            (void)mail.as_role(pane::kDesktopRole)
+                .send_to_role(kWorkshopRole, PaneToggleRequested{ws::kPaletteRole, ws::kPalettePane},
+                              ++launches_);
             return;
         }
         if (asked.id == pane::kActionManual) {
@@ -637,11 +645,10 @@ private:
     // ---- Declaring and asking ---------------------------------------------------------------
 
     /// THE APPLICATION ROWS, WHY EACH GESTURE, AND WHAT A PRESS CAUSES (`on(AppActionRequested)`).
-    /// `Ctrl+t` -- the Terminal's own chord, restored as an application row.
-    /// `Ctrl+p` -- the launcher: a plain ctrl+letter, which is what the POSIX wire can say.
-    /// `Escape` -- in the DEFAULT class, which is what keeps every pane's own Escape its own.
-    /// `Ctrl+f` -- a pane's manual, above every mode: a pane keeps every key it did not declare,
-    /// so only a chord reaches past it, and a terminal delivers `?` as no key.
+    /// `Ctrl+t` the Terminal's own chord; `Ctrl+p` the launcher, a ctrl+letter the POSIX wire says;
+    /// `Escape` in the DEFAULT class, so every pane's own Escape stays its own; `Ctrl+f` a pane's
+    /// manual, above every mode, since only a chord reaches past a pane holding the keys;
+    /// `Ctrl+Space` the palette, a chord every window says, typing nothing where it opens.
     static std::vector<AppActionRow> app_rows() {
         return {
             AppActionRow{pane::kActionTerminal, "terminal", input::scan::kT, input::mod::kCtrl,
@@ -665,7 +672,11 @@ private:
                          ws::app_precedence::kAboveModes,
                          {ws::cause_of<ws::PaneDocumentRequested>(),
                           ws::cause_of<PaneLaunchRequested>(
-                              ws::to_pane(pane::kDesktopRole, pane::kManualPane))}}};
+                              ws::to_pane(pane::kDesktopRole, pane::kManualPane))}},
+            AppActionRow{pane::kActionPalette, "palette", input::scan::kSpace, input::mod::kCtrl,
+                         ws::app_precedence::kAboveModes,
+                         {ws::cause_of<PaneToggleRequested>(
+                             ws::to_pane(ws::kPaletteRole, ws::kPalettePane))}}};
     }
 
     /// DECLARE THE PANE MANAGER'S ROWS, under a new attempt number, so the verdict that comes

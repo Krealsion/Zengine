@@ -231,8 +231,9 @@ notice line, with the override count — that happened, once, at this launch. A 
 **refused** is a standing condition instead: the defaults stand for the whole run and for
 every run until you change the file, so it goes to attention with the loader's own reason and
 stays there until it is no longer true ([the Attention pane](../../attention/docs/zengine.attention.md)). Workshop
-never trims or "fixes" it; the only thing that writes it is an edit you made in the Hotkeys
-pane, and that never touches a file that was refused or that changed under it
+never trims or "fixes" it; what writes it is an edit an office asked for -- the Hotkeys pane's,
+when you change a binding there -- judged whole and applied before it is written, and an edit
+never touches a file that was refused or that changed under it
 ([editing a binding](#editing-a-binding)).
 
 The file and its folder may be named in any language. Below, Workshop was launched with its
@@ -304,6 +305,9 @@ receives every ordinary key and character uninterpreted, and what those mean is 
 to define and to document. What a pane *declares* — its own action ids, such as `powers.view`
 — joins this keymap under the same collision law, appears in the legend and the Hotkeys pane,
 and moves in the same file, by id, exactly as Workshop's own rows do. The editing component's
-keys are shared by every text field and are not per-application. And
-there is no command palette, no macro recorder and no key-sequence grammar — a binding is one
-named key with the modifiers that were held.
+keys are shared by every text field and are not per-application. There is a
+[command palette](zengine.palette.md), on <!-- key desktop.palette -->`ctrl+space`<!-- /key -->,
+which lists every action in force and runs one by name as its key would; on a system whose input
+method keeps Ctrl+Space for itself, the key never reaches Workshop, and the palette is opened from
+the Pane Manager or by a key you give `desktop.palette`. There is no macro recorder and no
+key-sequence grammar — a binding is one named key with the modifiers that were held.

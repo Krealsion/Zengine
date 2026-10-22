@@ -36,6 +36,7 @@
 #include "manuals/zengine.workshop.hpp" // this office's manual, compiled in from its page
 #include "pane_operation.hpp"
 #include "pane_shortcuts.hpp"
+#include "command_vocabulary.hpp" // a command run by name, from the palette
 #include "pane_carry.hpp"
 #include "pane_drawing.hpp" // Workshop's own area in a graphics window, as its drawer keeps it
 #include "pane_view.hpp"
@@ -350,7 +351,7 @@ class WorkshopWeave
     : public zengine::With<TerminalDoorFacet,
                            manual::ManualFacet<manual::pages::zengine_workshop::kManual>>::
           Weave<WorkshopWeave, WorkshopState,
-                             loom::Accept<PaneShortcutInvoked, PaneViewRequested, PanePointRequested, DeskReadRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::workshop::v2::PaneCanvasContent, zengine::workshop::v4::PaneCanvasContent, zengine::workshop::v5::PaneCanvasContent, zengine::workshop::v6::PaneCanvasContent, v2::PaneOperationRequested, ActorScopeRequested, zengine::input::KeyPressed, zengine::input::TextEntered,
+                             loom::Accept<PaneShortcutInvoked, CommandRunRequested, PaneViewRequested, PanePointRequested, DeskReadRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::workshop::v2::PaneCanvasContent, zengine::workshop::v4::PaneCanvasContent, zengine::workshop::v5::PaneCanvasContent, zengine::workshop::v6::PaneCanvasContent, v2::PaneOperationRequested, ActorScopeRequested, zengine::input::KeyPressed, zengine::input::TextEntered,
                                           zengine::input::PointerButton,
                                           zengine::input::PointerMoved,
                                           zengine::input::PointerWheel,
@@ -713,6 +714,11 @@ public:
     /// Whether `asker` may read the desk once more now, or the refusal in words: a rate per asker.
     std::string take_desk_read(loom::WeaveId asker);
     void on(const PaneShortcutInvoked& asked, loom::Mail& mail);
+    /// A COMMAND THE PALETTE'S OWN ROW RAN BY NAME (`command_vocabulary.hpp`), performed by its key's
+    /// or press's path as the hand that pressed that row, and answered.
+    void on(const CommandRunRequested& asked, loom::Mail& mail);
+    /// The palette left the desk: the keys go back to the pane that held them when it opened.
+    void palette_closed(const PaneRef& ref);
     /// The current gesture of `pane` approves one operation -- a named (shape, version, role) send,
     /// the action classes the act is, or both -- or why not. Spends the gesture; `approved`, when
     /// given, is told whose hand it was.
@@ -2184,6 +2190,8 @@ private:
     void press_settings(std::int64_t kind, const PointedAt& at);
     /// Monotonic from one: zero is never a gesture's number, and no record matches another kind's.
     std::uint64_t gesture_asks_ = 0;
+    /// The pane that held the keys when the palette last took them, which it gives them back to.
+    std::int64_t palette_over_ = kNoPaneKind;
     /// The quit in flight: its ask, the answers still owed, the refusals, the gestures held.
     std::uint64_t quit_ask_ = 0;
     std::size_t quit_outstanding_ = 0;

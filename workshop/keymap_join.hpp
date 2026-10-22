@@ -393,6 +393,14 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane,
                     PaneRow{d.id, d.label, Gesture{d.scancode, d.modifiers}, std::string()});
                 continue;
             }
+            // ...AND AN APPLICATION ROW NO WEAVE DECLARES NOW stands down for nobody yet: the row
+            // keeps its claim, which stands the application row down once one declares it.
+            if (stands_for == nullptr && app_stands_for == nullptr &&
+                d.supersedes.rfind(kApplicationIdPrefix, 0) == 0) {
+                rows.push_back(
+                    PaneRow{d.id, d.label, Gesture{d.scancode, d.modifiers}, d.supersedes});
+                continue;
+            }
             if (stands_for == nullptr && app_stands_for == nullptr) {
                 return Written::no("`" + d.id + "`: `" + d.supersedes +
                                    "` is not an action id this Workshop knows -- a row can "

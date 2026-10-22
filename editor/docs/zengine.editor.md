@@ -176,6 +176,18 @@ Neovim's own jump back, `<C-o>`; from Insert mode, one Normal command.
 - **Refuses:** `Neovim is not running -- open a source to start it`.
 - **Example:** after a search, press <!-- key neovim.jump-older -->`ctrl+o`<!-- /key --> to go back.
 
+### `neovim.ctrl-space`
+
+Neovim's own `<C-Space>`, kept for it while Neovim holds your keys: the row stands in for the
+[palette's key](../../workshop/docs/zengine.desktop.md#desktoppalette), which reaches past every
+other pane.
+
+- **Takes:** nothing. Default key <!-- key neovim.ctrl-space -->`ctrl+space`<!-- /key -->.
+- **Answers:** Neovim gets `<C-Space>`, and does what its mode does with it.
+- **Refuses:** `Neovim is not running -- open a source to start it`.
+- **Example:** in Insert mode with a completion plugin, press
+  <!-- key neovim.ctrl-space -->`ctrl+space`<!-- /key -->; open the palette from the Pane Manager.
+
 ### `neovim.location`
 
 Picks up this file's location at Neovim's cursor, as [`editor.location`](#editorlocation) does. It
