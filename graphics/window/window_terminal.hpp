@@ -236,6 +236,8 @@ public:
     /// instructions: no placement to say, and none to take.
     std::optional<WindowPlacementValue> placement() const { return std::nullopt; }
     void place(const WindowPlacementValue&) {}
+    /// Nor a title or a size: the terminal's are its own.
+    void shape(const std::string&, const PixelSize&) {}
 
     /// The cells the terminal last showed, less their ink: a row of glyphs a line, each ending in a
     /// newline, at the size they were shown at; none before the first showing.

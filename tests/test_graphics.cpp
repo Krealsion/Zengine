@@ -5924,3 +5924,99 @@ TEST_CASE("the OS window over SDL with no display has no clipboard to read, no p
 }
 
 #endif // GRAPHICS_HAS_SDL
+
+namespace {
+/// An office that arranges: it places areas and shapes the window, and hears nothing.
+class Arranger : public loom::WeaveBase<Arranger, GraphicsTestOwner, loom::Accept<>,
+                                        loom::Emit<gfx::AreaPlaced, gfx::WindowShaped>> {};
+
+/// `area` placed again by the office `test.arranger`, which then arranges in the window; its id.
+loom::WeaveId arranged_by(LitWindow& t, const std::string& area, std::int64_t w, std::int64_t h) {
+    auto made = std::make_unique<Arranger>();
+    Arranger* raw = made.get();
+    loom::Grant g = loom::emit_default_grant(*raw);
+    const loom::WeaveId id = t.r.bus.register_weave(std::move(made), std::move(g), "test.arranger");
+    raw->zen_set_self(id);
+    t.r.bus.office_send_to_role_as(
+        id, "test.arranger", gfx::kGraphicsRole,
+        loom::Message(loom::to_value(gfx::AreaPlaced{area, gfx::kSdlWindow, area, 0, 0, w, h, 1, false})));
+    t.r.drain();
+    return id;
+}
+
+/// `said` to the window as the office `office`, by the weave `id`.
+template <class T>
+void say_as(LitWindow& t, loom::WeaveId id, const std::string& office, const T& said) {
+    t.r.bus.office_send_to_role_as(id, office, sdl_office(), loom::Message(loom::to_value(said)));
+    t.r.drain();
+}
+} // namespace
+
+TEST_CASE("a shaped window is as large as asked, a side of 0 keeping its own, never past its "
+          "display with its frame, and never smaller than a pixel") {
+    const gw::DesktopSpan display{0, 0, 1920, 1032};
+    CHECK(gw::shaped_within({320, 260}, {1600, 900}, 16, 39, display) == gw::PixelSize{320, 260});
+    CHECK(gw::shaped_within({0, 260}, {1600, 900}, 16, 39, display) == gw::PixelSize{1600, 260});
+    CHECK(gw::shaped_within({320, -4}, {1600, 900}, 16, 39, display) == gw::PixelSize{320, 900});
+    // PAST THE DISPLAY: kept within it, the frame's own pixels around it.
+    CHECK(gw::shaped_within({4000, 3000}, {1600, 900}, 16, 39, display) ==
+          gw::PixelSize{1920 - 16, 1032 - 39});
+    CHECK(gw::shaped_within({4000, 200}, {1600, 900}, 16, 39, gw::DesktopSpan{-1920, 0, 1280, 720}) ==
+          gw::PixelSize{1280 - 16, 200});
+    CHECK(gw::shaped_within({1, 1}, {1600, 900}, 16, 39, display) == gw::PixelSize{1, 1});
+}
+
+TEST_CASE("an OS window takes its title and its size from an office that arranges an area in it, "
+          "and from no other; a shaped window is not grown back by what it held before") {
+    // MUTATION: a shaping taken from any office -- the window is shaped by `test.other`.
+    LitWindow t(nullptr, true);
+    t.own("test.other", 0, 0, 100, 50, "night");
+    t.own("test.app", 0, 0, 1000, 800, "night", 1);
+    const loom::WeaveId arranger = arranged_by(t, "test.app", 1000, 800);
+    REQUIRE(t.light.grown.empty());
+    const std::size_t offers = t.platform.heard.offers.size();
+
+    // AN OFFICE THAT ARRANGES NOTHING HERE, and a shaping naming another window: nothing changes.
+    auto made = std::make_unique<Arranger>();
+    Arranger* raw = made.get();
+    loom::Grant g = loom::emit_default_grant(*raw);
+    const loom::WeaveId stranger = t.r.bus.register_weave(std::move(made), std::move(g), "test.stranger");
+    raw->zen_set_self(stranger);
+    say_as(t, stranger, "test.stranger", gfx::WindowShaped{gfx::kSdlWindow, "stranger", 320, 260});
+    say_as(t, arranger, "test.arranger", gfx::WindowShaped{gfx::kTerminalWindow, "tally", 320, 260});
+    CHECK(t.light.shaped.empty());
+    CHECK(t.light.size == gw::PixelSize{gw::kDefaultWidth, gw::kDefaultHeight});
+
+    // THE ARRANGER: the title and the size, and the window offered again at that size.
+    say_as(t, arranger, "test.arranger", gfx::WindowShaped{gfx::kSdlWindow, "tally", 320, 260});
+    REQUIRE(t.light.shaped.size() == 1);
+    CHECK(t.light.shaped[0].first == "tally");
+    CHECK(t.light.shaped[0].second == gw::PixelSize{320, 260});
+    REQUIRE(t.platform.heard.offers.size() == offers + 1);
+    CHECK(t.platform.heard.offers.back().width == 320);
+    CHECK(t.platform.heard.offers.back().height == 260);
+
+    // WHAT ITS AREAS REACHED BEFORE does not grow it back, picture after picture...
+    gfx::Sketch s;
+    s.fill_rect("r", 0, 0, 24, 12, gfx::by_role(gfx::role::kFill));
+    t.say("test.app", whole("test.app", s));
+    t.pump();
+    CHECK(t.light.grown.empty());
+    // ...and an area reaching further still does.
+    t.own("test.far", 0, 0, 1200, 100, "night", 2);
+    REQUIRE(t.light.grown.size() == 1);
+    CHECK(t.light.grown[0].width == 1200);
+
+    // A TITLE IS TAKEN WHOLE: a control character a space, and a long one cut where a character
+    // begins.
+    std::string long_title(gfx::kMaxWindowTitleBytes - 1, 'a');
+    long_title += "\xC3\xA9tally";
+    say_as(t, arranger, "test.arranger", gfx::WindowShaped{gfx::kSdlWindow, "tal\nly", 0, 0});
+    say_as(t, arranger, "test.arranger", gfx::WindowShaped{gfx::kSdlWindow, long_title, 0, 0});
+    REQUIRE(t.light.shaped.size() == 3);
+    CHECK(t.light.shaped[1].first == "tal ly");
+    CHECK(t.light.shaped[2].first == std::string(gfx::kMaxWindowTitleBytes - 1, 'a'));
+    // A SIDE OF 0 keeps the window's own: still 320 by 260, so nothing is offered again.
+    CHECK(t.light.size == gw::PixelSize{320, 260});
+    CHECK(t.platform.heard.offers.size() == offers + 1);
+}

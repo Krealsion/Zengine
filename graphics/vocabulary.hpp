@@ -280,6 +280,23 @@ struct WindowOffered {
               ZEN_FIELD(text_line_px));
 };
 
+/// The longest title a window takes, in bytes; a longer one is cut where a character begins.
+inline constexpr std::size_t kMaxWindowTitleBytes = 256;
+
+/// An arranger -> a window's office, as the office that arranges an area in that window: the
+/// window's title, and its size in pixels. The window takes it only from an office that arranges in
+/// it and only when it names that window; anything else changes nothing. An OS window sets both,
+/// keeping a size past its display's usable area within it, a side of 0 keeping that side as it is,
+/// and a title cut to `kMaxWindowTitleBytes`; a terminal keeps its own size and title. A window
+/// whose size changed offers itself again, and its areas grow it back only by reaching further.
+struct WindowShaped {
+    std::string window;
+    std::string title;
+    std::int64_t width = 0, height = 0;
+    ZEN_SHAPE(WindowShaped, 1, ZEN_FIELD(window), ZEN_FIELD(title), ZEN_FIELD(width),
+              ZEN_FIELD(height));
+};
+
 /// The arranger -> the directory: where an area stands, in which window, whose office draws in it,
 /// its order among the window's areas (a higher order stands in front), whether the window gives
 /// its keys to the owner, whether it gives the owner its pointer (`AreaButtonChanged` and the
