@@ -97,6 +97,7 @@ add_library(zengine-workshop-logic STATIC
     weave_canvas.cpp
     weave_external.cpp
     weave_operation.cpp
+    weave_command.cpp
     weave_handlers.cpp
     weave_input.cpp
     weave_inspection.cpp
@@ -209,7 +210,7 @@ set(zengine_workshop_artifacts zengine-skin-tui-classic zengine-input zengine-ti
                                zengine-introspection zengine-composer zengine-files
                                zengine-builder-pane zengine-attention-pane
                                zengine-desktop-pane zengine-connections-pane zengine-demo-control
-                               zengine-menu-presenter zengine-flow-pane zengine-view-builder
+                               zengine-menu-presenter zengine-palette zengine-flow-pane zengine-view-builder
                                zengine-info-pane zengine-terminal-pane
                                zengine-editor-pane zengine-neovim-editor
                                zengine-operators-basic
@@ -304,7 +305,7 @@ set(zengine_workshop_pane_weaves zengine-attention-pane zengine-builder-pane zen
                                  zengine-introspection zengine-composer
                                  # ...and the menu presenter, which draws nothing of its own but
                                  # is a weave a weaver edits, builds and reloads like any pane
-                                 zengine-menu-presenter zengine-flow-pane zengine-view-builder)
+                                 zengine-menu-presenter zengine-palette zengine-flow-pane zengine-view-builder)
 if(CMAKE_CONFIGURATION_TYPES)
     set(zengine_development_config "$<CONFIG>")
     set(zengine_development_runtime "${CMAKE_BINARY_DIR}/workshop-runtime/$<CONFIG>")

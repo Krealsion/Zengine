@@ -229,6 +229,16 @@
           }
         ],
         "optional": true
+      },
+      {
+        "artifact": "zengine-palette",
+        "provider": [],
+        "weave": [
+          {
+            "role": "zengine.palette"
+          }
+        ],
+        "optional": true
       }
     ],
     "choices": [

@@ -7,5 +7,6 @@ zengine.editor - editor.extract ctrl+e PaneValueCarryRequested/1 - carry the sel
 zengine.editor - editor.location ctrl+l PaneValueCarryRequested/1 - carry this file's location
 zengine.editor - neovim.write ctrl+s - - write (:w)
 zengine.editor - neovim.jump-older ctrl+o - - jump back (<C-o>)
+zengine.editor - neovim.ctrl-space ctrl+space - - <C-Space> to Neovim
 zengine.editor - neovim.location unbound PaneValueCarryRequested/1 - carry this file's location
 zengine.editor - neovim.extract ctrl+r PaneValueCarryRequested/1 - carry the selection

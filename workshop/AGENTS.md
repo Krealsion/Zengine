@@ -9,6 +9,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 |---|---|
 | `desktop-pane/` | the Pane Manager and Hotkeys: `zengine-desktop-pane`, a loadable weave; its law: desktop, desktop-presenting, keymap-edit, keyboard |
 | `menu-presenter/` | shows a pane's menu: `zengine-menu-presenter`, a loadable weave; its law: pane-menu, and the second button in `agents/panes.md` |
+| `palette/` | the Command Palette: `zengine-palette`, a loadable weave listing every action and pane by name and asking Workshop to run one (`command_vocabulary.hpp`); its law: WL-DESK-18 in `agents/workshop/desktop.md` |
 | `workshop.cpp` | the host's `main`: `zengine-workshop` |
 | `weave.hpp`, `weave_*.cpp` | Workshop's own weave: the session, input bound to gestures; it composes the Terminal's door, `terminal/door.hpp` |
 | `desk_read.hpp`, `weave_desk_read.cpp` | the desk read by message: where words and parts stand and how a reading pages (the header); the weave's answers; its law: desk-read |

@@ -317,6 +317,10 @@ inline std::string gap_sentence(std::string_view spelled, std::string_view id, c
 /// expected.
 // WL-KEY-12 -- agents/workshop/keyboard.md
 inline std::string expected_text_of(std::int64_t scancode, std::int64_t modifiers) {
+    // Ctrl+Space is the one chord a window may also type, as a space: the Windows console does.
+    if (scancode == scan::kSpace && modifiers == mod::kCtrl) {
+        return " ";
+    }
     if ((modifiers & (mod::kCtrl | mod::kAlt | mod::kSuper)) != 0) {
         return std::string();
     }

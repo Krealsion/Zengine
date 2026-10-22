@@ -207,7 +207,8 @@ struct PaneActionRow {
     std::int64_t modifiers = 0; ///< `zengine::input::mod`'s bitmask
     /// One of Workshop's own action ids this row stands in for while the pane owns the keyboard,
     /// or empty (WL-KEY-15). An application row (WL-DESK-07) stays superseded wherever a keymap
-    /// file moved either row; a retired id stands in for nothing; any other is refused.
+    /// file moved either row; a retired id stands in for nothing, and an application row no weave
+    /// declares now, `desktop.` and its name, for nothing until one does; any other is refused.
     std::string supersedes;
     ZEN_SHAPE(PaneActionRow, 2, ZEN_FIELD(id), ZEN_FIELD(label), ZEN_FIELD(scancode),
               ZEN_FIELD(modifiers), ZEN_FIELD(supersedes));
