@@ -252,6 +252,9 @@ KeymapEditAnswered v1 0xc4076e9e76909fd3
 KeymapEditRequested v1 0xb039709485b92a21
 KeymapRequested v1 0x1f9fa150659359e4
 KeymapShown v3 0x864ccb540c579b17
+Launch v1 0x264acc9298caf3f0
+Launched v1 0x038a9ec908caf910
+LauncherState v1 0x77d638e6de58fe46
 LayoutPaneSettings v1 0x5bda473ede871192
 LayoutSettings v1 0x474f9e044edb9766
 LayoutSettingsRequested v1 0x913e2e891bf53d60
