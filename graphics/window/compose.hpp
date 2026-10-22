@@ -9,6 +9,7 @@
 // painted. What it keeps painted is the window's memory, never its state: a reload paints it
 // again from the nodes its state keeps. Reference: graphics/docs/zengine.window.terminal.md.
 
+#include "graphics/ops.hpp"
 #include "graphics/term_paint.hpp"
 #include "graphics/window/store.hpp"
 
@@ -36,6 +37,76 @@ inline Place place_of(const WinArea& a) {
     const std::int64_t c0 = term::floor_cell(a.x), r0 = term::floor_cell(a.y);
     return Place{c0, r0, term::floor_cell(a.x + a.w) - c0, term::floor_cell(a.y + a.h) - r0};
 }
+
+/// The window's cells to show again: a flag a cell over a grid of the window's size, and the box
+/// the flagged cells span. A cell outside the grid is never shown, so it is never flagged.
+class DirtyCells {
+public:
+    /// A grid of `cols` by `rows` cells, none flagged.
+    void size(std::int64_t cols, std::int64_t rows) {
+        cols_ = (std::max<std::int64_t>)(cols, 0);
+        rows_ = (std::max<std::int64_t>)(rows, 0);
+        flags_.assign(static_cast<std::size_t>(cols_ * rows_), 0);
+        count_ = 0;
+    }
+    void mark(std::int64_t c, std::int64_t r) {
+        if (c < 0 || r < 0 || c >= cols_ || r >= rows_) {
+            return;
+        }
+        char& f = flags_[index(c, r)];
+        if (f != 0) {
+            return;
+        }
+        f = 1;
+        if (count_ == 0) {
+            c0_ = c1_ = c;
+            r0_ = r1_ = r;
+        } else {
+            c0_ = (std::min)(c0_, c);
+            c1_ = (std::max)(c1_, c);
+            r0_ = (std::min)(r0_, r);
+            r1_ = (std::max)(r1_, r);
+        }
+        ++count_;
+    }
+    void mark_all() {
+        std::fill(flags_.begin(), flags_.end(), char{1});
+        count_ = static_cast<std::size_t>(cols_ * rows_);
+        c0_ = r0_ = 0;
+        c1_ = cols_ - 1;
+        r1_ = rows_ - 1;
+    }
+    /// Every flag let go, over the box they span alone.
+    void clear() {
+        if (count_ == 0) {
+            return;
+        }
+        for (std::int64_t r = r0_; r <= r1_; ++r) {
+            std::fill(flags_.begin() + static_cast<std::ptrdiff_t>(index(c0_, r)),
+                      flags_.begin() + static_cast<std::ptrdiff_t>(index(c1_, r)) + 1, char{0});
+        }
+        count_ = 0;
+    }
+    bool empty() const { return count_ == 0; }
+    std::size_t count() const { return count_; }
+    bool marked(std::int64_t c, std::int64_t r) const {
+        return c >= c0_ && c <= c1_ && r >= r0_ && r <= r1_ && flags_[index(c, r)] != 0;
+    }
+    /// The box the flagged cells span, its corners inclusive; meaningless while `empty()`.
+    std::int64_t c0() const { return c0_; }
+    std::int64_t r0() const { return r0_; }
+    std::int64_t c1() const { return c1_; }
+    std::int64_t r1() const { return r1_; }
+
+private:
+    std::size_t index(std::int64_t c, std::int64_t r) const {
+        return static_cast<std::size_t>(r * cols_ + c);
+    }
+    std::int64_t cols_ = 0, rows_ = 0;
+    std::vector<char> flags_;
+    std::size_t count_ = 0;
+    std::int64_t c0_ = 0, r0_ = 0, c1_ = 0, r1_ = 0;
+};
 
 /// One node as painted: its place in the area's paint order, and its cells, cut to the area.
 struct PaintedNode {
@@ -66,7 +137,7 @@ public:
 
     /// The window cells a painted node covers.
     void cover(const std::string& area, const std::string& path, const Place& pl,
-               std::set<CellAt>& into) const {
+               DirtyCells& into) const {
         const Painted* p = of(area);
         if (p == nullptr) {
             return;
@@ -76,7 +147,7 @@ public:
             return;
         }
         for (const term::Cell& c : n->second.cells) {
-            into.insert({pl.col + c.col, pl.row + c.row});
+            into.mark(pl.col + c.col, pl.row + c.row);
         }
     }
 
@@ -99,25 +170,18 @@ inline std::vector<const WinArea*> front_to_back(const std::vector<WinArea>& are
 /// node by paint order; an area shows what lies behind it wherever it painted nothing; else blank.
 /// The cells are settled on a grid over the box `dirty` spans, front area first.
 inline std::vector<term::Cell> compose(const std::vector<WinArea>& areas, const Cache& cache,
-                                       const std::set<CellAt>& dirty) {
+                                       const DirtyCells& dirty) {
     if (dirty.empty()) {
         return {};
     }
-    const std::int64_t c0 = dirty.begin()->first, c1 = dirty.rbegin()->first;
-    std::int64_t r0 = dirty.begin()->second, r1 = r0;
-    for (const CellAt& d : dirty) {
-        r0 = (std::min)(r0, d.second);
-        r1 = (std::max)(r1, d.second);
-    }
+    const std::int64_t c0 = dirty.c0(), c1 = dirty.c1();
+    const std::int64_t r0 = dirty.r0(), r1 = dirty.r1();
     const std::int64_t w = c1 - c0 + 1;
     const auto at = [&](std::int64_t c, std::int64_t r) {
         return static_cast<std::size_t>((r - r0) * w + (c - c0));
     };
     const auto n = static_cast<std::size_t>(w * (r1 - r0 + 1));
-    std::vector<char> wanted(n, 0);
-    for (const CellAt& d : dirty) {
-        wanted[at(d.first, d.second)] = 1;
-    }
+    const auto wanted = [&](std::int64_t c, std::int64_t r) { return dirty.marked(c, r); };
     // Each cell's top so far: the area that holds it (its place front first) and the node.
     struct Top {
         std::size_t area = 0;
@@ -137,7 +201,7 @@ inline std::vector<term::Cell> compose(const std::vector<WinArea>& areas, const 
             for (const term::Cell& c : node.cells) {
                 const std::int64_t col = pl.col + c.col, row = pl.row + c.row;
                 if (col < c0 || col > c1 || row < r0 || row > r1 || !pl.holds(col, row) ||
-                    wanted[at(col, row)] == 0) {
+                    !wanted(col, row)) {
                     continue;
                 }
                 Top& t = tops[at(col, row)];
@@ -148,10 +212,10 @@ inline std::vector<term::Cell> compose(const std::vector<WinArea>& areas, const 
         }
     }
     std::vector<term::Cell> out;
-    out.reserve(dirty.size());
+    out.reserve(dirty.count());
     for (std::int64_t r = r0; r <= r1; ++r) {
         for (std::int64_t c = c0; c <= c1; ++c) {
-            if (wanted[at(c, r)] != 0) {
+            if (wanted(c, r)) {
                 const Top& t = tops[at(c, r)];
                 out.push_back(term::Cell{c, r, t.glyph, t.role});
             }
@@ -170,6 +234,175 @@ struct Landed {
     std::string path;
     std::int64_t x = 0, y = 0;
 };
+
+/// What one area shows of a window of `cols` by `rows` cells (`AreaShown`), in the area's pixels:
+/// the runs its text nodes show on each row, and each record naming an action as the part it names
+/// -- the box of the cells its subtree shows, and the middle of the cells where a press reaches it.
+/// A cell shows the area's top node there unless an area in front painted it -- one `reader` owns
+/// aside, as what the reader draws is its own to know. "" when said, else why not.
+inline std::string read_area(const std::vector<WinArea>& areas, const Cache& cache,
+                             const WinArea& a, std::int64_t cols, std::int64_t rows,
+                             const std::string& reader, std::vector<AreaWord>& words,
+                             std::vector<AreaPart>& parts) {
+    const Place pl = place_of(a);
+    const std::int64_t c0 = (std::max<std::int64_t>)(pl.col, 0);
+    const std::int64_t r0 = (std::max<std::int64_t>)(pl.row, 0);
+    const std::int64_t c1 = (std::min)(pl.col + pl.cols, cols);
+    const std::int64_t r1 = (std::min)(pl.row + pl.rows, rows);
+    if (c1 <= c0 || r1 <= r0) {
+        return {};
+    }
+    const std::int64_t w = c1 - c0;
+    const auto at = [&](std::int64_t c, std::int64_t r) {
+        return static_cast<std::size_t>((r - r0) * w + (c - c0));
+    };
+    struct Top {
+        const std::string* path = nullptr;
+        const std::vector<std::int64_t>* key = nullptr;
+        char glyph = ' ';
+        bool hidden = false;
+    };
+    std::vector<Top> grid(static_cast<std::size_t>(w * (r1 - r0)));
+    const auto inside = [&](std::int64_t c, std::int64_t r) {
+        return c >= c0 && c < c1 && r >= r0 && r < r1;
+    };
+    // HIDDEN WHERE AN AREA IN FRONT PAINTED, as the composition shows the front-most.
+    for (const WinArea* f : front_to_back(areas)) {
+        if (f->area == a.area) {
+            break;
+        }
+        const Painted* p = f->owner == reader ? nullptr : cache.of(f->area);
+        if (p == nullptr) {
+            continue;
+        }
+        const Place fp = place_of(*f);
+        for (const auto& [path, node] : *p) {
+            for (const term::Cell& c : node.cells) {
+                const std::int64_t col = fp.col + c.col, row = fp.row + c.row;
+                if (inside(col, row) && fp.holds(col, row)) {
+                    grid[at(col, row)].hidden = true;
+                }
+            }
+        }
+    }
+    if (const Painted* own = cache.of(a.area)) {
+        for (const auto& [path, node] : *own) {
+            for (const term::Cell& c : node.cells) {
+                const std::int64_t col = pl.col + c.col, row = pl.row + c.row;
+                if (!inside(col, row)) {
+                    continue;
+                }
+                Top& t = grid[at(col, row)];
+                if (t.key == nullptr || *t.key < node.key) {
+                    t.path = &path;
+                    t.key = &node.key;
+                    t.glyph = c.glyph;
+                }
+            }
+        }
+    }
+    std::set<std::string> texts;
+    for (const KeptNode& k : a.nodes) {
+        if (k.node.op == op::kText) {
+            texts.insert(k.node.path);
+        }
+    }
+    // THE WORDS: each row's runs of cells a text node shows, the blanks after the last left off.
+    for (std::int64_t r = r0; r < r1; ++r) {
+        std::string run;
+        std::int64_t from = -1;
+        const auto flush = [&]() {
+            run.erase(run.find_last_not_of(' ') + 1);
+            if (!run.empty()) {
+                words.push_back(AreaWord{from * kCellPx - a.x, r * kCellPx - a.y, run});
+            }
+            run.clear();
+            from = -1;
+        };
+        for (std::int64_t c = c0; c < c1; ++c) {
+            const Top& t = grid[at(c, r)];
+            if (t.path != nullptr && !t.hidden && texts.count(*t.path) != 0) {
+                if (from < 0) {
+                    from = c;
+                }
+                run.push_back(t.glyph);
+            } else {
+                flush();
+            }
+        }
+        flush();
+        if (words.size() > kMaxAreaWords) {
+            return "area '" + a.area + "' shows more than " + std::to_string(kMaxAreaWords) +
+                   " runs of text";
+        }
+    }
+    // THE PARTS: every record naming an action, by the cells its subtree shows, and the cells where
+    // its own record is the one a press reaches.
+    std::map<std::string, std::size_t> named;
+    for (std::size_t i = 0; i < a.records.size(); ++i) {
+        if (!a.records[i].action.empty() && !a.records[i].path.empty()) {
+            named[a.records[i].path] = i;
+        }
+    }
+    if (named.empty()) {
+        return {};
+    }
+    const std::map<std::string, const ElementRecord*> reached = records_by_node(a);
+    struct Seen {
+        bool any = false;
+        std::int64_t x0 = 0, y0 = 0, x1 = 0, y1 = 0;
+        std::vector<CellAt> own;
+    };
+    std::vector<Seen> seen(a.records.size());
+    for (std::int64_t r = r0; r < r1; ++r) {
+        for (std::int64_t c = c0; c < c1; ++c) {
+            const Top& t = grid[at(c, r)];
+            if (t.path == nullptr || t.hidden) {
+                continue;
+            }
+            for (std::string p = *t.path; !p.empty(); p = parent_of(p)) {
+                const auto it = named.find(p);
+                if (it == named.end()) {
+                    continue;
+                }
+                Seen& s = seen[it->second];
+                s.x0 = s.any ? (std::min)(s.x0, c) : c;
+                s.y0 = s.any ? (std::min)(s.y0, r) : r;
+                s.x1 = s.any ? (std::max)(s.x1, c) : c;
+                s.y1 = s.any ? (std::max)(s.y1, r) : r;
+                s.any = true;
+            }
+            const auto own = reached.find(*t.path);
+            if (own != reached.end() && named.count(own->second->path) != 0) {
+                seen[named.at(own->second->path)].own.push_back({c, r});
+            }
+        }
+    }
+    for (std::size_t i = 0; i < a.records.size(); ++i) {
+        const Seen& s = seen[i];
+        if (!s.any) {
+            continue;
+        }
+        const ElementRecord& rec = a.records[i];
+        AreaPart part{rec.action,
+                      record_available(rec),
+                      s.x0 * kCellPx - a.x,
+                      s.y0 * kCellPx - a.y,
+                      (s.x1 - s.x0 + 1) * kCellPx,
+                      (s.y1 - s.y0 + 1) * kCellPx,
+                      false,
+                      0,
+                      0};
+        if (!s.own.empty()) {
+            const CellAt& mid = s.own[(s.own.size() - 1) / 2];
+            part.pressed = true;
+            part.px = mid.first * kCellPx + kCellPx / 2 - a.x;
+            part.py = mid.second * kCellPx + kCellPx / 2 - a.y;
+        }
+        parts.push_back(std::move(part));
+    }
+    return {};
+}
 
 inline Landed land(const std::vector<WinArea>& areas, const Cache& cache, std::int64_t col,
                    std::int64_t row) {

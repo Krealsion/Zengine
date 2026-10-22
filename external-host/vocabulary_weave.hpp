@@ -39,7 +39,7 @@
 namespace zengine::external_host {
 
 struct GuestVocabularyState {
-    std::int64_t declared = 118; ///< top-level emitted shapes, excluding nested and substrate shapes
+    std::int64_t declared = 98; ///< top-level emitted shapes, excluding nested and substrate shapes
     ZEN_SHAPE(GuestVocabularyState, 1, ZEN_FIELD(declared));
 };
 
@@ -54,25 +54,14 @@ class GuestVocabulary final
                      zengine::demo::DemoWorkRequested, zengine::demo::DemoWork, zengine::demo::DemoWorkFinished,
                      zengine::demo::DemoResetRequested, zengine::demo::DemoStatusRequested, zengine::demo::DemoStatus,
                      zengine::demo::DemoReadyRequested,
-                     zengine::workshop::PaneViewRequested, zengine::workshop::PaneView, zengine::workshop::PanePointRequested, zengine::workshop::PanePoint,
-                     zengine::workshop::DeskViewRequested, zengine::workshop::DeskView,
-                     zengine::workshop::v2::PaneViewRequested, zengine::workshop::v2::PaneView,
-                     zengine::workshop::v2::PanePointRequested, zengine::workshop::v2::PanePoint,
-                     zengine::workshop::v3::PaneViewRequested, zengine::workshop::v3::PaneView,
-                     zengine::workshop::v3::PanePointRequested,
-                     zengine::workshop::v2::DeskViewRequested, zengine::workshop::v2::DeskView,
-                     // The desk read whole, a pane's reading paged under one stamp, and what a
-                     // `capture` guest reads beside them: the inventory of panes and the keymap.
+                     // The desk read whole, a pane's reading paged under one stamp and a point in
+                     // it, and the notice that the desk moved, which a `capture` row may observe;
+                     // a guide mark on a control and its answer, and a pane's manual, asked of the
+                     // pane's own office.
                      zengine::workshop::DeskReadRequested, zengine::workshop::DeskRead,
-                     zengine::workshop::v4::PaneViewRequested, zengine::workshop::v4::PaneView,
-                     // ...the same with each stamp naming its picture by fingerprint, and the
-                     // notice that the desk moved, which a `capture` row may observe.
-                     zengine::workshop::v2::DeskReadRequested, zengine::workshop::v2::DeskRead,
-                     zengine::workshop::v5::PaneViewRequested, zengine::workshop::v5::PaneView,
-                     zengine::workshop::DeskStamps, zengine::workshop::v2::DeskStamps,
-                     // ...each part's availability, a guide mark on a control and its answer, and a
-                     // pane's manual, asked of the pane's own office.
-                     zengine::workshop::v6::PaneViewRequested, zengine::workshop::v6::PaneView,
+                     zengine::workshop::PaneViewRequested, zengine::workshop::PaneView,
+                     zengine::workshop::PanePointRequested, zengine::workshop::PanePoint,
+                     zengine::workshop::DeskStamps,
                      zengine::workshop::GuideRequested, zengine::workshop::GuideAnswered,
                      zengine::workshop::PaneDocumentRequested, zengine::workshop::PaneDocumentShown,
                      zengine::workshop::PaneInventoryRequested, zengine::workshop::PaneInventory,

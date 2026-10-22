@@ -62,12 +62,19 @@
 #include <set>
 #include <string>
 #include <string_view>
+#include <variant>
 #include <vector>
 
 namespace zengine::workshop {
 
 /// HOW MANY DESK READS ONE ASKER IS ANSWERED IN A SECOND: each composes the whole desk.
 inline constexpr std::int64_t kDeskReadsPerSecond = 4;
+/// AT MOST THIS MANY READS WAIT ON THE WINDOW AT ONCE, each for at most `kDeskWaitMs`: a wait
+/// holds one of the deferred answers Loom keeps for every weave together.
+inline constexpr std::size_t kMaxDeskWaits = 4;
+inline constexpr std::int64_t kDeskWaitMs = 2000;
+/// The asks of the window Workshop keeps open at once: one an area for its notice, and each wait's.
+inline constexpr std::size_t kMaxAreaAsks = 256;
 
 /// What the weave needs from the host and cannot get by message; kept whole in this header so a
 /// suite can build one without linking the host.
@@ -343,7 +350,7 @@ class WorkshopWeave
     : public zengine::With<TerminalDoorFacet,
                            manual::ManualFacet<manual::pages::zengine_workshop::kManual>>::
           Weave<WorkshopWeave, WorkshopState,
-                             loom::Accept<PaneShortcutInvoked, PaneViewRequested, PanePointRequested, DeskViewRequested, v2::DeskViewRequested, v2::PaneViewRequested, v2::PanePointRequested, v3::PaneViewRequested, v3::PanePointRequested, v4::PaneViewRequested, v5::PaneViewRequested, v6::PaneViewRequested, DeskReadRequested, v2::DeskReadRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::workshop::v2::PaneCanvasContent, zengine::workshop::v4::PaneCanvasContent, zengine::workshop::v5::PaneCanvasContent, zengine::workshop::v6::PaneCanvasContent, v2::PaneOperationRequested, ActorScopeRequested, zengine::input::KeyPressed, zengine::input::TextEntered,
+                             loom::Accept<PaneShortcutInvoked, PaneViewRequested, PanePointRequested, DeskReadRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::workshop::v2::PaneCanvasContent, zengine::workshop::v4::PaneCanvasContent, zengine::workshop::v5::PaneCanvasContent, zengine::workshop::v6::PaneCanvasContent, v2::PaneOperationRequested, ActorScopeRequested, zengine::input::KeyPressed, zengine::input::TextEntered,
                                           zengine::input::PointerButton,
                                           zengine::input::PointerMoved,
                                           zengine::input::PointerWheel,
@@ -451,8 +458,13 @@ class WorkshopWeave
                                           zengine::graphics::AreaPressed,
                                           zengine::graphics::AreaHoldEnded,
                                           zengine::graphics::AreaPointerLeft,
+                                          // a guest's press a window refused in an area
+                                          // placed for the weaver's hand alone
+                                          zengine::graphics::AreaHandRefused,
+                                          // what a window says a pane's area shows, or why not
+                                          zengine::graphics::AreaShown, loom::Refused,
                                           loom::DispatchRefused>,
-                             loom::Emit<loom::Ack, loom::Refused, GuideAnswered, PaneView, PanePoint, DeskView, v2::DeskView, v2::PaneView, v2::PanePoint, v3::PaneView, v4::PaneView, v5::PaneView, v6::PaneView, DeskRead, v2::DeskRead, DeskStamps, v2::DeskStamps, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, PaneCanvasValueDrop, v1::PaneCanvasValueDrop, PaneCanvasDrop, zengine::workshop::PaneCanvasRoom,
+                             loom::Emit<loom::Ack, loom::Refused, GuideAnswered, PaneView, PanePoint, DeskRead, DeskStamps, zengine::graphics::AreaShowAsked, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, PaneCanvasValueDrop, v1::PaneCanvasValueDrop, PaneCanvasDrop, zengine::workshop::PaneCanvasRoom,
                                         zengine::workshop::v2::PaneCanvasRoom,
                                         zengine::workshop::PaneCanvasPointer,
                                         zengine::workshop::v1::PaneCanvasPointer,
@@ -579,10 +591,13 @@ public:
     void on(const zengine::graphics::SurfaceCloseRequested&, loom::Mail&);
 
     void on(const input::AttributedInput& event, loom::Mail& mail);
-    void on(const PaneViewRequested& asked, loom::Mail& mail);
-    void on(const PanePointRequested& asked, loom::Mail& mail);
-    /// A pane's visible body and what it shows, or why neither is available; `canvas` when the
-    /// pane draws a picture, whose body is `canvas_body` and not `body`'s rows.
+    void apply_attributed(const input::AttributedInput& event, loom::Mail& mail);
+    void release_held_input(loom::Mail& mail);
+    bool send_key_fence(loom::Mail& mail);
+    /// Whether `ask` was the key fence: then taken, and the keys behind it released.
+    bool take_key_fence(std::uint64_t ask, const graphics::AreaShown* shown, loom::Mail& mail);
+    /// A pane's visible body as Workshop draws it, for a pane that draws in no window; `canvas`
+    /// when the pane sent a picture, whose body is `canvas_body` and not `body`'s rows.
     struct VisibleBody {
         std::int64_t kind = 0;
         const ExternalPane* content = nullptr;
@@ -590,71 +605,87 @@ public:
         bool canvas = false;
         PixelRect canvas_body;
     };
-    std::string visible_text_body(const std::string& provider, const std::string& pane,
-                                  VisibleBody& out) const;
-    std::string visible_body(const std::string& provider, const std::string& pane,
-                             VisibleBody& out, bool canvas_too) const;
     /// Where a word's glyphs stand: one glyph's advance.
     struct WordGlyphs {
         std::int64_t advance = 0;
     };
-    /// The words a visible body shows, each where the medium draws it, numbered as a point names.
+    /// The words a body Workshop draws shows, each where the medium draws it, numbered as a point
+    /// names.
     std::vector<PaneWord> visible_words(const VisibleBody& visible,
                                         std::vector<WordGlyphs>* glyphs = nullptr) const;
-    void on(const v2::PaneViewRequested& asked, loom::Mail& mail);
-    void on(const v2::PanePointRequested& asked, loom::Mail& mail);
-    void on(const v3::PanePointRequested& asked, loom::Mail& mail);
-    /// The parts a visible body's pane names, each where the medium draws it: a text part over the
+    /// The parts a body Workshop draws names, each where the medium draws it: a text part over the
     /// cells that show its columns, a canvas part as the body shows it with the `words` inside it.
-    std::vector<v2::PanePart> visible_parts(const VisibleBody& visible,
-                                            const std::vector<PaneWord>& words) const;
-    void on(const v3::PaneViewRequested& asked, loom::Mail& mail);
-    ExternalPressAt cell_point(const VisibleBody& visible, std::int64_t row, std::int64_t cell,
-                               std::int64_t& x, std::int64_t& y, std::int64_t& space) const;
-    bool cell_center(const VisibleBody& visible, std::int64_t row, std::int64_t column,
-                     std::int64_t& x, std::int64_t& y, std::int64_t& space) const;
-    void on(const DeskViewRequested& asked, loom::Mail& mail);
-    void on(const v2::DeskViewRequested& asked, loom::Mail& mail);
-    /// The desk as Workshop holds it now: every pane on it, the room, arranging and the menu.
-    v2::DeskView desk_view() const;
-    /// ...WITH WORKSHOP'S OWN WORDS AND ITS NUMBER: the band's notice and legend, the status slot,
-    /// and the desk number, which moves when any of it moves.
-    v3::DeskView desk_view_v3() const;
+    std::vector<PanePart> visible_parts(const VisibleBody& visible,
+                                        const std::vector<PaneWord>& words) const;
+    /// THE DESK AS WORKSHOP HOLDS IT NOW: every pane on it, the room, arranging, the menu, the
+    /// band's words, and the desk number, which moves when any of it moves.
+    DeskView desk_view() const;
     /// ONE PANE'S WHOLE READING, or why there is none: its words and parts but the covered ones,
-    /// what covers it, its stamp, and whether its picture is in flight: by what it shows, or for
-    /// the fourth version by numbers.
+    /// what covers it, its stamp, and whether what it shows is in flight -- from the window for a
+    /// pane that draws in an area of its own, from Workshop's drawing for one that draws in none.
     std::string pane_reading(const std::string& provider, const std::string& pane,
-                             v6::PaneView& out, bool by_numbers = false) const;
+                             PaneView& out) const;
+    /// ...for a pane that draws in an area of its own: as the window last said the area shows.
+    std::string area_reading(const RuntimePane& row, PaneView& out) const;
+    /// ...for a pane that draws in no window: as Workshop draws what it sent.
+    std::string drawn_reading(const RuntimePane& row, PaneView& out) const;
     /// THE PANE WORKSHOP PRESENTS ITSELF, Layouts, read as it is painted, its tabs named parts.
-    std::string layouts_reading(v6::PaneView& out) const;
+    std::string layouts_reading(PaneView& out) const;
     /// What covers a presented pane's `rect`, each by the name a reading says it with.
     struct Cover {
         std::string by;
         PixelRect rect;
     };
     std::vector<Cover> covers_of(std::int64_t kind, const PixelRect& rect) const;
-    /// The stamp of a pane offered by `provider`, at `grant` and `picture`.
-    PaneStamp stamp_of(const std::string& provider, const std::string& pane, std::int64_t grant,
-                       std::int64_t picture) const;
-    void on(const v4::PaneViewRequested& asked, loom::Mail& mail);
-    void on(const v5::PaneViewRequested& asked, loom::Mail& mail);
-    void on(const v6::PaneViewRequested& asked, loom::Mail& mail);
-    /// ONE PAGE OF A PANE'S READING under a stamp by fingerprint, said in the version `fill` makes.
-    template <class View, class Fill>
-    void answer_page(const std::string& provider, const std::string& pane, std::int64_t from,
-                     const v2::PaneStamp& stamp, Fill fill, loom::Mail& mail) const;
+    /// The stamp of a pane offered by `provider`, but for what it shows.
+    PaneStamp stamp_of(const std::string& provider, const std::string& pane) const;
+    /// The area `ref` draws in, when it draws in one Workshop placed; else empty.
+    std::string drawn_area(const PaneRef& ref) const;
+    void on(const PaneViewRequested& asked, loom::Mail& mail);
+    void on(const PanePointRequested& asked, loom::Mail& mail);
     void on(const DeskReadRequested& asked, loom::Mail& mail);
-    void on(const v2::DeskReadRequested& asked, loom::Mail& mail);
+    /// ONE PAGE OF A PANE'S READING, ITS POINT, AND THE DESK IN ONE TURN, for `asker`, from what is
+    /// held now: what an asker is answered, at once or once the window has said its areas.
+    std::variant<PaneView, loom::Refused> pane_page(loom::Mail& mail, loom::WeaveId asker,
+                                        const PaneViewRequested& asked) const;
+    std::variant<PanePoint, loom::Refused> pane_point(loom::Mail& mail, loom::WeaveId asker,
+                                          const PanePointRequested& asked) const;
+    std::variant<DeskRead, loom::Refused> desk_read_now(loom::Mail& mail, loom::WeaveId asker) const;
     /// Every presented pane, front to back: the order a desk read and a notice say stamps in.
     std::vector<PaneRef> presented_refs() const;
     /// The stamp `ref` stands on now, its picture named by the fingerprint of what it shows.
-    v2::PaneStamp stamp_now(const PaneRef& ref) const;
-    /// The picture number a press on `ref` is stamped with now; 0 for none, and for Layouts.
-    std::int64_t aimed_now(const PaneRef& ref) const;
-    /// `DeskStamps` v2, published when the desk number, a presented pane's stamp or its aimed
-    /// picture moved since the last one, and v1 when its number or a stamp did; `known`, a desk
-    /// computed already.
-    void publish_desk_stamps(loom::Mail& mail, const v3::DeskView* known = nullptr);
+    PaneStamp stamp_now(const PaneRef& ref) const;
+    /// `DeskStamps` v3, published when the desk number or a presented pane's stamp moved since the
+    /// last one; `known`, a desk computed already.
+    void publish_desk_stamps(loom::Mail& mail, const DeskView* known = nullptr);
+    /// THE CONVERSATION WITH THE WINDOW: what an area shows, asked, and its answer or refusal taken.
+    void on(const graphics::AreaShown& shown, loom::Mail& mail);
+    void on(const loom::Refused& refused, loom::Mail& mail);
+    /// A REQUEST WAITING ON THE WINDOW: its kind, its deferred answer, its asker, each area it reads
+    /// and the number of the ask that must have been answered, what it asked, when it began, and
+    /// the window's incarnation then.
+    struct DeskWait {
+        enum class Kind { kDeskRead, kPaneView, kPanePoint, kGuide };
+        Kind kind = Kind::kDeskRead;
+        loom::DeferredAnswer answer;
+        loom::WeaveId asker;
+        std::vector<std::pair<std::string, std::uint64_t>> needs;
+        PaneViewRequested view;
+        PanePointRequested point;
+        GuideRequested guide;
+        std::int64_t since = 0;
+        std::int64_t epoch = 0;
+    };
+    std::uint64_t ask_area(loom::Mail& mail, const std::string& area);
+    void take_area_answer(loom::Mail& mail, std::uint64_t ask, const graphics::AreaShown* shown,
+                          const std::string& refused);
+    void finish_desk_waits(loom::Mail& mail);
+    bool wait_on_areas(loom::Mail& mail, DeskWait wait, const std::vector<std::string>& areas);
+    /// At a delivery's end that owed a look: every presented pane's area asked again since what was
+    /// taken of it, so a pane that drew moves the notice.
+    void look_at_areas(loom::Mail& mail);
+    /// The window the desk is shown in started again, or another took it.
+    void forget_area_readings(loom::Mail& mail);
     /// Whether `who` is a guest session whose admitted row holds `capture`: the one personal asker
     /// the desk's offers and keymap answer.
     bool capture_guest(loom::WeaveId who) const;
@@ -667,9 +698,9 @@ public:
     std::string read_withheld(loom::Mail& mail, loom::WeaveId asker, const std::string& office,
                               const std::string& pane) const;
     /// A pane the asker may not read, as a stamp: its office, pane and holder, nothing that moves.
-    v2::PaneStamp withheld_stamp(const PaneRef& ref) const;
-    /// The desk said to a row that reads by pane: no band, status or desk number.
-    void withhold_desk(v3::DeskView& desk) const;
+    PaneStamp withheld_stamp(const PaneRef& ref) const;
+    /// The desk said to a row that reads by pane: no band or desk number.
+    void withhold_desk(DeskView& desk) const;
     /// Whether `asker` may read the desk once more now, or the refusal in words: a rate per asker.
     std::string take_desk_read(loom::WeaveId asker);
     void on(const PaneShortcutInvoked& asked, loom::Mail& mail);
@@ -687,6 +718,9 @@ public:
     /// A guest's mark on one control or part, for the weaver to see: judged against the row's
     /// `guide` and `capture` doors, then the part as the pane shows it now.
     void on(const GuideRequested& asked, loom::Mail& mail);
+    /// ...asked for `sender`, answered now or through `due` once the window said its pane's area.
+    void guide_requested(const GuideRequested& asked, loom::WeaveId sender, loom::Mail& mail,
+                         loom::DeferredAnswer* due, bool fresh);
     /// The action classes `classes` judged for `actor`: empty when each is its own, else the refusal.
     std::string judge_classes(const InputActor& actor, const std::vector<std::string>& classes,
                               const std::string& subject) const;
@@ -695,6 +729,8 @@ public:
     /// ON A WEAVER'S HOST A GUEST'S HAND REACHES NEITHER THE EDITOR OFFICE, THE TERMINAL NOR THE
     /// HOTKEYS PANE: the refusal in words for `actor` toward the pane `kind`, or empty.
     std::string refused_toward(const InputActor& actor, std::int64_t kind) const;
+    /// ...AND SO A WINDOW IS TOLD: whether the pane's area is placed for the weaver's hand alone.
+    bool weaver_only_pane(const RuntimePane& row) const;
     /// Say a refusal of the current input actor's act, and paint it.
     void refuse_input(const std::string& why, loom::Mail& mail);
     void on(const PaneObservationRequested& asked, loom::Mail& mail);
@@ -1236,6 +1272,9 @@ public:
     /// THE POINTER LEFT AN AREA, told as a hold's end is: leaving Workshop's own area, it rests on
     /// no canvas Workshop draws there. A pane's area it left is the pane's to answer.
     void on(const graphics::AreaPointerLeft& l, loom::Mail& mail);
+    /// A GUEST'S PRESS OR WHEEL A WINDOW REFUSED in a pane's area Workshop placed for the weaver's
+    /// hand alone: said, as a refusal at the dispatch says it (WL-GUEST-06).
+    void on(const graphics::AreaHandRefused& r, loom::Mail& mail);
 
     /// The session, for a suite that wants to check where a gesture left things.
     /// Read-only: every change still goes through a message and a gesture.
@@ -1744,12 +1783,42 @@ private:
     mutable std::string layouts_said_;
     /// THE LAST NOTICE PUBLISHED, a host keeping a notice is judged against, and whether the desk
     /// may have moved since: a repaint, a picture aimed at or a notice said owes one look.
-    v2::DeskStamps stamps_said_;
+    DeskStamps stamps_said_;
     bool stamps_published_ = false;
-    /// ...and the last first-version notice, which names no aimed picture.
-    DeskStamps numbered_said_;
-    bool numbered_published_ = false;
     bool stamps_owed_ = false;
+    /// WHAT THE WINDOW SAID EACH PANE'S AREA SHOWS, the last answer taken, with the number of the
+    /// newest ask answered and a refusal's words; the asks still open, each by its book's id, its
+    /// area and its number; the waits on them; and the window's incarnation, from its offer.
+    struct AreaReading {
+        graphics::AreaShown shown;
+        std::uint64_t number = 0;
+        std::string refused;
+    };
+    std::map<std::string, AreaReading> area_readings_;
+    struct AreaAsk {
+        std::uint64_t id = 0;
+        std::string area;
+        std::uint64_t number = 0;
+    };
+    loom::AskBook area_asks_{kMaxAreaAsks};
+    /// A PARTICIPANT'S INJECTED KEYS BEHIND ITS POINTER MOMENTS the window may not have landed yet,
+    /// in order; a run of pointer moments is one marker, numbered by the last of them.
+    struct BatchInput {
+        std::uint64_t seq = 0;
+        bool pointer = false;
+        input::AttributedInput event;
+    };
+    std::vector<BatchInput> batch_held_;
+    std::uint64_t held_seq_ = 0;
+    std::uint64_t fence_covers_ = 0;      ///< every held moment up to this one is landed
+    std::uint64_t fence_sent_covers_ = 0; ///< what the fence out covers when it is answered
+    std::uint64_t key_fence_ = 0;         ///< the fence's ask, 0 while none is out
+    std::int64_t fence_since_ = 0;        ///< the overlay's version the window last said
+    static constexpr std::size_t kMaxBatchHeld = 256;
+    std::vector<AreaAsk> area_asked_;
+    std::uint64_t area_ask_number_ = 0;
+    std::vector<DeskWait> desk_waits_;
+    std::int64_t window_epoch_ = 0;
     /// ...and whether what the desk says may have moved, so its number is computed again; a
     /// picture aimed at moves stamps only.
     bool desk_owed_ = true;

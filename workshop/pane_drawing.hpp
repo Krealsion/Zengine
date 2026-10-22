@@ -184,12 +184,21 @@ struct RowsDrawing {
     std::map<std::string, RowCell> places;
 };
 
-/// ROWS AND THEIR PARTS DRAWN, `columns` wide in `room`: the room's ground, all of it, then each
-/// row a line of the window's text and a character an advance of it, in its role over its ground
-/// (a lit row's nodes named apart above it), cut where a part begins or ends; each run a part holds
-/// a node asking the part's name, held where parts overlap by the one a press on Workshop's rows
-/// reaches; `caret` in front. No row past `max_rows` (above 0) or the window's bounds is drawn. The
-/// parts are `PaneRowPart`s or `v2::PaneRowPart`s; the row's text says availability.
+/// WHETHER A PART'S OPERATION APPLIES NOW, as its pane said it: a part that says none applies.
+template <class Part>
+bool part_available(const Part& part) {
+    if constexpr (requires { part.available; }) {
+        return part.available;
+    } else {
+        return true;
+    }
+}
+
+/// ROWS AND THEIR PARTS DRAWN, `columns` wide in `room`: the ground, then each row a line of text in
+/// its role (a lit row's nodes named apart above it), cut where a part begins or ends; each run a
+/// part holds asks the part's name -- where parts overlap, the one a press on Workshop's rows
+/// reaches -- recorded unavailable (`graphics::PartFace`) where the part says so; `caret` in front.
+/// No row past `max_rows` (above 0) or the window's bounds is drawn. `PaneRowPart`s or v2's.
 template <class Part>
 RowsDrawing rows_drawing(const std::vector<surface::SurfaceTextRow>& rows,
                          const std::vector<Part>& parts, const RowsRoom& room,
@@ -200,6 +209,20 @@ RowsDrawing rows_drawing(const std::vector<surface::SurfaceTextRow>& rows,
         std::int64_t x = 0;
     };
     RowsDrawing out;
+    // A RUN'S RECORD: the part it asks, said unavailable where the part says it is.
+    const auto say_part = [&](const std::string& node, const std::string& name) {
+        bool available = true;
+        for (const Part& p : parts) {
+            if (p.name == name) {
+                available = part_available(p);
+            }
+        }
+        if (available) {
+            out.sketch.action(node, name);
+        } else {
+            out.sketch.record(node, graphics::PartFace{false}, name);
+        }
+    };
     const std::int64_t advance = room.text.advance;
     const std::int64_t line = room.text.line;
     out.sketch.fill_rect("room", 0, 0, room.width, room.height,
@@ -271,7 +294,7 @@ RowsDrawing rows_drawing(const std::vector<surface::SurfaceTextRow>& rows,
             out.sketch.text(one.node, one.x * advance, row * line, one.words,
                             graphics::by_role(rows[r].role));
             if (!one.action.empty()) {
-                out.sketch.action(one.node, one.action);
+                say_part(one.node, one.action);
             }
         }
         for (const std::size_t k : here) {
@@ -312,7 +335,7 @@ RowsDrawing rows_drawing(const std::vector<surface::SurfaceTextRow>& rows,
     const auto ask = [&](const std::string& node, const std::string& asks) {
         ++nodes;
         if (!asks.empty()) {
-            out.sketch.action(node, asks);
+            say_part(node, asks);
             ++records;
         }
     };

@@ -10,34 +10,31 @@ while it moved, a list whose text changed under one number did too, and a canvas
 unchanged moved the stamp for nothing.
 
 **Decision.** Workshop publishes `DeskStamps`, the desk number and every presented pane's stamp, at
-the end of each delivery that moved either: the whole state, so a relay may keep only the newest
-and the newest stands for each earlier one. A stamp names a picture by the fingerprint Workshop
-takes of what the pane sent and holds, never its number, for every pane, a pane doing nothing for
-it; a canvas picture no press is stamped with is named none. The numbers stay where a press needs
-them. New versions carry it -- `PaneStamp` v2, `PaneView` v5 and its ask, `DeskRead` v2 -- and the
-earlier ones answer as they did. `DeskStamps` v2 names each pane's aimed picture by number in
-that pane's own entry, beside its stamp, so a wait for a picture to be aimed at ends at a notice,
-not a clock. The
-agent's `desk/watch` follows the notice, reads again only what moved, and writes each change as the
-smaller of its changed lines and the lines as they stand.
+the end of each delivery that moved either: the whole state, so a relay may keep only the newest and
+the newest stands for each earlier one. A stamp names a picture by the fingerprint Workshop takes of
+what the pane sent and holds, never its number, for every pane, a pane doing nothing for it; a
+canvas picture no press is stamped with is named none. The numbers stay where a press needs them. A
+reading in flight is said so, and its settling moves its stamp, so a wait for a picture to settle
+ends at a notice, not a clock. One version of each reading stands now, and a pane drawing in an area
+of its own is read from the window ([a pane is read from the window that shows
+it](a-pane-is-read-from-the-window-that-shows-it.md)). The agent's `desk/watch` follows the notice,
+reads again only what moved, and writes each change as the smaller of its changed lines and the
+lines as they stand.
 
-**Alternatives considered.**
-- *Changes published as occurrences* -- argued against: the producer would keep each followed pane's
-  last lines to compute a change, a held copy beside the pane.
-- *Whole readings published at each repaint* -- argued against: a copy of what a desk read answers on
-  demand, sent whether anyone reads it or not.
-- *Workshop numbering each admitted prose update itself* -- argued against: a picture sent again
-  would still move the stamp, and the numbers are the pane's own, for its presses.
-- *The fingerprint in the first `PaneStamp`'s `picture`* -- argued against: a published shape's
-  meaning does not change in place; the new meaning takes new versions.
-- *In flight judged by number in the fifth version* -- argued against: a picture sent again would read
-  as in flight, and when it settled no notice would come, so a follower would keep "in flight".
-- *A hand reading by the fifth version and pressing by fingerprint* -- argued against: no shape
-  changes, but every walk tool's reading changes form.
-- *Reading again at once until aimed at* -- argued against: each retry is a crossing and a beat,
-  where a notice can say when.
-- *The aimed numbers as a list beside the stamps* -- argued against: two lists that must stay the
-  same length are two facts pretending to be one.
+**Alternatives considered.** - *Changes published as occurrences* -- argued against: the producer
+would keep each followed pane's last lines to compute a change, a held copy beside the pane. -
+*Whole readings published at each repaint* -- argued against: a copy of what a desk read answers on
+demand, sent whether anyone reads it or not. - *Workshop numbering each admitted prose update
+itself* -- argued against: a picture sent again would still move the stamp, and the numbers are the
+pane's own, for its presses. - *The fingerprint in the first `PaneStamp`'s `picture`* -- argued
+against: a published shape's meaning does not change in place; the new meaning takes new versions. -
+*In flight judged by number in the fifth version* -- argued against: a picture sent again would read
+as in flight, and when it settled no notice would come, so a follower would keep "in flight". - *A
+hand reading by the fifth version and pressing by fingerprint* -- argued against: no shape changes,
+but every walk tool's reading changes form. - *Reading again at once until aimed at* -- argued
+against: each retry is a crossing and a beat, where a notice can say when. - *The aimed numbers as a
+list beside the stamps* -- argued against: two lists that must stay the same length are two facts
+pretending to be one.
 
 **Consequences.** An agent stops polling: it is told, and reads only what moved. A stamp moves when
 what a pane shows moves, a caret or a colour too, which may change no word of the reading.

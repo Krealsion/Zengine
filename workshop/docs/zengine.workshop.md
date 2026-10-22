@@ -194,73 +194,60 @@ that asked it.
 
 ### `PaneViewRequested`
 
-`PaneViewRequested` asks where a pane's words are now, from the numbers Workshop owns, none read
-off a picture ([`pane_view.hpp`](../pane_view.hpp)).
+`PaneViewRequested` v7 asks for a page of one pane's reading: its words and named parts where the
+weaver sees them ([`pane_view.hpp`](../pane_view.hpp)).
 
-- **Takes:** `provider` and `pane`; from v4, `from`, the page's first item, and `stamp`, the
-  reading it continues (an empty stamp at `from` 0 reads the pane as it stands).
-- **Answers:** to the asker alone. v1 `PaneView`: a text pane's rows, each with the point a press
-  names it at; v2 its words, text or canvas alike, each a `PaneWord` with place and point; v3 adds
-  the parts the pane names; v4 a page of them under a `PaneStamp`, with `total`, what covers the
-  pane, left out and counted, and `in_flight`; v5 the same under a `v2::PaneStamp`, naming the
-  picture by fingerprint; v6 adds each part's `available`. A v1 row is the pane's own characters
-  fitted to the body's columns, its point its third cell's. Workshop names nothing inside a pane:
-  a word's number is its place in one answer ([the desk, said
-  whole](workshop-panes.md#the-desk-said-whole)). The guest `capture` power grants every version.
-- **Refuses:** in `loom::Refused`, v1 to v3: `pane view unavailable: closed, unknown or covered by
-  an interaction`, `...: no settled picture`, `...: pane extends outside the visible workspace`,
-  `...: another pane overlaps it`; from v4: `pane view unavailable: closed or unknown`, `...: the
-  pane has drawn nothing yet`, `...: the pane is not presented`, `...: Workshop refused the pane's
-  last update and kept none of it`, `...: waiting for the provider -- no participant holds its
-  office`, `pane view stale: ...; read it again from the start`. A guest hears `pane view
-  withheld: <why>`.
-- **Example:** read v6 from 0, then the next page under the stamp the first answered.
+- **Takes:** `provider`, `pane`; `from`, the page's first item; `stamp`, the reading it continues
+  (an empty stamp at `from` 0 reads the pane as it stands).
+- **Answers:** `PaneView` v7, to the asker alone: its `PaneStamp` -- holder, incarnation, the
+  window's incarnation, and the fingerprint of what the pane shows; the place it shows in and the
+  text measure; its words, then its parts, each with its place, the point a press reaches it at
+  and a part's `available`; what covers it, left out and counted; `in_flight`; `from` and `total`.
+  A pane that draws in an area of its own is read from the window that shows it, which Workshop
+  asks first, so the answer may come a delivery or two later; one that draws in no window is read
+  from what Workshop draws of it. The guest `capture` power grants it.
+- **Refuses:** in `loom::Refused`: `pane view unavailable: closed or unknown`, `...: the pane has
+  drawn nothing yet`, `...: the pane is not presented`, `...: the pane is not placed in a window`,
+  `...: the window refused its reading: <why>`, `...: Workshop refused the pane's last update and
+  kept none of it`, `...: waiting for the provider -- no participant holds its office`, `pane view
+  stale: ...; read it again from the start`, and a wait's refusals ([`DeskReadRequested`](#deskreadrequested)).
+  A guest hears `pane view withheld: <why>`.
+- **Example:** read from 0, then the next page under the stamp the first answered.
 
 ### `PanePointRequested`
 
-`PanePointRequested` asks where to press one place of a pane's picture now.
+`PanePointRequested` v4 asks where to press one character of one word of a pane's reading now.
 
-- **Takes:** `provider`, `pane` and the `picture` you read; v1 a `row` and `column` of a text pane's
-  rows; v2 a `word` and `column` of a `v2::PaneView`; v3 a `row` and `column` of the pane's text
-  lattice, a canvas pane's too, a blank row's cell and the one after a row's last character
-  included.
-- **Answers:** `PanePoint` (v2 `v2::PanePoint`), to the asker alone: the centre of that cell or
-  character in the input space the medium reads, resolved by the same measure a press is. A point is not a gesture: pressing it is
-  ordinary input.
+- **Takes:** `provider`, `pane`, the `fingerprint` of the reading you read, a `word` by its number
+  and a `column`, a character of it.
+- **Answers:** `PanePoint` v3, to the asker alone: the centre of that character, in the input
+  space the medium reads. A point is not a gesture: pressing it is ordinary input, which a window
+  lands as it lands the weaver's.
 - **Refuses:** as [`PaneViewRequested`](#paneviewrequested) refuses the pane; `pane point
-  unavailable: the pane's picture moved; read it again`; `...: outside the pane's visible text`
-  (v2 `words`, v3 `text lattice`); `...: that cell is not addressable` (v2 `that character`); and,
-  while the picture shown takes no press, `... -- the one shown takes no press until its pane draws
-  its own`.
-- **Example:** after a v3 view at picture 7, ask v3 `{row: 2, column: 4, picture: 7}`, then press
-  there.
-
-### `DeskViewRequested`
-
-`DeskViewRequested` asks for the desk as Workshop holds it.
-
-- **Takes:** nothing.
-- **Answers:** `DeskView`, to the asker alone: the canvas's extent, the medium's pixels to a cell,
-  the input space, the room, every pane the desk names in its order -- its state word (`open`,
-  `covered`, `off-room`, `unresolved`), its rank and places, whether it is selected or holds the
-  keys -- whether arranging is open, and the menu on the screen. Every place is a `DeskRect` in
-  canvas pixels, where the medium draws it. v2 names the menu's lines. The guest `capture` power
-  grants it.
-- **Refuses:** nothing: the desk answers whatever is open.
-- **Example:** read the desk, then ask the view of a pane whose state is `open`.
+  unavailable: what the pane shows moved; read it again`; `...: outside the pane's visible words`;
+  `...: no press reaches that word now`; `...: that character is not addressable`.
+- **Example:** after a reading at fingerprint 41, ask `{word: 2, column: 4, fingerprint: 41}`, then
+  press there.
 
 ### `DeskReadRequested`
 
-`DeskReadRequested` asks for the whole desk in one turn.
+`DeskReadRequested` v3 asks for the whole desk in one turn.
 
 - **Takes:** nothing.
-- **Answers:** `DeskRead` (v2 `v2::DeskRead`), to the asker alone: the desk with the band's words,
-  every presented pane's stamp from the front back, and as many of their readings as one decoded
-  value and one reply hold, each whole or not at all; a stamp without a reading names a pane to
-  ask alone. Then `DeskStamps` is published if the desk moved ([Follow](#follow)).
-- **Refuses:** past a few reads a second from one asker (`kDeskReadsPerSecond`,
-  [`weave.hpp`](../weave.hpp)), in `loom::Refused`: `desk read refused: at most <n> a second, each
-  asker -- read again in <ms> ms`. A pane a guest may not read is stamped and not read.
+- **Answers:** `DeskRead` v3, to the asker alone: the desk as Workshop holds it -- its number, the
+  extent, the unit and input space, the room, every pane the desk names with its state word, rank
+  and places, arranging, the menu with its named lines, and the band's words -- then every
+  presented pane's stamp from the front back, and as many of their readings as one decoded value
+  and one reply hold, each whole or not at all; a stamp without a reading names a pane to ask
+  alone. It waits for the window's reading of every pane that draws in an area of its own. Then
+  `DeskStamps` is published if the desk moved ([Follow](#follow)).
+- **Refuses:** in `loom::Refused`: past a few reads a second from one asker
+  (`kDeskReadsPerSecond`, [`weave.hpp`](../weave.hpp)), `desk read refused: at most <n> a second,
+  each asker -- read again in <ms> ms`; past the reads that may wait on the window at once
+  (`kMaxDeskWaits`), `desk read refused: <n> reads wait on the window already; read again`; `desk
+  read unavailable: the window that shows the desk started again; read again`, `...: did not
+  answer in time` (`kDeskWaitMs`), or `...: cannot be asked what area '<area>' shows`. A pane a
+  guest may not read is stamped and not read.
 - **Example:** an agent reads the desk once, then pages each pane whose reading did not fit.
 
 ### `PaneOperationRequested`
@@ -467,6 +454,8 @@ handed -- a secondary press, a declared action, or a primary press.
   `guide` doors ``; `refused: a press of <part> opens a pane only the weaver's hand reaches: ...`;
   `refused: guest '<name>' marks that pane already; one guest mark a pane`; `not shown: <pane>
   shows no part <part> now`; `not shown: <pane> is not on the desk, settled and uncovered, now`.
+  A mark on a pane that draws in an area of its own waits for the window's reading of it, and is
+  refused as a desk read's wait is.
 - **Example:** an agent marks a part the Builder pane names, `part:<name>` in
   `zengine.builder-pane/builder`, with a few words.
 
@@ -973,20 +962,20 @@ a refused change is drawn again whole at once.
 
 ### `AreaButtonChanged`
 
-`AreaButtonChanged` v1, from the window that shows `zengine.workshop` or a frame: a button pressed or
-let go in one of Workshop's areas, at the screen's pixel there. It is that moment as `PointerButton` takes one,
-the press held to its own release: a tab, the chrome, the room, a menu, an arrangement, a body
+`AreaButtonChanged` v2, from the window that shows `zengine.workshop` or a frame: a button pressed
+or let go in one of Workshop's areas, at the screen's pixel there, by the hand it names. It is that
+moment as `PointerButton` takes one, that hand's, the press held to its own release: a tab, the chrome, the room, a menu, an arrangement, a body
 Workshop draws. A moment over a pane a window shows in its own area is never relayed to it.
 
 ### `AreaPointerMoved`
 
-`AreaPointerMoved` v1, from that window: the pointer moved in Workshop's own area, or while a press
-made there is held, as `PointerMoved` takes it.
+`AreaPointerMoved` v2, from that window: the pointer moved in Workshop's own area, or while a press
+made there is held, as `PointerMoved` takes it, by the hand it names.
 
 ### `AreaWheelTurned`
 
-`AreaWheelTurned` v1, from that window: the wheel in Workshop's own area, as `PointerWheel` takes
-it.
+`AreaWheelTurned` v2, from that window: the wheel in Workshop's own area, as `PointerWheel` takes
+it, by the hand it names.
 
 ### `AreaHoldEnded`
 
@@ -1003,25 +992,38 @@ that it left. A pane's area it left is the pane's to answer.
 
 ### `AreaPressed`
 
-`AreaPressed` v1, from the window, to the arranger of a pane's area: a button pressed or let go
-there, at the window's pixel, under the window's number for the press. The pane heard the press
-itself; Workshop counts the gesture, selects the pane and gives it the keys on a primary press,
-ends a guide mark it lands in, holds the pane's room against a title row until the release, and
-keeps the number, which the pane's carry, pass-back or menu then cites.
+`AreaPressed` v2, from the window, to the arranger of a pane's area: a button pressed or let go
+there, at the window's pixel, under the window's number, by the hand it names. Workshop counts the
+gesture on that hand and keeps the number, which the pane's carry, pass-back or menu cites. The
+weaver's own primary press also selects the pane, gives it the keys, ends a guide mark it lands in
+and holds the pane's room against a title row; a guest's does not.
+
+### `AreaHandRefused`
+
+`AreaHandRefused` v1, from the window, to the arranger of a pane's area placed for the weaver's
+hand alone -- the editor's, the Terminal's and the Hotkeys pane's, on a weaver's host: a guest's
+press or wheel there, refused and given to nobody. Workshop says why, in its band.
+
+### `AreaShown`
+
+`AreaShown` v1, from the window that shows the desk, answering Workshop's `AreaShowAsked`: what a
+pane's area shows, its words and its named parts. Workshop keeps it as that pane's reading, answers
+each read waiting on it, judges a guide mark on it again, and publishes `DeskStamps` when the
+reading moved. A refusal is kept as the pane's, and said to its readers.
 
 ## Follow
 
 Workshop publishes as `zengine.workshop`, to whoever follows it, each only when it differs from
 what it last said: `PaneCatalogRequested` when the surface is ready; `PaneInventory` and
-`KeymapShown`; `StandingConditions`, every condition true now; `DeskStamps` (v2, and v1 beside it)
-at the end of each delivery that moved the desk or a pane's stamp, the newest standing for all
-before it ([the desk, said whole](workshop-panes.md#the-desk-said-whole)); `PaneSubjectShown`
-once a pane is inspected; `TranscriptShown`, the terminal's record; `PaneSourceOpened` after an
-Edit Code open; and `PaneQuitRequested`, the question a quit asks. To the skin it says
-`SurfaceCanvas` and `SurfaceText`, the picture and the band. To a graphics directory it says
-`SkinOffered`, `AreaPlaced`, `SkinChosen` and `RoomAsked`, each only when it moved, and to the
-window that shows its area, `Drawn`. To the office of a pane a window shows in its own area it
-says `PaneKeys` whenever the keys come to the pane or leave it.
+`KeymapShown`; `StandingConditions`, every condition true now; `DeskStamps` v3 when the desk or a
+pane's stamp moved, the newest standing for all before it
+([the desk, said whole](workshop-panes.md#the-desk-said-whole)); `PaneSubjectShown` once a pane is
+inspected; `TranscriptShown`, the terminal's record; `PaneSourceOpened` after an Edit Code open;
+and `PaneQuitRequested`, the question a quit asks. To the skin it says `SurfaceCanvas` and
+`SurfaceText`, the picture and the band. To a graphics directory it says `SkinOffered`,
+`AreaPlaced`, `SkinChosen` and `RoomAsked`, each only when it moved, and to the window that shows
+its area, `Drawn`, and `AreaShowAsked` for each pane's area it reads. To the office of a pane a
+window shows in its own area it says `PaneKeys` whenever the keys come to the pane or leave it.
 
 ## Files
 

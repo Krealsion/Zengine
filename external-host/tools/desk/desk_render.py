@@ -4,8 +4,8 @@
 asks and no files.
 
   sparse  (`desk.txt`, `panes/<office>.<pane>.txt`) -- the grid encoded by runs, no blank
-          written: the desk's first lines; Workshop's own words, each `x,y text`; the status slot,
-          a word with no place, `slot <slot>: text`; the menu when one is open; then each pane
+          written: the desk's first lines; Workshop's own words, each `x,y text`; the menu when
+          one is open; then each pane
           front to back, a header line, each word `x,y text` at its middle row (place.y +
           place.h / 2) and each part `  name@x,y` at its press point (`name@-`: none).
   glance  (`glance.txt`) -- the grid sampled at the medium's own text cell, 8 x 18 canvas pixels
@@ -70,10 +70,10 @@ def empty(r):
 
 
 def stamp_text(s):
-    """`H/I/G/F`: holder, incarnation, room grant, and the fingerprint of what the picture shows,
-    in sixteen hex digits."""
+    """`H/I/E/F`: holder, incarnation, the window's incarnation in hex, and the fingerprint of
+    what the pane shows, in sixteen hex digits."""
     s = s or {}
-    return "%d/%d/%d/%016x" % (s.get("holder", 0), s.get("incarnation", 0), s.get("grant", 0),
+    return "%d/%d/%x/%016x" % (s.get("holder", 0), s.get("incarnation", 0), s.get("epoch", 0),
                                s.get("fingerprint", 0))
 
 
@@ -196,13 +196,11 @@ def pane_lines(desk, dp, read):
 
 def workshop_lines(desk):
     """Workshop's own words: the band and the arrange readout (no parts: the band owns no pointer
-    space), then the status slot, a word with no place."""
+    space)."""
     lines = []
     if desk.get("words"):
         lines.append("== Workshop's own words (zengine.workshop): no parts")
         lines += [word_line(w) for w in desk["words"]]
-    for s in desk.get("slots") or []:
-        lines.append("slot %s: %s" % (clean(s.get("slot")), clean(s.get("text"))))
     return lines
 
 

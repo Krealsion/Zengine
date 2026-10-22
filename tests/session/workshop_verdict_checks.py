@@ -44,16 +44,16 @@ class Clock:
 
 
 class Scripted:
-    """A run context whose Workshop is a script. `pane(provider, pane)` answers PaneView with rows
-    (a list of texts) or None (not described) -- version 3 as one word a row, the row's characters
-    without the blanks after the last, beside the parts `parts(rows)` names; version 1 as the rows
-    -- and PanePoint by the word asked for (version 2) or by the cell of the pane's text lattice
-    (versions 1 and 3), each point the cell's column and row in a space of cells. A `canvas` pane
-    draws its rows as its own picture, as Workshop reads one: a blank row is no word, so a word's
-    number is not its row's; version 3 points at any cell of its lattice, `LATTICE` rows by
-    columns, a blank row's and the one after a row's last character too; and version 1 of either
-    is refused. Every request's shape and version is kept in `asked`, and every injected moment
-    goes to `typed`."""
+    """A run context whose Workshop is a script. `pane(provider, pane)` answers PaneView (version
+    7) with rows (a list of texts) or None (not described): one word a row, the row's characters
+    without the blanks after the last, beside the parts `parts(rows)` names, each row a 12 px line
+    at 12 px a character from the pane's place, in a terminal's cells -- so a cell's point, which
+    the hand reckons from the reading, is its column and its row. PanePoint (version 4) answers a
+    word's character the same way. A `canvas` pane draws its rows as its own picture, as Workshop
+    reads one: a blank row is no word, so a word's number is not its row's, and its place holds
+    `LATTICE` rows by columns, a blank row's cells and those after a row's last character too; a
+    text pane's holds its rows. Every request's shape and version is kept in `asked`, and every
+    injected moment goes to `typed`."""
 
     name = "verdict-check"
     canvas = False
@@ -109,40 +109,35 @@ class Scripted:
             from loom_session.tool import Refused
             version = options.get("version", 1)
             self.asked.append((shape, version))
+            if version != (7 if shape == "PaneViewRequested" else 4):
+                raise AssertionError("%s version %d asked" % (shape, version))
             rows = self.pane(fields["provider"], fields["pane"])
             if rows is None:
                 raise Refused("not described")
-            if self.canvas and version == 1:
-                raise Refused("pane view unavailable: the pane draws a picture, not text rows")
             if shape == "PanePointRequested":
-                return self.point(rows, version, fields)
-            if version == 3:
-                self.numbered = [(i, t.rstrip(" ")) for i, t in enumerate(rows)
-                                 if t.rstrip(" ") or not self.canvas]
-                return {"provider": fields["provider"], "pane": fields["pane"], "picture": 1,
-                        "canvas": self.canvas, "parts": self.parts(rows), "words": [
-                            {"word": n, "text": t, "x": len(t) // 2, "y": i, "space": 1,
-                             "place": {"x": 0, "y": 12 * i, "w": 12 * max(1, len(t)), "h": 12}}
-                            for n, (i, t) in enumerate(self.numbered)]}
-            return {"picture": 1, "rows": [{"row": i, "text": t, "x": 1, "y": i, "space": 1}
-                                           for i, t in enumerate(rows)]}
+                return self.point(fields)
+            self.numbered = [(i, t.rstrip(" ")) for i, t in enumerate(rows)
+                             if t.rstrip(" ") or not self.canvas]
+            words = [{"word": n, "text": t, "x": len(t) // 2, "y": i, "space": 1,
+                      "place": {"x": 0, "y": 12 * i, "w": 12 * max(1, len(t)), "h": 12}}
+                     for n, (i, t) in enumerate(self.numbered)]
+            parts = self.parts(rows)
+            held = self.LATTICE[0] if self.canvas else len(rows)
+            return {"stamp": {"provider": fields["provider"], "pane": fields["pane"], "holder": 1,
+                              "incarnation": 1, "epoch": 1, "fingerprint": 1},
+                    "area": {"x": 0, "y": 0, "w": 12 * self.LATTICE[1], "h": 12 * held},
+                    "advance": 12, "line": 12, "words": words, "parts": parts,
+                    "covered": {"by": [], "words": 0, "rect": {"x": 0, "y": 0, "w": 0, "h": 0}},
+                    "in_flight": False, "from": 0, "total": len(words) + len(parts)}
         raise AssertionError(shape)
 
-    def point(self, rows, version, fields):
-        """Where a word's character (version 2) or a cell of the lattice (versions 1 and 3) is: its
-        column and its row, in a space of cells."""
+    def point(self, fields):
+        """Where a word's character is: its column and its row, in a space of cells."""
         from loom_session.tool import Refused
-        if version == 2:
-            said = self.numbered
-            if fields["word"] >= len(said) or fields["column"] >= len(said[fields["word"]][1]):
-                raise Refused("pane point unavailable: outside the pane's visible words")
-            return {"x": fields["column"], "y": said[fields["word"]][0], "space": 1}
-        row, column = fields["row"], fields["column"]
-        if self.canvas and not (0 <= row < self.LATTICE[0] and 0 <= column < self.LATTICE[1]):
-            raise Refused("pane point unavailable: outside the pane's text lattice")
-        if not self.canvas and not (0 <= row < len(rows) and 0 <= column < self.LATTICE[1]):
-            raise Refused("pane point unavailable: outside the pane's visible text")
-        return {"x": column, "y": row, "space": 1}
+        said = self.numbered
+        if fields["word"] >= len(said) or fields["column"] >= len(said[fields["word"]][1]):
+            raise Refused("pane point unavailable: outside the pane's visible words")
+        return {"x": fields["column"], "y": said[fields["word"]][0], "space": 1}
 
     def parts(self, rows):
         """The parts the pane names beside its rows: none."""

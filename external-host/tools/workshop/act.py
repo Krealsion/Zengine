@@ -46,8 +46,8 @@ from pathlib import Path
 
 from loom_session.tool import Refused
 
-from hand import (FALLBACK_PACE, NO_PRESS, POINT_TRIES, Hand, no_settled_picture, on_row, rows_of,
-                  takes_no_press)
+from hand import (FALLBACK_PACE, NO_PRESS, POINT_TRIES, SETTLE_SECONDS, Hand, no_settled_picture,
+                  on_row, rows_of, takes_no_press)
 from workshop_steps import cells_point, chord_moments, moment, picture, png_of, point
 
 VERBS = ("press", "type", "open", "select", "into", "click", "part", "at", "rest", "wheel",
@@ -105,12 +105,19 @@ def spelled(value, verb, count):
     return value
 
 
-def words_now(hand, provider, pane):
-    """The pane's words now, or None while Workshop refuses to describe it."""
-    try:
-        return hand.words(provider, pane)
-    except Refused:
-        return None
+def words_now(hand, provider, pane, end=None):
+    """The pane's words now, or None while Workshop refuses to describe it. A reading in flight is
+    no refusal to describe the pane: it is read again as what the pane shows settles, until `end`
+    (SETTLE_SECONDS from now where none is given), and only past it is None -- so a step never
+    takes a pane settling for one that is not there."""
+    end = time.monotonic() + SETTLE_SECONDS if end is None else end
+    while True:
+        try:
+            return hand.words(provider, pane)
+        except Refused as refused:
+            if not no_settled_picture(refused) or time.monotonic() >= end:
+                return None
+            pause(hand, end, (provider, pane))
 
 
 def pause(hand, end, pane=None):
@@ -189,7 +196,7 @@ def wait_part(hand, provider, pane, name, seconds):
     """Read the pane until it draws a part named `name` in a picture that takes a press."""
     end = time.monotonic() + seconds
     while True:
-        view = words_now(hand, provider, pane)
+        view = words_now(hand, provider, pane, end)
         part = part_of(view, name)
         if (part is not None and not takes_no_press(view)) or time.monotonic() >= end:
             return view, part
@@ -223,7 +230,7 @@ def wait_words(hand, provider, pane, text, seconds, present=True, pressing=False
     `pressing`, in a picture that takes a press."""
     end = time.monotonic() + seconds
     while True:
-        view = words_now(hand, provider, pane)
+        view = words_now(hand, provider, pane, end)
         words = [w for w in view["words"] if text in w["text"]] if view else []
         if bool(words) == present and not (pressing and takes_no_press(view)):
             return view, words
@@ -232,15 +239,13 @@ def wait_words(hand, provider, pane, text, seconds, present=True, pressing=False
         pause(hand, end, (provider, pane))
 
 
-def painted(hand, provider, pane):
-    """A pane's rows now, as its words say them (PaneView version 3, `hand.rows_of`): `{picture,
-    canvas, rows: [{row, text, x, y, space}]}`, or None while Workshop refuses to describe it. A
-    text pane's `row` is its row, which `hand.point` takes with the picture; a canvas pane's is its
-    word's number, and `rows_by_place` numbers its lines by the rows they stand on."""
-    try:
-        return rows_of(hand.words(provider, pane))
-    except Refused:
-        return None
+def painted(hand, provider, pane, end=None):
+    """A pane's rows now, as its words say them (PaneView version 7, `hand.rows_of`): `{provider,
+    pane, fingerprint, rows: [{row, text, x, y, space}]}`, or None while Workshop refuses to
+    describe it, a reading in flight read again until `end` as `words_now` reads it. A row is its
+    word's number, and `rows_by_place` numbers a pane's lines by the rows they stand on."""
+    view = words_now(hand, provider, pane, end)
+    return rows_of(view) if view is not None else None
 
 
 def wait_rows(hand, provider, pane, text, seconds, present=True):
@@ -249,7 +254,7 @@ def wait_rows(hand, provider, pane, text, seconds, present=True):
     None)`."""
     end = time.monotonic() + seconds
     while True:
-        view = painted(hand, provider, pane)
+        view = painted(hand, provider, pane, end)
         rows = [r for r in view["rows"] if text in r["text"]] if view else []
         if view is not None and bool(rows) == present:
             return view, rows
@@ -316,6 +321,9 @@ def act(ctx, hand, verb, step):
 
         def read():
             view, words = wait_words(hand, provider, pane, text, seconds, pressing=True)
+            # A PANE STILL IN FLIGHT when the seconds ran out held nothing settled to look in.
+            ctx.check(words or not hand.unsettled, "%s: %s/%s held no settled picture to aim at "
+                      "within %gs" % (verb, provider, pane, seconds))
             ctx.check(words, "%s: %s/%s paints no word holding %r" % (verb, provider, pane, text))
             no_press_yet(ctx, view, verb, provider, pane, seconds)
             return view, words[0]
@@ -323,7 +331,7 @@ def act(ctx, hand, verb, step):
         def aim(reading):
             view, at = reading
             return at if not at["text"] else hand.word_point(
-                provider, pane, at["word"], max(0, at["text"].find(text)), view["picture"])
+                provider, pane, at["word"], max(0, at["text"].find(text)), view["fingerprint"])
 
         (_, at), where = aimed(ctx, hand, verb, provider, pane, read, aim, seconds)
         press_at(ctx, hand, where, step.get("button", "left"))
@@ -365,7 +373,7 @@ def act(ctx, hand, verb, step):
         _, where = aimed(
             ctx, hand, verb, provider, pane,
             lambda: press_view(ctx, hand, verb, provider, pane, seconds),
-            lambda view: hand.point(provider, pane, row, column, view["picture"]), seconds)
+            lambda view: hand.point(view, row, column), seconds)
         press_at(ctx, hand, where, step.get("button", "left"))
         return {"x": where["x"], "y": where["y"]}
     if verb == "control":
@@ -390,10 +398,10 @@ def act(ctx, hand, verb, step):
         view = words_now(hand, provider, pane)
         ctx.check(view is not None, "rows: Workshop does not describe %s/%s now" % (provider, pane))
         kept = step.get("as", pane.replace(".", "-"))
-        ctx.produce(kept + ".json", json.dumps({"picture": view["picture"], "rows": texts(view),
+        ctx.produce(kept + ".json", json.dumps({"fingerprint": view["fingerprint"], "rows": texts(view),
                     "words": [dict(w) for w in view["words"]],
                     "parts": [dict(p) for p in view.get("parts", [])]}, indent=1).encode())
-        return {"rows": len(view["words"]), "parts": names(view), "picture": view["picture"]}
+        return {"rows": len(view["words"]), "parts": names(view), "fingerprint": view["fingerprint"]}
     if verb == "settings":
         return settings_step(ctx, hand, arg)
     if verb == "picture":
@@ -476,7 +484,7 @@ def press_control(ctx, hand, provider, pane, label, seconds):
 
     def aim(reading):
         view, (w, at) = reading
-        return hand.word_point(provider, pane, w["word"], at + 1, view["picture"])
+        return hand.word_point(provider, pane, w["word"], at + 1, view["fingerprint"])
 
     (_, (w, _)), where = aimed(ctx, hand, "control", provider, pane, read, aim, seconds)
     press_at(ctx, hand, where)
@@ -783,7 +791,7 @@ def manager_row(ctx, hand, name, seconds, verb="open"):
                 return None
             first = lines(reading)[0]["words"][0]
             return first if not first["text"] else hand.word_point(
-                *MANAGER, first["word"], 0, reading["picture"])
+                *MANAGER, first["word"], 0, reading["fingerprint"])
 
         view, first = aimed(ctx, hand, verb, *MANAGER, read, aim, seconds)
         if first is not None:

@@ -1,9 +1,9 @@
 host -> asker  SeatDo v1  {}
-asker -> zengine.workshop  DeskViewRequested v1  {}
-zengine.workshop -> asker  DeskView v1  {width: 1800, height: 720, cell_px: 0, space: 1, room: {x: 0, y: 24, w: 1800, h: 648}, panes: [4], arranging: false, menu: {open: false, office: "", pane: "", picture: 0, place: {x: 0, y: 0, w: 0, h: 0}, lines: [0]}}
+asker -> zengine.workshop  DeskReadRequested v3  {}
+zengine.workshop -> asker  DeskRead v3  {desk: {desk: 6, width: 1800, height: 720, cell_px: 0, space: 1, room: {x: 0, y: 24, w: 1800, h: 648}, panes: [4], arranging: false, menu: {open: false, office: "", pane: "", picture: 0, place: {...}, lines: [0], parts: [0]}, words: [3]}, stamps: [3], panes: [3]}
 host -> asker  SeatDo v1  {}
-asker -> zengine.workshop  PaneViewRequested v2  {provider: "zengine.test.desk-alpha", pane: "alpha"}
-zengine.workshop -> asker  PaneView v2  {provider: "zengine.test.desk-alpha", pane: "alpha", picture: 0, canvas: false, words: [2]}
+asker -> zengine.workshop  PaneViewRequested v7  {provider: "zengine.test.desk-alpha", pane: "alpha", from: 0, stamp: {provider: "", pane: "", holder: 0, incarnation: 0, epoch: <varies>, fingerprint: 0}}
+zengine.workshop -> asker  PaneView v7  {stamp: {provider: "zengine.test.desk-alpha", pane: "alpha", holder: 9, incarnation: 1, epoch: <varies>, fingerprint: 3343475692524011391}, area: {x: 12, y: 48, w: 1164, h: 72}, advance: 12, line: 12, words: [2], parts: [0], covered: {by: [0], words: 0, rect: {x: 0, y: 0, w: 0, h: 0}}, in_flight: false, from: 0, total: 2}
 host -> asker  SeatDo v1  {}
-asker -> zengine.workshop  PanePointRequested v2  {provider: "zengine.test.desk-alpha", pane: "alpha", picture: 0, word: 1, column: 7}
-zengine.workshop -> asker  PanePoint v2  {provider: "zengine.test.desk-alpha", pane: "alpha", picture: 0, word: 1, column: 7, x: 8, y: 5, space: 1}
+asker -> zengine.workshop  PanePointRequested v4  {provider: "zengine.test.desk-alpha", pane: "alpha", fingerprint: 3343475692524011391, word: 1, column: 7}
+zengine.workshop -> asker  PanePoint v3  {provider: "zengine.test.desk-alpha", pane: "alpha", fingerprint: 3343475692524011391, word: 1, column: 7, x: 8, y: 5, space: 1}

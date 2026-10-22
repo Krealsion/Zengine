@@ -37,7 +37,7 @@ WHY — `agents/decisions/a-press-says-what-it-may-cause.md`
 
 ## WL-CAUSE-03 — A part says whether its operation applies now, and its reading carries it
 
-LAW — `v2::PaneRowPart` and `v2::PaneCanvasPart` say `available` as the pane draws the face, `[label]` true and `(label)` false; Workshop holds it with the picture and says it on each part of `v6::PaneView`.
+LAW — `v2::PaneRowPart` and `v2::PaneCanvasPart` say `available` as the pane draws the face, `[label]` true, `(label)` false; it rides the picture, or a window's record (`PartFace`), to each `PanePart`.
 
 MEANS
 - a part of an earlier version, and a part Workshop names itself, reads available;
@@ -97,14 +97,15 @@ mode, with what each press causes and the mode it enters, and the desk's, are te
 ### WL-CAUSE-03
 `workshop/pane_vocabulary.hpp` v2::PaneRowPart v5::PaneContent row_part_of
 `workshop/pane_canvas_vocabulary.hpp` v2::PaneCanvasPart v6::PaneCanvasContent canvas_part_of
-`workshop/pane_view.hpp` v2::PanePart v6::PaneView v6::PaneViewRequested
+`workshop/pane_view.hpp` PanePart PaneView PaneViewRequested
+`workshop/pane_drawing.hpp` part_available
 `workshop/pane_parts.hpp` row_parts
 `workshop/pane_canvas_rows.hpp` rows_picture
 `workshop/panes.hpp` picture_fingerprint
 `workshop/weave_seam.cpp` on(PaneContent)
 `workshop/weave_canvas.cpp` on(PaneCanvasContent)
 `workshop/weave_desk_read.cpp` on(PaneViewRequested)
-`workshop/desk_read.hpp` canvas_part_on fifth_version
+`workshop/desk_read.hpp` canvas_part_on
 `builder/builder-pane/pane.cpp` BuilderMeaning::available
 `tests/test_workshop_panes_builder.cpp` "WL-CAUSE-03: a control the Builder draws in brackets reads
 available in its reading, and one drawn in parentheses reads unavailable -- the pane's word, not the

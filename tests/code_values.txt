@@ -42,6 +42,8 @@ workshop_formats.GUESTS_VERSION  external-host/tools/workshop/workshop_formats.p
 kDecodedCellBudget              workshop/decoded_cells.hpp                kDecodedCellBudget
 kReplyByteBudget                workshop/reply_bytes.hpp                  kReplyByteBudget
 kDeskReadsPerSecond             workshop/weave.hpp                        kDeskReadsPerSecond
+kMaxDeskWaits                   workshop/weave.hpp                        kMaxDeskWaits
+kDeskWaitMs                     workshop/weave.hpp                        kDeskWaitMs
 desk_render.SECTION_BYTES       external-host/tools/desk/desk_render.py   SECTION_BYTES
 desk_render.DENSE_CELLS         external-host/tools/desk/desk_render.py   DENSE_CELLS
 # ...and what a watch keeps: the ring of its changes, and the least time between its desk reads.

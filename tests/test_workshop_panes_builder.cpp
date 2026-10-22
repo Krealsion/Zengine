@@ -3296,33 +3296,33 @@ struct ViewAskerState {
     ZEN_SHAPE(ViewAskerState, 1, ZEN_FIELD(heard));
 };
 class ViewAsker
-    : public loom::WeaveBase<ViewAsker, ViewAskerState, loom::Accept<v6::PaneView, loom::Refused>,
-                             loom::Emit<v6::PaneViewRequested>> {
+    : public loom::WeaveBase<ViewAsker, ViewAskerState, loom::Accept<PaneView, loom::Refused>,
+                             loom::Emit<PaneViewRequested>> {
 public:
-    void on(const v6::PaneView& view, loom::Mail&) { views.push_back(view); }
+    void on(const PaneView& view, loom::Mail&) { views.push_back(view); }
     void on(const loom::Refused& refused, loom::Mail&) { refusals.push_back(refused.reason); }
-    std::vector<v6::PaneView> views;
+    std::vector<PaneView> views;
     std::vector<std::string> refusals;
 };
 
 /// THE BUILDER'S READING AS WORKSHOP SAYS IT: its named parts, each with its availability.
-v6::PaneView builder_view(BuilderRig& b) {
+PaneView builder_view(BuilderRig& b) {
     auto held = std::make_unique<ViewAsker>();
     ViewAsker* asker = held.get();
     loom::Grant grant;
-    grant.allow_to_role(v6::PaneViewRequested::zen_name, v6::PaneViewRequested::zen_version,
+    grant.allow_to_role(PaneViewRequested::zen_name, PaneViewRequested::zen_version,
                         kWorkshopProvider);
     const loom::WeaveId id = b.r.bus.register_weave(std::move(held), std::move(grant));
     asker->zen_set_self(id);
     (void)b.r.bus.send_as_to_role(
         id, kWorkshopProvider,
-        loom::Message(loom::to_value(v6::PaneViewRequested{pane::kBuilderPaneRole,
+        loom::Message(loom::to_value(PaneViewRequested{pane::kBuilderPaneRole,
                                                            pane::kBuilderPane, 0, {}}),
                       id, loom::WeaveId{}, 0));
     b.r.bus.drain_until_idle();
     REQUIRE_MESSAGE(asker->refusals.empty(), asker->refusals.front());
     REQUIRE(asker->views.size() == 1);
-    v6::PaneView out = asker->views.front();
+    PaneView out = asker->views.front();
     b.r.bus.unregister_weave(id);
     return out;
 }
@@ -3334,30 +3334,30 @@ TEST_CASE("WL-CAUSE-03: a control the Builder draws in brackets reads available 
     BuilderRig b("bld-available");
     b.tool->catalog = catalog_of({{"tally", "tally"}});
     b.open();
-    const v6::PaneView view = builder_view(b);
+    const PaneView view = builder_view(b);
     REQUIRE_FALSE(view.in_flight);
     std::string names;
-    for (const v2::PanePart& p : view.parts) names += p.name + " ";
+    for (const PanePart& p : view.parts) names += p.name + " ";
     INFO("parts: ", names, " covered by: ", view.covered.by.size());
-    const auto part = [&view](const std::string& name) -> const v2::PanePart* {
-        for (const v2::PanePart& p : view.parts) {
+    const auto part = [&view](const std::string& name) -> const PanePart* {
+        for (const PanePart& p : view.parts) {
             if (p.name == name) return &p;
         }
         return nullptr;
     };
     // A RECIPE IS CHOSEN AND NOTHING STANDS: `[build]` applies, `(promote the loaded image)` does
     // not, and each part says so beside its words.
-    const v2::PanePart* build = part("control:builder.build");
+    const PanePart* build = part("control:builder.build");
     REQUIRE_MESSAGE(build != nullptr, b.text());
     CHECK(build->text == "[build]");
     CHECK(build->available);
-    const v2::PanePart* promote = part("control:builder.promote");
+    const PanePart* promote = part("control:builder.promote");
     REQUIRE_MESSAGE(promote != nullptr, b.text());
     CHECK(promote->text.rfind("(promote", 0) == 0);
     CHECK_FALSE(promote->available);
     // ...AND EVERY CONTROL'S WORD AND FACE AGREE, in a picture holding both kinds.
     std::size_t controls = 0;
-    for (const v2::PanePart& p : view.parts) {
+    for (const PanePart& p : view.parts) {
         if (p.name.rfind("control:", 0) != 0 || p.text.empty()) continue;
         ++controls;
         CAPTURE(p.name);
@@ -3365,7 +3365,7 @@ TEST_CASE("WL-CAUSE-03: a control the Builder draws in brackets reads available 
     }
     CHECK(controls > 2);
     // ...AND A RECIPE'S ROW, WHICH PERFORMS NOTHING, IS AVAILABLE.
-    const v2::PanePart* recipe = part("recipe:tally");
+    const PanePart* recipe = part("recipe:tally");
     if (recipe != nullptr) CHECK(recipe->available);
 }
 

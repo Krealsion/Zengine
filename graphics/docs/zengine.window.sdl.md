@@ -49,22 +49,22 @@ with [`Drawn`](#drawn), says an element once with [`ElementPut`](#elementput) an
 with [`ElementChange`](#elementchange). A drawer does all three through a canvas or a
 drawing weave ([the Graphics package](graphics.md#a-drawing-weave)), which draw whole only on a new
 window, incarnation, size or measure, or an empty area. To read what it shows, ask
-[`WindowShowAsked`](#windowshowasked).
+[`WindowShowAsked`](#windowshowasked), or, as an area's arranger, [`AreaShowAsked`](#areashowasked).
 
 Keys go to each owner placed to hear them: each key, its text and its release. An owner placed to
 hear the pointer is given each pointer moment in its area as it was, in the area's pixels
 (`AreaButtonChanged`, `AreaPointerMoved`, `AreaWheelTurned`); moves read in one beat go as one. A
 press holds its button for its area until its release, under one number; its arranger hears where
-it landed (`AreaPressed`; [the Graphics package](graphics.md#who-says-what)).
+it landed (`AreaPressed`; [the Graphics package](graphics.md#who-says-what)). Each names its
+hand ([`AttributedInput`](#attributedinput)).
 
-Who may send: whoever the host's grant lets reach `zengine.window.sdl`. The window takes a drawing
+Who may send: whoever the host's grant lets reach the window. It takes a drawing
 or an element only from the area's owner, as that office, and refuses anyone else's; it takes the
 directory's words only from `zengine.graphics`, and ignores them from anyone else. Every bound is
 judged before anything changes, and a drawing past one is refused whole, in words, to its drawer
 (`DrawnRefused`), leaving what the window shows as it was. The bounds are
 `graphics/vocabulary.hpp`'s: `kMaxNodesPerArea`, `kMaxElementsPerArea`, `kMaxPathBytes`,
-`kMaxPathDepth`, `kMaxArgsBytes`, and `kMaxAreas` areas a window. A record said again at its own
-path counts as itself, so an area at its bound still takes a change.
+`kMaxPathDepth`, `kMaxArgsBytes`, and `kMaxAreas` areas a window.
 
 SDL has one event queue to a process, and this window empties it. Loaded, it claims the queue
 (`ZENGINE_WINDOW_SDL_INPUT_PID`, `input/window_claim.hpp`), so
@@ -136,6 +136,29 @@ of the queue and serving input sessions alone. With no display, the window gives
 - **Refuses:** nothing.
 - **Example:** a suite asks it after a drawing, and finds the drawing's words in `rows`.
 
+### `AreaShowAsked`
+
+`AreaShowAsked` v1 asks what one area shows, of the office that placed it.
+
+- **Takes:** `area`; `since`, the `version` of the last answer the asker took, or 0.
+- **Answers:** `AreaShown` v1, to the asker alone: the window's name, `sdl`, and incarnation; the
+  area's `version`, which moves whenever what it shows may have moved -- its drawing, its place, or
+  an area that meets it; `waiting`, true while the window told the owner a room it must draw whole
+  and none has come since; its face's measure; and, unless `since` is still the version (then
+  `same`, and nothing more), its `words` and `parts` in the area's pixels. A word is the characters
+  of text runs on one line, side by side where one ends as the next begins, each inside the area and
+  the window and with no area in front drawing over its middle, the blanks after its last character
+  left off. A part is a record naming an action, by that name: the box its drawing's primitives
+  span, cut to the area; `pressed`, with the point nearest the box's middle where a press reaches it
+  (`px`, `py`); and `available`, as the record says it (`PartFace`), else true. A part none of whose
+  points shows is not said. What the window holds painted is what it shows at its next picture at
+  the latest.
+- **Refuses:** in `zen.Refused`: `window 'sdl' shows no area '<area>'`; `area '<area>' is read only
+  by the office that placed it`; `area '<area>' shows more than <bound> runs of text`
+  (`kMaxAreaWords`).
+- **Example:** Workshop reads the area of a pane it placed, `AreaShowAsked{"zengine.info", 0}`, and
+  then asks again since the version it took.
+
 ### `ClipboardTextRequested`
 
 `ClipboardTextRequested` v1 asks what the platform clipboard holds, for a paste.
@@ -202,11 +225,12 @@ judged against the displays there are now.
 
 ### `AreaIntroduced`
 
-`AreaIntroduced` v3, from the directory: an area, its owner, its arranger, place, order, keys,
-pointer and skin. The window keeps it, paints it again where another skin or library paints it,
-draws its picture again where it moved, empties it when another owner draws in it, ends a press
-held for it or now covered by it, and tells the owner its room (`AreaRoom`). Past `kMaxAreas` it is
-not shown, and `WindowShown` reports `the window shows <bound> areas: '<area>' is not shown`.
+`AreaIntroduced` v4, from the directory: an area, its owner, its arranger, place, order, keys,
+pointer, skin and `weaver_only`. The window keeps it, paints it again where another skin or
+library paints it, draws its picture again where it moved, empties it when another owner draws in
+it, ends a press held for it or now covered by it, and tells the owner its room (`AreaRoom`). Past
+`kMaxAreas` it is not shown, and `WindowShown` reports `the window shows <bound> areas: '<area>'
+is not shown`.
 
 ### `AreaWithdrawn`
 
@@ -246,6 +270,14 @@ timer binding.
 `ClipboardCopy` v1, a weaver's copy: the text put on the platform's clipboard, with no showing and
 no answer. With no window there is no clipboard, and nothing is copied.
 
+### `AttributedInput`
+
+`AttributedInput` v1, from `zengine.input` alone: a moment it injected for a participant, named
+`actor`. A press, move or wheel is landed as the window's own and told as that hand's, each hand
+holding its own presses; a key, text or a `local` moment is not taken. In an area placed for the
+weaver's hand alone (`weaver_only`) its press or wheel reaches nobody, its arranger is told
+(`AreaHandRefused`), and the moves and release after are dropped.
+
 ## Follow
 
 As its own office the window publishes `WindowOffered` v3 on each activation, after `GraphicsReady`,
@@ -253,12 +285,12 @@ and at each new size: its name, its pixels, its incarnation, `kCellPx` pixels in
 face's measure; the directory keeps it. It publishes `SurfacePlacement` v1 when its place changed,
 before `WindowOffered` when both did; and `SurfaceCloseRequested` v1 for each close asked. To an
 area's owner: `AreaRoom` v4 (`empty` while it holds none of the owner's drawing, and its face);
-`DrawnRefused` v1; `ActionRequested` v1; `AreaButtonChanged`,
-`AreaPointerMoved`, `AreaWheelTurned`, `AreaHoldEnded` and `AreaPointerLeft` v1 when placed to hear
-the pointer; `KeyPressed` v2, `KeyReleased` v2 and `TextEntered` v1 when placed to hear keys. To an
-arranger not the owner: `AreaPressed`, `AreaHoldEnded` and `AreaPointerLeft` v1. To an asker:
-`WindowShown` v1, `ClipboardText` v1, `SurfaceCaptured` v1, `SurfaceCaptureChunk` v1 and
-`zen.Refused`. To the Timer, its beat's order.
+`DrawnRefused` v1; `ActionRequested` v1; `AreaButtonChanged`, `AreaPointerMoved`,
+`AreaWheelTurned` v2, `AreaHoldEnded`, `AreaPointerLeft` v1 when placed to hear the pointer;
+`KeyPressed` v2, `KeyReleased` v2 and `TextEntered` v1 when placed to hear keys. To an arranger not
+the owner: `AreaPressed` v2, `AreaHoldEnded`, `AreaPointerLeft` v1; to any arranger, `AreaHandRefused`
+v1. To an asker: `WindowShown`, `AreaShown`, `ClipboardText`, `SurfaceCaptured`,
+`SurfaceCaptureChunk` v1 and `zen.Refused`. To the Timer, its beat's order.
 
 ## Files
 

@@ -58,7 +58,7 @@ std::string WorkshopWeave::read_withheld(loom::Mail& mail, loom::WeaveId asker,
         host_->input_authority ? host_->input_authority(asker) : loom::GrantAuthority{};
     const loom::AuthorityView live = mail.describe_authority(cap);
     if (door && live.available &&
-        live.permits_role(v2::DeskReadRequested::zen_name, v2::DeskReadRequested::zen_version,
+        live.permits_role(DeskReadRequested::zen_name, DeskReadRequested::zen_version,
                           kWorkshopProvider, *door)) {
         return {};
     }
@@ -67,16 +67,15 @@ std::string WorkshopWeave::read_withheld(loom::Mail& mail, loom::WeaveId asker,
 
 // A PANE THE ASKER MAY NOT READ, SAID AS A STAMP: its place in the order, its office, pane and
 // holder, and nothing that moves with what it shows.
-v2::PaneStamp WorkshopWeave::withheld_stamp(const PaneRef& ref) const {
-    const PaneStamp of = stamp_of(ref.provider, ref.pane, 0, 0);
-    return v2::PaneStamp{ref.provider, ref.pane, of.holder, 0, 0, 0};
+PaneStamp WorkshopWeave::withheld_stamp(const PaneRef& ref) const {
+    const PaneStamp of = stamp_of(ref.provider, ref.pane);
+    return PaneStamp{ref.provider, ref.pane, of.holder, 0, 0, 0};
 }
 
-// ...AND THE DESK, TO A ROW THAT READS BY PANE: every pane's place and name, and no band, status or
-// desk number, which move with every pane's words.
-void WorkshopWeave::withhold_desk(v3::DeskView& desk) const {
+// ...AND THE DESK, TO A ROW THAT READS BY PANE: every pane's place and name, and no band or desk
+// number, which move with every pane's words.
+void WorkshopWeave::withhold_desk(DeskView& desk) const {
     desk.words.clear();
-    desk.slots.clear();
     desk.desk = 0;
 }
 

@@ -808,7 +808,7 @@ TEST_CASE("WL-HAND-06: the shipped presenter names each row's line by its id, an
     CHECK(named == want);
     CHECK(s.presented.lines[static_cast<std::size_t>(s.presented.parts[1].row)].text == "  Second row");
     // THE DESK SAYS EACH OVER THE LINE THAT SHOWS IT, where the popup's own press measurer reads it.
-    const v2::DeskView desk = t.r.w->desk_view();
+    const DeskView desk = t.r.w->desk_view();
     REQUIRE(desk.menu.open);
     REQUIRE(desk.menu.parts.size() == want.size());
     const PanePart* second = nullptr;

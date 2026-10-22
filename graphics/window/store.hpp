@@ -11,10 +11,13 @@
 
 #include "graphics/vocabulary.hpp"
 
+#include <zen/weave/lifecycle.hpp>
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -41,7 +44,7 @@ struct Presented {
 };
 
 /// One area as its window keeps it: where the directory placed it, who draws in it and who placed
-/// it, which skin paints it, and what was drawn there.
+/// it, whose hands reach it, which skin paints it, and what was drawn there.
 struct WinArea {
     std::string area;
     std::string owner;
@@ -49,16 +52,17 @@ struct WinArea {
     std::int64_t x = 0, y = 0, w = 0, h = 0, order = 0;
     bool keys = false;
     bool pointer = false;
+    bool weaver_only = false;
     std::string skin;
     std::string library;
     std::int64_t next_rank = 1;
     std::vector<KeptNode> nodes;
     std::vector<ElementRecord> records;
     std::vector<Presented> presented;
-    ZEN_SHAPE(WinArea, 3, ZEN_FIELD(area), ZEN_FIELD(owner), ZEN_FIELD(arranger), ZEN_FIELD(x),
+    ZEN_SHAPE(WinArea, 4, ZEN_FIELD(area), ZEN_FIELD(owner), ZEN_FIELD(arranger), ZEN_FIELD(x),
               ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h), ZEN_FIELD(order), ZEN_FIELD(keys),
-              ZEN_FIELD(pointer), ZEN_FIELD(skin), ZEN_FIELD(library), ZEN_FIELD(next_rank),
-              ZEN_FIELD(nodes), ZEN_FIELD(records), ZEN_FIELD(presented));
+              ZEN_FIELD(pointer), ZEN_FIELD(weaver_only), ZEN_FIELD(skin), ZEN_FIELD(library),
+              ZEN_FIELD(next_rank), ZEN_FIELD(nodes), ZEN_FIELD(records), ZEN_FIELD(presented));
 };
 
 /// Who is drawing: the owner (everything but what the window presents), or an element's code
@@ -103,6 +107,39 @@ inline const ElementRecord* record_of(const WinArea& a, const std::string& path)
         }
     }
     return hit;
+}
+
+/// Each node's record, the nearest whose subtree holds it: what a press on that node reaches.
+/// Nodes no record holds are left out.
+inline std::map<std::string, const ElementRecord*> records_by_node(const WinArea& a) {
+    std::map<std::string, const ElementRecord*> at;
+    for (const ElementRecord& r : a.records) {
+        if (!r.path.empty()) {
+            at[r.path] = &r;
+        }
+    }
+    std::map<std::string, const ElementRecord*> out;
+    for (const KeptNode& k : a.nodes) {
+        for (std::string p = k.node.path; !p.empty(); p = parent_of(p)) {
+            const auto it = at.find(p);
+            if (it != at.end()) {
+                out[k.node.path] = it->second;
+                break;
+            }
+        }
+    }
+    return out;
+}
+
+/// Whether the part a record names applies now, as the record says it (`PartFace`). A record of
+/// another shape, or one that does not read as its shape, says nothing, and its part reads
+/// available.
+inline bool record_available(const ElementRecord& r) {
+    if (r.type != loom::schema_of<PartFace>()->name()) {
+        return true;
+    }
+    const std::optional<PartFace> face = loom::claim_item<PartFace>(r.data);
+    return !face.has_value() || face->available;
 }
 
 /// Whether something drawn takes a press at `path`, the top node painted at a point: an element

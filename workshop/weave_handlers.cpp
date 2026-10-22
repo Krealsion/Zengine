@@ -248,6 +248,11 @@ void WorkshopWeave::on(const graphics::WindowOffered& w, loom::Mail& mail) {
     // Another one offering itself takes every area afresh.
     window_offered_ = true;
     note_medium();
+    // WHAT THE WINDOW SAID OF EACH AREA IS ITS INCARNATION'S: another, or another window, said none.
+    if (window_name_ != w.window || window_epoch_ != w.epoch) {
+        window_epoch_ = w.epoch;
+        forget_area_readings(mail);
+    }
     if (window_name_ != w.window) {
         window_name_ = w.window;
         areas_placed_.clear();
@@ -309,17 +314,20 @@ void WorkshopWeave::on(const graphics::DrawnRefused& refused, loom::Mail& mail) 
 
 namespace {
 
-/// WHILE A MOMENT A GRAPHICS WINDOW GAVE IS ANSWERED: `on` holds true, and the moment is the
-/// weaver's own local hand's, as the platform's input is.
+/// WHILE A MOMENT A GRAPHICS WINDOW GAVE IS ANSWERED: `on` holds true, and the moment is the hand's
+/// the window names -- the weaver's own, as the platform's input is, or a guest's.
 template <class Actor>
 struct WindowMoment {
     bool& on;
     Actor& actor;
     bool was_on;
     Actor was;
-    WindowMoment(bool& flag, Actor& who) : on(flag), actor(who), was_on(flag), was(who) {
+    WindowMoment(bool& flag, Actor& who, bool local, std::int64_t participant)
+        : on(flag), actor(who), was_on(flag), was(who) {
         on = true;
-        actor = Actor{true, true, loom::WeaveId{}};
+        actor = local || participant <= 0
+                    ? Actor{true, true, loom::WeaveId{}}
+                    : Actor{true, false, loom::WeaveId{static_cast<std::uint64_t>(participant)}};
     }
     ~WindowMoment() {
         on = was_on;
@@ -339,7 +347,7 @@ void WorkshopWeave::on(const graphics::AreaButtonChanged& b, loom::Mail& mail) {
     const auto [ox, oy] = area_origin(b.area);
     const std::int64_t x = b.x + ox;
     const std::int64_t y = b.y + oy;
-    const WindowMoment moment{window_moment_, input_actor_};
+    const WindowMoment moment{window_moment_, input_actor_, b.local, b.actor};
     pointer_button(input::PointerButton{b.button, b.pressed, x, y, input::space::kPixels,
                                         b.modifiers},
                    mail);
@@ -352,7 +360,7 @@ void WorkshopWeave::on(const graphics::AreaPointerMoved& m, loom::Mail& mail) {
     const auto [ox, oy] = area_origin(m.area);
     const std::int64_t x = m.x + ox;
     const std::int64_t y = m.y + oy;
-    const WindowMoment moment{window_moment_, input_actor_};
+    const WindowMoment moment{window_moment_, input_actor_, m.local, m.actor};
     pointer_moved(input::PointerMoved{x, y, m.dx, m.dy, input::space::kPixels, m.modifiers}, mail);
 }
 
@@ -364,7 +372,7 @@ void WorkshopWeave::on(const graphics::AreaWheelTurned& w, loom::Mail& mail) {
     const auto [ox, oy] = area_origin(w.area);
     const std::int64_t x = w.x + ox;
     const std::int64_t y = w.y + oy;
-    const WindowMoment moment{window_moment_, input_actor_};
+    const WindowMoment moment{window_moment_, input_actor_, w.local, w.actor};
     pointer_wheel(input::PointerWheel{w.dx, w.dy, x, y, input::space::kPixels, w.modifiers}, mail);
 }
 
@@ -391,7 +399,7 @@ void WorkshopWeave::on(const graphics::AreaPressed& p, loom::Mail& mail) {
     if (kind == kNoPaneKind) {
         return;
     }
-    const WindowMoment moment{window_moment_, input_actor_};
+    const WindowMoment moment{window_moment_, input_actor_, p.local, p.actor};
     const std::uint64_t press = mail.correlation();
     const auto slot = static_cast<std::size_t>(p.button - 1);
     const PointedAt at = canvas_point_of(input::space::kPixels, p.x, p.y, session_.console_rows_above);
@@ -417,14 +425,16 @@ void WorkshopWeave::on(const graphics::AreaPressed& p, loom::Mail& mail) {
     }
     count_gesture();
     leave_canvas_hover(mail);
-    // THE WEAVER'S OWN PRESS ENDS A GUIDE MARK IT LANDS IN; the press itself is the pane's.
-    if (!guide_marks_.empty()) {
+    // THE WEAVER'S OWN PRESS ENDS A GUIDE MARK IT LANDS IN; a guest's does not. The press itself
+    // is the pane's.
+    if (input_actor_.local && !guide_marks_.empty()) {
         guide_pressed(mail, at);
     }
     pane_holds_[slot] = WindowHold{true, kind, p.area, press};
     if (slot == 0) {
-        // A primary press chooses the pane and moves the keys, as on Workshop's canvas, and is
-        // the pane's to continue: under the window's number it may ask to carry a value out.
+        // A primary press chooses the pane and moves the keys, as on Workshop's canvas, whoever's
+        // hand it is, and is the pane's to continue: under the window's number it may ask to carry
+        // a value out.
         session_.panes.selected = kind;
         session_.panes.keyboard = kind_takes_keyboard(kind) ? kind : kNoPaneKind;
         keep_act(hand(), hand().press_sent = GestureSent{kind, hand().latest, press});
@@ -483,6 +493,28 @@ void WorkshopWeave::on(const graphics::AreaHoldEnded& e, loom::Mail& mail) {
 void WorkshopWeave::on(const graphics::AreaPointerLeft& l, loom::Mail& mail) {
     if (own_pointer_area(l.area, mail)) {
         leave_canvas_hover(mail);
+    }
+}
+
+// WL-GUEST-06 -- agents/workshop/guests.md
+void WorkshopWeave::on(const graphics::AreaHandRefused& r, loom::Mail& mail) {
+    if (r.window != window_name_ ||
+        !mail.authored_from_role(std::string(graphics::kWindowOfficePrefix) + r.window) ||
+        r.actor <= 0 || quitting_) {
+        return;
+    }
+    for (const std::int64_t placed : placed_kinds_) {
+        const RuntimePane* row = session_.panes.runtime.of_kind(placed);
+        if (row == nullptr || pane_window_area(session_.panes, *row) != r.area) {
+            continue;
+        }
+        const InputActor guest{true, false, loom::WeaveId{static_cast<std::uint64_t>(r.actor)}};
+        std::string why = refused_toward(guest, placed);
+        if (why.empty()) {
+            why = "Refused: only the weaver's own hand reaches " + row->provider;
+        }
+        refuse_input(why, mail);
+        return;
     }
 }
 

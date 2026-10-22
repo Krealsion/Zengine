@@ -187,8 +187,8 @@ set a pane's settings by message:
   pane inventory, the keymap rows of its own panes and the rows above every pane, and the manual of
   each office its doors name; any other pane is said by its place, its name and its holder, with no
   word, part or fingerprint, and the desk is said to it with no band, status or desk number, which
-  move with every pane's words. It is refused the older reads, the Skin's picture, the
-  publications that carry every pane at once, and `DeskStamps`, which names every pane's picture:
+  move with every pane's words. It is refused the Skin's picture, the publications that carry
+  every pane at once, and `DeskStamps`, which names every pane's picture:
   it follows its panes by reading them.
 - **`guide`**, a power and a field: a mark the weaver sees on one control, asked as
   `GuideRequested` (`desk/guide`, [below](#the-desk-written-as-text-for-an-agent)), within the
@@ -595,8 +595,8 @@ names — one entry per office, shape and version, the version written as Zen's 
   office publishes it -- is refused, in words, to a row without `capture`, whatever its `observe`
   list names; a row with `capture` still observes only what that list names. So is `DeskStamps`,
   Workshop's notice that the desk moved (below), which says no word but follows what `capture`
-  reads: a row follows it by naming `zengine.workshop` `DeskStamps` `2` beside `capture` (`1`
-  follows the first version, which names no aimed picture).
+  reads: a row follows it by naming `zengine.workshop` `DeskStamps` `3` beside `capture`. So are
+  a window's `WindowShown` and `AreaShown`, which say what it shows.
   `ClipboardCopy`, the weaver's copied text, is refused to every row: it needs a power of its own,
   `clipboard`, which no guests file grants yet.
 - **Subscribe before you press, and press with settlement.** A publication the press set in
@@ -873,94 +873,74 @@ pictures and pane rows once did -- the desk in one turn, a pane's paged reading,
 inventory and the keymap -- and Workshop says so beside each such row, at launch and on Attention
 ([whose host this is](#whose-host-this-is-and-what-each-power-reaches-there)).
 
-- **The desk in one turn.** `DeskReadRequested` version 2, `{}`, is answered by `DeskRead` version
-  2: the desk as `DeskView` version 3, every presented pane's stamp from the front back, and as many
-  of those panes' readings (`PaneView` version 5), in that order, as one decoded value holds -- Loom's
+- **The desk in one turn.** `DeskReadRequested` version 3, `{}`, is answered by `DeskRead` version
+  3: the desk as `DeskView` version 4, every presented pane's stamp from the front back, and as many
+  of those panes' readings (`PaneView` version 7), in that order, as one decoded value holds -- Loom's
   decode budget, <!-- value kDecodedCellBudget grouped -->65,536<!-- /value --> cells -- and one
   reply's <!-- value kReplyByteBudget MiB -->16<!-- /value --> MiB, in the larger of Loom's native
   and JSON serializations. A stamp with no reading beside it -- past the last one, or of a pane
-  whose reading Workshop refused -- names a pane to ask alone. `DeskView`
-  version 3 adds Workshop's own words to version 2: the band's notice and legend, each a word with
-  its place and no point, since the band takes no press; the status slot, a word with no place,
-  as the medium is handed it; and `desk`, a number that moves whenever what the desk says moves
-  and holds while nothing does. Workshop answers at most
+  whose reading Workshop refused -- names a pane to ask alone. `DeskView` says every pane on the
+  desk, in the desk's order, with its state (`open`, `covered`, `off-room`, `unresolved`), its rank
+  from the front (0 in front), the place its authored intent resolves to and the part of it the
+  canvas has, and whether it is selected or holds the keys; the room; whether arranging is open;
+  the menu on the screen, if one is -- Workshop's own or a pane's -- with each line where it is
+  drawn and the lines it names; the band's notice and legend, each a word with its place and no
+  point, since the band takes no press; and `desk`, a number that moves whenever what the desk says
+  moves and holds while nothing does. Workshop answers at most
   <!-- value kDeskReadsPerSecond -->4<!-- /value --> desk reads a second to one asker -- and every
   run on one link is one asker -- and refuses the next in words naming how many milliseconds to
-  wait. Version 1 of both answers the same desk with the earlier stamps and readings below.
-- **A pane's reading, paged under its stamp.** `PaneViewRequested` version 5,
-  `{provider,pane,from,stamp}`, is answered by `PaneView` version 5: version 3's words and then its
-  parts from item `from`, as many as one decoded value and one reply's bytes hold, `total`
-  counting both, and the stamp the reading stands on -- the holder of the pane's office, that
-  holder's incarnation, the canvas room `grant` its picture was drawn for (0 for a text pane) and
-  the `fingerprint`, which Workshop takes of what the pane sent and holds for the picture aimed at:
-  whatever the pane shows changing moves it, a caret or a colour too, and the same picture sent
-  again keeps it, a pane numbering no picture included; a canvas picture no press is stamped with
-  yet is named 0. `picture` is the pane's own number for that picture, which a point is asked
-  under, and may move while the stamp holds. Ask from 0 with an empty stamp, then each next page
-  from where the last ended, under the stamp the first page answered: a page asked under a stamp
-  the pane no longer stands on is refused as stale, and the pane is read again from 0. A resize, a
-  move, a title row shown or hidden or a metric renewed moves the room grant; a reload in place
-  moves the incarnation. Version 4 (a `PaneStamp` naming `picture`, the pane's number, where
-  version 2 names the fingerprint) pages the same way, stale whenever the number moved, and in
-  flight until its number is aimed at. A cover that moves between pages shifts the items
-  `from` counts and leaves the stamp alone: compare each page's `total` and `covered` with the
-  first page's, and read the pane again from 0 when they differ; a `from` past a reading a cover
-  shrank is refused in words saying so. A partly covered pane says its visible words and parts
-  only, and `covered` names what covers it (a pane in front by its name, `menu`, `arranging`,
-  `refused mark`, `band`), how many words and parts it did not say, and the rectangle they lie in;
-  a covered word is never given a point. While a menu is open a primary press outside it reaches
-  nothing beside it -- it closes the menu, or is refused -- so nothing said beside it has a point.
-  A pane whose newest picture is still in flight -- what it shows not yet what its stamp names, or
-  a room just granted that no picture has answered -- says `in_flight` and no word, at any page:
-  its settling moves its stamp, and so the desk's notice. A
-  closed pane, one not presented, one whose last update Workshop refused -- nothing of it
-  standing, or the picture a new room asked for -- and one not yet drawn for its room and waiting
-  for its provider are refused in words. Layouts reads here too, as `zengine.workshop` `layouts`,
-  its tabs parts Workshop names (the table below).
-- **The desk's notice that it moved.** Workshop publishes `DeskStamps` v2, `{desk, panes}` -- the
-  desk number and every presented pane from the front back, each `{stamp, aimed}`: its stamp, as a
-  desk read would say it now, and the picture it is aimed at by its own number -- at the end of
-  each delivery that moved any of them; a repaint that moved nothing publishes nothing, and a
-  picture sent again unchanged moves only its aimed number, once aimed at. Version 1, `{desk,
-  panes}` with each pane's stamp alone, is published beside it when the number or a stamp moved.
-  Each notice is the whole state, so follow it as `latest`: the relay may keep only the newest
-  while you are behind, and the newest stands for every one before
-  it. A row follows it with `capture` and the `observe` entry above; on it, read again what moved
-  -- the desk, when its number moved, or each pane whose stamp moved. A notice published inside
-  the fence of your own settled send carries that send's `cause` until a later one replaces it, so
-  tell your own change by its answer, not by the notice. A holder leaving between Workshop's
-  deliveries is said at its next repaint, fence, band notice or desk read, not at any delivery.
+  wait.
+- **A pane's reading, paged under its stamp.** `PaneViewRequested` version 7,
+  `{provider,pane,from,stamp}`, is answered by `PaneView` version 7: the stamp the reading stands on
+  -- the holder of the pane's office, that holder's incarnation, the `epoch` of the window showing
+  the desk, and a `fingerprint` of what the pane shows and where: whatever it shows changing moves
+  it, a caret or a colour too, and so does the pane's place, while the same picture sent again keeps
+  it; a canvas picture no press is stamped with yet is named 0 -- the place its text stands on
+  (`area`) and its text measure (`advance`, `line`), its words and then its parts from item `from`,
+  as many as one decoded value and one reply's bytes hold, `total` counting both. Each word is a run
+  of text with its place and the point a press names it by, and each part -- a row, a control, an
+  element -- comes under the pane's own name, with the characters it covers, its place, its point
+  where a press reaches it as the pane reads a press (or none, for a part every place of which
+  another part takes) and `available`, whether its operation applies now. A pane keeps a part's
+  name across its redraws, so a walk finds it wherever the last redraw put it ([the parts a pane
+  names](../../workshop/docs/workshop-panes.md#a-pane-names-its-parts)). A pane drawing in an area
+  of its own is read as the window shows it; any other as Workshop draws it. Ask from 0 with an
+  empty stamp, then each next page from where the last ended, under the stamp the first page
+  answered: a page asked under a stamp the pane no longer stands on is refused as stale, and the
+  pane is read again from 0. A cover that moves between pages shifts the items `from` counts and
+  leaves the stamp alone: compare each page's `total` and `covered` with the first page's, and read
+  the pane again from 0 when they differ; a `from` past a reading a cover shrank is refused in
+  words saying so. A partly covered pane says its visible words and parts only, and `covered` names
+  what covers it (a pane in front by its name, `menu`, `arranging`, `refused mark`, `band`), how
+  many words and parts it did not say, and the rectangle they lie in; a covered word is never given
+  a point. While a menu is open a primary press outside it reaches nothing beside it -- it closes
+  the menu, or is refused -- so nothing said beside it has a point. A pane whose newest picture is
+  still in flight -- what it sent not yet what it shows, a room just granted that no picture has
+  answered, or a window waiting for its drawing -- says `in_flight` and no word, at any page: its
+  settling moves its stamp, and so the desk's notice. A canvas picture that takes no press -- the
+  one a managed opening shows, until its pane draws its own, or one its office's holder no longer
+  holds -- gives no word or part a point. A closed pane, one not presented, one whose last update
+  Workshop refused -- nothing of it standing, or the picture a new room asked for -- and one not yet
+  drawn for its room and waiting for its provider are refused in words. Layouts reads here too, as
+  `zengine.workshop` `layouts`, its tabs parts Workshop names (the table below).
+- **Where one character is.** `PanePointRequested` version 4,
+  `{provider,pane,fingerprint,word,column}`, answers where one character of one word of the
+  reading at `fingerprint` is now, and refuses it when what the pane shows moved. So a tool presses
+  a control such as `[Save copy]`, or the View Builder's `[Label]`, without knowing a font.
+- **The desk's notice that it moved.** Workshop publishes `DeskStamps` version 3, `{desk, panes}`
+  -- the desk number and every presented pane's stamp from the front back, as a desk read would
+  say it now -- at the end of each delivery that moved any of them; a repaint that moved nothing
+  publishes nothing. Each notice is the whole state, so follow it as `latest`: the relay may keep
+  only the newest while you are behind, and the newest stands for every one before it. A row
+  follows it with `capture` and the `observe` entry above; on it, read again what moved -- the
+  desk, when its number moved, or each pane whose stamp moved. A notice published inside the fence
+  of your own settled send carries that send's `cause` until a later one replaces it, so tell your
+  own change by its answer, not by the notice. A holder leaving between Workshop's deliveries is
+  said at its next repaint, fence, band notice or desk read, not at any delivery.
 - **The pane inventory and the keymap.** `PaneInventoryRequested` and `KeymapRequested`, answered
   to an office, are answered to a guest session whose row holds `capture` too, to it alone:
   `PaneInventory`, the panes the Pane Manager lists with each one's state, and `KeymapShown`, the
   bindings in force.
-- **The desk.** `DeskViewRequested` version 2, `{}`, is answered by `DeskView` version 2: every
-  pane on the desk, in the desk's order, with its state (`open`, `covered`, `off-room`,
-  `unresolved`), its rank from the front (0 in front), the place its authored intent resolves to
-  and the part of it the canvas has, and whether it is selected or holds the keys; the room;
-  whether arranging is open; and the menu on the screen, if one is -- Workshop's own or a pane's
-  -- with each line where it is drawn, and the lines it names. Version 1 says the same without the
-  names.
-- **A pane's words and parts.** `PaneViewRequested` version 3, `{provider,pane}`, is answered by
-  `PaneView` version 3: a text pane's rows, or a canvas pane's labels and runs of measured text as
-  it drew them last, each a word with its place and the point a press names it by; and beside them
-  every part the pane names -- a row, a control, an element -- under the pane's own name, with the
-  characters it covers, its place and its point: a place of its own, where a press reaches it as
-  the pane reads a press, or none for a part every place of which another part takes. A canvas
-  picture that takes no press -- the one a managed opening shows, until its pane draws its own, or
-  one its office's holder no longer holds -- gives no word or part a point. A pane keeps
-  a part's name across its redraws, so a walk finds it wherever the last redraw put it ([the parts
-  a pane names](../../workshop/docs/workshop-panes.md#a-pane-names-its-parts)). Version 2 answers the words
-  alone, and version 1 a text pane's rows, as text fitted to the body rather than as drawn; a pane
-  drawing its own picture refuses version 1 in words. Versions 1 to 3 refuse a covered pane whole.
-- **Where one character is.** `PanePointRequested` version 2,
-  `{provider,pane,picture,word,column}`, answers where one character of one word is now, for the
-  picture the caller read; version 1, `{provider,pane,picture,row,column}`, one painted cell of a
-  text pane, and a pane drawing its own picture refuses it; version 3, the same fields, one cell of
-  a pane's text lattice -- a text pane's painted cell, as version 1 answers it, or the cell of the
-  lattice a canvas pane's room sets its text on, a blank one or the one after a row's last
-  character too. So a tool presses a control such as `[Save copy]`, or the View Builder's `[Label]`,
-  without knowing a font.
 
 ![A 1440 by 900 window after a walk read by messages: the View Builder, at 96,102 and 840 by 240 as the desk says, made label1 when its [Label] was pressed by what it says; Info, holding the keys, has Height chosen by select and shows the 240 px written through it](images/desk-read-by-message.png)
 
@@ -972,12 +952,8 @@ Every place is in canvas pixels: a window's pixel is one, a terminal's cell is `
 (<!-- value kCellPx -->12<!-- /value -->), and a terminal Skin's console counts
 `kTuiCanvasTopRow` (<!-- value kTuiCanvasTopRow -->2<!-- /value -->) rows above the canvas, the
 terminal window's none. A point to press is in the space the medium reads input in, which the
-answer names. Versions 1 to 3 refuse the words of a closed, unsettled,
-overlapping, modal-covered or off-workspace pane, and a pane's while Workshop's mark over its
-refused picture covers part of it; version 4 says what shows of a covered pane and names what
-covers it; the desk still answers. This reads presentation; it
-does not select, activate, grant authority or expose arbitrary state. A later gesture can still
-encounter a changed picture. Legacy unnumbered panes report picture zero; the query is not an
+answer names. This reads presentation; it does not select, activate, grant authority or expose
+arbitrary state. A later gesture can still encounter a changed picture; the query is not an
 interaction lease. Receivers must fence their own drops. `hand.words`, `hand.word_point` and
 `hand.desk` in `hand.py` ask them; `hand.row` finds a row by what it says and `hand.part` a part by
 its name through them, wheeling the pane toward each edge when asked to scroll, `hand.last_part`
@@ -988,21 +964,17 @@ its third character as `hand.row` presses (inside an Inventory view's first box)
 an Info view's field by its part `field:<path>`, wheeling the view's selection until it shows, so
 a tool reads a pane that draws a picture as it reads a text pane; `act.rows_by_place` numbers a
 pane's lines by where they stand, a blank row a canvas draws as no word among them. `hand.point`
-asks `PanePointRequested` version 3 for one cell of a pane's text lattice by its row and column --
-a text pane's painted cell, or the cell of a canvas pane's lattice, a blank row's and the one after
-a line's last character too -- so a tool presses a canvas pane's cell as it presses a text pane's;
-`hand.lattice_point` chooses the cell from the pane's words, reading the pane again where it
-redrew between the reading and the point. A canvas picture that takes no press -- the one a managed
-opening shows, until its pane draws its own, or one its office's holder no longer holds -- says its
-words and parts with no point, and every helper that presses reads the pane again until one does
-(`hand.pressing`), for at most ten seconds. **A helper waiting for a pane waits for the desk to
-move** (`hand.wait`): it follows Workshop's notice from its first wait and reads the pane again
-when that pane's stamp, its aimed picture or the desk number moved, never on a clock -- a picture
-whose number is not yet aimed at too, which its aimed number moving marks. A row following only
-`DeskStamps` 1 reads such a picture again every 0.2 seconds, and a row that may not follow the
-notice -- no `capture`, or no `DeskStamps` in its `observe` -- reads again every 0.2 seconds at
-every wait; `workshop/act` says either in its result and counts each step's `clock_waits` in
-`steps.json`.
+reckons where one cell of a pane's text lattice stands in a reading, by its row and column, from the
+reading's place and text measure -- a blank row's and the one after a line's last character too --
+so a tool presses a canvas pane's cell as it presses a text pane's; `hand.lattice_point` chooses
+the cell from the pane's words. A canvas picture that takes no press says its words and parts with
+no point, and every helper that presses reads the pane again until one does (`hand.pressing`), for
+at most ten seconds. **A helper waiting for a pane waits for the desk to move** (`hand.wait`): it
+follows Workshop's notice from its first wait and reads the pane again when that pane's stamp or
+the desk number moved, never on a clock -- a reading in flight too, whose settling moves its stamp.
+A row that may not follow the notice -- no `capture`, or no `DeskStamps` in its `observe` -- reads
+again every 0.2 seconds at every wait; `workshop/act` says so in its result and counts each step's
+`clock_waits` in `steps.json`.
 `workshop/act` steps on them: `at` presses one cell of a pane's text lattice the same way
 (`{"at": ["td.game", "td", 5, 17]}`); `desk` checks a
 pane's place, size, state or keys by number (`{"desk": [provider, pane], "is": {"visible": {"w":
@@ -1054,7 +1026,7 @@ reads a press there, and is never said.
 | Flow | `zengine.flow` `flow` | `node:<id>`, `port:<id>.<n>`, `control:<action>`, and every other place by its action and arguments, `<action>:<argument>:...` (`found:<kind>:<identity>`, `source-field:<name>`, `emitted-row:<n>`) | a place whose name repeats or is refused |
 | A pane's menu | its presenter's | each line by its row's id | |
 | Workshop's own menu | `zengine.workshop` | each line by the action or the group it shows (`workshop.manage`, `setup.restore`, `Order`) | |
-| Layouts | `zengine.workshop` `layouts` | Workshop names them, in `PaneView` version 4 and a desk read alone: `layout:<name>`, a layout's tab -- a byte of the name outside printable ASCII, and `%`, `#` and `+`, spelled `%XX`, and a name two layouts share followed by `#` and its place in the layout order, counted from 1 -- and `layout:+`, the tab that makes one | what stands beside the tabs (the layout's file and status), the room's size, the name being typed (while one is, no tab is named) |
+| Layouts | `zengine.workshop` `layouts` | Workshop names them, in its reading and a desk read: `layout:<name>`, a layout's tab -- a byte of the name outside printable ASCII, and `%`, `#` and `+`, spelled `%XX`, and a name two layouts share followed by `#` and its place in the layout order, counted from 1 -- and `layout:+`, the tab that makes one | what stands beside the tabs (the layout's file and status), the room's size, the name being typed (while one is, no tab is named) |
 
 `workshop/drag` uses the session's timed Input motion; `duration_ms` controls time, `bend`
 selects a linear path (zero) or cubic Bezier, and `button` is the one held through it (left,
@@ -1106,7 +1078,7 @@ loom-session run work desk/read --name desk-1 --input out=/home/me/agent-desk --
 
 - **What it needs.** The row's `capture`, under which the desk read, each pane's pages, the pane
   inventory and the keymap are answered; its own row is answered whatever its powers. And a
-  Workshop that speaks `DeskRead` version 2, `PaneView` version 5 and `GuestRowDescribed`. `link` names the
+  Workshop that speaks `DeskRead` version 3, `PaneView` version 7 and `GuestRowDescribed`. `link` names the
   session's link to that Workshop, `workshop` unless you say otherwise.
 - **`out` is judged before anything is asked.** It must be an absolute directory outside every
   source checkout: one that is, or lies under, a directory holding `.git` is refused, since a
@@ -1162,7 +1134,7 @@ loom-session run work desk/watch --name watch-1 --input out=/home/me/agent-desk 
 ```
 
 - **What it needs**, beyond `desk/read`'s: an `observe` entry naming `zengine.workshop`
-  `DeskStamps` `2` (or `1`) beside `capture`. A row the relay refuses fails the run, in the relay's words,
+  `DeskStamps` `3` beside `capture`. A row the relay refuses fails the run, in the relay's words,
   with `AGENTS.md` written and nothing asked.
 - **It asks nothing until it is told.** It follows the notice before its first read, with a window
   of one notice, so while it reads the relay holds only the newest; then it reads the desk whole.
