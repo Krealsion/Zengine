@@ -175,6 +175,7 @@ public:
   void on_canvas_room(loom::Mail &mail) {
     pictures_.clear();
     drag_.reset();
+    model_.wire_drawn.reset();
     picture_number_ = 0;
     // A grant is a fresh look, as it is in Powers: the door is asked again, whatever changed.
     find(mail, true);
@@ -223,6 +224,25 @@ public:
       } else
         model_.dialog->entries.at(model_.dialog->selected)
             .text.consume(key.scancode, key.modifiers, clipboard_);
+      show(mail);
+      return;
+    }
+    if (model_.wire_search) {
+      // A WIRE'S SEARCH HOLDS THE KEYS: Escape puts it and the wire down, the arrows move among
+      // its rows, Return makes the row the keys are on, and the rest edit the search line.
+      if (key.scancode == input::scan::kEscape) {
+        put_wire_down("Escape");
+      } else if (key.scancode == input::scan::kUp || key.scancode == input::scan::kDown) {
+        step_wire_choice(key.scancode == input::scan::kDown);
+      } else if (key.scancode == input::scan::kReturn) {
+        const auto rows = pane::wire_rows(model_);
+        if (const auto choice = pane::wire_choice(model_, rows)) {
+          perform("wire-row", {std::to_string(*choice)}, mail);
+          return;
+        }
+      } else if (!model_.search.consume(key.scancode, key.modifiers, clipboard_)) {
+        return;
+      }
       show(mail);
       return;
     }
@@ -309,8 +329,12 @@ public:
     try {
       if (event.phase == ws::canvas_pointer::kLost ||
           event.phase == ws::canvas_pointer::kRelease) {
-        if (drag_ && drag_->gesture == event.gesture)
+        if (drag_ && drag_->gesture == event.gesture) {
+          const Drag held = *drag_;
           drag_.reset();
+          if (held.wire)
+            let_go(held, event, room, mail);
+        }
         return;
       }
       if (event.phase == ws::canvas_pointer::kMove) {
@@ -318,6 +342,10 @@ public:
             drag_->revision !=
                 model_.workspace.graph.project.definition.revision)
           return;
+        if (drag_->wire) {
+          wire_moved(event, room, mail);
+          return;
+        }
         const auto ex = std::clamp(event.x, std::int64_t{-100000000},
                                    std::int64_t{100000000});
         const auto ey = std::clamp(event.y, std::int64_t{-100000000},
@@ -369,6 +397,24 @@ public:
       }
       if (event.phase != ws::canvas_pointer::kPress)
         return;
+      // WITH A WIRE'S SEARCH OPEN a press on one of its rows makes it, a press elsewhere in the
+      // list does nothing, and a press anywhere else closes it and is spent on nothing more.
+      if (model_.wire_search) {
+        const auto *on = pictured != nullptr &&
+                                 pictured->revision ==
+                                     model_.workspace.graph.project.definition.revision
+                             ? pictured->hit(event.x, event.y)
+                             : nullptr;
+        if (event.button == 1 && on != nullptr && on->action == "wire-row") {
+          const auto row = *on; // a copy: performing it clears the pictures it points into
+          perform(row.action, row.args, mail);
+          return;
+        }
+        if (event.button != 1 || on == nullptr || on->action != "wire-list")
+          put_wire_down("a press outside its list");
+        show(mail);
+        return;
+      }
       // A RIGHT PRESS MEANS NOTHING ON THE GRAPH OR ITS PAGES: handed back, so the host's pane
       // menu opens where it landed.
       if (event.button == 3) {
@@ -416,7 +462,19 @@ public:
         show(mail);
         return;
       }
+      // A PRESS ON A WIRE'S END does what it does today, and the press is held: moved past a
+      // character cell, it drags the wire, and its release says where the wire goes.
+      const auto end = wire_end(chosen);
       perform(chosen.action, chosen.args, mail);
+      if (end && model_.page == pane::Page::Graph && !model_.dialog) {
+        Drag wire{event.gesture, 0, model_.workspace.graph.project.definition.revision,
+                  event.x, event.y, 0, 0};
+        wire.wire = true;
+        wire.from = *end;
+        wire.origin = chosen.action;
+        wire.origin_args = chosen.args;
+        drag_ = std::move(wire);
+      }
     } catch (const std::exception &e) {
       model_.notice = e.what();
       show(mail);
@@ -450,6 +508,11 @@ public:
     if (part == window_parts_.end())
       return;
     const pane::Hit chosen = part->second;
+    if (model_.wire_search && chosen.action != "wire-row" && chosen.action != "wire-list") {
+      put_wire_down("a press outside its list");
+      show(mail);
+      return;
+    }
     try {
       if (chosen.action == "node") {
         model_.node = flow::index_of(chosen.args.at(0));
@@ -546,6 +609,8 @@ public:
         throw std::invalid_argument("Confirm or cancel the open dialog before another edit");
       pictures_.clear();
       drag_.reset();
+      model_.wire_search.reset();
+      model_.wire_drawn.reset();
       effect(model_.command(edit.action, edit.arguments), mail);
       if (edit.action == "add-node" || edit.action == "add-node-into" ||
           edit.action == "add-fold" || edit.action == "fold-body")
@@ -619,6 +684,8 @@ public:
       return;
     model_.discovered = said;
     model_.discovered_read = true;
+    if (model_.wire_search)
+      model_.wire_search->answered = true;
     show(mail);
   }
   void on(const fh::FlowAnswer &answer, loom::Mail &mail) {
@@ -733,7 +800,293 @@ private:
   struct Drag {
     std::int64_t gesture = 0, node_id = 0, revision = 0, x = 0, y = 0,
                  base_x = 0, base_y = 0;
+    /// A wire's drag: the end it was pressed on, as a part and as an end, and whether the hand
+    /// has moved past the threshold that makes it a drag rather than a click.
+    bool wire = false, crossed = false;
+    pane::WireEnd from{};
+    std::string origin{};
+    std::vector<std::string> origin_args{};
   };
+  /// The end of a wire a press on `hit` takes hold of: an output button, a field in scope, or an
+  /// input port while no wire is in hand; none for anything else.
+  std::optional<pane::WireEnd> wire_end(const pane::Hit &hit) const {
+    if (hit.action == "source-node" && hit.args.size() == 1)
+      return pane::WireEnd{zengine::op::Binding::node(flow::index_of(hit.args[0])), {}};
+    if (hit.action == "source-field" && hit.args.size() == 1)
+      return pane::WireEnd{zengine::op::Binding::input(hit.args[0]), {}};
+    if (hit.action == "port" && hit.args.size() == 2 && !model_.connecting)
+      return pane::WireEnd{{}, pane::PortChoice{hit.subject, flow::index_of(hit.args[1])}};
+    return std::nullopt;
+  }
+  /// The picture last drawn in `room`'s medium, which a drag's later moments are read against.
+  const pane::Picture *latest_in(const ws::PaneCanvasRoom &room) const {
+    if (&room == &window_room_)
+      return window_shown_ ? &*window_shown_ : nullptr;
+    return pictures_.empty() ? nullptr : &pictures_.back();
+  }
+  /// THE HAND MOVED WITH A WIRE: past one character cell from the press it is a drag, drawn from
+  /// the press to the hand, a port it would bind to lit.
+  void wire_moved(const ws::PaneCanvasPointer &event, const ws::PaneCanvasRoom &room,
+                  loom::Mail &mail) {
+    const pane::GridProjection grid(room);
+    const auto at = [](std::int64_t v) {
+      return std::clamp(v, std::int64_t{-100000000}, std::int64_t{100000000});
+    };
+    const auto hx = grid.grid_x(at(event.x)), hy = grid.grid_y(at(event.y));
+    const auto px = grid.grid_x(drag_->x), py = grid.grid_y(drag_->y);
+    if (!drag_->crossed && std::abs(hx - px) < pane::unit && std::abs(hy - py) < pane::unit)
+      return;
+    drag_->crossed = true;
+    pane::WireDrawn drawn{px, py, hx, hy, {}};
+    if (drag_->from.source)
+      if (const auto *it = latest_in(room);
+          it != nullptr && it->revision == model_.workspace.graph.project.definition.revision)
+        if (const auto *over = it->hit(event.x, event.y);
+            over != nullptr && over->action == "port" && over->args.size() == 2)
+          drawn.lit = pane::PortChoice{over->subject, flow::index_of(over->args[1])};
+    model_.wire_drawn = drawn;
+    show(mail);
+  }
+  /// IS (x, y) EMPTY GRAPH ROOM in `it`: inside the graph's viewport, on the Graph page.
+  static bool graph_room(const pane::Picture &it, const ws::PaneCanvasRoom &room, std::int64_t x,
+                         std::int64_t y) {
+    if (!it.graph_top)
+      return false;
+    const pane::GridProjection grid(room);
+    const auto gx = grid.grid_x(x), gy = grid.grid_y(y);
+    return gx >= 22 * pane::unit && gx < grid.grid_x(room.width) && gy >= it.view_upper &&
+           gy < it.view_lower;
+  }
+  /// THE WIRE LET GO. Before the threshold, or back on its origin, it was a click, and what the
+  /// press did stands. On the other end it binds; on empty graph room its search opens there;
+  /// anywhere else the wire is put down and nothing is made.
+  void let_go(const Drag &held, const ws::PaneCanvasPointer &event, const ws::PaneCanvasRoom &room,
+              loom::Mail &mail) {
+    const bool drawn = model_.wire_drawn.has_value();
+    model_.wire_drawn.reset();
+    if (!held.crossed || event.phase != ws::canvas_pointer::kRelease) {
+      if (drawn)
+        show(mail);
+      return;
+    }
+    const auto *it = latest_in(room);
+    if (it == nullptr || it->revision != model_.workspace.graph.project.definition.revision) {
+      model_.notice = "That picture has changed; choose again.";
+      show(mail);
+      return;
+    }
+    // A copy of what it was let go on: what it does clears the pictures it was read from.
+    const auto landed = it->hit(event.x, event.y);
+    const std::optional<pane::Hit> on = landed ? std::optional<pane::Hit>(*landed) : std::nullopt;
+    const pane::Hit *hit = on ? &*on : nullptr;
+    if (hit != nullptr && hit->action == held.origin && hit->args == held.origin_args) {
+      show(mail);
+      return;
+    }
+    if (held.from.source && hit != nullptr && hit->action == "port" && hit->args.size() == 2) {
+      model_.connecting = *held.from.source;
+      perform("port", hit->args, mail);
+      return;
+    }
+    if (held.from.port && hit != nullptr &&
+        (hit->action == "source-node" || hit->action == "source-field" ||
+         hit->action == "scope")) {
+      try {
+        if (hit->action == "scope") {
+          act("scope", hit->args, mail);
+        } else {
+          const auto port = filled(*held.from.port);
+          act("bind", {std::to_string(port.first), std::to_string(port.second),
+                       (hit->action == "source-node" ? "%" : "$") + hit->args.at(0)},
+              mail);
+        }
+        model_.filling.reset();
+      } catch (const std::exception &e) {
+        model_.notice = e.what();
+      }
+      show(mail);
+      return;
+    }
+    if (hit == nullptr && graph_room(*it, room, event.x, event.y)) {
+      const pane::GridProjection grid(room);
+      const auto gx = grid.grid_x(event.x), gy = grid.grid_y(event.y);
+      open_wire_search(held.from, gx, gy, gx, gy, *it, mail);
+      return;
+    }
+    put_wire_down("let go off the graph");
+    show(mail);
+  }
+  /// The node index and port a port's place names now, in the active trigger.
+  std::pair<std::size_t, std::size_t> filled(const pane::PortChoice &port) const {
+    for (const auto &p : model_.workspace.graph.places)
+      if (p.id == port.place && p.trigger == model_.workspace.active_trigger)
+        return {static_cast<std::size_t>(p.node), port.port};
+    throw std::invalid_argument("That port's node is gone; nothing was wired");
+  }
+  /// OPEN A WIRE'S SEARCH from `from`, its list at (x, y) in the picture's grid and a node made
+  /// from it placed at the graph's point under (px, py), as `it` draws the graph. The search line
+  /// starts empty, and the door is asked afresh.
+  void open_wire_search(const pane::WireEnd &from, std::int64_t x, std::int64_t y, std::int64_t px,
+                        std::int64_t py, const pane::Picture &it, loom::Mail &mail) {
+    if (from.source && !pane::source_type(model_, *from.source)) {
+      put_wire_down("its type is not described here");
+      show(mail);
+      return;
+    }
+    const auto zoom = std::max<std::int64_t>(1, it.zoom);
+    const auto bound = [](std::int64_t v) {
+      return std::clamp<std::int64_t>(v, -10000000, 10000000);
+    };
+    pane::WireSearch search;
+    search.from = from;
+    search.x = x;
+    search.y = y;
+    search.place_x = bound((px - it.pan_x) * 100 / zoom);
+    search.place_y = bound((py - it.graph_top.value_or(0) - it.pan_y) * 100 / zoom);
+    search.revision = model_.workspace.graph.project.definition.revision;
+    model_.wire_search = search;
+    if (from.source)
+      model_.connecting = from.source;
+    else
+      model_.filling = from.port;
+    model_.search.set("", 0);
+    model_.notice = "Choose what to make from the wire; Escape puts it down";
+    find(mail, true);
+    show(mail);
+  }
+  /// PUT A WIRE DOWN, and its search with it, the wire not left in hand; given why, the notice
+  /// says nothing was made.
+  void put_wire_down(const std::string &by = std::string()) {
+    const bool held = model_.wire_search || model_.connecting || model_.filling;
+    model_.wire_search.reset();
+    model_.wire_drawn.reset();
+    model_.connecting.reset();
+    model_.filling.reset();
+    if (held && !by.empty())
+      model_.notice = "The wire was put down: " + by + "; nothing was made";
+  }
+  /// Move the keys to the next choosable row of a wire's search, down or up.
+  void step_wire_choice(bool down) {
+    const auto rows = pane::wire_rows(model_);
+    const auto at = pane::wire_choice(model_, rows);
+    if (!at)
+      return;
+    if (down) {
+      for (auto i = *at + 1; i < rows.size(); ++i)
+        if (!rows[i].kind.empty()) {
+          model_.wire_search->selected = i;
+          return;
+        }
+    } else {
+      for (auto i = *at; i-- > 0;)
+        if (!rows[i].kind.empty()) {
+          model_.wire_search->selected = i;
+          return;
+        }
+    }
+    model_.wire_search->selected = *at;
+  }
+  /// MAKE ROW `i` OF A WIRE'S SEARCH, as one edit: a node placed where the hand let go, wired
+  /// from the wire's output or into its port; an In scope row binds the port; the constant row
+  /// opens the binding editor. A row gone, or a graph changed since the wire was let go, makes
+  /// nothing.
+  void choose_wire(std::size_t i, loom::Mail &mail) {
+    if (!model_.wire_search)
+      throw std::invalid_argument("No wire's search is open");
+    const auto search = *model_.wire_search;
+    if (search.revision != model_.workspace.graph.project.definition.revision) {
+      put_wire_down("the graph changed");
+      throw std::invalid_argument(
+          "The graph changed since the wire was let go; nothing was made -- let it go again");
+    }
+    const auto rows = pane::wire_rows(model_);
+    if (i >= rows.size() || rows[i].kind.empty())
+      throw std::invalid_argument("That row is no longer in the list; choose again");
+    const auto row = rows[i];
+    const std::vector<std::string> place{std::to_string(search.place_x),
+                                         std::to_string(search.place_y)};
+    std::string said;
+    if (search.from.source) {
+      const auto source = flow::binding_text(*search.from.source);
+      if (row.kind == "unread") {
+        effect({pane::Effect::Catalog, {}}, mail);
+        model_.notice =
+            "Reading the ports of " + row.args.at(0) + " from the host; choose it again";
+        return;
+      }
+      std::vector<std::string> args;
+      std::string command = "add-fold-from";
+      if (row.kind == "power") {
+        command = "add-node-from";
+        args = {row.args.at(0), row.args.at(1), row.args.at(2), source, row.args.at(3)};
+      } else {
+        args = {source, row.args.at(0)};
+      }
+      args.insert(args.end(), place.begin(), place.end());
+      effect(model_.command(command, args), mail);
+      said = ", wired from " + source;
+    } else {
+      const auto port = pane::wire_port(model_);
+      if (!port) {
+        put_wire_down("its port is gone");
+        throw std::invalid_argument("That port is gone; nothing was made");
+      }
+      const auto n = std::to_string(port->node), a = std::to_string(port->port);
+      if (row.kind == "scope") {
+        effect(model_.command("bind", {n, a, row.args.at(0)}), mail);
+        put_wire_down();
+        model_.notice = "Bound %" + n + " " + port->field.name + " to " + row.args.at(0);
+        return;
+      }
+      if (row.kind == "constant") {
+        put_wire_down();
+        act("constant", {n, a}, mail);
+        return;
+      }
+      std::vector<std::string> args{row.args.at(0), row.args.at(1), row.args.at(2), n, a};
+      args.insert(args.end(), place.begin(), place.end());
+      if (!described(row.args.at(0))) {
+        request(fh::FlowCatalog{}, "catalog", mail);
+        adding_ = Adding{row.args.at(0), "add-node-into", std::move(args), requests_,
+                         flow::workspace_bytes(model_.workspace)};
+        put_wire_down();
+        model_.notice = "Reading the ports of " + row.args.at(0) + " from the host";
+        return;
+      }
+      effect(model_.command("add-node-into", args), mail);
+      said = ", wired into %" + std::to_string(port->node + 1) + " " + port->field.name;
+    }
+    const auto added = model_.node;
+    put_wire_down();
+    model_.node = added;
+    if (added)
+      model_.notice = "Added %" + std::to_string(*added) + " " +
+                      pane::node_title(model_.workspace.graph.project.definition
+                                           .on.at(model_.trigger()).body.nodes.at(*added)) +
+                      said;
+  }
+  /// `find-wire`: the same search, at the graph's centre, for a wire held by clicks or a port
+  /// selected.
+  void find_wire(loom::Mail &mail) {
+    pane::WireEnd from;
+    if (model_.connecting)
+      from.source = model_.connecting;
+    else if (model_.filling)
+      from.port = model_.filling;
+    else
+      throw std::invalid_argument("Hold a wire first -- click an output or a field In scope, or "
+                                  "select a port -- then ask for a new node from it");
+    const auto &room = window_.shown() ? window_room_ : canvas_room();
+    if (room.width <= 0 || room.height <= 0 || model_.page != pane::Page::Graph)
+      throw std::invalid_argument("A new node from the wire needs the graph shown");
+    const auto drawn = pane::picture(model_, room, 0);
+    if (!drawn.graph_top)
+      throw std::invalid_argument("A new node from the wire needs the graph shown");
+    const pane::GridProjection grid(room);
+    const auto cx = (22 * pane::unit + grid.grid_x(room.width)) / 2;
+    const auto cy = (drawn.view_upper + drawn.view_lower) / 2;
+    open_wire_search(from, cx - 18 * pane::unit, cy - 3 * pane::unit, cx, cy, drawn, mail);
+  }
   /// The declared message a press landed on, in the picture it was aimed at: an accepted
   /// message's row or an emitted one's, on the Messages page.
   std::shared_ptr<const loom::Schema> pressed_message(const ws::PaneCanvasPointer &event,
@@ -895,6 +1248,7 @@ private:
         {"ask-open", "Open Flow workspace", input::scan::kO, input::mod::kCtrl},
         {"run", "Run Flow", input::scan::kR, input::mod::kCtrl},
         {"ask-generate", "Generate native C++", input::scan::kG, input::mod::kCtrl},
+        {"find-wire", "New node from the wire", input::scan::kN, input::mod::kCtrl},
         {"ask-discard", "Discard unsaved marker", 0, 0}};
     static constexpr std::pair<const char *, const char *> kControls[] = {
         {"ask-new", "New Flow workspace"},
@@ -953,7 +1307,7 @@ private:
         row.causes = {ws::cause_of<fh::FlowSend>()};
       else if (row.id == "catalog")
         row.causes = {ws::cause_of<fh::FlowCatalog>(), found};
-      else if (row.id == "add-fold" || row.id == "dialog-confirm")
+      else if (row.id == "add-fold" || row.id == "dialog-confirm" || row.id == "find-wire")
         row.causes = {found};
     }
     this->template facet<Actions>().declare(mail, std::move(rows));
@@ -977,7 +1331,16 @@ private:
       throw std::invalid_argument("Confirm or cancel the open dialog before another edit");
     pictures_.clear();
     drag_.reset();
-    if (action == "ask-new")
+    model_.wire_drawn.reset();
+    if (model_.wire_search && action != "wire-row" && action != "wire-list")
+      model_.wire_search.reset();
+    if (action == "wire-list") {
+      // A press inside a wire's list, on no row of it: nothing.
+    } else if (action == "wire-row") {
+      choose_wire(flow::index_of(args.at(0)), mail);
+    } else if (action == "find-wire") {
+      find_wire(mail);
+    } else if (action == "ask-new")
       model_.ask(
           "New project (replaces the current draft)", "new",
           {{"Project name", "my_flow"}, {"Unsaved disposition", "discard"}});

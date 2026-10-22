@@ -24,9 +24,10 @@ refusal named here is in [the pane's manual](zengine.flow.md).
    Type `larger` (the search line beside the graph takes what you type) and click `math.max`
    under **Operators**. The strip beneath the graph previews it: what it is and whose, its
    signature, and what its contributor says it is for. Choose **Add**.
-5. Click `input.input` under **In scope**, then the node's `lhs` port. Click the `rhs` port: the
-   rail lists what could fill it ([below](#find-what-to-compose)). Click `state.value` there.
-   The graph executes in order; forward or cyclic connections are refused.
+5. Click `input.input` under **In scope**, then the node's `lhs` port -- or drag from one to the
+   other. Click the `rhs` port: the rail lists what could fill it
+   ([below](#find-what-to-compose)). Click `state.value` there. The graph executes in order; forward
+   or cyclic connections are refused.
 6. Select the node header and choose **Use as result**. Drag its header to move it. Drag blank
    graph room or use the middle button to pan; the wheel pans vertically over the graph.
    The **-** and **+** controls change node positions and widths from 50% to 200%, in 25% steps.
@@ -69,6 +70,16 @@ The rail beside the graph finds operators through the host's
   with a port selected, **Add into %n port** places it ahead of the port's node and wires it there,
   so a found operator can feed the port you were filling. The graph executes in order, and the
   nodes that follow are renumbered.
+- **A wire let go on empty room asks what it could feed.** Drag from a node's output, or a field
+  under **In scope**, and let go on empty graph room: a list opens there of what takes the wire's
+  type, a row for each port of that type (`math.add -> lhs`, `math.add -> rhs`), with the search
+  line above it. Drag from an input port instead and the list holds what fills it: what is in
+  scope of its type, a typed constant, then what yields it. Choose a row, by a click or the arrows
+  and **Enter**, and the node is made where you let go, wired, and selected, in one edit, after the
+  node it reads from or before the port's node. Let go on the other end and the wire binds; let go
+  anywhere else and it is put down. **Escape**, or a press outside the list, closes it and makes
+  nothing. With a wire held by clicks or a port selected,
+  <!-- key find-wire -->`ctrl+n`<!-- /key --> opens the same list at the graph's centre.
 - **A fold** runs an operator once for each count from a start toward a limit by a step,
   threading an accumulator. Add it from **Forms**: it arrives with `step` bound to `1`. Click its
   `body = [choose]` row: the rail then lists only what a fold could spend -- one answer, an `Int`
@@ -83,8 +94,9 @@ The rail beside the graph finds operators through the host's
   powers their contributors offer, so it never lists one; **Powers** lists it and says it is not
   offered.
 
-**Escape** sheds one layer per press: the wire in hand, the selected port, an open body slot,
-the preview, the selected node, then the search line, and only then is the pane put down. **Delete** removes the
+**Escape** sheds one layer per press: a wire's search, the wire in hand, the selected port, an
+open body slot, the preview, the selected node, then the search line, and only then is the pane put
+down. **Delete** removes the
 selected node; with none selected, it edits the search line.
 
 ![Flow's search line finding math.max by what it is for, previewed beneath the graph](images/flow-find.png)
