@@ -555,10 +555,10 @@ public:
             }
             const std::int64_t cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
             std::stable_sort(points.begin(), points.end(), [&](const auto& l, const auto& r) {
-                const auto far = [&](const auto& p) {
+                const auto reach = [&](const auto& p) {
                     return (p.first - cx) * (p.first - cx) + (p.second - cy) * (p.second - cy);
                 };
-                return far(l) < far(r);
+                return reach(l) < reach(r);
             });
             AreaPart part{rec.action, record_available(rec), x0, y0, x1 - x0, y1 - y0, false, 0,
                           0};
