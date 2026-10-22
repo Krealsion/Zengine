@@ -331,6 +331,15 @@ TEST_CASE("WL-DESK-18: ctrl+space shows the palette over the pane holding the ke
     r.key(input::scan::kReturn);
     CHECK(r.session().pane_titles != titles);
     CHECK(r.session().panes.keyboard == kNoPaneKind);
+
+    // AN APPLICATION ROW, asked of the desktop as its key asks it: the Hotkeys pane shown.
+    REQUIRE_FALSE(on_desk(r, kDesktopRole, kHotkeysPane));
+    r.key(input::scan::kSpace, input::mod::kCtrl);
+    REQUIRE(on_desk(r, kPaletteRole, kPalettePane));
+    r.text("desktop.hotkeys");
+    r.key(input::scan::kReturn);
+    CHECK_FALSE(on_desk(r, kPaletteRole, kPalettePane));
+    CHECK(on_desk(r, kDesktopRole, kHotkeysPane));
 }
 
 TEST_CASE("WL-DESK-18: a run is refused under any number but the palette's own unspent row and "
