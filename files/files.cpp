@@ -889,8 +889,11 @@ public:
         if (!asks().answered(mail, of_kind(FilesAsk::Kind::kLaunch))) {
             return;
         }
+        const std::string after = said.kind == zengine::launcher::kKindApp
+                                      ? zengine::launcher::kStartedAppGoesOn
+                                      : "it goes on without Workshop";
         notice_ = said.ok ? "started the " + said.kind + " `" + said.name + "`, process " +
-                                std::to_string(said.pid) + ": it goes on without Workshop"
+                                std::to_string(said.pid) + ": " + after
                           : "nothing was started -- " + said.reason;
         say(mail);
     }

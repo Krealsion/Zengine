@@ -223,7 +223,9 @@ it, `` start the app `tally` ``, only on such a folder.
 - **Takes:** the selected folder. No default key; the menu's row.
 - **Answers:** asks Workshop to allow a build and a write for the hand that pressed it, then asks the
   launcher ([`Launch`](../../launcher/docs/zengine.launcher.md#launch)): `` starting the app
-  `tally` ``, then `` started the app `tally`, process 4242: it goes on without Workshop ``.
+  `tally` ``, then `` started the app `tally`, process 4242: `` and what follows on this platform,
+  as the View Builder's [`view.run-app`](../../view/docs/zengine.view.builder.md#viewrun-app) says
+  it; for a demo, `it goes on without Workshop`.
 - **Refuses:** `nothing here starts: an app is a folder in the project's apps/, and a demo is one of
   the demos`; `` nothing was started -- `` and Workshop's or the launcher's reason.
 - **Example:** in the project's `apps/`, right-press `tally` and choose `` start the app `tally` ``.
