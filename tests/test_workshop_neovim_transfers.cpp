@@ -126,8 +126,8 @@ struct NeovimStory : NeovimHome, TransferStory {
         settle();
     }
     bool offered(const char* label) {
-        for (const auto& line : r.session().presented.lines) {
-            if (line.text.find(label) != std::string::npos) {
+        for (const std::string& line : presented_texts(r)) {
+            if (line.find(label) != std::string::npos) {
                 return true;
             }
         }

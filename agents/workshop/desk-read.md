@@ -89,7 +89,8 @@ LAW — A pane drawing in a window area Workshop placed is read as the window sa
 
 MEANS
 - a read of such a pane waits for the window's answer to an ask made after it, a few at once and two seconds at most, and is refused in words past that or when the window starts again;
-- a guide mark on such a pane is drawn from that answer too (WL-GUIDE-02).
+- a guide mark on such a pane is drawn from that answer too (WL-GUIDE-02);
+- a pane's menu is read so from its presenter's area (WL-CTX-09), and a desk read waits on it too.
 
 WHY — `agents/decisions/a-pane-is-read-from-the-window-that-shows-it.md`
 
@@ -185,6 +186,9 @@ layout's tab and the naming line's caret each move it, and a desk seated again t
 ### WL-READ-08
 `graphics/vocabulary.hpp` AreaShowAsked AreaShown
 `workshop/weave_desk_read.cpp` area_reading on(AreaShown) finish_desk_waits wait_on_areas
+shown_words_and_parts presented_menu_reading presented_area look_at_areas
+`tests/test_workshop_panes_button.cpp` "WL-HAND-06: the shipped presenter names each row's line by
+its id, and a press at that name's point chooses it"
 `tests/test_workshop_desk.cpp` "a pane drawing in an area of its own is read as the window says it
 shows there: its words, its parts with the point a press reaches them by, and a stamp that moves
 when it draws again" "a weaver's press in a pane's area of the window ends a guest's guide mark

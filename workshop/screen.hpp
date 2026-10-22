@@ -1355,33 +1355,34 @@ ContextPressAt context_press_at(const Session& s, const Screen& sc, std::int64_t
 
 // ---- A PANE'S MENU, AS ITS PRESENTER SHOWED IT -------------------------------------------------
 //
-// The fixed display machinery a presenter participant draws through (presenter_vocabulary.hpp):
-// the popup's frame and place are this host's, what its lines say is the presenter's.
+// The popup's frame and place are this host's; the presenter participant draws its lines in an
+// area of its own inside the frame (presenter_vocabulary.hpp), which this host places there.
 
 /// THE MOST A PRESENTED MENU CAN SHOW AT AN ANCHOR on this screen -- the room `MenuGranted` hands
 /// the presenter: the biggest popup that fits there, read as rows and columns of prose.
 // WL-CTX-09 -- agents/workshop/pane-menu.md
 ProsePlace presented_room(bool anchored, std::int64_t x, std::int64_t y, const Screen& sc);
 
-/// WHERE THE PRESENTED MENU OPENS: beside its anchor, sized by the lines the presenter showed;
-/// empty while it has shown none.
+/// WHERE THE PRESENTED MENU OPENS: beside its anchor, its frame sized to the lines the presenter
+/// said it draws; empty while it has said none.
 // WL-CTX-09 -- agents/workshop/pane-menu.md
 PixelRect presented_bounds(const Session& s, const Screen& sc);
 
+/// ...AND THE PRESENTER'S AREA FOR IT, inside that frame, in the desk's pixels; empty with it.
+// WL-CTX-09 -- agents/workshop/pane-menu.md
+PixelRect presented_area_place(const Session& s, const Screen& sc);
+
+/// THE AREA A PRESENTED MENU STANDS IN, named for that menu alone.
+std::string presented_menu_area(std::int64_t menu);
+
+/// THE PRESENTED MENU'S FRAME, which the presenter's area stands inside.
 // WL-CTX-09 -- agents/workshop/pane-menu.md
 void paint_presented(surface::SurfaceLayer& layer, const Session& s, const Screen& sc);
 
-/// WHERE A PRESS LANDED ON THE PRESENTED MENU -- inside it or not, and which line (-1 for none:
-/// the frame, or a line the room could not show). The painter's inverse, over the same place.
+/// WHETHER A PRESS THIS HOST HEARD LANDED ON THE PRESENTED MENU'S FRAME: inside the popup, where
+/// the presenter's area does not reach.
 // WL-CTX-09 -- agents/workshop/pane-menu.md
-struct PresentedPressAt {
-    bool inside = false;
-    std::int64_t line = -1;
-};
-
-// WL-CTX-09 -- agents/workshop/pane-menu.md
-PresentedPressAt presented_press_at(const Session& s, const Screen& sc, std::int64_t space,
-                                    std::int64_t x, std::int64_t y, const PointedAt& at);
+bool presented_holds(const Session& s, const Screen& sc, const PointedAt& at);
 
 // ---- AN EXTERNAL PANE'S BODY: one header row of Workshop's, and a region ---------------
 

@@ -17,12 +17,13 @@ menu as today and keeps, in its image and never in reload-kept state, a record o
 (`pane_menu::Asked`): a choice counts only from the presenter's office, under this image's own
 pending number, once, about the pane and subject asked. WORKSHOP keeps input custody and
 display: it judges the ask where the menu would open, grants one menu at a time to whoever holds
-`zengine.presenter` (`MenuGranted`), forwards the weaver's acts numbered as acts, draws the lines
-the presenter shows inside the room it granted, withdraws the menu when custody moves, and
-records a choice as the continuation of the act the presenter names. It answers a requester only
+`zengine.presenter` (`MenuGranted`), forwards the weaver's keys and a press outside numbered as
+acts, draws the popup's frame and places the presenter's own area inside it, counts a press there
+as an act, withdraws the menu when custody moves, and records a choice as the continuation of the
+act the presenter names. It answers a requester only
 when nothing was presented or no presenter can answer. The PRESENTER owns what can be presented,
-how it reads, what a key or press means, when it ends and with what outcome, and it answers the
-requester itself. The shipped policies, local to these consumers: a reloaded requester cancels
+how it reads -- drawn in its own area of the window, the pointer heard there -- what a key or
+press means, when it ends and with what outcome, and it answers the requester itself. The shipped policies, local to these consumers: a reloaded requester cancels
 its predecessor's menus (no record crosses, and the host withdraws the menu when the pane is
 offered again); a presenter reloaded by an image keeping `HeldMenu` hands the open menu over; a
 presenter that leaves, or a holder that does not carry the menu, ends it answered by the host; a
@@ -50,6 +51,9 @@ subject that moved is judged by the requester when the choice arrives.
   both shipped images, and on the numbered one as well. `MenuReturned` is the second word now.
   `MenuClosed` means answered, and is what lets the host stop keeping who asked; a give-back
   means unanswered, and the host settles that requester, open or withdrawn, once.
+- *Tried: the host draws the presenter's lines (`MenuShown` 1 and 2)* — replaced. The lines were
+  a second picture: the desk read and the press both read the host's copy of them, never what the
+  window showed, and the presenter could not hear its own pointer.
 - *Argued: read every unchosen close as unanswered* — refused: a refused offer's requester was
   already answered by the presenter, so it would hear a second and contrary word about its ask.
 - *Argued: the presenter acknowledges each withdrawal, or the host answers every one* — refused:
@@ -70,10 +74,11 @@ subject that moved is judged by the requester when the choice arrives.
 **Consequences.** A Workshop without a presenter refuses a pane's menu in words and keeps every
 host route. An interaction a holder cannot carry ends somewhere: the seam has a word for it, and
 the two shipped images say it alike. It adds no completion guarantee — a delivered withdrawal an
-image simply never answers is still that presenter's silence. A presenter's lines are judged like
-a pane's rows and a presenter that overflows its room loses the menu. The seam is installed, so a
+image simply never answers is still that presenter's silence. A presenter that says its menu
+takes more than its room, or stands in another area, loses the menu. The seam is installed, so a
 stranger can build a presenter as well as a requester, and the numbered example replaces the
 shipped one both from a plan row and by a live reload that keeps the open menu. A press on a
-presented menu names the picture the medium held, through the same fence a pane's press does.
+presented menu is landed by the window in the presenter's area, one area a menu, and no window
+showing the desk means no menu.
 
 **Laws supported.** [WL-CTX-10](../workshop/pane-menu.md).

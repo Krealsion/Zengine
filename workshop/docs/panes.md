@@ -273,7 +273,9 @@ it in the shipped presenter's place. The worked example is
 [`examples/numbered-presenter`](../../examples/numbered-presenter/presenter.cpp): rows are
 numbered, Workshop's on from the pane's, and a digit chooses, `↑` `↓` wrap, and a click chooses
 when you let go on the row you
-pressed. It keeps the same state as the shipped presenter, so reloading one over the other while
+pressed. Like the shipped one it draws the menu in an area of its own of the window, inside the
+frame Workshop draws, and hears your presses there; your keys still reach Workshop, which hands
+them on. It keeps the same state as the shipped presenter, so reloading one over the other while
 a menu is open keeps that menu open — shown the new way, cursor kept, and your choice still
 reaching the pane that asked. If the swap catches a menu mid-flight — the old image gone, the
 new one arriving with nothing to carry — the pane that asked still hears how its menu ended:

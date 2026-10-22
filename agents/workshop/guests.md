@@ -219,8 +219,8 @@ the Builder's approval" "a guest's choice in a menu the weaver opened is judged 
 whatever the guest pressed since"
 `tests/test_workshop_panes_files.cpp` "the weaver's u stands when a guest's files.open reaches Files
 before Workshop answers it"
-`tests/test_workshop_panes_button.cpp` "a release forwarded to an open menu carries its own press's
-number when another hand acts between, and chooses the row its press armed"
+`tests/test_workshop_panes_button.cpp` "a release in a menu's area carries its own press's number
+when another hand acts between, and chooses the row its press armed"
 
 ### WL-GUEST-06
 `workshop/weave_operation.cpp` refused_toward drop_carry accept_carry weaver_only_pane

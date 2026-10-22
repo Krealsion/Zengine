@@ -697,6 +697,15 @@ void WorkshopWeave::on(const PaneMenuRequested& asked, loom::Mail& mail) {
         repaint(mail);
         return;
     }
+    // ...IN A WINDOW: the presenter draws the menu in an area of its own of the window that shows
+    // the desk, and with none there is nowhere to draw it.
+    if (!window_.shown()) {
+        const std::string why = "no window shows the desk -- nothing can present this menu";
+        refuse(why);
+        say(row->name + "'s menu did not open -- " + why, true);
+        repaint(mail);
+        return;
+    }
     grant_menu(*row, asked, mail.correlation(), at, mail);
     repaint(mail);
 }
@@ -722,6 +731,7 @@ void WorkshopWeave::grant_menu(const RuntimePane& row, const PaneMenuRequested& 
     next.anchor_y = at.px.y;
     next.room_rows = room.present ? room.rows : 0;
     next.room_columns = room.present ? room.columns : 0;
+    next.area = presented_menu_area(next.menu);
     next.first_input = gestures_;
     next.last_input = gestures_;
     // ...AND THE HOST'S OWN PANE MENU BENEATH THE PANE'S ROWS, in the same menu: the rows its
@@ -742,7 +752,7 @@ void WorkshopWeave::grant_menu(const RuntimePane& row, const PaneMenuRequested& 
             .send_to_role(kPresenterRole,
                           MenuGranted{next.menu, next.office, next.pane, next.subject, asked.rows,
                                       next.room_rows, next.room_columns, std::move(standard),
-                                      inventory_name(PaneRef{row.provider, row.pane})},
+                                      inventory_name(PaneRef{row.provider, row.pane}), next.area},
                           correlation);
     if (!sent.valid()) {
         end_menu_unanswered("the menu could not be handed to a presenter", mail);
@@ -892,9 +902,7 @@ void WorkshopWeave::forward_menu_input(std::int64_t kind, std::int64_t verb,
     if (!menu.open) {
         return;
     }
-    // NUMBERED AS THE ACT IT IS, its own hand's latest. A release carries its press's number,
-    // being no act of its own (`on(PointerButton)`), and another hand's act since renumbers
-    // neither: a presenter that chooses on the release names the click's act, and its hand.
+    // NUMBERED AS THE ACT IT IS, its own hand's latest: another hand's act since renumbers it not.
     menu.last_input = gestures_;
     MenuInput in;
     in.menu = menu.menu;
@@ -905,7 +913,7 @@ void WorkshopWeave::forward_menu_input(std::int64_t kind, std::int64_t verb,
     in.modifiers = modifiers;
     in.button = button;
     in.line = line;
-    in.picture = menu.stamp.aimed;
+    in.picture = menu.picture;
     const loom::Ticket sent = mail.as_role(kWorkshopProvider).send_to_role(kPresenterRole, in);
     if (!sent.valid()) {
         // NOTHING QUEUED: no presenter can hear the weaver's act, so none can answer the menu.
@@ -962,89 +970,98 @@ bool WorkshopWeave::menu_button(const zengine::input::PointerButton& b, loom::Ma
         withdraw_menu("a newer press", mail);
         return false;
     }
+    if (!b.pressed) {
+        // A PRIMARY RELEASE: a drag that began before the menu opened ends here (the Terminal's
+        // and management's own repair). A release on the menu is its presenter's, in its area.
+        (void)end_held_gestures();
+        return true;
+    }
     const PointedAt where = canvas_point_of(b.space, b.x, b.y, session_.console_rows_above);
     if (!where.understood) {
         return true;
     }
-    const PresentedPressAt hit =
-        presented_press_at(session_, screen_of(session_), b.space, b.x, b.y, where);
-    if (!b.pressed) {
-        // A PRIMARY RELEASE: a drag that began before the menu opened ends here (the Terminal's
-        // and management's own repair), and the presenter hears where the hand came up.
-        (void)end_held_gestures();
-        if (refused.empty()) {
-            forward_menu_input(menu_input::kRelease, menu_verb::kNone, 0, 0, b.button,
-                               hit.inside ? hit.line : -1, mail);
-        }
-        return true;
-    }
-    // A PRESS INSIDE IS THE PRESENTER'S TO READ; ONE OUTSIDE IS SPENT ON THE MENU -- nothing
-    // beneath it is selected, focused or sent it -- and the presenter says what it means.
-    if (hit.inside) {
-        forward_menu_input(menu_input::kPress, menu_verb::kNone, 0, 0, b.button, hit.line, mail);
-    } else {
+    // A PRESS ON THE MENU IS ITS PRESENTER'S, heard in its own area; one this host hears on the
+    // menu's frame is spent there. ONE OUTSIDE IS SPENT ON THE MENU -- nothing beneath it is
+    // selected, focused or sent it -- and the presenter says what it means.
+    if (!presented_holds(session_, screen_of(session_), where)) {
         forward_menu_input(menu_input::kOutside, menu_verb::kNone, 0, 0, b.button, -1, mail);
     }
     return true;
 }
 
 // WL-CTX-09 -- agents/workshop/pane-menu.md
+void WorkshopWeave::menu_pressed(const graphics::AreaPressed& p, std::uint64_t press,
+                                 loom::Mail& mail) {
+    PresentedMenu& menu = session_.presented;
+    if (!p.pressed) {
+        return; // a release is no act, and the presenter hears it in its area
+    }
+    // THE PRESENTER READS THE PRESS; THIS HOST COUNTS IT, as the act it is, so a choice the
+    // presenter makes of it -- said under the press's number -- continues that act, its hand's.
+    count_gesture();
+    leave_canvas_hover(mail);
+    if (input_actor_.local && !guide_marks_.empty()) {
+        guide_pressed(mail, canvas_point_of(input::space::kPixels, p.x, p.y,
+                                            session_.console_rows_above));
+    }
+    if (p.button == 3) {
+        // A RIGHT PRESS ON THE MENU ENDS IT, and asks nothing of what stands beneath.
+        withdraw_menu("a newer press", mail);
+        repaint(mail);
+        return;
+    }
+    menu.last_input = gestures_;
+    menu.presses.push_back(MenuPress{press, hand().latest});
+    if (menu.presses.size() > kMaxMenuPresses) {
+        menu.presses.erase(menu.presses.begin());
+    }
+}
+
+// WL-CTX-09 -- agents/workshop/pane-menu.md
+std::uint64_t WorkshopWeave::act_of_menu_press(const PresentedMenu& menu,
+                                               std::uint64_t press) const {
+    if (press == 0) {
+        return 0;
+    }
+    for (const MenuPress& kept : menu.presses) {
+        if (kept.press == press) {
+            return kept.act;
+        }
+    }
+    return 0;
+}
+
+// WL-CTX-09 -- agents/workshop/pane-menu.md
 void WorkshopWeave::on(const MenuShown& shown, loom::Mail& mail) {
-    admit_menu_lines(v2::MenuShown{shown.menu, shown.picture, shown.lines, {}}, mail);
-}
-
-// WL-CTX-09 -- agents/workshop/pane-menu.md
-void WorkshopWeave::on(const v2::MenuShown& shown, loom::Mail& mail) {
-    admit_menu_lines(shown, mail);
-}
-
-// WL-CTX-09 -- agents/workshop/pane-menu.md
-void WorkshopWeave::admit_menu_lines(const v2::MenuShown& shown, loom::Mail& mail) {
     if (!about_open_menu(shown.menu, mail)) {
         return; // not the presenter, or not the menu that is open: nothing moves
     }
     PresentedMenu& menu = session_.presented;
-    // THE LINES ARE JUDGED AS A PANE'S ROWS ARE: within the room granted, drawable, bounded. A
-    // presenter that cannot be drawn loses the menu, in words, rather than painting past its room.
+    // WHAT THE MENU TAKES IS JUDGED AS A PANE'S ROWS ARE: in the area granted, within the room
+    // granted, bounded. A presenter whose menu cannot stand there loses it, in words, rather than
+    // reaching past its room.
     std::string refused;
-    if (shown.lines.size() > kMaxMenuLines ||
-        static_cast<std::int64_t>(shown.lines.size()) > menu.room_rows) {
-        refused = "the presenter showed " + std::to_string(shown.lines.size()) +
-                  " lines in a room of " + std::to_string(menu.room_rows);
-    }
-    for (const surface::SurfaceTextRow& line : shown.lines) {
-        if (!refused.empty()) {
-            break;
-        }
-        if (line.text.size() > kMaxMenuLineLen ||
-            static_cast<std::int64_t>(line.text.size()) > menu.room_columns) {
-            refused = "the presenter showed a line wider than its room";
-            break;
-        }
-        for (const char c : line.text) {
-            const unsigned char byte = static_cast<unsigned char>(c);
-            if (byte < 0x20u || byte >= 0x7Fu) {
-                refused = "the presenter showed a line carrying a byte a canvas cannot draw";
-                break;
-            }
-        }
-    }
-    if (refused.empty()) {
-        // ...AND THE LINES IT NAMES, as a pane's named rows are judged.
-        refused = row_parts_problem(shown.parts, static_cast<std::int64_t>(shown.lines.size()),
-                                    menu.room_columns);
-        if (!refused.empty()) {
-            refused = "the presenter " + refused;
-        }
+    if (shown.area != menu.area) {
+        refused = "the presenter showed the menu in an area it was not granted";
+    } else if (shown.rows <= 0 || shown.columns <= 0) {
+        refused = "the presenter showed an empty menu";
+    } else if (shown.rows > static_cast<std::int64_t>(kMaxMenuLines) ||
+               shown.rows > menu.room_rows) {
+        refused = "the presenter showed " + std::to_string(shown.rows) + " lines in a room of " +
+                  std::to_string(menu.room_rows);
+    } else if (shown.columns > static_cast<std::int64_t>(kMaxMenuLineLen) ||
+               shown.columns > menu.room_columns) {
+        refused = "the presenter showed a line wider than its room";
     }
     if (!refused.empty()) {
         withdraw_menu(refused, mail);
         repaint(mail);
         return;
     }
-    menu.lines = shown.lines;
-    menu.parts = shown.parts;
+    menu.rows = shown.rows;
+    menu.columns = shown.columns;
     menu.picture = shown.picture;
+    stamps_owed_ = desk_owed_ = true; // the menu the desk says may have moved
     repaint(mail);
 }
 
@@ -1061,10 +1078,12 @@ void WorkshopWeave::on(const MenuClosed& closed, loom::Mail& mail) {
     }
     const PresentedMenu ended = session_.presented;
     session_.presented = PresentedMenu{};
-    // A choice is recorded as the continuation of the act that made it, one this host forwarded to
-    // that menu; a request continuing it is honored while that act is the weaver's latest (the
-    // choosing click's release is no new act).
-    const std::uint64_t act = closed.input > 0 ? static_cast<std::uint64_t>(closed.input) : 0;
+    // A choice is recorded as the continuation of the act that made it: one this host forwarded to
+    // that menu, or a press the window landed in its area, which the presenter's word cites by the
+    // window's number. A request continuing it is honored while that act is the weaver's latest
+    // (the choosing click's release is no new act).
+    const std::uint64_t act = closed.input > 0 ? static_cast<std::uint64_t>(closed.input)
+                                               : act_of_menu_press(ended, mail.correlation());
     // THE HAND THAT MADE THE CHOOSING ACT: its choice is that hand's to continue, while that act is
     // still its latest. An act the book no longer holds is no hand's latest.
     Hand* chooser = act != 0 ? hand_of_act(act) : nullptr;
@@ -1162,9 +1181,9 @@ void WorkshopWeave::on(const PresenterReady& ready, loom::Mail& mail) {
     }
     if (ready.menu == session_.presented.menu) {
         // A HANDOFF: the holder that arrived carries the open menu (a reload that kept the
-        // presenter's state). Its pictures start over -- a new image numbers afresh -- and its
-        // next `MenuShown` draws the menu in its own way; the weaver's interaction continues.
-        session_.presented.stamp.forget();
+        // presenter's state). Its pictures start over -- a new image numbers afresh -- and it
+        // draws the menu in its own way in the same area, its next `MenuShown` saying how much of
+        // it the menu takes; the weaver's interaction continues.
         session_.presented.picture = 0;
         stamps_owed_ = desk_owed_ = true; // the menu's number is the desk's, and nothing repaints here
         return;

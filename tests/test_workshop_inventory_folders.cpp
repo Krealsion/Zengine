@@ -57,10 +57,10 @@ void focus_info(InventoryStory& s) {
 void point_menu_at(InventoryStory& s, std::int64_t kind, std::int64_t row, const std::string& label) {
     s.click(kind, row, 3);
     REQUIRE_MESSAGE(menu_shown(s.r.session()), s.shown(kind));
-    const auto at = presented_line_of(s.r.session(), label);
+    const auto at = presented_line_of(s.r, label);
     REQUIRE_MESSAGE(at >= 0, label);
     for (std::int64_t n = 0; n < at; ++n) s.key(input::scan::kDown);
-    REQUIRE(presented_texts(s.r.session())[static_cast<std::size_t>(at)] == "> " + label);
+    REQUIRE(presented_texts(s.r)[static_cast<std::size_t>(at)] == "> " + label);
 }
 /// ...and choose it with Return.
 void choose(InventoryStory& s, std::int64_t kind, std::int64_t row, const std::string& label) {

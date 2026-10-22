@@ -887,6 +887,38 @@ struct Live {
         return windows.shown();
     }
 
+    /// THE WEAVER'S OWN BUTTON THROUGH THE WINDOW SHOWING THE DESK, at a canvas cell: landed by the
+    /// window in whatever area stands there -- a pane's menu its presenter draws among them --
+    /// where a bare moment goes to Workshop alone. `pressed` false is its release.
+    void window_button(std::int64_t cx, std::int64_t cy, bool pressed, std::int64_t button = 1) {
+        come_up();
+        REQUIRE_MESSAGE(windows.up(), "no window shows this desk");
+        windows.hand({input::PointerButton{button, pressed, cx, cy, input::space::kCells,
+                                           input::mod::kNone}});
+        bus.drain_until_idle();
+    }
+    /// ...a press and its release there.
+    void window_click(std::int64_t cx, std::int64_t cy, std::int64_t button = 1) {
+        window_button(cx, cy, true, button);
+        window_button(cx, cy, false, button);
+    }
+    /// ...OR QUEUED ON THE WINDOW'S PLATFORM, a button or a key, and read together on its next
+    /// beat (`window_beat`), as one batch of the weaver's.
+    void window_queue_button(std::int64_t cx, std::int64_t cy, bool pressed,
+                             std::int64_t button = 1) {
+        come_up();
+        windows.queue({input::PointerButton{button, pressed, cx, cy, input::space::kCells,
+                                            input::mod::kNone}});
+    }
+    void window_queue_key(std::int64_t scan, std::int64_t mods = input::mod::kNone) {
+        come_up();
+        windows.queue({input::KeyPressed{scan, "", mods}});
+    }
+    void window_beat() {
+        windows.pump();
+        bus.drain_until_idle();
+    }
+
     /// THE OS WINDOW FROM HERE ON, with the face it ships with, for every room after -- one given
     /// in cells too: the medium whose platform clipboard a paste can read (`windows.set_clipboard`).
     /// The terminal window reads none. A window up already is moved to it now.
@@ -3312,6 +3344,38 @@ struct PaneRig {
         return windows.shown();
     }
 
+    /// THE WEAVER'S OWN BUTTON THROUGH THE WINDOW SHOWING THE DESK, at a canvas cell: landed by the
+    /// window in whatever area stands there -- a pane's menu its presenter draws among them --
+    /// where a bare moment goes to Workshop alone. `pressed` false is its release.
+    void window_button(std::int64_t cx, std::int64_t cy, bool pressed, std::int64_t button = 1) {
+        come_up();
+        REQUIRE_MESSAGE(windows.up(), "no window shows this desk");
+        windows.hand({input::PointerButton{button, pressed, cx, cy, input::space::kCells,
+                                           input::mod::kNone}});
+        bus.drain_until_idle();
+    }
+    /// ...a press and its release there.
+    void window_click(std::int64_t cx, std::int64_t cy, std::int64_t button = 1) {
+        window_button(cx, cy, true, button);
+        window_button(cx, cy, false, button);
+    }
+    /// ...OR QUEUED ON THE WINDOW'S PLATFORM, a button or a key, and read together on its next
+    /// beat (`window_beat`), as one batch of the weaver's.
+    void window_queue_button(std::int64_t cx, std::int64_t cy, bool pressed,
+                             std::int64_t button = 1) {
+        come_up();
+        windows.queue({input::PointerButton{button, pressed, cx, cy, input::space::kCells,
+                                            input::mod::kNone}});
+    }
+    void window_queue_key(std::int64_t scan, std::int64_t mods = input::mod::kNone) {
+        come_up();
+        windows.queue({input::KeyPressed{scan, "", mods}});
+    }
+    void window_beat() {
+        windows.pump();
+        bus.drain_until_idle();
+    }
+
     /// THE OS WINDOW FROM HERE ON, with the face it ships with, for every room after -- one given
     /// in cells too: the medium whose platform clipboard a paste can read (`windows.set_clipboard`).
     /// The terminal window reads none. A window up already is moved to it now.
@@ -3796,31 +3860,10 @@ inline std::int64_t context_entry_cell_y(const Session& s, std::size_t index) {
            static_cast<std::int64_t>(index);
 }
 
-/// THE LINES THE PRESENTER SHOWED FOR THE OPEN MENU, as the host holds them (empty when none).
-inline std::vector<std::string> presented_texts(const Session& s) {
-    std::vector<std::string> out;
-    for (const surface::SurfaceTextRow& line : s.presented.lines) {
-        out.push_back(line.text);
-    }
-    return out;
-}
-
-/// THE LINE OF THE PRESENTED MENU THAT READS `label` (after whatever marks the presenter puts in
-/// front of a row), or -1.
-inline std::int64_t presented_line_of(const Session& s, const std::string& label) {
-    const std::vector<std::string> lines = presented_texts(s);
-    for (std::size_t i = 0; i < lines.size(); ++i) {
-        const std::string& t = lines[i];
-        if (t.size() >= label.size() && t.compare(t.size() - label.size(), label.size(), label) == 0) {
-            return static_cast<std::int64_t>(i);
-        }
-    }
-    return -1;
-}
-
-/// IS A PANE'S MENU OPEN AND SHOWN -- granted to the presenter, and its lines drawn?
+/// IS A PANE'S MENU OPEN AND SHOWN -- granted to the presenter, which said how much of its area
+/// the menu takes?
 inline bool menu_shown(const Session& s) {
-    return s.presented.open && !s.presented.lines.empty();
+    return s.presented.open && s.presented.rows > 0;
 }
 
 /// The contextual surface's rows, as the window shows them at exactly its region: each line of
@@ -3837,6 +3880,28 @@ inline std::vector<std::string> context_rows_on(const DeskShown& shown, const Se
     }
     while (!out.empty() && out.back().empty()) out.pop_back();
     return out;
+}
+
+/// THE LINES OF THE OPEN PANE'S MENU, AS THE WINDOW SHOWS THEM: its presenter draws them in an
+/// area of its own inside the popup's frame (empty when none is shown).
+template <class Rig>
+std::vector<std::string> presented_texts(Rig& r) {
+    if (!menu_shown(r.session())) return {};
+    return context_rows_on(r.shown(), r.session());
+}
+
+/// THE LINE OF THE PRESENTED MENU THAT READS `label` (after whatever marks the presenter puts in
+/// front of a row), or -1.
+template <class Rig>
+std::int64_t presented_line_of(Rig& r, const std::string& label) {
+    const std::vector<std::string> lines = presented_texts(r);
+    for (std::size_t i = 0; i < lines.size(); ++i) {
+        const std::string& t = lines[i];
+        if (t.size() >= label.size() && t.compare(t.size() - label.size(), label.size(), label) == 0) {
+            return static_cast<std::int64_t>(i);
+        }
+    }
+    return -1;
 }
 
 /// OPEN A PANE THROUGH THE LAUNCH DOOR, AS SCAFFOLDING (`seat_pane`), and require that it opened.

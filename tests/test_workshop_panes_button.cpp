@@ -15,6 +15,7 @@
 
 #include "workshop/pane_menu.hpp"
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -257,8 +258,12 @@ struct Rigged {
     loom::WeaveId presenter{};
 
     /// THE SHIPPED PRESENTER BY DEFAULT; a case that must show a policy is the seam's and not one
-    /// image's names the replacement example instead, and every case below reads the same.
-    explicit Rigged(const char* presenter_image = WORKSHOP_SO_MENU_PRESENTER) {
+    /// image's names the replacement example instead, and every case below reads the same. On the
+    /// Skin's platform, no window shows the desk.
+    explicit Rigged(const char* presenter_image = WORKSHOP_SO_MENU_PRESENTER, bool on_skin = false) {
+        if (on_skin) {
+            (void)mount_skin_stand_in(r);
+        }
         r.mount_workshop();
         r.ready();
         r.extent(140, 60);
@@ -702,7 +707,7 @@ TEST_CASE("WL-CTX-09: the keyboard works the menu -- Down then Return chooses th
     t.right_in_guard();
     REQUIRE(t.foreign_open());
     t.r.key(input::scan::kDown);
-    CHECK(presented_texts(t.r.session())[1] == "> Second row");
+    CHECK(presented_texts(t.r)[1] == "> Second row");
     t.right_in_guard(false);
     REQUIRE(t.guard->buttons.size() == 2); // the release, delivered under the open menu
     CHECK(t.foreign_open());
@@ -749,7 +754,7 @@ TEST_CASE("WL-CTX-09: a press on a presented row chooses it") {
     t.right_in_guard();
     t.right_in_guard(false);
     REQUIRE(t.foreign_open());
-    t.r.press_cell(context_cell_x(t.r.session()), context_entry_cell_y(t.r.session(), 1));
+    t.r.window_click(context_cell_x(t.r.session()), context_entry_cell_y(t.r.session(), 1));
     CHECK_FALSE(t.menu_open());
     REQUIRE(t.guard->answers.size() == 1);
     CHECK(t.guard->answers[0].chosen);
@@ -765,17 +770,17 @@ TEST_CASE("WL-CTX-09: a pane's menu shows its own rows first and the host's stan
     // SHOWN: the pane's rows, a rule naming the pane the standard rows act on, then those rows.
     std::vector<std::string> want = {"> First row", "  Second row", "  -- Guard --"};
     want.insert(want.end(), kStandardLines.begin(), kStandardLines.end());
-    CHECK(presented_texts(t.r.session()) == want);
+    CHECK(presented_texts(t.r) == want);
     CHECK(context_rows_on(t.r.shown(), t.r.session()) == want);
     // THE RULE IS NO ROW: Down from the pane's last row lands on the first standard row, Up returns.
     t.r.key(input::scan::kDown);
     t.r.key(input::scan::kDown);
-    REQUIRE(presented_texts(t.r.session()).size() == want.size());
-    CHECK(presented_texts(t.r.session())[3] == "> arrange");
+    REQUIRE(presented_texts(t.r).size() == want.size());
+    CHECK(presented_texts(t.r)[3] == "> arrange");
     t.r.key(input::scan::kUp);
-    CHECK(presented_texts(t.r.session())[1] == "> Second row");
+    CHECK(presented_texts(t.r)[1] == "> Second row");
     // ...and a press on the rule chooses nothing.
-    t.r.press_cell(context_cell_x(t.r.session()), context_entry_cell_y(t.r.session(), 2));
+    t.r.window_click(context_cell_x(t.r.session()), context_entry_cell_y(t.r.session(), 2));
     CHECK(t.foreign_open());
     CHECK(t.guard->answers.empty());
     t.r.key(input::scan::kEscape);
@@ -789,7 +794,6 @@ TEST_CASE("WL-HAND-06: the shipped presenter names each row's line by its id, an
     t.right_in_guard();
     t.right_in_guard(false);
     REQUIRE(t.foreign_open());
-    const Session& s = t.r.session();
     // THE IDS THE LINES SHOW: the pane's rows, then -- past the rule, which is named nothing --
     // the host's standard rows, as the grant handed them over.
     std::vector<std::string> want = {"seat.first", "seat.second"};
@@ -797,41 +801,163 @@ TEST_CASE("WL-HAND-06: the shipped presenter names each row's line by its id, an
         if (!entry.is_group && entry.row == nullptr) continue;
         want.emplace_back(entry.is_group ? entry.group : entry.row->id);
     }
-    std::vector<std::string> named;
-    for (const PaneRowPart& part : s.presented.parts) {
-        named.push_back(part.name);
-        REQUIRE(part.row < static_cast<std::int64_t>(s.presented.lines.size()));
-        CHECK(part.column == 0);
-        CHECK(part.columns == static_cast<std::int64_t>(
-                                  s.presented.lines[static_cast<std::size_t>(part.row)].text.size()));
-    }
-    CHECK(named == want);
-    CHECK(s.presented.lines[static_cast<std::size_t>(s.presented.parts[1].row)].text == "  Second row");
-    // THE DESK SAYS EACH OVER THE LINE THAT SHOWS IT, where the popup's own press measurer reads it.
+    // THE DESK SAYS EACH OVER THE LINE THAT SHOWS IT, read from the window that shows the
+    // presenter's area: the name, the words of its line, and where the window lands a press on it.
     const DeskView desk = t.r.w->desk_view();
     REQUIRE(desk.menu.open);
-    REQUIRE(desk.menu.parts.size() == want.size());
+    const std::vector<std::string> lines = presented_texts(t.r);
+    std::vector<std::string> named;
     const PanePart* second = nullptr;
     for (const PanePart& part : desk.menu.parts) {
         CAPTURE(part.name);
-        const PointedAt at = canvas_point_of(part.space, part.x, part.y, s.console_rows_above);
-        const PresentedPressAt hit = presented_press_at(s, screen_of(s), part.space, part.x, part.y, at);
-        REQUIRE(hit.inside);
-        bool same = false;
-        for (const PaneRowPart& line : s.presented.parts) {
-            same = same || (line.row == hit.line && line.name == part.name);
-        }
-        CHECK(same);
+        named.push_back(part.name);
+        CHECK(part.space == input::space::kCells);
+        CHECK(std::find(lines.begin(), lines.end(), part.text) != lines.end());
         if (part.name == "seat.second") second = &part;
     }
-    // ...AND A PRESS THERE CHOOSES THE ROW THAT NAME IS, whatever line it fell on.
+    CHECK(named == want);
     REQUIRE(second != nullptr);
-    for (const bool down : {true, false}) {
-        t.r.publish(loom::to_value(input::PointerButton{1, down, second->x, second->y, second->space,
-                                                        input::mod::kNone}));
-    }
+    CHECK(second->text == "  Second row");
+    // ...AND THE WEAVER'S PRESS THERE CHOOSES THE ROW THAT NAME IS, whatever line it fell on.
+    t.r.window_click(second->x, second->y);
     REQUIRE(t.guard->answers.size() == 1);
     CHECK(t.guard->answers[0].chosen);
+    CHECK(t.guard->answers[0].id == "seat.second");
+}
+
+TEST_CASE("WL-CTX-09: a pane's menu stands in its presenter's own area of the window, inside the popup's frame, in front of the desk and behind the overlay, placed for that menu alone and withdrawn with it") {
+    Rigged t;
+    std::map<std::string, gfx::AreaPlaced> areas;
+    const loom::ObserverId tap = t.r.bus.add_observer([&](const loom::BusEvent& ev) {
+        if (ev.kind == loom::EventKind::Delivered && ev.payload != nullptr &&
+            ev.schema_name == gfx::AreaPlaced::zen_name) {
+            const gfx::AreaPlaced placed = loom::from_value<gfx::AreaPlaced>(*ev.payload);
+            areas[placed.area] = placed;
+        }
+    });
+    t.r.extent(141, 60); // every area placed again, under the tap
+    t.guard->menu_on_press = true;
+    t.right_in_guard();
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    const Session& s = t.r.session();
+    const std::string area = s.presented.area;
+    CHECK(area == presented_menu_area(s.presented.menu));
+    REQUIRE(areas.count(area) == 1);
+    REQUIRE(areas.count(kWorkshopOverlayArea) == 1);
+    const gfx::AreaPlaced menu = areas.at(area);
+    // THE PRESENTER'S OWN, hearing the pointer and not the keys, in the window that shows the desk.
+    CHECK(menu.owner == kPresenterRole);
+    CHECK(menu.window == t.r.windows.window());
+    CHECK(menu.pointer);
+    CHECK_FALSE(menu.keys);
+    // INSIDE THE FRAME WORKSHOP DRAWS, as many lines as the presenter said it draws.
+    const PixelRect frame = presented_bounds(s, screen_of(s));
+    const PixelRect inside = presented_area_place(s, screen_of(s));
+    CHECK(menu.x == inside.x);
+    CHECK(menu.y == inside.y);
+    CHECK(menu.w == inside.w);
+    CHECK(menu.h == inside.h);
+    CHECK(frame.x < menu.x);
+    CHECK(frame.y < menu.y);
+    CHECK(menu.x + menu.w < frame.x + frame.w);
+    CHECK(menu.y + menu.h < frame.y + frame.h);
+    CHECK(menu.h == s.presented.rows * gfx::kCellPx);
+    // IN FRONT OF THE DESK, behind the overlay.
+    CHECK(menu.order > areas.at(kWorkshopProvider).order);
+    CHECK(menu.order < areas.at(kWorkshopOverlayArea).order);
+    // THE WINDOW SHOWS ITS LINES THERE.
+    CHECK(presented_texts(t.r).front() == "> First row");
+    // ...WITHDRAWN WITH THE MENU, and the next menu stands in an area of its own.
+    t.r.key(input::scan::kEscape);
+    CHECK_FALSE(t.menu_open());
+    CHECK(areas.at(area).window.empty());
+    t.right_in_guard();
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    CHECK(t.r.session().presented.area != area);
+    CHECK_FALSE(areas.at(t.r.session().presented.area).window.empty());
+    t.r.bus.remove_observer(tap);
+}
+
+TEST_CASE("WL-CTX-09: with no window showing the desk a pane's menu is refused in words, and nothing is granted") {
+    Rigged t(WORKSHOP_SO_MENU_PRESENTER, /*on_skin=*/true);
+    REQUIRE_FALSE(t.r.windows.up());
+    t.guard->menu_on_press = true;
+    // THE SKIN'S CELLS, the console rows above its canvas counted.
+    for (const bool down : {true, false}) {
+        button_cell(t.r, 3, down, body_x(t.r, t.guard_kind, 1),
+                    body_y(t.r, t.guard_kind, 0) + t.r.console_rows());
+    }
+    REQUIRE(t.guard->buttons.size() == 2);
+    CHECK_FALSE(t.r.session().presented.open);
+    REQUIRE(t.guard->answers.size() == 1);
+    CHECK_FALSE(t.guard->answers[0].chosen);
+    CHECK(t.guard->answers[0].refusal.find("no window shows the desk") != std::string::npos);
+    CHECK(t.r.last_notice().find("menu did not open -- no window shows the desk") != std::string::npos);
+}
+
+TEST_CASE("WL-CTX-09: a presenter that shows its menu in an area it was not granted, or wider than its room, loses the menu in words") {
+    for (const bool elsewhere : {true, false}) {
+        CAPTURE(elsewhere);
+        Rigged t;
+        t.guard->menu_on_press = true;
+        t.right_in_guard();
+        t.right_in_guard(false);
+        REQUIRE(t.foreign_open());
+        const PresentedMenu& open = t.r.session().presented;
+        MenuShown said{open.menu, open.picture + 1, open.area, 2, open.room_columns + 1};
+        if (elsewhere) {
+            said.area = "zengine.presenter.elsewhere";
+            said.columns = 10;
+        }
+        REQUIRE(t.r.bus.office_send_to_role_as(
+            t.presenter, kPresenterRole, kWorkshopProvider,
+            loom::Message(loom::to_value(said), t.presenter, t.presenter, 0)).valid());
+        t.r.bus.drain_until_idle();
+        CHECK_FALSE(t.r.session().presented.open);
+        REQUIRE(t.guard->answers.size() == 1);
+        CHECK_FALSE(t.guard->answers[0].chosen);
+        CHECK(t.guard->answers[0].refusal ==
+              (elsewhere ? "the presenter showed the menu in an area it was not granted"
+                         : "the presenter showed a line wider than its room"));
+    }
+}
+
+TEST_CASE("WL-CTX-09: a right press on a pane's menu ends it, the presenter answering in the host's words, and reaches nothing beneath") {
+    Rigged t;
+    t.guard->menu_on_press = true;
+    t.right_in_guard();
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    const std::size_t buttons = t.guard->buttons.size();
+    t.r.window_click(context_cell_x(t.r.session()), context_entry_cell_y(t.r.session(), 0), 3);
+    CHECK_FALSE(t.menu_open());
+    REQUIRE(t.guard->answers.size() == 1);
+    CHECK_FALSE(t.guard->answers[0].chosen);
+    CHECK(t.guard->answers[0].refusal == "a newer press");
+    CHECK(t.guard->buttons.size() == buttons);
+    CHECK(t.hello->presses.empty());
+}
+
+TEST_CASE("WL-CTX-10: the shipped presenter reloaded in its own place while a menu is open draws it again where it stands, and a key moves it there") {
+    Rigged t;
+    t.guard->menu_on_press = true;
+    t.right_in_guard();
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    const std::string area = t.r.session().presented.area;
+    // THE SAME IMAGE, RELOADED: its menu takes the same room, so the window says no new room, and
+    // the new image asks for the one its area has.
+    t.r.enqueue_reload("zengine-menu-presenter", WORKSHOP_SO_MENU_PRESENTER);
+    t.r.bus.drain_until_idle();
+    REQUIRE(t.r.load_refusals.empty());
+    REQUIRE(t.foreign_open());
+    CHECK(t.r.session().presented.area == area);
+    t.r.key(input::scan::kDown);
+    CHECK(presented_texts(t.r)[1] == "> Second row");
+    t.r.key(input::scan::kReturn);
+    REQUIRE(t.guard->answers.size() == 1);
     CHECK(t.guard->answers[0].id == "seat.second");
 }
 
@@ -844,7 +970,7 @@ TEST_CASE("WL-CTX-09: a standard row chosen on a pane's menu is spent by the hos
     t.right_in_guard();
     t.right_in_guard(false);
     REQUIRE(t.foreign_open());
-    t.r.press_cell(context_cell_x(t.r.session()), context_entry_cell_y(t.r.session(), arrange));
+    t.r.window_click(context_cell_x(t.r.session()), context_entry_cell_y(t.r.session(), arrange));
     CHECK_FALSE(t.foreign_open());
     CHECK(t.r.session().arrange.open);
     CHECK(t.r.session().panes.selected == t.guard_kind); // Arrange's one exception (WL-CTX-02)
@@ -863,7 +989,7 @@ TEST_CASE("WL-CTX-09: a standard row chosen on a pane's menu is spent by the hos
     REQUIRE(t.foreign_open());
     const std::int64_t ax = t.r.session().presented.anchor_x;
     const std::int64_t ay = t.r.session().presented.anchor_y;
-    t.r.press_cell(context_cell_x(t.r.session()), context_entry_cell_y(t.r.session(), arrange + 1));
+    t.r.window_click(context_cell_x(t.r.session()), context_entry_cell_y(t.r.session(), arrange + 1));
     CHECK_FALSE(t.foreign_open());
     REQUIRE(t.r.session().context.open);
     CHECK(t.r.session().context.group == "Order");
@@ -878,7 +1004,7 @@ TEST_CASE("WL-CTX-09: a standard row chosen on a pane's menu is spent by the hos
     t.right_in_guard();
     t.right_in_guard(false);
     REQUIRE(t.foreign_open());
-    t.r.press_cell(context_cell_x(t.r.session()), context_entry_cell_y(t.r.session(), arrange + 4));
+    t.r.window_click(context_cell_x(t.r.session()), context_entry_cell_y(t.r.session(), arrange + 4));
     CHECK_FALSE(t.menu_open());
     CHECK_FALSE(has_pane(t.r.session().setup.active, guard));
     REQUIRE(t.guard->answers.size() == 3);
@@ -894,8 +1020,8 @@ TEST_CASE("WL-CTX-09: a standard row is spent only while its choosing act is the
     REQUIRE(t.foreign_open());
     t.r.key(input::scan::kDown);
     t.r.key(input::scan::kDown);
-    REQUIRE(presented_texts(t.r.session()).size() > 3);
-    REQUIRE(presented_texts(t.r.session())[3] == "> arrange");
+    REQUIRE(presented_texts(t.r).size() > 3);
+    REQUIRE(presented_texts(t.r)[3] == "> arrange");
     // RETURN CHOOSES ARRANGE, and a newer key is read before the presenter's word comes back: the
     // host hands both acts to the menu, the presenter closes it on the first, and by the time the
     // host hears that, the choosing act is no longer the weaver's latest.
@@ -1171,9 +1297,9 @@ TEST_CASE("WL-CTX-09: a menu with more rows than the room is windowed by the pre
         t.r.key(input::scan::kDown);
     }
     const std::string last = "Row " + std::to_string(kMaxPaneMenuRows - 1);
-    const std::int64_t at = presented_line_of(t.r.session(), last);
+    const std::int64_t at = presented_line_of(t.r, last);
     REQUIRE(at >= 0);
-    CHECK(presented_texts(t.r.session())[static_cast<std::size_t>(at)] == "> " + last);
+    CHECK(presented_texts(t.r)[static_cast<std::size_t>(at)] == "> " + last);
     t.r.key(input::scan::kReturn);
     REQUIRE(t.guard->answers.size() == 2);
     CHECK(t.guard->answers[1].id == "seat.row-" + std::to_string(kMaxPaneMenuRows - 1));
@@ -1185,10 +1311,10 @@ TEST_CASE("WL-CTX-09: a menu with more rows than the room is windowed by the pre
     for (std::size_t i = 0; i + 1 < kMaxPaneMenuRows; ++i) {
         t.r.key(input::scan::kDown);
     }
-    CHECK(presented_texts(t.r.session()).front().find("earlier") != std::string::npos);
-    const std::int64_t above = presented_line_of(t.r.session(), "Row " + std::to_string(kMaxPaneMenuRows - 2));
+    CHECK(presented_texts(t.r).front().find("earlier") != std::string::npos);
+    const std::int64_t above = presented_line_of(t.r, "Row " + std::to_string(kMaxPaneMenuRows - 2));
     REQUIRE(above > 0);
-    t.r.press_cell(context_cell_x(t.r.session()),
+    t.r.window_click(context_cell_x(t.r.session()),
                    context_entry_cell_y(t.r.session(), static_cast<std::size_t>(above)));
     REQUIRE(t.guard->answers.size() == 3);
     CHECK(t.guard->answers[2].id == "seat.row-" + std::to_string(kMaxPaneMenuRows - 2));
@@ -1810,42 +1936,30 @@ TEST_CASE("WL-CTX-10: a menu its image answered is not reopened by a give-back b
 }
 
 
-TEST_CASE("a release forwarded to an open menu carries its own press's number when another hand acts between, and chooses the row its press armed") {
+TEST_CASE("a release in a menu's area carries its own press's number when another hand acts between, and chooses the row its press armed") {
     // A PRESENTER THAT CHOOSES ON THE RELEASE OF THE PRESS THAT ARMED A ROW (the replacement one)
-    // knows the two by their number. A guest's wheel between them is the guest's act, counted and
-    // spent on the open menu; the weaver's release, no act of its own, still carries the weaver's
-    // press's number, so the row the weaver pressed is chosen.
+    // knows the two by the window's number. A guest's wheel between them is the guest's act; the
+    // weaver's release, no act of its own, still carries the weaver's press's number, so the row
+    // the weaver pressed is chosen, as the weaver's act.
     Rigged t(WORKSHOP_SO_NUMBERED_PRESENTER);
     t.guard->menu_on_press = true;
     t.right_in_guard();
     t.right_in_guard(false);
     REQUIRE(t.foreign_open());
-    // THE CELL OF "First row", where the popup's own press measurer reads that line.
-    const std::int64_t line = presented_line_of(t.r.session(), "First row");
+    // THE CELL OF "First row", as the window shows it.
+    const std::int64_t line = presented_line_of(t.r, "First row");
     REQUIRE(line >= 0);
-    std::int64_t x = -1;
-    std::int64_t y = -1;
-    const Screen sc = screen_of(t.r.session());
-    for (std::int64_t cy = 0; cy < 200 && x < 0; ++cy) {
-        for (std::int64_t cx = 0; cx < 400 && x < 0; ++cx) {
-            const PointedAt at = canvas_point_of(input::space::kCells, cx, cy, sc.rows_above);
-            const PresentedPressAt hit = presented_press_at(t.r.session(), sc, input::space::kCells, cx, cy, at);
-            if (hit.inside && hit.line == line) {
-                x = cx;
-                y = cy;
-            }
-        }
-    }
-    REQUIRE(x >= 0);
+    const std::int64_t x = context_cell_x(t.r.session());
+    const std::int64_t y = context_entry_cell_y(t.r.session(), static_cast<std::size_t>(line));
     guest_hand::GuestHand g(t.r, {"input"});
-    t.r.publish(loom::to_value(input::PointerButton{1, true, x, y, input::space::kCells, input::mod::kNone}));
+    t.r.window_button(x, y, true);
     input::InjectedEvent wheel = guest_hand::GuestHand::button_event(1, 1, true);
     wheel.kind = "PointerWheel";
     wheel.wheel_dy = -1.0;
     g.inject({wheel});
     REQUIRE(g.hand->refusals.empty());
     REQUIRE(t.foreign_open());
-    t.r.publish(loom::to_value(input::PointerButton{1, false, x, y, input::space::kCells, input::mod::kNone}));
+    t.r.window_button(x, y, false);
     REQUIRE(t.guard->answers.size() == 1);
     CHECK(t.guard->answers[0].chosen);
     CHECK(t.guard->answers[0].id == "seat.first");
