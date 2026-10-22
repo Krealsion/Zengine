@@ -388,6 +388,12 @@ void WorkshopWeave::on(const graphics::AreaPressed& p, loom::Mail& mail) {
         p.button < 1 || p.button > 3 || quitting_) {
         return;
     }
+    // THE PRESENTED MENU'S AREA: the press is its presenter's, and the act it is this host's.
+    if (session_.presented.open && p.area == session_.presented.area) {
+        const WindowMoment moment{window_moment_, input_actor_, p.local, p.actor};
+        menu_pressed(p, mail.correlation(), mail);
+        return;
+    }
     // THE PANE WHOSE AREA IT IS, among those this desk placed in that window.
     std::int64_t kind = kNoPaneKind;
     for (const std::int64_t placed : placed_kinds_) {
@@ -501,6 +507,18 @@ void WorkshopWeave::on(const graphics::AreaHandRefused& r, loom::Mail& mail) {
     if (r.window != window_name_ ||
         !mail.authored_from_role(std::string(graphics::kWindowOfficePrefix) + r.window) ||
         r.actor <= 0 || quitting_) {
+        return;
+    }
+    // A MENU ABOUT A PANE ONLY THE WEAVER'S HAND REACHES is placed for that hand alone too.
+    if (session_.presented.open && r.area == session_.presented.area) {
+        const RuntimePane* about =
+            session_.panes.runtime.find(session_.presented.office, session_.presented.pane);
+        const InputActor guest{true, false, loom::WeaveId{static_cast<std::uint64_t>(r.actor)}};
+        std::string why = about != nullptr ? refused_toward(guest, about->kind) : std::string();
+        if (why.empty()) {
+            why = "Refused: only the weaver's own hand reaches this menu";
+        }
+        refuse_input(why, mail);
         return;
     }
     for (const std::int64_t placed : placed_kinds_) {

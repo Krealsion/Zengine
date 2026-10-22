@@ -561,8 +561,7 @@ inline constexpr std::size_t kMaxPanePartNameLen = 256;
 inline constexpr std::size_t kMaxCauseSubjectLen = 3 + kMaxPanePartNameLen;
 
 /// ONE PART OF A PANE'S ROWS: `columns` columns of row `row` from `column`, in `PaneRoom`'s
-/// lattice -- a row entire, or a control inside one -- and the pane's name for it. The same shape
-/// names a presented menu's lines (`v2::MenuShown`), a line being a row.
+/// lattice -- a row entire, or a control inside one -- and the pane's name for it.
 struct PaneRowPart {
     std::string name;
     std::int64_t row = 0;

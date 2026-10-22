@@ -3357,7 +3357,7 @@ std::vector<std::string> open_menu(FilesRig& f) {
 /// WALK THE PRESENTER'S CURSOR TO THE ROW READING `row` AND TAKE IT, as a weaver with the keys
 /// does. The presenter opens standing on its first row.
 void choose_row(FilesRig& f, const std::string& row) {
-    const std::int64_t at = presented_line_of(f.r.session(), row);
+    const std::int64_t at = presented_line_of(f.r, row);
     REQUIRE_MESSAGE(at >= 0, "no menu row read `", row, "`");
     for (std::int64_t i = 0; i < at; ++i) {
         f.r.key(input::scan::kDown);

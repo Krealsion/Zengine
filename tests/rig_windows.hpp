@@ -11,6 +11,8 @@
 // answers the platform as in a run. This header names no window, so a suite that includes the rig
 // compiles none.
 
+#include "input/translate.hpp"
+
 #include <zen/switchboard.hpp>
 #include <zen/weave.hpp>
 
@@ -95,6 +97,13 @@ public:
     Shown shown();
     /// The window's own beat, asked for now (`PumpSurface`).
     void pump();
+    /// THE WEAVER'S OWN HAND ON THE WINDOW UP: `moments` its platform gives it, read on the beat
+    /// this asks for, as the weaver's and no participant's -- a terminal's in cells, the OS
+    /// window's in pixels or cells. None up: nothing.
+    void hand(const std::vector<zengine::input::InputEvent>& moments);
+    /// ...queued and not read: the window's next beat (`pump`) reads every moment queued since,
+    /// in order, together.
+    void queue(const std::vector<zengine::input::InputEvent>& moments);
 
     /// THE PICTURE AS THE WINDOW'S DEVICE IS HANDED IT, for a case about what is drawn rather than
     /// what is said: every cell the terminal window shows with the ink it wrote it in, and the

@@ -41,12 +41,11 @@ WHY — `agents/decisions/a-pane-names-its-parts.md`
 row_parts
 `component/row_map.hpp` RowMap::press_order
 `workshop/pane_canvas_rows.hpp` rows_picture
-`workshop/weave_desk_read.cpp` visible_parts
+`workshop/weave_desk_read.cpp` visible_parts presented_menu_reading
 `workshop/desk_read.hpp` row_owners row_part_on own_points canvas_part_on words_inside no_point desk_menu
 `workshop/screen_attention.cpp` context_line_names
 `workshop/weave_seam.cpp` admit_content on(v4::PaneContent)
 `workshop/weave_canvas.cpp` admit_canvas_content on(v4::PaneCanvasContent) on(v5::PaneCanvasContent)
-`workshop/weave_external.cpp` admit_menu_lines
 `workshop/menu-presenter/presenter.cpp` show
 `workshop/desktop-pane/pane.cpp` launcher_part keys_part
 `info/pane.cpp` named_rows

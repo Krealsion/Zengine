@@ -120,11 +120,11 @@ TEST_CASE("right-click on the highlight offers Extract above the standard rows, 
     s.click(s.editor, s.chrome() + 0, 1, 3); // on it
     REQUIRE(s.r.session().presented.open);
     // EXTRACT FIRST, THE STANDARD ROWS BENEATH IT.
-    const auto& lines = s.r.session().presented.lines;
+    const std::vector<std::string> lines = presented_texts(s.r);
     REQUIRE(lines.size() >= 3);
-    CHECK(lines[0].text.find("Extract selection to Inventory") != std::string::npos);
-    CHECK(lines[2].text.find("arrange") != std::string::npos);
-    CHECK(lines.back().text.find("hide pane") != std::string::npos);
+    CHECK(lines[0].find("Extract selection to Inventory") != std::string::npos);
+    CHECK(lines[2].find("arrange") != std::string::npos);
+    CHECK(lines.back().find("hide pane") != std::string::npos);
     s.key(input::scan::kReturn);
     INFO(s.notice() << " / " << s.r.last_notice());
     CHECK(s.r.last_notice().find("Carrying") != std::string::npos);
@@ -286,7 +286,7 @@ TEST_CASE("in a C++ document a dropped command offers its Terminal line or gener
     s.drag(s.inventory, s.row_of(s.inventory, "beat command"), 2, s.editor, s.chrome() + 0, 0);
     REQUIRE(s.r.session().presented.open);
     bool asks = false;
-    for (const auto& line : s.r.session().presented.lines) asks = asks || line.text.find("this .h is C++") != std::string::npos;
+    for (const std::string& line : presented_texts(s.r)) asks = asks || line.find("this .h is C++") != std::string::npos;
     CHECK(asks);
     // ...and a pending choice refuses a switch until it is made or dismissed.
     auto sw = std::make_unique<SwitchAsker>();

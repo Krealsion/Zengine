@@ -1741,7 +1741,7 @@ void press_text(InventoryStory& s, std::int64_t kind, const std::string& start, 
 /// Choose the presented menu's row that reads `label`, with the hand.
 void choose(InventoryStory& s, const std::string& label) {
     REQUIRE(menu_shown(s.r.session()));
-    const auto line = presented_line_of(s.r.session(), label);
+    const auto line = presented_line_of(s.r, label);
     REQUIRE_MESSAGE(line >= 0, label);
     input::InjectedEvent e;
     e.kind = "PointerButton"; e.button = 1; e.pressed = true; e.space = input::space::kCells;

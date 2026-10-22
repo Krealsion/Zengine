@@ -11,14 +11,15 @@
 // An offer with no rows, too many, or an id or label out of bounds is refused in words, and so are
 // such standard rows. Lines: the requester's rows, a rule naming the pane, the standard rows;
 // "> label" at the cursor, "  label" otherwise, windowed with "... n earlier" / "... n more", a
-// row's line named by its id. Up and down pass over the rule and stop at the ends, choose chooses,
-// back dismisses; a press on a row chooses it, one outside dismisses, a release means nothing. A
-// standard row chosen is named to the host, which spends it, and the requester is answered unchosen.
+// row's line named by its id, drawn in the menu's own area of the window. Up and down pass over
+// the rule and stop at the ends, choose chooses, back and a press outside dismiss; a press on a
+// row's line chooses it. A standard row chosen is named to the host, which spends it.
 
 // One menu at a time, answered exactly once: chosen, dismissed, withdrawn by the host or refused.
 // The open menu is reload-kept state (`HeldMenu`), so a reloaded presenter shows it again; a menu
 // it does not hold, it gives back. One source file on installed headers only, so a single-source
-// recipe builds it with zengine::pane, zengine::activation, zengine::component, loom::switchboard.
+// recipe builds it with zengine::pane, zengine::graphics, zengine::activation, zengine::component,
+// loom::switchboard.
 
 #include "workshop/pane_parts.hpp"
 #include "workshop/pane_vocabulary.hpp"
@@ -27,7 +28,7 @@
 #include "activation/activation.hpp"
 #include "component/list_window.hpp"
 #include "graphics/role.hpp"
-#include "surface/vocabulary.hpp"
+#include "graphics/vocabulary.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -43,11 +44,10 @@
 namespace {
 
 namespace ws = zengine::workshop;
-namespace surface = zengine::surface;
 namespace gfx = zengine::graphics;
 namespace component = zengine::component;
 
-/// WHO GRANTS A MENU AND DRAWS IT.
+/// WHO GRANTS A MENU AND PLACES ITS AREA.
 constexpr const char* kWorkshopRole = ws::pane_menu::kWorkshopRole;
 
 /// WHAT THE OFFER MAY BE, judged by the presenter that has to show it: empty when it can be. A
@@ -68,7 +68,7 @@ std::string rule_line(const std::string& pane_name, std::size_t widest) {
     return out;
 }
 
-/// ONE LINE OF TEXT A CANVAS CAN DRAW, at most `columns` wide: an undrawable byte becomes a space
+/// ONE LINE OF TEXT A WINDOW CAN DRAW, at most `columns` wide: an undrawable byte becomes a space
 /// (a label is the requester's words, and one bad byte must not cost the weaver the menu).
 std::string drawable(const std::string& text, std::int64_t columns) {
     std::string out;
@@ -84,21 +84,24 @@ std::string drawable(const std::string& text, std::int64_t columns) {
 
 // WL-CTX-10 -- agents/workshop/pane-menu.md
 class MenuPresenter
-    : public loom::WeaveBase<MenuPresenter, ws::HeldMenu,
-                             loom::Accept<loom::Activated, ws::MenuGranted, ws::MenuInput,
-                                          ws::MenuWithdrawn>,
-                             loom::Emit<ws::v2::MenuShown, ws::MenuClosed, ws::MenuReturned,
-                                        ws::PresenterReady, ws::PaneMenuAnswered>> {
+    : public loom::WeaveBase<
+          MenuPresenter, ws::HeldMenu,
+          loom::Accept<loom::Activated, ws::MenuGranted, ws::MenuInput, ws::MenuWithdrawn,
+                       gfx::AreaRoom, gfx::DrawnRefused, gfx::AreaButtonChanged>,
+          loom::Emit<ws::MenuShown, ws::MenuClosed, ws::MenuReturned, ws::PresenterReady,
+                     ws::PaneMenuAnswered, gfx::Drawn, gfx::RoomAsked>> {
 public:
     /// EVERY ACTIVATION SAYS WHAT THIS IMAGE CARRIES -- nothing on a first load; after a reload,
-    /// the menu a predecessor was presenting, shown again in this image's way.
+    /// the menu a predecessor was presenting, shown again in this image's way where it stands.
     void on(const loom::Activated& activated, loom::Mail& mail) {
         if (!activation_.accept(mail, activated)) {
             return;
         }
         ws::announce_presenter_ready(mail, state_);
+        drawing_.stand_in(state_.area);
         if (state_.menu != 0) {
             show(mail);
+            drawing_.ask_room(mail);
         }
     }
 
@@ -106,10 +109,12 @@ public:
     void on(const ws::MenuGranted& g, loom::Mail& mail) {
         if (ws::accept_menu_grant(g, mail, state_, refusal_of(g))) {
             pictures_.first = 0;
+            drawing_.stand_in(state_.area);
             show(mail);
         }
     }
 
+    /// KEYS, AND A PRESS OUTSIDE THE MENU, as Workshop read them.
     void on(const ws::MenuInput& in, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || in.menu <= 0) {
             return;
@@ -124,9 +129,8 @@ public:
         }
         switch (in.kind) {
         case ws::menu_input::kKey: key(in, mail); break;
-        case ws::menu_input::kPress: press(in, mail); break;
         case ws::menu_input::kOutside: close(mail, false, std::string(), "dismissed", in.input); break;
-        default: break; // a release: this presenter chose on the press
+        default: break;
         }
     }
 
@@ -134,6 +138,33 @@ public:
     /// this image does not hold is given back, from inside this handler.
     void on(const ws::MenuWithdrawn& w, loom::Mail& mail) {
         ws::settle_menu_withdrawn(w, mail, state_);
+        drawing_.stand_in(state_.area);
+    }
+
+    /// THE MENU'S AREA, AS THE WINDOW SHOWING IT GIVES IT: drawn whole there whenever the window
+    /// holds none of it.
+    void on(const gfx::AreaRoom& r, loom::Mail& mail) {
+        if (state_.menu != 0 && drawing_.room(r, mail)) {
+            show(mail);
+        }
+    }
+
+    void on(const gfx::DrawnRefused& refused, loom::Mail& mail) {
+        (void)drawing_.refused(refused, mail);
+    }
+
+    /// A PRESS OF THE FIRST BUTTON ON A ROW'S LINE CHOOSES THE ROW, as the act that press is: the
+    /// choice is said under the press's number. A press on a marker or the rule, any other button,
+    /// a release, and a moment in another menu's area mean nothing.
+    void on(const gfx::AreaButtonChanged& b, loom::Mail& mail) {
+        if (state_.menu == 0 || !b.pressed || b.button != 1) {
+            return;
+        }
+        const std::int64_t line = drawing_.line_at(b.area, b.x, b.y, mail);
+        const std::int64_t entry = line >= 0 ? row_at_line(line) : -1;
+        if (entry >= 0) {
+            choose(mail, entry, 0, mail.correlation());
+        }
     }
 
 private:
@@ -182,39 +213,32 @@ private:
                 show(mail);
             }
             break;
-        case ws::menu_verb::kChoose: choose(mail, state_.cursor, in.input); break;
+        case ws::menu_verb::kChoose: choose(mail, state_.cursor, in.input, 0); break;
         case ws::menu_verb::kBack: close(mail, false, std::string(), "dismissed", in.input); break;
         default: break;
         }
     }
 
-    void press(const ws::MenuInput& in, loom::Mail& mail) {
-        if (in.button != 1 || !pictures_.matches(in)) {
-            return; // not the primary button, or aimed at lines this image has since replaced
-        }
-        const std::int64_t row = row_at_line(in.line);
-        if (row >= 0) {
-            choose(mail, row, in.input);
-        }
-    }
-
-    void choose(loom::Mail& mail, std::int64_t entry, std::int64_t input) {
+    /// CHOOSE AN ENTRY, as act `input` of Workshop's or the window's press `press`.
+    void choose(loom::Mail& mail, std::int64_t entry, std::int64_t input, std::uint64_t press) {
         bool standard = false;
         const ws::PaneMenuRow* row = row_of(entry, standard);
         if (row == nullptr) {
             return; // the rule, or no entry at all
         }
         if (standard) {
-            close(mail, false, std::string(), "a standard row was chosen", input, row->id);
+            close(mail, false, std::string(), "a standard row was chosen", input, row->id, press);
             return;
         }
-        close(mail, true, row->id, std::string(), input);
+        close(mail, true, row->id, std::string(), input, std::string(), press);
     }
 
     /// END THE MENU: the host first, then the requester's one answer (`workshop::close_held_menu`).
     void close(loom::Mail& mail, bool chosen, const std::string& id, const std::string& why,
-               std::int64_t input, const std::string& standard = std::string()) {
-        ws::close_held_menu(mail, state_, chosen, id, why, input, standard);
+               std::int64_t input, const std::string& standard = std::string(),
+               std::uint64_t press = 0) {
+        ws::close_held_menu(mail, state_, chosen, id, why, input, standard, press);
+        drawing_.stand_in(state_.area);
     }
 
     /// THE WINDOW THE ROOM HOLDS, moved by the least it can from the last one shown.
@@ -234,19 +258,19 @@ private:
         return static_cast<std::int64_t>(w.first) + offset;
     }
 
+    /// THE MENU SHOWN: how much of its area it takes, said to Workshop, which sizes the area to it,
+    /// and its lines drawn there.
     void show(loom::Mail& mail) {
         const component::ListWindow w = window();
         const std::size_t earlier = component::earlier_marker(w);
         const std::size_t more = component::more_marker(w);
         const std::int64_t columns = state_.room_columns;
-        ws::v2::MenuShown said;
+        std::vector<ws::MenuLine> lines;
         std::set<std::string> named;
-        said.menu = state_.menu;
-        said.picture = pictures_.shown(w.first, w.count, earlier > 0, state_.menu);
         if (earlier > 0) {
-            said.lines.push_back(surface::SurfaceTextRow{
+            lines.push_back(ws::MenuLine{
                 drawable("  ... " + std::to_string(earlier) + " earlier", columns),
-                gfx::role::kMuted});
+                gfx::role::kMuted, std::string()});
         }
         // THE RULE NAMES THE PANE THE STANDARD ROWS ACT ON, as wide as the widest row's line.
         std::size_t widest = 0;
@@ -260,34 +284,46 @@ private:
             bool standard = false;
             const ws::PaneMenuRow* row = row_of(entry, standard);
             if (row == nullptr) {
-                said.lines.push_back(surface::SurfaceTextRow{
-                    drawable(rule_line(state_.pane_name, widest), columns), gfx::role::kMuted});
+                lines.push_back(ws::MenuLine{drawable(rule_line(state_.pane_name, widest), columns),
+                                             gfx::role::kMuted, std::string()});
                 continue;
             }
             const bool here = entry == state_.cursor;
-            said.lines.push_back(surface::SurfaceTextRow{
-                drawable(std::string(here ? "> " : "  ") + row->label, columns),
-                here ? gfx::role::kAccent : gfx::role::kFill});
+            ws::MenuLine line{drawable(std::string(here ? "> " : "  ") + row->label, columns),
+                              here ? gfx::role::kAccent : gfx::role::kFill, std::string()};
             // THE LINE IS NAMED BY ITS ROW'S ID, as the id the choice comes back as: a requester's
             // row and a standard row alike, the first line to carry an id keeping it.
-            const auto width = static_cast<std::int64_t>(said.lines.back().text.size());
-            if (width > 0 && ws::pane_part_name_problem(row->id) == nullptr &&
+            if (!line.text.empty() && ws::pane_part_name_problem(row->id) == nullptr &&
                 named.insert(row->id).second) {
-                said.parts.push_back(ws::PaneRowPart{
-                    row->id, static_cast<std::int64_t>(said.lines.size()) - 1, 0, width});
+                line.row = row->id;
             }
+            lines.push_back(std::move(line));
         }
         if (more > 0) {
-            said.lines.push_back(surface::SurfaceTextRow{
-                drawable("  ... " + std::to_string(more) + " more", columns),
-                gfx::role::kMuted});
+            lines.push_back(ws::MenuLine{drawable("  ... " + std::to_string(more) + " more", columns),
+                                         gfx::role::kMuted, std::string()});
         }
+        std::int64_t width = 1;
+        for (const ws::MenuLine& line : lines) {
+            width = static_cast<std::int64_t>(line.text.size()) > width
+                        ? static_cast<std::int64_t>(line.text.size())
+                        : width;
+        }
+        ws::MenuShown said;
+        said.menu = state_.menu;
+        said.picture = pictures_.shown(w.first, w.count, earlier > 0, state_.menu);
+        said.area = state_.area;
+        said.rows = static_cast<std::int64_t>(lines.size());
+        said.columns = width;
         (void)mail.as_role(ws::kPresenterRole).send_to_role(kWorkshopRole, said);
+        drawing_.draw(lines, mail);
     }
 
-    // NOT STATE, deliberately: how this image laid the menu out is its own, and a successor that
-    // carries the menu lays it out afresh (and numbers its pictures afresh) in its own way.
+    // NOT STATE, deliberately: how this image laid the menu out and drew it is its own, and a
+    // successor that carries the menu lays it out afresh (and numbers its pictures afresh) in its
+    // own way, in the same area.
     ws::MenuPictureTracker pictures_;
+    ws::MenuDrawing drawing_;
     zengine::ActivationCursor activation_;
 };
 

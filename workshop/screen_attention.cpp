@@ -369,69 +369,43 @@ ProsePlace presented_room(bool anchored, std::int64_t x, std::int64_t y, const S
 // WL-CTX-09 -- agents/workshop/pane-menu.md
 PixelRect presented_bounds(const Session& s, const Screen& sc) {
     const PresentedMenu& menu = s.presented;
-    if (!menu.open || menu.lines.empty()) {
+    if (!menu.open || menu.rows <= 0 || menu.columns <= 0) {
         return PixelRect{};
     }
-    std::int64_t want_cols = 1;
-    for (const surface::SurfaceTextRow& line : menu.lines) {
-        const std::int64_t len = static_cast<std::int64_t>(line.text.size());
-        want_cols = len > want_cols ? len : want_cols;
-    }
-    want_cols = want_cols > kContextMaxCols ? kContextMaxCols : want_cols;
+    const std::int64_t want_cols = menu.columns > kContextMaxCols ? kContextMaxCols : menu.columns;
     const PresentedAnchor at = presented_anchor(menu.anchored, menu.anchor_x, menu.anchor_y, sc);
-    return popup_bounds_at(want_cols, static_cast<std::int64_t>(menu.lines.size()), at.x, at.y,
-                           sc);
+    return popup_bounds_at(want_cols, menu.rows, at.x, at.y, sc);
+}
+
+// WL-CTX-09 -- agents/workshop/pane-menu.md
+PixelRect presented_area_place(const Session& s, const Screen& sc) {
+    const PixelRect b = presented_bounds(s, sc);
+    if (b.empty()) {
+        return PixelRect{};
+    }
+    const ProsePlace place = prose_place(b, sc);
+    return place.present ? place.inside : PixelRect{};
+}
+
+std::string presented_menu_area(std::int64_t menu) {
+    return std::string(kPresenterRole) + ".menu." + std::to_string(menu);
 }
 
 // WL-CTX-09 -- agents/workshop/pane-menu.md
 void paint_presented(surface::SurfaceLayer& layer, const Session& s, const Screen& sc) {
     const PixelRect b = presented_bounds(s, sc);
-    if (!s.presented.open || s.presented.lines.empty()) {
-        return; // granted and not yet shown: nothing is drawn until the presenter says what
+    if (b.empty()) {
+        return; // granted and not yet shown: nothing is drawn until the presenter says how much
     }
+    // THE FRAME ALONE: what the lines say -- the highlight, a window's markers, a number beside a
+    // row -- is the presenter's, drawn in its own area inside it.
     paint_pane_frame(layer, b, kTransientChrome);
-    const ProsePlace place = prose_place(b, sc);
-    if (!place.present) {
-        return;
-    }
-    // THE PRESENTER'S LINES, IN ITS OWN ROLES, AS MANY AS THE ROOM HOLDS. What they say -- the
-    // highlight, a window's markers, a number beside a row -- is the presenter's; the host fits a
-    // line to the popup and draws no line the room cannot hold.
-    surface::SurfaceTextRegion region = prose_region(place);
-    for (const surface::SurfaceTextRow& line : s.presented.lines) {
-        if (static_cast<std::int64_t>(region.rows.size()) >= place.rows) {
-            break;
-        }
-        region.rows.push_back(
-            surface::SurfaceTextRow{detail::fit(line.text, place.columns), line.role});
-    }
-    layer.texts.push_back(std::move(region));
 }
 
 // WL-CTX-09 -- agents/workshop/pane-menu.md
-PresentedPressAt presented_press_at(const Session& s, const Screen& sc, std::int64_t space,
-                                    std::int64_t x, std::int64_t y, const PointedAt& at) {
-    PresentedPressAt out;
+bool presented_holds(const Session& s, const Screen& sc, const PointedAt& at) {
     const PixelRect b = presented_bounds(s, sc);
-    if (!s.presented.open || s.presented.lines.empty() ||
-        !b.contains_at(at.px.x, at.px.y, at.grain)) {
-        return out;
-    }
-    out.inside = true;
-    // THE SAME CALL THE PAINTER MAKES -- one place, so painted line i is the line a press on it
-    // names, and a line the room could not show names nothing.
-    const ProsePlace place = prose_place(b, sc);
-    if (!place.present) {
-        return out;
-    }
-    const ProseAt where = prose_at(space, x, y, place.fit, sc.rows_above);
-    if (!where.understood || where.column < 0 || where.column >= place.columns ||
-        where.row < 0 || where.row >= place.rows ||
-        where.row >= static_cast<std::int64_t>(s.presented.lines.size())) {
-        return out;
-    }
-    out.line = where.row;
-    return out;
+    return !b.empty() && b.contains_at(at.px.x, at.px.y, at.grain);
 }
 
 } // namespace zengine::workshop

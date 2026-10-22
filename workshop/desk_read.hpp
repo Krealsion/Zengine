@@ -362,29 +362,30 @@ inline bool canvas_part_on(const PixelRect& body, const v2::PaneCanvasPart& part
     return true;
 }
 
-/// THE MENU ON THE SCREEN, read from the painter's own composition of it: Workshop's contextual
-/// menu, or a pane's as its presenter showed it, and the lines each names. At most one is open.
+/// THE MENU ON THE SCREEN: Workshop's contextual menu, read from the painter's own composition of
+/// it with the lines it names; or a pane's, whose and where -- its lines its presenter's, read
+/// from the window that shows them (`WorkshopWeave::presented_menu_reading`). At most one is open.
 inline DeskMenu desk_menu(const Session& s, const Screen& sc) {
     DeskMenu menu;
-    surface::SurfaceLayer layer;
-    PixelRect bounds;
     if (s.presented.open) {
+        menu.open = true;
         menu.office = s.presented.office;
         menu.pane = s.presented.pane;
         menu.picture = s.presented.picture;
-        bounds = presented_bounds(s, sc);
-        paint_presented(layer, s, sc);
-    } else if (s.context.open) {
-        menu.office = kWorkshopProvider;
-        bounds = context_bounds(s, sc);
-        paint_context(layer, s, sc);
-    } else {
+        menu.place = desk_rect(presented_bounds(s, sc));
         return menu;
     }
+    if (!s.context.open) {
+        return menu;
+    }
+    surface::SurfaceLayer layer;
+    menu.office = kWorkshopProvider;
+    const PixelRect bounds = context_bounds(s, sc);
+    paint_context(layer, s, sc);
     menu.open = true;
     menu.place = desk_rect(bounds);
     if (layer.texts.empty()) {
-        return menu; // granted and not shown yet: no line is drawn, so none is said
+        return menu;
     }
     const ProsePlace place = prose_place(bounds, sc);
     const GlyphGrid grid = glyph_grid(place.fit, sc.rows_above);
@@ -397,15 +398,12 @@ inline DeskMenu desk_menu(const Session& s, const Screen& sc) {
         line.word = row;
         menu.lines.push_back(std::move(line));
     }
-    // THE LINES EACH MENU NAMES: a pane's, as its presenter named them; Workshop's own, by the
-    // action or group each line shows.
-    std::vector<PaneRowPart> named = s.presented.open ? s.presented.parts : std::vector<PaneRowPart>{};
-    if (!s.presented.open) {
-        const std::vector<std::string> names = context_line_names(s, sc);
-        for (std::size_t i = 0; i < names.size(); ++i) {
-            if (!names[i].empty()) {
-                named.push_back(PaneRowPart{names[i], static_cast<std::int64_t>(i), 0, place.columns});
-            }
+    // THE LINES IT NAMES, by the action or group each line shows.
+    std::vector<PaneRowPart> named;
+    const std::vector<std::string> names = context_line_names(s, sc);
+    for (std::size_t i = 0; i < names.size(); ++i) {
+        if (!names[i].empty()) {
+            named.push_back(PaneRowPart{names[i], static_cast<std::int64_t>(i), 0, place.columns});
         }
     }
     const std::map<std::int64_t, std::vector<std::size_t>> owners = row_owners(named);

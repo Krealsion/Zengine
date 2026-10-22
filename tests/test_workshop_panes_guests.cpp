@@ -479,7 +479,7 @@ struct HotkeysDesk {
     /// The weaver chooses the presented menu's line reading `label`, through the keyboard.
     void choose(const std::string& label) {
         REQUIRE(menu_shown(r.session()));
-        const std::int64_t at = presented_line_of(r.session(), label);
+        const std::int64_t at = presented_line_of(r, label);
         REQUIRE_MESSAGE(at >= 0, "no menu line reads " << label);
         for (std::int64_t i = 0; i < at; ++i) r.key(input::scan::kDown);
         r.key(input::scan::kReturn);
@@ -980,6 +980,13 @@ TEST_CASE("on a weaver's host a guest's keys and presses toward the Hotkeys pane
 
     // THE WEAVER ARMS A CAPTURE: the next key the pane hears becomes the binding, and is written.
     k.right(row);
+    REQUIRE(menu_shown(k.r.session()));
+    // ...ON A MENU THAT STANDS FOR THE WEAVER'S HAND ALONE, as the pane does: a guest's press on
+    // its first line is refused by the window, Workshop says why, and the menu stays open.
+    const std::string on_menu = said_for(k.r, [&] {
+        g.press_cell(context_cell_x(k.r.session()), context_entry_cell_y(k.r.session(), 0));
+    });
+    CHECK_MESSAGE(holds_words(on_menu, kHotkeysRefused), on_menu);
     REQUIRE(menu_shown(k.r.session()));
     k.choose("Modify (press a key)");
     REQUIRE_MESSAGE(k.text().find("press the key for `desktop.terminal`") != std::string::npos, k.text());

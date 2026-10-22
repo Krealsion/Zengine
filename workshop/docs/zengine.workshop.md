@@ -793,9 +793,10 @@ act, Workshop answers it as the desk's own: the desktop's row for a bare Escape
 
 ### `MenuShown`
 
-`MenuShown`, from `zengine.presenter`: the lines the open menu shows, numbered as a picture
-([`presenter_vocabulary.hpp`](../presenter_vocabulary.hpp)); v2 names each line by its row's id.
-Lines past the granted room are refused and the menu withdrawn, its requester told why: `the
+`MenuShown` v3, from `zengine.presenter`: the open menu is drawn in its area, so many lines of
+so many characters, numbered as a picture ([`presenter_vocabulary.hpp`](../presenter_vocabulary.hpp)).
+Workshop places the area to fit inside the popup's frame, in front of the desk. A menu past the
+granted room, or in an area it was not granted, is withdrawn, its requester told why: `the
 presenter showed a line wider than its room`.
 
 ### `MenuClosed`
