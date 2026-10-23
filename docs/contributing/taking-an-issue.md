@@ -265,6 +265,10 @@ A check's link ends in its job's id.
   next push.
 - **A red is diagnosed before the next push**: name the job, the step and the case, reproduce it
   where the platform allows, and fix it on the branch.
+- **A red verification in a Linux job keeps what the journeys left**: each journey's roots and
+  evidence, in one archive, `journey-work.tar.gz`, the run's artifact
+  `journey-work-linux-attempt-<n>` or `journey-work-sanitizer-attempt-<n>`, kept as long as
+  `ci.yml` says (`gh run download <run-id> -n <name>`).
 
 The pull request is ready to merge when every required check has passed on its last commit and
 the body's evidence names that commit.
