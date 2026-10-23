@@ -88,6 +88,7 @@ public:
             return;
         }
         (void)gw::apply(*a, gw::Drawer{}, d);
+        a->drawing = d.number;
     }
 
     void on(const PaneWindowDo&, loom::Mail& mail) {
@@ -410,20 +411,57 @@ public:
 
     /// A BUTTON PRESSED (`down`) OR LET GO AT A CELL OF `area`, as the real window gives an area
     /// placed to hear the pointer: `AreaButtonChanged` at the cell's centre in the area's pixels,
-    /// told the area's owner under `press` as this window's office -- and, given an `arranger`,
-    /// `AreaPressed` at the window's pixel, told it under the same number.
+    /// with what this window drew under the hand there (`said_under`), told the area's owner under
+    /// `press` as this window's office -- and, given an `arranger`, `AreaPressed` at the window's
+    /// pixel, told it under the same number.
     void button(const std::string& area, std::int64_t col, std::int64_t row, bool down,
                 std::uint64_t press, std::int64_t which = 1, const std::string& arranger = {}) {
         const gw::WinArea* a = w_->find(area);
         const std::string owner = a == nullptr ? std::string() : a->owner;
         const std::int64_t x = col * face_.advance + face_.advance / 2;
         const std::int64_t y = row * face_.line + face_.line / 2;
-        say(owner, gfx::AreaButtonChanged{area, which, down, x, y, 0}, press);
+        gfx::AreaButtonChanged told{area, which, down, x, y, 0};
+        said_under(told, col, row);
+        say(owner, told, press);
         if (!arranger.empty()) {
             const std::int64_t ox = a == nullptr ? 0 : a->x;
             const std::int64_t oy = a == nullptr ? 0 : a->y;
-            say(arranger, gfx::AreaPressed{w_->window(), area, which, down, ox + x, oy + y}, press);
+            say(arranger,
+                gfx::AreaPressed{w_->window(), area, which, down, ox + x, oy + y, true, 0,
+                                 told.under, told.part, told.drawing},
+                press);
         }
+    }
+    /// WHAT THIS WINDOW DREW UNDER THE HAND at the cell `col`, `row` of the moment's area, said as
+    /// the real window says it: the area, where it painted anything there, the part its top node
+    /// there is named by, and its drawer's number.
+    void said_under(gfx::AreaButtonChanged& told, std::int64_t col, std::int64_t row) {
+        const gw::WinArea* a = w_->find(told.area);
+        if (a == nullptr) {
+            return;
+        }
+        const gw::WinArea cells = on_cells(*a);
+        const gw::Cache cache = painted(cells);
+        const gw::Painted* p = cache.of(cells.area);
+        const gw::PaintedNode* top = nullptr;
+        std::string top_path;
+        if (p != nullptr) {
+            for (const auto& [path, n] : *p) {
+                for (const gfx::term::Cell& c : n.cells) {
+                    if (c.col == col && c.row == row && (top == nullptr || top->key < n.key)) {
+                        top = &n;
+                        top_path = path;
+                    }
+                }
+            }
+        }
+        if (top == nullptr) {
+            return;
+        }
+        told.under = told.area;
+        const gfx::ElementRecord* r = gw::record_of(cells, top_path);
+        told.part = r == nullptr ? std::string() : r->action;
+        told.drawing = a->drawing;
     }
     /// A MOVE TO A CELL OF `area`, while `press` holds it or (0) with none held.
     void move(const std::string& area, std::int64_t col, std::int64_t row, std::uint64_t press = 0) {

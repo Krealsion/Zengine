@@ -631,11 +631,13 @@ struct LoadedWindow {
                                      loom::WeaveId{}, 0));
         bus.drain_until_idle();
     }
-    /// A press at a row of the area, its press and release, as the window's office.
-    static void press_in(pw::PaneWindow& w, loom::Mail& m, const std::string& area,
-                         std::int64_t row, std::uint64_t number) {
-        const gfx::AreaButtonChanged down{area, 1, true, gfx::kCellPx / 2,
-                                          row * gfx::kCellPx + gfx::kCellPx / 2, 0};
+    /// A press at a row of the area, its press and release, as the window's office, saying what
+    /// the window drew under the hand when it landed.
+    void press_in(pw::PaneWindow& w, loom::Mail& m, const std::string& at, std::int64_t row,
+                  std::uint64_t number) {
+        gfx::AreaButtonChanged down{at, 1, true, gfx::kCellPx / 2,
+                                    row * gfx::kCellPx + gfx::kCellPx / 2, 0};
+        window.said_under(down, 0, row);
         gfx::AreaButtonChanged up = down;
         up.pressed = false;
         (void)m.as_role(w.office()).send_to_role(kIntroOffice, down, number);
@@ -917,8 +919,8 @@ TEST_CASE("a forged press selects nothing and publishes nothing") {
     CHECK(lw.drawn() == drawn_before + 1);
 
     // A PRESS IN AN AREA THIS PANE DOES NOT DRAW IN IS NOT ONE OF ITS ROWS EITHER.
-    lw.in_one_turn([](pw::PaneWindow& w, loom::Mail& m) {
-        LoadedWindow::press_in(w, m, std::string(kIntroOffice) + ".schemas", 1, 99);
+    lw.in_one_turn([&lw](pw::PaneWindow& w, loom::Mail& m) {
+        lw.press_in(w, m, std::string(kIntroOffice) + ".schemas", 1, 99);
     });
     CHECK(ears.heard.size() == 1);
 }
@@ -942,11 +944,11 @@ TEST_CASE("a press between a room and the pane's answer to it names nothing") {
     const std::size_t drawn_before = lw.drawn();
 
     const std::string area = lw.area;
-    lw.in_one_turn([area](pw::PaneWindow& w, loom::Mail& m) {
+    lw.in_one_turn([&lw, area](pw::PaneWindow& w, loom::Mail& m) {
         (void)m.as_role(w.office()).send_to_role(
             kIntroOffice, gfx::AreaRoom{area, w.window(), 1, 46 * gfx::kCellPx, 6 * gfx::kCellPx,
                                         {}, false, 0, gfx::kCellPx, gfx::kCellPx});
-        LoadedWindow::press_in(w, m, area, 1, 7);
+        lw.press_in(w, m, area, 1, 7);
     });
     // NOTHING WAS SELECTED, because at the moment the press arrived this pane was showing
     // nothing it had read for the room. The new reading then lands normally, so the pane is not
@@ -2800,6 +2802,29 @@ TEST_CASE("a Compose press the window landed on its rows before another target's
     CHECK(r.shows("Curious v1 -> @zengine.stranger"));
 }
 
+TEST_CASE("a Compose press the window landed on one target's message opens nothing once another target's took its row, and one on the message drawn there now opens its form") {
+    // THE WINDOW SAYS WHAT IT DREW UNDER THE HAND: Compose names each message's row by the message,
+    // so a press aimed at one target's catalog, arriving after another's took its rows, opens
+    // neither.
+    ComposeRig r;
+    r.with_timer();
+    r.with_stranger();
+    r.select(kTimerOffice, "zengine-timer");
+    const std::int64_t row = r.row_of("StartTimer v1");
+    REQUIRE(row >= 0);
+    const std::string timers = part_drawn_at(r.kind, row, 4);
+    REQUIRE_FALSE(timers.empty());
+    r.select("zengine.stranger", "a-stranger");
+    REQUIRE(r.row_of("Curious v1") == row);
+    REQUIRE(part_drawn_at(r.kind, row, 4) != timers);
+    // AIMED AT StartTimer, ARRIVING AFTER Curious TOOK ITS ROW: no form opens.
+    press_as_drawn(r.r, r.kind, row, 4, timers);
+    CHECK_FALSE(r.shows(" -> @"));
+    // A press the window landed on the row showing Curious opens Curious's form.
+    press_as_drawn(r.r, r.kind, row, 4, part_drawn_at(r.kind, row, 4));
+    CHECK(r.shows("Curious v1 -> @zengine.stranger"));
+}
+
 TEST_CASE("a composed message reaches a target whose shape nobody shipped") {
     ComposeRig r;
     r.with_stranger();
@@ -3384,14 +3409,12 @@ TEST_CASE("Loaded wheel browses without publishing a different selected target")
     CHECK(ears.heard.size() == 1);
 }
 
-// A WITNESS OF THE PRESS SEAM'S MISREAD, held as an expected failure until it is decided which
-// drawing a window press names (a drawing's number on the window's word of the press; one area
-// a picture; a fence through the window). Loaded reads the press against the rows it drew since.
-TEST_CASE("a Loaded press the window landed before the wheel moved its rows selects nothing" *
-          doctest::should_fail()) {
-    // A PRESS AIMED AT ONE WEAVE'S ROW, landed by the window on the picture it shows in the same
-    // beat as a turn of the wheel it landed first: Loaded moves its rows for the wheel, draws, and
-    // then reads the press against the rows it drew, which name another weave there.
+// The window says the row it drew under the hand; Loaded reads the press against the rows it drew
+// since, where another weave stands -- and a press on a row drawn again under its own name takes.
+TEST_CASE("a Loaded press the window landed before the wheel moved its rows selects nothing") {
+    // A PRESS AIMED AT ONE WEAVE'S ROW, landed by the window on the picture it showed then: the
+    // wheel moves Loaded's rows and Loaded draws them before it reads the press, which names
+    // another weave than the one standing there now.
     Ears ears;
     PaneRig r;
     LoadedWindow lw(r.bus);
@@ -3402,18 +3425,39 @@ TEST_CASE("a Loaded press the window landed before the wheel moved its rows sele
     lw.room(4, 80);
     REQUIRE(lw.rows()[1].find("a-hello") != std::string::npos);
     const std::string area = lw.area;
-    // AIMED AT a-hello, READ AFTER b-hello TOOK ITS ROW: nothing is selected.
+    // THE WINDOW'S WORD ON A PRESS AT ROW 1, taken while it showed a-hello there.
+    gfx::AreaButtonChanged aimed{area, 1, true, gfx::kCellPx / 2, gfx::kCellPx + gfx::kCellPx / 2, 0};
+    lw.window.said_under(aimed, 0, 1);
+    REQUIRE(aimed.part == "weave:a-hello");
+    const auto press_with = [&lw](const gfx::AreaButtonChanged& word, std::uint64_t number) {
+        lw.in_one_turn([word, number](pw::PaneWindow& w, loom::Mail& m) {
+            gfx::AreaButtonChanged up = word;
+            up.pressed = false;
+            (void)m.as_role(w.office()).send_to_role(kIntroOffice, word, number);
+            (void)m.as_role(w.office()).send_to_role(kIntroOffice, up, number);
+        });
+    };
     lw.in_one_turn([area](pw::PaneWindow& w, loom::Mail& m) {
         (void)m.as_role(w.office()).send_to_role(
             kIntroOffice, gfx::AreaWheelTurned{area, 0, -1, gfx::kCellPx / 2,
                                                gfx::kCellPx + gfx::kCellPx / 2, 0});
-        LoadedWindow::press_in(w, m, area, 1, 11);
     });
     REQUIRE(lw.rows()[1].find("b-hello") != std::string::npos);
+    // AIMED AT a-hello, READ AFTER b-hello TOOK ITS ROW: nothing is selected.
+    press_with(aimed, 11);
     CHECK(ears.heard.empty());
     // A press on the picture showing b-hello selects it...
+    gfx::AreaButtonChanged on_b = aimed;
+    lw.window.said_under(on_b, 0, 1);
+    REQUIRE(on_b.part == "weave:b-hello");
     lw.press(1, 0);
-    REQUIRE_FALSE(ears.heard.empty());
+    REQUIRE(ears.heard.size() == 1);
+    CHECK(ears.heard.back().library == "b-hello");
+    // ...AND ONE AIMED AT b-hello BEFORE ITS ROW WAS DRAWN AGAIN, marked chosen, still takes: the
+    // same weave redrawn under its own name.
+    REQUIRE(lw.rows()[1].find("b-hello") != std::string::npos);
+    press_with(on_b, 12);
+    REQUIRE(ears.heard.size() == 2);
     CHECK(ears.heard.back().library == "b-hello");
 }
 

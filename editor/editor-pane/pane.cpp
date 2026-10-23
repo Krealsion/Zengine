@@ -258,7 +258,7 @@ public:
 
     void on_window(const std::optional<ws::WindowPointer>& p, loom::Mail& mail);
     void pointer(std::int64_t phase, std::int64_t button, const ws::RowCell& at,
-                 std::int64_t gesture, double dy, loom::Mail& mail);
+                 std::int64_t gesture, double dy, bool moved, bool current, loom::Mail& mail);
     void press_at(std::int64_t prow, std::int64_t pcol, bool current, loom::Mail& mail);
     void dragged(std::int64_t drow, std::int64_t dcol, loom::Mail& mail);
     void wheel(double dy, loom::Mail& mail);
@@ -479,7 +479,8 @@ private:
     void acquire(Take what, bool drag, std::uint64_t gesture, const Mark& at, loom::Mail& mail);
     std::string insertion_refusal() const;
     Landing landing(std::int64_t prow, std::int64_t pcol) const;
-    void receive(const loom::Bytes& data, const ws::RowCell& drop, bool current, loom::Mail& mail);
+    void receive(const loom::Bytes& data, const ws::RowCell& drop, bool current, bool same,
+                 loom::Mail& mail);
     bool insert_lines(const std::string& text, const Landing& at, const std::string& note,
                       bool select);
     void insert_command(const st::Material& m, const Landing& at);
@@ -947,7 +948,26 @@ private:
         chrome_rows_ = c.chrome_rows;
         doc_rows_ = c.doc_rows;
         status_row_ = c.status_row;
-        window_.draw(mail, c.rows, parts_of(c, columns_), c.caret);
+        // THE PICTURE MOVES EXACTLY WHEN THE ROW-TO-MEANING MAP DOES: a caret move alone, a
+        // notice's words, a held press's words keep its number.
+        PictureKey key;
+        key.epoch = e_.doc_epoch;
+        key.content = e_.buffer.content_revision();
+        key.first_row = e_.first_row;
+        key.first_col = e_.first_col;
+        key.chrome_rows = c.chrome_rows;
+        key.rows = rows_;
+        key.columns = columns_;
+        key.selection = e_.open_document() && e_.buffer.has_selection();
+        if (key.selection) {
+            key.from = e_.buffer.selection_begin();
+            key.to = e_.buffer.selection_end();
+        }
+        if (picture_ == 0 || !(key == picture_key_)) {
+            picture_key_ = key;
+            ++picture_;
+        }
+        window_.draw(mail, c.rows, parts_of(c, columns_), c.caret, picture_);
     }
 
     /// The live document, written into the shape Loom answers reads from (WL-EDIT-15), at the end
@@ -1054,6 +1074,9 @@ private:
     /// disagree about what is where.
     std::int64_t chrome_rows_ = 0;
     std::int64_t doc_rows_ = 0;
+    /// WHAT THE ROWS LAST DRAWN MEAN, and its number, which moves when the meaning does.
+    PictureKey picture_key_;
+    std::int64_t picture_ = 0;
 
     /// ONE COUNTER FOR EVERY QUESTION THIS PANE ASKS, so a correlation is this incarnation's
     /// own and an answer to somebody else's question is not mistaken for one to ours.

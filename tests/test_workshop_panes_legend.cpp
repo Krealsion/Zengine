@@ -409,11 +409,9 @@ TEST_CASE("an Info commit queued behind a layout switch is refused, and neither 
     CHECK(t.legend_shown());
 }
 
-// A WITNESS OF THE PRESS SEAM'S MISREAD, held as an expected failure until it is decided which
-// drawing a window press names: the press lands on the rows drawn with the legend, and the
-// Terminal reads it against the rows drawn since.
-TEST_CASE("a press aimed at the Terminal's picture from before its legend hid is refused" *
-          doctest::should_fail()) {
+// The press lands on the rows drawn with the legend, and says what the window drew there; the
+// Terminal reads it against the rows drawn since, where another row stands.
+TEST_CASE("a press aimed at the Terminal's picture from before its legend hid is refused") {
     LegendRig t;
     t.open();
     t.inspect_terminal();

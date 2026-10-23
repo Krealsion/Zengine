@@ -43,8 +43,9 @@ namespace {
 /// THE POINTER IN THE WINDOW that shows the pane's area, read onto the rows drawn there: a primary
 /// press places the caret or remembers what it landed on, its motion sweeps or carries that, its
 /// release or loss ends the sweep, the wheel scrolls, and a right press offers this pane's rows or
-/// hands the press back. A press is numbered by the window, and a hold the window ended is the
-/// loss of the press held; a press beside the rows begins nothing.
+/// hands the press back. A press landed on another line than the rows show now is refused in words;
+/// on its line in a drawing whose meaning moved since, it is ordinary (WL-EDIT-18).
+// WL-PRESS-07 -- agents/workshop/press-chain.md
 inline void EditorPaneWeave::on_window(const std::optional<ws::WindowPointer>& p,
                                        loom::Mail& mail) {
     if (!p) {
@@ -52,24 +53,32 @@ inline void EditorPaneWeave::on_window(const std::optional<ws::WindowPointer>& p
     }
     const std::int64_t gesture =
         p->phase == ws::canvas_pointer::kLost ? held_ : static_cast<std::int64_t>(p->press);
+    const bool current = !p->moved && (!p->told || p->drawing == picture_);
     pointer(p->phase, p->phase == ws::canvas_pointer::kMove ? 1 : p->button, p->at, gesture,
-            p->dy, mail);
+            p->dy, p->moved, current, mail);
 }
 
-/// ONE MOMENT OF THE POINTER at a cell of the rows the pane drew.
+/// ONE MOMENT OF THE POINTER at a cell of the rows the pane drew: `moved` when the window drew
+/// another line there, `current` when the press names the drawing the pane holds now.
 inline void EditorPaneWeave::pointer(std::int64_t phase, std::int64_t button,
                                      const ws::RowCell& at, std::int64_t gesture, double dy,
-                                     loom::Mail& mail) {
+                                     bool moved, bool current, loom::Mail& mail) {
+    if (phase == ws::canvas_pointer::kPress && (button == 1 || button == 3) && moved) {
+        held_ = 0;
+        notice("nothing was pressed -- the text moved under the press; press again", true);
+        say(mail);
+        return;
+    }
     if (phase == ws::canvas_pointer::kPress && button == 1) {
         held_ = at.shown ? gesture : 0;
         if (at.shown) {
-            press_at(at.row, at.column, true, mail);
+            press_at(at.row, at.column, current, mail);
         } else if (!holding_.active) {
             end_grab();
             drag_ = Drag{};
         }
     } else if (phase == ws::canvas_pointer::kPress && button == 3) {
-        right_press(at, true, mail);
+        right_press(at, current, mail);
     } else if (phase == ws::canvas_pointer::kMove && button == 1 && held_ != 0 &&
                gesture == held_) {
         dragged(at.row, at.column, mail);
@@ -263,7 +272,10 @@ inline void EditorPaneWeave::on(const ws::PaneCanvasValueDrop& drop, loom::Mail&
     }
     end_grab();
     notice_.clear();
-    receive(drop.data, window_.cell_at(drop.x, drop.y), true, mail);
+    const bool told = !drop.under.empty() && drop.under == window_.area();
+    receive(drop.data, window_.cell_at(drop.x, drop.y),
+            !window_.moved(drop.under, drop.part, drop.drawing, drop.x, drop.y),
+            !told || drop.drawing == picture_, mail);
     say(mail);
 }
 
@@ -456,7 +468,7 @@ inline Landing EditorPaneWeave::landing(std::int64_t prow, std::int64_t pcol) co
 }
 
 inline void EditorPaneWeave::receive(const loom::Bytes& data, const ws::RowCell& drop,
-                                     bool current, loom::Mail& mail) {
+                                     bool current, bool same, loom::Mail& mail) {
     const std::string bytes(data.begin(), data.end());
     st::Material m = st::read_material(bytes);
     if (m.kind == st::MaterialKind::Location) {
@@ -485,6 +497,10 @@ inline void EditorPaneWeave::receive(const loom::Bytes& data, const ws::RowCell&
         return;
     }
     const Landing at = landing(drop.row, drop.column);
+    if (at.inside && !same) { // a highlight the drawing under the hand did not show there
+        notice("nothing was inserted -- the selection changed under the drop; drop it again", true);
+        return;
+    }
     if (m.kind == st::MaterialKind::Text) {
         (void)insert_lines(m.text, at, "", false);
         return;

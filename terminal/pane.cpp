@@ -277,6 +277,11 @@ public:
     /// press on that row means. Motion, release and loss are nothing: no sweep here, and a pickup's
     /// drag is Workshop's once the carry begins.
     void press(const ws::RowPress& at, loom::Mail& mail) {
+        if (at.moved) { // the window landed it on a row the transcript has since replaced there
+            notice_ = "That transcript picture changed; try again";
+            say(mail);
+            return;
+        }
         if (const auto* subject = at.window ? nullptr : room().map().at(at.row, at.column)) {
             acquire(*subject, true, mail);
             return;

@@ -413,7 +413,7 @@ public:
     // ---- The pointer, in transfers.hpp ----------------------------------------------------------
 
     void on_window(const std::optional<ws::WindowPointer>& p, loom::Mail& mail);
-    void pointer(std::int64_t phase, std::int64_t button, const ws::RowCell& at,
+    void pointer(std::int64_t phase, std::int64_t button, const ws::RowCell& at, bool aimed,
                  std::int64_t gesture, double dy, loom::Mail& mail);
     void press_at(std::int64_t row, std::int64_t column, bool aimed, loom::Mail& mail);
     void dragged(std::int64_t row, std::int64_t column, loom::Mail& mail);
@@ -926,8 +926,12 @@ private:
         compose(rows, caret, rows_, columns_);
         drawn_hash_ = picture_hash(rows, caret, epoch_);
         ++state_.screens;
-        window_.draw(mail, rows, status_part(rows), caret);
+        window_.draw(mail, rows, status_part(rows), caret, drawn_number());
     }
+
+    /// THE NUMBER THE ROWS LAST DRAWN ARE SAID WITH (`graphics::Sketch::number`): their
+    /// fingerprint, which a window says with each press that lands on them.
+    std::int64_t drawn_number() const { return static_cast<std::int64_t>(drawn_hash_ >> 1); }
 
     /// DOES NEOVIM'S SCREEN STILL READ AS THE ROWS A HAND AIMED AT? `aimed` when the hand was on the
     /// rows last drawn in the window, and Neovim drew nothing since.

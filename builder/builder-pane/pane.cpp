@@ -38,7 +38,9 @@
 #include <zen/weave/lifecycle.hpp>
 #include <zen/weave/standard_shapes.hpp>
 
+#include <cstddef>
 #include <cstdint>
+#include <map>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -108,9 +110,10 @@ bool admissible(std::string_view text) {
     return true;
 }
 
-/// The sentence for a press that named a picture this pane has since replaced: a press is aimed
-/// at what a weaver could see, so rows that moved between the aim and the delivery are said,
-/// never spent on whatever slid into that place.
+/// The sentence for a press the window landed on a row this pane has since replaced there: a press
+/// is aimed at what a weaver could see, so a row that moved between the aim and the delivery is
+/// said, never spent on whatever slid into that place.
+constexpr const char* kMovedSentence = "the rows moved -- press again";
 
 // ---- What a published row, or a run of columns inside one, MEANS (component::RowMap) -------
 
@@ -747,15 +750,33 @@ public:
         say(mail);
     }
 
-    // ---- The mouse: a press names a picture, a right press offers the pane's own rows ----
+    // ---- The mouse: a press names what it landed on, a right press offers the pane's rows ----
 
-
+    // WL-PRESS-07 -- agents/workshop/press-chain.md
+    /// A PRESS THE WINDOW LANDED ON ANOTHER ROW than the one the rows show there now is refused in
+    /// words, never resolved against whatever row has since moved into its place.
     void press(const ws::RowPress& at, loom::Mail& mail) {
+        if (at.moved) {
+            notice_ = kMovedSentence;
+            say(mail);
+            return;
+        }
         const std::int64_t column = at.column;
         const bool keys_went_here = at.keys_went_here;
         const BuilderMeaning* m = room().map().at(at.row, column);
         if (m == nullptr || m->kind == builder_row::kNone) {
             return; // a fact row, a heading, a build's own words: pointing, and nothing more
+        }
+        // A FACE NAMING A SUBJECT IS SPENT ON THE PROMISE IT MADE WHERE THE PRESS LANDED
+        // (WL-HAND-04): the subject and build its face showed in the drawing the window names.
+        if (m->kind == builder_row::kControl && !m->subject.empty() && at.told) {
+            const Promise* drawn = promise_drawn(at.drawing, m->id);
+            if (drawn == nullptr || drawn->subject != m->subject || drawn->op != m->op) {
+                notice_ = drawn == nullptr ? std::string(kMovedSentence)
+                                           : "`" + drawn->subject + "` is not what is here now";
+                say(mail);
+                return;
+            }
         }
         room().spend_notice(
             notice_,
@@ -1601,6 +1622,44 @@ private:
         room().publish(
             mail, [](const BuilderMeaning& m) { return part_name(m); },
             [](const BuilderMeaning& m) { return m.available; });
+        keep_promises();
+    }
+
+    /// WHAT A FACE NAMING A SUBJECT PROMISED in one drawing: the subject, and the build it was
+    /// true of.
+    struct Promise {
+        std::string subject;
+        std::int64_t op = 0;
+    };
+    /// THE PROMISES OF THE LAST FEW DRAWINGS, by the drawing's number, each face's by its
+    /// operation: a press the window landed on an older drawing is read by the number it names.
+    static constexpr std::size_t kPromisesKept = 8;
+    std::vector<std::pair<std::int64_t, std::map<std::string, Promise>>> promises_;
+
+    void keep_promises() {
+        const std::int64_t number = room().map().picture();
+        if (!promises_.empty() && promises_.back().first == number) {
+            return;
+        }
+        std::map<std::string, Promise> now;
+        for (const auto& span : room().map().spans()) {
+            if (span.meaning.kind == builder_row::kControl && !span.meaning.subject.empty()) {
+                now[span.meaning.id] = Promise{span.meaning.subject, span.meaning.op};
+            }
+        }
+        promises_.emplace_back(number, std::move(now));
+        if (promises_.size() > kPromisesKept) {
+            promises_.erase(promises_.begin());
+        }
+    }
+    const Promise* promise_drawn(std::int64_t number, const std::string& id) const {
+        for (const auto& [drawn, faces] : promises_) {
+            if (drawn == number) {
+                const auto at = faces.find(id);
+                return at == faces.end() ? nullptr : &at->second;
+            }
+        }
+        return nullptr;
     }
 
     /// WHAT THE BUILDER CALLS ITS PARTS: a recipe's row by the recipe, `recipe:<name>`; a control

@@ -323,13 +323,14 @@ void WorkshopWeave::tell_keys(loom::Mail& mail) {
                                 : 0);
         const std::pair<std::uint64_t, bool> now{life, typing == kind};
         const auto was = keys_told_.find(kind);
-        if (was == keys_told_.end() || was->second != now) {
+        if (was == keys_told_.end() || was->second != now || keys_owed_.count(kind) != 0) {
             (void)mail.as_role(kWorkshopProvider)
                 .send_to_role(row->provider, PaneKeys{row->pane, now.second});
         }
         told[kind] = now;
     }
     keys_told_ = std::move(told);
+    keys_owed_.clear();
 }
 
 void WorkshopWeave::draw_window(loom::Mail& mail) {

@@ -71,6 +71,21 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 
+## WL-PRESS-07 — A press acts on the element it landed on
+
+LAW — A press acts on the element the window drew under the hand, over its whole face, and is refused in the pane's own words only where its newest drawing shows another element there, or none.
+
+MEANS
+- the window says what it drew there: the area, the part named there, that area's drawing number;
+- the same element is the part a pane names across its redraws; unnamed, what the row means, by its number;
+- the same element redrawn -- words, colour, hover, a row elsewhere moved -- takes it; a drop is judged likewise.
+
+DOES NOT MEAN
+- that a press waits on a drawing, or that two offices' messages arrive in one order;
+- that a pane naming nothing and numbering nothing is guarded: it reads a press against its newest drawing.
+
+WHY — `agents/decisions/a-press-names-the-element-it-landed-on.md`
+
 ## Do not assume
 
 - That the bare bool is inadequate — the richer answers (`Written`, `Handled`, `Commit`,
@@ -115,6 +130,30 @@ press whole"
 release, and one it gives a pane's area is the pane's, Workshop told where it landed" "Workshop's own area of the window answers each button as itself: a press on the room says
 so, a right press asks its menu about the room or a tab, re-asking it while one is open, a press
 on the gear anchors there, and a tab carried along the run reorders it"
+
+### WL-PRESS-07
+`graphics/vocabulary.hpp` AreaButtonChanged Drawn
+`graphics/canvas.hpp` part_at
+`graphics/window/window.hpp` say_under
+`workshop/pane_drawing.hpp` press_moved WindowDrawing::moved WindowPointer
+`builder/builder-pane/pane.cpp` press
+`editor/editor-pane/transfers.hpp` on_window
+`tests/test_workshop_panes_canvas.cpp` "a pane's drawings judge a press by what the window drew
+under the hand: a named part redrawn takes it over its whole face, another part or none refuses it,
+and an unnamed place takes it only under the drawing's number"
+`tests/test_graphics.cpp` "a button's moment says what the window drew under the hand when it
+landed -- the area, the part named there and its drawer's number for the drawing -- and a press held
+through its owner's next drawing keeps its number for its moves and its release, wherever it lands"
+"a pane on the drawing facet is pressed over a drawn button's whole face, its edge included, and a
+press the window landed on another part than it shows there is refused"
+`tests/test_workshop_panes_desktop.cpp` "WL-DESK-14: a press queued behind a change of the list is
+refused, never resolved against the moved rows"
+`tests/test_workshop_panes_input.cpp` "a Loaded press the window landed before the wheel moved its
+rows selects nothing"
+`tests/test_workshop_panes_files.cpp` "a press the window landed on a Files row its listing has since
+moved is refused in words and spends nothing, and one landed on the same entry redrawn takes"
+`tests/test_workshop_inventory_info.cpp` "a value released on Flow before its carry is answered
+carries the window's word from its release, though Flow repainted meanwhile"
 
 ### WL-PRESS-05
 `workshop/screen_chrome.cpp` occupied_at

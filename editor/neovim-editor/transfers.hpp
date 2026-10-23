@@ -57,8 +57,11 @@ inline void NeovimEditorWeave::on_window(const std::optional<ws::WindowPointer>&
     const bool lost = p->phase == ws::canvas_pointer::kLost;
     const std::int64_t gesture =
         lost && p->button == 1 ? pressed_ : static_cast<std::int64_t>(p->press);
-    pointer(p->phase, p->phase == ws::canvas_pointer::kMove ? 1 : p->button, p->at, gesture, p->dy,
-            mail);
+    // AIMED AT THE ROWS LAST DRAWN when the window landed the press on the drawing they were said
+    // with, by its number, or said nothing of what it drew.
+    const bool aimed = !p->told || p->drawing == drawn_number();
+    pointer(p->phase, p->phase == ws::canvas_pointer::kMove ? 1 : p->button, p->at, aimed,
+            gesture, p->dy, mail);
 }
 
 /// ONE MOMENT OF THE POINTER at a cell of the rows Neovim's screen stands on: Neovim's own mouse --
@@ -66,14 +69,14 @@ inline void NeovimEditorWeave::on_window(const std::optional<ws::WindowPointer>&
 /// and on the status row a focus statement. A right drag and the middle button are not Neovim's
 /// here; a right press beside the rows is handed back, so the host's pane menu opens there.
 inline void NeovimEditorWeave::pointer(std::int64_t phase, std::int64_t button,
-                                       const ws::RowCell& at, std::int64_t gesture, double dy,
-                                       loom::Mail& mail) {
+                                       const ws::RowCell& at, bool aimed, std::int64_t gesture,
+                                       double dy, loom::Mail& mail) {
     const bool press = phase == ws::canvas_pointer::kPress;
     const bool ended = phase == ws::canvas_pointer::kRelease || phase == ws::canvas_pointer::kLost;
     if (press && button == 1) {
         pressed_ = at.shown ? gesture : 0;
         if (at.shown) {
-            press_at(at.row, at.column, true, mail);
+            press_at(at.row, at.column, aimed, mail);
         }
     } else if (phase == ws::canvas_pointer::kMove && button == 1 && pressed_ != 0 &&
                gesture == pressed_) {
@@ -89,7 +92,7 @@ inline void NeovimEditorWeave::pointer(std::int64_t phase, std::int64_t button,
             (void)ws::pane_menu::pass_back(mail, nve::kEditorOffice, nve::kEditorPane);
             return;
         }
-        right_press(at.row, at.column, true, mail);
+        right_press(at.row, at.column, aimed, mail);
     } else if (ended && button == 3) {
         right_release(at.row, at.column, mail);
     } else if (phase == ws::canvas_pointer::kWheel) {
@@ -261,7 +264,9 @@ inline void NeovimEditorWeave::on(const ws::PaneCanvasValueDrop& drop, loom::Mai
         return;
     }
     grab_ = Grab{};
-    receive(drop.data, window_.cell_at(drop.x, drop.y), true, mail); // each outcome says its notice
+    const bool told = !drop.under.empty() && drop.under == window_.area();
+    const bool aimed = !told || drop.drawing == drawn_number();
+    receive(drop.data, window_.cell_at(drop.x, drop.y), aimed, mail); // each outcome says its notice
     flush(mail);
     resay_ = true;
 }

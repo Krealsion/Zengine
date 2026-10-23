@@ -75,12 +75,13 @@ of the queue and serving input sessions alone. With no display, the window gives
 
 ### `Drawn`
 
-`Drawn` v1 is what one drawer changed in one area, applied together.
+`Drawn` v2 is what one drawer changed in one area, applied together.
 
 - **Takes:** `area`; `whole`, true to remove first everything the drawer may draw there; `put`, the
   nodes (a node put again changes in its place, a new one goes after its siblings); `removed`, paths
   whose subtrees go; `said` and `unsaid`, element records; `more`, true when more of the same beat
-  follows from this drawer.
+  follows from this drawer; `number`, the drawer's own for what its drawing means, which the window
+  says with each press that lands there.
 - **Answers:** nothing; the window paints what changed and, unless `more`, shows it.
 - **Refuses:** in `DrawnRefused` to the sender, the whole drawing: `window 'sdl' shows no area
   '<area>'`; `area '<area>' is drawn only by its owner, <owner>`; `'<path>' is not the sender's to
@@ -301,13 +302,13 @@ As its own office the window publishes `WindowOffered` v3 on each activation, af
 and at each new size: its name, its pixels, its incarnation, `kCellPx` pixels in a cell and its
 face's measure; the directory keeps it. It publishes `SurfacePlacement` v1 when its place changed,
 before `WindowOffered` when both did; and `SurfaceCloseRequested` v1 for each close asked. To an
-area's owner: `AreaRoom` v4 (`empty` while it holds none of the owner's drawing, and its face);
-`DrawnRefused` v1; `ActionRequested` v1; `AreaButtonChanged`, `AreaPointerMoved`,
-`AreaWheelTurned` v2, `AreaHoldEnded`, `AreaPointerLeft` v1 when placed to hear the pointer;
-`KeyPressed` v2, `KeyReleased` v2 and `TextEntered` v1 when placed to hear keys. To an arranger not
-the owner: `AreaPressed` v2, `AreaHoldEnded`, `AreaPointerLeft` v1; to any arranger, `AreaHandRefused`
-v1. To an asker: `WindowShown`, `AreaShown`, `ClipboardText`, `SurfaceCaptured`,
-`SurfaceCaptureChunk` v1 and `zen.Refused`. To the Timer, its beat's order.
+area's owner: `AreaRoom` v4 (with its face); `DrawnRefused` v1; `ActionRequested` v1;
+`AreaButtonChanged` v3, `AreaPointerMoved`, `AreaWheelTurned` v2, `AreaHoldEnded`, `AreaPointerLeft`
+v1 when placed to hear the pointer; `KeyPressed` v2, `KeyReleased` v2 and `TextEntered` v1 when
+placed to hear keys. To an arranger not the owner: `AreaPressed` v3, `AreaHoldEnded`,
+`AreaPointerLeft` v1; to any arranger, `AreaHandRefused` and `AreaSettled` v1. To an asker:
+`WindowShown`, `AreaShown`, `ClipboardText`, `SurfaceCaptured`, `SurfaceCaptureChunk` v1 and
+`zen.Refused`. To the Timer, its beat's order.
 
 ## Files
 

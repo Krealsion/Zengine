@@ -5198,6 +5198,86 @@ inline void press_pane(PaneRig& r, std::int64_t kind, std::int64_t row, std::int
                  body.y + kExternalHeaderRows + row);
 }
 
+/// THE PART THE WINDOW SHOWS A PANE DRAWING AT A CELL of its rows ("" for none): what a press there
+/// lands on, by the name the pane gave it -- the narrowest that holds the cell, as a control inside
+/// a row answers before the row.
+inline std::string part_drawn_at(const std::map<std::string, RowPart>& parts, std::int64_t row,
+                                 std::int64_t column) {
+    std::string found;
+    std::int64_t width = 0;
+    for (const auto& [name, part] : parts) {
+        if (part.row == row && column >= part.column && column < part.column + part.columns &&
+            (found.empty() || part.columns < width)) {
+            found = name;
+            width = part.columns;
+        }
+    }
+    return found;
+}
+inline std::string part_drawn_at(std::int64_t kind, std::int64_t row, std::int64_t column) {
+    return part_drawn_at(held_reading(kind).parts, row, column);
+}
+
+/// THE NUMBER EACH AREA'S LATEST DRAWING WAS SENT WITH (`Drawn::number`), heard as the bus delivers
+/// it: what the window holds of an area's drawing, by its drawer's number.
+struct DrawnNumbers {
+    loom::Switchboard& bus;
+    loom::ObserverId id{};
+    std::map<std::string, std::int64_t> number;
+    explicit DrawnNumbers(loom::Switchboard& b) : bus(b) {
+        id = bus.add_observer([this](const loom::BusEvent& ev) {
+            if (ev.kind == loom::EventKind::Delivered && ev.payload != nullptr &&
+                ev.schema_name == gfx::Drawn::zen_name) {
+                const gfx::Drawn d = loom::from_value<gfx::Drawn>(*ev.payload);
+                number[d.area] = d.number;
+            }
+        });
+    }
+    ~DrawnNumbers() { bus.remove_observer(id); }
+    DrawnNumbers(const DrawnNumbers&) = delete;
+    DrawnNumbers& operator=(const DrawnNumbers&) = delete;
+    /// The number of the drawing the window holds of a pane's area.
+    std::int64_t of(const Session& s, std::int64_t kind) const {
+        const RuntimePane* pane = s.panes.runtime.of_kind(kind);
+        if (pane == nullptr) return 0;
+        const auto at = number.find(pane_window_area(s.panes, *pane));
+        return at == number.end() ? 0 : at->second;
+    }
+};
+
+/// A PRESS AND ITS RELEASE THE WINDOW LANDED ON AN EARLIER DRAWING of a pane's area, told the
+/// pane's office as the window that shows the desk tells it: at the cell `row`, `column` of the
+/// pane's rows in a window of cells, `part` the part drawn under the hand then and `drawing` that
+/// drawing's number. What a case says here is what the window said when the press landed.
+inline void press_as_drawn(PaneRig& r, std::int64_t kind, std::int64_t row, std::int64_t column,
+                           const std::string& part, std::int64_t drawing = 0,
+                           std::int64_t button = 1) {
+    const RuntimePane* pane = r.session().panes.runtime.of_kind(kind);
+    REQUIRE(pane != nullptr);
+    const std::string area = pane_window_area(r.session().panes, *pane);
+    const ui::Rect body = external_body_rect(r.session(), kind);
+    gfx::AreaButtonChanged b{area, button, true, column * gfx::kCellPx + gfx::kCellPx / 2,
+                             row * gfx::kCellPx + gfx::kCellPx / 2, 0, true, 0, area, part, drawing};
+    // ONE NUMBER FOR THE PRESS AND ITS RELEASE, past any the window mints, told the owner and, as
+    // the area's arranger, Workshop.
+    static std::uint64_t presses = std::uint64_t{1} << 48;
+    const std::uint64_t press = ++presses;
+    for (const bool pressed : {true, false}) {
+        b.pressed = pressed;
+        REQUIRE(r.bus.office_send_to_role_as(r.windows.id(), r.windows.office(), pane->provider,
+                                             loom::Message(loom::to_value(b), {}, {}, press))
+                    .valid());
+        const gfx::AreaPressed told{std::string(gfx::kTerminalWindow), area, button, pressed,
+                                    body.x * gfx::kCellPx + b.x,
+                                    (body.y + kExternalHeaderRows) * gfx::kCellPx + b.y, true, 0,
+                                    area, part, drawing};
+        REQUIRE(r.bus.office_send_to_role_as(r.windows.id(), r.windows.office(), kWorkshopProvider,
+                                             loom::Message(loom::to_value(told), {}, {}, press))
+                    .valid());
+    }
+    r.bus.drain_until_idle();
+}
+
 /// POINT THE KEYBOARD AT A PANE WITHOUT ALSO AUTHORING A GESTURE. The keyboard goes to the pane a
 /// weaver last pressed into (WL-FOCUS-01) and there is no shape for asking, so this spends a press
 /// on a row whose provider-side meaning is NOTHING -- the bound sentence where there is one, the

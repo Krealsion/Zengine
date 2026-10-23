@@ -56,7 +56,7 @@ struct WindowState {
     std::vector<ElementCodeOffered> codes;
     std::int64_t next_handle = 1;
     std::int64_t refusals = 0;
-    ZEN_SHAPE(WindowState, 5, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
+    ZEN_SHAPE(WindowState, 6, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
               ZEN_FIELD(next_handle), ZEN_FIELD(refusals));
 };
 
@@ -112,9 +112,9 @@ using WindowBase = typename zengine::With<
     loom::Emit<DrawnRefused, WindowOffered, AreaRoom, zengine::input::KeyPressed,
                zengine::input::KeyReleased, zengine::input::TextEntered, ActionRequested,
                AreaButtonChanged, AreaPointerMoved, AreaWheelTurned, AreaPressed, AreaHoldEnded,
-               AreaPointerLeft, AreaHandRefused, WindowShown, AreaShown, SurfaceCloseRequested,
-               SurfacePlacement, ClipboardText, SurfaceCaptured, SurfaceCaptureChunk,
-               loom::Refused>,
+               AreaPointerLeft, AreaHandRefused, WindowShown, AreaShown, AreaSettled,
+               SurfaceCloseRequested, SurfacePlacement, ClipboardText, SurfaceCaptured,
+               SurfaceCaptureChunk, loom::Refused>,
     zengine::timer::TimedWeave>;
 
 /// The window over `Medium`, which names it (`kWindow`), carries its manual (`kManual`), and
@@ -195,6 +195,7 @@ public:
             a->nodes.clear();
             a->records.clear();
             a->presented.clear();
+            a->drawing = 0;
             end_holds(mail, a->area, /*withdrawn=*/false);
             leave_hovers(mail, *a);
         }
@@ -247,6 +248,7 @@ public:
         std::erase_if(hovered_, [&](const auto& h) { return h.second == w.area; });
         waiting_.erase(w.area);
         versions_.erase(w.area);
+        told_.erase(w.area);
         std::erase_if(this->state_.areas, [&](const WinArea& k) { return k.area == w.area; });
         close_unused(library);
         settle(mail, false);
@@ -620,7 +622,8 @@ private:
                 holds_.erase(held);
                 const WinArea* a = find(hold.area);
                 if (a != nullptr && a->pointer && !a->owner.empty()) {
-                    tell(mail, *a, b, at, hold.press, hand);
+                    tell(mail, *a, b, at, hold.press, hand,
+                         medium_.land(this->state_.areas, b.x, b.y, b.space, false, b.button));
                 }
                 return;
             }
@@ -630,10 +633,10 @@ private:
             const Landed l = medium_.land(this->state_.areas, b.x, b.y, b.space, false, b.button);
             if (l.area != nullptr && l.area->pointer && !l.area->owner.empty() &&
                 reaches(*l.area, hand)) {
-                to_owner(mail, *l.area,
-                         AreaButtonChanged{l.area->area, b.button, false, l.x, l.y, b.modifiers,
-                                           hand.local, hand.actor},
-                         0);
+                AreaButtonChanged told{l.area->area, b.button, false, l.x, l.y, b.modifiers,
+                                       hand.local, hand.actor};
+                say_under(told, l);
+                to_owner(mail, *l.area, told, 0);
             }
             return;
         }
@@ -669,7 +672,19 @@ private:
         }
         const std::uint64_t press = next_press_++;
         holds_[key] = Hold{a->area, at.x, at.y, press};
-        tell(mail, *a, b, at, press, hand);
+        tell(mail, *a, b, at, press, hand, l);
+    }
+
+    /// WHAT THE WINDOW DREW UNDER THE HAND, said with a button's moment: the area that shows it,
+    /// the part its top node there is named by, and that area's drawing number.
+    static void say_under(AreaButtonChanged& told, const Landed& l) {
+        if (l.under == nullptr) {
+            return;
+        }
+        told.under = l.under->area;
+        const ElementRecord* r = record_of(*l.under, l.under_path);
+        told.part = r != nullptr ? r->action : std::string();
+        told.drawing = l.under->drawing;
     }
 
     /// Whether a hand's moment may reach an area: the weaver's always, a guest's where the area
@@ -687,19 +702,20 @@ private:
     }
 
     /// A button's moment, to the owner of the area its press is held for or landed in at the
-    /// area's point, and to the area's arranger, when another office, at the window's: both under
-    /// the press's number, and both naming the hand.
+    /// area's point, with what the window drew under the hand (`l`), and to the area's arranger,
+    /// when another office, at the window's: both under the press's number, and both naming the
+    /// hand.
     void tell(loom::Mail& mail, const WinArea& a, const zengine::input::PointerButton& b,
-              const Point& at, std::uint64_t press, const Hand& hand) {
-        to_owner(mail, a,
-                 AreaButtonChanged{a.area, b.button, b.pressed, sum(at.x, -a.x), sum(at.y, -a.y),
-                                   b.modifiers, hand.local, hand.actor},
-                 press);
+              const Point& at, std::uint64_t press, const Hand& hand, const Landed& l) {
+        AreaButtonChanged told{a.area, b.button, b.pressed, sum(at.x, -a.x), sum(at.y, -a.y),
+                               b.modifiers, hand.local, hand.actor};
+        say_under(told, l);
+        to_owner(mail, a, told, press);
         if (!a.arranger.empty() && a.arranger != a.owner) {
             (void)mail.as_role(office()).send_to_role(
                 a.arranger,
                 AreaPressed{std::string(Medium::kWindow), a.area, b.button, b.pressed, at.x, at.y,
-                            hand.local, hand.actor},
+                            hand.local, hand.actor, told.under, told.part, told.drawing},
                 press);
         }
     }
@@ -997,6 +1013,7 @@ private:
         }
         if (!who.element) {
             waiting_.erase(a.area);
+            a.drawing = d.number;
         }
         if (d.whole && !who.element) {
             std::erase_if(a.presented, [&](const Presented& p) {
@@ -1080,8 +1097,27 @@ private:
     void settle(loom::Mail& mail, bool more) {
         if (!more) {
             medium_.show(this->state_.areas);
+            tell_settled(mail);
             report_placement(mail);
             capture_if_due(mail);
+        }
+    }
+
+    /// WHAT EACH AREA SHOWS, SETTLED: told to the office that placed it, unasked, for each area
+    /// whose version moved since it was last told.
+    void tell_settled(loom::Mail& mail) {
+        for (const WinArea& a : this->state_.areas) {
+            if (a.arranger.empty()) {
+                continue;
+            }
+            const std::int64_t version = version_of(a.area);
+            std::int64_t& told = told_[a.area];
+            if (told == version) {
+                continue;
+            }
+            told = version;
+            (void)mail.as_role(office()).send_to_role(
+                a.arranger, AreaSettled{std::string(Medium::kWindow), a.area, version});
         }
     }
 
@@ -1302,6 +1338,8 @@ private:
     /// another of its lives named.
     std::map<std::string, std::int64_t> versions_;
     std::int64_t next_version_ = token() >> 8;
+    /// Each area's version last told its arranger as settled (`AreaSettled`).
+    std::map<std::string, std::int64_t> told_;
     /// The areas whose owner was told a room asking a whole drawing, and has drawn none since.
     std::set<std::string> waiting_;
     Painters painters_;

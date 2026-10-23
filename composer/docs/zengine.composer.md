@@ -229,10 +229,11 @@ row.
 
 ### `AreaButtonChanged`
 
-`AreaButtonChanged` v1, from that window: a button pressed in Compose's area, at its point. The
-first button on a row is the press Workshop's canvas makes on that row, read against whether the
+`AreaButtonChanged` v3, from that window: a button pressed in Compose's area, at its point, with
+what the window drew there. The first button on a row presses that row, read against whether the
 keys were already Compose's as Workshop last said; the third is handed back, under the window's
-number for the press, so Workshop's own pane menu opens there. A release means nothing.
+number for the press, so Workshop's own pane menu opens there. One the window landed on another row
+than Compose shows there now is refused in words. A release means nothing.
 
 ### `AreaPointerMoved`
 

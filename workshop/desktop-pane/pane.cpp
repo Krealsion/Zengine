@@ -226,12 +226,12 @@ public:
     /// middle press, motion and every release mean nothing.
     void on_window_pointer(const std::string& pane_key, const ws::WindowPointer& p,
                            bool keys_went_here, loom::Mail& mail) {
-        const PanePress pressed{pane_key, p.at.row, p.at.column, keys_went_here};
+        const PanePress pressed{pane_key, p.at.row, p.at.column, keys_went_here, p.moved};
         if (p.phase == ws::canvas_pointer::kWheel) {
             wheel(pane_key, p.dy, mail);
         } else if (p.phase != ws::canvas_pointer::kPress) {
             return;
-        } else if (p.button == 1 && p.at.shown) {
+        } else if (p.button == 1 && (p.at.shown || p.moved)) {
             primary_press(pressed, mail);
         } else if (p.button == 3) {
             second_button(pressed, mail);

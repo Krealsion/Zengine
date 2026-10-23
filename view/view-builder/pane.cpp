@@ -345,6 +345,7 @@ public:
     void on_window(const std::optional<ws::WindowPointer>& p, loom::Mail& mail) {
         if (!p) return;
         if (p->phase == ws::canvas_pointer::kPress) rest(false, 0, 0, nullptr, false, mail);
+        if (moved_press(*p, mail)) return;
         const std::int64_t gesture = p->phase == ws::canvas_pointer::kLost
                                          ? (held_ ? held_->gesture : 0)
                                          : static_cast<std::int64_t>(p->press);
@@ -366,6 +367,15 @@ public:
             return;
         }
         if (event.phase == ws::canvas_pointer::kPress) press(event, mail);
+    }
+    /// A PRESS THE WINDOW LANDED ON ANOTHER PART than the builder's picture shows there now acts on
+    /// nothing, and is said.
+    bool moved_press(const ws::WindowPointer& p, loom::Mail& mail) {
+        if (p.phase != ws::canvas_pointer::kPress || !p.moved || (p.button != 1 && p.button != 3))
+            return false;
+        model_.notice = "The picture changed under the press; press again";
+        show(mail);
+        return true;
     }
     /// WHERE A CARRIED VALUE RESTS over the builder's area, as Workshop says it: the label it
     /// would land on is marked. Nothing else moves.
@@ -432,6 +442,8 @@ public:
             const vb::Picture* pictured = aimed();
             if (pictured == nullptr)
                 throw std::invalid_argument("Nothing is drawn where the value was dropped; drop it again");
+            if (window_.moved(drop.under, drop.part, drop.drawing, drop.x, drop.y))
+                throw std::invalid_argument("The picture changed while the value was carried; drop it again");
             const auto* hit = pictured->hit(drop.x, drop.y);
             const auto index = hit ? element_of(*hit) : std::nullopt;
             if (!index)

@@ -79,6 +79,10 @@ struct Moment {
     std::uint64_t gesture = 0;
     std::int64_t button = 1, x = 0, y = 0;
     double dy = 0;
+    /// What the window drew under the hand when the moment landed: the area, the part named there
+    /// and that drawing's number; none said, Flow reads the moment against its newest drawing.
+    std::string under, part;
+    std::int64_t drawing = 0;
 };
 
 struct Rig {
@@ -244,12 +248,40 @@ struct Rig {
         m.y = row.y + 4;
         return m;
     }
+    /// A PRESS THE WINDOW LANDS ON `text` NOW, with its word of what it drew there: the narrowest
+    /// part over the point, and the drawing's number. Delivered later, Flow judges it by that word.
+    Moment landed(const std::string& text, bool prefix = false) {
+        Moment m = press_for(text, prefix);
+        m.under = fp::kRole;
+        m.part = part_at(m.x, m.y);
+        const gfx::window::WinArea* a = shown->held(fp::kRole);
+        REQUIRE(a != nullptr);
+        m.drawing = a->drawing;
+        return m;
+    }
+    /// The part Flow's picture names over (`x`, `y`) of its area: the narrowest; "" none.
+    std::string part_at(std::int64_t x, std::int64_t y) const {
+        std::string name;
+        std::int64_t area = -1;
+        for (const auto& p : picture().parts) {
+            if (x < p.x || y < p.y || x >= p.x + p.w || y >= p.y + p.h) continue;
+            if (area < 0 || p.w * p.h < area) {
+                area = p.w * p.h;
+                name = p.name;
+            }
+        }
+        return name;
+    }
     /// THE MOMENT AS THE WINDOW SAYS IT: a button changed, a move or the wheel at its pixel.
     template <class Visit>
     void as_said(const Moment& m, Visit&& visit) const {
         if (m.phase == ws::canvas_pointer::kPress || m.phase == ws::canvas_pointer::kRelease) {
-            visit(gfx::AreaButtonChanged{fp::kRole, m.button, m.phase == ws::canvas_pointer::kPress,
-                                         m.x, m.y, 0});
+            gfx::AreaButtonChanged b{fp::kRole, m.button, m.phase == ws::canvas_pointer::kPress,
+                                     m.x, m.y, 0};
+            b.under = m.under;
+            b.part = m.part;
+            b.drawing = m.drawing;
+            visit(b);
         } else if (m.phase == ws::canvas_pointer::kMove) {
             visit(gfx::AreaPointerMoved{fp::kRole, m.x, m.y, 0, 0, 0});
         } else {
@@ -265,8 +297,9 @@ struct Rig {
     void post(const Moment& m, std::uint64_t corr = 0) {
         as_said(m, [&](const auto& said) { shown->post(fp::kRole, said, corr != 0 ? corr : m.gesture); });
     }
-    void click(const std::string& text, bool prefix = false) {
-        Moment m = press_for(text, prefix);
+    void click(const std::string& text, bool prefix = false) { click(press_for(text, prefix)); }
+    /// A press and its release, as the window landed them.
+    void click(Moment m) {
         host(m);
         m.phase = ws::canvas_pointer::kRelease;
         host(m);
@@ -924,6 +957,63 @@ TEST_CASE("loaded Flow pane binds gestures to the pictured room definition and i
     CHECK(rig.workspace().graph.places.front().x == hidden.x);
 }
 
+TEST_CASE("a press the window landed on Flow takes where the same part is drawn again -- a room "
+          "given afresh, a definition edited, a dialog typed in -- and is refused in words where "
+          "another stands: another dialog's Confirm in its place") {
+    // THE WINDOW SAYS WHAT IT DREW UNDER THE HAND, and Flow acts on that part where it stands now.
+    Rig rig;
+    rig.graph_semantically();
+    const auto body = [&] {
+        return rig.workspace().graph.project.definition.on.front().body.nodes.size();
+    };
+    const auto first = body();
+    // A DEFINITION EDITED draws [Add] again where it stood: the press takes, and adds the node.
+    rig.click("  math.max");
+    const auto across_edit = rig.landed("[Add]");
+    REQUIRE(across_edit.part.rfind("add-found:", 0) == 0);
+    rig.edit_ok("bind", {"0", "1", "4"});
+    REQUIRE(rig.part_at(across_edit.x, across_edit.y) == across_edit.part);
+    rig.click(across_edit);
+    CHECK_MESSAGE(body() == first + 1, rig.workspace().graph.project.definition.name);
+    // A ROOM GIVEN AFRESH draws it there again too.
+    rig.click("  math.max");
+    const auto across_room = rig.landed("[Add]");
+    ++rig.grant;
+    rig.room();
+    REQUIRE(rig.part_at(across_room.x, across_room.y) == across_room.part);
+    rig.click(across_room);
+    CHECK(body() == first + 2);
+    // A DIALOG TYPED IN draws its Cancel again in its place: the press takes, and puts it down.
+    rig.click("[Save*]");
+    const auto cancel = rig.landed("[Cancel]");
+    rig.replace_text("elsewhere.flow-workspace");
+    REQUIRE_FALSE(rig.state().dialog_entries.empty());
+    rig.click(cancel);
+    CHECK(rig.state().dialog_entries.empty());
+    // ANOTHER DIALOG'S CONFIRM IN ITS PLACE, under the same name: Save's Confirm, pressed once
+    // Export asks, is another element. Refused in words; Export's dialog stays, unconfirmed.
+    rig.click("[Save*]");
+    const auto save_confirm = rig.landed("[Confirm]");
+    REQUIRE(save_confirm.part == "control:dialog-confirm");
+    rig.click("[Cancel]");
+    rig.click("[Export]");
+    REQUIRE(rig.part_at(save_confirm.x, save_confirm.y) == save_confirm.part);
+    const auto asked = rig.state();
+    REQUIRE_FALSE(asked.dialog_entries.empty());
+    rig.click(save_confirm);
+    CHECK(rig.shows_part("The picture changed under the press"));
+    CHECK(rig.state().dialog_entries.size() == asked.dialog_entries.size());
+    CHECK(rig.state().workspace == asked.workspace);
+    // ...AND THE OLD CONFIRM BEFORE NEW, where New's second field now stands, confirms nothing.
+    rig.click("[Cancel]");
+    rig.click("[Save*]");
+    const auto old_confirm = rig.landed("[Confirm]");
+    rig.click("[Cancel]");
+    rig.click("[New]");
+    rig.click(old_confirm);
+    CHECK(rig.workspace().graph.project.definition.name == "meter");
+}
+
 TEST_CASE("loaded Flow pane preserves authored next-run state across incumbent inspection and reload") {
     Rig rig;
     rig.graph_semantically();
@@ -1079,6 +1169,20 @@ TEST_CASE("loaded Flow pane keeps an unfinished dialog bound to its original for
     rig.edit_ok("run");
     rig.edit_ok("send");
     CHECK(rig.live_value() == 99);
+    // A PRESS THE WINDOW LANDED ON THE DIALOG'S FIELD, delivered once the dialog is put down,
+    // stands on another part or none: it is refused in words, and edits nothing.
+    rig.click("input : Int = ", true);
+    const auto stale_field = rig.landed("  Row:", true);
+    REQUIRE(stale_field.part.rfind("dialog-field:", 0) == 0);
+    rig.key(in::scan::kEscape);
+    const auto before_stale = rig.state();
+    REQUIRE(before_stale.dialog_entries.empty());
+    rig.host(stale_field);
+    const auto after_stale = rig.state();
+    CHECK(after_stale.dialog_entries.empty());
+    CHECK(after_stale.workspace == before_stale.workspace);
+    CHECK(rig.live_value() == 99);
+    CHECK(rig.shows_part("The picture changed under the press"));
 }
 
 TEST_CASE("a query typed to the search line's end is drawn whole in a window, its caret a bar after it") {

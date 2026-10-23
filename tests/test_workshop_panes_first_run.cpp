@@ -40,6 +40,7 @@ public:
     std::string active = fr::kStandardChoice;
     std::vector<std::string> asked; ///< `request <destination>` or `confirm <op> <consent>`
     std::function<EditorSwitchAnswered(const EditorSwitchRequested&)> on_switch;
+    bool hold = false; ///< a switch asked is answered never: it stays under way
 
     void on(const EditorSwitchStatusRequested&, loom::Mail& mail) {
         EditorSwitchAnswered a;
@@ -49,6 +50,9 @@ public:
     }
     void on(const EditorSwitchRequested& r, loom::Mail& mail) {
         asked.push_back("request " + r.destination);
+        if (hold) {
+            return;
+        }
         EditorSwitchAnswered a;
         if (on_switch) {
             a = on_switch(r);
@@ -328,6 +332,36 @@ TEST_CASE("WL-FIRST-02: the quick setup's lines name the box, the pages and Done
     CHECK(fr::stepped(fr::Item::kNeovim, -1) == fr::Item::kNeovim);
     CHECK(fr::stepped(fr::Item::kSkip, 1) == fr::Item::kSkip);
     CHECK(fr::stepped(fr::Item::kNeovim, 1) == fr::Item::kDone);
+}
+
+TEST_CASE("WL-FIRST-02: a press the window landed on Done before a notice came under the items "
+          "chooses Done: the items stand where they stood") {
+    TempDir dir("first-run-notice-press");
+    PaneRig r;
+    DrawnNumbers drawn(r.bus);
+    SwitchStandIn* sw = start(r, dir.file("prefs.json"));
+    REQUIRE(on_desk(r));
+    const std::int64_t kind = setup_kind(r);
+    const std::int64_t before = drawn.of(r.session(), kind);
+    REQUIRE(before != 0);
+    std::int64_t done = -1;
+    const std::vector<std::string> shown = pane_rows(r, kind);
+    for (std::size_t i = 0; i < shown.size(); ++i) {
+        if (shown[i].find("[ Done ]") != std::string::npos) done = static_cast<std::int64_t>(i);
+    }
+    REQUIRE(done >= 0);
+    // THE SWITCH HOLDS ITS ANSWER: the box chosen again says so, under the items.
+    sw->hold = true;
+    act(r, fr::kActionChoose);
+    act(r, fr::kActionChoose);
+    const std::vector<std::string> noticed = pane_rows(r, kind);
+    REQUIRE(std::any_of(noticed.begin(), noticed.end(), [](const std::string& row) {
+        return row.find("the editor switch is still under way") != std::string::npos;
+    }));
+    REQUIRE(noticed[static_cast<std::size_t>(done)].find("[ Done ]") != std::string::npos);
+    // ...AND A PRESS THE WINDOW LANDED ON DONE BEFORE IT, delivered now, chooses Done.
+    press_as_drawn(r, kind, done, 4, "", before);
+    CHECK_FALSE(on_desk(r));
 }
 
 TEST_CASE("WL-GUEST-06: on a weaver's host a guest's key and press toward the quick setup are "
