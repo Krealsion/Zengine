@@ -613,23 +613,29 @@ bool WorkshopWeave::wait_on_areas(loom::Mail& mail, DeskWait wait, const std::ve
     return true;
 }
 
-// AT A DELIVERY'S END THAT OWED A LOOK: every presented pane's area asked since what Workshop took
-// of it, one ask an area at a time, so a pane that drew in its area moves the notice; and every wait
-// past its bound refused.
+// WHAT AN AREA SHOWS SETTLED, the window says unasked: a presented pane's area, or the menu's,
+// whose version moved past what Workshop took of it is asked again, one ask an area at a time, so a
+// pane that drew in its area moves the notice whenever it drew. A late or repeated word names a
+// version already taken, and asks nothing.
 // WL-READ-06 -- agents/workshop/desk-read.md
-void WorkshopWeave::look_at_areas(loom::Mail& mail) {
-    finish_desk_waits(mail);
-    std::vector<std::string> areas;
+void WorkshopWeave::on(const graphics::AreaSettled& settled, loom::Mail& mail) {
+    if (settled.window != window_name_ || !window_.shown() ||
+        !mail.authored_from_role(std::string(graphics::kWindowOfficePrefix) + window_name_)) {
+        return;
+    }
+    bool presented = settled.area == presented_area();
     for (const PaneRef& ref : presented_refs()) {
-        const std::string area = drawn_area(ref);
-        if (!area.empty()) areas.push_back(area);
+        presented = presented || drawn_area(ref) == settled.area;
     }
-    if (const std::string menu = presented_area(); !menu.empty()) areas.push_back(menu);
-    for (const std::string& area : areas) {
-        const bool open = std::any_of(area_asked_.begin(), area_asked_.end(),
-                                      [&](const AreaAsk& a) { return a.area == area; });
-        if (!open) (void)ask_area(mail, area);
+    if (!presented) return;
+    const auto taken = area_readings_.find(settled.area);
+    if (taken != area_readings_.end() && taken->second.number != 0 &&
+        taken->second.refused.empty() && taken->second.shown.version == settled.version) {
+        return;
     }
+    const bool open = std::any_of(area_asked_.begin(), area_asked_.end(),
+                                  [&](const AreaAsk& a) { return a.area == settled.area; });
+    if (!open) (void)ask_area(mail, settled.area);
 }
 
 // THE WINDOW THE DESK IS SHOWN IN STARTED AGAIN, OR ANOTHER TOOK IT: what it said of every area is

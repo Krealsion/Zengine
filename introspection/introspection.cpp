@@ -203,7 +203,9 @@ public:
             if (powers) powers_.release();
         } else if (p.button == 3) {
             (void)ws::pane_menu::pass_back(mail, kIntrospectionRole, pane);
-        } else if (p.button == 1 && p.at.shown) {
+        } else if (p.button == 1 && p.at.shown && !p.moved) {
+            // A press the window landed on another row than the pane shows there now selects
+            // nothing: it is never read against the row that moved into its place.
             primary_press(pane, p.at.row, p.at.column, mail);
         }
     }

@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <map>
+#include <optional>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -110,17 +111,24 @@ public:
     const std::vector<Node>& nodes() const { return drawn_; }
     const std::vector<ElementRecord>& records() const { return said_; }
 
+    /// THE DRAWER'S NUMBER FOR WHAT THIS PICTURE MEANS (`Drawn::number`): one it keeps while a
+    /// press on the picture would mean what it meant, 0 for none.
+    void number(std::int64_t n) { number_ = n; }
+    std::int64_t number() const { return number_; }
+
 private:
     std::vector<Node> drawn_;
     std::map<std::string, std::size_t> at_;
     std::vector<ElementRecord> said_;
+    std::int64_t number_ = 0;
 };
 
 /// What changed from one sketch of a thing to the next: nodes new or changed put, in the order
 /// drawn; the highest node of each subtree gone removed; records new or changed said; records gone
-/// unsaid where their node stays.
+/// unsaid where their node stays; and the later sketch's number.
 inline Drawn difference(const Sketch& before, const Sketch& after) {
     Drawn d;
+    d.number = after.number();
     std::map<std::string, const Node*> was;
     for (const Node& n : before.nodes()) {
         was[n.path] = &n;
@@ -161,6 +169,117 @@ inline Drawn difference(const Sketch& before, const Sketch& after) {
         }
     }
     return d;
+}
+
+/// THE PART A PRESS AT A POINT OF A PICTURE REACHES, in the picture's pixels, as a window lands
+/// one: the top node whose face holds the point -- a rect's or an ellipse's box where it is
+/// filled and its edge where it is only outlined, a text's characters an advance of `text` each
+/// and a line of it tall, an image's box, a line within a pixel -- placed and clipped by the groups
+/// above it; and the action of the record nearest above that node. "" where none stands there.
+inline std::string part_at(const Sketch& picture, std::int64_t x, std::int64_t y,
+                           const TextMeasure& text) {
+    const std::vector<Node>& nodes = picture.nodes();
+    std::map<std::string, std::size_t> rank;
+    for (std::size_t i = 0; i < nodes.size(); ++i) {
+        rank[nodes[i].path] = i;
+    }
+    const auto inside = [](std::int64_t px, std::int64_t py, std::int64_t bx, std::int64_t by,
+                           std::int64_t bw, std::int64_t bh) {
+        return bw > 0 && bh > 0 && px >= bx && py >= by && px < bx + bw && py < by + bh;
+    };
+    const Node* top = nullptr;
+    std::vector<std::size_t> top_key;
+    for (const Node& n : nodes) {
+        if (n.op == op::kGroup) {
+            continue;
+        }
+        // ITS PLACE: each group above it offsets it and may clip it; and its paint order, its
+        // ancestors' ranks and then its own.
+        std::vector<std::string> chain;
+        for (std::string p = parent_of(n.path); !p.empty(); p = parent_of(p)) {
+            chain.push_back(p);
+        }
+        std::int64_t dx = 0, dy = 0;
+        bool clipped_out = false;
+        std::vector<std::size_t> key;
+        for (auto it = chain.rbegin(); it != chain.rend(); ++it) {
+            const auto r = rank.find(*it);
+            if (r == rank.end()) {
+                continue;
+            }
+            key.push_back(r->second);
+            const Node& g = nodes[r->second];
+            if (g.op != op::kGroup) {
+                continue;
+            }
+            if (const auto args = from_body<GroupArgs>(g.args)) {
+                dx += args->x;
+                dy += args->y;
+                if (args->clip_w > 0 && args->clip_h > 0 &&
+                    !inside(x, y, dx, dy, args->clip_w, args->clip_h)) {
+                    clipped_out = true;
+                }
+            }
+        }
+        key.push_back(rank[n.path]);
+        if (clipped_out || (top != nullptr && key < top_key)) {
+            continue;
+        }
+        const std::int64_t px = x - dx, py = y - dy;
+        bool hit = false;
+        if (n.op == op::kRect || n.op == op::kEllipse) {
+            std::optional<RectArgs> box;
+            if (n.op == op::kRect) {
+                box = from_body<RectArgs>(n.args);
+            } else if (const auto e = from_body<EllipseArgs>(n.args)) {
+                box = RectArgs{e->x, e->y, e->w, e->h, e->fill, e->stroke};
+            }
+            if (box) {
+                hit = inside(px, py, box->x, box->y, box->w, box->h) &&
+                      (!box->fill.none() ||
+                       (!box->stroke.none() &&
+                        !inside(px, py, box->x + 1, box->y + 1, box->w - 2, box->h - 2)));
+            }
+        } else if (n.op == op::kText) {
+            if (const auto t = from_body<TextArgs>(n.args)) {
+                std::int64_t characters = 0;
+                for (const char c : t->text) {
+                    characters += (static_cast<unsigned char>(c) & 0xC0U) != 0x80U ? 1 : 0;
+                }
+                hit = inside(px, py, t->x, t->y, characters * text.advance, text.line);
+            }
+        } else if (n.op == op::kImage) {
+            if (const auto im = from_body<ImageArgs>(n.args)) {
+                hit = inside(px, py, im->x, im->y, im->w, im->h);
+            }
+        } else if (n.op == op::kLine) {
+            if (const auto l = from_body<LineArgs>(n.args)) {
+                const double lx = static_cast<double>(l->x2 - l->x1);
+                const double ly = static_cast<double>(l->y2 - l->y1);
+                const double len2 = lx * lx + ly * ly;
+                const double qx = static_cast<double>(px - l->x1);
+                const double qy = static_cast<double>(py - l->y1);
+                const double t = len2 > 0 ? std::clamp((qx * lx + qy * ly) / len2, 0.0, 1.0) : 0.0;
+                const double ex = t * lx - qx, ey = t * ly - qy;
+                hit = ex * ex + ey * ey <= 1.0;
+            }
+        }
+        if (hit) {
+            top = &n;
+            top_key = std::move(key);
+        }
+    }
+    if (top == nullptr) {
+        return std::string();
+    }
+    const ElementRecord* nearest = nullptr;
+    for (const ElementRecord& r : picture.records()) {
+        if (!r.path.empty() && under(top->path, r.path) &&
+            (nearest == nullptr || r.path.size() > nearest->path.size())) {
+            nearest = &r;
+        }
+    }
+    return nearest != nullptr ? nearest->action : std::string();
 }
 
 /// What an owner keeps for its life: the office it draws as, its area, the window that shows it
@@ -218,12 +337,14 @@ public:
             d.whole = true;
             d.put = picture.nodes();
             d.said = picture.records();
+            d.number = picture.number();
             known_ = true;
         }
+        const bool renumbered = picture.number() != sent_.number();
         sent_ = picture;
         d.area = area_;
         if (d.whole || !d.put.empty() || !d.removed.empty() || !d.said.empty() ||
-            !d.unsaid.empty()) {
+            !d.unsaid.empty() || renumbered) {
             queued_.emplace_back(std::move(d));
         }
     }

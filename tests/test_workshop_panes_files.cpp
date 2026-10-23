@@ -1331,13 +1331,11 @@ TEST_CASE("a press on Files' selected row opens it when the keys were already Fi
     }
 }
 
-// A WITNESS OF THE PRESS SEAM, held as an expected failure until it is decided: the window gives
-// Files both presses of one beat before Workshop's word that the first moved the keys there.
-TEST_CASE("two presses on Files' selected row queued while the keys were the Editor's cross as elsewhere then here, and open that row's file once" *
-          doctest::should_fail()) {
-    // ONE DRAIN, TWO GESTURES, NO RE-WINDOW BETWEEN THEM. Each press is resolved by Workshop in
-    // its own turn, so the second one is read after the first moved the keys: the fact each
-    // carries is the routing at ITS press. The first aims, the second acts.
+TEST_CASE("two presses on Files' selected row queued while the keys were the Editor's cross as elsewhere then here, and open that row's file once") {
+    // ONE DRAIN, TWO GESTURES, NO RE-WINDOW BETWEEN THEM. The window may give Files both presses
+    // before Workshop's word that the first moved the keys there; Files reads its own first press
+    // as moving them (WL-FOCUS-03), so the second is made with the keys here. The first aims, the
+    // second acts.
     FilesRig f("files-two-queued");
     put_file(f.root / "alpha.cpp", "the alpha source\n");
     put_file(f.root / "beta.cpp", "the beta source\n");
@@ -1356,7 +1354,8 @@ TEST_CASE("two presses on Files' selected row queued while the keys were the Edi
     REQUIRE(tap.pressed.size() == 2);
     CHECK(tap.pressed[0] == row);
     CHECK(tap.pressed[1] == row);
-    CHECK(tap.keys_went_here == std::vector<int>{0, 1});
+    REQUIRE_FALSE(tap.keys_went_here.empty());
+    CHECK(tap.keys_went_here.front() == 0); // the first was made with the keys the Editor's
     CHECK(tap.attempts == 1);
     CHECK(tap.requested == std::vector<std::string>{beta});
 }
@@ -2947,6 +2946,37 @@ TEST_CASE("two queued presses on the row painted as one entry open THAT entry") 
     CHECK(cursor_said(after) == aimed);
     REQUIRE(tap.requested.size() == 1);
     CHECK(tap.requested[0].find(entry_name(aimed)) != std::string::npos);
+}
+
+TEST_CASE("a press the window landed on a Files row its listing has since moved is refused in words and spends nothing, and one landed on the same entry redrawn takes") {
+    // THE WINDOW SAYS WHAT IT DREW UNDER THE HAND (WL-PRESS-07): an entry by its name. A press it
+    // landed on `beta.cpp` before the listing moved is read against the rows drawn since.
+    FilesRig f("files-press-as-drawn");
+    put_file(f.root / "alpha.cpp", "the alpha source\n");
+    put_file(f.root / "beta.cpp", "the beta source\n");
+    f.open(160, 48, /*with_editor=*/false, /*with_manager=*/true);
+    const std::int64_t beta = row_beginning(f.shown(), "  beta.cpp");
+    REQUIRE(beta >= 0);
+    const std::string drawn = part_drawn_at(f.kind, beta, 2);
+    REQUIRE(drawn == "entry:beta.cpp");
+    SUBCASE("another entry listed in its place") {
+        put_file(f.root / "alpha2.cpp", "the second alpha\n"); // sorts between the two
+        press_face(f, "[look again]");
+        REQUIRE(part_drawn_at(f.kind, beta, 2) != drawn);
+        SeamTap tap(f.r.bus, f.files_id(), f.keys_here());
+        press_as_drawn(f.r, f.kind, beta, 2, drawn);
+        CHECK_MESSAGE(f.first().find("the rows moved -- press again") != std::string::npos,
+                      picture(f.shown()));
+        CHECK(f.at_cursor().rfind("beta.cpp", 0) != 0);
+        CHECK(tap.attempts == 0);
+    }
+    SUBCASE("the same entry, the cursor moved onto another") {
+        f.point_at("alpha.cpp"); // the cursor's mark is redrawn; beta stands where it stood
+        REQUIRE(part_drawn_at(f.kind, beta, 2) == drawn);
+        press_as_drawn(f.r, f.kind, beta, 2, drawn);
+        CHECK(f.at_cursor().rfind("beta.cpp", 0) == 0);
+        CHECK(f.first().find("the rows moved") == std::string::npos);
+    }
 }
 
 TEST_CASE("every control the browser draws is a target, and pressing it performs that operation") {

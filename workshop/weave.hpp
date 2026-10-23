@@ -459,7 +459,9 @@ class WorkshopWeave
                                           zengine::graphics::AreaHandRefused,
                                           // what a window says a pane's area shows, or why not
                                           zengine::graphics::AreaShown, loom::Refused,
-                                          loom::DispatchRefused>,
+                                          loom::DispatchRefused,
+                                          // that what an area shows settled, unasked
+                                          zengine::graphics::AreaSettled>,
                              loom::Emit<loom::Ack, loom::Refused, GuideAnswered, PaneView, PanePoint, DeskRead, DeskStamps, zengine::graphics::AreaShowAsked, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneCanvasValueDrop, PaneCanvasDrop,
                                         zengine::workshop::PaneCanvasHover,
                                         zengine::surface::SurfaceCanvas,
@@ -630,9 +632,11 @@ public:
     /// `DeskStamps` v3, published when the desk number or a presented pane's stamp moved since the
     /// last one; `known`, a desk computed already.
     void publish_desk_stamps(loom::Mail& mail, const DeskView* known = nullptr);
-    /// THE CONVERSATION WITH THE WINDOW: what an area shows, asked, and its answer or refusal taken.
+    /// THE CONVERSATION WITH THE WINDOW: what an area shows, asked, and its answer or refusal taken;
+    /// and the window's word, unasked, that what an area shows settled, which asks it again.
     void on(const graphics::AreaShown& shown, loom::Mail& mail);
     void on(const loom::Refused& refused, loom::Mail& mail);
+    void on(const graphics::AreaSettled& settled, loom::Mail& mail);
     /// A REQUEST WAITING ON THE WINDOW: its kind, its deferred answer, its asker, each area it reads
     /// and the number of the ask that must have been answered, what it asked, when it began, and
     /// the window's incarnation then.
@@ -653,9 +657,6 @@ public:
                           const std::string& refused);
     void finish_desk_waits(loom::Mail& mail);
     bool wait_on_areas(loom::Mail& mail, DeskWait wait, const std::vector<std::string>& areas);
-    /// At a delivery's end that owed a look: every presented pane's area asked again since what was
-    /// taken of it, so a pane that drew moves the notice.
-    void look_at_areas(loom::Mail& mail);
     /// The window the desk is shown in started again, or another took it.
     void forget_area_readings(loom::Mail& mail);
     /// Whether `who` is a guest session whose admitted row holds `capture`: the one personal asker
@@ -1766,6 +1767,9 @@ private:
     std::array<WindowHold, 3> pane_holds_{};
     /// What each pane a window shows was last told about the keys, and its office's holder then.
     std::map<std::int64_t, std::pair<std::uint64_t, bool>> keys_told_;
+    /// The panes a primary press in their area was made in since the keys were last told: each is
+    /// told them again, whether or not they moved.
+    std::set<std::int64_t> keys_owed_;
 
     /// Leave, by asking the room first: every pane accepting `PaneQuitRequested` is asked, and the
     /// count Loom hands back is what this host waits for. None owed means the exit proceeds now.
@@ -1810,6 +1814,14 @@ private:
         std::string source_office, source_pane, token;
     };
     CarriedData carried_;
+    /// THE WINDOW'S WORD OF WHAT IT DREW UNDER THE HAND, for the button moment being answered
+    /// (`on(AreaButtonChanged)`, a release `on(AreaPressed)`), and empty otherwise: a drop is
+    /// stamped with it.
+    struct WindowUnder {
+        std::string under;
+        std::string part;
+        std::int64_t drawing = 0;
+    };
     struct ValueDrag {
         std::uint64_t gesture = 0;
         InputActor actor;
@@ -1817,8 +1829,10 @@ private:
         bool moved = false, released = false;
         AreaPoint at;            ///< the pane's area the release met, and where in it
         loom::WeaveId receiver;
+        WindowUnder word;        ///< what the window drew under the hand at the release
     };
     ValueDrag value_drag_;
+    WindowUnder window_under_;
     InputActor input_actor_;
     loom::WeaveId attributed_producer_{};
     bool applying_attributed_ = false;

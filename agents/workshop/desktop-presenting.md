@@ -36,7 +36,7 @@ WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-14 — Both panes are usable by mouse, and a press is read against the rows it landed on
 
-LAW — A composition is numbered by what its rows mean; a press in its area is read against the rows drawn there, acting only on their meaning; the wheel walks the cursor; a right press or `m` offers a menu.
+LAW — A composition is numbered by what its rows mean; a press acts on the row the window drew under the hand, refused where another stands now; the wheel walks the cursor; a right press or `m` offers a menu.
 
 MEANS
 - the Manager: the mark shows or hides, the name chooses, a second marked-name press is Return;
@@ -45,7 +45,7 @@ MEANS
 
 DOES NOT MEAN
 - that a repaint moving no row renumbers (a subject swap does), or that display time is seen;
-- that a press the window landed before the list moved is refused as moved: which drawing a window press names is a decision held open, its witness held as an expected failure.
+- that a row redrawn under its own name refuses a press: only another row there does (WL-PRESS-07).
 
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
@@ -114,7 +114,12 @@ KeysMeaning KeysMeaning::ref keys_line_ref second_button wheel
 `workshop/desktop-pane/pane.cpp` second_button wheel on_window_press
 `component/row_map.hpp` RowMap RowMap::settle solid_columns
 `component/columns.hpp` layout_columns table_line
-`tests/test_workshop_panes_desktop.cpp` "WL-DESK-14: a press queued behind a change of the list is
+`tests/test_workshop_panes_desktop.cpp` "WL-DESK-14: a same-length inventory swap puts another pane's
+row under a press the window landed on the old one, so it opens nothing -- the meaning carries the
+subject, not just the slot -- and a press on a row redrawn under its own name opens it" "WL-DESK-14:
+an inventory change queued ahead of a raw press cannot retarget the row the hand aimed at -- the
+window lands the press on the row it shows, refused where the list has since moved there, and acting
+where it showed the new row" "WL-DESK-14: a press queued behind a change of the list is
 refused, never resolved against the moved rows" "WL-DESK-14: a press on a row's mark shows or hides that pane; a press on its name only moves the
 marker" "WL-DESK-14: a deliberate second press on the marked name, with the keys already here, opens
 it -- or focuses and lifts it when it is open and covered" "WL-DESK-14: the wheel walks the marker

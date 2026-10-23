@@ -819,21 +819,33 @@ own area, so its press arrives from the window as a point it reads back to a row
 
 ```text
 weaver presses a visible row
-    -> the window lands the press in the area it shows there, and tells
-       AreaButtonChanged { area, button, pressed, x, y }   to the area's office
-       AreaPressed { window, area, button, pressed, x, y } to Workshop, which placed the area
-    -> the provider maps the point against the rows it is CURRENTLY showing
+    -> the window lands the press in the area it shows there, and tells, with what it drew
+       under the hand (the area, the part named there, the drawing's number),
+       AreaButtonChanged { area, button, pressed, x, y, under, part, drawing } to the area's office
+       AreaPressed { window, area, button, pressed, x, y, ... }          to Workshop, which placed it
+    -> the provider acts on the row the window drew there, refused where another row stands now
     -> LoadedSelected { pane, library, role }   published; nobody answers
 ```
 
 - **Workshop learns nothing about what a pane's rows mean.** It hears where a press landed and
   holds no row identities, no selectable flags, no weave metadata and no list-item semantics; it
   moves the desk's selection and the keys, and sends the pane nothing about the press.
-- **Whether the keys were already there is Workshop's word, and only that.** `PaneKeys{pane,
-  here}` is said to the pane's office whenever the keys come or go, so a pane reads it as it was
-  before the press moved them: a press that brings the keys back finds `here` false. It is a fact,
-  not an instruction: a pane may open a row only on a press made while the keys were already its
-  own and that row was already selected, as Files does, and a pane with no such rule ignores it.
+- **Whether the keys were already there is Workshop's word, and the pane's own press.**
+  `PaneKeys{pane, here}` is said to the pane's office whenever the keys come or go, and after each
+  primary press in its area, so a pane reads it as it was before the press moved them: a press
+  that brings the keys back finds `here` false. A primary press of its own brings them, so the next
+  press is made with them here even before Workshop's word on the first has come; that word, when
+  it comes, stands. It is a fact, not an instruction: a pane may open a row only on a press made
+  while the keys were already its own and that row was already selected, as Files does, and a pane
+  with no such rule ignores it.
+- **A press names what it landed on.** The window says, with each press, what it drew under the
+  hand: the area, the part named there, and that area's drawing number (`graphics::Drawn::number`).
+  The helpers judge it (`WindowDrawing::moved`): a named part is the same element wherever it is
+  redrawn, over its whole face (`graphics::part_at`); an unnamed row, while the drawing's number --
+  the pane's `component::RowMap` number, which moves exactly when the row-to-meaning map does --
+  stands. A press is refused, in the pane's own words, only where another element or none stands
+  there now: `RowPress::moved`, `WindowPointer::moved`, a drawing facet's `fenced`. A drop carries
+  the window's word from its release and is judged alike.
 - **A press is a point of the pane's own area.** The area stands under Workshop's title rows,
   which the pane never draws and is never told about, so its first row is the pane's own row 0.
   No window origin and no medium identity crosses: the point is in the area's pixels, and the
@@ -942,12 +954,6 @@ PaneManageRequested provider -> Workshop   open the host's pane menu on (office,
   settles nothing. Keep the record in the image, not in reload-kept state: a reloaded pane then
   cancels its predecessor's menus instead of acting on rows its predecessor was showing. Whether
   the subject still applies is still the pane's to judge.
-- **Which drawing a press names is held open.** The shipped panes number each composition with
-  `component::RowMap`, whose number moves exactly when the row-to-meaning map does, and read a
-  press against the rows they drew where it landed; a press the window landed before a pane redrew
-  is read against the rows drawn since. Whether a window press should name the drawing it was
-  aimed at -- a drawing's number on the window's word of the press, one area a picture, or a fence
-  through the window -- is a decision asked.
 - **A gesture a menu may continue.** A menu request must echo the correlation of the gesture it
   continues, and three gestures carry one: a secondary press and a **primary press**, each under
   the window's number, and a declared action sent by key (`PaneActionRequested`). All three are judged the same way where the menu would open — this pane, this

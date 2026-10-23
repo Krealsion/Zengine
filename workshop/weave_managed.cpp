@@ -142,9 +142,10 @@ void WorkshopWeave::after_delivery(loom::Mail& mail) {
     }
     mirror_presentation(mail);
     // ONE NOTICE A DELIVERY, after every repaint it made: the newest stands for each before it.
+    // What a pane shows comes as the window says it settled (`on(AreaSettled)`).
     if (stamps_owed_) {
         stamps_owed_ = false;
-        look_at_areas(mail);
+        finish_desk_waits(mail);
         publish_desk_stamps(mail);
     }
 }

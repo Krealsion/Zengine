@@ -400,6 +400,26 @@ inline RowCell window_cell(std::int64_t x, std::int64_t y, std::int64_t rows,
     return out;
 }
 
+// WL-PRESS-07 -- agents/workshop/press-chain.md
+/// WHETHER A PRESS OR A DROP AT `x`, `y` OF AN AREA NAMES ANOTHER ELEMENT than `newest`, the drawing
+/// last sent there, shows at that point, by the window's word of what it drew under the hand: the
+/// area that showed it (`under`), the part named there and that drawing's number. A named part is
+/// the same element where `newest` shows a part of that name there, over its whole face
+/// (`graphics::part_at`); where the window drew none, `newest` shows none there and has its number.
+/// A word about another area than `area`, or none, names nothing to judge.
+inline bool press_moved(const graphics::Sketch& newest, const std::string& area,
+                        const std::string& under, const std::string& part, std::int64_t drawing,
+                        std::int64_t x, std::int64_t y, const graphics::TextMeasure& text) {
+    if (under.empty() || under != area) {
+        return false;
+    }
+    const std::string now = graphics::part_at(newest, x, y, text);
+    if (!part.empty()) {
+        return now != part;
+    }
+    return !now.empty() || drawing != newest.number();
+}
+
 /// THE PHASES OF A POINTER MOMENT a pane reads (`WindowPointer::phase`).
 namespace canvas_pointer {
 inline constexpr std::int64_t kPress = 1, kMove = 2, kRelease = 3, kLost = 4, kWheel = 5;
@@ -409,7 +429,9 @@ inline constexpr std::int64_t kPress = 1, kMove = 2, kRelease = 3, kLost = 4, kW
 /// (`canvas_pointer::kPress` ... `kWheel`, a hold the window ended being `kLost`), the button, the
 /// point in the area's pixels and the cell of the rows drawn there holding it, the modifiers, the
 /// wheel's turn, and the press's number, which the press, its moves and its release carry and a
-/// continuation about the press cites.
+/// continuation about the press cites. A press says the part the window drew under the hand, and
+/// `moved` when the pane's newest drawing shows another element there (`WindowDrawing::moved`),
+/// which the pane refuses in its own words.
 struct WindowPointer {
     std::int64_t phase = canvas_pointer::kPress;
     std::int64_t button = 0;
@@ -418,6 +440,11 @@ struct WindowPointer {
     std::int64_t modifiers = 0;
     double dx = 0, dy = 0;
     std::uint64_t press = 0;
+    std::string part;
+    bool moved = false;
+    /// The window said what it drew under the hand in this area, and that drawing's number.
+    bool told = false;
+    std::int64_t drawing = 0;
 };
 
 /// THE GRAPHICS WINDOW THAT SHOWS A PANE'S AREA, as the office drawing there keeps it: the canvas
@@ -482,6 +509,10 @@ public:
         p.phase = b.pressed ? canvas_pointer::kPress : canvas_pointer::kRelease;
         p.button = b.button;
         p.modifiers = b.modifiers;
+        p.part = b.part;
+        p.moved = b.pressed && moved(b.under, b.part, b.drawing, b.x, b.y);
+        p.told = !b.under.empty() && b.under == area();
+        p.drawing = b.drawing;
         return p;
     }
     std::optional<WindowPointer> pointer(const graphics::AreaPointerMoved& m,
@@ -516,6 +547,22 @@ public:
         p.phase = canvas_pointer::kLost;
         p.button = e.button;
         return p;
+    }
+
+    /// WHETHER A PRESS OR A DROP AT `x`, `y` OF THE AREA NAMES ANOTHER ELEMENT than the drawing
+    /// last sent there shows, by the window's word of what it drew under the hand (`press_moved`).
+    bool moved(const std::string& under, const std::string& part, std::int64_t drawing,
+               std::int64_t x, std::int64_t y) const {
+        return press_moved(last_, area(), under, part, drawing, x, y, text());
+    }
+
+    /// The newest drawing's number (`graphics::Sketch::number`).
+    std::int64_t number() const noexcept { return last_.number(); }
+
+    /// The part the newest drawing shows at `x`, `y` of the area, over each element's whole face:
+    /// where a press there reaches, "" for none.
+    std::string part_at(std::int64_t x, std::int64_t y) const {
+        return graphics::part_at(last_, x, y, text());
     }
 
     /// DRAW `sketch` IN THE WINDOW THAT SHOWS THE AREA: what changed since the drawing it holds,
@@ -565,7 +612,8 @@ private:
 
     bool unchanged(const graphics::Sketch& sketch) const {
         const graphics::Drawn d = graphics::difference(last_, sketch);
-        return d.put.empty() && d.removed.empty() && d.said.empty() && d.unsaid.empty();
+        return d.put.empty() && d.removed.empty() && d.said.empty() && d.unsaid.empty() &&
+               sketch.number() == last_.number();
     }
 
     graphics::Canvas canvas_;

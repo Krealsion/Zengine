@@ -57,6 +57,8 @@ struct RowsCaret {
 struct ComposedRows {
     std::vector<TextRow> rows;
     std::vector<RowPart> parts;
+    /// The pane's number for what the rows mean (`component::RowMap::picture`), 0 for none.
+    std::int64_t number = 0;
 };
 
 /// THE CELL OF THE ROWS A PLACE STANDS ON: its row and column, floored, and whether the rows show

@@ -217,6 +217,11 @@ public:
         if (!p || !b.pressed || b.button != 1 || !p->at.shown) {
             return;
         }
+        if (p->moved) { // the window landed it on rows the list has since moved
+            notice_ = "the list moved -- press again";
+            show(mail);
+            return;
+        }
         const std::int64_t entry = p->at.row - kHead + static_cast<std::int64_t>(first_);
         const std::vector<std::size_t> list = visible();
         if (p->at.row >= kHead && entry >= 0 && static_cast<std::size_t>(entry) < list.size()) {
@@ -340,8 +345,15 @@ private:
         ws::RowsCaret caret;
         caret.row = 0;
         caret.column = static_cast<std::int64_t>(prefix.size() + filter_.caret());
-        const ws::RowsDrawing drawn = ws::rows_drawing(
+        ws::RowsDrawing drawn = ws::rows_drawing(
             lines, std::vector<ws::RowPart>{}, window_.rows_room(), columns(), caret, rows());
+        // NUMBERED BY WHAT ITS ROWS MEAN: the entries shown, from the first, so a press is read
+        // against the entries it was drawn with.
+        std::uint64_t meaning = 1469598103934665603ULL ^ first_;
+        for (std::size_t i = first_; i < list.size() && i < first_ + room; ++i) {
+            meaning = (meaning ^ (list[i] + 1)) * 1099511628211ULL;
+        }
+        drawn.sketch.number(static_cast<std::int64_t>(meaning >> 1));
         window_.draw(drawn.sketch, mail);
     }
 

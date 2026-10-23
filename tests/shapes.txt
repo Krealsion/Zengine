@@ -19,7 +19,7 @@ AppPlaceSaid v1 0x98559a8e12d914fd
 AppSeatState v1 0x67a2c2548c13a19f
 AppSeatTurn v1 0x36399baf25a3a238
 AppWeaveState v1 0xc02ad7e96a18cc59
-AreaButtonChanged v2 0x2e8b0956abcc0619
+AreaButtonChanged v3 0xcdf7f513e55e6201
 AreaHandRefused v1 0x4a892f6ac6208c2d
 AreaHoldEnded v1 0xa4f07cf674bfae98
 AreaIntroduced v6 0xe8419eacd71e7f5a
@@ -27,8 +27,9 @@ AreaPart v1 0xf04db60362845b87
 AreaPlaced v5 0x3bd7d95d326beef6
 AreaPointerLeft v1 0x65e599b7bfc67495
 AreaPointerMoved v2 0xeb5037becbb47151
-AreaPressed v2 0x437bf607d1a48a32
+AreaPressed v3 0x04702ecdf447a382
 AreaRoom v4 0x13b64ef427486e52
+AreaSettled v1 0xb25da339d2656089
 AreaShowAsked v1 0xd54947d2e93c2fed
 AreaShown v1 0x3e05f15104f82b1c
 AreaWheelTurned v2 0xc964858cfb625ed5
@@ -95,7 +96,7 @@ DesktopState v2 0x99a86d2ff5d2ed90
 DirectoryArea v5 0x71612b8884f85585
 DirectoryState v7 0x44cd2b1593c85bff
 Dismissal v1 0x2ef46c30c9e25ec4
-Drawn v1 0x74e64abe6e86fc07
+Drawn v2 0x3107618795be3e11
 DrawnRefused v1 0x7475c98771250027
 Drive v2 0x694b4e43253f0ad4
 EditorAdoptRequested v1 0x1efd4eae17ab61eb
@@ -128,7 +129,7 @@ ElementChange v1 0xb28ddcb72b0d11b1
 ElementCodeOffered v1 0x23282614162dbf06
 ElementDescribed v1 0x9b314314d98e7c03
 ElementEvent v1 0xb3dc069aafefcd2c
-ElementOutcome v1 0x4b0a60291bfde0fd
+ElementOutcome v2 0x31b25e9c3faccb35
 ElementPut v1 0x7635164e539fe9ef
 ElementRecord v1 0xd92207515bccaaa7
 EllipseArgs v1 0x92af4694ab9b1b3b
@@ -307,9 +308,9 @@ PaneActionRow v3 0xb8cd2ff5d3127534
 PaneActions v1 0x91f2c7c16ff8c0a7
 PaneActions v2 0xade8c18a16534a96
 PaneActions v3 0x5b471468822f5e16
-PaneCanvasDrop v2 0xf11a519b3976bff4
+PaneCanvasDrop v3 0x2bffd0269c9b107a
 PaneCanvasHover v3 0xefe0d0b508149200
-PaneCanvasValueDrop v3 0x269117a5b7279781
+PaneCanvasValueDrop v4 0x1454ecf45724726b
 PaneCarryAnswered v1 0x32267ee874afea4b
 PaneCarryRequested v1 0xd2321dfb560692f4
 PaneCatalogRequested v1 0xf8623a0555340ed5
@@ -558,12 +559,12 @@ ViewRetire v1 0x6a71f8f583882355
 ViewRun v1 0xed2c4ab0b0598981
 ViewStart v2 0x89d8495312d2c751
 ViewStop v1 0x1e90d056a56b777c
-WinArea v6 0x780cddbc43a72d40
+WinArea v7 0x18e869e8449731a0
 WindowOffered v3 0x0426f2eb5138d05b
 WindowShaped v1 0x65fc824d06476f98
 WindowShowAsked v1 0x9ae7f3bd1654e34e
 WindowShown v1 0x67d34473f44e6144
-WindowState v5 0x1f898c6ac00f7f4b
+WindowState v6 0x677aa9b0ece315d7
 WithdrawalFence v1 0x84f263bbb46b652c
 WorkshopCMakeTarget v1 0x9e240d00291fccca
 WorkshopCMakeTarget v2 0x7d80363632515662

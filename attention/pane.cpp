@@ -125,6 +125,13 @@ public:
     /// than an empty list reading as "all is well".
     void on_room(loom::Mail& mail) { say(mail); }
 
+    /// A PRESS THE WINDOW LANDED ON ANOTHER ROW than the list shows there now moves the cursor
+    /// nowhere, and is said.
+    void fenced(loom::Mail& mail) {
+        notice_ = "the list moved -- press again";
+        say(mail);
+    }
+
     /// ONE OF THE PANE'S DECLARED ACTIONS, ASKED FOR BY NAME (WL-KEY-15), OR A PRESS ON A
     /// CONDITION'S ROW. Workshop resolved the keystroke against the effective keymap -- the
     /// weaver's override where one is authored, this office's declared default otherwise -- so

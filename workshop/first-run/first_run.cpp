@@ -247,6 +247,11 @@ public:
             static_cast<std::size_t>(p->at.row) >= lines.size()) {
             return;
         }
+        if (p->moved) { // the window landed it on lines that have since moved
+            moment_.notice = "the list moved -- press again";
+            show(mail);
+            return;
+        }
         const fr::Item item = lines[static_cast<std::size_t>(p->at.row)].item;
         if (item != fr::Item::kNone) {
             moment_.cursor = item;
@@ -364,7 +369,10 @@ private:
             return;
         }
         std::vector<ws::TextRow> drawn;
+        // NUMBERED BY WHAT ITS LINES MEAN: the item each one chooses.
+        std::uint64_t meaning = 1469598103934665603ULL;
         for (const fr::Line& l : fr::lines_of(moment_)) {
+            meaning = (meaning ^ (static_cast<std::uint64_t>(l.item) + 1)) * 1099511628211ULL;
             std::int64_t role = gfx::role::kFill;
             switch (l.ink) {
             case fr::Line::Ink::kHeading:
@@ -375,9 +383,10 @@ private:
             }
             drawn.push_back({l.text, role});
         }
-        const ws::RowsDrawing rows_drawn =
+        ws::RowsDrawing rows_drawn =
             ws::rows_drawing(drawn, std::vector<ws::RowPart>{}, window_.rows_room(),
                              columns(), ws::RowsCaret{}, rows());
+        rows_drawn.sketch.number(static_cast<std::int64_t>(meaning >> 1));
         window_.draw(rows_drawn.sketch, mail);
     }
 

@@ -224,6 +224,27 @@ struct Dropped {
 /// A DROPPED LOCATION, judged against the document's mark when the open was asked.
 using Locate = office::LocateOf<Mark>;
 
+/// WHAT THE ROWS DRAWN MEAN (WL-EDIT-18): the document, its bytes, the viewport, the rows above
+/// it, the room and the selection a drop may land on. A caret move alone keeps it.
+struct PictureKey {
+    std::uint64_t epoch = 0;
+    std::uint64_t content = 0;
+    std::size_t first_row = 0;
+    std::int64_t first_col = 0;
+    std::int64_t chrome_rows = 0;
+    std::int64_t rows = 0;
+    std::int64_t columns = 0;
+    bool selection = false;
+    EditorPos from;
+    EditorPos to;
+    friend bool operator==(const PictureKey& a, const PictureKey& b) {
+        return a.epoch == b.epoch && a.content == b.content && a.first_row == b.first_row &&
+               a.first_col == b.first_col && a.chrome_rows == b.chrome_rows && a.rows == b.rows &&
+               a.columns == b.columns && a.selection == b.selection && a.from == b.from &&
+               a.to == b.to;
+    }
+};
+
 constexpr const char* kInsertLine = "editor.insert-line";
 constexpr const char* kInsertCpp = "editor.insert-cpp";
 

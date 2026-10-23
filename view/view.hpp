@@ -611,10 +611,16 @@ public:
         }
         if (is(loom::schema_of<graphics::AreaButtonChanged>())) {
             // A PRESS IN THE WINDOW THAT SHOWS ITS AREA, as that window's office, read against the
-            // picture last drawn there.
+            // picture last drawn there; one the window drew on another element than that picture
+            // shows there uses nothing, and is said.
             const auto b = loom::from_value<graphics::AreaButtonChanged>(in.payload);
             const loom::Mail mail(bus, in, self_);
             if (!b.pressed || !window_.from_window(b.area, mail) || !window_picture_) return;
+            if ((b.button == 1 || b.button == 3) && window_.moved(b.under, b.part, b.drawing, b.x, b.y)) {
+                presentation_.notice = "the view changed under the press -- press again";
+                show(bus);
+                return;
+            }
             if (b.button == 3) {
                 say(bus, ws::PanePassRequested{kPane}, in.correlation); // Workshop's own pane menu
             } else if (b.button == 1) {

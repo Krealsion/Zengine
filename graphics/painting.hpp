@@ -82,7 +82,7 @@ struct ElementOutcome {
     loom::Bytes state;
     Drawn drawn;
     bool took = true;
-    ZEN_SHAPE(ElementOutcome, 1, ZEN_FIELD(state), ZEN_FIELD(drawn), ZEN_FIELD(took));
+    ZEN_SHAPE(ElementOutcome, 2, ZEN_FIELD(state), ZEN_FIELD(drawn), ZEN_FIELD(took));
 };
 
 /// What element code is: the data form it presents, and the changes it takes in index order.

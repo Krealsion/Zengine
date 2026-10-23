@@ -1304,6 +1304,70 @@ TEST_CASE("info views: a view's line being typed shows its caret on its canvas, 
     CHECK(caret().row == surface::kNoCaret);
 }
 
+TEST_CASE("info views: a right press the window landed on a view's rows before their meaning changed opens no menu and says why, and one landed on the field drawn there now opens its menu") {
+    Views s;
+    add_records(s);
+    const auto [a, b] = s.two_views();
+    (void)b;
+    const auto before = held_reading(a).parts; // what the window showed before the view held a value
+    s.copy_into(a, "Source record");             // a value now: other rows, other meanings
+    const auto at = s.field_at(a, "name");
+    const std::string drawn = part_drawn_at(before, at.first, 3);
+    const std::string now = part_drawn_at(a, at.first, 3);
+    REQUIRE(drawn != now);
+    s.watch();
+    press_as_drawn(s.r, a, at.first, 3, drawn, 0, 3);
+    CHECK_MESSAGE(s.shows(a, "This view changed -- press again"), s.shown(a));
+    CHECK(s.sends(PaneMenuRequested::zen_name) == 0);
+    press_as_drawn(s.r, a, at.first, 3, now, 0, 3);
+    CHECK(s.sends(PaneMenuRequested::zen_name) == 1);
+}
+
+TEST_CASE("info views: a press the window landed on a part the view has since replaced there never acts, one on a control standing there then and now acts, and a clipped control is never drawn") {
+    Views s;
+    const auto [a, b] = s.two_views();
+    (void)b;
+    // The picture the view shows before it holds a value: its controls stand elsewhere now.
+    const auto before = held_reading(a).parts;
+    s.copy_into(a, "story.RuntimeItem");
+    const auto entries = s.saved_entries().size();
+    // A PART STANDING WHERE ANOTHER, OR NONE, STOOD BEFORE.
+    std::int64_t moved_row = -1, moved_column = -1;
+    std::string drawn;
+    for (const auto& [name, part] : held_reading(a).parts) {
+        if (moved_row >= 0) continue;
+        if (part_drawn_at(before, part.row, part.column) != name) {
+            moved_row = part.row;
+            moved_column = part.column;
+            drawn = part_drawn_at(before, part.row, part.column);
+        }
+    }
+    REQUIRE_MESSAGE(moved_row >= 0, s.shown(a));
+    // A PRESS THE WINDOW LANDED ON WHAT STOOD THERE BEFORE is refused, and nothing is saved...
+    press_as_drawn(s.r, a, moved_row, moved_column, drawn);
+    CHECK_MESSAGE(s.shows(a, "This view changed -- press again"), s.shown(a));
+    CHECK(s.saved_entries().size() == entries);
+    // ...AND ONE ON A CONTROL THAT STOOD THERE THEN AND STANDS THERE NOW, redrawn as the value
+    // came, acts: `[Save copy]` saves.
+    const auto save = s.where(a, "[Save copy]");
+    REQUIRE(save.first >= 0);
+    const std::string kept = part_drawn_at(before, save.first, save.second + 2);
+    REQUIRE(kept == part_drawn_at(a, save.first, save.second + 2));
+    press_as_drawn(s.r, a, save.first, save.second + 2, kept);
+    CHECK_MESSAGE(s.saved_entries().size() == entries + 1, s.shown(a));
+    // A NARROW ROOM DRAWS NO PARTIAL CONTROL: every bracket it paints is closed.
+    s.place(info::kInfoPaneRole, "info.2", 2, 30, 24, 14);
+    for (const auto& row : pane_rows(s.r, a)) {
+        if (row.find('[') == std::string::npos && row.find('(') == std::string::npos) continue;
+        std::int64_t depth = 0;
+        for (const char c : row) { if (c == '[' || c == '(') ++depth; if (c == ']' || c == ')') --depth; }
+        CHECK_MESSAGE(depth == 0, row);
+    }
+    CHECK_MESSAGE(s.shows(a, "[...]"), s.shown(a)); // everything stays one press away
+    s.button(a, "...");
+    CHECK(s.r.session().presented.open);
+}
+
 TEST_CASE("info views: a field copy placed on Info's pane-property view fills no field of the value its "
           "default view still holds") {
     Views s(255); // the field pickup is the actor's to make

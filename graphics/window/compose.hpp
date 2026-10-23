@@ -225,14 +225,17 @@ inline std::vector<term::Cell> compose(const std::vector<WinArea>& areas, const 
 }
 
 /// Where a pointer moment landed: the front-most area at the point that takes it (none where no
-/// area does), the top node that area painted there ("" where it painted nothing), and the point
-/// in the area's pixels. An area placed to hear the pointer takes every point inside it, painted or
-/// not; any other takes a point only where what it drew there takes a press (`takes_press`), and
-/// lets the pointer through to the areas behind it everywhere else.
+/// area does), the top node that area painted there ("" where it painted nothing), the point in the
+/// area's pixels, and the area showing what lies under the hand -- that one, or where it painted
+/// nothing the first behind it that did -- with its top node there. An area placed to hear the
+/// pointer takes every point inside it; any other takes a point only where what it drew there takes
+/// a press (`takes_press`), and lets the pointer through to the areas behind it everywhere else.
 struct Landed {
     const WinArea* area = nullptr;
     std::string path;
     std::int64_t x = 0, y = 0;
+    const WinArea* under = nullptr;
+    std::string under_path;
 };
 
 /// A GROUP'S CLIP IN ITS AREA'S PIXELS, its far edges exclusive: its place carried through the
@@ -564,8 +567,7 @@ inline Landed land(const std::vector<WinArea>& areas, const Cache& cache, std::i
     Landed out;
     for (const WinArea* a : front_to_back(areas)) {
         const Place pl = place_of(*a);
-        if (!pl.holds(col, row) || (wheel && a->pointer && !a->wheel) ||
-            (button == -3 && a->pointer && !a->right)) {
+        if (!pl.holds(col, row)) {
             continue;
         }
         const Painted* p = cache.of(a->area);
@@ -582,10 +584,25 @@ inline Landed land(const std::vector<WinArea>& areas, const Cache& cache, std::i
                 }
             }
         }
+        if (out.area != nullptr) {
+            if (best != nullptr) {
+                out.under = a;
+                out.under_path = best_path;
+                break;
+            }
+            continue;
+        }
+        if ((wheel && a->pointer && !a->wheel) || (button == -3 && a->pointer && !a->right)) {
+            continue;
+        }
         if (a->pointer || (best != nullptr && takes_press(*a, best_path))) {
             out.area = a;
             out.path = best != nullptr ? best_path : std::string();
-            break;
+            if (best != nullptr) {
+                out.under = a;
+                out.under_path = best_path;
+                break;
+            }
         }
     }
     if (out.area != nullptr) {
