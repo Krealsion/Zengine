@@ -27,7 +27,7 @@ WHY — `agents/decisions/one-binding-truth.md`
 
 ## WL-KEY-16 — The band and the Hotkeys view each spell a key as the weaver chose, apart
 
-LAW — How the band spells a key and how the Hotkeys view spells one are two preferences, short and full by default, each toggled and saved alone; a pane's manual spells as the Hotkeys view does.
+LAW — How the band spells a key and how the Hotkeys view spells one are two preferences, both full by default, each toggled and saved alone; a pane's manual spells as the Hotkeys view does.
 
 MEANS
 - short is `B`, `^p`, `enter`; full is a keymap file's `shift+b`, `ctrl+p`, `return`;

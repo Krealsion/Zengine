@@ -105,8 +105,8 @@ inline constexpr const char* kKeysFull = kSpelledFull;
 
 inline constexpr const char* kKeysWords = "default, short or full";
 
-/// What the code answers when no spelling is authored: the band short, the Hotkeys view full.
-inline constexpr KeySpelling kBandKeysDefaultValue = KeySpelling::kShort;
+/// What the code answers when no spelling is authored: both full, as a keymap file writes a key.
+inline constexpr KeySpelling kBandKeysDefaultValue = KeySpelling::kFull;
 inline constexpr KeySpelling kHotkeysKeysDefaultValue = KeySpelling::kFull;
 
 /// WORKSHOP'S OWN OFFICE-WIDE SETTINGS, declared in code: what each takes, its default, the tags
@@ -143,7 +143,7 @@ inline std::vector<workshop::v2::PaneSettingRow> workshop_office_rows() {
     titles.pinned = true;
     titles.summary = "draw title text on pane borders";
     return {titles,
-            text(kBandKeysKey, kKeysShort, {kKeysShort, kKeysFull}, {"chrome", "input"}, false,
+            text(kBandKeysKey, kKeysFull, {kKeysShort, kKeysFull}, {"chrome", "input"}, false,
                  "show short or full hotkey hints on the bottom band"),
             text(kHotkeysKeysKey, kKeysFull, {kKeysShort, kKeysFull}, {"chrome", "input"}, false,
                  "show short or full key chords in the Hotkeys pane"),

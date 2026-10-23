@@ -1193,7 +1193,7 @@ TEST_CASE("the legend's three modes project the band, and hidden unbinds nothing
     // The legend rows are rows of the band's one region, so they are read through the cell
     // projection with the region's padding trimmed.
     CHECK(inspector_row(compact.shown(), 0, help_row(sc)) ==
-          "^t terminal | ^p panes | ^k hotkeys");
+          "ctrl+t terminal | ctrl+p panes | ctrl+k hotkeys");
     CHECK(inspector_row(compact.shown(), 0, help_row(sc) + 1).empty());
 
     write_keymap_file(path, keymap_file_text("hidden", {}));
@@ -1475,7 +1475,7 @@ TEST_CASE("the legend modes move only the legend rows, in both budgets") {
                                                          app_precedence::kAboveModes}})
                     .accepted);
         const surface::SurfaceCanvas compact_d = paint(with_desktop);
-        CHECK(band_row(band_on(compact_d, sc), legend_at) == "^k hotkeys");
+        CHECK(band_row(band_on(compact_d, sc), legend_at) == "ctrl+k hotkeys");
 
         s.keymap.legend = legend_mode::kHidden;
         const surface::SurfaceCanvas hidden_c = paint(s);

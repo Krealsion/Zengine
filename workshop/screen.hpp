@@ -878,7 +878,7 @@ struct Session {
     /// HOW THE BAND AND THE HOTKEYS VIEW EACH SPELL A KEY -- two presentation preferences, chosen
     /// apart; the manual a pane's `?` shows spells as the Hotkeys view does.
     // WL-KEY-16 -- agents/workshop/key-spelling.md
-    KeySpelling band_keys = KeySpelling::kShort;
+    KeySpelling band_keys = KeySpelling::kFull;
     KeySpelling hotkeys_keys = KeySpelling::kFull;
     /// WHETHER THE KEYBOARD'S SELECTION IS RINGED PLAIN -- one ring in the chrome's ink -- rather
     /// than in the accent's two: `workshop.focus.ring`.
