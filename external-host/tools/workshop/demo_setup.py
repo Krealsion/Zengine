@@ -63,9 +63,11 @@ class Owners:
         the pane shows, its stamp's fields at its top."""
         stamp = {"provider": "", "pane": "", "holder": 0, "incarnation": 0, "epoch": 0,
                  "fingerprint": 0}
-        view = dict(self.ask("zengine.workshop", "PaneViewRequested",
-                             {"provider": provider, "pane": pane, "from": 0, "stamp": stamp},
-                             version=7))
+        answer = self.ask("zengine.workshop", "PaneViewRequested",
+                          {"provider": provider, "pane": pane, "from": 0, "stamp": stamp},
+                          version=7)
+        # An answer is no mapping: its fields are read, as hand.lifted reads them.
+        view = dict(getattr(answer, "fields", answer))
         view.update(view.get("stamp") or {})
         return view
 
