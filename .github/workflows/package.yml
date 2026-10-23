@@ -243,6 +243,16 @@ jobs:
           $name = "zengine-$env:VERSION-windows-x64"
           $stage = "$tmp/stage/$name"
           $static = '-static-libgcc -static-libstdc++ -static'
+          # WinLibs' CMake downloads with a TLS library that reads no Windows certificate store, so
+          # SDL's fetch is checked against Windows' own trusted roots, written out for it.
+          $ca = "$tmp/windows-roots.pem"
+          $pem = [System.Text.StringBuilder]::new()
+          foreach ($c in Get-ChildItem Cert:\LocalMachine\Root) {
+            [void]$pem.AppendLine('-----BEGIN CERTIFICATE-----')
+            [void]$pem.AppendLine([Convert]::ToBase64String($c.RawData, 'InsertLineBreaks'))
+            [void]$pem.AppendLine('-----END CERTIFICATE-----')
+          }
+          [System.IO.File]::WriteAllText($ca, $pem.ToString())
           cmake -S "$tmp/loom-src" -B "$tmp/loom-build" -G Ninja -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_C_COMPILER="$gcc" -DCMAKE_CXX_COMPILER="$gxx" -DLOOM_ENABLE_WINDOWS_KERNEL=ON `
             -DZEN_BUILD_TESTS=OFF -DZEN_BUILD_EXAMPLES=OFF "-DCMAKE_EXE_LINKER_FLAGS=$static"
@@ -251,7 +261,8 @@ jobs:
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER="$gcc" `
             -DCMAKE_CXX_COMPILER="$gxx" -DCMAKE_PREFIX_PATH="$tmp/loom-prefix" -DBUILD_TESTING=OFF `
             -DZENGINE_SDL_SKIN=ON -DCMAKE_DISABLE_FIND_PACKAGE_SDL3=ON -DCMAKE_DISABLE_FIND_PACKAGE_SDL3_ttf=ON `
-            -DZENGINE_PACKAGE=ON -DZENGINE_PACKAGE_VERSION="$env:VERSION" -DZENGINE_PACKAGE_LOOM_COMMIT="$env:LOOM"
+            -DZENGINE_PACKAGE=ON -DZENGINE_PACKAGE_VERSION="$env:VERSION" -DZENGINE_PACKAGE_LOOM_COMMIT="$env:LOOM" `
+            -DCMAKE_TLS_VERIFY=ON "-DCMAKE_TLS_CAINFO=$ca"
           cmake --build build
           cmake --install "$tmp/loom-build" --prefix $stage --strip
           cmake --install build --prefix $stage --strip
