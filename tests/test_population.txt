@@ -42,6 +42,7 @@ workshop_guests                   doctest           always  40
 workshop_probe                    doctest           always  14
 guest_vocabulary                  doctest           always  3
 guest_journey                     program           always
+package_judges                    program           session
 demo_recipes                      program           session
 workshop_journey                  program           session
 story_journey                     program           session
