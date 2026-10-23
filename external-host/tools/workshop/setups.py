@@ -386,7 +386,9 @@ class Setup:
         lines.append("Media:       %s at %dx%d cells%s" % (", ".join(medium["supports"]), *medium["viewport"],
                      ", in a Skin" if medium.get("skin") else ""))
         requires = d.get("requires") or {}
-        needs = ["a built Zengine (--build) and an installed Loom (--loom-prefix)"]
+        needs = ["a built Zengine (--build) and an installed Loom (--loom-prefix)" +
+                 ("" if (d.get("project") or {}).get("runtime") == "development"
+                  else ", or an extracted package holding both (--package)")]
         needs += ["--%s: %s" % (k.replace("_", "-"), v) for k, v in sorted((requires.get("inputs") or {}).items())]
         needs += ["built artifact %s" % a for a in requires.get("artifacts", [])]
         needs += list(requires.get("notes", []))
