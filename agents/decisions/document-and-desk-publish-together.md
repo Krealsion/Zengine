@@ -60,9 +60,9 @@ its words kept for the host's turn to tell, and the turn explains no exception t
 
 **Consequences.** Four turns from the desk's admission to the terminal answer. Two small
 identities cross the bus, never bytes or rows. The Editor's state carries `opened_by` so its
-claim reads the same after a reload. The `v2::PaneContent` and `v2::PaneCaret` doors name the
-document's generation so a stale projection cannot repaint the admitted rows; a picture is fenced
-by the room the trial reserves for it ([the opening carries a picture](the-opening-carries-a-picture.md)). A host that
+claim reads the same after a reload. The opening carries no picture: the Editor draws the
+candidate in its own area, in the room the trial reserved, as it commits its claim
+([the opening carries a picture](the-opening-carries-a-picture.md) says what it carried before). A host that
 replaces its manager must mint again; manager hot reload is unsupported. The bus's eight-record
 bound is shared with any other operator on it, met in words.
 

@@ -26,7 +26,7 @@ LAW — A pane's reading names its stamp, the place it shows in and its text mea
 MEANS
 - a page asked under a stamp the pane no longer stands on is refused as stale;
 - a cover moving between pages leaves the stamp alone: a reader compares `total` and `covered`, and a `from` past a shrunk reading is refused;
-- in flight is a room out no picture has answered, what is sent not yet what is shown, or a window waiting for the pane's drawing; it is said so at any page.
+- in flight is a window waiting for the pane's drawing, or a reading asked and not yet answered, said so at any page; a pane whose office nobody holds is no reading, and says it waits.
 
 WHY — `agents/decisions/the-desk-is-said-whole-on-the-agents-host.md`
 
@@ -50,7 +50,7 @@ WHY — `agents/decisions/the-desk-is-said-whole-on-the-agents-host.md`
 LAW — A pane's reading says no word or part of a covered place, counting them and naming the cover, and gives a point only where a press lands on what it names.
 
 MEANS
-- a cover is a pane in front, the menu, arranging, the refused mark, or the band -- the foot band over Layouts too -- each by Workshop's own order;
+- a cover is a pane in front, the menu, arranging, or the band -- the foot band over Layouts too -- each by Workshop's own order, as it arranges each;
 - while a menu is open a primary press outside it reaches nothing beside it -- it closes the menu, or is refused -- so nothing there has a point.
 
 WHY — `agents/decisions/the-desk-is-said-whole-on-the-agents-host.md`
@@ -65,18 +65,18 @@ MEANS
 - a notice's `cause` stands only until a later notice replaces it.
 
 DOES NOT MEAN
-- that a holder leaving between deliveries is said before Workshop's next repaint, fence or desk read;
+- that a holder leaving, or a pane's drawing the window takes, between Workshop's deliveries is said before its next delivery or desk read: which turn says it is a decision held open;
 - that a notice names each change since the last one a reader took: it names where the desk stands.
 
 WHY — `agents/decisions/the-desk-says-when-it-moved.md`
 
 ## WL-READ-07 — A stamp names what a pane shows, where
 
-LAW — A stamp names a pane's holder, incarnation, the window's incarnation, and a fingerprint of what the pane shows and where, so the same picture sent again keeps it and a moved pane moves it.
+LAW — A stamp names a pane's holder, incarnation, the window's incarnation, and a fingerprint of what the pane shows and where, so the same picture drawn again keeps it and a moved pane moves it.
 
 MEANS
-- a canvas picture no press is stamped with -- a room not drawn, a preview, a managed opening's -- is named none, so the first taking a press, or refused, moves the stamp;
-- a pane whose reading is refused still names what it shows where that is known, as a refused picture's room shows the refusal.
+- the fingerprint is over what the window says the area shows (`AreaShown`) and the place it shows it in;
+- an area the window waits on is named none, so the pane's first drawing moves the stamp.
 
 DOES NOT MEAN
 - that a stamp moving changes the reading: a caret, a colour or a selection moves it and no word.
@@ -112,24 +112,24 @@ WHY — `agents/decisions/a-pane-is-read-from-the-window-that-shows-it.md`
 `workshop/desk_read.hpp` page_of
 `tests/test_workshop_desk_read.cpp` "the decode budget a reading is filled to is Loom's own: a value
 of exactly that many cells decodes, and one cell more is refused" "a desk past one value's budget
-reads whole: the panes past it are named by their stamps and read alone" "a picture at the canvas
-text limit under overlapping parts reads whole, each page and the desk read inside one reply's
-bytes" "a capture guest reads a picture at the canvas text limit whole over the bridge, page by
-page, and its connection answers the next ask"
+reads whole: the panes past it are named by their stamps and read alone" "a picture of long words
+under a part a row, as many as a window keeps, reads whole, each page and the desk read inside one
+reply's bytes" "a capture guest reads a high-text picture whole over the bridge, page by page, and
+its connection answers the next ask"
 
 ### WL-READ-02
 `workshop/pane_view.hpp` PaneStamp PaneViewRequested PaneView
 `workshop/weave.hpp` HostContext::incarnation_of
-`workshop/weave_desk_read.cpp` pane_reading drawn_reading stamp_of on(PaneViewRequested) pane_page
+`workshop/weave_desk_read.cpp` pane_reading unshown_reading stamp_of on(PaneViewRequested) pane_page
 `workshop/desk_read.hpp` page_of
 `workshop/reply_bytes.hpp` kReplyByteBudget
 `tests/test_workshop_desk.cpp` "a stamp names holder, incarnation and what the pane shows where: a
-reading after t or a reload in place is stale even at an equal picture number" "a pane whose newest
-picture is in flight is read as in flight, with no word, and the desk still reads"
-`tests/test_workshop_desk_read.cpp` "a pane at its full canvas budgets reads whole, paged by index
-under one stamp, and a page asked after its picture moved is refused as stale" "a picture at the
-canvas text limit under overlapping parts reads whole, each page and the desk read inside one
-reply's bytes"
+reading after t or a reload in place is stale even for the same picture" "a pane whose provider
+left waits for one, and no reading says it is in flight"
+`tests/test_workshop_desk_read.cpp` "a pane at a window's budgets reads whole under one stamp, and
+from any index of it, and a page asked after its picture moved is refused as stale" "a picture of
+long words under a part a row, as many as a window keeps, reads whole, each page and the desk read
+inside one reply's bytes"
 
 ### WL-READ-03
 `workshop/weave.hpp` kDeskReadsPerSecond
@@ -154,33 +154,28 @@ number moves when anything the desk says moves, and holds while nothing does"
 pane in front, Workshop's menu, arranging -- and beside a menu nothing has a point" "a pane's words
 are covered while a menu is open or arranging, no point a press would land on, and the desk still
 answers" "Layouts and the band are read as Workshop draws them: tabs as named parts, the band's
-words with no point" "with pane titles hidden, a refused picture's mark is Workshop's own: the pane
-view waits while it covers the picture, a press on it reaches no provider and a right press opens
-Workshop's menu, and the picture beside it takes a press as before, a press held or not"
+words with no point"
+`tests/test_graphics.cpp` "an area's arranger reads what the terminal window shows of it: its text
+by row in the area's pixels, each part by its box and the cell a press reaches it by, what another's
+area in front paints over left out and its own hiding nothing, and asked again since its version,
+the same"
 
 ### WL-READ-06
 `workshop/pane_view.hpp` DeskStamps
 `workshop/weave_desk_read.cpp` publish_desk_stamps presented_refs look_at_areas
 `workshop/weave_managed.cpp` after_delivery
-`workshop/weave_seam.cpp` on(PictureFence)
 `tests/test_workshop_desk_read.cpp` "a keystroke gives at least one notice, the last naming the
 pane's final picture, with no ask between" "moving only the selection, closing a pane or opening
 arranging gives exactly one notice, with a new desk number" "two panes changing in one turn both
-reach the follower: the newest notice names both new pictures" "a notice names a picture only once
-it is aimed at: it is told after that picture's fence has come round twice"
+reach the follower: the newest notice names both new pictures"
 
 ### WL-READ-07
 `workshop/fingerprint.hpp` Fingerprint
-`workshop/panes.hpp` picture_fingerprint PictureStamp
-`workshop/weave_seam.cpp` fence_pictures
-`workshop/weave_desk_read.cpp` stamp_now pane_reading
-`tests/test_workshop_desk_read.cpp` "a stamp names what a pane shows: the same picture sent again
-keeps it and sends no notice, and every change moves it, prose that numbers no picture included" "a
-canvas pane moved and drawn again the same ends on a notice naming its settled stamp, read with its
-words" "a page under a stamp naming its picture by fingerprint is stale only when the holder, the
-incarnation, the room or what the pane shows moved: the same picture sent again keeps it" "a
-refused picture is told: its pane's stamp moves when Workshop refuses the picture its room asked
-for, and the same refusal said again moves nothing" "Layouts' stamp names what it shows: a new
+`workshop/weave_desk_read.cpp` stamp_now pane_reading shown_fingerprint placed_fingerprint
+`tests/test_workshop_desk_read.cpp` "a stamp names what a pane shows: the same picture drawn again
+keeps it and sends no notice, and every change moves it, rows included" "a canvas pane moved and
+drawn again the same ends on a notice naming its stamp in its new place, read with its words" "a page under a stamp naming its picture by fingerprint is stale only when the holder, the
+incarnation, the room or what the pane shows moved: the same picture sent again keeps it" "Layouts' stamp names what it shows: a new
 layout's tab and the naming line's caret each move it, and a desk seated again the same keeps it"
 
 ### WL-READ-08

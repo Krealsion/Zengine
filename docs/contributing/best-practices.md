@@ -119,10 +119,10 @@ law, and the router of each folder, its `AGENTS.md`, names the suites. The Works
   [A pane declares its actions](../../agents/panes.md#a-pane-declares-its-actions-and-the-host-dispatches-the-resolved-id)
 - **A changed shape is a new version, and so is every shape that encloses it**; `tests/shapes.txt`
   pins them. [Do not assume](../../AGENTS.md#do-not-assume)
-- **A press crosses as a place**, read against the picture the pane is showing.
-  [A press crosses the seam as a place](../../agents/panes.md#a-press-crosses-the-seam-as-a-place-never-as-a-meaning)
-- **Grants, picture maps and gestures stay out of reload state.**
-  [A pane may draw locally](../../agents/panes.md#a-pane-may-draw-locally-with-an-explicit-room-and-gesture-identity)
+- **A press reaches a pane from the window, as a place in its area**, read against what the pane
+  drew there. [A press reaches a pane from the window](../../agents/panes.md#a-press-reaches-a-pane-from-the-window-as-a-place-in-its-area)
+- **Rooms, picture maps and gestures stay out of reload state.**
+  [A pane draws in its own area](../../agents/panes.md#a-pane-draws-in-its-own-area-of-the-window)
 - **A pane whose messages or state change cannot be reloaded in place.**
   [When a pane's messages change](../../workshop/docs/develop-workshop.md#when-a-panes-messages-change-a-new-runtime-too)
 - **Routing and arbitration are Workshop's**; a pane never decides where input goes.

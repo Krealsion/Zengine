@@ -248,15 +248,15 @@ inline std::string group_key(const std::string& heading) {
 /// heading, each command's own heading carrying the keys it answers to now. The rest of a page
 /// (what it hears, follows, shows and files) is the page's, not the `?`'s.
 // WL-DESK-17 -- agents/workshop/desktop-presenting.md
-inline std::vector<surface::SurfaceTextRow> manual_lines(const ws::PaneDocumentShown& shown,
+inline std::vector<ws::TextRow> manual_lines(const ws::PaneDocumentShown& shown,
                                                          const ws::KeymapShown& keymap,
                                                          std::int64_t columns) {
-    std::vector<surface::SurfaceTextRow> rows;
+    std::vector<ws::TextRow> rows;
     if (columns <= 0) {
         return rows;
     }
     const auto line = [&rows, columns](const std::string& text, std::int64_t role) {
-        rows.push_back(surface::SurfaceTextRow{
+        rows.push_back(ws::TextRow{
             ws::pane_text::drawable(ws::pane_text::fit(text, columns)), role});
     };
     const auto words = [&](const std::string& text, std::int64_t role) {

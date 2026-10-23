@@ -3,12 +3,12 @@
 #ifndef ZENGINE_WORKSHOP_PANE_PARTS_HPP
 #define ZENGINE_WORKSHOP_PANE_PARTS_HPP
 
-// The parts a pane names, judged by their form: the rules Workshop admits a picture's names by,
-// which a pane may ask of its own before it sends them, and the parts of a composition a row map
-// records, named by the pane's own rule and listed in the order its press reads them.
+// The parts a pane names, judged by their form: the rules a pane may ask of its own names before it
+// draws them, and the parts of a composition a row map records, named by the pane's own rule and
+// listed in the order its press reads them.
 // Reference: workshop/docs/workshop-panes.md#a-pane-names-its-parts.
 
-#include "workshop/pane_canvas_vocabulary.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
 #include "component/row_map.hpp"
@@ -72,7 +72,7 @@ std::string row_parts_problem(const std::vector<Part>& parts, std::int64_t rows,
         }
         if (part.column < 0 || part.columns <= 0 || part.columns > columns ||
             part.column > columns - part.columns) {
-            return "names `" + part.name + "` outside the room granted";
+            return "names `" + part.name + "` outside the room";
         }
     }
     return std::string();
@@ -127,36 +127,30 @@ private:
 /// THE PARTS A ROW MAP RECORDED, named by `name_of(meaning)` -- a row entire as the room's
 /// `columns`, a run of columns as itself -- listed as its press reads them
 /// (`component::RowMap::press_order`) and gathered as `PartNames` gathers them. A pane naming its
-/// parts from what each one means keeps their names wherever the composition puts them.
-template <class Meaning, class NameOf>
-std::vector<PaneRowPart> row_parts(const component::RowMap<Meaning>& map, std::int64_t columns,
-                                   NameOf&& name_of) {
-    PartNames<PaneRowPart> out;
+/// parts from what each one means keeps their names wherever the composition puts them. Each part
+/// says whether its operation applies now as `available_of(meaning)` says: the same fact the pane
+/// draws as `[label]` or `(label)`, read from the same meaning.
+template <class Meaning, class NameOf, class AvailableOf>
+std::vector<RowPart> row_parts(const component::RowMap<Meaning>& map, std::int64_t columns,
+                               NameOf&& name_of, AvailableOf&& available_of) {
+    PartNames<RowPart> out;
     const auto& spans = map.spans();
     for (const std::size_t at : map.press_order()) {
         const auto& span = spans[at];
         const bool whole = span.last == component::RowMap<Meaning>::kWholeRow;
-        (void)out.add(PaneRowPart{name_of(span.meaning), span.row, whole ? 0 : span.first,
-                                  whole ? columns : span.last - span.first + 1});
+        (void)out.add(RowPart{name_of(span.meaning), span.row, whole ? 0 : span.first,
+                              whole ? columns : span.last - span.first + 1,
+                              available_of(span.meaning)});
     }
     return out.take();
 }
 
-/// ...AND EACH PART SAYING WHETHER ITS OPERATION APPLIES NOW, as `available_of(meaning)` says: the
-/// same fact the pane draws as `[label]` or `(label)`, read from the same meaning.
-template <class Meaning, class NameOf, class AvailableOf>
-std::vector<v2::PaneRowPart> row_parts(const component::RowMap<Meaning>& map, std::int64_t columns,
-                                       NameOf&& name_of, AvailableOf&& available_of) {
-    PartNames<v2::PaneRowPart> out;
-    const auto& spans = map.spans();
-    for (const std::size_t at : map.press_order()) {
-        const auto& span = spans[at];
-        const bool whole = span.last == component::RowMap<Meaning>::kWholeRow;
-        (void)out.add(v2::PaneRowPart{name_of(span.meaning), span.row, whole ? 0 : span.first,
-                                      whole ? columns : span.last - span.first + 1,
-                                      available_of(span.meaning)});
-    }
-    return out.take();
+/// ...each part available.
+template <class Meaning, class NameOf>
+std::vector<RowPart> row_parts(const component::RowMap<Meaning>& map, std::int64_t columns,
+                               NameOf&& name_of) {
+    return row_parts(map, columns, std::forward<NameOf>(name_of),
+                     [](const Meaning&) { return true; });
 }
 
 } // namespace zengine::workshop

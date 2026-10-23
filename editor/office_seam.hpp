@@ -18,7 +18,7 @@
 #include "graphics/vocabulary.hpp"
 #include "surface/vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
-#include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_drawing.hpp"
 #include "workshop/pane_operation.hpp"
@@ -136,13 +136,6 @@ inline std::string file_name(const std::string& path) {
     return slash == std::string::npos ? path : path.substr(slash + 1);
 }
 
-/// The caret and selection a composition says beside its rows, as its picture stands them in
-/// them.
-inline ws::RowsCaret rows_caret(const ws::v2::PaneCaret& c) {
-    return ws::RowsCaret{c.row, c.column, c.sel_begin_row, c.sel_begin_col, c.sel_end_row,
-                         c.sel_end_col};
-}
-
 /// Whether two claims name one document as it stood: its path, epoch, convention, content,
 /// dirtiness and the operation that opened it.
 inline bool same_identity(const ws::EditorDocument& a, const ws::EditorDocument& b) {
@@ -168,8 +161,8 @@ inline std::string offer_refusal(const std::string& path, loom::JointRefusal why
 }
 
 /// A REFUSED PREPARATION, as one value: the operation, no, and the sentence.
-inline ws::SourcePrepared not_prepared(std::int64_t op, std::string refusal) {
-    ws::SourcePrepared refused;
+inline ws::v3::SourcePrepared not_prepared(std::int64_t op, std::string refusal) {
+    ws::v3::SourcePrepared refused;
     refused.op = op;
     refused.ok = false;
     refused.refusal = std::move(refusal);
@@ -572,6 +565,21 @@ public:
         return at == places_.end() ? std::nullopt : std::optional<ws::RowCell>(at->second);
     }
 
+    /// WHERE A POINT OF THE AREA FALLS ON THE ROWS DRAWN THERE: a drop's place.
+    ws::RowCell cell_at(std::int64_t x, std::int64_t y) const {
+        return ws::window_cell(x, y, rows(), columns(), window_.text());
+    }
+
+    /// The room a trial says the area will have, in the rows and columns the Editor composes for:
+    /// a line of the window's text and an advance of it, a cell each where text is a cell.
+    static ws::RowsRoom room_of(const ws::OpeningRoom& r) {
+        const bool type = r.cell_px > 0 && r.text_advance_px > 0 && r.text_line_px > 0;
+        return ws::RowsRoom{r.width, r.height,
+                            type ? graphics::TextMeasure{r.text_advance_px, r.text_line_px}
+                                 : graphics::TextMeasure{},
+                            !type};
+    }
+
     /// A POINTER MOMENT THE WINDOW SHOWING THE AREA GAVE IT, as that window's office, read onto
     /// the rows drawn there (`ws::WindowDrawing::pointer`). None for another area or speaker.
     template <class Moment>
@@ -586,8 +594,8 @@ public:
     /// THE EDITOR'S ROWS, DRAWN in the window that shows the area, as many as its room holds, the
     /// caret and the selection standing in them (`ws::rows_drawing`): what changed there since the
     /// drawing last sent, or the whole after a new room or a refused change.
-    void draw(loom::Mail& mail, const std::vector<surface::SurfaceTextRow>& said,
-              const std::vector<ws::PaneRowPart>& parts, const ws::RowsCaret& caret) {
+    void draw(loom::Mail& mail, const std::vector<ws::TextRow>& said,
+              const std::vector<ws::RowPart>& parts, const ws::RowsCaret& caret) {
         if (!in_window() || rows() <= 0 || columns() <= 0) {
             return;
         }

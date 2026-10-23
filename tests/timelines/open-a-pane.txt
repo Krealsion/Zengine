@@ -7,9 +7,10 @@ zengine.workshop -> painter  SurfaceCanvas v9  {width: 1800, height: 720, layers
 host -> zengine.test.hand  SeatDo v1  {}
 zengine.test.hand -> zengine.workshop as zengine.test.hand  PaneLaunchRequested v1  {office: "zengine.test.desk-gamma", pane: "gamma"}
 zengine.workshop -> zengine.test.hand  PaneLaunchAnswered v1  {office: "zengine.test.desk-gamma", pane: "gamma", opened: true, focused: true, refusal: ""}
-zengine.workshop -> zengine.test.desk-gamma as zengine.workshop  PaneRoom v1  {pane: "gamma", rows: 6, columns: 97}
 zengine.workshop -> painter  SurfaceText v1  {slot: "status", text: "[workshop] layout "Default" | 5 panes"}
 zengine.workshop -> painter  SurfaceCanvas v9  {width: 1800, height: 720, layers: [5]}
+zengine.workshop -> zengine.test.desk-gamma as zengine.workshop  PaneKeys v1  {pane: "gamma", here: true}
 host -> zengine.workshop  KeyPressed v2  {scancode: 0, name: "", modifiers: 0}
 zengine.workshop -> painter  SurfaceText v1  {slot: "status", text: "[workshop] layout "Default" | 5 panes"}
 zengine.workshop -> painter  SurfaceCanvas v9  {width: 1800, height: 720, layers: [5]}
+zengine.workshop -> zengine.test.desk-gamma as zengine.workshop  PaneKeys v1  {pane: "gamma", here: false}

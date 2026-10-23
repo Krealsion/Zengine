@@ -31,16 +31,14 @@ WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-04 — A derived condition stays derived
 
-LAW — A derived condition is never copied into the held set; its owner's next truth clears it with no retraction call, and a pane's refusal is that truth until content this host ACCEPTED replaces it.
+LAW — A derived condition is never copied into the held set; its owner's next truth clears it with no retraction call.
 
 MEANS
-- a room grant turns over the rows, `heard` and `awaiting`; the refusal is about the content;
-- so a weaver cannot un-say it by widening their window, and a re-offer does not either;
-- a canvas picture refused for what it holds is one, its last admitted picture marked `(update refused)`; at its corner the mark is Workshop's own chrome, which the pane view waits behind.
+- the project frontier is one while it waits, read from its owner each repaint and nothing after;
+- a pane's drawing a window refuses is no condition of this host's: the window tells its drawer (`DrawnRefused`), which says it in its own picture.
 
 DOES NOT MEAN
-- that the reason follows the room — it quotes the grant the refused content was judged against;
-- that a picture refused as late -- for a holder, a room or a number since replaced -- is said: its pane alone is answered.
+- that Workshop judges what a pane draws, or marks a refused drawing: it draws no pane's body.
 
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
@@ -145,32 +143,17 @@ overwritten"
 ranked by truth, and says how many it is not saying"
 
 ### WL-ATTN-04
-`workshop/panes.hpp` ExternalPane ExternalPane::refusal ExternalPane::refusal_why ProjectFrontier
-ExternalPane::clear_refusal
+`workshop/panes.hpp` ExternalPane ProjectFrontier
 `workshop/screen_pane_state.cpp` pane_state_of
 `workshop/screen_compose.cpp` paint
-`workshop/weave_external.cpp` refresh_external_rooms
-`workshop/weave_seam.cpp` judge_content
 `workshop/screen_attention.cpp` attention_conditions
 `workshop/attention.hpp` HeldConditions
 `workshop/weave.hpp` HostContext::frontier
 `workshop/weave_run.cpp` frontier_now
-`workshop/weave_canvas.cpp` admit_canvas_content WorkshopWeave::canvas_press
-WorkshopWeave::on_refused_mark
-`workshop/screen_external.cpp` paint_external refused_mark_cover
-`workshop/weave_desk_read.cpp` WorkshopWeave::drawn_reading
-`workshop/weave_operation.cpp` WorkshopWeave::drop_on_canvas WorkshopWeave::release_value_drag
-`workshop/screen.hpp` kExternalPictureRefused kExternalRefusedMark
+`workshop/pane_drawing.hpp` WindowDrawing
+`graphics/vocabulary.hpp` DrawnRefused
 `tests/test_workshop_host.cpp` "a derived condition enters and leaves attention with its subject"
 "the project frontier is a condition while it waits and nothing after"
-`tests/test_workshop_panes_seam.cpp` "a refusal stands until ACCEPTED CONTENT replaces it, a new
-room included"
-`tests/test_workshop_panes_canvas.cpp` "a canvas picture refused for what it holds is said in its
-pane and in Attention until a picture of the pane is admitted, and one that came late is answered to
-its pane alone"
-`tests/test_workshop_desk.cpp` "with pane titles hidden, a refused picture's mark is Workshop's own:
-the pane view waits while it covers the picture, a press on it reaches no provider and a right press
-opens Workshop's menu, and the picture beside it takes a press as before, a press held or not"
 
 ### WL-ATTN-05
 `workshop/screen_attention.cpp` attention_conditions

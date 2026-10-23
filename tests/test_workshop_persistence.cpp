@@ -3018,8 +3018,9 @@ TEST_CASE("a restored hidden-titles preference still shows which pane holds the 
     };
     // Hidden titles: the pane is bare...
     CHECK(shown_rows(kind).at(0).find("Seat @") == std::string::npos);
-    // ...until it takes the keyboard, when its identity auto-shows, mark and all.
-    press_body(r, kind);
+    // ...until it takes the keyboard, when its identity auto-shows, mark and all, once the press
+    // that moved the keys ends.
+    click_body(r, kind);
     REQUIRE(keyboard_pane(r.session().panes) == kind);
     CHECK(shown_rows(kind).at(0).rfind(std::string(kTypingHere) + "Seat @", 0) == 0);
 }

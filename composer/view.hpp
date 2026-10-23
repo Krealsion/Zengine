@@ -17,7 +17,7 @@
 
 #include "composer/draft.hpp"
 #include "graphics/role.hpp"
-#include "surface/vocabulary.hpp"
+#include "workshop/pane_rows.hpp"
 
 #include <zen/kind.hpp>
 #include <zen/schema.hpp>
@@ -75,7 +75,7 @@ struct RowMeaning {
 };
 
 struct RenderedRow {
-    surface::SurfaceTextRow row;
+    zengine::workshop::TextRow row;
     RowMeaning meaning;
 };
 
@@ -85,7 +85,7 @@ struct RenderedRow {
 /// value is edited or its row was cut; the medium draws it.
 struct ComposerView {
     std::vector<RenderedRow> rows;
-    std::int64_t caret_row = surface::kNoCaret;
+    std::int64_t caret_row = zengine::workshop::kNoCaret;
     std::int64_t caret_col = 0;
 };
 
@@ -109,7 +109,7 @@ inline std::string fit(std::string text, std::int64_t columns) {
     if (columns <= 0) {
         return {};
     }
-    // PaneContent is printable ASCII. Preserve the draft bytes; substitute only in
+    // A row is printable ASCII. Preserve the draft bytes; substitute only in
     // this preview so copied UTF-8 or control bytes cannot silence the whole pane.
     for (char& c : text) if (static_cast<unsigned char>(c) < 32 ||
                             static_cast<unsigned char>(c) > 126) c = '?';
@@ -220,10 +220,10 @@ inline std::int64_t value_capacity(const MessageDraft& draft, std::size_t which,
     return columns > fixed ? columns - fixed : 0;
 }
 
-/// One field row and where its caret stands in it, or `surface::kNoCaret`.
+/// One field row and where its caret stands in it, or `zengine::workshop::kNoCaret`.
 struct FieldRow {
     std::string text;
-    std::int64_t caret = surface::kNoCaret;
+    std::int64_t caret = zengine::workshop::kNoCaret;
 };
 
 /// One field row: its name, its declared type (the schema's own spelling, the only thing the
@@ -262,7 +262,7 @@ inline FieldRow field_row(const MessageDraft& draft, std::size_t which, bool cho
     const auto caret = static_cast<std::int64_t>(row.size() + (at <= shown.size() ? at : shown.size()));
     const std::string whole = row + shown + " ]";
     const std::string drawn = fit(whole, columns);
-    return {drawn, drawn.size() == whole.size() ? caret : surface::kNoCaret};
+    return {drawn, drawn.size() == whole.size() ? caret : zengine::workshop::kNoCaret};
 }
 
 inline std::string field_row_text(const MessageDraft& draft, std::size_t which, bool chosen,
@@ -316,9 +316,9 @@ inline std::string part_name(const Composing& c, const RowMeaning& m) {
     return std::string();
 }
 
-/// THE ROWS, for `PaneContent`. The meanings stay here.
-inline std::vector<surface::SurfaceTextRow> rows_of(const ComposerView& view) {
-    std::vector<surface::SurfaceTextRow> out;
+/// THE ROWS the pane draws. The meanings stay here.
+inline std::vector<zengine::workshop::TextRow> rows_of(const ComposerView& view) {
+    std::vector<zengine::workshop::TextRow> out;
     out.reserve(view.rows.size());
     for (const RenderedRow& r : view.rows) {
         out.push_back(r.row);
@@ -362,7 +362,7 @@ struct Sayer {
             means.under = under;
         }
         view.rows.push_back(RenderedRow{
-            surface::SurfaceTextRow{std::move(text), role, ground}, std::move(means)});
+            zengine::workshop::TextRow{std::move(text), role, ground}, std::move(means)});
     }
 };
 
@@ -483,7 +483,7 @@ inline ComposerView project(const Composing& c, std::int64_t rows, std::int64_t 
                 role = graphics::role::kAlert;
             }
             const FieldRow field = field_row(c.draft, which, chosen, editing, columns);
-            if (field.caret != surface::kNoCaret) {
+            if (field.caret != zengine::workshop::kNoCaret) {
                 view.caret_row = static_cast<std::int64_t>(view.rows.size());
                 view.caret_col = field.caret;
             }

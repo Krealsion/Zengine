@@ -28,7 +28,7 @@
 #include "component/text_box.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
+#include "workshop/pane_rows.hpp"
 
 #include "manuals/zengine.builder-pane.hpp" // this pane's manual, compiled in from its page
 
@@ -111,7 +111,6 @@ bool admissible(std::string_view text) {
 /// The sentence for a press that named a picture this pane has since replaced: a press is aimed
 /// at what a weaver could see, so rows that moved between the aim and the delivery are said,
 /// never spent on whatever slid into that place.
-constexpr const char* kMovedSentence = "the rows moved -- press again";
 
 // ---- What a published row, or a run of columns inside one, MEANS (component::RowMap) -------
 
@@ -750,13 +749,6 @@ public:
 
     // ---- The mouse: a press names a picture, a right press offers the pane's own rows ----
 
-    /// A PRESS ABOUT A PICTURE THE ROW MAP HAS REPLACED SINCE, or another room's, is refused in
-    /// words, never resolved against whatever row has since moved into its place (WL-DESK-14,
-    /// one pane over). A place reads back to the row and column a prose press named.
-    void fenced(loom::Mail& mail) {
-        notice_ = kMovedSentence;
-        say(mail);
-    }
 
     void press(const ws::RowPress& at, loom::Mail& mail) {
         const std::int64_t column = at.column;
@@ -1578,7 +1570,7 @@ private:
         if (meaning.kind != builder_row::kNone) {
             means = std::move(meaning);
         }
-        (void)room().push(surface::SurfaceTextRow{fitted(text), role},
+        (void)room().push(zengine::workshop::TextRow{fitted(text), role},
                           std::move(means)); // a row past the room names nothing
     }
 

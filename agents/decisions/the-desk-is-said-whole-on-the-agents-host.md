@@ -25,8 +25,9 @@ the agent's host: `AGENTS.md` first, in its own fixed words, then the guide and 
 **Alternatives considered.** - *Decoded cells as a reply's only bound* -- tried: a legal picture,
 its text at the canvas byte limit and 512 parts over it, fit one decoded value in one page past
 Loom's frame, and the channel refusing that frame failed, so a guest over the bridge never had the
-answer; case `"a picture at the canvas text limit under overlapping parts reads whole, each page and
-the desk read inside one reply's bytes"`. - *The picture as the agent's way of seeing* -- argued
+answer; case `"a picture of long words under a part a row, as many as a window keeps, reads whole,
+each page and the desk read inside one reply's bytes"` reads what a window can show of such a
+picture. - *The picture as the agent's way of seeing* -- argued
 against: it carries no names, parts, points or stamps, and it cannot be compared with the last
 reading. - *The grid written whole as the ordinary read* -- argued against: most of it is blank, and
 its cost grows with the window, not with what is said. - *The presentation rendered in Workshop's

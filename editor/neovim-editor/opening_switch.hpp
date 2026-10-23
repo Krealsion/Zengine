@@ -22,7 +22,7 @@
 #include "workshop/editor_handoff_vocabulary.hpp"
 #include "workshop/editor_switch_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
-#include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/persist.hpp"
 
 #include <zen/weave.hpp>
@@ -73,40 +73,19 @@ inline void NeovimEditorWeave::on(const ManagedOpenProgress&, loom::Mail&) {}
 /// candidate becomes what the pane shows only in `on_claim_published`. A Neovim holding the
 /// current buffer modified does not refuse: Neovim keeps it, loaded and modified, beside the new
 /// one -- unless `hidden` is off, which the showing then refuses in Neovim's words.
-inline void NeovimEditorWeave::on(const PrepareSourceRequested& asked, loom::Mail& mail) {
+inline void NeovimEditorWeave::on(const ws::v3::PrepareSourceRequested& asked, loom::Mail& mail) {
     if (!mail.authored_from_role(ws::kOpeningRole)) {
         return;
     }
-    (void)mail.answer(prepare(asked.op, asked.path, asked.rows, asked.columns, ws::PaneCanvasRoom{}, mail));
+    const ws::RowsRoom room = office::EditorWindow::room_of(asked.room);
+    (void)mail.answer(prepare(asked.op, asked.path, room.rows(), room.columns(), mail));
 }
 
-/// ...AS THIS PANE'S OWN PICTURE in the canvas room the trial reserved, for the rows and columns
-/// of its lattice, numbered as the first picture in that room.
-inline void NeovimEditorWeave::on(const ws::v2::PrepareSourceRequested& asked, loom::Mail& mail) {
-    if (!mail.authored_from_role(ws::kOpeningRole)) {
-        return;
-    }
-    const ws::CanvasRows lattice = ws::canvas_rows(asked.room);
-    const SourcePrepared p = prepare(asked.op, asked.path, lattice.rows, lattice.columns, asked.room, mail);
-    ws::v2::SourcePrepared prepared;
-    prepared.op = asked.op;
-    prepared.ok = p.ok;
-    prepared.refusal = p.refusal;
-    if (p.ok) {
-        prepared.generation = p.generation;
-        prepared.picture = ws::rows_picture(
-            asked.room, 1, p.rows, status_part(p.rows, lattice.columns),
-            ws::RowsCaret{p.caret_row, p.caret_col, p.sel_begin_row, p.sel_begin_col, p.sel_end_row,
-                          p.sel_end_col});
-    }
-    (void)mail.answer(prepared);
-}
-
-/// THE CANDIDATE PREPARED FOR `rows` BY `columns`, or refused in words: its rows and caret, and
-/// the generation offered for it.
-inline SourcePrepared NeovimEditorWeave::prepare(std::int64_t op, const std::string& asked_path,
-                                                 std::int64_t rows, std::int64_t columns,
-                                                 const ws::PaneCanvasRoom& room, loom::Mail& mail) {
+/// THE CANDIDATE PREPARED FOR `rows` BY `columns`, or refused in words: the generation offered
+/// for it.
+inline ws::v3::SourcePrepared NeovimEditorWeave::prepare(std::int64_t op, const std::string& asked_path,
+                                                         std::int64_t rows, std::int64_t columns,
+                                                         loom::Mail& mail) {
     if (holding_.active) {
         ++holding_.refused;
         return not_prepared(op, "the Editor is being switched -- " + asked_path +
@@ -135,15 +114,13 @@ inline SourcePrepared NeovimEditorWeave::prepare(std::int64_t op, const std::str
     next.path = path;
     next.rows = rows;
     next.columns = columns;
-    next.room = room;
     EditorDocument offered;
-    SourcePrepared prepared;
+    ws::v3::SourcePrepared prepared;
     prepared.op = op;
     if (!doc_path().empty() && doc_path() == path) {
         next.same_path = true;
         offered = identity_now();
         offered.opened_by = op;
-        compose_current(prepared, rows, columns);
     } else {
         const std::optional<mp::Value> r = lua_now(nv::lua::kPrepare,
                                                    nv::rpc::params(mp::Value::str(path),
@@ -174,7 +151,6 @@ inline SourcePrepared NeovimEditorWeave::prepare(std::int64_t op, const std::str
                 next.lines.push_back(l.as_str());
             }
         }
-        compose_preview(prepared, offered.path, next.lines, rows, columns);
     }
     const loom::JointResult offer = mail.offer(static_cast<std::uint64_t>(op), offered);
     if (!offer.ok) {
@@ -236,22 +212,11 @@ inline bool NeovimEditorWeave::on_claim_published(const EditorDocument& publishe
         }
         epoch_ = published.doc_epoch;
         opened_by_ = candidate_.op;
-        granted_ = true;
-        // A CANDIDATE COMPOSED AS A PICTURE brings the canvas room it was drawn for, whose
-        // pictures this pane numbers afresh; one composed as rows for a pane on a canvas leaves
-        // its room as it is, and the desk grants it another. Either way nothing aimed at the
-        // document it replaced counts.
-        if (candidate_.room.grant > 0) {
-            canvas_ = candidate_.room;
-            pictures_ = ws::CanvasPictures{};
-        } else {
-            pictures_.retire();
-        }
+        // THE CANDIDATE IS COMPOSED FOR THE ROOM THE TRIAL SAID, and drawn at the end of this
+        // delivery; nothing aimed at the document it replaced counts.
         pressed_ = 0;
-        if (candidate_.room.grant > 0 || canvas_.grant <= 0) {
-            rows_ = candidate_.rows;
-            columns_ = candidate_.columns;
-        }
+        rows_ = candidate_.rows;
+        columns_ = candidate_.columns;
         if (running()) {
             (void)host_->resize(screen_rows(), ui_cols(columns_));
         }

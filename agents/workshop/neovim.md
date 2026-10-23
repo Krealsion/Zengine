@@ -139,7 +139,7 @@ refusal writes nothing"
 
 ### WL-NVIM-02
 `editor/neovim/projection.hpp` project ascii_of
-`editor/neovim-editor/pane.cpp` compose say status_text take_room
+`editor/neovim-editor/pane.cpp` compose say status_text on(AreaRoom)
 `editor/neovim-editor/common.hpp` Preview
 `editor/neovim-editor/opening_switch.hpp` on_claim_published
 `editor/neovim/host.hpp` Host::flushes_at_answer
@@ -149,9 +149,7 @@ meaning" "the projection: Visual runs through the cursor cell, blockwise is the 
 item is the range" "every cell becomes one drawable byte, and the document itself is never touched"
 `tests/test_workshop_neovim.cpp` "standard to Neovim and back carries the unsaved document and its
 caret exactly, with Neovim editing between" "an open in Neovim shows the opened file's picture at
-the commitment, and no screen of the file it replaced after it" "a host that grants the Neovim
-editor no canvas is shown its rows and caret as prose, its presses reach nothing there, and its keys
-still reach Neovim" "Neovim's cursor on an empty line, and after blanks it typed, is drawn as every
+the commitment, and no screen of the file it replaced after it" "Neovim's cursor on an empty line, and after blanks it typed, is drawn as every
 caret is"
 
 ### WL-NVIM-03

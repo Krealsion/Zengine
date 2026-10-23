@@ -757,24 +757,6 @@ struct PaneGesture {
     std::optional<std::int64_t> met_y;
 };
 
-/// WHICH EDITABLE LINE A TEXT-SELECTION DRAG IS SWEEPING.
-// WL-TEXT-14 -- agents/workshop/text-box.md
-namespace text_drag_place {
-inline constexpr std::int64_t kNone = 0;
-// 1-4 were retired places; the one left keeps its number: session routing, never durable.
-/// An external pane's body: the press named a row of its granted room, and every motion until the
-/// release crosses as `PaneDragged`, resolved against that body at each motion.
-// WL-TEXT-14 -- agents/workshop/text-box.md
-inline constexpr std::int64_t kExternalPane = 5;
-} // namespace text_drag_place
-
-struct TextDrag {
-    bool active = false;
-    std::int64_t place = text_drag_place::kNone;
-    /// The pane a `kExternalPane` sweep belongs to, by handle, re-checked at every motion.
-    std::int64_t kind = kNoPaneKind;
-};
-
 /// HOW LONG A DOUBLE-CLICK MAY TAKE.
 // WL-PTR-01 -- agents/workshop/pointer.md; WL-TAB-10 -- agents/workshop/tab-run.md
 inline constexpr std::int64_t kDoubleClickMs = 400;
@@ -792,7 +774,7 @@ struct TabClickMemory {
 bool doubles_a_tab_click(const TabClickMemory& prior, std::size_t at,
                                 std::int64_t now_ms) noexcept;
 
-/// WHICH LAYOUT TAB A REORDER DRAG IS CARRYING -- the fourth gesture record.
+/// WHICH LAYOUT TAB A REORDER DRAG IS CARRYING -- the third gesture record.
 // WL-TAB-11 -- agents/workshop/tab-run.md
 struct LayoutTabDrag {
     bool active = false;
@@ -856,14 +838,11 @@ struct Session {
     PaneGesture pane_drag;
     /// The inspector's subject (`InspectedPane`): session, never persisted.
     InspectedPane inspected;
-    /// ...and the text selection their pointer is sweeping, if any. The third
-    /// gesture record, for the two records' own reason; see `TextDrag`.
-    TextDrag text_drag;
     /// ...and what their LAST press on a LAYOUT TAB named, so the next one can be a
     /// double-click. See `TabClickMemory`.
     TabClickMemory tab_click;
     /// ...and the layout tab their pointer is dragging along the run, if any. The
-    /// fourth gesture record, for the other three's own reason; see `LayoutTabDrag`.
+    /// third gesture record, for the other two's own reason; see `LayoutTabDrag`.
     LayoutTabDrag tab_drag;
     /// THE CLIPBOARD THIS WORKSHOP'S TEXT BOXES OPERATE ON — session in the plainest sense.
     // WL-TEXT-08 -- agents/workshop/text-box.md
@@ -1276,7 +1255,6 @@ inline constexpr const char* kPrefsWallKey = "workshop.prefs-refused";
 /// and this stands all run.
 inline constexpr const char* kSessionWallKey = "workshop.session-refused";
 inline constexpr const char* kLegacyShadowedKeyPrefix = "workshop.legacy-shadowed.";
-std::string pane_content_key(const PaneRef& ref);
 std::string pane_window_key(const PaneRef& ref);
 inline constexpr const char* kFrontierKey = "project.frontier-waiting";
 
@@ -1395,24 +1373,18 @@ inline constexpr std::int64_t kExternalHeaderRows = 1;
 std::int64_t external_title_rows(const Panes& panes, std::int64_t kind,
                                         bool titles_shown) noexcept;
 
-/// WHAT A PANE SAYS BEFORE ITS PROVIDER HAS SAID ANYTHING.
+/// WHAT A PANE'S FRAME SAYS IN ITS BODY, behind the pane's own area: `waiting for <name>` until the
+/// pane draws there and its ground covers the words, or `<name> draws in no window` for a pane
+/// whose office takes no room in a window.
 // WL-PANE-16 -- agents/workshop/panes-and-windows.md
-inline constexpr const char* kExternalWaiting = "(waiting for the provider)";
+inline constexpr const char* kExternalWaiting = "waiting for ";
+inline constexpr const char* kExternalNoWindow = " draws in no window";
 
-/// What a pane says after an update it could not keep: Workshop's sentence, echoing nothing of it.
-inline constexpr const char* kExternalRefused =
-    "(the last update did not fit this pane's room -- none of it was kept)";
-
-/// ...and after a picture it could not keep, which is refused for what it holds, never for its room.
-inline constexpr const char* kExternalPictureRefused =
-    "(the last picture was refused -- none of it was drawn)";
-
-/// What a picture still standing wears while a later one stands refused: it is older than what
-/// its pane last drew.
-inline constexpr const char* kExternalRefusedMark = "(update refused)";
+/// The words a pane's frame says in its body (`kExternalWaiting`, `kExternalNoWindow`).
+std::string external_body_words(const ExternalPane& pane, const std::string& name);
 
 /// THE BODY OF AN EXTERNAL PANE, RESOLVED ONCE. Where it is, and how much prose the
-/// ACTIVE medium fits in it -- which is exactly the budget the provider is granted.
+/// ACTIVE medium fits in it.
 struct ExternalBodyPlace {
     bool present = false;
     /// The body's bounds in canvas pixels, as the published region states them; `fit` is
@@ -1424,8 +1396,8 @@ struct ExternalBodyPlace {
     RegionFit fit{};
     /// The header rows this resolution reserved: the painter and the press path spend this number.
     std::int64_t header_rows = 0;
-    std::int64_t rows = 0;    ///< prose rows -- the `PaneRoom` budget's first half
-    std::int64_t columns = 0; ///< ...and its second
+    std::int64_t rows = 0;    ///< prose rows under the header
+    std::int64_t columns = 0; ///< ...and their columns
 };
 
 /// The body under an external pane's header row: the pane's whole bounds, less that row's
@@ -1433,16 +1405,8 @@ struct ExternalBodyPlace {
 ExternalBodyPlace external_body_place(const PixelRect& pane_rect, const Screen& sc,
                                              std::int64_t header_rows);
 
-/// WHAT A REFUSED PICTURE'S MARK COVERS, where no title row is drawn to carry it: the mark at the
-/// corner of the picture standing at `canvas`, where the medium paints it; nothing where a title
-/// row carries it or no refusal stands. While it covers, the pane view is refused, and a press or
-/// a carried item there is on Workshop's own chrome, so what is read and pressed is what a weaver
-/// sees.
-PixelRect refused_mark_cover(const ExternalPane& pane, const PixelRect& canvas, const Screen& sc,
-                             bool title_drawn);
-
-/// WHERE A PRESS LANDED IN AN EXTERNAL PANE'S GRANTED ROOM -- the `PaneRoom`
-/// lattice, and nothing a provider was not already handed.
+/// WHERE A PRESS LANDS IN AN EXTERNAL PANE'S BODY, as a row and column of the text the active
+/// medium fits there: the place the pane reads a press in its area back to.
 // WL-PRESS-04 -- agents/workshop/press-chain.md
 struct ExternalPressAt {
     bool named = false;
@@ -1450,7 +1414,7 @@ struct ExternalPressAt {
     std::int64_t column = 0; ///< ...and the column of the pressed cell, the character it shows
 };
 
-/// LOCATE A PRESS IN THE ROOM A PANE WAS GRANTED, from the rectangle the painter used.
+/// LOCATE A PRESS IN A PANE'S BODY, from the rectangle the painter used.
 ExternalPressAt external_press_at(const Panes& panes, const Setup& setup,
                                          const Screen& sc, std::int64_t kind, bool titles,
                                          std::int64_t space, std::int64_t x, std::int64_t y);
@@ -1492,13 +1456,11 @@ std::int64_t chrome_mark_at(const Panes& panes, const Setup& setup, const Screen
                             std::int64_t kind, bool titles, std::int64_t space, std::int64_t x,
                             std::int64_t y);
 
-/// ONE EXTERNAL PANE: Workshop's backdrop, Workshop's header, and ONE region carrying
-/// whatever that office last validly said inside the room it was granted. Without the body
-/// (`with_body` false), what a graphics window shows around an area the office draws itself: the
-/// header, and the line standing in for a body not yet heard or refused, in a region that tall.
+/// ONE EXTERNAL PANE'S FRAME: Workshop's backdrop, Workshop's header, and in its body the words
+/// that stand behind the pane's own area (`external_body_words`).
 void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64_t kind,
-                           const PixelRect& b, const Screen& sc, bool titles,
-                           std::int64_t chrome = kPaneChrome, bool with_body = true);
+                    const PixelRect& b, const Screen& sc, bool titles,
+                    std::int64_t chrome = kPaneChrome);
 
 // ---- The arrangement's affordance rings --------------------------------------------------
 
@@ -1813,7 +1775,7 @@ std::string pane_window_area(const Panes& panes, const RuntimePane& row);
 bool desk_in_front(const Session& s) noexcept;
 
 /// THE AREA OF WORKSHOP'S OWN A GRAPHICS WINDOW SHOWS A PANE'S FRAME IN, at the pane's own depth:
-/// its edge, its header and a body its office does not draw, just behind the pane's own area.
+/// its edge, its header and the words its body says, just behind the pane's own area.
 std::string pane_frame_area(std::int64_t kind);
 
 /// WORKSHOP'S DESK AS A GRAPHICS WINDOW DRAWS IT: what stands about the panes -- the arrangement's
@@ -1827,14 +1789,15 @@ struct WorkshopWindowDrawing {
 WorkshopWindowDrawing workshop_window_drawing(const Session& s);
 
 /// ONE PANE'S FRAME AS A GRAPHICS WINDOW DRAWS IT in `pane_frame_area(kind)`, placed over the
-/// pane's bounds (`at`): its edge and header over its ground, and its body where `own_area` is
-/// false, as the desk draws them. Empty for a pane the desk does not show.
+/// pane's bounds (`at`): its edge and header over its ground, and the words its body says behind
+/// the pane's own area (`external_body_words`), as the desk draws them. Empty for a pane the desk
+/// does not show.
 struct WorkshopFrameDrawing {
     graphics::Sketch sketch;
     PixelRect at;
 };
 
-WorkshopFrameDrawing workshop_frame_drawing(const Session& s, std::int64_t kind, bool own_area);
+WorkshopFrameDrawing workshop_frame_drawing(const Session& s, std::int64_t kind);
 
 /// THE PLANES A REPAINT LAYS ABOVE THE PICTURE -- the carried value, the guide marks -- as the
 /// overlay a graphics window shows in front of every pane's area (`kWorkshopOverlayArea`).

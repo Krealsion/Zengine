@@ -4,10 +4,10 @@
 #define ZENGINE_VIEW_VIEW_HPP
 
 // The view renderer: the behaviour of one participant the view host registers from a
-// description. It draws the description on its pane's canvas, and in the graphics window that
-// shows its area, against the latest value it was told, keeps focus, caret and field text as its
-// own, publishes an intent when a control is used, and shows a refusal answered to it. It holds
-// no business state; an owner in its process may pair a `Presenter`. Law: agents/view.md.
+// description. It draws the description in the graphics window that shows its area, against the
+// latest value it was told, keeps focus, caret and field text as its own, publishes an intent when
+// a control is used, and shows a refusal answered to it. It holds no business state; an owner in
+// its process may pair a `Presenter`. Law: agents/view.md.
 
 #include "view/description.hpp"
 
@@ -19,10 +19,10 @@
 #include "surface/pointing.hpp"
 #include "workshop/pane_canvas_drawing.hpp"
 #include "workshop/pane_canvas_text.hpp"
-#include "workshop/pane_canvas_vocabulary.hpp"
+#include "workshop/pane_picture.hpp"
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_drawing.hpp"
-#include "workshop/pane_parts.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
@@ -76,10 +76,10 @@ struct Hit {
     std::string element;
 };
 
-/// One picture as it was sent, with the map a press is read against, and which element drew each
+/// One picture as it was drawn, with the map a press is read against, and which element drew each
 /// rectangle and each run of text, by index: its id, or "" for the ground and the notice.
 struct Picture {
-    ws::PaneCanvasContent content;
+    ws::CanvasPicture content;
     std::vector<Hit> hits;
     std::vector<std::string> rects_by, texts_by;
     std::int64_t grain = 1;
@@ -171,30 +171,27 @@ inline component::TextBox field_box(const Presentation& p, const Element& e) {
 }
 
 /// The notice's rows beneath a view's size, in pixels: `kNoticeRows` lines of the medium's text.
-inline std::int64_t notice_band(const ws::PaneCanvasRoom& room) {
+inline std::int64_t notice_band(const ws::CanvasRoom& room) {
     const auto m = ws::canvas_text_metrics(room);
     return static_cast<std::int64_t>(kNoticeRows) * graphics::add_cells(m.line, 2 * m.inset);
 }
 
-/// The room a view is drawn in: its size and its notice rows beneath, within the room its pane
-/// was granted.
-inline ws::PaneCanvasRoom sized(const Description& d, ws::PaneCanvasRoom room) {
+/// The room a view is drawn in: its size and its notice rows beneath, within the room its area
+/// holds.
+inline ws::CanvasRoom sized(const Description& d, ws::CanvasRoom room) {
     room.width = std::min(room.width, d.width);
     room.height = std::min(room.height, d.height + notice_band(room));
     return room;
 }
 
 /// THE PICTURE: the description against what it was told, laid out in its size with its notice
-/// rows beneath, within its room, the rest of the room its ground. Its pixels are the canvas's;
+/// rows beneath, within its room, the rest of the room its ground. Its pixels are the window's;
 /// the medium floors them to its grain, so a terminal shows the same picture in cells, and each
 /// line is fitted to what the medium measures.
 inline Picture picture(const Description& d, const Told& told, const Presentation& p,
-                       const ws::PaneCanvasRoom& granted, std::int64_t number) {
+                       const ws::CanvasRoom& granted) {
     const auto room = sized(d, granted);
     Picture out;
-    out.content.pane = kPane;
-    out.content.grant = room.grant;
-    out.content.picture = number;
     out.grain = std::max<std::int64_t>(1, room.grain);
     out.content.rects.push_back({0, 0, granted.width, granted.height, ink::kGround});
     out.rects_by.emplace_back();
@@ -211,7 +208,7 @@ inline Picture picture(const Description& d, const Told& told, const Presentatio
     const auto free_rows = static_cast<std::size_t>(
         std::max<std::int64_t>(1, (room.height - bottom) / std::max<std::int64_t>(1, line)));
     // The notice carries other parties' words -- a shape's name, a refusal -- spelled in what a
-    // canvas draws.
+    // window draws.
     const auto notice_lines =
         wrap(ws::pane_text::ascii_spelling(p.notice.empty() ? waiting_sentence(d, told) : p.notice),
              columns, std::min(kNoticeRows, free_rows));
@@ -219,14 +216,14 @@ inline Picture picture(const Description& d, const Told& told, const Presentatio
         0, graphics::floor_div_px(room.height - line * static_cast<std::int64_t>(notice_lines.size()),
                                  out.grain) * out.grain);
     const auto text = [&](std::int64_t x, std::int64_t y, std::string words, std::int64_t role,
-                          ws::CanvasTextBox clip, std::int64_t caret = surface::kNoCaret) {
-        ws::PaneCanvasText run{x, y, std::move(words), role, caret};
+                          ws::CanvasTextBox clip, std::int64_t caret = ws::kNoCaret) {
+        ws::CanvasText run{x, y, std::move(words), role, caret};
         auto placed = ws::clip_canvas_text(run, clip, room);
         if (!placed.visible()) return;
         out.content.texts.push_back(placed.text);
         out.texts_by.push_back(by);
     };
-    const auto rect = [&](ws::PaneCanvasRect r) {
+    const auto rect = [&](ws::CanvasRect r) {
         out.content.rects.push_back(r);
         out.rects_by.push_back(by);
     };
@@ -259,7 +256,7 @@ inline Picture picture(const Description& d, const Told& told, const Presentatio
             const bool after = focused && !ws::canvas_text_metrics(granted).graphical &&
                                box.caret() >= box.text().size();
             text(x + inset, middle, caption + box.text() + (after ? " " : ""),
-                 focused ? ink::kAccent : ink::kFill, clip, focused ? caret : surface::kNoCaret);
+                 focused ? ink::kAccent : ink::kFill, clip, focused ? caret : ws::kNoCaret);
         } else if (e.kind == Kind::button) {
             rect({x, y, w, std::min(h, notice_y - y), ink::kMuted});
             text(x + inset, middle, e.label, ink::kAccent, clip);
@@ -281,7 +278,7 @@ inline Picture picture(const Description& d, const Told& told, const Presentatio
         const auto y = notice_y + line * static_cast<std::int64_t>(i);
         text(0, y, notice_lines[i], p.alert ? ink::kAlert : ink::kMuted, {0, y, room.width, line});
     }
-    // Rectangles a room cannot hold are dropped: a picture is admitted whole or not at all.
+    // Rectangles a room cannot hold are dropped.
     for (std::size_t i = out.content.rects.size(); i-- > 0;) {
         const auto& r = out.content.rects[i];
         if (r.w > 0 && r.h > 0) continue;
@@ -297,7 +294,7 @@ inline Picture picture(const Description& d, const Told& told, const Presentatio
 /// front, a focused number field's caret, `caret`, an accent bar at the left of the character it
 /// stands before. A run stands inset where the room is graphical. No name holds a `/`.
 inline graphics::Sketch sketch(const Description& d, const Picture& p,
-                               const ws::PaneCanvasRoom& room) {
+                               const ws::CanvasRoom& room) {
     const auto m = ws::canvas_text_metrics(room);
     graphics::Sketch out;
     std::map<std::string, std::size_t> named;
@@ -330,31 +327,15 @@ inline graphics::Sketch sketch(const Description& d, const Picture& p,
 
 /// A graphics window's room as a view draws in it: `width` by `height` pixels, in the window's unit
 /// and its text (`ws::canvas_window_room`).
-inline ws::PaneCanvasRoom window_room(std::int64_t width, std::int64_t height,
-                                      std::int64_t cell_px, const graphics::TextMeasure& text) {
-    return ws::canvas_window_room(kPane, width, height, cell_px, text);
+inline ws::CanvasRoom window_room(std::int64_t width, std::int64_t height, std::int64_t cell_px,
+                                  const graphics::TextMeasure& text) {
+    return ws::canvas_window_room(width, height, cell_px, text);
 }
 
 /// A view drawn for a graphics window's room, from what it was told and its presentation.
 inline graphics::Sketch sketch(const Description& d, const Told& told, const Presentation& p,
-                               const ws::PaneCanvasRoom& room) {
-    return sketch(d, picture(d, told, p, room, 1), room);
-}
-
-/// THE PICTURE AS IT IS SAID, each element named by its id over the place a press on it lands: a
-/// button whose intent the view declares as an action is `control:<id>`, the action it performs;
-/// every other element is `element:<id>`, the name the weaver gave it in the View Builder.
-inline ws::v6::PaneCanvasContent named(const Description& d, const Picture& p) {
-    ws::PartNames<ws::v2::PaneCanvasPart> parts;
-    for (const Hit& hit : p.hits) {
-        const bool control = d.intent(hit.element) != nullptr;
-        (void)parts.add(ws::v2::PaneCanvasPart{(control ? "control:" : "element:") + hit.element,
-                                               hit.x, hit.y, hit.w, hit.h, true});
-    }
-    const auto& c = p.content;
-    ws::v6::PaneCanvasContent out = ws::canvas_content_of(c);
-    out.parts = parts.take();
-    return out;
+                               const ws::CanvasRoom& room) {
+    return sketch(d, picture(d, told, p, room), room);
 }
 
 /// THE ACTIONS A VIEW DECLARES: one per intent, its id the button's element id, its label the
@@ -380,18 +361,18 @@ inline ws::v3::PaneActions actions_of(const Description& d) {
 }
 
 /// The picture a stopped view leaves: no element, and the sentence that it stopped.
-inline ws::PaneCanvasContent stopped_picture(const Description& d, const ws::PaneCanvasRoom& room,
-                                             std::int64_t number, const std::string& why) {
+inline ws::CanvasPicture stopped_picture(const Description& d, const ws::CanvasRoom& room,
+                                         const std::string& why) {
     Presentation p;
     p.notice = d.name + " " + why;
     Description bare;
     bare.name = d.name;
     bare.width = d.width;
     bare.height = d.height;
-    return picture(bare, {}, p, room, number).content;
+    return picture(bare, {}, p, room).content;
 }
 
-/// The body a view asks its pane for: its size in canvas pixels, never more than Workshop admits
+/// The body a view asks its pane for: its size in pixels, never more than Workshop admits
 /// (`workshop::kMaxPaneBodyPx`), with its notice rows beneath in the medium's own text; a view
 /// larger than its pane is drawn cut to the pane.
 inline ws::v3::PaneOffered offered(const Description& d) {
@@ -413,9 +394,6 @@ inline loom::Grant view_grant(const Description& d) {
         grant.allow_to_role(name, version, kWorkshopRole);
     };
     to_workshop(ws::v3::PaneOffered::zen_name, ws::v3::PaneOffered::zen_version);
-    to_workshop(ws::PaneContent::zen_name, ws::PaneContent::zen_version);
-    to_workshop(ws::PaneCanvasContent::zen_name, ws::PaneCanvasContent::zen_version);
-    to_workshop(ws::v6::PaneCanvasContent::zen_name, ws::v6::PaneCanvasContent::zen_version);
     to_workshop(ws::v3::PaneActions::zen_name, ws::v3::PaneActions::zen_version);
     to_workshop(ws::PaneEscapeUnspent::zen_name, ws::PaneEscapeUnspent::zen_version);
     to_workshop(ws::PanePassRequested::zen_name, ws::PanePassRequested::zen_version);
@@ -462,7 +440,7 @@ public:
     /// button `id`: its code run, true when it has code for one. An owner that holds a
     /// `graphics::Canvas` draws the one, in the room its canvas says, and answers
     /// `graphics::ActionRequested` with the other.
-    graphics::Sketch sketch(const ws::PaneCanvasRoom& room) const;
+    graphics::Sketch sketch(const ws::CanvasRoom& room) const;
     bool act(std::string_view id, loom::Bus& bus);
 
     /// Asks the paired view to draw what it was told, as its host asks: from host code, not from
@@ -526,7 +504,6 @@ public:
     const Description& description() const noexcept { return description_; }
     const Told& told() const noexcept { return told_; }
     const Presentation& presentation() const noexcept { return presentation_; }
-    const ws::PaneCanvasRoom& room() const noexcept { return room_; }
 
     /// HOST AUTHORITY: a description at the same shapes, taken in place. Field text, focus and
     /// what it was told stay; a field it no longer holds is forgotten.
@@ -540,24 +517,17 @@ public:
             const auto* e = description_.element(*presentation_.focus);
             if (!e || e->kind != Kind::number) presentation_.focus.reset();
         }
-        pictures_.clear();
+        window_picture_.reset();
     }
 
-    /// HOST AUTHORITY: the picture this view leaves when it stops, in the room it holds now, or
-    /// none when it holds no canvas.
-    std::optional<ws::PaneCanvasContent> farewell(const std::string& why) {
-        if (room_.grant <= 0 || room_.width <= 0 || room_.height <= 0) return std::nullopt;
-        return stopped_picture(description_, room_, ++picture_number_, why);
-    }
-
-    /// HOST AUTHORITY: the same farewell for the window that shows its area, drawn whole with no
-    /// action, and that window's office; none when no window shows it.
+    /// HOST AUTHORITY: the picture this view leaves when it stops, for the window that shows its
+    /// area, drawn whole with no action, and that window's office; none when no window shows it.
     std::optional<std::pair<std::string, graphics::Drawn>> window_farewell(const std::string& why) const {
         if (!window_.shown() || window_.width() <= 0 || window_.height() <= 0) return std::nullopt;
         const auto room =
             window_room(window_.width(), window_.height(), window_.cell_px(), window_.text());
         Picture last;
-        last.content = stopped_picture(description_, room, 1, why);
+        last.content = stopped_picture(description_, room, why);
         last.rects_by.resize(last.content.rects.size());
         last.texts_by.resize(last.content.texts.size());
         const auto drawn = sketch(description_, last, room);
@@ -570,9 +540,7 @@ public:
         for (auto s : {loom::schema_of<loom::Refused>(), loom::schema_of<detail::ViewStart>(),
                        loom::schema_of<detail::ViewRedraw>(), loom::schema_of<graphics::AreaRoom>(),
                        loom::schema_of<graphics::DrawnRefused>(), loom::schema_of<graphics::ActionRequested>(),
-                       loom::schema_of<ws::PaneCatalogRequested>(), loom::schema_of<ws::PaneRoom>(),
-                       loom::schema_of<ws::PaneCanvasRoom>(), loom::schema_of<ws::PaneCanvasPointer>(),
-                       loom::schema_of<ws::PaneCanvasRejected>(), loom::schema_of<ws::PaneKey>(),
+                       loom::schema_of<ws::PaneCatalogRequested>(), loom::schema_of<ws::PaneKey>(),
                        loom::schema_of<ws::PaneTextInput>(), loom::schema_of<ws::PaneRevealAnswered>(),
                        loom::schema_of<ws::PaneActionRequested>(), loom::schema_of<ws::ActionsJudged>(),
                        loom::schema_of<input::KeyPressed>(), loom::schema_of<input::TextEntered>(),
@@ -584,9 +552,7 @@ public:
 
     std::vector<std::shared_ptr<const loom::Schema>> emitted_schemas() const override {
         auto out = description_.says();
-        for (auto s : {loom::schema_of<ws::v3::PaneOffered>(), loom::schema_of<ws::PaneContent>(),
-                       loom::schema_of<ws::PaneCanvasContent>(), loom::schema_of<ws::v6::PaneCanvasContent>(),
-                       loom::schema_of<ws::v3::PaneActions>(),
+        for (auto s : {loom::schema_of<ws::v3::PaneOffered>(), loom::schema_of<ws::v3::PaneActions>(),
                        loom::schema_of<ws::PaneEscapeUnspent>(),
                        loom::schema_of<ws::PanePassRequested>(), loom::schema_of<ws::PaneRevealRequested>(),
                        loom::schema_of<graphics::Drawn>(), loom::schema_of<graphics::RoomAsked>()})
@@ -615,7 +581,7 @@ public:
             // THE ROOM, from the window that shows its area, as that window's office: a window, an
             // incarnation or a size it has not drawn in holds none of its drawing, so it goes whole.
             loom::Mail mail(bus, in, self_);
-            if (window_.room(loom::from_value<graphics::AreaRoom>(in.payload), mail)) show_window(bus);
+            if (window_.room(loom::from_value<graphics::AreaRoom>(in.payload), mail)) show(bus);
             return;
         }
         if (is(loom::schema_of<graphics::DrawnRefused>())) {
@@ -627,12 +593,12 @@ public:
             if (!window_.refused(refused, mail) || !window_.refused_whole()) return;
             presentation_.notice = "the window refused this view: " + refused.reason;
             presentation_.alert = true;
-            show_workshop(bus);
+            show(bus);
             return;
         }
         if (is(loom::schema_of<graphics::ActionRequested>())) {
-            // A PRESS IN THE WINDOW on a button the picture last drawn there names, asked by that
-            // window's office, is used as a press on Workshop's canvas is.
+            // A PRESS ON A BUTTON the picture last drawn in the window names, asked by that
+            // window's office for an area placed deaf to the pointer, is used as a press on it is.
             const auto asked = loom::from_value<graphics::ActionRequested>(in.payload);
             const loom::Mail mail(bus, in, self_);
             if (!window_.from_window(asked.area, mail) || window_actions_.count(asked.action) == 0)
@@ -645,12 +611,12 @@ public:
         }
         if (is(loom::schema_of<graphics::AreaButtonChanged>())) {
             // A PRESS IN THE WINDOW THAT SHOWS ITS AREA, as that window's office, read against the
-            // picture last drawn there as a press on Workshop's canvas is read against its own.
+            // picture last drawn there.
             const auto b = loom::from_value<graphics::AreaButtonChanged>(in.payload);
             const loom::Mail mail(bus, in, self_);
             if (!b.pressed || !window_.from_window(b.area, mail) || !window_picture_) return;
             if (b.button == 3) {
-                say(bus, ws::PanePassRequested{kPane}, in.correlation); // Workshop's, as on its canvas
+                say(bus, ws::PanePassRequested{kPane}, in.correlation); // Workshop's own pane menu
             } else if (b.button == 1) {
                 left_press(*window_picture_, b.x, b.y, bus);
             }
@@ -698,24 +664,6 @@ public:
         if (!workshop) return;
         if (is(loom::schema_of<ws::PaneCatalogRequested>())) {
             offer(bus);
-        } else if (is(loom::schema_of<ws::PaneCanvasRoom>())) {
-            const auto room = loom::from_value<ws::PaneCanvasRoom>(in.payload);
-            if (room.pane != kPane) return;
-            room_ = room;
-            pictures_.clear();
-            show(bus);
-        } else if (is(loom::schema_of<ws::PaneRoom>())) {
-            const auto room = loom::from_value<ws::PaneRoom>(in.payload);
-            if (room.pane != kPane) return;
-            rows_ = room.rows;
-            columns_ = room.columns;
-            show(bus);
-        } else if (is(loom::schema_of<ws::PaneCanvasRejected>())) {
-            const auto rejected = loom::from_value<ws::PaneCanvasRejected>(in.payload);
-            if (rejected.pane == kPane && rejected.grant == room_.grant) {
-                presentation_.notice = "drawing rejected: " + rejected.reason;
-                presentation_.alert = true;
-            }
         } else if (is(loom::schema_of<ws::PaneRevealAnswered>())) {
             const auto answer = loom::from_value<ws::PaneRevealAnswered>(in.payload);
             if (answer.pane == kPane && !answer.seated) {
@@ -723,8 +671,6 @@ public:
                 presentation_.alert = true;
                 show(bus);
             }
-        } else if (is(loom::schema_of<ws::PaneCanvasPointer>())) {
-            pointer(loom::from_value<ws::PaneCanvasPointer>(in.payload), in, bus);
         } else if (is(loom::schema_of<ws::PaneKey>())) {
             key(loom::from_value<ws::PaneKey>(in.payload), in, bus);
         } else if (is(loom::schema_of<ws::PaneActionRequested>())) {
@@ -783,18 +729,13 @@ private:
         return presentation_.fields.emplace(id, field_box(presentation_, *e)).first->second;
     }
 
-    /// SHOW WHAT IT HOLDS NOW, wherever it stands: Workshop's pane and its area's window.
+    /// SHOW WHAT IT HOLDS NOW in the window that shows its area: what changed there (nothing when
+    /// nothing did), or the picture whole (`ws::WindowDrawing`). The picture is kept, so a press
+    /// there is read against it.
     void show(loom::Bus& bus) {
-        show_workshop(bus);
-        show_window(bus);
-    }
-
-    /// The window that shows its area is sent what changed there (nothing when nothing did), or
-    /// the picture whole (`ws::WindowDrawing`).
-    void show_window(loom::Bus& bus) {
         if (!window_.shown() || window_.width() <= 0 || window_.height() <= 0) return;
         const auto room = window_room(window_.width(), window_.height(), window_.cell_px(), window_.text());
-        window_picture_ = picture(description_, told_, presentation_, room, 1);
+        window_picture_ = picture(description_, told_, presentation_, room);
         const auto drawn = sketch(description_, *window_picture_, room);
         window_actions_.clear();
         for (const auto& record : drawn.records()) window_actions_.insert(record.action);
@@ -804,36 +745,8 @@ private:
         window_.draw(drawn, mail);
     }
 
-    void show_workshop(loom::Bus& bus) {
-        if (room_.grant > 0 && room_.width > 0 && room_.height > 0) {
-            auto current = picture(description_, told_, presentation_, room_, ++picture_number_);
-            say(bus, named(description_, current));
-            pictures_.push_back(std::move(current));
-            while (pictures_.size() > 8) pictures_.pop_front();
-        } else if (rows_ > 0 && columns_ > 0) {
-            std::string row = description_.name + " draws on a canvas-capable Workshop";
-            if (static_cast<std::int64_t>(row.size()) > columns_) row.resize(static_cast<std::size_t>(columns_));
-            say(bus, ws::PaneContent{kPane, {surface::SurfaceTextRow{row, ink::kMuted}}});
-        }
-    }
-
-    void pointer(const ws::PaneCanvasPointer& event, const loom::Message& in, loom::Bus& bus) {
-        if (event.pane != kPane || event.grant != room_.grant || event.phase != ws::canvas_pointer::kPress)
-            return;
-        if (event.button == 3) {
-            say(bus, ws::PanePassRequested{kPane}, in.correlation);
-            return;
-        }
-        if (event.button != 1) return;
-        const auto pictured = std::find_if(pictures_.begin(), pictures_.end(), [&](const auto& p) {
-            return p.content.picture == event.picture;
-        });
-        if (pictured == pictures_.end()) return;
-        left_press(*pictured, event.x, event.y, bus);
-    }
-
-    /// A LEFT PRESS AT `x`, `y` of `pictured`, on Workshop's canvas or in the window that shows its
-    /// area: a number field focused, a button used, or the focus taken away.
+    /// A LEFT PRESS AT `x`, `y` of `pictured`, in the window that shows its area: a number field
+    /// focused, a button used, or the focus taken away.
     void left_press(const Picture& pictured, std::int64_t x, std::int64_t y, loom::Bus& bus) {
         const auto* hit = pictured.hit(x, y);
         const auto* e = hit ? description_.element(hit->element) : nullptr;
@@ -949,9 +862,6 @@ private:
     loom::WeaveId self_{};
     Told told_;
     Presentation presentation_;
-    ws::PaneCanvasRoom room_;
-    std::int64_t rows_ = 0, columns_ = 0, picture_number_ = 0;
-    std::deque<Picture> pictures_;
     std::deque<std::uint64_t> said_;
     std::uint64_t correlation_ = 0;
     component::Clipboard clipboard_;
@@ -1048,7 +958,7 @@ inline std::optional<std::string> Presenter::run(const Element& button, loom::Bu
     return std::string();
 }
 
-inline graphics::Sketch Presenter::sketch(const ws::PaneCanvasRoom& room) const {
+inline graphics::Sketch Presenter::sketch(const ws::CanvasRoom& room) const {
     const Description* d = description();
     return d ? view::sketch(*d, told_, {}, room) : graphics::Sketch{};
 }

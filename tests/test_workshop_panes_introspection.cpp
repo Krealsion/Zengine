@@ -29,7 +29,7 @@
 
 TEST_CASE("the arrangement's summary is DERIVED from the rows it is printed over") {
     const ws::ResolvedArrangement said = shaped_arrangement();
-    const std::vector<surface::SurfaceTextRow> rows = intro::project_arrangement(said, 40, 80);
+    const std::vector<TextRow> rows = intro::project_arrangement(said, 40, 80);
     REQUIRE_FALSE(rows.empty());
 
     // EXACT CARDINALITY, NEVER A PERCENTAGE. Four artifacts, all performed, two of
@@ -49,7 +49,7 @@ TEST_CASE("a partial arrangement cannot read as a complete one") {
     said.artifacts[2].weave = 0;
     said.artifacts[3].state = ws::kAuthoredToken;
     said.artifacts[3].weave = 0;
-    const std::vector<surface::SurfaceTextRow> rows = intro::project_arrangement(said, 40, 80);
+    const std::vector<TextRow> rows = intro::project_arrangement(said, 40, 80);
     REQUIRE_FALSE(rows.empty());
     CHECK(rows[0].text == "2 of 4 artifacts resolved -- 1 providers, 1 weaves");
     // ...and the two unresolved rows say so where a weaver reads them, IN TWO DIFFERENT
@@ -75,7 +75,7 @@ TEST_CASE("an unavailable optional row reads as settled, with the owner's reason
     said.artifacts[2].next = "make it available (build it), then relaunch Workshop";
     said.artifacts[2].provider.clear();
     said.artifacts[2].weave = 0;
-    const std::vector<surface::SurfaceTextRow> rows = intro::project_arrangement(said, 40, 80);
+    const std::vector<TextRow> rows = intro::project_arrangement(said, 40, 80);
     REQUIRE_FALSE(rows.empty());
     CHECK(rows[0].text == "3 of 4 artifacts resolved, 1 unavailable -- 1 providers, 2 weaves");
     const std::int64_t gone = row_with(rows, intro::kUnavailableRow);
@@ -98,7 +98,7 @@ TEST_CASE("a project still coming up shows LOADING, and it is not an alert") {
     said.artifacts[2].weave = 0;
     said.artifacts[3].state = ws::kAuthoredToken;
     said.artifacts[3].weave = 0;
-    const std::vector<surface::SurfaceTextRow> rows = intro::project_arrangement(said, 40, 80);
+    const std::vector<TextRow> rows = intro::project_arrangement(said, 40, 80);
     REQUIRE_FALSE(rows.empty());
 
     // EXACT COUNTS, AND NOT A PERCENTAGE OR A BAR. One of four has resolved; the rest
@@ -113,7 +113,7 @@ TEST_CASE("a project still coming up shows LOADING, and it is not an alert") {
 }
 
 TEST_CASE("AUTHORED and RESOLVED are two labelled rows, and never one") {
-    const std::vector<surface::SurfaceTextRow> rows =
+    const std::vector<TextRow> rows =
         intro::project_arrangement(shaped_arrangement(), 40, 80);
     const std::vector<std::string> text = texts_of(rows);
 
@@ -153,7 +153,7 @@ TEST_CASE("one artifact is ONE block, however many surfaces it participates as")
 }
 
 TEST_CASE("a provider-only artifact is visible and wears no weave") {
-    const std::vector<surface::SurfaceTextRow> rows =
+    const std::vector<TextRow> rows =
         intro::project_arrangement(shaped_arrangement(), 40, 80);
     const std::vector<std::string> text = texts_of(rows);
     const std::int64_t at = row_with(rows, "zengine-operators-basic");
@@ -177,7 +177,7 @@ TEST_CASE("a provider's name for itself is drawn on its resolved row in what a r
     // No provider this tree builds declares such a name, so the answer is a value here.
     ws::ResolvedArrangement said = shaped_arrangement();
     said.artifacts[0].provider = "zengine.operators.b\xC3\xA1sic";
-    const std::vector<surface::SurfaceTextRow> rows = intro::project_arrangement(said, 40, 80);
+    const std::vector<TextRow> rows = intro::project_arrangement(said, 40, 80);
     const std::vector<std::string> text = texts_of(rows);
     const std::int64_t at = row_with(rows, "zengine-operators-basic");
     REQUIRE(at >= 0);
@@ -193,7 +193,7 @@ TEST_CASE("a provider's name for itself is drawn on its resolved row in what a r
 }
 
 TEST_CASE("a weave-only artifact is visible and wears no provider") {
-    const std::vector<surface::SurfaceTextRow> rows =
+    const std::vector<TextRow> rows =
         intro::project_arrangement(shaped_arrangement(), 40, 80);
     const std::vector<std::string> text = texts_of(rows);
     const std::int64_t at = row_with(rows, "zengine-composer");
@@ -214,13 +214,13 @@ TEST_CASE("an artifact BLOCK is shown whole or counted, never half") {
     // not apply and the accounting still holds: there is no list, no note and no
     // marker -- and the HEADING states the population, so nothing is hidden without
     // being counted even there.
-    const std::vector<surface::SurfaceTextRow> floor = intro::project_arrangement(said, 1, 60);
+    const std::vector<TextRow> floor = intro::project_arrangement(said, 1, 60);
     REQUIRE(floor.size() == 1);
     CHECK(floor[0].text.rfind("4 of 4 artifacts", 0) == 0);
 
     // ...AND FROM TWO ROWS UP, SHOWING PART OF A LIST OBLIGES SAYING HOW MUCH WAS HIDDEN.
     for (std::int64_t rows = 2; rows <= 24; ++rows) {
-        const std::vector<surface::SurfaceTextRow> shown =
+        const std::vector<TextRow> shown =
             intro::project_arrangement(said, rows, 60);
         CHECK(static_cast<std::int64_t>(shown.size()) <= rows);
         const std::vector<std::string> text = texts_of(shown);
@@ -254,7 +254,7 @@ TEST_CASE("the population bound is reserved before the list gets a second row") 
     // artifacts` beside a running Builder would otherwise be right to conclude the Builder is not
     // running.
     for (std::int64_t rows = 3; rows <= 30; ++rows) {
-        const std::vector<surface::SurfaceTextRow> shown =
+        const std::vector<TextRow> shown =
             intro::project_arrangement(said, rows, 70);
         CHECK_MESSAGE(row_with(shown, intro::kNotAuthored) >= 0, "rows=", rows);
     }
@@ -263,12 +263,12 @@ TEST_CASE("the population bound is reserved before the list gets a second row") 
     // row left after the heading and it goes to the list -- a pane showing only its own
     // small print has stopped being a view of anything. What that one row can carry
     // here is not a block, so it carries the count of what is hidden.
-    const std::vector<surface::SurfaceTextRow> two = intro::project_arrangement(said, 2, 70);
+    const std::vector<TextRow> two = intro::project_arrangement(said, 2, 70);
     REQUIRE(two.size() == 2);
     CHECK(two[1].text == "  ... 4 more");
     // ...and at a ONE-row body there is no list and no note, and the population is
     // still stated: the heading is the floor of the accounting.
-    const std::vector<surface::SurfaceTextRow> floor = intro::project_arrangement(said, 1, 70);
+    const std::vector<TextRow> floor = intro::project_arrangement(said, 1, 70);
     REQUIRE(floor.size() == 1);
     CHECK(floor[0].text.rfind("4 of 4 artifacts", 0) == 0);
 }
@@ -276,11 +276,11 @@ TEST_CASE("the population bound is reserved before the list gets a second row") 
 TEST_CASE("the plan line is spent only out of genuine slack") {
     const ws::ResolvedArrangement said = shaped_arrangement();
     // A pane that had to window its own project spends that row on the project.
-    const std::vector<surface::SurfaceTextRow> tight = intro::project_arrangement(said, 8, 70);
+    const std::vector<TextRow> tight = intro::project_arrangement(said, 8, 70);
     CHECK(row_with(tight, "plan: ") == -1);
     CHECK(row_with(tight, "more") >= 0);
     // ...and one with room over says where the authored rows came from.
-    const std::vector<surface::SurfaceTextRow> roomy = intro::project_arrangement(said, 30, 70);
+    const std::vector<TextRow> roomy = intro::project_arrangement(said, 30, 70);
     const std::int64_t at = row_with(roomy, "plan: default-load-plan.json");
     REQUIRE(at >= 0);
     CHECK(roomy[static_cast<std::size_t>(at)].role == gfx::role::kMuted);
@@ -292,10 +292,10 @@ TEST_CASE("every arrangement projection fits the room it was given") {
     const ws::ResolvedArrangement said = shaped_arrangement();
     for (std::int64_t rows = 0; rows <= 26; ++rows) {
         for (std::int64_t columns = 0; columns <= 90; columns += 3) {
-            const std::vector<surface::SurfaceTextRow> shown =
+            const std::vector<TextRow> shown =
                 intro::project_arrangement(said, rows, columns);
             REQUIRE(static_cast<std::int64_t>(shown.size()) <= (rows < 0 ? 0 : rows));
-            for (const surface::SurfaceTextRow& row : shown) {
+            for (const TextRow& row : shown) {
                 REQUIRE(static_cast<std::int64_t>(row.text.size()) <= columns);
             }
         }
@@ -304,7 +304,7 @@ TEST_CASE("every arrangement projection fits the room it was given") {
 
 TEST_CASE("an empty arrangement is an observed zero, and says what it is not") {
     ws::ResolvedArrangement empty;
-    const std::vector<surface::SurfaceTextRow> shown = intro::project_arrangement(empty, 10, 60);
+    const std::vector<TextRow> shown = intro::project_arrangement(empty, 10, 60);
     REQUIRE_FALSE(shown.empty());
     CHECK(shown[0].text == "0 of 0 artifacts resolved -- 0 providers, 0 weaves");
     CHECK(row_with(shown, intro::kNotAuthored) >= 0);
@@ -806,7 +806,7 @@ TEST_CASE("every projection fits the room it was given") {
             for (std::int64_t columns = 0; columns <= 90; columns += 3) {
                 const intro::PowersView view = intro::project_powers_ui(ui, rows, columns);
                 REQUIRE(static_cast<std::int64_t>(view.rows.size()) <= rows);
-                for (const surface::SurfaceTextRow& row : view.rows) {
+                for (const TextRow& row : view.rows) {
                     REQUIRE(static_cast<std::int64_t>(row.text.size()) <= columns);
                 }
                 // AND THE MAP IS PARALLEL TO WHAT WAS DRAWN, always: a span naming a row
@@ -917,47 +917,6 @@ TEST_CASE("one place means one thing, and the map is the projection read backwar
     const std::int64_t omission = row_with_text(texts_of(windowed.rows), "more below");
     REQUIRE(omission >= 0);
     CHECK(intro::target_at(windowed, omission, 0).control == intro::powers_control::kNone);
-}
-
-TEST_CASE("two lists of powers are two press meanings whatever their identities hold") {
-    // ONE POWER WHOSE IDENTITY SPELLS A SECOND PLACE, and two powers in those places: said one
-    // place to a line they read alike, and a press aimed at the first would select `p` in the
-    // second.
-    const std::int64_t entry = intro::powers_control::kEntry;
-    intro::PowersView one;
-    one.spans.push_back(intro::PowersSpan{1, 2, 20, entry,
-                                          "p\n2 2 20 " + std::to_string(entry) + " q"});
-    intro::PowersView two;
-    two.spans.push_back(intro::PowersSpan{1, 2, 20, entry, "p"});
-    two.spans.push_back(intro::PowersSpan{2, 2, 20, entry, "q"});
-    CHECK(intro::press_meaning(one) != intro::press_meaning(two));
-    // ...nor when the identity holds what ends one place and begins the next.
-    intro::PowersView three;
-    three.spans.push_back(intro::PowersSpan{1, 2, 20, entry,
-                                            "p;2 2 20 " + std::to_string(entry) + " q"});
-    CHECK(intro::press_meaning(three) != intro::press_meaning(two));
-    // ...and a list is one meaning however often it is said.
-    CHECK(intro::press_meaning(two) == intro::press_meaning(two));
-}
-
-TEST_CASE("two lists of loaded weaves are two press meanings whatever their names and roles hold") {
-    // A NAME OR A ROLE HOLDING WHAT ENDS ONE WEAVE AND BEGINS THE NEXT, and one weave under another
-    // role: said weave by weave each pair reads alike, and a press aimed at the first would select
-    // what the second shows, or publish a role its row never showed.
-    const auto meaning = [](const std::vector<intro::LoadedWeave>& weaves) {
-        return intro::press_meaning(intro::project_loaded(weaves, 8, 46));
-    };
-    const std::vector<intro::LoadedWeave> joined{{"a;b", "test.one"}};
-    const std::vector<intro::LoadedWeave> apart{{"a", "test.one"}, {"b", "test.one"}};
-    CHECK(meaning(joined) != meaning(apart));
-    const std::vector<intro::LoadedWeave> in_role{{"a", "r;1:b"}};
-    const std::vector<intro::LoadedWeave> beside{{"a", "r"}, {"b", ""}};
-    CHECK(meaning(in_role) != meaning(beside));
-    const std::vector<intro::LoadedWeave> one_role{{"a", "test.one"}};
-    const std::vector<intro::LoadedWeave> other_role{{"a", "test.two"}};
-    CHECK(meaning(one_role) != meaning(other_role));
-    // ...and a list is one meaning however often it is said.
-    CHECK(meaning(apart) == meaning(apart));
 }
 
 TEST_CASE("a control the width cut is not a target") {
@@ -1462,8 +1421,8 @@ TEST_CASE("the Arrangement pane shows what THIS host actually resolved") {
 TEST_CASE("the Project pane spells the words a plan and its loader carry, and its picture is "
           "drawn") {
     // A ROLE, A STEM, THE LOADER'S REFUSAL AND THE PLAN'S PATH, each holding a letter no canvas
-    // draws, through the real door. One such byte refuses a whole picture; each is drawn as one
-    // `?` per character, and the picture is admitted.
+    // draws, through the real door: each is drawn as one `?` per character, and the picture is
+    // drawn in the pane's area.
     PaneRig r;
     r.mount_workshop();
     load::LoadPlan plan = pane_plan();
@@ -1494,9 +1453,7 @@ TEST_CASE("the Project pane spells the words a plan and its loader carry, and it
 
     const ExternalPane* pane = r.session().panes.external_pane(kind);
     REQUIRE(pane != nullptr);
-    CAPTURE(pane->refusal_why);
-    CHECK(pane->refusal.empty());
-    CHECK(pane->canvas.heard);
+    CHECK(shows_canvas(*pane));
     const std::vector<std::string> shown = pane_rows(r, kind);
     REQUIRE_FALSE(shown.empty());
     CHECK(shown[0] == "3 of 4 artifacts resolved, 1 unavailable -- 1 providers, 2 weaves");
@@ -1543,8 +1500,8 @@ TEST_CASE("a provider-only artifact is in Arrangement and NOT in Loaded") {
 
 TEST_CASE("the Loaded pane spells a weave's name and role, and its picture is drawn") {
     // THE KERNEL'S MAP AS IT CAME: a library name and a role each holding a letter no canvas
-    // draws. Each is drawn as one `?` per character, the picture is admitted, and a press still
-    // selects the library by its own name.
+    // draws. Each is drawn as one `?` per character, the picture is drawn in the pane's area, and
+    // a press still selects the library by its own name.
     Ears ears;
     PaneRig r;
     r.mount_workshop();
@@ -1559,9 +1516,7 @@ TEST_CASE("the Loaded pane spells a weave's name and role, and its picture is dr
     {
         const ExternalPane* drawn = r.session().panes.external_pane(kind);
         REQUIRE(drawn != nullptr);
-        CAPTURE(drawn->refusal_why);
-        CHECK(drawn->refusal.empty());
-        CHECK(drawn->canvas.heard);
+        CHECK(shows_canvas(*drawn));
     }
     const std::vector<std::string> shown = pane_rows(r, kind);
     REQUIRE_FALSE(shown.empty());
@@ -1574,73 +1529,13 @@ TEST_CASE("the Loaded pane spells a weave's name and role, and its picture is dr
     press_pane(r, kind, at, 1);
     const ExternalPane* marked = r.session().panes.external_pane(kind);
     REQUIRE(marked != nullptr);
-    CAPTURE(marked->refusal_why);
-    CHECK(marked->refusal.empty());
+    CHECK(shows_canvas(*marked));
     const std::vector<std::string> chosen = pane_rows(r, kind);
     REQUIRE(static_cast<std::size_t>(at) < chosen.size());
     CHECK(chosen[static_cast<std::size_t>(at)] == "> plain-caf? @test.pl?in");
     REQUIRE(ears.heard.size() == 1);
     CHECK(ears.heard[0].library == "plain-caf\xC3\xA9");
     CHECK(ears.heard[0].role == "test.pl\xC3\xA9in");
-}
-
-TEST_CASE("two lists of loaded weaves are two meanings whatever their names hold, so a press carrying "
-          "the first list's picture selects nothing once the second is shown") {
-    // TWO LISTS THAT READ ALIKE one name to a line: `a\nb` and `c`, then `a` and `b\nc`. A press
-    // aimed at the first picture's row of `a\nb` must not select `a`, the weave that row shows now.
-    Ears ears;
-    PaneRig r;
-    r.mount_workshop();
-    (void)loom::mount<SelectionListener>(r.bus, ears);
-    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
-    REQUIRE(r.load("a\nb", WORKSHOP_SO_HELLO, "test.one").valid());
-    REQUIRE(r.load("c", WORKSHOP_SO_GUARD, "test.two").valid());
-    r.ready();
-    r.extent(160, 48);
-    r.pick(intro_ref());
-    REQUIRE(intro_row(r, kIntroPane) != nullptr);
-    const std::int64_t kind = intro_row(r, kIntroPane)->kind;
-    const ExternalPane* pane = r.session().panes.external_pane(kind);
-    REQUIRE(pane != nullptr);
-    REQUIRE(pane->canvas.heard);
-    const std::int64_t grant = pane->canvas.grant;
-    const std::int64_t first = pane->canvas.content.picture;
-    const std::int64_t row = row_with_text(pane_rows(r, kind), "a?b");
-    REQUIRE(row >= 0);
-    const CanvasRows lattice = held_canvas_rows(*pane);
-    const auto as_workshop = [&r](const PaneCanvasPointer& e) {
-        REQUIRE(r.bus.office_send_to_role_as(r.workshop_id, kWorkshopProvider, kIntroOffice,
-            loom::Message(loom::to_value(e), r.workshop_id, r.workshop_id, 0)).valid());
-        r.bus.drain_until_idle();
-    };
-
-    // THE SECOND LIST, read in the same room: a wheel step reads the list again, and where the
-    // whole list fits the window stays where it was.
-    REQUIRE(r.unload("a\nb"));
-    REQUIRE(r.unload("c"));
-    REQUIRE(r.load("a", WORKSHOP_SO_HELLO, "test.one").valid());
-    REQUIRE(r.load("b\nc", WORKSHOP_SO_GUARD, "test.two").valid());
-    as_workshop(PaneCanvasPointer{kIntroPane, grant, first, 1, canvas_pointer::kWheel, 0, 0, 0,
-                                  input::mod::kNone, 0, -1, false});
-    pane = r.session().panes.external_pane(kind);
-    REQUIRE(pane != nullptr);
-    REQUIRE(pane->canvas.grant == grant);
-    REQUIRE(pane->canvas.content.picture > first);
-    const std::vector<std::string> now = pane_rows(r, kind);
-    REQUIRE(static_cast<std::size_t>(row) + 1 < now.size());
-    CHECK(now[static_cast<std::size_t>(row)] == "  a @test.one");
-    CHECK(now[static_cast<std::size_t>(row) + 1] == "  b?c @test.two");
-
-    // A PRESS CARRYING THE FIRST PICTURE, on the row that showed `a\nb`: drawn under another
-    // meaning, so it selects nothing.
-    as_workshop(PaneCanvasPointer{kIntroPane, grant, first, 2, canvas_pointer::kPress, 1,
-                                  lattice.column_x(3), lattice.row_y(row), input::mod::kNone, 0, 0,
-                                  true});
-    CHECK(ears.heard.empty());
-    // ...and a press on the picture shown now selects what that row shows.
-    press_pane(r, kind, row, 3);
-    REQUIRE(ears.heard.size() == 1);
-    CHECK(ears.heard[0].library == "a");
 }
 
 TEST_CASE("WL-HAND-06: Loaded names each loaded weave's row, and Powers its controls and each power's row") {
@@ -1727,8 +1622,8 @@ TEST_CASE("THE OVERLAY WITNESS, through the pane a weaver actually reads") {
     REQUIRE_MESSAGE(covered.ok, covered.reason);
     CHECK_FALSE(any_row(pane_rows(r, kind), "shadowed"));
 
-    author_test_pane_room(r, kind, r.session().panes.external_pane(kind)->rows + 1,
-                          r.session().panes.external_pane(kind)->columns + 1);
+    author_test_pane_room(r, kind, held_canvas_rows(*r.session().panes.external_pane(kind)).rows + 1,
+                          held_canvas_rows(*r.session().panes.external_pane(kind)).columns + 1);
     r.extent(150, 44);
     {
         const std::vector<std::string> shown = pane_rows(r, kind);
@@ -1752,8 +1647,8 @@ TEST_CASE("THE OVERLAY WITNESS, through the pane a weaver actually reads") {
 
     // ---- UNMOUNTED: THE ONE UNDERNEATH IS REVEALED, WITH ITS OWN WORDS -----------
     REQUIRE(r.catalog.unmount("zengine.operators.test.min"));
-    author_test_pane_room(r, kind, r.session().panes.external_pane(kind)->rows + 1,
-                          r.session().panes.external_pane(kind)->columns + 1);
+    author_test_pane_room(r, kind, held_canvas_rows(*r.session().panes.external_pane(kind)).rows + 1,
+                          held_canvas_rows(*r.session().panes.external_pane(kind)).columns + 1);
     r.extent(160, 48);
     {
         const std::vector<std::string> shown = pane_rows(r, kind);
@@ -1799,8 +1694,8 @@ TEST_CASE("a provider nobody named appears in the pane with no source edit") {
     const op::MountResult added =
         op::mount_provider(r.catalog, PROVIDER_A_SO, op::MountMode::Ordinary);
     REQUIRE_MESSAGE(added.ok, added.reason);
-    author_test_pane_room(r, kind, r.session().panes.external_pane(kind)->rows + 1,
-                          r.session().panes.external_pane(kind)->columns + 1);
+    author_test_pane_room(r, kind, held_canvas_rows(*r.session().panes.external_pane(kind)).rows + 1,
+                          held_canvas_rows(*r.session().panes.external_pane(kind)).columns + 1);
     r.extent(150, 44); // a room grant, which is this tool's one beat
 
     const std::vector<std::string> shown = pane_rows(r, kind);
@@ -1860,7 +1755,7 @@ TEST_CASE("knowing a power is still not authority to change it") {
     // GOES BACK TO THE DESK FIRST, and this line is load-bearing: the presses above pointed the
     // keys at the Powers pane, and a half that read the rows of a pane never seated would walk an
     // empty vector in zero steps and pass.
-    r.press_cell(0, screen_of(r.session()).h - 1);
+    r.press_cell(0, gfx::cell_of_pixel(screen_of(r.session()).h) - 1);
     r.pick(PaneRef{kIntroOffice, intro::kArrangementPane});
     REQUIRE(intro_row(r, intro::kArrangementPane) != nullptr);
     const std::int64_t project = intro_row(r, intro::kArrangementPane)->kind;
@@ -1960,12 +1855,10 @@ TEST_CASE("opening a pane asks ONCE, and a quiet bus asks nothing") {
             r.bus.drain_until_idle();
         }
         CHECK(questions == 2);
-        // A PANE WORKSHOP SEATS is drawn as Workshop holds it, and its room asks nothing.
+        // A PANE WORKSHOP SEATS is drawn in a second window as in the first.
         make_taller(r, intro::kPowersPane, 16);
         const std::int64_t powers = intro_row(r, intro::kPowersPane)->kind;
-        const std::size_t asked_before = questions;
         w.room(area(intro::kPowersPane), kIntroOffice, 120, 40);
-        CHECK(questions == asked_before);
         CHECK(w.rows(area(intro::kPowersPane)) == trimmed(pane_rows(r, powers)));
         // A PRESS ON A LOADED WEAVE'S ROW selects it, as a press on Workshop's would: the row is
         // drawn on its ground beneath its text, still asking the same weave.
@@ -1989,7 +1882,7 @@ TEST_CASE("opening a pane asks ONCE, and a quiet bus asks nothing") {
         CHECK(w.rows(area(intro::kPowersPane)) == trimmed(pane_rows(r, powers)));
         // A WINDOW CARRIES NO DRAG: Workshop's hand pressing a control and moving after the
         // window's press carries no power.
-        const v2::PaneRowPart ops = held_parts(r.session(), powers).at("control:powers.operators");
+        const RowPart ops = held_parts(r.session(), powers).at("control:powers.operators");
         const ui::Rect body = external_body_rect(r.session(), powers);
         const std::int64_t x = body.x + ops.column, y = body.y + kExternalHeaderRows + ops.row;
         r.press_cell(x, y);
@@ -2035,7 +1928,7 @@ TEST_CASE("all three panes may be open at once, each answering its own room") {
         const std::int64_t kind = intro_row(r, pane)->kind;
         const ExternalPane* room = r.session().panes.external_pane(kind);
         REQUIRE(room != nullptr);
-        CHECK(static_cast<std::int64_t>(pane_rows(r, kind).size()) <= room->rows);
+        CHECK(static_cast<std::int64_t>(pane_rows(r, kind).size()) <= held_canvas_rows(*room).rows);
     }
 }
 
@@ -2049,17 +1942,17 @@ TEST_CASE("the graphical medium grants a different room and both panes spend it"
     const std::int64_t kind = open_intro_pane(r, intro::kPowersPane);
     const ExternalPane* cells = r.session().panes.external_pane(kind);
     REQUIRE(cells != nullptr);
-    const std::int64_t cell_cols = cells->columns;
+    const std::int64_t cell_cols = held_canvas_rows(*cells).columns;
     const std::vector<std::string> in_cells = pane_rows(r, kind);
     REQUIRE_FALSE(in_cells.empty());
 
     // A REAL FACE'S METRIC over the same surface: a 10-pixel advance is more columns in
     // the same rectangle, and an 18-pixel line in a 12-pixel cell is fewer prose rows.
-    author_test_pane_room(r, kind, cells->rows, cell_cols);
+    author_test_pane_room(r, kind, held_canvas_rows(*cells).rows, cell_cols);
     r.extent(1200, 500, 10, 18, gfx::kCellPx); // a window reports its device scale
     const ExternalPane* graphical = r.session().panes.external_pane(kind);
     REQUIRE(graphical != nullptr);
-    CHECK(graphical->columns != cell_cols);
+    CHECK(held_canvas_rows(*graphical).columns != cell_cols);
 
     const std::vector<std::string> in_pixels = pane_rows(r, kind);
     REQUIRE_FALSE(in_pixels.empty());
@@ -2077,9 +1970,9 @@ TEST_CASE("the graphical medium grants a different room and both panes spend it"
     // ...AND THE VIEW ANSWERED THE NEW ROOM rather than the old one. Workshop clears its
     // cache before every grant, so a projection that had not moved would read as
     // `waiting` here instead.
-    CHECK(static_cast<std::int64_t>(in_pixels.size()) <= graphical->rows);
+    CHECK(static_cast<std::int64_t>(in_pixels.size()) <= held_canvas_rows(*graphical).rows);
     for (const std::string& row : in_pixels) {
-        CHECK(static_cast<std::int64_t>(row.size()) <= graphical->columns);
+        CHECK(static_cast<std::int64_t>(row.size()) <= held_canvas_rows(*graphical).columns);
     }
 }
 
@@ -2088,13 +1981,13 @@ TEST_CASE("a host with no doors leaves the Project and Powers panes WAITING") {
     // for its own project and its powers. A host that mounts no door holds neither
     // `zengine.arrangement` nor `zengine.powers`, each ask reaches nobody, and each pane says
     // the honest thing -- never `unavailable`, which is a fate nothing here has observed.
-    // ON A SKIN, read as Workshop paints the desk (`paint`): a window shows such a body blank.
+    // Read as Workshop paints the desk (`paint`), and in the window showing it, whose frame says it.
     PaneRig r;
-    mount_skin_stand_in(r);
     r.mount_workshop();
     (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
     r.ready();
     r.extent(160, 48); // room for two stacked panes, so both are really on the canvas
+    r.come_up();
     // WHAT WORKSHOP PAINTS UNDER A PANE'S HEADER, each row's trailing blanks cut.
     const auto painted_under = [&r](const std::string& header) {
         std::vector<std::string> out;
@@ -2114,19 +2007,28 @@ TEST_CASE("a host with no doors leaves the Project and Powers panes WAITING") {
         return out;
     };
     r.pick(PaneRef{kIntroOffice, intro::kArrangementPane});
+    // ...AND WHAT THE WINDOW SHOWING THE DESK SHOWS THERE: the pane's frame says it waits.
+    const auto window_says = [&r](const std::string& words) {
+        for (const std::string& row : r.windows.shown().rows) {
+            if (row.find(words) != std::string::npos) return true;
+        }
+        return false;
+    };
     const std::vector<std::string> shown = painted_under("Project @");
     REQUIRE(shown.size() == 1);
-    CHECK(shown[0] == std::string(kExternalWaiting));
+    CHECK(shown[0] == std::string(kExternalWaiting) + "Project");
+    CHECK(window_says(std::string(kExternalWaiting) + "Project"));
     r.pick(PaneRef{kIntroOffice, intro::kPowersPane});
     const std::vector<std::string> powers = painted_under("Powers @");
     REQUIRE(powers.size() == 1);
-    CHECK(powers[0] == std::string(kExternalWaiting));
+    CHECK(powers[0] == std::string(kExternalWaiting) + "Powers");
+    CHECK(window_says(std::string(kExternalWaiting) + "Powers"));
     // ...and the Loaded pane, whose owner is the Kernel and is always there, is fine.
     r.pick(intro_ref());
     REQUIRE(intro_row(r, kIntroPane) != nullptr);
     const std::vector<std::string> loaded = pane_rows(r, intro_row(r, kIntroPane)->kind);
     REQUIRE_FALSE(loaded.empty());
-    CHECK(loaded[0] == "loaded weaves -- 1");
+    CHECK(loaded[0] == "loaded weaves -- 2"); // itself, and the graphics directory the window brought
 }
 
 // ---- The manual the panes answer, and the census of what they declare ---------------
@@ -2332,23 +2234,26 @@ TEST_CASE("Powers asks the window that shows it for a paste into its query, the 
         SkinStandIn* skin = mount_skin_stand_in(r);
         const std::int64_t kind = open_powers(r);
         make_taller(r, intro::kPowersPane, 18);
-        focus_pane(r, kind);
+        press_pane(r, kind, 0, 0); // the keys, by Workshop's own reading of a press on the Skin
+        REQUIRE(r.session().panes.keyboard == kind);
         skin->platform = "rec";
-
-        // NO WINDOW SHOWS IT YET: the paste is the Skin's.
-        r.key(input::scan::kV, input::mod::kCtrl);
-        CHECK(skin->clipboard_reads == 1);
-        CHECK(pane_rows(r, kind)[0].find("find:rec") != std::string::npos);
-
-        // THE WINDOW TELLS THE PANE'S AREA ITS ROOM, and from then on is asked, not the Skin, and
-        // what it holds lands in the query.
+        // THE WINDOW SHOWS THE PANE'S AREA, so the pane has a room to compose its query in, and the
+        // paste is that window's and never the Skin's. (With no window the pane draws nowhere and
+        // composes no query, so a paste of the Skin's cannot be asked.)
         pw::Window shown(r.bus, window);
-        shown.weave().platform = "ipe";
-        shown.room(std::string(kIntroOffice) + "." + intro::kPowersPane, kIntroOffice, 120, 40);
+        const auto window_shows = [&shown](const std::string& area, const std::string& words) {
+            for (const std::string& row : shown.rows(area)) {
+                if (row.find(words) != std::string::npos) return true;
+            }
+            return false;
+        };
+        const std::string area = std::string(kIntroOffice) + "." + intro::kPowersPane;
+        shown.weave().platform = "recipe";
+        shown.room(area, kIntroOffice, 120, 40);
         r.key(input::scan::kV, input::mod::kCtrl);
         CHECK(shown.weave().clipboard_reads == 1);
-        CHECK(skin->clipboard_reads == 1);
-        CHECK(pane_rows(r, kind)[0].find("find:recipe") != std::string::npos);
+        CHECK(skin->clipboard_reads == 0);
+        CHECK(window_shows(area, "find:recipe"));
     }
 }
 

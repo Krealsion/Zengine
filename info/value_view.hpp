@@ -27,7 +27,7 @@
 #include "inventory/observation.hpp"
 #include "inventory/pane_client.hpp"
 #include "message-draft/transfer.hpp"
-#include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_operation.hpp"
@@ -637,8 +637,8 @@ public:
 
     /// THE PICTURE: one composition of rows and their meanings, and its parts named by what each
     /// means. `can_create` says whether the weave has a free slot, which only the weave knows.
-    workshop::v4::PaneContent draw(bool can_create) {
-        workshop::v4::PaneContent out = compose(can_create);
+    workshop::ComposedRows draw(bool can_create) {
+        workshop::ComposedRows out = compose(can_create);
         out.parts = workshop::row_parts(picture_.map(), columns_, [](const Meaning& m) { return part_name(m); });
         return out;
     }
@@ -653,7 +653,7 @@ public:
         return "field:" + meta + message_draft::path_label(m.field.path);
     }
 
-    workshop::v4::PaneContent compose(bool can_create) { return picture_.compose(key_, shown(can_create), line_, hint_); }
+    workshop::ComposedRows compose(bool can_create) { return picture_.compose(shown(can_create), line_, hint_); }
 
     /// WHERE THE LINE BEING TYPED HAS ITS CARET AND SELECTION in the rows last composed, or none.
     const workshop::RowsCaret& caret() const noexcept { return picture_.caret(); }

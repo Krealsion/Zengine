@@ -22,13 +22,12 @@ session there, `workshop`. The operators you can add are found through the host'
 ([its manual](../../introspection/docs/zengine.powers.md)), which answers Flow, the Powers pane and
 the Terminal alike. It asks only for what a contributor offers, with a port selected only for what
 yields its type, and with a fold's body slot open only for what a fold can spend; it asks again when
-the question changes, when Workshop grants it room, and after a run, an apply, a stop or a catalog
+the question changes, when the window gives its area a room, and after a run, an apply, a stop or a catalog
 read. The ports a graph checks come from the Flow host's catalog. A file is written only after
 Workshop says the hand that confirmed it may write one.
 
-The pane draws on a canvas Workshop grants it. Given text rows instead, it shows the definition as
-lines under `Flow: graphical editing needs a canvas-capable Workshop. Use FlowEdit or the
-standalone workbench.` A picture too large for the canvas is replaced by one that says `View limit
+The pane draws in its own area of the window that shows it. A picture too large for the area is
+replaced by one that says `View limit
 reached: pan/zoom or choose a smaller graph.` and `Draft intact. Save or export it before changing
 the graph.`, with Save, Export, the pages and the zoom controls. A pane too small says `Flow needs
 more room`. Text outside printable ASCII is drawn as `?`, and text too long for its place ends in

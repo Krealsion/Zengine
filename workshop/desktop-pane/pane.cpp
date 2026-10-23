@@ -33,7 +33,7 @@
 #include "workshop/command_vocabulary.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/inspection_seam_vocabulary.hpp"
-#include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_document.hpp"
 #include "workshop/pane_menu.hpp"
@@ -93,7 +93,6 @@ using ws::PaneMenuRequested;
 using ws::v2::PaneOffered;
 using ws::PaneKeyboardRequested;
 using ws::PanePassRequested;
-using ws::PaneRoom;
 using ws::PaneTextInput;
 using ws::PaneToggleAnswered;
 using ws::PaneToggleRequested;
@@ -117,23 +116,21 @@ using Office = ws::MultiPaneFacet<pane::kDesktopRole, pane::kLauncherPane,
 
 // (!) WHAT IT ACCEPTS, ITS OFFICE'S DOORS WITH IT, IS ITS RELOAD CONTRACT. A reload replaces this
 // weave only with an image accepting exactly these shapes (Loom's accepted-contract match), so
-// the doors added for the mouse -- the canvas room and pointer, the menu and toggle answers, the
+// the doors added for the mouse -- the area's room and pointer, the menu and toggle answers, the
 // edit answer -- make an image built without them a relaunch from a runtime made from one build,
 // never a reload (workshop/docs/develop-workshop.md). Images that both accept them reload.
 class DesktopWeave
     : public zengine::With<Office>::Weave<
           DesktopWeave, pane::DesktopState,
-          loom::Accept<ws::PaneShortcuts, PaneRoom, PaneActionRequested,
+          loom::Accept<ws::PaneShortcuts, PaneActionRequested,
                        AppActionRequested, PaneInventory, PaneLaunchAnswered,
                        PaneCloseAnswered, PaneToggleAnswered, ActionsJudged,
                        ActionsWithdrawn, KeymapShown, KeymapEditAnswered, PaneKey, PaneTextInput,
-                       ws::PaneCanvasRoom, ws::PaneCanvasPointer, ws::PaneCanvasRejected,
                        PaneMenuAnswered, loom::DispatchRefused, gfx::ClipboardCopy,
                        gfx::ClipboardText, ws::PaneDocumentShown, PaneSubjectActed,
                        ws::v2::PaneSettings>,
           loom::Emit<ws::PaneShortcutsAnswered, ws::PaneShortcutsRequested, ws::PaneShortcutsWithdrawn,
-                     ws::PaneShortcutInvoked, PaneOffered, PaneActions, ws::v4::PaneContent,
-                     ws::v5::PaneCanvasContent, ws::PaneCaret, AppActions,
+                     ws::PaneShortcutInvoked, PaneOffered, PaneActions, AppActions,
                      PaneLaunchRequested, PaneCloseRequested, PaneToggleRequested,
                      DeselectRequested, PaneInventoryRequested,
                      KeymapRequested, KeymapEditRequested, PaneMenuRequested, PanePassRequested,
@@ -187,46 +184,6 @@ public:
         (void)mail.as_role(pane::kDesktopRole).send_to_role(kWorkshopRole, KeymapRequested{});
     }
 
-    // ---- Its panes' rooms -------------------------------------------------------------------
-
-    /// WORKSHOP GRANTS ONE OF THIS WEAVE'S THREE PANES ITS PROSE ROOM: kept for a host that grants
-    /// no canvas, and the room composed for only while the pane holds no canvas room.
-    void on(const PaneRoom& room, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole)) {
-            return;
-        }
-        if (room.pane == pane::kLauncherPane) {
-            launcher_.grant_prose(room);
-        } else if (room.pane == pane::kHotkeysPane) {
-            hotkeys_.grant_prose(room);
-        } else if (room.pane == pane::kManualPane) {
-            manual_.grant_prose(room);
-        } else {
-            return;
-        }
-        fit_rooms();
-        say_pane(room.pane, mail);
-    }
-
-    /// ...AND ITS OWN CANVAS: while a pane holds a room there it draws its rows as its picture,
-    /// the lattice's rows and columns the room it composes for.
-    void on(const ws::PaneCanvasRoom& room, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole)) {
-            return;
-        }
-        if (room.pane == pane::kLauncherPane) {
-            launcher_.grant_canvas(room);
-        } else if (room.pane == pane::kHotkeysPane) {
-            hotkeys_.grant_canvas(room);
-        } else if (room.pane == pane::kManualPane) {
-            manual_.grant_canvas(room);
-        } else {
-            return;
-        }
-        fit_rooms();
-        say_pane(room.pane, mail);
-    }
-
     /// THE SETTINGS THIS LAYOUT KEEPS FOR HOTKEYS, taken whole: its `help`, a value it cannot use
     /// said back against the revision it was handed at. The other two panes declare none, and pass
     /// over what they are handed. Held by the pane, never reload state.
@@ -251,26 +208,25 @@ public:
         visit(manual_.canvas());
     }
 
-    /// A pane Workshop seats nowhere, composed again for the room a window gave it.
+    /// A pane composed again for the room a window gave it.
     void on_window_room(const std::string& pane_key, loom::Mail& mail) { say_pane(pane_key, mail); }
 
-    /// A PRESS ASKED AS A PART'S ACTION, by a window that shows a pane in an area placed deaf to the
-    /// pointer: a primary press on its place in the picture shown there, which is the pane's current
-    /// one. Workshop sees no such press, so it is never the press that brought the keys: a second
-    /// press on the chosen row opens it.
+    /// A PRESS ASKED AS A PART'S ACTION, by a window that shows a pane in an area placed deaf to
+    /// the pointer: a primary press on its place in the rows drawn there. Workshop sees no such
+    /// press, so it is never the press that brought the keys: a second press on the chosen row
+    /// opens it.
     void on_window_press(const std::string& pane_key, std::int64_t row, std::int64_t column,
                          loom::Mail& mail) {
-        primary_press(PanePress{pane_key, row, column, /*keys_went_here=*/true, /*current=*/true},
-                      mail);
+        primary_press(PanePress{pane_key, row, column, /*keys_went_here=*/true}, mail);
     }
 
-    /// A HAND ON ONE OF THIS WEAVE'S PANES IN A WINDOW, read onto the rows shown there, its current
-    /// picture: as on Workshop's canvas, a primary press is the row's press, read against whether
-    /// the keys were already the pane's, a right press its menu under the window's number for the
-    /// press, the wheel walks the cursor; a middle press, motion and every release mean nothing.
+    /// A HAND ON ONE OF THIS WEAVE'S PANES IN A WINDOW, read onto the rows drawn there: a primary
+    /// press is the row's press, read against whether the keys were already the pane's, a right
+    /// press its menu under the window's number for the press, the wheel walks the cursor; a
+    /// middle press, motion and every release mean nothing.
     void on_window_pointer(const std::string& pane_key, const ws::WindowPointer& p,
                            bool keys_went_here, loom::Mail& mail) {
-        const PanePress pressed{pane_key, p.at.row, p.at.column, keys_went_here, /*current=*/true};
+        const PanePress pressed{pane_key, p.at.row, p.at.column, keys_went_here};
         if (p.phase == ws::canvas_pointer::kWheel) {
             wheel(pane_key, p.dy, mail);
         } else if (p.phase != ws::canvas_pointer::kPress) {
@@ -281,9 +237,6 @@ public:
             second_button(pressed, mail);
         }
     }
-
-    /// A refused picture leaves the last good one showing; the next change draws again.
-    void on(const ws::PaneCanvasRejected&, loom::Mail&) {}
 
     pane::Shortcuts shortcuts_;
     void on(const ws::PaneShortcuts& request, loom::Mail& mail) {
@@ -513,40 +466,6 @@ public:
         say_keys(mail);
     }
 
-    // ---- The mouse: a press names a picture, a wheel walks the cursor, a right press offers --
-
-    /// A HAND ON ONE OF THIS WEAVE'S PICTURES, read back to the row and column of its lattice and
-    /// fenced by the picture it names: a press about a picture drawn under another meaning is
-    /// refused in words -- never resolved against whatever row has since moved into its place
-    /// (WL-DESK-14). A primary press is the row's press, a right press its menu, the wheel walks
-    /// the cursor; a middle press, motion and every release mean nothing here.
-    void on(const ws::PaneCanvasPointer& event, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole)) {
-            return;
-        }
-        const PaneCanvas* canvas = event.pane == pane::kLauncherPane ? &launcher_.canvas()
-                                   : event.pane == pane::kHotkeysPane ? &hotkeys_.canvas()
-                                   : event.pane == pane::kManualPane  ? &manual_.canvas()
-                                                                       : nullptr;
-        const std::optional<ws::RowCell> cell =
-            canvas == nullptr ? std::nullopt : canvas->cell_of(event);
-        if (!cell) {
-            return;
-        }
-        const ws::RowCell at = *cell;
-        const PanePress press{event.pane, at.row, at.column, event.keys_went_here,
-                              canvas->shows(event)};
-        if (event.phase == ws::canvas_pointer::kWheel) {
-            wheel(event.pane, event.dy, mail);
-        } else if (event.phase != ws::canvas_pointer::kPress) {
-            return;
-        } else if (event.button == 1 && at.shown) {
-            primary_press(press, mail);
-        } else if (event.button == 3) {
-            second_button(press, mail);
-        }
-    }
-
     /// What a menu came to, if it answers one of this image's own asks (`Asked::take`: from the
     /// presenter's office, under an unanswered ask's number, about the pane and subject asked,
     /// once). A reloaded desktop asked nothing, so its predecessor's menus act on nothing -- they
@@ -606,13 +525,6 @@ private:
         }
     }
 
-    /// The rows and columns each pane composes for: its canvas's lattice while it holds one, its
-    /// prose room otherwise.
-    void fit_rooms() {
-        launcher_.fit_room();
-        hotkeys_.fit_room();
-        manual_.fit_room();
-    }
 
     /// EACH PANE SAYS WHAT IT SHOWS with what it does not own: the reload shape, the words of
     /// this image's declarations, and the keymap the host last said.

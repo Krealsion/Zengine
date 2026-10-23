@@ -3,10 +3,10 @@
 Register `WL-TERM`: the terminal PARTICIPANT this host mounts and holds, and the seam across
 which a pane presents it. One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md). The pane's own presentation — its rows, its list, its caret
-and its keys — is the Terminal pane's, not this host's: it draws them as its own canvas picture,
-says its caret beside prose rows as [`pane-caret.md`](pane-caret.md) (WL-CARET) has it, and the
-line it is typed into is [`text-box.md`](text-box.md). Its presses, wheel and right press are its
-canvas's: to a host granting no canvas it takes only keys ([`canvas.md`](canvas.md), WL-CANVAS-07).
+and its keys — is the Terminal pane's, not this host's: it draws them, its caret among them, as
+its own picture in its area of the window, and the line it is typed into is
+[`text-box.md`](text-box.md). Its presses, wheel and right press reach it there from the window
+([`canvas.md`](canvas.md)).
 
 ## WL-TERM-01 — The Terminal is a pane, and nothing global reaches it
 
@@ -258,16 +258,16 @@ runs it"
 `tests/test_workshop_panes_terminal.cpp` "the image that presents a participant cannot reach one"
 
 ### WL-TERM-09
-`workshop/pane_facets.hpp` PaneRowsFacet::on(PaneCanvasPointer)
+`workshop/pane_facets.hpp` PaneRowsFacet::on(AreaButtonChanged)
 `terminal/pane.cpp` press
 `terminal/view.hpp` caret
 `workshop/terminal_seam_vocabulary.hpp` TerminalCompletionOffered
 `tests/test_workshop_panes_terminal.cpp` "a press on the input row places the caret where the weaver
-aimed" "the pane draws its caret in its own picture, and the medium draws it there"
+aimed" "the pane draws its caret in its own picture, in its area of the window"
 
 ### WL-TERM-10
 `terminal/view.hpp` say caret kChromeRows
-`workshop/pane_canvas_rows.hpp` RowsCaret
+`workshop/pane_rows.hpp` RowsCaret
 `tests/test_workshop_panes_terminal.cpp` "a refusal is said BESIDE the line it is about, never in
 place of it" "in a room too small for both, the LINE is what survives"
 

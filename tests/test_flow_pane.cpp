@@ -13,11 +13,14 @@
 #include "operator/reference.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_operation.hpp"
+#include "workshop/pane_canvas_drawing.hpp"
+#include "workshop/pane_drawing.hpp"
+#include "workshop/pane_picture.hpp"
 #include "workshop/pane_vocabulary.hpp"
-#include "workshop/pane_canvas_vocabulary.hpp"
 #include "workshop/powers_door.hpp"
 #include "lifecycle_door.hpp"
 #include "pane_window.hpp"
+#include "shown_picture.hpp"
 #include <zen/kernel/kernel.hpp>
 #include <algorithm>
 #include <chrono>
@@ -39,19 +42,15 @@ namespace pw = zengine::testing::pane_window;
 constexpr const char* workshop_role = "zengine.workshop";
 constexpr auto unit = ws::kPaneCanvasUnit;
 
-// A real office on the real bus, standing in for Workshop's presenter. It captures
-// the artifact's pictures; clicks target their published labels, never a second
-// copy of the pane's hit-map implementation.
+// A real office on the real bus, standing in for Workshop: it keeps what Flow tells it and approves
+// an acquisition that continues a press. What Flow shows, it draws in its area, and a case reads
+// that from the window showing the area, never a copy of the pane's own hit map.
 class Presenter final : public loom::Weave {
 public:
     std::vector<loom::Message> messages;
-    std::vector<ws::PaneCanvasContent> pictures;
-    std::vector<ws::v4::PaneCanvasContent> named; ///< ...as said, with the parts each names
     std::vector<std::string> rows; ///< the ids of the rows last declared, the ones in force
     std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
         return {loom::schema_of<ws::PaneOffered>(), loom::schema_of<ws::v3::PaneActions>(),
-            loom::schema_of<ws::PaneContent>(), loom::schema_of<ws::PaneCanvasContent>(),
-            loom::schema_of<ws::v4::PaneCanvasContent>(),
             loom::schema_of<ws::PaneEscapeUnspent>(), loom::schema_of<ws::PaneQuitAnswered>(),
             loom::schema_of<ws::PanePassRequested>(), loom::schema_of<fp::FlowEdited>(),
             loom::schema_of<ws::PaneMenuRequested>(), loom::schema_of<ws::PaneOperationRequested>(),
@@ -62,30 +61,24 @@ public:
         // Workshop approves an acquisition that continues a current gesture; this stand-in does.
         if (loom::same_identity(message.payload.schema(), *loom::schema_of<ws::PaneOperationRequested>()))
             (void)bus.answer(loom::Message(loom::to_value(ws::PaneOperationAnswered{true, ""}), self));
-        if (loom::same_identity(message.payload.schema(), *loom::schema_of<ws::PaneCanvasContent>())) {
-            REQUIRE(message.provenance.authored_from_role(fp::kRole));
-            pictures.push_back(loom::from_value<ws::PaneCanvasContent>(message.payload));
-        }
         if (loom::same_identity(message.payload.schema(), *loom::schema_of<ws::v3::PaneActions>())) {
             rows.clear();
             for (const auto& row : loom::from_value<ws::v3::PaneActions>(message.payload).rows) rows.push_back(row.id);
-        }
-        if (loom::same_identity(message.payload.schema(), *loom::schema_of<ws::v4::PaneCanvasContent>())) {
-            REQUIRE(message.provenance.authored_from_role(fp::kRole));
-            named.push_back(loom::from_value<ws::v4::PaneCanvasContent>(message.payload));
-            const auto& c = named.back();
-            // EVERY PICTURE FLOW DRAWS NAMES ONLY CONTROLS ITS ROWS IN FORCE DECLARE (WL-HAND-07).
-            std::vector<std::string> names;
-            for (const auto& part : c.parts) names.push_back(part.name);
-            const std::string problem = control_parts_problem("zengine.flow/flow", names, rows);
-            CHECK_MESSAGE(problem.empty(), problem);
-            pictures.push_back(ws::PaneCanvasContent{c.pane, c.grant, c.picture, c.rects, c.labels, c.texts});
         }
         messages.push_back(message);
     }
     loom::Value snapshot() const override { return loom::Value(loom::make_schema("flowtest.Presenter", 1, {})); }
     loom::Value policy() const override { return zengine::maker::default_value(loom::lifecycle_policy_schema()); }
     void revive(const loom::Value&) override {}
+};
+
+/// A MOMENT OF THE HAND ON FLOW'S AREA, as the window showing it gives one: a button pressed or let
+/// go, a move or the wheel, at a pixel of the area, under its press's number (`gesture`).
+struct Moment {
+    std::int64_t phase = ws::canvas_pointer::kPress;
+    std::uint64_t gesture = 0;
+    std::int64_t button = 1, x = 0, y = 0;
+    double dy = 0;
 };
 
 struct Rig {
@@ -95,9 +88,14 @@ struct Rig {
     fh::RuntimeHost runtime{bus, catalog};
     Presenter* presenter = nullptr;
     pw::PaneDirectory* directory = nullptr; ///< the graphics directory, asked the area's room
+    /// THE WINDOW SHOWING FLOW'S AREA, a room of cells, and the one a case reads and presses: this
+    /// one, or another a case gave the area since.
+    pw::Window window{bus, "desk"};
+    pw::Window* shown = &window;
     loom::WeaveId workshop{}, pane{}, door{}, finder{}, menus{};
     std::uint64_t correlation = 0;
-    std::int64_t activation = 0, grant = 1, gesture = 0;
+    std::int64_t activation = 0, grant = 1;
+    std::uint64_t gesture = 0;
     /// WHAT THE PANE ASKED, read off the bus: every question it put to the discovery door, the
     /// bytes of every answer it was given, and the highest correlation its own requests used.
     std::vector<ws::FindPowers> questions;
@@ -123,10 +121,9 @@ struct Rig {
         presenter = presentation.get();
         loom::Grant host_grant;
         for (const auto& schema : {loom::schema_of<ws::PaneCatalogRequested>(),
-                loom::schema_of<ws::PaneRoom>(), loom::schema_of<ws::PaneCanvasRoom>(),
-                loom::schema_of<ws::PaneCanvasPointer>(), loom::schema_of<ws::PaneKey>(),
-                loom::schema_of<ws::PaneTextInput>(), loom::schema_of<ws::PaneCanvasValueDrop>(),
-                loom::schema_of<fp::FlowEdit>(), loom::schema_of<ws::PaneActionRequested>()})
+                loom::schema_of<ws::PaneKey>(), loom::schema_of<ws::PaneTextInput>(),
+                loom::schema_of<ws::PaneCanvasValueDrop>(), loom::schema_of<fp::FlowEdit>(),
+                loom::schema_of<ws::PaneActionRequested>()})
             host_grant.allow_to_role(schema->name(), schema->version(), fp::kRole);
         host_grant.allow_to_any(ws::PaneQuitRequested::zen_name, ws::PaneQuitRequested::zen_version);
         host_grant.allow_to_any(ws::PaneOperationAnswered::zen_name, ws::PaneOperationAnswered::zen_version);
@@ -139,8 +136,6 @@ struct Rig {
         fh::allow_flow_requests(pane_grant);
         ws::allow_finding_powers(pane_grant);
         for (const auto& schema : {loom::schema_of<ws::PaneOffered>(), loom::schema_of<ws::v3::PaneActions>(),
-                loom::schema_of<ws::PaneContent>(), loom::schema_of<ws::PaneCanvasContent>(),
-                loom::schema_of<ws::v4::PaneCanvasContent>(),
                 loom::schema_of<ws::PaneEscapeUnspent>(), loom::schema_of<ws::PanePassRequested>(),
                 loom::schema_of<ws::PaneMenuRequested>(), loom::schema_of<ws::PaneOperationRequested>(),
                 loom::schema_of<ws::PaneValueCarryRequested>()})
@@ -199,44 +194,87 @@ struct Rig {
         REQUIRE(bus.office_send_to_role_as(workshop, workshop_role, fp::kRole,
             loom::Message(loom::to_value(value), workshop, {}, corr)).valid());
     }
-    void room() {
-        host(ws::PaneCanvasRoom{fp::kPane, grant, 170 * unit, 65 * unit, unit, true});
-        REQUIRE_FALSE(presenter->pictures.empty());
+    /// THE ROOM OF FLOW'S AREA in the rig's window, `cols` by `rows` cells, under the rig's `grant`:
+    /// a new one is a window started again, which holds none of Flow's picture.
+    void room(std::int64_t cols = 170, std::int64_t rows = 65) {
+        shown = &window;
+        window.room(fp::kRole, fp::kRole, cols, rows, grant);
+        pump();
+        REQUIRE(window.held(fp::kRole) != nullptr);
+        REQUIRE_FALSE(window.held(fp::kRole)->nodes.empty());
     }
-    const ws::PaneCanvasContent& picture() const {
-        REQUIRE_FALSE(presenter->pictures.empty());
-        return presenter->pictures.back();
+    /// WHAT THE WINDOW SHOWING FLOW'S AREA SHOWS, read as its picture -- and every one Flow draws
+    /// names only controls its rows in force declare (WL-HAND-07).
+    ws::CanvasPicture picture() const {
+        const gfx::window::WinArea* a = shown->held(fp::kRole);
+        REQUIRE(a != nullptr);
+        const ws::CanvasPicture p = zengine::testing::shown_picture(
+            *a, ws::canvas_window_room(a->w, a->h, shown->cell_px(), shown->measure()));
+        std::vector<std::string> names;
+        for (const auto& part : p.parts) names.push_back(part.name);
+        const std::string problem = control_parts_problem("zengine.flow/flow", names, presenter->rows);
+        CHECK_MESSAGE(problem.empty(), problem);
+        return p;
     }
-    ws::PaneCanvasText label(const std::string& text, bool prefix = false) const {
-        for (const auto& row : picture().texts)
+    /// How many drawings the window showing Flow's area has heard.
+    std::size_t drawings() const { return shown->weave().heard.size(); }
+    ws::CanvasText label(const std::string& text, bool prefix = false) const {
+        const auto shown_now = picture();
+        for (const auto& row : shown_now.texts)
             if (prefix ? row.text.rfind(text, 0) == 0 : row.text == text) return row;
         INFO("Missing pictured label: " << text);
-        for (const auto& row : picture().texts) INFO(row.text);
+        for (const auto& row : shown_now.texts) INFO(row.text);
         REQUIRE(false);
         return {};
     }
     bool shows(const std::string& text) const {
-        const auto& texts = picture().texts;
+        const auto texts = picture().texts;
         return std::any_of(texts.begin(), texts.end(), [&](const auto& row) { return row.text == text; });
     }
     bool shows_part(const std::string& text) const {
-        const auto& texts = picture().texts;
+        const auto texts = picture().texts;
         return std::any_of(texts.begin(), texts.end(),
                            [&](const auto& row) { return row.text.find(text) != std::string::npos; });
     }
-    ws::PaneCanvasPointer press_for(const std::string& text, bool prefix = false) {
+    Moment press_for(const std::string& text, bool prefix = false) {
         const auto row = label(text, prefix);
-        ws::PaneCanvasPointer event;
-        event.pane = fp::kPane; event.grant = grant; event.picture = picture().picture;
-        event.gesture = ++gesture; event.phase = ws::canvas_pointer::kPress;
-        event.button = 1; event.x = row.x + 4; event.y = row.y + 4; event.keys_went_here = true;
-        return event;
+        Moment m;
+        m.gesture = ++gesture;
+        m.x = row.x + 4;
+        m.y = row.y + 4;
+        return m;
     }
-    void click(const std::string& text, bool prefix = false) { host(press_for(text, prefix)); }
-    /// What Workshop delivers when a person drops a carried value on the picture at (x, y).
+    /// THE MOMENT AS THE WINDOW SAYS IT: a button changed, a move or the wheel at its pixel.
+    template <class Visit>
+    void as_said(const Moment& m, Visit&& visit) const {
+        if (m.phase == ws::canvas_pointer::kPress || m.phase == ws::canvas_pointer::kRelease) {
+            visit(gfx::AreaButtonChanged{fp::kRole, m.button, m.phase == ws::canvas_pointer::kPress,
+                                         m.x, m.y, 0});
+        } else if (m.phase == ws::canvas_pointer::kMove) {
+            visit(gfx::AreaPointerMoved{fp::kRole, m.x, m.y, 0, 0, 0});
+        } else {
+            visit(gfx::AreaWheelTurned{fp::kRole, 0, m.dy, m.x, m.y, 0});
+        }
+    }
+    /// A MOMENT GIVEN BY THE WINDOW SHOWING FLOW'S AREA, under its press's number -- or `corr`.
+    void host(const Moment& m, std::uint64_t corr = 0) {
+        as_said(m, [&](const auto& said) { shown->tell(fp::kRole, said, corr != 0 ? corr : m.gesture); });
+        pump();
+    }
+    /// ...queued and not yet pumped.
+    void post(const Moment& m, std::uint64_t corr = 0) {
+        as_said(m, [&](const auto& said) { shown->post(fp::kRole, said, corr != 0 ? corr : m.gesture); });
+    }
+    void click(const std::string& text, bool prefix = false) {
+        Moment m = press_for(text, prefix);
+        host(m);
+        m.phase = ws::canvas_pointer::kRelease;
+        host(m);
+    }
+    /// What Workshop delivers when a person drops a carried value at (x, y) of Flow's area.
     void drop(const loom::Value& value, std::int64_t x, std::int64_t y) {
         const auto bytes = zengine::inventory::encode_pair(value, {});
-        host(ws::PaneCanvasValueDrop{fp::kPane, grant, picture().picture, x, y,
+        host(ws::PaneCanvasValueDrop{fp::kPane, fp::kRole, x, y,
                                      loom::Bytes(bytes.begin(), bytes.end()),
                                      "zengine.inventory-pane", "inventory", ""});
     }
@@ -328,34 +366,6 @@ op::OperatorDef answer_source() {
                            op::Description{"forty-two, whenever it is asked"});
 }
 
-/// THE PICTURE A WINDOW KEEPS FOR `area`, in the order it paints it: the nodes under its
-/// `picture` group, read as Workshop's picture reads -- each rectangle, then each run of text.
-void same_picture(const gfx::window::WinArea& area, const ws::PaneCanvasContent& workshop) {
-    const auto at = gfx::window::index_of(area);
-    std::vector<const gfx::window::KeptNode*> kept;
-    for (const auto& k : area.nodes)
-        if (k.node.path.rfind("picture/", 0) == 0 && k.node.path.find('/', 8) == std::string::npos)
-            kept.push_back(&k);
-    std::stable_sort(kept.begin(), kept.end(), [&](const auto* x, const auto* y) {
-        return gfx::window::key_of(at, x->node.path) < gfx::window::key_of(at, y->node.path);
-    });
-    REQUIRE(kept.size() == workshop.rects.size() + workshop.texts.size());
-    for (std::size_t i = 0; i < workshop.rects.size(); ++i) {
-        CAPTURE(i);
-        const auto r = gfx::from_body<gfx::RectArgs>(kept[i]->node.args);
-        REQUIRE(r);
-        const auto& w = workshop.rects[i];
-        CHECK((r->x == w.x && r->y == w.y && r->w == w.w && r->h == w.h && r->fill.role == w.role));
-    }
-    for (std::size_t i = 0; i < workshop.texts.size(); ++i) {
-        CAPTURE(i);
-        const auto t = gfx::from_body<gfx::TextArgs>(kept[workshop.rects.size() + i]->node.args);
-        REQUIRE(t);
-        const auto& w = workshop.texts[i];
-        CHECK((t->x == w.x && t->y == w.y && t->text == w.text && t->ink.role == w.role));
-    }
-}
-
 std::size_t escapes_unspent(const Presenter& presenter) {
     return static_cast<std::size_t>(std::count_if(presenter.messages.begin(), presenter.messages.end(),
         [](const auto& m) { return loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneEscapeUnspent>()); }));
@@ -433,8 +443,7 @@ TEST_CASE("loaded Flow pane authors runs edits and reopens a graphical project w
 
 TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their place, and every place a press means something") {
     Rig rig;
-    REQUIRE_FALSE(rig.presenter->named.empty());
-    auto said = rig.presenter->named.back();
+    auto said = rig.picture();
     CHECK(ws::canvas_parts_problem(said.parts).empty());
     const auto named = [&](const std::string& name) {
         return std::any_of(said.parts.begin(), said.parts.end(), [&](const auto& p) { return p.name == name; });
@@ -458,7 +467,7 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
     rig.key(in::scan::kReturn);
     rig.click("  math.max");
     rig.click("[Add]");
-    said = rig.presenter->named.back();
+    said = rig.picture();
     std::size_t nodes = 0, ports = 0;
     for (const auto& p : said.parts) {
         nodes += p.name.rfind("node:", 0) == 0 ? 1u : 0u;
@@ -474,8 +483,8 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
     }
     // EVERY PLACE A PRESS MEANS SOMETHING, LISTED AS THE PICTURE READS A PRESS: its hits in their
     // order, each under its name, or unnamed where an earlier one took it.
-    const ws::PaneCanvasRoom room{"flow", 1, 1200, 720, 1, true, 8, 16};
-    const fp::Picture drawn = fp::picture(fp::Model{}, room, 1);
+    const ws::CanvasRoom room{1200, 720, 1, true, 8, 16};
+    const fp::Picture drawn = fp::picture(fp::Model{}, room);
     const auto listed = fp::named(drawn);
     REQUIRE_FALSE(drawn.hits.empty());
     REQUIRE(listed.parts.size() == drawn.hits.size());
@@ -501,10 +510,11 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
         pw::Window window(rig.bus, "flowtest");
         window.room(fp::kRole, fp::kRole, 170, 65);
         rig.pump();
+        rig.shown = &window;
         REQUIRE(window.press(fp::kRole, "control:page-graph"));
         rig.pump();
         const auto x_of = [&]() -> std::int64_t {
-            for (const auto& p : rig.presenter->named.back().parts)
+            for (const auto& p : rig.picture().parts)
                 if (p.name == node) return p.x;
             return -1;
         };
@@ -540,9 +550,10 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
         CHECK(rig.directory->times(fp::kRole, fp::kRole) == 1);
         pw::Window window(rig.bus, "flowtest");
         const auto& seen = window.weave();
-        // A ROOM OF WORKSHOP'S SIZE, so the window's picture is Workshop's, one for one.
+        // A ROOM OF THE RIG'S SIZE, so the picture is the one the rig's window shows, one for one.
         window.room(fp::kRole, fp::kRole, 170, 65);
         rig.pump();
+        rig.shown = &window;
         REQUIRE(seen.heard.size() == 1);
         const gfx::Drawn first = seen.heard.front();
         CHECK(first.whole);
@@ -550,7 +561,6 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
         gfx::window::WinArea fresh;
         fresh.area = fp::kRole;
         CHECK(gfx::window::judge(fresh, gfx::window::Drawer{}, first).empty());
-        same_picture(*window.weave().find(fp::kRole), rig.picture());
         std::set<std::string> names, recorded;
         for (const auto& p : said.parts)
             if (!p.name.empty()) names.insert(p.name);
@@ -562,21 +572,19 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
         CHECK(pressed.count(port) == 1);
         for (const auto& action : pressed) CHECK(names.count(action) == 1);
 
-        // A PRESS ON A CONTROL performs it, and both Workshop and the window show what it did.
+        // A PRESS ON A CONTROL performs it, and the window shows what it did.
         REQUIRE(window.press(fp::kRole, "control:page-state"));
         rig.pump();
         (void)rig.label("[Add state field]");
         REQUIRE(seen.heard.size() == 2);
         CHECK_FALSE(seen.heard.back().whole);
         CHECK(seen.refusals.empty());
-        same_picture(*window.weave().find(fp::kRole), rig.picture()); // what a change adds paints in its place
         const auto rows = window.rows(fp::kRole);
         CHECK(std::any_of(rows.begin(), rows.end(),
                           [](const std::string& row) { return row.find("[Add state field]") != std::string::npos; }));
         // ...A PRESS ON A NODE selects it and begins no drag, so Delete removes that node.
         REQUIRE(window.press(fp::kRole, "control:page-graph"));
         rig.pump();
-        same_picture(*window.weave().find(fp::kRole), rig.picture());
         for (int put_down = 0; put_down < 4 && rig.shows_part("Delete node"); ++put_down)
             rig.key(in::scan::kEscape);
         REQUIRE_FALSE(rig.shows_part("Delete node"));
@@ -584,7 +592,7 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
         rig.pump();
         CHECK(rig.shows_part("Delete node"));
         rig.key(in::scan::kDelete);
-        const auto& after = rig.presenter->named.back().parts;
+        const auto after = rig.picture().parts;
         CHECK(std::none_of(after.begin(), after.end(), [&](const auto& p) { return p.name == node; }));
         CHECK(window.actions(fp::kRole).count(node) == 0);
         // ...ANOTHER WINDOW, or an action the picture shown there does not name, does nothing.
@@ -621,32 +629,21 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
         CHECK(seen.heard[before + 1].whole);
         CHECK(seen.refusals.size() == 1);
         CHECK_FALSE(rig.shows_part("The graphics window refused Flow's picture"));
-        // ...AND A REFUSED WHOLE PICTURE IS SAID, drawing nothing more until the next change.
+        // ...AND A REFUSED WHOLE PICTURE IS SAID in the picture drawn next, once, and nothing
+        // more is drawn until the next change.
         window.weave().refuse_next = true;
         window.room(fp::kRole, fp::kRole, 170, 65, 2);
         rig.pump();
-        REQUIRE(seen.heard.size() == before + 3);
+        REQUIRE(seen.heard.size() == before + 4);
+        CHECK(seen.heard[before + 2].whole);
         CHECK(seen.heard.back().whole);
         CHECK(seen.refusals.size() == 2);
         CHECK(rig.shows_part("The graphics window refused Flow's picture: the case refused this drawing"));
         rig.pump();
-        CHECK(seen.heard.size() == before + 3);
+        CHECK(seen.heard.size() == before + 4);
         rig.click("[Graph]");
-        REQUIRE(seen.heard.size() == before + 4);
-        CHECK(seen.heard.back().whole);
+        REQUIRE(seen.heard.size() == before + 5);
         CHECK(seen.refusals.size() == 2);
-
-        // THE WINDOW ALONE: with Workshop's room taken back, a press there still acts and is drawn.
-        rig.host(ws::PaneCanvasRoom{fp::kPane, ++rig.grant, 0, 0, unit, true});
-        const auto pictures = rig.presenter->pictures.size();
-        const auto alone = seen.heard.size();
-        REQUIRE(window.press(fp::kRole, "control:page-state"));
-        rig.pump();
-        CHECK(seen.heard.size() == alone + 1);
-        CHECK(rig.presenter->pictures.size() == pictures);
-        const auto shown = window.rows(fp::kRole);
-        CHECK(std::any_of(shown.begin(), shown.end(),
-                          [](const std::string& row) { return row.find("[Add state field]") != std::string::npos; }));
 
         // ONCE A LIFE: an activation asks no room again; a reloaded pane asks it afresh.
         rig.activate();
@@ -703,12 +700,14 @@ TEST_CASE("loaded Flow pane ignores forged answers and personal Workshop gesture
     auto foreign = std::make_unique<Presenter>();
     loom::Grant authority;
     authority.allow_to_role(fh::FlowAnswer::zen_name, fh::FlowAnswer::zen_version, fp::kRole);
-    authority.allow_to_role(ws::PaneCanvasPointer::zen_name, ws::PaneCanvasPointer::zen_version, fp::kRole);
+    authority.allow_to_role(gfx::AreaButtonChanged::zen_name, gfx::AreaButtonChanged::zen_version, fp::kRole);
     const auto impostor = rig.bus.register_weave(std::move(foreign), std::move(authority));
     rig.click("  math.max");
     const auto before = rig.state().workspace;
     const auto add = rig.press_for("[Add]");
-    rig.bus.send_as_to_role(impostor, fp::kRole, loom::Message(loom::to_value(add), impostor));
+    rig.bus.send_as_to_role(impostor, fp::kRole,
+        loom::Message(loom::to_value(gfx::AreaButtonChanged{fp::kRole, 1, true, add.x, add.y, 0}), impostor, {},
+                      add.gesture));
     rig.pump();
     CHECK(rig.state().workspace == before);
     // The run is the pane's next request, so it takes the next correlation. Deliver the forged
@@ -732,7 +731,7 @@ TEST_CASE("loaded Flow pane ignores forged answers and personal Workshop gesture
 TEST_CASE("loaded Flow pane hands a right press back to Workshop under the press's own number, and its picture moves nothing") {
     Rig rig;
     const auto before = rig.state();
-    const auto pictures = rig.presenter->pictures.size();
+    const auto pictures = rig.drawings();
     auto press = rig.press_for("[New]"); // a control a primary press would act on
     press.button = 3;
     rig.host(press, 77);
@@ -745,7 +744,7 @@ TEST_CASE("loaded Flow pane hands a right press back to Workshop under the press
     CHECK(passed[0].correlation == 77);
     CHECK(passed[0].provenance.authored_from_role(fp::kRole));
     // NOTHING OF FLOW'S MOVED: no page, no selection, no new picture.
-    CHECK(rig.presenter->pictures.size() == pictures);
+    CHECK(rig.drawings() == pictures);
     CHECK(rig.state().page == before.page);
     CHECK(rig.state().workspace == before.workspace);
 }
@@ -882,7 +881,8 @@ TEST_CASE("a dropped description that names a shape it does not carry declares n
     // A BARE DESCRIPTION of a shape that nests another carries nothing beside it.
     rig.drop(loom::encode_schema(*review), 40 * unit, 20 * unit);
     // Said on the page itself, which stays until it is put down, and in the notice.
-    const auto said = std::count_if(rig.picture().texts.begin(), rig.picture().texts.end(), [](const auto& row) {
+    const auto texts = rig.picture().texts;
+    const auto said = std::count_if(texts.begin(), texts.end(), [](const auto& row) {
         return row.text.find("Not declarable: schema descriptor: unresolved nested schema 'review.Detail'") != std::string::npos;
     });
     CHECK(said == 2);
@@ -894,17 +894,6 @@ TEST_CASE("loaded Flow pane binds gestures to the pictured room definition and i
     Rig rig;
     rig.graph_semantically();
     rig.click("  math.max");
-    auto stale_room = rig.press_for("[Add]");
-    ++rig.grant;
-    rig.room();
-    const auto before_room = rig.state().workspace;
-    rig.host(stale_room);
-    CHECK(rig.state().workspace == before_room);
-    auto stale_definition = rig.press_for("[Add]");
-    rig.edit_ok("bind", {"0", "1", "4"});
-    const auto before_definition = rig.state().workspace;
-    rig.host(stale_definition);
-    CHECK(rig.state().workspace == before_definition);
 
     auto drag = rig.press_for("%0 math.max", true);
     rig.host(drag);
@@ -933,23 +922,6 @@ TEST_CASE("loaded Flow pane binds gestures to the pictured room definition and i
     motion = drag; motion.phase = ws::canvas_pointer::kMove; motion.x += 150;
     rig.host(motion);
     CHECK(rig.workspace().graph.places.front().x == hidden.x);
-
-    ws::PaneCanvasPointer old_wheel;
-    old_wheel.pane = fp::kPane; old_wheel.grant = rig.grant;
-    old_wheel.picture = rig.picture().picture;
-    old_wheel.phase = ws::canvas_pointer::kWheel;
-    old_wheel.x = 30 * unit; old_wheel.y = 10 * unit; old_wheel.dy = -1;
-    rig.click("[Graph]");
-    const auto pan = rig.workspace().pan_y;
-    rig.host(old_wheel);
-    CHECK(rig.workspace().pan_y == pan);
-
-    rig.click("[Save*]");
-    const auto old_confirm = rig.press_for("[Confirm]");
-    rig.click("[Cancel]");
-    rig.click("[New]");
-    rig.host(old_confirm);
-    CHECK(rig.workspace().graph.project.definition.name == "meter");
 }
 
 TEST_CASE("loaded Flow pane preserves authored next-run state across incumbent inspection and reload") {
@@ -1107,16 +1079,6 @@ TEST_CASE("loaded Flow pane keeps an unfinished dialog bound to its original for
     rig.edit_ok("run");
     rig.edit_ok("send");
     CHECK(rig.live_value() == 99);
-    rig.click("input : Int = ", true);
-    const auto stale_field = rig.press_for("  Row:", true);
-    rig.key(in::scan::kEscape);
-    const auto before_stale = rig.state();
-    REQUIRE(before_stale.dialog_entries.empty());
-    rig.host(stale_field);
-    const auto after_stale = rig.state();
-    CHECK(after_stale.dialog_entries.empty());
-    CHECK(after_stale.workspace == before_stale.workspace);
-    CHECK(rig.live_value() == 99);
 }
 
 TEST_CASE("a query typed to the search line's end is drawn whole in a window, its caret a bar after it") {
@@ -1124,12 +1086,13 @@ TEST_CASE("a query typed to the search line's end is drawn whole in a window, it
     // query filling the field is drawn to its last character, never cut and marked.
     Rig rig;
     rig.graph_semantically();
-    auto window = ws::PaneCanvasRoom{fp::kPane, ++rig.grant, 170 * 9, 65 * 22, 1, true};
-    window.text_advance_px = 9;
-    window.text_line_px = 18;
-    rig.host(window);
+    pw::Window native(rig.bus, "native");
+    native.set_measure(gfx::TextMeasure{9, 18});
+    native.room_px(fp::kRole, fp::kRole, 170 * 9, 65 * 22);
+    rig.pump();
+    rig.shown = &native;
     rig.text("abcdefghijklmno"); // the field's fifteen columns, the caret after them
-    const ws::PaneCanvasText line = rig.label("find: abcdefghijklmno"); // exactly: not cut
+    const ws::CanvasText line = rig.label("find: abcdefghijklmno"); // exactly: not cut
     CHECK(line.caret_col == 21);
 }
 
@@ -1137,12 +1100,11 @@ TEST_CASE("loaded Flow pane keeps authored layout through native text drag pan s
     TempFiles files;
     Rig rig;
     rig.graph_semantically();
-    auto native_room = ws::PaneCanvasRoom{fp::kPane, ++rig.grant,
-        170 * 9, 65 * 22, 1, true};
-    native_room.text_advance_px = 9;
-    native_room.text_line_px = 18;
-    rig.host(native_room);
-    CHECK(rig.picture().labels.empty());
+    pw::Window native(rig.bus, "native");
+    native.set_measure(gfx::TextMeasure{9, 18});
+    native.room_px(fp::kRole, fp::kRole, 170 * 9, 65 * 22);
+    rig.pump();
+    rig.shown = &native;
     rig.edit_ok("save", {files.file()});
     REQUIRE_FALSE(rig.state().dirty);
     const auto start = rig.workspace().graph.places.front();
@@ -1176,8 +1138,8 @@ TEST_CASE("loaded Flow pane keeps authored layout through native text drag pan s
     REQUIRE(reload.ok);
     REQUIRE(reload.reloaded);
     rig.activate();
-    native_room.grant = ++rig.grant;
-    rig.host(native_room);
+    native.room_px(fp::kRole, fp::kRole, 170 * 9, 65 * 22, 2);
+    rig.pump();
     CHECK(rig.state().workspace == saved);
     CHECK_FALSE(rig.state().dirty);
     motion.x += 36;
@@ -1525,7 +1487,8 @@ TEST_CASE("a form and an operator that share a name are two rows: each previews 
                                          "the larger of two, named like the form, to count")}));
     rig.edit_ok("catalog");
     rig.text("count");
-    const auto both = std::count_if(rig.picture().texts.begin(), rig.picture().texts.end(),
+    const auto listed = rig.picture().texts;
+    const auto both = std::count_if(listed.begin(), listed.end(),
                                     [](const auto& t) { return t.text == "  fold"; });
     REQUIRE(both == 2);
     // The form's row, under Forms, previews and adds the form.
@@ -1539,13 +1502,13 @@ TEST_CASE("a form and an operator that share a name are two rows: each previews 
     rig.key(in::scan::kEscape); // the preview
     rig.key(in::scan::kEscape); // the node
     const auto operators = rig.label("Operators");
-    const ws::PaneCanvasText* named = nullptr;
-    for (const auto& t : rig.picture().texts)
+    const auto texts = rig.picture().texts;
+    const ws::CanvasText* named = nullptr;
+    for (const auto& t : texts)
         if (t.text == "  fold" && t.y > operators.y) named = &t;
     REQUIRE(named != nullptr);
-    ws::PaneCanvasPointer press;
-    press.pane = fp::kPane; press.grant = rig.grant; press.picture = rig.picture().picture;
-    press.gesture = ++rig.gesture; press.phase = ws::canvas_pointer::kPress; press.button = 1;
+    Moment press;
+    press.gesture = ++rig.gesture;
     press.x = named->x + 4; press.y = named->y + 4;
     rig.host(press);
     (void)rig.label("fold -- operator, native, from flowtest.named-fold");
@@ -1633,7 +1596,8 @@ TEST_CASE("a dropped value offers what it can be here: its shape declared, then 
     CHECK(rig.bus.weave(subject)->snapshot().get("total")->as_int() == 45);
 
     // A REFUSAL READS WHOLE: in a narrow room its Events row continues, indented, beneath itself.
-    rig.host(ws::PaneCanvasRoom{fp::kPane, ++rig.grant, 90 * unit, 65 * unit, unit, true});
+    ++rig.grant;
+    rig.room(90, 65);
     loom::Value zero = count;
     zero.set("step", loom::Cell::integer(0));
     rig.drop(zero, 40 * unit, 20 * unit);
@@ -1650,7 +1614,8 @@ TEST_CASE("a dropped value offers what it can be here: its shape declared, then 
     CHECK(continued);
     CHECK(pictured.find("a step of 0 never moves the count from 0 toward 10") != std::string::npos);
     CHECK(rig.bus.weave(subject)->snapshot().get("total")->as_int() == 45);
-    rig.host(ws::PaneCanvasRoom{fp::kPane, ++rig.grant, 170 * unit, 65 * unit, unit, true});
+    ++rig.grant;
+    rig.room();
 
     // AN EMITTED SHAPE inside the definition's namespace, and Escape puts a drop down unused.
     const auto total_schema = loom::SchemaBuilder("tally.Total", 1).field("total", loom::Kind::Int).build();
@@ -1671,6 +1636,7 @@ struct WireWindow {
     Rig& rig;
     pw::Window window;
     explicit WireWindow(Rig& r) : rig(r), window(r.bus, "flowtest") {
+        rig.shown = &window; // the window that shows Flow's area now, which the rig reads
         window.room(fp::kRole, fp::kRole, 170, 65);
         rig.pump();
         REQUIRE(window.press(fp::kRole, "control:page-graph"));
@@ -1753,7 +1719,7 @@ TEST_CASE("a wire dragged from an output and let go on empty graph room asks wha
         const auto room = w.room();
         w.drag(w.at("source-node:0"), room);
 
-        // THE SEARCH AT THE HAND, in the window and on Workshop's canvas alike, its question the
+        // THE SEARCH AT THE HAND, in the window's rows and its picture alike, its question the
         // output's type as what a power takes.
         CHECK(w.showing("From %0 : Int -- what takes it"));
         CHECK(rig.shows("From %0 : Int -- what takes it"));
@@ -1798,7 +1764,7 @@ TEST_CASE("a wire dragged from an output and let go on empty graph room asks wha
         for (std::size_t r = shown.size() - 2; r < shown.size(); ++r)
             CHECK(shown[r].find(" -> ") == std::string::npos);
     }
-    SUBCASE("on Workshop's canvas, by its pixels") {
+    SUBCASE("in the rig's window, by its pixels") {
         Rig rig;
         rig.graph_semantically();
         auto press = rig.press_for("[-> state.value]");

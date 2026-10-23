@@ -12,14 +12,13 @@
 // The subject is named by an office and nothing else moves it: the Pane Manager's `inspect in
 // Info` row asks this pane, which asks the host. The host's one inventory (`PaneInventory`) says
 // which of this office's views are on the desk. Each view draws its rows, and the caret of a line
-// being typed, as its own canvas picture, and says them as prose -- the caret beside the rows
-// (`PaneCaret`) -- only to a host granting no canvas.
+// being typed, in its own area of the window.
 
 #include "info/vocabulary.hpp"
 
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/inspection_seam_vocabulary.hpp"
-#include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_document.hpp"
 #include "workshop/pane_seat.hpp"
@@ -72,7 +71,6 @@ using ws::PaneKey;
 using ws::v2::PaneOffered;
 using ws::PaneOperationRequested;
 using ws::PaneOperationAnswered;
-using ws::PaneRoom;
 using ws::PaneSubjectActed;
 using ws::PaneSubjectRequested;
 using ws::PaneSubjectShown;
@@ -94,17 +92,15 @@ class InfoPaneWeave
           InfoPaneWeave, pane::InfoPaneState,
           loom::Accept<ws::PaneCarryAnswered, ws::PaneResetRequested, ws::PaneCanvasDrop, ws::PaneCanvasValueDrop, PaneOperationAnswered, zengine::inventory::InventoryEntry,
                        InspectPaneRequested,
-                       loom::Refused, PaneRoom, ws::PaneCanvasRoom, PaneKey,
+                       loom::Refused, PaneKey,
                        PaneTextInput, PaneActionRequested, PaneInventory, PaneSubjectShown,
                        PaneSubjectActed, loom::DispatchRefused, gfx::ClipboardCopy,
-                       gfx::ClipboardText, ws::PaneCanvasPointer, ws::PaneCanvasRejected,
-                       ws::PaneMenuAnswered, ws::PaneObservationAnswered, zengine::inventory::InventoryChanged,
+                       gfx::ClipboardText, ws::PaneMenuAnswered, ws::PaneObservationAnswered, zengine::inventory::InventoryChanged,
                        loom::PokeStructure, ws::PaneLaunchAnswered, ws::PaneCloseAnswered>,
           loom::Emit<ws::PaneValueCarryRequested, PaneOperationRequested, zengine::inventory::InventoryRead, zengine::inventory::InventoryAdd,
                      zengine::inventory::InventoryWrite, PaneOffered, PaneActions, PaneInventoryRequested,
                      PaneSubjectRequested, InspectPaneRequested, PaneSubjectActed, PaneCommitRequested,
-                     gfx::ClipboardCopy, gfx::ClipboardTextRequested, ws::v4::PaneContent,
-                     ws::v5::PaneCanvasContent, ws::PaneCaret, ws::PanePassRequested,
+                     gfx::ClipboardCopy, gfx::ClipboardTextRequested, ws::PanePassRequested,
                      ws::PaneMenuRequested, ws::PaneObservationRequested, ws::PaneObservationContinued,
                      ws::PaneEscapeUnspent,
                      ws::PaneObservationEnded, loom::PokeDescribe, ws::PaneLaunchRequested,
@@ -157,19 +153,19 @@ public:
         }
         declare(*v, mail); say(*v, mail); (void)mail.answer(loom::Ack{});
     }
-    /// A VALUE OR A REFERENCE PLACED ON A VIEW'S CANVAS. A value's place reads back to the row and
-    /// column it fell on, which only a field copy spends, and only on a value view's picture still
-    /// shown; a whole value and a reference open their subject wherever they land.
+    /// A VALUE OR A REFERENCE PLACED ON A VIEW'S AREA. A value's place reads back to the row and
+    /// column of the rows drawn there it fell on, which only a field copy spends, and only on a
+    /// value view; a whole value and a reference open their subject wherever they land.
     void on(const ws::PaneCanvasValueDrop& drop, loom::Mail& mail) {
-        dropped(drop.pane, drop.grant, drop.picture, drop.x, drop.y, drop.data, false, mail);
+        dropped(drop.pane, drop.area, drop.x, drop.y, drop.data, false, mail);
     }
     void on(const ws::PaneCanvasDrop& drop, loom::Mail& mail) {
-        dropped(drop.pane, drop.grant, drop.picture, drop.x, drop.y, drop.data, true, mail);
+        dropped(drop.pane, drop.area, drop.x, drop.y, drop.data, true, mail);
     }
-    void dropped(const std::string& key, std::int64_t grant, std::int64_t picture, std::int64_t x,
-                 std::int64_t y, const loom::Bytes& data, bool reference, loom::Mail& mail) {
+    void dropped(const std::string& key, const std::string& area, std::int64_t x, std::int64_t y,
+                 const loom::Bytes& data, bool reference, loom::Mail& mail) {
         pane::ValueView* v = view_of(key);
-        if (!mail.authored_from_role(kWorkshopRole) || !v) return;
+        if (!mail.authored_from_role(kWorkshopRole) || !v || canvas_of(*v).area() != area) return;
         if (v->is_default() && (properties_.drafting() || properties_.committing())) {
             properties_.tell("Finish the pane-property edit before inspecting an inventory entry");
         } else {
@@ -177,9 +173,8 @@ public:
             if (reference) {
                 v->drop_reference(data, c);
             } else {
-                const ws::PaneCanvasSeat& canvas = canvas_of(*v);
-                const ws::RowCell at = ws::row_cell_at(ws::canvas_rows(canvas.room()), x, y);
-                v->drop_value(data, at.row, at.column, shows_value(*v, grant, picture), c);
+                const ws::RowCell at = canvas_of(*v).cell_at(x, y);
+                v->drop_value(data, at.row, at.column, value_mode(*v), c);
             }
             if (v->is_default() && !v->active) properties_.tell(v->notice());
         }
@@ -229,42 +224,6 @@ public:
     /// weave's, from the page this image was built with, so a reloaded image answers its own words.
     bool known_pane(const std::string& key) { return view_of(key) != nullptr; }
 
-    /// A PRESS, ITS MOTION, THE WHEEL AND A RIGHT PRESS ON A VIEW'S CANVAS. A place reads back to
-    /// the row and column a prose press would have named. A value view acts only on the picture
-    /// it still shows; the pane-property view keeps its own inverse. A field press arms a pickup
-    /// under its own delivery, which the first motion to another cell spends; the wheel walks a
-    /// value view's fields; a right press on the rows opens the view's own menu.
-    void on(const ws::PaneCanvasPointer& event, loom::Mail& mail) {
-        pane::ValueView* v = view_of(event.pane);
-        if (!mail.authored_from_role(kWorkshopRole) || !v) return;
-        const ws::PaneCanvasSeat& canvas = canvas_of(*v);
-        if (!canvas.on_canvas()) return;
-        const ws::RowCell at = ws::row_cell_at(ws::canvas_rows(canvas.room()), event.x, event.y);
-        if (event.phase == ws::canvas_pointer::kWheel || event.phase == ws::canvas_pointer::kMove) {
-            if (event.grant != canvas.room().grant || !value_mode(*v)) return;
-            if (event.phase == ws::canvas_pointer::kWheel) {
-                if (v->wheel(event.dy)) say(*v, mail);
-            } else if (event.gesture == held_of(*v)) {
-                pane::ViewContext c{mail, asked_};
-                v->dragged(at.row, at.column, c);
-            }
-            return;
-        }
-        if (event.phase != ws::canvas_pointer::kPress) return;
-        if (event.button == 3) {
-            right_press(*v, at, shows_value(*v, event.grant, event.picture), mail);
-        } else if (event.button == 1) {
-            // Only the motion of the press a field pickup is armed under may begin it, and only a
-            // value view's press arms one: a press on the properties leaves no earlier press armed.
-            held_of(*v) = at.shown && value_mode(*v) ? event.gesture : 0;
-            // The property view reads a press against the rows last composed, in the room it was
-            // aimed at; a value view only against the picture it still shows.
-            const bool current = value_mode(*v) ? shows_value(*v, event.grant, event.picture)
-                                                : event.grant == canvas.room().grant;
-            if (at.shown) press(*v, at, current, mail);
-        }
-    }
-
     // ---- Its views in graphics windows (its office's `MultiPaneFacet` calls these) ------------
 
     /// EACH VIEW'S SEAT, where a window that shows the view's area finds it.
@@ -273,7 +232,7 @@ public:
         for (ws::PaneCanvasSeat& seat : canvases_) visit(seat);
     }
 
-    /// A view Workshop seats nowhere, composed again for the room a window gave it.
+    /// A view composed again for the room a window gave it.
     void on_window_room(const std::string& key, loom::Mail& mail) {
         if (pane::ValueView* v = view_of(key)) {
             fit_room(*v);
@@ -281,10 +240,9 @@ public:
         }
     }
 
-    /// THE POINTER ON A VIEW IN A WINDOW, read onto the rows shown there, which are the view's
-    /// current picture: as on Workshop's canvas, a press arms a value view's field pickup under the
-    /// window's number for it, its motion spends it, the wheel walks the fields and a right press
-    /// opens the view's menu.
+    /// THE POINTER ON A VIEW IN A WINDOW, read onto the rows drawn there: a press arms a value
+    /// view's field pickup under the window's number for it, its motion spends it, the wheel walks
+    /// the fields and a right press opens the view's menu.
     void on_window_pointer(const std::string& key, const ws::WindowPointer& p, bool,
                            loom::Mail& mail) {
         pane::ValueView* v = view_of(key);
@@ -308,8 +266,8 @@ public:
     }
 
     /// A PRESS ASKED AS A PART'S ACTION, by a window that shows a view in an area placed deaf to the
-    /// pointer: a primary press on its place in the picture shown there, which is the view's
-    /// current one. No press of Workshop's stands behind it, so it arms no field pickup.
+    /// pointer: a primary press on its place in the rows drawn there. No press the window holds
+    /// stands behind it, so it arms no field pickup.
     void on_window_press(const std::string& key, std::int64_t row, std::int64_t column,
                          loom::Mail& mail) {
         pane::ValueView* v = view_of(key);
@@ -361,33 +319,6 @@ public:
                     .send_to_role(kWorkshopRole, ws::PaneObservationEnded{v.key(), 0});
     }
 
-    void on(const PaneRoom& room, loom::Mail& mail) {
-        pane::ValueView* v = view_of(room.pane);
-        if (!mail.authored_from_role(kWorkshopRole) || !v) {
-            return;
-        }
-        if (!canvas_of(*v).prose_room(room)) {
-            return; // the canvas room, granted first, already drew
-        }
-        fit_room(*v);
-        say(*v, mail);
-    }
-
-    /// A VIEW'S OWN CANVAS: while it holds a room there it draws its rows as its picture, the
-    /// lattice's rows and columns its room, and says them as prose only to a host granting none.
-    void on(const ws::PaneCanvasRoom& room, loom::Mail& mail) {
-        pane::ValueView* v = view_of(room.pane);
-        if (!mail.authored_from_role(kWorkshopRole) || !v) {
-            return;
-        }
-        canvas_of(*v).canvas_room(room);
-        fit_room(*v);
-        say(*v, mail);
-    }
-
-    /// A refused picture leaves the last good one showing, and the next saying draws again.
-    void on(const ws::PaneCanvasRejected&, loom::Mail&) {}
-
     /// THE ONE INVENTORY, AS THE HOST SAYS IT -- published when it changes, or answered to this
     /// image's arrival -- read for which of this office's views are on the desk: a hidden view
     /// keeps its draft, not a watch.
@@ -395,6 +326,7 @@ public:
         if (!from_workshop(mail)) {
             return; // a stranger's list of panes is not the host's inventory
         }
+        pay_declarations(mail);
         pane::ViewContext c{mail, asked_};
         for (auto& v : views_) {
             bool open = false;
@@ -439,6 +371,12 @@ public:
     /// (`zen.DispatchRefused`; WL-INFO-13): an attestation, not an answer. Each value view is
     /// offered it first; then, with Loom's provenance, the property view's two records.
     void on(const loom::DispatchRefused& refused, loom::Mail& mail) {
+        // A DECLARATION LOOM REFUSED -- its host gone as it crossed -- IS OWED, and said again
+        // beside the next word the host sends (`settle`, `on(PaneInventory)`).
+        if (mail.dispatch_refused() && refused.shape == PaneActions::zen_name) {
+            declarations_owed_ = true;
+            return;
+        }
         pane::ViewContext c{mail, asked_};
         for (auto& v : views_) if (v.hear(refused, c)) { declare(v, mail); say(v, mail); return; }
         if (!mail.dispatch_refused()) {
@@ -586,6 +524,12 @@ private:
         actions.rows = value_mode(v) ? v.actions() : property_rows();
         (void)mail.as_role(pane::kInfoPaneRole).send_to_role(kWorkshopRole, actions);
     }
+    /// ...EVERY VIEW'S, AGAIN, while a refused one is owed.
+    void pay_declarations(loom::Mail& mail) {
+        if (!declarations_owed_) return;
+        declarations_owed_ = false;
+        for (auto& v : views_) declare(v, mail);
+    }
 
     /// THE DEFAULT PANE'S ROWS WHILE IT SHOWS PANE PROPERTIES: the property view's own, then,
     /// while no draft is open, the two ways to a value view.
@@ -602,6 +546,7 @@ private:
     /// WHAT THE PROPERTY VIEW SAYS IT IS OWED after an act or an answer: the default pane's rows
     /// declared again, then its picture said again.
     void settle(loom::Mail& mail) {
+        pay_declarations(mail);
         const pane::PropertyView::Due due = properties_.take_due();
         if (due.declare) declare(views_.front(), mail);
         if (due.say) say(views_.front(), mail);
@@ -623,34 +568,24 @@ private:
     /// The slots show typed values always; the default view only while its value is shown.
     static bool value_mode(const pane::ValueView& v) { return !v.is_default() || v.active; }
 
-    /// ONE VIEW'S ROOMS (`ws::PaneCanvasSeat`): the canvas room Workshop granted it, the pictures
-    /// numbered there, and the prose room it keeps for a host granting none. Kept here, per slot,
-    /// so a view's retirement keeps the room and its numbering.
+    /// ONE VIEW'S AREA (`ws::PaneCanvasSeat`): the window that shows it and the rows drawn there.
+    /// Kept here, per slot, so a view's retirement keeps the room.
     ws::PaneCanvasSeat& canvas_of(const pane::ValueView& v) { return canvases_[v.slot() - 1]; }
     /// The gesture of the last primary press on a view, while it was on a value view's rows.
     std::int64_t& held_of(const pane::ValueView& v) { return held_[v.slot() - 1]; }
 
-    /// The rows and columns a view composes for, as its seat measured them: its canvas's lattice
-    /// while it holds one -- and, for the default view, the property view's too.
+    /// The rows and columns a view composes for, as its seat measured them -- and, for the
+    /// default view, the property view's too.
     void fit_room(pane::ValueView& v) {
         const ws::PaneCanvasSeat& canvas = canvas_of(v);
         v.room(canvas.rows(), canvas.columns());
         if (v.is_default()) properties_.room(canvas.rows(), canvas.columns());
     }
 
-    /// WHETHER A PLACE ON `picture` OF `grant` IS ONE THE VIEW STILL SHOWS AS A VALUE VIEW: the
-    /// pane-property view numbers no meaning of its own, so a place on it is never a field or a
-    /// control.
-    bool shows_value(pane::ValueView& v, std::int64_t grant, std::int64_t picture) {
-        return value_mode(v) && canvas_of(v).shows(grant, picture);
-    }
-
-    /// THE ROWS SENT: as the view's own picture while it holds a canvas, numbered by what they
-    /// mean (`meaning`), the caret and selection standing in them; as prose with the caret beside
-    /// them, said every time so a caret that went goes, to a host granting none.
-    void send(pane::ValueView& v, ws::v4::PaneContent said, std::int64_t meaning,
-              const ws::RowsCaret& caret, loom::Mail& mail) {
-        canvas_of(v).say(mail, std::move(said), meaning, caret, /*always_caret=*/true);
+    /// THE ROWS DRAWN in the view's area, the caret and selection standing in them.
+    void send(pane::ValueView& v, ws::ComposedRows said, const ws::RowsCaret& caret,
+              loom::Mail& mail) {
+        canvas_of(v).publish_rows(mail, std::move(said.rows), std::move(said.parts), caret);
     }
     bool can_create() const {
         return std::any_of(views_.begin() + 1, views_.end(), [](const pane::ValueView& v) { return !v.allocated(); });
@@ -768,9 +703,7 @@ private:
     void say(pane::ValueView& v, loom::Mail& mail) {
         if (!value_mode(v)) { say_properties(mail); return; }
         if (!v.granted()) return;
-        ws::v4::PaneContent said = v.draw(can_create());
-        const std::int64_t meaning = said.picture;
-        send(v, std::move(said), meaning, v.caret(), mail);
+        send(v, v.draw(can_create()), v.caret(), mail);
     }
 
     /// THE PANE-PROPERTY VIEW'S ROWS, sent with the names it gives them
@@ -780,11 +713,10 @@ private:
         if (!properties_.granted()) {
             return;
         }
-        std::vector<surface::SurfaceTextRow> rows = properties_.compose();
+        std::vector<ws::TextRow> rows = properties_.compose();
         const auto said = static_cast<std::int64_t>(rows.size());
-        send(views_.front(),
-             ws::v4::PaneContent{pane::kInfoPane, std::move(rows), 0, 0, properties_.named_rows(said)},
-             0, properties_.caret(), mail);
+        send(views_.front(), ws::ComposedRows{std::move(rows), properties_.named_rows(said)},
+             properties_.caret(), mail);
     }
 
     // ---- State not in the shape ------------------------------------------------------------
@@ -821,6 +753,7 @@ private:
     /// ONE COUNTER FOR EVERY QUESTION THIS PANE ASKS, so a correlation is this incarnation's
     /// own and an answer to somebody else's question is not mistaken for one to ours.
     std::uint64_t asked_ = 0;
+    bool declarations_owed_ = false; ///< a declaration Loom refused, said again with the next word
 };
 
 } // namespace

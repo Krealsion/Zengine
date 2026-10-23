@@ -8,6 +8,7 @@
 // `doctest_main.cpp` refuses a run selecting no case.
 
 #include "workshop_support.hpp"
+#include "pane_window.hpp"
 
 // The historical session shapes and their conversions, an artifact's material, named here
 // because this suite owns the whole-cell-to-fine-lattice claim.
@@ -1206,7 +1207,7 @@ TEST_CASE("an empty map is an observed zero, and stray commas invent no weave") 
     // ZERO IS SAID, and it is said as a count rather than as a silence: a map that has
     // not been answered yet produces no content at all, so Workshop's own
     // `(waiting for the provider)` is what a weaver reads in that state.
-    const std::vector<surface::SurfaceTextRow> none = intro::project_loaded({}, 8, 46).rows;
+    const std::vector<TextRow> none = intro::project_loaded({}, 8, 46).rows;
     REQUIRE_FALSE(none.empty());
     CHECK(none[0].text == "loaded weaves -- 0");
     CHECK(any_row(none, intro::kNotInProcess));
@@ -1224,7 +1225,7 @@ TEST_CASE("the split is on the LAST at-sign, and the ambiguity is bounded not so
 }
 
 TEST_CASE("a weave with no role says so, rather than leaving the column blank") {
-    const std::vector<surface::SurfaceTextRow> rows =
+    const std::vector<TextRow> rows =
         intro::project_loaded({intro::LoadedWeave{"snake-controls", ""}}, 8, 46).rows;
     CHECK(any_row(rows, std::string("snake-controls @") + intro::kNoRole));
 }
@@ -1234,7 +1235,7 @@ TEST_CASE("the heading counts the whole population, not the shown part") {
     // COULD NOT TRUST. It is taken from the population and never from the rows spent.
     for (const std::int64_t rows : {std::int64_t{4}, std::int64_t{8}, std::int64_t{40}}) {
         CAPTURE(rows);
-        const std::vector<surface::SurfaceTextRow> out =
+        const std::vector<TextRow> out =
             intro::project_loaded(loaded_population(9), rows, 46).rows;
         REQUIRE_FALSE(out.empty());
         CHECK(out[0].text == "loaded weaves -- 9");
@@ -1250,7 +1251,7 @@ TEST_CASE("what the list is NOT survives every budget that shows a list at all")
     // counted out loud.
     for (std::int64_t rows = 3; rows <= 40; ++rows) {
         CAPTURE(rows);
-        const std::vector<surface::SurfaceTextRow> out =
+        const std::vector<TextRow> out =
             intro::project_loaded(loaded_population(12), rows, 46).rows;
         CHECK(any_row(out, intro::kNotInProcess));
         // FROM FOUR ROWS UP THERE IS A NAMED WEAVE, and the reason it is four rather
@@ -1263,7 +1264,7 @@ TEST_CASE("what the list is NOT survives every budget that shows a list at all")
         // Shown plus hidden is the population, which is the accounting the marker
         // exists to keep and the one thing a windowed list can get silently wrong.
         std::size_t named = 0;
-        for (const surface::SurfaceTextRow& r : out) {
+        for (const TextRow& r : out) {
             if (r.text.rfind("  weave-", 0) == 0) {
                 ++named;
             }
@@ -1273,12 +1274,12 @@ TEST_CASE("what the list is NOT survives every budget that shows a list at all")
 }
 
 TEST_CASE("an omission is counted on its own row and the count adds up") {
-    const std::vector<surface::SurfaceTextRow> out =
+    const std::vector<TextRow> out =
         intro::project_loaded(loaded_population(20), 8, 46).rows;
     // Heading, some entries, the marker, the two notes -- every weave either shown or
     // counted, and nothing quietly dropped.
     std::size_t named = 0;
-    for (const surface::SurfaceTextRow& r : out) {
+    for (const TextRow& r : out) {
         if (r.text.rfind("  weave-", 0) == 0) {
             ++named;
         }
@@ -1290,7 +1291,7 @@ TEST_CASE("an omission is counted on its own row and the count adds up") {
 TEST_CASE("at a budget too small to show and to say, it says") {
     // THE SHORTEST ANSWER THIS VIEW HAS: it cannot show a weaver a weave AND tell them
     // what it is hiding, so it tells them.
-    const std::vector<surface::SurfaceTextRow> out =
+    const std::vector<TextRow> out =
         intro::project_loaded(loaded_population(20), 3, 46).rows;
     REQUIRE(out.size() == 3);
     CHECK(out[0].text == "loaded weaves -- 20");
@@ -1299,10 +1300,9 @@ TEST_CASE("at a budget too small to show and to say, it says") {
 }
 
 TEST_CASE("every projection fits the room it was given, over the whole domain") {
-    // THE OBLIGATION THAT IS NOT A COURTESY. Workshop refuses an over-budget update
-    // WHOLE rather than truncating it, so a provider that miscounts by one row loses
-    // everything it said and the pane goes back to waiting. The sweep is the population
-    // crossed with the budget, including the degenerate budgets no pane has.
+    // THE OBLIGATION THAT IS NOT A COURTESY: a row past the room is not drawn, so a provider
+    // that miscounts by one row loses what it said there. The sweep is the population crossed
+    // with the budget, including the degenerate budgets no pane has.
     for (const std::size_t n : {std::size_t{0}, std::size_t{1}, std::size_t{4}, std::size_t{31}}) {
         for (std::int64_t rows = 0; rows <= 12; ++rows) {
             for (const std::int64_t cols : {std::int64_t{0}, std::int64_t{1}, std::int64_t{3},
@@ -1310,15 +1310,15 @@ TEST_CASE("every projection fits the room it was given, over the whole domain") 
                 CAPTURE(n);
                 CAPTURE(rows);
                 CAPTURE(cols);
-                const std::vector<surface::SurfaceTextRow> out =
+                const std::vector<TextRow> out =
                     intro::project_loaded(loaded_population(n), rows, cols).rows;
                 REQUIRE(static_cast<std::int64_t>(out.size()) <= rows);
-                for (const surface::SurfaceTextRow& r : out) {
+                for (const TextRow& r : out) {
                     REQUIRE(static_cast<std::int64_t>(r.text.size()) <= cols);
                     for (const char c : r.text) {
                         const unsigned char byte = static_cast<unsigned char>(c);
-                        // `SurfaceTextRow`'s plain-ASCII contract, which is the third
-                        // rule Workshop judges an update by.
+                        // A row's plain-ASCII contract: a character is an advance of the
+                        // window's text.
                         REQUIRE(byte >= 0x20u);
                         REQUIRE(byte < 0x7Fu);
                     }
@@ -1332,7 +1332,7 @@ TEST_CASE("every projection fits the room it was given, over the whole domain") 
 }
 
 TEST_CASE("a long name is cut with a mark rather than silently") {
-    const std::vector<surface::SurfaceTextRow> out = intro::project_loaded(
+    const std::vector<TextRow> out = intro::project_loaded(
         {intro::LoadedWeave{"a-library-with-a-very-long-name-indeed", "zengine.role"}}, 8, 20).rows;
     REQUIRE(out.size() >= 2);
     CHECK(out[1].text.size() == 20);
@@ -1424,10 +1424,10 @@ TEST_CASE("the count is the kernel's and moves when the kernel's map does") {
     CHECK(loaded_rows(r, kind)[0] ==
           "loaded weaves -- 2");
 
-    // A WIDER SURFACE MOVES THE PROSE BUDGET, WHICH IS A ROOM GRANT, WHICH IS THIS
-    // TOOL'S ONE BEAT. Nothing polled and nothing timed out.
-    author_test_pane_room(r, kind, r.session().panes.external_pane(kind)->rows + 1,
-                          r.session().panes.external_pane(kind)->columns + 1);
+    // A WIDER SURFACE MOVES THE AREA'S ROOM, WHICH IS THIS TOOL'S ONE BEAT. Nothing polled and
+    // nothing timed out.
+    author_test_pane_room(r, kind, held_canvas_rows(*r.session().panes.external_pane(kind)).rows + 1,
+                          held_canvas_rows(*r.session().panes.external_pane(kind)).columns + 1);
     r.extent(140, 40);
     const std::vector<std::string> after =
         loaded_rows(r, kind);
@@ -1439,7 +1439,7 @@ TEST_CASE("the count is the kernel's and moves when the kernel's map does") {
 TEST_CASE("the graphical medium grants a different budget and the view spends it") {
     // BOTH PROJECTIONS OF ONE PANE, and the provider composes for neither medium: it is handed
     // a room and the advance and line its text stands at, never a font, so what differs between
-    // the readings is a few integers `fit_region` resolved on Workshop's side. The metric
+    // the readings is a few integers the window resolved. The metric
     // arrives as a NUMBER, which is how every medium-dependent claim here is proved on a lane
     // with no font engine.
     PaneRig r;
@@ -1450,8 +1450,8 @@ TEST_CASE("the graphical medium grants a different budget and the view spends it
 
     const ExternalPane* cells = r.session().panes.external_pane(kind);
     REQUIRE(cells != nullptr);
-    const std::int64_t cell_rows = cells->rows;
-    const std::int64_t cell_cols = cells->columns;
+    const std::int64_t cell_rows = held_canvas_rows(*cells).rows;
+    const std::int64_t cell_cols = held_canvas_rows(*cells).columns;
     REQUIRE(cell_rows > 0);
     const std::vector<std::string> in_cells =
         loaded_rows(r, kind);
@@ -1462,18 +1462,16 @@ TEST_CASE("the graphical medium grants a different budget and the view spends it
     r.extent(1200, 500, 10, 18, gfx::kCellPx); // a window reports its device scale
     const ExternalPane* graphical = r.session().panes.external_pane(kind);
     REQUIRE(graphical != nullptr);
-    CHECK(graphical->rows != cell_rows);
-    CHECK(graphical->columns != cell_cols);
+    CHECK(held_canvas_rows(*graphical).rows != cell_rows);
+    CHECK(held_canvas_rows(*graphical).columns != cell_cols);
 
-    // AND THE VIEW ANSWERED THE NEW ROOM rather than the old one -- Workshop clears its
-    // cache before every grant, so a projection that had not moved would be showing as
-    // `waiting` here instead.
+    // AND THE VIEW ANSWERED THE NEW ROOM rather than the old one.
     const std::vector<std::string> in_pixels =
         loaded_rows(r, kind);
     REQUIRE_FALSE(in_pixels.empty());
     CHECK(in_pixels[0] == "loaded weaves -- 2");
     CHECK(any_row(in_pixels, intro::kIntrospectionStem));
-    CHECK(static_cast<std::int64_t>(in_pixels.size()) <= graphical->rows);
+    CHECK(static_cast<std::int64_t>(in_pixels.size()) <= held_canvas_rows(*graphical).rows);
     // THE SAME TRUTH IN BOTH, which is the honesty claim: two projections of one fact.
     CHECK(in_cells[0] == in_pixels[0]);
 }
@@ -1528,25 +1526,28 @@ TEST_CASE("the tool answers Workshop and refuses everybody else") {
 }
 
 TEST_CASE("a forged room produces no content at all") {
-    // MEASURED FROM THE OTHER SIDE, through a watcher that holds `zengine.workshop` and
-    // can therefore author a room deliberately OR send one personally.
+    // MEASURED FROM THE OTHER SIDE: a room no window's office authored draws nothing, and the
+    // room a window gives the pane's area is drawn there.
     PaneRig r;
     PaneWatcher* watch = r.mount_watcher();
-    (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    const loom::WeaveId id = r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
+    REQUIRE(id.valid());
     REQUIRE(watch->offers.size() == kIntroPaneCount);
+    zengine::testing::pane_window::Window window(r.bus);
+    const std::string area = std::string(kIntroOffice) + "." + kIntroPane;
+    const std::size_t before = window.weave().heard.size();
 
-    r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
-        wv.grant_personally(m, kIntroOffice, PaneRoom{kIntroPane, 6, 40});
-    });
-    CHECK(watch->content.empty()); // holding an office is not speaking as one
+    r.bus.send(id, loom::Message(loom::to_value(gfx::AreaRoom{area, window.name(), 1, 40 * gfx::kCellPx,
+                                                              6 * gfx::kCellPx, {}, true}),
+                                 loom::WeaveId{}, loom::WeaveId{}, 0));
+    r.bus.drain_until_idle();
+    CHECK(window.weave().heard.size() == before); // holding no window's office is giving no room
 
-    r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
-        wv.grant(m, kIntroOffice, PaneRoom{kIntroPane, 6, 40});
-    });
-    REQUIRE(watch->content.size() == 1);
-    CHECK(watch->content[0].pane == std::string(kIntroPane));
-    REQUIRE_FALSE(watch->content[0].rows.empty());
-    CHECK(watch->content[0].rows[0].text == "loaded weaves -- 1");
+    window.room(area, kIntroOffice, 40, 6);
+    r.bus.drain_until_idle();
+    const std::vector<std::string> rows = window.rows(area);
+    REQUIRE_FALSE(rows.empty());
+    CHECK(rows[0] == "loaded weaves -- 1");
 }
 
 TEST_CASE("adding this tool widens nothing -- it says three shapes and no more") {
@@ -1575,12 +1576,11 @@ TEST_CASE("adding this tool widens nothing -- it says three shapes and no more")
     std::vector<std::string> distinct = said;
     std::sort(distinct.begin(), distinct.end());
     distinct.erase(std::unique(distinct.begin(), distinct.end()), distinct.end());
-    // SIX: the Powers pane's declared actions and the settings it takes ride beside its offer
+    // FIVE: the Powers pane's declared actions and the settings it takes ride beside its offer
     // (WL-KEY-15, WL-SETTING-03), declarations of what a pane DOES, not a reach into anything;
-    // its rows are its picture, drawn in its own area of the window too.
-    const std::vector<std::string> allowed{"Drawn", "PaneActions", "PaneCanvasContent",
-                                           "PaneOffered", "PaneSettingsDeclared",
-                                           "zen.ListLoaded"};
+    // its rows are drawn in its own area of the window.
+    const std::vector<std::string> allowed{"Drawn", "PaneActions", "PaneOffered",
+                                           "PaneSettingsDeclared", "zen.ListLoaded"};
     CHECK(distinct == allowed);
     // NAMED NEGATIVELY TOO, because the interesting half of an authority audit is the
     // shapes that are ABSENT. Asking what is loaded is not being able to load anything:
@@ -1611,20 +1611,18 @@ TEST_CASE("unload and reload -- waiting is said, and a reload recovers the view"
     CHECK(any_row(loaded_rows(r, kind),
                   intro::kIntrospectionStem));
 
-    // ...and the next room grant is the moment the silence becomes visible. Workshop
-    // clears its cache before every grant, so what a weaver reads is WAITING -- never
-    // `unavailable`, which is a fate nothing here has observed.
-    author_test_pane_room(r, kind, r.session().panes.external_pane(kind)->rows + 1,
-                          r.session().panes.external_pane(kind)->columns + 1);
-    r.extent(140, 40);
+    // ...and Workshop's next look is the moment the silence becomes visible: no participant holds
+    // the office, so the pane's area goes and its frame says, in the window, that it WAITS --
+    // never `unavailable`, which is a fate nothing here has observed.
+    r.key(input::scan::kUnknown);
     const std::vector<std::string> gone =
         loaded_rows(r, kind);
     REQUIRE(gone.size() == 1);
-    CHECK(gone[0] == std::string(kExternalWaiting));
+    CHECK(gone[0] == std::string(kExternalWaiting) + intro::kLoadedPaneName);
 
     // THE PROVIDER COMES BACK. Its attested activation offers the same `PaneRef`, which
-    // refreshes the descriptor in place and clears the grant -- so the next repaint
-    // grants room again and the view returns with no gesture from the weaver.
+    // refreshes the descriptor in place -- so the area is placed again, the window gives it a
+    // room, and the view returns with no gesture from the weaver.
     REQUIRE(r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice).valid());
     // identity de-duplicated all three
     CHECK(r.session().panes.runtime.entries.size() == kIntroPaneCount);
@@ -1811,8 +1809,8 @@ TEST_CASE("a pane with room for the header and nothing else still says whose it 
                                                  "Probe", "a summary", {}});
     ExternalPane live;
     live.kind = kFirstRuntimeKind;
-    live.heard = true;
-    live.shown.push_back(surface::SurfaceTextRow{"a provider row", gfx::role::kFill});
+    live.held = true;
+    live.in_window = true;
     panes.external.push_back(live);
 
     Session s = screen_session(kScreenMinW, kScreenMinH, 8, 18);
@@ -5975,7 +5973,6 @@ TEST_CASE("command mode marks the selected pane, with brackets where text is a c
     // THE KEYS IN THE PANE: its `> ` mark says so, and no ring is drawn.
     ExternalPane* pane = d.s.panes.external_pane(d.kinds[1]);
     REQUIRE(pane != nullptr);
-    pane->granted = true;
     d.s.panes.keyboard = d.kinds[1];
     REQUIRE(keyboard_context(d.s) == KeyContext::kPane);
     surface::SurfaceLayer held;

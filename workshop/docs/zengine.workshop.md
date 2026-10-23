@@ -9,11 +9,12 @@ presenter, a skin or an input producer says to Workshop, and what Workshop does 
 
 ## About
 
-A pane is a presentation an office offers; **the office authors the pane, and Workshop grants the
-room.** Workshop keys every pane by the office Loom stamped on the offer and the pane's own key, so
-no payload names its provider. It decides where a pane stands and how much room it gets, draws its
-chrome and the band, routes each key, character, press and wheel to the one place it belongs, and
-tells the pane what reached it; the pane decides what its rows mean. Nothing a pane says grants it
+A pane is a presentation an office offers; **the office authors the pane, and Workshop places its
+area.** Workshop keys every pane by the office Loom stamped on the offer and the pane's own key, so
+no payload names its provider. It decides where a pane stands and how much room its area gets,
+draws its frame and the band, and routes each key and character to the one place it belongs; the
+pane draws in its own area of the window and hears the pointer there from the window, and decides
+what its rows mean. Nothing a pane says grants it
 anything: what Workshop may say is its own grant (`workshop_grant`,
 [`workshop/grant.cpp`](../grant.cpp)), checked at every send, and holding the office is no
 super-grant.
@@ -39,20 +40,18 @@ A weave joins the desk as a pane in five steps, each a message sent as its offic
    your own activation, with [`PaneOffered`](#paneoffered). Repeating it refreshes in place.
 2. **Declare.** Say the rows a weaver's keys reach with [`PaneActions`](#paneactions) and the
    settings you take with [`PaneSettingsDeclared`](#panesettingsdeclared).
-3. **Be granted a room.** When the desk seats your pane -- a setup naming it, the Pane Manager's
+3. **Be placed.** When the desk seats your pane -- a setup naming it, the Pane Manager's
    launch, your own [`PaneRevealRequested`](#panerevealrequested) -- Workshop hands you
-   `PaneSettings` (version 2, with the row's revision, when your holder accepts it), then a
-   `PaneCanvasRoom` if your holder accepts the canvas doors, and
-   `PaneRoom{pane, rows, columns}`. A new room comes whenever the room changes.
-4. **Draw.** Send [`PaneContent`](#panecontent) rows inside the room, or a
-   [`PaneCanvasContent`](#panecanvascontent) picture under the grant, and
-   [`PaneCaret`](#panecaret) where an insertion point stands.
-5. **Hear presses.** Workshop sends the pane a press as `PanePressed` (or `PaneCanvasPointer` on a
-   canvas), keys and text as `PaneKey` and `PaneTextInput` while the keys are yours, a declared
-   row as `PaneActionRequested` with its id, the second button as `PaneButton`, the wheel as
-   `PaneWheel`. Each carries a correlation; continue it with a menu
-   ([`PaneMenuRequested`](#panemenurequested)) or ask before an act
-   ([`PaneOperationRequested`](#paneoperationrequested)).
+   `PaneSettings`, then places your pane's area in the window showing the desk, which tells you
+   its `AreaRoom`. A holder that hears no room is framed: `<name> draws in no window`.
+4. **Draw.** Send `Drawn` to that window, in your area alone: rows or a picture, each part named
+   by the action a press there asks.
+5. **Hear the hand.** The window gives you the pointer in your area: `AreaButtonChanged` under
+   each press's number, `AreaPointerMoved`, `AreaWheelTurned`, `AreaHoldEnded`. Workshop sends
+   `PaneKey` and `PaneTextInput` while the keys are yours, `PaneKeys` as they come and go, a
+   declared row as `PaneActionRequested`, a carried value as `PaneCanvasValueDrop`. Continue a
+   press with [`PaneMenuRequested`](#panemenurequested) or
+   [`PaneOperationRequested`](#paneoperationrequested).
 
 A walk through all five is [Make a Workshop tool](make-a-workshop-tool.md).
 
@@ -342,7 +341,7 @@ one role, about one subject.
   under the approved gesture's correlation.
 - **Answers:** `PaneCarryAnswered{carried, reason}`, to the asker alone; the band says `Carrying
   <label>`, then a dash and `click a receiving pane; Escape cancels`. The carrier's click on a pane that accepts it
-  sends `PaneDrop` (rows) or `PaneCanvasDrop` (a canvas) under a new correlation; elsewhere the
+  sends `PaneCanvasDrop`, a point of its area, under a new correlation; elsewhere the
   band says `This place does not accept the carried item; Escape cancels`, and it stays held.
   Escape puts it down; another hand cannot place or cancel it, and a guest's is released at the
   next attributed input once that guest has left. A placement Loom refuses is said with its
@@ -360,13 +359,14 @@ one role, about one subject.
 
 - **Takes:** `pane`, `label`, `data`, and `drag`: true places it where the primary release lands,
   false waits for a click. v2 adds `token`, the source's own, which Workshop stamps into
-  `v2::PaneValueDrop` and `PaneCanvasValueDrop` with the source office and pane.
+  `PaneCanvasValueDrop` with the source office and pane.
 - **Answers:** `PaneCarryAnswered`, to the asker alone, as
-  [`PaneCarryRequested`](#panecarryrequested); the drop is `PaneValueDrop`, or v2's to a receiver
-  that accepts it, or `PaneCanvasValueDrop` on a canvas. A value drag starts at the source's
-  primary press, becomes a drag once the hand moves, and ends at that same hand's release; a click
-  that never moved selects and carries nothing. A release that comes before the carry is answered
-  is kept with its place and aimed picture; that hand's next key, press, text or wheel makes it
+  [`PaneCarryRequested`](#panecarryrequested); the drop is `PaneCanvasValueDrop`, a point of the
+  area it lands in. A value drag starts at the source's
+  primary press, becomes a drag once the hand moves, and ends at that same hand's release, or its
+  next key, text or press; a wheel turned while it is held turns the pane under the hand, and the
+  drag stands. A click that never moved selects and carries nothing. A release that comes before the carry is answered
+  is kept with its place; that hand's next key, press, text or wheel makes it
   stale, a receiver gone cancels it, and a release over a place that takes no value cancels the
   drag. A drag begun on a canvas ends that press's hold as lost. An empty `token` is a copy, and a
   receiver infers no move from the data; the host grants the v2 drop beside v1 explicitly.
@@ -725,16 +725,17 @@ a managed opening ([`open_seam_vocabulary.hpp`](../open_seam_vocabulary.hpp)).
 
 ### `PresentationAdmitRequested`
 
-`PresentationAdmitRequested` hands Workshop the content a trial's pane prepared, to show it.
+`PresentationAdmitRequested` v3 admits the seat a trial reserved and has Workshop offer the
+presentation it claims; the candidate is the Editor's to draw.
 
-- **Takes:** `op`, `provider`, `pane`, `generation`; v1 its `rows` and caret; v2 its `picture`, a
-  `v5::PaneCanvasContent` under the room the trial reserved.
+- **Takes:** `op`, `provider`, `pane`, `generation`: the candidate is ready, and carries no rows or
+  picture.
 - **Answers:** `PresentationAdmitted{op, ok, refusal}`, to the asker alone, after Workshop offers
-  the presentation it claims; when it is published the pane is seated with the content and the
-  keys, and the band says `showing <name> -- it opened <file>, and it has the keys`.
+  the presentation it claims; when it is published the pane is seated with the keys, the Editor
+  draws the candidate in its area, and the band says `showing <name> -- it opened <file>, and it
+  has the keys`.
 - **Refuses:** `no trial stands for this opening -- try again`; `the room for <name> changed while
-  opening -- try again`; `<name>: <why>`, the content judged as any content is, and v2 `no room was
-  reserved for its picture`, `its picture names another room`.
+  opening -- try again`.
 - **Example:** the opening manager admits the Editor's first rows.
 
 ## Hears
@@ -784,29 +785,6 @@ A refusal is said on the band, `office-wide settings of <office>: refused -- <wh
 and why. Kept while the pane holds that revision, said with its row (`it cannot use <key> --
 <why>`) and on Attention; one naming another revision is dropped.
 
-### `PaneContent`
-
-`PaneContent`, from a pane's office: its rows, within the room granted. v2 adds `generation`, an
-older one dropped; v3 `picture`, echoed on presses; v4 `parts`; v5 each part's `available`. Too
-many rows, a row too wide, or a byte not drawn is refused whole: the body says `(the last update
-did not fit this pane's room -- none of it was kept)` and Attention names why. A canvas pane's rows
-are ignored.
-
-### `PaneCanvasContent`
-
-`PaneCanvasContent`, from the granted holder: one whole picture under its room grant
-([`pane_canvas_vocabulary.hpp`](../pane_canvas_vocabulary.hpp)). v4 adds `parts`, v5 runs on the
-text lattice, v6 `available`. A refusal is `PaneCanvasRejected` to the sender, the last good
-picture marked `(update refused)`: `canvas room grant is no longer current`, `canvas picture number
-must increase within its grant`, a broken budget.
-
-### `PaneCaret`
-
-`PaneCaret`, from a pane's office: where its insertion point and selection stand in the rows it last
-sent; v2 adds `generation`. One those rows do not hold leaves the pane with no caret, and the
-notice band says why: `Hello @<office>: put a caret on row 2 of a pane showing 2 rows`. Each medium
-draws it its own way ([a caret and a selection](workshop-panes.md#a-caret-and-a-selection)).
-
 ### `PaneEscapeUnspent`
 
 `PaneEscapeUnspent`, from a pane's office under the correlation the Escape came on: that Escape
@@ -838,12 +816,6 @@ its requester itself, unchosen: `the presenter could not answer it -- <why>`.
 `PresenterReady`, from `zengine.presenter`: a holder arrived carrying menu `menu`, or 0. An open
 menu it carries stays open under it, its picture numbered afresh; one it does not is ended, its
 requester told `the presenter was replaced`.
-
-### `PictureFence`
-
-`PictureFence`, from Workshop to its own office after a canvas is handed out
-([`vocabulary.hpp`](../vocabulary.hpp)): when it comes round, the newest picture is the one a press
-is stamped with. Only Workshop's office sends it.
 
 ### `WithdrawalFence`
 
@@ -908,21 +880,21 @@ On a weaver's host a guest's text rests nowhere:
 
 ### `PointerButton`
 
-`PointerButton`, from input: a press reaches the pane its place shows, front first -- `PanePressed`
-on rows, `PaneCanvasPointer` on a canvas, `PaneButton` for the second button to a holder that
-accepts it, else Workshop's own pane menu. A position in a space Workshop does not know is ignored
-([pointer spaces](pointer-spaces.md)).
+`PointerButton`, from input: a press on what Workshop draws itself -- the band, a frame, Layouts,
+its menu -- is its own; a press on a pane's area reaches the pane from the window that shows it,
+never from here (`AreaPressed` tells Workshop where it landed). A position in a space Workshop does
+not know is ignored ([pointer spaces](pointer-spaces.md)).
 
 ### `PointerMoved`
 
-`PointerMoved`, from input: carries a held gesture -- an arrangement, a sweep (`PaneDragged`), a
-canvas press, a carried value -- and tells a canvas holder that accepts it where an idle pointer
-rests (`PaneCanvasHover`).
+`PointerMoved`, from input: carries a held gesture of Workshop's own -- an arrangement, a carried
+value -- and tells a pane that accepts it where a carried value would land (`PaneCanvasHover`); a
+pane hears the pointer in its area from the window.
 
 ### `PointerWheel`
 
-`PointerWheel`, from input: the notches go to the pane on top under the pointer, as `PaneWheel` or
-a canvas wheel. Nothing hears it while a menu or arranging is open.
+`PointerWheel`, from input: the notches Workshop's own surfaces take; a pane hears its own wheel
+in its area from the window. Nothing hears it while a menu or arranging is open.
 
 ### `AttributedInput`
 

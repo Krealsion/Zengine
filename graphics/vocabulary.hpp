@@ -200,8 +200,8 @@ struct AreaPointerMoved {
               ZEN_FIELD(dy), ZEN_FIELD(modifiers), ZEN_FIELD(local), ZEN_FIELD(actor));
 };
 
-/// Window -> the owner of an area placed to hear the pointer: the wheel turned there, +1.0 a notch
-/// away from the weaver, `dx` a horizontal wheel's.
+/// Window -> the owner of an area placed to hear the pointer and the wheel: the wheel turned there,
+/// +1.0 a notch away from the weaver, `dx` a horizontal wheel's.
 struct AreaWheelTurned {
     std::string area;
     double dx = 0, dy = 0;
@@ -300,8 +300,10 @@ struct WindowShaped {
 /// The arranger -> the directory: where an area stands, in which window, whose office draws in it,
 /// its order among the window's areas (a higher order stands in front), whether the window gives
 /// its keys to the owner, whether it gives the owner its pointer (`AreaButtonChanged` and the
-/// rest), and whether the weaver's own hand alone reaches it: a guest's press there is refused
-/// (`AreaHandRefused`).
+/// rest), whether the weaver's own hand alone reaches it: a guest's press there is refused
+/// (`AreaHandRefused`), and whether an area that hears the pointer hears the wheel and the third
+/// button too: one that does not lets them through to the area behind it that does, and stands in
+/// front of no third-button press held there.
 struct AreaPlaced {
     std::string area;
     std::string window;
@@ -311,9 +313,11 @@ struct AreaPlaced {
     bool keys = false;
     bool pointer = false;
     bool weaver_only = false;
-    ZEN_SHAPE(AreaPlaced, 3, ZEN_FIELD(area), ZEN_FIELD(window), ZEN_FIELD(owner), ZEN_FIELD(x),
+    bool wheel = true;
+    bool right = true;
+    ZEN_SHAPE(AreaPlaced, 5, ZEN_FIELD(area), ZEN_FIELD(window), ZEN_FIELD(owner), ZEN_FIELD(x),
               ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h), ZEN_FIELD(order), ZEN_FIELD(keys),
-              ZEN_FIELD(pointer), ZEN_FIELD(weaver_only));
+              ZEN_FIELD(pointer), ZEN_FIELD(weaver_only), ZEN_FIELD(wheel), ZEN_FIELD(right));
 };
 
 /// The arranger -> the directory: a skin is painter code in this library, from the load plan.
@@ -340,8 +344,9 @@ struct ElementCodeOffered {
 
 /// The directory -> a window: this area is yours, drawn by `owner`, here, painted by the skin in
 /// `library`; `arranger` is the office that placed it, as its placing was authored, empty for
-/// personal speech; `weaver_only` as it was placed. Said again whenever any of it changes, to a window that offers itself again,
-/// and when the owner asks its room; the window answers each with the owner's room.
+/// personal speech; `weaver_only`, `wheel` and `right` as it was placed. Said again whenever any of it
+/// changes, to a window that offers itself again, and when the owner asks its room; the window
+/// answers each with the owner's room.
 struct AreaIntroduced {
     std::string area;
     std::string owner;
@@ -353,10 +358,12 @@ struct AreaIntroduced {
     std::string skin;
     std::string library;
     bool weaver_only = false;
-    ZEN_SHAPE(AreaIntroduced, 4, ZEN_FIELD(area), ZEN_FIELD(owner), ZEN_FIELD(arranger),
+    bool wheel = true;
+    bool right = true;
+    ZEN_SHAPE(AreaIntroduced, 6, ZEN_FIELD(area), ZEN_FIELD(owner), ZEN_FIELD(arranger),
               ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h), ZEN_FIELD(order),
               ZEN_FIELD(keys), ZEN_FIELD(pointer), ZEN_FIELD(skin), ZEN_FIELD(library),
-              ZEN_FIELD(weaver_only));
+              ZEN_FIELD(weaver_only), ZEN_FIELD(wheel), ZEN_FIELD(right));
 };
 
 /// The directory -> a window: this area is no longer yours.
@@ -446,8 +453,9 @@ struct AreaShowAsked {
 
 /// One run of text as an area shows it: what its text says on one line, its characters side by
 /// side, from `x`, `y` in the area's pixels, each the window's advance wide and a line high. A run
-/// ends where no text stands, where an area in front shows instead, or at the area's edge; the
-/// blanks after its last character are left off.
+/// ends where no text stands, where an area in front shows instead -- one the asker arranges aside,
+/// whose cover is its own to judge -- or at the area's edge; the blanks after its last character
+/// are left off.
 struct AreaWord {
     std::int64_t x = 0, y = 0;
     std::string text;

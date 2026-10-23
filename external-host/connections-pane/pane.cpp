@@ -70,9 +70,8 @@ public:
         ask(mail);
     }
 
-    /// The room granted -- Workshop's, prose or canvas, or a graphics window's: the pane says its
-    /// rows in it. A refused picture leaves the last good one showing, and the next reading draws
-    /// again.
+    /// The room the window gave the pane's area: the pane says its rows in it. A refused drawing
+    /// leaves the last good one showing, and the next reading draws again.
     void on_room(loom::Mail& mail) { say(mail); }
 
     /// THE INVENTORY, SAID BY THE DOOR. Replaced whole; an answer to this pane's own ask and

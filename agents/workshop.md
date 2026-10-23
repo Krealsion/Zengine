@@ -20,7 +20,7 @@ consumer-specific behavior of its extracted panes.
 | the composition in pixels, the whole pixel, a face's unit; the desk said whole | [geometry](workshop/geometry.md) `WL-GEO` · [chrome](workshop/chrome.md) `WL-CHROME` · [desk-read](workshop/desk-read.md) `WL-READ` |
 | the setup file, a pane's default and override, its settings and their locks, places and slots, five states, the plane sequence, arranging a pane | [setup-file](workshop/setup-file.md) `WL-SETUP` · [settings](workshop/settings.md) `WL-SETTING` · [setting-locks](workshop/setting-locks.md) `WL-LOCK` · [panes-and-windows](workshop/panes-and-windows.md) `WL-PANE` · [planes](workshop/planes.md) `WL-FRONT` · [arrangement](workshop/arrangement.md) `WL-ARR` |
 | the pane catalog: the kinds, the built-in rows, a live offer's admission and its bounds | [catalog](workshop/catalog.md) `WL-CAT` |
-| local canvas pictures, room tokens, clipping and pointer custody | [canvas](workshop/canvas.md) `WL-CANVAS` |
+| a pane's picture, drawn in its area, and the window's pointer there | [canvas](workshop/canvas.md) `WL-CANVAS` |
 | a press, a double-click, what a routing bool means, the pointer order | [pointer](workshop/pointer.md) `WL-PTR` · [press-chain](workshop/press-chain.md) `WL-PRESS` |
 | a pane's labelled controls, its picture number, a mode a hand can leave, its parts' names | [pane-controls](workshop/pane-controls.md) · [pane-parts](workshop/pane-parts.md) `WL-HAND` |
 | a key, the keymap, an edit, a press's causes | [keyboard](workshop/keyboard.md) · [keymap-edit](workshop/keymap-edit.md) · [spelling](workshop/key-spelling.md) `WL-KEY` · [causes](workshop/action-causes.md) `WL-CAUSE` · [focus](workshop/focus.md) `WL-FOCUS` |

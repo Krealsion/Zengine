@@ -16,16 +16,6 @@ struct WorkshopState {
     ZEN_SHAPE(WorkshopState, 1);
 };
 
-/// The host's own fence behind a picture it handed the medium, authored as its office: a numbered
-/// picture becomes the press stamp only once this has come round twice behind the canvas that
-/// first showed it (`PictureStamp`). Not seen: the medium's latency after that, or a press the
-/// platform buffered before the input beat read it.
-struct PictureFence {
-    std::int64_t number = 0; ///< which fence: every picture handed out before it is covered
-    std::int64_t hop = 0;    ///< 1 on its way round the first time, 2 the second
-    ZEN_SHAPE(PictureFence, 1, ZEN_FIELD(number), ZEN_FIELD(hop));
-};
-
 /// The host's fence behind a menu it withdrew, authored as its office. Its second hop comes round
 /// behind every refusal the menu's earlier sentences produced, so the record of who is owed an
 /// answer is forgotten only then. It orders the bus; it proves no answer.

@@ -453,8 +453,8 @@ TEST_CASE("a retained sample is history, and an unload does not erase it") {
     // CATALOG, and erasing a weaver's answer because the population moved would reinterpret
     // history from a fact that is not about it.
     REQUIRE(r.catalog.unmount("zengine.provider.source"));
-    author_test_pane_room(r, kind, r.session().panes.external_pane(kind)->rows + 1,
-                          r.session().panes.external_pane(kind)->columns + 1);
+    author_test_pane_room(r, kind, held_canvas_rows(*r.session().panes.external_pane(kind)).rows + 1,
+                          held_canvas_rows(*r.session().panes.external_pane(kind)).columns + 1);
     r.extent(150, 44); // a fresh reading, which is this tool's one beat
     {
         const std::vector<std::string> shown = pane_rows(r, kind);
@@ -498,8 +498,7 @@ TEST_CASE("a sample refused in words a canvas cannot draw is shown on the Powers
 
     const ExternalPane* pane = r.session().panes.external_pane(kind);
     REQUIRE(pane != nullptr);
-    CAPTURE(pane->refusal_why);
-    CHECK(pane->refusal.empty());
+    CHECK(shows_canvas(*pane));
     const std::vector<std::string> shown = pane_rows(r, kind);
     CHECK(any_row(shown, std::string(intro::kSampleRefusedWord) + "  " + identity));
     CHECK(any_row(shown, "  no notes file at /home/jos?\?/notes.txt"));
@@ -537,8 +536,8 @@ TEST_CASE("the query is typed, edited, copied and pasted through the shipped sea
     const auto caret_at = [&r, kind]() {
         const ExternalPane* pane = r.session().panes.external_pane(kind);
         REQUIRE(pane != nullptr);
-        REQUIRE_FALSE(pane->canvas.content.texts.empty());
-        return pane->canvas.content.texts.front().caret_col;
+        REQUIRE(held_caret(*pane).row == 0);
+        return held_caret(*pane).column;
     };
     const auto query_at = static_cast<std::int64_t>(pane_rows(r, kind)[0].find("find:") + 5);
     CHECK(pane_rows(r, kind)[0].find('_') == std::string::npos);
@@ -651,8 +650,7 @@ TEST_CASE("a cold pane's first press is exactly one act") {
     }
     const ExternalPane* pane = cold.session().panes.external_pane(waiting);
     REQUIRE(pane != nullptr);
-    CHECK(pane->awaiting);
-    CHECK(pane->shown.empty());
+    CHECK(held_row_texts(*pane).empty()); // it waits, and draws nothing
 }
 
 TEST_CASE("THE LIVE WEAVER WITNESS, end to end through the real pane") {
@@ -765,8 +763,8 @@ TEST_CASE("THE LIVE WEAVER WITNESS, end to end through the real pane") {
     // owner on its own -- it is historical presentation -- and the new one did.
     r.project_anchor = "/zen/somewhere-else";
     CHECK(any_row(pane_rows(r, kind), "anchor  \"/zen/pane-rig\"")); // still the old one
-    author_test_pane_room(r, kind, r.session().panes.external_pane(kind)->rows + 1,
-                          r.session().panes.external_pane(kind)->columns + 1);
+    author_test_pane_room(r, kind, held_canvas_rows(*r.session().panes.external_pane(kind)).rows + 1,
+                          held_canvas_rows(*r.session().panes.external_pane(kind)).columns + 1);
     r.extent(150, 44);
     CHECK(any_row(pane_rows(r, kind), "anchor  \"/zen/pane-rig\"")); // a repaint is not a re-ask
     r.key(input::scan::kReturn);
@@ -779,8 +777,8 @@ TEST_CASE("THE LIVE WEAVER WITNESS, end to end through the real pane") {
     const std::int64_t said = shown_count(pane_rows(r, kind));
     CHECK(said > 0);
     REQUIRE(r.catalog.unmount("zengine.provider.source"));
-    author_test_pane_room(r, kind, r.session().panes.external_pane(kind)->rows + 1,
-                          r.session().panes.external_pane(kind)->columns + 1);
+    author_test_pane_room(r, kind, held_canvas_rows(*r.session().panes.external_pane(kind)).rows + 1,
+                          held_canvas_rows(*r.session().panes.external_pane(kind)).columns + 1);
     r.extent(160, 48);
     {
         const std::vector<std::string> shown = pane_rows(r, kind);

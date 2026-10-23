@@ -35,15 +35,6 @@ struct PaneValueCarryRequested {
     bool drag = true;
     ZEN_SHAPE(PaneValueCarryRequested, 1, ZEN_FIELD(pane), ZEN_FIELD(label), ZEN_FIELD(data), ZEN_FIELD(drag));
 };
-struct PaneValueDrop {
-    std::string pane;
-    loom::Bytes data;
-    std::int64_t row = 0;
-    std::int64_t column = 0;
-    std::int64_t picture = 0;
-    ZEN_SHAPE(PaneValueDrop, 1, ZEN_FIELD(pane), ZEN_FIELD(data), ZEN_FIELD(row), ZEN_FIELD(column),
-              ZEN_FIELD(picture));
-};
 // Version 2 keeps the pure copy payload and adds a source-owned transfer token. Workshop
 // stamps the actual source office/pane; receiving code must never infer that from item metadata.
 namespace v2 {
@@ -56,61 +47,48 @@ struct PaneValueCarryRequested {
     ZEN_SHAPE(PaneValueCarryRequested, 2, ZEN_FIELD(pane), ZEN_FIELD(label), ZEN_FIELD(data),
               ZEN_FIELD(drag), ZEN_FIELD(token));
 };
-struct PaneValueDrop {
-    std::string pane;
-    loom::Bytes data;
-    std::int64_t row = 0, column = 0, picture = 0;
-    std::string source_office, source_pane, token;
-    ZEN_SHAPE(PaneValueDrop, 2, ZEN_FIELD(pane), ZEN_FIELD(data), ZEN_FIELD(row), ZEN_FIELD(column),
-              ZEN_FIELD(picture), ZEN_FIELD(source_office), ZEN_FIELD(source_pane), ZEN_FIELD(token));
-};
 } // namespace v2
-/// A value copy placed on a canvas pane: where it landed in the canvas's own local pixels, in
-/// which granted room and on which picture, with v2's attribution. A canvas has no rows, so its
-/// provider hit-tests the place in the picture it drew and owns what the drop means there.
+
+// ---- Where a carried item lands: a point of the receiving pane's area ------------------------
+//
+// While something is carried, Workshop's own area stands in front of every pane's, so the hand's
+// moves and its release are Workshop's to read; where the hand is over a pane, Workshop says the
+// place in that pane's area -- its name, and a point in its pixels from its corner -- and the
+// pane reads it against what it drew there and owns what the item means at that place.
+
+/// A value copy placed on a pane: where it landed in the pane's area, with the source office and
+/// pane Workshop stamps and the source's transfer token.
 struct PaneCanvasValueDrop {
     std::string pane;
-    std::int64_t grant = 0, picture = 0, x = 0, y = 0;
+    std::string area;
+    std::int64_t x = 0, y = 0;
     loom::Bytes data;
     std::string source_office, source_pane, token;
-    ZEN_SHAPE(PaneCanvasValueDrop, 2, ZEN_FIELD(pane), ZEN_FIELD(grant), ZEN_FIELD(picture),
-              ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(data), ZEN_FIELD(source_office),
-              ZEN_FIELD(source_pane), ZEN_FIELD(token));
+    ZEN_SHAPE(PaneCanvasValueDrop, 3, ZEN_FIELD(pane), ZEN_FIELD(area), ZEN_FIELD(x),
+              ZEN_FIELD(y), ZEN_FIELD(data), ZEN_FIELD(source_office), ZEN_FIELD(source_pane),
+              ZEN_FIELD(token));
 };
 
-namespace v1 {
-
-/// The same drop at its earlier version, in sub-units (`kPaneCanvasLegacySubs` to the pixel),
-/// for a provider that accepts only the earlier canvas doors.
-struct PaneCanvasValueDrop {
-    std::string pane;
-    std::int64_t grant = 0, picture = 0, x = 0, y = 0;
-    loom::Bytes data;
-    std::string source_office, source_pane, token;
-    ZEN_SHAPE(PaneCanvasValueDrop, 1, ZEN_FIELD(pane), ZEN_FIELD(grant), ZEN_FIELD(picture),
-              ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(data), ZEN_FIELD(source_office),
-              ZEN_FIELD(source_pane), ZEN_FIELD(token));
-};
-
-} // namespace v1
-struct PaneDrop {
-    std::string pane;
-    loom::Bytes data;
-    std::int64_t row = 0;
-    std::int64_t column = 0;
-    std::int64_t picture = 0;
-    ZEN_SHAPE(PaneDrop, 1, ZEN_FIELD(pane), ZEN_FIELD(data), ZEN_FIELD(row), ZEN_FIELD(column),
-              ZEN_FIELD(picture));
-};
-/// A carried reference placed on a canvas pane, as `PaneDrop` places one on rows: where it landed
-/// in the canvas's own local pixels, in which granted room and on which picture. The provider
-/// hit-tests the place in the picture it drew and owns what the reference means there.
+/// A carried reference placed on a pane, as a value copy is: where it landed in the pane's area.
 struct PaneCanvasDrop {
     std::string pane;
-    std::int64_t grant = 0, picture = 0, x = 0, y = 0;
+    std::string area;
+    std::int64_t x = 0, y = 0;
     loom::Bytes data;
-    ZEN_SHAPE(PaneCanvasDrop, 1, ZEN_FIELD(pane), ZEN_FIELD(grant), ZEN_FIELD(picture),
-              ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(data));
+    ZEN_SHAPE(PaneCanvasDrop, 2, ZEN_FIELD(pane), ZEN_FIELD(area), ZEN_FIELD(x), ZEN_FIELD(y),
+              ZEN_FIELD(data));
+};
+
+/// Where a carried item rests over a pane, for a pane that accepts it: a point of its area, or
+/// `over` false once the hand left the area it last named. Presentation only: no gesture, focus or
+/// key moves.
+struct PaneCanvasHover {
+    std::string pane;
+    std::string area;
+    std::int64_t x = 0, y = 0;
+    bool over = true;
+    ZEN_SHAPE(PaneCanvasHover, 3, ZEN_FIELD(pane), ZEN_FIELD(area), ZEN_FIELD(x), ZEN_FIELD(y),
+              ZEN_FIELD(over));
 };
 } // namespace zengine::workshop
 #endif

@@ -85,12 +85,12 @@ std::string said_for(PaneRig& r, Act&& act) {
     return r.last_notice();
 }
 
-/// EVERY RUN A CANVAS PANE DREW, a line each: the pane's own words, read where it drew them.
+/// EVERY ROW A CANVAS PANE DREW IN ITS AREA, a line each: the pane's own words, read where it
+/// drew them.
 std::string picture_text(PaneRig& r, std::int64_t kind) {
-    const ExternalPane* pane = r.session().panes.external_pane(kind);
-    REQUIRE(pane != nullptr);
+    REQUIRE(r.session().panes.external_pane(kind) != nullptr);
     std::string all;
-    for (const auto& run : pane->canvas.content.texts) all += run.text + "\n";
+    for (const std::string& row : held_reading(kind).rows) all += row + "\n";
     return all;
 }
 
@@ -103,11 +103,12 @@ std::pair<std::int64_t, std::int64_t> cell_of_run(PaneRig& r, std::int64_t kind,
                                                   const std::string& start, std::int64_t into) {
     const ExternalPane* pane = r.session().panes.external_pane(kind);
     REQUIRE(pane != nullptr);
-    const auto& c = pane->canvas;
-    for (const auto& run : c.content.texts) {
-        if (run.text.rfind(start, 0) == 0) {
-            return {(c.x + run.x) / gfx::kCellPx + into,
-                    (c.y + run.y) / gfx::kCellPx};
+    const std::vector<std::string> rows = held_reading(kind).rows;
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        const std::size_t at = rows[i].find(start);
+        if (at != std::string::npos) {
+            return {pane->placed_x / gfx::kCellPx + static_cast<std::int64_t>(at) + into,
+                    pane->placed_y / gfx::kCellPx + static_cast<std::int64_t>(i)};
         }
     }
     FAIL("no run beginning `" << start << "` in\n" << picture_text(r, kind));
@@ -148,13 +149,12 @@ struct Weaver {
         physical->push_back(input::TextEntered{typed});
         pump();
     }
-    /// A primary press and its release at a canvas cell, as the terminal medium reports them.
+    /// A primary press and its release at a canvas cell, through the window showing the desk, as
+    /// the weaver's own hand there makes them.
     void click_cell(std::int64_t x, std::int64_t y) {
         for (const bool down : {true, false}) {
-            physical->push_back(input::PointerButton{1, down, x, y,
-                                                     input::space::kCells, input::mod::kNone});
+            r.hand_button(x, y, input::space::kCells, down);
         }
-        pump();
     }
     /// ...at column `column` of an external pane's body row `row`, the place the story's hand
     /// would aim at.
@@ -472,8 +472,7 @@ struct HotkeysDesk {
     void right(std::int64_t row) {
         const auto [x, y] = cell(row);
         for (const bool down : {true, false}) {
-            r.publish(loom::to_value(input::PointerButton{3, down, x, y,
-                                                          input::space::kCells, input::mod::kNone}));
+            r.hand_button(x, y, input::space::kCells, down, 3);
         }
     }
     /// The weaver chooses the presented menu's line reading `label`, through the keyboard.

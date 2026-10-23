@@ -38,7 +38,7 @@
 #include "component/text_box.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
+#include "workshop/pane_rows.hpp"
 
 #include "manuals/zengine.files.hpp" // this pane's manual, compiled in from its page
 
@@ -77,11 +77,9 @@ using ws::MarkedPlace;
 using ws::OpenSourceRequested;
 using ws::v3::PaneActionRow;
 using ws::PaneCatalogRequested;
-using ws::PaneContent;
 using ws::PaneKey;
 using ws::v2::PaneOffered;
 using ws::PanePassRequested;
-using ws::PaneRoom;
 using ws::PaneTextInput;
 using ws::ProjectRoot;
 using ws::ProjectRootRequested;
@@ -139,7 +137,6 @@ std::vector<std::string> split_subject(const std::string& subject) {
 /// The sentence for a press that named a picture this pane has since replaced: a press is aimed
 /// at what a weaver could see, so rows that moved between the aim and the delivery are said,
 /// never spent on whatever slid into that place.
-constexpr const char* kMovedSentence = "the rows moved -- press again";
 
 // ---- What a published row, or a run of columns inside one, MEANS (component::RowMap) -------
 
@@ -256,8 +253,7 @@ public:
         }
     }
 
-    /// Workshop grants the pane its room -- its canvas room, or its prose room where it grants no
-    /// canvas -- the one beat on which this tool draws. The listing is re-enumerated on it
+    /// The window gives the pane's area its room, the one beat on which this tool draws. The listing is re-enumerated on it
     /// (WL-FILES-12); with no origin yet, it is when the browser first asks the host where it
     /// began. A grant is not a weaver's act, so it keeps the cursor: a room moves for resizes,
     /// dragged edges and a title row returned right behind a selecting press.
@@ -295,13 +291,6 @@ public:
         say(mail);
     }
 
-    /// A PRESS ABOUT A PICTURE THE ROW MAP HAS REPLACED SINCE, or another room's, is refused in
-    /// words. A place reads back to the row and column a prose press named; Workshop read, before
-    /// the press moved the keyboard, whether an ordinary key was reaching this pane.
-    void fenced(loom::Mail& mail) {
-        notice_ = kMovedSentence;
-        say(mail);
-    }
 
     // WL-FOCUS-04 -- agents/workshop/focus.md
     void press(const ws::RowPress& at, loom::Mail& mail) {
@@ -1476,7 +1465,7 @@ private:
         if (meaning.kind != files_row::kNone) {
             means = std::move(meaning);
         }
-        (void)room().push(surface::SurfaceTextRow{fitted(text), role}, std::move(means));
+        (void)room().push(zengine::workshop::TextRow{fitted(text), role}, std::move(means));
     }
 
     /// The whole picture. The notice leads and is composed first, since the row map records

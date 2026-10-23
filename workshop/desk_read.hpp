@@ -3,14 +3,14 @@
 #ifndef ZENGINE_WORKSHOP_DESK_READ_HPP
 #define ZENGINE_WORKSHOP_DESK_READ_HPP
 
-// THE DESK, READ AS ARITHMETIC: where a medium draws a picture's glyphs, the words and parts said
-// there and the point a press reaches each by, a menu's lines, what covers a pane, a reading's
+// THE DESK, READ AS ARITHMETIC: where a medium draws Workshop's own glyphs, the words and parts
+// said there and the point a press reaches each by, a menu's lines, what covers a pane, a reading's
 // stamp and its earlier versions, and how much of a reading one reply holds. Each reads only what
 // it is handed; `WorkshopWeave`'s answers (weave_desk_read.cpp) spend them.
 // Workshop law: agents/workshop/desk-read.md (+3 registers; agents/workshop.md routes)
 
 #include "decoded_cells.hpp"
-#include "pane_canvas_vocabulary.hpp"
+#include "pane_rows.hpp"
 #include "pane_view.hpp"
 #include "pane_vocabulary.hpp"
 #include "panes.hpp"
@@ -125,10 +125,8 @@ inline void no_point(PanePart& out) {
     out.space = input::space::kUnknown;
 }
 
-/// A PART SAYS ITS AVAILABILITY AS ITS PANE SAID IT; a part of a version that says none, and a part
-/// Workshop names itself, is said as available.
-inline void say_available(PanePart& out, const PaneRowPart&) { out.available = true; }
-inline void say_available(PanePart& out, const v2::PaneRowPart& part) { out.available = part.available; }
+/// A PART SAYS ITS AVAILABILITY AS IT WAS NAMED.
+inline void say_available(PanePart& out, const RowPart& part) { out.available = part.available; }
 
 /// ...AND NEITHER HAS A WORD OF A PICTURE THAT TAKES NO PRESS.
 inline void no_point(PaneWord& out) {
@@ -204,7 +202,9 @@ inline std::string words_inside(const std::vector<PaneWord>& words, const DeskRe
     std::string out;
     for (const PaneWord& w : words) {
         const auto bytes = static_cast<std::int64_t>(w.text.size());
-        if (bytes == 0 || w.place.y < place.y || w.place.y + w.place.h > place.y + place.h) {
+        // ...ON ITS ROWS: a word whose line's middle the part holds, the part cut where its clip is.
+        const std::int64_t middle = w.place.y + w.place.h / 2;
+        if (bytes == 0 || middle < place.y || middle >= place.y + place.h) {
             continue;
         }
         const std::int64_t advance = w.place.w / bytes;
@@ -219,147 +219,6 @@ inline std::string words_inside(const std::vector<PaneWord>& words, const DeskRe
         out += out.empty() ? piece : " " + piece;
     }
     return out;
-}
-
-/// A canvas rectangle in a medium's own units -- pixels in a window, cells in a terminal -- as the
-/// medium shows [begin, end) on them: [floor(begin / unit), floor(end / unit)) on each axis.
-struct UnitBox {
-    std::int64_t x0 = 0, y0 = 0, x1 = 0, y1 = 0;
-    bool empty() const { return x1 <= x0 || y1 <= y0; }
-};
-
-/// A part's local rectangle on the body, cut to it, in the medium's units.
-inline UnitBox units_of(const PixelRect& body, const v2::PaneCanvasPart& part, std::int64_t unit) {
-    const std::int64_t left = graphics::add_cells(body.x, part.x);
-    const std::int64_t top = graphics::add_cells(body.y, part.y);
-    return UnitBox{graphics::floor_div_px((std::max)(body.x, left), unit),
-                   graphics::floor_div_px((std::max)(body.y, top), unit),
-                   graphics::floor_div_px((std::min)(body.x + body.w, graphics::add_cells(left, part.w)), unit),
-                   graphics::floor_div_px((std::min)(body.y + body.h, graphics::add_cells(top, part.h)), unit)};
-}
-
-/// A unit of a medium, by its column and row.
-using UnitPoint = std::pair<std::int64_t, std::int64_t>;
-
-/// WHERE A PRESS REACHES EACH PART OF A PICTURE AS ITS OWN, in the medium's units: of `boxes`, in
-/// the order the pane reads a press, a unit is the last one's that holds it. A part's point is its
-/// centre unit where that is its own, else the middle of its widest stretch of its own on the row
-/// nearest its centre that has one -- the upper of two as near, the leftmost of two as wide -- else
-/// none. Each band the boxes' edges cut is painted once, from the last box down: the cost follows
-/// the edges, no more than the body's units, never how the boxes nest or overlap.
-inline std::vector<std::optional<UnitPoint>> own_points(const std::vector<UnitBox>& boxes) {
-    std::vector<std::optional<UnitPoint>> out(boxes.size());
-    std::vector<std::int64_t> xs, ys;
-    for (const UnitBox& b : boxes) {
-        if (b.empty()) continue;
-        xs.insert(xs.end(), {b.x0, b.x1});
-        ys.insert(ys.end(), {b.y0, b.y1});
-    }
-    for (std::vector<std::int64_t>* edges : {&xs, &ys}) {
-        std::sort(edges->begin(), edges->end());
-        edges->erase(std::unique(edges->begin(), edges->end()), edges->end());
-    }
-    if (xs.size() < 2) return out;
-    const auto edge = [](const std::vector<std::int64_t>& edges, std::int64_t v) {
-        return static_cast<std::size_t>(std::lower_bound(edges.begin(), edges.end(), v) - edges.begin());
-    };
-    // Each box's run of columns and of bands between the edges, its centre, and the best stretch
-    // of its own found so far: its row's distance from the centre, the row, its width, its left end.
-    struct Seen {
-        std::size_t c0 = 0, c1 = 0, b0 = 0, b1 = 0;
-        std::int64_t cx = 0, cy = 0;
-        bool centre = false;
-        std::int64_t distance = -1, row = 0, width = 0, left = 0;
-    };
-    std::vector<Seen> seen(boxes.size());
-    for (std::size_t i = 0; i < boxes.size(); ++i) {
-        const UnitBox& b = boxes[i];
-        if (b.empty()) continue;
-        Seen& s = seen[i];
-        s.c0 = edge(xs, b.x0);
-        s.c1 = edge(xs, b.x1);
-        s.b0 = edge(ys, b.y0);
-        s.b1 = edge(ys, b.y1);
-        s.cx = b.x0 + (b.x1 - b.x0 - 1) / 2;
-        s.cy = b.y0 + (b.y1 - b.y0 - 1) / 2;
-    }
-    const std::size_t columns = xs.size() - 1;
-    std::vector<std::size_t> owner(columns), next(columns + 1);
-    // The first column at or after `k` this band has not painted.
-    const auto unpainted = [&next](std::size_t k) {
-        std::size_t root = k;
-        while (next[root] != root) root = next[root];
-        while (next[k] != root) {
-            const std::size_t up = next[k];
-            next[k] = root;
-            k = up;
-        }
-        return root;
-    };
-    for (std::size_t band = 0; band + 1 < ys.size(); ++band) {
-        std::fill(owner.begin(), owner.end(), kNoPart);
-        for (std::size_t k = 0; k <= columns; ++k) next[k] = k;
-        for (std::size_t i = boxes.size(); i-- > 0;) {
-            const Seen& s = seen[i];
-            if (boxes[i].empty() || band < s.b0 || band >= s.b1) continue;
-            for (std::size_t k = unpainted(s.c0); k < s.c1; k = unpainted(k + 1)) {
-                owner[k] = i;
-                next[k] = k + 1;
-            }
-        }
-        const std::int64_t top = ys[band], bottom = ys[band + 1] - 1;
-        for (std::size_t k = 0; k < columns;) {
-            std::size_t end = k + 1;
-            while (end < columns && owner[end] == owner[k]) ++end;
-            if (owner[k] != kNoPart) {
-                Seen& s = seen[owner[k]];
-                const std::int64_t left = xs[k], width = xs[end] - xs[k];
-                s.centre = s.centre ||
-                           (s.cy >= top && s.cy <= bottom && s.cx >= left && s.cx < left + width);
-                const std::int64_t row = (std::clamp)(s.cy, top, bottom);
-                const std::int64_t distance = row > s.cy ? row - s.cy : s.cy - row;
-                if (s.distance < 0 || std::make_tuple(distance, row, -width, left) <
-                                     std::make_tuple(s.distance, s.row, -s.width, s.left)) {
-                    s.distance = distance;
-                    s.row = row;
-                    s.width = width;
-                    s.left = left;
-                }
-            }
-            k = end;
-        }
-    }
-    for (std::size_t i = 0; i < boxes.size(); ++i) {
-        const Seen& s = seen[i];
-        if (s.centre) {
-            out[i] = UnitPoint{s.cx, s.cy};
-        } else if (s.distance >= 0) {
-            out[i] = UnitPoint{s.left + (s.width - 1) / 2, s.row};
-        }
-    }
-    return out;
-}
-
-/// ONE NAMED PART OF A PICTURE WHERE ITS BODY SHOWS IT: its rectangle cut to the body, the words
-/// inside it, and its point in `box`'s units (`own_points`) -- a pixel in a window, the cell the
-/// medium paints there in a terminal -- or none. False where the medium shows none of it.
-inline bool canvas_part_on(const PixelRect& body, const v2::PaneCanvasPart& part, const UnitBox& box,
-                           const std::optional<UnitPoint>& point, const std::vector<PaneWord>& words,
-                           std::int64_t space, std::int64_t rows_above, PanePart& out) {
-    const UnitBox px = units_of(body, part, 1);
-    if (box.empty() || px.empty()) return false;
-    out.name = part.name;
-    out.available = part.available;
-    out.place = DeskRect{px.x0, px.y0, px.x1 - px.x0, px.y1 - px.y0};
-    out.text = words_inside(words, out.place);
-    if (!point) {
-        no_point(out);
-        return true;
-    }
-    out.x = point->first;
-    out.y = space == input::space::kPixels ? point->second : point->second + rows_above;
-    out.space = space;
-    return true;
 }
 
 /// THE MENU ON THE SCREEN: Workshop's contextual menu, read from the painter's own composition of
@@ -399,16 +258,16 @@ inline DeskMenu desk_menu(const Session& s, const Screen& sc) {
         menu.lines.push_back(std::move(line));
     }
     // THE LINES IT NAMES, by the action or group each line shows.
-    std::vector<PaneRowPart> named;
+    std::vector<RowPart> named;
     const std::vector<std::string> names = context_line_names(s, sc);
     for (std::size_t i = 0; i < names.size(); ++i) {
         if (!names[i].empty()) {
-            named.push_back(PaneRowPart{names[i], static_cast<std::int64_t>(i), 0, place.columns});
+            named.push_back(RowPart{names[i], static_cast<std::int64_t>(i), 0, place.columns});
         }
     }
     const std::map<std::int64_t, std::vector<std::size_t>> owners = row_owners(named);
     for (std::size_t i = 0; i < named.size(); ++i) {
-        const PaneRowPart& part = named[i];
+        const RowPart& part = named[i];
         if (part.name.empty() || part.row < 0 ||
             part.row >= static_cast<std::int64_t>(region.rows.size())) {
             continue;
@@ -420,25 +279,6 @@ inline DeskMenu desk_menu(const Session& s, const Screen& sc) {
         }
     }
     return menu;
-}
-
-/// ONE CANVAS LABEL AS THE PAINTER DRAWS IT (`paint_pane_canvas`): the bytes left of the body
-/// dropped whole, the row cut at its right edge, a label outside its rows not drawn at all.
-inline bool drawn_label(const PaneCanvasLabel& label, const PixelRect& body, std::string& text,
-                        std::int64_t& x) {
-    if (label.y < 0 || label.y > body.h - kPaneCanvasUnit) return false;
-    std::size_t first = 0;
-    x = label.x;
-    while (first < label.text.size() && x < 0) {
-        x = graphics::add_cells(x, kPaneCanvasUnit);
-        ++first;
-    }
-    if (x > body.w - kPaneCanvasUnit || first == label.text.size()) return false;
-    const auto room = static_cast<std::size_t>((body.w - x) / kPaneCanvasUnit);
-    const auto count = (std::min)(label.text.size() - first, room);
-    if (count == 0) return false;
-    text = label.text.substr(first, count);
-    return true;
 }
 
 inline bool meets(const DeskRect& a, const PixelRect& b) {
@@ -498,15 +338,6 @@ inline void without_points(std::vector<PaneWord>& words, std::vector<PanePart>& 
 inline bool same_stamp(const PaneStamp& a, const PaneStamp& b) {
     return a.provider == b.provider && a.pane == b.pane && a.holder == b.holder &&
            a.incarnation == b.incarnation && a.epoch == b.epoch && a.fingerprint == b.fingerprint;
-}
-
-/// THE FINGERPRINT A STAMP NAMES: what the picture aimed at shows, and none for a canvas picture
-/// no press is stamped with -- a room not drawn yet, a preview, a managed opening's picture -- so
-/// the picture that first takes a press moves the stamp. A room whose own picture was refused
-/// shows that refusal until another is admitted, so its stamp names what it shows.
-inline std::int64_t stamp_fingerprint(const ExternalPane& pane) {
-    if (pane.canvas.grant == 0 || pane.stamp.aimed != 0) return pane.stamp.aimed_fingerprint;
-    return pane.refused_grant == pane.canvas.grant ? picture_fingerprint(pane) : 0;
 }
 
 /// A LAYOUT'S PART NAME: `layout:` and its name, a byte outside printable ASCII (and `%`, `#` and

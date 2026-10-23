@@ -28,21 +28,24 @@ constexpr const char* kGuardTwoOffice = "zengine.test.guard-two";
 constexpr const char* kGuardTwoPane = "guard2";
 constexpr const char* kSeatMenuId = "seat.menu";
 
-/// A NATIVE PROVIDER WITH THE `PaneButton` DOOR. It records every button it is told about with
-/// the correlation and author, and does one of four things a real consumer would: nothing (the
-/// blocking game), hand the press back (a heading row), ask the host to present two rows (a
-/// binding row), or ask to be revealed (the reveal door, kept distinct from the menu). It
-/// interprets nothing else, and records every menu answer it hears.
+/// A NATIVE PROVIDER THAT DRAWS IN ITS AREA OF THE WINDOW AND HEARS ITS SECOND BUTTONS THERE. It
+/// records every second-button moment the window gives its area with the correlation and author,
+/// and does one of four things a real consumer would: nothing (the blocking game), hand the press
+/// back (a heading row), ask the host to present two rows (a binding row), or ask to be revealed
+/// (the reveal door, kept distinct from the menu). It interprets nothing else, and records every
+/// menu answer it hears.
 class ButtonSeat
     : public loom::WeaveBase<ButtonSeat, SeatState,
-                             loom::Accept<PaneCatalogRequested, PaneRoom, PaneButton,
+                             loom::Accept<PaneCatalogRequested, gfx::AreaRoom, gfx::DrawnRefused,
+                                          gfx::AreaButtonChanged, gfx::AreaHoldEnded,
                                           PaneRevealAnswered, PaneMenuAnswered, PaneKey,
                                           PaneTextInput, PaneActionRequested, SeatDo>,
-                             loom::Emit<PaneOffered, PaneActions, PaneContent, PaneCaret,
-                                        PanePassRequested, PaneMenuRequested, PaneManageRequested,
+                             loom::Emit<PaneOffered, PaneActions, gfx::Drawn, PanePassRequested,
+                                        PaneMenuRequested, PaneManageRequested,
                                         PaneKeyboardRequested, PaneRevealRequested>> {
 public:
-    ButtonSeat(std::string office, std::string pane) : office_(std::move(office)), pane_(std::move(pane)) {}
+    ButtonSeat(std::string office, std::string pane)
+        : office_(std::move(office)), pane_(std::move(pane)), window_(office_, office_) {}
 
     struct Heard {
         std::int64_t button = 0;
@@ -50,26 +53,47 @@ public:
         std::int64_t row = 0;
         std::int64_t column = 0;
         bool lost = false;
-        std::int64_t picture = 0;
         std::uint64_t correlation = 0;
         std::string author;
     };
 
     void on(const PaneCatalogRequested&, loom::Mail&) { ++state_.said; }
-    void on(const PaneRoom&, loom::Mail&) { ++state_.said; }
-    void on(const PaneButton& b, loom::Mail& mail) {
+    void on(const gfx::AreaRoom& r, loom::Mail& mail) {
         ++state_.said;
-        buttons.push_back(Heard{b.button, b.pressed, b.row, b.column, b.lost, b.picture,
+        if (window_.room(r, mail)) draw(mail);
+    }
+    void on(const gfx::DrawnRefused& r, loom::Mail& mail) { (void)window_.refused(r, mail); }
+    /// A BUTTON THE WINDOW GAVE THE AREA: the second and third are this seat's to hear; the first
+    /// is the host's to read as a gesture, and heard nowhere here.
+    void on(const gfx::AreaButtonChanged& b, loom::Mail& mail) {
+        ++state_.said;
+        const RowsRoom room = window_.rows_room();
+        const std::optional<WindowPointer> p =
+            window_.pointer(b, mail, room.rows(), room.columns());
+        if (!p || b.button == 1) return;
+        buttons.push_back(Heard{b.button, b.pressed, p->at.row, p->at.column, false,
                                 mail.correlation(), std::string(mail.authored_role())});
         if (b.pressed && pass_on_press) {
             (void)pane_menu::pass_back(mail, office_, pane_);
         }
         if (b.pressed && menu_on_press) {
-            asked = offer(b.row, b.column).send(mail, office_);
+            asked = offer(p->at.row, p->at.column).send(mail, office_);
         }
         if (b.pressed && reveal_on_press) {
             (void)mail.as_role(office_).send_to_role(kWorkshopProvider, PaneRevealRequested{pane_});
         }
+    }
+    /// ...OR A HOLD OF ONE THE WINDOW ENDED with no release.
+    void on(const gfx::AreaHoldEnded& e, loom::Mail& mail) {
+        if (!window_.pointer(e, mail) || e.button == 1) return;
+        buttons.push_back(Heard{e.button, false, 0, 0, true, mail.correlation(),
+                                std::string(mail.authored_role())});
+    }
+    /// ROWS DRAWN IN THE AREA, and where the caret stands in them.
+    void draw_rows(loom::Mail& mail, std::vector<TextRow> drawn, RowsCaret at = {}) {
+        shown_ = std::move(drawn);
+        caret_ = at;
+        draw(mail);
     }
     void on(const PaneRevealAnswered& a, loom::Mail&) { reveals.push_back(a); }
     void on(const PaneMenuAnswered& a, loom::Mail& mail) {
@@ -168,20 +192,30 @@ public:
     std::function<void(ButtonSeat&, loom::Mail&)> next;
 
 private:
+    void draw(loom::Mail& mail) {
+        if (!window_.shown()) return;
+        const RowsRoom room = window_.rows_room();
+        window_.draw(rows_drawing(shown_, std::vector<RowPart>{}, room, room.columns(), caret_).sketch,
+                     mail);
+    }
     std::string office_;
     std::string pane_;
+    WindowDrawing window_;
+    std::vector<TextRow> shown_;
+    RowsCaret caret_;
 };
 
 /// Mount a button seat in `office`, have it offer `pane` as that office, open the pane, and
 /// return the weave id; the pane's runtime handle is read from the desk afterwards.
+std::int64_t kind_of(PaneRig& r, const char* office, const char* pane);
+
 loom::WeaveId mount_button_seat(PaneRig& r, ButtonSeat*& seat, const char* office, const char* pane) {
     auto held = std::make_unique<ButtonSeat>(office, pane);
     seat = held.get();
     loom::Grant grant;
     grant.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
     grant.allow_to_any(PaneActions::zen_name, PaneActions::zen_version);
-    grant.allow_to_any(PaneContent::zen_name, PaneContent::zen_version);
-    grant.allow_to_any(PaneCaret::zen_name, PaneCaret::zen_version);
+    grant.allow_to_any(gfx::Drawn::zen_name, gfx::Drawn::zen_version);
     grant.allow_to_any(PanePassRequested::zen_name, PanePassRequested::zen_version);
     grant.allow_to_any(PaneMenuRequested::zen_name, PaneMenuRequested::zen_version);
     grant.allow_to_any(PaneManageRequested::zen_name, PaneManageRequested::zen_version);
@@ -190,6 +224,7 @@ loom::WeaveId mount_button_seat(PaneRig& r, ButtonSeat*& seat, const char* offic
     // ...and a menu's answer, which no seat says on its own: a case forges one as this office to
     // show that an answer from an office that is not the presenter settles nothing.
     grant.allow_to_any(PaneMenuAnswered::zen_name, PaneMenuAnswered::zen_version);
+    grant.allow_to_role(gfx::RoomAsked::zen_name, gfx::RoomAsked::zen_version, gfx::kGraphicsRole);
     const loom::WeaveId id =
         r.bus.register_weave(std::move(held), std::move(grant), std::string(office));
     seat->zen_set_self(id);
@@ -199,6 +234,15 @@ loom::WeaveId mount_button_seat(PaneRig& r, ButtonSeat*& seat, const char* offic
     if (!has_pane(r.session().setup.active, PaneRef{office, pane})) {
         r.pick(PaneRef{office, pane});
     }
+    // ...AND ITS ROOM ASKED, as a holder started afresh asks it, so the window showing its area
+    // tells it the room.
+    const std::string area = held_area_of(kind_of(r, office, pane));
+    const std::string role = office;
+    seat->next = [area, role](ButtonSeat&, loom::Mail& m) {
+        (void)m.as_role(role).send_to_role(gfx::kGraphicsRole, gfx::RoomAsked{area});
+    };
+    (void)r.bus.send(id, loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
+    r.bus.drain_until_idle();
     return id;
 }
 
@@ -215,18 +259,24 @@ std::int64_t kind_of(PaneRig& r, const char* office, const char* pane) {
     return row == nullptr ? kNoPaneKind : row->kind;
 }
 
-/// A secondary button transition at a canvas cell, as the terminal medium reports it.
+/// A button transition at a canvas cell, through the window that shows the desk, as the terminal
+/// window reports one.
 void button_cell(PaneRig& r, std::int64_t button, bool pressed, std::int64_t cx, std::int64_t cy) {
-    r.publish(loom::to_value(input::PointerButton{button, pressed, cx, cy,
-                                                  input::space::kCells, input::mod::kNone}));
+    r.hand_moment(input::PointerButton{button, pressed, cx, cy, input::space::kCells,
+                                       input::mod::kNone});
 }
 
-/// ...QUEUED WITHOUT BEING HANDLED, so a case can order the host's turns itself.
-void queue_button(PaneRig& r, std::int64_t button, bool pressed, std::int64_t cx, std::int64_t cy) {
-    (void)r.bus.publish(loom::Message(
-        loom::to_value(input::PointerButton{button, pressed, cx, cy,
-                                            input::space::kCells, input::mod::kNone}),
-        loom::WeaveId{}, loom::WeaveId{}, 0));
+/// ...QUEUED WITHOUT BEING HANDLED, so a case can order the host's turns itself: on the window's
+/// platform, and its beat asked for on the bus at this place in the order -- the beat's turn
+/// lands it, and the next delivers it to the area's owner and its arranger.
+void queue_button(PaneRig& r, std::int64_t button, bool pressed, std::int64_t cx, std::int64_t cy,
+                  bool beat = true) {
+    r.come_up();
+    r.windows.queue({input::PointerButton{button, pressed, cx, cy, input::space::kCells,
+                                          input::mod::kNone}});
+    if (beat) {
+        (void)r.bus.send(r.windows.id(), loom::Message(loom::to_value(gfx::PumpSurface{})));
+    }
 }
 
 /// A KEY AT ITS PLACE IN A BURST, not drained: `PaneRig::key` publishes and drains.
@@ -294,10 +344,10 @@ struct Rigged {
 // Custody and continuation
 // =============================================================================
 
-TEST_CASE("WL-PRESS-06: a right press over a pane whose holder has the door is delivered, consumed, opens no menu, and names the admitted picture; the chrome stays the host's") {
+TEST_CASE("WL-PRESS-06: a right press over a pane whose holder hears the window is delivered, consumed and opens no menu; the chrome stays the host's") {
     Rigged t;
     REQUIRE(is_runtime_kind(t.guard_kind));
-    REQUIRE(holder_accepts_on(t.r.bus, kGuardOffice, *loom::schema_of<PaneButton>()));
+    REQUIRE(holder_accepts_on(t.r.bus, kGuardOffice, *loom::schema_of<gfx::AreaButtonChanged>()));
     const std::int64_t keyboard_before = t.r.session().panes.keyboard;
     const std::int64_t selected_before = t.r.session().panes.selected;
 
@@ -308,9 +358,8 @@ TEST_CASE("WL-PRESS-06: a right press over a pane whose holder has the door is d
     CHECK(t.guard->buttons[0].row == 1);
     CHECK(t.guard->buttons[0].column == 2);
     CHECK_FALSE(t.guard->buttons[0].lost);
-    CHECK(t.guard->buttons[0].picture == 0); // a v1 content numbers no picture
     CHECK(t.guard->buttons[0].correlation != 0);
-    CHECK(t.guard->buttons[0].author == std::string(kWorkshopProvider));
+    CHECK(t.guard->buttons[0].author == t.r.windows.office());
     // DELIVERY IS CONSUMPTION: no surface opened, and pointing changed no selection or keys.
     CHECK_FALSE(t.menu_open());
     CHECK(t.r.session().panes.keyboard == keyboard_before);
@@ -330,27 +379,22 @@ TEST_CASE("WL-PRESS-06: a right press over a pane whose holder has the door is d
 
 TEST_CASE("WL-GEO-01: in a terminal, a right press and its release name the column of the character each cell shows, a caret moving none") {
     Rigged t;
-    drive_seat(t.r, t.guard_id, t.guard, [](ButtonSeat&, loom::Mail& m) {
-        (void)m.as_role(kGuardOffice).send_to_role(
-            kWorkshopProvider,
-            PaneContent{kGuardPane, {surface::SurfaceTextRow{"abcdef", gfx::role::kFill}}});
-        (void)m.as_role(kGuardOffice).send_to_role(kWorkshopProvider, PaneCaret{kGuardPane, 0, 2});
+    drive_seat(t.r, t.guard_id, t.guard, [](ButtonSeat& s, loom::Mail& m) {
+        s.draw_rows(m, {TextRow{"abcdef", gfx::role::kFill}}, RowsCaret{0, 2});
     });
     const ExternalPane* pane = t.r.session().panes.external_pane(t.guard_kind);
     REQUIRE(pane != nullptr);
-    REQUIRE(pane->caret_col == 2);
-    // THE TERMINAL'S OWN ROW (`abcdef`), the caret standing on `c` and moving no character.
-    const surface::CanvasGrids grid = surface::rasterize_canvas(paint(t.r.session()));
+    REQUIRE(held_caret(*pane).column == 2);
+    // THE TERMINAL WINDOW'S OWN ROW (`abcdef`), the caret standing on `c` and moving no character.
     const std::int64_t y = body_y(t.r, t.guard_kind, 0);
     const std::int64_t x0 = body_x(t.r, t.guard_kind, 0);
+    REQUIRE(held_reading(t.guard_kind).rows.at(0) == "abcdef");
     const auto cell_showing = [&](char glyph) {
-        for (std::int64_t x = x0; x < x0 + 6 && x < grid.w; ++x) {
-            if (grid.glyphs[static_cast<std::size_t>(y * grid.w + x)] == glyph) return x;
-        }
-        return std::int64_t{-1};
+        const std::string row = held_reading(t.guard_kind).rows.at(0);
+        const std::size_t at = row.find(glyph);
+        return at == std::string::npos ? std::int64_t{-1} : x0 + static_cast<std::int64_t>(at);
     };
     REQUIRE(cell_showing('c') == x0 + 2);
-    REQUIRE(grid.carets[static_cast<std::size_t>(y * grid.w + x0 + 2)] != 0);
     button_cell(t.r, 3, true, cell_showing('e'), y);
     button_cell(t.r, 3, false, cell_showing('f'), y);
     REQUIRE(t.guard->buttons.size() == 2);
@@ -364,11 +408,11 @@ TEST_CASE("WL-GEO-01: in a terminal, a right press and its release name the colu
 
 TEST_CASE("WL-PRESS-06: a right press in a doorless pane's body opens the host's pane menu at the press, sends the provider nothing and takes no keys; its chrome opens the same menu") {
     Rigged t;
-    REQUIRE_FALSE(holder_accepts_on(t.r.bus, kHelloOffice, *loom::schema_of<PaneButton>()));
+    REQUIRE_FALSE(holder_accepts_on(t.r.bus, kHelloOffice, *loom::schema_of<PanePassRequested>()));
     const std::int64_t keyboard_before = t.r.session().panes.keyboard;
     const std::int64_t selected_before = t.r.session().panes.selected;
     const ui::Rect body = external_body_rect(t.r.session(), t.hello_kind);
-    // NEVER LOST: a holder that declared no `PaneButton` door is sent nothing, and the press opens
+    // NEVER LOST: a holder that cannot hand a press back keeps none, and the press opens
     // the host's pane menu about that pane, beside the hand. Pointing moves no keys and no
     // selection, and the provider hears nothing pointer-shaped (WL-CTX-08).
     const std::int64_t px = body.x + 1;
@@ -610,50 +654,9 @@ TEST_CASE("WL-PRESS-06: a holder replaced while the button is down -- the releas
     REQUIRE(successor->buttons.size() == 1);
     CHECK_FALSE(successor->buttons[0].pressed);
     CHECK(old->buttons.size() == 1);
-    // THE SHIPPED HELPER'S POLICY: a release of a button this image never held is nothing.
-    pane_menu::HeldButton held;
-    CHECK_FALSE(held.take(PaneButton{kGuardPane, 3, false, 0, 0, false, 0}));
-    CHECK_FALSE(held.held);
     const std::uint64_t correlation = old->buttons[0].correlation;
     drive_seat(t.r, successor_id, successor, [correlation](ButtonSeat& s, loom::Mail& m) { s.pass(m, correlation); });
     CHECK(t.menu_open()); // the office is the same, the pane is the same, the record stands
-}
-
-TEST_CASE("WL-PRESS-06: a press Loom refuses is settled -- the custody it recorded is dropped, so the physical release sends nothing and no second refusal follows; the failure stands on the tap") {
-    Rigged t;
-    std::vector<loom::EventKind> attempts;
-    std::vector<loom::RefusalReason> reasons;
-    const loom::ObserverId tap = t.r.bus.add_observer([&](const loom::BusEvent& ev) {
-        if (ev.schema_name == PaneButton::zen_name &&
-            (ev.kind == loom::EventKind::Delivered || ev.kind == loom::EventKind::Refused)) {
-            attempts.push_back(ev.kind);
-            reasons.push_back(ev.refusal.reason);
-        }
-    });
-    queue_button(t.r, 3, true, body_x(t.r, t.guard_kind, 1), body_y(t.r, t.guard_kind, 0));
-    REQUIRE(t.r.bus.pump_pending() >= 1);
-    REQUIRE(attempts.empty());
-    std::unique_ptr<loom::Weave> removed = t.r.bus.unregister_weave(t.guard_id);
-    REQUIRE(removed != nullptr);
-    ProviderSeat* successor = t.r.mount_provider(kGuardOffice);
-    REQUIRE_FALSE(holder_accepts_on(t.r.bus, kGuardOffice, *loom::schema_of<PaneButton>()));
-    t.r.bus.drain_until_idle();
-    REQUIRE(attempts.size() == 1);
-    CHECK(attempts[0] == loom::EventKind::Refused);
-    CHECK(reasons[0] == loom::RefusalReason::NotAccepted);
-    CHECK(t.guard->buttons.empty());
-    // KNOWN REFUSAL IS NOT SILENCE, AND IT IS NOT SUCCESS: the host opens no menu for a press
-    // Loom refused, and it does not invent a hold to hand back. Loom's tap attributes the one
-    // refusal; the host settles the exact attempt on that notice and drops the custody it had
-    // recorded when the send was queued (WL-PRESS-06).
-    CHECK_FALSE(t.menu_open());
-    // THE PHYSICAL RELEASE OF A PRESS THAT NEVER REACHED A RECIPIENT SENDS NOTHING: there is no
-    // second refused button, and the successor -- who never saw the press -- sees no release.
-    t.right_in_guard(false);
-    t.r.bus.drain_until_idle();
-    CHECK(attempts.size() == 1);
-    CHECK(successor->presses.empty());
-    t.r.bus.remove_observer(tap);
 }
 
 // =============================================================================
@@ -883,13 +886,19 @@ TEST_CASE("WL-CTX-09: a pane's menu stands in its presenter's own area of the wi
 TEST_CASE("WL-CTX-09: with no window showing the desk a pane's menu is refused in words, and nothing is granted") {
     Rigged t(WORKSHOP_SO_MENU_PRESENTER, /*on_skin=*/true);
     REQUIRE_FALSE(t.r.windows.up());
-    t.guard->menu_on_press = true;
-    // THE SKIN'S CELLS, the console rows above its canvas counted.
+    // ON THE SKIN no window gives the pane a press, so its menu is asked continuing its declared
+    // row, reached by the row's key once a press on the Skin's cells (the console rows above its
+    // canvas counted) gives it the keys.
+    t.guard->menu_on_action = true;
     for (const bool down : {true, false}) {
-        button_cell(t.r, 3, down, body_x(t.r, t.guard_kind, 1),
-                    body_y(t.r, t.guard_kind, 0) + t.r.console_rows());
+        t.r.publish(loom::to_value(input::PointerButton{
+            1, down, body_x(t.r, t.guard_kind, 1), body_y(t.r, t.guard_kind, 0) + t.r.console_rows(),
+            input::space::kCells, input::mod::kNone}));
     }
-    REQUIRE(t.guard->buttons.size() == 2);
+    REQUIRE(t.r.session().panes.keyboard == t.guard_kind);
+    t.r.key(input::scan::kM);
+    REQUIRE(t.guard->actions.size() == 1);
+    CHECK(t.guard->buttons.empty());
     CHECK_FALSE(t.r.session().presented.open);
     REQUIRE(t.guard->answers.size() == 1);
     CHECK_FALSE(t.guard->answers[0].chosen);
@@ -1046,12 +1055,14 @@ TEST_CASE("WL-CTX-09: a late request is refused where the menu opens -- a newer 
     Rigged t;
     t.guard->menu_on_press = true;
     const ui::Rect hello = t.hello_body();
-    // THE RIGHT PRESS IS HANDLED, ITS DELIVERY TO THE GUARD QUEUED; a primary press into Hello is
-    // queued behind that delivery, so the guard's request arrives AFTER the weaver's newer act.
-    queue_button(t.r, 3, true, body_x(t.r, t.guard_kind, 1), body_y(t.r, t.guard_kind, 0));
+    // BOTH PRESSES READ ON ONE BEAT OF THE WINDOW, as a quick hand makes them: the right press's
+    // delivery to the guard is queued, and the window's word of the primary press into Hello
+    // beside it, so the guard's request arrives AFTER the weaver's newer act.
+    queue_button(t.r, 3, true, body_x(t.r, t.guard_kind, 1), body_y(t.r, t.guard_kind, 0),
+                 /*beat=*/false);
+    queue_button(t.r, 1, true, hello.x + 1, hello.y + 2);
     REQUIRE(t.r.bus.pump_pending() >= 1);
     REQUIRE(t.guard->buttons.empty());
-    queue_button(t.r, 1, true, hello.x + 1, hello.y + 2);
     t.r.bus.drain_until_idle();
     REQUIRE(t.guard->buttons.size() == 1);
     CHECK(t.r.session().panes.keyboard == t.hello_kind);
@@ -1327,8 +1338,8 @@ TEST_CASE("WL-CTX-10: a requester's record of its ask settles on the presenter's
     t.guard->menu_on_press = true;
     // THE HOST'S REFUSAL SETTLES THE ASK: a request made late is answered by the host, unchosen.
     const ui::Rect hello = t.hello_body();
-    queue_button(t.r, 3, true, body_x(t.r, t.guard_kind, 1), body_y(t.r, t.guard_kind, 0));
-    REQUIRE(t.r.bus.pump_pending() >= 1);
+    queue_button(t.r, 3, true, body_x(t.r, t.guard_kind, 1), body_y(t.r, t.guard_kind, 0),
+                 /*beat=*/false);
     queue_button(t.r, 1, true, hello.x + 1, hello.y + 2);
     t.r.bus.drain_until_idle();
     REQUIRE(t.guard->answers.size() == 1);
@@ -1513,7 +1524,8 @@ TEST_CASE("WL-CTX-10: a refused act settles its withdrawn menu, though the withd
     REQUIRE_FALSE(t.r.bus.role_holder(kPresenterRole).valid());
     REQUIRE(t.foreign_open());
     // THE NEXT: the forwarded act is refused, a fresh presenter is loaded, and a right press on a
-    // doorless pane withdraws the menu and opens the host's there -- queued behind the load's work.
+    // doorless pane withdraws the menu and opens the host's there -- the window's word of it, to
+    // the pane and to the desk that placed it, queued behind the load's work.
     loom::Grant reach;
     reach.allow(loom::LoadWeave::zen_name, loom::LoadWeave::zen_version, t.r.manager);
     const loom::WeaveId booter =
@@ -1524,8 +1536,33 @@ TEST_CASE("WL-CTX-10: a refused act settles its withdrawn menu, though the withd
                                                                  kPresenterRole}),
                                   booter, booter, 0));
     const ui::Rect hello = t.hello_body();
-    queue_button(t.r, 3, true, hello.x + 1, hello.y + 1);
-    (void)t.r.bus.pump_pending();
+    {
+        const RuntimePane* row = t.r.session().panes.runtime.of_kind(t.hello_kind);
+        REQUIRE(row != nullptr);
+        const std::string area = pane_window_area(t.r.session().panes, *row);
+        const ExternalPane* placed = t.r.session().panes.external_pane(t.hello_kind);
+        REQUIRE(placed != nullptr);
+        const std::int64_t x = gfx::px_of_cells(hello.x + 1) + gfx::kCellPx / 2;
+        const std::int64_t y = gfx::px_of_cells(hello.y + 1) + gfx::kCellPx / 2;
+        const std::uint64_t press = 9001;
+        REQUIRE(t.r.bus.office_send_to_role_as(
+                            t.r.windows.id(), t.r.windows.office(), row->provider,
+                            loom::Message(loom::to_value(gfx::AreaButtonChanged{
+                                              area, 3, true, x - placed->placed_x,
+                                              y - placed->placed_y, 0}),
+                                          t.r.windows.id(), t.r.windows.id(), press))
+                    .valid());
+        REQUIRE(t.r.bus.office_send_to_role_as(
+                            t.r.windows.id(), t.r.windows.office(), kWorkshopProvider,
+                            loom::Message(loom::to_value(gfx::AreaPressed{
+                                              t.r.windows.window(), area, 3, true, x, y}),
+                                          t.r.windows.id(), t.r.windows.id(), press))
+                    .valid());
+    }
+    // TURN BY TURN, the load's work beside them.
+    for (int turn = 0; turn < 8 && t.r.w->withdrawn_menus().empty(); ++turn) {
+        (void)t.r.bus.pump_pending();
+    }
     CHECK(tap.count(MenuInput::zen_name, "NoSuchTarget") == 1);
     REQUIRE(t.r.w->withdrawn_menus().size() == 1);
     t.r.bus.drain_until_idle();
@@ -1575,15 +1612,16 @@ TEST_CASE("WL-CTX-10: an older menu's refused withdrawal ends and answers nothin
     // THE PRESENTER DIES WITH THE OLDER MENU OPEN; its state is kept to revive it from.
     const std::string held = t.r.bus.snapshot_bytes(t.presenter);
     t.r.bus.kill(t.presenter);
-    // THE OTHER PANE ASKS UNDER THE NUMBER ITS PRESS WILL CARRY, and the press follows the ask
-    // into the queue.
+    // THE WINDOW LANDS A RIGHT PRESS ON THE OTHER PANE, and the other pane asks under a newer
+    // number, its ask queued behind the window's word of the press.
     const std::uint64_t newer = older + 1;
+    queue_button(t.r, 3, true, body_x(t.r, other_kind, 1), body_y(t.r, other_kind, 0));
+    REQUIRE(t.r.bus.pump_pending() == 1);
     other->next = [newer](ButtonSeat& s, loom::Mail& m) { s.ask_menu(m, newer); };
     (void)t.r.bus.send(other_id,
                        loom::Message(loom::to_value(SeatDo{}), loom::WeaveId{}, loom::WeaveId{}, 0));
-    queue_button(t.r, 3, true, body_x(t.r, other_kind, 1), body_y(t.r, other_kind, 0));
-    // ONE TURN: the ask is queued, and the press withdraws the older menu.
-    REQUIRE(t.r.bus.pump_pending() == 2);
+    // ONE TURN: the press withdraws the older menu, and the ask is queued.
+    (void)t.r.bus.pump_pending();
     REQUIRE_FALSE(t.r.session().presented.open);
     // THE NEXT: the ask is granted -- the newer menu is open -- and the older withdrawal meets a
     // dead presenter. Loom's refusal of it is queued behind the newer grant.
@@ -1659,10 +1697,11 @@ TEST_CASE("WL-CTX-10: a withdrawal that queues nothing is answered at once, and 
           "a newer press -- the presenter could not be told (nothing was queued)");
     CHECK(t.guard->taken[0].empty());
     CHECK_FALSE(t.guard->pending_after[0]);
-    // ...AND THE PRESS WENT ON AS IT WOULD HAVE: the guard heard it and asked again, and that
-    // menu opens and chooses, answered by the presenter. The presenter never heard the
-    // withdrawal, so it still held the older menu and answered it too when the newer one arrived:
-    // a second word under the older number, which takes nothing.
+    // ...AND THE PRESS GOES ON AS IT WOULD: the window tells the guard of it, the guard asks
+    // again, and that menu opens and chooses, answered by the presenter. The presenter never
+    // heard the withdrawal, so it still held the older menu and answered it too when the newer
+    // one arrived: a second word under the older number, which takes nothing.
+    t.right_in_guard();
     t.right_in_guard(false);
     REQUIRE(t.foreign_open());
     t.r.key(input::scan::kReturn);
@@ -1707,7 +1746,8 @@ TEST_CASE("WL-CTX-10: a refusal notice anyone could send settles no menu, open o
     // ...AND ONE NAMING A WITHDRAWN MENU'S OWN WITHDRAWAL, while its record is kept.
     const ui::Rect hello = t.hello_body();
     queue_button(t.r, 3, true, hello.x + 1, hello.y + 1);
-    (void)t.r.bus.pump_pending();
+    (void)t.r.bus.pump_pending(); // the window lands the press
+    (void)t.r.bus.pump_pending(); // the host hears where it landed and withdraws the menu
     REQUIRE(t.r.w->withdrawn_menus().size() == 1);
     forge(t.r.w->withdrawn_menus()[0].last_attempt, MenuWithdrawn::zen_name);
     t.r.bus.drain_until_idle();
@@ -1732,7 +1772,8 @@ TEST_CASE("WL-CTX-10: a withdrawn menu's record is forgotten when its fence come
         const std::uint64_t number = t.r.session().presented.correlation;
         // A RIGHT PRESS ON A DOORLESS PANE -- the host's own menu opens there -- withdraws it.
         queue_button(t.r, 3, true, hello.x + 1, hello.y + 1);
-        (void)t.r.bus.pump_pending();
+        (void)t.r.bus.pump_pending(); // the window lands the press
+        (void)t.r.bus.pump_pending(); // the host hears where it landed and withdraws the menu
         // KEPT WHILE LOOM MAY STILL SAY SOMETHING ABOUT IT: whose it was, and why it ended.
         REQUIRE(t.r.w->withdrawn_menus().size() == 1);
         const WithdrawnMenu kept = t.r.w->withdrawn_menus()[0];
@@ -2064,12 +2105,11 @@ TEST_CASE("the guard example blocks while the right button is held, lowers on th
     r.pick(guard);
     const std::int64_t kind = kind_of(r, "example.guard", "guard");
     REQUIRE(is_runtime_kind(kind));
-    REQUIRE(holder_accepts_on(r.bus, "example.guard", *loom::schema_of<PaneButton>()));
+    REQUIRE(holder_accepts_on(r.bus, "example.guard", *loom::schema_of<gfx::AreaButtonChanged>()));
     const auto first_row = [&r, kind] {
-        const ExternalPane* shown = r.session().panes.external_pane(kind);
-        REQUIRE(shown != nullptr);
-        REQUIRE(!shown->shown.empty());
-        return shown->shown[0].text;
+        const std::vector<std::string> shown = pane_rows(r, kind);
+        REQUIRE(!shown.empty());
+        return shown[0];
     };
     CHECK(first_row().find("guard down") != std::string::npos);
     button_cell(r, 3, true, body_x(r, kind, 1), body_y(r, kind, 0));

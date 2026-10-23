@@ -13,13 +13,16 @@
 #include "maker_fixture.hpp"
 #include "message-draft/transfer.hpp"
 #include "pane_window.hpp"
+#include "shown_picture.hpp"
 #include "view/view-builder/model.hpp"
 #include "view/view-builder/picture.hpp"
 #include "view/view-builder/vocabulary.hpp"
 #include "view/host.hpp"
 #include "workshop/actor_scope.hpp"
-#include "workshop/pane_canvas.hpp"
+#include "workshop/pane_canvas_drawing.hpp"
 #include "workshop/pane_carry.hpp"
+#include "workshop/pane_drawing.hpp"
+#include "workshop/pane_picture.hpp"
 #include "workshop/pane_operation.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_settings.hpp"
@@ -108,13 +111,15 @@ TEST_CASE("the View Builder makes a view from its kinds: number fields, a button
 }
 
 namespace {
-/// A window's room and a terminal's, each as Workshop grants it: pixels, the medium's grain and
-/// its measured text.
-ws::PaneCanvasRoom window_room(std::int64_t grant = 1) {
-    return {vb::kPane, grant, 1320, 640,
-            zengine::graphics::kPixelGrainPx, true, 8, 16};
+/// A ROOM AS A WINDOW GIVES ONE, and the incarnation it gives it under: an OS window's, in
+/// pixels with its measured text, or a terminal's, in cells.
+struct Room : ws::CanvasRoom {
+    std::int64_t grant = 1;
+};
+Room window_room(std::int64_t grant = 1) {
+    return {{1320, 640, zengine::graphics::kPixelGrainPx, true, 8, 16}, grant};
 }
-ws::PaneCanvasRoom terminal_room(std::int64_t grant = 1) { return {vb::kPane, grant, 110 * unit, 30 * unit, unit, false}; }
+Room terminal_room(std::int64_t grant = 1) { return {{110 * unit, 30 * unit, unit, false}, grant}; }
 } // namespace
 
 TEST_CASE("the design canvas is the view's own picture at its own pixels, moved there whole; the builder marks the selected element and its handles over it") {
@@ -123,7 +128,7 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
     for (const auto& room : {window_room(), terminal_room()}) {
         INFO("graphical: " << room.graphical);
         vb::Presentation none;
-        const auto pic = vb::picture(m, none, room, 1);
+        const auto pic = vb::picture(m, none, room);
         const auto& area = pic.design;
         REQUIRE_FALSE(area.empty());
         // On a cell boundary, so the view keeps its lattice in a window and a terminal alike.
@@ -131,10 +136,9 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
         CHECK(area.y % unit == 0);
         // ONE RENDERER: everything the view's own picture code draws in a room exactly the view's
         // size is in the builder's picture, moved by the area's corner and nothing else.
-        const ws::PaneCanvasRoom inner{vb::kPane, room.grant, m.description.width,
-                                       m.description.height + view::notice_band(room),
-                                       room.grain, room.graphical, room.text_advance_px, room.text_line_px};
-        const auto own = view::picture(m.description, {}, view::Presentation{}, inner, 1);
+        const ws::CanvasRoom inner{m.description.width, m.description.height + view::notice_band(room),
+                                   room.grain, room.graphical, room.text_advance_px, room.text_line_px};
+        const auto own = view::picture(m.description, {}, view::Presentation{}, inner);
         REQUIRE_FALSE(own.content.texts.empty());
         for (const auto& t : own.content.texts) {
             const auto moved = std::count_if(pic.content.texts.begin(), pic.content.texts.end(), [&](const auto& u) {
@@ -191,16 +195,16 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
         panned.pan_x = 480;
         panned.pan_y = 300;
         const auto room = window_room();
-        const auto pic = vb::picture(wide, panned, room, 3);
+        const auto pic = vb::picture(wide, panned, room);
         const auto& area = pic.design;
         CHECK(panned.pan_x == 480);
         CHECK(pic.view.x == area.x - 480);
         CHECK(pic.view.y == area.y - 300);
         CHECK(pic.view.w == 1400);
         CHECK(pic.view.h == 1000 + view::notice_band(room));
-        const ws::PaneCanvasRoom inner{vb::kPane, room.grant, pic.view.w, pic.view.h, room.grain, room.graphical,
-                                       room.text_advance_px, room.text_line_px};
-        const auto own = view::picture(wide.description, {}, view::Presentation{}, inner, 3);
+        const ws::CanvasRoom inner{pic.view.w, pic.view.h, room.grain, room.graphical,
+                                   room.text_advance_px, room.text_line_px};
+        const auto own = view::picture(wide.description, {}, view::Presentation{}, inner);
         std::size_t inside = 0;
         for (const auto& t : own.content.texts) {
             const auto x = t.x + pic.view.x, y = t.y + pic.view.y;
@@ -226,7 +230,7 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
         vb::Presentation same;
         same.pan_x = 480;
         same.pan_y = 300;
-        const auto cut = vb::picture(across, same, room, 5);
+        const auto cut = vb::picture(across, same, room);
         const auto right = area.x + area.w;
         CHECK(std::none_of(cut.content.rects.begin(), cut.content.rects.end(), [&](const auto& r) {
             return r.x >= area.x && r.x < right && r.x + r.w > right;
@@ -237,12 +241,12 @@ TEST_CASE("the design canvas is the view's own picture at its own pixels, moved 
         // A pan past its reach is held to it: the view's right edge, and a cell beyond it where
         // its handles sit, at the area's right edge.
         panned.pan_x = 9000;
-        (void)vb::picture(wide, panned, room, 4);
+        (void)vb::picture(wide, panned, room);
         CHECK(panned.pan_x == 1400 + 12 - gfx::floor_div_px(area.w, gfx::kPixelGrainPx));
     }
     // An empty view says what to do, in the list's place.
     vb::Presentation none;
-    const auto empty = vb::picture(vb::Model{}, none, terminal_room(), 2);
+    const auto empty = vb::picture(vb::Model{}, none, terminal_room());
     CHECK(std::any_of(empty.content.texts.begin(), empty.content.texts.end(),
                       [](const auto& t) { return t.text == "  none yet: drag a kind in"; }));
 }
@@ -253,10 +257,10 @@ TEST_CASE("WL-HAND-06: the View Builder names its controls, kinds, boxes, list r
     for (const auto& room : {window_room(), terminal_room()}) {
         INFO("graphical: " << room.graphical);
         vb::Presentation none;
-        const auto pic = vb::picture(m, none, room, 1);
+        const auto pic = vb::picture(m, none, room);
         const auto said = vb::named(pic, m.description);
         CHECK(ws::canvas_parts_problem(said.parts).empty());
-        const auto part = [&](const std::string& name) -> const ws::PaneCanvasPart* {
+        const auto part = [&](const std::string& name) -> const ws::CanvasPart* {
             for (const auto& p : said.parts)
                 if (p.name == name) return &p;
             return nullptr;
@@ -392,49 +396,17 @@ TEST_CASE("a view saves and opens whole, and nothing running is saved") {
 }
 
 namespace {
-/// THE PICTURE A WINDOW KEEPS FOR `area`, in the order it paints it: the nodes under its
-/// `picture` group, read as Workshop's picture reads -- each rectangle, then each run of text.
-void same_picture(const gfx::window::WinArea& area, const ws::PaneCanvasContent& workshop) {
-    const auto at = gfx::window::index_of(area);
-    std::vector<const gfx::window::KeptNode*> kept;
-    for (const auto& k : area.nodes)
-        if (k.node.path.rfind("picture/", 0) == 0 && k.node.path.find('/', 8) == std::string::npos)
-            kept.push_back(&k);
-    std::stable_sort(kept.begin(), kept.end(), [&](const auto* x, const auto* y) {
-        return gfx::window::key_of(at, x->node.path) < gfx::window::key_of(at, y->node.path);
-    });
-    REQUIRE(kept.size() == workshop.rects.size() + workshop.texts.size());
-    for (std::size_t i = 0; i < workshop.rects.size(); ++i) {
-        CAPTURE(i);
-        const auto r = gfx::from_body<gfx::RectArgs>(kept[i]->node.args);
-        REQUIRE(r);
-        const auto& w = workshop.rects[i];
-        CHECK((r->x == w.x && r->y == w.y && r->w == w.w && r->h == w.h && r->fill.role == w.role));
-    }
-    for (std::size_t i = 0; i < workshop.texts.size(); ++i) {
-        CAPTURE(i);
-        const auto t = gfx::from_body<gfx::TextArgs>(kept[workshop.rects.size() + i]->node.args);
-        REQUIRE(t);
-        const auto& w = workshop.texts[i];
-        CHECK((t->x == w.x && t->y == w.y && t->text == w.text && t->ink.role == w.role));
-    }
-}
-
 /// Workshop's office and its menu presenter, on the real bus: what the builder and its view say,
 /// and the answers the builder needs to carry.
 class Desk final : public loom::Weave {
 public:
     std::vector<loom::Message> heard;
-    std::vector<ws::PaneCanvasContent> pictures;
-    std::vector<std::string> named; ///< the names of the parts of the picture said last
     std::vector<std::string> rows; ///< the ids of the rows the builder last declared, in force
     bool allow = true;
     loom::WeaveId self{};
     std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
         return {loom::schema_of<ws::v2::PaneOffered>(), loom::schema_of<ws::v3::PaneOffered>(),
                 loom::schema_of<ws::v3::PaneActions>(),
-                loom::schema_of<ws::PaneContent>(), loom::schema_of<ws::PaneCanvasContent>(),
-                loom::schema_of<ws::v4::PaneCanvasContent>(),
                 loom::schema_of<ws::PaneEscapeUnspent>(), loom::schema_of<ws::PanePassRequested>(),
                 loom::schema_of<ws::PaneRevealRequested>(), loom::schema_of<ws::PaneMenuRequested>(),
                 loom::schema_of<ws::PaneOperationRequested>(), loom::schema_of<ws::v2::PaneOperationRequested>(),
@@ -446,21 +418,6 @@ public:
         if (loom::same_identity(in.payload.schema(), *loom::schema_of<ws::PaneOperationRequested>()) ||
             loom::same_identity(in.payload.schema(), *loom::schema_of<ws::v2::PaneOperationRequested>()))
             (void)bus.answer(loom::Message(loom::to_value(ws::PaneOperationAnswered{allow, allow ? "" : "not now"}), self));
-        if (loom::same_identity(in.payload.schema(), *loom::schema_of<ws::PaneCanvasContent>()) &&
-            in.provenance.authored_role() == vb::kRole)
-            pictures.push_back(loom::from_value<ws::PaneCanvasContent>(in.payload));
-        // THE BUILDER'S PICTURE AS IT IS SAID NOW, with the parts it names: the same picture.
-        if (loom::same_identity(in.payload.schema(), *loom::schema_of<ws::v4::PaneCanvasContent>()) &&
-            in.provenance.authored_role() == vb::kRole) {
-            const auto c = loom::from_value<ws::v4::PaneCanvasContent>(in.payload);
-            pictures.push_back(ws::PaneCanvasContent{c.pane, c.grant, c.picture, c.rects, c.labels, c.texts});
-            // ...EVERY ONE NAMING ONLY CONTROLS ITS ROWS IN FORCE DECLARE (WL-HAND-07).
-            std::vector<std::string> names;
-            for (const auto& part : c.parts) names.push_back(part.name);
-            const std::string problem = control_parts_problem("zengine.view.builder/view-builder", names, rows);
-            CHECK_MESSAGE(problem.empty(), problem);
-            named = std::move(names);
-        }
         if (loom::same_identity(in.payload.schema(), *loom::schema_of<ws::v3::PaneActions>()) &&
             in.provenance.authored_role() == vb::kRole) {
             rows.clear();
@@ -516,6 +473,11 @@ struct Rig {
     std::uint64_t correlation = 0;
     std::int64_t grant = 1;
     std::int64_t activation = 1;
+    /// THE WINDOW SHOWING THE BUILDER'S AREA, and the one a case reads and presses: this one, or
+    /// another a case gave the area since.
+    pw::Window window{bus, "desk"};
+    pw::Window* shown = &window;
+    std::map<std::int64_t, std::uint64_t> presses; ///< the window's number for each press a case names
 
     /// A Workshop beside the builder; with `project`, `zengine.project` answers that directory, as
     /// a launch from it does.
@@ -565,6 +527,17 @@ struct Rig {
         for (int n = 0; n < 64 && bus.pending() != 0; ++n) bus.pump_pending();
         REQUIRE(bus.pending() == 0);
     }
+    /// THE ROOM `r`, given the builder's area by the rig's window, which it now shows.
+    void host(const Room& r) {
+        if (r.graphical) {
+            window.set_measure(gfx::TextMeasure{r.text_advance_px, r.text_line_px});
+        } else {
+            window.set_cells();
+        }
+        window.room_px(vb::kRole, vb::kRole, r.width, r.height, r.grant);
+        shown = &window;
+        pump();
+    }
     template <class T> void host(const T& value, std::uint64_t corr = 0, const char* to = vb::kRole) {
         REQUIRE(bus.office_send_to_role_as(workshop, workshop_role, to,
                                            loom::Message(loom::to_value(value), workshop, {}, corr)).valid());
@@ -579,11 +552,28 @@ struct Rig {
         FAIL("no answer to the edit");
         return {};
     }
-    const ws::PaneCanvasContent& picture() const {
-        REQUIRE_FALSE(desk->pictures.empty());
-        return desk->pictures.back();
+    /// WHAT THE WINDOW SHOWING THE BUILDER'S AREA SHOWS, read as its picture, kept while the window
+    /// holds the same drawing -- and every one names only controls its rows in force declare
+    /// (WL-HAND-07).
+    const ws::CanvasPicture& picture() const {
+        const gfx::window::WinArea* a = shown->held(vb::kRole);
+        REQUIRE(a != nullptr);
+        const auto key = std::make_tuple(static_cast<const void*>(shown), shown->weave().heard.size(), a->w,
+                                         a->h, a->nodes.size());
+        if (!read_ || key != read_key_) {
+            last_ = zengine::testing::shown_picture(
+                *a, ws::canvas_window_room(a->w, a->h, shown->cell_px(), shown->measure()));
+            read_ = true;
+            read_key_ = key;
+            std::vector<std::string> names;
+            for (const auto& part : last_.parts) names.push_back(part.name);
+            const std::string problem =
+                control_parts_problem("zengine.view.builder/view-builder", names, desk->rows);
+            CHECK_MESSAGE(problem.empty(), problem);
+        }
+        return last_;
     }
-    const ws::PaneCanvasText* text(const std::string& start) const {
+    const ws::CanvasText* text(const std::string& start) const {
         for (const auto& t : picture().texts)
             if (t.text.rfind(start, 0) == 0) return &t;
         return nullptr;
@@ -592,24 +582,43 @@ struct Rig {
     /// Whether any line of the latest picture holds `words`: a notice wraps over its rows.
     bool says(const std::string& words) const {
         return std::any_of(picture().texts.begin(), picture().texts.end(),
-                           [&](const ws::PaneCanvasText& t) { return has_words(t.text, words); });
+                           [&](const ws::CanvasText& t) { return has_words(t.text, words); });
     }
     void press(const std::string& start, std::int64_t button = 1) {
         const auto* t = text(start);
         REQUIRE_MESSAGE(t != nullptr, start);
-        ++correlation;
-        host(ws::PaneCanvasPointer{vb::kPane, grant, picture().picture, static_cast<std::int64_t>(correlation),
-                                   ws::canvas_pointer::kPress, button, t->x + 4, t->y + 4}, correlation);
+        pointer(ws::canvas_pointer::kPress, t->x + 4, t->y + 4, -static_cast<std::int64_t>(correlation + 1), button);
     }
-    /// A pointer event as Workshop sends it, at a local place on the latest picture; a press
-    /// carries a fresh number, which an acquisition it begins echoes.
+    /// A MOMENT OF THE POINTER as the window showing the area gives it, at a local place: a press
+    /// under a fresh number, which an acquisition it begins echoes, and its moves and release under
+    /// the same; a hold lost, as the window ends one.
     void pointer(std::int64_t phase, std::int64_t x, std::int64_t y, std::int64_t gesture, std::int64_t button = 1,
                  std::int64_t modifiers = 0) {
-        const auto corr = phase == ws::canvas_pointer::kPress ? ++correlation : 0;
-        host(ws::PaneCanvasPointer{vb::kPane, grant, picture().picture, gesture, phase, button, x, y, modifiers}, corr);
+        if (phase == ws::canvas_pointer::kPress) presses[gesture] = ++correlation;
+        const auto at = presses.find(gesture);
+        const std::uint64_t n = at == presses.end() ? 0 : at->second;
+        if (phase == ws::canvas_pointer::kPress || phase == ws::canvas_pointer::kRelease) {
+            shown->tell(vb::kRole, gfx::AreaButtonChanged{vb::kRole, button, phase == ws::canvas_pointer::kPress,
+                                                          x, y, modifiers}, n);
+        } else if (phase == ws::canvas_pointer::kMove) {
+            shown->tell(vb::kRole, gfx::AreaPointerMoved{vb::kRole, x, y, 0, 0, modifiers}, n);
+        } else if (phase == ws::canvas_pointer::kLost) {
+            shown->hold_ended(vb::kRole, button);
+        }
+        pump();
     }
+    /// WHERE THE POINTER RESTS: a carried value, as Workshop says it, or the bare pointer, as the
+    /// window does -- a move with no press held, or the pointer leaving the area.
     void hover(std::int64_t x, std::int64_t y, bool over = true, bool carrying = false) {
-        host(ws::PaneCanvasHover{vb::kPane, grant, picture().picture, x, y, over, carrying});
+        if (carrying) {
+            host(ws::PaneCanvasHover{vb::kPane, vb::kRole, x, y, over});
+        } else if (over) {
+            shown->tell(vb::kRole, gfx::AreaPointerMoved{vb::kRole, x, y, 0, 0, 0});
+            pump();
+        } else {
+            shown->left(vb::kRole);
+            pump();
+        }
     }
     /// The design area, read off the latest picture: the ground the view's own picture brought.
     vb::Area design() const {
@@ -619,7 +628,7 @@ struct Rig {
         return {};
     }
     /// A line on the design canvas beginning `start`: drawn by the view's own picture.
-    const ws::PaneCanvasText* drawn(const std::string& start) const {
+    const ws::CanvasText* drawn(const std::string& start) const {
         const auto area = design();
         for (const auto& t : picture().texts)
             if (t.text.rfind(start, 0) == 0 && area.within({t.x, t.y, 1, 1}).w == 1) return &t;
@@ -642,7 +651,7 @@ struct Rig {
     }
     /// A line beside the design area that reads exactly `words`: a value in its box, the blank a
     /// caret after it stands on not read.
-    const ws::PaneCanvasText* value(const std::string& words) const {
+    const ws::CanvasText* value(const std::string& words) const {
         const auto area = design();
         for (const auto& t : picture().texts)
             if (t.text.substr(0, t.text.find_last_not_of(' ') + 1) == words &&
@@ -660,9 +669,14 @@ struct Rig {
         const auto* t = text(start);
         REQUIRE_MESSAGE(t != nullptr, start);
         const auto bytes = zengine::inventory::encode_pair(value, {});
-        host(ws::PaneCanvasValueDrop{vb::kPane, grant, picture().picture, t->x + 4, t->y + 4,
+        host(ws::PaneCanvasValueDrop{vb::kPane, vb::kRole, t->x + 4, t->y + 4,
                                      loom::Bytes(bytes.begin(), bytes.end()), "zengine.flow", "flow", ""});
     }
+
+private:
+    mutable ws::CanvasPicture last_;
+    mutable bool read_ = false;
+    mutable std::tuple<const void*, std::size_t, std::int64_t, std::int64_t, std::size_t> read_key_{};
 };
 } // namespace
 
@@ -1161,7 +1175,7 @@ TEST_CASE("the middle button pans the design canvas: an element past its edge is
     // A VALUE DROPPED on a label while panned binds the label it was dropped on.
     const auto made = vb::element_area(placed, rig.now().elements[6]);
     const auto bytes = zengine::inventory::encode_pair(loom::encode_schema(*total_shape()), {});
-    rig.host(ws::PaneCanvasValueDrop{vb::kPane, rig.grant, rig.picture().picture, made.x + made.w / 2, made.y + made.h / 2,
+    rig.host(ws::PaneCanvasValueDrop{vb::kPane, vb::kRole, made.x + made.w / 2, made.y + made.h / 2,
                                      loom::Bytes(bytes.begin(), bytes.end()), "zengine.flow", "flow", ""});
     CHECK(rig.now().shown("label1") != nullptr);
     // THE PAN IS NEVER SAVED: the far button put back and the label removed, the file is the
@@ -1600,7 +1614,7 @@ TEST_CASE("a box scrolled to show its caret is pressed where it shows: the caret
     REQUIRE(rig.edit("set", {"4", "label", long_label}).ok);
     REQUIRE(rig.edit("select", {"4"}).ok);
     // The label's box, beside the design area, holding the front of the label.
-    const auto boxed = [&](const std::string& start) -> const ws::PaneCanvasText* {
+    const auto boxed = [&](const std::string& start) -> const ws::CanvasText* {
         const auto area = rig.design();
         for (const auto& t : rig.picture().texts)
             if (t.text.rfind(start, 0) == 0 && t.x >= area.x + area.w) return &t;
@@ -1611,7 +1625,7 @@ TEST_CASE("a box scrolled to show its caret is pressed where it shows: the caret
     rig.pointer(ws::canvas_pointer::kPress, box->x + 8, box->y + 8, 50);
     rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kEnd, 0});
     // Typing at its end scrolls the box: it shows the label's tail, not its front.
-    const auto* scrolled = [&]() -> const ws::PaneCanvasText* {
+    const auto* scrolled = [&]() -> const ws::CanvasText* {
         for (const auto& t : rig.picture().texts)
             if (t.role == zengine::graphics::role::kAccent && !t.text.empty() &&
                 long_label.size() >= t.text.size() &&
@@ -1640,7 +1654,7 @@ TEST_CASE("every field a label could show can be chosen: the choice wraps within
     // Is `[name]` drawn whole inside its column, so a press on it chooses that field? The values
     // sit right of the design area in a wide pane, and left of it in a narrow one.
     auto room = window_room();
-    const auto offered = [&](const std::string& name) -> const ws::PaneCanvasText* {
+    const auto offered = [&](const std::string& name) -> const ws::CanvasText* {
         const auto* t = rig.text("[" + name + "]");
         if (!t || t->text != "[" + name + "]") return nullptr;
         const auto area = rig.design();
@@ -1725,7 +1739,7 @@ TEST_CASE("a value dropped on no label is refused in words whatever is selected;
     const auto total = loom::encode_schema(*total_shape());
     const auto drop_at = [&](std::int64_t x, std::int64_t y) {
         const auto bytes = zengine::inventory::encode_pair(total, {});
-        rig.host(ws::PaneCanvasValueDrop{vb::kPane, rig.grant, rig.picture().picture, x, y,
+        rig.host(ws::PaneCanvasValueDrop{vb::kPane, vb::kRole, x, y,
                                          loom::Bytes(bytes.begin(), bytes.end()), "zengine.flow", "flow", ""});
     };
     const std::string refused = "Not shown: drop a shape or a field on a label, on the canvas or in the list";
@@ -1761,13 +1775,13 @@ TEST_CASE("a label bound to a shape named beyond plain ASCII leaves the builder'
     const auto bytes = zengine::inventory::encode_pair(loom::encode_schema(*grosse), {});
     // ON THE LABEL ON THE CANVAS: bound.
     auto [x, y] = rig.middle(rig.now().elements[4]);
-    rig.host(ws::PaneCanvasValueDrop{vb::kPane, rig.grant, rig.picture().picture, x, y,
+    rig.host(ws::PaneCanvasValueDrop{vb::kPane, vb::kRole, x, y,
                                      loom::Bytes(bytes.begin(), bytes.end()), "zengine.flow", "flow", ""});
     const auto d = rig.now();
     REQUIRE(d.shows.size() == 1);
     CHECK(d.shows[0].shape->name() == "tally.Gr\xC3\xB6\xC3\x9F" "e");
-    // The picture the builder said is one Workshop draws whole...
-    CHECK(ws::canvas_content_problem(rig.picture()).empty());
+    // The picture the builder drew is one its window keeps whole...
+    CHECK(rig.shown->weave().refusals.empty());
     // ...and the view's own notice on the design canvas spells the name, one `?` a character.
     const auto* waiting = rig.drawn("waiting to be told");
     REQUIRE(waiting != nullptr);
@@ -1825,7 +1839,7 @@ TEST_CASE("a control in the values column is drawn whole inside it whatever the 
     const auto metrics = ws::canvas_text_metrics(window_room());
     // Is exactly `words` drawn, whole, right of the design area and inside the room -- on the row
     // of `beside` when it is named?
-    const auto whole = [&](const std::string& words, const ws::PaneCanvasText* beside = nullptr) -> const ws::PaneCanvasText* {
+    const auto whole = [&](const std::string& words, const ws::CanvasText* beside = nullptr) -> const ws::CanvasText* {
         const auto area = rig.design();
         for (const auto& t : rig.picture().texts)
             if (t.text == words && t.x >= area.x + area.w && (!beside || t.y == beside->y) &&
@@ -1834,7 +1848,7 @@ TEST_CASE("a control in the values column is drawn whole inside it whatever the 
         return nullptr;
     };
     std::int64_t gesture = 80;
-    const auto press = [&](const ws::PaneCanvasText& t) {
+    const auto press = [&](const ws::CanvasText& t) {
         rig.pointer(ws::canvas_pointer::kPress, t.x + 8, t.y + 8, ++gesture);
         rig.pointer(ws::canvas_pointer::kRelease, t.x + 8, t.y + 8, gesture);
     };
@@ -2146,6 +2160,7 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
         pw::Window window(rig.bus, "builder");
         window.room(vb::kRole, vb::kRole, 110, 30);
         rig.pump();
+        rig.shown = &window;
         // RESTING ON AN ELEMENT NOT SELECTED MARKS IT; the pointer leaving the area puts it down.
         const auto rests = vb::element_area(rig.design(), rig.now().elements[1]);
         const auto marked = [&] {
@@ -2182,9 +2197,15 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
         CHECK(rig.directory->times(vb::kRole, vb::kRole) == 1);
         pw::Window window(rig.bus, "builder");
         const auto& seen = window.weave();
-        // A ROOM OF THE TERMINAL'S SIZE, so the window's picture is the terminal Workshop's.
+        // A ROOM OF THE TERMINAL'S SIZE, so the window's picture is the rig's terminal's.
+        const std::set<std::string> said_there = [&] {
+            std::set<std::string> out;
+            for (const auto& p : rig.picture().parts) out.insert(p.name);
+            return out;
+        }();
         window.room(vb::kRole, vb::kRole, 110, 30);
         rig.pump();
+        rig.shown = &window;
         REQUIRE(seen.heard.size() == 1);
         const gfx::Drawn first = seen.heard.front();
         CHECK(first.whole);
@@ -2192,14 +2213,13 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
         gfx::window::WinArea fresh;
         fresh.area = vb::kRole;
         CHECK(gfx::window::judge(fresh, gfx::window::Drawer{}, first).empty());
-        same_picture(*window.weave().find(vb::kRole), rig.picture());
-        std::set<std::string> names(rig.desk->named.begin(), rig.desk->named.end()), recorded;
+        std::set<std::string> names = said_there, recorded;
         names.erase(std::string());
         for (const auto& r : first.said) recorded.insert(r.action);
         CHECK(recorded == names);
         for (const auto& action : window.actions(vb::kRole)) CHECK(names.count(action) == 1);
 
-        // A PRESS ON A KIND makes one, as a click on it does; Workshop and the window both show it.
+        // A PRESS ON A KIND makes one, as a click on it does, and the window shows it.
         const auto made = rig.now().elements.size();
         REQUIRE(window.press(vb::kRole, "kind:label"));
         rig.pump();
@@ -2208,13 +2228,11 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
         REQUIRE(seen.heard.size() == 2);
         CHECK_FALSE(seen.heard.back().whole);
         CHECK(seen.refusals.empty());
-        same_picture(*window.weave().find(vb::kRole), rig.picture());
         // ...a button brings a rectangle more, painted in its place among the picture's.
         REQUIRE(window.press(vb::kRole, "kind:button"));
         rig.pump();
         CHECK(rig.now().elements.size() == made + 2);
         CHECK_FALSE(seen.heard.back().whole);
-        same_picture(*window.weave().find(vb::kRole), rig.picture());
         // ...ON AN ELEMENT selects it and begins no drag, and on its handle nothing moves.
         const auto element = rig.now().elements[0];
         REQUIRE(window.press(vb::kRole, "element:" + element.id));
@@ -2250,52 +2268,21 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
         CHECK(seen.heard[heard + 1].whole);
         CHECK(seen.refusals.size() == 1);
         CHECK_FALSE(rig.says("The graphics window refused the View Builder's picture"));
-        // ...AND A REFUSED WHOLE PICTURE IS SAID, drawing nothing more until the next change.
+        // ...AND A REFUSED WHOLE PICTURE IS SAID in the picture drawn next, once, and nothing
+        // more is drawn until the next change.
         window.weave().refuse_next = true;
         window.room(vb::kRole, vb::kRole, 110, 30, 2);
         rig.pump();
-        REQUIRE(seen.heard.size() == heard + 3);
+        REQUIRE(seen.heard.size() == heard + 4);
+        CHECK(seen.heard[heard + 2].whole);
         CHECK(seen.heard.back().whole);
         CHECK(seen.refusals.size() == 2);
         CHECK(rig.says("The graphics window refused the View Builder's picture"));
         rig.pump();
-        CHECK(seen.heard.size() == heard + 3);
+        CHECK(seen.heard.size() == heard + 4);
         REQUIRE(rig.edit("select", {"0"}).ok);
-        REQUIRE(seen.heard.size() == heard + 4);
-        CHECK(seen.heard.back().whole);
+        REQUIRE(seen.heard.size() == heard + 5);
         CHECK(seen.refusals.size() == 2);
-
-        // THE WINDOW MOVES NOTHING WORKSHOP SHOWS: a pan Workshop's room reaches stays when a wider
-        // window, which reaches less of the view, draws it.
-        REQUIRE(rig.edit("size", {"1400", "700"}).ok);
-        REQUIRE(rig.edit("add", {"button"}).ok);
-        const auto distant = std::to_string(rig.now().elements.size() - 1);
-        REQUIRE(rig.edit("element", {distant, "far", "Far", "1200", "600", "96", "24"}).ok);
-        const auto canvas = rig.design();
-        rig.pointer(ws::canvas_pointer::kPress, canvas.x + 2 * unit, canvas.y + 2 * unit, 60, 2);
-        rig.pointer(ws::canvas_pointer::kMove, canvas.x + 2 * unit - 60 * unit, canvas.y + 2 * unit - 30 * unit, 60, 2);
-        rig.pointer(ws::canvas_pointer::kRelease, canvas.x + 2 * unit - 60 * unit, canvas.y + 2 * unit - 30 * unit, 60, 2);
-        const auto* panned = rig.drawn("Far");
-        REQUIRE(panned != nullptr);
-        const auto far_x = panned->x, far_y = panned->y;
-        window.room(vb::kRole, vb::kRole, 200, 100, 3);
-        rig.pump();
-        REQUIRE(rig.edit("select", {"0"}).ok);
-        const auto* still_far = rig.drawn("Far");
-        REQUIRE(still_far != nullptr);
-        CHECK(still_far->x == far_x);
-        CHECK(still_far->y == far_y);
-
-        // THE WINDOW ALONE: with Workshop's room taken back, a press there still acts and is drawn.
-        rig.host(ws::PaneCanvasRoom{vb::kPane, ++rig.grant, 0, 0, unit, false});
-        const auto pictures = rig.desk->pictures.size();
-        const auto alone = seen.heard.size();
-        const auto before_alone = rig.now().elements.size();
-        REQUIRE(window.press(vb::kRole, "kind:button"));
-        rig.pump();
-        CHECK(rig.now().elements.size() == before_alone + 1);
-        CHECK(seen.heard.size() == alone + 1);
-        CHECK(rig.desk->pictures.size() == pictures);
 
         // ONCE A LIFE: a reloaded builder asks its room afresh.
         rig.reload();

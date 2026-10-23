@@ -27,7 +27,7 @@
  },
  {
   "replace": [
-   "    void on(const ws::PanePressed& pressed, loom::Mail& mail) {",
+   "    // A first-button press in the area, at the cell of the picture it landed on.",
    "        show(mail);"
   ],
   "text": "@e-press.txt"

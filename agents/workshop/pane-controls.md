@@ -32,14 +32,16 @@ MEANS
 
 WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
 
-## WL-HAND-03 — A press is answered from the picture it was aimed at, or refused in words
+## WL-HAND-03 — A press is answered from the meaning its rows have where it landed
 
-LAW — A pane numbering its composition (`component::RowMap`) acts on a press only while the picture the host echoed was drawn under its current number; an older one is refused in words, never re-resolved.
+LAW — A pane numbering its composition (`component::RowMap`) reads a press against the rows it drew where the press landed, the meanings its number stands for, and acts on that meaning alone.
 
 MEANS
 - the number moves exactly when the row-to-meaning map does: a repaint moving no row keeps it;
-- a listing window that moves by the least it can is what keeps an ordinary double-click working;
-- zero is only current before a numbered picture is established; it is not a legacy bypass.
+- a listing window that moves by the least it can is what keeps an ordinary double-click working.
+
+DOES NOT MEAN
+- that a press the window landed before the rows moved is refused: which drawing a window press names is a decision held open, its witnesses held as expected failures.
 
 WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
 
@@ -53,8 +55,7 @@ MEANS
 - a face acting on the pane's own cursor names none, so a double-click's second press stands.
 
 DOES NOT MEAN
-- that a zero-picture press reaches this check after a numbered picture:
-`RowMap::current` refuses it first (WL-HAND-03);
+- that a press's place stands for its meaning: the meaning is established again at the spend;
 - that the artifact name alone is the promise: `target_op_of` checks the operation beside it too.
 
 WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
@@ -113,19 +114,14 @@ side how many entries the window left out"
 and closed by hand"
 
 ### WL-HAND-03
-`component/row_map.hpp` RowMap::begin RowMap::settle RowMap::picture RowMap::current
-`workshop/pane_vocabulary.hpp` v3::PaneContent v3::PanePressed
-`workshop/pane_canvas_rows.hpp` CanvasPictures
+`component/row_map.hpp` RowMap::begin RowMap::settle RowMap::picture
 `workshop/pane_facets.hpp` PaneRowsFacet
-`files/files.cpp` kMovedSentence fenced
+`workshop/pane_drawing.hpp` window_cell
 `files/browser_view.hpp` say_entries
-`builder/builder-pane/pane.cpp` kMovedSentence fenced
-`tests/test_workshop_panes_canvas.cpp` "a pane's canvas pictures fence a press by the meaning each
-was drawn under"
 `tests/test_workshop_panes_files.cpp` "two queued presses on the row painted as one entry open THAT
-entry" "a press that names a picture Files has replaced is refused in words and spends nothing"
-`tests/test_workshop_panes_builder.cpp` "a press that names a picture the Builder has replaced is
-refused in words"
+entry"
+`tests/test_workshop_panes_input.cpp` "a Loaded press the window landed before the wheel moved its
+rows selects nothing"
 
 ### WL-HAND-04
 `builder/builder-pane/vocabulary.hpp` kActionArm kActionLoadBuilt
@@ -135,14 +131,11 @@ load_built arm_only ready_to_load standing
 `builder/builder-pane/modes.hpp` list_controls
 `tests/test_workshop_panes_builder.cpp` "the control that loads what was built names the BUILT
 recipe, not the choice" "while an artifact stands built, arming the next build is a different answer
-and says so" "an open menu row naming an artifact loads THAT artifact or refuses" "a numbered
-control naming an artifact is refused once that artifact is not what is standing" "the face drawn
+and says so" "an open menu row naming an artifact loads THAT artifact or refuses" "the face drawn
 where the older one was is the one a press spends" "the list's own double-click still takes the row
-it was aimed at" "a held load menu cannot switch recipes sharing an artifact stem" "a numbered load
-control preserves the build behind a shared artifact stem" "rebuilding the same recipe replaces an
+it was aimed at" "a held load menu cannot switch recipes sharing an artifact stem" "rebuilding the same recipe replaces an
 offered load, and settling again does not" "the promote control acts on the image it names once a
-newer build makes it the one standing" "the promote and revert controls refuse a stale press across
-a shared artifact stem" "a held promote or revert menu row cannot switch images sharing an artifact
+newer build makes it the one standing" "a held promote or revert menu row cannot switch images sharing an artifact
 stem"
 
 ### WL-HAND-05

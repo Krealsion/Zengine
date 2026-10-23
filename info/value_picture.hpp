@@ -13,7 +13,7 @@
 #include "component/row_map.hpp"
 #include "component/text_box.hpp"
 #include "message-draft/draft.hpp"
-#include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
@@ -104,10 +104,8 @@ class ValuePicture {
 public:
     /// LAY OUT WHAT THE VIEW SHOWS for its pane. `line` is the line being typed, scrolled here to
     /// keep its caret in sight; `first` is the field window's first row, which follows the selection.
-    workshop::v4::PaneContent compose(const std::string& pane, const Shown& s, component::TextBox& line,
-                                      std::size_t& first) {
-        workshop::v4::PaneContent out;
-        out.pane = pane;
+    workshop::ComposedRows compose(const Shown& s, component::TextBox& line, std::size_t& first) {
+        workshop::ComposedRows out;
         map_.begin();
         caret_ = {};
         const auto width = s.columns;
@@ -120,7 +118,7 @@ public:
             controls(s, out, 1);
             push("Or drop an Inventory value here. Views close with Close; data stays in Inventory.",
                  graphics::role::kMuted);
-            out.picture = map_.settle();
+            (void)map_.settle();
             return out;
         }
         push(s.title + " | " + s.subject, graphics::role::kAccent, graphics::role::kMuted);
@@ -142,7 +140,7 @@ public:
             }
             push("> " + line.visible(room), graphics::role::kAccent);
             push("Enter keeps it; Escape cancels", graphics::role::kMuted);
-            out.picture = map_.settle();
+            (void)map_.settle();
             return out;
         }
         controls(s, out, s.rows >= 10 ? 2 : 1);
@@ -151,7 +149,7 @@ public:
         if (!s.holds_value) {
             push("Drag an Inventory entry here for a copy; right-click an entry, Grab live, then click here to link it.",
                  graphics::role::kMuted);
-            out.picture = map_.settle();
+            (void)map_.settle();
             return out;
         }
         const auto budget = static_cast<std::size_t>(std::max<std::int64_t>(0, s.rows - static_cast<std::int64_t>(out.rows.size())));
@@ -167,7 +165,7 @@ public:
         }
         if (const std::size_t more = component::more_marker(window); more > 0)
             push(workshop::pane_text::omitted_text(more, "more"), graphics::role::kMuted);
-        out.picture = map_.settle();
+        (void)map_.settle();
         return out;
     }
 
@@ -180,7 +178,7 @@ public:
 private:
     /// LAY OUT THE CONTROLS GREEDILY OVER `lines` ROWS, keeping `[...]` last so every act stays one
     /// press away. A control the width cannot hold whole is not drawn, so it is never a target.
-    void controls(const Shown& s, workshop::v4::PaneContent& out, std::int64_t lines) {
+    void controls(const Shown& s, workshop::ComposedRows& out, std::int64_t lines) {
         const auto& items = s.controls;
         const bool menu = items.size() > 1;
         const std::int64_t reserve = menu ? 6 : 0; // room for " [...]" on whichever line is last

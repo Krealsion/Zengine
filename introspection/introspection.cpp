@@ -21,7 +21,7 @@
 #include "activation/activation.hpp"
 #include "graphics/vocabulary.hpp"
 #include "workshop/arrangement_vocabulary.hpp"
-#include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_document.hpp"
 #include "workshop/pane_escape.hpp"
@@ -86,15 +86,13 @@ using Office = ws::MultiPaneFacet<kIntrospectionRole, kLoadedPane,
 class IntrospectionWeave
     : public zengine::With<Office>::Weave<
           IntrospectionWeave, IntrospectionState,
-          loom::Accept<ws::PaneRoom, ws::PaneCanvasRoom,
-                       ws::PaneCanvasPointer, ws::PaneCanvasRejected, ws::PaneKey,
+          loom::Accept<ws::PaneKey,
                        ws::PaneTextInput, ws::PaneActionRequested, loom::Result,
                        ws::PaneOperationAnswered, ws::PaneCarryAnswered, loom::Refused,
                        ws::ResolvedArrangement, ws::v2::ResolvedArrangement, ws::PowersFound,
                        ws::PowerDescribed, ws::SourceSampled, gfx::ClipboardCopy,
                        gfx::ClipboardText, ws::v2::PaneSettings>,
-          loom::Emit<ws::v2::PaneOffered, ws::v3::PaneActions, ws::v4::PaneContent,
-                     ws::v5::PaneCanvasContent, ws::PaneCaret, ws::PanePassRequested,
+          loom::Emit<ws::v2::PaneOffered, ws::v3::PaneActions, ws::PanePassRequested,
                      intro::LoadedSelected, loom::ListLoaded, ws::ArrangementRequested,
                      ws::DescribePower, ws::SampleRequested, ws::PaneOperationRequested,
                      ws::PaneValueCarryRequested, ws::PaneEscapeUnspent, gfx::ClipboardCopy,
@@ -175,57 +173,6 @@ public:
 
     // ---- Its panes ----------------------------------------------------------------------------
 
-    /// Workshop granting one pane its prose budget, spent only while the pane holds no canvas room.
-    /// A forged room grants nothing; a room for a pane this office lacks is neither counted nor
-    /// answered.
-    void on(const ws::PaneRoom& room, loom::Mail& mail) {
-        if (intro::PaneSeat* seat = workshop_said(mail) ? seat_of(room.pane) : nullptr) {
-            if (seat->prose_room(room)) {
-                grant(mail, room.pane);
-            }
-        }
-    }
-
-    /// The pane's own canvas: while it holds a room there it draws its rows as its picture, the
-    /// lattice its budget. Every grant is a room grant (`grant`), the picture's numbers its own.
-    void on(const ws::PaneCanvasRoom& room, loom::Mail& mail) {
-        if (intro::PaneSeat* seat = workshop_said(mail) ? seat_of(room.pane) : nullptr) {
-            if (seat->canvas_room(room)) {
-                grant(mail, room.pane);
-            }
-        }
-    }
-
-    /// A refused picture leaves the last good one showing; the next reading draws again.
-    void on(const ws::PaneCanvasRejected&, loom::Mail&) {}
-
-    /// A HAND ON A PANE'S PICTURE, read back to the row and column of its lattice: a primary press
-    /// is the press a row was, its motion a drag, the wheel the wheel; a right press is handed
-    /// back, so Workshop's own pane menu opens where it was made. Only for the room the pane holds,
-    /// and a primary press only on the picture drawn under the press map in force.
-    void on(const ws::PaneCanvasPointer& event, loom::Mail& mail) {
-        namespace cp = ws::canvas_pointer;
-        const intro::PaneSeat* seat = workshop_said(mail) ? seat_of(event.pane) : nullptr;
-        const std::optional<ws::RowCell> at = seat == nullptr ? std::nullopt : seat->cell_of(event);
-        if (!at) {
-            return;
-        }
-        const bool powers = event.pane == kPowersPane;
-        if (event.phase == cp::kWheel) {
-            if (powers) powers_.wheel(speaking(mail), event.dy);
-            if (event.pane == kLoadedPane) loaded_.wheel(speaking(mail), event.dy);
-        } else if (event.phase == cp::kMove) {
-            if (powers) powers_.drag(speaking(mail), at->row, at->column);
-        } else if (event.phase == cp::kRelease || event.phase == cp::kLost) {
-            if (powers) powers_.release();
-        } else if (event.phase == cp::kPress && event.button == 3) {
-            (void)ws::pane_menu::pass_back(mail, kIntrospectionRole, event.pane);
-        } else if (event.phase == cp::kPress && event.button == 1 && at->shown &&
-                   seat->shows(event)) {
-            primary_press(event.pane, at->row, at->column, mail);
-        }
-    }
-
     // ---- Its panes in graphics windows (its office's `MultiPaneFacet` calls these) ------------
 
     /// EACH PANE'S SEAT, where a window that shows the pane's area finds it.
@@ -236,7 +183,7 @@ public:
         visit(powers_.room());
     }
 
-    /// A pane Workshop seats nowhere, granted the room a window gave it: its owner asked again.
+    /// A pane granted the room a window gave it: its owner asked again.
     void on_window_room(const std::string& pane, loom::Mail& mail) { grant(mail, pane); }
 
     /// A HAND ON A PANE IN A WINDOW, read onto the rows shown there, the picture under the press
