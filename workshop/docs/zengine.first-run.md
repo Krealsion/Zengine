@@ -11,7 +11,10 @@ The quick setup keeps one setting of its own, office-wide, in Workshop's setting
 `answered`, set by **Done** or **Skip**. At a start where Workshop keeps a settings file and
 `answered` is not set, it shows itself in front, holding the keys. A run with no settings file
 (`--isolated` without a `--prefs` path), or a settings file Workshop refused at launch, keeps no
-settings, so the quick setup shows nothing by itself there. Clear `answered` in the pane's gear and it shows again at the next start.
+settings, so the quick setup shows nothing by itself there. Nor does it on a desk where a pane
+beyond Layouts and Info is already open -- say, one you opened before it arrived: that pane keeps
+the keys, and the quick setup shows at the next start. Clear `answered` in the pane's gear and it
+shows again at the next start.
 
 It changes nothing itself. Each answer goes to the owner of what it changes, and is said in that
 owner's words:

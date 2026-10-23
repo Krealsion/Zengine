@@ -12,6 +12,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace zengine::first_run {
@@ -23,6 +24,20 @@ inline constexpr const char* kSetupPane = "setup";
 /// THE ONE SETTING IT KEEPS, office-wide in Workshop's settings file: the quick setup was answered
 /// or skipped. Cleared in the gear, it shows again at the next start.
 inline constexpr const char* kAnsweredKey = "answered";
+
+/// THE DESK A FRESH START OPENS: Workshop's Layouts row and Info. The quick setup shows itself only
+/// while no other pane is open, so it never comes in front of a pane a hand already opened.
+// WL-FIRST-01 -- agents/workshop/first-run.md
+inline bool fresh_desk(const std::vector<std::pair<std::string, std::string>>& open) {
+    for (const auto& [office, pane] : open) {
+        const bool layouts = office == "zengine.workshop" && pane == "layouts";
+        const bool info = office == "zengine.info" && pane == "info";
+        if (!layouts && !info) {
+            return false;
+        }
+    }
+    return true;
+}
 
 /// The editor choices the Neovim box switches between, as the shipped plans author them.
 inline constexpr const char* kNeovimChoice = "neovim";

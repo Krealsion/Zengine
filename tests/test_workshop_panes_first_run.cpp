@@ -144,6 +144,26 @@ TEST_CASE("WL-FIRST-01: the quick setup shows itself once at a start that keeps 
         REQUIRE(held != nullptr);
         CHECK(r.session().panes.keyboard == held->kind);
     }
+    SUBCASE("a pane a hand opened before the setup arrived keeps the keys: not shown by itself") {
+        TempDir dir("first-run-late");
+        PaneRig r;
+        r.host.prefs_path = dir.file("prefs.json");
+        r.mount_workshop();
+        r.ready();
+        r.extent(160, 60);
+        (void)mount_switch(r);
+        const char* tools = "zengine.test.tools";
+        ProviderSeat* seat = r.mount_provider(tools);
+        r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
+            s.offer(m, PaneOffered{"alpha", "Alpha", "a fixture"});
+        });
+        r.pick(PaneRef{tools, "alpha"});
+        REQUIRE(has_pane(r.session().setup.active, PaneRef{tools, "alpha"}));
+        REQUIRE(r.load("zengine-first-run", WORKSHOP_SO_FIRST_RUN, fr::kFirstRunRole).valid());
+        CHECK_FALSE(on_desk(r));
+        CHECK(r.session().panes.runtime.find(fr::kFirstRunRole, fr::kSetupPane) != nullptr);
+        CHECK(has_pane(r.session().setup.active, PaneRef{tools, "alpha"}));
+    }
     SUBCASE("an isolated run keeps no settings: nothing shown by itself, the pane still offered") {
         PaneRig r;
         (void)start(r, std::string());

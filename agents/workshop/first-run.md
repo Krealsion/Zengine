@@ -7,10 +7,11 @@ Office-wide settings are [`settings.md`](settings.md); the editor switch is
 
 ## WL-FIRST-01 — The quick setup shows once, at a start that keeps a settings file
 
-LAW — `zengine.first-run` keeps one office-wide setting, `answered`, in Workshop's settings file, and asks for its `setup` pane at a start whose settings are kept and not yet answered, once a run.
+LAW — `zengine.first-run` keeps one office-wide setting, `answered`, in Workshop's settings file, and asks for its `setup` pane at a start whose settings are kept and unanswered, on a fresh desk, once a run.
 
 MEANS
 - a run with no settings file (`--isolated` without `--prefs`), a file refused at launch and settings withheld show nothing by itself;
+- a fresh desk is Layouts and Info alone: a pane a hand opened first keeps the keys, and the setup waits for the next start;
 - clearing `answered` shows it at the next start.
 
 DOES NOT MEAN
@@ -45,8 +46,8 @@ WHY — `agents/decisions/an-editor-is-replaced-not-routed.md`
 ## Proven by
 
 ### WL-FIRST-01
-`workshop/first-run/first_run.cpp` FirstRun keeps_settings on(OfficeSettingsShown)
-`workshop/first-run/setup.hpp` kAnsweredKey
+`workshop/first-run/first_run.cpp` FirstRun keeps_settings on(OfficeSettingsShown) on(PaneInventory)
+`workshop/first-run/setup.hpp` kAnsweredKey fresh_desk
 `tests/test_workshop_panes_first_run.cpp` "WL-FIRST-01: the quick setup shows itself once at a start
 that keeps settings and has not answered, and never where none are kept"
 
