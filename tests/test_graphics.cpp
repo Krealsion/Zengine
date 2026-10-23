@@ -1333,6 +1333,17 @@ TEST_CASE("a button's moment says what the window drew under the hand when it la
     REQUIRE(hearing.buttons.size() == 4);
     CHECK(hearing.buttons[2].first.under.empty());
     CHECK(hearing.buttons[2].first.part.empty());
+    // AN AREA IN FRONT THAT HEARS THE POINTER AND PAINTS NOTHING THERE takes the press, and the
+    // window says what the area behind it drew under the hand.
+    MomentsHeard& cover = t.own("test.cover", 10, 2, 20, 5, 2, true);
+    t.button(0, 11, 2, true);
+    t.button(0, 11, 2, false);
+    REQUIRE(cover.buttons.size() == 2);
+    CHECK(cover.buttons[0].first.area == "test.cover");
+    CHECK(cover.buttons[0].first.under == "test.hearing");
+    CHECK(cover.buttons[0].first.part == "other");
+    CHECK(cover.buttons[0].first.drawing == 6);
+    CHECK(hearing.buttons.size() == 4);
 }
 
 TEST_CASE("the terminal window gives the owner of an area placed to hear the pointer each moment "

@@ -17,6 +17,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -759,6 +760,50 @@ TEST_CASE("WL-CTX-09: a press on a presented row chooses it") {
     REQUIRE(t.foreign_open());
     t.r.window_click(context_cell_x(t.r.session()), context_entry_cell_y(t.r.session(), 1));
     CHECK_FALSE(t.menu_open());
+    REQUIRE(t.guard->answers.size() == 1);
+    CHECK(t.guard->answers[0].chosen);
+    CHECK(t.guard->answers[0].id == "seat.second");
+}
+
+TEST_CASE("WL-CTX-09: a press the window landed on a menu line where another row stands now "
+          "chooses nothing, and one on the row drawn there chooses it") {
+    Rigged t;
+    t.guard->menu_on_press = true;
+    t.right_in_guard();
+    t.right_in_guard(false);
+    REQUIRE(t.foreign_open());
+    // WHERE THE WINDOW LANDS A PRESS IN THE PRESENTER'S AREA: on the rule, which chooses nothing.
+    std::optional<gfx::AreaButtonChanged> rule;
+    const loom::ObserverId tap = t.r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (!rule && e.kind == loom::EventKind::Delivered && e.payload &&
+            e.schema_name == gfx::AreaButtonChanged::zen_name) {
+            rule = loom::from_value<gfx::AreaButtonChanged>(*e.payload);
+        }
+    });
+    t.r.window_click(context_cell_x(t.r.session()), context_entry_cell_y(t.r.session(), 2));
+    t.r.bus.remove_observer(tap);
+    REQUIRE(rule.has_value());
+    REQUIRE(t.foreign_open());
+    REQUIRE(rule->under == rule->area);
+    // ...AND A PRESS ONE LINE UP, on the second row, told as the window tells the presenter.
+    const auto landed = [&](const std::string& part, std::uint64_t press) {
+        for (const bool down : {true, false}) {
+            gfx::AreaButtonChanged told = *rule;
+            told.pressed = down;
+            told.y -= gfx::kCellPx;
+            told.part = part;
+            REQUIRE(t.r.bus.office_send_to_role_as(
+                            t.r.windows.id(), t.r.windows.office(), kPresenterRole,
+                            loom::Message(loom::to_value(told), t.r.windows.id(),
+                                          t.r.windows.id(), press))
+                        .valid());
+            t.r.bus.drain_until_idle();
+        }
+    };
+    landed("seat.first", 9101);
+    CHECK(t.foreign_open());
+    CHECK(t.guard->answers.empty());
+    landed("seat.second", 9102);
     REQUIRE(t.guard->answers.size() == 1);
     CHECK(t.guard->answers[0].chosen);
     CHECK(t.guard->answers[0].id == "seat.second");

@@ -2970,6 +2970,15 @@ TEST_CASE("a press the window landed on a Files row its listing has since moved 
         CHECK(f.at_cursor().rfind("beta.cpp", 0) != 0);
         CHECK(tap.attempts == 0);
     }
+    SUBCASE("another entry listed in its place, pressed with the right button") {
+        put_file(f.root / "alpha2.cpp", "the second alpha\n");
+        press_face(f, "[look again]");
+        REQUIRE(part_drawn_at(f.kind, beta, 2) != drawn);
+        press_as_drawn(f.r, f.kind, beta, 2, drawn, 0, 3);
+        CHECK_MESSAGE(f.first().find("the rows moved -- press again") != std::string::npos,
+                      picture(f.shown()));
+        CHECK_FALSE(f.r.session().presented.open);
+    }
     SUBCASE("the same entry, the cursor moved onto another") {
         f.point_at("alpha.cpp"); // the cursor's mark is redrawn; beta stands where it stood
         REQUIRE(part_drawn_at(f.kind, beta, 2) == drawn);

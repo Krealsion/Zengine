@@ -342,6 +342,38 @@ TEST_CASE("WL-DESK-18: ctrl+space shows the palette over the pane holding the ke
     CHECK(on_desk(r, kDesktopRole, kHotkeysPane));
 }
 
+TEST_CASE("WL-DESK-18: a press the window landed on the palette's list moves the cursor where the "
+          "list still stands -- the cursor walked meanwhile -- and is refused in words once a "
+          "filter has moved the list") {
+    PaneRig r;
+    ProviderSeat* tools = nullptr;
+    DrawnNumbers drawn(r.bus);
+    start(r, tools);
+    REQUIRE(r.load("zengine-palette", WORKSHOP_SO_PALETTE, kPaletteRole).valid());
+    REQUIRE(r.load_refusals.empty());
+    r.key(input::scan::kSpace, input::mod::kCtrl);
+    REQUIRE(on_desk(r, kPaletteRole, kPalettePane));
+    const std::int64_t shown = kind_of(r, kPaletteRole, kPalettePane);
+    const std::int64_t listed = drawn.of(r.session(), shown);
+    REQUIRE(listed != 0);
+    // THE CURSOR WALKED: the same entries, the marker moved. A press landed on the fourth entry
+    // before it takes, and the cursor stands there.
+    r.key(input::scan::kDown);
+    REQUIRE(drawn.of(r.session(), shown) == listed);
+    press_as_drawn(r, shown, 5, 4, "", listed);
+    std::vector<std::string> rows = pane_rows(r, shown);
+    REQUIRE(rows.size() > 5);
+    CHECK_MESSAGE(rows[5].find('>') != std::string::npos, rows[5]);
+    CHECK_MESSAGE(rows[3].find('>') == std::string::npos, rows[3]);
+    // A FILTER MOVED THE LIST: a press landed on the list before is refused in words.
+    r.text("beta");
+    REQUIRE(drawn.of(r.session(), shown) != listed);
+    press_as_drawn(r, shown, 2, 4, "", listed);
+    rows = pane_rows(r, shown);
+    REQUIRE(rows.size() > 1);
+    CHECK_MESSAGE(rows[1].find("the list moved -- press again") != std::string::npos, rows[1]);
+}
+
 TEST_CASE("WL-DESK-18: a run is refused under any number but the palette's own unspent row and "
           "from any office but the palette's, and nothing is run") {
     PaneRig r;
