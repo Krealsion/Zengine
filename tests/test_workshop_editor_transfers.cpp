@@ -303,11 +303,9 @@ TEST_CASE("in a C++ document a dropped command offers its Terminal line or gener
     CHECK(raw->judged[0].refusal.find("waiting for your choice") != std::string::npos);
 }
 
-// A WITNESS OF THE PRESS SEAM'S MISREAD, held as an expected failure until it is decided which
-// drawing a window press names (a drawing's number on the window's word of the press; one area
-// a picture; a fence through the window). The Editor reads a drop against the rows it drew since.
-TEST_CASE("a drop aimed at a picture the text has since left is refused and changes nothing" *
-          doctest::should_fail()) {
+// THE WINDOW SAYS WHAT IT DREW UNDER THE HAND, the line its part names, and the drop names it: the
+// Editor refuses a drop the window landed on a line its rows have since left.
+TEST_CASE("a drop aimed at a picture the text has since left is refused and changes nothing") {
     EditorStory s("xfer-stale");
     std::string lines;
     for (int i = 0; i < 80; ++i) lines += "line " + std::to_string(i) + "\n";
@@ -341,6 +339,34 @@ TEST_CASE("a drop aimed at a picture the text has since left is refused and chan
     INFO(s.notice());
     CHECK(s.notice().find("moved under the drop") != std::string::npos);
     CHECK(s.doc().text == lines);
+}
+
+TEST_CASE("a press the window landed on a line the Editor's rows have since left is refused in words and places no caret, and one landed on the line drawn there now places it") {
+    EditorStory s("xfer-press-line");
+    std::string lines;
+    for (int i = 0; i < 80; ++i) lines += "line " + std::to_string(i) + "\n";
+    REQUIRE(s.open(s.write("long.txt", lines)).accepted);
+    const std::int64_t row = s.chrome() + 3;
+    const std::string drawn = part_drawn_at(s.editor, row, 2);
+    REQUIRE(drawn == "line:4");
+    // THE TEXT SCROLLS UNDER IT: the window gives the Editor a wheel.
+    const RuntimePane* pane = s.r.session().panes.runtime.of_kind(s.editor);
+    REQUIRE(pane != nullptr);
+    const std::string area = pane_window_area(s.r.session().panes, *pane);
+    REQUIRE(s.r.bus.office_send_to_role_as(s.r.windows.id(), s.r.windows.office(), ed::kEditorPaneRole,
+        loom::Message(loom::to_value(gfx::AreaWheelTurned{area, 0, -3.0, 10, 10, 0, true, 0}))).valid());
+    s.r.bus.drain_until_idle();
+    REQUIRE(part_drawn_at(s.editor, row, 2) != drawn);
+    const auto before = s.doc();
+    press_as_drawn(s.r, s.editor, row, 2, drawn);
+    CHECK_MESSAGE(s.notice().find("the text moved under the press") != std::string::npos, s.notice());
+    CHECK(s.doc().caret_row == before.caret_row);
+    // ...AND A PRESS LANDED ON THE LINE DRAWN THERE NOW, wherever the notice put it, places the caret.
+    const std::int64_t again = s.chrome() + 3;
+    const std::string now = part_drawn_at(s.editor, again, 2);
+    REQUIRE(now.rfind("line:", 0) == 0);
+    press_as_drawn(s.r, s.editor, again, 2, now);
+    CHECK(s.doc().caret_row + 1 == std::stoll(now.substr(5)));
 }
 
 TEST_CASE("a press aimed at a picture where the text it lands on was not yet selected begins no carry; the drag sweeps") {

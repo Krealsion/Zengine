@@ -47,7 +47,8 @@ with [`Drawn`](#drawn), says an element once with [`ElementPut`](#elementput) an
 with [`ElementChange`](#elementchange). A drawer does all three through a canvas or a
 drawing weave ([the Graphics package](graphics.md#a-drawing-weave)), which draw whole only on a new
 window, incarnation, size or measure, or an empty area. To read what it shows, ask
-[`WindowShowAsked`](#windowshowasked), or, as an area's arranger, [`AreaShowAsked`](#areashowasked).
+[`WindowShowAsked`](#windowshowasked), or, as an area's arranger, [`AreaShowAsked`](#areashowasked),
+told when it settled (`AreaSettled`).
 
 Keys go to each owner placed to hear them, front to back: each key, its text and its release. An
 owner placed to hear the pointer is given each pointer moment in its area as it was, at its cell's
@@ -73,12 +74,13 @@ reading the terminal.
 
 ### `Drawn`
 
-`Drawn` v1 is what one drawer changed in one area, applied together.
+`Drawn` v2 is what one drawer changed in one area, applied together.
 
 - **Takes:** `area`; `whole`, true to remove first everything the drawer may draw there; `put`, the
   nodes (a node put again changes in its place, a new one goes after its siblings); `removed`, paths
   whose subtrees go; `said` and `unsaid`, element records; `more`, true when more of the same beat
-  follows from this drawer.
+  follows from this drawer; `number`, the drawer's own for what its drawing means, which the window
+  says with each press that lands there.
 - **Answers:** nothing; the window paints what changed and, unless `more`, shows it.
 - **Refuses:** in `DrawnRefused` to the sender, the whole drawing: `window 'terminal' shows no area
   '<area>'`; `area '<area>' is drawn only by its owner, <owner>`; `'<path>' is not the sender's to
@@ -282,14 +284,15 @@ weaver's hand alone (`weaver_only`) its press or wheel reaches nobody, its arran
 
 As its own office the window publishes `WindowOffered` v3 on each activation, after `GraphicsReady`,
 and at each new terminal size: its name, its cells as `kCellPx` pixels (none with no terminal),
-incarnation, its unit the cell and text a cell. The directory keeps it. It never publishes `SurfacePlacement` or `SurfaceCloseRequested`. To an area's owner:
-`AreaRoom` v4 for each introduction (`empty` while it holds none of the owner's drawing);
-`DrawnRefused` v1; `ActionRequested` v1; `AreaButtonChanged`, `AreaPointerMoved`,
+incarnation, its unit the cell and text a cell; the directory keeps it. It never publishes
+`SurfacePlacement` or `SurfaceCloseRequested`. To an area's owner: `AreaRoom` v4 for each
+introduction; `DrawnRefused` v1; `ActionRequested` v1; `AreaButtonChanged` v3, `AreaPointerMoved`,
 `AreaWheelTurned` v2, `AreaHoldEnded`, `AreaPointerLeft` v1 when placed to hear the pointer;
 `KeyPressed` v2, `KeyReleased` v2 and `TextEntered` v1 when placed to hear keys, a shape it does not
-take refused on the bus. To an arranger not the owner: `AreaPressed` v2, `AreaHoldEnded`,
-`AreaPointerLeft` v1; to any arranger, `AreaHandRefused` v1. To an asker: `WindowShown`, `AreaShown`,
-`ClipboardText`, `SurfaceCaptured`, `SurfaceCaptureChunk` v1 and `zen.Refused`. To the Timer, its beat's order.
+take refused on the bus. To an arranger not the owner: `AreaPressed` v3, `AreaHoldEnded`,
+`AreaPointerLeft` v1; to any arranger, `AreaHandRefused` and `AreaSettled` v1. To an asker:
+`WindowShown`, `AreaShown`, `ClipboardText`, `SurfaceCaptured`, `SurfaceCaptureChunk` v1 and
+`zen.Refused`. To the Timer, its beat's order.
 
 ## Files
 

@@ -641,13 +641,21 @@ bool WorkshopWeave::drop_carry(const AreaPoint& at, loom::Mail& mail) {
         return true;
     }
     const auto correlation = ++gesture_asks_;
+    // WHAT THE WINDOW DREW UNDER THE HAND, where the moment being answered is its word about this
+    // pane's area: the pane judges the drop by it.
+    const bool word = window_under_.under == at.area;
+    const std::string under = word ? window_under_.under : std::string();
+    const std::string part = word ? window_under_.part : std::string();
+    const std::int64_t drawing = word ? window_under_.drawing : 0;
     const auto sent = value
         ? mail.as_role(kWorkshopProvider).send_to_role(pane->provider,
               PaneCanvasValueDrop{pane->pane, at.area, at.x, at.y, carried_.data,
-                                  carried_.source_office, carried_.source_pane, carried_.token},
+                                  carried_.source_office, carried_.source_pane, carried_.token,
+                                  under, part, drawing},
               correlation)
         : mail.as_role(kWorkshopProvider).send_to_role(pane->provider,
-              PaneCanvasDrop{pane->pane, at.area, at.x, at.y, carried_.data}, correlation);
+              PaneCanvasDrop{pane->pane, at.area, at.x, at.y, carried_.data, under, part, drawing},
+              correlation);
     if (!sent.valid()) {
         say("Item placement could not be queued; it is still held", true);
         return true;
@@ -738,6 +746,7 @@ bool WorkshopWeave::release_value_drag(const input::PointerButton& button, loom:
         if (pane && host_->role_holder) {
             drag.at = over;
             drag.receiver = host_->role_holder(pane->provider);
+            drag.word = window_under_;
         }
     }
     if (!carried_.drag) return false;
@@ -756,7 +765,10 @@ void WorkshopWeave::finish_value_drag(loom::Mail& mail) {
     }
     const auto previous = input_actor_;
     input_actor_ = drag.actor;
+    const WindowUnder answering = window_under_;
+    window_under_ = drag.word; // what the window drew under the hand at the release
     (void)drop_carry(drag.at, mail);
+    window_under_ = answering;
     input_actor_ = previous;
     if (!carried_.data.empty()) {
         carried_ = {};

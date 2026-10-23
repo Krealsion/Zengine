@@ -160,6 +160,10 @@ public:
         if (state_.menu == 0 || !b.pressed || b.button != 1) {
             return;
         }
+        // A PRESS THE WINDOW LANDED ON ANOTHER LINE than the menu shows there now chooses nothing.
+        if (drawing_.moved(b)) {
+            return;
+        }
         const std::int64_t line = drawing_.line_at(b.area, b.x, b.y, mail);
         const std::int64_t entry = line >= 0 ? row_at_line(line) : -1;
         if (entry >= 0) {

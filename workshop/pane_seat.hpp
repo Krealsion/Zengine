@@ -132,18 +132,28 @@ public:
         }
         RowsDrawing drawn =
             rows_drawing(said_rows_, said_parts_, window_.rows_room(), columns_, said_caret_);
+        drawn.sketch.number(said_number_);
         window_places_ = std::move(drawn.places);
         window_.draw(drawn.sketch, mail);
     }
 
-    /// THE PANE'S ROWS SAID, with their parts and the caret standing in them, and drawn in the
-    /// window that shows the area (`redraw`).
+    /// THE PANE'S ROWS SAID, with their parts, the caret standing in them, and the pane's number
+    /// for what they mean (`component::RowMap::picture`, 0 for none), and drawn in the window that
+    /// shows the area (`redraw`).
     void publish_rows(loom::Mail& mail, std::vector<TextRow> rows, std::vector<RowPart> parts = {},
-                      const RowsCaret& caret = {}) {
+                      const RowsCaret& caret = {}, std::int64_t number = 0) {
         said_rows_ = std::move(rows);
         said_parts_ = std::move(parts);
         said_caret_ = caret;
+        said_number_ = number;
         redraw(mail);
+    }
+
+    /// Whether a drop at `x`, `y` of the area names another element than the rows last drawn there
+    /// show, by the window's word of what it drew under the hand (`WindowDrawing::moved`).
+    bool moved(const std::string& under, const std::string& part, std::int64_t drawing,
+               std::int64_t x, std::int64_t y) const {
+        return window_.moved(under, part, drawing, x, y);
     }
 
 private:
@@ -155,6 +165,7 @@ private:
     std::vector<TextRow> said_rows_;
     std::vector<RowPart> said_parts_;
     RowsCaret said_caret_;
+    std::int64_t said_number_ = 0;
     std::map<std::string, RowCell> window_places_;
     bool keys_here_ = false;
 };
@@ -298,8 +309,14 @@ private:
         if (!p) {
             return;
         }
+        const bool keys_went_here = seat->keys_here();
+        // A PRIMARY PRESS OF ITS OWN MOVES THE KEYS TO THE PANE (WL-FOCUS-03), so the next press is
+        // made with them there, whether or not Workshop's word on this one has come yet.
+        if (p->phase == canvas_pointer::kPress && p->button == 1) {
+            seat->keys_here(true);
+        }
         if constexpr (requires { self.on_window_pointer(seat->pane(), *p, true, mail); }) {
-            self.on_window_pointer(seat->pane(), *p, seat->keys_here(), mail);
+            self.on_window_pointer(seat->pane(), *p, keys_went_here, mail);
         } else if (p->phase == canvas_pointer::kPress && p->button == 1 && p->at.shown) {
             self.on_window_press(seat->pane(), p->at.row, p->at.column, mail);
         }

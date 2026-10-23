@@ -1162,15 +1162,20 @@ struct PressesHeard {
     std::vector<gfx::AreaButtonChanged> own;
     std::vector<gfx::AreaHoldEnded> ended;
     std::vector<gfx::AreaPointerLeft> left;
+    std::vector<gfx::AreaSettled> settled;
 };
 
 class ArrangerOwner
     : public loom::WeaveBase<ArrangerOwner, GraphicsTestOwner,
                              loom::Accept<gfx::AreaRoom, gfx::AreaPressed, gfx::AreaButtonChanged,
-                                          gfx::AreaHoldEnded, gfx::AreaPointerLeft>,
+                                          gfx::AreaHoldEnded, gfx::AreaPointerLeft,
+                                          gfx::AreaSettled>,
                              loom::Emit<gfx::AreaPlaced, gfx::SkinChosen>> {
 public:
     explicit ArrangerOwner(PressesHeard& heard) : heard_(&heard) {}
+    void on(const gfx::AreaSettled& s, loom::Mail& mail) {
+        if (from_a_window(mail)) heard_->settled.push_back(s);
+    }
     void on(const gfx::AreaRoom&, loom::Mail&) { ++state_.heard; }
     void on(const gfx::AreaPressed& p, loom::Mail& mail) {
         if (from_a_window(mail)) heard_->pressed.emplace_back(p, mail.correlation());
@@ -1252,6 +1257,82 @@ struct PointerDesk : TypedWindow {
 /// A window cell's centre, in the pixels of an area whose corner stands at cell `origin`.
 std::int64_t local(std::int64_t cell, std::int64_t origin) {
     return cell * gfx::kCellPx + gfx::kCellPx / 2 - origin * gfx::kCellPx;
+}
+
+TEST_CASE("the window tells an area's arranger, unasked, each time what the area shows settles at a "
+          "new version, and once a version") {
+    PointerDesk t;
+    MomentsHeard& owned = t.own("test.settling", 10, 2, 20, 5, 1, true, /*by_arranger=*/true,
+                                "first words");
+    (void)owned;
+    REQUIRE_FALSE(t.presses.settled.empty());
+    const gfx::AreaSettled first = t.presses.settled.back();
+    CHECK(first.window == gfx::kTerminalWindow);
+    CHECK(first.area == "test.settling");
+    const std::size_t told = t.presses.settled.size();
+    // THE OWNER DRAWS AGAIN, ON ITS OWN: told again, at a version past the first.
+    const loom::WeaveId owner = t.r.bus.role_holder("test.settling");
+    gfx::Sketch s;
+    s.text("words", 0, 0, "other words", gfx::by_role(gfx::role::kFill));
+    REQUIRE(t.r.bus.office_send_to_role_as(owner, "test.settling", window_office(),
+        loom::Message(loom::to_value(gfx::Drawn{"test.settling", true, s.nodes(), {}, s.records(),
+                                                {}, false, 0}))).valid());
+    t.r.drain();
+    REQUIRE(t.presses.settled.size() == told + 1);
+    CHECK(t.presses.settled.back().version > first.version);
+    // ...AND A SHOWING THAT MOVED NOTHING OF IT tells nothing.
+    t.type("\x1b[<35;2;2M"); // the pointer moved outside every area
+    CHECK(t.presses.settled.size() == told + 1);
+}
+
+TEST_CASE("a button's moment says what the window drew under the hand when it landed -- the area, "
+          "the part named there and its drawer's number for the drawing -- and a press held through "
+          "its owner's next drawing keeps its number for its moves and its release, wherever it "
+          "lands") {
+    PointerDesk t;
+    MomentsHeard& hearing = t.own("test.hearing", 10, 2, 20, 5, 1, true);
+    const loom::WeaveId owner = t.r.bus.role_holder("test.hearing");
+    REQUIRE(owner.valid());
+    // THE OWNER DRAWS, numbering its drawing: its words named by the action a press asks.
+    const auto draw = [&t, owner](const std::string& words, const std::string& action,
+                                  std::int64_t number) {
+        gfx::Sketch s;
+        s.text("words", 0, 0, words, gfx::by_role(gfx::role::kFill));
+        if (!action.empty()) s.action("words", action);
+        s.number(number);
+        REQUIRE(t.r.bus.office_send_to_role_as(owner, "test.hearing", window_office(),
+            loom::Message(loom::to_value(gfx::Drawn{"test.hearing", true, s.nodes(), {},
+                                                    s.records(), {}, false, number}))).valid());
+        t.r.drain();
+    };
+    draw("press me", "act", 5);
+    t.button(0, 11, 2, true); // on the words' second character
+    REQUIRE(hearing.buttons.size() == 1);
+    const gfx::AreaButtonChanged pressed = hearing.buttons[0].first;
+    const std::uint64_t number = hearing.buttons[0].second;
+    CHECK(pressed.pressed);
+    CHECK(pressed.under == "test.hearing");
+    CHECK(pressed.part == "act");
+    CHECK(pressed.drawing == 5);
+    CHECK(number != 0);
+    // THE OWNER DRAWS AGAIN WHILE THE PRESS IS HELD; the press keeps its number, and its release
+    // outside the area says what the window shows where it lands -- nothing there.
+    draw("drawn again", "other", 6);
+    t.move(12, 3, true);
+    t.button(0, 60, 20, false);
+    REQUIRE(hearing.moves.size() == 1);
+    CHECK(hearing.moves[0].second == number);
+    REQUIRE(hearing.buttons.size() == 2);
+    CHECK_FALSE(hearing.buttons[1].first.pressed);
+    CHECK(hearing.buttons[1].second == number);
+    CHECK(hearing.buttons[1].first.under.empty());
+    CHECK(hearing.buttons[1].first.part.empty());
+    // A PRESS WHERE THE AREA DRAWS NOTHING, and nothing stands behind it, names nothing.
+    t.button(0, 25, 4, true);
+    t.button(0, 25, 4, false);
+    REQUIRE(hearing.buttons.size() == 4);
+    CHECK(hearing.buttons[2].first.under.empty());
+    CHECK(hearing.buttons[2].first.part.empty());
 }
 
 TEST_CASE("the terminal window gives the owner of an area placed to hear the pointer each moment "
@@ -3633,6 +3714,78 @@ private:
 };
 
 } // namespace
+
+namespace {
+
+constexpr const char* kButtonPane = "test.button";
+
+/// A PANE ON THE DRAWING FACET THAT DRAWS A BUTTON: a filled face eight cells by three, its label
+/// inside, the group named `go`; it counts the presses that asked `go`, and those it refused.
+using ButtonDrawing = ws::PaneDrawingFacet<kButtonPane, kButtonPane,
+                                           zengine::manual::pages::zengine_window_terminal::kManual>;
+class ButtonPane
+    : public zengine::With<ButtonDrawing>::Weave<ButtonPane, GraphicsTestOwner, loom::Accept<>> {
+public:
+    ws::v2::PaneOffered offering() const {
+        return ws::v2::PaneOffered{kButtonPane, "button", "a button the suite presses", 4, 12};
+    }
+    void on_room(loom::Mail& mail) { this->template facet<ButtonDrawing>().show(*this, mail); }
+    void picture(gfx::Sketch& f) const {
+        constexpr std::int64_t c = gfx::kCellPx;
+        f.group("button", 2 * c, c);
+        f.fill_rect("button/face", 0, 0, 8 * c, 3 * c, gfx::by_role(gfx::role::kAccent));
+        f.text("button/label", 3 * c, c, "go", gfx::by_role(gfx::role::kFill));
+        f.action("button", "go");
+    }
+    void on_action(const std::string& id, loom::Mail&) {
+        if (id == "go") ++state_.heard;
+    }
+    void fenced(loom::Mail&) { ++fenced_; }
+    std::int64_t pressed() const { return state_.heard; }
+    std::int64_t fenced() const { return fenced_; }
+
+private:
+    std::int64_t fenced_ = 0;
+};
+
+} // namespace
+
+TEST_CASE("a pane on the drawing facet is pressed over a drawn button's whole face, its edge "
+          "included, and a press the window landed on another part than it shows there is refused") {
+    TypedWindow t;
+    auto made = std::make_unique<ButtonPane>();
+    ButtonPane* button = made.get();
+    loom::Grant g = loom::emit_default_grant(*button);
+    const loom::WeaveId id = t.r.bus.register_weave(std::move(made), std::move(g), kButtonPane);
+    button->zen_set_self(id);
+    t.r.to_role(gfx::kGraphicsRole, gfx::SkinOffered{"classic", PAINT_CLASSIC_SO});
+    gfx::AreaPlaced placed{kButtonPane, gfx::kTerminalWindow, kButtonPane, 0, 0,
+                           20 * gfx::kCellPx, 6 * gfx::kCellPx, 0};
+    placed.pointer = true;
+    t.r.to_role(gfx::kGraphicsRole, placed);
+    t.r.to_role(gfx::kGraphicsRole, gfx::SkinChosen{kButtonPane, "classic"});
+    t.r.drain();
+    const auto click = [&t](int col, int row) {
+        t.type("\x1b[<0;" + std::to_string(col + 1) + ";" + std::to_string(row + 1) + "M");
+        t.type("\x1b[<0;" + std::to_string(col + 1) + ";" + std::to_string(row + 1) + "m");
+    };
+    click(2, 1); // the face's corner, no character of its label there
+    CHECK(button->pressed() == 1);
+    click(9, 3); // its far edge
+    CHECK(button->pressed() == 2);
+    click(3, 2); // its label
+    CHECK(button->pressed() == 3);
+    click(12, 4); // beside it
+    CHECK(button->pressed() == 3);
+    // A PRESS THE WINDOW SAYS IT LANDED ON ANOTHER PART THERE: refused, and said.
+    gfx::AreaButtonChanged other{kButtonPane, 1, true, 2 * gfx::kCellPx + 6, gfx::kCellPx + 6, 0,
+                                 true, 0, kButtonPane, "stop", 0};
+    REQUIRE(t.r.bus.office_send_to_role_as(t.window, window_office(), kButtonPane,
+                                           loom::Message(loom::to_value(other))).valid());
+    t.r.drain();
+    CHECK(button->pressed() == 3);
+    CHECK(button->fenced() == 1);
+}
 
 TEST_CASE("a pane's drawing its window refused leaves the window as it was, and the pane's next "
           "drawing goes whole, never as a change from a picture the window does not hold") {

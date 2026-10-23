@@ -1834,6 +1834,132 @@ TEST_CASE("the face drawn where the older one was is the one a press spends") {
     CHECK(b.tool->asked.back() == "two"); // ...which is honest and acts
 }
 
+TEST_CASE("a press the window landed on a Builder control its rows have since replaced there is refused in words and spends nothing, and one landed on the control still there acts") {
+    // THE WINDOW SAYS WHAT IT DREW UNDER THE HAND (WL-PRESS-07): a press it landed on `[build]`
+    // before the list opened is read against the rows drawn since, where another part or none
+    // stands at that cell.
+    BuilderRig b("bld-press-as-drawn");
+    b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
+    b.open();
+    const BpFaceAt build = bp_face_at(b.shown(), "[build]");
+    REQUIRE_MESSAGE(build.row >= 0, b.text());
+    const std::string drawn = part_drawn_at(b.kind, build.row, build.column + 1);
+    REQUIRE(drawn == "control:builder.build");
+    SUBCASE("the list opened over it") {
+        bp_press_face(b, "[choose a recipe...]");
+        REQUIRE(part_drawn_at(b.kind, build.row, build.column + 1) != drawn);
+        press_as_drawn(b.r, b.kind, build.row, build.column + 1, drawn);
+        CHECK(b.tool->asked.empty());
+        CHECK_MESSAGE(b.text().find("the rows moved -- press again") != std::string::npos, b.text());
+    }
+    SUBCASE("the same control, drawn again") {
+        b.r.key(input::scan::kDown); // the choice moves; `[build]` stands where it stood
+        REQUIRE(part_drawn_at(b.kind, build.row, build.column + 1) == drawn);
+        press_as_drawn(b.r, b.kind, build.row, build.column + 1, drawn);
+        CHECK(b.tool->asked.size() == 1);
+        CHECK(b.text().find("the rows moved") == std::string::npos);
+    }
+}
+
+TEST_CASE("a press the window landed on a face naming one build spends that build or is refused in words: another build named there, or the same name over another build, is refused; the same build redrawn acts") {
+    // A FACE NAMING A SUBJECT IS THE SAME CONTROL REDRAWN (WL-HAND-07 names it by its operation),
+    // and spent on the promise the window drew where the press landed (WL-HAND-04): the subject
+    // and the build behind it, read by the drawing's number the window names.
+    BuilderRig b("bld-face-promise");
+    DrawnNumbers numbers(b.r.bus);
+    SUBCASE("another build named in its place") {
+        b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
+        b.open();
+        bp_settled(b, "one", "a", bld::outcome::kSucceeded);
+        const BpFaceAt aimed = bp_face_at(b.shown(), "[load built a]");
+        REQUIRE(aimed.row >= 0);
+        const std::int64_t drawing = numbers.of(b.r.session(), b.kind);
+        bp_settled(b, "two", "b", bld::outcome::kSucceeded);
+        REQUIRE(bp_face_at(b.shown(), "[load built b]").row == aimed.row);
+        press_as_drawn(b.r, b.kind, aimed.row, aimed.column + 1, "control:builder.load-built",
+                       drawing);
+        CHECK(b.tool->asked.empty());
+        CHECK_MESSAGE(b.text().find("`a` is not what is here now") != std::string::npos, b.text());
+        // ...AND ONE LANDED ON THE FACE NOW DRAWN, wherever the refusal's words put it, spends it.
+        const BpFaceAt now = bp_face_at(b.shown(), "[load built b]");
+        REQUIRE(now.row >= 0);
+        press_as_drawn(b.r, b.kind, now.row, now.column + 1, "control:builder.load-built",
+                       numbers.of(b.r.session(), b.kind));
+        REQUIRE(b.tool->asked.size() == 1);
+        CHECK(b.tool->asked.back() == "two");
+    }
+    SUBCASE("the same name over another build, a shared artifact stem") {
+        b.tool->catalog = catalog_of({{"one", "a"}, {"two", "a"}});
+        b.open();
+        b.tool->next.op = 11;
+        bp_settled(b, "one", "a", bld::outcome::kSucceeded);
+        const BpFaceAt aimed = bp_face_at(b.shown(), "[load built a]");
+        REQUIRE(aimed.row >= 0);
+        const std::int64_t drawing = numbers.of(b.r.session(), b.kind);
+        b.tool->next.op = 12;
+        bp_settled(b, "two", "a", bld::outcome::kSucceeded);
+        const BpFaceAt still = bp_face_at(b.shown(), "[load built a]");
+        REQUIRE(still.row == aimed.row);
+        REQUIRE(still.column == aimed.column);
+        press_as_drawn(b.r, b.kind, aimed.row, aimed.column + 1, "control:builder.load-built",
+                       drawing);
+        CHECK(b.tool->asked.empty());
+    }
+    SUBCASE("promote and revert over another build of a shared stem") {
+        b.tool->catalog = catalog_of({{"one", "a"}, {"two", "a"}});
+        b.open();
+        b.author_height(30, 200, 60); // a room the whole strip fits in
+        const auto realized = [&b](std::int64_t op, const char* recipe) {
+            b.tool->next.op = op;
+            b.tool->next.recipe = recipe;
+            b.tool->next.artifact = "a";
+            b.tool->next.outcome = bld::outcome::kSucceeded;
+            b.tool->next.realization = bld::realization::kRealized;
+            b.tool_says();
+        };
+        realized(41, "one");
+        const BpFaceAt promote = bp_face_at(b.shown(), "[promote a]");
+        const BpFaceAt revert = bp_face_at(b.shown(), "[revert a]");
+        REQUIRE_MESSAGE(promote.row >= 0, b.text());
+        REQUIRE_MESSAGE(revert.row >= 0, b.text());
+        const std::int64_t drawing = numbers.of(b.r.session(), b.kind);
+        realized(42, "two");
+        REQUIRE(bp_face_at(b.shown(), "[promote a]").row == promote.row);
+        press_as_drawn(b.r, b.kind, promote.row, promote.column + 1, "control:builder.promote",
+                       drawing);
+        CHECK(b.tool->promotes.empty());
+        press_as_drawn(b.r, b.kind, revert.row, revert.column + 1, "control:builder.revert",
+                       drawing);
+        CHECK(b.tool->reverts.empty());
+    }
+    SUBCASE("the same build, another row redrawn") {
+        b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
+        b.open();
+        bp_settled(b, "one", "a", bld::outcome::kSucceeded);
+        // ANOTHER CHOICE, taken from the list: the recipe row means another recipe, the rows'
+        // number moves with it, and the built artifact's face stands where it stood.
+        const auto choose = [&b](const std::string& row) {
+            bp_press_face(b, "[choose a recipe...]");
+            const std::int64_t at = bp_row(b.shown(), row);
+            REQUIRE_MESSAGE(at >= 0, b.text());
+            press_pane(b.r, b.kind, at, 0);
+            bp_press_face(b, "[choose this recipe]");
+        };
+        choose("  two -> b");
+        const BpFaceAt aimed = bp_face_at(b.shown(), "[load built a]");
+        REQUIRE_MESSAGE(aimed.row >= 0, b.text());
+        const std::int64_t drawing = numbers.of(b.r.session(), b.kind);
+        choose("  one -> a");
+        INFO("after the second choice\n", b.text());
+        REQUIRE(numbers.of(b.r.session(), b.kind) != drawing);
+        REQUIRE(bp_face_at(b.shown(), "[load built a]").row == aimed.row);
+        press_as_drawn(b.r, b.kind, aimed.row, aimed.column + 1, "control:builder.load-built",
+                       drawing);
+        REQUIRE(b.tool->asked.size() == 1);
+        CHECK(b.tool->asked.back() == "one");
+    }
+}
+
 TEST_CASE("a held load menu cannot switch recipes sharing an artifact stem") {
     // TWO RECIPES PRODUCING ONE STEM (WL-PROJ-14): `one` and `two` both build `a`, so the menu's
     // advertised subject reads "a" before and after the second build settles, and only the

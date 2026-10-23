@@ -155,8 +155,9 @@ public:
         if(!known(id)) return;
         if(p.phase==ws::canvas_pointer::kWheel) { wheel(id,p.dy,m); return; }
         if(p.phase!=ws::canvas_pointer::kPress) return;
-        if(p.button==3) right_press(id,p.at,/*current=*/true,m);
-        else if(p.button==1 && p.at.shown) press(id,p.at.row,p.at.column,/*current=*/true,keys_went_here,/*carry=*/true,m);
+        if(p.button==3) right_press(id,p.at,/*current=*/!p.moved,m);
+        else if(p.button==1 && (p.at.shown || p.moved))
+            press(id,p.at.row,p.at.column,/*current=*/!p.moved,keys_went_here,/*carry=*/true,m);
     }
     /// A PRESS ASKED AS A PART'S ACTION, by a window that shows a view in an area placed deaf to the
     /// pointer: a primary press on its place in the picture shown there, the view's current one; the
@@ -168,6 +169,8 @@ public:
 private:
     void press(const std::string& view,std::int64_t row,std::int64_t column,bool current,bool keys_went_here,bool carry,loom::Mail& m) {
         if (editing_!=Editing::none) return;
+        // A PRESS THE WINDOW LANDED ON ANOTHER ROW than the view shows there now acts on nothing.
+        if (!current) { pressed_folder_.clear(); notice_="That picture moved; try again"; draw(m); return; }
         remove_armed_=false;
         const auto pressed=std::exchange(pressed_folder_,std::string{});
         // Navigation is local view state: it works while an operation waits, and never touches
@@ -361,7 +364,7 @@ public:
         const auto found=canvases_.find(v.pane);
         if(found==canvases_.end() || found->second.area()!=v.area) return;
         const auto at=found->second.cell_at(v.x,v.y);
-        const bool current=true;
+        const bool current=!found->second.moved(v.under,v.part,v.drawing,v.x,v.y);
         if(busy()) { notice_=waiting(); draw(m); return; }
         if(v.source_office!=office || v.token.empty()) { copy_drop(v.pane,at.row,at.column,current,v.data,m); return; }
         const auto it=transfers_.find(v.token);
@@ -949,7 +952,7 @@ private:
             sent_[id]=Sent{rows,picture,caret};
             const bool editing=editing_!=Editing::none;
             auto parts=ws::row_parts(v.map,v.columns,[editing](const std::string& meaning) { return part_name(meaning,editing); });
-            seat_of(id).publish_rows(m,std::move(rows),std::move(parts),caret);
+            seat_of(id).publish_rows(m,std::move(rows),std::move(parts),caret,v.map.picture());
         }
     }
     /// The rows and columns a view composes for: its area's. A new room starts the view's picture

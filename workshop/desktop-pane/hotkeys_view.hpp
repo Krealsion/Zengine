@@ -300,6 +300,11 @@ public:
 
     /// A PRESS ON A TABLE ROW CHOOSES IT -- visible selection, for the menu key to act on.
     void keys_press(const PanePress& press, const Declared& keys_rows_decl, loom::Mail& mail) {
+        if (press.moved) {
+            keys_notice_ = kMovedSentence;
+            say_keys(keys_rows_decl, mail);
+            return;
+        }
         const KeysMeaning* m = keys_map_.at(press.row, press.column);
         if (m == nullptr || m->kind != keys_row::kBinding) {
             return;
@@ -313,6 +318,11 @@ public:
     /// it; a right press on anything else (a heading, a marker, a footer, the spelling line) is
     /// handed back to the host, whose own pane menu answers.
     void second_button(const PanePress& b, const Declared& keys_rows_decl, loom::Mail& mail) {
+        if (b.moved) {
+            keys_notice_ = kMovedSentence;
+            say_keys(keys_rows_decl, mail);
+            return;
+        }
         const KeysMeaning* m = keys_map_.at(b.row, b.column);
         if (m != nullptr && m->kind == keys_row::kBinding && m->index < lines_.size() &&
             keymap_.rows[lines_[m->index].shown].remappable) {
@@ -776,7 +786,7 @@ private:
             mail, std::move(rows),
             ws::row_parts(keys_map_, keys_canvas_.columns(),
                           [this](const KeysMeaning& m) { return keys_part(m); }),
-            caret);
+            caret, keys_map_.picture());
     }
 
     // ---- State not in the shape ----------------------------------------------------------

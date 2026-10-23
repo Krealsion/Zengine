@@ -52,6 +52,9 @@ inline constexpr const char* kViewBuilderOffice = "zengine.view.builder";
 inline constexpr const char* kViewBuilderPane = "view-builder";
 
 
+/// THE SENTENCE FOR A PRESS THE WINDOW LANDED ON A ROW THIS PANE HAS SINCE REPLACED THERE.
+inline constexpr const char* kMovedSentence = "the list moved -- press again";
+
 /// A SENTENCE ANOTHER PARTY WROTE, MADE DRAWABLE: the host refuses a row carrying a byte a canvas
 /// cannot draw, and a loader's refusal may quote a file's bytes or break a line. What this
 /// pane prints of another's words is one row of printable text.
@@ -154,6 +157,9 @@ struct PanePress {
     std::string pane;
     std::int64_t row = 0, column = 0;
     bool keys_went_here = false;
+    /// The window drew another row under the hand than the pane's newest rows show there
+    /// (`WindowPointer::moved`): refused in words, never resolved against the row there now.
+    bool moved = false;
 };
 
 /// ONE OF THIS IMAGE'S DECLARATIONS: the number the latest attempt went out under, the

@@ -1216,11 +1216,9 @@ void say_rows(ReadRig& d, ProviderSeat* seat, std::vector<std::string> rows) {
 
 } // namespace
 
-// A WITNESS OF THE DESK NOTICE'S GAP, held as an expected failure until it is decided: Workshop
-// looks at the window at the end of its own deliveries, and a pane draws in its area after
-// them, or on its own, so the stamp moves only at Workshop's next delivery.
-TEST_CASE("a keystroke gives at least one notice, the last naming the pane's final picture, with no ask between" *
-          doctest::should_fail()) {
+// THE WINDOW SAYS WHAT AN AREA SHOWS SETTLED (`AreaSettled`), whenever the pane drew there, so the
+// notice follows the pane's own drawing and not Workshop's next delivery.
+TEST_CASE("a keystroke gives at least one notice, the last naming the pane's final picture, with no ask between") {
     ReadRig d;
     const std::size_t at = d.open_canvas(kTypingOffice, 40, 6);
     d.place(at, 2, 2, 40, 6);
@@ -1301,11 +1299,7 @@ TEST_CASE("moving only the selection, closing a pane or opening arranging gives 
     CHECK(same_stamps(d.ear->heard.front().panes, after.stamps));
 }
 
-// A WITNESS OF THE DESK NOTICE'S GAP, held as an expected failure until it is decided: Workshop
-// looks at the window at the end of its own deliveries, and a pane draws in its area after
-// them, or on its own, so the stamp moves only at Workshop's next delivery.
-TEST_CASE("two panes changing in one turn both reach the follower: the newest notice names both new pictures" *
-          doctest::should_fail()) {
+TEST_CASE("two panes changing in one turn both reach the follower: the newest notice names both new pictures") {
     ReadRig d;
     std::size_t left = 0, right = 0;
     two_panes(d, left, right);
@@ -1326,11 +1320,7 @@ TEST_CASE("two panes changing in one turn both reach the follower: the newest no
     CHECK(same_stamps(newest.panes, after.stamps));
 }
 
-// A WITNESS OF THE DESK NOTICE'S GAP, held as an expected failure until it is decided: Workshop
-// looks at the window at the end of its own deliveries, and a pane draws in its area after
-// them, or on its own, so the stamp moves only at Workshop's next delivery.
-TEST_CASE("a stamp names what a pane shows: the same picture drawn again keeps it and sends no notice, and every change moves it, rows included" *
-          doctest::should_fail()) {
+TEST_CASE("a stamp names what a pane shows: the same picture drawn again keeps it and sends no notice, and every change moves it, rows included") {
     ReadRig d;
     SUBCASE("a canvas picture drawn again") {
         const std::size_t at = d.open_canvas(kTypingOffice, 30, 6);

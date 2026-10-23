@@ -195,6 +195,11 @@ public:
     /// unmarked name) only moves the marker, so a press never means two things at once.
     void launcher_press(const PanePress& press, DesktopState& state, const Declared& pane_rows_decl,
                         const Declared& app, loom::Mail& mail, std::uint64_t& launches) {
+        if (press.moved) {
+            notice_ = kMovedSentence;
+            say(state, pane_rows_decl, app, mail);
+            return;
+        }
         const LauncherMeaning* m = map_.at(press.row, press.column);
         if (m == nullptr || m->index >= known_.size()) {
             return; // a heading, a marker, a note, the name line: pointing, and nothing more
@@ -233,6 +238,11 @@ public:
     /// handed back to the host, whose own pane menu answers.
     void second_button(const PanePress& b, DesktopState& state, const Declared& pane_rows_decl,
                        const Declared& app, loom::Mail& mail) {
+        if (b.moved) {
+            notice_ = kMovedSentence;
+            say(state, pane_rows_decl, app, mail);
+            return;
+        }
         const LauncherMeaning* m = map_.at(b.row, b.column);
         if (m != nullptr && (m->kind == launcher_row::kName || m->kind == launcher_row::kMark) &&
             m->index < known_.size()) {
@@ -552,7 +562,8 @@ private:
         launcher_canvas_.publish_rows(
             mail, std::move(rows),
             ws::row_parts(map_, launcher_canvas_.columns(),
-                          [this](const LauncherMeaning& m) { return launcher_part(m); }));
+                          [this](const LauncherMeaning& m) { return launcher_part(m); }),
+            {}, map_.picture());
     }
 
     // ---- State not in the shape ----------------------------------------------------------

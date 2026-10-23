@@ -62,12 +62,15 @@ struct WinArea {
     std::vector<KeptNode> nodes;
     std::vector<ElementRecord> records;
     std::vector<Presented> presented;
-    ZEN_SHAPE(WinArea, 6, ZEN_FIELD(area), ZEN_FIELD(owner), ZEN_FIELD(arranger), ZEN_FIELD(x),
+    /// The owner's number for the drawing it last sent (`Drawn::number`).
+    std::int64_t drawing = 0;
+    ZEN_SHAPE(WinArea, 7, ZEN_FIELD(area), ZEN_FIELD(owner), ZEN_FIELD(arranger), ZEN_FIELD(x),
               ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h), ZEN_FIELD(order), ZEN_FIELD(keys),
               ZEN_FIELD(pointer), ZEN_FIELD(weaver_only), ZEN_FIELD(wheel), ZEN_FIELD(right),
               ZEN_FIELD(skin),
               ZEN_FIELD(library),
-              ZEN_FIELD(next_rank), ZEN_FIELD(nodes), ZEN_FIELD(records), ZEN_FIELD(presented));
+              ZEN_FIELD(next_rank), ZEN_FIELD(nodes), ZEN_FIELD(records), ZEN_FIELD(presented),
+              ZEN_FIELD(drawing));
 };
 
 /// Who is drawing: the owner (everything but what the window presents), or an element's code

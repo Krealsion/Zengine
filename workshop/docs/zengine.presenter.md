@@ -86,9 +86,10 @@ text. The presenter draws the menu there whole whenever the window holds none of
 
 ### `AreaButtonChanged`
 
-`AreaButtonChanged` v2, from that window: a button pressed or let go in the menu's area, under the
-press's number. A primary press on a row's line chooses the row, said under that number; one in
-another menu's area means nothing here.
+`AreaButtonChanged` v3, from that window: a button pressed or let go in the menu's area, under the
+press's number. A primary press on a row's line chooses the row, said under that number; one the
+window landed on another line than the menu shows there now, or in another menu's area, means
+nothing here.
 
 ### `DrawnRefused`
 
@@ -109,7 +110,7 @@ naming the area and how many lines and characters the menu takes there, `picture
 line would now choose something else; `MenuClosed` v2 when a menu ends, `chosen` or not, with the
 standard row chosen if one was, under the press's number when a press ended it; `MenuReturned` v1
 for a menu it was handed and does not hold. To the window that shows the menu's area: the lines
-(`Drawn` v1), a line naming the row it shows by the row's id, and after a reload, its room asked
+(`Drawn` v2), a line naming the row it shows by the row's id, and after a reload, its room asked
 of the directory (`RoomAsked` v1). To the pane: one `PaneMenuAnswered` per menu, chosen with the
 row's id, or not chosen with why: `dismissed`, `a standard row was chosen`, Workshop's words, or a
 refusal. A pane learns its menu's end only from that one answer.

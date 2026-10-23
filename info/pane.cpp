@@ -157,15 +157,25 @@ public:
     /// column of the rows drawn there it fell on, which only a field copy spends, and only on a
     /// value view; a whole value and a reference open their subject wherever they land.
     void on(const ws::PaneCanvasValueDrop& drop, loom::Mail& mail) {
-        dropped(drop.pane, drop.area, drop.x, drop.y, drop.data, false, mail);
+        dropped(drop.pane, drop.area, drop.x, drop.y, drop.data, false,
+                DropWord{drop.under, drop.part, drop.drawing}, mail);
     }
     void on(const ws::PaneCanvasDrop& drop, loom::Mail& mail) {
-        dropped(drop.pane, drop.area, drop.x, drop.y, drop.data, true, mail);
+        dropped(drop.pane, drop.area, drop.x, drop.y, drop.data, true,
+                DropWord{drop.under, drop.part, drop.drawing}, mail);
     }
+    /// What the window drew under the hand where a drop was let go (`ws::PaneCanvasValueDrop`).
+    struct DropWord {
+        std::string under, part;
+        std::int64_t drawing = 0;
+    };
+    /// A field copy placed on a row the window drew another element on than the view shows there
+    /// now fills nothing (`WindowDrawing::moved`).
     void dropped(const std::string& key, const std::string& area, std::int64_t x, std::int64_t y,
-                 const loom::Bytes& data, bool reference, loom::Mail& mail) {
+                 const loom::Bytes& data, bool reference, const DropWord& drawn, loom::Mail& mail) {
         pane::ValueView* v = view_of(key);
         if (!mail.authored_from_role(kWorkshopRole) || !v || canvas_of(*v).area() != area) return;
+        const bool moved = canvas_of(*v).moved(drawn.under, drawn.part, drawn.drawing, x, y);
         if (v->is_default() && (properties_.drafting() || properties_.committing())) {
             properties_.tell("Finish the pane-property edit before inspecting an inventory entry");
         } else {
@@ -174,7 +184,7 @@ public:
                 v->drop_reference(data, c);
             } else {
                 const ws::RowCell at = canvas_of(*v).cell_at(x, y);
-                v->drop_value(data, at.row, at.column, value_mode(*v), c);
+                v->drop_value(data, at.row, at.column, value_mode(*v) && !moved, c);
             }
             if (v->is_default() && !v->active) properties_.tell(v->notice());
         }
@@ -256,10 +266,10 @@ public:
                 v->dragged(p.at.row, p.at.column, c);
             }
         } else if (p.phase == ws::canvas_pointer::kPress && p.button == 3) {
-            right_press(*v, p.at, /*current=*/true, mail);
+            right_press(*v, p.at, /*current=*/!p.moved, mail);
         } else if (p.phase == ws::canvas_pointer::kPress && p.button == 1) {
-            held_of(*v) = p.at.shown && value_mode(*v) ? number : 0;
-            if (p.at.shown) press(*v, p.at, /*current=*/true, mail);
+            held_of(*v) = p.at.shown && value_mode(*v) && !p.moved ? number : 0;
+            if (p.at.shown || p.moved) press(*v, p.at, /*current=*/!p.moved, mail);
         } else if (p.button == 1) {
             held_of(*v) = 0; // released, or a hold the window ended
         }
@@ -281,6 +291,11 @@ public:
     void right_press(pane::ValueView& v, const ws::RowCell& at, bool current, loom::Mail& mail) {
         if (!at.shown) {
             (void)ws::pane_menu::pass_back(mail, pane::kInfoPaneRole, v.key());
+            return;
+        }
+        if (!value_mode(v) && !current) {
+            properties_.tell("This view changed -- press again");
+            say(v, mail);
             return;
         }
         if (!value_mode(v)) {
@@ -392,10 +407,13 @@ public:
     /// clipped place is refused.
     void press(pane::ValueView& v, const ws::RowCell& at, bool current, loom::Mail& mail) {
         if (!value_mode(v)) {
-            if (current) {
-                properties_.press(at.row);
-                settle(mail);
+            if (!current) {
+                properties_.tell("This view changed -- press again");
+                say(v, mail);
+                return;
             }
+            properties_.press(at.row);
+            settle(mail);
             return;
         }
         const std::string control = v.press(at.row, at.column, current, mail.correlation());
@@ -585,7 +603,8 @@ private:
     /// THE ROWS DRAWN in the view's area, the caret and selection standing in them.
     void send(pane::ValueView& v, ws::ComposedRows said, const ws::RowsCaret& caret,
               loom::Mail& mail) {
-        canvas_of(v).publish_rows(mail, std::move(said.rows), std::move(said.parts), caret);
+        canvas_of(v).publish_rows(mail, std::move(said.rows), std::move(said.parts), caret,
+                                  said.number);
     }
     bool can_create() const {
         return std::any_of(views_.begin() + 1, views_.end(), [](const pane::ValueView& v) { return !v.allocated(); });

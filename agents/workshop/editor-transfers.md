@@ -26,10 +26,11 @@ LAW — A drop and a highlight press are read against the row-to-meaning map the
 
 MEANS
 - the map is the epoch, the revision, the viewport, the chrome rows, the room, the selection;
-- a caret move alone keeps the map; a scroll, an edit or a notice row moves it.
+- a caret move alone keeps the map; a scroll, an edit or a notice row moves it;
+- landed on another line than the rows show now, it is refused; on its line under a moved map, a press is ordinary, a drop on the highlight refused.
 
 DOES NOT MEAN
-- that a drop the window landed before the map moved is refused: which drawing a window press names is a decision held open, its witness held as an expected failure.
+- that a selection grown under a press refuses it: the line is the same element, recoloured (WL-PRESS-07).
 
 WHY — `agents/decisions/editors-carry-copies-by-the-typed-carry.md`
 
@@ -93,12 +94,15 @@ refuses what it cannot hold whole" "a dropped pair is read as text, a location, 
 address its capture supplied, or refused in words"
 
 ### WL-EDIT-18
+`editor/editor-pane/common.hpp` PictureKey
 `editor/editor-pane/pane.cpp` say
-`editor/editor-pane/transfers.hpp` press_at receive
+`editor/editor-pane/transfers.hpp` press_at receive on_window
 `workshop/pane_carry.hpp` PaneCanvasValueDrop
 `tests/test_workshop_editor_transfers.cpp` "a drop aimed at a picture the text has since left is
 refused and changes nothing" "a press aimed at a picture where the text it lands on was not yet
-selected begins no carry; the drag sweeps"
+selected begins no carry; the drag sweeps" "a press the window landed on a line the Editor's rows
+have since left is refused in words and places no caret, and one landed on the line drawn there now
+places it"
 
 ### WL-EDIT-19
 `editor/editor-pane/transfers.hpp` press_at acquire mark_now on_highlight

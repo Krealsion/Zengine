@@ -714,8 +714,7 @@ public:
         const std::int64_t y = cells ? at_y * kCellPx + kCellPx / 2 : at_y;
         Landed out;
         for (const WinArea* a : front_to_back(areas)) {
-            if (x < a->x || y < a->y || x >= a->x + a->w || y >= a->y + a->h ||
-                (wheel && a->pointer && !a->wheel) || (button == -3 && a->pointer && !a->right)) {
+            if (x < a->x || y < a->y || x >= a->x + a->w || y >= a->y + a->h) {
                 continue;
             }
             const Kept* best = nullptr;
@@ -727,10 +726,27 @@ public:
                     best_path = path;
                 }
             }
+            // WHAT LIES UNDER THE HAND: the landing area's top node, or where it painted nothing
+            // there, the first area behind it that painted.
+            if (out.area != nullptr) {
+                if (best != nullptr) {
+                    out.under = a;
+                    out.under_path = *best_path;
+                    break;
+                }
+                continue;
+            }
+            if ((wheel && a->pointer && !a->wheel) || (button == -3 && a->pointer && !a->right)) {
+                continue;
+            }
             if (a->pointer || (best != nullptr && takes_press(*a, *best_path))) {
                 out.area = a;
                 out.path = best != nullptr ? *best_path : std::string();
-                break;
+                if (best != nullptr) {
+                    out.under = a;
+                    out.under_path = *best_path;
+                    break;
+                }
             }
         }
         if (out.area != nullptr) {

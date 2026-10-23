@@ -60,12 +60,12 @@ WHY — `agents/decisions/the-desk-is-said-whole-on-the-agents-host.md`
 LAW — Workshop publishes `DeskStamps`, the desk number and each presented pane's stamp front to back, at the end of a delivery that moved any, so the newest stands for each earlier one.
 
 MEANS
-- an unchanged repaint publishes nothing; a desk read finding the number moved publishes; a delivery that owed stamps asks the window what each area shows since it last said;
+- an unchanged repaint publishes nothing; a desk read finding the number moved publishes; the window saying an area settled past what Workshop took asks it again (`AreaSettled`);
 - it is the office's own, to any listener: a guest follows it through the relay as `latest`, with `capture` (WL-GUEST-11);
 - a notice's `cause` stands only until a later notice replaces it.
 
 DOES NOT MEAN
-- that a holder leaving, or a pane's drawing the window takes, between Workshop's deliveries is said before its next delivery or desk read: which turn says it is a decision held open;
+- that a holder leaving between Workshop's deliveries is said before its next delivery or desk read;
 - that a notice names each change since the last one a reader took: it names where the desk stands.
 
 WHY — `agents/decisions/the-desk-says-when-it-moved.md`
@@ -85,10 +85,10 @@ WHY — `agents/decisions/the-desk-says-when-it-moved.md`
 
 ## WL-READ-08 — A pane that draws in an area of its own is read from the window
 
-LAW — A pane drawing in a window area Workshop placed is read as the window says the area shows (`AreaShowAsked`), its fingerprint over that answer; any other pane, and Layouts, as Workshop draws it.
+LAW — A pane drawing in a window area Workshop placed is read as the window says the area shows, its fingerprint over that answer, asked as it settles; any other pane, and Layouts, as Workshop draws it.
 
 MEANS
-- a read of such a pane waits for the window's answer to an ask made after it, a few at once and two seconds at most, and is refused in words past that or when the window starts again;
+- a read waits for the window's answer (`AreaShowAsked`) to an ask made after it, a few at once and two seconds at most, refused in words past that or when the window starts again;
 - a guide mark on such a pane is drawn from that answer too (WL-GUIDE-02);
 - a pane's menu is read so from its presenter's area (WL-CTX-09), and a desk read waits on it too.
 
@@ -162,7 +162,7 @@ the same"
 
 ### WL-READ-06
 `workshop/pane_view.hpp` DeskStamps
-`workshop/weave_desk_read.cpp` publish_desk_stamps presented_refs look_at_areas
+`workshop/weave_desk_read.cpp` publish_desk_stamps presented_refs on(AreaSettled)
 `workshop/weave_managed.cpp` after_delivery
 `tests/test_workshop_desk_read.cpp` "a keystroke gives at least one notice, the last naming the
 pane's final picture, with no ask between" "moving only the selection, closing a pane or opening
@@ -179,16 +179,18 @@ incarnation, the room or what the pane shows moved: the same picture sent again 
 layout's tab and the naming line's caret each move it, and a desk seated again the same keeps it"
 
 ### WL-READ-08
-`graphics/vocabulary.hpp` AreaShowAsked AreaShown
-`workshop/weave_desk_read.cpp` area_reading on(AreaShown) finish_desk_waits wait_on_areas
-shown_words_and_parts presented_menu_reading presented_area look_at_areas
+`graphics/vocabulary.hpp` AreaShowAsked AreaShown AreaSettled
+`graphics/window/window.hpp` tell_settled
+`workshop/weave_desk_read.cpp` area_reading on(AreaShown) on(AreaSettled) finish_desk_waits
+wait_on_areas shown_words_and_parts presented_menu_reading presented_area
 `tests/test_workshop_panes_button.cpp` "WL-HAND-06: the shipped presenter names each row's line by
 its id, and a press at that name's point chooses it"
 `tests/test_workshop_desk.cpp` "a pane drawing in an area of its own is read as the window says it
 shows there: its words, its parts with the point a press reaches them by, and a stamp that moves
 when it draws again" "a weaver's press in a pane's area of the window ends a guest's guide mark
 standing there, and the press is the pane's"
-`tests/test_graphics.cpp` "an area's arranger reads what the terminal window shows of it: its text
+`tests/test_graphics.cpp` "the window tells an area's arranger, unasked, each time what the area
+shows settles at a new version, and once a version" "an area's arranger reads what the terminal window shows of it: its text
 by row in the area's pixels, each part by its box and the cell a press reaches it by, what another's
 area in front paints over left out and its own hiding nothing, and asked again since its version,
 the same" "an area whose owner was told a room it must draw whole reads waiting until the owner

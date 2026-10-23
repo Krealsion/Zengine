@@ -293,7 +293,14 @@ public:
 
 
     // WL-FOCUS-04 -- agents/workshop/focus.md
+    /// A press the window landed on another row than the one the rows show there now is refused in
+    /// words and spends nothing.
     void press(const ws::RowPress& at, loom::Mail& mail) {
+        if (at.moved) {
+            notice_ = "the rows moved -- press again";
+            say(mail);
+            return;
+        }
         const std::int64_t row = at.row, column = at.column;
         const bool keys_went_here = at.keys_went_here;
         // THE PRESS IS READ AGAINST THE PICTURE IT WAS AIMED AT, before anything below changes the

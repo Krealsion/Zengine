@@ -640,6 +640,7 @@ public:
     workshop::ComposedRows draw(bool can_create) {
         workshop::ComposedRows out = compose(can_create);
         out.parts = workshop::row_parts(picture_.map(), columns_, [](const Meaning& m) { return part_name(m); });
+        out.number = picture_.map().picture();
         return out;
     }
 
