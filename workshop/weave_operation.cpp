@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 #include "weave.hpp"
+#include "first-run/setup.hpp"
 #include "inventory/codec.hpp"
 #include <algorithm>
 #include <limits>
@@ -341,8 +342,9 @@ scope::GuestRowFacts WorkshopWeave::guest_of(const InputActor& actor) const {
 }
 
 // ON A WEAVER'S HOST, THE PLACES ONLY THE WEAVER'S HAND REACHES: the editor office, whichever
-// implementation holds it, the Terminal, and the Hotkeys pane, whose every act edits the keymap
-// file. A guest's keys, text and presses bound there are refused in words at the dispatch.
+// implementation holds it, the Terminal, the Hotkeys pane, whose every act edits the keymap file,
+// and the quick setup, which asks the editor switch and writes Workshop's settings file. A guest's
+// keys, text and presses bound there are refused in words at the dispatch.
 // WL-GUEST-06 -- agents/workshop/guests.md
 std::string WorkshopWeave::refused_toward(const InputActor& actor, std::int64_t kind) const {
     const RuntimePane* row = session_.panes.runtime.of_kind(kind);
@@ -351,6 +353,10 @@ std::string WorkshopWeave::refused_toward(const InputActor& actor, std::int64_t 
     if (!guest.admitted || !weaver_only_pane(*row)) return {};
     if (row->provider == kEditorRole) return scope::refuse_toward(guest, host_->host_fact, "the editor");
     if (row->provider == kTerminalRole) return scope::refuse_toward(guest, host_->host_fact, "the Terminal");
+    if (row->provider == first_run::kFirstRunRole) {
+        return scope::refuse_toward(guest, host_->host_fact,
+                                    "the quick setup, which switches the editor and writes the settings file,");
+    }
     return scope::refuse_toward(guest, host_->host_fact, "the Hotkeys pane, which edits the keymap file,");
 }
 
@@ -360,6 +366,7 @@ std::string WorkshopWeave::refused_toward(const InputActor& actor, std::int64_t 
 bool WorkshopWeave::weaver_only_pane(const RuntimePane& row) const {
     if (host_->host_fact.development || !host_->guest_row) return false;
     return row.provider == kEditorRole || row.provider == kTerminalRole ||
+           row.provider == first_run::kFirstRunRole ||
            (row.provider == kDesktopRole && row.pane == kHotkeysPane);
 }
 

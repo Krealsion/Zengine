@@ -1081,7 +1081,7 @@ TEST_CASE("a development host and each row's losses stand as conditions on Atten
               std::string::npos);
         CHECK(lost->detail.find("file writes: this is a weaver's host") != std::string::npos);
         CHECK(lost->detail.find("typed text") != std::string::npos);
-        CHECK(lost->detail.find("the editor, the Terminal and the Hotkeys pane") != std::string::npos);
+        CHECK(lost->detail.find("the editor, the Terminal, the Hotkeys pane and the quick setup") != std::string::npos);
         CHECK(gained->compact == "guest 'agent' (version 1) reaches more here than its powers once did");
         CHECK(gained->detail.find("`capture` also reads the desk's words") != std::string::npos);
         CHECK(t.glance() == now[0].compact + " (+1 more)");

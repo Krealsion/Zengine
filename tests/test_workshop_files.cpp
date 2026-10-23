@@ -2209,6 +2209,7 @@ TEST_CASE("the development catalog this tree generated names every shipped pane 
         // the development road to replacing how every pane's menu is presented (WL-CTX-09).
         {"zengine-menu-presenter", "workshop/menu-presenter/presenter.cpp"},
         {"zengine-palette", "workshop/palette/palette.cpp"},
+        {"zengine-first-run", "workshop/first-run/first_run.cpp"},
         {"zengine-flow-pane", "flow/flow-pane/pane.cpp"},
         {"zengine-view-builder", "view/view-builder/pane.cpp"}};
     REQUIRE(read.recipes.size() == panes.size());

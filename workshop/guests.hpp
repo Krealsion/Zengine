@@ -145,8 +145,8 @@ scope::HostFact host_fact_of(const GuestsFile& file);
 
 /// WHAT THIS ROW'S POWERS DO NOT REACH ON THIS HOST, said beside the row at launch, on Attention
 /// and in Connections: the Builder's builds and loads without `build`, and on a weaver's host every
-/// file write, typed text, the editor, the Terminal and the Hotkeys pane, the guests file's
-/// opening, a quit by message and the `open` power. Empty when the row reaches all its powers name.
+/// file write, typed text, the editor, the Terminal, the Hotkeys pane and the quick setup, the
+/// guests file's opening, a quit by message and the `open` power. Empty when the row reaches all its powers name.
 std::vector<std::string> losses_of(const GuestRow& row, const GuestsFile& file);
 
 /// WHAT THIS ROW'S POWERS REACH PAST WHAT THEIR NAMES SAY: a widening, in words to stand beside
