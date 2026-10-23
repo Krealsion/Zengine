@@ -38,15 +38,25 @@ Both are shipped files. They differ in exactly two rows — which window shows t
 which input backend serves input sessions — and Workshop's own code is identical under both.
 See [load plans](load-plans.md).
 
+**From a package** ([download and run](../../README.md#download-and-run)), the launchers in its
+folder start Workshop for you: `Workshop.cmd` or `./workshop.sh` in a window,
+`Workshop-terminal.cmd` or `./workshop-terminal.sh` in the console or terminal that ran it. Each
+starts in your project, `%USERPROFILE%\Zengine` or `~/Zengine` (`terminal/` inside it for the
+terminal's), made at the first start and kept when a newer package replaces the old one; a
+`workshop-plan.json` there starts instead of the shipped plan. Each start also writes
+`zengine-app.path` there, the package's `zengine-app`, which the apps you export start
+([which `zengine-app`](../../app/docs/app.md#which-zengine-app-the-launchers-start)).
+
 ### Arguments
 
 | argument | default | is |
 |---|---|---|
+| `--version` | off | say what this Workshop is — in a package, its version, both commits, the compiler and the build type — and start nothing |
 | `--setup <path>` | `workshop-setup.json`, in the directory you launched from | a pane arrangement you named and saved |
 | `--session <path>` | `workshop-session.json`, in your **per-user state folder** | the desk, window size and window position you last used — written on close, read on start |
 | `--keymap <path>` | `workshop-keymap.json`, in your **per-user config folder** | your hand-edited binding overrides ([hotkeys](hotkeys.md)) |
 | `--prefs <path>` | `workshop-prefs.json`, in your **per-user config folder** | presentation preferences Workshop writes when you state one (pane titles, `t`) |
-| `--isolated` | off | this run reads and writes **none** of your per-user config or session state — for tests, scratch experiments and clean-start diagnosis |
+| `--isolated` | off | this run reads and writes **none** of your per-user config or session state but the files named on its command line (`--session`, `--prefs` and the others still win) — for tests, scratch experiments and clean-start diagnosis |
 | `--load-plan <path>` | `workshop-plan.json` in the directory you launched from when there is one, else `default-load-plan.json` beside the binary | which artifacts this run is made of |
 | `--recipes <path>` | `build-recipes.json` in the directory you launched from when there is one, else `default-build-recipes.json` beside the binary | what this run can build ([the recipe file](../../builder/docs/recipes.md)) |
 | `--log <path>` | none | a durable journal of selected facts, appended as they happen; outlives the process |
