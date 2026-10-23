@@ -43,6 +43,19 @@ def anchors(page):
     return {re.sub(r"[^\w\- ]", "", h.lower()).replace(" ", "-") for h in heads}
 
 
+class Answer:
+    """An answer as Loom's session client gives one (`loom_session.client.Answer`): its fields
+    under `fields`, read by key or `get`, and no mapping of its own."""
+    def __init__(self, fields):
+        self.fields = fields
+
+    def __getitem__(self, key):
+        return self.fields[key]
+
+    def get(self, key, default=None):
+        return self.fields.get(key, default)
+
+
 class Owner:
     """Workshop's owners as the service meets them: answers, refusals and the calls made. Its
     portable views behave as inventory/inventory-pane/slots.hpp does: a removed entry keeps its place and
@@ -94,10 +107,12 @@ class Owner:
             parts = [{"name": "drawn", "text": "", "place": {"x": 0, "y": 0, "w": 60, "h": 12},
                       "x": 30, "y": 6, "space": 2, "available": True}] \
                 if fields["provider"] in self.pictures and not unsettled else []
-            return {"stamp": stamp, "area": {"x": 0, "y": 0, "w": 480, "h": 120}, "advance": 12,
-                    "line": 12, "words": words, "parts": parts,
-                    "covered": {"by": [], "words": 0, "rect": {"x": 0, "y": 0, "w": 0, "h": 0}},
-                    "in_flight": unsettled, "from": 0, "total": len(words) + len(parts)}
+            # Answered as Loom answers, so a reader that takes the answer for a dict is red here.
+            return Answer({
+                "stamp": stamp, "area": {"x": 0, "y": 0, "w": 480, "h": 120}, "advance": 12,
+                "line": 12, "words": words, "parts": parts,
+                "covered": {"by": [], "words": 0, "rect": {"x": 0, "y": 0, "w": 0, "h": 0}},
+                "in_flight": unsettled, "from": 0, "total": len(words) + len(parts)})
         if shape == "InventoryList":
             return {"owner": "inventory", "entries": deepcopy(self.entries), "folders": []}
         if shape in ("InventoryCaptureAdd", "InventoryAdd"):
