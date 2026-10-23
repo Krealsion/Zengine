@@ -38,10 +38,11 @@ LAW — A pane numbering its composition (`component::RowMap`) reads a press aga
 
 MEANS
 - the number moves exactly when the row-to-meaning map does: a repaint moving no row keeps it;
-- a listing window that moves by the least it can is what keeps an ordinary double-click working.
+- a listing window that moves by the least it can is what keeps an ordinary double-click working;
+- a named part is judged by its name and an unnamed row by the number (WL-PRESS-07).
 
 DOES NOT MEAN
-- that a press the window landed before the rows moved is refused: which drawing a window press names is a decision held open, its witnesses held as expected failures.
+- that a press waits for the pane to draw: the window's word on what it drew travels with it.
 
 WHY — `agents/decisions/a-pane-draws-its-own-controls.md`
 
@@ -133,7 +134,9 @@ load_built arm_only ready_to_load standing
 recipe, not the choice" "while an artifact stands built, arming the next build is a different answer
 and says so" "an open menu row naming an artifact loads THAT artifact or refuses" "the face drawn
 where the older one was is the one a press spends" "the list's own double-click still takes the row
-it was aimed at" "a held load menu cannot switch recipes sharing an artifact stem" "rebuilding the same recipe replaces an
+it was aimed at" "a press the window landed on a face naming one build spends that build or is
+refused in words: another build named there, or the same name over another build, is refused; the
+same build redrawn acts" "a held load menu cannot switch recipes sharing an artifact stem" "rebuilding the same recipe replaces an
 offered load, and settling again does not" "the promote control acts on the image it names once a
 newer build makes it the one standing" "a held promote or revert menu row cannot switch images sharing an artifact
 stem"

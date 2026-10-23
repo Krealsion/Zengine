@@ -346,9 +346,12 @@ void WorkshopWeave::on(const graphics::AreaButtonChanged& b, loom::Mail& mail) {
     const std::int64_t x = b.x + ox;
     const std::int64_t y = b.y + oy;
     const WindowMoment moment{input_actor_, b.local, b.actor};
+    // WHILE IT IS ANSWERED, the window's word of what it drew under the hand stands for a drop.
+    window_under_ = WindowUnder{b.under, b.part, b.drawing};
     pointer_button(input::PointerButton{b.button, b.pressed, x, y, input::space::kPixels,
                                         b.modifiers},
                    mail);
+    window_under_ = WindowUnder{};
 }
 
 void WorkshopWeave::on(const graphics::AreaPointerMoved& m, loom::Mail& mail) {
@@ -430,9 +433,11 @@ void WorkshopWeave::area_pressed(const graphics::AreaPressed& p, std::uint64_t p
             });
         }
         if (slot == 0) {
+            window_under_ = WindowUnder{p.under, p.part, p.drawing};
             (void)release_value_drag(
                 input::PointerButton{1, false, p.x, p.y, input::space::kPixels, input::mod::kNone},
                 mail);
+            window_under_ = WindowUnder{};
         }
         repaint(mail);
         return;
@@ -461,6 +466,9 @@ void WorkshopWeave::area_pressed(const graphics::AreaPressed& p, std::uint64_t p
         // a value out.
         session_.panes.selected = kind;
         session_.panes.keyboard = kind_takes_keyboard(kind) ? kind : kNoPaneKind;
+        // THE PANE COUNTS ITS OWN PRESS AS BRINGING THE KEYS; Workshop's word on this one is
+        // owed it even where nothing changed, so a pane whose keys stay elsewhere hears so.
+        keys_owed_.insert(kind);
         keep_act(hand(), hand().press_sent = GestureSent{kind, hand().latest, press});
         hand().press_cell = at; // where a menu this press continues opens
         begin_value_drag(

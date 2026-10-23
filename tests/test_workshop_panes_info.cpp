@@ -2577,6 +2577,37 @@ TEST_CASE("Info draws its properties on its canvas on the medium's own ground, a
     CHECK(marks() == 0);
 }
 
+TEST_CASE("a press the window landed on Info's properties moves the cursor where the same property stands there now, a new room included, and names nothing where another property stands") {
+    InfoRig f;
+    f.open();
+    f.inspect(layouts_ref());
+    const std::int64_t width = f.property_at("Width");
+    REQUIRE(width >= 0);
+    const std::string drawn = part_drawn_at(f.kind, width, 3);
+    REQUIRE_FALSE(drawn.empty());
+    REQUIRE(f.property_row("Width").rfind(">", 0) != 0);
+    SUBCASE("a room of another size, the same property drawn again there") {
+        f.regrant(); // a new room, the rows re-laid in it
+        REQUIRE(f.property_at("Width") == width);
+        REQUIRE(part_drawn_at(f.kind, width, 3) == drawn);
+        press_as_drawn(f.r, f.kind, width, 3, drawn);
+        CHECK(f.property_row("Width").rfind(">Width", 0) == 0);
+    }
+    SUBCASE("another property drawn there when the window landed it") {
+        // THE ROW ABOVE'S PROPERTY, as a window that showed the rows a row lower drew it there.
+        std::string other;
+        for (std::int64_t row = width - 1; other.empty() && row >= 0; --row) {
+            other = part_drawn_at(f.kind, row, 3);
+        }
+        REQUIRE_FALSE(other.empty());
+        REQUIRE(other != drawn);
+        press_as_drawn(f.r, f.kind, width, 3, other);
+        CHECK_MESSAGE(f.text().find("This view changed -- press again") != std::string::npos,
+                      f.text());
+        CHECK(f.property_row("Width").rfind(">", 0) != 0);
+    }
+}
+
 TEST_CASE("a right press on Info's properties asks for Info's own menu, and one beside them, where a "
           "prose press would have named no row, is handed back and Workshop's own pane menu opens") {
     InfoRig f;

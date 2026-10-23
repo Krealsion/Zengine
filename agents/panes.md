@@ -37,10 +37,10 @@ lets a provider locate itself on a screen.
   which PANE: the desk's selection and the keyboard's candidate (`Panes::selected`,
   `Panes::keyboard`, [`workshop/focus.md`](workshop/focus.md) WL-FOCUS-01). The moment Workshop
   looked at a provider's rows to decide what a press means, the seam would stop being one.
-- **Which drawing a window press names is held open.** A press the window landed before a pane
-  redrew is read against the rows drawn since; the cases that would hold the old meaning are
-  held as expected failures until it is decided (a drawing's number on the window's word of the
-  press; one area a picture; a fence through the window).
+- **A press names the element it landed on** ([`workshop/press-chain.md`](workshop/press-chain.md)
+  WL-PRESS-07). The window says what it drew under the hand -- the area, the part named there, that
+  area's drawing number -- and the pane acts on that element, refusing in its own words only where
+  its newest drawing shows another there.
 - **A provider interprets the press against what it is CURRENTLY SHOWING.** `project_loaded`
   returns the row-to-entry map beside the rows it built (the one-measurer rule reaching
   interaction), the provider retains that value and drops it on every room, and a press -- in
@@ -403,13 +403,12 @@ presenter's is WL-CTX-10, in `workshop/pane-menu.md` beside it; the helpers a pa
   newer menu is open took a request made under the number its press will carry, before the pane
   heard the press, and a presenter killed and revived (Loom's crash-revival door) around the
   older withdrawal: a requester that asks when its press arrives asks behind every such refusal.
-- **Which drawing a press names is held open.** A pane numbers its row-to-meaning map (a
-  `RowMap` moves it exactly when the map moves) and reads a press against the map it drew where
-  the press landed; a press the window landed before the pane redrew is read against the rows
-  drawn since. A slot's meaning carries its subject (`LauncherMeaning::ref`, `KeysMeaning::ref`),
-  so a same-length swap moves the map's number. Whether a window press should name the drawing it
-  was aimed at -- a drawing's number on the window's word of the press, one area a picture, or a
-  fence through the window -- is a decision asked; its witnesses are held as expected failures.
+- **A press is judged by what the window drew under it.** A pane names its parts by what they
+  are (`launcher_part`, `keys_part`) and numbers its row-to-meaning map (a `RowMap` moves it exactly
+  when the map moves), drawn as its drawing's number; the window says both with each press. A
+  named part is the same element wherever it is redrawn; an unnamed row, while the number stands. A
+  slot's meaning carries its subject (`LauncherMeaning::ref`, `KeysMeaning::ref`), so a same-length
+  swap moves the map's number.
 - **Not in this contract:** a secondary drag spent by a shipped pane (neither Editor spends a
   secondary motion), modifier state on a window's button events (`mod::kNone` always), a host-performed pane operation from a menu row, the
   host's OWN menus (chrome, room, tab, pass-back, a doorless body, a `manage` row) presented by

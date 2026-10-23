@@ -434,6 +434,15 @@ public:
         return line < static_cast<std::int64_t>(lines_.size()) ? line : -1;
     }
 
+    /// WHETHER A PRESS NAMES ANOTHER LINE than the lines last drawn show where it landed, by the
+    /// window's word of what it drew under the hand (as `WindowDrawing::moved` judges a pane's).
+    bool moved(const graphics::AreaButtonChanged& b) const {
+        if (b.under.empty() || b.under != area_) {
+            return false;
+        }
+        return graphics::part_at(sent_, b.x, b.y, canvas_.text()) != b.part;
+    }
+
     /// THE AREA'S ROOM ASKED of the directory, once an area, while no window has said it: a
     /// presenter carrying a menu across a reload draws it again where it stands.
     void ask_room(loom::Mail& mail) {
@@ -464,12 +473,14 @@ private:
         }
         canvas_.draw(sketch);
         canvas_.show(mail);
+        sent_ = std::move(sketch);
     }
 
     std::string office_;
     std::string area_;
     graphics::Canvas canvas_{office_};
     std::vector<MenuLine> lines_;
+    graphics::Sketch sent_; ///< the lines last drawn, as drawn
     bool fresh_ = true, drew_whole_ = true, refused_whole_ = false, asked_ = false;
 };
 

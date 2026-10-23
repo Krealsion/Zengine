@@ -753,6 +753,8 @@ TEST_CASE("Compose drops are data and submission spends the input actor's exact 
         }
         r.extent(180, 60);
         REQUIRE(shows_canvas(*r.session().panes.external_pane(compose_kind)));
+        // What the window showed of Compose before it had a target.
+        const auto before_target = held_reading(compose_kind).parts;
         auto selector = std::make_unique<InventoryHand>(); auto* raw = selector.get();
         loom::Grant grant; grant.allow_to_any(intro::LoadedSelected::zen_name, 1);
         const auto selector_id = r.bus.register_weave(std::move(selector), grant, kIntroOffice);
@@ -777,6 +779,26 @@ TEST_CASE("Compose drops are data and submission spends the input actor's exact 
         r.bus.send_to_role(kComposerOffice, loom::Message(loom::to_value(forged)));
         r.bus.drain_until_idle();
         CHECK(s.shown(compose_kind) == untouched);
+        // A DROP THE WINDOW LANDED ON WHAT COMPOSE SHOWED BEFORE IT HAD A TARGET, where a target's
+        // message stands now, is refused in words and fills nothing.
+        std::int64_t row_then = -1, column_then = -1;
+        for (const auto& [name, part] : held_reading(compose_kind).parts) {
+            if (row_then < 0 && part_drawn_at(before_target, part.row, part.column) != name) {
+                row_then = part.row;
+                column_then = part.column;
+            }
+        }
+        REQUIRE_MESSAGE(row_then >= 0, s.shown(compose_kind));
+        const std::string compose_area = held_area_of(compose_kind);
+        r.bus.office_send_to_role_as(r.bus.role_holder(kWorkshopProvider), kWorkshopProvider,
+            kComposerOffice, loom::Message(loom::to_value(PaneCanvasValueDrop{"compose",
+                compose_area, column_then * gfx::kCellPx + 6, row_then * gfx::kCellPx + 6,
+                loom::Bytes(bytes.begin(), bytes.end()), "", "", "", compose_area,
+                part_drawn_at(before_target, row_then, column_then), 0})));
+        r.bus.drain_until_idle();
+        CHECK_MESSAGE(s.shown(compose_kind).find("the form changed under it") != std::string::npos,
+                      s.shown(compose_kind));
+        CHECK(s.shown(compose_kind).find("Copied data") == std::string::npos);
         s.info = compose_kind;
         std::int64_t command_row = -1;
         const auto rows = pane_rows(r, s.source);
@@ -1322,8 +1344,9 @@ TEST_CASE("terminal capture: retrieval and Inventory storage need separate curre
 }
 
 
-TEST_CASE("terminal capture: wrapped rows and context pickup preserve identity") {
+TEST_CASE("terminal capture: wrapped rows and context pickup preserve identity while stale pictures refuse") {
     InventoryStory s(191 | 256);
+    DrawnNumbers numbers(s.r.bus);
     auto* terminal = s.r.mount_terminal();
     load::LoadPlan plan; load::ArtifactIntent artifact;
     artifact.stem = "zengine-terminal-pane"; artifact.weave = load::WeaveIntent{"zengine.terminal"};
@@ -1348,8 +1371,17 @@ TEST_CASE("terminal capture: wrapped rows and context pickup preserve identity")
     REQUIRE_MESSAGE(s.saved_entries().size()==1,(s.shown(kind)+s.shown(s.source)));
     CHECK(s.saved_entries().front().item.get("text")->as_text()=="wrapped");
     s.key(input::scan::kEscape); // keep the generated copy name
+    // A PRESS THE WINDOW LANDED ON THE RECORD'S ROW BEFORE IT MOVED, as it drew it then: the part
+    // named there, if any, and the transcript's number for that drawing.
+    const std::int64_t aimed = at + 1;
+    const std::string drawn = part_drawn_at(kind, aimed, 0);
+    const std::int64_t drawing = numbers.of(s.r.session(), kind);
+    REQUIRE(drawing != 0);
     // THE RECORD MOVES ON: a message received, and the transcript's next picture.
     s.r.bus.send(terminal->id(),loom::Message(loom::to_value(loom::Ack{}))); s.r.extent(182,60);
+    REQUIRE(numbers.of(s.r.session(), kind) != drawing);
+    press_as_drawn(s.r, kind, aimed, 0, drawn, drawing);
+    CHECK_MESSAGE(s.shown(kind).find("That transcript") != std::string::npos, s.shown(kind));
     rows=pane_rows(s.r,kind); at=-1;
     for(std::size_t i=0;i<rows.size();++i) if(rows[i].rfind("v zen.Ack",0)==0) at=static_cast<std::int64_t>(i);
     REQUIRE_MESSAGE(at>=0,s.shown(kind)); s.menu(kind,at,0); s.click(s.source);
@@ -1929,6 +1961,132 @@ TEST_CASE("views: making a view offers only that view, so a view already on the 
     const RuntimePane* second = s.r.session().panes.runtime.find(slots::kRole, views.back().id);
     REQUIRE(second != nullptr);
     CHECK(s.r.session().panes.has(second->kind));
+}
+
+TEST_CASE("a right press and a drop the window landed on Inventory's rows before another entry stood there are refused in words and change nothing, and a right press on the entry still there offers its menu") {
+    InventoryStory s(191, true);
+    s.append(1, "A");
+    const auto before = held_reading(s.source).parts;
+    s.append(2, "B"); // a row more: an entry where none was
+    const std::int64_t a = s.row_of(s.source, "A");
+    const std::int64_t b = s.row_of(s.source, "B");
+    REQUIRE(a >= 0);
+    REQUIRE(b >= 0);
+    const std::string was_at_b = part_drawn_at(before, b, 2);
+    REQUIRE(was_at_b != part_drawn_at(s.source, b, 2));
+    press_as_drawn(s.r, s.source, b, 2, was_at_b, 0, 3);
+    CHECK_MESSAGE(s.shown(s.source).find("That picture moved") != std::string::npos, s.shown(s.source));
+    CHECK_FALSE(s.r.session().presented.open);
+    // ...A DROP LANDED THERE THEN, judged likewise.
+    const auto entries = s.saved_entries().size();
+    const RuntimePane* pane = s.r.session().panes.runtime.of_kind(s.source);
+    REQUIRE(pane != nullptr);
+    const std::string area = pane_window_area(s.r.session().panes, *pane);
+    s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider, slots::kRole,
+        loom::Message(loom::to_value(PaneCanvasValueDrop{pane->pane, area, 2 * gfx::kCellPx + 6,
+            b * gfx::kCellPx + 6, s.pair(9), "", "", "", area, was_at_b, 0})));
+    s.r.bus.drain_until_idle();
+    CHECK_MESSAGE(s.shown(s.source).find("Drop picture changed") != std::string::npos, s.shown(s.source));
+    CHECK(s.saved_entries().size() == entries);
+    // A RIGHT PRESS ON A, WHICH STANDS WHERE IT STOOD, opens A's menu.
+    REQUIRE(part_drawn_at(before, a, 2) == part_drawn_at(s.source, a, 2));
+    press_as_drawn(s.r, s.source, a, 2, part_drawn_at(s.source, a, 2), 0, 3);
+    CHECK(s.r.session().presented.open);
+}
+
+TEST_CASE("portable slots: an entry's transfer placed where the window drew a view's rows before another entry moved in there moves nothing and says it expired") {
+    InventoryStory s(191, true);
+    s.append(1, "A");
+    s.append(2, "B");
+    const auto a = s.entry("A").reference;
+    const auto row = s.create("row");
+    const auto kind = s.r.session().panes.runtime.find(slots::kRole, row)->kind;
+    for (auto& p : s.r.session().setup.active.panes) if (p.ref.pane == row) {
+        p.place = {pane_unit::kPixels, 2 * gfx::kCellPx, 34 * gfx::kCellPx};
+        p.width = {pane_unit::kPixels, 72 * gfx::kCellPx};
+        p.height = {pane_unit::kPixels, 10 * gfx::kCellPx};
+    }
+    s.r.extent(179, 60); s.r.extent(180, 60); // a same-size extent reseats nothing: the view is placed now
+    // What the window showed of the row view while it held nothing, then B moved into it.
+    const auto first = held_reading(kind).parts;
+    slots::InventoryViewEdit op; op.operation = "move"; op.view = row; op.entry = s.entry("B").reference;
+    s.change(op);
+    REQUIRE(slots::placed(s.layout(), s.entry("B").reference) == row);
+    // A real drag of A begins in main Inventory, and Inventory hands Workshop its transfer token.
+    std::string token;
+    RemoveObserver watch{s.r.bus, s.r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (e.kind == loom::EventKind::Delivered &&
+            e.schema_name == v2::PaneValueCarryRequested::zen_name && e.payload)
+            token = e.payload->get("token")->as_text();
+    })};
+    const std::int64_t at = row_saying(s, s.source, "A : ");
+    REQUIRE_MESSAGE(at >= 0, s.shown(s.source));
+    auto press = s.button_at(s.source, at, true), move = s.button_at(s.source, at + 3, false);
+    move.kind = "PointerMoved"; move.dx = 0; move.dy = 3;
+    s.batch({press, move});
+    REQUIRE_MESSAGE(!token.empty(), s.shown(s.source));
+    // That transfer, placed where the window drew the row view before B came: refused.
+    const auto before = s.layout();
+    const std::string area = pane_window_area(s.r.session().panes, *s.r.session().panes.runtime.of_kind(kind));
+    // WHERE B STANDS IN THE ROW VIEW NOW, and what the window drew there before it came.
+    std::int64_t b_row = -1, b_column = -1;
+    for (const auto& [name, part] : held_reading(kind).parts) {
+        if (b_row < 0 && part_drawn_at(first, part.row, part.column) != name) {
+            b_row = part.row;
+            b_column = part.column;
+        }
+    }
+    REQUIRE_MESSAGE(b_row >= 0, s.shown(kind));
+    const std::string drawn = part_drawn_at(first, b_row, b_column);
+    s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider, slots::kRole,
+        loom::Message(loom::to_value(PaneCanvasValueDrop{row, area, b_column * gfx::kCellPx + 6,
+            b_row * gfx::kCellPx + 6, s.pair(1), slots::kRole, "inventory", token, area, drawn, 0})));
+    s.r.bus.drain_until_idle();
+    const std::string said = s.shown(kind) + s.shown(s.source);
+    CHECK_MESSAGE(said.find("That slot transfer expired") != std::string::npos, said);
+    CHECK(slots::placed(s.layout(), a) == slots::placed(before, a));
+}
+
+TEST_CASE("a value released on Flow before its carry is answered carries the window's word from its release, though Flow repainted meanwhile") {
+    InventoryStory s(191, true, false, true);
+    s.append(1, "A");
+    REQUIRE(s.flow != 0);
+    const auto released_on = held_reading(s.flow).parts;
+    std::vector<PaneCanvasValueDrop> drops;
+    unsigned buttons = 0;
+    const loom::WeaveId workshop = s.r.workshop_id;
+    const loom::ObserverId tap = s.r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (e.kind != loom::EventKind::Delivered) return;
+        if (e.payload && e.schema_name == PaneCanvasValueDrop::zen_name)
+            drops.push_back(loom::from_value<PaneCanvasValueDrop>(*e.payload));
+        // THE RELEASE HANDLED BY WORKSHOP, its carry not yet answered: the turn stops here.
+        if (e.target == workshop && e.schema_name == gfx::AreaPressed::zen_name && ++buttons == 2)
+            s.r.bus.stop();
+    });
+    auto press = s.button_at(s.source, 2, true);
+    auto release = s.button_at(s.flow, 8, false);
+    release.x += 40; // over the graph, right of Flow's rail
+    auto move = release;
+    move.kind = "PointerMoved"; move.dx = release.x - press.x; move.dy = release.y - press.y;
+    s.hand->next = [&](loom::Mail& m) {
+        m.send_to_role(input::kInputRole, input::InjectInput{s.hand->session, {press, move, release}});
+    };
+    s.r.bus.send(s.hand_id, loom::Message(loom::to_value(InventoryHandDo{})));
+    for (int turn = 0; turn < 64 && buttons < 2 && s.r.bus.pending() != 0; ++turn) (void)s.r.bus.pump_pending();
+    s.hand->next = {};
+    REQUIRE(buttons == 2);
+    REQUIRE(drops.empty());
+    // FLOW REPAINTS before the carry is answered: typing on its search line.
+    const auto* flow = s.r.session().panes.runtime.of_kind(s.flow);
+    REQUIRE(flow != nullptr);
+    REQUIRE(s.r.bus.office_send_to_role_as(workshop, kWorkshopProvider, flow->provider,
+        loom::Message(loom::to_value(PaneTextInput{flow->pane, "m"}))).valid());
+    s.r.bus.drain_until_idle();
+    s.r.bus.remove_observer(tap);
+    INFO(s.r.last_notice());
+    REQUIRE(drops.size() == 1);
+    CHECK(drops[0].under == pane_window_area(s.r.session().panes, *flow));
+    CHECK(drops[0].part == part_drawn_at(released_on, drops[0].y / gfx::kCellPx, drops[0].x / gfx::kCellPx));
 }
 
 TEST_CASE("a graphics window shows Inventory and Info in the areas Workshop places them in") {

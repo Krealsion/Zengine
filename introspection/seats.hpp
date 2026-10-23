@@ -121,11 +121,13 @@ protected:
 
     bool awaiting() const noexcept { return awaiting_; }
 
-    /// SAY WHAT THE PANE SHOWS, the one place its content leaves: its rows, their parts and the caret
-    /// standing in them, drawn in its area.
+    /// SAY WHAT THE PANE SHOWS, the one place its content leaves: its rows, their parts, the caret
+    /// standing in them and what a press on them means (`press_meaning`), drawn in its area.
     void say_rows(loom::Mail& mail, std::vector<workshop::TextRow> shown,
-                  std::vector<workshop::RowPart> parts = {}, const workshop::RowsCaret& caret = {}) {
-        room_.publish_rows(mail, std::move(shown), std::move(parts), caret);
+                  std::vector<workshop::RowPart> parts = {}, const workshop::RowsCaret& caret = {},
+                  const std::string& meaning = {}) {
+        room_.publish_rows(mail, std::move(shown), std::move(parts), caret,
+                           meaning.empty() ? 0 : meaning_number(meaning));
     }
 
 private:
@@ -246,7 +248,7 @@ public:
 private:
     /// Loaded's rows, each press meaning the weave it names.
     void say(loom::Mail& mail) {
-        say_rows(mail, view_.rows, loaded_parts());
+        say_rows(mail, view_.rows, loaded_parts(), {}, press_meaning(view_));
     }
 
     LoadedView view_;
@@ -680,7 +682,7 @@ private:
         workshop::RowsCaret caret;
         caret.row = shown_.caret_row;
         caret.column = shown_.caret_col;
-        say_rows(mail, shown_.rows, powers_parts(), caret);
+        say_rows(mail, shown_.rows, powers_parts(), caret, press_meaning(shown_));
     }
 
     /// SHOW ONE VIEW, Sources or Operators, as its control and its action ask: false when it is

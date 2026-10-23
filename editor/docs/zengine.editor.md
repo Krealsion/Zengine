@@ -286,12 +286,12 @@ only `status`.
 
 ### `AreaButtonChanged`
 
-`AreaButtonChanged` v1, from that window: a button pressed or let go in the pane's area, at its
-point on the rows there, which is that press on Workshop's canvas: the first button places the
-caret and arms the sweep, or remembers the highlight or the status row to carry out; the third
-offers the pane's rows or is handed back; the release ends the sweep. Its moves and release carry
-the window's number for the press, which a carry it asks continues. For the Neovim-backed Editor
-each is Neovim's own mouse.
+`AreaButtonChanged` v3, from that window: a button pressed or let go in the pane's area, at a point
+of its rows, with what the window drew there: the first button places the caret and arms the sweep,
+or holds the highlight or status row to carry out; the third offers them or is handed back; the
+release ends the sweep. A press on a line since left is refused in words. Its moves and release
+carry its number. For the Neovim-backed Editor each is Neovim's own mouse, carrying nothing from a
+line since left.
 
 ### `AreaPointerMoved`
 

@@ -31,6 +31,47 @@ std::string drawn_words(std::int64_t kind) {
 }
 } // namespace
 
+TEST_CASE("a pane's drawings judge a press by what the window drew under the hand: a named part redrawn takes it over its whole face, another part or none refuses it, and an unnamed place takes it only under the drawing's number") {
+    using zengine::workshop::press_moved;
+    const gfx::TextMeasure text{12, 12};
+    const std::string area = "test.area";
+    // A BUTTON: a filled face, its label inside, the group named `save`; and an unnamed note.
+    const auto drawing = [](const std::string& label, const std::string& action,
+                            std::int64_t number) {
+        gfx::Sketch s;
+        s.fill_rect("room", 0, 0, 240, 120, gfx::by_role(gfx::role::kGround));
+        s.group("button", 24, 24);
+        s.fill_rect("button/face", 0, 0, 96, 36, gfx::by_role(gfx::role::kAccent));
+        s.text("button/label", 12, 12, label, gfx::by_role(gfx::role::kFill));
+        if (!action.empty()) s.action("button", action);
+        s.text("note", 0, 84, "a note", gfx::by_role(gfx::role::kMuted));
+        s.number(number);
+        return s;
+    };
+    const gfx::Sketch drawn = drawing("Save", "save", 7);
+    // OVER THE ELEMENT'S WHOLE FACE: its corner, beside its label, names it as its label does.
+    CHECK(gfx::part_at(drawn, 25, 25, text) == "save");
+    CHECK(gfx::part_at(drawn, 24 + 95, 24 + 35, text) == "save");
+    CHECK(gfx::part_at(drawn, 24 + 13, 24 + 13, text) == "save");
+    CHECK(gfx::part_at(drawn, 24 + 96, 24 + 36, text).empty());
+    // THE SAME BUTTON REDRAWN -- its words, its colour, the drawing's number -- takes the press.
+    const gfx::Sketch again = drawing("Saved!", "save", 8);
+    CHECK_FALSE(press_moved(again, area, area, "save", 7, 25, 25, text));
+    CHECK_FALSE(press_moved(again, area, area, "save", 7, 24 + 30, 24 + 18, text));
+    // ANOTHER ELEMENT THERE NOW, or none: refused.
+    CHECK(press_moved(drawing("Delete", "delete", 7), area, area, "save", 7, 25, 25, text));
+    CHECK(press_moved(drawing("Save", "", 7), area, area, "save", 7, 25, 25, text));
+    // AN UNNAMED PLACE: taken under the drawing's number, refused under another, and refused
+    // where a named part stands now.
+    CHECK_FALSE(press_moved(drawn, area, area, "", 7, 6, 90, text));
+    CHECK(press_moved(again, area, area, "", 7, 6, 90, text));
+    CHECK(press_moved(drawn, area, area, "", 7, 25, 25, text));
+    // NO WORD FROM THE WINDOW, OR ONE ABOUT ANOTHER AREA: nothing to judge.
+    CHECK_FALSE(press_moved(drawing("Delete", "delete", 9), area, "", "save", 7, 25, 25, text));
+    CHECK_FALSE(press_moved(drawing("Delete", "delete", 9), area, "elsewhere", "save", 7, 25, 25,
+                            text));
+}
+
 TEST_CASE("pane canvas text clipping preserves surviving positions through both edges") {
     CanvasRoom room{36, 44, 1, true, 8, 18};
     const CanvasText source{-5, 1, "ABCDE", gfx::role::kFill, 2, 0, 5};

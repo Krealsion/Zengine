@@ -602,11 +602,11 @@ Workshop numbered no gesture for it.
 
 ### `AreaButtonChanged`
 
-`AreaButtonChanged` v1, from that window: a button pressed or let go in Flow's area, at its point in
-the picture last drawn there, which is that press on Workshop's canvas: a node selected and held for
-a drag, a wire's end held for a drag, a place's control done, a declared message offered to carry
-out, the graph panned by a press on nothing, a right press handed back. Its moves and its release
-carry the window's number for the press, which a carry it asks continues.
+`AreaButtonChanged` v3, from that window: a button pressed or let go in Flow's area, on the part the
+window drew there: a node held for a drag, a wire's end held, a control done, a declared message
+offered to carry out, the graph panned by a press on nothing, a right press handed back. One on
+another part than Flow shows there now, or on another dialog's, is refused in words. Its moves and
+release carry the window's number for the press, which a carry it asks continues.
 
 ### `AreaPointerMoved`
 

@@ -54,7 +54,10 @@ struct PaneValueCarryRequested {
 // While something is carried, Workshop's own area stands in front of every pane's, so the hand's
 // moves and its release are Workshop's to read; where the hand is over a pane, Workshop says the
 // place in that pane's area -- its name, and a point in its pixels from its corner -- and the
-// pane reads it against what it drew there and owns what the item means at that place.
+// pane reads it against what it drew there and owns what the item means at that place. A drop
+// passes on the window's word of what it drew under the hand where the hand was over that area
+// (`graphics::AreaButtonChanged`'s `under`, `part` and `drawing`), which a pane judges a drop by
+// as it judges a press; `under` is "" where the window said nothing of that area.
 
 /// A value copy placed on a pane: where it landed in the pane's area, with the source office and
 /// pane Workshop stamps and the source's transfer token.
@@ -64,9 +67,12 @@ struct PaneCanvasValueDrop {
     std::int64_t x = 0, y = 0;
     loom::Bytes data;
     std::string source_office, source_pane, token;
-    ZEN_SHAPE(PaneCanvasValueDrop, 3, ZEN_FIELD(pane), ZEN_FIELD(area), ZEN_FIELD(x),
+    std::string under{};
+    std::string part{};
+    std::int64_t drawing = 0;
+    ZEN_SHAPE(PaneCanvasValueDrop, 4, ZEN_FIELD(pane), ZEN_FIELD(area), ZEN_FIELD(x),
               ZEN_FIELD(y), ZEN_FIELD(data), ZEN_FIELD(source_office), ZEN_FIELD(source_pane),
-              ZEN_FIELD(token));
+              ZEN_FIELD(token), ZEN_FIELD(under), ZEN_FIELD(part), ZEN_FIELD(drawing));
 };
 
 /// A carried reference placed on a pane, as a value copy is: where it landed in the pane's area.
@@ -75,8 +81,11 @@ struct PaneCanvasDrop {
     std::string area;
     std::int64_t x = 0, y = 0;
     loom::Bytes data;
-    ZEN_SHAPE(PaneCanvasDrop, 2, ZEN_FIELD(pane), ZEN_FIELD(area), ZEN_FIELD(x), ZEN_FIELD(y),
-              ZEN_FIELD(data));
+    std::string under{};
+    std::string part{};
+    std::int64_t drawing = 0;
+    ZEN_SHAPE(PaneCanvasDrop, 3, ZEN_FIELD(pane), ZEN_FIELD(area), ZEN_FIELD(x), ZEN_FIELD(y),
+              ZEN_FIELD(data), ZEN_FIELD(under), ZEN_FIELD(part), ZEN_FIELD(drawing));
 };
 
 /// Where a carried item rests over a pane, for a pane that accepts it: a point of its area, or

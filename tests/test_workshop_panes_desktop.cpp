@@ -20,6 +20,7 @@
 #include <fstream>
 #include <iterator>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -421,12 +422,9 @@ TEST_CASE("WL-DESK-14: the wheel walks the marker one row per notch, and a press
 
 }
 
-// A WITNESS OF THE PRESS SEAM'S MISREAD, held as an expected failure until it is decided which
-// drawing a window press names (a drawing's number on the window's word of the press; one area
-// a picture; a fence through the window): the press lands on the rows the window shows, and the
-// Pane Manager reads it against the rows the queued steps moved.
-TEST_CASE("WL-DESK-14: a press queued behind a change of the list is refused, never resolved against the moved rows" *
-          doctest::should_fail()) {
+// The press lands on the rows the window shows, and says the row it landed on; the Pane Manager
+// reads it against the rows the queued steps moved, where another row stands.
+TEST_CASE("WL-DESK-14: a press queued behind a change of the list is refused, never resolved against the moved rows") {
     Desk d;
     // THE QUEUED PRESS. Six cursor steps and a press on Gamma's row are queued together, as a hand
     // that scrolls and clicks makes them; the host handles the press BEFORE the desktop composes
@@ -455,6 +453,85 @@ TEST_CASE("WL-DESK-14: a press queued behind a change of the list is refused, ne
     REQUIRE(gamma_now >= 0);
     d.press(gamma_now, kMarkCol);
     CHECK(d.open("gamma"));
+}
+
+namespace {
+
+/// THE INVENTORY AS WORKSHOP LAST SAID IT, two of the test tools' panes swapped in its order, said to
+/// the desktop again; nothing is delivered.
+void swap_in_inventory(Desk& d, const char* one, const char* other) {
+    PaneInventory inventory = d.r.w->inventory_reading();
+    std::size_t a = inventory.panes.size();
+    std::size_t b = inventory.panes.size();
+    for (std::size_t i = 0; i < inventory.panes.size(); ++i) {
+        if (inventory.panes[i].office == "zengine.test.tools") {
+            if (inventory.panes[i].pane == one) a = i;
+            if (inventory.panes[i].pane == other) b = i;
+        }
+    }
+    REQUIRE(a < inventory.panes.size());
+    REQUIRE(b < inventory.panes.size());
+    std::swap(inventory.panes[a], inventory.panes[b]);
+    REQUIRE(d.r.bus.office_send_to_role_as(d.r.workshop_id, kWorkshopProvider, kDesktopRole,
+        loom::Message(loom::to_value(inventory), d.r.workshop_id, d.r.workshop_id, 0)).valid());
+}
+
+} // namespace
+
+TEST_CASE("WL-DESK-14: a same-length inventory swap puts another pane's row under a press the window landed on the old one, so it opens nothing -- the meaning carries the subject, not just the slot -- and a press on a row redrawn under its own name opens it") {
+    Desk d;
+    const auto row = d.row_of("Alpha");
+    REQUIRE(row >= 0);
+    const std::string alpha = part_drawn_at(d.launcher, row, kMarkCol);
+    REQUIRE(alpha == "mark:zengine.test.tools/alpha");
+    SUBCASE("another pane's row in its place") {
+        swap_in_inventory(d, "alpha", "gamma");
+        d.r.bus.drain_until_idle();
+        REQUIRE(d.rows()[static_cast<std::size_t>(row)].find("Gamma") != std::string::npos);
+        press_as_drawn(d.r, d.launcher, row, kMarkCol, alpha);
+        CHECK_FALSE(d.open("gamma"));
+        CHECK_FALSE(d.open("alpha"));
+        CHECK(joined(d.rows()).find("the list moved -- press again") != std::string::npos);
+    }
+    SUBCASE("the same row, the list moved around it") {
+        swap_in_inventory(d, "beta", "gamma");
+        d.r.bus.drain_until_idle();
+        REQUIRE(part_drawn_at(d.launcher, row, kMarkCol) == alpha);
+        press_as_drawn(d.r, d.launcher, row, kMarkCol, alpha);
+        CHECK(d.open("alpha"));
+    }
+}
+
+TEST_CASE("WL-DESK-14: an inventory change queued ahead of a raw press cannot retarget the row the hand aimed at -- the window lands the press on the row it shows, refused where the list has since moved there, and acting where it showed the new row") {
+    // THE PRODUCTION BOUNDARY: the inventory swap reaches the real desktop and a raw press reaches
+    // the real window, and nothing here supplies what the window drew under the hand.
+    bool shown_first = false;
+    SUBCASE("the window lands the press before it holds the new rows: refused") {}
+    SUBCASE("control -- the window shows the new rows first: the press acts on them") {
+        shown_first = true;
+    }
+    Desk d;
+    const auto row = d.row_of("Alpha");
+    REQUIRE(row >= 0);
+    swap_in_inventory(d, "alpha", "gamma");
+    if (shown_first) {
+        d.r.bus.drain_until_idle();
+        REQUIRE(d.rows()[static_cast<std::size_t>(row)].find("Gamma") != std::string::npos);
+    }
+    // THE PRESS ON THE PLATFORM, landed at the window's next beat, asked on the bus behind the
+    // inventory: the desktop draws the new rows before it reads the press.
+    queue_button(d.r, 1, true, body_x(d.r, d.launcher, kMarkCol), body_y(d.r, d.launcher, row));
+    queue_button(d.r, 1, false, body_x(d.r, d.launcher, kMarkCol), body_y(d.r, d.launcher, row));
+    (void)d.r.bus.send(d.r.windows.id(), loom::Message(loom::to_value(gfx::PumpSurface{})));
+    d.r.bus.drain_until_idle();
+    if (shown_first) {
+        CHECK(d.open("gamma")); // the row the window showed under the hand
+        CHECK_FALSE(d.open("alpha"));
+    } else {
+        CHECK_FALSE(d.open("gamma")); // never the row that moved in behind the hand
+        CHECK_FALSE(d.open("alpha"));
+        CHECK(joined(d.rows()).find("the list moved -- press again") != std::string::npos);
+    }
 }
 
 TEST_CASE("WL-DESK-13: Ctrl+P is a strict visibility toggle judged by the host -- open becomes closed, closed becomes open and focused, whatever the desktop last heard") {
@@ -1114,6 +1191,61 @@ TEST_CASE("WL-HAND-06: Hotkeys names each binding's row by its identity") {
     // ...AND A PRESS ON THE NAMED ROW CHOOSES THAT BINDING.
     k.r.press_cell(body_x(k.r, k.hotkeys, 4), body_y(k.r, k.hotkeys, named->row));
     CHECK(marked(k.rows()).find("desktop.terminal") != std::string::npos);
+}
+
+TEST_CASE("WL-DESK-14: a press the window landed on a Hotkeys row where another binding stands "
+          "now is refused in words and chooses nothing, and one on the binding drawn there chooses "
+          "it") {
+    Keys k("hotkeys-moved");
+    // TWO BINDINGS: the one a press lands on, and another, whose name the window could have drawn
+    // there before.
+    std::string target, other;
+    for (const auto& [name, part] : held_parts(k.r.session(), k.hotkeys)) {
+        if (name.rfind("binding:", 0) != 0) continue;
+        if (name.find("/desktop.terminal/") != std::string::npos) {
+            target = name;
+        } else if (other.empty()) {
+            other = name;
+        }
+    }
+    REQUIRE_FALSE(target.empty());
+    REQUIRE_FALSE(other.empty());
+    const auto row_of = [&](const std::string& name) {
+        return held_reading(k.hotkeys).parts.at(name).row;
+    };
+    // THE WEAVER'S PRESS ON THE BINDING, the window's word with it: it chooses the binding.
+    const RuntimePane* seat = k.r.session().panes.runtime.of_kind(k.hotkeys);
+    REQUIRE(seat != nullptr);
+    const std::string area = pane_window_area(k.r.session().panes, *seat);
+    std::optional<gfx::AreaButtonChanged> said;
+    const loom::ObserverId tap = k.r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (!said && e.kind == loom::EventKind::Delivered && e.payload &&
+            e.schema_name == gfx::AreaButtonChanged::zen_name) {
+            const auto b = loom::from_value<gfx::AreaButtonChanged>(*e.payload);
+            if (b.area == area && b.pressed) said = b;
+        }
+    });
+    k.r.press_cell(body_x(k.r, k.hotkeys, 4), body_y(k.r, k.hotkeys, row_of(target)));
+    k.r.bus.remove_observer(tap);
+    REQUIRE(said.has_value());
+    REQUIRE(said->under == area);
+    CHECK(marked(k.rows()).find("desktop.terminal") != std::string::npos);
+    // ANOTHER BINDING CHOSEN, then the same place pressed as the window would say it had drawn the
+    // other binding there: refused in words, and the choice stays.
+    k.r.press_cell(body_x(k.r, k.hotkeys, 4), body_y(k.r, k.hotkeys, row_of(other)));
+    const std::string chosen = marked(k.rows());
+    REQUIRE(chosen.find("desktop.terminal") == std::string::npos);
+    for (const bool down : {true, false}) {
+        gfx::AreaButtonChanged landed = *said;
+        landed.pressed = down;
+        landed.part = other;
+        REQUIRE(k.r.bus.office_send_to_role_as(k.r.windows.id(), k.r.windows.office(),
+                    kDesktopRole, loom::Message(loom::to_value(landed), k.r.windows.id(),
+                                                k.r.windows.id(), 9201)).valid());
+        k.r.bus.drain_until_idle();
+    }
+    CHECK(joined(k.rows()).find("the list moved -- press again") != std::string::npos);
+    CHECK(marked(k.rows()) == chosen);
 }
 
 // =============================================================================

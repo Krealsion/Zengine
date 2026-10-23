@@ -203,6 +203,32 @@ TEST_CASE("demo button trusts the window that shows it and service close settles
     CHECK(r.visitor.hand->refused.size() == 2);
 }
 
+TEST_CASE("a press the window landed on the demo controls where it drew no control resets nothing "
+          "and is said, and one on the reset button drawn there resets") {
+    DemoRig r; r.ready();
+    zengine::testing::pane_window::Window window(r.bus);
+    window.room(demo::kRole, demo::kRole, 56, 4);
+    r.worker.say(demo::kRole, demo::DemoWorkRequested{}); // a worker that takes the demo's work
+    const std::size_t work = r.worker.hand->work.size();
+    const auto landed = [&](const std::string& part, std::uint64_t press) {
+        for (const bool down : {true, false}) {
+            gfx::AreaButtonChanged b{demo::kRole, 1, down, 3 * gfx::kCellPx + 6,
+                                     gfx::kCellPx + 6, 0};
+            b.under = demo::kRole;
+            b.part = part;
+            window.tell(demo::kRole, b, press);
+        }
+    };
+    landed("", 501); // the window drew the status line there: no control
+    CHECK(r.worker.hand->work.size() == work);
+    const std::vector<std::string> shown = window.rows(demo::kRole);
+    CHECK(std::any_of(shown.begin(), shown.end(), [](const std::string& row) {
+        return row.find("the controls moved -- press again") != std::string::npos;
+    }));
+    window.click(demo::kRole, 3, 1); // the reset button, as the window drew it there now
+    CHECK(r.worker.hand->work.size() == work + 1);
+}
+
 TEST_CASE("WL-HAND-06: the demo controls name their reset row and the state beneath it") {
     SUBCASE("rows drawn for a window that sets type stand a line of its face apart and a "
             "character an advance, on the ground of the whole room, read back and pressed in that "

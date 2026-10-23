@@ -41,6 +41,7 @@ LAW — A pane activates a row on a press only when Workshop reports its keys we
 
 MEANS
 - the pane decides from Workshop's last `PaneKeys`, said before the press moved them; a mode having the keys is "not here";
+- its own primary press brings the keys before Workshop's word on it, which comes, moved or not, and stands;
 - a press reaches the pane from the window once, in the area it landed in.
 
 DOES NOT MEAN
@@ -183,6 +184,8 @@ own area, and opens only on one made while the keys were already there" "a press
 second press on the same row activates" "the wheel moves the cursor, and a header press names no
 entry"
 `workshop/weave_run.cpp` tell_keys
+`workshop/weave_handlers.cpp` area_pressed
+`workshop/pane_facets.hpp` PaneRowsFacet
 `workshop/pane_vocabulary.hpp` PaneKeys
 `tests/test_workshop_desk.cpp` "a press in a pane's area of the window is the pane's, and under the window's number Workshop
 tells it where the keys were, hands its press back, opens its menu and carries what it drags out

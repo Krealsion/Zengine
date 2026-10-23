@@ -8,6 +8,7 @@
 #include "inventory/codec.hpp"
 #include "operator/reference.hpp"
 #include "workshop/actor_scope.hpp"
+#include "workshop/fingerprint.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_drawing.hpp"
@@ -293,14 +294,21 @@ public:
     const std::int64_t gesture = p->phase == ws::canvas_pointer::kLost
                                      ? (drag_ ? drag_->gesture : 0)
                                      : static_cast<std::int64_t>(p->press);
-    const Moment event{gesture, p->phase, p->button, p->x, p->y, p->dx, p->dy};
+    // EVERY DIALOG NAMES ITS PARTS ALIKE, so one landed under another dialog's number is another.
+    const bool other_dialog = p->told && p->drawing != dialog_number() &&
+                              (p->part.rfind("dialog-", 0) == 0 ||
+                               p->part.rfind("control:dialog-", 0) == 0);
+    const Moment event{gesture, p->phase, p->button, p->x, p->y, p->dx, p->dy,
+                       p->moved || other_dialog};
     pointer(event, window_shown_ ? &*window_shown_ : nullptr, window_room_, mail);
   }
   /// ONE MOMENT OF THE POINTER IN FLOW'S AREA: its press's number, its phase
-  /// (`ws::canvas_pointer`), its button, its place in the area's pixels and the wheel's turn.
+  /// (`ws::canvas_pointer`), its button, its place in the area's pixels, the wheel's turn, and
+  /// whether the window drew another part there than Flow's picture shows now.
   struct Moment {
     std::int64_t gesture = 0, phase = 0, button = 0, x = 0, y = 0;
     double dx = 0, dy = 0;
+    bool moved = false;
   };
   /// ...about `pictured`, the picture last drawn there (none before one is), in `room`.
   void pointer(const Moment &event, const pane::Picture *pictured,
@@ -376,6 +384,13 @@ public:
       }
       if (event.phase != ws::canvas_pointer::kPress)
         return;
+      // A PRESS THE WINDOW LANDED ON ANOTHER PART than Flow's picture shows there now acts on
+      // nothing, and is said.
+      if (event.moved && (event.button == 1 || event.button == 3)) {
+        model_.notice = "The picture changed under the press; press again";
+        show(mail);
+        return;
+      }
       // WITH A WIRE'S SEARCH OPEN a press on one of its rows makes it, a press elsewhere in the
       // list does nothing, and a press anywhere else closes it and is spent on nothing more.
       if (model_.wire_search) {
@@ -517,7 +532,8 @@ public:
         throw std::invalid_argument("Confirm or cancel the open dialog before dropping a value");
       const pane::Picture *it = window_shown_ ? &*window_shown_ : nullptr;
       if (it == nullptr ||
-          it->revision != model_.workspace.graph.project.definition.revision)
+          it->revision != model_.workspace.graph.project.definition.revision ||
+          window_.moved(drop.under, drop.part, drop.drawing, drop.x, drop.y))
         throw std::invalid_argument("The picture changed while the value was carried; drop it again");
       const auto value = zengine::inventory::decode_pair(
           std::string_view(reinterpret_cast<const char *>(drop.data.data()), drop.data.size())).item;
@@ -1706,7 +1722,17 @@ private:
     auto drawn = pane::window_picture(model_, window_room_);
     window_parts_ = std::move(drawn.parts);
     window_shown_ = std::move(drawn.picture);
+    drawn.sketch.number(dialog_number());
     window_.draw(drawn.sketch, mail);
+  }
+  /// WHAT FLOW'S DRAWING IS NUMBERED BY: the dialog it shows, by what it asks and does; else 0.
+  std::int64_t dialog_number() const {
+    if (!model_.dialog)
+      return 0;
+    ws::Fingerprint f;
+    f.bytes(model_.dialog->action);
+    f.bytes(model_.dialog->title);
+    return f.value() | 1;
   }
   pane::Model model_;
   Room &room() { return this->template facet<Room>(); }

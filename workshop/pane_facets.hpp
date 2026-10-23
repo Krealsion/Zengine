@@ -118,11 +118,17 @@ private:
 /// ONE FIRST-BUTTON PRESS ON A SHOWN ROW OF THE ROWS LAST DRAWN, as the row and column it landed
 /// on, and whether the keys were already reaching the pane when it was made, as the last
 /// `PaneKeys` Workshop sent says. A press a window asked as a part's action (`window`), in an area
-/// placed deaf to the pointer, never says so, since Workshop saw no press there.
+/// placed deaf to the pointer, never says so, since Workshop saw no press there. `moved` says the
+/// window drew another element under the hand than the rows last drawn show there
+/// (`WindowDrawing::moved`): the pane acts on nothing and says so in its own words. `told` says the
+/// window named the drawing the press landed on, by the pane's number for it, `drawing`.
 struct RowPress {
     std::int64_t row = 0, column = 0;
     bool keys_went_here = false;
     bool window = false;
+    bool moved = false;
+    bool told = false;
+    std::int64_t drawing = 0;
 };
 
 /// A PANE THAT SAYS ROWS: `PaneFacet`, the rows being composed, what each row and run of columns
@@ -197,7 +203,9 @@ public:
     /// of the first button on a shown cell of the rows last sent there is the weave's `press`, read
     /// against whether the keys were already the pane's (`PaneKeys`); one of the third is its
     /// `right_press` on what the cell means, else passed back under the window's number for the
-    /// press, so Workshop's own pane menu opens where it was made.
+    /// press, so Workshop's own pane menu opens where it was made. A first- or third-button press
+    /// the window landed on another element than those rows show there is the weave's `press`,
+    /// `moved`.
     template <class Self>
     void on([[maybe_unused]] Self& self, const graphics::AreaButtonChanged& b, loom::Mail& mail) {
         const std::optional<WindowPointer> p =
@@ -205,8 +213,19 @@ public:
         if (!p || p->phase != canvas_pointer::kPress) {
             return;
         }
-        const RowPress press{p->at.row, p->at.column, keys_here_};
+        const RowPress press{p->at.row, p->at.column, keys_here_, false, p->moved, p->told,
+                             p->drawing};
+        if (p->moved && (p->button == 1 || p->button == 3)) {
+            keys_here_ = keys_here_ || p->button == 1;
+            if constexpr (requires { self.press(press, mail); }) {
+                self.press(press, mail);
+            }
+            return;
+        }
         if (p->button == 1) {
+            // A PRIMARY PRESS OF ITS OWN MOVES THE KEYS HERE (WL-FOCUS-03), so the next press is
+            // made with them here, whether or not Workshop's word on this one has come yet.
+            keys_here_ = true;
             if constexpr (requires { self.press(press, mail); }) {
                 if (p->at.shown) {
                     self.press(press, mail);
@@ -375,6 +394,9 @@ public:
         if (window_.shown()) {
             RowsDrawing drawn = rows_drawing(rows, parts, window_.rows_room(), this->columns(),
                                              with_caret ? caret_ : RowsCaret{});
+            // NUMBERED BY WHAT ITS ROWS MEAN (`component::RowMap`), so a press on a row no part
+            // names is read against the meaning it was drawn under.
+            drawn.sketch.number(map_.picture());
             window_places_ = std::move(drawn.places);
             window_rows_ = static_cast<std::int64_t>(rows.size());
             window_.draw(drawn.sketch, mail);
@@ -407,6 +429,12 @@ public:
     RowCell cell_at(std::int64_t x, std::int64_t y) const {
         return window_cell(x, y, window_rows_, this->columns(), window_.text());
     }
+    /// Whether a drop at `x`, `y` of the area names another element than the rows last drawn there
+    /// show, by the window's word of what it drew under the hand (`WindowDrawing::moved`).
+    bool moved(const std::string& under, const std::string& part, std::int64_t drawing,
+               std::int64_t x, std::int64_t y) const {
+        return window_.moved(under, part, drawing, x, y);
+    }
 
 private:
     std::vector<TextRow> composing_;
@@ -422,8 +450,8 @@ private:
 
 /// A PANE THAT DRAWS ONE PICTURE: `PaneFacet`, and the weave's `picture(graphics::Sketch&)` shown
 /// in the graphics window that shows the area named by its office, as what changed there. Each
-/// element record is a part named by its path, and a press on one asks the record's action of the
-/// weave's `on_action(id, mail)`: the owner never reads a place.
+/// element record is a part named by its action, and a press anywhere on the element's face asks
+/// that action of the weave's `on_action(id, mail)`: the owner never reads a place.
 template <const char* const& Pane, const char* const& Office, const manual::Manual& Page,
           class Offer = v2::PaneOffered>
 class PaneDrawingFacet : public PaneFacet<Pane, Office, Page, Offer> {
@@ -479,25 +507,31 @@ public:
     }
 
     /// THE POINTER IN THE WINDOW, given by the window that shows the area as its office: the first
-    /// button pressed on a part of the picture last sent there asks the part's action; the third
-    /// is passed back under the window's number for the press, so Workshop's own pane menu opens
-    /// where it was made; the wheel is the weave's `wheel`. A move and a release mean nothing.
+    /// button pressed anywhere on a part's face in the picture last sent there asks the part's
+    /// action (`graphics::part_at`); one the window drew on another element than that picture
+    /// shows there acts on nothing, and is the weave's `fenced` where it has one, to say so; the
+    /// third is passed back under the window's number for the press, so Workshop's own pane menu
+    /// opens where it was made; the wheel is the weave's `wheel`. A move and a release mean
+    /// nothing.
     template <class Self>
     void on(Self& self, const graphics::AreaButtonChanged& b, loom::Mail& mail) {
-        const std::optional<WindowPointer> p =
-            window_.pointer(b, mail, window_map_rows_, window_map_columns_);
+        const std::optional<WindowPointer> p = window_.pointer(b, mail, 0, 0);
         if (!p || p->phase != canvas_pointer::kPress) {
+            return;
+        }
+        if (p->button == 1 && p->moved) {
+            if constexpr (requires { self.fenced(mail); }) {
+                self.fenced(mail);
+            }
             return;
         }
         if (p->button == 3) {
             pass_back(mail);
             return;
         }
-        const DrawnPart* part = p->at.shown && p->button == 1
-                                    ? window_map_.at(p->at.row, p->at.column)
-                                    : nullptr;
-        if (part != nullptr && !part->action.empty()) {
-            act(self, part->action, mail);
+        const std::string action = p->button == 1 ? window_.part_at(p->x, p->y) : std::string();
+        if (!action.empty()) {
+            act(self, action, mail);
         }
     }
     template <class Self>
@@ -506,7 +540,7 @@ public:
     void on([[maybe_unused]] Self& self, const graphics::AreaWheelTurned& w,
             [[maybe_unused]] loom::Mail& mail) {
         if constexpr (requires { self.wheel(w.dy, mail); }) {
-            if (window_.pointer(w, mail, window_map_rows_, window_map_columns_)) {
+            if (window_.pointer(w, mail, 0, 0)) {
                 self.wheel(w.dy, mail);
             }
         }
@@ -553,14 +587,6 @@ public:
                 window_actions_.insert(record.action);
             }
         }
-        // WHERE EACH PART STANDS IN THE WINDOW, read in the window's measure, so a press there
-        // finds the part it lands on.
-        const RowsRoom room = window_.rows_room();
-        window_map_rows_ = room.rows();
-        window_map_columns_ = room.columns();
-        window_map_.begin();
-        (void)drawn_rows(sketch, window_map_rows_, window_map_columns_, window_map_, text_);
-        (void)window_map_.settle();
         window_.draw(sketch, mail);
     }
 
@@ -574,8 +600,6 @@ private:
 
     WindowDrawing window_{Office, Office};
     std::set<std::string> window_actions_; ///< the actions the picture last sent the window names
-    component::RowMap<DrawnPart> window_map_; ///< the parts of the picture last sent the window
-    std::int64_t window_map_rows_ = 0, window_map_columns_ = 0;
     graphics::TextMeasure text_;           ///< how the picture being drawn sets its text
     bool asked_ = false;                   ///< the room asked in this life
 };

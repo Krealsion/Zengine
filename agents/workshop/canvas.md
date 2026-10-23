@@ -40,12 +40,12 @@ WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 LAW — An item dropped on a pane reaches a holder accepting its door (`PaneCanvasValueDrop`, `PaneCanvasDrop`) as the area it landed in and a point of it, in its pixels; another is sent nothing.
 
 MEANS
-- the pane reads the point against what it drew there and owns what the drop means;
+- the pane owns what the drop means, judging its point by the window's word of what it drew there (WL-PRESS-07);
 - a drop begins no hold; a value keeps its source's attribution; one refused is said not delivered;
 - unsent, a clicked item stays held and a dragged one is let go.
 
 DOES NOT MEAN
-- that a drop names the drawing it was aimed at: which drawing a window press names is a decision held open, its witness the Editor's stale drop, held as an expected failure.
+- that a drop with no word from the window is refused: it is read against the pane's newest drawing.
 
 WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 

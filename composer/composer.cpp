@@ -155,6 +155,9 @@ public:
     /// message opens its form, a field takes the cursor, and a control does its act.
     void press(const ws::RowPress& at, loom::Mail& mail) {
         if (busy()) return;
+        if (at.moved) { // landed on a row the form has since replaced there
+            complain("Press refused: the form changed under it; press again"); say(mail); return;
+        }
         const RowMeaning* what = room().map().at(at.row, at.column);
         if (what == nullptr) return;
         switch (what->what) {
@@ -207,11 +210,13 @@ public:
     }
 
     void on(const ws::PaneCanvasValueDrop& d, loom::Mail& mail) {
-        on_drop(d.pane, d.area, d.x, d.y, d.data, false, mail);
+        on_drop(d.pane, d.area, d.x, d.y, d.data, false,
+                room().moved(d.under, d.part, d.drawing, d.x, d.y), mail);
     }
 
     void on(const ws::PaneCanvasDrop& d, loom::Mail& mail) {
-        on_drop(d.pane, d.area, d.x, d.y, d.data, true, mail);
+        on_drop(d.pane, d.area, d.x, d.y, d.data, true,
+                room().moved(d.under, d.part, d.drawing, d.x, d.y), mail);
     }
 
     /// One of the rows `say` declares, asked for by id from Workshop (`PaneActionFacet`).
@@ -790,10 +795,13 @@ private:
     /// drawn there it fell on, and a field row takes it as that field's value while any other row
     /// takes it as the whole command.
     void on_drop(const std::string& pane, const std::string& area, std::int64_t x, std::int64_t y,
-                 const loom::Bytes& data, bool reference, loom::Mail& mail) {
+                 const loom::Bytes& data, bool reference, bool moved, loom::Mail& mail) {
         if (!mail.authored_from_role(kWorkshopRole) || pane != kComposePane || area != room().area()) return;
         if (busy()) {
             complain("Drop refused: the form is busy"); say(mail); return;
+        }
+        if (moved) {
+            complain("Drop refused: the form changed under it; drop it again"); say(mail); return;
         }
         try {
             auto item = inv::decode_pair({reinterpret_cast<const char*>(data.data()), data.size()}).item;

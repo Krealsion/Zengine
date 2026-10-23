@@ -73,6 +73,11 @@ public:
     void on_action(const std::string& id, loom::Mail& m) {
         if (id == "reset") reset(m, false);
     }
+    /// A press the window landed on another control than the pane shows there now resets nothing.
+    void fenced(loom::Mail& m) {
+        state_.note = "the controls moved -- press again";
+        paint(m);
+    }
     void on(const DemoStatusRequested&, loom::Mail& m) { (void)m.answer(state_); }
     void on(const DemoReadyRequested& r, loom::Mail& m) {
         if (r.generation < 0 || waiters_.size() >= 8) {

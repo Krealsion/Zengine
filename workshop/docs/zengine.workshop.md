@@ -47,10 +47,12 @@ A weave joins the desk as a pane in five steps, each a message sent as its offic
 4. **Draw.** Send `Drawn` to that window, in your area alone: rows or a picture, each part named
    by the action a press there asks.
 5. **Hear the hand.** The window gives you the pointer in your area: `AreaButtonChanged` under
-   each press's number, `AreaPointerMoved`, `AreaWheelTurned`, `AreaHoldEnded`. Workshop sends
-   `PaneKey` and `PaneTextInput` while the keys are yours, `PaneKeys` as they come and go, a
-   declared row as `PaneActionRequested`, a carried value as `PaneCanvasValueDrop`. Continue a
-   press with [`PaneMenuRequested`](#panemenurequested) or
+   each press's number, with what it drew under the hand, `AreaPointerMoved`, `AreaWheelTurned`,
+   `AreaHoldEnded`. Act on the element a press landed on, and refuse it in your own words only
+   where your newest drawing shows another there. Workshop sends `PaneKey` and `PaneTextInput`
+   while the keys are yours, `PaneKeys` as they come and go and after each primary press in your
+   area, a declared row as `PaneActionRequested`, a carried value as `PaneCanvasValueDrop`.
+   Continue a press with [`PaneMenuRequested`](#panemenurequested) or
    [`PaneOperationRequested`](#paneoperationrequested).
 
 A walk through all five is [Make a Workshop tool](make-a-workshop-tool.md).
@@ -341,7 +343,8 @@ one role, about one subject.
   under the approved gesture's correlation.
 - **Answers:** `PaneCarryAnswered{carried, reason}`, to the asker alone; the band says `Carrying
   <label>`, then a dash and `click a receiving pane; Escape cancels`. The carrier's click on a pane that accepts it
-  sends `PaneCanvasDrop`, a point of its area, under a new correlation; elsewhere the
+  sends `PaneCanvasDrop` v3, a point of its area with the window's word of what it drew there,
+  under a new correlation; elsewhere the
   band says `This place does not accept the carried item; Escape cancels`, and it stays held.
   Escape puts it down; another hand cannot place or cancel it, and a guest's is released at the
   next attributed input once that guest has left. A placement Loom refuses is said with its
@@ -361,8 +364,8 @@ one role, about one subject.
   false waits for a click. v2 adds `token`, the source's own, which Workshop stamps into
   `PaneCanvasValueDrop` with the source office and pane.
 - **Answers:** `PaneCarryAnswered`, to the asker alone, as
-  [`PaneCarryRequested`](#panecarryrequested); the drop is `PaneCanvasValueDrop`, a point of the
-  area it lands in. A value drag starts at the source's
+  [`PaneCarryRequested`](#panecarryrequested); the drop is `PaneCanvasValueDrop` v4, a point of the
+  area it lands in, with what the window drew under the hand there. A value drag starts at the source's
   primary press, becomes a drag once the hand moves, and ends at that same hand's release, or its
   next key, text or press; a wheel turned while it is held turns the pane under the hand, and the
   drag stands. A click that never moved selects and carries nothing. A release that comes before the carry is answered
@@ -966,9 +969,10 @@ a refused change is drawn again whole at once.
 
 ### `AreaButtonChanged`
 
-`AreaButtonChanged` v2, from the window that shows `zengine.workshop` or a frame: a button pressed
+`AreaButtonChanged` v3, from the window that shows `zengine.workshop` or a frame: a button pressed
 or let go in one of Workshop's areas, at the screen's pixel there, by the hand it names. It is that
-moment as `PointerButton` takes one, that hand's, the press held to its own release: a tab, the chrome, the room, a menu, an arrangement, a body
+moment as `PointerButton` takes one, that hand's, the press held to its own release, a drop
+carrying what the window drew under it: a tab, the chrome, the room, a menu, an arrangement, a body
 Workshop draws. A moment over a pane a window shows in its own area is never relayed to it.
 
 ### `AreaPointerMoved`
@@ -996,11 +1000,12 @@ that it left. A pane's area it left is the pane's to answer.
 
 ### `AreaPressed`
 
-`AreaPressed` v2, from the window, to the arranger of a pane's area: a button pressed or let go
-there, at the window's pixel, under the window's number, by the hand it names. Workshop counts the
-gesture on that hand and keeps the number, which the pane's carry, pass-back or menu cites. The
-weaver's own primary press also selects the pane, gives it the keys, ends a guide mark it lands in
-and holds the pane's room against a title row; a guest's does not.
+`AreaPressed` v3, from the window, to a pane area's arranger: a button pressed or let go
+there, at the window's pixel, under the window's number, by the hand it names, with what the window
+drew under it, for a drop released there. Workshop counts the gesture on that hand and
+keeps the number, which the pane's carry, pass-back or menu cites. The weaver's own primary
+press also selects the pane, gives it the keys, ends a guide mark there and holds the pane's room
+against a title row; a guest's does not.
 
 ### `AreaHandRefused`
 
@@ -1015,6 +1020,13 @@ pane's area shows, its words and its named parts. Workshop keeps it as that pane
 each read waiting on it, judges a guide mark on it again, and publishes `DeskStamps` when the
 reading moved. A refusal is kept as the pane's, and said to its readers.
 
+### `AreaSettled`
+
+`AreaSettled` v1, from the window that shows the desk, unasked: what an area Workshop placed shows
+settled at a version. For a presented pane's area or the menu's, past the version Workshop took of
+it, Workshop asks it again (`AreaShowAsked`), one ask an area at a time; a late or repeated one
+asks nothing.
+
 ## Follow
 
 Workshop publishes as `zengine.workshop`, to whoever follows it, each only when it differs from
@@ -1026,8 +1038,8 @@ inspected; `TranscriptShown`, the terminal's record; `PaneSourceOpened` after an
 and `PaneQuitRequested`, the question a quit asks. To the skin it says `SurfaceCanvas` and
 `SurfaceText`, the picture and the band. To a graphics directory it says `SkinOffered`,
 `AreaPlaced`, `SkinChosen` and `RoomAsked`, each only when it moved, and to the window that shows
-its area, `Drawn`, and `AreaShowAsked` for each pane's area it reads. To the office of a pane a
-window shows in its own area it says `PaneKeys` whenever the keys come to the pane or leave it.
+its area, `Drawn`, and `AreaShowAsked` for each pane's area that settled. To a pane's office it
+says `PaneKeys` when the keys come or go, and after each primary press in its area.
 
 ## Files
 

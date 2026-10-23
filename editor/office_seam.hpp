@@ -595,14 +595,23 @@ public:
     /// caret and the selection standing in them (`ws::rows_drawing`): what changed there since the
     /// drawing last sent, or the whole after a new room or a refused change.
     void draw(loom::Mail& mail, const std::vector<ws::TextRow>& said,
-              const std::vector<ws::RowPart>& parts, const ws::RowsCaret& caret) {
+              const std::vector<ws::RowPart>& parts, const ws::RowsCaret& caret,
+              std::int64_t number = 0) {
         if (!in_window() || rows() <= 0 || columns() <= 0) {
             return;
         }
         ws::RowsDrawing drawn =
             ws::rows_drawing(said, parts, window_.rows_room(), columns(), caret, rows());
+        drawn.sketch.number(number);
         places_ = std::move(drawn.places);
         window_.draw(drawn.sketch, mail);
+    }
+
+    /// Whether a drop at `x`, `y` of the area names another element than the rows last drawn there
+    /// show, by the window's word of what it drew under the hand (`ws::WindowDrawing::moved`).
+    bool moved(const std::string& under, const std::string& part, std::int64_t drawing,
+               std::int64_t x, std::int64_t y) const {
+        return window_.moved(under, part, drawing, x, y);
     }
 
 private:

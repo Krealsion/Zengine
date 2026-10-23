@@ -371,6 +371,28 @@ TEST_CASE("a press on a condition's row in the Attention pane puts the cursor th
     CHECK(attention_conditions(f.r.session()).size() == 2);
 }
 
+TEST_CASE("a press the window landed on an Attention row where another condition stands now moves "
+          "the cursor nowhere and is said, and one on the condition drawn there moves it") {
+    AttentionRig f;
+    f.open();
+    f.unfocus();
+    f.establish(thing("a.one", "the first thing", "why the first"));
+    f.establish(thing("b.two", "the second thing", "why the second"));
+    f.focus();
+    REQUIRE(f.text().find("> the first thing") != std::string::npos);
+    const auto parts = held_parts(f.r.session(), f.kind);
+    REQUIRE(parts.count("condition:b.two") == 1);
+    const RowPart second = parts.at("condition:b.two");
+    press_as_drawn(f.r, f.kind, second.row, second.column + 2, "condition:a.one");
+    CHECK(f.text().find("the list moved -- press again") != std::string::npos);
+    CHECK(f.text().find("> the first thing") != std::string::npos);
+    // ...THE NOTICE LEADS THE PANE NOW, each row a line down: a press on the second condition where
+    // it is drawn now moves the cursor there.
+    const RowPart now = held_parts(f.r.session(), f.kind).at("condition:b.two");
+    press_as_drawn(f.r, f.kind, now.row, now.column + 2, "condition:b.two");
+    CHECK(f.text().find("> the second thing") != std::string::npos);
+}
+
 TEST_CASE("WL-HAND-06: a notice leading the Attention pane moves each condition's name down with the row that says it") {
     // THE NOTICE TAKES THE PANE'S FIRST ROW, so every row of the list lands one lower than it would
     // alone -- and a condition's name lands with it, never on the row above.

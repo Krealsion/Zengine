@@ -1082,6 +1082,35 @@ TEST_CASE("a view takes the keys and the text of the window that shows its area 
     CHECK(escapes() == before);
 }
 
+TEST_CASE("a press the window landed on a view where it now draws another element uses nothing and "
+          "is said, and one on the button drawn there uses it") {
+    Rig rig;
+    const auto d = panel();
+    REQUIRE(rig.ask(view::ViewRun{"app", bytes_of(d)}).ok);
+    const auto w = mount_window(rig, "tally.panel");
+    window_says(rig, w, "tally.panel", area_room("tally.panel", 40, 16));
+    REQUIRE(w.window->drawn.size() == 1);
+    const auto count = *std::find_if(d.elements.begin(), d.elements.end(),
+                                     [](const auto& e) { return e.id == "count"; });
+    const auto landed = [&](const std::string& part) {
+        for (const bool pressed : {true, false}) {
+            gfx::AreaButtonChanged b{"tally.panel", 1, pressed, count.x + count.w / 2,
+                                     count.y + count.h / 2, zengine::input::mod::kNone, true, 0};
+            b.under = "tally.panel";
+            b.part = part;
+            window_says(rig, w, "tally.panel", b);
+        }
+    };
+    const auto total = rig.total();
+    landed(""); // the window drew a field there, which names nothing
+    CHECK(rig.total() == total);
+    std::string said = rig.said("tally.panel");
+    said.erase(std::remove(said.begin(), said.end(), ' '), said.end());
+    CHECK_MESSAGE(has(said, "theviewchangedunderthepress"), rig.said("tally.panel"));
+    landed("count");
+    CHECK(rig.total() != total);
+}
+
 TEST_CASE("a view hears the pointer of the window that shows its area: a field pressed takes the focus and what is typed, a button pressed is used once, and the same from any other office changes nothing") {
     // MUTATION: a view that hears no pointer of its window -- a press on a field there focuses nothing.
     Rig rig;
