@@ -753,6 +753,8 @@ TEST_CASE("Compose drops are data and submission spends the input actor's exact 
         }
         r.extent(180, 60);
         REQUIRE(shows_canvas(*r.session().panes.external_pane(compose_kind)));
+        // What the window showed of Compose before it had a target.
+        const auto before_target = held_reading(compose_kind).parts;
         auto selector = std::make_unique<InventoryHand>(); auto* raw = selector.get();
         loom::Grant grant; grant.allow_to_any(intro::LoadedSelected::zen_name, 1);
         const auto selector_id = r.bus.register_weave(std::move(selector), grant, kIntroOffice);
@@ -777,6 +779,26 @@ TEST_CASE("Compose drops are data and submission spends the input actor's exact 
         r.bus.send_to_role(kComposerOffice, loom::Message(loom::to_value(forged)));
         r.bus.drain_until_idle();
         CHECK(s.shown(compose_kind) == untouched);
+        // A DROP THE WINDOW LANDED ON WHAT COMPOSE SHOWED BEFORE IT HAD A TARGET, where a target's
+        // message stands now, is refused in words and fills nothing.
+        std::int64_t row_then = -1, column_then = -1;
+        for (const auto& [name, part] : held_reading(compose_kind).parts) {
+            if (row_then < 0 && part_drawn_at(before_target, part.row, part.column) != name) {
+                row_then = part.row;
+                column_then = part.column;
+            }
+        }
+        REQUIRE_MESSAGE(row_then >= 0, s.shown(compose_kind));
+        const std::string compose_area = held_area_of(compose_kind);
+        r.bus.office_send_to_role_as(r.bus.role_holder(kWorkshopProvider), kWorkshopProvider,
+            kComposerOffice, loom::Message(loom::to_value(PaneCanvasValueDrop{"compose",
+                compose_area, column_then * gfx::kCellPx + 6, row_then * gfx::kCellPx + 6,
+                loom::Bytes(bytes.begin(), bytes.end()), "", "", "", compose_area,
+                part_drawn_at(before_target, row_then, column_then), 0})));
+        r.bus.drain_until_idle();
+        CHECK_MESSAGE(s.shown(compose_kind).find("the form changed under it") != std::string::npos,
+                      s.shown(compose_kind));
+        CHECK(s.shown(compose_kind).find("Copied data") == std::string::npos);
         s.info = compose_kind;
         std::int64_t command_row = -1;
         const auto rows = pane_rows(r, s.source);

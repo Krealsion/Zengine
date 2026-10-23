@@ -1029,6 +1029,9 @@ TEST_CASE("info views: a field dragged between views fills a compatible field an
     REQUIRE(s.shows(b, "inner: absent (required)"));
     auto field = [&](std::int64_t view, const std::string& label) { return s.field_at(view, label); };
     REQUIRE(shows_canvas(*s.r.session().panes.external_pane(b)));
+    // What the window showed of the destination before its fields were filled.
+    const auto before_filled = held_reading(b).parts;
+    const auto aimed_extra = field(b, "extra");
     // A NESTED MESSAGE: its whole branch, typed, into the absent required field.
     s.drag_between(a, field(a, "inner"), b, field(b, "inner"));
     CHECK_MESSAGE(s.shows(b, "*inner.a: 5"), s.shown(b));
@@ -1046,6 +1049,28 @@ TEST_CASE("info views: a field dragged between views fills a compatible field an
     CHECK(s.shows(b, "Field drop refused"));
     CHECK(s.shows(b, "extra: absent"));
     CHECK(s.shows(b, "numbers: absent"));
+    // A DROP THE WINDOW LANDED ON `extra` BEFORE THE BRANCH ADDED ROWS, where another field stands
+    // now, fills nothing and says why; one landed on `name` where it is drawn now fills it.
+    zengine::message_draft::Draft named(record_schema());
+    named.set_text({"name"}, "forged");
+    const auto encoded = inv::encode_pair(zengine::message_draft::grab_field(named, {"name"}), {});
+    const std::string area = held_area_of(b);
+    const auto drop_at = [&](std::pair<std::int64_t, std::int64_t> at, const std::string& part) {
+        s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider,
+            info::kInfoPaneRole, loom::Message(loom::to_value(PaneCanvasValueDrop{"info.3", area,
+                3 * gfx::kCellPx + gfx::kCellPx / 2, at.first * gfx::kCellPx + gfx::kCellPx / 2,
+                loom::Bytes(encoded.begin(), encoded.end()), "", "", "", area, part, 0})));
+        s.r.bus.drain_until_idle();
+    };
+    const std::string drawn = part_drawn_at(before_filled, aimed_extra.first, 3);
+    REQUIRE(drawn != part_drawn_at(b, aimed_extra.first, 3));
+    drop_at(aimed_extra, drawn);
+    CHECK_MESSAGE(s.shows(b, "nothing was filled"), s.shown(b));
+    CHECK(s.shows(b, "name: dst"));
+    CHECK(s.shows(b, "extra: absent"));
+    const auto name_now = field(b, "name");
+    drop_at(name_now, part_drawn_at(b, name_now.first, 3));
+    CHECK_MESSAGE(s.shows(b, "name: forged"), s.shown(b));
     // A PARTIAL NESTED VALUE KEEPS ITS ABSENCE: a preset's `inner` with `a` unset.
     s.button(a, "Close"); // a clean copy closes at once
     const auto c = s.new_view("info.2", 2, 30);
@@ -1056,7 +1081,7 @@ TEST_CASE("info views: a field dragged between views fills a compatible field an
     // SAVED THROUGH THE ENTRY'S OWNER: the stored preset holds exactly the composed draft.
     s.button(b, "Save");
     const auto saved = zengine::message_draft::read_draft(s.saved_entries()[2].item).draft;
-    CHECK(saved.get({"name"})->as_text() == "dst");
+    CHECK(saved.get({"name"})->as_text() == "forged");
     CHECK(saved.get({"inner", "a"}) == nullptr);
     CHECK(saved.get({"inner", "b"})->as_text() == "y");
     CHECK(saved.get({"tags"})->as_list().empty());
