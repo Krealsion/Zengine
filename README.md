@@ -49,11 +49,12 @@ and the verification discipline (see [Test discipline](docs/contributing/build-a
 
 What is not, stated plainly:
 
-- **The installable package covers the library, not Workshop.** `find_package(zengine)`
-  exports capability targets — the pane protocol a one-file Workshop pane speaks among them
-  — and installs the loadable artifacts they need. Workshop itself and the SDL-backed skin and
-  input reader are deliberately not in it — see [Using Zengine from another
-  project](docs/getting-started.md#using-zengine-from-another-project).
+- **Two packages, each for its reader.** `find_package(zengine)` exports capability targets
+  — the pane protocol a one-file Workshop pane speaks among them — and installs the loadable
+  artifacts they need; Workshop and the SDL-backed skin are not in it — see [Using Zengine
+  from another project](docs/getting-started.md#using-zengine-from-another-project). The
+  package a stranger downloads ([below](#download-and-run)) carries Workshop, ready to run, and
+  builds nothing.
 - **Linux/WSL with GCC is the only fully-supported configuration.** Windows builds a
   documented subset; the Loom's OS sandbox is Linux-only. See [supported
   toolchains](docs/contributing/supported-toolchains.md).
@@ -62,6 +63,24 @@ What is not, stated plainly:
   what an authored recipe catalog holds, and a rebuilt weave whose shapes changed is refused
   rather than reloaded in place. Each is written down in
   [Workshop limitations](workshop/docs/limitations.md) rather than left to be discovered.
+
+## Download and run
+
+Workshop, ready to run, is made from `main` each night: the
+[Releases page](https://github.com/Krealsion/Zengine/releases) holds the newest package, one
+archive per platform, with `SHA256SUMS` and the notes on checking them.
+
+| platform | file | start |
+|---|---|---|
+| Windows 10 or 11, x64 | `zengine-0.1.N-windows-x64.zip` | extract it anywhere, then `Workshop.cmd` (a window) or `Workshop-terminal.cmd` (this console) |
+| Linux x86-64, glibc 2.35 or newer | `zengine-0.1.N-linux-x86_64.tar.gz` | extract it anywhere, then `./workshop.sh` (a window) or `./workshop-terminal.sh` (this terminal) |
+
+Nothing else needs installing. Your project is a folder of your own, made at the first start and
+kept when a newer package replaces the old one: `%USERPROFILE%\Zengine` on Windows, `~/Zengine`
+on Linux. The package's `README.txt` says where everything goes, and `bin/zengine-workshop
+--version` names the commits it was made from. Windows may warn that the publisher is unknown:
+the package is not signed. What it does not do yet is in [Workshop
+limitations](workshop/docs/limitations.md#the-package-a-stranger-downloads-is-an-alpha-made-each-night).
 
 ## Build it
 
