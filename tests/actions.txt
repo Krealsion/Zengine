@@ -54,6 +54,7 @@ zengine.desktop desk desktop.hotkeys ctrl+k PaneLaunchRequested/1>zengine.deskto
 zengine.desktop desk desktop.deselect escape DeselectRequested/1 - put down
 zengine.desktop desk desktop.manual ctrl+f PaneDocumentRequested/1,PaneLaunchRequested/1>zengine.desktop/manual - manual
 zengine.desktop desk desktop.palette ctrl+space PaneToggleRequested/1>zengine.palette/palette - palette
+zengine.desktop desk desktop.palette-shift double-shift PaneToggleRequested/1>zengine.palette/palette - palette
 zengine.desktop list launcher.up up - - row up
 zengine.desktop list launcher.down down - - row down
 zengine.desktop list launcher.open return PaneLaunchRequested/1@pane: - show or focus

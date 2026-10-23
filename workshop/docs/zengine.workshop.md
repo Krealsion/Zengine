@@ -891,6 +891,14 @@ graphics window that shows Workshop's area: resolved once -- the application's r
 mode, then a menu, arranging, a naming line, the focused pane, command mode -- and spent there. A
 pane holding the keys hears `PaneKey`, or `PaneActionRequested` for a row it declared.
 
+### `KeyReleased`
+
+`KeyReleased`, from input or from that window: heard for Shift alone, per hand, to tell a tap from
+a hold. Shift pressed alone and released with no repeat is a tap, and a second lone Shift press
+within the double-click time is the key `double-shift`, resolved as `KeyPressed` is where a row in
+force answers to it ([`desktop.palette-shift`](zengine.desktop.md#desktoppalette-shift)). Any other release is passed
+over.
+
 ### `TextEntered`
 
 `TextEntered`, from input or from that window: a character goes where a key goes, so a pane

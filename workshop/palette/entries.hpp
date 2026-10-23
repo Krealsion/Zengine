@@ -70,7 +70,7 @@ inline Listing entries_of(const workshop::KeymapShown& keys, const workshop::Pan
     };
     for (const workshop::ShownBinding& row : keys.rows) {
         if (!row.remappable || row.id.empty() || row.office == workshop::kPaletteRole ||
-            row.id == "desktop.palette") {
+            row.id.rfind("desktop.palette", 0) == 0) {
             continue;
         }
         Entry e;

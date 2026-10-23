@@ -317,7 +317,7 @@ public:
             pane::launch(mail, pane::kDesktopRole, pane::kHotkeysPane, launches_);
             return;
         }
-        if (asked.id == pane::kActionPalette) {
+        if (asked.id == pane::kActionPalette || asked.id == pane::kActionPaletteShift) {
             // Shown over the pane holding the keys, or hidden: the host judges which.
             (void)mail.as_role(pane::kDesktopRole)
                 .send_to_role(kWorkshopRole, PaneToggleRequested{ws::kPaletteRole, ws::kPalettePane},
@@ -648,7 +648,8 @@ private:
     /// `Ctrl+t` the Terminal's own chord; `Ctrl+p` the launcher, a ctrl+letter the POSIX wire says;
     /// `Escape` in the DEFAULT class, so every pane's own Escape stays its own; `Ctrl+f` a pane's
     /// manual, above every mode, since only a chord reaches past a pane holding the keys;
-    /// `Ctrl+Space` the palette, a chord every window says, typing nothing where it opens.
+    /// `Ctrl+Space` the palette, a chord every window says, typing nothing where it opens; and
+    /// double Shift, its second key, which the OS window says.
     static std::vector<AppActionRow> app_rows() {
         return {
             AppActionRow{pane::kActionTerminal, "terminal", input::scan::kT, input::mod::kCtrl,
@@ -675,6 +676,10 @@ private:
                               ws::to_pane(pane::kDesktopRole, pane::kManualPane))}},
             AppActionRow{pane::kActionPalette, "palette", input::scan::kSpace, input::mod::kCtrl,
                          ws::app_precedence::kAboveModes,
+                         {ws::cause_of<PaneToggleRequested>(
+                             ws::to_pane(ws::kPaletteRole, ws::kPalettePane))}},
+            AppActionRow{pane::kActionPaletteShift, "palette", ws::kDoubleShift,
+                         input::mod::kNone, ws::app_precedence::kAboveModes,
                          {ws::cause_of<PaneToggleRequested>(
                              ws::to_pane(ws::kPaletteRole, ws::kPalettePane))}}};
     }

@@ -12,6 +12,7 @@
 
 #include "workshop_support.hpp"
 #include "census.hpp"
+#include "timeline.hpp"
 
 #include "workshop/command_vocabulary.hpp"
 #include "workshop/desktop-pane/vocabulary.hpp"
@@ -387,4 +388,163 @@ TEST_CASE("WL-DESK-18: a run is refused under any number but the palette's own u
     });
     REQUIRE(own.seat->answers.size() == 3);
     CHECK_FALSE(own.seat->answers.back().ran);
+}
+
+namespace {
+
+/// THE INPUT OFFICE, as a case's hand on it: a participant's moments, attributed to `actor`.
+class InputOffice : public loom::WeaveBase<InputOffice, SeatState, loom::Accept<SeatDo>,
+                                           loom::Emit<input::AttributedInput>> {
+public:
+    std::function<void(loom::Mail&)> next;
+    void on(const SeatDo&, loom::Mail& mail) {
+        if (next) {
+            std::function<void(loom::Mail&)> once;
+            once.swap(next);
+            once(mail);
+        }
+    }
+};
+
+struct Hands {
+    PaneRig& r;
+    InputOffice* seat = nullptr;
+    loom::WeaveId id{};
+    explicit Hands(PaneRig& rig) : r(rig) {
+        auto made = std::make_unique<InputOffice>();
+        seat = made.get();
+        loom::Grant grant;
+        grant.allow_to_any(input::AttributedInput::zen_name, input::AttributedInput::zen_version);
+        id = r.bus.register_weave(std::move(made), std::move(grant), input::kInputRole);
+        seat->zen_set_self(id);
+    }
+    void say(std::int64_t actor, const char* kind, std::int64_t scancode, std::int64_t mods) {
+        input::InjectedEvent e;
+        e.kind = kind;
+        e.scancode = scancode;
+        e.modifiers = mods;
+        seat->next = [actor, e](loom::Mail& m) {
+            (void)m.as_role(input::kInputRole).publish(input::AttributedInput{actor == 0, actor, e});
+        };
+        (void)r.bus.send(id, loom::Message(loom::to_value(SeatDo{}), {}, {}, 0));
+        r.bus.drain_until_idle();
+    }
+    /// SHIFT TAPPED: pressed alone and let go, by `actor`'s hand.
+    void tap(std::int64_t actor) {
+        say(actor, "KeyPressed", input::scan::kLeftShift, input::mod::kShift);
+        say(actor, "KeyReleased", input::scan::kLeftShift, input::mod::kNone);
+    }
+};
+
+} // namespace
+
+TEST_CASE("double-shift is a key of Workshop's own: spelled, read back, shown as shift shift, taking "
+          "no modifier, and said as the OS window's") {
+    const ParsedGesture parsed = parse_gesture("double-shift");
+    REQUIRE(parsed.accepted);
+    CHECK(parsed.gesture == Gesture{kDoubleShift, input::mod::kNone});
+    CHECK(gesture_word(parsed.gesture) == "double-shift");
+    CHECK(gesture_text(parsed.gesture) == "shift shift");
+    CHECK(expected_text_of(kDoubleShift, input::mod::kNone).empty());
+    const ParsedGesture modified = parse_gesture("ctrl+double-shift");
+    CHECK_FALSE(modified.accepted);
+    CHECK(modified.refusal.find("no modifier") != std::string::npos);
+    const char* gap = posix_gap(parsed.gesture);
+    REQUIRE(gap != nullptr);
+    CHECK(std::string(gap).find("double-shift is the OS window's") != std::string::npos);
+    // A SHIFT ALONE is still no key a row names.
+    CHECK_FALSE(parse_gesture("shift").accepted);
+}
+
+TEST_CASE("WL-KEY-19: two Shift taps of one hand open the palette; a held Shift, a key between, a "
+          "slow pair and another hand's tap do not") {
+    PaneRig r;
+    ProviderSeat* tools = nullptr;
+    start(r, tools);
+    REQUIRE(r.load("zengine-palette", WORKSHOP_SO_PALETTE, kPaletteRole).valid());
+    Hands hands(r);
+    // EACH PART ENDS PUT DOWN, and with a key of each hand, so no tap carries into the next.
+    const auto put_down = [&] {
+        if (on_desk(r, kPaletteRole, kPalettePane)) r.key(input::scan::kEscape);
+        REQUIRE_FALSE(on_desk(r, kPaletteRole, kPalettePane));
+        hands.say(0, "KeyPressed", input::scan::kA, input::mod::kNone);
+        hands.say(77, "KeyPressed", input::scan::kA, input::mod::kNone);
+    };
+    r.clock.together();
+
+    // TWO TAPS, QUICKLY: the palette, over the pane holding the keys.
+    hands.tap(0);
+    CHECK_FALSE(on_desk(r, kPaletteRole, kPalettePane)); // one tap is a Shift and nothing more
+    hands.tap(0);
+    CHECK(on_desk(r, kPaletteRole, kPalettePane));
+    put_down();
+
+    // A HELD SHIFT repeats as presses with no release: no pair.
+    hands.say(0, "KeyPressed", input::scan::kLeftShift, input::mod::kShift);
+    hands.say(0, "KeyPressed", input::scan::kLeftShift, input::mod::kShift);
+    hands.say(0, "KeyPressed", input::scan::kLeftShift, input::mod::kShift);
+    hands.say(0, "KeyReleased", input::scan::kLeftShift, input::mod::kNone);
+    hands.say(0, "KeyPressed", input::scan::kLeftShift, input::mod::kShift);
+    CHECK_FALSE(on_desk(r, kPaletteRole, kPalettePane));
+    hands.say(0, "KeyReleased", input::scan::kLeftShift, input::mod::kNone);
+    put_down();
+
+    // A KEY BETWEEN the taps breaks the pair.
+    hands.tap(0);
+    hands.say(0, "KeyPressed", input::scan::kA, input::mod::kNone);
+    hands.tap(0);
+    CHECK_FALSE(on_desk(r, kPaletteRole, kPalettePane));
+    put_down();
+
+    // ANOTHER HAND'S TAP never pairs with this one's; its own second tap is its own pair.
+    hands.tap(0);
+    hands.tap(77);
+    CHECK_FALSE(on_desk(r, kPaletteRole, kPalettePane));
+    hands.tap(77);
+    CHECK(on_desk(r, kPaletteRole, kPalettePane));
+    put_down();
+
+    // A SLOW PAIR, the second tap past a double-click's time, is two Shifts.
+    r.clock.apart();
+    hands.tap(0);
+    hands.tap(0);
+    CHECK_FALSE(on_desk(r, kPaletteRole, kPalettePane));
+}
+
+TEST_CASE("WL-DESK-18: the space a window types with Ctrl+Space types nowhere -- not in the pane "
+          "holding the keys, not in the palette's filter") {
+    PaneRig r;
+    ProviderSeat* tools = nullptr;
+    start(r, tools);
+    REQUIRE(r.load("zengine-palette", WORKSHOP_SO_PALETTE, kPaletteRole).valid());
+    REQUIRE(r.load_refusals.empty());
+    const auto texts_to = [](const zengine::tests::Timeline& heard, const std::string& office) {
+        std::vector<std::string> out;
+        for (const std::string& line : heard.lines()) {
+            if (line.find("-> " + office) != std::string::npos &&
+                line.find("PaneTextInput") != std::string::npos) {
+                out.push_back(line);
+            }
+        }
+        return out;
+    };
+    // THE PANE HOLDING THE KEYS TAKES TEXT: a letter typed reaches it.
+    r.text("a");
+    REQUIRE(tools->typed.size() == 1);
+    CHECK(tools->typed.back().text == "a");
+
+    // CTRL+SPACE AS THE WINDOWS CONSOLE SAYS IT: the key, then its space as text, no key of its own.
+    zengine::tests::Timeline heard(r.bus);
+    r.key(input::scan::kSpace, input::mod::kCtrl);
+    r.text(" ");
+    REQUIRE(on_desk(r, kPaletteRole, kPalettePane));
+    CHECK(tools->typed.size() == 1);                // nothing more in the pane it opened over
+    CHECK(texts_to(heard, kPaletteRole).empty());    // ...and nothing in the palette's filter
+    // ...WHILE A CHARACTER TYPED AFTER IT IS THE FILTER'S, so the palette does take text.
+    r.text("x");
+    heard.stop();
+    const std::vector<std::string> to_palette = texts_to(heard, kPaletteRole);
+    REQUIRE(to_palette.size() == 1);
+    CHECK(to_palette.front().find("\"x\"") != std::string::npos);
+    CHECK(tools->typed.size() == 1);
 }

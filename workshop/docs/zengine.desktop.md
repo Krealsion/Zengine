@@ -128,6 +128,20 @@ everything you can do by name, run by Workshop as your key would run it.
 - **Example:** in the Editor, press <!-- key desktop.palette -->`ctrl+space`<!-- /key -->, type
   `save`, press Return.
 
+### `desktop.palette-shift`
+
+Shows or hides the [Command Palette](zengine.palette.md), as
+[`desktop.palette`](#desktoppalette) does, on Shift tapped twice: the OS window's second key for it.
+
+- **Takes:** nothing. Default key <!-- key desktop.palette-shift -->`double-shift`<!-- /key -->:
+  Shift pressed alone and let go, twice, within a double-click's time, with nothing between; a
+  terminal reports no Shift alone, and the load says so.
+- **Answers:** asks Workshop to show or hide the palette
+  ([`PaneToggleRequested`](zengine.workshop.md#panetogglerequested)).
+- **Refuses:** nothing; a held Shift, a key between the taps, a slow pair and another hand's tap
+  are no double Shift.
+- **Example:** in the OS window, tap Shift twice.
+
 ## Commands in the Pane Manager
 
 The Pane Manager lists every pane Workshop can show, one row each. The marker `>` stands on the row

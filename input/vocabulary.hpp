@@ -94,6 +94,10 @@ inline constexpr std::int64_t kRight = 79;
 inline constexpr std::int64_t kLeft = 80;
 inline constexpr std::int64_t kDown = 81;
 inline constexpr std::int64_t kUp = 82;
+/// The two Shift keys as keys of their own: a window reports them pressed and let go alone; a
+/// terminal reports Shift only on the key it changes.
+inline constexpr std::int64_t kLeftShift = 225;
+inline constexpr std::int64_t kRightShift = 229;
 } // namespace scan
 
 /// The semantic modifiers, as a bitmask: left and right fold, since "was Ctrl held" is the
