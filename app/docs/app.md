@@ -15,7 +15,7 @@ An app is a folder of data, and nothing built:
 | `app.json` | the app: its name, its window's skin, the views it runs and where each stands, and the flows |
 | `<name>.view` | a view, as the View Builder saves it |
 | `<name>.flow` | a flow, its definition and its state, as Flow's Export writes it |
-| `run.cmd`, `run.sh` | the launchers: each starts `zengine-app` on the folder it stands in |
+| `run.cmd`, `run.sh` | the launchers: each starts `zengine-app` on the folder it stands in ([which one](#which-zengine-app-the-launchers-start)) |
 | `app-authority.json` | written by `zengine-app` as you decide: Loom's authority store |
 
 The plan names artifacts by stem, and `zengine-app` opens each from its own artifact directory:
@@ -25,6 +25,17 @@ directory. The folder carries no artifact, so it moves whole.
 [`examples/tally-app/`](../../examples/tally-app/README.md) is one: the tally panel and the tally
 flow. A build stages a copy of it beside `zengine-app`, in `apps/tally/`, with `run.cmd` and
 `run.sh`, each starting that program on the folder it stands in.
+
+### Which `zengine-app` the launchers start
+
+An exported app's launchers name the `zengine-app` beside the Workshop that exported it. In the
+package a stranger downloads, a newer package replaces the old folder, so each start of its
+launchers writes `zengine-app.path` in the project: one line, the path of that package's
+`zengine-app`. `run.cmd` and `run.sh` start the program that line names when the project has one
+(`../../zengine-app.path` from the app's folder), else the one they were exported with. When that
+program is not there, each says so and names it -- `This app runs in zengine-app, and the program it
+names is gone:` -- and asks you to start Workshop once from the package you keep, in the app's
+project, and run the app again.
 
 ### Making one in Workshop
 
@@ -40,7 +51,8 @@ asks Workshop to allow the write, as Save does, then writes `apps/tally/` in the
   view at (8, 8) and its notice rows, the `day` skin, the view in a session named after it and the
   flow in its definition's;
 - `tally.view` and `tally.flow`, copied from the files it was made from, each read back first;
-- `run.cmd` and `run.sh`, each starting the `zengine-app` beside Workshop on that folder.
+- `run.cmd` and `run.sh`, each starting the `zengine-app` beside Workshop on that folder, or the one
+  the project names ([below](#which-zengine-app-the-launchers-start)).
 
 It writes no decision and copies no artifact. Its last words name each artifact the app's console
 will ask about on the first start. An app already there is replaced only after a second press, and

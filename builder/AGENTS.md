@@ -50,6 +50,7 @@ Its cases in shared suites: `workshop_panes_project` (`tests/test_workshop_panes
 
 - the mount: `workshop/workshop.cpp` mounts the runner and the tool in-process, each with its own
   grant; the runner's one CMake is `ZENGINE_BUILDER_CMAKE`, set in `workshop/CMakeLists.txt`
+  (empty in the package a stranger downloads)
 - the catalog both read: `workshop/recipes.hpp`, `workshop/recipe_persist.hpp`, shipped from
   `workshop/default-build-recipes.json.in`; `workshop/authoring.hpp` writes recipe and plan rows
 - realization: `PlanBooter` in `workshop/load_execute.hpp` holds `zengine.realization`;

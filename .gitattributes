@@ -19,3 +19,7 @@
 # An app's view and flow are Loom's canonical binary, as the View Builder and Flow save them.
 *.view -text
 *.flow -text
+
+# A Windows command file is CRLF: cmd.exe reads a label in an LF-only file unreliably, so a
+# launcher's `goto` could land nowhere.
+*.cmd text eol=crlf

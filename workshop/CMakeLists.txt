@@ -187,9 +187,35 @@ target_link_libraries(zengine-workshop
 #
 # ${CMAKE_COMMAND} is the cmake that configured this tree, by absolute path: one resolved from
 # PATH could drive a different CMake against this tree, and a recipe naming a program would make
-# every recipe catalog an arbitrary-execution document.
+# every recipe catalog an arbitrary-execution document. The package a stranger downloads
+# (ZENGINE_PACKAGE) compiles in none: its Builder refuses in its own words, and it builds nothing.
+if(ZENGINE_PACKAGE)
+    set(zengine_builder_cmake "")
+else()
+    set(zengine_builder_cmake "${CMAKE_COMMAND}")
+endif()
 target_compile_definitions(zengine-workshop PRIVATE
-    "ZENGINE_BUILDER_CMAKE=\"${CMAKE_COMMAND}\"")
+    "ZENGINE_BUILDER_CMAKE=\"${zengine_builder_cmake}\"")
+
+# ---- What `--version` says ---------------------------------------------------------------
+# The package's facts, as its BUILD-INFO.txt says them (cmake/ZengineInstall.cmake); a build that
+# is no package says so, and compiles in no commit, so a new commit rebuilds nothing.
+if(ZENGINE_PACKAGE)
+    set(zengine_version_text "")
+    foreach(zengine_version_line
+            "zengine ${ZENGINE_PACKAGE_VERSION}"
+            "zengine commit ${ZENGINE_PACKAGE_COMMIT}"
+            "zengine tree ${ZENGINE_PACKAGE_TREE}"
+            "loom commit ${ZENGINE_PACKAGE_LOOM_COMMIT}"
+            "compiler ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}"
+            "build type ${CMAKE_BUILD_TYPE}")
+        string(APPEND zengine_version_text "${zengine_version_line}\\n")
+    endforeach()
+else()
+    set(zengine_version_text "zengine ${PROJECT_VERSION}, a build that is no package: it names no commit\\n")
+endif()
+target_compile_definitions(zengine-workshop PRIVATE
+    "ZENGINE_VERSION_TEXT=\"${zengine_version_text}\"")
 
 # ---- The shipped recipe catalog, configured rather than compiled in ---------------------
 #
@@ -286,6 +312,11 @@ endforeach()
 
 add_custom_target(zengine-workshop-staging DEPENDS ${zengine_workshop_staged})
 add_dependencies(zengine-workshop zengine-workshop-staging)
+# What this host stages, for the one install owner (cmake/ZengineInstall.cmake): the package installs
+# the artifacts, programs and plans this directory holds, read here rather than listed twice.
+set_property(GLOBAL PROPERTY ZENGINE_WORKSHOP_ARTIFACTS ${zengine_workshop_artifacts})
+set_property(GLOBAL PROPERTY ZENGINE_WORKSHOP_PROGRAMS ${zengine_workshop_programs})
+set_property(GLOBAL PROPERTY ZENGINE_WORKSHOP_PLANS ${zengine_workshop_plans})
 
 # ---- The shipped recipe catalog, written straight into the host's directory ------
 #

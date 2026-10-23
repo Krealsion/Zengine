@@ -1,0 +1,8 @@
+zengine        @ZENGINE_PACKAGE_VERSION@
+zengine commit @ZENGINE_PACKAGE_COMMIT@
+zengine tree   @ZENGINE_PACKAGE_TREE@
+loom commit    @ZENGINE_PACKAGE_LOOM_COMMIT@
+compiler       @CMAKE_CXX_COMPILER_ID@ @CMAKE_CXX_COMPILER_VERSION@
+system         @CMAKE_SYSTEM_NAME@ @CMAKE_SYSTEM_PROCESSOR@
+build type     @CMAKE_BUILD_TYPE@
+sdl            SDL3, SDL3_ttf and FreeType from the archives cmake/ZengineSdl.cmake pins by SHA-256
