@@ -4,6 +4,8 @@ Register `WL-TEXT`: the editable line as a window onto its text, and editing as 
 that belongs to no consumer. One law per heading; cite by ID. Router:
 [`../workshop.md`](../workshop.md).
 
+Retired: WL-TEXT-14.
+
 ## WL-TEXT-01 — Editing text is a component, and it belongs to no consumer
 
 LAW — `component::TextBox` owns text, caret, anchor and window as one state, the operations its only door; the name editor, a Composer field and a pane's line are instances.
@@ -126,21 +128,6 @@ MEANS
 
 WHY — `agents/decisions/the-line-is-a-window.md`
 
-## WL-TEXT-14 — A text-selection drag is a gesture record of its own
-
-LAW — `Session::text_drag` holds which editable line or pane a press began sweeping and nothing else; every motion re-resolves the current geometry through the press's own measurer and hands on a position.
-
-MEANS
-- the row is not re-tested mid-drag, so a hand that wanders off the line keeps sweeping it;
-- a press begins it only on the paths that consume the press; release keeps the selection;
-- a pane's (`kExternalPane`) crosses as `PaneDragged`, unclamped, no release; a lost seat ends it.
-
-DOES NOT MEAN — that every pane sweeps. `kTerminalLine` left with the overlay; a text pane that
-never declared a use for the motion is sent one it may ignore, and a pane drawing on its canvas
-hears its own press's motion instead (WL-CANVAS-03).
-
-WHY — `agents/decisions/one-press-one-gesture.md`
-
 ## Proven by
 
 ### WL-TEXT-01
@@ -248,14 +235,3 @@ the word a press landed in" "pointer and keyboard agree about which bytes are on
 `component/text_box.hpp` TextBox TextBox::visible_selection pasteable_line
 `tests/test_component.cpp` "component: the visible selection is the span both media may spend"
 "component: paste flattens foreign bytes into one line"
-
-### WL-TEXT-14
-`workshop/screen.hpp` Session::text_drag TextDrag text_drag_place kExternalPane
-`workshop/weave_external.cpp` external_drag
-`workshop/weave_pointer.cpp` on(PointerMoved) end_held_gestures
-`component/text_box.hpp` TextBox::drag_to_column
-`tests/test_component.cpp` "component: drag_to_column extends from the pressed anchor and can leave
-the slice"
-`tests/test_workshop_panes_input.cpp` "a text pane's sweep crosses as PaneDragged from a press on
-one of its rows, unclamped and with no release, and a press on its header or a lost seat sweeps
-nothing"

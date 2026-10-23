@@ -66,12 +66,12 @@ public:
         return picture_;
     }
 
-    /// THE NUMBER OF THE PICTURE LAST SETTLED -- what a pane publishes on `v3::PaneContent`
-    /// and compares a press's echo against. 0 until the first `settle`.
+    /// THE NUMBER OF THE PICTURE LAST SETTLED -- it moves exactly when the row-to-meaning map
+    /// does, and a press's echo is compared against it. 0 until the first `settle`.
     std::int64_t picture() const noexcept { return picture_; }
 
-    /// Does a press stamped `echoed` name this picture? A press echoing 0 names none: a host
-    /// that never admitted a numbered picture, which a consumer may choose to act on anyway.
+    /// Does a press stamped `echoed` name this picture? A press echoing 0 names none, which a
+    /// consumer may choose to act on anyway.
     bool current(std::int64_t echoed) const noexcept { return echoed == picture_; }
 
     void clear() noexcept { spans_.clear(); }

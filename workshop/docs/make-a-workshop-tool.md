@@ -16,7 +16,7 @@ Read Tally in this order:
 1. `TallyState` owns the count. Room dimensions and pending interactions are image-local.
 2. `Accept` and `Emit` declare schema vocabulary; they confer no authority.
 3. `offer()` announces the pane and its named action from its actual office.
-4. `on(PaneRoom)` fits the rows to the room Workshop granted.
+4. `on(AreaRoom)` takes the room the window gives its area, and `show` draws the rows there.
 5. `on(PaneActionRequested)` checks authorship and pane identity before changing the count.
 
 Change the label in `rows_for()` first. Then change the action's behavior. Keep its action id

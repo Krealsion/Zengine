@@ -92,28 +92,6 @@ during reset`. Answered `zen.Ack`; refused `not the attached demo service`.
 `PaneCatalogRequested` v1, from Workshop: the pane is offered again, with its one action.
 Shape: [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp).
 
-### `PaneRoom`
-
-`PaneRoom` v1, from Workshop: the room the pane says its rows in as text, when no canvas is granted.
-Shape: [`workshop/pane_vocabulary.hpp`](../../workshop/pane_vocabulary.hpp).
-
-### `PaneCanvasRoom`
-
-`PaneCanvasRoom` v3, from Workshop: the pane's canvas, where it draws its rows, naming the reset
-button `control:reset` and the line beneath it `status`.
-Shape: [`workshop/pane_canvas_vocabulary.hpp`](../../workshop/pane_canvas_vocabulary.hpp).
-
-### `PaneCanvasPointer`
-
-`PaneCanvasPointer` v2, from Workshop: a press on the canvas. A primary press on the reset button
-is [`reset`](#reset); a right press is handed back, so Workshop's own menu for the pane opens.
-Shape: [`workshop/pane_canvas_vocabulary.hpp`](../../workshop/pane_canvas_vocabulary.hpp).
-
-### `PaneCanvasRejected`
-
-`PaneCanvasRejected` v1, from Workshop: a picture it refused; the last good one stays, and the next
-change draws again. Shape: [`workshop/pane_canvas_vocabulary.hpp`](../../workshop/pane_canvas_vocabulary.hpp).
-
 ### `PaneActionRequested`
 
 `PaneActionRequested` v1, from Workshop: the action [`reset`](#reset), as the menu line asks it.

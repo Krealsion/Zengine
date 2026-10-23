@@ -1,38 +1,41 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The Hello pane provider: a real dynamic weave offering Workshop one read-only pane, and the
-// smallest complete witness of the external pane seam (workshop/docs/panes.md). A fixture, not a
-// product: loaded only by the Workshop suites, through the real ABI and Kernel. It writes no file,
-// starts no process, opens no socket and publishes no canvas: the pane protocol grants a provider
-// no ambient authority. Its bus grant is Loom's in-process default, `allow_any`, so the protocol's
-// narrowness is a fact about the protocol, not a containment claim about the loader.
+// The Hello pane provider: a real dynamic weave offering Workshop one read-only pane, the smallest
+// complete witness of the external pane seam (workshop/docs/panes.md), drawing its rows in its
+// office's area of the graphics window that shows it. A fixture loaded only by the Workshop
+// suites, through the real ABI and Kernel; it writes no file, starts no process, opens no socket.
+// Its bus grant is Loom's in-process default, `allow_any`: the protocol's narrowness is the
+// protocol's, not a containment claim about the loader.
 
+#include "workshop/pane_drawing.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
 #include "activation/activation.hpp"
 #include "graphics/role.hpp"
-#include "surface/vocabulary.hpp"
+#include "graphics/vocabulary.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
 #include <zen/weave/lifecycle.hpp>
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace {
 
-namespace surface = zengine::surface;
+namespace ws = zengine::workshop;
 namespace gfx = zengine::graphics;
 using zengine::workshop::PaneCatalogRequested;
-using zengine::workshop::PaneContent;
 using zengine::workshop::PaneOffered;
-using zengine::workshop::PaneRoom;
 
 /// THIS PROVIDER'S OFFICE — the durable half of the `PaneRef` a weaver's setup
-/// will name it by. Hard-coded, because a fixture that could be configured into
-/// several identities would be testing its own configuration rather than the seam.
+/// will name it by, and the area its one pane draws in. Hard-coded, because a fixture that could
+/// be configured into several identities would be testing its own configuration rather than the
+/// seam.
 constexpr const char* kHelloRole = "zengine.test.workshop-hello";
 
 /// The office Workshop holds. Named here rather than reached through
@@ -46,19 +49,20 @@ constexpr const char* kPaneName = "Hello";
 constexpr const char* kPaneSummary = "a bounded external greeting";
 
 struct HelloState {
-    /// How many rooms this provider has been granted — the number that makes a
-    /// duplicate `PaneRoom` visible if one is ever sent.
+    /// How many rooms a window gave this provider's area — the number that makes a
+    /// duplicate `AreaRoom` visible if one is ever sent.
     std::int64_t rooms = 0;
     std::int64_t offers = 0;
-    std::int64_t refused = 0; ///< asks that were not authored by the Workshop office
+    std::int64_t refused = 0; ///< asks and rooms not authored by the office they claim
     ZEN_EXPOSE();
     ZEN_SHAPE(HelloState, 1, ZEN_FIELD(rooms), ZEN_FIELD(offers), ZEN_FIELD(refused));
 };
 
 class HelloPaneWeave
     : public loom::WeaveBase<HelloPaneWeave, HelloState,
-                             loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom>,
-                             loom::Emit<PaneOffered, PaneContent>> {
+                             loom::Accept<loom::Activated, PaneCatalogRequested, gfx::AreaRoom,
+                                          gfx::DrawnRefused>,
+                             loom::Emit<PaneOffered, gfx::Drawn, gfx::RoomAsked>> {
 public:
     /// First breath, and only if Loom says so: `ActivationCursor` (activation/activation.hpp)
     /// wants Loom's lifecycle attestation and a sequence this incarnation has not acted on. A
@@ -84,37 +88,57 @@ public:
         announce(mail);
     }
 
-    /// Workshop granting this pane its prose budget. The content is formatted from the room it
-    /// was given, the fixture's one deliberate design: the suite reads the granted rows and
-    /// columns off the canvas a weaver would see, so the room contract is observed through the
-    /// real presentation, not a test-only hook.
-    void on(const PaneRoom& room, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole)) {
-            ++state_.refused;
-            return; // a forged room grants nothing and produces no content
+    /// The room a graphics window gives this pane's area. The rows are formatted from it, the
+    /// fixture's one deliberate design: the suite reads the room's rows and columns off the
+    /// window's drawing a weaver would see, so the room contract is observed through the real
+    /// presentation, not a test-only hook.
+    void on(const gfx::AreaRoom& room, loom::Mail& mail) {
+        if (room.area != kHelloRole) {
+            return; // a room for an area this provider does not draw in
         }
-        if (room.pane != kPaneKey) {
-            return; // a room for a pane this provider does not have
+        if (!mail.authored_from_role(std::string(gfx::kWindowOfficePrefix) + room.window)) {
+            ++state_.refused;
+            return; // a forged room gives nothing and draws nothing
+        }
+        if (!window_.room(room, mail)) {
+            return; // the room the window already holds this pane's rows for
         }
         ++state_.rooms;
-        PaneContent said;
-        said.pane = kPaneKey;
+        const ws::RowsRoom fit = window_.rows_room();
+        const std::int64_t rows = fit.rows();
+        const std::int64_t columns = fit.columns();
+        std::vector<ws::TextRow> said;
         // Row one names the room, which is what makes the budget legible on screen.
-        said.rows.push_back(surface::SurfaceTextRow{
-            fitted("hello -- " + std::to_string(room.rows) + "x" + std::to_string(room.columns),
-                   room.columns),
+        said.push_back(ws::TextRow{
+            fitted("hello -- " + std::to_string(rows) + "x" + std::to_string(columns), columns),
             gfx::role::kFill});
-        // ...and the remaining rows are filled to the row budget exactly, so a suite
-        // reading the pane can tell "this provider spent its whole grant" from "this
-        // provider had nothing more to say".
-        for (std::int64_t i = 1; i < room.rows; ++i) {
-            said.rows.push_back(surface::SurfaceTextRow{
-                fitted("row " + std::to_string(i), room.columns), gfx::role::kMuted});
+        // ...and the remaining rows are filled to the room exactly, so a suite reading the pane
+        // can tell "this provider spent its whole room" from "this provider had nothing more to
+        // say".
+        for (std::int64_t i = 1; i < rows; ++i) {
+            said.push_back(ws::TextRow{fitted("row " + std::to_string(i), columns),
+                                       gfx::role::kMuted});
         }
-        // DELIBERATELY AS THIS OFFICE. `mail.send_to_role(...)` would be PERSONAL
-        // speech from a weave that happens to hold the office, and Workshop refuses
-        // it — holding is never speaking-for (MSG-07).
-        (void)mail.as_role(kHelloRole).send_to_role(kWorkshopRole, said);
+        // DELIBERATELY AS THIS OFFICE: the window takes a drawing only from the office its area
+        // is named by, and holding is never speaking-for (MSG-07).
+        window_.draw(
+            ws::rows_drawing(said, std::vector<ws::RowPart>{}, fit, columns, {}, rows).sketch,
+            mail);
+    }
+
+    /// A drawing the window refused leaves what it shows as it was.
+    void on(const gfx::DrawnRefused& refused, loom::Mail& mail) {
+        (void)window_.refused(refused, mail);
+    }
+
+    /// The room asked once in each life while no window has said it: a Hello reloaded into a
+    /// window draws there again.
+    void after_delivery(loom::Mail& mail) {
+        if (!asked_ && !window_.shown()) {
+            asked_ = true;
+            (void)mail.as_role(kHelloRole).send_to_role(gfx::kGraphicsRole,
+                                                        gfx::RoomAsked{window_.area()});
+        }
     }
 
 private:
@@ -130,9 +154,8 @@ private:
             .send_to_role(kWorkshopRole, PaneOffered{kPaneKey, kPaneName, kPaneSummary});
     }
 
-    /// A row cut to the granted columns. The provider owns what its rows SAY and
-    /// owes Workshop rows that fit; Workshop refuses an over-wide row rather than
-    /// truncating it, so a provider that does not measure loses its whole update.
+    /// A row cut to the room's columns. The provider owns what its rows SAY, and a row past the
+    /// room's width is not drawn past it.
     static std::string fitted(std::string text, std::int64_t columns) {
         if (columns <= 0) {
             return std::string();
@@ -143,6 +166,8 @@ private:
         return text;
     }
 
+    ws::WindowDrawing window_{kHelloRole, kHelloRole};
+    bool asked_ = false;
     zengine::ActivationCursor activation_;
 };
 

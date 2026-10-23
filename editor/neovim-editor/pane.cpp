@@ -44,7 +44,7 @@
 #include "editor/source-transfer/material.hpp"
 #include "workshop/editor_handoff_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
-#include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_document.hpp"
@@ -117,13 +117,10 @@ using ws::PaneKey;
 using ws::v2::PaneOffered;
 using ws::PaneQuitAnswered;
 using ws::PaneQuitRequested;
-using ws::PaneRoom;
 using ws::PaneTextInput;
-using ws::PrepareSourceRequested;
 using ws::ProjectRoot;
 using ws::ProjectRootRequested;
 using ws::SourceOpened;
-using ws::SourcePrepared;
 using zengine::workshop::pane_text::drawable;
 using zengine::workshop::pane_text::fit;
 
@@ -133,9 +130,8 @@ using NeovimEditorBase = zengine::With<ws::PaneManualFacet<
     nve::kEditorPane, zengine::manual::pages::zengine_editor::kManual>>::Weave<
     class NeovimEditorWeave, nve::NeovimEditorState,
     loom::Accept<loom::Activated, timer::TimerReady, timer::TimerFired, timer::TimerResolution,
-                 PaneCatalogRequested, PaneRoom, ws::PaneCanvasRoom, ws::PaneCanvasPointer,
-                 ws::PaneCanvasRejected, PaneKey, PaneTextInput, PaneActionRequested, PaneQuitRequested,
-                 OpenSourceRequested, PrepareSourceRequested, ws::v2::PrepareSourceRequested,
+                 PaneCatalogRequested, PaneKey, PaneTextInput, PaneActionRequested, PaneQuitRequested,
+                 OpenSourceRequested, ws::v3::PrepareSourceRequested,
                  ManagedOpenProgress, ManagedOpenSettled,
                  SourceOpened, loom::DispatchRefused, ProjectRoot, graphics::ClipboardCopy,
                  graphics::ClipboardText, EditorHandoffJudgeRequested, EditorWarmRequested,
@@ -146,10 +142,9 @@ using NeovimEditorBase = zengine::With<ws::PaneManualFacet<
                  ws::PaneCarryAnswered, graphics::AreaRoom, graphics::DrawnRefused,
                  graphics::ActionRequested, graphics::AreaButtonChanged, graphics::AreaPointerMoved,
                  graphics::AreaWheelTurned, graphics::AreaHoldEnded, ws::v2::PaneSettings>,
-    loom::Emit<PaneOffered, ws::v3::PaneActions, ws::v5::PaneCanvasContent, ws::v4::PaneContent,
-               ws::v2::PaneCaret,
+    loom::Emit<PaneOffered, ws::v3::PaneActions,
                ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
-               PaneQuitAnswered, SourceOpened, SourcePrepared, ws::v2::SourcePrepared,
+               PaneQuitAnswered, SourceOpened, ws::v3::SourcePrepared,
                OpenSourceRequested,
                ProjectRootRequested, graphics::ClipboardCopy, graphics::ClipboardTextRequested,
                EditorHandoffJudged, EditorWarmed, EditorHandoffOffered, EditorAdopted, EditorLive,
@@ -205,7 +200,7 @@ public:
         // THE GRAPHICS WINDOW THAT SHOWS THE OFFICE'S AREA, asked for its room once each life; a
         // room it said before this activation is taken now.
         window_.ask_room(mail);
-        if (window_.in_window() && !granted_) {
+        if (window_.in_window()) {
             size_to(window_.rows(), window_.columns(), mail);
         }
         resay_ = true;
@@ -243,48 +238,6 @@ public:
         announce(mail);
     }
 
-    /// THE PROSE ROOM: the rows and columns this pane and Neovim's screen are sized to where its
-    /// host grants it no canvas. Once a canvas room is granted the canvas decides, and this is not
-    /// spent.
-    void on(const PaneRoom& room, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || room.pane != nve::kEditorPane) {
-            return;
-        }
-        if (canvas_.grant > 0) {
-            return; // the canvas room, granted first, already sized Neovim
-        }
-        take_room(room.rows, room.columns, mail);
-    }
-
-    /// THE CANVAS ROOM: this pane draws its status row and Neovim's screen there as its own
-    /// picture, Neovim sized to the lattice. A new grant ends the presses its predecessor held; a
-    /// room with no extent draws nothing and resizes nothing, so hiding the pane ends nothing.
-    void on(const ws::PaneCanvasRoom& room, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || room.pane != nve::kEditorPane) {
-            return;
-        }
-        if (room.grant != canvas_.grant) {
-            pressed_ = 0;
-            release_drag();
-            if (right_.down && running()) {
-                mouse("right", "release", right_.row, right_.col);
-            }
-            right_ = Drag{};
-            if (!grab_.started) {
-                grab_ = Grab{};
-            }
-        }
-        canvas_ = room;
-        if (!on_canvas()) {
-            return;
-        }
-        const ws::CanvasRows lattice = ws::canvas_rows(canvas_);
-        take_room(lattice.rows, lattice.columns, mail);
-    }
-
-    /// A refused picture leaves the last good one showing; the next change draws again.
-    void on(const ws::PaneCanvasRejected&, loom::Mail&) {}
-
     /// THE SETTINGS THIS LAYOUT KEEPS FOR THE PANE, taken whole; what it cannot use is said back
     /// against the revision it was handed at. The profile is the next start's, never a running
     /// Neovim's; the status row moves Neovim's screen at once. Held as plain members, never reload
@@ -297,7 +250,7 @@ public:
         ws::say_settings_unused(mail, nve::kEditorOffice, taken);
         profile_ = taken.text(nve::kSettingProfile);
         status_shown_ = taken.flag(nve::kSettingStatus);
-        say(mail); // draws nothing until a room is granted, so the first picture has them
+        say(mail); // draws nothing until the area has a room, so the first drawing has them
     }
 
     /// THE SETTINGS THE PANE TAKES, each with its default, how a weaver finds it and what it does:
@@ -328,16 +281,11 @@ public:
     /// NEOVIM'S SCREEN IN THE ROOM COMPOSED FOR, under those rows.
     std::int64_t screen_rows() const { return ui_rows(rows_, chrome_rows()); }
 
-    /// THE ROOM THE GRAPHICS WINDOW THAT SHOWS THE OFFICE'S AREA GIVES, from that window's office.
-    /// An Editor Workshop seats keeps Neovim sized to Workshop's room, and the window is sent those
-    /// rows; one Workshop seats nowhere sizes Neovim to the window's room, or starts it there.
+    /// THE ROOM THE GRAPHICS WINDOW THAT SHOWS THE OFFICE'S AREA GIVES, from that window's office:
+    /// Neovim is sized to it, or started in it.
     void on(const graphics::AreaRoom& r, loom::Mail& mail) {
         if (!window_.room(r, mail) || !activation_.activated()) {
             return; // a room said before the activation is taken there
-        }
-        if (granted_) {
-            say(mail);
-            return;
         }
         size_to(window_.rows(), window_.columns(), mail);
     }
@@ -349,9 +297,8 @@ public:
     }
 
     /// THE POINTER IN THE WINDOW, given by the window that shows the area as its office and read
-    /// onto the rows drawn there: Neovim's own mouse, as on Workshop's canvas (`pointer`), its
-    /// press, moves and release under the window's number for the press, a hold the window ended a
-    /// loss.
+    /// onto the rows drawn there: Neovim's own mouse (`pointer`), its press, moves and release under
+    /// the window's number for the press, a hold the window ended a loss.
     void on(const graphics::AreaButtonChanged& b, loom::Mail& mail) { on_window(window_.pointer(b, mail), mail); }
     void on(const graphics::AreaPointerMoved& m, loom::Mail& mail) { on_window(window_.pointer(m, mail), mail); }
     void on(const graphics::AreaWheelTurned& w, loom::Mail& mail) { on_window(window_.pointer(w, mail), mail); }
@@ -364,16 +311,10 @@ public:
     /// and released at once, since the window says the press and its release as one act.
     void on(const graphics::ActionRequested& asked, loom::Mail& mail) {
         if (const std::optional<ws::RowCell> at = window_.part(asked, mail)) {
-            press_at(at->row, at->column, 0, 0, mail);
+            press_at(at->row, at->column, false, mail);
             release_drag();
             flush(mail);
         }
-    }
-
-    /// THE ROOM TAKEN from Workshop: the rows and columns composed for (`size_to`).
-    void take_room(std::int64_t rows, std::int64_t columns, loom::Mail& mail) {
-        granted_ = true;
-        size_to(rows, columns, mail);
     }
 
     /// THE ROWS AND COLUMNS COMPOSED FOR, and Neovim sized to them -- or started in them, the first
@@ -471,16 +412,12 @@ public:
 
     // ---- The pointer, in transfers.hpp ----------------------------------------------------------
 
-    void on(const ws::PaneCanvasPointer& event, loom::Mail& mail);
     void on_window(const std::optional<ws::WindowPointer>& p, loom::Mail& mail);
     void pointer(std::int64_t phase, std::int64_t button, const ws::RowCell& at,
-                 std::int64_t gesture, bool same_room, std::int64_t grant, std::int64_t picture,
-                 double dy, loom::Mail& mail);
-    void press_at(std::int64_t row, std::int64_t column, std::int64_t grant, std::int64_t picture,
-                  loom::Mail& mail);
+                 std::int64_t gesture, double dy, loom::Mail& mail);
+    void press_at(std::int64_t row, std::int64_t column, bool aimed, loom::Mail& mail);
     void dragged(std::int64_t row, std::int64_t column, loom::Mail& mail);
-    void right_press(std::int64_t row, std::int64_t column, std::int64_t grant, std::int64_t picture,
-                     loom::Mail& mail);
+    void right_press(std::int64_t row, std::int64_t column, bool aimed, loom::Mail& mail);
     void right_release(std::int64_t row, std::int64_t column, loom::Mail& mail);
     void wheel(double dy, loom::Mail& mail);
 
@@ -579,10 +516,9 @@ public:
     void on(const SourceOpened& said, loom::Mail& mail);
     void on(const loom::DispatchRefused& refused, loom::Mail& mail);
     void on(const ManagedOpenProgress&, loom::Mail&);
-    void on(const PrepareSourceRequested& asked, loom::Mail& mail);
-    void on(const ws::v2::PrepareSourceRequested& asked, loom::Mail& mail);
-    SourcePrepared prepare(std::int64_t op, const std::string& asked_path, std::int64_t rows,
-                           std::int64_t columns, const ws::PaneCanvasRoom& room, loom::Mail& mail);
+    void on(const ws::v3::PrepareSourceRequested& asked, loom::Mail& mail);
+    ws::v3::SourcePrepared prepare(std::int64_t op, const std::string& asked_path, std::int64_t rows,
+                                   std::int64_t columns, loom::Mail& mail);
     void on(const ManagedOpenSettled& said, loom::Mail& mail);
     bool on_claim_published(const EditorDocument& published);
 
@@ -759,7 +695,7 @@ private:
                       loom::Mail& mail);
     void carry_snapshot(const Snapshot& snap, bool drag, std::uint64_t gesture, loom::Mail& mail);
     void acquire_location(bool drag, std::uint64_t gesture, loom::Mail& mail);
-    void receive(const loom::Bytes& data, const ws::RowCell& drop, std::int64_t grant, std::int64_t picture,
+    void receive(const loom::Bytes& data, const ws::RowCell& drop, bool aimed,
                  loom::Mail& mail);
     void insert_lines(const std::string& text, const Aim& aim, Insertion said, bool whole = false);
     void settle_insertion(const Insertion& said, const Heard& h);
@@ -965,28 +901,19 @@ private:
 
     /// THE ONE PART THIS PANE NAMES, `status`: the row it draws above Neovim's screen, saying the
     /// status or a notice in its place. The screen beneath is Neovim's own, and named nothing.
-    std::vector<ws::PaneRowPart> status_part(const std::vector<surface::SurfaceTextRow>& rows) const {
-        return chrome_rows() > 0 ? status_part(rows, columns_) : std::vector<ws::PaneRowPart>{};
-    }
-    static std::vector<ws::PaneRowPart> status_part(const std::vector<surface::SurfaceTextRow>& rows,
-                                                    std::int64_t columns) {
-        if (rows.empty()) {
+    std::vector<ws::RowPart> status_part(const std::vector<ws::TextRow>& rows) const {
+        if (chrome_rows() <= 0 || rows.empty()) {
             return {};
         }
-        return {ws::PaneRowPart{"status", 0, 0, columns}};
+        return {ws::RowPart{"status", 0, 0, columns_}};
     }
 
-    /// THE PANE, SAID: the status row (or a standing notice in its place), then Neovim's screen,
-    /// cropped to the room, drawn as this pane's own picture with the caret and the one range
-    /// standing in its rows -- or, to a host granting no canvas, said as prose with them beside.
-    /// NUMBERED (WL-NVIM-11): a picture whose rows, caret, range or generation differ from the last
-    /// one said is a new picture, so a press or a drop names which screen it was aimed at.
+    /// THE PANE, DRAWN in the window that shows its area: the status row (or a standing notice in
+    /// its place), then Neovim's screen, cropped to the room, with the caret and the one range
+    /// standing in its rows. Their fingerprint is kept, so a press or a drop can tell the screen it
+    /// was aimed at from one that moved since (WL-NVIM-11).
     void say(loom::Mail& mail) {
-        // Workshop is told while it grants a room the pane can fill: none, or a canvas room with
-        // no extent, is nothing its rows could truthfully fill.
-        const bool to_workshop = granted_ && !(canvas_.grant > 0 && !on_canvas());
-        const bool to_window = window_.in_window() && activation_.activated();
-        if (!to_workshop && !to_window) {
+        if (!window_.in_window() || !activation_.activated()) {
             return;
         }
         // NEOVIM'S SCREEN FITS UNDER THE ROWS DRAWN ABOVE IT NOW: a notice standing or going, or a
@@ -994,66 +921,38 @@ private:
         if (running() && rows_ > 0) {
             (void)host_->resize(screen_rows(), ui_cols(columns_));
         }
-        std::vector<surface::SurfaceTextRow> rows;
-        ws::v2::PaneCaret caret;
-        caret.pane = nve::kEditorPane;
-        caret.generation = epoch_;
+        std::vector<ws::TextRow> rows;
+        ws::RowsCaret caret;
         compose(rows, caret, rows_, columns_);
-        const std::uint64_t hash = picture_hash(rows, caret);
-        if (picture_ == 0 || hash != picture_hash_) {
-            picture_hash_ = hash;
-            ++picture_;
-        }
+        drawn_hash_ = picture_hash(rows, caret, epoch_);
         ++state_.screens;
-        std::vector<ws::PaneRowPart> parts = status_part(rows);
-        if (to_window) { // the same rows, part and caret, as a drawing in the graphics window
-            window_.draw(mail, rows, parts, rows_caret(caret));
-        }
-        if (!to_workshop) {
-            return;
-        }
-        if (on_canvas()) {
-            (void)mail.as_role(nve::kEditorOffice)
-                .send_to_role(kWorkshopRole,
-                              ws::rows_picture(canvas_, pictures_.next(canvas_, picture_), rows, parts,
-                                               rows_caret(caret)));
-            return;
-        }
-        (void)mail.as_role(nve::kEditorOffice)
-            .send_to_role(kWorkshopRole, ws::v4::PaneContent{nve::kEditorPane, std::move(rows), epoch_, picture_,
-                                                             std::move(parts)});
-        (void)mail.as_role(nve::kEditorOffice).send_to_role(kWorkshopRole, caret);
+        window_.draw(mail, rows, status_part(rows), caret);
     }
 
-    /// IS THIS A PICTURE OF THE SCREEN THE PANE SHOWS, AND DOES NEOVIM'S SCREEN STILL READ AS IT?
-    /// Drawn in this room under what the pane shows now, and Neovim drew nothing since.
-    /// Whether the picture a hand aimed at, `picture` of `grant`, still shows what Neovim holds;
-    /// `kInWindow` as the grant names the rows the window showing the area was last given.
-    bool fresh(std::int64_t grant, std::int64_t picture) const {
-        const bool canvas = on_canvas() && grant == canvas_.grant && pictures_.current(grant, picture);
-        if (!granted_ || (grant != kInWindow && !canvas)) {
+    /// DOES NEOVIM'S SCREEN STILL READ AS THE ROWS A HAND AIMED AT? `aimed` when the hand was on the
+    /// rows last drawn in the window, and Neovim drew nothing since.
+    bool fresh(bool aimed) const {
+        if (!aimed || !window_.in_window()) {
             return false;
         }
-        std::vector<surface::SurfaceTextRow> rows;
-        ws::v2::PaneCaret caret;
-        caret.pane = nve::kEditorPane;
-        caret.generation = epoch_;
+        std::vector<ws::TextRow> rows;
+        ws::RowsCaret caret;
         compose(rows, caret, rows_, columns_);
-        return picture_hash(rows, caret) == picture_hash_;
+        return picture_hash(rows, caret, epoch_) == drawn_hash_;
     }
 
     // WL-NVIM-02 -- agents/workshop/neovim.md
-    void compose(std::vector<surface::SurfaceTextRow>& rows, ws::v2::PaneCaret& caret, std::int64_t room_rows,
+    void compose(std::vector<ws::TextRow>& rows, ws::RowsCaret& caret, std::int64_t room_rows,
                  std::int64_t room_cols) const {
         if (room_rows <= 0 || room_cols <= 0) {
             return;
         }
         const std::int64_t chrome = chrome_rows();
         if (!notice_.empty()) {
-            rows.push_back(surface::SurfaceTextRow{drawable(fit(notice_, room_cols)),
+            rows.push_back(ws::TextRow{drawable(fit(notice_, room_cols)),
                                                    notice_bad_ ? graphics::role::kAlert : graphics::role::kMuted});
         } else if (chrome > 0) {
-            rows.push_back(surface::SurfaceTextRow{drawable(fit(status_text(room_cols), room_cols)),
+            rows.push_back(ws::TextRow{drawable(fit(status_text(room_cols), room_cols)),
                                                    graphics::role::kAccent});
         }
         if (!running() || !host_->ready()) {
@@ -1065,7 +964,7 @@ private:
             // were prepared, so no screen of the file it replaced stands under its status.
             for (std::size_t i = 0;
                  i < preview_.lines.size() && static_cast<std::int64_t>(i) + chrome < room_rows; ++i) {
-                rows.push_back(surface::SurfaceTextRow{preview_line(preview_.lines[i], text_cols),
+                rows.push_back(ws::TextRow{preview_line(preview_.lines[i], text_cols),
                                                        graphics::role::kFill});
             }
             return;
@@ -1112,35 +1011,8 @@ private:
             while (static_cast<std::int64_t>(text.size()) > keep && !text.empty() && text.back() == ' ') {
                 text.pop_back();
             }
-            rows.push_back(surface::SurfaceTextRow{drawable(fit(std::move(text), text_cols)), role});
+            rows.push_back(ws::TextRow{drawable(fit(std::move(text), text_cols)), role});
         }
-    }
-
-    /// THE CURRENT SCREEN FOR A TRIAL ROOM (a same-path open).
-    void compose_current(SourcePrepared& prepared, std::int64_t room_rows, std::int64_t room_cols) const {
-        ws::v2::PaneCaret caret;
-        compose(prepared.rows, caret, room_rows, room_cols);
-        prepared.caret_row = caret.row;
-        prepared.caret_col = caret.column;
-        prepared.sel_begin_row = caret.sel_begin_row;
-        prepared.sel_begin_col = caret.sel_begin_col;
-        prepared.sel_end_row = caret.sel_end_row;
-        prepared.sel_end_col = caret.sel_end_col;
-    }
-
-    /// A PREPARED FILE FOR A TRIAL ROOM, before Neovim draws it: the status row and the first lines.
-    static void compose_preview(SourcePrepared& prepared, const std::string& path, const std::vector<std::string>& lines,
-                                std::int64_t room_rows, std::int64_t room_cols) {
-        if (room_rows <= 0 || room_cols <= 0) {
-            return;
-        }
-        prepared.rows.push_back(surface::SurfaceTextRow{
-            drawable(fit("saved NORMAL -- " + tail_of_path(path, room_cols - 16), room_cols)), graphics::role::kAccent});
-        const std::int64_t text_cols = room_cols - kCaretCols > 0 ? room_cols - kCaretCols : 0;
-        for (std::size_t i = 0; i < lines.size() && static_cast<std::int64_t>(i) + kChromeRows < room_rows; ++i) {
-            prepared.rows.push_back(surface::SurfaceTextRow{preview_line(lines[i], text_cols), graphics::role::kFill});
-        }
-        prepared.caret_row = surface::kNoCaret;
     }
 
     // ---- The document's claim ----------------------------------------------------------------
@@ -1229,8 +1101,8 @@ private:
     std::map<std::uint64_t, std::uint32_t> pastes_;
 
     // ---- Transfers (WL-NVIM-10..12): this incarnation's conversations, none of them reload state.
-    std::int64_t picture_ = 0;
-    std::uint64_t picture_hash_ = 0;
+    /// The fingerprint of the rows last drawn in the window (`say`).
+    std::uint64_t drawn_hash_ = 0;
     Grab grab_;
     Pickup pickup_;
     ws::pane_menu::Asked menu_;
@@ -1257,17 +1129,10 @@ private:
 
     std::int64_t rows_ = 0;
     std::int64_t columns_ = 0;
-    bool granted_ = false;
 
-    /// THE CANVAS THIS PANE DRAWS ON: the room Workshop granted it there, its pictures numbered in
-    /// that room by what Neovim's screen shows, and the left press whose motion is Neovim's drag.
-    /// Not reload state.
-    ws::PaneCanvasRoom canvas_;
-    ws::CanvasPictures pictures_;
+    /// The left press whose motion is Neovim's drag, by the window's number for it. Not reload
+    /// state.
     std::int64_t pressed_ = 0;
-    /// The grant a hand in the window names: no canvas grant is below one.
-    static constexpr std::int64_t kInWindow = -1;
-    bool on_canvas() const { return canvas_.grant > 0 && canvas_.width > 0 && canvas_.height > 0; }
     Preview preview_;
 
     /// THE GRAPHICS WINDOW THAT SHOWS THE OFFICE'S AREA, and the rows drawn there. Not reload state.

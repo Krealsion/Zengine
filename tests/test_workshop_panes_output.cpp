@@ -119,9 +119,7 @@ struct OutputRig {
     explicit OutputRig(const char* tag) : dir(tag) {
         r.host.project_dir = dir.path().generic_string();
         tap = r.bus.add_observer([this](const loom::BusEvent& ev) {
-            if (ev.kind == loom::EventKind::Delivered &&
-                ev.schema_name == PaneCanvasRejected::zen_name &&
-                ev.authored_role == kWorkshopProvider) {
+            if (ev.kind == loom::EventKind::Delivered && ev.schema_name == gfx::DrawnRefused::zen_name) {
                 ++refused;
             }
         });
@@ -208,8 +206,8 @@ struct OutputRig {
         r.extent(width, height + 1);
         const ExternalPane* pane = seat_of();
         REQUIRE(pane != nullptr);
-        REQUIRE(pane->columns >= 140);
-        REQUIRE(pane->rows >= 20);
+        REQUIRE(held_canvas_rows(*pane).columns >= 140);
+        REQUIRE(held_canvas_rows(*pane).rows >= 20);
         const ui::Rect body = external_body_rect(r.session(), kind);
         r.press_cell(body.x, body.y);
         REQUIRE(r.session().panes.keyboard == kind);
@@ -614,7 +612,7 @@ void narrow(OutputRig& o) {
     o.r.extent(199, 56); // a DIFFERENT extent, so the room is genuinely granted again
     const ExternalPane* pane = o.seat_of();
     REQUIRE(pane != nullptr);
-    REQUIRE_MESSAGE(pane->columns < 60, "the pane was not narrowed: ", pane->columns);
+    REQUIRE_MESSAGE(held_canvas_rows(*pane).columns < 60, "the pane was not narrowed: ", held_canvas_rows(*pane).columns);
 }
 
 } // namespace

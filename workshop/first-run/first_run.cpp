@@ -11,9 +11,9 @@
 
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/editor_switch_vocabulary.hpp"
-#include "workshop/pane_canvas_rows.hpp"
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_drawing.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/settings_seam_vocabulary.hpp"
 
@@ -21,7 +21,6 @@
 #include "graphics/role.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -66,7 +65,7 @@ bool keeps_settings(const std::string& written) {
 class FirstRun
     : public loom::WeaveBase<
           FirstRun, FirstRunState,
-          loom::Accept<loom::Activated, ws::PaneCatalogRequested, ws::PaneRoom,
+          loom::Accept<loom::Activated, ws::PaneCatalogRequested,
                        ws::PaneActionRequested, ws::OfficeSettings, ws::OfficeSettingsShown,
                        ws::PaneInventory,
                        ws::PaneSettingActed, ws::PaneLaunchAnswered, ws::PaneCloseAnswered,
@@ -100,15 +99,6 @@ public:
         if (mail.authored_from_role(kWorkshop)) {
             offer(mail);
         }
-    }
-
-    /// THE PANE OPENED: the editor's choice asked again, since a Terminal may have switched it.
-    void on(const ws::PaneRoom& room, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshop) || room.pane != kPane) {
-            return;
-        }
-        ask_status(mail);
-        show(mail);
     }
 
     /// ITS SETTING AS WORKSHOP KEEPS IT -- and, at a start that keeps a settings file and has not
@@ -235,9 +225,15 @@ public:
 
     /// THE AREA'S ROOM, as the window that shows it says it: drawn whole there.
     void on(const gfx::AreaRoom& r, loom::Mail& mail) {
-        if (window_.room(r, mail)) {
-            show(mail);
+        if (!window_.room(r, mail)) {
+            return;
         }
+        // AN AREA THE WINDOW SHOWS AFRESH is the pane opened: the editor's choice asked again,
+        // since a Terminal may have switched it.
+        if (r.empty) {
+            ask_status(mail);
+        }
+        show(mail);
     }
     void on(const gfx::DrawnRefused& refused, loom::Mail& mail) {
         (void)window_.refused(refused, mail);
@@ -367,7 +363,7 @@ private:
         if (!window_.shown() || rows() <= 0 || columns() <= 0) {
             return;
         }
-        std::vector<zengine::surface::SurfaceTextRow> drawn;
+        std::vector<ws::TextRow> drawn;
         for (const fr::Line& l : fr::lines_of(moment_)) {
             std::int64_t role = gfx::role::kFill;
             switch (l.ink) {
@@ -380,7 +376,7 @@ private:
             drawn.push_back({l.text, role});
         }
         const ws::RowsDrawing rows_drawn =
-            ws::rows_drawing(drawn, std::vector<ws::PaneRowPart>{}, window_.rows_room(),
+            ws::rows_drawing(drawn, std::vector<ws::RowPart>{}, window_.rows_room(),
                              columns(), ws::RowsCaret{}, rows());
         window_.draw(rows_drawn.sketch, mail);
     }

@@ -107,6 +107,7 @@ set(zengine_public_headers_input      input/vocabulary.hpp
                                       input/input_weave.hpp)
 set(zengine_public_headers_ui         ui/vocabulary.hpp
                                       ui/layout.hpp)
+set(zengine_public_headers_manual     manual/manual.hpp)
 set(zengine_public_headers_component  component/motion.hpp
                                       component/text_box.hpp
                                       component/list_window.hpp
@@ -129,11 +130,11 @@ set(zengine_public_headers_operator   operator/operator.hpp
                                       operator/provider.hpp
                                       operator/provider_abi.h
                                       operator/provider_host.hpp)
-# The pane protocol, under its own directory so a stranger spells `#include
-# "workshop/pane_vocabulary.hpp"` as the house does: the protocol, the helpers a pane may use
-# and the presenter seam, so a stranger can build a menu presenter as well as a pane. Nothing
-# else under workshop/ is public. The guest seam beside it says what this Workshop reports of
-# the hosts connected to it, so a probe on another host can ask for the inventory it is in.
+# The pane protocol, spelled `#include "workshop/pane_vocabulary.hpp"` as the house does: the
+# protocol, the helpers a pane draws its rows and picture in its area with, the facets a pane is
+# built on (with the manual page they answer from), and the presenter seam. Nothing else under
+# workshop/ is public. The guest seam beside it says what this Workshop reports of the hosts
+# connected to it, so a probe on another host can ask for the inventory it is in.
 set(zengine_public_headers_workshop   workshop/setup_control.hpp workshop/pane_operation.hpp workshop/pane_view.hpp
                                       workshop/pane_carry.hpp
                                       workshop/pane_settings.hpp
@@ -141,10 +142,15 @@ set(zengine_public_headers_workshop   workshop/setup_control.hpp workshop/pane_o
                                       workshop/pane_vocabulary.hpp
                                       workshop/pane_parts.hpp
                                       workshop/pane_causes.hpp
-                                      workshop/pane_canvas_vocabulary.hpp
                                       workshop/pane_canvas_text.hpp
                                       workshop/pane_text_fit.hpp
-                                      workshop/pane_canvas_rows.hpp
+                                      workshop/pane_text.hpp
+                                      workshop/pane_rows.hpp
+                                      workshop/pane_picture.hpp
+                                      workshop/pane_drawing.hpp
+                                      workshop/pane_canvas_drawing.hpp
+                                      workshop/pane_document.hpp
+                                      workshop/pane_facets.hpp
                                       workshop/pane_menu.hpp
                                       workshop/pane_escape.hpp
                                       workshop/presenter_vocabulary.hpp
@@ -188,7 +194,10 @@ if(TARGET zengine-app)
     install(TARGETS zengine-app RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
 
-foreach(pkg IN ITEMS maker flow flow/flow-host flow/flow-pane message-draft inventory editor/source-transfer activation timer surface input ui component operator workshop editor/neovim-editor graphics graphics/elements graphics/window)
+foreach(pkg IN ITEMS maker flow flow/flow-host flow/flow-pane message-draft inventory
+                    editor/source-transfer activation timer surface input ui manual component
+                    operator workshop editor/neovim-editor graphics graphics/elements
+                    graphics/window)
     install(FILES ${zengine_public_headers_${pkg}}
             DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zengine/${pkg})
 endforeach()

@@ -34,9 +34,9 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
-## WL-DESK-14 — Both panes are usable by mouse, and a press names the picture it was aimed at
+## WL-DESK-14 — Both panes are usable by mouse, and a press is read against the rows it landed on
 
-LAW — A composition is numbered by what its rows mean; a press names the picture the medium held when read, acting only on the current meaning; the wheel walks the cursor; a right press or `m` offers a menu.
+LAW — A composition is numbered by what its rows mean; a press in its area is read against the rows drawn there, acting only on their meaning; the wheel walks the cursor; a right press or `m` offers a menu.
 
 MEANS
 - the Manager: the mark shows or hides, the name chooses, a second marked-name press is Return;
@@ -44,8 +44,8 @@ MEANS
 - the Hotkeys pane: a press chooses a binding and its menu edits it (WL-KEY-17); others hand back.
 
 DOES NOT MEAN
-- that a press on a picture of an older meaning acts, or a repaint moving no row renumbers; a subject swap does;
-- that display time or where a platform-buffered press came from is seen: both stay open.
+- that a repaint moving no row renumbers (a subject swap does), or that display time is seen;
+- that a press the window landed before the list moved is refused as moved: which drawing a window press names is a decision held open, its witness held as an expected failure.
 
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
@@ -104,28 +104,18 @@ unchosen across a desktop replacement and the publications after it: Return and 
 neighbour, and a row chosen then is obeyed"
 
 ### WL-DESK-14
-`workshop/pane_canvas_vocabulary.hpp` v5::PaneCanvasContent PaneCanvasPointer
-`workshop/pane_canvas_rows.hpp` CanvasPictures rows_picture row_cell_at
-`workshop/vocabulary.hpp` PictureFence
-`workshop/panes.hpp` ExternalPane::picture ExternalPane::stamp ExternalPane::forget_pictures
-PictureStamp
-`workshop/weave_canvas.cpp` admit_canvas_content on(v5::PaneCanvasContent) canvas_press canvas_wheel
-`workshop/weave_seam.cpp` fence_pictures on(PictureFence)
-`workshop/desktop-pane/desktop_common.hpp` PanePress kMovedSentence take_notches
+`graphics/vocabulary.hpp` AreaButtonChanged AreaWheelTurned
+`workshop/pane_drawing.hpp` rows_drawing window_cell WindowDrawing
+`workshop/desktop-pane/desktop_common.hpp` PanePress take_notches
 `workshop/desktop-pane/launcher_view.hpp` launcher_press publish_launcher offer_launcher_row
 launcher_chose LauncherMeaning LauncherMeaning::ref launcher_ref second_button wheel
 `workshop/desktop-pane/hotkeys_view.hpp` keys_press publish_keys offer_keys_row keys_chose
 KeysMeaning KeysMeaning::ref keys_line_ref second_button wheel
-`workshop/desktop-pane/pane.cpp` second_button wheel fit_rooms
+`workshop/desktop-pane/pane.cpp` second_button wheel on_window_press
 `component/row_map.hpp` RowMap RowMap::settle solid_columns
 `component/columns.hpp` layout_columns table_line
-`tests/test_workshop_panes_canvas.cpp` "a pane's canvas pictures fence a press by the meaning each
-was drawn under"
-`tests/test_workshop_panes_desktop.cpp` "WL-DESK-14: content queued ahead of a raw press cannot
-retarget the row the hand aimed at -- the press is stamped with the picture the medium had, and
-refused as moved" "WL-DESK-14: a same-length inventory swap changes the picture, so a press stamped
-with the old number opens nothing -- the meaning carries the subject, not just the slot"
-"WL-DESK-14: a press on a row's mark shows or hides that pane; a press on its name only moves the
+`tests/test_workshop_panes_desktop.cpp` "WL-DESK-14: a press queued behind a change of the list is
+refused, never resolved against the moved rows" "WL-DESK-14: a press on a row's mark shows or hides that pane; a press on its name only moves the
 marker" "WL-DESK-14: a deliberate second press on the marked name, with the keys already here, opens
 it -- or focuses and lifts it when it is open and covered" "WL-DESK-14: the wheel walks the marker
 one row per notch, and a press names the picture it was aimed at -- a press queued behind a change

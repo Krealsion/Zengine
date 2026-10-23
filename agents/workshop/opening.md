@@ -121,17 +121,17 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/document-and-desk-publish-together.md`
 
-## WL-OPEN-10 — The opening carries the pane's picture where it draws one
+## WL-OPEN-10 — The opening carries no picture: the holder draws it in its area
 
-LAW — Where the managed pane's holder draws on a canvas and prepares for one, the trial reserves the room the seat will have, the Editor composes the candidate as its picture there, and the desk shows it.
+LAW — The trial reserves the seat and says the room its area will have (`OpeningRoom`); the Editor prepares the candidate for that room, and draws it in its own area in the delivery that commits its claim.
 
 MEANS
-- the reserved grant is used by nothing before the commitment, so no picture of A stands after it;
-- the shown picture is the desk's, numbered none, until the holder draws again: its words and parts read at once with no point, a point read again;
-- the room is said to the holder after the showing; a holder drawing no canvas is asked for rows.
+- the room is the area's as Workshop will place it, in pixels and the window's measure;
+- the window never shows A after the commitment: the Editor's drawing of B is the commitment's;
+- `SourcePrepared` says only that the candidate is ready, and the admission carries no rows.
 
-DOES NOT MEAN — that Workshop draws for the pane: the picture is the Editor's own, admitted as any
-picture is.
+DOES NOT MEAN — that Workshop draws for the pane, or shows a picture of it: the window shows what
+the Editor draws in its area.
 
 WHY — `agents/decisions/the-opening-carries-a-picture.md`
 
@@ -240,24 +240,14 @@ minting again"
 own boundary captured, and every exception that reaches the host's turn propagates as it came"
 
 ### WL-OPEN-10
-`workshop/open_seam_vocabulary.hpp` v2::PresentationTrial v2::PrepareSourceRequested
-v2::SourcePrepared v2::PresentationAdmitRequested
-`workshop/weave_managed.cpp` on(PresentationTrialRequested) on(v2::PresentationAdmitRequested)
+`workshop/open_seam_vocabulary.hpp` OpeningRoom v3::PresentationTrial v3::PrepareSourceRequested
+v3::SourcePrepared v3::PresentationAdmitRequested
+`workshop/weave_managed.cpp` on(PresentationTrialRequested) on(v3::PresentationAdmitRequested)
 show_presentation after_delivery
-`workshop/weave_opening.cpp` trialled prepared
-`workshop/weave_canvas.cpp` canvas_takes_press
-`workshop/weave_desk_read.cpp` visible_words visible_parts
-`editor/editor-pane/pane.cpp` on(v2::PrepareSourceRequested) prepare activate
+`editor/editor-pane/opening_switch.hpp` on(v3::PrepareSourceRequested) prepare activate
 `tests/test_workshop_panes_opening.cpp` "an open through the managed door shows the opened
-document's picture at the commitment, in a room reserved for it, and a picture of the document it
-replaced, arriving after, is refused" "a holder that draws nothing after the commitment still shows
-the picture it prepared, numbered none, its words read at once and a cell's point read again until
-it draws its own" "the picture a managed opening shows says its words and its named part with no
-point, and their points return with the holder's own picture, where a press reaches it" "a picture
-prepared for a room the trial did not reserve is refused at its admission, and the document shown
-stays" "a canvas room that moves while the document is prepared refuses its admission, though its
-rows and columns stand"
+document, drawn by its holder at the commitment in the room the trial reserved, and a press there
+reaches the holder" "a canvas room that moves while the document is prepared refuses its admission,
+though its rows and columns stand"
 `tests/test_workshop_panes_editor.cpp` "a managed open has one commitment -- the published claims,
-the pane's reads, its snapshot and the desk agree at it, and A is current before it" "a host that
-grants the Editor no canvas is shown its rows and caret as prose, its presses reach nothing there,
-and its keys still edit"
+the pane's reads, its snapshot and the desk agree at it, and A is current before it"

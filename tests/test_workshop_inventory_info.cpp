@@ -437,9 +437,10 @@ TEST_CASE("portable slots: one batched drag moves into a row and a forged transf
     const ExternalPane& held=*s.r.session().panes.external_pane(s.source);
     REQUIRE(shows_canvas(held));
     const CanvasRows lattice=held_canvas_rows(held);
+    const std::string area=pane_window_area(s.r.session().panes,*s.r.session().panes.runtime.of_kind(s.source));
     s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider),kWorkshopProvider,slots::kRole,
-        loom::Message(loom::to_value(PaneCanvasValueDrop{"inventory",held.canvas.grant,held.canvas.content.picture,
-            lattice.column_x(0),lattice.row_y(0),s.pair(88),slots::kRole,row,"made up"})));
+        loom::Message(loom::to_value(PaneCanvasValueDrop{"inventory",area,
+            lattice.column_x(0)-lattice.x,lattice.row_y(0)-lattice.y,s.pair(88),slots::kRole,row,"made up"})));
     s.r.bus.drain_until_idle(); CHECK(slots::placed(s.layout(),a)==slots::placed(before,a));
     CHECK_MESSAGE(s.shown(s.source).find("expired")!=std::string::npos,s.shown(s.source));
 }
@@ -560,6 +561,11 @@ TEST_CASE("inventory Info: a departed input actor cannot leave the weaver trappe
     t.acquire();
     t.r.bus.unregister_weave(t.hand_id).reset();
     t.hand = nullptr;
+    // THE WEAVER'S OWN FIRST PRESS PUTS THE REFERENCE DOWN, spent there: the desk stood in front
+    // of the panes while it was carried.
+    t.physical_click(t.info);
+    CHECK(t.r.last_notice() == "Carried reference released: its input actor has left");
+    // ...AND THE NEXT REACHES THE PANE UNDER THE HAND.
     t.physical_click(t.info);
     REQUIRE(t.r.session().panes.keyboard == t.info);
     CHECK(t.shown(t.info).find("story.RuntimeItem") == std::string::npos);
@@ -746,10 +752,7 @@ TEST_CASE("Compose drops are data and submission spends the input actor's exact 
             p.height = {pane_unit::kPixels, 24*gfx::kCellPx};
         }
         r.extent(180, 60);
-        // The picture Compose drew before it had a target: a drop aimed at it is stale once the
-        // rows mean the target's messages.
         REQUIRE(shows_canvas(*r.session().panes.external_pane(compose_kind)));
-        const auto before_target = r.session().panes.external_pane(compose_kind)->canvas;
         auto selector = std::make_unique<InventoryHand>(); auto* raw = selector.get();
         loom::Grant grant; grant.allow_to_any(intro::LoadedSelected::zen_name, 1);
         const auto selector_id = r.bus.register_weave(std::move(selector), grant, kIntroOffice);
@@ -769,20 +772,11 @@ TEST_CASE("Compose drops are data and submission spends the input actor's exact 
             inv::InventoryAdd{loom::Bytes(bytes.begin(), bytes.end()), "rename command"})));
         r.bus.drain_until_idle();
         const auto untouched = s.shown(compose_kind);
-        const auto& held = r.session().panes.external_pane(compose_kind)->canvas;
-        const PaneCanvasValueDrop forged{"compose", held.grant, held.content.picture, 0, 0,
+        const PaneCanvasValueDrop forged{"compose", held_area_of(compose_kind), 0, 0,
                                          loom::Bytes(bytes.begin(), bytes.end()), "", "", ""};
         r.bus.send_to_role(kComposerOffice, loom::Message(loom::to_value(forged)));
         r.bus.drain_until_idle();
         CHECK(s.shown(compose_kind) == untouched);
-        auto stale = forged;
-        stale.grant = before_target.grant;
-        stale.picture = before_target.content.picture;
-        r.bus.office_send_to_role_as(r.bus.role_holder(kWorkshopProvider), kWorkshopProvider,
-            kComposerOffice, loom::Message(loom::to_value(stale)));
-        r.bus.drain_until_idle();
-        CHECK(s.shown(compose_kind).find("picture changed") != std::string::npos);
-        CHECK(s.shown(compose_kind).find("Copied data") == std::string::npos);
         s.info = compose_kind;
         std::int64_t command_row = -1;
         const auto rows = pane_rows(r, s.source);
@@ -834,55 +828,6 @@ static std::int64_t row_saying(InventoryStory& s, std::int64_t kind, const std::
     for (std::size_t i = 0; i < rows.size(); ++i)
         if (rows[i].find(text) != std::string::npos) return static_cast<std::int64_t>(i);
     return -1;
-}
-
-TEST_CASE("portable slots: an entry's transfer placed on a picture its view drew before that view's "
-          "rows' meaning changed moves nothing and says it expired") {
-    InventoryStory s(191, true);
-    s.append(1, "A");
-    s.append(2, "B");
-    const auto a = s.entry("A").reference;
-    const auto row = s.create("row");
-    const auto kind = s.r.session().panes.runtime.find(slots::kRole, row)->kind;
-    for (auto& p : s.r.session().setup.active.panes) if (p.ref.pane == row) {
-        p.place = {pane_unit::kPixels, 2 * gfx::kCellPx, 34 * gfx::kCellPx};
-        p.width = {pane_unit::kPixels, 72 * gfx::kCellPx};
-        p.height = {pane_unit::kPixels, 10 * gfx::kCellPx};
-    }
-    s.r.extent(179, 60); s.r.extent(180, 60); // a same-size extent reseats nothing: the view is placed now
-    // The row view's picture while it holds nothing, then B moved into it: other rows, another
-    // meaning, the same room.
-    const ExternalPane first = *s.r.session().panes.external_pane(kind);
-    REQUIRE(shows_canvas(first));
-    slots::InventoryViewEdit op; op.operation = "move"; op.view = row; op.entry = s.entry("B").reference;
-    s.change(op);
-    const ExternalPane& now = *s.r.session().panes.external_pane(kind);
-    REQUIRE(now.canvas.grant == first.canvas.grant);
-    REQUIRE(slots::placed(s.layout(), s.entry("B").reference) == row);
-    // A real drag of A begins in main Inventory, and Inventory hands Workshop its transfer token.
-    std::string token;
-    RemoveObserver watch{s.r.bus, s.r.bus.add_observer([&](const loom::BusEvent& e) {
-        if (e.kind == loom::EventKind::Delivered &&
-            e.schema_name == v2::PaneValueCarryRequested::zen_name && e.payload)
-            token = e.payload->get("token")->as_text();
-    })};
-    const std::int64_t at = row_saying(s, s.source, "A : ");
-    REQUIRE_MESSAGE(at >= 0, s.shown(s.source));
-    auto press = s.button_at(s.source, at, true), move = s.button_at(s.source, at + 3, false);
-    move.kind = "PointerMoved"; move.dx = 0; move.dy = 3;
-    s.batch({press, move});
-    REQUIRE_MESSAGE(!token.empty(), s.shown(s.source));
-    // That transfer, placed on the row view's picture drawn under the earlier meaning: refused.
-    const auto before = s.layout();
-    const CanvasRows lattice = held_canvas_rows(now);
-    s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider, slots::kRole,
-        loom::Message(loom::to_value(PaneCanvasValueDrop{row, first.canvas.grant, first.canvas.content.picture,
-            lattice.column_x(12), lattice.row_y(3), s.pair(1), slots::kRole, "inventory", token})));
-    s.r.bus.drain_until_idle();
-    const std::string said = s.shown(kind) + s.shown(s.source);
-    CHECK_MESSAGE(said.find("That slot transfer expired") != std::string::npos, said);
-    CHECK(slots::placed(s.layout(), a) == slots::placed(before, a));
-    CHECK(slots::placed(s.layout(), a) != row);
 }
 
 TEST_CASE("a drop whose pane leaves before it is delivered is said not delivered: a reference or a "
@@ -982,44 +927,6 @@ TEST_CASE("a reference placed on a canvas whose pane has no door for one is sent
     CHECK(drops == 1);
 }
 
-TEST_CASE("a reference placed on the mark a refused picture wears is not placed under it and stays held, "
-          "and placed beside the mark it reaches the pane") {
-    InventoryStory s(191, true, false, true);
-    s.append(1, "A");
-    // TITLES HIDDEN, so a refused picture's mark stands at the corner of Info's picture.
-    press_outside(s.r, s.info);
-    s.r.key(input::scan::kT);
-    s.r.text("t");
-    REQUIRE_FALSE(s.r.session().pane_titles);
-    std::int64_t drops = 0;
-    RemoveObserver watch{s.r.bus, s.r.bus.add_observer([&](const loom::BusEvent& e) {
-        if (e.kind == loom::EventKind::Delivered && (e.schema_name == PaneCanvasDrop::zen_name ||
-                                                    e.schema_name == PaneCanvasValueDrop::zen_name))
-            ++drops;
-    })};
-    s.acquire();
-    REQUIRE(external_title_rows(s.r.session().panes, s.info, false) == 0);
-    // INFO'S NEXT PICTURE REFUSED for what it holds, said as its holder says its pictures.
-    const ExternalPane& info = *s.r.session().panes.external_pane(s.info);
-    REQUIRE(info.canvas.heard);
-    v5::PaneCanvasContent refused = fifth_picture(info.canvas.content);
-    refused.picture = info.picture + 1;
-    refused.labels.push_back(PaneCanvasLabel{0, 0, "caf\xC3\xA9", gfx::role::kFill});
-    const loom::WeaveId holder = s.r.bus.role_holder("zengine.info");
-    REQUIRE(s.r.bus.office_send_to_role_as(holder, "zengine.info", kWorkshopProvider,
-        loom::Message(loom::to_value(refused), holder, holder, 0)).valid());
-    s.r.bus.drain_until_idle();
-    REQUIRE(info.refusal == kExternalPictureRefused);
-    // ...ON THE MARK, at the picture's corner: not placed, said, and still in hand...
-    s.click(s.info, 0);
-    CHECK(drops == 0);
-    CHECK_MESSAGE(s.r.last_notice().find("does not accept the carried item") != std::string::npos,
-                  s.r.last_notice());
-    // ...and beside it, below the mark, the reference reaches Info.
-    s.click_at(s.info, 3, 1);
-    CHECK(drops == 1);
-}
-
 TEST_CASE("a live reference carried from Inventory lands in the Compose field its place names on Compose's canvas") {
     InventoryStory s(63, true);
     s.append(7, "source");
@@ -1064,7 +971,7 @@ TEST_CASE("Inventory draws its rows on its canvas on the medium's own ground, an
         REQUIRE(shows_canvas(*p));
         return *p;
     };
-    CHECK(wears_medium_ground(held()));
+    CHECK(wears_ground(held()));
     const std::int64_t line = s.row_of(s.source, "Name:") + 1;
     REQUIRE(line > 0);
     const auto rows = pane_rows(s.r, s.source);
@@ -1072,9 +979,17 @@ TEST_CASE("Inventory draws its rows on its canvas on the medium's own ground, an
     CHECK(rows[static_cast<std::size_t>(line)] == "Zulu"); // no character written for the caret
     CHECK(held_caret(held()).row == line);
     CHECK(held_caret(held()).column == 4); // on the blank after the last character
-    const auto picture = held().canvas.content.picture;
-    s.key(input::scan::kLeft); // the caret alone moves: a picture of its own
-    CHECK(held().canvas.content.picture > picture);
+    std::size_t drawn = 0;
+    {
+        RemoveObserver watch{s.r.bus, s.r.bus.add_observer([&drawn](const loom::BusEvent& e) {
+            drawn += e.kind == loom::EventKind::Delivered && e.schema_name == gfx::Drawn::zen_name &&
+                             e.authored_role == slots::kRole
+                         ? 1u
+                         : 0u;
+        })};
+        s.key(input::scan::kLeft); // the caret alone moves: a drawing of its own
+    }
+    CHECK(drawn >= 1);
     CHECK(held_caret(held()).column == 3);
     CHECK(pane_rows(s.r, s.source) == rows);
     s.key(input::scan::kLeft, input::mod::kShift);
@@ -1087,60 +1002,8 @@ TEST_CASE("Inventory draws its rows on its canvas on the medium's own ground, an
     CHECK(s.row_of(s.source, "Name:") < 0);
 }
 
-TEST_CASE("a host that grants Inventory no canvas is shown its rows and a name line's caret as prose, "
-          "its presses reach nothing there, and its keys still act") {
-    InventoryStory s(191, false, false, false, false, false, /*no_canvas=*/true);
-    s.append(10, "Zulu");
-    REQUIRE_FALSE(shows_canvas(*s.r.session().panes.external_pane(s.source)));
-    const std::int64_t zulu = s.row_of(s.source, "Zulu");
-    REQUIRE(zulu >= 0);
-    const std::int64_t marked = marked_row(s, s.source);
-    REQUIRE(marked >= 0);
-    REQUIRE(marked != zulu);
-    s.click(s.source, zulu); // the keys come here; the press itself reaches nothing
-    CHECK(marked_row(s, s.source) == marked);
-    CHECK(s.shown(s.source).find("acquired") == std::string::npos);
-    for (int i = 0; i < 8 && marked_row(s, s.source) != zulu; ++i) s.key(input::scan::kDown);
-    REQUIRE(marked_row(s, s.source) == zulu);
-    s.key(input::scan::kN, input::mod::kCtrl);
-    const std::int64_t line = s.row_of(s.source, "Name:") + 1;
-    REQUIRE(line > 0);
-    CHECK(pane_rows(s.r, s.source)[static_cast<std::size_t>(line)] == "Zulu");
-    const ExternalPane* held = s.r.session().panes.external_pane(s.source);
-    CHECK(held_caret(*held).row == line);
-    CHECK(held_caret(*held).column == 4);
-}
-
-TEST_CASE("a right press and a drop on Inventory's canvas aimed at a picture drawn before its rows' "
-          "meaning changed are refused in words, and change nothing") {
-    InventoryStory s(191, true);
-    s.append(1, "A");
-    const ExternalPane before = *s.r.session().panes.external_pane(s.source);
-    REQUIRE(shows_canvas(before));
-    s.append(2, "B"); // a row more: what each row means has moved
-    const ExternalPane& now = *s.r.session().panes.external_pane(s.source);
-    REQUIRE(now.canvas.grant == before.canvas.grant);
-    const CanvasRows lattice = held_canvas_rows(now);
-    const std::int64_t a = s.row_of(s.source, "A");
-    REQUIRE(a >= 0);
-    const auto send = [&s](const loom::Value& said) {
-        s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider, slots::kRole,
-                                       loom::Message(said));
-        s.r.bus.drain_until_idle();
-    };
-    send(loom::to_value(PaneCanvasPointer{"inventory", before.canvas.grant, before.canvas.content.picture, 900,
-                                          canvas_pointer::kPress, 3, lattice.column_x(2), lattice.row_y(a)}));
-    CHECK_MESSAGE(s.shown(s.source).find("That picture moved") != std::string::npos, s.shown(s.source));
-    CHECK_FALSE(s.r.session().presented.open);
-    const auto entries = s.saved_entries().size();
-    send(loom::to_value(PaneCanvasValueDrop{"inventory", before.canvas.grant, before.canvas.content.picture,
-                                            lattice.column_x(2), lattice.row_y(a), s.pair(9), "", "", ""}));
-    CHECK_MESSAGE(s.shown(s.source).find("Drop picture changed") != std::string::npos, s.shown(s.source));
-    CHECK(s.saved_entries().size() == entries);
-}
-
 TEST_CASE("the wheel walks Inventory's selection a notch at a time on its canvas, fractions carried, "
-          "and only in the room the view holds") {
+          "and no further than its list") {
     InventoryStory s;
     s.append(10, "Alpha");
     s.append(20, "Bravo");
@@ -1171,53 +1034,46 @@ TEST_CASE("the wheel walks Inventory's selection a notch at a time on its canvas
     wheel(1);
     CHECK(marked_row(s, s.source) == start);
     for (int notch = 0; notch < 8 && marked_row(s, s.source) < first; ++notch) wheel(-1);
-    REQUIRE(marked_row(s, s.source) == first);
-    // A wheel from the room the view stood in before a new one was granted turns nothing.
-    const ExternalPane old = *s.r.session().panes.external_pane(s.source);
-    for (auto& p : s.r.session().setup.active.panes)
-        if (p.ref.provider == slots::kRole && p.ref.pane == "inventory")
-            p.width = {pane_unit::kPixels, 78 * gfx::kCellPx};
-    s.r.extent(179, 60); s.r.extent(180, 60); // a room of another width: a new grant
-    REQUIRE(s.r.session().panes.external_pane(s.source)->canvas.grant != old.canvas.grant);
-    s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider, slots::kRole,
-        loom::Message(loom::to_value(PaneCanvasPointer{"inventory", old.canvas.grant, old.canvas.content.picture, 0,
-            canvas_pointer::kWheel, 0, 4, 4, 0, 0, -1})));
-    s.r.bus.drain_until_idle();
     CHECK(marked_row(s, s.source) == first);
 }
 
-TEST_CASE("Inventory sends a view's picture again after Workshop refuses one drawn in the room it holds, "
-          "and not after a refusal of one from a room before it") {
+TEST_CASE("while an entry is carried the wheel reaches the pane under the hand, past Workshop's area in "
+          "front, and walks its selection; the carry stands, and is dropped where it is released") {
     InventoryStory s;
     s.append(10, "Alpha");
-    const ExternalPane old = *s.r.session().panes.external_pane(s.source);
-    REQUIRE(shows_canvas(old));
-    for (auto& p : s.r.session().setup.active.panes)
-        if (p.ref.provider == slots::kRole && p.ref.pane == "inventory")
-            p.width = {pane_unit::kPixels, 78 * gfx::kCellPx};
-    s.r.extent(179, 60); s.r.extent(180, 60); // a room of another width: a new grant, drawn in
-    const ExternalPane now = *s.r.session().panes.external_pane(s.source);
-    REQUIRE(now.canvas.grant != old.canvas.grant);
-    const auto as_workshop = [&s](const loom::Value& said) {
-        s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider, slots::kRole,
-                                       loom::Message(said));
-        s.r.bus.drain_until_idle();
-    };
-    // A draw that changes nothing, as a still wheel's is: sent only when the picture differs.
-    const auto draw = [&] {
-        as_workshop(loom::to_value(PaneCanvasPointer{"inventory", now.canvas.grant, now.canvas.content.picture, 0,
-                                                     canvas_pointer::kWheel, 0, 4, 4, 0, 0, 0}));
-        return s.r.session().panes.external_pane(s.source)->canvas.content.picture;
-    };
-    const std::int64_t shown = draw();
-    REQUIRE(shown == now.canvas.content.picture);
-    // A refusal of the picture drawn in the room before: the one shown stands, and is not sent again.
-    as_workshop(loom::to_value(PaneCanvasRejected{"inventory", old.canvas.grant, old.canvas.content.picture,
-                                                  "canvas room grant is no longer current"}));
-    CHECK(draw() == shown);
-    // A refusal of one drawn in the room it holds: the next draw sends the view again.
-    as_workshop(loom::to_value(PaneCanvasRejected{"inventory", now.canvas.grant, shown, "refused"}));
-    CHECK(draw() > shown);
+    s.append(20, "Bravo");
+    s.append(30, "Charlie");
+    REQUIRE(shows_canvas(*s.r.session().panes.external_pane(s.source)));
+    const std::int64_t alpha = s.row_of(s.source, "Alpha");
+    REQUIRE(alpha >= 0);
+    // The hand takes Alpha up and moves it over Bravo's row, still held: the carry stands.
+    input::InjectedEvent press = s.button_at(s.source, alpha, true);
+    input::InjectedEvent move = s.button_at(s.source, alpha + 1, true);
+    move.kind = "PointerMoved";
+    move.dx = move.x - press.x;
+    move.dy = move.y - press.y;
+    s.event(press);
+    s.event(move);
+    REQUIRE_MESSAGE(s.r.last_notice().find("Dragging Alpha") != std::string::npos, s.r.last_notice());
+    const std::int64_t before = marked_row(s, s.source);
+    REQUIRE(before >= 0);
+    input::InjectedEvent wheel = move;
+    wheel.kind = "PointerWheel";
+    wheel.wheel_dy = -1; // toward the weaver: the next entry
+    s.event(wheel);
+    CHECK_MESSAGE(s.r.last_notice().find("Dragging Alpha") != std::string::npos, s.r.last_notice());
+    // The hand carries on over Info, so the carried value is drawn there and Inventory's rows read
+    // as it draws them: its marker walked a row.
+    input::InjectedEvent release = s.button_at(s.info, 0, false);
+    input::InjectedEvent over = release;
+    over.kind = "PointerMoved";
+    over.dx = over.x - move.x;
+    over.dy = over.y - move.y;
+    s.event(over);
+    CHECK_MESSAGE(marked_row(s, s.source) == before + 1, s.shown(s.source));
+    s.event(release);
+    CHECK_MESSAGE(s.shown(s.info).find("COPY story.RuntimeItem") != std::string::npos,
+                  (s.shown(s.info) + s.r.last_notice()));
 }
 
 TEST_CASE("a right press on Inventory's rows offers its menu, and one beside them, where a prose press "
@@ -1228,19 +1084,19 @@ TEST_CASE("a right press on Inventory's rows offers its menu, and one beside the
     REQUIRE(held != nullptr);
     REQUIRE(shows_canvas(*held));
     const CanvasRows lattice = held_canvas_rows(*held);
-    REQUIRE(lattice.x > 0); // a window keeps an inset beside the rows
-    const std::int64_t x = held->canvas.x, y = held->canvas.y + lattice.row_y(1) + lattice.line / 2;
+    REQUIRE(lattice.rows > 2);
     const auto right = [&s](std::int64_t px, std::int64_t py) {
         for (const bool down : {true, false})
-            s.r.publish(loom::to_value(input::PointerButton{3, down, px, py, input::space::kPixels,
-                                                            input::mod::kNone}));
+            s.r.hand_moment(input::PointerButton{3, down, px, py, input::space::kPixels,
+                                                 input::mod::kNone});
     };
-    right(x + lattice.column_x(2) + 1, y); // on an entry's row: Inventory's own menu
+    right(lattice.column_x(2) + 1, lattice.row_y(1) + lattice.line / 2); // an entry's row: its menu
     CHECK(s.r.session().presented.open);
     CHECK_FALSE(s.r.session().context.open);
     s.key(input::scan::kEscape);
     REQUIRE_FALSE(s.r.session().presented.open);
-    right(x, y); // in the inset beside it: handed back
+    // ...AND BELOW ITS ROWS, where it names none: handed back.
+    right(lattice.column_x(2) + 1, lattice.row_y(lattice.rows - 1) + lattice.line / 2);
     CHECK_FALSE(s.r.session().presented.open);
     CHECK(s.r.session().context.open);
 }
@@ -1466,7 +1322,7 @@ TEST_CASE("terminal capture: retrieval and Inventory storage need separate curre
 }
 
 
-TEST_CASE("terminal capture: wrapped rows and context pickup preserve identity while stale pictures refuse") {
+TEST_CASE("terminal capture: wrapped rows and context pickup preserve identity") {
     InventoryStory s(191 | 256);
     auto* terminal = s.r.mount_terminal();
     load::LoadPlan plan; load::ArtifactIntent artifact;
@@ -1492,16 +1348,8 @@ TEST_CASE("terminal capture: wrapped rows and context pickup preserve identity w
     REQUIRE_MESSAGE(s.saved_entries().size()==1,(s.shown(kind)+s.shown(s.source)));
     CHECK(s.saved_entries().front().item.get("text")->as_text()=="wrapped");
     s.key(input::scan::kEscape); // keep the generated copy name
-    // A PRESS AIMED AT THE PICTURE BEFORE THE RECORD MOVED: its room and number, at that row's place.
-    REQUIRE(shows_canvas(*s.r.session().panes.external_pane(kind)));
-    const auto before=s.r.session().panes.external_pane(kind)->canvas;
-    const CanvasRows lattice=held_canvas_rows(*s.r.session().panes.external_pane(kind));
+    // THE RECORD MOVES ON: a message received, and the transcript's next picture.
     s.r.bus.send(terminal->id(),loom::Message(loom::to_value(loom::Ack{}))); s.r.extent(182,60);
-    s.r.bus.office_send_to_role_as(s.r.workshop_id,kWorkshopProvider,"zengine.terminal",
-        loom::Message(loom::to_value(PaneCanvasPointer{"terminal",before.grant,before.content.picture,1,
-            canvas_pointer::kPress,1,lattice.column_x(0),lattice.row_y(at+1)})));
-    s.r.bus.drain_until_idle();
-    CHECK_MESSAGE(s.shown(kind).find("That transcript")!=std::string::npos,s.shown(kind));
     rows=pane_rows(s.r,kind); at=-1;
     for(std::size_t i=0;i<rows.size();++i) if(rows[i].rfind("v zen.Ack",0)==0) at=static_cast<std::int64_t>(i);
     REQUIRE_MESSAGE(at>=0,s.shown(kind)); s.menu(kind,at,0); s.click(s.source);
@@ -1517,7 +1365,7 @@ TEST_CASE("a value dragged from Inventory onto Flow's canvas reaches Flow as a c
     REQUIRE(s.flow != 0);
     const auto* canvas = s.r.session().panes.external_pane(s.flow);
     REQUIRE(canvas != nullptr);
-    REQUIRE(canvas->canvas.grant != 0);
+    REQUIRE(shows_canvas(*canvas));
     std::vector<PaneCanvasValueDrop> drops;
     const loom::ObserverId tap = s.r.bus.add_observer([&](const loom::BusEvent& e) {
         if (e.kind == loom::EventKind::Delivered && e.payload &&
@@ -1534,132 +1382,25 @@ TEST_CASE("a value dragged from Inventory onto Flow's canvas reaches Flow as a c
     INFO(s.r.last_notice());
     INFO(s.shown(s.source));
     REQUIRE(drops.size() == 1);
-    const auto& view = s.r.session().panes.external_pane(s.flow)->canvas;
+    const ExternalPane& view = *s.r.session().panes.external_pane(s.flow);
     CHECK(drops[0].pane == "flow");
-    CHECK(drops[0].grant == view.grant);
+    CHECK(drops[0].area == pane_window_area(s.r.session().panes, *s.r.session().panes.runtime.of_kind(s.flow)));
     CHECK(drops[0].x > 0);
-    CHECK(drops[0].x < view.width);
+    CHECK(drops[0].x < view.placed_w);
     CHECK(drops[0].y > 0);
-    CHECK(drops[0].y < view.height);
+    CHECK(drops[0].y < view.placed_h);
     CHECK(drops[0].source_office == slots::kRole);
     CHECK(inv::decode_pair({reinterpret_cast<const char*>(drops[0].data.data()),
                             drops[0].data.size()}).item.get("count")->as_int() == 1);
     // FLOW HOLDS IT ON ITS OWN PAGE and offers its shape, which this definition does not have yet.
     const auto pictured = [&](const std::string& text) {
-        for (const auto& t : s.r.session().panes.external_pane(s.flow)->canvas.content.texts)
-            if (t.text.find(text) != std::string::npos) return true;
+        for (const std::string& row : pane_rows(s.r, s.flow))
+            if (row.find(text) != std::string::npos) return true;
         return false;
     };
     CHECK(pictured("Dropped story.RuntimeItem v1"));
     CHECK(pictured("[Declare story.RuntimeItem v1 as an accepted message]"));
     CHECK(pictured("[Cancel]"));
-}
-
-TEST_CASE("a value released on Flow's canvas before its carry is answered names the picture it was "
-          "released on, though Flow repainted meanwhile") {
-    InventoryStory s(191, true, false, true);
-    s.append(1, "A");
-    REQUIRE(s.flow != 0);
-    const auto released_on = s.r.session().panes.external_pane(s.flow)->stamp.aimed;
-    REQUIRE(released_on != 0);
-    std::vector<PaneCanvasValueDrop> drops;
-    unsigned buttons = 0;
-    const loom::WeaveId workshop = s.r.workshop_id;
-    const loom::ObserverId tap = s.r.bus.add_observer([&](const loom::BusEvent& e) {
-        if (e.kind != loom::EventKind::Delivered) return;
-        if (e.payload && e.schema_name == PaneCanvasValueDrop::zen_name)
-            drops.push_back(loom::from_value<PaneCanvasValueDrop>(*e.payload));
-        // THE RELEASE HANDLED, its carry not yet asked for: the turn stops here.
-        if (e.target == workshop && e.schema_name == input::PointerButton::zen_name && ++buttons == 2)
-            s.r.bus.stop();
-    });
-    auto press = s.button_at(s.source, 2, true);
-    auto release = s.button_at(s.flow, 8, false);
-    release.x += 40; // over the graph, right of Flow's rail
-    auto move = release;
-    move.kind = "PointerMoved"; move.dx = release.x - press.x; move.dy = release.y - press.y;
-    s.hand->next = [&](loom::Mail& m) {
-        m.send_to_role(input::kInputRole, input::InjectInput{s.hand->session, {press, move, release}});
-    };
-    s.r.bus.send(s.hand_id, loom::Message(loom::to_value(InventoryHandDo{})));
-    for (int turn = 0; turn < 64 && buttons < 2 && s.r.bus.pending() != 0; ++turn) (void)s.r.bus.pump_pending();
-    s.hand->next = {};
-    REQUIRE(buttons == 2);
-    REQUIRE(drops.empty());
-
-    // FLOW REPAINTS before the carry is answered: typing on its search line.
-    const auto* flow = s.r.session().panes.runtime.of_kind(s.flow);
-    REQUIRE(flow != nullptr);
-    REQUIRE(s.r.bus.office_send_to_role_as(workshop, kWorkshopProvider, flow->provider,
-        loom::Message(loom::to_value(PaneTextInput{flow->pane, "m"}))).valid());
-    s.r.bus.drain_until_idle();
-    s.r.bus.remove_observer(tap);
-    INFO(s.r.last_notice());
-    CHECK(s.r.session().panes.external_pane(s.flow)->stamp.aimed != released_on);
-    REQUIRE(drops.size() == 1);
-    CHECK(drops[0].picture == released_on);
-}
-
-TEST_CASE("a value released on the mark a refused picture wears is not placed there, though the picture "
-          "the mark stood on is replaced before its carry is answered") {
-    InventoryStory s(191, true, false, true);
-    s.append(1, "A");
-    REQUIRE(s.flow != 0);
-    // TITLES HIDDEN, so the mark stands at the corner of Flow's picture.
-    press_outside(s.r, s.flow);
-    s.r.key(input::scan::kT);
-    s.r.text("t");
-    REQUIRE_FALSE(s.r.session().pane_titles);
-    REQUIRE(external_title_rows(s.r.session().panes, s.flow, false) == 0);
-    // FLOW'S NEXT PICTURE REFUSED for what it holds, said as its holder says its pictures.
-    const ExternalPane& flow = *s.r.session().panes.external_pane(s.flow);
-    REQUIRE(flow.canvas.heard);
-    v5::PaneCanvasContent refused = fifth_picture(flow.canvas.content);
-    refused.picture = flow.picture + 1;
-    refused.labels.push_back(PaneCanvasLabel{0, 0, "caf\xC3\xA9", gfx::role::kFill});
-    const auto* row = s.r.session().panes.runtime.of_kind(s.flow);
-    REQUIRE(row != nullptr);
-    const loom::WeaveId holder = s.r.bus.role_holder(row->provider);
-    REQUIRE(s.r.bus.office_send_to_role_as(holder, row->provider, kWorkshopProvider,
-        loom::Message(loom::to_value(refused), holder, holder, 0)).valid());
-    s.r.bus.drain_until_idle();
-    REQUIRE(flow.refusal == kExternalPictureRefused);
-
-    std::vector<PaneCanvasValueDrop> drops;
-    unsigned buttons = 0;
-    const loom::WeaveId workshop = s.r.workshop_id;
-    const loom::ObserverId tap = s.r.bus.add_observer([&](const loom::BusEvent& e) {
-        if (e.kind != loom::EventKind::Delivered) return;
-        if (e.payload && e.schema_name == PaneCanvasValueDrop::zen_name)
-            drops.push_back(loom::from_value<PaneCanvasValueDrop>(*e.payload));
-        // THE RELEASE HANDLED, its carry not yet asked for: the turn stops here.
-        if (e.target == workshop && e.schema_name == input::PointerButton::zen_name && ++buttons == 2)
-            s.r.bus.stop();
-    });
-    // A VALUE DRAGGED FROM INVENTORY and released on the mark, at Flow's picture's corner.
-    auto press = s.button_at(s.source, 2, true);
-    auto release = s.button_at(s.flow, 0, 1, false);
-    auto move = release;
-    move.kind = "PointerMoved"; move.dx = release.x - press.x; move.dy = release.y - press.y;
-    s.hand->next = [&](loom::Mail& m) {
-        m.send_to_role(input::kInputRole, input::InjectInput{s.hand->session, {press, move, release}});
-    };
-    s.r.bus.send(s.hand_id, loom::Message(loom::to_value(InventoryHandDo{})));
-    for (int turn = 0; turn < 64 && buttons < 2 && s.r.bus.pending() != 0; ++turn) (void)s.r.bus.pump_pending();
-    s.hand->next = {};
-    REQUIRE(buttons == 2);
-    REQUIRE(drops.empty());
-
-    // FLOW DRAWS AGAIN before the carry is answered, and its picture is kept: the mark is gone...
-    REQUIRE(s.r.bus.office_send_to_role_as(workshop, kWorkshopProvider, row->provider,
-        loom::Message(loom::to_value(PaneTextInput{row->pane, "m"}))).valid());
-    s.r.bus.drain_until_idle();
-    s.r.bus.remove_observer(tap);
-    INFO(s.r.last_notice());
-    CHECK(flow.refusal.empty());
-    // ...but the release met it, so the value is not placed where the weaver could not see.
-    CHECK(drops.empty());
-    CHECK(s.r.last_notice().find("Value was not placed") != std::string::npos);
 }
 
 TEST_CASE("the rows two canvas panes show are each read off the pane's own plane where their bodies "
@@ -1722,20 +1463,19 @@ namespace {
 void press_text(InventoryStory& s, std::int64_t kind, const std::string& start, std::int64_t button = 1) {
     const auto* pane = s.r.session().panes.external_pane(kind);
     REQUIRE(pane != nullptr);
-    const auto& c = pane->canvas;
-    for (const auto& t : c.content.texts)
+    for (const HeldText& t : held_texts(kind))
         if (t.text.rfind(start, 0) == 0) {
             input::InjectedEvent e;
             e.kind = "PointerButton"; e.button = button; e.pressed = true; e.space = input::space::kCells;
-            e.x = (c.x + t.x) / gfx::kCellPx + 1;
-            e.y = (c.y + t.y) / gfx::kCellPx;
+            e.x = (pane->placed_x + t.x) / gfx::kCellPx + 1;
+            e.y = (pane->placed_y + t.y) / gfx::kCellPx;
             s.event(e);
             e.pressed = false;
             s.event(e);
             return;
         }
     std::string all;
-    for (const auto& t : c.content.texts) all += t.text + " | ";
+    for (const HeldText& t : held_texts(kind)) all += t.text + " | ";
     FAIL("no line beginning `" << start << "` in " << all);
 }
 /// Choose the presented menu's row that reads `label`, with the hand.
@@ -1756,17 +1496,16 @@ input::InjectedEvent at_text(InventoryStory& s, std::int64_t kind, const std::st
                              const char* what = "PointerButton") {
     const auto* pane = s.r.session().panes.external_pane(kind);
     REQUIRE(pane != nullptr);
-    const auto& c = pane->canvas;
     input::InjectedEvent e;
     e.kind = what; e.button = 1; e.space = input::space::kCells;
-    for (const auto& t : c.content.texts)
+    for (const HeldText& t : held_texts(kind))
         if (t.text.rfind(start, 0) == 0) {
-            e.x = (c.x + t.x) / gfx::kCellPx + 1;
-            e.y = (c.y + t.y) / gfx::kCellPx;
+            e.x = (pane->placed_x + t.x) / gfx::kCellPx + 1;
+            e.y = (pane->placed_y + t.y) / gfx::kCellPx;
             return e;
         }
     std::string all;
-    for (const auto& t : c.content.texts) all += t.text + " | ";
+    for (const HeldText& t : held_texts(kind)) all += t.text + " | ";
     FAIL("no line beginning `" << start << "` in " << all);
     return e;
 }
@@ -1777,13 +1516,13 @@ input::InjectedEvent at_local(InventoryStory& s, std::int64_t kind, std::int64_t
     REQUIRE(pane != nullptr);
     input::InjectedEvent e;
     e.kind = what; e.button = 1; e.space = input::space::kCells;
-    e.x = (pane->canvas.x + x) / gfx::kCellPx;
-    e.y = (pane->canvas.y + y) / gfx::kCellPx;
+    e.x = (pane->placed_x + x) / gfx::kCellPx;
+    e.y = (pane->placed_y + y) / gfx::kCellPx;
     return e;
 }
 /// The View Builder's design area, read off its picture: the ground the view's own picture brought.
 zengine::view_builder::Area design_of(InventoryStory& s) {
-    for (const auto& r : s.r.session().panes.external_pane(s.builder)->canvas.content.rects)
+    for (const HeldRect& r : held_rects(s.builder))
         if (r.role == gfx::role::kGround && (r.x != 0 || r.y != 0)) return {r.x, r.y, r.w, r.h};
     FAIL("the builder drew no design area");
     return {};
@@ -1796,8 +1535,8 @@ void drag_between(InventoryStory& s, input::InjectedEvent from, input::InjectedE
     move.kind = "PointerMoved"; move.dx = to.x - from.x; move.dy = to.y - from.y;
     s.batch({from, move, to});
 }
-bool pictured(InventoryStory& s, std::int64_t kind, const std::string& part) {
-    for (const auto& t : s.r.session().panes.external_pane(kind)->canvas.content.texts)
+bool pictured(InventoryStory&, std::int64_t kind, const std::string& part) {
+    for (const HeldText& t : held_texts(kind))
         if (t.text.find(part) != std::string::npos) return true;
     return false;
 }
@@ -1862,14 +1601,11 @@ TEST_CASE("a press on a canvas pane drags a value out as a prose press does: the
     const auto* flow = s.r.session().panes.runtime.of_kind(s.flow);
     REQUIRE(flow != nullptr);
     const auto flow_id = s.r.bus.role_holder(flow->provider);
-    // WHAT FLOW IS TOLD OF ITS PRESS, by phase: by the window, whose area it draws in, or by
-    // Workshop, where Workshop draws it.
+    // WHAT FLOW IS TOLD OF ITS PRESS, by phase, by the window whose area it draws in.
     std::vector<std::int64_t> told_flow;
     std::vector<PaneCanvasValueDrop> drops;
     const loom::ObserverId tap = s.r.bus.add_observer([&](const loom::BusEvent& e) {
         if (e.kind != loom::EventKind::Delivered || !e.payload) return;
-        if (e.target == flow_id && e.schema_name == PaneCanvasPointer::zen_name)
-            told_flow.push_back(loom::from_value<PaneCanvasPointer>(*e.payload).phase);
         if (e.target == flow_id && e.schema_name == gfx::AreaButtonChanged::zen_name)
             told_flow.push_back(loom::from_value<gfx::AreaButtonChanged>(*e.payload).pressed
                                     ? canvas_pointer::kPress
@@ -1965,7 +1701,7 @@ TEST_CASE("shapes cross between Flow and the View Builder by dragging: the inten
     over.dx = over.x - from.x; over.dy = over.y - from.y;
     s.event(over);
     const auto landing = [&] {
-        const auto& rects = s.r.session().panes.external_pane(s.builder)->canvas.content.rects;
+        const std::vector<HeldRect> rects = held_rects(s.builder);
         return std::any_of(rects.begin(), rects.end(), [&](const auto& r) {
             return r.role == gfx::role::kAccent && r.y == label.y + label.h && r.h == 2 * gfx::kCellPx;
         });

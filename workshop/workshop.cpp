@@ -842,10 +842,8 @@ int main(int argc, char** argv) {
     loom::Grant arrange_openings;
     arrange_openings.allow_to_role(PresentationTrialRequested::zen_name,
                                    PresentationTrialRequested::zen_version, kWorkshopProvider);
-    arrange_openings.allow_to_role(PresentationAdmitRequested::zen_name,
-                                   PresentationAdmitRequested::zen_version, kWorkshopProvider);
-    arrange_openings.allow_to_role(v2::PresentationAdmitRequested::zen_name,
-                                   v2::PresentationAdmitRequested::zen_version, kWorkshopProvider);
+    arrange_openings.allow_to_role(v3::PresentationAdmitRequested::zen_name,
+                                   v3::PresentationAdmitRequested::zen_version, kWorkshopProvider);
     arrange_openings.allow_to_role(ManagedOpenProgress::zen_name, ManagedOpenProgress::zen_version,
                                    kWorkshopProvider);
     arrange_openings.allow_to_role(ManagedOpenSettled::zen_name, ManagedOpenSettled::zen_version,
@@ -855,10 +853,8 @@ int main(int argc, char** argv) {
     // ...and the `apply` word to the Editor too: the delivery that shows it its published claim.
     arrange_openings.allow_to_role(ManagedOpenProgress::zen_name, ManagedOpenProgress::zen_version,
                                    kEditorRole);
-    arrange_openings.allow_to_role(PrepareSourceRequested::zen_name,
-                                   PrepareSourceRequested::zen_version, kEditorRole);
-    arrange_openings.allow_to_role(v2::PrepareSourceRequested::zen_name,
-                                   v2::PrepareSourceRequested::zen_version, kEditorRole);
+    arrange_openings.allow_to_role(v3::PrepareSourceRequested::zen_name,
+                                   v3::PrepareSourceRequested::zen_version, kEditorRole);
     arrange_openings.allow_to_any(SourceOpened::zen_name, SourceOpened::zen_version);
     // ...and what a shape it accepts does, from its own page, to the one who asked.
     arrange_openings.allow_to_any(manual::ShapeDocumentShown::zen_name,

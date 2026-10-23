@@ -27,7 +27,7 @@
 #include <vector>
 
 namespace cmp = zengine::composer;
-namespace surface = zengine::surface;
+namespace rows = zengine::workshop;
 namespace gfx = zengine::graphics;
 
 namespace {
@@ -627,7 +627,7 @@ TEST_CASE("the value being edited is WINDOWED with a caret the medium draws; a r
     // The same field with the cursor elsewhere: no caret, and a marked cut.
     c.cursor = 1;
     const cmp::ComposerView resting = cmp::project(c, 20, 30);
-    CHECK(resting.caret_row == surface::kNoCaret);
+    CHECK(resting.caret_row == rows::kNoCaret);
     CHECK(any_row(resting, cmp::kElided));
 }
 
@@ -647,7 +647,7 @@ TEST_CASE("a caret moved inside the edited value moves no character of its row")
     CHECK(inside.caret_col == at_end.caret_col - 4);
     // ...and a row too narrow for its value's room says no caret, rather than one on a cut.
     const cmp::ComposerView narrow = cmp::project(c, 20, 6);
-    CHECK(narrow.caret_row == surface::kNoCaret);
+    CHECK(narrow.caret_row == rows::kNoCaret);
 }
 
 TEST_CASE("every row of every projection fits the room it was granted") {

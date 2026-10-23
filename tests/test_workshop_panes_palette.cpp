@@ -33,7 +33,7 @@ namespace pal = zengine::palette;
 /// number a case gives it.
 class CommandAsker
     : public loom::WeaveBase<CommandAsker, SeatState,
-                             loom::Accept<PaneCatalogRequested, PaneRoom, PaneActionRequested,
+                             loom::Accept<PaneCatalogRequested, PaneActionRequested,
                                           CommandRunAnswered, SeatDo>,
                              loom::Emit<v2::PaneOffered, v3::PaneActions, CommandRunRequested>> {
 public:
@@ -43,7 +43,6 @@ public:
     std::function<void(CommandAsker&, loom::Mail&)> next;
 
     void on(const PaneCatalogRequested&, loom::Mail&) {}
-    void on(const PaneRoom&, loom::Mail&) {}
     void on(const PaneActionRequested&, loom::Mail& mail) { asks.push_back(mail.correlation()); }
     void on(const CommandRunAnswered& a, loom::Mail&) { answers.push_back(a); }
     void on(const SeatDo&, loom::Mail& mail) {

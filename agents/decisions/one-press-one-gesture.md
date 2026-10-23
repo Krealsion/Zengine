@@ -41,5 +41,4 @@ desk scope open. A drag left of the slice steps one character per motion; a text
 only on paths that consume the press; release keeps the selection.
 
 **Laws supported.** [WL-ARR-01](../workshop/arrangement.md),
-[WL-ARR-02](../workshop/arrangement.md), [WL-ARR-03](../workshop/arrangement.md),
-[WL-TEXT-14](../workshop/text-box.md).
+[WL-ARR-02](../workshop/arrangement.md), [WL-ARR-03](../workshop/arrangement.md).

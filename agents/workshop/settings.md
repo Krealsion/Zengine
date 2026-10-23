@@ -219,7 +219,7 @@ predecessor's settings"
 declares, and an identical declaration keeps a draft"
 
 ### WL-SETTING-04
-`workshop/weave_external.cpp` hand_settings refresh_external_rooms
+`workshop/weave_external.cpp` hand_settings
 `workshop/weave_managed.cpp` after_delivery
 `workshop/panes.hpp` ExternalPane::settings_heard ExternalPane::settings_revision
 `workshop/weave_seam.cpp` accept_pane_offer

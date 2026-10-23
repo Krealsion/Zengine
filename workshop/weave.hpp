@@ -356,7 +356,7 @@ class WorkshopWeave
     : public zengine::With<TerminalDoorFacet,
                            manual::ManualFacet<manual::pages::zengine_workshop::kManual>>::
           Weave<WorkshopWeave, WorkshopState,
-                             loom::Accept<PaneShortcutInvoked, CommandRunRequested, PaneViewRequested, PanePointRequested, DeskReadRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, zengine::workshop::PaneCanvasContent, zengine::workshop::v2::PaneCanvasContent, zengine::workshop::v4::PaneCanvasContent, zengine::workshop::v5::PaneCanvasContent, zengine::workshop::v6::PaneCanvasContent, v2::PaneOperationRequested, ActorScopeRequested, zengine::input::KeyPressed, zengine::input::TextEntered,
+                             loom::Accept<PaneShortcutInvoked, CommandRunRequested, PaneViewRequested, PanePointRequested, DeskReadRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, v2::PaneOperationRequested, ActorScopeRequested, zengine::input::KeyPressed, zengine::input::TextEntered,
                                           zengine::input::KeyReleased,
                                           zengine::input::PointerButton,
                                           zengine::input::PointerMoved,
@@ -393,13 +393,6 @@ class WorkshopWeave
                                           zengine::workshop::PaneSettingLockRequested,
                                           zengine::workshop::LayoutSettingsRequested,
                                           zengine::workshop::SettingsWriteRequested,
-                                          zengine::workshop::PaneContent,
-                                          zengine::workshop::PaneCaret,
-                                          zengine::workshop::v2::PaneContent,
-                                          zengine::workshop::v2::PaneCaret,
-                                          zengine::workshop::v3::PaneContent,
-                                          zengine::workshop::v4::PaneContent,
-                                          zengine::workshop::v5::PaneContent,
                                           zengine::workshop::PaneRevealRequested,
                                           zengine::workshop::GuideRequested,
                                           zengine::workshop::PaneEscapeUnspent,
@@ -430,16 +423,13 @@ class WorkshopWeave
                                           zengine::workshop::KeymapRequested,
                                           zengine::workshop::TerminalValueRequested,
                                           zengine::workshop::PresentationTrialRequested,
-                                          zengine::workshop::PresentationAdmitRequested,
-                                          zengine::workshop::v2::PresentationAdmitRequested,
+                                          zengine::workshop::v3::PresentationAdmitRequested,
                                           zengine::workshop::ManagedOpenSettled,
                                           zengine::workshop::ManagedOpenProgress,
                                           zengine::workshop::EditorSwitchProgress,
                                           // a pane's Edit Code: the open it asked for, and
                                           // Loom's word that the ask was refused at dispatch
                                           zengine::workshop::SourceOpened,
-                                          // the medium
-                                          zengine::workshop::PictureFence,
                                           // the presenter participant's half of a pane's menu:
                                           // what it shows, when it ends it, and that it arrived
                                           zengine::workshop::MenuShown,
@@ -470,20 +460,14 @@ class WorkshopWeave
                                           // what a window says a pane's area shows, or why not
                                           zengine::graphics::AreaShown, loom::Refused,
                                           loom::DispatchRefused>,
-                             loom::Emit<loom::Ack, loom::Refused, GuideAnswered, PaneView, PanePoint, DeskRead, DeskStamps, zengine::graphics::AreaShowAsked, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneDrop, PaneValueDrop, v2::PaneValueDrop, PaneCanvasValueDrop, v1::PaneCanvasValueDrop, PaneCanvasDrop, zengine::workshop::PaneCanvasRoom,
-                                        zengine::workshop::v2::PaneCanvasRoom,
-                                        zengine::workshop::PaneCanvasPointer,
-                                        zengine::workshop::v1::PaneCanvasPointer,
+                             loom::Emit<loom::Ack, loom::Refused, GuideAnswered, PaneView, PanePoint, DeskRead, DeskStamps, zengine::graphics::AreaShowAsked, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneCanvasValueDrop, PaneCanvasDrop,
                                         zengine::workshop::PaneCanvasHover,
-                                        zengine::workshop::v1::PaneCanvasHover,
-                                        zengine::workshop::PaneCanvasRejected,
                                         zengine::surface::SurfaceCanvas,
                                         zengine::surface::SurfaceText,
                                         zengine::graphics::ClipboardCopy,
                                         zengine::graphics::ClipboardTextRequested,
                                         zengine::graphics::SurfacePlacementRemembered,
                                         zengine::workshop::PaneCatalogRequested,
-                                        zengine::workshop::PaneRoom,
                                         zengine::workshop::PaneSettings,
                                         zengine::workshop::v2::PaneSettings,
                                         zengine::workshop::PaneSettingsShown,
@@ -494,15 +478,9 @@ class WorkshopWeave
                                         zengine::workshop::PaneSettingLockActed,
                                         zengine::workshop::LayoutSettingsShown,
                                         zengine::workshop::SettingsWritten,
-                                        zengine::workshop::PanePressed,
-                                        zengine::workshop::v2::PanePressed,
-                                        zengine::workshop::v3::PanePressed,
-                                        zengine::workshop::PaneButton,
                                         zengine::workshop::PaneMenuAnswered,
                                         zengine::workshop::PaneKey,
                                         zengine::workshop::PaneTextInput,
-                                        zengine::workshop::PaneWheel,
-                                        zengine::workshop::PaneDragged,
                                         zengine::workshop::PaneActionRequested,
                                         zengine::workshop::AppActionRequested,
                                         zengine::workshop::ActionsJudged,
@@ -519,12 +497,10 @@ class WorkshopWeave
                                         zengine::workshop::PaneSubjectShown,
                                         zengine::workshop::PaneSubjectActed,
                                         zengine::workshop::TerminalValueAnswered,
-                                        zengine::workshop::PresentationTrial,
-                                        zengine::workshop::v2::PresentationTrial,
+                                        zengine::workshop::v3::PresentationTrial,
                                         zengine::workshop::PresentationAdmitted,
                                         zengine::workshop::OpenSourceRequested,
                                         zengine::workshop::PaneSourceOpened,
-                                        zengine::workshop::PictureFence,
                                         zengine::workshop::MenuGranted,
                                         zengine::workshop::MenuInput,
                                         zengine::workshop::MenuWithdrawn,
@@ -598,37 +574,17 @@ public:
 
     void on(const input::AttributedInput& event, loom::Mail& mail);
     void apply_attributed(const input::AttributedInput& event, loom::Mail& mail);
+    bool release_departed_carry(loom::Mail& mail);
     void release_held_input(loom::Mail& mail);
     bool send_key_fence(loom::Mail& mail);
     /// Whether `ask` was the key fence: then taken, and the keys behind it released.
     bool take_key_fence(std::uint64_t ask, const graphics::AreaShown* shown, loom::Mail& mail);
-    /// A pane's visible body as Workshop draws it, for a pane that draws in no window; `canvas`
-    /// when the pane sent a picture, whose body is `canvas_body` and not `body`'s rows.
-    struct VisibleBody {
-        std::int64_t kind = 0;
-        const ExternalPane* content = nullptr;
-        ExternalBodyPlace body;
-        bool canvas = false;
-        PixelRect canvas_body;
-    };
-    /// Where a word's glyphs stand: one glyph's advance.
-    struct WordGlyphs {
-        std::int64_t advance = 0;
-    };
-    /// The words a body Workshop draws shows, each where the medium draws it, numbered as a point
-    /// names.
-    std::vector<PaneWord> visible_words(const VisibleBody& visible,
-                                        std::vector<WordGlyphs>* glyphs = nullptr) const;
-    /// The parts a body Workshop draws names, each where the medium draws it: a text part over the
-    /// cells that show its columns, a canvas part as the body shows it with the `words` inside it.
-    std::vector<PanePart> visible_parts(const VisibleBody& visible,
-                                        const std::vector<PaneWord>& words) const;
     /// THE DESK AS WORKSHOP HOLDS IT NOW: every pane on it, the room, arranging, the menu, the
     /// band's words, and the desk number, which moves when any of it moves.
     DeskView desk_view() const;
     /// ONE PANE'S WHOLE READING, or why there is none: its words and parts but the covered ones,
-    /// what covers it, its stamp, and whether what it shows is in flight -- from the window for a
-    /// pane that draws in an area of its own, from Workshop's drawing for one that draws in none.
+    /// what covers it, its stamp, and whether what it shows is in flight -- from the window that
+    /// shows its area.
     std::string pane_reading(const std::string& provider, const std::string& pane,
                              PaneView& out) const;
     /// ...for a pane that draws in an area of its own: as the window last said the area shows.
@@ -643,8 +599,8 @@ public:
     void presented_menu_reading(DeskMenu& menu) const;
     /// The presented menu's area, while one is placed in the window; else empty.
     std::string presented_area() const;
-    /// ...for a pane that draws in no window: as Workshop draws what it sent.
-    std::string drawn_reading(const RuntimePane& row, PaneView& out) const;
+    /// ...for a pane no window shows: why not, in the frame's words.
+    std::string unshown_reading(const RuntimePane& row) const;
     /// THE PANE WORKSHOP PRESENTS ITSELF, Layouts, read as it is painted, its tabs named parts.
     std::string layouts_reading(PaneView& out) const;
     /// What covers a presented pane's `rect`, each by the name a reading says it with.
@@ -771,23 +727,32 @@ public:
     void on(const v2::PaneValueCarryRequested& asked, loom::Mail& mail);
     void accept_carry(const PaneCarryRequested& asked, bool value, bool drag, loom::Mail& mail,
                       std::string token = {});
-    /// The canvas a value was released on: the picture it showed, its grant and its body then.
-    struct CanvasRelease {
-        std::int64_t picture = 0, grant = 0;
-        PixelRect body;
-        bool marked = false; ///< the release met the mark over a refused picture (`on_refused_mark`)
+    /// WHERE A POINT OF THE DESK FALLS ON A PANE'S AREA: the front-most area this desk placed for
+    /// a pane that holds the point, the pane's handle, and the point in that area's pixels.
+    struct AreaPoint {
+        std::int64_t kind = kNoPaneKind;
+        std::string area;
+        std::int64_t x = 0, y = 0;
     };
-    bool drop_carry(std::int64_t kind, const ExternalPressAt& at, loom::Mail& mail,
-                    std::int64_t picture = -1, const PointedAt& point = PointedAt{},
-                    const std::optional<CanvasRelease>& released = std::nullopt);
-    bool drop_on_canvas(const RuntimePane& pane, const ExternalPane& presentation,
-                        const PointedAt& point, const std::optional<CanvasRelease>& released,
-                        loom::Mail& mail);
+    AreaPoint pane_area_at(std::int64_t x, std::int64_t y) const;
+    /// PLACE THE CARRIED ITEM ON THE PANE WHOSE AREA `at` NAMES, or say why not: true when the
+    /// gesture was the carry's.
+    bool drop_carry(const AreaPoint& at, loom::Mail& mail);
     PointedAt drag_pointer_;
     void begin_value_drag(const input::PointerButton& button);
     bool move_value_drag(const input::PointerMoved& motion, loom::Mail& mail);
     bool release_value_drag(const input::PointerButton& button, loom::Mail& mail);
     void finish_value_drag(loom::Mail& mail);
+    /// WHERE A CARRIED ITEM RESTS, to the pane whose area it is over, when its holder accepts
+    /// `PaneCanvasHover`, and to the one it left that it left. Geometry only: no focus, no key.
+    void carry_hover(std::int64_t x, std::int64_t y, loom::Mail& mail);
+    void leave_carry_hover(loom::Mail& mail);
+    /// The pane last told a carried item rests over it, and where; none when `kind` is none.
+    struct CarryHover {
+        std::int64_t kind = kNoPaneKind;
+        std::string area;
+        std::int64_t x = 0, y = 0;
+    } carry_hover_;
     /// A key transition: which key changed, and what was held when it did.
     void on(const zengine::input::KeyPressed& k, loom::Mail& mail);
 
@@ -870,16 +835,12 @@ public:
     void on(const zengine::input::PointerWheel& w, loom::Mail& mail);
     void pointer_wheel(const zengine::input::PointerWheel& w, loom::Mail& mail);
 
-    /// WHETHER A MOMENT IS ONE A GRAPHICS WINDOW GAVE WORKSHOP'S OWN AREA, about a pane that window
-    /// shows in an area of its own: such a moment is never relayed to the pane, whose area is its
-    /// own -- it reached Workshop only where the pane's area hears no pointer.
-    bool placed_in_window(std::int64_t kind) const;
-
-    // ---- The external pane seam: an office offers, Workshop grants, an office says ----------
-    // Discovery adds a row a weaver may choose; content fills a pane already open -- a provider
-    // can put a pane in the list, never on the screen. Both are authenticated by
-    // `mail.authored_role()`, the office Loom verified: personal speech, even from the holder,
-    // registers nothing (Loom MSG-07). A role is a live service route, not an author's identity.
+    // ---- The external pane seam: an office offers, Workshop seats, the pane draws ----------
+    // Discovery adds a row a weaver may choose -- a provider can put a pane in the list, never on
+    // the screen -- and a pane seated draws in its own area of the window. An offer is
+    // authenticated by `mail.authored_role()`, the office Loom verified: personal speech, even from
+    // the holder, registers nothing (Loom MSG-07). A role is a live service route, not an author's
+    // identity.
 
     /// AN OFFICE OFFERS A PANE. Admitted, refreshed, or refused -- and every one of those
     /// is bounded before a byte is retained.
@@ -1170,64 +1131,9 @@ public:
         "the inspected pane, its desk or its rows changed before it arrived, so nothing was "
         "written";
 
-    /// An office says what its pane says: judged whole against the room last granted -- authorship,
-    /// identity, room, every row -- and copied only then. An application retention bound, not a
-    /// decode-memory one.
-    void on(const PaneContent& content, loom::Mail& mail);
-    void on(const PaneCanvasContent& content, loom::Mail& mail);
-    /// A picture in the earlier canvas door's sub-units, read at their floor and then admitted as
-    /// any picture is.
-    void on(const v2::PaneCanvasContent& content, loom::Mail& mail);
-    /// A picture naming its parts: admitted as any picture is, with its names judged beside it.
-    void on(const v4::PaneCanvasContent& content, loom::Mail& mail);
-    /// A picture whose runs may stand on the room's text lattice: admitted as v4's is.
-    void on(const v5::PaneCanvasContent& content, loom::Mail& mail);
-    void on(const v6::PaneCanvasContent& content, loom::Mail& mail);
-    /// Every version is admitted in the current form, its names judged beside it (an earlier
-    /// door that names nothing names none). `said` is a problem the picture had under the doors
-    /// it was drawn for, judged before it was converted; empty for a picture in this door's own
-    /// pixels.
-    void admit_canvas_content(const v6::PaneCanvasContent& content, loom::Mail& mail,
-                              std::string_view said = {});
-    /// One pointer moment to a canvas holder, in the version its room was granted in.
-    loom::Ticket send_canvas_pointer(loom::WeaveId owner, const PaneCanvasPointer& event, bool legacy,
-                                     loom::Mail& mail, std::uint64_t correlation = 0);
-    /// ...and where the pointer rests, the same way.
-    void send_canvas_hover(loom::WeaveId owner, const PaneCanvasHover& hover, bool legacy,
-                           loom::Mail& mail);
-
-    /// Is this update inside the room granted, and can a canvas carry every row? Pure, and judged
-    /// before anything is copied: row count, row width, and `SurfaceTextRow`'s plain-ASCII
-    /// contract. Refused whole, never truncated. Role and ground are not judged: the Surface
-    /// answers an unknown one.
-    static Written judge_content(const PaneContent& content, const ExternalPane& pane);
-
-    /// Where a pane says its caret is, accepted or refused whole. It repaints only when the
-    /// admitted caret differs: a caret arriving beside its rows rides their repaint.
-    void on(const PaneCaret& caret, loom::Mail& mail);
-
-    /// Is this caret inside the content this pane last had accepted (`shown`, not the room)? One
-    /// past a row's last byte is legal: the end of a line.
-    static Written judge_caret(const PaneCaret& caret, const ExternalPane& pane);
-
     // ---- The presentation owner's half of a managed opening (WL-OPEN) -----------------------
     // Bodies in weave_managed.cpp.
 
-    /// CONTENT NAMING ITS GENERATION: admitted as `PaneContent` is, unless it names a
-    /// generation older than the one this pane holds -- a projection of a document that
-    /// has since been replaced, refused rather than painted over its replacement.
-    void on(const v2::PaneContent& content, loom::Mail& mail);
-    void on(const v2::PaneCaret& caret, loom::Mail& mail);
-    /// Content numbering its picture: admitted under v2's rule, the number recorded on the
-    /// pane's view; a press is stamped with it once the medium has been handed it (`PictureFence`).
-    void on(const v3::PaneContent& content, loom::Mail& mail);
-    /// Content naming its parts: admitted under v3's rule, its names judged with its rows.
-    void on(const v4::PaneContent& content, loom::Mail& mail);
-    /// ...and its parts saying whether their operation applies now.
-    void on(const v5::PaneContent& content, loom::Mail& mail);
-    /// THE HOST'S OWN FENCE, COMING ROUND: the first hop sends it round once more, the second
-    /// makes every picture handed out before it the one a press is stamped with.
-    void on(const PictureFence& fence, loom::Mail& mail);
     /// THE PRESENTER SAYS HOW MUCH OF ITS AREA THE OPEN MENU TAKES -- the area placed to fit, inside
     /// the popup's frame, when it is the area granted and fits the room; else the menu is withdrawn
     /// in words.
@@ -1245,12 +1151,10 @@ public:
     /// THE HOST'S OWN FENCE BEHIND A WITHDRAWAL, COMING ROUND: the first hop sends it round once
     /// more; the second forgets the withdrawn menu's record, with no refusal of it left to hear.
     void on(const WithdrawalFence& fence, loom::Mail& mail);
-    /// WOULD THE PANE SEAT, AND WITH WHAT ROOM? Judged on a copy; nothing moves.
+    /// WOULD THE PANE SEAT, AND WITH WHAT ROOM FOR ITS AREA? Judged on a copy; nothing moves.
     void on(const PresentationTrialRequested& asked, loom::Mail& mail);
-    /// ADMIT THE TRIAL'S CONTENT AND OFFER THE PRESENTATION for the exact operation: its rows...
-    void on(const PresentationAdmitRequested& asked, loom::Mail& mail);
-    /// ...or its picture, in the canvas room the trial reserved.
-    void on(const v2::PresentationAdmitRequested& asked, loom::Mail& mail);
+    /// ADMIT THE TRIAL'S SEAT AND OFFER THE PRESENTATION for the exact operation.
+    void on(const v3::PresentationAdmitRequested& asked, loom::Mail& mail);
     /// THE OPERATION ENDED, said afterwards; the commitment already happened or did not.
     void on(const ManagedOpenSettled& said, loom::Mail& mail);
     /// WHAT THE MANAGER IS WAITING ON, kept as a standing condition a weaver can read.
@@ -1290,6 +1194,9 @@ public:
     /// until the release, and keeps the press, under the window's number for it, for the
     /// continuations a pane sends about it (WL-FOCUS-03, WL-CANVAS-05, WL-CTX-08, WL-CTX-09).
     void on(const graphics::AreaPressed& p, loom::Mail& mail);
+    /// WHAT A PRESS A WINDOW LANDED ON A PANE'S AREA DOES HERE, under the window's number for it:
+    /// the menu it chose in, or the pane it chose and the keys it moved (`on(AreaPressed)`).
+    void area_pressed(const graphics::AreaPressed& p, std::uint64_t press, loom::Mail& mail);
     /// A HOLD THE WINDOW ENDED WITH NO RELEASE, told Workshop as its own area's owner and as each
     /// pane area's arranger: in its own area, every gesture that button holds there ends; in a
     /// pane's, the press Workshop kept for it is forgotten, and the pane's room no longer waits.
@@ -1315,9 +1222,8 @@ private:
     /// declined.
     bool show_presentation(const PanePresentation& published);
 
-    /// THE ONE TRIAL IN FLIGHT: which pane, the candidate setup with it added, the room its
-    /// body would get -- and the canvas room reserved for its picture, where its holder draws one
-    /// -- and, once admitted, the rows and caret or the picture it will show.
+    /// THE ONE TRIAL IN FLIGHT: which pane, the candidate setup with it added, the room its body
+    /// and its area would get, and, once admitted, the generation it will show.
     struct Trial {
         bool live = false;
         std::uint64_t op = 0;
@@ -1328,28 +1234,16 @@ private:
         Setup candidate;
         std::int64_t room_rows = 0;
         std::int64_t room_columns = 0;
-        std::vector<surface::SurfaceTextRow> rows;
+        OpeningRoom room;      ///< the area's room the trial said
+        bool admitted = false; ///< the seat was admitted, at `generation`
         std::int64_t generation = 0;
-        bool caret_ok = false;
-        std::int64_t caret_row = surface::kNoCaret;
-        std::int64_t caret_col = 0;
-        std::int64_t sel_begin_row = surface::kNoSelection;
-        std::int64_t sel_begin_col = 0;
-        std::int64_t sel_end_row = surface::kNoSelection;
-        std::int64_t sel_end_col = 0;
-        PixelRect canvas_body;  ///< where the canvas room stands, and the title rows over it
-        std::int64_t title_rows = 0;
-        PaneCanvasRoom room;    ///< the canvas room reserved for the picture; no grant: rows
-        bool pictured = false;  ///< the picture below is admitted
-        v5::PaneCanvasContent picture;
     };
     struct TrialRoom {
         bool ok = false;
         std::string refusal;
         std::int64_t rows = 0;
         std::int64_t columns = 0;
-        PixelRect canvas_body; ///< the canvas body the seat would have, and its title rows
-        std::int64_t title_rows = 0;
+        OpeningRoom room; ///< the area the seat would have
     };
     /// The kind the managed reference resolves to right now, or `kNoPaneKind`.
     std::int64_t managed_kind() const;
@@ -1365,26 +1259,15 @@ private:
     std::string trial_room_stands();
     /// The presentation the desk would have after the commitment, offered for the trial's operation.
     void offer_presentation(std::int64_t op, std::int64_t generation, loom::Mail& mail);
-    /// The shared admission of content, generation-aware; the v1 door passes none.
-    void admit_content(std::string_view office, const std::string& pane_key,
-                       const std::vector<surface::SurfaceTextRow>& rows,
-                       std::optional<std::int64_t> generation,
-                       std::optional<std::int64_t> picture, loom::Mail& mail,
-                       const std::vector<v2::PaneRowPart>* parts = nullptr);
-    void admit_caret(std::string_view office, const PaneCaret& caret,
-                     std::optional<std::int64_t> generation, loom::Mail& mail);
-
     Trial trial_;
     PanePresentation claimed_presentation_;
     bool presentation_claimed_ = false;
     std::int64_t routed_ = 0;
     std::uint64_t shown_by_ = 0;
     bool repaint_owed_ = false;
-    /// ...and the room grant the publication owes the pane it seated, said at the end of the
-    /// delivery through the one door every room goes through.
-    bool room_owed_ = false;
-    /// ...and the canvas room it seated the pane's picture in, said to the holder after the showing.
-    bool canvas_room_owed_ = false;
+    /// ...and the settings the publication owes the pane it seated, said at the end of the
+    /// delivery before its area is placed.
+    bool settings_owed_ = false;
 
     /// IS THIS THE CHARACTER THAT KEY PRODUCED?
     static bool same_keystroke(const std::string& text, const std::string& owed);
@@ -1644,63 +1527,11 @@ private:
     /// The status line: which layout is live, and what the desk's file says about it.
     std::string status_line() const;
 
-    // ---- THE EXTERNAL PANE'S ROOM AND GESTURES: the grant, a press, a key, the wheel, text ----
+    // ---- THE EXTERNAL PANE'S SETTINGS AND KEYS ------------------------------------------------
 
-    /// GRANT EACH OPEN EXTERNAL PANE THE ROOM IT CURRENTLY HAS -- once per repaint, and
-    /// only when the answer has changed -- after handing it its settings.
-    void refresh_external_rooms(loom::Mail& mail);
     /// HAND EACH SEATED PANE WHOSE HOLDER TAKES THEM ITS ROW'S SETTINGS, when they differ from what
-    /// that holder last heard, before any room.
+    /// that holder last heard.
     void hand_settings(loom::Mail& mail);
-    void refresh_canvas_rooms(loom::Mail& mail);
-    void end_canvas_holds(loom::Mail& mail);
-    bool canvas_press(std::int64_t kind, const input::PointerButton& b,
-                      bool keys_went_here, loom::Mail& mail);
-    bool canvas_release(const input::PointerButton& b, loom::Mail& mail);
-    bool canvas_motion(const input::PointerMoved& m, loom::Mail& mail);
-    bool canvas_wheel(std::int64_t kind, const input::PointerWheel& w, loom::Mail& mail);
-    void lose_canvas_hold(std::size_t slot, loom::Mail& mail);
-    bool canvas_owner_current(std::int64_t kind) const;
-    /// Whether a canvas pane's picture takes a press, a wheel or a hover now: one its office's
-    /// holder drew and numbered. A pane's words and parts say no point at one that takes none.
-    bool canvas_takes_press(std::int64_t kind) const;
-    /// Whether a place is on the mark a refused picture wears where no title row carries it
-    /// (`refused_mark_cover`): Workshop's own chrome, which no press or carried item reaches through.
-    bool on_refused_mark(std::int64_t kind, const PointedAt& at) const;
-    /// Tell the canvas under the pointer where it rests, to a provider that accepts
-    /// `PaneCanvasHover`, and the canvas it left that it left. Geometry only: no focus, no key.
-    void canvas_hover(const input::PointerMoved& m, loom::Mail& mail);
-    void leave_canvas_hover(loom::Mail& mail);
-    /// The canvas last told the pointer rests over it, and where; none when `kind` is none.
-    struct CanvasHover {
-        std::int64_t kind = kNoPaneKind, grant = 0, x = 0, y = 0;
-        loom::WeaveId owner{};
-        std::string pane;
-        bool carrying = false;
-        bool legacy = false;
-    } canvas_hover_;
-    struct CanvasHold {
-        bool active = false;
-        std::int64_t kind = kNoPaneKind;
-        loom::WeaveId owner{};
-        std::int64_t origin_x = 0, origin_y = 0;
-        PaneCanvasPointer event;
-        loom::Ticket attempt{};
-        bool legacy = false;
-    } canvas_holds_[3];
-    std::int64_t canvas_grants_ = 0, canvas_gestures_ = 0;
-
-    /// Tell a provider a weaver pressed in its room; answers whether the press named a row of the
-    /// granted body. `at` and `keys_went_here` are the picture pressed, read before the press moved
-    /// the keyboard; it crosses once, as `v2::PanePressed` to a holder that accepts it, else v1.
-    bool external_press(std::int64_t kind, const ExternalPressAt& at, bool keys_went_here,
-                        loom::Mail& mail);
-
-    /// Tell the pane a press began in that the hand moved, resolved against its body at this motion
-    /// and unclamped (`PaneDragged`); a pane that lost its seat or room ends the sweep, sending
-    /// none.
-    void external_drag(std::int64_t kind, const zengine::input::PointerMoved& m,
-                       loom::Mail& mail);
 
     /// WHICH EXTERNAL PANE THE KEYBOARD IS POINTED AT RIGHT NOW, or `kNoPaneKind`.
     std::int64_t keyboard_pane() const;
@@ -1712,34 +1543,13 @@ private:
     bool external_key(std::int64_t kind, const zengine::input::KeyPressed& k,
                       loom::Mail& mail);
 
-    /// The wheel turned over an external pane's body: sent only over a prose row of a pane that
-    /// holds a room, the notches unchanged. It follows the pointer, not the keyboard.
-    void external_wheel(std::int64_t kind, const zengine::input::PointerWheel& w,
-                        loom::Mail& mail);
-
-    // ---- The second button: custody, continuation, and a pane's own menu -------------------
+    // ---- The second button: continuation, and a pane's own menu -----------------------------
     // (the laws WL-PRESS-06, WL-CTX-08 and WL-CTX-09)
 
-    /// DELIVER A SECONDARY PRESS to a pane whose holder has the `PaneButton` door; true iff it
-    /// was queued. Delivery is consumption: a hold (release custody) and a continuation
-    /// (eligibility to be handed back or to open a menu) are recorded, per button.
-    bool external_button(std::int64_t kind, std::int64_t button, const ExternalPressAt& at,
-                         const PointedAt& cell, loom::Mail& mail);
-    /// THE RELEASE OF A HELD SECONDARY BUTTON goes to the hold's pane wherever the pointer is;
-    /// true iff a hold ended. It never restores a continuation's eligibility.
-    bool external_release(std::int64_t button, const zengine::input::PointerButton& b,
-                          loom::Mail& mail);
-    /// A HOLD WHOSE RELEASE WILL NOT COME -- a press of its button again, or a window that ended
-    /// it -- ends aloud: its pane is owed a `lost` release, and its continuation drops.
-    void lose_secondary_hold(std::size_t s, loom::Mail& mail);
-    /// A HOLD WHOSE PANE LEFT THE DESK ends with a `lost` release owed to it; a CONTINUATION
-    /// whose pane left the desk is dropped whether or not its hold is still active -- closing
-    /// invalidates the continuation independently of the physical button; and a menu presented
-    /// for a pane that left is closed and answered unchosen.
+    /// A CONTINUATION WHOSE PANE LEFT THE DESK is dropped -- closing invalidates it independently
+    /// of the physical button -- and a menu presented for a pane that left is closed and answered
+    /// unchosen.
     void end_lost_holds(loom::Mail& mail);
-    /// Settle a secondary press Loom attests it never delivered, by the attempt its refusal names:
-    /// the hold and its continuation drop; an old attempt cancels nothing newer (WL-PRESS-06).
-    bool end_refused_button(const loom::Ticket& refused_attempt, loom::Mail& mail);
     /// GRANT A PANE'S MENU TO THE PRESENTER at a cell of its body, withdrawing an older menu and
     /// closing the host's own first -- one surface at a time. The ask was judged eligible by the
     /// caller; what the rows say and mean is the presenter's to show and the requester's to act on.
@@ -1786,8 +1596,9 @@ private:
     /// IS THIS THE PRESENTER'S WORD ABOUT THE MENU THAT IS OPEN? Authored from its office, about
     /// the number this host granted.
     bool about_open_menu(std::int64_t menu, const loom::Mail& mail) const;
-    /// THE ANCHOR CELL for a place in a pane's granted body, or the body's origin when the place
-    /// is outside it; `understood` false when the pane has no body on this screen.
+    /// THE ANCHOR CELL for a place in a pane's area -- a row and a column of the window's text there
+    /// -- or the area's corner when the place is outside it; `understood` false when the pane has no
+    /// body on this screen.
     PointedAt cell_of_body_place(std::int64_t kind, std::int64_t row, std::int64_t column) const;
 
     /// PUT THE SELECTED PANE DOWN -- the press-elsewhere gesture's two lines.
@@ -1912,7 +1723,7 @@ private:
     /// carried value and the guide marks stand, deaf to the keys and the pointer.
     WindowDrawing overlay_{kWorkshopProvider, kWorkshopOverlayArea};
     /// The window that shows each pane's frame, by its area (`pane_frame_area`), each at its
-    /// pane's depth: the pane's kind, and what was last drawn there.
+    /// pane's depth, behind the pane's own: the pane's kind, and what was last drawn there.
     struct FrameDrawing {
         std::int64_t kind = 0;
         WindowDrawing drawing;
@@ -1944,8 +1755,6 @@ private:
     /// The graphics window the desk's areas are placed on, and whether a window offered itself.
     std::string window_name_ = graphics::kTerminalWindow;
     bool window_offered_ = false;
-    /// A moment the window gave Workshop's own area is being answered (`placed_in_window`).
-    bool window_moment_ = false;
     /// A PRESS A GRAPHICS WINDOW HOLDS IN A PANE'S AREA, by button: that pane, its area and the
     /// window's number for the press, until its release or until the window ends the hold.
     struct WindowHold {
@@ -1957,10 +1766,6 @@ private:
     std::array<WindowHold, 3> pane_holds_{};
     /// What each pane a window shows was last told about the keys, and its office's holder then.
     std::map<std::int64_t, std::pair<std::uint64_t, bool>> keys_told_;
-
-    /// A NUMBERED PICTURE THE CANVAS JUST HANDED THE MEDIUM is recorded as in flight, and one
-    /// fence is sent behind the canvas for all of them (none when no picture moved).
-    void fence_pictures(loom::Mail& mail);
 
     /// Leave, by asking the room first: every pane accepting `PaneQuitRequested` is asked, and the
     /// count Loom hands back is what this host waits for. None owed means the exit proceeds now.
@@ -2010,10 +1815,7 @@ private:
         InputActor actor;
         std::int64_t x = 0, y = 0, space = 0;
         bool moved = false, released = false;
-        std::int64_t target = kNoPaneKind, picture = 0;
-        ExternalPressAt at;
-        PointedAt point; ///< the release, for a canvas receiver's local place
-        std::optional<CanvasRelease> canvas; ///< the canvas the release met, if it was one
+        AreaPoint at;            ///< the pane's area the release met, and where in it
         loom::WeaveId receiver;
     };
     ValueDrag value_drag_;
@@ -2025,14 +1827,15 @@ private:
     /// One input gesture held while a quit is pending, kept whole so a refused quit can replay it.
     struct HeldInput {
         InputActor actor;
-        bool window = false; ///< a moment a graphics window gave Workshop's own area
-        enum class Kind : std::uint8_t { kKey, kText, kButton, kMoved, kWheel };
+        enum class Kind : std::uint8_t { kKey, kText, kButton, kMoved, kWheel, kAreaPress };
         Kind kind = Kind::kKey;
         zengine::input::KeyPressed key;
         zengine::input::TextEntered text;
         zengine::input::PointerButton button;
         zengine::input::PointerMoved moved;
         zengine::input::PointerWheel wheel;
+        graphics::AreaPressed area_press; ///< a press a window landed on a pane's area...
+        std::uint64_t press = 0;          ///< ...under the window's number for it
     };
 
     /// How many gestures a pending quit will hold: one poll's burst; past it they are dropped and
@@ -2072,8 +1875,6 @@ private:
     std::uint64_t code_asks_ = 0;
 
     bool quitting_ = false;
-    /// THE MINT FOR `PictureFence` NUMBERS: from one, one per canvas that handed out a picture.
-    std::int64_t fences_ = 0;
     /// THE MINT FOR A PRESENTED MENU'S NUMBER: from one, one per grant, never reused.
     std::int64_t menus_ = 0;
     /// Menus off the screen whose requesters may still be owed an answer, oldest first, each kept
@@ -2091,18 +1892,8 @@ private:
         std::uint64_t gesture = 0;
         std::uint64_t answering = 0;
     };
-    /// The second button keeps two records per button: a hold (release custody), ended by release,
-    /// owner loss or arbitration; and a continuation, the newest unspent press whose pane is on the
-    /// desk with nothing since but its own release (WL-PRESS-06).
-    struct SecondaryHold {
-        bool active = false;
-        std::int64_t kind = kNoPaneKind;
-        std::int64_t button = 0;
-        std::uint64_t correlation = 0;
-        /// The queued press send, matched by Loom's refusal notice: a press never delivered settles
-        /// here, so no release is sent for it. A valid ticket means queued, not delivered.
-        loom::Ticket attempt{};
-    };
+    /// The second button's continuation: the newest unspent press a window gave a pane, whose
+    /// pane is on the desk with nothing since but its own release (WL-PRESS-06).
     struct SecondaryContinuation {
         bool live = false;
         std::int64_t kind = kNoPaneKind;
@@ -2114,7 +1905,6 @@ private:
         bool spent = false;
         PointedAt cell;
     };
-    SecondaryHold secondary_hold_[2];
     /// The last menu choice a presenter reported for a pane: what `PaneManageRequested` or
     /// `PaneKeyboardRequested` must echo to continue it, honoured while its act is the latest.
     struct ChoiceAnswered {
@@ -2147,6 +1937,8 @@ private:
         /// control is clicked with the primary button, so that press may continue into a menu too
         /// -- judged on the same three facts, and spent once.
         GestureSent press_sent;
+        /// ...and where that press was made, where a menu it continues opens.
+        PointedAt press_cell;
         SecondaryContinuation secondary_cont[2];
         ChoiceAnswered choice_answered;
         AppAsked app_asked;
@@ -2255,9 +2047,6 @@ private:
     std::string keymap_word_;
     /// Each pane's gap sentences this run has said, by the pane's runtime handle (`unsaid_gaps`).
     std::map<std::int64_t, std::vector<std::string>> gaps_said_;
-    /// Each pane's caret refusal last said, by its runtime handle (`admit_caret`): said once, until
-    /// a caret of that pane is admitted again.
-    std::map<std::int64_t, std::string> caret_refusals_said_;
     /// The application rows the desktop last declared, retained so a keymap file read later applies
     /// the weaver's overrides to them too (WL-DESK-07); `app_declaration_` numbers them (0: none).
     std::vector<v2::AppActionRow> app_actions_;

@@ -24,7 +24,7 @@
 #include "surface/vocabulary.hpp"
 #include "graphics/vocabulary.hpp"
 #include "workshop/arrangement_vocabulary.hpp"
-#include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_operation.hpp"
@@ -65,41 +65,14 @@ struct Voice {
     std::uint64_t next() { return ++asked; }
 };
 
-/// ONE PANE'S SEAT: its rooms and the pictures numbered there (`workshop::PaneCanvasSeat`), what a
-/// press on its picture means now, and the question it has outstanding for the room it holds.
-/// Transient, as every room is: the grant is re-sent whenever a valid offer refreshes the pane.
+/// ONE PANE'S SEAT: its area (`workshop::PaneCanvasSeat`) and the question it has outstanding for
+/// the room it holds. Transient, as every room is.
 class PaneSeat {
 public:
-    /// `always_caret`: the pane says its caret with every prose picture, "none" included, so a
-    /// caret the rows lost is gone.
-    explicit PaneSeat(const char* key, bool always_caret = false)
-        : room_(key, kIntrospectionRole), always_caret_(always_caret) {}
+    explicit PaneSeat(const char* key) : room_(key, kIntrospectionRole) {}
 
-    bool on_canvas() const noexcept { return room_.on_canvas(); }
-
-    /// THE PANE'S ROOMS THEMSELVES, where a graphics window that shows its area finds the pane.
+    /// THE PANE'S AREA ITSELF, where a graphics window that shows it finds the pane.
     workshop::PaneCanvasSeat& room() noexcept { return room_; }
-
-    /// THE PROSE ROOM, kept for a host that grants no canvas: true when it is the room to grant
-    /// now, the pane holding no canvas room, and its rows and columns the budget then.
-    bool prose_room(const workshop::PaneRoom& room) { return room_.prose_room(room); }
-
-    /// THE PANE'S OWN CANVAS: true when there is a room to grant -- the lattice's while it holds a
-    /// room there; a room of no extent leaves the pane to its prose room, if it has one.
-    bool canvas_room(const workshop::PaneCanvasRoom& room) {
-        room_.canvas_room(room);
-        return room_.on_canvas() || (room_.prose_rows() > 0 && room_.prose_columns() > 0);
-    }
-
-    /// WHERE A HAND ON THE PANE'S PICTURE LANDED, as the row and column of its lattice: none while
-    /// the pane holds no canvas, or for a pointer naming a room since replaced.
-    std::optional<workshop::RowCell> cell_of(const workshop::PaneCanvasPointer& event) const {
-        return room_.cell_of(event);
-    }
-
-    /// Is the picture a press names the one drawn under the press map in force? A press on any
-    /// other is dropped, never read against whatever row has since moved into its place.
-    bool shows(const workshop::PaneCanvasPointer& event) const { return room_.shows(event); }
 
     /// The owner declined, or the ask reached nobody: the question is retired and nothing is said.
     void retire(std::uint64_t correlation) {
@@ -148,37 +121,15 @@ protected:
 
     bool awaiting() const noexcept { return awaiting_; }
 
-    /// SAY WHAT THE PANE SHOWS, the one place its content leaves: its picture while it holds a
-    /// canvas room, numbered by what a press on it means (`press_map`, spelled whole), its rows and
-    /// caret as prose to a host granting none -- as this office, because Workshop drops personal
-    /// speech from a weave that merely holds it (MSG-07).
-    void say_rows(loom::Mail& mail, std::vector<surface::SurfaceTextRow> shown,
-                  std::vector<workshop::PaneRowPart> parts = {},
-                  const workshop::RowsCaret& caret = {}, std::string press_map = {}) {
-        // The press map numbers only the picture: prose rows go unnumbered.
-        const std::int64_t meaning = on_canvas() ? meaning_of(std::move(press_map)) : 0;
-        workshop::v4::PaneContent said;
-        said.pane = room_.pane();
-        said.rows = std::move(shown);
-        said.parts = std::move(parts);
-        room_.say(mail, std::move(said), meaning, caret, always_caret_);
+    /// SAY WHAT THE PANE SHOWS, the one place its content leaves: its rows, their parts and the caret
+    /// standing in them, drawn in its area.
+    void say_rows(loom::Mail& mail, std::vector<workshop::TextRow> shown,
+                  std::vector<workshop::RowPart> parts = {}, const workshop::RowsCaret& caret = {}) {
+        room_.publish_rows(mail, std::move(shown), std::move(parts), caret);
     }
 
 private:
-    /// THE NUMBER OF WHAT A PRESS ON THE PANE MEANS NOW: a repaint that moves no meaning -- a mark,
-    /// a caret, a query typed -- keeps the number.
-    std::int64_t meaning_of(std::string press_map) {
-        if (meaning_ == 0 || press_map != press_map_) {
-            press_map_ = std::move(press_map);
-            ++meaning_;
-        }
-        return meaning_;
-    }
-
     workshop::PaneCanvasSeat room_;
-    bool always_caret_ = false;
-    std::string press_map_;
-    std::int64_t meaning_ = 0;
     std::uint64_t pending_ = 0;
     bool awaiting_ = false;
 };
@@ -281,11 +232,11 @@ public:
     }
 
     /// WHAT LOADED CALLS ITS ROWS: a loaded weave's row by its name, `weave:<name>`.
-    std::vector<workshop::PaneRowPart> loaded_parts() const {
-        workshop::PartNames<workshop::PaneRowPart> named;
+    std::vector<workshop::RowPart> loaded_parts() const {
+        workshop::PartNames<workshop::RowPart> named;
         for (std::size_t row = 0; row < view_.rows.size(); ++row) {
             if (const LoadedWeave* entry = entry_at_row(view_, static_cast<std::int64_t>(row))) {
-                (void)named.add(workshop::PaneRowPart{
+                (void)named.add(workshop::RowPart{
                     "weave:" + entry->name, static_cast<std::int64_t>(row), 0, columns()});
             }
         }
@@ -295,7 +246,7 @@ public:
 private:
     /// Loaded's rows, each press meaning the weave it names.
     void say(loom::Mail& mail) {
-        say_rows(mail, view_.rows, loaded_parts(), {}, press_meaning(view_));
+        say_rows(mail, view_.rows, loaded_parts());
     }
 
     LoadedView view_;
@@ -347,7 +298,7 @@ public:
 /// host's only words in here, replaced whole at every grant.
 class PowersSeat : public PaneSeat {
 public:
-    PowersSeat() : PaneSeat(kPowersPane, /*always_caret=*/true) {}
+    PowersSeat() : PaneSeat(kPowersPane) {}
 
     static workshop::v2::PaneOffered offering() {
         return workshop::v2::PaneOffered{kPowersPane, kPowersPaneName, kPowersPaneSummary, 8, 58};
@@ -542,9 +493,9 @@ public:
     }
 
     /// TYPED CHARACTERS: this pane's one field, so printable text is the query. Refused whole at
-    /// this door unless every byte is printable ASCII, the external row contract: Workshop refuses
-    /// a whole `PaneContent` for one byte a canvas cannot draw. Every road into the query passes
-    /// this door: typed text, a mirrored copy, a paste.
+    /// this door unless every byte is printable ASCII, a row's contract: a character is an advance
+    /// of the window's text. Every road into the query passes this door: typed text, a mirrored
+    /// copy, a paste.
     void on_typed(Voice voice, const std::string& text) {
         if (text.empty() || !workshop::pane_text::admissible(text)) {
             return;
@@ -697,8 +648,8 @@ public:
 
     /// WHAT POWERS CALLS ITS PARTS: a power's row by its identity, `power:<identity>`, and each
     /// control by the action it performs, `control:<id>`.
-    std::vector<workshop::PaneRowPart> powers_parts() const {
-        workshop::PartNames<workshop::PaneRowPart> named;
+    std::vector<workshop::RowPart> powers_parts() const {
+        workshop::PartNames<workshop::RowPart> named;
         const auto control = [](const char* action) { return std::string("control:") + action; };
         for (const PowersSpan& span : shown_.spans) {
             std::string name;
@@ -710,7 +661,7 @@ public:
             case powers_control::kEntry: name = "power:" + span.identity; break;
             default: break;
             }
-            (void)named.add(workshop::PaneRowPart{std::move(name), span.row, span.first,
+            (void)named.add(workshop::RowPart{std::move(name), span.row, span.first,
                                                   span.last - span.first + 1});
         }
         return named.take();
@@ -729,7 +680,7 @@ private:
         workshop::RowsCaret caret;
         caret.row = shown_.caret_row;
         caret.column = shown_.caret_col;
-        say_rows(mail, shown_.rows, powers_parts(), caret, press_meaning(shown_));
+        say_rows(mail, shown_.rows, powers_parts(), caret);
     }
 
     /// SHOW ONE VIEW, Sources or Operators, as its control and its action ask: false when it is

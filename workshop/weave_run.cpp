@@ -8,6 +8,9 @@
 #include "weave.hpp"
 #include "screen_canvas.hpp"
 
+#include <algorithm>
+#include <vector>
+
 namespace zengine::workshop {
 
 // ---- THE RUN: what is true now, the picture published, and the way out --------------
@@ -31,7 +34,7 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     }
     refresh_setup_name(); // a name editor's window is only true against the room it has now
     note_manuals();       // ...and which panes wear a `?`, against the holders there are now
-    refresh_external_rooms(mail); // ...and an external pane's room, against the same one
+    hand_settings(mail);  // ...and each pane's settings, before its area is placed
     // THE FRONTIER IS DERIVED HERE, PER PAINT, AND STORED NOWHERE. `paint` stays a
     // pure projection of what it is handed, and what it is handed is this repaint's
     // reading of the living realization owner — never a member, never a field of the
@@ -77,9 +80,6 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     }
     canvas.layers.insert(canvas.layers.end(), window_overlays_.begin(), window_overlays_.end());
     mail.publish(std::move(canvas));
-    // ...and behind the canvas, the fence that makes a newly shown picture the one a press is
-    // stamped with, queued after it so no delivery comes between them.
-    fence_pictures(mail);
     stamps_owed_ = desk_owed_ = true; // the desk may have moved: looked at once, at the delivery's end
     // ...and the same desk in a graphics window, where a directory places its areas.
     show_in_graphics(mail);
@@ -102,7 +102,8 @@ namespace {
 bool same_place(const graphics::AreaPlaced& a, const graphics::AreaPlaced& b) {
     return a.area == b.area && a.window == b.window && a.owner == b.owner && a.x == b.x &&
            a.y == b.y && a.w == b.w && a.h == b.h && a.order == b.order && a.keys == b.keys &&
-           a.pointer == b.pointer && a.weaver_only == b.weaver_only;
+           a.pointer == b.pointer && a.weaver_only == b.weaver_only && a.wheel == b.wheel &&
+           a.right == b.right;
 }
 
 } // namespace
@@ -142,8 +143,8 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         }
     }
     // EACH OPEN PANE AT ITS DEPTH in the desk's order, above Workshop's own area: its frame in an
-    // area of Workshop's over its bounds, and its body, where its office draws in a window and its
-    // last word was not refused, in the pane's own area just in front; else the frame draws it. The
+    // area of Workshop's over its bounds, and, where its office draws in a window, the pane's own
+    // area just in front under its title rows; else the frame says it draws in no window. The
     // window's keys are Workshop's alone, its keymap deciding first, and a pane hears them as
     // `PaneKey` and `PaneTextInput`; its pointer is the pane's where its office hears the window's.
     const Screen sc = screen_of(session_);
@@ -165,9 +166,8 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
                 framed.rect.w, framed.rect.h, 2 * static_cast<std::int64_t>(i) + 1, false, true};
             frames[frame] = order[i];
         }
-        const ExternalPane* ext = session_.panes.external_pane(order[i]);
-        if (!is_runtime_kind(order[i]) || row == nullptr ||
-            (ext != nullptr && !ext->refusal.empty()) ||
+        ExternalPane* ext = session_.panes.external_pane(order[i]);
+        if (!is_runtime_kind(order[i]) || row == nullptr || ext == nullptr ||
             !accepts(row->provider, *loom::schema_of<graphics::AreaRoom>())) {
             if (frames.count(pane_frame_area(order[i])) != 0) {
                 skins[pane_frame_area(order[i])] = session_.skin;
@@ -177,9 +177,25 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         const PaneBounds where = bounds_of(session_.panes, session_.setup.active, order[i], sc);
         const std::int64_t titles =
             external_title_rows(session_.panes, order[i], session_.pane_titles);
-        const PixelRect place = ext != nullptr && ext->canvas.grant > 0
-                                    ? shown_canvas_place(ext->canvas, where.rect, sc, titles)
-                                    : canvas_body_place(where.rect, sc, titles);
+        // THE PLACE A HELD PRESS KEEPS (WL-FOCUS-11): the keys a press moved bring or take the
+        // title their pane wears while it has them, and the area that title row alone would move
+        // -- the pane where it was, under the title rows it was placed under -- stays where the
+        // press was aimed until the window says the press ended. A pane moved keeps none.
+        bool held = false;
+        for (const WindowHold& hold : pane_holds_) held = held || (hold.active && hold.kind == order[i]);
+        const PixelRect was{ext->placed_x, ext->placed_y, ext->placed_w, ext->placed_h};
+        PixelRect place = canvas_body_place(where.rect, sc, titles);
+        ext->title_waits = held && titles != ext->placed_titles && !was.empty() &&
+                           canvas_body_place(where.rect, sc, ext->placed_titles) == was;
+        if (ext->title_waits) {
+            place = was;
+        } else {
+            ext->placed_x = place.x;
+            ext->placed_y = place.y;
+            ext->placed_w = place.w;
+            ext->placed_h = place.h;
+            ext->placed_titles = titles;
+        }
         if (!where.open || place.empty()) {
             continue;
         }
@@ -201,16 +217,19 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         }
         kinds.insert(order[i]);
     }
-    // WORKSHOP'S OWN AREA, the whole screen: behind every pane's, and in front of them while a
-    // weaver arranges, a menu is open or something is carried. A pane's menu stands in front of
-    // it, in its presenter's own area inside the popup's frame, hearing the pointer there, for the
-    // weaver's hand alone where the pane is. The overlay stands in front of all, hearing nothing,
-    // so a guide mark or the carried value stands over the panes without taking a press from the
-    // pane under it.
+    // WORKSHOP'S OWN AREA, the whole screen: behind every pane's, and in front while a weaver
+    // arranges, a menu is open or something is carried -- the wheel let through but under a carry,
+    // and the third button while a menu alone stands it there, so a right press re-asks the pane
+    // under the hand. A pane's menu stands in its presenter's own area, for the weaver's hand alone;
+    // the overlay stands in front of all, hearing nothing, so a guide mark or a carried value takes
+    // no press from the pane under it.
     const auto panes_order = 2 * static_cast<std::int64_t>(order.size());
+    const bool menu_alone = (session_.context.open || session_.presented.open) &&
+                            !session_.arrange.open && carried_.data.empty();
     next[kWorkshopProvider] = graphics::AreaPlaced{
         kWorkshopProvider, window_name_, kWorkshopProvider, 0, 0, sc.w, sc.h,
-        desk_in_front_of_panes() ? panes_order + 1 : 0, true, true};
+        desk_in_front_of_panes() ? panes_order + 1 : 0, true, true, false,
+        desk_in_front(session_) || carried_.data.empty(), !menu_alone};
     skins[kWorkshopProvider] = session_.skin;
     const PixelRect menu = presented_area_place(session_, sc);
     const bool menu_placed = session_.presented.open && !menu.empty();
@@ -232,11 +251,21 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
             skins_chosen_.erase(area);
         }
     }
+    // EACH PLACE THAT MOVED, SAID SO THAT NO AREA EVER STANDS IN FRONT OF ONE IT ENDS BEHIND: the
+    // window ends a held press an area in front now covers after each place it hears, so the
+    // areas going back are said first, the hindmost first, and then the rest, the foremost first.
+    std::vector<const graphics::AreaPlaced*> back, front;
     for (const auto& [area, placed] : next) {
         const auto was = areas_placed_.find(area);
-        if (was == areas_placed_.end() || !same_place(was->second, placed)) {
-            to_directory(placed);
-        }
+        if (was != areas_placed_.end() && same_place(was->second, placed)) continue;
+        const bool lowered = was != areas_placed_.end() && placed.order < was->second.order;
+        (lowered ? back : front).push_back(&placed);
+    }
+    std::sort(back.begin(), back.end(), [](const auto* a, const auto* b) { return a->order < b->order; });
+    std::sort(front.begin(), front.end(), [](const auto* a, const auto* b) { return a->order > b->order; });
+    for (const graphics::AreaPlaced* placed : back) to_directory(*placed);
+    for (const graphics::AreaPlaced* placed : front) to_directory(*placed);
+    for (const auto& [area, placed] : next) {
         // A SKIN IS SAID WHEN THE AREA'S CHOICE MOVED: placed afresh, or its setting changed.
         const std::string& skin = skins[area];
         if (!host_->dir.empty() && skins_chosen_[area] != skin) {
@@ -309,10 +338,7 @@ void WorkshopWeave::draw_window(loom::Mail& mail) {
     }
     for (auto& [frame, drawn] : frames_) {
         if (drawn.drawing.shown()) {
-            drawn.drawing.draw(
-                workshop_frame_drawing(session_, drawn.kind, placed_kinds_.count(drawn.kind) != 0)
-                    .sketch,
-                mail);
+            drawn.drawing.draw(workshop_frame_drawing(session_, drawn.kind).sketch, mail);
         }
     }
     if (overlay_.shown()) {
@@ -544,7 +570,6 @@ bool WorkshopWeave::hold_input(HeldInput held) {
         return true;
     }
     held.actor = input_actor_;
-    held.window = window_moment_;
     held_input_.push_back(std::move(held));
     return true;
 }
@@ -556,24 +581,17 @@ void WorkshopWeave::replay_held(loom::Mail& mail) {
     struct RestoreActor {
         InputActor& current;
         InputActor before;
-        bool& window;
-        bool was_window;
-        ~RestoreActor() {
-            current = before;
-            window = was_window;
-        }
-    } restore{input_actor_, input_actor_, window_moment_, window_moment_};
+        ~RestoreActor() { current = before; }
+    } restore{input_actor_, input_actor_};
     for (const HeldInput& held : replay) {
         input_actor_ = held.actor;
-        // A MOMENT A WINDOW GAVE WORKSHOP'S OWN AREA IS REPLAYED AS ONE, so it reaches no pane
-        // that window shows in an area of its own (`placed_in_window`).
-        window_moment_ = held.window;
         switch (held.kind) {
         case HeldInput::Kind::kKey: on(held.key, mail); break;
         case HeldInput::Kind::kText: on(held.text, mail); break;
         case HeldInput::Kind::kButton: on(held.button, mail); break;
         case HeldInput::Kind::kMoved: on(held.moved, mail); break;
         case HeldInput::Kind::kWheel: on(held.wheel, mail); break;
+        case HeldInput::Kind::kAreaPress: area_pressed(held.area_press, held.press, mail); break;
         }
     }
 }

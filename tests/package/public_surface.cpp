@@ -60,7 +60,12 @@
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/pane_parts.hpp"
 #include "workshop/pane_causes.hpp"
-#include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_canvas_drawing.hpp"
+#include "workshop/pane_drawing.hpp"
+#include "workshop/pane_facets.hpp"
+#include "workshop/pane_picture.hpp"
+#include "workshop/pane_rows.hpp"
+#include "manual/manual.hpp"
 #include "workshop/setup_control.hpp"
 
 #include <cstdio>
@@ -277,10 +282,10 @@ void pane_surface() {
     check(loom::schema_of<ws::PaneOffered>()->name() == "PaneOffered",
           "and crosses under the protocol's own schema name");
 
-    ws::PaneContent said;
-    said.pane = offer.pane;
-    said.rows.push_back(zengine::surface::SurfaceTextRow{"Tally: 3"});
-    check(said.rows.size() == 1, "a pane's content is surface rows, reused rather than mirrored");
+    std::vector<ws::TextRow> said;
+    said.push_back(ws::TextRow{"Tally: 3"});
+    check(said.size() == 1 && said[0].role == zengine::graphics::role::kFill,
+          "a pane's rows are the pane helpers' own plain values");
 
     // A pane names the parts of its rows it keeps across redraws; the installed judge says
     // whether Workshop will admit them, before they are sent.
@@ -288,12 +293,12 @@ void pane_surface() {
     map.begin();
     map.row(0, "count");
     (void)map.settle();
-    const std::vector<ws::PaneRowPart> parts =
+    const std::vector<ws::RowPart> parts =
         ws::row_parts(map, 20, [](const std::string& m) { return "row:" + m; });
     check(parts.size() == 1 && parts[0].name == "row:count" && parts[0].columns == 20,
           "a row map's parts are named by what they mean");
     check(ws::row_parts_problem(parts, 1, 20).empty() &&
-              !ws::row_parts_problem(std::vector<ws::PaneRowPart>{parts[0], parts[0]}, 1, 20).empty(),
+              !ws::row_parts_problem(std::vector<ws::RowPart>{parts[0], parts[0]}, 1, 20).empty(),
           "and judged as Workshop judges them: a name once");
     // ...listed as a press reads them: a control recorded before its row comes after it, the last
     // of the parts that hold its place, as it is what the map answers there.
@@ -301,28 +306,31 @@ void pane_surface() {
     (void)map.span(0, 2, 4, 20, "save");
     map.row(0, "count");
     (void)map.settle();
-    const std::vector<ws::PaneRowPart> pressed =
+    const std::vector<ws::RowPart> pressed =
         ws::row_parts(map, 20, [](const std::string& m) { return "row:" + m; });
     check(map.press_order() == std::vector<std::size_t>{1, 0} && pressed.size() == 2 &&
               pressed[1].name == "row:save" && *map.at(0, 3) == "save",
           "a row map's parts are listed in the order its press reads them");
-    const ws::v4::PaneContent named{offer.pane, said.rows, 0, 0, parts};
-    check(named.parts.size() == 1, "content names its parts beside its rows");
-    // ...and the same rows, drawn as the pane's own picture, name the same parts where they stand,
-    // and a place on the picture reads back to its row and column.
-    const ws::PaneCanvasRoom room{offer.pane, 7, 20 * ws::kPaneCanvasUnit, 3 * ws::kPaneCanvasUnit,
-                                  ws::kPaneCanvasUnit, false, 0, 0};
-    ws::CanvasPictures pictures;
-    const ws::v5::PaneCanvasContent drawn =
-        ws::rows_picture(room, pictures.next(room, 1), said.rows, parts);
-    check(drawn.texts.size() == 1 && !drawn.texts[0].padded && drawn.texts[0].text == "Tally: 3" &&
-              drawn.parts.size() == 1 && drawn.parts[0].name == "row:count",
-          "a pane's rows are drawn on its canvas naming the parts they named");
-    check(!drawn.rects.empty() && drawn.rects[0].role == zengine::graphics::role::kMediumGround,
-          "a pane's rows drawn on its canvas lie on the medium's own ground, as a prose body's");
-    const ws::RowCell cell = ws::row_cell_at(ws::canvas_rows(room), 3 * ws::kPaneCanvasUnit, 0);
-    check(cell.shown && cell.row == 0 && cell.column == 3 && pictures.current(7, drawn.picture),
-          "a press on the picture reads back to a row and a column of the picture it was aimed at");
+    // ...and the same rows, drawn in the window that shows the pane's area, name the same parts
+    // where they stand, and a point of the area reads back to its row and column.
+    const zengine::graphics::TextMeasure text{8, 16};
+    const ws::RowsRoom room{20 * 8, 3 * 16, text};
+    const ws::RowsDrawing drawn = ws::rows_drawing(said, parts, room, room.columns());
+    check(room.rows() == 3 && room.columns() == 20 && drawn.places.count("row:count") == 1 &&
+              !drawn.sketch.records().empty() && drawn.sketch.records()[0].action == "row:count",
+          "a pane's rows are drawn in its area naming the parts they named");
+    const ws::RowCell cell = ws::window_cell(3 * 8, 0, 1, room.columns(), text);
+    check(cell.shown && cell.row == 0 && cell.column == 3,
+          "a point of the area reads back to a row and a column of the rows drawn there");
+    // ...and a picture of the pane's own, the helpers' plain value, is drawn for the window's room.
+    ws::CanvasPicture picture;
+    picture.rects.push_back(ws::CanvasRect{0, 0, 40, 16, zengine::graphics::role::kAccent});
+    picture.parts.push_back(ws::CanvasPart{"box", 0, 0, 40, 16});
+    const ws::CanvasSketch sketched =
+        ws::canvas_sketch(picture, ws::canvas_window_room(160, 48, 0, text));
+    check(!sketched.sketch.nodes().empty() && !sketched.sketch.records().empty() &&
+              sketched.sketch.records()[0].action == "box",
+          "a pane's own picture is drawn in its area naming its parts");
 
     ws::PaneActions actions;
     actions.pane = offer.pane;
@@ -341,7 +349,7 @@ void pane_surface() {
     said_causes.rows.front().causes.push_back(ws::ActionCause{"Bad Name", 1, ""});
     check(!ws::pane_declaration_problem(said_causes).empty(),
           "and a cause out of form is refused before it is sent");
-    const std::vector<ws::v2::PaneRowPart> available = ws::row_parts(
+    const std::vector<ws::RowPart> available = ws::row_parts(
         map, 20, [](const std::string& m) { return "row:" + m; },
         [](const std::string& m) { return m != "save"; });
     check(available.size() == 2 && available[0].available && !available[1].available,
@@ -505,10 +513,10 @@ int main() {
           "inventory collection summaries retain entry identity through the installed vocabulary");
     check(loom::schema_of<zengine::workshop::PaneValueCarryRequested>()->fields().size() == 4,
           "installed panes can request value dragging");
-    check(loom::schema_of<zengine::workshop::PaneValueDrop>()->fields().size() == 5,
-          "installed panes receive copy drops separately from references");
-    check(loom::schema_of<zengine::workshop::v2::PaneValueDrop>()->find("source_office") != nullptr,
-          "installed carry v2 preserves attributed source separately from pure bytes");
+    check(loom::schema_of<zengine::workshop::PaneCanvasValueDrop>()->find("area") != nullptr,
+          "installed panes receive copy drops at a point of their area, separately from references");
+    check(loom::schema_of<zengine::workshop::PaneCanvasValueDrop>()->find("source_office") != nullptr,
+          "installed copy drops preserve attributed source separately from pure bytes");
     check(loom::schema_of<zengine::workshop::PaneShortcuts>()->find("rows") != nullptr,
           "installed panes can propose shortcuts through Desktop");
     zengine::inventory_pane::InventoryViews views;
@@ -552,11 +560,9 @@ int main() {
         zengine::inventory::decode_pair(reference_pair).item);
     check(restored_reference.owner == reference.owner && restored_reference.entry == reference.entry,
           "an installed consumer can transport a typed reference independently of item schemas");
-    check(loom::schema_of<zengine::workshop::PaneDrop>()->find("picture") != nullptr,
-          "a carried reference includes the receiving picture fence");
-    check(loom::schema_of<zengine::workshop::PaneCanvasDrop>()->find("grant") != nullptr &&
-              loom::schema_of<zengine::workshop::PaneCanvasDrop>()->find("picture") != nullptr,
-          "a reference placed on a canvas names its room's grant and the picture it was aimed at");
+    check(loom::schema_of<zengine::workshop::PaneCanvasDrop>()->find("area") != nullptr &&
+              loom::schema_of<zengine::workshop::PaneCanvasDrop>()->find("x") != nullptr,
+          "a reference placed on a pane names the area it was placed on and the point there");
     check(loom::schema_of<zengine::workshop::PaneOperationRequested>()->find("shape") != nullptr,
           "an installed pane can name the operation whose initiating actor needs authority");
     check(loom::schema_of<zengine::workshop::PaneObservationRequested>()->find("subject") != nullptr &&

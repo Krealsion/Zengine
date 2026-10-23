@@ -197,11 +197,9 @@ struct TutorDesk {
     /// THE WEAVER'S OWN PRESS AND RELEASE at the point a part's reading names, in its medium's
     /// space: what the platform reports, attributed to no guest.
     void weaver_press(const PanePart& part) {
+        // ...as the window that shows the desk reads the weaver's hand from its platform.
         for (const bool down : {true, false}) {
-            (void)b.r.bus.publish(loom::Message(
-                loom::to_value(input::PointerButton{1, down, part.x, part.y, part.space, input::mod::kNone}),
-                loom::WeaveId{}, loom::WeaveId{}, 0));
-            b.r.bus.drain_until_idle();
+            b.r.hand_button(part.x, part.y, part.space, down);
         }
     }
 };

@@ -29,4 +29,5 @@ opens Workshop's own menu of its settings, a population of its own.
 **Consequences.** With no desktop there is no `?`. A reloaded desktop shows no words until asked
 again. An office offering several panes answers for one; that is the page's to grow.
 
-**Laws supported.** [WL-CHROME-09](../workshop/chrome.md), [WL-DESK-17](../workshop/desktop-presenting.md).
+**Laws supported.** [WL-CHROME-09](../workshop/chrome.md),
+[WL-DESK-17](../workshop/desktop-presenting.md).

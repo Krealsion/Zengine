@@ -22,7 +22,7 @@
 #include "editor/source-transfer/cpp.hpp"
 #include "editor/source-transfer/material.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
-#include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_operation.hpp"
@@ -40,25 +40,11 @@ namespace {
 
 // ---- The pointer ---------------------------------------------------------------------
 
-/// THE POINTER ON THIS PANE'S CANVAS, each place read back to the row and column of the
-/// lattice its rows stand on: a primary press places the caret or remembers what it landed
-/// on, its motion sweeps or carries that, its release or loss ends the sweep, the wheel
-/// scrolls, and a right press offers this pane's rows or hands the press back. A press beside
-/// the rows, where a prose press named no row, begins nothing.
-inline void EditorPaneWeave::on(const ws::PaneCanvasPointer& event, loom::Mail& mail) {
-    if (!mail.authored_from_role(kWorkshopRole) || event.pane != pane::kEditorPane ||
-        !on_canvas()) {
-        return;
-    }
-    const ws::RowCell at = ws::row_cell_at(ws::canvas_rows(canvas_), event.x, event.y);
-    const bool same_room = event.grant == canvas_.grant;
-    const bool current = same_room && pictures_.current(event.grant, event.picture);
-    pointer(event.phase, event.button, at, event.gesture, same_room, current, event.dy, mail);
-}
-
-/// THE POINTER IN THE WINDOW that shows the pane's area, read onto the rows drawn there, which are
-/// the picture the pane holds now: a press is numbered by the window, and a hold the window ended
-/// is the loss of the press held.
+/// THE POINTER IN THE WINDOW that shows the pane's area, read onto the rows drawn there: a primary
+/// press places the caret or remembers what it landed on, its motion sweeps or carries that, its
+/// release or loss ends the sweep, the wheel scrolls, and a right press offers this pane's rows or
+/// hands the press back. A press is numbered by the window, and a hold the window ended is the
+/// loss of the press held; a press beside the rows begins nothing.
 inline void EditorPaneWeave::on_window(const std::optional<ws::WindowPointer>& p,
                                        loom::Mail& mail) {
     if (!p) {
@@ -67,24 +53,23 @@ inline void EditorPaneWeave::on_window(const std::optional<ws::WindowPointer>& p
     const std::int64_t gesture =
         p->phase == ws::canvas_pointer::kLost ? held_ : static_cast<std::int64_t>(p->press);
     pointer(p->phase, p->phase == ws::canvas_pointer::kMove ? 1 : p->button, p->at, gesture,
-            true, true, p->dy, mail);
+            p->dy, mail);
 }
 
-/// ONE MOMENT OF THE POINTER, on either medium, at a cell of the rows the pane holds: `same_room`
-/// when it was aimed at the room the pane holds now, `current` when at the picture it shows now.
+/// ONE MOMENT OF THE POINTER at a cell of the rows the pane drew.
 inline void EditorPaneWeave::pointer(std::int64_t phase, std::int64_t button,
-                                     const ws::RowCell& at, std::int64_t gesture, bool same_room,
-                                     bool current, double dy, loom::Mail& mail) {
-    if (phase == ws::canvas_pointer::kPress && same_room && button == 1) {
+                                     const ws::RowCell& at, std::int64_t gesture, double dy,
+                                     loom::Mail& mail) {
+    if (phase == ws::canvas_pointer::kPress && button == 1) {
         held_ = at.shown ? gesture : 0;
         if (at.shown) {
-            press_at(at.row, at.column, current, mail);
+            press_at(at.row, at.column, true, mail);
         } else if (!holding_.active) {
             end_grab();
             drag_ = Drag{};
         }
-    } else if (phase == ws::canvas_pointer::kPress && same_room && button == 3) {
-        right_press(at, current, mail);
+    } else if (phase == ws::canvas_pointer::kPress && button == 3) {
+        right_press(at, true, mail);
     } else if (phase == ws::canvas_pointer::kMove && button == 1 && held_ != 0 &&
                gesture == held_) {
         dragged(at.row, at.column, mail);
@@ -92,7 +77,7 @@ inline void EditorPaneWeave::pointer(std::int64_t phase, std::int64_t button,
                button == 1 && gesture == held_) {
         held_ = 0;
         drag_ = Drag{};
-    } else if (phase == ws::canvas_pointer::kWheel && same_room) {
+    } else if (phase == ws::canvas_pointer::kWheel) {
         wheel(dy, mail);
     }
 }
@@ -266,10 +251,11 @@ inline void EditorPaneWeave::right_press(const ws::RowCell& at, bool current, lo
 /// the selection when it landed ON the painted highlight; a location opens; a command is its
 /// Terminal line, or -- in a C++ document, by a separate choice -- C++. One undo takes any
 /// insertion back; nothing is saved. Refused material leaves the document, its selection and
-/// its history exactly as they were. Its place on the canvas reads back to the row and column
-/// of the lattice it fell on, on a picture still `current` or not.
+/// its history exactly as they were. Its place in the area reads back to the row and column of
+/// the rows drawn there it fell on.
 inline void EditorPaneWeave::on(const ws::PaneCanvasValueDrop& drop, loom::Mail& mail) {
-    if (!mail.authored_from_role(kWorkshopRole) || drop.pane != pane::kEditorPane) {
+    if (!mail.authored_from_role(kWorkshopRole) || drop.pane != pane::kEditorPane ||
+        drop.area != window_.area()) {
         return;
     }
     if (held_still()) {
@@ -277,10 +263,7 @@ inline void EditorPaneWeave::on(const ws::PaneCanvasValueDrop& drop, loom::Mail&
     }
     end_grab();
     notice_.clear();
-    const ws::RowCell at = ws::row_cell_at(ws::canvas_rows(canvas_), drop.x, drop.y);
-    const bool current = on_canvas() && drop.grant == canvas_.grant &&
-                         pictures_.current(drop.grant, drop.picture);
-    receive(drop.data, at, current, mail);
+    receive(drop.data, window_.cell_at(drop.x, drop.y), true, mail);
     say(mail);
 }
 

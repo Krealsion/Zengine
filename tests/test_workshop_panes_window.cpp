@@ -1386,8 +1386,6 @@ TEST_CASE("outside arrangement, an addressed pane behind another clicks through 
 
     // THE PANE ON TOP TOOK IT...
     CHECK(t.session().panes.selected == second::kKind);
-    // ...AND NOTHING UNDERNEATH SAW IT: a selection sweep the press began is the front pane's.
-    CHECK((!t.session().text_drag.active || t.session().text_drag.kind == second::kKind));
     // AND NO SELECTION AUTO-RAISED ANYTHING.
     CHECK(pane_of(t.session().setup.active, ref_of(stock::kKind))->front == 0);
 }
@@ -1726,6 +1724,11 @@ TEST_CASE("a place-only change publishes no room, and a size change publishes on
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.extent(200, 60);
     r.pick(hello_ref());
+    // THE PANE HAS DRAWN, so its area holds a drawing and a room that did not change is not said
+    // again.
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
+        s.say(m, SeatRows{kHelloPane, {TextRow{"hello", gfx::role::kFill}}});
+    });
     REQUIRE(r.session().panes.runtime.entries.size() == 1);
     const std::size_t rooms_before = seat->rooms.size();
     REQUIRE(rooms_before > 0);
@@ -1746,12 +1749,6 @@ TEST_CASE("a place-only change publishes no room, and a size change publishes on
     r.key(input::scan::kEscape);
     REQUIRE(seat->rooms.size() == rooms_before + 1);
     CHECK(seat->rooms.back().columns == 28);
-    // ...AND THE RETAINED ROWS WERE CLEARED BEFORE IT, so nothing admitted under a wider
-    // room can be shown inside a narrower one.
-    const ExternalPane* pane =
-        r.session().panes.external_pane(r.session().panes.runtime.entries[0].kind);
-    REQUIRE(pane != nullptr);
-    CHECK(pane->shown.empty());
 
     // AND REORDERING PUBLISHES NOTHING AT ALL, because the capacity did not move.
     const std::size_t after_size = seat->rooms.size();
@@ -2362,21 +2359,14 @@ TEST_CASE("the thinner boundary rewrites no authored value and no foreground law
 
 namespace {
 
-/// The prose a pane is currently SHOWING, as text -- `SurfaceTextRow` is a wire shape
-/// with no equality of its own, and what a case wants to compare is the words.
-std::vector<std::string> shown_text(const ExternalPane& pane) {
-    std::vector<std::string> out;
-    for (const surface::SurfaceTextRow& row : pane.shown) {
-        out.push_back(row.text);
-    }
-    return out;
-}
+/// The rows a pane SHOWS in its area, as text.
+std::vector<std::string> shown_text(const ExternalPane& pane) { return held_row_texts(pane); }
 
-PaneContent hello_rows(const std::vector<std::string>& lines) {
-    PaneContent said;
+SeatRows hello_rows(const std::vector<std::string>& lines) {
+    SeatRows said;
     said.pane = kHelloPane;
     for (const std::string& line : lines) {
-        said.rows.push_back(surface::SurfaceTextRow{line, gfx::role::kFill});
+        said.rows.push_back(TextRow{line, gfx::role::kFill});
     }
     return said;
 }
@@ -2392,13 +2382,13 @@ TEST_CASE("a pane in two layouts is one pane, one provider, one room") {
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     REQUIRE(r.session().panes.has(kind));
 
-    const PaneContent said = hello_rows({"one", "two"});
+    const SeatRows said = hello_rows({"one", "two"});
     r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
     const ExternalPane* before = r.session().panes.external_pane(kind);
     REQUIRE(before != nullptr);
     const std::vector<std::string> shown = shown_text(*before);
-    const std::int64_t granted_rows = before->rows;
-    const std::int64_t granted_columns = before->columns;
+    const std::int64_t granted_rows = held_canvas_rows(*before).rows;
+    const std::int64_t granted_columns = held_canvas_rows(*before).columns;
     REQUIRE(!shown.empty());
 
     const std::int64_t said_before = seat->said;
@@ -2424,8 +2414,8 @@ TEST_CASE("a pane in two layouts is one pane, one provider, one room") {
     const ExternalPane* after = r.session().panes.external_pane(kind);
     REQUIRE(after != nullptr);
     CHECK(shown_text(*after) == shown);
-    CHECK(after->rows == granted_rows);
-    CHECK(after->columns == granted_columns);
+    CHECK(held_canvas_rows(*after).rows == granted_rows);
+    CHECK(held_canvas_rows(*after).columns == granted_columns);
     CHECK(seat->said == said_before);
 }
 
@@ -2436,9 +2426,9 @@ TEST_CASE("leaving a layout withdraws a presentation and unloads nothing") {
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
-    const PaneContent said = hello_rows({"one", "two"});
+    const SeatRows said = hello_rows({"one", "two"});
     r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
-    REQUIRE(r.session().panes.external_pane(kind)->heard);
+    REQUIRE(shows_canvas(*r.session().panes.external_pane(kind)));
     const std::int64_t said_before = seat->said;
 
     // A LAYOUT THAT DOES NOT NAME IT -- which is what a NEW layout is: a fresh blank desk,
@@ -2465,7 +2455,7 @@ TEST_CASE("leaving a layout withdraws a presentation and unloads nothing") {
     CHECK(seat->rooms.back().pane == std::string(kHelloPane));
     // ...and the provider's own state answers it, unchanged, as ordinary content.
     r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
-    CHECK(r.session().panes.external_pane(kind)->shown.size() == said.rows.size());
+    CHECK(shown_text(*r.session().panes.external_pane(kind)).size() == said.rows.size());
 }
 
 TEST_CASE("an inactive layout's rows are dormant, not maintained") {

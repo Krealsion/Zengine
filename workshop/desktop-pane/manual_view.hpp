@@ -14,7 +14,7 @@
 #include "workshop/desktop-pane/vocabulary.hpp"
 
 #include "workshop/desktop_seam_vocabulary.hpp"
-#include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_document.hpp"
 #include "workshop/pane_vocabulary.hpp"
@@ -55,18 +55,15 @@ public:
     // ---- Its rooms ----------------------------------------------------------------------------
 
     /// THE PROSE ROOM WORKSHOP GRANTED IT, kept for a host that grants no canvas.
-    void grant_prose(const ws::PaneRoom& room) { (void)manual_canvas_.prose_room(room); }
+
 
     /// ...AND ITS OWN CANVAS, whose lattice is the room it composes for while it holds one.
-    void grant_canvas(const ws::PaneCanvasRoom& room) { manual_canvas_.canvas_room(room); }
+
 
     const PaneCanvas& canvas() const { return manual_canvas_; }
     /// ...for the office to hand the room a graphics window gives the pane.
     PaneCanvas& canvas() { return manual_canvas_; }
 
-    /// The rows and columns it composes for: its canvas's lattice while it holds one, its prose
-    /// room otherwise.
-    void fit_room() { manual_canvas_.fit(); }
 
     // ---- Asking for a pane's words ------------------------------------------------------------
 
@@ -193,11 +190,11 @@ public:
         if (!manual_canvas_.granted() || room_rows <= 0 || room_columns <= 0) {
             return;
         }
-        std::vector<surface::SurfaceTextRow> out;
+        std::vector<ws::TextRow> out;
         const auto push = [&out, room_rows, room_columns](std::string text, std::int64_t role) {
             if (static_cast<std::int64_t>(out.size()) < room_rows) {
                 out.push_back(
-                    surface::SurfaceTextRow{fit(std::move(text), room_columns), role});
+                    ws::TextRow{fit(std::move(text), room_columns), role});
             }
         };
         if (manual_.office.empty() && manual_.word.empty()) {
@@ -215,7 +212,7 @@ public:
             publish_manual(mail, std::move(out));
             return;
         }
-        const std::vector<surface::SurfaceTextRow> lines =
+        const std::vector<ws::TextRow> lines =
             manual_reader::manual_lines(*manual_.words, keymap, room_columns);
         manual_.lines = lines.size();
         manual_scroll(0);
@@ -245,11 +242,11 @@ private:
             std::clamp<std::int64_t>(static_cast<std::int64_t>(manual_.first) + by, 0, last));
     }
 
-    /// The Manual's picture, or its rows on a host that grants it no canvas. A press there means
-    /// nothing, so its picture's number moves only with its first composition.
-    void publish_manual(loom::Mail& mail, std::vector<surface::SurfaceTextRow> rows) {
+    /// The Manual's rows, drawn in its area. A press there means nothing.
+    void publish_manual(loom::Mail& mail, std::vector<ws::TextRow> rows) {
         manual_map_.begin();
-        manual_canvas_.publish_rows(mail, manual_map_.settle(), std::move(rows));
+        (void)manual_map_.settle();
+        manual_canvas_.publish_rows(mail, std::move(rows));
     }
 
     // ---- State not in the shape ----------------------------------------------------------

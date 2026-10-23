@@ -84,7 +84,7 @@ struct DeskMenu {
 };
 
 /// WHAT COVERS PART OF A PANE, and how much: `by` names each thing over it -- a pane in front by
-/// its name, `menu`, `arranging`, `refused mark`, `band` -- `words` counts the words and parts not
+/// its name, `menu`, `arranging`, `band` -- `words` counts the words and parts not
 /// said for it, and `rect` bounds the covered part of the pane. Empty for a pane nothing covers.
 struct PaneCover {
     std::vector<std::string> by;

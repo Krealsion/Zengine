@@ -2,9 +2,9 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // A live external consumer of the pane menu, the presenter seam and the list helpers, from the
-// installed package alone, proving on its own bus what it claims: a stand-in host (the
-// `zengine.workshop` office) grants, refuses or tries to choose; a presenter a stranger writes
-// from `workshop/presenter_vocabulary.hpp` answers; a requester reads every answer through
+// installed package alone, on its own bus: a stand-in window gives a right press in the
+// requester's area; a stand-in host grants, refuses or tries to choose; a stranger's presenter
+// (`workshop/presenter_vocabulary.hpp`) answers; the requester reads each answer through
 // `pane_menu::Asked::take`; a forger answers under the ask's number. A failed check returns
 // non-zero, which run.cmake's exit test catches.
 
@@ -18,6 +18,8 @@
 #include "component/list_window.hpp"
 #include "component/row_map.hpp"
 
+#include "graphics/vocabulary.hpp"
+
 #include <zen/switchboard.hpp>
 #include <zen/weave.hpp>
 
@@ -30,6 +32,7 @@
 namespace pm = zengine::workshop::pane_menu;
 namespace ws = zengine::workshop;
 namespace co = zengine::component;
+namespace gfx = zengine::graphics;
 
 namespace {
 
@@ -44,7 +47,10 @@ void check(bool ok, const char* what) {
 constexpr const char* kWorkshop = "zengine.workshop";
 constexpr const char* kRequester = "stranger.requester";
 constexpr const char* kForger = "stranger.forger";
+constexpr const char* kWindowOffice = "zengine.window.w1";
 constexpr const char* kPane = "list";
+/// The window's text, in its pixels: a row a line, a column an advance.
+constexpr std::int64_t kLinePx = 16, kAdvancePx = 8;
 
 /// WHAT THIS PROGRAM ASKS A PARTICIPANT TO DO NEXT -- the only way to make a weave speak as its
 /// office is from inside one of its own deliveries.
@@ -62,16 +68,19 @@ struct Nothing {
 // ---- the requester: two actions, one record ---------------------------------------------------
 
 class Requester : public loom::WeaveBase<Requester, Nothing,
-                                         loom::Accept<ws::PaneButton, ws::PaneMenuAnswered>,
+                                         loom::Accept<gfx::AreaButtonChanged, ws::PaneMenuAnswered>,
                                          loom::Emit<ws::PaneMenuRequested>> {
 public:
-    /// A RIGHT PRESS: offer two actions about the row under it, continuing THIS press.
-    void on(const ws::PaneButton& b, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshop) || !b.pressed || b.button != 3) {
+    /// A RIGHT PRESS IN ITS AREA, from the window that shows it: offer two actions about the row
+    /// under it, continuing THIS press.
+    void on(const gfx::AreaButtonChanged& b, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWindowOffice) || b.area != kRequester || !b.pressed ||
+            b.button != 3) {
             return;
         }
-        asked = pm::Offer(kPane, "row-" + std::to_string(b.row))
-                    .at(b.row, b.column)
+        const std::int64_t row = b.y / kLinePx;
+        asked = pm::Offer(kPane, "row-" + std::to_string(row))
+                    .at(row, b.x / kAdvancePx)
                     .row("mine.open", "Open")
                     .row("mine.forget", "Forget")
                     .send(mail, kRequester);
@@ -196,7 +205,7 @@ public:
 class Host : public loom::WeaveBase<Host, Nothing,
                                     loom::Accept<ws::PaneMenuRequested, ws::MenuShown,
                                                  ws::MenuClosed, ws::MenuReturned, Poke>,
-                                    loom::Emit<ws::PaneButton, ws::MenuGranted, ws::MenuInput,
+                                    loom::Emit<ws::MenuGranted, ws::MenuInput,
                                                ws::MenuWithdrawn, ws::PaneMenuAnswered>> {
 public:
     /// WHAT THIS HOST DOES WITH THE NEXT ASK: grant it, refuse it, or (a host with a bug) try to
@@ -266,11 +275,7 @@ public:
             given.correlation);
     }
     void on(const Poke& p, loom::Mail& mail) {
-        if (p.what == 1) { // a right press on row `number`, under gesture `number` + 40
-            (void)mail.as_role(kWorkshop).send_to_role(
-                kRequester, ws::PaneButton{kPane, 3, true, p.number, 2, false, 0},
-                static_cast<std::uint64_t>(p.number + 40));
-        } else if (p.what == 2) { // the weaver chooses: one key, act number `number`
+        if (p.what == 2) { // the weaver chooses: one key, act number `number`
             ws::MenuInput in;
             in.menu = menus_;
             in.input = p.number;
@@ -297,6 +302,20 @@ private:
     };
     std::int64_t menus_ = 0;
     Owed owed_;
+};
+
+// ---- the stand-in window: a right press on row `number`, under the window's number `number` + 40
+
+class Window : public loom::WeaveBase<Window, Nothing, loom::Accept<Poke>,
+                                      loom::Emit<gfx::AreaButtonChanged>> {
+public:
+    void on(const Poke& p, loom::Mail& mail) {
+        (void)mail.as_role(kWindowOffice)
+            .send_to_role(kRequester,
+                          gfx::AreaButtonChanged{kRequester, 3, true, 2 * kAdvancePx,
+                                                 p.number * kLinePx, 0, true, 0},
+                          static_cast<std::uint64_t>(p.number + 40));
+    }
 };
 
 class Forger : public loom::WeaveBase<Forger, Nothing, loom::Accept<Poke>,
@@ -326,12 +345,12 @@ void poke(loom::Switchboard& bus, loom::WeaveId id, Poke p) {
 void live_menu() {
     loom::Switchboard bus;
     loom::WeaveId host_id{};
+    loom::WeaveId window_id{};
     loom::WeaveId presenter_id{};
     loom::WeaveId requester_id{};
     loom::WeaveId forger_id{};
 
     loom::Grant host_speaks;
-    host_speaks.allow_to_role(ws::PaneButton::zen_name, ws::PaneButton::zen_version, kRequester);
     host_speaks.allow_to_role(ws::PaneMenuAnswered::zen_name, ws::PaneMenuAnswered::zen_version,
                               kRequester);
     host_speaks.allow_to_role(ws::MenuGranted::zen_name, ws::MenuGranted::zen_version,
@@ -341,6 +360,11 @@ void live_menu() {
     host_speaks.allow_to_role(ws::MenuWithdrawn::zen_name, ws::MenuWithdrawn::zen_version,
                               ws::kPresenterRole);
     Host* host = seat<Host>(bus, host_id, std::move(host_speaks), kWorkshop);
+
+    loom::Grant window_speaks;
+    window_speaks.allow_to_role(gfx::AreaButtonChanged::zen_name, gfx::AreaButtonChanged::zen_version,
+                                kRequester);
+    (void)seat<Window>(bus, window_id, std::move(window_speaks), kWindowOffice);
 
     loom::Grant presenter_speaks;
     presenter_speaks.allow_to_role(ws::MenuShown::zen_name, ws::MenuShown::zen_version, kWorkshop);
@@ -364,7 +388,7 @@ void live_menu() {
 
     // A RIGHT PRESS ON ROW 7: the requester offers two actions; the host grants; the presenter
     // shows them. The requester's record is pending under the press's own number.
-    poke(bus, host_id, Poke{1, 7, ""});
+    poke(bus, window_id, Poke{1, 7, ""});
     check(requester->asked.pending(), "the ask is pending after it was sent");
     check(requester->asked.correlation() == 47, "the ask continues the press's own number");
     check(host->shown_rows == 2 && host->shown_area == "zengine.presenter.menu.1",
@@ -395,23 +419,23 @@ void live_menu() {
 
     // THE HOST'S REFUSAL SETTLES AN ASK IT NEVER PRESENTED.
     host->mode = Host::Mode::kRefuse;
-    poke(bus, host_id, Poke{1, 2, ""});
+    poke(bus, window_id, Poke{1, 2, ""});
     check(requester->taken.size() == 4 && requester->taken[3].empty(),
           "the host's refusal is taken as nothing chosen");
     check(!requester->asked.pending(), "...and it settles the ask");
 
     // A HOST THAT TRIES TO CHOOSE: its word settles nothing -- a choice is the presenter's.
     host->mode = Host::Mode::kChoose;
-    poke(bus, host_id, Poke{1, 3, ""});
+    poke(bus, window_id, Poke{1, 3, ""});
     check(requester->taken.size() == 5 && requester->taken[4].empty(),
           "a choice authored by the host is taken as nothing");
     check(requester->asked.pending(), "...and the ask is still pending");
 
     // A NEWER ASK REPLACES AN OLDER ONE: the older one's answer matches nothing.
     host->mode = Host::Mode::kGrant;
-    poke(bus, host_id, Poke{1, 4, ""}); // ask under 44, granted
+    poke(bus, window_id, Poke{1, 4, ""}); // ask under 44, granted
     const std::size_t before = requester->taken.size();
-    poke(bus, host_id, Poke{1, 5, ""}); // a newer ask under 45 replaces the record
+    poke(bus, window_id, Poke{1, 5, ""}); // a newer ask under 45 replaces the record
     poke(bus, presenter_id, Poke{2, 44, "row-4"}); // the presenter's own word, about the old ask
     check(requester->taken.size() == before + 1 && requester->taken.back().empty(),
           "an answer to an ask a newer one replaced is taken as nothing");
@@ -427,7 +451,7 @@ void live_menu() {
     // happens. The host's cancellation then reaches a holder that carries no such menu, so it
     // hands the interaction back (`MenuReturned`) rather than saying it closed a menu it never
     // answered; the host, which kept who asked, answers that requester itself.
-    poke(bus, host_id, Poke{1, 6, ""}); // ask under 46, granted and shown
+    poke(bus, window_id, Poke{1, 6, ""}); // ask under 46, granted and shown
     check(requester->asked.pending(), "the ask is pending before the office changes hands");
     poke(bus, presenter_id, Poke{3, 0, ""}); // a holder that carries no menu
     poke(bus, host_id, Poke{3, 0, ""});      // ...and the host ends the menu
@@ -443,7 +467,7 @@ void live_menu() {
     // the cancellation that follows finds an image holding nothing, and its give-back takes
     // nothing. The two words are different facts, and a host that read them as one would answer
     // this requester twice.
-    poke(bus, host_id, Poke{1, 8, ""});  // ask under 48, granted and shown
+    poke(bus, window_id, Poke{1, 8, ""});  // ask under 48, granted and shown
     poke(bus, host_id, Poke{2, 30, ""}); // the weaver chooses: the presenter answers and closes
     check(requester->taken.back() == "mine.open", "the choice on that menu is taken");
     const std::size_t settled = requester->taken.size();
@@ -455,15 +479,6 @@ void live_menu() {
 }
 
 void list_helpers() {
-    // A HELD SECONDARY BUTTON, the whole bookkeeping a game-like pane needs.
-    pm::HeldButton held;
-    check(held.take(ws::PaneButton{"my.pane", 3, true, 0, 0, false, 0}), "a press moved the state");
-    check(held.held, "the button is now held");
-    check(!held.take(ws::PaneButton{"my.pane", 2, false, 0, 0, false, 0}),
-          "another button's release is nothing");
-    check(held.take(ws::PaneButton{"my.pane", 3, false, 0, 0, false, 0}), "the matching release moved it");
-    check(!held.held, "the button is no longer held");
-
     // A LIST PICTURE, numbered by what its rows MEAN: a recomposition that moves no row keeps the
     // number; one that changes a row's meaning bumps it.
     co::RowMap<std::string> map;

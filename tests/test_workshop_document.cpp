@@ -1592,16 +1592,18 @@ TEST_CASE("hiding titles returns the row; the keyboard's pane keeps its own") {
 
     // AN EXTERNAL PANE FOCUSED: its title auto-shows, mark and all, and ITS room shrinks back
     // -- the other pane stays bare: presentation may hide ordinary chrome; it may not hide
-    // where typing goes.
-    press_body(r, a);
+    // where typing goes. Once the press that moved the keys ends, the pane's area stands under it.
+    click_body(r, a);
     REQUIRE(keyboard_pane(r.session().panes) == a);
-    CHECK(first->rooms.size() == 3);
+    // The keys' arrival places the area again, a room at the same size; the title shrinks it.
+    REQUIRE(first->rooms.size() == 4);
+    CHECK(first->rooms[2].rows == titled_rows + kExternalHeaderRows);
     CHECK(first->rooms.back().rows == titled_rows);
     CHECK(shown_rows(a).at(0).rfind(std::string(kTypingHere) + "Seat @", 0) == 0);
     CHECK(shown_rows(b).at(0).find("@zengine.other") == std::string::npos);
 
     // FOCUS MOVED BETWEEN PANES WHILE HIDDEN: the title follows the keyboard.
-    press_body(r, b);
+    click_body(r, b);
     REQUIRE(keyboard_pane(r.session().panes) == b);
     CHECK(shown_rows(b).at(0).rfind(std::string(kTypingHere) + "Seat @", 0) == 0);
     CHECK(shown_rows(a).at(0).find("Seat @" + std::string(kHelloOffice)) ==
@@ -1657,6 +1659,7 @@ TEST_CASE("the press lattice follows the reserved rows, titles hidden or shown")
     REQUIRE(external_title_rows(r.session().panes, kind, r.session().pane_titles) == 0);
     const std::size_t hidden_before = seat->presses.size();
     r.press_cell(body.x + 1, body.y); // the pane's top row: bare, no header reserved
+    r.release_cell(body.x + 1, body.y); // ...ended, so the pane stands under the title it brought
     REQUIRE(seat->presses.size() == hidden_before + 1);
     CHECK(seat->presses.back().row == 0);
     CHECK(keyboard_pane(r.session().panes) == kind);

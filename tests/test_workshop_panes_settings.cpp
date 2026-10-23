@@ -89,8 +89,10 @@ TEST_CASE("a pane's settings are handed before its first room, whether or not it
     CHECK(t.seat->heard[1] == "room");
     CHECK(t.seat->handed.back().pane == kDial);
     CHECK(t.seat->handed.back().settings == std::vector<PaneSetting>{legend_off()});
-    for (const std::string& author : t.seat->authors) {
-        CHECK(author == kWorkshopProvider);
+    // ...the settings Workshop's, the room the window's that shows the desk.
+    for (std::size_t i = 0; i < t.seat->authors.size(); ++i) {
+        CHECK(t.seat->authors[i] == (t.seat->heard[i] == "room" ? t.r.windows.office()
+                                                                : std::string(kWorkshopProvider)));
     }
 
     // ...AND A DECLARATION ARRIVING AFTER IT CHANGES NOTHING HANDED: what the layout keeps is
@@ -681,11 +683,11 @@ namespace {
 /// the settings doors and keeps their answers. Apart from `SettingsSeat`, which takes v1.
 class RevisionSeat
     : public loom::WeaveBase<RevisionSeat, SeatState,
-                             loom::Accept<PaneCatalogRequested, PaneRoom, v2::PaneSettings,
+                             loom::Accept<PaneCatalogRequested, gfx::AreaRoom, v2::PaneSettings,
                                           PaneSettingsShown, PaneSettingActed, OfficeSettings,
                                           OfficeSettingsShown, PaneSettingPinActed,
                                           PaneSettingLockActed, LayoutSettingsShown,
-                                          SettingsWritten, PanePressed, SeatDo>,
+                                          SettingsWritten, gfx::AreaButtonChanged, SeatDo>,
                              loom::Emit<PaneOffered, v2::PaneSettingsDeclared,
                                         PaneSettingsRequested, PaneSettingCommitRequested,
                                         PaneSettingUnused, OfficeSettingsDeclared,
@@ -696,7 +698,7 @@ public:
     explicit RevisionSeat(std::string office) : office_(std::move(office)) {}
 
     void on(const PaneCatalogRequested&, loom::Mail&) {}
-    void on(const PaneRoom&, loom::Mail&) { heard.push_back("room"); }
+    void on(const gfx::AreaRoom&, loom::Mail&) { heard.push_back("room"); }
     void on(const v2::PaneSettings& s, loom::Mail& mail) {
         heard.push_back("settings");
         handed.push_back(s);
@@ -727,8 +729,11 @@ public:
     void on(const SettingsWritten& w, loom::Mail& mail) {
         if (mail.answers_ask()) batches.push_back(w);
     }
-    /// A PRESS, and the correlation it came under: what an unlock names as the weaver's act.
-    void on(const PanePressed&, loom::Mail& mail) { press_asks.push_back(mail.correlation()); }
+    /// A PRESS THE WINDOW GAVE ITS AREA, and the number it came under: what an unlock names as
+    /// the weaver's act.
+    void on(const gfx::AreaButtonChanged& b, loom::Mail& mail) {
+        if (b.pressed && b.button == 1) press_asks.push_back(mail.correlation());
+    }
     void on(const SeatDo&, loom::Mail& mail) {
         if (next) {
             std::function<void(RevisionSeat&, loom::Mail&)> once;

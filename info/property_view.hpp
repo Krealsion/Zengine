@@ -18,7 +18,7 @@
 #include "value_watch.hpp"
 
 #include "workshop/inspection_seam_vocabulary.hpp"
-#include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_parts.hpp"
 #include "workshop/pane_text.hpp"
@@ -299,13 +299,13 @@ public:
     /// THE ROWS THIS VIEW SHOWS, composed once into the room it was granted, with their press map
     /// (`placed`) and the draft's caret (`caret`): the front sentence, the one heading, and the
     /// subject's properties under it.
-    std::vector<surface::SurfaceTextRow> compose() {
-        std::vector<surface::SurfaceTextRow> out;
+    std::vector<workshop::TextRow> compose() {
+        std::vector<workshop::TextRow> out;
         composed_.clear();
         caret_ = {};
         const auto push = [&out, this](std::string text, std::int64_t role,
                                        std::int64_t ground = graphics::role::kNone) {
-            out.push_back(surface::SurfaceTextRow{
+            out.push_back(workshop::TextRow{
                 workshop::pane_text::drawable(workshop::pane_text::fit(std::move(text), columns_)),
                 role, ground});
         };
@@ -331,14 +331,14 @@ public:
     /// WHAT INFO CALLS THE ROWS IT SENDS, of the `said` it sends: a property by its label,
     /// `property:<label>`. A row it names nothing is not listed: a row entire lies over no other
     /// part.
-    std::vector<workshop::PaneRowPart> named_rows(std::int64_t said) const {
-        workshop::PartNames<workshop::PaneRowPart> names;
+    std::vector<workshop::RowPart> named_rows(std::int64_t said) const {
+        workshop::PartNames<workshop::RowPart> names;
         for (const Row& r : composed_) {
             if (r.row >= said || r.what != Placed::kProperty ||
                 r.index >= known_.properties.size()) {
                 continue;
             }
-            (void)names.add(workshop::PaneRowPart{"property:" + known_.properties[r.index].label,
+            (void)names.add(workshop::RowPart{"property:" + known_.properties[r.index].label,
                                                   r.row, 0, columns_});
         }
         return names.take();
@@ -825,12 +825,12 @@ private:
 
     /// THE ROOM IS THE WALL: the front sentence goes in front of the body when there is a row for
     /// it, and whatever the room cannot hold is cut, whatever was composed.
-    std::vector<surface::SurfaceTextRow> finish(std::vector<surface::SurfaceTextRow> out) const {
+    std::vector<workshop::TextRow> finish(std::vector<workshop::TextRow> out) const {
         if (lead() > 0) {
             if (static_cast<std::int64_t>(out.size()) > rows_ - 1) {
                 out.resize(static_cast<std::size_t>(rows_ - 1));
             }
-            out.insert(out.begin(), surface::SurfaceTextRow{
+            out.insert(out.begin(), workshop::TextRow{
                                         workshop::pane_text::drawable(
                                             workshop::pane_text::fit(front_sentence(), columns_)),
                                         graphics::role::kAlert});

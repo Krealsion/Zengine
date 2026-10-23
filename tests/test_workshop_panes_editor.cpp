@@ -87,40 +87,16 @@ inline std::string spelled(const std::filesystem::path& at) {
     return persist::resolved_against(std::string(), at.generic_string());
 }
 
-/// A SKIN THAT TAKES THE CLIPBOARD ANSWER AWAY WITH IT -- `defer_answer()` moves the answer
-/// out of the queue and into a capability this seat holds, so a case can put real turns
-/// between a weaver's paste and the platform's answer. `AnswerNow` is the unrelated delivery
-/// that lets the held answer be spent; the correlation the ask was delivered with is restored
-/// by the bus, never chosen here.
+/// THE UNRELATED DELIVERY THAT LETS A HELD ANSWER BE SPENT: `defer_answer()` moves an answer out
+/// of the queue and into a capability a seat holds, so a case can put real turns between a
+/// question and its answer; the correlation the ask was delivered with is restored by the bus,
+/// never chosen here.
 struct AnswerNow {
     ZEN_SHAPE(AnswerNow, 1);
 };
 
-class SlowSkin : public loom::WeaveBase<SlowSkin, SeenState,
-                                        loom::Accept<gfx::ClipboardTextRequested, AnswerNow>,
-                                        loom::Emit<gfx::ClipboardText>> {
-public:
-    std::string text;
-    bool held = false;
-    int asked = 0;
-    loom::DeferredAnswer answer;
-
-    void on(const gfx::ClipboardTextRequested&, loom::Mail& mail) {
-        ++asked;
-        answer = mail.defer_answer();
-        held = answer.valid();
-    }
-    void on(const AnswerNow&, loom::Mail& mail) {
-        if (!held) {
-            return;
-        }
-        held = false;
-        (void)loom::answer_deferred(answer, mail, gfx::ClipboardText{true, text});
-    }
-};
-
 /// A PROJECT OWNER THAT TAKES THE ANSWER AWAY WITH IT -- the same `defer_answer()` the slow
-/// Skin spends, one door over, so a case can put a real open between the pane's question and
+/// window spends, one door over, so a case can put a real open between the pane's question and
 /// the project's answer. A run whose owner never answers is the same shape with `AnswerNow`
 /// never sent.
 class SlowProject : public loom::WeaveBase<SlowProject, SeenState,
@@ -177,7 +153,7 @@ public:
 /// participant does not do its part.
 class BrokenEditor
     : public loom::WeaveBase<BrokenEditor, SeenState,
-                             loom::Accept<PaneCatalogRequested, PrepareSourceRequested,
+                             loom::Accept<PaneCatalogRequested, v3::PrepareSourceRequested,
                                           ManagedOpenSettled, SeatDo>,
                              loom::Emit<PaneOffered>, loom::Claims<EditorDocument>> {
 public:
@@ -189,7 +165,7 @@ public:
             .send_to_role(kWorkshopProvider,
                           PaneOffered{pane::kEditorPane, "Editor", "a stand-in that cannot prepare"});
     }
-    void on(const PrepareSourceRequested&, loom::Mail&) {
+    void on(const v3::PrepareSourceRequested&, loom::Mail&) {
         ++asked;
         if (throws) {
             throw std::runtime_error("the stand-in's preparation failed abnormally");
@@ -223,8 +199,10 @@ struct EditorRig {
     PaneRig r;
     std::int64_t kind = 0;
     DoorAsker* asker = nullptr;
-    SlowSkin* slow = nullptr;
-    loom::WeaveId slow_id{};
+    /// THE WINDOW A LATE PASTE IS ASKED OF: a stand-in that shows the Editor's area and holds the
+    /// paste its pane asks until the case lets it go, and its weave.
+    std::unique_ptr<zengine::testing::pane_window::Window> slow_window;
+    zengine::testing::pane_window::PaneWindow* slow = nullptr;
     /// What the host's recipe seam answers -- the fact the read-only project door spends.
     HostContext::RecipeSource next_source{};
     /// AUTHORED KEYMAP ROWS, written to a file this rig's host reads on its first surface --
@@ -242,10 +220,6 @@ struct EditorRig {
         marks_path = (root / "workshop-marks.json").generic_string();
         r.host.recipe_source = [this](const std::string&) { return next_source; };
     }
-
-    /// A host that knows no canvas door, answering that no office accepts a canvas room -- the one
-    /// the Editor says its rows to as prose.
-    bool no_canvas = false;
 
     /// Which project owner this run has: the read-only door that answers at once, one that holds
     /// its answer until a case releases it, or none at all.
@@ -265,12 +239,6 @@ struct EditorRig {
         // manager beside it.
         r.host.managed_pane = editor_ref();
         r.mount_workshop();
-        if (no_canvas) {
-            r.host.holder_accepts = [accepts = r.host.holder_accepts](std::string_view role,
-                                                                      const loom::Schema& shape) {
-                return shape.name() != PaneCanvasRoom::zen_name && accepts(role, shape);
-            };
-        }
         if (with_manager) {
             r.mount_opening();
         }
@@ -278,9 +246,6 @@ struct EditorRig {
             mount_project_door();
         } else if (project == Project::kSlow) {
             mount_slow_project();
-        }
-        if (slow_skin) {
-            mount_slow_skin();
         }
         load::LoadPlan plan;
         load::ArtifactIntent seat;
@@ -299,6 +264,9 @@ struct EditorRig {
         if (pick_it) {
             r.pick(editor_ref());
             REQUIRE(r.session().panes.has(kind));
+        }
+        if (slow_skin) {
+            mount_slow_window();
         }
         mount_asker();
     }
@@ -352,11 +320,7 @@ struct EditorRig {
     /// the status row always, plus a notice row wherever the room holds one under it. The
     /// pane's own composition rule, spent against the pane's own standing notice.
     std::int64_t chrome() {
-        const ExternalPane* seated = seat();
-        const std::int64_t rows = seated == nullptr       ? 0
-                                  : shows_canvas(*seated) ? held_canvas_rows(*seated).rows
-                                                          : seated->rows;
-        return (!read("notice").empty() && rows >= 3) ? 2 : 1;
+        return (!read("notice").empty() && room_rows() >= 3) ? 2 : 1;
     }
 
     SlowProject* slow_project = nullptr;
@@ -409,17 +373,25 @@ struct EditorRig {
     }
     void enqueue_press_doc(const Aim& at, std::int64_t row, std::int64_t col) {
         const std::int64_t x = at.x + pane_cell_of(r.session(), kind, at.above + row, col);
-        (void)r.bus.publish(loom::Message(
-            loom::to_value(input::PointerButton{1, true, x, at.y + at.above + row,
-                                                input::space::kCells, input::mod::kNone}),
-            loom::WeaveId{}, loom::WeaveId{}, 0));
+        enqueue(input::PointerButton{1, true, x, at.y + at.above + row, input::space::kCells,
+                                     input::mod::kNone});
     }
     void enqueue_motion_doc(const Aim& at, std::int64_t row, std::int64_t col) {
         const std::int64_t x = at.x + pane_cell_of(r.session(), kind, at.above + row, col);
-        (void)r.bus.publish(loom::Message(
-            loom::to_value(input::PointerMoved{x, at.y + at.above + row, 0, 0,
-                                               input::space::kCells, input::mod::kNone}),
-            loom::WeaveId{}, loom::WeaveId{}, 0));
+        enqueue(input::PointerMoved{x, at.y + at.above + row, 0, 0, input::space::kCells,
+                                    input::mod::kNone});
+    }
+    /// A MOMENT OF THE WEAVER'S, queued and not read: on the platform of the window showing the
+    /// desk, its beat asked for on the bus at this place in the order -- the beat reads every
+    /// moment queued since, in order, together; or, where no window shows it, on the bus.
+    template <class Moment>
+    void enqueue(const Moment& moment) {
+        if (r.windows.up()) {
+            r.windows.queue({moment});
+            (void)r.bus.send(r.windows.id(), loom::Message(loom::to_value(gfx::PumpSurface{})));
+            return;
+        }
+        (void)r.bus.publish(loom::Message(loom::to_value(moment), loom::WeaveId{}, loom::WeaveId{}, 0));
     }
     /// THE CARET WORKSHOP IS HOLDING, read WITHOUT draining -- what a case checks between
     /// enqueueing a batch and settling it, to prove nothing was delivered in between. Both
@@ -428,28 +400,40 @@ struct EditorRig {
     std::pair<std::int64_t, std::int64_t> admitted_caret() {
         const ExternalPane* seated = seat();
         if (seated == nullptr) return {surface::kNoCaret, 0};
-        const PaneCaret held = held_caret(*seated);
+        const RowsCaret held = held_caret(*seated);
         return {held.row, held.column};
     }
 
-    /// A SKIN THAT ANSWERS A PASTE LATE, for the cases whose claim is a late answer: seated before
-    /// the rig's window comes up, which then never does (`own_medium`).
-    void mount_slow_skin() {
-        REQUIRE(!r.windows.up());
-        r.in_window = false;
-        auto seat = std::make_unique<SlowSkin>();
-        slow = seat.get();
-        loom::Grant grant;
-        grant.allow_to_any(gfx::ClipboardText::zen_name, gfx::ClipboardText::zen_version);
-        slow_id = r.bus.register_weave(std::move(seat), std::move(grant), surface::kSkinRole);
-        slow->zen_set_self(slow_id);
+    /// A WINDOW THAT ANSWERS A PASTE LATE, for the cases whose claim is a late answer: a stand-in
+    /// window of cells, given the Editor's area at the size the desk placed it, which the Editor
+    /// then draws in and asks its paste of. The rig's own window keeps the desk.
+    void mount_slow_window() {
+        REQUIRE(r.windows.up());
+        const ExternalPane* seated = seat();
+        REQUIRE(seated != nullptr);
+        slow_window = std::make_unique<zengine::testing::pane_window::Window>(r.bus, "slow");
+        slow = &slow_window->weave();
+        slow->hold_paste = true;
+        slow_window->room(held_area_of(kind), pane::kEditorPaneRole, seated->placed_w / gfx::kCellPx,
+                          seated->placed_h / gfx::kCellPx);
+        r.bus.drain_until_idle();
     }
 
-    void answer_now() {
-        REQUIRE(slow != nullptr);
-        (void)r.bus.send(slow_id, loom::Message(loom::to_value(AnswerNow{}), loom::WeaveId{},
-                                                loom::WeaveId{}, 0));
+    /// THE STAND-IN WINDOW GIVES THE AREA ITS ROOM AGAIN, to the Editor holding the office now --
+    /// a new incarnation, which asked its room of the desk's own window.
+    void reseat_slow_window() {
+        REQUIRE(slow_window != nullptr);
+        const ExternalPane* seated = seat();
+        REQUIRE(seated != nullptr);
+        slow_window->room(held_area_of(kind), pane::kEditorPaneRole, seated->placed_w / gfx::kCellPx,
+                          seated->placed_h / gfx::kCellPx);
         r.bus.drain_until_idle();
+    }
+
+    /// The paste held, answered now -- or, `queued`, at the bus's next pump.
+    void answer_now(bool queued = false) {
+        REQUIRE(slow_window != nullptr);
+        slow_window->answer_paste(queued);
     }
 
     /// The party that stands in for Files and the Builder: an office that asks the two doors
@@ -471,7 +455,7 @@ struct EditorRig {
         // settlement, preparation, admission or dispatch refusal must reach its party to be
         // dropped by it.
         grant.allow_to_any(ManagedOpenSettled::zen_name, ManagedOpenSettled::zen_version);
-        grant.allow_to_any(SourcePrepared::zen_name, SourcePrepared::zen_version);
+        grant.allow_to_any(v3::SourcePrepared::zen_name, v3::SourcePrepared::zen_version);
         grant.allow_to_any(PresentationAdmitted::zen_name, PresentationAdmitted::zen_version);
         grant.allow_to_any(loom::DispatchRefused::zen_name, loom::DispatchRefused::zen_version);
         const loom::WeaveId id = r.bus.register_weave(std::move(held), std::move(grant),
@@ -706,8 +690,19 @@ struct EditorRig {
         return path;
     }
 
-    /// The pane's rows, as Workshop admitted and painted them.
-    std::vector<std::string> shown() { return pane_rows(r, kind); }
+    /// The pane's rows, as the window showing it holds them.
+    std::vector<std::string> shown() {
+        return slow_window != nullptr ? slow_window->rows(held_area_of(kind)) : pane_rows(r, kind);
+    }
+    /// How many rows the window showing the pane gives it.
+    std::int64_t room_rows() {
+        if (slow_window != nullptr) {
+            const auto* a = slow_window->held(held_area_of(kind));
+            return a == nullptr ? 0 : a->h / gfx::kCellPx;
+        }
+        const ExternalPane* seated = seat();
+        return seated == nullptr ? 0 : held_canvas_rows(*seated).rows;
+    }
 
     std::string text() {
         std::string all;
@@ -731,8 +726,7 @@ struct EditorRig {
         const std::int64_t above = chrome();
         const std::vector<std::string> rows = shown();
         const std::size_t at = static_cast<std::size_t>(above + n);
-        if (at >= rows.size() && seat() != nullptr && shows_canvas(*seat()) &&
-            above + n < held_canvas_rows(*seat()).rows) {
+        if (at >= rows.size() && seat() != nullptr && above + n < room_rows()) {
             return std::string();
         }
         REQUIRE(at < rows.size());
@@ -752,13 +746,23 @@ struct EditorRig {
 
     /// Hand the keys back the way a weaver does -- a press on the bare workspace.
     void unfocus() {
-        r.press_cell(0, screen_of(r.session()).h - 1);
+        r.press_cell(0, gfx::cell_of_pixel(screen_of(r.session()).h) - 1);
         REQUIRE(r.session().panes.keyboard != kind);
     }
 
     /// A press on document row `row`, column `col` of the window. The row is resolved
     /// against the picture standing NOW, which is the one the weaver would be looking at.
-    void press_doc(std::int64_t row, std::int64_t col) { press_pane(r, kind, chrome() + row, col); }
+    /// ...the keys moved there by the desk's own window and the caret placed by the one showing
+    /// the pane, where a stand-in shows it.
+    void press_doc(std::int64_t row, std::int64_t col) {
+        if (slow_window != nullptr) {
+            press_pane(r, kind, 0, 0);
+            slow_window->click(held_area_of(kind), col, chrome() + row);
+            r.bus.drain_until_idle();
+            return;
+        }
+        press_pane(r, kind, chrome() + row, col);
+    }
     void motion_doc(std::int64_t row, std::int64_t col) {
         const std::int64_t at = chrome() + row;
         const ui::Rect body = external_body_rect(r.session(), kind);
@@ -785,13 +789,10 @@ struct EditorRig {
 
     // ---- STAGING AN ORDER ON THE REAL BUS ------------------------------------------
     void enqueue_key(std::int64_t sc, std::int64_t mods = input::mod::kNone) {
-        (void)r.bus.publish(loom::Message(loom::to_value(input::KeyPressed{sc, "", mods}),
-                                          loom::WeaveId{}, loom::WeaveId{}, 0));
+        enqueue(input::KeyPressed{sc, "", mods});
     }
-    void enqueue_text(const std::string& s) {
-        (void)r.bus.publish(loom::Message(loom::to_value(input::TextEntered{s}), loom::WeaveId{},
-                                          loom::WeaveId{}, 0));
-    }
+    void enqueue_text(const std::string& s) { enqueue(input::TextEntered{s}); }
+    /// Everything queued read and delivered: each moment's beat was queued with it.
     void settle() { r.bus.drain_until_idle(); }
 
     /// THE CARET WORKSHOP IS HOLDING FOR THIS PANE, read off the host's own record -- so a
@@ -801,7 +802,7 @@ struct EditorRig {
     /// WHERE THE CARET AND THE SELECTION STAND in the picture Workshop holds, on the lattice the
     /// pane's rows stand on: the run carrying the caret, the first run a selection touches where its
     /// span begins, and the last where its span ends.
-    PaneCaret caret() {
+    RowsCaret caret() {
         const ExternalPane* seated = seat();
         REQUIRE(seated != nullptr);
         return held_caret(*seated);
@@ -817,8 +818,8 @@ struct EditorRig {
         REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
         focus();
         REQUIRE(seat() != nullptr);
-        REQUIRE_MESSAGE(seat()->rows == rows, "asked for ", rows, " rows and was granted ",
-                        seat()->rows);
+        REQUIRE_MESSAGE(held_canvas_rows(*seat()).rows == rows, "asked for ", rows,
+                        " rows and was given ", held_canvas_rows(*seat()).rows);
     }
 
     /// The ids this pane declares RIGHT NOW, sorted.
@@ -878,9 +879,7 @@ TEST_CASE("the Editor is an ordinary arranged pane, offered by an office") {
         EditorRig u("edit-offer-window");
         const loom::ObserverId tap = u.r.bus.add_observer([&](const loom::BusEvent& ev) {
             if (ev.authored_role == area && ev.kind == loom::EventKind::Delivered &&
-                (ev.schema_name == v4::PaneContent::zen_name ||
-                 ev.schema_name == v5::PaneCanvasContent::zen_name ||
-                 ev.schema_name == v2::PaneCaret::zen_name)) {
+                ev.schema_name == gfx::Drawn::zen_name && ev.addressed_role == kWorkshopProvider) {
                 ++to_workshop;
             }
         });
@@ -993,7 +992,7 @@ TEST_CASE("the Pane Manager's close takes the Editor off the desk and unloads no
     e.key(input::scan::kX);
     CHECK_FALSE(has_pane(e.r.session().setup.active, editor_ref()));
     CHECK_FALSE(e.r.session().panes.has(e.kind));
-    CHECK(e.r.host.holder_accepts(pane::kEditorPaneRole, *loom::schema_of<PaneRoom>()));
+    CHECK(e.r.host.holder_accepts(pane::kEditorPaneRole, *loom::schema_of<gfx::AreaRoom>()));
 
     e.key(input::scan::kReturn); // the same row: open or focus
     REQUIRE(e.r.session().panes.has(e.kind));
@@ -1704,11 +1703,8 @@ TEST_CASE("an edit racing the exit check is judged at the answer, and a refused 
     // was replayed at all.) A press held through the ask is replayed too, and points the keys.
     e.enqueue_key(input::scan::kQ);
     const ui::Rect body = external_body_rect(e.r.session(), e.kind);
-    (void)e.r.bus.publish(loom::Message(
-        loom::to_value(input::PointerButton{1, true, body.x + 2,
-                                            body.y + kExternalHeaderRows + 1,
-                                            input::space::kCells, input::mod::kNone}),
-        loom::WeaveId{}, loom::WeaveId{}, 0));
+    e.enqueue(input::PointerButton{1, true, body.x + 2, body.y + kExternalHeaderRows + 1,
+                                   input::space::kCells, input::mod::kNone});
     e.enqueue_text("?");
     e.enqueue_key(input::scan::kA); // a KEY held too: routed at once it would open a menu
     e.settle();
@@ -1733,7 +1729,7 @@ TEST_CASE("a paste still arriving refuses the quit, because its answer could dir
     e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/true);
     e.open_file("a.cpp", "one\n");
     e.press_doc(0, 3);
-    e.slow->text = "PASTED";
+    e.slow->platform = "PASTED";
     e.key(input::scan::kV, input::mod::kCtrl);
     REQUIRE(e.slow->held);
     CHECK(e.clean());
@@ -1840,14 +1836,14 @@ TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by
 
         // A CHANGE IS DRAWN AS WHAT CHANGED.
         std::size_t mark = seen.heard.size();
-        w.press_doc(0, 0);
+        window.click(area, 0, w.chrome());
         w.type("x");
         REQUIRE(seen.heard.size() > mark);
         CHECK_FALSE(seen.heard.back().whole);
         CHECK(window.rows(area)[static_cast<std::size_t>(w.chrome())] == "xone");
 
         // THE SELECTION STANDS IN ITS ROW IN THE ACCENT ROLE, asking what its line asks.
-        w.press_doc(1, 0);
+        window.click(area, 0, w.chrome() + 1);
         w.key(input::scan::kRight, input::mod::kShift);
         w.key(input::scan::kRight, input::mod::kShift);
         const std::int64_t second = w.chrome() + 1;
@@ -1869,18 +1865,22 @@ TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by
         REQUIRE(seen.heard.size() == mark + 1);
         CHECK_FALSE(seen.heard.back().whole);
         const std::int64_t third = w.chrome() + 2;
+        // In a room of cells the caret over a character is that character drawn again in the
+        // accent role, which a bar there would hide.
         const gfx::Node* caret = kept("caret");
         REQUIRE(caret != nullptr);
-        CHECK(caret->op == gfx::op::kLine);
-        const std::optional<gfx::LineArgs> bar = gfx::from_body<gfx::LineArgs>(caret->args);
-        REQUIRE(bar.has_value());
-        CHECK(bar->x1 == 0);
-        CHECK(bar->y1 == third * gfx::kCellPx);
+        CHECK(caret->op == gfx::op::kText);
+        const std::optional<gfx::TextArgs> drawn_caret = gfx::from_body<gfx::TextArgs>(caret->args);
+        REQUIRE(drawn_caret.has_value());
+        CHECK(drawn_caret->x == 0);
+        CHECK(drawn_caret->y == third * gfx::kCellPx);
+        CHECK(drawn_caret->text == "t");
+        CHECK(drawn_caret->ink.role == gfx::role::kAccent);
         CHECK(kept("sel" + std::to_string(second) + ".0") == nullptr);
         CHECK(window.action_at(area, 0, third) == "line:3");
-        // ...AND IT LEAVES NO SWEEP ARMED: the press still held in Workshop's canvas moves, and
-        // selects nothing from where the window pressed.
-        w.motion_doc(2, 3);
+        // ...AND IT LEAVES NO SWEEP ARMED: the pointer moving after it selects nothing from where
+        // the window asked.
+        window.move(area, 3, third);
         CHECK(w.read("anchor_row") == "2");
         CHECK(w.read("anchor_byte") == "0");
         CHECK(w.read("caret_byte") == "0");
@@ -1902,7 +1902,7 @@ TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by
         REQUIRE(seen.heard.size() == mark + 1);
         CHECK(seen.heard[mark].whole);
         CHECK(seen.refusals.size() == 2);
-        w.press_doc(2, 1); // where the caret already stands: the rows do not change
+        window.click(area, 1, w.chrome() + 2); // where the caret already stands: no row changes
         CHECK(seen.heard.size() == mark + 1);
         w.type("z");
         REQUIRE(seen.heard.size() == mark + 2);
@@ -2054,7 +2054,7 @@ TEST_CASE("a late paste answer may not land at a caret that has since moved") {
     e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/true);
     e.open_file("a.cpp", "one\ntwo\n");
     e.press_doc(0, 3);
-    e.slow->text = "LATE";
+    e.slow->platform = "LATE";
     e.key(input::scan::kV, input::mod::kCtrl);
     REQUIRE(e.slow->held);
     e.press_doc(1, 0); // the caret moves while the answer is on its way
@@ -2081,7 +2081,7 @@ TEST_CASE("a paste still arriving refuses another source, and its answer lands w
     const std::string a_path = e.open_file("a.cpp", "one\n");
     put_bytes(e.root / "b.cpp", "bee\n");
     e.press_doc(0, 3);
-    e.slow->text = "STRAY";
+    e.slow->platform = "STRAY";
     e.key(input::scan::kV, input::mod::kCtrl);
     REQUIRE(e.slow->held);
     const SourceOpened waited = e.ask_open(spelled(e.root / "b.cpp"));
@@ -2154,31 +2154,6 @@ TEST_CASE("a press places the caret through the same tab geometry the paint used
     CHECK(e.caret().column == 6);
 }
 
-TEST_CASE("a host that grants the Editor no canvas is shown its rows and caret as prose, its presses reach "
-          "nothing there, and its keys still edit") {
-    EditorRig e("edit-no-canvas");
-    e.no_canvas = true;
-    e.open();
-    e.open_file("a.cpp", "one\ntwo\n"); // through the managed door: the candidate prepared as rows
-    REQUIRE(e.seat() != nullptr);
-    REQUIRE_FALSE(shows_canvas(*e.seat()));
-    CHECK(e.doc_row(0) == "one");
-    CHECK(e.doc_row(1) == "two");
-    CHECK(e.caret().row == e.chrome()); // beside the rows, as prose
-    CHECK(e.caret().column == 0);
-    // A PRESS REACHES NOTHING THERE: the keys come here, and the caret stays where it was.
-    e.press_doc(1, 2);
-    CHECK(e.r.session().panes.keyboard == e.kind);
-    CHECK(e.read("caret_row") == "0");
-    CHECK(e.caret().row == e.chrome());
-    // ...AND ITS KEYS STILL EDIT.
-    e.key(input::scan::kDown);
-    e.type("Z");
-    CHECK(e.doc_row(1) == "Ztwo");
-    CHECK(e.caret().row == e.chrome() + 1);
-    CHECK(e.caret().column == 1);
-}
-
 TEST_CASE("a drag sweeps a multiline selection, and the selection survives release") {
     // THE PRESS'S OWN MOTION SWEEPS. The press is held on the pane's canvas; each motion of it
     // reaches the pane as a place it reads back to a row and a column; the release ends it, and
@@ -2214,10 +2189,12 @@ TEST_CASE("in a terminal, a press on a character past the caret puts the caret b
     const auto cell_showing = [&e](char glyph) {
         const ui::Rect body = external_body_rect(e.r.session(), e.kind);
         const std::int64_t y = body.y + kExternalHeaderRows + e.chrome();
-        const surface::CanvasGrids grid = surface::rasterize_canvas(paint(e.r.session()));
+        const DeskShown shown = e.r.windows.shown();
+        REQUIRE(y < static_cast<std::int64_t>(shown.rows.size()));
+        const std::string& row = shown.rows[static_cast<std::size_t>(y)];
         std::int64_t found = -1;
-        for (std::int64_t x = body.x; x < body.x + body.w && x < grid.w; ++x) {
-            if (grid.glyphs[static_cast<std::size_t>(y * grid.w + x)] != glyph) continue;
+        for (std::int64_t x = body.x; x < body.x + body.w && x < static_cast<std::int64_t>(row.size()); ++x) {
+            if (row[static_cast<std::size_t>(x)] != glyph) continue;
             REQUIRE(found < 0); // the character is on the row once
             found = x;
         }
@@ -2314,7 +2291,7 @@ TEST_CASE("a selection that runs above the window is clipped, and one wholly out
     CHECK(e.caret().row == surface::kNoCaret);
     CHECK(e.caret().sel_begin_row == surface::kNoSelection);
     // ...and scrolling back up brings the range back with the caret out of the window: a
-    // selection may stand with no caret (WL-CARET-03).
+    // selection may stand with no caret.
     for (int i = 0; i < 9; ++i) {
         e.wheel(1.0);
     }
@@ -2339,7 +2316,7 @@ TEST_CASE("the wheel scrolls the body, moves no caret, and elsewhere reaches not
     e.wheel(1.0);
     CHECK(e.doc_row(0) == "line 1");
     // A WHEEL ON THE BARE WORKSPACE SCROLLS NOTHING.
-    e.r.wheel_cell(-1.0, 0, screen_of(e.r.session()).h - 1);
+    e.r.wheel_cell(-1.0, 0, gfx::cell_of_pixel(screen_of(e.r.session()).h) - 1);
     CHECK(e.doc_row(0) == "line 1");
     // ...AND THE NEXT CARET GESTURE BRINGS THE VIEW BACK.
     e.wheel(-1.0);
@@ -2410,7 +2387,7 @@ TEST_CASE("a resize reconciles the viewport and does not strand the caret") {
     REQUIRE(e.status().rfind("saved L21:C1", 0) == 0);
     e.give_rows(4);
     // Three document rows, and the caret's line is one of them.
-    REQUIRE(e.seat()->rows == 4);
+    REQUIRE(held_canvas_rows(*e.seat()).rows == 4);
     CHECK(e.caret().row != surface::kNoCaret);
     CHECK(e.doc_row(e.caret().row - 1) == "line 21");
 }
@@ -3048,7 +3025,7 @@ TEST_CASE("an opening in flight is a candidate and never a second document") {
             (void)mail.as_role(kDoorAskerOffice)
                 .send_to_role(kWorkshopProvider,
                               ManagedOpenSettled{op + 1, false, false, "forged refusal", b_path});
-            SourcePrepared forged;
+            v3::SourcePrepared forged;
             forged.op = op + 1;
             forged.ok = true;
             (void)mail.as_role(kDoorAskerOffice).send_to_role(kOpeningRole, forged);
@@ -3098,7 +3075,7 @@ TEST_CASE("a clipboard answer refuses the open wherever it lands, and A keeps it
         EditorRig e("edit-race-refuse");
         e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/true);
         const std::string a_path = e.open_file("a.cpp", "one\n");
-        e.slow->text = "PASTED"; // what the platform answers with, when it is let go
+        e.slow->platform = "PASTED"; // what the platform answers with, when it is let go
         e.press_doc(0, 3);
         e.key(input::scan::kV, input::mod::kCtrl); // a paste, held by the slow Skin
         REQUIRE(e.slow->held);
@@ -3113,8 +3090,7 @@ TEST_CASE("a clipboard answer refuses the open wherever it lands, and A keeps it
         put_bytes(e.root / "b.cpp", "two\n");
         const std::string b_path = spelled(e.root / "b.cpp");
         const std::size_t before = e.asker->opens.size();
-        (void)e.r.bus.send(e.slow_id, loom::Message(loom::to_value(AnswerNow{}), loom::WeaveId{},
-                                                    loom::WeaveId{}, 0));
+        e.answer_now(/*queued=*/true);
         e.enqueue_open(b_path);
         e.settle();
         REQUIRE(e.asker->opens.size() == before + 1);
@@ -3140,7 +3116,7 @@ TEST_CASE("a clipboard answer refuses the open wherever it lands, and A keeps it
         EditorRig e("edit-race-held");
         e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/true);
         const std::string a_path = e.open_file("a.cpp", "one\n");
-        e.slow->text = "PASTED";
+        e.slow->platform = "PASTED";
         e.press_doc(0, 3);
         e.key(input::scan::kV, input::mod::kCtrl);
         REQUIRE(e.slow->held);
@@ -3152,8 +3128,7 @@ TEST_CASE("a clipboard answer refuses the open wherever it lands, and A keeps it
         const std::string b_path = spelled(e.root / "b.cpp");
         const std::size_t before = e.asker->opens.size();
         e.enqueue_open(b_path);
-        (void)e.r.bus.send(e.slow_id, loom::Message(loom::to_value(AnswerNow{}), loom::WeaveId{},
-                                                    loom::WeaveId{}, 0));
+        e.answer_now(/*queued=*/true);
         e.settle();
         REQUIRE(e.asker->opens.size() == before + 1);
         const SourceOpened said = e.asker->opens.back();
@@ -3177,7 +3152,7 @@ TEST_CASE("a clipboard answer refuses the open wherever it lands, and A keeps it
         EditorRig e("edit-race-arriving");
         e.open(160, 48, /*pick_it=*/true, /*slow_skin=*/true);
         const std::string a_path = e.open_file("a.cpp", "one\n");
-        e.slow->text = "PASTED";
+        e.slow->platform = "PASTED";
         e.press_doc(0, 3);
         e.key(input::scan::kV, input::mod::kCtrl);
         REQUIRE(e.slow->held);
@@ -3398,12 +3373,13 @@ TEST_CASE("a quit asked while an open is being seated is refused in words, and t
     e.enqueue_open(b_path);
     e.pump_until_stage("prepare"); // the Editor is about to be asked to prepare B
     e.enqueue_key(input::scan::kQ); // ...and the quit is queued behind that ask
-    // ONE TURN: the Editor prepares B (a candidate, offered); the host asks the room whether
-    // it may end. THE NEXT: the Editor, holding a candidate, refuses in words. THE NEXT: the
-    // host hears the refusal, says it, and stays -- three turns, before the commitment.
+    // ONE TURN: the window reads the key. THE NEXT: the Editor prepares B (a candidate, offered);
+    // the host asks the room whether it may end. THE NEXT: the Editor, holding a candidate,
+    // refuses in words. THE NEXT: the host hears the refusal, says it, and stays -- four turns,
+    // before the commitment.
     int turns = 0;
     while (e.r.session().notice.find("still opening") == std::string::npos) {
-        REQUIRE(++turns <= 3);
+        REQUIRE(++turns <= 4);
         REQUIRE(e.r.bus.pump_pending() > 0);
     }
     CHECK_FALSE(e.r.host.quit);
@@ -3772,18 +3748,8 @@ TEST_CASE("a managed open has one commitment -- the published claims, the pane's
     CHECK(keyboard_pane(e.r.session().panes) == e.kind);
     REQUIRE(e.seat() != nullptr);
     CHECK(e.seat()->content_generation == doc->doc_epoch);
-    CHECK(e.seat()->rows == desk->rows);
-    {
-        // THE ADMITTED PICTURE IS B'S NOW, the Editor's own, in the room the trial reserved for
-        // it: the desk's to show until the Editor draws again, so read at once and numbered
-        // none. The painted canvas follows on the next turn, which is physical display timing
-        // and not admitted presentation state.
-        REQUIRE(shows_canvas(*e.seat()));
-        CHECK(e.seat()->picture == 0);
-        const std::vector<std::string> admitted = held_row_texts(*e.seat());
-        CHECK(std::find(admitted.begin(), admitted.end(), "two") != admitted.end());
-        CHECK(std::find(admitted.begin(), admitted.end(), "one") == admitted.end());
-    }
+    CHECK(held_canvas_rows(*e.seat()).rows == desk->rows);
+    REQUIRE(shows_canvas(*e.seat()));
     CHECK(e.r.bus.joint_status(static_cast<std::uint64_t>(op)).application ==
           loom::JointApplication::Applied);
     CHECK_FALSE(e.r.bus.has_unobserved_publication(e.r.workshop_id));
@@ -3794,6 +3760,14 @@ TEST_CASE("a managed open has one commitment -- the published claims, the pane's
     CHECK(e.opening().committed == committed + 1);
     CHECK(e.opening().stage == "idle");
     CHECK(e.opening().last_outcome == "committed");
+    {
+        // THE PICTURE IS B'S, the Editor's own, drawn at the commitment in the room the trial
+        // reserved for it: the window that shows its area holds the drawing the commitment sent
+        // from its next delivery, this turn's.
+        const std::vector<std::string> admitted = held_row_texts(*e.seat());
+        CHECK(std::find(admitted.begin(), admitted.end(), "two") != admitted.end());
+        CHECK(std::find(admitted.begin(), admitted.end(), "one") == admitted.end());
+    }
     (void)e.r.bus.pump_pending();
     REQUIRE(e.asker->opens.size() == before + 1);
     CHECK_MESSAGE(e.asker->opens.back().accepted, e.asker->opens.back().refusal);
@@ -3848,7 +3822,7 @@ TEST_CASE("legitimate A input while B is being arranged is admitted to A, and B 
         put_bytes(e.root / "b.cpp", "two\n");
         const std::string b_path = spelled(e.root / "b.cpp");
         e.press_doc(0, 3);
-        e.slow->text = "PASTED";
+        e.slow->platform = "PASTED";
         const std::size_t before = e.asker->opens.size();
         e.enqueue_open(b_path);
         e.pump_until_stage("prepare");
@@ -3858,8 +3832,7 @@ TEST_CASE("legitimate A input while B is being arranged is admitted to A, and B 
             REQUIRE(e.r.bus.pump_pending() > 0);
             REQUIRE(++turns < 20);
         }
-        (void)e.r.bus.send(e.slow_id, loom::Message(loom::to_value(AnswerNow{}), loom::WeaveId{},
-                                                    loom::WeaveId{}, 0));
+        e.answer_now(/*queued=*/true);
         e.settle();
         REQUIRE(e.asker->opens.size() == before + 1);
         const SourceOpened said = e.asker->opens.back();
@@ -3916,7 +3889,7 @@ TEST_CASE("more than 256 ordinary events across an opening, from three producers
     const std::string a_path = e.open_file("a.cpp", "\n");
     put_bytes(e.root / "b.cpp", "two\n");
     const std::string b_path = spelled(e.root / "b.cpp");
-    e.slow->text = "|P|";
+    e.slow->platform = "|P|";
     const EditorRig::Aim at = e.aim(); // resolved before anything is queued
     const std::size_t before = e.asker->opens.size();
     e.enqueue_open(b_path);
@@ -3942,8 +3915,7 @@ TEST_CASE("more than 256 ordinary events across an opening, from three producers
         REQUIRE(turns < 4000);
         if (!answered && e.slow->held) {
             answered = true;
-            (void)e.r.bus.send(e.slow_id, loom::Message(loom::to_value(AnswerNow{}),
-                                                        loom::WeaveId{}, loom::WeaveId{}, 0));
+            e.answer_now(/*queued=*/true);
             continue;
         }
         if (delivered == 0) {
@@ -4303,8 +4275,8 @@ TEST_CASE("a silent or failed preparation stays pending and inspectable, a lost 
             loom::DispatchRefused forged;
             forged.attempt = std::to_string(attempt);
             forged.role = kWorkshopProvider;
-            forged.shape = PresentationAdmitRequested::zen_name;
-            forged.version = PresentationAdmitRequested::zen_version;
+            forged.shape = v3::PresentationAdmitRequested::zen_name;
+            forged.version = v3::PresentationAdmitRequested::zen_version;
             forged.reason = "NoSuchTarget";
             (void)mail.as_role(kDoorAskerOffice).send_to_role(kOpeningRole, forged);
         };
@@ -4337,7 +4309,7 @@ TEST_CASE("a stale clipboard answer clears its bookkeeping, a reload carries non
         put_bytes(e.root / "b.cpp", "two\n");
         const std::string b_path = spelled(e.root / "b.cpp");
         e.press_doc(0, 3);
-        e.slow->text = "PASTED";
+        e.slow->platform = "PASTED";
         e.key(input::scan::kV, input::mod::kCtrl);
         REQUIRE(e.slow->held);
         e.key(input::scan::kLeft); // the source moved under the ask
@@ -4360,7 +4332,7 @@ TEST_CASE("a stale clipboard answer clears its bookkeeping, a reload carries non
         put_bytes(e.root / "b.cpp", "two\n");
         const std::string b_path = spelled(e.root / "b.cpp");
         e.press_doc(0, 3);
-        e.slow->text = "PASTED";
+        e.slow->platform = "PASTED";
         e.key(input::scan::kV, input::mod::kCtrl);
         REQUIRE(e.slow->held);
         CHECK_FALSE(e.ask_open(b_path).accepted); // waits for the weaver's paste
@@ -4370,6 +4342,7 @@ TEST_CASE("a stale clipboard answer clears its bookkeeping, a reload carries non
                         "the reload was refused: ", e.r.load_refusals.back());
         REQUIRE(e.row() != nullptr);
         e.kind = e.row()->kind;
+        e.reseat_slow_window();
         CHECK(e.read("path") == a_path);
         CHECK(e.read("text") == "one\n");
         // THE LATE ANSWER REACHES NO INCARNATION THAT ASKED: nothing is pasted, nothing said.
@@ -4468,7 +4441,7 @@ TEST_CASE("the old door still opens and shows, or refuses truthfully, by a kept 
         REQUIRE(e.ask_open_direct(a_path).accepted);
         put_bytes(e.root / "b.cpp", "bee\n");
         e.press_doc(0, 3);
-        e.slow->text = "STRAY";
+        e.slow->platform = "STRAY";
         e.key(input::scan::kV, input::mod::kCtrl);
         REQUIRE(e.slow->held);
         const SourceOpened waited = e.ask_open_direct(spelled(e.root / "b.cpp"));
@@ -4723,9 +4696,9 @@ struct CoordinatorState {
 /// its hook, reachable by no mechanism but this instrumentation.
 class DeskOnlyOperator
     : public loom::WeaveBase<DeskOnlyOperator, CoordinatorState,
-                             loom::Accept<SeatDo, PresentationTrial, PresentationAdmitted,
+                             loom::Accept<SeatDo, v3::PresentationTrial, PresentationAdmitted,
                                           loom::JointApplied>,
-                             loom::Emit<PresentationTrialRequested, PresentationAdmitRequested,
+                             loom::Emit<PresentationTrialRequested, v3::PresentationAdmitRequested,
                                         ManagedOpenSettled>> {
 public:
     void on(const SeatDo&, loom::Mail& mail) {
@@ -4748,7 +4721,7 @@ public:
             released = mail.release_joint(authority, op);
         }
     }
-    void on(const PresentationTrial& said, loom::Mail& mail) {
+    void on(const v3::PresentationTrial& said, loom::Mail& mail) {
         if (!mail.answers_ask()) {
             return;
         }
@@ -4756,16 +4729,11 @@ public:
         if (!said.ok) {
             return;
         }
-        PresentationAdmitRequested admit;
+        v3::PresentationAdmitRequested admit;
         admit.op = static_cast<std::int64_t>(op);
         admit.provider = pane.provider;
         admit.pane = pane.pane;
         admit.generation = 1;
-        surface::SurfaceTextRow row;
-        row.text = "x";
-        admit.rows.push_back(row);
-        admit.caret_row = 0;
-        admit.caret_col = 0;
         (void)mail.as_role(kOpeningRole).send_to_role(kWorkshopProvider, admit, op);
     }
     void on(const PresentationAdmitted& said, loom::Mail& mail) {
@@ -4795,7 +4763,7 @@ public:
     loom::JointBegin begun{};
     loom::JointResult committed{};
     loom::JointResult released{};
-    PresentationTrial trial{};
+    v3::PresentationTrial trial{};
     PresentationAdmitted admitted{};
     std::vector<loom::JointApplied> applied;
     std::vector<loom::JointStatus> applied_status;
@@ -4887,8 +4855,8 @@ TEST_CASE("the real desk, shown a presentation it holds no trial for, answers th
     loom::Grant arrange;
     arrange.allow_to_role(PresentationTrialRequested::zen_name, PresentationTrialRequested::zen_version,
                           kWorkshopProvider);
-    arrange.allow_to_role(PresentationAdmitRequested::zen_name, PresentationAdmitRequested::zen_version,
-                          kWorkshopProvider);
+    arrange.allow_to_role(v3::PresentationAdmitRequested::zen_name,
+                          v3::PresentationAdmitRequested::zen_version, kWorkshopProvider);
     arrange.allow_to_role(ManagedOpenSettled::zen_name, ManagedOpenSettled::zen_version,
                           kWorkshopProvider);
     const loom::WeaveId op_id =
@@ -5361,15 +5329,16 @@ TEST_CASE("gestures queued behind a quit the held Editor cannot be asked are rep
     close_box(e);
     CHECK_MESSAGE(e.r.session().notice.find("the quit could not ask ") == 0, e.r.session().notice);
     CHECK(e.r.session().notice.find("dropped") == std::string::npos);
-    // A BURST PAST THE HOLD: the quit, then 300 motions over the bare bottom row, one batch.
-    e.enqueue_key(input::scan::kQ);
-    const std::int64_t bottom = screen_of(e.r.session()).h - 1;
+    // A BURST PAST THE HOLD: the quit, then 300 turns of the wheel over the bare bottom row, read
+    // with it on one beat of the window -- which joins a run of motions into one, and no turns.
+    const std::int64_t bottom = gfx::cell_of_pixel(screen_of(e.r.session()).h) - 1;
+    REQUIRE(e.r.windows.up());
+    e.r.windows.queue({input::KeyPressed{input::scan::kQ, "", input::mod::kNone}});
     for (std::int64_t i = 0; i < 300; ++i) {
-        (void)e.r.bus.publish(loom::Message(
-            loom::to_value(input::PointerMoved{i % 3, bottom, 0, 0, input::space::kCells,
-                                               input::mod::kNone}),
-            loom::WeaveId{}, loom::WeaveId{}, 0));
+        e.r.windows.queue({input::PointerWheel{0, i % 2 == 0 ? 1.0 : -1.0, i % 3, bottom,
+                                               input::space::kCells, input::mod::kNone}});
     }
+    (void)e.r.bus.send(e.r.windows.id(), loom::Message(loom::to_value(gfx::PumpSurface{})));
     e.settle();
     CHECK_FALSE(e.r.host.quit);
     CHECK_MESSAGE(e.r.session().notice.find("(ApplicationFailed)") != std::string::npos,
@@ -5398,6 +5367,7 @@ TEST_CASE("a participant with no pane on the desk that stops running after the q
     }
     e.unfocus();
     e.enqueue_key(input::scan::kQ);
+    (void)e.r.bus.pump_pending(); // the window reads the key
     (void)e.r.bus.pump_pending(); // Workshop asks: each participant's question queued, none delivered
     REQUIRE(quiet->asks.empty());
     REQUIRE(gone->asks.empty());
@@ -5582,7 +5552,8 @@ TEST_CASE("a refusal or an answer that belongs to a quit already ended cannot de
     // THE FIRST QUIT, refused by the delivery Loom could not make.
     e.unfocus();
     e.enqueue_key(input::scan::kQ);
-    (void)e.r.bus.pump_pending();
+    (void)e.r.bus.pump_pending(); // the window reads the key
+    (void)e.r.bus.pump_pending(); // Workshop asks each participant
     e.r.bus.kill(gone_id);
     e.settle();
     REQUIRE(later->asks.size() == 1);

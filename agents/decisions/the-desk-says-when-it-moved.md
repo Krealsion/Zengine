@@ -12,8 +12,7 @@ unchanged moved the stamp for nothing.
 **Decision.** Workshop publishes `DeskStamps`, the desk number and every presented pane's stamp, at
 the end of each delivery that moved either: the whole state, so a relay may keep only the newest and
 the newest stands for each earlier one. A stamp names a picture by the fingerprint Workshop takes of
-what the pane sent and holds, never its number, for every pane, a pane doing nothing for it; a
-canvas picture no press is stamped with is named none. The numbers stay where a press needs them. A
+what the pane shows, never its number, for every pane, a pane doing nothing for it. A
 reading in flight is said so, and its settling moves its stamp, so a wait for a picture to settle
 ends at a notice, not a clock. One version of each reading stands now, and a pane drawing in an area
 of its own is read from the window ([a pane is read from the window that shows

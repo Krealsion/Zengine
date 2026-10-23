@@ -16,7 +16,7 @@ namespace zengine::composer {
 /// THE OFFICE THIS TOOL HOLDS -- the durable half of its `PaneRef`, and the only
 /// address by which anything reaches it.
 ///
-/// A ROLE, so Workshop's `PaneRoom`, `PanePressed`, `PaneKey` and `PaneTextInput`
+/// A ROLE, so the window's room and pointer, and Workshop's `PaneKey` and `PaneTextInput`,
 /// find whoever holds it rather than the incarnation that happened to offer first.
 inline constexpr const char* kComposerRole = "zengine.composer";
 

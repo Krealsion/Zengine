@@ -77,7 +77,7 @@ struct TerminalRig {
     }
 
     void unfocus() {
-        r.press_cell(0, screen_of(r.session()).h - 1);
+        r.press_cell(0, gfx::cell_of_pixel(screen_of(r.session()).h) - 1);
         REQUIRE(r.session().panes.keyboard != kind);
     }
 
@@ -123,8 +123,8 @@ struct TerminalRig {
         REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
         focus();
         REQUIRE(seat() != nullptr);
-        REQUIRE_MESSAGE(seat()->rows == rows, "asked for ", rows, " rows and was granted ",
-                        seat()->rows);
+        REQUIRE_MESSAGE(held_canvas_rows(*seat()).rows == rows, "asked for ", rows, " rows and was granted ",
+                        held_canvas_rows(*seat()).rows);
     }
 
     /// ...AND A WIDTH, the same way: a pane's side chrome is two cells of the authored box.
@@ -136,10 +136,10 @@ struct TerminalRig {
         REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
         focus();
         REQUIRE(seat() != nullptr);
-        REQUIRE_MESSAGE(seat()->rows == rows, "asked for ", rows, " rows and was granted ",
-                        seat()->rows);
-        REQUIRE_MESSAGE(seat()->columns == columns, "asked for ", columns,
-                        " columns and was granted ", seat()->columns);
+        REQUIRE_MESSAGE(held_canvas_rows(*seat()).rows == rows, "asked for ", rows, " rows and was granted ",
+                        held_canvas_rows(*seat()).rows);
+        REQUIRE_MESSAGE(held_canvas_rows(*seat()).columns == columns, "asked for ", columns,
+                        " columns and was granted ", held_canvas_rows(*seat()).columns);
     }
 
     // ---- STAGING AN ORDER ON THE REAL BUS ------------------------------------------
@@ -158,25 +158,24 @@ struct TerminalRig {
     }
     void settle() { r.bus.drain_until_idle(); }
 
-    /// THE ROW THE WEAVER IS TYPING ON, as the pane last drew it: its run in the picture Workshop
-    /// holds, less the blank a caret after its last character stands on, which is the picture's
-    /// and not the line's. The picture keeps a row's trailing blanks only as far as its caret or
-    /// selection, so a typed blank past both does not come back here.
+    /// THE ROW THE WEAVER IS TYPING ON, as the pane last drew it in its area, less the blank a
+    /// caret after its last character stands on, which is the drawing's and not the line's.
     std::string input_text() {
         const std::vector<std::string> rows = shown();
         REQUIRE_FALSE(rows.empty());
         const ExternalPane* held = seat();
         if (held != nullptr && shows_canvas(*held)) {
-            const CanvasRows lattice = held_canvas_rows(*held);
-            for (const v2::PaneCanvasText& t : held->canvas.content.texts) {
-                if (row_cell_at(lattice, t.x, t.y).row != input_row()) continue;
-                std::string text = t.text;
-                if (t.caret_col >= 0 && t.caret_col + 1 == static_cast<std::int64_t>(text.size()) &&
-                    text.back() == ' ') {
-                    text.pop_back();
-                }
-                return text;
+            // THE LINE AS SAID: the blanks the window draws past it to its part's end left off, and
+            // those before the caret kept, which the line says.
+            std::string text = held_row_raw(kind, input_row());
+            const RowsCaret at = held_caret(*held);
+            const std::size_t last = text.find_last_not_of(' ');
+            std::size_t keep = last == std::string::npos ? 0 : last + 1;
+            if (at.row == input_row() && at.column > 0) {
+                keep = (std::max)(keep, (std::min)(text.size(), static_cast<std::size_t>(at.column)));
             }
+            text.resize(keep);
+            return text;
         }
         return rows[static_cast<std::size_t>(input_row())];
     }
@@ -207,7 +206,7 @@ struct TerminalRig {
     const ExternalPane* seat() { return r.session().panes.external_pane(kind); }
 
     /// THE CARET AND SELECTION IN THE PICTURE WORKSHOP HOLDS, in the pane's own lattice.
-    PaneCaret caret() {
+    RowsCaret caret() {
         const ExternalPane* held = seat();
         REQUIRE(held != nullptr);
         return held_caret(*held);
@@ -218,39 +217,16 @@ struct TerminalRig {
     /// private. Required to be a real grant, so a deduplicated extent cannot pass for one.
     void regrant() {
         REQUIRE(seat() != nullptr);
-        const std::int64_t rows = seat()->rows;
-        const std::int64_t columns = seat()->columns;
+        const std::int64_t rows = held_canvas_rows(*seat()).rows;
+        const std::int64_t columns = held_canvas_rows(*seat()).columns;
         wide_ = !wide_;
         author_test_pane_room(r, kind, rows + 1, columns);
         r.extent(wide_ ? 160 : 150, wide_ ? 48 : 44);
         REQUIRE(seat() != nullptr);
-        REQUIRE_MESSAGE((seat()->rows != rows || seat()->columns != columns),
+        REQUIRE_MESSAGE((held_canvas_rows(*seat()).rows != rows || held_canvas_rows(*seat()).columns != columns),
                         "the surface changed and the pane's room did not");
     }
     bool wide_ = true;
-
-    /// The region the medium draws the input row into, on the last canvas: one row, standing on
-    /// the input row's cells of the pane's canvas body.
-    ///
-    /// BY VALUE, because `all_texts` answers by value: a pointer into the range of a
-    /// range-for over it dies at the semicolon, which is a use-after-free the sanitizer lane
-    /// names and an ordinary run does not.
-    surface::SurfaceTextRegion line_region() {
-        const ExternalPane* held = seat();
-        REQUIRE(held != nullptr);
-        REQUIRE(shows_canvas(*held));
-        const CanvasRows lattice = held_canvas_rows(*held);
-        const std::int64_t y = held->canvas.y + lattice.row_y(input_row());
-        const std::vector<surface::SurfaceTextRegion> texts = all_texts(paint(r.session()));
-        for (const surface::SurfaceTextRegion& one : texts) {
-            if (one.rows.size() == 1 && one.y == y && one.x >= held->canvas.x &&
-                one.x < held->canvas.x + held->canvas.width) {
-                return one;
-            }
-        }
-        FAIL("no region on this pane's input row");
-        return surface::SurfaceTextRegion{};
-    }
 
     /// Every entry of the participant's own record, rendered by the CORE's own facts.
     std::vector<loom::TranscriptEntry> record() {
@@ -391,9 +367,7 @@ TEST_CASE("nothing global opens it, and no key acts on it from anywhere else") {
                                              ev.kind != loom::EventKind::Refused)) {
                 return;
             }
-            if (ev.schema_name == v5::PaneContent::zen_name ||
-                ev.schema_name == v6::PaneCanvasContent::zen_name ||
-                ev.schema_name == PaneCaret::zen_name) {
+            if (ev.schema_name == gfx::Drawn::zen_name && ev.addressed_role == kWorkshopProvider) {
                 ++to_workshop;
             }
             if (ev.schema_name == gfx::RoomAsked::zen_name) ++room_asked;
@@ -731,7 +705,7 @@ TEST_CASE("the pane says what it is not showing, in the two senses that differ")
 // THE CARET
 // ============================================================================
 
-TEST_CASE("the pane draws its caret in its own picture, and the medium draws it there") {
+TEST_CASE("the pane draws its caret in its own picture, in its area of the window") {
     // The caret stands in the input row's run, in the lattice a press reads back through -- row 0
     // is the first row of the BODY -- so one measurer serves both directions.
     TerminalRig t;
@@ -740,11 +714,7 @@ TEST_CASE("the pane draws its caret in its own picture, and the medium draws it 
     t.type("abc");
     CHECK(t.caret().row == t.input_row());
     CHECK(t.caret().column == 2 + 3); // `> ` and three characters
-    CHECK(wears_medium_ground(*t.seat())); // and the rows lie on the medium's own ground
-    const surface::SurfaceTextRegion region = t.line_region();
-    // The region the medium draws the line into carries the caret where the run said it.
-    CHECK(region.caret_row == 0);
-    CHECK(region.caret_col == 2 + 3);
+    CHECK(wears_ground(*t.seat())); // and the rows lie on a ground of their own
     // ...and a cell projection stands it on a cell, moving no character of the row.
     const std::vector<std::string> rows = t.shown();
     CHECK(rows[static_cast<std::size_t>(t.input_row())].rfind("> abc", 0) == 0);
@@ -758,17 +728,14 @@ TEST_CASE("the caret carries a selection, and both ends or neither") {
     t.focus();
     t.type("hello");
     t.r.key(input::scan::kA, input::mod::kCtrl); // select all
-    const PaneCaret said = t.caret();
+    const RowsCaret said = t.caret();
     CHECK(said.sel_begin_row == t.input_row());
     CHECK(said.sel_end_row == t.input_row());
     CHECK(said.sel_begin_col == 2);
     CHECK(said.sel_end_col == 2 + 5);
-    const surface::SurfaceTextRegion region = t.line_region();
-    CHECK(region.sel_begin_row != surface::kNoSelection);
-    CHECK(region.sel_end_col - region.sel_begin_col == 5);
     // COLLAPSING IT UN-SAYS IT: a caret with no selection draws none.
     t.r.key(input::scan::kRight);
-    const PaneCaret after = t.caret();
+    const RowsCaret after = t.caret();
     CHECK(after.sel_begin_row == surface::kNoSelection);
     CHECK(after.sel_end_row == surface::kNoSelection);
     CHECK(after.row == t.input_row());
@@ -827,20 +794,19 @@ TEST_CASE("the list is rows INSIDE the pane, above the line it belongs to") {
         listed = listed || rows[i].find("send") != std::string::npos;
     }
     CHECK(listed);
-    // AND EVERY ROW IS ONE PICTURE'S: each text the medium draws over the pane's body is a run of
-    // the picture the pane sent, and no second list floats beside it.
+    // AND EVERY ROW IS THE PANE'S OWN DRAWING: Workshop paints no text over the pane's body, so no
+    // second list floats beside it.
     const ExternalPane* held = t.seat();
     REQUIRE(held != nullptr);
     REQUIRE(shows_canvas(*held));
-    const auto& body = held->canvas;
     std::size_t drawn = 0;
     for (const surface::SurfaceTextRegion& one : all_texts(paint(t.r.session()))) {
-        if (one.x >= body.x && one.x < body.x + body.width && one.y >= body.y &&
-            one.y < body.y + body.height) {
+        if (one.x >= held->placed_x && one.x < held->placed_x + held->placed_w &&
+            one.y >= held->placed_y && one.y < held->placed_y + held->placed_h) {
             ++drawn;
         }
     }
-    CHECK(drawn == body.content.texts.size());
+    CHECK(drawn == 0);
 }
 
 TEST_CASE("WL-HAND-06: the Terminal names the line being typed and each candidate by what it says") {
@@ -907,7 +873,7 @@ TEST_CASE("WL-HAND-06: the Terminal names the line being typed and each candidat
         };
         t.clear_line();
         t.type("hello");
-        const PaneCaret typed = t.caret();
+        const RowsCaret typed = t.caret();
         REQUIRE(typed.row == t.input_row());
         CHECK(typed.column == 2 + 5);
         const gfx::Node* caret = kept("caret");
@@ -923,7 +889,7 @@ TEST_CASE("WL-HAND-06: the Terminal names the line being typed and each candidat
         // ...AND SO DOES THE SELECTION: the selected columns again in the accent role, asking for
         // the line, the row's words unchanged; collapsed, it is gone and the caret stays.
         t.r.key(input::scan::kA, input::mod::kCtrl);
-        const PaneCaret all = t.caret();
+        const RowsCaret all = t.caret();
         REQUIRE(all.sel_begin_row == t.input_row());
         const std::string sel = "sel" + std::to_string(t.input_row()) + ".0";
         const gfx::Node* selected = kept(sel);
@@ -2046,7 +2012,7 @@ TEST_CASE("the wheel reads the record three rows a notch and moves nothing else"
     t.focus();
     t.type("draft");
     const std::string line = t.input_text();
-    const PaneCaret caret = t.caret();
+    const RowsCaret caret = t.caret();
     const std::int64_t above = marker_count(t, " more rows above");
     REQUIRE(above > 3);
     const ui::Rect body = external_body_rect(t.r.session(), t.kind);

@@ -47,7 +47,6 @@
 #include "workshop/load_persist.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
 #include "workshop/opening.hpp"
-#include "workshop/pane_canvas_vocabulary.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_document.hpp"
 #include "workshop/pane_doors.hpp"
@@ -149,34 +148,12 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::load_persist::WorkshopLoadWeave>(), // WorkshopLoadWeave v1
         shape<::zengine::workshop::v2::PaneActions>(), // PaneActions v2
         shape<::zengine::workshop::PanePresentation>(), // PanePresentation v1
-        shape<::zengine::workshop::PresentationAdmitRequested>(), // PresentationAdmitRequested v1
-        shape<::zengine::workshop::v2::PresentationAdmitRequested>(), // PresentationAdmitRequested v2
+        shape<::zengine::workshop::v3::PresentationAdmitRequested>(), // PresentationAdmitRequested v3
         shape<::zengine::workshop::PresentationAdmitted>(), // PresentationAdmitted v1
-        shape<::zengine::workshop::PresentationTrial>(), // PresentationTrial v1
-        shape<::zengine::workshop::v2::PresentationTrial>(), // PresentationTrial v2
+        shape<::zengine::workshop::v3::PresentationTrial>(), // PresentationTrial v3
         shape<::zengine::workshop::PresentationTrialRequested>(), // PresentationTrialRequested v1
         shape<::zengine::workshop::OpeningState>(), // OpeningState v1
-        shape<::zengine::workshop::v2::PaneCanvasContent>(), // PaneCanvasContent v2
-        shape<::zengine::workshop::PaneCanvasContent>(), // PaneCanvasContent v3
-        shape<::zengine::workshop::v5::PaneCanvasContent>(), // PaneCanvasContent v5
-        shape<::zengine::workshop::v1::PaneCanvasHover>(), // PaneCanvasHover v1
-        shape<::zengine::workshop::v1::PaneCanvasPointer>(), // PaneCanvasPointer v1
-        shape<::zengine::workshop::v2::PaneCanvasRoom>(), // PaneCanvasRoom v2
-        shape<::zengine::workshop::v2::PaneCanvasText>(), // PaneCanvasText v2
-        shape<::zengine::workshop::v1::PaneCanvasValueDrop>(), // PaneCanvasValueDrop v1
-        shape<::zengine::workshop::PaneCanvasDrop>(), // PaneCanvasDrop v1
-        shape<::zengine::workshop::PaneDrop>(), // PaneDrop v1
-        shape<::zengine::workshop::v2::PaneValueDrop>(), // PaneValueDrop v2
-        shape<::zengine::workshop::v2::PanePressed>(), // PanePressed v2
-        // The prose pointer Workshop sends a text pane: no product weave's manifest declares it.
-        shape<::zengine::workshop::PanePressed>(), // PanePressed v1
-        shape<::zengine::workshop::v3::PanePressed>(), // PanePressed v3
-        shape<::zengine::workshop::PaneDragged>(), // PaneDragged v1
-        shape<::zengine::workshop::PaneWheel>(), // PaneWheel v1
-        shape<::zengine::workshop::PaneValueDrop>(), // PaneValueDrop v1
         shape<::zengine::workshop::ProjectDoorState>(), // ProjectDoorState v3
-        shape<::zengine::workshop::v2::PaneContent>(), // PaneContent v2
-        shape<::zengine::workshop::v3::PaneContent>(), // PaneContent v3
         shape<::zengine::workshop::PaneRevealAnswered>(), // PaneRevealAnswered v1
         shape<::zengine::workshop::PaneRevealRequested>(), // PaneRevealRequested v1
         shape<::zengine::workshop::PowersDoorState>(), // PowersDoorState v1
@@ -236,7 +213,6 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::manual::ShapeDocumentShown>(), // ShapeDocumentShown v1
         shape<::zengine::workshop::PaneSettings>(), // PaneSettings v1
         shape<::zengine::workshop::TerminalCaptureFacts>(), // TerminalCaptureFacts v1
-        shape<::zengine::workshop::PictureFence>(), // PictureFence v1
         shape<::zengine::workshop::WithdrawalFence>(), // WithdrawalFence v1
         shape<::zengine::workshop::WorkshopState>(), // WorkshopState v1
         // ...and the declarations only Workshop still accepts, from a desktop built before causes.

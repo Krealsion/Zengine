@@ -27,7 +27,7 @@
 #include "editor/editor-pane/editor.hpp"
 #include "workshop/editor_handoff_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
-#include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_document.hpp"
@@ -72,10 +72,9 @@ class EditorPaneWeave
     : public zengine::With<ws::PaneManualFacet<
           pane::kEditorPane, zengine::manual::pages::zengine_editor::kManual>>::Weave<
           EditorPaneWeave, pane::EditorPaneState,
-          loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom, ws::PaneCanvasRoom,
-                       ws::PaneCanvasPointer, ws::PaneCanvasRejected, PaneKey, PaneTextInput,
+          loom::Accept<loom::Activated, PaneCatalogRequested, PaneKey, PaneTextInput,
                        PaneActionRequested, PaneQuitRequested, OpenSourceRequested,
-                       PrepareSourceRequested, ws::v2::PrepareSourceRequested,
+                       ws::v3::PrepareSourceRequested,
                        ManagedOpenProgress, ManagedOpenSettled,
                        SourceOpened, loom::DispatchRefused, ProjectRoot, graphics::ClipboardCopy,
                        graphics::ClipboardText, EditorHandoffJudgeRequested, EditorWarmRequested,
@@ -85,10 +84,9 @@ class EditorPaneWeave
                        ws::PaneCarryAnswered, graphics::AreaRoom, graphics::DrawnRefused,
                        graphics::ActionRequested, graphics::AreaButtonChanged, graphics::AreaPointerMoved,
                        graphics::AreaWheelTurned, graphics::AreaHoldEnded, ws::v2::PaneSettings>,
-          loom::Emit<PaneOffered, ws::v3::PaneActions, ws::v5::PaneCanvasContent,
-                     ws::v4::PaneContent, ws::v2::PaneCaret,
+          loom::Emit<PaneOffered, ws::v3::PaneActions,
                      ws::PaneEscapeUnspent, // declared so Escape reaches it, which it keeps
-                     PaneQuitAnswered, SourceOpened, SourcePrepared, ws::v2::SourcePrepared,
+                     PaneQuitAnswered, SourceOpened, ws::v3::SourcePrepared,
                      OpenSourceRequested,
                      ProjectRootRequested, graphics::ClipboardCopy,
                      graphics::ClipboardTextRequested, EditorHandoffJudged, EditorWarmed,
@@ -144,16 +142,16 @@ public:
         announce(mail);
     }
 
-    /// THE ROOM THE GRAPHICS WINDOW THAT SHOWS THE OFFICE'S AREA GIVES, from that window's office.
-    /// An Editor Workshop seats keeps composing for Workshop's room, and the window is sent those
-    /// rows; one Workshop seats nowhere composes for the window's.
+    /// THE ROOM THE GRAPHICS WINDOW THAT SHOWS THE OFFICE'S AREA GIVES, from that window's office:
+    /// the rows and columns the Editor composes for.
     void on(const graphics::AreaRoom& r, loom::Mail& mail) {
         if (!window_.room(r, mail)) {
             return;
         }
-        if (!granted_) {
-            rows_ = window_.rows();
-            columns_ = window_.columns();
+        rows_ = window_.rows();
+        columns_ = window_.columns();
+        if (!root_asked_) {
+            ask_project_root(mail); // a host whose door was not there at activation
         }
         say(mail);
     }
@@ -165,8 +163,8 @@ public:
     }
 
     /// THE POINTER IN THE WINDOW, given by the window that shows the area as its office and read
-    /// onto the rows drawn there: what it is on Workshop's canvas (`pointer`), its press, moves and
-    /// release under the window's number for the press, and a hold the window ended a loss.
+    /// onto the rows drawn there (`pointer`): its press, moves and release under the window's
+    /// number for the press, and a hold the window ended a loss.
     void on(const graphics::AreaButtonChanged& b, loom::Mail& mail) { on_window(window_.pointer(b, mail), mail); }
     void on(const graphics::AreaPointerMoved& m, loom::Mail& mail) { on_window(window_.pointer(m, mail), mail); }
     void on(const graphics::AreaWheelTurned& w, loom::Mail& mail) { on_window(window_.pointer(w, mail), mail); }
@@ -175,9 +173,8 @@ public:
     }
 
     /// A PRESS ASKED AS A PART'S ACTION, by a window that shows the area placed deaf to the pointer:
-    /// the press Workshop's canvas makes at the first column of that part, on no picture a carry
-    /// could begin from, and leaving no sweep armed, since the window says the press and its release
-    /// as one act.
+    /// a press at the first column of that part, from which no carry begins, and leaving no sweep
+    /// armed, since the window says the press and its release as one act.
     void on(const graphics::ActionRequested& asked, loom::Mail& mail) {
         if (const std::optional<ws::RowCell> at = window_.part(asked, mail)) {
             press_at(at->row, at->column, false, mail);
@@ -185,56 +182,6 @@ public:
             grab_ = Grab{};
         }
     }
-
-    /// THE PROSE ROOM: the rows and columns this pane composes for where its host grants it no
-    /// canvas. Once a canvas room is granted the canvas decides, and this room is not spent.
-    void on(const PaneRoom& room, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || room.pane != pane::kEditorPane) {
-            return;
-        }
-        if (canvas_.grant > 0) {
-            return; // the canvas room, granted first, already drew
-        }
-        rows_ = room.rows;
-        columns_ = room.columns;
-        granted_ = true;
-        if (!root_asked_) {
-            ask_project_root(mail); // a host whose door was not there at activation
-        }
-        say(mail);
-    }
-
-    /// THE CANVAS ROOM: this pane draws its rows there as its own picture, the lattice's rows and
-    /// columns its room. A new grant ends the sweep its predecessor held; a room with no extent
-    /// draws nothing and moves nothing, so the view a hidden pane was left at is the view it
-    /// shows again.
-    void on(const ws::PaneCanvasRoom& room, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || room.pane != pane::kEditorPane) {
-            return;
-        }
-        if (room.grant != canvas_.grant) {
-            held_ = 0;
-            drag_ = Drag{};
-            if (!grab_.started) {
-                end_grab();
-            }
-        }
-        canvas_ = room;
-        if (!on_canvas()) {
-            return;
-        }
-        const ws::CanvasRows lattice = ws::canvas_rows(canvas_);
-        rows_ = lattice.rows;
-        columns_ = lattice.columns;
-        granted_ = true;
-        if (!root_asked_) {
-            ask_project_root(mail);
-        }
-        say(mail);
-    }
-
-    /// A refused picture leaves the last good one showing, and the next saying draws again.
-    void on(const ws::PaneCanvasRejected&, loom::Mail&) {}
 
     /// THE SETTINGS THIS LAYOUT KEEPS FOR THE PANE, taken whole; what it cannot use is said back
     /// against the revision it was handed at. The tab stop and the undo steps are the buffer's, so
@@ -272,10 +219,9 @@ public:
     void on(const SourceOpened& said, loom::Mail& mail);
     void on(const loom::DispatchRefused& refused, loom::Mail& mail);
     void on(const ManagedOpenProgress& said, loom::Mail& mail);
-    void on(const PrepareSourceRequested& asked, loom::Mail& mail);
-    void on(const ws::v2::PrepareSourceRequested& asked, loom::Mail& mail);
+    void on(const ws::v3::PrepareSourceRequested& asked, loom::Mail& mail);
     Preparation prepare(std::int64_t asked_op, const std::string& asked_path, std::int64_t rows,
-                        std::int64_t columns, const ws::PaneCanvasRoom& room, loom::Mail& mail);
+                        std::int64_t columns, loom::Mail& mail);
     void on(const ManagedOpenSettled& said, loom::Mail& mail);
     bool on_claim_published(const EditorDocument& published);
 
@@ -310,10 +256,9 @@ public:
 
     // ---- The pointer, defined in `transfers.hpp` --------------------------------------------
 
-    void on(const ws::PaneCanvasPointer& event, loom::Mail& mail);
     void on_window(const std::optional<ws::WindowPointer>& p, loom::Mail& mail);
     void pointer(std::int64_t phase, std::int64_t button, const ws::RowCell& at,
-                 std::int64_t gesture, bool same_room, bool current, double dy, loom::Mail& mail);
+                 std::int64_t gesture, double dy, loom::Mail& mail);
     void press_at(std::int64_t prow, std::int64_t pcol, bool current, loom::Mail& mail);
     void dragged(std::int64_t drow, std::int64_t dcol, loom::Mail& mail);
     void wheel(double dy, loom::Mail& mail);
@@ -881,7 +826,7 @@ private:
 
     /// Compose a document for a room: the status row, a standing notice where the room holds one,
     /// then the document through the viewport, the caret and selection beside the rows on the
-    /// lattice a press names (WL-EDIT-12, WL-CARET-01); pure, so it serves a candidate too. A notice
+    /// lattice a press names (WL-EDIT-12); pure, so it serves a candidate too. A notice
     /// gets its own row only where a document row survives under it, else stands in for the status
     /// row; with `status` off the document has that row, and a notice stands alone above it.
     static Composition compose(const EditorState& doc, Viewport view, std::int64_t rows,
@@ -889,7 +834,7 @@ private:
                                bool status) {
         Composition out;
         const auto push = [&out, columns](std::string text, std::int64_t role) {
-            out.rows.push_back(surface::SurfaceTextRow{drawable(fit(std::move(text), columns)), role});
+            out.rows.push_back(ws::TextRow{drawable(fit(std::move(text), columns)), role});
         };
         if (rows >= 1 && !status) {
             if (!note.empty()) {
@@ -917,7 +862,7 @@ private:
             const std::size_t shown = static_cast<std::size_t>(out.doc_rows);
             last = view.first_row + shown < total ? view.first_row + shown : total;
             for (std::size_t r = view.first_row; r < last; ++r) {
-                out.rows.push_back(surface::SurfaceTextRow{
+                out.rows.push_back(ws::TextRow{
                     ws::expanded_slice(doc.buffer.line(r), view.first_col, text_cols,
                                        doc.buffer.tab_width()),
                     graphics::role::kFill});
@@ -928,16 +873,13 @@ private:
         return out;
     }
 
-    /// Where the caret is and what is selected, beside the rows in the body lattice
-    /// (WL-CARET-01). The caret is said only while its row is in the window; the selection is
-    /// clamped into the window, and a range past the last shown row ends at `(rows, 0)`
-    /// (WL-CARET-03). A selection may stand with no caret (`kNoCaret`).
-    static ws::v2::PaneCaret caret_of(const EditorState& doc, const Viewport& view,
-                                      std::int64_t chrome_rows, std::int64_t doc_rows,
-                                      std::size_t last, std::int64_t text_cols) {
-        ws::v2::PaneCaret caret;
-        caret.pane = pane::kEditorPane;
-        caret.generation = static_cast<std::int64_t>(doc.doc_epoch);
+    /// Where the caret is and what is selected in the rows. The caret is said only while its row
+    /// is in the window; the selection is clamped into the window, and a range past the last shown
+    /// row ends at `(rows, 0)`. A selection may stand with no caret (`kNoCaret`).
+    static ws::RowsCaret caret_of(const EditorState& doc, const Viewport& view,
+                                  std::int64_t chrome_rows, std::int64_t doc_rows,
+                                  std::size_t last, std::int64_t text_cols) {
+        ws::RowsCaret caret;
         if (doc.open_document() && doc_rows > 0) {
             const std::size_t cr = doc.buffer.caret_row();
             if (cr >= view.first_row && cr < last) {
@@ -989,20 +931,14 @@ private:
         return caret;
     }
 
-    /// THE PANE, SAID: the live document composed for the granted room, its viewport moved as
-    /// the composition moved it, drawn as this pane's own picture in its canvas room -- the caret
-    /// and selection standing in its rows, the picture numbered within the room by what its rows
-    /// mean -- its first row named `status` (the status, or a notice in its place) and each
-    /// document line by its number, `line:<n>`. To a host granting no canvas the rows and the
-    /// caret are said beside each other as prose, each naming the document's generation.
+    /// THE PANE, SAID: the live document composed for the room its area holds, its viewport moved
+    /// as the composition moved it, drawn in that area -- the caret and selection standing in its
+    /// rows, its first row named `status` (the status, or a notice in its place) and each document
+    /// line by its number, `line:<n>`.
     // WL-EDIT-18 -- agents/workshop/editor-transfers.md
     void say(loom::Mail& mail) {
-        // Workshop is told while it grants a room the pane can fill: none, or a canvas room with
-        // no extent, is nothing its rows could truthfully fill.
         wear(e_); // whichever document is live now wears the layout's settings, shown or not
-        const bool to_workshop = granted_ && !(canvas_.grant > 0 && !on_canvas());
-        const bool to_window = window_.in_window() && activation_.activated();
-        if (!to_workshop && !to_window) {
+        if (!window_.in_window() || !activation_.activated()) {
             return;
         }
         Composition c =
@@ -1011,46 +947,7 @@ private:
         chrome_rows_ = c.chrome_rows;
         doc_rows_ = c.doc_rows;
         status_row_ = c.status_row;
-        // THE PICTURE MOVES EXACTLY WHEN THE ROW-TO-MEANING MAP DOES (WL-EDIT-18): the document,
-        // its bytes, the viewport, the rows above it, the room -- or the selection a drop may land
-        // ON. A caret move alone, a notice's words, a held press's words: the same picture.
-        PictureKey key;
-        key.epoch = e_.doc_epoch;
-        key.content = e_.buffer.content_revision();
-        key.first_row = e_.first_row;
-        key.first_col = e_.first_col;
-        key.chrome_rows = c.chrome_rows;
-        key.rows = rows_;
-        key.columns = columns_;
-        key.selection = e_.open_document() && e_.buffer.has_selection();
-        if (key.selection) {
-            key.from = e_.buffer.selection_begin();
-            key.to = e_.buffer.selection_end();
-        }
-        if (picture_ == 0 || !(key == picture_key_)) {
-            picture_key_ = key;
-            ++picture_;
-        }
-        std::vector<ws::PaneRowPart> parts = parts_of(c, columns_);
-        if (to_window) { // the same rows, parts and caret, as a drawing in the graphics window
-            window_.draw(mail, c.rows, parts, rows_caret(c.caret));
-        }
-        if (!to_workshop) {
-            return;
-        }
-        if (on_canvas()) {
-            (void)mail.as_role(pane::kEditorPaneRole)
-                .send_to_role(kWorkshopRole,
-                              ws::rows_picture(canvas_, pictures_.next(canvas_, picture_), c.rows,
-                                               parts, rows_caret(c.caret)));
-            return;
-        }
-        (void)mail.as_role(pane::kEditorPaneRole)
-            .send_to_role(kWorkshopRole,
-                          ws::v4::PaneContent{pane::kEditorPane, std::move(c.rows),
-                                              static_cast<std::int64_t>(e_.doc_epoch), picture_,
-                                              std::move(parts)});
-        (void)mail.as_role(pane::kEditorPaneRole).send_to_role(kWorkshopRole, c.caret);
+        window_.draw(mail, c.rows, parts_of(c, columns_), c.caret);
     }
 
     /// The live document, written into the shape Loom answers reads from (WL-EDIT-15), at the end
@@ -1190,15 +1087,9 @@ private:
 
     std::int64_t rows_ = 0;
     std::int64_t columns_ = 0;
-    bool granted_ = false;
 
-    /// THE CANVAS THIS PANE DRAWS ON: the room Workshop granted it there, its pictures numbered in
-    /// that room by what their rows mean, and the primary press whose motion sweeps. Not reload
-    /// state: a reloaded image waits for its room.
-    ws::PaneCanvasRoom canvas_;
-    ws::CanvasPictures pictures_;
+    /// THE PRIMARY PRESS WHOSE MOTION SWEEPS, by the window's number for it. Not reload state.
     std::int64_t held_ = 0;
-    bool on_canvas() const { return canvas_.grant > 0 && canvas_.width > 0 && canvas_.height > 0; }
 
     /// THE GRAPHICS WINDOW THAT SHOWS THE OFFICE'S AREA, and the rows drawn there. Not reload state.
     office::EditorWindow window_{pane::kEditorPaneRole};
@@ -1213,9 +1104,6 @@ private:
     // incarnation's conversation, and a reloaded image begins with none -- a late answer to a
     // predecessor's ask matches nothing here.
 
-    /// THE PICTURE LAST PUBLISHED, and the map it numbers (WL-EDIT-18).
-    std::int64_t picture_ = 0;
-    PictureKey picture_key_;
     /// WHETHER ROW 0 IS THE STATUS ROW -- the location's surface -- in the picture last said.
     bool status_row_ = false;
 

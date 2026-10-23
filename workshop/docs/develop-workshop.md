@@ -177,14 +177,14 @@ and shows nothing new:
   loads, but every inventory sent to it is refused at its door, and its list reads
   `PANES (waiting)` for good. That the message kept its name and version promises nothing, and
   neither does a load that went ahead.
-- **The desktop is usable by mouse, on its own canvas**, and that is six more doors on its accept
-  set — the canvas's room and pointer (a press, the wheel and the second button arrive there), a
-  refused picture, a menu's answer, the toggle's answer and an edit's answer — so a desktop built
+- **The desktop is usable by mouse, in its own area**, and that is more doors on its accept
+  set — the area's room and pointer from the window (a press, the wheel and the second button
+  arrive there), a menu's answer, the toggle's answer and an edit's answer — so a desktop built
   from this source is refused as a reload of one built before it. Attention, Connections, the
   demo controls, the
   introspection panes (`Loaded`, `Project`, `Powers`), Files, the Builder, the Terminal,
   Compose, Info and Inventory with their views, and both Editors -- every pane Zengine ships --
-  draw their rows on their canvas through the same doors, and each is refused the same way. A host from before this change never
+  draw their rows in their own areas through the same doors, and each is refused the same way. A host from before this change never
   sends the desktop's new sentences; a desktop from before it never hears them.
 - **A pane drawing its rows on its canvas lays the medium's own ground** (`kMediumGround`), a
   role a host built before it does not know: that host refuses every picture such a pane sends,

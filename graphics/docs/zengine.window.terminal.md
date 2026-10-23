@@ -143,11 +143,12 @@ reading the terminal.
   that meets it; `waiting`, true while the window told the owner a room it must draw whole and none
   has come since; the text measure, a cell each way; and, unless `since` is still the version (then
   `same`, and nothing more), its `words` and `parts` in the area's pixels. A word is a run of cells
-  a text node shows on one row, ending where none does, where an area in front painted, or at the
-  window's edge, with the blanks after its last character left off. A part is a record naming an
-  action, by that name: the box of the cells its drawing shows; `pressed`, with the middle of the
-  cells where a press reaches it (`px`, `py`); and `available`, as the record says it (`PartFace`),
-  else true. What the window holds painted is what it shows at its next showing at the latest.
+  a text node shows on one row, ending where none does, where an area in front painted (one the
+  asker arranges aside, its cover the asker's to judge), or at the window's edge, with the blanks
+  after its last character left off. A part is a record naming an action, by that name: the box of
+  the cells its drawing shows; `pressed`, with the middle of the cells where a press reaches it
+  (`px`, `py`); and `available`, as the record says it (`PartFace`), else true. What the window
+  holds painted is what it shows at its next showing at the latest.
 - **Refuses:** in `zen.Refused`: `window 'terminal' shows no area '<area>'`; `area '<area>' is read
   only by the office that placed it`; `area '<area>' shows more than <bound> runs of text`
   (`kMaxAreaWords`).

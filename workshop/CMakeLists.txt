@@ -94,7 +94,6 @@ add_library(zengine-workshop-logic STATIC
     weave_arrange.cpp
     weave_desktop.cpp
     weave_document.cpp
-    weave_canvas.cpp
     weave_external.cpp
     weave_operation.cpp
     weave_command.cpp

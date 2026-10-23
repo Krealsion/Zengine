@@ -17,13 +17,13 @@
 // pane keeps the last answer between asks, replaced whole and dropped at every grant. A retained
 // sample is history: it never claims to be current, and its row leads with the tense.
 
-#include "loaded.hpp"        // `fit`, the entry roles, `length_said`
+#include "loaded.hpp"        // `fit`, the entry roles
 #include "powers_detail.hpp" // the words, the chrome row, the window, the detail rows
 #include "resolved.hpp"      // `kHostResolution`, `kPowersSource`, `elision`, the census words
 
 #include "component/text_box.hpp"
 #include "graphics/role.hpp"
-#include "surface/vocabulary.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/powers_vocabulary.hpp"
 
 #include <cstddef>
@@ -262,27 +262,16 @@ inline std::int64_t query_capacity(const PowersUi& ui, std::int64_t columns) {
 
 /// WHAT THE PANE SHOWS, AND WHAT EACH PLACE IN IT MEANS.
 struct PowersView {
-    std::vector<surface::SurfaceTextRow> rows;
+    std::vector<workshop::TextRow> rows;
     std::vector<PowersSpan> spans;
     std::int64_t population = 0; ///< the filtered list's size -- what the marker counts
     std::int64_t cursor = -1;    ///< where in it the selection is, or -1
     /// Where the query's caret stands, the row and the column it sits before, while the chrome
-    /// draws the query; `surface::kNoCaret` while it does not. The medium draws it.
-    std::int64_t caret_row = surface::kNoCaret;
+    /// draws the query; `workshop::kNoCaret` while it does not. The medium draws it.
+    std::int64_t caret_row = workshop::kNoCaret;
     std::int64_t caret_col = 0;
 };
 
-/// WHAT A PRESS ON THE POWERS PANE MEANS: each place by the row and columns it covers and the
-/// control or power it is. Two lists are never one meaning, whatever their identities hold.
-inline std::string press_meaning(const PowersView& view) {
-    std::string said;
-    for (const PowersSpan& s : view.spans) {
-        said += std::to_string(s.row) + ' ' + std::to_string(s.first) + ' ' +
-                std::to_string(s.last) + ' ' + std::to_string(s.control) + ' ' +
-                length_said(s.identity) + ';';
-    }
-    return said;
-}
 
 /// Which control a press landed on, or none; total over every row and column, since a provider
 /// is handed a row off a wire and must not bound it twice.
@@ -304,7 +293,7 @@ struct Sayer {
     PowersView& view;
     std::int64_t say(std::string text, std::int64_t role,
                      std::int64_t ground = graphics::role::kNone) const {
-        view.rows.push_back(surface::SurfaceTextRow{std::move(text), role, ground});
+        view.rows.push_back(workshop::TextRow{std::move(text), role, ground});
         return static_cast<std::int64_t>(view.rows.size()) - 1;
     }
     /// `solid` is how many leading columns are genuine text: a control cut into `fit`'s `...` is
@@ -321,11 +310,11 @@ struct Sayer {
 
 } // namespace detail
 
-/// The whole Powers pane, spent against the room Workshop granted. Most-protected first: the
+/// The whole Powers pane, spent against the room its area holds. Most-protected first: the
 /// chrome row (never dropped), the list (up to three rows before anything else takes any), the
 /// selected detail, the retained sample, `kHostResolution`, then `kPowersSource` from slack
 /// only -- measured against the shipped four-row graphical and eight-row terminal defaults.
-/// Staying inside the grant is an obligation: Workshop refuses an over-budget update whole.
+/// Nothing past the room is drawn.
 inline PowersView project_powers_ui(const PowersUi& ui, std::int64_t rows,
                                     std::int64_t columns) {
     PowersView view;

@@ -37,11 +37,11 @@ WHY — `agents/decisions/a-press-says-what-it-may-cause.md`
 
 ## WL-CAUSE-03 — A part says whether its operation applies now, and its reading carries it
 
-LAW — `v2::PaneRowPart` and `v2::PaneCanvasPart` say `available` as the pane draws the face, `[label]` true, `(label)` false; it rides the picture, or a window's record (`PartFace`), to each `PanePart`.
+LAW — A part says `available` as the pane draws the face, `[label]` true, `(label)` false; it rides the drawing's record (`PartFace`), as the window reads it (`AreaPart`), to each `PanePart`.
 
 MEANS
-- a part of an earlier version, and a part Workshop names itself, reads available;
-- availability is part of the picture: a change of it moves the picture's fingerprint and stamp.
+- a part a record says nothing of, and a part Workshop names itself, reads available;
+- availability is part of what the area shows: a change of it moves the fingerprint and stamp.
 
 DOES NOT MEAN
 - that available is permission: the operation asks again when the press arrives (WL-HAND-01).
@@ -95,17 +95,12 @@ enters"
 mode, with what each press causes and the mode it enters, and the desk's, are tests/actions.txt"
 
 ### WL-CAUSE-03
-`workshop/pane_vocabulary.hpp` v2::PaneRowPart v5::PaneContent row_part_of
-`workshop/pane_canvas_vocabulary.hpp` v2::PaneCanvasPart v6::PaneCanvasContent canvas_part_of
+`graphics/vocabulary.hpp` PartFace AreaPart
 `workshop/pane_view.hpp` PanePart PaneView PaneViewRequested
-`workshop/pane_drawing.hpp` part_available
+`workshop/pane_drawing.hpp` part_available rows_drawing
+`workshop/pane_canvas_drawing.hpp` canvas_sketch
 `workshop/pane_parts.hpp` row_parts
-`workshop/pane_canvas_rows.hpp` rows_picture
-`workshop/panes.hpp` picture_fingerprint
-`workshop/weave_seam.cpp` on(PaneContent)
-`workshop/weave_canvas.cpp` on(PaneCanvasContent)
-`workshop/weave_desk_read.cpp` on(PaneViewRequested)
-`workshop/desk_read.hpp` canvas_part_on
+`workshop/weave_desk_read.cpp` on(PaneViewRequested) shown_words_and_parts shown_fingerprint
 `builder/builder-pane/pane.cpp` BuilderMeaning::available
 `tests/test_workshop_panes_builder.cpp` "WL-CAUSE-03: a control the Builder draws in brackets reads
 available in its reading, and one drawn in parentheses reads unavailable -- the pane's word, not the
