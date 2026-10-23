@@ -463,25 +463,35 @@ jobs:
           tag="v$VERSION"
           cd "$RUNNER_TEMP/release"
           sha256sum --check --strict SHA256SUMS
-          # THE TAG, on the commit the night packaged; a name once used is never made again.
-          if gh api "repos/$REPO/git/refs/tags/$tag" >/dev/null 2>&1; then
+          # A NAME ONCE USED IS NEVER MADE AGAIN. The tag is made last, by publishing, so a night that
+          # fails before then leaves no tag naming no release; a draft it left is taken down here.
+          if gh api "repos/$REPO/git/ref/tags/$tag" >/dev/null 2>&1; then
             echo "$tag already exists: nothing is published" >&2; exit 1
           fi
-          gh api "repos/$REPO/git/refs" -f ref="refs/tags/$tag" -f sha="$COMMIT" >/dev/null
+          gh api "repos/$REPO/releases?per_page=100" --paginate \
+              --jq ".[] | select(.draft and .tag_name == \"$tag\") | .id" | while read -r stale; do
+            gh api -X DELETE "repos/$REPO/releases/$stale"
+            echo "took down a draft of $tag a failed night left"
+          done
           gcc="$(echo "$WINLIBS_URL" | sed -n 's/.*-gcc-\([0-9.]*\)-mingw.*/\1/p')"
           sed -e "s/@VERSION@/$VERSION/g" -e "s/@COMMIT@/$COMMIT/g" -e "s/@LOOM@/$LOOM/g" \
               -e "s/@DATE@/$(date -u +%Y-%m-%d)/g" -e "s/@WINDOWS_GCC@/$gcc/g" \
               -e "s/@APT_SNAPSHOT@/$APT_SNAPSHOT/g" "$GITHUB_WORKSPACE/workshop/package/release-notes.md" \
             | sed '1{/^<!--/d}' > "$RUNNER_TEMP/notes.md"
           # A DRAFT FIRST, its assets downloaded back and their sums matched before it is published.
-          gh release create "$tag" --repo "$REPO" --verify-tag --draft --title "Zengine $VERSION" \
+          gh release create "$tag" --repo "$REPO" --target "$COMMIT" --draft --title "Zengine $VERSION" \
             --notes-file "$RUNNER_TEMP/notes.md" ./*.zip ./*.tar.gz SHA256SUMS
           mkdir "$RUNNER_TEMP/draft"
           gh release download "$tag" --repo "$REPO" --dir "$RUNNER_TEMP/draft"
           (cd "$RUNNER_TEMP/draft" && sha256sum -- * | sort -k 2) > "$RUNNER_TEMP/published.txt"
           sha256sum -- *.zip *.tar.gz SHA256SUMS | sort -k 2 > "$RUNNER_TEMP/made.txt"
           diff "$RUNNER_TEMP/made.txt" "$RUNNER_TEMP/published.txt"
+          # PUBLISHING MAKES THE TAG, on the packaged commit, read back before anything is put down.
           gh release edit "$tag" --repo "$REPO" --draft=false --latest
+          made="$(gh api "repos/$REPO/git/ref/tags/$tag" --jq .object.sha)"
+          if [ "$made" != "$COMMIT" ]; then
+            echo "$tag names $made, not the packaged $COMMIT" >&2; exit 1
+          fi
           echo "published $tag at $COMMIT"
           # ONE RELEASE HELD: every other release goes, and its tag stays.
           gh release list --repo "$REPO" --limit 100 --json tagName --jq '.[].tagName' | while read -r old; do
