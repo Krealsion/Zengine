@@ -19,10 +19,12 @@ import struct
 import sys
 
 # What a developer's System32 may hold and a clean Windows does not: the Visual C++ runtime, the
-# debug CRT, other toolchains' runtimes and libraries a package must carry. Matched by prefix.
+# debug CRT, other toolchains' runtimes, libraries a package must carry, and the DirectX
+# redistributable's shader compilers (43 and before; Windows itself carries d3dcompiler_47).
 REDISTRIBUTABLE = ("vcruntime", "msvcp1", "msvcp2", "concrt", "vccorlib", "vcomp", "mfc", "ucrtbased",
                    "libstdc++", "libgcc", "libwinpthread", "libc++", "libunwind", "sdl", "freetype",
-                   "zlib", "python", "d3dcompiler_4")
+                   "zlib", "python", "d3dcompiler_3", "d3dcompiler_40", "d3dcompiler_41",
+                   "d3dcompiler_42", "d3dcompiler_43")
 
 
 def rva_to_offset(sections, rva):
@@ -91,9 +93,10 @@ def selftest(system_dirs):
     present = {"zengine-workshop.exe", "sdl3.dll"}
     cases = [("SDL3.dll", "package"), ("api-ms-win-crt-runtime-l1-1-0.dll", "apiset"),
              ("libstdc++-6.dll", "FOREIGN"), ("VCRUNTIME140.dll", "FOREIGN"),
-             ("no-such-library-zz.dll", "FOREIGN")]
-    if any(os.path.isfile(os.path.join(d, "kernel32.dll")) for d in system_dirs):
-        cases.append(("KERNEL32.dll", "system"))
+             ("no-such-library-zz.dll", "FOREIGN"), ("d3dcompiler_43.dll", "FOREIGN")]
+    for name in ("KERNEL32.dll", "d3dcompiler_47.dll"):
+        if any(os.path.isfile(os.path.join(d, name.lower())) for d in system_dirs):
+            cases.append((name, "system"))
     for name, want in cases:
         if classify(name, present, system_dirs) != want:
             print("pe_imports: its own samples misread %s" % name)

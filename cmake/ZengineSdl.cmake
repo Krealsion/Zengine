@@ -87,8 +87,11 @@ if(NOT TARGET SDL3::SDL3)
     # SDL3 refuses to configure on a unix box with no X11 or Wayland development libraries; this
     # skips only that guard (the flag is read nowhere else), so a headless WSL builds the SDL
     # weaves the suites drive under the dummy and offscreen drivers. Where display libraries
-    # exist, SDL still uses them.
-    set(SDL_UNIX_CONSOLE_BUILD ON CACHE BOOL "" FORCE)
+    # exist, SDL still uses them. The package a stranger downloads keeps the guard: its window
+    # needs X11 or Wayland, so a configure without them is refused.
+    if(NOT ZENGINE_PACKAGE)
+        set(SDL_UNIX_CONSOLE_BUILD ON CACHE BOOL "" FORCE)
+    endif()
     set(CMAKE_POSITION_INDEPENDENT_CODE ON)
     FetchContent_Declare(sdl3_fetched
         URL https://github.com/libsdl-org/SDL/releases/download/release-3.4.12/SDL3-3.4.12.tar.gz

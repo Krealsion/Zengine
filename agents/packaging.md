@@ -129,6 +129,25 @@ It is a Release build with GCC or Clang, refused otherwise at configure, install
 `cmake --install --strip`; the installed-package witness's package arm
 (`tests/package/run.cmake -DZEN_PACKAGE=ON`) installs it so and starts it.
 
+**How the package is made** (`.github/workflows/package.yml`):
+- **When.** Each night, from the newest `main` commit whose CI push run passed and is newer than the
+  last `v0.1.*` tag. `decide` reads that run's `loom-commit` artifact, which `ci.yml`'s
+  `resolve-loom` keeps, and builds at that Loom commit. When nothing moved, the night ends green
+  and says so. A pull request touching how the package is made runs the same jobs on its own head,
+  at Loom `main`, as a dry run.
+- **Built** cold and Release, with the version the next tag's:
+  - Linux in Ubuntu 22.04 pinned by digest, its packages from Ubuntu's archive on one named day,
+    and SDL with its X11 and Wayland drivers (`cmake/ZengineSdl.cmake` keeps SDL's guard under the
+    switch);
+  - Windows with WinLibs' GCC UCRT archive, pinned by SHA-256 and checked against the checksum
+    WinLibs publishes.
+  - Both repositories install `--strip` into one folder, packed by `tests/package/pack.py`, so the
+    same files make the same bytes.
+- **Judged** on a runner that did not build it, extracted under a folder named with a space and
+  letters outside the code page: `--version` naming the commit and a clean tree, then the judges
+  (`tests/package/judges/`). Then `SHA256SUMS`.
+- **What a red judge does.** Nothing is published while any judge is red.
+
 Header spelling does not change across the boundary: installed headers land under
 `include/zengine/<package>/`, so `#include "timer/vocabulary.hpp"` is the same sentence from
 either side.
