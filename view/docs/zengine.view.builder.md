@@ -295,8 +295,9 @@ its own, publishing its intents' shapes to whoever accepts them
   view, so putting the file back brings the view back.
 - **`apps/<name>/`**, in the project's directory, written by [`view.export`](#viewexport): the app's
   plan `app-plan.json`, `app.json`, `<name>.view` and `<name>.flow` copied from the files it was made
-  from, and the launchers `run.cmd` and `run.sh`, which start the `zengine-app` beside Workshop on
-  that folder ([an app's folder](../../app/docs/app.md#an-apps-folder)). An export again replaces
+  from, and the launchers `run.cmd` and `run.sh`, which start the `zengine-app` beside Workshop, or
+  the one the project's `zengine-app.path` names, on that folder ([an app's
+  folder](../../app/docs/app.md#an-apps-folder)). An export again replaces
   those six files and touches nothing else there: `app-authority.json`, where the app's console
   keeps its decisions, stays.
 

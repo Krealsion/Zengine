@@ -89,11 +89,11 @@ is false of its own contents the moment the list holds another. The `package_voc
 CTest entry keeps the retired spellings from coming back — it owns the list of them, so this
 page does not spell them.
 
-**What is deliberately out, and why** (each is a limit, not an oversight): the SDL skin, the
-SDL input reader and the OS window (`zengine-window-sdl`), because a fetched SDL is a build-tree
-library this install does not own;
-Workshop, because its executable carries `ZENGINE_BUILDER_CMAKE`, the absolute path of the cmake
-that configured it (`cmake/ZengineInstall.cmake`), so installing it would ship one machine's layout;
+**What is deliberately out of the developer package, and why** (each is a limit, not an
+oversight): the SDL skin, the SDL input reader and the OS window (`zengine-window-sdl`), because a
+fetched SDL is a build-tree library the developer package does not carry; Workshop, because a
+build's executable carries `ZENGINE_BUILDER_CMAKE`, the absolute path of the cmake that configured
+it, so installing it would ship one machine's layout -- the package below carries both;
 the implementation in `flow/flow-host/runtime.hpp` and the Flow pane model/view,
 because these currently implement Workshop session policy and presentation; the view package
 (`view/`) and the View Builder, because this repository's own hosts, Workshop and `zengine-app`,
@@ -103,6 +103,31 @@ pane weaves that spend them (`zengine-files`, `zengine-builder-pane`), because t
 being Workshop — a stranger's pane needs only the pane protocol, which is in, since a pane
 arrives by an authored load-plan row; the Timer's service headers, because using the Timer is
 supported and *being* one has not been measured.
+
+## The package a stranger downloads
+
+`ZENGINE_PACKAGE=ON`, declared in the top-level `CMakeLists.txt` before any package, installs the
+developer package above **and Workshop ready to run** into the same prefix
+(`cmake/ZengineInstall.cmake`, its one owner): the host and every artifact, program and plan it
+stages, read from `workshop/CMakeLists.txt`'s own lists, in `bin/`, where it resolves them beside
+itself; the SDL it built and fetched; the launchers, `README.txt`, `BUILD-INFO.txt`, `NOTICE.md`
+and each third party's licence text (`workshop/package/`). Under it:
+
+- the version is `ZENGINE_PACKAGE_VERSION`, read from the night's tag, and Loom is named by
+  `ZENGINE_PACKAGE_LOOM_COMMIT`; `project(VERSION)` stays the CMake package's compatibility line;
+  `zengine-workshop --version` says the package's facts as `BUILD-INFO.txt` does;
+- Workshop compiles no CMake, so its Builder refuses in its own words and its banner says it
+  builds nothing; the launcher has no demo service;
+- every compile maps its source, build and prefix folders away (`-ffile-prefix-map`), the fetched
+  SDL's included, and on MinGW-w64 every executable links its runtime statically, so an image names
+  no build machine and needs nothing beside the package but the system;
+- the launchers make the weaver's project outside the package (`%USERPROFILE%\Zengine`,
+  `~/Zengine`, `terminal/` inside for the terminal's) and write `zengine-app.path` there, the
+  package's `zengine-app`, which an exported app's `run.cmd` and `run.sh` start (`app/folder.hpp`).
+
+It is a Release build with GCC or Clang, refused otherwise at configure, installed with
+`cmake --install --strip`; the installed-package witness's package arm
+(`tests/package/run.cmake -DZEN_PACKAGE=ON`) installs it so and starts it.
 
 Header spelling does not change across the boundary: installed headers land under
 `include/zengine/<package>/`, so `#include "timer/vocabulary.hpp"` is the same sentence from

@@ -5,7 +5,7 @@
 # stranger project outside both repositories against the prefix alone, move the prefix, and remove
 # a header to prove the stranger goes red. Not a CTest entry: it configures a second project.
 #   cmake -DZEN_BUILD_DIR=<build> -DZEN_WORK=<dir> [-DZEN_CONFIG=Debug] [-DZEN_GENERATOR=...]
-#         [-DZEN_CMAKE_ARGS=...] -P tests/package/run.cmake
+#         [-DZEN_CMAKE_ARGS=...] [-DZEN_PACKAGE=ON] -P tests/package/run.cmake
 
 foreach(v ZEN_BUILD_DIR ZEN_WORK)
     if(NOT DEFINED ${v})
@@ -54,8 +54,17 @@ endif()
 # ---- install into an isolated prefix ---------------------------------------------------
 set(prefix "${work}/prefix")
 file(REMOVE_RECURSE "${prefix}")
+# The package a stranger downloads is installed as the nightly installs it, its images stripped.
+set(strip_args "")
+if(ZEN_PACKAGE)
+    set(strip_args --strip)
+endif()
 zen_run("install into an isolated prefix" ${CMAKE_COMMAND} --install "${build_dir}"
-        --config "${ZEN_CONFIG}" --prefix "${prefix}")
+        --config "${ZEN_CONFIG}" --prefix "${prefix}" ${strip_args})
+# -DZEN_PACKAGE=ON, on a tree configured with ZENGINE_PACKAGE: the package a stranger downloads.
+if(ZEN_PACKAGE)
+    include("${here}/package_arm.cmake")
+endif()
 
 if(NOT EXISTS "${prefix}/lib/cmake/zengine/zengineConfig.cmake")
     message(FATAL_ERROR

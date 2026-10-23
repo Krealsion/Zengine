@@ -162,6 +162,9 @@ struct LastWords {
 struct Arguments {
     bool ok = true;
     std::string complaint;
+    /// `--version`: say what this Workshop is (`ZENGINE_VERSION_TEXT`, workshop/CMakeLists.txt) and
+    /// start nothing.
+    bool version = false;
     /// An object document a launch still names (`--document`), or empty: read so an old launch
     /// line starts, then said once and left alone (WL-DOC-22).
     std::string document;
@@ -203,6 +206,7 @@ Arguments parse_arguments(int argc, char** argv) {
     Arguments args;
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
+        if (arg == "--version") { args.version = true; continue; }
         if (arg == "--log-refusals") { args.log_refusals = true; continue; }
         if (arg == "--demo-history") { args.demo_history = true; continue; }
         if (arg == "--isolated") {
@@ -305,9 +309,14 @@ int main(int argc, char** argv) {
     ::SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
 #endif
     const Arguments args = parse_arguments(argc, argv);
+    if (args.ok && args.version) {
+        std::fputs(ZENGINE_VERSION_TEXT, stdout);
+        return 0;
+    }
     if (!args.ok) {
         std::printf("zengine-workshop - %s\n"
-                    "usage: zengine-workshop [--setup <path>]\n"
+                    "usage: zengine-workshop [--version]\n"
+                    "                        [--setup <path>]\n"
                     "                        [--session <path>] [--keymap <path>]\n"
                     "                        [--prefs <path>] [--marks <path>]\n"
                     "                        [--isolated]\n"
@@ -694,8 +703,14 @@ int main(int argc, char** argv) {
     std::printf("zengine-workshop - builder: weave #%s holds %zu recipe(s) (open its pane from "
                 "the Pane Manager)\n",
                 std::to_string(builder_tool.value).c_str(), current_recipes.views().size());
-    std::printf("zengine-workshop - build runner: weave #%s builds with `%s`\n",
-                std::to_string(runner.value).c_str(), ZENGINE_BUILDER_CMAKE);
+    if (std::string_view(ZENGINE_BUILDER_CMAKE).empty()) {
+        std::printf("zengine-workshop - build runner: weave #%s -- no CMake: this Workshop builds "
+                    "nothing\n",
+                    std::to_string(runner.value).c_str());
+    } else {
+        std::printf("zengine-workshop - build runner: weave #%s builds with `%s`\n",
+                    std::to_string(runner.value).c_str(), ZENGINE_BUILDER_CMAKE);
+    }
     for (const builder::RecipeView& r : current_recipes.views()) {
         std::printf("zengine-workshop - recipe: %s -> %s\n", r.id.c_str(), r.path.c_str());
     }

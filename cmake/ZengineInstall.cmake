@@ -201,10 +201,10 @@ endforeach()
 # Loom statically and needs nothing else at load time.
 set(ZENGINE_INSTALL_ARTIFACTDIR ${CMAKE_INSTALL_LIBDIR}/zengine)
 
-# Out: the SDL weaves -- the Skin, the Input reader and the OS window (a fetched SDL is a build-tree
-# library this install does not own, and shipping one would make this package another project's
-# distributor); introspection and the
-# composer, shown only inside a Workshop run; the snake example; every test fixture.
+# Out of the developer package: the SDL weaves -- the Skin, the Input reader and the OS window (a
+# fetched SDL is a build-tree library this package does not carry); introspection and the composer,
+# shown only inside a Workshop run; the snake example; every test fixture. The package a stranger
+# downloads (ZENGINE_PACKAGE, below) carries Workshop with the SDL it built, in bin/.
 set(zengine_installable_artifacts
     zengine-app-weave            # weave: an app's own weave, which zengine-app runs
     zengine-timer                # weave
@@ -231,7 +231,12 @@ foreach(artifact IN LISTS zengine_installable_artifacts)
     # only where the Loom can host loadable images, and `if(TARGET ...)` is that same honest
     # question asked once more. An install from a kernel-less Loom is a headers-only package,
     # and the config below says so out loud instead of leaving an empty directory.
-    if(TARGET ${artifact})
+    if(TARGET ${artifact} AND ZENGINE_PACKAGE AND NOT WIN32)
+        # The package installs these into bin/ by target too (below); a copy by FILE would keep
+        # the build tree's RUNPATH, so this one is installed by target as well.
+        install(TARGETS ${artifact} LIBRARY DESTINATION ${ZENGINE_INSTALL_ARTIFACTDIR})
+        list(APPEND ZENGINE_INSTALLED_ARTIFACTS ${artifact})
+    elseif(TARGET ${artifact})
         install(FILES $<TARGET_FILE:${artifact}> DESTINATION ${ZENGINE_INSTALL_ARTIFACTDIR})
         list(APPEND ZENGINE_INSTALLED_ARTIFACTS ${artifact})
     endif()
@@ -290,6 +295,121 @@ if(TARGET zengine-guest-vocabulary)
     endforeach()
 endif()
 
+# ---- Workshop, ready to run: the package a stranger downloads --------------------------------
+# The developer package above plus a runnable Workshop in one prefix (ZENGINE_PACKAGE, declared in
+# the top-level CMakeLists.txt): the host and every artifact, program and plan it stages, in bin/,
+# where it resolves them beside itself; the SDL it built; the launchers, the first page, the
+# identity and the notices. Every other build stays the developer's package.
+if(ZENGINE_PACKAGE)
+    if(NOT TARGET zengine-workshop OR NOT TARGET zengine-window-sdl)
+        message(FATAL_ERROR "zengine: ZENGINE_PACKAGE needs the Workshop host and the OS window "
+                            "(a Loom with loom::kernel, ZENGINE_SDL_SKIN=ON)")
+    endif()
+    if(NOT zengine_sdl_fetched OR NOT zengine_sdl_ttf_fetched)
+        message(FATAL_ERROR "zengine: ZENGINE_PACKAGE carries the SDL it built; this configuration "
+                            "found a system SDL3, which no package can carry "
+                            "(-DCMAKE_DISABLE_FIND_PACKAGE_SDL3=ON fetches one)")
+    endif()
+    set(zengine_package_bin ${CMAKE_INSTALL_BINDIR})
+    get_property(zengine_package_artifacts GLOBAL PROPERTY ZENGINE_WORKSHOP_ARTIFACTS)
+    get_property(zengine_package_programs GLOBAL PROPERTY ZENGINE_WORKSHOP_PROGRAMS)
+    get_property(zengine_package_plans GLOBAL PROPERTY ZENGINE_WORKSHOP_PLANS)
+    get_target_property(zengine_package_sdl SDL3::SDL3 ALIASED_TARGET)
+    get_target_property(zengine_package_ttf SDL3_ttf::SDL3_ttf ALIASED_TARGET)
+    if(WIN32)
+        install(TARGETS zengine-workshop ${zengine_package_programs}
+                RUNTIME DESTINATION ${zengine_package_bin})
+        foreach(artifact IN LISTS zengine_package_artifacts)
+            install(FILES $<TARGET_FILE:${artifact}> DESTINATION ${zengine_package_bin})
+        endforeach()
+        install(FILES ${ZENGINE_SDL_RUNTIME} DESTINATION ${zengine_package_bin})
+    else()
+        # By target, so the build tree's RUNPATH becomes $ORIGIN: no copy names a directory of
+        # the machine that built it.
+        set_target_properties(zengine-workshop ${zengine_package_programs} ${zengine_package_artifacts}
+                              ${zengine_package_sdl} ${zengine_package_ttf}
+                              PROPERTIES INSTALL_RPATH "$ORIGIN")
+        install(TARGETS zengine-workshop ${zengine_package_programs} ${zengine_package_artifacts}
+                RUNTIME DESTINATION ${zengine_package_bin}
+                LIBRARY DESTINATION ${zengine_package_bin})
+        install(TARGETS ${zengine_package_sdl} ${zengine_package_ttf}
+                LIBRARY DESTINATION ${zengine_package_bin} NAMELINK_SKIP)
+    endif()
+    foreach(plan IN LISTS zengine_package_plans)
+        install(FILES ${CMAKE_SOURCE_DIR}/workshop/${plan} DESTINATION ${zengine_package_bin})
+    endforeach()
+    # No recipe catalog: the build's own names this build tree, and an absent catalog is a valid
+    # one ("build recipes: none"). No development catalog, runtime script or launch either.
+
+    # The launchers, the first page, the identity and the notices.
+    set(zengine_package_src ${CMAKE_SOURCE_DIR}/workshop/package)
+    if(WIN32)
+        install(FILES ${zengine_package_src}/Workshop.cmd ${zengine_package_src}/Workshop-terminal.cmd
+                DESTINATION .)
+    else()
+        install(PROGRAMS ${zengine_package_src}/workshop.sh ${zengine_package_src}/workshop-terminal.sh
+                DESTINATION .)
+    endif()
+    configure_file(${zengine_package_src}/README.txt.in ${CMAKE_BINARY_DIR}/package/README.txt @ONLY)
+    configure_file(${zengine_package_src}/BUILD-INFO.txt.in ${CMAKE_BINARY_DIR}/package/BUILD-INFO.txt
+                   @ONLY)
+    install(FILES ${CMAKE_BINARY_DIR}/package/README.txt ${CMAKE_BINARY_DIR}/package/BUILD-INFO.txt
+                  ${CMAKE_SOURCE_DIR}/LICENSE ${zengine_package_src}/NOTICE.md
+            DESTINATION .)
+    install(FILES ${CMAKE_SOURCE_DIR}/LICENSING.md ${CMAKE_SOURCE_DIR}/THIRD_PARTY_NOTICES.md
+            DESTINATION licenses/zengine)
+    install(FILES ${CMAKE_SOURCE_DIR}/graphics/window/fonts/OFL.txt DESTINATION licenses/jetbrains-mono)
+    install(FILES ${sdl3_fetched_SOURCE_DIR}/LICENSE.txt DESTINATION licenses/SDL3)
+    install(FILES ${sdl3_ttf_fetched_SOURCE_DIR}/LICENSE.txt DESTINATION licenses/SDL3_ttf)
+    set(zengine_package_ft ${sdl3_ttf_fetched_SOURCE_DIR}/external/freetype)
+    install(FILES ${zengine_package_ft}/docs/FTL.TXT ${zengine_package_ft}/LICENSE.TXT
+            DESTINATION licenses/FreeType)
+
+    if(MINGW)
+        # The toolchain's notices travel with every image, whose mingw-w64 CRT start-up code it
+        # carries. Its runtime is read off the installed images rather than listed: a DLL an image
+        # imports that is neither the package's nor Windows' own is copied from the compiler's
+        # folder, and one found nowhere stops the install. Where every image links its runtime
+        # statically, it copies nothing.
+        get_filename_component(zengine_package_tc ${CMAKE_CXX_COMPILER} DIRECTORY)
+        get_filename_component(zengine_package_tc_root ${zengine_package_tc} DIRECTORY)
+        set(zengine_package_tc_lic ${zengine_package_tc_root}/share/licenses)
+        if(NOT EXISTS ${zengine_package_tc_lic}/crt/COPYING.MinGW-w64-runtime.txt)
+            message(FATAL_ERROR "zengine: ZENGINE_PACKAGE carries the toolchain's licence texts, and "
+                                "${zengine_package_tc_lic} holds none")
+        endif()
+        install(FILES ${zengine_package_tc_lic}/crt/COPYING.MinGW-w64-runtime.txt
+                DESTINATION licenses/mingw-w64)
+        install(FILES ${zengine_package_tc_lic}/winpthreads/COPYING DESTINATION licenses/winpthreads)
+        install(FILES ${zengine_package_tc_lic}/gcc-libs/COPYING3
+                      ${zengine_package_tc_lic}/gcc-libs/COPYING.RUNTIME
+                DESTINATION licenses/gcc)
+        install(CODE "
+            set(bin \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${zengine_package_bin}\")
+            file(GLOB images \"\${bin}/*.exe\" \"\${bin}/*.dll\")
+            file(GET_RUNTIME_DEPENDENCIES
+                 EXECUTABLES \${images}
+                 RESOLVED_DEPENDENCIES_VAR found UNRESOLVED_DEPENDENCIES_VAR missing
+                 DIRECTORIES \"${zengine_package_tc}\" \"\${bin}\"
+                 PRE_EXCLUDE_REGEXES \"^api-ms-\" \"^ext-ms-\"
+                 POST_EXCLUDE_REGEXES \"[Ww][Ii][Nn][Dd][Oo][Ww][Ss].[Ss][Yy][Ss][Tt][Ee][Mm]32\")
+            if(missing)
+                message(FATAL_ERROR \"zengine package: images import what nothing provides: \${missing}\")
+            endif()
+            file(TO_CMAKE_PATH \"\${bin}\" b)
+            string(TOLOWER \"\${b}\" b)
+            foreach(dll IN LISTS found)
+                get_filename_component(dir \"\${dll}\" DIRECTORY)
+                file(TO_CMAKE_PATH \"\${dir}\" dir)
+                string(TOLOWER \"\${dir}\" dir)
+                if(NOT dir STREQUAL b)
+                    message(STATUS \"zengine package: the toolchain's \${dll}\")
+                    file(INSTALL \"\${dll}\" DESTINATION \"\${bin}\")
+                endif()
+            endforeach()")
+    endif()
+endif()
+
 # ---- The package files -------------------------------------------------------------------
 install(EXPORT zengineTargets
     FILE zengineTargets.cmake
@@ -323,6 +443,6 @@ install(FILES
 # ---- what is deliberately not in the package -----------------------------------------------
 # Workshop's own vocabularies and load plan, the Builder's, and the pane weaves' header halves:
 # Workshop being Workshop, which no stranger needs to offer it a pane (the pane protocol is in).
-# zengine-warnings and zengine-sanitize: build discipline, PRIVATE on every target. The
-# zengine-workshop and zengine-snake executables: Workshop compiles ZENGINE_BUILDER_CMAKE, the
-# absolute path of the cmake that configured it, so installing it would ship a machine's layout.
+# zengine-warnings and zengine-sanitize: build discipline, PRIVATE on every target. zengine-snake.
+# zengine-workshop outside the package: a build's compiles the absolute path of its CMake
+# (ZENGINE_BUILDER_CMAKE); the package's compiles none.
