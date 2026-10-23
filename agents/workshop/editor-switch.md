@@ -89,6 +89,17 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/an-editor-is-replaced-not-routed.md`
 
+## WL-SWITCH-08 — A start loads the choice the last session remembered, while the plan authors it
+
+LAW — The session file records which authored choice held each switchable office at quit; the next start loads that choice's artifact in the office's row while the plan authors it
+
+MEANS
+- the project's plan file is never changed; only the start's reading of it is;
+- a remembered choice the plan no longer authors loads nothing, and the start says so once;
+- a run with no session file -- `--isolated` without `--session` -- reads none, so every office starts on the plan's own row.
+
+WHY — `agents/decisions/an-editor-is-replaced-not-routed.md`
+
 ## Do not assume
 
 - That these rigs ran Neovim: the switch suite runs builds of the standard Editor, three of
@@ -160,3 +171,13 @@ weaver consents, and a consent the losses moved past is asked for again"
 `workshop/weave_managed.cpp` on(EditorSwitchProgress)
 `tests/test_workshop_editor_switch.cpp` "the documented Terminal lines, typed through Workshop's own
 door, ask, confirm and switch, and the desk shows the switch while it stands"
+
+### WL-SWITCH-08
+`workshop/load_plan.hpp` remember_choices
+`workshop/session_persist.hpp` WorkshopChoice kMaxRememberedChoices WorkshopSession::choices
+`workshop/weave.hpp` HostContext::chosen HostContext::choice_note
+`workshop/workshop.cpp` remember_choices
+`tests/test_workshop_persistence.cpp` "a start loads the remembered choice in its office's row,
+while the plan authors it" "a session keeps the choices it was given, and refuses more than an
+office's worth" "a quit saves which choice holds each office, and a start says a choice no longer
+authored"

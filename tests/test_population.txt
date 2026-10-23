@@ -77,7 +77,7 @@ workshop_panes_editor             doctest           always  132
 workshop_shapes                   doctest           always  4
 # Tripwires in this suite read workshop/workshop.cpp and workshop/session_persist.hpp as text
 # (VM-WALL-11).
-workshop_persistence              doctest           always  169
+workshop_persistence              doctest           always  173
 workshop_load                     doctest           always  163
 workshop_editor_switch            doctest           always  12
 workshop_neovim                   doctest           always  11

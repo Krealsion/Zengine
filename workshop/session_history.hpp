@@ -203,6 +203,25 @@ struct WorkshopSession {
 
 } // namespace v7
 
+namespace v8 {
+
+/// Version 8: version 9's fields but the choices, which no session before 9 remembers.
+// WL-MIG-02 -- agents/workshop/migration.md
+struct WorkshopSession {
+    std::string format;
+    std::int64_t format_version = 0;
+    session_persist::WorkshopViewport viewport;
+    std::vector<session_persist::WorkshopLayout> layouts;
+    std::int64_t active = 0;
+    session_persist::WorkshopPlacement placement;
+
+    ZEN_SHAPE(WorkshopSession, 8, ZEN_FIELD(format), ZEN_FIELD(format_version),
+              ZEN_FIELD(viewport), ZEN_FIELD(layouts), ZEN_FIELD(active),
+              ZEN_FIELD(placement));
+};
+
+} // namespace v8
+
 /// THE VERSION NUMBERS THIS FILE CONVERTS FROM. They are the edges' own, said once so the
 /// shapes above and the definitions below cannot come to disagree about which vintage each
 /// is.
@@ -213,6 +232,7 @@ inline constexpr std::int64_t kV4FormatVersion = 4;
 inline constexpr std::int64_t kV5FormatVersion = 5;
 inline constexpr std::int64_t kV6FormatVersion = 6;
 inline constexpr std::int64_t kV7FormatVersion = 7;
+inline constexpr std::int64_t kV8FormatVersion = 8;
 
 static_assert(v1::WorkshopSession::zen_version == static_cast<std::uint32_t>(kV1FormatVersion),
               "a historical session shape's envelope version and the format version it "
@@ -235,9 +255,12 @@ static_assert(v6::WorkshopSession::zen_version == static_cast<std::uint32_t>(kV6
 static_assert(v7::WorkshopSession::zen_version == static_cast<std::uint32_t>(kV7FormatVersion),
               "a historical session shape's envelope version and the format version it "
               "converts are one number, exactly as they are for the current one");
+static_assert(v8::WorkshopSession::zen_version == static_cast<std::uint32_t>(kV8FormatVersion),
+              "a historical session shape's envelope version and the format version it "
+              "converts are one number, exactly as they are for the current one");
 
 /// ...AND THE VERSION THEY ALL CONVERT TO IS THE READER'S, NEVER A NUMBER TYPED HERE.
-static_assert(session_persist::kFormatVersion > kV7FormatVersion,
+static_assert(session_persist::kFormatVersion > kV8FormatVersion,
               "every shape in this file is RETIRED: the current reader's version must be "
               "ahead of all of them, or one of these is not history");
 
@@ -553,14 +576,14 @@ inline setup_persist::WorkshopSetup desk_v4_to_v5(const setup_persist::v4::Works
 /// A version-7 SESSION AS A CURRENT ONE -- every desk and every remembered Setup value with no
 /// settings, and everything else as it was.
 // WL-MIG-02 -- agents/workshop/migration.md
-inline session_persist::WorkshopSession session_v7_to_v8(const v7::WorkshopSession& old) {
+inline v8::WorkshopSession session_v7_to_v8(const v7::WorkshopSession& old) {
     if (old.format_version != kV7FormatVersion) {
         throw std::invalid_argument(
             mismatched_version("session", kV7FormatVersion, old.format_version));
     }
-    session_persist::WorkshopSession out;
+    v8::WorkshopSession out;
     out.format = old.format;
-    out.format_version = session_persist::kFormatVersion;
+    out.format_version = kV8FormatVersion;
     out.viewport = old.viewport;
     out.layouts.reserve(old.layouts.size());
     for (std::size_t at = 0; at < old.layouts.size(); ++at) {
@@ -585,39 +608,58 @@ inline session_persist::WorkshopSession session_v7_to_v8(const v7::WorkshopSessi
     return out;
 }
 
+/// A SESSION OF VERSION 8 AS A CURRENT ONE: every field as it was, and no choice remembered, so the
+/// next start loads each office's row the plan names.
+// WL-MIG-02 -- agents/workshop/migration.md
+inline session_persist::WorkshopSession session_v8_to_v9(const v8::WorkshopSession& old) {
+    if (old.format_version != kV8FormatVersion) {
+        throw std::invalid_argument(
+            mismatched_version("session", kV8FormatVersion, old.format_version));
+    }
+    session_persist::WorkshopSession out;
+    out.format = old.format;
+    out.format_version = session_persist::kFormatVersion;
+    out.viewport = old.viewport;
+    out.layouts = old.layouts;
+    out.active = old.active;
+    out.placement = old.placement;
+    return out;
+}
+
 /// A version-1 SESSION AS A CURRENT ONE — one authored edge, whose body composes the
 /// translations above.
 // WL-MIG-02 -- agents/workshop/migration.md
-inline session_persist::WorkshopSession session_v1_to_v8(const v1::WorkshopSession& old) {
-    return session_v7_to_v8(session_v6_to_v7(
-        session_v5_to_v6(session_v4_to_v5(session_v3_to_v4(session_v1_to_v3(old))))));
+inline session_persist::WorkshopSession session_v1_to_v9(const v1::WorkshopSession& old) {
+    return session_v8_to_v9(session_v7_to_v8(session_v6_to_v7(
+        session_v5_to_v6(session_v4_to_v5(session_v3_to_v4(session_v1_to_v3(old)))))));
 }
 
 /// A version-2 SESSION AS A CURRENT ONE, the same way.
-inline session_persist::WorkshopSession session_v2_to_v8(const v2::WorkshopSession& old) {
-    return session_v7_to_v8(session_v6_to_v7(
-        session_v5_to_v6(session_v4_to_v5(session_v3_to_v4(session_v2_to_v3(old))))));
+inline session_persist::WorkshopSession session_v2_to_v9(const v2::WorkshopSession& old) {
+    return session_v8_to_v9(session_v7_to_v8(session_v6_to_v7(
+        session_v5_to_v6(session_v4_to_v5(session_v3_to_v4(session_v2_to_v3(old)))))));
 }
 
 /// A version-3 SESSION AS A CURRENT ONE, the same way.
-inline session_persist::WorkshopSession session_v3_to_v8(const v3::WorkshopSession& old) {
-    return session_v7_to_v8(
-        session_v6_to_v7(session_v5_to_v6(session_v4_to_v5(session_v3_to_v4(old)))));
+inline session_persist::WorkshopSession session_v3_to_v9(const v3::WorkshopSession& old) {
+    return session_v8_to_v9(session_v7_to_v8(
+        session_v6_to_v7(session_v5_to_v6(session_v4_to_v5(session_v3_to_v4(old))))));
 }
 
 /// A version-4 SESSION AS A CURRENT ONE, the same way.
-inline session_persist::WorkshopSession session_v4_to_v8(const v4::WorkshopSession& old) {
-    return session_v7_to_v8(session_v6_to_v7(session_v5_to_v6(session_v4_to_v5(old))));
+inline session_persist::WorkshopSession session_v4_to_v9(const v4::WorkshopSession& old) {
+    return session_v8_to_v9(
+        session_v7_to_v8(session_v6_to_v7(session_v5_to_v6(session_v4_to_v5(old)))));
 }
 
 /// A version-5 SESSION AS A CURRENT ONE, the same way.
-inline session_persist::WorkshopSession session_v5_to_v8(const v5::WorkshopSession& old) {
-    return session_v7_to_v8(session_v6_to_v7(session_v5_to_v6(old)));
+inline session_persist::WorkshopSession session_v5_to_v9(const v5::WorkshopSession& old) {
+    return session_v8_to_v9(session_v7_to_v8(session_v6_to_v7(session_v5_to_v6(old))));
 }
 
 /// A version-6 SESSION AS A CURRENT ONE, the same way.
-inline session_persist::WorkshopSession session_v6_to_v8(const v6::WorkshopSession& old) {
-    return session_v7_to_v8(session_v6_to_v7(old));
+inline session_persist::WorkshopSession session_v6_to_v9(const v6::WorkshopSession& old) {
+    return session_v8_to_v9(session_v7_to_v8(session_v6_to_v7(old)));
 }
 
 // ---- ...and the two of them as ordinary contributions ---------------------------------
@@ -630,37 +672,43 @@ inline std::vector<op::OperatorDef> conversions() {
     edges.push_back(op::make_migration(
         loom::schema_of<v1::WorkshopSession>(), current, [](const loom::Value& old) {
             return loom::Cell::message(
-                loom::to_value(session_v1_to_v8(loom::from_value<v1::WorkshopSession>(old))));
+                loom::to_value(session_v1_to_v9(loom::from_value<v1::WorkshopSession>(old))));
         }));
     edges.push_back(op::make_migration(
         loom::schema_of<v2::WorkshopSession>(), current, [](const loom::Value& old) {
             return loom::Cell::message(
-                loom::to_value(session_v2_to_v8(loom::from_value<v2::WorkshopSession>(old))));
+                loom::to_value(session_v2_to_v9(loom::from_value<v2::WorkshopSession>(old))));
         }));
     edges.push_back(op::make_migration(
         loom::schema_of<v3::WorkshopSession>(), current, [](const loom::Value& old) {
             return loom::Cell::message(
-                loom::to_value(session_v3_to_v8(loom::from_value<v3::WorkshopSession>(old))));
+                loom::to_value(session_v3_to_v9(loom::from_value<v3::WorkshopSession>(old))));
         }));
     edges.push_back(op::make_migration(
         loom::schema_of<v4::WorkshopSession>(), current, [](const loom::Value& old) {
             return loom::Cell::message(
-                loom::to_value(session_v4_to_v8(loom::from_value<v4::WorkshopSession>(old))));
+                loom::to_value(session_v4_to_v9(loom::from_value<v4::WorkshopSession>(old))));
         }));
     edges.push_back(op::make_migration(
         loom::schema_of<v5::WorkshopSession>(), current, [](const loom::Value& old) {
             return loom::Cell::message(
-                loom::to_value(session_v5_to_v8(loom::from_value<v5::WorkshopSession>(old))));
+                loom::to_value(session_v5_to_v9(loom::from_value<v5::WorkshopSession>(old))));
         }));
     edges.push_back(op::make_migration(
         loom::schema_of<v6::WorkshopSession>(), current, [](const loom::Value& old) {
             return loom::Cell::message(
-                loom::to_value(session_v6_to_v8(loom::from_value<v6::WorkshopSession>(old))));
+                loom::to_value(session_v6_to_v9(loom::from_value<v6::WorkshopSession>(old))));
         }));
     edges.push_back(op::make_migration(
         loom::schema_of<v7::WorkshopSession>(), current, [](const loom::Value& old) {
             return loom::Cell::message(
-                loom::to_value(session_v7_to_v8(loom::from_value<v7::WorkshopSession>(old))));
+                loom::to_value(session_v8_to_v9(
+                    session_v7_to_v8(loom::from_value<v7::WorkshopSession>(old)))));
+        }));
+    edges.push_back(op::make_migration(
+        loom::schema_of<v8::WorkshopSession>(), current, [](const loom::Value& old) {
+            return loom::Cell::message(
+                loom::to_value(session_v8_to_v9(loom::from_value<v8::WorkshopSession>(old))));
         }));
     return edges;
 }
