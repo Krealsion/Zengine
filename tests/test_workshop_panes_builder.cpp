@@ -3721,8 +3721,8 @@ TEST_CASE("WL-KEY-16: the band's spelling and the Hotkeys view's are set apart f
         }
         return std::string();
     };
-    // THE DEFAULTS, AS THEY WERE: the band short, the Hotkeys view and the `?` full.
-    CHECK(band().find("B load after build") != std::string::npos);
+    // THE DEFAULTS, AS THEY ARE: the band, the Hotkeys view and the `?` all full.
+    CHECK(band().find("shift+b load after build") != std::string::npos);
     CHECK(hotkeys() == "shift+b");
     const HeaderMarks marks = header_marks(b, b.kind);
     b.r.press_cell(marks.manual_x, marks.y);
@@ -3745,9 +3745,9 @@ TEST_CASE("WL-KEY-16: the band's spelling and the Hotkeys view's are set apart f
     CHECK(settings == std::vector<std::string>{"workshop.pane-titles", "workshop.band-keys",
                                                "workshop.hotkeys-keys"});
     choose_context(b, "workshop.band-keys");
-    CHECK(b.r.session().band_keys == KeySpelling::kFull);
+    CHECK(b.r.session().band_keys == KeySpelling::kShort);
     b.focus();
-    CHECK(band().find("shift+b load after build") != std::string::npos);
+    CHECK(band().find("B load after build") != std::string::npos);
     CHECK(hotkeys() == "shift+b");                                  // the Hotkeys view is its own
     CHECK(manual_heading() == "builder.build-realize -- shift+b"); // ...and the `?` follows it
 
@@ -3757,12 +3757,12 @@ TEST_CASE("WL-KEY-16: the band's spelling and the Hotkeys view's are set apart f
     b.focus();
     CHECK(hotkeys() == "B");
     CHECK(manual_heading() == "builder.build-realize -- B");
-    CHECK(band().find("shift+b load after build") != std::string::npos); // the band kept its own
+    CHECK(band().find("B load after build") != std::string::npos); // the band kept its own
 
     // BOTH ARE THE WEAVER'S STATED PREFERENCES, saved apart.
     const prefs_persist::LoadedPrefs saved = prefs_persist::load_file(b.r.host.prefs_path);
     REQUIRE_MESSAGE(saved.outcome.accepted, saved.outcome.refusal);
-    CHECK(saved.prefs.band_keys == KeySpelling::kFull);
+    CHECK(saved.prefs.band_keys == KeySpelling::kShort);
     CHECK(saved.prefs.hotkeys_keys == KeySpelling::kShort);
 }
 

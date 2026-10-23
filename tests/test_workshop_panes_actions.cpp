@@ -1097,7 +1097,7 @@ TEST_CASE("the band's legend and the effective keymap print the pane's rows whil
               std::string::npos);
         // THE PANE'S OWN ROWS, then the one host row requestable while a pane holds the keys, the
         // way out: an unbound row teaches no key (WL-KEY-13).
-        CHECK(lines[1] == "up row up | m mark | ^q leave pane");
+        CHECK(lines[1] == "up row up | m mark | ctrl+q leave pane");
     }
     // THE EFFECTIVE KEYMAP: the pane's rows under its own name, the unbound one with no key.
     const std::string group = "pane Seat @" + std::string(kHelloOffice);
@@ -1114,7 +1114,7 @@ TEST_CASE("the band's legend and the effective keymap print the pane's rows whil
     REQUIRE(join_pane_rows(moved, kind, retained(r, kind)).accepted);
     r.session().keymap = moved; // the value the loader would have produced (a suite's door)
     r.key(input::scan::kP);     // an undeclared key: crosses raw, and the turn repaints
-    CHECK(band_lines(r).at(1).find("^u mark") != std::string::npos);
+    CHECK(band_lines(r).at(1).find("ctrl+u mark") != std::string::npos);
     CHECK(band_lines(r).at(1).find("m mark") == std::string::npos);
 }
 
@@ -1127,7 +1127,8 @@ TEST_CASE("a pane that declared nothing is described as ownership only, exactly 
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
     press_body(r, kind);
     // The survivors are the way out and the application's, and nothing of the pane's own.
-    CHECK(band_lines(r).at(1) == "^q leave pane | ^t terminal | ^p panes | ^k hotkeys");
+    CHECK(band_lines(r).at(1) ==
+          "ctrl+q leave pane | ctrl+t terminal | ctrl+p panes | ctrl+k hotkeys");
     // ...AND THE EFFECTIVE KEYMAP HOLDS NO ROW FOR IT: every key it gets is its own to read.
     const std::string view = hotkeys_text(r);
     CHECK(view.find("pane Seat @" + std::string(kHelloOffice)) == std::string::npos);
@@ -1215,7 +1216,7 @@ TEST_CASE("a weaver's override moves a Powers action, and the key it left no lon
     CHECK(pane_rows(r, kind).at(0).find("[Sources]") != std::string::npos); // nothing
     r.key(input::scan::kU, input::mod::kCtrl);
     CHECK(pane_rows(r, kind).at(0).find("[Operators]") != std::string::npos);
-    CHECK(band_lines(r).at(1).find("^u switch view") != std::string::npos);
+    CHECK(band_lines(r).at(1).find("ctrl+u switch view") != std::string::npos);
 }
 
 // ============================================================================
@@ -2581,8 +2582,8 @@ TEST_CASE("the band and the Hotkeys pane teach the application's keys as they ar
     const std::vector<std::string> band = band_lines(r);
     REQUIRE_FALSE(band.empty());
     CAPTURE(band[0]);
-    CHECK(band[0].rfind("^g terminal | ^k hotkeys", 0) == 0);
-    CHECK(band[0].find("^t") == std::string::npos);
+    CHECK(band[0].rfind("ctrl+g terminal | ctrl+k hotkeys", 0) == 0);
+    CHECK(band[0].find("ctrl+t") == std::string::npos);
     CHECK(band[0].find("panes") == std::string::npos);
 
     // THE HOTKEYS PANE, LAUNCHED BY ITS OWN APPLICATION ROW, lists the same truth -- with the

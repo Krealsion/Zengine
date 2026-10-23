@@ -619,8 +619,8 @@ Workshop where the terminal passes clicks through; the key works everywhere.
 Workshop looks that you can change there:
 
 - **titles** — show or hide pane titles, as [`t`](#pane-titles) does;
-- **band key spelling** — how the band writes a key: short (`B`, `^p`, `enter`) to begin with, or
-  in full;
+- **band key spelling** — how the band writes a key: in full (`shift+b`, `ctrl+p`, `return`) to
+  begin with, or short (`B`, `^p`, `enter`);
 - **Hotkeys key spelling** — how the Hotkeys pane and a pane's manual write a key: in full
   (`shift+b`, `ctrl+p`, `return`) to begin with, or short.
 

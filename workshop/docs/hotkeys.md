@@ -179,13 +179,13 @@ one keystroke away in every mode.
 
 ## How keys are spelled
 
-One key can be written two ways. **Short** is how the band has always written a key: `B` for
-Shift and `b`, `^p` for Ctrl and `p`, `enter`. **Full** is how a keymap file writes it:
-`shift+b`, `ctrl+p`, `return`. You choose, apart, how two places write keys:
+One key can be written two ways. **Full** is how a keymap file writes it: `shift+b`, `ctrl+p`,
+`return`. **Short** is the band's compact voice: `B` for Shift and `b`, `^p` for Ctrl and `p`,
+`enter`. You choose, apart, how two places write keys:
 
 | setting | where it shows | starts as |
 |---|---|---|
-| **band key spelling** | the band, and every hint and notice Workshop writes on the screen | short |
+| **band key spelling** | the band, and every hint and notice Workshop writes on the screen | full |
 | **Hotkeys key spelling** | the Hotkeys pane, and a pane's manual (its `?`) | full |
 
 Both are in the **Settings** a pane's gear opens ([Panes](panes.md#a-panes-manual-and-its-gear)),

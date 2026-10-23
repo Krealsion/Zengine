@@ -2461,18 +2461,18 @@ TEST_CASE("each Files mode's Return is its own id, and a keymap moves each alone
             CHECK_FALSE(any_row(ids, files::kActionChoose));
             CHECK_FALSE(any_row(ids, files::kActionCommitField));
             CHECK(requests(f, input::scan::kReturn, input::mod::kNone) == files::kActionOpen);
-            CHECK(legend_says(f, "enter enter or edit"));
+            CHECK(legend_says(f, "return enter or edit"));
         };
         browsing();
         f.letter(input::scan::kA, "a");
         admitted(f, chooser_ids);
         CHECK(requests(f, input::scan::kReturn, input::mod::kNone) == files::kActionChoose);
-        CHECK(legend_says(f, "enter choose this"));
+        CHECK(legend_says(f, "return choose this"));
         CHECK_FALSE(legend_says(f, "enter or edit"));
         f.r.key(input::scan::kReturn);
         admitted(f, line_ids);
         CHECK(requests(f, input::scan::kReturn, input::mod::kNone) == files::kActionCommitField);
-        CHECK(legend_says(f, "enter commit this field"));
+        CHECK(legend_says(f, "return commit this field"));
         f.r.key(input::scan::kEscape);
         browsing();
     }
@@ -2519,7 +2519,7 @@ TEST_CASE("each Files mode's Return is its own id, and a keymap moves each alone
         // THE LINE: `ctrl+j` commits the field, and Return is a key the line does not take.
         CHECK(requests(f, input::scan::kJ, input::mod::kCtrl) == files::kActionCommitField);
         CHECK(requests(f, input::scan::kReturn, input::mod::kNone).empty());
-        CHECK(legend_says(f, "^j commit this field"));
+        CHECK(legend_says(f, "ctrl+j commit this field"));
         f.r.key(input::scan::kReturn);
         CHECK(any_row(f.shown(), "recipe name> oven"));
         f.r.key(input::scan::kJ, input::mod::kCtrl);
