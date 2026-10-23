@@ -145,7 +145,11 @@ It is a Release build with GCC or Clang, refused otherwise at configure, install
     same files make the same bytes.
 - **Judged** on a runner that did not build it, extracted under a folder named with a space and
   letters outside the code page: `--version` naming the commit and a clean tree, then the judges
-  (`tests/package/judges/`). Then `SHA256SUMS`.
+  (`tests/package/judges/`), then the story (`tests/package/story.py`): the tally setup started
+  from the package (`demo.py start --package`), its walk `export` passed, the exported app's
+  launcher naming the package's `zengine-app`, the app answered at its console until every row
+  runs, and still running once Workshop has stopped. Its pictures and the app's console are kept on
+  the run, red or green. Then `SHA256SUMS`.
 - **What a red judge does.** Nothing is published while any judge is red.
 - **Published** by a night, or by a dispatch asked to (`publish: true`); a pull request and a
   dispatch that is not asked publish nothing. The workflow's own token alone does it:

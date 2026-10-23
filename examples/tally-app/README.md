@@ -2,8 +2,9 @@
 
 An app's folder: the tally panel -- three number fields, a Count button and the total -- and the
 tally flow that counts, run by `zengine-app` with no Workshop running
-([running an app on its own](../../app/docs/app.md)). Its plan is the one the View Builder's Export
-app writes, byte for byte; its `app.json` is written by hand.
+([running an app on its own](https://github.com/Krealsion/Zengine/blob/main/app/docs/app.md)).
+Its plan is the one the View Builder's Export app writes, byte for byte; its `app.json` is written
+by hand.
 
 | file | what it is |
 |---|---|
@@ -28,6 +29,15 @@ line it gives, `authority trust <artifact>`. Then the window shows the panel:
 - **Tab** to a field, **Backspace** and type: `10`, `0` and `-2`, then **Count**, says `Total: 30`.
 - `0`, `10` and `0` says the fold's refusal on the panel's notice rows: a step of 0 never moves.
 - Closing the window ends the app. A second start asks nothing while the builds stand.
+
+## Export it from Workshop
+
+The folder's `setup.json` is a setup
+([demo setups](https://github.com/Krealsion/Zengine/blob/main/workshop/docs/demo-setups.md)): a
+project holding `tally.view` and `tally.flow`, and a walk, `export`, that opens Flow and the View Builder,
+opens `tally.view` and presses **Export app**. Started from a package with `--package`, it is the
+package's story, walked each night: `tests/package/story.py` checks the exported launcher names the
+package's `zengine-app`, answers the app's console, and quits Workshop with the app still running.
 
 ## Write the view and the flow again
 
