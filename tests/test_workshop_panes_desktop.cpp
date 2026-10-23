@@ -20,6 +20,7 @@
 #include <fstream>
 #include <iterator>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -1190,6 +1191,61 @@ TEST_CASE("WL-HAND-06: Hotkeys names each binding's row by its identity") {
     // ...AND A PRESS ON THE NAMED ROW CHOOSES THAT BINDING.
     k.r.press_cell(body_x(k.r, k.hotkeys, 4), body_y(k.r, k.hotkeys, named->row));
     CHECK(marked(k.rows()).find("desktop.terminal") != std::string::npos);
+}
+
+TEST_CASE("WL-DESK-14: a press the window landed on a Hotkeys row where another binding stands "
+          "now is refused in words and chooses nothing, and one on the binding drawn there chooses "
+          "it") {
+    Keys k("hotkeys-moved");
+    // TWO BINDINGS: the one a press lands on, and another, whose name the window could have drawn
+    // there before.
+    std::string target, other;
+    for (const auto& [name, part] : held_parts(k.r.session(), k.hotkeys)) {
+        if (name.rfind("binding:", 0) != 0) continue;
+        if (name.find("/desktop.terminal/") != std::string::npos) {
+            target = name;
+        } else if (other.empty()) {
+            other = name;
+        }
+    }
+    REQUIRE_FALSE(target.empty());
+    REQUIRE_FALSE(other.empty());
+    const auto row_of = [&](const std::string& name) {
+        return held_reading(k.hotkeys).parts.at(name).row;
+    };
+    // THE WEAVER'S PRESS ON THE BINDING, the window's word with it: it chooses the binding.
+    const RuntimePane* seat = k.r.session().panes.runtime.of_kind(k.hotkeys);
+    REQUIRE(seat != nullptr);
+    const std::string area = pane_window_area(k.r.session().panes, *seat);
+    std::optional<gfx::AreaButtonChanged> said;
+    const loom::ObserverId tap = k.r.bus.add_observer([&](const loom::BusEvent& e) {
+        if (!said && e.kind == loom::EventKind::Delivered && e.payload &&
+            e.schema_name == gfx::AreaButtonChanged::zen_name) {
+            const auto b = loom::from_value<gfx::AreaButtonChanged>(*e.payload);
+            if (b.area == area && b.pressed) said = b;
+        }
+    });
+    k.r.press_cell(body_x(k.r, k.hotkeys, 4), body_y(k.r, k.hotkeys, row_of(target)));
+    k.r.bus.remove_observer(tap);
+    REQUIRE(said.has_value());
+    REQUIRE(said->under == area);
+    CHECK(marked(k.rows()).find("desktop.terminal") != std::string::npos);
+    // ANOTHER BINDING CHOSEN, then the same place pressed as the window would say it had drawn the
+    // other binding there: refused in words, and the choice stays.
+    k.r.press_cell(body_x(k.r, k.hotkeys, 4), body_y(k.r, k.hotkeys, row_of(other)));
+    const std::string chosen = marked(k.rows());
+    REQUIRE(chosen.find("desktop.terminal") == std::string::npos);
+    for (const bool down : {true, false}) {
+        gfx::AreaButtonChanged landed = *said;
+        landed.pressed = down;
+        landed.part = other;
+        REQUIRE(k.r.bus.office_send_to_role_as(k.r.windows.id(), k.r.windows.office(),
+                    kDesktopRole, loom::Message(loom::to_value(landed), k.r.windows.id(),
+                                                k.r.windows.id(), 9201)).valid());
+        k.r.bus.drain_until_idle();
+    }
+    CHECK(joined(k.rows()).find("the list moved -- press again") != std::string::npos);
+    CHECK(marked(k.rows()) == chosen);
 }
 
 // =============================================================================

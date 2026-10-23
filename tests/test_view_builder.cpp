@@ -792,6 +792,30 @@ TEST_CASE("a right press on what a button says offers to carry its intent, and t
     CHECK(loom::same_identity(rig.desk->heard.back().payload.schema(), *loom::schema_of<ws::PanePassRequested>()));
 }
 
+TEST_CASE("a press the window landed on the View Builder where it now draws another part makes "
+          "nothing and is said, and one on the kind drawn there makes it") {
+    Rig rig;
+    REQUIRE(rig.edit("new", {"tally.panel", "discard"}).ok);
+    const auto* chip = rig.text("[Button]");
+    REQUIRE(chip != nullptr);
+    const std::int64_t x = chip->x + 8, y = chip->y + 8;
+    const auto landed = [&](const std::string& part, std::uint64_t press) {
+        for (const bool down : {true, false}) {
+            gfx::AreaButtonChanged b{vb::kRole, 1, down, x, y, 0};
+            b.under = vb::kRole;
+            b.part = part;
+            rig.shown->tell(vb::kRole, b, press);
+            rig.pump();
+        }
+    };
+    landed("kind:number", 901);
+    CHECK(rig.now().elements.empty());
+    CHECK(rig.says("The picture changed under the press"));
+    landed("kind:button", 902);
+    REQUIRE(rig.now().elements.size() == 1);
+    CHECK(rig.now().elements[0].kind == view::Kind::button);
+}
+
 TEST_CASE("a kind dragged from the palette is made where it is let go on the design canvas, in whole pixels; a click makes one below the last; let go elsewhere, nothing is made") {
     Rig rig;
     REQUIRE(rig.edit("new", {"tally.panel", "discard"}).ok);

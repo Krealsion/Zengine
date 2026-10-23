@@ -340,6 +340,38 @@ TEST_CASE("right-click on the Visual highlight offers Extract and Neovim's own m
     CHECK(s.stored().size() == 1);
 }
 
+TEST_CASE("a right press the window landed on Neovim's highlight in a drawing it has since "
+          "replaced offers no Extract, and one landed on the drawing standing offers it") {
+    NeovimStory s("nvim-xfer-stale-menu");
+    DrawnNumbers drawn(s.r.bus);
+    REQUIRE(s.open(s.write("a.txt", "keep this\nand not this\n")).accepted);
+    REQUIRE(s.until([&] { return s.shows("and not this"); }));
+    s.focus();
+    // A TIMER INSIDE NEOVIM rewrites line 2 a while after the highlight is drawn.
+    s.keys(":call timer_start(2500, {-> setline(2, 'changed by a timer')})");
+    s.key(input::scan::kReturn);
+    s.keys("ve");
+    REQUIRE(s.until([&] { return s.read("mode") == "v"; }));
+    s.settle();
+    REQUIRE_FALSE(s.shows("changed by a timer"));
+    const std::int64_t before = drawn.of(s.r.session(), s.editor);
+    REQUIRE(before != 0);
+    // A RIGHT PRESS ON THE HIGHLIGHT AS DRAWN offers Extract; put down, Neovim moved nothing.
+    s.click(s.editor, 1, 2, 3);
+    REQUIRE(s.r.session().presented.open);
+    CHECK(s.offered("Extract selection to Inventory"));
+    s.key(input::scan::kEscape);
+    REQUIRE_FALSE(s.r.session().presented.open);
+    // NEOVIM DRAWS AGAIN, the highlight where it stood: a press the window landed on the drawing
+    // before offers no Extract.
+    REQUIRE(s.until([&] { return s.shows("changed by a timer"); }));
+    s.settle();
+    REQUIRE(drawn.of(s.r.session(), s.editor) != before);
+    REQUIRE(s.read("mode") == "v");
+    press_as_drawn(s.r, s.editor, 1, 2, "", before, 3);
+    CHECK_FALSE(s.offered("Extract selection to Inventory"));
+}
+
 TEST_CASE("dropped text lands in Neovim as data where the hand aimed, as one undo step, replaces the Visual highlight only when dropped onto it, and writes nothing") {
     NeovimStory s("nvim-xfer-in");
     const std::string path = s.write("in.txt", "abc\ndef\n");

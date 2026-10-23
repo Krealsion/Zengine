@@ -369,10 +369,16 @@ private:
             return;
         }
         std::vector<ws::TextRow> drawn;
-        // NUMBERED BY WHAT ITS LINES MEAN: the item each one chooses.
+        // NUMBERED BY WHAT ITS LINES MEAN: the line each item stands on, so a notice under them,
+        // which no press chooses, moves nothing.
         std::uint64_t meaning = 1469598103934665603ULL;
+        std::uint64_t at = 0;
         for (const fr::Line& l : fr::lines_of(moment_)) {
-            meaning = (meaning ^ (static_cast<std::uint64_t>(l.item) + 1)) * 1099511628211ULL;
+            if (l.item != fr::Item::kNone) {
+                meaning = (meaning ^ ((at << 8) | (static_cast<std::uint64_t>(l.item) + 1))) *
+                          1099511628211ULL;
+            }
+            ++at;
             std::int64_t role = gfx::role::kFill;
             switch (l.ink) {
             case fr::Line::Ink::kHeading:
