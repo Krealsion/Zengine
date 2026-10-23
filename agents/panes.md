@@ -152,7 +152,8 @@ testing and every semantic action. No node, wire or pan behavior belongs in the 
 
 - **Two helpers draw, and a pane may use neither.** `rows_drawing` (`workshop/pane_drawing.hpp`)
   draws rows and the parts they name, with the caret and the selection as marks in the run they
-  stand in, for the room a window gives (`RowsRoom`); `canvas_sketch`
+  stand in, for the room a window gives (`RowsRoom`), and `RowsBlock` (`workshop/pane_rows_block.hpp`)
+  puts rows, their meanings and the row tools inside any picture; `canvas_sketch`
   (`workshop/pane_canvas_drawing.hpp`) draws a picture of rectangles, labels, measured text and
   named parts (`workshop/pane_picture.hpp`), each part painted again over its own place, clipped
   there, under a group whose record asks the part's name. `WindowDrawing` keeps the area's room

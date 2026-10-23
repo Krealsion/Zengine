@@ -14,6 +14,7 @@
 #include "guest_hand.hpp"
 
 #include "workshop/pane_menu.hpp"
+#include "workshop/pane_rows_block.hpp"
 
 #include <map>
 #include <memory>
@@ -344,6 +345,46 @@ struct Rigged {
 // =============================================================================
 // Custody and continuation
 // =============================================================================
+
+TEST_CASE("text inside a picture: rows drawn into a free picture at a place of its choosing are pressed over their parts, and the press is read back to what the row means") {
+    namespace gfx = zengine::graphics;
+    RowsBlock<std::string> block;
+    block.begin(3, 20);
+    REQUIRE(block.push(TextRow{"plain words"}));
+    REQUIRE(block.push(TextRow{"open me"}, std::string("open")));
+    gfx::TextMeasure text;
+    text.advance = 10;
+    text.line = 20;
+    gfx::Sketch picture;
+    picture.fill_rect("ground", 0, 0, 400, 300, gfx::by_role(gfx::role::kGround));
+    picture.ellipse("dot", 0, 0, 30, 30, gfx::by_role(gfx::role::kAccent));
+    picture.action("dot", "dot.press");
+    const RowsRoom room = block.draw(
+        picture, "words", 100, 50, text, false,
+        [](const std::string& meaning) { return "row:" + meaning; },
+        [](const std::string&) { return true; }, true, false);
+    CHECK(room.width == 200);
+    CHECK(room.height == 60);
+    // THE SECOND ROW, at the block's place: its part over the whole row, the meaning read back.
+    CHECK(gfx::part_at(picture, 105, 75, text) == "row:open");
+    CHECK(gfx::part_at(picture, 295, 75, text) == "row:open");
+    REQUIRE(block.named("row:open") != nullptr);
+    CHECK(*block.named("row:open") == "open");
+    CHECK(block.named("row:plain") == nullptr);
+    // THE FIRST ROW NAMES NOTHING, beside the block is the picture's own, and past the clip none.
+    CHECK(gfx::part_at(picture, 105, 55, text).empty());
+    CHECK(gfx::part_at(picture, 10, 10, text) == "dot.press");
+    CHECK(gfx::part_at(picture, 105, 115, text).empty());
+    // ON THE PICTURE'S GROUND: the rows' own was left out, and every node stands in the group.
+    bool own_ground = false, outside = false;
+    for (const gfx::Node& node : picture.nodes()) {
+        own_ground = own_ground || node.path == "words/room";
+        outside = outside || (node.path.rfind("words", 0) != 0 && node.path != "ground" &&
+                              node.path != "dot");
+    }
+    CHECK_FALSE(own_ground);
+    CHECK_FALSE(outside);
+}
 
 TEST_CASE("WL-PRESS-06: a right press over a pane whose holder hears the window is delivered, consumed and opens no menu; the chrome stays the host's") {
     Rigged t;

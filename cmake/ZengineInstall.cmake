@@ -151,6 +151,7 @@ set(zengine_public_headers_workshop   workshop/setup_control.hpp workshop/pane_o
                                       workshop/pane_canvas_drawing.hpp
                                       workshop/pane_document.hpp
                                       workshop/pane_facets.hpp
+                                      workshop/pane_rows_block.hpp
                                       workshop/pane_menu.hpp
                                       workshop/pane_escape.hpp
                                       workshop/presenter_vocabulary.hpp

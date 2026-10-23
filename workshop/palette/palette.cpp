@@ -15,6 +15,7 @@
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_drawing.hpp"
 #include "workshop/pane_rows.hpp"
+#include "workshop/pane_rows_block.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
 #include "activation/activation.hpp"
@@ -211,21 +212,26 @@ public:
     }
 
     /// A PRESS ON AN ENTRY'S LINE puts the cursor there; Return runs it. A window's press is not a
-    /// key Workshop numbered, so it runs nothing itself.
+    /// key Workshop numbered, so it runs nothing itself. The entry is the one the line the press
+    /// reached means (`RowsBlock::named`), never a row counted from the top.
     void on(const gfx::AreaButtonChanged& b, loom::Mail& mail) {
         const auto p = window_.pointer(b, mail, rows(), columns());
-        if (!p || !b.pressed || b.button != 1 || !p->at.shown) {
+        if (!p || !b.pressed || b.button != 1) {
             return;
         }
-        if (p->moved) { // the window landed it on rows the list has since moved
+        if (p->moved) { // the window landed it on an entry the list has since moved
             notice_ = "the list moved -- press again";
             show(mail);
             return;
         }
-        const std::int64_t entry = p->at.row - kHead + static_cast<std::int64_t>(first_);
+        const Line* line = entries_.named(window_.part_at(p->x, p->y));
+        if (line == nullptr || line->listed != listed_) {
+            return;
+        }
         const std::vector<std::size_t> list = visible();
-        if (p->at.row >= kHead && entry >= 0 && static_cast<std::size_t>(entry) < list.size()) {
-            cursor_ = static_cast<std::size_t>(entry);
+        const auto at = std::find(list.begin(), list.end(), line->entry);
+        if (at != list.end()) {
+            cursor_ = static_cast<std::size_t>(at - list.begin());
             show(mail);
         }
     }
@@ -233,6 +239,20 @@ public:
 private:
     /// The two lines above the entries: the filter, and the count or the notice.
     static constexpr std::int64_t kHead = 2;
+
+    /// WHAT AN ENTRY'S LINE MEANS: the entry, by its place in the listing, and that listing.
+    struct Line {
+        std::size_t entry = 0;
+        std::uint64_t listed = 0;
+        bool operator==(const Line&) const = default;
+    };
+    static std::string part_of(const Line& line) {
+        return "entry:" + std::to_string(line.listed) + "." + std::to_string(line.entry);
+    }
+
+    /// The palette's own colours, each with the role a window that cannot show it paints instead.
+    static gfx::Paint head_ground() { return gfx::exact(gfx::role::kMediumGround, 0x1E2A3C); }
+    static gfx::Paint cursor_bar() { return gfx::exact(gfx::role::kMediumGround, 0x2C4A6E); }
 
     void offer(loom::Mail& mail) {
         (void)mail.as_role(kOffice).send_to_role(
@@ -279,6 +299,7 @@ private:
 
     void relist(loom::Mail& mail) {
         listing_ = pal::entries_of(keys_, inventory_);
+        ++listed_;
         const std::size_t n = visible().size();
         cursor_ = n == 0 ? 0 : std::min(cursor_, n - 1);
         show(mail);
@@ -311,8 +332,10 @@ private:
         return left + std::string(w - std::min(w, left.size() + key.size()), ' ') + key;
     }
 
-    /// THE PALETTE DRAWN in its area: the filter with its caret, the count or the notice, and the
-    /// entries the room holds around the cursor.
+    /// THE PALETTE DRAWN in its area, a picture of its own: the filter with its caret and the count
+    /// or the notice on a band of their own colour, a bar under the cursor's entry, and the entries
+    /// the room holds around the cursor, each line meaning its entry -- rows inside the picture
+    /// (`RowsBlock`).
     void show(loom::Mail& mail) {
         if (!window_.shown() || rows() <= 0 || columns() <= 0) {
             return;
@@ -324,37 +347,53 @@ private:
         } else if (cursor_ >= first_ + room) {
             first_ = cursor_ + 1 - room;
         }
-        std::vector<ws::TextRow> lines;
+        const gfx::TextMeasure& text = window_.text();
+        const bool cells = window_.rows_room().cells;
+        gfx::Sketch sketch;
+        sketch.fill_rect("room", 0, 0, window_.width(), window_.height(),
+                         gfx::by_role(gfx::role::kGround));
+        sketch.fill_rect("head", 0, 0, window_.width(), kHead * text.line, head_ground());
+
+        ws::RowsBlock<Line> head;
+        head.begin(kHead, columns());
         const std::string prefix = "find: ";
-        lines.push_back({prefix + filter_.text(), gfx::role::kAccent});
+        (void)head.push({prefix + filter_.text(), gfx::role::kAccent});
         std::string count = std::to_string(list.size()) + " of " +
                             std::to_string(listing_.entries.size());
         if (listing_.left_out > 0) {
             count += " -- " + std::to_string(listing_.left_out) + " " + listing_.left_from +
                      " left out past " + std::to_string(pal::kMaxEntries);
         }
-        lines.push_back(notice_.empty() ? ws::TextRow{count, gfx::role::kMuted}
+        (void)head.push(notice_.empty() ? ws::TextRow{count, gfx::role::kMuted}
                                         : ws::TextRow{notice_, gfx::role::kAlert});
+        head.caret().row = 0;
+        head.caret().column = static_cast<std::int64_t>(prefix.size() + filter_.caret());
+        const auto always = [](const Line&) { return true; };
+        (void)head.draw(sketch, "find", 0, 0, text, cells, part_of, always, true, false);
+
+        if (cursor_ >= first_ && cursor_ < list.size() && cursor_ < first_ + room) {
+            const auto y = static_cast<std::int64_t>(kHead + cursor_ - first_) * text.line;
+            sketch.fill_rect("cursor", 0, y, window_.width(), text.line, cursor_bar());
+        }
+        entries_.begin(rows() - kHead, columns());
         for (std::size_t i = first_; i < list.size() && i < first_ + room; ++i) {
             const pal::Entry& e = listing_.entries[list[i]];
             const bool here = i == cursor_;
-            lines.push_back({line_of(e, here, columns()),
-                             here ? gfx::role::kAccent
-                                  : (e.off || e.gone) ? gfx::role::kMuted : gfx::role::kFill});
+            (void)entries_.push({line_of(e, here, columns()),
+                                 here ? gfx::role::kAccent
+                                      : (e.off || e.gone) ? gfx::role::kMuted : gfx::role::kFill},
+                                Line{list[i], listed_});
         }
-        ws::RowsCaret caret;
-        caret.row = 0;
-        caret.column = static_cast<std::int64_t>(prefix.size() + filter_.caret());
-        ws::RowsDrawing drawn = ws::rows_drawing(
-            lines, std::vector<ws::RowPart>{}, window_.rows_room(), columns(), caret, rows());
+        (void)entries_.draw(sketch, "entries", 0, kHead * text.line, text, cells, part_of, always,
+                            false, false);
         // NUMBERED BY WHAT ITS ROWS MEAN: the entries shown, from the first, so a press is read
         // against the entries it was drawn with.
         std::uint64_t meaning = 1469598103934665603ULL ^ first_;
         for (std::size_t i = first_; i < list.size() && i < first_ + room; ++i) {
             meaning = (meaning ^ (list[i] + 1)) * 1099511628211ULL;
         }
-        drawn.sketch.number(static_cast<std::int64_t>(meaning >> 1));
-        window_.draw(drawn.sketch, mail);
+        sketch.number(static_cast<std::int64_t>(meaning >> 1));
+        window_.draw(sketch, mail);
     }
 
     // NOT STATE: the lists are Workshop's and asked again; the filter, the cursor and the run in
@@ -365,6 +404,8 @@ private:
     zengine::component::TextBox filter_;
     zengine::component::Clipboard clipboard_;
     std::size_t cursor_ = 0, first_ = 0;
+    std::uint64_t listed_ = 0;      ///< which listing the entries' lines were drawn from
+    ws::RowsBlock<Line> entries_;   ///< the entries' lines last drawn, and what each means
     std::string notice_;
     bool in_flight_ = false;
     std::uint64_t asked_ = 0;
