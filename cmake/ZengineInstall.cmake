@@ -372,18 +372,9 @@ if(ZENGINE_PACKAGE)
         # folder, and one found nowhere stops the install. Where every image links its runtime
         # statically, it copies nothing.
         get_filename_component(zengine_package_tc ${CMAKE_CXX_COMPILER} DIRECTORY)
-        get_filename_component(zengine_package_tc_root ${zengine_package_tc} DIRECTORY)
-        set(zengine_package_tc_lic ${zengine_package_tc_root}/share/licenses)
-        if(NOT EXISTS ${zengine_package_tc_lic}/crt/COPYING.MinGW-w64-runtime.txt)
-            message(FATAL_ERROR "zengine: ZENGINE_PACKAGE carries the toolchain's licence texts, and "
-                                "${zengine_package_tc_lic} holds none")
-        endif()
-        install(FILES ${zengine_package_tc_lic}/crt/COPYING.MinGW-w64-runtime.txt
-                DESTINATION licenses/mingw-w64)
-        install(FILES ${zengine_package_tc_lic}/winpthreads/COPYING DESTINATION licenses/winpthreads)
-        install(FILES ${zengine_package_tc_lic}/gcc-libs/COPYING3
-                      ${zengine_package_tc_lic}/gcc-libs/COPYING.RUNTIME
-                DESTINATION licenses/gcc)
+        # The toolchain's licence texts, as mingw-w64 and GCC publish them (workshop/package/licenses/):
+        # a standalone toolchain archive need not carry them, and every image needs them.
+        install(DIRECTORY ${zengine_package_src}/licenses/ DESTINATION licenses)
         install(CODE "
             set(bin \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${zengine_package_bin}\")
             file(GLOB images \"\${bin}/*.exe\" \"\${bin}/*.dll\")
