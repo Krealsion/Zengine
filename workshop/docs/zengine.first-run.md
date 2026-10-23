@@ -32,6 +32,10 @@ owner's words:
   Workshop has answered. A settings file that will not take the write is said, and the pane is put
   down all the same.
 
+On a weaver's host with a guest door, only your own hand reaches the quick setup, as only yours
+reaches the Terminal ([whose host this
+is](../../external-host/docs/external-host.md#whose-host-this-is-and-what-each-power-reaches-there)).
+
 ## Use
 
 Move with [`first-run.up`](#first-runup) and [`first-run.down`](#first-rundown), and choose with

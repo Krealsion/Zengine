@@ -1592,11 +1592,11 @@ TEST_CASE("guests file: a row's losses are what its powers do not reach on its f
     row.name = "agent";
     row.may = {guests::kPowerInput, guests::kPowerCapture};
 
-    SUBCASE("a version-1 row with input loses the builds, and on its weaver's host every write, the editor, the Terminal, the Hotkeys pane, typed text and the guests file") {
+    SUBCASE("a version-1 row with input loses the builds, and on its weaver's host every write, the editor, the Terminal, the Hotkeys pane, the quick setup, typed text and the guests file") {
         const std::vector<std::string> losses = guests::losses_of(row, file);
         CHECK(has(losses, "builds and loads: `build` is a version-2 power"));
         CHECK(has(losses, "file writes"));
-        CHECK(has(losses, "the editor, the Terminal and the Hotkeys pane"));
+        CHECK(has(losses, "the editor, the Terminal, the Hotkeys pane and the quick setup"));
         CHECK(has(losses, "typed text"));
         CHECK(has(losses, "opening the guests file"));
         // ...BUT NOT A CARRY, which only `inventory` begins: the row never had one to lose.

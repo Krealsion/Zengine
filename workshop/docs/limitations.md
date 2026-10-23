@@ -542,8 +542,8 @@ document's picture, which this Workshop no longer publishes, so it waits, showin
 - **A credential crosses the loopback socket in the clear.** The guests file refuses any
   listener but loopback; there is no transport security in the crossing.
 - **A weaver's host narrows a guest's hand only where it would write, type, carry or reach a shell.**
-  There a guest's file writes, typed text, carries, the editor, the Terminal, the Hotkeys pane and
-  the guests file are refused ([whose host this is](../../external-host/docs/external-host.md#whose-host-this-is-and-what-each-power-reaches-there)).
+  There a guest's file writes, typed text, carries, the editor, the Terminal, the Hotkeys pane, the
+  quick setup and the guests file are refused ([whose host this is](../../external-host/docs/external-host.md#whose-host-this-is-and-what-each-power-reaches-there)).
   Every other control a key or a press reaches still answers it as the weaver -- a layout's
   removal, the desktop's launch and close, the clipboard -- and its drag still moves a press the
   weaver holds; the View Builder still keeps its run record (the project's
