@@ -120,6 +120,10 @@ Whatever you run, say what you ran and what you did not.
 cmake -DZEN_BUILD_DIR=build -DZEN_WORK=/tmp/zengine-package -P tests/package/run.cmake
 ```
 
+The package a stranger downloads is judged, once extracted, by
+[the package's judges](../../tests/package/judges/README.md): imports, ELF, private paths and a
+first start.
+
 It installs Zengine into an isolated prefix, copies
 [`tests/package/`](../../tests/package/CMakeLists.txt) **out of this repository**, and builds
 that copy as an unrelated project against the prefix alone. `ZEN_WORK` must be outside the

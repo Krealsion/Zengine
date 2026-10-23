@@ -60,6 +60,8 @@ The suites no one folder holds:
   — the checks that read the source tree, each stating its contract in its own header (below)
 - `smoke` — the one suite with no kernel, in `tests/smoke/`
 - `workshop_shapes` — every shape the tree publishes against `tests/shapes.txt` (Do not assume)
+- `package_judges` — the judges of the package a stranger downloads, each red on its canary
+  (`tests/package/judges/`)
 
 **Where law lives (the re-accretion guard).** Surface law belongs in the routed surface
 document that owns it; this core gains a rule only when the rule is genuinely cross-cutting —
