@@ -69,14 +69,14 @@ On a folder, opens it. On an entry, picks up a copy to place in another pane.
 Picks up a live reference to the selected entry: a receiver such as Info then edits that entry
 itself, not a copy.
 
-- **Takes:** the selected entry. Default key <!-- key inventory.live -->`ctrl+return`<!-- /key -->.
+- **Takes:** the selected entry. Default key <!-- key inventory.live -->`ctrl+l`<!-- /key -->.
 - **Answers:** as [`inventory.copy`](#inventorycopy), the entry read
   ([`InventoryRead`](zengine.inventory.md#inventoryread)); what is carried
   ([`PaneCarryRequested`](../../workshop/docs/zengine.workshop.md#panecarryrequested)) is the
   entry's reference, with the name it had and its revision as metadata.
 - **Refuses:** `A folder is not a value; Enter opens it` on a folder; as
   [`inventory.copy`](#inventorycopy).
-- **Example:** press <!-- key inventory.live -->`ctrl+return`<!-- /key -->, then press Info.
+- **Example:** press <!-- key inventory.live -->`ctrl+l`<!-- /key -->, then press Info.
 
 ### `inventory.up`
 
@@ -177,7 +177,7 @@ judges it a write: on a weaver's host a guest's save is refused in words.
 
 - **Takes:** the path typed on the line, `Toolbox file: `, which starts with the last path or
   `inventory.toolbox`; a relative path is from Workshop's working directory. Default key
-  <!-- key inventory.toolbox.save -->`ctrl+shift+s`<!-- /key -->.
+  <!-- key inventory.toolbox.save -->`ctrl+e`<!-- /key -->.
 - **Answers:** `Enter saves this toolbox file; Escape cancels`; on Enter, `Checking authority for
   the toolbox file`, `Taking a toolbox snapshot` (the owner's
   [snapshot](zengine.inventory.md#inventorysnapshotrequested)), then `Saved 3 entries to toolbox:
@@ -186,7 +186,7 @@ judges it a write: on a weaver's host a guest's save is refused in words.
 - **Refuses:** `choose a toolbox file path`; `a configured entry belongs to an unavailable
   inventory; resolve it before saving`; `toolbox file exceeds the 32 MiB limit`; the file system's
   reason; Workshop's refusal.
-- **Example:** <!-- key inventory.toolbox.save -->`ctrl+shift+s`<!-- /key -->, type
+- **Example:** <!-- key inventory.toolbox.save -->`ctrl+e`<!-- /key -->, type
   `work.toolbox`, <!-- key inventory.name.save -->`return`<!-- /key -->.
 
 ### `inventory.toolbox.restore`

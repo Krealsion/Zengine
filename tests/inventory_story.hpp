@@ -269,7 +269,7 @@ struct InventoryStory {
     void acquire() {
         click(source);
         REQUIRE(r.session().panes.keyboard == source);
-        key(input::scan::kReturn, input::mod::kCtrl);
+        key(input::scan::kL, input::mod::kCtrl);
     }
     void place(bool expect_entry = true) {
         click(info);

@@ -596,7 +596,7 @@ public:
             {kValueEdit, "edit field", scan::kReturn, mod::kNone},
             {kActionSave, "save entry", scan::kS, mod::kCtrl, {},
              {cause_of<inventory::InventoryWrite>(), cause_of<inventory::InventoryAdd>()}},
-            {kActionSaveCopy, "save a new copy", scan::kS, mod::kCtrl | mod::kShift, {},
+            {kActionSaveCopy, "save a new copy", scan::kEnd, mod::kAlt, {},
              {cause_of<inventory::InventoryAdd>()}},
             {kActionRefresh, "refresh from inventory", scan::kR, mod::kCtrl, {},
              {cause_of<inventory::InventoryRead>()}},
@@ -611,11 +611,11 @@ public:
              {cause_of<workshop::PaneValueCarryRequested>()}},
             {kActionDiscard, "discard local edits", scan::kD, mod::kCtrl},
             {kActionViewNew, "new Info view", scan::kN, mod::kCtrl, {}, {launched}},
-            {kActionViewFork, "fork this view", scan::kN, mod::kCtrl | mod::kShift, {}, {launched}},
-            {kActionViewRename, "rename this view", scan::kM, mod::kCtrl},
-            {kActionViewMenu, "all view actions", scan::kPeriod, mod::kCtrl}};
-        if (is_default()) rows.push_back({kActionPanes, "pane properties", scan::kI, mod::kCtrl, {}, {ended}});
-        else rows.push_back({kActionViewClose, "close this view", scan::kW, mod::kCtrl | mod::kShift, {},
+            {kActionViewFork, "fork this view", scan::kDown, mod::kAlt, {}, {launched}},
+            {kActionViewRename, "rename this view", scan::kHome, mod::kAlt},
+            {kActionViewMenu, "all view actions", scan::kO, mod::kCtrl}};
+        if (is_default()) rows.push_back({kActionPanes, "pane properties", scan::kLeft, mod::kAlt, {}, {ended}});
+        else rows.push_back({kActionViewClose, "close this view", scan::kW, mod::kCtrl, {},
                              {cause_of<workshop::PaneCloseRequested>(), ended}});
         if (!replacing().empty()) rows.push_back({kActionStop, "stop waiting", scan::kEscape, mod::kNone});
         return rows;

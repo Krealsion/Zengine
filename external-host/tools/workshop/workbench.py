@@ -108,7 +108,7 @@ def story(ctx, hand, link, pictures, shots):
         expect(hand, view, title + " |")
 
     ctx.step("link the incomplete preset and finish it from the sample, field to field")
-    hand.click(hand.row(*INV, LABELS["preset"], scroll=True)); hand.key("ctrl+enter")
+    hand.click(hand.row(*INV, LABELS["preset"], scroll=True)); hand.key("ctrl+l")
     hand.click(hand.first(*PRESET))
     expect(hand, PRESET, "PRESET LINKED")
     hand.field(*PRESET, "target_role")
@@ -124,7 +124,7 @@ def story(ctx, hand, link, pictures, shots):
     hand.ask("zengine.workshop", "SetupApplyRequested", {"setup": json.dumps(layout("workbench"))}, settle=True)
     expect(hand, PRESET, "Info 2 | empty")  # the same slot, a new incarnation: nothing carried over
     hand.control(*PRESET, "Rename"); hand.key("ctrl+a"); hand.text("Preset"); hand.key("enter")
-    hand.click(hand.row(*INV, LABELS["preset"], scroll=True)); hand.key("ctrl+enter")
+    hand.click(hand.row(*INV, LABELS["preset"], scroll=True)); hand.key("ctrl+l")
     hand.click(hand.first(*PRESET))
     expect(hand, PRESET, "target_role: zengine.input")
 
@@ -132,17 +132,17 @@ def story(ctx, hand, link, pictures, shots):
     hand.click(hand.part(*LOADED, "weave:zengine-inventory", scroll=True))
     hand.drag(hand.row(*INV, LABELS["preset"], scroll=True), hand.first(*COMP), 350)
     expect(hand, COMP, "Copied data into form")
-    hand.key("ctrl+enter")
+    hand.key("ctrl+e")
     results = sum(e["label"] == RESULT for e in entries(hand))
     ctx.check(results == results_before + 1, "the submitted capture did not store exactly one result")
     hand.key("escape")
 
     ctx.step("watch a linked note while another view changes it")
-    hand.click(hand.row(*INV, LABELS["note"], scroll=True)); hand.key("ctrl+enter")
+    hand.click(hand.row(*INV, LABELS["note"], scroll=True)); hand.key("ctrl+l")
     hand.click(hand.first(*WATCH))
     hand.control(*WATCH, "Watch")
     expect(hand, WATCH, "watch ON")
-    hand.click(hand.row(*INV, LABELS["note"], scroll=True)); hand.key("ctrl+enter")
+    hand.click(hand.row(*INV, LABELS["note"], scroll=True)); hand.key("ctrl+l")
     hand.click(hand.first(*PRESET))
     edited = hand.field(*PRESET, "state_version")
     hand.click(edited); hand.key("enter"); hand.key("ctrl+a"); hand.text("7"); hand.key("enter")

@@ -869,7 +869,7 @@ private:
         const bool in_form = composing_.stage == stage::kForm;
         this->template facet<Actions>().declare(mail, {
             {"compose.enter", "choose", input::scan::kReturn, input::mod::kNone},
-            {"compose.submit", "submit", input::scan::kReturn, input::mod::kCtrl},
+            {"compose.submit", "submit", input::scan::kE, input::mod::kCtrl},
             // Storing adds the command to the Inventory once Workshop allows it; a submit sends the
             // command composed, a shape no row can name before the weaver fills the form.
             {"compose.store", "store command", input::scan::kS, input::mod::kCtrl, {},
