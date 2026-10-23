@@ -8,6 +8,7 @@
 #include "inventory/codec.hpp"
 #include "operator/reference.hpp"
 #include "workshop/actor_scope.hpp"
+#include "workshop/fingerprint.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_drawing.hpp"
@@ -293,7 +294,12 @@ public:
     const std::int64_t gesture = p->phase == ws::canvas_pointer::kLost
                                      ? (drag_ ? drag_->gesture : 0)
                                      : static_cast<std::int64_t>(p->press);
-    const Moment event{gesture, p->phase, p->button, p->x, p->y, p->dx, p->dy, p->moved};
+    // EVERY DIALOG NAMES ITS PARTS ALIKE, so one landed under another dialog's number is another.
+    const bool other_dialog = p->told && p->drawing != dialog_number() &&
+                              (p->part.rfind("dialog-", 0) == 0 ||
+                               p->part.rfind("control:dialog-", 0) == 0);
+    const Moment event{gesture, p->phase, p->button, p->x, p->y, p->dx, p->dy,
+                       p->moved || other_dialog};
     pointer(event, window_shown_ ? &*window_shown_ : nullptr, window_room_, mail);
   }
   /// ONE MOMENT OF THE POINTER IN FLOW'S AREA: its press's number, its phase
@@ -1716,7 +1722,17 @@ private:
     auto drawn = pane::window_picture(model_, window_room_);
     window_parts_ = std::move(drawn.parts);
     window_shown_ = std::move(drawn.picture);
+    drawn.sketch.number(dialog_number());
     window_.draw(drawn.sketch, mail);
+  }
+  /// WHAT FLOW'S DRAWING IS NUMBERED BY: the dialog it shows, by what it asks and does; else 0.
+  std::int64_t dialog_number() const {
+    if (!model_.dialog)
+      return 0;
+    ws::Fingerprint f;
+    f.bytes(model_.dialog->action);
+    f.bytes(model_.dialog->title);
+    return f.value() | 1;
   }
   pane::Model model_;
   Room &room() { return this->template facet<Room>(); }

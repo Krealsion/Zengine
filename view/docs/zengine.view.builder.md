@@ -241,12 +241,11 @@ after its value. It begins no drag and carries nothing, and Workshop refuses a s
 
 ### `AreaButtonChanged`
 
-`AreaButtonChanged` v1, from that window: a button pressed or let go in the pane's area, at its
-point in the picture last drawn there, which is that press on Workshop's canvas: a kind held to make
-where it is let go, an element held to move or resize, a box opened with the caret where it was
-pressed, the canvas panned by the middle button, a right press on what a button says offered to
-carry out and elsewhere handed back. Its moves and its release carry the window's number for the
-press.
+`AreaButtonChanged` v3, from that window: a button pressed or let go in the pane's area, on the part
+the window drew there: a kind held to make where it is let go, an element held to move or resize, a
+box opened with the caret where pressed, the canvas panned by the middle button, a right press on
+what a button says offered to carry out, else handed back. One on another part than the pane shows
+there now is refused in words. Its moves and release carry the press's number.
 
 ### `AreaPointerMoved`
 
