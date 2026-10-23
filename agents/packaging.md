@@ -147,6 +147,16 @@ It is a Release build with GCC or Clang, refused otherwise at configure, install
   letters outside the code page: `--version` naming the commit and a clean tree, then the judges
   (`tests/package/judges/`). Then `SHA256SUMS`.
 - **What a red judge does.** Nothing is published while any judge is red.
+- **Published** by a night, or by a dispatch asked to (`publish: true`); a pull request and a
+  dispatch that is not asked publish nothing. The workflow's own token alone does it:
+  - `attest`, holding `id-token` and `attestations: write` alone, attests each archive and
+    `SHA256SUMS`;
+  - `publish`, holding `contents: write` alone, makes the tag `v0.1.N` on the packaged commit and
+    refuses a name that already exists. It opens a draft with the notes
+    (`workshop/package/release-notes.md`, each `@NAME@` the night's), downloads its assets back
+    and matches their sums, then publishes it.
+  - Then every other release is deleted, and its tag stays: the Releases page holds one package,
+    and a tag still finds the commit a stranger ran.
 
 Header spelling does not change across the boundary: installed headers land under
 `include/zengine/<package>/`, so `#include "timer/vocabulary.hpp"` is the same sentence from

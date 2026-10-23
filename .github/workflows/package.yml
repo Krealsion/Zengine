@@ -3,12 +3,17 @@ name: Package
 # THE PACKAGE A STRANGER DOWNLOADS, made from `main` (agents/packaging.md, "The package a stranger
 # downloads"): Workshop ready to run, one archive per platform, judged before anything leaves.
 # A night packages the newest `main` commit whose CI push run passed and that is newer than the
-# last `v0.1.*` tag, at the Loom commit that run built against. A pull request that changes how
-# the package is made runs it too, on its own head, as a dry run.
+# last `v0.1.*` tag, at the Loom commit that run built against, and publishes it as `v0.1.N`. A
+# dispatch publishes only when asked; a pull request touching it runs it on its own head, a dry run.
 on:
   schedule:
     - cron: '41 3 * * *'
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the package as the next v0.1.N, as a night does (false makes a dry run)
+        type: boolean
+        default: false
   pull_request:
     paths:
       - .github/workflows/package.yml
@@ -395,3 +400,93 @@ jobs:
           path: ${{ runner.temp }}/release/SHA256SUMS
           if-no-files-found: error
           retention-days: 7
+
+  # ---- what a night that publishes adds ------------------------------------------------------------
+  # Only a night (`schedule`) or a dispatch asked to publish does; a pull request never does.
+  attest:
+    name: Package / attest
+    needs: [decide, sums]
+    if: ${{ needs.decide.outputs.moved == 'true' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.publish)) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Fetch the archives and their sums
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: package-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/release
+
+      - name: Attest how they were made
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            ${{ runner.temp }}/release/*.zip
+            ${{ runner.temp }}/release/*.tar.gz
+            ${{ runner.temp }}/release/SHA256SUMS
+
+  publish:
+    name: Package / publish
+    needs: [decide, attest]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      VERSION: ${{ needs.decide.outputs.version }}
+      COMMIT: ${{ needs.decide.outputs.commit }}
+      LOOM: ${{ needs.decide.outputs.loom }}
+    steps:
+      - name: Check out the notes' template
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.decide.outputs.commit }}
+          persist-credentials: false
+          sparse-checkout: workshop/package
+
+      - name: Fetch the archives and their sums
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: package-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/release
+
+      - name: Tag, publish, and put the previous release down
+        run: |
+          set -euo pipefail
+          tag="v$VERSION"
+          cd "$RUNNER_TEMP/release"
+          sha256sum --check --strict SHA256SUMS
+          # THE TAG, on the commit the night packaged; a name once used is never made again.
+          if gh api "repos/$REPO/git/refs/tags/$tag" >/dev/null 2>&1; then
+            echo "$tag already exists: nothing is published" >&2; exit 1
+          fi
+          gh api "repos/$REPO/git/refs" -f ref="refs/tags/$tag" -f sha="$COMMIT" >/dev/null
+          gcc="$(echo "$WINLIBS_URL" | sed -n 's/.*-gcc-\([0-9.]*\)-mingw.*/\1/p')"
+          sed -e "s/@VERSION@/$VERSION/g" -e "s/@COMMIT@/$COMMIT/g" -e "s/@LOOM@/$LOOM/g" \
+              -e "s/@DATE@/$(date -u +%Y-%m-%d)/g" -e "s/@WINDOWS_GCC@/$gcc/g" \
+              -e "s/@APT_SNAPSHOT@/$APT_SNAPSHOT/g" "$GITHUB_WORKSPACE/workshop/package/release-notes.md" \
+            | sed '1{/^<!--/d}' > "$RUNNER_TEMP/notes.md"
+          # A DRAFT FIRST, its assets downloaded back and their sums matched before it is published.
+          gh release create "$tag" --repo "$REPO" --verify-tag --draft --title "Zengine $VERSION" \
+            --notes-file "$RUNNER_TEMP/notes.md" ./*.zip ./*.tar.gz SHA256SUMS
+          mkdir "$RUNNER_TEMP/draft"
+          gh release download "$tag" --repo "$REPO" --dir "$RUNNER_TEMP/draft"
+          (cd "$RUNNER_TEMP/draft" && sha256sum -- * | sort -k 2) > "$RUNNER_TEMP/published.txt"
+          sha256sum -- *.zip *.tar.gz SHA256SUMS | sort -k 2 > "$RUNNER_TEMP/made.txt"
+          diff "$RUNNER_TEMP/made.txt" "$RUNNER_TEMP/published.txt"
+          gh release edit "$tag" --repo "$REPO" --draft=false --latest
+          echo "published $tag at $COMMIT"
+          # ONE RELEASE HELD: every other release goes, and its tag stays.
+          gh release list --repo "$REPO" --limit 100 --json tagName --jq '.[].tagName' | while read -r old; do
+            if [ "$old" != "$tag" ]; then
+              gh release delete "$old" --repo "$REPO" --yes
+              echo "deleted the release $old; its tag stays"
+            fi
+          done
