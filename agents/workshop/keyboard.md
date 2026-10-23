@@ -233,7 +233,8 @@ authored_gestures_for join_app_rows join_pane_rows
 `workshop/weave_seam.cpp` unsaid_gaps declare_pane_actions rejoin_pane_rows
 `tests/test_workshop_document.cpp` "a same-context collision is refused naming both actions and the
 gesture" "a gesture outside the grammar on a KNOWN action is refused in words" "a known backend gap
-is accepted and said, never silently rewritten"
+is accepted and said, never silently rewritten" "ctrl on a key that is neither a letter nor an editing key is a POSIX
+gap, said"
 `tests/test_workshop_panes_actions.cpp` "an application row answered above every mode cannot take a
 bare printable or a chord the text box owns, whoever wrote it" "WL-KEY-08: a pane row on a gesture the
 terminal cannot produce is joined as it stands, and its gap is kept once" "WL-KEY-08: a pane's row the

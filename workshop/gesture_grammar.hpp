@@ -325,6 +325,14 @@ inline const char* posix_gap(const Gesture& g) noexcept {
         // `ESC [ Z` is back-tab, and the translator reads it.
         return "shift is not observable on that key from a POSIX terminal";
     }
+    // Ctrl is read on a letter's control byte and in an editing key's CSI parameter, and nowhere
+    // else: Tab and Return arrive bare, byte 27 is Escape, a printable is itself. Byte 0 is
+    // ctrl+space, and back-tab carries ctrl+shift+tab.
+    if ((g.modifiers & mod::kCtrl) != 0 && !is_letter_scan(g.scancode) &&
+        !is_posix_editing_scan(g.scancode) && g.scancode != scan::kSpace &&
+        !(g.scancode == scan::kTab && (g.modifiers & mod::kShift) != 0)) {
+        return "ctrl is not observable on that key from a POSIX terminal";
+    }
     return nullptr;
 }
 

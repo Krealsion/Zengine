@@ -1068,6 +1068,49 @@ TEST_CASE("a ctrl+shift+letter binding is accepted, and its collapse on the POSI
     CHECK(layout_count(t.session().setup) == before + 1); // the default it replaced does not fire
 }
 
+TEST_CASE("ctrl on a key that is neither a letter nor an editing key is a POSIX gap, said") {
+    // THE POSIX READER READS CTRL ON A LETTER (one control byte) AND ON THE EDITING KEYS (xterm's
+    // `1;m` parameter), and nowhere else: Tab and Return arrive bare, byte 27 is Escape, a
+    // printable is itself. Every such chord the grammar can spell is a gap, said.
+    using input::mod::kCtrl;
+    using input::mod::kShift;
+    namespace sc = input::scan;
+    const std::int64_t lost[] = {sc::kReturn, sc::kTab,    sc::kEscape,       sc::kBackspace,
+                                 sc::k0,      sc::k1,      sc::k3,            sc::k9,
+                                 sc::kMinus,  sc::kEquals, sc::kLeftBracket,  sc::kRightBracket,
+                                 sc::kBackslash, sc::kSemicolon, sc::kApostrophe, sc::kGrave,
+                                 sc::kComma,  sc::kPeriod, sc::kSlash};
+    for (const std::int64_t key : lost) {
+        const Gesture g{key, kCtrl};
+        CAPTURE(gesture_word(g));
+        const char* gap = posix_gap(g);
+        REQUIRE(gap != nullptr);
+        CHECK(std::string(gap).find("ctrl is not observable") != std::string::npos);
+    }
+    // ...BUT NOT WHERE THE READER MEASURES IT: a letter, an editing key, ctrl+space (byte 0),
+    // and ctrl+shift+tab (back-tab with its modifier parameter).
+    CHECK(posix_gap(Gesture{sc::kK, kCtrl}) == nullptr);
+    CHECK(posix_gap(Gesture{sc::kHome, kCtrl}) == nullptr);
+    CHECK(posix_gap(Gesture{sc::kDelete, kCtrl | kShift}) == nullptr);
+    CHECK(posix_gap(Gesture{sc::kUp, kCtrl}) == nullptr);
+    CHECK(posix_gap(Gesture{sc::kSpace, kCtrl}) == nullptr);
+    CHECK(posix_gap(Gesture{sc::kTab, kCtrl | kShift}) == nullptr);
+    CHECK(posix_gap(Gesture{sc::kTab, kShift}) == nullptr);
+    // ctrl+2 keeps its own sentence: it arrives, as ctrl+space.
+    CHECK(std::string(posix_gap(Gesture{sc::k2, kCtrl})).find("ctrl+space") != std::string::npos);
+
+    // Through the file: accepted, bound as written, and the gap said once at the load.
+    TempDir dir("keymap-ctrl-return-gap");
+    const std::string path = dir.file("keymap.json");
+    write_keymap_file(path, keymap_file_text("default", {{"layout.new", "ctrl+return"}}));
+    Keyed t(path);
+    CHECK(t.notice().find("`ctrl+return` (layout.new): ctrl is not observable") !=
+          std::string::npos);
+    const std::size_t before = layout_count(t.session().setup);
+    t.key(sc::kReturn, kCtrl);
+    CHECK(layout_count(t.session().setup) == before + 1);
+}
+
 TEST_CASE("an action with no default gesture answers to no key, and says so") {
     // THE HAZARD THE GUARD EXISTS FOR. `input::scan::kUnknown` is what the wire reports
     // for a key this build has no name for, so it is the one scancode that can never be a
