@@ -65,8 +65,8 @@ inline std::string weaver_only_pane(std::string_view office, std::string_view pa
 }
 
 /// WHOSE HOST THIS IS, the guests file's `host`: on a weaver's host a guest writes no file, types
-/// into no pane and reaches none of the editor office, the Terminal and the Hotkeys pane; on a
-/// development host, the agent's own, a guest with `input` reaches them.
+/// into no pane and reaches none of the editor office, the Terminal, the Hotkeys pane and the quick
+/// setup; on a development host, the agent's own, a guest with `input` reaches them.
 struct HostFact {
     bool development = false;
     std::string guests_file; ///< the guests file this run read, absolute; empty when none

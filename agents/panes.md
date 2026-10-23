@@ -127,9 +127,10 @@ stands for an act's every beat: the pane asks at the first and carries it, never
 Builder's frontier and its role line); an act that learns its subject later asks at the beat that
 learns it (the Builder's edit-source). The Builder's, Files', Flow's and the View Builder's
 writing, building and opening acts, the Inventory pane's toolbox save and Workshop's own carry
-this; the editor office's saves and opens and the Hotkeys pane's keymap writes are kept from a
-guest on a weaver's host by the dispatch instead (WL-GUEST-06), and any carry a guest's press or
-key would begin there is refused when the pane asks Workshop to begin it. Every other control an
+this; the editor office's saves and opens, the Hotkeys pane's keymap writes and the quick setup's
+settings write and editor switch are kept from a guest on a weaver's host by the dispatch instead
+(WL-GUEST-06), and any carry a guest's press or key would begin there is refused when the pane asks
+Workshop to begin it. Every other control an
 injected hand reaches by key or press still answers it as the weaver's. A door a participant sends straight to an owner, past the dispatch, is judged by
 the owner asking `ActorScopeRequested` about its sender (WL-GUEST-04). No guest is granted
 `BuildRequested`, a realization ask or a clipboard door as a shape.
@@ -272,8 +273,8 @@ screen says so, is Workshop routing law
 ([`workshop/focus.md`](workshop/focus.md) (WL-FOCUS-01)).
 
 - **On a weaver's host a guest's keys, text, presses, wheels and drops never reach the editor
-  office, the Terminal or the Hotkeys pane, and its typed text and any carry it would begin no
-  pane** (WL-GUEST-06): Workshop refuses them
+  office, the Terminal, the Hotkeys pane or the quick setup, and its typed text and any carry it
+  would begin no pane** (WL-GUEST-06): Workshop refuses them
   in words at the dispatch, by office, whichever implementation holds it. On a development host,
   as the weaver's.
 

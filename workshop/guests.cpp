@@ -618,7 +618,8 @@ std::vector<std::string> losses_of(const GuestRow& row, const GuestsFile& file) 
     if (file.development()) return out;
     if (f.may(kPowerInput)) {
         out.push_back("file writes: this is a weaver's host");
-        out.push_back("the editor, the Terminal and the Hotkeys pane: they answer only the weaver's hand here");
+        out.push_back("the editor, the Terminal, the Hotkeys pane and the quick setup: they answer only the "
+                      "weaver's hand here");
         out.push_back("typed text: a guest's text rests in no pane here");
         // ...and a carry, which only `inventory` begins.
         if (f.may(kPowerInventory)) {
