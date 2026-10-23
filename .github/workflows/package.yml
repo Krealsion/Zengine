@@ -1,0 +1,386 @@
+name: Package
+
+# THE PACKAGE A STRANGER DOWNLOADS, made from `main` (agents/packaging.md, "The package a stranger
+# downloads"): Workshop ready to run, one archive per platform, judged before anything leaves.
+# A night packages the newest `main` commit whose CI push run passed and that is newer than the
+# last `v0.1.*` tag, at the Loom commit that run built against. A pull request that changes how
+# the package is made runs it too, on its own head, as a dry run.
+on:
+  schedule:
+    - cron: '41 3 * * *'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/package.yml
+      - cmake/ZengineInstall.cmake
+      - cmake/ZengineSdl.cmake
+      - tests/package/**
+      - workshop/package/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # The Windows toolchain: WinLibs' GCC 15.2 UCRT (posix, SEH), with its own CMake and Ninja, by
+  # the archive's SHA-256, checked again against the checksum file WinLibs publishes beside it.
+  WINLIBS_URL: https://github.com/brechtsanders/winlibs_mingw/releases/download/15.2.0posix-14.0.0-ucrt-r7/winlibs-x86_64-posix-seh-gcc-15.2.0-mingw-w64ucrt-14.0.0-r7.zip
+  WINLIBS_SHA256: cb2fbad6162540cdf5e1facdce08d4dac359e8cf64f7f696a99274291763b815
+  # The Linux build's packages come from Ubuntu's archive as it stood on one day (its snapshot
+  # service); its base image, Ubuntu 22.04 (GCC 11.4, glibc 2.35), is pinned by digest on the job.
+  APT_SNAPSHOT: 20261020T000000Z
+
+jobs:
+  # ---- which commit, which Loom, which version ------------------------------------------------
+  decide:
+    name: Package / decide
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      moved: ${{ steps.decide.outputs.moved }}
+      commit: ${{ steps.decide.outputs.commit }}
+      loom: ${{ steps.decide.outputs.loom }}
+      version: ${{ steps.decide.outputs.version }}
+      epoch: ${{ steps.decide.outputs.epoch }}
+    steps:
+      - name: Check out Zengine with its tags
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Decide
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # THE VERSION: one more than the highest v0.1.N tag's N; v0.1.0 first.
+          last="$(git tag --list 'v0.1.*' | sed -n 's/^v0\.1\.\([0-9][0-9]*\)$/\1/p' | sort -n | tail -n 1)"
+          if [ -z "$last" ]; then next=0; tagged=""; else next=$((last + 1)); tagged="$(git rev-list -n 1 "v0.1.$last")"; fi
+          echo "last tag: ${last:+v0.1.$last at $tagged}${last:-none}; this package: 0.1.$next"
+          if [ "$EVENT" = pull_request ]; then
+            # A DRY RUN of the change itself, at Loom main as CI resolves it now.
+            commit="$HEAD_SHA"
+            loom="$(git ls-remote https://github.com/Krealsion/Loom.git refs/heads/main | awk 'NR == 1 { print $1 }')"
+            echo "dry run: this pull request's head $commit, Loom main $loom"
+          else
+            # THE NEWEST MAIN COMMIT CI PASSED, with the Loom commit that run recorded.
+            commit=""; loom=""
+            for run in $(gh api "repos/$REPO/actions/workflows/ci.yml/runs?branch=main&event=push&status=success&per_page=30" \
+                           --jq '.workflow_runs[] | "\(.id):\(.head_sha)"'); do
+              id="${run%%:*}"; sha="${run#*:}"
+              if gh run download "$id" --repo "$REPO" --name loom-commit --dir "$RUNNER_TEMP/loom-$id" 2>/dev/null; then
+                commit="$sha"; loom="$(tr -d '[:space:]' < "$RUNNER_TEMP/loom-$id/loom-commit.txt")"
+                echo "newest main commit CI passed with a recorded Loom: $commit (run $id), Loom $loom"
+                break
+              fi
+            done
+            if [ -z "$commit" ]; then
+              echo "no CI push run on main passed and recorded its Loom: nothing to package" >&2
+              exit 1
+            fi
+            if [ -n "$tagged" ] && git merge-base --is-ancestor "$commit" "$tagged"; then
+              echo "main has not moved since v0.1.$last: nothing is packaged tonight"
+              echo "moved=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+          [[ "$commit" =~ ^[0-9a-f]{40}$ ]] && [[ "$loom" =~ ^[0-9a-f]{40}$ ]] || { echo "unreadable commits: '$commit' '$loom'" >&2; exit 1; }
+          {
+            echo "moved=true"
+            echo "commit=$commit"
+            echo "loom=$loom"
+            echo "version=0.1.$next"
+            echo "epoch=$(git log -1 --format=%ct "$commit")"
+          } >> "$GITHUB_OUTPUT"
+
+  # ---- the Linux package, built in Ubuntu 22.04 --------------------------------------------------
+  build-linux:
+    name: Package / build Linux
+    needs: decide
+    if: ${{ needs.decide.outputs.moved == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    container:
+      image: ubuntu:22.04@sha256:0a9887931b0e38af2e3487ed39e29436b0535c4f3f52e57745baaf79d1898956
+    env:
+      VERSION: ${{ needs.decide.outputs.version }}
+      COMMIT: ${{ needs.decide.outputs.commit }}
+      LOOM: ${{ needs.decide.outputs.loom }}
+      EPOCH: ${{ needs.decide.outputs.epoch }}
+    steps:
+      - name: Install the build set from the dated archive
+        run: |
+          set -eu
+          export DEBIAN_FRONTEND=noninteractive
+          # The snapshot service speaks HTTPS, and the bare image holds no certificates to check it
+          # with: those alone come from the image's own sources first.
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates
+          for suite in jammy jammy-updates jammy-security; do
+            echo "deb [check-valid-until=no] https://snapshot.ubuntu.com/ubuntu/$APT_SNAPSHOT $suite main universe"
+          done > /etc/apt/sources.list
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            git g++ cmake ninja-build python3 pkg-config file binutils \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxss-dev \
+            libxtst-dev libxkbcommon-dev libdrm-dev libgbm-dev libgl1-mesa-dev libgles2-mesa-dev \
+            libegl1-mesa-dev libwayland-dev wayland-protocols libdecor-0-dev libdbus-1-dev \
+            libudev-dev libasound2-dev libpulse-dev
+          dpkg-query -W -f='${Package} ${Version}\n' > "$RUNNER_TEMP/installed.txt"
+          g++ --version | head -n 1; cmake --version | head -n 1
+
+      - name: Check out the chosen Zengine commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.decide.outputs.commit }}
+          persist-credentials: false
+
+      - name: Fetch the Loom commit
+        run: |
+          set -eu
+          git config --global --add safe.directory '*'
+          git init "$RUNNER_TEMP/loom-src"
+          git -C "$RUNNER_TEMP/loom-src" remote add origin https://github.com/Krealsion/Loom.git
+          git -C "$RUNNER_TEMP/loom-src" fetch --depth=1 origin "$LOOM"
+          git -C "$RUNNER_TEMP/loom-src" checkout --detach FETCH_HEAD
+          test "$(git -C "$RUNNER_TEMP/loom-src" rev-parse HEAD)" = "$LOOM"
+          test "$(git rev-parse HEAD)" = "$COMMIT"
+
+      - name: Build Loom and Zengine, Release, and install both
+        run: |
+          set -eu
+          name="zengine-$VERSION-linux-x86_64"
+          stage="$RUNNER_TEMP/stage/$name"
+          cmake -S "$RUNNER_TEMP/loom-src" -B "$RUNNER_TEMP/loom-build" -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DZEN_BUILD_TESTS=OFF -DZEN_BUILD_EXAMPLES=OFF
+          cmake --build "$RUNNER_TEMP/loom-build"
+          cmake --install "$RUNNER_TEMP/loom-build" --prefix "$RUNNER_TEMP/loom-prefix"
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/loom-prefix" \
+            -DBUILD_TESTING=OFF -DZENGINE_SDL_SKIN=ON -DCMAKE_DISABLE_FIND_PACKAGE_SDL3=ON \
+            -DCMAKE_DISABLE_FIND_PACKAGE_SDL3_ttf=ON -DZENGINE_PACKAGE=ON \
+            -DZENGINE_PACKAGE_VERSION="$VERSION" -DZENGINE_PACKAGE_LOOM_COMMIT="$LOOM"
+          cmake --build build
+          cmake --install "$RUNNER_TEMP/loom-build" --prefix "$stage" --strip
+          cmake --install build --prefix "$stage" --strip
+          cp "$RUNNER_TEMP/installed.txt" "$stage/licenses/build-packages.txt"
+          mkdir -p "$RUNNER_TEMP/out"
+          python3 -I tests/package/pack.py "$stage" "$RUNNER_TEMP/out/$name.tar.gz" "$EPOCH"
+
+      - name: Keep the archive
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: package-linux
+          path: ${{ runner.temp }}/out/*.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  # ---- the Windows package, built with the pinned WinLibs toolchain ----------------------------------
+  build-windows:
+    name: Package / build Windows
+    needs: decide
+    if: ${{ needs.decide.outputs.moved == 'true' }}
+    runs-on: windows-2025
+    timeout-minutes: 90
+    env:
+      VERSION: ${{ needs.decide.outputs.version }}
+      COMMIT: ${{ needs.decide.outputs.commit }}
+      LOOM: ${{ needs.decide.outputs.loom }}
+      EPOCH: ${{ needs.decide.outputs.epoch }}
+    steps:
+      - name: Fetch the pinned toolchain
+        shell: pwsh
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP 'winlibs.zip'
+          Invoke-WebRequest -UseBasicParsing -OutFile $zip -Uri $env:WINLIBS_URL
+          Invoke-WebRequest -UseBasicParsing -OutFile "$zip.sha256" -Uri "$($env:WINLIBS_URL).sha256"
+          $sha = (Get-FileHash -Algorithm SHA256 -LiteralPath $zip).Hash.ToLowerInvariant()
+          if ($sha -ne $env:WINLIBS_SHA256) { throw "WinLibs archive checksum $sha does not match the pin" }
+          $published = ((Get-Content -LiteralPath "$zip.sha256" -Raw) -split '\s+')[0].ToLowerInvariant()
+          if ($published -ne $sha) { throw "WinLibs publishes $published for its archive, not $sha" }
+          Expand-Archive -LiteralPath $zip -DestinationPath (Join-Path $env:RUNNER_TEMP 'winlibs')
+          $bin = Join-Path $env:RUNNER_TEMP 'winlibs\mingw64\bin'
+          Add-Content -Path $env:GITHUB_PATH -Value $bin
+          & (Join-Path $bin 'g++.exe') --version | Select-Object -First 1
+          & (Join-Path $bin 'cmake.exe') --version | Select-Object -First 1
+          & (Join-Path $bin 'ninja.exe') --version
+
+      - name: Check out the chosen Zengine commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.decide.outputs.commit }}
+          persist-credentials: false
+
+      - name: Fetch the Loom commit
+        shell: pwsh
+        run: |
+          $src = Join-Path $env:RUNNER_TEMP 'loom-src'
+          git init $src
+          git -C $src remote add origin https://github.com/Krealsion/Loom.git
+          git -C $src fetch --depth=1 origin $env:LOOM
+          git -C $src checkout --detach FETCH_HEAD
+          if ((git -C $src rev-parse HEAD) -ne $env:LOOM) { throw "Loom is not $env:LOOM" }
+          if ((git rev-parse HEAD) -ne $env:COMMIT) { throw "Zengine is not $env:COMMIT" }
+
+      - name: Build Loom and Zengine, Release, and install both
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          $tmp = $env:RUNNER_TEMP -replace '\\', '/'
+          $gxx = (Get-Command g++.exe).Source -replace '\\', '/'
+          $gcc = (Get-Command gcc.exe).Source -replace '\\', '/'
+          $name = "zengine-$env:VERSION-windows-x64"
+          $stage = "$tmp/stage/$name"
+          $static = '-static-libgcc -static-libstdc++ -static'
+          cmake -S "$tmp/loom-src" -B "$tmp/loom-build" -G Ninja -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_C_COMPILER="$gcc" -DCMAKE_CXX_COMPILER="$gxx" -DLOOM_ENABLE_WINDOWS_KERNEL=ON `
+            -DZEN_BUILD_TESTS=OFF -DZEN_BUILD_EXAMPLES=OFF "-DCMAKE_EXE_LINKER_FLAGS=$static"
+          cmake --build "$tmp/loom-build"
+          cmake --install "$tmp/loom-build" --prefix "$tmp/loom-prefix"
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER="$gcc" `
+            -DCMAKE_CXX_COMPILER="$gxx" -DCMAKE_PREFIX_PATH="$tmp/loom-prefix" -DBUILD_TESTING=OFF `
+            -DZENGINE_SDL_SKIN=ON -DCMAKE_DISABLE_FIND_PACKAGE_SDL3=ON -DCMAKE_DISABLE_FIND_PACKAGE_SDL3_ttf=ON `
+            -DZENGINE_PACKAGE=ON -DZENGINE_PACKAGE_VERSION="$env:VERSION" -DZENGINE_PACKAGE_LOOM_COMMIT="$env:LOOM"
+          cmake --build build
+          cmake --install "$tmp/loom-build" --prefix $stage --strip
+          cmake --install build --prefix $stage --strip
+          New-Item -ItemType Directory -Force "$tmp/out" | Out-Null
+          python -I -X utf8 tests/package/pack.py $stage "$tmp/out/$name.zip" $env:EPOCH
+
+      - name: Keep the archive
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: package-windows
+          path: ${{ runner.temp }}/out/*.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  # ---- each package judged on a runner that did not build it ---------------------------------------
+  # Extracted into an empty folder named with a space and letters outside the system's code page,
+  # then the judges (tests/package/judges/): imports or ELF, the private paths of the machine that
+  # built it, and the first start of Workshop on each plan with nothing installed beside it.
+  judge-linux:
+    name: Package / judge Linux
+    needs: [decide, build-linux]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    env:
+      VERSION: ${{ needs.decide.outputs.version }}
+      COMMIT: ${{ needs.decide.outputs.commit }}
+    steps:
+      - name: Check out the judges
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.decide.outputs.commit }}
+          persist-credentials: false
+          sparse-checkout: tests/package
+
+      - name: Fetch the package
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: package-linux
+          path: ${{ runner.temp }}/archive
+
+      - name: Judge it
+        run: |
+          set -eu
+          name="zengine-$VERSION-linux-x86_64"
+          where="$RUNNER_TEMP/Zoë Ж stranger"
+          mkdir -p "$where"
+          tar -xzf "$RUNNER_TEMP/archive/$name.tar.gz" -C "$where"
+          pkg="$where/$name"
+          J=tests/package/judges
+          grep -q "^zengine commit $COMMIT\$" <("$pkg/bin/zengine-workshop" --version)
+          grep -q "^zengine tree   clean\$" "$pkg/BUILD-INFO.txt"
+          python3 -I $J/elf_judge.py "$pkg" --allow libstdc++.so.6 --allow libgcc_s.so.1
+          python3 -I $J/private_scan.py "$pkg" /__w/ /home/runner/ /usr/src/ snapshot.ubuntu.com
+          for plan in graphical-load-plan.json default-load-plan.json; do
+            python3 -I $J/first_start.py "$pkg" "$pkg/bin/zengine-workshop" --seconds 15 \
+              --home "$RUNNER_TEMP/home-$plan" --env SDL_VIDEO_DRIVER=offscreen \
+              --needle /__w/ -- --load-plan "$pkg/bin/$plan"
+          done
+
+  judge-windows:
+    name: Package / judge Windows
+    needs: [decide, build-windows]
+    runs-on: windows-2025
+    timeout-minutes: 20
+    env:
+      VERSION: ${{ needs.decide.outputs.version }}
+      COMMIT: ${{ needs.decide.outputs.commit }}
+    steps:
+      - name: Check out the judges
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.decide.outputs.commit }}
+          persist-credentials: false
+          sparse-checkout: tests/package
+
+      - name: Fetch the package
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: package-windows
+          path: ${{ runner.temp }}/archive
+
+      - name: Judge it
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          $name = "zengine-$env:VERSION-windows-x64"
+          $where = Join-Path $env:RUNNER_TEMP "Zo$([char]0xEB) $([char]0x416) stranger"
+          New-Item -ItemType Directory -Force $where | Out-Null
+          python -I -X utf8 -c "import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" `
+            (Join-Path $env:RUNNER_TEMP "archive\$name.zip") $where
+          $pkg = Join-Path $where $name
+          $J = 'tests\package\judges'
+          $said = & (Join-Path $pkg 'bin\zengine-workshop.exe') --version
+          if (-not ($said -contains "zengine commit $env:COMMIT")) { throw "--version says: $said" }
+          if (-not (Select-String -LiteralPath (Join-Path $pkg 'BUILD-INFO.txt') -Pattern '^zengine tree   clean$' -Quiet)) {
+            throw 'BUILD-INFO.txt does not say the tree was clean'
+          }
+          python -I -X utf8 "$J\pe_imports.py" $pkg
+          python -I -X utf8 "$J\private_scan.py" $pkg 'D:\a\Zengine' 'D:/a/Zengine' 'D:\a\_temp' 'D:/a/_temp' 'winlibs' 'mingw64/include' 'hostedtoolcache'
+          foreach ($plan in 'graphical-load-plan.json', 'default-load-plan.json') {
+            python -I -X utf8 "$J\first_start.py" $pkg (Join-Path $pkg 'bin\zengine-workshop.exe') --seconds 15 `
+              --home (Join-Path $env:RUNNER_TEMP "home-$plan") --env SDL_VIDEO_DRIVER=offscreen `
+              --needle 'D:\a\Zengine' --needle 'D:/a/Zengine' --needle 'winlibs' -- --load-plan (Join-Path $pkg "bin\$plan")
+          }
+
+  # ---- the night's sums, over the archives the judges passed ------------------------------------------
+  sums:
+    name: Package / sums
+    needs: [decide, judge-linux, judge-windows]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Fetch both packages
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: package-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/release
+
+      - name: Write SHA256SUMS
+        run: |
+          cd "$RUNNER_TEMP/release"
+          sha256sum -- *.zip *.tar.gz | tee SHA256SUMS
+
+      - name: Keep the sums
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: package-sums
+          path: ${{ runner.temp }}/release/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 7
