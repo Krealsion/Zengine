@@ -15,16 +15,36 @@ they need — see [using Zengine from another
 project](../../docs/getting-started.md#using-zengine-from-another-project). Three things are
 deliberately outside it, and each is a real limit rather than an oversight:
 
-- **The SDL-backed skin and input reader are not installed.** When no SDL3 is present the
-  build fetches one and links it out of its own build tree, so installing those two artifacts
-  without it would ship images that cannot load. A consumer who wants a window today builds
-  Zengine from source.
-- **Workshop is not installed.** Its executable compiles the path of the build tree that
-  produced it into itself, for the Builder tool it mounts, so an installed copy would carry a
-  stranger's directory layout. Workshop is launched from a build tree.
+- **The SDL-backed skin and input reader are not in the developer package.** When no SDL3 is
+  present the build fetches one and links it out of its own build tree, so installing those two
+  artifacts without it would ship images that cannot load. The package a stranger downloads
+  (below) carries the SDL it built, with the OS window.
+- **Workshop is not in the developer package.** A build's executable compiles the path of the
+  CMake that configured it into itself, for the Builder tool it mounts, so an installed copy
+  would carry a stranger's directory layout. The package a stranger downloads carries Workshop
+  compiled with none.
 - **The Timer's own service headers are not installed** (`timer/normalize.hpp`,
   `timer/timer_weave.hpp`), so writing a *replacement* Timer service outside this repository
   is not a supported path. Using the Timer is; being one is not.
+
+### The package a stranger downloads is an alpha, made each night
+
+Workshop ready to run, one archive per platform, made from `main` each night
+([packaging](../../agents/packaging.md)). What it does not do yet:
+
+- **Its Workshop builds nothing.** It names no CMake, so the Builder refuses every order in its
+  own words and the banner says the Workshop builds nothing. Building a pane needs a checkout.
+- **The demo setups are not in it.** They start through `external-host/demo.py`, a Python and a
+  build tree, none of which the package carries. The launcher's demos are absent there.
+- **One package at a time.** The Releases page holds the newest night's alone. An older one's
+  tag stays, so its commit can still be found, but its archives go with its release.
+- **Windows does not know its publisher.** The images are not signed, so SmartScreen may stop
+  the first start; the release notes say how to check the download first.
+- **Linux needs the system's C++ runtime and glibc 2.35 or newer**, and a desktop with X11 or
+  Wayland for the window; the terminal launcher needs neither display.
+- **An exported app runs with the newest package you started**, through the project's
+  `zengine-app.path`; once no package that wrote it remains, the app says so and starts nothing
+  ([which `zengine-app`](../../app/docs/app.md#which-zengine-app-the-launchers-start)).
 
 ### A declared Timer binding's delay is fixed at declaration
 
