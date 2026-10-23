@@ -96,6 +96,13 @@ for the standard Editor and `Neovim @zengine.editor` for Neovim, and the top row
 names Neovim's mode (`saved NORMAL -- ...`) where the standard Editor names a line and column
 (`saved L1:C1/4 -- ...`).
 
+**Your choice is remembered.** Quit with Neovim holding the Editor's office and the next Workshop
+started in that project opens Neovim there too: the session file records which authored choice held
+each switchable office, and the start loads it in the plan's row while the plan still authors it.
+Your project's plan file is never changed. A remembered choice the plan no longer authors loads
+nothing, and the notice says so once. A run with no session file -- `--isolated` without a
+`--session` path -- reads none, so it starts on the plan's own row.
+
 ### When a switch asks first
 
 A switch away from Neovim can lose something the standard Editor cannot hold -- **another buffer

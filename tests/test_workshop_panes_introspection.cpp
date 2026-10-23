@@ -2424,7 +2424,7 @@ TEST_CASE("the host mounts a door and injects no host-owned object into an artif
     // window in which a pane might first be granted room.
     const std::size_t door = host.find("mount_in_office<ArrangementDoor>");
     const std::size_t finder = host.find("mount_in_office<PowersDoor>");
-    const std::size_t begin = host.find("executor.begin(read_plan.plan)");
+    const std::size_t begin = host.find("executor.begin(std::move(begun))");
     REQUIRE(door != std::string::npos);
     REQUIRE(finder != std::string::npos);
     REQUIRE(begin != std::string::npos);

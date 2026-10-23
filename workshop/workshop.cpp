@@ -1167,7 +1167,32 @@ int main(int argc, char** argv) {
     zengine::view::Host view_host(bus);
     view_host.mount();
 
-    executor.begin(read_plan.plan);
+    // THE CHOICE THE LAST SESSION REMEMBERED (WL-SWITCH-08): each switchable office starts on the
+    // authored choice that held it at quit, while the plan still authors it; the project's plan
+    // file is never changed, and a run with no session file reads none.
+    load::LoadPlan begun = read_plan.plan;
+    if (!host.session_path.empty()) {
+        const session_persist::LoadedSession last = session_persist::load_file(host.session_path);
+        std::vector<std::pair<std::string, std::string>> remembered;
+        for (const session_persist::WorkshopChoice& c : last.choices) {
+            remembered.emplace_back(c.role, c.choice);
+        }
+        for (const auto& [role, name] : load::remember_choices(begun, remembered)) {
+            host.choice_note += (host.choice_note.empty() ? "" : "; ") +
+                                std::string("your last choice `") + name + "` for " + role +
+                                " is not one this plan authors, so its own loaded";
+        }
+    }
+    host.chosen = [&executor] {
+        std::vector<session_persist::WorkshopChoice> out;
+        for (const load::ChoiceIntent& c : executor.plan().choices) {
+            if (executor.choice_holder(c.role) == c.stem) {
+                out.push_back(session_persist::WorkshopChoice{c.role, c.name});
+            }
+        }
+        return out;
+    };
+    executor.begin(std::move(begun));
 
     // The loop: the input beat keeps the queue alive, the Timer paces it, and `q` stops the bus. A
     // turn that ends with an empty queue means nothing will speak again: say so and leave. A

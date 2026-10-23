@@ -1112,7 +1112,7 @@ TEST_CASE("the production host mounts providers, and does it before it offers or
     // which a tripwire that also pinned a line width would stop being about.
     const std::size_t kernel = host.find("loom::Kernel kernel(");
     const std::size_t executor = host.find("load::PlanExecutor executor(");
-    const std::size_t run = host.find("executor.begin(read_plan.plan)");
+    const std::size_t run = host.find("executor.begin(std::move(begun))");
     REQUIRE(catalog != std::string::npos);
     REQUIRE(surface != std::string::npos);
     REQUIRE(kernel != std::string::npos);
