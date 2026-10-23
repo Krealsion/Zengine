@@ -1,6 +1,6 @@
 # The action census's rows for zengine.inventory-pane; the form is tests/actions.txt's. ASCII only.
 zengine.inventory-pane - inventory.copy return InventoryRead/1,PaneValueCarryRequested/1 - open folder / pick up copy
-zengine.inventory-pane - inventory.live ctrl+return InventoryRead/1,PaneCarryRequested/1 - pick up live reference
+zengine.inventory-pane - inventory.live ctrl+l InventoryRead/1,PaneCarryRequested/1 - pick up live reference
 zengine.inventory-pane - inventory.up up - - previous entry
 zengine.inventory-pane - inventory.down down - - next entry
 zengine.inventory-pane - inventory.left left - - previous slot
@@ -9,7 +9,7 @@ zengine.inventory-pane - inventory.sort ctrl+s - - cycle sorting
 zengine.inventory-pane - inventory.refresh ctrl+r InventoryList/2 - refresh entries
 zengine.inventory-pane - inventory.rename ctrl+n - - rename entry
 zengine.inventory-pane - inventory.remove delete InventoryRemove/1,InventoryFolderRemove/1,InventoryList/2 - remove entry
-zengine.inventory-pane - inventory.toolbox.save ctrl+shift+s - - save toolbox
+zengine.inventory-pane - inventory.toolbox.save ctrl+e - - save toolbox
 zengine.inventory-pane - inventory.toolbox.restore ctrl+o - - restore toolbox
 zengine.inventory-pane - inventory.move.pick ctrl+x - - move to another folder
 zengine.inventory-pane - inventory.parent backspace - - up a folder

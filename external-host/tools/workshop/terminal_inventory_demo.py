@@ -100,7 +100,7 @@ def run(ctx):
     incomplete = read(added[0])['pair']
 
     ctx.step('link the preset in the second view and fill it from the saved answer, field to field')
-    hand.click(hand.row(*inv, label + ' preset', scroll=True)); hand.key('ctrl+enter')
+    hand.click(hand.row(*inv, label + ' preset', scroll=True)); hand.key('ctrl+l')
     hand.click(hand.first(*preset))
     hand.row(*preset, 'PRESET LINKED')
     hand.drag(hand.row(*inv, label + ' answer', scroll=True), hand.first(*info), 400)

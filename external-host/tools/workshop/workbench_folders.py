@@ -180,7 +180,7 @@ def story(ctx, hand, labels, views, pictures, shots, link):
             open_child(hand, name)
     else:
         open_path(hand, preset_path)
-    hand.click(hand.row(*INV, labels["preset"])); hand.key("ctrl+enter")
+    hand.click(hand.row(*INV, labels["preset"])); hand.key("ctrl+l")
     hand.click(hand.first(*preset_view))
     ctx.check(shows(hand, preset_view, "PRESET LINKED"), "the preset is not linked")
 

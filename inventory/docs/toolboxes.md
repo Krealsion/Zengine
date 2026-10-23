@@ -4,7 +4,7 @@ An Inventory toolbox file keeps named entries, their typed capture metadata, the
 [folders](inventory-folders.md), portable box/row/column contents, and configured command targets
 and keys. Use it to keep useful work or restore a repeatable starting point for an experiment.
 
-In **Inventory**, right-click and choose **Save toolbox...**, or press **Ctrl+Shift+S**. Enter a
+In **Inventory**, right-click and choose **Save toolbox...**, or press **Ctrl+E**. Enter a
 file path and press Enter. This saves a snapshot; later edits are not automatically written.
 An existing file at that path is replaced only after the complete candidate is written successfully.
 
