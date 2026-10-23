@@ -96,6 +96,16 @@ class Rig:
         record.update(self.story.launch(self.runtime, game, wdir, sdir, self.tools, self.env, "180x80", plan))
         self.story.save(root / "story.json", record)
         NOTES[name] = dict((k, record[k]) for k in ("workshop_process", "host_process", "lifetime"))
+        # ...AT REST BEFORE ITS FIRST STEP: Workshop's guest door listens before its plan is loaded,
+        # and a key pressed before the row that answers it reaches nothing, however long the step
+        # then waits for what the key would have shown.
+        Session = self.story.session_module(self.tools["loom_python"]).Session
+        with Session.attach(str(sdir)) as s:
+            s.start("workshop/connections", "plan-at-rest", {"link": "workshop", "wait_plan": True})
+            rested = s.wait("plan-at-rest", timeout=600)
+        if rested["state"] != "passed" or not rested["summary"].startswith("Workshop's plan is complete"):
+            raise SystemExit("root %s: Workshop's plan did not come to rest complete: %s"
+                             % (name, rested.get("failure") or rested.get("summary")))
         return root
 
     def cli(self, root, *argv, timeout=300):
