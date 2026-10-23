@@ -68,12 +68,14 @@ class FirstRun
           FirstRun, FirstRunState,
           loom::Accept<loom::Activated, ws::PaneCatalogRequested, ws::PaneRoom,
                        ws::PaneActionRequested, ws::OfficeSettings, ws::OfficeSettingsShown,
+                       ws::PaneInventory,
                        ws::PaneSettingActed, ws::PaneLaunchAnswered, ws::PaneCloseAnswered,
                        ws::EditorSwitchAnswered, gfx::AreaRoom, gfx::DrawnRefused,
                        gfx::AreaButtonChanged>,
           loom::Emit<ws::v2::PaneOffered, ws::v3::PaneActions, ws::OfficeSettingsDeclared,
                      ws::OfficeSettingsRequested, ws::OfficeSettingCommitRequested,
-                     ws::PaneLaunchRequested, ws::PaneCloseRequested, ws::EditorSwitchRequested,
+                     ws::PaneLaunchRequested, ws::PaneCloseRequested, ws::PaneInventoryRequested,
+                     ws::EditorSwitchRequested,
                      ws::EditorSwitchConfirmed, ws::EditorSwitchStatusRequested, gfx::Drawn,
                      gfx::RoomAsked>> {
 public:
@@ -120,7 +122,28 @@ public:
         if (state_.launched || answered_ || !keeps_settings(shown.written)) {
             return;
         }
+        // ...ON A FRESH DESK ALONE: the inventory is asked first, and a pane a hand already opened
+        // keeps the keys.
         state_.launched = true;
+        inventory_ask_ = ++asks_;
+        (void)mail.as_role(kOffice).send_to_role(kWorkshop, ws::PaneInventoryRequested{},
+                                                 inventory_ask_);
+    }
+    // WL-FIRST-01 -- agents/workshop/first-run.md
+    void on(const ws::PaneInventory& inventory, loom::Mail& mail) {
+        if (!answers(mail, inventory_ask_)) {
+            return;
+        }
+        inventory_ask_ = 0;
+        std::vector<std::pair<std::string, std::string>> open;
+        for (const ws::InventoryPane& p : inventory.panes) {
+            if (p.open) {
+                open.emplace_back(p.office, p.pane);
+            }
+        }
+        if (!fr::fresh_desk(open)) {
+            return; // not shown by itself this run; the Pane Manager still lists it
+        }
         launch_ask_ = ++asks_;
         (void)mail.as_role(kOffice).send_to_role(kWorkshop, ws::PaneLaunchRequested{kOffice, kPane},
                                                  launch_ask_);
@@ -369,8 +392,8 @@ private:
     std::int64_t revision_ = 0;
     bool committing_ = false;
     /// THIS WEAVE'S OWN NUMBERS, one an ask, and the ask each kind of answer is read against.
-    std::uint64_t asks_ = 0, settings_ask_ = 0, launch_ask_ = 0, commit_ = 0, status_ask_ = 0,
-                  switch_ask_ = 0;
+    std::uint64_t asks_ = 0, settings_ask_ = 0, inventory_ask_ = 0, launch_ask_ = 0, commit_ = 0,
+                  status_ask_ = 0, switch_ask_ = 0;
     std::int64_t op_ = 0;
     std::string consent_;
     ws::WindowDrawing window_{kOffice, kOffice};

@@ -44,6 +44,7 @@ inline loom::Grant first_run_office_grant() {
     to(OfficeSettingCommitRequested::zen_name, OfficeSettingCommitRequested::zen_version, workshop);
     to(PaneLaunchRequested::zen_name, PaneLaunchRequested::zen_version, workshop);
     to(PaneCloseRequested::zen_name, PaneCloseRequested::zen_version, workshop);
+    to(PaneInventoryRequested::zen_name, PaneInventoryRequested::zen_version, workshop);
     to(graphics::RoomAsked::zen_name, graphics::RoomAsked::zen_version, graphics::kGraphicsRole);
     for (const char* window : {graphics::kSdlWindow, graphics::kTerminalWindow}) {
         to(graphics::Drawn::zen_name, graphics::Drawn::zen_version,
