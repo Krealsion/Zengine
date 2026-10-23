@@ -60,7 +60,7 @@ struct AttentionRig {
 
     /// Hand the keys back the way a weaver does -- a press on the bare workspace.
     void unfocus() {
-        r.press_cell(0, screen_of(r.session()).h - 1);
+        r.press_cell(0, gfx::cell_of_pixel(screen_of(r.session()).h) - 1);
         REQUIRE(r.session().panes.keyboard != kind);
     }
 
@@ -70,12 +70,12 @@ struct AttentionRig {
 
     std::vector<std::string> shown() { return pane_rows(r, kind); }
 
-    /// The runs of the picture Workshop last admitted from the pane, one a row it drew.
-    const std::vector<v2::PaneCanvasText>& held_runs() {
+    /// The rows the pane last drew in its area, one a row it drew text on.
+    std::vector<HeldRun> held_runs() {
         const ExternalPane* seat = r.session().panes.external_pane(kind);
         REQUIRE(seat != nullptr);
         REQUIRE(shows_canvas(*seat));
-        return seat->canvas.content.texts;
+        return ::held_runs(kind);
     }
 
     /// IS THIS CONDITION A ROW OF THE LIST -- what this weaver has not hidden, the cursor's row
@@ -135,14 +135,14 @@ struct AttentionRig {
     void regrant() {
         const ExternalPane* seat = r.session().panes.external_pane(kind);
         REQUIRE(seat != nullptr);
-        const std::int64_t rows = seat->rows;
-        const std::int64_t columns = seat->columns;
+        const std::int64_t rows = held_canvas_rows(*seat).rows;
+        const std::int64_t columns = held_canvas_rows(*seat).columns;
         wide_ = !wide_;
         author_test_pane_room(r, kind, rows + 1, columns);
         r.extent(wide_ ? 160 : 150, wide_ ? 48 : 44);
         const ExternalPane* after = r.session().panes.external_pane(kind);
         REQUIRE(after != nullptr);
-        REQUIRE_MESSAGE((after->rows != rows || after->columns != columns),
+        REQUIRE_MESSAGE((held_canvas_rows(*after).rows != rows || held_canvas_rows(*after).columns != columns),
                         "the surface changed and the pane's room did not");
     }
     bool wide_ = true;
@@ -343,19 +343,15 @@ TEST_CASE("a press on a condition's row in the Attention pane puts the cursor th
     const ExternalPane* seat = f.r.session().panes.external_pane(f.kind);
     REQUIRE(seat != nullptr);
     REQUIRE(shows_canvas(*seat));
-    const v2::PaneCanvasPart* second = nullptr;
-    for (const v2::PaneCanvasPart& part : seat->canvas.content.parts) {
-        if (part.name == "condition:b.two") {
-            second = &part;
-        }
-    }
-    REQUIRE(second != nullptr);
-    const std::int64_t column = gfx::cell_of_pixel(seat->canvas.x + second->x) + 2;
-    const std::int64_t row = gfx::cell_of_pixel(seat->canvas.y + second->y);
+    const auto parts = held_parts(f.r.session(), f.kind);
+    REQUIRE(parts.count("condition:b.two") == 1);
+    const RowPart second = parts.at("condition:b.two");
+    const CanvasRows lattice = held_canvas_rows(*seat);
+    const std::int64_t column = gfx::cell_of_pixel(lattice.column_x(second.column)) + 2;
+    const std::int64_t row = gfx::cell_of_pixel(lattice.row_y(second.row));
 
     // THE GLANCE'S ROW, shown and named nothing: a press there moves nothing.
-    const std::int64_t below = held_parts(f.r.session(), f.kind).at("condition:b.two").row;
-    const std::int64_t glance = gfx::cell_of_pixel(seat->canvas.y + second->y - below * second->h);
+    const std::int64_t glance = gfx::cell_of_pixel(lattice.row_y(0));
     const std::vector<std::string> before = f.shown();
     REQUIRE(before.front().find("the first thing (+1 more)") == 0);
     f.r.press_cell(column, glance);
@@ -698,8 +694,6 @@ TEST_CASE("a condition carrying a byte a canvas cannot draw is still shown") {
     const ExternalPane* seat = f.r.session().panes.external_pane(f.kind);
     REQUIRE(seat != nullptr);
     CHECK(shows_canvas(*seat));
-    CHECK(seat->refusal.empty());
-    CHECK_FALSE(seat->awaiting);
     CHECK(f.text().find("a wall") != std::string::npos);
     // ...AND THE WORDS SURVIVED, with each undrawable byte standing in for itself rather
     // than being deleted: a weaver reads the sentence and can see where it was folded.
@@ -732,13 +726,12 @@ TEST_CASE("the pane never publishes more rows than the room it was granted") {
         const ExternalPane* pane = f.r.session().panes.external_pane(f.kind);
         REQUIRE(pane != nullptr);
         const std::int64_t room = held_canvas_rows(*pane).rows;
-        REQUIRE(room == pane->rows); // the picture's lattice holds the rows the prose room did
+        REQUIRE(room == held_canvas_rows(*pane).rows); // the picture's lattice holds the rows the prose room did
         for (int at = 0; at < 12; ++at) {
             f.r.key(input::scan::kDown);
             CAPTURE(height);
             CAPTURE(at);
             CHECK(static_cast<std::int64_t>(held_canvas_text(*pane).size()) <= room);
-            CHECK_FALSE(pane->awaiting); // ...and every one of them was ACCEPTED
         }
     }
 }
@@ -864,19 +857,18 @@ TEST_CASE("the Connections pane draws the guest door's reading as its own pictur
     // ITS ROWS ARE ITS OWN PICTURE, set on its room's lattice: every row the door's reading, in
     // the role its state is drawn in.
     REQUIRE(shows_canvas(*pane));
-    CHECK(pane->refusal.empty());
     const std::vector<std::string> shown = pane_rows(r, kind);
     REQUIRE(shown.size() >= 3);
     CHECK(shown[0] == "CONNECTIONS -- 2 connections at 127.0.0.1:4242");
     CHECK(shown[1] == "  #1 tool  admitted  weave 7  from 127.0.0.1:5000");
     CHECK(shown[2] == "  #2 'stranger' (unverified)  awaiting-decision");
-    const auto& runs = pane->canvas.content.texts;
+    const std::vector<HeldRun> runs = held_runs(kind);
     REQUIRE(runs.size() >= 3);
     CHECK(runs[0].role == gfx::role::kAccent);
     CHECK(runs[1].role == gfx::role::kFill);
     CHECK(runs[2].role == gfx::role::kAlert);
     // NOTHING IN IT IS ACTED ON, so it names no part.
-    CHECK(pane->canvas.content.parts.empty());
+    CHECK(held_parts(r.session(), kind).empty());
 
     // A PRIMARY PRESS ON A ROW MEANS NOTHING: the rows stand and no menu opens...
     const ui::Rect body = external_body_rect(r.session(), kind);
@@ -989,86 +981,5 @@ TEST_CASE("the Connections pane says a row's version, its losses and its role an
         CHECK(shown[2] == "    version 3 -- all its powers reach here");
         // ...CUT TO THE PANE'S WIDTH, as every line it says.
         CHECK(shown[3].rfind("    role tutor: may capture, guide; reads zengine.builder-p", 0) == 0);
-    }
-}
-
-TEST_CASE("a pane that draws its rows on its canvas wears the medium's own ground beneath them, as a prose body does, in a window and in a terminal") {
-    namespace cp = zengine::connections_pane;
-    for (const bool window : {false, true}) {
-        CAPTURE(window);
-        PaneRig r;
-        r.mount_workshop();
-        zengine::workshop::v3::GuestConnections said;
-        said.listen = "127.0.0.1:4242";
-        said.rows.push_back(zengine::workshop::v3::GuestConnection{1, "admitted", "tool", "tool", "127.0.0.1:5000", 7, "", {}, "", 0, {}, "", {}});
-        {
-            auto door = std::make_unique<GuestDoorSeat>(said);
-            GuestDoorSeat* raw = door.get();
-            const loom::WeaveId id = r.bus.register_weave(
-                std::move(door), loom::emit_default_grant(*raw), std::string(kGuestsRole));
-            raw->zen_set_self(id);
-        }
-        load::LoadPlan plan;
-        load::ArtifactIntent seat;
-        seat.stem = cp::kConnectionsPaneStem;
-        seat.weave = load::WeaveIntent{cp::kConnectionsPaneRole};
-        plan.artifacts.push_back(seat);
-        const load::Executed done = r.run_plan(plan);
-        REQUIRE_MESSAGE(done.ok, done.refusal);
-        r.ready();
-        if (window) {
-            r.extent_on_window(150, 65);
-        } else {
-            r.extent(160, 48);
-        }
-        const PaneRef ref{cp::kConnectionsPaneRole, cp::kConnectionsPane};
-        r.pick(ref);
-        const RuntimePane* row = r.session().panes.runtime.find(ref.provider, ref.pane);
-        REQUIRE(row != nullptr);
-        const ExternalPane* pane = r.session().panes.external_pane(row->kind);
-        REQUIRE(pane != nullptr);
-        REQUIRE(shows_canvas(*pane));
-        const auto& body = pane->canvas;
-        REQUIRE_FALSE(body.content.rects.empty());
-        CHECK(body.content.rects[0].role == gfx::role::kMediumGround);
-
-        // WHAT THE MEDIUM DRAWS of the body: its own ground, and nothing black.
-        const surface::SurfaceCanvas canvas = paint(r.session());
-        if (window) {
-            const Session& s = r.session();
-            const surface::SurfaceExtent metric{canvas.width, canvas.height, s.text_advance_px,
-                                                s.text_line_px, s.cell_px};
-            const std::vector<surface::PlanLayer> drawn =
-                surface::plan_canvas(canvas, metric, surface::canvas_window_size(canvas));
-            bool own = false;
-            for (const surface::PlanLayer& layer : drawn) {
-                for (const surface::PlanRect& q : layer.quads) {
-                    if (q.x >= body.x + body.width || q.x + q.w <= body.x ||
-                        q.y >= body.y + body.height || q.y + q.h <= body.y) {
-                        continue;
-                    }
-                    CHECK_FALSE((q.r == 0 && q.g == 0 && q.b == 0));
-                    own = own || (q.x == body.x && q.y == body.y && q.w == body.width &&
-                                  q.h == body.height &&
-                                  surface::PlanInk{q.r, q.g, q.b} == surface::kCanvasBackground);
-                }
-            }
-            CHECK(own);
-        } else {
-            const surface::CanvasGrids cells = surface::rasterize_canvas(canvas);
-            std::size_t own = 0;
-            for (std::int64_t y = gfx::cell_of_pixel(body.y);
-                 y < gfx::cell_of_pixel(body.y + body.height); ++y) {
-                for (std::int64_t x = gfx::cell_of_pixel(body.x);
-                     x < gfx::cell_of_pixel(body.x + body.width); ++x) {
-                    const auto ground = cells.grounds[static_cast<std::size_t>(y * cells.w + x)];
-                    CHECK(ground != gfx::role::kGround);
-                    if (ground == gfx::role::kMediumGround) ++own;
-                }
-            }
-            CHECK(own > 0);
-            // ...which the terminal wears as its own: not one black ground byte on the screen.
-            CHECK(surface::canvas_body(canvas).find("\x1b[40m") == std::string::npos);
-        }
     }
 }

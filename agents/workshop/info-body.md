@@ -19,7 +19,7 @@ WHY — `agents/decisions/one-body-two-lists.md`
 
 ## WL-INFO-02 — Nothing in the pane multiplies a font metric
 
-LAW — The pane counts in ROWS and COLUMNS: its canvas room's lattice, or the rows and columns a host granting no canvas gives it; the fit from a face to a row count is made once, never by its own arithmetic.
+LAW — The pane counts in ROWS and COLUMNS: the rows and columns its area's room holds in the window's text measure; the fit from a face to a row count is made once, never by its own arithmetic.
 
 MEANS
 - 25 cells of body is 16 rows of an 18-pixel face and 25 rows of a cell medium, one grant.
@@ -159,7 +159,7 @@ WHY — `agents/decisions/an-inspector-names-its-subject.md`
 `info/property_view.hpp` compose finish lead
 `info/pane.cpp` say say_properties
 `info/vocabulary.hpp` InfoPaneState
-`workshop/pane_vocabulary.hpp` PaneRoom PaneContent
+`workshop/pane_drawing.hpp` rows_drawing
 `tests/test_workshop_panes_info.cpp` "the heading and the subject's properties are the pane's rows,
 over the host's subject, and the panes are the Pane Manager's to list" "a room too short for the
 body invents none of it"
@@ -167,9 +167,8 @@ body invents none of it"
 ### WL-INFO-02
 `info/property_view.hpp` rows_ columns_ granted_ room
 `info/pane.cpp` fit_room
-`workshop/pane_canvas_rows.hpp` canvas_rows
-`workshop/pane_vocabulary.hpp` PaneRoom::rows PaneRoom::columns
-`workshop/weave_external.cpp` refresh_external_rooms
+`workshop/pane_drawing.hpp` RowsRoom RowsRoom::rows RowsRoom::columns
+`graphics/vocabulary.hpp` AreaRoom
 `tests/test_workshop_panes_info.cpp` "a room too short for the body invents none of it"
 
 ### WL-INFO-03
@@ -182,11 +181,9 @@ out"
 ### WL-INFO-04
 `info/property_view.hpp` placed Placed composed_ lead say_properties press press_placed
 `info/pane.cpp` press
-`workshop/pane_canvas_rows.hpp` row_cell_at
+`workshop/pane_drawing.hpp` window_cell
 `tests/test_workshop_panes_info.cpp` "a press on an Info row while a notice stands names the row
-painted there, and a full room keeps its last row under the notice" "a press on Info's properties
-aimed at the room they stood in before a new one was granted names nothing, and one aimed at the
-room they stand in now moves the cursor"
+painted there, and a full room keeps its last row under the notice"
 
 ### WL-INFO-05
 `info/property_view.hpp` say_properties begin_draft close_draft
@@ -198,7 +195,7 @@ selection stand in its row where the weaver types, moving no character, and go w
 
 ### WL-INFO-06
 `info/property_view.hpp` shown shows_draft_subject end_draft close_draft Draft::subject draft_
-`info/pane.cpp` on(PaneSubjectShown) on(PaneRoom)
+`info/pane.cpp` on(PaneSubjectShown)
 `workshop/inspection_seam_vocabulary.hpp` PaneSubjectShown::subject
 `tests/test_workshop_panes_info.cpp` "a picture that names other rows abandons the Info draft and
 says so, even where they have the same property on the same row, and writes nothing into either
@@ -208,7 +205,6 @@ commit is written"
 
 ### WL-INFO-08
 `info/property_view.hpp` compose lead finish front_sentence
-`workshop/weave.hpp` WorkshopWeave::judge_content
 `tests/test_workshop_panes_info.cpp` "a room too short for the body invents none of it" "a press on
 an Info row while a notice stands names the row painted there, and a full room keeps its last row
 under the notice"

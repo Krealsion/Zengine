@@ -5,7 +5,6 @@
 // Workshop law: agents/workshop/focus.md (+5 registers; agents/workshop.md routes)
 
 #include "screen.hpp"
-#include "screen_canvas.hpp"
 
 namespace zengine::workshop {
 
@@ -38,49 +37,6 @@ ExternalBodyPlace external_body_place(const PixelRect& pane_rect, const Screen& 
     p.columns = p.fit.columns;
     p.present = p.rows > 0 && p.columns > 0;
     return p;
-}
-
-namespace {
-
-/// WHAT AN EXTERNAL PANE'S BODY SHOWS, in the order `paint_external` paints it: the pane's
-/// picture, else its rows and caret once heard and unrefused, else its refusal or the line that
-/// says it has not been heard from.
-bool canvas_shown(const ExternalPane& pane) noexcept {
-    return pane.canvas.grant > 0 && (pane.canvas.heard || pane.canvas.preview);
-}
-
-bool rows_shown(const ExternalPane& pane) noexcept {
-    return !canvas_shown(pane) && pane.refusal.empty() && pane.heard;
-}
-
-/// The mark a refused picture wears where no title row shows it: at the picture's corner, on the
-/// medium's own ground.
-v2::PaneCanvasText refused_mark_run() {
-    v2::PaneCanvasText run{0, 0, kExternalRefusedMark, graphics::role::kAlert};
-    run.background = graphics::role::kMediumGround;
-    return run;
-}
-
-} // namespace
-
-// WL-ATTN-04 -- agents/workshop/attention.md
-PixelRect refused_mark_cover(const ExternalPane& pane, const PixelRect& canvas, const Screen& sc,
-                             bool title_drawn) {
-    if (pane.refusal.empty() || !canvas_shown(pane) || title_drawn || canvas.empty()) return {};
-    const std::int64_t grain = chrome_grain(sc);
-    const PaneCanvasRoom room{std::string(), 0, canvas.w, canvas.h, grain,
-                             grain < kPaneCanvasUnit, sc.text_advance_px, sc.text_line_px};
-    const auto placed = clip_canvas_run(refused_mark_run(), {0, 0, canvas.w, canvas.h}, room);
-    if (!placed.visible()) return {};
-    // Where a medium paints it: a window its row's ground, one line at the region's text origin
-    // across its width; a terminal the region's cells.
-    const surface::SurfaceTextRegion region = canvas_text_region(placed, canvas.x, canvas.y);
-    const RegionFit fit = fit_region(region.x, region.y, region.w, region.h,
-                                                       sc.text_advance_px, sc.text_line_px);
-    if (fit.graphical())
-        return PixelRect{fit.view.x, graphics::add_cells(fit.view.y, fit.origin_y), fit.view.w,
-                         fit.line_px};
-    return PixelRect{region.x, region.y, region.w, region.h};
 }
 
 // WL-PRESS-04 -- agents/workshop/press-chain.md
@@ -164,10 +120,14 @@ std::int64_t chrome_mark_at(const Panes& panes, const Setup& setup, const Screen
     return chrome_mark::kNone;
 }
 
+// WL-PANE-16 -- agents/workshop/panes-and-windows.md
+std::string external_body_words(const ExternalPane& pane, const std::string& name) {
+    return pane.held && !pane.in_window ? name + kExternalNoWindow : kExternalWaiting + name;
+}
+
 // WL-FOCUS-10 -- agents/workshop/focus.md; WL-PANE-06 -- agents/workshop/panes-and-windows.md
 void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64_t kind,
-                    const PixelRect& b, const Screen& sc, bool titles,
-                    std::int64_t chrome, bool with_body) {
+                    const PixelRect& b, const Screen& sc, bool titles, std::int64_t chrome) {
     paint_pane_frame(layer, b, chrome);
     const RuntimePane* row = panes.runtime.of_kind(kind);
     if (row == nullptr) {
@@ -183,102 +143,27 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
     region.y = body.region_y;
     region.w = body.region_w;
     region.h = body.region_h;
-    // Without the body the region is as tall as the rows it holds, so beneath them stands the area
-    // the office draws in.
-    const auto said = [&](surface::SurfaceTextRegion r) {
-        if (!with_body) {
-            const auto rows = static_cast<std::int64_t>(r.rows.size());
-            r.h = (std::min)(r.h, region_px_for(1, rows, body.fit.advance_px,
-                                                         body.fit.line_px).h);
-        }
-        layer.texts.push_back(std::move(r));
-    };
     // Workshop's header is the region's first row, fitted to its columns, and exists exactly when
-    // the resolution reserved one: hidden titles return it to the provider, but the keyboard pane
-    // keeps its title and its `> ` mark (`external_title_rows`).
+    // the resolution reserved one: hidden titles return it to the pane, but the keyboard pane keeps
+    // its title and its `> ` mark (`external_title_rows`). While a held press keeps the pane's area
+    // where it was, the title is not drawn over the row the area still holds.
     const ExternalPane* pane = panes.external_pane(kind);
     const bool typing = keyboard_pane(panes) == kind;
     const bool marks = pane != nullptr && pane->manual;
-    if (body.header_rows > 0) {
+    if (body.header_rows > 0 && (pane == nullptr || !pane->title_waits)) {
         region.rows.push_back(surface::SurfaceTextRow{
             external_header_row(*row, typing, marks, body.columns), graphics::role::kAccent});
     }
-    // A pane with room for the header and nothing else still says whose it is: `present` is asked
-    // after the header is written.
-    if (!body.present) {
-        if (!region.rows.empty()) {
-            said(std::move(region));
-        }
-        return; // no room under the heading: the heading, and no invented room
+    // ...AND IN THE BODY, WHAT STANDS THERE BEHIND THE PANE'S OWN AREA: that Workshop waits for the
+    // pane to draw, covered once its area's ground is drawn, or that its office draws in no window.
+    if (body.present && pane != nullptr) {
+        region.rows.push_back(surface::SurfaceTextRow{
+            detail::fit(external_body_words(*pane, row->name), body.columns),
+            graphics::role::kMuted});
     }
-    if (pane == nullptr) {
-        if (!region.rows.empty()) {
-            said(std::move(region));
-        }
-        return;
+    if (!region.rows.empty()) {
+        layer.texts.push_back(std::move(region));
     }
-    if (canvas_shown(*pane)) {
-        // Where the picture stands (`shown_canvas_place`); while its title waits, the title is
-        // not drawn over the row the picture still holds.
-        const PixelRect canvas = shown_canvas_place(pane->canvas, b, sc, body.header_rows);
-        if (pane->canvas.title_waits) region.rows.clear();
-        if (with_body) {
-            paint_pane_canvas(layer, canvas, pane->canvas.content, sc.text_advance_px,
-                              sc.text_line_px, chrome_grain(sc));
-        }
-        // A picture older than what its pane last drew says so: refused, until a picture is
-        // admitted, else carried to a new room. Where no title row shows the mark it stands at
-        // the picture's corner (`refused_mark_cover`), and what it covers is read and pressed by
-        // no one.
-        const bool refused = !pane->refusal.empty();
-        if (refused || pane->canvas.preview) {
-            const std::string mark = refused ? kExternalRefusedMark : "(updating)";
-            if (!region.rows.empty()) {
-                region.rows[0].text =
-                    external_header_row(*row, typing, marks, body.columns, mark + " ");
-                if (refused) region.rows[0].role = graphics::role::kAlert;
-            } else if (with_body) {
-                v6::PaneCanvasContent notice;
-                notice.texts.push_back(refused ? refused_mark_run()
-                                               : v2::PaneCanvasText{0, 0, mark, graphics::role::kAlert});
-                paint_pane_canvas(layer, canvas, notice, sc.text_advance_px,
-                                  sc.text_line_px, chrome_grain(sc));
-            }
-        }
-        if (!region.rows.empty()) {
-            const auto inside = pane_inside(b, sc).rect;
-            const auto header = wire_rect_of(PixelRect{inside.x, inside.y, inside.w,
-                                                       graphics::sub_px(canvas.y, inside.y)},
-                                              graphics::role::kFill);
-            region.h = header.h;
-            layer.texts.push_back(std::move(region));
-        }
-        return;
-    }
-    if (!rows_shown(*pane)) {
-        region.rows.push_back(
-            pane->refusal.empty()
-                ? surface::SurfaceTextRow{detail::fit(kExternalWaiting, body.columns),
-                                          graphics::role::kMuted}
-                : surface::SurfaceTextRow{detail::fit(pane->refusal, body.columns),
-                                          graphics::role::kAlert});
-    } else if (with_body) {
-        region.rows.insert(region.rows.end(), pane->shown.begin(), pane->shown.end());
-        // The pane's own caret, merged here and nowhere else: the header is the region's first
-        // row, so the offset added is the one `external_press_row` subtracts. Admission already
-        // judged it (`judge_caret`).
-        if (pane->caret_row != surface::kNoCaret) {
-            region.caret_row = pane->caret_row + body.header_rows;
-            region.caret_col = pane->caret_col;
-        }
-        if (pane->sel_begin_row != surface::kNoSelection) {
-            region.sel_begin_row = pane->sel_begin_row + body.header_rows;
-            region.sel_begin_col = pane->sel_begin_col;
-            region.sel_end_row = pane->sel_end_row + body.header_rows;
-            region.sel_end_col = pane->sel_end_col;
-        }
-    }
-    said(std::move(region));
 }
 
 } // namespace zengine::workshop

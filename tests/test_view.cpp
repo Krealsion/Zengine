@@ -8,11 +8,14 @@
 #include "maker_fixture.hpp"
 #include "office_manual.hpp"
 #include "view/host.hpp"
-#include "workshop/pane_canvas.hpp"
+#include "workshop/pane_canvas_text.hpp"
+#include "workshop/pane_picture.hpp"
 
 #include <algorithm>
+#include <map>
 #include <optional>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace {
@@ -72,10 +75,9 @@ class Desk final : public loom::Weave {
 public:
     std::vector<loom::Message> heard;
     std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
-        return {loom::schema_of<ws::v3::PaneOffered>(), loom::schema_of<ws::PaneContent>(),
-                loom::schema_of<ws::PaneCanvasContent>(), loom::schema_of<ws::v6::PaneCanvasContent>(),
-                loom::schema_of<ws::v3::PaneActions>(), loom::schema_of<ws::PaneEscapeUnspent>(),
-                loom::schema_of<ws::PanePassRequested>(), loom::schema_of<ws::PaneRevealRequested>()};
+        return {loom::schema_of<ws::v3::PaneOffered>(), loom::schema_of<ws::v3::PaneActions>(),
+                loom::schema_of<ws::PaneEscapeUnspent>(), loom::schema_of<ws::PanePassRequested>(),
+                loom::schema_of<ws::PaneRevealRequested>()};
     }
     void handle(const loom::Message& in, loom::Bus&) override { heard.push_back(in); }
     loom::Value snapshot() const override { return loom::Value(loom::make_schema("viewtest.Desk", 1, {})); }
@@ -114,6 +116,78 @@ private:
     std::string reason_;
 };
 
+/// The terminal window's office, where a window shows a view's area.
+const std::string kWindowOffice = std::string(gfx::kWindowOfficePrefix) + gfx::kTerminalWindow;
+
+/// Stands in for the graphics window that shows one view's area: holds the window's office, admits
+/// each drawing by the window's own judge and keeps it as the window keeps it (graphics/window/
+/// store.hpp), and speaks to the view as that window.
+class Window final : public loom::Weave {
+public:
+    gfx::window::WinArea area;                          ///< the first view's area
+    std::map<std::string, gfx::window::WinArea> others; ///< every other view's
+    std::vector<gfx::Drawn> drawn;
+    std::vector<std::string> refused;
+    explicit Window(const std::string& view) {
+        area.area = view;
+        area.owner = view;
+    }
+    /// The area `view` draws in, or none.
+    const gfx::window::WinArea* find(const std::string& view) const {
+        if (view == area.area) return &area;
+        const auto at = others.find(view);
+        return at == others.end() ? nullptr : &at->second;
+    }
+    std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
+        return {loom::schema_of<gfx::Drawn>()};
+    }
+    void handle(const loom::Message& in, loom::Bus&) override {
+        auto d = loom::from_value<gfx::Drawn>(in.payload);
+        gfx::window::WinArea& at = d.area == area.area ? area : others[d.area];
+        if (at.area.empty()) {
+            at.area = d.area;
+            at.owner = d.area;
+        }
+        auto why = in.provenance.authored_role() == at.owner
+                       ? gfx::window::judge(at, gfx::window::Drawer{}, d) : "not this area's owner";
+        if (why.empty()) (void)gfx::window::apply(at, gfx::window::Drawer{}, d);
+        else refused.push_back(std::move(why));
+        drawn.push_back(std::move(d));
+    }
+    loom::Value snapshot() const override { return loom::Value(loom::make_schema("viewtest.Window", 1, {})); }
+    loom::Value policy() const override { return zengine::maker::default_value(loom::lifecycle_policy_schema()); }
+    void revive(const loom::Value&) override {}
+
+    /// The words the text node at `path` draws, or none.
+    std::optional<std::string> words(const std::string& path) const {
+        for (const auto& k : area.nodes)
+            if (k.node.path == path && k.node.op == gfx::op::kText)
+                if (auto args = gfx::from_body<gfx::TextArgs>(k.node.args)) return args->text;
+        return std::nullopt;
+    }
+    bool holds(const std::string& path) const {
+        return std::any_of(area.nodes.begin(), area.nodes.end(), [&](const auto& k) { return k.node.path == path; });
+    }
+    /// The action a press on the node at `path` asks of the view, or "".
+    std::string action(const std::string& path) const {
+        const auto* record = gfx::window::record_of(area, path);
+        return record ? record->action : std::string();
+    }
+    /// Every rectangle and run of text it keeps, in the order drawn, as `x,y w h role` or `x,y role words`.
+    std::vector<std::string> drawing() const {
+        std::vector<std::string> out;
+        for (const auto& k : area.nodes)
+            if (auto r = k.node.op == gfx::op::kRect ? gfx::from_body<gfx::RectArgs>(k.node.args) : std::nullopt)
+                out.push_back(std::to_string(r->x) + "," + std::to_string(r->y) + " " + std::to_string(r->w) +
+                              " " + std::to_string(r->h) + " " + std::to_string(r->fill.role));
+        for (const auto& k : area.nodes)
+            if (auto t = k.node.op == gfx::op::kText ? gfx::from_body<gfx::TextArgs>(k.node.args) : std::nullopt)
+                out.push_back(std::to_string(t->x) + "," + std::to_string(t->y) + " " + std::to_string(t->ink.role) +
+                              " " + t->text);
+        return out;
+    }
+};
+
 struct Rig {
     zengine::op::Catalog catalog;
     loom::Switchboard bus;
@@ -124,7 +198,11 @@ struct Rig {
     WeaveId client_id{};
     zengine::maker::Registered tally;
     std::uint64_t correlation = 0;
-    std::int64_t grant = 0;
+    /// THE WINDOW SHOWING THE VIEWS' AREAS, mounted at the first word said as it, and the room it
+    /// last gave each.
+    Window* window = nullptr;
+    WeaveId window_id{};
+    std::map<std::string, gfx::AreaRoom> rooms;
 
     Rig() {
         zengine::op::publish_primitives(catalog);
@@ -163,38 +241,63 @@ struct Rig {
                                          loom::Message(loom::to_value(value), desk_id, {}, ++correlation));
         pump();
     }
-    /// Workshop's room: a window's 12-pixel cell and its measured face, or a terminal's cell.
-    void room(const std::string& office, bool terminal = false) {
-        ws::PaneCanvasRoom r{view::kPane, ++grant, 12 * 40, 12 * 16, terminal ? 12 : 1, !terminal,
-                             terminal ? 0 : 8, terminal ? 0 : 16};
-        tell(office, r);
+    /// The window showing the views' areas, mounted afresh where none is (`view` its first area).
+    Window& window_for(const std::string& view) {
+        if (window == nullptr) {
+            auto w = std::make_unique<Window>(view);
+            window = w.get();
+            window_id = bus.register_weave(std::move(w), loom::Grant{}.allow_any(), kWindowOffice);
+        }
+        return *window;
     }
-    /// The latest picture a view said, as its parts name it (none for a picture naming nothing).
-    const ws::v6::PaneCanvasContent* latest_named(const std::string& office) const {
-        static ws::v6::PaneCanvasContent kept;
-        for (auto it = desk->heard.rbegin(); it != desk->heard.rend(); ++it) {
-            if (it->provenance.authored_role() != office) continue;
-            if (loom::same_identity(it->payload.schema(), *loom::schema_of<ws::v6::PaneCanvasContent>())) {
-                kept = loom::from_value<ws::v6::PaneCanvasContent>(it->payload);
-                return &kept;
-            }
-            if (loom::same_identity(it->payload.schema(), *loom::schema_of<ws::PaneCanvasContent>())) {
-                kept = ws::canvas_content_of(loom::from_value<ws::PaneCanvasContent>(it->payload));
-                return &kept;
+    /// `value` said to the view `office` as the window's office, under `number` (a fresh one when
+    /// none).
+    template <class T> void as_window(const std::string& office, const T& value, std::uint64_t number = 0) {
+        (void)window_for(office);
+        (void)bus.office_send_to_role_as(window_id, kWindowOffice, office,
+                                         loom::Message(loom::to_value(value), window_id, {},
+                                                       number != 0 ? number : ++correlation));
+        pump();
+    }
+    /// THE WINDOW'S ROOM FOR A VIEW'S AREA, `width` by `height` pixels: a window that shows every
+    /// pixel, setting text in a face 8 by 16, or a terminal's cells.
+    void room_px(const std::string& office, std::int64_t width, std::int64_t height, bool terminal = false) {
+        const gfx::window::WinArea* held = window_for(office).find(office);
+        gfx::AreaRoom r{office, gfx::kTerminalWindow, 1, width, height, {}, held == nullptr || held->nodes.empty()};
+        if (!terminal) {
+            r.cell_px = gfx::kCellPx;
+            r.text_advance_px = 8;
+            r.text_line_px = 16;
+        }
+        rooms[office] = r;
+        as_window(office, r);
+    }
+    void room(const std::string& office, bool terminal = false) { room_px(office, 12 * 40, 12 * 16, terminal); }
+    /// THE PICTURE THE WINDOW HOLDS OF A VIEW'S AREA, read back as the view drew it: its rectangles
+    /// and runs of text in the order drawn, each run where its box stands.
+    const ws::CanvasPicture* latest(const std::string& office) const {
+        static ws::CanvasPicture kept;
+        const auto room = rooms.find(office);
+        const gfx::window::WinArea* a = window == nullptr ? nullptr : window->find(office);
+        if (a == nullptr || a->nodes.empty() || room == rooms.end()) return nullptr;
+        const auto inset = ws::canvas_text_metrics(
+            view::window_room(room->second.w, room->second.h, room->second.cell_px, room->second.measure())).inset;
+        const auto at = gfx::window::index_of(*a);
+        std::vector<const gfx::window::KeptNode*> order;
+        for (const auto& k : a->nodes) order.push_back(&k);
+        std::stable_sort(order.begin(), order.end(), [&](const auto* x, const auto* y) {
+            return gfx::window::key_of(at, x->node.path) < gfx::window::key_of(at, y->node.path);
+        });
+        kept = ws::CanvasPicture{};
+        for (const auto* k : order) {
+            if (k->node.op == gfx::op::kRect) {
+                if (const auto r = gfx::from_body<gfx::RectArgs>(k->node.args))
+                    kept.rects.push_back(ws::CanvasRect{r->x, r->y, r->w, r->h, r->fill.role});
+            } else if (k->node.op == gfx::op::kText) {
+                if (const auto t = gfx::from_body<gfx::TextArgs>(k->node.args))
+                    kept.texts.push_back(ws::CanvasText{t->x - inset, t->y - inset, t->text, t->ink.role});
             }
         }
-        return nullptr;
-    }
-    /// ...its texts as the first version said them, padded.
-    const ws::PaneCanvasContent* latest(const std::string& office) const {
-        static ws::PaneCanvasContent kept;
-        const auto* named = latest_named(office);
-        if (named == nullptr) return nullptr;
-        kept = ws::PaneCanvasContent{named->pane, named->grant, named->picture, named->rects,
-                                     named->labels, {}};
-        for (const auto& t : named->texts)
-            kept.texts.push_back(ws::PaneCanvasText{t.x, t.y, t.text, t.role, t.caret_col,
-                                                    t.sel_begin_col, t.sel_end_col});
         return &kept;
     }
     /// The latest actions a view declared, or none.
@@ -221,13 +324,16 @@ struct Rig {
             for (const auto& t : p->texts) out += (out.empty() ? "" : " ") + t.text;
         return out;
     }
-    /// Press at the middle of an element, in the latest picture.
+    /// A PRESS AND ITS RELEASE AT A POINT OF A VIEW'S AREA, in its pixels, as the window gives one.
+    void press_at(const std::string& office, std::int64_t x, std::int64_t y, std::int64_t button = 1) {
+        REQUIRE(latest(office) != nullptr);
+        const auto number = ++correlation;
+        as_window(office, gfx::AreaButtonChanged{office, button, true, x, y, 0}, number);
+        as_window(office, gfx::AreaButtonChanged{office, button, false, x, y, 0}, number);
+    }
+    /// ...at the middle of an element.
     void press(const std::string& office, const view::Element& e, std::int64_t button = 1) {
-        const auto* p = latest(office);
-        REQUIRE(p != nullptr);
-        tell(office, ws::PaneCanvasPointer{view::kPane, p->grant, p->picture, 1, ws::canvas_pointer::kPress,
-                                           button, (e.x + e.w / 2),
-                                           (e.y + e.h / 2)});
+        press_at(office, e.x + e.w / 2, e.y + e.h / 2, button);
     }
     /// Replace a number field's text: press it, clear it, type.
     void fill(const std::string& office, const view::Element& e, const std::string& text) {
@@ -241,93 +347,22 @@ struct Rig {
 
 bool has(const std::string& text, const std::string& part) { return text.find(part) != std::string::npos; }
 
-/// The terminal window's office, where a window shows a view's area.
-const std::string kWindowOffice = std::string(gfx::kWindowOfficePrefix) + gfx::kTerminalWindow;
-
-/// Stands in for the graphics window that shows one view's area: holds the window's office, admits
-/// each drawing by the window's own judge and keeps it as the window keeps it (graphics/window/
-/// store.hpp), and speaks to the view as that window.
-class Window final : public loom::Weave {
-public:
-    gfx::window::WinArea area;
-    std::vector<gfx::Drawn> drawn;
-    std::vector<std::string> refused;
-    explicit Window(const std::string& view) {
-        area.area = view;
-        area.owner = view;
-    }
-    std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
-        return {loom::schema_of<gfx::Drawn>()};
-    }
-    void handle(const loom::Message& in, loom::Bus&) override {
-        auto d = loom::from_value<gfx::Drawn>(in.payload);
-        auto why = in.provenance.authored_role() == area.owner && d.area == area.area
-                       ? gfx::window::judge(area, gfx::window::Drawer{}, d) : "not this area's owner";
-        if (why.empty()) (void)gfx::window::apply(area, gfx::window::Drawer{}, d);
-        else refused.push_back(std::move(why));
-        drawn.push_back(std::move(d));
-    }
-    loom::Value snapshot() const override { return loom::Value(loom::make_schema("viewtest.Window", 1, {})); }
-    loom::Value policy() const override { return zengine::maker::default_value(loom::lifecycle_policy_schema()); }
-    void revive(const loom::Value&) override {}
-
-    /// The words the text node at `path` draws, or none.
-    std::optional<std::string> words(const std::string& path) const {
-        for (const auto& k : area.nodes)
-            if (k.node.path == path && k.node.op == gfx::op::kText)
-                if (auto args = gfx::from_body<gfx::TextArgs>(k.node.args)) return args->text;
-        return std::nullopt;
-    }
-    bool holds(const std::string& path) const {
-        return std::any_of(area.nodes.begin(), area.nodes.end(), [&](const auto& k) { return k.node.path == path; });
-    }
-    /// The action a press on the node at `path` asks of the view, or "".
-    std::string action(const std::string& path) const {
-        const auto* record = gfx::window::record_of(area, path);
-        return record ? record->action : std::string();
-    }
-    /// Every rectangle and run of text it keeps, in the order drawn, as `x,y w h role` or `x,y role words`.
-    std::vector<std::string> drawing() const {
-        std::vector<std::string> out;
-        for (const auto& k : area.nodes)
-            if (auto r = k.node.op == gfx::op::kRect ? gfx::from_body<gfx::RectArgs>(k.node.args) : std::nullopt)
-                out.push_back(std::to_string(r->x) + "," + std::to_string(r->y) + " " + std::to_string(r->w) +
-                              " " + std::to_string(r->h) + " " + std::to_string(r->fill.role));
-        for (const auto& k : area.nodes)
-            if (auto t = k.node.op == gfx::op::kText ? gfx::from_body<gfx::TextArgs>(k.node.args) : std::nullopt)
-                out.push_back(std::to_string(t->x) + "," + std::to_string(t->y) + " " + std::to_string(t->ink.role) +
-                              " " + t->text);
-        return out;
-    }
-};
-
-/// The same, as Workshop's latest picture of the view draws it.
-std::vector<std::string> drawing(const ws::PaneCanvasContent& p) {
-    std::vector<std::string> out;
-    for (const auto& r : p.rects)
-        out.push_back(std::to_string(r.x) + "," + std::to_string(r.y) + " " + std::to_string(r.w) + " " +
-                      std::to_string(r.h) + " " + std::to_string(r.role));
-    for (const auto& t : p.texts)
-        out.push_back(std::to_string(t.x) + "," + std::to_string(t.y) + " " + std::to_string(t.role) + " " + t.text);
-    return out;
-}
-
 struct Shown {
     Window* window = nullptr;
     WeaveId id{};
 };
 
-/// A window that shows the area of the view named `view`, holding the terminal window's office.
+/// The window that shows the area of the view named `view`, holding the terminal window's office:
+/// the rig's own, mounted if none is.
 Shown mount_window(Rig& rig, const std::string& view) {
-    auto w = std::make_unique<Window>(view);
-    auto* raw = w.get();
-    const auto id = rig.bus.register_weave(std::move(w), loom::Grant{}.allow_any(), kWindowOffice);
-    return {raw, id};
+    Window& w = rig.window_for(view);
+    return {&w, rig.window_id};
 }
 
 /// `value` said to the view `view` as the window's office.
 template <class T>
 void window_says(Rig& rig, const Shown& w, const std::string& view, const T& value) {
+    if constexpr (std::is_same_v<T, gfx::AreaRoom>) rig.rooms[view] = value;
     (void)rig.bus.office_send_to_role_as(w.id, kWindowOffice, view,
                                          loom::Message(loom::to_value(value), w.id, {}, ++rig.correlation));
     rig.pump();
@@ -417,7 +452,7 @@ TEST_CASE("a running view asks its pane for its size, and draws in its size what
     CHECK(offered->text_rows == 3); // its notice rows beneath
     // GRANTED MORE, it is laid out in its size: its elements end where the size does, its notice
     // rows lie beneath it, and the rest of the room is its ground.
-    rig.tell("tally.panel", ws::PaneCanvasRoom{view::kPane, ++rig.grant, 12 * 80, 12 * 40, 1, true, 8, 16});
+    rig.room_px("tally.panel", 12 * 80, 12 * 40);
     const auto* p = rig.latest("tally.panel");
     REQUIRE(p != nullptr);
     const auto size_w = 600, size_h = 300;
@@ -434,7 +469,7 @@ TEST_CASE("a running view asks its pane for its size, and draws in its size what
     CHECK(has(last.text, "waiting to be told"));
     CHECK(last.y + (16 + 2 * 2) == size_h + 3 * (16 + 2 * 2)); // the notice rows beneath the size
     // GRANTED LESS, it draws in what it was granted.
-    rig.tell("tally.panel", ws::PaneCanvasRoom{view::kPane, ++rig.grant, 12 * 20, 12 * 10, 1, true, 8, 16});
+    rig.room_px("tally.panel", 12 * 20, 12 * 10);
     p = rig.latest("tally.panel");
     REQUIRE(p != nullptr);
     for (const auto& r : p->rects) {
@@ -450,11 +485,11 @@ TEST_CASE("no size the rules accept puts an element under the notice: its rows l
     d.width = 192;
     d.height = 136;
     REQUIRE(view::problem(d).empty());
-    const ws::PaneCanvasRoom window{view::kPane, 1, 12 * 40, 12 * 40, 1, true, 8, 16};
-    const ws::PaneCanvasRoom terminal{view::kPane, 1, 12 * 40, 12 * 40, 12, false, 0, 0};
+    const ws::CanvasRoom window{12 * 40, 12 * 40, 1, true, 8, 16};
+    const ws::CanvasRoom terminal{12 * 40, 12 * 40, 12, false, 0, 0};
     for (const auto& room : {window, terminal}) {
         INFO("graphical: " << room.graphical);
-        const auto p = view::picture(d, {}, view::Presentation{}, room, 1);
+        const auto p = view::picture(d, {}, view::Presentation{}, room);
         const auto size_h = 136;
         bool total = false, notice = false;
         for (const auto& t : p.content.texts) {
@@ -591,8 +626,8 @@ TEST_CASE("the view host registers a view as its own participant, granted only i
     // Its grant is what the description declares and the pane conversation to Workshop alone.
     const auto grant = view::view_grant(panel());
     CHECK(grant.permits("tally.panel.Count", 1, rig.tally.id));
-    CHECK(grant.permits_role(ws::PaneCanvasContent::zen_name, ws::PaneCanvasContent::zen_version, view::kWorkshopRole));
-    CHECK_FALSE(grant.permits_role(ws::PaneCanvasContent::zen_name, ws::PaneCanvasContent::zen_version, "tally"));
+    CHECK(grant.permits_role(ws::v3::PaneOffered::zen_name, ws::v3::PaneOffered::zen_version, view::kWorkshopRole));
+    CHECK_FALSE(grant.permits_role(ws::v3::PaneOffered::zen_name, ws::v3::PaneOffered::zen_version, "tally"));
     CHECK_FALSE(grant.permits("tally.Total", 1, rig.tally.id));
     CHECK_FALSE(grant.permits("zen.PokeWrite", 1, rig.tally.id));
     CHECK_FALSE(grant.permits(view::ViewRun::zen_name, view::ViewRun::zen_version, rig.views.id()));
@@ -607,16 +642,6 @@ TEST_CASE("the view host registers a view as its own participant, granted only i
     CHECK_FALSE(garbage.ok);
     CHECK(garbage.action == "run");
     CHECK(has(garbage.reason, "these bytes are not a Zen value"));
-    // A host without a canvas grants prose: the view says, in one row, that it needs a canvas.
-    rig.tell("tally.panel", ws::PaneRoom{view::kPane, 4, 60});
-    bool prose = false;
-    for (const auto& m : rig.desk->heard)
-        if (m.provenance.authored_role() == "tally.panel" &&
-            loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneContent>())) {
-            const auto rows = loom::from_value<ws::PaneContent>(m.payload).rows;
-            prose = rows.size() == 1 && has(rows[0].text, "draws on a canvas-capable Workshop");
-        }
-    CHECK(prose);
     // A second run in the same session is refused; a name already held is refused.
     CHECK(has(rig.ask(view::ViewRun{"builder", bytes_of(panel())}).reason, "already runs a view"));
     const auto clash = rig.ask(view::ViewRun{"second", bytes_of(panel())});
@@ -683,7 +708,7 @@ TEST_CASE("a view says it is waiting until told, says its intent as its own part
     CHECK(rig.total() == 18);
     CHECK(has(rig.words("tally.panel"), "Total: 18|"));
 
-    SUBCASE("an owner's presenter, paired by the host, tells the view's labels and runs its buttons' code, in Workshop and in the window") {
+    SUBCASE("an owner's presenter, paired by the host, tells the view's labels and runs its buttons' code in the window") {
         Rig owned;
         // Read from its bytes: a label showing `counter` of `counter.panel.Model`, and a button no
         // intent names, whose press is the presenter's alone.
@@ -707,7 +732,6 @@ TEST_CASE("a view says it is waiting until told, says its intent as its own part
         owned.views.pair("counter.panel", presenter);
         REQUIRE(owned.ask(view::ViewRun{"builder", bytes_of(admitted.description)}).ok);
         const auto w = mount_window(owned, "counter.panel");
-        owned.room("counter.panel");
         window_says(owned, w, "counter.panel", area_room("counter.panel", 20, 11));
         CHECK(w.window->words("text:count") == "Count: waiting");
         CHECK(w.window->action("text:increment") == "increment");
@@ -723,7 +747,7 @@ TEST_CASE("a view says it is waiting until told, says its intent as its own part
         CHECK(w.window->words("text:count") == "Count: 1");
         CHECK(has(owned.words("counter.panel"), "Count: 1|"));
         CHECK(w.window->refused.empty());
-        // ...AND A PRESS IN WORKSHOP runs the same code.
+        // ...AND A PRESS ON THE BUTTON'S PLACE runs the same code.
         owned.press("counter.panel", made.elements[1]);
         CHECK(pressed == 2);
         CHECK(w.window->words("text:count") == "Count: 2");
@@ -826,36 +850,14 @@ TEST_CASE("WL-HAND-06: a running view names each element by its id over the plac
     const auto d = panel();
     REQUIRE(rig.ask(view::ViewRun{"builder", bytes_of(d)}).ok);
     rig.room("tally.panel");
-    const auto* p = rig.latest_named("tally.panel");
-    REQUIRE(p != nullptr);
-    REQUIRE(p->parts.size() == d.elements.size());
-    const auto name_of = [&d](const view::Element& e) {
-        return (d.intent(e.id) ? "control:" : "element:") + e.id;
-    };
+    // EACH BUTTON'S NODES ASK ITS ID, and nothing else in the window asks anything.
+    const Window& held = rig.window_for("tally.panel");
     for (const auto& e : d.elements) {
         CAPTURE(e.id);
-        const auto part = std::find_if(p->parts.begin(), p->parts.end(),
-                                       [&](const auto& q) { return q.name == name_of(e); });
-        REQUIRE(part != p->parts.end());
-        CHECK(part->x == e.x);
-        CHECK(part->y == e.y);
-        CHECK(part->w == e.w);
-        CHECK(part->h == e.h);
-        CHECK(part->available);
+        CHECK(held.action("box:" + e.id) == (e.kind == view::Kind::button ? e.id : std::string()));
     }
-    // ...LISTED AS THE VIEW DRAWS THEM, which is how it reads a press: where two lie over one
-    // place, the later is listed after and takes the press.
-    for (std::size_t i = 0; i < d.elements.size(); ++i) {
-        CAPTURE(i);
-        CHECK(p->parts[i].name == name_of(d.elements[i]));
-    }
-    // PRESSED AT THE MIDDLE OF THE PLACE ITS NAME GIVES, the button says its intent.
-    const auto count = std::find_if(p->parts.begin(), p->parts.end(),
-                                    [](const auto& q) { return q.name == "control:count"; });
-    REQUIRE(count != p->parts.end());
-    rig.tell("tally.panel", ws::PaneCanvasPointer{view::kPane, p->grant, p->picture, 1,
-                                                  ws::canvas_pointer::kPress, 1,
-                                                  count->x + count->w / 2, count->y + count->h / 2});
+    // PRESSED AT THE MIDDLE OF ITS PLACE, the button says its intent.
+    rig.press("tally.panel", d.elements[3]);
     CHECK(rig.total() == 45);
 
     SUBCASE("the window that shows the view's area is drawn the same picture and a focused field's caret, its changes as changes, and a press on a button there uses it") {
@@ -872,18 +874,15 @@ TEST_CASE("WL-HAND-06: a running view names each element by its id over the plac
         auto* counted = ears.get();
         (void)shown.bus.register_weave(std::move(ears), loom::Grant{});
         const auto w = mount_window(shown, "tally.panel");
-        shown.room("tally.panel", true);
         // A ROOM is the window's word alone: said by Workshop's office it draws nothing.
         shown.tell("tally.panel", area_room("tally.panel", 40, 16));
         CHECK(w.window->drawn.empty());
         window_says(shown, w, "tally.panel", area_room("tally.panel", 40, 16));
         REQUIRE(w.window->drawn.size() == 1);
         CHECK(w.window->drawn.back().whole);
-        // ...THE ONE PICTURE: in a room of Workshop's terminal size, every rectangle and run of text
-        // Workshop was sent, each a node the window's own judge admits, no node waiting for a parent.
+        // ...THE ONE PICTURE: each node the window's own judge admits, no node waiting for a parent.
         CHECK(w.window->refused.empty());
         REQUIRE(shown.latest("tally.panel") != nullptr);
-        CHECK(w.window->drawing() == drawing(*shown.latest("tally.panel")));
         CHECK(w.window->words("text:total") == "Total: waiting");
         CHECK(w.window->words("text:count") == "Count");
         CHECK(w.window->holds("box:count"));
@@ -942,7 +941,6 @@ TEST_CASE("WL-HAND-06: a running view names each element by its id over the plac
         CHECK_FALSE(w.window->holds("caret"));
         shown.press("tally.panel", d.elements[0]);
         bar_at(8); // after `start: 0`
-        CHECK(w.window->drawing() == drawing(*shown.latest("tally.panel")));
         shown.tell("tally.panel", ws::PaneTextInput{view::kPane, "5"});
         CHECK(has(w.window->words("text:start").value_or(""), "start: 05"));
         bar_at(9);
@@ -968,8 +966,8 @@ TEST_CASE("WL-HAND-06: a running view names each element by its id over the plac
         CHECK(change.unsaid.empty());
         CHECK(w.window->words("text:total") == "Total: 99");
 
-        // A REFUSED CHANGE is drawn again whole at once; a refused whole drawing is said in Workshop
-        // and waits for the next change, which goes whole. Another office's refusal is not heard.
+        // A REFUSED CHANGE is drawn again whole at once; a refused whole drawing is said in the
+        // picture drawn next, whole, once. Another office's refusal is not heard.
         shown.tell("tally.panel", gfx::DrawnRefused{"tally.panel", "not the window's word"});
         CHECK(w.window->drawn.size() == before + 1);
         window_says(shown, w, "tally.panel", gfx::DrawnRefused{"tally.panel", "a change against nothing held"});
@@ -977,34 +975,37 @@ TEST_CASE("WL-HAND-06: a running view names each element by its id over the plac
         CHECK(w.window->drawn.back().whole);
         CHECK_FALSE(has(shown.said("tally.panel"), "the window refused this view"));
         window_says(shown, w, "tally.panel", gfx::DrawnRefused{"tally.panel", "too many nodes"});
-        CHECK(w.window->drawn.size() == before + 2);
+        REQUIRE(w.window->drawn.size() == before + 3);
+        CHECK(w.window->drawn.back().whole);
         CHECK(has(shown.said("tally.panel"), "the window refused this view: too many nodes"));
         total.set("total", loom::Cell::integer(7));
         (void)shown.bus.publish(loom::Message(total));
         shown.pump();
-        REQUIRE(w.window->drawn.size() == before + 3);
-        CHECK(w.window->drawn.back().whole);
+        REQUIRE(w.window->drawn.size() == before + 4);
         CHECK(w.window->words("text:total") == "Total: 7");
-        // ...A WINDOW THAT KEEPS REFUSING starts no loop: the same picture is not sent it again.
+        // ...A WINDOW THAT KEEPS REFUSING starts no loop: the refused change is drawn whole once,
+        // and that whole picture, refused, is not sent it again.
+        window_says(shown, w, "tally.panel", gfx::DrawnRefused{"tally.panel", "too many nodes"});
+        REQUIRE(w.window->drawn.size() == before + 5);
+        CHECK(w.window->drawn.back().whole);
         window_says(shown, w, "tally.panel", gfx::DrawnRefused{"tally.panel", "too many nodes"});
         (void)shown.bus.publish(loom::Message(total));
         shown.pump();
-        CHECK(w.window->drawn.size() == before + 3);
+        CHECK(w.window->drawn.size() == before + 5);
         // ...and a room of another size or incarnation goes whole too.
         window_says(shown, w, "tally.panel", area_room("tally.panel", 40, 20));
-        REQUIRE(w.window->drawn.size() == before + 4);
+        REQUIRE(w.window->drawn.size() == before + 6);
         CHECK(w.window->drawn.back().whole);
         window_says(shown, w, "tally.panel", area_room("tally.panel", 40, 20));
-        CHECK(w.window->drawn.size() == before + 4);
+        CHECK(w.window->drawn.size() == before + 6);
         CHECK(w.window->refused.empty());
 
-        // A WINDOW GONE leaves the view drawing in Workshop, and a window started afresh, a new
-        // incarnation, is drawn whole.
+        // A WINDOW GONE, and one started afresh, a new incarnation, is drawn whole.
         shown.bus.unregister_weave(w.id);
+        shown.window = nullptr;
         total.set("total", loom::Cell::integer(8));
         (void)shown.bus.publish(loom::Message(total));
         shown.pump();
-        CHECK(has(shown.words("tally.panel"), "Total: 8|"));
         const auto again = mount_window(shown, "tally.panel");
         window_says(shown, again, "tally.panel", area_room("tally.panel", 40, 20, 2));
         REQUIRE(again.window->drawn.size() == 1);
@@ -1017,7 +1018,6 @@ TEST_CASE("a view takes the keys and the text of the window that shows its area 
     Rig rig;
     const auto d = panel();
     REQUIRE(rig.ask(view::ViewRun{"app", bytes_of(d)}).ok);
-    rig.room("tally.panel");
     const auto w = mount_window(rig, "tally.panel");
     window_says(rig, w, "tally.panel", area_room("tally.panel", 40, 16));
     REQUIRE(w.window->drawn.size() == 1);
@@ -1042,7 +1042,7 @@ TEST_CASE("a view takes the keys and the text of the window that shows its area 
     fill("-2");
     CHECK(has(w.window->words("text:limit").value_or(""), "limit: 0"));
     CHECK(has(w.window->words("text:step").value_or(""), "step: -2"));
-    // ...Workshop's picture of the view is the same one: the fields are the view's, not the window's.
+    // ...the fields are the view's, not the window's.
     CHECK(has(rig.words("tally.panel"), "step: -2"));
 
     // A PRESS THERE says the intent with what was typed: only typed keys make 30.
@@ -1082,12 +1082,11 @@ TEST_CASE("a view takes the keys and the text of the window that shows its area 
     CHECK(escapes() == before);
 }
 
-TEST_CASE("a view hears the pointer of the window that shows its area as it hears Workshop's: a field pressed takes the focus and what is typed, a button pressed is used once, and the same from any other office changes nothing") {
+TEST_CASE("a view hears the pointer of the window that shows its area: a field pressed takes the focus and what is typed, a button pressed is used once, and the same from any other office changes nothing") {
     // MUTATION: a view that hears no pointer of its window -- a press on a field there focuses nothing.
     Rig rig;
     const auto d = panel();
     REQUIRE(rig.ask(view::ViewRun{"app", bytes_of(d)}).ok);
-    rig.room("tally.panel");
     const auto w = mount_window(rig, "tally.panel");
     window_says(rig, w, "tally.panel", area_room("tally.panel", 40, 16));
     REQUIRE(w.window->drawn.size() == 1);
@@ -1244,9 +1243,9 @@ TEST_CASE("a refusal answered to a view shows on its notice row, and what it was
 
     // A field holding no whole number is said here, and nothing is published.
     rig.fill("tally.panel", d.elements[1], "ten");
-    const auto before = rig.desk->heard.size();
+    const auto before = rig.window->drawn.size();
     rig.press("tally.panel", d.elements[3]);
-    CHECK(rig.desk->heard.size() > before);
+    CHECK(rig.window->drawn.size() > before);
     CHECK(has(rig.words("tally.panel"), "`limit` holds `ten`, not a whole number"));
     CHECK(rig.total() == 45);
 
@@ -1257,10 +1256,9 @@ TEST_CASE("a refusal answered to a view shows on its notice row, and what it was
     refusal.notice = "refused: tally on tally.panel.Count at %0 fold math.add: a step of 0 never moves the count from 0 toward 10";
     refusal.alert = true;
     const auto up = [](std::int64_t px) { return (px + 11) / 12 * 12; };
-    const ws::PaneCanvasRoom asked{view::kPane, 9, up(o.width), up(o.height) + 12 * o.text_rows,
-                                   12, false, 0, 0};
+    const ws::CanvasRoom asked{up(o.width), up(o.height) + 12 * o.text_rows, 12, false, 0, 0};
     std::string notice;
-    for (const auto& t : view::picture(d, {}, refusal, asked, 1).content.texts)
+    for (const auto& t : view::picture(d, {}, refusal, asked).content.texts)
         if (t.role == zengine::graphics::role::kAlert) notice += t.text + " ";
     CHECK(has(notice, "from 0 toward 10"));
     CHECK_FALSE(has(notice, "..."));
@@ -1276,11 +1274,10 @@ TEST_CASE("the names and refusals a view only carries reach its notice row spell
     d.intents[0].shape = shape::make(shape::qualified("tally.panel", "A\xC3\xB1" "adir"), count_shape()->fields());
     REQUIRE(view::problem(d).empty());
     REQUIRE(rig.ask(view::ViewRun{"builder", bytes_of(d)}).ok);
-    // Workshop's judgement of the latest picture the view said: none, when it is drawn whole.
+    // The window's judgement of each drawing the view sent: none refused, when it is drawn whole.
     const auto judged = [&rig] {
-        const auto* p = rig.latest("tally.panel");
-        REQUIRE(p != nullptr);
-        return std::string(ws::canvas_content_problem(*p));
+        REQUIRE(rig.latest("tally.panel") != nullptr);
+        return rig.window->refused.empty() ? std::string() : rig.window->refused.back();
     };
     rig.room("tally.panel");
     // WAITING: the shape's name, one `?` a character.
@@ -1479,13 +1476,8 @@ TEST_CASE("a stopped view leaves a picture that says it stopped, and its office 
     REQUIRE(last->texts.size() == 1);
     CHECK(has(last->texts[0].text, "tally.panel stopped"));
     CHECK(last->rects.size() == 1); // its ground alone: no field or control is left looking live
-    // Its last picture was delivered while it still held the office.
-    bool delivered = false;
-    for (const auto& m : rig.desk->heard)
-        if (m.sender == id && loom::same_identity(m.payload.schema(), *loom::schema_of<ws::PaneCanvasContent>()) &&
-            has(loom::from_value<ws::PaneCanvasContent>(m.payload).texts.at(0).text, "stopped"))
-            delivered = true;
-    CHECK(delivered);
+    // Its last picture was taken while it still held the office.
+    CHECK(rig.window->refused.empty());
     // A refusal names the ask it refuses, so the asker can settle it.
     const auto again = rig.ask(view::ViewStop{"builder"});
     CHECK_FALSE(again.ok);
@@ -1515,10 +1507,10 @@ TEST_CASE("a stopped view leaves a picture that says it stopped, and its office 
 
 TEST_CASE("a view's terminal picture is the window's picture floored to cells, its text fitted to the cell") {
     const auto d = panel();
-    ws::PaneCanvasRoom window{view::kPane, 1, 12 * 40, 12 * 12, 1, true, 8, 16};
-    ws::PaneCanvasRoom terminal{view::kPane, 2, 12 * 40, 12 * 12, 12, false, 0, 0};
-    const auto a = view::picture(d, {}, {}, window, 1);
-    const auto b = view::picture(d, {}, {}, terminal, 1);
+    const ws::CanvasRoom window{12 * 40, 12 * 12, 1, true, 8, 16};
+    const ws::CanvasRoom terminal{12 * 40, 12 * 12, 12, false, 0, 0};
+    const auto a = view::picture(d, {}, {}, window);
+    const auto b = view::picture(d, {}, {}, terminal);
     REQUIRE(a.content.rects.size() == b.content.rects.size());
     for (std::size_t i = 0; i < a.content.rects.size(); ++i) {
         CHECK(a.content.rects[i].x == b.content.rects[i].x);
@@ -1533,7 +1525,7 @@ TEST_CASE("a view's terminal picture is the window's picture floored to cells, i
     }
     view::Presentation long_text;
     long_text.fields["start"].set("123456789012345678901234567890", 30);
-    const auto cut = view::picture(d, {}, long_text, terminal, 2);
+    const auto cut = view::picture(d, {}, long_text, terminal);
     bool fitted = false;
     for (const auto& t : cut.content.texts)
         if (t.text.rfind("start: ", 0) == 0) {
@@ -1545,7 +1537,7 @@ TEST_CASE("a view's terminal picture is the window's picture floored to cells, i
     // the accent of a field's words, and a button's words are accented.
     view::Presentation focused;
     focused.focus = "step";
-    const auto marked = view::picture(d, {}, focused, terminal, 3);
+    const auto marked = view::picture(d, {}, focused, terminal);
     for (const auto& r : marked.content.rects)
         if (r.role != zengine::graphics::role::kGround) CHECK(r.role == zengine::graphics::role::kMuted);
     for (const auto& t : marked.content.texts) {

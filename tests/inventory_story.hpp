@@ -81,20 +81,9 @@ struct InventoryStory {
     std::shared_ptr<std::vector<QuietReader::Event>> physical =
         std::make_shared<std::vector<QuietReader::Event>>();
 
-    /// `no_canvas`: a host that knows no canvas door, answering that no office accepts a canvas
-    /// room -- the one every pane says its rows to as prose.
     explicit InventoryStory(int permissions = 191, bool composer = false, bool desktop_first = false,
-                            bool with_flow = false, bool with_powers = false, bool with_builder = false,
-                            bool no_canvas = false) {
+                            bool with_flow = false, bool with_powers = false, bool with_builder = false) {
         r.mount_workshop();
-        if (no_canvas) {
-            // No canvas, and no area of its own in a window: Workshop draws its rows as prose.
-            r.host.holder_accepts = [accepts = r.host.holder_accepts](std::string_view role,
-                                                                      const loom::Schema& shape) {
-                return shape.name() != PaneCanvasRoom::zen_name &&
-                       shape.name() != zengine::graphics::AreaRoom::zen_name && accepts(role, shape);
-            };
-        }
         if (with_powers) {
             // The primitives, the discovery door over them, and the Powers pane to browse it.
             REQUIRE(r.catalog.mount("story.basic", zengine::op::primitive_definitions()));
@@ -236,7 +225,7 @@ struct InventoryStory {
         act([](loom::Mail& m) { m.send_to_role(input::kInputRole, input::InputSessionRequested{"inventory story"}); });
         REQUIRE(hand->session > 0);
         trace_observer = r.bus.add_observer([this](const loom::BusEvent& e) {
-            if (e.schema_name == PaneDrop::zen_name || e.schema_name == PaneOperationRequested::zen_name ||
+            if (e.schema_name == PaneCanvasDrop::zen_name || e.schema_name == PaneOperationRequested::zen_name ||
                 e.schema_name == PaneOperationAnswered::zen_name || e.schema_name == inv::InventoryRead::zen_name ||
                 e.schema_name == inv::InventoryEntry::zen_name || e.schema_name == loom::DispatchRefused::zen_name)
                 trace += e.schema_name + " event=" + std::to_string(static_cast<int>(e.kind)) +
@@ -447,12 +436,12 @@ struct InventoryStory {
         batch({press, move, release});
     }
     void physical_click(std::int64_t kind) {
-        const auto rect = external_body_rect(r.session(), kind);
-        const auto y = rect.y +
-            external_title_rows(r.session().panes, kind, r.session().pane_titles);
-        physical->push_back(input::PointerButton{1, true, rect.x + 1, y, input::space::kCells, 0});
-        physical->push_back(input::PointerButton{1, false, rect.x + 1, y, input::space::kCells, 0});
-        pump_physical();
+        // THE WEAVER'S OWN HAND, as the window that shows the desk reads it from its platform: a
+        // press in the middle of the pane's own area.
+        const ExternalPane* pane = r.session().panes.external_pane(kind);
+        REQUIRE(pane != nullptr);
+        r.window_click(gfx::cell_of_pixel(pane->placed_x + pane->placed_w / 2),
+                       gfx::cell_of_pixel(pane->placed_y + pane->placed_h / 2));
     }
 };
 } // namespace inventory_story

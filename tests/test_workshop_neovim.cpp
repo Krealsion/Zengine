@@ -185,7 +185,7 @@ std::set<std::string> declared_ids(SwitchRig& s) {
 
 /// WORKSHOP'S ORDERLY QUIT, the weaver's way: keys back to the workspace, then `q`.
 bool quit_by_key(SwitchRig& s) {
-    s.r.press_cell(0, screen_of(s.r.session()).h - 1);
+    s.r.press_cell(0, gfx::cell_of_pixel(screen_of(s.r.session()).h) - 1);
     s.r.key(input::scan::kQ);
     return s.r.host.quit;
 }
@@ -584,11 +584,10 @@ TEST_CASE("standard to Neovim and back carries the unsaved document and its care
 
     const EditorSwitchAnswered back = switch_live(s, "standard");
     REQUIRE_MESSAGE(back.outcome == switch_outcome::kSwitched, back.detail);
-    // ...and the standard Editor's passes Neovim's, shown in a room granted to it alone
+    // ...and the standard Editor's passes Neovim's, drawn in the office's area
     CHECK(std::stoll(s.read("doc_epoch")) > neovim_generation);
     REQUIRE(s.seat() != nullptr);
     CHECK(shows_canvas(*s.seat()));
-    CHECK(s.seat()->canvas.owner == s.holder());
     CHECK(s.read("path") == path);
     CHECK(s.read("text") == "alpha Xbeta!\n\tgamma\n");
     CHECK(s.read("saved_text") == "alpha beta\n\tgamma\n");
@@ -713,22 +712,26 @@ TEST_CASE("an open in Neovim shows the opened file's picture at the commitment, 
     REQUIRE(beat_until(s, [&] { return s.read("ready") == "true"; }));
     REQUIRE(open_through_office(s, "alpha.txt", "alpha one\nalpha two\n").accepted);
     REQUIRE(beat_until(s, [&] { return s.shows("alpha one"); }));
-    // EVERY PICTURE THE DESK HEARS FROM THE EDITOR ONCE THE OPEN HAS COMMITTED, by the room it names.
+    // EVERY DRAWING THE WINDOW HEARS FROM THE EDITOR ONCE THE OPEN HAS COMMITTED, its words.
     bool committed = false;
-    std::vector<std::pair<std::int64_t, std::string>> after;
+    std::vector<std::string> after;
     struct Watch {
         loom::Switchboard& bus;
         loom::ObserverId id;
         ~Watch() { bus.remove_observer(id); }
     } watch{s.r.bus, s.r.bus.add_observer([&s, &committed, &after](const loom::BusEvent& e) {
-        if (e.kind != loom::EventKind::Delivered || e.target != s.r.workshop_id || e.payload == nullptr) return;
-        if (e.schema_name == ManagedOpenProgress::zen_name) {
+        if (e.kind != loom::EventKind::Delivered || e.payload == nullptr) return;
+        if (e.target == s.r.workshop_id && e.schema_name == ManagedOpenProgress::zen_name) {
             committed = committed || loom::from_value<ManagedOpenProgress>(*e.payload).stage == "apply";
-        } else if (committed && e.schema_name == v5::PaneCanvasContent::zen_name) {
-            const v5::PaneCanvasContent drawn = loom::from_value<v5::PaneCanvasContent>(*e.payload);
+        } else if (committed && e.schema_name == gfx::Drawn::zen_name &&
+                   e.authored_role == nve::kEditorOffice) {
+            const gfx::Drawn drawn = loom::from_value<gfx::Drawn>(*e.payload);
             std::string text;
-            for (const v2::PaneCanvasText& run : drawn.texts) text += run.text + "\n";
-            after.emplace_back(drawn.grant, text);
+            for (const gfx::Node& n : drawn.put) {
+                if (n.op != gfx::op::kText) continue;
+                if (const auto run = gfx::from_body<gfx::TextArgs>(n.args)) text += run->text + "\n";
+            }
+            after.push_back(text);
         }
     })};
     const SourceOpened opened = open_through_office(s, "bravo.txt", "bravo one\nbravo two\n");
@@ -736,43 +739,19 @@ TEST_CASE("an open in Neovim shows the opened file's picture at the commitment, 
     // AT THE COMMITMENT THE DESK SHOWS THE OPENED FILE'S PICTURE, as Neovim prepared it.
     REQUIRE(s.seat() != nullptr);
     REQUIRE(shows_canvas(*s.seat()));
-    const std::int64_t room = s.seat()->canvas.grant;
     std::string shown;
     for (const std::string& row : held_row_texts(*s.seat())) shown += row + "\n";
     CHECK(shown.find("bravo one") != std::string::npos);
     CHECK(shown.find("alpha") == std::string::npos);
-    // ...AND NOTHING THE EDITOR DREW IN THAT ROOM AFTER IT SHOWS THE FILE IT REPLACED, until Neovim
+    // ...AND NOTHING THE EDITOR DREW IN ITS AREA AFTER IT SHOWS THE FILE IT REPLACED, until Neovim
     // has drawn the opened one.
     REQUIRE(beat_until(s, [&] { return s.shows("bravo two"); }));
     bool drawn = false;
-    for (const auto& [grant, text] : after) {
-        if (grant != room) continue;
+    for (const std::string& text : after) {
         CHECK_MESSAGE(text.find("alpha") == std::string::npos, text);
         drawn = drawn || text.find("bravo one") != std::string::npos;
     }
     CHECK(drawn);
-}
-
-TEST_CASE("a host that grants the Neovim editor no canvas is shown its rows and caret as prose, its presses "
-          "reach nothing there, and its keys still reach Neovim") {
-    SwitchRig s("nvim-no-canvas");
-    s.no_canvas = true;
-    NeovimEnvironment env(s.root, NEOVIM_PROGRAM);
-    s.open(standard_and_neovim(), nve::kNeovimEditorStem);
-    REQUIRE(beat_until(s, [&] { return s.read("ready") == "true"; }));
-    REQUIRE(open_through_office(s, "prose.txt", "first line\nsecond line\n").accepted);
-    REQUIRE(beat_until(s, [&] { return s.shows("second line"); }));
-    REQUIRE(s.seat() != nullptr);
-    CHECK_FALSE(shows_canvas(*s.seat()));
-    // A PRESS REACHES NOTHING THERE: the keys come here, and Neovim's cursor stays on the first line.
-    press_pane(s.r, s.kind, 2, 3);
-    CHECK(s.r.session().panes.keyboard == s.kind);
-    // ...AND ITS KEYS STILL REACH NEOVIM: it edits the line its cursor was on.
-    s.type("Ifrom keys ");
-    s.r.key(input::scan::kEscape);
-    REQUIRE(beat_until(s, [&] { return s.shows("from keys first line"); }));
-    // ...and, once Neovim has drawn its Escape, the block cursor beside the rows, as prose.
-    CHECK(beat_until(s, [&] { return held_caret(*s.seat()).sel_begin_row >= 0; }));
 }
 
 TEST_CASE("Neovim's cursor on an empty line, and after blanks it typed, is drawn as every caret is") {
@@ -786,13 +765,13 @@ TEST_CASE("Neovim's cursor on an empty line, and after blanks it typed, is drawn
     // THE BLOCK CURSOR ON THE EMPTY SECOND LINE: its one cell is the range, drawn on that row.
     s.type("j");
     REQUIRE(beat_until(s, [&] {
-        const PaneCaret at = held_caret(*s.seat());
+        const RowsCaret at = held_caret(*s.seat());
         return at.sel_begin_row == 2 && at.sel_begin_col == 0 && at.sel_end_row == 2 && at.sel_end_col == 1;
     }));
     // ...AND A BAR AFTER TWO BLANKS TYPED THERE: the caret stands after them, on the row.
     s.type("A  ");
     REQUIRE(beat_until(s, [&] {
-        const PaneCaret at = held_caret(*s.seat());
+        const RowsCaret at = held_caret(*s.seat());
         return at.row == 2 && at.column == 2;
     }));
     s.r.key(input::scan::kEscape);

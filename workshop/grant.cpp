@@ -23,7 +23,6 @@ loom::Grant workshop_grant() {
                             graphics::SurfacePlacementRemembered::zen_version, medium);
     }
     speak.allow_to_any(PaneCatalogRequested::zen_name, PaneCatalogRequested::zen_version);
-    speak.allow_to_any(PaneRoom::zen_name, PaneRoom::zen_version);
     speak.allow_to_any(PaneSettings::zen_name, PaneSettings::zen_version);
     speak.allow_to_any(v2::PaneSettings::zen_name, v2::PaneSettings::zen_version);
     // ...and one pane's settings read and written by message, answered to whoever asked.
@@ -37,8 +36,6 @@ loom::Grant workshop_grant() {
     speak.allow_to_any(PaneSettingLockActed::zen_name, PaneSettingLockActed::zen_version);
     speak.allow_to_any(LayoutSettingsShown::zen_name, LayoutSettingsShown::zen_version);
     speak.allow_to_any(SettingsWritten::zen_name, SettingsWritten::zen_version);
-    speak.allow_to_any(PanePressed::zen_name, PanePressed::zen_version);
-    speak.allow_to_any(v2::PanePressed::zen_name, v2::PanePressed::zen_version);
     speak.allow_to_any(loom::Refused::zen_name, loom::Refused::zen_version);
     speak.allow_to_any(loom::Ack::zen_name, loom::Ack::zen_version);
     speak.allow_to_any(PaneView::zen_name, PaneView::zen_version);
@@ -58,29 +55,15 @@ loom::Grant workshop_grant() {
     // ...and the same question, asked of the guest door, which judges it from the rows it admitted.
     speak.allow_to_role(ActorScopeRequested::zen_name, ActorScopeRequested::zen_version, kGuestsRole);
     speak.allow_to_any(PaneCarryAnswered::zen_name, PaneCarryAnswered::zen_version);
-    speak.allow_to_any(PaneDrop::zen_name, PaneDrop::zen_version);
-    speak.allow_to_any(PaneValueDrop::zen_name, PaneValueDrop::zen_version);
-    speak.allow_to_any(v2::PaneValueDrop::zen_name, v2::PaneValueDrop::zen_version);
     speak.allow_to_any(PaneCanvasValueDrop::zen_name, PaneCanvasValueDrop::zen_version);
     speak.allow_to_any(PaneCanvasDrop::zen_name, PaneCanvasDrop::zen_version);
-    speak.allow_to_any(PaneCanvasRoom::zen_name, PaneCanvasRoom::zen_version);
-    speak.allow_to_any(PaneCanvasPointer::zen_name, PaneCanvasPointer::zen_version);
     speak.allow_to_any(PaneCanvasHover::zen_name, PaneCanvasHover::zen_version);
-    speak.allow_to_any(PaneCanvasRejected::zen_name, PaneCanvasRejected::zen_version);
-    speak.allow_to_any(v1::PaneCanvasValueDrop::zen_name, v1::PaneCanvasValueDrop::zen_version);
-    speak.allow_to_any(v2::PaneCanvasRoom::zen_name, v2::PaneCanvasRoom::zen_version);
-    speak.allow_to_any(v1::PaneCanvasPointer::zen_name, v1::PaneCanvasPointer::zen_version);
-    speak.allow_to_any(v1::PaneCanvasHover::zen_name, v1::PaneCanvasHover::zen_version);
     speak.allow_to_any(PaneKey::zen_name, PaneKey::zen_version);
     // ...and whether the keys reach a pane a graphics window shows in an area of its own.
     speak.allow_to_any(PaneKeys::zen_name, PaneKeys::zen_version);
     speak.allow_to_any(PaneTextInput::zen_name, PaneTextInput::zen_version);
-    speak.allow_to_any(PaneWheel::zen_name, PaneWheel::zen_version);
     speak.allow_to_any(PaneActionRequested::zen_name, PaneActionRequested::zen_version);
-    speak.allow_to_any(v3::PanePressed::zen_name, v3::PanePressed::zen_version);
-    speak.allow_to_any(PaneButton::zen_name, PaneButton::zen_version);
     speak.allow_to_any(PaneMenuAnswered::zen_name, PaneMenuAnswered::zen_version);
-    speak.allow_to_role(PictureFence::zen_name, PictureFence::zen_version, kWorkshopProvider);
     speak.allow_to_role(MenuGranted::zen_name, MenuGranted::zen_version, kPresenterRole);
     speak.allow_to_role(MenuInput::zen_name, MenuInput::zen_version, kPresenterRole);
     speak.allow_to_role(MenuWithdrawn::zen_name, MenuWithdrawn::zen_version, kPresenterRole);
@@ -95,11 +78,9 @@ loom::Grant workshop_grant() {
     speak.allow_to_any(PaneInventory::zen_name, PaneInventory::zen_version);
     speak.allow_to_any(KeymapShown::zen_name, KeymapShown::zen_version);
     speak.allow_to_any(CommandRunAnswered::zen_name, CommandRunAnswered::zen_version);
-    speak.allow_to_any(PaneDragged::zen_name, PaneDragged::zen_version);
     speak.allow_to_any(PaneQuitRequested::zen_name, PaneQuitRequested::zen_version);
     speak.allow_to_any(PaneRevealAnswered::zen_name, PaneRevealAnswered::zen_version);
-    speak.allow_to_any(PresentationTrial::zen_name, PresentationTrial::zen_version);
-    speak.allow_to_any(v2::PresentationTrial::zen_name, v2::PresentationTrial::zen_version);
+    speak.allow_to_any(v3::PresentationTrial::zen_name, v3::PresentationTrial::zen_version);
     speak.allow_to_any(PresentationAdmitted::zen_name, PresentationAdmitted::zen_version);
     speak.allow_to_role(OpenSourceRequested::zen_name, OpenSourceRequested::zen_version, kOpeningRole);
     speak.allow_to_any(PaneSourceOpened::zen_name, PaneSourceOpened::zen_version);

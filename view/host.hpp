@@ -138,15 +138,11 @@ private:
         bus_.send(loom::WeaveId{id}, loom::Message(loom::to_value(detail::ViewRedraw{})));
     }
 
-    /// STOP ONE VIEW: its last picture says why, in Workshop and in its area's window, queued as
-    /// its office while it still holds it, and the participant is unregistered once that picture
-    /// has been delivered.
+    /// STOP ONE VIEW: its last picture says why in its area's window, queued as its office while it
+    /// still holds it, and the participant is unregistered once that picture has been delivered.
     void stop(std::uint64_t id, const std::string& why) {
         View* live = view(id);
         if (!live) return;
-        if (auto last = live->farewell(why))
-            (void)bus_.office_send_to_role_as(loom::WeaveId{id}, live->description().name,
-                                              kWorkshopRole, loom::Message(loom::to_value(*last), loom::WeaveId{id}));
         if (auto last = live->window_farewell(why))
             (void)bus_.office_send_to_role_as(loom::WeaveId{id}, live->description().name, last->first,
                                               loom::Message(loom::to_value(last->second), loom::WeaveId{id}));

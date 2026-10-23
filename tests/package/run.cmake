@@ -251,6 +251,9 @@ zen_run("a stranger uses the pane menu and list helpers" "${pane_menu}")
 zen_find_program_in(pane_settings witness-pane-settings "${stranger_bin}")
 zen_run("a stranger's pane declares its settings and reads what it is handed" "${pane_settings}")
 
+zen_find_program_in(pane_window witness-pane-window "${stranger_bin}")
+zen_run("a stranger's pane draws its rows in a window and hears a press there" "${pane_window}")
+
 zen_find_program_in(kitchen kitchen-host "${stranger_bin}")
 get_filename_component(kitchen_dir "${kitchen}" DIRECTORY)
 zen_run("a weave drives the installed Timer service" "${kitchen}" "${kitchen_dir}")

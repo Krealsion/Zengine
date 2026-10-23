@@ -2,8 +2,8 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The Workshop panes suite -- the protocol and the provider seam: what an office may offer, who may
-// speak for it, how Workshop discovers it, the room it grants, what it retains, and how a pane
-// ends. One source of the panes program, run in `workshop_panes_seam`, whose units split by subject
+// speak for it, how Workshop discovers it, where its area stands and the room the window gives
+// it, and how a pane ends. One source of the panes program, run in `workshop_panes_seam`, whose units split by subject
 // where one object cannot hold them all (VM-POP-12); a new case goes to its subject's. Cases drive
 // the real weave on a real bus against real loaded artifacts, from `PaneRig`
 // (`workshop_support.hpp`).
@@ -12,9 +12,10 @@
 // refuses a run selecting zero cases (POP-01).
 #include "workshop_support.hpp"
 #include "office_manual.hpp"
+#include "pane_window.hpp"
 
 // ============================================================================
-// The office authors the pane; Workshop grants the room
+// The office authors the pane; the window gives its area the room
 // ============================================================================
 // Against: PROVENANCE (no payload carries a provider; the office is Loom's stamp, so personal
 // speech, another office and a forged room are the negatives); BOUNDS (each number has a case
@@ -22,7 +23,7 @@
 
 // ---- The protocol itself ------------------------------------------------------
 
-TEST_CASE("the pane protocol is four shapes, and none of them carries a provider") {
+TEST_CASE("the pane protocol's offer and its catalog ask carry no provider") {
     // THE ABSENCE IS THE ENFORCEMENT. Workshop derives the provider half of a
     // `PaneRef` from `mail.authored_role()` -- Loom's stamp -- and the only way to
     // guarantee it never reads one off a payload is for there to be no such field
@@ -44,46 +45,6 @@ TEST_CASE("the pane protocol is four shapes, and none of them carries a provider
         CHECK(f.name != "placement");
     }
 
-    const std::shared_ptr<const loom::Schema> content = loom::schema_of<PaneContent>();
-    REQUIRE(content != nullptr);
-    CHECK(content->name() == "PaneContent");
-    CHECK(content->version() == 1);
-    REQUIRE(content->fields().size() == 2);
-    CHECK(content->fields()[0].name == "pane");
-    CHECK(content->fields()[0].type.kind == loom::Kind::Text);
-    // THE ROWS ARE `surface::SurfaceTextRow` AND NOT A PARALLEL TYPE, so a
-    // provider's row carries the same semantic role and ground every first-party row
-    // does and the Skin's palette answers for it unchanged.
-    CHECK(content->fields()[1].name == "rows");
-    CHECK(content->fields()[1].type.kind == loom::Kind::List);
-    REQUIRE(content->fields()[1].type.element != nullptr);
-    REQUIRE(content->fields()[1].type.element->message != nullptr);
-    CHECK(content->fields()[1].type.element->message->name() == "SurfaceTextRow");
-    for (const loom::Field& f : content->fields()) {
-        CHECK(f.name != "provider");
-    }
-
-    const std::shared_ptr<const loom::Schema> room = loom::schema_of<PaneRoom>();
-    REQUIRE(room != nullptr);
-    CHECK(room->name() == "PaneRoom");
-    CHECK(room->version() == 1);
-    REQUIRE(room->fields().size() == 3);
-    CHECK(room->fields()[0].name == "pane");
-    CHECK(room->fields()[1].name == "rows");
-    CHECK(room->fields()[1].type.kind == loom::Kind::Int);
-    CHECK(room->fields()[2].name == "columns");
-    CHECK(room->fields()[2].type.kind == loom::Kind::Int);
-    // NO GEOMETRY OF ANY KIND. A budget of prose, and not a rectangle, a cell, a
-    // pixel, an extent, a font or the identity of the medium that answered.
-    for (const loom::Field& f : room->fields()) {
-        CHECK(f.name != "x");
-        CHECK(f.name != "y");
-        CHECK(f.name != "width");
-        CHECK(f.name != "height");
-        CHECK(f.name != "text_advance_px");
-        CHECK(f.name != "text_line_px");
-    }
-
     const std::shared_ptr<const loom::Schema> ask = loom::schema_of<PaneCatalogRequested>();
     REQUIRE(ask != nullptr);
     CHECK(ask->name() == "PaneCatalogRequested");
@@ -91,33 +52,12 @@ TEST_CASE("the pane protocol is four shapes, and none of them carries a provider
     CHECK(ask->fields().empty()); // a filter would be a policy nobody asked for
 }
 
-TEST_CASE("a pane's content round-trips through the wire with its semantics intact") {
-    PaneContent said;
-    said.pane = "hello";
-    said.rows.push_back(surface::SurfaceTextRow{"first", gfx::role::kAccent,
-                                                gfx::role::kMuted});
-    said.rows.push_back(surface::SurfaceTextRow{"second", gfx::role::kMuted});
-    const loom::Value v = loom::to_value(said);
-    const PaneContent back = loom::from_value<PaneContent>(v);
-    CHECK(back.pane == "hello");
-    REQUIRE(back.rows.size() == 2);
-    CHECK(back.rows[0].text == "first");
-    CHECK(back.rows[0].role == gfx::role::kAccent);
-    CHECK(back.rows[0].background == gfx::role::kMuted);
-    CHECK(back.rows[1].text == "second");
-    CHECK(back.rows[1].background == gfx::role::kNone);
-
+TEST_CASE("a pane's offer round-trips through the wire with its semantics intact") {
     PaneOffered offer{"hello", "Hello", "a bounded external greeting"};
     const PaneOffered offer_back = loom::from_value<PaneOffered>(loom::to_value(offer));
     CHECK(offer_back.pane == "hello");
     CHECK(offer_back.name == "Hello");
     CHECK(offer_back.summary == "a bounded external greeting");
-
-    const PaneRoom room_back =
-        loom::from_value<PaneRoom>(loom::to_value(PaneRoom{"hello", 7, 46}));
-    CHECK(room_back.pane == "hello");
-    CHECK(room_back.rows == 7);
-    CHECK(room_back.columns == 46);
 }
 
 // ---- The office's manual -------------------------------------------------------
@@ -375,7 +315,7 @@ TEST_CASE("the runtime catalog is beside the compile-time one and never inside i
 }
 
 TEST_CASE("the catalog is asked with VIEWS, and only an exact pair is a row") {
-    // `RuntimeCatalog::find` takes two `std::string_view`s so that the `PaneContent` door can ask
+    // `RuntimeCatalog::find` takes two `std::string_view`s so that a door can ask
     // WHO THIS IS with Loom's stamp exactly as it arrived, owning nothing to do it. It compares
     // against the row's own string -- admitted under `check_pane_key` and owned by the vector --
     // so the comparison moves no ownership in either direction.
@@ -548,41 +488,6 @@ TEST_CASE("one office cannot overwrite another office's descriptor") {
     CHECK(cat.find(kOtherOffice, "hello")->name == "Hijacked");
 }
 
-TEST_CASE("personal and wrong-office content cannot alter a valid cache") {
-    PaneRig r;
-    r.mount_workshop();
-    ProviderSeat* mine = r.mount_provider(kHelloOffice);
-    ProviderSeat* theirs = r.mount_provider(kOtherOffice);
-    r.drive(mine, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
-    r.pick(hello_ref());
-
-    PaneContent real;
-    real.pane = kHelloPane;
-    real.rows.push_back(surface::SurfaceTextRow{"the true row", gfx::role::kFill});
-    r.drive(mine, [real](ProviderSeat& s, loom::Mail& m) { s.say(m, real); });
-
-    const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
-    const ExternalPane* pane = r.session().panes.external_pane(kind);
-    REQUIRE(pane != nullptr);
-    REQUIRE(pane->heard);
-    REQUIRE(pane->shown.size() == 1);
-    CHECK(pane->shown[0].text == "the true row");
-
-    // PERSONAL SPEECH from the actual holder changes nothing...
-    PaneContent forged;
-    forged.pane = kHelloPane;
-    forged.rows.push_back(surface::SurfaceTextRow{"a forged row", gfx::role::kFill});
-    r.drive(mine, [forged](ProviderSeat& s, loom::Mail& m) { s.say_personally(m, forged); });
-    CHECK(r.session().panes.external_pane(kind)->shown[0].text == "the true row");
-
-    // ...and neither does another office speaking about this pane key. Its own
-    // `PaneRef` is a different one and it has no open pane, so there is nothing for
-    // this to land on at all.
-    r.drive(theirs, [forged](ProviderSeat& s, loom::Mail& m) { s.say(m, forged); });
-    CHECK(r.session().panes.external_pane(kind)->shown[0].text == "the true row");
-    CHECK(r.session().panes.runtime.entries.size() == 1);
-}
-
 // ---- Discovery, through the REAL dynamic seam -------------------------------------
 
 TEST_CASE("Workshop first, then the provider: an attested activation announces the pane") {
@@ -663,25 +568,27 @@ TEST_CASE("the provider answers Workshop and nobody else") {
 
 TEST_CASE("a forged room grants the provider nothing") {
     // THE PROVIDER'S OWN CHECK, MEASURED FROM THE OTHER SIDE. A watcher holds
-    // `zengine.workshop` so it can author a room deliberately, and can also send one
-    // personally -- which is exactly the sentence a weave that merely held the office
-    // would produce by reaching for `send_to_role`.
+    // `zengine.workshop` to hear the offer; a room no window's office authored -- one sent with no
+    // office at all -- draws nothing, and the room a window gives its area is drawn there.
     PaneRig r;
     PaneWatcher* watch = r.mount_watcher();
-    (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+    const loom::WeaveId hello = r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
+    REQUIRE(hello.valid());
     REQUIRE(watch->offers.size() == 1); // the activation announcement landed here
+    zengine::testing::pane_window::Window window(r.bus);
+    const std::size_t before = window.weave().heard.size();
 
-    r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
-        wv.grant_personally(m, kHelloOffice, PaneRoom{kHelloPane, 4, 20});
-    });
-    CHECK(watch->content.empty()); // no room was believed, so no content was produced
+    r.bus.send(hello, loom::Message(loom::to_value(gfx::AreaRoom{kHelloOffice, window.name(), 1, 20 * gfx::kCellPx,
+                                                                 4 * gfx::kCellPx, {}, true}),
+                                    loom::WeaveId{}, loom::WeaveId{}, 0));
+    r.bus.drain_until_idle();
+    CHECK(window.weave().heard.size() == before); // no room was believed, so nothing was drawn
 
-    r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
-        wv.grant(m, kHelloOffice, PaneRoom{kHelloPane, 4, 20});
-    });
-    REQUIRE(watch->content.size() == 1);
-    REQUIRE(watch->content[0].rows.size() == 4);
-    CHECK(watch->content[0].rows[0].text == "hello -- 4x20");
+    window.room(kHelloOffice, kHelloOffice, 20, 4);
+    r.bus.drain_until_idle();
+    const std::vector<std::string> rows = window.rows(kHelloOffice);
+    REQUIRE(rows.size() == 4);
+    CHECK(rows[0] == "hello -- 4x20");
 }
 
 // ---- Setup resolution: an unchanged reference, resolved later ---------------------
@@ -756,11 +663,12 @@ TEST_CASE("setup bytes carry no descriptor, room or handle") {
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
-    PaneContent said;
+    SeatRows said;
     said.pane = kHelloPane;
-    said.rows.push_back(surface::SurfaceTextRow{"cached prose", gfx::role::kFill});
+    said.rows.push_back(TextRow{"cached prose", gfx::role::kFill});
     r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
-    REQUIRE(r.session().panes.external_pane(r.session().panes.runtime.entries[0].kind)->heard);
+    REQUIRE_FALSE(held_row_texts(*r.session().panes.external_pane(r.session().panes.runtime.entries[0].kind))
+                      .empty());
 
     const std::string text = setup_persist::to_text(r.session().setup.active);
     // THE FILE IS THE AUTHORED REFERENCE AND THE AUTHORED WINDOW, and nothing else: a live offer's
@@ -943,9 +851,9 @@ TEST_CASE("an oversubscribed authored setup seats every reference, the column be
     CHECK(state_of(hello_ref()) == "open");
 
     // GROWTH LAYS THE SAME PANES OUT DOWN ONE COLUMN, with no gesture at all...
-    PaneContent said;
+    SeatRows said;
     said.pane = kHelloPane;
-    said.rows.push_back(surface::SurfaceTextRow{"present", gfx::role::kFill});
+    said.rows.push_back(TextRow{"present", gfx::role::kFill});
     r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
     r.extent(78, 42);
     CHECK(top_of(hello) > top_of(other));
@@ -956,12 +864,12 @@ TEST_CASE("an oversubscribed authored setup seats every reference, the column be
     CHECK(r.session().panes.has(hello));
     CHECK(top_of(hello) == screen_of(r.session()).room_y);
     REQUIRE(r.session().panes.external_pane(hello) != nullptr);
-    CHECK_FALSE(r.session().panes.external_pane(hello)->shown.empty());
+    CHECK_FALSE(held_row_texts(*r.session().panes.external_pane(hello)).empty());
 }
 
 // ---- The room contract ------------------------------------------------------------
 
-TEST_CASE("opening an external pane grants exactly the fit_region room, authored as Workshop") {
+TEST_CASE("opening an external pane gives its area exactly the fit_region room, authored as the window") {
     PaneRig r;
     r.mount_workshop();
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
@@ -970,9 +878,9 @@ TEST_CASE("opening an external pane grants exactly the fit_region room, authored
 
     REQUIRE(seat->rooms.size() == 1);
     CHECK(seat->rooms[0].pane == std::string(kHelloPane));
-    // AUTHORED AS `zengine.workshop` -- which is what lets the provider verify the ask.
-    REQUIRE(seat->room_authors.size() == 1);
-    CHECK(seat->room_authors[0] == std::string(kWorkshopProvider));
+    // AUTHORED AS THE WINDOW THAT SHOWS THE AREA -- which is what lets the provider verify it.
+    REQUIRE_FALSE(seat->room_authors.empty());
+    CHECK(seat->room_authors.back() == r.windows.office());
 
     // THE NUMBERS ARE `fit_region`'S AND NOBODY MULTIPLIES A METRIC. At the minimum composition
     // the pane's region is the WHOLE of the first overlay slot, and the header row is subtracted
@@ -1007,6 +915,11 @@ TEST_CASE("an unchanged prose capacity sends no second room; a changed one sends
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
+    // THE PANE HAS DRAWN, so its area holds a drawing and a room that did not change is not said
+    // again.
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
+        s.say(m, SeatRows{kHelloPane, {TextRow{"hello", gfx::role::kFill}}});
+    });
     REQUIRE(seat->rooms.size() == 1);
 
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
@@ -1030,7 +943,7 @@ TEST_CASE("an unchanged prose capacity sends no second room; a changed one sends
     REQUIRE(seat->rooms.size() == 2);
     CHECK(seat->rooms[1].rows == 6);       // unchanged: the rows are the slot's interior's
     CHECK(seat->rooms[1].columns == 72);   // moved: the columns are the room's share, inside
-    CHECK(seat->room_authors[1] == std::string(kWorkshopProvider));
+    CHECK(seat->room_authors.back() == r.windows.office());
 
     // ...and saying it again is not a second answer. The same extent resolves the same
     // capacity, and an unchanged capacity is noise a provider would have to parse.
@@ -1071,53 +984,6 @@ TEST_CASE("an unchanged prose capacity sends no second room; a changed one sends
     CHECK(seat->rooms.size() == 3);
 }
 
-TEST_CASE("a new room clears the old rows before it is sent") {
-    PaneRig r;
-    r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
-    r.pick(hello_ref());
-    const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
-
-    PaneContent said;
-    said.pane = kHelloPane;
-    said.rows.push_back(surface::SurfaceTextRow{
-        std::string(static_cast<std::size_t>(external_body_of(r.session(), kind).columns), 'w'),
-        gfx::role::kFill});
-    r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
-    REQUIRE(r.session().panes.external_pane(kind)->shown.size() == 1);
-
-    // A WIDER SURFACE. The cached row was admitted under 63 columns and 8 rows; a room of 120 gives
-    // the slot 84, so the new grant is a different shape and keeping the old rows would put
-    // material admitted under one budget into another -- the one thing this design must not do.
-    // The metric half is measured immediately below.
-    r.extent(120, 40);
-    const ExternalPane* wider = r.session().panes.external_pane(kind);
-    REQUIRE(wider != nullptr);
-    CHECK(wider->columns == 82);
-    CHECK(wider->rows == 6);
-    CHECK(wider->shown.empty());
-    CHECK_FALSE(wider->heard);
-    CHECK(wider->awaiting);
-    // AND THE PANE SAYS THE SENTENCE IT HAS ALWAYS SAID WHILE IT WAITS. `waiting` is a fact
-    // about THIS PANE -- a room has been granted and nothing valid has answered it -- and
-    // a wider window is not news about the provider.
-    CHECK(stack_text(r.shown()).find(kExternalWaiting) != std::string::npos);
-
-    // A REAL FACE, over the same widened body: the other lever, and the cache is cleared
-    // for the identical reason.
-    r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
-    r.extent(120, 40, 9, 18);
-    const ExternalPane* pane = r.session().panes.external_pane(kind);
-    REQUIRE(pane != nullptr);
-    CHECK(pane->shown.empty());
-    CHECK_FALSE(pane->heard);
-    CHECK(pane->awaiting);
-    for (const surface::SurfaceTextRow& row : pane->shown) {
-        CHECK(static_cast<std::int64_t>(row.text.size()) <= pane->columns);
-    }
-}
-
 TEST_CASE("an external grant follows the widened body through fit_region") {
     // AN EXTERNAL PANE'S ROOM IS THE ROOM'S SHARE, not the minimum composition's 48 columns: one
     // live pane through six resolutions -- three extents in a cell medium and the same three under
@@ -1128,6 +994,11 @@ TEST_CASE("an external grant follows the widened body through fit_region") {
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
+    // THE PANE HAS DRAWN, so its area holds a drawing and a room that did not change is not said
+    // again.
+    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
+        s.say(m, SeatRows{kHelloPane, {TextRow{"hello", gfx::role::kFill}}});
+    });
     REQUIRE(seat->rooms.size() == 1);
     CHECK(seat->rooms[0].rows == 6);
     CHECK(seat->rooms[0].columns == 61);
@@ -1163,11 +1034,21 @@ TEST_CASE("an external grant follows the widened body through fit_region") {
         const RegionFit fit = fit_region(
             place.region_x, place.region_y, place.region_w, place.region_h, g.advance, g.line);
         CHECK(seat->rooms.back().rows == fit.rows - kExternalHeaderRows);
-        CHECK(seat->rooms.back().columns == fit.columns);
-        // ...and the answers themselves, so a `fit_region` that changed would be named here
-        // rather than agreed with.
-        CHECK(seat->rooms.back().rows == g.rows);
-        CHECK(seat->rooms.back().columns == g.columns);
+        if (g.advance == 0) {
+            CHECK(seat->rooms.back().columns == fit.columns);
+            // ...and the answers themselves, so a `fit_region` that changed would be named here
+            // rather than agreed with.
+            CHECK(seat->rooms.back().rows == g.rows);
+            CHECK(seat->rooms.back().columns == g.columns);
+        } else {
+            // IN THE OS WINDOW THE ROOM IS THE AREA THE WINDOW GIVES, its whole width in the face's
+            // characters: the body's inset is the area's to draw in.
+            const ExternalPane* placed = r.session().panes.external_pane(kind);
+            REQUIRE(placed != nullptr);
+            CHECK(seat->rooms.back().columns == placed->placed_w / g.advance);
+            CHECK(seat->rooms.back().rows == g.rows);
+            CHECK(seat->rooms.back().columns >= g.columns);
+        }
         CHECK(seat->rooms.back().pane == std::string(kHelloPane));
         // REPEATING IT IS NOT A SECOND ANSWER.
         r.extent(g.w, g.h, g.advance, g.line);
@@ -1177,7 +1058,7 @@ TEST_CASE("an external grant follows the widened body through fit_region") {
 
 // ---- Retained content, bounded before it is kept ----------------------------------
 
-TEST_CASE("valid content is shown through a region at the exact granted body bounds") {
+TEST_CASE("a pane's rows are shown in its area at the exact body bounds") {
     PaneRig r;
     r.mount_workshop();
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
@@ -1190,13 +1071,12 @@ TEST_CASE("valid content is shown through a region at the exact granted body bou
     const ui::Rect body = external_body_rect(r.session(), kind);
     std::vector<std::string> shown = external_rows(r.shown(), body);
     REQUIRE(shown.size() == 1);
-    CHECK(shown[0] == std::string(kExternalWaiting));
+    CHECK(shown[0] == std::string(kExternalWaiting) + "Hello");
 
-    PaneContent said;
+    SeatRows said;
     said.pane = kHelloPane;
-    said.rows.push_back(surface::SurfaceTextRow{"one", gfx::role::kAccent,
-                                                gfx::role::kMuted});
-    said.rows.push_back(surface::SurfaceTextRow{"two", gfx::role::kFill});
+    said.rows.push_back(TextRow{"one", gfx::role::kAccent, gfx::role::kMuted});
+    said.rows.push_back(TextRow{"two", gfx::role::kFill});
     r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
 
     shown = external_rows(r.shown(), body);
@@ -1207,12 +1087,6 @@ TEST_CASE("valid content is shown through a region at the exact granted body bou
     CHECK(shown[0].find_first_not_of('.', 3) == std::string::npos);
     CHECK(static_cast<std::int64_t>(shown[0].size()) == body.w);
     CHECK(shown[1] == "two");
-    // THE SEMANTIC ROLE AND GROUND SURVIVE UNTRANSLATED. Workshop makes no palette
-    // decision for a provider and mints no provider theme.
-    const ExternalPane* pane = r.session().panes.external_pane(kind);
-    CHECK(pane->shown[0].role == gfx::role::kAccent);
-    CHECK(pane->shown[0].background == gfx::role::kMuted);
-    CHECK(pane->shown[1].background == gfx::role::kNone);
 
     // ONE CANVAS, AND THE HEADER IS WORKSHOP'S. A weaver can tell whose pane this is.
     const std::string stack = stack_text(r.shown());
@@ -1236,19 +1110,17 @@ TEST_CASE("an external pane's own text cannot bury the surface that recovers it"
     // survive in by luck. Every row is a distinctive byte a case can look for.
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     const ui::Rect body = external_body_rect(r.session(), kind);
-    // EVERY ROW OF ITS ROOM, and the room is what the provider was GRANTED -- the region's prose
-    // rows less Workshop's own header row, not the region's cell height. Sending `body.h` rows
-    // would exceed the grant and be refused whole.
-    const ExternalPane* granted = r.session().panes.external_pane(kind);
-    REQUIRE(granted != nullptr);
-    PaneContent loud;
+    // EVERY ROW OF ITS ROOM, and the room is what the window gave its area -- the body's rows
+    // below Workshop's own header row, not the region's cell height.
+    const std::int64_t granted = seat->room_rows(kHelloPane);
+    REQUIRE(granted > 0);
+    SeatRows loud;
     loud.pane = kHelloPane;
-    for (std::int64_t i = 0; i < granted->rows; ++i) {
-        loud.rows.push_back(surface::SurfaceTextRow{"ZZZZZZZZ", gfx::role::kFill});
+    for (std::int64_t i = 0; i < granted; ++i) {
+        loud.rows.push_back(TextRow{"ZZZZZZZZ", gfx::role::kFill});
     }
     r.drive(seat, [loud](ProviderSeat& s, loom::Mail& m) { s.say(m, loud); });
-    REQUIRE(external_rows(r.shown(), body).size() ==
-            static_cast<std::size_t>(granted->rows));
+    REQUIRE(external_rows(r.shown(), body).size() == static_cast<std::size_t>(granted));
 
     // THE CONTEXTUAL SURFACE, OVER IT. A right press on the pane opens the pane's own menu at the
     // press -- `remove` among its rows, the recovery a weaver reaches for -- and what a weaver
@@ -1278,216 +1150,12 @@ TEST_CASE("an external pane's own text cannot bury the surface that recovers it"
     CHECK(arranging.find("ZZZZZZZZ") != std::string::npos);
 
     // THE CONTROL: the provider's rows really are still being published either way.
-    CHECK(external_rows(r.shown(), body).size() ==
-          static_cast<std::size_t>(granted->rows));
+    CHECK(external_rows(r.shown(), body).size() == static_cast<std::size_t>(granted));
     r.key(input::scan::kEscape);
     CHECK(stack_text(r.shown()).find("ZZZZZZZZ") != std::string::npos);
 }
 
-TEST_CASE("content beyond the granted room is not cached, and cannot leave stale rows") {
-    PaneRig r;
-    r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
-    r.pick(hello_ref());
-    const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
-    const ui::Rect body = external_body_rect(r.session(), kind);
-    const ExternalPane* pane = r.session().panes.external_pane(kind);
-    REQUIRE(pane->rows == 6);
-    REQUIRE(pane->columns == 61);
-    // THE ROOM THIS PANE WAS ACTUALLY GRANTED, held once: every bound below is derived from it
-    // rather than from a number this case remembers, so a change to the pane's interior moves
-    // the case with it instead of leaving it asserting about a room nobody granted.
-    const std::int64_t granted_rows = pane->rows;
-    const std::int64_t granted_cols = pane->columns;
-
-    PaneContent good;
-    good.pane = kHelloPane;
-    good.rows.push_back(surface::SurfaceTextRow{"a good row", gfx::role::kFill});
-    r.drive(seat, [good](ProviderSeat& s, loom::Mail& m) { s.say(m, good); });
-    REQUIRE(external_rows(r.shown(), body).size() == 1);
-
-    // ONE ROW TOO MANY.
-    PaneContent tall;
-    tall.pane = kHelloPane;
-    const std::int64_t too_tall = granted_rows + 1;
-    for (std::int64_t i = 0; i < too_tall; ++i) {
-        tall.rows.push_back(surface::SurfaceTextRow{"r", gfx::role::kFill});
-    }
-    r.drive(seat, [tall](ProviderSeat& s, loom::Mail& m) { s.say(m, tall); });
-    pane = r.session().panes.external_pane(kind);
-    CHECK(pane->shown.empty()); // NOT ONE of them was kept
-    CHECK_FALSE(pane->heard);
-    CHECK_FALSE(pane->refusal.empty());
-    // AND IT IS A CONDITION, NOT A SENTENCE SOMEBODY SAID. The refusal names the
-    // pane and carries the judge's own reason, it is derived from the pane that holds it,
-    // and it reaches the weaver on the compact attention slot -- the notice row is for
-    // things that HAPPENED and this is something that is TRUE.
-    const std::string content_key = pane_content_key(hello_ref());
-    {
-        const std::vector<Condition> now = r.conditions();
-        const Condition* refused = condition_by_key(now, content_key);
-        REQUIRE(refused != nullptr);
-        CHECK(refused->compact.find("zengine.test.workshop-hello/hello") != std::string::npos);
-        CHECK(refused->detail.find(std::to_string(too_tall) + " rows into a pane granted " +
-                                   std::to_string(granted_rows)) != std::string::npos);
-        CHECK(refused->role == gfx::role::kAlert);
-    }
-    CHECK(r.glance().find("zengine.test.workshop-hello/hello") != std::string::npos);
-    // THE STALE ROW IS GONE FROM THE PICTURE, replaced by Workshop's own sentence.
-    std::vector<std::string> after = external_rows(r.shown(), body);
-    REQUIRE(after.size() == 1);
-    CHECK(after[0] == detail::fit(kExternalRefused, granted_cols)); // fitted, cut marked
-    CHECK(after[0].find("a good row") == std::string::npos);
-
-    // A LATER VALID UPDATE RECOVERS THE PANE -- it stayed open throughout.
-    r.drive(seat, [good](ProviderSeat& s, loom::Mail& m) { s.say(m, good); });
-    pane = r.session().panes.external_pane(kind);
-    CHECK(pane->heard);
-    CHECK(pane->refusal.empty());
-    CHECK(pane->refusal_why.empty()); // the reason went with the refusal it explained
-    CHECK(external_rows(r.shown(), body)[0] == "a good row");
-    // ...AND THE CONDITION IS GONE BECAUSE ITS TRUTH RESOLVED. Nobody retracted it
-    // and nothing was said over it: it stopped being returned.
-    CHECK(condition_by_key(r.conditions(), content_key) == nullptr);
-    CHECK(r.glance().find("zengine.test.workshop-hello/hello") == std::string::npos);
-
-    // ONE BYTE TOO WIDE, on the LAST row -- so the earlier rows would have been kept
-    // by anything that copied as it validated.
-    PaneContent wide;
-    wide.pane = kHelloPane;
-    wide.rows.push_back(surface::SurfaceTextRow{"fits", gfx::role::kFill});
-    wide.rows.push_back(surface::SurfaceTextRow{
-        std::string(static_cast<std::size_t>(granted_cols) + 1, 'x'), gfx::role::kFill});
-    r.drive(seat, [wide](ProviderSeat& s, loom::Mail& m) { s.say(m, wide); });
-    pane = r.session().panes.external_pane(kind);
-    CHECK(pane->shown.empty());
-    {
-        const std::vector<Condition> now = r.conditions();
-        const Condition* refused = condition_by_key(now, content_key);
-        REQUIRE(refused != nullptr);
-        CHECK(refused->detail.find(std::to_string(granted_cols + 1) +
-                                   " bytes into a pane granted " +
-                                   std::to_string(granted_cols) + " columns") !=
-              std::string::npos);
-    }
-    // ...and the 48-byte row on the boundary IS accepted.
-    PaneContent edge;
-    edge.pane = kHelloPane;
-    edge.rows.push_back(surface::SurfaceTextRow{
-        std::string(static_cast<std::size_t>(granted_cols), 'e'), gfx::role::kFill});
-    r.drive(seat, [edge](ProviderSeat& s, loom::Mail& m) { s.say(m, edge); });
-    CHECK(r.session().panes.external_pane(kind)->shown.size() == 1);
-}
-
-TEST_CASE("a refusal stands until ACCEPTED CONTENT replaces it, a new room included") {
-    // ⚔ THE DOOR THAT UN-SAID IT: `clear_refusal` also ran on a NEW ROOM GRANT, and a room is
-    // granted whenever the surface resizes or the weaver drags an edge -- so widening the window
-    // erased the sentence explaining a refused update, leaving `waiting`: true, and saying less.
-    // A refusal is cleared by content this host ACCEPTED and nothing else; `awaiting`, `heard`
-    // and the shown rows turn over on a room grant, being about the room.
-    PaneRig r;
-    r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
-    r.pick(hello_ref());
-    const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
-    const ExternalPane* pane = r.session().panes.external_pane(kind);
-    REQUIRE(pane != nullptr);
-    const std::int64_t granted_rows = pane->rows;
-
-    // ONE ROW TOO MANY, and the condition that follows it.
-    PaneContent tall;
-    tall.pane = kHelloPane;
-    for (std::int64_t i = 0; i <= granted_rows; ++i) {
-        tall.rows.push_back(surface::SurfaceTextRow{"r", gfx::role::kFill});
-    }
-    r.drive(seat, [tall](ProviderSeat& s, loom::Mail& m) { s.say(m, tall); });
-    const std::string content_key = pane_content_key(hello_ref());
-    REQUIRE_FALSE(r.session().panes.external_pane(kind)->refusal.empty());
-    REQUIRE(condition_by_key(r.conditions(), content_key) != nullptr);
-    const std::string why = r.session().panes.external_pane(kind)->refusal_why;
-    REQUIRE_FALSE(why.empty());
-
-    // A WIDER SURFACE: a new room goes out, and the refusal is still the last thing that
-    // happened to this pane's content.
-    r.extent(120, 40);
-    const ExternalPane* after = r.session().panes.external_pane(kind);
-    REQUIRE(after != nullptr);
-    CHECK(after->granted);
-    CHECK(after->awaiting);     // the room is out and nothing has answered it
-    CHECK_FALSE(after->heard);
-    CHECK(after->shown.empty());
-    CHECK_FALSE(after->refusal.empty());
-    CHECK(after->refusal_why == why); // the reason, unchanged: it is about the CONTENT
-    // ⚠ THE VECTOR IS HELD, NOT THE POINTER INTO IT. `conditions()` composes and returns a fresh
-    // vector; `condition_by_key` answers with a pointer INTO it, so binding only the pointer would
-    // read a temporary that died at the semicolon -- tolerated on Linux, not on MSVC. Every other
-    // call here is spent inside its own full expression for the same reason.
-    const std::vector<Condition> now = r.conditions();
-    const Condition* still = condition_by_key(now, content_key);
-    REQUIRE(still != nullptr);
-    CHECK(still->role == gfx::role::kAlert);
-
-    // ...AND THE PANE GOES ON SAYING IT, rather than showing a weaver an empty box.
-    const ui::Rect body = external_body_rect(r.session(), kind);
-    const std::vector<std::string> rows = external_rows(r.shown(), body);
-    REQUIRE_FALSE(rows.empty());
-    CHECK(rows[0].rfind(detail::fit(kExternalRefused, after->columns), 0) == 0);
-
-    // ONLY ACCEPTED CONTENT TAKES IT AWAY.
-    PaneContent good;
-    good.pane = kHelloPane;
-    good.rows.push_back(surface::SurfaceTextRow{"a good row", gfx::role::kFill});
-    r.drive(seat, [good](ProviderSeat& s, loom::Mail& m) { s.say(m, good); });
-    const ExternalPane* healed = r.session().panes.external_pane(kind);
-    CHECK(healed->heard);
-    CHECK(healed->refusal.empty());
-    CHECK(healed->refusal_why.empty());
-    CHECK(condition_by_key(r.conditions(), content_key) == nullptr);
-
-    // AND A RE-OFFER IS NOT ACCEPTED CONTENT EITHER. A provider correcting its own summary
-    // returns the pane to waiting; if its last content was refused, that is still what
-    // happened to it, and the sentence stays until something valid replaces it.
-    r.drive(seat, [tall](ProviderSeat& s, loom::Mail& m) { s.say(m, tall); });
-    REQUIRE_FALSE(r.session().panes.external_pane(kind)->refusal.empty());
-    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
-        PaneOffered again = good_offer();
-        again.summary = "a bounded external greeting, corrected";
-        s.offer(m, again);
-    });
-    CHECK_FALSE(r.session().panes.external_pane(kind)->refusal.empty());
-    CHECK(condition_by_key(r.conditions(), content_key) != nullptr);
-}
-
-TEST_CASE("a row carrying a byte a canvas cannot draw is refused whole") {
-    PaneRig r;
-    r.mount_workshop();
-    ProviderSeat* seat = r.mount_provider(kHelloOffice);
-    r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
-    r.pick(hello_ref());
-    const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
-
-    // `SurfaceTextRow`'S EXISTING PLAIN-ASCII CONTRACT, enforced at the one boundary
-    // where a publisher this application did not write meets a canvas. The cell
-    // projection is one cell per BYTE, so a multi-byte sequence is split there and a
-    // control byte would move a terminal's cursor out of the row it was given.
-    for (const std::string& bad : {std::string("a\033[2Jb"), std::string("tab\there"),
-                                   std::string("caf\xC3\xA9"), std::string("del\x7F")}) {
-        PaneContent said;
-        said.pane = kHelloPane;
-        said.rows.push_back(surface::SurfaceTextRow{bad, gfx::role::kFill});
-        r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
-        INFO("row bytes: ", bad.size());
-        CHECK(r.session().panes.external_pane(kind)->shown.empty());
-        const std::vector<Condition> now = r.conditions();
-        const Condition* refused = condition_by_key(now, pane_content_key(hello_ref()));
-        REQUIRE(refused != nullptr);
-        CHECK(refused->detail.find("a byte a canvas cannot draw") != std::string::npos);
-    }
-}
-
-TEST_CASE("content for a closed or never-offered pane does nothing at all") {
+TEST_CASE("rows for a closed or never-offered pane do nothing at all") {
     PaneRig r;
     r.mount_workshop();
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
@@ -1495,19 +1163,19 @@ TEST_CASE("content for a closed or never-offered pane does nothing at all") {
     const std::size_t catalog_before = r.session().panes.runtime.entries.size();
 
     // THE PANE IS IN THE CATALOG AND NOT OPEN. A provider cannot make a pane appear
-    // by talking about it: discovery and presentation are two doors.
-    PaneContent said;
+    // by drawing it: discovery and presentation are two doors.
+    SeatRows said;
     said.pane = kHelloPane;
-    said.rows.push_back(surface::SurfaceTextRow{"unasked for", gfx::role::kFill});
+    said.rows.push_back(TextRow{"unasked for", gfx::role::kFill});
     r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
     CHECK(r.session().panes.open.size() == 1); // the Layouts pane, and nothing else
     CHECK(r.session().panes.external.empty());
     CHECK(r.session().panes.runtime.entries.size() == catalog_before);
 
     // A PANE KEY THIS OFFICE NEVER OFFERED CREATES NO CATALOG ROW EITHER.
-    PaneContent unknown;
+    SeatRows unknown;
     unknown.pane = "never-offered";
-    unknown.rows.push_back(surface::SurfaceTextRow{"nor this", gfx::role::kFill});
+    unknown.rows.push_back(TextRow{"nor this", gfx::role::kFill});
     r.drive(seat, [unknown](ProviderSeat& s, loom::Mail& m) { s.say(m, unknown); });
     CHECK(r.session().panes.runtime.entries.size() == catalog_before);
     CHECK(r.session().panes.external.empty());
@@ -1561,11 +1229,11 @@ cells_covered(bounds_of(r.session().panes, r.session().setup.active, kind, sc).r
     CHECK(r.session().notice != "nothing there");
 }
 
-TEST_CASE("a read-only pane that ignores presses is unchanged when Workshop sends them") {
-    // THE HELLO FIXTURE ACCEPTS NO `PanePressed` AT ALL -- it is the pane protocol's witness and
-    // was deliberately not widened. A pane that never asked for input goes on receiving none: the
-    // shape is undeliverable to a weave that does not accept it, so Workshop resolving and sending
-    // one changes nothing about what this provider does, says, or shows.
+TEST_CASE("a read-only pane that ignores presses is unchanged when the window lands them") {
+    // THE HELLO FIXTURE ACCEPTS NO PRESS AT ALL -- it is the pane protocol's witness and was
+    // deliberately not widened. A pane that never asked for input goes on receiving none: the
+    // shape is undeliverable to a weave that does not accept it, so the window landing a press in
+    // its area changes nothing about what this provider does, says, or shows.
     PaneRig r;
     r.mount_workshop();
     (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
@@ -1584,23 +1252,23 @@ TEST_CASE("a read-only pane that ignores presses is unchanged when Workshop send
 
 // ---- Lifecycle, and the exact limit of what silence proves --------------------------
 
-TEST_CASE("closing an external pane destroys only Workshop's copy") {
+TEST_CASE("closing an external pane ends only its presentation") {
     PaneRig r;
     r.mount_workshop();
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
-    PaneContent said;
+    SeatRows said;
     said.pane = kHelloPane;
-    said.rows.push_back(surface::SurfaceTextRow{"remembered", gfx::role::kFill});
+    said.rows.push_back(TextRow{"remembered", gfx::role::kFill});
     r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
-    REQUIRE(r.session().panes.external_pane(kind)->heard);
+    REQUIRE_FALSE(held_row_texts(*r.session().panes.external_pane(kind)).empty());
     const std::int64_t said_count = seat->said;
 
     r.pick(hello_ref()); // the close door, as the Pane Manager spends it
     CHECK_FALSE(r.session().panes.has(kind));
-    CHECK(r.session().panes.external_pane(kind) == nullptr); // room, cache, heard, refusal
+    CHECK(r.session().panes.external_pane(kind) == nullptr);
 
     // THE PROVIDER IS UNTOUCHED: no unload, no lifecycle operation, no retraction of
     // the catalog row, and its own semantic state outlives the presentation entirely.
@@ -1608,13 +1276,13 @@ TEST_CASE("closing an external pane destroys only Workshop's copy") {
     CHECK(r.session().panes.runtime.of_kind(kind) != nullptr);
     CHECK(resolve_pane(hello_ref(), r.session().panes).has_value());
 
-    // REOPENING ASKS AGAIN AND STARTS WAITING -- it does not resurrect the old copy.
+    // REOPENING PLACES THE AREA AGAIN, and the window gives it a room the provider draws in.
     const std::size_t rooms_before = seat->rooms.size();
     r.pick(hello_ref());
     REQUIRE(r.session().panes.external_pane(kind) != nullptr);
-    CHECK_FALSE(r.session().panes.external_pane(kind)->heard);
-    CHECK(r.session().panes.external_pane(kind)->awaiting);
     CHECK(seat->rooms.size() == rooms_before + 1);
+    CHECK(held_row_texts(*r.session().panes.external_pane(kind)) ==
+          std::vector<std::string>{"remembered"});
 }
 
 TEST_CASE("a valid re-offer refreshes the descriptor and the open pane, without duplicating") {
@@ -1624,12 +1292,11 @@ TEST_CASE("a valid re-offer refreshes the descriptor and the open pane, without 
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
-    PaneContent said;
+    SeatRows said;
     said.pane = kHelloPane;
-    said.rows.push_back(surface::SurfaceTextRow{"the old answer", gfx::role::kFill});
+    said.rows.push_back(TextRow{"the old answer", gfx::role::kFill});
     r.drive(seat, [said](ProviderSeat& s, loom::Mail& m) { s.say(m, said); });
-    REQUIRE(r.session().panes.external_pane(kind)->heard);
-    const std::size_t rooms_before = seat->rooms.size();
+    REQUIRE_FALSE(held_row_texts(*r.session().panes.external_pane(kind)).empty());
 
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
         s.offer(m, PaneOffered{"hello", "Hello", "a corrected line"});
@@ -1639,14 +1306,6 @@ TEST_CASE("a valid re-offer refreshes the descriptor and the open pane, without 
     CHECK(r.session().panes.runtime.entries[0].kind == kind);
     CHECK(r.session().panes.runtime.entries[0].summary == "a corrected line");
     CHECK(r.session().panes.has(kind));
-    // THE OLD PRESENTATION COPY IS CLEARED AND THE ROOM IS GRANTED AGAIN.
-    const ExternalPane* pane = r.session().panes.external_pane(kind);
-    CHECK(pane->shown.empty());
-    CHECK_FALSE(pane->heard);
-    CHECK(pane->awaiting);
-    CHECK(seat->rooms.size() == rooms_before + 1);
-    const ui::Rect body = external_body_rect(r.session(), kind);
-    CHECK(external_rows(r.shown(), body)[0] == std::string(kExternalWaiting));
 }
 
 TEST_CASE("silence is waiting, and Workshop never says unavailable") {
@@ -1665,7 +1324,7 @@ TEST_CASE("silence is waiting, and Workshop never says unavailable") {
         r.key(input::scan::kEscape);
     }
     const ui::Rect body = external_body_rect(r.session(), kind);
-    CHECK(external_rows(r.shown(), body)[0] == std::string(kExternalWaiting));
+    CHECK(external_rows(r.shown(), body)[0] == std::string(kExternalWaiting) + "Hello");
     CHECK(r.session().panes.runtime.entries.size() == 1);
     CHECK(has_pane(r.session().setup.active, hello_ref()));
     CHECK(r.session().panes.has(kind));
@@ -1729,159 +1388,6 @@ TEST_CASE("the built-in panes behave exactly as they did, with a provider in the
     CHECK(placement_of(pane_kind::kLayouts) == placement::kTopBand);
     CHECK_FALSE(resolve_pane(PaneRef{"nobody", "nothing"}, r.session().panes)
                     .has_value());
-}
-
-// ============================================================================
-// THE CARET: a pane's second sentence to the host, and what Workshop refuses. `PaneCaret` is
-// published beside the rows by a pane that has one -- not a field on `PaneContent`, since most
-// panes have none. Owned here: the lattice it is judged in, the refusals and the merge; where the
-// Terminal pane puts its caret is the Terminal's suite.
-// ============================================================================
-
-namespace {
-
-/// A RIG WITH ONE OFFERED PANE OPEN AND TWO ROWS IN IT, which is all four caret cases need.
-struct CaretRig {
-    PaneRig r;
-    ProviderSeat* seat = nullptr;
-    std::int64_t kind = 0;
-
-    CaretRig() {
-        r.mount_workshop();
-        seat = r.mount_provider(kHelloOffice);
-        r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
-        r.extent(120, 44);
-        REQUIRE_FALSE(r.session().panes.runtime.entries.empty());
-        kind = r.session().panes.runtime.entries.front().kind;
-        r.pick(PaneRef{kHelloOffice, "hello"});
-        REQUIRE(r.session().panes.has(kind));
-        two_rows();
-    }
-
-    void two_rows() {
-        r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
-            s.say(m, PaneContent{"hello", {surface::SurfaceTextRow{"alpha"},
-                                           surface::SurfaceTextRow{"beta"}}});
-        });
-    }
-
-    void say_caret(const PaneCaret& c) {
-        r.drive(seat, [c](ProviderSeat& s, loom::Mail& m) { s.caret(m, c); });
-    }
-
-    const ExternalPane* pane() {
-        const ExternalPane* one = r.session().panes.external_pane(kind);
-        REQUIRE(one != nullptr);
-        return one;
-    }
-};
-
-} // namespace
-
-TEST_CASE("a caret is judged against the CONTENT, and merged with the header's offset") {
-    CaretRig t;
-    t.say_caret(PaneCaret{"hello", 1, 3});
-    CHECK(t.pane()->caret_row == 1);
-    CHECK(t.pane()->caret_col == 3);
-    // ...AND ON THE CANVAS IT IS THE PANE'S ROW PLUS WORKSHOP'S OWN HEADER, which is exactly
-    // the offset `external_press_row` subtracts to locate a press. One measurer, both ways.
-    const ui::Rect body = external_body_rect(t.r.session(), t.kind);
-    // NAMED, NOT BOUND INTO A TEMPORARY. `all_texts` answers BY VALUE, so a pointer into the
-    // range of a `for (... : all_texts(...))` dies at the semicolon -- the exact defect the
-    // sanitizer lane exists for.
-    const std::vector<surface::SurfaceTextRegion> texts = all_texts(paint(t.r.session()));
-    const surface::SurfaceTextRegion* region = nullptr;
-    for (const surface::SurfaceTextRegion& one : texts) {
-        if (covered_cells(one).x == body.x && covered_cells(one).y == body.y) {
-            region = &one;
-        }
-    }
-    REQUIRE(region != nullptr);
-    const std::int64_t header =
-        external_title_rows(t.r.session().panes, t.kind, t.r.session().pane_titles);
-    CHECK(region->caret_row == 1 + header);
-    CHECK(region->caret_col == 3);
-}
-
-TEST_CASE("a caret naming a row the content does not have is refused WHOLE") {
-    // ⚠ THE REFUSAL LEAVES THE PANE WITH NO CARET, NOT WITH ITS PREVIOUS ONE — and that is
-    // the opposite of `PaneActions`' rule on purpose. A stale set of rows is still a set of
-    // rows; a stale caret is a POSITION, and a position that is wrong is read as a fact
-    // about where the weaver is typing.
-    CaretRig t;
-    t.say_caret(PaneCaret{"hello", 1, 2});
-    REQUIRE(t.pane()->caret_row == 1);
-
-    const auto refused = [&t](const PaneCaret& c) {
-        t.say_caret(c);
-        const bool gone = t.pane()->caret_row == surface::kNoCaret;
-        t.say_caret(PaneCaret{"hello", 1, 2}); // stand the good one back up
-        return gone;
-    };
-    CHECK(refused(PaneCaret{"hello", 2, 0}));  // a row past the last one shown
-    CHECK(refused(PaneCaret{"hello", -2, 0})); // negative, and not `kNoCaret`
-    CHECK(refused(PaneCaret{"hello", 0, 6}));  // a column past the row's own text
-    // ONE PAST THE LAST BYTE IS LEGAL: that is where an insertion point sits at a line's end.
-    CHECK_FALSE(refused(PaneCaret{"hello", 0, 5}));
-    // HALF A RANGE IS NOT A RANGE, and a backwards one is not either.
-    CHECK(refused(PaneCaret{"hello", 0, 0, 0, 0, surface::kNoSelection, 0}));
-    CHECK(refused(PaneCaret{"hello", 0, 0, 0, 3, 0, 1}));
-    CHECK(refused(PaneCaret{"hello", 0, 0, 0, 0, 5, 0})); // a selected row that is not shown
-    // AND THE ROWS SURVIVE A REFUSED CARET: they were judged on their own and are still true.
-    CHECK(t.pane()->shown.size() == 2);
-    CHECK(t.pane()->refusal.empty());
-
-    // A REFUSAL IS SAID, in `judge_caret`'s own words after the pane's name and office...
-    t.say_caret(PaneCaret{"hello", 7, 0});
-    CHECK(t.r.last_notice() ==
-          std::string("Hello @") + kHelloOffice + ": put a caret on row 7 of a pane showing 2 rows");
-    CHECK(t.r.session().notice_is_bad);
-    t.say_caret(PaneCaret{"hello", 0, 0, 0, 3, 0, 1});
-    CHECK(t.r.last_notice() == std::string("Hello @") + kHelloOffice +
-                                   ": selected backwards -- the end precedes the begin");
-    // ...ONCE: the same caret again, as a pane answering a repaint would say it, paints nothing.
-    const std::size_t painted = t.r.pictures;
-    t.say_caret(PaneCaret{"hello", 0, 0, 0, 3, 0, 1});
-    CHECK(t.r.pictures == painted);
-    CHECK(t.pane()->caret_row == surface::kNoCaret);
-}
-
-TEST_CASE("`kNoCaret` is a sentence, and shorter content drops a caret it outgrew") {
-    CaretRig t;
-    t.say_caret(PaneCaret{"hello", 1, 1, 1, 0, 1, 3});
-    REQUIRE(t.pane()->sel_begin_row == 1);
-
-    // "I HAVE NONE" IS ORDINARY SPEECH, not a refusal — it is what a pane says when its
-    // draft closes, and it un-says the selection with the caret.
-    t.say_caret(PaneCaret{"hello", surface::kNoCaret});
-    CHECK(t.pane()->caret_row == surface::kNoCaret);
-    CHECK(t.pane()->sel_begin_row == surface::kNoSelection);
-
-    // ⚠ CONTENT AND CARET ARE TWO MESSAGES, so a shorter answer can arrive with a caret
-    // admitted against the previous rows still standing. It is dropped there rather than
-    // drawn at a place with no text under it; the pane's own next caret puts it back.
-    t.say_caret(PaneCaret{"hello", 1, 2});
-    REQUIRE(t.pane()->caret_row == 1);
-    t.r.drive(t.seat, [](ProviderSeat& s, loom::Mail& m) {
-        s.say(m, PaneContent{"hello", {surface::SurfaceTextRow{"alpha"}}});
-    });
-    CHECK(t.pane()->caret_row == surface::kNoCaret);
-    CHECK(t.pane()->shown.size() == 1);
-}
-
-TEST_CASE("a caret spoken personally, or about somebody else's pane, is nothing") {
-    // THE OFFER'S OWN AUTHORSHIP RULE, one shape over: holding an office is not speaking as
-    // it (MSG-07), and an office may not place a caret in a pane it never offered.
-    CaretRig t;
-    t.r.drive(t.seat, [](ProviderSeat& s, loom::Mail& m) {
-        s.caret_personally(m, PaneCaret{"hello", 0, 1});
-    });
-    CHECK(t.pane()->caret_row == surface::kNoCaret);
-    t.say_caret(PaneCaret{"a-pane-nobody-offered", 0, 1});
-    CHECK(t.pane()->caret_row == surface::kNoCaret);
-    // ...and the ordinary spelling still works, so the two negatives above are measurements.
-    t.say_caret(PaneCaret{"hello", 0, 1});
-    CHECK(t.pane()->caret_row == 0);
 }
 
 TEST_CASE("the off-screen sentence fits a hundred-column terminal whole, both ways back included") {

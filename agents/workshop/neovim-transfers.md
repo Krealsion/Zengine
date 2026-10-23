@@ -68,7 +68,7 @@ WHY — `agents/decisions/a-held-change-is-owned-until-answered.md`
 
 ### WL-NVIM-10
 `editor/neovim-editor/pane.cpp` carries_selection declare
-`editor/neovim-editor/transfers.hpp` on(PaneCanvasPointer) press_at dragged right_press
+`editor/neovim-editor/transfers.hpp` on_window press_at dragged right_press
 carry_snapshot snapshot_now
 `editor/neovim/lua.hpp` kSelection
 `tests/test_workshop_neovim_transfers.cpp` "a Visual selection dragged from its highlight lands in a

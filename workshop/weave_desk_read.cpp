@@ -3,9 +3,9 @@
 
 // `WorkshopWeave`'s desk read: the desk by its own numbers and words, each presented pane's words
 // and parts where the weaver sees them, paged under the stamp a reading continues, the point a
-// press on one character lands on, and the notice that the desk moved. A pane drawing in an area
-// of its own is read from the window (`graphics::AreaShowAsked`), its asker answered once the
-// window has; any other from what Workshop draws of it. The arithmetic is desk_read.hpp's.
+// press on one character lands on, and the notice that the desk moved. A pane is read from the
+// window that shows its area (`graphics::AreaShowAsked`), its asker answered once the window has.
+// The arithmetic is desk_read.hpp's.
 // Workshop law: agents/workshop/desk-read.md (+3 registers; agents/workshop.md routes)
 
 #include "weave.hpp"
@@ -13,8 +13,6 @@
 #include "desk_read.hpp"
 #include "fingerprint.hpp"
 #include "reply_bytes.hpp"
-#include "screen_canvas.hpp"
-#include "pane_canvas_rows.hpp"
 
 #include <zen/serialize.hpp>
 
@@ -93,120 +91,6 @@ std::int64_t placed_fingerprint(std::int64_t shows, const DeskRect& at) {
 }
 
 } // namespace
-
-// ---- A PANE WORKSHOP DRAWS: what it sent, where the medium draws it ------------------------------
-
-// THE WORDS A BODY WORKSHOP DRAWS SHOWS, word by word: a text pane's rows under its header, a
-// canvas pane's labels and then its text runs, each where the medium draws it. A word the body
-// does not draw is not said, so a word's number is its place in this list and nowhere else.
-// `glyphs` takes where each word's glyphs stand, which a point inside it is measured by. A picture
-// that takes no press says each word with its place and no point.
-// WL-GEO-13 -- agents/workshop/geometry.md
-std::vector<PaneWord> WorkshopWeave::visible_words(const VisibleBody& visible,
-                                                   std::vector<WordGlyphs>* glyphs) const {
-    const Screen sc = screen_of(session_);
-    const std::int64_t space = input_space_of(sc);
-    std::vector<PaneWord> out;
-    const auto keep = [&](const GlyphGrid& grid, std::string text, std::int64_t row) {
-        PaneWord w = word_on(grid, row, 0, std::move(text), space);
-        w.word = static_cast<std::int64_t>(out.size());
-        out.push_back(std::move(w));
-        if (glyphs != nullptr) glyphs->push_back(WordGlyphs{grid.advance});
-    };
-    const auto* content = visible.content;
-    if (!visible.canvas) {
-        const auto& body = visible.body;
-        const GlyphGrid grid = glyph_grid(body.fit, session_.console_rows_above);
-        for (std::int64_t row = 0;
-             row < body.rows && row < static_cast<std::int64_t>(content->shown.size()); ++row) {
-            std::string text = without_trailing_blanks(
-                content->shown[static_cast<std::size_t>(row)].text.substr(
-                    0, static_cast<std::size_t>(body.columns)));
-            keep(grid, std::move(text), row + body.header_rows);
-        }
-        return out;
-    }
-    const PixelRect& body = visible.canvas_body;
-    const auto& picture = content->canvas.content;
-    for (const PaneCanvasLabel& label : picture.labels) {
-        std::string text;
-        std::int64_t x = 0;
-        if (!drawn_label(label, body, text, x)) continue;
-        const GlyphGrid grid{graphics::add_cells(body.x, x), graphics::add_cells(body.y, label.y),
-                             kPaneCanvasUnit, kPaneCanvasUnit, session_.console_rows_above};
-        keep(grid, std::move(text), 0);
-    }
-    const PaneCanvasRoom room{picture.pane, picture.grant, body.w, body.h, content->canvas.grain,
-                              content->canvas.graphical, content->canvas.text_advance_px,
-                              content->canvas.text_line_px};
-    for (const v2::PaneCanvasText& run : picture.texts) {
-        const auto placed = clip_canvas_run(run, {0, 0, body.w, body.h}, room);
-        if (!placed.visible()) continue;
-        const surface::SurfaceTextRegion region = canvas_text_region(placed, body.x, body.y);
-        const RegionFit fit = fit_region(region.x, region.y, region.w, region.h,
-                                         sc.text_advance_px, sc.text_line_px);
-        // A run's word is its characters, without the blanks after the last, as a row's is: a
-        // run may be blank to the row's end to carry a ground there, as a row is padded.
-        std::string text = without_trailing_blanks(placed.text.text);
-        if (text.empty() && placed.text.caret_col < 0) continue;
-        keep(glyph_grid(fit, session_.console_rows_above), std::move(text), 0);
-    }
-    if (!canvas_takes_press(visible.kind)) {
-        for (PaneWord& w : out) no_point(w);
-    }
-    return out;
-}
-
-// THE PARTS A BODY WORKSHOP DRAWS NAMES, each where the medium draws it, as the pane named it: a
-// part the body does not show is not said, and neither is a place the pane names nothing. A
-// picture that takes no press says each part with its place and no point.
-// WL-HAND-06 -- agents/workshop/pane-parts.md
-std::vector<PanePart> WorkshopWeave::visible_parts(const VisibleBody& visible,
-                                                   const std::vector<PaneWord>& words) const {
-    const std::int64_t space = input_space_of(screen_of(session_));
-    std::vector<PanePart> out;
-    const auto* content = visible.content;
-    if (visible.canvas) {
-        const std::vector<v2::PaneCanvasPart>& parts = content->canvas.content.parts;
-        const std::int64_t unit = space == input::space::kPixels ? 1 : graphics::kCellPx;
-        std::vector<UnitBox> boxes;
-        boxes.reserve(parts.size());
-        for (const v2::PaneCanvasPart& part : parts) {
-            boxes.push_back(units_of(visible.canvas_body, part, unit));
-        }
-        const std::vector<std::optional<UnitPoint>> points = own_points(boxes);
-        const bool pressed = canvas_takes_press(visible.kind);
-        for (std::size_t i = 0; i < parts.size(); ++i) {
-            PanePart drawn;
-            if (!parts[i].name.empty() && canvas_part_on(visible.canvas_body, parts[i], boxes[i],
-                                                         points[i], words, space,
-                                                         session_.console_rows_above, drawn)) {
-                if (!pressed) no_point(drawn);
-                out.push_back(std::move(drawn));
-            }
-        }
-        return out;
-    }
-    const auto& body = visible.body;
-    const GlyphGrid grid = glyph_grid(body.fit, session_.console_rows_above);
-    const std::map<std::int64_t, std::vector<std::size_t>> owners = row_owners(content->parts);
-    for (std::size_t i = 0; i < content->parts.size(); ++i) {
-        const v2::PaneRowPart& part = content->parts[i];
-        if (part.name.empty() || part.row >= body.rows ||
-            part.row >= static_cast<std::int64_t>(content->shown.size())) {
-            continue;
-        }
-        // The row as `visible_words` reads it: cut to the body's columns.
-        const std::string shown = content->shown[static_cast<std::size_t>(part.row)].text.substr(
-            0, static_cast<std::size_t>(body.columns));
-        PanePart drawn;
-        if (row_part_on(grid, part.row + body.header_rows, shown, body.columns,
-                        content->parts, owners.at(part.row), i, space, drawn)) {
-            out.push_back(std::move(drawn));
-        }
-    }
-    return out;
-}
 
 // ---- THE DESK, AS WORKSHOP HOLDS IT ---------------------------------------------------------------
 
@@ -327,8 +211,7 @@ std::string WorkshopWeave::drawn_area(const PaneRef& ref) const {
 }
 
 // WHAT IS DRAWN OVER A PRESENTED PANE: arranging over all of it, an open menu, each pane in front
-// of it, and the band where the pane stands outside the room. A canvas pane's refused mark is its
-// own reading's to add.
+// of it, and the band where the pane stands outside the room.
 // WL-READ-05 -- agents/workshop/desk-read.md
 std::vector<WorkshopWeave::Cover> WorkshopWeave::covers_of(std::int64_t kind,
                                                            const PixelRect& rect) const {
@@ -366,8 +249,8 @@ std::vector<WorkshopWeave::Cover> WorkshopWeave::covers_of(std::int64_t kind,
 
 // ONE PANE'S WHOLE READING: its stamp first, then, while what it shows is still in flight, that and
 // no word; else its words and parts, a covered one not said, the cover named, and none given a
-// point while a menu is open. Read from the window for a pane that draws in an area of its own,
-// from what Workshop draws for one that draws in none, and from Workshop's own drawing for Layouts.
+// point while a menu is open. Read from the window that shows its area, and from Workshop's own
+// drawing for Layouts; a pane no window shows is no reading, and says why.
 // WL-READ-02 -- agents/workshop/desk-read.md; WL-READ-07 -- agents/workshop/desk-read.md
 std::string WorkshopWeave::pane_reading(const std::string& provider, const std::string& pane_key,
                                         PaneView& out) const {
@@ -379,7 +262,7 @@ std::string WorkshopWeave::pane_reading(const std::string& provider, const std::
         return "pane view unavailable: closed or unknown";
     }
     if (placed_kinds_.count(pane->kind) != 0) return area_reading(*pane, out);
-    return drawn_reading(*pane, out);
+    return unshown_reading(*pane);
 }
 
 // A PANE THAT DRAWS IN AN AREA OF ITS OWN, AS THE WINDOW LAST SAID IT SHOWS: the window's words
@@ -417,7 +300,9 @@ std::string WorkshopWeave::area_reading(const RuntimePane& row, PaneView& out) c
     std::vector<PanePart> parts;
     shown_words_and_parts(shown, rect, words, parts);
     cover_reading(covers_of(row.kind, rect), rect, words, parts, out.covered);
-    if (session_.presented.open || session_.context.open) without_points(words, parts);
+    // NO POINT WHILE A MENU IS OPEN, nor while nobody holds the office a press there is told.
+    const bool unheld = host_->role_holder && !host_->role_holder(row.provider).valid();
+    if (session_.presented.open || session_.context.open || unheld) without_points(words, parts);
     out.total = static_cast<std::int64_t>(words.size() + parts.size());
     out.words = std::move(words);
     out.parts = std::move(parts);
@@ -492,80 +377,18 @@ void WorkshopWeave::presented_menu_reading(DeskMenu& menu) const {
     }
 }
 
-// A PANE THAT DRAWS IN NO WINDOW, AS WORKSHOP DRAWS IT: its words and parts from what it sent,
-// where the medium draws them, its stamp's fingerprint what it sent for the picture aimed at, and in
-// flight while what is shown is not yet what the stamp names.
+// A PANE NO WINDOW SHOWS: the frame's own words for why, where its office draws in no window,
+// else that no window shows it.
 // WL-READ-02 -- agents/workshop/desk-read.md
-std::string WorkshopWeave::drawn_reading(const RuntimePane& pane, PaneView& out) const {
-    const auto* content = session_.panes.external_pane(pane.kind);
-    if (content == nullptr || (!content->heard && !content->awaiting)) {
-        return "pane view unavailable: the pane has drawn nothing yet";
+std::string WorkshopWeave::unshown_reading(const RuntimePane& row) const {
+    const ExternalPane* pane = session_.panes.external_pane(row.kind);
+    if (pane != nullptr && pane->held && !pane->in_window) {
+        return "pane view unavailable: " + external_body_words(*pane, row.name);
     }
-    const bool canvas = content->canvas.heard;
-    const std::int64_t shows = stamp_fingerprint(*content);
-    const Screen sc = screen_of(session_);
-    const auto bounds = bounds_of(session_.panes, session_.setup.active, pane.kind, sc);
-    if (!bounds.open) return "pane view unavailable: the pane is not presented";
-    const std::int64_t titles = external_title_rows(session_.panes, pane.kind, session_.pane_titles);
-    VisibleBody visible;
-    visible.kind = pane.kind;
-    visible.content = content;
-    visible.body = external_body_place(bounds.rect, sc, titles);
-    visible.canvas = canvas;
-    if (!visible.body.present) return "pane has no visible body";
-    const bool graphical = visible.body.fit.graphical();
-    out.advance = graphical ? visible.body.fit.advance_px : graphics::kCellPx;
-    out.line = graphical ? visible.body.fit.line_px : graphics::kCellPx;
-    // WHERE IT SHOWS: the body's rows under its header, or its canvas picture, as below.
-    const std::int64_t header = visible.body.header_rows * out.line;
-    out.area = DeskRect{visible.body.region_x, visible.body.region_y + header,
-                        visible.body.region_w, visible.body.region_h - header};
-    // A canvas picture's place is its room's, which its grant names, wherever the body stands.
-    out.stamp.fingerprint = placed_fingerprint(
-        shows, canvas ? DeskRect{content->canvas.x, content->canvas.y, content->canvas.width,
-                                 content->canvas.height}
-                      : out.area);
-    // A REFUSED UPDATE IS SAID IN WORDS, as the pane paints it, where nothing of it stands or the
-    // picture refused is the one a new room asked for; a refusal from before the new room leaves
-    // the picture it carries as a preview, a picture in flight.
-    if (!content->heard && !content->refusal.empty() &&
-        (!content->canvas.preview || content->refused_grant == content->canvas.grant)) {
-        return "pane view unavailable: Workshop refused the pane's last update and kept none of it";
-    }
-    // A ROOM OUT THAT NO HOLDER CAN ANSWER is not in flight: the pane waits for its provider.
-    if (!content->heard && host_->role_holder && !host_->role_holder(pane.provider).valid()) {
+    if (pane != nullptr && !pane->held) {
         return "pane view unavailable: waiting for the provider -- no participant holds its office";
     }
-    // IN FLIGHT WHILE WHAT IS SHOWN IS NOT YET WHAT THE STAMP NAMES: a picture sent again unchanged
-    // under its next number is read at once.
-    if (content->awaiting || content->canvas.preview ||
-        picture_fingerprint(*content) != content->stamp.aimed_fingerprint) {
-        out.in_flight = true;
-        return {};
-    }
-    std::vector<Cover> covers = covers_of(pane.kind, bounds.rect);
-    if (canvas) {
-        const auto& c = content->canvas;
-        visible.canvas_body = shown_canvas_place(c, bounds.rect, sc, titles);
-        if (visible.canvas_body.empty() || visible.canvas_body.x != c.x ||
-            visible.canvas_body.y != c.y || visible.canvas_body.w != c.width ||
-            visible.canvas_body.h != c.height) {
-            out.in_flight = true; // a new room, its picture not drawn yet
-            return {};
-        }
-        out.area = desk_rect(visible.canvas_body);
-        const PixelRect mark =
-            refused_mark_cover(*content, visible.canvas_body, sc, titles > 0 && !c.title_waits);
-        if (!mark.empty()) covers.push_back(Cover{"refused mark", mark});
-    }
-    std::vector<PaneWord> words = visible_words(visible);
-    std::vector<PanePart> parts = visible_parts(visible, words);
-    cover_reading(covers, bounds.rect, words, parts, out.covered);
-    if (session_.presented.open || session_.context.open) without_points(words, parts);
-    out.total = static_cast<std::int64_t>(words.size() + parts.size());
-    out.words = std::move(words);
-    out.parts = std::move(parts);
-    return {};
+    return "pane view unavailable: the pane is not placed in a window";
 }
 
 // LAYOUTS, READ AS IT IS PAINTED: its rows as words, and its tabs and `+` as parts Workshop names
@@ -596,12 +419,12 @@ std::string WorkshopWeave::layouts_reading(PaneView& out) const {
     if (!session_.setup.naming.open && !region.rows.empty()) {
         const BandStatus status = band_status(session_, place);
         const std::vector<std::string> names = layout_part_names(session_.setup);
-        std::vector<PaneRowPart> named;
+        std::vector<RowPart> named;
         for (const LayoutTab& tab : status.tabs) {
-            if (tab.at < names.size()) named.push_back(PaneRowPart{names[tab.at], 0, tab.column, tab.columns});
+            if (tab.at < names.size()) named.push_back(RowPart{names[tab.at], 0, tab.column, tab.columns});
         }
         if (status.create_columns > 0) {
-            named.push_back(PaneRowPart{"layout:+", 0, status.create_column, status.create_columns});
+            named.push_back(RowPart{"layout:+", 0, status.create_column, status.create_columns});
         }
         const std::map<std::int64_t, std::vector<std::size_t>> owners = row_owners(named);
         for (std::size_t i = 0; i < named.size(); ++i) {

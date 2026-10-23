@@ -15,7 +15,7 @@
 
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/inspection_seam_vocabulary.hpp"
-#include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_parts.hpp"
@@ -98,18 +98,15 @@ public:
     // ---- Its rooms ----------------------------------------------------------------------------
 
     /// THE PROSE ROOM WORKSHOP GRANTED IT, kept for a host that grants no canvas.
-    void grant_prose(const ws::PaneRoom& room) { (void)launcher_canvas_.prose_room(room); }
+
 
     /// ...AND ITS OWN CANVAS, whose lattice is the room it composes for while it holds one.
-    void grant_canvas(const ws::PaneCanvasRoom& room) { launcher_canvas_.canvas_room(room); }
+
 
     const PaneCanvas& canvas() const { return launcher_canvas_; }
     /// ...for the office to hand the room a graphics window gives the pane.
     PaneCanvas& canvas() { return launcher_canvas_; }
 
-    /// The rows and columns it composes for: its canvas's lattice while it holds one, its prose
-    /// room otherwise.
-    void fit_room() { launcher_canvas_.fit(); }
 
     // ---- What the host and Info say to it -----------------------------------------------------
 
@@ -198,11 +195,6 @@ public:
     /// unmarked name) only moves the marker, so a press never means two things at once.
     void launcher_press(const PanePress& press, DesktopState& state, const Declared& pane_rows_decl,
                         const Declared& app, loom::Mail& mail, std::uint64_t& launches) {
-        if (!press.current) {
-            notice_ = kMovedSentence;
-            say(state, pane_rows_decl, app, mail);
-            return;
-        }
         const LauncherMeaning* m = map_.at(press.row, press.column);
         if (m == nullptr || m->index >= known_.size()) {
             return; // a heading, a marker, a note, the name line: pointing, and nothing more
@@ -241,11 +233,6 @@ public:
     /// handed back to the host, whose own pane menu answers.
     void second_button(const PanePress& b, DesktopState& state, const Declared& pane_rows_decl,
                        const Declared& app, loom::Mail& mail) {
-        if (!b.current) {
-            notice_ = kMovedSentence;
-            say(state, pane_rows_decl, app, mail);
-            return;
-        }
         const LauncherMeaning* m = map_.at(b.row, b.column);
         if (m != nullptr && (m->kind == launcher_row::kName || m->kind == launcher_row::kMark) &&
             m->index < known_.size()) {
@@ -292,13 +279,13 @@ public:
         if (!launcher_canvas_.granted() || rows <= 0 || columns <= 0) {
             return;
         }
-        std::vector<surface::SurfaceTextRow> out;
+        std::vector<ws::TextRow> out;
         map_.begin();
         const auto push = [&out, rows, columns, this](std::string text, std::int64_t role,
                                                       LauncherMeaning m) {
             if (static_cast<std::int64_t>(out.size()) < rows) {
                 map_.row(static_cast<std::int64_t>(out.size()), m);
-                out.push_back(surface::SurfaceTextRow{fit(std::move(text), columns), role});
+                out.push_back(ws::TextRow{fit(std::move(text), columns), role});
             }
         };
         if (!heard_) {
@@ -559,12 +546,11 @@ private:
         say(state, pane_rows_decl, app, mail);
     }
 
-    /// The launcher's rows, as its picture while it holds a canvas room -- numbered under the row
-    /// map's own number, which fences a press -- and as prose to a host granting none.
-    void publish_launcher(loom::Mail& mail, std::vector<surface::SurfaceTextRow> rows) {
-        const std::int64_t meaning = map_.settle();
+    /// The launcher's rows, drawn in its area, each row's part named.
+    void publish_launcher(loom::Mail& mail, std::vector<ws::TextRow> rows) {
+        (void)map_.settle();
         launcher_canvas_.publish_rows(
-            mail, meaning, std::move(rows),
+            mail, std::move(rows),
             ws::row_parts(map_, launcher_canvas_.columns(),
                           [this](const LauncherMeaning& m) { return launcher_part(m); }));
     }

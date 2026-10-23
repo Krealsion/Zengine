@@ -135,10 +135,10 @@ TEST_CASE("WL-HAND-06: Inventory names its entries, folders, crumbs and controls
         for (const auto& [name, part] : held_parts(s.r.session(), s.source)) {
             if (name.rfind(prefix, 0) == 0 && name.size() >= suffix.size() &&
                 name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0) {
-                return std::optional<v2::PaneRowPart>(part);
+                return std::optional<RowPart>(part);
             }
         }
-        return std::optional<v2::PaneRowPart>();
+        return std::optional<RowPart>();
     };
     // THE FOLDER'S ROW BY ITS IDENTITY, and every entry's by its reference.
     const auto folder = named("folder:", ":" + workbench);
@@ -193,7 +193,7 @@ TEST_CASE("WL-HAND-06: Inventory names its entries, folders, crumbs and controls
         // AN ENTRY PRESSED IN A WINDOW is chosen, and no pickup begins -- no authority asked, no
         // read, no carry: a window carries no drag.
         CHECK(w.press(area, std::string("control:inventory.parent")));
-        std::optional<v2::PaneRowPart> entry;
+        std::optional<RowPart> entry;
         for (const auto& [name, part] : held_parts(s.r.session(), s.source)) {
             if (!entry && name.rfind("entry:", 0) == 0) entry = part;
         }
@@ -228,7 +228,7 @@ TEST_CASE("WL-HAND-06: Inventory names its entries, folders, crumbs and controls
         w.room(area, slots::kRole, 120, 40);
         REQUIRE(w.click(area, std::string("control:inventory.parent")));
         CHECK_MESSAGE(s.row_of(s.source, "(Up) Root") == 1, s.shown(s.source));
-        std::optional<v2::PaneRowPart> entry;
+        std::optional<RowPart> entry;
         for (const auto& [name, part] : held_parts(s.r.session(), s.source)) {
             if (!entry && name.rfind("entry:", 0) == 0) entry = part;
         }

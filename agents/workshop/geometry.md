@@ -10,7 +10,6 @@ LAW — The geometry that draws a thing and the geometry that hits it are one re
 
 MEANS
 - `external_body_place` grants a pane's room and locates a press in it: one call, both ways;
-- a pane's caret is merged with the same header offset a press subtracts (`WL-CARET-01`);
 - what a pane is painted at and what it occupies are one resolved truth, on both media.
 
 DOES NOT MEAN
@@ -150,11 +149,11 @@ WHY — `agents/decisions/the-face-reports-the-unit.md`
 
 ## WL-GEO-13 — The desk and its words are Workshop's numbers, placed where they are drawn
 
-LAW — A desk and a pane's words are answered from what Workshop owns, in canvas pixels, each place where the medium draws it, and nothing is read off a picture.
+LAW — A desk and a pane's words are answered in canvas pixels, each where the medium draws it: Workshop's own from what it owns, a pane's from what the window says its area shows (WL-READ-08).
 
 MEANS
 - a canvas pane's labels and runs are words as a text pane's rows are, and so are a menu's lines;
-- a word's point is resolved by the measurer a press is, and a reading's place and text measure give any cell; a picture taking none -- numbered none, or not its holder's -- gives none;
+- a word's point is resolved by the measurer a press is, and a reading's place and text measure give any cell; a pane whose office nobody holds gives none;
 - reading grants nothing and moves nothing: a press is ordinary input.
 
 DOES NOT MEAN
@@ -173,7 +172,6 @@ WHY — `agents/decisions/the-desk-is-read-in-workshops-numbers.md`
 
 ### WL-GEO-01
 `workshop/screen_external.cpp` external_body_place paint_external external_press_at
-`workshop/weave_external.cpp` external_drag external_release
 `workshop/screen_gestures.cpp` prose_at
 `workshop/screen.hpp` prose_column_of_pixel prose_row_of_pixel
 `graphics/pixels.hpp` floor_to_grain
@@ -281,23 +279,15 @@ actually is"
 `tests/test_workshop_screen.cpp` "which parts of a pane's window the weaver has not authored"
 
 ### WL-GEO-13
-`workshop/weave_desk_read.cpp` visible_words pane_point
+`workshop/weave_desk_read.cpp` area_reading shown_words_and_parts pane_point
 `workshop/desk_read.hpp` word_on glyph_point
-`workshop/weave_canvas.cpp` canvas_takes_press
 `tests/test_workshop_desk.cpp` "every place the desk and the words give is where the medium draws
 it, in a window and in a terminal" "a canvas pane's words are its labels and text runs, each where
 it is drawn, and a press at a word's point lands inside it in the pane's own canvas" "a character's
 point is the cell showing it, a caret moving none, and a press on a cell reaches the pane as the
 column of the character it shows" "a row as wide as its pane with a caret in it says every
-character, at a place inside the pane, the caret past its end on its last cell" "a word that is only
-a caret is pressed on the caret's own cell, inside its place, in a text row and in a canvas field at
-the body's right edge" "a part whose one cell holds the caret at the body's right edge has a point
+character, at a place inside the pane, the caret past its end on its last cell" "a row with nothing
+on it but the caret says no word, and a press on the caret's own cell reaches the pane, in a text row
+and in a canvas field at the body's right edge" "a part whose one cell holds the caret at the body's right edge has a point
 there, and a press on it reaches the pane" "a canvas picture its office's holder no longer
 holds says its words and parts with no point, gives none, and a press where one was reaches nothing"
-"with pane titles hidden, a refused picture's mark is Workshop's own: the pane view waits while it
-covers the picture, a press on it reaches no provider and a right press opens Workshop's menu, and
-the picture beside it takes a press as before, a press held or not"
-`tests/test_workshop_panes_opening.cpp` "a holder that draws nothing after the commitment still
-shows the picture it prepared, numbered none, its words read at once and a cell's point read again
-until it draws its own" "the picture a managed opening shows says its words and its named part with
-no point, and their points return with the holder's own picture, where a press reaches it"

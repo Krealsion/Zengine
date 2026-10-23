@@ -6,16 +6,16 @@ ids are one series. One law per heading; cite by ID. Router: [`../workshop.md`](
 
 ## WL-HAND-06 — A pane names the parts a hand acts on, and Workshop says them where they are drawn
 
-LAW — A pane names each row, control and element a weaver acts on from what it means, kept across redraws; Workshop says each name with the part's words, place and point, naming only its own surfaces' parts.
+LAW — A pane names each row, control and element a weaver acts on from what it means, kept across redraws; the window says each name with the part's words, place and point, and Workshop its own surfaces'.
 
 MEANS
-- the names ride with the picture they name, judged with it: a name once, in the order the pane reads a press, a place it names nothing unnamed;
+- the names ride with the drawing they name, as its records' actions: one part an action, in the order the pane reads a press, a place it names nothing unnamed;
 - a text part covers the cells showing its columns, a canvas part its rectangle as shown, each saying the characters drawn in it; its point is a place of its own, or none;
 - a pane redrawn as a picture keeps the names its rows had, so a name an agent wrote still holds.
 
 DOES NOT MEAN
-- that Workshop reads a name: it judges a name's form and carries it as the pane said it, and says no unnamed place;
-- that a part the body does not show or a cover hides is said (WL-READ-05), that one with no place of its own is given another's, or that pressing one is anything but input.
+- that Workshop reads or judges a name: the window says each as the pane drew it, and says no unnamed place;
+- that a part the area does not show or a cover hides is said (WL-READ-05), that one with no place of its own is given another's, or that pressing one is anything but input.
 
 WHY — `agents/decisions/a-pane-names-its-parts.md`
 
@@ -40,12 +40,13 @@ WHY — `agents/decisions/a-pane-names-its-parts.md`
 `workshop/pane_parts.hpp` pane_part_name_problem row_parts_problem canvas_parts_problem PartNames
 row_parts
 `component/row_map.hpp` RowMap::press_order
-`workshop/pane_canvas_rows.hpp` rows_picture
-`workshop/weave_desk_read.cpp` visible_parts presented_menu_reading
-`workshop/desk_read.hpp` row_owners row_part_on own_points canvas_part_on words_inside no_point desk_menu
+`workshop/pane_drawing.hpp` rows_drawing
+`workshop/pane_canvas_drawing.hpp` canvas_sketch
+`graphics/window/compose.hpp` read_area
+`graphics/window/window_sdl.hpp` read_area
+`workshop/weave_desk_read.cpp` shown_words_and_parts presented_menu_reading
+`workshop/desk_read.hpp` row_owners row_part_on words_inside no_point desk_menu
 `workshop/screen_attention.cpp` context_line_names
-`workshop/weave_seam.cpp` admit_content on(v4::PaneContent)
-`workshop/weave_canvas.cpp` admit_canvas_content on(v4::PaneCanvasContent) on(v5::PaneCanvasContent)
 `workshop/menu-presenter/presenter.cpp` show
 `workshop/desktop-pane/pane.cpp` launcher_part keys_part
 `info/pane.cpp` named_rows
@@ -61,19 +62,13 @@ row_parts
 `view/view-builder/picture.hpp` part_name named
 `flow/flow-pane/view.hpp` part_name named
 `tests/test_workshop_desk.cpp` "a canvas pane's rows set on its room's lattice are words on its
-parts' rows, and a part's text is the characters drawn inside it" "with pane titles hidden, a
-refused picture's mark is Workshop's own: the pane view waits while it covers the picture, a press
-on it reaches no provider and a right press opens Workshop's menu, and the picture beside it takes a
-press as before, a press held or not" "a row map's parts are named by what each span means, and a
+parts' rows, and a part's text is the characters drawn inside it" "a row map's parts are named by what each span means, and a
 name nothing, one the judge would refuse or one taken is left unnamed" "a text pane's named parts
 are said under the pane's own names over the cells that show them, and a press at a part's point
 lands on it, in a window and in a terminal" "a part keeps its name across its pane's redraws, and is
-said and pressed where the redraw put it" "a pane's names are judged with the rows they name: a name
-twice, one on a row not said or past the room, or one that is not a name refuses the rows whole,
-saying why" "a canvas pane's named parts are said where its body shows them, with the words inside
+said and pressed where the redraw put it" "a canvas pane's named parts are said where its body shows them, with the words inside
 them, and a press at a part's point lands inside it in the pane's own canvas, in a window and in a
-terminal" "a picture's names are judged with it: a name twice or a part with no extent rejects the
-picture whole, and the last good one stays" "the desk names the lines of Workshop's own menu by the
+terminal" "the desk names the lines of Workshop's own menu by the
 action or group each shows, over the line it is drawn on" "a pane's names survive the canvas: its
 next image draws a picture under the names its rows had, and each is pressed where the picture draws
 it" "every place a named part gives is where the medium draws its words, in a window and in a
@@ -85,8 +80,6 @@ pressed where the view gives that button the press" "a row part is pressed where
 it the press, not on a narrower run over it nor an unnamed one" "a canvas part's own place is sought
 over all of it, and a part with none has no point, never another's" "a picture of as many parts as
 it may name gives each a point a press there gives it, or none"
-`tests/test_workshop_panes_canvas.cpp` "a pane's rows drawn on its canvas stand where its prose rows
-would, name the same parts, and a place reads back to its row and column"
 `tests/test_workshop_panes_button.cpp` "WL-HAND-06: the shipped presenter names each row's line by
 its id, and a press at that name's point chooses it"
 `tests/test_workshop_panes_desktop.cpp` "WL-HAND-06: the Pane Manager names each row and its mark by

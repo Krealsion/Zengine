@@ -20,14 +20,16 @@ DOES NOT MEAN — that a drop types: no byte of it is a key, and nothing reaches
 
 WHY — `agents/decisions/editors-carry-copies-by-the-typed-carry.md`
 
-## WL-EDIT-18 — A drop and a highlight press are judged against the picture they aimed at
+## WL-EDIT-18 — A drop and a highlight press are judged against the rows they landed on
 
-LAW — A drop and a highlight press count only on a picture drawn under the row-to-meaning map the pane has now; a drop aimed at another is refused, and such a press is an ordinary one that remembers nothing.
+LAW — A drop and a highlight press are read against the row-to-meaning map the pane drew where they landed; a highlight press off the highlight is an ordinary one that remembers nothing.
 
 MEANS
 - the map is the epoch, the revision, the viewport, the chrome rows, the room, the selection;
-- a caret move alone keeps the map; a scroll, an edit or a notice row moves it;
-- each picture is numbered in its room (`CanvasPictures`), current while the map stands.
+- a caret move alone keeps the map; a scroll, an edit or a notice row moves it.
+
+DOES NOT MEAN
+- that a drop the window landed before the map moved is refused: which drawing a window press names is a decision held open, its witness held as an expected failure.
 
 WHY — `agents/decisions/editors-carry-copies-by-the-typed-carry.md`
 
@@ -85,23 +87,18 @@ WHY — `agents/decisions/editors-carry-copies-by-the-typed-carry.md`
 `tests/test_workshop_editor_transfers.cpp` "dropped text is inserted at the painted landing
 character as one undoable edit, replaces the highlight only when dropped onto it, and saves nothing"
 "text the standard Editor cannot hold is refused whole, and the document, its selection and its
-history stay as they were" "in a window, a value placed on the Editor's inset beside its rows is
-refused and changes nothing"
+history stay as they were"
 `tests/test_source_transfer.cpp` "the standard Editor's law splits LF and CRLF, keeps tabs, and
 refuses what it cannot hold whole" "a dropped pair is read as text, a location, a command with the
 address its capture supplied, or refused in words"
 
 ### WL-EDIT-18
 `editor/editor-pane/pane.cpp` say
-`editor/editor-pane/common.hpp` PictureKey
 `editor/editor-pane/transfers.hpp` press_at receive
-`workshop/pane_canvas_rows.hpp` CanvasPictures
 `workshop/pane_carry.hpp` PaneCanvasValueDrop
 `tests/test_workshop_editor_transfers.cpp` "a drop aimed at a picture the text has since left is
 refused and changes nothing" "a press aimed at a picture where the text it lands on was not yet
 selected begins no carry; the drag sweeps"
-`tests/test_workshop_panes_canvas.cpp` "a pane's canvas pictures fence a press by the meaning each
-was drawn under"
 
 ### WL-EDIT-19
 `editor/editor-pane/transfers.hpp` press_at acquire mark_now on_highlight

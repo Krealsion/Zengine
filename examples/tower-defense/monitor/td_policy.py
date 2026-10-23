@@ -119,7 +119,7 @@ class TowerDefense(object):
         rounds = self.plan["rounds"]
         for n, r in enumerate(rounds, 1):
             for x, y in r["towers"]:
-                # A press chooses the cell, a second press on it builds (td.cpp's PanePressed).
+                # A press chooses the cell, a second press on it builds (td.cpp's AreaButtonChanged).
                 presses = [m.press_at(*(TD + list(cell(x, y)))) for _ in range(2)]
                 built = [o for o in m.caused_by(presses) if o.shape == "TdOccurred"
                          and o["what"] == "tower" and (o["x"], o["y"]) == (x, y)]

@@ -8,8 +8,7 @@
 // (`TerminalCompletionRequested`): nothing here can speak as that participant, only ask it to.
 // Workshop law: agents/workshop/terminal-pane.md
 
-// The pane draws its rows, the line's caret and its selection as its own canvas picture, and says
-// them as prose -- the caret beside the rows (`PaneCaret`) -- only to a host granting no canvas. A
+// The pane draws its rows, the line's caret and its selection in its own area of the window. A
 // sweep is not a gesture here: a press places the caret, a second press in a word selects it, and
 // shift with the caret keys sweeps by keyboard.
 
@@ -37,7 +36,7 @@
 #include <zen/weave/dispatch_refusal.hpp>
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
+#include "workshop/pane_rows.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -63,7 +62,6 @@ namespace ws = zengine::workshop;
 namespace pane = zengine::terminal_pane;
 
 using ws::v3::PaneActionRow;
-using ws::PaneCaret;
 using ws::PaneEscapeUnspent;
 using ws::PaneKey;
 using ws::v2::PaneOffered;
@@ -148,7 +146,6 @@ public:
         if (!mail.authored_from_role(kWorkshopRole) || handed.pane != pane::kTerminalPane) {
             return;
         }
-        const bool was = legend_shown_;
         legend_shown_ = true;
         legend_problem_.clear();
         wheel_rows_ = kWheelRows;
@@ -180,10 +177,6 @@ public:
             } else if (row.key == pane::kSettingPrompt) {
                 prompt_ = *held->text;
             }
-        }
-        if (legend_shown_ != was) {
-            // EVERY ROW BELOW THE LEGEND MOVES, so no press aimed at the last picture lands here.
-            room().pictures().retire();
         }
         say(mail); // draws nothing until a room is granted, so the first picture has the setting
     }
@@ -291,11 +284,6 @@ public:
         press(at.row, at.column, mail);
     }
 
-    /// A press aimed at a transcript picture that has changed since is said, and spends nothing.
-    void fenced(loom::Mail& mail) {
-        notice_ = "That transcript picture changed; try again";
-        say(mail);
-    }
 
     /// A RIGHT PRESS on a value offers to pick up a copy of it; anywhere else, or while a pickup
     /// is in flight, it is handed back, so Workshop's own pane menu opens where it was made.
@@ -676,20 +664,20 @@ private:
     // ---- The rows, and the caret in them: composed in `view.hpp`, named here ----------------
 
     void say(loom::Mail& mail);
-    void send(std::vector<surface::SurfaceTextRow> out, std::int64_t meaning,
-              std::vector<ws::v2::PaneRowPart> parts, loom::Mail& mail);
+    void send(std::vector<zengine::workshop::TextRow> out, std::vector<ws::RowPart> parts,
+              loom::Mail& mail);
     template <typename Push> void say_list(std::size_t room, const Push& push);
-    PaneCaret caret() const;
+    ws::RowsCaret caret() const;
 
     /// WHAT THE TERMINAL CALLS ITS PARTS, of the `said` rows it sends: a transcript entry carrying
     /// a value, `entry:<observation>`; the line being typed, `line`; the way back to the newest
     /// output, `newest`; a completion candidate, `candidate:<what it says>`; and the legend row,
     /// `legend`, which a layout's setting shows or hides.
-    std::vector<ws::v2::PaneRowPart> named_rows(std::int64_t said) const {
-        ws::PartNames<ws::v2::PaneRowPart> names;
+    std::vector<ws::RowPart> named_rows(std::int64_t said) const {
+        ws::PartNames<ws::RowPart> names;
         const auto name = [&](std::string what, std::int64_t row) {
             if (row >= 0 && row < said) {
-                (void)names.add(ws::v2::PaneRowPart{std::move(what), row, 0, columns(), true});
+                (void)names.add(ws::RowPart{std::move(what), row, 0, columns(), true});
             }
         };
         for (const auto& span : room().map().spans()) {

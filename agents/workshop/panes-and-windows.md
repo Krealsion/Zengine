@@ -53,7 +53,7 @@ WHY — `agents/decisions/half-the-surplus.md`
 
 ## WL-PANE-06 — An external pane's room follows its slot
 
-LAW — Workshop's body for an external pane is its slot less its header rows, and the fitted room over that body is granted to the provider whenever the body changes.
+LAW — Workshop's body for an external pane is its slot less its header rows, placed as the pane's area in the window, which gives the area's holder that room whenever the body changes.
 
 MEANS
 - a dragged edge, a widened room and a hidden title all reach the provider by this one door;
@@ -136,12 +136,12 @@ MEANS
 
 WHY — `agents/decisions/three-places.md`
 
-## WL-PANE-16 — A pane with a room and no answer says waiting, never unavailable
+## WL-PANE-16 — A pane with no drawing says waiting, never unavailable
 
-LAW — A pane granted a room and answered by nothing valid says `kExternalWaiting`, or the refusal it holds (WL-ATTN-04): a fact about this pane, not the provider; `unavailable` is never said.
+LAW — A pane's frame says `waiting for <name>` behind its area until the pane draws there, or `<name> draws in no window` for an office taking no room in one; `unavailable` is never said.
 
 MEANS
-- silence proves no fate: Loom gives Workshop no participant-visible unload notification;
+- the pane's ground covers the words once it draws; silence proves no fate, as Loom tells no unload;
 - an unload is said as waiting, and a reload recovers the view.
 
 WHY — `agents/decisions/a-presentation-owns-no-facts.md`
@@ -209,11 +209,11 @@ visible pane occupies the pointer space it covers"
 ### WL-PANE-06
 `workshop/screen_external.cpp` external_body_place paint_external
 `workshop/screen.hpp` kExternalHeaderRows
-`workshop/weave_external.cpp` refresh_external_rooms
+`workshop/weave_run.cpp` arrange_graphics
 `workshop/pane_text_fit.hpp` fit_region
 `workshop/panes.hpp` ExternalPane
 `tests/test_workshop_panes_seam.cpp` "an external grant follows the widened body through fit_region"
-"opening an external pane grants exactly the fit_region room, authored as Workshop"
+"opening an external pane gives its area exactly the fit_region room, authored as the window"
 
 ### WL-PANE-07
 `workshop/setup.hpp` Setup add_pane
@@ -281,14 +281,15 @@ offer"
 its provider holding; a close of a pane that is not there is refused and opens nothing"
 
 ### WL-PANE-16
-`workshop/screen.hpp` kExternalWaiting
-`tests/test_workshop_panes_seam.cpp` "silence is waiting, and Workshop never says unavailable" "a
-refusal stands until ACCEPTED CONTENT replaces it, a new room included"
+`workshop/screen.hpp` kExternalWaiting kExternalNoWindow
+`workshop/screen_external.cpp` external_body_words
+`workshop/weave_external.cpp` note_manuals
+`tests/test_workshop_panes_seam.cpp` "silence is waiting, and Workshop never says unavailable"
 `tests/test_workshop_screen.cpp` "unload and reload -- waiting is said, and a reload recovers the
 view"
-`tests/test_workshop_panes_canvas.cpp` "a canvas picture refused for what it holds is said in its
-pane and in Attention until a picture of the pane is admitted, and one that came late is answered to
-its pane alone"
+`tests/test_workshop_desk.cpp` "a pane whose office draws in no graphics window has no area there,
+and its frame says so; one that does is placed its area, titled, and nothing is drawn over it while
+arranging"
 
 ### WL-PANE-17
 `workshop/setup_reconcile.hpp` preferred_extent admit_pane_offer PaneBody

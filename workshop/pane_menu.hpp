@@ -8,15 +8,16 @@
 // the protocol (`workshop/pane_vocabulary.hpp`) and optional: a few lines over the raw shapes. They
 // echo the gesture's correlation on every continuation and check an answer before a pane acts on
 // it (`Asked::take`). They perform no operation: what a chosen row means is the pane's.
-// Reference: workshop/docs/workshop-panes.md#the-second-button-a-menu-a-pane-asks-for-and-a-pictures-number
+// Reference: workshop/docs/workshop-panes.md#the-second-button-and-a-menu-a-pane-asks-for
 //
 //     pane_menu::Asked asked_;   // THIS image's one outstanding menu -- never reload-kept state
 //
-//     void on(const PaneButton& b, loom::Mail& mail) {
+//     void on(const graphics::AreaButtonChanged& b, loom::Mail& mail) {  // the window's press
 //         if (!b.pressed || b.button != 3) return;             // a release: nothing to do
-//         if (heading_row(b.row)) { pane_menu::pass_back(mail, kOffice, kPane); return; }
-//         asked_ = pane_menu::Offer(kPane, subject_at(b.row))
-//                      .at(b.row, b.column)
+//         const std::int64_t row = b.y / line_, column = b.x / advance_;   // in the window's text
+//         if (heading_row(row)) { pane_menu::pass_back(mail, kOffice, kPane); return; }
+//         asked_ = pane_menu::Offer(kPane, subject_at(row))
+//                      .at(row, column)
 //                      .row("mine.open", "Open")
 //                      .row("mine.forget", "Forget")
 //                      .send(mail, kOffice);                   // continues THIS press
@@ -104,7 +105,7 @@ private:
 };
 
 /// A MENU A PANE OFFERS, BUILT ROW BY ROW: about `subject` (the pane's own word, echoed back
-/// unread), beside a place in the granted lattice. `send` continues the gesture `mail`
+/// unread), beside a place in its area (`PaneMenuRequested`). `send` continues the gesture `mail`
 /// delivered -- its correlation is what makes the request eligible -- and returns the record
 /// of the ask (`Asked`), pending exactly when a request was queued under a nonzero number.
 class Offer {
@@ -133,8 +134,8 @@ public:
     bool empty() const noexcept { return request_.rows.empty(); }
     const PaneMenuRequested& request() const noexcept { return request_; }
 
-    /// SEND AS `office`, CONTINUING THE GESTURE THIS DELIVERY BROUGHT (a `PaneButton` press or a
-    /// `PaneActionRequested`): the request goes out under `mail.correlation()`.
+    /// SEND AS `office`, CONTINUING THE GESTURE THIS DELIVERY BROUGHT (a press the window gave the
+    /// pane, or a `PaneActionRequested`): the request goes out under `mail.correlation()`.
     Asked send(loom::Mail& mail, std::string_view office,
                std::string_view workshop = kWorkshopRole) const {
         return continuing(mail, office, mail.correlation(), workshop);
@@ -202,30 +203,6 @@ inline loom::Ticket manage(loom::Mail& mail, std::string_view office, std::strin
         workshop, PaneManageRequested{std::move(pane), std::move(target_office), std::move(target)},
         mail.correlation());
 }
-
-/// A HELD SECONDARY BUTTON, FOR A PANE THAT ACTS WHILE IT IS DOWN: the whole bookkeeping is one
-/// bool and whether the last end was a `lost` release. `take` returns true when the state moved.
-struct HeldButton {
-    std::int64_t button = 0;
-    bool held = false;
-    bool lost = false;
-
-    bool take(const PaneButton& b) noexcept {
-        if (b.pressed) {
-            const bool moved = !held || button != b.button;
-            button = b.button;
-            held = true;
-            lost = false;
-            return moved;
-        }
-        if (!held || b.button != button) {
-            return false; // a release of a button this pane does not hold: nothing
-        }
-        held = false;
-        lost = b.lost;
-        return true;
-    }
-};
 
 } // namespace zengine::workshop::pane_menu
 

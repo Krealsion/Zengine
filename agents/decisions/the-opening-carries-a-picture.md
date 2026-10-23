@@ -4,27 +4,23 @@
 [opening](../workshop/opening.md); the conversation it rides is
 [document-and-desk-publish-together](document-and-desk-publish-together.md).
 
-**Context.** A pane that draws its rows on its canvas is shown by its picture, which names a room
-grant and a number and no document generation, so the generation that kept a replaced document's
-rows off its successor's cannot keep its picture off. Composing a picture needs a canvas room, and
-grants were minted only at a repaint, after the commitment.
+**Context.** A pane draws in its own window area, and Workshop shows none of a pane's picture: the
+window shows what the pane draws there. An opening must never let the window show the replaced
+document after the commitment, nor a picture of it drawn for another room.
 
-**Decision.** Where the managed pane's holder draws on a canvas and prepares for one, the desk's
-trial reserves the canvas room the seat will have, its grant minted then and used by nothing
-before the commitment; the Editor composes the candidate as its own picture there; the desk admits
-it and, shown the publication, installs it under that grant. Every picture of the replaced
-document names its own room and is refused. The installed picture is the desk's, numbered none:
-read at once, pressed from the holder's own first picture. The desk says that room to the holder
-after the showing, behind any room queued before, so a stale room or a declined showing heals.
+**Decision.** The desk's trial reserves the seat and says the room the pane's area will have
+(`OpeningRoom`: pixels and the window's measure, as Workshop will place it); the Editor prepares
+the candidate for that room, and draws it in its own area in the delivery that commits its
+document claim, so the drawing of the new document is the commitment's own. The admission
+carries no rows and no picture.
 
 **Alternatives — argued.**
-- *A generation on the canvas picture* — every canvas pane would take a new version for what a
-  grant already fences.
-- *Seating the pane first and letting the Editor draw after the commitment* — the old picture
-  or none would show at the commitment.
-- *The admitted picture keeping its own number* — a holder moved to another room meanwhile
-  numbers afresh and would be refused until the room moved again.
+- *Seating the pane first and letting the Editor draw after the commitment* — the old document
+  would show at the commitment.
+- *A generation on what the pane draws* — the window keeps no history to judge it against.
 
-**Alternatives — tried.** None: chosen from the reading of the opening and the canvas fence.
+**Alternatives — tried.** *The desk installing the Editor's prepared picture under a room grant
+it reserved, the desk's until the holder drew again* -- replaced once panes drew only in their
+own areas: it was a second picture of the pane, drawn by Workshop.
 
 **Laws supported.** [WL-OPEN-10](../workshop/opening.md).

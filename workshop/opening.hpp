@@ -62,12 +62,11 @@ struct OpeningState {
 class OpeningManager
     : public zengine::With<manual::ManualFacet<manual::pages::zengine_opening::kManual>>::Weave<
           OpeningManager, OpeningState,
-          loom::Accept<OpenSourceRequested, PresentationTrial, v2::PresentationTrial,
-                       SourcePrepared, v2::SourcePrepared, PresentationAdmitted,
-                       loom::DispatchRefused, loom::JointEnded, loom::JointApplied>,
-          loom::Emit<PresentationTrialRequested, PrepareSourceRequested,
-                     v2::PrepareSourceRequested, PresentationAdmitRequested,
-                     v2::PresentationAdmitRequested, ManagedOpenSettled, ManagedOpenProgress,
+          loom::Accept<OpenSourceRequested, v3::PresentationTrial, v3::SourcePrepared,
+                       PresentationAdmitted, loom::DispatchRefused, loom::JointEnded,
+                       loom::JointApplied>,
+          loom::Emit<PresentationTrialRequested, v3::PrepareSourceRequested,
+                     v3::PresentationAdmitRequested, ManagedOpenSettled, ManagedOpenProgress,
                      SourceOpened>> {
 public:
     /// HOST WIRING, AND ALL OF IT: the two offices it coordinates and the pane the
@@ -78,10 +77,8 @@ public:
     void set_authority(loom::JointAuthority authority) { authority_ = std::move(authority); }
 
     void on(const OpenSourceRequested& asked, loom::Mail& mail);
-    void on(const PresentationTrial& said, loom::Mail& mail);
-    void on(const v2::PresentationTrial& said, loom::Mail& mail);
-    void on(const SourcePrepared& said, loom::Mail& mail);
-    void on(const v2::SourcePrepared& said, loom::Mail& mail);
+    void on(const v3::PresentationTrial& said, loom::Mail& mail);
+    void on(const v3::SourcePrepared& said, loom::Mail& mail);
     void on(const PresentationAdmitted& said, loom::Mail& mail);
     void on(const loom::DispatchRefused& refused, loom::Mail& mail);
     void on(const loom::JointEnded& ended, loom::Mail& mail);
@@ -127,13 +124,6 @@ private:
     void release_retained(loom::Mail& mail);
     void progress(loom::Mail& mail, bool pending);
     bool answers_flight(const loom::Mail& mail, std::int64_t op, const char* stage) const;
-    /// THE TRIAL ANSWERED: refused, or the Editor asked to prepare -- as a picture for the room
-    /// the trial reserved where it reserved one (`room.grant`), as rows otherwise.
-    void trialled(bool ok, const std::string& refusal, std::int64_t rows, std::int64_t columns,
-                  const PaneCanvasRoom& room, loom::Mail& mail);
-    /// THE CANDIDATE PREPARED, or refused: the desk asked to admit `admit`, or the flight settled.
-    template <class Admit>
-    void prepared(bool ok, const std::string& refusal, const Admit& admit, loom::Mail& mail);
     std::string refusal_of(const std::string& said, loom::Mail& mail) const;
 
     loom::JointAuthority authority_;

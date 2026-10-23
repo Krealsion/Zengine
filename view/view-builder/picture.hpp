@@ -17,7 +17,7 @@
 #include "graphics/vocabulary.hpp"
 #include "surface/pointing.hpp"
 #include "workshop/pane_canvas_text.hpp"
-#include "workshop/pane_canvas_vocabulary.hpp"
+#include "workshop/pane_picture.hpp"
 #include "workshop/pane_parts.hpp"
 
 #include <algorithm>
@@ -53,12 +53,12 @@ struct Hit {
 };
 
 struct Picture {
-    ws::PaneCanvasContent content;
+    ws::CanvasPicture content;
     std::vector<Hit> hits;
     std::int64_t grain = 1;
     /// Where the view is drawn: nothing of it outside this area.
     Area design;
-    /// The view's own room as the canvas places it: its pixel 0,0 is this corner, the design
+    /// The view's own room as the picture places it: its pixel 0,0 is this corner, the design
     /// area's corner less the pan, and it is the view's size with its notice rows beneath.
     Area view;
     const Hit* hit(std::int64_t x, std::int64_t y) const {
@@ -280,11 +280,8 @@ inline std::string clean(std::string text) {
 /// line height; the design area begins on a cell boundary, so the view's own picture, moved
 /// there whole, keeps its lattice in a window and in a terminal alike. The box being typed into
 /// keeps its caret in view at the width it is drawn, in `p` itself: a press reads that scroll.
-inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom& room, std::int64_t number) {
+inline Picture picture(const Model& m, Presentation& p, const ws::CanvasRoom& room) {
     Picture out;
-    out.content.pane = kPane;
-    out.content.grant = room.grant;
-    out.content.picture = number;
     out.grain = std::max<std::int64_t>(1, room.grain);
     out.content.rects.push_back({0, 0, room.width, room.height, ink::kGround});
     const auto metrics = ws::canvas_text_metrics(room);
@@ -317,7 +314,7 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
     std::int64_t from = 0, limit = columns, stop = rows;
     const auto put = [&](std::int64_t col, std::int64_t row, std::string text, std::int64_t role = ink::kFill) {
         if (row < 0 || row >= stop) return std::int64_t{0};
-        ws::PaneCanvasText run{col * advance, row * line, clean(std::move(text)), role};
+        ws::CanvasText run{col * advance, row * line, clean(std::move(text)), role};
         const auto left = from * advance;
         const ws::CanvasTextBox clip{left, 0, std::min(room.width, limit * advance + 2 * metrics.inset) - left, room.height};
         auto placed = ws::clip_canvas_text(run, clip, room);
@@ -345,7 +342,7 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
         const Area at{col * advance, row * line, width * advance + 2 * metrics.inset, line};
         out.content.rects.push_back({at.x, at.y, at.w, at.h, ink::kMuted});
         std::string shown = value;
-        std::int64_t caret = surface::kNoCaret;
+        std::int64_t caret = ws::kNoCaret;
         if (typing) {
             auto& text = p.box->text;
             text.keep_caret_visible(width);
@@ -357,7 +354,7 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
                 static_cast<std::size_t>(caret) >= shown.size())
                 shown += ' ';
         }
-        ws::PaneCanvasText run{at.x, at.y, clean(shown), typing ? ink::kAccent : ink::kFill, caret};
+        ws::CanvasText run{at.x, at.y, clean(shown), typing ? ink::kAccent : ink::kFill, caret};
         auto placed = ws::clip_canvas_text(run, {at.x, at.y, at.w, at.h}, room);
         if (placed.visible()) out.content.texts.push_back(placed.text);
         out.hits.push_back({at, "box", {field, element ? std::to_string(*element) : std::string()}});
@@ -560,9 +557,9 @@ inline Picture picture(const Model& m, Presentation& p, const ws::PaneCanvasRoom
         const auto left = grained(p.pan_x), top = grained(p.pan_y);
         out.view = {area.x - left, area.y - top, d.width,
                     d.height + view::notice_band(room)};
-        const ws::PaneCanvasRoom inner{room.pane, room.grant, out.view.w, out.view.h, room.grain,
-                                       room.graphical, room.text_advance_px, room.text_line_px};
-        const auto drawn = view::picture(d, {}, view::Presentation{}, inner, number);
+        const ws::CanvasRoom inner{out.view.w, out.view.h, room.grain, room.graphical,
+                                   room.text_advance_px, room.text_line_px};
+        const auto drawn = view::picture(d, {}, view::Presentation{}, inner);
         for (auto r : drawn.content.rects) {
             const auto inside = Area{r.x + out.view.x, r.y + out.view.y, r.w, r.h}.within(area);
             if (inside.empty()) continue;
@@ -724,14 +721,15 @@ inline std::string part_name(const Hit& hit, const view::Description& d) {
     return a + ":" + id;
 }
 
-/// THE BUILDER'S PICTURE AS IT IS SAID, each place a press means something named (`part_name`).
-inline ws::v4::PaneCanvasContent named(const Picture& p, const view::Description& d) {
-    ws::PartNames<ws::PaneCanvasPart> parts;
+/// THE BUILDER'S PICTURE AS IT IS DRAWN, each place a press means something named (`part_name`).
+inline ws::CanvasPicture named(const Picture& p, const view::Description& d) {
+    ws::PartNames<ws::CanvasPart> parts;
     for (const Hit& hit : p.hits) {
-        (void)parts.add(ws::PaneCanvasPart{part_name(hit, d), hit.at.x, hit.at.y, hit.at.w, hit.at.h});
+        (void)parts.add(ws::CanvasPart{part_name(hit, d), hit.at.x, hit.at.y, hit.at.w, hit.at.h});
     }
-    const auto& c = p.content;
-    return ws::v4::PaneCanvasContent{c.pane, c.grant, c.picture, c.rects, c.labels, c.texts, parts.take()};
+    ws::CanvasPicture out = p.content;
+    out.parts = parts.take();
+    return out;
 }
 
 } // namespace zengine::view_builder

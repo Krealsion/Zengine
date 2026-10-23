@@ -235,11 +235,73 @@ struct Landed {
     std::int64_t x = 0, y = 0;
 };
 
+/// A GROUP'S CLIP IN ITS AREA'S PIXELS, its far edges exclusive: its place carried through the
+/// groups above it, and cut by their clips.
+struct ClipBox {
+    std::int64_t x0 = 0, y0 = 0, x1 = 0, y1 = 0;
+    bool holds(std::int64_t x, std::int64_t y) const { return x >= x0 && x < x1 && y >= y0 && y < y1; }
+};
+
+/// EVERY GROUP OF AN AREA THAT CLIPS WHAT IT HOLDS, by its path, and their paint order (`key_of`):
+/// a canvas part's group is its place, whether anything is drawn there or not.
+inline std::vector<std::pair<std::string, ClipBox>> group_clips(const WinArea& a) {
+    const auto at = index_of(a);
+    std::vector<std::pair<std::string, ClipBox>> out;
+    std::vector<std::vector<std::int64_t>> keys;
+    for (const KeptNode& k : a.nodes) {
+        if (k.node.op != op::kGroup) {
+            continue;
+        }
+        const auto own = from_body<GroupArgs>(k.node.args);
+        if (!own || own->clip_w <= 0 || own->clip_h <= 0) {
+            continue;
+        }
+        std::int64_t dx = 0, dy = 0;
+        bool clipped = false;
+        ClipBox box;
+        std::vector<std::string> chain;
+        for (std::string p = parent_of(k.node.path); !p.empty(); p = parent_of(p)) {
+            chain.push_back(p);
+        }
+        for (auto it = chain.rbegin(); it != chain.rend(); ++it) {
+            const auto g = at.find(*it);
+            if (g == at.end() || g->second->node.op != op::kGroup) continue;
+            const auto args = from_body<GroupArgs>(g->second->node.args);
+            if (!args) continue;
+            dx += args->x;
+            dy += args->y;
+            if (args->clip_w > 0 && args->clip_h > 0) {
+                const ClipBox c{dx, dy, dx + args->clip_w, dy + args->clip_h};
+                box = clipped ? ClipBox{(std::max)(box.x0, c.x0), (std::max)(box.y0, c.y0),
+                                        (std::min)(box.x1, c.x1), (std::min)(box.y1, c.y1)}
+                              : c;
+                clipped = true;
+            }
+        }
+        dx += own->x;
+        dy += own->y;
+        const ClipBox mine{dx, dy, dx + own->clip_w, dy + own->clip_h};
+        box = clipped ? ClipBox{(std::max)(box.x0, mine.x0), (std::max)(box.y0, mine.y0),
+                                (std::min)(box.x1, mine.x1), (std::min)(box.y1, mine.y1)}
+                      : mine;
+        if (box.x1 <= box.x0 || box.y1 <= box.y0) {
+            continue;
+        }
+        const auto key = key_of(at, k.node.path);
+        std::size_t i = keys.size();
+        while (i > 0 && key < keys[i - 1]) --i;
+        keys.insert(keys.begin() + static_cast<std::ptrdiff_t>(i), key);
+        out.insert(out.begin() + static_cast<std::ptrdiff_t>(i), {k.node.path, box});
+    }
+    return out;
+}
+
 /// What one area shows of a window of `cols` by `rows` cells (`AreaShown`), in the area's pixels:
 /// the runs its text nodes show on each row, and each record naming an action as the part it names
 /// -- the box of the cells its subtree shows, and the middle of the cells where a press reaches it.
 /// A cell shows the area's top node there unless an area in front painted it -- one `reader` owns
-/// aside, as what the reader draws is its own to know. "" when said, else why not.
+/// or arranges aside, as what the reader draws or places is its own to know and judge. "" when
+/// said, else why not.
 inline std::string read_area(const std::vector<WinArea>& areas, const Cache& cache,
                              const WinArea& a, std::int64_t cols, std::int64_t rows,
                              const std::string& reader, std::vector<AreaWord>& words,
@@ -271,7 +333,8 @@ inline std::string read_area(const std::vector<WinArea>& areas, const Cache& cac
         if (f->area == a.area) {
             break;
         }
-        const Painted* p = f->owner == reader ? nullptr : cache.of(f->area);
+        const Painted* p =
+            f->owner == reader || f->arranger == reader ? nullptr : cache.of(f->area);
         if (p == nullptr) {
             continue;
         }
@@ -336,24 +399,45 @@ inline std::string read_area(const std::vector<WinArea>& areas, const Cache& cac
                    " runs of text";
         }
     }
-    // THE PARTS: every record naming an action, by the cells its subtree shows, and the cells where
-    // its own record is the one a press reaches.
-    std::map<std::string, std::size_t> named;
+    // THE PARTS: every action a record names, one part however many records name it (a row's part
+    // drawn in runs around another's), by the cells their subtrees show, and the cells where one
+    // of its own records is the one a press reaches.
+    std::map<std::string, std::size_t> named;     // a record's path: its action's part
+    std::map<std::string, std::size_t> part_of;   // an action: its part
+    std::vector<const ElementRecord*> first_of;   // a part: the first record naming it
     for (std::size_t i = 0; i < a.records.size(); ++i) {
         if (!a.records[i].action.empty() && !a.records[i].path.empty()) {
-            named[a.records[i].path] = i;
+            const auto [it, fresh] = part_of.try_emplace(a.records[i].action, first_of.size());
+            if (fresh) {
+                first_of.push_back(&a.records[i]);
+            }
+            named[a.records[i].path] = it->second;
         }
     }
     if (named.empty()) {
         return {};
     }
     const std::map<std::string, const ElementRecord*> reached = records_by_node(a);
+    // THE CLIPS OF ITS PARTS' GROUPS, and whether one paints on a cell, as the painter cuts one.
+    const std::vector<std::pair<std::string, ClipBox>> clips = group_clips(a);
+    const auto paints_on = [&a](const ClipBox& b, std::int64_t c, std::int64_t r) {
+        const std::int64_t ax = c * kCellPx - a.x, ay = r * kCellPx - a.y;
+        return term::floor_cell(b.x0) * kCellPx <= ax && ax < term::floor_cell(b.x1) * kCellPx &&
+               term::floor_cell(b.y0) * kCellPx <= ay && ay < term::floor_cell(b.y1) * kCellPx;
+    };
+    const auto in_clip = [&](std::int64_t c, std::int64_t r) {
+        for (const auto& [path, box] : clips) {
+            if (paints_on(box, c, r)) return true;
+        }
+        return false;
+    };
     struct Seen {
         bool any = false;
         std::int64_t x0 = 0, y0 = 0, x1 = 0, y1 = 0;
         std::vector<CellAt> own;
+        std::vector<CellAt> lettered; ///< the own cells among a row's characters, not after them
     };
-    std::vector<Seen> seen(a.records.size());
+    std::vector<Seen> seen(first_of.size());
     for (std::int64_t r = r0; r < r1; ++r) {
         for (std::int64_t c = c0; c < c1; ++c) {
             const Top& t = grid[at(c, r)];
@@ -373,17 +457,78 @@ inline std::string read_area(const std::vector<WinArea>& areas, const Cache& cac
                 s.any = true;
             }
             const auto own = reached.find(*t.path);
-            if (own != reached.end() && named.count(own->second->path) != 0) {
-                seen[named.at(own->second->path)].own.push_back({c, r});
+            if (own != reached.end() && named.count(own->second->path) != 0 &&
+                !in_clip(c, r)) {
+                Seen& s = seen[named.at(own->second->path)];
+                s.own.push_back({c, r});
             }
         }
     }
-    for (std::size_t i = 0; i < a.records.size(); ++i) {
-        const Seen& s = seen[i];
+    // ...AND A PART WHOSE RECORD IS A GROUP THAT CLIPS IS PLACED BY ITS CLIP, as far as the area
+    // shows it: every cell the clip paints on, drawn there or not, and as its own each such cell
+    // no later such part's clip holds, a press there being its pane's to read as the later's.
+    std::vector<std::int64_t> clip_part(clips.size(), -1);
+    for (std::size_t g = 0; g < clips.size(); ++g) {
+        const auto it = named.find(clips[g].first);
+        clip_part[g] = it == named.end() ? -1 : static_cast<std::int64_t>(it->second);
+    }
+    for (std::int64_t r = r0; r < r1 && !clips.empty(); ++r) {
+        for (std::int64_t c = c0; c < c1; ++c) {
+            if (grid[at(c, r)].hidden) {
+                continue;
+            }
+            std::int64_t last = -1; // the last clip on the cell, named or not: a press there is its
+            for (std::size_t g = 0; g < clips.size(); ++g) {
+                if (!paints_on(clips[g].second, c, r)) continue;
+                last = static_cast<std::int64_t>(g);
+                if (clip_part[g] < 0) continue;
+                Seen& s = seen[static_cast<std::size_t>(clip_part[g])];
+                s.x0 = s.any ? (std::min)(s.x0, c) : c;
+                s.y0 = s.any ? (std::min)(s.y0, r) : r;
+                s.x1 = s.any ? (std::max)(s.x1, c) : c;
+                s.y1 = s.any ? (std::max)(s.y1, r) : r;
+                s.any = true;
+            }
+            if (last >= 0 && clip_part[static_cast<std::size_t>(last)] >= 0) {
+                const Top& t = grid[at(c, r)];
+                const auto top = t.path == nullptr ? reached.end() : reached.find(*t.path);
+                // ...unless a part outside the clips is what a press there reaches
+                if (top == reached.end() || named.count(top->second->path) == 0 ||
+                    named.at(top->second->path) ==
+                        static_cast<std::size_t>(clip_part[static_cast<std::size_t>(last)])) {
+                    Seen& s = seen[static_cast<std::size_t>(clip_part[static_cast<std::size_t>(last)])];
+                    if (std::find(s.own.begin(), s.own.end(), CellAt{c, r}) == s.own.end()) {
+                        s.own.push_back({c, r});
+                    }
+                }
+            }
+        }
+    }
+    // EACH ROW'S LAST CHARACTER: a part's own cells up to it are among its characters, and the
+    // blanks after it are padding.
+    std::vector<std::int64_t> last_char(static_cast<std::size_t>(r1 - r0), c0 - 1);
+    for (std::int64_t r = r0; r < r1; ++r) {
+        for (std::int64_t c = c0; c < c1; ++c) {
+            const Top& t = grid[at(c, r)];
+            if (t.path != nullptr && !t.hidden && t.glyph != ' ') {
+                last_char[static_cast<std::size_t>(r - r0)] = c;
+            }
+        }
+    }
+    for (std::size_t i = 0; i < first_of.size(); ++i) {
+        Seen& s = seen[i];
         if (!s.any) {
             continue;
         }
-        const ElementRecord& rec = a.records[i];
+        std::sort(s.own.begin(), s.own.end(), [](const CellAt& l, const CellAt& r) {
+            return l.second != r.second ? l.second < r.second : l.first < r.first;
+        });
+        for (const CellAt& cell : s.own) {
+            if (cell.first <= last_char[static_cast<std::size_t>(cell.second - r0)]) {
+                s.lettered.push_back(cell);
+            }
+        }
+        const ElementRecord& rec = *first_of[i];
         AreaPart part{rec.action,
                       record_available(rec),
                       s.x0 * kCellPx - a.x,
@@ -393,8 +538,10 @@ inline std::string read_area(const std::vector<WinArea>& areas, const Cache& cac
                       false,
                       0,
                       0};
-        if (!s.own.empty()) {
-            const CellAt& mid = s.own[(s.own.size() - 1) / 2];
+        // ITS POINT: the middle of the cells of its own that show a character, else of its own.
+        const std::vector<CellAt>& cells = s.lettered.empty() ? s.own : s.lettered;
+        if (!cells.empty()) {
+            const CellAt& mid = cells[(cells.size() - 1) / 2];
             part.pressed = true;
             part.px = mid.first * kCellPx + kCellPx / 2 - a.x;
             part.py = mid.second * kCellPx + kCellPx / 2 - a.y;
@@ -405,11 +552,20 @@ inline std::string read_area(const std::vector<WinArea>& areas, const Cache& cac
 }
 
 inline Landed land(const std::vector<WinArea>& areas, const Cache& cache, std::int64_t col,
-                   std::int64_t row) {
+                   std::int64_t row, bool wheel = false, std::int64_t button = 0) {
+    // AN AREA THAT LETS THE THIRD BUTTON THROUGH still takes it where no area behind it does.
+    if (button == 3) {
+        Landed through = land(areas, cache, col, row, wheel, -3);
+        if (through.area != nullptr) {
+            return through;
+        }
+        button = 0;
+    }
     Landed out;
     for (const WinArea* a : front_to_back(areas)) {
         const Place pl = place_of(*a);
-        if (!pl.holds(col, row)) {
+        if (!pl.holds(col, row) || (wheel && a->pointer && !a->wheel) ||
+            (button == -3 && a->pointer && !a->right)) {
             continue;
         }
         const Painted* p = cache.of(a->area);

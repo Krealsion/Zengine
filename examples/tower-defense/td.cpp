@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// Tower Defense: a small game played in a Workshop pane, made from inside Workshop. One source
-// file using only headers the installed Zengine and Loom packages publish, so a single-source
-// recipe builds it with these links:
-//     zengine::pane, zengine::activation, zengine::input, zengine::timer, loom::switchboard
-// and a load-plan row loads it under the role "td.game" (kOffice, below). It publishes what
-// happens in it (TdSeen, TdOccurred) for whoever its host lets observe it.
+// Tower Defense: a small game played in a Workshop pane, made from inside Workshop. One source file
+// of the installed packages' headers: a single-source recipe links zengine::pane, zengine::graphics,
+// zengine::activation, zengine::input, zengine::timer and loom::switchboard, and a load-plan row
+// loads it under the role "td.game" (kOffice, below). It draws in that office's area of the
+// graphics window that shows it, and publishes what happens in it (TdSeen, TdOccurred) for
+// whoever its host lets observe it.
 
+#include "workshop/pane_drawing.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
 #include "graphics/role.hpp"
+#include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
 #include "timer/binding.hpp"
 
 #include <zen/kernel/export.hpp>
@@ -23,13 +25,13 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
 namespace {
 
 namespace ws = zengine::workshop;
-namespace surface = zengine::surface;
 namespace gfx = zengine::graphics;
 using zengine::timer::TimedWeave;
 using zengine::timer::TimerFired;
@@ -481,8 +483,8 @@ std::string status_line(const TdState& s) {
            std::to_string(s.tick);
 }
 
-std::vector<surface::SurfaceTextRow> picture(const TdState& s) {
-    std::vector<surface::SurfaceTextRow> rows;
+std::vector<ws::TextRow> picture(const TdState& s) {
+    std::vector<ws::TextRow> rows;
     rows.push_back({"TOWER DEFENSE   wave " + std::to_string(s.wave) + "/" + std::to_string(kWaves) +
                         "   gold " + std::to_string(s.gold) + "   lives " + std::to_string(s.lives) +
                         "   " + phase_words(s),
@@ -512,10 +514,11 @@ std::vector<surface::SurfaceTextRow> picture(const TdState& s) {
 
 // ---- The pane ---------------------------------------------------------------------------------
 class Game : public TimedWeave<Game, TdState,
-                               loom::Accept<ws::PaneCatalogRequested, ws::PaneRoom,
-                                            ws::PaneActionRequested, ws::PanePressed, TdCommand>,
-                               loom::Emit<ws::v2::PaneOffered, ws::PaneActions, ws::PaneContent,
-                                          TdSeen, TdOccurred>> {
+                               loom::Accept<ws::PaneCatalogRequested, gfx::AreaRoom,
+                                            gfx::DrawnRefused, ws::PaneActionRequested,
+                                            gfx::AreaButtonChanged, TdCommand>,
+                               loom::Emit<ws::v2::PaneOffered, ws::PaneActions, gfx::Drawn,
+                                          gfx::RoomAsked, TdSeen, TdOccurred>> {
 public:
     Game() : tick_(timers().repeat("td.tick", std::chrono::milliseconds(150), &Game::on_tick)) {}
 
@@ -527,6 +530,10 @@ public:
         }
         tell(mail);
         offer(mail);
+        if (!window_.shown()) { // a reloaded game draws in its window again
+            (void)mail.as_role(kOffice).send_to_role(gfx::kGraphicsRole,
+                                                     gfx::RoomAsked{window_.area()});
+        }
     }
 
     void on(const ws::PaneCatalogRequested&, loom::Mail& mail) {
@@ -535,13 +542,16 @@ public:
         }
     }
 
-    void on(const ws::PaneRoom& room, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshop) || room.pane != kPane) {
-            return;
+    // The room the window gives the area: the picture is drawn there whole. A drawing the window
+    // refused leaves what it shows as it was.
+    void on(const gfx::AreaRoom& room, loom::Mail& mail) {
+        if (window_.room(room, mail)) {
+            show(mail);
         }
-        rows_ = room.rows;
-        columns_ = room.columns;
-        show(mail);
+    }
+
+    void on(const gfx::DrawnRefused& refused, loom::Mail& mail) {
+        (void)window_.refused(refused, mail);
     }
 
     void on(const ws::PaneActionRequested& asked, loom::Mail& mail) {
@@ -554,14 +564,18 @@ public:
         show(mail);
     }
 
-    void on(const ws::PanePressed& pressed, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshop) || pressed.pane != kPane) {
+    // A first-button press in the area, at the cell of the picture it landed on.
+    void on(const gfx::AreaButtonChanged& button, loom::Mail& mail) {
+        const ws::RowsRoom room = window_.rows_room();
+        const std::optional<ws::WindowPointer> p =
+            window_.pointer(button, mail, room.rows(), room.columns());
+        if (!p || p->phase != ws::canvas_pointer::kPress || p->button != 1) {
             return;
         }
         // Map rows start under the header, and each cell is two columns: its glyph, then a gap.
-        const std::int64_t y = pressed.row - 1;
-        const std::int64_t x = (pressed.column - 1) / 2;
-        if (y >= 0 && y < kHeight && pressed.column >= 1 && x < kWidth) {
+        const std::int64_t y = p->at.row - 1;
+        const std::int64_t x = (p->at.column - 1) / 2;
+        if (p->at.shown && y >= 0 && y < kHeight && p->at.column >= 1 && x < kWidth) {
             const bool again = x == state_.cursor_x && y == state_.cursor_y;
             state_.cursor_x = x;
             state_.cursor_y = y;
@@ -659,27 +673,27 @@ private:
                                   static_cast<std::int64_t>(state_.enemies.size())});
     }
 
-    // Workshop refuses a row wider than the room, and a room holds only so many rows.
+    // The picture drawn in the area: as many rows as its room holds, each cut to its width.
     void show(loom::Mail& mail) {
         tell(mail);
-        ws::PaneContent said;
-        said.pane = kPane;
-        for (surface::SurfaceTextRow row : picture(state_)) {
-            if (static_cast<std::int64_t>(said.rows.size()) >= rows_ || columns_ <= 0) {
-                break;
-            }
-            if (static_cast<std::int64_t>(row.text.size()) > columns_) {
-                row.text.resize(static_cast<std::size_t>(columns_));
-            }
-            said.rows.push_back(row);
+        const ws::RowsRoom room = window_.rows_room();
+        if (room.rows() <= 0 || room.columns() <= 0) {
+            return;
         }
-        (void)mail.as_role(kOffice).send_to_role(kWorkshop, said);
+        std::vector<ws::TextRow> rows = picture(state_);
+        for (ws::TextRow& row : rows) {
+            if (static_cast<std::int64_t>(row.text.size()) > room.columns()) {
+                row.text.resize(static_cast<std::size_t>(room.columns()));
+            }
+        }
+        const ws::RowsDrawing drawn = ws::rows_drawing(rows, std::vector<ws::RowPart>{}, room,
+                                                       room.columns(), {}, room.rows());
+        window_.draw(drawn.sketch, mail);
     }
 
     Handle tick_;
     Said said_; // what the rules said since the last tell; a report, not state
-    std::int64_t rows_ = 0; // the room Workshop last granted; not state, so a reload re-asks
-    std::int64_t columns_ = 0;
+    ws::WindowDrawing window_{kOffice, kOffice}; // not state: a reload is told its room afresh
 };
 
 } // namespace

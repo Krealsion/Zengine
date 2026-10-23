@@ -10,10 +10,6 @@ namespace zengine::workshop {
 
 // ---- WHAT IS TRUE RIGHT NOW, PROJECTED ---------------------------------------------------
 
-std::string pane_content_key(const PaneRef& ref) {
-    return "pane.content-refused." + ref_text(ref);
-}
-
 std::string pane_window_key(const PaneRef& ref) {
     return "pane.not-presented." + ref_text(ref);
 }
@@ -27,24 +23,6 @@ std::vector<Condition> attention_conditions(const Session& s,
                                             const ProjectFrontier& frontier) {
     std::vector<Condition> out = s.conditions.rows;
     const Screen sc = screen_of(s);
-
-    // Derived: a provider's update this pane could not keep. The pane holds it and clears it on
-    // the next valid content, so the condition goes when the pane recovers, with no retraction
-    // call anywhere in the path.
-    for (const ExternalPane& pane : s.panes.external) {
-        if (pane.refusal.empty()) {
-            continue;
-        }
-        const RuntimePane* named = s.panes.runtime.of_kind(pane.kind);
-        if (named == nullptr) {
-            continue; // a pane whose catalog row has gone has no subject to name
-        }
-        const PaneRef ref{named->provider, named->pane};
-        out.push_back(Condition{pane_content_key(ref),
-                                "`" + ref_text(ref) + "` refused an update",
-                                pane.refusal_why.empty() ? pane.refusal : pane.refusal_why,
-                                graphics::role::kAlert, std::string()});
-    }
 
     // DERIVED: a setting a pane was handed and said it cannot use. The pane holds the word against
     // the revision it was handed, so the condition goes when a newer revision is handed.

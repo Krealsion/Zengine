@@ -18,7 +18,7 @@
 #include "editor/source-transfer/material.hpp"
 #include "workshop/editor_handoff_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
-#include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/pane_text.hpp"
@@ -69,13 +69,10 @@ using ws::PaneKey;
 using ws::v2::PaneOffered;
 using ws::PaneQuitAnswered;
 using ws::PaneQuitRequested;
-using ws::PaneRoom;
 using ws::PaneTextInput;
-using ws::PrepareSourceRequested;
 using ws::ProjectRoot;
 using ws::ProjectRootRequested;
 using ws::SourceOpened;
-using ws::SourcePrepared;
 using ws::Written;
 using zengine::workshop::pane_text::drawable;
 using zengine::workshop::pane_text::fit;
@@ -92,7 +89,6 @@ using office::not_prepared;
 using office::offer_refusal;
 using office::Pickup;
 using office::Relay;
-using office::rows_caret;
 using office::same_identity;
 using office::tail_of_path;
 using office::Take;
@@ -120,15 +116,13 @@ struct Candidate {
     bool same_path = false; ///< the current document is the one asked for: only the desk moves
     std::string path;
     EditorState doc;        ///< the whole candidate (bytes, saved copy, convention, epoch)
-    /// The trial room the desk named and the geometry composed for it: the room the pane has
-    /// the instant the publication seats it, before the desk's own grant, which agrees.
+    /// The room the trial said the pane's area will have and the geometry composed for it: what
+    /// the pane composes for the instant the publication seats it, before its window says the
+    /// room, which agrees.
     std::int64_t rows = 0;
     std::int64_t columns = 0;
     std::int64_t chrome_rows = 0;
     std::int64_t doc_rows = 0;
-    /// The canvas room the trial reserved, where the candidate was composed as this pane's
-    /// picture; no grant where it was composed as rows.
-    ws::PaneCanvasRoom room;
 };
 
 /// THE SWEEP A PRESS BEGAN, and the picture it began against (WL-EDIT-16).
@@ -152,11 +146,11 @@ struct Viewport {
 /// WHAT COMPOSING A DOCUMENT FOR A ROOM PRODUCED: the rows, where the document begins in
 /// them, how many rows it got, the caret beside them, and the viewport it was made with.
 struct Composition {
-    std::vector<surface::SurfaceTextRow> rows;
+    std::vector<ws::TextRow> rows;
     std::int64_t chrome_rows = 0;
     std::int64_t doc_rows = 0;
     bool status_row = false; ///< row 0 is the status row (not a notice standing in for it)
-    ws::v2::PaneCaret caret;
+    ws::RowsCaret caret;
     Viewport view;
 };
 
@@ -230,25 +224,6 @@ struct Dropped {
 /// A DROPPED LOCATION, judged against the document's mark when the open was asked.
 using Locate = office::LocateOf<Mark>;
 
-/// THE PICTURE'S ROW-TO-MEANING MAP, as the facts it is made of (WL-EDIT-18).
-struct PictureKey {
-    std::uint64_t epoch = 0;
-    std::uint64_t content = 0;
-    std::size_t first_row = 0;
-    std::int64_t first_col = 0;
-    std::int64_t chrome_rows = 0;
-    std::int64_t rows = 0;
-    std::int64_t columns = 0;
-    bool selection = false;
-    EditorPos from;
-    EditorPos to;
-    friend bool operator==(const PictureKey& a, const PictureKey& b) {
-        return a.epoch == b.epoch && a.content == b.content && a.first_row == b.first_row &&
-               a.first_col == b.first_col && a.chrome_rows == b.chrome_rows && a.rows == b.rows &&
-               a.columns == b.columns && a.selection == b.selection && a.from == b.from && a.to == b.to;
-    }
-};
-
 constexpr const char* kInsertLine = "editor.insert-line";
 constexpr const char* kInsertCpp = "editor.insert-cpp";
 
@@ -298,14 +273,14 @@ inline void apply_viewport(EditorState& doc, const Viewport& v) {
 
 /// THE PARTS A COMPOSITION NAMES: its first row `status` where the room has chrome, and each
 /// document line by its number, `line:<n>`, across the room's columns.
-inline std::vector<ws::PaneRowPart> parts_of(const Composition& c, std::int64_t columns) {
-    std::vector<ws::PaneRowPart> parts;
+inline std::vector<ws::RowPart> parts_of(const Composition& c, std::int64_t columns) {
+    std::vector<ws::RowPart> parts;
     if (c.chrome_rows > 0) {
-        parts.push_back(ws::PaneRowPart{"status", 0, 0, columns});
+        parts.push_back(ws::RowPart{"status", 0, 0, columns});
     }
     for (std::int64_t row = c.chrome_rows; row < static_cast<std::int64_t>(c.rows.size()); ++row) {
         const std::size_t line = c.view.first_row + static_cast<std::size_t>(row - c.chrome_rows);
-        parts.push_back(ws::PaneRowPart{"line:" + std::to_string(line + 1), row, 0, columns});
+        parts.push_back(ws::RowPart{"line:" + std::to_string(line + 1), row, 0, columns});
     }
     return parts;
 }

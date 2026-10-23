@@ -229,7 +229,7 @@ struct CodeRig {
         r.extent(cells + 60, 64);
         const ExternalPane* seat = r.session().panes.external_pane(kind_of(builder_ref()));
         REQUIRE(seat != nullptr);
-        REQUIRE(seat->columns >= cells - 4);
+        REQUIRE(held_canvas_rows(*seat).columns >= cells - 4);
     }
 
     /// THE BUILDER'S ROW THAT BEGINS WITH `head`, whole as painted -- or empty.
@@ -1230,7 +1230,7 @@ TEST_CASE("Edit Code bound to a key in command mode names no pane, says where th
     c.hold({single_recipe("tally", kTallyStem, c.source)});
     c.open();
     // THE KEYS ARE COMMAND MODE'S: a press on the bare workspace hands them back.
-    c.r.press_cell(0, screen_of(c.r.session()).h - 1);
+    c.r.press_cell(0, gfx::cell_of_pixel(screen_of(c.r.session()).h) - 1);
     REQUIRE(c.r.session().panes.keyboard == kNoPaneKind);
     c.r.key(input::scan::kE);
     c.r.text("e");

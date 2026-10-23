@@ -27,10 +27,10 @@ WHY — `agents/decisions/the-row-is-its-own-scrub-track.md`
 
 ## WL-PTR-10 — `on(PointerWheel)` is Workshop's one wheel router
 
-LAW — `on(PointerWheel)` routes every wheel it hears: modes keep their ownership, the topmost occupancy decides by front order, and a pane in front is sent the notches; nothing under another pane scrolls.
+LAW — `on(PointerWheel)` routes every wheel Workshop hears: modes keep their ownership, the topmost occupancy decides by front order; a pane the window shows hears its own, and nothing under another scrolls.
 
 MEANS
-- an external pane's body: the notches cross as `PaneWheel` to a text pane, as a canvas wheel to a canvas pane; the Editor scrolls, caret still;
+- an external pane's area: the window gives it the notches (`AreaWheelTurned`); the Editor scrolls, caret still;
 - the picker's and the host Pane Manager's lists scrolled here, and retired with them;
 - in a graphics window, the wheel in Workshop's own area (`on(AreaWheelTurned)`); a pane the window shows hears its own (`AreaWheelTurned`).
 
@@ -63,15 +63,11 @@ enter"
 
 ### WL-PTR-10
 `workshop/weave_pointer.cpp` on(PointerWheel)
-`workshop/weave_external.cpp` external_wheel
-`workshop/weave_canvas.cpp` canvas_wheel
 `editor/editor-pane/pane.cpp` wheel
 `tests/test_workshop_panes_editor.cpp` "the wheel scrolls the body, moves no caret, and elsewhere
 reaches nothing"
-`tests/test_workshop_panes_input.cpp` "a wheel over an external pane's body crosses unchanged,
-follows the pointer, and the header sends nothing"
-`tests/test_workshop_panes_canvas.cpp` "pane canvas resize loses capture and wheel names a local
-point in the latest picture"
+`tests/test_workshop_panes_input.cpp` "a wheel over an external pane's body reaches it unchanged from
+the window, follows the pointer, and the header sends nothing"
 `workshop/weave_handlers.cpp` on(AreaWheelTurned)
 `workshop/pane_facets.hpp` PaneRowsFacet
 `tests/test_workshop_panes_files.cpp` "WL-HAND-06: Files names its entries by name and its controls by

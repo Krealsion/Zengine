@@ -58,16 +58,16 @@ WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 
 ## WL-PRESS-06 — A secondary press is the pane's first, then state-local first refusal
 
-LAW — A secondary press in a pane's body reaches a `PaneButton` holder, consumed under a hold and continuation per button; a doorless body's right press opens the host's menu; chrome and modes are the host's.
+LAW — A secondary press in a pane's area reaches it from the window, held per button, Workshop keeping its continuation; a doorless pane's right press opens the host's menu; chrome and modes are the host's.
 
 MEANS
-- the release is the hold's pane's wherever the pointer is; loss and arbitration end it `lost`; in a graphics window the pane's own, its pass-back citing the window's number;
+- the release is the hold's area's wherever the pointer is, and the window's word ends it lost; a pass-back cites the window's number;
 - a continuation is eligible while its hand's newest, unspent, its pane on the desk; a release is no act;
-- arrangement leaves on one, consumed whole; on a canvas the press reaches the pane as its pointer (WL-CANVAS-03).
+- arrangement leaves on one, consumed whole.
 
 DOES NOT MEAN
-- that a refused press holds: the tap attributes it; the host drops it; the release is silent;
-- that a replaced holder is promised its release: the host addresses the role, not an incarnation.
+- that a replaced holder is promised its release: the window addresses the area's office, not an incarnation;
+- that the host sees what the pane made of the press: only a pass-back or a menu asked says.
 
 WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 
@@ -80,7 +80,7 @@ WHY — `agents/decisions/a-routing-bool-is-not-a-disposition.md`
 
 ### WL-PRESS-01
 `workshop/weave_pointer.cpp` on(PointerButton)
-`workshop/weave_external.cpp` external_press
+`workshop/weave_handlers.cpp` area_pressed
 `tests/test_workshop_panes_input.cpp` "management chrome gets first refusal, and a mode takes the
 press whole"
 `tests/test_workshop_screen.cpp` "a press that lands on a pane begins nothing, so a hand that leaves
@@ -102,7 +102,6 @@ gamma selects gamma once every delivery it caused has settled, and a later press
 
 ### WL-PRESS-04
 `workshop/weave_pointer.cpp` on(PointerButton)
-`workshop/weave_external.cpp` external_press
 `workshop/screen_chrome.cpp` occupied_at
 `workshop/screen.hpp` Occupancy::kind ExternalPressAt kNoKind
 `workshop/screen_external.cpp` external_press_at
@@ -111,7 +110,7 @@ gamma selects gamma once every delivery it caused has settled, and a later press
 through nothing"
 `tests/test_workshop_panes_input.cpp` "management chrome gets first refusal, and a mode takes the
 press whole"
-`workshop/weave_handlers.cpp` on(AreaButtonChanged) placed_in_window
+`workshop/weave_handlers.cpp` on(AreaButtonChanged) on(AreaPressed)
 `tests/test_workshop_desk.cpp` "a press the graphics window gives Workshop's own area is the press it is, held to its own
 release, and one it gives a pane's area is the pane's, Workshop told where it landed" "Workshop's own area of the window answers each button as itself: a press on the room says
 so, a right press asks its menu about the room or a tab, re-asking it while one is open, a press
@@ -126,29 +125,27 @@ on the gear anchors there, and a tab carried along the run reorders it"
 omitted tab has no span and cannot be pressed" "no press outside the painted run reaches a layout"
 
 ### WL-PRESS-06
-`workshop/pane_vocabulary.hpp` PaneButton PanePassRequested
-`workshop/weave.hpp` SecondaryHold SecondaryContinuation external_button external_release
-lose_secondary_hold end_lost_holds end_refused_button
-`workshop/weave_external.cpp` external_button external_release lose_secondary_hold end_lost_holds
-end_refused_button
+`workshop/pane_vocabulary.hpp` PanePassRequested
+`workshop/weave.hpp` SecondaryContinuation end_lost_holds
+`workshop/weave_external.cpp` end_lost_holds
 `workshop/weave_handlers.cpp` on(AreaHoldEnded)
-`tests/test_workshop_desk.cpp` "a hold the window ends in Workshop's own area loses the press Workshop handed a pane it
-draws there, a canvas's and a second button's alike, and a hold of another button ends neither"
+`graphics/vocabulary.hpp` AreaHoldEnded
+`tests/test_workshop_desk.cpp` "a press Workshop holds in its own area of the window ends when the
+window says it ended the hold, and not before: an area Workshop places while it holds is the
+window's to judge"
 `workshop/weave_code.cpp` on(DispatchRefused)
 `workshop/weave_pointer.cpp` on(PointerButton)
 `workshop/weave_session.cpp` apply_setup
-`workshop/pane_menu.hpp` HeldButton
 `workshop/weave_arrange.cpp` enter_arrange_pane
-`tests/test_workshop_panes_button.cpp` "WL-PRESS-06: a right press over a pane whose holder has the
-door is delivered, consumed, opens no menu, and names the admitted picture; the chrome stays the
-host's" "WL-PRESS-06: a right press in a doorless pane's body opens the host's pane menu at the
+`tests/test_workshop_panes_button.cpp` "WL-PRESS-06: a right press over a pane whose holder hears
+the window is delivered, consumed and opens no menu; the chrome stays the host's" "WL-PRESS-06: a right press in a doorless pane's body opens the host's pane menu at the
 press, sends the provider nothing and takes no keys; its chrome opens the same menu" "WL-PRESS-06:
 the release is the pressing pane's wherever the pointer is, and leaks into no other pane"
 "WL-PRESS-06: closing the pane AFTER the release invalidates the continuation on its own -- the
 review's first integration finding" "WL-PRESS-06: a press of a button the host believes is down ends
-the old hold aloud, never silently" "WL-PRESS-06: a press Loom refuses is settled -- the custody it
-recorded is dropped, so the physical release sends nothing and no second refusal follows; the
-failure stands on the tap"
+the old hold aloud, never silently" "WL-PRESS-06: a holder replaced while the button is down -- the
+release goes to the ROLE's current holder, who never saw the press; the old holder is told
+nothing"
 `tests/test_workshop_host.cpp` "one right press exits Arrange; only the NEXT one opens context" "a
 mode that owns the pointer answers a right press its own way"
 `workshop/weave_handlers.cpp` on(AreaPressed)

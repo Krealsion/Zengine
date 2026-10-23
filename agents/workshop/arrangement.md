@@ -190,8 +190,8 @@ retains the refusal and can recover" "queued arrangement motions retain order th
 `workshop/weave_handlers.cpp` on(AreaHoldEnded)
 `tests/test_workshop_desk.cpp` "a press the graphics window gives Workshop's own area is the press it is, held to its own
 release, and one it gives a pane's area is the pane's, Workshop told where it landed" "a press Workshop holds in its own
-area of the window ends when the window says it ended the hold, and not before: an area Workshop places in front of the
-press is the window's to judge"
+area of the window ends when the window says it ended the hold, and not before: an area Workshop
+places while it holds is the window's to judge"
 
 ### WL-ARR-03
 `workshop/weave_arrange.cpp` forget_removed_selection

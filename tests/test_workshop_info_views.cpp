@@ -147,12 +147,11 @@ struct Views : InventoryStory {
         key(input::scan::kReturn); key(input::scan::kA, input::mod::kCtrl);
         text(value); key(input::scan::kReturn);
     }
-    /// THE HOST'S OWN WEAVER: physical input, which needs no Loom grant of its own.
+    /// THE HOST'S OWN WEAVER: physical input, which needs no Loom grant of its own -- a press as
+    /// the window that shows the desk reads it from its platform, a key as the host's input does.
     void physical_press(std::int64_t kind, std::int64_t row, std::int64_t column) {
         const auto e = at(kind, row, column, true);
-        physical->push_back(input::PointerButton{1, true, e.x, e.y, input::space::kCells, 0});
-        physical->push_back(input::PointerButton{1, false, e.x, e.y, input::space::kCells, 0});
-        pump_physical();
+        r.window_click(e.x, e.y);
     }
     void physical_key(std::int64_t scan, std::int64_t mods = input::mod::kNone) {
         physical->push_back(input::KeyPressed{scan, "", mods});
@@ -1029,11 +1028,7 @@ TEST_CASE("info views: a field dragged between views fills a compatible field an
     REQUIRE_MESSAGE(s.shows(b, "PRESET LINKED"), s.shown(b));
     REQUIRE(s.shows(b, "inner: absent (required)"));
     auto field = [&](std::int64_t view, const std::string& label) { return s.field_at(view, label); };
-    // The picture the destination shows before its fields are filled: a drop aimed at it is stale
-    // once a filled branch adds rows.
     REQUIRE(shows_canvas(*s.r.session().panes.external_pane(b)));
-    const auto aimed = s.r.session().panes.external_pane(b)->canvas;
-    const auto aimed_name = field(b, "name");
     // A NESTED MESSAGE: its whole branch, typed, into the absent required field.
     s.drag_between(a, field(a, "inner"), b, field(b, "inner"));
     CHECK_MESSAGE(s.shows(b, "*inner.a: 5"), s.shown(b));
@@ -1051,19 +1046,6 @@ TEST_CASE("info views: a field dragged between views fills a compatible field an
     CHECK(s.shows(b, "Field drop refused"));
     CHECK(s.shows(b, "extra: absent"));
     CHECK(s.shows(b, "numbers: absent"));
-    // A STALE PICTURE REFUSES: the destination moved since the hand aimed.
-    REQUIRE(s.r.session().panes.external_pane(b)->canvas.grant == aimed.grant);
-    zengine::message_draft::Draft named(record_schema());
-    named.set_text({"name"}, "forged");
-    const auto encoded = inv::encode_pair(zengine::message_draft::grab_field(named, {"name"}), {});
-    const CanvasRows lattice = held_canvas_rows(*s.r.session().panes.external_pane(b));
-    s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider, info::kInfoPaneRole,
-        loom::Message(loom::to_value(PaneCanvasValueDrop{"info.3", aimed.grant, aimed.content.picture,
-            lattice.column_x(3), lattice.row_y(aimed_name.first), loom::Bytes(encoded.begin(), encoded.end()),
-            "", "", ""})));
-    s.r.bus.drain_until_idle();
-    CHECK_MESSAGE(s.shows(b, "nothing was filled"), s.shown(b));
-    CHECK(s.shows(b, "name: dst"));
     // A PARTIAL NESTED VALUE KEEPS ITS ABSENCE: a preset's `inner` with `a` unset.
     s.button(a, "Close"); // a clean copy closes at once
     const auto c = s.new_view("info.2", 2, 30);
@@ -1176,25 +1158,10 @@ TEST_CASE("info views: repeated create and close stays within four offers and le
     CHECK(s.r.w->observation_leases() == 0);
 }
 
-TEST_CASE("info views: a stale or clipped control never acts, and a press names its own picture") {
+TEST_CASE("info views: a clipped control never acts") {
     Views s;
     const auto [a, b] = s.two_views();
     (void)b;
-    // The picture the view shows before it holds a value: its controls stand elsewhere now.
-    REQUIRE(shows_canvas(*s.r.session().panes.external_pane(a)));
-    const auto before = s.r.session().panes.external_pane(a)->canvas;
-    s.copy_into(a, "story.RuntimeItem");
-    const auto entries = s.saved_entries().size();
-    const auto at = s.where(a, "[Save copy]");
-    // A PRESS STAMPED WITH AN OLDER PICTURE is refused, and the copy is not saved.
-    REQUIRE(s.r.session().panes.external_pane(a)->canvas.grant == before.grant);
-    const CanvasRows lattice = held_canvas_rows(*s.r.session().panes.external_pane(a));
-    s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider, info::kInfoPaneRole,
-        loom::Message(loom::to_value(PaneCanvasPointer{"info.2", before.grant, before.content.picture, 1,
-            canvas_pointer::kPress, 1, lattice.column_x(at.second + 2), lattice.row_y(at.first)})));
-    s.r.bus.drain_until_idle();
-    CHECK_MESSAGE(s.shows(a, "This view changed -- press again"), s.shown(a));
-    CHECK(s.saved_entries().size() == entries);
     // A NARROW ROOM DRAWS NO PARTIAL CONTROL: every bracket it paints is closed.
     s.place(info::kInfoPaneRole, "info.2", 2, 30, 24, 14);
     for (const auto& row : pane_rows(s.r, a)) {
@@ -1278,15 +1245,6 @@ TEST_CASE("info views: the wheel walks a view's fields a notch at a time on its 
     CHECK(selected_field(s, a) == second);
     wheel(0.5); // ...and the other half does
     CHECK(selected_field(s, a) == first);
-    // A wheel from the room the view stood in before a new one was granted turns nothing.
-    const ExternalPane old = *s.r.session().panes.external_pane(a);
-    s.place(info::kInfoPaneRole, "info.2", 2, 30, 84, 24);
-    REQUIRE(s.r.session().panes.external_pane(a)->canvas.grant != old.canvas.grant);
-    s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider, info::kInfoPaneRole,
-        loom::Message(loom::to_value(PaneCanvasPointer{"info.2", old.canvas.grant, old.canvas.content.picture, 0,
-            canvas_pointer::kWheel, 0, 4, 4, 0, 0, -1})));
-    s.r.bus.drain_until_idle();
-    CHECK(selected_field(s, a) == first);
     // A wheel turned as far as a number goes walks to the list's end at once, and no further.
     wheel(-1e300);
     const std::string last = selected_field(s, a);
@@ -1346,28 +1304,6 @@ TEST_CASE("info views: a view's line being typed shows its caret on its canvas, 
     CHECK(caret().row == surface::kNoCaret);
 }
 
-TEST_CASE("info views: a right press aimed at a picture drawn before the view's rows' meaning changed "
-          "opens no menu and says why") {
-    Views s;
-    add_records(s);
-    const auto [a, b] = s.two_views();
-    (void)b;
-    const ExternalPane before = *s.r.session().panes.external_pane(a);
-    REQUIRE(shows_canvas(before));
-    s.copy_into(a, "Source record"); // a value now: other rows, other meanings
-    const ExternalPane& now = *s.r.session().panes.external_pane(a);
-    REQUIRE(now.canvas.grant == before.canvas.grant);
-    const CanvasRows lattice = held_canvas_rows(now);
-    const auto at = s.field_at(a, "name");
-    s.watch();
-    s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider, info::kInfoPaneRole,
-        loom::Message(loom::to_value(PaneCanvasPointer{"info.2", before.canvas.grant, before.canvas.content.picture,
-            77, canvas_pointer::kPress, 3, lattice.column_x(3), lattice.row_y(at.first)})));
-    s.r.bus.drain_until_idle();
-    CHECK_MESSAGE(s.shows(a, "This view changed -- press again"), s.shown(a));
-    CHECK(s.sends(PaneMenuRequested::zen_name) == 0);
-}
-
 TEST_CASE("info views: a field copy placed on Info's pane-property view fills no field of the value its "
           "default view still holds") {
     Views s(255); // the field pickup is the actor's to make
@@ -1404,16 +1340,16 @@ TEST_CASE("info views: only the motion of the press that armed a field pickup be
     const ExternalPane held = *s.r.session().panes.external_pane(a);
     REQUIRE(shows_canvas(held));
     const CanvasRows lattice = held_canvas_rows(held);
-    const auto send = [&](std::int64_t phase, std::int64_t x, std::int64_t y) {
-        s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider,
-            info::kInfoPaneRole, loom::Message(loom::to_value(PaneCanvasPointer{"info.2", held.canvas.grant,
-                held.canvas.content.picture, 77, phase, 1, x, y})));
-        s.r.bus.drain_until_idle();
-    };
-    // A press beside the rows, where it names nothing, and that press's own motion across the
-    // field rows: the earlier press's pickup stays unasked.
-    send(canvas_pointer::kPress, -1, lattice.row_y(at.first));
-    send(canvas_pointer::kMove, lattice.column_x(4), lattice.row_y(at.first + 1));
+    const std::string area = held_area_of(a);
+    // A press below the rows, on the room's last line, where it names nothing, and that press's
+    // own motion across the field rows: the earlier press's pickup stays unasked.
+    const std::int64_t last_line = (lattice.height / lattice.line - 1) * lattice.line;
+    REQUIRE(last_line > (at.first + 1) * lattice.line);
+    as_window(s.r, a, gfx::AreaButtonChanged{area, 1, true, lattice.width - 1,
+                                             last_line + lattice.line / 2, 0}, 77);
+    as_window(s.r, a, gfx::AreaPointerMoved{area, 4 * lattice.advance + lattice.advance / 2,
+                                            (at.first + 1) * lattice.line + lattice.line / 2, 0, 0,
+                                            0}, 77);
     CHECK(s.sends(PaneOperationRequested::zen_name) == 0);
     CHECK_FALSE(s.shows(a, "Field pickup"));
 }
@@ -1451,19 +1387,17 @@ TEST_CASE("info views: a press on Info's pane-property view arms no field pickup
     const ExternalPane held = *s.r.session().panes.external_pane(s.info);
     REQUIRE(shows_canvas(held));
     const CanvasRows lattice = held_canvas_rows(held);
-    const auto send = [&](std::int64_t phase, std::int64_t x, std::int64_t y) {
-        s.r.bus.office_send_to_role_as(s.r.bus.role_holder(kWorkshopProvider), kWorkshopProvider,
-            info::kInfoPaneRole, loom::Message(loom::to_value(PaneCanvasPointer{"info", held.canvas.grant,
-                held.canvas.content.picture, 88, phase, 1, x, y})));
-        s.r.bus.drain_until_idle();
-    };
+    const std::string area = held_area_of(s.info);
     // A press held on a row of the properties; the value shown again by key while it is held; then
     // that press's motion across the rows: the earlier field press's pickup stays unasked.
-    send(canvas_pointer::kPress, lattice.column_x(3), lattice.row_y(2));
+    as_window(s.r, s.info, gfx::AreaButtonChanged{area, 1, true, 3 * lattice.advance + lattice.advance / 2,
+                                                  2 * lattice.line + lattice.line / 2, 0}, 88);
     s.key(input::scan::kI, input::mod::kCtrl);
     REQUIRE_MESSAGE(s.shows(s.info, "name: dst"), s.shown(s.info));
     s.watch();
-    send(canvas_pointer::kMove, lattice.column_x(5), lattice.row_y(name.first + 1));
+    as_window(s.r, s.info, gfx::AreaPointerMoved{area, 5 * lattice.advance + lattice.advance / 2,
+                                                 (name.first + 1) * lattice.line + lattice.line / 2,
+                                                 0, 0, 0}, 88);
     CHECK(s.sends(PaneOperationRequested::zen_name) == 0);
     CHECK_FALSE(s.shows(s.info, "Field pickup"));
 }

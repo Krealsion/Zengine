@@ -211,7 +211,7 @@ struct BuilderRig {
 
     /// Hand the keys back the way a weaver does -- a press on the bare workspace.
     void unfocus() {
-        r.press_cell(0, screen_of(r.session()).h - 1);
+        r.press_cell(0, gfx::cell_of_pixel(screen_of(r.session()).h) - 1);
         REQUIRE(r.session().panes.keyboard != kind);
     }
 
@@ -295,20 +295,21 @@ struct BuilderRig {
         seat_do([](Tool& t, loom::Mail& mail) { t.say(mail); });
     }
 
-    /// A NEW ROOM AND NOTHING ELSE: the surface changes size, Workshop grants the pane its room
-    /// again, and the pane says its rows -- the ordinary repaint that exposes a notice cleared in
-    /// private. Required to be a real grant, so a deduplicated extent cannot pass for one.
+    /// A NEW ROOM AND NOTHING ELSE: the surface changes size, the window gives the pane's area
+    /// its room again, and the pane says its rows -- the ordinary repaint that exposes a notice
+    /// cleared in private. Required to be a real room, so a deduplicated extent cannot pass for one.
     void regrant() {
         const ExternalPane* seat = r.session().panes.external_pane(kind);
         REQUIRE(seat != nullptr);
-        const std::int64_t rows = seat->rows;
-        const std::int64_t columns = seat->columns;
+        const std::int64_t rows = held_canvas_rows(*seat).rows;
+        const std::int64_t columns = held_canvas_rows(*seat).columns;
         wide_ = !wide_;
         author_test_pane_room(r, kind, rows + 1, columns);
         r.extent(wide_ ? 160 : 150, wide_ ? 48 : 44);
         const ExternalPane* after = r.session().panes.external_pane(kind);
         REQUIRE(after != nullptr);
-        REQUIRE_MESSAGE((after->rows != rows || after->columns != columns),
+        REQUIRE_MESSAGE((held_canvas_rows(*after).rows != rows ||
+                         held_canvas_rows(*after).columns != columns),
                         "the surface changed and the pane's room did not");
     }
     bool wide_ = true;

@@ -399,7 +399,7 @@ public:
 
     /// What one area shows, in its pixels (`AreaShown`): its text runs line by line, joined where
     /// one ends as the next begins, each character inside the area and the window and drawn over by
-    /// no area in front but one `reader` owns; and each record naming an action as a part -- the box
+    /// no area in front but one `reader` owns or arranges; and each record naming an action as a part -- the box
     /// its subtree spans, cut to the area, and the point nearest its middle a press reaches it by,
     /// none shown, none said. "" when said, else why not.
     std::string read_area(const std::vector<WinArea>& areas, const WinArea& a,
@@ -411,7 +411,7 @@ public:
             if (f->area == a.area) {
                 break;
             }
-            if (f->owner != reader && f->x < a.x + a.w && f->x + f->w > a.x && f->y < a.y + a.h &&
+            if (f->owner != reader && f->arranger != reader && f->x < a.x + a.w && f->x + f->w > a.x && f->y < a.y + a.h &&
                 f->y + f->h > a.y) {
                 front.emplace_back(f, painted(f->area));
             }
@@ -460,8 +460,11 @@ public:
         };
         for (const auto& [at, ch] : chars) {
             const auto [y, x] = at;
+            // ...judged at the middle of what the area shows of it: a line the area's foot cuts is
+            // read by its part above the cut.
+            const std::int64_t foot = (std::min)(y + line, a.h);
             const bool inside = x >= 0 && x + adv <= a.w && y >= 0 && y < a.h &&
-                                shows(a.x + x + adv / 2, a.y + y + line / 2);
+                                shows(a.x + x + adv / 2, a.y + (y + foot) / 2);
             if (open && (!inside || y != run_y || x != next_x)) {
                 flush();
             }
@@ -483,7 +486,8 @@ public:
             return "area '" + a.area + "' shows more than " + std::to_string(kMaxAreaWords) +
                    " runs of text";
         }
-        // THE PARTS: each record naming an action, by its subtree's primitives.
+        // THE PARTS: each action a record names, one part however many records name it (a row's part
+        // drawn in runs around another's), by their subtrees' primitives.
         const std::map<std::string, const ElementRecord*> reached = records_by_node(a);
         // The top node of this area at a point of the area, as a press finds it; none outside all.
         const auto top_at = [&](std::int64_t x, std::int64_t y) -> const std::string* {
@@ -495,13 +499,69 @@ public:
             }
             return top;
         };
-        for (const ElementRecord& rec : a.records) {
-            if (rec.action.empty() || rec.path.empty()) {
+        // A PART WHOSE RECORD IS A GROUP THAT CLIPS IS PLACED BY ITS CLIP too, drawn there or not.
+        const std::vector<std::pair<std::string, ClipBox>> clips = group_clips(a);
+        // The clip that last holds a point, as a press there is read: its group's path, or none.
+        const auto clip_at = [&clips](std::int64_t x, std::int64_t y) -> const std::string* {
+            const std::string* last = nullptr;
+            for (const auto& [path, box] : clips) {
+                if (box.holds(x, y)) last = &path;
+            }
+            return last;
+        };
+        // EACH LINE'S LAST CHARACTER: a part's own points up to it are among its characters, and
+        // the blanks after it are padding.
+        std::map<std::int64_t, std::int64_t> last_char; // a run's top: the last character's left
+        for (const auto& [path, k] : own) {
+            for (const light::TextRun& t : k->prims->texts) {
+                const std::size_t at = t.text.find_last_not_of(' ');
+                if (at == std::string::npos) continue;
+                const std::int64_t x = t.x + static_cast<std::int64_t>(at) * adv;
+                const auto it = last_char.find(t.y);
+                if (it == last_char.end() || it->second < x) last_char[t.y] = x;
+            }
+        }
+        std::vector<std::vector<const ElementRecord*>> groups;
+        std::map<std::string, std::size_t> group_of;
+        for (const ElementRecord& one : a.records) {
+            if (one.action.empty() || one.path.empty()) {
                 continue;
             }
+            const auto [g, fresh] = group_of.try_emplace(one.action, groups.size());
+            if (fresh) {
+                groups.emplace_back();
+            }
+            groups[g->second].push_back(&one);
+        }
+        for (const std::vector<const ElementRecord*>& group : groups) {
+            const ElementRecord& rec = *group.front();
+            const auto in_group = [&group](const ElementRecord* r) {
+                return std::find(group.begin(), group.end(), r) != group.end();
+            };
+            const auto under_group = [&group](const std::string& path) {
+                for (const ElementRecord* r : group) {
+                    if (under(path, r->path)) return true;
+                }
+                return false;
+            };
+            // A BOX'S OWN POINTS: five by five across it -- its first pixel each way, its quarters,
+            // its middle and its last -- so a strip of a pixel along its edge, which a later box
+            // inside it leaves, is sampled too.
+            const auto sample = [](std::vector<std::pair<std::int64_t, std::int64_t>>& out,
+                                   std::int64_t bx, std::int64_t by, std::int64_t bw,
+                                   std::int64_t bh) {
+                if (bw <= 0 || bh <= 0) return;
+                for (std::int64_t i = 0; i < 5; ++i) {
+                    for (std::int64_t j = 0; j < 5; ++j) {
+                        out.emplace_back(bx + (i == 4 ? bw - 1 : i * bw / 4),
+                                         by + (j == 4 ? bh - 1 : j * bh / 4));
+                    }
+                }
+            };
             bool any = false;
             std::int64_t x0 = 0, y0 = 0, x1 = 0, y1 = 0; // the box, its far edges exclusive
             std::vector<std::pair<std::int64_t, std::int64_t>> points; // its own, in the area
+            std::vector<std::pair<std::int64_t, std::int64_t>> lettered; // ...on its characters
             const auto span = [&](std::int64_t bx, std::int64_t by, std::int64_t bw,
                                   std::int64_t bh) {
                 if (bw <= 0 || bh <= 0) {
@@ -514,22 +574,14 @@ public:
                 any = true;
             };
             for (const auto& [path, k] : own) {
-                if (!under(*path, rec.path)) {
+                if (!under_group(*path)) {
                     continue;
                 }
                 const auto r = reached.find(*path);
-                const bool mine = r != reached.end() && r->second == &rec;
+                const bool mine = r != reached.end() && in_group(r->second);
                 const light::NodePrimitives& p = *k->prims;
-                // A box's own points: five by five across it, its middle among them.
                 const auto grid = [&](std::int64_t bx, std::int64_t by, std::int64_t bw,
-                                      std::int64_t bh) {
-                    for (std::int64_t i = 0; i < 5; ++i) {
-                        for (std::int64_t j = 0; j < 5; ++j) {
-                            points.emplace_back(bx + (2 * i + 1) * bw / 10,
-                                                by + (2 * j + 1) * bh / 10);
-                        }
-                    }
-                };
+                                      std::int64_t bh) { sample(points, bx, by, bw, bh); };
                 for (const light::Quad& q : p.quads) {
                     span(q.x, q.y, q.w, q.h);
                     if (mine) grid(q.x, q.y, q.w, q.h);
@@ -537,8 +589,12 @@ public:
                 for (const light::TextRun& t : p.texts) {
                     const auto n = static_cast<std::int64_t>(t.text.size());
                     span(t.x, t.y, n * adv, line);
+                    const auto end = last_char.find(t.y);
                     for (std::int64_t i = 0; mine && i < n; ++i) {
                         points.emplace_back(t.x + i * adv + adv / 2, t.y + line / 2);
+                        if (end != last_char.end() && t.x + i * adv <= end->second) {
+                            lettered.emplace_back(t.x + i * adv + adv / 2, t.y + line / 2);
+                        }
                     }
                 }
                 for (const light::ImageBlit& im : p.images) {
@@ -551,6 +607,24 @@ public:
                          (std::max)(l.y1, l.y2) - (std::min)(l.y1, l.y2) + 1);
                     if (mine) points.emplace_back((l.x1 + l.x2) / 2, (l.y1 + l.y2) / 2);
                 }
+            }
+            std::optional<ClipBox> cut; // its own group's clip, which nothing of it shows past
+            for (const auto& [path, box] : clips) {
+                const bool its = std::any_of(group.begin(), group.end(), [&path](const ElementRecord* r) {
+                    return r->path == path;
+                });
+                if (!its) continue;
+                cut = cut ? ClipBox{(std::min)(cut->x0, box.x0), (std::min)(cut->y0, box.y0),
+                                    (std::max)(cut->x1, box.x1), (std::max)(cut->y1, box.y1)}
+                          : box;
+                span(box.x0, box.y0, box.x1 - box.x0, box.y1 - box.y0);
+                sample(points, box.x0, box.y0, box.x1 - box.x0, box.y1 - box.y0);
+            }
+            if (cut) {
+                x0 = (std::max)(x0, cut->x0);
+                y0 = (std::max)(y0, cut->y0);
+                x1 = (std::min)(x1, cut->x1);
+                y1 = (std::min)(y1, cut->y1);
             }
             x0 = (std::max<std::int64_t>)(x0, 0);
             y0 = (std::max<std::int64_t>)(y0, 0);
@@ -569,6 +643,31 @@ public:
             AreaPart part{rec.action, record_available(rec), x0, y0, x1 - x0, y1 - y0, false, 0,
                           0};
             bool seen = shows(a.x + cx, a.y + cy);
+            // ITS POINT, FIRST AMONG ITS CHARACTERS: the middle of those a press there reaches it
+            // on, in reading order; else the own point nearest its middle.
+            std::sort(lettered.begin(), lettered.end(), [](const auto& l, const auto& r) {
+                return l.second != r.second ? l.second < r.second : l.first < r.first;
+            });
+            std::vector<std::pair<std::int64_t, std::int64_t>> reaching;
+            for (const auto& [px, py] : lettered) {
+                if (px < x0 || py < y0 || px >= x1 || py >= y1 || !shows(a.x + px, a.y + py)) {
+                    continue;
+                }
+                seen = true;
+                const std::string* top = top_at(px, py);
+                const auto r = top == nullptr ? reached.end() : reached.find(*top);
+                const std::string* clip = clip_at(px, py);
+                if ((clip == nullptr || under_group(*clip)) && r != reached.end() && in_group(r->second)) {
+                    reaching.emplace_back(px, py);
+                }
+            }
+            if (!reaching.empty()) {
+                const auto& mid = reaching[(reaching.size() - 1) / 2];
+                part.pressed = true;
+                part.px = mid.first;
+                part.py = mid.second;
+                points.clear();
+            }
             for (const auto& [px, py] : points) {
                 if (px < x0 || py < y0 || px >= x1 || py >= y1 || !shows(a.x + px, a.y + py)) {
                     continue;
@@ -576,7 +675,13 @@ public:
                 seen = true;
                 const std::string* top = top_at(px, py);
                 const auto r = top == nullptr ? reached.end() : reached.find(*top);
-                if (r != reached.end() && r->second == &rec) {
+                // ITS OWN: where its record is what a press reaches, or where nothing a part draws is
+                // and its clip is the last that holds the point.
+                const std::string* clip = clip_at(px, py);
+                const bool clip_ours = clip == nullptr || under_group(*clip);
+                const bool reached_ours = r != reached.end() && in_group(r->second);
+                const bool unnamed = r == reached.end() || group_of.count(r->second->action) == 0;
+                if (clip_ours && (reached_ours || (clip != nullptr && unnamed))) {
                     part.pressed = true;
                     part.px = px;
                     part.py = py;
@@ -592,15 +697,25 @@ public:
 
     /// A point of the window in pixels (a point in cells at its cell's centre): the front-most
     /// area there that takes it, and the top node whose primitives hold the point, as the
-    /// terminal lands one (`window::land`).
+    /// terminal lands one (`window::land`); for the `wheel` or the third `button`, past an area
+    /// that lets it through.
     Landed land(const std::vector<WinArea>& areas, std::int64_t at_x, std::int64_t at_y,
-                std::int64_t space) const {
+                std::int64_t space, bool wheel = false, std::int64_t button = 0) const {
+        // AN AREA THAT LETS THE THIRD BUTTON THROUGH still takes it where no area behind it does.
+        if (button == 3) {
+            Landed through = land(areas, at_x, at_y, space, wheel, -3);
+            if (through.area != nullptr) {
+                return through;
+            }
+            button = 0;
+        }
         const bool cells = space == zengine::input::space::kCells;
         const std::int64_t x = cells ? at_x * kCellPx + kCellPx / 2 : at_x;
         const std::int64_t y = cells ? at_y * kCellPx + kCellPx / 2 : at_y;
         Landed out;
         for (const WinArea* a : front_to_back(areas)) {
-            if (x < a->x || y < a->y || x >= a->x + a->w || y >= a->y + a->h) {
+            if (x < a->x || y < a->y || x >= a->x + a->w || y >= a->y + a->h ||
+                (wheel && a->pointer && !a->wheel) || (button == -3 && a->pointer && !a->right)) {
                 continue;
             }
             const Kept* best = nullptr;

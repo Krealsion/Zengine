@@ -3,14 +3,16 @@
 #ifndef ZENGINE_WORKSHOP_PANE_CANVAS_TEXT_HPP
 #define ZENGINE_WORKSHOP_PANE_CANVAS_TEXT_HPP
 
-#include "pane_canvas_vocabulary.hpp"
-#include "surface/pointing.hpp"
+#include "pane_picture.hpp"
 #include "pane_text_fit.hpp"
 #include "graphics/pixels.hpp"
 #include "graphics/role.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <limits>
+
+// How a run of a canvas picture's text stands in its room: the window's measure for it, and the run
+// clipped to whole glyphs and rows. Reference: workshop/docs/workshop-panes.md.
 
 namespace zengine::workshop {
 
@@ -25,7 +27,7 @@ struct CanvasTextMetrics {
     bool graphical = false;
 };
 
-inline constexpr CanvasTextMetrics canvas_text_metrics(const PaneCanvasRoom& room) noexcept {
+inline constexpr CanvasTextMetrics canvas_text_metrics(const CanvasRoom& room) noexcept {
     CanvasTextMetrics out;
     out.grain = room.grain > 0 ? room.grain : kPaneCanvasUnit;
     if (room.text_advance_px > 0 && room.text_line_px > 0) {
@@ -38,8 +40,8 @@ inline constexpr CanvasTextMetrics canvas_text_metrics(const PaneCanvasRoom& roo
 }
 
 struct CanvasTextLayout {
-    PaneCanvasText text;
-    /// The ground a run names under its characters (`v2::PaneCanvasText::background`).
+    CanvasText text;
+    /// The ground a run names under its characters (`CanvasText::background`).
     std::int64_t background = graphics::role::kNone;
     CanvasTextBox bounds;
     std::size_t first_column = 0;
@@ -57,8 +59,8 @@ namespace detail {
 // the room above and below, and `slack_left` to its left: 0 for a padded run, the medium's inset
 // for an unpadded one moved back to its region's origin. Never to its right, where a caret after
 // the run's last character stands, so a caret stays inside the clip as every glyph does.
-inline CanvasTextLayout clip_canvas_text_by(const PaneCanvasText& text, const CanvasTextBox& clip,
-                                            const PaneCanvasRoom& room, std::int64_t slack,
+inline CanvasTextLayout clip_canvas_text_by(const CanvasText& text, const CanvasTextBox& clip,
+                                            const CanvasRoom& room, std::int64_t slack,
                                             std::int64_t slack_left) {
     CanvasTextLayout out;
     if (clip.empty() || room.width <= 0 || room.height <= 0) return out;
@@ -99,9 +101,9 @@ inline CanvasTextLayout clip_canvas_text_by(const PaneCanvasText& text, const Ca
     const auto end = first + take;
     const bool visible_caret = has_caret && caret >= first && caret <= end;
     if (take == 0 && !visible_caret) return out;
-    out.text = PaneCanvasText{x, y, text.text.substr(first, end - first), text.role};
-    out.text.caret_col = visible_caret ? static_cast<std::int64_t>(caret - first) : surface::kNoCaret;
-    out.text.sel_begin_col = out.text.sel_end_col = surface::kNoSelection;
+    out.text = CanvasText{x, y, text.text.substr(first, end - first), text.role};
+    out.text.caret_col = visible_caret ? static_cast<std::int64_t>(caret - first) : -1;
+    out.text.sel_begin_col = out.text.sel_end_col = -1;
     if (text.sel_begin_col >= 0 && text.sel_end_col > text.sel_begin_col) {
         const auto begin = (std::max)(text.sel_begin_col, static_cast<std::int64_t>(first));
         const auto finish = (std::min)(text.sel_end_col, static_cast<std::int64_t>(end));
@@ -121,49 +123,9 @@ inline CanvasTextLayout clip_canvas_text_by(const PaneCanvasText& text, const Ca
 
 } // namespace detail
 
-inline CanvasTextLayout clip_canvas_text(const PaneCanvasText& text, const CanvasTextBox& clip,
-                                         const PaneCanvasRoom& room) {
+inline CanvasTextLayout clip_canvas_text(const CanvasText& text, const CanvasTextBox& clip,
+                                         const CanvasRoom& room) {
     return detail::clip_canvas_text_by(text, clip, room, 0, 0);
-}
-
-// A run of either kind, as `clip_canvas_text` clips the first: a padded run is that run, and an
-// unpadded run is the padded run whose glyphs land at its x/y -- its region starts the medium's
-// inset up and left of them, and may reach that inset past the clip above and below, where only
-// its padding is, and to its left unless it names a ground, which spans its region.
-inline CanvasTextLayout clip_canvas_run(const v2::PaneCanvasText& text, const CanvasTextBox& clip,
-                                        const PaneCanvasRoom& room) {
-    PaneCanvasText run{text.x, text.y, text.text, text.role, text.caret_col, text.sel_begin_col,
-                       text.sel_end_col};
-    const auto inset = text.padded ? std::int64_t{0} : canvas_text_metrics(room).inset;
-    run.x = graphics::sub_px(run.x, inset);
-    run.y = graphics::sub_px(run.y, inset);
-    const auto left = text.background == graphics::role::kNone ? inset : std::int64_t{0};
-    CanvasTextLayout out = detail::clip_canvas_text_by(run, clip, room, inset, left);
-    if (out.visible()) out.background = text.background;
-    return out;
-}
-
-inline surface::SurfaceTextRegion canvas_text_region(const CanvasTextLayout& text,
-                                                       std::int64_t offset_x = 0,
-                                                       std::int64_t offset_y = 0) {
-    surface::SurfaceTextRegion region;
-    if (!text.visible()) return region;
-    region.x = graphics::add_cells(text.bounds.x, offset_x);
-    region.y = graphics::add_cells(text.bounds.y, offset_y);
-    region.w = text.bounds.w;
-    region.h = text.bounds.h;
-    region.ground = surface::kGroundBeneath;
-    region.rows.push_back({text.text.text, text.text.role, text.background});
-    if (text.text.caret_col >= 0) {
-        region.caret_row = 0;
-        region.caret_col = text.text.caret_col;
-    }
-    if (text.text.sel_begin_col >= 0 && text.text.sel_end_col > text.text.sel_begin_col) {
-        region.sel_begin_row = region.sel_end_row = 0;
-        region.sel_begin_col = text.text.sel_begin_col;
-        region.sel_end_col = text.text.sel_end_col;
-    }
-    return region;
 }
 
 } // namespace zengine::workshop

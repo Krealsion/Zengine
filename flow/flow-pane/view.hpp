@@ -31,7 +31,7 @@ struct Hit {
   }
 };
 struct Picture {
-  ws::PaneCanvasContent content;
+  ws::CanvasPicture content;
   std::vector<Hit> hits;
   std::vector<ws::CanvasTextBox> text_clips;
   std::int64_t revision = 0, width = 0, height = 0, grain = 1;
@@ -61,7 +61,7 @@ inline std::string clean(std::string text) {
 // the medium's independent horizontal advance and padded text-row height.
 struct GridProjection {
   std::int64_t advance = unit, row = unit, padding = 0;
-  explicit GridProjection(const ws::PaneCanvasRoom &room) {
+  explicit GridProjection(const ws::CanvasRoom &room) {
     const auto metrics = ws::canvas_text_metrics(room);
     advance = metrics.advance;
     row = zengine::graphics::add_cells(metrics.line, 2 * metrics.inset);
@@ -90,7 +90,7 @@ struct GridProjection {
   }
 };
 
-inline Picture project_picture(Picture view, const ws::PaneCanvasRoom &room) {
+inline Picture project_picture(Picture view, const ws::CanvasRoom &room) {
   const GridProjection grid(room);
   auto clip = [&](auto &r) {
     grid.map(r);
@@ -131,7 +131,7 @@ inline Picture project_picture(Picture view, const ws::PaneCanvasRoom &room) {
 }
 /// A partial graph would look like a different graph. A view too dense to show is this bounded
 /// recovery picture instead, keeping save/export and view controls available.
-inline Picture recovery_picture(Picture view, const ws::PaneCanvasRoom &room) {
+inline Picture recovery_picture(Picture view, const ws::CanvasRoom &room) {
   const GridProjection grid(room);
   view.width = grid.grid_x(room.width); view.height = grid.grid_y(room.height);
   view.content.rects = {{0, 0, view.width, view.height, ink::kGround}};
@@ -159,7 +159,7 @@ inline Picture recovery_picture(Picture view, const ws::PaneCanvasRoom &room) {
   button("Zoom out", "zoom-out");
   return project_picture(std::move(view), room);
 }
-inline Picture finish_picture(Picture view, const ws::PaneCanvasRoom &room) {
+inline Picture finish_picture(Picture view, const ws::CanvasRoom &room) {
   view = project_picture(std::move(view), room);
   std::size_t bytes = 0;
   for (const auto &text : view.content.texts) bytes += text.text.size();
@@ -257,8 +257,7 @@ void wire_list(const Model &model, Picture &view, std::size_t graph_labels, std:
   for (auto i = first_label; i < view.content.texts.size(); ++i)
     view.text_clips[i] = inside;
 }
-inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room,
-                       std::int64_t sequence) {
+inline Picture picture(const Model &model, const ws::CanvasRoom &canvas_room) {
   const GridProjection grid(canvas_room);
   auto room = canvas_room;
   room.width = grid.grid_x(canvas_room.width);
@@ -267,9 +266,6 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
   // its own; a window's caret is a bar between characters and needs none.
   const bool cell_caret = !ws::canvas_text_metrics(canvas_room).graphical;
   Picture view;
-  view.content.pane = "flow";
-  view.content.grant = room.grant;
-  view.content.picture = sequence;
   view.revision = model.workspace.graph.project.definition.revision;
   view.width = room.width;
   view.height = room.height;
@@ -925,10 +921,10 @@ inline Picture picture(const Model &model, const ws::PaneCanvasRoom &canvas_room
 }
 /// Pan a graph that runs past the bottom of its viewport up, as far as its topmost node allows, so
 /// a workspace opened in a short pane shows its nodes whole where the room can hold them.
-inline void reveal_graph(Model &model, const ws::PaneCanvasRoom &room) {
-  if (room.grant <= 0 || room.width <= 0 || room.height <= 0)
+inline void reveal_graph(Model &model, const ws::CanvasRoom &room) {
+  if (room.width <= 0 || room.height <= 0)
     return;
-  const auto drawn = picture(model, room, 0);
+  const auto drawn = picture(model, room);
   if (!drawn.graph_extent)
     return;
   const auto [top, bottom] = *drawn.graph_extent;
@@ -944,10 +940,10 @@ inline void reveal_graph(Model &model, const ws::PaneCanvasRoom &room) {
 /// Pan the graph so the selected node's whole box -- its title, body slot, ports and answer --
 /// sits inside the graph viewport, above a preview band, as this room draws it. A node just added
 /// is then seen whole; one already in view does not move.
-inline void reveal_selected(Model &model, const ws::PaneCanvasRoom &room) {
-  if (!model.node || room.grant <= 0 || room.width <= 0 || room.height <= 0)
+inline void reveal_selected(Model &model, const ws::CanvasRoom &room) {
+  if (!model.node || room.width <= 0 || room.height <= 0)
     return;
-  const auto drawn = picture(model, room, 0);
+  const auto drawn = picture(model, room);
   if (!drawn.node_extent)
     return;
   const auto [top, bottom] = *drawn.node_extent;
@@ -984,13 +980,13 @@ inline std::string part_name(const Hit &hit) {
 }
 
 /// FLOW'S PICTURE AS IT IS SAID, each place a press means something named (`part_name`).
-inline ws::v4::PaneCanvasContent named(const Picture &p) {
-  ws::PartNames<ws::PaneCanvasPart> parts;
+inline ws::CanvasPicture named(const Picture &p) {
+  ws::PartNames<ws::CanvasPart> parts;
   for (const Hit &hit : p.hits)
-    (void)parts.add(ws::PaneCanvasPart{part_name(hit), hit.x, hit.y, hit.w, hit.h});
-  const auto &c = p.content;
-  return ws::v4::PaneCanvasContent{c.pane,   c.grant,  c.picture,   c.rects,
-                                   c.labels, c.texts, parts.take()};
+    (void)parts.add(ws::CanvasPart{part_name(hit), hit.x, hit.y, hit.w, hit.h});
+  ws::CanvasPicture out = p.content;
+  out.parts = parts.take();
+  return out;
 }
 
 /// FLOW IN A GRAPHICS WINDOW: its picture for the window's room, `width` by `height` pixels, drawn
@@ -1001,8 +997,8 @@ struct WindowPicture {
   zengine::graphics::Sketch sketch;
   std::map<std::string, Hit> parts;
 };
-inline WindowPicture window_picture(const Model &model, const ws::PaneCanvasRoom &room) {
-  WindowPicture out{picture(model, room, 0), {}, {}};
+inline WindowPicture window_picture(const Model &model, const ws::CanvasRoom &room) {
+  WindowPicture out{picture(model, room), {}, {}};
   auto drawn = ws::canvas_sketch(named(out.picture), room);
   if (!drawn.over.empty()) {
     out.picture = recovery_picture(std::move(out.picture), room);

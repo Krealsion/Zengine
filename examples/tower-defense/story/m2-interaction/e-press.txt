@@ -1,11 +1,15 @@
-    void on(const ws::PanePressed& pressed, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshop) || pressed.pane != kPane) {
+    // A first-button press in the area, at the cell of the picture it landed on.
+    void on(const gfx::AreaButtonChanged& button, loom::Mail& mail) {
+        const ws::RowsRoom room = window_.rows_room();
+        const std::optional<ws::WindowPointer> p =
+            window_.pointer(button, mail, room.rows(), room.columns());
+        if (!p || p->phase != ws::canvas_pointer::kPress || p->button != 1) {
             return;
         }
         // Map rows start under the header, and each cell is two columns: its glyph, then a gap.
-        const std::int64_t y = pressed.row - 1;
-        const std::int64_t x = (pressed.column - 1) / 2;
-        if (y >= 0 && y < kHeight && pressed.column >= 1 && x < kWidth) {
+        const std::int64_t y = p->at.row - 1;
+        const std::int64_t x = (p->at.column - 1) / 2;
+        if (p->at.shown && y >= 0 && y < kHeight && p->at.column >= 1 && x < kWidth) {
             const bool again = x == state_.cursor_x && y == state_.cursor_y;
             state_.cursor_x = x;
             state_.cursor_y = y;

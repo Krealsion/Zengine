@@ -13,8 +13,9 @@
 #include "graphics/ops.hpp"
 #include "graphics/vocabulary.hpp"
 #include "workshop/pane_canvas_text.hpp"
-#include "workshop/pane_canvas_vocabulary.hpp"
+#include "workshop/pane_picture.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -26,13 +27,12 @@ namespace zengine::workshop {
 /// and its text. A window that shows every pixel (`cell_px` above zero) is a graphical room a pixel
 /// a grain, its text set in `text`; one whose unit is the cell is a room of cells, a character a
 /// cell.
-inline PaneCanvasRoom canvas_window_room(const std::string& pane, std::int64_t width,
-                                         std::int64_t height, std::int64_t cell_px,
-                                         const graphics::TextMeasure& text) {
+inline CanvasRoom canvas_window_room(std::int64_t width, std::int64_t height,
+                                     std::int64_t cell_px, const graphics::TextMeasure& text) {
     if (cell_px <= 0) {
-        return PaneCanvasRoom{pane, 1, width, height, graphics::kCellPx, false, 0, 0};
+        return CanvasRoom{width, height, graphics::kCellPx, false, 0, 0};
     }
-    return PaneCanvasRoom{pane, 1, width, height, 1, true, text.advance, text.line};
+    return CanvasRoom{width, height, 1, true, text.advance, text.line};
 }
 
 /// A CANVAS PICTURE AS A WINDOW DRAWS IT, and why the picture itself could not be: a drawing past
@@ -43,18 +43,22 @@ struct CanvasSketch {
 };
 
 /// THE PICTURE, drawn for the room it was composed in, over the room's ground, the whole of it, so
-/// nothing behind the area shows through. Its nodes stand in two groups -- `picture`, what it
-/// shows, and `parts`, each named part's place painted again -- and are named by their place in
-/// their group, so a node a change adds goes after its siblings and paints where the picture paints
-/// it; a run of text's words stand inset in its box where the room is graphical. A part's group is
-/// recorded with the part's name as its action; a part with no name is pressed nowhere.
-inline CanvasSketch canvas_sketch(const v4::PaneCanvasContent& c, const PaneCanvasRoom& room) {
+/// nothing behind the area shows through. Its nodes stand in three groups -- `picture`, what it
+/// shows, `parts`, each part's place painted again, and `marks`, each run's caret and selection in
+/// front of both -- and are named by their place in their group, so a node a change adds goes after
+/// its siblings and paints where the picture paints it; a padded run of text's words stand inset in
+/// its box where the room is graphical, and a run's ground stands under its box. A named part's
+/// group is recorded with the part's name as its action, said unavailable (`graphics::PartFace`)
+/// where the part says so; a part with no name asks nothing, so where it lies over another, as the
+/// pane reads a press, the window gives no press to the one beneath.
+inline CanvasSketch canvas_sketch(const CanvasPicture& c, const CanvasRoom& room) {
     struct Drawn {
         const char* op;
         std::int64_t x, y, w, h;
         std::int64_t role;
         const std::string* words;
         std::int64_t inset = 0; ///< where its words begin inside its box
+        const CanvasText* run = nullptr; ///< the run it draws, whose caret and selection it marks
     };
     const auto metrics = canvas_text_metrics(room);
     const auto across = [&](std::size_t bytes, std::int64_t advance) {
@@ -62,30 +66,84 @@ inline CanvasSketch canvas_sketch(const v4::PaneCanvasContent& c, const PaneCanv
     };
     std::vector<Drawn> drawn;
     drawn.reserve(c.rects.size() + c.labels.size() + c.texts.size());
-    for (const PaneCanvasRect& r : c.rects) {
+    for (const CanvasRect& r : c.rects) {
         drawn.push_back({graphics::op::kRect, r.x, r.y, r.w, r.h, r.role, nullptr});
     }
-    for (const PaneCanvasLabel& l : c.labels) {
+    for (const CanvasLabel& l : c.labels) {
         drawn.push_back({graphics::op::kText, l.x, l.y, across(l.text.size(), kPaneCanvasUnit),
                          kPaneCanvasUnit, l.role, &l.text});
     }
-    for (const PaneCanvasText& t : c.texts) {
-        drawn.push_back({graphics::op::kText, t.x, t.y, across(t.text.size(), metrics.advance),
-                         metrics.line + 2 * metrics.inset, t.role, &t.text, metrics.inset});
+    for (const CanvasText& t : c.texts) {
+        // AN UNPADDED RUN'S GLYPHS STAND AT ITS X/Y, its box the medium's inset around them.
+        const std::int64_t back = t.padded ? 0 : metrics.inset;
+        const Drawn run{graphics::op::kText, t.x - back, t.y - back,
+                        across(t.text.size(), metrics.advance), metrics.line + 2 * metrics.inset,
+                        t.role, &t.text, metrics.inset, &t};
+        if (t.background != graphics::role::kNone) {
+            drawn.push_back({graphics::op::kRect, run.x, run.y, run.w, run.h, t.background,
+                             nullptr});
+        }
+        drawn.push_back(run);
     }
-    const auto meets = [](const Drawn& d, const PaneCanvasPart& p) {
+    const auto meets = [](const Drawn& d, const CanvasPart& p) {
         return d.x < p.x + p.w && p.x < d.x + d.w && d.y < p.y + p.h && p.y < d.y + d.h;
     };
 
+    // THE MARKS, as the rows drawing marks a row (`rows_drawing`): a run's selected characters
+    // again in the accent role, and its caret a bar at the left of the character it sits before,
+    // as a window that sets type draws one -- in a room of cells, that character again in the
+    // accent role, which a bar there would hide, and a bar where it sits before none. Each asks what
+    // the last named part over its place asks, so a press on it reaches what lies beneath.
+    struct Mark {
+        std::string node;
+        std::int64_t x, y;
+        std::string words; ///< what it draws again, or none for a bar
+        std::string asks;
+        bool available = true;
+    };
+    std::vector<Mark> marks;
+    for (std::size_t i = 0; i < drawn.size(); ++i) {
+        const CanvasText* t = drawn[i].run;
+        if (t == nullptr) continue;
+        const std::int64_t gx = drawn[i].x + drawn[i].inset, gy = drawn[i].y + drawn[i].inset;
+        const auto length = static_cast<std::int64_t>(t->text.size());
+        const auto mark = [&](std::string node, std::int64_t column, std::string words) {
+            Mark m{std::move(node), gx + column * metrics.advance, gy, std::move(words), {}, true};
+            for (const CanvasPart& p : c.parts) {
+                if (p.w > 0 && p.h > 0 && !p.name.empty() && m.x >= p.x && m.x < p.x + p.w &&
+                    m.y >= p.y && m.y < p.y + p.h) {
+                    m.asks = p.name;
+                    m.available = p.available;
+                }
+            }
+            marks.push_back(std::move(m));
+        };
+        const std::int64_t from = (std::max)(std::int64_t{0}, t->sel_begin_col);
+        const std::int64_t to = (std::min)(length, t->sel_end_col);
+        if (t->sel_begin_col >= 0 && from < to) {
+            mark("sel" + std::to_string(i), from,
+                 t->text.substr(static_cast<std::size_t>(from), static_cast<std::size_t>(to - from)));
+        }
+        if (t->caret_col >= 0 && t->caret_col <= length) {
+            const auto at = static_cast<std::size_t>(t->caret_col);
+            const bool on = !metrics.graphical && at < t->text.size() && t->text[at] != ' ';
+            mark("caret" + std::to_string(i), t->caret_col, on ? t->text.substr(at, 1) : "");
+        }
+    }
+
     // What a window would keep, judged before anything is drawn: two groups, the picture, and
-    // each named part's group with what it paints again, counted no further than a bound.
-    const auto pressed = [](const PaneCanvasPart& p) { return !p.name.empty() && p.w > 0 && p.h > 0; };
+    // each part's group with what it paints again, counted no further than a bound.
+    const auto placed = [](const CanvasPart& p) { return p.w > 0 && p.h > 0; };
     std::size_t nodes = 3 + drawn.size(), records = 0;
-    for (const PaneCanvasPart& p : c.parts) records += pressed(p) ? std::size_t{1} : std::size_t{0};
+    for (const CanvasPart& p : c.parts) {
+        records += placed(p) && !p.name.empty() ? std::size_t{1} : std::size_t{0};
+    }
+    nodes += marks.empty() ? 0 : 1 + marks.size();
+    for (const Mark& m : marks) records += m.asks.empty() ? std::size_t{0} : std::size_t{1};
     for (auto p = c.parts.begin(); p != c.parts.end() && records <= graphics::kMaxElementsPerArea &&
                                    nodes <= graphics::kMaxNodesPerArea;
          ++p) {
-        if (!pressed(*p)) continue;
+        if (!placed(*p)) continue;
         ++nodes;
         for (const Drawn& d : drawn) nodes += meets(d, *p) ? std::size_t{1} : std::size_t{0};
     }
@@ -118,14 +176,34 @@ inline CanvasSketch canvas_sketch(const v4::PaneCanvasContent& c, const PaneCanv
     }
     out.sketch.group("parts", 0, 0);
     std::size_t at = 0;
-    for (const PaneCanvasPart& p : c.parts) {
-        if (!pressed(p)) continue;
+    for (const CanvasPart& p : c.parts) {
+        if (!placed(p)) continue;
         const std::string group = "parts/" + std::to_string(at++);
         out.sketch.group(group, p.x, p.y, p.w, p.h);
-        out.sketch.action(group, p.name);
+        if (!p.name.empty() && p.available) {
+            out.sketch.action(group, p.name);
+        } else if (!p.name.empty()) {
+            out.sketch.record(group, graphics::PartFace{false}, p.name);
+        }
         std::size_t k = 0;
         for (const Drawn& d : drawn) {
             if (meets(d, p)) put(group + "/" + std::to_string(k++), d, p.x, p.y);
+        }
+    }
+    if (!marks.empty()) out.sketch.group("marks", 0, 0);
+    for (const Mark& m : marks) {
+        const std::string node = "marks/" + m.node;
+        const graphics::Paint accent = graphics::by_role(graphics::role::kAccent);
+        if (m.words.empty()) {
+            out.sketch.line(node, m.x, m.y, m.x, m.y + metrics.line - 1, accent);
+        } else {
+            out.sketch.text(node, m.x, m.y, m.words, accent);
+        }
+        if (m.asks.empty()) continue;
+        if (m.available) {
+            out.sketch.action(node, m.asks);
+        } else {
+            out.sketch.record(node, graphics::PartFace{false}, m.asks);
         }
     }
     return out;

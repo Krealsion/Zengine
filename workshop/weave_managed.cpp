@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// The presentation owner's half of a managed opening: the trial seat, the admitted trial content,
-// this desk's own latest claim, and the native application of a published claim.
+// The presentation owner's half of a managed opening: the trial seat and the room its area would
+// have, the admitted seat, this desk's own latest claim, and the native application of a published
+// claim.
 
 #include "weave.hpp"
-#include "pane_canvas.hpp"
 #include "screen_canvas.hpp"
 
 #include <cstdint>
@@ -97,8 +97,13 @@ PanePresentation WorkshopWeave::derive_presentation() const {
     now.keyboard = kind != kNoPaneKind && zengine::workshop::keyboard_pane(session_.panes) == kind;
     if (const ExternalPane* pane =
             kind == kNoPaneKind ? nullptr : session_.panes.external_pane(kind)) {
-        now.rows = pane->granted ? pane->rows : 0;
-        now.columns = pane->granted ? pane->columns : 0;
+        // ITS BODY AS PLACED NOW, in the medium's rows and columns.
+        const Screen sc = screen_of(session_);
+        const PaneBounds where = bounds_of(session_.panes, session_.setup.active, kind, sc);
+        const ExternalBodyPlace body = external_body_place(
+            where.rect, sc, external_title_rows(session_.panes, kind, session_.pane_titles));
+        now.rows = where.open && body.present ? body.rows : 0;
+        now.columns = where.open && body.present ? body.columns : 0;
         now.content_generation = pane->content_generation;
     }
     now.routed = routed_;
@@ -125,41 +130,11 @@ void WorkshopWeave::mirror_presentation(loom::Mail& mail) {
 }
 
 void WorkshopWeave::after_delivery(loom::Mail& mail) {
-    if (canvas_room_owed_ || room_owed_) {
-        // THE PANE'S SETTINGS BEFORE THE ROOMS IT WAS SEATED IN, whatever this delivery was: the
+    if (settings_owed_) {
+        // THE PANE'S SETTINGS BEFORE THE AREA IT WAS SEATED IN, whatever this delivery was: the
         // repaint owed below comes after them, and hands nothing its holder has already heard.
+        settings_owed_ = false;
         hand_settings(mail);
-    }
-    if (canvas_room_owed_) {
-        // THE ROOM THE PICTURE WAS SEATED IN, said to its holder after the showing and so after
-        // any room an earlier repaint queued for it: whatever the holder heard before, it draws in
-        // the room the desk holds, its first picture there admitted over the one shown, which
-        // the desk holds numbered none.
-        canvas_room_owed_ = false;
-        const std::int64_t kind = managed_kind();
-        const RuntimePane* row =
-            kind == kNoPaneKind ? nullptr : session_.panes.runtime.of_kind(kind);
-        const ExternalPane* pane =
-            kind == kNoPaneKind ? nullptr : session_.panes.external_pane(kind);
-        if (row != nullptr && pane != nullptr && pane->canvas.grant > 0 &&
-            pane->canvas.owner.valid()) {
-            const ExternalPane::Canvas& c = pane->canvas;
-            (void)mail.as_role(kWorkshopProvider).send(c.owner,
-                PaneCanvasRoom{row->pane, c.grant, c.width, c.height, c.grain, c.graphical,
-                               c.text_advance_px, c.text_line_px});
-        }
-    }
-    if (room_owed_) {
-        room_owed_ = false;
-        const std::int64_t kind = managed_kind();
-        const RuntimePane* row =
-            kind == kNoPaneKind ? nullptr : session_.panes.runtime.of_kind(kind);
-        const ExternalPane* pane =
-            kind == kNoPaneKind ? nullptr : session_.panes.external_pane(kind);
-        if (row != nullptr && pane != nullptr && pane->granted) {
-            (void)mail.as_role(kWorkshopProvider)
-                .send_to_role(row->provider, PaneRoom{row->pane, pane->rows, pane->columns});
-        }
     }
     if (repaint_owed_) {
         repaint_owed_ = false;
@@ -202,9 +177,11 @@ WorkshopWeave::TrialRoom WorkshopWeave::trial_room(const Setup& candidate, std::
     out.ok = true;
     out.rows = body.rows;
     out.columns = body.columns;
-    // ...and the canvas body the room grant would give it there, under the same title rows.
-    if (where.open) out.canvas_body = canvas_body_place(where.rect, sc, titles);
-    out.title_rows = titles;
+    // ...and the area Workshop would place for it there, under the same title rows, and how the
+    // window that shows the desk sets text in it.
+    const PixelRect area = where.open ? canvas_body_place(where.rect, sc, titles) : PixelRect{};
+    out.room = OpeningRoom{area.w, area.h, sc.cell_px, sc.cell_px > 0 ? sc.text_advance_px : 0,
+                           sc.cell_px > 0 ? sc.text_line_px : 0};
     return out;
 }
 
@@ -214,10 +191,10 @@ void WorkshopWeave::on(const PresentationTrialRequested& asked, loom::Mail& mail
     }
     const RuntimePane* row = session_.panes.runtime.find(asked.provider, asked.pane);
     if (row == nullptr) {
-        (void)mail.answer(PresentationTrial{asked.op, false,
-                                            "no pane " + asked.provider + "/" + asked.pane +
-                                                " is offered on this desk",
-                                            0, 0});
+        (void)mail.answer(v3::PresentationTrial{asked.op, false,
+                                                "no pane " + asked.provider + "/" + asked.pane +
+                                                    " is offered on this desk",
+                                                {}});
         return;
     }
     Trial t;
@@ -231,43 +208,20 @@ void WorkshopWeave::on(const PresentationTrialRequested& asked, loom::Mail& mail
     const TrialRoom room = trial_room(t.candidate, t.kind, t.name);
     if (!room.ok) {
         trial_ = Trial{};
-        (void)mail.answer(PresentationTrial{asked.op, false, room.refusal, 0, 0});
+        (void)mail.answer(v3::PresentationTrial{asked.op, false, room.refusal, {}});
         return;
     }
     t.room_rows = room.rows;
     t.room_columns = room.columns;
-    t.canvas_body = room.canvas_body;
-    t.title_rows = room.title_rows;
-    // A ROOM FOR THE PICTURE, where the pane's holder draws on a canvas and prepares for one and
-    // the asker hears of it: its grant is reserved here, for the seat the publication makes, so no
-    // picture drawn before the commitment can stand in it (WL-OPEN-10).
-    const auto accepts = [&](std::string_view office, const auto& schema) {
-        return host_->holder_accepts && host_->holder_accepts(office, *schema);
-    };
-    const bool asker_hears = accepts(kOpeningRole, loom::schema_of<v2::PresentationTrial>());
-    const bool pictured = asker_hears && !t.canvas_body.empty() &&
-        accepts(t.ref.provider, loom::schema_of<PaneCanvasRoom>()) &&
-        accepts(t.ref.provider, loom::schema_of<PaneCanvasPointer>()) &&
-        accepts(t.ref.provider, loom::schema_of<v2::PrepareSourceRequested>()) &&
-        canvas_grants_ < (std::numeric_limits<std::int64_t>::max)();
-    if (pictured) {
-        const Screen sc = screen_of(session_);
-        t.room = PaneCanvasRoom{t.ref.pane, ++canvas_grants_, t.canvas_body.w, t.canvas_body.h,
-                                chrome_grain(sc), sc.cell_px > 0, sc.text_advance_px,
-                                sc.text_line_px};
-    }
+    t.room = room.room;
     trial_ = std::move(t);
-    if (asker_hears) {
-        (void)mail.answer(v2::PresentationTrial{asked.op, true, std::string(), room.rows,
-                                                room.columns, trial_.room});
-        return;
-    }
-    (void)mail.answer(PresentationTrial{asked.op, true, std::string(), room.rows, room.columns});
+    (void)mail.answer(v3::PresentationTrial{asked.op, true, std::string(), trial_.room});
 }
 
 // ---- The admission: the trial's content, and the presentation offered -----------------------
 
-void WorkshopWeave::on(const PresentationAdmitRequested& asked, loom::Mail& mail) {
+// THE CANDIDATE IS READY: the seat the trial judged is admitted, at the candidate's generation.
+void WorkshopWeave::on(const v3::PresentationAdmitRequested& asked, loom::Mail& mail) {
     if (!mail.authored_from_role(kOpeningRole)) {
         return;
     }
@@ -280,87 +234,22 @@ void WorkshopWeave::on(const PresentationAdmitRequested& asked, loom::Mail& mail
         (void)mail.answer(PresentationAdmitted{asked.op, false, refusal});
         return;
     }
-    // THE CONTENT IS JUDGED AS ANY CONTENT IS, against the room the trial would grant.
-    ExternalPane probe;
-    probe.kind = trial_.kind;
-    probe.rows = trial_.room_rows;
-    probe.columns = trial_.room_columns;
-    const Written judged = judge_content(PaneContent{asked.pane, asked.rows}, probe);
-    if (!judged.accepted) {
-        const std::string name = trial_.name;
-        trial_ = Trial{};
-        (void)mail.answer(PresentationAdmitted{asked.op, false, name + ": " + judged.refusal});
-        return;
-    }
-    probe.shown = asked.rows;
-    const Written caret = judge_caret(
-        PaneCaret{asked.pane, asked.caret_row, asked.caret_col, asked.sel_begin_row,
-                  asked.sel_begin_col, asked.sel_end_row, asked.sel_end_col},
-        probe);
-    trial_.rows = asked.rows;
-    trial_.generation = asked.generation;
-    trial_.caret_ok = caret.accepted;
-    trial_.caret_row = asked.caret_row;
-    trial_.caret_col = asked.caret_col;
-    trial_.sel_begin_row = asked.sel_begin_row;
-    trial_.sel_begin_col = asked.sel_begin_col;
-    trial_.sel_end_row = asked.sel_end_row;
-    trial_.sel_end_col = asked.sel_end_col;
-    offer_presentation(asked.op, asked.generation, mail);
-}
-
-// THE PICTURE A PANE THAT DRAWS ON A CANVAS PREPARED, judged as any picture is and against the
-// room the trial reserved for it: drawn under that grant, for that pane.
-void WorkshopWeave::on(const v2::PresentationAdmitRequested& asked, loom::Mail& mail) {
-    if (!mail.authored_from_role(kOpeningRole)) {
-        return;
-    }
-    if (!trial_.live || trial_.op != static_cast<std::uint64_t>(asked.op)) {
-        (void)mail.answer(PresentationAdmitted{asked.op, false,
-                                               "no trial stands for this opening -- try again"});
-        return;
-    }
-    if (const std::string refusal = trial_room_stands(); !refusal.empty()) {
-        (void)mail.answer(PresentationAdmitted{asked.op, false, refusal});
-        return;
-    }
-    const v5::PaneCanvasContent& picture = asked.picture;
-    std::string problem;
-    if (trial_.room.grant <= 0) {
-        problem = "no room was reserved for its picture";
-    } else if (picture.pane != asked.pane || picture.grant != trial_.room.grant) {
-        problem = "its picture names another room";
-    } else if (const std::string_view drawn = canvas_content_problem(picture); !drawn.empty()) {
-        problem = std::string(drawn);
-    } else {
-        problem = canvas_parts_problem(picture.parts);
-    }
-    if (!problem.empty()) {
-        const std::string name = trial_.name;
-        trial_ = Trial{};
-        (void)mail.answer(PresentationAdmitted{asked.op, false, name + ": " + problem});
-        return;
-    }
-    trial_.pictured = true;
-    trial_.picture = picture;
+    trial_.admitted = true;
     trial_.generation = asked.generation;
     offer_presentation(asked.op, asked.generation, mail);
 }
 
 // RE-JUDGED AGAINST THE DESK AS IT IS NOW. The trial answered for an instant; the admission is a
-// later delivery, and the room -- the canvas room it reserved too -- may have moved between them.
+// later delivery, and the room -- its area's too -- may have moved between them.
 std::string WorkshopWeave::trial_room_stands() {
     const TrialRoom room = trial_room(trial_.candidate, trial_.kind, trial_.name);
-    const Screen sc = screen_of(session_);
-    const bool same_canvas = trial_.room.grant <= 0 ||
-        (room.canvas_body.x == trial_.canvas_body.x && room.canvas_body.y == trial_.canvas_body.y &&
-         room.canvas_body.w == trial_.canvas_body.w && room.canvas_body.h == trial_.canvas_body.h &&
-         room.title_rows == trial_.title_rows && trial_.room.grain == chrome_grain(sc) &&
-         trial_.room.graphical == (sc.cell_px > 0) &&
-         trial_.room.text_advance_px == sc.text_advance_px &&
-         trial_.room.text_line_px == sc.text_line_px);
+    const OpeningRoom& was = trial_.room;
+    const bool same_area = room.room.width == was.width && room.room.height == was.height &&
+                           room.room.cell_px == was.cell_px &&
+                           room.room.text_advance_px == was.text_advance_px &&
+                           room.room.text_line_px == was.text_line_px;
     if (room.ok && room.rows == trial_.room_rows && room.columns == trial_.room_columns &&
-        same_canvas) {
+        same_area) {
         return std::string();
     }
     const std::string refusal =
@@ -427,12 +316,11 @@ bool WorkshopWeave::show_presentation(const PanePresentation& published) {
         repaint_owed_ = true;
         return false;
     }
-    // ALL OF IT, HERE, BEFORE ANYTHING CAN OBSERVE THE DESK: membership through the one
-    // door the launch and a restore go through, the seat through the same reconcile, the
-    // selection and the keys, and the pane's admitted room, rows and caret.
+    // ALL OF IT, HERE, BEFORE ANYTHING CAN OBSERVE THE DESK: membership through the one door the
+    // launch and a restore go through, the seat through the same reconcile, the selection, the
+    // keys and the generation; the candidate is the Editor's to draw as it commits its claim.
     // ...AND THE LIVE DESK'S NAME AND SETTINGS SURVIVE IT: the digest leaves both out, so a rename
-    // or a setting since the trial -- or another layout put live with the same panes -- is one
-    // the copy does not hold. The desk keeps the live name, and each surviving row its settings.
+    // or setting since the trial is one the copy does not hold; each surviving row keeps its own.
     Setup desk = trial_.candidate;
     desk.name = session_.setup.active.name;
     for (SetupPane& row : desk.panes) {
@@ -459,60 +347,7 @@ bool WorkshopWeave::show_presentation(const PanePresentation& published) {
     session_.panes.selected = kind;
     session_.panes.keyboard = kind_takes_keyboard(kind) ? kind : kNoPaneKind;
     if (ExternalPane* pane = session_.panes.external_pane(kind)) {
-        pane->rows = trial_.room_rows;
-        pane->columns = trial_.room_columns;
-        pane->granted = true;
-        pane->shown = trial_.rows;
-        pane->parts.clear();
-        pane->heard = true;
-        pane->awaiting = false;
-        pane->clear_refusal();
         pane->content_generation = trial_.generation;
-        if (trial_.pictured) {
-            // THE PICTURE, IN THE ROOM RESERVED FOR IT: the canvas the holder is granted now, so
-            // every picture drawn under the room before it -- the document it replaces -- is
-            // refused. It is the desk's to show until the holder draws again: unnumbered, read
-            // at once, and pressed from the holder's first own picture in this room.
-            ExternalPane::Canvas& c = pane->canvas;
-            c = ExternalPane::Canvas{};
-            c.owner = host_->role_holder ? host_->role_holder(trial_.ref.provider) : loom::WeaveId{};
-            c.grant = trial_.room.grant;
-            c.x = trial_.canvas_body.x;
-            c.y = trial_.canvas_body.y;
-            c.width = trial_.canvas_body.w;
-            c.height = trial_.canvas_body.h;
-            c.title_rows = trial_.title_rows;
-            c.grain = trial_.room.grain;
-            c.graphical = trial_.room.graphical;
-            c.text_advance_px = trial_.room.text_advance_px;
-            c.text_line_px = trial_.room.text_line_px;
-            c.heard = true;
-            c.content = canvas_content_of(trial_.picture);
-            pane->forget_pictures();
-            pane->shown.clear();
-            pane->clear_caret();
-            each_hand([&](Hand& h) {
-                for (auto& continuation : h.secondary_cont)
-                    if (continuation.kind == kind) continuation = SecondaryContinuation{};
-            });
-            if (canvas_hover_.kind == kind) canvas_hover_ = CanvasHover{};
-            canvas_room_owed_ = true;
-        } else if (pane->canvas.grant != 0) {
-            // ROWS FOR A PANE THAT HELD A CANVAS: its picture is the document it replaces, so it
-            // goes, and the next repaint grants the holder a room to draw in afresh.
-            pane->canvas = ExternalPane::Canvas{};
-            pane->forget_pictures();
-        }
-        if (trial_.caret_ok) { // a picture's caret stands in the picture, as none beside it
-            pane->caret_row = trial_.caret_row;
-            pane->caret_col = trial_.caret_row == surface::kNoCaret ? 0 : trial_.caret_col;
-            pane->sel_begin_row = trial_.sel_begin_row;
-            pane->sel_begin_col = trial_.sel_begin_col;
-            pane->sel_end_row = trial_.sel_end_row;
-            pane->sel_end_col = trial_.sel_end_col;
-        } else {
-            pane->clear_caret();
-        }
     }
     shown_by_ = trial_.op;
     say("showing " + trial_.name + " -- it opened " + tail(trial_.path) + ", and it has the keys",
@@ -524,7 +359,7 @@ bool WorkshopWeave::show_presentation(const PanePresentation& published) {
     presentation_claimed_ = true;
     trial_ = Trial{};
     repaint_owed_ = true;
-    room_owed_ = true;
+    settings_owed_ = true;
     return true;
 }
 

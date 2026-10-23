@@ -11,6 +11,8 @@
 // painter and reads an area back as Workshop reads a drawing, its text a cell a character or, given
 // a face's measure, set as a window that shows every pixel sets it.
 
+#include "graphics/implied.hpp"
+#include "graphics/ops.hpp"
 #include "graphics/painting.hpp"
 #include "graphics/term_paint.hpp"
 #include "graphics/vocabulary.hpp"
@@ -24,6 +26,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <functional>
 #include <map>
 #include <memory>
@@ -88,15 +91,21 @@ public:
     }
 
     void on(const PaneWindowDo&, loom::Mail& mail) {
-        std::function<void(PaneWindow&, loom::Mail&)> once;
-        once.swap(next);
-        if (once) {
-            once(*this, mail);
+        if (next.empty()) {
+            return;
         }
+        const std::function<void(PaneWindow&, loom::Mail&)> once = std::move(next.front());
+        next.pop_front();
+        once(*this, mail);
     }
 
     void on(const graphics::ClipboardTextRequested&, loom::Mail& mail) {
         ++clipboard_reads;
+        if (hold_paste) {
+            paste = mail.defer_answer();
+            held = paste.valid();
+            return;
+        }
         (void)mail.answer(graphics::ClipboardText{true, platform});
     }
 
@@ -141,7 +150,12 @@ public:
     std::vector<std::string> refusals;
     int strangers = 0;
     bool refuse_next = false;
-    std::function<void(PaneWindow&, loom::Mail&)> next;
+    /// A PASTE ASKED IS HELD, while `hold_paste`, until the case lets it go (`Window::answer_paste`):
+    /// a platform that answers late.
+    bool hold_paste = false;
+    bool held = false;
+    loom::DeferredAnswer paste;
+    std::deque<std::function<void(PaneWindow&, loom::Mail&)>> next; ///< the case's moments, in turn
     std::string platform;    ///< what the platform clipboard holds
     int clipboard_reads = 0; ///< the pastes asked of this window
     int area_reads = 0;      ///< the areas asked of this window
@@ -188,12 +202,32 @@ public:
         face_ = face;
         cell_px_ = gfx::kCellPx;
     }
+    /// Text is the cell again, as a terminal sets it.
+    void set_cells() {
+        face_ = {};
+        cell_px_ = 0;
+    }
+    const gfx::TextMeasure& measure() const { return face_; }
+    std::int64_t cell_px() const { return cell_px_; }
+    /// What the window holds of `area`, none before its room.
+    const gw::WinArea* held(const std::string& area) const {
+        for (const gw::WinArea& a : w_->areas) {
+            if (a.area == area) return &a;
+        }
+        return nullptr;
+    }
 
     /// THE ROOM OF `area`, `cols` characters by `rows` lines of its text, told its owner as this
     /// window's office, empty while it holds none of the owner's drawing. A new `epoch` is a window
     /// started again, which holds nothing of the area's.
     void room(const std::string& area, const std::string& owner, std::int64_t cols,
               std::int64_t rows, std::int64_t epoch = 1) {
+        room_px(area, owner, cols * face_.advance, rows * face_.line, epoch);
+    }
+
+    /// THE ROOM OF `area` IN PIXELS, `w` by `h`, as `room` tells it.
+    void room_px(const std::string& area, const std::string& owner, std::int64_t w,
+                 std::int64_t h, std::int64_t epoch = 1) {
         gw::WinArea* a = w_->find(area);
         if (a == nullptr) {
             w_->areas.push_back(gw::WinArea{});
@@ -205,8 +239,8 @@ public:
         }
         epochs_[area] = epoch;
         a->owner = owner;
-        a->w = cols * face_.advance;
-        a->h = rows * face_.line;
+        a->w = w;
+        a->h = h;
         say(owner, gfx::AreaRoom{area, w_->window(), epoch, a->w, a->h, {},
                                  a->nodes.empty() && a->records.empty(), cell_px_, face_.advance,
                                  face_.line});
@@ -237,10 +271,51 @@ public:
         }
         component::RowMap<workshop::DrawnPart> map;
         map.begin();
-        for (const surface::SurfaceTextRow& row :
+        for (const workshop::TextRow& row :
              workshop::drawn_rows(sketch, a->h / face_.line, a->w / face_.advance, map, face_)) {
             const std::size_t end = row.text.find_last_not_of(' ');
             out.push_back(end == std::string::npos ? std::string() : row.text.substr(0, end + 1));
+        }
+        return out;
+    }
+
+    /// WHERE THE CARET AND THE SELECTION STAND in the rows `area` shows: the caret a bar at the
+    /// left of the cell it stands before, or in a room of cells the character it stands before
+    /// drawn again, the selection its columns drawn again, a run a row.
+    workshop::RowsCaret caret(const std::string& area) {
+        workshop::RowsCaret out;
+        const gw::WinArea* a = w_->find(area);
+        if (a == nullptr || face_.advance <= 0 || face_.line <= 0) {
+            return out;
+        }
+        bool selected = false;
+        for (const gw::KeptNode& k : a->nodes) {
+            if (k.node.path == "caret") {
+                if (const auto bar = gfx::from_body<gfx::LineArgs>(k.node.args)) {
+                    out.row = gfx::floor_div_px(bar->y1, face_.line);
+                    out.column = gfx::floor_div_px(bar->x1, face_.advance);
+                } else if (const auto mark = gfx::from_body<gfx::TextArgs>(k.node.args)) {
+                    out.row = gfx::floor_div_px(mark->y, face_.line);
+                    out.column = gfx::floor_div_px(mark->x, face_.advance);
+                }
+            } else if (k.node.path.rfind("sel", 0) == 0) {
+                if (const auto run = gfx::from_body<gfx::TextArgs>(k.node.args)) {
+                    const std::int64_t row = gfx::floor_div_px(run->y, face_.line);
+                    const std::int64_t column = gfx::floor_div_px(run->x, face_.advance);
+                    const std::int64_t end = column + static_cast<std::int64_t>(run->text.size());
+                    if (!selected || row < out.sel_begin_row ||
+                        (row == out.sel_begin_row && column < out.sel_begin_col)) {
+                        out.sel_begin_row = row;
+                        out.sel_begin_col = column;
+                    }
+                    if (!selected || row > out.sel_end_row ||
+                        (row == out.sel_end_row && end > out.sel_end_col)) {
+                        out.sel_end_row = row;
+                        out.sel_end_col = end;
+                    }
+                    selected = true;
+                }
+            }
         }
         return out;
     }
@@ -404,6 +479,37 @@ public:
         return true;
     }
 
+    /// ANY MOMENT OF THE WINDOW'S, told the owner of `area` as this window's office under
+    /// `correlation` -- the press a button, a move or a release carries.
+    template <class Shape>
+    void tell(const std::string& area, const Shape& shape, std::uint64_t correlation = 0) {
+        const gw::WinArea* a = w_->find(area);
+        say(a == nullptr ? std::string() : a->owner, shape, correlation);
+    }
+    /// ...queued behind what is in flight and not yet delivered: the bus's next pump reads it.
+    template <class Shape>
+    void post(const std::string& area, const Shape& shape, std::uint64_t correlation = 0) {
+        const gw::WinArea* a = w_->find(area);
+        queue(a == nullptr ? std::string() : a->owner, shape, correlation);
+    }
+
+    /// THE PASTE HELD, answered now with the platform's text -- or, `queued`, behind what is in
+    /// flight, read at the bus's next pump.
+    void answer_paste(bool queued = false) {
+        w_->next.push_back([](PaneWindow& w, loom::Mail& mail) {
+            if (!w.held) {
+                return;
+            }
+            w.held = false;
+            (void)loom::answer_deferred(w.paste, mail, graphics::ClipboardText{true, w.platform});
+        });
+        (void)bus_.send(id_, loom::Message(loom::to_value(PaneWindowDo{}), loom::WeaveId{},
+                                           loom::WeaveId{}, 0));
+        if (!queued) {
+            bus_.drain_until_idle();
+        }
+    }
+
     /// A DRAWING OF `area` REFUSED, told its owner as this window's office, whatever it last drew.
     void refuse(const std::string& area, const std::string& reason) {
         const gw::WinArea* a = w_->find(area);
@@ -414,12 +520,16 @@ private:
     /// Make the window say `shape` to `to` inside its own delivery, and let the bus settle.
     template <class Shape>
     void say(const std::string& to, const Shape& shape, std::uint64_t correlation = 0) {
-        w_->next = [to, shape, correlation](PaneWindow& w, loom::Mail& mail) {
+        queue(to, shape, correlation);
+        bus_.drain_until_idle();
+    }
+    template <class Shape>
+    void queue(const std::string& to, const Shape& shape, std::uint64_t correlation) {
+        w_->next.push_back([to, shape, correlation](PaneWindow& w, loom::Mail& mail) {
             (void)mail.as_role(w.office()).send_to_role(to, shape, correlation);
-        };
+        });
         (void)bus_.send(id_, loom::Message(loom::to_value(PaneWindowDo{}), loom::WeaveId{},
                                            loom::WeaveId{}, 0));
-        bus_.drain_until_idle();
     }
 
     /// `area` as a window of characters would keep it: its room and each node's place read from

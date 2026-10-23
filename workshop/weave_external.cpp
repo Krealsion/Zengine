@@ -1,21 +1,23 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// `WorkshopWeave`'s external panes: the room grant, the forwarded press, key, wheel and text, the
-// second button, a pane's own menu, and the `?` it wears.
+// `WorkshopWeave`'s external panes: their settings, the forwarded key and text, the second
+// button's continuations, a pane's own menu, and the `?` it wears.
 // Workshop law: agents/workshop/focus.md (+5 registers; agents/workshop.md routes)
 
 #include "pane_document.hpp"
+#include "screen_canvas.hpp"
 #include "weave.hpp"
 
 namespace zengine::workshop {
 
-// ---- THE EXTERNAL PANE'S ROOM AND GESTURES: the grant, a press, a key, the wheel, text ----
+// ---- THE EXTERNAL PANE'S CHROME, SETTINGS AND KEYS ----------------------------------------
 
-// WL-CHROME-09 -- agents/workshop/chrome.md
+// WL-CHROME-09 -- agents/workshop/chrome.md; WL-PANE-16 -- agents/workshop/panes-and-windows.md
 void WorkshopWeave::note_manuals() {
     // THE APPLICATION SHOWS A MANUAL while it declares the row that does; a pane's holder answers
-    // one while it takes the door. Both asked now, of the live keymap and the live holder.
+    // one while it takes the door. Both asked now, of the live keymap and the live holder -- and
+    // whether that holder draws in a window, which the frame's body says.
     bool shown = false;
     for (const AppRow& app : session_.keymap.app) {
         shown = shown || app.id == kManualAction;
@@ -32,6 +34,11 @@ void WorkshopWeave::note_manuals() {
         pane->manual = shown && row != nullptr && host_->holder_accepts &&
                        host_->holder_accepts(row->provider,
                                              *loom::schema_of<PaneDocumentRequested>());
+        pane->held = row != nullptr && host_->role_holder &&
+                     host_->role_holder(row->provider).valid();
+        pane->in_window = row != nullptr && host_->holder_accepts &&
+                          host_->holder_accepts(row->provider,
+                                                *loom::schema_of<graphics::AreaRoom>());
     }
 }
 
@@ -78,7 +85,7 @@ void WorkshopWeave::hand_settings(loom::Mail& mail) {
             *pane->settings_heard == held && pane->settings_revision == revision) {
             continue; // what it holds is what this layout keeps: saying so again is noise
         }
-        // TO THE HOLDER ITSELF, as its canvas room is, so what is recorded is who heard it.
+        // TO THE HOLDER ITSELF, so what is recorded is who heard it.
         const loom::Ticket sent =
             revisions ? mail.as_role(kWorkshopProvider)
                             .send(holder, v2::PaneSettings{row->pane, revision, held})
@@ -96,52 +103,6 @@ void WorkshopWeave::hand_settings(loom::Mail& mail) {
     }
     // ...AND EVERY DECLARING OFFICE ITS OFFICE-WIDE SETTINGS, on the same turns.
     hand_office_settings(mail);
-}
-
-// WL-PANE-06 -- agents/workshop/panes-and-windows.md
-void WorkshopWeave::refresh_external_rooms(loom::Mail& mail) {
-    // A PANE'S SETTINGS BEFORE ANY ROOM, so the picture a room asks for is drawn with them.
-    hand_settings(mail);
-    refresh_canvas_rooms(mail);
-    const Screen sc = screen_of(session_);
-    for (const OpenPane& p : session_.panes.open) {
-        if (!is_runtime_kind(p.kind)) {
-            continue;
-        }
-        const PaneBounds where = bounds_of(session_.panes, session_.setup.active, p.kind, sc);
-        const ExternalBodyPlace body = external_body_place(
-            where.rect, sc,
-            external_title_rows(session_.panes, p.kind, session_.pane_titles));
-        if (!body.present) {
-            continue;
-        }
-        const RuntimePane* row = session_.panes.runtime.of_kind(p.kind);
-        ExternalPane* pane = session_.panes.external_pane(p.kind);
-        if (row == nullptr || pane == nullptr) {
-            continue;
-        }
-        if (pane->canvas.title_waits) {
-            continue; // the room a held press keeps (WL-FOCUS-11): its rows wait with its canvas
-        }
-        if (pane->granted && pane->rows == body.rows && pane->columns == body.columns) {
-            continue; // the same room: saying so again would be noise a provider must parse
-        }
-        const std::string office = row->provider;
-        const std::string key = row->pane;
-        pane->rows = body.rows;
-        pane->columns = body.columns;
-        pane->granted = true;
-        pane->shown.clear();
-        pane->parts.clear();
-        pane->heard = false;
-        pane->awaiting = true;
-        // The refusal is not cleared: a room goes out whenever the surface resizes, and only
-        // content this host accepted may take back a sentence about content (WL-ATTN-04).
-        // Authored as `zengine.workshop`, so the provider can verify the ask, and sent to the
-        // role, so a replaced provider still gets its room.
-        (void)mail.as_role(kWorkshopProvider)
-            .send_to_role(office, PaneRoom{key, body.rows, body.columns});
-    }
 }
 
 // WL-FOCUS-04 -- agents/workshop/focus.md
@@ -172,81 +133,6 @@ bool holder_emits_on(const loom::Switchboard& bus, std::string_view role,
         }
     }
     return false;
-}
-
-// WL-PRESS-04 -- agents/workshop/press-chain.md; WL-FOCUS-04 -- agents/workshop/focus.md
-bool WorkshopWeave::external_press(std::int64_t kind, const ExternalPressAt& at,
-                                   bool keys_went_here, loom::Mail& mail) {
-    if (!at.named || placed_in_window(kind)) {
-        return false;
-    }
-    const RuntimePane* row = session_.panes.runtime.of_kind(kind);
-    const ExternalPane* pane = session_.panes.external_pane(kind);
-    // A pane not yet granted a room has no lattice to name a place in: a press between its opening
-    // and the granting repaint names nothing.
-    if (row == nullptr || pane == nullptr || !pane->granted || pane->canvas.grant != 0) {
-        return false;
-    }
-    // One press, one sentence, in the version the office's holder accepts now. A holder replaced
-    // before delivery may refuse it; Loom records that, and nothing resends in another version.
-    // Under a number, so a pane answering with its own rows continues this gesture
-    // (`on(PaneMenuRequested)`).
-    const std::uint64_t answering = ++gesture_asks_;
-    if (host_->holder_accepts &&
-        host_->holder_accepts(row->provider, *loom::schema_of<v3::PanePressed>())) {
-        // Version three names the picture the press was aimed at: the newest the medium had been
-        // handed when the press was read (`PictureFence`), not merely the newest admitted.
-        (void)mail.as_role(kWorkshopProvider)
-            .send_to_role(row->provider,
-                          v3::PanePressed{row->pane, at.row, at.column, keys_went_here,
-                                          pane->stamp.aimed},
-                          answering);
-    } else if (host_->holder_accepts &&
-               host_->holder_accepts(row->provider, *loom::schema_of<v2::PanePressed>())) {
-        (void)mail.as_role(kWorkshopProvider)
-            .send_to_role(row->provider,
-                          v2::PanePressed{row->pane, at.row, at.column, keys_went_here},
-                          answering);
-    } else {
-        (void)mail.as_role(kWorkshopProvider)
-            .send_to_role(row->provider, PanePressed{row->pane, at.row, at.column}, answering);
-    }
-    keep_act(hand(), hand().press_sent = GestureSent{kind, hand().latest, answering});
-    note_routed(kind); // admitted work, not yet delivered (WL-OPEN-03)
-    return true;
-}
-
-// WL-TEXT-14 -- agents/workshop/text-box.md
-void WorkshopWeave::external_drag(std::int64_t kind, const zengine::input::PointerMoved& m,
-                                  loom::Mail& mail) {
-    const RuntimePane* row = session_.panes.runtime.of_kind(kind);
-    const ExternalPane* pane = session_.panes.external_pane(kind);
-    if (row == nullptr || pane == nullptr || !pane->granted || !session_.panes.has(kind)) {
-        session_.text_drag = TextDrag{}; // the pane the press began in is gone: the sweep ends
-        return;
-    }
-    // THE SAME MEASURER THE PRESS SPENT, resolved at THIS motion against the body the pane
-    // has now -- and then NOT clamped: a row above the body is negative, a row below it is
-    // past `rows`, and what either means is the pane's (`PaneDragged`).
-    const Screen sc = screen_of(session_);
-    const PaneBounds where = bounds_of(session_.panes, session_.setup.active, kind, sc);
-    if (!where.open) {
-        session_.text_drag = TextDrag{};
-        return;
-    }
-    const ExternalBodyPlace body = external_body_place(
-        where.rect, sc, external_title_rows(session_.panes, kind, session_.pane_titles));
-    if (!body.present) {
-        return; // a room too small for a row: the sweep waits for one, and sends nothing
-    }
-    const ProseAt at = prose_at(m.space, m.x, m.y, body.fit, session_.console_rows_above);
-    if (!at.understood) {
-        return;
-    }
-    const std::int64_t prow = at.row - body.header_rows;
-    (void)mail.as_role(kWorkshopProvider)
-        .send_to_role(row->provider, PaneDragged{row->pane, prow, at.column});
-    note_routed(kind);
 }
 
 // WL-FOCUS-01, WL-FOCUS-05 -- agents/workshop/focus.md
@@ -308,173 +194,17 @@ bool WorkshopWeave::external_key(std::int64_t kind, const zengine::input::KeyPre
     return true;
 }
 
-void WorkshopWeave::external_wheel(std::int64_t kind, const zengine::input::PointerWheel& w,
-                                   loom::Mail& mail) {
-    const ExternalPressAt at =
-        external_press_at(session_.panes, session_.setup.active, screen_of(session_), kind,
-                          session_.pane_titles, w.space, w.x, w.y);
-    if (!at.named || placed_in_window(kind)) {
-        return;
-    }
-    const RuntimePane* row = session_.panes.runtime.of_kind(kind);
-    const ExternalPane* pane = session_.panes.external_pane(kind);
-    if (row == nullptr || pane == nullptr || !pane->granted) {
-        return;
-    }
-    (void)mail.as_role(kWorkshopProvider)
-        .send_to_role(row->provider, PaneWheel{row->pane, w.dx, w.dy});
-    note_routed(kind);
-}
-
-// ---- The second button: custody, continuation, and a pane's own menu -------------------------
-
-namespace {
-std::size_t secondary_slot(std::int64_t button) noexcept { return button == 2 ? 0 : 1; }
-} // namespace
-
-// WL-PRESS-06 -- agents/workshop/press-chain.md
-bool WorkshopWeave::external_button(std::int64_t kind, std::int64_t button,
-                                    const ExternalPressAt& at, const PointedAt& cell,
-                                    loom::Mail& mail) {
-    if (!at.named || (button != 2 && button != 3) || placed_in_window(kind)) {
-        return false;
-    }
-    const RuntimePane* row = session_.panes.runtime.of_kind(kind);
-    const ExternalPane* pane = session_.panes.external_pane(kind);
-    if (row == nullptr || pane == nullptr || !pane->granted) {
-        return false;
-    }
-    // THE DOOR, READ OFF THE BUS NOW: a holder without it is sent nothing, and the host's own
-    // chrome answers as it always did. (A host that cannot ask sends nothing.)
-    if (!host_->holder_accepts ||
-        !host_->holder_accepts(row->provider, *loom::schema_of<PaneButton>())) {
-        return false;
-    }
-    const std::size_t s = secondary_slot(button);
-    // ARBITRATION, NEVER SILENCE: a press of a button believed to be down means its release was
-    // never reported (a lost focus, a window that swallowed it); the old hold ends aloud, with a
-    // `lost` release owed to its pane, before the new press is recorded.
-    lose_secondary_hold(s, mail);
-    // THIS PRESS IS A GESTURE FOR THE OTHER BUTTON'S CONTINUATION -- of the same hand.
-    for (SecondaryContinuation& other : hand().secondary_cont) {
-        if (other.live && other.button != button) {
-            other.interrupted = true;
-        }
-    }
-    const std::uint64_t answering = ++gesture_asks_;
-    const loom::Ticket sent =
-        mail.as_role(kWorkshopProvider)
-            .send_to_role(row->provider,
-                          PaneButton{row->pane, button, true, at.row, at.column, false,
-                                     pane->stamp.aimed},
-                          answering);
-    if (!sent.valid()) {
-        return false; // nothing queued: known non-delivery, and the host's surface answers
-    }
-    secondary_hold_[s] = SecondaryHold{true, kind, button, answering, sent};
-    SecondaryContinuation& c = hand().secondary_cont[s];
-    c = SecondaryContinuation{};
-    c.live = true;
-    c.kind = kind;
-    c.button = button;
-    c.correlation = answering;
-    c.gesture_at_press = hand().latest;
-    c.cell = cell;
-    note_routed(kind);
-    return true;
-}
-
-// WL-PRESS-06 -- agents/workshop/press-chain.md
-bool WorkshopWeave::external_release(std::int64_t button, const zengine::input::PointerButton& b,
-                                     loom::Mail& mail) {
-    if (button != 2 && button != 3) {
-        return false;
-    }
-    const std::size_t s = secondary_slot(button);
-    SecondaryHold& h = secondary_hold_[s];
-    if (!h.active) {
-        return false;
-    }
-    const std::int64_t kind = h.kind;
-    const std::uint64_t held = h.correlation;
-    h = SecondaryHold{};
-    // THE RELEASE ENDS CUSTODY AND NEVER RESTORES ELIGIBILITY: a continuation stays eligible only
-    // if nothing but this release happened since its press -- and the release itself is no
-    // gesture (`on(PointerButton)`), so "nothing since" is the count still standing at the press.
-    each_hand([&](Hand& hd) {
-        SecondaryContinuation& c = hd.secondary_cont[s];
-        if (c.live && !c.released && c.correlation == held) c.released = true;
-    });
-    const RuntimePane* row = session_.panes.runtime.of_kind(kind);
-    if (row == nullptr) {
-        return false;
-    }
-    // THE PLACE, resolved against the pane's body NOW and not clamped (`PaneDragged`'s rule); a
-    // body that cannot be resolved sends the release at (0, 0), which a pane must not read as a
-    // row it was aimed at -- `lost` is false: a hand did let go.
-    std::int64_t prow = 0;
-    std::int64_t pcol = 0;
-    if (session_.panes.has(kind)) {
-        const Screen sc = screen_of(session_);
-        const PaneBounds where = bounds_of(session_.panes, session_.setup.active, kind, sc);
-        if (where.open) {
-            const ExternalBodyPlace body = external_body_place(
-                where.rect, sc, external_title_rows(session_.panes, kind, session_.pane_titles));
-            if (body.present) {
-                const ProseAt at =
-                    prose_at(b.space, b.x, b.y, body.fit, session_.console_rows_above);
-                if (at.understood) {
-                    prow = at.row - body.header_rows;
-                    pcol = at.column;
-                }
-            }
-        }
-    }
-    (void)mail.as_role(kWorkshopProvider)
-        .send_to_role(row->provider, PaneButton{row->pane, button, false, prow, pcol, false, 0});
-    note_routed(kind);
-    return true;
-}
-
-// WL-PRESS-06 -- agents/workshop/press-chain.md
-void WorkshopWeave::lose_secondary_hold(std::size_t s, loom::Mail& mail) {
-    SecondaryHold& h = secondary_hold_[s];
-    if (!h.active) {
-        return;
-    }
-    if (const RuntimePane* row = session_.panes.runtime.of_kind(h.kind)) {
-        (void)mail.as_role(kWorkshopProvider)
-            .send_to_role(row->provider, PaneButton{row->pane, h.button, false, 0, 0, true, 0});
-    }
-    const std::uint64_t ended = h.correlation;
-    h = SecondaryHold{};
-    each_hand([&](Hand& hd) {
-        if (hd.secondary_cont[s].correlation == ended) {
-            hd.secondary_cont[s] = SecondaryContinuation{};
-        }
-    });
-}
+// ---- The second button: continuation, and a pane's own menu ----------------------------------
 
 // WL-PRESS-06 -- agents/workshop/press-chain.md
 void WorkshopWeave::end_lost_holds(loom::Mail& mail) {
-    end_canvas_holds(mail);
-    for (std::size_t s = 0; s < 2; ++s) {
-        SecondaryHold& h = secondary_hold_[s];
-        if (h.active && !session_.panes.has(h.kind)) {
-            if (const RuntimePane* row = session_.panes.runtime.of_kind(h.kind)) {
-                (void)mail.as_role(kWorkshopProvider)
-                    .send_to_role(row->provider,
-                                  PaneButton{row->pane, h.button, false, 0, 0, true, 0});
-            }
-            h = SecondaryHold{};
-        }
-        // The continuation is invalidated on its own terms: a pane that left the desk after the
-        // release cannot have its press handed back or a menu opened for it.
-        each_hand([&](Hand& hd) {
-            SecondaryContinuation& c = hd.secondary_cont[s];
+    // The continuation is invalidated on its own terms: a pane that left the desk after the
+    // release cannot have its press handed back or a menu opened for it.
+    each_hand([&](Hand& hd) {
+        for (SecondaryContinuation& c : hd.secondary_cont) {
             if (c.live && !session_.panes.has(c.kind)) c = SecondaryContinuation{};
-        });
-    }
+        }
+    });
     // ...AND A MENU PRESENTED FOR A PANE THAT LEFT is withdrawn: its subject has no room on the
     // desk any more, and a choice about it would reach a pane the weaver cannot see. The presenter
     // answers the requester unchosen, in these words.
@@ -491,44 +221,6 @@ void WorkshopWeave::end_lost_holds(loom::Mail& mail) {
     });
 }
 
-// WL-PRESS-06 -- agents/workshop/press-chain.md
-bool WorkshopWeave::end_refused_button(const loom::Ticket& refused_attempt, loom::Mail& mail) {
-    if (refused_attempt.valid()) {
-        for (std::size_t i = 0; i < 3; ++i) {
-            auto& held = canvas_holds_[i];
-            if (held.active && held.attempt.valid() && held.attempt.seq == refused_attempt.seq) {
-                const std::int64_t kind = held.kind;
-                held = CanvasHold{};
-                if (i > 0)
-                    each_hand([&](Hand& hd) {
-                        if (hd.secondary_cont[i - 1].kind == kind) hd.secondary_cont[i - 1] = SecondaryContinuation{};
-                    });
-                return true;
-            }
-        }
-    }
-    if (!refused_attempt.valid()) {
-        return false;
-    }
-    for (std::size_t s = 0; s < 2; ++s) {
-        SecondaryHold& h = secondary_hold_[s];
-        if (!h.active || !h.attempt.valid() || h.attempt.seq != refused_attempt.seq) {
-            continue; // not this slot's attempt (or an old one): it cancels nothing newer
-        }
-        // The press never reached its recipient: the hold and its continuation are dropped, so the
-        // release sends nothing and no pass-back or menu finds a record. The pane, never told,
-        // holds nothing; Loom's tap already attributes the refusal.
-        const std::uint64_t ended = h.correlation;
-        h = SecondaryHold{};
-        each_hand([&](Hand& hd) {
-            if (hd.secondary_cont[s].correlation == ended) hd.secondary_cont[s] = SecondaryContinuation{};
-        });
-        (void)mail;
-        return true;
-    }
-    return false;
-}
-
 // WL-CTX-08 -- agents/workshop/contextual.md
 void WorkshopWeave::on(const PanePassRequested& said, loom::Mail& mail) {
     const std::string_view office = mail.authored_role();
@@ -539,9 +231,6 @@ void WorkshopWeave::on(const PanePassRequested& said, loom::Mail& mail) {
     if (row == nullptr) {
         return; // a pane this office never offered is no pane of the desk's
     }
-    if (const auto* pane = session_.panes.external_pane(row->kind);
-        pane && pane->canvas.grant != 0 &&
-        (!canvas_owner_current(row->kind) || pane->canvas.owner != mail.sender())) return;
     if (mail.correlation() == 0) {
         return; // an answer echoing nothing answers nothing
     }
@@ -589,27 +278,29 @@ PointedAt WorkshopWeave::cell_of_body_place(std::int64_t kind, std::int64_t row,
     if (!where.open) {
         return out;
     }
-    const ExternalBodyPlace body = external_body_place(
-        where.rect, sc, external_title_rows(session_.panes, kind, session_.pane_titles));
-    if (!body.present) {
+    // THE PANE'S AREA, where Workshop placed it, else where it would stand under its title rows.
+    const ExternalPane* pane = session_.panes.external_pane(kind);
+    const PixelRect area =
+        pane != nullptr && pane->placed_w > 0 && pane->placed_h > 0
+            ? PixelRect{pane->placed_x, pane->placed_y, pane->placed_w, pane->placed_h}
+            : canvas_body_place(where.rect, sc,
+                                external_title_rows(session_.panes, kind, session_.pane_titles));
+    if (area.empty()) {
         return out;
     }
-    // A PLACE OUTSIDE THE GRANTED LATTICE ANCHORS AT THE BODY'S ORIGIN: the pane named a row it
-    // no longer has (the room shrank behind its request), and the menu still opens beside it.
-    const std::int64_t r = row >= 0 && row < body.fit.rows ? row : 0;
-    const std::int64_t c = column >= 0 && column < body.fit.columns ? column : 0;
-    // The place's first pixel, in the fit the body was granted: a character and a line of the
-    // medium's type, or a cell each where text is a cell.
-    const std::int64_t advance = body.fit.graphical() ? body.fit.advance_px : graphics::kCellPx;
-    const std::int64_t line = body.fit.graphical() ? body.fit.line_px : graphics::kCellPx;
+    // A row and a column of the window's text there; a place outside the area anchors at its
+    // corner -- the pane named a row it no longer has, and the menu still opens beside it.
+    const bool graphical = sc.text_advance_px > 0 && sc.text_line_px > 0;
+    const std::int64_t advance = graphical ? sc.text_advance_px : graphics::kCellPx;
+    const std::int64_t line = graphical ? sc.text_line_px : graphics::kCellPx;
+    const bool inside = row >= 0 && column >= 0 && graphics::mul_px(row, line) < area.h &&
+                        graphics::mul_px(column, advance) < area.w;
     out.understood = true;
-    out.px.x = graphics::add_cells(graphics::add_cells(body.fit.view.x, body.fit.origin_x),
-                                  graphics::mul_px(c, advance));
-    out.px.y = graphics::add_cells(graphics::add_cells(body.fit.view.y, body.fit.origin_y),
-                                  graphics::mul_px(body.header_rows + r, line));
+    out.px.x = graphics::add_cells(area.x, inside ? graphics::mul_px(column, advance) : 0);
+    out.px.y = graphics::add_cells(area.y, inside ? graphics::mul_px(row, line) : 0);
     out.cell.x = graphics::cell_of_pixel(out.px.x);
     out.cell.y = graphics::cell_of_pixel(out.px.y);
-    out.grain = body.fit.graphical() ? graphics::kPixelGrainPx : graphics::kCellGrainPx;
+    out.grain = graphical ? graphics::kPixelGrainPx : graphics::kCellGrainPx;
     return out;
 }
 
@@ -623,9 +314,6 @@ void WorkshopWeave::on(const PaneMenuRequested& asked, loom::Mail& mail) {
     if (row == nullptr) {
         return; // a pane this office never offered
     }
-    if (const auto* pane = session_.panes.external_pane(row->kind);
-        pane && pane->canvas.grant != 0 &&
-        (!canvas_owner_current(row->kind) || pane->canvas.owner != mail.sender())) return;
     // THE HOST ANSWERS ONLY WHAT IT REFUSES HERE: an ask it never grants reaches no presenter, so
     // nobody else could answer it. What the rows say -- how many, how long, whether any -- is the
     // presenter's to judge and refuse; this handler judges custody and nothing about content.
@@ -668,11 +356,13 @@ void WorkshopWeave::on(const PaneMenuRequested& asked, loom::Mail& mail) {
             eligible = true;
         }
         // ...OR A PRIMARY PRESS, on the same three terms: this pane, this number, and still its
-        // hand's latest act. A pane that draws a `[menu]` control answers the click that hit it.
+        // hand's latest act. A pane that draws a `[menu]` control answers the click that hit it,
+        // and the menu opens where the click was made.
         if (!eligible && h.press_sent.answering == mail.correlation() &&
             h.press_sent.kind == row->kind && h.press_sent.gesture == h.latest) {
             h.press_sent = GestureSent{};
-            at = cell_of_body_place(row->kind, asked.row, asked.column);
+            at = h.press_cell.understood ? h.press_cell
+                                         : cell_of_body_place(row->kind, asked.row, asked.column);
             eligible = true;
         }
     });
@@ -954,10 +644,8 @@ bool WorkshopWeave::menu_button(const zengine::input::PointerButton& b, loom::Ma
     // releases still end the custody they end, and reach no presenter.
     const RuntimePane* about = session_.panes.runtime.find(session_.presented.office, session_.presented.pane);
     const std::string refused = about != nullptr ? refused_toward(input_actor_, about->kind) : std::string();
-    // A SECONDARY RELEASE ENDS A HOLD BEGUN BEFORE THE MENU OPENED (WL-PRESS-06): custody first.
     if (!b.pressed && (b.button == 2 || b.button == 3)) {
-        (void)external_release(b.button, b, mail);
-        return true;
+        return true; // a secondary release on Workshop's own area ends nothing of a pane's
     }
     if (b.pressed && !refused.empty()) {
         say(refused, true);
@@ -999,7 +687,7 @@ void WorkshopWeave::menu_pressed(const graphics::AreaPressed& p, std::uint64_t p
     // THE PRESENTER READS THE PRESS; THIS HOST COUNTS IT, as the act it is, so a choice the
     // presenter makes of it -- said under the press's number -- continues that act, its hand's.
     count_gesture();
-    leave_canvas_hover(mail);
+    leave_carry_hover(mail);
     if (input_actor_.local && !guide_marks_.empty()) {
         guide_pressed(mail, canvas_point_of(input::space::kPixels, p.x, p.y,
                                             session_.console_rows_above));

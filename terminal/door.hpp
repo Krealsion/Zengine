@@ -148,8 +148,8 @@ public:
         }
         (void)mail.answer(std::move(out));
         // NO REPAINT. Nothing about this host changed: the participant was read and not
-        // written, and what the answer becomes on a screen is the pane's own `PaneContent`,
-        // which repaints on its own arrival like every other pane's.
+        // written, and what the answer becomes on a screen is the pane's own drawing, which
+        // the window shows on its own arrival like every other pane's.
     }
 
     /// WHAT THE PARTICIPANT'S RECORD HOLDS, TO WHOEVER IS PRESENTING IT -- derived on the

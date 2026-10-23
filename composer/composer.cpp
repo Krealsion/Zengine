@@ -14,7 +14,7 @@
 #include "input/vocabulary.hpp"
 #include "introspection/vocabulary.hpp"
 #include "graphics/vocabulary.hpp"
-#include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_facets.hpp"
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/pane_carry.hpp"
@@ -145,8 +145,7 @@ public:
         }
     }
 
-    /// THE ROOM WORKSHOP GRANTED -- the canvas room, or the prose room where it grants none: the
-    /// pane draws its rows there.
+    /// THE ROOM THE WINDOW GAVE the pane's area: the pane draws its rows there.
     void on_room(loom::Mail& mail) {
         ++state_.rooms;
         say(mail);
@@ -208,11 +207,11 @@ public:
     }
 
     void on(const ws::PaneCanvasValueDrop& d, loom::Mail& mail) {
-        on_drop(d.pane, d.grant, d.picture, d.x, d.y, d.data, false, mail);
+        on_drop(d.pane, d.area, d.x, d.y, d.data, false, mail);
     }
 
     void on(const ws::PaneCanvasDrop& d, loom::Mail& mail) {
-        on_drop(d.pane, d.grant, d.picture, d.x, d.y, d.data, true, mail);
+        on_drop(d.pane, d.area, d.x, d.y, d.data, true, mail);
     }
 
     /// One of the rows `say` declares, asked for by id from Workshop (`PaneActionFacet`).
@@ -787,21 +786,20 @@ private:
             storage_notice(mail);
         } catch (const std::exception& e) { complain(e.what()); say(mail); }
     }
-    /// A VALUE OR A REFERENCE PLACED ON THE CANVAS: its place reads back to the row it fell on,
-    /// in the picture it was aimed at, and a field row takes it as that field's value while any
-    /// other row takes it as the whole command.
-    void on_drop(const std::string& pane, std::int64_t grant, std::int64_t picture, std::int64_t x,
-                 std::int64_t y, const loom::Bytes& data, bool reference, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshopRole) || pane != kComposePane) return;
-        if (busy() || grant != room().canvas_room().grant || !room().pictures().current(grant, picture)) {
-            complain("Drop refused: form is busy or its picture changed"); say(mail); return;
+    /// A VALUE OR A REFERENCE PLACED ON THE PANE'S AREA: its place reads back to the row of the rows
+    /// drawn there it fell on, and a field row takes it as that field's value while any other row
+    /// takes it as the whole command.
+    void on_drop(const std::string& pane, const std::string& area, std::int64_t x, std::int64_t y,
+                 const loom::Bytes& data, bool reference, loom::Mail& mail) {
+        if (!mail.authored_from_role(kWorkshopRole) || pane != kComposePane || area != room().area()) return;
+        if (busy()) {
+            complain("Drop refused: the form is busy"); say(mail); return;
         }
         try {
             auto item = inv::decode_pair({reinterpret_cast<const char*>(data.data()), data.size()}).item;
             if (reference && !loom::same_identity(item.schema(), *loom::schema_of<inv::InventoryReference>()))
                 throw std::invalid_argument("Unsupported reference kind");
-            const RowMeaning* row = room().map().at_row(
-                ws::row_cell_at(ws::canvas_rows(room().canvas_room()), x, y).row);
+            const RowMeaning* row = room().map().at_row(room().cell_at(x, y).row);
             if (composing_.stage == stage::kForm && row != nullptr && row->what == meaning::kField) {
                 const auto i = static_cast<std::size_t>(row->which);
                 if (composing_.draft.fields[i].present)
@@ -839,7 +837,7 @@ private:
     }
 
     /// The rows as `project` composes them for the room, each with what it means, published by the
-    /// facet: its canvas picture while it holds a canvas room, else prose with the caret beside it.
+    /// facet to the window that shows the pane's area, the caret among them.
     void say(loom::Mail& mail) {
         Rows& rows = room();
         if (zengine::composer::FieldDraft* d = field_under_cursor()) {
