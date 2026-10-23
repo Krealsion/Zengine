@@ -555,7 +555,7 @@ private:
         std::vector<PaneActionRow> rows = properties_.action_rows();
         if (properties_.drafting()) return rows;
         if (views_.front().has_entry()) rows.push_back({pane::kActionInventory, "inventory entry",
-            input::scan::kI, input::mod::kCtrl});
+            input::scan::kRight, input::mod::kAlt});
         rows.push_back({pane::kActionViewNew, "new value view", input::scan::kN, input::mod::kCtrl,
             {}, {ws::cause_of<ws::PaneLaunchRequested>()}});
         return rows;
