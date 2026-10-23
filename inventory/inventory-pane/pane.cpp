@@ -865,12 +865,12 @@ private:
             {"inventory.name.save","save",scan::kReturn,mod::kNone},{"inventory.name.cancel","cancel",scan::kEscape,mod::kNone}};
         else {
             rows={
-            {"inventory.copy",id==pane?"open folder / pick up copy":"pick up copy",scan::kReturn,mod::kNone},{"inventory.live","pick up live reference",scan::kReturn,mod::kCtrl},
+            {"inventory.copy",id==pane?"open folder / pick up copy":"pick up copy",scan::kReturn,mod::kNone},{"inventory.live","pick up live reference",scan::kL,mod::kCtrl},
             {"inventory.up","previous entry",scan::kUp,mod::kNone},{"inventory.down","next entry",scan::kDown,mod::kNone},
             {"inventory.left","previous slot",scan::kLeft,mod::kNone},{"inventory.right","next slot",scan::kRight,mod::kNone},
             {"inventory.sort","cycle sorting",scan::kS,mod::kCtrl},{"inventory.refresh","refresh entries",scan::kR,mod::kCtrl},
             {"inventory.rename","rename entry",scan::kN,mod::kCtrl},{"inventory.remove","remove entry",scan::kDelete,mod::kNone},
-            {"inventory.toolbox.save","save toolbox",scan::kS,mod::kCtrl|mod::kShift},
+            {"inventory.toolbox.save","save toolbox",scan::kE,mod::kCtrl},
             {"inventory.toolbox.restore","restore toolbox",scan::kO,mod::kCtrl},
             {"inventory.move.pick","move to another folder",scan::kX,mod::kCtrl}};
             // Backspace climbs only while no editor is open; an open name line keeps it as text.

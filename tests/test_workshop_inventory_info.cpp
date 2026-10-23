@@ -177,14 +177,14 @@ TEST_CASE("loaded toolbox: injected inventory input cannot acquire file authorit
     TempDir files("toolbox-denied");
     const auto path = files.file("must-not-exist.toolbox");
     InventoryStory s(191, true);
-    s.click(s.source); s.key(input::scan::kS, input::mod::kCtrl | input::mod::kShift);
+    s.click(s.source); s.key(input::scan::kE, input::mod::kCtrl);
     s.key(input::scan::kA, input::mod::kCtrl); s.text(path); s.key(input::scan::kReturn);
     CHECK_FALSE(std::filesystem::exists(path));
     CHECK_MESSAGE(s.shown(s.source).find("authorit") != std::string::npos, s.shown(s.source));
     // The physical weaver uses the same action, whose permission is independently attributed.
     s.physical_click(s.source);
-    input::KeyPressed physical_key; physical_key.scancode=input::scan::kS;
-    physical_key.modifiers=input::mod::kCtrl | input::mod::kShift;
+    input::KeyPressed physical_key; physical_key.scancode=input::scan::kE;
+    physical_key.modifiers=input::mod::kCtrl;
     s.physical->push_back(physical_key);
     s.pump_physical();
     physical_key.scancode=input::scan::kA; physical_key.modifiers=input::mod::kCtrl;
@@ -499,9 +499,9 @@ TEST_CASE("inventory Info: right-click acquisition and metadata inspection share
     t.key(input::scan::kDown);
     t.key(input::scan::kReturn);
     CHECK(t.shown(t.info).find("metadata is read-only") != std::string::npos);
-    t.key(input::scan::kI, input::mod::kCtrl);
+    t.key(input::scan::kLeft, input::mod::kAlt);
     CHECK(t.shown(t.info).find("PROPERTIES") != std::string::npos);
-    t.key(input::scan::kI, input::mod::kCtrl);
+    t.key(input::scan::kRight, input::mod::kAlt);
     CHECK(t.shown(t.info).find("story.RuntimeItem") != std::string::npos);
 }
 
@@ -570,7 +570,7 @@ TEST_CASE("inventory Info: a departed input actor cannot leave the weaver trappe
     REQUIRE(t.r.session().panes.keyboard == t.info);
     CHECK(t.shown(t.info).find("story.RuntimeItem") == std::string::npos);
     t.physical_click(t.source);
-    t.physical->push_back(input::KeyPressed{input::scan::kReturn, "", input::mod::kCtrl});
+    t.physical->push_back(input::KeyPressed{input::scan::kL, "", input::mod::kCtrl});
     t.pump_physical();
     REQUIRE_MESSAGE(t.shown(t.source).find("Click a receiving pane") != std::string::npos, t.shown(t.source));
     t.physical_click(t.info);
@@ -809,7 +809,7 @@ TEST_CASE("Compose drops are data and submission spends the input actor's exact 
         REQUIRE_MESSAGE(s.shown(compose_kind).find("Copied data into form") != std::string::npos, s.shown(compose_kind));
         auto current = [&] { return r.bus.weave(r.bus.role_holder(inv::kInventoryRole))->snapshot(); };
         CHECK(current().get("entries")->as_list()[0].as_message()->get("label")->as_text() == "source");
-        s.key(input::scan::kReturn, input::mod::kCtrl);
+        s.key(input::scan::kE, input::mod::kCtrl);
         INFO(s.shown(compose_kind));
         CHECK(current().get("entries")->as_list()[0].as_message()->get("label")->as_text() ==
               (allowed ? "renamed" : "source"));
@@ -1210,7 +1210,7 @@ TEST_CASE("presets are independent partial data until filled and explicitly auth
         CHECK_FALSE(preset.draft.admit());
         drag(row(s.source, "preset"), compose);
         REQUIRE_MESSAGE(s.shown(compose).find("Copied data into form") != std::string::npos, s.shown(compose));
-        s.key(input::scan::kReturn, input::mod::kCtrl);
+        s.key(input::scan::kE, input::mod::kCtrl);
         CHECK(s.shown(compose).find("still needed: revision") != std::string::npos);
         drag(row(s.source, "source"), s.info);
         REQUIRE_MESSAGE(s.shown(s.info).find("count: 1") != std::string::npos, s.shown(s.info));
@@ -1225,7 +1225,7 @@ TEST_CASE("presets are independent partial data until filled and explicitly auth
         auto label = [&] { return r.bus.weave(r.bus.role_holder(inv::kInventoryRole))->snapshot()
             .get("entries")->as_list().front().as_message()->get("label")->as_text(); };
         CHECK(label() == "source");
-        s.key(input::scan::kReturn, input::mod::kCtrl);
+        s.key(input::scan::kE, input::mod::kCtrl);
         CHECK_MESSAGE(label() == (allowed ? "renamed" : "source"), s.shown(compose));
         if (!allowed) CHECK(s.shown(compose).find("no authority") != std::string::npos);
         CHECK(s.saved_entries()[1].item.get("revision")->as_int() == 1);

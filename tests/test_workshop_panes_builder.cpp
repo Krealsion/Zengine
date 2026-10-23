@@ -3071,6 +3071,60 @@ TEST_CASE("the action census: the rows the Builder declares in each mode, with w
     }
 }
 
+TEST_CASE("every shipped action has a default key a POSIX terminal delivers") {
+    // EACH SHIPPED ACTION IS PRESSABLE FROM EVERY BACKEND: at least one of its default rows lies in
+    // no gap `posix_gap` names (WL-KEY-08). The pane rows are read from the census, the
+    // application's from the catalog. An action whose every row lies in a gap passes only as a
+    // second key for what another action of its office already does from a terminal: the same
+    // causes, the mode it enters and the label.
+    struct Row {
+        std::string key;
+        std::string does; // `<causes> <enters> <label>`, the census line's tail
+    };
+    std::map<std::string, std::vector<Row>> actions; // `<office> <id>`
+    for (const std::string& line : census_pinned()) {
+        std::istringstream in(line);
+        std::string office, mode, id, key;
+        in >> office >> mode >> id >> key;
+        std::string does;
+        std::getline(in, does);
+        actions[office + " " + id].push_back(Row{key, does});
+    }
+    for (const ActionRow& row : kActionCatalog) {
+        actions[std::string("workshop ") + row.id].push_back(
+            Row{is_bound(row.gesture) ? gesture_word(row.gesture) : std::string("unbound"),
+                row.label});
+    }
+    REQUIRE(actions.size() > 100); // the census's offices and the catalog, read
+    const auto arrives = [](const Row& r) {
+        if (r.key == "unbound") return false;
+        const ParsedGesture parsed = parse_gesture(r.key);
+        REQUIRE_MESSAGE(parsed.accepted, "`" << r.key << "`: " << parsed.refusal);
+        return posix_gap(parsed.gesture) == nullptr;
+    };
+    std::vector<std::string> unreachable;
+    for (const auto& [action, rows] : actions) {
+        const bool bound = std::any_of(rows.begin(), rows.end(),
+                                       [](const Row& r) { return r.key != "unbound"; });
+        if (!bound || std::any_of(rows.begin(), rows.end(), arrives)) continue;
+        const std::string office = action.substr(0, action.find(' '));
+        bool second_key = false;
+        for (const auto& [other, its] : actions) {
+            if (other == action || other.substr(0, other.find(' ')) != office) continue;
+            for (const Row& r : its) {
+                for (const Row& mine : rows) {
+                    second_key = second_key || (r.does == mine.does && arrives(r));
+                }
+            }
+        }
+        if (!second_key) unreachable.push_back(action + " (" + rows.front().key + ")");
+    }
+    std::string named;
+    for (const std::string& a : unreachable) named += "\n  " + a;
+    CHECK_MESSAGE(unreachable.empty(), "no default key of these arrives from a POSIX terminal:"
+                                           << named);
+}
+
 // ============================================================================
 // The press witness: each declared action, pressed, sends nothing its row does not declare
 // ============================================================================
