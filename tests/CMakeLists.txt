@@ -1587,6 +1587,11 @@ if(LOOM_SESSION_TOOLS)
         # The population record names the program from the top-level directory, where an
         # imported target found here is otherwise invisible.
         set_target_properties(Python3::Interpreter PROPERTIES IMPORTED_GLOBAL TRUE)
+        # THE PACKAGE'S JUDGES, judged (tests/package/judges/): each red on an empty population and on
+        # its canary, green on a clean sample.
+        zengine_program_test(package_judges Python3::Interpreter -X utf8
+            ${CMAKE_CURRENT_SOURCE_DIR}/package/judges/test_judges.py
+            ${CMAKE_BINARY_DIR}/package-judges-work)
         # UTF-8 mode off: a reader's output is decoded as the locale says unless the suite names
         # UTF-8, as a Windows Python decodes it by default.
         zengine_program_test(demo_recipes Python3::Interpreter -X utf8=0
