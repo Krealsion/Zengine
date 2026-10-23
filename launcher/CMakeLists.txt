@@ -13,14 +13,14 @@ target_link_libraries(zengine-launcher-vocabulary INTERFACE loom::core)
 # the Loom this tree builds against, where that Loom carries its session tools; otherwise there is
 # none, and the launcher starts no demo. Its setups are found as `demo.py list` finds them: each
 # folder holding a `setup.json` in the tool package's collection, then in `examples/`, then in each
-# feature's `docs/tutorials/`, the first of a name winning.
+# feature's `docs/tutorials/`, the first of a name winning. The package (ZENGINE_PACKAGE) has none.
 set(zengine_launcher_python "")
 set(zengine_launcher_demo_script "")
 set(zengine_launcher_build "")
 set(zengine_launcher_loom_prefix "")
 set(zengine_launcher_demos_folder "")
 set(zengine_launcher_setups "")
-if(LOOM_SESSION_TOOLS AND LOOM_HOST_PROGRAM)
+if(LOOM_SESSION_TOOLS AND LOOM_HOST_PROGRAM AND NOT ZENGINE_PACKAGE)
     if(ZENGINE_SESSION_PYTHON)
         set(Python3_EXECUTABLE "${ZENGINE_SESSION_PYTHON}")
     endif()

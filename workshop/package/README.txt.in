@@ -1,0 +1,43 @@
+Zengine @ZENGINE_PACKAGE_VERSION@ -- Workshop, ready to run
+
+An alpha. Interfaces change without deprecation cycles.
+
+START
+  Windows  Workshop.cmd opens Workshop in a window; Workshop-terminal.cmd runs it in the console.
+  Linux    ./workshop.sh opens Workshop in a window; ./workshop-terminal.sh runs it in a terminal.
+  Nothing else needs installing, and this folder may stand anywhere: a newer package replaces it
+  whole, and nothing of yours is kept in it.
+
+YOUR PROJECT
+  Workshop's project is a folder of your own, made at the first start and kept across packages:
+    Windows  %USERPROFILE%\Zengine        (the terminal launcher's: %USERPROFILE%\Zengine\terminal)
+    Linux    ~/Zengine                    (the terminal launcher's: ~/Zengine/terminal)
+  Saved views, flows, setups, a project plan (workshop-plan.json, which then starts instead of the
+  shipped one) and the apps you export (apps/<name>/) go there.
+
+  Each start writes zengine-app.path in the project: the zengine-app of the package that started
+  it. An exported app's run.cmd and run.sh start that one, so an app runs with the newest package
+  you started. If that package is gone, the app says so: start Workshop once from the package you
+  keep, and run the app again.
+
+  Keymap and preferences:   Windows %APPDATA%\zengine-workshop      Linux ~/.config/zengine-workshop
+  The desk you quit with:   Windows %LOCALAPPDATA%\zengine-workshop Linux ~/.local/state/zengine-workshop
+
+FIRST STEPS
+  Ctrl+Space lists every action and pane by name. The View Builder makes a view; Flow answers it;
+  the View Builder's Export app writes it as an app, and Run app starts it in a window of its own
+  that goes on after Workshop quits.
+
+WHAT RUNS
+  Workshop loads the files its plan in bin/ names, in its own process, trusted, with no sandbox.
+  It opens no network port unless started with --guests. An app asks at its own console before
+  each file of its plan runs. bin/zengine-workshop --version names this package's commits.
+
+BUILDING A PANE
+  This Workshop builds nothing yet: it names no CMake. This folder is also the prefix a pane
+  builds against (include/, lib/, lib/cmake/); BUILD-INFO.txt names the compiler it was built with.
+
+SOURCE AND LICENSES
+  LICENSE (MPL-2.0) covers Zengine and the Loom; NOTICE.md lists everything else in this folder
+  and where its license text is. The source is at https://github.com/Krealsion/Zengine and
+  https://github.com/Krealsion/Loom, at the commits BUILD-INFO.txt names.

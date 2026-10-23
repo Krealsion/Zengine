@@ -14,7 +14,8 @@ Workshop ([`zengine.launcher`](../../launcher/docs/zengine.launcher.md)). The ru
 [`builder/runner.hpp`](../runner.hpp), mounted by Workshop's host itself. It reads two things the
 host owns and never keeps a copy of either: the host's recipe catalog, the recipes the
 [recipe file](recipes.md) gives, and the one CMake program Workshop was configured with
-(`ZENGINE_BUILDER_CMAKE`). Neither is in its state, so no message and no poke can name a program
+(`ZENGINE_BUILDER_CMAKE`; none in the package a stranger downloads, where every order is
+refused in words and Workshop's banner says it builds nothing). Neither is in its state, so no message and no poke can name a program
 for it to run: an order names a recipe, and the catalog says what that recipe runs.
 
 Ordered to run a recipe, the runner turns it into one CMake command (writing a one-file recipe's

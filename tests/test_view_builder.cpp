@@ -29,11 +29,13 @@
 #include <zen/kernel/kernel.hpp>
 
 #include <chrono>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <set>
 #include <tuple>
+#include <utility>
 
 namespace {
 namespace vb = zengine::view_builder;
@@ -2365,8 +2367,8 @@ TEST_CASE("Export app writes the app's folder from the saved view and its flow: 
     CHECK(has_words(cmd, program.make_preferred().string()));
     CHECK(has_words(cmd, "\"%~dp0.\""));
     const auto sh = bytes_of(x.apps / "run.sh");
-    CHECK(sh.rfind("#!/bin/sh\nexec '", 0) == 0);
-    CHECK(has_words(sh, zengine::app::app_program()));
+    CHECK(sh.rfind("#!/bin/sh\n", 0) == 0);
+    CHECK(has_words(sh, "app='" + zengine::app::app_program() + "'"));
     // NOTHING THE CONSOLE KEEPS, AND NO ARTIFACT: the folder holds the export's six files alone.
     std::set<std::string> names;
     for (const auto& entry : std::filesystem::directory_iterator(x.apps)) names.insert(entry.path().filename().string());
@@ -2479,8 +2481,66 @@ TEST_CASE("the export's own judgement: a program that is not there, and launcher
     CHECK_FALSE(gone.ok);
     CHECK(has_words(gone.refusal, "beside this Workshop"));
     CHECK(zengine::app::launcher_cmd("tally", "C:/a 100%/zengine-app.exe").find("100%%") != std::string::npos);
-    CHECK(zengine::app::launcher_sh("/home/o'neil/zengine-app") ==
-          "#!/bin/sh\nexec '/home/o'\\''neil/zengine-app' \"$(dirname \"$0\")\"\n");
+    CHECK(has_words(zengine::app::launcher_sh("/home/o'neil/zengine-app"),
+                    "\napp='/home/o'\\''neil/zengine-app'\n"));
+}
+
+TEST_CASE("an exported app's launcher starts the app host its project's line names, and says why "
+          "not when that program is gone") {
+    // MUTATION: a launcher that never reads the project's line -- an app outlives its package
+    // only while the package that exported it stands.
+    namespace fs = std::filesystem;
+    namespace app = zengine::app;
+    TempDir dir;
+    const fs::path project = dir.directory / "project";
+    const fs::path folder = project / "apps" / "tally";
+    fs::create_directories(folder);
+    const fs::path exported = dir.directory / "exported" / app::kAppProgram;
+    const fs::path named = dir.directory / "named" / app::kAppProgram;
+#if defined(_WIN32)
+    const fs::path launcher = folder / app::kLauncherCmd;
+    write_bytes(launcher, app::launcher_cmd("tally", exported.string()));
+    const auto run = [&] {
+        const fs::path said = dir.directory / "said.txt";
+        // `cmd /c` drops the outer pair of quotes, leaving the launcher and the file quoted.
+        const std::string line = "\"\"" + launcher.string() + "\" < nul > \"" + said.string() + "\" 2>&1\"";
+        const int code = std::system(line.c_str());
+        return std::make_pair(code, bytes_of(said));
+    };
+#else
+    const fs::path launcher = folder / app::kLauncherSh;
+    write_bytes(launcher, app::launcher_sh(exported.string()));
+    const auto run = [&] {
+        const fs::path said = dir.directory / "said.txt";
+        const std::string line = "sh '" + launcher.string() + "' > '" + said.string() + "' 2>&1";
+        const int code = std::system(line.c_str());
+        return std::make_pair(code, bytes_of(said));
+    };
+#endif
+    // NO LINE IN THE PROJECT: the program it was exported with, gone, is named.
+    auto [code, said] = run();
+    CHECK(code != 0);
+    CHECK_MESSAGE(has_words(said, app::kAppHostGone), said);
+    CHECK_MESSAGE(has_words(said, exported.filename().string()), said);
+    CHECK_MESSAGE(has_words(said, "exported"), said);
+    CHECK_MESSAGE(has_words(said, app::kAppHostAgain), said);
+    // THE PROJECT'S LINE NAMES ANOTHER: that one is the program it starts, and its absence said.
+    write_bytes(project / app::kAppHostLine, named.string() + "\n");
+    std::tie(code, said) = run();
+    CHECK(code != 0);
+    CHECK_MESSAGE(has_words(said, app::kAppHostGone), said);
+    CHECK_MESSAGE(has_words(said, "named"), said);
+    CHECK_MESSAGE(!has_words(said, "exported"), said);
+#if !defined(_WIN32)
+    // ...AND THERE, IT STARTS IT on the app's folder.
+    fs::create_directories(named.parent_path());
+    const fs::path heard = dir.directory / "heard.txt";
+    write_bytes(named, "#!/bin/sh\nprintf '%s' \"$1\" > '" + heard.string() + "'\n");
+    fs::permissions(named, fs::perms::owner_all, fs::perm_options::add);
+    std::tie(code, said) = run();
+    CHECK_MESSAGE(code == 0, said);
+    CHECK(fs::equivalent(fs::path(bytes_of(heard)), folder));
+#endif
 }
 
 namespace {

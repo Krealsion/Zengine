@@ -248,8 +248,9 @@ load plan       HOW an artifact PARTICIPATES         read by the realization own
   ([workshop.md](workshop.md)); a build already in flight keeps the artifact file it was
   ordered for (`BuilderWeave::path_`) and is neither cancelled nor re-aimed. Nothing is
   persisted, discovered or watched.
-- **The host keeps `ZENGINE_BUILDER_CMAKE`** — its own CMake, by absolute path — **and no
-  target and no build directory.** What a FILE may name is inputs to a mechanism this package
+- **The host keeps `ZENGINE_BUILDER_CMAKE`** — its own CMake, by absolute path, or none in the
+  package a stranger downloads (`agents/packaging.md`), whose Builder then refuses in its own
+  words — **and no target and no build directory.** What a FILE may name is inputs to a mechanism this package
   already holds; a program is the one thing it may not, which is why there is no third recipe
   kind and must not be one. ⚠ A `command:` field anywhere — file, message or struct — would
   turn every recipe catalog into an arbitrary-execution document.

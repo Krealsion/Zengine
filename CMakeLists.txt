@@ -100,6 +100,58 @@ if(ZENGINE_SANITIZE)
         -fsanitize=address,undefined)
 endif()
 
+# ---- the package a stranger downloads -------------------------------------------------
+# ZENGINE_PACKAGE installs Workshop ready to run beside the developer package
+# (cmake/ZengineInstall.cmake). Declared before any package, so workshop/ and launcher/ read it.
+# Its version is the tag's, `v0.1.N` giving `0.1.N`; the CMake package's own line stays
+# `project(VERSION)`. Loom is named by the commit the package was built against.
+option(ZENGINE_PACKAGE "Install Workshop ready to run: the package a stranger downloads" OFF)
+set(ZENGINE_PACKAGE_VERSION "" CACHE STRING "The package's version, read from its tag (v0.1.N gives 0.1.N)")
+set(ZENGINE_PACKAGE_LOOM_COMMIT "" CACHE STRING "The Loom commit the package is built against")
+if(ZENGINE_PACKAGE)
+    if(NOT ZENGINE_PACKAGE_VERSION MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+$")
+        message(FATAL_ERROR "zengine: ZENGINE_PACKAGE_VERSION names the package's version, read "
+                            "from its tag (v0.1.N gives 0.1.N); it is '${ZENGINE_PACKAGE_VERSION}'")
+    endif()
+    if(NOT ZENGINE_PACKAGE_LOOM_COMMIT MATCHES "^[0-9a-f]+$")
+        message(FATAL_ERROR "zengine: ZENGINE_PACKAGE_LOOM_COMMIT names the Loom commit the package "
+                            "is built against; it is '${ZENGINE_PACKAGE_LOOM_COMMIT}'")
+    endif()
+    if(NOT CMAKE_BUILD_TYPE MATCHES "^(Release|RelWithDebInfo|MinSizeRel)$")
+        message(FATAL_ERROR "zengine: ZENGINE_PACKAGE is a Release, RelWithDebInfo or MinSizeRel "
+                            "build, not '${CMAKE_BUILD_TYPE}'")
+    endif()
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        message(FATAL_ERROR "zengine: ZENGINE_PACKAGE is made with GCC or Clang (MinGW-w64 on "
+                            "Windows), not ${CMAKE_CXX_COMPILER_ID}")
+    endif()
+    # NO BUILD MACHINE IN ANY IMAGE: every compile, the fetched SDL's C sources included, writes
+    # its source, build and prefix folders' paths as relative ones.
+    add_compile_options("-ffile-prefix-map=${CMAKE_SOURCE_DIR}/=" "-ffile-prefix-map=${CMAKE_BINARY_DIR}/=")
+    foreach(zengine_package_prefix IN LISTS CMAKE_PREFIX_PATH FETCHCONTENT_BASE_DIR)
+        file(TO_CMAKE_PATH "${zengine_package_prefix}" zengine_package_prefix)
+        add_compile_options("-ffile-prefix-map=${zengine_package_prefix}/=")
+    endforeach()
+    # ...AND NO TOOLCHAIN BESIDE IT: on MinGW-w64 every executable links its C and C++ runtime
+    # statically, as every weave already does (Loom's weave build contract).
+    if(MINGW)
+        string(APPEND CMAKE_EXE_LINKER_FLAGS " -static-libgcc -static-libstdc++ -static")
+    endif()
+    # The commit the package is made from, and whether the tree held changes no commit names.
+    execute_process(COMMAND git -C "${CMAKE_SOURCE_DIR}" rev-parse HEAD
+                    OUTPUT_VARIABLE ZENGINE_PACKAGE_COMMIT OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    execute_process(COMMAND git -C "${CMAKE_SOURCE_DIR}" status --porcelain --untracked-files=no
+                    OUTPUT_VARIABLE zengine_package_dirty OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    if(NOT ZENGINE_PACKAGE_COMMIT)
+        message(FATAL_ERROR "zengine: ZENGINE_PACKAGE is made from a Git checkout, which names its commit")
+    endif()
+    if(zengine_package_dirty)
+        set(ZENGINE_PACKAGE_TREE "DIRTY: the tree held changes no commit names")
+    else()
+        set(ZENGINE_PACKAGE_TREE "clean")
+    endif()
+endif()
+
 # ---- the loadable-weave pattern -------------------------------------------------------
 # A loadable weave is a PIC shared library with an exact filename (no `lib` prefix), linked
 # against the exported substrate; the kernel is the host's dependency. The reloadable lifetime is
