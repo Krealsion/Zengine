@@ -360,7 +360,11 @@ TEST_CASE("WL-DESK-18: a press the window landed on the palette's list moves the
     // before it takes, and the cursor stands there.
     r.key(input::scan::kDown);
     REQUIRE(drawn.of(r.session(), shown) == listed);
-    press_as_drawn(r, shown, 5, 4, "", listed);
+    const std::string fourth = part_drawn_at(shown, 5, 4);
+    REQUIRE(!fourth.empty()); // each entry's line is a part named for its entry
+    const std::string first = part_drawn_at(shown, 2, 4);
+    REQUIRE(first != fourth);
+    press_as_drawn(r, shown, 5, 4, fourth, listed);
     std::vector<std::string> rows = pane_rows(r, shown);
     REQUIRE(rows.size() > 5);
     CHECK_MESSAGE(rows[5].find('>') != std::string::npos, rows[5]);
@@ -368,7 +372,7 @@ TEST_CASE("WL-DESK-18: a press the window landed on the palette's list moves the
     // A FILTER MOVED THE LIST: a press landed on the list before is refused in words.
     r.text("beta");
     REQUIRE(drawn.of(r.session(), shown) != listed);
-    press_as_drawn(r, shown, 2, 4, "", listed);
+    press_as_drawn(r, shown, 2, 4, first, listed);
     rows = pane_rows(r, shown);
     REQUIRE(rows.size() > 1);
     CHECK_MESSAGE(rows[1].find("the list moved -- press again") != std::string::npos, rows[1]);
