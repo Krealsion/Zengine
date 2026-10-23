@@ -72,6 +72,8 @@ inline constexpr const char* kActionDeselect = "desktop.deselect";
 /// SHOW OR HIDE THE COMMAND PALETTE, the list of everything a hand can do by name, above every
 /// mode: `Ctrl+Space`, which every window says once a POSIX terminal reads its byte 0.
 inline constexpr const char* kActionPalette = "desktop.palette";
+/// ...AND ON DOUBLE SHIFT, the OS window's second key for it: Shift tapped twice, alone.
+inline constexpr const char* kActionPaletteShift = "desktop.palette-shift";
 
 /// OPEN OR FOCUS THE HOTKEYS PANE. `Ctrl+k`, the key the host's own overlay answered to, so the
 /// hand goes where it went; `workshop.hotkeys` in a weaver's file is read as this id.

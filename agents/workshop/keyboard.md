@@ -134,6 +134,17 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/a-pane-declares-its-actions.md`
 
+## WL-KEY-19 — Double Shift is Workshop's gesture, read per hand from Shift's press, release and press
+
+LAW — Two Shift taps of one hand, alone, within a double-click's time, are the key `double-shift` where a row in force answers to it; otherwise the second press goes on as any Shift press
+
+MEANS
+- a tap is Shift pressed with nothing else held and let go: a held Shift repeats with no release;
+- any other key, text, press or wheel of that hand between the taps forgets the first;
+- another hand's tap never pairs with this one's; `double-shift` takes no modifier, its gap said.
+
+WHY — `agents/decisions/one-binding-truth.md`
+
 ## Do not assume
 
 - That the legend has a fixed row count per medium — it is every band row after the notice,
@@ -280,3 +291,10 @@ declares and dispatches"
 `tests/test_workshop_panes_editor.cpp` "an application row a pane stands in for belongs to every
 context that is not the pane's own" "a pane that owns one action may put its other rows on that
 action's key"
+
+### WL-KEY-19
+`workshop/gesture_grammar.hpp` kDoubleShift is_shift_scan
+`workshop/weave_shift.cpp` shift_tapped on(KeyReleased)
+`workshop/weave_operation.cpp` count_gesture
+`tests/test_workshop_panes_palette.cpp` "WL-KEY-19: two Shift taps of one hand open the palette; a
+held Shift, a key between, a slow pair and another hand's tap do not"

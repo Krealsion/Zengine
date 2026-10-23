@@ -24,10 +24,21 @@ namespace zengine::workshop {
 // punctuation keys are named by their own character. Written out in the order ctrl, shift, alt,
 // super; parsed in any order, with duplicates refused.
 
+/// DOUBLE SHIFT: a gesture of Workshop's own, outside every scancode -- Shift tapped twice, alone
+/// and quickly, which Workshop recognizes from Shift's presses and its release in between. It
+/// takes no modifier and types nothing.
+inline constexpr std::int64_t kDoubleShift = 0x10000;
+
+/// Is this scancode one of the two Shift keys, pressed or let go alone?
+inline constexpr bool is_shift_scan(std::int64_t sc) noexcept {
+    return sc == scan::kLeftShift || sc == scan::kRightShift;
+}
+
 /// The written name of a named scancode, or nullptr for a value this grammar cannot say.
 // WL-KEY-14 -- agents/workshop/key-spelling.md
 inline constexpr const char* key_name_of(std::int64_t scancode) noexcept {
     switch (scancode) {
+    case kDoubleShift: return "double-shift";
     case scan::kA: return "a";
     case scan::kB: return "b";
     case scan::kC: return "c";
@@ -94,6 +105,9 @@ inline constexpr const char* key_name_of(std::int64_t scancode) noexcept {
 /// The scancode a written key name means, or 0 for a name outside the grammar.
 // WL-KEY-14 -- agents/workshop/key-spelling.md
 inline std::int64_t scancode_of_name(std::string_view name) noexcept {
+    if (name == key_name_of(kDoubleShift)) {
+        return kDoubleShift;
+    }
     for (std::int64_t sc = 1; sc < 128; ++sc) {
         const char* word = key_name_of(sc);
         if (word != nullptr && name == word) {
@@ -156,6 +170,7 @@ inline std::string gesture_text(const Gesture& g) {
     switch (g.scancode) {
     case scan::kReturn: out += "enter"; break;
     case scan::kEscape: out += "esc"; break;
+    case kDoubleShift: out += "shift shift"; break;
     default: {
         const char* name = key_name_of(g.scancode);
         if (name == nullptr) {
@@ -259,6 +274,10 @@ inline ParsedGesture parse_gesture(std::string_view text) {
         out.refusal = "`" + std::string(rest) + "` is not a key this keymap can name";
         return out;
     }
+    if (sc == kDoubleShift && mods != 0) {
+        out.refusal = "`double-shift` is Shift itself, so no modifier may be written on it";
+        return out;
+    }
     out.accepted = true;
     out.gesture = Gesture{sc, mods};
     return out;
@@ -276,6 +295,9 @@ inline constexpr bool is_posix_editing_scan(std::int64_t sc) noexcept {
 /// nullptr when no such gap is known.
 // WL-KEY-08 -- agents/workshop/keyboard.md
 inline const char* posix_gap(const Gesture& g) noexcept {
+    if (g.scancode == kDoubleShift) {
+        return "a terminal reports no Shift alone; double-shift is the OS window's";
+    }
     if ((g.modifiers & mod::kSuper) != 0) {
         return "super never arrives from a POSIX terminal";
     }
