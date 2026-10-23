@@ -36,6 +36,10 @@ inline constexpr const char* kSessionName = "app-session.json";
 /// The two launchers an export writes.
 inline constexpr const char* kLauncherCmd = "run.cmd";
 inline constexpr const char* kLauncherSh = "run.sh";
+/// THE PROJECT'S LINE NAMING THE APP HOST, `<project>/zengine-app.path`: written by a package's
+/// launcher at each start (workshop/package/), read by both launchers above, which start the
+/// program it names before the one they were exported with.
+inline constexpr const char* kAppHostLine = "zengine-app.path";
 /// Where an exported app's view stands in its window, and the margin around it, in pixels.
 inline constexpr std::int64_t kViewInset = 8;
 /// The skin an exported app's window paints its areas with.
@@ -108,7 +112,14 @@ struct Exported {
     std::vector<std::string> written;
 };
 
-/// `run.cmd`: the program, started in a console of its own on the folder the file stands in.
+/// What either launcher says when the program it would start is not there, before its path.
+inline constexpr const char* kAppHostGone = "This app runs in zengine-app, and the program it names is gone:";
+/// ...and after it.
+inline constexpr const char* kAppHostAgain =
+    "Start Workshop once from the Zengine package you keep, in this app's project, and run it again.";
+
+/// `run.cmd`: the program the project's `kAppHostLine` names, else `program`, started in a console
+/// of its own on the folder the file stands in; or, when that program is not there, why not.
 inline std::string launcher_cmd(const std::string& name, const std::string& program) {
     std::string path = std::filesystem::path(program).make_preferred().string();
     std::string escaped;
@@ -118,17 +129,41 @@ inline std::string launcher_cmd(const std::string& name, const std::string& prog
             escaped += '%'; // a percent sign in a command file is written twice
         }
     }
-    return "@start \"" + name + "\" \"" + escaped + "\" \"%~dp0.\"\r\n";
+    const std::string line = std::string("\"%~dp0..\\..\\") + kAppHostLine + "\"";
+    return "@echo off\r\n"
+           "setlocal EnableExtensions DisableDelayedExpansion\r\n"
+           "chcp 65001 >nul\r\n"
+           "set \"app=" + escaped + "\"\r\n"
+           "if exist " + line + " set /p app=<" + line + "\r\n"
+           "if not exist \"%app%\" goto gone\r\n"
+           "start \"" + name + "\" \"%app%\" \"%~dp0.\"\r\n"
+           "exit /b\r\n"
+           ":gone\r\n"
+           "echo " + kAppHostGone + "\r\n"
+           "for %%a in (\"%app%\") do echo   %%~a\r\n"
+           "echo " + kAppHostAgain + "\r\n"
+           "pause\r\n"
+           "exit /b 1\r\n";
 }
 
-/// `run.sh`: the program on the folder the file stands in, in the terminal that ran it.
+/// `run.sh`: the program the project's `kAppHostLine` names, else `program`, on the folder the
+/// file stands in, in the terminal that ran it; or, when that program is not there, why not.
 inline std::string launcher_sh(const std::string& program) {
     std::string quoted = "'";
     for (const char c : program) {
         quoted += c == '\'' ? std::string("'\\''") : std::string(1, c);
     }
     quoted += "'";
-    return "#!/bin/sh\nexec " + quoted + " \"$(dirname \"$0\")\"\n";
+    const std::string line = std::string("\"$here/../../") + kAppHostLine + "\"";
+    return "#!/bin/sh\n"
+           "here=$(dirname \"$0\")\n"
+           "app=" + quoted + "\n"
+           "if [ -f " + line + " ]; then IFS= read -r app < " + line + "; fi\n"
+           "if [ ! -x \"$app\" ]; then\n"
+           "    printf '%s\\n  %s\\n%s\\n' \"" + kAppHostGone + "\" \"$app\" \"" + kAppHostAgain + "\" >&2\n"
+           "    exit 1\n"
+           "fi\n"
+           "exec \"$app\" \"$here\"\n";
 }
 
 /// JUDGE AN EXPORT, writing nothing: the view's file read back through its gate, its flow beside

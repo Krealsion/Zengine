@@ -162,6 +162,17 @@ readable throughout, so if the stranger still builds with `timer/vocabulary.hpp`
 the prefix, it was never using the package and every green above is void. The driver fails
 loudly in that case rather than reporting a pass.
 
+**The package arm.** On a Release tree configured with `ZENGINE_PACKAGE=ON` (the package a
+stranger downloads, [`agents/packaging.md`](../../agents/packaging.md)), `-DZEN_PACKAGE=ON`
+installs with `--strip` and asks first ([`package_arm.cmake`](../../tests/package/package_arm.cmake)):
+
+| step | the failure it discriminates |
+|---|---|
+| find the launchers, the first page, the notices and the SDL in the prefix | a package that dropped what a stranger opens or Workshop loads |
+| run `zengine-workshop --version`, read `BUILD-INFO.txt` | an identity that is not this checkout's commit |
+| read every file in `bin/` and `lib/` for the source and build folders | an image that names the machine that built it |
+| start Workshop from the prefix on the OS window's plan and on the terminal's, PATH naming only the system | a row that does not load from the package alone |
+
 It is deliberately **not** a CTest entry: it installs, relocates and configures a second
 unrelated project, and folding that into `ctest` would put a nested CMake build inside a test
 binary's population. One command, run by hand and by CI, so the two cannot come to mean
