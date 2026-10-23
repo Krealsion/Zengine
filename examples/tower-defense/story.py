@@ -487,8 +487,23 @@ class Story:
         if rec.get("state") == "cancelled":
             raise Cancelled("run %s was cancelled" % name)
         if rec.get("state") != "passed":
-            raise StepFailed("run %s %s: %s" % (name, rec.get("state"), (rec.get("failure") or "").strip()))
+            raise StepFailed("run %s %s: %s%s" % (name, rec.get("state"), (rec.get("failure") or "").strip(),
+                                                  self.seen(rec)))
         return rec
+
+    def seen(self, rec):
+        """What a failed step saw, as its tool kept it (`failed-step-rows.json`, the pane's rows when
+        its wait ran out), bounded: a failure elsewhere -- a log CI keeps when it keeps no files --
+        then says what was on the desk, not only what was not."""
+        for kept in ("failed-step-rows.json", "failed-step-parts.json"):
+            try:
+                said = self.artifact(rec, kept)
+            except OSError:
+                continue
+            if said:
+                said = said if len(said) <= 1200 else said[:1200] + " ..."
+                return "\n%s:\n%s" % (kept, said)
+        return ""
 
     def unresolved(self, held, r, why, started, runs):
         runs.append({"name": held["name"], "tool": held["tool"], "state": "unresolved",
@@ -543,8 +558,11 @@ FILES = ["zengine.files", "project-files"]
 
 
 def s_connect(st):
-    """Check the admitted link: which far session this ELH is, and as whom Workshop knows it."""
-    return st.run("workshop/connections", "connect", {})
+    """Check the admitted link: which far session this ELH is, and as whom Workshop knows it, once
+    Workshop says its plan is at rest. Its guest door listens before the plan is loaded, and a key
+    pressed before the row that answers it -- `ctrl+t` is the desktop pane's, its Terminal pane
+    another row's -- reaches nothing, however long a step then waits."""
+    return st.run("workshop/connections", "connect", {"wait_plan": True})
 
 
 def s_editor(st):
