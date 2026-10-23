@@ -57,7 +57,7 @@ workshop_desk                     doctest           always  79
 # Tripwires in this suite read workshop/attention.hpp as text (VM-WALL-11).
 workshop_host                   doctest           always  78
 # The panes program, run as eight entries, each its own part's sources (VM-POP-22).
-workshop_panes_seam               doctest           always  168
+workshop_panes_seam               doctest           always  171
 # Tripwires in this part read tests/weavelib/legacy_pane.cpp as text (VM-WALL-11).
 workshop_panes_hand               doctest           always  202
 # Tripwires in this part read Workshop's presentation sources, workshop/workshop.cpp,
