@@ -249,6 +249,7 @@ jobs:
       # (VM-LANE-11), every entry in the one pool; an entry that cannot share the machine
       # would be named in `-DZEN_CTEST_APART` and run alone after the rest.
       - name: Verify the repository-owned population
+        id: verify
         run: |
           set +e
           cmake -DZEN_BUILD_DIR=build -DZEN_CTEST_ARGS=-j4 -P tests/verify.cmake 2>&1 | tee verify.log
@@ -264,6 +265,36 @@ jobs:
             printf '```\n'
           } >> "$GITHUB_STEP_SUMMARY"
           exit "$verify_rc"
+
+      # A RED VERIFICATION KEEPS WHAT THE JOURNEYS LEFT: each journey's roots -- the Workshop and
+      # host it launched, their logs and files -- and its evidence, read after the job ends. The
+      # tutorial walks' work holds an installed prefix and is left out. One archive, since the
+      # roots' names hold characters the artifact store refuses in a path.
+      - name: Pack the journeys' work folders of a failed verification
+        id: journeys
+        if: ${{ failure() && steps.verify.outcome == 'failure' }}
+        continue-on-error: true
+        run: |
+          shopt -s nullglob
+          cd build
+          kept=()
+          for f in *-journey-work *-journey.json tutor-walk-work tutor-walk.json; do
+            if [ -e "$f" ]; then kept+=("$f"); fi
+          done
+          if (( ${#kept[@]} )); then
+            tar -czf "$RUNNER_TEMP/journey-work.tar.gz" -- "${kept[@]}"
+            echo packed=true >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Keep them as an artifact of the run
+        if: ${{ failure() && steps.journeys.outputs.packed == 'true' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: journey-work-linux-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/journey-work.tar.gz
+          if-no-files-found: error
+          retention-days: 14
 
       # THE INSTALLED-PACKAGE WITNESS asks what the step above cannot: `verify.cmake` reaches
       # Zengine through its own build tree, so a requirement the PACKAGE fails to carry is
@@ -407,6 +438,7 @@ jobs:
 
       # Every entry in the one pool, four at a time, as in the stranger lane.
       - name: Verify the repository-owned population under ASan + UBSan
+        id: verify
         run: |
           set +e
           cmake -DZEN_BUILD_DIR=build-san -DZEN_CTEST_ARGS=-j4 -P tests/verify.cmake 2>&1 | tee verify.log
@@ -422,6 +454,33 @@ jobs:
             printf '```\n'
           } >> "$GITHUB_STEP_SUMMARY"
           exit "$verify_rc"
+
+      # As the stranger lane's: a red verification keeps the journeys' roots and evidence.
+      - name: Pack the journeys' work folders of a failed verification
+        id: journeys
+        if: ${{ failure() && steps.verify.outcome == 'failure' }}
+        continue-on-error: true
+        run: |
+          shopt -s nullglob
+          cd build-san
+          kept=()
+          for f in *-journey-work *-journey.json tutor-walk-work tutor-walk.json; do
+            if [ -e "$f" ]; then kept+=("$f"); fi
+          done
+          if (( ${#kept[@]} )); then
+            tar -czf "$RUNNER_TEMP/journey-work.tar.gz" -- "${kept[@]}"
+            echo packed=true >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Keep them as an artifact of the run
+        if: ${{ failure() && steps.journeys.outputs.packed == 'true' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: journey-work-sanitizer-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/journey-work.tar.gz
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Keep only what this run used
         if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
