@@ -1370,8 +1370,8 @@ TEST_CASE("the Editor's refusal of a source reaches a narrow Builder row reason 
     const ExternalPane* seat = b.r.session().panes.external_pane(b.kind);
     REQUIRE(seat != nullptr);
     // THE ROW IS NARROWER THAN THE SENTENCE, or this would prove nothing about a cut.
-    REQUIRE(seat->columns > 0);
-    REQUIRE(static_cast<std::size_t>(seat->columns) < sentence.size());
+    REQUIRE(held_canvas_rows(*seat).columns > 0);
+    REQUIRE(static_cast<std::size_t>(held_canvas_rows(*seat).columns) < sentence.size());
     std::string row;
     for (const std::string& shown : b.shown()) {
         if (shown.rfind("the Editor holds unsaved changes", 0) == 0) {
@@ -1379,8 +1379,8 @@ TEST_CASE("the Editor's refusal of a source reaches a narrow Builder row reason 
         }
     }
     REQUIRE_MESSAGE(!row.empty(), b.text());
-    CHECK(row.size() == static_cast<std::size_t>(seat->columns));
-    CHECK(row == sentence.substr(0, static_cast<std::size_t>(seat->columns) - 3) + "...");
+    CHECK(row.size() == static_cast<std::size_t>(held_canvas_rows(*seat).columns));
+    CHECK(row == sentence.substr(0, static_cast<std::size_t>(held_canvas_rows(*seat).columns) - 3) + "...");
     CHECK(b.editor_status().find("snake.cpp") != std::string::npos); // nothing else was opened
     CHECK(b.editor_status().find("other.cpp") == std::string::npos);
 }
@@ -1397,21 +1397,14 @@ namespace {
 void bp_button(PaneRig& r, std::int64_t kind, std::int64_t button, bool pressed, std::int64_t row,
                std::int64_t column) {
     const ui::Rect body = external_body_rect(r.session(), kind);
-    r.publish(loom::to_value(input::PointerButton{
-        button, pressed, body.x + column,
-        body.y + kExternalHeaderRows + row, input::space::kCells,
-        input::mod::kNone}));
+    r.hand_moment(input::PointerButton{button, pressed, body.x + column,
+                                       body.y + kExternalHeaderRows + row, input::space::kCells,
+                                       input::mod::kNone});
 }
 
-/// THE PICTURE THE BUILDER'S CANVAS HOLDS NOW, by its room and number -- what a case aims at
-/// when it wants a press to name a picture drawn before a later one.
-struct BpAim {
-    std::int64_t grant = 0, picture = 0;
-};
-BpAim bp_aim(BuilderRig& b);
-/// A PRIMARY PRESS AIMED AT THAT PICTURE, on a row and column of the canvas's lattice, said as
-/// Workshop says one, with the keys already the pane's.
-void bp_press_aimed(BuilderRig& b, const BpAim& aim, std::int64_t row, std::int64_t column);
+/// A PRIMARY PRESS AND ITS RELEASE on a row and column of the Builder's area, as the window gives
+/// one, with the keys already the pane's.
+void bp_press_at(BuilderRig& b, std::int64_t row, std::int64_t column);
 
 struct BpFaceAt {
     std::int64_t row = -1;
@@ -1744,63 +1737,6 @@ TEST_CASE("a right press offers the Builder's own rows, and a menu from another 
     }
 }
 
-TEST_CASE("a press that names a picture the Builder has replaced is refused in words") {
-    // THE FENCE, MEASURED DIRECTLY. The Builder's rows move whenever what it was told changes,
-    // so a press queued against an older picture must be refused rather than resolved against
-    // the rows that arrived. The picture number is the pane's own, so a case has to say one --
-    // which the office Workshop holds can.
-    PaneRig r;
-    PaneWatcher* watch = r.mount_watcher();
-    REQUIRE(r.load(pane::kBuilderPaneStem, WORKSHOP_SO_BUILDER_PANE, pane::kBuilderPaneRole)
-                .valid());
-    r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
-        wv.canvas_grant(m, pane::kBuilderPaneRole, pane::kBuilderPane, 10, 70);
-    });
-    REQUIRE_FALSE(watch->content.empty());
-    const std::int64_t now = watch->pictures.back();
-    CHECK(now != 0); // the Builder numbers its pictures
-
-    std::int64_t control = -1;
-    std::int64_t column = -1;
-    for (std::size_t i = 0; i < watch->content.back().rows.size(); ++i) {
-        const std::size_t at = watch->content.back().rows[i].text.find("[menu]");
-        if (at != std::string::npos) {
-            control = static_cast<std::int64_t>(i);
-            column = static_cast<std::int64_t>(at) + 1;
-        }
-    }
-    REQUIRE(control >= 0);
-
-    SUBCASE("a picture not drawn yet") {
-        const std::size_t said = watch->content.size();
-        r.drive_watcher(watch, [control, column, now](PaneWatcher& wv, loom::Mail& m) {
-            PaneCanvasPointer p = wv.canvas_at(control, column, canvas_pointer::kPress);
-            p.picture = now + 7;
-            p.keys_went_here = true;
-            wv.point(m, pane::kBuilderPaneRole, p);
-        });
-        REQUIRE(watch->content.size() > said);
-        CHECK(watch->content.back().rows[0].text.find("the rows moved -- press again") !=
-              std::string::npos);
-    }
-    SUBCASE("the picture of a room since granted afresh, the same size") {
-        PaneCanvasPointer old = watch->canvas_at(control, column, canvas_pointer::kPress);
-        old.keys_went_here = true;
-        r.drive_watcher(watch, [](PaneWatcher& wv, loom::Mail& m) {
-            wv.canvas_grant(m, pane::kBuilderPaneRole, pane::kBuilderPane, 10, 70);
-        });
-        REQUIRE(watch->canvas_room.grant != old.grant);
-        CHECK(watch->content.back().rows[0].text.find("the rows moved") == std::string::npos);
-        const std::size_t said = watch->content.size();
-        r.drive_watcher(watch, [old](PaneWatcher& wv, loom::Mail& m) {
-            wv.point(m, pane::kBuilderPaneRole, old);
-        });
-        REQUIRE(watch->content.size() > said);
-        CHECK(watch->content.back().rows[0].text.find("the rows moved -- press again") !=
-              std::string::npos);
-    }
-}
-
 // =============================================================================
 // Four gaps a drive through the real weave found, and the paths beside them
 // =============================================================================
@@ -1834,25 +1770,12 @@ void bp_choose_row(BuilderRig& b, const std::string& row) {
     b.r.key(input::scan::kReturn);
 }
 
-/// WHAT THE TOOL WAS LAST ASKED TO BUILD, for a message that reads.
-BpAim bp_aim(BuilderRig& b) {
+void bp_press_at(BuilderRig& b, std::int64_t row, std::int64_t column) {
     const ExternalPane* held = b.r.session().panes.external_pane(b.kind);
     REQUIRE(held != nullptr);
     REQUIRE(shows_canvas(*held));
-    return BpAim{held->canvas.grant, held->canvas.content.picture};
-}
-
-void bp_press_aimed(BuilderRig& b, const BpAim& aim, std::int64_t row, std::int64_t column) {
-    const ExternalPane* held = b.r.session().panes.external_pane(b.kind);
-    REQUIRE(held != nullptr);
-    const CanvasRows lattice = held_canvas_rows(*held);
-    PaneCanvasPointer press{pane::kBuilderPane, aim.grant, aim.picture, 1, canvas_pointer::kPress, 1,
-                            lattice.column_x(column), lattice.row_y(row)};
-    press.keys_went_here = true;
-    const auto sent = b.r.bus.office_send_to_role_as(
-        b.r.workshop_id, kWorkshopProvider, pane::kBuilderPaneRole,
-        loom::Message(loom::to_value(press), b.r.workshop_id, b.r.workshop_id, 0));
-    REQUIRE(sent.valid());
+    REQUIRE(keyboard_pane(b.r.session().panes) == b.kind);
+    enqueue_window_press(b.r, b.kind, row, column);
     b.r.bus.drain_until_idle();
 }
 
@@ -1889,32 +1812,6 @@ TEST_CASE("an open menu row naming an artifact loads THAT artifact or refuses") 
                   bp_last_asked(b));
     // ...AND THE REFUSAL SAYS WHAT WENT, rather than leaving the weaver to compare two names.
     CHECK_MESSAGE(b.text().find("`a` is not what is here now") != std::string::npos, b.text());
-    CHECK(b.tool->asked.empty());
-}
-
-TEST_CASE("a numbered control naming an artifact is refused once that artifact is not "
-          "what is standing") {
-    // THE SAME AT THE CONTROL SEAM. A meaning of the action id alone made `[load built a]` and
-    // `[load built b]` -- equal-width faces -- one span and one picture, so a press against the old
-    // picture passed the fence and spent the newer subject. The advertised subject is part of the
-    // meaning, so the picture moves with the promise. ⚔ MUTATIONS: `say_controls` recording `{}`
-    // asks for `two`; `perform_on` without its comparison stays green here, the fence catching
-    // it -- the comparison's own cases are `bld-menu-shared-stem` and the shared-stem control.
-    BuilderRig b("bld-control-artifact");
-    b.tool->catalog = catalog_of({{"one", "a"}, {"two", "b"}});
-    b.open();
-    bp_settled(b, "one", "a", bld::outcome::kSucceeded);
-    const BpFaceAt aimed = bp_face_at(b.shown(), "[load built a]");
-    REQUIRE(aimed.row >= 0);
-    const BpAim old_picture = bp_aim(b);
-    bp_settled(b, "two", "b", bld::outcome::kSucceeded);
-    // THE PROMISE MOVED, SO WHAT THE PICTURE MEANS MOVED: equal-width faces are not equal spans,
-    // and a press aimed at the older picture is refused.
-    const std::string before_press = b.text();
-    INFO("before old press\n", before_press);
-    bp_press_aimed(b, old_picture, aimed.row, aimed.column + 1);
-    CHECK_MESSAGE((b.tool->asked.empty() || b.tool->asked.back() == "one"),
-                  "Old load-a control instead requested ", bp_last_asked(b));
     CHECK(b.tool->asked.empty());
 }
 
@@ -1968,35 +1865,6 @@ TEST_CASE("a held load menu cannot switch recipes sharing an artifact stem") {
                   bp_last_asked(b));
     CHECK(b.tool->asked.empty());
     CHECK_MESSAGE(b.text().find("`a` is not what is here now") != std::string::npos, b.text());
-}
-
-TEST_CASE("a numbered load control preserves the build behind a shared artifact stem") {
-    // THE SAME AT THE CONTROL-MAP SEAM: `[load built a]` is drawn at the same place, width and
-    // text before and after the second build settles, so the operation rides in the meaning
-    // beside the subject (`BuilderMeaning::op`) and an unmoved face still bumps the picture.
-    // ⚔ MUTATIONS: `BuilderMeaning::operator==` ignoring `op` keeps one picture number and (with no
-    // `perform_on` operation check) asks for `two`; `controls[...].subject_op` recorded as 0 fails
-    // the same way through `say_controls`.
-    BuilderRig b("bld-control-shared-stem");
-    b.tool->catalog = catalog_of({{"one", "a"}, {"two", "a"}});
-    b.open();
-    b.tool->next.op = 11;
-    bp_settled(b, "one", "a", bld::outcome::kSucceeded);
-    const BpFaceAt aimed = bp_face_at(b.shown(), "[load built a]");
-    REQUIRE(aimed.row >= 0);
-    const BpAim old_picture = bp_aim(b);
-    b.tool->next.op = 12;
-    bp_settled(b, "two", "a", bld::outcome::kSucceeded);
-    // THE FACE DID NOT MOVE -- same row, same column, same text -- and what the picture means still
-    // did, because the operation behind the unmoved face changed.
-    const BpFaceAt still_there = bp_face_at(b.shown(), "[load built a]");
-    REQUIRE_MESSAGE(still_there.row == aimed.row, b.text());
-    REQUIRE_MESSAGE(still_there.column == aimed.column, b.text());
-    bp_press_aimed(b, old_picture, aimed.row, aimed.column + 1);
-    CHECK_MESSAGE((b.tool->asked.empty() || b.tool->asked.back() == "one"),
-                  "An old numbered load control must refuse or preserve recipe one; observed ",
-                  bp_last_asked(b));
-    CHECK(b.tool->asked.empty());
 }
 
 TEST_CASE("rebuilding the same recipe replaces an offered load, and settling again does not") {
@@ -2077,57 +1945,6 @@ TEST_CASE("the promote control acts on the image it names once a newer build mak
     bp_press_face(b, "[promote b]");
     REQUIRE(b.tool->promotes.size() == promoted + 1);
     CHECK(b.tool->promotes.back() == "b");
-}
-
-TEST_CASE("the promote and revert controls refuse a stale press across a shared artifact stem") {
-    // THE SAME BOUNDARY BY A STALE PICTURE: two different recipes realizing one stem draw
-    // `[promote a]` and `[revert a]` in the same place and width before and after, so only the
-    // operation behind the meaning (`subject_op`) tells the realizations apart.
-    // `PromoteArtifact`/`RevertArtifact` carry only the artifact name, so this is the pane's own
-    // fence against a queued press spending whatever stands under that name -- not a claim that
-    // a realization owner could tell the two builds apart.
-    BuilderRig b("bld-promote-revert-shared-stem");
-    b.tool->catalog = catalog_of({{"one", "a"}, {"two", "a"}});
-    b.open();
-    b.author_height(30, 200, 60); // a room the whole strip fits in, `[promote a]` included
-    b.tool->next.op = 41;
-    b.tool->next.recipe = "one";
-    b.tool->next.artifact = "a";
-    b.tool->next.outcome = bld::outcome::kSucceeded;
-    b.tool->next.realization = bld::realization::kRealized;
-    b.tool_says();
-    const BpFaceAt promote_aimed = bp_face_at(b.shown(), "[promote a]");
-    const BpFaceAt revert_aimed = bp_face_at(b.shown(), "[revert a]");
-    REQUIRE_MESSAGE(promote_aimed.row >= 0, b.text());
-    REQUIRE_MESSAGE(revert_aimed.row >= 0, b.text());
-    const BpAim old_picture = bp_aim(b);
-
-    // A DIFFERENT RECIPE REALIZES THE SAME ARTIFACT NAME: the faces read exactly as they did.
-    b.tool->next.op = 42;
-    b.tool->next.recipe = "two";
-    b.tool->next.artifact = "a";
-    b.tool->next.outcome = bld::outcome::kSucceeded;
-    b.tool->next.realization = bld::realization::kRealized;
-    b.tool_says();
-    const BpFaceAt promote_still = bp_face_at(b.shown(), "[promote a]");
-    const BpFaceAt revert_still = bp_face_at(b.shown(), "[revert a]");
-    REQUIRE_MESSAGE(promote_still.row == promote_aimed.row, b.text());
-    REQUIRE_MESSAGE(promote_still.column == promote_aimed.column, b.text());
-    REQUIRE_MESSAGE(revert_still.row == revert_aimed.row, b.text());
-    REQUIRE_MESSAGE(revert_still.column == revert_aimed.column, b.text());
-
-    const std::size_t promoted = b.tool->promotes.size();
-    const auto press_at = [&](const BpFaceAt& at) {
-        bp_press_aimed(b, old_picture, at.row, at.column + 1);
-    };
-    press_at(promote_aimed);
-    CHECK_MESSAGE(b.tool->promotes.size() == promoted,
-                  "a stale promote press across a shared stem promoted anyway");
-
-    const std::size_t reverted = b.tool->reverts.size();
-    press_at(revert_aimed);
-    CHECK_MESSAGE(b.tool->reverts.size() == reverted,
-                  "a stale revert press across a shared stem reverted anyway");
 }
 
 TEST_CASE("a held promote or revert menu row cannot switch images sharing an artifact stem") {
@@ -2395,13 +2212,12 @@ TEST_CASE("the list's own double-click still takes the row it was aimed at") {
     press_pane(b.r, b.kind, bp_row(b.shown(), "  two -> b"), 0);
     const std::int64_t row = bp_row(b.shown(), "  three -> c");
     REQUIRE_MESSAGE(row >= 0, b.text());
-    const BpAim before = bp_aim(b);
     press_pane(b.r, b.kind, row, 0); // the first names the row
     REQUIRE_MESSAGE(bp_row(b.shown(), "> three -> c") == row, b.text());
-    // THE PICTURE'S MEANING DID NOT MOVE UNDER THE HAND. The list's faces name no recipe, so
-    // moving the cursor changes no span, so the second press of the double-click, aimed at the
-    // picture before the cursor moved, is still about what it was aimed at...
-    bp_press_aimed(b, before, row, 0); // ...and takes it
+    // THE ROW'S MEANING DID NOT MOVE UNDER THE HAND. The list's faces name no recipe, so moving
+    // the cursor changes no row, so the second press of the double-click is still about what it
+    // was aimed at...
+    bp_press_at(b, row, 0); // ...and takes it
     CHECK_MESSAGE(b.text().find("build recipe: three -> c") != std::string::npos, b.text());
     CHECK_MESSAGE(b.text().find("three -> c  (3/3)") != std::string::npos, b.text());
 }
@@ -2467,23 +2283,24 @@ TEST_CASE("the Builder's role line asks the window that shows the pane for a pas
         SkinStandIn* skin = mount_skin_stand_in(b.r);
         b.open();
         skin->platform = "zengine.";
-        b.r.key(input::scan::kO);
-        REQUIRE_MESSAGE(b.text().find("type the role") != std::string::npos, b.text());
-
-        // NO WINDOW SHOWS IT YET: the paste is the Skin's.
-        b.r.key(input::scan::kV, input::mod::kCtrl);
-        CHECK(skin->clipboard_reads == 1);
-        CHECK_MESSAGE(bp_row(b.shown(), "role for a> zengine.") >= 0, b.text());
-
-        // THE WINDOW TELLS THE PANE'S AREA ITS ROOM, and from then on is asked, not the Skin, and
-        // what it holds lands in the line.
+        // THE WINDOW SHOWS THE PANE'S AREA, so the pane has a room to compose its line in, and the
+        // paste is that window's and never the Skin's. (With no window the pane draws nowhere and
+        // composes no line, so a paste of the Skin's cannot be asked.)
         pw::Window shown(b.r.bus, window);
+        const auto window_shows = [&shown](const std::string& area, const std::string& words) {
+            for (const std::string& row : shown.rows(area)) {
+                if (row.find(words) != std::string::npos) return true;
+            }
+            return false;
+        };
         shown.weave().platform = "oven";
         shown.room(pane::kBuilderPaneRole, pane::kBuilderPaneRole, 60, 20);
+        b.r.key(input::scan::kO);
+        REQUIRE(window_shows(pane::kBuilderPaneRole, "type the role"));
         b.r.key(input::scan::kV, input::mod::kCtrl);
         CHECK(shown.weave().clipboard_reads == 1);
-        CHECK(skin->clipboard_reads == 1);
-        CHECK_MESSAGE(bp_row(b.shown(), "role for a> zengine.oven") >= 0, b.text());
+        CHECK(skin->clipboard_reads == 0);
+        CHECK(window_shows(pane::kBuilderPaneRole, "role for a> oven"));
     }
 }
 
@@ -2495,7 +2312,7 @@ TEST_CASE("the Builder's role line shows the medium's caret where the line's is,
     const ExternalPane* pane = b.r.session().panes.external_pane(b.kind);
     REQUIRE(pane != nullptr);
     CHECK(held_caret(*pane).row == surface::kNoCaret); // no line, no caret
-    CHECK(wears_medium_ground(*pane)); // the rows lie on the medium's own ground
+    CHECK(wears_ground(*pane)); // the rows lie on a ground of their own
     b.r.key(input::scan::kO);
     REQUIRE_MESSAGE(b.text().find("type the role") != std::string::npos, b.text());
     b.r.text("main");
@@ -2513,9 +2330,9 @@ TEST_CASE("the Builder's role line shows the medium's caret where the line's is,
     CHECK(held_caret(*pane).column == prompt + 4);
     // ...AND A PRESS IS READ IN THE SAME CHARACTERS: pressed on the cell past that character, the
     // caret stands there, not back where its bytes would put it.
-    bp_press_aimed(b, bp_aim(b), line, prompt + 5);
+    bp_press_at(b, line, prompt + 5);
     CHECK(held_caret(*pane).column == prompt + 5);
-    bp_press_aimed(b, bp_aim(b), line, prompt + 4);
+    bp_press_at(b, line, prompt + 4);
     CHECK(held_caret(*pane).column == prompt + 4);
 }
 
@@ -3202,6 +3019,11 @@ void builder_in(BuilderRig& b, const std::string& mode, Standing standing) {
         b.r.text("example.tally");
     }
     REQUIRE(b.row()->mode == mode);
+    // ...AND SETTLED: the authored height placed by a repaint and the window's room taken, so what
+    // that room asks is asked before a press.
+    b.r.extent(161, 48);
+    b.r.extent(160, 48);
+    b.r.window_beat();
 }
 
 /// PRESS ONE DECLARED ACTION AS A WEAVER DOES: its default key, else the control the pane draws

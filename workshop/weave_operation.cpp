@@ -159,16 +159,21 @@ bool WorkshopWeave::take_key_fence(std::uint64_t ask, const graphics::AreaShown*
     return true;
 }
 
+// A REFERENCE CARRIED BY AN INPUT ACTOR THAT HAS LEFT IS PUT DOWN at the next moment of input
+// Workshop hears, the desk standing behind the panes again: nobody is left carrying it.
+bool WorkshopWeave::release_departed_carry(loom::Mail& mail) {
+    if (carried_.data.empty() || carried_.actor.local) return false;
+    const auto authority = host_->input_authority
+        ? host_->input_authority(carried_.actor.participant) : loom::GrantAuthority{};
+    if (mail.describe_authority(authority).available) return false;
+    carried_ = {};
+    say("Carried reference released: its input actor has left", false);
+    repaint(mail);
+    return true;
+}
+
 void WorkshopWeave::apply_attributed(const input::AttributedInput& event, loom::Mail& mail) {
-    if (!carried_.data.empty() && !carried_.actor.local) {
-        const auto authority = host_->input_authority
-            ? host_->input_authority(carried_.actor.participant) : loom::GrantAuthority{};
-        if (!mail.describe_authority(authority).available) {
-            carried_ = {};
-            say("Carried reference released: its input actor has left", false);
-            repaint(mail);
-        }
-    }
+    (void)release_departed_carry(mail);
     struct RestoreInput {
         InputActor& actor;
         bool& applying;
@@ -180,11 +185,12 @@ void WorkshopWeave::apply_attributed(const input::AttributedInput& event, loom::
     applying_attributed_ = true;
     const auto& e = event.event;
     // A DRAG CARRY ENDS AT ITS CARRIER'S NEXT GESTURE, OR THE WEAVER'S: another guest's never.
+    // The wheel is none: it turns the pane under the hand, and the carry stands.
     if (!quitting_ && carried_.drag &&
         (input_actor_.local || (input_actor_.local == carried_.actor.local &&
                                 input_actor_.participant == carried_.actor.participant)) &&
         (e.kind == "KeyPressed" || e.kind == "TextEntered" ||
-        e.kind == "PointerWheel" || (e.kind == "PointerButton" && e.pressed))) {
+         (e.kind == "PointerButton" && e.pressed))) {
         carried_ = {}; value_drag_ = {};
         say("Value drag cancelled by a new gesture", false);
     }
@@ -582,18 +588,38 @@ void WorkshopWeave::accept_carry(const PaneCarryRequested& asked, bool value, bo
     carried_ = {asked.data, asked.label, carrier, value, drag,
                 std::string(mail.authored_role()), asked.pane, std::move(token)};
     if (!drag) say("Carrying " + asked.label + " — click a receiving pane; Escape cancels", false);
-    // A DRAG BEGUN ON A CANVAS IS NOW A CARRY: the press's hold ends there as lost, so its later
-    // motion and its release are the carry's, never the canvas's.
-    if (drag && canvas_holds_[0].active && canvas_holds_[0].kind == pane->kind) lose_canvas_hold(0, mail);
+    // A DRAG IS NOW A CARRY: Workshop's area comes in front of the pane's at the repaint, so the
+    // window ends the press's hold there, and its later motion and its release are the carry's.
     (void)mail.answer(PaneCarryAnswered{true, {}});
     if (drag && value_drag_.released) finish_value_drag(mail);
     repaint(mail);
 }
 
-// WL-GUEST-06 -- agents/workshop/guests.md
-bool WorkshopWeave::drop_carry(std::int64_t kind, const ExternalPressAt& at, loom::Mail& mail,
-                               std::int64_t picture, const PointedAt& point,
-                               const std::optional<CanvasRelease>& released) {
+// WL-CANVAS-04 -- agents/workshop/canvas.md
+WorkshopWeave::AreaPoint WorkshopWeave::pane_area_at(std::int64_t x, std::int64_t y) const {
+    AreaPoint out;
+    std::int64_t order = 0;
+    for (const std::int64_t kind : placed_kinds_) {
+        const RuntimePane* row = session_.panes.runtime.of_kind(kind);
+        const auto placed =
+            row == nullptr ? areas_placed_.end() : areas_placed_.find(pane_window_area(session_.panes, *row));
+        if (placed == areas_placed_.end()) continue;
+        const graphics::AreaPlaced& a = placed->second;
+        const bool holds = x >= a.x && y >= a.y && x < graphics::add_cells(a.x, a.w) &&
+                           y < graphics::add_cells(a.y, a.h);
+        if (holds && (out.kind == kNoPaneKind || a.order > order)) {
+            out = AreaPoint{kind, a.area, graphics::sub_px(x, a.x), graphics::sub_px(y, a.y)};
+            order = a.order;
+        }
+    }
+    return out;
+}
+
+// A VALUE OR A REFERENCE PLACED ON A PANE: the place in its area's own pixels, for the pane to read
+// against what it drew there; a pane without the door for what is carried is told nothing and the
+// item stays held, as on any place that does not accept it.
+// WL-GUEST-06 -- agents/workshop/guests.md; WL-CANVAS-04 -- agents/workshop/canvas.md
+bool WorkshopWeave::drop_carry(const AreaPoint& at, loom::Mail& mail) {
     if (carried_.data.empty()) return false;
     if (!input_actor_.known || input_actor_.local != carried_.actor.local ||
         input_actor_.participant != carried_.actor.participant) {
@@ -602,39 +628,33 @@ bool WorkshopWeave::drop_carry(std::int64_t kind, const ExternalPressAt& at, loo
     }
     // A GUEST'S DROP, by click or by a drag's release, hands its bytes to the pane it lands on, and
     // on a weaver's host the places only the weaver's hand reaches take none.
-    if (const std::string why = refused_toward(input_actor_, kind); !why.empty()) {
+    if (const std::string why = refused_toward(input_actor_, at.kind); !why.empty()) {
         say(why, true);
         return true;
     }
-    const auto* pane = session_.panes.runtime.of_kind(kind);
-    const auto* presentation = session_.panes.external_pane(kind);
-    if (pane && presentation && presentation->canvas.grant != 0)
-        return drop_on_canvas(*pane, *presentation, point, released, mail);
-    const bool origin_drop = pane && carried_.value && host_->holder_accepts &&
-        host_->holder_accepts(pane->provider, *loom::schema_of<v2::PaneValueDrop>());
-    if (!at.named || !pane || !presentation || presentation->canvas.grant != 0 || !host_->holder_accepts ||
-        (!origin_drop && !host_->holder_accepts(pane->provider, carried_.value ? *loom::schema_of<PaneValueDrop>()
-                                                                             : *loom::schema_of<PaneDrop>()))) {
+    const RuntimePane* pane = session_.panes.runtime.of_kind(at.kind);
+    const bool value = carried_.value;
+    if (pane == nullptr || !host_->holder_accepts ||
+        !host_->holder_accepts(pane->provider, value ? *loom::schema_of<PaneCanvasValueDrop>()
+                                                     : *loom::schema_of<PaneCanvasDrop>())) {
         say("This place does not accept the carried item; Escape cancels", true);
         return true;
     }
     const auto correlation = ++gesture_asks_;
-    const auto aimed = picture < 0 ? presentation->stamp.aimed : picture;
-    const auto sent = origin_drop
+    const auto sent = value
         ? mail.as_role(kWorkshopProvider).send_to_role(pane->provider,
-            v2::PaneValueDrop{pane->pane, carried_.data, at.row, at.column, aimed,
-                             carried_.source_office, carried_.source_pane, carried_.token}, correlation)
-        : carried_.value
-        ? mail.as_role(kWorkshopProvider).send_to_role(pane->provider,
-            PaneValueDrop{pane->pane, carried_.data, at.row, at.column, aimed}, correlation)
+              PaneCanvasValueDrop{pane->pane, at.area, at.x, at.y, carried_.data,
+                                  carried_.source_office, carried_.source_pane, carried_.token},
+              correlation)
         : mail.as_role(kWorkshopProvider).send_to_role(pane->provider,
-            PaneDrop{pane->pane, carried_.data, at.row, at.column, aimed}, correlation);
+              PaneCanvasDrop{pane->pane, at.area, at.x, at.y, carried_.data}, correlation);
     if (!sent.valid()) {
         say("Item placement could not be queued; it is still held", true);
         return true;
     }
-    const bool value = carried_.value;
     carried_ = {};
+    leave_carry_hover(mail);
+    const auto kind = at.kind;
     keep_act(hand(), hand().press_sent = GestureSent{kind, hand().latest, correlation});
     session_.panes.selected = kind;
     session_.panes.keyboard = kind;
@@ -643,63 +663,31 @@ bool WorkshopWeave::drop_carry(std::int64_t kind, const ExternalPressAt& at, loo
     return true;
 }
 
-// A VALUE OR A REFERENCE PLACED ON A CANVAS: the place in the canvas's local pixels and the
-// picture it was aimed at, for the provider to hit-test in what it drew; a provider without the
-// canvas door for what is carried is told nothing and the item stays held, as on any place that
-// does not accept it. A drag's drop names the canvas its release met, however long the carry
-// took to be answered.
-bool WorkshopWeave::drop_on_canvas(const RuntimePane& pane, const ExternalPane& presentation,
-                                   const PointedAt& point,
-                                   const std::optional<CanvasRelease>& released,
-                                   loom::Mail& mail) {
-    const auto& c = presentation.canvas;
-    const CanvasRelease at = released ? *released
-        : CanvasRelease{presentation.stamp.aimed, c.grant, PixelRect{c.x, c.y, c.width, c.height}};
-    if (at.grant != c.grant) {
-        say("The canvas the item was released on is gone; Escape cancels", true);
-        return true;
+// WL-CANVAS-06 -- agents/workshop/canvas.md
+void WorkshopWeave::carry_hover(std::int64_t x, std::int64_t y, loom::Mail& mail) {
+    const AreaPoint at = carried_.data.empty() ? AreaPoint{} : pane_area_at(x, y);
+    const RuntimePane* row =
+        at.kind == kNoPaneKind ? nullptr : session_.panes.runtime.of_kind(at.kind);
+    if (row == nullptr || !host_->holder_accepts ||
+        !host_->holder_accepts(row->provider, *loom::schema_of<PaneCanvasHover>())) {
+        leave_carry_hover(mail);
+        return;
     }
-    const bool value = carried_.value;
-    // Workshop's mark over a refused picture is Workshop's own chrome: nothing is placed under it,
-    // judged where a drag's release met it.
-    const bool marked = released ? released->marked : on_refused_mark(pane.kind, point);
-    if (!point.understood || !host_->holder_accepts ||
-        !host_->holder_accepts(pane.provider, !value   ? *loom::schema_of<PaneCanvasDrop>()
-                                              : c.legacy ? *loom::schema_of<v1::PaneCanvasValueDrop>()
-                                                         : *loom::schema_of<PaneCanvasValueDrop>()) ||
-        !at.body.contains_at(point.px.x, point.px.y, point.grain) || marked) {
-        say("This place does not accept the carried item; Escape cancels", true);
-        return true;
+    if (carry_hover_.kind != at.kind || carry_hover_.area != at.area) leave_carry_hover(mail);
+    if (carry_hover_.kind == at.kind && carry_hover_.x == at.x && carry_hover_.y == at.y) return;
+    (void)mail.as_role(kWorkshopProvider)
+        .send_to_role(row->provider, PaneCanvasHover{row->pane, at.area, at.x, at.y, true});
+    carry_hover_ = CarryHover{at.kind, at.area, at.x, at.y};
+}
+
+void WorkshopWeave::leave_carry_hover(loom::Mail& mail) {
+    if (carry_hover_.kind == kNoPaneKind) return;
+    if (const RuntimePane* row = session_.panes.runtime.of_kind(carry_hover_.kind)) {
+        (void)mail.as_role(kWorkshopProvider)
+            .send_to_role(row->provider, PaneCanvasHover{row->pane, carry_hover_.area,
+                                                         carry_hover_.x, carry_hover_.y, false});
     }
-    const auto correlation = ++gesture_asks_;
-    const std::int64_t x = graphics::sub_px(point.px.x, at.body.x);
-    const std::int64_t y = graphics::sub_px(point.px.y, at.body.y);
-    const auto sent = !value
-        ? mail.as_role(kWorkshopProvider).send_to_role(pane.provider,
-              PaneCanvasDrop{pane.pane, at.grant, at.picture, x, y, carried_.data}, correlation)
-        : c.legacy
-        ? mail.as_role(kWorkshopProvider).send_to_role(pane.provider,
-              v1::PaneCanvasValueDrop{pane.pane, at.grant, at.picture, legacy_subs_of_px(x),
-                                      legacy_subs_of_px(y), carried_.data,
-                                      carried_.source_office, carried_.source_pane,
-                                      carried_.token},
-              correlation)
-        : mail.as_role(kWorkshopProvider).send_to_role(pane.provider,
-              PaneCanvasValueDrop{pane.pane, at.grant, at.picture, x, y, carried_.data,
-                                  carried_.source_office, carried_.source_pane, carried_.token},
-              correlation);
-    if (!sent.valid()) {
-        say("Item placement could not be queued; it is still held", true);
-        return true;
-    }
-    carried_ = {};
-    const auto kind = pane.kind;
-    keep_act(hand(), hand().press_sent = GestureSent{kind, hand().latest, correlation});
-    session_.panes.selected = kind;
-    session_.panes.keyboard = kind;
-    note_routed(kind);
-    say(std::string(value ? "Value" : "Reference") + " sent to " + pane.name, false);
-    return true;
+    carry_hover_ = CarryHover{};
 }
 
 void WorkshopWeave::begin_value_drag(const input::PointerButton& b) {
@@ -742,25 +730,14 @@ bool WorkshopWeave::release_value_drag(const input::PointerButton& button, loom:
         if (distance(button.x, drag.x) >= threshold || distance(button.y, drag.y) >= threshold)
             drag.moved = true;
     }
+    // ...AND THE PANE'S AREA IT WAS LET GO OVER, and where in it, with the pane's holder then.
     if (button.space == drag.space && !session_.arrange.open && !session_.context.open && !session_.presented.open) {
         const auto point = canvas_point_of(button.space, button.x, button.y, session_.console_rows_above);
-        const auto owner = occupied_at(session_.panes, session_.setup.active, screen_of(session_), point);
-        if (point.understood && owner.occupied && is_runtime_kind(owner.kind)) {
-            drag.target = owner.kind;
-            drag.at = external_press_at(session_.panes, session_.setup.active, screen_of(session_),
-                owner.kind, session_.pane_titles, button.space, button.x, button.y);
-            drag.point = point;
-            const auto* pane = session_.panes.runtime.of_kind(owner.kind);
-            const auto* presentation = session_.panes.external_pane(owner.kind);
-            if (pane && presentation && host_->role_holder) {
-                drag.receiver = host_->role_holder(pane->provider);
-                drag.picture = presentation->stamp.aimed;
-                const auto& c = presentation->canvas;
-                if (c.grant != 0)
-                    drag.canvas = CanvasRelease{presentation->stamp.aimed, c.grant,
-                                                PixelRect{c.x, c.y, c.width, c.height},
-                                                on_refused_mark(owner.kind, point)};
-            }
+        const AreaPoint over = point.understood ? pane_area_at(point.px.x, point.px.y) : AreaPoint{};
+        const auto* pane = over.kind == kNoPaneKind ? nullptr : session_.panes.runtime.of_kind(over.kind);
+        if (pane && host_->role_holder) {
+            drag.at = over;
+            drag.receiver = host_->role_holder(pane->provider);
         }
     }
     if (!carried_.drag) return false;
@@ -770,18 +747,20 @@ void WorkshopWeave::finish_value_drag(loom::Mail& mail) {
     const auto drag = value_drag_;
     value_drag_ = {};
     if (!carried_.drag) return;
-    if (!drag.moved) { carried_ = {}; return; }
-    const auto* pane = session_.panes.runtime.of_kind(drag.target);
+    if (!drag.moved) { carried_ = {}; leave_carry_hover(mail); return; }
+    const auto* pane = session_.panes.runtime.of_kind(drag.at.kind);
     if (drag.gesture != latest_of(drag.actor) || !pane || !drag.receiver.valid() || !host_->role_holder ||
         host_->role_holder(pane->provider) != drag.receiver) {
-        carried_ = {}; say("Value drag cancelled: no current receiver at the release", true); return;
+        carried_ = {}; leave_carry_hover(mail);
+        say("Value drag cancelled: no current receiver at the release", true); return;
     }
     const auto previous = input_actor_;
     input_actor_ = drag.actor;
-    (void)drop_carry(drag.target, drag.at, mail, drag.picture, drag.point, drag.canvas);
+    (void)drop_carry(drag.at, mail);
     input_actor_ = previous;
     if (!carried_.data.empty()) {
         carried_ = {};
+        leave_carry_hover(mail);
         say("Value was not placed: " + session_.notice, true);
     }
 }

@@ -3,11 +3,12 @@
 #ifndef ZENGINE_WORKSHOP_PANE_DRAWING_HPP
 #define ZENGINE_WORKSHOP_PANE_DRAWING_HPP
 
-// Between a pane's drawing and Workshop's rows, both ways. A drawing (`graphics::Sketch`) read
-// onto rows: its text painted cell by cell as a window of characters paints it
+// Between a pane's drawing and its rows, both ways. A drawing (`graphics::Sketch`) read onto
+// rows: its text painted cell by cell as a window of characters paints it
 // (graphics/term_paint.hpp), each record a part of the row its text stands on, the action a press
-// on it asks beside it. And rows drawn (`rows_drawing`), a node asking for each run a named part
-// holds, the caret in front, for the window showing a pane's area as it keeps it (`WindowDrawing`).
+// on it asks beside it -- where a press on a drawing lands. And rows drawn (`rows_drawing`), a node
+// asking for each run a named part holds, the caret in front, for the window showing a pane's area
+// as the pane keeps it (`WindowDrawing`).
 // Reference: workshop/docs/workshop-panes.md, "The pane facets".
 
 #include "component/row_map.hpp"
@@ -17,11 +18,9 @@
 #include "graphics/pixels.hpp"
 #include "graphics/term_paint.hpp"
 #include "graphics/vocabulary.hpp"
-#include "surface/region.hpp"
-#include "surface/vocabulary.hpp"
-#include "workshop/pane_canvas_rows.hpp"
-#include "workshop/pane_canvas_vocabulary.hpp"
+#include "surface/vocabulary.hpp" // the Skin's office, where no window shows a pane's area
 #include "pane_text_fit.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
 #include <zen/weave.hpp>
@@ -80,11 +79,10 @@ inline loom::Bytes on_cells(const graphics::Node& n, const graphics::TextMeasure
 /// first text drawn on it; and each record a part, recorded in `map`, on the row its subtree's
 /// first shown text stands on, over the columns its text covers there. What falls outside the room
 /// is neither said nor named, and the operators other than text are the window's alone.
-inline std::vector<surface::SurfaceTextRow> drawn_rows(const graphics::Sketch& sketch,
-                                                       std::int64_t rows, std::int64_t columns,
-                                                       component::RowMap<DrawnPart>& map,
-                                                       const graphics::TextMeasure& measure = {}) {
-    std::vector<surface::SurfaceTextRow> out;
+inline std::vector<TextRow> drawn_rows(const graphics::Sketch& sketch, std::int64_t rows,
+                                       std::int64_t columns, component::RowMap<DrawnPart>& map,
+                                       const graphics::TextMeasure& measure = {}) {
+    std::vector<TextRow> out;
     if (rows <= 0 || columns <= 0) {
         return out;
     }
@@ -168,13 +166,18 @@ inline std::vector<surface::SurfaceTextRow> drawn_rows(const graphics::Sketch& s
 }
 
 /// THE ROOM A PANE'S ROWS ARE DRAWN IN: its area's size in pixels and how the window showing it
-/// sets text, so a row stands a line of it and a character an advance of it.
+/// sets text, so a row stands a line of it and a character an advance of it; `cells` where the
+/// window's unit is the cell, which shows one glyph a cell and so no bar between two characters.
 struct RowsRoom {
     std::int64_t width = 0, height = 0;
     graphics::TextMeasure text;
-    /// The characters a row holds and the rows the room holds.
+    bool cells = false;
+    /// The characters a row holds and the rows the room holds -- one, which the window cuts at
+    /// the area's edge, in a room shorter than a line.
     std::int64_t columns() const { return width / text.advance; }
-    std::int64_t rows() const { return height / text.line; }
+    std::int64_t rows() const {
+        return height > 0 && height < text.line ? 1 : height / text.line;
+    }
 };
 
 /// A PANE'S ROWS AS A GRAPHICS WINDOW DRAWS THEM, and where a press reaches each part they name.
@@ -198,9 +201,10 @@ bool part_available(const Part& part) {
 /// its role (a lit row's nodes named apart above it), cut where a part begins or ends; each run a
 /// part holds asks the part's name -- where parts overlap, the one a press on Workshop's rows
 /// reaches -- recorded unavailable (`graphics::PartFace`) where the part says so; `caret` in front.
-/// No row past `max_rows` (above 0) or the window's bounds is drawn. `PaneRowPart`s or v2's.
+/// No row past `max_rows` (above 0) or the window's bounds is drawn. `RowPart`s, or any part with
+/// their name, row and columns.
 template <class Part>
-RowsDrawing rows_drawing(const std::vector<surface::SurfaceTextRow>& rows,
+RowsDrawing rows_drawing(const std::vector<TextRow>& rows,
                          const std::vector<Part>& parts, const RowsRoom& room,
                          std::int64_t columns, const RowsCaret& caret = {},
                          std::int64_t max_rows = 0) {
@@ -316,9 +320,11 @@ RowsDrawing rows_drawing(const std::vector<surface::SurfaceTextRow>& rows,
 
     // THE CARET AND THE SELECTION, in front of the rows: each shown row's selected columns again
     // in the accent role, and the caret a bar at the left of the cell it sits before, as a window
-    // that sets type draws one. Each mark asks what the part beneath it asks (the last part said
-    // that covers its cell), so a press on it reaches the row it stands on. Marks stand on drawn
-    // rows alone, and one that would take the area past the window's bounds is not drawn.
+    // that sets type draws one; in a room of cells, the character it sits before again in the
+    // accent role, which a bar there would hide, and a bar where it sits before none. Each mark
+    // asks what the part beneath it asks (the last part said that covers its cell), so a press on
+    // it reaches the row it stands on. Marks stand on drawn rows alone, and one that would take
+    // the area past the window's bounds is not drawn.
     const auto asked_at = [&](std::int64_t row, std::int64_t column) {
         std::string asks;
         for (const Part& p : parts) {
@@ -339,16 +345,11 @@ RowsDrawing rows_drawing(const std::vector<surface::SurfaceTextRow>& rows,
             ++records;
         }
     };
-    surface::SurfaceTextRegion selected; // the selection's per-row arithmetic is surface's
-    selected.sel_begin_row = caret.sel_begin_row;
-    selected.sel_begin_col = caret.sel_begin_col;
-    selected.sel_end_row = caret.sel_end_row;
-    selected.sel_end_col = caret.sel_end_col;
     const auto marked = static_cast<std::int64_t>(r); // the rows drawn
     for (std::int64_t m = 0; m < marked; ++m) {
         const std::string& text = rows[static_cast<std::size_t>(m)].text;
         const auto length = (std::min)(static_cast<std::int64_t>(text.size()), columns);
-        const RowSpan span = selection_span_of_row(selected, m, length);
+        const RowSpan span = selection_span_of_row(caret, m, length);
         std::size_t run = 0;
         for (std::int64_t a = span.begin; a < span.end;) {
             const std::string asks = asked_at(m, a);
@@ -374,8 +375,15 @@ RowsDrawing rows_drawing(const std::vector<surface::SurfaceTextRow>& rows,
     const std::int64_t column = (std::min)(caret.column, columns - 1);
     const std::string asks = asked_at(caret.row, column);
     if (room_for(asks)) {
-        out.sketch.line("caret", column * advance, caret.row * line, column * advance,
-                        caret.row * line + line - 1, graphics::by_role(graphics::role::kAccent));
+        const std::string& text = rows[static_cast<std::size_t>(caret.row)].text;
+        const auto at = static_cast<std::size_t>(column);
+        if (room.cells && at < text.size() && text[at] != ' ') {
+            out.sketch.text("caret", column * advance, caret.row * line, text.substr(at, 1),
+                            graphics::by_role(graphics::role::kAccent));
+        } else {
+            out.sketch.line("caret", column * advance, caret.row * line, column * advance,
+                            caret.row * line + line - 1, graphics::by_role(graphics::role::kAccent));
+        }
         ask("caret", asks);
     }
     return out;
@@ -392,11 +400,16 @@ inline RowCell window_cell(std::int64_t x, std::int64_t y, std::int64_t rows,
     return out;
 }
 
-/// ONE POINTER MOMENT A GRAPHICS WINDOW GAVE A PANE'S AREA, as the pane reads it: its phase in the
-/// canvas pointer's words (`canvas_pointer::kPress` ... `kWheel`, a hold the window ended being
-/// `kLost`), the button, the point in the area's pixels and the cell of the rows drawn there
-/// holding it, the modifiers, the wheel's turn, and the press's number, which the press, its moves
-/// and its release carry and a continuation about the press cites.
+/// THE PHASES OF A POINTER MOMENT a pane reads (`WindowPointer::phase`).
+namespace canvas_pointer {
+inline constexpr std::int64_t kPress = 1, kMove = 2, kRelease = 3, kLost = 4, kWheel = 5;
+}
+
+/// ONE POINTER MOMENT A GRAPHICS WINDOW GAVE A PANE'S AREA, as the pane reads it: its phase
+/// (`canvas_pointer::kPress` ... `kWheel`, a hold the window ended being `kLost`), the button, the
+/// point in the area's pixels and the cell of the rows drawn there holding it, the modifiers, the
+/// wheel's turn, and the press's number, which the press, its moves and its release carry and a
+/// continuation about the press cites.
 struct WindowPointer {
     std::int64_t phase = canvas_pointer::kPress;
     std::int64_t button = 0;
@@ -433,7 +446,7 @@ public:
     /// The window's device pixels in one cell: none where its unit is the cell.
     std::int64_t cell_px() const noexcept { return canvas_.cell_px(); }
     /// The rows drawn there, as `rows_drawing` takes them: the whole room, set by the window.
-    RowsRoom rows_room() const { return RowsRoom{width(), height(), text()}; }
+    RowsRoom rows_room() const { return RowsRoom{width(), height(), text(), cell_px() <= 0}; }
     /// The window refused the whole drawing last sent, and no room or other drawing came since.
     bool refused_whole() const noexcept { return refused_whole_; }
 

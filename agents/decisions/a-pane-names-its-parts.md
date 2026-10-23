@@ -9,10 +9,10 @@ what it said or where it fell. The panes already knew what each row and control 
 map records it for the press -- and nothing said it across the seam.
 
 **Decision.** A pane names the parts a weaver acts on, from what each means: a run of a row's
-columns (`PaneRowPart`, on `v4::PaneContent`; a presented menu's lines in its presenter's own
-drawing, read from the window) or a rectangle of its picture (`PaneCanvasPart`, on `v4::PaneCanvasContent`). The names travel with
-the picture they name, judged with it -- a name once, on what the picture says -- and refused
-whole with it. Workshop answers each beside its words, place and point (`PanePart`, on
+columns or a rectangle of its picture, each the action a record of its drawing asks (a presented
+menu's lines in its presenter's own drawing too). The names travel with the drawing they name,
+and the window that shows it says each where the drawing shows it -- a name once, on what the
+drawing says. Workshop answers each beside its words, place and point (`PanePart`, on
 `v3::PaneView` and `v2::DeskView`'s menu) and names its own menu's lines by their actions. A
 picture lists its parts in the order its pane reads a press -- where parts hold one place, the
 later takes it -- and a place it names nothing unnamed, so a part's point is a place of its own,

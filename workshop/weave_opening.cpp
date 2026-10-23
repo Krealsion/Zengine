@@ -170,35 +170,21 @@ void OpeningManager::on(const OpenSourceRequested& asked, loom::Mail& mail) {
     progress(mail, true);
 }
 
-void OpeningManager::on(const PresentationTrial& said, loom::Mail& mail) {
+// THE TRIAL ANSWERED: refused, or the Editor asked to prepare for the room the pane's area would
+// have.
+void OpeningManager::on(const v3::PresentationTrial& said, loom::Mail& mail) {
     if (!answers_flight(mail, said.op, "trial")) {
         return;
     }
-    trialled(said.ok, said.refusal, said.rows, said.columns, PaneCanvasRoom{}, mail);
-}
-
-void OpeningManager::on(const v2::PresentationTrial& said, loom::Mail& mail) {
-    if (!answers_flight(mail, said.op, "trial")) {
-        return;
-    }
-    trialled(said.ok, said.refusal, said.rows, said.columns, said.room, mail);
-}
-
-void OpeningManager::trialled(bool ok, const std::string& refusal, std::int64_t rows,
-                              std::int64_t columns, const PaneCanvasRoom& room, loom::Mail& mail) {
-    if (!ok) {
+    if (!said.ok) {
         (void)mail.cancel_joint(authority_, flight_.op);
-        settle(false, false, refusal, mail);
+        settle(false, false, said.refusal, mail);
         return;
     }
-    const auto op = static_cast<std::int64_t>(flight_.op);
-    const bool asked =
-        room.grant > 0
-            ? ask(mail, editor_office_,
-                  v2::PrepareSourceRequested{op, flight_.path, rows, columns, room}, "prepare")
-            : ask(mail, editor_office_, PrepareSourceRequested{op, flight_.path, rows, columns},
-                  "prepare");
-    if (!asked) {
+    if (!ask(mail, editor_office_,
+             v3::PrepareSourceRequested{static_cast<std::int64_t>(flight_.op), flight_.path,
+                                        said.room},
+             "prepare")) {
         (void)mail.cancel_joint(authority_, flight_.op);
         settle(false, false, "the Editor could not be asked to prepare " + flight_.path, mail);
         return;
@@ -206,50 +192,26 @@ void OpeningManager::trialled(bool ok, const std::string& refusal, std::int64_t 
     progress(mail, true);
 }
 
-void OpeningManager::on(const v2::SourcePrepared& said, loom::Mail& mail) {
+// THE CANDIDATE PREPARED, or refused: the desk asked to admit the seat, or the flight settled.
+void OpeningManager::on(const v3::SourcePrepared& said, loom::Mail& mail) {
     if (!answers_flight(mail, said.op, "prepare")) {
         return;
     }
-    prepared(said.ok, said.refusal,
-             v2::PresentationAdmitRequested{static_cast<std::int64_t>(flight_.op), pane_.provider,
-                                            pane_.pane, said.generation, said.picture},
-             mail);
-}
-
-template <class Admit>
-void OpeningManager::prepared(bool ok, const std::string& refusal, const Admit& admit,
-                              loom::Mail& mail) {
-    if (!ok) {
-        const std::string words = refusal_of(refusal, mail);
+    if (!said.ok) {
+        const std::string words = refusal_of(said.refusal, mail);
         (void)mail.cancel_joint(authority_, flight_.op);
         settle(false, false, words, mail);
         return;
     }
-    if (!ask(mail, presentation_office_, admit, "admit")) {
+    if (!ask(mail, presentation_office_,
+             v3::PresentationAdmitRequested{static_cast<std::int64_t>(flight_.op), pane_.provider,
+                                            pane_.pane, said.generation},
+             "admit")) {
         (void)mail.cancel_joint(authority_, flight_.op);
         settle(false, false, "the desk could not be asked to admit " + flight_.path, mail);
         return;
     }
     progress(mail, true);
-}
-
-void OpeningManager::on(const SourcePrepared& said, loom::Mail& mail) {
-    if (!answers_flight(mail, said.op, "prepare")) {
-        return;
-    }
-    PresentationAdmitRequested admit;
-    admit.op = static_cast<std::int64_t>(flight_.op);
-    admit.provider = pane_.provider;
-    admit.pane = pane_.pane;
-    admit.generation = said.generation;
-    admit.rows = said.rows;
-    admit.caret_row = said.caret_row;
-    admit.caret_col = said.caret_col;
-    admit.sel_begin_row = said.sel_begin_row;
-    admit.sel_begin_col = said.sel_begin_col;
-    admit.sel_end_row = said.sel_end_row;
-    admit.sel_end_col = said.sel_end_col;
-    prepared(said.ok, said.refusal, admit, mail);
 }
 
 void OpeningManager::on(const PresentationAdmitted& said, loom::Mail& mail) {

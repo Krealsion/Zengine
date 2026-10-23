@@ -6,7 +6,7 @@ seam is the protocol's law, in [`../panes.md`](../panes.md).
 
 ## WL-FOCUS-01 — `Panes::keyboard` is a pointing's memory
 
-LAW — `Panes::keyboard` is the keyboard-taking pane the weaver last aimed the keys at; `keyboard_pane(panes)` is the external answer, resolved fresh at every spend: open, runtime kind, room granted.
+LAW — `Panes::keyboard` is the keyboard-taking pane the weaver last aimed the keys at; `keyboard_pane(panes)` is the external answer, resolved fresh at every spend: open, runtime kind, placed.
 
 MEANS
 - no built-in takes the keys: the Editor's went with it, the Pane Manager's likewise;
@@ -40,13 +40,12 @@ WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 LAW — A pane activates a row on a press only when Workshop reports its keys were already there, read before the press moved them; two presses from cold buys "no single press replaces what is open".
 
 MEANS
-- the pane decides from `keys_went_here`; a mode having the keys is "not here"; in a graphics window, from Workshop's last `PaneKeys`;
-- a canvas pointer always states it, and a v1 press none;
-- a press crosses once, as v2 exactly when the office's current holder accepts it.
+- the pane decides from Workshop's last `PaneKeys`, said before the press moved them; a mode having the keys is "not here";
+- a press reaches the pane from the window once, in the area it landed in.
 
 DOES NOT MEAN
-- that a version chosen arrives: a new holder lacking its door refuses, one with it may take it;
-- that anything is retried or kept when the keys leave a pane, or said but by `PaneKeys` in a window, or that Compose keeps it: it acts on the press that brings it the keys.
+- that anything is retried or kept when the keys leave a pane, or said but by `PaneKeys`;
+- that Compose keeps the rule: it acts on the press that brings it the keys.
 
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
@@ -99,12 +98,12 @@ WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
 ## WL-FOCUS-11 — Pane titles are a presentation preference with a key
 
-LAW — Pane titles are a preference a key flips and saves; one resolution answers a pane's header rows, and the keyboard's pane wears its title, a held canvas press's once it ends.
+LAW — Pane titles are a preference a key flips and saves; one resolution answers a pane's header rows, and the keyboard's pane wears its title, a held press's pane once the press ends.
 
 MEANS
-- painter, press path and room grant spend the answer through `ExternalBodyPlace::header_rows`;
-- the press path spends the answer the pressed picture had, before the keys moved (WL-FOCUS-03); a press a graphics window holds keeps the room as a held canvas press does;
-- a title's row goes or returns by the grant-on-change door, a held canvas press's once it ends: till then its picture and rows stay in the room it kept, and a pane that moved keeps none.
+- the frame and the area's place spend the answer through `ExternalBodyPlace::header_rows`;
+- a press the window holds keeps the pane's area where it was aimed until the window says it ended;
+- a title's row goes or returns as the area is placed again; till the press ends its area stays where it was, and a pane that moved keeps none.
 
 WHY — `agents/decisions/the-keys-go-where-last-pressed.md`
 
@@ -168,12 +167,9 @@ release, and one it gives a pane's area is the pane's, Workshop told where it la
 
 ### WL-FOCUS-04
 `workshop/screen_arrange.cpp` typing_pane
-`workshop/weave_pointer.cpp` on(PointerButton)
-`workshop/weave_external.cpp` external_press holder_accepts_on
+`workshop/weave_handlers.cpp` area_pressed
+`workshop/weave_external.cpp` holder_accepts_on
 `workshop/weave.hpp` HostContext::holder_accepts
-`workshop/pane_vocabulary.hpp` PanePressed keys_went_here
-`workshop/pane_canvas_vocabulary.hpp` PaneCanvasPointer
-`workshop/weave_canvas.cpp` WorkshopWeave::canvas_press
 `files/files.cpp` press open
 `workshop/pane_facets.hpp` RowPress::keys_went_here
 `tests/test_workshop_panes_files.cpp` "a press on Files' selected row after its open moved the keys
@@ -182,14 +178,10 @@ a press into the Editor and Files is told nothing, so only Workshop can say a la
 selected row came from elsewhere" "a press on Files' selected row opens it when the keys were
 already Files', whether Workshop's title, Files' own header or an arrow left them there" "two
 presses on Files' selected row queued while the keys were the Editor's cross as elsewhere then here,
-and open that row's file once" "Files takes a canvas press only from Workshop's office and about its
-own pane, and opens only on one that says the keys were already there" "a press selects, and a
+and open that row's file once" "Files takes a press only from the window that shows it and in its
+own area, and opens only on one made while the keys were already there" "a press selects, and a
 second press on the same row activates" "the wheel moves the cursor, and a header press names no
 entry"
-`tests/test_workshop_panes_input.cpp` "a press crosses once: as v2 to a pane whose office's holder
-accepts it, and as the unchanged v1 to one that accepts only v1" "a holder replaced between the
-version choice and the delivery refuses that one v2 press, attributed to its gesture, author and
-office, and nothing is sent again"
 `workshop/weave_run.cpp` tell_keys
 `workshop/pane_vocabulary.hpp` PaneKeys
 `tests/test_workshop_desk.cpp` "a press in a pane's area of the window is the pane's, and under the window's number Workshop
@@ -202,7 +194,6 @@ operation"
 `workshop/panes.hpp` keyboard_pane Panes::keyboard
 `workshop/weave_external.cpp` unselect_pane keyboard_pane
 `tests/test_workshop_panes_input.cpp` "a pane that stops being presentable stops being typed into"
-"a pane with no room granted is not typed into"
 
 ### WL-FOCUS-06
 `workshop/screen_arrange.cpp` keyboard_context keyboard_context_beneath_menu
@@ -246,11 +237,8 @@ the press opens it"
 `workshop/keymap.hpp` workshop.pane-titles
 `workshop/screen.hpp` Session::pane_titles ExternalBodyPlace::header_rows kExternalHeaderRows
 `workshop/screen_external.cpp` external_title_rows paint_external
-`workshop/weave_canvas.cpp` refresh_canvas_rooms WorkshopWeave::canvas_release
-`workshop/weave_external.cpp` refresh_external_rooms
-`workshop/panes.hpp` ExternalPane::Canvas::title_waits ExternalPane::Canvas::title_rows
-`workshop/screen_canvas.hpp` shown_canvas_place
-`workshop/weave_desk_read.cpp` WorkshopWeave::drawn_reading
+`workshop/weave_run.cpp` arrange_graphics
+`workshop/panes.hpp` ExternalPane::title_waits ExternalPane::placed_titles
 `workshop/prefs_persist.hpp` kTitlesDefaultValue kTitlesDefault
 `workshop/weave.hpp` HostContext::prefs_path WorkshopWeave::prefs_loaded_ WorkshopWeave::prefs_bad_
 `workshop/weave_handlers.cpp` load_prefs
@@ -266,9 +254,10 @@ gamma selects gamma once every delivery it caused has settled, and a later press
 pane titles hidden, is read where its picture is painted, and a point there lands in the room the
 press kept" "a held press keeps a canvas pane's room only from its title row: a pane moved while the
 press is held is granted its new room at once, and the press is lost" "a canvas pane whose title
-waits for a held press, moved while it waits, is granted its new room at once and the press is lost"
-"a pane moved one title row's height while a press is held, its title unchanged, is granted its new
-room at once and the press is lost, in a window and in a terminal, titled or not" "a held press on
+waits for a held press, moved while it waits, is granted its new room at once, and the press stays
+the pane's until its release" "a pane moved one title row's height while a press is held, its
+title unchanged, is granted its new room at once, and the press stays the pane's until its release,
+in a window and in a terminal, titled or not" "a held press on
 the canvas pane that has the keys keeps its room while launches take its title row away and give it
 back, and its title is drawn again once it has the keys again" "a held press a menu takes ends its
 canvas pane's wait in that same repaint: the room under the title and its rows are granted at once"

@@ -27,7 +27,7 @@ the host's standard rows beneath its rows, and each row is spent by its owner.
 - *Annotating every row with its binding* — rejected: the live TUI witness read `^w` beside a
   Close acting on a tab the weaver was not standing on (`2dc7626`); pinned by case `"shortcut
   annotations teach only truthful surrounding bindings"`.
-- *Provider-contributed rows, or a second-button `PanePressed`* — not done; pinned by case
+- *Provider-contributed rows* — not done; pinned by case
   `"a right press over a provider's pane crosses the seam not at all"`.
 - *Toggling on a further right press* — rejected: it re-targets.
 - *Tried: a body without the door is empty* — replaced: a right press in Flow, Powers, or the

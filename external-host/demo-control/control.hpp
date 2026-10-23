@@ -45,9 +45,8 @@ public:
             m, {{"reset", "reset the demo", input::scan::kUnknown, input::mod::kNone, {},
                  {ws::cause_of<DemoWork>()}}});
     }
-    /// THE PANE DRAWS ITS PICTURE wherever a room was granted: Workshop's canvas or prose room, or
-    /// a graphics window's. A refused picture leaves the last good one showing; a later paint
-    /// draws again.
+    /// THE PANE DRAWS ITS PICTURE in the room the window gave its area. A refused drawing leaves
+    /// the last good one showing; a later paint draws again.
     void on_room(loom::Mail& m) { paint(m); }
     /// WHAT THE CONTROLS SHOW, a line of the room's text each: the setup's name, the reset button
     /// and where the demo stands, each part recorded with what a press on it asks. A line past the

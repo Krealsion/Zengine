@@ -4,22 +4,19 @@
 #define ZENGINE_WORKSHOP_PANE_SEAT_HPP
 
 // What an office offering several panes keeps for each one, and the conversation it holds with
-// Workshop and the graphics windows about all of them: one pane's rooms, the pictures numbered
-// there and the window that shows its area (`PaneCanvasSeat`), and the office's activation,
-// catalog answer, manual and window rooms (`MultiPaneFacet`, composed with `zengine::With`,
-// activation/activation.hpp). The weave routes each pane's own Workshop deliveries to that pane's
-// seat; an office of one pane composes workshop/pane_facets.hpp instead.
+// Workshop and the graphics windows about all of them: the window that shows one pane's area and
+// the rows drawn there (`PaneCanvasSeat`), and the office's activation, catalog answer, manual and
+// window rooms (`MultiPaneFacet`, composed with `zengine::With`, activation/activation.hpp). An
+// office of one pane composes workshop/pane_facets.hpp instead.
 
 #include "activation/activation.hpp"
 #include "graphics/canvas.hpp"
 #include "graphics/vocabulary.hpp"
-#include "pane_canvas_rows.hpp"
-#include "pane_canvas_vocabulary.hpp"
 #include "pane_document.hpp"
 #include "pane_drawing.hpp"
 #include "pane_menu.hpp"
+#include "pane_rows.hpp"
 #include "pane_vocabulary.hpp"
-#include "surface/vocabulary.hpp"
 
 #include <zen/weave.hpp>
 
@@ -33,29 +30,10 @@
 
 namespace zengine::workshop {
 
-namespace detail {
-
-/// THE PROSE A PANE'S ROWS GO AS, by the parts they name: parts that say no availability go as
-/// `v4::PaneContent`, parts that say it as `v5::PaneContent`.
-template <class Part>
-struct ProseOf;
-template <>
-struct ProseOf<PaneRowPart> {
-    using type = v4::PaneContent;
-};
-template <>
-struct ProseOf<v2::PaneRowPart> {
-    using type = v5::PaneContent;
-};
-
-} // namespace detail
-
-/// ONE PANE'S ROOM, AS AN OFFICE OF SEVERAL PANES KEEPS IT: the canvas room the pane holds, the
-/// pictures numbered there, the prose room a host granting no canvas gives it, and the graphics
-/// window that shows the pane's area -- with the rows and columns it composes for, the canvas
-/// lattice's while it holds one, else the prose room's, else, for a pane Workshop seats nowhere,
-/// the window's. Named by its pane and the office it speaks as, it says the pane's rows itself, to
-/// Workshop and to the window alike. Transient, as every room is.
+/// ONE PANE'S AREA, AS AN OFFICE OF SEVERAL PANES KEEPS IT: the graphics window that shows it, the
+/// rows and columns the pane composes for there -- a row a line of the window's text and a
+/// character an advance of it -- and the rows last drawn there with their parts and caret. Named
+/// by its pane and the office it speaks as. Transient, as every room is.
 class PaneCanvasSeat {
 public:
     PaneCanvasSeat() = default;
@@ -73,69 +51,25 @@ public:
     const std::string& office() const noexcept { return office_; }
     const std::string& area() const noexcept { return window_.area(); }
 
-    bool on_canvas() const noexcept {
-        return canvas_.grant > 0 && canvas_.width > 0 && canvas_.height > 0;
-    }
-    /// A room was granted in this life: Workshop's, prose or canvas, or a graphics window's.
-    bool granted() const noexcept { return seated_ || in_window(); }
-    /// Workshop granted the pane a room in this life, prose or canvas.
-    bool seated() const noexcept { return seated_; }
-    /// A graphics window shows the pane's area.
+    /// A graphics window shows the pane's area, and gave it a room.
+    bool granted() const noexcept { return in_window(); }
     bool in_window() const noexcept { return window_.shown(); }
     /// The office a paste is asked of: the window showing the area, else the Skin.
     std::string clipboard_office() const { return window_.clipboard_office(); }
-    /// The rows and columns the pane composes for: the canvas lattice's, else the prose room's,
-    /// else the window's.
+    /// The rows and columns the pane composes for: the window room's.
     std::int64_t rows() const noexcept { return rows_; }
     std::int64_t columns() const noexcept { return columns_; }
-    std::int64_t prose_rows() const noexcept { return prose_rows_; }
-    std::int64_t prose_columns() const noexcept { return prose_columns_; }
-    const PaneCanvasRoom& room() const noexcept { return canvas_; }
-    const PaneCanvasRoom& canvas_room() const noexcept { return canvas_; }
-    /// The pictures numbered in this room, and which a press may still name.
-    CanvasPictures& pictures() noexcept { return pictures_; }
-    const CanvasPictures& pictures() const noexcept { return pictures_; }
-
-    /// The room composed for, measured again.
-    void fit() {
-        const CanvasRows lattice = canvas_rows(canvas_);
-        rows_ = on_canvas() ? lattice.rows : seated_ ? prose_rows_ : window_rows_;
-        columns_ = on_canvas() ? lattice.columns : seated_ ? prose_columns_ : window_columns_;
-    }
-
-    /// THE PROSE ROOM, kept beside a canvas room: true when it is now the room composed for, false
-    /// while the pane holds a canvas room, which, granted first, was this beat already.
-    bool prose_room(const PaneRoom& room) {
-        prose_rows_ = room.rows;
-        prose_columns_ = room.columns;
-        seated_ = true;
-        if (on_canvas()) {
-            return false;
-        }
-        fit();
-        return true;
-    }
-
-    /// THE PANE'S OWN CANVAS: while it holds one, its rows stand on the room's lattice; a room of
-    /// no extent leaves the pane its prose room.
-    void canvas_room(const PaneCanvasRoom& room) {
-        canvas_ = room;
-        seated_ = true;
-        fit();
-    }
 
     /// THE ROOM A GRAPHICS WINDOW GIVES THE PANE, said by the window that shows its area as that
     /// window's office: true when the window, its incarnation, its size or its measure changed or
-    /// the area is empty, so the window holds none of the pane's picture. The pane composes a row a
-    /// line of the window's text and a character an advance of it.
+    /// the area is empty, so the window holds none of the pane's rows.
     bool window_room(const graphics::AreaRoom& r, const loom::Mail& mail) {
         if (!window_.room(r, mail)) {
             return false;
         }
         const RowsRoom room = window_.rows_room();
-        window_rows_ = room.rows();
-        window_columns_ = room.columns();
-        fit();
+        rows_ = room.rows();
+        columns_ = room.columns();
         return true;
     }
 
@@ -148,7 +82,7 @@ public:
 
     /// A PRESS ON A PART IN THE WINDOW, asked by the window that shows the area as its office: the
     /// place of the part named `asked.action` in the rows last drawn there. None for any other
-    /// asker or area, or an action that picture names no part by: no act, and nothing spent.
+    /// asker or area, or an action those rows name no part by: no act, and nothing spent.
     std::optional<RowCell> window_part(const graphics::ActionRequested& asked,
                                        const loom::Mail& mail) const {
         if (!window_.from_window(asked.area, mail)) {
@@ -169,6 +103,12 @@ public:
     std::optional<WindowPointer> window_pointer(const graphics::AreaHoldEnded& ended,
                                                 const loom::Mail& mail) const {
         return window_.pointer(ended, mail);
+    }
+
+    /// WHERE A POINT OF THE AREA FALLS ON THE ROWS LAST DRAWN THERE, shown or not: a drop's place.
+    RowCell cell_at(std::int64_t x, std::int64_t y) const {
+        return window_cell(x, y, static_cast<std::int64_t>(said_rows_.size()), columns_,
+                           window_.text());
     }
 
     /// Whether the keys reach the pane now, as Workshop last said (`PaneKeys`).
@@ -196,85 +136,24 @@ public:
         window_.draw(drawn.sketch, mail);
     }
 
-    /// WHERE A HAND ON THE PANE'S PICTURE LANDED, as the row and column of its lattice, shown or
-    /// not: none while the pane holds no canvas, or for a pointer naming a room since replaced.
-    std::optional<RowCell> cell_of(const PaneCanvasPointer& event) const {
-        if (!on_canvas() || event.grant != canvas_.grant) {
-            return std::nullopt;
-        }
-        return row_cell_at(canvas_rows(canvas_), event.x, event.y);
-    }
-
-    /// IS `picture` OF `grant` ONE DRAWN UNDER THE MEANING THE PANE HOLDS NOW? A press or a drop on
-    /// any other is fenced, never read against whatever row has since moved into its place.
-    bool shows(std::int64_t grant, std::int64_t picture) const noexcept {
-        return on_canvas() && pictures_.current(grant, picture);
-    }
-    bool shows(const PaneCanvasPointer& event) const noexcept {
-        return shows(event.grant, event.picture);
-    }
-
-    /// THE PANE'S ROWS SAID, the caret standing in them, to the window showing its area (`redraw`)
-    /// and, while Workshop seats it, to Workshop as its office: its picture while it holds a canvas
-    /// room, numbered under `meaning`; else `prose` as it stands, its caret beside it while there
-    /// is one -- or always with `always_caret`, "none" included, so a caret the rows lost is gone.
-    /// The parts decide the shapes: `PaneRowPart`s go as `v4::PaneContent` or
-    /// `v5::PaneCanvasContent`, `v2::PaneRowPart`s as `v5::PaneContent` or `v6::PaneCanvasContent`.
-    template <class Content>
-    void say(loom::Mail& mail, Content prose, std::int64_t meaning, const RowsCaret& caret = {},
-             bool always_caret = false) {
-        said_rows_ = prose.rows;
-        said_parts_.clear();
-        for (const auto& part : prose.parts) {
-            said_parts_.push_back(PaneRowPart{part.name, part.row, part.column, part.columns});
-        }
+    /// THE PANE'S ROWS SAID, with their parts and the caret standing in them, and drawn in the
+    /// window that shows the area (`redraw`).
+    void publish_rows(loom::Mail& mail, std::vector<TextRow> rows, std::vector<RowPart> parts = {},
+                      const RowsCaret& caret = {}) {
+        said_rows_ = std::move(rows);
+        said_parts_ = std::move(parts);
         said_caret_ = caret;
         redraw(mail);
-        if (!seated_) {
-            return;
-        }
-        if (on_canvas()) {
-            (void)mail.as_role(office_).send_to_role(
-                pane_menu::kWorkshopRole,
-                rows_picture(canvas_, pictures_.next(canvas_, meaning), prose.rows, prose.parts,
-                             caret));
-            return;
-        }
-        (void)mail.as_role(office_).send_to_role(pane_menu::kWorkshopRole, prose);
-        if (always_caret || caret.row != surface::kNoCaret) {
-            (void)mail.as_role(office_).send_to_role(
-                pane_menu::kWorkshopRole,
-                PaneCaret{pane_, caret.row, caret.column, caret.sel_begin_row, caret.sel_begin_col,
-                          caret.sel_end_row, caret.sel_end_col});
-        }
-    }
-
-    /// ...ROWS COMPOSED HERE, numbered `meaning` in prose as on the canvas, with their parts.
-    template <class Part = PaneRowPart>
-    void publish_rows(loom::Mail& mail, std::int64_t meaning,
-                      std::vector<surface::SurfaceTextRow> rows, std::vector<Part> parts = {},
-                      const RowsCaret& caret = {}, bool always_caret = false) {
-        typename detail::ProseOf<Part>::type prose;
-        prose.pane = pane_;
-        prose.rows = std::move(rows);
-        prose.picture = meaning;
-        prose.parts = std::move(parts);
-        say(mail, std::move(prose), meaning, caret, always_caret);
     }
 
 private:
     std::string pane_, office_;
-    PaneCanvasRoom canvas_;
-    CanvasPictures pictures_;
-    std::int64_t prose_rows_ = 0, prose_columns_ = 0;
-    std::int64_t window_rows_ = 0, window_columns_ = 0;
     std::int64_t rows_ = 0, columns_ = 0;
-    bool seated_ = false;
     WindowDrawing window_{std::string(), std::string()};
     /// The rows, parts and caret last said, and where a press in the window reaches each named
     /// part.
-    std::vector<surface::SurfaceTextRow> said_rows_;
-    std::vector<PaneRowPart> said_parts_;
+    std::vector<TextRow> said_rows_;
+    std::vector<RowPart> said_parts_;
     RowsCaret said_caret_;
     std::map<std::string, RowCell> window_places_;
     bool keys_here_ = false;
@@ -284,8 +163,7 @@ private:
 /// each one and on Workshop's catalog request (the weave's `announce`, or its `on_activated`), its
 /// manual from `Page` about any pane it offers (`known_pane`), answered about `DefaultPane` for a
 /// key it does not, which the answer refuses by name, and each pane's window room, refusals and
-/// presses, found by area among the seats the weave's `each_seat` visits. Each pane's Workshop
-/// room, rows and presses stay the weave's to route to that pane's seat.
+/// presses, found by area among the seats the weave's `each_seat` visits.
 template <const char* const& Office, const char* const& DefaultPane, const manual::Manual& Page>
 class MultiPaneFacet {
 public:
@@ -311,20 +189,15 @@ public:
         self.each_seat([&mail](PaneCanvasSeat& seat) { seat.ask_room(mail); });
     }
 
-    /// THE ROOM A GRAPHICS WINDOW GIVES ONE OF THE PANES, from the window that shows its area. A
-    /// pane Workshop seats keeps composing for Workshop's room, and the rows it last said go to the
-    /// window whole; one it seats nowhere is composed again for the window's (`on_window_room`).
+    /// THE ROOM A GRAPHICS WINDOW GIVES ONE OF THE PANES, from the window that shows its area: the
+    /// pane composed again for it (`on_window_room`).
     template <class Self>
     void on(Self& self, const graphics::AreaRoom& r, loom::Mail& mail) {
         PaneCanvasSeat* seat = seat_of_area(self, r.area);
         if (seat == nullptr || !seat->window_room(r, mail)) {
             return;
         }
-        if (seat->seated()) {
-            seat->redraw(mail);
-        } else {
-            self.on_window_room(seat->pane(), mail);
-        }
+        self.on_window_room(seat->pane(), mail);
     }
 
     /// A drawing the window refused: the pane's rows go whole, once (`window_refused`), so a

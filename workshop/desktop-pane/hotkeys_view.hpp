@@ -14,7 +14,7 @@
 #include "workshop/desktop-pane/vocabulary.hpp"
 
 #include "workshop/desktop_seam_vocabulary.hpp"
-#include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_parts.hpp"
@@ -116,18 +116,15 @@ public:
     // ---- Its rooms ----------------------------------------------------------------------------
 
     /// THE PROSE ROOM WORKSHOP GRANTED IT, kept for a host that grants no canvas.
-    void grant_prose(const ws::PaneRoom& room) { (void)keys_canvas_.prose_room(room); }
+
 
     /// ...AND ITS OWN CANVAS, whose lattice is the room it composes for while it holds one.
-    void grant_canvas(const ws::PaneCanvasRoom& room) { keys_canvas_.canvas_room(room); }
+
 
     const PaneCanvas& canvas() const { return keys_canvas_; }
     /// ...for the office to hand the room a graphics window gives the pane.
     PaneCanvas& canvas() { return keys_canvas_; }
 
-    /// The rows and columns it composes for: its canvas's lattice while it holds one, its prose
-    /// room otherwise.
-    void fit_room() { keys_canvas_.fit(); }
 
     /// THE LAYOUT'S `help` SETTING: whether the footer's help lines show, their rows the list's
     /// when they do not. True when it moved.
@@ -303,11 +300,6 @@ public:
 
     /// A PRESS ON A TABLE ROW CHOOSES IT -- visible selection, for the menu key to act on.
     void keys_press(const PanePress& press, const Declared& keys_rows_decl, loom::Mail& mail) {
-        if (!press.current) {
-            keys_notice_ = kMovedSentence;
-            say_keys(keys_rows_decl, mail);
-            return;
-        }
         const KeysMeaning* m = keys_map_.at(press.row, press.column);
         if (m == nullptr || m->kind != keys_row::kBinding) {
             return;
@@ -321,11 +313,6 @@ public:
     /// it; a right press on anything else (a heading, a marker, a footer, the spelling line) is
     /// handed back to the host, whose own pane menu answers.
     void second_button(const PanePress& b, const Declared& keys_rows_decl, loom::Mail& mail) {
-        if (!b.current) {
-            keys_notice_ = kMovedSentence;
-            say_keys(keys_rows_decl, mail);
-            return;
-        }
         const KeysMeaning* m = keys_map_.at(b.row, b.column);
         if (m != nullptr && m->kind == keys_row::kBinding && m->index < lines_.size() &&
             keymap_.rows[lines_[m->index].shown].remappable) {
@@ -368,14 +355,14 @@ public:
         if (!keys_canvas_.granted() || room_rows <= 0 || room_columns <= 0) {
             return;
         }
-        std::vector<surface::SurfaceTextRow> out;
+        std::vector<ws::TextRow> out;
         keys_map_.begin();
         const auto push = [&out, room_rows, room_columns, this](std::string text,
                                                                 std::int64_t role, KeysMeaning m) {
             if (static_cast<std::int64_t>(out.size()) < room_rows) {
                 keys_map_.row(static_cast<std::int64_t>(out.size()), m);
                 out.push_back(
-                    surface::SurfaceTextRow{fit(std::move(text), room_columns), role});
+                    ws::TextRow{fit(std::move(text), room_columns), role});
             }
         };
         if (!keys_heard_) {
@@ -782,14 +769,14 @@ private:
 
     /// The table's rows, as the launcher's are, and the spelling line's caret beside them -- beside
     /// prose rows every time, "none" included, so a caret the spelling line took with it is gone.
-    void publish_keys(loom::Mail& mail, std::vector<surface::SurfaceTextRow> rows,
+    void publish_keys(loom::Mail& mail, std::vector<ws::TextRow> rows,
                       const ws::RowsCaret& caret = {}) {
-        const std::int64_t meaning = keys_map_.settle();
+        (void)keys_map_.settle();
         keys_canvas_.publish_rows(
-            mail, meaning, std::move(rows),
+            mail, std::move(rows),
             ws::row_parts(keys_map_, keys_canvas_.columns(),
                           [this](const KeysMeaning& m) { return keys_part(m); }),
-            caret, /*always_caret=*/true);
+            caret);
     }
 
     // ---- State not in the shape ----------------------------------------------------------

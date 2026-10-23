@@ -29,9 +29,7 @@ host's answer on the notice. The running view is a participant of its own, under
 in a pane of its own. Reloaded in place, the pane keeps your view, its
 file and whether it ran, and asks the host again about a view it ran: `The view host still runs
 tally.panel`; or, when the view stopped meanwhile, it runs again, `The view had stopped; registered
-tally.panel`. A save asks Workshop first whether the hand that pressed it may write a file. A pane
-with no canvas shows one row,
-`View Builder: making a view needs a canvas-capable Workshop`.
+tally.panel`. A save asks Workshop first whether the hand that pressed it may write a file.
 
 ## Use
 

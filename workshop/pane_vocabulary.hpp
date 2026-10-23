@@ -10,7 +10,6 @@
 // each gesture and asks nothing back; a shape a pane does not accept is refused at Loom's gate.
 
 #include "graphics/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
 
 #include <zen/weave/shape.hpp>
 
@@ -73,63 +72,6 @@ struct PaneOffered {
 };
 } // namespace v3
 
-/// Workshop -> provider: the prose rows and columns granted to the pane's body -- never cells,
-/// pixels or a rectangle. Sent when the pane opens, on a valid re-offer, and when the fit changes.
-struct PaneRoom {
-    std::string pane;
-    std::int64_t rows = 0;
-    std::int64_t columns = 0;
-    ZEN_SHAPE(PaneRoom, 1, ZEN_FIELD(pane), ZEN_FIELD(rows), ZEN_FIELD(columns));
-};
-
-/// Provider -> Workshop: the pane's rows, inside the room granted. Content over the budget is
-/// refused whole, never truncated.
-struct PaneContent {
-    std::string pane;
-    std::vector<surface::SurfaceTextRow> rows;
-    ZEN_SHAPE(PaneContent, 1, ZEN_FIELD(pane), ZEN_FIELD(rows));
-};
-
-/// Content naming the generation of the subject it projects. Admitted only if not older than the
-/// generation held, so a queued projection of a replaced document cannot repaint its successor.
-/// A new version rather than a field: a published `(name, version)` is frozen (Loom GATE-04).
-namespace v2 {
-
-struct PaneContent {
-    std::string pane;
-    std::vector<surface::SurfaceTextRow> rows;
-    std::int64_t generation = 0; ///< the subject's generation these rows project
-    ZEN_SHAPE(PaneContent, 2, ZEN_FIELD(pane), ZEN_FIELD(rows), ZEN_FIELD(generation));
-};
-
-} // namespace v2
-
-/// Workshop -> provider: a primary press inside the pane's granted room, as a place in the
-/// `PaneRoom` lattice (row 0 is the body's first prose row, under Workshop's header row). A press
-/// that names no row is consumed and not sent; no pixel, cell or rectangle ever crosses.
-struct PanePressed {
-    std::string pane;
-    std::int64_t row = 0;
-    std::int64_t column = 0;
-    ZEN_SHAPE(PanePressed, 1, ZEN_FIELD(pane), ZEN_FIELD(row), ZEN_FIELD(column));
-};
-
-/// The same press, and whether ordinary keys were reaching this pane just before it: a routing
-/// fact read before the press moved anything, never a command or a focus notice. Sent instead of
-/// v1, only to a holder that accepts it; a v1 press states no routing fact.
-namespace v2 {
-
-struct PanePressed {
-    std::string pane;
-    std::int64_t row = 0;
-    std::int64_t column = 0;
-    bool keys_went_here = false; ///< ordinary keys reached this pane just before this press
-    ZEN_SHAPE(PanePressed, 2, ZEN_FIELD(pane), ZEN_FIELD(row), ZEN_FIELD(column),
-              ZEN_FIELD(keys_went_here));
-};
-
-} // namespace v2
-
 /// Workshop -> provider: a key went down while this pane held the keyboard. `scancode` and
 /// `modifiers` are `zengine::input`'s own numbers, unchanged (input/vocabulary.hpp is not
 /// included, so a pane that takes no keys does not depend on it); no platform event, key name,
@@ -149,16 +91,6 @@ struct PaneTextInput {
     std::string pane;
     std::string text;
     ZEN_SHAPE(PaneTextInput, 1, ZEN_FIELD(pane), ZEN_FIELD(text));
-};
-
-/// Workshop -> provider: the wheel turned over this pane's body -- `input::PointerWheel`'s
-/// notches, unconverted (+1.0 per notch away from the weaver). It follows the pointer, not the
-/// keyboard, and names no place: what a notch is worth is the pane's.
-struct PaneWheel {
-    std::string pane;
-    double dx = 0.0; ///< horizontal notches, +1.0 per notch to the right
-    double dy = 0.0; ///< vertical notches, +1.0 per notch away from the weaver
-    ZEN_SHAPE(PaneWheel, 1, ZEN_FIELD(pane), ZEN_FIELD(dx), ZEN_FIELD(dy));
 };
 
 /// Two retired host actions a pane may still name in `supersedes`: admitted standing in for
@@ -315,55 +247,6 @@ struct PaneActionRequested {
     ZEN_SHAPE(PaneActionRequested, 1, ZEN_FIELD(pane), ZEN_FIELD(id));
 };
 
-/// Provider -> Workshop: where this pane's caret is and what it has selected, in `PanePressed`'s
-/// lattice -- a second sentence beside the rows, said only by a pane that has a caret. Judged
-/// against the content last accepted and refused whole if it names a row that content lacks,
-/// which leaves no caret; `row == kNoCaret` says there is none. It asks for nothing.
-struct PaneCaret {
-    std::string pane;
-    /// The caret's prose row in the granted body; `surface::kNoCaret` (-1) says there is none.
-    std::int64_t row = -1;
-    std::int64_t column = 0; ///< ...and the prose column it sits BEFORE
-    /// The selection, in the same lattice; `surface::kNoSelection` (-1) says there is none.
-    std::int64_t sel_begin_row = -1;
-    std::int64_t sel_begin_col = 0; ///< inclusive, a caret-like position
-    std::int64_t sel_end_row = -1;  ///< reading-order end row
-    std::int64_t sel_end_col = 0;   ///< exclusive, a caret-like position
-    ZEN_SHAPE(PaneCaret, 1, ZEN_FIELD(pane), ZEN_FIELD(row), ZEN_FIELD(column),
-              ZEN_FIELD(sel_begin_row), ZEN_FIELD(sel_begin_col), ZEN_FIELD(sel_end_row),
-              ZEN_FIELD(sel_end_col));
-};
-
-/// `PaneCaret` naming its generation, for `v2::PaneContent`'s reason and under its rule.
-namespace v2 {
-
-struct PaneCaret {
-    std::string pane;
-    std::int64_t row = -1;
-    std::int64_t column = 0;
-    std::int64_t sel_begin_row = -1;
-    std::int64_t sel_begin_col = 0;
-    std::int64_t sel_end_row = -1;
-    std::int64_t sel_end_col = 0;
-    std::int64_t generation = 0;
-    ZEN_SHAPE(PaneCaret, 2, ZEN_FIELD(pane), ZEN_FIELD(row), ZEN_FIELD(column),
-              ZEN_FIELD(sel_begin_row), ZEN_FIELD(sel_begin_col), ZEN_FIELD(sel_end_row),
-              ZEN_FIELD(sel_end_col), ZEN_FIELD(generation));
-};
-
-} // namespace v2
-
-/// Workshop -> provider: the hand moved with the button down after a press that named a row of
-/// this pane, in the same lattice, resolved against the body now and deliberately unclamped --
-/// what past the edge means is the pane's. A pane in front takes nothing. No release is sent:
-/// each drag is a whole sentence, and the record ends on release or when the room is lost.
-struct PaneDragged {
-    std::string pane;
-    std::int64_t row = 0;    ///< a prose row of the granted BODY; may be < 0 or >= rows
-    std::int64_t column = 0; ///< a prose column of the same region; may be < 0 or >= columns
-    ZEN_SHAPE(PaneDragged, 1, ZEN_FIELD(pane), ZEN_FIELD(row), ZEN_FIELD(column));
-};
-
 /// Provider -> Workshop, about a pane its office offered: seat it now, select it and point the
 /// keys at it -- an ask, sent when the pane's own act needs nothing more. Judged through the
 /// launch door's trial and written whole in the answering delivery, or refused with nothing
@@ -409,27 +292,12 @@ struct PaneQuitAnswered {
     ZEN_SHAPE(PaneQuitAnswered, 1, ZEN_FIELD(pane), ZEN_FIELD(permitted), ZEN_FIELD(refusal));
 };
 
-// ---- The second button, a picture's number, and a menu a pane asks the host to present ----
+// ---- The keys a pane holds, a press handed back, and a menu a pane asks the host to present ----
 //
-// Every word a pane says about a gesture echoes that gesture's correlation; a stale, zero or
-// spent one moves nothing. A press names the picture the medium had been handed when it was read
-// (`v3`), and a pane acts only on its current picture. Not closed: the medium's own latency after
-// it handled a canvas, and a press the platform buffered before the input beat read it.
-
-/// Workshop -> provider: button 2 or 3 went down or up in this pane's room, or a hold the host
-/// could not keep ended (`lost`). Sent only to a holder that accepts it; the press is consumed by
-/// delivery, and the release is the pressing pane's, unclamped. Button 1 stays `PanePressed`.
-struct PaneButton {
-    std::string pane;
-    std::int64_t button = 0;   ///< 2 (middle) or 3 (right)
-    bool pressed = false;      ///< down, or up
-    std::int64_t row = 0;      ///< the granted lattice (a press); unclamped (a release)
-    std::int64_t column = 0;
-    bool lost = false;         ///< a release the host sent because no hand could: owner loss, arbitration
-    std::int64_t picture = 0;  ///< the picture the medium held at the press; 0 = unnumbered
-    ZEN_SHAPE(PaneButton, 1, ZEN_FIELD(pane), ZEN_FIELD(button), ZEN_FIELD(pressed),
-              ZEN_FIELD(row), ZEN_FIELD(column), ZEN_FIELD(lost), ZEN_FIELD(picture));
-};
+// Every word a pane says about a gesture echoes that gesture's correlation -- for a press, the
+// number the graphics window that showed the pane gave it; a stale, zero or spent one moves
+// nothing. A press is read against the drawing the pane last sent the window: no number names
+// which drawing the window showed when it read the press.
 
 /// Workshop -> the office of a pane a graphics window shows in an area of its own, as Workshop's
 /// office: the keys now reach the pane (`here`), or no longer do, said each time that changes. A
@@ -442,8 +310,8 @@ struct PaneKeys {
 };
 
 /// Provider -> Workshop: that press was not mine -- open your own surface for my pane. Echoes the
-/// press's correlation; the host's pane menu opens once, while the press is the latest act. A
-/// press a graphics window gave the pane echoes the window's number for it.
+/// window's number for the press; the host's pane menu opens once, where the press was made, while
+/// the press is the latest act.
 struct PanePassRequested {
     std::string pane;
     ZEN_SHAPE(PanePassRequested, 1, ZEN_FIELD(pane));
@@ -474,9 +342,11 @@ inline constexpr std::size_t kMaxPaneMenuRows = 32;
 inline constexpr std::size_t kMaxPaneMenuIdLen = 64;
 inline constexpr std::size_t kMaxPaneMenuLabelLen = 64;
 
-/// Provider -> Workshop: present these rows beside this place in my room and say which was
-/// chosen. Echoes the gesture's correlation; judged where the menu would open and granted to the
-/// presenter (`presenter_vocabulary.hpp`). `subject` is the pane's own word, echoed in the answer.
+/// Provider -> Workshop: present these rows beside this place in my area -- a row and a column of
+/// the window's text there, from the area's corner -- and say which was chosen. Echoes the
+/// gesture's correlation; judged where the menu would open and granted to the presenter
+/// (`presenter_vocabulary.hpp`). A menu continuing a press opens where the press was made.
+/// `subject` is the pane's own word, echoed in the answer.
 struct PaneMenuRequested {
     std::string pane;
     std::string subject;
@@ -514,120 +384,20 @@ struct PaneManageRequested {
     ZEN_SHAPE(PaneManageRequested, 1, ZEN_FIELD(pane), ZEN_FIELD(office), ZEN_FIELD(target));
 };
 
-namespace v3 {
-
-/// CONTENT THAT NUMBERS ITS PICTURE. `generation` is v2's (0 for a pane with no subject
-/// generation); `picture` is the pane's own number for this row-to-meaning map, kept across a
-/// repaint that moves no row and changed by one that does. Admitted under v2's generation rule;
-/// the picture is recorded and echoed, never judged, by the host.
-struct PaneContent {
-    std::string pane;
-    std::vector<surface::SurfaceTextRow> rows;
-    std::int64_t generation = 0;
-    std::int64_t picture = 0;
-    ZEN_SHAPE(PaneContent, 3, ZEN_FIELD(pane), ZEN_FIELD(rows), ZEN_FIELD(generation),
-              ZEN_FIELD(picture));
-};
-
-/// v2's press, naming the picture the medium had been handed for this pane when the press was
-/// read (0 when the pane never numbered one). Sent instead of v2/v1 exactly to a holder with this
-/// door, `v2::PanePressed`'s rule.
-struct PanePressed {
-    std::string pane;
-    std::int64_t row = 0;
-    std::int64_t column = 0;
-    bool keys_went_here = false;
-    std::int64_t picture = 0;
-    ZEN_SHAPE(PanePressed, 3, ZEN_FIELD(pane), ZEN_FIELD(row), ZEN_FIELD(column),
-              ZEN_FIELD(keys_went_here), ZEN_FIELD(picture));
-};
-
-} // namespace v3
-
 // ---- The parts a pane names --------------------------------------------------------------
 //
 // A pane names the parts a weaver acts on -- a row, a control inside one, an element of its
-// picture -- with names of its own that it keeps across its redraws, so an agent finds a part by
-// what it is rather than by where it falls. A name is the pane's: Workshop judges its form and
-// carries it as the pane said it, and never interprets it. The names ride with the picture they
-// name, judged with it and admitted or refused whole with it. A picture lists its parts in the
-// order its pane reads a press: where parts hold one place, a press there reaches the later. A
-// part named "" is a place a press reaches that the pane names nothing, listed where it lies over
-// a part it names: Workshop says no such part, and gives no named part a point on it.
+// drawing -- with names of its own that it keeps across its redraws, so an agent finds a part by
+// what it is rather than by where it falls: the action its drawing's record asks
+// (`graphics::ElementRecord`), which the window that shows the pane's area says in its reading
+// (`graphics::AreaShown`). A name is the pane's: nothing interprets it.
 
-/// The most parts one picture may list, and the longest a name may be.
+/// The most parts one drawing may name, and the longest a name may be.
 inline constexpr std::size_t kMaxPaneParts = 2048;
 inline constexpr std::size_t kMaxPanePartNameLen = 256;
 /// The longest subject a cause may name: `on ` or `to ` and a part's prefix, or a pane.
 inline constexpr std::size_t kMaxCauseSubjectLen = 3 + kMaxPanePartNameLen;
 
-/// ONE PART OF A PANE'S ROWS: `columns` columns of row `row` from `column`, in `PaneRoom`'s
-/// lattice -- a row entire, or a control inside one -- and the pane's name for it.
-struct PaneRowPart {
-    std::string name;
-    std::int64_t row = 0;
-    std::int64_t column = 0;
-    std::int64_t columns = 0;
-    ZEN_SHAPE(PaneRowPart, 1, ZEN_FIELD(name), ZEN_FIELD(row), ZEN_FIELD(column),
-              ZEN_FIELD(columns));
-};
-
-namespace v4 {
-
-/// CONTENT THAT NAMES ITS PARTS: v3's rows, generation and picture, and the parts of those rows
-/// the pane names, in the order it reads a press. A part must stand on a row the content says,
-/// inside the room granted, under a name no other part of it carries, or none; content that
-/// breaks that is refused whole, as content over its budget is. A pane naming nothing sends v3,
-/// or this with no parts.
-struct PaneContent {
-    std::string pane;
-    std::vector<surface::SurfaceTextRow> rows;
-    std::int64_t generation = 0;
-    std::int64_t picture = 0;
-    std::vector<PaneRowPart> parts = {};
-    ZEN_SHAPE(PaneContent, 4, ZEN_FIELD(pane), ZEN_FIELD(rows), ZEN_FIELD(generation),
-              ZEN_FIELD(picture), ZEN_FIELD(parts));
-};
-
-} // namespace v4
-
-namespace v2 {
-
-/// A PART THAT SAYS WHETHER ITS OPERATION APPLIES NOW: v1's part, and `available`, which a pane
-/// draws `[label]` when true and `(label)` when false. A hint, as the drawing is: the pane judges
-/// the press again when it arrives. A part that performs nothing, a row, says true.
-struct PaneRowPart {
-    std::string name;
-    std::int64_t row = 0;
-    std::int64_t column = 0;
-    std::int64_t columns = 0;
-    bool available = true;
-    ZEN_SHAPE(PaneRowPart, 2, ZEN_FIELD(name), ZEN_FIELD(row), ZEN_FIELD(column),
-              ZEN_FIELD(columns), ZEN_FIELD(available));
-};
-
-} // namespace v2
-
-/// An earlier part as the current form says it: available, as every earlier part is read.
-inline v2::PaneRowPart row_part_of(const PaneRowPart& p) {
-    return v2::PaneRowPart{p.name, p.row, p.column, p.columns, true};
-}
-
-namespace v5 {
-
-/// CONTENT WHOSE PARTS SAY THEIR AVAILABILITY: v4's content, its parts `v2::PaneRowPart`, judged
-/// and refused as v4's.
-struct PaneContent {
-    std::string pane;
-    std::vector<surface::SurfaceTextRow> rows;
-    std::int64_t generation = 0;
-    std::int64_t picture = 0;
-    std::vector<v2::PaneRowPart> parts = {};
-    ZEN_SHAPE(PaneContent, 5, ZEN_FIELD(pane), ZEN_FIELD(rows), ZEN_FIELD(generation),
-              ZEN_FIELD(picture), ZEN_FIELD(parts));
-};
-
-} // namespace v5
 
 } // namespace zengine::workshop
 

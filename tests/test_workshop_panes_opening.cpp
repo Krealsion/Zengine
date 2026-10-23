@@ -14,6 +14,7 @@
 #include "workshop/host_pump.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
 #include "workshop/opening.hpp"
+#include "workshop/pane_drawing.hpp"
 #include "workshop/pane_view.hpp"
 
 #include <filesystem>
@@ -42,9 +43,9 @@ struct NativeEditorState {
 /// clears before it fires, so a swap's successor applies; the nudge handler can be armed to throw.
 class NativeEditor
     : public loom::WeaveBase<NativeEditor, NativeEditorState,
-                             loom::Accept<PaneCatalogRequested, PaneRoom, PrepareSourceRequested,
+                             loom::Accept<PaneCatalogRequested, v3::PrepareSourceRequested,
                                           ManagedOpenProgress, ManagedOpenSettled, SeatDo>,
-                             loom::Emit<PaneOffered, SourcePrepared>,
+                             loom::Emit<PaneOffered, v3::SourcePrepared>,
                              loom::Claims<EditorDocument>> {
 public:
     bool fail_next = false;        ///< armed: the next showing throws inside its boundary, once
@@ -62,7 +63,6 @@ public:
             .send_to_role(kWorkshopProvider,
                           PaneOffered{"editor", "Editor", "a native stand-in for the Editor"});
     }
-    void on(const PaneRoom&, loom::Mail&) {}
     /// THE NUDGE: claim the current document identity from inside a delivery, so an operation
     /// can bind it -- or, as the control, fail abnormally the way any handler might.
     void on(const SeatDo&, loom::Mail& mail) {
@@ -75,9 +75,9 @@ public:
         now.doc_epoch = state_.doc_epoch;
         (void)mail.claim(now);
     }
-    /// PREPARE AND OFFER, as the real Editor does: an identity for the operation, one row for
-    /// the trial room, and the answer. No file is read; a stand-in has no document.
-    void on(const PrepareSourceRequested& asked, loom::Mail& mail) {
+    /// PREPARE AND OFFER, as the real Editor does: an identity for the operation, and the answer.
+    /// No file is read; a stand-in has no document.
+    void on(const v3::PrepareSourceRequested& asked, loom::Mail& mail) {
         if (!mail.authored_from_role(kOpeningRole)) {
             return;
         }
@@ -87,7 +87,7 @@ public:
         offered.doc_epoch = state_.doc_epoch + 1;
         offered.opened_by = asked.op;
         const loom::JointResult r = mail.offer(static_cast<std::uint64_t>(asked.op), offered);
-        SourcePrepared said;
+        v3::SourcePrepared said;
         said.op = asked.op;
         said.ok = r.ok;
         if (!r.ok) {
@@ -95,14 +95,6 @@ public:
                            std::string(loom::name_of(r.why)) + ")";
         }
         said.generation = offered.doc_epoch;
-        surface::SurfaceTextRow row;
-        row.text = "stand-in: " + asked.path;
-        if (asked.columns > 0 && static_cast<std::int64_t>(row.text.size()) > asked.columns) {
-            row.text.resize(static_cast<std::size_t>(asked.columns));
-        }
-        said.rows.push_back(row);
-        said.caret_row = 0;
-        said.caret_col = 0;
         (void)mail.answer(said);
     }
     void on(const ManagedOpenProgress&, loom::Mail&) {}
@@ -138,29 +130,23 @@ public:
     const NativeEditorState& state() const { return state_; }
 };
 
-/// A NATIVE STAND-IN FOR AN EDITOR THAT DRAWS ON ITS CANVAS (test instrumentation): granted a
-/// room, it draws its one row there as its own picture, a part named `document`, and keeps every
-/// pointer event; asked to prepare, it composes the candidate as its picture in the room the trial
-/// reserved. Armed, it sends A's picture again in A's room once it hears the commitment's `apply`
-/// word -- a redraw in flight at the commitment. Quiet, it draws nothing a room is said for; it may
-/// prepare for a room the trial did not reserve, or hold its answer while the room moves.
+/// A NATIVE STAND-IN FOR AN EDITOR THAT DRAWS IN ITS AREA OF THE WINDOW (test instrumentation):
+/// given a room, it draws its one row there, a part named `document`, and keeps every press there;
+/// asked to prepare, it offers the candidate, and draws it at the commitment. It may hold its answer
+/// while the room moves.
 class CanvasEditor
     : public loom::WeaveBase<CanvasEditor, NativeEditorState,
-                             loom::Accept<PaneCatalogRequested, PaneRoom, PaneCanvasRoom,
-                                          PaneSettings, PaneCanvasPointer, PaneCanvasRejected,
-                                          v2::PrepareSourceRequested, ManagedOpenProgress,
+                             loom::Accept<PaneCatalogRequested, gfx::AreaRoom, gfx::DrawnRefused,
+                                          gfx::AreaButtonChanged, PaneSettings,
+                                          v3::PrepareSourceRequested, ManagedOpenProgress,
                                           ManagedOpenSettled, SeatDo>,
-                             loom::Emit<PaneOffered, v5::PaneCanvasContent, v2::SourcePrepared>,
+                             loom::Emit<PaneOffered, gfx::Drawn, v3::SourcePrepared>,
                              loom::Claims<EditorDocument>> {
 public:
-    std::vector<PaneCanvasRoom> rooms;
-    std::vector<std::string> heard; ///< "settings" or "room" (either kind), in the order they came
-    std::vector<PaneCanvasRejected> rejected;
-    std::vector<PaneCanvasPointer> pointers;
+    std::vector<gfx::AreaRoom> rooms;
+    std::vector<std::string> heard; ///< "settings" or "room", in the order they came
+    std::vector<WindowPointer> pointers;
     std::string row = "no document";
-    bool stale_on_apply = false;
-    bool quiet = false;
-    bool other_room = false;
     bool hold_prepare = false;
     std::function<void(CanvasEditor&, loom::Mail&)> next;
 
@@ -176,15 +162,19 @@ public:
         (void)mail.as_role(kEditorRole)
             .send_to_role(kWorkshopProvider, PaneOffered{"editor", "Editor", "a canvas stand-in"});
     }
-    void on(const PaneRoom&, loom::Mail&) { heard.push_back("room"); }
-    void on(const PaneCanvasRoom& room, loom::Mail& mail) {
+    void on(const gfx::AreaRoom& room, loom::Mail& mail) {
+        if (!window_.room(room, mail)) return;
         rooms.push_back(room);
         heard.push_back("room");
-        if (!quiet) draw(mail);
+        draw(mail);
+    }
+    void on(const gfx::DrawnRefused& refused, loom::Mail& mail) { (void)window_.refused(refused, mail); }
+    void on(const gfx::AreaButtonChanged& b, loom::Mail& mail) {
+        if (const auto p = window_.pointer(b, mail, 1, window_.rows_room().columns())) {
+            pointers.push_back(*p);
+        }
     }
     void on(const PaneSettings&, loom::Mail&) { heard.push_back("settings"); }
-    void on(const PaneCanvasPointer& e, loom::Mail&) { pointers.push_back(e); }
-    void on(const PaneCanvasRejected& refused, loom::Mail&) { rejected.push_back(refused); }
     void on(const SeatDo&, loom::Mail& mail) {
         if (next) {
             std::function<void(CanvasEditor&, loom::Mail&)> once;
@@ -199,23 +189,19 @@ public:
         now.doc_epoch = state_.doc_epoch;
         (void)mail.claim(now);
     }
-    /// ITS ONE ROW, drawn as its picture in the room last granted, numbered next in that room.
+    /// ITS ONE ROW, drawn in its area for the room the window last gave it, the row's characters a
+    /// part named `document`.
     void draw(loom::Mail& mail) {
-        if (rooms.empty() || rooms.back().width <= 0) return;
-        drawn_ = rooms.back();
-        if (drawn_.grant != numbered_in_) {
-            numbered_in_ = drawn_.grant;
-            number_ = 0;
-        }
-        (void)mail.as_role(kEditorRole).send_to_role(kWorkshopProvider, picture(drawn_, ++number_, row));
+        if (!window_.shown()) return;
+        const RowsRoom room = window_.rows_room();
+        window_.draw(rows_drawing(std::vector<TextRow>{{row, gfx::role::kFill}},
+                                  std::vector<RowPart>{RowPart{"document", 0, 0,
+                                                               static_cast<std::int64_t>(row.size())}},
+                                  room, room.columns())
+                         .sketch,
+                     mail);
     }
-    /// ONE ROW AS A PICTURE in `room`, numbered `number`, the row's characters a part named `document`.
-    static v5::PaneCanvasContent picture(const PaneCanvasRoom& room, std::int64_t number,
-                                         const std::string& text) {
-        return rows_picture(room, number, {surface::SurfaceTextRow{text, gfx::role::kFill}},
-                            {PaneRowPart{"document", 0, 0, static_cast<std::int64_t>(text.size())}});
-    }
-    void on(const v2::PrepareSourceRequested& asked, loom::Mail& mail) {
+    void on(const v3::PrepareSourceRequested& asked, loom::Mail& mail) {
         if (!mail.authored_from_role(kOpeningRole)) return;
         ++state_.prepared;
         EditorDocument offered;
@@ -223,13 +209,10 @@ public:
         offered.doc_epoch = state_.doc_epoch + 1;
         offered.opened_by = asked.op;
         const loom::JointResult r = mail.offer(static_cast<std::uint64_t>(asked.op), offered);
-        v2::SourcePrepared said;
+        v3::SourcePrepared said;
         said.op = asked.op;
         said.ok = r.ok;
         said.generation = offered.doc_epoch;
-        PaneCanvasRoom drawn_for = asked.room;
-        if (other_room) ++drawn_for.grant;
-        said.picture = picture(drawn_for, 1, named(asked.path));
         if (hold_prepare) {
             held_ = mail.defer_answer();
             held_said_ = said;
@@ -237,16 +220,13 @@ public:
         }
         (void)mail.answer(said);
     }
+    /// THE COMMITMENT'S `apply` WORD, which shows this office its published claim: the document
+    /// opened, drawn in its area.
     void on(const ManagedOpenProgress& said, loom::Mail& mail) {
-        if (stale_on_apply && said.stage == "apply") {
-            stale_on_apply = false;
-            (void)mail.as_role(kEditorRole)
-                .send_to_role(kWorkshopProvider, picture(drawn_, ++number_, replaced_));
-        }
+        if (said.stage == "apply") draw(mail);
     }
-    void on(const ManagedOpenSettled&, loom::Mail&) {}
+    void on(const ManagedOpenSettled&, loom::Mail& mail) { draw(mail); }
     loom::Weave::PublishedClaim on_claim_published(const EditorDocument& published) {
-        replaced_ = row;
         state_.path = published.path;
         state_.doc_epoch = published.doc_epoch;
         row = named(published.path);
@@ -260,11 +240,9 @@ public:
     }
 
 private:
-    PaneCanvasRoom drawn_;
-    std::int64_t numbered_in_ = 0, number_ = 0;
-    std::string replaced_; ///< the row of the document a showing replaced
+    WindowDrawing window_{kEditorRole, kEditorRole};
     loom::DeferredAnswer held_;
-    v2::SourcePrepared held_said_;
+    v3::SourcePrepared held_said_;
 };
 
 // ---- Unrelated operators, to fill the bus's slots ---------------------------------------
@@ -388,7 +366,7 @@ struct OpeningRig {
         editor->book = &r.host.showings;
         loom::Grant say;
         say.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
-        say.allow_to_any(SourcePrepared::zen_name, SourcePrepared::zen_version);
+        say.allow_to_any(v3::SourcePrepared::zen_name, v3::SourcePrepared::zen_version);
         editor_id = r.bus.register_weave(std::move(seat), std::move(say), std::string(kEditorRole));
         editor->zen_set_self(editor_id);
         r.ready();
@@ -653,7 +631,7 @@ TEST_CASE("a request refused while a published commitment is still applying beco
     bool stopped = false;
     const loom::ObserverId stop = bus.add_observer([&bus, &stopped, manager](const loom::BusEvent& ev) {
         if (!stopped && ev.kind == loom::EventKind::Delivered && ev.target == manager &&
-            ev.schema_name == SourcePrepared::zen_name) {
+            ev.schema_name == v3::SourcePrepared::zen_name) {
             stopped = true;
             bus.stop();
         }
@@ -1000,8 +978,8 @@ struct PictureOpen {
         editor = seat.get();
         loom::Grant say;
         say.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
-        say.allow_to_any(v5::PaneCanvasContent::zen_name, v5::PaneCanvasContent::zen_version);
-        say.allow_to_any(v2::SourcePrepared::zen_name, v2::SourcePrepared::zen_version);
+        say.allow_to_any(gfx::Drawn::zen_name, gfx::Drawn::zen_version);
+        say.allow_to_any(v3::SourcePrepared::zen_name, v3::SourcePrepared::zen_version);
         editor_id = r.bus.register_weave(std::move(seat), std::move(say), std::string(kEditorRole));
         editor->zen_set_self(editor_id);
         r.ready();
@@ -1066,11 +1044,9 @@ struct PictureOpen {
         });
         return reader->refusals.empty() ? std::string() : reader->refusals.back();
     }
-    /// A primary click at a point, in the space it names.
+    /// A primary click at a point, in the space it names, through the window showing the desk.
     void click(std::int64_t x, std::int64_t y, std::int64_t space) {
-        for (const bool down : {true, false}) {
-            r.publish(loom::to_value(input::PointerButton{1, down, x, y, space, input::mod::kNone}));
-        }
+        for (const bool down : {true, false}) r.hand_button(x, y, space, down);
     }
     PointAsker* reader = nullptr;
     loom::WeaveId reader_id{};
@@ -1097,8 +1073,8 @@ private:
 
 } // namespace
 
-TEST_CASE("an open through the managed door shows the opened document's picture at the commitment, in a "
-          "room reserved for it, and a picture of the document it replaced, arriving after, is refused") {
+TEST_CASE("an open through the managed door shows the opened document, drawn by its holder at the "
+          "commitment in the room the trial reserved, and a press there reaches the holder") {
     PictureOpen o("open-picture");
     REQUIRE_FALSE(o.editor->rooms.empty());
     const ExternalPane* pane = o.pane();
@@ -1106,134 +1082,27 @@ TEST_CASE("an open through the managed door shows the opened document's picture 
     REQUIRE(shows_canvas(*pane));
     REQUIRE_FALSE(held_row_texts(*pane).empty());
     REQUIRE(held_row_texts(*pane).front() == "the document A");
-    const std::int64_t a_grant = pane->canvas.grant;
-    // AN OPEN OF B, with a picture of A still to come: the stand-in sends A's again, in A's room,
-    // once it hears the commitment's `apply` word.
-    o.editor->stale_on_apply = true;
     o.ask_b();
     REQUIRE(o.asker->opens.size() == 1);
     REQUIRE_MESSAGE(o.asker->opens[0].accepted, o.asker->opens[0].refusal);
-    // B'S PICTURE IS SHOWN, in a room granted afresh for the seat, and A's picture is gone.
+    // B IS SHOWN, drawn by the holder in the room its area has now, and A is gone.
     pane = o.pane();
     REQUIRE(pane != nullptr);
     REQUIRE(shows_canvas(*pane));
-    CHECK(pane->canvas.grant != a_grant);
     const std::vector<std::string> shown = held_row_texts(*pane);
     REQUIRE_FALSE(shown.empty());
     CHECK(shown.front() == "stand-in: b.cpp");
-    // ...A'S PICTURE, SENT AFTER THE COMMITMENT IN THE ROOM IT WAS DRAWN IN, WAS REFUSED...
-    REQUIRE_FALSE(o.editor->rejected.empty());
-    CHECK(o.editor->rejected.front().grant == a_grant);
-    CHECK(o.editor->rejected.front().reason.find("grant is no longer current") != std::string::npos);
-    // ...THE ROOM THE PICTURE WAS SEATED IN WAS SAID TO THE HOLDER AFTER THE SHOWING, and its own
-    // picture there is admitted.
-    REQUIRE_FALSE(o.editor->rooms.empty());
-    CHECK(o.editor->rooms.back().grant == pane->canvas.grant);
-    CHECK(pane->picture > 0);
     CHECK(o.r.bus.observe(o.editor_id, EditorDocument::zen_name, EditorDocument::zen_version)
               .value.has_value());
-}
-
-TEST_CASE("a holder that draws nothing after the commitment still shows the picture it prepared, numbered "
-          "none, its words read at once and a cell's point read again until it draws its own") {
-    PictureOpen o("open-picture-quiet");
-    o.editor->quiet = true; // what stands after the open is what the desk installed
-    o.ask_b();
-    REQUIRE(o.asker->opens.size() == 1);
-    REQUIRE_MESSAGE(o.asker->opens[0].accepted, o.asker->opens[0].refusal);
-    const ExternalPane* pane = o.pane();
-    REQUIRE(pane != nullptr);
-    REQUIRE(shows_canvas(*pane));
-    const std::vector<std::string> shown = held_row_texts(*pane);
-    REQUIRE_FALSE(shown.empty());
-    CHECK(shown.front() == "stand-in: b.cpp");
-    CHECK(pane->picture == 0);
-    REQUIRE_FALSE(o.editor->rooms.empty());
-    CHECK(o.editor->rooms.back().grant == pane->canvas.grant);
-    // ITS WORDS ARE READ AT ONCE, AND A CHARACTER'S POINT IS READ AGAIN: the shown picture takes
-    // no press until the holder draws its own there, which then does.
-    std::int64_t stamped = -1;
-    const std::string refused = o.point(0, 1, stamped);
-    CHECK(stamped == 0);
-    CHECK_MESSAGE(refused.find("no press reaches that word now") != std::string::npos, refused);
-    o.drive([](CanvasEditor& e, loom::Mail& m) { e.draw(m); });
-    CHECK(o.point(0, 1, stamped).empty());
-    CHECK(stamped != 0);
-}
-
-TEST_CASE("the picture a managed opening shows says its words and its named part with no point, and "
-          "their points return with the holder's own picture, where a press reaches it") {
-    for (const bool window : {false, true}) {
-        CAPTURE(window);
-        PictureOpen o(window ? "open-picture-no-point-window" : "open-picture-no-point", window);
-        o.editor->quiet = true; // what stands after the open is what the desk installed
-        o.ask_b();
-        REQUIRE(o.asker->opens.size() == 1);
-        REQUIRE_MESSAGE(o.asker->opens[0].accepted, o.asker->opens[0].refusal);
-        REQUIRE(o.pane()->picture == 0);
-        // ITS WORD AND ITS PART KEEP THEIR TEXT AND PLACES AND SAY NO POINT, a space input refuses:
-        // the shown picture takes no press.
-        const PaneView shown = o.view();
-        CHECK(shown.stamp.fingerprint == 0);
-        REQUIRE(shown.words.size() == 1);
-        REQUIRE(shown.parts.size() == 1);
-        const PaneWord word = shown.words[0];
-        const PanePart part = shown.parts[0];
-        CHECK(word.text == "stand-in: b.cpp");
-        CHECK(word.place.w > 0);
-        CHECK(word.x == 0);
-        CHECK(word.y == 0);
-        CHECK(word.space == input::space::kUnknown);
-        CHECK(part.name == "document");
-        CHECK(part.text == "stand-in: b.cpp");
-        CHECK(part.place.w > 0);
-        CHECK(part.x == 0);
-        CHECK(part.y == 0);
-        CHECK(part.space == input::space::kUnknown);
-        // ...AS A PRESS ON THE PART'S PLACE, A WINDOW'S PIXEL OR A TERMINAL'S CELL, REACHES NOTHING.
-        const std::int64_t mid_x = part.place.x + part.place.w / 2;
-        const std::int64_t mid_y = part.place.y + part.place.h / 2;
-        if (window) {
-            o.click(mid_x, mid_y, input::space::kPixels);
-        } else {
-            o.click(gfx::cell_of_pixel(mid_x),
-                    gfx::cell_of_pixel(mid_y), input::space::kCells);
-        }
-        CHECK(o.editor->pointers.empty());
-        // THE HOLDER DRAWS ITS OWN, and the points return: a press at the part's reaches the holder
-        // at the picture it drew.
-        o.drive([](CanvasEditor& e, loom::Mail& m) { e.draw(m); });
-        const PaneView drawn = o.view();
-        CHECK(drawn.stamp.fingerprint != 0);
-        REQUIRE(drawn.words.size() == 1);
-        REQUIRE(drawn.parts.size() == 1);
-        CHECK(drawn.parts[0].name == "document");
-        CHECK(drawn.parts[0].place.x == part.place.x);
-        CHECK(drawn.parts[0].place.y == part.place.y);
-        CHECK(drawn.words[0].space != input::space::kUnknown);
-        CHECK(drawn.parts[0].space != input::space::kUnknown);
-        o.click(drawn.parts[0].x, drawn.parts[0].y, drawn.parts[0].space);
-        REQUIRE_FALSE(o.editor->pointers.empty());
-        CHECK(o.editor->pointers.front().phase == canvas_pointer::kPress);
-        CHECK(o.editor->pointers.front().picture == o.pane()->stamp.aimed);
-    }
-}
-
-TEST_CASE("a picture prepared for a room the trial did not reserve is refused at its admission, and the "
-          "document shown stays") {
-    PictureOpen o("open-picture-other-room");
-    o.editor->other_room = true;
-    const std::int64_t applied = o.editor->state().applied;
-    o.ask_b();
-    REQUIRE(o.asker->opens.size() == 1);
-    CHECK_FALSE(o.asker->opens[0].accepted);
-    CHECK(o.asker->opens[0].refusal.find("its picture names another room") != std::string::npos);
-    CHECK(o.editor->state().applied == applied);
-    const ExternalPane* pane = o.pane();
-    REQUIRE(pane != nullptr);
-    REQUIRE(shows_canvas(*pane));
-    REQUIRE_FALSE(held_row_texts(*pane).empty());
-    CHECK(held_row_texts(*pane).front() == "the document A");
+    // ITS WORD AND ITS PART ARE READ WITH THEIR POINTS, and a press at the part's reaches it.
+    const PaneView drawn = o.view();
+    REQUIRE(drawn.parts.size() == 1);
+    CHECK(drawn.parts[0].name == "document");
+    CHECK(drawn.parts[0].text == "stand-in: b.cpp");
+    REQUIRE(drawn.parts[0].space != input::space::kUnknown);
+    o.click(drawn.parts[0].x, drawn.parts[0].y, drawn.parts[0].space);
+    REQUIRE_FALSE(o.editor->pointers.empty());
+    CHECK(o.editor->pointers.front().phase == canvas_pointer::kPress);
 }
 
 TEST_CASE("a canvas room that moves while the document is prepared refuses its admission, though its "
@@ -1243,13 +1112,15 @@ TEST_CASE("a canvas room that moves while the document is prepared refuses its a
     const ExternalPane* pane = o.pane();
     REQUIRE(pane != nullptr);
     REQUIRE(shows_canvas(*pane));
-    const std::int64_t rows = pane->rows, columns = pane->columns, width = pane->canvas.width;
+    const CanvasRows was = held_canvas_rows(*pane);
+    const std::int64_t rows = was.rows, columns = was.columns, width = was.width;
     std::int64_t wider = 0;
     for (std::int64_t px = 1; px < gfx::kCellPx && wider == 0; ++px) {
         o.r.extent_px(cells_px(160) + px, cells_px(48), 8, 18, gfx::kCellPx);
         pane = o.pane();
         REQUIRE(pane != nullptr);
-        if (pane->rows == rows && pane->columns == columns && pane->canvas.width != width) wider = px;
+        const CanvasRows now = held_canvas_rows(*pane);
+        if (now.rows == rows && now.columns == columns && now.width != width) wider = px;
     }
     REQUIRE(wider > 0);
     o.r.extent_on_window(160, 48);
@@ -1290,7 +1161,7 @@ TEST_CASE("a managed opening's owed rooms follow its pane's settings when the ne
     bool queued = false;
     const loom::ObserverId tap = o.r.bus.add_observer([&o, &queued](const loom::BusEvent& ev) {
         if (!queued && ev.kind == loom::EventKind::Delivered && ev.target == o.r.workshop_id &&
-            ev.schema_name == PresentationAdmitRequested::zen_name) {
+            ev.schema_name == v3::PresentationAdmitRequested::zen_name) {
             queued = true;
             (void)o.r.bus.send(o.r.workshop_id,
                                loom::Message(loom::to_value(PaneSettingsDeclared{"editor", {}}),

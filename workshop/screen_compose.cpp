@@ -34,7 +34,7 @@ void paint_panes(surface::SurfaceCanvas& c, const Session& s, const Screen& sc) 
                 paint_layouts(layer, s, b, sc, chrome);
             } else if (is_runtime_kind(p.kind)) {
                 // One generic arm for every external pane: each is presented identically, a
-                // header Workshop writes and a region the provider fills.
+                // header Workshop writes and a body the pane draws in its own area.
                 paint_external(layer, panes, p.kind, b, sc, s.pane_titles, chrome);
             }
         });
@@ -420,10 +420,10 @@ graphics::Sketch rooted(const graphics::Sketch& built, const std::string& stem) 
 }
 
 /// ONE PANE, `kind`, drawn in a group under `desk` as `paint_panes` paints it, over `b`: its edge,
-/// its header and what stands in for a body not yet heard, on ground, and its body where `own_area`
-/// is false; the header's presses, and the Layouts row's tabs, as their parts.
+/// its header and the words its body says, on ground; the header's presses, and the Layouts row's
+/// tabs, as their parts.
 void draw_pane(WorkshopWindowDrawing& out, const Session& s, std::int64_t kind,
-               const PixelRect& b, const Screen& sc, bool own_area, const std::string& desk) {
+               const PixelRect& b, const Screen& sc, const std::string& desk) {
     const std::int64_t chrome = kind == selected_pane(s.panes) ? kPaneChromeSelected : kPaneChrome;
     surface::SurfaceLayer layer;
     if (kind == pane_kind::kLayouts) {
@@ -449,20 +449,21 @@ void draw_pane(WorkshopWindowDrawing& out, const Session& s, std::int64_t kind,
         return;
     }
     const std::string group = desk + "/pane" + std::to_string(kind);
-    paint_external(layer, s.panes, kind, b, sc, s.pane_titles, chrome, !own_area);
+    paint_external(layer, s.panes, kind, b, sc, s.pane_titles, chrome);
     draw_plane(out.sketch, group, layer, sc, b);
     const ExternalBodyPlace body =
         external_body_place(b, sc, external_title_rows(s.panes, kind, s.pane_titles));
+    const ExternalPane* pane = s.panes.external_pane(kind);
     const bool titled = body.header_rows > 0 && !layer.texts.empty() &&
                         layer.texts.back().x == body.region_x &&
-                        layer.texts.back().y == body.region_y && !layer.texts.back().rows.empty();
+                        layer.texts.back().y == body.region_y && !layer.texts.back().rows.empty() &&
+                        (pane == nullptr || !pane->title_waits);
     if (!titled) {
         return;
     }
     // THE HEADER'S PRESSES: the title puts the pane in front, and the `?` and the gear, where the
     // row wears them, are pressed as their own (`chrome_mark_at`).
     const surface::SurfaceTextRow& header = layer.texts.back().rows.front();
-    const ExternalPane* pane = s.panes.external_pane(kind);
     const bool marks = pane != nullptr && pane->manual && body.columns >= kChromeMarksMinColumns;
     const std::int64_t marks_cols =
         static_cast<std::int64_t>(std::char_traits<char>::length(kChromeMarks));
@@ -542,7 +543,7 @@ WorkshopWindowDrawing workshop_window_drawing(const Session& s) {
     return out;
 }
 
-WorkshopFrameDrawing workshop_frame_drawing(const Session& s, std::int64_t kind, bool own_area) {
+WorkshopFrameDrawing workshop_frame_drawing(const Session& s, std::int64_t kind) {
     const Screen sc = screen_of(s);
     WorkshopFrameDrawing out;
     const PaneBounds where = bounds_of(s.panes, s.setup.active, kind, sc);
@@ -555,7 +556,7 @@ WorkshopFrameDrawing workshop_frame_drawing(const Session& s, std::int64_t kind,
     const std::string frame = "frame";
     WorkshopWindowDrawing drawn;
     drawn.sketch.group(frame, -out.at.x, -out.at.y);
-    draw_pane(drawn, s, kind, out.at, sc, own_area, frame);
+    draw_pane(drawn, s, kind, out.at, sc, frame);
     out.sketch = rooted(drawn.sketch, frame);
     return out;
 }

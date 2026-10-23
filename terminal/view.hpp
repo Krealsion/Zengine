@@ -13,7 +13,7 @@
 
 #include "terminal/vocabulary.hpp"
 
-#include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_facets.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
@@ -21,7 +21,7 @@
 
 #include "component/text_box.hpp"
 #include "graphics/role.hpp"
-#include "surface/vocabulary.hpp"
+#include "workshop/pane_rows.hpp"
 
 #include <zen/weave.hpp>
 
@@ -229,12 +229,13 @@ inline void TerminalPaneWeave::say(loom::Mail& mail) {
     list_first_row_ = -1;
     list_row_count_ = 0;
     list_shown_first_ = 0;
-    std::vector<surface::SurfaceTextRow> out;
+    std::vector<zengine::workshop::TextRow> out;
     const auto push = [&out, this](std::string text, std::int64_t role) {
-        out.push_back(surface::SurfaceTextRow{drawable(fit(std::move(text), columns())), role});
+        out.push_back(zengine::workshop::TextRow{drawable(fit(std::move(text), columns())), role});
     };
     if (rows() <= 0 || columns() <= 0) {
-        send(std::move(out), room().map().settle(), {}, mail);
+        (void)room().map().settle();
+        send(std::move(out), {}, mail);
         return;
     }
     // The input row is taken first and a notice second, before anything else is composed: a
@@ -360,25 +361,16 @@ inline void TerminalPaneWeave::say(loom::Mail& mail) {
     if (input_row_ >= static_cast<std::int64_t>(out.size())) {
         input_row_ = -1; // cut away: there is no row to put a caret on
     }
-    const std::int64_t picture = room().map().settle();
-    std::vector<ws::v2::PaneRowPart> parts = named_rows(static_cast<std::int64_t>(out.size()));
-    send(std::move(out), picture, std::move(parts), mail);
+    (void)room().map().settle();
+    std::vector<ws::RowPart> parts = named_rows(static_cast<std::int64_t>(out.size()));
+    send(std::move(out), std::move(parts), mail);
 }
 
-/// THE ROWS SENT: as the pane's own picture while it holds a canvas, numbered by what the
-/// transcript's rows mean, its caret and selection standing in it; as prose with the caret
-/// beside it to a host granting none.
-inline void TerminalPaneWeave::send(std::vector<surface::SurfaceTextRow> out, std::int64_t meaning,
-                                    std::vector<ws::v2::PaneRowPart> parts, loom::Mail& mail) {
-    const PaneCaret said = caret();
-    ws::RowsCaret& at = room().caret();
-    at.row = said.row;
-    at.column = said.column;
-    at.sel_begin_row = said.sel_begin_row;
-    at.sel_begin_col = said.sel_begin_col;
-    at.sel_end_row = said.sel_end_row;
-    at.sel_end_col = said.sel_end_col;
-    room().send(mail, meaning, std::move(out), std::move(parts));
+/// THE ROWS DRAWN in the pane's area, its caret and selection standing in them.
+inline void TerminalPaneWeave::send(std::vector<zengine::workshop::TextRow> out,
+                                    std::vector<ws::RowPart> parts, loom::Mail& mail) {
+    room().caret() = caret();
+    room().send(mail, std::move(out), std::move(parts));
 }
 
 template <typename Push> inline void TerminalPaneWeave::say_list(std::size_t room, const Push& push) {
@@ -419,9 +411,8 @@ template <typename Push> inline void TerminalPaneWeave::say_list(std::size_t roo
 /// ONE MEASURER: the column comes from the same window the row was written against and
 /// the same one a press is answered with, so a caret cannot land where the text is not
 /// and a click cannot land where the caret would not.
-inline PaneCaret TerminalPaneWeave::caret() const {
-    PaneCaret caret;
-    caret.pane = pane::kTerminalPane;
+inline ws::RowsCaret TerminalPaneWeave::caret() const {
+    ws::RowsCaret caret;
     if (input_row_ < 0) {
         return caret;
     }

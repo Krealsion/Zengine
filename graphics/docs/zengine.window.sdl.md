@@ -147,7 +147,8 @@ of the queue and serving input sessions alone. With no display, the window gives
   and none has come since; its face's measure; and, unless `since` is still the version (then
   `same`, and nothing more), its `words` and `parts` in the area's pixels. A word is the characters
   of text runs on one line, side by side where one ends as the next begins, each inside the area and
-  the window and with no area in front drawing over its middle, the blanks after its last character
+  the window and with no area in front drawing over the middle of what the area shows of it -- one
+  the asker arranges aside, its cover the asker's to judge -- the blanks after its last character
   left off. A part is a record naming an action, by that name: the box its drawing's primitives
   span, cut to the area; `pressed`, with the point nearest the box's middle where a press reaches it
   (`px`, `py`); and `available`, as the record says it (`PartFace`), else true. A part none of whose

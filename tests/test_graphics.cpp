@@ -5167,9 +5167,13 @@ struct ReadDesk {
     std::string window;
     ReaderHeard heard;
     loom::WeaveId arranger, input;
+    /// ANOTHER OFFICE THAT PLACES AREAS in the same window, whose areas the reader did not arrange.
+    ReaderHeard other_heard;
+    loom::WeaveId other;
     std::vector<std::unique_ptr<std::vector<gfx::AreaButtonChanged>>> buttons;
     std::map<std::string, loom::WeaveId> owners;
     static constexpr const char* kReader = "test.reader";
+    static constexpr const char* kOther = "test.other-arranger";
 
     ReadDesk(Rig& rig, std::string window_name) : r(rig), window(std::move(window_name)) {
         r.to_role(gfx::kGraphicsRole, gfx::SkinOffered{"classic", PAINT_CLASSIC_SO});
@@ -5183,6 +5187,11 @@ struct ReadDesk {
         loom::Grant ig = loom::emit_default_grant(*in_raw);
         input = r.bus.register_weave(std::move(in), std::move(ig), zengine::input::kInputRole);
         in_raw->zen_set_self(input);
+        auto second = std::make_unique<ReaderArranger>(other_heard);
+        ReaderArranger* second_raw = second.get();
+        loom::Grant sg = loom::emit_default_grant(*second_raw);
+        other = r.bus.register_weave(std::move(second), std::move(sg), kOther);
+        second_raw->zen_set_self(other);
         r.drain();
     }
     std::string office() const { return std::string(gfx::kWindowOfficePrefix) + window; }
@@ -5201,10 +5210,25 @@ struct ReadDesk {
         raw->zen_set_self(id);
         owners[area] = id;
         gfx::AreaPlaced placed{area, window, area, x, y, w, h, order, false, pointer, weaver_only};
-        as_reader(gfx::kGraphicsRole, placed);
-        as_reader(gfx::kGraphicsRole, gfx::SkinChosen{area, "classic"});
+        if (by_other) {
+            r.bus.office_send_to_role_as(other, kOther, gfx::kGraphicsRole,
+                                         loom::Message(loom::to_value(placed)));
+            r.bus.office_send_to_role_as(other, kOther, gfx::kGraphicsRole,
+                                         loom::Message(loom::to_value(gfx::SkinChosen{area, "classic"})));
+            r.drain();
+        } else {
+            as_reader(gfx::kGraphicsRole, placed);
+            as_reader(gfx::kGraphicsRole, gfx::SkinChosen{area, "classic"});
+        }
+        by_other = false;
         return *buttons.back();
     }
+    /// ...placed by the other office, for the next `own` alone.
+    ReadDesk& placed_by_other() {
+        by_other = true;
+        return *this;
+    }
+    bool by_other = false;
     template <class T>
     void as_reader(const std::string& role, const T& msg) {
         r.bus.office_send_to_role_as(arranger, kReader, role, loom::Message(loom::to_value(msg)));
@@ -5327,10 +5351,11 @@ TEST_CASE("an area's arranger reads what the terminal window shows of it: its te
     CHECK(again->words.empty());
     CHECK(again->parts.empty());
 
-    // AN AREA IN FRONT PAINTING OVER FOUR OF ITS CELLS: those cells are not what it shows.
+    // AN AREA ANOTHER OFFICE ARRANGES IN FRONT, PAINTING OVER FOUR OF ITS CELLS: those cells are
+    // not what it shows.
     gfx::Sketch over;
     over.text("lid", 0, 0, "XXXX", ink);
-    d.own("test.front", over, 5 * c, 2 * c, 4 * c, c, 2);
+    d.placed_by_other().own("test.front", over, 5 * c, 2 * c, 4 * c, c, 2);
     const std::optional<gfx::AreaShown> covered = d.read("test.read", first->version);
     REQUIRE(covered.has_value());
     CHECK_FALSE(covered->same);
@@ -5360,6 +5385,16 @@ TEST_CASE("an area's arranger reads what the terminal window shows of it: its te
     REQUIRE(through.has_value());
     REQUIRE(through->words.size() == 3);
     CHECK(same_word(through->words[0], 0, 0, "Pane title"));
+
+    // AN AREA THE ARRANGER PLACES FOR ANOTHER OFFICE, IN FRONT, OVER THE TITLE TOO: where it stands
+    // is the arranger's own to know and judge, so it hides nothing of the area it reads either.
+    gfx::Sketch placed_over;
+    placed_over.text("lid", 0, 0, "ZZZZ", ink);
+    d.own("test.placed-lid", placed_over, 2 * c, c, 4 * c, c, 4);
+    const std::optional<gfx::AreaShown> placed_through = d.read("test.read");
+    REQUIRE(placed_through.has_value());
+    REQUIRE(placed_through->words.size() == 3);
+    CHECK(same_word(placed_through->words[0], 0, 0, "Pane title"));
 
     // ANYONE BUT ITS ARRANGER, AND AN AREA THE WINDOW DOES NOT SHOW, ARE REFUSED IN WORDS.
     t.r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{"test.mine", gfx::kTerminalWindow, "test.read",
@@ -5431,11 +5466,12 @@ TEST_CASE("an area's arranger reads what the OS window shows of it: its runs of 
     CHECK(knob.px == 110);
     CHECK(knob.py == 50);
 
-    // AN AREA IN FRONT DRAWS OVER "on" AND THE KNOB'S MIDDLE: neither is what the area shows there.
+    // AN AREA ANOTHER OFFICE ARRANGES IN FRONT DRAWS OVER "on" AND THE KNOB'S MIDDLE: neither is
+    // what the area shows there.
     gfx::Sketch over;
     over.fill_rect("lid", 0, 0, 30, 18, gfx::by_role(gfx::role::kGround));
     over.fill_rect("cap", 80, 35, 30, 30, gfx::by_role(gfx::role::kGround));
-    d.own("test.front", over, 10 + 26, 20, 200, 100, 2);
+    d.placed_by_other().own("test.front", over, 10 + 26, 20, 200, 100, 2);
     const std::optional<gfx::AreaShown> covered = d.read("test.read", first->version);
     REQUIRE(covered.has_value());
     CHECK_FALSE(covered->same);
@@ -5443,7 +5479,7 @@ TEST_CASE("an area's arranger reads what the OS window shows of it: its runs of 
     CHECK(same_word(covered->words[0], 0, 0, "lid"));
     REQUIRE(covered->parts.size() == 1);
     CHECK(covered->parts[0].pressed); // the nearest point of its own still showing, off its middle
-    CHECK(covered->parts[0].px == 102);
+    CHECK(covered->parts[0].px == 105); // sampled at its edges, quarters and middle
     CHECK(covered->parts[0].py == 50);
 }
 

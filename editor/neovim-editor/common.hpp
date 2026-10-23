@@ -17,7 +17,7 @@
 #include "editor/source-transfer/material.hpp"
 #include "workshop/editor_handoff_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
-#include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/pane_vocabulary.hpp"
@@ -55,7 +55,6 @@ namespace ws = zengine::workshop;
 
 using ws::EditorDocument;
 using ws::EditorTransfer;
-using ws::SourcePrepared;
 using ws::pane_text::drawable;
 using ws::pane_text::fit;
 
@@ -73,7 +72,6 @@ using office::not_prepared;
 using office::offer_refusal;
 using office::Pickup;
 using office::Relay;
-using office::rows_caret;
 using office::same_identity;
 using office::tail_of_path;
 using office::Take;
@@ -126,10 +124,11 @@ inline const mp::Value& field(const mp::Value& v, const char* key) {
     return f != nullptr ? *f : absent;
 }
 
-/// A PICTURE'S FINGERPRINT: every row's text and role, the caret, the one range and the
+/// THE FINGERPRINT OF THE ROWS DRAWN: every row's text and role, the caret, the one range and the
 /// generation -- what a weaver saw, so a press or a drop aimed at it can be told from one aimed at
 /// a screen that moved since (FNV-1a).
-inline std::uint64_t picture_hash(const std::vector<surface::SurfaceTextRow>& rows, const ws::v2::PaneCaret& caret) {
+inline std::uint64_t picture_hash(const std::vector<ws::TextRow>& rows, const ws::RowsCaret& caret,
+                                  std::int64_t generation) {
     std::uint64_t h = 1469598103934665603ull;
     const auto mix = [&h](const void* p, std::size_t n) {
         const auto* b = static_cast<const unsigned char*>(p);
@@ -138,7 +137,7 @@ inline std::uint64_t picture_hash(const std::vector<surface::SurfaceTextRow>& ro
         }
     };
     const auto num = [&mix](std::int64_t v) { mix(&v, sizeof v); };
-    for (const surface::SurfaceTextRow& r : rows) {
+    for (const ws::TextRow& r : rows) {
         num(static_cast<std::int64_t>(r.text.size()));
         mix(r.text.data(), r.text.size());
         num(r.role);
@@ -150,7 +149,7 @@ inline std::uint64_t picture_hash(const std::vector<surface::SurfaceTextRow>& ro
     num(caret.sel_begin_col);
     num(caret.sel_end_row);
     num(caret.sel_end_col);
-    num(caret.generation);
+    num(generation);
     return h;
 }
 
@@ -310,9 +309,6 @@ struct Candidate {
     std::int64_t convention = 0;
     std::int64_t rows = 0;
     std::int64_t columns = 0;
-    /// The canvas room the trial reserved, where the candidate was composed as this pane's
-    /// picture; no grant where it was composed as rows.
-    ws::PaneCanvasRoom room;
     /// The prepared file's first lines, shown as its preview until Neovim draws it.
     std::vector<std::string> lines;
 };

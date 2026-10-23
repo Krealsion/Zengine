@@ -56,7 +56,7 @@ struct WindowState {
     std::vector<ElementCodeOffered> codes;
     std::int64_t next_handle = 1;
     std::int64_t refusals = 0;
-    ZEN_SHAPE(WindowState, 4, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
+    ZEN_SHAPE(WindowState, 5, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
               ZEN_FIELD(next_handle), ZEN_FIELD(refusals));
 };
 
@@ -195,7 +195,7 @@ public:
             a->nodes.clear();
             a->records.clear();
             a->presented.clear();
-            end_holds(mail, a->area);
+            end_holds(mail, a->area, /*withdrawn=*/false);
             leave_hovers(mail, *a);
         }
         a->owner = i.owner;
@@ -208,6 +208,8 @@ public:
         a->keys = i.keys;
         a->pointer = i.pointer;
         a->weaver_only = i.weaver_only;
+        a->wheel = i.wheel;
+        a->right = i.right;
         a->skin = i.skin;
         a->library = i.library;
         if (moved || repaint || handed) {
@@ -241,7 +243,7 @@ public:
         touch(*a);
         const std::string library = a->library;
         medium_.drop_area(w.area);
-        end_holds(mail, w.area);
+        end_holds(mail, w.area, /*withdrawn=*/true);
         std::erase_if(hovered_, [&](const auto& h) { return h.second == w.area; });
         waiting_.erase(w.area);
         versions_.erase(w.area);
@@ -605,7 +607,8 @@ private:
     /// A button pressed where the medium lands it: the element presented there, if its code takes a
     /// left press; else, in an area not placed to hear the pointer, the action its record names, to
     /// the owner; else the press itself, held for that area and told to its arranger. A release goes
-    /// to the area that hand's press is held for; one no hold names, where it lands. A guest's press
+    /// to the area that hand's press is held for; one whose area went while it was held, to nobody;
+    /// one no hold names, where it lands. A guest's press
     /// in an area placed for the weaver's hand alone reaches nobody, and the arranger is told.
     void button(loom::Mail& mail, const zengine::input::PointerButton& b, const Hand& hand) {
         const Point at = point_of(b.x, b.y, b.space);
@@ -621,7 +624,10 @@ private:
                 }
                 return;
             }
-            const Landed l = medium_.land(this->state_.areas, b.x, b.y, b.space);
+            if (ended_.erase(key) != 0) {
+                return; // its hold was ended: the release is no one's
+            }
+            const Landed l = medium_.land(this->state_.areas, b.x, b.y, b.space, false, b.button);
             if (l.area != nullptr && l.area->pointer && !l.area->owner.empty() &&
                 reaches(*l.area, hand)) {
                 to_owner(mail, *l.area,
@@ -634,7 +640,8 @@ private:
         if (holds_.count(key) != 0) {
             end_hold(mail, key); // its release was never read
         }
-        const Landed l = medium_.land(this->state_.areas, b.x, b.y, b.space);
+        ended_.erase(key);
+        const Landed l = medium_.land(this->state_.areas, b.x, b.y, b.space, false, b.button);
         if (l.area == nullptr) {
             return;
         }
@@ -752,10 +759,11 @@ private:
         }
     }
 
-    /// The wheel, to the area it lands in when that area hears the pointer; a guest's, in an area
-    /// placed for the weaver's hand alone, refused as its press is.
+    /// The wheel, to the area it lands in when that area hears the pointer, past an area in front
+    /// that hears the pointer and lets the wheel through; a guest's, in an area placed for the
+    /// weaver's hand alone, refused as its press is.
     void wheel(loom::Mail& mail, const zengine::input::PointerWheel& w, const Hand& hand) {
-        const Landed l = medium_.land(this->state_.areas, w.x, w.y, w.space);
+        const Landed l = medium_.land(this->state_.areas, w.x, w.y, w.space, true);
         if (l.area == nullptr || !l.area->pointer || l.area->owner.empty()) {
             return;
         }
@@ -804,21 +812,26 @@ private:
 
     /// A press held for an area, ended with no release: forgotten, and told to the area's owner
     /// and arranger while the area still names them.
-    void end_hold(loom::Mail& mail, const std::pair<std::int64_t, std::int64_t>& key) {
+    void end_hold(loom::Mail& mail, const std::pair<std::int64_t, std::int64_t>& key,
+                  bool gone = false) {
         const auto held = holds_.find(key);
         if (held == holds_.end()) {
             return;
         }
         const std::string area = held->second.area;
         holds_.erase(held);
+        if (gone) {
+            ended_.insert(key);
+        }
         const WinArea* a = find(area);
         if (a != nullptr) {
             to_owner_and_arranger(mail, *a, AreaHoldEnded{area, key.second});
         }
     }
 
-    /// Every press held for `area` ended: it was withdrawn, or handed to another owner.
-    void end_holds(loom::Mail& mail, const std::string& area) {
+    /// Every press held for `area` ended: it was withdrawn -- its release then reaching nobody --
+    /// or handed to another owner, who hears the release where it lands.
+    void end_holds(loom::Mail& mail, const std::string& area, bool withdrawn) {
         std::vector<std::pair<std::int64_t, std::int64_t>> ended;
         for (const auto& [key, hold] : holds_) {
             if (hold.area == area) {
@@ -826,7 +839,7 @@ private:
             }
         }
         for (const auto& key : ended) {
-            end_hold(mail, key);
+            end_hold(mail, key, withdrawn);
         }
     }
 
@@ -840,8 +853,9 @@ private:
                 continue;
             }
             for (const WinArea& a : this->state_.areas) {
-                if (a.area != held->area && a.pointer && a.order > held->order &&
-                    hold.x >= a.x && hold.y >= a.y && hold.x < a.x + a.w && hold.y < a.y + a.h) {
+                if (a.area != held->area && a.pointer && (key.second != 3 || a.right) &&
+                    a.order > held->order && hold.x >= a.x && hold.y >= a.y &&
+                    hold.x < a.x + a.w && hold.y < a.y + a.h) {
                     ended.push_back(key);
                     break;
                 }
@@ -1278,6 +1292,9 @@ private:
     Medium medium_;
     typename WindowBase<Medium>::Handle pump_;
     std::map<HoldKey, Hold> holds_;
+    /// The presses whose area the window withdrew or handed over while held, until their release:
+    /// it reaches nobody. A hold an area in front ended is released where it lands.
+    std::set<HoldKey> ended_;
     std::uint64_t next_press_; ///< from a random start, so a reload names no press again
     /// Each hand's area hearing the pointer that its last unheld move landed in.
     std::map<std::int64_t, std::string> hovered_;

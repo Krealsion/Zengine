@@ -18,7 +18,7 @@
 #include "workshop/editor_handoff_vocabulary.hpp"
 #include "workshop/editor_switch_vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
-#include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_seam_vocabulary.hpp"
 #include "workshop/persist.hpp"
 
@@ -74,53 +74,21 @@ inline void EditorPaneWeave::on(const ManagedOpenProgress& said, loom::Mail& mai
     (void)mail;
 }
 
-/// The managed door (WL-OPEN-01, WL-OPEN-03): prepare this source for the room the desk's
-/// trial would grant, and offer the document's identity for the exact operation. Judged with
-/// nothing moved; the candidate is a whole document built beside the current one, and its
-/// composition travels back as the trial's content: as rows and a caret here...
-inline void EditorPaneWeave::on(const PrepareSourceRequested& asked, loom::Mail& mail) {
+/// The managed door (WL-OPEN-01, WL-OPEN-03): prepare this source for the room the desk's trial
+/// said the pane's area will have, and offer the document's identity for the exact operation.
+/// Judged with nothing moved; the candidate is a whole document built beside the current one,
+/// drawn in the pane's area at the commitment (`activate`); the answer says only that it is ready.
+inline void EditorPaneWeave::on(const ws::v3::PrepareSourceRequested& asked, loom::Mail& mail) {
     if (!mail.authored_from_role(ws::kOpeningRole)) {
         return;
     }
-    Preparation p = prepare(asked.op, asked.path, asked.rows, asked.columns, ws::PaneCanvasRoom{},
-                            mail);
+    const ws::RowsRoom room = office::EditorWindow::room_of(asked.room);
+    Preparation p = prepare(asked.op, asked.path, room.rows(), room.columns(), mail);
     if (!p.refusal.empty()) {
         (void)mail.answer(not_prepared(asked.op, std::move(p.refusal)));
         return;
     }
-    SourcePrepared prepared;
-    prepared.op = asked.op;
-    prepared.ok = true;
-    prepared.generation = p.generation;
-    prepared.rows = std::move(p.shown.rows);
-    prepared.caret_row = p.shown.caret.row;
-    prepared.caret_col = p.shown.caret.column;
-    prepared.sel_begin_row = p.shown.caret.sel_begin_row;
-    prepared.sel_begin_col = p.shown.caret.sel_begin_col;
-    prepared.sel_end_row = p.shown.caret.sel_end_row;
-    prepared.sel_end_col = p.shown.caret.sel_end_col;
-    (void)mail.answer(prepared);
-}
-
-/// ...or as this pane's own picture in the canvas room the trial reserved, composed for the
-/// rows and columns of its lattice and numbered as the first picture in that room.
-inline void EditorPaneWeave::on(const ws::v2::PrepareSourceRequested& asked, loom::Mail& mail) {
-    if (!mail.authored_from_role(ws::kOpeningRole)) {
-        return;
-    }
-    const ws::CanvasRows lattice = ws::canvas_rows(asked.room);
-    Preparation p = prepare(asked.op, asked.path, lattice.rows, lattice.columns, asked.room, mail);
-    ws::v2::SourcePrepared prepared;
-    prepared.op = asked.op;
-    prepared.ok = p.refusal.empty();
-    prepared.refusal = std::move(p.refusal);
-    if (prepared.ok) {
-        prepared.generation = p.generation;
-        prepared.picture = ws::rows_picture(asked.room, 1, p.shown.rows,
-                                            parts_of(p.shown, lattice.columns),
-                                            rows_caret(p.shown.caret));
-    }
-    (void)mail.answer(prepared);
+    (void)mail.answer(ws::v3::SourcePrepared{asked.op, true, std::string(), p.generation});
 }
 
 /// PREPARE THE CANDIDATE: judged with nothing moved, built beside the current document,
@@ -129,7 +97,7 @@ inline void EditorPaneWeave::on(const ws::v2::PrepareSourceRequested& asked, loo
 /// candidate is kept.
 inline Preparation EditorPaneWeave::prepare(std::int64_t asked_op, const std::string& asked_path,
                                             std::int64_t rows, std::int64_t columns,
-                                            const ws::PaneCanvasRoom& room, loom::Mail& mail) {
+                                            loom::Mail& mail) {
     Preparation out;
     if (holding_.active) {
         ++holding_.refused;
@@ -187,7 +155,6 @@ inline Preparation EditorPaneWeave::prepare(std::int64_t asked_op, const std::st
     next.columns = columns;
     next.chrome_rows = out.shown.chrome_rows;
     next.doc_rows = out.shown.doc_rows;
-    next.room = room;
     const loom::JointResult offer = mail.offer(op, offered);
     if (!offer.ok) {
         out.refusal = offer_refusal(plan.path, offer.why);
@@ -624,23 +591,12 @@ inline void EditorPaneWeave::activate() {
         installed_epoch_ = e_.doc_epoch;
         installed_revision_ = e_.buffer.revision();
     }
-    // THE ROOM IS THE TRIAL'S, NOW: the desk seated this pane as it published, so a gesture
-    // before the desk's own room grant is judged against the picture showing. A candidate
-    // composed as a picture brings the canvas room it was drawn for, numbered afresh; one
-    // composed as rows for a pane drawing on a canvas leaves its room, and the desk grants it
-    // another. Either way nothing aimed at the document it replaced counts.
-    granted_ = true;
-    if (candidate_.room.grant > 0) {
-        canvas_ = candidate_.room;
-        pictures_ = ws::CanvasPictures{};
-    } else {
-        pictures_.retire();
-    }
+    // THE ROOM IS THE TRIAL'S, NOW: the desk seated this pane as it published, and the candidate
+    // is drawn for that room at the end of this delivery, before the window says the room of the
+    // area as placed. Nothing aimed at the document it replaced counts.
     held_ = 0;
-    if (candidate_.room.grant > 0 || canvas_.grant <= 0) {
-        rows_ = candidate_.rows;
-        columns_ = candidate_.columns;
-    }
+    rows_ = candidate_.rows;
+    columns_ = candidate_.columns;
     chrome_rows_ = candidate_.chrome_rows;
     doc_rows_ = candidate_.doc_rows;
     opened_by_ = candidate_.op;

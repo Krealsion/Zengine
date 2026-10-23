@@ -1,221 +1,168 @@
 # Workshop law — pane-local canvas
 
-Register `WL-CANVAS`: optional local graphics and pointer custody.
+Register `WL-CANVAS`: a pane's own picture in its window area, and the pointer there.
 Router: [`../workshop.md`](../workshop.md). The wire contract is in [`../panes.md`](../panes.md).
 
-## WL-CANVAS-01 — A picture occupies only its granted body
+## WL-CANVAS-01 — A picture occupies only its area
 
-LAW — A canvas provider draws in local canvas pixels inside the pane body; Workshop clips before translating, below its title, on the pane's existing plane.
+LAW — A pane draws its picture in its own window area, in that area's pixels and the room the window gives it; the window cuts it at the area's edge, and a drawing past its bounds is the window's to refuse.
 
 MEANS
-- bounded rectangles, fixed cell labels and measured one-line text, below the title;
-- shared fit and hit bounds; whole glyph/row clipping keeps every glyph and caret inside, and a run's padding unless the run stands on the lattice;
-- provider-owned meaning and hit testing; malformed content is refused whole, and said as WL-ATTN-04 says.
+- bounded rectangles, labels and measured text, and the parts a press names, as `canvas_sketch` draws a `CanvasPicture` for a `CanvasRoom`;
+- a picture past what a window keeps is drawn as its ground and that sentence, never sent to be refused;
+- a drawing the window refuses (`DrawnRefused`) is told its drawer alone, which says it in its own picture.
 
 WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 
-## WL-CANVAS-02 — A room is bound to its provider
+## WL-CANVAS-02 — A room is the window's, given to the area's holder
 
-LAW — A canvas room is granted to the current provider identity, and a new room or re-offer invalidates its predecessor's content admission and held gestures.
+LAW — A pane's room is what the window that shows its area gives that area's owner office (`AreaRoom`); a holder arriving with nothing asks it (`RoomAsked`), and keeps no room across a reload.
 
 MEANS
-- a current-role lookup fences admission; new room or re-offer ends predecessor input;
-- text metrics renew room; providers do not retain grants or gestures across reload;
-- resizing may show a marked, input-free preview only while owner and metrics agree.
-
-DOES NOT MEAN
-- that a holder of only the earlier doors is refused: it is answered, and judged, in its units.
+- a new room or a new window starts a drawing afresh: what the pane drew for another room is not shown in it;
+- the room says the window's text measure, so a face that is not a cell holds its own count of characters.
 
 WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 
 ## WL-CANVAS-03 — A canvas gesture ends explicitly
 
-LAW — A canvas gesture retains its press's grant, picture and identity through motion until release or loss, even when the drag repaints the pane.
+LAW — A press in a pane's area is held there: its moves and its release reach the area under the window's number for the press until the release or the window's word that the hold ended (`AreaHoldEnded`).
 
 MEANS
-- press and wheel use the existing medium fence to identify their picture;
-- a release reaches its held owner outside the pane and through modal surfaces; in a graphics window the window's hold carries it, and `AreaHoldEnded` is the loss;
-- room, owner or mode changes end custody; a secondary press may ask for a menu or be handed back.
+- a release reaches its held area outside it; an area withdrawn while it is held hears no release, one handed to another owner is released to that owner;
+- an area placed to hear the pointer in front of where the press was made ends the hold, and the release goes where it lands;
+- a secondary press may ask for a menu or be handed back, under the window's number.
 
 WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 
-## WL-CANVAS-04 — A carried item lands on a canvas as a local place
+## WL-CANVAS-04 — A carried item lands at a point of a pane's area
 
-LAW — An item dropped on a canvas reaches a provider accepting its door (`PaneCanvasValueDrop`, `PaneCanvasDrop`) as local pixels in its room and aimed picture; another is sent nothing.
+LAW — An item dropped on a pane reaches a holder accepting its door (`PaneCanvasValueDrop`, `PaneCanvasDrop`) as the area it landed in and a point of it, in its pixels; another is sent nothing.
 
 MEANS
-- the provider hit-tests the place in the picture it drew and owns what the drop means;
-- a drop begins no canvas custody; a value keeps v2's attribution, a reference crosses as `PaneDrop` does; one refused is said not delivered;
-- a drag's drop names the picture and place its release met, or is refused in words; unsent, a clicked item stays held, a dragged one is let go.
+- the pane reads the point against what it drew there and owns what the drop means;
+- a drop begins no hold; a value keeps its source's attribution; one refused is said not delivered;
+- unsent, a clicked item stays held and a dragged one is let go.
 
 DOES NOT MEAN
-- that a place under a refused picture's mark takes a drop: the mark is Workshop's own chrome (WL-ATTN-04).
+- that a drop names the drawing it was aimed at: which drawing a window press names is a decision held open, its witness the Editor's stale drop, held as an expected failure.
 
 WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 
 ## WL-CANVAS-05 — A canvas press may carry a value out
 
-LAW — A primary canvas press is its provider's to continue as a prose press is: under its number the provider may carry a value out, and once the carry begins the press's hold ends as lost.
+LAW — A primary press in a pane's area is its holder's to continue: under the window's number for it the holder may carry a value out, and once the carry begins the press's hold ends.
 
 MEANS
-- the press's number approves one acquisition, and the press begins a value drag; a graphics window numbers its press, and the desk in front for the carry ends its hold;
-- motion and the release after the carry begins are the carry's, never the canvas's;
-- a release before the carry is retained, as for a prose drag; an unmoved click carries nothing.
+- the press's number approves one acquisition, the press begins a value drag, and the desk stands in front while it is carried;
+- motion and the release after the carry begins are the carry's, in Workshop's own area, never the pane's;
+- an unmoved click carries nothing.
 
 WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 
-## WL-CANVAS-06 — A canvas hears where the pointer rests
+## WL-CANVAS-06 — A pane hears where the pointer rests, and where a carried item would land
 
-LAW — A provider that accepts `PaneCanvasHover` is told where a pointer holding no button rests on its canvas, and once when it leaves; resting moves no selection, focus, key or gesture.
+LAW — A pane hears from the window where a pointer holding no button rests in its area; while an item is carried over it, a holder accepting `PaneCanvasHover` is told where it would land.
 
 MEANS
-- the canvas on top under the pointer, from geometry Workshop holds, once per local place; in a graphics window, the window's word (`AreaPointerMoved`, `AreaPointerLeft`);
-- a leave when the pointer moves off its body, a mode, menu or sweep takes it, or a press begins;
-- a carried value over a canvas is told with `carrying`; a fresh room puts the hover down unsaid.
+- the window's words are `AreaPointerMoved` and `AreaPointerLeft`; resting moves no selection, focus, key or gesture;
+- a hover is put down when the hand leaves the area, the carry ends or a press begins.
 
 WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 
-## WL-CANVAS-07 — A pane's rows on its canvas lie on the medium's own ground
+## WL-CANVAS-07 — A pane's rows lie on the medium's own ground
 
-LAW — A pane drawing its rows on its canvas lays them on the medium's own ground, as its prose body was; to a host granting no canvas it says them as prose and takes no press, wheel or drop there.
+LAW — A pane drawing its rows in its area lays them on the medium's own ground, as a prose body was.
 
 MEANS
 - the ground is a window's own background and a terminal's default, dark or light: no colour of the palette;
-- what a pane says as prose is what it draws, its caret beside the rows; only its keys act there;
 - text drawn in the ground is no ink: it paints as plain text, in a terminal its own text colour.
-
-DOES NOT MEAN — that Workshop grants such a pane no canvas: it always grants one, and the
-prose is for a host that cannot.
 
 WHY — `agents/decisions/a-canvas-is-a-pane-picture.md`
 
 ## Do not assume
 
-- That a picture fence proves physical presentation time; it orders Loom deliveries.
-- That a reloaded provider may retain grants: it must wait for its fresh room before input.
-- That a pointer gesture means any particular edit; only the provider knows its content.
-- That a window reports the pointer leaving it: a hover over a canvas the pointer left through
-  the window's edge stays until the next motion inside the window.
+- That a window's number for a press proves physical presentation time; it orders Loom deliveries.
+- That a reloaded holder keeps its room: it asks the window for it.
+- That a pointer gesture means any particular edit; only the pane knows its content.
+- That a window reports the pointer leaving it: a hover the pointer left through the window's
+  edge stays until the next motion inside the window.
 
 ## Proven by
 
 ### WL-CANVAS-01
-`workshop/pane_canvas.hpp` canvas_content_problem
-`workshop/screen_canvas.hpp` canvas_body_place canvas_clip_rect paint_pane_canvas
-`workshop/pane_canvas_text.hpp` canvas_text_metrics clip_canvas_text clip_canvas_run
-canvas_text_region
-`workshop/screen_external.cpp` paint_external
-`tests/test_workshop_panes_canvas.cpp` "pane canvas rejects malformed pictures whole and budgets
-data before rendering" "pane canvas clips every primitive at its local boundary before translating"
-"pane canvas grants fenced room and keeps a good picture after a refused update" "a canvas picture
-refused for what it holds is said in its pane and in Attention until a picture of the pane is
-admitted, and one that came late is answered to its pane alone" "pane canvas measured text shares
-its fit with existing surface type and preserves labels" "pane canvas text clipping preserves
-surviving positions through both edges" "an unpadded run stands its first character at its own
-place, and runs a line apart hold as many rows as a prose body"
+`workshop/pane_canvas_drawing.hpp` canvas_sketch canvas_window_room CanvasSketch
+`workshop/pane_picture.hpp` CanvasPicture CanvasRoom
+`workshop/pane_drawing.hpp` WindowDrawing
+`graphics/vocabulary.hpp` DrawnRefused
+`tests/test_workshop_panes_canvas.cpp` "pane canvas text clipping preserves surviving positions
+through both edges" "a described view of the greatest size its rules allow asks for a pane
+Workshop admits, and is seated and drawn cut to it"
+`tests/test_workshop_desk.cpp` "a picture of as many parts as it may name gives each a point a
+press there gives it, or none"
 
 ### WL-CANVAS-02
-`workshop/weave.hpp` HostContext::role_holder
-`workshop/weave_canvas.cpp` canvas_owner_current refresh_canvas_rooms on(PaneCanvasContent)
-on(v2::PaneCanvasContent) on(v4::PaneCanvasContent)
-`workshop/pane_canvas_vocabulary.hpp` kPaneCanvasLegacySubs canvas_content_of_legacy
-canvas_content_as_said
-`tests/test_workshop_panes_canvas.cpp` "pane canvas grants turn over on reoffer and old content and
-capture cannot survive" "pane canvas provider replacement cannot acquire its predecessor's held
-gesture" "pane canvas text metric changes renew the grant even when its body stays fixed" "pane
-canvas resize preview keeps only the same provider's picture and never its input" "a canvas provider
-that speaks only the earlier doors is answered in them" "an older canvas picture is judged by its
-own rules, and a rect that floors to nothing is dropped, not the picture"
+`graphics/vocabulary.hpp` AreaRoom RoomAsked
+`workshop/pane_seat.hpp` PaneCanvasSeat
+`tests/test_workshop_panes_canvas.cpp` "a view asks for its size in pixels and its pane grants
+exactly that room: to the pixel in a window, to the cells that hold it in a terminal"
+`tests/test_workshop_desk.cpp` "a pane's names survive the canvas: its next image draws a picture
+under the names its rows had, and each is pressed where the picture draws it"
 
 ### WL-CANVAS-03
-`workshop/weave_canvas.cpp` canvas_press canvas_motion canvas_release canvas_wheel lose_canvas_hold
-end_canvas_holds
-`workshop/weave_external.cpp` end_refused_button
+`graphics/window/window.hpp` end_hold end_holds end_covered
 `workshop/weave_handlers.cpp` on(AreaHoldEnded)
-`tests/test_workshop_desk.cpp` "a hold the window ends in Workshop's own area loses the press Workshop handed a pane it
-draws there, a canvas's and a second button's alike, and a hold of another button ends neither"
-`tests/test_workshop_panes_canvas.cpp` "pane canvas capture keeps the press picture through repaint
-motion and outside release" "a right press a canvas picture hands back opens the host's pane menu at
-the press; one it keeps opens nothing" "pane canvas resize loses capture and wheel names a local
-point in the latest picture"
+`graphics/vocabulary.hpp` AreaHoldEnded
 `workshop/pane_drawing.hpp` WindowPointer
 `editor/editor-pane/transfers.hpp` on_window
-`tests/test_workshop_panes_editor.cpp` "in a graphics window that gives the Editor its pointer, a press there, its moves under its
-number and its release sweep a selection as on Workshop's canvas, and a hold the window ends is
-the press lost"
+`tests/test_graphics.cpp` "a press held for an area ends with no release when the area is
+withdrawn, handed to another owner, or covered where it was made by an area placed to hear the
+pointer in front of it, and the window tells the area's owner, and its arranger when another office,
+that it ended -- and no one else"
+`tests/test_workshop_panes_editor.cpp` "in a graphics window that gives the Editor its pointer, a
+press there, its moves under its number and its release sweep a selection as on Workshop's canvas,
+and a hold the window ends is the press lost"
 `tests/test_flow_pane.cpp` "WL-HAND-06: Flow names its controls, its nodes and ports by their place,
 and every place a press means something"
 
 ### WL-CANVAS-04
 `workshop/pane_carry.hpp` PaneCanvasValueDrop PaneCanvasDrop
-`workshop/weave_operation.cpp` drop_on_canvas drop_carry
-`workshop/weave.hpp` CanvasRelease
+`workshop/weave_operation.cpp` drop_carry pane_area_at
 `tests/test_workshop_inventory_info.cpp` "a value dragged from Inventory onto Flow's canvas reaches
-Flow as a canvas drop where it was released, and Flow offers what it can become" "a value released
-on Flow's canvas before its carry is answered names the picture it was released on, though Flow
-repainted meanwhile" "a live reference carried from Inventory lands in the Compose field its place
-names on Compose's canvas" "a reference placed on a canvas whose pane has no door for one is sent
-nothing and stays held" "a reference placed on the mark a refused picture wears is not placed under
-it and stays held, and placed beside the mark it reaches the pane" "a value released on the mark a
-refused picture wears is not placed there, though the picture the mark stood on is replaced before
-its carry is answered" "a drop whose pane leaves before it is delivered is said not delivered: a
-reference or a value, on a canvas"
-`tests/test_workshop_editor_transfers.cpp` "a drop whose pane leaves before it is delivered is said
-not delivered: a value on a text pane's rows"
+Flow as a canvas drop where it was released, and Flow offers what it can become" "a live reference
+carried from Inventory lands in the Compose field its place names on Compose's canvas" "a drop
+whose pane leaves before it is delivered is said not delivered: a reference or a value, on a
+canvas"
+`tests/test_workshop_editor_transfers.cpp` "a drop aimed at a picture the text has since left is
+refused and changes nothing"
 
 ### WL-CANVAS-05
-`workshop/weave_canvas.cpp` canvas_press
-`workshop/weave_pointer.cpp` on(PointerButton)
-`workshop/weave_operation.cpp` accept_carry begin_value_drag
+`workshop/weave_handlers.cpp` on(AreaPressed) area_pressed
+`workshop/weave_operation.cpp` accept_carry begin_value_drag release_value_drag
+`workshop/weave_run.cpp` desk_in_front_of_panes
 `flow/flow-pane/pane.cpp` carry
 `tests/test_workshop_inventory_info.cpp` "a press on a canvas pane drags a value out as a prose
 press does: the hold ends as lost when the carry begins, the value lands where the hand lets go, and
 a click carries nothing"
 `tests/test_flow_pane.cpp` "a press on a declared message asks under that press to drag its shape
 out, and still opens it; a right press on a found operator is handed back"
-`workshop/weave_handlers.cpp` on(AreaPressed)
-`workshop/weave_run.cpp` desk_in_front_of_panes
-`workshop/weave_operation.cpp` release_value_drag
-`tests/test_workshop_desk.cpp` "a press in a pane's area of the window is the pane's, and under the window's number Workshop
-tells it where the keys were, hands its press back, opens its menu and carries what it drags out
-or picks up"
+`tests/test_workshop_desk.cpp` "a value the weaver drags out of a pane is carried under the hand in
+Workshop's overlay in the window, the desk in front of the panes' areas while it is carried, and
+goes when the hand lets go"
 
 ### WL-CANVAS-06
-`workshop/pane_canvas_vocabulary.hpp` PaneCanvasHover
-`workshop/weave_canvas.cpp` canvas_hover leave_canvas_hover refresh_canvas_rooms
-`workshop/weave_pointer.cpp` on(PointerMoved) on(PointerButton)
+`graphics/vocabulary.hpp` AreaPointerMoved AreaPointerLeft
+`workshop/pane_carry.hpp` PaneCanvasHover
+`workshop/weave_operation.cpp` carry_hover leave_carry_hover
 `workshop/weave_handlers.cpp` on(AreaPointerLeft)
-`tests/test_workshop_desk.cpp` "the pointer leaving Workshop's own area of the window puts down the hover of the canvas
-Workshop draws under it, and a pane's area it leaves is the pane's to answer"
-`tests/test_workshop_panes_canvas.cpp` "a canvas that accepts the hover door hears where the pointer
-rests and that it left; resting selects, focuses and presses nothing" "a described view offers its
-own pane through the view host, Workshop seats and draws it, a press reaches it, and a stop leaves a
-picture that says so"
 `view/view-builder/pane.cpp` rest
-`tests/test_view_builder.cpp` "in a terminal the builder's picture and its drags are floored to cells"
+`tests/test_view_builder.cpp` "the pointer resting on an element marks it and its row; a carried
+value marks the label it would land on; leaving puts the marks down"
 
 ### WL-CANVAS-07
 `graphics/role.hpp` kMediumGround
-`workshop/pane_canvas_rows.hpp` rows_picture
-`workshop/pane_canvas.hpp` canvas_content_problem
-`surface/skin_tui.hpp` canvas_body sgr_for_role sgr_for_cell
-`surface/skin_sdl_plan.hpp` ink_for_role text_ink_for_role
-`tests/test_surface.cpp` "canvas: the medium's own ground covers material and wears the terminal's
-own ground" "canvas: a terminal's plain text is the terminal's own text colour on its own ground and
-the palette's white on a ground a pane paints, so it reads on a light terminal or a dark one, a
-caret in it and a selection over it too" "canvas plan: the medium's own ground is the window's own
-background, and no ink"
-`tests/test_workshop_panes_attention.cpp` "a pane that draws its rows on its canvas wears the
-medium's own ground beneath them, as a prose body does, in a window and in a terminal"
-`tests/test_workshop_panes_files.cpp` "a host that grants Files no canvas is shown its rows as
-prose, its presses reach nothing there, and Return still opens"
-`tests/test_workshop_panes_input.cpp` "a host that grants Compose no canvas is shown its rows and
-caret as prose, its presses reach nothing there, and its keys still compose"
-`tests/test_workshop_panes_info.cpp` "a host that grants Info no canvas is shown its properties
-and a draft's caret as prose, its presses reach nothing there, and its keys still move and edit"
-`tests/test_workshop_inventory_info.cpp` "a host that grants Inventory no canvas is shown its rows
-and a name line's caret as prose, its presses reach nothing there, and its keys still act"
-`tests/test_workshop_panes_editor.cpp` "a host that grants the Editor no canvas is shown its rows
-and caret as prose, its presses reach nothing there, and its keys still edit"
-`tests/test_workshop_neovim.cpp` "a host that grants the Neovim editor no canvas is shown its rows
-and caret as prose, its presses reach nothing there, and its keys still reach Neovim"
+`workshop/pane_drawing.hpp` WindowDrawing
+`tests/test_workshop_inventory_info.cpp` "Inventory draws its rows on its canvas on the medium's own
+ground, and a name line's caret and selection stand in the line, writing nothing into it, each move
+of them drawn" "the rows two canvas panes show are each read off the pane's own plane where their
+bodies share a corner, the one laying the medium's ground and the one laying black"

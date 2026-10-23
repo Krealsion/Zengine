@@ -53,7 +53,11 @@ TEST_CASE("a switch between two authored Editors carries the document, its unsav
         pw::Window window(w.r.bus);
         window.room(area, area, 40, 10);
         (void)w.open_file("carry.cpp", "int one;\nint two;\n");
-        w.press_doc(1, 4);
+        // THE CARET PLACED BY A PRESS IN THE WINDOW THAT SHOWS THE EDITOR, the desk told of it as
+        // the area's arranger, so the keys move there too.
+        const std::int64_t above = w.read("notice").empty() ? 1 : 2;
+        window.click(area, 4, above + 1, 1, kWorkshopProvider);
+        w.r.bus.drain_until_idle();
         w.type("X");
         const EditorSwitchAnswered away = w.switch_to("twin");
         REQUIRE_MESSAGE(away.outcome == switch_outcome::kSwitched, away.detail);
@@ -89,7 +93,6 @@ TEST_CASE("a switch between two authored Editors carries the document, its unsav
     REQUIRE(s.seat() != nullptr);
     REQUIRE(shows_canvas(*s.seat()));
     const std::int64_t incumbent_generation = std::stoll(s.read("doc_epoch"));
-    const std::int64_t incumbent_grant = s.seat()->canvas.grant;
 
     const EditorSwitchAnswered away = s.switch_to("twin");
     CHECK_MESSAGE(away.outcome == switch_outcome::kSwitched, away.detail);
@@ -111,17 +114,13 @@ TEST_CASE("a switch between two authored Editors carries the document, its unsav
     CHECK(s.read("saved_text") == "int one;\nint two;\n");
     CHECK(s.read("caret_row") == "1");
     CHECK(s.read("caret_byte") == "5");
-    // THE DESK SHOWS THE SUCCESSOR IN THE SAME SEAT, its picture in a room granted to it alone, so
-    // a picture the incumbent drew before it retired names a room it no longer holds and is
-    // refused; and the document is a generation past the incumbent's.
+    // THE DESK SHOWS THE SUCCESSOR IN THE SAME SEAT, drawing in the office's area; and the document
+    // is a generation past the incumbent's.
     CHECK(s.r.session().panes.has(s.kind));
     CHECK(s.shows("UNSAVED"));
     CHECK(s.shows("int Xtwo;"));
     REQUIRE(s.seat() != nullptr);
     CHECK(shows_canvas(*s.seat()));
-    CHECK(s.seat()->canvas.owner == second);
-    CHECK(s.seat()->canvas.grant != incumbent_grant);
-    const std::int64_t successor_grant = s.seat()->canvas.grant;
     const std::int64_t successor_generation = std::stoll(s.read("doc_epoch"));
     CHECK(successor_generation > incumbent_generation);
 
@@ -129,8 +128,7 @@ TEST_CASE("a switch between two authored Editors carries the document, its unsav
     const EditorSwitchAnswered back = s.switch_to("standard");
     CHECK_MESSAGE(back.outcome == switch_outcome::kSwitched, back.detail);
     REQUIRE(s.seat() != nullptr);
-    CHECK(s.seat()->canvas.owner == s.holder());
-    CHECK(s.seat()->canvas.grant != successor_grant);
+    CHECK(shows_canvas(*s.seat()));
     CHECK(std::stoll(s.read("doc_epoch")) > successor_generation);
     CHECK(back.active == "standard");
     CHECK(s.r.kernel.is_loaded(pane::kEditorPaneStem));

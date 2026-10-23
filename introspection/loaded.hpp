@@ -16,7 +16,7 @@
 // arrival or departure, no timestamp.
 
 #include "graphics/role.hpp"
-#include "surface/vocabulary.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_text.hpp"
 
 #include <algorithm>
@@ -151,7 +151,7 @@ inline bool names(const std::vector<LoadedWeave>& weaves, std::string_view name)
 /// that reached a row, and `entry_of_row` indexes `shown` or is `kNoEntry`. The omission marker
 /// is `kNoEntry`: a count, not a hidden entry. Bounded by the room, never by the population.
 struct LoadedView {
-    std::vector<surface::SurfaceTextRow> rows;
+    std::vector<workshop::TextRow> rows;
     std::vector<LoadedWeave> shown;
     std::vector<std::int64_t> entry_of_row;
 };
@@ -167,24 +167,6 @@ inline const LoadedWeave* entry_at_row(const LoadedView& view, std::int64_t row)
         return nullptr;
     }
     return &view.shown[static_cast<std::size_t>(which)];
-}
-
-/// A NAME SAID BY ITS LENGTH FIRST, so names said one after another are never read as others.
-inline std::string length_said(const std::string& name) {
-    return std::to_string(name.size()) + ':' + name;
-}
-
-/// WHAT A PRESS ON THE LOADED PANE MEANS: each row by the weave it names, its name and its role,
-/// as a press publishes both; `-` for a row naming none. Two lists are never one meaning, whatever
-/// their names and roles hold.
-inline std::string press_meaning(const LoadedView& view) {
-    std::string said;
-    for (std::size_t row = 0; row < view.rows.size(); ++row) {
-        const LoadedWeave* entry = entry_at_row(view, static_cast<std::int64_t>(row));
-        said += entry != nullptr ? length_said(entry->name) + length_said(entry->role) + ';'
-                                 : std::string("-;");
-    }
-    return said;
 }
 
 /// Mark the row naming `selected` and unmark every other entry row -- nothing else moves, so a
@@ -204,24 +186,24 @@ inline void mark_selected(LoadedView& view, std::string_view selected, std::int6
     }
 }
 
-/// The whole view, spent against the granted room, most-protected first: the heading and count,
+/// The whole view, spent against the room its area holds, most-protected first: the heading and count,
 /// `kNotInProcess`, the list (windowed, omissions counted), `kSnapshotSource`, one blank. The
 /// caveat is reserved before the list gets more than its first row, since a list read as the
 /// whole system is worse than one row short; an entry and its marker are one demand. Projected
-/// unmarked (`mark_selected` applies a selection), and inside the grant, since Workshop refuses
-/// an over-budget update whole.
+/// unmarked (`mark_selected` applies a selection), and inside the room, since a row past it is
+/// not drawn.
 inline LoadedView project_loaded(const std::vector<LoadedWeave>& weaves, std::int64_t rows,
                                  std::int64_t columns, std::size_t origin = 0) {
     LoadedView view;
     // Every row appended pairs with one map entry, so no row can lose its entry.
-    const auto say = [&view](surface::SurfaceTextRow row, std::int64_t which) {
+    const auto say = [&view](workshop::TextRow row, std::int64_t which) {
         view.rows.push_back(std::move(row));
         view.entry_of_row.push_back(which);
     };
     if (rows <= 0 || columns <= 0) {
         return view;
     }
-    say(surface::SurfaceTextRow{fit("loaded weaves -- " + std::to_string(weaves.size()), columns),
+    say(workshop::TextRow{fit("loaded weaves -- " + std::to_string(weaves.size()), columns),
                                 graphics::role::kAccent},
         kNoEntry);
 
@@ -243,14 +225,14 @@ inline LoadedView project_loaded(const std::vector<LoadedWeave>& weaves, std::in
         for (std::size_t i = origin; i < origin + shown; ++i) {
             // Copied into `shown` as it is drawn, so a press answers with what the weaver saw.
             view.shown.push_back(weaves[i]);
-            say(surface::SurfaceTextRow{entry_row(weaves[i], false, columns), entry_role(false),
+            say(workshop::TextRow{entry_row(weaves[i], false, columns), entry_role(false),
                                         entry_ground(false)},
                 static_cast<std::int64_t>(view.shown.size()) - 1);
         }
         budget -= static_cast<std::int64_t>(shown);
         if (shown < weaves.size()) {
             // `kNoEntry`: a population fact, not a hidden entry. See `LoadedView`.
-            say(surface::SurfaceTextRow{
+            say(workshop::TextRow{
                     fit("  " + std::string(kElided) + " " +
                             (origin ? std::to_string(origin) + " earlier, " : "") +
                             std::to_string(weaves.size() - origin - shown) + " more",
@@ -264,13 +246,13 @@ inline LoadedView project_loaded(const std::vector<LoadedWeave>& weaves, std::in
     // is the LAST claim on the budget, so it never costs an entry or a note.
     if (budget > 0 && caveat > 0) {
         // `role::kFill`, not `role::kNone`: that is the absence of a background, never an ink.
-        say(surface::SurfaceTextRow{std::string(), graphics::role::kFill}, kNoEntry);
+        say(workshop::TextRow{std::string(), graphics::role::kFill}, kNoEntry);
     }
     if (caveat > 0) {
-        say(surface::SurfaceTextRow{fit(kNotInProcess, columns), graphics::role::kMuted}, kNoEntry);
+        say(workshop::TextRow{fit(kNotInProcess, columns), graphics::role::kMuted}, kNoEntry);
     }
     if (source > 0) {
-        say(surface::SurfaceTextRow{fit(kSnapshotSource, columns), graphics::role::kMuted},
+        say(workshop::TextRow{fit(kSnapshotSource, columns), graphics::role::kMuted},
             kNoEntry);
     }
     return view;

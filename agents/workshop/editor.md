@@ -110,18 +110,18 @@ LAW — The pane composes a status row (dirty word, `L:C/N`, the path), a notice
 MEANS
 - a room too small for both keeps the document's row: the notice replaces the status row;
 - one row is the status row alone, and the caret has nowhere to be; a layout's `status` off gives that row to the document;
-- they are its picture on its canvas, and prose rows with `PaneCaret` beside them to a host granting none.
+- they are its picture in its own area of the window, the caret and the selection drawn as marks in the run they stand in.
 
 WHY — `agents/decisions/the-editor-is-the-custodian.md`
 
 ## WL-EDIT-13 — The desk's half: a trial on a copy, an admission, the publication applied
 
-LAW — The desk judges a trial seat on a copy and moves nothing; asked to admit, it re-judges, keeps the content and offers its presentation; shown the publication, it applies seat, keys, room and content.
+LAW — The desk judges a trial seat on a copy and moves nothing; asked to admit, it re-judges and offers its presentation; shown the publication, it applies seat, keys and room.
 
 MEANS
 - a change of its rows, of the desk's panes, places, sizes or ranks, or a routed input before the commitment aborts it; a canvas moved before the admission refuses it there;
 - a presentation it holds no trial for is Declined, said, and re-claimed from the live desk;
-- the content is the pane's picture in the room the trial reserved, or its rows (WL-OPEN-10).
+- the content is the Editor's to draw in its area at the commitment, in the room the trial reserved (WL-OPEN-10).
 
 WHY — `agents/decisions/document-and-desk-publish-together.md`
 
@@ -159,7 +159,7 @@ LAW — A held primary press's motion extends the gesture it began and means not
 MEANS
 - a press taken as focus alone, or beside the rows, begins no gesture: later motions sweep nothing;
 - a pointer gesture composes no new rows, so the notice and the picture survive it;
-- its release or its loss ends it; the host ends the hold of a pane that left (WL-CANVAS-02).
+- its release or its loss ends it; the window ends the hold of an area that went (WL-CANVAS-03).
 
 WHY — `agents/decisions/the-editor-is-the-custodian.md`
 
@@ -248,17 +248,16 @@ flight still refuses the exit"
 
 ### WL-EDIT-12
 `editor/editor-pane/pane.cpp` say compose caret_of status_text
-`editor/editor-pane/common.hpp` rows_caret parts_of kNoticeNeedsRows
-`workshop/pane_canvas_rows.hpp` rows_picture
+`editor/editor-pane/common.hpp` parts_of kNoticeNeedsRows
+`workshop/pane_drawing.hpp` rows_drawing
 `workshop/screen_external.cpp` external_header external_body_place
 `tests/test_workshop_panes_editor.cpp` "a selection that runs above the window is clipped, and one
 wholly out of it is not said" "in a room too small for both, the document keeps its rows and a
-notice stands in for the status row" "a host that grants the Editor no canvas is shown its rows and
-caret as prose, its presses reach nothing there, and its keys still edit"
+notice stands in for the status row"
 
 ### WL-EDIT-13
-`workshop/weave_managed.cpp` on(PresentationTrialRequested) on(PresentationAdmitRequested)
-on(v2::PresentationAdmitRequested) on(ManagedOpenSettled) on_claim_published show_presentation
+`workshop/weave_managed.cpp` on(PresentationTrialRequested) on(v3::PresentationAdmitRequested)
+on(ManagedOpenSettled) on_claim_published show_presentation
 trial_room trial_room_stands
 `workshop/weave_seam.cpp` on(PaneRevealRequested)
 `workshop/screen.hpp` stack_slots_that_fit
@@ -293,10 +292,10 @@ oldest steps go and the newest stays"
 was scrolled to stands" "the reloaded pane reads live, not out of the snapshot it revived from"
 
 ### WL-EDIT-16
-`editor/editor-pane/transfers.hpp` on(PaneCanvasPointer) press_at dragged
+`editor/editor-pane/transfers.hpp` on_window press_at dragged
 `editor/editor-pane/common.hpp` Drag
 `editor/editor-pane/editor.hpp` EditorBuffer::drag_to
-`workshop/pane_canvas_vocabulary.hpp` PaneCanvasPointer
+`workshop/pane_drawing.hpp` WindowPointer
 `tests/test_workshop_panes_editor.cpp` "a press that only focuses begins no sweep, and a gesture
 keeps the geometry it was made against" "a sweep in a pane that lost its seat is lost with it, and a
 motion after the close moves nothing it selected" "a press begins a sweep only where it named a row

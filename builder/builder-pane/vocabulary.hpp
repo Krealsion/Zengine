@@ -25,7 +25,7 @@
 namespace zengine::builder_pane {
 
 /// THE OFFICE THIS PANE HOLDS -- the durable half of its `PaneRef`, and the only address
-/// anything reaches it by. A ROLE, so Workshop's `PaneRoom` finds whoever holds it rather
+/// anything reaches it by. A ROLE, so the window and Workshop find whoever holds it rather
 /// than the incarnation that offered first: a reloaded provider is a different `WeaveId` and
 /// the same office.
 inline constexpr const char* kBuilderPaneRole = "zengine.builder-pane";

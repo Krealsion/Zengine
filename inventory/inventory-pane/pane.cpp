@@ -5,7 +5,7 @@
 #include "presentation.hpp"
 #include "command.hpp"
 #include "toolbox.hpp"
-#include "workshop/pane_canvas_rows.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_carry.hpp"
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_escape.hpp"
@@ -41,8 +41,7 @@ struct InventoryPaneState {
 using Office =
     ws::MultiPaneFacet<office, pane, zengine::manual::pages::zengine_inventory_pane::kManual>;
 class InventoryPane : public zengine::With<Office>::Weave<InventoryPane, InventoryPaneState,
-    loom::Accept<ws::PaneResetRequested, ws::PaneRoom, ws::PaneCanvasRoom,
-        ws::PaneCanvasPointer, ws::PaneCanvasRejected, ws::PaneKey, ws::PaneTextInput,
+    loom::Accept<ws::PaneResetRequested, ws::PaneKey, ws::PaneTextInput,
         ws::PaneCanvasValueDrop, ws::PaneActionRequested, ws::PaneMenuAnswered,
         ws::PaneOperationAnswered, ws::ActorScopeJudged, ws::PaneCarryAnswered, ws::PaneShortcutsAnswered,
         ws::PaneShortcutsRequested, ws::PaneShortcutsWithdrawn, ws::PaneLaunchAnswered,
@@ -51,8 +50,7 @@ class InventoryPane : public zengine::With<Office>::Weave<InventoryPane, Invento
         inv::v2::InventorySnapshot, inv::InventoryRestored,
         slots::InventoryToolboxSave, slots::InventoryToolboxRestore,
         loom::Ack, loom::Refused, loom::DispatchRefused>,
-    loom::Emit<ws::v2::PaneOffered, ws::v3::PaneActions, ws::v4::PaneContent,
-        ws::v5::PaneCanvasContent, ws::PaneCaret,
+    loom::Emit<ws::v2::PaneOffered, ws::v3::PaneActions,
         ws::PaneMenuRequested, ws::PaneEscapeUnspent,
         ws::PanePassRequested, ws::PaneKeyboardRequested, ws::PaneOperationRequested,
         ws::v2::PaneOperationRequested, ws::ActorScopeRequested, ws::PaneCarryRequested,
@@ -124,24 +122,6 @@ public:
         if(request.pane==pane) browser_.open({},listing_,v.selected);
         notice_.clear(); declare_all(m); refresh(m); (void)m.answer(loom::Ack{});
     }
-    void on(const ws::PaneRoom& room, loom::Mail& m) {
-        if (!host(m) || !known(room.pane)) return;
-        if(!seat_of(room.pane).prose_room(room)) return; // the canvas room, granted first, already drew
-        fit(room.pane); refresh(m); draw(m);
-    }
-    /// A VIEW'S OWN CANVAS: while it holds a room there it draws its rows as its picture, the
-    /// lattice's rows and columns its room, and says them as prose only to a host granting none.
-    void on(const ws::PaneCanvasRoom& room, loom::Mail& m) {
-        if (!host(m) || !known(room.pane)) return;
-        seat_of(room.pane).canvas_room(room); fit(room.pane); refresh(m); draw(m);
-    }
-    /// A refused picture leaves the last good one showing, and the next draw sends that view again:
-    /// a picture refused in the room the view holds, not one from a room before it.
-    void on(const ws::PaneCanvasRejected& r, loom::Mail& m) {
-        if(!host(m)) return;
-        const auto c=canvases_.find(r.pane);
-        if(c!=canvases_.end() && r.grant==c->second.room().grant) sent_.erase(r.pane);
-    }
     void on(const inv::InventoryChanged&, loom::Mail& m) { if (m.authored_from_role(inv::kInventoryRole)) refresh(m); }
     void on(const inv::v2::InventoryListed& a, loom::Mail& m) {
         if (!list_.valid() || !m.answers_ask() || m.correlation()!=list_ask_) return;
@@ -160,33 +140,17 @@ public:
         if (busy() || editing_ != Editing::none) { (void)m.answer(loom::Refused{"Finish the current inventory operation or editor first"}); return; }
         apply(edit,m,m.defer_answer());
     }
-    /// A PRESS, THE WHEEL AND A RIGHT PRESS ON A VIEW'S CANVAS: a press's place reads back to the
-    /// row and column a prose press named, and means something only on the picture the view still
-    /// shows; the wheel names no place and walks the selection in the room the view still holds.
-    /// Motion, a release and a loss mean nothing: a drag's carry begins at its press.
-    void on(const ws::PaneCanvasPointer& p, loom::Mail& m) {
-        if (!host(m) || !known(p.pane)) return;
-        const auto found=canvases_.find(p.pane);
-        if(found==canvases_.end() || !found->second.on_canvas()) return;
-        const auto& c=found->second;
-        const auto at=ws::row_cell_at(ws::canvas_rows(c.room()),p.x,p.y);
-        if(p.phase==ws::canvas_pointer::kWheel) { if(p.grant==c.room().grant) wheel(p.pane,p.dy,m); return; }
-        if(p.phase!=ws::canvas_pointer::kPress) return;
-        const bool current=c.shows(p);
-        if(p.button==3) right_press(p.pane,at,current,m);
-        else if(p.button==1 && at.shown) press(p.pane,at.row,at.column,current,p.keys_went_here,true,m);
-    }
     // ---- its views in graphics windows (its office's `MultiPaneFacet` calls these) ------------
     /// EACH VIEW'S SEAT, main Inventory's and every view it made, where a window finds the view.
     template<class F> void each_seat(F&& visit) {
         visit(seat_of(pane));
         for(const auto& v:state_.layout.views) visit(seat_of(v.id));
     }
-    /// A view Workshop seats nowhere, composed again for the room a window gave it.
+    /// A view composed again for the room a window gave it.
     void on_window_room(const std::string& id,loom::Mail& m) { if(known(id)) { fit(id); refresh(m); draw(m); } }
-    /// THE POINTER ON A VIEW IN A WINDOW, read onto the rows shown there, the view's current
-    /// picture: a press, the wheel and a right press as on Workshop's canvas, the keys' place told
-    /// by Workshop, and a press on an entry dragging it out under the window's number for it.
+    /// THE POINTER ON A VIEW IN A WINDOW, read onto the rows drawn there: a press, the wheel and a
+    /// right press, the keys' place told by Workshop, and a press on an entry dragging it out under
+    /// the window's number for it.
     void on_window_pointer(const std::string& id,const ws::WindowPointer& p,bool keys_went_here,loom::Mail& m) {
         if(!known(id)) return;
         if(p.phase==ws::canvas_pointer::kWheel) { wheel(id,p.dy,m); return; }
@@ -389,15 +353,15 @@ public:
         if(std::all_of(t.text.begin(),t.text.end(),[](unsigned char c){return c>=32 && c<=126;})) line_.type(t.text);
         draw(m);
     }
-    /// A VALUE PLACED ON A VIEW'S CANVAS: its place reads back to the row and column it fell on,
-    /// meaning something only on the picture the view still shows. A drag begun in an Inventory view
-    /// moves that entry by its own transfer token; any other value is stored as a copy.
+    /// A VALUE PLACED ON A VIEW'S AREA: its place reads back to the row and column of the rows drawn
+    /// there it fell on. A drag begun in an Inventory view moves that entry by its own transfer
+    /// token; any other value is stored as a copy.
     void on(const ws::PaneCanvasValueDrop& v, loom::Mail& m) {
         if(!host(m) || !known(v.pane) || editing_!=Editing::none) return;
         const auto found=canvases_.find(v.pane);
-        if(found==canvases_.end() || !found->second.on_canvas()) return;
-        const auto at=ws::row_cell_at(ws::canvas_rows(found->second.room()),v.x,v.y);
-        const bool current=found->second.shows(v.grant,v.picture);
+        if(found==canvases_.end() || found->second.area()!=v.area) return;
+        const auto at=found->second.cell_at(v.x,v.y);
+        const bool current=true;
         if(busy()) { notice_=waiting(); draw(m); return; }
         if(v.source_office!=office || v.token.empty()) { copy_drop(v.pane,at.row,at.column,current,v.data,m); return; }
         const auto it=transfers_.find(v.token);
@@ -978,19 +942,18 @@ private:
                 }
             }
             const std::int64_t picture=v.map.settle();
-            // A PICTURE IS SENT WHEN IT DIFFERS from the last one sent since the room was granted,
-            // its caret included: Workshop repaints the desk for each, and every view is drawn after
-            // any change.
+            // A PICTURE IS DRAWN WHEN IT DIFFERS from the last one drawn since the room was given,
+            // its caret included: every view is drawn after any change.
             if(const auto said=sent_.find(id); said!=sent_.end() && said->second.picture==picture &&
                 same_rows(said->second.rows,rows) && same_caret(said->second.caret,caret)) continue;
             sent_[id]=Sent{rows,picture,caret};
             const bool editing=editing_!=Editing::none;
             auto parts=ws::row_parts(v.map,v.columns,[editing](const std::string& meaning) { return part_name(meaning,editing); });
-            seat_of(id).publish_rows(m,picture,std::move(rows),std::move(parts),caret,/*always_caret=*/true);
+            seat_of(id).publish_rows(m,std::move(rows),std::move(parts),caret);
         }
     }
-    /// The rows and columns a view composes for: its canvas's lattice while it holds one, else the
-    /// prose room's. A new room starts the view's picture over.
+    /// The rows and columns a view composes for: its area's. A new room starts the view's picture
+    /// over.
     void fit(const std::string& id) {
         auto& v=views_[id]; const auto& c=seat_of(id); v.rows=c.rows(); v.columns=c.columns();
         v.map.clear(); sent_.erase(id);
@@ -1008,9 +971,15 @@ private:
         if (meaning.rfind("crumb:", 0) == 0) return meaning;
         return meaning.empty() ? std::string() : "entry:" + meaning;
     }
-    static bool same_rows(const std::vector<zengine::surface::SurfaceTextRow>& a,const std::vector<zengine::surface::SurfaceTextRow>& b) {
-        if(a.size()!=b.size()) return false;
-        for(std::size_t i=0;i<a.size();++i) if(a[i].text!=b[i].text || a[i].role!=b[i].role || a[i].background!=b[i].background) return false;
+    static bool same_rows(const std::vector<zengine::workshop::TextRow>& a,
+                          const std::vector<zengine::workshop::TextRow>& b) {
+        if (a.size() != b.size()) return false;
+        for (std::size_t i = 0; i < a.size(); ++i) {
+            if (a[i].text != b[i].text || a[i].role != b[i].role ||
+                a[i].background != b[i].background) {
+                return false;
+            }
+        }
         return true;
     }
     static std::string nonce() { std::random_device rng; std::ostringstream s; s<<std::hex<<rng()<<rng()<<rng()<<rng(); return s.str(); }
@@ -1020,19 +989,18 @@ private:
     slots::Toolbox toolbox_;
     std::map<std::string,slots::View> views_;
     std::map<std::string,std::string> offered_; // each pane's offer as this image last sent it
-    struct Sent { std::vector<zengine::surface::SurfaceTextRow> rows; std::int64_t picture=0; ws::RowsCaret caret; };
+    struct Sent { std::vector<zengine::workshop::TextRow> rows; std::int64_t picture=0; ws::RowsCaret caret; };
     static bool same_caret(const ws::RowsCaret& a,const ws::RowsCaret& b) {
         return a.row==b.row && a.column==b.column && a.sel_begin_row==b.sel_begin_row && a.sel_begin_col==b.sel_begin_col &&
             a.sel_end_row==b.sel_end_row && a.sel_end_col==b.sel_end_col;
     }
-    /// ONE VIEW'S ROOMS: the canvas room Workshop granted it, the pictures numbered there, and the
-    /// prose room kept for a host granting none -- each view's, image-local: a reload waits for
-    /// fresh rooms.
+    /// ONE VIEW'S AREA: the window that shows it and the rows drawn there -- each view's,
+    /// image-local: a reload waits for fresh rooms.
     std::map<std::string,ws::PaneCanvasSeat> canvases_;
     ws::PaneCanvasSeat& seat_of(const std::string& id) {
         return canvases_.try_emplace(id,id,office).first->second;
     }
-    std::map<std::string,Sent> sent_; // each view's picture as sent since its room was granted
+    std::map<std::string,Sent> sent_; // each view's picture as drawn since its room was given
     std::map<std::string,Transfer> transfers_;
     component::TextBox line_;
     component::Clipboard clipboard_;

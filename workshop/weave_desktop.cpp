@@ -749,10 +749,12 @@ bool WorkshopWeave::provider_present(std::int64_t kind, const PaneRef& ref) cons
     if (!is_runtime_kind(kind)) {
         return kind != kNoPaneKind; // this host's own panes, and the weaver's, are presented here
     }
-    // THE OFFICE'S HOLDER AT THIS INSTANT, and whether it takes a room -- the bus's facts,
-    // read and kept nowhere (`holder_accepts_on`). A host that wired no answer says no.
-    return host_->holder_accepts &&
-           host_->holder_accepts(ref.provider, *loom::schema_of<PaneRoom>());
+    // THE OFFICE'S HOLDER AT THIS INSTANT, or the host's word that its holder takes an area's room
+    // -- the bus's facts, read and kept nowhere (`holder_accepts_on`). A host that wired no answer
+    // says no.
+    return (host_->role_holder && host_->role_holder(ref.provider).valid()) ||
+           (host_->holder_accepts &&
+            host_->holder_accepts(ref.provider, *loom::schema_of<graphics::AreaRoom>()));
 }
 
 // ---- The one inventory, said out loud ------------------------------------------------------

@@ -895,7 +895,7 @@ inventory and the keymap -- and Workshop says so beside each such row, at launch
   -- the holder of the pane's office, that holder's incarnation, the `epoch` of the window showing
   the desk, and a `fingerprint` of what the pane shows and where: whatever it shows changing moves
   it, a caret or a colour too, and so does the pane's place, while the same picture sent again keeps
-  it; a canvas picture no press is stamped with yet is named 0 -- the place its text stands on
+  it -- the place its text stands on
   (`area`) and its text measure (`advance`, `line`), its words and then its parts from item `from`,
   as many as one decoded value and one reply's bytes hold, `total` counting both. Each word is a run
   of text with its place and the point a press names it by, and each part -- a row, a control, an
@@ -903,25 +903,23 @@ inventory and the keymap -- and Workshop says so beside each such row, at launch
   where a press reaches it as the pane reads a press (or none, for a part every place of which
   another part takes) and `available`, whether its operation applies now. A pane keeps a part's
   name across its redraws, so a walk finds it wherever the last redraw put it ([the parts a pane
-  names](../../workshop/docs/workshop-panes.md#a-pane-names-its-parts)). A pane drawing in an area
-  of its own is read as the window shows it; any other as Workshop draws it. Ask from 0 with an
+  names](../../workshop/docs/workshop-panes.md#a-pane-names-its-parts)). A pane is read as the
+  window that shows its area shows it; Workshop's own surfaces as Workshop draws them. Ask from 0 with an
   empty stamp, then each next page from where the last ended, under the stamp the first page
   answered: a page asked under a stamp the pane no longer stands on is refused as stale, and the
   pane is read again from 0. A cover that moves between pages shifts the items `from` counts and
   leaves the stamp alone: compare each page's `total` and `covered` with the first page's, and read
   the pane again from 0 when they differ; a `from` past a reading a cover shrank is refused in
   words saying so. A partly covered pane says its visible words and parts only, and `covered` names
-  what covers it (a pane in front by its name, `menu`, `arranging`, `refused mark`, `band`), how
+  what covers it (a pane in front by its name, `menu`, `arranging`, `band`), how
   many words and parts it did not say, and the rectangle they lie in; a covered word is never given
   a point. While a menu is open a primary press outside it reaches nothing beside it -- it closes
-  the menu, or is refused -- so nothing said beside it has a point. A pane whose newest picture is
-  still in flight -- what it sent not yet what it shows, a room just granted that no picture has
-  answered, or a window waiting for its drawing -- says `in_flight` and no word, at any page: its
-  settling moves its stamp, and so the desk's notice. A canvas picture that takes no press -- the
-  one a managed opening shows, until its pane draws its own, or one its office's holder no longer
-  holds -- gives no word or part a point. A closed pane, one not presented, one whose last update
-  Workshop refused -- nothing of it standing, or the picture a new room asked for -- and one not yet
-  drawn for its room and waiting for its provider are refused in words. Layouts reads here too, as
+  the menu, or is refused -- so nothing said beside it has a point. A pane whose drawing is still
+  in flight -- the window not yet having said what its area shows, or waiting for its drawing --
+  says `in_flight` and no word, at any page: its settling moves its stamp, and so the desk's
+  notice. A pane whose office's holder no longer holds it gives no word or part a point. A closed
+  pane, one not presented, one no window shows and one waiting for its provider are refused in
+  words. Layouts reads here too, as
   `zengine.workshop` `layouts`, its tabs parts Workshop names (the table below).
 - **Where one character is.** `PanePointRequested` version 4,
   `{provider,pane,fingerprint,word,column}`, answers where one character of one word of the
@@ -936,7 +934,7 @@ inventory and the keymap -- and Workshop says so beside each such row, at launch
   desk, when its number moved, or each pane whose stamp moved. A notice published inside the fence
   of your own settled send carries that send's `cause` until a later one replaces it, so tell your
   own change by its answer, not by the notice. A holder leaving between Workshop's deliveries is
-  said at its next repaint, fence, band notice or desk read, not at any delivery.
+  said at its next repaint, band notice or desk read, not at any delivery.
 - **The pane inventory and the keymap.** `PaneInventoryRequested` and `KeymapRequested`, answered
   to an office, are answered to a guest session whose row holds `capture` too, to it alone:
   `PaneInventory`, the panes the Pane Manager lists with each one's state, and `KeymapShown`, the
@@ -967,7 +965,7 @@ pane's lines by where they stand, a blank row a canvas draws as no word among th
 reckons where one cell of a pane's text lattice stands in a reading, by its row and column, from the
 reading's place and text measure -- a blank row's and the one after a line's last character too --
 so a tool presses a canvas pane's cell as it presses a text pane's; `hand.lattice_point` chooses
-the cell from the pane's words. A canvas picture that takes no press says its words and parts with
+the cell from the pane's words. A pane whose office nobody holds says its words and parts with
 no point, and every helper that presses reads the pane again until one does (`hand.pressing`), for
 at most ten seconds. **A helper waiting for a pane waits for the desk to move** (`hand.wait`): it
 follows Workshop's notice from its first wait and reads the pane again when that pane's stamp or

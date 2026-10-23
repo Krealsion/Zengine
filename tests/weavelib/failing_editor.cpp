@@ -11,7 +11,6 @@
 #include "workshop/pane_vocabulary.hpp"
 
 #include "activation/activation.hpp"
-#include "surface/vocabulary.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -23,15 +22,12 @@
 
 namespace {
 
-namespace surface = zengine::surface;
+namespace ws = zengine::workshop;
 using zengine::workshop::EditorDocument;
 using zengine::workshop::ManagedOpenProgress;
 using zengine::workshop::ManagedOpenSettled;
 using zengine::workshop::PaneCatalogRequested;
 using zengine::workshop::PaneOffered;
-using zengine::workshop::PaneRoom;
-using zengine::workshop::PrepareSourceRequested;
-using zengine::workshop::SourcePrepared;
 
 /// The office and pane the real Editor holds, spelled as strings: a stand-in is a stranger
 /// to the Editor's own headers, exactly as any other image would be.
@@ -56,10 +52,10 @@ struct FailingEditorState {
 
 class FailingEditor
     : public loom::WeaveBase<FailingEditor, FailingEditorState,
-                             loom::Accept<loom::Activated, PaneCatalogRequested, PaneRoom,
-                                          PrepareSourceRequested, ManagedOpenProgress,
+                             loom::Accept<loom::Activated, PaneCatalogRequested,
+                                          ws::v3::PrepareSourceRequested, ManagedOpenProgress,
                                           ManagedOpenSettled>,
-                             loom::Emit<PaneOffered, SourcePrepared>,
+                             loom::Emit<PaneOffered, ws::v3::SourcePrepared>,
                              loom::Claims<EditorDocument>> {
 public:
     void on(const loom::Activated& a, loom::Mail& mail) {
@@ -77,11 +73,9 @@ public:
         offer(mail);
     }
 
-    void on(const PaneRoom&, loom::Mail&) {}
-
-    /// PREPARE AND OFFER, as the real Editor does: an identity for the operation, one row
-    /// for the trial room, and the answer. No file is read; a stand-in has no document.
-    void on(const PrepareSourceRequested& asked, loom::Mail& mail) {
+    /// PREPARE AND OFFER, as the real Editor does: an identity for the operation, and the
+    /// answer. No file is read and nothing is drawn; a stand-in has no document.
+    void on(const ws::v3::PrepareSourceRequested& asked, loom::Mail& mail) {
         if (!mail.authored_from_role(kOpeningRole)) {
             return;
         }
@@ -91,7 +85,7 @@ public:
         offered.doc_epoch = state_.doc_epoch + 1;
         offered.opened_by = asked.op;
         const loom::JointResult r = mail.offer(static_cast<std::uint64_t>(asked.op), offered);
-        SourcePrepared said;
+        ws::v3::SourcePrepared said;
         said.op = asked.op;
         said.ok = r.ok;
         if (!r.ok) {
@@ -99,14 +93,6 @@ public:
                            std::string(loom::name_of(r.why)) + ")";
         }
         said.generation = offered.doc_epoch;
-        surface::SurfaceTextRow row;
-        row.text = "stand-in: " + asked.path;
-        if (static_cast<std::int64_t>(row.text.size()) > asked.columns && asked.columns > 0) {
-            row.text.resize(static_cast<std::size_t>(asked.columns));
-        }
-        said.rows.push_back(row);
-        said.caret_row = 0;
-        said.caret_col = 0;
         (void)mail.answer(said);
     }
 

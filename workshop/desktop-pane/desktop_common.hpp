@@ -51,8 +51,6 @@ inline constexpr const char* kTerminalPane = "terminal";
 inline constexpr const char* kViewBuilderOffice = "zengine.view.builder";
 inline constexpr const char* kViewBuilderPane = "view-builder";
 
-/// THE SENTENCE FOR A PRESS THAT NAMED A PICTURE THIS PANE HAS SINCE REPLACED.
-inline constexpr const char* kMovedSentence = "the list moved -- press again";
 
 /// A SENTENCE ANOTHER PARTY WROTE, MADE DRAWABLE: the host refuses a row carrying a byte a canvas
 /// cannot draw, and a loader's refusal may quote a file's bytes or break a line. What this
@@ -150,13 +148,12 @@ inline void close(loom::Mail& mail, const std::string& office, const std::string
         .send_to_role(kWorkshopRole, ws::PaneCloseRequested{office, pane_key}, ++launches);
 }
 
-/// WHERE A PRESS LANDED in one of this weave's panes: the row and column of its lattice,
-/// whether the keys were already here, and whether the picture it names was drawn under the
-/// meaning the pane holds now.
+/// WHERE A PRESS LANDED in one of this weave's panes: the row and column of the rows drawn there,
+/// and whether the keys were already here.
 struct PanePress {
     std::string pane;
     std::int64_t row = 0, column = 0;
-    bool keys_went_here = false, current = false;
+    bool keys_went_here = false;
 };
 
 /// ONE OF THIS IMAGE'S DECLARATIONS: the number the latest attempt went out under, the
@@ -167,8 +164,7 @@ struct Declared {
     std::string word;
 };
 
-/// ONE PANE'S OWN ROOMS: the canvas room it holds and the numbers its pictures take there, the
-/// prose room a host granting no canvas gives it, and the rows and columns it composes for.
+/// ONE PANE'S AREA: the window that shows it, and the rows and columns it composes for there.
 using PaneCanvas = ws::PaneCanvasSeat;
 
 } // namespace zengine::desktop_pane

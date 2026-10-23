@@ -50,8 +50,7 @@ WHY — `agents/decisions/a-footer-not-a-third-list.md`
 LAW — Info lays each row's ground in its own picture on the lattice it reads its presses back through, so the grounded strip is the row a press names, and the ground moves no row or column.
 
 MEANS
-- the ground spans the room's width on its row's line, and a press is read back to a row and a column through that same lattice;
-- to a host granting no canvas the rows go as prose, and a press there reaches nothing.
+- the ground spans the room's width on its row's line, and a press is read back to a row and a column through that same lattice.
 
 WHY — `agents/decisions/a-footer-not-a-third-list.md`
 
@@ -91,11 +90,8 @@ and the office is answered what the host said"
 over the host's subject, and the panes are the Pane Manager's to list"
 
 ### WL-CTRL-07
-`workshop/pane_canvas_rows.hpp` rows_picture canvas_rows row_cell_at CanvasRows::row_y
-`info/pane.cpp` on(PaneCanvasPointer) fit_room press
+`workshop/pane_drawing.hpp` rows_drawing window_cell RowsRoom
+`info/pane.cpp` fit_room press
 `tests/test_workshop_panes_info.cpp` "Info draws its properties on its canvas on the medium's own
 ground, and a draft's caret and selection stand in its row where the weaver types, moving no
-character, and go with it" "a press on Info's properties aimed at the room they stood in before a
-new one was granted names nothing, and one aimed at the room they stand in now moves the cursor" "a
-host that grants Info no canvas is shown its properties and a draft's caret as prose, its presses
-reach nothing there, and its keys still move and edit"
+character, and go with it"

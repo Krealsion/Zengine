@@ -4,6 +4,7 @@
 #define ZENGINE_INVENTORY_PANE_PRESENTATION_HPP
 #include "slots.hpp"
 #include "browser.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_text.hpp"
 #include "workshop/keymap.hpp"
 #include "component/row_map.hpp"
@@ -29,7 +30,7 @@ struct Browse {
 };
 /// "[Up] [Move here] Root > ... > Commands > Drafts  +1 in views": every control and crumb is a
 /// span of the picture; an elided crumb is not a target.
-inline void location(std::vector<surface::SurfaceTextRow>& rows, View& v, const Browse& b) {
+inline void location(std::vector<workshop::TextRow>& rows, View& v, const Browse& b) {
     const auto row = static_cast<std::int64_t>(rows.size());
     if (row >= v.rows || b.crumbs.empty()) return;
     const auto width = static_cast<std::size_t>(std::max<std::int64_t>(0, v.columns));
@@ -97,13 +98,13 @@ inline std::pair<std::string,std::string> tile_name(const std::string& name) {
     while(rest<name.size() && name[rest]==' ') ++rest;
     return {name.substr(0,cut),workshop::pane_text::fit(name.substr(rest),7)};
 }
-inline std::vector<surface::SurfaceTextRow> render(const InventoryViews& s, const std::string& id,
+inline std::vector<workshop::TextRow> render(const InventoryViews& s, const std::string& id,
     View& v, const std::vector<inventory::InventorySummary>& entries, const std::string& notice,
     const std::string& edit_label = {}, const std::string& edit_text = {}, const Browse& browse = {}) {
     namespace ws = workshop;
     namespace role = graphics::role;
     v.map.begin();
-    std::vector<surface::SurfaceTextRow> rows;
+    std::vector<workshop::TextRow> rows;
     const auto push = [&](std::string text, std::int64_t style) {
         if (static_cast<std::int64_t>(rows.size()) < v.rows)
             rows.push_back({ws::pane_text::drawable(ws::pane_text::fit(text, v.columns)), style, role::kNone});

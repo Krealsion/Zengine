@@ -211,13 +211,15 @@ public:
     }
 
     /// A point of the terminal, in cells (a point in pixels in the cell that holds it): the top
-    /// node painted there.
+    /// node painted there; for the `wheel` or the third `button`, past an area that lets it
+    /// through.
     Landed land(const std::vector<WinArea>& areas, std::int64_t x, std::int64_t y,
-                std::int64_t space) const {
+                std::int64_t space, bool wheel = false, std::int64_t button = 0) const {
         if (space == zengine::input::space::kPixels) {
-            return window::land(areas, cache_, term::floor_cell(x), term::floor_cell(y));
+            return window::land(areas, cache_, term::floor_cell(x), term::floor_cell(y), wheel,
+                                button);
         }
-        return window::land(areas, cache_, x, y);
+        return window::land(areas, cache_, x, y, wheel, button);
     }
 
     std::vector<zengine::input::InputEvent> poll() { return terminal_.poll(); }

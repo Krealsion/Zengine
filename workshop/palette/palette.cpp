@@ -12,9 +12,9 @@
 
 #include "workshop/command_vocabulary.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
-#include "workshop/pane_canvas_rows.hpp"
 #include "workshop/pane_causes.hpp"
 #include "workshop/pane_drawing.hpp"
+#include "workshop/pane_rows.hpp"
 #include "workshop/pane_vocabulary.hpp"
 
 #include "activation/activation.hpp"
@@ -22,7 +22,6 @@
 #include "graphics/role.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -61,7 +60,7 @@ struct PaletteState {
 class Palette
     : public loom::WeaveBase<
           Palette, PaletteState,
-          loom::Accept<loom::Activated, ws::PaneCatalogRequested, ws::PaneRoom, ws::PaneKey,
+          loom::Accept<loom::Activated, ws::PaneCatalogRequested, ws::PaneKey,
                        ws::PaneTextInput, ws::PaneActionRequested, ws::KeymapShown,
                        ws::PaneInventory, ws::CommandRunAnswered, gfx::AreaRoom, gfx::DrawnRefused,
                        gfx::AreaButtonChanged>,
@@ -86,20 +85,6 @@ public:
         if (mail.authored_from_role(kWorkshop)) {
             offer(mail);
         }
-    }
-
-    /// THE PALETTE OPENED: Workshop granted it its room. It starts afresh -- an empty filter, the
-    /// cursor on the first entry -- over the lists as they stand now.
-    void on(const ws::PaneRoom& room, loom::Mail& mail) {
-        if (!mail.authored_from_role(kWorkshop) || room.pane != kPane) {
-            return;
-        }
-        filter_.set(std::string(), 0);
-        cursor_ = 0;
-        first_ = 0;
-        notice_.clear();
-        ask_lists(mail);
-        show(mail);
     }
 
     void on(const ws::KeymapShown& keys, loom::Mail& mail) {
@@ -205,11 +190,21 @@ public:
         show(mail);
     }
 
-    /// THE AREA'S ROOM, as the window that shows it says it: drawn whole there.
+    /// THE AREA'S ROOM, as the window that shows it says it: drawn whole there. An area the window
+    /// shows afresh is the palette opened, which starts afresh -- an empty filter, the cursor on
+    /// the first entry -- over the lists as they stand now.
     void on(const gfx::AreaRoom& r, loom::Mail& mail) {
-        if (window_.room(r, mail)) {
-            show(mail);
+        if (!window_.room(r, mail)) {
+            return;
         }
+        if (r.empty) {
+            filter_.set(std::string(), 0);
+            cursor_ = 0;
+            first_ = 0;
+            notice_.clear();
+            ask_lists(mail);
+        }
+        show(mail);
     }
     void on(const gfx::DrawnRefused& refused, loom::Mail& mail) {
         (void)window_.refused(refused, mail);
@@ -324,7 +319,7 @@ private:
         } else if (cursor_ >= first_ + room) {
             first_ = cursor_ + 1 - room;
         }
-        std::vector<zengine::surface::SurfaceTextRow> lines;
+        std::vector<ws::TextRow> lines;
         const std::string prefix = "find: ";
         lines.push_back({prefix + filter_.text(), gfx::role::kAccent});
         std::string count = std::to_string(list.size()) + " of " +
@@ -333,8 +328,8 @@ private:
             count += " -- " + std::to_string(listing_.left_out) + " " + listing_.left_from +
                      " left out past " + std::to_string(pal::kMaxEntries);
         }
-        lines.push_back(notice_.empty() ? zengine::surface::SurfaceTextRow{count, gfx::role::kMuted}
-                                        : zengine::surface::SurfaceTextRow{notice_, gfx::role::kAlert});
+        lines.push_back(notice_.empty() ? ws::TextRow{count, gfx::role::kMuted}
+                                        : ws::TextRow{notice_, gfx::role::kAlert});
         for (std::size_t i = first_; i < list.size() && i < first_ + room; ++i) {
             const pal::Entry& e = listing_.entries[list[i]];
             const bool here = i == cursor_;
@@ -346,7 +341,7 @@ private:
         caret.row = 0;
         caret.column = static_cast<std::int64_t>(prefix.size() + filter_.caret());
         const ws::RowsDrawing drawn = ws::rows_drawing(
-            lines, std::vector<ws::PaneRowPart>{}, window_.rows_room(), columns(), caret, rows());
+            lines, std::vector<ws::RowPart>{}, window_.rows_room(), columns(), caret, rows());
         window_.draw(drawn.sketch, mail);
     }
 

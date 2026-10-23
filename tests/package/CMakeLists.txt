@@ -54,6 +54,14 @@ target_link_libraries(witness-pane-menu PRIVATE zengine::pane zengine::component
 add_executable(witness-pane-settings pane_settings_consumer.cpp)
 target_link_libraries(witness-pane-settings PRIVATE zengine::pane loom::switchboard)
 
+# ---- a stranger's pane draws in a window, live --------------------------------------------
+# pane_window_consumer.cpp builds a pane on the installed rows facet, whose rows go to a stand-in
+# window as a drawing and whose press comes back from it, from `zengine::pane`, `zengine::graphics`
+# and the Loom bus alone, out of tree: a pane helper the package stopped installing fails here.
+add_executable(witness-pane-window pane_window_consumer.cpp)
+target_link_libraries(witness-pane-window
+    PRIVATE zengine::pane zengine::graphics zengine::component zengine::activation loom::switchboard)
+
 # ---- one capability, end to end: a weave that orders time ------------------------------
 #
 # loom_weave_build_contract() arrives with the Loom package, which zengineConfig.cmake found
@@ -130,4 +138,4 @@ target_link_libraries(witness-message-drafts PRIVATE zengine::message-draft zeng
 # run.cmake refuses a program built without it there, and public_surface.cpp checks the code page
 # it runs in; elsewhere the line does nothing.
 zengine_code_page(witness-surfaces witness-graphics witness-pane-menu witness-pane-settings
-                  kitchen-host flow-author flow-host witness-message-drafts)
+                  witness-pane-window kitchen-host flow-author flow-host witness-message-drafts)

@@ -9,7 +9,6 @@
 
 #include "fingerprint.hpp"
 #include "pane_vocabulary.hpp"
-#include "pane_canvas_vocabulary.hpp"
 #include "pane_settings.hpp"
 #include <zen/switchboard/message.hpp>
 
@@ -291,96 +290,25 @@ struct RuntimeCatalog {
     }
 };
 
-// WL-DESK-14 -- agents/workshop/desktop-presenting.md; WL-READ-07 -- agents/workshop/desk-read.md
-/// The picture a press is stamped with: the newest one the medium had been handed when the press
-/// was read, aimed at once the host's `PictureFence` has come round behind its canvas twice;
-/// delivery is single-threaded FIFO, so every press read earlier keeps the older stamp. Bounded:
-/// overflow drops the oldest entry, which only keeps a press stamped older. Each picture carries
-/// the fingerprint of what it shows (`picture_fingerprint`), which a reading's stamp names: one
-/// handed out under the number already newest replaces that number's fingerprint where it stands.
-struct PictureStamp {
-    struct InFlight {
-        std::int64_t fence = 0;
-        std::int64_t picture = 0;
-        std::int64_t fingerprint = 0;
-    };
-    static constexpr std::size_t kInFlight = 8;
-    std::int64_t aimed = 0;             ///< what a press is stamped with now; 0 = none yet
-    std::int64_t aimed_fingerprint = 0; ///< ...and what that picture shows; 0 = nothing yet
-    std::vector<InFlight> in_flight;    ///< handed out, not yet fenced, oldest first
-
-    /// Record `picture`, showing `fingerprint`, as handed out behind fence `fence`; false when it
-    /// is already the newest picture handed out, whose fingerprint becomes `fingerprint`.
-    bool hand_out(std::int64_t picture, std::int64_t fence, std::int64_t fingerprint = 0) {
-        const std::int64_t newest = in_flight.empty() ? aimed : in_flight.back().picture;
-        if (picture == newest) {
-            (in_flight.empty() ? aimed_fingerprint : in_flight.back().fingerprint) = fingerprint;
-            return false;
-        }
-        if (in_flight.size() >= kInFlight) {
-            in_flight.erase(in_flight.begin());
-        }
-        in_flight.push_back(InFlight{fence, picture, fingerprint});
-        return true;
-    }
-    /// Fence `fence` came round the second time: every picture handed out behind it is aimed at.
-    void come_round(std::int64_t fence) {
-        std::size_t done = 0;
-        while (done < in_flight.size() && in_flight[done].fence <= fence) {
-            aimed = in_flight[done].picture;
-            aimed_fingerprint = in_flight[done].fingerprint;
-            ++done;
-        }
-        in_flight.erase(in_flight.begin(), in_flight.begin() + static_cast<std::ptrdiff_t>(done));
-    }
-    void forget() {
-        aimed = 0;
-        aimed_fingerprint = 0;
-        in_flight.clear();
-    }
-};
-
-/// AN OPEN EXTERNAL PANE'S VIEW OF THE PANE IT PRESENTS -- a COPY, and session.
-// WL-ATTN-04 -- agents/workshop/attention.md; WL-PANE-06 -- agents/workshop/panes-and-windows.md
+/// AN OPEN EXTERNAL PANE'S VIEW OF THE PANE IT PRESENTS -- what Workshop knows of it beside its
+/// catalog row: where its area was last placed, the settings handed to its office, and its chrome.
+/// Nothing of what the pane draws: that is the pane's, in its own area. Session, not document.
+// WL-PANE-06 -- agents/workshop/panes-and-windows.md
 struct ExternalPane {
     std::int64_t kind = kFirstRuntimeKind;
-    std::int64_t rows = 0;    ///< the last prose rows granted
-    std::int64_t columns = 0; ///< ...and the last prose columns
-    bool granted = false;     ///< whether any room has been sent for this presentation
-    bool heard = false;       ///< whether valid content has ever arrived under it
-    bool awaiting = true;     ///< a room is out and no valid content has answered it
-    /// Workshop's own sentence about a refused update, never a provider's bytes; empty when none.
-    std::string refusal;
-    /// ...and why, in the judge's own words.
-    // WL-ATTN-04 -- agents/workshop/attention.md
-    std::string refusal_why;
-    /// ...and the canvas room grant a refused picture was drawn for, so a refusal of the picture a
-    /// new room asked for is told from one made before it; 0 when none.
-    std::int64_t refused_grant = 0;
-    std::vector<surface::SurfaceTextRow> shown;
-    /// The parts of those rows the pane names, admitted with them and gone with them, each saying
-    /// whether its operation applies now (true for a part said in an earlier version).
-    std::vector<v2::PaneRowPart> parts;
-
-    /// Where the pane said its caret is, in the body lattice it was granted, and its selection.
-    /// Workshop adds its header offset when it merges these; nothing here is a cell or a pixel.
-    // WL-CARET-01 -- agents/workshop/pane-caret.md
-    std::int64_t caret_row = surface::kNoCaret;
-    std::int64_t caret_col = 0;
-    std::int64_t sel_begin_row = surface::kNoSelection;
-    std::int64_t sel_begin_col = 0;
-    std::int64_t sel_end_row = surface::kNoSelection;
-    std::int64_t sel_end_col = 0;
-
-    /// The generation of the rows admitted here (0 if never said). A projection naming an older
-    /// one is refused, so a queued picture of a replaced document cannot repaint its successor.
+    /// Whether its office draws in a graphics window -- its holder takes `graphics::AreaRoom` --
+    /// asked of the live holder before every paint; false while no participant holds the office.
+    bool in_window = false;
+    /// Whether a participant holds its office now, asked with `in_window`.
+    bool held = false;
+    /// WHERE ITS AREA WAS LAST PLACED in the desk's pixels, and under how many title rows: a press
+    /// a window holds there keeps the area where it was while only the title row its keys bring or
+    /// take would move it (WL-FOCUS-11), and the frame draws no title over it meanwhile.
+    std::int64_t placed_x = 0, placed_y = 0, placed_w = 0, placed_h = 0;
+    std::int64_t placed_titles = 0;
+    bool title_waits = false;
+    /// The generation the managed opening that seated it admitted (0 if none).
     std::int64_t content_generation = 0;
-    /// The last admitted `v3::PaneContent` number (0 if never numbered). Recorded, not judged, and
-    /// not the press stamp: a picture the medium has not been handed is not one a hand aimed at.
-    std::int64_t picture = 0;
-    /// The press stamp, echoed on `v3::PanePressed` and `PaneButton` so the pane can refuse an
-    /// older picture.
-    PictureStamp stamp;
     /// THE SETTINGS LAST HANDED TO THE OFFICE'S HOLDER for this presentation, and that holder.
     /// Nothing until the first hand-off, which is not the empty list a hand-off may carry.
     // WL-SETTING-04 -- agents/workshop/settings.md
@@ -403,114 +331,7 @@ struct ExternalPane {
     /// so it is the live holder's answer; nothing of the manual is kept.
     // WL-CHROME-09 -- agents/workshop/chrome.md
     bool manual = false;
-    struct Canvas {
-        loom::WeaveId owner{};
-        std::int64_t grant = 0, x = 0, y = 0, width = 0, height = 0, grain = 0;
-        std::int64_t text_advance_px = 0, text_line_px = 0;
-        bool graphical = false, heard = false, preview = false;
-        /// The holder speaks only the earlier canvas doors, in sub-units: its room, pointer and
-        /// hover cross times `kPaneCanvasLegacySubs`, and its picture is read at their floor.
-        bool legacy = false;
-        /// A held press keeps this room from the title row its keys bring or take (WL-FOCUS-11):
-        /// until the press ends the picture stands here, where it was drawn, painted and read
-        /// alike, and the pane's prose room waits with it.
-        bool title_waits = false;
-        /// The title rows this room was granted under (`external_title_rows`): a held press keeps
-        /// the room only while the pane's title rows are no longer these and its place still
-        /// gives it under them, so a pane that moved keeps nothing.
-        std::int64_t title_rows = 0;
-        /// The picture last admitted, in the current form, with the parts it names.
-        v6::PaneCanvasContent content;
-    } canvas;
-    /// A re-offer (a reloaded image numbers its pictures afresh) or a close: no earlier number
-    /// may stamp a press.
-    void forget_pictures() {
-        picture = 0;
-        stamp.forget();
-    }
-
-    /// THERE IS NOTHING TO REFUSE ANY MORE -- one door.
-    // WL-ATTN-04 -- agents/workshop/attention.md
-    void clear_refusal() {
-        refusal.clear();
-        refusal_why.clear();
-        refused_grant = 0;
-    }
-
-    // WL-CARET-02 -- agents/workshop/pane-caret.md
-    void clear_caret() {
-        caret_row = surface::kNoCaret;
-        caret_col = 0;
-        sel_begin_row = surface::kNoSelection;
-        sel_begin_col = 0;
-        sel_end_row = surface::kNoSelection;
-        sel_end_col = 0;
-    }
 };
-
-// WL-READ-07 -- agents/workshop/desk-read.md
-/// WHAT AN OPEN EXTERNAL PANE SHOWS, AS A FINGERPRINT: what its office sent and Workshop holds --
-/// a picture's rects, labels, runs and parts, never its pane, room grant or number; or prose rows,
-/// their parts and the caret -- whether it has said anything yet, Workshop's own words in place of
-/// an update it refused and whether that refusal is the current room's. The same picture sent
-/// again is the same fingerprint, whatever it was numbered.
-inline std::int64_t picture_fingerprint(const ExternalPane& pane) {
-    Fingerprint f;
-    const ExternalPane::Canvas& c = pane.canvas;
-    if (c.heard || c.preview) {
-        f.number(static_cast<std::int64_t>(c.content.rects.size()));
-        for (const PaneCanvasRect& r : c.content.rects) {
-            for (const std::int64_t n : {r.x, r.y, r.w, r.h, r.role}) f.number(n);
-        }
-        f.number(static_cast<std::int64_t>(c.content.labels.size()));
-        for (const PaneCanvasLabel& l : c.content.labels) {
-            f.number(l.x);
-            f.number(l.y);
-            f.bytes(l.text);
-            f.number(l.role);
-        }
-        f.number(static_cast<std::int64_t>(c.content.texts.size()));
-        for (const v2::PaneCanvasText& t : c.content.texts) {
-            f.number(t.x);
-            f.number(t.y);
-            f.bytes(t.text);
-            for (const std::int64_t n :
-                 {t.role, t.caret_col, t.sel_begin_col, t.sel_end_col,
-                  static_cast<std::int64_t>(t.padded), t.background}) {
-                f.number(n);
-            }
-        }
-        f.number(static_cast<std::int64_t>(c.content.parts.size()));
-        for (const v2::PaneCanvasPart& p : c.content.parts) {
-            f.bytes(p.name);
-            for (const std::int64_t n : {p.x, p.y, p.w, p.h}) f.number(n);
-            f.number(p.available ? 1 : 0);
-        }
-    } else {
-        f.number(static_cast<std::int64_t>(pane.shown.size()));
-        for (const surface::SurfaceTextRow& row : pane.shown) {
-            f.bytes(row.text);
-            f.number(row.role);
-            f.number(row.background);
-        }
-        f.number(static_cast<std::int64_t>(pane.parts.size()));
-        for (const v2::PaneRowPart& p : pane.parts) {
-            f.bytes(p.name);
-            for (const std::int64_t n : {p.row, p.column, p.columns}) f.number(n);
-            f.number(p.available ? 1 : 0);
-        }
-        for (const std::int64_t n : {pane.caret_row, pane.caret_col, pane.sel_begin_row,
-                                     pane.sel_begin_col, pane.sel_end_row, pane.sel_end_col}) {
-            f.number(n);
-        }
-    }
-    // ...and what Workshop paints of it: "(waiting for the provider)" until it is heard, and the
-    // refusal's sentence, never its reason, which Attention says.
-    f.number(pane.heard ? 1 : 0);
-    f.bytes(pane.refusal);
-    f.number(pane.refused_grant != 0 && pane.refused_grant == c.grant ? 1 : 0);
-    return f.value();
-}
 
 /// One pane a weaver has opened.
 // WL-PANE-13 -- agents/workshop/panes-and-windows.md
@@ -598,7 +419,7 @@ inline std::int64_t keyboard_pane(const Panes& panes) noexcept {
     }
     const RuntimePane* row = panes.runtime.of_kind(kind);
     const ExternalPane* pane = panes.external_pane(kind);
-    if (row == nullptr || pane == nullptr || !pane->granted) {
+    if (row == nullptr || pane == nullptr) {
         return kNoPaneKind;
     }
     return kind;

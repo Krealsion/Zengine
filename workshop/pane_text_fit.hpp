@@ -11,7 +11,6 @@
 // a row a region's selection covers. Reference: workshop/docs/workshop-panes.md.
 
 #include "graphics/pixels.hpp"
-#include "surface/vocabulary.hpp" // `SurfaceTextRegion`, whose selection a row's span reads
 
 #include <cstdint>
 
@@ -152,8 +151,10 @@ static_assert(fit_region(0, 0, region_px_for(20, 5, 8, 18).w,
 static_assert(region_px_for(20, 5, 0, 0) == RegionPixels{20 * graphics::kCellPx, 5 * graphics::kCellPx},
               "a metric with no type answers in whole cells, the fallback's own sentence");
 
-/// Which columns of one row a region's selection covers, written once for every medium (two
-/// media computing it apart would highlight different characters). The begin row is covered
+/// Which columns of one row a selection covers -- a text region's, or a pane's rows' (`RowsCaret`):
+/// whatever says `sel_begin_row`, `sel_begin_col`, `sel_end_row` and `sel_end_col` -- written once
+/// for every medium (two media computing it apart would highlight different characters). The
+/// begin row is covered
 /// from `sel_begin_col` to its end, the end row up to `sel_end_col`, rows between whole, all
 /// clamped into `[0, row_len]`. A range that is absent, empty or out of order answers the empty
 /// span for every row.
@@ -163,7 +164,8 @@ struct RowSpan {
     constexpr bool present() const noexcept { return end > begin; }
 };
 
-inline constexpr RowSpan selection_span_of_row(const surface::SurfaceTextRegion& r, std::int64_t row,
+template <class Range>
+inline constexpr RowSpan selection_span_of_row(const Range& r, std::int64_t row,
                                                std::int64_t row_len) noexcept {
     if (r.sel_begin_row < 0 || r.sel_end_row < r.sel_begin_row ||
         (r.sel_begin_row == r.sel_end_row && r.sel_end_col <= r.sel_begin_col)) {

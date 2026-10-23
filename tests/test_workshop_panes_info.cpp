@@ -42,21 +42,12 @@ const std::vector<std::string> kDrafting{pane::kActionCancel, pane::kActionCommi
 struct InfoRig {
     PaneRig r;
     std::int64_t kind = 0;
-    /// A host that knows no canvas door, answering that no office accepts a canvas room -- the one
-    /// Info says its rows to as prose.
-    bool no_canvas = false;
 
     /// LOAD THE IMAGE AND LET THE DESK DO THE REST. There is no `pick` here, and its absence
     /// is the claim: `default_setup` names this reference, so seating it is reconciliation
     /// rather than a gesture.
     void open(std::int64_t width = 160, std::int64_t height = 48) {
         r.mount_workshop();
-        if (no_canvas) {
-            r.host.holder_accepts = [accepts = r.host.holder_accepts](std::string_view role,
-                                                                      const loom::Schema& shape) {
-                return shape.name() != PaneCanvasRoom::zen_name && accepts(role, shape);
-            };
-        }
         load::LoadPlan plan;
         load::ArtifactIntent seat;
         seat.stem = pane::kInfoPaneStem;
@@ -85,13 +76,12 @@ struct InfoRig {
     /// PRESS INTO THE PANE: its rows are active only while it holds the keyboard. The first body
     /// row is the heading, or a sentence in front of it -- a row that means nothing.
     void focus() {
-        const ui::Rect body = external_body_rect(r.session(), kind);
-        r.press_cell(body.x, body.y);
+        press_pane(r, kind, 0, 0);
         REQUIRE(r.session().panes.keyboard == kind);
     }
 
     void unfocus() {
-        r.press_cell(0, screen_of(r.session()).h - 1);
+        r.press_cell(0, gfx::cell_of_pixel(screen_of(r.session()).h) - 1);
         REQUIRE(r.session().panes.keyboard != kind);
     }
 
@@ -252,13 +242,13 @@ struct InfoRig {
     void regrant() {
         const ExternalPane* seat = r.session().panes.external_pane(kind);
         REQUIRE(seat != nullptr);
-        const std::int64_t rows = seat->rows;
-        const auto columns = seat->columns;
+        const std::int64_t rows = held_canvas_rows(*seat).rows;
+        const std::int64_t columns = held_canvas_rows(*seat).columns;
         wide_ = !wide_;
         author_test_pane_room(r, kind, rows + 1, columns);
         r.extent(wide_ ? 160 : 150, wide_ ? 48 : 44);
         REQUIRE(r.session().panes.external_pane(kind) != nullptr);
-        REQUIRE_MESSAGE(r.session().panes.external_pane(kind)->rows != rows,
+        REQUIRE_MESSAGE(held_canvas_rows(*r.session().panes.external_pane(kind)).rows != rows,
                         "the surface changed and the pane's room did not");
     }
     bool wide_ = true;
@@ -278,7 +268,7 @@ struct InfoRig {
     void enqueue_unfocus() {
         (void)r.bus.publish(loom::Message(
             loom::to_value(input::PointerButton{1, true, 0,
-                                                screen_of(r.session()).h - 1,
+                                                gfx::cell_of_pixel(screen_of(r.session()).h) - 1,
                                                 input::space::kCells, input::mod::kNone}),
             loom::WeaveId{}, loom::WeaveId{}, 0));
     }
@@ -297,18 +287,11 @@ struct InfoRig {
     void enqueue_action(const char* id) {
         enqueue_as_workshop(loom::to_value(PaneActionRequested{pane::kInfoPane, id}));
     }
-    /// ...AND A PRESS ON ITS CANVAS, at a row and column of the lattice it holds now, aimed at the
-    /// picture Workshop admitted last: the press a weaver's hand makes there once the bus is idle.
+    /// ...AND A PRESS IN ITS AREA, at a row and column of the lattice it holds now, as the window
+    /// gives one: the press a weaver's hand makes there once the bus is idle.
     void enqueue_canvas_press(std::int64_t row, std::int64_t column) {
-        const ExternalPane* seat = r.session().panes.external_pane(kind);
-        REQUIRE(seat != nullptr);
-        REQUIRE(shows_canvas(*seat));
-        const CanvasRows lattice = held_canvas_rows(*seat);
-        enqueue_as_workshop(loom::to_value(PaneCanvasPointer{
-            pane::kInfoPane, seat->canvas.grant, seat->canvas.content.picture, ++canvas_gestures_,
-            canvas_pointer::kPress, 1, lattice.column_x(column), lattice.row_y(row)}));
+        enqueue_window_press(r, kind, row, column);
     }
-    std::int64_t canvas_gestures_ = 1000;
 
     /// Does the first row Workshop ADMITTED for this pane begin with `prefix`?
     bool admitted_leads(const std::string& prefix) {
@@ -566,17 +549,11 @@ TEST_CASE("the heading and the subject's properties are the pane's rows, over th
     const ExternalPane* seat = f.r.session().panes.external_pane(f.kind);
     REQUIRE(seat != nullptr);
     REQUIRE(shows_canvas(*seat));
-    const CanvasRows lattice = held_canvas_rows(*seat);
-    REQUIRE_FALSE(lattice.empty());
-    std::size_t grounded = 0;
-    for (const v2::PaneCanvasText& run : seat->canvas.content.texts) {
-        if (run.background == gfx::role::kNone) continue;
-        ++grounded;
-        CHECK(run.y == lattice.y); // the heading's row, the lattice's first
-        CHECK(run.background == gfx::role::kMuted);
-        CHECK(run.role == gfx::role::kAccent);
-    }
-    CHECK(grounded == 1);
+    const std::vector<HeldLitRow> lit = held_lit_rows(f.kind);
+    REQUIRE(lit.size() == 1);
+    CHECK(lit[0].row == 0); // the heading's row, the lattice's first
+    CHECK(lit[0].ground == gfx::role::kMuted);
+    CHECK(lit[0].ink == gfx::role::kAccent);
 }
 
 TEST_CASE("the picture is PUBLISHED, so a gesture that never touched the pane moves it") {
@@ -720,7 +697,7 @@ TEST_CASE("WL-HAND-06: Info names its panes by reference and its properties by l
     }
     // A PRESS WHERE `Width` IS NAMED PUTS THE CURSOR THERE, and the name stays on its row.
     REQUIRE(parts.count("property:Width") == 1);
-    const v2::PaneRowPart width = parts.at("property:Width");
+    const RowPart width = parts.at("property:Width");
     press_pane(f.r, f.kind, width.row, width.column + 3);
     CHECK(f.property_row("Width").rfind(">", 0) == 0);
     parts = held_parts(f.r.session(), f.kind);
@@ -770,10 +747,7 @@ TEST_CASE("WL-HAND-06: Info names its panes by reference and its properties by l
         std::size_t shown_to_workshop = 0;
         const loom::ObserverId tap = f.r.bus.add_observer([&](const loom::BusEvent& e) {
             if (e.kind == loom::EventKind::Delivered && e.sender == office &&
-                e.target == f.r.workshop_id &&
-                (e.schema_name == v4::PaneContent::zen_name ||
-                 e.schema_name == v5::PaneCanvasContent::zen_name ||
-                 e.schema_name == PaneCaret::zen_name)) {
+                e.target == f.r.workshop_id && e.schema_name == gfx::Drawn::zen_name) {
                 ++shown_to_workshop;
             }
         });
@@ -1030,7 +1004,7 @@ TEST_CASE("a press on an Info row while a notice stands names the row painted th
     const std::vector<std::string> rows = f.shown();
     const ExternalPane* seat = f.r.session().panes.external_pane(f.kind);
     REQUIRE(seat != nullptr);
-    REQUIRE(static_cast<std::int64_t>(rows.size()) == seat->rows);
+    REQUIRE(static_cast<std::int64_t>(rows.size()) == held_canvas_rows(*seat).rows);
     CHECK(rows.back().rfind("... ", 0) == 0);
     // ...AND THE HEADING IS RIGHT UNDER THE NOTICE: nothing blank between them.
     CHECK(f.row_of("PANE Layouts") == 1);
@@ -1680,7 +1654,7 @@ TEST_CASE("text typed after an Info commit was sent outlives that commit's answe
         f.r.extent(150, 44);
         const ExternalPane* seat = f.r.session().panes.external_pane(f.kind);
         REQUIRE(seat != nullptr);
-        REQUIRE(seat->columns > 90);
+        REQUIRE(held_canvas_rows(*seat).columns > 90);
         REQUIRE(f.declared() == kDrafting);
         f.unfocus();
         f.letter(input::scan::kPeriod, "."); // the other desk, put live
@@ -2100,57 +2074,24 @@ inline RefusedAtDispatch refuse_next_commit(InfoRig& f, int heard) {
     return out;
 }
 
-/// A PICTURE'S RUNS OF TEXT, TOP TO BOTTOM, each its characters without the blanks after the last:
-/// the rows a pane drawing its rows on its canvas said, a blank row drawn as none.
-inline std::vector<std::string> runs_top_down(const v5::PaneCanvasContent& drawn) {
-    std::vector<v2::PaneCanvasText> runs = drawn.texts;
-    std::stable_sort(runs.begin(), runs.end(),
-                     [](const v2::PaneCanvasText& a, const v2::PaneCanvasText& b) { return a.y < b.y; });
-    std::vector<std::string> out;
-    for (const v2::PaneCanvasText& run : runs) {
-        std::string text = run.text;
-        while (!text.empty() && text.back() == ' ') text.pop_back();
-        out.push_back(std::move(text));
-    }
-    return out;
-}
-
-/// AN OFFICE HOLDING `zengine.workshop` WITH NO SUBJECT DOOR. It hears a pane's offer, its declared
-/// actions and its rows the way Workshop does -- as prose, or as the runs of the picture the pane
-/// draws on the canvas Workshop granted it, top to bottom -- and says Workshop's resolved commit id
-/// to the Info pane under that office. A commit sent to it is queued (the Info pane declares the
-/// shape, so it resolves) and refused at dispatch as NotAccepted, and Loom's own notice names the
-/// attempt.
+/// AN OFFICE HOLDING `zengine.workshop` WITH NO SUBJECT DOOR. It hears a pane's offer and its
+/// declared actions the way Workshop does, and says Workshop's resolved commit id to the Info pane
+/// under that office; the pane's rows are what the window holds of its area. A commit sent to it is
+/// queued (the Info pane declares the shape, so it resolves) and refused at dispatch as
+/// NotAccepted, and Loom's own notice names the attempt.
 class DoorlessOffice
     : public loom::WeaveBase<DoorlessOffice, SeatState,
-                             loom::Accept<PaneOffered, PaneActions, v4::PaneContent,
-                                          v5::PaneCanvasContent, SeatDo>,
+                             loom::Accept<PaneOffered, PaneActions, SeatDo>,
                              loom::Emit<PaneActionRequested>> {
 public:
     void on(const PaneOffered&, loom::Mail&) {}
     void on(const PaneActions&, loom::Mail&) {}
-    void on(const v4::PaneContent& said, loom::Mail& mail) {
-        if (!mail.authored_from_role(pane::kInfoPaneRole)) {
-            return;
-        }
-        rows.clear();
-        for (const surface::SurfaceTextRow& row : said.rows) {
-            rows.push_back(row.text);
-        }
-    }
-    void on(const v5::PaneCanvasContent& drawn, loom::Mail& mail) {
-        if (!mail.authored_from_role(pane::kInfoPaneRole)) {
-            return;
-        }
-        rows = runs_top_down(drawn);
-    }
     void on(const SeatDo&, loom::Mail& mail) {
         ++state_.said;
         (void)mail.as_role(kWorkshopProvider)
             .send_to_role(pane::kInfoPaneRole,
                           PaneActionRequested{pane::kInfoPane, pane::kActionCommit});
     }
-    std::vector<std::string> rows; ///< the pane's last rows, as this office was told them
 };
 
 /// A STRANGER: an ordinary weave granted the refusal notice's shape, as every loaded image already
@@ -2189,9 +2130,7 @@ inline constexpr const char* kInspectorOffice = "zengine.test.inspector";
 
 TEST_CASE("an Info commit Loom refuses at dispatch is released: the draft and its text stand, the "
           "next Return is written, and a cancel's promise is replaced") {
-    // ON A SKIN: Workshop started again is started by a Skin's hello; a window offers once.
     InfoRig f;
-    mount_skin_stand_in(f.r);
     f.open();
     f.draft_holding("Width", "77");
 
@@ -2295,15 +2234,15 @@ TEST_CASE("an Info commit a doorless office refuses at dispatch: the draft stand
     CHECK(seam_refusals == 1);
     CHECK(reason == "NotAccepted"); // queued to the doorless office, refused at dispatch
     CHECK(queued == 0);
-    REQUIRE_FALSE(office->rows.empty());
-    CHECK_MESSAGE(office->rows.front().rfind("commit not delivered --", 0) == 0,
-                  office->rows.front());
+    REQUIRE_FALSE(held_reading(f.kind).rows.empty());
+    CHECK_MESSAGE(held_reading(f.kind).rows.front().rfind("commit not delivered --", 0) == 0,
+                  held_reading(f.kind).rows.front());
     // THE RECORD WAS RELEASED by Loom's notice: the next commit is attempted again rather than
     // refused as the second of two, which is what an outstanding record would have said.
     commit_id_said();
     CHECK(seam_refusals == 2);
     CHECK(queued == 0);
-    CHECK(office->rows.front().rfind("commit not delivered --", 0) == 0);
+    CHECK(held_reading(f.kind).rows.front().rfind("commit not delivered --", 0) == 0);
     f.r.bus.remove_observer(tap);
 
     // THE DOOR COMES BACK: the office leaves, and the same Workshop weave holds it again.
@@ -2353,9 +2292,9 @@ TEST_CASE("a refusal notice anyone could send, naming the Info pane's outstandin
         } else if (ev.target == pane_id && ev.schema_name == loom::DispatchRefused::zen_name &&
                    ev.sender == stranger_id) {
             ++forged_delivered;
-        } else if (ev.sender == pane_id && ev.schema_name == v5::PaneCanvasContent::zen_name &&
-                   ev.payload != nullptr) {
-            const auto rows = runs_top_down(loom::from_value<v5::PaneCanvasContent>(*ev.payload));
+        } else if (ev.sender == pane_id && ev.schema_name == gfx::Drawn::zen_name) {
+            // the rig's mirror has taken this drawing already: it watched the bus first
+            const std::vector<std::string> rows = held_reading(f.kind).rows;
             if (!rows.empty()) {
                 first_rows.push_back(rows.front());
             }
@@ -2544,32 +2483,29 @@ TEST_CASE("Info draws its properties on its canvas on the medium's own ground, a
     namespace pw = zengine::testing::pane_window;
     InfoRig f;
     f.open();
-    // A GRAPHICS WINDOW SHOWS INFO'S AREA TOO, where the same caret and selection stand.
-    const std::string area = std::string(pane::kInfoPaneRole) + "." + pane::kInfoPane;
-    pw::Window window(f.r.bus);
-    window.room(area, pane::kInfoPaneRole, 120, 48);
+    // THE GRAPHICS WINDOW SHOWING THE DESK SHOWS INFO'S AREA, where the caret and selection stand.
     const auto kept = [&](const std::string& path) -> const gfx::Node* {
-        const gfx::window::WinArea* a = window.weave().find(area);
+        const gfx::window::WinArea* a = held_area(f.kind);
         for (std::size_t i = 0; a != nullptr && i < a->nodes.size(); ++i) {
             if (a->nodes[i].node.path == path) return &a->nodes[i].node;
         }
         return nullptr;
     };
     const auto asks = [&](const std::string& path) {
-        const gfx::window::WinArea* a = window.weave().find(area);
+        const gfx::window::WinArea* a = held_area(f.kind);
         const gfx::ElementRecord* r = a == nullptr ? nullptr : gfx::window::record_of(*a, path);
         return r == nullptr ? std::string() : r->action;
     };
     const auto marks = [&] {
         std::size_t n = 0;
-        const gfx::window::WinArea* a = window.weave().find(area);
+        const gfx::window::WinArea* a = held_area(f.kind);
         for (std::size_t i = 0; a != nullptr && i < a->nodes.size(); ++i) {
             const std::string& path = a->nodes[i].node.path;
             if (path == "caret" || path.rfind("sel", 0) == 0) ++n;
         }
         return n;
     };
-    REQUIRE_FALSE(window.weave().heard.empty());
+    REQUIRE(held_area(f.kind) != nullptr);
     CHECK(marks() == 0);
     f.draft_holding("Width", "77");
     const auto held = [&f] {
@@ -2578,21 +2514,31 @@ TEST_CASE("Info draws its properties on its canvas on the medium's own ground, a
         REQUIRE(shows_canvas(*seat));
         return *seat;
     };
-    CHECK(wears_medium_ground(held()));
+    CHECK(wears_ground(held()));
     const std::int64_t row = f.property_at("Width");
     REQUIRE(row >= 0);
-    // ...THE CARET A BAR AT THE LEFT OF ITS CELL in the window, asking for the property.
+    // ...THE CARET A BAR AT THE LEFT OF ITS CELL in the window, asking for the property -- in a
+    // room of cells over a character, that character drawn again in the accent role.
     const auto bar_at = [&](std::int64_t column) {
         const gfx::Node* caret = kept("caret");
         REQUIRE(caret != nullptr);
-        CHECK(caret->op == gfx::op::kLine);
-        const std::optional<gfx::LineArgs> bar = gfx::from_body<gfx::LineArgs>(caret->args);
-        REQUIRE(bar.has_value());
-        CHECK(bar->x1 == column * gfx::kCellPx);
-        CHECK(bar->x2 == column * gfx::kCellPx);
-        CHECK(bar->y1 == row * gfx::kCellPx);
-        CHECK(bar->y2 == row * gfx::kCellPx + gfx::kCellPx - 1);
-        CHECK(bar->ink.role == gfx::role::kAccent);
+        if (caret->op == gfx::op::kText) {
+            const std::optional<gfx::TextArgs> mark = gfx::from_body<gfx::TextArgs>(caret->args);
+            REQUIRE(mark.has_value());
+            CHECK(mark->x == column * gfx::kCellPx);
+            CHECK(mark->y == row * gfx::kCellPx);
+            CHECK(mark->text.size() == 1);
+            CHECK(mark->ink.role == gfx::role::kAccent);
+        } else {
+            CHECK(caret->op == gfx::op::kLine);
+            const std::optional<gfx::LineArgs> bar = gfx::from_body<gfx::LineArgs>(caret->args);
+            REQUIRE(bar.has_value());
+            CHECK(bar->x1 == column * gfx::kCellPx);
+            CHECK(bar->x2 == column * gfx::kCellPx);
+            CHECK(bar->y1 == row * gfx::kCellPx);
+            CHECK(bar->y2 == row * gfx::kCellPx + gfx::kCellPx - 1);
+            CHECK(bar->ink.role == gfx::role::kAccent);
+        }
         CHECK(asks("caret") == "property:Width");
     };
     CHECK(value_of(f.property_row("Width")) == "77"); // nothing written into the value
@@ -2622,74 +2568,13 @@ TEST_CASE("Info draws its properties on its canvas on the medium's own ground, a
         CHECK(words->ink.role == gfx::role::kAccent);
         CHECK(asks(sel) == "property:Width");
         CHECK(marks() == 2);
-        std::vector<std::string> shown = f.shown();
-        for (std::string& r : shown) r.erase(r.find_last_not_of(' ') + 1);
-        CHECK(window.rows(area) == shown);
     };
-    selected();
-    bar_at(10);
-    const std::size_t sent = window.weave().heard.size();
-    window.room(area, pane::kInfoPaneRole, 120, 48, 2);
-    REQUIRE(window.weave().heard.size() == sent + 1);
-    CHECK(window.weave().heard.back().whole);
     selected();
     bar_at(10);
     f.r.key(input::scan::kEscape); // the draft ends, and its caret with it
     CHECK(held_caret(held()).row == surface::kNoCaret);
     CHECK(held_caret(held()).sel_begin_row == surface::kNoSelection);
     CHECK(marks() == 0);
-}
-
-TEST_CASE("a host that grants Info no canvas is shown its properties and a draft's caret as prose, "
-          "its presses reach nothing there, and its keys still move and edit") {
-    InfoRig f;
-    f.no_canvas = true;
-    f.open();
-    const ExternalPane* seat = f.r.session().panes.external_pane(f.kind);
-    REQUIRE(seat != nullptr);
-    REQUIRE_FALSE(shows_canvas(*seat));
-    REQUIRE(f.row_of("PROPERTIES") == 0);
-    f.inspect(layouts_ref()); // the keys come here; the press itself reaches nothing
-    const auto marked = [&f](std::int64_t at) {
-        return at >= 0 && f.shown()[static_cast<std::size_t>(at)].rfind(">", 0) == 0;
-    };
-    REQUIRE_FALSE(marked(f.property_at("Width")));
-    f.press_property("Width");
-    CHECK_FALSE(marked(f.property_at("Width")));
-    for (int i = 0; i < 32 && !marked(f.property_at("Width")); ++i) f.r.key(input::scan::kDown);
-    REQUIRE(marked(f.property_at("Width")));
-    f.r.key(input::scan::kReturn);
-    REQUIRE_MESSAGE(f.declared() == kDrafting, f.text());
-    for (int i = 0; i < 16; ++i) f.r.key(input::scan::kBackspace);
-    f.r.text("77");
-    CHECK(value_of(f.property_row("Width")) == "77");
-    seat = f.r.session().panes.external_pane(f.kind);
-    REQUIRE(seat != nullptr);
-    CHECK(held_caret(*seat).row == f.property_at("Width"));
-    CHECK(held_caret(*seat).column == 12);
-}
-
-TEST_CASE("a press on Info's properties aimed at the room they stood in before a new one was granted "
-          "names nothing, and one aimed at the room they stand in now moves the cursor") {
-    InfoRig f;
-    f.open();
-    f.inspect(layouts_ref());
-    const ExternalPane before = *f.r.session().panes.external_pane(f.kind);
-    REQUIRE(shows_canvas(before));
-    f.regrant(); // a room of another size: a new grant, the rows re-laid in it
-    const ExternalPane& now = *f.r.session().panes.external_pane(f.kind);
-    REQUIRE(now.canvas.grant != before.canvas.grant);
-    const std::int64_t at = f.property_at("Width");
-    REQUIRE(at >= 0);
-    REQUIRE(f.property_row("Width").rfind(">", 0) != 0);
-    const CanvasRows lattice = held_canvas_rows(now);
-    f.enqueue_as_workshop(loom::to_value(PaneCanvasPointer{pane::kInfoPane, before.canvas.grant,
-        before.canvas.content.picture, 900, canvas_pointer::kPress, 1, lattice.column_x(3), lattice.row_y(at)}));
-    f.settle();
-    CHECK(f.property_row("Width").rfind(">", 0) != 0);
-    f.enqueue_canvas_press(at, 3);
-    f.settle();
-    CHECK(f.property_row("Width").rfind(">Width", 0) == 0);
 }
 
 TEST_CASE("a right press on Info's properties asks for Info's own menu, and one beside them, where a "
@@ -2701,8 +2586,8 @@ TEST_CASE("a right press on Info's properties asks for Info's own menu, and one 
     REQUIRE(seat != nullptr);
     REQUIRE(shows_canvas(*seat));
     const CanvasRows lattice = held_canvas_rows(*seat);
-    REQUIRE(lattice.x > 0); // a window keeps an inset beside the rows
-    const std::int64_t x = seat->canvas.x, y = seat->canvas.y + lattice.row_y(0) + lattice.line / 2;
+    REQUIRE(lattice.rows > 2);
+    const std::int64_t y = lattice.row_y(0) + lattice.line / 2;
     const loom::WeaveId id = info_id(f);
     int asked = 0;
     const loom::ObserverId tap = f.r.bus.add_observer([&asked, id](const loom::BusEvent& ev) {
@@ -2712,13 +2597,14 @@ TEST_CASE("a right press on Info's properties asks for Info's own menu, and one 
     });
     const auto right = [&f](std::int64_t px, std::int64_t py) {
         for (const bool down : {true, false})
-            f.r.publish(loom::to_value(input::PointerButton{3, down, px, py, input::space::kPixels,
-                                                            input::mod::kNone}));
+            f.r.hand_moment(input::PointerButton{3, down, px, py, input::space::kPixels,
+                                                 input::mod::kNone});
     };
-    right(x + lattice.column_x(2) + 1, y); // on the first row: Info's own menu is asked for
+    right(lattice.column_x(2) + 1, y); // on the first row: Info's own menu is asked for
     CHECK(asked == 1);
     CHECK_FALSE(f.r.session().context.open);
-    right(x, y); // in the inset beside it: handed back
+    // ...AND BELOW ITS ROWS, where it names none: handed back.
+    right(lattice.column_x(2) + 1, lattice.row_y(lattice.rows - 1) + lattice.line / 2);
     CHECK(asked == 1);
     CHECK(f.r.session().context.open);
     f.r.bus.remove_observer(tap);

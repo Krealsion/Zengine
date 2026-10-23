@@ -298,10 +298,7 @@ WorkshopWeave::GesturesEnded WorkshopWeave::end_held_gestures() {
         out.pane = session_.pane_drag.pane;
         session_.pane_drag = PaneGesture{};
     }
-    // The text-selection drag ends silently: the selection it swept is on screen and survives the
-    // release, so only the gesture record is cleared.
-    session_.text_drag = TextDrag{};
-    // ...and so does the tab drag: the run's new order is on screen, narrated a step at a time.
+    // The tab drag ends silently: the run's new order is on screen, narrated a step at a time.
     session_.tab_drag = LayoutTabDrag{};
     return out;
 }
@@ -321,14 +318,11 @@ void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom:
         (void)hold_input(std::move(held));
         return;
     }
-    // A press puts a canvas's hover down: the gesture it begins owns the pointer.
-    if (b.pressed) leave_canvas_hover(mail);
+    // A press puts a carried item's hover down: the gesture it begins owns the pointer.
+    if (b.pressed) leave_carry_hover(mail);
     if (!b.pressed && release_value_drag(b, mail)) {
         (void)end_held_gestures(); repaint(mail); return;
     }
-    if (!b.pressed && canvas_release(b, mail)) return;
-    if (b.pressed && b.button >= 1 && b.button <= 3)
-        lose_canvas_hold(static_cast<std::size_t>(b.button - 1), mail);
     // A press begins a gesture; its release completes that one and begins none, so the release of
     // a choosing click does not defeat its own continuation, and a newer key, character, press or
     // wheel still does (WL-PRESS-06).
@@ -345,12 +339,6 @@ void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom:
     // still ends a drag that began before the mode did, so no gesture is stranded.
     if (session_.arrange.open) {
         const PointedAt where = canvas_point_of(b.space, b.x, b.y, session_.console_rows_above);
-        // A SECONDARY RELEASE ENDS A HOLD BEGUN BEFORE THIS MODE OPENED: a mode never occludes
-        // a release (WL-PRESS-06).
-        if (!b.pressed && (b.button == 2 || b.button == 3)) {
-            (void)external_release(b.button, b, mail);
-            return;
-        }
         if (b.pressed && b.button == 3) {
             close_arrange();
             repaint(mail);
@@ -391,14 +379,9 @@ void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom:
     // sends nothing. A further right press re-targets rather than toggles.
     if (session_.context.open) {
         const PointedAt where = canvas_point_of(b.space, b.x, b.y, session_.console_rows_above);
-        // A SECONDARY RELEASE ENDS A HOLD BEGUN BEFORE THE SURFACE OPENED (WL-PRESS-06).
-        if (!b.pressed && (b.button == 2 || b.button == 3)) {
-            (void)external_release(b.button, b, mail);
-            return;
-        }
         // A FURTHER RIGHT PRESS RE-ASKS THE QUESTION about whatever is under it now: the surface
-        // closes and the press is routed afresh below, so a pane with the door is offered it first
-        // and the host's own menu opens everywhere else -- as `menu_button` does for a pane's menu.
+        // closes and the press is routed afresh below, so the host's own menu opens on it -- as
+        // `menu_button` does for a pane's menu.
         if (b.pressed && b.button == 3) {
             close_context();
             if (!where.understood) {
@@ -424,46 +407,10 @@ void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom:
         }
     }
     const PointedAt at = canvas_point_of(b.space, b.x, b.y, session_.console_rows_above);
-    // THE SECOND BUTTON IS THE PANE'S FIRST (WL-PRESS-06). A secondary RELEASE is the hold's
-    // pane's wherever the pointer is, and never asks the occupancy question; one that ends no
-    // hold is dropped as every non-primary release always was.
-    if (!b.pressed && (b.button == 2 || b.button == 3)) {
-        if (external_release(b.button, b, mail)) {
-            repaint(mail);
-        }
-        return;
-    }
-    // A secondary PRESS over a pane whose holder has the `PaneButton` door is DELIVERED, and
-    // delivery is consumption: no menu, no selection change, no keyboard change. Only a press
-    // that names a row of the BODY is the pane's; the chrome stays the host's, and a holder
-    // without the door is sent nothing -- the host's own menu answers below.
-    if (b.pressed && (b.button == 2 || b.button == 3) && at.understood) {
-        const Occupancy taker =
-            occupied_at(session_.panes, session_.setup.active, screen_of(session_), at);
-        if (taker.occupied && is_runtime_kind(taker.kind)) {
-            if (const std::string why = refused_toward(input_actor_, taker.kind); !why.empty()) {
-                refuse_input(why, mail);
-                return;
-            }
-            if (canvas_press(taker.kind, b, typing_pane(session_) == taker.kind, mail)) {
-                repaint(mail);
-                return;
-            }
-            const ExternalPressAt aimed =
-                external_press_at(session_.panes, session_.setup.active, screen_of(session_),
-                                  taker.kind, session_.pane_titles, b.space, b.x, b.y);
-            // A body press is the pane's when its holder has the door, and delivery is consumption.
-            // A holder without the door is sent nothing, and the press is not lost: a right press
-            // opens the host's pane menu below, at the press (WL-CTX-08); a middle one is dropped.
-            if (aimed.named && external_button(taker.kind, b.button, aimed, at, mail)) {
-                repaint(mail);
-                return;
-            }
-        }
-    }
-    // A RIGHT PRESS NOBODY TOOK ASKS "WHAT CAN I DO WITH THIS?" -- the host's own surface, on
-    // the chrome, the room, a tab, or the body of a pane whose holder has no door. Only a press
-    // opens; a middle press nobody took is dropped below.
+    // A RIGHT PRESS ON WORKSHOP'S OWN AREA ASKS "WHAT CAN I DO WITH THIS?" -- the host's own
+    // surface, on the chrome, the room, a tab, or the frame of a pane: a press in a pane's own
+    // area is the pane's, heard there (WL-PRESS-06). Only a press opens; a middle press is dropped
+    // below.
     if (b.pressed && b.button == 3 && at.understood) {
         // ...and a tab is a subject it can name, behind occupancy: the tab inverse is asked only
         // once the walk says the Layouts pane owns this point, so a covered tab is never named
@@ -500,17 +447,8 @@ void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom:
                 return;
             }
         }
-        // What the keyboard stood at is read before the lines below rewrite it: where an ordinary
-        // key went, and where in a pane's body the press landed (a hidden-titles pane wears its
-        // title row exactly while it has the keys). Which picture the press names is separate:
-        // `external_press` stamps the one the medium held (`ExternalPane::stamp`).
-        const std::int64_t typing_before = typing_pane(session_);
-        const ExternalPressAt aimed =
-            here.occupied && is_runtime_kind(here.kind)
-                ? external_press_at(session_.panes, session_.setup.active, screen_of(session_),
-                                    here.kind, session_.pane_titles, b.space, b.x, b.y)
-                : ExternalPressAt{};
-        if (drop_carry(here.kind, aimed, mail, -1, at)) {
+        // A CARRIED ITEM IS PLACED BY THE PRESS, on the pane whose area it lands in.
+        if (drop_carry(pane_area_at(at.px.x, at.px.y), mail)) {
             repaint(mail);
             return;
         }
@@ -531,8 +469,6 @@ void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom:
                 return;
             }
         }
-        const bool canvas_sent = here.occupied && is_runtime_kind(here.kind) &&
-            canvas_press(here.kind, b, typing_before == here.kind, mail);
         // Which pane the weaver pointed at, read once: selection is set for the whole rectangle
         // (header and padding included), and the keyboard candidate is derived from it through the
         // kind's declared candidacy (`BuiltinPane::takes_keyboard`). A press on the workspace, the
@@ -543,26 +479,14 @@ void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom:
                     kind_takes_keyboard(session_.panes.selected)
                 ? session_.panes.selected
                 : kNoPaneKind;
-        // A press on a pane is that pane's; the bare room never hears it. A built-in says so on
-        // the notice line rather than leaving the last gesture's sentence standing. A press on an
-        // external pane is its provider's and consumed either way, decided here from geometry
-        // Workshop holds; Workshop says nothing, since what it means is the pane's to say.
+        // A press on a pane's frame chooses it and says nothing more: what is pressed in its own
+        // area is the pane's, heard there. A built-in says so on the notice line rather than
+        // leaving the last gesture's sentence standing; the bare room never hears a press.
         if (here.occupied && is_runtime_kind(here.kind)) {
-            // A press that named a body row takes hold of that pane for the length of the button:
-            // the record is this host's, what the sweep means is the pane's (`external_drag`), and
-            // the release ends it silently. A press on the header or padding begins no sweep.
-            // A canvas press may begin a value drag too; its motion is the canvas's until the
-            // provider asks to carry (`accept_carry`).
-            if (canvas_sent) {
-                begin_value_drag(b);
-            } else if (external_press(here.kind, aimed, typing_before == here.kind, mail)) {
-                begin_value_drag(b);
-                session_.text_drag.active = true;
-                session_.text_drag.place = text_drag_place::kExternalPane;
-                session_.text_drag.kind = here.kind;
-            }
-        } else if (here.occupied && here.kind == pane_kind::kLayouts &&
-                   layouts_press(b, mail)) {
+            repaint(mail);
+            return;
+        }
+        if (here.occupied && here.kind == pane_kind::kLayouts && layouts_press(b, mail)) {
             // ...and the Layouts pane's own inverse (tabs, `+`, the rename press, the reorder
             // drag), asked only once the walk says this point is that pane's.
             repaint(mail);
@@ -597,14 +521,10 @@ void WorkshopWeave::pointer_moved(const zengine::input::PointerMoved& m, loom::M
         (void)hold_input(std::move(held));
         return;
     }
-    // A carried value tells the canvas under it, so a receiver may mark where it would land; a
-    // canvas holding the pointer is told the motion itself, and no other canvas hears a hover.
+    // A carried value tells the pane under it, so a receiver may mark where it would land.
+    const PointedAt hand_at = canvas_point_of(m.space, m.x, m.y, session_.console_rows_above);
     if (move_value_drag(m, mail)) {
-        canvas_hover(m, mail);
-        return;
-    }
-    if (canvas_motion(m, mail)) {
-        leave_canvas_hover(mail);
+        carry_hover(hand_at.px.x, hand_at.px.y, mail);
         return;
     }
 
@@ -614,7 +534,7 @@ void WorkshopWeave::pointer_moved(const zengine::input::PointerMoved& m, loom::M
     // Order only: no desk is replaced and no provider hears it. Over no tab, `+` or its own span,
     // nothing moves, so dragging past the end rests rather than wraps.
     if (session_.tab_drag.active) {
-        leave_canvas_hover(mail);
+        leave_carry_hover(mail);
         const LayoutTabPress over =
             band_tab_at(session_, screen_of(session_), m.space, m.x, m.y);
         if (over.hit && !over.create &&
@@ -626,7 +546,7 @@ void WorkshopWeave::pointer_moved(const zengine::input::PointerMoved& m, loom::M
     // Arrangement owns motion while open, for the press's reason; with no pane gesture held, a
     // motion does nothing.
     if (session_.arrange.open) {
-        leave_canvas_hover(mail);
+        leave_carry_hover(mail);
         const PointedAt here = canvas_point_of(m.space, m.x, m.y, session_.console_rows_above);
         if (!here.understood || !session_.pane_drag.active) {
             return;
@@ -654,17 +574,8 @@ void WorkshopWeave::pointer_moved(const zengine::input::PointerMoved& m, loom::M
         }
         return;
     }
-    // A selection sweep in a pane this host did not compile: each motion is resolved against the
-    // pane's body as it is now and crosses unclamped, since what a row past the edge means is the
-    // pane's. Nothing here repaints; the pane's next content will.
-    if (session_.text_drag.active &&
-        session_.text_drag.place == text_drag_place::kExternalPane) {
-        leave_canvas_hover(mail);
-        external_drag(session_.text_drag.kind, m, mail);
-        return;
-    }
-    // An idle pointer, or a value carried by a click: the canvas under it hears where it rests.
-    canvas_hover(m, mail);
+    // A value carried by a click: the pane under it hears where it rests.
+    carry_hover(hand_at.px.x, hand_at.px.y, mail);
 }
 
 // WL-PTR-10 -- agents/workshop/pointer.md; WL-GUEST-06 -- agents/workshop/guests.md
@@ -681,30 +592,12 @@ void WorkshopWeave::pointer_wheel(const zengine::input::PointerWheel& w, loom::M
         (void)hold_input(std::move(held));
         return;
     }
+    // A WHEEL ON WORKSHOP'S OWN AREA IS A GESTURE, and turns nothing: a wheel over a pane's area is
+    // the pane's, heard there, and while something is carried the window lets the wheel through
+    // Workshop's area in front to the pane under the hand (`arrange_graphics`).
+    (void)w;
+    (void)mail;
     count_gesture();
-    if (session_.arrange.open || session_.context.open || session_.presented.open) {
-        return;
-    }
-    const Screen sc = screen_of(session_);
-    const PointedAt at = canvas_point_of(w.space, w.x, w.y, session_.console_rows_above);
-    if (!at.understood) {
-        return;
-    }
-    // The topmost presentation under the wheel decides: scrolling something under another's pane
-    // would be imaginary reach.
-    const Occupancy here =
-        occupied_at(session_.panes, session_.setup.active, sc, at);
-    if (!here.occupied) {
-        return;
-    }
-    if (is_runtime_kind(here.kind)) {
-        if (const std::string why = refused_toward(input_actor_, here.kind); !why.empty()) {
-            refuse_input(why, mail);
-            return;
-        }
-        if (!canvas_wheel(here.kind, w, mail)) external_wheel(here.kind, w, mail);
-        return;
-    }
 }
 
 // WL-PRESS-05 -- agents/workshop/press-chain.md; WL-TAB-09 -- agents/workshop/tab-run.md

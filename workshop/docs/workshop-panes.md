@@ -8,7 +8,8 @@ with each shape it accepts -- its answer, to whom, and each refusal in its words
 [Workshop's manual](zengine.workshop.md); this page holds what spans them.
 
 Source: [`workshop/pane_vocabulary.hpp`](../pane_vocabulary.hpp) ·
-[`workshop/pane_canvas_vocabulary.hpp`](../pane_canvas_vocabulary.hpp) ·
+[`workshop/pane_carry.hpp`](../pane_carry.hpp) ·
+[`workshop/pane_picture.hpp`](../pane_picture.hpp) ·
 [`workshop/pane_settings.hpp`](../pane_settings.hpp) ·
 [`workshop/setup.hpp`](../setup.hpp) ·
 [`workshop/panes.hpp`](../panes.hpp) ·
@@ -358,7 +359,7 @@ authored setup                 resolved presentation          session interactio
     width  {mode, amount}          current clipping               chosen edge/corner
     height {mode, amount}          projection / refusal           pointer gesture custody
     front  (a canonical rank)      visibility and hit order
-    settings (key, one value)      external PaneRoom
+    settings (key, one value)      the area's room
 ```
 
 **Only the first column persists.**
@@ -497,24 +498,27 @@ a step, a mode — in the layout's own setup row, beside the pane's place and si
 
 ## A weave may offer a pane
 
-> **The office authors the pane; Workshop grants the room.**
+> **The office authors the pane; Workshop places its area; the window gives it its room.**
 
-A weave that is not Workshop can offer Workshop a **pane**: a row in the Pane Manager, a rectangle
-a weaver can open, and a bounded budget of prose to fill it with. Five shapes are the protocol's
-core (`workshop/pane_vocabulary.hpp`, which declares every shape that crosses today) — four for
-the room and its rows, and [one bounded press](#a-pane-may-be-pressed):
+A weave that is not Workshop can offer Workshop a **pane**: a row in the Pane Manager, and a
+rectangle a weaver can open, which Workshop places as the pane's own area in the window that shows
+the desk. The pane draws there and hears the pointer there, from the window; Workshop draws only
+its frame. The protocol's core (`workshop/pane_vocabulary.hpp`, which declares every pane shape
+that crosses today) is the offer, the keys and the window's own shapes
+(`graphics/vocabulary.hpp`):
 
 ```text
 PaneCatalogRequested   Workshop  ->  everyone   "who has panes?"
 PaneOffered            provider  ->  Workshop   "I have this one."
-PaneRoom               Workshop  ->  provider   "here is how much prose it gets."
-PaneContent            provider  ->  Workshop   "here is what it says."
-PanePressed            Workshop  ->  provider   "a weaver pressed here, in that room."
+AreaRoom               window    ->  provider   "here is your area's room, and how I set text."
+Drawn                  provider  ->  window     "here is what the area shows."
+AreaButtonChanged      window    ->  provider   "a weaver pressed here, in your area."
+PaneKeys               Workshop  ->  provider   "the keys are, or are no longer, here."
 PaneEscapeUnspent      provider  ->  Workshop   "the Escape you sent me was unspent here."
                                                    (under that Escape's own correlation)
 ```
 
-- **`PaneOffered` and `PaneContent` carry no provider field, and the absence is the enforcement.**
+- **`PaneOffered` carries no provider field, and the absence is the enforcement.**
   The provider half of a `PaneRef` is `mail.authored_role()` — the office Loom *verified at the
   moment the sentence was authored*, carried as delivery provenance that no payload can write and
   no sender can choose. There is nothing to compare against the stamp because there is
@@ -542,7 +546,7 @@ PaneEscapeUnspent      provider  ->  Workshop   "the Escape you sent me was unsp
   may correct itself.
 - **A runtime offer cannot shadow a built-in**, and two offices offering one pane key stay two
   panes: the `PaneRef` is the *pair*, so neither office can refresh or overwrite the other's row.
-- **The setup file keeps no runtime fact.** No descriptor, content, room, handle or liveness fact
+- **The setup file keeps no runtime fact.** No descriptor, drawing, room, handle or liveness fact
   is saved. A setup naming `third.party/hello` loads, stays exactly as authored, resolves the
   moment that office offers the pane — *without the file being touched* — and is unresolved again
   in a fresh process where the provider is absent.
@@ -556,40 +560,36 @@ PaneEscapeUnspent      provider  ->  Workshop   "the Escape you sent me was unsp
   `list_window` and its own `omitted_text` wording, and the desktop's Pane Manager does in its own
   image (keeping its cursor's row in view, and counting what is above and below it). The markers
   come *out* of the list's row budget; the pane does not get taller.
-- **The room is `fit_region`'s answer and nothing else.** Workshop owns one header row naming the
-  pane and its office, and grants the body beneath it as *prose rows and columns* — never a
-  rectangle, a cell, a pixel, a font or the identity of the medium that answered. It is sent when
-  the pane opens, when a valid re-offer refreshes it, and when the resolved capacity changes, and
-  at no other time. Two things move that capacity: a **wider surface**, because a stack slot
-  takes half the room's surplus — at 200×60 the grant is `8×109` where the minimum
-  composition's is `8×48` — and a real **text metric**, because a face that is not a cell fits a
-  different amount of prose in the same rectangle. A *taller* surface moves neither: a slot's
-  height is fixed. A grant clears the cached rows *before* it is sent, so the cache can never
-  hold rows admitted under a wider room.
-- **Over-budget content is refused whole, never truncated.** Too many rows, one row too wide, or a
-  byte outside `SurfaceTextRow`'s plain-ASCII contract, and *not one row* is kept: the pane clears
-  what it was showing, leaves one bounded Workshop-owned refusal, names only the already-admitted
-  `PaneRef` in the notice, and stays open so a later valid update recovers it. A pane showing eight
-  rows of a twelve-row answer, unmarked, would present a partial sentence as the provider's whole
-  one.
+- **The area is the pane's body, and the window gives its room.** Workshop owns the pane's frame
+  -- its edge and its title rows -- and places the body beneath them as the pane's area, sized by
+  `fit_region`'s answer; the window that shows it gives the area's owner its room in pixels and the
+  window's text measure (`AreaRoom`), when the area is placed, when it moves or resizes, and when a
+  holder arriving with nothing asks it (`RoomAsked`). Two things move the body: a **wider
+  surface**, because a stack slot takes half the room's surplus, and a hidden or shown **title**.
+  A *taller* surface moves neither: a slot's height is fixed.
+- **A drawing past what a window keeps is the window's to refuse, and said to its drawer.** A
+  window keeps at most `kMaxNodesPerArea` nodes and `kMaxElementsPerArea` parts of one area; a
+  drawing past them is refused to its drawer alone (`DrawnRefused`), and the area shows what it
+  showed. The shipped helpers draw such a picture as its bound in words instead.
 - **Silence is `waiting`, and never `unavailable`.** Loom gives Workshop no participant-visible
   provider-unload notification and a sender's silence does not prove a delivery's fate — so nothing
-  times out, nothing polls, no catalog row is withdrawn and no setup reference is deleted. If a
-  provider disappears after sending valid content, Workshop **cannot know that happened** and goes
-  on showing the last rows that office reported. That is a stated limit, not liveness.
-- **Closing destroys only Workshop's copy.** The provider's weave, its office, its semantic state
-  and its catalog row all outlive the presentation; no unload is sent, and the close door —
-  a close, never a toggle — is the one way off the desk.
-- **Workshop gained two grant rules and no powers.** `PaneCatalogRequested` and `PaneRoom`, both
-  `allow_to_any` — the first because the ask *is* the discovery and there is no role to scope it to
-  yet, the second because Workshop sends to one resolved role that is runtime data. The Builder
+  times out, nothing polls, no catalog row is withdrawn and no setup reference is deleted. Until a
+  pane draws, its frame says `waiting for <name>` behind its area, and `<name> draws in no window`
+  for an office that takes no room in one. That is a stated limit, not liveness.
+- **Closing ends only the presentation.** The provider's weave, its office, its semantic state
+  and its catalog row all outlive it: the area is withdrawn, no unload is sent, and the close door
+  — a close, never a toggle — is the one way off the desk.
+- **Workshop gained grant rules and no powers.** `PaneCatalogRequested` and the pane
+  conversation's own shapes (`PaneKeys`, `PaneKey`, `PaneTextInput`, `PaneActionRequested`, the
+  drops) go `allow_to_any` — the first because the ask *is* the discovery and there is no role to
+  scope it to yet, the rest because Workshop sends to one resolved role that is runtime data. The Builder
   sentences stay role-scoped; Workshop still commands no lifecycle, loads no weave, reaches no
   Manager, and holds no observation, filesystem, process or network authority. Workshop is now
   mounted **in** the `zengine.workshop` office so a provider can verify its ask — and holding an
   office is not a super-grant: every rule is still checked at every send.
-- **The pane protocol grants no application or host authority** — no whole-screen canvas
-  publication, document, filesystem, process, network or lifecycle access. Its optional local
-  canvas speaks only inside room Workshop grants; input follows the pane seam below. That is
+- **The pane protocol grants no application or host authority** — no whole-screen drawing,
+  document, filesystem, process, network or lifecycle access. A pane draws only in its own area;
+  input follows the pane seam below. That is
   a fact about the *protocol*. It is **not** a containment claim: a trusted in-process dynamic library already shares
   this process's memory, and Loom's current default grant for a normally loaded in-process weave is
   `allow_any`. Visibility did not create those facts and this protocol does not solve them.
@@ -627,13 +627,12 @@ selected, still where the keys go, and that Escape is still the last gesture of 
 pressed it — a key, some text, a press or the wheel of that hand since makes it stale, and another
 hand's does not — and there is no answer and no retry.
 
-Deliberately absent: no focus-changed notification, idle hover over a text pane (a canvas pane
-may ask for one, [below](#optional-pane-local-canvas)), key release or double-press
-notification. Secondary buttons and the optional local canvas have explicit release custody;
-the older prose sweep still ends silently. Keys and text cross as `PaneKey`/`PaneTextInput` to the pane
-a weaver last pressed into, the wheel as `PaneWheel` — the notches, forwarded,
-following the pointer as a press does — a sweep as `PaneDragged`, and an action a pane declared
-beside its offer as `PaneActionRequested`, the resolved id in place of the key. There is no reply,
+Deliberately absent: no focus-changed notification from Workshop beyond `PaneKeys`, key release
+or double-press notification. The pointer reaches a pane in its area from the window -- presses,
+moves, the wheel and the window's word that a hold ended ([A pane's picture](#a-panes-picture)).
+Keys and text cross as `PaneKey`/`PaneTextInput` to the pane a weaver last pressed into, and an
+action a pane declared beside its offer as `PaneActionRequested`, the resolved id in place of the
+key. There is no reply,
 disposition or acknowledgement to any of them except the one above, which answers nothing and is
 about `Esc` alone; no
 multiple instances of one `PaneRef`; no provider-owned screen placement, docking, tabs or
@@ -647,30 +646,18 @@ plugin SDK. **No Loom change of any kind.**
 
 ### A caret and a selection
 
-A pane with an insertion point says where it is in a second sentence beside its rows; a pane
-without one says nothing (`workshop/pane_vocabulary.hpp`). A pane drawing its rows on its canvas
-says it instead in the run it stands in (`caret_col` and the selection's columns, which
-`rows_picture` sets from a `RowsCaret`), and the medium draws it the same way:
+A pane with an insertion point draws it, and what it has selected, in its own picture: the shipped
+helpers draw both as marks in the run they stand in (`RowsCaret`, in `workshop/pane_rows.hpp`, for
+`rows_drawing`; a run's `caret_col` and selection columns for `canvas_sketch`). Workshop judges
+neither and draws neither.
 
-```text
-PaneCaret       provider -> Workshop   the caret's row and the column it sits before, and the
-                                       range selected, in PanePressed's lattice
-v2::PaneCaret   provider -> Workshop   the same, naming the generation of the rows it is about
-```
-
-- **It is judged against the rows last accepted, and refused whole.** A caret on a row those rows
-  do not say leaves the pane with no caret, not its previous one; one past a row's last byte is an
-  insertion point at the line's end. `row == surface::kNoCaret` (-1) says there is none, and
-  shorter rows drop a caret they outgrew. A selection runs from `sel_begin` to `sel_end` in
-  reading order, the end exclusive; `sel_begin_row == surface::kNoSelection` (-1) says none.
-- **It asks for nothing.** No blink, shape, colour, scroll or claim on the keyboard: a pane says
-  where, inside rows it already sent, the insertion point of text it already wrote is. A caret
-  spoken personally, or about a pane the office never offered, is nothing.
-- **Each medium draws it its own way, and neither moves a character.** A window, which sets
-  type, draws a bar between two characters. A terminal shows the cell the caret stands on
-  inverted: the cell of the character it sits before, the blank after the row's last character,
-  or, past a full row's end, the row's last cell. A press on that row reaches the pane as the
-  column of the character the pressed cell shows, the caret's own cell included.
+- **Each window draws it its own way, and neither moves a character.** A window that sets type
+  draws a bar at the left of the character the caret stands before; a window of cells draws that
+  character again in the accent role, and a bar where it stands before none. A selection is its
+  columns drawn again in the accent role. A press on that row reaches the pane as the column of
+  the character the pressed cell shows, the caret's own cell included.
+- **It asks for nothing.** No blink, shape, colour, scroll or claim on the keyboard: a pane draws
+  where, in rows it drew, the insertion point of text it wrote is.
 
 ## The pane facets
 
@@ -683,28 +670,17 @@ of the weave; a member the facet calls only when present is optional.
 - **`PaneFacet<Pane, Office, Page, Offer>`: the offer, the room and the manual.** It holds the
   activation the office lives under; offers `Pane` from `Office` on each accepted `zen.Activated`
   and on each `PaneCatalogRequested` Workshop's office sends; answers the manual from `Page`, as
-  `PaneManualFacet` does; and keeps the room -- `PaneRoom` and `PaneCanvasRoom`, each taken only as
-  Workshop's own word about this pane -- with the rows and columns the pane composes for: the
-  canvas lattice's while a canvas room is held, else the prose room's, else, for a pane Workshop
-  seats nowhere (`seated()`), the room a graphics window gave it (`rows()`, `columns()`,
-  `on_canvas()`, `canvas_room()`). The weave supplies `offering()`, its `Offer` (`v2::PaneOffered`
-  for a pane of rows, `v3::PaneOffered` for a picture of a given size), and `on_room(mail)`, where
-  it draws. Optional: `offered(mail)`, after each offer (its rows, its settings);
-  `on_activated(mail)`, which then offers by `announce` where it chooses; `on_canvas_room(mail)`, a
-  canvas grant in place of `on_room`; `on_rejected(rejected, mail)`, a refused picture's words.
+  `PaneManualFacet` does; and keeps the room the window that shows the pane's area gave it
+  (`graphics::AreaRoom`, taken only from that window's office), with the rows and columns the pane
+  composes for (`rows()`, `columns()`). The weave supplies `offering()`, its `Offer`
+  (`v2::PaneOffered` for a pane of rows, `v3::PaneOffered` for a picture of a given size), and
+  `on_room(mail)`, where it draws. Optional: `offered(mail)`, after each offer (its rows, its
+  settings); `on_activated(mail)`, which then offers by `announce` where it chooses.
 - **`PaneRowsFacet<Pane, Office, Page, Meaning, Offer>`: a pane that says rows.** `PaneFacet`, the
   rows being composed (`begin`, `push`), what each row and run of columns means
-  (`component::RowMap<Meaning>`, `map()`), the caret (`caret()`), and `publish`: the pane's canvas
-  picture (`v6::PaneCanvasContent`) while it holds a canvas room, numbered by what its rows mean,
-  else `v5::PaneContent` with `PaneCaret` beside it. It reads `PaneCanvasPointer`: the wheel is the
-  weave's `wheel(dy, mail)`; a press about a picture whose rows have moved since, or another
-  room's, is `fenced(mail)`; the first button on a shown row is `press(RowPress, mail)`; the third
-  button on a row that means something is `right_press(meaning, RowPress, mail)`, and one the
-  weave does not take is passed back (`PanePassRequested`), so Workshop's own pane menu opens.
-  `spend_notice(notice, act, say)` spends a weaver's act: it clears the notice, runs the act, and
-  says the rows once without the notice when one stood and the act published no picture of its
-  own. The graphics window that shows the area named `Office` (`graphics::AreaRoom`, from that
-  window's office, runs `on_room` as Workshop's room does) is sent the same rows as a drawing
+  (`component::RowMap<Meaning>`, `map()`), the caret (`caret()`), and `publish`, which sends the
+  rows to the graphics window that shows the area named `Office` (`graphics::AreaRoom`, from that
+  window's office, runs `on_room`) as a drawing
   ([`workshop/pane_drawing.hpp`](../pane_drawing.hpp), `rows_drawing`): the room's ground, the
   whole of it, then each row's text a line of the window's text down and a character an advance of
   it across (`AreaRoom::measure`), in its role over its ground, cut into runs where a part begins
@@ -716,15 +692,17 @@ of the weave; a member the facet calls only when present is optional.
   (`graphics::DrawnRefused`) is followed at once by the rows last sent, whole; a refused whole
   drawing is not sent again, nor are those rows unchanged, and the next rows go whole
   (`WindowDrawing`, which an office of several panes keeps for each pane too, and both Editors,
-  Flow and the View Builder keep for their areas). A pane Workshop seats nowhere composes for the
-  window's room and sends Workshop nothing. The window's pointer in the area
+  Flow and the View Builder keep for their areas). The pane sends Workshop no rows. The window's
+  pointer in the area
   (`graphics::AreaButtonChanged`, `AreaPointerMoved`, `AreaWheelTurned`, from that window's office)
   is read on the rows it was last sent: the first button pressed on a shown cell is
   `press(RowPress, mail)` there, `keys_went_here` as Workshop's last `PaneKeys` said; the third is
   `right_press` on what the cell means, else passed back under the window's number for the press;
   the wheel is `wheel(dy, mail)`; a move and a release mean nothing. A press there is a Workshop
   gesture -- Workshop heard where it landed -- so an act it must approve may continue it under that
-  number. Where a window shows the area deaf to the pointer, `graphics::ActionRequested` naming a
+  number. `spend_notice(notice, act, say)` spends a weaver's act: it clears the notice, runs the
+  act, and says the rows once without the notice when one stood and the act published none of its
+  own. Where a window shows the area deaf to the pointer, `graphics::ActionRequested` naming a
   part of the rows is `press(RowPress, mail)` at the part's place -- a cell only it holds, else the
   first a press reaches it at -- with `window` set and `keys_went_here` not: no Workshop gesture
   stands behind it, and an act Workshop must approve is refused. An id `answers(id)` admits is
@@ -737,23 +715,14 @@ of the weave; a member the facet calls only when present is optional.
   `Office` is sent what changed since it last held the area's drawing (`graphics::Drawn`): nothing
   when nothing did, the whole picture after its room changed, and after a refused change the
   picture last sent, whole, at once (a refused whole picture is not sent again until it changes).
-  Workshop, while it seats the pane, is sent the same picture as rows ([`workshop/pane_drawing.hpp`](../pane_drawing.hpp),
-  `drawn_rows`): each text node's characters on the cells a window of characters paints them, a
-  row in the role of the first text drawn on it, and each record a part named by its path over the
-  columns its text covers there -- its canvas picture while it holds a canvas room, numbered by
-  its parts and their actions, else `v5::PaneContent`. Workshop hears only a picture the weave
-  shows, so a message the pane ignores repaints nothing; the weave calls `show` where its state
-  changed and in `on_room`, which a window's room (`graphics::AreaRoom`, from that window's office)
-  runs as Workshop's does. A pane Workshop seats draws for Workshop's room; one it seats nowhere,
-  for the window's, a row a line of its text and a column an advance of it. The picture sent the
-  window is set in the window's measure, the one sent Workshop a row a cell (`text()`, which the
-  weave's `picture` stands its rows by). A press on a part is the weave's
-  `on_action(id, mail)` with the action the part's record names: the first button on Workshop's
-  canvas, read against the picture it was aimed at (`fenced(mail)` otherwise), or in the window
-  that shows the area the first button pressed on a part of the picture last shown there
-  (`graphics::AreaButtonChanged`), or, where the window shows the area deaf to the pointer,
-  `graphics::ActionRequested` for an action that picture names or one `answers(id)` admits. The
-  third button, in Workshop or the window, is passed back, and the wheel is `wheel(dy, mail)`, as
+  The weave calls `show` where its state changed and in `on_room`, which the window's room
+  (`graphics::AreaRoom`, from that window's office) runs, so a message the pane ignores draws
+  nothing; the picture is set in the window's measure (`text()`, which the weave's `picture`
+  stands its rows by). A press on a part is the weave's `on_action(id, mail)` with the action the
+  part's record names: in the window that shows the area, the first button pressed on a part of
+  the picture last shown there (`graphics::AreaButtonChanged`), or, where the window shows the
+  area deaf to the pointer, `graphics::ActionRequested` for an action that picture names or one
+  `answers(id)` admits. The third button is passed back, and the wheel is `wheel(dy, mail)`, as
   `PaneRowsFacet`'s. The room is asked once each life while no
   window has said it (`graphics::RoomAsked`), so a pane reloaded into a window draws there again.
   Operators other than text are the window's alone.
@@ -782,184 +751,60 @@ of the weave; a member the facet calls only when present is optional.
   queued nothing is never held (`Asked::kUnqueued`), and the weave says either in its own words.
   The table is the image's alone: a reloaded pane asked nothing, so no earlier answer settles it.
 
-## Optional pane-local canvas
+## A pane's picture
 
-`workshop/pane_canvas_vocabulary.hpp` defines a bounded drawing capability beside prose.
-A holder accepting both the current `PaneCanvasRoom` and
-`PaneCanvasPointer` receives a room when Workshop can resolve its current identity; a host
-without this capability continues to grant `PaneRoom`, so a provider can keep a text fallback.
-Every pane Zengine ships draws on its canvas this way and keeps that fallback; the examples in
-`examples/` speak prose whole.
-Once a canvas grant exists, Workshop ignores that pane's prose content until the canvas
-capability leaves. Keyboard, text input, actions, pane placement and menus keep their owners.
+A pane's picture is a value it composes and draws in its own area
+([`workshop/pane_picture.hpp`](../pane_picture.hpp)): rectangles (`CanvasRect`), labels
+(`CanvasLabel`, one canvas cell per printable ASCII byte), runs of text in the window's measure
+(`CanvasText`) and the parts it names (`CanvasPart`), for the room it is composed in
+(`CanvasRoom`: the area's size, the window's grain -- one pixel where it shows every pixel, a cell
+where its unit is the cell -- and how it sets text). None of it crosses as a message: the pane draws
+it with `canvas_sketch` ([`workshop/pane_canvas_drawing.hpp`](../pane_canvas_drawing.hpp)), and
+the window shows what it draws.
 
-A canvas pane asks for its room with `v3::PaneOffered{pane, name, summary, width, height,
+A canvas pane asks for its body with `v3::PaneOffered{pane, name, summary, width, height,
 text_rows}`: a body of whole canvas pixels and rows of the medium's text beneath it. Workshop
-grants exactly that body in a window, and the cells that hold it in a terminal, so a 680 by 360
+places exactly that body in a window, and the cells that hold it in a terminal, so a 680 by 360
 view runs in a 680 by 360 room.
 
-`PaneCanvasRoom` v3 carries `pane, grant, width, height, grain, graphical,
-text_advance_px, text_line_px`. It grants local coordinates in canvas pixels, twelve to a
-canvas cell, below the title and inside the chrome. `grain` states the medium's device
-resolution in those pixels: 1 in the window, which draws the picture 1:1, and 12 in a terminal,
-which floors it to the cells it covers. `graphical` describes its reported device scale, not the
-presence of a prose font. The text metric is the active medium's measured advance and line
-height; zero means the cell projection, including a graphical medium whose font is unavailable.
-Zero width or height revokes usable room. The host mints a new
-positive grant when room geometry, text metric or provider changes and on re-offer; never persist grants
-or held gestures in a provider's reload state. A fresh image waits for a fresh room.
+- **What `canvas_sketch` draws.** The room's ground, the whole of it, so nothing behind the area
+  shows through; then the picture's rectangles, labels and runs, in that order, under a `picture`
+  group; each named part's place painted again, clipped there, under a group whose record asks the
+  part's name (`PartFace` where the part says it is unavailable), a later part over an earlier
+  one; and each run's caret and selection in front of both, as marks asking what the part beneath
+  them asks. Every node is named by its place in its group, so a node a change adds goes after its
+  siblings. A window lands a press where what it painted names an action, so a part is pressed
+  wherever the picture shows it and an unnamed place nowhere.
+- **Bounds.** At most `kPaneCanvasMaxRects` rectangles, `kPaneCanvasMaxLabels` labels and
+  `kPaneCanvasMaxTexts` runs, `kPaneCanvasMaxLabelBytes` bytes a label, `kPaneCanvasMaxTextRunBytes`
+  a run and `kPaneCanvasMaxTextBytes` in all, and no more than a window keeps of one area: a picture
+  past them is drawn as its ground and that sentence (`CanvasSketch::over`), never sent to be
+  refused.
+- **Measured text.** A `CanvasText`'s `x,y` name its padded region's origin, or with `padded`
+  false its first character's cell, so unpadded runs one line apart stack as rows do; its caret and
+  selection are byte columns of its text; `background` is a ground under its characters.
+  `workshop/pane_canvas_text.hpp`'s `canvas_text_metrics(room)` and `clip_canvas_text` give the
+  same sizing and clip, for hit tests; `fit_region` (`workshop/pane_text_fit.hpp`) is the one
+  answer to how much text a region holds.
+- **Rows.** A pane whose picture is rows of text draws them with `rows_drawing`
+  ([`workshop/pane_drawing.hpp`](../pane_drawing.hpp)) for the room a window gives (`RowsRoom`): a
+  row a line of the window's text and a character an advance of it, on the medium's own ground,
+  each run a named part holds asking that part's name, the caret and the selection as marks
+  (`RowsCaret`); `window_cell` reads a point of the area back to a row and a column.
+- **The pointer is the window's.** The window tells the area's owner of a press, its moves and
+  its release under its number for the press, the wheel, and that a hold ended
+  (`AreaButtonChanged`, `AreaPointerMoved`, `AreaWheelTurned`, `AreaHoldEnded`);
+  `WindowDrawing::pointer` reads each against the drawing last sent. A secondary press may
+  continue into the menu presenter, citing the window's number; a primary press may carry a value
+  out, as `PaneValueCarryRequested{drag=true}` under that number, and once Workshop accepts the
+  carry its own area stands in front, so later motion and the release are the carry's.
+- **Where a carried item would land, and where it landed.** A pane that accepts `PaneCanvasHover`
+  is told the point of its area a carried item rests over, and `over=false` once when the hand
+  leaves; a drop is `PaneCanvasValueDrop` or `PaneCanvasDrop`, the area it landed in and a point
+  of it. It is presentation only: no selection, focus, keyboard or gesture moves.
 
-`PaneCanvasContent` v3 carries `pane, grant, picture, rects, labels, texts` and replaces one
-whole picture; `v4::PaneCanvasContent` is the same with the parts it names
-([below](#a-pane-names-its-parts)), and `v5::PaneCanvasContent` the same again with its runs
-`v2::PaneCanvasText`, which may stand on the room's text lattice ([below](#rows-on-the-lattice)).
-Rectangles
-carry local `x,y,w,h,role`; labels carry `x,y,text,role`. Rectangles are painted in vector order,
-then labels and measured text above them, on the pane's own plane. Workshop clips before translating, so no
-primitive can escape its body. Offscreen positions are legal, allowing a provider to own pan
-and zoom. Labels are fixed-size canvas lettering: one 12-by-12 cell per printable ASCII byte,
-with partially visible edge glyphs omitted whole; they are not prose-font text or scaled type.
-Lines may be made from thin rectangles; there are no paths, textures, transforms or scenegraph.
-
-`PaneCanvasText{x,y,text,role,caret_col,sel_begin_col,sel_end_col}` is one line of measured
-prose. Its `x,y` name the local region origin **before** the text inset, not a baseline.
-Caret and selection use ASCII source-byte columns; negative means absent and the selected
-range is `[begin,end)`. The existing Surface text renderer supplies the type, caret and
-highlight. Its ground stays beneath the text, so a graph or button background shows through.
-
-Use the installed `workshop/pane_canvas_text.hpp` for the same sizing the host uses; the
-`workshop/pane_text_fit.hpp` it includes holds `fit_region`, the one answer to how much prose a
-region holds.
-`canvas_text_metrics(room)` returns advance, line height, inset and device grain in local
-pixels; the complete one-row region is `line + 2*inset` tall. `clip_canvas_text(run, clip,
-room)` returns the visible adjusted run and its exact padded `bounds`, suitable for hit tests.
-The clip may be a sidebar or graph viewport inside the room. For example:
-
-```cpp
-PaneCanvasText run{0, 0, "Configure", graphics::role::kFill};
-auto placed = clip_canvas_text(run, {0, 0, room.width, room.height}, room);
-if (placed.visible()) {
-    content.texts.push_back(placed.text);
-    // Retain placed.bounds beside this picture's action for hit testing.
-}
-```
-
-Clipping removes whole leading/trailing glyphs and whole rows; it does not reflow or shift
-surviving glyphs. The entire generated region, including its insets, remains inside the clip.
-
-#### Rows on the lattice
-
-A run's region carries the medium's inset on every side, so runs stacked one padded line apart
-(`line + 2*inset`) stand further apart than a pane's prose rows, which share one inset around
-them all, and a body fits fewer of them. `v2::PaneCanvasText` is v1's run, `padded` and
-`background`. `padded` is true, as every earlier run is, or false, where `x,y` name the run's
-first character's cell; `background` is a role the run's characters stand on, as a prose row's
-is (`role::kNone`, the default, shows what lies beneath), and a run blank to its row's end
-carries it there, its word still its characters without those blanks. Unpadded runs
-one `text_line_px` apart stack as prose rows do, and a body holds as many as it holds rows. The
-inset is still the medium's: Workshop judges and draws an unpadded run as the padded run whose
-glyphs land at its `x,y`, against the clip grown by the inset above, below and to the left --
-where only padding lies -- and never to the right, where a caret after the last character stands,
-nor to the left for a run naming a ground, which spans its region.
-In a terminal the inset is 0 and the two are one run. `clip_canvas_run` clips either kind of run
-as `clip_canvas_text` clips the first.
-
-A pane whose picture is rows of text has the installed `workshop/pane_canvas_rows.hpp` for the
-arithmetic, and keeps its own meaning, names and hit testing:
-
-- `canvas_rows(room)` is the lattice: where row 0, column 0 stands, one advance and one line, and
-  the columns and rows the room holds -- the columns a prose body its size holds, and the rows of
-  one under the pane's title, whose insets the title shares; with no title, a row more where the
-  room has it. In a terminal it is the room's cells; where type is set it starts the medium's
-  inset in from the left and keeps that inset free at the right, for a caret after a full row's
-  last character.
-- `rows_picture(room, picture, rows, parts, caret)` draws `SurfaceTextRow`s there: the medium's
-  own ground (`kMediumGround`) beneath, as a prose body's, one unpadded run a row with its role and ground -- a row's ground
-  also laid across the room's whole width beneath it, as a prose row's is -- a row's blanks after
-  its last character dropped unless a ground, the caret or the selection stands on them, a caret
-  after the last character given the blank after it where the row has one, the caret and
-  selection said as `v2::PaneCaret` says them (`RowsCaret`), and each `PaneRowPart` as the
-  rectangle its row and columns cover, in its order.
-- `row_cell_at(lattice, x, y)` reads a pointer's local place back to a row and a column, unclamped,
-  and says whether the room shows them.
-- `CanvasPictures` numbers the pictures and fences a press: Workshop wants a new number for every
-  picture within a grant, while a pane numbering its composition by what its rows mean
-  (`component::RowMap`) keeps one number while that stands still. `next(room, meaning)` numbers
-  the next picture; `current(grant, picture)` says whether a press's picture was drawn under the
-  meaning the pane holds now.
-Caret and selection columns follow the crop. Where text is a cell, a caret stands on a cell and
-adds none: after a run's last character it stands on that character's cell, so a run that wants
-the cell after it gives it a blank there, and clipping a run again moves no caret. An empty line
-with a caret reserves one column. Keep measured sizes out of saved authoring data:
-they describe the current room, not a document or graph's durable coordinates.
-
-The v3 room and content identities must be used together, with `PaneCanvasPointer` v2,
-`PaneCanvasHover` v2, `PaneCanvasValueDrop` v2 and `PaneCanvasDrop` v1, which say their places in
-the same pixels; the reference door has no earlier version, and says pixels to every holder.
-A provider built against the earlier doors — room and content v2, pointer, hover and drop v1,
-all in 1/48 canvas-cell sub-units, four to a pixel — is still answered in them: Workshop asks
-which version its holder accepts, sends its room, pointer, hover and drop times four, and reads
-its picture back with every edge floored to the pixel the window painted it at. Participants
-whose declarations change must be rebuilt and restarted before using the new conversation.
-
-Admission is whole: positive extents, a Surface role for each -- an ink is one of the five from
-`kFill` to the opaque `kGround`, and a rectangle or a run's ground may also be the medium's own
-(`kMediumGround`), which is no ink -- at most 4096 rectangles, 2048 labels, 2048 text runs, 4096 bytes per label
-or run, and 131072 combined text bytes.
-Both text forms require printable ASCII; a nonnegative caret and each selection range must
-lie within its run. A positive picture number
-must strictly increase within its grant. Authenticated stale or malformed updates receive
-`PaneCanvasRejected{pane,grant,picture,reason}` and leave the last good picture unchanged.
-A malformed one is also said where the weaver reads, as a refused prose update is: the last good
-picture is marked `(update refused)` -- in its title, or at its corner on the medium's own ground
-where no title is shown, and in place of the **updating** marker -- or, where none stands, the
-body says `(the last picture was refused -- none of it was drawn)`; Attention names the reason,
-until a picture of that pane is admitted. The corner mark is Workshop's own chrome: while it
-covers part of a picture the pane view of that pane is refused, as for a pane another covers; a
-press on it reaches no provider, a right press there opening Workshop's menu for the pane; a
-carried item is not placed under it; and the rest of the picture takes presses as it did. A stale
-one, for a holder, a room or a number since replaced, is answered to its pane alone; a grant or a
-number that is not positive is malformed.
-Unauthenticated content changes nothing. A new room clears the old picture's admission and
-fence. When only the same provider's geometry changes, Workshop may keep the old image clipped
-to the new body with an **updating** marker. This preview cannot receive input and does not
-claim the provider has answered; valid new content replaces it. It never survives a close,
-zero room, re-offer, owner/capability change, or changed text metric.
-
-`PaneCanvasHover{pane,grant,picture,x,y,over,carrying}` is the one idle-pointer fact, for a
-provider whose holder accepts it: Workshop tells the canvas on top under a pointer that holds no
-button where it rests, in local pixels on the picture handed to the medium, once per place, and
-tells it `over=false` once when the pointer leaves its body, a mode or menu opens, a sweep
-takes the motion, or any press begins: the gesture a press begins owns the pointer.
-`carrying` is true while a carried value is over it, so a receiver may mark where it would land;
-a drag's carry is told the hover too. A new room puts the hover down with no leave. It is
-presentation only: no selection, focus, keyboard or gesture moves, and nothing reads what the
-canvas drew. A terminal reports no idle pointer, so there only a carried drag is told.
-
-`PaneCanvasPointer` carries `pane,grant,picture,gesture,phase,button,x,y,modifiers,dx,dy,
-keys_went_here`. Phases are `canvas_pointer::kPress`, `kMove`, `kRelease`, `kLost`, and
-`kWheel`; buttons are 1/2/3 and a wheel uses 0. Press and wheel name the fenced picture actually
-handed to the medium, using the same `PictureStamp` as prose. Providers judge that identity
-before hit testing. A held gesture keeps the press's grant, picture and gesture number through
-motion and release even when its own drag causes repaint; only its provider interprets it.
-Coordinates may leave the room while held. A release arrives under a mode or outside the pane;
-closing, re-offering, changing its room or holder, losing understood coordinates, or opening a
-modal surface ends custody with `kLost`. A duplicate press ends the prior hold first. The host
-sends to the granted provider identity, so a successor cannot inherit a predecessor's drag.
-Providers must also reject unknown grants, including queued input received after in-place
-reload. A press refused by Loom ends host custody without inventing a release to the pane.
-
-Secondary canvas presses establish the existing menu continuation, with the correlation of
-that pointer message. `PaneMenuRequested` and `PanePassRequested` echo it normally; host and
-presenter retain menu custody. Primary presses retain Workshop's ordinary selection/focus
-behavior, and a primary press may carry a value out as a prose press does: echoing the press's
-correlation, the provider asks `PaneOperationRequested` and then
-`PaneValueCarryRequested{drag=true}`. Once Workshop accepts the carry it ends the press's hold
-with `kLost`, so later motion and the release are the carry's, and the release places the value
-where the hand lets go; a release that arrived before the carry is retained, and a click that
-never moved places nothing. No key release, font scaling, or physical-display timing
-guarantee is added beyond the hover door above. The host has no node, wire, port, selection,
-pan, or zoom semantics.
+Keep measured sizes out of saved authoring data: they describe the current room, not a document or
+graph's durable coordinates.
 
 ## A pane may be pressed
 
@@ -968,62 +813,35 @@ pan, or zoom semantics.
 A weaver can press a row of the `Loaded` pane. The row is marked, and the pane publishes an ordinary
 Loom message saying which entry that was. **The pane does not know who listens**: Compose is one
 listener, and takes that entry as the target it composes for
-([Inventory to Compose](../../inventory/docs/inventory-compose.md)). `Loaded` draws its rows on its own
-canvas, so its press arrives as a canvas pointer it reads back to a row and a column
-([rows on the lattice](#rows-on-the-lattice)); a pane that sends Workshop rows is sent the row
-and the column themselves:
+([Inventory to Compose](../../inventory/docs/inventory-compose.md)). `Loaded` draws its rows in its
+own area, so its press arrives from the window as a point it reads back to a row and a column
+(`window_cell`):
 
 ```text
 weaver presses a visible row
-    -> Workshop resolves WHICH pane by geometry it already holds, and WHERE
-       in the room it granted that pane
-    -> PanePressed { pane, row, column }        the fifth shape, to a pane of rows
-       (or v2::PanePressed { pane, row, column, keys_went_here }, below);
-       PaneCanvasPointer { pane, grant, picture, ..., x, y } to a pane drawing
-       its own picture, read back to its row and column (row_cell_at)
-    -> the provider maps the row against the projection it is CURRENTLY showing
+    -> the window lands the press in the area it shows there, and tells
+       AreaButtonChanged { area, button, pressed, x, y }   to the area's office
+       AreaPressed { window, area, button, pressed, x, y } to Workshop, which placed the area
+    -> the provider maps the point against the rows it is CURRENTLY showing
     -> LoadedSelected { pane, library, role }   published; nobody answers
 ```
 
-- **Workshop learns nothing about what a pane's rows mean.** It sends a row and a column of the
-  budget it granted, and holds no row identities, no selectable flags, no weave metadata and no
-  list-item semantics. Three presses on three different rows produce three messages differing only
-  in where the hand was — pinned from a bus tap, which also names every shape Workshop says across
-  that life and shows that `PaneContent` still travels one way only.
-- **A second version says whether the keys were already there, and only that.**
-  `v2::PanePressed` is the same place plus `keys_went_here`: true exactly when ordinary keys were
-  reaching this pane at the instant of the press — no mode, naming line or menu had
-  them, and the keyboard was pointed at this pane. Workshop reads it, and the row, *before* the
-  press moves the keyboard, so a press that brings the keys back says `false`, and a press on a
-  pane whose titles are hidden names the row painted where it landed (that pane's title returns
-  with the keys, and the smaller room it leaves is granted right after the press). It is a fact,
-  not an instruction: a pane may open a row only on a press that says the keys were already its
-  own and that row was already selected, as Files does with the same fact off its canvas pointer,
-  and a pane with no such rule ignores it. Nothing is said when the keys leave a pane.
-- **One press crosses once, in the version its pane can read.** Workshop sends the second
-  version only when the host answers that the office's current holder accepts it — read from the
-  bus's own role table and accept-sets — and the first version otherwise, unchanged, so a pane
-  built before the second existed hears exactly what it always heard. A first-version press states
-  no fact: a pane that accepts both must treat it as "not known" -- at most it selects, and the
-  pane's own key opens. The answer is an inspection, not a promise: the office is resolved again at
-  delivery, and if another holder without the second door has taken it by then, Loom refuses that
-  one press, records the refusal against Workshop's send, and nothing is sent again. A pane that
-  adds the second door changes what it accepts, which Loom will not reload in place: restart
-  Workshop to load it.
-- **`PanePressed`'s coordinate is the `PaneRoom` lattice and nothing else.** Row 0 is the first
-  row of the provider's body, under Workshop's header row, which the provider was never granted
-  and is never told about. Every forwarded press is inside `[0, rows) × [0, columns)` — swept over the whole
-  rectangle in both media. No pixel, no cell, no canvas coordinate, no window origin and no medium
-  identity crosses the seam, so the same gesture in a terminal and in a window arrives as the same
-  two numbers. **A press that names no row is not sent**: the header row and the pixel remainder
-  under the last prose line of a graphical medium are consumed by the pane and travel no further,
-  because a strip too short to fit prose is not a row and rounding it would invent one.
-- **A pane that owns visible room owns pointer refusal for that room**, and Workshop decides that
-  by occupancy before it sends anything: which pane owns a press is
-  geometry Workshop already holds, so `consumed` never crosses the wire and nothing waits for a
-  provider. Management chrome still gets first refusal: the contextual menu and the arrangement
-  each take the press whole (the Terminal was a third until it became a pane, and a pane's
-  boundary makes a press its own by geometry).
+- **Workshop learns nothing about what a pane's rows mean.** It hears where a press landed and
+  holds no row identities, no selectable flags, no weave metadata and no list-item semantics; it
+  moves the desk's selection and the keys, and sends the pane nothing about the press.
+- **Whether the keys were already there is Workshop's word, and only that.** `PaneKeys{pane,
+  here}` is said to the pane's office whenever the keys come or go, so a pane reads it as it was
+  before the press moved them: a press that brings the keys back finds `here` false. It is a fact,
+  not an instruction: a pane may open a row only on a press made while the keys were already its
+  own and that row was already selected, as Files does, and a pane with no such rule ignores it.
+- **A press is a point of the pane's own area.** The area stands under Workshop's title rows,
+  which the pane never draws and is never told about, so its first row is the pane's own row 0.
+  No window origin and no medium identity crosses: the point is in the area's pixels, and the
+  room the window gave says how it sets text. **A place that names no row is the pane's to
+  refuse**: a strip too short to fit a row is not one, and rounding it would invent one.
+- **What is in front owns the press, as the window judges it.** The window lands a press in the
+  front-most area that hears the pointer there; Workshop's own area stands in front while a weaver
+  arranges, a menu is open or something is carried, and takes the press whole.
 - **The press is read against the snapshot the weaver actually saw.** Interpreting one asks the
   Weave Manager nothing — the row-to-entry map is returned by the same function that *built* the
   rows, so there is no second calculation to drift. Unload a library under an open pane and press
@@ -1058,18 +876,16 @@ evidence for a reusable one. No pane-to-pane dependency: `Loaded` knows nothing 
 Terminal, the Builder or any future tool, and opens, closes and targets nothing. **No Loom change
 of any kind**, and no setup format movement.
 
-## The second button, a menu a pane asks for, and a picture's number
+## The second button, and a menu a pane asks for
 
 > **A right-click is the pane's first, delivery is the disposition, and a pane keeps no menu
 > state.**
 
-Three more things a pane may do, each an ordinary optional door in
-`workshop/pane_vocabulary.hpp`, and none of which changes a pane that does not take it:
+A secondary press reaches the pane from the window as any press does, under the window's number
+for it. What a pane may do with it is an ordinary optional door in `workshop/pane_vocabulary.hpp`,
+none of which changes a pane that does not take it:
 
 ```text
-PaneButton          Workshop -> provider   button 2 or 3 down / up at (row, column), or a `lost`
-                                           release the host sent because no hand could;
-                                           `picture` is the number of the picture shown
 PanePassRequested   provider -> Workshop   "that press was not mine": the host's own pane menu
                                            opens once, while the press is the latest act
                                            of the hand that pressed
@@ -1081,22 +897,17 @@ PaneMenuAnswered    presenter -> provider  chosen + id, or not chosen + why; onc
                                            the menu was withdrawn, or gave it back unanswered)
 PaneManageRequested provider -> Workshop   open the host's pane menu on (office, target);
                                            continues a menu answer, once
-v3::PaneContent     provider -> Workshop   rows + a `picture` number for this row-to-meaning map
-v4::PaneContent     provider -> Workshop   v3's rows and picture + the parts it names (below)
-v3::PanePressed     Workshop -> provider   v2's press + the picture the press was aimed at
 ```
 
-- **Delivery is consumption.** A secondary press over a pane's body is sent only to a holder
-  whose accept set has `PaneButton`, read off the bus at the send; nothing opens, and neither
-  selection nor keys move. The release goes to the pressing pane wherever the pointer is,
-  unclamped, and under an open mode too. A pane closed while a button is down hears one `lost`
-  release; a press of a button the host believes down ends the old hold aloud, never silently.
-  The title row, the border, a tab and the room still get the host's own menu, and so does a
-  right press in a body whose holder lacks the door: nothing is sent and no keys move, and the
+- **Delivery is consumption.** A secondary press in a pane's area is the pane's, heard from the
+  window; nothing opens, and neither selection nor keys move. The release goes to the area that
+  was pressed wherever the pointer is, and a hold the window ends is the press lost
+  (`AreaHoldEnded`). The title row, the border, a tab and the room still get the host's own menu,
+  and so does a right press on a pane whose office does not hear the window: no keys move, and the
   host's pane menu opens at the press. A right press is never lost to a shipped pane either —
   each acts, offers its rows, or hands the press back where it has nothing to offer.
-- **Every continuation echoes a number.** The host mints a correlation per secondary press and
-  per `PaneActionRequested`; a pass-back or a menu request echoes it in Loom's envelope (the
+- **Every continuation echoes a number.** A press carries the window's number for it, and the
+  host mints one per `PaneActionRequested`; a pass-back or a menu request echoes it in Loom's envelope (the
   `PaneEscapeUnspent` discipline) and is judged where the host acts: newest press of its
   button, unspent, its pane on the desk, and no newer act of the same hand since — a release completes its press
   and is no act of its own, so a click's release never makes its choice late. Closing the pane
@@ -1131,22 +942,15 @@ v3::PanePressed     Workshop -> provider   v2's press + the picture the press wa
   settles nothing. Keep the record in the image, not in reload-kept state: a reloaded pane then
   cancels its predecessor's menus instead of acting on rows its predecessor was showing. Whether
   the subject still applies is still the pane's to judge.
-- **A press names its picture.** A pane that composes with `v3::PaneContent` numbers each
-  composition — the shipped panes use `component::RowMap`, whose number moves exactly when the
-  row-to-meaning map does, so a repaint that moves no row keeps it — and the host echoes on
-  `v3::PanePressed` and `PaneButton` the number of the picture the medium held when the press
-  was read: a newer picture counts only once the medium has handled the canvas that showed it,
-  so a press queued ahead of new content, or read before the medium handled it, names the older
-  picture. A pane acts only when that is its current map's, else refuses in words. What this
-  orders is Workshop's handoff of the canvas against the input queued behind it; it is no
-  evidence of when a display physically showed the picture, nor of where input the platform
-  buffered came from. What it does not close: the medium's own drawing latency after it handled
-  the canvas, and a press the platform buffered before the input beat read it; that residue is
-  named, and no frame history is kept.
+- **Which drawing a press names is held open.** The shipped panes number each composition with
+  `component::RowMap`, whose number moves exactly when the row-to-meaning map does, and read a
+  press against the rows they drew where it landed; a press the window landed before a pane redrew
+  is read against the rows drawn since. Whether a window press should name the drawing it was
+  aimed at -- a drawing's number on the window's word of the press, one area a picture, or a fence
+  through the window -- is a decision asked.
 - **A gesture a menu may continue.** A menu request must echo the correlation of the gesture it
-  continues, and three gestures carry one: a secondary press (`PaneButton`), a declared action
-  sent by key (`PaneActionRequested`), and a **primary press** (`PanePressed` and its later
-  versions). All three are judged the same way where the menu would open — this pane, this
+  continues, and three gestures carry one: a secondary press and a **primary press**, each under
+  the window's number, and a declared action sent by key (`PaneActionRequested`). All three are judged the same way where the menu would open — this pane, this
   number, and still the latest act of the hand that made it — and each is spent once, so a late or replayed
   request is refused in words rather than opened over whatever the weaver did next. The primary
   press is what lets a pane that draws its own controls answer a click on a `[menu]` of its own;
@@ -1156,8 +960,8 @@ v3::PanePressed     Workshop -> provider   v2's press + the picture the press wa
   `Offer(pane, subject).at(row, col).row(id, label).send(mail, office)` builds and sends the
   request continuing the delivery's gesture and returns its `Asked`; `.submenu(id, label)` is a
   row whose choice opens another menu, its label ending in the one mark the host's own groups
-  wear (`kSubmenuMark`, " >") -- a row that asks for more input ends in "..." instead; `pass_back`, `manage`,
-  `take_keyboard` and `HeldButton` are the other lines a consumer would otherwise write.
+  wear (`kSubmenuMark`, " >") -- a row that asks for more input ends in "..." instead; `pass_back`, `manage`
+  and `take_keyboard` are the other lines a consumer would otherwise write.
   `take_keyboard_continuing` is `take_keyboard` under a number the pane names rather than the
   delivery's own, for a chosen row whose edit opens only after an office has answered: the pane
   keeps the choice's number across that round trip and spends it where the line appears, and
@@ -1165,8 +969,8 @@ v3::PanePressed     Workshop -> provider   v2's press + the picture the press wa
   choice is still its hand's latest act. A pane
   may write the raw shapes instead, and then owes the four checks `Asked::take` makes. The
   shipped `examples/guard-pane` consumes the button and asks for nothing; the Pane Manager and
-  the Hotkeys pane offer menus; the Neovim editor, on its canvas pointer, passes a right press and
-  its release to Neovim, offers its own menu on the Visual highlight and on its status row, and
+  the Hotkeys pane offer menus; the Neovim editor, on the window's pointer, passes a right press
+  and its release to Neovim, offers its own menu on the Visual highlight and on its status row, and
   hands back a right press beside its rows.
 
 ### The menu presenter, and replacing it
@@ -1365,28 +1169,18 @@ desk read whole.
 ### A pane names its parts
 
 A pane names the parts a weaver acts on -- a row, a control inside one, an element of its picture
--- from what each means, keeping each name across its redraws. The names ride inside the content
-they name:
-
-```text
-v4::PaneContent         provider  -> Workshop   v3's rows and picture + `parts`, each
-                                                PaneRowPart{name, row, column, columns}
-v5::PaneContent         provider  -> Workshop   v4's, each part a v2::PaneRowPart + `available`
-v4::PaneCanvasContent   provider  -> Workshop   v3's picture + `parts`, each
-                                                PaneCanvasPart{name, x, y, w, h}
-v6::PaneCanvasContent   provider  -> Workshop   v5's, each part a v2::PaneCanvasPart + `available`
-```
-
-A presenter names its menu's lines in its own drawing, each by the id of the row it shows (a
+-- from what each means, keeping each name across its redraws. The names ride inside the drawing
+they name, each the action a record asks of the place it paints: a run of a row's columns
+(`RowPart{name, row, column, columns, available}`, drawn by `rows_drawing`) or a rectangle of the
+picture (`CanvasPart{name, x, y, w, h, available}`, drawn by `canvas_sketch`), plain values of
+`workshop/pane_parts.hpp` and `workshop/pane_picture.hpp` that never cross as messages. A presenter names its menu's lines in its own drawing, each by the id of the row it shows (a
 record's action, `MenuDrawing`), and the desk read says them as the window shows them.
 
-- **A name is the pane's.** Workshop judges its form and carries it as the pane said it; it names
-  nothing inside a pane. A name is 1 to `kMaxPanePartNameLen` (256) bytes of printable ASCII, not
+- **A name is the pane's.** Workshop names nothing inside a pane, and the window says each name as
+  the drawing asked it. A name is 1 to `kMaxPanePartNameLen` (256) bytes of printable ASCII, not
   all spaces, said once in its picture, and a picture lists at most `kMaxPaneParts` (2048) parts. A
-  row part is a run of at least one column of a row its content says, inside the room's columns; a
-  canvas part has a positive extent and may lie partly outside the room. Content naming a part
-  wrongly is refused whole, saying why, as content breaking any other rule is: a pane's rows go
-  with their refusal, and a rejected picture leaves the last good one.
+  row part is a run of at least one column of a row it draws, inside the room's columns; a canvas
+  part has a positive extent and may lie partly outside the room.
 - **A picture lists its parts in the order its pane reads a press.** Where parts hold one place, a
   press there reaches the later: a control listed after the row it stands in, a handle after its
   element, as each shipped canvas pane reads a press on the hits it drew. A place a press reaches
@@ -1399,16 +1193,15 @@ record's action, `MenuDrawing`), and the desk read says them as the window shows
   a place. A span whose meaning is named "", a name the judge would refuse or a name already taken
   stays as a place unnamed. `PartNames` gathers a pane's own parts the same way, keeping every
   place, and past `kMaxPaneParts` drops the earliest, which take no press from a part after them.
-  `pane_part_name_problem`, `row_parts_problem` and `canvas_parts_problem` are the judge's words,
-  for a pane to ask of its parts before it sends them.
-- **A pane moving its rows onto the canvas names the same parts in its picture.** A name says what
-  a part means, not how it is drawn, so a walk written against the rows still holds.
+  `pane_part_name_problem`, `row_parts_problem` and `canvas_parts_problem` say what is wrong with
+  a pane's parts, for a pane to ask before it draws them.
+- **A pane moving its rows into a picture names the same parts in it.** A name says what a part
+  means, not how it is drawn, so a walk written against the rows still holds.
 - **A part says whether its operation applies now** (`available`): true where the pane draws its
   face `[label]`, false where it draws `(label)` (`component/control_strip.hpp`). A part that
   performs nothing, a row, says true, and so does every part of an earlier version. It is a hint,
   as the face is: the pane judges the press again when it arrives. `row_parts(map, columns,
-  name_of, available_of)` names a row map's parts with it, and `rows_picture` carries it onto a
-  canvas.
+  name_of, available_of)` names a row map's parts with it.
 
 Workshop answers each part beside the pane's words in its reading (`PaneView`,
 [below](#the-desk-said-whole)), and a menu's named lines beside its lines in the desk's `DeskMenu`:
@@ -1418,14 +1211,12 @@ Workshop answers each part beside the pane's words in its reading (`PaneView`,
 | `PanePart{name, text, place, x, y, space, available}` | One part: its name as the pane said it; the characters it covers -- for a canvas part, the characters drawn wholly inside it, each word's joined to the next word's by a space, so a part a word crosses says the characters on its side; the place covering it where the medium draws it; its point, or none; and whether its operation applies now, as its pane said it |
 
 - **A part's point is a place of its own**, where a press reaches it: one no part listed after it
-  holds. A row part's point is its middle character of its own -- a row `> [open] Files` whose
-  `[open]` mark is a part of its own lands on the name, beside the mark -- else its middle blank
-  cell of its own. A canvas part's point is its centre, else the middle of its widest stretch of
-  its own on the row nearest its centre that has one -- the upper of two rows as near, the leftmost
-  of two stretches as wide -- sought over every unit of it the body shows. A part with no place of
-  its own is said with its words and place and no point: `x` and `y` are 0 and `space` is 0,
-  `input::space::kUnknown`, which no consumer reads and `InjectInput` refuses; `workshop/act` never
-  presses one. Every part of a canvas picture that takes no press is said so too
+  holds. A pane's is where its window lands a press (below); on Workshop's own surfaces a row
+  part's point is its middle character of its own -- a row `> [open] Files` whose `[open]` mark is
+  a part of its own lands on the name, beside the mark -- else its middle blank cell of its own. A
+  part with no place of its own is said with its words and place and no point: `x` and `y` are 0
+  and `space` is 0, `input::space::kUnknown`, which no consumer reads and `InjectInput` refuses;
+  `workshop/act` never presses one. Every part of a pane whose office nobody holds is said so too
   ([`PaneViewRequested`](zengine.workshop.md#paneviewrequested)). A point is in the medium's own units: a window's pixel, or a terminal's cell. A
   terminal shows a span `[begin, end)` on the cells from `floor(begin / kCellPx)` up to
   `floor(end / kCellPx)`, that one left out, so a canvas part it paints on no cell is not
@@ -1486,19 +1277,19 @@ v2::AppActions      desktop  -> Workshop   v2::AppActionRow: AppActionRow's fiel
 ### The desk, said whole
 
 The same header answers the whole desk in one turn, and one pane's reading page by page under a
-stamp naming what it stands on, and publishes a notice whenever the desk moves. A picture's number
-alone names nothing: it starts again when a pane's office is offered again, and at each new canvas
-room. So a `PaneStamp` names what a pane shows, and where, by a fingerprint, never a number. One
+stamp naming what it stands on, and publishes a notice whenever the desk moves. A drawing's number
+alone names nothing: it starts again when a pane's office is held again. So a `PaneStamp` names
+what a pane shows, and where, by a fingerprint, never a number. One
 version of each of these shapes stands.
 
 | Message | Meaning |
 |---|---|
 | `DeskReadRequested{}` | Anyone granted it, to Workshop: the desk in one turn |
 | `DeskRead{desk, stamps, panes}` | The desk as `DeskView`; every presented pane's `PaneStamp`, from the front back; and as many of those panes' readings, in that order, as one decoded value and one reply's bytes hold |
-| `PaneStamp{provider, pane, holder, incarnation, epoch, fingerprint}` | What one pane's reading stands on: the `WeaveId` holding its office, that holder's incarnation, the incarnation of the window showing the desk, and a fingerprint of what the pane shows and where -- 0 for a canvas picture no press is stamped with yet |
+| `PaneStamp{provider, pane, holder, incarnation, epoch, fingerprint}` | What one pane's reading stands on: the `WeaveId` holding its office, that holder's incarnation, the incarnation of the window showing the desk, and a fingerprint of what the pane shows and where |
 | `PaneViewRequested{provider, pane, from, stamp}` | A page of one pane's reading from item `from`, continuing the reading `stamp` names; a stamp naming no holder (holder 0, as an empty stamp does) at `from` 0 reads the pane as it stands |
 | `PaneView{stamp, area, advance, line, words, parts, covered, in_flight, from, total}` | The reading's stamp; the place its text stands on and its text measure, so any cell of it is `area` plus a column's `advance` and a row's `line`; its words and then its parts from item `from`, of `total`, as many as one decoded value and one reply's bytes hold; what covers the pane; and whether what it shows is still in flight |
-| `PaneCover{by, words, rect}` | What covers part of a pane -- `by` names each: a pane in front by its name, `menu`, `arranging`, `refused mark`, `band` -- how many of its words and parts are not said for it, and the `DeskRect` bounding what they cover of it; empty for a pane nothing covers |
+| `PaneCover{by, words, rect}` | What covers part of a pane -- `by` names each: a pane in front by its name, `menu`, `arranging`, `band` -- how many of its words and parts are not said for it, and the `DeskRect` bounding what they cover of it; empty for a pane nothing covers |
 | `PanePointRequested{provider, pane, fingerprint, word, column}`, `PanePoint{provider, pane, fingerprint, word, column, x, y, space}` | Where one character of a word of the reading at `fingerprint` is now; refused, in words, when what the pane shows moved |
 | `DeskStamps{desk, panes}` | Published by Workshop's office to whoever follows it: the desk number and every presented pane's `PaneStamp`, from the front back, as a `DeskRead` would say them now |
 | `DeskView{desk, width, height, cell_px, space, room, panes, arranging, menu, words}` | The desk by Workshop's own numbers: each pane's state, rank, place and size, selection and keys; the room; arranging; the menu, a `DeskMenu{open, office, pane, picture, place, lines, parts}`; the band's notice and legend as `PaneWord`s with their places and no point, since the band takes no press; and `desk`, a number that moves when anything it says moves |
@@ -1509,7 +1300,9 @@ version of each of these shapes stands.
   waiting at once and `kDeskWaitMs` (<!-- value kDeskWaitMs grouped -->2,000<!-- /value --> ms)
   each, after which, or when the window starts again, the read is refused in words. What another
   office draws in front of the area is left out of the window's answer; what Workshop draws over
-  it is Workshop's own cover. Every other pane, and Layouts, is read as Workshop draws it.
+  it is Workshop's own cover. A pane no window shows is refused in its frame's words
+  (`<name> draws in no window`, or that it waits for its provider); Layouts is read as Workshop
+  draws it.
 - **One value, then a page at a time.** A `DeskRead` stays inside one decoded value: Loom's
   [decode budget](https://github.com/Krealsion/Loom/blob/main/docs/reference/bounds.md#the-decode-materialization-bound),
   which Workshop restates as `kDecodedCellBudget`
@@ -1534,19 +1327,16 @@ version of each of these shapes stands.
   the pane again from item 0 when they differ; a `from` past `total` is refused, in words saying
   to read it again from the start.
 - **A covered word is not said.** A word or part whose place meets anything drawn over the pane --
-  a pane in front of it, an open menu, Workshop's or a pane's, arranging, over all of it, a canvas
-  pane's refused-picture mark, the band where the pane stands outside the room -- is left out,
+  a pane in front of it, an open menu, Workshop's or a pane's, arranging, over all of it, the
+  band where the pane stands outside the room -- is left out,
   counted in `covered.words`, and never given a point. While a menu is open a primary press
   outside it reaches nothing beside it -- it closes the menu, or is refused -- so every word and
   part said beside it has its place and no point.
-- **A picture in flight says so.** While what a pane sent is not yet what it shows, or it shows a
-  preview, or a room is out that no picture has answered yet, or the window waits for the pane's
-  whole drawing, its reading says `in_flight` and no word, at any page: its settling moves its
-  stamp, and the notice. A closed pane, one not presented, one whose last update Workshop refused
-  -- nothing of it standing, or the picture a new room asked for -- and one not yet drawn for its
-  room whose office no participant holds, waiting for its provider, are refused in words, as the
-  pane paints them; a pane whose provider left with its last update standing is read as it is
-  painted.
+- **A drawing in flight says so.** While the window has not yet said what a pane's area shows,
+  or waits for the pane's whole drawing, its reading says `in_flight` and no word, at any page: its
+  settling moves its stamp, and the notice. A closed pane, one not presented, one no window shows,
+  and one whose reading the window refused are refused in words; a pane whose provider left with
+  its last drawing standing is read as the window shows it, with no point.
 - **A few desk reads a second, each asker.** Every `DeskRead` composes the whole desk, so Workshop
   answers at most `kDeskReadsPerSecond` (<!-- value kDeskReadsPerSecond -->4<!-- /value -->) from
   one asker in any second, refuses the next in words naming the milliseconds until it may read
@@ -1556,7 +1346,7 @@ version of each of these shapes stands.
   stands. Consistency is per pane: each reading stands on its own stamp.
 - **A notice when the desk moved.** Workshop publishes `DeskStamps` as its office at the end of
   each delivery that moved the desk number or a presented pane's stamp -- one notice for every
-  repaint that delivery made, and one when a picture's fence comes round -- and a `DeskRead` that
+  repaint that delivery made -- and a `DeskRead` that
   finds the number moved without one publishes it. A delivery that may have moved the desk asks
   the window what each presented area shows since it last said, so a pane drawing in its own area
   moves the notice too. A repaint that moved nothing publishes nothing. The notice is the whole

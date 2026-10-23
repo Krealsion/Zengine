@@ -182,15 +182,11 @@ TEST_CASE("a pane's actions are three shapes: rows of id, label and two numbers;
         CHECK(f.name != "modifiers");
     }
 
-    // AND THE EIGHT OLDER SHAPES DID NOT MOVE: three were added and none revised.
+    // AND THE OLDER SHAPES DID NOT MOVE: three were added and none revised.
     CHECK(loom::schema_of<PaneCatalogRequested>()->version() == 1u);
     CHECK(loom::schema_of<PaneOffered>()->version() == 1u);
-    CHECK(loom::schema_of<PaneRoom>()->version() == 1u);
-    CHECK(loom::schema_of<PaneContent>()->version() == 1u);
-    CHECK(loom::schema_of<PanePressed>()->version() == 1u);
     CHECK(loom::schema_of<PaneKey>()->version() == 1u);
     CHECK(loom::schema_of<PaneTextInput>()->version() == 1u);
-    CHECK(loom::schema_of<PaneWheel>()->version() == 1u);
 }
 
 // ============================================================================
@@ -1230,11 +1226,11 @@ TEST_CASE("a weaver's override moves a Powers action, and the key it left no lon
 namespace legacy = legacy_protocol;
 
 /// A PROVIDER THAT KNOWS ONLY THE OLD PROTOCOL: it offers a pane and declares its rows through
-/// the shapes above, and it has never heard of ownership.
+/// the shapes above, and it has never heard of ownership, nor of a window.
 class LegacySeat : public loom::WeaveBase<LegacySeat, SeatState,
-                                          loom::Accept<PaneCatalogRequested, PaneRoom,
-                                                       PaneActionRequested, SeatDo>,
-                                          loom::Emit<PaneOffered, PaneContent, legacy::PaneActions>> {
+                                          loom::Accept<PaneCatalogRequested, PaneActionRequested,
+                                                       SeatDo>,
+                                          loom::Emit<PaneOffered, legacy::PaneActions>> {
 public:
     explicit LegacySeat(std::string office) : office_(std::move(office)) {}
 
@@ -1242,13 +1238,6 @@ public:
     std::function<void(LegacySeat&, loom::Mail&)> next;
 
     void on(const PaneCatalogRequested&, loom::Mail&) {}
-    void on(const PaneRoom& room, loom::Mail& mail) {
-        std::vector<surface::SurfaceTextRow> rows;
-        rows.push_back(surface::SurfaceTextRow{"an old pane", gfx::role::kFill});
-        (void)room;
-        (void)mail.as_role(office_).send_to_role(kWorkshopProvider,
-                                                 PaneContent{"old", std::move(rows)});
-    }
     void on(const PaneActionRequested& a, loom::Mail&) { said.push_back(a.id); }
     void on(const SeatDo&, loom::Mail& mail) {
         if (next) {
@@ -1293,7 +1282,6 @@ TEST_CASE("a pane built against the published version one still registers, decla
     LegacySeat* old_pane = seat.get();
     loom::Grant say;
     say.allow_to_any(PaneOffered::zen_name, PaneOffered::zen_version);
-    say.allow_to_any(PaneContent::zen_name, PaneContent::zen_version);
     say.allow_to_any(legacy::PaneActions::zen_name, legacy::PaneActions::zen_version);
     const loom::WeaveId id =
         r.bus.register_weave(std::move(seat), std::move(say), std::string(kOtherOffice));
@@ -1328,7 +1316,7 @@ TEST_CASE("a pane built against the published version one still registers, decla
     // version, on the same host and in the same session. The id is retired, so the pane is
     // admitted standing in for nothing: its row is its own. (This rig's screen holds one stack
     // pane, so the old one steps out.)
-    r.press_cell(0, screen_of(r.session()).h - 1); // the keys back to the desk
+    r.press_cell(0, gfx::cell_of_pixel(screen_of(r.session()).h) - 1); // the keys back to the desk
     r.pick(PaneRef{kOtherOffice, "old"});
     REQUIRE_FALSE(r.session().panes.has(kind));
     ProviderSeat* modern = r.mount_provider(kHelloOffice);
@@ -1397,34 +1385,28 @@ TEST_CASE("a pane provider built as its own image against the published protocol
     }
     CHECK(owns); // the version-two declaration, admitted in the same session
 
-    // THE OLD PANE, SEATED, PRESSED INTO, AND ASKED FOR ITS OWN ROW BY KEY.
+    // THE OLD PANE, SEATED, PRESSED INTO, AND ASKED FOR ITS OWN ROW BY KEY: it draws in no window,
+    // so its frame says so, and its rows reach it by their ids.
     const std::int64_t kind = old->kind;
     r.pick(PaneRef{"zengine.test.legacy", "old"});
     REQUIRE(r.session().panes.has(kind));
-    REQUIRE_FALSE(pane_rows(r, kind).empty());
-    CHECK(pane_rows(r, kind)[0].rfind("an old pane", 0) == 0);
-    // ...AND THE PRESS IT IS SENT IS THE FIRST VERSION, ONCE, AS IT ALWAYS WAS: the image declares
-    // no press door of either version, so the gate refuses it exactly as before a second version
-    // existed, and a host that can say more says nothing more to a pane with no door for it.
-    std::vector<std::pair<std::uint32_t, loom::RefusalReason>> pressed;
+    std::vector<std::string> acted;
     const loom::WeaveId image = r.kernel.weave_id("zengine-legacy-pane");
     const loom::ObserverId tap = r.bus.add_observer([&](const loom::BusEvent& ev) {
-        if (ev.target == image && ev.schema_name == PanePressed::zen_name) {
-            pressed.emplace_back(ev.schema_version, ev.refusal.reason);
+        if (ev.kind == loom::EventKind::Delivered && ev.target == image && ev.payload != nullptr &&
+            ev.schema_name == PaneActionRequested::zen_name) {
+            acted.push_back(loom::from_value<PaneActionRequested>(*ev.payload).id);
         }
     });
     press_body(r, kind);
-    r.bus.remove_observer(tap);
-    REQUIRE(pressed.size() == 1);
-    CHECK(pressed[0].first == 1u);
-    CHECK(pressed[0].second == loom::RefusalReason::NotAccepted);
     r.key(input::scan::kM);
-    REQUIRE(pane_rows(r, kind).size() >= 2);
-    CHECK(pane_rows(r, kind)[1] == "acted 1: old.mark"); // the resolved id reached the image
+    REQUIRE(acted.size() == 1);
+    CHECK(acted[0] == "old.mark"); // the resolved id reached the image
     // ...AND `^s` THERE IS NOBODY'S: the old pane owns nothing, and the host has no save row.
     const Gesture save{input::scan::kS, input::mod::kCtrl};
     r.key(save.scancode, save.modifiers);
-    CHECK(pane_rows(r, kind)[1] == "acted 1: old.mark");
+    r.bus.remove_observer(tap);
+    CHECK(acted.size() == 1);
     CHECK(r.session().keymap.above_mode_action(KeyContext::kPane, save.scancode, save.modifiers,
                                                kind) == Act::kNone);
 #endif
@@ -1773,7 +1755,7 @@ std::string launcher_text(PaneRig& r) {
     REQUIRE(row != nullptr);
     const ExternalPane* shown = r.session().panes.external_pane(row->kind);
     REQUIRE(shown != nullptr);
-    CHECK(shown->refusal.empty()); // every publication fit the room it was granted
+    CHECK(shows_canvas(*shown));
     std::string text;
     for (const std::string& line : held_row_texts(*shown)) {
         text += line + "\n";
@@ -2136,7 +2118,7 @@ TEST_CASE("a pane whose provider left is unavailable in the launcher and refused
     r.extent(160, 48);
     load_real_desktop(r);
     REQUIRE(r.load("zengine-info-pane", WORKSHOP_SO_INFO_PANE, "zengine.info").valid());
-    REQUIRE(r.host.holder_accepts("zengine.info", *loom::schema_of<PaneRoom>()));
+    REQUIRE(r.host.holder_accepts("zengine.info", *loom::schema_of<gfx::AreaRoom>()));
     const PaneRef info{"zengine.info", "info"};
     REQUIRE(has_pane(r.session().setup.active, info)); // the shipped desk names it
 
@@ -2144,7 +2126,7 @@ TEST_CASE("a pane whose provider left is unavailable in the launcher and refused
     CHECK(launcher_text(r).find("[open] Info") != std::string::npos);
 
     REQUIRE(r.unload("zengine-info-pane"));
-    REQUIRE_FALSE(r.host.holder_accepts("zengine.info", *loom::schema_of<PaneRoom>()));
+    REQUIRE_FALSE(r.host.holder_accepts("zengine.info", *loom::schema_of<gfx::AreaRoom>()));
     manager_here(r); // a gesture: the reading is taken again, now
     CHECK(launcher_text(r).find("[gone] Info") != std::string::npos);
     CHECK(launcher_text(r).find("[gone]: build its provider, then launch again") !=
@@ -2247,7 +2229,7 @@ TEST_CASE("WL-DESK-12: a close takes a pane off the desk and leaves its provider
     CHECK_FALSE(r.session().panes.has(kind));
     CHECK(r.last_notice().rfind("hid ", 0) == 0);
     // ⚠ NOTHING WAS UNLOADED: the office is still held, and the catalog still knows the pane.
-    CHECK(r.host.holder_accepts(kHelloOffice, *loom::schema_of<PaneRoom>()));
+    CHECK(r.host.holder_accepts(kHelloOffice, *loom::schema_of<gfx::AreaRoom>()));
     CHECK(r.session().panes.runtime.find(kHelloOffice, kHelloPane) != nullptr);
 
     // A SECOND CLOSE IS REFUSED IN WORDS, and it opens nothing.
@@ -2299,7 +2281,7 @@ TEST_CASE("the shipped desktop's x closes the row its marker holds, and Return o
     r.key(input::scan::kX);
     CHECK_FALSE(has_pane(r.session().setup.active, info));
     CHECK(marked_row(r).find("[    ] Info") != std::string::npos);
-    CHECK(r.host.holder_accepts("zengine.info", *loom::schema_of<PaneRoom>()));
+    CHECK(r.host.holder_accepts("zengine.info", *loom::schema_of<gfx::AreaRoom>()));
 
     // A SECOND x ON THE SAME ROW: the host's refusal is the launcher's notice, and nothing opened.
     r.key(input::scan::kX);
@@ -2526,7 +2508,7 @@ std::string hotkeys_pane_text(PaneRig& r) {
     REQUIRE(row != nullptr);
     const ExternalPane* shown = r.session().panes.external_pane(row->kind);
     REQUIRE(shown != nullptr);
-    CHECK(shown->refusal.empty());
+    CHECK(shows_canvas(*shown));
     std::string text;
     for (const std::string& line : held_row_texts(*shown)) {
         text += line + "\n";
@@ -2667,7 +2649,7 @@ TEST_CASE("the Hotkeys pane names a keymap file whose path a canvas cannot draw 
     REQUIRE(row != nullptr);
     const ExternalPane* shown = r.session().panes.external_pane(row->kind);
     REQUIRE(shown != nullptr);
-    CHECK(shown->canvas.heard);
+    CHECK(shows_canvas(*shown));
     CHECK(keys.find("HOTKEYS -- ") != std::string::npos);
     // ...ONE MARK FOR THE CHARACTER, as the desktop spells every other party's words.
     CHECK(keys.find("\nkeymap file: caf?/keymap.json\n") != std::string::npos);
