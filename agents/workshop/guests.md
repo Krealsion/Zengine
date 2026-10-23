@@ -69,9 +69,9 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/a-guests-hand-is-judged-by-its-row-and-its-host.md`
 
-## WL-GUEST-06 — On a weaver's host the editor, the Terminal, typing and carrying answer only the weaver
+## WL-GUEST-06 — On a weaver's host the editor, the Terminal, the quick setup, typing and carrying answer only the weaver
 
-LAW — On a weaver's host a guest's keys, text, presses, wheels and drops toward the editor office, the Terminal or the Hotkeys pane, its typed text anywhere and any carry it would begin are refused in words.
+LAW — On a weaver's host a guest's keys, text, presses, wheels and drops toward the editor, Terminal, Hotkeys pane or quick setup, its typed text anywhere and any carry it would begin are refused in words.
 
 MEANS
 - by office, whichever implementation holds it; a refused press moves neither keys nor selection;
@@ -139,7 +139,7 @@ LAW — The port file says the door listens, not that the plan is realized; `Gue
 
 ## WL-GUEST-13 — While a window shows the desk, it lands a guest's pointer as that guest's hand
 
-LAW — While a window shows the desk it lands an injected pointer moment as the hand it names; on a weaver's host with a guest door, the editor's, Terminal's and Hotkeys pane's areas take the weaver's alone.
+LAW — While a window shows the desk it lands an injected pointer moment as the hand it names; on a weaver's host with a guest door, the areas of WL-GUEST-06's places take the weaver's alone.
 
 MEANS
 - an injected press or wheel there reaches nobody, and Workshop says why in WL-GUEST-06's words (`AreaHandRefused`): the window, telling no guest from another participant, refuses every one;
@@ -229,6 +229,7 @@ when another hand acts between, and chooses the row its press armed"
 `workshop/weave_external.cpp` external_key
 `workshop/weave_pointer.cpp` on(TextEntered) on(PointerButton) on(PointerWheel)
 `workshop/pane_seam_vocabulary.hpp` kEditorRole kTerminalRole kHotkeysPane
+`workshop/first-run/setup.hpp` kFirstRunRole
 `tests/test_workshop_panes_guests.cpp` "on a weaver's host a guest's keys, text, save and presses
 toward the Editor are refused at the dispatch, and the file is unchanged" "on a weaver's host a
 guest's keys and presses toward the Terminal are refused, and no line is sent and no editor switch
@@ -240,6 +241,9 @@ nothing it drops on Info or the Composer lands, and the weaver's own carry does"
 host the same guest's carried item lands on Info and on the Composer as a draft"
 `tests/test_workshop_editor_transfers.cpp` "on a weaver's host a guest's wheel and value drop toward
 the Editor are refused, and the Editor hears neither"
+`tests/test_workshop_panes_first_run.cpp` "WL-GUEST-06: on a weaver's host a guest's key and press
+toward the quick setup are refused, and the switch is not asked; on a development host they reach
+it"
 
 ### WL-GUEST-07
 `workshop/guest_seam_vocabulary.hpp` GuestConnection GuestConnections

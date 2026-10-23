@@ -4,21 +4,25 @@
 // The Workshop panes suite -- the quick setup (WL-FIRST): the real `zengine-first-run` image
 // loaded beside Workshop, shown once at a start that keeps settings and never where none are kept;
 // Done writing `answered` and putting the pane down; the Neovim box asking a stand-in editor switch
-// and following its answers; the lines it draws and the item each press chooses; and the grant
-// Workshop admits the office with. One source of the panes program, run in `workshop_panes_hand`.
+// and following its answers; the lines it draws and the item each press chooses; the grant
+// Workshop admits the office with; and on a weaver's host, the weaver's hand alone reaching it. One
+// source of the panes program, run in `workshop_panes_hand`.
 
 #include "doctest.h"
 
 #include "workshop_support.hpp"
 #include "census.hpp"
+#include "guest_hand.hpp"
 
 #include "workshop/admission.hpp"
 #include "workshop/editor_switch_vocabulary.hpp"
 #include "workshop/first-run/setup.hpp"
 
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -100,6 +104,32 @@ SwitchStandIn* start(PaneRig& r, const std::string& prefs,
 
 void act(PaneRig& r, const char* id) {
     CHECK(r.workshop_action(fr::kFirstRunRole, fr::kSetupPane, id).delivered);
+}
+
+/// THE WORDS A GUEST'S REFUSAL NAMES THE QUICK SETUP IN, as `WorkshopWeave::refused_toward` says.
+constexpr const char* kSetupRefused =
+    "the quick setup, which switches the editor and writes the settings file, answers only the "
+    "weaver's hand";
+
+std::int64_t setup_kind(PaneRig& r) {
+    const RuntimePane* held = r.session().panes.runtime.find(fr::kFirstRunRole, fr::kSetupPane);
+    REQUIRE(held != nullptr);
+    return held->kind;
+}
+
+/// A CELL OF THE ROOM NO PANE HOLDS: a press there takes the keys from every pane.
+std::pair<std::int64_t, std::int64_t> free_room_cell(PaneRig& r) {
+    const Screen sc = screen_of(r.session());
+    const ScreenCells cells = cells_of(sc);
+    for (std::int64_t y = cells.room_h - 1; y >= 0; --y) {
+        for (std::int64_t x = cells.room_w - 1; x >= 0; --x) {
+            if (!occupied_at(r.session().panes, r.session().setup.active, sc, x, y).occupied) {
+                return {x, y};
+            }
+        }
+    }
+    FAIL("this screen has no empty room to press");
+    return {0, 0};
 }
 
 /// THE QUICK SETUP'S CENSUS: its three rows, in no mode.
@@ -298,4 +328,52 @@ TEST_CASE("WL-FIRST-02: the quick setup's lines name the box, the pages and Done
     CHECK(fr::stepped(fr::Item::kNeovim, -1) == fr::Item::kNeovim);
     CHECK(fr::stepped(fr::Item::kSkip, 1) == fr::Item::kSkip);
     CHECK(fr::stepped(fr::Item::kNeovim, 1) == fr::Item::kDone);
+}
+
+TEST_CASE("WL-GUEST-06: on a weaver's host a guest's key and press toward the quick setup are "
+          "refused, and the switch is not asked; on a development host they reach it") {
+    for (const bool development : {false, true}) {
+        CAPTURE(development);
+        TempDir dir("first-run-guest");
+        PaneRig r;
+        SwitchStandIn* sw = start(r, dir.file("prefs.json"));
+        REQUIRE(on_desk(r));
+        const std::int64_t kind = setup_kind(r);
+        REQUIRE(r.session().panes.keyboard == kind);
+        guest_hand::GuestHand g(r, {"input"}, development);
+
+        // A GUEST'S RETURN ON THE BOX, which would ask the editor switch.
+        r.session().notice.clear();
+        g.key(input::scan::kReturn);
+        const std::string keyed = r.last_notice();
+        if (development) {
+            CHECK(sw->asked == std::vector<std::string>{"request neovim"});
+        } else {
+            CHECK_MESSAGE(keyed.find(kSetupRefused) != std::string::npos, keyed);
+            CHECK(sw->asked.empty());
+        }
+
+        // THE WEAVER PRESSES THE EMPTY ROOM, and the setup no longer holds the keys...
+        const auto [room_x, room_y] = free_room_cell(r);
+        g.weaver_press_cell(room_x, room_y);
+        REQUIRE(r.session().panes.keyboard != kind);
+        // ...A GUEST'S PRESS ON ITS AREA takes them back only on a development host.
+        const ui::Rect body = external_body_rect(r.session(), kind);
+        r.session().notice.clear();
+        g.press_cell(body.x, body.y);
+        const std::string pressed = r.last_notice();
+        if (development) {
+            CHECK(r.session().panes.keyboard == kind);
+        } else {
+            CHECK_MESSAGE(pressed.find(kSetupRefused) != std::string::npos, pressed);
+            CHECK(r.session().panes.keyboard != kind);
+        }
+
+        // THE WEAVER'S OWN HAND REACHES IT ON EITHER HOST.
+        g.weaver_press_cell(body.x, body.y);
+        CHECK(r.session().panes.keyboard == kind);
+        const std::size_t asked = sw->asked.size();
+        g.weaver_key(input::scan::kReturn);
+        CHECK(sw->asked.size() == asked + 1);
+    }
 }

@@ -783,7 +783,7 @@ int main(int argc, char** argv) {
                     file.development() ? "a development host: guests may write and build here"
                                        : "a weaver's host: a guest writes no file, types into no "
                                          "pane, carries nothing and reaches none of the editor, "
-                                         "the Terminal and the Hotkeys pane");
+                                         "the Terminal, the Hotkeys pane and the quick setup");
         for (const Condition& c : guests::conditions_of(file)) host.standing_conditions.push_back(c);
         for (std::size_t i = 0; i < file.rows.size(); ++i) {
             const std::vector<std::string> losses = guests::losses_of(file.rows[i], file);

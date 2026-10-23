@@ -169,8 +169,8 @@ the power's name once did, and that is said. The version-1 file of
 [§ 1](#1-say-who-may-connect), a weaver's host, says what its row does not reach too:
 
 ```text
-zengine-workshop - guests: the file is version 1, and this is a weaver's host: a guest writes no file, types into no pane, carries nothing and reaches none of the editor, the Terminal and the Hotkeys pane
-zengine-workshop - guests: 'agent' (version 1) does not reach here: the Builder's builds and loads: `build` is a version-2 power; file writes: this is a weaver's host; the editor, the Terminal and the Hotkeys pane: they answer only the weaver's hand here; typed text: a guest's text rests in no pane here; opening the guests file
+zengine-workshop - guests: the file is version 1, and this is a weaver's host: a guest writes no file, types into no pane, carries nothing and reaches none of the editor, the Terminal, the Hotkeys pane and the quick setup
+zengine-workshop - guests: 'agent' (version 1) does not reach here: the Builder's builds and loads: `build` is a version-2 power; file writes: this is a weaver's host; the editor, the Terminal, the Hotkeys pane and the quick setup: they answer only the weaver's hand here; typed text: a guest's text rests in no pane here; opening the guests file
 zengine-workshop - guests: 'agent' (version 1) also reaches here: the desk read whole: `capture` also reads the desk's words, the pane inventory and the keymap; every pane's manual: `capture` reads the page of each pane the desk offers
 ```
 

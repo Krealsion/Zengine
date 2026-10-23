@@ -39,7 +39,8 @@ MEANS
 - the switch's refusal is shown in its words, and the box follows the switch, never the ask.
 
 DOES NOT MEAN
-- that the quick setup keeps a second record of the editor: the session remembers it (WL-SWITCH-08).
+- that the quick setup keeps a second record of the editor: the session remembers it (WL-SWITCH-08);
+- that a guest's hand reaches it on a weaver's host: only the weaver's does, as at the Terminal (WL-GUEST-06).
 
 WHY — `agents/decisions/an-editor-is-replaced-not-routed.md`
 
