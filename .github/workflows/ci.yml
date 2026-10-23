@@ -108,6 +108,17 @@ jobs:
           fi
           echo "Canonical Loom: $loom_sha"
           echo "sha=$loom_sha" >> "$GITHUB_OUTPUT"
+          echo "$loom_sha" > "$RUNNER_TEMP/loom-commit.txt"
+
+      # ...and kept as a one-line file: the nightly package (package.yml) builds a commit this run
+      # passed against the Loom this run built it with, read back from here.
+      - name: Keep the Loom commit this run builds against
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: loom-commit
+          path: ${{ runner.temp }}/loom-commit.txt
+          if-no-files-found: error
+          retention-days: 30
 
   zengine-linux-stranger:
     name: Zengine / Linux / canonical Loom stranger
