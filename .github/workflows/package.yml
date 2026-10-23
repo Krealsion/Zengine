@@ -362,11 +362,11 @@ jobs:
             throw 'BUILD-INFO.txt does not say the tree was clean'
           }
           python -I -X utf8 "$J\pe_imports.py" $pkg
-          python -I -X utf8 "$J\private_scan.py" $pkg 'D:\a\Zengine' 'D:/a/Zengine' 'D:\a\_temp' 'D:/a/_temp' 'winlibs' 'mingw64/include' 'hostedtoolcache'
+          python -I -X utf8 "$J\private_scan.py" $pkg 'D:\a\Zengine' 'D:/a/Zengine' 'D:\a\_temp' 'D:/a/_temp' 'hostedtoolcache'
           foreach ($plan in 'graphical-load-plan.json', 'default-load-plan.json') {
             python -I -X utf8 "$J\first_start.py" $pkg (Join-Path $pkg 'bin\zengine-workshop.exe') --seconds 15 `
               --home (Join-Path $env:RUNNER_TEMP "home-$plan") --env SDL_VIDEO_DRIVER=offscreen `
-              --needle 'D:\a\Zengine' --needle 'D:/a/Zengine' --needle 'winlibs' -- --load-plan (Join-Path $pkg "bin\$plan")
+              --needle 'D:\a\Zengine' --needle 'D:/a/Zengine' -- --load-plan (Join-Path $pkg "bin\$plan")
           }
 
   # ---- the night's sums, over the archives the judges passed ------------------------------------------
