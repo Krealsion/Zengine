@@ -318,8 +318,8 @@ Three consequences worth knowing:
 <!-- value session_persist::kFormatVersion in "`WorkshopSession` v3 to v{}" -->
 <!-- value session_persist::kFormatVersion in "WorkshopSession.v3-to-v{}" -->
 ```text
-session version 3 cannot be read: no live conversion from `WorkshopSession` v3 to v11
-(`zengine.migrate.WorkshopSession.v3-to-v11`) -- opening with the default setup
+session version 3 cannot be read: no live conversion from `WorkshopSession` v3 to v12
+(`zengine.migrate.WorkshopSession.v3-to-v12`) -- opening with the default setup
 ```
 
   **and that run keeps no session at all** — closing it writes nothing, so your file is still

@@ -347,11 +347,11 @@ pointer, reaching the same doors. Panes may overlap, and **every pane the setup 
 whether or not it can currently be seen.** Workshop's unit is the **whole canvas pixel**,
 twelve to a cell: a pane a weaver dragged by a single window pixel differs from its neighbour
 by exactly one, while a pane on a cell boundary is an exact multiple and the character medium's
-picture of it has not moved by a byte. Setup format is **version <!-- value setup_persist::kFormatVersion -->5<!-- /value -->**, its amounts in pixels
+picture of it has not moved by a byte. Setup format is **version <!-- value setup_persist::kFormatVersion -->6<!-- /value -->**, its amounts in pixels
 under the word `pixels` and each row's [settings](#a-panes-settings) beside them. A **version-4**
 file reads with no settings, a **version-3** file (`subcells`, four to a pixel) is read back to the
 pixel each edge was painted at, and a **version-2** whole-cell file still loads, its cells
-mapped exactly (x 12); the next explicit save writes version <!-- value setup_persist::kFormatVersion -->5<!-- /value -->. A version-1 file is refused by
+mapped exactly (x 12); the next explicit save writes version <!-- value setup_persist::kFormatVersion -->6<!-- /value -->. A version-1 file is refused by
 its number.
 
 ```text
@@ -1110,7 +1110,7 @@ directory they happened to be browsing when they quit is deliberately not rememb
   `setup_persist::WorkshopSetup` as a field rather than paraphrasing it, so the four layers that
   judge a setup file judge the desk inside a session file (`setup_persist::setup_in`, factored out
   of `from_text` for exactly this). A desk cannot be legal in one file and illegal in the other.
-  The session format is **version <!-- value session_persist::kFormatVersion -->11<!-- /value -->**: the room in canvas pixels, the weaver's whole ordered
+  The session format is **version <!-- value session_persist::kFormatVersion -->12<!-- /value -->**: the room in canvas pixels, the weaver's whole ordered
   run of layouts — each an ordinary saved setup, its panes' settings included, with the Setup
   file it is related to, if any —
   which position was live, the desktop placement and the OS window's own room beside it, and
@@ -1128,7 +1128,7 @@ directory they happened to be browsing when they quit is deliberately not rememb
   them at; a desk before version 8 holds no settings; a session before version 9 remembers no choice;
   and one before version 10 keeps no OS window's room; a session before version 11 was one value,
   and comes back whole. Without the provider such a file is refused
-  by its number, naming the conversion that is missing. The next close writes version <!-- value session_persist::kFormatVersion -->11<!-- /value -->.
+  by its number, naming the conversion that is missing. The next close writes version <!-- value session_persist::kFormatVersion -->12<!-- /value -->.
 - **The viewport is one level above the desk**, and that is the whole reason the session is not
   simply a second setup: the same desk is worth having in a big window and in a small one, so how
   much room the surface had describes the *application* rather than the arrangement. It is

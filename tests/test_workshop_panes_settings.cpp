@@ -1703,10 +1703,12 @@ TEST_CASE("per-layout pins keep each layout's own list, a layout with none readi
     REQUIRE_MESSAGE(a.accepted, a.refusal);
     CHECK(a.scope == "per-layout");
     CHECK(a.pins == std::vector<std::string>{"step"});
-    const std::string own = "test.dial/dial@" + t.r.session().setup.active.name;
-    REQUIRE(prefs_persist::pin_list(t.r.w->layouts().prefs(), own) != nullptr);
+    // THE LAYOUT'S OWN LIST IS ITS DESK'S; the Workshop-wide one stays the settings file's.
+    CHECK(live_desk(t.r.w->layouts().run()).pins ==
+          std::vector<SetupPins>{SetupPins{dial_ref(), {"step"}}});
     CHECK(prefs_persist::pin_list(t.r.w->layouts().prefs(), "test.dial/dial")->keys ==
           std::vector<std::string>{"legend", "step"});
+    CHECK_FALSE(prefs_persist::has_layout_entries(t.r.w->layouts().prefs()));
     // ANOTHER LAYOUT, ASKED BY ITS PLACE, STILL READS THE WORKSHOP-WIDE LIST.
     duplicate_live_layout(t.r);
     stage_desk(t.r, [](Setup& desk) { desk.name = "Copy"; });
@@ -1989,7 +1991,10 @@ TEST_CASE("a lock in one layout freezes its row there: both commit doors refuse 
     PaneSettingLockActed a = t.lock(dial_lock("legend", "lock", "layout"));
     REQUIRE_MESSAGE(a.accepted, a.refusal);
     CHECK(a.written == std::vector<std::string>{first});
-    CHECK(prefs_persist::lock_on(t.r.w->layouts().prefs(), "test.dial/dial@" + first, "legend") != nullptr);
+    // THE LOCK IS THE LAYOUT'S OWN, in its desk; the settings file keeps none for a layout.
+    CHECK(live_desk(t.r.w->layouts().run()).locks ==
+          std::vector<SetupLock>{SetupLock{dial_ref(), "legend"}});
+    CHECK_FALSE(prefs_persist::has_layout_entries(t.r.w->layouts().prefs()));
     // EVERY READING SAYS THE LOCK, AND THAT IT HOLDS IN THIS LAYOUT.
     const PaneSettingsShown shown = t.read();
     REQUIRE(shown.locks.size() == 1);
@@ -2082,6 +2087,9 @@ TEST_CASE("an everywhere lock pins the value its layout holds into every layout 
     REQUIRE(t.lock(dial_lock("legend", "lock", "everywhere")).accepted);
     for (const SettingLock& l : t.r.w->layouts().prefs().locks) {
         CHECK(l.target.find('@') == std::string::npos);
+    }
+    for (const Layout& l : layout_run(t.r.w->layouts().run())) {
+        CHECK(l.desk.locks.empty());
     }
 }
 
@@ -2206,19 +2214,29 @@ TEST_CASE("an office-wide setting is locked everywhere alone, and its lock freez
     CHECK(t.r.w->layouts().prefs().locks[0].key == "workshop.focus.ring");
 }
 
-TEST_CASE("the settings file keeps a layout's locks, pins and baseline under its name, spaces and all, and judges each") {
+TEST_CASE("a version-3 settings file keeps layouts' locks, pins and baselines by name, spaces and all, each judged; version 4 keeps none") {
     prefs_persist::Prefs p;
     p.pins = {prefs_persist::PinList{"test.dial/dial@Layout 2", {"step"}}};
     prefs_persist::put_lock(p, SettingLock{"test.dial/dial@Layout 2", "legend"});
     prefs_persist::put_lock(p, SettingLock{"test.dial/dial", "step", std::nullopt, 4});
-    REQUIRE(prefs_persist::set_layout_theme(p, "Layout 2", LayoutTheme{"evening", 42}));
-    CHECK_FALSE(prefs_persist::set_layout_theme(p, "Layout 2", LayoutTheme{"evening", 42}));
-    CHECK(prefs_persist::kept_problem(p).empty());
+    REQUIRE(prefs_persist::put_office_value(
+        p, "@Layout 2", "fingerprint", PaneSetting{"fingerprint", std::nullopt, 42, std::nullopt}));
+    REQUIRE(prefs_persist::put_office_value(
+        p, "@Layout 2", "theme",
+        PaneSetting{"theme", std::nullopt, std::nullopt, std::string("evening")}));
+    CHECK(prefs_persist::has_layout_entries(p));
+    CHECK(prefs_persist::kept_problem(p, true).empty());
+    // VERSION 4 KEEPS WHAT HOLDS IN EVERY LAYOUT: a layout's own are its desk's.
+    CHECK(prefs_persist::kept_problem(p).find("a layout's pins, locks and baseline are its own") !=
+          std::string::npos);
     TempDir dir("prefs-layout-entries");
     const std::string path = dir.file("workshop-prefs.json");
     REQUIRE(prefs_persist::save_file(path, p).accepted);
+    // CARRIED UNCHANGED, IN THE VERSION THAT KEEPS THEM, until a session holds them.
+    CHECK(slurp(path).find("\"version\":3") != std::string::npos);
     const prefs_persist::LoadedPrefs read = prefs_persist::load_file(path);
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
+    CHECK(read.read_version == 3);
     CHECK(read.kept == p);
     CHECK(prefs_persist::layout_theme_of(read.kept, "Layout 2") == LayoutTheme{"evening", 42});
     CHECK(prefs_persist::layout_theme_of(read.kept, "Layout 3").name.empty());
@@ -2231,35 +2249,31 @@ TEST_CASE("the settings file keeps a layout's locks, pins and baseline under its
     for (SettingLock& l : bad.locks) {
         l.flag = l.target.find('@') != std::string::npos ? std::optional<bool>(true) : l.flag;
     }
-    CHECK(prefs_persist::kept_problem(bad).find("a layout's lock freezes its row") !=
+    CHECK(prefs_persist::kept_problem(bad, true).find("a layout's lock freezes its row") !=
           std::string::npos);
     bad = p;
     prefs_persist::put_lock(bad, SettingLock{"test.dial@Layout 2", "legend"});
-    CHECK(prefs_persist::kept_problem(bad).find("names a layout but no pane") != std::string::npos);
+    CHECK(prefs_persist::kept_problem(bad, true).find("names a layout but no pane") !=
+          std::string::npos);
     bad = p;
     bad.pins[0].target = "test.dial/dial@" + std::string(40, 'x');
-    CHECK(prefs_persist::kept_problem(bad).find("names its layout wrongly") != std::string::npos);
+    CHECK(prefs_persist::kept_problem(bad, true).find("names its layout wrongly") !=
+          std::string::npos);
     bad = p;
     REQUIRE(prefs_persist::put_office_value(bad, "@Layout 2", "theme",
                                             PaneSetting{"theme", std::nullopt, std::nullopt,
                                                         std::string("Evening!")}));
-    CHECK(prefs_persist::kept_problem(bad).find("a baseline's theme name") != std::string::npos);
-    // WHAT IS KEPT FOR A LAYOUT FOLLOWS A NEW NAME, AND GOES WITH A REMOVED ONE.
-    prefs_persist::Prefs moved = p;
-    REQUIRE(prefs_persist::move_layout_entries(moved, "Layout 2", "Night Desk"));
-    CHECK(prefs_persist::pin_list(moved, "test.dial/dial@Night Desk") != nullptr);
-    CHECK(prefs_persist::lock_on(moved, "test.dial/dial@Night Desk", "legend") != nullptr);
-    CHECK(prefs_persist::lock_on(moved, "test.dial/dial", "step") != nullptr);
-    CHECK(prefs_persist::layout_theme_of(moved, "Night Desk") == LayoutTheme{"evening", 42});
-    CHECK(prefs_persist::layout_theme_of(moved, "Layout 2").name.empty());
-    CHECK(prefs_persist::kept_problem(moved).empty());
-    REQUIRE(prefs_persist::move_layout_entries(moved, "Night Desk", ""));
-    CHECK(moved.pins.empty());
-    CHECK(moved.locks.size() == 1);
-    CHECK(moved.offices.empty());
+    CHECK(prefs_persist::kept_problem(bad, true).find("a baseline's theme name") !=
+          std::string::npos);
+    // WITHOUT THEM THE FILE IS VERSION 4: what holds in every layout, alone.
+    const prefs_persist::Prefs wide = prefs_persist::without_layout_entries(p);
+    CHECK(prefs_persist::to_text(wide).find("\"version\":4") != std::string::npos);
+    CHECK(wide.locks.size() == 1);
+    CHECK(wide.pins.empty());
+    CHECK(wide.offices.empty());
 }
 
-TEST_CASE("what the settings file keeps for a layout follows the layout's rename, and goes when the layout is removed") {
+TEST_CASE("what a layout keeps for itself is its desk's: a rename keeps it, a copy takes its own, a removal takes it away") {
     TempDir dir("layout-entries-follow");
     RevisionRig t;
     t.r.host.prefs_path = dir.file("workshop-prefs.json");
@@ -2271,22 +2285,28 @@ TEST_CASE("what the settings file keeps for a layout follows the layout's rename
     b.revision = t.layouts().revision;
     b.baselines = {LayoutThemeWrite{-1, LayoutTheme{"evening", 7}}};
     REQUIRE(t.batch(b).accepted);
+    // THE SETTINGS FILE KEEPS NONE OF IT.
+    CHECK_FALSE(prefs_persist::has_layout_entries(t.r.w->layouts().prefs()));
     rename_live(t.r, "Night Desk");
-    CHECK(prefs_persist::lock_on(t.r.w->layouts().prefs(), "test.dial/dial@Night Desk", "legend") != nullptr);
-    CHECK(prefs_persist::lock_on(t.r.w->layouts().prefs(), "test.dial/dial@Layout 2", "legend") == nullptr);
+    const std::vector<SetupLock> legend{SetupLock{dial_ref(), "legend"}};
+    CHECK(live_desk(t.r.w->layouts().run()).name == "Night Desk");
+    CHECK(live_desk(t.r.w->layouts().run()).locks == legend);
+    CHECK(live_desk(t.r.w->layouts().run()).theme == LayoutTheme{"evening", 7});
     CHECK(t.layouts().layouts[1].theme == LayoutTheme{"evening", 7});
     CHECK(t.read().locks.size() == 1);
-    prefs_persist::LoadedPrefs file = prefs_persist::load_file(t.r.host.prefs_path);
-    REQUIRE_MESSAGE(file.outcome.accepted, file.outcome.refusal);
-    CHECK(file.kept == t.r.w->layouts().prefs());
-    // A REMOVED LAYOUT TAKES WHAT WAS KEPT FOR IT.
+    // A COPY TAKES ITS OWN, and a lock on one is a lock on that one alone.
+    duplicate_live_layout(t.r);
+    REQUIRE(layout_count(t.r.session().setup) == 3);
+    CHECK(live_desk(t.r.w->layouts().run()).locks == legend);
+    CHECK(live_desk(t.r.w->layouts().run()).theme == LayoutTheme{"evening", 7});
+    // A REMOVED LAYOUT TAKES WHAT IT KEPT; the one it was copied from keeps its own.
     layout_key(t.r, Act::kLayoutRemove);
-    REQUIRE(layout_count(t.r.session().setup) == 1);
-    CHECK(t.r.w->layouts().prefs().locks.empty());
-    CHECK(t.r.w->layouts().prefs().offices.empty());
-    file = prefs_persist::load_file(t.r.host.prefs_path);
-    REQUIRE(file.outcome.accepted);
-    CHECK(file.kept == t.r.w->layouts().prefs());
+    REQUIRE(layout_count(t.r.session().setup) == 2);
+    std::size_t locked = 0;
+    for (const Layout& l : layout_run(t.r.w->layouts().run())) {
+        locked += l.desk.locks.size();
+    }
+    CHECK(locked == 1);
 }
 
 TEST_CASE("every layout is read at once: each row with its locks, what each pane and office takes, the everywhere locks, the live one and one revision") {
@@ -2447,8 +2467,9 @@ TEST_CASE("a batch writes what it can across layouts, says each write's outcome,
     CHECK(t.seat->handed.back().settings == std::vector<PaneSetting>{step_of(6)});
     CHECK(t.r.session().selection_ring_plain);
     CHECK(t.r.last_notice() == "theme evening: 3 of 7 written, baselines set");
-    // THE BASELINE AND WORKSHOP'S OWN ARE KEPT IN THE SETTINGS FILE.
-    CHECK(prefs_persist::layout_theme_of(t.r.w->layouts().prefs(), first) == LayoutTheme{"evening", 42});
+    // WORKSHOP'S OWN IS KEPT IN THE SETTINGS FILE, AND THE BASELINE IN ITS LAYOUT.
+    CHECK(layout_at(t.r.w->layouts().run(), 0).theme == LayoutTheme{"evening", 42});
+    CHECK_FALSE(prefs_persist::has_layout_entries(t.r.w->layouts().prefs()));
     const prefs_persist::LoadedPrefs file = prefs_persist::load_file(t.r.host.prefs_path);
     REQUIRE_MESSAGE(file.outcome.accepted, file.outcome.refusal);
     CHECK(file.kept == t.r.w->layouts().prefs());
@@ -2462,7 +2483,7 @@ TEST_CASE("a batch writes what it can across layouts, says each write's outcome,
     gone.baselines = {LayoutThemeWrite{0, LayoutTheme{}}};
     const SettingsWritten removed = t.batch(gone);
     REQUIRE_MESSAGE(removed.accepted, removed.refusal);
-    CHECK(prefs_persist::layout_theme_of(t.r.w->layouts().prefs(), first).name.empty());
+    CHECK(layout_at(t.r.w->layouts().run(), 0).theme.name.empty());
     SettingsWriteRequested same;
     same.revision = removed.revision;
     same.writes = {number_write(1, "test.dial/dial", "step", 6)};

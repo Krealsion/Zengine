@@ -105,8 +105,8 @@ WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
   one version is admitted; an older file opens exactly when a conversion is mounted
   (WL-MIG-01, WL-MIG-06).
 - That a session format move implies a desk format move: the session is
-  <!-- value session_persist::kFormatVersion -->11<!-- /value --> and the desk is
-  <!-- value setup_persist::kFormatVersion -->5<!-- /value --> (WL-MIG-03).
+  <!-- value session_persist::kFormatVersion -->12<!-- /value --> and the desk is
+  <!-- value setup_persist::kFormatVersion -->6<!-- /value --> (WL-MIG-03).
 
 ## Proven by
 

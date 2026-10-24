@@ -1238,7 +1238,8 @@ int main(int argc, char** argv) {
     // file is never changed, and a run with no session file reads none.
     load::LoadPlan begun = launched;
     if (!host.session_path.empty()) {
-        const session_persist::LoadedSession last = session_persist::load_file(host.session_path);
+        const session_persist::LoadedSession last =
+            session_persist::load_file(host.session_path, host.conversions);
         std::vector<std::pair<std::string, std::string>> remembered;
         for (const session_persist::WorkshopChoice& c : last.choices) {
             remembered.emplace_back(c.role, c.choice);

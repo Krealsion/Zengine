@@ -27,7 +27,7 @@
 #include "keymap_persist.hpp"
 #include "prefs_persist.hpp"
 #include "screen.hpp"
-#include "session_persist.hpp"
+#include "workshop/layouts/session_persist.hpp"
 #include "setup_persist.hpp"
 #include "workshop/layouts/store.hpp" // the layouts' store, called in-process
 

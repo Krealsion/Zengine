@@ -7,7 +7,7 @@ Retired: WL-SETUP-06.
 
 ## WL-SETUP-01 — A setup row is a reference plus the smallest authored difference
 
-LAW — The setup file is format version <!-- value setup_persist::kFormatVersion -->5<!-- /value -->: each pane row carries a durable pane reference plus `place {mode,x,y}`, `width` and `height {mode,amount}`, `front`, its `settings`, and nothing else.
+LAW — The setup file is format version <!-- value setup_persist::kFormatVersion -->6<!-- /value -->: each pane row carries a durable pane reference plus `place {mode,x,y}`, `width` and `height {mode,amount}`, `front`, its `settings`, and nothing else.
 
 MEANS
 - a fresh setup is sparse: the developer's defaults are absent, not written;

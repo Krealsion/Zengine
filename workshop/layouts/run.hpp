@@ -102,6 +102,14 @@ inline const Setup& layout_at(const SetupState& s, std::size_t at) noexcept {
     return s.shelved[shelf_index(s, at)].desk;
 }
 
+/// ...AND THE SAME DESK TO WRITE: what a layout keeps for itself is written where it is kept.
+inline Setup& layout_at(SetupState& s, std::size_t at) noexcept {
+    if (at == s.active_at || at >= layout_count(s)) {
+        return s.active;
+    }
+    return s.shelved[shelf_index(s, at)].desk;
+}
+
 /// ...AND ITS SETUP ASSOCIATION, by the same rule and for the same reason.
 inline const SetupLink& link_at(const SetupState& s, std::size_t at) noexcept {
     if (at == s.active_at || at >= layout_count(s)) {

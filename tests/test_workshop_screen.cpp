@@ -12,7 +12,7 @@
 
 // The historical session shapes and their conversions, an artifact's material, named here
 // because this suite owns the whole-cell-to-fine-lattice claim.
-#include "workshop/session_history.hpp"
+#include "workshop/layouts/session_history.hpp"
 
 // ============================================================================
 // Tier 3 — the whole screen, as a value
@@ -2938,11 +2938,12 @@ TEST_CASE("a version-1 session restores a whole-cell desk through a conversion")
     REQUIRE(conversions.mount("suite", session_history::conversions()));
     const session_persist::LoadedSession read =
         session_persist::from_text(bytes, &conversions);
+    const window_persist::LoadedWindow room_read = window_persist::import_from_session_text(bytes);
     REQUIRE_MESSAGE(read.outcome.accepted, read.outcome.refusal);
     CHECK(read.present);
-    CHECK(read.honoured);
-    CHECK(read.viewport_w == cells_px(120));
-    CHECK(read.viewport_h == cells_px(44));
+    CHECK(room_read.honoured);
+    CHECK(room_read.viewport_w == cells_px(120));
+    CHECK(room_read.viewport_h == cells_px(44));
     CHECK(live_layout(read).name == "Yesterday");
     // TWO ROWS: the one the version-1 file authored, whose whole-cell geometry became
     // sub-cells, and the Layouts pane its vintage had implicitly.
@@ -2952,7 +2953,7 @@ TEST_CASE("a version-1 session restores a whole-cell desk through a conversion")
     CHECK(live_layout(read).panes[1].ref == PaneRef{"zengine.workshop", "layouts"});
 
     // A LEGACY ROAD CARRIES NO PLACEMENT: nothing in a v1 file could have said one.
-    CHECK_FALSE(read.placement.known);
+    CHECK_FALSE(room_read.placement.known);
     // ...AND NO LAYOUT PLURALITY EITHER: one layout, live at position zero.
     CHECK(read.layouts.size() == 1);
     CHECK(read.active == 0);
@@ -2960,16 +2961,14 @@ TEST_CASE("a version-1 session restores a whole-cell desk through a conversion")
     // AND THE NEXT CLOSE WRITES THE CURRENT VERSION, byte-stable thereafter. The ENVELOPE's
     // number is what is asserted: the nested desk carries a `format_version` of its OWN at a
     // different number, and a search for the bare field would find that one.
-    const std::string saved = session_persist::to_text(read.layouts, read.active, read.viewport_w,
-                                                       read.viewport_h, read.placement);
-    CHECK(saved.find("\"version\":11") != std::string::npos);
-    CHECK(saved.find("\"format\":\"zengine-workshop-session\",\"format_version\":\"11\"") !=
+    const std::string saved = session_text(read.layouts, read.active);
+    CHECK(saved.find("\"version\":12") != std::string::npos);
+    CHECK(saved.find("\"format\":\"zengine-workshop-session\",\"format_version\":\"12\"") !=
           std::string::npos);
     const session_persist::LoadedSession back = session_persist::from_text(saved);
     REQUIRE(back.outcome.accepted);
     CHECK(live_layout(back) == live_layout(read));
-    CHECK(session_persist::to_text(back.layouts, back.active, back.viewport_w, back.viewport_h,
-                                   back.placement) == saved);
+    CHECK(session_text(back.layouts, back.active) == saved);
 }
 
 TEST_CASE("pixel geometry survives the setup file without losing a pixel") {

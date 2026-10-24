@@ -16,7 +16,7 @@
 #include "workshop/layouts/vocabulary.hpp"
 #include "workshop/pane_migration.hpp"
 #include "workshop/prefs_persist.hpp"
-#include "workshop/session_persist.hpp"
+#include "workshop/layouts/session_persist.hpp"
 #include "workshop/settings_seam_vocabulary.hpp"
 #include "workshop/setup_persist.hpp"
 
@@ -68,17 +68,15 @@ struct StoreEffects {
     std::vector<std::string> offices;
 };
 
-/// WHAT THE LAST SESSION'S RESTORE BROUGHT BACK of the window, for the presenter: the room, the
-/// placement and the OS window's room as the session kept them.
-struct RestoredRoom {
+/// WHAT THE LAST SESSION'S RESTORE BROUGHT BACK, for the presenter to say: whether a run came
+/// back, its sentence, the panes that changed hands, and what the settings file kept for layouts
+/// that was folded into the run or not carried.
+struct RestoredRun {
     bool present = false;
     std::string head;      ///< "reopened your last desk ..." -- empty when nothing came back
     std::string converted; ///< a pane that changed hands, said once for the whole run, or empty
-    std::int64_t viewport_w = 0;
-    std::int64_t viewport_h = 0;
-    bool honoured = false;
-    std::string declined;
-    session_persist::Placement placement;
+    std::string folded;    ///< the settings file's layouts' entries, folded and dropped, or empty
+    std::int64_t read_version = 0; ///< the session version read, 0 for none
 };
 
 /// The store.
@@ -169,13 +167,16 @@ public:
     const prefs_persist::Prefs& prefs() const noexcept { return prefs_; }
     /// Whether it could be read; when not, why.
     const std::string& prefs_refusal() const noexcept { return prefs_refusal_; }
-    /// RESTORE THE LAST SESSION, once per process: the run, and what it kept of the window.
-    RestoredRoom restore();
+    /// RESTORE THE LAST SESSION, once per process: the run, and what the settings file kept for
+    /// its layouts folded into it.
+    RestoredRun restore();
     /// Whether the last session could not be read, and why; held all run.
     const std::string& session_refusal() const noexcept { return session_refusal_; }
-    /// WRITE THE SESSION, at an orderly close. Empty when written, else why not.
-    std::string save_session(std::int64_t viewport_w, std::int64_t viewport_h,
-                             const session_persist::Placement& place);
+    /// WRITE THE SESSION, at an orderly close: the run and the choices. Empty when written, else
+    /// why not. Once a session holds what the settings file kept for layouts, the file drops it.
+    std::string save_session();
+    /// Whether the settings file still carries layouts' entries no written session holds.
+    bool carries_layout_entries() const;
 
     /// What the last asks said and moved, taken: the holder says, presents and hands it.
     StoreEffects take_effects();
@@ -222,12 +223,13 @@ private:
     // the rows it seats.
     void settle_live();
     bool pin_everywhere_locks(Setup& desk) const;
-    std::string pin_target(const PaneRef& ref, std::size_t at) const;
     std::vector<std::string> effective_pins(const PaneRef& ref, std::size_t at) const;
     std::vector<SettingLockShown> locks_on(const PaneRef& ref, std::size_t at) const;
     std::vector<std::string> locked_keys(const PaneRef& ref) const;
     LayoutSettingsShown layout_settings_reading() const;
-    void move_layout_prefs(const std::string& from, const std::string& to);
+    std::string replacement_refused(const Setup& incoming) const;
+    Setup kept_locks(Setup incoming) const;
+    std::string fold_layout_entries();
     std::optional<std::size_t> place_of(std::int64_t layout) const;
 
     // The edit's own ops, each on the candidate run.
@@ -260,6 +262,9 @@ private:
 
     bool restored_ = false;
     std::string session_refusal_;
+    /// A session holding the run's layouts' entries was read or written: the settings file's own
+    /// copies of them are dropped at its next write.
+    bool layout_entries_held_ = false;
 
     StoreEffects effects_;
 };

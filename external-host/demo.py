@@ -207,8 +207,8 @@ def first_files(setup, wdir):
     first = setup.without(setup.desk(), providers)
     save_json(wdir / "setup.json", first)
     columns, rows = setup.get("medium")["viewport"]
-    save_text(wdir / "session.json",
-              formats.session(first, (columns * 12, rows * 12), wdir / "setup.json"))
+    save_text(wdir / "session.json", formats.session(first, wdir / "setup.json"))
+    save_text(formats.window_path(wdir / "session.json"), formats.window((columns * 12, rows * 12)))
     return first
 
 
