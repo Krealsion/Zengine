@@ -198,6 +198,7 @@ legible" "the screen's extent is TOTAL over whatever a medium published"
 `workshop/screen.hpp` screen_of Screen::room_w Screen::room_h kTopRows kBottomRows placement_bounds
 kSideCols Screen::room_y Screen::side_cols Screen::stack_rows kMinSideCols kMaxSideCols kMinStackRows
 kMaxStackRows Session::side_cols Session::stack_rows stack_capacity
+`workshop/screen_chrome.cpp` add_desk_frames
 `workshop/panes.hpp` kTopBand placement::kSideRegion
 `workshop/weave_settings.cpp` apply_workshop_settings
 `tests/test_workshop_screen.cpp` "the screen's furniture cannot see a pane, open or closed" "the

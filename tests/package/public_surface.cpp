@@ -168,18 +168,19 @@ void ui_surface() {
     panel.id = 1;
     panel.label = "panel";
     panel.context = ui::kRootContext;
-    panel.x = 2;
-    panel.y = 1;
-    panel.width = ui::Extent{ui::kExtentCells, 8};
-    panel.height = ui::Extent{ui::kExtentCells, 3};
+    panel.place = ui::Place{ui::kPlacePixels, 24, 12};
+    panel.width = ui::Size{ui::kSizeShare, 5000};
+    panel.height = ui::Size{ui::kSizePixels, 36};
 
     const std::vector<ui::Element> authored{panel};
-    const ui::Scene scene = ui::resolve(authored, ui::Viewport{40, 12});
-    check(scene.items.size() == 1, "one authored element resolves to one placed rectangle");
+    check(ui::problem(authored).empty(), "a part standing in the room has no problem");
+    const ui::Scene scene = ui::arrange(authored, ui::Room{480, 144, 1});
+    check(scene.items.size() == 1 && scene.items[0].rect.x == 24 && scene.items[0].rect.w == 240,
+          "one authored part solves to one placed rectangle, its share half the room's width");
 
-    const ui::Placed* under = ui::hit(scene, 3, 2);
-    check(under != nullptr && under->id == 1, "a cell inside it hits the element that owns it");
-    check(ui::hit(scene, 30, 10) == nullptr, "and a cell outside it hits nothing");
+    const ui::Placed* under = ui::hit(scene, 30, 20);
+    check(under != nullptr && under->id == 1, "a pixel inside it hits the part that owns it");
+    check(ui::hit(scene, 300, 100) == nullptr, "and a pixel outside it hits nothing");
 }
 
 // ---- zengine::component ----------------------------------------------------------------

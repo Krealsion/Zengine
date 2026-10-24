@@ -71,7 +71,7 @@ exported targets name `loom::core`, `loom::switchboard` and — for a host — `
 | `zengine::timer` | order one-shots and repeats; declare an authored rhythm |
 | `zengine::graphics` | draw in a window's area: the vocabulary, the canvas, the drawing facet, pixels and roles |
 | `zengine::input` | receive key, text and pointer moments; translate a byte stream |
-| `zengine::ui` | author placement and extent; read what a viewport resolved |
+| `zengine::ui` | author places and sizes in words; read what a room solved, in whole pixels |
 | `zengine::maker` | run definitions as data-authored weaves |
 | `zengine::flow` | author, save and generate native rules; [Flow guide](../flow/docs/flow-guide.md) |
 | `zengine::component` | medium-independent text editing, list and table arithmetic, a control strip, motion sampling |

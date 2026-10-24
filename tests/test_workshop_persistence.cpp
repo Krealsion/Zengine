@@ -695,7 +695,7 @@ TEST_CASE("a malformed setup file is refused, and the live setup is untouched") 
     cases.push_back({"an empty file", ""});
     cases.push_back({"a JSON array", "[1,2,3]"});
     cases.push_back({"someone else's value",
-                     loom::compat::serialize(loom::to_value(ui::Extent{0, 4}))});
+                     loom::compat::serialize(loom::to_value(ui::Size{ui::kSizePixels, 4}))});
     cases.push_back({"a retired Workshop object DOCUMENT handed to the setup reader",
                      kRetiredObjectDocument});
     cases.push_back({"a valid setup with a tail after it", valid + "x"});
