@@ -203,8 +203,9 @@ through Files is refused, and another file opens"
 `tests/test_workshop_panes_guests.cpp` "a toolbox save sent straight to the Inventory pane asks the
 guest door: on a weaver's host a guest's is refused in words, and a sender that is no guest saves with
 a door and without one" "on a development host the guest door lets a guest's toolbox save sent
-straight to the Inventory pane write its file" "on a weaver's host a guest's Submit of a toolbox save
-in the Composer is refused, and no file is written"
+straight to the Inventory pane write its file" "a toolbox save sent straight to the Inventory pane is
+refused in words when its ask of the guest door's office is refused, and no file is written" "on a
+weaver's host a guest's Submit of a toolbox save in the Composer is refused, and no file is written"
 `tests/test_workshop_guests.cpp` "action classes: a guest's send is its shape's classes -- a toolbox
 save and a quit write, and an open shows no path" "door: asked in an owner's office -- the Inventory
 pane's, Workshop's -- the door judges a sender by the row it admitted it under, and narrows neither
