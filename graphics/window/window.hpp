@@ -541,19 +541,21 @@ private:
 
     void on_pump(const zengine::timer::TimerFired&, loom::Mail& mail) { service_pump(mail); }
 
-    /// The beat: the window's place said, then its medium measured, then what it read sent on, in
-    /// the order read, and a close its desktop asked for published. A key, its release and its text
-    /// go alike, to the owner of each area placed to hear keys. A button goes where it lands, or,
-    /// let go, to the area its press is held for (`button`); a move and the wheel as `motion` and
-    /// `wheel` say. Moves read one after another go as one: the last point, the deltas summed.
+    /// The beat: the medium measured, its queue read, its place said, its room offered, what it
+    /// read sent on in the order read, and a close its desktop asked for published. A size is read
+    /// at once and a maximize only with the queue, so a maximize is said before the room it brings.
+    /// Keys and their text go to each owner of an area placed to hear keys; a button, a move and
+    /// the wheel as `button`, `motion` and `wheel` say; moves read together go as one, summed.
+    // WL-SESSION-09 -- agents/workshop/session-restore.md
     void service_pump(loom::Mail& mail) {
         namespace in = zengine::input;
+        const bool remeasured = medium_.remeasure();
+        const std::vector<in::InputEvent> read = medium_.poll();
         report_placement(mail);
-        if (medium_.remeasure()) {
+        if (remeasured) {
             touch_all();
             offer(mail);
         }
-        const std::vector<in::InputEvent> read = medium_.poll();
         for (std::size_t i = 0; i < read.size(); ++i) {
             const in::InputEvent& e = read[i];
             if (const auto* k = std::get_if<in::KeyPressed>(&e)) {

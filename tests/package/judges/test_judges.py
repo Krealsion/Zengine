@@ -10,8 +10,8 @@ its canary and green on a clean sample, in a folder of its own.
                 KERNEL32.dll, beside a system folder holding it, is clean
   elf_judge     (Linux) a copy of the system's `ls`, which needs more than glibc, is FOREIGN; a copy
                 of `true` is clean
-  first_start   a program that ends at once is red; one that stays up, loading only the system's
-                libraries, is clean
+  first_start   a program that ends at once is red, and one that does not say what is expected
+                of it; one that stays up, loading only the system's libraries, is clean
 Exit 0 when every judgement is the one expected, 1 otherwise.
 """
 import os
@@ -132,6 +132,10 @@ def main(argv):
     code, said = judge("first_start.py", pkg, os.path.join(pkg, "bin", os.path.basename(stays)),
                        "--seconds", "2", "--home", fresh(work, "home-stays"), "--", *stay_args)
     expect("first_start: a program that stays up on the system's libraries alone is clean", code, 0, said)
+    code, said = judge("first_start.py", pkg, os.path.join(pkg, "bin", os.path.basename(stays)),
+                       "--seconds", "2", "--home", fresh(work, "home-silent"),
+                       "--expect", "loaded: zengine-window-sdl", "--", *stay_args)
+    expect("first_start: a program that does not say what is expected of it is red", code, 1, said)
 
     print("package judges: %d judgement(s) not as expected" % len(failures))
     return 1 if failures else 0

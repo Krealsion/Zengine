@@ -42,8 +42,7 @@ its census driver and manual witness), `workshop_panes_seam`
 - Workshop composes and mounts `view::Host` beside the Flow host: `workshop/workshop.cpp`; an
   app's host does too, `app/host.hpp`, its views run by `zengine-app-weave` (`app/weave.cpp`).
 - Workshop links `zengine-view` and stages `zengine-view-builder`: `workshop/CMakeLists.txt`.
-- The builder's optional plan row: `workshop/default-load-plan.json`,
-  `workshop/graphical-load-plan.json`.
+- The builder's optional plan row: `workshop/default-load-plan.json`.
 - The Pane Manager's `n` shows the View Builder: `workshop/desktop-pane/pane.cpp`.
 - The builder's seam: `workshop/pane_seam_vocabulary.hpp`, `workshop/pane_carry.hpp`,
   `workshop/pane_menu.hpp`, `workshop/pane_operation.hpp`; it asks `zengine.project` where its

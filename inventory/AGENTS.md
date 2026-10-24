@@ -46,8 +46,8 @@ driven by `kInventoryPaneCensus` in `tests/test_workshop_inventory_info.cpp`.
 
 ## Host side
 
-- `workshop/CMakeLists.txt` stages both weaves; `workshop/default-load-plan.json` and
-  `workshop/graphical-load-plan.json` load them at `zengine.inventory`, `zengine.inventory-pane`.
+- `workshop/CMakeLists.txt` stages both weaves; `workshop/default-load-plan.json`
+  loads them at `zengine.inventory`, `zengine.inventory-pane`.
 - `workshop/admission.hpp` admits the `zengine.inventory` office with `inventory_grant()` and the
   answer to `ShapeDocumentRequested` (`inventory_office_grant()`).
 - The pane asks Workshop through `workshop/pane_operation.hpp` (permission, actor scope),

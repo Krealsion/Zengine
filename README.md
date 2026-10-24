@@ -153,10 +153,11 @@ loads and runs it — is [docs/getting-started.md](docs/getting-started.md).
 ./Zengine/build/workshop/zengine-workshop
 ```
 
-It needs a terminal at least **78x22**. For the windowed build, pass the graphical plan:
+It opens in an OS window, or, where none can open, in the terminal you started it from, which
+needs at least **78x22**. In the terminal by choice:
 
 ```sh
-./Zengine/build/workshop/zengine-workshop --load-plan workshop/graphical-load-plan.json
+./Zengine/build/workshop/zengine-workshop --tui
 ```
 
 `Ctrl`+`p` opens the Pane Manager (open, close or make a pane), `Ctrl`+`t` the Terminal, `w`

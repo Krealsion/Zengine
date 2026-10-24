@@ -7,8 +7,8 @@ waiting for, and what it believes about the Workshop and Loom host it started.
                      --loom-host <loom-host> --loom-runs <loom-runs> --loom-runtime <loom_session dir>
                      --vocabulary <zengine-guest-vocabulary> --work <dir> [--evidence <file.json>]
 
-Each root is launched by the story's own `launch` (this build tree's Workshop on the terminal plan,
-the installed Loom's session host) and its commands run as a weaver runs them, one process each. A
+Each root is launched by the story's own `launch` (this build tree's Workshop in the terminal
+window, `--tui`, the installed Loom's session host) and its commands run as a weaver runs them, one process each. A
 run whose wait ran out keeps its handle until it is seen to settle: through `status` when its result
 arrives late, through `cancel` when it is cancelled -- and after cancellation the SAME link gets
 Workshop's input session again; a replay still waiting when its run is cancelled writes that ending
@@ -292,7 +292,7 @@ def custody(rig):
     tools = dict(rig.tools, loom_host=str(work / "no-such-loom-host"))
     try:
         story.launch(rig.runtime, work / "game", work / "workshop", work / "elh", tools, rig.env, "180x80",
-                     "default-load-plan.json")
+                     "default-load-plan.json", ["--tui"])
         said = "launched"
     except SystemExit as why:
         said = str(why)

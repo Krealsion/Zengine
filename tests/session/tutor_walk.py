@@ -175,7 +175,7 @@ def main():
     env["TERM"] = "xterm-256color"
     term = Terminal()
     err = open(os.path.join(wdir, "workshop.err"), "wb")
-    workshop = subprocess.Popen([args.workshop, "--isolated", "--load-plan", args.plan,
+    workshop = subprocess.Popen([args.workshop, "--isolated", "--load-plan", args.plan, "--tui",
                                  "--guests", "guests.json", "--log", "workshop.log"],
                                 cwd=wdir, env=env, stdin=term.slave, stdout=term.slave, stderr=err,
                                 start_new_session=True)

@@ -51,8 +51,8 @@ and their manual); `graphics`
 ## Host side
 
 - Staged beside the host, the Connections pane listed as a development pane:
-  `workshop/CMakeLists.txt`; its plan rows: `workshop/default-load-plan.json`,
-  `workshop/graphical-load-plan.json`. `demo.py` adds `zengine-demo-control` to a setup's plan.
+  `workshop/CMakeLists.txt`; its plan row: `workshop/default-load-plan.json`.
+  `demo.py` adds `zengine-demo-control` to a setup's plan.
 - The guest door, mounted by `workshop/workshop.cpp` under `--guests`: `workshop/guest_door.hpp`;
   the guests file and its powers: `workshop/guests.hpp`, `workshop/guests.cpp` (`demo` grants the
   `Demo*` shapes to `zengine.demo`); a guest's hand: `workshop/actor_scope.hpp`.

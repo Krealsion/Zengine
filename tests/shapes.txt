@@ -571,11 +571,14 @@ WorkshopLayout v1 0x3ffb3d8c6bad29a1
 WorkshopLayout v2 0x048b320272ee11f7
 WorkshopLayout v3 0xa8c681406435ea4b
 WorkshopLoadArtifact v1 0x9495c3bc5d6cce28
+WorkshopLoadAlternative v1 0x5726940121e826b8
 WorkshopLoadArtifact v2 0xc4abf10709be1e20
+WorkshopLoadArtifact v3 0xa0553f30944eda3a
 WorkshopLoadChoice v1 0x2d8cb8d6a1cfe6fb
 WorkshopLoadFile v1 0x504ba89ff044ab88
 WorkshopLoadFile v2 0x9f6c28d1a98452a9
 WorkshopLoadFile v3 0x4adfb735cc88cf8d
+WorkshopLoadFile v4 0x762b2d553b89be84
 WorkshopLoadProvider v1 0x5381a4616c222e5b
 WorkshopLoadWeave v1 0xe8407a1d3f5d54d8
 WorkshopMark v1 0x0f1dbd2943659fc7
@@ -604,6 +607,7 @@ WorkshopSession v6 0x65ddb2477e598d18
 WorkshopSession v7 0xcac415773fb5880a
 WorkshopSession v8 0x520a73e48f9d3ed1
 WorkshopSession v9 0xc0d49edb80731ff2
+WorkshopSession v10 0xac1d64f2f2cf9980
 WorkshopSetup v2 0xae5ff77848290ca3
 WorkshopSetup v3 0x9002adbbcadc4175
 WorkshopSetup v4 0x54df6e46cb27fac7

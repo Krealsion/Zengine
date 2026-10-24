@@ -162,6 +162,21 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/a-reload-lands-off-the-loaded-path.md`
 
+## WL-PROJ-17 — The launch opens the plan's first window that loads, or `--tui`'s terminal window
+
+LAW — A row's `otherwise` loads in order where its own artifact cannot: a refused one gives way, said once, kept on Attention, one not installed unsaid; `--tui` takes the terminal window alone.
+
+MEANS
+- the shipped window row is the OS window, otherwise the terminal window, in every build;
+- the OS window that cannot open refuses its own making, so nothing of it stays loaded;
+- `--tui` over a plan offering no terminal window, or a launch naming the retired graphical plan where none is, is refused, with its fix.
+
+DOES NOT MEAN
+- that a running Workshop switches windows, or that a start remembers which one opened;
+- that SDL's own words reach the desk: a refused making carries none, so they are on stderr.
+
+WHY — `agents/decisions/the-window-is-a-choice-in-the-plan.md`
+
 ## Proven by
 
 ### WL-PROJ-01
@@ -290,3 +305,36 @@ reloads the image before the last reload"
 `tests/test_workshop_panes_builder.cpp` "`B` before a build is the toggle, and `b` reads it" "after
 a plain build that worked, `B` is the button" "`P` and `R` are one offer each, about the built
 artifact"
+
+### WL-PROJ-17
+`workshop/load_plan.hpp` AlternativeIntent ArtifactIntent::otherwise kMaxRowAlternatives
+check_alternatives take_next_alternative take_role
+`workshop/load_persist.hpp` WorkshopLoadAlternative WorkshopLoadArtifact::otherwise version_for
+kRetiredGraphicalPlanName retired_plan
+`workshop/load_execute.hpp` PassedOver passed_over_words PlanExecutor::Installed
+PlanExecutor::passed_over
+`workshop/workshop.cpp` Arguments::tui
+`workshop/weave.hpp` HostContext::passed_over
+`workshop/weave_handlers.cpp` speak_startup_notes
+`workshop/attention.hpp` gave_way kGaveWayKeyPrefix
+`graphics/window/window_sdl_backend.hpp` ProcessSdlBackend
+`workshop/default-load-plan.json` zengine-window-sdl zengine-window-terminal
+`tests/test_workshop_load.cpp` "the shipped plan's window row is the OS window, otherwise the
+terminal window, and no other row names anything in its place" "a row's artifact whose load is
+refused gives way to the next it names, said once in Loom's words; one this installation lacks
+gives way unsaid; the first that loads stands in the row" "the shipped window row in the OS
+window's absence: told a driver it lacks, the OS window gives way to the terminal window, said
+once, and leaves nothing loaded; in a build without it, the terminal window loads unsaid" "the
+terminal window taken alone: the row loading it keeps it, a row naming it in its place loads it and
+tries nothing else, and a plan offering none is refused, unchanged" "what a row loads in its place
+is a weave, named once, into an office no other row and no choice holds" "a plan naming a row's
+alternatives is written as version 4 and read back the plan it is; one naming none is written as
+before, and a version-4 file naming none is refused" "a launch naming the retired graphical plan
+where it is gone is told the fix; a file of that name that is there, and every other path, is a
+plan like any other"
+`tests/test_workshop_persistence.cpp` "what the plan could not load and gave way from is said on
+the desk as it comes up, and nothing is said of it where every row loaded its own"
+`tests/test_graphics.cpp` "the OS window SDL cannot open, told a video driver it lacks, is refused
+at its load and leaves no window, no SDL, no office held and no claim on SDL's queue" "the OS window
+over SDL that cannot open is refused at its making, in SDL's words, holding no window, no SDL and
+no claim on SDL's queue"

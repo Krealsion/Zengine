@@ -187,6 +187,8 @@ struct Arguments {
     /// Empty means the plan shipped beside this executable, resolved by `main()`: a bare name would
     /// resolve against wherever the weaver happened to launch.
     std::string load_plan;
+    /// `--tui`: the terminal window, of the windows the plan in force offers, and no other tried.
+    bool tui = false;
     /// The authored build recipes, whose file may be absent; empty means the one beside this
     /// executable.
     // WL-PROJ-04 -- agents/workshop/project.md
@@ -208,6 +210,7 @@ Arguments parse_arguments(int argc, char** argv) {
         if (arg == "--version") { args.version = true; continue; }
         if (arg == "--log-refusals") { args.log_refusals = true; continue; }
         if (arg == "--demo-history") { args.demo_history = true; continue; }
+        if (arg == "--tui") { args.tui = true; continue; }
         if (arg == "--isolated") {
             // The one flag that takes no path: a whole-run policy, not a file.
             args.isolated = true;
@@ -319,15 +322,14 @@ int main(int argc, char** argv) {
                     "                        [--session <path>] [--keymap <path>]\n"
                     "                        [--prefs <path>] [--marks <path>]\n"
                     "                        [--isolated]\n"
-                    "                        [--load-plan <path>]\n"
+                    "                        [--load-plan <path>] [--tui]\n"
                     "                        [--recipes <path>]\n"
                     "                        [--log <path>] [--log-refusals] [--dump <path>] [--demo-history]\n"
                     "                        [--guests <file>]\n"
                     "       zengine-workshop --read-log <path>\n"
-                    "the desk in the OS window, where it was built, is the other plan shipped\n"
-                    "beside this binary:\n"
-                    "  zengine-workshop --load-plan <workshop dir>/%s\n",
-                    args.complaint.c_str(), load_persist::kGraphicalLoadPlanName);
+                    "the desk opens in the OS window, else in the terminal window; --tui opens it\n"
+                    "in the terminal window\n",
+                    args.complaint.c_str());
         return 2;
     }
 
@@ -478,17 +480,40 @@ int main(int argc, char** argv) {
 
     // ---- The authored load plan, read before anything is built ----------------------------------
     // A bad plan is refused before this process has a bus, a Kernel or a catalog. There is no
-    // compiled-in fallback: a manufactured arrangement would not be the weaver's project.
-    const load_persist::LoadedPlan read_plan = load_persist::load_file(plan_path);
-    if (!read_plan.outcome.accepted) {
+    // compiled-in fallback: a manufactured arrangement would not be the weaver's project. A launch
+    // naming the retired graphical plan where it is gone is told the fix (`retired_plan`).
+    const auto refuse_plan = [](const std::string& why) {
         std::printf("zengine-workshop - load plan refused: %s\n"
                     "zengine-workshop - nothing was mounted and nothing was loaded.\n",
-                    read_plan.outcome.refusal.c_str());
+                    why.c_str());
+        std::fflush(stdout);
         return 3;
+    };
+    if (const std::string retired = load_persist::retired_plan(args.load_plan, present);
+        !retired.empty()) {
+        return refuse_plan(retired);
+    }
+    const load_persist::LoadedPlan read_plan = load_persist::load_file(plan_path);
+    if (!read_plan.outcome.accepted) {
+        return refuse_plan(read_plan.outcome.refusal);
     }
     std::printf("zengine-workshop - load plan: %zu artifact(s) declared\n",
                 read_plan.plan.artifacts.size());
     std::fflush(stdout);
+    // ...AND THE WINDOW THIS LAUNCH OPENS: the plan's windows tried in order, or, with `--tui`, its
+    // terminal window alone. Only the plan confers participation, so a plan offering no terminal
+    // window is refused here, with its fix, before anything is mounted.
+    load::LoadPlan launched = read_plan.plan;
+    if (args.tui) {
+        const std::string terminal =
+            std::string(gfx::kWindowOfficePrefix) + gfx::kTerminalWindow;
+        if (const Written taken = load::take_role(launched, terminal); !taken.accepted) {
+            return refuse_plan("--tui opens the terminal window, and " + plan_path +
+                               " offers none (" + taken.refusal +
+                               "): add zengine-window-terminal under its window row's "
+                               "`otherwise`, or start without --tui (workshop/docs/load-plans.md)");
+        }
+    }
 
     // ---- The authored build recipes, read in the same breath ------------------------------------
     // Project intent like the plan, refused before anything is built, but a different document
@@ -942,6 +967,22 @@ int main(int argc, char** argv) {
             const auto line = [&said](const std::string& text) {
                 said += "zengine-workshop - " + text + "\n";
             };
+            // What a row could not load and gave way from stands too, for the run (the desk said
+            // it once as it came up): the OS window that could not open here, and why.
+            for (const load::PassedOver& gone : done.passed_over) {
+                if (say) {
+                    line(gone.sentence());
+                }
+                bool kept = false;
+                for (const Condition& c : host.standing_conditions) {
+                    kept = kept || c.key == zengine::workshop::kGaveWayKeyPrefix + gone.stem;
+                }
+                if (!kept) {
+                    host.standing_conditions.push_back(
+                        zengine::workshop::gave_way(gone.stem, gone.next, gone.why));
+                    ++host.conditions_generation;
+                }
+            }
             if (say) {
                 for (const load::ResolvedArtifact& row : done.resolved) {
                     std::string loaded = row.stem;
@@ -1027,7 +1068,21 @@ int main(int argc, char** argv) {
         },
         [&staging_host](const std::string& stem, const std::string& image) {
             return staging::promote(staging_host, stem, image);
+        },
+        // Does this installation hold an artifact a row names something in place of? Its file
+        // beside the host, by the one stem-to-file rule: a build without it passes it unsaid.
+        [&host](const std::string& stem) {
+            std::error_code ec;
+            return std::filesystem::exists(std::filesystem::path(host.so(stem)), ec) && !ec;
         });
+    // ...and what a row could not load and gave way from, said once on the desk.
+    host.passed_over = [&executor] {
+        std::vector<std::string> said;
+        for (const load::PassedOver& gone : executor.passed_over()) {
+            said.push_back(gone.sentence());
+        }
+        return said;
+    };
 
     // ---- What the project is waiting on, answered alive -----------------------------------------
     // The owner derives, the host wires, the weave spends: read at each ask, never copied. A
@@ -1181,7 +1236,7 @@ int main(int argc, char** argv) {
     // THE CHOICE THE LAST SESSION REMEMBERED (WL-SWITCH-08): each switchable office starts on the
     // authored choice that held it at quit, while the plan still authors it; the project's plan
     // file is never changed, and a run with no session file reads none.
-    load::LoadPlan begun = read_plan.plan;
+    load::LoadPlan begun = launched;
     if (!host.session_path.empty()) {
         const session_persist::LoadedSession last = session_persist::load_file(host.session_path);
         std::vector<std::pair<std::string, std::string>> remembered;

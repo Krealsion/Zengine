@@ -43,6 +43,17 @@ inline Condition unavailable_tool(const std::string& stem, const std::string& sa
                      graphics::role::kAlert, "build its artifact, then launch again"};
 }
 
+/// AN ARTIFACT A ROW COULD NOT LOAD, AND WHAT STANDS IN ITS ROW, for the whole run: the OS window
+/// that could not open here, the terminal window holding the desk in its place, and why.
+inline constexpr const char* kGaveWayKeyPrefix = "load.gave-way/";
+// WL-PROJ-17 -- agents/workshop/project.md
+inline Condition gave_way(const std::string& stem, const std::string& next,
+                          const std::string& why) {
+    return Condition{kGaveWayKeyPrefix + stem,
+                     stem + " did not load; " + next + " stands in its row", why,
+                     graphics::role::kAccent, ""};
+}
+
 /// A DEVELOPMENT HOST, for the whole run: the guests file names `host: development`, so a guest with
 /// `input` writes, types and reaches the editor and the Terminal here, and one with `build` builds.
 // WL-GUEST-08 -- agents/workshop/guests.md

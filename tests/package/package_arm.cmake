@@ -2,10 +2,10 @@
 # Copyright (c) 2026 Joshua DeMoss
 #
 # The installed-package witness's package arm (run.cmake -DZEN_PACKAGE=ON): the package a stranger
-# downloads, judged where run.cmake installed it (`prefix`), stripped. Its files are there, the SDL
-# it built among them; `--version` names the commit this checkout is at; no image names the build
-# machine's source or build folder; and Workshop starts from the prefix on the OS window's plan and
-# on the terminal's, with an environment naming nothing installed, each row loaded.
+# downloads, judged where run.cmake installed it (`prefix`), stripped: its files, the SDL it built
+# among them; `--version` naming this checkout's commit; no image naming the build machine's
+# folders; and Workshop started from the prefix as a weaver starts it, nothing installed beside it,
+# each row loaded in the window each start means (no flag, `--tui`, a driver SDL lacks).
 
 if(WIN32)
     set(exe ".exe")
@@ -16,7 +16,7 @@ set(workshop "${prefix}/bin/zengine-workshop${exe}")
 
 # ---- the files a stranger opens first, and the SDL it built ----------------------------------
 set(package_files bin/zengine-workshop${exe} bin/zengine-app${exe} bin/default-load-plan.json
-    bin/graphical-load-plan.json README.txt BUILD-INFO.txt NOTICE.md LICENSE
+    README.txt BUILD-INFO.txt NOTICE.md LICENSE
     licenses/SDL3/LICENSE.txt licenses/SDL3_ttf/LICENSE.txt licenses/FreeType/FTL.TXT)
 if(WIN32)
     list(APPEND package_files Workshop.cmd Workshop-terminal.cmd bin/SDL3.dll bin/SDL3_ttf.dll)
@@ -86,18 +86,41 @@ else()
     set(bare_path "/usr/bin:/bin")
 endif()
 file(WRITE "${work}/package-start-input.txt" "")
-foreach(plan IN ITEMS graphical-load-plan.json default-load-plan.json)
-    set(project "${work}/package-start-${plan}")
+# Each start: its name, its driver, its flag, the window it loads, and whether the OS window gave way.
+set(starts "window|offscreen||zengine-window-sdl|no"
+           "tui|offscreen|--tui|zengine-window-terminal|no"
+           "no-display|zengine-no-such-driver||zengine-window-terminal|yes")
+foreach(start IN LISTS starts)
+    string(REPLACE "|" ";" start "${start}")
+    list(GET start 0 name)
+    list(GET start 1 driver)
+    list(GET start 2 flag)
+    list(GET start 3 window)
+    list(GET start 4 gave_way)
+    set(project "${work}/package-start-${name}")
     file(REMOVE_RECURSE "${project}")
     file(MAKE_DIRECTORY "${project}")
-    execute_process(COMMAND ${CMAKE_COMMAND} -E env "PATH=${bare_path}" SDL_VIDEO_DRIVER=offscreen
-                            "${workshop}" --isolated --load-plan "${prefix}/bin/${plan}"
+    execute_process(COMMAND ${CMAKE_COMMAND} -E env "PATH=${bare_path}" SDL_VIDEO_DRIVER=${driver}
+                            "${workshop}" --isolated ${flag}
                     WORKING_DIRECTORY "${project}" INPUT_FILE "${work}/package-start-input.txt"
                     TIMEOUT 20 RESULT_VARIABLE start_rc OUTPUT_VARIABLE start_said ERROR_VARIABLE start_said)
+    set(loaded_all TRUE)
     if(NOT start_said MATCHES "operators: [0-9]+ resolvable" OR start_said MATCHES "unavailable: "
-       OR start_said MATCHES "refused")
-        message(FATAL_ERROR "package witness: Workshop from the package on ${plan} did not load every "
-                            "row (${start_rc}):\n${start_said}")
+       OR start_said MATCHES "load plan refused" OR start_said MATCHES "plan was not completed"
+       OR NOT start_said MATCHES "loaded: ${window} ")
+        set(loaded_all FALSE)
     endif()
-    message(STATUS "package witness: Workshop starts from the package on ${plan}, every row loaded ok")
+    if(gave_way STREQUAL "yes" AND NOT start_said MATCHES
+       "`zengine-window-sdl` did not load, so `zengine-window-terminal` stands in its row")
+        set(loaded_all FALSE)
+    endif()
+    if(gave_way STREQUAL "no" AND start_said MATCHES "did not load, so")
+        set(loaded_all FALSE)
+    endif()
+    if(NOT loaded_all)
+        message(FATAL_ERROR "package witness: Workshop from the package (${name}) did not load every "
+                            "row in ${window} (${start_rc}):\n${start_said}")
+    endif()
+    message(STATUS "package witness: Workshop starts from the package (${name}) in ${window}, every "
+                   "row loaded ok")
 endforeach()

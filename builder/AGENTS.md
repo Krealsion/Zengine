@@ -55,8 +55,7 @@ Its cases in shared suites: `workshop_panes_project` (`tests/test_workshop_panes
   `workshop/default-build-recipes.json.in`; `workshop/authoring.hpp` writes recipe and plan rows
 - realization: `PlanBooter` in `workshop/load_execute.hpp` holds `zengine.realization`;
   `workshop/staging.hpp` places a built product, a reload's copy and a promotion
-- the pane: a row in `workshop/default-load-plan.json` and `workshop/graphical-load-plan.json`,
-  staged by `workshop/CMakeLists.txt`; it asks through `workshop/builder_seam_vocabulary.hpp`,
+- the pane: a row in `workshop/default-load-plan.json`, staged by `workshop/CMakeLists.txt`; it asks through `workshop/builder_seam_vocabulary.hpp`,
   answered by `ProjectDoor` in `workshop/pane_doors.hpp`
 - the rest: `workshop/pane_migration.hpp` moves an old desk's Builder pane to its office;
   `workshop/guests.cpp` lets a guest that sees `BuildStatus` ask for it

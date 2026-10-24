@@ -28,19 +28,21 @@ namespace zengine::workshop::load_persist {
 /// rather than half-read.
 inline constexpr const char* kFormat = "zengine-workshop-load-plan";
 
-/// The newest load-plan format version: what a plan authoring choices is written as.
-inline constexpr std::int64_t kFormatVersion = 3;
+/// The newest load-plan format version: what a plan naming what a row loads in its place is
+/// written as.
+inline constexpr std::int64_t kFormatVersion = 4;
 
 /// The version a plan authoring no choices is written as, and the oldest this build reads.
 inline constexpr std::int64_t kFormatVersionV1 = 1;
-/// ...and the one between, which authors choices and no optional rows.
+/// ...the next, which authors choices and no optional rows...
 inline constexpr std::int64_t kFormatVersionV2 = 2;
+/// ...and the one before this one, which marks rows optional and names no row's alternatives.
+inline constexpr std::int64_t kFormatVersionV3 = 3;
 
-/// The plans Workshop ships, staged beside the executable, where the artifacts they name are.
-/// Files, not a flag: each one's diff from this default -- the desk in the terminal window
-/// (`zengine-graphics` and `zengine-window-terminal` in the medium's two rows) -- is the whole
-/// difference between that arrangement and another, and any other is a copy passed with
-/// `--load-plan`.
+/// The plan Workshop ships, staged beside the executable, where the artifacts it names are: the
+/// desk in the OS window, else the terminal window (the window row, `zengine-window-sdl` and
+/// what it loads in its place, `zengine-window-terminal`), which `--tui` narrows to the terminal
+/// window. Any other arrangement is a copy passed with `--load-plan`, or a project's own plan.
 inline constexpr const char* kDefaultLoadPlanName = "default-load-plan.json";
 
 /// The plan a weaver authors into, under the project: where `load it` writes the minimum row,
@@ -67,9 +69,27 @@ inline std::string plan_in_force(const std::string& explicit_path, const std::st
     }
     return host_dir + "/" + kDefaultLoadPlanName;
 }
-/// ...and the one beside it, passed with `--load-plan`: the desk in the OS window
-/// (`zengine-window-sdl` where the terminal window stands), staged only where it was built.
-inline constexpr const char* kGraphicalLoadPlanName = "graphical-load-plan.json";
+
+/// A SHIPPED PLAN NO BUILD STAGES NOW: the desk in the OS window, which the default plan's window
+/// row loads first. A weaver's own file of that name is a plan like any other.
+inline constexpr const char* kRetiredGraphicalPlanName = "graphical-load-plan.json";
+
+/// WHAT A LAUNCH NAMING THE RETIRED PLAN IS TOLD where no file is there: the refusal with its fix,
+/// or empty for every other launch. `present` is the host's existence probe, as `plan_in_force`
+/// takes it.
+template <class Present>
+inline std::string retired_plan(const std::string& explicit_path, Present present) {
+    const std::size_t slash = explicit_path.find_last_of("/\\");
+    const std::string name =
+        slash == std::string::npos ? explicit_path : explicit_path.substr(slash + 1);
+    if (name != kRetiredGraphicalPlanName || present(explicit_path)) {
+        return std::string();
+    }
+    return std::string(kRetiredGraphicalPlanName) + " is retired: the shipped " +
+           kDefaultLoadPlanName + " opens the OS window, else the terminal window -- start " +
+           "without --load-plan, or with --tui for the terminal window " +
+           "(workshop/docs/load-plans.md)";
+}
 
 /// The ceiling: an order of magnitude above the largest legal plan, so a hostile file does not
 /// choose the cost of refusing it.
@@ -118,19 +138,45 @@ struct WorkshopLoadArtifact {
 };
 } // namespace v1
 
-/// One artifact row as written (format version 3): which artifact, which surfaces it is asked
-/// for, and whether this project may stand without it. `provider` and `weave` are lists, each
-/// empty or of one, the plan law's bound. `optional` is a plain `bool`: every
-/// row either may be stepped over or may not, so a version-3 file says so on every row.
+namespace v3 {
+/// ONE ARTIFACT ROW AS VERSION 3 WROTE IT, RETAINED WHOLE for version 1's reason: which artifact,
+/// which surfaces it is asked for, and whether this project may stand without it.
+struct WorkshopLoadArtifact {
+    std::string artifact;
+    std::vector<WorkshopLoadProvider> provider;
+    std::vector<WorkshopLoadWeave> weave;
+    bool optional = false;
+
+    ZEN_SHAPE(WorkshopLoadArtifact, 2, ZEN_FIELD(artifact), ZEN_FIELD(provider),
+              ZEN_FIELD(weave), ZEN_FIELD(optional));
+};
+} // namespace v3
+
+/// ONE ARTIFACT A ROW LOADS IN ITS PLACE, AS WRITTEN: which artifact, and its weave as a row says
+/// it, a list of exactly one.
+struct WorkshopLoadAlternative {
+    std::string artifact;
+    std::vector<WorkshopLoadWeave> weave;
+
+    ZEN_SHAPE(WorkshopLoadAlternative, 1, ZEN_FIELD(artifact), ZEN_FIELD(weave));
+};
+
+/// One artifact row as written (format version 4): which artifact, which surfaces it is asked
+/// for, whether this project may stand without it, and what it loads in its place. `provider` and
+/// `weave` are lists, each empty or of one, the plan law's bound. `optional` is a plain `bool`:
+/// every row either may be stepped over or may not, so a file of this version says so on every
+/// row, and `otherwise` is on every row, empty where a row names nothing in its place.
 struct WorkshopLoadArtifact {
     std::string artifact;
     std::vector<WorkshopLoadProvider> provider;
     std::vector<WorkshopLoadWeave> weave;
     /// TRUE = this project stands without the row (`load_plan.hpp`'s `optional`).
     bool optional = false;
+    /// What the row loads where its own artifact cannot, in the order tried (`otherwise`).
+    std::vector<WorkshopLoadAlternative> otherwise{};
 
-    ZEN_SHAPE(WorkshopLoadArtifact, 2, ZEN_FIELD(artifact), ZEN_FIELD(provider),
-              ZEN_FIELD(weave), ZEN_FIELD(optional));
+    ZEN_SHAPE(WorkshopLoadArtifact, 3, ZEN_FIELD(artifact), ZEN_FIELD(provider),
+              ZEN_FIELD(weave), ZEN_FIELD(optional), ZEN_FIELD(otherwise));
 };
 
 /// ONE AUTHORED CHOICE AS WRITTEN: the office, the weaver's name for the choice, and the artifact.
@@ -150,7 +196,7 @@ struct WorkshopLoadFile {
     std::vector<WorkshopLoadArtifact> artifacts;
     std::vector<WorkshopLoadChoice> choices;
 
-    ZEN_SHAPE(WorkshopLoadFile, 3, ZEN_FIELD(format), ZEN_FIELD(format_version),
+    ZEN_SHAPE(WorkshopLoadFile, 4, ZEN_FIELD(format), ZEN_FIELD(format_version),
               ZEN_FIELD(artifacts), ZEN_FIELD(choices));
 };
 
@@ -181,6 +227,20 @@ struct WorkshopLoadFile {
 };
 } // namespace v2
 
+/// VERSION 3, RETAINED WHOLE for version 1's reason: the envelope a plan marking rows optional and
+/// naming no row's alternatives carries.
+namespace v3 {
+struct WorkshopLoadFile {
+    std::string format;
+    std::int64_t format_version = 0;
+    std::vector<v3::WorkshopLoadArtifact> artifacts;
+    std::vector<WorkshopLoadChoice> choices;
+
+    ZEN_SHAPE(WorkshopLoadFile, 3, ZEN_FIELD(format), ZEN_FIELD(format_version),
+              ZEN_FIELD(artifacts), ZEN_FIELD(choices));
+};
+} // namespace v3
+
 /// The envelope's shape version and the plan format version are one number, so a file from
 /// another version is refused by its number before a row is judged.
 static_assert(WorkshopLoadFile::zen_version == static_cast<std::uint32_t>(kFormatVersion),
@@ -191,6 +251,8 @@ static_assert(v1::WorkshopLoadFile::zen_version == static_cast<std::uint32_t>(kF
               "version 1's retained envelope carries version 1's number");
 static_assert(v2::WorkshopLoadFile::zen_version == static_cast<std::uint32_t>(kFormatVersionV2),
               "version 2's retained envelope carries version 2's number");
+static_assert(v3::WorkshopLoadFile::zen_version == static_cast<std::uint32_t>(kFormatVersionV3),
+              "version 3's retained envelope carries version 3's number");
 
 // ---- Writing -------------------------------------------------------------------
 
@@ -217,7 +279,22 @@ inline std::vector<WorkshopLoadArtifact> artifact_rows(const load::LoadPlan& pla
             row.weave.push_back(WorkshopLoadWeave{a.weave->role});
         }
         row.optional = a.optional;
+        for (const load::AlternativeIntent& alt : a.otherwise) {
+            row.otherwise.push_back(
+                WorkshopLoadAlternative{alt.stem, {WorkshopLoadWeave{alt.weave.role}}});
+        }
         rows.push_back(std::move(row));
+    }
+    return rows;
+}
+
+/// THE SAME ROWS AS VERSION 3 WROTE THEM -- reachable only for a plan naming no row's
+/// alternatives, which is what `to_text` checks before it chooses that version.
+inline std::vector<v3::WorkshopLoadArtifact> artifact_rows_v3(const load::LoadPlan& plan) {
+    std::vector<v3::WorkshopLoadArtifact> rows;
+    rows.reserve(plan.artifacts.size());
+    for (const WorkshopLoadArtifact& a : artifact_rows(plan)) {
+        rows.push_back(v3::WorkshopLoadArtifact{a.artifact, a.provider, a.weave, a.optional});
     }
     return rows;
 }
@@ -251,6 +328,16 @@ inline bool authors_optional(const load::LoadPlan& plan) {
     return false;
 }
 
+/// ...and does it name what any row loads in its place?
+inline bool authors_alternatives(const load::LoadPlan& plan) {
+    for (const load::ArtifactIntent& a : plan.artifacts) {
+        if (!a.otherwise.empty()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 inline WorkshopLoadFile to_file(const load::LoadPlan& plan) {
     WorkshopLoadFile out;
     out.format = kFormat;
@@ -262,8 +349,8 @@ inline WorkshopLoadFile to_file(const load::LoadPlan& plan) {
     return out;
 }
 
-/// THE PLAN AS VERSION 1 -- meaningful only for a plan that authors no choices and no
-/// optional rows.
+/// THE PLAN AS VERSION 1 -- meaningful only for a plan that authors no choices, no optional rows
+/// and no row's alternatives.
 inline v1::WorkshopLoadFile to_file_v1(const load::LoadPlan& plan) {
     v1::WorkshopLoadFile out;
     out.format = kFormat;
@@ -284,17 +371,40 @@ inline v2::WorkshopLoadFile to_file_v2(const load::LoadPlan& plan) {
     return out;
 }
 
-/// THE SMALLEST VERSION THAT SAYS THE PLAN: version 1 while it authors neither choices nor
-/// optional rows, so every plan written before either existed is written again exactly as it
-/// was; version 2 while it authors choices and no optional row; version 3 otherwise.
-inline std::string to_text(const load::LoadPlan& plan) {
-    if (!authors_optional(plan)) {
-        if (plan.choices.empty()) {
-            return loom::compat::serialize(loom::to_value(to_file_v1(plan)));
-        }
-        return loom::compat::serialize(loom::to_value(to_file_v2(plan)));
+/// THE PLAN AS VERSION 3 -- optional rows, and no row's alternatives.
+inline v3::WorkshopLoadFile to_file_v3(const load::LoadPlan& plan) {
+    v3::WorkshopLoadFile out;
+    out.format = kFormat;
+    out.format_version = kFormatVersionV3;
+    out.artifacts = artifact_rows_v3(plan);
+    for (const load::ChoiceIntent& c : plan.choices) {
+        out.choices.push_back(WorkshopLoadChoice{c.role, c.name, c.stem});
     }
-    return loom::compat::serialize(loom::to_value(to_file(plan)));
+    return out;
+}
+
+/// The smallest version that says a plan, as a number.
+inline std::int64_t version_for(const load::LoadPlan& plan) {
+    if (authors_alternatives(plan)) {
+        return kFormatVersion;
+    }
+    if (authors_optional(plan)) {
+        return kFormatVersionV3;
+    }
+    return plan.choices.empty() ? kFormatVersionV1 : kFormatVersionV2;
+}
+
+/// THE SMALLEST VERSION THAT SAYS THE PLAN: version 1 while it authors no choices, no optional
+/// rows and no row's alternatives, so every plan written before any of them existed is written
+/// again exactly as it was; version 2 while it authors choices and neither of the others; version
+/// 3 while it marks rows optional and names no row's alternatives; version 4 otherwise.
+inline std::string to_text(const load::LoadPlan& plan) {
+    switch (version_for(plan)) {
+    case kFormatVersionV1: return loom::compat::serialize(loom::to_value(to_file_v1(plan)));
+    case kFormatVersionV2: return loom::compat::serialize(loom::to_value(to_file_v2(plan)));
+    case kFormatVersionV3: return loom::compat::serialize(loom::to_value(to_file_v3(plan)));
+    default: return loom::compat::serialize(loom::to_value(to_file(plan)));
+    }
 }
 
 // ---- Reading -------------------------------------------------------------------
@@ -313,8 +423,8 @@ struct LoadedPlan {
 /// the file's own `format_version` field -- cannot come to word it differently.
 inline std::string wrong_version(std::int64_t found) {
     return "load plan version " + std::to_string(found) + " -- this Workshop reads versions " +
-           std::to_string(kFormatVersionV1) + ", " + std::to_string(kFormatVersionV2) + " and " +
-           std::to_string(kFormatVersion);
+           std::to_string(kFormatVersionV1) + ", " + std::to_string(kFormatVersionV2) + ", " +
+           std::to_string(kFormatVersionV3) + " and " + std::to_string(kFormatVersion);
 }
 
 /// The authored mode a written one means. False for a word this format does not have.
@@ -360,8 +470,10 @@ inline LoadedPlan from_text(std::string_view bytes) {
                            claim.claimed_version() == v1::WorkshopLoadFile::zen_version;
     const bool claims_v2 = claim.claimed_name() == std::string(WorkshopLoadFile::zen_name) &&
                            claim.claimed_version() == v2::WorkshopLoadFile::zen_version;
+    const bool claims_v3 = claim.claimed_name() == std::string(WorkshopLoadFile::zen_name) &&
+                           claim.claimed_version() == v3::WorkshopLoadFile::zen_version;
     if (claim.claimed_name() == std::string(WorkshopLoadFile::zen_name) && !claims_v1 &&
-        !claims_v2 && claim.claimed_version() != WorkshopLoadFile::zen_version) {
+        !claims_v2 && !claims_v3 && claim.claimed_version() != WorkshopLoadFile::zen_version) {
         return LoadedPlan::no(wrong_version(static_cast<std::int64_t>(claim.claimed_version())));
     }
     WorkshopLoadFile file;
@@ -394,6 +506,21 @@ inline LoadedPlan from_text(std::string_view bytes) {
                                                           std::move(row.provider),
                                                           std::move(row.weave), false});
         }
+    } else if (claims_v3) {
+        const loom::Admission old =
+            loom::admit(claim, loom::schema_of<v3::WorkshopLoadFile>(), loom::Report::FirstError);
+        if (!old.ok()) {
+            return LoadedPlan::no(old.first_error().message());
+        }
+        v3::WorkshopLoadFile read = loom::from_value<v3::WorkshopLoadFile>(old.value());
+        file.format = std::move(read.format);
+        file.format_version = read.format_version;
+        file.choices = std::move(read.choices);
+        for (v3::WorkshopLoadArtifact& row : read.artifacts) {
+            file.artifacts.push_back(WorkshopLoadArtifact{std::move(row.artifact),
+                                                          std::move(row.provider),
+                                                          std::move(row.weave), row.optional});
+        }
     } else {
         const loom::Admission admitted =
             loom::admit(claim, loom::schema_of<WorkshopLoadFile>(), loom::Report::FirstError);
@@ -409,8 +536,10 @@ inline LoadedPlan from_text(std::string_view bytes) {
     // ENVELOPE is another version; this answers for one whose envelope is one version
     // and whose own stated version is another -- which only a forgery produces,
     // and which is exactly the forgery a reader of this format would try.
-    const std::int64_t envelope =
-        claims_v1 ? kFormatVersionV1 : (claims_v2 ? kFormatVersionV2 : kFormatVersion);
+    const std::int64_t envelope = claims_v1   ? kFormatVersionV1
+                                  : claims_v2 ? kFormatVersionV2
+                                  : claims_v3 ? kFormatVersionV3
+                                              : kFormatVersion;
     if (file.format_version != envelope) {
         return LoadedPlan::no(wrong_version(file.format_version));
     }
@@ -439,6 +568,15 @@ inline LoadedPlan from_text(std::string_view bytes) {
             a.weave = load::WeaveIntent{row.weave.front().role};
         }
         a.optional = row.optional;
+        for (const WorkshopLoadAlternative& alt : row.otherwise) {
+            if (alt.weave.size() != 1) {
+                return LoadedPlan::no("artifact `" + row.artifact + "`, otherwise `" +
+                                      alt.artifact +
+                                      "`: what a row loads in its place names its weave once");
+            }
+            a.otherwise.push_back(
+                load::AlternativeIntent{alt.artifact, load::WeaveIntent{alt.weave.front().role}});
+        }
         candidate.artifacts.push_back(std::move(a));
     }
     for (const WorkshopLoadChoice& c : file.choices) {
@@ -446,13 +584,16 @@ inline LoadedPlan from_text(std::string_view bytes) {
     }
     // One plan, one spelling: a file in a version larger than its plan needs is refused, or a
     // save would rewrite a file nobody edited.
-    if (!claims_v1 && !claims_v2 && !authors_optional(candidate)) {
-        return LoadedPlan::no("a version-3 load plan marks a row optional; a plan with none is "
-                              "written as version " +
-                              std::to_string(candidate.choices.empty() ? kFormatVersionV1
-                                                                       : kFormatVersionV2));
+    const std::int64_t needed = version_for(candidate);
+    if (envelope == kFormatVersion && needed != kFormatVersion) {
+        return LoadedPlan::no("a version-4 load plan names what a row loads in its place; a plan "
+                              "naming none is written as version " + std::to_string(needed));
     }
-    if (claims_v2 && candidate.choices.empty()) {
+    if (envelope == kFormatVersionV3 && needed != kFormatVersionV3) {
+        return LoadedPlan::no("a version-3 load plan marks a row optional; a plan with none is "
+                              "written as version " + std::to_string(needed));
+    }
+    if (envelope == kFormatVersionV2 && needed != kFormatVersionV2) {
         return LoadedPlan::no("a version-2 load plan authors choices; a plan with none is "
                               "written as version 1");
     }

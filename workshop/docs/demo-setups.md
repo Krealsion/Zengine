@@ -66,7 +66,7 @@ seconds is named in the note and in `not_showing`, since the rest of the desk is
 first task, the hotkeys, the guide's path and the
 preparation's own request counts. The default medium is the OS window; `--tui` uses the
 terminal window. A setup names the media it supports and refuses the others by name
-([the shipped plans](load-plans.md#the-shipped-plans)).
+([the shipped plan](load-plans.md#the-window-the-os-window-else-the-terminal-window)).
 
 What each answer means, and what to do:
 
@@ -91,7 +91,7 @@ started with, whatever later happens to the setup's own directory. Workshop open
 session `start` writes at the versions this Workshop writes, setup version
 <!-- value setup_persist::kFormatVersion,workshop_formats.SETUP_VERSION -->5<!-- /value --> and
 session version
-<!-- value session_persist::kFormatVersion,workshop_formats.SESSION_VERSION -->9<!-- /value -->
+<!-- value session_persist::kFormatVersion,workshop_formats.SESSION_VERSION -->10<!-- /value -->
 (`external-host/tools/workshop/workshop_formats.py`), and every desk the setup applies is at that
 setup version: a desk saved at setup version 4 is lifted, its rows keeping no settings, and an
 older one is refused when the setup is loaded, before `start` writes anything, saying to open it

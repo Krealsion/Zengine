@@ -129,6 +129,10 @@ public:
     int clipboard_reads() const;
     void set_placement(std::optional<Placement> at);
     std::vector<Placement> placed() const;
+    /// ...and each room it was shaped to, as width and height, and what was asked of its window in
+    /// order: `shape` and `place`.
+    std::vector<std::pair<std::int64_t, std::int64_t>> shaped() const;
+    const std::vector<std::string>& window_acts() const;
 
     /// THE WINDOW UP STARTED AGAIN IN PLACE, as a reload in place starts it: activated anew, so it
     /// offers itself again.
