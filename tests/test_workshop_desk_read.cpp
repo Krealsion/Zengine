@@ -1440,7 +1440,7 @@ TEST_CASE("Layouts' stamp names what it shows: a new layout's tab and the naming
     const PaneRef layouts{kWorkshopProvider, pane_key::kLayouts};
     // TWO LAYOUTS, so the tab row is presented.
     stage_run(*d.r.w, [](SetupState& run) {
-        run.shelved.push_back(Layout{Setup{"second", {}}, SetupLink{}});
+        run.shelved.push_back(Layout{Setup{"second", {}, {}, {}, {}}, SetupLink{}});
     });
     d.reseat();
     DeskRead was;
@@ -1455,7 +1455,7 @@ TEST_CASE("Layouts' stamp names what it shows: a new layout's tab and the naming
     // A NEW LAYOUT: its tab is said, so a notice names Layouts' moved stamp.
     d.ear->heard.clear();
     stage_run(*d.r.w, [](SetupState& run) {
-        run.shelved.push_back(Layout{Setup{"third", {}}, SetupLink{}});
+        run.shelved.push_back(Layout{Setup{"third", {}, {}, {}, {}}, SetupLink{}});
     });
     d.reseat();
     REQUIRE_FALSE(d.ear->heard.empty());

@@ -4,17 +4,17 @@
 #ifndef ZENGINE_WORKSHOP_SESSION_PERSIST_HPP
 #define ZENGINE_WORKSHOP_SESSION_PERSIST_HPP
 
-// The last session: the run of layouts, the room it was in, and where its window sat and how
-// large the OS window was. Its file is a header line and a line per layout, each its own value.
+// The last session: the run of layouts, the id each was minted, which one was live and which
+// authored choice held each switchable office. Its file is a header line and a line per layout,
+// each its own value; an older file of lines is read whole and brought forward.
 // Workshop law: agents/workshop/session-restore.md (+4 registers; agents/workshop.md routes)
 
 #include "operator/catalog.hpp"
 #include "operator/migration.hpp"
-#include "persist.hpp"
-#include "screen.hpp"
-#include "setup.hpp"
-#include "setup_persist.hpp"
 #include "workshop/layouts/run.hpp"
+#include "workshop/persist.hpp" // and the members a file of lines carries, read as text
+#include "workshop/setup.hpp"
+#include "workshop/setup_persist.hpp"
 
 #include <zen/admission.hpp>
 #include <zen/schema.hpp>
@@ -25,6 +25,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -39,9 +40,8 @@ inline constexpr const char* kFormat = "zengine-workshop-session";
 
 /// The ONE session format version this build writes and admits.
 // WL-MIG-01, WL-MIG-04, WL-MIG-06 -- agents/workshop/migration.md
-// WL-GEO-11 -- agents/workshop/geometry.md
 // WL-SESSION-05 -- agents/workshop/session-restore.md
-inline constexpr std::int64_t kFormatVersion = 11;
+inline constexpr std::int64_t kFormatVersion = 12;
 
 /// Where the last session lives when the host does not say otherwise.
 inline constexpr const char* kDefaultSessionFileName = "workshop-session.json";
@@ -59,61 +59,31 @@ inline constexpr std::uintmax_t kMaxLayoutLineBytes =
 inline constexpr std::uintmax_t kMaxHeaderLineBytes = 4u << 10;
 
 inline constexpr std::uintmax_t kMaxSessionBytes =
-    kMaxHeaderLineBytes + 1u + static_cast<std::uintmax_t>(kMaxLayouts) * (kMaxLayoutLineBytes + 1u);
+    kMaxHeaderLineBytes + 1u +
+    static_cast<std::uintmax_t>(kMaxLayouts) * (kMaxLayoutLineBytes + 1u);
 
 // ---- The file's own shapes ----------------------------------------------------
 
-/// HOW MUCH ROOM THE SURFACE HAD, in canvas pixels.
-// WL-SESSION-07 -- agents/workshop/session-restore.md
-struct WorkshopViewport {
-    std::int64_t width = 0;
-    std::int64_t height = 0;
-
-    /// Version 2: the room is canvas pixels. Same fields — the version IS the semantic gate.
-    ZEN_SHAPE(WorkshopViewport, 2, ZEN_FIELD(width), ZEN_FIELD(height));
-};
-
-// ---- The placement's words, and why they are words -----------------------------------
-// WL-SESSION-08 -- agents/workshop/session-restore.md
-
-inline constexpr const char* kPlacementNone = "none";
-inline constexpr const char* kPlacementDesktop = "desktop";
-inline constexpr const char* kPlacementModeWords = "none or desktop";
-
-inline constexpr const char* kWindowNormal = "normal";
-inline constexpr const char* kWindowMaximized = "maximized";
-inline constexpr const char* kWindowWords = "normal or maximized";
-
-/// WHERE THE WINDOW SAT ON ITS DESKTOP, as the last medium reported it.
-// WL-SESSION-08 -- agents/workshop/session-restore.md
-struct WorkshopPlacement {
-    std::string mode;   ///< none | desktop
-    std::int64_t x = 0; ///< the normal window's top-left, in the medium's desktop units
-    std::int64_t y = 0;
-    std::string window; ///< normal | maximized
-
-    ZEN_SHAPE(WorkshopPlacement, 1, ZEN_FIELD(mode), ZEN_FIELD(x), ZEN_FIELD(y),
-              ZEN_FIELD(window));
-};
-
-/// A LAYOUT'S SETUP ASSOCIATION AS WRITTEN: which standalone artifact it refers
-/// to, and the last value Workshop successfully knew that artifact to hold.
+/// A LAYOUT'S SETUP ASSOCIATION AS WRITTEN: which standalone artifact it refers to, and the last
+/// value Workshop successfully knew that artifact to hold.
 // WL-SESSION-05 -- agents/workshop/session-restore.md
 struct WorkshopSetupLink {
     std::string path;
     setup_persist::WorkshopSetup known;
 
-    ZEN_SHAPE(WorkshopSetupLink, 3, ZEN_FIELD(path), ZEN_FIELD(known));
+    ZEN_SHAPE(WorkshopSetupLink, 4, ZEN_FIELD(path), ZEN_FIELD(known));
 };
 
-/// ONE SAVED LAYOUT: the desk, and the artifact it is associated with.
+/// ONE SAVED LAYOUT: the id the owner minted for it, the desk, and the artifact it is associated
+/// with.
 // WL-LAYOUT-09 -- agents/workshop/layouts.md
 // WL-SESSION-05 -- agents/workshop/session-restore.md
 struct WorkshopLayout {
+    std::int64_t id = 0;
     setup_persist::WorkshopSetup desk;
     WorkshopSetupLink link;
 
-    ZEN_SHAPE(WorkshopLayout, 3, ZEN_FIELD(desk), ZEN_FIELD(link));
+    ZEN_SHAPE(WorkshopLayout, 4, ZEN_FIELD(id), ZEN_FIELD(desk), ZEN_FIELD(link));
 };
 
 /// WHICH AUTHORED CHOICE HELD AN OFFICE AT QUIT, by the office and the choice's name: what the
@@ -129,31 +99,24 @@ struct WorkshopChoice {
 /// How many offices' choices a session may remember: one an office the plan authors choices for.
 inline constexpr std::size_t kMaxRememberedChoices = 16;
 
-/// A WHOLE SAVED SESSION: what it is, which version of that it is, the room it was in, the
-/// LAYOUTS that were in the room and which one the weaver was standing on, where the room's
-/// window sat on the desktop, which authored choice held each switchable office, and the OS
-/// window's own room. It is one value in memory alone: what the reader's law judges and what a
-/// conversion of an older file answers with. Its file holds it a line at a time.
+/// A WHOLE SAVED SESSION: what it is, which version of that it is, the LAYOUTS of the run with
+/// their ids and which one the weaver was standing on, the id the next layout takes, and which
+/// authored choice held each switchable office. It is one value in memory alone: what the
+/// reader's law judges and what a conversion of an older file answers with. Its file holds it a
+/// line at a time.
 // WL-SESSION-04 -- agents/workshop/session.md; WL-SESSION-05 -- agents/workshop/session-restore.md
 struct WorkshopSession {
     std::string format;
     std::int64_t format_version = 0;
-    WorkshopViewport viewport;
     std::vector<WorkshopLayout> layouts;
     std::int64_t active = 0;
-    WorkshopPlacement placement;
+    std::int64_t next_id = 0;
 
     // WL-SWITCH-08 -- agents/workshop/editor-switch.md
     std::vector<WorkshopChoice> choices;
 
-    /// THE OS WINDOW'S NORMAL ROOM, in its pixels, as the last run in it left it: 0 by 0 where none
-    /// was kept. A run in another window writes it back as it read it, as it does the placement.
-    // WL-SESSION-20 -- agents/workshop/session-restore.md
-    WorkshopViewport window_room;
-
-    ZEN_SHAPE(WorkshopSession, 11, ZEN_FIELD(format), ZEN_FIELD(format_version),
-              ZEN_FIELD(viewport), ZEN_FIELD(layouts), ZEN_FIELD(active),
-              ZEN_FIELD(placement), ZEN_FIELD(choices), ZEN_FIELD(window_room));
+    ZEN_SHAPE(WorkshopSession, 12, ZEN_FIELD(format), ZEN_FIELD(format_version),
+              ZEN_FIELD(layouts), ZEN_FIELD(active), ZEN_FIELD(next_id), ZEN_FIELD(choices));
 };
 
 /// THE SESSION FILE'S FIRST LINE: the session's every field but its layouts, and how many
@@ -162,21 +125,17 @@ struct WorkshopSession {
 struct WorkshopSessionHeader {
     std::string format;
     std::int64_t format_version = 0;
-    WorkshopViewport viewport;
     std::int64_t layout_count = 0;
     std::int64_t active = 0;
-    WorkshopPlacement placement;
+    std::int64_t next_id = 0;
     std::vector<WorkshopChoice> choices;
-    WorkshopViewport window_room;
 
-    ZEN_SHAPE(WorkshopSessionHeader, 11, ZEN_FIELD(format), ZEN_FIELD(format_version),
-              ZEN_FIELD(viewport), ZEN_FIELD(layout_count), ZEN_FIELD(active),
-              ZEN_FIELD(placement), ZEN_FIELD(choices), ZEN_FIELD(window_room));
+    ZEN_SHAPE(WorkshopSessionHeader, 12, ZEN_FIELD(format), ZEN_FIELD(format_version),
+              ZEN_FIELD(layout_count), ZEN_FIELD(active), ZEN_FIELD(next_id), ZEN_FIELD(choices));
 };
 
-/// THE ENVELOPE'S SHAPE VERSION AND THE SESSION FORMAT VERSION ARE ONE NUMBER, for the
-/// reason `setup_persist` states about its own pair: it is what lets a session file of
-/// another version be refused BY ITS NUMBER, on the claim, before a single field is judged.
+/// THE ENVELOPE'S SHAPE VERSION AND THE SESSION FORMAT VERSION ARE ONE NUMBER: a session file of
+/// another version is refused by ITS number, on the claim, before a single field is judged.
 static_assert(WorkshopSession::zen_version == static_cast<std::uint32_t>(kFormatVersion) &&
                   WorkshopSessionHeader::zen_version == static_cast<std::uint32_t>(kFormatVersion),
               "the session file's format version and its envelope's shape version are one "
@@ -184,80 +143,40 @@ static_assert(WorkshopSession::zen_version == static_cast<std::uint32_t>(kFormat
               "fields are judged against this version's shape");
 
 /// AND THE DESK'S VERSION IS PINNED HERE ON PURPOSE.
-static_assert(setup_persist::WorkshopSetup::zen_version == 5,
+static_assert(setup_persist::WorkshopSetup::zen_version == 6,
               "the session file nests the setup's own shape: when the desk's version moves, "
               "this format's version moves with it, and the refusal is worded here rather "
               "than left to the gate");
 
-// ---- Would this viewport be honoured? ------------------------------------------
-
-/// IS THIS A VIEWPORT THIS WORKSHOP WOULD ACTUALLY OPEN AT?
-// WL-SESSION-07 -- agents/workshop/session-restore.md
-inline constexpr bool viewport_honoured(std::int64_t width, std::int64_t height) noexcept {
-    return width >= kScreenMinW && width <= kScreenMaxW && height >= kScreenMinH &&
-           height <= kScreenMaxH;
-}
-
-/// What to say about a viewport this build will not open at. It names the value found,
-/// because a weaver looking at their own file can act on that.
-inline std::string declined_viewport(std::int64_t width, std::int64_t height) {
-    return "the saved window size " + std::to_string(width) + "x" + std::to_string(height) +
-           " pixels is not one this Workshop opens at (" + std::to_string(kScreenMinW) + "x" +
-           std::to_string(kScreenMinH) + " to " + std::to_string(kScreenMaxW) + "x" +
-           std::to_string(kScreenMaxH) + ") -- opening at the default size";
-}
-
 // ---- Writing -------------------------------------------------------------------
-
-/// THE PLACEMENT HALF OF A SESSION, AS A VALUE -- what the weave remembers between a
-/// medium's report and a save, and what a load hands back.
-// WL-SESSION-08 -- agents/workshop/session-restore.md
-struct Placement {
-    bool known = false;     ///< a medium has reported one (this run or a restored one)
-    std::int64_t x = 0;     ///< the normal window's top-left, opaque desktop units
-    std::int64_t y = 0;
-    bool maximized = false; ///< whether the window was maximized
-    /// The OS window's normal room, in its pixels, kept beside the place whether or not one is
-    /// known; 0 by 0 when none was kept.
-    // WL-SESSION-20 -- agents/workshop/session-restore.md
-    std::int64_t room_w = 0;
-    std::int64_t room_h = 0;
-};
 
 /// One association, as the value that gets written: the path, and the desk the file was
 /// known to hold -- an absence written as an empty path beside a default desk.
 // WL-SESSION-05 -- agents/workshop/session-restore.md
 inline WorkshopSetupLink to_link(const SetupLink& link) {
-    // THE ABSENCE IS WRITTEN, NOT OMITTED, and it is written the one way `link_in` accepts:
-    // an empty path beside the desk `setup_persist::to_setup` makes of a default `Setup` --
-    // which has an empty name, and is therefore a value no weaver's desk can equal.
+    // THE ABSENCE IS WRITTEN, NOT OMITTED, and it is written the one way `link_in` accepts: an
+    // empty path beside the desk `setup_persist::to_setup` makes of a default `Setup` -- which has
+    // an empty name, and is therefore a value no weaver's desk can equal.
     return WorkshopSetupLink{link.path, setup_persist::to_setup(link.known)};
 }
 
 /// The session, as the value that gets written. NOTHING IS SORTED, NORMALISED, RESOLVED OR
-/// DROPPED ON THE WAY OUT: the order is the run's, `active` is where the caller says the live
-/// one stands, and the viewport and the placement are written as the session held them.
+/// DROPPED ON THE WAY OUT: the order is the run's, each layout keeps its id, and `active` is where
+/// the caller says the live one stands.
 inline WorkshopSession to_session(const std::vector<Layout>& run, std::size_t active,
-                                  std::int64_t viewport_w, std::int64_t viewport_h,
-                                  const Placement& place,
+                                  std::int64_t next_id,
                                   const std::vector<WorkshopChoice>& choices = {}) {
     WorkshopSession out;
     out.format = kFormat;
     out.format_version = kFormatVersion;
-    out.viewport = WorkshopViewport{viewport_w, viewport_h};
     out.layouts.reserve(run.size());
     for (const Layout& layout : run) {
-        out.layouts.push_back(
-            WorkshopLayout{setup_persist::to_setup(layout.desk), to_link(layout.link)});
+        out.layouts.push_back(WorkshopLayout{layout.id, setup_persist::to_setup(layout.desk),
+                                             to_link(layout.link)});
     }
     out.active = static_cast<std::int64_t>(active);
-    out.placement.mode = place.known ? kPlacementDesktop : kPlacementNone;
-    out.placement.x = place.known ? place.x : 0;
-    out.placement.y = place.known ? place.y : 0;
-    out.placement.window =
-        place.known && place.maximized ? kWindowMaximized : kWindowNormal;
+    out.next_id = next_id;
     out.choices = choices;
-    out.window_room = WorkshopViewport{place.room_w, place.room_h};
     return out;
 }
 
@@ -266,12 +185,10 @@ inline WorkshopSessionHeader header_of(const WorkshopSession& session) {
     WorkshopSessionHeader out;
     out.format = session.format;
     out.format_version = session.format_version;
-    out.viewport = session.viewport;
     out.layout_count = static_cast<std::int64_t>(session.layouts.size());
     out.active = session.active;
-    out.placement = session.placement;
+    out.next_id = session.next_id;
     out.choices = session.choices;
-    out.window_room = session.window_room;
     return out;
 }
 
@@ -288,33 +205,25 @@ inline std::string to_text(const WorkshopSession& session) {
 }
 
 inline std::string to_text(const std::vector<Layout>& run, std::size_t active,
-                           std::int64_t viewport_w, std::int64_t viewport_h,
-                           const Placement& place,
+                           std::int64_t next_id,
                            const std::vector<WorkshopChoice>& choices = {}) {
-    return to_text(to_session(run, active, viewport_w, viewport_h, place, choices));
+    return to_text(to_session(run, active, next_id, choices));
 }
 
 // ---- Reading -------------------------------------------------------------------
 
 /// What reading a session produced.
-// WL-SESSION-07, WL-SESSION-14 -- agents/workshop/session-restore.md
+// WL-SESSION-14 -- agents/workshop/session-restore.md
 struct LoadedSession {
     Written outcome;        ///< whether a file that EXISTS was read and understood
     bool present = false;   ///< whether there was a previous session at all
-    std::vector<Layout> layouts; ///< the weaver's ordered run -- each desk WITH its Setup
-                                 ///< association -- when `outcome.accepted`; a session that
-                                 ///< was admitted holds at least one
+    std::vector<Layout> layouts; ///< the weaver's ordered run, each with its id and association
     std::size_t active = 0; ///< which position of `layouts` was the live desk
-    std::int64_t viewport_w = 0; ///< the room, when `honoured`
-    std::int64_t viewport_h = 0;
-    bool honoured = false;  ///< whether that room is one this Workshop will open at
-    std::string declined;   ///< why not, when it is not -- empty otherwise
-    Placement placement;    ///< the remembered desktop placement; `known == false` = none
-                            ///< was ever reported (and every legacy version reads as that)
+    std::int64_t next_id = 0; ///< the id the next new or copied layout takes
+    /// The version the file was written at: an older one was brought forward on the way in.
+    std::int64_t read_version = 0;
     /// HOW MANY REFERENCES IN THIS SESSION NAMED A PANE THAT HAS SINCE CHANGED HANDS
     /// (`workshop/pane_migration.hpp`), over every desk and every remembered Setup value.
-    /// The number is here so the restore can say it ONCE, however many desks carried it:
-    /// a weaver is told that a pane moved, not told it eight times.
     pane_migration::Converted converted;
     /// Which authored choice held each switchable office at quit.
     std::vector<WorkshopChoice> choices;
@@ -335,8 +244,7 @@ inline std::string forged_version(std::int64_t found) {
            " and its own format_version field says " + std::to_string(found);
 }
 
-/// WHAT TO SAY ABOUT AN OLDER SESSION THAT COULD NOT BE BROUGHT FORWARD -- whatever the
-/// conversion seam answered, under the number this file was written at.
+/// WHAT TO SAY ABOUT AN OLDER SESSION THAT COULD NOT BE BROUGHT FORWARD.
 // WL-MIG-06 -- agents/workshop/migration.md
 inline std::string could_not_convert(std::uint32_t found, const std::string& why) {
     return "session version " + std::to_string(found) + " cannot be read: " + why;
@@ -345,26 +253,34 @@ inline std::string could_not_convert(std::uint32_t found, const std::string& why
 // ---- THE LAYOUT RUN'S OWN LAW ----------------------------------------------------
 // WL-SESSION-06 -- agents/workshop/session-restore.md
 
-/// A RUN WITH NO LAYOUT IN IT. Structurally impossible in runtime -- `SetupState::active`
-/// is a value, so there is always at least one desk -- which is exactly why a file that
-/// says otherwise cannot be installed.
+/// A RUN WITH NO LAYOUT IN IT: a file that says so cannot be installed.
 inline std::string no_layouts() {
     return "this session holds no layout at all, and a Workshop always has at least one desk";
 }
 
-/// MORE LAYOUTS THAN THIS WORKSHOP KEEPS. The bound is `kMaxLayouts` -- the SAME number the
-/// `=` gesture refuses a ninth layout with -- so a file cannot install a run the weaver could
-/// not have made, and raising the ceiling raises both at once.
+/// MORE LAYOUTS THAN THIS WORKSHOP KEEPS.
 inline std::string too_many_layouts(std::size_t found) {
     return "this session holds " + std::to_string(found) +
            " layouts, and this Workshop keeps at most " + std::to_string(kMaxLayouts);
 }
 
-/// AN ACTIVE POSITION THAT IS NOT ONE OF THE LAYOUTS SAVED. Said in the file's own numbers,
-/// which are positions from zero, because the weaver acting on it is reading the file.
+/// AN ACTIVE POSITION THAT IS NOT ONE OF THE LAYOUTS SAVED, in the file's own numbers.
 inline std::string active_out_of_range(std::int64_t at, std::size_t held) {
     return "this session's active layout is position " + std::to_string(at) +
            ", and its layouts run from 0 to " + std::to_string(held - 1);
+}
+
+/// AN ID THAT NAMES NO LAYOUT, OR TWO.
+// WL-SESSION-05 -- agents/workshop/session-restore.md
+inline std::string bad_id(std::size_t at, std::int64_t id) {
+    return "layout at position " + std::to_string(at) + " has id " + std::to_string(id) +
+           " -- a layout's id is positive and no other layout holds it";
+}
+
+/// THE NEXT ID BELOW ONE THE RUN HOLDS: a new layout would take an id a layout has.
+inline std::string next_id_held(std::int64_t next_id, std::int64_t top) {
+    return "this session's next id is " + std::to_string(next_id) +
+           ", and a layout of it holds " + std::to_string(top) + " -- the next is above every id";
 }
 
 /// WHICH LAYOUT REFUSED, in front of the setup owner's own sentence.
@@ -387,10 +303,8 @@ inline Written link_in(const WorkshopSetupLink& file, std::size_t at, SetupLink&
                        pane_migration::Converted* converted = nullptr) {
     if (file.path.empty()) {
         Setup nothing;
-        // ⚠ NOTHING IS COUNTED ON THIS ROAD. The question here is whether a link with no
-        // path carries a value anyway, and the answer is thrown away -- so a conversion
-        // performed inside it happened to a `Setup` nobody keeps, and telling a weaver about
-        // it would be telling them about a desk they do not have.
+        // NOTHING IS COUNTED ON THIS ROAD: the question is whether a link with no path carries a
+        // value anyway, and the answer is thrown away.
         if (setup_persist::setup_in(file.known, nothing).accepted) {
             return Written::no(half_a_link(at));
         }
@@ -408,7 +322,9 @@ inline Written link_in(const WorkshopSetupLink& file, std::size_t at, SetupLink&
     return Written::ok();
 }
 
-/// THE RUN, AS THE LIVE VALUES IT NAMES -- or the first reason it is not a run at all.
+/// THE RUN, AS THE LIVE VALUES IT NAMES -- or the first reason it is not a run at all: no layout,
+/// too many, an active position out of range, an id held twice or not positive, a next id at or
+/// below one held, then each layout's desk and link.
 // WL-SESSION-05, WL-SESSION-06 -- agents/workshop/session-restore.md
 inline Written layouts_in(const WorkshopSession& file, std::vector<Layout>& run,
                           std::size_t& active, pane_migration::Converted* converted = nullptr) {
@@ -421,13 +337,25 @@ inline Written layouts_in(const WorkshopSession& file, std::vector<Layout>& run,
     if (file.active < 0 || static_cast<std::size_t>(file.active) >= file.layouts.size()) {
         return Written::no(active_out_of_range(file.active, file.layouts.size()));
     }
+    std::int64_t top = 0;
+    for (std::size_t at = 0; at < file.layouts.size(); ++at) {
+        const std::int64_t id = file.layouts[at].id;
+        bool twice = false;
+        for (std::size_t j = 0; j < at; ++j) {
+            twice = twice || file.layouts[j].id == id;
+        }
+        if (id <= 0 || twice) {
+            return Written::no(bad_id(at, id));
+        }
+        top = id > top ? id : top;
+    }
+    if (file.next_id <= top) {
+        return Written::no(next_id_held(file.next_id, top));
+    }
     std::vector<Layout> candidate;
     candidate.reserve(file.layouts.size());
     for (std::size_t at = 0; at < file.layouts.size(); ++at) {
         // EVERY LAYOUT MEETS THE SETUP OWNER'S WHOLE LAW, in the setup owner's own words.
-        // There is one durable representation of a desk in this program and one function
-        // that admits one; a session holding several of them holds several desks, not a
-        // different kind of thing.
         Setup desk;
         const Written understood =
             setup_persist::setup_in(file.layouts[at].desk, desk, converted);
@@ -439,68 +367,14 @@ inline Written layouts_in(const WorkshopSession& file, std::vector<Layout>& run,
         if (!related.accepted) {
             return Written::no(related.refusal);
         }
-        candidate.push_back(Layout{std::move(desk), std::move(link), 0});
+        candidate.push_back(Layout{std::move(desk), std::move(link), file.layouts[at].id});
     }
     run = std::move(candidate);
     active = static_cast<std::size_t>(file.active);
     return Written::ok();
 }
 
-/// The placement's own admission: the two closed word sets, and the one-spelling law for the
-/// absence.
-inline Written placement_in(const WorkshopPlacement& file, Placement& out) {
-    bool maximized = false;
-    if (file.window == kWindowMaximized) {
-        maximized = true;
-    } else if (file.window != kWindowNormal) {
-        return Written::no("`" + file.window + "` is not a window state (" + kWindowWords +
-                           ")");
-    }
-    if (file.mode == kPlacementNone) {
-        if (file.x != 0 || file.y != 0 || maximized) {
-            return Written::no("a placement of `none` carries no coordinates and no "
-                               "maximized state -- zero its numbers and set the window to `" +
-                               std::string(kWindowNormal) + "`, or set the mode to `" +
-                               std::string(kPlacementDesktop) + "`");
-        }
-        out = Placement{};
-        return Written::ok();
-    }
-    if (file.mode != kPlacementDesktop) {
-        return Written::no("`" + file.mode + "` is not a placement mode (" +
-                           kPlacementModeWords + ")");
-    }
-    out.known = true;
-    out.x = file.x;
-    out.y = file.y;
-    out.maximized = maximized;
-    return Written::ok();
-}
-
 // WL-MIG-01 -- agents/workshop/migration.md
-
-/// The shared tail of every read road: an admitted layout run, and the viewport judged
-/// against this file's own band, into a loaded session.
-inline LoadedSession loaded_from(std::vector<Layout> run, std::size_t active,
-                                 std::int64_t viewport_w, std::int64_t viewport_h,
-                                 const Placement& place,
-                                 pane_migration::Converted converted = {}) {
-    LoadedSession loaded;
-    loaded.outcome = Written::ok();
-    loaded.present = true;
-    loaded.layouts = std::move(run);
-    loaded.active = active;
-    loaded.converted = converted;
-    loaded.placement = place;
-    if (viewport_honoured(viewport_w, viewport_h)) {
-        loaded.viewport_w = viewport_w;
-        loaded.viewport_h = viewport_h;
-        loaded.honoured = true;
-    } else {
-        loaded.declined = declined_viewport(viewport_w, viewport_h);
-    }
-    return loaded;
-}
 
 /// The format word and the version a session's own fields say, judged: empty when they are this
 /// format's, else why not.
@@ -508,10 +382,8 @@ inline std::string format_refused(const std::string& format, std::int64_t format
     if (format != kFormat) {
         return "not a Workshop session: it says it is `" + format + "`";
     }
-    // AND THE FIELD IS STILL CHECKED, for `setup_in`'s reason exactly: the shape's own
-    // version got the value this far, and a body that then says it is a different vintage
-    // is a forgery -- whether it was forged on disk or produced by a conversion that
-    // answered with something its declared target does not mean.
+    // AND THE FIELD IS STILL CHECKED: a body that says it is a different vintage than its shape is
+    // a forgery, on disk or from a conversion.
     if (format_version != kFormatVersion) {
         return forged_version(format_version);
     }
@@ -521,45 +393,31 @@ inline std::string format_refused(const std::string& format, std::int64_t format
 /// A CURRENT SESSION AS A LOADED ONE -- this format's own law, all of it, on a session read from
 /// its file's lines or answered by a conversion.
 // WL-MIG-07 -- agents/workshop/migration.md
-inline LoadedSession current_in(const WorkshopSession& file) {
+inline LoadedSession current_in(const WorkshopSession& file, std::int64_t read_version) {
     const std::string wrong = format_refused(file.format, file.format_version);
     if (!wrong.empty()) {
         return LoadedSession::no(wrong);
     }
-    // The run is judged whole into locals and handed over only once every layer passed. This is
-    // ordinary current-version admission: a file with no layout, an active position out of range
-    // or a ninth layout is wrong, not old; only a historical claim looks for a conversion.
     std::vector<Layout> run;
     std::size_t active = 0;
-    // A PANE THAT CHANGED HANDS IS CONVERTED INSIDE EVERY DESK (`setup_in`), and the count
-    // comes back out so the restore can say it once for the whole run.
     pane_migration::Converted converted;
     const Written understood = layouts_in(file, run, active, &converted);
     if (!understood.accepted) {
         return LoadedSession::no(understood.refusal);
     }
-    // THE PLACEMENT'S WORDS ARE JUDGED; ITS COORDINATES ARE NOT. A word outside its closed
-    // set refuses the file (a mode this build cannot read is a file it cannot claim to have
-    // understood); a coordinate is another machine's desktop truth, accepted unjudged,
-    // because the only party that can judge one is the medium at restore time.
-    Placement place;
-    const Written placed = placement_in(file.placement, place);
-    if (!placed.accepted) {
-        return LoadedSession::no(placed.refusal);
-    }
-    // THE OS WINDOW'S ROOM IS JUDGED AT RESTORE, as the viewport is, and refuses nothing here.
-    place.room_w = file.window_room.width;
-    place.room_h = file.window_room.height;
     // THE CHOICES ARE BOUNDED; whether the plan still authors each is the load's to judge.
     if (file.choices.size() > kMaxRememberedChoices) {
         return LoadedSession::no("a session remembers at most " +
                                  std::to_string(kMaxRememberedChoices) + " offices' choices");
     }
-    // THE VIEWPORT IS JUDGED AND NOT REFUSED (inside `loaded_from`). A well-formed session
-    // whose size this build will not open at is still a session, and the desks in it are
-    // still the weaver's.
-    LoadedSession loaded = loaded_from(std::move(run), active, file.viewport.width,
-                                       file.viewport.height, place, converted);
+    LoadedSession loaded;
+    loaded.outcome = Written::ok();
+    loaded.present = true;
+    loaded.layouts = std::move(run);
+    loaded.active = active;
+    loaded.next_id = file.next_id;
+    loaded.read_version = read_version;
+    loaded.converted = converted;
     loaded.choices = file.choices;
     return loaded;
 }
@@ -594,11 +452,6 @@ inline std::string one_value() {
 // WL-SESSION-06 -- agents/workshop/session-restore.md
 inline LoadedSession lines_in(const loom::Unverified& first,
                               const std::vector<std::string_view>& lines) {
-    if (first.claimed_version() != WorkshopSessionHeader::zen_version) {
-        return LoadedSession::no(could_not_convert(
-            first.claimed_version(), "this Workshop reads a header line of version " +
-                                         std::to_string(kFormatVersion) + " alone"));
-    }
     const loom::Admission head =
         loom::admit(first, loom::schema_of<WorkshopSessionHeader>(), loom::Report::FirstError);
     if (!head.ok()) {
@@ -620,11 +473,9 @@ inline LoadedSession lines_in(const loom::Unverified& first,
     WorkshopSession file;
     file.format = header.format;
     file.format_version = header.format_version;
-    file.viewport = header.viewport;
     file.active = header.active;
-    file.placement = header.placement;
+    file.next_id = header.next_id;
     file.choices = header.choices;
-    file.window_room = header.window_room;
     file.layouts.reserve(follow);
     for (std::size_t at = 0; at < follow; ++at) {
         const loom::Admission layout =
@@ -635,7 +486,60 @@ inline LoadedSession lines_in(const loom::Unverified& first,
         }
         file.layouts.push_back(loom::from_value<WorkshopLayout>(layout.value()));
     }
-    return current_in(file);
+    return current_in(file, kFormatVersion);
+}
+
+/// AN OLDER FILE OF LINES AS THE ONE VALUE ITS VERSION'S HISTORY CONVERTS: the header's fields but
+/// its count, and each layout line's fields as the run, claiming the session's own name at the
+/// header's version -- assembled as text by the convention every file of lines keeps, so no
+/// retired shape is read here; the conversion admits it whole at that version's own shape. Empty
+/// when the lines are not a header and its count of layouts.
+// WL-MIG-11 -- agents/workshop/migration.md
+inline std::string whole_of_lines(const std::vector<std::string_view>& lines,
+                                  std::uint32_t version) {
+    namespace json = persist::json;
+    const std::optional<std::string_view> fields = json::member(lines.front(), "fields");
+    const std::optional<std::int64_t> counted =
+        fields ? json::integer(json::member(*fields, "layout_count")) : std::nullopt;
+    if (!fields || !counted || *counted < 0 ||
+        static_cast<std::uint64_t>(*counted) != lines.size() - 1 ||
+        lines.size() - 1 > kMaxLayouts) {
+        return std::string();
+    }
+    std::string out = "{\"zen\":1,\"schema\":\"" + std::string(WorkshopSession::zen_name) +
+                      "\",\"version\":" + std::to_string(version) + ",\"fields\":{";
+    const auto header = json::members(*fields);
+    if (!header) {
+        return std::string();
+    }
+    for (const auto& [name, value] : *header) {
+        if (name == "layout_count") {
+            continue;
+        }
+        out += "\"" + std::string(name) + "\":" + std::string(value) + ",";
+    }
+    out += "\"layouts\":[";
+    for (std::size_t at = 1; at < lines.size(); ++at) {
+        const std::optional<std::string_view> layout = json::member(lines[at], "fields");
+        if (!layout) {
+            return std::string();
+        }
+        out += (at > 1 ? "," : "") + std::string(*layout);
+    }
+    out += "]}}";
+    return out;
+}
+
+/// AN OLDER SESSION, ONE VALUE, BROUGHT FORWARD by this run's conversions, or refused in words.
+// WL-MIG-06, WL-MIG-08 -- agents/workshop/migration.md
+inline LoadedSession converted_in(const loom::Unverified& claim, const op::Catalog* conversions) {
+    const op::Evaluation converted =
+        op::migrate(conversions, claim, loom::schema_of<WorkshopSession>());
+    if (!converted) {
+        return LoadedSession::no(could_not_convert(claim.claimed_version(), converted.reason()));
+    }
+    return current_in(loom::from_value<WorkshopSession>(op::migrated(converted)),
+                      static_cast<std::int64_t>(claim.claimed_version()));
 }
 
 /// Text to a session. Total: every input is either a session or a refusal with a reason, and
@@ -643,14 +547,29 @@ inline LoadedSession lines_in(const loom::Unverified& first,
 // WL-MIG-06, WL-MIG-08 -- agents/workshop/migration.md
 inline LoadedSession from_text(std::string_view bytes,
                                const op::Catalog* conversions = nullptr) {
-    // A FIRST LINE CLAIMING THE HEADER IS THIS FORMAT'S FILE; anything else is read whole, as
-    // every older session was written.
+    // A FIRST LINE CLAIMING THE HEADER IS A FILE OF LINES: this format's, read a line at a time,
+    // or an older one's, read whole and brought forward. Anything else is read as one value, as
+    // every session before version 11 was written.
     const std::vector<std::string_view> lines = lines_of(bytes);
     if (!lines.empty()) {
         const loom::Unverified first = loom::compat::parse(lines.front());
         if (first.well_formed() &&
             first.claimed_name() == std::string(WorkshopSessionHeader::zen_name)) {
-            return lines_in(first, lines);
+            if (first.claimed_version() == WorkshopSessionHeader::zen_version) {
+                return lines_in(first, lines);
+            }
+            if (first.claimed_version() > WorkshopSessionHeader::zen_version) {
+                return LoadedSession::no(could_not_convert(
+                    first.claimed_version(), "this Workshop reads a header line of version " +
+                                                 std::to_string(kFormatVersion) + " and older"));
+            }
+            const std::string whole = whole_of_lines(lines, first.claimed_version());
+            if (whole.empty()) {
+                return LoadedSession::no(could_not_convert(
+                    first.claimed_version(),
+                    "its header and the lines after it are not a header and its count of layouts"));
+            }
+            return converted_in(loom::compat::parse(whole), conversions);
         }
     }
     const loom::Unverified claim = loom::compat::parse(bytes);
@@ -665,13 +584,7 @@ inline LoadedSession from_text(std::string_view bytes,
     // search for something willing to translate it.
     if (claim.claimed_name() == std::string(WorkshopSession::zen_name) &&
         claim.claimed_version() != WorkshopSession::zen_version) {
-        const op::Evaluation converted =
-            op::migrate(conversions, claim, loom::schema_of<WorkshopSession>());
-        if (!converted) {
-            return LoadedSession::no(
-                could_not_convert(claim.claimed_version(), converted.reason()));
-        }
-        return current_in(loom::from_value<WorkshopSession>(op::migrated(converted)));
+        return converted_in(claim, conversions);
     }
     if (claim.claimed_name() == std::string(WorkshopSession::zen_name)) {
         return LoadedSession::no(one_value());
@@ -688,11 +601,9 @@ inline LoadedSession from_text(std::string_view bytes,
 /// a rename over the destination.
 // WL-SESSION-13 -- agents/workshop/session.md
 inline Written save_file(const std::string& path, const std::vector<Layout>& run,
-                         std::size_t active, std::int64_t viewport_w,
-                         std::int64_t viewport_h, const Placement& place,
+                         std::size_t active, std::int64_t next_id,
                          const std::vector<WorkshopChoice>& choices = {}) {
-    return persist::write_file_making_room(
-        path, to_text(run, active, viewport_w, viewport_h, place, choices));
+    return persist::write_file_making_room(path, to_text(run, active, next_id, choices));
 }
 
 /// Read the last session from a file.

@@ -7,6 +7,7 @@
 
 #include "pane_migration.hpp"
 #include "weave.hpp"
+#include "window_persist.hpp"
 
 namespace zengine::workshop {
 
@@ -323,31 +324,49 @@ std::string WorkshopWeave::unresolved_note(const Setup& s) const {
 void WorkshopWeave::restore_last_session(loom::Mail& mail) {
     // ONCE PER PROCESS, and the store keeps the guard: a window's offer is not a once-per-process
     // fact, and a window started again offers itself again.
-    const RestoredRoom last = store().restore();
+    const RestoredRun last = store().restore();
+    // THE WINDOW'S FACTS ARE WORKSHOP'S OWN FILE; while none exists, an older session's, once.
+    const std::string window_path = window_persist::path_beside(host_->session_path);
+    window_persist::LoadedWindow window = window_persist::load_file(window_path);
+    if (!window.present) {
+        window = window_persist::import_from_session(host_->session_path,
+                                                     session_persist::kMaxSessionBytes);
+    }
     if (!store_.session_refusal().empty() && !last.present) {
         say(store_.session_refusal() + " -- opening with the default setup", true);
         take_store(mail);
         return;
     }
     if (!last.present) {
+        // NO RUN CAME BACK, and what the settings file kept for layouts is said all the same.
+        if (!last.folded.empty()) {
+            say(last.folded, false);
+        }
         take_store(mail);
         return;
     }
+    if (window.present && !window.outcome.accepted) {
+        // A WINDOW FILE THIS BUILD CANNOT READ opens at the default size, said; the desk comes back.
+        window = window_persist::LoadedWindow{};
+        window.declined = "the window file " + window_path + " could not be read -- " +
+                          window_persist::load_file(window_path).outcome.refusal +
+                          " -- opening at the default size";
+    }
+    const window_persist::Placement& placement = window.placement;
     // ---- The OS window's own room, kept whichever window this is ------------
     // A run in another window writes it back as it read it, as it does the placement.
-    session_.window_room_w = last.placement.room_w;
-    session_.window_room_h = last.placement.room_h;
+    session_.window_room_w = placement.room_w;
+    session_.window_room_h = placement.room_h;
     // ---- The room, then the desk into it ------------
-    std::string declined = last.declined;
-    std::int64_t room_w = last.viewport_w;
-    std::int64_t room_h = last.viewport_h;
-    bool honoured = last.honoured;
-    if (window_name_ == graphics::kSdlWindow && last.placement.room_w > 0 &&
-        last.placement.room_h > 0) {
-        room_w = last.placement.room_w;
-        room_h = last.placement.room_h;
-        honoured = session_persist::viewport_honoured(room_w, room_h);
-        declined = honoured ? std::string() : session_persist::declined_viewport(room_w, room_h);
+    std::string declined = window.declined;
+    std::int64_t room_w = window.viewport_w;
+    std::int64_t room_h = window.viewport_h;
+    bool honoured = window.honoured;
+    if (window_name_ == graphics::kSdlWindow && placement.room_w > 0 && placement.room_h > 0) {
+        room_w = placement.room_w;
+        room_h = placement.room_h;
+        honoured = window_persist::viewport_honoured(room_w, room_h);
+        declined = honoured ? std::string() : window_persist::declined_viewport(room_w, room_h);
         if (honoured) {
             restored_window_ = RestoredWindow{room_w, room_h, std::nullopt};
         }
@@ -360,13 +379,13 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
         session_.normal_h = session_.screen_h;
     }
     // ---- The desktop placement, remembered and offered back --------------------
-    if (last.placement.known) {
+    if (placement.known) {
         session_.placement_known = true;
-        session_.place_x = last.placement.x;
-        session_.place_y = last.placement.y;
-        session_.place_maximized = last.placement.maximized;
-        const zengine::graphics::SurfacePlacementRemembered place{
-            last.placement.x, last.placement.y, last.placement.maximized};
+        session_.place_x = placement.x;
+        session_.place_y = placement.y;
+        session_.place_maximized = placement.maximized;
+        const zengine::graphics::SurfacePlacementRemembered place{placement.x, placement.y,
+                                                                  placement.maximized};
         if (restored_window_) {
             restored_window_->place = place; // after the shaping, which waits for the desk's area
         } else if (const std::string office = medium_office(); !office.empty()) {
@@ -385,6 +404,10 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
     }
     if (!last.converted.empty()) {
         notice.tail += "; " + last.converted;
+    }
+    // ...what the settings file kept for layouts, folded into them, and each entry not carried.
+    if (!last.folded.empty()) {
+        notice.tail += "; " + last.folded;
     }
     // ...and once, a choice it remembered that this plan no longer authors (WL-SWITCH-08).
     if (!host_->choice_note.empty()) {
@@ -447,7 +470,7 @@ void WorkshopWeave::save_last_session(loom::Mail&) {
     // weaver chose, with the maximized state beside it. The placement rides along as last reported,
     // or as the file carried it; and the OS window's own room is this run's where the desk is in
     // the OS window, else the one the file carried.
-    session_persist::Placement place;
+    window_persist::Placement place;
     place.known = session_.placement_known;
     place.x = session_.place_x;
     place.y = session_.place_y;
@@ -455,7 +478,19 @@ void WorkshopWeave::save_last_session(loom::Mail&) {
     const bool os_window = window_name_ == graphics::kSdlWindow;
     place.room_w = os_window ? session_.normal_w : session_.window_room_w;
     place.room_h = os_window ? session_.normal_h : session_.window_room_h;
-    const std::string refused = store().save_session(session_.normal_w, session_.normal_h, place);
+    // THE WINDOW FILE FIRST, Workshop's own; then the store is asked to save the run. Neither is
+    // written where the session could not be read: the window's facts belong to that session.
+    const std::string window_path = window_persist::path_beside(host_->session_path);
+    if (!window_path.empty() && store_.session_refusal().empty()) {
+        if (const Written w = window_persist::save_file(window_path, session_.normal_w,
+                                                        session_.normal_h, place);
+            !w.accepted) {
+            say("the window file was not written -- " + w.refusal, true);
+            std::fprintf(stderr, "zengine-workshop: the window file was not written -- %s\n",
+                         w.refusal.c_str());
+        }
+    }
+    const std::string refused = store().save_session();
     if (refused.empty() || host_->session_path.empty() || !store_.session_refusal().empty()) {
         return;
     }

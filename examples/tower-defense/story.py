@@ -867,7 +867,8 @@ def launch(runtime, game, wdir, sdir, tools, env, viewport, plan, extra=()):
          "width": {"mode": "default", "amount": "0"},
          "height": {"mode": "default", "amount": "0"}, "front": "1"}])
     # A guest cannot size the window: a session file's viewport does, beside Workshop's first desk.
-    save_text(wdir / "session.json", formats.session(desk, (width * 12, height * 12)))
+    save_text(wdir / "session.json", formats.session(desk))
+    save_text(formats.window_path(wdir / "session.json"), formats.window((width * 12, height * 12)))
     credential = secrets.token_urlsafe(32)
     # The story's Workshop is the agent's own development host: its guest builds, types into the
     # Editor and Neovim, and writes recipes, plans and the desk, as the weaver would.

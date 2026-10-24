@@ -2631,7 +2631,7 @@ TEST_CASE("Layouts and the band are read as Workshop draws them: tabs as named p
     // ONE NAMED AS THE CREATE TAB IS, painted again by a new extent.
     stage_run(*d.r.w, [](SetupState& setup) {
         for (const char* name : {"my desk", "twin", "twin", "caf\xC3\xA9", "100%", "+"}) {
-            setup.shelved.push_back(Layout{Setup{name, {}}, SetupLink{}});
+            setup.shelved.push_back(Layout{Setup{name, {}, {}, {}, {}}, SetupLink{}});
         }
     });
     d.r.extent(149, 60);
@@ -4071,8 +4071,7 @@ TEST_CASE("the terminal window offered brings Workshop up in it, the last sessio
     TempDir dir("window-offered");
     PaneRig r;
     r.host.session_path = dir.file("session.json");
-    REQUIRE(session_persist::save_file(r.host.session_path, one_layout(setup_of("Offered", {})), 0,
-                                       cells_px(100), cells_px(40), session_persist::Placement{})
+    REQUIRE(save_last_run(r.host.session_path, one_layout(setup_of("Offered", {})), 0, cells_px(100), cells_px(40), window_persist::Placement{})
                 .accepted);
     ProviderSeat* seat = r.mount_provider("zengine.test.offered-seat");
     r.mount_workshop();
@@ -4129,9 +4128,7 @@ TEST_CASE("the terminal window offered brings Workshop up in it, the last sessio
         TempDir none_dir("window-offered-none");
         PaneRig n;
         n.host.session_path = none_dir.file("session.json");
-        REQUIRE(session_persist::save_file(n.host.session_path,
-                                           one_layout(setup_of("Measured", {})), 0, cells_px(150),
-                                           cells_px(60), session_persist::Placement{})
+        REQUIRE(save_last_run(n.host.session_path, one_layout(setup_of("Measured", {})), 0, cells_px(150), cells_px(60), window_persist::Placement{})
                     .accepted);
         n.mount_workshop();
         Sayer<gfx::WindowOffered> unmeasured(n, terminal_window_office());
@@ -4147,10 +4144,7 @@ TEST_CASE("the terminal window offered brings Workshop up in it, the last sessio
         PaneRig o;
         o.host.dir = "/zen/sdl-window-desk";
         o.host.session_path = os_dir.file("session.json");
-        REQUIRE(session_persist::save_file(o.host.session_path,
-                                           one_layout(setup_of("Offered", {pane_kind::kLayouts})),
-                                           0, cells_px(100), cells_px(40),
-                                           session_persist::Placement{true, 40, 60, false})
+        REQUIRE(save_last_run(o.host.session_path, one_layout(setup_of("Offered", {pane_kind::kLayouts})), 0, cells_px(100), cells_px(40), window_persist::Placement{true, 40, 60, false})
                     .accepted);
         auto made_directory = std::make_unique<ArrangedDirectory>();
         ArrangedDirectory* directory = made_directory.get();

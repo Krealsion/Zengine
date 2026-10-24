@@ -10,15 +10,18 @@
 
 #include "property.hpp" // `Written`
 
+#include <charconv>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <ios>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
 #include <utility>
+#include <vector>
 
 namespace zengine::workshop::persist {
 
@@ -123,6 +126,176 @@ inline Written write_file_making_room(const std::string& path, const std::string
     }
     return write_file(path, text);
 }
+
+// ---- JSON read as text ---------------------------------------------------------------------
+// For the few reads that meet a file before any shape can: an older file's header, and the members
+// a file of lines puts together. Nothing here judges a value; a shape's admission does that.
+
+namespace json {
+
+/// Past the JSON string starting at `at` (a `"`): the index after its closing quote, or npos.
+inline std::size_t past_string(std::string_view text, std::size_t at) {
+    for (std::size_t i = at + 1; i < text.size(); ++i) {
+        if (text[i] == '\\') {
+            ++i;
+        } else if (text[i] == '"') {
+            return i + 1;
+        }
+    }
+    return std::string_view::npos;
+}
+
+/// Past the JSON value starting at `at`: the index after it, or npos.
+inline std::size_t past_value(std::string_view text, std::size_t at) {
+    if (at >= text.size()) {
+        return std::string_view::npos;
+    }
+    if (text[at] == '"') {
+        return past_string(text, at);
+    }
+    if (text[at] != '{' && text[at] != '[') {
+        std::size_t i = at;
+        while (i < text.size() && text[i] != ',' && text[i] != '}' && text[i] != ']') {
+            ++i;
+        }
+        return i;
+    }
+    int depth = 0;
+    for (std::size_t i = at; i < text.size(); ++i) {
+        const char c = text[i];
+        if (c == '"') {
+            i = past_string(text, i);
+            if (i == std::string_view::npos) {
+                return i;
+            }
+            --i;
+        } else if (c == '{' || c == '[') {
+            ++depth;
+        } else if (c == '}' || c == ']') {
+            if (--depth == 0) {
+                return i + 1;
+            }
+        }
+    }
+    return std::string_view::npos;
+}
+
+inline std::size_t skip_space(std::string_view text, std::size_t at) {
+    while (at < text.size() && (text[at] == ' ' || text[at] == '\n' || text[at] == '\r' ||
+                                text[at] == '\t')) {
+        ++at;
+    }
+    return at;
+}
+
+/// THE VALUE OF MEMBER `key` OF THE JSON OBJECT `object`, as its text, or nothing: read at the
+/// object's own level, never inside a nested value.
+inline std::optional<std::string_view> member(std::string_view object, std::string_view key) {
+    std::size_t at = skip_space(object, 0);
+    if (at >= object.size() || object[at] != '{') {
+        return std::nullopt;
+    }
+    ++at;
+    for (;;) {
+        at = skip_space(object, at);
+        if (at >= object.size() || object[at] == '}') {
+            return std::nullopt;
+        }
+        if (object[at] != '"') {
+            return std::nullopt;
+        }
+        const std::size_t name_end = past_string(object, at);
+        if (name_end == std::string_view::npos) {
+            return std::nullopt;
+        }
+        const std::string_view name = object.substr(at + 1, name_end - at - 2);
+        at = skip_space(object, name_end);
+        if (at >= object.size() || object[at] != ':') {
+            return std::nullopt;
+        }
+        at = skip_space(object, at + 1);
+        const std::size_t value_end = past_value(object, at);
+        if (value_end == std::string_view::npos) {
+            return std::nullopt;
+        }
+        if (name == key) {
+            return object.substr(at, value_end - at);
+        }
+        at = skip_space(object, value_end);
+        if (at < object.size() && object[at] == ',') {
+            ++at;
+        }
+    }
+}
+
+/// A JSON number or a string of digits as an integer, or nothing.
+inline std::optional<std::int64_t> integer(std::optional<std::string_view> value) {
+    if (!value) {
+        return std::nullopt;
+    }
+    std::string_view v = *value;
+    if (v.size() >= 2 && v.front() == '"' && v.back() == '"') {
+        v = v.substr(1, v.size() - 2);
+    }
+    std::int64_t out = 0;
+    const auto [end, ec] = std::from_chars(v.data(), v.data() + v.size(), out);
+    if (ec != std::errc{} || end != v.data() + v.size()) {
+        return std::nullopt;
+    }
+    return out;
+}
+
+/// A JSON string's text, unescaped only where it holds no escape, or nothing.
+inline std::optional<std::string> word(std::optional<std::string_view> value) {
+    if (!value || value->size() < 2 || value->front() != '"' || value->back() != '"' ||
+        value->find('\\') != std::string_view::npos) {
+        return std::nullopt;
+    }
+    return std::string(value->substr(1, value->size() - 2));
+}
+
+
+/// EVERY MEMBER OF THE JSON OBJECT `object`, its name and its value's text, in the order written;
+/// nothing when it is not an object this reader can walk.
+inline std::optional<std::vector<std::pair<std::string_view, std::string_view>>>
+members(std::string_view object) {
+    std::vector<std::pair<std::string_view, std::string_view>> out;
+    std::size_t at = skip_space(object, 0);
+    if (at >= object.size() || object[at] != '{') {
+        return std::nullopt;
+    }
+    ++at;
+    for (;;) {
+        at = skip_space(object, at);
+        if (at < object.size() && object[at] == '}') {
+            return out;
+        }
+        if (at >= object.size() || object[at] != '"') {
+            return std::nullopt;
+        }
+        const std::size_t name_end = past_string(object, at);
+        if (name_end == std::string_view::npos) {
+            return std::nullopt;
+        }
+        const std::string_view name = object.substr(at + 1, name_end - at - 2);
+        at = skip_space(object, name_end);
+        if (at >= object.size() || object[at] != ':') {
+            return std::nullopt;
+        }
+        at = skip_space(object, at + 1);
+        const std::size_t value_end = past_value(object, at);
+        if (value_end == std::string_view::npos) {
+            return std::nullopt;
+        }
+        out.emplace_back(name, object.substr(at, value_end - at));
+        at = skip_space(object, value_end);
+        if (at < object.size() && object[at] == ',') {
+            ++at;
+        }
+    }
+}
+
+} // namespace json
 
 } // namespace zengine::workshop::persist
 

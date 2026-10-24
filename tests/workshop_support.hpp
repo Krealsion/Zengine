@@ -24,6 +24,8 @@
 #include "workshop/keymap_persist.hpp"
 #include "workshop/prefs_persist.hpp"
 #include "workshop/user_paths.hpp"
+#include "workshop/layouts/session_history.hpp"
+#include "workshop/window_persist.hpp"
 #include "workshop/weave.hpp"
 #include "workshop/grant.hpp"
 #include "workshop/opening.hpp" // the opening manager the host mounts
@@ -488,7 +490,7 @@ inline Setup setup_for(const Panes& panes) {
 /// Its association is `none`: the layout is durable and related to no standalone Setup file.
 inline std::vector<Layout> one_layout(Setup desk) {
     std::vector<Layout> run;
-    run.push_back(Layout{std::move(desk), SetupLink{}});
+    run.push_back(Layout{std::move(desk), SetupLink{}, 1});
     return run;
 }
 
@@ -498,7 +500,7 @@ inline std::vector<Layout> plain_run(std::vector<Setup> desks) {
     std::vector<Layout> run;
     run.reserve(desks.size());
     for (Setup& desk : desks) {
-        run.push_back(Layout{std::move(desk), SetupLink{}});
+        run.push_back(Layout{std::move(desk), SetupLink{}, static_cast<std::int64_t>(run.size()) + 1});
     }
     return run;
 }
@@ -517,6 +519,51 @@ inline std::vector<Setup> desks_of(const std::vector<Layout>& run) {
         out.push_back(layout.desk);
     }
     return out;
+}
+
+/// A RUN AS A SESSION KEEPS IT: every layout a positive id of its own -- the one it has, else its
+/// place in the run counted from 1.
+inline std::vector<Layout> numbered(std::vector<Layout> run) {
+    for (std::size_t i = 0; i < run.size(); ++i) {
+        if (run[i].id <= 0) {
+            run[i].id = static_cast<std::int64_t>(i) + 1;
+        }
+    }
+    return run;
+}
+
+/// ...AND THE ID THE NEXT NEW LAYOUT OF IT TAKES: one above every id it holds.
+inline std::int64_t next_id_of(const std::vector<Layout>& run) {
+    std::int64_t top = 0;
+    for (const Layout& l : numbered(run)) {
+        top = std::max(top, l.id);
+    }
+    return top + 1;
+}
+
+/// THE SESSION A RUN IS SAVED AS, as its value and as its file's text.
+inline session_persist::WorkshopSession
+session_value(const std::vector<Layout>& run, std::size_t active,
+              const std::vector<session_persist::WorkshopChoice>& choices = {}) {
+    return session_persist::to_session(numbered(run), active, next_id_of(run), choices);
+}
+inline std::string session_text(const std::vector<Layout>& run, std::size_t active,
+                                const std::vector<session_persist::WorkshopChoice>& choices = {}) {
+    return session_persist::to_text(numbered(run), active, next_id_of(run), choices);
+}
+
+/// THE LAST RUN AS A QUIT LEAVES IT: the session at `path`, and the window file beside it holding
+/// the room and the placement.
+inline Written save_last_run(const std::string& path, const std::vector<Layout>& run,
+                             std::size_t active, std::int64_t w, std::int64_t h,
+                             const window_persist::Placement& place = {},
+                             const std::vector<session_persist::WorkshopChoice>& choices = {}) {
+    const Written session =
+        session_persist::save_file(path, numbered(run), active, next_id_of(run), choices);
+    if (!session.accepted) {
+        return session;
+    }
+    return window_persist::save_file(window_persist::path_beside(path), w, h, place);
 }
 
 /// THE LAYOUT A LOADED SESSION WAS STANDING ON. `at()` rather than `[]` deliberately: a
@@ -1651,15 +1698,15 @@ inline setup_persist::v3::WorkshopSetup v3_desk(const Setup& s) {
         row.pane = p.pane;
         row.front = p.front;
         const std::int64_t canvas_y = p.place.mode == setup_persist::kUnitPixels
-                                          ? p.place.y + setup_persist::kCanvasRoomTopPx
-                                          : p.place.y;
+                                          ? p.place.y.value_or(0) + setup_persist::kCanvasRoomTopPx
+                                          : p.place.y.value_or(0);
         row.place = setup_persist::v3::WorkshopPanePlace{word(p.place.mode),
-                                                         subs(p.place.mode, p.place.x),
+                                                         subs(p.place.mode, p.place.x.value_or(0)),
                                                          subs(p.place.mode, canvas_y)};
-        row.width = setup_persist::v3::WorkshopPaneSize{word(p.width.mode),
-                                                        subs(p.width.mode, p.width.amount)};
-        row.height = setup_persist::v3::WorkshopPaneSize{word(p.height.mode),
-                                                         subs(p.height.mode, p.height.amount)};
+        row.width = setup_persist::v3::WorkshopPaneSize{
+            word(p.width.mode), subs(p.width.mode, p.width.amount.value_or(0))};
+        row.height = setup_persist::v3::WorkshopPaneSize{
+            word(p.height.mode), subs(p.height.mode, p.height.amount.value_or(0))};
         out.panes.push_back(std::move(row));
     }
     return out;
@@ -1686,9 +1733,78 @@ inline setup_persist::v4::WorkshopSetup v4_desk(const Setup& s) {
     out.format_version = setup_persist::v4::kRetainedVersion;
     out.name = now.name;
     for (const setup_persist::WorkshopSetupPane& p : now.panes) {
-        out.panes.push_back(setup_persist::v4::WorkshopSetupPane{p.provider, p.pane, p.place,
-                                                                 p.width, p.height, p.front});
+        out.panes.push_back(setup_persist::v4::WorkshopSetupPane{
+            p.provider, p.pane,
+            setup_persist::v5::WorkshopPanePlace{p.place.mode, p.place.x.value_or(0),
+                                                 p.place.y.value_or(0)},
+            setup_persist::v5::WorkshopPaneSize{p.width.mode, p.width.amount.value_or(0)},
+            setup_persist::v5::WorkshopPaneSize{p.height.mode, p.height.amount.value_or(0)},
+            p.front});
     }
+    return out;
+}
+
+/// A desk as a version-5 Workshop wrote it: every coordinate and amount written, zero where its
+/// word reads none.
+inline setup_persist::v5::WorkshopSetup v5_desk(const Setup& s) {
+    const setup_persist::WorkshopSetup now = setup_persist::to_setup(s);
+    setup_persist::v5::WorkshopSetup out;
+    out.format = now.format;
+    out.format_version = setup_persist::v5::kRetainedVersion;
+    out.name = now.name;
+    for (const setup_persist::WorkshopSetupPane& p : now.panes) {
+        out.panes.push_back(setup_persist::v5::WorkshopSetupPane{
+            p.provider, p.pane,
+            setup_persist::v5::WorkshopPanePlace{p.place.mode, p.place.x.value_or(0),
+                                                 p.place.y.value_or(0)},
+            setup_persist::v5::WorkshopPaneSize{p.width.mode, p.width.amount.value_or(0)},
+            setup_persist::v5::WorkshopPaneSize{p.height.mode, p.height.amount.value_or(0)},
+            p.front, p.settings});
+    }
+    return out;
+}
+
+/// A RUN AS A VERSION-11 WORKSHOP KEPT IT: each layout's desk and remembered value at setup
+/// version 5, with no id.
+inline std::vector<session_history::v11::WorkshopLayout> v11_run(const std::vector<Layout>& run) {
+    std::vector<session_history::v11::WorkshopLayout> out;
+    for (const Layout& l : run) {
+        session_history::v11::WorkshopLayout layout;
+        layout.desk = v5_desk(l.desk);
+        layout.link.path = l.link.path;
+        layout.link.known = v5_desk(l.link.known);
+        out.push_back(std::move(layout));
+    }
+    return out;
+}
+
+/// A SESSION AS A VERSION-11 WORKSHOP WROTE ITS FILE: the header's line, then a layout a line.
+inline std::string v11_lines(const session_history::v11::WorkshopSession& s) {
+    const session_history::v11::WorkshopSessionHeader head{
+        s.format,    s.format_version, s.viewport, static_cast<std::int64_t>(s.layouts.size()),
+        s.active,    s.placement,      s.choices,  s.window_room};
+    std::string out = loom::compat::serialize(loom::to_value(head)) + '\n';
+    for (const session_history::v11::WorkshopLayout& l : s.layouts) {
+        out += loom::compat::serialize(loom::to_value(l)) + '\n';
+    }
+    return out;
+}
+
+/// A version-11 session of `run`, standing on `active`, in the room `w` by `h` placed by `place`.
+inline session_history::v11::WorkshopSession
+v11_session(const std::vector<Layout>& run, std::size_t active, std::int64_t w, std::int64_t h,
+            const window_persist::Placement& place = {},
+            const std::vector<session_persist::WorkshopChoice>& choices = {}) {
+    const window_persist::WorkshopWindow window = window_persist::to_window(w, h, place);
+    session_history::v11::WorkshopSession out;
+    out.format = session_persist::kFormat;
+    out.format_version = session_history::kV11FormatVersion;
+    out.viewport = window.viewport;
+    out.layouts = v11_run(run);
+    out.active = static_cast<std::int64_t>(active);
+    out.placement = window.placement;
+    out.choices = choices;
+    out.window_room = window.window_room;
     return out;
 }
 

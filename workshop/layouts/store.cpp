@@ -441,14 +441,22 @@ std::string LayoutStore::write_prefs() {
         return "the settings file changed since this Workshop read it -- not written; relaunch to "
                "read the file, then change it again";
     }
-    const std::string text = prefs_persist::to_text(prefs_);
+    // WHAT THE FILE KEPT FOR LAYOUTS IS CARRIED UNCHANGED until a session holds it, then dropped.
+    const prefs_persist::Prefs kept =
+        layout_entries_held_ ? prefs_persist::without_layout_entries(prefs_) : prefs_;
+    const std::string text = prefs_persist::to_text(kept);
     const Written wrote = persist::write_file_making_room(host_->prefs_path, text);
     if (!wrote.accepted) {
         return wrote.refusal;
     }
+    prefs_ = kept;
     prefs_bytes_ = text;
     prefs_file_present_ = true;
     return std::string();
+}
+
+bool LayoutStore::carries_layout_entries() const {
+    return prefs_persist::has_layout_entries(prefs_);
 }
 
 // ---- Pins and locks ---------------------------------------------------------------------------
@@ -461,19 +469,15 @@ std::optional<std::size_t> LayoutStore::place_of(std::int64_t layout) const {
 }
 
 // WL-SETTING-12 -- agents/workshop/settings.md
-std::string LayoutStore::pin_target(const PaneRef& ref, std::size_t at) const {
-    if (!prefs_persist::presentation_of(prefs_).pins_per_layout) {
-        return pane_target(ref);
-    }
-    return pane_target(ref) + "@" + layout_at(run_, at).name;
-}
-
-// WL-SETTING-12 -- agents/workshop/settings.md
 std::vector<std::string> LayoutStore::effective_pins(const PaneRef& ref, std::size_t at) const {
-    // THE SCOPE'S OWN LIST, ELSE, PER LAYOUT, THE WORKSHOP-WIDE ONE, ELSE THE DECLARED PINS: a
-    // reading falls back, and no list is written by reading it.
-    if (const prefs_persist::PinList* own = prefs_persist::pin_list(prefs_, pin_target(ref, at))) {
-        return own->keys;
+    // THE SCOPE'S OWN LIST -- per layout, the layout's own -- ELSE THE WORKSHOP-WIDE ONE, ELSE THE
+    // DECLARED PINS: a reading falls back, and no list is written by reading it.
+    if (prefs_persist::presentation_of(prefs_).pins_per_layout) {
+        for (const SetupPins& own : layout_at(run_, at).pins) {
+            if (own.ref == ref) {
+                return own.keys;
+            }
+        }
     }
     if (const prefs_persist::PinList* wide = prefs_persist::pin_list(prefs_, pane_target(ref))) {
         return wide->keys;
@@ -492,12 +496,15 @@ std::vector<std::string> LayoutStore::effective_pins(const PaneRef& ref, std::si
 // WL-LOCK-01 -- agents/workshop/setting-locks.md
 std::vector<SettingLockShown> LayoutStore::locks_on(const PaneRef& ref, std::size_t at) const {
     std::vector<SettingLockShown> out;
+    // EVERY EVERYWHERE LOCK ON THE PANE, AND THE LAYOUT'S OWN on a key no everywhere lock holds.
     const std::string target = pane_target(ref);
-    const std::string here = prefs_persist::layout_target(target, layout_at(run_, at).name);
     for (const SettingLock& l : prefs_.locks) {
         if (l.target == target) {
             out.push_back(SettingLockShown{l.key, kLockScopeEverywhere});
-        } else if (l.target == here && prefs_persist::lock_on(prefs_, target, l.key) == nullptr) {
+        }
+    }
+    for (const SetupLock& l : layout_at(run_, at).locks) {
+        if (l.ref == ref && prefs_persist::lock_on(prefs_, target, l.key) == nullptr) {
             out.push_back(SettingLockShown{l.key, kLockScopeLayout});
         }
     }
@@ -535,29 +542,6 @@ bool LayoutStore::pin_everywhere_locks(Setup& desk) const {
 
 // A ROW THE LIVE DESK SEATS WEARS EVERY EVERYWHERE LOCK ON ITS PANE, one seated since included.
 void LayoutStore::settle_live() { (void)pin_everywhere_locks(live_desk(run_)); }
-
-// WL-LOCK-04 -- agents/workshop/setting-locks.md
-void LayoutStore::move_layout_prefs(const std::string& from, const std::string& to) {
-    load_prefs();
-    if (prefs_bad_ || from == to) {
-        return;
-    }
-    // A NAME ANOTHER LAYOUT STILL HOLDS KEEPS WHAT IS KEPT UNDER IT.
-    for (const Layout& l : layout_run(run_)) {
-        if (l.desk.name == from) {
-            return;
-        }
-    }
-    if (!prefs_persist::move_layout_entries(prefs_, from, to)) {
-        return;
-    }
-    if (const std::string not_written = write_prefs();
-        !not_written.empty() && !host_->prefs_path.empty()) {
-        say("the settings kept for layout " + quoted_setup_name(from) + " were not written: " +
-                not_written,
-            true);
-    }
-}
 
 const v2::PaneSettingRow* LayoutStore::declared_row(const PaneRef& ref,
                                                     const std::string& key) const {
@@ -836,7 +820,9 @@ PaneSettingPinActed LayoutStore::pin(const std::string& refused,
     if (rows == nullptr) {
         return refuse("nothing here declares settings for " + ref_text(ref), pins);
     }
-    if (prefs_bad_) {
+    // PER LAYOUT, THE LIST IS THE LAYOUT'S OWN, kept with its desk; WORKSHOP-WIDE, the file's.
+    const bool per_layout = prefs_persist::presentation_of(prefs_).pins_per_layout;
+    if (!per_layout && prefs_bad_) {
         return refuse("pins not changed -- Workshop's settings file " + host_->prefs_path +
                           " could not be read at launch and is never written over",
                       pins);
@@ -850,9 +836,14 @@ PaneSettingPinActed LayoutStore::pin(const std::string& refused,
                           "pins",
                           pins);
         }
-        std::erase_if(prefs_.pins, [&](const prefs_persist::PinList& l) {
-            return l.target == pin_target(ref, *at);
-        });
+        if (per_layout) {
+            std::erase_if(desk_at(run_, *at).pins,
+                          [&](const SetupPins& l) { return l.ref == ref; });
+        } else {
+            std::erase_if(prefs_.pins, [&](const prefs_persist::PinList& l) {
+                return l.target == pane_target(ref);
+            });
+        }
     } else if (act == kPinAct) {
         if (!declared) {
             return refuse(ref_text(ref) + " declares no setting `" + asked.key + "` to pin", pins);
@@ -883,17 +874,36 @@ PaneSettingPinActed LayoutStore::pin(const std::string& refused,
     } else {
         return refuse("`" + act + "` is not a pin act -- pin, unpin, up, down or reset", pins);
     }
-    if (act != kPinResetAct) {
-        // THE FIRST ACT COPIES THE LIST IT READ INTO THE SCOPE'S OWN, then edits it.
-        if (prefs_persist::pin_list(prefs_, pin_target(ref, *at)) == nullptr &&
+    if (act != kPinResetAct && per_layout) {
+        // THE FIRST ACT COPIES THE LIST IT READ INTO THE LAYOUT'S OWN, then edits it -- a row the
+        // layout seats, within what its desk keeps.
+        Setup candidate = layout_at(run_, *at);
+        if (pane_of(candidate, ref) == nullptr) {
+            return refuse(ref_text(ref) + " is not in layout " + quoted_setup_name(candidate.name) +
+                              " -- a layout's pins are for a row it seats",
+                          effective_pins(ref, *at));
+        }
+        std::erase_if(candidate.pins, [&](const SetupPins& l) { return l.ref == ref; });
+        candidate.pins.push_back(SetupPins{ref, pins});
+        if (const Written whole = check_setup(candidate); !whole.accepted) {
+            return refuse(whole.refusal, effective_pins(ref, *at));
+        }
+        desk_at(run_, *at) = std::move(candidate);
+    } else if (act != kPinResetAct) {
+        // THE FIRST ACT COPIES THE LIST IT READ INTO THE WORKSHOP-WIDE ONE, then edits it.
+        if (prefs_persist::pin_list(prefs_, pane_target(ref)) == nullptr &&
             prefs_.pins.size() >= prefs_persist::kMaxPinLists) {
             return refuse("Workshop keeps at most " + std::to_string(prefs_persist::kMaxPinLists) +
                               " pin lists",
                           effective_pins(ref, *at));
         }
-        prefs_persist::put_pin_list(prefs_, prefs_persist::PinList{pin_target(ref, *at), pins});
+        prefs_persist::put_pin_list(prefs_, prefs_persist::PinList{pane_target(ref), pins});
     }
-    const std::string not_written = write_prefs();
+    // A LAYOUT'S OWN LIST IS KEPT WITH ITS DESK, in the session; THE WORKSHOP-WIDE ONE IS WRITTEN.
+    const std::string not_written = per_layout ? std::string() : write_prefs();
+    if (per_layout) {
+        moved();
+    }
     const std::vector<std::string> now = effective_pins(ref, *at);
     std::string listed;
     for (const std::string& key : now) {
@@ -949,7 +959,8 @@ PaneSettingLockActed LayoutStore::lock(const std::string& refused,
         return refuse("no layout at place " + std::to_string(asked.layout) +
                       " -- this Workshop holds " + std::to_string(layout_count(run_)));
     }
-    if (prefs_bad_) {
+    // A LAYOUT'S OWN LOCK IS KEPT WITH ITS DESK; WHAT HOLDS EVERYWHERE, BY THE SETTINGS FILE.
+    if (everywhere && prefs_bad_) {
         return refuse("locks not changed -- Workshop's settings file " + host_->prefs_path +
                       " could not be read at launch and is never written over");
     }
@@ -1000,7 +1011,10 @@ PaneSettingLockActed LayoutStore::lock(const std::string& refused,
             return refuse("a lock's target is `<office>/<pane>`, or `<office>` for an office-wide "
                           "setting");
         }
-        const std::string here = prefs_persist::layout_target(target, layout_name);
+        const SetupLock here{*ref, key};
+        const auto held_here = [&here](const Setup& desk) {
+            return std::find(desk.locks.begin(), desk.locks.end(), here) != desk.locks.end();
+        };
         const SetupPane* row = pane_of(layout_at(run_, at), *ref);
         const bool declared = declared_row(*ref, key) != nullptr;
         const PaneSetting* stored = row != nullptr ? find_pane_setting(row->settings, key) : nullptr;
@@ -1010,7 +1024,7 @@ PaneSettingLockActed LayoutStore::lock(const std::string& refused,
         if (locking && !declared && stored == nullptr) {
             return refuse(target + " neither declares nor keeps `" + key + "` in " + in_layout);
         }
-        if (locking && prefs_.locks.size() >= prefs_persist::kMaxLocks) {
+        if (locking && everywhere && prefs_.locks.size() >= prefs_persist::kMaxLocks) {
             return refuse("Workshop keeps at most " + std::to_string(prefs_persist::kMaxLocks) +
                           " locks -- unlock one first");
         }
@@ -1018,11 +1032,16 @@ PaneSettingLockActed LayoutStore::lock(const std::string& refused,
             if (row == nullptr) {
                 return refuse(target + " is not in " + in_layout + " -- a layout's lock holds its row");
             }
-            if (prefs_persist::lock_on(prefs_, here, key) != nullptr) {
+            if (held_here(layout_at(run_, at))) {
                 return refuse("`" + key + "` of " + target + " is locked in " + in_layout +
                               " already");
             }
-            prefs_persist::put_lock(prefs_, SettingLock{here, key});
+            Setup candidate = layout_at(run_, at);
+            candidate.locks.push_back(here);
+            if (const Written whole = check_setup(candidate); !whole.accepted) {
+                return refuse(whole.refusal);
+            }
+            desk_at(run_, at) = std::move(candidate);
             written = {layout_name};
             done = "locked " + key + " of " + target + " in " + in_layout;
         } else if (locking) {
@@ -1036,15 +1055,13 @@ PaneSettingLockActed LayoutStore::lock(const std::string& refused,
             } else {
                 lock.clear = true;
             }
-            std::erase_if(prefs_.locks, [&](const SettingLock& l) {
-                return l.key == key && l.target.rfind(target + "@", 0) == 0;
-            });
             prefs_persist::put_lock(prefs_, lock);
             // ...AND IS WRITTEN INTO EVERY ROW THAT SEATS THE PANE, each judged by its bounds, all
             // or none.
             SetupState next = run_;
             for (std::size_t i = 0; i < layout_count(next); ++i) {
                 Setup& desk = desk_at(next, i);
+                std::erase(desk.locks, here);
                 if (pane_of(desk, *ref) == nullptr) {
                     continue;
                 }
@@ -1061,12 +1078,13 @@ PaneSettingLockActed LayoutStore::lock(const std::string& refused,
                                : setting_value_text(
                                      PaneSetting{key, lock.flag, lock.number, lock.text}));
         } else if (!everywhere) {
-            if (!prefs_persist::drop_lock(prefs_, here, key)) {
+            if (!held_here(layout_at(run_, at))) {
                 return refuse(prefs_persist::lock_on(prefs_, target, key) != nullptr
                                   ? "`" + key + "` of " + target +
                                         " is locked everywhere -- unlock it everywhere"
                                   : "`" + key + "` of " + target + " is not locked in " + in_layout);
             }
+            std::erase(desk_at(run_, at).locks, here);
             written = {layout_name};
             done = "unlocked " + key + " of " + target + " in " + in_layout;
         } else {
@@ -1076,12 +1094,17 @@ PaneSettingLockActed LayoutStore::lock(const std::string& refused,
             done = "unlocked " + key + " of " + target + " everywhere";
         }
     }
-    if (const std::string not_written = write_prefs();
-        !not_written.empty() && !host_->prefs_path.empty()) {
-        prefs_ = prefs_before;
-        run_ = run_before;
-        effects_.offices.clear();
-        return refuse("nothing changed: Workshop's settings file was not written -- " + not_written);
+    // WHAT HOLDS EVERYWHERE STANDS ONLY ONCE THE SETTINGS FILE HOLDS IT; a layout's own lock is
+    // its desk's, kept in the session.
+    if (!(prefs_ == prefs_before)) {
+        if (const std::string not_written = write_prefs();
+            !not_written.empty() && !host_->prefs_path.empty()) {
+            prefs_ = prefs_before;
+            run_ = run_before;
+            effects_.offices.clear();
+            return refuse("nothing changed: Workshop's settings file was not written -- " +
+                          not_written);
+        }
     }
     // A LIVE ROW AN EVERYWHERE LOCK WROTE IS HANDED NOW, as a commit's is; and every reading
     // shows the lock.
@@ -1101,7 +1124,7 @@ LayoutSettingsShown LayoutStore::layout_settings_reading() const {
         LayoutSettings layout;
         layout.position = static_cast<std::int64_t>(i);
         layout.name = run[i].desk.name;
-        layout.theme = prefs_persist::layout_theme_of(prefs_, layout.name);
+        layout.theme = run[i].desk.theme;
         for (const SetupPane& p : run[i].desk.panes) {
             LayoutPaneSettings row{p.ref.provider, p.ref.pane, p.settings, {}};
             for (const SettingLockShown& l : locks_on(p.ref, i)) {
@@ -1242,11 +1265,7 @@ SettingsWritten LayoutStore::write(const std::string& refused, const SettingsWri
         } else if (b.theme.name.empty() && b.theme.fingerprint != 0) {
             wrong = "a baseline of no theme has no fingerprint";
         } else if (!b.theme.name.empty()) {
-            wrong = prefs_persist::layout_theme_name_problem(b.theme.name);
-        }
-        if (wrong.empty() && prefs_bad_) {
-            wrong = "Workshop's settings file " + host_->prefs_path +
-                    " could not be read at launch and is never written over";
+            wrong = layout_theme_name_problem(b.theme.name);
         }
         if (!wrong.empty()) {
             return refuse(at + wrong, current);
@@ -1301,8 +1320,8 @@ SettingsWritten LayoutStore::write(const std::string& refused, const SettingsWri
             continue;
         }
         if (prefs_persist::lock_on(kept, w.target, w.key) != nullptr ||
-            prefs_persist::lock_on(kept, prefs_persist::layout_target(w.target, desk.name),
-                                   w.key) != nullptr) {
+            std::find(desk.locks.begin(), desk.locks.end(), SetupLock{ref, w.key}) !=
+                desk.locks.end()) {
             results.push_back({index, kWriteLocked, locked_setting_refusal(w.key)});
             continue;
         }
@@ -1331,11 +1350,12 @@ SettingsWritten LayoutStore::write(const std::string& refused, const SettingsWri
             note(live_moved, w.target);
         }
     }
+    // A LAYOUT'S BASELINE IS ITS DESK'S.
     bool baselines_moved = false;
     for (const LayoutThemeWrite& b : asked.baselines) {
-        baselines_moved = prefs_persist::set_layout_theme(
-                              kept, layout_at(next, *place_of(b.layout)).name, b.theme) ||
-                          baselines_moved;
+        Setup& desk = desk_at(next, *place_of(b.layout));
+        baselines_moved = baselines_moved || !(desk.theme == b.theme);
+        desk.theme = b.theme;
     }
     if (const std::string wrong = prefs_persist::kept_problem(kept);
         !(kept == prefs_) && !wrong.empty()) {
@@ -1391,13 +1411,60 @@ std::string LayoutStore::apply_setup(const std::string& text) {
                    row.ref.pane;
         }
     }
-    run_.active = loaded.setup;
+    if (const std::string locked = replacement_refused(loaded.setup); !locked.empty()) {
+        return locked;
+    }
+    Setup desk = kept_locks(loaded.setup);
+    if (const Written whole = check_setup(desk); !whole.accepted) {
+        return whole.refusal;
+    }
+    run_.active = std::move(desk);
     run_.active_link = SetupLink{};
     ++run_.put_live;
     settle_live();
     moved();
     say("applied setup " + quoted_setup_name(loaded.setup.name), false);
     return std::string();
+}
+
+// WL-LOCK-05 -- agents/workshop/setting-locks.md
+std::string LayoutStore::replacement_refused(const Setup& incoming) const {
+    // EACH LOCKED VALUE THE INCOMING DESK WOULD CHANGE, named: a key the live desk's row holds
+    // locked, here or everywhere, that the incoming row holds otherwise, or a row it would drop.
+    const Setup& live = live_desk(run_);
+    std::vector<std::string> changed;
+    for (const SetupPane& row : live.panes) {
+        const SetupPane* next = pane_of(incoming, row.ref);
+        for (const SettingLockShown& l : locks_on(row.ref, live_at(run_))) {
+            const PaneSetting* now = find_pane_setting(row.settings, l.key);
+            const PaneSetting* then = next != nullptr ? find_pane_setting(next->settings, l.key)
+                                                      : nullptr;
+            const bool same = next != nullptr && ((now == nullptr && then == nullptr) ||
+                                                  (now != nullptr && then != nullptr && *now == *then));
+            const bool dropped = next == nullptr && l.scope == kLockScopeLayout;
+            if ((next != nullptr && !same) || dropped) {
+                changed.push_back(l.key + " of " + ref_text(row.ref));
+            }
+        }
+    }
+    if (changed.empty()) {
+        return std::string();
+    }
+    std::string named;
+    for (const std::string& c : changed) {
+        named += (named.empty() ? "" : ", ") + c;
+    }
+    return "the desk would change what a lock holds -- " + named + "; nothing was replaced";
+}
+
+Setup LayoutStore::kept_locks(Setup incoming) const {
+    // EVERY LOCK THE LIVE DESK HOLDS STAYS, and a lock the incoming desk brings joins it.
+    for (const SetupLock& l : live_desk(run_).locks) {
+        if (std::find(incoming.locks.begin(), incoming.locks.end(), l) == incoming.locks.end()) {
+            incoming.locks.push_back(l);
+        }
+    }
+    return incoming;
 }
 
 // ---- The presenter's edits --------------------------------------------------------------------
@@ -1495,14 +1562,14 @@ std::string LayoutStore::edit_one(SetupState& next, const LayoutEdit& e, LayoutE
         PanePlace place;
         PaneSize width;
         PaneSize height;
-        if (!setup_persist::place_in(e.place, place)) {
-            return setup_persist::unknown_unit(e.place.mode, "place", setup_persist::kPlaceWords);
+        if (const Written p = setup_persist::place_in(e.place, place); !p.accepted) {
+            return p.refusal;
         }
-        if (!setup_persist::size_in(e.width, width)) {
-            return setup_persist::unknown_unit(e.width.mode, "width", setup_persist::kSizeWords);
+        if (const Written w = setup_persist::size_in(e.width, width, "width"); !w.accepted) {
+            return w.refusal;
         }
-        if (!setup_persist::size_in(e.height, height)) {
-            return setup_persist::unknown_unit(e.height.mode, "height", setup_persist::kSizeWords);
+        if (const Written h = setup_persist::size_in(e.height, height, "height"); !h.accepted) {
+            return h.refusal;
         }
         if (const Written p = check_pane_place(place); !p.accepted) {
             return p.refusal;
@@ -1677,7 +1744,14 @@ std::string LayoutStore::edit_one(SetupState& next, const LayoutEdit& e, LayoutE
         if (!loaded.outcome.accepted) {
             return loaded.outcome.refusal;
         }
-        next.active = loaded.setup;
+        if (const std::string locked = replacement_refused(loaded.setup); !locked.empty()) {
+            return locked;
+        }
+        Setup desk = kept_locks(loaded.setup);
+        if (const Written whole = check_setup(desk); !whole.accepted) {
+            return whole.refusal;
+        }
+        next.active = std::move(desk);
         next.active_link.path = path;
         ++next.put_live; // the file's desk, not the one it replaced (WL-INFO-14)
         adopt_known_setup(next, path, loaded.setup);
@@ -1729,13 +1803,6 @@ LayoutEditAnswered LayoutStore::edit(const LayoutEditRequested& asked) {
         settle_live();
         moved();
     }
-    // WHAT THE SETTINGS FILE KEEPS UNDER A LAYOUT'S NAME FOLLOWS IT, now the run holds the change.
-    for (std::size_t i = 0; i < renamed_from.size(); ++i) {
-        move_layout_prefs(renamed_from[i], renamed_to[i]);
-    }
-    for (const std::string& name : removed) {
-        move_layout_prefs(name, std::string());
-    }
     if (!said.empty() && effects_.said.empty()) {
         std::string joined;
         for (const std::string& s : said) {
@@ -1752,8 +1819,8 @@ LayoutEditAnswered LayoutStore::edit(const LayoutEditRequested& asked) {
 
 // WL-SESSION-14, WL-SESSION-16, WL-SESSION-17 -- agents/workshop/session-restore.md
 // WL-MIG-10 -- agents/workshop/migration.md
-RestoredRoom LayoutStore::restore() {
-    RestoredRoom out;
+RestoredRun LayoutStore::restore() {
+    RestoredRun out;
     if (restored_) {
         return out;
     }
@@ -1767,41 +1834,146 @@ RestoredRoom LayoutStore::restore() {
     }
     const session_persist::LoadedSession last =
         session_persist::load_file(host_->session_path, host_->conversions);
-    if (!last.present) {
-        // A FIRST LAUNCH IS NOT AN ERROR and must never be reported as one.
-        return out;
-    }
-    if (!last.outcome.accepted) {
+    if (last.present && !last.outcome.accepted) {
         // AND THIS RUN WILL NOT WRITE OVER IT: an orderly close would replace bytes this run could
         // not read. The refusal is held all run.
         session_refusal_ = last.outcome.refusal;
         moved();
         return out;
     }
-    // The whole run comes back, each layout given an id in run order, and exactly one lifted live.
-    (void)install_layout_run(run_, last.layouts, last.active);
-    settle_live();
-    moved();
-    out.present = true;
-    out.head = "reopened your last desk " + quoted_setup_name(live_desk(run_).name);
-    if (last.layouts.size() > 1) {
-        out.head += " (" + std::to_string(last.active + 1) + " of " +
-                    std::to_string(last.layouts.size()) + " layouts)";
+    if (last.present) {
+        // The whole run comes back, each layout with the id it was minted, exactly one live.
+        (void)install_layout_run(run_, last.layouts, last.active);
+        run_.next_id = std::max(run_.next_id, last.next_id);
+        out.present = true;
+        out.read_version = last.read_version;
+        out.head = "reopened your last desk " + quoted_setup_name(live_desk(run_).name);
+        if (last.layouts.size() > 1) {
+            out.head += " (" + std::to_string(last.active + 1) + " of " +
+                        std::to_string(last.layouts.size()) + " layouts)";
+        }
+        if (last.converted.total() > 0) {
+            out.converted = pane_migration::converted_note(last.converted);
+        }
     }
-    if (last.converted.total() > 0) {
-        out.converted = pane_migration::converted_note(last.converted);
+    // WHAT THE SETTINGS FILE KEPT FOR LAYOUTS BY NAME: a session of this version holds it already;
+    // any other run takes it now, and the file carries it until a session holds it.
+    bool folded = false;
+    if (last.present && last.read_version == session_persist::kFormatVersion) {
+        layout_entries_held_ = true;
+    } else if (prefs_persist::has_layout_entries(prefs_)) {
+        out.folded = fold_layout_entries();
+        folded = true;
     }
-    out.viewport_w = last.viewport_w;
-    out.viewport_h = last.viewport_h;
-    out.honoured = last.honoured;
-    out.declined = last.declined;
-    out.placement = last.placement;
+    if (last.present || folded) {
+        settle_live();
+        moved();
+    }
     return out;
 }
 
+// WL-SETTING-11 -- agents/workshop/settings.md
+std::string LayoutStore::fold_layout_entries() {
+    // EACH LAYOUT NAMED N TAKES THE BASELINE, LOCKS AND PINS KEPT UNDER N, for rows it seats;
+    // layouts sharing a name each take a copy; what no layout takes is named, each entry in full.
+    std::vector<std::string> shared;
+    std::vector<std::string> dropped;
+    const std::vector<Layout> before = layout_run(run_);
+    const auto layout_of = [](const std::string& target) {
+        const std::size_t at = target.find('@');
+        return at == std::string::npos ? std::string() : target.substr(at + 1);
+    };
+    const auto takers = [&](const std::string& name) {
+        std::vector<std::size_t> out;
+        for (std::size_t i = 0; i < before.size(); ++i) {
+            if (before[i].desk.name == name) {
+                out.push_back(i);
+            }
+        }
+        return out;
+    };
+    const auto fold = [&](const std::string& name, const std::string& entry,
+                          const auto& into) {
+        const std::vector<std::size_t> at = takers(name);
+        bool taken = false;
+        for (const std::size_t i : at) {
+            Setup candidate = layout_at(run_, i);
+            if (into(candidate) && check_setup(candidate).accepted) {
+                desk_at(run_, i) = std::move(candidate);
+                taken = true;
+            }
+        }
+        if (!taken) {
+            dropped.push_back(entry);
+        } else if (at.size() > 1 &&
+                   std::find(shared.begin(), shared.end(), name) == shared.end()) {
+            shared.push_back(name);
+        }
+    };
+    for (const prefs_persist::OfficeSettingsKept& o : prefs_.offices) {
+        if (!prefs_persist::is_layout_theme_entry(o.office)) {
+            continue;
+        }
+        const std::string name = o.office.substr(1);
+        const LayoutTheme theme = prefs_persist::layout_theme_of(prefs_, name);
+        fold(name, "the baseline of layout " + quoted_setup_name(name) + " (" + theme.name + ")",
+             [&theme](Setup& desk) {
+                 desk.theme = theme;
+                 return true;
+             });
+    }
+    for (const prefs_persist::PinList& l : prefs_.pins) {
+        const std::string name = layout_of(l.target);
+        const std::optional<PaneRef> ref = pane_of_target(l.target.substr(0, l.target.find('@')));
+        if (name.empty()) {
+            continue;
+        }
+        fold(name, "the pins of `" + l.target + "`", [&](Setup& desk) {
+            if (!ref || pane_of(desk, *ref) == nullptr) {
+                return false;
+            }
+            std::erase_if(desk.pins, [&](const SetupPins& p) { return p.ref == *ref; });
+            desk.pins.push_back(SetupPins{*ref, l.keys});
+            return true;
+        });
+    }
+    for (const SettingLock& l : prefs_.locks) {
+        const std::string name = layout_of(l.target);
+        const std::optional<PaneRef> ref = pane_of_target(l.target.substr(0, l.target.find('@')));
+        if (name.empty()) {
+            continue;
+        }
+        fold(name, "the lock on " + l.key + " of `" + l.target + "`", [&](Setup& desk) {
+            if (!ref || pane_of(desk, *ref) == nullptr) {
+                return false;
+            }
+            const SetupLock lock{*ref, l.key};
+            if (std::find(desk.locks.begin(), desk.locks.end(), lock) == desk.locks.end()) {
+                desk.locks.push_back(lock);
+            }
+            return true;
+        });
+    }
+    std::string said;
+    for (const std::string& name : shared) {
+        said += (said.empty() ? "" : "; ") + std::string("layouts named ") +
+                quoted_setup_name(name) + " each keep their own locks, pins and baseline now";
+    }
+    if (!dropped.empty()) {
+        std::string named;
+        for (const std::string& d : dropped) {
+            named += (named.empty() ? "" : ", ") + d;
+        }
+        said += (said.empty() ? "" : "; ") +
+                std::string("the settings file kept for layouts this session does not seat, and "
+                            "they were not carried: ") +
+                named;
+    }
+    return said;
+}
+
 // WL-SESSION-13, WL-SESSION-15 -- agents/workshop/session.md
-std::string LayoutStore::save_session(std::int64_t viewport_w, std::int64_t viewport_h,
-                                      const session_persist::Placement& place) {
+std::string LayoutStore::save_session() {
     if (host_->session_path.empty()) {
         return "isolated run -- no session file";
     }
@@ -1809,9 +1981,17 @@ std::string LayoutStore::save_session(std::int64_t viewport_w, std::int64_t view
         return host_->session_path + " could not be read and will not be written over";
     }
     const Written written = session_persist::save_file(
-        host_->session_path, layout_run(run_), live_at(run_), viewport_w, viewport_h, place,
+        host_->session_path, layout_run(run_), live_at(run_), run_.next_id,
         host_->chosen ? host_->chosen() : std::vector<session_persist::WorkshopChoice>{});
-    return written.accepted ? std::string() : written.refusal;
+    if (!written.accepted) {
+        return written.refusal;
+    }
+    // THE SESSION HOLDS WHAT THE SETTINGS FILE KEPT FOR LAYOUTS: the file's own copies go now.
+    layout_entries_held_ = true;
+    if (prefs_persist::has_layout_entries(prefs_) && !prefs_bad_) {
+        (void)write_prefs();
+    }
+    return std::string();
 }
 
 } // namespace zengine::workshop

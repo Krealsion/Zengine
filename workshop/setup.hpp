@@ -10,7 +10,10 @@
 #include "pane_settings.hpp"
 #include "panes.hpp"
 #include "property.hpp"
+#include "settings_seam_vocabulary.hpp" // a layout's baseline, and how long a pin list is
 
+
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -49,9 +52,9 @@ inline constexpr std::size_t kMaxLayouts = 8;
 // WL-SETUP-03 -- agents/workshop/setup-file.md
 inline constexpr std::int64_t kMaxPanePixels = 65536;
 
-/// HOW MANY SETTINGS ONE DESK KEEPS, over all its rows: the bound that keeps a session of
-/// `kMaxLayouts` desks and their links, every other bound full, inside Loom's decode budget
-/// (`kMaxDecodedCells`), at five decoded cells a setting.
+/// HOW MANY UNITS ONE DESK KEEPS, over all its rows: each setting, each lock, each pin list and
+/// each pinned key is one. The bound keeps one layout's line of a session, every other bound full,
+/// inside Loom's decode budget (`kMaxDecodedCells`), at no more than five decoded cells a unit.
 // WL-SETTING-02 -- agents/workshop/settings.md
 inline constexpr std::size_t kMaxPaneSettingsPerDesk = 512;
 
@@ -125,13 +128,36 @@ struct SetupPane {
     friend bool operator==(const SetupPane&, const SetupPane&) = default;
 };
 
-/// A setup: what a weaver calls this arrangement, and which panes it has, in
-/// order.
+/// A LOCK ON ONE KEY OF ONE ROW OF THIS LAYOUT: what the row keeps for the key stands while the
+/// lock does. It holds no value.
+// WL-LOCK-01 -- agents/workshop/setting-locks.md
+struct SetupLock {
+    PaneRef ref;
+    std::string key;
+
+    friend bool operator==(const SetupLock&, const SetupLock&) = default;
+};
+
+/// ONE PANE'S PIN LIST IN THIS LAYOUT, in pin order: what a reading of the pane shows first while
+/// pins are kept per layout.
+// WL-SETTING-12 -- agents/workshop/settings.md
+struct SetupPins {
+    PaneRef ref;
+    std::vector<std::string> keys;
+
+    friend bool operator==(const SetupPins&, const SetupPins&) = default;
+};
+
+/// A setup: what a weaver calls this arrangement, which panes it has, in order, and what this
+/// layout keeps for itself -- the theme it was last given, its locks and its pins.
 // WL-LAYOUT-01, WL-LAYOUT-06 -- agents/workshop/layouts.md
 // WL-PANE-07 -- agents/workshop/panes-and-windows.md
 struct Setup {
     std::string name;
     std::vector<SetupPane> panes;
+    LayoutTheme theme;
+    std::vector<SetupLock> locks;
+    std::vector<SetupPins> pins;
 
     friend bool operator==(const Setup&, const Setup&) = default;
 };
@@ -393,6 +419,95 @@ inline std::size_t desk_setting_count(const std::vector<SetupPane>& rows) noexce
     return n;
 }
 
+/// HOW MANY UNITS A DESK SPENDS: its settings, its locks, its pin lists and their keys.
+// WL-SETTING-02 -- agents/workshop/settings.md
+inline std::size_t desk_units(const Setup& s) noexcept {
+    std::size_t n = desk_setting_count(s.panes) + s.locks.size() + s.pins.size();
+    for (const SetupPins& list : s.pins) {
+        n += list.keys.size();
+    }
+    return n;
+}
+
+/// WHAT IS WRONG WITH A BASELINE'S THEME NAME, or empty: 1 to `kMaxPaneSettingTextLen` bytes of
+/// `a`-`z`, `0`-`9` and `-`, as a theme's file is named.
+// WL-LOCK-03 -- agents/workshop/setting-locks.md
+inline std::string layout_theme_name_problem(std::string_view name) {
+    if (name.empty() || name.size() > kMaxPaneSettingTextLen) {
+        return "a baseline's theme name is 1 to " + std::to_string(kMaxPaneSettingTextLen) +
+               " bytes";
+    }
+    for (const char c : name) {
+        if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-')) {
+            return "a baseline's theme name is `a`-`z`, `0`-`9` and `-` -- `" + std::string(name) +
+                   "` is not";
+        }
+    }
+    return std::string();
+}
+
+/// WHAT A LAYOUT KEEPS FOR ITSELF, judged: its baseline a theme's name or none, and each lock and
+/// pin list on a row the desk seats, once each, with keys a setting may have.
+// WL-LAYOUT-06 -- agents/workshop/layouts.md
+inline Written check_layout_own(const Setup& s) {
+    if (s.theme.name.empty() && s.theme.fingerprint != 0) {
+        return Written::no("a baseline of no theme has no fingerprint");
+    }
+    if (!s.theme.name.empty()) {
+        if (const std::string wrong = layout_theme_name_problem(s.theme.name); !wrong.empty()) {
+            return Written::no(wrong);
+        }
+    }
+    for (std::size_t i = 0; i < s.locks.size(); ++i) {
+        const SetupLock& lock = s.locks[i];
+        const std::string whose = "`" + lock.ref.provider + "/" + lock.ref.pane + "`";
+        if (std::find_if(s.panes.begin(), s.panes.end(), [&](const SetupPane& row) {
+                return row.ref == lock.ref;
+            }) == s.panes.end()) {
+            return Written::no("a lock on " + whose + " holds a row this layout does not seat");
+        }
+        if (const std::string wrong = pane_setting_key_problem(lock.key); !wrong.empty()) {
+            return Written::no("a lock on " + whose + ": " + wrong);
+        }
+        for (std::size_t j = 0; j < i; ++j) {
+            if (s.locks[j] == lock) {
+                return Written::no("the lock on `" + lock.key + "` of " + whose +
+                                   " is listed twice");
+            }
+        }
+    }
+    for (std::size_t i = 0; i < s.pins.size(); ++i) {
+        const SetupPins& list = s.pins[i];
+        const std::string whose = "`" + list.ref.provider + "/" + list.ref.pane + "`";
+        if (std::find_if(s.panes.begin(), s.panes.end(), [&](const SetupPane& row) {
+                return row.ref == list.ref;
+            }) == s.panes.end()) {
+            return Written::no("the pins of " + whose + " are for a row this layout does not seat");
+        }
+        if (list.keys.size() > kMaxPinsPerPane) {
+            return Written::no("the pins of " + whose + " hold more than " +
+                               std::to_string(kMaxPinsPerPane) + " keys");
+        }
+        for (std::size_t k = 0; k < list.keys.size(); ++k) {
+            if (const std::string wrong = pane_setting_key_problem(list.keys[k]); !wrong.empty()) {
+                return Written::no("the pins of " + whose + ": " + wrong);
+            }
+            for (std::size_t m = 0; m < k; ++m) {
+                if (list.keys[m] == list.keys[k]) {
+                    return Written::no("the pins of " + whose + " pin `" + list.keys[k] +
+                                       "` twice");
+                }
+            }
+        }
+        for (std::size_t j = 0; j < i; ++j) {
+            if (s.pins[j].ref == list.ref) {
+                return Written::no("the pins of " + whose + " are listed twice");
+            }
+        }
+    }
+    return Written::ok();
+}
+
 /// THE WHOLE-SETUP LAW, asked once on a complete candidate.
 /// It judges the name, every row, how many there are, whether any two name the
 /// same pane, whether the ranks are a permutation, and how many settings the rows keep.
@@ -429,11 +544,14 @@ inline Written check_setup(const Setup& s) {
             }
         }
     }
-    const std::size_t settings = desk_setting_count(s.panes);
-    if (settings > kMaxPaneSettingsPerDesk) {
+    if (const Written own = check_layout_own(s); !own.accepted) {
+        return own;
+    }
+    const std::size_t units = desk_units(s);
+    if (units > kMaxPaneSettingsPerDesk) {
         return Written::no("a setup keeps at most " + std::to_string(kMaxPaneSettingsPerDesk) +
-                           " settings over all its panes -- this one keeps " +
-                           std::to_string(settings));
+                           " settings, locks and pins over all its panes -- this one keeps " +
+                           std::to_string(units));
     }
     return Written::ok();
 }
@@ -486,13 +604,15 @@ inline bool add_pane(Setup& s, const PaneRef& ref) {
     return true;
 }
 
-/// Remove a reference, AND CLOSE THE RANKS OVER IT.
-// WL-SETUP-07 -- agents/workshop/setup-file.md
+/// Remove a reference, AND CLOSE THE RANKS OVER IT; its locks and pins in this layout go with it.
+// WL-SETUP-07 -- agents/workshop/setup-file.md; WL-SETTING-06 -- agents/workshop/settings.md
 inline bool remove_pane(Setup& s, const PaneRef& ref) {
     const std::size_t at = pane_row(s, ref);
     if (at == kNoPaneRow) {
         return false;
     }
+    std::erase_if(s.locks, [&ref](const SetupLock& l) { return l.ref == ref; });
+    std::erase_if(s.pins, [&ref](const SetupPins& l) { return l.ref == ref; });
     const std::int64_t gone = s.panes[at].front;
     s.panes.erase(s.panes.begin() + static_cast<std::ptrdiff_t>(at));
     for (SetupPane& row : s.panes) {
@@ -544,7 +664,7 @@ inline Written author_pane_setting(Setup& s, const PaneRef& ref, const std::stri
     if (!legal.accepted) {
         return legal;
     }
-    const std::size_t desk = desk_setting_count(s.panes) - row->settings.size() + candidate.size();
+    const std::size_t desk = desk_units(s) - row->settings.size() + candidate.size();
     if (desk > kMaxPaneSettingsPerDesk) {
         return Written::no("this layout keeps " + std::to_string(kMaxPaneSettingsPerDesk) +
                            " settings already, the most a desk keeps -- clear one first");

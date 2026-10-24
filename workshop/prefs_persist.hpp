@@ -5,10 +5,11 @@
 #define ZENGINE_WORKSHOP_PREFS_PERSIST_HPP
 
 // WORKSHOP'S SETTINGS FILE -- a seventh durable artifact, and the second file of the
-// weaver-configuration kind: every office's office-wide settings Workshop keeps (Workshop's own
-// among them), the pin lists an editor shows a pane's settings in, the locks that hold a setting
-// in one layout or everywhere, and each layout's baseline theme. A version-1 or version-2 file,
-// which held three preferences as words, is read as Workshop's own three settings.
+// weaver-configuration kind: what holds in every layout -- every office's office-wide settings
+// (Workshop's own among them), the Workshop-wide pin lists and the everywhere locks. What one
+// layout keeps for itself is its desk's. A version-3 file also kept layouts' entries by name, read
+// and carried until a session holds them; a version-1 or version-2 file, which held three
+// preferences as words, is read as Workshop's own three settings.
 // Workshop law: agents/workshop/settings.md, agents/workshop/focus.md, agents/workshop/key-spelling.md
 
 #include "keymap.hpp"
@@ -39,9 +40,12 @@ namespace zengine::workshop::prefs_persist {
 /// handing Workshop the wrong one of its own files is named rather than half-read.
 inline constexpr const char* kFormat = "zengine-workshop-prefs";
 
-/// The format version this build writes. It reads this one and the two before it: version 2 held
-/// three preferences as words, version 1 the titles alone.
-inline constexpr std::int64_t kFormatVersion = 3;
+/// The format version this build writes. It reads this one and the three before it: version 3
+/// kept layouts' entries beside the rest, version 2 held three preferences as words, version 1 the
+/// titles alone.
+// WL-SETTING-11 -- agents/workshop/settings.md
+inline constexpr std::int64_t kFormatVersion = 4;
+inline constexpr std::int64_t kLayoutEntriesVersion = 3;
 inline constexpr std::int64_t kWordsVersion = 2;
 inline constexpr std::int64_t kTitlesOnlyVersion = 1;
 
@@ -49,8 +53,8 @@ inline constexpr std::int64_t kTitlesOnlyVersion = 1;
 /// not get to choose the cost of refusing it.
 inline constexpr std::uintmax_t kMaxPrefsBytes = 1u << 16;
 
-/// The most pin lists, locks and layout baselines the file keeps, and the longest target a pin
-/// list or a lock names before any `@<layout>`.
+/// The most pin lists, locks and (in a version-3 file) layout baselines the file keeps, and the
+/// longest target a pin list or a lock names before any `@<layout>`.
 inline constexpr std::size_t kMaxPinLists = 32;
 inline constexpr std::size_t kMaxLocks = 128;
 inline constexpr std::size_t kMaxLayoutThemes = 32;
@@ -193,8 +197,8 @@ struct OfficeSettingsKept {
     friend bool operator==(const OfficeSettingsKept&, const OfficeSettingsKept&) = default;
 };
 
-/// ONE PANE'S PIN LIST, in pin order: `<office>/<pane>` for the Workshop-wide list, and
-/// `<office>/<pane>@<layout>` for one layout's.
+/// ONE PANE'S PIN LIST, in pin order: `<office>/<pane>` for the Workshop-wide list; a version-3
+/// file also kept `<office>/<pane>@<layout>` for one layout's.
 struct PinList {
     std::string target;
     std::vector<std::string> keys;
@@ -205,13 +209,28 @@ struct PinList {
 /// A lock as the file keeps it (`settings_seam_vocabulary.hpp`), the shape the doors carry.
 using workshop::SettingLock;
 
-/// A LAYOUT'S BASELINE IS KEPT AS AN OFFICE OF ITS OWN, `@<layout>`, holding the theme's name and
-/// its fingerprint under these two keys.
+/// A VERSION-3 FILE KEPT A LAYOUT'S BASELINE AS AN OFFICE OF ITS OWN, `@<layout>`, holding the
+/// theme's name and its fingerprint under these two keys.
 inline constexpr char kLayoutThemeOfficeMark = '@';
 inline constexpr const char* kLayoutThemeNameKey = "theme";
 inline constexpr const char* kLayoutThemeFingerprintKey = "fingerprint";
 
-/// A whole saved settings file: what it is, which version, and what it keeps.
+/// A whole saved settings file: what it is, which version, and what holds in every layout.
+// WL-SETTING-11 -- agents/workshop/settings.md
+struct WorkshopPrefs {
+    std::string format;
+    std::int64_t format_version = 0;
+    std::vector<OfficeSettingsKept> offices;
+    std::vector<PinList> pins;
+    std::vector<SettingLock> locks;
+
+    ZEN_SHAPE(WorkshopPrefs, 4, ZEN_FIELD(format), ZEN_FIELD(format_version),
+              ZEN_FIELD(offices), ZEN_FIELD(pins), ZEN_FIELD(locks));
+};
+
+/// THE FILE AS VERSION 3 WROTE IT: version 4's fields, a layout's entries among them by its name.
+/// Read, and written while what it keeps for layouts is not yet held by a session.
+namespace v3 {
 struct WorkshopPrefs {
     std::string format;
     std::int64_t format_version = 0;
@@ -222,6 +241,7 @@ struct WorkshopPrefs {
     ZEN_SHAPE(WorkshopPrefs, 3, ZEN_FIELD(format), ZEN_FIELD(format_version),
               ZEN_FIELD(offices), ZEN_FIELD(pins), ZEN_FIELD(locks));
 };
+} // namespace v3
 
 /// THE FILE AS VERSION 2 WROTE IT, three preferences as words, copied verbatim: read as Workshop's
 /// own three settings, and never written.
@@ -257,6 +277,9 @@ static_assert(WorkshopPrefs::zen_version == static_cast<std::uint32_t>(kFormatVe
               "the prefs file's format version and its envelope's shape version are one "
               "number: a foreign version must be refused by ITS number, before its fields "
               "are judged against this shape");
+static_assert(v3::WorkshopPrefs::zen_version ==
+                  static_cast<std::uint32_t>(kLayoutEntriesVersion),
+              "the file of layouts' entries is read by its own number");
 static_assert(v2::WorkshopPrefs::zen_version == static_cast<std::uint32_t>(kWordsVersion),
               "the words file is read by its own number");
 static_assert(v1::WorkshopPrefs::zen_version == static_cast<std::uint32_t>(kTitlesOnlyVersion),
@@ -266,7 +289,7 @@ static_assert(v1::WorkshopPrefs::zen_version == static_cast<std::uint32_t>(kTitl
 
 /// THE SETTINGS FILE'S CONTENT: offices by name, each office's settings by key; pin lists by
 /// target; locks by target and key. A default is kept as its absence, and an office keeping
-/// nothing is not listed.
+/// nothing is not listed. Read from a version-3 file, it may also hold layouts' entries, by name.
 struct Prefs {
     std::vector<OfficeSettingsKept> offices;
     std::vector<PinList> pins;
@@ -423,70 +446,32 @@ inline LayoutTheme layout_theme_of(const Prefs& p, std::string_view layout) {
     return out;
 }
 
-/// KEEP A LAYOUT'S BASELINE, or remove it with a name of "". Says whether anything changed.
-inline bool set_layout_theme(Prefs& p, std::string_view layout, const LayoutTheme& theme) {
-    const std::string office = std::string(1, kLayoutThemeOfficeMark) + std::string(layout);
-    if (theme.name.empty()) {
-        const bool name = put_office_value(p, office, kLayoutThemeNameKey, std::nullopt);
-        const bool fingerprint =
-            put_office_value(p, office, kLayoutThemeFingerprintKey, std::nullopt);
-        return name || fingerprint;
-    }
-    PaneSetting name;
-    name.text = theme.name;
-    PaneSetting fingerprint;
-    fingerprint.number = theme.fingerprint;
-    const bool named = put_office_value(p, office, kLayoutThemeNameKey, name);
-    const bool printed = put_office_value(p, office, kLayoutThemeFingerprintKey, fingerprint);
-    return named || printed;
+/// WHETHER THE FILE KEEPS ANY LAYOUT'S ENTRY -- a pin list, a lock or a baseline under a layout's
+/// name -- as only a version-3 file did.
+// WL-SETTING-11 -- agents/workshop/settings.md
+inline bool has_layout_entries(const Prefs& p) noexcept {
+    const auto named = [](const std::string& target) {
+        return target.find('@') != std::string::npos;
+    };
+    return std::any_of(p.offices.begin(), p.offices.end(),
+                       [](const OfficeSettingsKept& o) {
+                           return is_layout_theme_entry(o.office);
+                       }) ||
+           std::any_of(p.pins.begin(), p.pins.end(),
+                       [&](const PinList& l) { return named(l.target); }) ||
+           std::any_of(p.locks.begin(), p.locks.end(),
+                       [&](const SettingLock& l) { return named(l.target); });
 }
 
-/// WHAT THE FILE KEEPS FOR LAYOUT `from` -- its pin lists, its locks and its baseline -- KEPT FOR
-/// `to` INSTEAD; an entry `to` already has is kept and `from`'s dropped. With `to` empty, `from`'s
-/// are dropped. Says whether anything changed.
-inline bool move_layout_entries(Prefs& p, std::string_view from, std::string_view to) {
-    const auto base_of = [&](const std::string& target) -> std::optional<std::string> {
-        const std::size_t at = target.find('@');
-        if (at == std::string::npos || std::string_view(target).substr(at + 1) != from) {
-            return std::nullopt;
-        }
-        return target.substr(0, at);
-    };
-    const Prefs before = p;
-    std::vector<PinList> pins;
-    for (PinList& l : p.pins) {
-        if (const std::optional<std::string> base = base_of(l.target)) {
-            if (!to.empty() && pin_list(before, layout_target(*base, to)) == nullptr) {
-                pins.push_back(PinList{layout_target(*base, to), l.keys});
-            }
-            l.target.clear();
-        }
-    }
-    std::erase_if(p.pins, [](const PinList& l) { return l.target.empty(); });
-    for (PinList& l : pins) {
-        put_pin_list(p, std::move(l));
-    }
-    std::vector<SettingLock> locks;
-    for (SettingLock& l : p.locks) {
-        if (const std::optional<std::string> base = base_of(l.target)) {
-            if (!to.empty() && lock_on(before, layout_target(*base, to), l.key) == nullptr) {
-                SettingLock moved = l;
-                moved.target = layout_target(*base, to);
-                locks.push_back(std::move(moved));
-            }
-            l.target.clear();
-        }
-    }
-    std::erase_if(p.locks, [](const SettingLock& l) { return l.target.empty(); });
-    for (SettingLock& l : locks) {
-        put_lock(p, std::move(l));
-    }
-    const LayoutTheme theme = layout_theme_of(before, from);
-    (void)set_layout_theme(p, from, LayoutTheme{});
-    if (!to.empty() && !theme.name.empty() && layout_theme_of(before, to).name.empty()) {
-        (void)set_layout_theme(p, to, theme);
-    }
-    return !(p == before);
+/// ...AND THE FILE WITHOUT THEM: what holds in every layout, alone.
+inline Prefs without_layout_entries(Prefs p) {
+    std::erase_if(p.offices,
+                  [](const OfficeSettingsKept& o) { return is_layout_theme_entry(o.office); });
+    std::erase_if(p.pins,
+                  [](const PinList& l) { return l.target.find('@') != std::string::npos; });
+    std::erase_if(p.locks,
+                  [](const SettingLock& l) { return l.target.find('@') != std::string::npos; });
+    return p;
 }
 
 // ---- Workshop's own settings, read and written as values --------------------------------
@@ -586,7 +571,14 @@ inline WorkshopPrefs to_prefs(const Prefs& kept) {
     return out;
 }
 
+/// THE FILE'S TEXT: version 4, or -- while it still carries layouts' entries a session does not
+/// yet hold -- version 3, those entries unchanged.
+// WL-SETTING-11 -- agents/workshop/settings.md
 inline std::string to_text(const Prefs& kept) {
+    if (has_layout_entries(kept)) {
+        return loom::compat::serialize(loom::to_value(v3::WorkshopPrefs{
+            kFormat, kLayoutEntriesVersion, kept.offices, kept.pins, kept.locks}));
+    }
     return loom::compat::serialize(loom::to_value(to_prefs(kept)));
 }
 
@@ -600,9 +592,10 @@ struct LoadedPrefs {
     Written outcome;
     Presentation prefs;
     Prefs kept;
+    std::int64_t read_version = 0; ///< the version the file was written at
 
     static LoadedPrefs no(std::string why) {
-        return LoadedPrefs{Written::no(std::move(why)), Presentation{}, Prefs{}};
+        return LoadedPrefs{Written::no(std::move(why)), Presentation{}, Prefs{}, 0};
     }
 };
 
@@ -681,26 +674,17 @@ inline std::string layout_target_problem(std::string_view target, const char* wh
     return std::string();
 }
 
-/// WHAT IS WRONG WITH A BASELINE'S THEME NAME, or empty: 1 to `kMaxPaneSettingTextLen` bytes of
-/// `a`-`z`, `0`-`9` and `-`, as a theme's file is named.
-inline std::string layout_theme_name_problem(std::string_view name) {
-    if (name.empty() || name.size() > kMaxPaneSettingTextLen) {
-        return "a baseline's theme name is 1 to " + std::to_string(kMaxPaneSettingTextLen) +
-               " bytes";
-    }
-    for (const char c : name) {
-        if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-')) {
-            return "a baseline's theme name is `a`-`z`, `0`-`9` and `-` -- `" + std::string(name) +
-                   "` is not";
-        }
-    }
-    return std::string();
-}
-
 /// WHAT IS WRONG WITH WHAT THE FILE KEEPS, or empty: each list within its bound and in
 /// its order, nothing twice, every setting sound, and Workshop's own values ones its settings
-/// take. A key of Workshop's office this build does not declare is kept as it is.
-inline std::string kept_problem(const Prefs& p) {
+/// take. A key of Workshop's office this build does not declare is kept as it is. A layout's entry
+/// is refused unless `layout_entries`: a version-3 file's.
+// WL-SETTING-11 -- agents/workshop/settings.md
+inline std::string kept_problem(const Prefs& p, bool layout_entries = false) {
+    if (!layout_entries && has_layout_entries(p)) {
+        return "a version-" + std::to_string(kFormatVersion) +
+               " settings file keeps what holds in every layout -- a layout's pins, locks and "
+               "baseline are its own, in the session";
+    }
     if (office_count(p) > kMaxSettingOffices) {
         return "the file keeps settings for at most " + std::to_string(kMaxSettingOffices) +
                " offices -- it lists " + std::to_string(office_count(p));
@@ -859,14 +843,27 @@ inline LoadedPrefs from_text(std::string_view bytes) {
     const bool ours = claim.claimed_name() == std::string(WorkshopPrefs::zen_name);
     const std::uint32_t version = claim.claimed_version();
     if (ours && version != WorkshopPrefs::zen_version &&
-        version != v2::WorkshopPrefs::zen_version && version != v1::WorkshopPrefs::zen_version) {
+        version != v3::WorkshopPrefs::zen_version && version != v2::WorkshopPrefs::zen_version &&
+        version != v1::WorkshopPrefs::zen_version) {
         return LoadedPrefs::no(wrong_version(static_cast<std::int64_t>(version)));
     }
     std::string format;
     std::int64_t format_version = 0;
     std::int64_t expected = kFormatVersion;
     LoadedPrefs loaded;
-    if (ours && version != WorkshopPrefs::zen_version) {
+    if (ours && version == v3::WorkshopPrefs::zen_version) {
+        // VERSION 3: version 4's fields, read with what it kept for layouts by name.
+        const loom::Admission admitted =
+            loom::admit(claim, loom::schema_of<v3::WorkshopPrefs>(), loom::Report::FirstError);
+        if (!admitted.ok()) {
+            return LoadedPrefs::no(admitted.first_error().message());
+        }
+        const v3::WorkshopPrefs file = loom::from_value<v3::WorkshopPrefs>(admitted.value());
+        format = file.format;
+        format_version = file.format_version;
+        expected = kLayoutEntriesVersion;
+        loaded.kept = Prefs{file.offices, file.pins, file.locks};
+    } else if (ours && version != WorkshopPrefs::zen_version) {
         // AN EARLIER FILE HELD THREE WORDS, OR THE TITLES ALONE: admitted against its own shape,
         // and read as Workshop's own settings, a word left out or `default` as the default.
         v2::WorkshopPrefs old;
@@ -923,9 +920,11 @@ inline LoadedPrefs from_text(std::string_view bytes) {
     if (format_version != expected) {
         return LoadedPrefs::no(wrong_version(format_version));
     }
-    if (std::string wrong = kept_problem(loaded.kept); !wrong.empty()) {
+    if (std::string wrong = kept_problem(loaded.kept, expected == kLayoutEntriesVersion);
+        !wrong.empty()) {
         return LoadedPrefs::no(wrong);
     }
+    loaded.read_version = expected;
     loaded.prefs = presentation_of(loaded.kept);
     loaded.outcome = Written::ok();
     return loaded;
@@ -952,7 +951,7 @@ inline LoadedPrefs load_file(const std::string& path) {
     const persist::FileText read =
         persist::read_file(path, kMaxPrefsBytes, "a Workshop prefs file");
     if (!read.outcome.accepted) {
-        return LoadedPrefs{read.outcome, Presentation{}, Prefs{}};
+        return LoadedPrefs{read.outcome, Presentation{}, Prefs{}, 0};
     }
     return from_text(read.text);
 }
