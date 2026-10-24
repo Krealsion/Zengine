@@ -59,6 +59,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -5229,6 +5230,23 @@ TEST_CASE("the OS window's clipboard and its place on the desktop are its backen
         REQUIRE(ask.heard.placements.size() == 3);
         CHECK(placed_at(ask.heard.placements.back(), 300, 200, true));
         CHECK(ask.heard.closes == 0);
+    }
+    SUBCASE("maximized and restored down from outside, as a desktop's shell does it: its size is "
+            "the platform's at once, its state comes with its queue, and the state is said first") {
+        LitWindow b(nullptr, true, gw::WindowPlacementValue{40, 30, false});
+        PlatformAsker& ask = b.platform;
+        for (const auto& [maximized, wide, tall] :
+             {std::tuple{true, 1920, 1009}, std::tuple{false, 1200, 600}}) {
+            b.light.size = gw::PixelSize{wide, tall};
+            b.light.placement_at_poll = gw::WindowPlacementValue{40, 30, maximized};
+            const std::size_t at = ask.heard.order.size();
+            b.pump();
+            REQUIRE(ask.heard.order.size() == at + 2);
+            CHECK(ask.heard.order[at] == "SurfacePlacement");
+            CHECK(ask.heard.order[at + 1] == "WindowOffered");
+            CHECK(placed_at(ask.heard.placements.back(), 40, 30, maximized));
+            CHECK(ask.heard.offers.back().width == wide);
+        }
     }
 }
 

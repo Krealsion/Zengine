@@ -55,7 +55,8 @@ WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 LAW — `Session::normal_w/h` tracks the screen except while this run's medium says the window is maximized, so a maximized close writes the room the weaver chose with `maximized` beside it.
 
 MEANS
-- a maximized flag merely restored from the file never gates a placement-less run's tracking.
+- a maximized flag merely restored from the file never gates a placement-less run's tracking;
+- the OS window says a maximize or a restore-down before the room it brings, though its desktop sizes it first.
 
 WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
@@ -142,6 +143,9 @@ copy handed on, the clipboard read only when asked, its placement read, and a re
 `workshop/screen.hpp` Session::normal_w
 `workshop/weave_handlers.cpp` normal_w on(SurfacePlacement)
 `workshop/weave.hpp` WorkshopWeave::medium_placed_
+`graphics/window/window.hpp` service_pump
+`tests/test_graphics.cpp` "the OS window's clipboard and its place on the desktop are its backend's: a
+copy handed on, the clipboard read only when asked, its placement read, and a remembered place"
 `tests/test_workshop_persistence.cpp` "a maximized close remembers the NORMAL room beside the
 maximized state" "unmaximizing reopens the gate, and the normal room tracks again" "a restored
 maximized flag alone does not gate this run's viewport"

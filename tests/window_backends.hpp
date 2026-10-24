@@ -110,6 +110,9 @@ struct LightLog {
     bool holds_copies = false; ///< true: a copy is what its clipboard holds after, as a platform's
     int reads = 0;                            ///< how often its clipboard was read
     std::optional<gw::WindowPlacementValue> placement;
+    /// A placement its next poll brings, as SDL's queue brings a window's state: its size is read
+    /// at once, its maximized state only with the queue.
+    std::optional<gw::WindowPlacementValue> placement_at_poll;
     std::vector<gw::WindowPlacementValue> placed;
     std::vector<gw::PixelSize> grown;         ///< each size it was asked to grow toward
     bool grows = false; ///< true: a growth asked takes its size, as a platform with room does
@@ -184,6 +187,9 @@ public:
     gw::PixelPolled poll() {
         gw::PixelPolled out = std::move(log_->queued);
         log_->queued = {};
+        if (log_->placement_at_poll) {
+            log_->placement = std::exchange(log_->placement_at_poll, std::nullopt);
+        }
         return out;
     }
     void clipboard_copy(std::string_view text) {
