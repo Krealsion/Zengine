@@ -168,12 +168,11 @@ LAW — A row's `otherwise` loads in order where its own artifact cannot: a refu
 
 MEANS
 - the shipped window row is the OS window, otherwise the terminal window, in every build;
-- the OS window that cannot open refuses its own making, so nothing of it stays loaded;
+- the OS window that cannot open refuses its own making in SDL's words, so nothing of it stays loaded and the desk and Attention say them;
 - `--tui` over a plan offering no terminal window, or a launch naming the retired graphical plan where none is, is refused, with its fix.
 
 DOES NOT MEAN
-- that a running Workshop switches windows, or that a start remembers which one opened;
-- that SDL's own words reach the desk: a refused making carries none, so they are on stderr.
+- that a running Workshop switches windows, or that a start remembers which one opened.
 
 WHY — `agents/decisions/the-window-is-a-choice-in-the-plan.md`
 

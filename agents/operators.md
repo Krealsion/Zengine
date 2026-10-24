@@ -208,8 +208,8 @@ built from one authoring. A Zengine host owns ONE `op::Catalog`, and a Timer it 
   needs a class of its own.** `timer/timer.cpp` and `tests/weavelib/timer_virtual.cpp` each
   derive a six-line `TimerService` whose only member is a constructor passing
   `DelayAuthority(OperatorHost::offered())` down. It adds no state and overrides nothing. The
-  refusal sentence goes to **stderr** before the throw, because `create()`'s contract is a
-  null pointer and a null pointer carries no reason.
+  refusal sentence goes to **stderr** before the throw, and the throw's words are the load's
+  refusal (`library create() refused: <what it threw>`).
 - **Do not write `ZENGINE_OPERATOR_CONSUMER()` in a test binary.**
   `detail::offered_host_slot()` has default visibility, so an executable that defined it would
   sit in the lookup scope of every `.so` that also defines it. A suite drives the consumer
