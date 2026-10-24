@@ -37,7 +37,7 @@ WHY — `agents/decisions/a-guest-reads-and-points-by-door.md`
 LAW — On every host every guest is refused the words of Connections, the Hotkeys pane and an editor showing the guests file, every observation of the connections, and the weaver's input without `keystrokes`.
 
 MEANS
-- the weaver's input is `AttributedInput`, `KeyPressed` and `TextEntered`, and a window's `AreaKeyPressed`, `AreaKeyReleased` and `AreaTextEntered`, from any office;
+- the weaver's input is `AttributedInput`, `KeyPressed`, `KeyReleased` and `TextEntered`, and a window's `AreaKeyPressed`, `AreaKeyReleased` and `AreaTextEntered`, from any office;
 - a refusal names the pane and why, never what it shows.
 
 DOES NOT MEAN
