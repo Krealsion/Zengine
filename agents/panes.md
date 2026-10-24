@@ -79,7 +79,7 @@ settings write and editor switch are kept from a guest on a weaver's host by the
 (WL-GUEST-06), and any carry a guest's press or key would begin there is refused when the pane asks
 Workshop to begin it. Every other control an
 injected hand reaches by key or press still answers it as the weaver's. A door a participant sends straight to an owner, past the dispatch, is judged by
-the owner asking `ActorScopeRequested` about its sender (WL-GUEST-04). No guest is granted
+the owner asking the guest door `ActorScopeRequested` about its sender (WL-GUEST-04). No guest is granted
 `BuildRequested`, a realization ask or a clipboard door as a shape.
 
 `workshop/pane_carry.hpp` transports one owned reference envelope from an approved acquisition.
