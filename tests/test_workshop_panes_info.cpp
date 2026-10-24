@@ -2572,8 +2572,8 @@ TEST_CASE("Info draws its properties on its canvas on the medium's own ground, a
     selected();
     bar_at(10);
     f.r.key(input::scan::kEscape); // the draft ends, and its caret with it
-    CHECK(held_caret(held()).row == surface::kNoCaret);
-    CHECK(held_caret(held()).sel_begin_row == surface::kNoSelection);
+    CHECK(held_caret(held()).row == kNoCaret);
+    CHECK(held_caret(held()).sel_begin_row == kNoSelection);
     CHECK(marks() == 0);
 }
 

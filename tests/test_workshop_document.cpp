@@ -346,10 +346,10 @@ TEST_CASE("the name editor selects with the same keys and says it in characters"
     // with a real region caret at its active end.
     t.key(input::scan::kA, input::mod::kCtrl);
     CHECK(t.session().setup.naming.line.selected_text() == "Default");
-    const std::vector<surface::SurfaceTextRegion> at_bands =
+    const std::vector<ScreenRegion> at_bands =
         regions_at(paint(t.session()), 0, 0);
     REQUIRE(at_bands.size() == 1);
-    const surface::SurfaceTextRegion& editor = at_bands.front();
+    const ScreenRegion& editor = at_bands.front();
     REQUIRE_FALSE(editor.rows.empty());
     CHECK(editor.rows[0].text.find("layout name> Default") == 0);
     const std::int64_t prompt =
@@ -1355,10 +1355,10 @@ TEST_CASE("a written gesture is modifier words in one order out, any order in, a
 namespace {
 
 /// The band region a canvas actually published, or nullptr -- by its place.
-const surface::SurfaceTextRegion* band_on(const surface::SurfaceCanvas& c, const Screen& sc) {
+const ScreenRegion* band_on(const ScreenCanvas& c, const Screen& sc) {
     const PixelRect b = band_bounds(sc);
-    for (const surface::SurfaceLayer& layer : c.layers) {
-        for (const surface::SurfaceTextRegion& r : layer.texts) {
+    for (const ScreenPlane& layer : c.layers) {
+        for (const ScreenRegion& r : layer.texts) {
             if (r.x == b.x && r.y == b.y && r.h == b.h) {
                 return &r;
             }
@@ -1368,13 +1368,13 @@ const surface::SurfaceTextRegion* band_on(const surface::SurfaceCanvas& c, const
 }
 
 /// The TOP band region a canvas published, or nullptr -- by its place.
-const surface::SurfaceTextRegion* top_band_on(const surface::SurfaceCanvas& c,
-                                              const Session& s, const Screen& sc) {
+const ScreenRegion* top_band_on(const ScreenCanvas& c,
+                                const Session& s, const Screen& sc) {
     return layouts_region_on(c, s, sc);
 }
 
 /// A region row's text -- "" for a row the composition left unsaid.
-std::string band_row(const surface::SurfaceTextRegion* band, std::size_t i) {
+std::string band_row(const ScreenRegion* band, std::size_t i) {
     if (band == nullptr || i >= band->rows.size()) {
         return {};
     }
@@ -1386,12 +1386,12 @@ std::string band_row(const surface::SurfaceTextRegion* band, std::size_t i) {
 TEST_CASE("the shipped face reads every Workshop-owned sentence as real type") {
     // THE TARGET LAW, as one sweep: at the shipped metric, a full screen -- Info open and the
     // stand-in open -- publishes its prose as regions the graphical medium sets in type, and
-    // no `SurfaceLabel` is left: a label is kept only where its CELL is the meaning.
+    // no `ScreenLabel` is left: a label is kept only where its CELL is the meaning.
     Session s = screen_session(kScreenMinW, kScreenMinH, 8, 18);
     (void)open_kind(s.panes, stock::kKind);
-    const surface::SurfaceCanvas c = paint(s);
+    const ScreenCanvas c = paint(s);
 
-    for (const surface::SurfaceLabel& l : all_labels(c)) {
+    for (const ScreenLabel& l : all_labels(c)) {
         CAPTURE(l.text);
         CHECK(l.text == std::string(kHandleGlyph));
     }
@@ -1400,7 +1400,7 @@ TEST_CASE("the shipped face reads every Workshop-owned sentence as real type") {
     // ...and every published region's bounds hold at least one row of the face, so none
     // of them falls back to the cell voice: the band and every pane's region.
     const Screen sc = screen_of(s);
-    for (const surface::SurfaceTextRegion& r : all_texts(c)) {
+    for (const ScreenRegion& r : all_texts(c)) {
         CAPTURE(r.x);
         CAPTURE(r.y);
         CHECK(surface::fit_region(r, surface::SurfaceExtent{cells_px(0), cells_px(0), 8, 18}).graphical());
@@ -1415,9 +1415,9 @@ TEST_CASE("two bands compose their budgets, and the selector is row 0") {
     Session cells = screen_session(kScreenMinW, kScreenMinH, 0, 0);
     cells.notice = "a notice";
     const Screen csc = screen_of(cells);
-    const surface::SurfaceCanvas cell_canvas = paint(cells);
+    const ScreenCanvas cell_canvas = paint(cells);
 
-    const surface::SurfaceTextRegion* ctop = top_band_on(cell_canvas, cells, csc);
+    const ScreenRegion* ctop = top_band_on(cell_canvas, cells, csc);
     REQUIRE(ctop != nullptr);
     CHECK(ctop->y == 0); // THE FIRST WORKSHOP ROW IS THE LAYOUT SELECTOR
     CHECK(layouts_body(cells, csc).rows == kTopRows);
@@ -1426,7 +1426,7 @@ TEST_CASE("two bands compose their budgets, and the selector is row 0") {
     CHECK(band_row(ctop, 0).find("setup: none") != std::string::npos);
     CHECK(band_row(ctop, 1) == "workspace 78x16 cells");
 
-    const surface::SurfaceTextRegion* cband = band_on(cell_canvas, csc);
+    const ScreenRegion* cband = band_on(cell_canvas, csc);
     REQUIRE(cband != nullptr);
     CHECK(band_fit(csc).rows == kBottomRows);
     REQUIRE(cband->rows.size() == 4);
@@ -1446,9 +1446,9 @@ TEST_CASE("two bands compose their budgets, and the selector is row 0") {
     Session sdl = screen_session(kScreenMinW, kScreenMinH, 8, 18, gfx::kCellPx);
     sdl.notice = "a notice";
     const Screen ssc = screen_of(sdl);
-    const surface::SurfaceCanvas sdl_canvas = paint(sdl);
-    const surface::SurfaceTextRegion* stop = top_band_on(sdl_canvas, sdl, ssc);
-    const surface::SurfaceTextRegion* sband = band_on(sdl_canvas, ssc);
+    const ScreenCanvas sdl_canvas = paint(sdl);
+    const ScreenRegion* stop = top_band_on(sdl_canvas, sdl, ssc);
+    const ScreenRegion* sband = band_on(sdl_canvas, ssc);
     REQUIRE(stop != nullptr);
     REQUIRE(sband != nullptr);
     CHECK(layouts_body(sdl, ssc).rows == kTopRows);
@@ -1467,9 +1467,9 @@ TEST_CASE("two bands compose their budgets, and the selector is row 0") {
     // the foot, while the identity keeps its band at the top.
     Session one = screen_session(kScreenMinW, kScreenMinH, 8, 40); // 44/40 = 1 band row
     one.notice = "a notice";
-    const surface::SurfaceCanvas one_canvas = paint(one);
-    const surface::SurfaceTextRegion* oband = band_on(one_canvas, screen_of(one));
-    const surface::SurfaceTextRegion* otop = top_band_on(one_canvas, one, screen_of(one));
+    const ScreenCanvas one_canvas = paint(one);
+    const ScreenRegion* oband = band_on(one_canvas, screen_of(one));
+    const ScreenRegion* otop = top_band_on(one_canvas, one, screen_of(one));
     REQUIRE(oband != nullptr);
     REQUIRE(oband->rows.size() == 1);
     CHECK(band_row(oband, 0) == "a notice"); // the tool's voice wins the one row
@@ -1481,8 +1481,8 @@ TEST_CASE("two bands compose their budgets, and the selector is row 0") {
     CHECK(band_row(otop, 0).rfind(">Default<", 0) == 0);
 
     one.notice.clear();
-    const surface::SurfaceCanvas quiet_canvas = paint(one);
-    const surface::SurfaceTextRegion* qband = band_on(quiet_canvas, screen_of(one));
+    const ScreenCanvas quiet_canvas = paint(one);
+    const ScreenRegion* qband = band_on(quiet_canvas, screen_of(one));
     REQUIRE(qband != nullptr);
     REQUIRE(qband->rows.size() == 1);
     CHECK(qband->rows[0].text.rfind("q quit", 0) == 0); // the legend, with nothing said
@@ -1499,14 +1499,14 @@ TEST_CASE("the legend modes move only the legend rows, in both budgets") {
         const std::size_t legend_at = 1;
 
         s.keymap.legend = legend_mode::kFull;
-        const surface::SurfaceCanvas full_c = paint(s);
-        const surface::SurfaceTextRegion* full_b = band_on(full_c, sc);
+        const ScreenCanvas full_c = paint(s);
+        const ScreenRegion* full_b = band_on(full_c, sc);
         REQUIRE(full_b != nullptr);
         CHECK(band_row(full_b, legend_at).rfind("q quit", 0) == 0);
 
         s.keymap.legend = legend_mode::kCompact;
-        const surface::SurfaceCanvas compact_c = paint(s);
-        const surface::SurfaceTextRegion* compact_b = band_on(compact_c, sc);
+        const ScreenCanvas compact_c = paint(s);
+        const ScreenRegion* compact_b = band_on(compact_c, sc);
         REQUIRE(compact_b != nullptr);
         // COMPACT IS THE APPLICATION'S ROWS ABOVE EVERY MODE; with no desktop, there are none.
         CHECK(band_row(compact_b, legend_at).empty());
@@ -1517,12 +1517,12 @@ TEST_CASE("the legend modes move only the legend rows, in both budgets") {
                                                                  input::mod::kCtrl},
                                                          app_precedence::kAboveModes}})
                     .accepted);
-        const surface::SurfaceCanvas compact_d = paint(with_desktop);
+        const ScreenCanvas compact_d = paint(with_desktop);
         CHECK(band_row(band_on(compact_d, sc), legend_at) == "ctrl+k hotkeys");
 
         s.keymap.legend = legend_mode::kHidden;
-        const surface::SurfaceCanvas hidden_c = paint(s);
-        const surface::SurfaceTextRegion* hidden_b = band_on(hidden_c, sc);
+        const ScreenCanvas hidden_c = paint(s);
+        const ScreenRegion* hidden_b = band_on(hidden_c, sc);
         REQUIRE(hidden_b != nullptr);
         CHECK(band_row(hidden_b, legend_at).empty());
 

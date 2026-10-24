@@ -736,8 +736,8 @@ TEST_CASE("the caret carries a selection, and both ends or neither") {
     // COLLAPSING IT UN-SAYS IT: a caret with no selection draws none.
     t.r.key(input::scan::kRight);
     const RowsCaret after = t.caret();
-    CHECK(after.sel_begin_row == surface::kNoSelection);
-    CHECK(after.sel_end_row == surface::kNoSelection);
+    CHECK(after.sel_begin_row == kNoSelection);
+    CHECK(after.sel_end_row == kNoSelection);
     CHECK(after.row == t.input_row());
 }
 
@@ -800,7 +800,7 @@ TEST_CASE("the list is rows INSIDE the pane, above the line it belongs to") {
     REQUIRE(held != nullptr);
     REQUIRE(shows_canvas(*held));
     std::size_t drawn = 0;
-    for (const surface::SurfaceTextRegion& one : all_texts(paint(t.r.session()))) {
+    for (const ScreenRegion& one : all_texts(paint(t.r.session()))) {
         if (one.x >= held->placed_x && one.x < held->placed_x + held->placed_w &&
             one.y >= held->placed_y && one.y < held->placed_y + held->placed_h) {
             ++drawn;
@@ -907,7 +907,7 @@ TEST_CASE("WL-HAND-06: the Terminal names the line being typed and each candidat
         }
         CHECK(row_at(window.rows(area), t.input_row()) == row_at(t.shown(), t.input_row()));
         t.r.key(input::scan::kRight);
-        REQUIRE(t.caret().sel_begin_row == surface::kNoSelection);
+        REQUIRE(t.caret().sel_begin_row == kNoSelection);
         CHECK(kept(sel) == nullptr);
         CHECK(kept("caret") != nullptr);
 
@@ -1099,7 +1099,7 @@ TEST_CASE("a refusal is said BESIDE the line it is about, never in place of it")
     CHECK(rows.back().rfind(">", 0) == 0);
     // ...AND THE CARET IS ON IT, said by the pane in its picture rather than inferred.
     CHECK(t.caret().row == static_cast<std::int64_t>(rows.size()) - 1);
-    CHECK(t.caret().row != surface::kNoCaret);
+    CHECK(t.caret().row != kNoCaret);
 
     // AND THE WEAVER TYPES AGAIN, which is the thing the lost row made impossible.
     t.type("send");
@@ -1191,7 +1191,7 @@ TEST_CASE("an id the Terminal never declared is no act: the refusal stands throu
     // the caret in `abc`; the second, at the same place, selects the word.
     t.type("abc def");
     t.press_row(t.input_row(), 2 + 1);
-    REQUIRE(t.caret().sel_begin_row == surface::kNoSelection);
+    REQUIRE(t.caret().sel_begin_row == kNoSelection);
     (void)t.r.workshop_action(pane::kTerminalPaneRole, pane::kTerminalPane,
                               "terminal.no-such-action");
     t.press_row(t.input_row(), 2 + 1);

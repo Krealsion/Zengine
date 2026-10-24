@@ -16,7 +16,7 @@ namespace zengine::workshop {
 // ---- THE COMPOSITION: every pane back to front, the bottom band, and the screen as planes ----
 
 // WL-FRONT-01, WL-FRONT-05, WL-FRONT-07 -- agents/workshop/planes.md
-void paint_panes(surface::SurfaceCanvas& c, const Session& s, const Screen& sc) {
+void paint_panes(ScreenCanvas& c, const Session& s, const Screen& sc) {
     const Panes& panes = s.panes;
     const std::int64_t lifted = selected_pane(panes);
     for (const std::int64_t kind : effective_pane_order(s.setup.active, panes)) {
@@ -26,7 +26,7 @@ void paint_panes(surface::SurfaceCanvas& c, const Session& s, const Screen& sc) 
             continue;
         }
         const std::int64_t chrome = p.kind == lifted ? kPaneChromeSelected : kPaneChrome;
-        detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
+        detail::on_own_layer(c, [&](ScreenPlane& layer) {
             if (p.kind == pane_kind::kLayouts) {
                 // The layout run, the setup association and the workspace fact: the rectangle is
                 // `bounds_of`'s and the order `effective_pane_order`'s, so a pane in front is
@@ -39,21 +39,21 @@ void paint_panes(surface::SurfaceCanvas& c, const Session& s, const Screen& sc) 
             }
         });
     }
-    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
+    detail::on_own_layer(c, [&](ScreenPlane& layer) {
         paint_pane_affordances(layer, s, sc);
     });
-    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
+    detail::on_own_layer(c, [&](ScreenPlane& layer) {
         paint_selection_ring(layer, s, sc);
     });
     // The contextual-action surface, last in the band: over everything as the band's latest
     // gesture, and it takes the band's keys first for the same reason (`keyboard_context`).
-    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
+    detail::on_own_layer(c, [&](ScreenPlane& layer) {
         paint_context(layer, s, sc);
     });
     // ...AND A PANE'S MENU'S FRAME, in the same position for the same reason: it is the surface the
     // weaver's next keys and presses go to. At most one of the two is open; the menu's lines are
     // its presenter's, drawn in an area of its own in a window.
-    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
+    detail::on_own_layer(c, [&](ScreenPlane& layer) {
         paint_presented(layer, s, sc);
     });
 }
@@ -91,7 +91,7 @@ std::vector<PixelRect> selection_rings(const PixelRect& b, const Screen& sc) {
 } // namespace
 
 // WL-FOCUS-12 -- agents/workshop/focus.md
-void paint_selection_ring(surface::SurfaceLayer& layer, const Session& s, const Screen& sc) {
+void paint_selection_ring(ScreenPlane& layer, const Session& s, const Screen& sc) {
     const PixelRect b = selection_ring_rect(s, sc);
     if (b.empty()) {
         return;
@@ -126,14 +126,14 @@ void paint_selection_ring(surface::SurfaceLayer& layer, const Session& s, const 
     };
     for (const auto& [edge, glyph] : kCorners) {
         const PixelRect at = pane_edge_cell(b, edge);
-        layer.labels.push_back(surface::SurfaceLabel{at.x, at.y, glyph, role});
+        layer.labels.push_back(ScreenLabel{at.x, at.y, glyph, role});
     }
 }
 
-surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc) {
+ScreenRegion band_region(const Session& s, const Screen& sc) {
     const PixelRect b = band_bounds(sc);
     const RegionFit fit = band_fit(sc);
-    surface::SurfaceTextRegion band;
+    ScreenRegion band;
     band.x = b.x;
     band.y = b.y;
     band.w = b.w;
@@ -194,7 +194,7 @@ surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc) {
     }
 
     const auto push = [&band](std::string text, std::int64_t role) {
-        band.rows.push_back(surface::SurfaceTextRow{std::move(text), role});
+        band.rows.push_back(TextRow{std::move(text), role});
     };
     if (budget >= 2) {
         push(notice, notice_role);
@@ -217,9 +217,9 @@ surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc) {
 
 // WL-FRONT-01, WL-FRONT-07 -- agents/workshop/planes.md
 // WL-ATTN-04 -- agents/workshop/attention.md
-surface::SurfaceCanvas paint(const Session& s) {
+ScreenCanvas paint(const Session& s) {
     const Screen sc = screen_of(s);
-    surface::SurfaceCanvas c;
+    ScreenCanvas c;
     c.width = sc.w;
     c.height = sc.h;
 
@@ -233,7 +233,7 @@ surface::SurfaceCanvas paint(const Session& s) {
     // A region clears its whole rectangle, so a pane authored over the band is covered by it; the
     // band occupies no pointer space. The top band is an ordinary pane (`paint_panes`), and its
     // rows stay reserved (`kTopRows`), so the workspace does not move.
-    detail::on_own_layer(c, [&](surface::SurfaceLayer& layer) {
+    detail::on_own_layer(c, [&](ScreenPlane& layer) {
         layer.texts.push_back(band_region(s, sc));
     });
 
@@ -275,7 +275,7 @@ PixelRect span_px(const RegionFit& f, std::int64_t row, std::int64_t column,
 /// what lies beneath, each row's own ground, its rows, then its selection again in the accent role
 /// and its caret as a bar, where the medium sets them.
 void draw_region(graphics::Sketch& sk, const std::string& name,
-                 const surface::SurfaceTextRegion& g, const Screen& sc) {
+                 const ScreenRegion& g, const Screen& sc) {
     if (g.w <= 0 || g.h <= 0) {
         return;
     }
@@ -288,11 +288,11 @@ void draw_region(graphics::Sketch& sk, const std::string& name,
         at.y -= g.y;
         return at;
     };
-    if (g.ground != surface::kGroundBeneath) {
+    if (g.ground != kGroundBeneath) {
         sk.fill_rect(name + "/ground", 0, 0, g.w, g.h, graphics::by_role(graphics::role::kGround));
     }
     for (std::size_t r = 0; r < g.rows.size(); ++r) {
-        const surface::SurfaceTextRow& row = g.rows[r];
+        const TextRow& row = g.rows[r];
         const PixelRect at = local(static_cast<std::int64_t>(r), 0, 0);
         if (row.background != graphics::role::kNone) {
             sk.fill_rect(name + "/bg" + std::to_string(r), 0, at.y, g.w, at.h,
@@ -301,7 +301,7 @@ void draw_region(graphics::Sketch& sk, const std::string& name,
         sk.text(name + "/row" + std::to_string(r), at.x, at.y, row.text,
                 graphics::by_role(row.role));
     }
-    if (g.sel_begin_row != surface::kNoSelection && g.sel_end_row != surface::kNoSelection) {
+    if (g.sel_begin_row != kNoSelection && g.sel_end_row != kNoSelection) {
         for (std::int64_t r = (std::max)(std::int64_t{0}, g.sel_begin_row);
              r <= g.sel_end_row && r < static_cast<std::int64_t>(g.rows.size()); ++r) {
             const std::string& text = g.rows[static_cast<std::size_t>(r)].text;
@@ -332,12 +332,12 @@ void draw_region(graphics::Sketch& sk, const std::string& name,
 /// edge: drawn as a graphics window wears an edge, a ring in its role, on ground where `opaque`.
 /// Each label stands on its own ground where `grounded`, a line of the window's text tall and an
 /// advance of it a character: a plane over the panes covers only what it draws.
-void draw_plane(graphics::Sketch& sk, const std::string& name, const surface::SurfaceLayer& layer,
+void draw_plane(graphics::Sketch& sk, const std::string& name, const ScreenPlane& layer,
                 const Screen& sc, const PixelRect& frame = {}, bool opaque = true,
                 bool grounded = false) {
     sk.group(name, 0, 0);
     for (std::size_t i = 0; i < layer.rects.size(); ++i) {
-        const surface::SurfaceRect& r = layer.rects[i];
+        const ScreenRect& r = layer.rects[i];
         const std::string at = name + "/rect" + std::to_string(i);
         if (r.w <= 0 || r.h <= 0) {
             continue;
@@ -356,7 +356,7 @@ void draw_plane(graphics::Sketch& sk, const std::string& name, const surface::Su
         sc.text_advance_px > 0 ? sc.text_advance_px : graphics::kCellPx;
     const std::int64_t line = sc.text_line_px > 0 ? sc.text_line_px : graphics::kCellPx;
     for (std::size_t i = 0; i < layer.labels.size(); ++i) {
-        const surface::SurfaceLabel& l = layer.labels[i];
+        const ScreenLabel& l = layer.labels[i];
         const std::string at = name + "/label" + std::to_string(i);
         if (grounded && !l.text.empty()) {
             sk.fill_rect(at + "-ground", l.x, l.y,
@@ -374,7 +374,7 @@ void draw_plane(graphics::Sketch& sk, const std::string& name, const surface::Su
 /// in its role, recorded with `action`.
 void draw_part(WorkshopWindowDrawing& out, const std::string& group, const std::string& action,
                const RegionFit& fit, std::int64_t r, std::int64_t column,
-               std::int64_t columns, const surface::SurfaceTextRow& row) {
+               std::int64_t columns, const TextRow& row) {
     if (columns <= 0 || column < 0) {
         return;
     }
@@ -425,7 +425,7 @@ graphics::Sketch rooted(const graphics::Sketch& built, const std::string& stem) 
 void draw_pane(WorkshopWindowDrawing& out, const Session& s, std::int64_t kind,
                const PixelRect& b, const Screen& sc, const std::string& desk) {
     const std::int64_t chrome = kind == selected_pane(s.panes) ? kPaneChromeSelected : kPaneChrome;
-    surface::SurfaceLayer layer;
+    ScreenPlane layer;
     if (kind == pane_kind::kLayouts) {
         const std::string group = desk + "/layouts";
         paint_layouts(layer, s, b, sc, chrome);
@@ -434,7 +434,7 @@ void draw_pane(WorkshopWindowDrawing& out, const Session& s, std::int64_t kind,
         if (tab_row != kNoBandRow) {
             const ExternalBodyPlace place = layouts_body(s, sc);
             const BandStatus band = band_status(s, place);
-            const surface::SurfaceTextRow row{band.text, graphics::role::kMuted};
+            const TextRow row{band.text, graphics::role::kMuted};
             for (const LayoutTab& tab : band.tabs) {
                 draw_part(out, group, "layout:" + std::to_string(tab.at), place.fit, tab_row,
                           tab.column, tab.columns, row);
@@ -463,7 +463,7 @@ void draw_pane(WorkshopWindowDrawing& out, const Session& s, std::int64_t kind,
     }
     // THE HEADER'S PRESSES: the title puts the pane in front, and the `?` and the gear, where the
     // row wears them, are pressed as their own (`chrome_mark_at`).
-    const surface::SurfaceTextRow& header = layer.texts.back().rows.front();
+    const TextRow& header = layer.texts.back().rows.front();
     const bool marks = pane != nullptr && pane->manual && body.columns >= kChromeMarksMinColumns;
     const std::int64_t marks_cols =
         static_cast<std::int64_t>(std::char_traits<char>::length(kChromeMarks));
@@ -490,7 +490,7 @@ WorkshopWindowDrawing workshop_window_drawing(const Session& s) {
     out.sketch.group(desk, 0, 0);
     // THE ARRANGEMENT'S RINGS, THEN A MENU, THEN THE BAND, each over everything before it.
     {
-        surface::SurfaceLayer layer;
+        ScreenPlane layer;
         paint_pane_affordances(layer, s, sc);
         draw_plane(out.sketch, desk + "/rings", layer, sc);
     }
@@ -512,7 +512,7 @@ WorkshopWindowDrawing workshop_window_drawing(const Session& s) {
         }
     }
     if (s.context.open) {
-        surface::SurfaceLayer layer;
+        ScreenPlane layer;
         paint_context(layer, s, sc);
         const std::string group = desk + "/context";
         draw_plane(out.sketch, group, layer, sc, context_bounds(s, sc));
@@ -530,12 +530,12 @@ WorkshopWindowDrawing workshop_window_drawing(const Session& s) {
     }
     if (s.presented.open) {
         // A PANE'S MENU: its frame here, its lines in the presenter's own area inside it.
-        surface::SurfaceLayer layer;
+        ScreenPlane layer;
         paint_presented(layer, s, sc);
         draw_plane(out.sketch, desk + "/presented", layer, sc, presented_bounds(s, sc));
     }
     {
-        surface::SurfaceLayer layer;
+        ScreenPlane layer;
         layer.texts.push_back(band_region(s, sc));
         draw_plane(out.sketch, desk + "/band", layer, sc);
     }
@@ -562,7 +562,7 @@ WorkshopFrameDrawing workshop_frame_drawing(const Session& s, std::int64_t kind)
 }
 
 graphics::Sketch workshop_overlay_drawing(const Session& s,
-                                          const std::vector<surface::SurfaceLayer>& overlays) {
+                                          const std::vector<ScreenPlane>& overlays) {
     const Screen sc = screen_of(s);
     const std::string marks = "marks";
     graphics::Sketch out;

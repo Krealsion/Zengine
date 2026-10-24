@@ -399,7 +399,7 @@ struct EditorRig {
     /// oracle that watched only the row let a draining helper through.
     std::pair<std::int64_t, std::int64_t> admitted_caret() {
         const ExternalPane* seated = seat();
-        if (seated == nullptr) return {surface::kNoCaret, 0};
+        if (seated == nullptr) return {kNoCaret, 0};
         const RowsCaret held = held_caret(*seated);
         return {held.row, held.column};
     }
@@ -2178,7 +2178,7 @@ TEST_CASE("a drag sweeps a multiline selection, and the selection survives relea
     CHECK(e.doc_row(1) == "three");
     // ...AND A MOTION WITH THE BUTTON UP SWEEPS NOTHING.
     e.motion_doc(1, 3);
-    CHECK(e.caret().sel_begin_row == surface::kNoSelection);
+    CHECK(e.caret().sel_begin_row == kNoSelection);
 }
 
 TEST_CASE("in a terminal, a press on a character past the caret puts the caret before that character, and a sweep ends before the character under the hand") {
@@ -2257,7 +2257,7 @@ TEST_CASE("a drag past the body's bottom edge steps the window, one row per moti
     CHECK(e.caret().sel_begin_col == 0);
     CHECK(e.caret().sel_end_row == 5);
     CHECK(e.caret().sel_end_col == static_cast<std::int64_t>(e.doc_row(5 - above).size()));
-    CHECK(e.caret().row == surface::kNoCaret);
+    CHECK(e.caret().row == kNoCaret);
 }
 
 TEST_CASE("a selection that runs above the window is clipped, and one wholly out of it "
@@ -2288,15 +2288,15 @@ TEST_CASE("a selection that runs above the window is clipped, and one wholly out
     e.wheel(-1.0);
     e.wheel(-1.0);
     e.wheel(-1.0);
-    CHECK(e.caret().row == surface::kNoCaret);
-    CHECK(e.caret().sel_begin_row == surface::kNoSelection);
+    CHECK(e.caret().row == kNoCaret);
+    CHECK(e.caret().sel_begin_row == kNoSelection);
     // ...and scrolling back up brings the range back with the caret out of the window: a
     // selection may stand with no caret.
     for (int i = 0; i < 9; ++i) {
         e.wheel(1.0);
     }
-    CHECK(e.caret().row == surface::kNoCaret);
-    CHECK(e.caret().sel_begin_row != surface::kNoSelection);
+    CHECK(e.caret().row == kNoCaret);
+    CHECK(e.caret().sel_begin_row != kNoSelection);
 }
 
 TEST_CASE("the wheel scrolls the body, moves no caret, and elsewhere reaches nothing") {
@@ -2311,7 +2311,7 @@ TEST_CASE("the wheel scrolls the body, moves no caret, and elsewhere reaches not
     e.press_doc(0, 0);
     e.wheel(-1.0); // away from the weaver: the document scrolls up by kEditorWheelLines
     CHECK(e.doc_row(0) == "line " + std::to_string(1 + kEditorWheelLines));
-    CHECK(e.caret().row == surface::kNoCaret); // the caret stayed on line 1, off screen
+    CHECK(e.caret().row == kNoCaret); // the caret stayed on line 1, off screen
     CHECK(e.status().rfind("saved L1:C1", 0) == 0);
     e.wheel(1.0);
     CHECK(e.doc_row(0) == "line 1");
@@ -2388,7 +2388,7 @@ TEST_CASE("a resize reconciles the viewport and does not strand the caret") {
     e.give_rows(4);
     // Three document rows, and the caret's line is one of them.
     REQUIRE(held_canvas_rows(*e.seat()).rows == 4);
-    CHECK(e.caret().row != surface::kNoCaret);
+    CHECK(e.caret().row != kNoCaret);
     CHECK(e.doc_row(e.caret().row - 1) == "line 21");
 }
 
@@ -2415,7 +2415,7 @@ TEST_CASE("in a room too small for both, the document keeps its rows and a notic
     // ONE ROW: the standing notice, and nothing else -- the caret has no row to be on.
     e.give_rows(1);
     CHECK(e.shown().size() == 1);
-    CHECK(e.caret().row == surface::kNoCaret);
+    CHECK(e.caret().row == kNoCaret);
     e.type("z"); // ...and typing into it still edits the document, and clears the notice
     CHECK(e.shown().size() == 1);
     CHECK(e.shown()[0].rfind("UNSAVED", 0) == 0);
@@ -2476,7 +2476,7 @@ TEST_CASE("a press begins a sweep only where it named a row of the body") {
     CHECK(e.r.session().panes.keyboard == e.kind);
     e.motion_doc(1, 2); // held over the document's rows: a header press swept nothing
     e.release_doc(1, 2);
-    CHECK(e.caret().sel_begin_row == surface::kNoSelection);
+    CHECK(e.caret().sel_begin_row == kNoSelection);
     e.press_doc(0, 0);
     e.motion_doc(1, 2); // ...and one on a row of the body sweeps
     CHECK(e.caret().sel_begin_row == e.chrome());
@@ -2746,17 +2746,17 @@ TEST_CASE("a press that only focuses begins no sweep, and a gesture keeps the ge
         e.open_file("a.cpp", "one\ntwo\nthree\n");
         e.press_doc(1, 1); // a real caret, somewhere to sweep from
         REQUIRE(e.seat() != nullptr);
-        CHECK(e.caret().sel_begin_row == surface::kNoSelection);
+        CHECK(e.caret().sel_begin_row == kNoSelection);
         e.release_doc(1, 1);
         // ...AND A PRESS THAT MEANS FOCUS AND NOTHING ELSE.
         press_pane(e.r, e.kind, 0, 0);
         CHECK(e.r.session().panes.keyboard == e.kind);
         e.motion_doc(2, 4);
         e.motion_doc(2, 5);
-        CHECK(e.caret().sel_begin_row == surface::kNoSelection);
+        CHECK(e.caret().sel_begin_row == kNoSelection);
         CHECK(e.caret().row == e.chrome() + 1); // the caret did not move either
         e.release_doc(2, 5);
-        CHECK(e.caret().sel_begin_row == surface::kNoSelection);
+        CHECK(e.caret().sel_begin_row == kNoSelection);
         // A REAL SWEEP STILL SWEEPS, from a press that named a document row.
         e.press_doc(0, 0);
         e.motion_doc(1, 3);
@@ -5498,7 +5498,7 @@ TEST_CASE("a Workshop that does not hold its office says so and starts no quit, 
     auto weave = std::make_unique<WorkshopWeave>(r.host);
     r.w = weave.get();
     loom::Grant speak;
-    speak.allow_to_any(surface::SurfaceCanvas::zen_name, surface::SurfaceCanvas::zen_version);
+    speak.allow_to_any(ScreenCanvas::zen_name, ScreenCanvas::zen_version);
     speak.allow_to_any(surface::SurfaceText::zen_name, surface::SurfaceText::zen_version);
     speak.allow_to_any(PaneQuitRequested::zen_name, PaneQuitRequested::zen_version);
     r.workshop_id = r.bus.register_weave(std::move(weave), std::move(speak)); // no office

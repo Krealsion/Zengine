@@ -2103,7 +2103,7 @@ TEST_CASE("the authoring line's caret is the medium's, where the line's is, and 
     CHECK(held_caret(*pane).column == prompt + 1);
     // OUTSIDE THE LINE THERE IS NONE.
     f.r.key(input::scan::kEscape);
-    CHECK(held_caret(*pane).row == surface::kNoCaret);
+    CHECK(held_caret(*pane).row == kNoCaret);
 }
 
 TEST_CASE("the authoring line asks the window that shows Files for a paste, the OS window or the terminal's, and the Skin only while none shows it") {

@@ -162,7 +162,7 @@ DeskView WorkshopWeave::desk_view() const {
     out.arranging = session_.arrange.open;
     out.menu = desk_menu(session_, sc);
     if (session_.presented.open) presented_menu_reading(out.menu);
-    const surface::SurfaceTextRegion band = band_region(session_, sc);
+    const ScreenRegion band = band_region(session_, sc);
     const RegionFit fit =
         fit_region(band.x, band.y, band.w, band.h, sc.text_advance_px, sc.text_line_px);
     const GlyphGrid grid = glyph_grid(fit);
@@ -400,13 +400,13 @@ std::string WorkshopWeave::layouts_reading(PaneView& out) const {
     const Screen sc = screen_of(session_);
     const auto bounds = bounds_of(session_.panes, session_.setup.active, kind, sc);
     if (!bounds.open) return "pane view unavailable: the pane is not presented";
-    surface::SurfaceLayer layer;
+    ScreenPlane layer;
     paint_layouts(layer, session_, bounds.rect, sc, kPaneChrome);
     if (layer.texts.empty()) return "pane has no visible body";
     const ExternalBodyPlace place = external_body_place(bounds.rect, sc, 0);
     const GlyphGrid grid = glyph_grid(place.fit);
     const std::int64_t space = input_space_of(sc);
-    const surface::SurfaceTextRegion& region = layer.texts.back();
+    const ScreenRegion& region = layer.texts.back();
     std::vector<PaneWord> words;
     for (std::size_t i = 0; i < region.rows.size(); ++i) {
         PaneWord w = word_on(grid, static_cast<std::int64_t>(i), 0,

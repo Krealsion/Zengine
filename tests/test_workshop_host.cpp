@@ -36,7 +36,7 @@ loom::TerminalVocabulary two_versions() {
 loom::TerminalVocabulary workshop_vocab() {
     loom::TerminalVocabulary v;
     v.knows(loom::schema_of<surface::SurfaceText>())
-        .knows(loom::schema_of<surface::SurfaceCanvas>())
+        .knows(loom::schema_of<ScreenCanvas>())
         .accepts(loom::schema_of<loom::Ack>());
     return v;
 }
@@ -354,7 +354,7 @@ TEST_CASE("the surface says how much room it has, and Workshop paints that much"
     t.extent_px(cells_px(100), cells_px(33));
     REQUIRE(t.pictures > before);
 
-    const surface::SurfaceCanvas c = paint(t.session());
+    const ScreenCanvas c = paint(t.session());
     const Screen sc = screen_of(t.session());
     CHECK(c.width == cells_px(100));
     CHECK(c.height == cells_px(33));
@@ -396,7 +396,7 @@ TEST_CASE("a run no medium measures is exactly the run Workshop had before") {
     // measurement and is not spelled like one: `kScreenMinW`/`kScreenMinH` (screen.hpp) stand
     // because nobody offered anything else.
     Session s;
-    const surface::SurfaceCanvas c = paint(s);
+    const ScreenCanvas c = paint(s);
     CHECK(c.width == kScreenMinW);
     CHECK(c.height == kScreenMinH);
     CHECK(cells_of(screen_of(s)).w == 78);
@@ -497,7 +497,7 @@ TEST_CASE("a stacked pane covers the workspace, and may reach the right column")
     CHECK(stack_text(t.shown()).empty());
 
     open_stock_pane(t);
-    const surface::SurfaceCanvas with = paint(t.session());
+    const ScreenCanvas with = paint(t.session());
     const Screen sc = screen_of(t.session());
     // THE BOUNDS THE PLACEMENT PATH GIVES IT, and the rows are read against those rather than
     // against a column this case knows independently -- through the cell projection every
@@ -506,7 +506,7 @@ TEST_CASE("a stacked pane covers the workspace, and may reach the right column")
 cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc).rect);
     const ui::Rect inside = pane_body_cells(stack);
     std::size_t stacked_rows = 0;
-    for (const surface::SurfaceLabel& l : cell_text_of(with)) {
+    for (const ScreenLabel& l : cell_text_of(with)) {
         const std::int64_t lx = gfx::cell_of_pixel(l.x), ly = gfx::cell_of_pixel(l.y);
         if (lx == inside.x && ly >= inside.y && ly < inside.y + inside.h) {
             // Every stacked row is padded to the pane's own INTERIOR width, so in a
@@ -610,9 +610,9 @@ TEST_CASE("each pane is painted where the placement path says it is") {
     // AND THE STACKED PANE PAINTS NO ROW OUTSIDE ITS OWN BOUNDS. Every row of it is padded
     // to the width its bounds gave it -- the erasing mechanism following the pane rather
     // than a constant.
-    const surface::SurfaceCanvas c = paint(t.session());
+    const ScreenCanvas c = paint(t.session());
     std::size_t seen_stack = 0;
-    for (const surface::SurfaceLabel& l : cell_text_of(c)) {
+    for (const ScreenLabel& l : cell_text_of(c)) {
         const std::int64_t lx = gfx::cell_of_pixel(l.x), ly = gfx::cell_of_pixel(l.y);
         if (lx == builder_cells.x && ly >= builder_cells.y &&
             ly < builder_cells.y + builder_cells.h) {
@@ -903,7 +903,7 @@ TEST_CASE("the terminal's own size becomes Workshop's screen, growing and shrink
 
         // THE CANVAS IS THE SCREEN, and the screen FITS IN THE TERMINAL: what a publisher
         // paints plus what the layout spends on itself is never more than the room there is.
-        const surface::SurfaceCanvas c = paint(t.session());
+        const ScreenCanvas c = paint(t.session());
         CHECK(c.width == cells_px(want.screen_w));
         CHECK(c.height == cells_px(want.screen_h));
         CHECK(c.width <= cells_px(want.cols));

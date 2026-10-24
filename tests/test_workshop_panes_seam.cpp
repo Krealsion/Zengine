@@ -1413,7 +1413,7 @@ TEST_CASE("the off-screen sentence fits a hundred-column terminal whole, both wa
         CHECK(said.find("Reset > place") != std::string::npos);
         CHECK(said.find("hide and show") != std::string::npos);
         // ...AND THE BAND A HUNDRED COLUMNS WIDE PAINTS IT WHOLE, no elision mark at its end.
-        const surface::SurfaceTextRegion band = band_region(r.session(), screen_of(r.session()));
+        const ScreenRegion band = band_region(r.session(), screen_of(r.session()));
         REQUIRE_FALSE(band.rows.empty());
         CHECK(band.rows[0].text == said);
     }

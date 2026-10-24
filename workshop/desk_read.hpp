@@ -21,9 +21,8 @@
 #include "graphics/pixels.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
-#include "surface/pointing.hpp"
-#include "surface/region.hpp"
-#include "surface/vocabulary.hpp"
+#include "workshop/screen_planes.hpp"
+#include "workshop/pane_text_fit.hpp"
 #include "pane_text_fit.hpp"
 
 #include <zen/weave/standard_shapes.hpp>
@@ -232,7 +231,7 @@ inline DeskMenu desk_menu(const Session& s, const Screen& sc) {
     if (!s.context.open) {
         return menu;
     }
-    surface::SurfaceLayer layer;
+    ScreenPlane layer;
     menu.office = kWorkshopProvider;
     const PixelRect bounds = context_bounds(s, sc);
     paint_context(layer, s, sc);
@@ -243,7 +242,7 @@ inline DeskMenu desk_menu(const Session& s, const Screen& sc) {
     }
     const ProsePlace place = prose_place(bounds, sc);
     const GlyphGrid grid = glyph_grid(place.fit);
-    const surface::SurfaceTextRegion& region = layer.texts.back();
+    const ScreenRegion& region = layer.texts.back();
     const std::int64_t space = input_space_of(sc);
     for (std::size_t i = 0; i < region.rows.size(); ++i) {
         std::string text = without_trailing_blanks(region.rows[i].text);

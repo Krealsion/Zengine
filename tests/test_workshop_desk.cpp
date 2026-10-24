@@ -10,6 +10,8 @@
 #include "timeline.hpp"
 #include "attention/vocabulary.hpp"
 #include "surface/skin_sdl_plan.hpp"
+#include "workshop/pane_rows.hpp"
+#include "workshop/screen_planes.hpp"
 #include "surface/skin_tui.hpp"
 #include "workshop/desk_read.hpp"
 #include "workshop/pane_canvas_text.hpp"
@@ -280,7 +282,7 @@ TEST_CASE("the desk says arranging is open, and the menu on the screen with each
     CHECK(same(desk.menu.place, context_bounds(d.r.session(), screen_of(d.r.session()))));
     REQUIRE_FALSE(desk.menu.lines.empty());
     // THE LINES ARE THE PAINTER'S: the region the composition drew, row for row.
-    surface::SurfaceLayer layer;
+    ScreenPlane layer;
     paint_context(layer, d.r.session(), screen_of(d.r.session()));
     REQUIRE_FALSE(layer.texts.empty());
     const auto& region = layer.texts.back();
@@ -694,9 +696,9 @@ TEST_CASE("a canvas pane a held press gave the keys, its title waiting with pane
         REQUIRE(row != nullptr);
         const std::string title = external_header(*row, true);
         const auto titled = [&] {
-            for (const surface::SurfaceLayer& layer : paint(d.r.session()).layers)
-                for (const surface::SurfaceTextRegion& region : layer.texts)
-                    for (const surface::SurfaceTextRow& line : region.rows)
+            for (const ScreenPlane& layer : paint(d.r.session()).layers)
+                for (const ScreenRegion& region : layer.texts)
+                    for (const TextRow& line : region.rows)
                         if (line.text.rfind(title, 0) == 0) return true;
             return false;
         };
@@ -901,9 +903,9 @@ TEST_CASE("a held press on the canvas pane that has the keys keeps its room whil
     REQUIRE(row != nullptr);
     const std::string title = external_header(*row, true);
     const auto titled = [&] {
-        for (const surface::SurfaceLayer& layer : paint(d.r.session()).layers)
-            for (const surface::SurfaceTextRegion& region : layer.texts)
-                for (const surface::SurfaceTextRow& line : region.rows)
+        for (const ScreenPlane& layer : paint(d.r.session()).layers)
+            for (const ScreenRegion& region : layer.texts)
+                for (const TextRow& line : region.rows)
                     if (line.text.rfind(title, 0) == 0) return true;
         return false;
     };
@@ -1054,10 +1056,10 @@ bool window_draws(const std::vector<surface::PlanLayer>& plan, const PaneWord& w
 /// A pane's frame where the medium draws it: one rectangle of the canvas exactly the place, in
 /// the chrome's voice, which the window plans as one quad and the terminal rasterizes to the
 /// place's cells, floored.
-bool frame_drawn(const surface::SurfaceCanvas& c, const DeskRect& p, bool window,
+bool frame_drawn(const ScreenCanvas& c, const DeskRect& p, bool window,
                  const std::vector<surface::PlanLayer>& plan) {
-    for (const surface::SurfaceLayer& layer : c.layers) {
-        for (const surface::SurfaceRect& r : layer.rects) {
+    for (const ScreenPlane& layer : c.layers) {
+        for (const ScreenRect& r : layer.rects) {
             if (r.x != p.x || r.y != p.y || r.w != p.w || r.h != p.h ||
                 (r.role != kPaneChrome && r.role != kPaneChromeSelected)) {
                 continue;
@@ -1072,8 +1074,8 @@ bool frame_drawn(const surface::SurfaceCanvas& c, const DeskRect& p, bool window
             }
             // The terminal: the cells its rasterizer gives that rectangle, alone on the canvas
             // (the pane's own text covers it in the whole picture), are the place's, floored.
-            surface::SurfaceCanvas alone{c.width, c.height, {}};
-            alone.layers.push_back(surface::SurfaceLayer{});
+            ScreenCanvas alone{c.width, c.height, {}};
+            alone.layers.push_back(ScreenPlane{});
             alone.layers.back().rects.push_back(r);
             const surface::CanvasGrids cells = surface::rasterize_canvas(alone);
             std::int64_t x0 = cells.w, y0 = cells.h, x1 = -1, y1 = -1;
@@ -1113,7 +1115,7 @@ TEST_CASE("every place the desk and the words give is where the medium draws it,
         const DeskView desk = d.desk();
 
         // THE PICTURE THE MEDIUM WAS HANDED, and each medium's own reading of it.
-        const surface::SurfaceCanvas canvas = paint(d.r.session());
+        const ScreenCanvas canvas = paint(d.r.session());
         const surface::SurfaceExtent metric{canvas.width, canvas.height, s.text_advance_px,
                                             s.text_line_px, s.cell_px};
         const std::vector<surface::PlanLayer> plan =
@@ -1147,7 +1149,7 @@ TEST_CASE("every place the desk and the words give is where the medium draws it,
         REQUIRE(s.context.open);
         const DeskView with_menu = d.desk();
         REQUIRE(with_menu.menu.open);
-        const surface::SurfaceCanvas menu_canvas = paint(d.r.session());
+        const ScreenCanvas menu_canvas = paint(d.r.session());
         const std::vector<surface::PlanLayer> menu_plan =
             surface::plan_canvas(menu_canvas, metric, surface::canvas_window_size(menu_canvas));
         const surface::CanvasGrids menu_grid = surface::rasterize_canvas(menu_canvas);
@@ -2766,9 +2768,9 @@ TEST_CASE("Layouts and the band are read as Workshop draws them: tabs as named p
 
     // THE BAND'S WORDS ARE ITS PAINTED ROWS, IN ORDER, inside the band, each with no point: the
     // band owns no pointer space.
-    const surface::SurfaceTextRegion band = band_region(s, sc);
+    const ScreenRegion band = band_region(s, sc);
     std::vector<std::string> rows;
-    for (const surface::SurfaceTextRow& r : band.rows) {
+    for (const TextRow& r : band.rows) {
         std::string text = r.text;
         while (!text.empty() && text.back() == ' ') text.pop_back();
         if (!text.empty()) rows.push_back(text);
@@ -3649,7 +3651,7 @@ TEST_CASE("Workshop draws its desk in the window that shows its areas -- the ban
     CHECK(ring);
     // THE BAND, AT THE FOOT, in Workshop's own area: what the keys mean, under what the tool last
     // said; and no pane there, which stands in its frame.
-    const surface::SurfaceTextRegion band = band_region(s, sc);
+    const ScreenRegion band = band_region(s, sc);
     REQUIRE(band.rows.size() >= 2);
     CHECK(row_of(area, PixelRect{}, band.y + gfx::kCellPx) == trimmed(band.rows[1].text));
     CHECK_FALSE(paints_inside(painted_cells(*window.weave().find(area)), bounds));

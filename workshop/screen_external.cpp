@@ -126,7 +126,7 @@ std::string external_body_words(const ExternalPane& pane, const std::string& nam
 }
 
 // WL-FOCUS-10 -- agents/workshop/focus.md; WL-PANE-06 -- agents/workshop/panes-and-windows.md
-void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64_t kind,
+void paint_external(ScreenPlane& layer, const Panes& panes, std::int64_t kind,
                     const PixelRect& b, const Screen& sc, bool titles, std::int64_t chrome) {
     paint_pane_frame(layer, b, chrome);
     const RuntimePane* row = panes.runtime.of_kind(kind);
@@ -138,7 +138,7 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
     if (body.fit.rows <= 0 || body.fit.columns <= 0) {
         return; // no room for one row of this medium's type: say nothing at all
     }
-    surface::SurfaceTextRegion region;
+    ScreenRegion region;
     region.x = body.region_x;
     region.y = body.region_y;
     region.w = body.region_w;
@@ -151,13 +151,13 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
     const bool typing = keyboard_pane(panes) == kind;
     const bool marks = pane != nullptr && pane->manual;
     if (body.header_rows > 0 && (pane == nullptr || !pane->title_waits)) {
-        region.rows.push_back(surface::SurfaceTextRow{
+        region.rows.push_back(TextRow{
             external_header_row(*row, typing, marks, body.columns), graphics::role::kAccent});
     }
     // ...AND IN THE BODY, WHAT STANDS THERE BEHIND THE PANE'S OWN AREA: that Workshop waits for the
     // pane to draw, covered once its area's ground is drawn, or that its office draws in no window.
     if (body.present && pane != nullptr) {
-        region.rows.push_back(surface::SurfaceTextRow{
+        region.rows.push_back(TextRow{
             detail::fit(external_body_words(*pane, row->name), body.columns),
             graphics::role::kMuted});
     }

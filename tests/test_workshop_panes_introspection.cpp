@@ -1306,7 +1306,7 @@ TEST_CASE("Text is quoted and made safe for the row it will become") {
     const std::vector<std::string> lines = render_value(v);
     REQUIRE(lines.size() == 2);
 
-    // THESE LINES BECOME `SurfaceTextRow`s, whose contract is plain printable ASCII -- one canvas
+    // THESE LINES BECOME `TextRow`s, whose contract is plain printable ASCII -- one canvas
     // cell per BYTE -- and Workshop refuses a whole update for one byte it cannot draw. So every
     // byte is still REPORTED, in the one notation a reader already knows, rather than filtered
     // away or left to poison the pane.
@@ -2077,8 +2077,8 @@ TEST_CASE("a host with no doors leaves the Project and Powers panes WAITING") {
     // WHAT WORKSHOP PAINTS UNDER A PANE'S HEADER, each row's trailing blanks cut.
     const auto painted_under = [&r](const std::string& header) {
         std::vector<std::string> out;
-        for (const surface::SurfaceLayer& layer : paint(r.session()).layers) {
-            for (const surface::SurfaceTextRegion& region : layer.texts) {
+        for (const ScreenPlane& layer : paint(r.session()).layers) {
+            for (const ScreenRegion& region : layer.texts) {
                 if (region.rows.empty() || region.rows[0].text.find(header) == std::string::npos) {
                     continue;
                 }

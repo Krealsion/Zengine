@@ -2437,7 +2437,7 @@ TEST_CASE("the Builder's role line shows the medium's caret where the line's is,
            /*with_presenter=*/true);
     const ExternalPane* pane = b.r.session().panes.external_pane(b.kind);
     REQUIRE(pane != nullptr);
-    CHECK(held_caret(*pane).row == surface::kNoCaret); // no line, no caret
+    CHECK(held_caret(*pane).row == kNoCaret); // no line, no caret
     CHECK(wears_ground(*pane)); // the rows lie on a ground of their own
     b.r.key(input::scan::kO);
     REQUIRE_MESSAGE(b.text().find("type the role") != std::string::npos, b.text());
