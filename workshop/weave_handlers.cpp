@@ -187,12 +187,8 @@ void WorkshopWeave::take_host_conditions() {
     }
 }
 
-void WorkshopWeave::on(const zengine::surface::SurfaceReady&, loom::Mail& mail) {
-    start_surface(mail);
-}
-
-void WorkshopWeave::start_surface(loom::Mail& mail) {
-    surface_started_ = true;
+void WorkshopWeave::start_desk(loom::Mail& mail) {
+    desk_started_ = true;
     (void)mail.as_role(kWorkshopProvider).publish(PaneCatalogRequested{});
     // The first picture of a run is Workshop's floor: the smallest room it is honest in comes
     // first and the room it wants back second, so a weaver can always shrink the window.
@@ -208,29 +204,6 @@ void WorkshopWeave::start_surface(loom::Mail& mail) {
     speak_startup_notes(mail);
 }
 
-// WL-GEO-08 -- agents/workshop/geometry.md
-void WorkshopWeave::on(const zengine::surface::SurfaceExtent& e, loom::Mail& mail) {
-    // The medium names its unit here, so the restore's sentence is spelled in it.
-    const bool respelled = respell_restore_notice(e.cell_px);
-    if (!adopt_screen(session_, e.width, e.height, e.text_advance_px, e.text_line_px,
-                      e.cell_px)) {
-        if (respelled) {
-            repaint(mail);
-        }
-        return;
-    }
-    // The normal window's room follows the screen, except while this run's medium says the window
-    // is maximized (placement arrives before extent on its beat). A maximized flag restored from
-    // a file does not gate: this run's resizes are this run's to remember.
-    if (!(medium_placed_ && session_.place_maximized)) {
-        session_.normal_w = session_.screen_w;
-        session_.normal_h = session_.screen_h;
-    }
-    // A new room opens and closes nothing: the stack is not rationed, so the repaint lays the
-    // same panes out in it, the column beginning again at its top where it no longer reaches.
-    repaint(mail);
-}
-
 void WorkshopWeave::on(const graphics::GraphicsReady&, loom::Mail& mail) {
     if (!mail.authored_from_role(graphics::kGraphicsRole)) {
         return;
@@ -239,6 +212,7 @@ void WorkshopWeave::on(const graphics::GraphicsReady&, loom::Mail& mail) {
     show_in_graphics(mail);
 }
 
+// WL-GEO-08 -- agents/workshop/geometry.md
 void WorkshopWeave::on(const graphics::WindowOffered& w, loom::Mail& mail) {
     if ((w.window != graphics::kTerminalWindow && w.window != graphics::kSdlWindow) ||
         !mail.authored_from_role(std::string(graphics::kWindowOfficePrefix) + w.window)) {
@@ -247,7 +221,6 @@ void WorkshopWeave::on(const graphics::WindowOffered& w, loom::Mail& mail) {
     // THE WINDOW THE DESK IS PLACED ON: the one that offered itself, the terminal's or the OS's.
     // Another one offering itself takes every area afresh.
     window_offered_ = true;
-    note_medium();
     // WHAT THE WINDOW SAID OF EACH AREA IS ITS INCARNATION'S: another, or another window, said none.
     if (window_name_ != w.window || window_epoch_ != w.epoch) {
         window_epoch_ = w.epoch;
@@ -261,16 +234,15 @@ void WorkshopWeave::on(const graphics::WindowOffered& w, loom::Mail& mail) {
         frames_.clear();
         frames_asked_.clear();
     }
-    // A HOST WITH NO SKIN COMES UP IN THE WINDOW, as a skin's hello brings it up: the session
-    // restored first, and the window's room taken after it, as a skin's extent follows its hello.
-    if (!surface_started_) {
-        start_surface(mail);
+    // THE DESK COMES UP IN THE FIRST WINDOW THAT OFFERS ITSELF: the session restored first, and
+    // the window's room taken after it.
+    if (!desk_started_) {
+        start_desk(mail);
     }
-    // THE WINDOW'S ROOM, WHILE NO MEDIUM HAS NAMED ITS UNIT: its pixels, the device unit it says
-    // -- the OS window's pixel, the terminal window's cell -- and its text: the face the OS window
-    // measured, a cell where the window's unit is the cell. A skin's `SurfaceExtent` owns the room
-    // from then on; until one comes, a window that offers another size is laid out in again.
-    if (medium_unit_known_ || w.width <= 0 || w.height <= 0) {
+    // THE WINDOW'S ROOM: its pixels, the device unit it says -- the OS window's pixel, the terminal
+    // window's cell -- and its text: the face the OS window measured, a cell where the window's
+    // unit is the cell. A window that offers another size is laid out in again.
+    if (w.width <= 0 || w.height <= 0) {
         return;
     }
     // ...AND THE RESTORE'S SENTENCE, said before the window named its unit, said in it.
@@ -283,6 +255,10 @@ void WorkshopWeave::on(const graphics::WindowOffered& w, loom::Mail& mail) {
         }
         return;
     }
+    // The normal window's room follows the screen, except while this run's window says it is
+    // maximized (its place arrives before its offer on its beat). A maximized flag restored from a
+    // file does not gate: this run's resizes are this run's to remember. A new room opens and
+    // closes nothing: the repaint lays the same panes out in it.
     if (!(medium_placed_ && session_.place_maximized)) {
         session_.normal_w = session_.screen_w;
         session_.normal_h = session_.screen_h;
@@ -297,7 +273,6 @@ void WorkshopWeave::on(const graphics::AreaRoom& r, loom::Mail& mail) {
     const bool desk = window_.room(r, mail);
     const bool overlay = !desk && overlay_.room(r, mail);
     const bool framed = !desk && !overlay && frame != nullptr && frame->drawing.room(r, mail);
-    note_medium();
     if (desk || overlay || framed) {
         draw_window(mail);
     }
@@ -419,7 +394,7 @@ void WorkshopWeave::area_pressed(const graphics::AreaPressed& p, std::uint64_t p
     }
     const WindowMoment moment{input_actor_, p.local, p.actor};
     const auto slot = static_cast<std::size_t>(p.button - 1);
-    const PointedAt at = canvas_point_of(input::space::kPixels, p.x, p.y, session_.console_rows_above);
+    const PointedAt at = canvas_point_of(input::space::kPixels, p.x, p.y);
     if (!p.pressed) {
         // THE RELEASE ENDS THE HOLD AND RESTORES NO ELIGIBILITY: the release is no gesture.
         WindowHold& held = pane_holds_[slot];

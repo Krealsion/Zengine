@@ -24,13 +24,4 @@ void WorkshopWeave::say(std::string text, bool bad) {
     stamps_owed_ = desk_owed_ = true; // the band's words are the desk's, said with or without a repaint
 }
 
-// WL-DOC-23 -- agents/workshop/document-file.md
-std::string WorkshopWeave::status_line() const {
-    // Which desk is live and how many panes it names: what a medium's own status line can show
-    // beside the room. A desk's own saved-ness is the layout band's to say.
-    const Setup& desk = session_.setup.active;
-    return "[workshop] layout " + quoted_setup_name(desk.name) + " | " +
-           std::to_string(desk.panes.size()) + (desk.panes.size() == 1 ? " pane" : " panes");
-}
-
 } // namespace zengine::workshop

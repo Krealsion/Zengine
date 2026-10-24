@@ -556,10 +556,10 @@ int main(int argc, char** argv) {
         history_policy.rules.push_back(loom::RetentionRule{
             std::string(shape), /*last_n=*/1, /*in_recent=*/false, /*retain_payload=*/false});
     }
-    // The pictures, and the notice that the desk moved: remembered as events, not bytes; the
+    // The drawings, and the notice that the desk moved: remembered as events, not bytes; the
     // notice, as a beat is, outside recent context -- the newest stands for each before it.
     history_policy.rules.push_back(loom::RetentionRule{
-        std::string(surface::SurfaceCanvas::zen_name), 1, true, false});
+        std::string(graphics::Drawn::zen_name), 1, true, false});
     history_policy.rules.push_back(loom::RetentionRule{
         std::string(DeskStamps::zen_name), 1, false, false});
     // The build: rare, bursty and what a weaver looks for -- a deep slot of its own, and its place

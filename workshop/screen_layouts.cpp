@@ -286,7 +286,7 @@ LayoutTabPress band_tab_at(const Session& s, const Screen& sc, std::int64_t spac
     // interior, from the same `layouts_body` the painter publishes at. A pane-local inverse:
     // ordinary occupancy answers `Layouts` first, so a pane in front takes the press.
     const ExternalBodyPlace place = layouts_body(s, sc);
-    const ProseAt at = prose_at(space, x, y, place.fit, sc.rows_above);
+    const ProseAt at = prose_at(space, x, y, place.fit);
     if (!at.understood || at.row != row) {
         return {};
     }

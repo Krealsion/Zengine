@@ -840,7 +840,7 @@ private:
         loom::Ticket attempt{};
         std::uint64_t epoch = 0;
         bool awaiting = false;
-        std::string office = surface::kSkinRole;
+        std::string office;
     };
     Paste paste_;
 };
