@@ -55,7 +55,10 @@ python external-host/demo.py stop --root demo-runs/workbench
 ```
 
 Substitute your build tree and installed prefix. A missing prerequisite is named, with the flag or
-build step that supplies it, before anything starts. `start` makes a **new** root: Workshop, its
+build step that supplies it, before anything starts. An extracted package a stranger downloads
+holds both: `--package <its folder>` takes the place of `--build` and `--loom-prefix`, reading
+Workshop from its `bin/` and the guest vocabulary from its `lib/zengine/`, for any setup that builds
+nothing against a development runtime (`tally-app` is walked so, below). `start` makes a **new** root: Workshop, its
 guest file, a Loom session and the setup's preparation service. It returns once the service says
 the setup is ready -- every declared entry present, every declared hotkey read back ON, and each
 desk pane showing its text rows or the picture it draws; a pane that has not shown within a few
@@ -231,6 +234,7 @@ when the two differ. The shipped walks:
 | `presets` | `escape` | Escape in Inventory, Loaded, Compose, Info and the Demo controls: a selection let go first, then the pane put down |
 | `editor-materials` | `escape` | Escape in Files and the Terminal puts each down; the Editor keeps Escape for itself |
 | `build-your-first-pane` | `tutorial` | the tutorial's every step, its pictures the page's; `tutorial_walks` replays each tutorial's `tutorial` walk from an installed prefix |
+| `tally-app` | `export` | Flow and the View Builder opened, `tally.view` opened, Export app; the package's story walks it from each night's package (`tests/package/story.py`) |
 
 ![The values setup's layouts walk replayed in a window: its three pictures, the Layouts row on, taken off and back](images/walk-values-layouts.png)
 

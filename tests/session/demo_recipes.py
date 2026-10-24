@@ -383,7 +383,7 @@ class Recipes(unittest.TestCase):
     def test_every_shipped_setup_is_usable_and_says_how_to_use_it(self):
         found = described.collection(launcher.ROOTS)
         self.assertTrue({"values", "commands", "presets", "workbench", "folders", "editor-materials",
-                         "tower-defense", "build-your-first-pane"} <= set(found))
+                         "tower-defense", "build-your-first-pane", "tally-app"} <= set(found))
         for name, directory in found.items():
             setup = described.Setup(directory)
             text = setup.describe()
@@ -656,7 +656,7 @@ class Recipes(unittest.TestCase):
             if setup.walks():
                 self.assertIn("Walks (demo.py walk", setup.describe(), name)
         self.assertTrue({"values/layouts", "presets/escape", "editor-materials/escape",
-                         "build-your-first-pane/tutorial"} <= walked, walked)
+                         "build-your-first-pane/tutorial", "tally-app/export"} <= walked, walked)
 
     def test_a_walk_replays_through_act_and_keeps_what_it_made_in_the_folder_named(self):
         root = make(self.tmp, "walked", walks={"look": {"about": "a look", "steps": [
@@ -1195,6 +1195,56 @@ class Recipes(unittest.TestCase):
         self.assertEqual((project / "src/game/rules.hpp").read_text(), "rules")
         self.assertEqual((project / "local.cpp").read_text(), "local source")
         self.assertTrue((project / "build-recipes.json").is_file())
+
+    def test_project_files_without_a_recipe_template_make_a_project_of_those_files_alone(self):
+        setup = described.load("tally-app", launcher.ROOTS)
+        instance = Path(self.tmp) / "instance"
+        instance.mkdir()
+        project = launcher.make_project(types.SimpleNamespace(zengine_prefix=""), setup, instance, instance, instance)
+        self.assertEqual(sorted(p.name for p in project.iterdir()), ["tally.flow", "tally.view"])
+
+    # ---- a package in place of a build and a Loom prefix ----------------------------------------------------
+    def package(self, name="pkg"):
+        """A package folder's files demo.py reads: Workshop, the plans and the demo control in bin/,
+        the guest vocabulary in lib/zengine/, Loom's host, run manager and Python runtime."""
+        exe, lib = launcher.EXE, launcher.LIB
+        package = Path(self.tmp) / name
+        for f in ("bin/zengine-workshop" + exe, "bin/zengine-demo-control" + lib, "bin/graphical-load-plan.json",
+                  "bin/default-load-plan.json", "lib/zengine/zengine-guest-vocabulary" + lib,
+                  "bin/loom-host" + exe, "lib/loom/loom-runs" + lib):
+            (package / f).parent.mkdir(parents=True, exist_ok=True)
+            (package / f).write_bytes(b"x")
+        (package / "lib/loom/python/loom_session").mkdir(parents=True)
+        return package
+
+    def asked(self, **flags):
+        args = dict(build=None, loom_prefix=None, package=None, tui=False, toolchain_bin=None, neovim=None,
+                    zengine_prefix=None)
+        args.update(flags)
+        return types.SimpleNamespace(**args)
+
+    def test_a_package_stands_for_the_build_and_the_loom_prefix(self):
+        package = self.package()
+        tally = described.load("tally-app", launcher.ROOTS)
+        self.assertEqual(launcher.prerequisites(self.asked(package=str(package)), tally), [])
+        host, guests, prefix = launcher.places(self.asked(package=str(package)))
+        self.assertEqual((host, guests, prefix), (package.resolve() / "bin", package.resolve() / "lib" / "zengine",
+                                                  package.resolve()))
+        # A file the package lacks is named as the package's, and nothing else stands in for it.
+        (package / ("bin/zengine-demo-control" + launcher.LIB)).unlink()
+        missing = launcher.prerequisites(self.asked(package=str(package)), tally)
+        self.assertEqual(len(missing), 1, missing)
+        self.assertIn("package file", missing[0])
+        self.assertIn("zengine-demo-control", missing[0])
+
+    def test_a_package_is_refused_beside_a_build_and_for_a_development_runtime(self):
+        package = self.package()
+        tally = described.load("tally-app", launcher.ROOTS)
+        both = launcher.prerequisites(self.asked(package=str(package), build=str(package)), tally)
+        self.assertTrue(any("leave out --build and --loom-prefix" in m for m in both), both)
+        built = described.load("build-your-first-pane", launcher.ROOTS)
+        missing = launcher.prerequisites(self.asked(package=str(package), zengine_prefix=str(package)), built)
+        self.assertTrue(any("development runtime, which a package does not carry" in m for m in missing), missing)
 
     def test_project_targets_that_leave_the_project_are_refused_with_the_description(self):
         root = self.shared_setup({"../out.cpp": "shared/code.cpp", "/abs.cpp": "shared/code.cpp",

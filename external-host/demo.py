@@ -4,7 +4,8 @@
 
 `start` makes one dedicated Workshop and Loom session per root, prepares the setup through
 Workshop's own owners and waits until it is usable; run again on the same root it returns to the
-running desk without resetting it. `walk` replays one of the setup's named walks against it. Uses an existing Zengine build and installed Loom. Python owns
+running desk without resetting it. `walk` replays one of the setup's named walks against it. Uses an existing Zengine build and installed Loom,
+or one extracted package holding both. Python owns
 launch policy; every Workshop mutation crosses the admitted link. workshop/docs/demo-setups.md."""
 import argparse
 import json
@@ -113,28 +114,50 @@ def guidance(setup, root):
     return out
 
 
+def places(args):
+    """Where Workshop and the setup's artifacts are, where the guest vocabulary is, and the Loom
+    prefix: a build tree's `workshop/` and `external-host/` beside an installed Loom, or one package
+    a stranger downloads, its `bin/` and `lib/zengine/`, which is its own Loom prefix too."""
+    if args.package:
+        package = Path(args.package).resolve()
+        return package / "bin", package / "lib" / "zengine", package
+    build = Path(args.build or "").resolve()
+    return build / "workshop", build / "external-host", Path(args.loom_prefix or "").resolve()
+
+
 def prerequisites(args, setup):
     """Every missing input, named with the flag or build step that supplies it."""
-    missing, build, prefix = [], Path(args.build or ""), Path(args.loom_prefix or "")
-    if not args.build:
-        missing.append("--build: a configured, built Zengine tree")
-    if not args.loom_prefix:
+    missing = []
+    host_dir, guest_dir, prefix = places(args)
+    if args.package and (args.build or args.loom_prefix):
+        missing.append("--package names Workshop and Loom both; leave out --build and --loom-prefix")
+    if not args.build and not args.package:
+        missing.append("--build: a configured, built Zengine tree (or --package: an extracted package)")
+    if not args.loom_prefix and not args.package:
         missing.append("--loom-prefix: an installed Loom with loom-host and its Python session runtime")
     project = setup.get("project") or {}
     medium = "tui" if args.tui else "sdl"
     if medium not in setup.get("medium")["supports"]:
         missing.append("setup %s does not support the %s medium (it supports %s)"
                        % (setup.name, medium, ", ".join(setup.get("medium")["supports"])))
-    if args.build:
-        wanted = [build / "workshop" / ("zengine-workshop" + EXE),
-                  build / "external-host" / ("zengine-guest-vocabulary" + LIB),
-                  build / "workshop" / ("zengine-demo-control" + LIB),
-                  build / "workshop" / setup.load_plan(args.tui)]
-        wanted += [build / "workshop" / (a + LIB) for a in (setup.get("requires") or {}).get("artifacts", [])]
-        if project.get("runtime") == "development":
-            wanted.append(build / "workshop" / "development-runtime.cmake")
-        missing += ["build artifact %s (build the tree)" % p for p in wanted if not p.is_file()]
-    if args.loom_prefix:
+    if project.get("runtime") == "development" and args.package:
+        missing.append("setup %s builds against a development runtime, which a package does not "
+                       "carry: start it with --build" % setup.name)
+    if args.build or args.package:
+        wanted = [host_dir / ("zengine-workshop" + EXE),
+                  guest_dir / ("zengine-guest-vocabulary" + LIB),
+                  host_dir / ("zengine-demo-control" + LIB),
+                  host_dir / setup.load_plan(args.tui)]
+        wanted += [host_dir / (a + LIB) for a in (setup.get("requires") or {}).get("artifacts", [])]
+        if project.get("runtime") == "development" and not args.package:
+            wanted.append(host_dir / "development-runtime.cmake")
+        missing += ["%s %s (%s)" % ("package file" if args.package else "build artifact", p,
+                                    "a package holds it" if args.package else "build the tree")
+                    for p in wanted if not p.is_file()]
+    if args.loom_prefix or args.package:
+        for p in (guest_dir, prefix):
+            if '"' in str(p):
+                missing.append("%s holds a double quote, which Loom's console cannot take in a path" % p)
         for p in (prefix / "bin" / ("loom-host" + EXE), prefix / "lib" / "loom" / ("loom-runs" + LIB),
                   prefix / "lib" / "loom" / "python" / "loom_session"):
             if not p.exists():
@@ -155,7 +178,7 @@ def prerequisites(args, setup):
 def make_project(args, setup, root, build, prefix):
     """The setup's project files at their targets inside `root/project` -- nested targets get
     their directories; the description already refused a target outside it -- with its recipe
-    template's inputs spelled for this instance."""
+    template's inputs spelled for this instance, when it names one."""
     project, directory = setup.get("project"), root / "project"
     directory.mkdir()
     for target, source in project.get("files", {}).items():
@@ -164,6 +187,8 @@ def make_project(args, setup, root, build, prefix):
             raise RuntimeError("project file %r would be written outside %s" % (target, directory))
         path.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(setup.asset(source), path)
+    if not project.get("recipes"):
+        return directory
     text = setup.asset(project["recipes"]).read_text(encoding="utf-8")
     values = {"zengine_prefix": Path(args.zengine_prefix or "").resolve().as_posix(),
               "loom_prefix": prefix.as_posix(), "build": build.as_posix(), "root": root.as_posix()}
@@ -188,7 +213,8 @@ def first_files(setup, wdir):
 
 
 def launch(args, source, root):
-    build, prefix = Path(args.build).resolve(), Path(args.loom_prefix).resolve()
+    host_dir, guest_dir, prefix = places(args)
+    build = Path(args.package or args.build).resolve()
     module = runtime(prefix)
     root.mkdir(parents=True, exist_ok=False)
     # The revision this root prepares, kept with it: everything below, and every Reset, reads this
@@ -202,7 +228,6 @@ def launch(args, source, root):
     if args.neovim:
         environment["ZENGINE_NEOVIM"] = str(Path(args.neovim).resolve())
     project = setup.get("project") or {}
-    host_dir = build / "workshop"
     if project.get("runtime") == "development":
         # A copy of this build no build rule writes, so a built game never lands in the build tree.
         with (root / "runtime-make.log").open("wb") as out:
@@ -213,7 +238,8 @@ def launch(args, source, root):
             raise RuntimeError("the development runtime was not made (exit %d): %s"
                                % (made.returncode, root / "runtime-make.log"))
         host_dir = root / "runtime"
-    cwd = make_project(args, setup, root, build, prefix) if project.get("recipes") else wdir
+    has_project = project.get("recipes") or project.get("files")
+    cwd = make_project(args, setup, root, build, prefix) if has_project else wdir
     first_files(setup, wdir)
     plan = json.loads((host_dir / setup.load_plan(args.tui)).read_text(encoding="utf-8"))
     plan["fields"]["artifacts"].append({"artifact": "zengine-demo-control", "provider": [],
@@ -266,7 +292,7 @@ def launch(args, source, root):
                          , cwd, wdir / "process.log")
         port = wait_for(lambda: (wdir / "guests.port").read_text().strip(), 90, "Workshop writing its guest port")
         runs = prefix / "lib" / "loom" / ("loom-runs" + LIB)
-        vocab = build / "external-host" / ("zengine-guest-vocabulary" + LIB)
+        vocab = guest_dir / ("zengine-guest-vocabulary" + LIB)
         save_json(sdir / "loom-boot.json", {"boot": [{"name": "runs", "path": str(runs), "role": "loom.runs"},
                   {"name": "vocab", "path": str(vocab)}], "links": [{"name": "workshop",
                   "connect": "127.0.0.1:" + port, "identity": "workshop-demo", "credential": credential}],
@@ -278,7 +304,9 @@ def launch(args, source, root):
                       for s in ("Tools", "ToolDescription", "Run", "RunList", "Directive")]
         approvals += ["authority allow runs loom.link.%s v1 -> role loom.link.workshop" % s
                       for s in ("Ask", "StatusRequested")]
-        approvals += ["start vocab %s" % vocab, "start runs %s loom.runs" % runs]
+        # QUOTED, as the console keeps a quoted word whole: a package a stranger puts under a folder
+        # with a space in its name is otherwise read only up to that space.
+        approvals += ['start vocab "%s"' % vocab, 'start runs "%s" loom.runs' % runs]
         host = spawn("host", [prefix / "bin" / ("loom-host" + EXE), "--serve", sdir], sdir, sdir / "process.log", approvals)
 
         def admitted():
@@ -391,6 +419,7 @@ def main():
     parser.add_argument("--setup", help="a setup's name (see list) or a directory holding setup.json; a first start defaults to values")
     parser.add_argument("--build", help="configured, built Zengine tree")
     parser.add_argument("--loom-prefix", help="installed Loom prefix, including loom-host and Python runtime")
+    parser.add_argument("--package", help="an extracted package a stranger downloads, in place of --build and --loom-prefix")
     parser.add_argument("--zengine-prefix", help="installed Zengine prefix, for a setup whose project builds against it")
     parser.add_argument("--toolchain-bin", help="a directory put first on PATH for Workshop and the Loom host")
     parser.add_argument("--tui", action="store_true", help="use the classic terminal medium")

@@ -1,0 +1,70 @@
+{
+ "format": "zengine-setup",
+ "format_version": "1",
+ "title": "The tally app",
+ "summary": "The tally panel's view and flow in a project, Flow and the View Builder to open them, and Export app.",
+ "task": "Open the tally panel in the View Builder and export it as an app that runs without Workshop.",
+ "choose": "you want to see a view and a flow become an app folder that zengine-app runs on its own.",
+ "prepares": [
+  "a project holding tally.view and tally.flow, as the View Builder and Flow save them",
+  "the Demo controls on the desk"
+ ],
+ "guide": "README.md",
+ "first_task": {
+  "do": "Open the View Builder, type tally.view in its path box, press Open, then Export app.",
+  "expect": "The View Builder says Exported, and apps/tally/ in the project holds the app with run.cmd and run.sh."
+ },
+ "variations": [
+  "Run app from the View Builder, then quit Workshop: the app's window still counts"
+ ],
+ "limits": [
+  "Reset puts the desk back; it does not remove an exported app from the project"
+ ],
+ "reset": {
+  "scope": "the layout of the desk",
+  "keeps": "tally.view, tally.flow and any exported app"
+ },
+ "medium": {
+  "supports": [
+   "sdl"
+  ],
+  "viewport": [
+   120,
+   56
+  ]
+ },
+ "authority": {
+  "may": [
+   "input",
+   "capture",
+   "demo",
+   "open"
+  ]
+ },
+ "desk": "setup-desk.json",
+ "project": {
+  "files": {
+   "tally.view": "tally.view",
+   "tally.flow": "tally.flow"
+  }
+ },
+ "walks": {
+  "export": {
+   "about": "Flow and the View Builder opened, tally.view opened in the View Builder, and Export app",
+   "steps": [
+    {"open": "pane:zengine.flow/flow"},
+    {"picture": "flow"},
+    {"open": "pane:zengine.view.builder/view-builder"},
+    {"part": ["zengine.view.builder", "view-builder", "box:path"]},
+    {"type": "tally.view"},
+    {"press": "return"},
+    {"part": ["zengine.view.builder", "view-builder", "control:view.open"]},
+    {"expect": ["zengine.view.builder", "view-builder", "Opened"], "seconds": 20},
+    {"picture": "opened"},
+    {"part": ["zengine.view.builder", "view-builder", "control:view.export"]},
+    {"expect": ["zengine.view.builder", "view-builder", "Exported"], "seconds": 20},
+    {"picture": "exported"}
+   ]
+  }
+ }
+}
