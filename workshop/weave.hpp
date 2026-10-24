@@ -451,6 +451,9 @@ class WorkshopWeave
                                           // where a press in a pane's area landed, and a hold
                                           // the window ended or an area the pointer left
                                           zengine::graphics::AreaButtonChanged,
+                                          zengine::graphics::AreaKeyPressed,
+                                          zengine::graphics::AreaKeyReleased,
+                                          zengine::graphics::AreaTextEntered,
                                           zengine::graphics::AreaPointerMoved,
                                           zengine::graphics::AreaWheelTurned,
                                           zengine::graphics::AreaPressed,
@@ -1188,6 +1191,11 @@ public:
     void on(const graphics::AreaButtonChanged& b, loom::Mail& mail);
     void on(const graphics::AreaPointerMoved& m, loom::Mail& mail);
     void on(const graphics::AreaWheelTurned& w, loom::Mail& mail);
+    /// THE KEYS IN WORKSHOP'S OWN AREA, from the window that shows it: each answered as the key or
+    /// text it carries, under the hand it names, as a pointer moment is.
+    void on(const graphics::AreaKeyPressed& k, loom::Mail& mail);
+    void on(const graphics::AreaKeyReleased& k, loom::Mail& mail);
+    void on(const graphics::AreaTextEntered& t, loom::Mail& mail);
     /// A PRESS IN A PANE'S AREA, AND ITS RELEASE, as the window that shows it tells the area's
     /// arranger: the pane heard the press itself; Workshop counts the gesture, chooses the pane
     /// and moves the keys, ends a guide mark it lands in, holds the pane's room against a title row

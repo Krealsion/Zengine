@@ -599,6 +599,36 @@ TEST_CASE("inventory Info: a receiver leaving before delivery reports the failed
     CHECK(t.stored().item.get("count")->as_int() == 7);
 }
 
+TEST_CASE("inventory Info: the weaver's own key a window gives saves, and a key no window named is "
+          "refused the save") {
+    InventoryStory t;
+    t.acquire();
+    t.place();
+    t.edit("42");
+    REQUIRE(t.stored().item.get("count")->as_int() == 7);
+    // A KEY NO WINDOW NAMED names no hand, so the save it asks is refused and nothing is written.
+    t.r.key(input::scan::kS, input::mod::kCtrl);
+    CHECK_MESSAGE(t.shown(t.info).find("attributed input gesture") != std::string::npos,
+                  t.shown(t.info));
+    CHECK(t.stored().item.get("count")->as_int() == 7);
+    // THE SAME KEY, READ FROM THE WINDOW'S PLATFORM, is the weaver's own hand: saved.
+    t.r.window_queue_key(input::scan::kS, input::mod::kCtrl);
+    t.r.window_beat();
+    CHECK_MESSAGE(t.stored().item.get("count")->as_int() == 42, t.shown(t.info));
+}
+
+TEST_CASE("inventory Info: the weaver's own save a copy, read from the window's platform, saves a "
+          "new entry") {
+    InventoryStory t;
+    t.acquire();
+    t.place();
+    const std::size_t before = t.saved_entries().size();
+    t.r.window_queue_key(input::scan::kS, input::mod::kCtrl | input::mod::kShift);
+    t.r.window_beat();
+    CHECK_MESSAGE(t.saved_entries().size() == before + 1, (t.shown(t.info) + t.trace));
+    CHECK_MESSAGE(t.shown(t.info).find("Saved a new entry") != std::string::npos, t.shown(t.info));
+}
+
 TEST_CASE("inventory collection UI: a single batched drag copies into Info and saves a separate entry") {
     InventoryStory t;
     t.drag();

@@ -1710,21 +1710,27 @@ TEST_CASE("keys go from the window to the owner of each area placed to hear them
 
 namespace {
 
-/// WHAT AN OWNER PLACED IN THE WINDOW WAS GIVEN, in order, as the window's office.
+/// WHAT AN OWNER PLACED IN THE WINDOW WAS GIVEN, in order, as the window's office, and the area
+/// and the hand each moment named.
 struct KeysHeard {
     std::vector<std::string> said;
+    std::vector<std::string> named;
+    template <class Moment>
+    void hear(const std::string& what, const Moment& m) {
+        said.push_back(what);
+        named.push_back(m.area + (m.local && m.actor == 0 ? " local" : " not local"));
+    }
 };
 
 /// AN OWNER THAT TAKES KEYS AND NO TEXT.
 class KeysOwner
     : public loom::WeaveBase<KeysOwner, GraphicsTestOwner,
-                             loom::Accept<gfx::AreaRoom, zengine::input::KeyPressed>,
-                             loom::Emit<>> {
+                             loom::Accept<gfx::AreaRoom, gfx::AreaKeyPressed>, loom::Emit<>> {
 public:
     explicit KeysOwner(KeysHeard& heard) : heard_(&heard) {}
     void on(const gfx::AreaRoom&, loom::Mail&) { ++state_.heard; }
-    void on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
-        if (mail.authored_from_role(window_office())) heard_->said.push_back("key " + k.name);
+    void on(const gfx::AreaKeyPressed& k, loom::Mail& mail) {
+        if (mail.authored_from_role(window_office())) heard_->hear("key " + k.name, k);
     }
 
 private:
@@ -1734,21 +1740,20 @@ private:
 /// AN OWNER THAT TAKES KEYS, THEIR RELEASES AND TEXT.
 class TextOwner
     : public loom::WeaveBase<TextOwner, GraphicsTestOwner,
-                             loom::Accept<gfx::AreaRoom, zengine::input::KeyPressed,
-                                          zengine::input::KeyReleased,
-                                          zengine::input::TextEntered>,
+                             loom::Accept<gfx::AreaRoom, gfx::AreaKeyPressed,
+                                          gfx::AreaKeyReleased, gfx::AreaTextEntered>,
                              loom::Emit<>> {
 public:
     explicit TextOwner(KeysHeard& heard) : heard_(&heard) {}
     void on(const gfx::AreaRoom&, loom::Mail&) { ++state_.heard; }
-    void on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
-        if (mail.authored_from_role(window_office())) heard_->said.push_back("key " + k.name);
+    void on(const gfx::AreaKeyPressed& k, loom::Mail& mail) {
+        if (mail.authored_from_role(window_office())) heard_->hear("key " + k.name, k);
     }
-    void on(const zengine::input::KeyReleased& k, loom::Mail& mail) {
-        if (mail.authored_from_role(window_office())) heard_->said.push_back("up " + k.name);
+    void on(const gfx::AreaKeyReleased& k, loom::Mail& mail) {
+        if (mail.authored_from_role(window_office())) heard_->hear("up " + k.name, k);
     }
-    void on(const zengine::input::TextEntered& e, loom::Mail& mail) {
-        if (mail.authored_from_role(window_office())) heard_->said.push_back("text " + e.text);
+    void on(const gfx::AreaTextEntered& e, loom::Mail& mail) {
+        if (mail.authored_from_role(window_office())) heard_->hear("text " + e.text, e);
     }
 
 private:
@@ -1758,8 +1763,8 @@ private:
 } // namespace
 
 TEST_CASE("what a key types goes with the key and its release from the window to the owner of each "
-          "area placed to hear keys, and to no other; an owner that takes no text or release "
-          "refuses it on the bus") {
+          "area placed to hear keys, and to no other, each naming that area and the weaver's own "
+          "hand; an owner that takes no text or release refuses it on the bus") {
     TypedWindow t;
     t.r.to_role(gfx::kGraphicsRole, gfx::SkinOffered{"classic", PAINT_CLASSIC_SO});
     t.r.drain();
@@ -1792,9 +1797,10 @@ TEST_CASE("what a key types goes with the key and its release from the window to
     // window's office, to that owner alone...
     CHECK(typing.said == std::vector<std::string>{"key H", "text h", "up H", "key I", "text i",
                                                   "up I"});
+    CHECK(typing.named == std::vector<std::string>(6, "test.typing local"));
     std::size_t text_delivered = 0;
     for (std::size_t i = mark; i < t.r.log.size(); ++i) {
-        if (t.r.log[i].shape != zengine::input::TextEntered::zen_name) continue;
+        if (t.r.log[i].shape != gfx::AreaTextEntered::zen_name) continue;
         CHECK(t.r.log[i].authored_role == window_office());
         CHECK(t.r.log[i].target == typing_id.value);
         ++text_delivered;
@@ -1805,11 +1811,12 @@ TEST_CASE("what a key types goes with the key and its release from the window to
     // ...AND TO AN OWNER THAT TAKES KEYS ALONE, its keys, the bus refusing the text and the
     // releases it does not take, and nothing else refused.
     CHECK(keys_only.said == std::vector<std::string>{"key H", "key I"});
+    CHECK(keys_only.named == std::vector<std::string>(2, "test.keys-only local"));
     CHECK(refused == std::vector<std::pair<std::uint64_t, std::string>>{
-                         {keys_id.value, zengine::input::TextEntered::zen_name},
-                         {keys_id.value, zengine::input::KeyReleased::zen_name},
-                         {keys_id.value, zengine::input::TextEntered::zen_name},
-                         {keys_id.value, zengine::input::KeyReleased::zen_name}});
+                         {keys_id.value, gfx::AreaTextEntered::zen_name},
+                         {keys_id.value, gfx::AreaKeyReleased::zen_name},
+                         {keys_id.value, gfx::AreaTextEntered::zen_name},
+                         {keys_id.value, gfx::AreaKeyReleased::zen_name}});
 }
 
 namespace {
@@ -4467,13 +4474,19 @@ struct LitHeard {
     std::vector<gfx::AreaHoldEnded> ended;
 };
 
+/// The area and the hand a key moment names, as an owner reads them.
+template <class Moment>
+std::string said(const Moment& m) {
+    return " @" + m.area + (m.local && m.actor == 0 ? " local" : " not local");
+}
+
 class LitOwner
     : public loom::WeaveBase<
           LitOwner, GraphicsTestOwner,
-          loom::Accept<gfx::AreaRoom, gfx::DrawnRefused, zengine::input::KeyPressed,
-                       zengine::input::KeyReleased, zengine::input::TextEntered,
-                       gfx::AreaButtonChanged, gfx::AreaPointerMoved, gfx::AreaWheelTurned,
-                       gfx::AreaHoldEnded, gfx::ActionRequested>,
+          loom::Accept<gfx::AreaRoom, gfx::DrawnRefused, gfx::AreaKeyPressed,
+                       gfx::AreaKeyReleased, gfx::AreaTextEntered, gfx::AreaButtonChanged,
+                       gfx::AreaPointerMoved, gfx::AreaWheelTurned, gfx::AreaHoldEnded,
+                       gfx::ActionRequested>,
           loom::Emit<gfx::Drawn, gfx::ElementPut, gfx::ElementChange>> {
 public:
     explicit LitOwner(LitHeard& heard) : heard_(&heard) {}
@@ -4483,14 +4496,20 @@ public:
     void on(const gfx::DrawnRefused& r, loom::Mail& mail) {
         if (mail.authored_from_role(sdl_office())) heard_->refused.push_back(r.reason);
     }
-    void on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
-        if (mail.authored_from_role(sdl_office())) heard_->said.push_back("key " + k.name);
+    void on(const gfx::AreaKeyPressed& k, loom::Mail& mail) {
+        if (mail.authored_from_role(sdl_office())) {
+            heard_->said.push_back("key " + k.name + said(k));
+        }
     }
-    void on(const zengine::input::KeyReleased& k, loom::Mail& mail) {
-        if (mail.authored_from_role(sdl_office())) heard_->said.push_back("up " + k.name);
+    void on(const gfx::AreaKeyReleased& k, loom::Mail& mail) {
+        if (mail.authored_from_role(sdl_office())) {
+            heard_->said.push_back("up " + k.name + said(k));
+        }
     }
-    void on(const zengine::input::TextEntered& e, loom::Mail& mail) {
-        if (mail.authored_from_role(sdl_office())) heard_->said.push_back("text " + e.text);
+    void on(const gfx::AreaTextEntered& e, loom::Mail& mail) {
+        if (mail.authored_from_role(sdl_office())) {
+            heard_->said.push_back("text " + e.text + said(e));
+        }
     }
     void on(const gfx::AreaButtonChanged& b, loom::Mail& mail) {
         if (mail.authored_from_role(sdl_office())) {
@@ -4829,7 +4848,7 @@ TEST_CASE("a left press on the OS window lands on the top node painted at its pi
 }
 
 TEST_CASE("keys, their text and their releases go from the OS window to the owner of each area "
-          "placed to hear them, and to no other") {
+          "placed to hear them, and to no other, each naming that area and the weaver's own hand") {
     LitWindow t;
     LitHeard& keys = t.own("test.keys", 0, 0, 100, 100, "night", 0, /*keys=*/true);
     LitHeard& deaf = t.own("test.deaf", 0, 100, 100, 100, "night", 1);
@@ -4839,7 +4858,8 @@ TEST_CASE("keys, their text and their releases go from the OS window to the owne
     t.light.queued.events.emplace_back(zengine::input::KeyReleased{
         zengine::input::scan::kQ, "Q", zengine::input::mod::kNone});
     t.pump();
-    CHECK(keys.said == std::vector<std::string>{"key Q", "text q", "up Q"});
+    CHECK(keys.said == std::vector<std::string>{"key Q @test.keys local", "text q @test.keys local",
+                                                "up Q @test.keys local"});
     CHECK(deaf.said.empty());
 }
 
@@ -5964,7 +5984,7 @@ TEST_CASE("the OS window empties SDL's own queue: a key's release, a move, anoth
     push(close);
 
     w.pump();
-    CHECK(w.heard.said == std::vector<std::string>{"up Q"});
+    CHECK(w.heard.said == std::vector<std::string>{"up Q @test.lit local"});
     REQUIRE(w.heard.moves.size() == 1);
     CHECK(w.heard.moves[0].first.x == 30);
     CHECK(w.heard.moves[0].first.y == 20);

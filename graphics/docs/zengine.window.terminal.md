@@ -50,12 +50,12 @@ window, incarnation, size or measure, or an empty area. To read what it shows, a
 [`WindowShowAsked`](#windowshowasked), or, as an area's arranger, [`AreaShowAsked`](#areashowasked),
 told when it settled (`AreaSettled`).
 
-Keys go to each owner placed to hear them, front to back: each key, its text and its release. An
-owner placed to hear the pointer is given each pointer moment in its area as it was, at its cell's
-centre in the area's pixels (`AreaButtonChanged`, `AreaPointerMoved`, `AreaWheelTurned`); moves read
-in one beat go as one. A press holds its button for its area until its release, under one number;
-its arranger hears where it landed (`AreaPressed`;
-[the Graphics package](graphics.md#who-says-what)). Each names its hand
+Keys go to each owner placed to hear them, front to back: each key, its text and its release, naming
+the area and the hand (`AreaKeyPressed` and its kin). An owner placed to hear the pointer is given
+each pointer moment in its area as it was, at its cell's centre in the area's pixels
+(`AreaButtonChanged`, `AreaPointerMoved`, `AreaWheelTurned`); moves read in one beat go as one. A
+press holds its button for its area until its release, under one number; its arranger hears where it
+landed (`AreaPressed`; [the Graphics package](graphics.md#who-says-what)). Each names its hand
 ([`AttributedInput`](#attributedinput)).
 
 Who may send: whoever the host's grant lets reach the window. It takes a drawing or an element only
@@ -288,8 +288,8 @@ incarnation, its unit the cell and text a cell; the directory keeps it. It never
 `SurfacePlacement` or `SurfaceCloseRequested`. To an area's owner: `AreaRoom` v4 for each
 introduction; `DrawnRefused` v1; `ActionRequested` v1; `AreaButtonChanged` v3, `AreaPointerMoved`,
 `AreaWheelTurned` v2, `AreaHoldEnded`, `AreaPointerLeft` v1 when placed to hear the pointer;
-`KeyPressed` v2, `KeyReleased` v2 and `TextEntered` v1 when placed to hear keys, a shape it does not
-take refused on the bus. To an arranger following an area not its own: `AreaPressed` v3,
+`AreaKeyPressed`, `AreaKeyReleased` and `AreaTextEntered` v1 when placed to hear keys, one it does
+not take refused on the bus. To an arranger following an area not its own: `AreaPressed` v3,
 `AreaHoldEnded`, `AreaPointerLeft` v1; following one, `AreaSettled` v1; to any arranger,
 `AreaHandRefused`. To an asker: `WindowShown`, `AreaShown`, `ClipboardText`, `SurfaceCaptured`,
 `SurfaceCaptureChunk` v1 and `zen.Refused`. To the Timer, its beat's order.
