@@ -127,7 +127,7 @@ EditorTransfer v1 0xc59b87afc2ba10c3
 EditorUndoStep v1 0x91f059f2dc12bd3e
 EditorWarmRequested v1 0xbd96667f90fab804
 EditorWarmed v1 0xcc54756fc31a15f7
-Element v2 0xb18dc0cb6fec75b9
+Element v3 0xc89169235005c80e
 ElementChange v1 0xb28ddcb72b0d11b1
 ElementCodeOffered v1 0x23282614162dbf06
 ElementDescribed v1 0x9b314314d98e7c03
@@ -139,7 +139,6 @@ EllipseArgs v1 0x92af4694ab9b1b3b
 EmptyTrigger v1 0x6b1f43e539c4902f
 EnsureRoleTimer v1 0x5d7c21b3a6e6630d
 EnsureTimer v1 0x8caea660315a3add
-Extent v1 0x2816cd762bcb3ee7
 FilesState v1 0xf4f4bc1b2a074d44
 FirstRunState v1 0xaafd342362aeb44c
 FlowAnswer v1 0x31e6e3257e823e26
@@ -397,6 +396,7 @@ PaneWord v1 0x821f0e413965418f
 PartFace v1 0x8687616ffd6ba3f5
 PathArgs v1 0x54684353c5f4eb52
 PinList v1 0x5e56a4367e5c78ef
+Place v1 0x752cf722bd76bf80
 PlanNames v1 0x1ddfffbffb2b5ae8
 PlanNamesRequested v1 0xa9378174047506d0
 PlanRowRequested v1 0xe5d37bbb8ab79820
@@ -466,6 +466,7 @@ ShownCandidate v1 0x8ad594ca04e169db
 ShownEntry v2 0x5daa79b13f1620ff
 ShownModes v1 0xf2b326854977a7bc
 ShownProperty v1 0x33d6e471c262cd06
+Size v1 0x323b7fd9c7197c8d
 SkinChosen v1 0xd468996ace38d835
 SkinOffered v1 0x3779030674e1456a
 SlotBinding v1 0xaf9a009465b017d9

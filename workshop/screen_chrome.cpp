@@ -7,6 +7,13 @@
 
 #include "screen.hpp"
 
+#include "ui/layout.hpp"
+
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
+
 namespace zengine::workshop {
 
 // ---- THE CHROME A PANE WEARS, AND THE INTERIOR IT LEAVES --------------------------------
@@ -49,37 +56,131 @@ PixelRect pane_interior(const PixelRect& outer, const Screen& sc) {
 }
 
 // ---- AUTHORED INTENT, PROJECTED ONTO THIS SCREEN -------------------------------------
+// The desk is solved by `ui::arrange`: its places are frames, each open pane a part standing in
+// one, and the pane's rectangle is what the solve answers for it.
+
+namespace {
+
+// The desk's frames as parts of the solve. A pane's part takes `kFirstPanePart` plus its position
+// among the open panes, so no pane shares an identity with a frame.
+constexpr std::int64_t kRoomPart = 1;
+constexpr std::int64_t kTopBandPart = 2;
+constexpr std::int64_t kRightColumnPart = 3;
+constexpr std::int64_t kStackPart = 4;
+constexpr std::int64_t kFirstPanePart = 5;
+
+ui::Size pixels_size(std::int64_t px) { return ui::Size{ui::kSizePixels, px}; }
+
+ui::Place pixels_place(std::int64_t x, std::int64_t y) {
+    return ui::Place{ui::kPlacePixels, x, y};
+}
+
+ui::Element frame_part(std::int64_t id, std::string label, std::int64_t context, ui::Place place,
+                       ui::Size width, ui::Size height) {
+    ui::Element e;
+    e.id = id;
+    e.label = std::move(label);
+    e.context = context;
+    e.place = place;
+    e.width = width;
+    e.height = height;
+    return e;
+}
+
+/// The desk's four places on this screen, as frames: the room under the top band, where a
+/// `pixels` place is measured from; the top band, whole; the right column, the room's top-right,
+/// `workshop.side-columns` wide and the room's height; and the stack, the room's top-left, as wide
+/// as the catalog's slot and the room's height, laying its panes down a cell apart and beginning
+/// again at its top.
+// WL-GEO-03 -- agents/workshop/geometry.md
+// WL-PANE-01, WL-PANE-03 -- agents/workshop/panes-and-windows.md
+void add_desk_frames(std::vector<ui::Element>& parts, std::vector<ui::Measure>& measures,
+                     const Screen& sc) {
+    const PixelRect column = placement_bounds(placement::kSideRegion, 0, sc);
+    const PixelRect slot = placement_bounds(placement::kOverlayStack, 0, sc);
+    parts.push_back(frame_part(kRoomPart, "room", ui::kRootContext, pixels_place(0, sc.room_y),
+                               pixels_size(sc.room_w), pixels_size(sc.room_h)));
+    parts.push_back(frame_part(kTopBandPart, "top band", ui::kRootContext, pixels_place(0, 0),
+                               pixels_size(sc.w), pixels_size(sc.room_y)));
+    parts.push_back(frame_part(kRightColumnPart, "right column", kRoomPart,
+                               ui::Place{ui::kPlaceTopRight, 0, 0}, pixels_size(column.w),
+                               ui::Size{ui::kSizeFill, std::nullopt}));
+    ui::Element stack = frame_part(kStackPart, "stack", kRoomPart, ui::Place{}, pixels_size(slot.w),
+                                   ui::Size{ui::kSizeFill, std::nullopt});
+    stack.flow = ui::kFlowStack;
+    stack.gap = graphics::px_of_cells(kStackGap);
+    parts.push_back(stack);
+    measures.resize(parts.size());
+}
+
+/// One pane's own measure: its first offered extent per axis, else its place's own extent, the
+/// developer's answer a weaver's word lays over.
+// WL-PANE-17 -- agents/workshop/panes-and-windows.md
+ui::Measure pane_measure(std::int64_t where, const Screen& sc, const RuntimePane* preference) {
+    const PixelRect own = placement_bounds(where, 0, sc);
+    const auto preferred = preferred_extent(preference, stack_capacity(sc));
+    return ui::Measure{preferred.width ? preferred.width : own.w,
+                       preferred.height ? preferred.height : own.h};
+}
+
+/// One pane as a part: its sizes are the weaver's `pixels` where they gave one and `default` --
+/// its measure -- where they did not; it stands in the room at its `pixels` place, or in its
+/// place's frame: down the stack, in the top band, or in the right column at the offset that
+/// puts its measured width against the column's right edge, which an authored width keeps.
+// WL-PANE-01, WL-PANE-11 -- agents/workshop/panes-and-windows.md
+ui::Element pane_part(std::int64_t id, std::int64_t where, const SetupPane* authored,
+                      const ui::Measure& measure, const Screen& sc) {
+    ui::Element e;
+    e.id = id;
+    if (authored != nullptr && authored->width.mode == pane_unit::kPixels) {
+        e.width = pixels_size(authored->width.amount);
+    }
+    if (authored != nullptr && authored->height.mode == pane_unit::kPixels) {
+        e.height = pixels_size(authored->height.amount);
+    }
+    if (authored != nullptr && authored->place.mode == pane_unit::kPixels) {
+        e.context = kRoomPart;
+        e.place = pixels_place(authored->place.x, authored->place.y);
+    } else if (where == placement::kSideRegion) {
+        e.context = kRightColumnPart;
+        e.place = pixels_place(placement_bounds(where, 0, sc).w - measure.w.value_or(0), 0);
+    } else if (where == placement::kTopBand) {
+        e.context = kTopBandPart;
+    } else {
+        e.context = kStackPart;
+    }
+    return e;
+}
+
+PixelRect pixel_rect_of(const ui::Rect& r) { return PixelRect{r.x, r.y, r.w, r.h}; }
+
+ui::Room room_of(const Screen& sc) { return ui::Room{sc.w, sc.h, chrome_grain(sc)}; }
+
+} // namespace
 
 // WL-GEO-06 -- agents/workshop/geometry.md
 // WL-PANE-01, WL-PANE-08, WL-PANE-11 -- agents/workshop/panes-and-windows.md
 PaneProjection project_pane(std::int64_t where, std::size_t slot,
                             const SetupPane* authored, const Screen& sc,
                             const RuntimePane* preference, std::int64_t stack_y) {
-    PaneProjection out;
-    // The developer's answer, in pixels: the truth a weaver's override lays over, per axis.
-    out.resolved = placement_bounds(where, slot, sc);
-    const auto preferred = preferred_extent(preference, stack_capacity(sc));
-    if (preferred.width) out.resolved.w = preferred.width;
-    if (preferred.height) out.resolved.h = preferred.height;
-    if (where == placement::kOverlayStack && stack_y >= 0) out.resolved.y = stack_y;
-    if (where == placement::kSideRegion && preferred.width)
-        out.resolved.x = sc.w - out.resolved.w;
-    // The weaver's answer is spent wherever they gave one: an authored override lays over whatever
-    // `placement_bounds` answered, per axis, for every place.
-    if (authored != nullptr) {
-        if (authored->place.mode == pane_unit::kPixels) {
-            const PixelRect at =
-                canvas_of_room(PixelRect{authored->place.x, authored->place.y, 0, 0}, sc);
-            out.resolved.x = at.x;
-            out.resolved.y = at.y;
-        }
-        if (authored->width.mode == pane_unit::kPixels) {
-            out.resolved.w = authored->width.amount;
-        }
-        if (authored->height.mode == pane_unit::kPixels) {
-            out.resolved.h = authored->height.amount;
-        }
+    std::vector<ui::Element> parts;
+    std::vector<ui::Measure> measures;
+    add_desk_frames(parts, measures, sc);
+    const ui::Measure measure = pane_measure(where, sc, preference);
+    ui::Element pane = pane_part(kFirstPanePart, where, authored, measure, sc);
+    // Projected alone, a pane in the stack stands at the slot it is given: its top `stack_y`, or
+    // the slot's own where none is given.
+    if (pane.context == kStackPart) {
+        const std::int64_t top =
+            stack_y >= 0 ? stack_y : placement_bounds(placement::kOverlayStack, slot, sc).y;
+        pane.context = kRoomPart;
+        pane.place = pixels_place(0, top - sc.room_y);
     }
+    parts.push_back(pane);
+    measures.push_back(measure);
+    const ui::Scene scene = ui::arrange(parts, room_of(sc), measures);
+    PaneProjection out;
+    out.resolved = pixel_rect_of(scene.items.back().rect);
     out.visible = clip_to_canvas_px(out.resolved, sc);
     return out;
 }
@@ -87,12 +188,8 @@ PaneProjection project_pane(std::int64_t where, std::size_t slot,
 // WL-PANE-03, WL-PANE-07, WL-PANE-09 -- agents/workshop/panes-and-windows.md
 PaneBounds bounds_of(const Panes& panes, const Setup& setup, std::int64_t kind,
                       const Screen& sc) {
-    std::size_t slot = 0;
-    std::int64_t stack_y = sc.room_y;
-    const std::int64_t floor_y = sc.room_y + sc.room_h;
-    const auto capacity = stack_capacity(sc);
-    // Each desk row resolved once, so the walk below costs one pass over the desk, not one per
-    // open pane: a desk of many panes is asked this for every pane on every repaint.
+    // Each desk row resolved once, so building the desk costs one pass over it, not one per open
+    // pane: a desk of many panes is asked this for every pane on every repaint.
     std::vector<std::pair<std::int64_t, const SetupPane*>> named_rows;
     named_rows.reserve(setup.panes.size());
     for (const SetupPane& row : setup.panes) {
@@ -100,7 +197,15 @@ PaneBounds bounds_of(const Panes& panes, const Setup& setup, std::int64_t kind,
             named_rows.emplace_back(*named, &row);
         }
     }
-    for (const OpenPane& p : panes.open) {
+    std::vector<ui::Element> parts;
+    std::vector<ui::Measure> measures;
+    parts.reserve(4 + panes.open.size());
+    measures.reserve(4 + panes.open.size());
+    add_desk_frames(parts, measures, sc);
+    std::optional<std::size_t> asked; // the first open pane of this kind
+    std::int64_t asked_where = placement_of(kind);
+    for (std::size_t i = 0; i < panes.open.size(); ++i) {
+        const OpenPane& p = panes.open[i];
         const SetupPane* authored = nullptr;
         for (const auto& [named, row] : named_rows) {
             if (named == p.kind) {
@@ -109,38 +214,27 @@ PaneBounds bounds_of(const Panes& panes, const Setup& setup, std::int64_t kind,
             }
         }
         // The desk may name the place, here and only here: a row saying `kRightColumn` names the
-        // place no coordinate can, and it resolves through `placement_bounds` like any other;
-        // authored extents still lay over it.
+        // place no coordinate can; authored extents still lay over it.
         std::int64_t where = placement_of(p.kind);
         if (authored != nullptr && authored->place.mode == pane_unit::kRightColumn) {
             where = placement::kSideRegion;
         }
-        // A SLOT IS EARNED BY STANDING IN THE STACK AND SAYING NOTHING. A pane the desk placed
-        // elsewhere is not in the stack to begin with, and one that named its own coordinates
-        // does not queue for a rectangle it is not going to use.
-        const bool stacked = where == placement::kOverlayStack &&
-                             (authored == nullptr || authored->place.mode == pane_unit::kDefault);
-        std::int64_t height = 0;
-        if (stacked) {
-            const auto extent = preferred_extent(panes.runtime.of_kind(p.kind), capacity);
-            height = extent.height ? extent.height : capacity.fallback_height;
-            // THE COLUMN BEGINS AGAIN AT ITS TOP when this pane would pass its floor, so a stacked
-            // pane always stands in the room; one taller than the room stands at the top.
-            if (stack_y > sc.room_y && stack_y + height > floor_y) {
-                stack_y = sc.room_y;
-            }
+        const ui::Measure measure = pane_measure(where, sc, panes.runtime.of_kind(p.kind));
+        if (!asked && p.kind == kind) {
+            asked = parts.size();
+            asked_where = where;
         }
-        if (p.kind == kind) {
-            const PaneProjection got = project_pane(where, slot, authored, sc,
-                                                    panes.runtime.of_kind(kind), stack_y);
-            return PaneBounds{true, where, got.visible, got.resolved};
-        }
-        if (stacked) {
-            ++slot;
-            stack_y += height + capacity.gap;
-        }
+        parts.push_back(pane_part(kFirstPanePart + static_cast<std::int64_t>(i), where, authored,
+                                  measure, sc));
+        measures.push_back(measure);
     }
-    return PaneBounds{false, placement_of(kind), PixelRect{}, PixelRect{}};
+    if (!asked) {
+        return PaneBounds{false, placement_of(kind), PixelRect{}, PixelRect{}};
+    }
+    // Every part stands in a frame that reaches the root, so the scene holds each, in order.
+    const ui::Scene scene = ui::arrange(parts, room_of(sc), measures);
+    const PixelRect resolved = pixel_rect_of(scene.items[*asked].rect);
+    return PaneBounds{true, asked_where, clip_to_canvas_px(resolved, sc), resolved};
 }
 
 // ---- PLACEMENT SPENT ON THE POINTER: a place a weaver can see is a place a hand meets ------

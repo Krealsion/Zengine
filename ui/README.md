@@ -1,29 +1,31 @@
 # UI
 
 **UI keeps where a person put something on screen apart from where it lands on a particular
-screen. A program stores each element's position and size as they were authored, such as "4 cells
-in, half the width", then resolves them against a screen's size to get the rectangles to draw and
-to learn which element is under a given cell.**
+screen. A program stores each part's place and size as they were authored, in words such as "half
+the width", "its own size", "what is left" or "the bottom-right corner, 10 pixels in", then solves
+them for a screen's size to get the rectangles to draw, in whole pixels, and to learn which part
+is under a given pixel.**
 
-A cell is one square of the grid a screen is drawn in. An element can be measured from another
-element instead of from the whole screen, so moving one moves everything measured from it.
-Resolution gives an answer for any values, and its result is never stored back on what was
-authored. It is header-only: a program links `zengine::ui` and spells
+A part can stand in another part instead of in the whole screen, so moving one moves everything
+standing in it, and a part can lay the parts standing in it down a column. Solving gives an answer
+for any values, a terminal solving the same words at the size of its cells; its result is never
+stored back on what was authored, and what no screen could solve -- a size that depends on itself
+-- is found from the words alone. It is header-only: a program links `zengine::ui` and spells
 `#include "ui/vocabulary.hpp"` for the authored side and `#include "ui/layout.hpp"` for the
-resolved side.
+solved side.
 
 ## Pages
 
-- [The UI package — authored and resolved](docs/ui.md): the reference — elements, sizes and
-  frames, how they resolve, what is under a cell, and the compile-time check that keeps a
-  resolved number out of an authored type
+- [The UI package — authored and solved](docs/ui.md): the reference — parts, their sizes and
+  places in words, frames and columns, how they solve, what is under a pixel, what is wrong with
+  the words alone, and the compile-time check that keeps a solved number out of an authored type
 
 ## What is in this folder
 
 | | |
 |---|---|
-| `vocabulary.hpp` | what a person authors: an element's identity, label, frame, position and size |
-| `layout.hpp` | what a screen makes of it: rectangles, a resolved scene, and what is under a cell |
+| `vocabulary.hpp` | what a person authors: a part's identity, label, frame, place and sizes, and what is wrong with them |
+| `layout.hpp` | what a screen makes of it: the solve, rectangles, a solved scene, and what is under a pixel |
 | `CMakeLists.txt` | the `zengine-ui-vocabulary` library target, exported as `zengine::ui` |
 | `docs/` | these pages |
 

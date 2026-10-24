@@ -119,10 +119,10 @@ beside them, one file per subject the header's section banners name
 
 | system | owner today | where |
 |---|---|---|
-| authored geometry → resolved rectangles | the **`ui` package**, as pure arithmetic. No viewport is remembered and no result is cached | [`ui/layout.hpp`](../../ui/layout.hpp) |
-| hit testing over authored objects | the **`ui` package**: `hit(scene, cx, cy)` answers the **authored id** under a cell. Workshop does not call it: its own furniture is hit-tested region by region, in the next row | [`ui/layout.hpp`](../../ui/layout.hpp) |
+| authored geometry → solved rectangles | the **`ui` package**, as pure arithmetic in whole pixels. No room is remembered and no result is cached | [`ui/layout.hpp`](../../ui/layout.hpp) |
+| hit testing over authored objects | the **`ui` package**: `hit(scene, px, py)` answers the **authored id** under a pixel. Workshop does not call it: its own furniture is hit-tested region by region, in the next row | [`ui/layout.hpp`](../../ui/layout.hpp) |
 | hit testing over Workshop's own furniture | **Workshop's screen module**, per-region: a layout tab, the contextual menu, a pane's rectangle and the row of its body a press names. Each is its own predicate | [`workshop/screen.hpp`](../../workshop/screen.hpp) |
-| pane rectangles (placement and size) | **Workshop's arrangement/setup module** — an authored place and size per pane, resolved against the screen | [`workshop/setup.hpp`](../../workshop/setup.hpp), [`workshop/arrangement.hpp`](../../workshop/arrangement.hpp) |
+| pane rectangles (placement and size) | **Workshop's arrangement/setup module** — an authored place and size per pane, solved against the screen by the `ui` package, each place a frame (`bounds_of`) | [`workshop/setup.hpp`](../../workshop/setup.hpp), [`workshop/arrangement.hpp`](../../workshop/arrangement.hpp) |
 | pane order (depth) | the **setup's rank permutation**. Front is *painted later*; there is no numeric z | [`workshop/setup.hpp`](../../workshop/setup.hpp) |
 | pointer routing | **Workshop's weave**, in one place: the `PointerButton` and `PointerMoved` handlers, which decide by mode and then by region | [`workshop/weave.hpp`](../../workshop/weave.hpp) |
 | whether a press was consumed | **Workshop's weave**, as a local `bool` per region check. There is no cross-participant disposition type | [`workshop/weave.hpp`](../../workshop/weave.hpp) |

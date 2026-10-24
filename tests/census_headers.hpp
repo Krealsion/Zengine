@@ -118,8 +118,9 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::source_transfer::SourceText>(), // SourceText v1
         shape<::zengine::timer::TimerHandoff>(), // TimerHandoff v1
         shape<::zengine::timer::TimerHandoffEntry>(), // TimerHandoffEntry v1
-        shape<::zengine::ui::Element>(), // Element v2
-        shape<::zengine::ui::Extent>(), // Extent v1
+        shape<::zengine::ui::Element>(), // Element v3
+        shape<::zengine::ui::Place>(), // Place v1
+        shape<::zengine::ui::Size>(), // Size v1
         shape<::zengine::view_builder::ViewBuilderRun>(), // ViewBuilderRun v1
         shape<::zengine::view::detail::ViewRetire>(), // ViewRetire v1
         shape<::zengine::view::detail::ViewHostState>(), // ViewHostState v1
