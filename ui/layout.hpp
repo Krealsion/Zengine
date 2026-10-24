@@ -183,8 +183,8 @@ struct Axis {
 
 /// A part's near and far edges along one axis, relative to its frame's start.
 struct Edges {
-    std::int64_t near = 0;
-    std::int64_t far = 0;
+    std::int64_t from = 0;
+    std::int64_t to = 0;
 };
 
 /// The edges of a part along one axis of a frame of `span` (>= 0). A pixel offset or a pixel
@@ -200,34 +200,34 @@ inline Edges edges_of(const Axis& a, std::int64_t span, std::int64_t step,
     switch (a.extent) {
     case Reads::Fill:
         if (anchor == Anchor::Start) {
-            e.near = o;
-            e.far = span;
+            e.from = o;
+            e.to = span;
         } else if (anchor == Anchor::End) {
-            e.near = 0;
-            e.far = sub_px(span, o);
+            e.from = 0;
+            e.to = sub_px(span, o);
         } else {
-            e.near = 0;
-            e.far = span;
+            e.from = 0;
+            e.to = span;
         }
-        if (e.far < e.near) {
-            e.far = e.near; // past the frame's far edge: nothing left to fill
+        if (e.to < e.from) {
+            e.to = e.from; // past the frame's far edge: nothing left to fill
         }
         return e;
     case Reads::Share: {
         const std::int64_t s = a.share;
         if (anchor == Anchor::Start) {
-            e.near = o;
-            e.far = floor_to_step(add_px(o, part_of(span, s, kShareWhole)), step);
+            e.from = o;
+            e.to = floor_to_step(add_px(o, part_of(span, s, kShareWhole)), step);
         } else if (anchor == Anchor::End) {
-            e.far = sub_px(span, o);
+            e.to = sub_px(span, o);
             // floor(span - o - span*s/whole) = span - o - ceil(span*s/whole)
             const std::int64_t whole_part = part_of(span, s, kShareWhole);
             const std::int64_t up =
                 part_is_whole(span, s, kShareWhole) ? whole_part : add_px(whole_part, 1);
-            e.near = floor_to_step(sub_px(e.far, up), step);
+            e.from = floor_to_step(sub_px(e.to, up), step);
         } else {
-            e.near = floor_to_step(part_of(span, kShareWhole - s, 2 * kShareWhole), step);
-            e.far = floor_to_step(part_of(span, kShareWhole + s, 2 * kShareWhole), step);
+            e.from = floor_to_step(part_of(span, kShareWhole - s, 2 * kShareWhole), step);
+            e.to = floor_to_step(part_of(span, kShareWhole + s, 2 * kShareWhole), step);
         }
         return e;
     }
@@ -237,14 +237,14 @@ inline Edges edges_of(const Axis& a, std::int64_t span, std::int64_t step,
     default: {
         const std::int64_t len = a.extent == Reads::Span ? span : a.length;
         if (anchor == Anchor::Start) {
-            e.near = o;
-            e.far = add_px(o, len);
+            e.from = o;
+            e.to = add_px(o, len);
         } else if (anchor == Anchor::End) {
-            e.far = sub_px(span, o);
-            e.near = sub_px(e.far, len);
+            e.to = sub_px(span, o);
+            e.from = sub_px(e.to, len);
         } else {
-            e.near = floor_to_step(floor_div(sub_px(span, len), 2), step);
-            e.far = add_px(e.near, len);
+            e.from = floor_to_step(floor_div(sub_px(span, len), 2), step);
+            e.to = add_px(e.from, len);
         }
         return e;
     }
@@ -416,7 +416,7 @@ inline Scene arrange(const std::vector<Element>& parts, const Room& room,
             std::int64_t reach = 0;
             for (const std::size_t i : inside[f]) {
                 const detail::Edges e = detail::edges_of(ax[i], 0, step, true);
-                reach = e.far > reach ? e.far : reach;
+                reach = e.to > reach ? e.to : reach;
             }
             ax[f].length = detail::ceil_to_step(reach, step);
         }
@@ -432,7 +432,7 @@ inline Scene arrange(const std::vector<Element>& parts, const Room& room,
             } else {
                 for (const std::size_t i : inside[f]) {
                     const detail::Edges e = detail::edges_of(ay[i], 0, step, true);
-                    reach = e.far > reach ? e.far : reach;
+                    reach = e.to > reach ? e.to : reach;
                 }
             }
             ay[f].length = detail::ceil_to_step(reach, step);
@@ -458,7 +458,7 @@ inline Scene arrange(const std::vector<Element>& parts, const Room& room,
                 down.offset = 0;
                 const std::optional<std::int64_t> said = measure_of(i, false);
                 const detail::Edges own = detail::edges_of(down, span_y, step, fits_y);
-                const std::int64_t slot = said ? *said : sub_px(own.far, own.near);
+                const std::int64_t slot = said ? *said : sub_px(own.to, own.from);
                 if (!fits_y && cursor > 0 && add_px(cursor, slot) > span_y) {
                     cursor = 0; // the column begins again at its top
                 }
@@ -468,8 +468,8 @@ inline Scene arrange(const std::vector<Element>& parts, const Room& room,
             } else {
                 ey = detail::edges_of(ay[i], span_y, step, fits_y);
             }
-            rect[i] = Rect{add_px(f.x, ex.near), add_px(f.y, ey.near), sub_px(ex.far, ex.near),
-                           sub_px(ey.far, ey.near)};
+            rect[i] = Rect{add_px(f.x, ex.from), add_px(f.y, ey.from), sub_px(ex.to, ex.from),
+                           sub_px(ey.to, ey.from)};
             placed[i] = 1;
         }
     };

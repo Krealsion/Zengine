@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <limits>
 #include <optional>
+#include <ostream> // doctest prints a std::string_view through it
 #include <set>
 #include <string>
 #include <string_view>
