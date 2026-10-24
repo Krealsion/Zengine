@@ -90,11 +90,16 @@ struct PassedOver {
 };
 
 /// WHY AN ARTIFACT A ROW NAMES ANOTHER IN PLACE OF DID NOT LOAD, in a weaver's words, the
-/// refusing layer's beside them: one that would not be made (an OS window with no display it can
-/// open on), one whose file would not open, or another refusal.
+/// refusing layer's beside them: one that refused to be made, in the words it refused in (an OS
+/// window with no display it can open on says SDL's), one whose file would not open, or another
+/// refusal.
 inline std::string passed_over_words(const std::string& refused) {
-    if (refused.find("create() returned null") != std::string::npos) {
-        return "it would not start here, and what it said is on standard error (" + refused + ")";
+    const std::string making_refused = "library create() refused: ";
+    if (const std::size_t at = refused.find(making_refused); at != std::string::npos) {
+        return "it would not start here: " + refused.substr(at + making_refused.size());
+    }
+    if (refused.find("library create() ") != std::string::npos) {
+        return "it would not start here (" + refused + ")";
     }
     if (refused.find("open failed") != std::string::npos) {
         return "its file would not open (" + refused + ")";
@@ -248,6 +253,9 @@ inline std::string reload_refusal_words(const std::string& stem, const std::stri
                "' is loaded in this process: this would be an initial load, not a reload";
     } else if (says("open failed:")) {
         said = "the rebuilt '" + stem + "' did not open; the running weave is unchanged";
+    } else if (says("library create() refused")) {
+        said = "the rebuilt '" + stem + "' refused to be made, and Loom says why; the running "
+               "weave is unchanged";
     } else if (says("library create() returned null")) {
         said = "the rebuilt '" + stem + "' produced no weave; the running weave is unchanged";
     } else if (says("new library refused:") &&

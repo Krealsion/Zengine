@@ -955,7 +955,11 @@ TEST_CASE("a host-backed Timer refuses to exist where the host cannot serve its 
     const loom::WeaveId timer = r.load("zengine-timer", TIMER_SO, tmr::kTimerRole);
     CHECK(timer.value == 0);
     REQUIRE_FALSE(r.heard.refusals.empty());
-    CHECK(r.heard.refusals.back().find("create() returned null") != std::string::npos);
+    CHECK_MESSAGE(r.heard.refusals.back().find("library create() refused: this operator host "
+                                               "publishes no '" +
+                                               std::string(tmr::kNormalizeDelay) + "'") !=
+                      std::string::npos,
+                  r.heard.refusals.back());
 }
 
 // ---- 8. custody and cost -----------------------------------------------------

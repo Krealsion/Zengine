@@ -12,6 +12,7 @@
 
 #include "office_manual.hpp"
 #include "pane_window.hpp"
+#include "video_driver.hpp"
 #include "weavelib/legacy_pane_protocol.hpp"
 
 #include "operator/catalog.hpp"
@@ -179,41 +180,7 @@ const Stage& stage() {
 }
 
 #ifdef WINDOW_SDL_SO
-/// SDL'S VIDEO DRIVER, NAMED FOR THIS PROCESS while this lives, as a weaver's environment names
-/// it, and given back as it was after: an OS window told a driver SDL lacks cannot open.
-struct VideoDriver {
-    static constexpr const char* kNames[] = {"SDL_VIDEO_DRIVER", "SDL_VIDEODRIVER"};
-    std::optional<std::string> was[2];
-
-    explicit VideoDriver(const char* driver) {
-        for (int i = 0; i < 2; ++i) {
-            if (const char* v = std::getenv(kNames[i])) {
-                was[i] = v;
-            }
-            put(kNames[i], driver);
-        }
-    }
-    ~VideoDriver() {
-        for (int i = 0; i < 2; ++i) {
-            put(kNames[i], was[i] ? was[i]->c_str() : nullptr);
-        }
-    }
-    VideoDriver(const VideoDriver&) = delete;
-    VideoDriver& operator=(const VideoDriver&) = delete;
-
-    /// `value` for `name`, or `name` removed when there is none.
-    static void put(const char* name, const char* value) {
-#if defined(_WIN32)
-        ::_putenv_s(name, value != nullptr ? value : "");
-#else
-        if (value != nullptr) {
-            ::setenv(name, value, 1);
-        } else {
-            ::unsetenv(name);
-        }
-#endif
-    }
-};
+using zengine::testing::VideoDriver;
 #endif
 
 // ---- what a running Timer STORED, read off a real letter ----------------------
@@ -1514,8 +1481,11 @@ TEST_CASE("the shipped window row in the OS window's absence: told a driver it l
     REQUIRE(done.passed_over.size() == 1);
     CHECK(done.passed_over[0].stem == "zengine-window-sdl");
     CHECK(done.passed_over[0].next == "zengine-window-terminal");
-    CHECK(done.passed_over[0].why.rfind("it would not start here, and what it said is on "
-                                        "standard error (", 0) == 0);
+    // ...IN SDL'S OWN WORDS, which the OS window refused to be made in and the load carries.
+    const std::string sdl_said = "it would not start here: zengine-window-sdl: SDL_Init(";
+    CHECK_MESSAGE(done.passed_over[0].why.rfind(sdl_said, 0) == 0, done.passed_over[0].why);
+    CHECK(done.passed_over[0].why.find(" failed: ") != std::string::npos);
+    CHECK(done.passed_over[0].why.find("(SDL gave no reason)") == std::string::npos);
 #else
     CHECK(done.passed_over.empty());
 #endif
@@ -5607,7 +5577,7 @@ TEST_CASE("a reload is one conversation: a second ask is refused while it is ope
 }
 
 TEST_CASE("every Loom reload refusal has a weaver's sentence, and an unknown one is quoted whole") {
-    // THE MAPPING, AS A PURE FUNCTION: the kernel's nine sentences, each answered with
+    // THE MAPPING, AS A PURE FUNCTION: the kernel's ten sentences, each answered with
     // the artifact named, the next act said, and the kernel's words kept.
     const std::string stem = "zengine-oven";
     struct Row {
@@ -5619,6 +5589,7 @@ TEST_CASE("every Loom reload refusal has a weaver's sentence, and an unknown one
         {"accepted schema contract mismatch; reload refused", "answers to different MESSAGES"},
         {"not loaded: zengine-oven", "this would be an initial load"},
         {"open failed: dlopen said no", "did not open"},
+        {"library create() refused: no display", "refused to be made"},
         {"library create() returned null", "produced no weave"},
         {"new library refused: no host", "refused to construct"},
         // ...and the one a weaver meets by editing a state field without bumping its version:

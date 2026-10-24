@@ -410,11 +410,14 @@ TEST_CASE("a host that publishes no delay rule does NOT get a quietly local Time
     CHECK_FALSE(r.kernel.is_loaded("zengine-timer"));
     REQUIRE_FALSE(r.heard.refusals.empty());
 
-    // THE REFUSAL'S OWNER IS THE KERNEL'S LOAD, in the Kernel's own words: a
-    // constructor that throws is `create()` returning null, and a weave that
-    // could not be constructed is not a participant. Nothing partial was
-    // registered and no role was bound.
-    CHECK(r.heard.refusals.back().find("create() returned null") != std::string::npos);
+    // THE REFUSAL'S OWNER IS THE KERNEL'S LOAD, saying what the Timer's constructor threw: a
+    // weave that could not be constructed is not a participant. Nothing partial was registered
+    // and no role was bound.
+    CHECK_MESSAGE(r.heard.refusals.back().find("library create() refused: this operator host "
+                                               "publishes no '" +
+                                               std::string(tmr::kNormalizeDelay) + "'") !=
+                      std::string::npos,
+                  r.heard.refusals.back());
     CHECK(r.kernel.role_of("zengine-timer").empty());
 }
 
@@ -430,7 +433,11 @@ TEST_CASE("a host that publishes the rule at another SIGNATURE is refused the sa
     CHECK(timer.value == 0);
     CHECK_FALSE(r.kernel.is_loaded("zengine-timer"));
     REQUIRE_FALSE(r.heard.refusals.empty());
-    CHECK(r.heard.refusals.back().find("create() returned null") != std::string::npos);
+    CHECK_MESSAGE(r.heard.refusals.back().find("library create() refused: this operator host's '" +
+                                               std::string(tmr::kNormalizeDelay) +
+                                               "' is not the signature this Timer was authored "
+                                               "against") != std::string::npos,
+                  r.heard.refusals.back());
 }
 
 TEST_CASE("neither dishonest host produced a Timer that answers by local arithmetic") {

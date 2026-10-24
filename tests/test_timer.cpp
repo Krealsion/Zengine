@@ -2432,8 +2432,8 @@ TEST_CASE("binding: duplicate local ids are refused at declaration, never silent
     CHECK_THROWS_AS(loom::mount<Aliased>(bus), std::invalid_argument);
 
     // For a weave loaded through the KERNEL the same throw becomes a clean
-    // "library create() returned null" load refusal — the ABI's create thunk
-    // catches everything — which is the path every construction failure
+    // "library create() refused: <what it threw>" load refusal — the ABI's create
+    // thunk catches everything — which is the path every construction failure
     // already takes. True by construction; not separately pinned here because
     // it would need a fixture .so that exists only to be broken.
 }

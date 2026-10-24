@@ -514,7 +514,7 @@ kitchen: the bake completed
 | what you see | what it means |
 |---|---|
 | `open failed: ./oven.so: cannot open shared object file` | the path in `LoadWeave` is wrong, or the artifact was not built |
-| `library create() returned null` | your weave's constructor threw. A duplicate binding id, an empty id, or an empty role on a `*_to_role` binding all do this deliberately |
+| `library create() refused: …` | your weave's constructor threw, and what follows is what it threw. A duplicate binding id, an empty id, or an empty role on a `*_to_role` binding all do this deliberately |
 | it loads and **nothing happens** | most often: the service you are sending to is not loaded. See below |
 | the program hangs | you asked `bus.drain_until_idle()` of a process with the Timer service loaded — that bus is never idle. A host loop wants `bus.pump_pending()` |
 | walls of template errors from `WeaveBase` | you declared an `on` and forgot `using TimedWeave::on;` — look for the `static_assert` sentence |
