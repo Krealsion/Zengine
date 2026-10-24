@@ -1214,25 +1214,26 @@ struct PointerDesk : TypedWindow {
     /// An owner of `office`, its area placed at cell (`col`, `row`), `w` by `h` cells.
     MomentsHeard& own(const char* office, std::int64_t col, std::int64_t row, std::int64_t w,
                       std::int64_t h, std::int64_t order, bool pointer, bool by_arranger = false,
-                      std::string words = {}, std::string action = {}) {
+                      std::string words = {}, std::string action = {}, bool followed = true) {
         heard.push_back(std::make_unique<MomentsHeard>());
         auto made = std::make_unique<MomentsOwner>(*heard.back(), office, std::move(words),
                                                    std::move(action));
         MomentsOwner* raw = made.get();
         loom::Grant g = loom::emit_default_grant(*raw);
         raw->zen_set_self(r.bus.register_weave(std::move(made), std::move(g), office));
-        place(office, office, col, row, w, h, order, pointer, by_arranger);
+        place(office, office, col, row, w, h, order, pointer, by_arranger, followed);
         r.to_role(gfx::kGraphicsRole, gfx::SkinChosen{office, "classic"});
         r.drain();
         return *heard.back();
     }
     void place(const char* area, const char* owner, std::int64_t col, std::int64_t row,
                std::int64_t w, std::int64_t h, std::int64_t order, bool pointer,
-               bool by_arranger = false) {
+               bool by_arranger = false, bool followed = true) {
         constexpr std::int64_t c = gfx::kCellPx;
         gfx::AreaPlaced placed{area,  gfx::kTerminalWindow, owner, col * c, row * c, w * c, h * c,
                                order, false};
         placed.pointer = pointer;
+        placed.followed = followed;
         if (by_arranger) {
             r.bus.office_send_to_role_as(arranger, kArranger, gfx::kGraphicsRole,
                                          loom::Message(loom::to_value(placed)));
@@ -1260,11 +1261,15 @@ std::int64_t local(std::int64_t cell, std::int64_t origin) {
 }
 
 TEST_CASE("the window tells an area's arranger, unasked, each time what the area shows settles at a "
-          "new version, and once a version") {
+          "new version, and once a version, when it follows the area, and where presses landed and "
+          "that the pointer left; an area it placed without following it is told none of it") {
     PointerDesk t;
     MomentsHeard& owned = t.own("test.settling", 10, 2, 20, 5, 1, true, /*by_arranger=*/true,
                                 "first words");
-    (void)owned;
+    // AN AREA THE SAME ARRANGER PLACED WITHOUT FOLLOWING IT, drawn and shown as the other is.
+    MomentsHeard& quiet = t.own("test.quiet", 40, 2, 20, 5, 1, true, /*by_arranger=*/true,
+                                "quiet words", {}, /*followed=*/false);
+    REQUIRE(t.r.screen().find("quiet words") != std::string::npos);
     REQUIRE_FALSE(t.presses.settled.empty());
     const gfx::AreaSettled first = t.presses.settled.back();
     CHECK(first.window == gfx::kTerminalWindow);
@@ -1283,6 +1288,37 @@ TEST_CASE("the window tells an area's arranger, unasked, each time what the area
     // ...AND A SHOWING THAT MOVED NOTHING OF IT tells nothing.
     t.type("\x1b[<35;2;2M"); // the pointer moved outside every area
     CHECK(t.presses.settled.size() == told + 1);
+    // THE AREA PLACED WITHOUT FOLLOWING IT, drawn again: never told, at any version.
+    const loom::WeaveId quiet_owner = t.r.bus.role_holder("test.quiet");
+    gfx::Sketch q;
+    q.text("words", 0, 0, "quiet again", gfx::by_role(gfx::role::kFill));
+    REQUIRE(t.r.bus.office_send_to_role_as(quiet_owner, "test.quiet", window_office(),
+        loom::Message(loom::to_value(gfx::Drawn{"test.quiet", true, q.nodes(), {}, q.records(),
+                                                {}, false, 0}))).valid());
+    t.r.drain();
+    CHECK(t.r.screen().find("quiet again") != std::string::npos);
+    for (const gfx::AreaSettled& said : t.presses.settled) CHECK(said.area != "test.quiet");
+    // ...NOR WHERE A PRESS THERE LANDED, which its owner hears; the area it follows, it is told.
+    const std::size_t pressed = t.presses.pressed.size();
+    t.button(0, 45, 4, true);
+    t.button(0, 45, 4, false);
+    CHECK(quiet.buttons.size() == 2);
+    CHECK(t.presses.pressed.size() == pressed);
+    t.button(0, 15, 4, true);
+    t.button(0, 15, 4, false);
+    CHECK(owned.buttons.size() == 2);
+    REQUIRE(t.presses.pressed.size() == pressed + 2);
+    CHECK(t.presses.pressed.back().first.area == "test.settling");
+    // ...NOR THAT THE POINTER LEFT IT, which its owner hears; leaving the area it follows, it is.
+    const std::size_t left = t.presses.left.size();
+    t.move(45, 4);
+    t.move(2, 0);
+    CHECK(quiet.left.size() == 1);
+    CHECK(t.presses.left.size() == left);
+    t.move(15, 4);
+    t.move(2, 0);
+    REQUIRE(t.presses.left.size() == left + 1);
+    CHECK(t.presses.left.back().area == "test.settling");
 }
 
 TEST_CASE("a button's moment says what the window drew under the hand when it landed -- the area, "
@@ -5374,6 +5410,7 @@ struct ReadDesk {
         raw->zen_set_self(id);
         owners[area] = id;
         gfx::AreaPlaced placed{area, window, area, x, y, w, h, order, false, pointer, weaver_only};
+        placed.followed = true; // its arranger hears where presses land, as Workshop does
         if (by_other) {
             r.bus.office_send_to_role_as(other, kOther, gfx::kGraphicsRole,
                                          loom::Message(loom::to_value(placed)));

@@ -418,6 +418,34 @@ TEST_CASE("a field of the app's view is clicked into in its window and typed int
     CHECK(has(run.shown(), "Total: 20"));
 }
 
+TEST_CASE("the app's window tells the app's weave nothing it does not take: its showings, a press and "
+          "typing put no refused notice on the bus") {
+    // MUTATION: the window telling every arranger what an area shows settled -- the app's weave,
+    // which places its areas and takes no such word, refuses it at each showing.
+    AppFolder folder("quiet");
+    Run run(folder);
+    REQUIRE(run.open());
+    run.host->begin();
+    for (const char* stem : {"zengine-operators-basic", "zengine-app-weave", "zengine-graphics"})
+        run.command(std::string("authority trust ") + stem);
+    REQUIRE(run.host->executor().state() == zengine::workshop::load::Realization::Complete);
+    std::vector<std::string> refused;
+    const loom::ObserverId tap = run.bus.add_observer([&](const loom::BusEvent& ev) {
+        if (ev.kind == loom::EventKind::Refused && run.window.valid() && ev.sender == run.window &&
+            ev.addressed_role == app::kAppRole)
+            refused.push_back(ev.schema_name);
+    });
+    run.mount_window();
+    REQUIRE(has(run.shown(), "Total: waiting"));
+    run.press_count();
+    run.count("10", "0", "-2");
+    CHECK(has(run.shown(), "Total: 30"));
+    run.bus.remove_observer(tap);
+    std::string said;
+    for (const std::string& r : refused) said += r + "\n";
+    CHECK_MESSAGE(refused.empty(), said);
+}
+
 TEST_CASE("the close of the app's own window ends the run, exit 0; a close any other office says ends nothing") {
     AppFolder folder("close");
     Run run(folder);

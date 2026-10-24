@@ -56,7 +56,7 @@ struct WindowState {
     std::vector<ElementCodeOffered> codes;
     std::int64_t next_handle = 1;
     std::int64_t refusals = 0;
-    ZEN_SHAPE(WindowState, 6, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
+    ZEN_SHAPE(WindowState, 7, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
               ZEN_FIELD(next_handle), ZEN_FIELD(refusals));
 };
 
@@ -211,6 +211,7 @@ public:
         a->weaver_only = i.weaver_only;
         a->wheel = i.wheel;
         a->right = i.right;
+        a->followed = i.followed;
         a->skin = i.skin;
         a->library = i.library;
         if (moved || repaint || handed) {
@@ -701,17 +702,20 @@ private:
         }
     }
 
+    /// Whether the area's arranger follows it, and so is told what the window says of it unasked.
+    static bool followed(const WinArea& a) { return !a.arranger.empty() && a.followed; }
+
     /// A button's moment, to the owner of the area its press is held for or landed in at the
-    /// area's point, with what the window drew under the hand (`l`), and to the area's arranger,
-    /// when another office, at the window's: both under the press's number, and both naming the
-    /// hand.
+    /// area's point, with what the window drew under the hand (`l`), and to the area's arranger
+    /// following it, when another office, at the window's: both under the press's number, and both
+    /// naming the hand.
     void tell(loom::Mail& mail, const WinArea& a, const zengine::input::PointerButton& b,
               const Point& at, std::uint64_t press, const Hand& hand, const Landed& l) {
         AreaButtonChanged told{a.area, b.button, b.pressed, sum(at.x, -a.x), sum(at.y, -a.y),
                                b.modifiers, hand.local, hand.actor};
         say_under(told, l);
         to_owner(mail, a, told, press);
-        if (!a.arranger.empty() && a.arranger != a.owner) {
+        if (followed(a) && a.arranger != a.owner) {
             (void)mail.as_role(office()).send_to_role(
                 a.arranger,
                 AreaPressed{std::string(Medium::kWindow), a.area, b.button, b.pressed, at.x, at.y,
@@ -805,7 +809,7 @@ private:
         if (!a.owner.empty()) {
             (void)mail.as_role(office()).send_to_role(a.owner, said);
         }
-        if (!a.arranger.empty() && a.arranger != a.owner) {
+        if (followed(a) && a.arranger != a.owner) {
             (void)mail.as_role(office()).send_to_role(a.arranger, said);
         }
     }
@@ -1103,11 +1107,11 @@ private:
         }
     }
 
-    /// WHAT EACH AREA SHOWS, SETTLED: told to the office that placed it, unasked, for each area
-    /// whose version moved since it was last told.
+    /// WHAT EACH AREA SHOWS, SETTLED: told to the office that placed it and follows it, unasked,
+    /// for each area whose version moved since it was last told.
     void tell_settled(loom::Mail& mail) {
         for (const WinArea& a : this->state_.areas) {
-            if (a.arranger.empty()) {
+            if (!followed(a)) {
                 continue;
             }
             const std::int64_t version = version_of(a.area);

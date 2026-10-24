@@ -22,9 +22,9 @@ AppWeaveState v1 0xc02ad7e96a18cc59
 AreaButtonChanged v3 0xcdf7f513e55e6201
 AreaHandRefused v1 0x4a892f6ac6208c2d
 AreaHoldEnded v1 0xa4f07cf674bfae98
-AreaIntroduced v6 0xe8419eacd71e7f5a
+AreaIntroduced v7 0xef6db5d2c02c4190
 AreaPart v1 0xf04db60362845b87
-AreaPlaced v5 0x3bd7d95d326beef6
+AreaPlaced v6 0xa0c38fff28daaf96
 AreaPointerLeft v1 0x65e599b7bfc67495
 AreaPointerMoved v2 0xeb5037becbb47151
 AreaPressed v3 0x04702ecdf447a382
@@ -93,8 +93,8 @@ DeskRect v1 0xf1f559e7658c5f6d
 DeskStamps v3 0x3cc122a12715a647
 DeskView v4 0x3851ae63d36d013b
 DesktopState v2 0x99a86d2ff5d2ed90
-DirectoryArea v5 0x71612b8884f85585
-DirectoryState v7 0x44cd2b1593c85bff
+DirectoryArea v6 0x8c4ed8ad04d1ac37
+DirectoryState v8 0xc0f758dc50d2413c
 Dismissal v1 0x2ef46c30c9e25ec4
 Drawn v2 0x3107618795be3e11
 DrawnRefused v1 0x7475c98771250027
@@ -559,12 +559,12 @@ ViewRetire v1 0x6a71f8f583882355
 ViewRun v1 0xed2c4ab0b0598981
 ViewStart v2 0x89d8495312d2c751
 ViewStop v1 0x1e90d056a56b777c
-WinArea v7 0x18e869e8449731a0
+WinArea v8 0x495bd1fa2dd9cb5a
 WindowOffered v3 0x0426f2eb5138d05b
 WindowShaped v1 0x65fc824d06476f98
 WindowShowAsked v1 0x9ae7f3bd1654e34e
 WindowShown v1 0x67d34473f44e6144
-WindowState v6 0x677aa9b0ece315d7
+WindowState v7 0xd6c53c09eb64626b
 WithdrawalFence v1 0x84f263bbb46b652c
 WorkshopCMakeTarget v1 0x9e240d00291fccca
 WorkshopCMakeTarget v2 0x7d80363632515662
