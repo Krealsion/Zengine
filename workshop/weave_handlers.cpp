@@ -226,6 +226,9 @@ void WorkshopWeave::on(const graphics::WindowOffered& w, loom::Mail& mail) {
         window_epoch_ = w.epoch;
         forget_area_readings(mail);
     }
+    // ...AND THE KEYS IN FORCE FOR WHERE THEY COME FROM: a POSIX terminal's, in the terminal window
+    // of a host whose terminal is one, and the defaults everywhere else.
+    set_posix_layer(host_->posix_terminal && w.window == graphics::kTerminalWindow, mail);
     if (window_name_ != w.window) {
         window_name_ = w.window;
         areas_placed_.clear();

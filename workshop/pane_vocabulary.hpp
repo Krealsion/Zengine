@@ -217,6 +217,42 @@ struct PaneActions {
 
 } // namespace v3
 
+/// Version 4 of the declaration lets a row name a key for a POSIX terminal beside its default:
+/// where the keys come from a POSIX terminal it stands in place of the default, and everywhere
+/// else the default stands (WL-KEY-08). Workshop widens v1 to v3 with none.
+namespace v4 {
+
+/// `PaneActionRow` v3's seven fields, and a key for a POSIX terminal.
+struct PaneActionRow {
+    std::string id;             ///< the durable action id, in the PANE's own namespace
+    std::string label;          ///< what a legend prints beside the key
+    std::int64_t scancode = 0;  ///< `zengine::input::scan`'s space; `kUnknown` = no default
+    std::int64_t modifiers = 0; ///< `zengine::input::mod`'s bitmask
+    std::string supersedes = {};          ///< as v2's
+    std::vector<ActionCause> causes = {}; ///< as v3's
+    std::string enters = {};              ///< as v3's
+    /// The key in force in place of the default where the keys come from a POSIX terminal, or
+    /// `kUnknown` for none: a key that terminal delivers, on a row with a default.
+    std::int64_t posix_scancode = 0;
+    std::int64_t posix_modifiers = 0; ///< its modifiers, as `modifiers`
+    ZEN_SHAPE(PaneActionRow, 4, ZEN_FIELD(id), ZEN_FIELD(label), ZEN_FIELD(scancode),
+              ZEN_FIELD(modifiers), ZEN_FIELD(supersedes), ZEN_FIELD(causes), ZEN_FIELD(enters),
+              ZEN_FIELD(posix_scancode), ZEN_FIELD(posix_modifiers));
+};
+
+/// The rows of the mode in force, its name and each other mode's causes, as v3 says them, over
+/// v4 rows, judged and replaced whole by the laws of v1 to v3.
+struct PaneActions {
+    std::string pane;
+    std::string mode;                       ///< as v3's
+    std::vector<PaneActionRow> rows;
+    std::vector<ModeCauses> elsewhere = {}; ///< as v3's
+    ZEN_SHAPE(PaneActions, 4, ZEN_FIELD(pane), ZEN_FIELD(mode), ZEN_FIELD(rows),
+              ZEN_FIELD(elsewhere));
+};
+
+} // namespace v4
+
 /// Workshop -> provider: its verdict on one action declaration, as Loom's answer to that
 /// delivery, so it reaches only the incarnation that declared (Loom ANS-03). `declaration`
 /// numbers an accepted one and is never reused; it mandates nothing, and silence is no verdict.

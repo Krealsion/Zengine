@@ -146,13 +146,13 @@ const CensusDriverOf kPaletteCensus{kPaletteRole, [] {
 
 /// THE PALETTE'S PRESSES: each row on a palette made afresh.
 const PressDriverOf kPalettePresses{kPaletteRole, [](PressWitness& w) {
-    std::vector<v3::PaneActionRow> rows;
+    std::vector<v4::PaneActionRow> rows;
     {
         PaneRig r;
         ProviderSeat* tools = nullptr;
         rows = palette_held(r, tools).actions;
     }
-    for (const v3::PaneActionRow& row : rows) {
+    for (const v4::PaneActionRow& row : rows) {
         PaneRig r;
         ProviderSeat* tools = nullptr;
         (void)palette_held(r, tools);

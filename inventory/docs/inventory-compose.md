@@ -6,13 +6,15 @@ the receiving weave in Loaded; Compose asks that office for its accepted message
 1. Choose a message in Compose. Type scalar fields normally. Drop a compatible stored message
    onto a Message field to copy its data. Tab excludes an existing value before replacement.
 2. For an inventory reference argument, use Inventory's secondary **Grab live entry reference**
-   action (or Ctrl+L), then click the field. Compose stores the reference as data; it does
-   not read or modify the referenced object merely because the reference arrived.
+   action (or Ctrl+Enter, Ctrl+L from a POSIX terminal), then click the field. Compose stores the
+   reference as data; it does not read or modify the referenced object merely because the
+   reference arrived.
 3. Complete the form and press **Ctrl+S** to store the complete command as a new inventory entry. Its separate metadata records the
    observed target role; it is neither restored authority nor an automatic destination.
 4. Go Back with Escape, then drag the stored command onto Compose's catalog/header. Compose
    validates the whole command against the selected target's current schema snapshot.
-5. Review the filled form. Press **Ctrl+E** or the Submit row to send it explicitly.
+5. Review the filled form. Press **Ctrl+Enter** (**Ctrl+E** from a POSIX terminal) or the Submit
+   row to send it explicitly.
 
 A drop never runs a command. Existing included field values and existing whole drafts are
 kept on a conflicting drop. Wrong shapes, stale pictures and failed operations produce a

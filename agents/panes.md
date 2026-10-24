@@ -502,6 +502,12 @@ press sends. The host's side is [`workshop/action-causes.md`](workshop/action-ca
 (WL-CAUSE-01, WL-CAUSE-02); the shapes, the subjects and the helpers are the
 [pane protocol's reference](../workshop/docs/workshop-panes.md#what-a-press-may-cause).
 
+**And a fourth**: `v4::PaneActions v4` over `v4::PaneActionRow v4`, v3's seven fields plus a key for
+a POSIX terminal (`posix_scancode`, `posix_modifiers`, `kUnknown` for none), on a row with a
+default and one that terminal delivers. Where the keys come from a POSIX terminal Workshop puts it
+in force in place of the default, and the default stands everywhere else; one action keeps one id
+(WL-KEY-08). Workshop widens v1 to v3 with none, and holds every row as v4.
+
 - **A v2 row may say it STANDS IN FOR one of Workshop's own actions** (`supersedes`),
   and only for the ones Workshop declares ownable — today `document.save`. While that pane OWNS
   input the host's row is not requestable and no legend spells it, and the pane's rows may take

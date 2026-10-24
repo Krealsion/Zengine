@@ -132,16 +132,24 @@ KeymapShown keymap_shown(const Session& s, const std::string& file, const std::s
             named != nullptr ? "pane " + named->name + " @" + named->provider : "a pane";
         const std::string office = named != nullptr ? named->provider : std::string();
         const std::string pane = named != nullptr ? named->pane : std::string();
-        std::map<std::string_view, const v3::PaneActionRow*> by_id;
+        std::map<std::string_view, const v4::PaneActionRow*> by_id;
         if (named != nullptr) {
-            for (const v3::PaneActionRow& d : named->actions) by_id.emplace(d.id, &d);
+            for (const v4::PaneActionRow& d : named->actions) by_id.emplace(d.id, &d);
         }
         for (const PaneRow& row : p.rows) {
             const auto found = by_id.find(row.id);
-            const v3::PaneActionRow* declared = found != by_id.end() ? found->second : nullptr;
+            const v4::PaneActionRow* declared = found != by_id.end() ? found->second : nullptr;
             add(group, office, pane, row.id, row.label, row.gesture, authored_for(k, row.id),
                 true, declared != nullptr ? declared->causes : std::vector<ActionCause>{},
                 declared != nullptr ? declared->enters : std::string());
+            // ...AND A ROW'S POSIX KEY BESIDE ITS DEFAULT, whichever of them is in force.
+            if (is_bound(row.posix)) {
+                ShownBinding& shown = out.rows.back();
+                shown.default_gesture = spelled(row.declared);
+                shown.default_shown = shown_as(row.declared, spelling);
+                shown.posix_gesture = spelled(row.posix);
+                shown.posix_shown = shown_as(row.posix, spelling);
+            }
         }
         if (named != nullptr && !named->mode.empty()) {
             out.modes.push_back(ShownModes{office, pane, named->mode, named->elsewhere});

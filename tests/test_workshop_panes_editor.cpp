@@ -827,7 +827,7 @@ struct EditorRig {
         const RuntimePane* one = row();
         REQUIRE(one != nullptr);
         std::vector<std::string> ids;
-        for (const v3::PaneActionRow& a : one->actions) {
+        for (const v4::PaneActionRow& a : one->actions) {
             ids.push_back(a.id);
         }
         std::sort(ids.begin(), ids.end());
@@ -5841,7 +5841,7 @@ void open_neovim_selecting(EditorRig& e) {
     e.open(160, 48, true, false, EditorRig::Project::kDoor, true, nve::kNeovimEditorStem);
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(20);
     const auto declares_extract = [&e] {
-        for (const v3::PaneActionRow& a : e.row()->actions) {
+        for (const v4::PaneActionRow& a : e.row()->actions) {
             if (a.id == nve::kActionExtract) return true;
         }
         return false;
@@ -5914,11 +5914,11 @@ TEST_CASE("the manual the standard Editor answers is the office's page, naming e
         EditorRig other("edit-manual-neovim");
         NeovimEnvironment env(other.root, NEOVIM_FIXTURE, "visual");
         open_neovim_selecting(other);
-        for (const v3::PaneActionRow& a : other.row()->actions) declared.insert(a.id);
+        for (const v4::PaneActionRow& a : other.row()->actions) declared.insert(a.id);
     }
     EditorRig e("edit-manual");
     e.open();
-    for (const v3::PaneActionRow& a : e.row()->actions) declared.insert(a.id);
+    for (const v4::PaneActionRow& a : e.row()->actions) declared.insert(a.id);
     ManualReader reader(e.r, pane::kEditorPaneRole);
     check_answered_manual(reader, pane::kEditorPane, declared);
     // ...AND A PANE THE OFFICE DOES NOT OFFER IS REFUSED, naming it.

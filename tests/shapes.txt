@@ -255,7 +255,7 @@ KeyReleased v2 0x383cfe55dcb0d80c
 KeymapEditAnswered v1 0xc4076e9e76909fd3
 KeymapEditRequested v1 0xb039709485b92a21
 KeymapRequested v1 0x1f9fa150659359e4
-KeymapShown v3 0x864ccb540c579b17
+KeymapShown v4 0x1a38f103558d350e
 Launch v1 0x264acc9298caf3f0
 Launched v1 0x038a9ec908caf910
 LauncherState v1 0x77d638e6de58fe46
@@ -305,9 +305,11 @@ PaneActionRequested v1 0xbb7e7caf6998a112
 PaneActionRow v1 0x446fc3f42046e34e
 PaneActionRow v2 0x3377929ec8b56418
 PaneActionRow v3 0xb8cd2ff5d3127534
+PaneActionRow v4 0x9942d90d0bc838ae
 PaneActions v1 0x91f2c7c16ff8c0a7
 PaneActions v2 0xade8c18a16534a96
 PaneActions v3 0x5b471468822f5e16
+PaneActions v4 0xb3311fd5ec6e4c66
 PaneCanvasDrop v3 0x2bffd0269c9b107a
 PaneCanvasHover v3 0xefe0d0b508149200
 PaneCanvasValueDrop v4 0x1454ecf45724726b
@@ -456,7 +458,7 @@ SettingsWritten v1 0x2f0223da52634fc7
 SetupApplyRequested v1 0xdbed9509ec8b868a
 ShapeDocumentRequested v1 0x6a2a97debe09af6e
 ShapeDocumentShown v1 0x5444c736d8fefe30
-ShownBinding v3 0x211da3c4793b0de4
+ShownBinding v4 0x6be10a32acc1e971
 ShownCandidate v1 0x8ad594ca04e169db
 ShownEntry v2 0x5daa79b13f1620ff
 ShownModes v1 0xf2b326854977a7bc

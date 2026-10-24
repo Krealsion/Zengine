@@ -127,7 +127,7 @@ class ComposerWeave final
                        ws::PaneOperationAnswered, inv::InventoryEntry, loom::DispatchRefused,
                        PaneKey, PaneTextInput, LoadedSelected, gfx::ClipboardCopy,
                        gfx::ClipboardText, AcceptedShapes, loom::Refused>,
-          loom::Emit<ws::PaneOperationRequested, ws::PaneEscapeUnspent>> {
+          loom::Emit<ws::PaneOperationRequested, ws::PaneEscapeUnspent, ws::v4::PaneActions>> {
 public:
     // ---- the pane protocol: the facets call these ---------------------------
 
@@ -867,9 +867,12 @@ private:
         rows.publish(
             mail, [](const RowMeaning& m) { return m.part; }, [](const RowMeaning&) { return true; });
         const bool in_form = composing_.stage == stage::kForm;
-        this->template facet<Actions>().declare(mail, {
+        // Declared as v4, so `compose.submit` names its key for a POSIX terminal, which delivers
+        // no ctrl on Return.
+        std::vector<ws::v4::PaneActionRow> declared{
             {"compose.enter", "choose", input::scan::kReturn, input::mod::kNone},
-            {"compose.submit", "submit", input::scan::kE, input::mod::kCtrl},
+            {"compose.submit", "submit", input::scan::kReturn, input::mod::kCtrl, {}, {}, {},
+             input::scan::kE, input::mod::kCtrl},
             // Storing adds the command to the Inventory once Workshop allows it; a submit sends the
             // command composed, a shape no row can name before the weaver fills the form.
             {"compose.store", "store command", input::scan::kS, input::mod::kCtrl, {},
@@ -883,7 +886,10 @@ private:
             {"compose.up", "row up", input::scan::kUp, input::mod::kNone},
             {"compose.down", "row down", input::scan::kDown, input::mod::kNone},
             {"compose.include", "include or leave out the field",
-             in_form ? input::scan::kTab : input::scan::kUnknown, input::mod::kNone}});
+             in_form ? input::scan::kTab : input::scan::kUnknown, input::mod::kNone}};
+        (void)mail.as_role(kComposerRole)
+            .send_to_role(ws::pane_menu::kWorkshopRole,
+                          ws::v4::PaneActions{kComposePane, {}, std::move(declared), {}});
     }
 
     std::uint64_t send_correlation_ = 0, storage_asks_ = 1000000;

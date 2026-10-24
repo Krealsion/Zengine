@@ -48,8 +48,13 @@ function(zen_manual_census text out)
             continue()
         endif()
         if(line MATCHES "^([a-z0-9.-]+) ([a-z0-9-]+) ([A-Za-z0-9_.-]+) ([^ ]+) (-|[A-Za-z][^ ]*) (-|[a-z0-9-]+) (.+)$")
-            set(entry "${CMAKE_MATCH_1}|${CMAKE_MATCH_3}|${CMAKE_MATCH_4}")
+            # A row's key for a POSIX terminal follows its default after a `~`; a marker names the
+            # default.
+            set(entry_key "${CMAKE_MATCH_4}")
+            set(entry "${CMAKE_MATCH_1}|${CMAKE_MATCH_3}")
             set(causes "${CMAKE_MATCH_5}")
+            string(REGEX REPLACE "~.*$" "" entry_key "${entry_key}")
+            set(entry "${entry}|${entry_key}")
             set(shapes "")
             if(NOT causes STREQUAL "-")
                 string(REPLACE "," ";" causes "${causes}")
@@ -197,7 +202,7 @@ function(zen_manual_markers page text census out)
 endfunction()
 
 # ---- the self-test (VM-CHECK-01): make it say NO, and make it say YES ------------------------
-set(st_census_text "# a census\nt.pane browse t.go g GoRequested/1 - go\nt.pane browse t.stop shift+s - list stop\nt.pane list t.stop unbound StopRequested/2,PaneLaunchRequested/1@pane: - stop\n")
+set(st_census_text "# a census\nt.pane browse t.go g GoRequested/1 - go\nt.pane browse t.stop shift+s~ctrl+s - list stop\nt.pane list t.stop unbound StopRequested/2,PaneLaunchRequested/1@pane: - stop\n")
 zen_manual_census("${st_census_text}" st_census)
 if(NOT st_census STREQUAL "t.pane|t.go|g|GoRequested;t.pane|t.stop|shift+s|;t.pane|t.stop|unbound|StopRequested,PaneLaunchRequested")
     message(FATAL_ERROR "manual: SELF-TEST FAILED -- the census read as '${st_census}'")

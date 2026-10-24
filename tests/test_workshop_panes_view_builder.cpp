@@ -60,7 +60,7 @@ TEST_CASE("the View Builder answers the manual its build embedded, a section for
     PaneRig r;
     const RuntimePane* held = load_view_builder(r);
     std::set<std::string> declared;
-    for (const v3::PaneActionRow& a : held->actions) declared.insert(a.id);
+    for (const v4::PaneActionRow& a : held->actions) declared.insert(a.id);
     ManualReader reader(r, vb::kRole);
     check_answered_manual(reader, vb::kPane, declared);
     const PaneDocumentShown other = reader.ask("elsewhere", "");

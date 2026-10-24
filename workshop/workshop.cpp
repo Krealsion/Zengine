@@ -383,6 +383,11 @@ int main(int argc, char** argv) {
     const std::string state_root = user_paths::state_root(env);
     host.keymap_path = user_paths::resolve_durable_path(
         args.keymap, args.isolated, config_root, keymap_persist::kDefaultKeymapFileName);
+    // The terminal window reads a POSIX terminal everywhere but Windows, whose console delivers
+    // every chord (`input/terminal_reader.hpp`).
+#if !defined(_WIN32)
+    host.posix_terminal = true;
+#endif
     host.prefs_path = user_paths::resolve_durable_path(
         args.prefs, args.isolated, config_root, prefs_persist::kDefaultPrefsFileName);
     host.session_path = user_paths::resolve_durable_path(

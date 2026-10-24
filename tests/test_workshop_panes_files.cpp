@@ -419,7 +419,7 @@ struct FilesRig {
         std::vector<std::string> ids;
         const RuntimePane* seat = row();
         REQUIRE(seat != nullptr);
-        for (const v3::PaneActionRow& a : seat->actions) {
+        for (const v4::PaneActionRow& a : seat->actions) {
             ids.push_back(a.id);
         }
         std::sort(ids.begin(), ids.end());
@@ -607,10 +607,10 @@ TEST_CASE("the pane declares its rows with the ids a weaver's keymap already kno
     FilesRig f("files-actions");
     f.open();
     REQUIRE(f.row() != nullptr);
-    const std::vector<v3::PaneActionRow>& declared = f.row()->actions;
+    const std::vector<v4::PaneActionRow>& declared = f.row()->actions;
     REQUIRE_MESSAGE(!declared.empty(), "the pane declared no actions at all");
     std::vector<std::string> ids;
-    for (const v3::PaneActionRow& row : declared) {
+    for (const v4::PaneActionRow& row : declared) {
         ids.push_back(row.id);
     }
     for (const char* id : {files::kActionUp, files::kActionDown, files::kActionOpen,
@@ -696,7 +696,7 @@ TEST_CASE("the manual Files answers names exactly the commands it declares in ea
     ManualReader reader(f.r, files::kFilesRole);
     std::set<std::string> declared;
     each_files_step(f, [&](const char*) {
-        for (const v3::PaneActionRow& a : f.row()->actions) {
+        for (const v4::PaneActionRow& a : f.row()->actions) {
             declared.insert(a.id);
         }
     });

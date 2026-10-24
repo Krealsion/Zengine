@@ -841,7 +841,7 @@ const PressDriverOf kDesktopPresses{kDesktopRole, [](PressWitness& w) {
             const RuntimePane* held = r.session().panes.runtime.find(kDesktopRole, shown.pane);
             REQUIRE(held != nullptr);
             REQUIRE(r.session().panes.keyboard == held->kind);
-            const v3::PaneActionRow row = held->actions[i];
+            const v4::PaneActionRow row = held->actions[i];
             judge(r, held->mode, row.id, row.scancode, row.modifiers, row.causes);
         }
     }
@@ -854,7 +854,7 @@ const PressDriverOf kDesktopPresses{kDesktopRole, [](PressWitness& w) {
         REQUIRE(rows > 0);
         for (std::size_t i = 0; i < rows; ++i) {
             Keys k("desktop-press");
-            const v3::PaneActionRow row = hotkeys_in(k, mode)->actions[i];
+            const v4::PaneActionRow row = hotkeys_in(k, mode)->actions[i];
             w.judge(k.r, dp::kHotkeysPane, mode, row);
         }
     }
