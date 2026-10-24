@@ -25,6 +25,23 @@ if(NOT TARGET loom::kernel)
 "  cursor and the timer/input/graphics vocabularies) builds fine against a kernel-less Loom.\n"
 "  The kernel is a requirement of the TESTS, not of the package.")
 endif()
+# ...and its deciding half: the app host (app/), which the app_host, launcher and view_builder
+# suites start, decides what an app runs in Loom's authority store, and a Loom without it builds
+# no app host. Refused here for the kernel's reason: those entries would otherwise be missing.
+if(NOT TARGET loom::host-policy)
+    message(FATAL_ERROR
+"zengine: testing is enabled, but this Loom package installs no loom::host-policy.\n"
+"WHAT IS MISSING\n"
+"  The app host, zengine-app, decides what an exported app may run in Loom's authority store,\n"
+"  through Loom's installed deciding half, loom::host-policy. Without it the app host is not\n"
+"  built, and the app_host, launcher and view_builder suites, which start it, cannot be.\n"
+"WHICH LOOM THE SUITES NEED\n"
+"  One whose package installs loom::host-policy, as Loom's main does: the Loom CI builds\n"
+"  against (.github/workflows/ci.yml, \"Resolve canonical Loom\"). An older install lacks it;\n"
+"  install Loom's main and point CMAKE_PREFIX_PATH at that prefix.\n"
+"IF YOU ONLY WANT THE LIBRARY\n"
+"  Configure with -DBUILD_TESTING=OFF: the library and Workshop build without the app host.")
+endif()
 
 # ---- the tree under test, reached by name (VM-CHECK-16) ------------------------------------
 # No test compile's definition carries a path of this checkout or build tree, for a compiler cache
