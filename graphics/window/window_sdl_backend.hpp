@@ -379,14 +379,15 @@ public:
         keep_whole();
     }
 
-    /// SHAPED: the title set, and the window sized to `want`, a side of 0 keeping its own, within
-    /// its display's usable area with its frame (`shaped_within`), then kept whole there. A
-    /// maximized window takes the title and keeps the platform's size.
+    /// SHAPED: the title set, an empty one keeping the window's own, and the window sized to
+    /// `want`, a side of 0 keeping its own, within its display's usable area with its frame
+    /// (`shaped_within`), then kept whole there. A maximized window takes the title and keeps the
+    /// platform's size.
     void shape(const std::string& title, const PixelSize& want) {
         if (window_ == nullptr) {
             return;
         }
-        if (!SDL_SetWindowTitle(window_, title.c_str())) {
+        if (!title.empty() && !SDL_SetWindowTitle(window_, title.c_str())) {
             complain("SDL_SetWindowTitle", "the window keeps its title.");
         }
         if (maximized()) {

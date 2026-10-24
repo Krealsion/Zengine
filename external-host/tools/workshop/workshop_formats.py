@@ -17,7 +17,7 @@ launcher's row that may capture or guide names every pane, `*`, written and neve
 import copy
 
 SETUP_VERSION = 5
-SESSION_VERSION = 9
+SESSION_VERSION = 10
 GUESTS_VERSION = 3
 
 # The guests file's `host`: a weaver's, where a guest writes no file, types into no pane and
@@ -104,7 +104,7 @@ def guests(rows, host, listen="127.0.0.1:0", port_file=None):
 def session(desk, viewport, link=""):
     """A WorkshopSession file at SESSION_VERSION holding one layout: `desk`, lifted to SETUP_VERSION;
     the room `viewport`, (width, height) in canvas pixels; and the Setup file `link` names, if
-    any, with the desk it was last known to hold."""
+    any, with the desk it was last known to hold. It keeps no placement and no OS window's room."""
     fields = current(desk)["fields"]
     known = fields if link else setup("", [])["fields"]
     width, height = viewport
@@ -113,4 +113,4 @@ def session(desk, viewport, link=""):
         "viewport": {"width": str(width), "height": str(height)}, "active": "0",
         "placement": {"mode": "none", "x": "0", "y": "0", "window": "normal"},
         "layouts": [{"desk": fields, "link": {"path": str(link), "known": known}}],
-        "choices": []}}
+        "choices": [], "window_room": {"width": "0", "height": "0"}}}

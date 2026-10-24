@@ -19,6 +19,9 @@ loom::Grant workshop_grant() {
         speak.allow_to_role(graphics::SurfacePlacementRemembered::zen_name,
                             graphics::SurfacePlacementRemembered::zen_version, medium);
     }
+    // ...and the OS window shaped to the room a restore brings back, as the office arranging there.
+    speak.allow_to_role(graphics::WindowShaped::zen_name, graphics::WindowShaped::zen_version,
+                        std::string(graphics::kWindowOfficePrefix) + graphics::kSdlWindow);
     speak.allow_to_any(PaneCatalogRequested::zen_name, PaneCatalogRequested::zen_version);
     speak.allow_to_any(PaneSettings::zen_name, PaneSettings::zen_version);
     speak.allow_to_any(v2::PaneSettings::zen_name, v2::PaneSettings::zen_version);

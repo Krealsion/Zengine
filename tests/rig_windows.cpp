@@ -575,6 +575,16 @@ std::vector<Placement> Windows::placed() const {
     return out;
 }
 
+std::vector<std::pair<std::int64_t, std::int64_t>> Windows::shaped() const {
+    std::vector<std::pair<std::int64_t, std::int64_t>> out;
+    for (const auto& [title, size] : impl_->light.shaped) {
+        out.emplace_back(size.width, size.height);
+    }
+    return out;
+}
+
+const std::vector<std::string>& Windows::window_acts() const { return impl_->light.acts; }
+
 loom::WeaveId Windows::directory() const { return impl_->directory; }
 
 } // namespace zengine::testing::rig_windows

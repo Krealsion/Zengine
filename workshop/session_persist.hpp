@@ -4,7 +4,8 @@
 #ifndef ZENGINE_WORKSHOP_SESSION_PERSIST_HPP
 #define ZENGINE_WORKSHOP_SESSION_PERSIST_HPP
 
-// The last session: the run of layouts, the room it was in, and where its window sat.
+// The last session: the run of layouts, the room it was in, and where its window sat and how
+// large the OS window was.
 // Workshop law: agents/workshop/session-restore.md (+4 registers; agents/workshop.md routes)
 
 #include "operator/catalog.hpp"
@@ -39,7 +40,7 @@ inline constexpr const char* kFormat = "zengine-workshop-session";
 // WL-MIG-01, WL-MIG-04, WL-MIG-06 -- agents/workshop/migration.md
 // WL-GEO-11 -- agents/workshop/geometry.md
 // WL-SESSION-05 -- agents/workshop/session-restore.md
-inline constexpr std::int64_t kFormatVersion = 9;
+inline constexpr std::int64_t kFormatVersion = 10;
 
 /// Where the last session lives when the host does not say otherwise.
 inline constexpr const char* kDefaultSessionFileName = "workshop-session.json";
@@ -122,7 +123,8 @@ inline constexpr std::size_t kMaxRememberedChoices = 16;
 
 /// A WHOLE SAVED SESSION: what it is, which version of that it is, the room it was in, the
 /// LAYOUTS that were in the room and which one the weaver was standing on, where the room's
-/// window sat on the desktop, and which authored choice held each switchable office.
+/// window sat on the desktop, which authored choice held each switchable office, and the OS
+/// window's own room.
 // WL-SESSION-04 -- agents/workshop/session.md; WL-SESSION-05 -- agents/workshop/session-restore.md
 struct WorkshopSession {
     std::string format;
@@ -135,9 +137,14 @@ struct WorkshopSession {
     // WL-SWITCH-08 -- agents/workshop/editor-switch.md
     std::vector<WorkshopChoice> choices;
 
-    ZEN_SHAPE(WorkshopSession, 9, ZEN_FIELD(format), ZEN_FIELD(format_version),
+    /// THE OS WINDOW'S NORMAL ROOM, in its pixels, as the last run in it left it: 0 by 0 where none
+    /// was kept. A run in another window writes it back as it read it, as it does the placement.
+    // WL-SESSION-20 -- agents/workshop/session-restore.md
+    WorkshopViewport window_room;
+
+    ZEN_SHAPE(WorkshopSession, 10, ZEN_FIELD(format), ZEN_FIELD(format_version),
               ZEN_FIELD(viewport), ZEN_FIELD(layouts), ZEN_FIELD(active),
-              ZEN_FIELD(placement), ZEN_FIELD(choices));
+              ZEN_FIELD(placement), ZEN_FIELD(choices), ZEN_FIELD(window_room));
 };
 
 /// THE ENVELOPE'S SHAPE VERSION AND THE SESSION FORMAT VERSION ARE ONE NUMBER, for the
@@ -182,6 +189,11 @@ struct Placement {
     std::int64_t x = 0;     ///< the normal window's top-left, opaque desktop units
     std::int64_t y = 0;
     bool maximized = false; ///< whether the window was maximized
+    /// The OS window's normal room, in its pixels, kept beside the place whether or not one is
+    /// known; 0 by 0 when none was kept.
+    // WL-SESSION-20 -- agents/workshop/session-restore.md
+    std::int64_t room_w = 0;
+    std::int64_t room_h = 0;
 };
 
 /// One association, as the value that gets written: the path, and the desk the file was
@@ -217,6 +229,7 @@ inline WorkshopSession to_session(const std::vector<Layout>& run, std::size_t ac
     out.placement.window =
         place.known && place.maximized ? kWindowMaximized : kWindowNormal;
     out.choices = choices;
+    out.window_room = WorkshopViewport{place.room_w, place.room_h};
     return out;
 }
 
@@ -473,6 +486,9 @@ inline LoadedSession current_in(const loom::Value& admitted) {
     if (!placed.accepted) {
         return LoadedSession::no(placed.refusal);
     }
+    // THE OS WINDOW'S ROOM IS JUDGED AT RESTORE, as the viewport is, and refuses nothing here.
+    place.room_w = file.window_room.width;
+    place.room_h = file.window_room.height;
     // THE CHOICES ARE BOUNDED; whether the plan still authors each is the load's to judge.
     if (file.choices.size() > kMaxRememberedChoices) {
         return LoadedSession::no("a session remembers at most " +

@@ -229,8 +229,8 @@ judged against the displays there are now.
 `WindowShaped` v1 names the window and sizes it, said by an office that arranges an area in it.
 
 - **Takes:** `window`, `sdl`; `title`, at most `kMaxWindowTitleBytes` bytes, a longer one cut
-  where a character begins and each control character made a space; `width` and `height` in
-  pixels, a side of 0 keeping the window's own.
+  where a character begins and each control character made a space, an empty one keeping the
+  window's own; `width` and `height` in pixels, a side of 0 keeping the window's own.
 - **Answers:** nothing to the sender; the OS window takes the title and the size, kept within its
   display's usable area with its frame, and a size it changed is the next `WindowOffered`. What its
   areas reached before does not grow it back; an area placed further out still does. A maximized
@@ -238,7 +238,8 @@ judged against the displays there are now.
 - **Refuses:** nothing in words: from an office that arranges no area here, or naming another
   window, it changes nothing.
 - **Example:** an app's weave, which arranges the app's areas, says `WindowShaped{"sdl", "tally",
-  320, 260}`.
+  320, 260}`; Workshop, restoring a session, says `WindowShaped{"sdl", "", 1180, 760}`, the room
+  its window was last left at.
 
 ## Hears
 

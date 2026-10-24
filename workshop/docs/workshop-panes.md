@@ -1108,11 +1108,12 @@ directory they happened to be browsing when they quit is deliberately not rememb
   `setup_persist::WorkshopSetup` as a field rather than paraphrasing it, so the four layers that
   judge a setup file judge the desk inside a session file (`setup_persist::setup_in`, factored out
   of `from_text` for exactly this). A desk cannot be legal in one file and illegal in the other.
-  The session format is **version <!-- value session_persist::kFormatVersion -->9<!-- /value -->**: the room in canvas pixels, the weaver's whole ordered
+  The session format is **version <!-- value session_persist::kFormatVersion -->10<!-- /value -->**: the room in canvas pixels, the weaver's whole ordered
   run of layouts — each an ordinary saved setup, its panes' settings included, with the Setup
   file it is related to, if any —
-  which position was live, the desktop placement, and which authored choice held each office the
-  plan lets you switch (the Editor's `standard` or `neovim`). Older versions do **not** load through
+  which position was live, the desktop placement and the OS window's own room beside it, and
+  which authored choice held each office the plan lets you switch (the Editor's `standard` or
+  `neovim`). Older versions do **not** load through
   roads this reader carries — it admits one shape and nothing else. What reads them is a
   *conversion*, contributed by an ordinary operator provider the arrangement mounts
   (`zengine-workshop-session-history`): one direct edge from each older version, which keeps the
@@ -1120,8 +1121,9 @@ directory they happened to be browsing when they quit is deliberately not rememb
   holding the desk it always held; a session before version 5 relates every layout to no Setup
   file; a desk before version 6 gains the Layouts pane its layout surface always was; and a room
   and desks before version 7, kept in cells and sub-units, land on the pixels the window painted
-  them at; a desk before version 8 holds no settings; a session before version 9 remembers no choice. Without the provider such a file is refused
-  by its number, naming the conversion that is missing. The next close writes version <!-- value session_persist::kFormatVersion -->9<!-- /value -->.
+  them at; a desk before version 8 holds no settings; a session before version 9 remembers no choice;
+  and one before version 10 keeps no OS window's room. Without the provider such a file is refused
+  by its number, naming the conversion that is missing. The next close writes version <!-- value session_persist::kFormatVersion -->10<!-- /value -->.
 - **The viewport is one level above the desk**, and that is the whole reason the session is not
   simply a second setup: the same desk is worth having in a big window and in a small one, so how
   much room the surface had describes the *application* rather than the arrangement. It is
