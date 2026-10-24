@@ -282,6 +282,10 @@ void WorkshopWeave::on(const graphics::AreaRoom& r, loom::Mail& mail) {
     // nothing new (`WindowDrawing::room`).
     FrameDrawing* frame = frame_of(r.area);
     const bool desk = window_.room(r, mail);
+    if (desk) {
+        // THE DESK'S AREA IS IN THE WINDOW: a restore's shaping may be said now (WL-SESSION-20).
+        shape_restored_window(mail);
+    }
     const bool overlay = !desk && overlay_.room(r, mail);
     const bool framed = !desk && !overlay && frame != nullptr && frame->drawing.room(r, mail);
     if (desk || overlay || framed) {

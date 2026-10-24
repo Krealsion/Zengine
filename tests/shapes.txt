@@ -604,6 +604,7 @@ WorkshopSession v6 0x65ddb2477e598d18
 WorkshopSession v7 0xcac415773fb5880a
 WorkshopSession v8 0x520a73e48f9d3ed1
 WorkshopSession v9 0xc0d49edb80731ff2
+WorkshopSession v10 0xac1d64f2f2cf9980
 WorkshopSetup v2 0xae5ff77848290ca3
 WorkshopSetup v3 0x9002adbbcadc4175
 WorkshopSetup v4 0x54df6e46cb27fac7

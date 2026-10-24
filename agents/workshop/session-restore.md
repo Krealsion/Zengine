@@ -9,7 +9,7 @@ Retired: WL-SESSION-11, WL-SESSION-12.
 
 ## WL-SESSION-05 — The session holds the run of layouts with their associations
 
-LAW — Version <!-- value session_persist::kFormatVersion -->9<!-- /value --> holds the weaver's order whole, the live layout in it and its position beside it, each entry a desk plus its link; position is a layout's whole identity, and no id is minted.
+LAW — Version <!-- value session_persist::kFormatVersion -->10<!-- /value --> holds the weaver's order whole, the live layout in it and its position beside it, each entry a desk plus its link; position is a layout's whole identity, and no id is minted.
 
 MEANS
 - an empty path is the absence with exactly one spelling; `link_in` refuses the half-association;
@@ -45,7 +45,7 @@ LAW — The medium reports where its normal window sits (`SurfacePlacement`); Wo
 
 MEANS
 - a run whose medium reports no placement, every terminal, retains the remembered value;
-- a maximized restore repositions, re-grows, then re-maximizes: the medium's ordering;
+- a maximized restore is shaped, repositioned, then re-maximized: the medium's ordering;
 - desktop placement is not canvas geometry: no desktop unit enters authored intent.
 
 WHY — `agents/decisions/the-first-picture-is-the-floor.md`
@@ -84,6 +84,20 @@ MEANS
 - a loaded pane's own state is its own: this file remembers the reference and its settings, never the pane's state.
 
 WHY — `agents/decisions/three-ownership-domains.md`
+
+## WL-SESSION-20 — The OS window comes back shaped to its own room
+
+LAW — The session keeps the OS window's normal room beside its placement; a restore in it shapes it to that room (`WindowShaped`), a smaller one taken, then places it.
+
+MEANS
+- a maximized one is shaped first and maximized after, so restoring it down returns that room;
+- a run in another window writes the room back as it read it, and a terminal keeps its own size;
+- a room outside the screen's band is declined, never clamped, and said; one before version 10 is none.
+
+DOES NOT MEAN
+- that Workshop judges the display: the window keeps a shaped size within it (`shaped_within`).
+
+WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
 ## Proven by
 
@@ -154,3 +168,17 @@ come back after a restart"
 `tests/test_workshop_persistence.cpp` "a session file holds the desk and the room, and nothing
 runtime" "the position that comes back is the one the weaver stood on" "the weaver is told once, in
 the pane's own durable names"
+
+### WL-SESSION-20
+`workshop/session_persist.hpp` WorkshopSession::window_room Placement::room_w Placement::room_h
+`workshop/session_history.hpp` session_v9_to_v10
+`workshop/screen.hpp` Session::window_room_w Session::window_room_h
+`workshop/weave.hpp` WorkshopWeave::RestoredWindow WorkshopWeave::restored_window_
+`workshop/weave_session.cpp` restore_last_session shape_restored_window save_last_session
+`workshop/grant.cpp` workshop_grant
+`graphics/window/window_sdl_backend.hpp` ProcessSdlBackend::shape
+`tests/test_workshop_persistence.cpp` "the session keeps the OS window's own room beside its
+placement, and a run in the terminal window writes it back as it read it, as it does the placement"
+"a restore in the OS window shapes it to its own room, a smaller one taken, then places it; a
+maximized one is shaped before it is maximized; the terminal window keeps its own" "a version-9
+session converts with every field kept and no OS window's room"

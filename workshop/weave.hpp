@@ -474,6 +474,7 @@ class WorkshopWeave
                                         zengine::graphics::ClipboardCopy,
                                         zengine::graphics::ClipboardTextRequested,
                                         zengine::graphics::SurfacePlacementRemembered,
+                                        zengine::graphics::WindowShaped,
                                         zengine::workshop::PaneCatalogRequested,
                                         zengine::workshop::PaneSettings,
                                         zengine::workshop::v2::PaneSettings,
@@ -1401,6 +1402,8 @@ private:
 
     /// TAKE BACK THE DESK AND THE ROOM THIS WORKSHOP WAS LAST USED IN.
     void restore_last_session(loom::Mail& mail);
+    /// The OS window shaped to the room the restore held for it, then placed, once.
+    void shape_restored_window(loom::Mail& mail);
 
     /// WRITE DOWN THE DESK AND THE ROOM, ON THE WAY OUT.
     void save_last_session();
@@ -2039,6 +2042,17 @@ private:
     /// THE RESTORE'S SENTENCE, until the window's offer spells it again in its own unit: a
     /// restore spells the room in the unit the desk holds, which before the offer is the cell.
     std::optional<RestoreNotice> restore_notice_;
+
+    /// THE OS WINDOW'S OWN ROOM, TO SHAPE IT TO AT RESTORE, AND THE PLACE AFTER IT: held until the
+    /// desk's area is in that window, since a window takes a shaping only from an office arranging
+    /// in it, and sent shape first, so a maximize lands on the room a restore-down returns to.
+    // WL-SESSION-20 -- agents/workshop/session-restore.md
+    struct RestoredWindow {
+        std::int64_t w = 0;
+        std::int64_t h = 0;
+        std::optional<zengine::graphics::SurfacePlacementRemembered> place;
+    };
+    std::optional<RestoredWindow> restored_window_;
     /// Whether the desk has come up (`start_desk`), on a window's first offer.
     bool desk_started_ = false;
 

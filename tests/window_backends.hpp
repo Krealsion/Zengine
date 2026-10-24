@@ -115,6 +115,8 @@ struct LightLog {
     bool grows = false; ///< true: a growth asked takes its size, as a platform with room does
     /// Each title and size it was shaped to; a side asked it takes, as a platform with room does.
     std::vector<std::pair<std::string, gw::PixelSize>> shaped;
+    /// What it was asked to do to its window, in the order asked: `shape` and `place`.
+    std::vector<std::string> acts;
     int maximized = 0;
 
     static Frame kept_of(const gw::ComposedLightFrame& frame) {
@@ -195,7 +197,10 @@ public:
         return log_->clipboard;
     }
     std::optional<gw::WindowPlacementValue> placement() { return log_->placement; }
-    void place(const gw::WindowPlacementValue& want) { log_->placed.push_back(want); }
+    void place(const gw::WindowPlacementValue& want) {
+        log_->placed.push_back(want);
+        log_->acts.emplace_back("place");
+    }
     void grow(const gw::PixelSize& want) {
         log_->grown.push_back(want);
         if (log_->grows) {
@@ -205,6 +210,7 @@ public:
     }
     void shape(const std::string& title, const gw::PixelSize& want) {
         log_->shaped.emplace_back(title, want);
+        log_->acts.emplace_back("shape");
         log_->size = gw::PixelSize{want.width > 0 ? want.width : log_->size.width,
                                    want.height > 0 ? want.height : log_->size.height};
     }

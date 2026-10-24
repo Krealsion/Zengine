@@ -15,7 +15,7 @@ WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 LAW — A retired shape is copied verbatim and keeps the wire identity an old file's bytes claim, every historical id is pinned with its provenance, and the catalog reads current off the reader's schema.
 
 MEANS
-- `v1` to `v8` composes `session_v1_to_v3`, `v3_to_v4`, `v4_to_v5`, `v5_to_v6`, `v6_to_v7`, `v7_to_v8`;
+- `v1` to `v10` composes `session_v1_to_v3`, `v3_to_v4`, `v4_to_v5`, `v5_to_v6`, `v6_to_v7`, `v7_to_v8`, `v8_to_v9`, `v9_to_v10`;
 - the catalog holds no `v1` to `v3` or `v3` to `v4` edge, so there is no chain to walk.
 
 WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
@@ -104,7 +104,7 @@ WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
   one version is admitted; an older file opens exactly when a conversion is mounted
   (WL-MIG-01, WL-MIG-06).
 - That a session format move implies a desk format move: the session is
-  <!-- value session_persist::kFormatVersion -->9<!-- /value --> and the desk is
+  <!-- value session_persist::kFormatVersion -->10<!-- /value --> and the desk is
   <!-- value setup_persist::kFormatVersion -->5<!-- /value --> (WL-MIG-03).
 
 ## Proven by
@@ -118,14 +118,16 @@ WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 conversion" "the shipped artifact supplies exactly the conventional edges"
 
 ### WL-MIG-02
-`workshop/session_history.hpp` v1 v2 v3 v4 v5 v6 v7 v8 conversions session_v1_to_v3 session_v3_to_v4
-session_v4_to_v5 session_v5_to_v6 session_v6_to_v7 session_v7_to_v8 session_v8_to_v9
-v3::WorkshopSession v4::WorkshopSession v5::WorkshopSession v6::WorkshopSession v7::WorkshopSession
-v8::WorkshopSession session_v2_to_v3 session_v1_to_v9 desk_v2_to_v3 desk_v3_to_v4 desk_v4_to_v5
+`workshop/session_history.hpp` v1 v2 v3 v4 v5 v6 v7 v8 v9 conversions session_v1_to_v3
+session_v3_to_v4 session_v4_to_v5 session_v5_to_v6 session_v6_to_v7 session_v7_to_v8
+session_v8_to_v9 session_v9_to_v10 v3::WorkshopSession v4::WorkshopSession v5::WorkshopSession
+v6::WorkshopSession v7::WorkshopSession v8::WorkshopSession v9::WorkshopSession session_v2_to_v3
+session_v1_to_v10 desk_v2_to_v3 desk_v3_to_v4 desk_v4_to_v5
 `tests/test_workshop_persistence.cpp` "a retired shape's wire identity is the identity it was
 written at" "three DIRECT edges, and no chain to walk even if one wanted to" "a conversion owns
 yesterday's semantics and does not rewrite history" "a version-8 session converts with every field
-kept and no choice remembered"
+kept and no choice remembered" "a version-9 session converts with every field kept and no OS
+window's room"
 
 ### WL-MIG-03
 `workshop/session_history.hpp` session_v5_to_v6 desk_v5_to_v6 v5::WorkshopSession names_layouts

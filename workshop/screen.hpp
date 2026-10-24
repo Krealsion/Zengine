@@ -809,6 +809,11 @@ struct Session {
     std::int64_t place_x = 0;
     std::int64_t place_y = 0;
     bool place_maximized = false;
+    /// THE OS WINDOW'S OWN NORMAL ROOM, as the session file kept it: what a run in another window
+    /// writes back; 0 by 0 where none was kept.
+    // WL-SESSION-20 -- agents/workshop/session-restore.md
+    std::int64_t window_room_w = 0;
+    std::int64_t window_room_h = 0;
     /// THE LAST THING WORKSHOP HAD TO SAY, and that is all it is.
     // WL-ATTN-01 -- agents/workshop/attention.md
     std::string notice;
