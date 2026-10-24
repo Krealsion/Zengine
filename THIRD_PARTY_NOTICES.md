@@ -27,7 +27,7 @@ copyright notice and the licence travel with it; the `OFL.txt` beside each copy 
 that, and these rows are the notice.
 
 Not bundled, fetched at build time only (and therefore not distributed by
-this repository) — all three used when `ZENGINE_SDL_SKIN=ON`, all three fetched
+this repository) — all three used unless `ZENGINE_TUI_ONLY=ON`, all three fetched
 via CMake FetchContent against a pinned URL and a SHA-256, each accompanied by
 its own license in its own distribution:
 

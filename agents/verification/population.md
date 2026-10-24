@@ -51,7 +51,7 @@ case moving between suites makes one total fall while the repository's rises.
 ## VM-POP-08 — A configuration-dependent population is declared
 
 METHOD — A configuration-dependent population is DECLARED: the gated cases are their own manifest rows, and a suite's floor is the sum of the rows whose gate is active, with no slack either way.
-BECAUSE — the Windows lane's `-DZENGINE_SDL_SKIN=OFF` simply drops the `sdl` row, so the same
+BECAUSE — the Windows lane's `-DZENGINE_TUI_ONLY=ON` simply drops the `sdl` row, so the same
 green means the same thing on both lanes and no slack is left in either.
 
 ## VM-POP-09 — The verifier verifies the tree it is handed

@@ -1,5 +1,22 @@
 cmake_minimum_required(VERSION 3.16)
 
+# A RETIRED SWITCH IS REFUSED BY NAME, before a compiler or anything else is sought, so its fix is
+# the first thing a configure says: SDL is built unless ZENGINE_TUI_ONLY says not
+# (cmake/ZengineSdl.cmake).
+if(DEFINED ZENGINE_SDL_SKIN)
+    get_property(zengine_old_switch CACHE ZENGINE_SDL_SKIN PROPERTY TYPE)
+    if(zengine_old_switch STREQUAL "UNINITIALIZED" OR zengine_old_switch STREQUAL "")
+        set(zengine_old_switch "given to this configure")
+    else()
+        set(zengine_old_switch "kept by this build tree from an earlier configure")
+    endif()
+    message(FATAL_ERROR
+        "zengine: ZENGINE_SDL_SKIN is retired (${zengine_old_switch}, as "
+        "'${ZENGINE_SDL_SKIN}'). SDL and the OS window are built by default; a build with no SDL, "
+        "the terminal window alone, is -DZENGINE_TUI_ONLY=ON. Configure again with "
+        "-UZENGINE_SDL_SKIN, adding -DZENGINE_TUI_ONLY=ON where it was OFF.")
+endif()
+
 project(zengine
     VERSION 0.1.0
     DESCRIPTION "Zen's default set of weaves — the Loom's first external consumer"

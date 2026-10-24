@@ -606,7 +606,7 @@ jobs:
             "-DCMAKE_PREFIX_PATH=$loomPrefix" `
             -DZEN_LOOM_DEV=OFF `
             -DBUILD_TESTING=ON `
-            -DZENGINE_SDL_SKIN=OFF
+            -DZENGINE_TUI_ONLY=ON
 
       - name: Build Zengine
         shell: pwsh
@@ -781,7 +781,7 @@ jobs:
             "-DCMAKE_PREFIX_PATH=$loomPrefix" `
             -DZEN_LOOM_DEV=OFF `
             -DBUILD_TESTING=ON `
-            -DZENGINE_SDL_SKIN=OFF `
+            -DZENGINE_TUI_ONLY=ON `
             @added
 
       - name: Build Zengine

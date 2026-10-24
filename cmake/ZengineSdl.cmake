@@ -1,8 +1,9 @@
-# The SDL dependency, acquired once for every package that needs it. The window Skin and the SDL
-# Input reader are two weave libraries the Loom loads with local symbols (dlopen RTLD_LOCAL,
-# LoadLibraryA), so each holding an archived static SDL would hold its own: two event queues, and
-# a reader polling a queue the window never posts to. So SDL is shared, and a static one is
-# refused out loud. `ZENGINE_SDL_SKIN=OFF` declines the whole SDL-backed set.
+# The SDL dependency, acquired once for every target that needs it. The OS window is a weave
+# library the Loom loads with local symbols (dlopen RTLD_LOCAL, LoadLibraryA), beside programs
+# that link SDL themselves (the graphics suite), so an archived static SDL would be two copies in
+# one process: two event queues and two SDL_Init states. So SDL is shared, and a static one is
+# refused out loud. `ZENGINE_TUI_ONLY=ON` declines the whole SDL-backed set: the terminal window
+# alone.
 
 # Extracted archives are stamped at extraction (CMP0135), so a newly pinned tarball's sources are
 # newer than the last pin's objects and rebuild them. At file scope, since the SDL_ttf pins below
@@ -12,9 +13,9 @@ if(POLICY CMP0135)
     cmake_policy(SET CMP0135 NEW)
 endif()
 
-option(ZENGINE_SDL_SKIN
-       "Build the SDL-backed weaves — the window Skin and the SDL Input reader (fetches a pinned shared SDL3 if none is installed)"
-       ON)
+option(ZENGINE_TUI_ONLY
+       "Build no SDL-backed weave: the terminal window alone, no OS window, and no SDL3 fetch"
+       OFF)
 
 # What a package links, and what a host must stage beside itself; empty when this configuration
 # has no SDL, which is declared rather than assumed (the manifest's `sdl` gate). The runtime is a
@@ -23,8 +24,8 @@ set(ZENGINE_SDL_LIB "")
 set(ZENGINE_SDL_TEXT_LIB "")
 set(ZENGINE_SDL_RUNTIME "")
 
-# zengine_sdl_weave(<target>) — a weave that links SDL. One place, so the two
-# SDL-backed weaves cannot come to disagree about how they reach it.
+# zengine_sdl_weave(<target>) — a weave that links SDL, the OS window. One place, so a weave that
+# links SDL reaches it as the window does.
 function(zengine_sdl_weave target)
     target_link_libraries(${target} PRIVATE ${ZENGINE_SDL_LIB})
     if(NOT WIN32)
@@ -48,8 +49,8 @@ function(zengine_stage_sdl host)
     endforeach()
 endfunction()
 
-if(NOT ZENGINE_SDL_SKIN)
-    message(STATUS "zengine: SDL-backed weaves skipped (ZENGINE_SDL_SKIN=OFF)")
+if(ZENGINE_TUI_ONLY)
+    message(STATUS "zengine: SDL-backed weaves skipped (ZENGINE_TUI_ONLY=ON)")
     return()
 endif()
 
@@ -102,8 +103,8 @@ endif()
 
 if(NOT TARGET SDL3::SDL3)
     message(FATAL_ERROR
-        "zengine: ZENGINE_SDL_SKIN is ON but no SDL3::SDL3 target exists after find_package "
-        "and FetchContent. Configure with -DZENGINE_SDL_SKIN=OFF to build without SDL.")
+        "zengine: no SDL3::SDL3 target exists after find_package and FetchContent. Configure "
+        "with -DZENGINE_TUI_ONLY=ON to build without SDL.")
 endif()
 
 # THE SHARED CHECK, out loud. See the header note: two weave libraries each
@@ -121,14 +122,13 @@ if(NOT zengine_sdl_type STREQUAL "SHARED_LIBRARY")
     message(FATAL_ERROR
         "zengine: SDL3::SDL3 is a ${zengine_sdl_type}, and Zengine needs a SHARED SDL3.\n"
         "WHY\n"
-        "  Two weave libraries link SDL here — the window Skin (surface/) and the SDL Input\n"
-        "  reader (input/). The Loom loads weaves with dlopen(RTLD_LOCAL) / LoadLibraryA, so a\n"
-        "  statically archived SDL would give each of them its own event queue and its own\n"
-        "  SDL_Init state. The reader would poll a queue the Skin's window never posts to, and\n"
-        "  nothing would fail until a real window sat there deaf.\n"
+        "  The OS window (graphics/) is a weave library the Loom loads with dlopen(RTLD_LOCAL) /\n"
+        "  LoadLibraryA, beside programs that link SDL themselves, so a statically archived SDL\n"
+        "  would be two copies in one process, each with its own event queue and SDL_Init state,\n"
+        "  and nothing would fail until a real window sat there deaf.\n"
         "WHAT TO DO\n"
         "  Install a shared SDL3, or remove the static one from CMAKE_PREFIX_PATH so this build\n"
-        "  fetches its own, or configure with -DZENGINE_SDL_SKIN=OFF.")
+        "  fetches its own, or configure with -DZENGINE_TUI_ONLY=ON.")
 endif()
 
 set(ZENGINE_SDL_LIB SDL3::SDL3)
@@ -144,8 +144,8 @@ if(zengine_sdl_fetched)
     endif()
 endif()
 
-# ---- SDL_ttf: a real typeface for the graphical Skin -------------------------------------
-# A font engine that pairs with this SDL3, which the Skin needs (surface/docs/zengine.skin.md).
+# ---- SDL_ttf: a real typeface for the OS window ------------------------------------------
+# A font engine that pairs with this SDL3, which the OS window needs (graphics/docs/zengine.window.sdl.md).
 # SDL_ttf requires FreeType and its tarball does not bundle it, and both of its doors were
 # measured shut here: SDLTTF_VENDORED=OFF finds no FreeType on the WSL lane or in CLion's MinGW,
 # and ON needs external/freetype to exist. So FreeType is fetched, pinned, into that directory;
@@ -203,8 +203,8 @@ endif()
 
 if(NOT TARGET SDL3_ttf::SDL3_ttf)
     message(FATAL_ERROR
-        "zengine: ZENGINE_SDL_SKIN is ON but no SDL3_ttf::SDL3_ttf target exists after "
-        "FetchContent. Configure with -DZENGINE_SDL_SKIN=OFF to build without SDL.")
+        "zengine: no SDL3_ttf::SDL3_ttf target exists after FetchContent. Configure with "
+        "-DZENGINE_TUI_ONLY=ON to build without SDL.")
 endif()
 
 set(ZENGINE_SDL_TEXT_LIB SDL3_ttf::SDL3_ttf)

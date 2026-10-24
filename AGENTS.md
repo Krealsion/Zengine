@@ -62,6 +62,8 @@ The suites no one folder holds:
 - `workshop_shapes` — every shape the tree publishes against `tests/shapes.txt` (Do not assume)
 - `package_judges` — the judges of the package a stranger downloads, each red on its canary
   (`tests/package/judges/`)
+- `configure_switches` — a configure naming a retired switch, refused by name before a compiler
+  is sought (`tests/check_configure_switches.cmake`)
 
 **Where law lives (the re-accretion guard).** Surface law belongs in the routed surface
 document that owns it; this core gains a rule only when the rule is genuinely cross-cutting —

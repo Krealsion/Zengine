@@ -172,7 +172,7 @@ jobs:
           cmake --build "$RUNNER_TEMP/loom-build"
           cmake --install "$RUNNER_TEMP/loom-build" --prefix "$RUNNER_TEMP/loom-prefix"
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/loom-prefix" \
-            -DBUILD_TESTING=OFF -DZENGINE_SDL_SKIN=ON -DCMAKE_DISABLE_FIND_PACKAGE_SDL3=ON \
+            -DBUILD_TESTING=OFF -DCMAKE_DISABLE_FIND_PACKAGE_SDL3=ON \
             -DCMAKE_DISABLE_FIND_PACKAGE_SDL3_ttf=ON -DZENGINE_PACKAGE=ON \
             -DZENGINE_PACKAGE_VERSION="$VERSION" -DZENGINE_PACKAGE_LOOM_COMMIT="$LOOM"
           cmake --build build
@@ -265,7 +265,7 @@ jobs:
           cmake --install "$tmp/loom-build" --prefix "$tmp/loom-prefix"
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER="$gcc" `
             -DCMAKE_CXX_COMPILER="$gxx" -DCMAKE_PREFIX_PATH="$tmp/loom-prefix" -DBUILD_TESTING=OFF `
-            -DZENGINE_SDL_SKIN=ON -DCMAKE_DISABLE_FIND_PACKAGE_SDL3=ON -DCMAKE_DISABLE_FIND_PACKAGE_SDL3_ttf=ON `
+            -DCMAKE_DISABLE_FIND_PACKAGE_SDL3=ON -DCMAKE_DISABLE_FIND_PACKAGE_SDL3_ttf=ON `
             -DZENGINE_PACKAGE=ON -DZENGINE_PACKAGE_VERSION="$env:VERSION" -DZENGINE_PACKAGE_LOOM_COMMIT="$env:LOOM" `
             -DCMAKE_TLS_VERIFY=ON "-DCMAKE_TLS_CAINFO=$ca"
           cmake --build build
