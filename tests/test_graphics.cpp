@@ -1261,8 +1261,8 @@ std::int64_t local(std::int64_t cell, std::int64_t origin) {
 }
 
 TEST_CASE("the window tells an area's arranger, unasked, each time what the area shows settles at a "
-          "new version, and once a version, when it follows the area; an area it placed without "
-          "following it is never told") {
+          "new version, and once a version, when it follows the area, and where presses landed and "
+          "that the pointer left; an area it placed without following it is told none of it") {
     PointerDesk t;
     MomentsHeard& owned = t.own("test.settling", 10, 2, 20, 5, 1, true, /*by_arranger=*/true,
                                 "first words");
@@ -1309,6 +1309,16 @@ TEST_CASE("the window tells an area's arranger, unasked, each time what the area
     CHECK(owned.buttons.size() == 2);
     REQUIRE(t.presses.pressed.size() == pressed + 2);
     CHECK(t.presses.pressed.back().first.area == "test.settling");
+    // ...NOR THAT THE POINTER LEFT IT, which its owner hears; leaving the area it follows, it is.
+    const std::size_t left = t.presses.left.size();
+    t.move(45, 4);
+    t.move(2, 0);
+    CHECK(quiet.left.size() == 1);
+    CHECK(t.presses.left.size() == left);
+    t.move(15, 4);
+    t.move(2, 0);
+    REQUIRE(t.presses.left.size() == left + 1);
+    CHECK(t.presses.left.back().area == "test.settling");
 }
 
 TEST_CASE("a button's moment says what the window drew under the hand when it landed -- the area, "
