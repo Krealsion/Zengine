@@ -136,11 +136,11 @@ inline constexpr std::int64_t step_of(const Room& room) noexcept {
     return room.step > 0 ? room.step : 1;
 }
 
-/// A position floored to the step, counted from the frame's start (`p` is relative to it).
+/// A position floored to the step, counted from the frame's start (`p` is relative to it):
+/// `p` less its remainder, saturating at int64's minimum, where the step below `p` is not a number.
 inline constexpr std::int64_t floor_to_step(std::int64_t p, std::int64_t step) noexcept {
-    const std::int64_t q = floor_div(p, step);
-    // q * step stays inside int64: |q| <= |p| / step.
-    return q * step;
+    const std::int64_t r = p % step;
+    return sub_px(p, r < 0 ? r + step : r);
 }
 
 /// A length rounded up to the step, saturating.
