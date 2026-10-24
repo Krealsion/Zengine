@@ -3,7 +3,7 @@
 
 // Tally: a small Workshop pane you can open, change, and reload while it runs, its count kept in
 // its weave state across a reload in place; it draws its own picture -- shapes, colour, a button
-// where it puts it, its words as rows inside -- in its office's area of the window that shows it.
+// where it puts it, its words as rows inside -- in its pane's area of the window that shows it.
 // Walkthrough: builder/docs/edit-a-running-pane.md. One source file of the installed packages'
 // headers: a single-source recipe links zengine::pane, zengine::graphics, zengine::activation,
 // zengine::input and loom::switchboard; a load-plan row loads it as "example.tally" (kOffice).
@@ -48,7 +48,7 @@ std::vector<ws::TextRow> rows_for(std::int64_t count) {
 // The office this weave speaks as. It must be the role its load-plan row gives it: Workshop
 // knows a pane by the office that offered it, and a weave can only speak as an office it holds.
 // If the pane never appears in the Pane Manager, compare this string with the role in the plan.
-// The office's one pane draws in the area of the same name.
+// Its one pane, kPane below, draws in the area `<office>.<pane>`: "example.tally.tally".
 constexpr const char* kOffice = "example.tally";
 
 // The office Workshop holds. This pane answers Workshop and nobody else.

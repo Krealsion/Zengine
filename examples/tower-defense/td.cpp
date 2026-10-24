@@ -4,7 +4,7 @@
 // Tower Defense: a small game played in a Workshop pane, made from inside Workshop. One source file
 // of the installed packages' headers: a single-source recipe links zengine::pane, zengine::graphics,
 // zengine::activation, zengine::input, zengine::timer and loom::switchboard, and a load-plan row
-// loads it under the role "td.game" (kOffice, below). It draws in that office's area of the
+// loads it under the role "td.game" (kOffice, below). It draws in its pane's area of the
 // graphics window that shows it, and publishes what happens in it (TdSeen, TdOccurred) for
 // whoever its host lets observe it.
 
