@@ -1,6 +1,7 @@
 # The action census: every action a shipped pane declares, in every mode its suite drives, one row
 # each, `<office> <mode> <id> <default key> <causes> <enters> <label>`, in the order the pane
-# declares them. The key is spelled as a weaver's keymap file spells it, `unbound` for none; the
+# declares them. The key is spelled as a weaver's keymap file spells it, `unbound` for none, and a
+# row's key for a POSIX terminal follows its default after a `~`; the
 # mode is the name the pane declares its rows in force for (the application's rows are `desk`), `-`
 # for a pane that declares none.
 # The causes are what a press may send beside the pane protocol, `,`-joined, each

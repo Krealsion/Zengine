@@ -56,7 +56,7 @@ def run(ctx):
     # A blank form is also saveable, without inventing any required values.
     blank = store("ctrl+b", label + " blank")
     hand.click(hand.row(*inv, label + " : ", scroll=True))
-    hand.key("ctrl+l"); hand.click(hand.row(*comp, "reference:"))
+    hand.press("inventory.live"); hand.click(hand.row(*comp, "reference:"))
     hand.click(hand.row(*comp, "revision:")); hand.text(str(source["revision"]))
     hand.click(hand.row(*comp, "label:")); hand.text(label + " authored")
     complete = store("ctrl+s", label + " command")
@@ -75,7 +75,7 @@ def run(ctx):
     ctx.produce("partial-preset.bin", preset["pair"])
     picture(ctx, ctx.inputs["link"], "incomplete")
     hand.drag(hand.row(*inv, label + " preset", scroll=True), hand.first(*comp), 350)
-    hand.key("ctrl+e")
+    hand.press("compose.submit")
     hand.row(*comp, "still needed: label")
 
     ctx.step("pick up a typed field from the saved capture and fill the missing argument")
@@ -93,7 +93,7 @@ def run(ctx):
     picture(ctx, ctx.inputs["link"], "refilled")
 
     ctx.step("explicitly submit and read the owner's actual outcome")
-    hand.key("ctrl+e")
+    hand.press("compose.submit")
     after = next(e for e in entries() if e["reference"] == source["reference"])
     # The visible field is only an assertion oracle; the copied payload travelled through Zengine.
     expected = selected["text"].split("fields[0].name: ", 1)[1]
@@ -103,7 +103,7 @@ def run(ctx):
     ctx.check(read(preset)["pair"] == preset["pair"], "partial preset source changed")
     ctx.check(read(source)["pair"] == source["pair"], "captured record data changed")
     # Replaying a saved revision must refuse rather than silently refresh and retry.
-    hand.key("ctrl+e")
+    hand.press("compose.submit")
     hand.row(*comp, "entry changed")
     final = entries()
     unchanged = next(e for e in final if e["reference"] == source["reference"])

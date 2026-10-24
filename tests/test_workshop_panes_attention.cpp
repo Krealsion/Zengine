@@ -221,7 +221,7 @@ TEST_CASE("the pane declares the three ids a weaver's keymap file already names"
     const RuntimePane* seat = f.row();
     REQUIRE(seat != nullptr);
     std::vector<std::string> declared;
-    for (const v3::PaneActionRow& row : seat->actions) {
+    for (const v4::PaneActionRow& row : seat->actions) {
         declared.push_back(row.id);
     }
     std::sort(declared.begin(), declared.end());
@@ -246,7 +246,7 @@ TEST_CASE("the manual the Attention pane answers names exactly the commands it d
     const RuntimePane* held = f.row();
     REQUIRE(held != nullptr);
     std::set<std::string> declared;
-    for (const v3::PaneActionRow& row : held->actions) {
+    for (const v4::PaneActionRow& row : held->actions) {
         declared.insert(row.id);
     }
     ManualReader reader(f.r, pane::kAttentionPaneRole);

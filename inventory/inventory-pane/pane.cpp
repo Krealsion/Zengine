@@ -50,7 +50,7 @@ class InventoryPane : public zengine::With<Office>::Weave<InventoryPane, Invento
         inv::v2::InventorySnapshot, inv::InventoryRestored,
         slots::InventoryToolboxSave, slots::InventoryToolboxRestore,
         loom::Ack, loom::Refused, loom::DispatchRefused>,
-    loom::Emit<ws::v2::PaneOffered, ws::v3::PaneActions,
+    loom::Emit<ws::v2::PaneOffered, ws::v4::PaneActions,
         ws::PaneMenuRequested, ws::PaneEscapeUnspent,
         ws::PanePassRequested, ws::PaneKeyboardRequested, ws::PaneOperationRequested,
         ws::v2::PaneOperationRequested, ws::ActorScopeRequested, ws::PaneCarryRequested,
@@ -860,17 +860,17 @@ private:
         declare(pane,m,candidate); for(const auto& v:state_.layout.views) declare(v.id,m,candidate);
     }
     void declare(const std::string& id,loom::Mail& m,const slots::InventoryViews* candidate) {
-        using namespace input; std::vector<ws::v3::PaneActionRow> rows;
+        using namespace input; std::vector<ws::v4::PaneActionRow> rows;
         if(editing_!=Editing::none && id==current_) rows={
             {"inventory.name.save","save",scan::kReturn,mod::kNone},{"inventory.name.cancel","cancel",scan::kEscape,mod::kNone}};
         else {
             rows={
-            {"inventory.copy",id==pane?"open folder / pick up copy":"pick up copy",scan::kReturn,mod::kNone},{"inventory.live","pick up live reference",scan::kL,mod::kCtrl},
+            {"inventory.copy",id==pane?"open folder / pick up copy":"pick up copy",scan::kReturn,mod::kNone},{"inventory.live","pick up live reference",scan::kReturn,mod::kCtrl,{},{},{},scan::kL,mod::kCtrl},
             {"inventory.up","previous entry",scan::kUp,mod::kNone},{"inventory.down","next entry",scan::kDown,mod::kNone},
             {"inventory.left","previous slot",scan::kLeft,mod::kNone},{"inventory.right","next slot",scan::kRight,mod::kNone},
             {"inventory.sort","cycle sorting",scan::kS,mod::kCtrl},{"inventory.refresh","refresh entries",scan::kR,mod::kCtrl},
             {"inventory.rename","rename entry",scan::kN,mod::kCtrl},{"inventory.remove","remove entry",scan::kDelete,mod::kNone},
-            {"inventory.toolbox.save","save toolbox",scan::kE,mod::kCtrl},
+            {"inventory.toolbox.save","save toolbox",scan::kS,mod::kCtrl|mod::kShift,{},{},{},scan::kE,mod::kCtrl},
             {"inventory.toolbox.restore","restore toolbox",scan::kO,mod::kCtrl},
             {"inventory.move.pick","move to another folder",scan::kX,mod::kCtrl}};
             // Backspace climbs only while no editor is open; an open name line keeps it as text.
@@ -881,7 +881,7 @@ private:
         }
         if(id==pane) for(const auto& b:(candidate?*candidate:state_.layout).bindings) rows.push_back({slots::action(b),"run inventory command",0,0});
         for(auto& row:rows) row.causes=causes_of(row.id);
-        m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,ws::v3::PaneActions{id,{},std::move(rows)});
+        m.as_role(office).send_to_role(ws::pane_menu::kWorkshopRole,ws::v4::PaneActions{id,{},std::move(rows)});
     }
     /// WHAT A PRESS OF ONE ROW MAY SEND BESIDE THE PANE PROTOCOL, its asks' answers followed: the
     /// owner's read and the carry a pickup ends in, the owner's change and the listing after it,

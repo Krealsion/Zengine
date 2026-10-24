@@ -474,7 +474,7 @@ void WorkshopWeave::on(const KeymapEditRequested& asked, loom::Mail& mail) {
     }
     if (!known) {
         for (const RuntimePane& row : session_.panes.runtime.entries) {
-            for (const v3::PaneActionRow& d : row.actions) {
+            for (const v4::PaneActionRow& d : row.actions) {
                 if (d.id == asked.action) {
                     declared = Gesture{d.scancode, d.modifiers};
                     known = true;

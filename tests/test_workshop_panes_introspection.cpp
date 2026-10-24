@@ -2210,7 +2210,7 @@ TEST_CASE("the manual the introspection office answers for each of its panes is 
     for (const char* pane : panes) {
         const RuntimePane* held = intro_row(r, pane);
         REQUIRE(held != nullptr);
-        for (const v3::PaneActionRow& a : held->actions) declared.insert(a.id);
+        for (const v4::PaneActionRow& a : held->actions) declared.insert(a.id);
     }
     ManualReader reader(r, kIntroOffice);
     for (const char* pane : panes) {

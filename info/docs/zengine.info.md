@@ -94,11 +94,12 @@ Shows the value the default pane holds again, in place of the properties. Declar
 holds one and no draft is open.
 
 - **Takes:** the value the default pane last held. Default key
-  <!-- key info.inventory -->`alt+right`<!-- /key -->; in the properties' menu, `Show the value view`.
+  <!-- key info.inventory -->`ctrl+i`<!-- /key --> (`alt+right` from a POSIX terminal); in the
+  properties' menu, `Show the value view`.
 - **Answers:** the default pane is a value view again, as it was
   ([commands in a value view](#commands-in-a-value-view)).
 - **Refuses:** nothing.
-- **Example:** <!-- key info.inventory -->`alt+right`<!-- /key -->.
+- **Example:** <!-- key info.inventory -->`ctrl+i`<!-- /key -->.
 
 ### `info.view.new`
 
@@ -230,15 +231,15 @@ was read at; a copy is stored as a new entry, which the view then links.
 Stores the draft as a new, separately named entry, and leaves this view as it was: still linked, its
 edits unsaved.
 
-- **Takes:** the draft. Default key <!-- key info.value.save-copy -->`alt+end`<!-- /key -->; the
-  control `[Save copy]`.
+- **Takes:** the draft. Default key <!-- key info.value.save-copy -->`ctrl+shift+s`<!-- /key -->
+  (`alt+end` from a POSIX terminal); the control `[Save copy]`.
 - **Answers:** asks Workshop, then Inventory
   ([`InventoryAdd`](../../inventory/docs/zengine.inventory.md#inventoryadd)), under the entry's name
   and ` copy`; `Saved a new entry 'Note copy'; this view still holds its link to rev 2` (or `its
   independent copy`).
 - **Refuses:** `Save copy refused: <the reason>; nothing was stored`; `Save copy unavailable: wait:
   ...`.
-- **Example:** <!-- key info.value.save-copy -->`alt+end`<!-- /key -->.
+- **Example:** <!-- key info.value.save-copy -->`ctrl+shift+s`<!-- /key -->.
 
 ### `info.value.fresh`
 
@@ -352,60 +353,60 @@ Throws away the draft's edits: the value is the one last saved or read again.
 Opens the lowest unused view with a copy of this view's draft, and nothing that waits: no pending
 ask, no watch. A linked draft stays linked to the same entry.
 
-- **Takes:** this view's draft. Default key <!-- key info.view.fork -->`alt+down`<!-- /key -->;
-  the control `[Fork]`.
+- **Takes:** this view's draft. Default key <!-- key info.view.fork -->`ctrl+shift+n`<!-- /key -->
+  (`alt+down` from a POSIX terminal); the control `[Fork]`.
 - **Answers:** asks Workshop to show the new view
   ([`PaneLaunchRequested`](../../workshop/docs/zengine.workshop.md#panelaunchrequested)): `Forked
   into Info 2 fork`, the new view's title; the new view says `Forked from Info 2: an independent
   local draft; watch is off`. Nothing is stored.
 - **Refuses:** `Fork view unavailable: this view holds no value`; as
   [`info.view.new`](#infoviewnew) when no view is free.
-- **Example:** <!-- key info.view.fork -->`alt+down`<!-- /key -->.
+- **Example:** <!-- key info.view.fork -->`ctrl+shift+n`<!-- /key -->.
 
 ### `info.view.rename`
 
 Opens a line for the view's name ([commands on the rename line](#commands-on-the-rename-line)). The
 name is the view's, never the entry's.
 
-- **Takes:** the view. Default key <!-- key info.view.rename -->`alt+home`<!-- /key -->; the control
-  `[Rename]`.
+- **Takes:** the view. Default key <!-- key info.view.rename -->`ctrl+m`<!-- /key --> (`alt+home`
+  from a POSIX terminal); the control `[Rename]`.
 - **Answers:** `Name this view; Enter keeps it, Escape cancels`, and the line, holding the name.
 - **Refuses:** nothing.
-- **Example:** <!-- key info.view.rename -->`alt+home`<!-- /key -->, type `Sample`.
+- **Example:** <!-- key info.view.rename -->`ctrl+m`<!-- /key -->, type `Sample`.
 
 ### `info.view.menu`
 
 Opens the view's menu: every command it has but this one and the two that move the selection,
 each marked ` (unavailable)` when it cannot act now.
 
-- **Takes:** the view. Default key <!-- key info.view.menu -->`ctrl+o`<!-- /key -->; the control
-  `[...]`, or a right press on the view's rows.
+- **Takes:** the view. Default key <!-- key info.view.menu -->`ctrl+.`<!-- /key --> (`ctrl+o` from a
+  POSIX terminal); the control `[...]`, or a right press on the view's rows.
 - **Answers:** asks Workshop to present the menu (`PaneMenuRequested`); a line chosen acts as its
   command does.
 - **Refuses:** `The actions menu could not be requested`; a right press on a picture the view no
   longer shows, `This view changed -- press again`.
-- **Example:** <!-- key info.view.menu -->`ctrl+o`<!-- /key -->, choose `Discard edits`.
+- **Example:** <!-- key info.view.menu -->`ctrl+.`<!-- /key -->, choose `Discard edits`.
 
 ### `info.value.panes`
 
 The default pane's way back to its pane properties. The value stays, for
 [`info.inventory`](#infoinventory). A watch ends, since the view no longer shows the value.
 
-- **Takes:** the default pane. Default key <!-- key info.value.panes -->`alt+left`<!-- /key -->; the
-  control `[Panes]`.
+- **Takes:** the default pane. Default key <!-- key info.value.panes -->`ctrl+i`<!-- /key -->
+  (`alt+left` from a POSIX terminal); the control `[Panes]`.
 - **Answers:** the properties; `Watch ended: this view left for pane properties` when it was watching,
   and the watch ends at Workshop
   ([`PaneObservationEnded`](../../workshop/docs/zengine.workshop.md#paneobservationended)).
 - **Refuses:** nothing.
-- **Example:** <!-- key info.value.panes -->`alt+left`<!-- /key -->.
+- **Example:** <!-- key info.value.panes -->`ctrl+i`<!-- /key -->.
 
 ### `info.view.close`
 
 Retires the view and takes it off the desk. Nothing in Inventory is touched, and the view is the next
 one [`info.view.new`](#infoviewnew) opens. The default pane has none.
 
-- **Takes:** a value view. Default key <!-- key info.view.close -->`ctrl+w`<!-- /key -->; the
-  control `[Close]`.
+- **Takes:** a value view. Default key <!-- key info.view.close -->`ctrl+shift+w`<!-- /key -->
+  (`ctrl+w` from a POSIX terminal); the control `[Close]`.
 - **Answers:** asks Workshop to close the pane
   ([`PaneCloseRequested`](../../workshop/docs/zengine.workshop.md#panecloserequested)), and a watch
   the view held ends there
@@ -415,7 +416,7 @@ one [`info.view.new`](#infoviewnew) opens. The default pane has none.
 - **Refuses:** `Close waits: a save is waiting for its answer`; `Unsaved edits in this view: press
   Close again to discard and close (Inventory data stays)`, or `Pending work in this view: ...`,
   until the second press.
-- **Example:** <!-- key info.view.close -->`ctrl+w`<!-- /key -->.
+- **Example:** <!-- key info.view.close -->`ctrl+shift+w`<!-- /key -->.
 
 ### `info.view.stop`
 

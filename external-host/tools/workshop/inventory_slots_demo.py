@@ -46,7 +46,7 @@ def run(ctx):
     target = hand.ask("zengine.inventory", "InventoryCaptureAdd", {"target_role": "zengine.input", "label": label})
     hand.click(hand.part("zengine.introspection", "loaded", "weave:zengine-inventory", scroll=True))
     hand.click(hand.row(*comp, "InventoryRename v1", scroll=True))
-    hand.click(hand.row(*inv, label + " : ", scroll=True)); hand.key("ctrl+l")
+    hand.click(hand.row(*inv, label + " : ", scroll=True)); hand.press("inventory.live")
     hand.click(hand.row(*comp, "reference:"))
     hand.click(hand.row(*comp, "revision:")); hand.text(str(target["revision"]))
     hand.click(hand.row(*comp, "label:")); hand.text(label + " executed")

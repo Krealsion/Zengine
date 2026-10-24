@@ -2452,7 +2452,8 @@ class ProviderSeat
                                           gfx::DrawnRefused, gfx::AreaButtonChanged,
                                           gfx::AreaWheelTurned, PaneCanvasValueDrop, SeatDo>,
                              loom::Emit<PaneOffered, PaneActions, v2::PaneActions, v3::PaneActions,
-                                        PaneEscapeUnspent, PanePassRequested, gfx::Drawn,
+                                        v4::PaneActions, PaneEscapeUnspent, PanePassRequested,
+                                        gfx::Drawn,
                                         gfx::AreaButtonChanged>> {
 public:
     explicit ProviderSeat(std::string office) : office_(std::move(office)) {}
@@ -2620,6 +2621,10 @@ public:
     }
     /// ...and the THIRD, which says what each press may cause and the modes.
     void declare_v3(loom::Mail& mail, const v3::PaneActions& a) {
+        (void)mail.as_role(office_).send_to_role(kWorkshopProvider, a);
+    }
+    /// ...and the FOURTH, whose rows may name a key for a POSIX terminal.
+    void declare_v4(loom::Mail& mail, const v4::PaneActions& a) {
         (void)mail.as_role(office_).send_to_role(kWorkshopProvider, a);
     }
     /// FORGE A PRESS AT SOMEBODY ELSE'S AREA -- deliberately authored, and deliberately by an
@@ -3085,6 +3090,7 @@ struct PaneRig {
         grant.allow_to_any(PaneActions::zen_name, PaneActions::zen_version);
         grant.allow_to_any(v2::PaneActions::zen_name, v2::PaneActions::zen_version);
         grant.allow_to_any(v3::PaneActions::zen_name, v3::PaneActions::zen_version);
+        grant.allow_to_any(v4::PaneActions::zen_name, v4::PaneActions::zen_version);
         // ...and that an Escape it was sent was unspent, which is how a pane asks to be put down,
         // and that a press was not its own.
         grant.allow_to_any(PaneEscapeUnspent::zen_name, PaneEscapeUnspent::zen_version);

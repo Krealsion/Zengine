@@ -126,7 +126,7 @@ TEST_CASE("the manual the Demo controls answer is the page their build embedded,
     const RuntimePane* held = d.held();
     REQUIRE(held != nullptr);
     std::set<std::string> ids;
-    for (const v3::PaneActionRow& a : held->actions) ids.insert(a.id);
+    for (const v4::PaneActionRow& a : held->actions) ids.insert(a.id);
     ManualReader reader(d.r, demo::kRole);
     check_answered_manual(reader, "controls", ids);
     const PaneDocumentShown whole = reader.ask("controls", "");

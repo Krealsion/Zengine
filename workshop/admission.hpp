@@ -39,6 +39,7 @@ inline loom::Grant first_run_office_grant() {
     const std::string workshop = kWorkshopProvider;
     to(v2::PaneOffered::zen_name, v2::PaneOffered::zen_version, workshop);
     to(v3::PaneActions::zen_name, v3::PaneActions::zen_version, workshop);
+    to(v4::PaneActions::zen_name, v4::PaneActions::zen_version, workshop);
     to(OfficeSettingsDeclared::zen_name, OfficeSettingsDeclared::zen_version, workshop);
     to(OfficeSettingsRequested::zen_name, OfficeSettingsRequested::zen_version, workshop);
     to(OfficeSettingCommitRequested::zen_name, OfficeSettingCommitRequested::zen_version, workshop);

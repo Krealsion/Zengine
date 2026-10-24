@@ -95,10 +95,10 @@ void WorkshopWeave::accept_pane_offer(const PaneOffered& offer, loom::Mail& mail
 
 /// A declaration from a pane built before ownership existed: `PaneActions` v1 is unchanged, and
 /// its rows are widened here into the host's own type with an empty `supersedes` (it stands in
-/// for nothing) and no causes, so everything below reads one population.
+/// for nothing), no causes and no POSIX key, so everything below reads one population.
 // WL-KEY-15 -- agents/workshop/keyboard.md
 void WorkshopWeave::on(const PaneActions& actions, loom::Mail& mail) {
-    v3::PaneActions widened{actions.pane, std::string(), {}, {}};
+    v4::PaneActions widened{actions.pane, std::string(), {}, {}};
     widened.rows.reserve(actions.rows.size());
     for (const PaneActionRow& row : actions.rows) {
         widened.rows.push_back(action_row_of(row));
@@ -109,7 +109,7 @@ void WorkshopWeave::on(const PaneActions& actions, loom::Mail& mail) {
 /// ...and from a pane built before causes existed: its rows cause nothing a reader can know.
 // WL-KEY-15 -- agents/workshop/keyboard.md
 void WorkshopWeave::on(const v2::PaneActions& actions, loom::Mail& mail) {
-    v3::PaneActions widened{actions.pane, std::string(), {}, {}};
+    v4::PaneActions widened{actions.pane, std::string(), {}, {}};
     widened.rows.reserve(actions.rows.size());
     for (const v2::PaneActionRow& row : actions.rows) {
         widened.rows.push_back(action_row_of(row));
@@ -117,15 +117,26 @@ void WorkshopWeave::on(const v2::PaneActions& actions, loom::Mail& mail) {
     declare_pane_actions(widened, mail);
 }
 
+/// ...and from a pane built before POSIX keys existed: its rows name none.
 // WL-CAUSE-01 -- agents/workshop/action-causes.md
 void WorkshopWeave::on(const v3::PaneActions& actions, loom::Mail& mail) {
+    v4::PaneActions widened{actions.pane, actions.mode, {}, actions.elsewhere};
+    widened.rows.reserve(actions.rows.size());
+    for (const v3::PaneActionRow& row : actions.rows) {
+        widened.rows.push_back(action_row_of(row));
+    }
+    declare_pane_actions(widened, mail);
+}
+
+// WL-KEY-15 -- agents/workshop/keyboard.md
+void WorkshopWeave::on(const v4::PaneActions& actions, loom::Mail& mail) {
     declare_pane_actions(actions, mail);
 }
 
 // WL-KEY-15 -- agents/workshop/keyboard.md; WL-CAUSE-01 -- agents/workshop/action-causes.md
-void WorkshopWeave::declare_pane_actions(const v3::PaneActions& declared, loom::Mail& mail) {
+void WorkshopWeave::declare_pane_actions(const v4::PaneActions& declared, loom::Mail& mail) {
     const std::string& pane = declared.pane;
-    const std::vector<v3::PaneActionRow>& rows = declared.rows;
+    const std::vector<v4::PaneActionRow>& rows = declared.rows;
     const std::string_view office = mail.authored_role();
     if (office.empty()) {
         return; // personal speech: no rows, no notice, no catalog change (the offer's rule)
@@ -183,6 +194,23 @@ void WorkshopWeave::declare_pane_actions(const v3::PaneActions& declared, loom::
         say(gaps, false);
     }
     repaint(mail); // the legend and the hotkey view read the map at every paint
+}
+
+// WL-KEY-08 -- agents/workshop/keyboard.md
+void WorkshopWeave::set_posix_layer(bool on, loom::Mail& mail) {
+    if (session_.keymap.posix_layer == on) {
+        return;
+    }
+    session_.keymap.posix_layer = on;
+    std::string refusals;
+    std::string gaps;
+    rejoin_pane_rows(refusals, gaps, mail);
+    if (!refusals.empty()) {
+        say(refusals + (gaps.empty() ? "" : "; " + gaps), true);
+    } else if (!gaps.empty()) {
+        say(gaps, false);
+    }
+    repaint(mail);
 }
 
 // WL-KEY-08 -- agents/workshop/keyboard.md

@@ -249,6 +249,12 @@ struct HostContext {
     // WL-KEY-07 -- agents/workshop/keyboard.md; WL-SESSION-01 -- agents/workshop/session.md
     std::string keymap_path;
 
+    /// WHETHER THIS HOST'S TERMINAL WINDOW READS ITS KEYS FROM A POSIX TERMINAL
+    /// (`input/terminal_reader.hpp`): shown in that window, Workshop puts each pane row's POSIX key
+    /// in force in place of its default. The program sets it on a build that is not Windows.
+    // WL-KEY-08 -- agents/workshop/keyboard.md
+    bool posix_terminal = false;
+
     /// The one file this Workshop's presentation PREFERENCES live in.
     // WL-FOCUS-11 -- agents/workshop/focus.md; WL-SESSION-01 -- agents/workshop/session.md
     std::string prefs_path;
@@ -370,6 +376,7 @@ class WorkshopWeave
                                           zengine::workshop::PaneActions,
                                           zengine::workshop::v2::PaneActions,
                                           zengine::workshop::v3::PaneActions,
+                                          zengine::workshop::v4::PaneActions,
                                           zengine::workshop::PaneSettingsDeclared,
                                           zengine::workshop::v2::PaneSettingsDeclared,
                                           // one pane's settings on the live layout, read and
@@ -849,10 +856,18 @@ public:
     /// ...and in the version that says what each press may cause, and the modes.
     void on(const v3::PaneActions& actions, loom::Mail& mail);
 
+    /// ...and in the version whose rows may name a key for a POSIX terminal (WL-KEY-08).
+    void on(const v4::PaneActions& actions, loom::Mail& mail);
+
     /// THE ONE BODY EVERY VERSION SPENDS, over the host's own row type: the rows, their causes and
     /// the modes, judged whole and held together.
     // WL-KEY-15 -- agents/workshop/keyboard.md
-    void declare_pane_actions(const v3::PaneActions& declared, loom::Mail& mail);
+    void declare_pane_actions(const v4::PaneActions& declared, loom::Mail& mail);
+
+    /// PUT THE POSIX LAYER IN FORCE, OR TAKE IT DOWN, and join every pane's rows again under it,
+    /// saying what the re-join refused; nothing when it is already as asked.
+    // WL-KEY-08 -- agents/workshop/keyboard.md
+    void set_posix_layer(bool on, loom::Mail& mail);
 
     /// Re-join every pane's retained declaration into the keymap now in force: the file may arrive
     /// after a pane did, and its overrides are owed to that pane's rows too. `gaps` gets what
