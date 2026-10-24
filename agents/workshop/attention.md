@@ -50,14 +50,13 @@ WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
 ## WL-ATTN-06 — The glance is the Attention pane's first row
 
-LAW — The loudest condition the host says is true, with an honest `(+N more)`, leads the Attention pane in that condition's role; Workshop puts nothing on Surface's attention slot.
+LAW — The loudest condition the host says is true, with an honest `(+N more)`, leads the Attention pane in that condition's role.
 
 MEANS
 - a weaver who hides a row still reads it in the glance, because it is still true;
 - a pane one row tall is the glance alone; nothing true is said in words, never an empty box.
 
 DOES NOT MEAN
-- that Surface's slot is gone: a Skin draws it, in the picture and the title, for whoever uses it.
 
 WHY — `agents/decisions/a-condition-has-a-lifetime.md`
 
@@ -164,8 +163,7 @@ ranked by truth, and says how many it is not saying"
 `workshop/attention_seam_vocabulary.hpp` attention_glance
 `attention/pane.cpp` say_view
 `workshop/weave_run.cpp` WorkshopWeave::repaint
-`tests/test_workshop_host.cpp` "Workshop puts nothing on the attention slot, healthy or not: what is
-true is said to whoever presents it" "the glance is ranked by truth, and says how many it is not
+`tests/test_workshop_host.cpp` "what is true is said to whoever presents it, healthy or not" "the glance is ranked by truth, and says how many it is not
 saying"
 `tests/test_workshop_panes_attention.cpp` "the Attention pane leads with the glance: the loudest
 condition that is true and how many more, hidden ones counted"

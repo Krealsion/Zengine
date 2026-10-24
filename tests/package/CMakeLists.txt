@@ -24,7 +24,6 @@ target_link_libraries(witness-surfaces
         zengine::maker
         zengine::flow
         zengine::timer
-        zengine::surface
         zengine::input
         zengine::ui
         zengine::component
@@ -37,7 +36,7 @@ target_link_libraries(witness-surfaces
 
 # ---- the graphics package alone -----------------------------------------------------------
 # graphics_consumer.cpp paints for light and reads the terminal's claim from `zengine::graphics`
-# and nothing else: a graphics header that needs Surface or another package stops it compiling.
+# and nothing else: a graphics header that needs another package stops it compiling.
 add_executable(witness-graphics graphics_consumer.cpp)
 target_link_libraries(witness-graphics PRIVATE zengine::graphics)
 

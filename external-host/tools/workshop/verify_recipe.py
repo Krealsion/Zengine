@@ -6,7 +6,7 @@ the read and the checks).
 
 WHAT THIS IS: a LOCAL FILESYSTEM READ of the file `zengine-workshop`'s own recipe writer saves
 to (`workshop/recipe_persist.hpp`), opened directly by this tool -- never through `zengine.input`,
-`zengine.skin` or any other guest door, and never an ask Workshop answers. It exists because
+a window's office or any other guest door, and never an ask Workshop answers. It exists because
 "the picture changed" and "an input session admitted N moments" are not the same claim as "the
 SPECIFIC recipe a case meant to author was written with the SPECIFIC fields that case meant" --
 a chooser presenting the wrong candidate, a field's suggested default surviving uncleared, or a

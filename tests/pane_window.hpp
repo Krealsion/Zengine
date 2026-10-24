@@ -64,7 +64,7 @@ class PaneWindow
                                         gfx::AreaButtonChanged, gfx::AreaPointerMoved,
                                         gfx::AreaWheelTurned, gfx::AreaPressed, gfx::AreaHoldEnded,
                                         gfx::AreaPointerLeft, graphics::ClipboardText,
-                                        gfx::AreaShown, loom::Refused>> {
+                                        gfx::AreaShown, gfx::WindowOffered, loom::Refused>> {
 public:
     explicit PaneWindow(std::string window) : window_(std::move(window)) {}
 
@@ -156,6 +156,7 @@ public:
     bool hold_paste = false;
     bool held = false;
     loom::DeferredAnswer paste;
+    loom::Ticket spent{}; ///< what the late answer's spend returned
     std::deque<std::function<void(PaneWindow&, loom::Mail&)>> next; ///< the case's moments, in turn
     std::string platform;    ///< what the platform clipboard holds
     int clipboard_reads = 0; ///< the pastes asked of this window
@@ -186,6 +187,7 @@ public:
         grant.allow_to_any(gfx::AreaPointerLeft::zen_name, gfx::AreaPointerLeft::zen_version);
         grant.allow_to_any(graphics::ClipboardText::zen_name, graphics::ClipboardText::zen_version);
         grant.allow_to_any(gfx::AreaShown::zen_name, gfx::AreaShown::zen_version);
+        grant.allow_to_any(gfx::WindowOffered::zen_name, gfx::WindowOffered::zen_version);
         const std::string office = w_->office();
         id_ = bus_.register_weave(std::move(weave), std::move(grant), office);
         w_->zen_set_self(id_);
@@ -195,6 +197,7 @@ public:
     Window& operator=(const Window&) = delete;
 
     PaneWindow& weave() { return *w_; }
+    const loom::WeaveId& id() const { return id_; }
     const std::string& name() const { return w_->window(); }
 
     /// THE FACE THIS WINDOW SETS TEXT IN, as a window of light measures one: its rooms say it and
@@ -539,13 +542,21 @@ public:
                 return;
             }
             w.held = false;
-            (void)loom::answer_deferred(w.paste, mail, graphics::ClipboardText{true, w.platform});
+            w.spent = loom::answer_deferred(w.paste, mail, graphics::ClipboardText{true, w.platform});
         });
         (void)bus_.send(id_, loom::Message(loom::to_value(PaneWindowDo{}), loom::WeaveId{},
                                            loom::WeaveId{}, 0));
         if (!queued) {
             bus_.drain_until_idle();
         }
+    }
+
+    /// THIS WINDOW OFFERS ITSELF to `to`, as its office: its room in canvas pixels, its
+    /// incarnation, and the cell its text is set in, as the terminal window offers itself.
+    void offer(const std::string& to, std::int64_t width_px, std::int64_t height_px,
+               std::int64_t epoch = 1) {
+        say(to, gfx::WindowOffered{w_->window(), width_px, height_px, epoch, 0, gfx::kCellPx,
+                                   gfx::kCellPx});
     }
 
     /// A DRAWING OF `area` REFUSED, told its owner as this window's office, whatever it last drew.

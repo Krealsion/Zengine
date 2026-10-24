@@ -715,7 +715,7 @@ TEST_CASE("every row of every projection fits the room it was granted") {
                         REQUIRE(byte < 0x7Fu);
                     }
                     // A blank row is `role::kFill`, never `role::kNone` -- that value
-                    // is the absence of a BACKGROUND and is not a Skin ink.
+                    // is the absence of a BACKGROUND and is not a window's ink.
                     REQUIRE(r.row.role != gfx::role::kNone);
                 }
             }

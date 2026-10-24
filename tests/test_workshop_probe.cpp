@@ -5,7 +5,7 @@
 // `examples/workshop-probe` may say PASS, which answers move it forward, what it closes before
 // it stops, and which inventory row is "this session". It drives the REAL probe weave with the
 // real Input weave behind a scripted link that keeps the link's contract; the socket, the
-// door, the real Skin and real owners are `workshop_guests`' and the two-process journey's.
+// door, the real window and real owners are `workshop_guests`' and the two-process journey's.
 
 #include "doctest.h"
 
@@ -101,7 +101,7 @@ class LoopLink
           loom::Accept<loom::link::Ask, loom::link::StatusRequested, input::InputSessionOpened,
                        input::InputInjected, loom::Ack, loom::Refused, Release>,
           // The far requests it carries are declared here so this bus resolves them, as the
-          // far bus would: nothing on this bus accepts the door's or the Skin's shapes.
+          // far bus would: nothing on this bus accepts the door's or the window's shapes.
           loom::Emit<input::InputSessionRequested, input::InjectInput, input::InputSessionClosed,
                      ws::GuestConnectionsRequested, gfx::SurfaceCaptureRequested,
                      gfx::SurfaceCaptureChunkRequested, input::InputSessionOpened,
@@ -596,7 +596,7 @@ TEST_CASE("probe: a refused capture, and a chunk that does not continue the pict
     const std::string refused = r.run();
     INFO("refused: " << refused);
     CHECK(starts(refused, "STOPPED"));
-    CHECK(has(refused, "zengine.skin refused the capture: this medium has no picture"));
+    CHECK(has(refused, "zengine.window.sdl refused the capture: this medium has no picture"));
     CHECK(has(refused, "session 1 closed in cleanup"));
     // A chunk from another picture.
     Rig s;
@@ -656,46 +656,48 @@ std::vector<std::string> asked_of(const Rig& r, const char* shape) {
 
 } // namespace
 
-TEST_CASE("probe: a picture no Skin holds is asked of the OS window, then the terminal window, and fetched from the office that described it") {
-    // ⚔ MUTATION: the capture asked of the Skin alone -- every window plan would stop at capture.
-    // ⚔ MUTATION: the chunks asked of the Skin after a window described the picture.
+TEST_CASE("probe: a picture is asked of the OS window, then the terminal window, and fetched from the office that described it") {
+    // ⚔ MUTATION: the capture asked of the OS window alone -- every terminal plan would stop at
+    // capture.
+    // ⚔ MUTATION: the chunks asked of the OS window after the terminal window described the picture.
     for (const char* holder : {"zengine.window.sdl", "zengine.window.terminal"}) {
         CAPTURE(holder);
+        const bool terminal = std::string(holder) == "zengine.window.terminal";
         Rig r;
         RemoveOnExit tidy{Rig::default_run().picture};
         picture_held_by(r, holder);
         const std::string said = r.run();
         INFO("the run: " << said);
         REQUIRE(starts(said, "PASS"));
-        CHECK(has(said, "zengine.skin was not reached (NoRoleHolder: zengine.skin); asking "
-                        "zengine.window.sdl"));
+        CHECK(has(said, "zengine.window.sdl was not reached (NoRoleHolder: zengine.window.sdl); "
+                        "asking zengine.window.terminal") == terminal);
         CHECK(has(said, "capture 1 at frame 5: 3x1 text/cells, 4 bytes"));
         CHECK(has(said, "(4 of 4 bytes, text/cells, read back whole)"));
-        std::vector<std::string> captures = {"zengine.skin", "zengine.window.sdl"};
-        if (std::string(holder) == "zengine.window.terminal") {
+        std::vector<std::string> captures = {"zengine.window.sdl"};
+        if (terminal) {
             captures.push_back(holder);
         }
         CHECK(asked_of(r, gfx::SurfaceCaptureRequested::zen_name) == captures);
         CHECK(asked_of(r, gfx::SurfaceCaptureChunkRequested::zen_name) ==
               std::vector<std::string>{holder, holder});
-        // THE NEXT RUN ASKS THE SKIN FIRST AGAIN: which office answered is this run's to learn.
+        // THE NEXT RUN ASKS THE OS WINDOW FIRST AGAIN: which office answered is this run's to learn.
         const std::string again = r.run();
         CHECK(starts(again, "PASS"));
         CHECK(asked_of(r, gfx::SurfaceCaptureRequested::zen_name).at(captures.size()) ==
-              "zengine.skin");
+              "zengine.window.sdl");
     }
 }
 
 TEST_CASE("probe: when no office holds the picture the run stops on the first refusal, and a refusal while fetching asks no other office") {
-    // ⚔ MUTATION: the run stopped on the last office's refusal, which names a window the far
-    // Workshop never loaded rather than the Skin it was first asked of.
+    // ⚔ MUTATION: the run stopped on the last office's refusal, which names the last window asked
+    // rather than the first.
     Rig r;
     picture_held_by(r, "nobody");
     const std::string said = r.run();
     INFO("the run: " << said);
     CHECK(starts(said, "STOPPED"));
     CHECK(has(said, "link: dispatch-refused at capture (SurfaceCaptureRequested): NoRoleHolder: "
-                    "zengine.skin; session 1 closed in cleanup"));
+                    "zengine.window.sdl; session 1 closed in cleanup"));
     CHECK(asked_of(r, gfx::SurfaceCaptureRequested::zen_name) ==
           std::vector<std::string>(zengine::workshop_probe::kCaptureOffices.begin(),
                                    zengine::workshop_probe::kCaptureOffices.end()));
@@ -705,7 +707,7 @@ TEST_CASE("probe: when no office holds the picture the run stops on the first re
     // ⚔ MUTATION: a dispatch refusal while fetching sent the run on to the next office.
     Rig s;
     s.answer_with(gfx::SurfaceCaptureChunkRequested::zen_name, [](const loom::Value&) {
-        return outcome(loom::link::kOutcomeDispatchRefused, "NoRoleHolder: zengine.skin");
+        return outcome(loom::link::kOutcomeDispatchRefused, "NoRoleHolder: zengine.window.sdl");
     });
     const std::string fetching = s.run();
     INFO("refused while fetching: " << fetching);
@@ -713,7 +715,7 @@ TEST_CASE("probe: when no office holds the picture the run stops on the first re
     CHECK(has(fetching, "link: dispatch-refused at fetch (SurfaceCaptureChunkRequested)"));
     CHECK(has(fetching, "session 1 closed in cleanup"));
     CHECK(asked_of(s, gfx::SurfaceCaptureRequested::zen_name) ==
-          std::vector<std::string>{"zengine.skin"});
+          std::vector<std::string>{"zengine.window.sdl"});
 }
 
 TEST_CASE("probe: a lost link leaves the session to Workshop's door, and says so") {

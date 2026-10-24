@@ -80,7 +80,7 @@ std::string marked(const std::vector<std::string>& rows) {
 
 /// A BUTTON AT A CANVAS CELL, through the window showing the desk, as a weaver's hand makes it.
 void button_cell(PaneRig& r, std::int64_t button, bool pressed, std::int64_t cx, std::int64_t cy) {
-    r.hand_button(cx, cy + r.console_rows(), input::space::kCells, pressed, button);
+    r.hand_button(cx, cy, input::space::kCells, pressed, button);
 }
 
 /// A KEY QUEUED AND NOT DRAINED, as the platform's input is published.
@@ -92,7 +92,7 @@ void queue_key(PaneRig& r, std::int64_t scancode, std::int64_t modifiers) {
 /// A BUTTON QUEUED ON THE WINDOW'S PLATFORM, its beat asked for on the bus at this place in the
 /// order: the beat lands it where the window shows what it holds then.
 void queue_button(PaneRig& r, std::int64_t button, bool pressed, std::int64_t cx, std::int64_t cy) {
-    r.window_queue_button(cx, cy + r.console_rows(), pressed, button);
+    r.window_queue_button(cx, cy, pressed, button);
     (void)r.bus.send(r.windows.id(), loom::Message(loom::to_value(gfx::PumpSurface{})));
 }
 
@@ -112,11 +112,7 @@ struct Desk {
     std::int64_t launcher = kNoPaneKind;
 
     explicit Desk(const std::string& keymap_path = std::string(), std::int64_t width = 160,
-                  std::int64_t height = 60, const char* presenter_image = WORKSHOP_SO_MENU_PRESENTER,
-                  bool on_skin = false) {
-        if (on_skin) {
-            (void)mount_skin_stand_in(r);
-        }
+                  std::int64_t height = 60, const char* presenter_image = WORKSHOP_SO_MENU_PRESENTER) {
         if (!keymap_path.empty()) {
             r.host.keymap_path = keymap_path;
         }
@@ -198,9 +194,9 @@ TEST_CASE("WL-DESK-14: a press on a row's mark shows or hides that pane; a press
 }
 
 TEST_CASE("WL-HAND-06: the Pane Manager names each row and its mark by the pane's reference") {
-    // ON A SKIN: a window of the case's own shows the Pane Manager, the only window showing it.
+    // A WINDOW OF THE CASE'S OWN shows the Pane Manager, beside the window that shows the desk.
     namespace pw = zengine::testing::pane_window;
-    Desk d(std::string(), 160, 60, WORKSHOP_SO_MENU_PRESENTER, /*on_skin=*/true);
+    Desk d;
     const std::string manager = std::string(kDesktopRole) + "." + dp::kLauncherPane;
     pw::Window w(d.r.bus);
     w.room(manager, kDesktopRole, 100, 40);
@@ -332,14 +328,22 @@ TEST_CASE("WL-HAND-06: the Pane Manager names each row and its mark by the pane'
         d.r.bus.remove_observer(tap);
         CHECK(to_workshop == 0);
         CHECK_FALSE(has_pane(d.r.session().setup.active, hotkeys));
-        // RELOADED, the desktop asks each pane's room once, and draws whole in the window again.
-        pw::PaneDirectory* directory = pw::mount_directory(d.r.bus);
+        // RELOADED, the desktop asks the directory each pane's room once, and draws whole in the
+        // window again.
+        std::map<std::string, int> rooms_asked;
+        const auto rooms_tap = d.r.bus.add_observer([&](const loom::BusEvent& e) {
+            if (e.kind == loom::EventKind::Delivered && e.payload != nullptr &&
+                e.sender == d.desktop && e.schema_name == gfx::RoomAsked::zen_name) {
+                ++rooms_asked[loom::from_value<gfx::RoomAsked>(*e.payload).area];
+            }
+        });
         d.r.enqueue_reload(dp::kDesktopStem, WORKSHOP_SO_DESKTOP_PANE);
         d.r.bus.drain_until_idle();
+        d.r.bus.remove_observer(rooms_tap);
         REQUIRE(d.r.load_refusals.empty());
         for (const std::string& area : {manager, keys, manual}) {
             CAPTURE(area);
-            CHECK(directory->times(area, kDesktopRole) == 1);
+            CHECK(rooms_asked[area] == 1);
         }
         const std::size_t before = w.weave().heard.size();
         w.room(keys, kDesktopRole, 100, 60);
@@ -642,16 +646,10 @@ struct Keys {
     PaneRig r;
     loom::WeaveId presenter{};
     std::int64_t hotkeys = kNoPaneKind;
-    /// THE SKIN'S PLATFORM, seated first when a case's claim is the Skin path's own.
-    SkinStandIn* skin = nullptr;
 
     explicit Keys(const char* name, const std::string& file_text = std::string(),
-                  bool isolated = false, const char* presenter_image = WORKSHOP_SO_MENU_PRESENTER,
-                  bool on_skin = false)
+                  bool isolated = false, const char* presenter_image = WORKSHOP_SO_MENU_PRESENTER)
         : dir(name), path(dir.file("keymap.json")) {
-        if (on_skin) {
-            skin = mount_skin_stand_in(r);
-        }
         if (!file_text.empty()) {
             write_keymap_file(path, file_text);
         }
@@ -1346,11 +1344,10 @@ TEST_CASE("the Hotkeys pane heads a pane's keys with the pane's name made drawab
     admitted();
 }
 
-TEST_CASE("the Hotkeys pane asks the window that shows it for a paste into a spelling, the OS window or the terminal's, and the Skin only while none shows it") {
-    // ⚔ MUTATION: the Hotkeys pane's paste asked of the Skin wherever its area is shown.
+TEST_CASE("the Hotkeys pane asks the window that shows it for a paste into a spelling") {
+    // ⚔ MUTATION: the Hotkeys pane's paste asked of another office than the window showing it.
     // THE WINDOW SHOWING THE DESK SHOWS THE PANE, so the pane has a room to compose its spelling
-    // in, and the paste is that window's: the OS window's platform clipboard. (With no window the
-    // pane draws nowhere and composes no spelling, so a paste of the Skin's cannot be asked.)
+    // in, and the paste is that window's: the OS window's platform clipboard.
     Keys k("hotkeys-paste-window");
     k.r.on_os_window();
     k.r.windows.set_clipboard("ctrl+q");

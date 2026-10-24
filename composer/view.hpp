@@ -6,7 +6,7 @@
 
 // What the Compose pane shows, and what each row of it means: one value, built once, by the
 // function that draws it. A row and its meaning are one `RenderedRow`, appended together, so a
-// row without a meaning is unsayable; provider-local, not a Surface shape or a component.
+// row without a meaning is unsayable; provider-local, not a graphics shape or a component.
 // Pane law: agents/panes.md
 
 // One measurer, twice over: the geometry that draws a thing and the geometry that hits it are

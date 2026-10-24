@@ -72,8 +72,8 @@ rows; it shares the rig.
   `ElementCodeOffered` and `RoomAsked` to `kGraphicsRole`, and `Drawn` to the window's office.
 - Beyond the snake: the terminal window reads its terminal with `input/terminal_reader.hpp` and
   claims its output with `window/terminal_io.hpp`; the OS window reads SDL's queue with
-  `input/translate_sdl_core.hpp` and shares SDL with the SDL Skin (`cmake/ZengineSdl.cmake`); each
-  claims its input edge with `input/window_claim.hpp`; both open libraries with
+  `input/translate_sdl_core.hpp` over the SDL `cmake/ZengineSdl.cmake` acquires; each claims its
+  input edge with `input/window_claim.hpp`; both open libraries with
   `operator/image.hpp`. `cmake/ZengineInstall.cmake` installs the headers `zengine::graphics`
   carries.
 

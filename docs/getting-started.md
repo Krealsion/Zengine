@@ -69,7 +69,7 @@ exported targets name `loom::core`, `loom::switchboard` and — for a host — `
 | target | what linking it grants |
 |---|---|
 | `zengine::timer` | order one-shots and repeats; declare an authored rhythm |
-| `zengine::surface` | publish drawing intent; cells, regions, pointing, terminal size |
+| `zengine::graphics` | draw in a window's area: the vocabulary, the canvas, the drawing facet, pixels and roles |
 | `zengine::input` | receive key, text and pointer moments; translate a byte stream |
 | `zengine::ui` | author placement and extent; read what a viewport resolved |
 | `zengine::maker` | run definitions as data-authored weaves |
@@ -487,7 +487,8 @@ all. The package names the physical things, because one list holds both kinds:
 |---|---|
 | `zengine-timer` | weave — the Timer service you loaded above |
 | `zengine-input` | weave — the sole producer of key, text and pointer moments |
-| `zengine-skin-tui-classic`, `zengine-skin-tui-block` | weave — `zengine-skin-tui-classic` is the terminal Skin that paints drawing intent; `zengine-skin-tui-block` is that same Skin built as a second library, so a live Skin can be replaced by another library |
+| `zengine-graphics`, `zengine-window-terminal` | weave — the graphics directory, and the window over the process's own terminal that shows what each area's owner draws |
+| `zengine-paint-classic`, `zengine-paint-block`, `zengine-paint-day`, `zengine-paint-night` | **provider** — painter code a window opens by path, the skin an area is painted with |
 | `zengine-operators-basic` | **provider** — typed operator definitions, mounted by a host, never loaded onto the bus |
 
 An artifact could expose both surfaces, or a surface that does not exist yet; `zengine::operator`
@@ -571,7 +572,7 @@ holds still is, which is the line above.
 
 - [cheat_sheet.md](../cheat_sheet.md) — the same material, dense and searchable.
 - [Ordering a timer](../timer/docs/timers.md) and [a weave with an authored rhythm](../timer/docs/timed-weaves.md).
-- [Reading input](../input/docs/input.md) and [drawing](../surface/docs/surface.md), if your program has
+- [Reading input](../input/docs/input.md) and [drawing](../graphics/docs/graphics.md), if your program has
   a face.
 - [snake](../examples/snake/README.md) — a worked example whose parts are genuinely separate weaves.
 - [Workshop](../workshop/docs/getting-started.md), if you want the interactive environment.

@@ -693,7 +693,7 @@ private:
 
     Handle tick_;
     Said said_; // what the rules said since the last tell; a report, not state
-    ws::WindowDrawing window_{kOffice, kOffice}; // not state: a reload is told its room afresh
+    ws::WindowDrawing window_{kOffice, ws::pane_area(kOffice, kPane)}; // told its room afresh
 };
 
 } // namespace

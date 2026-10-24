@@ -42,7 +42,7 @@ A failed write leaves the last good file intact, the live arrangement untouched,
 related to exactly what it was related to before. Nothing about the relationship moves until the
 file has actually been replaced.
 
-On success the status line says what was saved, where, and — if any pane in it is a reference
+On success the notice row says what was saved, where, and — if any pane in it is a reference
 this build cannot present — how many are unresolved and names the first one.
 
 ## Restoring a setup
@@ -240,7 +240,7 @@ What comes back:
 | the window's screen position | **yes**, on a graphical run — validated against the monitors that exist now; see [limitations](limitations.md#the-window-comes-back-where-you-left-it-into-the-desktop-that-exists-now) |
 | whether it was maximized | **yes**, beside the *normal* size and place unmaximizing returns to |
 
-The status line says what happened, in the notice row, with the room in your medium's unit --
+The notice row says what happened, with the room in your medium's unit --
 pixels in a window:
 
 ```text
@@ -258,10 +258,11 @@ reopened your last desk "Code" (2 of 3 layouts) -- 1440x528 px
 
 ### Why the window size is in pixels
 
-Workshop does not own its window. Whichever Skin holds `zengine.skin` does, and the only thing
-that Skin ever tells Workshop about the room is how many **canvas pixels** it has. So that is
-what is written down, and **you get back the size you chose, to the pixel**. A terminal keeps
-its own size: there the notice says the saved room in cells, and the terminal's size stands.
+Workshop does not own its window. The window weave does, and the only thing it ever tells
+Workshop about the room is how many **canvas pixels** it has. So that is what is written down,
+and the OS window grows to it: **you get back the size you chose, to the pixel**, where your
+display holds it. A terminal keeps its own size: there the notice says the saved room in cells,
+and the terminal's size stands.
 
 ### When it cannot be honoured
 

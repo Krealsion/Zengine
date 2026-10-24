@@ -46,10 +46,6 @@
 #include "operator/provider_host.hpp"
 #include "operator/source.hpp"
 
-#include "surface/cells.hpp"
-#include "surface/pointing.hpp"
-#include "surface/region.hpp"
-#include "surface/vocabulary.hpp"
 
 #include "timer/binding.hpp"
 #include "timer/vocabulary.hpp"
@@ -71,7 +67,6 @@
 
 #include <cstdio>
 #include <string>
-#include <type_traits>
 #include <variant>
 #include <vector>
 
@@ -147,36 +142,6 @@ void timer_surface() {
 
     const timer::TimerFired fired{"kitchen.oven.bake"};
     check(fired.id == order.id, "a firing is matched to its order by id");
-}
-
-// ---- zengine::surface ------------------------------------------------------------------
-void surface_surface() {
-    namespace sf = zengine::surface;
-    namespace gfx = zengine::graphics;
-
-    // Canvas pixels, twelve to a cell: ten cells by two.
-    sf::SurfaceTextRegion region;
-    region.x = 2 * gfx::kCellPx;
-    region.y = 1 * gfx::kCellPx;
-    region.w = 10 * gfx::kCellPx;
-    region.h = 2 * gfx::kCellPx;
-    region.rows.push_back(sf::SurfaceTextRow{"hello"});
-    region.rows.push_back(sf::SurfaceTextRow{"stranger"});
-
-    sf::SurfaceLayer layer;
-    layer.texts.push_back(region);
-    const std::vector<sf::ProjectedRow> rows = sf::project_text_regions(layer);
-    check(rows.size() == 2, "a two-row region projects two cell rows");
-
-    const sf::CellSpan span = sf::clip_span(/*origin=*/8, /*length=*/5, /*extent=*/10);
-    check(span.count() == 2, "a span running past the edge is clipped to the edge");
-
-    const sf::CanvasPoint p = sf::canvas_of_terminal_cells(4, 5);
-    check(p.y == 5 - sf::kTuiCanvasTopRow, "a terminal row is a canvas row, minus the slots");
-
-    // Answers on every platform, including one with no terminal on the other end.
-    const gfx::window::TerminalSize size = gfx::window::native_terminal_size();
-    check(size.cols >= 0 && size.rows >= 0, "a terminal size is never negative");
 }
 
 // ---- zengine::input --------------------------------------------------------------------
@@ -410,8 +375,8 @@ void source_transfer_surface() {
 
 // ---- zengine::graphics -----------------------------------------------------------------
 // An owner's drawing from the installed headers alone: a button sketched, a canvas told its room
-// and handed the picture, and the picture painted into cells by the code a terminal skin runs. No
-// window and no bus: those are the artifacts'.
+// and handed the picture, and the picture painted into cells by the code the terminal window
+// runs. No window and no bus: those are the artifacts'.
 void graphics_surface() {
     namespace gfx = zengine::graphics;
     gfx::Sketch picture;
@@ -465,18 +430,13 @@ void graphics_surface() {
     }
     check(label.find("OK") != std::string::npos,
           "and the painter for light paints the same label as a run of text in pixels");
-    static_assert(zengine::graphics::role::kGuide == gfx::role::kGuide,
-                  "Surface's roles are the graphics vocabulary's");
-    static_assert(std::is_same_v<zengine::graphics::ClipboardCopy, gfx::ClipboardCopy> &&
-                      std::is_same_v<zengine::graphics::SurfaceCaptured, gfx::SurfaceCaptured> &&
-                      std::is_same_v<zengine::graphics::SurfacePlacement, gfx::SurfacePlacement>,
-                  "Surface's platform shapes are the graphics vocabulary's");
     gfx::SurfaceCaptureChunk chunk;
     chunk.data.assign(3, 0x2a);
-    const auto read = loom::claim_item<zengine::graphics::SurfaceCaptureChunk>(
-        loom::bequeath_item(chunk));
-    check(read.has_value() && read->data.size() == 3,
-          "a chunk spelled either way crosses as the one shape");
+    const auto read = loom::claim_item<gfx::SurfaceCaptureChunk>(loom::bequeath_item(chunk));
+    check(read.has_value() && read->data.size() == 3, "a picture's chunk crosses whole");
+    // Answers on every platform, including one with no terminal on the other end.
+    const gfx::window::TerminalSize size = gfx::window::native_terminal_size();
+    check(size.cols >= 0 && size.rows >= 0, "a terminal size is never negative");
     check(gfx::window::tui_leave_sequence(false).find("?1049l") != std::string::npos,
           "the terminal's claim gives the alternate screen back");
 }
@@ -578,7 +538,6 @@ int main() {
     check(!inventory_grant.permits("stranger.Item", 1, loom::WeaveId{2}), "inventory has no unrelated send grant");
     activation_surface();
     timer_surface();
-    surface_surface();
     input_surface();
     ui_surface();
     component_surface();

@@ -18,6 +18,7 @@
 #include "input/translate.hpp"
 #include "input/vocabulary.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -111,6 +112,7 @@ struct LightLog {
     std::optional<gw::WindowPlacementValue> placement;
     std::vector<gw::WindowPlacementValue> placed;
     std::vector<gw::PixelSize> grown;         ///< each size it was asked to grow toward
+    bool grows = false; ///< true: a growth asked takes its size, as a platform with room does
     /// Each title and size it was shaped to; a side asked it takes, as a platform with room does.
     std::vector<std::pair<std::string, gw::PixelSize>> shaped;
     int maximized = 0;
@@ -194,7 +196,13 @@ public:
     }
     std::optional<gw::WindowPlacementValue> placement() { return log_->placement; }
     void place(const gw::WindowPlacementValue& want) { log_->placed.push_back(want); }
-    void grow(const gw::PixelSize& want) { log_->grown.push_back(want); }
+    void grow(const gw::PixelSize& want) {
+        log_->grown.push_back(want);
+        if (log_->grows) {
+            log_->size = gw::PixelSize{(std::max)(want.width, log_->size.width),
+                                       (std::max)(want.height, log_->size.height)};
+        }
+    }
     void shape(const std::string& title, const gw::PixelSize& want) {
         log_->shaped.emplace_back(title, want);
         log_->size = gw::PixelSize{want.width > 0 ? want.width : log_->size.width,

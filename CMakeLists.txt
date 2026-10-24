@@ -45,8 +45,8 @@ option(ZEN_LOOM_DEV
 if(ZEN_LOOM_DEV)
     message(STATUS "zengine: Loom from sibling source ../Loom  [DEV OVERRIDE]")
     # A dependency's proof rides its version: Zengine's lane does not re-run the Loom's suite,
-    # so the sibling build contributes its libraries and nothing else. Zengine's own SDL skin
-    # lives in surface/ and fetches its own SDL3; the Loom declares no SDL option of its own.
+    # so the sibling build contributes its libraries and nothing else. Zengine's OS window lives in
+    # graphics/ and fetches its own SDL3; the Loom declares no SDL option of its own.
     set(ZEN_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
     set(ZEN_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
     if(WIN32)
@@ -222,9 +222,9 @@ endfunction()
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineManual.cmake)
 
 # ---- the SDL dependency, acquired once for every package that needs it -----------------
-# The window Skin and the SDL Input reader must share one SDL, or the reader polls a queue the
-# window never posts to: cmake/ZengineSdl.cmake owns that and refuses a static SDL out loud.
-# Included before any package, since both ask it for the same target.
+# The OS window and the tests that pin SDL's constants share one SDL: cmake/ZengineSdl.cmake owns
+# that and refuses a static SDL out loud. Included before any package, since each asks it for the
+# same target.
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ZengineSdl.cmake)
 
 # ---- testing is a real switch and a real requirement ----------------------------------
@@ -336,8 +336,7 @@ endfunction()
 
 # ---- the packages ----------------------------------------------------------------------
 # Order matters only where a package's file reads another's target as it is read: activation
-# first, timer before its consumers, surface before input (the SDL reader carries the Surface
-# vocabulary's window-lifecycle fact), builder before workshop, and each package workshop/ stages
+# first, timer before its consumers, builder before workshop, and each package workshop/ stages
 # or a boot plan names before workshop/. A link to a later target resolves at generate time and
 # does not constrain the order; `if(TARGET ...)` and `$<TARGET_FILE:...>` are answered when read.
 
@@ -350,7 +349,6 @@ add_subdirectory(inventory)
 add_subdirectory(editor/source-transfer)
 add_subdirectory(flow)
 add_subdirectory(timer)
-add_subdirectory(surface)
 add_subdirectory(input)
 add_subdirectory(graphics)
 # The Neovim hosting library: header-only, after the input vocabulary its key notation names,

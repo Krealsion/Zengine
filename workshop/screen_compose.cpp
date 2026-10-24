@@ -6,6 +6,7 @@
 // Workshop law: agents/workshop/planes.md (+4 registers; agents/workshop.md routes)
 
 #include "screen.hpp"
+#include "workshop/pane_drawing.hpp" // pane_area: every pane's area, `<office>.<pane>`
 
 #include <algorithm>
 #include <iterator>
@@ -242,17 +243,8 @@ ScreenCanvas paint(const Session& s) {
 
 // ---- THE DESK IN A GRAPHICS WINDOW: each pane's own area, and Workshop's behind them ----------
 
-std::string pane_window_area(const Panes& panes, const RuntimePane& row) {
-    // The offices that seat each of their panes in an area of its own, whatever they offer now.
-    static constexpr const char* kSeatingOffices[] = {"zengine.desktop", "zengine.introspection",
-                                                     "zengine.info", "zengine.inventory-pane"};
-    bool seats = std::any_of(std::begin(kSeatingOffices), std::end(kSeatingOffices),
-                             [&](const char* office) { return row.provider == office; });
-    seats = seats || std::count_if(panes.runtime.entries.begin(), panes.runtime.entries.end(),
-                                   [&](const RuntimePane& r) {
-                                       return r.provider == row.provider;
-                                   }) > 1;
-    return seats ? row.provider + "." + row.pane : row.provider;
+std::string pane_window_area(const Panes&, const RuntimePane& row) {
+    return pane_area(row.provider, row.pane);
 }
 
 bool desk_in_front(const Session& s) noexcept {
@@ -479,8 +471,10 @@ void draw_pane(WorkshopWindowDrawing& out, const Session& s, std::int64_t kind,
 
 } // namespace
 
-std::string pane_frame_area(std::int64_t kind) {
-    return std::string(kWorkshopProvider) + ".pane." + std::to_string(kind);
+std::string pane_frame_area(const Panes& panes, std::int64_t kind) {
+    const RuntimePane* row = is_runtime_kind(kind) ? panes.runtime.of_kind(kind) : nullptr;
+    const PaneRef ref = row != nullptr ? PaneRef{row->provider, row->pane} : pane_ref_of(kind);
+    return std::string(kWorkshopProvider) + ".frame." + pane_area(ref.provider, ref.pane);
 }
 
 WorkshopWindowDrawing workshop_window_drawing(const Session& s) {

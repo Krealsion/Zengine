@@ -26,7 +26,6 @@
 #include "input/vocabulary.hpp"
 #include "inventory/vocabulary.hpp"
 #include "inventory/inventory-pane/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
 
 #include <zen/schema.hpp>
 #include <zen/serialize.hpp>

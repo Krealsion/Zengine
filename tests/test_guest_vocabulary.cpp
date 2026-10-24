@@ -15,7 +15,6 @@
 #include "workshop/guide_vocabulary.hpp"
 #include "workshop/pane_document.hpp"
 #include "input/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
 #include "graphics/vocabulary.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"

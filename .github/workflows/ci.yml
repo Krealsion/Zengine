@@ -325,7 +325,7 @@ jobs:
   # readable on its own: `verify.cmake` asks whether the intended population ran and passed,
   # not whether it read freed memory or overflowed a signed int, where NO answer changes --
   # defects of that kind, in test code and on the press path, the lane above had called
-  # green. It runs the SAME population, no subset, no lowered floor, no gate off, SDL skin
+  # green. It runs the SAME population, no subset, no lowered floor, no gate off, the OS window
   # included, so a red here is about the code and never about a lane that quietly shrank.
   zengine-linux-asan-ubsan:
     name: Zengine / Linux / ASan + UBSan

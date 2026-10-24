@@ -21,7 +21,6 @@
 #include "inventory/codec.hpp"
 #include "input/vocabulary.hpp"
 #include "operator/reference.hpp"
-#include "surface/vocabulary.hpp"
 #include "graphics/vocabulary.hpp"
 #include "workshop/arrangement_vocabulary.hpp"
 #include "workshop/pane_rows.hpp"
@@ -746,9 +745,8 @@ private:
                           describing_.pending);
     }
 
-    /// Ask what the platform clipboard holds, of the window that shows the pane's area, else the
-    /// Skin, for a paste the query requested; the epoch says the draft the answer is for is still
-    /// in the box.
+    /// Ask what the platform clipboard holds, of the window that shows the pane's area, for a paste
+    /// the query requested; the epoch says the draft the answer is for is still in the box.
     void begin_clipboard_paste(loom::Mail& mail) {
         const std::string office = room().clipboard_office();
         const loom::AskOpened opened = clip_asks_.open_to_role(

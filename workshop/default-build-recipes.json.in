@@ -7,13 +7,13 @@
     "format_version": "2",
     "recipes": [
       {
-        "recipe": "skin-tui-block",
-        "artifact": "zengine-skin-tui-block",
+        "recipe": "snake-world-v2",
+        "artifact": "snake-world-v2",
         "artifact_dir": "@ZENGINE_RECIPE_ARTIFACT_DIR@",
         "cmake_target": [
           {
             "build_dir": "@CMAKE_BINARY_DIR@",
-            "target": "zengine-skin-tui-block",
+            "target": "snake-world-v2",
             "config": "",
             "entry": ""
           }

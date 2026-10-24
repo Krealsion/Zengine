@@ -16,7 +16,6 @@
 #include "editor/source-transfer/cpp.hpp"
 #include "editor/source-transfer/material.hpp"
 #include "graphics/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
 #include "workshop/pane_rows.hpp"
 #include "workshop/pane_carry.hpp"
@@ -521,12 +520,13 @@ inline std::string generated_cpp_words(const st::GeneratedCpp& g, const std::str
 /// reloaded or admitted by a switch asks for it again.
 class EditorWindow {
 public:
-    explicit EditorWindow(const char* office) : office_(office), window_(office, office) {}
+    EditorWindow(const char* office, const char* pane)
+        : office_(office), window_(office, ws::pane_area(office, pane)) {}
 
     const std::string& area() const noexcept { return window_.area(); }
     /// A graphics window shows the area.
     bool in_window() const noexcept { return window_.shown(); }
-    /// The office a paste is asked of: the window showing the area, else the Skin.
+    /// The office a paste is asked of: the window showing the area.
     std::string clipboard_office() const { return window_.clipboard_office(); }
     /// The window's room in rows and columns: a line of its text and an advance of it.
     std::int64_t rows() const noexcept { return window_.rows_room().rows(); }

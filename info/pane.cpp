@@ -32,7 +32,6 @@
 #include "workshop/setup_control.hpp"
 #include "component/text_box.hpp"
 #include "input/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
 #include "graphics/vocabulary.hpp"
 
 #include "manuals/zengine.info.hpp" // this weave's manual, compiled in from its page
@@ -55,7 +54,6 @@ namespace {
 
 namespace component = zengine::component;
 namespace input = zengine::input;
-namespace surface = zengine::surface;
 namespace gfx = zengine::graphics;
 namespace ws = zengine::workshop;
 namespace pane = zengine::info_pane;

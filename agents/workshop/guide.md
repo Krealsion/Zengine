@@ -28,7 +28,7 @@ LAW — A row of version 3 whose `capture` is not `*` reads a pane's words only 
 MEANS
 - the doors are door rules on `DeskReadRequested`, so a later grant widens the read with no relaunch;
 - it is granted the desk read, the newest pages, the inventory, the keymap and its offices' manuals;
-- it hears no band, status, desk number or `DeskStamps`, no older read, no Skin picture or desk publication.
+- it hears no band, desk number or `DeskStamps`, no older read, no window picture or desk publication.
 
 WHY — `agents/decisions/a-guest-reads-and-points-by-door.md`
 
@@ -83,7 +83,7 @@ WHY — `agents/decisions/a-guest-reads-and-points-by-door.md`
 ## Do not assume
 
 - That a mark is a cover: a reading of its pane is the same with and without it.
-- That a Skin that does not know the guide role refuses a mark: it paints it as plain fill.
+- That a skin that does not know the guide role refuses a mark: it paints it as plain fill.
 - That a Files entry naming the guests file is refused a mark: Workshop sees the entry's name, not its path.
 
 ## Proven by
@@ -110,7 +110,7 @@ its role and doors beneath its connection"
 `workshop/weave_desk_read.cpp` pane_page
 `workshop/weave_desktop.cpp` on(KeymapRequested)
 `tests/test_workshop_guests.cpp` "grant: a row that reads by pane is granted the newest reads, the keymap,
-the inventory and its doors' manuals as Loom door rules, and never the older reads or the Skin's picture"
+the inventory and its doors' manuals as Loom door rules, and never the older reads or the window's picture"
 `tests/test_workshop_panes_guide.cpp` "a row that reads by pane reads the Builder's words and the Editor's
 place, never the Editor's words, and hears the keymap of its own panes and the rows above every pane" "a
 pane's manual is answered to a guest under its capture doors, and another office's manual is refused at the

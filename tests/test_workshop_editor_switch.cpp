@@ -33,7 +33,7 @@ TEST_CASE("a switch between two authored Editors carries the document, its unsav
             "drawn the carried document there whole") {
         namespace gfx = zengine::graphics;
         namespace pw = zengine::testing::pane_window;
-        const char* area = pane::kEditorPaneRole;
+        const std::string area = pane_area(pane::kEditorPaneRole, pane::kEditorPane);
         struct Asked {
             loom::WeaveId sender;
             loom::EventKind kind;
@@ -42,16 +42,16 @@ TEST_CASE("a switch between two authored Editors carries the document, its unsav
         SwitchRig w("switch-carry-window");
         const loom::ObserverId tap = w.r.bus.add_observer([&](const loom::BusEvent& ev) {
             if (ev.schema_name == gfx::RoomAsked::zen_name &&
+                ev.authored_role == pane::kEditorPaneRole &&
                 (ev.kind == loom::EventKind::Delivered || ev.kind == loom::EventKind::Refused)) {
                 asked.push_back(Asked{ev.sender, ev.kind});
             }
         });
-        pw::PaneDirectory* directory = nullptr;
-        w.before_plan = [&] { directory = pw::mount_directory(w.r.bus); };
+        RoomAsks directory(w.r.bus);
         w.open(standard_and_twin());
         const loom::WeaveId first = w.holder();
         pw::Window window(w.r.bus);
-        window.room(area, area, 40, 10);
+        window.room(area, pane::kEditorPaneRole, 40, 10);
         (void)w.open_file("carry.cpp", "int one;\nint two;\n");
         // THE CARET PLACED BY A PRESS IN THE WINDOW THAT SHOWS THE EDITOR, the desk told of it as
         // the area's arranger, so the keys move there too.
@@ -69,12 +69,11 @@ TEST_CASE("a switch between two authored Editors carries the document, its unsav
         CHECK(asked[0].sender == first);
         CHECK(asked[1].sender == second);
         CHECK(asked[1].kind == loom::EventKind::Delivered);
-        REQUIRE(directory != nullptr);
-        CHECK(directory->times(area, area) == 2);
+        CHECK(directory.times(area, pane::kEditorPaneRole) == 2);
         // THE WINDOW, TOLD THE ROOM AGAIN as the directory passes the ask on, is drawn the carried
         // document whole, by the successor.
         const std::size_t mark = window.weave().heard.size();
-        window.room(area, area, 40, 10);
+        window.room(area, pane::kEditorPaneRole, 40, 10);
         REQUIRE(window.weave().heard.size() == mark + 1);
         CHECK(window.weave().heard.back().whole);
         const std::vector<std::string> rows = window.rows(area);
@@ -227,7 +226,7 @@ TEST_CASE("a switch waiting on a silent candidate is pending, published, refuses
             "warms; the incumbent keeps drawing") {
         namespace gfx = zengine::graphics;
         namespace pw = zengine::testing::pane_window;
-        const char* area = pane::kEditorPaneRole;
+        const std::string area = pane_area(pane::kEditorPaneRole, pane::kEditorPane);
         std::vector<loom::WeaveId> askers; // outlive the rig, whose bus the tap is on
         std::size_t drawers = 0;
         loom::WeaveId first{};
@@ -236,16 +235,17 @@ TEST_CASE("a switch waiting on a silent candidate is pending, published, refuses
         choices.push_back(load::ChoiceIntent{pane::kEditorPaneRole, "silent", "zengine-editor-pane-silent"});
         const loom::ObserverId tap = w.r.bus.add_observer([&](const loom::BusEvent& ev) {
             if (ev.kind != loom::EventKind::Delivered && ev.kind != loom::EventKind::Refused) return;
+            if (ev.authored_role != pane::kEditorPaneRole) return; // the Editor's office alone
             if (ev.schema_name == gfx::RoomAsked::zen_name) askers.push_back(ev.sender);
-            if (ev.schema_name == gfx::Drawn::zen_name && !(ev.sender == first)) ++drawers;
+            if (ev.schema_name == gfx::Drawn::zen_name && first.valid() && !(ev.sender == first))
+                ++drawers;
         });
-        w.before_plan = [&] { (void)pw::mount_directory(w.r.bus); };
         w.open(choices);
         first = w.holder();
         REQUIRE(askers.size() == 1);
         CHECK(askers[0] == first);
         pw::Window window(w.r.bus);
-        window.room(area, area, 40, 10);
+        window.room(area, pane::kEditorPaneRole, 40, 10);
         (void)w.open_file("wait.cpp", "wait\n");
         w.enqueue([](SwitchAsker&, loom::Mail& mail) {
             (void)mail.as_role(kSwitchAskerOffice).send_to_role(kEditorSwitchRole, EditorSwitchRequested{"silent"});
@@ -510,14 +510,13 @@ TEST_CASE("a successor that holds the office and does not serve is a failure aft
             "the switch home end as they do without one, and the plan's own Editor is drawn there "
             "again whole") {
         namespace pw = zengine::testing::pane_window;
-        const char* area = pane::kEditorPaneRole;
+        const std::string area = pane_area(pane::kEditorPaneRole, pane::kEditorPane);
         SwitchRig w("switch-not-live-window");
         std::vector<load::ChoiceIntent> choices = standard_and_twin();
         choices.push_back(load::ChoiceIntent{pane::kEditorPaneRole, "not-live", "zengine-editor-pane-not-live"});
-        w.before_plan = [&] { (void)pw::mount_directory(w.r.bus); };
         w.open(choices);
         pw::Window window(w.r.bus);
-        window.room(area, area, 40, 10);
+        window.room(area, pane::kEditorPaneRole, 40, 10);
         (void)w.open_file("after.cpp", "after\n");
         const EditorSwitchAnswered failed = w.switch_to("not-live");
         CHECK(failed.outcome == switch_outcome::kFailedAfterCommit);
@@ -525,7 +524,7 @@ TEST_CASE("a successor that holds the office and does not serve is a failure aft
         const EditorSwitchAnswered home = w.switch_to("standard");
         CHECK_MESSAGE(home.outcome == switch_outcome::kSwitched, home.detail);
         const std::size_t mark = window.weave().heard.size();
-        window.room(area, area, 40, 10);
+        window.room(area, pane::kEditorPaneRole, 40, 10);
         REQUIRE(window.weave().heard.size() == mark + 1);
         CHECK(window.weave().heard.back().whole);
         const std::vector<std::string> rows = window.rows(area);

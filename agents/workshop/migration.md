@@ -75,7 +75,7 @@ WHY — `agents/decisions/yesterday-belongs-to-a-conversion.md`
 
 ## WL-MIG-09 — The ordering is authored plan order, and nothing else
 
-LAW — A provider-only row runs inside `PlanExecutor::begin()`; the first weave row opens a conversation; the session is read from `on(SurfaceReady)`, so a conversion row placed above is live in time.
+LAW — A provider-only row runs inside `PlanExecutor::begin()`; the first weave row opens a conversation; the session is read on the first window's offer, so a conversion row placed above is live in time.
 
 MEANS
 - both shipped plans name it second; there is no retry, no pending posture and no demand-load.

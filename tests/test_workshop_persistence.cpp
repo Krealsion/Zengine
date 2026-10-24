@@ -1938,6 +1938,16 @@ void arrange_and_close(const std::string& session_path, const std::string& setup
     REQUIRE(t.host.quit);
 }
 
+/// THE IMAGES A WINDOW OPENS FOR ITSELF on a run with no session, the default desk: its painters
+/// are images. Opened and closed while the run stands, as the measured run's are.
+op::ImageCounts window_images() {
+    const op::ImageCounts was = op::image_counts();
+    Live w;
+    w.ready();
+    const op::ImageCounts now = op::image_counts();
+    return op::ImageCounts{now.opens - was.opens, now.closes - was.closes};
+}
+
 } // namespace
 
 // ---- Witness A: the primary one ---------------------------------------------
@@ -1955,17 +1965,18 @@ TEST_CASE("the desk and the room come back, with no gesture at all") {
     // may depend on the named-setup file still being where it was, or on it being
     // readable, or on it existing at all.
     Live back;
-    back.in_window = false; // a restored room is a Skin's to keep; a window offers its own
     back.host.session_path = session;
     back.host.setup_path = dir.file("somewhere-else.json");
     REQUIRE((back.pictures == 0));
+    back.on_os_window(); // the medium that grows to the room restored
     back.ready();
+    back.window_settles();
 
     // THE DESK, whole: the same panes, the same authored geometry, the same order.
     CHECK(back.session().setup.active == desk);
     CHECK(back.session().panes.has(second::kKind));
     CHECK(back.session().panes.has(stock::kKind));
-    // THE ROOM.
+    // THE ROOM, which the OS window grows to.
     CHECK(back.session().screen_w == cells_px(120));
     CHECK(back.session().screen_h == cells_px(44));
     // AND NOT ONE KEY WAS PRESSED. `r` is still there and still does what it did;
@@ -1973,7 +1984,7 @@ TEST_CASE("the desk and the room come back, with no gesture at all") {
     CHECK_FALSE(back.session().notice_is_bad);
     CHECK(back.notice().find("reopened your last desk") == 0);
     CHECK(back.notice().find("\"Debugging\"") != std::string::npos);
-    CHECK(back.notice().find("120x44") != std::string::npos);
+    CHECK(back.notice().find("1440x528 px") != std::string::npos);
 }
 
 TEST_CASE("the restore notice says the room in the unit the medium names: pixels in a window, cells in a terminal") {
@@ -2016,31 +2027,8 @@ TEST_CASE("the restore notice says the room in the unit the medium names: pixels
     }
 }
 
-TEST_CASE("the FIRST picture of a run is the floor, and the room is the second") {
-    // THE INVARIANT THE WINDOW'S MINIMUM RESTS ON, and why the restore does not seed the
-    // extent before the first paint: a graphical medium told nothing sizes its minimum from
-    // the first picture. Ask for the remembered room FIRST and a weaver can never shrink their
-    // Workshop again; ask for the floor first and the remembered room is an ordinary later
-    // picture, free to be grown to and dragged back from.
-    TempDir dir("wux0-floor");
-    const std::string session = dir.file("session.json");
-    arrange_and_close(session, dir.file("setup.json"), arranged_desk("Wide"), 132, 48);
-
-    Live back;
-    back.in_window = false; // a restored room is a Skin's to keep; a window offers its own
-    back.host.session_path = session;
-    back.ready();
-
-    REQUIRE(back.pictures >= 2);
-    REQUIRE_FALSE(back.picture_rooms.empty());
-    CHECK(back.picture_rooms.front().first == kScreenMinW);
-    CHECK(back.picture_rooms.front().second == kScreenMinH);
-    CHECK(paint(back.session()).width == cells_px(132));
-    CHECK(paint(back.session()).height == cells_px(48));
-}
-
-TEST_CASE("the room is taken back only ONCE, however often a surface says hello") {
-    // A Skin replacement announces itself again, and an afternoon of arranging must
+TEST_CASE("the room is taken back only ONCE, however often a window offers itself") {
+    // A window started again in place offers itself again, and an afternoon of arranging must
     // not be thrown back to a file written last night.
     TempDir dir("wux0-once");
     const std::string session = dir.file("session.json");
@@ -2051,11 +2039,12 @@ TEST_CASE("the room is taken back only ONCE, however often a surface says hello"
     back.ready();
     REQUIRE(back.session().setup.active.name == "First");
 
-    // the weaver changes their mind about the desk, and a Skin is replaced under them
+    // the weaver changes their mind about the desk, and the window is started again under them
     pick(back, stock::kKind); // remove the Builder the restored desk brought
     const Setup after = back.session().setup.active;
     REQUIRE_FALSE(after == arranged_desk("First"));
-    back.ready();
+    back.windows.restart();
+    back.bus.drain_until_idle();
     CHECK(back.session().setup.active == after);
 }
 
@@ -2072,10 +2061,11 @@ TEST_CASE("the second session replaces the first, room and desk both") {
     REQUIRE(author_pane_place(second, ref_of(second::kKind), 2, 3).accepted);
     {
         Live t;
-        t.in_window = false; // a restored room is a Skin's to keep; a window offers its own
         t.host.session_path = session;
         t.host.setup_path = dir.file("second-setup.json");
+        t.on_os_window(); // the medium that grows to the room restored
         t.ready();
+        t.window_settles();
         REQUIRE(t.session().setup.active.name == "First");
         REQUIRE(t.session().screen_w == cells_px(100));
         // ⚠ THE RESTORED LAYOUT CAME BACK WITH ITS ASSOCIATION, and `r` acts on THAT artifact
@@ -2095,9 +2085,10 @@ TEST_CASE("the second session replaces the first, room and desk both") {
     CHECK(slurp(session) != first_bytes);
 
     Live back;
-    back.in_window = false; // a restored room is a Skin's to keep; a window offers its own
     back.host.session_path = session;
+    back.on_os_window(); // the medium that grows to the room restored
     back.ready();
+    back.window_settles();
     CHECK(back.session().setup.active == second);
     CHECK(back.session().screen_w == cells_px(140));
     CHECK(back.session().screen_h == cells_px(50));
@@ -2454,7 +2445,6 @@ TEST_CASE("a restored desk opens every pane it names, in the room it restored") 
     REQUIRE(stack_slots_that_fit(screen_of(cells_px(120), cells_px(60))) >= 2);
 
     PaneRig r;
-    r.in_window = false; // a restored room is a Skin's to keep; a window offers its own
     r.host.session_path = session;
     r.mount_workshop();
     admit_stock(r.session().panes); // the stand-in, first, as a `Live` would have it
@@ -2464,7 +2454,9 @@ TEST_CASE("a restored desk opens every pane it names, in the room it restored") 
     // either way round.
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
 
+    r.on_os_window(); // the medium that grows to the room restored
     r.ready();
+    r.window_settles();
     CHECK(r.w->session().screen_w == cells_px(120));
     CHECK(r.w->session().screen_h == cells_px(60));
     CHECK(r.w->session().panes.open.size() == 2);
@@ -3454,11 +3446,10 @@ TEST_CASE("the medium's device unit reaches no durable file") {
     // remembered viewport through the same door -- must not reset it to the character
     // reading and leave a weaver on a window reading cells.
     Live t;
-    t.in_window = false; // a restored room is a Skin's to keep; a window offers its own
     t.host.session_path = path;
-    t.extent_px(cells_px(200), cells_px(60), 8, 18, gfx::kCellPx);
-    REQUIRE(t.session().cell_px == gfx::kCellPx);
+    t.on_os_window(); // the medium that grows to the room restored
     t.ready();
+    t.window_settles();
     CHECK(t.session().screen_w == cells_px(140));                      // the restore DID land...
     CHECK(t.session().cell_px == gfx::kCellPx);     // ...and cost nothing
     CHECK(std::string(geometry_unit(t.session().cell_px)) == "px");
@@ -3953,10 +3944,11 @@ TEST_CASE("an old session with no conversion live refuses and changes nothing") 
     spillout(path, bytes);
 
     // THE AUTHORITY MEASUREMENT. The artifact that would supply the conversion is on disk,
-    // named by this very build -- and a run that did not mount it does not open it.
+    // named by this very build -- and a run that did not mount it does not open it. A window's
+    // painters are images, so a run with no session, the same desk, is the measure of its own.
+    const op::ImageCounts window = window_images();
     const op::ImageCounts before = op::image_counts();
     Live t;
-    t.in_window = false; // it counts every image opened, and a window's painters are images
     t.host.session_path = path;
     REQUIRE(t.host.conversions == nullptr);
     t.ready();
@@ -3969,10 +3961,11 @@ TEST_CASE("an old session with no conversion live refuses and changes nothing") 
     CHECK(t.session().setup.active == default_setup());
     CHECK(t.session().screen_w == kScreenMinW);
     CHECK(slurp(path) == bytes);
-    // NO IMAGE WAS OPENED. A version claim is a lookup key; it reaches no load door.
+    // NO IMAGE WAS OPENED but the window's own. A version claim is a lookup key; it reaches no
+    // load door.
     const op::ImageCounts after = op::image_counts();
-    CHECK(after.opens == before.opens);
-    CHECK(after.closes == before.closes);
+    CHECK(after.opens == before.opens + window.opens);
+    CHECK(after.closes == before.closes + window.closes);
     CHECK_FALSE(slurp(SESSION_HISTORY_SO).empty()); // ...and it was sitting right there
 }
 
@@ -3984,10 +3977,11 @@ TEST_CASE("with the conversion mounted, the desk comes back through the weave") 
     MountedHistory history;
     REQUIRE(history.mounted.ok);
     Live t;
-    t.in_window = false; // a restored room is a Skin's to keep; a window offers its own
     t.host.session_path = path;
     t.host.conversions = &history.catalog;
+    t.on_os_window(); // the medium that grows to the room restored
     t.ready();
+    t.window_settles();
 
     // ...and it is an ORDINARY restore: the same notice, the same room, the same desk.
     CHECK_FALSE(t.session().notice_is_bad);
@@ -4019,10 +4013,11 @@ TEST_CASE("reading an old session does not rewrite it; the next close does") {
     REQUIRE(history.mounted.ok);
     {
         Live t;
-        t.in_window = false; // a restored room is a Skin's to keep; a window offers its own
         t.host.session_path = path;
         t.host.conversions = &history.catalog;
+        t.on_os_window(); // the medium that grows to the room restored
         t.ready();
+        t.window_settles();
         REQUIRE(t.session().setup.active.name == "Yesterday");
         // 1-3. THE MIGRATION SUCCEEDED IN MEMORY AND THE FILE IS BYTE-IDENTICAL. Reading is
         // reading; there is no "migration complete, rewrite now" path and there must not be.
@@ -4038,10 +4033,11 @@ TEST_CASE("reading an old session does not rewrite it; the next close does") {
 
     // 5. ...SO THE NEXT RUN NEEDS NO CONVERTER AT ALL.
     Live back;
-    back.in_window = false; // a restored room is a Skin's to keep; a window offers its own
     back.host.session_path = path;
     REQUIRE(back.host.conversions == nullptr);
+    back.on_os_window(); // the medium that grows to the room restored
     back.ready();
+    back.window_settles();
     CHECK_FALSE(back.session().notice_is_bad);
     CHECK(back.session().setup.active.name == "Yesterday");
     CHECK(back.session().screen_w == cells_px(120));
@@ -4775,10 +4771,10 @@ TEST_CASE("a version-3 file with no conversion live refuses and is not rewritten
     const std::string bytes = as_text(old_v3_session("Yesterday", 120, 44));
     spillout(path, bytes);
 
+    const op::ImageCounts window = window_images();
     const op::ImageCounts before = op::image_counts();
     {
         Live t;
-        t.in_window = false; // it counts every image opened, and a window's painters are images
         t.host.session_path = path;
         REQUIRE(t.host.conversions == nullptr);
         t.ready();
@@ -4794,9 +4790,10 @@ TEST_CASE("a version-3 file with no conversion live refuses and is not rewritten
         REQUIRE(t.host.quit);
     }
     CHECK(slurp(path) == bytes);
-    // NO IMAGE WAS OPENED: a version claim is a lookup key and reaches no load door.
+    // NO IMAGE WAS OPENED but the window's own: a version claim is a lookup key and reaches no
+    // load door.
     const op::ImageCounts after = op::image_counts();
-    CHECK(after.opens == before.opens);
+    CHECK(after.opens == before.opens + window.opens);
     CHECK_FALSE(slurp(SESSION_HISTORY_SO).empty()); // ...and it was sitting right there
 
     // PUT THE POWER BACK, AND THE SAME BYTES OPEN.
@@ -6420,7 +6417,6 @@ TEST_CASE("a quit saves which choice holds each office, and a start says a choic
 
     // THE NEXT START'S NOTE, ONCE, on the restore's own line.
     Live back;
-    back.in_window = false;
     back.host.session_path = session;
     back.host.choice_note = "your last choice `emacs` for zengine.editor is not one this plan "
                             "authors, so its own loaded";

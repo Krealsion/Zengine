@@ -12,7 +12,7 @@
 
 #include "graphics/role.hpp"
 #include "manual/manual.hpp"
-#include "surface/vocabulary.hpp"
+#include "graphics/vocabulary.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
 #include "workshop/keymap.hpp"
 #include "workshop/pane_document.hpp"

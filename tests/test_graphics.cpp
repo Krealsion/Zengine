@@ -51,6 +51,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <limits>
 #include <map>
 #include <memory>
 #include <optional>
@@ -3663,13 +3664,14 @@ loom::WeaveId mount_as(Rig& r, const std::string& office) {
     return id;
 }
 
-/// An area of the terminal window for a pane's office, at its corner, 62 cells by 10, painted by
-/// the classic skin.
-void place_pane(Rig& r, const std::string& office) {
+/// The area of the terminal window for an office's pane, `<office>.<pane>`, at its corner, 62
+/// cells by 10, painted by the classic skin.
+void place_pane(Rig& r, const std::string& office, const std::string& pane) {
+    const std::string area = ws::pane_area(office, pane);
     r.to_role(gfx::kGraphicsRole, gfx::SkinOffered{"classic", PAINT_CLASSIC_SO});
-    r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{office, gfx::kTerminalWindow, office, 0, 0,
+    r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{area, gfx::kTerminalWindow, office, 0, 0,
                                                   62 * gfx::kCellPx, 10 * gfx::kCellPx, 0});
-    r.to_role(gfx::kGraphicsRole, gfx::SkinChosen{office, "classic"});
+    r.to_role(gfx::kGraphicsRole, gfx::SkinChosen{area, "classic"});
     r.drain();
 }
 
@@ -3700,7 +3702,7 @@ struct AttentionWindow : TypedWindow {
         workshop = mount_as<WorkshopSpeaker>(r, "zengine.workshop");
         REQUIRE(r.load(apane::kAttentionPaneStem, ATTENTION_PANE_SO, apane::kAttentionPaneRole)
                     .valid());
-        place_pane(r, apane::kAttentionPaneRole);
+        place_pane(r, apane::kAttentionPaneRole, apane::kAttentionPane);
     }
     /// The host says what is true, as its own office.
     void say(std::vector<ws::StandingCondition> rows) {
@@ -3713,7 +3715,8 @@ struct AttentionWindow : TypedWindow {
     void ask(const std::string& action) {
         r.bus.office_send_to_role_as(
             window, window_office(), apane::kAttentionPaneRole,
-            loom::Message(loom::to_value(gfx::ActionRequested{apane::kAttentionPaneRole, action})));
+            loom::Message(loom::to_value(gfx::ActionRequested{
+                ws::pane_area(apane::kAttentionPaneRole, apane::kAttentionPane), action})));
         r.drain();
     }
     /// What the pane drew since `mark`, as its office.
@@ -3806,11 +3809,12 @@ TEST_CASE("a pane on the drawing facet is pressed over a drawn button's whole fa
     const loom::WeaveId id = t.r.bus.register_weave(std::move(made), std::move(g), kButtonPane);
     button->zen_set_self(id);
     t.r.to_role(gfx::kGraphicsRole, gfx::SkinOffered{"classic", PAINT_CLASSIC_SO});
-    gfx::AreaPlaced placed{kButtonPane, gfx::kTerminalWindow, kButtonPane, 0, 0,
+    const std::string area = ws::pane_area(kButtonPane, kButtonPane);
+    gfx::AreaPlaced placed{area, gfx::kTerminalWindow, kButtonPane, 0, 0,
                            20 * gfx::kCellPx, 6 * gfx::kCellPx, 0};
     placed.pointer = true;
     t.r.to_role(gfx::kGraphicsRole, placed);
-    t.r.to_role(gfx::kGraphicsRole, gfx::SkinChosen{kButtonPane, "classic"});
+    t.r.to_role(gfx::kGraphicsRole, gfx::SkinChosen{area, "classic"});
     t.r.drain();
     const auto click = [&t](int col, int row) {
         t.type("\x1b[<0;" + std::to_string(col + 1) + ";" + std::to_string(row + 1) + "M");
@@ -3825,8 +3829,8 @@ TEST_CASE("a pane on the drawing facet is pressed over a drawn button's whole fa
     click(12, 4); // beside it
     CHECK(button->pressed() == 3);
     // A PRESS THE WINDOW SAYS IT LANDED ON ANOTHER PART THERE: refused, and said.
-    gfx::AreaButtonChanged other{kButtonPane, 1, true, 2 * gfx::kCellPx + 6, gfx::kCellPx + 6, 0,
-                                 true, 0, kButtonPane, "stop", 0};
+    gfx::AreaButtonChanged other{area, 1, true, 2 * gfx::kCellPx + 6, gfx::kCellPx + 6, 0,
+                                 true, 0, area, "stop", 0};
     REQUIRE(t.r.bus.office_send_to_role_as(t.window, window_office(), kButtonPane,
                                            loom::Message(loom::to_value(other))).valid());
     t.r.drain();
@@ -3840,7 +3844,7 @@ TEST_CASE("a pane's drawing its window refused leaves the window as it was, and 
     REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
     REQUIRE(r.load("zengine-window-terminal", WINDOW_SO, window_office()).valid());
     (void)mount_as<TestPane>(r, kTestPane);
-    place_pane(r, kTestPane);
+    place_pane(r, kTestPane, kTestPane);
     REQUIRE(r.read<gfx::Drawn>(0, kTestPane).size() == 1);
     CHECK(row_says(r.shown().rows, 0, "turn 0"));
     const auto turn = [&](bool broken) {
@@ -3910,7 +3914,7 @@ TEST_CASE("the Attention pane draws in a graphics window: whole on its room, the
     a.press(4, 3);
     const auto asked = a.r.read<gfx::ActionRequested>(mark, window_office());
     REQUIRE(asked.size() == 1);
-    CHECK(asked[0].area == apane::kAttentionPaneRole);
+    CHECK(asked[0].area == ws::pane_area(apane::kAttentionPaneRole, apane::kAttentionPane));
     CHECK(asked[0].action == "condition:b.two");
     drawn = a.drawn(mark);
     REQUIRE(drawn.size() == 1);
@@ -3944,7 +3948,8 @@ TEST_CASE("the Attention pane draws in a graphics window: whole on its room, the
     mark = a.r.log.size();
     a.ask("attention.no-such-action");
     a.r.to_role(apane::kAttentionPaneRole,
-                gfx::ActionRequested{apane::kAttentionPaneRole, apane::kActionUp});
+                gfx::ActionRequested{ws::pane_area(apane::kAttentionPaneRole, apane::kAttentionPane),
+                                    apane::kActionUp});
     a.r.drain();
     CHECK(a.drawn(mark).empty());
     CHECK(row_says(a.r.shown().rows, 0, "hidden -- the second thing is still true"));
@@ -3993,7 +3998,7 @@ TEST_CASE("the Connections pane draws in a graphics window: whole on its room, e
     const loom::WeaveId door = mount_as<DoorSpeaker>(r, ws::kGuestsRole);
     REQUIRE(r.load(cpane::kConnectionsPaneStem, CONNECTIONS_PANE_SO, cpane::kConnectionsPaneRole)
                 .valid());
-    place_pane(r, cpane::kConnectionsPaneRole);
+    place_pane(r, cpane::kConnectionsPaneRole, cpane::kConnectionsPane);
     const auto say = [&](const ws::v3::GuestConnections& said) {
         r.bus.office_send_to_role_as(door, ws::kGuestsRole, cpane::kConnectionsPaneRole,
                                      loom::Message(loom::to_value(said)));
@@ -6257,3 +6262,157 @@ TEST_CASE("an OS window takes its title and its size from an office that arrange
     CHECK(t.light.size == gw::PixelSize{320, 260});
     CHECK(t.platform.heard.offers.size() == offers + 1);
 }
+
+// ---- THE PIXELS' OWN ARITHMETIC (graphics/pixels.hpp) -------------------------------------------
+// Every drawer and both windows count a canvas in pixels and floor them to a medium's device unit
+// through these functions alone, so each is pinned here, total over the number line.
+namespace pixel_arithmetic {
+
+using namespace zengine::graphics;
+
+TEST_CASE("the pixel and cell conversions are exact, floored, and total") {
+    // THE CELL IS TWELVE CANVAS PIXELS, and a window's device pixel is a canvas pixel: the two
+    // grains a hand reports at.
+    CHECK(kCellPx == 12);
+    CHECK(kPixelGrainPx == 1);
+    CHECK(kCellGrainPx == kCellPx);
+
+    // CELLS <-> PIXELS, exact one way and floored the other, negatives included.
+    CHECK(px_of_cells(0) == 0);
+    CHECK(px_of_cells(7) == 84);
+    CHECK(px_of_cells(-2) == -24);
+    CHECK(cell_of_pixel(84) == 7);
+    CHECK(cell_of_pixel(83) == 6);  // floored
+    CHECK(cell_of_pixel(-1) == -1); // floored ACROSS zero
+    CHECK(cell_of_pixel(-12) == -1);
+    CHECK(cell_of_pixel(-13) == -2);
+    for (std::int64_t cell = -30; cell <= 30; ++cell) {
+        CAPTURE(cell);
+        // The cell lattice embeds exactly: cell -> pixels -> cell is the identity.
+        CHECK(cell_of_pixel(px_of_cells(cell)) == cell);
+        CHECK(cell_of_pixel(px_of_cells(cell) + kCellPx - 1) == cell);
+    }
+
+    // SATURATION: the ends of the number line stay on it.
+    constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
+    CHECK(px_of_cells(kMax) == kMaxCellsInPixels * kCellPx);
+    CHECK(px_of_cells(-kMax) == -kMaxCellsInPixels * kCellPx);
+    CHECK(cell_of_pixel(kMax) == kMax / kCellPx);
+    CHECK(cell_of_pixel(-kMax) == -kMax / kCellPx - 1);
+}
+
+TEST_CASE("a medium's own device unit, and whether it can say a value exactly") {
+    // The same arithmetic with the layout number taken from whatever the medium REPORTED, so an
+    // application spelling a weaver's geometry and a medium drawing it cannot come to disagree
+    // about where an edge inside a device unit lands.
+    CHECK(device_of_px(0, kCellPx) == 0);
+    for (std::int64_t v = -4 * kCellPx; v <= 4 * kCellPx; ++v) {
+        CAPTURE(v);
+        // THE SHIPPED WINDOW: a device pixel per canvas pixel.
+        REQUIRE(device_of_px(v, kCellPx) == v);
+        // A MEDIUM WHOSE DEVICE UNIT IS THE CELL ANSWERS IN CELLS -- the vocabulary's zero.
+        REQUIRE(device_of_px(v, 0) == cell_of_pixel(v));
+        REQUIRE(device_of_px(v, -1) == cell_of_pixel(v));
+    }
+    // A medium of six device pixels to the cell: half as fine, floored across zero.
+    CHECK(device_of_px(2, 6) == 1);
+    CHECK(device_of_px(1, 6) == 0);
+    CHECK(device_of_px(-1, 6) == -1);
+
+    // AND IT IS TOTAL. Every argument arrives on the bus, so a hostile multiplier must
+    // produce an answer rather than a trap.
+    constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
+    CHECK(device_of_px(kMax, kMax) <= kMax);
+    CHECK(device_of_px(-kMax, kMax) >= -kMax);
+    CHECK(device_of_px(kMax, 1) >= 0);
+
+    // ---- CAN THIS MEDIUM SAY THIS VALUE AT ALL? --------------------------------------
+    CHECK(px_exact_in_device(0, kCellPx));
+    CHECK(px_exact_in_device(0, 0));
+
+    // A WHOLE-CELL VALUE IS EXACT EVERYWHERE.
+    CHECK(px_exact_in_device(px_of_cells(40), 0));
+    CHECK(px_exact_in_device(px_of_cells(40), kCellPx));
+    CHECK(px_exact_in_device(px_of_cells(-3), 0));
+
+    // EVERY PIXEL IS EXACT ON THE WINDOW, AND ONLY THE CELL'S MULTIPLES IN A TERMINAL. That
+    // difference is the whole of authored-versus-projected.
+    for (std::int64_t v = -2 * kCellPx; v < 2 * kCellPx; ++v) {
+        CAPTURE(v);
+        REQUIRE(px_exact_in_device(v, kCellPx));
+        REQUIRE(px_exact_in_device(v, 0) == (v % kCellPx == 0));
+        if (px_exact_in_device(v, 0)) {
+            // AN EXACT VALUE ROUND-TRIPS THROUGH ITS OWN MEDIUM: what "exact" claims.
+            REQUIRE(px_of_cells(device_of_px(v, 0)) == v);
+        }
+    }
+    CHECK_FALSE(px_exact_in_device(1, 6)); // half a device pixel of a coarser medium
+
+    // TOTAL AT THE EDGES HERE TOO: a multiplier that could overflow answers "not exact"
+    // rather than wrapping into a false claim of exactness.
+    CHECK_FALSE(px_exact_in_device(kMax, kMax));
+}
+
+TEST_CASE("the smallest span a medium can SHOW is one of its own device units") {
+    // THE OTHER DIRECTION OF THE SAME LAW: this answers what a publisher drawing a BOUNDARY
+    // asks -- the thinnest thing this face will present.
+    CHECK(px_of_one_device(0) == kCellPx);  // a terminal: the cell IS the unit
+    CHECK(px_of_one_device(-4) == kCellPx); // ...and nonsense reads the same way
+    CHECK(px_of_one_device(kCellPx) == 1);  // the window: one pixel
+    CHECK(px_of_one_device(kCellPx) == kPixelGrainPx);
+    CHECK(px_of_one_device(kCellPx) < px_of_one_device(0));
+
+    // IT IS THE SMALLEST SPAN THAT READS BACK AS ONE UNIT, on every cell size a medium could
+    // report -- including the ones the pixel does not divide evenly, where a division would
+    // answer zero and a boundary would disappear.
+    for (std::int64_t cell = 1; cell <= 3 * kCellPx; ++cell) {
+        CAPTURE(cell);
+        const std::int64_t one = px_of_one_device(cell);
+        REQUIRE(one >= 1);
+        REQUIRE(device_of_px(one, cell) >= 1);
+        if (one > 1) {
+            REQUIRE(device_of_px(one - 1, cell) == 0);
+        }
+    }
+
+    // A MEDIUM FINER THAN THE PIXEL GETS THE FINEST THING THAT CAN BE SAID AT ALL: one pixel.
+    CHECK(px_of_one_device(kCellPx * 100) == 1);
+    CHECK(px_of_one_device((std::numeric_limits<std::int64_t>::max)()) == 1);
+}
+
+TEST_CASE("one quantization law -- a span lands on device units by flooring both edges") {
+    // THE LAW, AS A PROPERTY, at both shipped grains: a consumer of grain g shows the span
+    // [L, L+len) on device units [floor(L/g), floor((L+len)/g)), and the hit answer is
+    // exactly that presentation read backwards. Swept over every pixel in a three-cell window
+    // at every extent up to two cells, for the pixel grain and the cell grain both.
+    for (const std::int64_t g : {kPixelGrainPx, kCellGrainPx}) {
+        CAPTURE(g);
+        for (std::int64_t begin = -kCellPx; begin <= kCellPx; ++begin) {
+            for (const std::int64_t len : {1, 3, 4, 13, 12, 24}) {
+                const std::int64_t first = floor_div_px(begin, g);
+                const std::int64_t past = floor_div_px(begin + len, g);
+                for (std::int64_t unit = first - 2; unit <= past + 2; ++unit) {
+                    const bool expected = unit >= first && unit < past;
+                    if (px_span_contains(begin, len, unit * g, g) != expected) {
+                        CAPTURE(begin);
+                        CAPTURE(len);
+                        CAPTURE(unit);
+                        CHECK(px_span_contains(begin, len, unit * g, g) == expected);
+                    }
+                }
+            }
+        }
+    }
+    // A WHOLE-CELL SPAN IS ORDINARY CONTAINMENT on both media.
+    CHECK(px_span_contains(px_of_cells(3), px_of_cells(2), px_of_cells(3), kCellPx));
+    CHECK_FALSE(px_span_contains(px_of_cells(3), px_of_cells(2), px_of_cells(5),
+                                 kCellPx));
+    CHECK_FALSE(px_span_contains(px_of_cells(3), px_of_cells(2), px_of_cells(3) - 1,
+                                 kCellPx));
+    // A DEGENERATE SPAN CONTAINS NOTHING, and a grain nobody could mean answers false.
+    CHECK_FALSE(px_span_contains(10, 0, 10, kPixelGrainPx));
+    CHECK_FALSE(px_span_contains(10, -5, 10, kPixelGrainPx));
+    CHECK_FALSE(px_span_contains(10, 5, 10, 0));
+}
+
+} // namespace pixel_arithmetic

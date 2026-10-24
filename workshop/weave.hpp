@@ -546,16 +546,18 @@ public:
     /// remembers is its own speech, not the truth (WL-ATTN-03).
     void say_conditions(const ProjectFrontier& frontier, loom::Mail& mail);
 
-    /// THE DESK COMES UP, on the first window's offer: the room asked who has panes, office-published
-    /// as `zengine.workshop` so a provider can verify it, the keymap, the preferences and the host's
-    /// conditions taken, the floor painted, the last session restored and the startup notes said.
+    /// THE DESK COMES UP, on the first window's offer: the room asked who has panes,
+    /// office-published as `zengine.workshop` so a provider can verify it, the keymap, the
+    /// preferences and the host's conditions taken, the floor painted, the last session restored
+    /// and the startup notes said.
     void start_desk(loom::Mail& mail);
 
     /// THE MEDIUM SAID WHERE ITS WINDOW SITS. Remember it, whole and opaque.
     void on(const zengine::graphics::SurfacePlacement& p, loom::Mail&);
 
-    /// THE SURFACE WAS ASKED TO CLOSE -- by the window manager, the close box,
-    /// the platform. Workshop applies the quit policy it already has.
+    /// THE WINDOW THAT SHOWS THE DESK WAS ASKED TO CLOSE -- by the window manager, the close box,
+    /// the platform. Workshop applies the quit policy it already has; a close said by any other
+    /// office ends nothing.
     void on(const zengine::graphics::SurfaceCloseRequested&, loom::Mail&);
 
     void on(const input::AttributedInput& event, loom::Mail& mail);
@@ -1259,7 +1261,7 @@ private:
     std::string hotkey(Act a) const;
 
     /// Which of this weave's own editable places a consumed paste request came from; `kNone` for
-    /// every armless branch. A pane asks the Skin for the clipboard itself.
+    /// every armless branch. A pane asks the window that shows it for the clipboard itself.
     // WL-TEXT-09 -- agents/workshop/text-box.md
     enum class PasteOwner : std::uint8_t { kNone, kNaming };
 
@@ -1398,10 +1400,8 @@ private:
     /// unit cannot say it exactly.
     static std::string restore_notice_text(const RestoreNotice& n, std::int64_t cell_px);
 
-    /// A MEDIUM NAMED ITS UNIT: the restore's sentence, said before any medium had named one, is
-    /// said again in this one while nothing has been said since. True when it was. A Skin naming
-    /// it takes the room from then on (`respell_restore_notice`); a window offering itself does not.
-    bool respell_restore_notice(std::int64_t cell_px);
+    /// A WINDOW NAMED ITS UNIT: the restore's sentence, said before any window had named one, is
+    /// said again in this one while nothing has been said since. True when it was.
     bool spell_restore_notice(std::int64_t cell_px);
 
     // ---- PANE MANAGEMENT: arrange the windows, and never lose one -------------

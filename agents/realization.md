@@ -21,9 +21,9 @@ one artifact = one record, with ZERO OR MORE optional surfaces
 - **The host NAMES NO ARTIFACT STEM, and a tripwire refuses one.** `test_operator_provider.cpp`
   reads the host as a source file and checks forbidden strings — every shipped stem,
   `kComposerStem`, `kIntrospectionStem`, `mount_provider`, `OperatorOffer`, `MountMode`.
-  ⚠ **A ROLE is deliberately NOT forbidden**: `surface::kSkinRole` and `timer::kTimerRole` are
-  still in the host, inside GRANTS, and a grant naming a role is a statement about who may be
-  spoken to. A role cannot become a load; only a stem can.
+  ⚠ **A ROLE is deliberately NOT forbidden**: `timer::kTimerRole` is still in the host, inside
+  GRANTS, and a grant naming a role is a statement about who may be spoken to. A role cannot
+  become a load; only a stem can.
 - **The intra-record order is SEMANTIC LAW and lives in `load_execute.hpp`**, not in the plan
   and not in the host: mount, then offer, then load. A host-backed Timer validates the rule it
   is about to spend inside its own `create()`, so a file that could say *weave, then provider*
@@ -120,14 +120,14 @@ begin(plan)                    the ordinary host loop        answered()
   source for plan-specific control flow in a host loop. The BEHAVIOURAL half is separate:
   ordinary traffic already queued when realization begins must NOT be delivered by the time
   `begin()` returns.
-- **A PROVIDER-ONLY ROW SETTLES INSIDE `begin()`, AND SOMETHING DEPENDS ON THAT.**
-  `perform_row` mounts, sees no weave intent, and settles with the host having turned nothing
-  — so every row ABOVE the first weave row is live before one delivery has been made. Workshop
-  reads its session file from `on(SurfaceReady)`, which cannot arrive until a Skin has loaded,
-  so a conversion provider authored above the Skin row is mounted in time by authored order
-  alone (`workshop/session_history.hpp`; [workshop.md](workshop.md)). That is a REASON TO KEEP
-  the barrier honest, not a new rule: reordering a plan's rows, or letting a waiting row be
-  stepped over, would move a mount that a durable owner is now depending on.
+- **A PROVIDER-ONLY ROW SETTLES INSIDE `begin()`, AND SOMETHING DEPENDS ON THAT.** `perform_row`
+  mounts, sees no weave intent, and settles with the host having turned nothing — so every row ABOVE
+  the first weave row is live before one delivery has been made. Workshop reads its session file on
+  the first window's offer, which cannot arrive until a window has loaded, so a conversion provider
+  authored above the window's row is mounted in time by authored order alone
+  (`workshop/session_history.hpp`; [workshop.md](workshop.md)). That is a REASON TO KEEP the barrier
+  honest, not a new rule: reordering a plan's rows, or letting a waiting row be stepped over, would
+  move a mount that a durable owner is now depending on.
 - **AN UNANSWERED LOAD STAYS UNANSWERED.** No timeout, no deadline, no retry, no cancellation
   and no unanswerability vocabulary. The row is `loading`, the plan has not advanced, and
   nothing has been refused, for as many turns as a host cares to spend. Do not reintroduce a

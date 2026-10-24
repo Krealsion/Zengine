@@ -529,9 +529,9 @@ class Hand:
                 "space": PIXELS}
 
     def cells_of(self, view):
-        """`(space, rows above)`: the input space a reading's points stand in, and in a terminal the
-        console rows above the desk, as its first word with a point says them; the desk's space,
-        with none above, where no word has one."""
+        """`(space, rows above)`: the input space a reading's points stand in, and the console rows
+        above the desk as its first word with a point says them (none in either window); the
+        desk's space, with none above, where no word has one."""
         for w in view.get("words") or []:
             if w.get("space") == PIXELS:
                 return PIXELS, 0

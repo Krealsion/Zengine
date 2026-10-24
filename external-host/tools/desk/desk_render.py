@@ -35,7 +35,7 @@ import desk_words as words
 SECTION_BYTES = 65536
 #: A grid written whole is paged by row band past this many cells.
 DENSE_CELLS = 262144
-#: The medium's own text cell, in canvas pixels: the SDL face's glyph (skin_sdl_text.hpp) and the
+#: The medium's own text cell, in canvas pixels: the OS window's face's glyph and the
 #: terminal's cell (graphics::kCellPx).
 WINDOW_CELL = (8, 18)
 TERMINAL_CELL = (12, 12)

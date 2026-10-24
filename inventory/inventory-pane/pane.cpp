@@ -275,7 +275,7 @@ public:
             else if(choice=="bind") {
                 const auto* b=slots::binding(state_.layout,target_.reference);
                 begin_edit(Editing::binding,b?b->target+" "+ws::gesture_word({b->scancode,b->modifiers}):"");
-                notice_="Enter target-office then a key, e.g. zengine.skin alt+1";
+                notice_="Enter target-office then a key, e.g. zengine.input alt+1";
             } else if(choice=="remove") { remove_armed_=true; removing_folder_.reset(); notice_="Press Delete to confirm removing "+target_.label; }
             else if(choice=="folder-new") new_folder();
             else if(choice=="folder-rename" && menu_folder_) rename_folder(*menu_folder_);

@@ -12,6 +12,7 @@
 
 #include "workshop_support.hpp"
 #include "guest_hand.hpp"
+#include "pane_window.hpp"
 
 #include "workshop/pane_menu.hpp"
 #include "workshop/pane_rows_block.hpp"
@@ -47,7 +48,8 @@ class ButtonSeat
                                         PaneKeyboardRequested, PaneRevealRequested>> {
 public:
     ButtonSeat(std::string office, std::string pane)
-        : office_(std::move(office)), pane_(std::move(pane)), window_(office_, office_) {}
+        : office_(std::move(office)), pane_(std::move(pane)),
+          window_(office_, pane_area(office_, pane_)) {}
 
     struct Heard {
         std::int64_t button = 0;
@@ -310,12 +312,8 @@ struct Rigged {
     loom::WeaveId presenter{};
 
     /// THE SHIPPED PRESENTER BY DEFAULT; a case that must show a policy is the seam's and not one
-    /// image's names the replacement example instead, and every case below reads the same. On the
-    /// Skin's platform, no window shows the desk.
-    explicit Rigged(const char* presenter_image = WORKSHOP_SO_MENU_PRESENTER, bool on_skin = false) {
-        if (on_skin) {
-            (void)mount_skin_stand_in(r);
-        }
+    /// image's names the replacement example instead, and every case below reads the same.
+    explicit Rigged(const char* presenter_image = WORKSHOP_SO_MENU_PRESENTER) {
         r.mount_workshop();
         r.ready();
         r.extent(140, 60);
@@ -970,26 +968,31 @@ TEST_CASE("WL-CTX-09: a pane's menu stands in its presenter's own area of the wi
 }
 
 TEST_CASE("WL-CTX-09: with no window showing the desk a pane's menu is refused in words, and nothing is granted") {
-    Rigged t(WORKSHOP_SO_MENU_PRESENTER, /*on_skin=*/true);
-    REQUIRE_FALSE(t.r.windows.up());
-    // ON THE SKIN no window gives the pane a press, so its menu is asked continuing its declared
-    // row, reached by the row's key once a press on the Skin's cells (the console rows above its
-    // canvas counted) gives it the keys.
-    t.guard->menu_on_action = true;
-    for (const bool down : {true, false}) {
-        t.r.publish(loom::to_value(input::PointerButton{
-            1, down, body_x(t.r, t.guard_kind, 1), body_y(t.r, t.guard_kind, 0) + t.r.console_rows(),
-            input::space::kCells, input::mod::kNone}));
-    }
-    REQUIRE(t.r.session().panes.keyboard == t.guard_kind);
-    t.r.key(input::scan::kM);
-    REQUIRE(t.guard->actions.size() == 1);
-    CHECK(t.guard->buttons.empty());
-    CHECK_FALSE(t.r.session().presented.open);
-    REQUIRE(t.guard->answers.size() == 1);
-    CHECK_FALSE(t.guard->answers[0].chosen);
-    CHECK(t.guard->answers[0].refusal.find("no window shows the desk") != std::string::npos);
-    CHECK(t.r.last_notice().find("menu did not open -- no window shows the desk") != std::string::npos);
+    // NO WINDOW SHOWS THE DESK: a window of the case's own has offered itself, so the desk is up,
+    // and has given Workshop's area no room. The guard holds the keys, as a press gives them.
+    namespace pw = zengine::testing::pane_window;
+    PaneRig r;
+    r.in_window = false;
+    pw::Window window(r.bus, gfx::kTerminalWindow);
+    (void)pw::mount_directory(r.bus);
+    r.mount_workshop();
+    window.offer(kWorkshopProvider, cells_px(140), cells_px(60));
+    ButtonSeat* guard = nullptr;
+    (void)mount_button_seat(r, guard, kGuardOffice, kGuardPane);
+    const std::int64_t kind = kind_of(r, kGuardOffice, kGuardPane);
+    REQUIRE(r.session().panes.has(kind));
+    (void)r.load_presenter(WORKSHOP_SO_MENU_PRESENTER);
+    const_cast<Session&>(r.session()).panes.keyboard = kind;
+    // ...SO THE MENU THE GUARD'S ROW ASKS BY ITS KEY has nowhere to be presented.
+    guard->menu_on_action = true;
+    r.key(input::scan::kM);
+    REQUIRE(guard->actions.size() == 1);
+    CHECK(guard->buttons.empty());
+    CHECK_FALSE(r.session().presented.open);
+    REQUIRE(guard->answers.size() == 1);
+    CHECK_FALSE(guard->answers[0].chosen);
+    CHECK(guard->answers[0].refusal.find("no window shows the desk") != std::string::npos);
+    CHECK(r.last_notice().find("menu did not open -- no window shows the desk") != std::string::npos);
 }
 
 TEST_CASE("WL-CTX-09: a presenter that shows its menu in an area it was not granted, or wider than its room, loses the menu in words") {
@@ -1758,18 +1761,19 @@ TEST_CASE("WL-CTX-10: a withdrawal that queues nothing is answered at once, and 
     t.right_in_guard(false);
     REQUIRE(t.foreign_open());
     const std::uint64_t number = t.r.session().presented.correlation;
-    // A RIGHT PRESS INTO THE GUARD AGAIN, handled by Workshop through a view of the bus where its
-    // withdrawal of the open menu queues nothing.
+    // A RIGHT PRESS INTO THE GUARD AGAIN, as the window's moment hands it Workshop in the desk's
+    // pixels, handled through a view of the bus where its withdrawal of the open menu queues
+    // nothing.
     WithdrawalQueuesNothing door(t.r.bus, t.r.workshop_id);
     const input::PointerButton press{3,
                                      true,
-                                     body_x(t.r, t.guard_kind, 1),
-                                     body_y(t.r, t.guard_kind, 0),
-                                     input::space::kCells,
+                                     cells_px(body_x(t.r, t.guard_kind, 1)) + gfx::kCellPx / 2,
+                                     cells_px(body_y(t.r, t.guard_kind, 0)) + gfx::kCellPx / 2,
+                                     input::space::kPixels,
                                      input::mod::kNone};
     const loom::Message in(loom::to_value(press));
     loom::Mail mail(door, in, t.r.workshop_id);
-    t.r.w->on(press, mail);
+    t.r.w->pointer_button(press, mail);
     CHECK(door.refused == 1);
     CHECK_FALSE(t.r.session().presented.open);
     CHECK(t.r.w->withdrawn_menus().empty()); // no attempt, so nothing for Loom to say

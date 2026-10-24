@@ -126,7 +126,7 @@ rather than migrated. Rules and pictures can change freely; the structs cannot.
 
 ## Make it again
 
-Prerequisites: a [built Zengine](https://github.com/Krealsion/Zengine/blob/main/docs/contributing/build-and-test.md) with the SDL skin, its
+Prerequisites: a [built Zengine](https://github.com/Krealsion/Zengine/blob/main/docs/contributing/build-and-test.md) with the OS window, its
 installed prefix and an installed Loom (with `loom-host`, `loom-runs` and the Python session
 runtime), Neovim 0.11 or newer on `PATH`, and Python 3.8 or later.
 

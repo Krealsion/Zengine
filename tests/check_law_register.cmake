@@ -88,7 +88,7 @@ endforeach()
 # registers are over the register budget today and are named here, so the sweep can demand
 # that each one either stays over it or leaves this list -- the list shrinks, never grows.
 set(ZEN_LAW_AGENTS_DIR agents)
-set(ZEN_LAW_UNBUDGETED agents/operators.md agents/panes.md agents/realization.md agents/surface.md)
+set(ZEN_LAW_UNBUDGETED agents/operators.md agents/panes.md agents/realization.md)
 
 # The budgets, in bytes, the stricter reading (an em dash is three). Line width is held in
 # registers, routers and decision records, a table row excepted: a line past ZEN_LAW_LINE_BYTES
@@ -1327,8 +1327,8 @@ zen_law_declared("std::function<RecipeSwap(const Recipe&)> swap = {}${ZEN_SOH}" 
 if(NOT name STREQUAL "swap")
     message(FATAL_ERROR "law-register: SELF-TEST FAILED -- a member behind a template argument parsed as '${name}'.")
 endif()
-zen_law_declared("${ZEN_STX}${ZEN_STX}nodiscard${ZEN_ETX}${ZEN_ETX} bool on(const zengine::surface::SurfaceExtent& e, loom::Mail& mail) noexcept {" name kind param qual)
-if(NOT name STREQUAL "on" OR NOT kind STREQUAL "function" OR NOT param STREQUAL "SurfaceExtent")
+zen_law_declared("${ZEN_STX}${ZEN_STX}nodiscard${ZEN_ETX}${ZEN_ETX} bool on(const zengine::graphics::WindowOffered& e, loom::Mail& mail) noexcept {" name kind param qual)
+if(NOT name STREQUAL "on" OR NOT kind STREQUAL "function" OR NOT param STREQUAL "WindowOffered")
     message(FATAL_ERROR "law-register: SELF-TEST FAILED -- a function's declaration parsed as '${name}' (${kind}, first parameter '${param}').")
 endif()
 zen_law_declared("inline std::size_t pane_row(const Setup& s, const PaneRef& ref) {" name kind param qual)
@@ -1399,9 +1399,9 @@ zen_law_pointer_names("create" create function "WorkshopDoc" "zengine::workshop"
 zen_law_pointer_names("detail::fit" fit function "string" "zengine::workshop::detail" ns_inside)
 zen_law_pointer_names("detail::fit" fit function "string" "zengine::workshop" ns_outside)
 zen_law_pointer_names("Session::normal_w" Session scope "" "zengine::workshop" scope_named)
-zen_law_pointer_names("on(SurfaceExtent)" on function "SurfaceExtent" "zengine::workshop::WorkshopWeave" overload)
-zen_law_pointer_names("WorkshopWeave::on(SurfaceExtent)" on function "SurfaceExtent" "zengine::workshop::WorkshopWeave" q_overload)
-zen_law_pointer_names("Other::on(SurfaceExtent)" on function "SurfaceExtent" "zengine::workshop::WorkshopWeave" q_overload_wrong)
+zen_law_pointer_names("on(WindowOffered)" on function "WindowOffered" "zengine::workshop::WorkshopWeave" overload)
+zen_law_pointer_names("WorkshopWeave::on(WindowOffered)" on function "WindowOffered" "zengine::workshop::WorkshopWeave" q_overload)
+zen_law_pointer_names("Other::on(WindowOffered)" on function "WindowOffered" "zengine::workshop::WorkshopWeave" q_overload_wrong)
 if(over_free OR NOT over_member OR NOT over_outofline OR NOT bare_free OR NOT ns_inside OR ns_outside
    OR NOT scope_named OR NOT overload OR NOT q_overload OR q_overload_wrong)
     message(FATAL_ERROR

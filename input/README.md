@@ -1,8 +1,8 @@
 # Input
 
-**Input turns the keyboard and the pointer into messages. One Input weave reads the terminal, the
-Windows console or an SDL window and publishes each key press and release, each piece of typed
-text and each pointer move, click and wheel turn; your weave reacts by accepting those messages.**
+**Input turns the keyboard and the pointer into messages. The Input weave reads the terminal or
+the Windows console and publishes each key press and release, each piece of typed text and each
+pointer move, click and wheel turn; your weave reacts by accepting those messages.**
 
 A key says which key changed and which modifiers were held; typed text is what the keyboard
 layout actually produced. A program spells the messages with `#include "input/vocabulary.hpp"`
@@ -10,9 +10,9 @@ and links `zengine::input`.
 
 ## Manuals
 
-- [Input](docs/zengine.input.md), `zengine.input`: the office both Input weaves hold, what it
-  publishes, where the terminal and the window weave differ, and the input session through which
-  an agent or a test speaks for a person
+- [Input](docs/zengine.input.md), `zengine.input`: the office the Input weave holds, what it
+  publishes, how it reads beside each window, and the input session through which an agent or a
+  test speaks for a person
 
 ## Pages
 
@@ -25,14 +25,12 @@ and links `zengine::input`.
 |---|---|
 | `vocabulary.hpp` | the messages, key codes, modifiers and pointer spaces |
 | `translate.hpp` | how terminal and console events become those messages |
-| `translate_sdl_core.hpp` | how SDL window events become those messages |
-| `translate_sdl.hpp` | the SDL reader's events: those messages and the close box |
+| `translate_sdl_core.hpp` | how SDL window events become those messages, for the OS window |
 | `input_weave.hpp` | the Input weave itself, over any reader |
 | `terminal_reader.hpp` | the terminal and console readers |
-| `window_claim.hpp` | a window's claim on the terminal or SDL's queue, which the readers leave to it |
-| `office_page.hpp` | the office's manual, as the two shipped weaves answer from it |
+| `window_claim.hpp` | a window's claim on the terminal, which the reader leaves to it, or SDL's queue |
+| `office_page.hpp` | the office's manual, as the shipped weave answers from it |
 | `input.cpp` | the terminal and console reader, built as the `zengine-input` weave |
-| `input_sdl.cpp` | the window reader, built as `zengine-input-sdl` where SDL is available |
 | `CMakeLists.txt` | the build |
 | `docs/` | these pages |
 

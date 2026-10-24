@@ -153,7 +153,7 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         const PaneBounds framed = bounds_of(session_.panes, session_.setup.active, order[i], sc);
         if (framed.open && !framed.rect.empty() &&
             (order[i] == pane_kind::kLayouts || (is_runtime_kind(order[i]) && row != nullptr))) {
-            const std::string frame = pane_frame_area(order[i]);
+            const std::string frame = pane_frame_area(session_.panes, order[i]);
             next[frame] = graphics::AreaPlaced{
                 frame, window_name_, kWorkshopProvider, framed.rect.x, framed.rect.y,
                 framed.rect.w, framed.rect.h, 2 * static_cast<std::int64_t>(i) + 1, false, true};
@@ -162,8 +162,8 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         ExternalPane* ext = session_.panes.external_pane(order[i]);
         if (!is_runtime_kind(order[i]) || row == nullptr || ext == nullptr ||
             !accepts(row->provider, *loom::schema_of<graphics::AreaRoom>())) {
-            if (frames.count(pane_frame_area(order[i])) != 0) {
-                skins[pane_frame_area(order[i])] = session_.skin;
+            if (frames.count(pane_frame_area(session_.panes, order[i])) != 0) {
+                skins[pane_frame_area(session_.panes, order[i])] = session_.skin;
             }
             continue;
         }
@@ -206,8 +206,9 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         skins[area] = own != nullptr && own->text && is_workshop_skin_choice(*own->text)
                           ? *own->text
                           : session_.skin;
-        if (frames.count(pane_frame_area(order[i])) != 0) {
-            skins[pane_frame_area(order[i])] = skins[area]; // its frame wears its skin
+        if (frames.count(pane_frame_area(session_.panes, order[i])) != 0) {
+            // its frame wears its skin
+            skins[pane_frame_area(session_.panes, order[i])] = skins[area];
         }
         kinds.insert(order[i]);
     }
@@ -584,9 +585,9 @@ void WorkshopWeave::replay_held(loom::Mail& mail) {
         switch (held.kind) {
         case HeldInput::Kind::kKey: on(held.key, mail); break;
         case HeldInput::Kind::kText: on(held.text, mail); break;
-        case HeldInput::Kind::kButton: on(held.button, mail); break;
-        case HeldInput::Kind::kMoved: on(held.moved, mail); break;
-        case HeldInput::Kind::kWheel: on(held.wheel, mail); break;
+        case HeldInput::Kind::kButton: pointer_button(held.button, mail); break;
+        case HeldInput::Kind::kMoved: pointer_moved(held.moved, mail); break;
+        case HeldInput::Kind::kWheel: pointer_wheel(held.wheel, mail); break;
         case HeldInput::Kind::kAreaPress: area_pressed(held.area_press, held.press, mail); break;
         }
     }

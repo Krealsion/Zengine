@@ -5,7 +5,6 @@
 #include "workshop/pane_canvas_drawing.hpp"
 #include "workshop/pane_picture.hpp"
 #include "workshop/screen_canvas.hpp"
-#include "surface/skin_sdl_plan.hpp"
 
 namespace {
 namespace pane = zengine::flow_pane;

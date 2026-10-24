@@ -48,7 +48,7 @@ include(CMakePackageConfigHelpers)
 # ---- the exported targets ---------------------------------------------------------------
 # A target is exported when linking it grants a user-facing capability, not because something in
 # the tree needs it; agents/packaging.md says what each grants, and the end of this file what is
-# out. EXPORT_NAME makes `zengine::surface` the same target from this tree and from a prefix.
+# out. EXPORT_NAME makes `zengine::timer` the same target from this tree and from a prefix.
 set(ZENGINE_EXPORTED_TARGETS
     zengine-maker
     zengine-flow
@@ -57,7 +57,6 @@ set(ZENGINE_EXPORTED_TARGETS
     zengine-source-transfer-vocabulary
     zengine-activation
     zengine-timer-vocabulary
-    zengine-surface-vocabulary
     zengine-input-vocabulary
     zengine-ui-vocabulary
     zengine-component
@@ -75,7 +74,6 @@ set_target_properties(zengine-source-transfer-vocabulary PROPERTIES EXPORT_NAME 
 
 set_target_properties(zengine-activation          PROPERTIES EXPORT_NAME activation)
 set_target_properties(zengine-timer-vocabulary    PROPERTIES EXPORT_NAME timer)
-set_target_properties(zengine-surface-vocabulary  PROPERTIES EXPORT_NAME surface)
 set_target_properties(zengine-input-vocabulary    PROPERTIES EXPORT_NAME input)
 set_target_properties(zengine-ui-vocabulary       PROPERTIES EXPORT_NAME ui)
 set_target_properties(zengine-component           PROPERTIES EXPORT_NAME component)
@@ -91,17 +89,13 @@ install(TARGETS ${ZENGINE_EXPORTED_TARGETS} EXPORT zengineTargets)
 
 # ---- the public headers, named one at a time --------------------------------------------
 # Explicit lists, not an install(DIRECTORY) pattern: a package directory holds its implementation
-# beside its vocabulary, and a pattern would ship both -- the skins with the game shapes they
-# include, the SDL translation without SDL, the Timer service as a supported external path. The
-# destination keeps the package directory, so `#include "timer/vocabulary.hpp"` reads the same
-# from either side; tests/package checks that the set's includes close over it.
+# beside its vocabulary, and a pattern would ship both -- the SDL translation without SDL, the
+# Timer service as a supported external path. The destination keeps the package directory, so
+# `#include "timer/vocabulary.hpp"` reads the same from either side; tests/package checks that the
+# set's includes close over it.
 set(zengine_public_headers_activation activation/activation.hpp)
 set(zengine_public_headers_timer      timer/vocabulary.hpp
                                       timer/binding.hpp)
-set(zengine_public_headers_surface    surface/vocabulary.hpp
-                                      surface/cells.hpp
-                                      surface/region.hpp
-                                      surface/pointing.hpp)
 set(zengine_public_headers_input      input/vocabulary.hpp
                                       input/translate.hpp
                                       input/input_weave.hpp)
@@ -196,7 +190,7 @@ if(TARGET zengine-app)
 endif()
 
 foreach(pkg IN ITEMS maker flow flow/flow-host flow/flow-pane message-draft inventory
-                    editor/source-transfer activation timer surface input ui manual component
+                    editor/source-transfer activation timer input ui manual component
                     operator workshop editor/neovim-editor graphics graphics/elements
                     graphics/window)
     install(FILES ${zengine_public_headers_${pkg}}
@@ -211,17 +205,15 @@ endforeach()
 # Loom statically and needs nothing else at load time.
 set(ZENGINE_INSTALL_ARTIFACTDIR ${CMAKE_INSTALL_LIBDIR}/zengine)
 
-# Out of the developer package: the SDL weaves -- the Skin, the Input reader and the OS window (a
-# fetched SDL is a build-tree library this package does not carry); introspection and the composer,
-# shown only inside a Workshop run; the snake example; every test fixture. The package a stranger
-# downloads (ZENGINE_PACKAGE, below) carries Workshop with the SDL it built, in bin/.
+# Out of the developer package: the OS window (a fetched SDL is a build-tree library this package
+# does not carry); introspection and the composer, shown only inside a Workshop run; the snake
+# example; every test fixture. The package a stranger downloads (ZENGINE_PACKAGE, below) carries
+# Workshop with the SDL it built, in bin/.
 set(zengine_installable_artifacts
     zengine-app-weave            # weave: an app's own weave, which zengine-app runs
     zengine-timer                # weave
     zengine-input                # weave
     zengine-inventory            # weave
-    zengine-skin-tui-classic     # weave
-    zengine-skin-tui-block       # weave
     zengine-neovim-editor        # weave: the Editor's office held with a Neovim, and a Neovim
                                  # for a second terminal from a Loom with no Workshop; its one
                                  # runtime need beyond the Loom is a Neovim, found at run time

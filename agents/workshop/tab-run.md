@@ -170,7 +170,7 @@ whole population, painted or not"
 `workshop/screen_layouts.cpp` band_tab_at
 `workshop/screen_chrome.cpp` occupied_at
 `workshop/screen.hpp` LayoutTabPress
-`workshop/weave_pointer.cpp` on(PointerButton) layouts_press
+`workshop/weave_pointer.cpp` pointer_button layouts_press
 `tests/test_workshop_host.cpp` "a tab press IS a press on the Layouts pane, and still switches"
 "pressing a painted tab switches, and the rest of the row does not"
 `tests/test_workshop_screen.cpp` "a pane in front of the Layouts pane takes the press"

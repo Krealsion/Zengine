@@ -39,8 +39,8 @@ No kernel, no weave, no bus: the package is vocabulary and arithmetic, header-on
 Not a widget set, not a layout engine, and not a drawing vocabulary. There are no widget kinds,
 no stacks and no relational arrangement: an element says where it is and how big it is, never
 "beside" or "inside". There is no colour, no z and no style; paint order is authored order. It
-knows nothing about painting: `zengine::surface::SurfaceCanvas` is the drawing vocabulary, and a
-resolved scene is what you paint *from*. It shares the canvas's unit, the cell, and nothing else.
+knows nothing about painting: `zengine::graphics` is the drawing vocabulary, and a resolved scene
+is what you paint *from*. It shares the canvas's unit, the cell, and nothing else.
 
 Loom's `loom::Widget` with `px_layout` is a different model, not a competitor: intent plus
 *relationship*, resolved by a renderer, with no authored placement and no absolute extent. That

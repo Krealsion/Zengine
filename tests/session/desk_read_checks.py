@@ -111,9 +111,9 @@ LAYOUTS_WORDS = [word(0, "main  code  + zq-layouts-tabs", 8, 12)]
 LAYOUTS_PARTS = [part("layout:main", 20, 21), part("layout:code", 70, 21),
                  part("layout:+", 110, 21)]
 BUILDER_WORDS = [word(0, "BUILDER @zengine.builder zq-builder-head", 3, 577),
-                 word(1, "recipe   skin-tui-block zq-builder-recipe", 3, 595),
+                 word(1, "recipe   snake-world-v2 zq-builder-recipe", 3, 595),
                  word(2, "last     not built yet", 3, 613)]
-BUILDER_PARTS = [part("build", 60, 700), part("recipe:skin-tui-block", 120, 604)]
+BUILDER_PARTS = [part("build", 60, 700), part("recipe:snake-world-v2", 120, 604)]
 BAND_WORDS = [word(0, "typing goes to Editor zq-band-legend", 0, 1046)]
 MENU = {"open": True, "office": "zengine.workshop", "pane": "", "picture": 4,
         "place": rect(600, 300, 240, 60), "lines": [word(0, "Close pane zq-menu-line", 604, 304)],

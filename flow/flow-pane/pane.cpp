@@ -1746,7 +1746,7 @@ private:
   std::int64_t observed_pending_ = 0;
   std::optional<zengine::message_draft::Draft> live_state_;
   std::optional<Drag> drag_;
-  ws::WindowDrawing window_{pane::kRole, pane::kRole}; ///< its area in the window that shows it
+  ws::WindowDrawing window_{pane::kRole, ws::pane_area(pane::kRole, pane::kPane)}; ///< its area
   std::map<std::string, pane::Hit> window_parts_; ///< the parts the picture last sent there names
   std::optional<pane::Picture> window_shown_;     ///< the picture last sent there, and its room
   ws::CanvasRoom window_room_;

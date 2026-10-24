@@ -94,7 +94,7 @@ WHY — `agents/decisions/a-press-names-the-element-it-landed-on.md`
 ## Proven by
 
 ### WL-PRESS-01
-`workshop/weave_pointer.cpp` on(PointerButton)
+`workshop/weave_pointer.cpp` pointer_button
 `workshop/weave_handlers.cpp` area_pressed
 `tests/test_workshop_panes_input.cpp` "management chrome gets first refusal, and a mode takes the
 press whole"
@@ -109,14 +109,14 @@ press whole"
 ### WL-PRESS-03
 `workshop/screen.hpp` ProseAt
 `workshop/screen_external.cpp` external_press_at
-`workshop/weave_pointer.cpp` on(PointerButton)
+`workshop/weave_pointer.cpp` pointer_button
 `tests/test_workshop_panes_input.cpp` "a press in the body names the row under the header, in both
 media"
 `tests/test_workshop_panes_files.cpp` "with pane titles hidden, a first press on the row painted
 gamma selects gamma once every delivery it caused has settled, and a later press opens gamma"
 
 ### WL-PRESS-04
-`workshop/weave_pointer.cpp` on(PointerButton)
+`workshop/weave_pointer.cpp` pointer_button
 `workshop/screen_chrome.cpp` occupied_at
 `workshop/screen.hpp` Occupancy::kind ExternalPressAt kNoKind
 `workshop/screen_external.cpp` external_press_at
@@ -173,7 +173,7 @@ omitted tab has no span and cannot be pressed" "no press outside the painted run
 window says it ended the hold, and not before: an area Workshop places while it holds is the
 window's to judge"
 `workshop/weave_code.cpp` on(DispatchRefused)
-`workshop/weave_pointer.cpp` on(PointerButton)
+`workshop/weave_pointer.cpp` pointer_button
 `workshop/weave_session.cpp` apply_setup
 `workshop/weave_arrange.cpp` enter_arrange_pane
 `tests/test_workshop_panes_button.cpp` "WL-PRESS-06: a right press over a pane whose holder hears

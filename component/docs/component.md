@@ -121,7 +121,7 @@ holding the presses; this class supplies the span and the operation and no timin
 anchor and the caret (`anchor == caret` *is* "no selection"); typing replaces it, Shift-movement
 extends it, plain movement collapses it, and both ends stay on character boundaries always. The
 clipboard operations move text through a `Clipboard` the **owner** holds — where its text goes
-beyond this process (a platform clipboard through a Skin, a bus publication, nowhere) is the
+beyond this process (a platform clipboard through a window, a bus publication, nowhere) is the
 owner's custody. That custody includes the paste's *value*: `consume`'s Ctrl+V
 records a request (`Clipboard::paste_requests`) rather than pasting, because the value a paste
 means is the clipboard's **current** one and only the owner can obtain it — read on the

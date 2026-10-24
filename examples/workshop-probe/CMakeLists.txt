@@ -18,6 +18,6 @@ find_package(zengine 0.1 CONFIG REQUIRED)
 
 add_library(zengine-workshop-probe SHARED probe.cpp)
 target_link_libraries(zengine-workshop-probe
-    PRIVATE loom::core loom::switchboard zengine::input zengine::surface)
+    PRIVATE loom::core loom::switchboard zengine::input zengine::graphics)
 set_target_properties(zengine-workshop-probe PROPERTIES PREFIX "")
 loom_weave_build_contract(zengine-workshop-probe)

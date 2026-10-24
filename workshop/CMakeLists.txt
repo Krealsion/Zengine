@@ -1,7 +1,7 @@
 # The Workshop package: the weaver-facing application's vocabulary, its logic compiled once, and
 # its host. Workshop's own weave is mounted in-process; the weaves the host loads are others'.
 #
-# The vocabulary is header-only, as input/ and surface/ are, and the suites include the headers
+# The vocabulary is header-only, as input/ and graphics/ are, and the suites include the headers
 # the host does, so what the tests pin is what ships. It is portable: no kernel, no loader.
 
 # Every edge is named on its own line, never inherited through a sibling. The builder and
@@ -10,8 +10,7 @@
 # neither process authority nor the dynamic loader (`zengine-workshop-load` loads).
 add_library(zengine-workshop-vocabulary INTERFACE)
 target_include_directories(zengine-workshop-vocabulary INTERFACE ${CMAKE_SOURCE_DIR})
-target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine-surface-vocabulary
-                                                            zengine-graphics-vocabulary
+target_link_libraries(zengine-workshop-vocabulary INTERFACE zengine-graphics-vocabulary
                                                             zengine-ui-vocabulary
                                                             zengine-component
                                                             zengine-builder-vocabulary
@@ -38,8 +37,7 @@ target_include_directories(zengine-pane-vocabulary INTERFACE
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/zengine>)
 add_library(zengine::pane ALIAS zengine-pane-vocabulary)
-target_link_libraries(zengine-pane-vocabulary INTERFACE zengine-surface-vocabulary
-                                                        zengine-graphics-vocabulary loom::core)
+target_link_libraries(zengine-pane-vocabulary INTERFACE zengine-graphics-vocabulary loom::core)
 # The manuals of two doors among the vocabulary's headers, the discovery door (`powers_door.hpp`)
 # and the sample door (`sample_door.hpp`), compiled into whatever mounts them: each answers a
 # shape's section from its page (`ShapeDocumentRequested`, manual/vocabulary.hpp).
@@ -128,7 +126,7 @@ target_link_libraries(zengine-workshop-logic PUBLIC zengine-workshop-vocabulary
 # (`editor_switch.hpp`): it answers a shape's section from this page (`ShapeDocumentRequested`).
 zengine_manual(zengine-workshop-vocabulary INTERFACE ../editor/docs/zengine.editor-switch.md)
 
-# The host needs a Loom that can host .so weaves: it loads a Skin and an Input producer.
+# The host needs a Loom that can host .so weaves: it loads a window and an Input producer.
 if(NOT TARGET loom::kernel)
     message(STATUS "zengine: workshop host skipped — this Loom cannot host .so weaves (no loom::kernel)")
     return()
@@ -152,7 +150,7 @@ add_library(zengine-workshop-guests STATIC guests.cpp)
 target_include_directories(zengine-workshop-guests PUBLIC ${CMAKE_SOURCE_DIR})
 target_link_libraries(zengine-workshop-guests
     PUBLIC loom::bridge loom::switchboard loom::core
-           zengine-input-vocabulary zengine-surface-vocabulary zengine-timer-vocabulary
+           zengine-input-vocabulary zengine-graphics-vocabulary zengine-timer-vocabulary
            zengine-workshop-vocabulary zengine::inventory zengine-builder-vocabulary
     PRIVATE zengine-warnings zengine-sanitize)
 # ...and the door's manual, compiled into whatever mounts the door: it answers a shape's section
@@ -169,9 +167,9 @@ target_link_libraries(zengine-workshop
             # ...and the bodies, compiled once (the logic target above): this host reaches
             # every one of them, and its object is where the ceiling was measured.
             zengine-workshop-logic
-            zengine-surface-vocabulary zengine-ui-vocabulary
+            zengine-graphics-vocabulary zengine-ui-vocabulary
             zengine-timer-vocabulary zengine-builder-vocabulary
-            # The surface and timer vocabularies are here because this host writes grants and a
+            # The graphics and timer vocabularies are here because this host writes grants and a
             # log selection in their shapes; what to load is the plan's, so no package is named
             # here to save a plan row. The operator package is the host half of the catalog this host
             # owns, which starts empty and is filled by mounting providers.
@@ -218,21 +216,20 @@ target_compile_definitions(zengine-workshop PRIVATE
 
 # ---- The shipped recipe catalog, configured rather than compiled in ---------------------
 #
-# Its target, zengine-skin-tui-block, is an artifact always built here and never loaded or staged
-# by this host: building an image the host has mapped changes code under a running program. Its
-# `artifact_dir` is asked of the target, never guessed (snake stages that skin elsewhere), and
+# Its target, snake-world-v2, is an artifact always built here and never loaded or staged by this
+# host: building an image the host has mapped changes code under a running program. Its
+# `artifact_dir` is asked of the target, never guessed (snake stages its worlds elsewhere), and
 # `file(GENERATE)` below expands what `configure_file` copies as text.
-set(ZENGINE_RECIPE_ARTIFACT_DIR "$<TARGET_FILE_DIR:zengine-skin-tui-block>")
+set(ZENGINE_RECIPE_ARTIFACT_DIR "$<TARGET_FILE_DIR:snake-world-v2>")
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default-build-recipes.json.in
                ${CMAKE_CURRENT_BINARY_DIR}/default-build-recipes.json.in2 @ONLY)
 
 # The artifacts this host loads, staged beside its binary: the host resolves them from its own
 # directory (workshop.cpp's exe_dir). Copied, not aimed here: snake aims the same files at its own
-# directory, and each host takes a copy. The SDL skin joins only where this configuration built
-# it, as the OS window does; `--skin` selects one at launch, and staging makes the stem resolvable.
-# The graphics directory, its terminal window and the painters a window opens stand here too:
+# directory, and each host takes a copy. The OS window joins only where this configuration built
+# it. The graphics directory, its terminal window and the painters a window opens stand here too:
 # Workshop offers the painters to the directory from this directory (`arrange_graphics`).
-set(zengine_workshop_artifacts zengine-skin-tui-classic zengine-input zengine-timer zengine-inventory zengine-inventory-pane
+set(zengine_workshop_artifacts zengine-input zengine-timer zengine-inventory zengine-inventory-pane
                                zengine-introspection zengine-composer zengine-files
                                zengine-builder-pane zengine-attention-pane
                                zengine-desktop-pane zengine-connections-pane zengine-demo-control
@@ -248,12 +245,6 @@ set(zengine_workshop_artifacts zengine-skin-tui-classic zengine-input zengine-ti
 if(TARGET zengine-window-sdl)
     list(APPEND zengine_workshop_artifacts zengine-window-sdl)
 endif()
-if(TARGET zengine-skin-sdl)
-    list(APPEND zengine_workshop_artifacts zengine-skin-sdl)
-endif()
-if(TARGET zengine-input-sdl)
-    list(APPEND zengine_workshop_artifacts zengine-input-sdl)
-endif()
 # THE APP HOST BESIDE WORKSHOP (app/docs/app.md): `zengine-app`, the program an exported app's
 # launchers start, and its own weave, which it opens from its own directory. Built only where this
 # Loom can host it (app/CMakeLists.txt asks the same), and defined after this directory, so named
@@ -266,7 +257,7 @@ endif()
 # ...and the launcher, which starts an app or a demo from Workshop (launcher/CMakeLists.txt).
 list(APPEND zengine_workshop_artifacts zengine-launcher)
 # Each copy is a rule with its own OUTPUT and DEPENDS, on the artifact's clock: a POST_BUILD copy
-# runs only when the host relinks, so an edited Skin went on loading stale. The host's directory
+# runs only when the host relinks, so an edited window went on loading stale. The host's directory
 # is spelled out: `$<TARGET_FILE_DIR:zengine-workshop>` would make these rules depend on the host
 # that depends on them.
 if(CMAKE_CONFIGURATION_TYPES)
@@ -288,15 +279,12 @@ endforeach()
 # ---- The authored load plans, which are not artifacts ---------------------------------
 #
 # Staged by the same stamp rule, since the host resolves its default plan from its own directory.
-# The default (the terminal window) and the terminal Skin's always; the graphical plan (the OS
-# window) and the SDL Skin's only where their artifacts exist: a file that can only refuse is not
-# offered. Not in `zengine_workshop_artifacts`: an artifact is a library this host may execute.
-set(zengine_workshop_plans default-load-plan.json skin-load-plan.json)
-if(TARGET zengine-window-sdl AND TARGET zengine-input-sdl)
+# The default (the terminal window) always; the graphical plan (the OS window) only where the OS
+# window exists: a file that can only refuse is not offered. Not in `zengine_workshop_artifacts`:
+# an artifact is a library this host may execute.
+set(zengine_workshop_plans default-load-plan.json)
+if(TARGET zengine-window-sdl)
     list(APPEND zengine_workshop_plans graphical-load-plan.json)
-endif()
-if(TARGET zengine-skin-sdl AND TARGET zengine-input-sdl)
-    list(APPEND zengine_workshop_plans sdl-skin-load-plan.json)
 endif()
 foreach(plan IN LISTS zengine_workshop_plans)
     set(stamp ${CMAKE_CURRENT_BINARY_DIR}/staged-${plan}.stamp)

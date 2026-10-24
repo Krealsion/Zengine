@@ -8,9 +8,8 @@
 // repository asks an operating system how big a terminal is (the only `#if defined(_WIN32)` the
 // terminal medium needs), the modes a painter takes and gives back, the ink for each role, the
 // copy sequence, and the claim itself, held for exactly its owner's lifetime. Read by the terminal
-// window and by the terminal Skins. Asked, not watched: no SIGWINCH handler and no thread, since a
-// painter asks on its beat, which is prompt enough. Reference:
-// graphics/docs/zengine.window.terminal.md.
+// window. Asked, not watched: no SIGWINCH handler and no thread, since a painter asks on its beat,
+// which is prompt enough. Reference: graphics/docs/zengine.window.terminal.md.
 
 #include "graphics/role.hpp"
 
@@ -37,9 +36,9 @@
 namespace zengine::graphics::window {
 
 /// A terminal's visible window, in character cells. Non-positive means there is no terminal to
-/// ask -- a pipe, a file, CI, no console, an unsupported platform -- the same `{}` a
-/// `SurfaceExtent` uses for no opinion. The absence is the value, not a flag beside it: a flag
-/// fails open when an API answers successfully with a degenerate window. `measured()` tests it.
+/// ask -- a pipe, a file, CI, no console, an unsupported platform. The absence is the value, not a
+/// flag beside it: a flag fails open when an API answers successfully with a degenerate window.
+/// `measured()` tests it.
 struct TerminalSize {
     std::int64_t cols = 0;
     std::int64_t rows = 0;
