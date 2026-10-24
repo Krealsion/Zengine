@@ -27,6 +27,7 @@
 #include <map>
 #include <optional>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -80,14 +81,36 @@ namespace zengine::graphics::window {
 class ProcessSdlBackend {
 public:
     /// SDL's queue claimed from the start, so a reload in place, which makes the next instance
-    /// before it ends this one, never leaves the queue unclaimed; and counted among the living
-    /// when SDL's video is up already: an instance before it may hold a window to leave it.
+    /// before it ends this one, never leaves the queue unclaimed. With SDL's video up already, an
+    /// instance before this one may hold a window to leave it, and this one is counted among the
+    /// living. Otherwise SDL's video is taken and the window and its renderer open here; where they
+    /// cannot -- no display, no driver SDL can use -- this one is refused whole: it says why on
+    /// standard error, gives back SDL and the claim, and throws, so a load of it fails and nothing
+    /// of it stays loaded.
     ProcessSdlBackend() {
         zengine::input::claim_window_sdl_input();
         input_claimed_ = true;
         if (SDL_WasInit(SDL_INIT_VIDEO) != 0) {
             counted_ = true;
             (void)living(1);
+            return;
+        }
+        if (!SDL_Init(SDL_INIT_VIDEO)) {
+            const std::string why = complain("SDL_Init(SDL_INIT_VIDEO)", kRefused);
+            release_sdl(); // a failed init still allocated: see release_sdl
+            give_back_input();
+            throw std::runtime_error(why);
+        }
+        held_ = true;
+        counted_ = true;
+        (void)living(1);
+        if (const std::string why = open(kRefused); !why.empty()) {
+            (void)living(-1);
+            counted_ = false;
+            held_ = false;
+            release_sdl();
+            give_back_input();
+            throw std::runtime_error(why);
         }
     }
 
@@ -118,14 +141,18 @@ public:
     ProcessSdlBackend(const ProcessSdlBackend&) = delete;
     ProcessSdlBackend& operator=(const ProcessSdlBackend&) = delete;
 
-    /// SDL's video taken, and the window an instance before this one left, or a new one; and the
-    /// face opened and measured, which needs no window.
+    /// The face opened and measured, which needs no window; and the window this instance opened
+    /// when it was made, or, made while SDL's video was up, the window an instance before it left,
+    /// else a new one.
     void claim() {
         if (claimed_) {
             return;
         }
         claimed_ = true;
         face_.open();
+        if (window_ != nullptr) {
+            return;
+        }
         if (!SDL_Init(SDL_INIT_VIDEO)) {
             complain("SDL_Init(SDL_INIT_VIDEO)", kNoWindow);
             release_sdl(); // a failed init still allocated: see release_sdl
@@ -143,7 +170,11 @@ public:
             SDL_QuitSubSystem(SDL_INIT_VIDEO); // the hold the last instance kept came with it
             return;
         }
-        open();
+        if (!open(kNoWindow).empty()) {
+            held_ = false;
+            release_sdl();
+            give_back_input();
+        }
     }
 
     /// The measure of the face text is set in.
@@ -412,16 +443,22 @@ private:
     static constexpr const char* kHanded = "zengine.window.sdl.handed";
     static constexpr const char* kLiving = "zengine.window.sdl.instances";
 
+    static constexpr const char* kRefused =
+        "the OS window does not open, and its weave does not load.";
     static constexpr const char* kNoWindow =
         "no OS window is shown; the window keeps and composes its picture.";
     static constexpr const char* kNoPicture = "no picture is read back.";
 
-    /// What went wrong, in SDL's own words, and what it costs, on standard error.
-    static void complain(const char* what, const char* then) {
+    /// What went wrong, in SDL's own words, and what it costs, on standard error; the first line,
+    /// returned.
+    static std::string complain(const char* what, const char* then) {
         const char* why = SDL_GetError();
-        std::fprintf(stderr, "zengine-window-sdl: %s failed: %s\n  %s\n", what,
-                     (why != nullptr && why[0] != '\0') ? why : "(SDL gave no reason)", then);
+        const bool given = why != nullptr && why[0] != '\0';
+        const std::string said = std::string("zengine-window-sdl: ") + what + " failed: " +
+                                 (given ? why : "(SDL gave no reason)");
+        std::fprintf(stderr, "%s\n  %s\n", said.c_str(), then);
         std::fflush(stderr);
+        return said;
     }
 
     /// Give back this instance's hold on SDL's video, and shut SDL down only if nobody else holds
@@ -472,8 +509,10 @@ private:
 
     /// The window and its renderer. Hidden until it is centred on the display the platform opened
     /// it on, so it is never seen anywhere else. Never focusable when ZENGINE_SDL_NOT_FOCUSABLE=1,
-    /// so a suite or a probe leaves the desktop's keyboard with whoever is using it.
-    void open() {
+    /// so a suite or a probe leaves the desktop's keyboard with whoever is using it. Where either
+    /// cannot be made, neither is kept, and what SDL said is returned, `then` said after it on
+    /// standard error; giving back SDL and the claim is the caller's.
+    std::string open(const char* then) {
         const char* unfocused = std::getenv("ZENGINE_SDL_NOT_FOCUSABLE");
         SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN;
         if (unfocused != nullptr && unfocused[0] == '1') {
@@ -482,11 +521,7 @@ private:
         window_ = SDL_CreateWindow("Zengine", static_cast<int>(kDefaultWidth),
                                    static_cast<int>(kDefaultHeight), flags);
         if (window_ == nullptr) {
-            complain("SDL_CreateWindow", kNoWindow);
-            held_ = false;
-            release_sdl();
-            give_back_input();
-            return;
+            return complain("SDL_CreateWindow", then);
         }
         centring_ = true;
         keep_whole();
@@ -495,15 +530,13 @@ private:
         }
         renderer_ = SDL_CreateRenderer(window_, nullptr);
         if (renderer_ == nullptr) {
-            complain("SDL_CreateRenderer", kNoWindow);
+            const std::string why = complain("SDL_CreateRenderer", then);
             SDL_DestroyWindow(window_);
             window_ = nullptr;
-            held_ = false;
-            release_sdl();
-            give_back_input();
-            return;
+            return why;
         }
         SDL_StartTextInput(window_);
+        return std::string();
     }
 
     bool maximized() const { return (SDL_GetWindowFlags(window_) & SDL_WINDOW_MAXIMIZED) != 0; }

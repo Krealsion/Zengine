@@ -20,13 +20,14 @@ state. A reload keeps all of it and draws nothing again; started again, it paint
 once. A window replaced starts empty, with a new incarnation: each owner draws whole once when it
 hears its room, and says each element once.
 
-Activated, it opens a resizable OS window of `window::kDefaultWidth` by `window::kDefaultHeight`
+Made, it opens a resizable OS window of `window::kDefaultWidth` by `window::kDefaultHeight`
 pixels (`graphics/window/window_sdl.hpp`), centred on its display's usable area, and closes it
 when it goes; reloaded, it leaves it to the instance after it. An area placed past its edge grows
 it, as far as its display holds it. With `ZENGINE_SDL_NOT_FOCUSABLE=1` it never takes the
-keyboard. With no display, it says why once, holds no SDL, and still keeps and composes its
-picture, at that size. Its text is its face, the embedded JetBrains Mono (SDL's debug face where
-that will not open), measured as it takes its window: a character's advance and a line's height.
+keyboard. Where it cannot open -- no display, no driver SDL can use -- it says why on standard
+error and its load fails. Its text is its face, the embedded JetBrains Mono (SDL's debug face
+where that will not open), measured as it takes its window: a character's advance and a line's
+height.
 
 **Painting.** A node is painted once, when it changes, into pixel primitives -- rectangles, lines,
 runs of text in the face, images -- each in its paint's exact colour, else the look's for its role:
@@ -69,7 +70,7 @@ judged before anything changes, and a drawing past one is refused whole, in word
 SDL has one event queue to a process, and this window empties it. Loaded, it claims the queue
 (`ZENGINE_WINDOW_SDL_INPUT_PID`, `input/window_claim.hpp`), so
 [`zengine-input`](../../input/docs/zengine.input.md)'s SDL reader may run beside it, reading none
-of the queue and serving input sessions alone. With no display, the window gives its claim back.
+of the queue and serving input sessions alone. A window that cannot open gives its claim back.
 
 ## Commands
 
@@ -167,8 +168,8 @@ of the queue and serving input sessions alone. With no display, the window gives
 
 - **Takes:** nothing.
 - **Answers:** `ClipboardText` v1, to the asker alone: `readable` true and the clipboard's text,
-  read now and never on the beat, empty when it holds none; with no window (no display), `readable`
-  false, and the asker pastes what its own process last copied.
+  read now and never on the beat, empty when it holds none; with no window to read for,
+  `readable` false, and the asker pastes what its own process last copied.
 - **Refuses:** nothing.
 - **Example:** a pane asks when a weaver pastes, and pastes the `text` answered.
 
@@ -181,7 +182,7 @@ judged against the displays there are now.
 - **Answers:** nothing to the sender; the window moves there, whole on a display, and a maximize
   lands on the beat after its next picture. Where it is after is the next `SurfacePlacement`, and a
   size it changed is the next `WindowOffered`.
-- **Refuses:** nothing; with no display nothing moves.
+- **Refuses:** nothing; with no display truth nothing moves.
 - **Example:** a host restoring a session offers the place the last `SurfacePlacement` said.
 
 ### `PumpSurface`
