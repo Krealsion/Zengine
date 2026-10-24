@@ -24,7 +24,7 @@ LAW — `o` asks a role, in a line inside the Builder pane's own room; the host 
 
 MEANS
 - the row is a stem and a weave with the typed role; an empty role or a named stem refuses first;
-- the file is the plan as read plus the new row, through the codec, after the executor said yes;
+- the file is the plan as read plus the new row, through the codec, after the executor said yes, a window row's `otherwise` as read;
 - a frontier row whose product is on disk gets the button's own ask from `o`: no second key.
 
 DOES NOT MEAN
@@ -95,7 +95,8 @@ refused row is said in the owner's own words" "a row whose product is built fini
 button's act" "`o` and the frontier action asked of a project office nobody holds are each refused
 at dispatch, in words" "a role line's row refused at dispatch by the project office is said,
 and nothing is written or built"
-`tests/test_workshop_load.cpp` "the minimum row is written as authored, the plan round-trips byte
+`tests/test_workshop_load.cpp` "the project plan `load it` writes carries the window row as it was
+read, `otherwise` and all, never the window that opened" "the minimum row is written as authored, the plan round-trips byte
 for byte, and a duplicate stem is refused by the plan's own law" "the writer says where the frontier
 row's product is, through the staging rule: present when the chosen recipe's file is on disk, absent
 behind another frontier and absent when nothing is built"

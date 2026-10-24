@@ -40,7 +40,7 @@ struct Facts {
     std::string runtime; ///< the runtime directory when none is named
     std::string project; ///< the project directory when none is named
     std::string host;    ///< the host executable's file name
-    std::string plan;    ///< the graphical load plan's file name; empty where none was staged
+    std::string plan;    ///< the runtime's load plan's file name; empty without the OS window
     std::string catalog; ///< the development catalog's file name
 };
 
@@ -109,8 +109,8 @@ inline builder::BuildCommand runtime_command(const Facts& facts, const std::stri
     return command;
 }
 
-/// The runtime's own host, with the runtime's graphical plan and development catalog, started in
-/// the project directory.
+/// The runtime's own host, with the runtime's own plan and development catalog, started in the
+/// project directory: the plan the runtime copied, not the project's.
 // WL-CODE-08 -- agents/workshop/code.md
 inline builder::BuildCommand host_command(const Facts& facts, const Choice& choice) {
     builder::BuildCommand command;
@@ -378,8 +378,8 @@ inline int launch(const Facts& facts, const Choice& choice, const World& world) 
         return 2;
     }
     if (facts.plan.empty()) {
-        world.say("the build tree " + facts.build + " staged no graphical load plan (it was "
-                  "configured with ZENGINE_TUI_ONLY) -- nothing was prepared or launched");
+        world.say("the build tree " + facts.build + " has no OS window to open Workshop in (it "
+                  "was configured with ZENGINE_TUI_ONLY) -- nothing was prepared or launched");
         return 1;
     }
     const builder::BuildCommand host = host_command(facts, choice);

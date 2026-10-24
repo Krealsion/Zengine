@@ -52,8 +52,7 @@ Outside CTest, the package witness builds `tests/package/oven.cpp` against `zeng
 ## Host side
 
 - Staging: `workshop/CMakeLists.txt` stages `zengine-timer` beside the host.
-- Loading: `workshop/default-load-plan.json` and `workshop/graphical-load-plan.json` load
-  `zengine-timer` as a provider and as the `zengine.timer` weave (`workshop/docs/load-plan.md`).
+- Loading: `workshop/default-load-plan.json` loads `zengine-timer` as a provider and as the `zengine.timer` weave (`workshop/docs/load-plan.md`).
 - Grants: `workshop/workshop.cpp` grants the build runner `EnsureTimer` and `CancelTimer` to
   `kTimerRole`; `workshop/editor_switch.hpp` and `workshop/guest_door.hpp` are `TimedWeave`s.
 - No seam vocabulary. `cmake/ZengineInstall.cmake` installs the headers and the weave;

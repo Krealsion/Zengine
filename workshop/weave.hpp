@@ -267,6 +267,11 @@ struct HostContext {
     // WL-ATTN-02 -- agents/workshop/attention.md; WL-SESSION-03 -- agents/workshop/session.md
     std::string transition_note;
 
+    /// WHAT A ROW OF THE PLAN COULD NOT LOAD AND GAVE WAY FROM, a sentence each, read when the
+    /// desk comes up and said once there: an OS window that could not open, so the terminal
+    /// window holds the desk. Empty, or none, when every row loaded its own artifact.
+    std::function<std::vector<std::string>()> passed_over;
+
     /// The one pane whose presentation this host claims and commits jointly with its document,
     /// spelled by the host; empty means none is managed.
     PaneRef managed_pane;

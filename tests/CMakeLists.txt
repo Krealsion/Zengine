@@ -1215,6 +1215,10 @@ zengine_workshop_suite(shapes SOURCES test_workshop_shapes.cpp test_shapes_censu
                 "ZENGINE_CENSUS_WEAVES=\"${CMAKE_CURRENT_BINARY_DIR}/census-weaves-$<CONFIG>.txt\""
                 "ZENGINE_CENSUS_NOW=\"${CMAKE_CURRENT_BINARY_DIR}/shapes-now-$<CONFIG>.txt\""
     NEEDS ${zengine_census_weaves})
+# The census makes every weave it reads, the OS window among them, which opens only on a driver
+# SDL has: SDL's dummy driver, as the graphics suite's.
+set_tests_properties(workshop_shapes PROPERTIES
+    ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_VIDEODRIVER=dummy;ZENGINE_SDL_NOT_FOCUSABLE=1")
 
 # ---- the panes suite's source tripwires -------------------------------------------------
 # The presentation's sources and the host say "this host was taught no pane", and the two
@@ -1341,14 +1345,21 @@ zengine_manual(zengine-workshop-panes-tests PRIVATE ${PROJECT_SOURCE_DIR}/intros
 
 # The load suite asks which artifacts are in the room at all. It stages them into a real
 # directory of its own (so the suites can run at once), since "filesystem presence is not load
-# authority" cannot be asked of a lookup table, and resolves stems there by the host's own rule.
-# `zengine-operators-basic` and `zengine-timer` are what the shipped plan names, so its cases
-# drive the files a weaver runs; the fixtures stand in for what a plan can get wrong.
+# authority" cannot be asked of a lookup table, and resolves stems there by the host's own rule:
+# the files a weaver runs, the OS window where this build made one, and fixtures for what a plan
+# can get wrong.
+set(zengine_load_os_window "")
+set(zengine_load_os_window_needs "")
+if(TARGET zengine-window-sdl)
+    set(zengine_load_os_window "WINDOW_SDL_SO=\"$<TARGET_FILE:zengine-window-sdl>\"")
+    set(zengine_load_os_window_needs zengine-window-sdl)
+endif()
 zengine_workshop_suite(load SOURCES test_workshop_load.cpp
     NEEDS zengine-timer zengine-provider-abi zengine-operator-consumer-weave-abi
           zengine-operator-consumer-weave zengine-introspection zengine-legacy-pane
-          zengine-graphics zengine-window-terminal zengine-input
+          zengine-graphics zengine-window-terminal zengine-input ${zengine_load_os_window_needs}
     DEFINITIONS "WORKSHOP_LOAD_STAGE_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/load-plan-stage\""
+                ${zengine_load_os_window}
                 "TIMER_SO=\"$<TARGET_FILE:zengine-timer>\""
                 # The default plan's two medium rows and the input weave after them, realized as
                 # the plan names them.
@@ -1374,8 +1385,7 @@ zengine_workshop_suite(load SOURCES test_workshop_load.cpp
                 "BROKEN_CONSUMER_SO=\"$<TARGET_FILE:zengine-operator-consumer-weave-abi>\""
                 # The plan files this repository SHIPS, read as files rather than as a
                 # description of files.
-                "WORKSHOP_DEFAULT_PLAN=\"${CMAKE_SOURCE_DIR}/workshop/default-load-plan.json\""
-                "WORKSHOP_GRAPHICAL_PLAN=\"${CMAKE_SOURCE_DIR}/workshop/graphical-load-plan.json\"")
+                "WORKSHOP_DEFAULT_PLAN=\"${CMAKE_SOURCE_DIR}/workshop/default-load-plan.json\"")
 # The panes suite (above) also embeds the Connections pane's page and the Demo controls', whose
 # weave it compiles in, which their answers are compared to.
 zengine_manual(zengine-workshop-panes-tests PRIVATE ${PROJECT_SOURCE_DIR}/external-host/docs/zengine.connections.md)

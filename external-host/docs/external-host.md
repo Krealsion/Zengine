@@ -155,7 +155,7 @@ taken for one this run never declares. `workshop/connections` asks it from a Loo
 Launch with it:
 
 ```sh
-zengine-workshop --load-plan <workshop dir>/graphical-load-plan.json --guests guests.json
+zengine-workshop --guests guests.json
 ```
 
 ```text

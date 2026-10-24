@@ -278,14 +278,11 @@ foreach(artifact IN LISTS zengine_workshop_artifacts zengine_workshop_programs)
 endforeach()
 # ---- The authored load plans, which are not artifacts ---------------------------------
 #
-# Staged by the same stamp rule, since the host resolves its default plan from its own directory.
-# The default (the terminal window) always; the graphical plan (the OS window) only where the OS
-# window exists: a file that can only refuse is not offered. Not in `zengine_workshop_artifacts`:
-# an artifact is a library this host may execute.
+# Staged by the same stamp rule, since the host resolves its default plan from its own directory:
+# the one shipped plan, the OS window, else the terminal window, in every build (a build without
+# the OS window passes it unsaid). Not in `zengine_workshop_artifacts`: an artifact is a library
+# this host may execute.
 set(zengine_workshop_plans default-load-plan.json)
-if(TARGET zengine-window-sdl)
-    list(APPEND zengine_workshop_plans graphical-load-plan.json)
-endif()
 foreach(plan IN LISTS zengine_workshop_plans)
     set(stamp ${CMAKE_CURRENT_BINARY_DIR}/staged-${plan}.stamp)
     add_custom_command(OUTPUT ${stamp}
@@ -421,9 +418,10 @@ include(\"${CMAKE_CURRENT_SOURCE_DIR}/prepare-runtime.cmake\")
 # What a weaver runs to work in that runtime (CLion's shared "Develop Workshop" configuration names
 # it): it claims the runtime, runs the script above and starts the runtime's host, or says why
 # not. Nothing inside Workshop can launch it. It depends on the host, so an IDE's build refreshes
-# what a runtime copies, and exists without SDL, refusing to launch, so every lane compiles it.
-if("graphical-load-plan.json" IN_LIST zengine_workshop_plans)
-    set(zengine_development_plan graphical-load-plan.json)
+# what a runtime copies, and exists without SDL, refusing to launch, so every lane compiles it: it
+# opens Workshop in the OS window, with the runtime's own plan.
+if(TARGET zengine-window-sdl)
+    set(zengine_development_plan default-load-plan.json)
 else()
     set(zengine_development_plan "")
 endif()

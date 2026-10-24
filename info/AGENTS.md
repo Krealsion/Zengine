@@ -43,8 +43,7 @@ its stem to `WORKSHOP_SO_INFO_PANE`, and `tests/inventory_story.hpp` loads it be
 
 ## Host side
 
-- Plan rows: `workshop/default-load-plan.json`, `workshop/graphical-load-plan.json` (optional,
-  office `zengine.info`); staged beside the host and listed as a development pane in
+- Plan row: `workshop/default-load-plan.json` (optional, office `zengine.info`); staged beside the host and listed as a development pane in
   `workshop/CMakeLists.txt`.
 - The desk row: `default_setup` in `workshop/setup.hpp` puts it in the right column, its office
   spelled in `workshop/panes.hpp`; a saved `zengine.workshop/info` converts in

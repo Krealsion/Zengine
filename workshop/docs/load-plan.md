@@ -275,11 +275,11 @@ build is a retry, and the host keeps running.
 
 | | |
 |---|---|
-| shipped default | `workshop/default-load-plan.json`, the terminal window, staged beside the host binary |
-| shipped graphical | `workshop/graphical-load-plan.json`, the OS window, staged only where the OS window was built |
+| shipped default | `workshop/default-load-plan.json`, the OS window, else the terminal window, staged beside the host binary in every build |
 | project plan | `<project>/workshop-plan.json`, written by `o` in the Builder; the plan in force when it exists and no `--load-plan` is given |
 | default lookup | `<directory of the executable>/default-load-plan.json`, when there is no project plan |
 | override | `--load-plan <path>`, used exactly as given |
+| retired | `graphical-load-plan.json`, named where no such file is: refused with its fix ([load plans](load-plans.md#the-window-the-os-window-else-the-terminal-window)) |
 | missing | refused by path, and the host exits without mounting or loading anything |
 
 There is **no compiled-in fallback plan**. A host that could manufacture an arrangement when the
@@ -288,15 +288,15 @@ what actually ran was the host's own opinion of one.
 
 `--load-plan` replaced `--skin` and `--input`. Those flags existed because *building* a Skin and
 *choosing* one are different acts, and choosing one by editing a literal in the host is an
-experiment nobody else can repeat — which is exactly what a plan file makes repeatable. The
-graphical arrangement is therefore another shipped plan; it differs from the default in exactly
-the row that names the window, and presentation and input remain two independent rows rather
-than one deduced from the other. The default puts two rows before the input row: the graphics
-directory, `zengine-graphics`, and the window, `zengine-window-terminal`, which shows the desk and
-reads its own terminal's keys; the input row, `zengine-input`, follows them and serves input
-sessions. The graphical plan puts the OS window, `zengine-window-sdl`, where the terminal window
-stands; it reads SDL's queue itself, and the same input row serves input sessions. A plan naming
-a retired Skin or `zengine-input-sdl` is refused by name before anything opens
+experiment nobody else can repeat — which is exactly what a plan file makes repeatable. Which
+window the desk opens in is therefore a row of the plan, and presentation and input remain two
+independent rows rather than one deduced from the other. The default puts two rows before the
+input row: the graphics directory, `zengine-graphics`, and the window: `zengine-window-sdl`, the
+OS window, which reads SDL's queue itself, **otherwise** `zengine-window-terminal`, which shows the
+desk in its own terminal and reads that terminal's keys. The input row, `zengine-input`, follows
+them and serves input sessions beside either. `--tui` takes the terminal window alone among the
+windows the plan offers, and refuses a plan offering none, before anything opens. A plan naming a
+retired Skin or `zengine-input-sdl` is refused by name before anything opens
 ([load plans](load-plans.md#a-project-plan-that-names-a-skin)).
 
 ## Artifact names, and why they are stems
@@ -333,8 +333,8 @@ something hand-written. One codec; no JSON is read anywhere else in Workshop's s
 
 **Version 2 adds `choices`**, and nothing else: the artifacts an office may be switched between,
 each under a name a weaver switches to it by. Exactly one row of `artifacts` loads the office and is
-one of its choices; every other choice is loaded only when a switch asks for it. Every shipped plan
-authors `standard` and `neovim` for `zengine.editor` (and is version 3, below). The choices' law, the
+one of its choices; every other choice is loaded only when a switch asks for it. The shipped plan
+authors `standard` and `neovim` for `zengine.editor` (and is version 4, below). The choices' law, the
 switch and what crosses it are [editor/docs/editor-switch.md](../../editor/docs/editor-switch.md).
 
 ```json
@@ -361,15 +361,37 @@ has one spelling.
 **Version 3 adds a row's `optional`** — a plain `true`/`false` on every artifact row, and the
 one field of a row that is not a list. `true` says this project stands without the row: its
 refusal makes it an unavailable tool rather than a refused project (see
-[failure](#failure-and-what-it-leaves-behind)). Every shipped plan is version 3. A plan that
-marks no row optional is still written as version 1 or 2, byte for byte, and those files are
-read exactly as before.
+[failure](#failure-and-what-it-leaves-behind)). A plan that marks no row optional is still
+written as version 1 or 2, byte for byte, and those files are read exactly as before.
 
 ```json
 { "artifact": "zengine-info-pane",
   "provider": [],
   "weave":    [ { "role": "zengine.info" } ],
   "optional": true }
+```
+
+**Version 4 adds a row's `otherwise`** — on every artifact row, empty where the row names nothing
+in its place: the artifacts loaded where the row's own cannot be, in the order tried, each a weave
+named once (`"weave": [ { "role": ... } ]`) in an office of its own. An artifact whose load is
+refused gives way to the next, said once (its weaver's words beside the refusing layer's); one
+this installation does not hold gives way unsaid; the first that loads stands in the row for the
+run, and is the row the projection, a reload and a promotion name. Where none loads, the row
+refuses as any row does, naming the last tried. A row with `otherwise` loads a weave and supplies
+no operators; an alternative names no artifact another row or alternative names, loads into no
+office another row or another row's alternative may load into, and none is a choice or in an
+office with choices. The shipped plan is version 4, its window row the one with an `otherwise`
+([load plans](load-plans.md#the-window-the-os-window-else-the-terminal-window)). A plan naming no
+row's alternatives is still written as version 1, 2 or 3, byte for byte, and a version-4 file
+naming none is refused.
+
+```json
+{ "artifact": "zengine-window-sdl",
+  "provider": [],
+  "weave":    [ { "role": "zengine.window.sdl" } ],
+  "optional": false,
+  "otherwise": [ { "artifact": "zengine-window-terminal",
+                   "weave": [ { "role": "zengine.window.terminal" } ] } ] }
 ```
 
 Two things a hand-author needs to know:
@@ -379,17 +401,18 @@ Two things a hand-author needs to know:
 - **An integer is written as a quoted string** (`"format_version": "1"`). That is the codec's
   encoding, not this format's choice.
 
-Whitespace and indentation are free — the shipped plans are indented for reading. Re-serializing
+Whitespace and indentation are free — the shipped plan is indented for reading. Re-serializing
 a loaded plan produces the canonical one-line form, and a second write of a loaded plan is
 byte-identical to the first.
 
-Refused, with the reason: a `format_version` other than 1, 2 or
-<!-- value load_persist::kFormatVersion -->3<!-- /value --> (by its number, before the rows are
-judged);
+Refused, with the reason: a `format_version` other than 1, 2, 3 or
+<!-- value load_persist::kFormatVersion -->4<!-- /value --> (by its number, before the rows are
+judged); a file in a larger version than its plan needs;
 a `format` that is not this one; more than one provider or weave surface on one artifact; an
 unrecognised mode word (naming both what was found and what would have worked); a weave
 declaration with no role; an artifact requesting neither surface; a stem that is empty, too long,
-spaced, or traversing; the same stem declared twice; a file larger than a plan can be.
+spaced, or traversing; the same stem declared twice; what a row loads in its place breaking
+the law above; a file larger than a plan can be.
 
 ## What is deliberately not here
 

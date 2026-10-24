@@ -39,6 +39,10 @@ inline constexpr std::size_t kMaxChoiceNameLen = 32;
 /// roles this build knows: a plan may name a role this build has never heard of.
 inline constexpr std::size_t kMaxWeaveRoleLen = 64;
 
+/// How many artifacts one row may name to try in its place. One is the use -- the OS window, else
+/// the terminal window; four bounds a forged file.
+inline constexpr std::size_t kMaxRowAlternatives = 4;
+
 // ---- One artifact's optional surfaces -----------------------------------------
 
 /// Provider participation: let this artifact contribute executable semantic power to the host's
@@ -69,6 +73,16 @@ struct ChoiceIntent {
     friend bool operator==(const ChoiceIntent&, const ChoiceIntent&) = default;
 };
 
+/// ONE ARTIFACT TRIED IN A ROW'S PLACE (format version 4): loaded as a weave under its own role
+/// when the row's own artifact, and every one named before it, could not be. A weave and no
+/// provider, since a provider's contribution is not one a load can take back.
+struct AlternativeIntent {
+    std::string stem;
+    WeaveIntent weave;
+
+    friend bool operator==(const AlternativeIntent&, const AlternativeIntent&) = default;
+};
+
 /// ONE AUTHORED PROJECT PARTICIPANT.
 ///
 /// Both surfaces are optional and independent; an artifact requesting NEITHER is
@@ -82,6 +96,11 @@ struct ArtifactIntent {
     /// by name and stepped over, and the rows behind it still run in authored order. It is not
     /// "skip what fails", and it cannot rescue a row that something behind it needs.
     bool optional = false;
+    /// What this row loads where its own artifact cannot (format version 4), in the order tried:
+    /// one whose load is refused passes to the next, one this installation does not hold is
+    /// passed over unsaid, and the first that loads stands in the row for the run. The OS window,
+    /// else the terminal window, is the shipped plan's.
+    std::vector<AlternativeIntent> otherwise{};
 
     friend bool operator==(const ArtifactIntent&, const ArtifactIntent&) = default;
 };
@@ -187,7 +206,73 @@ inline Written check_artifact(const ArtifactIntent& a) {
             return Written::no("artifact `" + a.stem + "`: " + role.refusal);
         }
     }
+    if (a.otherwise.empty()) {
+        return Written::ok();
+    }
+    if (a.provider.has_value() || !a.weave.has_value()) {
+        return Written::no("artifact `" + a.stem +
+                           "` names what to load in its place, which only a row loading a weave "
+                           "and supplying no operators may: a provider's contribution is not one "
+                           "a load can take back");
+    }
+    if (a.otherwise.size() > kMaxRowAlternatives) {
+        return Written::no("artifact `" + a.stem + "` names more than " +
+                           std::to_string(kMaxRowAlternatives) + " artifacts to load in its place");
+    }
+    for (std::size_t i = 0; i < a.otherwise.size(); ++i) {
+        const AlternativeIntent& alt = a.otherwise[i];
+        const Written named = check_artifact_stem(alt.stem);
+        if (!named.accepted) {
+            return Written::no("artifact `" + a.stem + "`, otherwise: " + named.refusal);
+        }
+        const Written office = check_weave_role(alt.weave.role);
+        if (!office.accepted) {
+            return Written::no("artifact `" + a.stem + "`, otherwise `" + alt.stem +
+                               "`: " + office.refusal);
+        }
+        if (alt.stem == a.stem) {
+            return Written::no("artifact `" + a.stem + "` names itself to load in its own place");
+        }
+        for (std::size_t k = 0; k < i; ++k) {
+            if (a.otherwise[k].stem == alt.stem) {
+                return Written::no("artifact `" + a.stem + "` names `" + alt.stem +
+                                   "` twice to load in its place");
+            }
+        }
+    }
     return Written::ok();
+}
+
+/// THE ROW TAKEN BY ITS NEXT ALTERNATIVE: the first artifact it names in its place loads in the
+/// row, and the ones after it stay its alternatives. Nothing when it names none.
+inline void take_next_alternative(ArtifactIntent& row) {
+    if (row.otherwise.empty()) {
+        return;
+    }
+    row.stem = row.otherwise.front().stem;
+    row.weave = row.otherwise.front().weave;
+    row.otherwise.erase(row.otherwise.begin());
+}
+
+/// THE ROW THAT LOADS INTO `role`, TAKEN ALONE: the row whose own weave holds `role` keeps it and
+/// tries nothing else; a row naming an alternative that holds `role` loads that alternative and
+/// nothing else. Refused, changing nothing, when no row may load into `role`.
+inline Written take_role(LoadPlan& plan, const std::string& role) {
+    for (ArtifactIntent& row : plan.artifacts) {
+        if (row.weave.has_value() && row.weave->role == role) {
+            row.otherwise.clear();
+            return Written::ok();
+        }
+        for (const AlternativeIntent& alt : row.otherwise) {
+            if (alt.weave.role == role) {
+                row.stem = alt.stem;
+                row.weave = alt.weave;
+                row.otherwise.clear();
+                return Written::ok();
+            }
+        }
+    }
+    return Written::no("no row of this plan loads anything into `" + role + "`");
 }
 
 /// A remembered choice: an office, and the name of the choice that held it.
@@ -316,6 +401,55 @@ inline std::vector<ChoiceIntent> choices_for(const LoadPlan& plan, const std::st
     return out;
 }
 
+/// The alternatives' own law, over the whole plan: what a row may load in its place is an
+/// artifact no other row or alternative names, into an office no other row may load into and no
+/// choice is authored for, since whichever stands in the row is that row for the run.
+inline Written check_alternatives(const LoadPlan& plan) {
+    for (std::size_t i = 0; i < plan.artifacts.size(); ++i) {
+        const ArtifactIntent& row = plan.artifacts[i];
+        for (const AlternativeIntent& alt : row.otherwise) {
+            for (std::size_t k = 0; k < plan.artifacts.size(); ++k) {
+                const ArtifactIntent& other = plan.artifacts[k];
+                if (other.stem == alt.stem) {
+                    return Written::no("artifact `" + alt.stem + "` is a row of its own and is "
+                                       "named to load in the place of `" + row.stem + "`");
+                }
+                if (k == i) {
+                    continue;
+                }
+                if (other.weave.has_value() && other.weave->role == alt.weave.role) {
+                    return Written::no("artifact `" + alt.stem + "`, named to load in the place "
+                                       "of `" + row.stem + "`, would load into `" +
+                                       alt.weave.role + "`, which `" + other.stem +
+                                       "` loads into");
+                }
+                for (const AlternativeIntent& theirs : other.otherwise) {
+                    if (theirs.stem == alt.stem) {
+                        return Written::no("artifact `" + alt.stem + "` is named to load in the "
+                                           "place of both `" + other.stem + "` and `" +
+                                           row.stem + "`");
+                    }
+                    if (theirs.weave.role == alt.weave.role) {
+                        return Written::no("`" + other.stem + "` and `" + row.stem +
+                                           "` each name an artifact to load into `" +
+                                           alt.weave.role + "` in their place");
+                    }
+                }
+            }
+            for (const ChoiceIntent& c : plan.choices) {
+                if (c.stem == alt.stem || c.role == alt.weave.role ||
+                    (row.weave.has_value() && c.role == row.weave->role)) {
+                    return Written::no("artifact `" + row.stem + "` names `" + alt.stem +
+                                       "` to load in its place, and `" + c.role +
+                                       "` has choices: an office is switched between choices "
+                                       "or has a row's alternatives, not both");
+                }
+            }
+        }
+    }
+    return Written::ok();
+}
+
 /// Every law a whole plan meets. Duplicates are exact-stem, with no canonicalisation: a stem
 /// carries no separator and resolves against one directory. An empty plan is legal; what a
 /// project must contain is not the format's to decide.
@@ -336,6 +470,9 @@ inline Written check_plan(const LoadPlan& plan) {
                                    "provider and weave participation are fields of it");
             }
         }
+    }
+    if (const Written alternatives = check_alternatives(plan); !alternatives.accepted) {
+        return alternatives;
     }
     return check_choices(plan);
 }

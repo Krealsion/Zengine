@@ -11,8 +11,11 @@ the package before it, whose tag stays.
 | Linux x86-64, glibc 2.35 or newer | `zengine-@VERSION@-linux-x86_64.tar.gz` | `tar -xzf` it anywhere; `./workshop.sh` (a window) or `./workshop-terminal.sh` (this terminal) |
 
 Nothing else needs installing. Your project is a folder of your own, made at the first start and
-kept across packages: `%USERPROFILE%\Zengine` on Windows, `~/Zengine` on Linux. `README.txt` in the
-package says where everything goes; `bin/zengine-workshop --version` names this package's commits.
+kept across packages: `%USERPROFILE%\Zengine` on Windows, `~/Zengine` on Linux. Both launchers share
+it; a `terminal` folder inside it, which earlier packages' terminal launchers used as their project,
+is left as it is, and no launcher reads it. Where no window can open, the window's launcher goes on
+in the terminal it was started from and says why. `README.txt` in the package says where
+everything goes; `bin/zengine-workshop --version` names this package's commits.
 
 **Windows says the file is from an unknown publisher.** The package is not signed. SmartScreen may
 stop `Workshop.cmd` the first time: choose **More info**, then **Run anyway**, once you have

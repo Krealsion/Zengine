@@ -138,12 +138,15 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::keymap_persist::WorkshopKeymap>(), // WorkshopKeymap v2
         shape<::zengine::workshop::keymap_persist::WorkshopKeymapRow>(), // WorkshopKeymapRow v1
         shape<::zengine::workshop::load::BootState>(), // BootState v1
+        shape<::zengine::workshop::load_persist::WorkshopLoadAlternative>(), // WorkshopLoadAlternative v1
         shape<::zengine::workshop::load_persist::v1::WorkshopLoadArtifact>(), // WorkshopLoadArtifact v1
-        shape<::zengine::workshop::load_persist::WorkshopLoadArtifact>(), // WorkshopLoadArtifact v2
+        shape<::zengine::workshop::load_persist::v3::WorkshopLoadArtifact>(), // WorkshopLoadArtifact v2
+        shape<::zengine::workshop::load_persist::WorkshopLoadArtifact>(), // WorkshopLoadArtifact v3
         shape<::zengine::workshop::load_persist::WorkshopLoadChoice>(), // WorkshopLoadChoice v1
         shape<::zengine::workshop::load_persist::v1::WorkshopLoadFile>(), // WorkshopLoadFile v1
         shape<::zengine::workshop::load_persist::v2::WorkshopLoadFile>(), // WorkshopLoadFile v2
-        shape<::zengine::workshop::load_persist::WorkshopLoadFile>(), // WorkshopLoadFile v3
+        shape<::zengine::workshop::load_persist::v3::WorkshopLoadFile>(), // WorkshopLoadFile v3
+        shape<::zengine::workshop::load_persist::WorkshopLoadFile>(), // WorkshopLoadFile v4
         shape<::zengine::workshop::load_persist::WorkshopLoadProvider>(), // WorkshopLoadProvider v1
         shape<::zengine::workshop::load_persist::WorkshopLoadWeave>(), // WorkshopLoadWeave v1
         shape<::zengine::workshop::v2::PaneActions>(), // PaneActions v2
