@@ -103,7 +103,7 @@ bool same_place(const graphics::AreaPlaced& a, const graphics::AreaPlaced& b) {
     return a.area == b.area && a.window == b.window && a.owner == b.owner && a.x == b.x &&
            a.y == b.y && a.w == b.w && a.h == b.h && a.order == b.order && a.keys == b.keys &&
            a.pointer == b.pointer && a.weaver_only == b.weaver_only && a.wheel == b.wheel &&
-           a.right == b.right;
+           a.right == b.right && a.followed == b.followed;
 }
 
 } // namespace
@@ -205,6 +205,7 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
             2 * static_cast<std::int64_t>(i) + 2, false,
             accepts(row->provider, *loom::schema_of<graphics::AreaButtonChanged>()),
             weaver_only_pane(*row)};
+        next[area].followed = true; // presses raise it; what it shows moves the desk's notice
         const SetupPane* seat =
             pane_of(session_.setup.active, PaneRef{row->provider, row->pane});
         const PaneSetting* own =
@@ -239,6 +240,7 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         next[session_.presented.area] = graphics::AreaPlaced{
             session_.presented.area, window_name_, kPresenterRole, menu.x, menu.y, menu.w, menu.h,
             panes_order + 2, false, true, about != nullptr && weaver_only_pane(*about)};
+        next[session_.presented.area].followed = true;
         skins[session_.presented.area] = session_.skin;
     }
     next[kWorkshopOverlayArea] = graphics::AreaPlaced{

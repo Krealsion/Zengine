@@ -190,7 +190,8 @@ shows there: its words, its parts with the point a press reaches them by, and a 
 when it draws again" "a weaver's press in a pane's area of the window ends a guest's guide mark
 standing there, and the press is the pane's"
 `tests/test_graphics.cpp` "the window tells an area's arranger, unasked, each time what the area
-shows settles at a new version, and once a version" "an area's arranger reads what the terminal window shows of it: its text
+shows settles at a new version, and once a version, when it follows the area; an area it placed
+without following it is never told" "an area's arranger reads what the terminal window shows of it: its text
 by row in the area's pixels, each part by its box and the cell a press reaches it by, what another's
 area in front paints over left out and its own hiding nothing, and asked again since its version,
 the same" "an area whose owner was told a room it must draw whole reads waiting until the owner
