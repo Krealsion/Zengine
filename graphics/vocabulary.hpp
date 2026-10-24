@@ -278,12 +278,13 @@ struct AreaPointerLeft {
 // ---- the keys in an area ------------------------------------------------------------------
 //
 // A window gives every key it reads, its release and the text it types to the owner of each area
-// placed to hear keys, front to back, naming that area and the hand, as a pointer moment does:
+// placed to hear that moment (`AreaPlaced::keys`, `releases`, `text`), front to back, naming that
+// area and the hand, as a pointer moment does:
 // `local` for the weaver's own, which the window reads from its platform. A guest's keys reach no
 // window: the input office says them, attributed (`input::AttributedInput`). `scancode`, `name`,
 // `modifiers` and `text` are the input vocabulary's (`input::KeyPressed`, `input::TextEntered`).
 
-/// Window -> the owner of an area placed to hear keys: a key went down.
+/// Window -> the owner of an area placed to hear keys (`AreaPlaced::keys`): a key went down.
 struct AreaKeyPressed {
     std::string area;
     std::int64_t scancode = 0;
@@ -295,7 +296,8 @@ struct AreaKeyPressed {
               ZEN_FIELD(modifiers), ZEN_FIELD(local), ZEN_FIELD(actor));
 };
 
-/// Window -> the owner of an area placed to hear keys: a key came up.
+/// Window -> the owner of an area placed to hear their releases (`AreaPlaced::releases`): a key came
+/// up.
 struct AreaKeyReleased {
     std::string area;
     std::int64_t scancode = 0;
@@ -307,7 +309,8 @@ struct AreaKeyReleased {
               ZEN_FIELD(modifiers), ZEN_FIELD(local), ZEN_FIELD(actor));
 };
 
-/// Window -> the owner of an area placed to hear keys: the text a key typed, as UTF-8.
+/// Window -> the owner of an area placed to hear text (`AreaPlaced::text`): the text a key typed, as
+/// UTF-8.
 struct AreaTextEntered {
     std::string area;
     std::string text;
@@ -357,14 +360,16 @@ struct WindowShaped {
 
 /// The arranger -> the directory: where an area stands, in which window, whose office draws in it,
 /// its order among the window's areas (a higher order stands in front), whether the window gives
-/// its keys to the owner, whether it gives the owner its pointer (`AreaButtonChanged` and the
-/// rest), whether the weaver's own hand alone reaches it: a guest's press there is refused
-/// (`AreaHandRefused`), whether an area that hears the pointer hears the wheel and the third
-/// button too: one that does not lets them through to the area behind it that does, and stands in
-/// front of no third-button press held there, and whether its arranger follows it: told where each
-/// press and release there landed while another office owns it (`AreaPressed`), that a hold ended
-/// or the pointer left (`AreaHoldEnded`, `AreaPointerLeft`), and each time what it shows settles
-/// (`AreaSettled`). An arranger that takes none of these places its areas without.
+/// the owner each key pressed (`keys`), each key's release (`releases`) and the text keys type
+/// (`text`) -- an owner places its areas for the moments it takes, and is given no other --
+/// whether it gives the owner its pointer (`AreaButtonChanged` and the rest), whether the weaver's
+/// own hand alone reaches it: a guest's press there is refused (`AreaHandRefused`), whether an area
+/// that hears the pointer hears the wheel and the third button too: one that does not lets them
+/// through to the area behind it that does, and stands in front of no third-button press held
+/// there, and whether its arranger follows it: told where each press and release there landed while
+/// another office owns it (`AreaPressed`), that a hold ended or the pointer left (`AreaHoldEnded`,
+/// `AreaPointerLeft`), and each time what it shows settles (`AreaSettled`). An arranger that takes
+/// none of these places its areas without.
 struct AreaPlaced {
     std::string area;
     std::string window;
@@ -377,10 +382,12 @@ struct AreaPlaced {
     bool wheel = true;
     bool right = true;
     bool followed = false;
-    ZEN_SHAPE(AreaPlaced, 6, ZEN_FIELD(area), ZEN_FIELD(window), ZEN_FIELD(owner), ZEN_FIELD(x),
+    bool releases = false;
+    bool text = false;
+    ZEN_SHAPE(AreaPlaced, 7, ZEN_FIELD(area), ZEN_FIELD(window), ZEN_FIELD(owner), ZEN_FIELD(x),
               ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h), ZEN_FIELD(order), ZEN_FIELD(keys),
               ZEN_FIELD(pointer), ZEN_FIELD(weaver_only), ZEN_FIELD(wheel), ZEN_FIELD(right),
-              ZEN_FIELD(followed));
+              ZEN_FIELD(followed), ZEN_FIELD(releases), ZEN_FIELD(text));
 };
 
 /// The arranger -> the directory: a skin is painter code in this library, from the load plan.
@@ -407,9 +414,9 @@ struct ElementCodeOffered {
 
 /// The directory -> a window: this area is yours, drawn by `owner`, here, painted by the skin in
 /// `library`; `arranger` is the office that placed it, as its placing was authored, empty for
-/// personal speech; `weaver_only`, `wheel`, `right` and `followed` as it was placed. Said again
-/// whenever any of it changes, to a window that offers itself again, and when the owner asks its
-/// room; the window answers each with the owner's room.
+/// personal speech; `weaver_only`, `wheel`, `right`, `followed`, `releases` and `text` as it was
+/// placed. Said again whenever any of it changes, to a window that offers itself again, and when
+/// the owner asks its room; the window answers each with the owner's room.
 struct AreaIntroduced {
     std::string area;
     std::string owner;
@@ -424,10 +431,13 @@ struct AreaIntroduced {
     bool wheel = true;
     bool right = true;
     bool followed = false;
-    ZEN_SHAPE(AreaIntroduced, 7, ZEN_FIELD(area), ZEN_FIELD(owner), ZEN_FIELD(arranger),
+    bool releases = false;
+    bool text = false;
+    ZEN_SHAPE(AreaIntroduced, 8, ZEN_FIELD(area), ZEN_FIELD(owner), ZEN_FIELD(arranger),
               ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h), ZEN_FIELD(order),
               ZEN_FIELD(keys), ZEN_FIELD(pointer), ZEN_FIELD(skin), ZEN_FIELD(library),
-              ZEN_FIELD(weaver_only), ZEN_FIELD(wheel), ZEN_FIELD(right), ZEN_FIELD(followed));
+              ZEN_FIELD(weaver_only), ZEN_FIELD(wheel), ZEN_FIELD(right), ZEN_FIELD(followed),
+              ZEN_FIELD(releases), ZEN_FIELD(text));
 };
 
 /// The directory -> a window: this area is no longer yours.

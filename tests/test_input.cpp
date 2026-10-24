@@ -2565,11 +2565,17 @@ TEST_CASE("a claim under another pid, or one that is not a count, holds nothing,
     CHECK(claim_text() == "(unset)");
 }
 
-TEST_CASE("a reader touches the terminal as the window's own, or while no window holds it") {
-    CHECK(terminal_reader_may_use_terminal(false, false));
-    CHECK_FALSE(terminal_reader_may_use_terminal(false, true));
-    CHECK(terminal_reader_may_use_terminal(true, false));
-    CHECK(terminal_reader_may_use_terminal(true, true));
+TEST_CASE("a reader touches the terminal as the terminal window's own, or while no window holds "
+          "input: neither a terminal window nor an OS window") {
+    CHECK(terminal_reader_may_use_terminal(false, false, false));
+    CHECK_FALSE(terminal_reader_may_use_terminal(false, true, false));
+    CHECK_FALSE(terminal_reader_may_use_terminal(false, false, true));
+    CHECK_FALSE(terminal_reader_may_use_terminal(false, true, true));
+    for (const bool terminal : {false, true}) {
+        for (const bool os : {false, true}) {
+            CHECK(terminal_reader_may_use_terminal(true, terminal, os));
+        }
+    }
 }
 
 TEST_CASE("an OS window's claim on SDL's queue is counted under this process's pid, apart from the "
@@ -2659,6 +2665,13 @@ struct PtyOnStdin {
         return ::tcgetattr(STDIN_FILENO, &t) == 0 &&
                (t.c_lflag & static_cast<tcflag_t>(ICANON)) != 0;
     }
+    /// As the person at it has it: a line at a time, what is typed echoed, and Ctrl+C an
+    /// interrupt.
+    bool as_found() const {
+        termios t{};
+        const auto on = static_cast<tcflag_t>(ICANON | ECHO | ISIG);
+        return ::tcgetattr(STDIN_FILENO, &t) == 0 && (t.c_lflag & on) == on;
+    }
     bool type(std::string_view text) const {
         return ::write(master, text.data(), text.size()) == static_cast<ssize_t>(text.size());
     }
@@ -2712,6 +2725,44 @@ TEST_CASE("a reader beside a terminal window takes nothing, reads nothing and gi
     }
     CHECK_FALSE(pty.cooked()); // the window's mode, untouched
     release_window_terminal_input();
+}
+
+TEST_CASE("a reader beside an OS window leaves the terminal as it found it and reads nothing typed "
+          "there; one that took it first gives it back when the window comes, and takes it again "
+          "once no window holds input") {
+    ClaimClearedAtEnd cleared;
+    PtyOnStdin pty;
+    REQUIRE(pty.ok);
+    REQUIRE(pty.as_found());
+
+    // MADE BESIDE AN OS WINDOW, it never takes the terminal, and what is typed there is not its.
+    claim_window_sdl_input();
+    {
+        PlatformReader beside;
+        CHECK(pty.as_found());
+        REQUIRE(pty.type("a"));
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        CHECK(beside.poll().empty());
+        CHECK(pty.as_found());
+    }
+    CHECK(pty.as_found());
+    release_window_sdl_input();
+
+    // MADE BEFORE THE WINDOW, it took the terminal: the window coming, it gives back the mode it
+    // found and reads nothing; the window gone, it takes the terminal again and reads it.
+    {
+        PlatformReader early;
+        REQUIRE_FALSE(pty.cooked());
+        claim_window_sdl_input();
+        CHECK(early.poll().empty());
+        CHECK(pty.as_found());
+        release_window_sdl_input();
+        CHECK(early.poll().empty());
+        CHECK_FALSE(pty.cooked());
+        REQUIRE(pty.type("b"));
+        CHECK(reads_text(early, "b"));
+    }
+    CHECK(pty.as_found());
 }
 
 TEST_CASE("the terminal window's own reader takes, reads and gives back the terminal it holds") {

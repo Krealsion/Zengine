@@ -10,7 +10,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 | `vocabulary.hpp` | the contract: moments, `scan::`, `mod::`, `space::`, sessions, `kInputRole` |
 | `translate.hpp` | POSIX terminal and Win32 console events to moments, as pure code |
 | `translate_sdl_core.hpp` | SDL events to moments, pure, for the OS window, which reads SDL's queue |
-| `window_claim.hpp` | a window's claim on the terminal's input, which the reader yields to, or SDL's queue |
+| `window_claim.hpp` | a window's claim on the terminal's input, or on SDL's queue: the reader yields the terminal to either |
 | `input_weave.hpp` | the weave over an injected reader: publish, beat, sessions, motion, facets |
 | `office_page.hpp` | `OfficePage`: the office manual both loadable weaves answer from; not installed |
 | `terminal_reader.hpp` | the terminal and console readers, the platform's input edge |

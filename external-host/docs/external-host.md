@@ -197,7 +197,7 @@ set a pane's settings by message:
   press inside it ends it, and so does its part leaving the pane. No mark stands on Connections,
   the Hotkeys pane or a part whose press opens either.
 - **`keystrokes`**, a power: hearing the weaver's input as it happens. An `observe` entry naming
-  `AttributedInput`, `KeyPressed` or `TextEntered`, or a window's `AreaKeyPressed`,
+  `AttributedInput`, `KeyPressed`, `KeyReleased` or `TextEntered`, or a window's `AreaKeyPressed`,
   `AreaKeyReleased` or `AreaTextEntered`, from any office, needs it; a row of an earlier
   version cannot hold it, so such an entry there is refused.
 - **`settings`**, a power: reading one pane's row of the live layout and writing one of its

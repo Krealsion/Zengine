@@ -5,11 +5,11 @@
 #define ZENGINE_INPUT_WINDOW_CLAIM_HPP
 
 // A window's claim on an input edge it shares with an Input reader in the same process: the
-// terminal window's on the terminal's input, the OS window's on SDL's one event queue. The window
-// and the reader are separate libraries, which share no variable, so a claim lives in the
-// process's environment as `<pid>:<count>`. A child process inherits the variable under another
-// pid and ignores it; the count keeps the claim across a reload in place, which builds the new
-// window before it destroys the old one. Reference: input/docs/zengine.input.md.
+// terminal window's on the terminal's input, the OS window's on SDL's queue, which also leaves the
+// console the run started from to the person at it. Window and reader share no variable, so a
+// claim lives in the environment as `<pid>:<count>`: a child ignores a claim under another pid,
+// and the count keeps it across a reload in place, which builds the new window first.
+// Reference: input/docs/zengine.input.md.
 
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
@@ -121,9 +121,12 @@ inline void release_window_terminal_input() {
     detail::release_window(kWindowTerminalInputVariable);
 }
 
-/// A reader touches the terminal when it is the window's own, or when no window holds it.
-inline bool terminal_reader_may_use_terminal(bool window_owner, bool window_holds) {
-    return window_owner || !window_holds;
+/// A reader touches the terminal when it is the terminal window's own, or when no window in this
+/// process holds input: neither a terminal window holding the terminal nor an OS window, which
+/// reads its own events and leaves the console the run started from to the person at it.
+inline bool terminal_reader_may_use_terminal(bool window_owner, bool terminal_window_holds,
+                                             bool os_window_holds) {
+    return window_owner || (!terminal_window_holds && !os_window_holds);
 }
 
 // ---- the OS window's claim on SDL's event queue ------------------------------------------------

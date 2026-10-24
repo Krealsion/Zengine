@@ -56,7 +56,7 @@ struct WindowState {
     std::vector<ElementCodeOffered> codes;
     std::int64_t next_handle = 1;
     std::int64_t refusals = 0;
-    ZEN_SHAPE(WindowState, 7, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
+    ZEN_SHAPE(WindowState, 8, ZEN_FIELD(epoch), ZEN_FIELD(areas), ZEN_FIELD(codes),
               ZEN_FIELD(next_handle), ZEN_FIELD(refusals));
 };
 
@@ -212,6 +212,8 @@ public:
         a->wheel = i.wheel;
         a->right = i.right;
         a->followed = i.followed;
+        a->releases = i.releases;
+        a->text = i.text;
         a->skin = i.skin;
         a->library = i.library;
         if (moved || repaint || handed) {
@@ -544,8 +546,8 @@ private:
     /// The beat: the medium measured, its queue read, its place said, its room offered, what it
     /// read sent on in the order read, and a close its desktop asked for published. A size is read
     /// at once and a maximize only with the queue, so a maximize is said before the room it brings.
-    /// Keys and their text go to each owner of an area placed to hear keys; a button, a move and
-    /// the wheel as `button`, `motion` and `wheel` say; moves read together go as one, summed.
+    /// A key, its release and its text go to each owner placed to hear that moment; a button, a move
+    /// and the wheel as `button`, `motion` and `wheel` say; moves read together go as one, summed.
     // WL-SESSION-09 -- agents/workshop/session-restore.md
     void service_pump(loom::Mail& mail) {
         namespace in = zengine::input;
@@ -599,14 +601,19 @@ private:
         std::int64_t key() const { return local ? 0 : actor; }
     };
 
-    /// A key, its release or its text, to the owner of each area placed to hear keys, front to
-    /// back, naming that area and the hand that made it.
+    /// Whether an area was placed to hear this key moment: a key, its release, its text.
+    static bool hears(const WinArea& a, const AreaKeyPressed&) { return a.keys; }
+    static bool hears(const WinArea& a, const AreaKeyReleased&) { return a.releases; }
+    static bool hears(const WinArea& a, const AreaTextEntered&) { return a.text; }
+
+    /// A key, its release or its text, to the owner of each area placed to hear that moment, front
+    /// to back, naming that area and the hand that made it.
     template <class Typed>
     void to_keys(loom::Mail& mail, Typed typed, const Hand& hand) {
         typed.local = hand.local;
         typed.actor = hand.actor;
         for (const WinArea* a : front_to_back(this->state_.areas)) {
-            if (a->keys && !a->owner.empty()) {
+            if (hears(*a, typed) && !a->owner.empty()) {
                 typed.area = a->area;
                 (void)mail.as_role(office()).send_to_role(a->owner, typed);
             }

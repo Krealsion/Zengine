@@ -1498,7 +1498,7 @@ TEST_CASE("observation: the weaver's input, a window's keys among it, is heard o
     whole.capture = {"*"};
     for (guests::GuestRow* row : {&keys, &tutor, &whole}) {
         for (const char* shape : {input::AttributedInput::zen_name, input::KeyPressed::zen_name,
-                                  input::TextEntered::zen_name}) {
+                                  input::KeyReleased::zen_name, input::TextEntered::zen_name}) {
             row->observe.push_back({input::kInputRole, shape, 1});
         }
         for (const char* shape : {gfx::AreaKeyPressed::zen_name, gfx::AreaKeyReleased::zen_name,
@@ -1520,9 +1520,10 @@ TEST_CASE("observation: the weaver's input, a window's keys among it, is heard o
         asking = row;
         return policy(loom::observe::ObserveRequest{loom::WeaveId{5}, producer, {{shape, version}}, "suite"});
     };
-    // THE WEAVER'S INPUT, from whichever office says it: refused without `keystrokes`...
+    // THE WEAVER'S INPUT, from whichever office says it, a key's release among it: refused without
+    // `keystrokes`...
     for (const char* shape : {input::AttributedInput::zen_name, input::KeyPressed::zen_name,
-                              input::TextEntered::zen_name}) {
+                              input::KeyReleased::zen_name, input::TextEntered::zen_name}) {
         CAPTURE(shape);
         const auto said = ask(0, input::kInputRole, shape, 1);
         CHECK_FALSE(said.allowed);
