@@ -1663,8 +1663,10 @@ TEST_CASE("contextual Arrange admission precedes binding") {
         REQUIRE(t.menu().subject == context_subject::kPane);
         REQUIRE(t.menu().pane == second_ref());
         // ...and the pane the menu is holding goes off this screen before the key lands.
-        REQUIRE(author_pane_place(live(t).setup.active, second_ref(), kScreenMaxW, kScreenMaxH)
-                    .accepted);
+        stage_desk(t, [&](Setup& desk) {
+            REQUIRE(author_pane_place(desk, second_ref(), kScreenMaxW, kScreenMaxH)
+                        .accepted);
+        });
         t.key(input::scan::kReturn); // the top row is Arrange
         CHECK_FALSE(t.menu().open);
         CHECK_FALSE(t.session().arrange.open);
@@ -1709,7 +1711,9 @@ TEST_CASE("a captured pane that left the setup is refused truthfully") {
     REQUIRE(t.menu().pane == ref_of(stock::kKind));
     // The reference leaves the setup UNDER the open surface -- the clearing that keeps
     // the mode's own selection fresh does not know this subject exists.
-    REQUIRE(remove_pane(live(t).setup.active, ref_of(stock::kKind)));
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(remove_pane(desk, ref_of(stock::kKind)));
+    });
 
     SUBCASE("Arrange refuses with absence, not with an unrelated geometry sentence") {
         t.key(input::scan::kReturn); // Arrange
@@ -2006,7 +2010,7 @@ namespace {
 std::vector<std::string> layout_names(const Live& t) {
     std::vector<std::string> out;
     for (std::size_t i = 0; i < layout_count(t.session().setup); ++i) {
-        out.push_back(layout_at(t.session().setup, i).name);
+        out.push_back(layout_at(t.run(), i).name);
     }
     return out;
 }
@@ -2031,18 +2035,24 @@ TEST_CASE("a switch returns membership, geometry and front order as authored") {
     // LAYOUT ONE: the second stand-in alone, moved somewhere a weaver chose.
     pick(t, second::kKind);
     REQUIRE(t.session().panes.has(second::kKind));
-    REQUIRE(author_pane_place(live(t).setup.active, second_ref(),
-                              gfx::px_of_cells(3), gfx::px_of_cells(4))
-                .accepted);
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, second_ref(),
+                                  gfx::px_of_cells(3), gfx::px_of_cells(4))
+                    .accepted);
+    });
     const Setup first = t.session().setup.active;
 
     press_gesture(t, k.make);
     // LAYOUT TWO: a different membership, a different place, a different front order.
     open_stock_pane(t);
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind),
-                              gfx::px_of_cells(9), gfx::px_of_cells(2))
-                .accepted);
-    REQUIRE(send_to_back(live(t).setup.active, ref_of(stock::kKind)));
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, ref_of(stock::kKind),
+                                  gfx::px_of_cells(9), gfx::px_of_cells(2))
+                    .accepted);
+    });
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(send_to_back(desk, ref_of(stock::kKind)));
+    });
     const Setup second = t.session().setup.active;
     REQUIRE(first != second);
 
@@ -2087,7 +2097,9 @@ TEST_CASE("a switch touches no Workshop-global fact") {
     // A LAYOUT WITHOUT THE BUILDER IN IT -- which is what `layout.new` makes: a fresh blank
     // desk, whose membership `apply_setup` reconciles to through the one door.
     press_gesture(t, k.make);
-    live(t).setup.active.name = "Inspect";
+    stage_desk(t, [&](Setup& desk) {
+        desk.name = "Inspect";
+    });
     REQUIRE_FALSE(t.session().panes.has(stock::kKind));
 
     // THE SELECTION IS NOT DESTROYED BY THE SWITCH -- it simply resolves to nothing while
@@ -2112,9 +2124,13 @@ TEST_CASE("pressing a painted tab switches, and the rest of the row does not") {
     t.host.setup_path = "workshop-setup.json";
     const LayoutKeys k = layout_keys(t);
     press_gesture(t, k.make);
-    live(t).setup.active.name = "Second";
+    stage_desk(t, [&](Setup& desk) {
+        desk.name = "Second";
+    });
     press_gesture(t, k.make);
-    live(t).setup.active.name = "Third";
+    stage_desk(t, [&](Setup& desk) {
+        desk.name = "Third";
+    });
     REQUIRE(layout_names(t) == std::vector<std::string>{"Default", "Second", "Third"});
     REQUIRE(t.session().setup.active_at == 2);
 
@@ -2166,7 +2182,9 @@ TEST_CASE("a tab press IS a press on the Layouts pane, and still switches") {
     REQUIRE(t.session().panes.selected == stock::kKind);
 
     press_gesture(t, k.make);
-    live(t).setup.active.name = "Other";
+    stage_desk(t, [&](Setup& desk) {
+        desk.name = "Other";
+    });
     // THE ROW THE TABS ARE PAINTED ON, which is the Layouts pane's first interior row.
     const std::int64_t band_row = top_band_bounds(screen_of(t.session())).y;
     t.press_canvas(tab_cell(t, 0), band_row);
@@ -2228,7 +2246,7 @@ TEST_CASE("a new layout is blank and duplicates no Workshop-global state") {
     // replacement does.
     CHECK(t.session().setup.active == default_setup());
     CHECK_FALSE(t.session().panes.has(stock::kKind));
-    CHECK(live_status(t.session().setup) == setup_link::kNone);
+    CHECK(live_status(t.run()) == setup_link::kNone);
     // ...AND NOTHING WORKSHOP-GLOBAL WAS COPIED, CLEARED OR REVALIDATED. The catalog and the
     // external instances are one truth each, and a desk is not a door to either.
     CHECK(t.session().panes.runtime.entries.size() == runtime_before);
@@ -2237,7 +2255,7 @@ TEST_CASE("a new layout is blank and duplicates no Workshop-global state") {
     // Workshop-global fact and is why it is counted here rather than assumed.
     CHECK(t.session().panes.external.size() == external_before - 1);
     // AND THE LAYOUT IT WAS MADE FROM IS UNTOUCHED, waiting where it was.
-    CHECK(layout_at(t.session().setup, 0) == was);
+    CHECK(layout_at(t.run(), 0) == was);
     press_gesture(t, k.previous);
     CHECK(t.session().panes.has(stock::kKind));
 }
@@ -2285,7 +2303,7 @@ TEST_CASE("a double-click on a tab renames THAT layout, and writes no file") {
     CHECK(layout_names(t) == std::vector<std::string>{"Home", "Code", "Gallery"});
     // AND NO SETUP ARTIFACT WAS WRITTEN. Renaming is a layout operation.
     CHECK_FALSE(std::filesystem::exists(t.host.setup_path));
-    CHECK(live_status(t.session().setup) == setup_link::kNone);
+    CHECK(live_status(t.run()) == setup_link::kNone);
 
     // A THIRD PRESS IS AN ORDINARY PRESS AGAIN: the arming is SPENT, so there is no
     // triple-click and no editor re-opening under a weaver's hand.
@@ -2334,7 +2352,7 @@ TEST_CASE("a tab's context menu acts on THAT tab") {
     REQUIRE(choose_context_action(t, "layout.duplicate"));
     CHECK(layout_names(t) == std::vector<std::string>{"Home", "Home", "Code"});
     CHECK(t.session().setup.active_at == 1);
-    CHECK(t.session().setup.active == layout_at(t.session().setup, 0));
+    CHECK(t.session().setup.active == layout_at(t.run(), 0));
 
     // ⚠ AND `^w` IS NOT TAUGHT BESIDE A ROW THAT CLOSES A DIFFERENT LAYOUT. Found by the live
     // TUI witness: `layout.remove` IS bound and requestable in command mode, so the annotation
@@ -2412,7 +2430,7 @@ TEST_CASE("Move Left and Move Right reorder from the tab that was pointed at") {
         CAPTURE(tab.at);
         const std::string span = row.text.substr(static_cast<std::size_t>(tab.column),
                                                  static_cast<std::size_t>(tab.columns));
-        CHECK(span.find(layout_at(t.session().setup, tab.at).name) != std::string::npos);
+        CHECK(span.find(layout_at(t.run(), tab.at).name) != std::string::npos);
     }
 }
 
@@ -2452,7 +2470,7 @@ TEST_CASE("dragging a tab along the run reorders it and nothing else") {
     // and no association was created by any of it.
     CHECK(t.session().setup.active == live);
     CHECK(t.session().panes.open.size() == panes_before);
-    CHECK(live_status(t.session().setup) == setup_link::kNone);
+    CHECK(live_status(t.run()) == setup_link::kNone);
 }
 
 TEST_CASE("the `+` affordance is the pointer's spelling of `layout.new`") {
@@ -2469,7 +2487,7 @@ TEST_CASE("the `+` affordance is the pointer's spelling of `layout.new`") {
     CHECK(layout_count(t.session().setup) == 4);
     CHECK(t.session().setup.active_at == 3);
     CHECK(t.session().setup.active == default_setup());
-    CHECK(live_status(t.session().setup) == setup_link::kNone);
+    CHECK(live_status(t.run()) == setup_link::kNone);
 
     // ...AND IT REFUSES A NINTH IN THE SAME WORDS THE KEY DOES.
     while (layout_count(t.session().setup) < kMaxLayouts) {
@@ -2501,14 +2519,15 @@ TEST_CASE("at the minimum width the `+` yields to the tab and the status") {
             Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
             admit_stock(s.panes);
             admit_second(s.panes);
-            s.setup.active = setup_of(std::string(len, 'z'), {second::kKind});
+            SetupState run;
+            run.active = setup_of(std::string(len, 'z'), {second::kKind});
             for (std::size_t more = 1; more < count; ++more) {
-                s.setup.shelved.push_back(Layout{
+                run.shelved.push_back(Layout{
                     setup_of(std::string(len, static_cast<char>('a' + more)), {second::kKind}),
                     SetupLink{}});
             }
-            s.setup.active_link =
-                SetupLink{"/a/very/long/path/to/an/artifact.json", s.setup.active};
+            run.active_link = SetupLink{"/a/very/long/path/to/an/artifact.json", run.active};
+            s.setup = live_copy_of(run);
 
             const BandStatus row = band_status(s, screen_of(s));
             INFO(row.text);
@@ -2658,22 +2677,20 @@ TEST_CASE("a typed place moves Layouts through the gesture door, and its tabs fo
 }
 
 TEST_CASE("a typed place reseats the stack through `apply_setup`") {
-    // ⚔ MUTATION: a write that lands in the `SetupPane` without going through the
-    // commit path's reseat. `bounds_of` reads the setup live, so a moved pane MOVES either
-    // way -- what a bypass leaves behind is a row this case authors past the doors, still
-    // unseated after the write.
+    // ⚔ MUTATION: a live layout presented without the reseat. `bounds_of` reads the setup live,
+    // so a moved pane MOVES either way -- what a bypass leaves behind is a row the store keeps
+    // and the desk does not seat.
     Live t;
     open_stock_pane(t);
     REQUIRE(t.session().panes.has(stock::kKind));
-    REQUIRE(add_pane(live(t).setup.active, second_ref())); // past the doors: nothing reconciles it
-    t.extent_px(cells_px(80), cells_px(22), 0, 0); // nor does a new room
+    stage_desk(t, [&](Setup& desk) { REQUIRE(add_pane(desk, second_ref())); });
     REQUIRE(has_pane(t.session().setup.active, second_ref()));
-    REQUIRE_FALSE(t.session().panes.has(second::kKind)); // authored, and not seated
+    REQUIRE_FALSE(t.session().panes.has(second::kKind)); // authored, and not seated yet
     REQUIRE(hand_inspect(t, stock_ref()).accepted);
     CHECK(hand_commit(t, "X", "2").accepted);
     CHECK_FALSE(t.session().notice_is_bad);
-    // THE STAND-IN LEFT THE STACK, AND THE COMMIT'S RECONCILE SEATED THE ROW AUTHORED PAST THE
-    // DOORS -- which only a reconcile does.
+    // THE STAND-IN LEFT THE STACK, AND THE STORE'S LIVE LAYOUT, PRESENTED, SEATED THE ROW -- which
+    // only a reconcile does.
     CHECK(t.session().panes.has(second::kKind));
     CHECK(pane_of(t.session().setup.active, stock_ref())->place.mode == pane_unit::kPixels);
 }
@@ -2792,11 +2809,17 @@ TEST_CASE("a closed pane and an unresolved row are subjects with honest facts") 
     CHECK(subject_value(t.session(), "State") == "closed -- show it from the Pane Manager");
 
     // AN AUTHORED REFERENCE NO OFFICE RESOLVES keeps its identity and its geometry.
-    REQUIRE(add_pane(live(t).setup.active, stranger()));
-    REQUIRE(author_pane_place(live(t).setup.active, stranger(), cells_px(7), cells_px(9)).accepted);
-    REQUIRE(author_pane_size(live(t).setup.active, stranger(),
-                             PaneSize{pane_unit::kPixels, cells_px(30)}, PaneSize{})
-                .accepted);
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(add_pane(desk, stranger()));
+    });
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, stranger(), cells_px(7), cells_px(9)).accepted);
+    });
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_size(desk, stranger(),
+                                 PaneSize{pane_unit::kPixels, cells_px(30)}, PaneSize{})
+                    .accepted);
+    });
     REQUIRE(hand_inspect(t, stranger()).accepted);
     CHECK(subject_value(t.session(), "Name") == "history");
     CHECK(subject_value(t.session(), "Identity") == "third.party.tools/history");
@@ -2826,19 +2849,19 @@ TEST_CASE("editing a pane in a layout related to a current Setup makes it modifi
     // and the inspection holds no flag of its own.
     Live t;
     t.extent_px(cells_px(132), cells_px(46), 0, 0);
-    link_live_setup(live(t).setup, "somewhere.json");
-    REQUIRE(live_status(t.session().setup) == setup_link::kCurrent);
+    stage_run(*t.w, [](SetupState& run) { link_live_setup(run, "somewhere.json"); });
+    REQUIRE(live_status(t.run()) == setup_link::kCurrent);
     REQUIRE(hand_inspect(t, ref_of(pane_kind::kLayouts)).accepted);
     // reading is not editing
     for (const Row& r : t.session().inspected.rows) {
         (void)r.value();
     }
-    CHECK(live_status(t.session().setup) == setup_link::kCurrent);
+    CHECK(live_status(t.run()) == setup_link::kCurrent);
     REQUIRE(hand_commit(t, "Y", "20").accepted);
-    CHECK(live_status(t.session().setup) == setup_link::kModified);
+    CHECK(live_status(t.run()) == setup_link::kModified);
     // ...and undoing it by hand makes it current again, because there is no flag.
     REQUIRE(hand_commit(t, "Y", "-").accepted);
-    CHECK(live_status(t.session().setup) == setup_link::kCurrent);
+    CHECK(live_status(t.run()) == setup_link::kCurrent);
 }
 
 TEST_CASE("moving, resizing and closing Layouts through the doors leaves the reservation alone") {
@@ -3023,12 +3046,14 @@ TEST_CASE("a desk with no unoccupied cell still reaches selection = none") {
     const Screen sc = screen_of(t.session());
     // The Builder over the whole room, the side column included -- an authored place is
     // measured from the room's top-left, and the room is what a pane may cover.
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), 0, 0).accepted);
-    const Written sized =
-        author_pane_size(live(t).setup.active, ref_of(stock::kKind),
-                         PaneSize{pane_unit::kPixels, sc.w},
-                         PaneSize{pane_unit::kPixels,
-                                  sc.room_h});
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, ref_of(stock::kKind), 0, 0).accepted);
+    });
+    Written sized = Written::ok();
+    stage_desk(t, [&](Setup& desk) {
+        sized = author_pane_size(desk, ref_of(stock::kKind), PaneSize{pane_unit::kPixels, sc.w},
+                                 PaneSize{pane_unit::kPixels, sc.room_h});
+    });
     REQUIRE_MESSAGE(sized.accepted, sized.refusal);
     t.extent_px(cells_px(132), cells_px(47), 0, 0); // reseat
     t.extent_px(cells_px(132), cells_px(46), 0, 0);
@@ -3086,7 +3111,9 @@ TEST_CASE("a code-backed subject's interior is a read-only capture, and an unres
     CHECK(subject_value(t.session(), "Interior", "INTERIOR") ==
           "a provider's own -- not presented; no authored interior");
     // AN UNRESOLVED STRANGER: nothing to inspect, and no pretence.
-    REQUIRE(add_pane(live(t).setup.active, stranger()));
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(add_pane(desk, stranger()));
+    });
     REQUIRE(hand_inspect(t, stranger()).accepted);
     CHECK(subject_value(t.session(), "Interior", "INTERIOR") == "unresolved -- nothing to inspect");
 }

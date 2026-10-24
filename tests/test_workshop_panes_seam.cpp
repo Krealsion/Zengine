@@ -598,8 +598,10 @@ TEST_CASE("an authored external reference is unresolved until its office offers 
     r.mount_workshop();
     // The weaver authored this before any provider existed -- which the setup grammar allows,
     // and a pane protocol consumer resolves.
-    REQUIRE(add_pane(r.session().setup.active, hello_ref()));
-    link_live_setup(r.session().setup, "setup.json");
+    stage_run(*r.w, [](SetupState& run) {
+        REQUIRE(add_pane(run.active, hello_ref()));
+        link_live_setup(run, "setup.json");
+    });
     r.key(input::scan::kP);
     r.key(input::scan::kEscape); // a repaint, so the setup line is current
 
@@ -626,7 +628,7 @@ TEST_CASE("an authored external reference is unresolved until its office offers 
                             r.session().keymap, KeySpelling::kShort)
               .find("1 unresolved") != std::string::npos);
     // THE SETUP IS STILL SAVED: resolving is not an edit.
-    CHECK((live_status(r.session().setup) == setup_link::kCurrent));
+    CHECK((live_status(r.run()) == setup_link::kCurrent));
 }
 
 TEST_CASE("a fresh session with no provider leaves the same reference unresolved again") {
@@ -640,8 +642,10 @@ TEST_CASE("a fresh session with no provider leaves the same reference unresolved
 
     PaneRig fresh;
     fresh.mount_workshop();
-    fresh.session().setup.active = saved;
-    fresh.session().setup.active_link = SetupLink{"setup.json", saved};
+    stage_run(*fresh.w, [&](SetupState& run) {
+        run.active = saved;
+        run.active_link = SetupLink{"setup.json", saved};
+    });
     CHECK(fresh.session().panes.runtime.entries.empty());
     const std::vector<PaneRef> waiting =
         unresolved_panes(saved, fresh.session().panes);
@@ -784,7 +788,7 @@ TEST_CASE("a pane launched where its own place stands off this screen stays ther
     const std::int64_t hello = r.session().panes.runtime.entries[0].kind;
     REQUIRE(r.session().panes.has(hello));
     // ITS OWN PLACE, past the room's right edge.
-    REQUIRE(author_pane_place(r.session().setup.active, hello_ref(), cells_px(300), 0).accepted);
+    REQUIRE(staged_author_pane_place(r, hello_ref(), cells_px(300), 0).accepted);
     r.key(input::scan::kUnknown); // a delivery, so the desk claims what it now is
     const Screen sc = screen_of(r.session());
     REQUIRE(bounds_of(r.session().panes, r.session().setup.active, hello, sc).rect.empty());
@@ -812,8 +816,10 @@ TEST_CASE("an oversubscribed authored setup seats every reference, the column be
     Setup both = r.session().setup.active;
     (void)add_pane(both, other_ref); // a second stack pane, authored first
     (void)add_pane(both, hello_ref());
-    r.session().setup.active = both;
-    r.session().setup.active_link = SetupLink{"setup.json", both};
+    stage_run(*r.w, [&](SetupState& run) {
+        run.active = both;
+        run.active_link = SetupLink{"setup.json", both};
+    });
     ProviderSeat* seat2 = r.mount_provider(kOtherOffice);
     r.drive(seat2, [](ProviderSeat& s, loom::Mail& m) {
         s.offer(m, PaneOffered{"other", "Other", "a second stack pane"});
@@ -829,7 +835,7 @@ TEST_CASE("an oversubscribed authored setup seats every reference, the column be
     // AND THE AUTHORED REFERENCES ARE UNTOUCHED -- authored validity does not depend on extent,
     // so a setup legal on a tall screen is legal on a short one.
     CHECK(check_setup(r.session().setup.active).accepted);
-    CHECK((live_status(r.session().setup) == setup_link::kCurrent));
+    CHECK((live_status(r.run()) == setup_link::kCurrent));
 
     // THE SECOND BEGINS THE COLUMN AGAIN AT ITS TOP, in front of the first by its rank.
     const auto top_of = [&r](std::int64_t kind) {
@@ -1398,7 +1404,7 @@ TEST_CASE("the off-screen sentence fits a hundred-column terminal whole, both wa
         });
         r.extent(100, 30);
         r.pick(hello_ref());
-        REQUIRE(author_pane_place(r.session().setup.active, hello_ref(), cells_px(300), 0).accepted);
+        REQUIRE(staged_author_pane_place(r, hello_ref(), cells_px(300), 0).accepted);
         r.key(input::scan::kUnknown); // a delivery, so the desk claims what it now is
         (void)hand_launch(r, hello_ref());
         const std::string& said = r.last_notice();

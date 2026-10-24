@@ -1,34 +1,23 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-#ifndef ZENGINE_WORKSHOP_LAYOUT_SHELF_HPP
-#define ZENGINE_WORKSHOP_LAYOUT_SHELF_HPP
+#ifndef ZENGINE_WORKSHOP_LAYOUTS_RUN_HPP
+#define ZENGINE_WORKSHOP_LAYOUTS_RUN_HPP
 
-// The layouts a session holds: the run of desks and which one is live, each desk's link to a
-// setup file, and the editor over a layout's name. A part of `workshop/setup.hpp`, which
-// includes it after the setup value; nothing else includes it.
+// The layouts a run holds: the run of desks and which one is live, the id the owner minted for
+// each, and each desk's link to a setup file.
 // Workshop law: agents/workshop/layouts.md (+3 registers; agents/workshop.md routes)
 
-#include "component/text_box.hpp"
+#include "workshop/setup.hpp"
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
 namespace zengine::workshop {
-
-// ---- The session's side of it -------------------------------------------------
-
-/// THE ONE-LINE LAYOUT-NAME EDITOR: open or not, which layout it is naming, and
-/// the line being typed.
-// WL-LAYOUT-10 -- agents/workshop/layouts.md; WL-TEXT-01 -- agents/workshop/text-box.md
-struct LayoutNaming {
-    bool open = false;
-    std::size_t at = 0;
-    component::TextBox line;
-};
 
 /// A LAYOUT'S OPTIONAL RELATIONSHIP TO ONE STANDALONE SETUP ARTIFACT.
 // WL-LAYOUT-01, WL-LAYOUT-02, WL-LAYOUT-11 -- agents/workshop/layouts.md
@@ -42,13 +31,6 @@ struct SetupLink {
     friend bool operator!=(const SetupLink& a, const SetupLink& b) { return !(a == b); }
 };
 
-/// What the active layout's status says: derived at every composition, stored nowhere.
-namespace setup_link {
-inline constexpr std::int64_t kNone = 0;     ///< no artifact is associated
-inline constexpr std::int64_t kCurrent = 1;  ///< the desk equals the last known value
-inline constexpr std::int64_t kModified = 2; ///< it is associated and differs from it
-} // namespace setup_link
-
 /// WHICH OF THE THREE THIS LAYOUT IS. Pure, total, and the ONE place the question
 /// is decided.
 // WL-LAYOUT-02 -- agents/workshop/layouts.md
@@ -59,12 +41,14 @@ inline std::int64_t link_status(const Setup& desk, const SetupLink& link) noexce
     return desk == link.known ? setup_link::kCurrent : setup_link::kModified;
 }
 
-/// ONE LAYOUT AS THE SHELF AND THE RUN HOLD IT: the desk, and the artifact it is
-/// associated with.
-// WL-LAYOUT-01 -- agents/workshop/layouts.md
+/// ONE LAYOUT AS THE SHELF AND THE RUN HOLD IT: the desk, the artifact it is associated with, and
+/// the id the owner minted for it (0 for one no run holds yet). Two are equal when they hold the
+/// same desk and link: the id says which layout of the run one is, not what it holds.
+// WL-LAYOUT-01 -- agents/workshop/layouts.md; WL-SESSION-05 -- agents/workshop/session-restore.md
 struct Layout {
     Setup desk;
     SetupLink link;
+    std::int64_t id = 0;
 
     friend bool operator==(const Layout& a, const Layout& b) {
         return a.desk == b.desk && a.link == b.link;
@@ -72,15 +56,18 @@ struct Layout {
     friend bool operator!=(const Layout& a, const Layout& b) { return !(a == b); }
 };
 
-/// THE LAYOUTS THIS WORKSHOP IS HOLDING, WHICH ONE IS LIVE, AND THE EDITOR OVER
-/// ITS NAME.
+/// THE LAYOUTS ONE RUN HOLDS, WHICH ONE IS LIVE, AND THE ID THE NEXT NEW ONE TAKES.
 // WL-LAYOUT-01, WL-LAYOUT-03 -- agents/workshop/layouts.md
 struct SetupState {
     Setup active = default_setup();
     SetupLink active_link;
-    LayoutNaming naming;
+    std::int64_t active_id = 1;
     std::vector<Layout> shelved;
     std::size_t active_at = 0;
+    /// The id the next new or copied layout takes: above every id the run holds, and never one a
+    /// layout of this run held before.
+    // WL-SESSION-05 -- agents/workshop/session-restore.md
+    std::int64_t next_id = 2;
     /// How many times another desk has been put live (a switch, a restored run, a new or removed
     /// live layout, a desk restored from its file); never persisted. How a reader that named "this
     /// pane on this desk" learns the desk is another one (`InspectedPane::desk`).
@@ -88,9 +75,17 @@ struct SetupState {
     std::uint64_t put_live = 0;
 };
 
-/// How many layouts this Workshop holds, the active one included: never zero, as `active` is a
-/// value.
+/// How many layouts this run holds, the active one included: never zero, as `active` is a value.
 inline std::size_t layout_count(const SetupState& s) noexcept { return s.shelved.size() + 1; }
+
+/// Where the live layout stands, held to the run.
+inline std::size_t live_at(const SetupState& s) noexcept {
+    return s.active_at < layout_count(s) ? s.active_at : s.shelved.size();
+}
+
+/// The live layout's desk.
+inline const Setup& live_desk(const SetupState& s) noexcept { return s.active; }
+inline Setup& live_desk(SetupState& s) noexcept { return s.active; }
 
 /// Where position `at` sits on the shelf, for a position that is not the live one: the one place a
 /// run index becomes a shelf index.
@@ -115,6 +110,29 @@ inline const SetupLink& link_at(const SetupState& s, std::size_t at) noexcept {
     return s.shelved[shelf_index(s, at)].link;
 }
 
+/// ...AND ITS ID, by the same rule.
+inline std::int64_t id_at(const SetupState& s, std::size_t at) noexcept {
+    if (at == s.active_at || at >= layout_count(s)) {
+        return s.active_id;
+    }
+    return s.shelved[shelf_index(s, at)].id;
+}
+
+/// WHERE THE LAYOUT WITH ID `id` STANDS -- 0 is the live one -- or nothing when no layout of
+/// the run holds it: a layout gone is never another one.
+// WL-SESSION-05 -- agents/workshop/session-restore.md
+inline std::optional<std::size_t> position_of(const SetupState& s, std::int64_t id) noexcept {
+    if (id == 0 || id == s.active_id) {
+        return s.active_at;
+    }
+    for (std::size_t at = 0; at < layout_count(s); ++at) {
+        if (at != s.active_at && s.shelved[shelf_index(s, at)].id == id) {
+            return at;
+        }
+    }
+    return std::nullopt;
+}
+
 /// MAKE THE LAYOUT AT POSITION `to` THE LIVE ONE -- the whole of a switch's value
 /// half, and the only thing in this application that changes which layout is
 /// active.
@@ -124,34 +142,54 @@ inline bool activate_layout(SetupState& s, std::size_t to) {
         return false;
     }
     s.shelved.insert(s.shelved.begin() + static_cast<std::ptrdiff_t>(s.active_at),
-                     Layout{std::move(s.active), std::move(s.active_link)});
+                     Layout{std::move(s.active), std::move(s.active_link), s.active_id});
     s.active = std::move(s.shelved[to].desk);
     s.active_link = std::move(s.shelved[to].link);
+    s.active_id = s.shelved[to].id;
     s.shelved.erase(s.shelved.begin() + static_cast<std::ptrdiff_t>(to));
     s.active_at = to;
     ++s.put_live;
     return true;
 }
 
-/// THE WEAVER'S ORDERED RUN, WITH THE LIVE ONE PUT BACK WHERE IT SITS.
+/// THE WEAVER'S ORDERED RUN, WITH THE LIVE ONE PUT BACK WHERE IT SITS, each with its id.
 // WL-LAYOUT-04, WL-LAYOUT-12 -- agents/workshop/layouts.md
 inline std::vector<Layout> layout_run(const SetupState& s) {
     std::vector<Layout> run = s.shelved;
     // Total over `active_at`, as `layout_at` is.
     const std::size_t at = s.active_at <= s.shelved.size() ? s.active_at : s.shelved.size();
-    run.insert(run.begin() + static_cast<std::ptrdiff_t>(at), Layout{s.active, s.active_link});
+    run.insert(run.begin() + static_cast<std::ptrdiff_t>(at),
+               Layout{s.active, s.active_link, s.active_id});
     return run;
 }
 
-/// TAKE AN ORDERED RUN AND LIFT ONE OF IT LIVE -- the direction a
-/// restored session travels, and the only other place the run's spelling is made.
+/// TAKE AN ORDERED RUN AND LIFT ONE OF IT LIVE -- the direction a restored session travels, and
+/// the only other place the run's spelling is made. Its ids are kept when each is positive and
+/// none is held twice, else each layout is given one in run order; `next_id` is then at least
+/// one above every id, never lower than it was.
 // WL-LAYOUT-04, WL-LAYOUT-12 -- agents/workshop/layouts.md
 inline bool install_layout_run(SetupState& s, std::vector<Layout> run, std::size_t active) {
     if (run.empty() || active >= run.size()) {
         return false;
     }
+    bool kept = true;
+    for (std::size_t i = 0; i < run.size() && kept; ++i) {
+        kept = run[i].id > 0;
+        for (std::size_t j = 0; j < i && kept; ++j) {
+            kept = run[j].id != run[i].id;
+        }
+    }
+    std::int64_t top = 0;
+    for (std::size_t i = 0; i < run.size(); ++i) {
+        if (!kept) {
+            run[i].id = static_cast<std::int64_t>(i) + 1;
+        }
+        top = run[i].id > top ? run[i].id : top;
+    }
+    s.next_id = top + 1 > s.next_id ? top + 1 : s.next_id;
     s.active = std::move(run[active].desk);
     s.active_link = std::move(run[active].link);
+    s.active_id = run[active].id;
     run.erase(run.begin() + static_cast<std::ptrdiff_t>(active));
     s.shelved = std::move(run);
     s.active_at = active;
@@ -159,22 +197,23 @@ inline bool install_layout_run(SetupState& s, std::vector<Layout> run, std::size
     return true;
 }
 
-/// ONE MORE LAYOUT: A FRESH BLANK DESK, APPENDED, AND LIVE.
+/// ONE MORE LAYOUT: A FRESH BLANK DESK WITH A NEW ID, APPENDED, AND LIVE.
 // WL-LAYOUT-03 -- agents/workshop/layouts.md
 inline bool add_layout(SetupState& s, std::size_t ceiling = kMaxLayouts) {
     if (layout_count(s) >= ceiling) {
         return false;
     }
     s.shelved.insert(s.shelved.begin() + static_cast<std::ptrdiff_t>(s.active_at),
-                     Layout{std::move(s.active), std::move(s.active_link)});
+                     Layout{std::move(s.active), std::move(s.active_link), s.active_id});
     s.active = default_setup();
     s.active_link = SetupLink{};
+    s.active_id = s.next_id++;
     s.active_at = s.shelved.size();
     ++s.put_live;
     return true;
 }
 
-/// COPY THE LAYOUT AT `at`, PUT THE COPY DIRECTLY AFTER IT, AND STAND ON THE COPY.
+/// COPY THE LAYOUT AT `at` UNDER A NEW ID, PUT THE COPY DIRECTLY AFTER IT, AND STAND ON THE COPY.
 // WL-LAYOUT-04 -- agents/workshop/layouts.md
 inline bool duplicate_layout(SetupState& s, std::size_t at, std::size_t ceiling = kMaxLayouts) {
     if (at >= layout_count(s) || layout_count(s) >= ceiling) {
@@ -183,11 +222,11 @@ inline bool duplicate_layout(SetupState& s, std::size_t at, std::size_t ceiling 
     std::vector<Layout> run = layout_run(s);
     const std::size_t copy_at = at + 1;
     run.insert(run.begin() + static_cast<std::ptrdiff_t>(copy_at),
-               Layout{run[at].desk, SetupLink{}});
+               Layout{run[at].desk, SetupLink{}, s.next_id++});
     return install_layout_run(s, std::move(run), copy_at);
 }
 
-/// DISCARD THE LAYOUT AT `at`.
+/// DISCARD THE LAYOUT AT `at`. Its id is never minted again.
 // WL-LAYOUT-03 -- agents/workshop/layouts.md
 inline bool remove_layout(SetupState& s, std::size_t at) {
     if (s.shelved.empty() || at >= layout_count(s)) {
@@ -204,6 +243,7 @@ inline bool remove_layout(SetupState& s, std::size_t at) {
         s.active_at < s.shelved.size() ? s.active_at : s.shelved.size() - 1;
     s.active = std::move(s.shelved[take].desk);
     s.active_link = std::move(s.shelved[take].link);
+    s.active_id = s.shelved[take].id;
     s.shelved.erase(s.shelved.begin() + static_cast<std::ptrdiff_t>(take));
     s.active_at = take;
     ++s.put_live;
@@ -283,4 +323,4 @@ inline std::size_t layout_step(const SetupState& s, std::int64_t by) noexcept {
 
 } // namespace zengine::workshop
 
-#endif // ZENGINE_WORKSHOP_LAYOUT_SHELF_HPP
+#endif // ZENGINE_WORKSHOP_LAYOUTS_RUN_HPP

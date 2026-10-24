@@ -130,6 +130,24 @@ void WorkshopWeave::mirror_presentation(loom::Mail& mail) {
 }
 
 void WorkshopWeave::after_delivery(loom::Mail& mail) {
+    // WHAT THE STORE MOVED SINCE THIS DESK LAST LOOKED, presented.
+    take_store(mail);
+    if (seat_owed_) {
+        // THE MANAGED OPENING'S SEAT, asked of the store; the proposal stands until it answers.
+        const PaneRef ref = *seat_owed_;
+        seat_owed_.reset();
+        LayoutEdit seat;
+        seat.op = layout_op::kSeat;
+        seat.provider = ref.provider;
+        seat.pane = ref.pane;
+        ask_layout({seat},
+                   [this](const LayoutEditAnswered& answered, loom::Mail&) {
+                       if (!answered.accepted) {
+                           say(answered.refusal, true);
+                       }
+                   },
+                   mail, false);
+    }
     if (settings_owed_) {
         // THE PANE'S SETTINGS BEFORE THE AREA IT WAS SEATED IN, whatever this delivery was: the
         // repaint owed below comes after them, and hands nothing its holder has already heard.
@@ -317,19 +335,11 @@ bool WorkshopWeave::show_presentation(const PanePresentation& published) {
         repaint_owed_ = true;
         return false;
     }
-    // ALL OF IT, HERE, BEFORE ANYTHING CAN OBSERVE THE DESK: membership through the one door the
-    // launch and a restore go through, the seat through the same reconcile, the selection, the
-    // keys and the generation; the candidate is the Editor's to draw as it commits its claim.
-    // ...AND THE LIVE DESK'S NAME AND SETTINGS SURVIVE IT: the digest leaves both out, so a rename
-    // or setting since the trial is one the copy does not hold; each surviving row keeps its own.
-    Setup desk = trial_.candidate;
-    desk.name = session_.setup.active.name;
-    for (SetupPane& row : desk.panes) {
-        if (const SetupPane* live = pane_of(session_.setup.active, row.ref)) {
-            row.settings = live->settings;
-        }
-    }
-    session_.setup.active = std::move(desk);
+    // ALL OF IT, HERE, BEFORE ANYTHING CAN OBSERVE THE DESK: the seat through the same reconcile,
+    // the selection, the keys and the generation. The row is the layouts' store's to add, so it is
+    // painted now over the store's desk and asked of the store when this desk next speaks.
+    seat_owed_ = trial_.ref;
+    (void)add_pane(session_.setup.active, trial_.ref);
     apply_setup_now();
     const std::int64_t kind = trial_.kind;
     if (!session_.panes.has(kind)) {

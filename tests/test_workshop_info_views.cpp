@@ -33,12 +33,14 @@ struct Views : InventoryStory {
     /// PUT ONE PANE AT A CELL RECTANGLE and reseat the desk.
     void place(const std::string& provider, const std::string& key, std::int64_t x, std::int64_t y,
                std::int64_t w, std::int64_t h) {
-        for (auto& p : r.session().setup.active.panes) {
-            if (p.ref.provider != provider || p.ref.pane != key) continue;
-            p.place = {pane_unit::kPixels, x * gfx::kCellPx, y * gfx::kCellPx};
-            p.width = {pane_unit::kPixels, w * gfx::kCellPx};
-            p.height = {pane_unit::kPixels, h * gfx::kCellPx};
-        }
+        stage_desk(r, [&](Setup& staged) {
+            for (auto& p : staged.panes) {
+                if (p.ref.provider != provider || p.ref.pane != key) continue;
+                p.place = {pane_unit::kPixels, x * gfx::kCellPx, y * gfx::kCellPx};
+                p.width = {pane_unit::kPixels, w * gfx::kCellPx};
+                p.height = {pane_unit::kPixels, h * gfx::kCellPx};
+            }
+        });
         // A SAME-SIZE EXTENT RESEATS NOTHING, so the room is changed and changed back: the desk
         // re-seats every pane at its authored place and grants the new rooms.
         r.extent(179, 60);

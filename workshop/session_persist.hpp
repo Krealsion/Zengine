@@ -14,6 +14,7 @@
 #include "screen.hpp"
 #include "setup.hpp"
 #include "setup_persist.hpp"
+#include "workshop/layouts/run.hpp"
 
 #include <zen/admission.hpp>
 #include <zen/schema.hpp>
@@ -438,7 +439,7 @@ inline Written layouts_in(const WorkshopSession& file, std::vector<Layout>& run,
         if (!related.accepted) {
             return Written::no(related.refusal);
         }
-        candidate.push_back(Layout{std::move(desk), std::move(link)});
+        candidate.push_back(Layout{std::move(desk), std::move(link), 0});
     }
     run = std::move(candidate);
     active = static_cast<std::size_t>(file.active);

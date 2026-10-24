@@ -217,21 +217,59 @@ void WorkshopWeave::arrange_place(std::int64_t x, std::int64_t y, loom::Mail& ma
     if (y != from.y) {
         vertical.position = y;
     }
-    const WindowWritten done = author_pane_window(session_.setup.active,
-                                                  session_.arrange.pane, horizontal,
-                                                  vertical);
+    write_window(session_.arrange.pane, horizontal, vertical, mail);
+}
+
+// WL-ARR-05, WL-ARR-06 -- agents/workshop/arrangement.md
+void WorkshopWeave::write_window(const PaneRef& ref, const PaneAxisProposal& horizontal,
+                                 const PaneAxisProposal& vertical, loom::Mail& mail) {
+    // JUDGED ON A COPY OF THE DESK THIS HAND SEES, through the same door the store judges again.
+    Setup desk = session_.setup.active;
+    const WindowWritten done = author_pane_window(desk, ref, horizontal, vertical);
     if (!done.written.accepted) {
         say(done.written.refusal, true);
         return;
     }
-    // AND THE DESK IS RECONCILED, because authoring a place takes the pane OUT of the
-    // stack and resetting it puts it back. `apply_setup` is the one door that opens or
-    // closes a pane, so a geometry edit cannot produce a screen the setup disagrees with;
-    // no room rations the stack, so for a place it opens and closes nothing.
-    if (done.place_written) {
-        apply_setup(mail);
+    if (session_.pane_drag.active) {
+        // A DRAG PAINTS ITS PROPOSAL: the desk presented moves with the hand, and its release asks
+        // the store (`commit_drag`). A place takes the pane out of the stack, so the proposal is
+        // reconciled as the store's desk is.
+        session_.setup.active = std::move(desk);
+        if (done.place_written) {
+            apply_setup(mail);
+        }
+        say(arrange_status(), false);
+        return;
     }
-    say(arrange_status(), false);
+    ask_layout({window_edit(*pane_of(desk, ref))},
+               [this](const LayoutEditAnswered& answered, loom::Mail&) {
+                   if (!answered.accepted) {
+                       say(answered.refusal, true);
+                       return;
+                   }
+                   say(arrange_status(), false);
+               },
+               mail);
+}
+
+// WL-ARR-01 -- agents/workshop/arrangement.md
+void WorkshopWeave::commit_drag(const PaneRef& ref, loom::Mail& mail) {
+    const SetupPane* now = pane_of(session_.setup.active, ref);
+    const SetupPane* was = pane_of(session_.setup.owned, ref);
+    if (now == nullptr || was == nullptr ||
+        (now->place == was->place && now->width == was->width && now->height == was->height)) {
+        return;
+    }
+    // THE RELEASE ASKS THE STORE FOR WHAT THE HAND PROPOSED; until it answers, the proposal is
+    // what is painted, and a refusal paints the store's desk again.
+    ask_layout({window_edit(*now)},
+               [this](const LayoutEditAnswered& answered, loom::Mail& m) {
+                   if (!answered.accepted) {
+                       say(answered.refusal, true);
+                       repaint(m);
+                   }
+               },
+               mail);
 }
 
 // WL-ARR-08 -- agents/workshop/arrangement.md
@@ -265,24 +303,7 @@ void WorkshopWeave::arrange_window(const PaneWindowProposal& want, std::int64_t 
         return;
     }
     const PaneWindowAxes axes = pane_window_axes(want, PixelRect{base_x, base_y, base_w, base_h});
-    const WindowWritten done = author_pane_window(session_.setup.active,
-                                                  session_.arrange.pane, axes.horizontal,
-                                                  axes.vertical);
-    if (!done.written.accepted) {
-        say(done.written.refusal, true);
-        return;
-    }
-    if (done.place_written) {
-        // AUTHORING A PLACE TAKES THE PANE OUT OF THE REACTIVE STACK — `arrange_place`'s
-        // own reconciliation, owed here the moment an anchored resize writes one.
-        apply_setup(mail);
-    } else {
-        // A SIZE-ONLY CHANGE TAKES NO PANE IN OR OUT OF THE STACK -- only a PLACE does
-        // that -- but the room an external pane was granted may have moved, and `repaint`
-        // owns that (`refresh_external_rooms`). Nothing is reconciled here.
-        (void)mail;
-    }
-    say(arrange_status(), false);
+    write_window(session_.arrange.pane, axes.horizontal, axes.vertical, mail);
 }
 
 // WL-ARR-08, WL-ARR-10 -- agents/workshop/arrangement.md
@@ -305,7 +326,8 @@ void WorkshopWeave::spend_pane_action(Act a, const PaneRef& ref, loom::Mail& mai
             true);
         return;
     }
-    Setup& s = session_.setup.active;
+    // JUDGED ON A COPY OF THE DESK THIS HAND SEES; what it changes is asked of the store.
+    Setup s = session_.setup.active;
     if (!has_pane(s, ref)) {
         say(ref_text(ref) + " is no longer in this setup -- the Pane Manager can bring it back",
             true);
@@ -321,19 +343,50 @@ void WorkshopWeave::spend_pane_action(Act a, const PaneRef& ref, loom::Mail& mai
     case Act::kManageLower: {
         bool moved = false;
         const char* what = "";
+        const char* op = "";
         switch (a) {
-        case Act::kManageFront: moved = send_to_front(s, ref); what = "front-most"; break;
-        case Act::kManageBack: moved = send_to_back(s, ref); what = "back-most"; break;
-        case Act::kManageRaise: moved = raise_one(s, ref); what = "raised"; break;
-        default: moved = lower_one(s, ref); what = "lowered"; break;
+        case Act::kManageFront:
+            moved = send_to_front(s, ref);
+            what = "front-most";
+            op = layout_op::kFront;
+            break;
+        case Act::kManageBack:
+            moved = send_to_back(s, ref);
+            what = "back-most";
+            op = layout_op::kBack;
+            break;
+        case Act::kManageRaise:
+            moved = raise_one(s, ref);
+            what = "raised";
+            op = layout_op::kRaise;
+            break;
+        default:
+            moved = lower_one(s, ref);
+            what = "lowered";
+            op = layout_op::kLower;
+            break;
         }
         if (!moved) {
             say(ref_text(ref) + " is already where that would put it", true);
             return;
         }
-        say(ref_text(ref) + " " + what + " -- " +
-                pane_window_text(pane_of(s, ref), session_.cell_px),
-            false);
+        LayoutEdit order;
+        order.op = op;
+        order.provider = ref.provider;
+        order.pane = ref.pane;
+        const std::string done = what;
+        ask_layout({order},
+                   [this, ref, done](const LayoutEditAnswered& answered, loom::Mail&) {
+                       if (!answered.accepted) {
+                           say(answered.refusal, true);
+                           return;
+                       }
+                       say(ref_text(ref) + " " + done + " -- " +
+                               pane_window_text(pane_of(session_.setup.active, ref),
+                                                session_.cell_px),
+                           false);
+                   },
+                   mail, false);
         return;
     }
     // THE PER-PANE RESETS, one per authored dimension. (`order` is the whole setup's
@@ -358,12 +411,20 @@ void WorkshopWeave::spend_pane_action(Act a, const PaneRef& ref, loom::Mail& mai
             say(ref_text(ref) + " already takes the developer's " + what, true);
             return;
         }
-        // A PLACE RESET PUTS THE PANE BACK IN THE STACK, so the desk is reconciled for
-        // the same reason authoring one is.
-        apply_setup(mail);
-        say(ref_text(ref) + " " + what + " reset -- " +
-                pane_window_text(pane_of(s, ref), session_.cell_px),
-            false);
+        // A PLACE RESET PUTS THE PANE BACK IN THE STACK: the store's desk, presented, reconciles.
+        const std::string done = what;
+        ask_layout({window_edit(*pane_of(s, ref))},
+                   [this, ref, done](const LayoutEditAnswered& answered, loom::Mail&) {
+                       if (!answered.accepted) {
+                           say(answered.refusal, true);
+                           return;
+                       }
+                       say(ref_text(ref) + " " + done + " reset -- " +
+                               pane_window_text(pane_of(session_.setup.active, ref),
+                                                session_.cell_px),
+                           false);
+                   },
+                   mail);
         return;
     }
     // REMOVE THIS PANE. The close door's own semantics through the setup's own
@@ -373,18 +434,24 @@ void WorkshopWeave::spend_pane_action(Act a, const PaneRef& ref, loom::Mail& mai
     // unresolved row exactly as on an open one (rule).
     case Act::kManageRemove: {
         const std::string name = ref_text(ref);
-        const SetupPane* row = pane_of(s, ref);
-        const std::vector<PaneSetting> discarded =
-            row != nullptr ? row->settings : std::vector<PaneSetting>{};
-        if (!remove_pane(s, ref)) {
-            say(name + " is no longer in this setup -- the Pane Manager can show it again",
-                true);
-            return;
-        }
-        apply_setup(mail);
-        say("hid " + name + discarded_settings(discarded) +
-                " -- the Pane Manager shows it again; nothing behind it was touched",
-            false);
+        LayoutEdit unseat;
+        unseat.op = layout_op::kUnseat;
+        unseat.provider = ref.provider;
+        unseat.pane = ref.pane;
+        ask_layout({unseat},
+                   [this, name](const LayoutEditAnswered& answered, loom::Mail&) {
+                       if (!answered.accepted) {
+                           say(name + " is no longer in this setup -- the Pane Manager can show "
+                                      "it again",
+                               true);
+                           return;
+                       }
+                       say("hid " + name + discarded_settings(answered.discarded) +
+                               " -- the Pane Manager shows it again; nothing behind it was "
+                               "touched",
+                           false);
+                   },
+                   mail, false);
         return;
     }
     // EDIT CODE: the setup has answered for the reference above, and what the pane's code is
@@ -394,9 +461,18 @@ void WorkshopWeave::spend_pane_action(Act a, const PaneRef& ref, loom::Mail& mai
     }
 }
 
-void WorkshopWeave::reset_front_order() {
-    reset_front(session_.setup.active);
-    say("front order reset to the setup's own order", false);
+void WorkshopWeave::reset_front_order(loom::Mail& mail) {
+    LayoutEdit reset;
+    reset.op = layout_op::kResetFront;
+    ask_layout({reset},
+               [this](const LayoutEditAnswered& answered, loom::Mail&) {
+                   if (!answered.accepted) {
+                       say(answered.refusal, true);
+                       return;
+                   }
+                   say("front order reset to the setup's own order", false);
+               },
+               mail, false);
 }
 
 // WL-ARR-08 -- agents/workshop/arrangement.md
@@ -464,7 +540,7 @@ void WorkshopWeave::arrange_key(const zengine::input::KeyPressed& k, loom::Mail&
         }
         break;
     case Act::kManageResetOrder:
-        reset_front_order();
+        reset_front_order(mail);
         a.resetting = false;
         break;
     case Act::kManageDone:

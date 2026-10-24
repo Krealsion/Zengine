@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 
-// `WorkshopWeave`'s setup, layout shelf and last session.
+// `WorkshopWeave`'s layouts: the live layout as the store keeps it, presented here; every gesture
+// on a layout asked of the store; and the window's half of the last session.
 // Workshop law: agents/workshop/layouts.md (+8 registers; agents/workshop.md routes)
 
 #include "pane_migration.hpp"
@@ -11,33 +12,99 @@ namespace zengine::workshop {
 
 void WorkshopWeave::on(const SetupApplyRequested& request, loom::Mail& mail) {
     if (session_.presented.open) {
-        (void)mail.answer(loom::Refused{"close the current menu before applying a setup"}); return;
+        (void)mail.answer(loom::Refused{"close the current menu before applying a setup"});
+        return;
     }
-    const auto loaded = setup_persist::from_text(request.setup);
-    if (!loaded.outcome.accepted) {
-        (void)mail.answer(loom::Refused{loaded.outcome.refusal}); return;
+    const std::string refused = store().apply_setup(request.setup);
+    if (!refused.empty()) {
+        (void)mail.answer(loom::Refused{refused});
+        return;
     }
-    const auto seating = seat_panes(loaded.setup, session_.panes);
-    if (seating.unresolved) {
-        // The first pane this Workshop cannot present, by name: a caller preparing its providers
-        // learns which one is missing from the owner's own words.
-        for (const SetupPane& row : loaded.setup.panes) {
-            if (!resolve_pane(row.ref, session_.panes).has_value()) {
-                (void)mail.answer(loom::Refused{"setup names a pane this Workshop cannot present: " +
-                                                row.ref.provider + " " + row.ref.pane});
-                return;
-            }
-        }
-    }
-    session_.setup.active = loaded.setup;
-    session_.setup.active_link = {};
-    ++session_.setup.put_live;
     session_.panes.selected = kNoPaneKind;
     session_.panes.keyboard = kNoPaneKind;
-    apply_setup(mail);
-    say("applied setup " + quoted_setup_name(loaded.setup.name), false);
+    take_store(mail);
     repaint(mail);
     (void)mail.answer(loom::Ack{});
+}
+
+// ---- The live layout, presented --------------------------------------------------------------
+
+// WL-LAYOUT-01 -- agents/workshop/layouts.md
+void WorkshopWeave::install_live(const LiveLayout& live, loom::Mail& mail) {
+    Setup desk;
+    if (const Written understood = setup_persist::setup_in(live.desk, desk); !understood.accepted) {
+        // A COPY THIS DESK CANNOT READ IS NO PICTURE: the one it holds stands, and the defect is
+        // said.
+        say("defect: the live layout could not be presented -- " + understood.refusal, true);
+        return;
+    }
+    LiveDesk& d = session_.setup;
+    d.owned = desk;
+    d.active = std::move(desk);
+    d.id = live.id;
+    d.active_at = static_cast<std::size_t>(live.position < 0 ? 0 : live.position);
+    d.tabs = live.tabs;
+    if (d.tabs.empty()) {
+        d.tabs.push_back(LiveTab{live.id, d.active.name, setup_link::kNone});
+    }
+    d.link_path = live.link_path;
+    d.link = d.active_at < d.tabs.size() ? d.tabs[d.active_at].link : setup_link::kNone;
+    d.put_live = static_cast<std::uint64_t>(live.put_live);
+    d.revision = live.revision;
+    d.revisions = live.revisions;
+    if (!live.session_refused.empty()) {
+        // The notice is the event; the condition is what stays true all run.
+        session_.conditions.establish(
+            Condition{kSessionWallKey, "session refused -- this run keeps no session",
+                      live.session_refused +
+                          " (the file is left exactly as it is, and this run will not write "
+                          "over it)",
+                      graphics::role::kAlert, std::string()});
+    }
+    if (!live.settings_refused.empty()) {
+        session_.conditions.establish(Condition{kPrefsWallKey,
+                                                "preferences refused -- defaults stand",
+                                                live.settings_refused, graphics::role::kAlert,
+                                                std::string()});
+    }
+    // A SEAT STILL OWED TO THE STORE STAYS PAINTED over the desk it sent.
+    if (seat_owed_) {
+        (void)add_pane(d.active, *seat_owed_);
+    }
+    // THE PANES FOLLOW THE DESK: whatever it seats is opened, whatever it no longer seats closes,
+    // and each seated pane is handed its row's settings before any room.
+    apply_setup(mail);
+    hand_settings(mail);
+}
+
+// WL-LAYOUT-01 -- agents/workshop/layouts.md
+void WorkshopWeave::ask_layout(std::vector<LayoutEdit> edits, EditThen then, loom::Mail& mail,
+                               bool judged) {
+    LayoutEditRequested asked;
+    asked.revision = judged ? session_.setup.revision : 0;
+    asked.edits = std::move(edits);
+    const LayoutEditAnswered answered = store().edit(asked);
+    take_store(mail);
+    if (then) {
+        then(answered, mail);
+    } else if (!answered.accepted) {
+        say(answered.refusal, true);
+    }
+}
+
+void WorkshopWeave::seat_then(const PaneRef& ref, EditThen then, loom::Mail& mail) {
+    if (has_pane(session_.setup.active, ref)) {
+        LayoutEditAnswered seated;
+        seated.accepted = true;
+        seated.revision = session_.setup.revision;
+        then(seated, mail);
+        return;
+    }
+    LayoutEdit seat;
+    seat.op = layout_op::kSeat;
+    seat.provider = ref.provider;
+    seat.pane = ref.pane;
+    ask_layout({seat}, std::move(then), mail, false);
 }
 
 // ---- The setup: name it, save it, restore it ------------------------------
@@ -57,8 +124,6 @@ void WorkshopWeave::apply_setup_now() {
     // Membership-dependent session state first: every membership change comes through this door,
     // so it is the one place that notices a selection whose pane is no longer named.
     forget_removed_selection();
-    // A ROW THE LIVE DESK SEATS WEARS EVERY EVERYWHERE LOCK ON ITS PANE, one seated since included.
-    (void)pin_everywhere_locks(session_.setup.active);
     (void)reconcile(session_.panes, session_.setup.active);
 }
 
@@ -71,14 +136,14 @@ void WorkshopWeave::open_layout_rename(std::size_t at) {
     LayoutNaming& naming = session_.setup.naming;
     naming.open = true;
     naming.at = at;
-    const std::string& name = layout_at(session_.setup, at).name;
+    const std::string& name = layout_name_at(session_.setup, at);
     naming.line.set(name, name.size());
     say("rename this layout -- " + hotkey(Act::kNamingCommit) + " renames it, " +
             hotkey(Act::kNamingCancel) + " cancels",
         false);
 }
 
-void WorkshopWeave::naming_key(const zengine::input::KeyPressed& k, loom::Mail&) {
+void WorkshopWeave::naming_key(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     LayoutNaming& naming = session_.setup.naming;
     // The line's own vocabulary first; what a committed name means, and what abandoning one leaves
     // standing, stay here.
@@ -86,7 +151,7 @@ void WorkshopWeave::naming_key(const zengine::input::KeyPressed& k, loom::Mail&)
         return;
     }
     switch (session_.keymap.action_for(KeyContext::kNaming, k.scancode, k.modifiers)) {
-    case Act::kNamingCommit: commit_layout_rename(); break;
+    case Act::kNamingCommit: commit_layout_rename(mail); break;
     case Act::kNamingCancel:
         close_naming();
         say("the layout name is unchanged", false);
@@ -100,7 +165,7 @@ void WorkshopWeave::close_naming() {
 }
 
 // WL-LAYOUT-04, WL-LAYOUT-10 -- agents/workshop/layouts.md
-void WorkshopWeave::commit_layout_rename() {
+void WorkshopWeave::commit_layout_rename(loom::Mail& mail) {
     LayoutNaming& naming = session_.setup.naming;
     const std::size_t at = naming.at;
     const std::string wanted = naming.line.text();
@@ -116,122 +181,50 @@ void WorkshopWeave::commit_layout_rename() {
         say("that layout is no longer here -- nothing was renamed", true);
         return;
     }
-    Setup candidate = layout_at(session_.setup, at);
-    candidate.name = wanted;
-    const Written whole = check_setup(candidate);
-    if (!whole.accepted) {
-        say(whole.refusal, true);
-        return;
-    }
-    const std::string was = layout_at(session_.setup, at).name;
-    rename_layout(session_.setup, at, wanted);
-    close_naming();
-    move_layout_prefs(was, wanted);
-    // No `apply_setup`: a name is the one authored field no presentation reads. The painted row
-    // and the link status are derived at the next composition.
-    say("renamed layout " + quoted_setup_name(wanted) + link_note(at), false);
-}
-
-// WL-LAYOUT-02 -- agents/workshop/layouts.md
-std::string WorkshopWeave::link_note(std::size_t at) const {
-    const SetupLink& link = link_at(session_.setup, at);
-    const std::int64_t status = link_status(layout_at(session_.setup, at), link);
-    if (status == setup_link::kNone) {
-        return {};
-    }
-    return std::string(" -- ") + link.path + " is " +
-           (status == setup_link::kCurrent ? kSetupLinkCurrent : kSetupLinkModified);
+    LayoutEdit rename;
+    rename.op = layout_op::kRename;
+    rename.layout = layout_id_at(session_.setup, at);
+    rename.name = wanted;
+    // A REFUSED NAME KEEPS THE LINE OPEN, the owner's words said; an accepted one closes it.
+    ask_layout({rename},
+               [this](const LayoutEditAnswered& answered, loom::Mail&) {
+                   if (!answered.accepted) {
+                       say(answered.refusal, true);
+                       return;
+                   }
+                   close_naming();
+               },
+               mail, false);
 }
 
 // WL-LAYOUT-10 -- agents/workshop/layouts.md
-const std::string& WorkshopWeave::setup_artifact() const {
-    return session_.setup.active_link.path.empty() ? host_->setup_path
-                                                   : session_.setup.active_link.path;
-}
-
-// WL-LAYOUT-09, WL-LAYOUT-10, WL-LAYOUT-11 -- agents/workshop/layouts.md
 // WL-GUEST-09 -- agents/workshop/guests.md
-void WorkshopWeave::save_setup() {
+void WorkshopWeave::save_setup(loom::Mail& mail) {
     // A FILE WRITE, judged for the hand that asked (`actor_scope.hpp`): a guest's on a weaver's host
     // writes nothing.
     if (const std::string refused = judge_classes(input_actor_, {scope::kWrite}, {}); !refused.empty()) {
         say("the setup was not saved -- " + refused, true);
         return;
     }
-    const std::string path = setup_artifact();
-    if (path.empty()) {
-        say(kNoSetupFile, true);
-        return;
-    }
-    const Setup& desk = session_.setup.active;
-    const Written whole = check_setup(desk);
-    if (!whole.accepted) {
-        say(whole.refusal, true);
-        return;
-    }
-    const Written written = setup_persist::save_file(path, desk);
-    if (!written.accepted) {
-        // THE LAST GOOD SETUP FILE IS INTACT and so is every association: the
-        // writer never opened the destination, and nothing below this line has
-        // run.
-        say(written.refusal, true);
-        return;
-    }
-    session_.setup.active_link.path = path;
-    adopt_known_setup(session_.setup, path, desk);
-    say("saved setup " + quoted_setup_name(desk.name) + " to " + path +
-            unresolved_note(desk),
-        false);
+    LayoutEdit save;
+    save.op = layout_op::kSave;
+    ask_layout({save}, nullptr, mail, false);
 }
 
 // WL-LAYOUT-09, WL-LAYOUT-10, WL-LAYOUT-11 -- agents/workshop/layouts.md
 void WorkshopWeave::restore_setup(loom::Mail& mail) {
-    const std::string path = setup_artifact();
-    if (path.empty()) {
-        say(kNoSetupFile, true);
-        return;
-    }
-    const setup_persist::LoadedSetup loaded = setup_persist::load_file(path);
-    if (!loaded.outcome.accepted) {
-        say(loaded.outcome.refusal, true);
-        return;
-    }
-    session_.setup.active = loaded.setup;
-    ++session_.setup.put_live; // the file's desk, not the one it replaced (WL-INFO-14)
-    session_.setup.active_link.path = path;
-    adopt_known_setup(session_.setup, path, loaded.setup);
-    apply_setup(mail);
-    // AND IF THIS FILE NAMED A PANE THAT CHANGED HANDS, IT SAYS SO -- here as well as on
-    // the session road, because a weaver who explicitly restored a setup they wrote months
-    // ago is the weaver most likely to go and look at the file afterwards.
-    say("restored setup " + quoted_setup_name(loaded.setup.name) + " from " + path +
-            unresolved_note(loaded.setup) +
-            (loaded.converted.total() > 0
-                 ? "; " + pane_migration::converted_note(loaded.converted)
-                 : std::string()),
-        false);
+    LayoutEdit restore;
+    restore.op = layout_op::kRestore;
+    ask_layout({restore}, nullptr, mail, false);
 }
 
 // ---- THE LAYOUT SHELF: several desks, one of them live --------------------
 
-std::string WorkshopWeave::layout_note() const {
-    return "layout " + quoted_setup_name(session_.setup.active.name) + " -- " +
-           std::to_string(session_.setup.active_at + 1) + " of " +
-           std::to_string(layout_count(session_.setup));
-}
-
 void WorkshopWeave::switch_layout(std::size_t to, loom::Mail& mail) {
-    if (!activate_layout(session_.setup, to)) {
-        // NOTHING MOVED: the position is the live layout's own, or is not a layout.
-        // Said rather than silent, because a weaver who pressed the tab they are
-        // already on has aimed at something and is owed the row's own answer.
-        say(layout_note() + link_note(session_.setup.active_at), false);
-        return;
-    }
-    apply_setup(mail);
-    say(layout_note() + link_note(session_.setup.active_at) +
-            unresolved_note(session_.setup.active),
-        false);
+    LayoutEdit sw;
+    sw.op = layout_op::kSwitch;
+    sw.layout = layout_id_at(session_.setup, to);
+    ask_layout({sw}, nullptr, mail, false);
 }
 
 void WorkshopWeave::step_layout(std::int64_t by, loom::Mail& mail) {
@@ -240,7 +233,10 @@ void WorkshopWeave::step_layout(std::int64_t by, loom::Mail& mail) {
             false);
         return;
     }
-    switch_layout(layout_step(session_.setup, by), mail);
+    LayoutEdit step;
+    step.op = layout_op::kStep;
+    step.by = by;
+    ask_layout({step}, nullptr, mail, false);
 }
 
 std::string WorkshopWeave::layout_ceiling_note() const {
@@ -251,12 +247,13 @@ std::string WorkshopWeave::layout_ceiling_note() const {
 
 // WL-LAYOUT-03 -- agents/workshop/layouts.md
 void WorkshopWeave::new_layout(loom::Mail& mail) {
-    if (!add_layout(session_.setup)) {
+    if (layout_count(session_.setup) >= kMaxLayouts) {
         say(layout_ceiling_note(), true);
         return;
     }
-    apply_setup(mail);
-    say("new " + layout_note() + " -- an empty desk", false);
+    LayoutEdit made;
+    made.op = layout_op::kNew;
+    ask_layout({made}, nullptr, mail, false);
 }
 
 // WL-CTX-07 -- agents/workshop/contextual.md; WL-LAYOUT-04 -- agents/workshop/layouts.md
@@ -264,13 +261,14 @@ void WorkshopWeave::duplicate_layout(std::size_t at, loom::Mail& mail) {
     if (at >= layout_count(session_.setup)) {
         return; // the belt: a captured position the run no longer holds
     }
-    if (!::zengine::workshop::duplicate_layout(session_.setup, at)) {
+    if (layout_count(session_.setup) >= kMaxLayouts) {
         say(layout_ceiling_note(), true);
         return;
     }
-    apply_setup(mail);
-    say("duplicated " + layout_note() + " -- the desk was copied, its setup file was not",
-        false);
+    LayoutEdit copy;
+    copy.op = layout_op::kDuplicate;
+    copy.layout = layout_id_at(session_.setup, at);
+    ask_layout({copy}, nullptr, mail, false);
 }
 
 // WL-CTX-07 -- agents/workshop/contextual.md; WL-LAYOUT-03 -- agents/workshop/layouts.md
@@ -278,40 +276,29 @@ void WorkshopWeave::drop_layout(std::size_t at, loom::Mail& mail) {
     if (at >= layout_count(session_.setup)) {
         return; // the belt: a captured position the run no longer holds
     }
-    const bool was_live = at == session_.setup.active_at;
-    const std::string name = layout_at(session_.setup, at).name;
-    const std::string gone = quoted_setup_name(name);
-    if (!remove_layout(session_.setup, at)) {
-        say("this is the only layout -- Workshop always has one desk", true);
-        return;
-    }
-    move_layout_prefs(name, std::string());
-    if (was_live) {
-        apply_setup(mail);
-    }
-    say("removed layout " + gone + " -- now on " + layout_note(), false);
+    LayoutEdit drop;
+    drop.op = layout_op::kRemove;
+    drop.layout = layout_id_at(session_.setup, at);
+    ask_layout({drop}, nullptr, mail, false);
 }
 
 // WL-CTX-07 -- agents/workshop/contextual.md; WL-LAYOUT-04 -- agents/workshop/layouts.md
-void WorkshopWeave::shift_layout(std::size_t at, std::int64_t by) {
+void WorkshopWeave::shift_layout(std::size_t at, std::int64_t by, loom::Mail& mail) {
     const std::size_t n = layout_count(session_.setup);
     if (at >= n) {
         return; // the belt: a captured position the run no longer holds
     }
     if ((by < 0 && at == 0) || (by > 0 && at + 1 == n)) {
-        say("layout " + quoted_setup_name(layout_at(session_.setup, at).name) +
+        say("layout " + quoted_setup_name(layout_name_at(session_.setup, at)) +
                 " is already at the " + (by < 0 ? "start" : "end") + " of the run",
             false);
         return;
     }
-    const std::size_t to = by < 0 ? at - 1 : at + 1;
-    const std::string moved = quoted_setup_name(layout_at(session_.setup, at).name);
-    if (!move_layout(session_.setup, at, to)) {
-        return;
-    }
-    say("moved layout " + moved + " to " + std::to_string(to + 1) + " of " +
-            std::to_string(n),
-        false);
+    LayoutEdit move;
+    move.op = layout_op::kMove;
+    move.layout = layout_id_at(session_.setup, at);
+    move.by = static_cast<std::int64_t>(by < 0 ? at - 1 : at + 1);
+    ask_layout({move}, nullptr, mail);
 }
 
 // WL-PANE-10 -- agents/workshop/panes-and-windows.md
@@ -334,42 +321,16 @@ std::string WorkshopWeave::unresolved_note(const Setup& s) const {
 // WL-SESSION-14, WL-SESSION-16, WL-SESSION-17 -- agents/workshop/session-restore.md
 // WL-MIG-10 -- agents/workshop/migration.md
 void WorkshopWeave::restore_last_session(loom::Mail& mail) {
-    if (restored_) {
+    // ONCE PER PROCESS, and the store keeps the guard: a window's offer is not a once-per-process
+    // fact, and a window started again offers itself again.
+    const RestoredRoom last = store().restore();
+    if (!store_.session_refusal().empty() && !last.present) {
+        say(store_.session_refusal() + " -- opening with the default setup", true);
+        take_store(mail);
         return;
     }
-    // ONCE PER PROCESS, and the guard is HERE rather than at the caller because a window's
-    // offer is not a once-per-process fact: a window started again offers itself again, and a
-    // weaver whose afternoon of arranging was silently thrown back to a file written last night
-    // would have met a continuity feature that loses work.
-    restored_ = true;
-    if (host_->session_path.empty()) {
-        return; // no session file was chosen: restore nothing, and say nothing about it
-    }
-    // ...and whatever conversions this run has: a reading taken now, not a capability this weave
-    // holds. An older session is brought forward when a live conversion says so, and refused in
-    // words when none does.
-    const session_persist::LoadedSession last =
-        session_persist::load_file(host_->session_path, host_->conversions);
     if (!last.present) {
-        // A FIRST LAUNCH IS NOT AN ERROR and must never be reported as one. It is also
-        // the most common way this function ends, so it ends quietly.
-        return;
-    }
-    if (!last.outcome.accepted) {
-        // And this run will not write over it: the session is a file Workshop writes on its way
-        // out, so an orderly close would replace bytes this run could not read. The likeliest
-        // cause is a conversion not mounted in this arrangement, which a weaver fixes with a plan
-        // row, on a file that has to still be there.
-        session_refused_ = true;
-        say(last.outcome.refusal + " -- opening with the default setup", true);
-        // The notice is the event; the condition is what stays true all run, with a weaver action
-        // (`kSessionWallKey`).
-        session_.conditions.establish(
-            Condition{kSessionWallKey, "session refused -- this run keeps no session",
-                      last.outcome.refusal +
-                          " (the file is left exactly as it is, and this run will not "
-                          "write over it)",
-                      graphics::role::kAlert, std::string()});
+        take_store(mail);
         return;
     }
     // ---- The OS window's own room, kept whichever window this is ------------
@@ -377,10 +338,6 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
     session_.window_room_w = last.placement.room_w;
     session_.window_room_h = last.placement.room_h;
     // ---- The room, then the desk into it ------------
-    // In the OS window, its own room where one was kept: judged by the screen's band, adopted, and
-    // the window asked to take it once the desk's area is there (`shape_restored_window`). Else the
-    // viewport, as the desk last had it. The medium's own facts (the face metric, the device unit)
-    // are handed back unchanged: a restore replaces only the room.
     std::string declined = last.declined;
     std::int64_t room_w = last.viewport_w;
     std::int64_t room_h = last.viewport_h;
@@ -403,9 +360,6 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
         session_.normal_h = session_.screen_h;
     }
     // ---- The desktop placement, remembered and offered back --------------------
-    // Remembered first, so the next save carries it whether or not a window acts on it, then
-    // offered to the window holding the platform (`medium_office`): a want, not an instruction,
-    // since only the window sees the displays (`graphics::SurfacePlacementRemembered`).
     if (last.placement.known) {
         session_.placement_known = true;
         session_.place_x = last.placement.x;
@@ -420,32 +374,17 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
         }
     }
     // ---- ...and then the desks, into the room they asked for ---------------
-    // The whole run comes back and exactly one is lifted live (`install_layout_run`, the inverse
-    // of `layout_run`); the others are values nothing opens or reconciles. It cannot refuse here:
-    // `session_persist` proved the run non-empty and the position in range.
-    install_layout_run(session_.setup, last.layouts, last.active);
-    apply_setup(mail);
-    // It says nothing about unresolved panes, unlike `restore_setup`: no provider has had a turn
-    // yet, so every external reference is unresolved for a moment, and the setup line and the Pane
-    // Manager name the genuinely gone ones live. It says how many layouts came back when more than
-    // one did, counting from one, since it is prose about tabs.
+    take_store(mail);
     RestoreNotice notice;
-    notice.head = "reopened your last desk " + quoted_setup_name(session_.setup.active.name);
-    if (last.layouts.size() > 1) {
-        notice.head += " (" + std::to_string(last.active + 1) + " of " +
-                       std::to_string(last.layouts.size()) + " layouts)";
-    }
+    notice.head = last.head;
     notice.w = session_.screen_w;
     notice.h = session_.screen_h;
     if (!declined.empty()) {
-        // AND IT NEVER CLAIMS THE SIZE CAME BACK WHEN IT DID NOT. The desk did; the
-        // window did not; a weaver is told which, with the value that was declined.
+        // AND IT NEVER CLAIMS THE SIZE CAME BACK WHEN IT DID NOT.
         notice.tail += "; " + declined;
     }
-    // ...and once, if a pane in it changed hands (`workshop/pane_migration.hpp`): the count is the
-    // whole run's.
-    if (last.converted.total() > 0) {
-        notice.tail += "; " + pane_migration::converted_note(last.converted);
+    if (!last.converted.empty()) {
+        notice.tail += "; " + last.converted;
     }
     // ...and once, a choice it remembered that this plan no longer authors (WL-SWITCH-08).
     if (!host_->choice_note.empty()) {
@@ -453,8 +392,6 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
     }
     notice.bad = !declined.empty();
     say(restore_notice_text(notice, session_.cell_px), notice.bad);
-    // SPELLED IN THE UNIT THE DESK HOLDS NOW, and again in the window's own once its offer is
-    // taken, unless something was said between.
     notice.said = notices_said_;
     restore_notice_ = std::move(notice);
     // THE SECOND PICTURE OF THE RUN, and the one that asks for the room -- see `start_desk` for
@@ -505,10 +442,7 @@ bool WorkshopWeave::spell_restore_notice(std::int64_t cell_px) {
 
 // WL-SESSION-13, WL-SESSION-15 -- agents/workshop/session.md; WL-SESSION-16 -- agents/workshop/session-restore.md
 // WL-MIG-10 -- agents/workshop/migration.md
-void WorkshopWeave::save_last_session() {
-    if (host_->session_path.empty() || session_refused_) {
-        return;
-    }
+void WorkshopWeave::save_last_session(loom::Mail&) {
     // The viewport written is the normal window's, so a maximized close remembers the room the
     // weaver chose, with the maximized state beside it. The placement rides along as last reported,
     // or as the file carried it; and the OS window's own room is this run's where the desk is in
@@ -521,19 +455,14 @@ void WorkshopWeave::save_last_session() {
     const bool os_window = window_name_ == graphics::kSdlWindow;
     place.room_w = os_window ? session_.normal_w : session_.window_room_w;
     place.room_h = os_window ? session_.normal_h : session_.window_room_h;
-    // The whole run in weaver order, with the position they stand on: `layout_run` answers with a
-    // new vector, so saving cannot reorder what it saves.
-    const Written written = session_persist::save_file(
-        host_->session_path, layout_run(session_.setup), session_.setup.active_at,
-        session_.normal_w, session_.normal_h, place,
-        host_->chosen ? host_->chosen() : std::vector<session_persist::WorkshopChoice>{});
-    if (written.accepted) {
+    const std::string refused = store().save_session(session_.normal_w, session_.normal_h, place);
+    if (refused.empty() || host_->session_path.empty() || !store_.session_refusal().empty()) {
         return;
     }
     // Where a failure goes when the screen is what is leaving: the notice, because nothing fails
     // silently and a suite reads it, and stderr, because the weaver will never see that notice.
-    say(written.refusal, true);
-    std::fprintf(stderr, "zengine-workshop: %s\n", written.refusal.c_str());
+    say(refused, true);
+    std::fprintf(stderr, "zengine-workshop: %s\n", refused.c_str());
     std::fflush(stderr);
 }
 

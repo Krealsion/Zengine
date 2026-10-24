@@ -813,7 +813,7 @@ struct EditorRig {
     /// repaint, because a room arrives on the next repaint.
     void give_rows(std::int64_t rows) {
         const Written wrote =
-            author_pane_size(r.session().setup.active, editor_ref(), PaneSize{},
+            staged_author_pane_size(r, editor_ref(), PaneSize{},
                              PaneSize{pane_unit::kPixels, cells_px(rows + 3)});
         REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
         focus();
@@ -1166,7 +1166,7 @@ TEST_CASE("an opening that cannot be shown opens nothing, and the requester is t
     e.press_doc(0, 2);
     const std::int64_t caret = e.caret().column;
     // ...AND THEN ITS PLACE, OFF THIS SCREEN: seated, with no row in sight.
-    REQUIRE(author_pane_place(e.r.session().setup.active, editor_ref(), 0, cells_px(200)).accepted);
+    REQUIRE(staged_author_pane_place(e.r, editor_ref(), 0, cells_px(200)).accepted);
     e.r.key(input::scan::kUnknown); // a delivery, so the desk claims what it now is
     const Setup before = e.r.session().setup.active;
     put_bytes(e.root / "a.cpp", "held\n");
@@ -1177,7 +1177,7 @@ TEST_CASE("an opening that cannot be shown opens nothing, and the requester is t
     CHECK(e.r.session().setup.active == before); // nothing authored
     // NOTHING MOVED IN THE PANE: with its place reset, the first document, its caret and its bytes
     // stand.
-    REQUIRE(reset_pane_place(e.r.session().setup.active, editor_ref()));
+    REQUIRE(staged_reset_pane_place(e.r, editor_ref()));
     e.r.key(input::scan::kUnknown);
     CHECK(e.doc_row(0) == "first");
     CHECK(e.status().find("first.cpp") != std::string::npos);
@@ -1450,7 +1450,7 @@ TEST_CASE("arranging the Editor pane moves its window and not one byte of its so
     e.press_doc(0, 1);
     e.type("Z");
     const std::string before = e.text();
-    const Written moved = author_pane_place(e.r.session().setup.active, editor_ref(), cells_px(6),
+    const Written moved = staged_author_pane_place(e.r, editor_ref(), cells_px(6),
                                             cells_px(4));
     REQUIRE_MESSAGE(moved.accepted, moved.refusal);
     e.r.key(input::scan::kUnknown); // a delivery, so the desk repaints the pane where it now is
@@ -2357,7 +2357,7 @@ TEST_CASE("a horizontal window follows the caret and recovers the room an erase 
     e.open();
     e.open_file("a.cpp", std::string(60, 'a') + "\nshort\n");
     // A narrow pane: forty columns of body.
-    const Written wrote = author_pane_size(e.r.session().setup.active, editor_ref(),
+    const Written wrote = staged_author_pane_size(e.r, editor_ref(),
                                            PaneSize{pane_unit::kPixels, cells_px(42)}, PaneSize{});
     REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
     e.focus();
@@ -2430,7 +2430,7 @@ TEST_CASE("long and tabbed lines are windowed by displayed columns, exactly") {
     EditorRig e("edit-long");
     e.open();
     e.open_file("a.cpp", "\t\tx" + std::string(200, 'y') + "\n");
-    const Written wrote = author_pane_size(e.r.session().setup.active, editor_ref(),
+    const Written wrote = staged_author_pane_size(e.r, editor_ref(),
                                            PaneSize{pane_unit::kPixels, cells_px(22)}, PaneSize{});
     REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
     e.focus();
@@ -3188,7 +3188,7 @@ TEST_CASE("room lost before the commitment refuses the open, and nothing is auth
     const std::string a_path = e.open_file("a.cpp", "one\n");
     REQUIRE(e.r.session().panes.has(e.kind));
     // PLACED LOW IN THE ROOM: in sight on this screen, off the minimum one.
-    REQUIRE(author_pane_place(e.r.session().setup.active, editor_ref(), 0, cells_px(30)).accepted);
+    REQUIRE(staged_author_pane_place(e.r, editor_ref(), 0, cells_px(30)).accepted);
     e.r.key(input::scan::kUnknown); // a delivery, so the desk claims what it now is
     const auto in_sight = [&e] {
         return !bounds_of(e.r.session().panes, e.r.session().setup.active, e.kind,

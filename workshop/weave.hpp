@@ -29,6 +29,7 @@
 #include "screen.hpp"
 #include "session_persist.hpp"
 #include "setup_persist.hpp"
+#include "workshop/layouts/store.hpp" // the layouts' store, called in-process
 
 #include "activation/activation.hpp" // zengine::With, which composes the facets below
 #include "input/vocabulary.hpp"
@@ -547,7 +548,7 @@ public:
 
     /// STATE ONE PRESENTATION PREFERENCE -- titles, the band's keys or the Hotkeys view's -- as the
     /// toggle `a` names, and save the three.
-    void state_presentation(Act a);
+    void state_presentation(Act a, loom::Mail& mail);
 
     /// Say once what the startup file work DID, on the first surface that can show it --
     /// after the session restore, deliberately, so the sentence that survives on the one
@@ -823,7 +824,7 @@ public:
     };
 
     /// END EVERY button-1 GESTURE THIS SESSION IS HOLDING, whatever mode saw the release.
-    GesturesEnded end_held_gestures();
+    GesturesEnded end_held_gestures(loom::Mail& mail);
 
     /// A pointer button changed in Workshop's own area, AND the position it changed at, in the
     /// desk's pixels: the window's moment (`on(AreaButtonChanged)`), or one held and replayed.
@@ -894,8 +895,8 @@ public:
     /// ...and the same judgement of v2's rows, which say how each setting is found.
     void on(const v2::PaneSettingsDeclared& declared, loom::Mail& mail);
 
-    /// THE SETTINGS A PANE'S DECLARATION GIVES, while the weave that declared them holds its
-    /// office; nullptr when none counts. v1's rows, and v2's beside them.
+    /// THE SETTINGS A PANE'S DECLARATION GIVES, as the store counts them; nullptr when none counts.
+    /// v1's rows, and v2's beside them.
     const std::vector<PaneSettingRow>* counted_settings(const RuntimePane& row) const;
     const std::vector<v2::PaneSettingRow>* counted_settings_v2(const RuntimePane& row) const;
 
@@ -909,10 +910,9 @@ public:
     /// A PANE'S WORD THAT IT CANNOT USE A SETTING IT WAS HANDED, kept against that revision.
     void on(const PaneSettingUnused& unused, loom::Mail& mail);
 
-    /// THE REVISION THE LIVE LAYOUT'S ROW FOR `ref` STANDS AT, minted afresh when what it was
-    /// minted for moved -- the desk put live, the row's settings, the counted declaration or the
-    /// office's holder; 0 when the live layout has no such row.
-    std::int64_t settings_revision(const PaneRef& ref);
+    /// THE REVISION THE LIVE LAYOUT'S ROW FOR `ref` STANDS AT, as the store last minted it for
+    /// the live layout this desk presents; 0 when it has no such row.
+    std::int64_t settings_revision(const PaneRef& ref) const;
 
     // ---- Office-wide settings and pins (WL-SETTING) -----------------------------------------
 
@@ -928,34 +928,10 @@ public:
     /// written.
     void on(const PaneSettingPinRequested& asked, loom::Mail& mail);
 
-    /// WHAT AN OFFICE'S DECLARATION GIVES: Workshop's own, declared in code, or the counted
-    /// declaration of an office that sent one; nullptr when none counts.
-    const std::vector<v2::PaneSettingRow>* office_rows(std::string_view office) const;
-    /// THE REVISION AN OFFICE'S SETTINGS STAND AT, minted afresh when what it was minted for moved:
-    /// the counted rows, the kept settings or the office's holder; 0 when nothing declares.
-    std::int64_t office_revision(const std::string& office);
-    /// HAND EVERY DECLARING OFFICE ITS SETTINGS, when its holder takes them and has not been handed
-    /// these, at the revision they stand at.
+    /// HAND EVERY DECLARING OFFICE ITS SETTINGS, as the store says each is owed them.
     void hand_office_settings(loom::Mail& mail);
-    /// Workshop's own settings, read from what its settings file keeps into what the session
-    /// spends.
+    /// Workshop's own settings, read from what the store keeps into what the session spends.
     void apply_workshop_settings();
-    /// WRITE WORKSHOP'S SETTINGS FILE as it now stands: empty when written, else why not -- an
-    /// isolated run, a file this run could not read, a file another hand changed since this host
-    /// read it, a write that failed.
-    std::string write_prefs();
-    /// THE PIN LIST A READING OF `ref` SHOWS, in pin order, and the target it is kept under in the
-    /// scope in force (`layout` a shelf position, -1 the live layout): the scope's own list, else,
-    /// per layout, the Workshop-wide one, else the declaration's own pins.
-    std::vector<std::string> effective_pins(const PaneRef& ref, std::int64_t layout = -1) const;
-    std::string pin_target(const PaneRef& ref, std::int64_t layout = -1) const;
-    /// THE LOCKS ON `ref`'S ROW IN THE LAYOUT AT `layout` (a shelf position), in key order, each with
-    /// where it holds: the everywhere locks, and that layout's own.
-    std::vector<SettingLockShown> locks_on(const PaneRef& ref, std::size_t layout) const;
-    /// The keys locked on `ref`'s row of the live layout, which every write door refuses, and those
-    /// locked in the live layout alone.
-    std::vector<std::string> locked_keys(const PaneRef& ref) const;
-    std::vector<std::string> layout_locked_keys(const PaneRef& ref) const;
 
     // ---- Locks and every layout at once (WL-SETTING) ----------------------------------------
 
@@ -968,22 +944,35 @@ public:
     /// ...AND MANY OF THEM WRITTEN, with layouts' baselines, at the revision the asker read: judged
     /// whole before anything is written, then each write's outcome said.
     void on(const SettingsWriteRequested& asked, loom::Mail& mail);
-    /// THE REVISION EVERY LAYOUT'S SETTINGS STAND AT, minted afresh whenever the reading moved: a
-    /// row's settings, a layout added, removed, moved or renamed, the live one, a declaration, a
-    /// lock or a baseline.
-    std::int64_t layout_settings_revision();
-    /// The reading itself, its revision left 0.
-    LayoutSettingsShown layout_settings_reading() const;
     /// WHETHER `gesture` IS THE WEAVER'S CURRENT ACT sent to a pane of `office`: the correlation of
     /// the weaver's hand's latest act, which a guest's hand never holds.
     bool weavers_act(std::int64_t gesture, std::string_view office) const;
-    /// GIVE EVERY ROW OF `desk` AN EVERYWHERE LOCK NAMES ITS PINNED VALUE. Says whether any moved.
-    bool pin_everywhere_locks(Setup& desk) const;
-    /// What Workshop's settings file keeps for layout `from`, kept for `to` instead (`to` empty:
-    /// dropped) when no layout still holds `from`; then the file written.
-    void move_layout_prefs(const std::string& from, const std::string& to);
-    /// What Workshop's settings file keeps, as this run holds it.
-    const prefs_persist::Prefs& prefs() const noexcept { return prefs_; }
+
+    // ---- The layouts' store, held here (WL-LAYOUT) --------------------------------------------
+
+    /// THE STORE, its host's paths and readings read from this host's at the ask.
+    LayoutStore& store();
+    /// ...and as it stands, to read.
+    const LayoutStore& layouts() const noexcept { return store_; }
+    /// WHAT THE STORE SAID AND MOVED, acted on: the live layout presented again, Workshop's own
+    /// settings applied, every office handed its own, the sentence said.
+    void take_store(loom::Mail& mail);
+    /// THE LIVE LAYOUT, PRESENTED: this desk's copy replaced whole, and the panes reconciled to it.
+    void install_live(const LiveLayout& live, loom::Mail& mail);
+    /// What one of this desk's edits came to, for the gesture that asked it.
+    using EditThen = std::function<void(const LayoutEditAnswered&, loom::Mail&)>;
+    /// ASK THE STORE FOR THESE EDITS of the live layout this desk presents, and act on the answer.
+    /// `judged`: the edits were judged from the picture this desk presents, so a picture the
+    /// store has moved past refuses them; an edit that reads no picture (an order move, a seat)
+    /// names none.
+    void ask_layout(std::vector<LayoutEdit> edits, EditThen then, loom::Mail& mail,
+                    bool judged = true);
+    /// SEAT `ref` ON THE LIVE LAYOUT, asking the store only when this desk does not seat it, then
+    /// `then` with what that came to.
+    void seat_then(const PaneRef& ref, EditThen then, loom::Mail& mail);
+    /// A reveal's seat, done: the pane selected and given the keys, said, and the asker answered.
+    void revealed(std::int64_t kind, const std::string& name, const std::string& pane,
+                  const loom::DeferredAnswer& owed, loom::Mail& mail);
 
     // ---- The participating owner of the application's default behaviour (WL-DESK) --------
 
@@ -1036,12 +1025,14 @@ public:
 
     /// PERFORM ONE LAUNCH, WITHOUT ASKING WHO WANTED IT. The body `on(PaneLaunchRequested)`
     /// and every host-side caller spend, so "launch" means one thing.
-    PaneLaunchAnswered launch_pane(const PaneRef& ref, loom::Mail& mail);
+    using LaunchThen = std::function<void(const PaneLaunchAnswered&, loom::Mail&)>;
+    void launch_pane(const PaneRef& ref, LaunchThen then, loom::Mail& mail);
 
     /// PERFORM ONE CLOSE, WITHOUT ASKING WHO WANTED IT -- `launch_pane`'s partner, and not its
     /// inverse: it removes participation and never unloads, and it never opens anything.
-    PaneCloseAnswered close_pane(const PaneRef& ref, loom::Mail& mail,
-                                 std::vector<PaneSetting>* discarded = nullptr);
+    using CloseThen = std::function<void(const PaneCloseAnswered&,
+                                         const std::vector<PaneSetting>& discarded, loom::Mail&)>;
+    void close_pane(const PaneRef& ref, CloseThen then, loom::Mail& mail);
 
     /// WHAT THE ONE INVENTORY CALLS A PANE -- its offered name, or its pane key when nothing
     /// names it -- for a sentence about it.
@@ -1130,6 +1121,8 @@ public:
     /// settings the rows were built from moved since they were named -- asked before every reading
     /// and every judgement, so a commit is never judged against a name the facts have left.
     void refresh_inspected();
+    /// The value the subject's row `label` shows now, or empty.
+    std::string row_value_of(const std::string& label) const;
 
     /// SAY THE SUBJECT OUT LOUD, if it changed since it was last said (the inventory's rule).
     void publish_pane_subject(loom::Mail& mail);
@@ -1281,6 +1274,9 @@ private:
     /// ...and the settings the publication owes the pane it seated, said at the end of the
     /// delivery before its area is placed.
     bool settings_owed_ = false;
+    /// THE MANAGED OPENING'S SEAT, painted when its presentation was published and owed to the
+    /// layouts' store until this desk next speaks.
+    std::optional<PaneRef> seat_owed_;
 
     /// IS THIS THE CHARACTER THAT KEY PRODUCED?
     static bool same_keystroke(const std::string& text, const std::string& owed);
@@ -1354,27 +1350,16 @@ private:
     /// cannot inherit a stale position or a stale draft (`close_context`'s rule).
     void close_naming();
 
-    /// TAKE THE TYPED NAME AND RENAME THE LAYOUT.
-    void commit_layout_rename();
+    /// TAKE THE TYPED NAME AND ASK THE STORE TO RENAME THE LAYOUT.
+    void commit_layout_rename(loom::Mail& mail);
 
-    /// What to say about a layout's setup association after an operation: nothing, or the artifact
-    /// and the verdict.
-    std::string link_note(std::size_t at) const;
-
-    /// Which artifact `s` and `r` act on for the live layout: its own association, or the host's
-    /// configured setup path.
-    const std::string& setup_artifact() const;
-
-    /// WRITE THE LIVE LAYOUT'S DESK TO ITS SETUP ARTIFACT (`s`).
-    void save_setup();
+    /// ASK THE STORE TO WRITE THE LIVE LAYOUT'S DESK TO ITS SETUP ARTIFACT (`s`).
+    void save_setup(loom::Mail& mail);
 
     /// RESTORE THE LIVE LAYOUT FROM ITS SETUP ARTIFACT (`r`).
     void restore_setup(loom::Mail& mail);
 
     // ---- THE LAYOUT SHELF: several desks, one of them live --------------------
-
-    /// WHICH LAYOUT IS LIVE AND WHERE IT SITS IN THE RUN, as one sentence.
-    std::string layout_note() const;
 
     /// MAKE THE LAYOUT AT `to` LIVE -- the one operation every switching gesture spends,
     /// keyboard and pointer alike, so a tab press and a stepping key cannot come to mean
@@ -1399,7 +1384,7 @@ private:
     void drop_layout(std::size_t at, loom::Mail& mail);
 
     /// MOVE THE LAYOUT AT `at` ONE STEP ALONG THE WEAVER'S ORDER.
-    void shift_layout(std::size_t at, std::int64_t by);
+    void shift_layout(std::size_t at, std::int64_t by, loom::Mail& mail);
 
     /// WHAT TO SAY ABOUT THE PANES THIS BUILD COULD NOT PRESENT -- nothing when
     /// there are none, and the first one BY NAME when there are.
@@ -1413,7 +1398,7 @@ private:
     void shape_restored_window(loom::Mail& mail);
 
     /// WRITE DOWN THE DESK AND THE ROOM, ON THE WAY OUT.
-    void save_last_session();
+    void save_last_session(loom::Mail& mail);
 
     /// THE RESTORE'S SENTENCE, kept while it may stand in the wrong unit: the desk it reopened and
     /// the layouts it counted, the room in canvas pixels, what was declined and what changed hands.
@@ -1474,6 +1459,12 @@ private:
 
     /// AUTHOR AN ABSOLUTE PLACE. `x`/`y` are the whole proposal, saturated by the caller.
     void arrange_place(std::int64_t x, std::int64_t y, loom::Mail& mail);
+    /// A PANE'S WINDOW, written as one gesture proposes it: painted while a drag holds the pane,
+    /// else asked of the store.
+    void write_window(const PaneRef& ref, const PaneAxisProposal& horizontal,
+                      const PaneAxisProposal& vertical, loom::Mail& mail);
+    /// A DRAG'S RELEASE: the window it proposed for `ref`, asked of the store.
+    void commit_drag(const PaneRef& ref, loom::Mail& mail);
 
     /// The place a one-cell nudge proposes: the resolved corner if this pane has no authored
     /// place yet, then the delta.
@@ -1500,7 +1491,7 @@ private:
 
     /// RESET THE WHOLE SETUP'S FRONT ORDER -- zero-target, one owner call and its
     /// sentence, spent by the keyboard's reset prompt and by the room's contextual row.
-    void reset_front_order();
+    void reset_front_order(loom::Mail& mail);
 
     /// THE ARRANGEMENT KEYS -- one switch for both scopes and the reset prompt.
     void arrange_key(const zengine::input::KeyPressed& k, loom::Mail& mail);
@@ -1779,7 +1770,7 @@ private:
     void quit(loom::Mail& mail);
 
     /// THE EXIT ITSELF: write down the desk, then stop the bus. The one place both happen.
-    void finish_quit();
+    void finish_quit(loom::Mail& mail);
 
     /// The quit in flight ends without an exit (a pane's refusal, or a question Loom could not
     /// deliver): `why` is said with the count of gestures dropped, the held gestures replay in
@@ -2038,14 +2029,6 @@ private:
     std::vector<PendingPaste> pending_pastes_;
 
 
-    /// WHETHER THIS PROCESS HAS ALREADY TRIED TO TAKE BACK ITS LAST SESSION.
-    // WL-SESSION-14 -- agents/workshop/session-restore.md
-    bool restored_ = false;
-
-    /// WHETHER THE SESSION FILE THIS RUN FOUND COULD BE READ.
-    // WL-SESSION-15 -- agents/workshop/session.md
-    bool session_refused_ = false;
-
     /// THE RESTORE'S SENTENCE, until the window's offer spells it again in its own unit: a
     /// restore spells the room in the unit the desk holds, which before the offer is the cell.
     std::optional<RestoreNotice> restore_notice_;
@@ -2078,28 +2061,9 @@ private:
     std::int64_t app_declaration_ = 0;
     /// THE MINT FOR DECLARATION NUMBERS, pane and application alike: from one, never reused.
     std::int64_t declarations_ = 0;
-    /// WHAT EACH LIVE ROW'S SETTINGS REVISION WAS MINTED FOR, and the mint: from one, never
-    /// reused, so a revision read before any move is never current again. A row the live layout
-    /// no longer has goes from the list; never persisted.
-    struct SettingsRevision {
-        PaneRef ref;
-        std::int64_t revision = 0;
-        std::uint64_t desk = 0;
-        std::vector<PaneSetting> settings;
-        std::vector<v2::PaneSettingRow> rows;
-        loom::WeaveId holder{};
-    };
-    std::vector<SettingsRevision> settings_revisions_;
-    std::int64_t settings_revision_ = 0;
-    /// The reading every layout's settings were last minted for, and the revision it was minted.
-    LayoutSettingsShown layout_settings_minted_;
-    std::int64_t layout_settings_revision_ = 0;
     /// WHETHER THIS ASKER MAY READ AND WRITE A PANE'S SETTINGS BY MESSAGE: an office, the Terminal
     /// this host mounted, or a guest whose row has `settings`. Empty when it may; else why not.
     std::string settings_asker_refused(const loom::Mail& mail) const;
-    /// ...and an admitted declaration kept for the pane of `kind`, whichever version it came in.
-    void keep_settings_rows(std::int64_t kind, std::vector<v2::PaneSettingRow> rows,
-                            loom::Mail& mail);
     /// THE LAST INVENTORY THIS HOST SAID OUT LOUD, so it does not say it again unchanged -- and
     /// whether it has said one since a presenter last arrived (`on(PaneOffered)` clears it).
     std::vector<InventoryPane> inventory_said_;
@@ -2122,36 +2086,9 @@ private:
     bool keymap_file_present_ = false;
     bool startup_spoken_ = false; ///< the one combined startup sentence has been said
 
-    /// What loading the PREFS file produced, the keymap's own bookkeeping one file over: what it
-    /// keeps, whether it could be read, and its bytes as this host last read or wrote them and
-    /// whether it was there -- a write never overwrites a file another hand changed since.
-    // WL-FOCUS-11 -- agents/workshop/focus.md
-    bool prefs_loaded_ = false;
-    bool prefs_bad_ = false;
-    prefs_persist::Prefs prefs_;
-    std::string prefs_bytes_;
-    bool prefs_file_present_ = false;
-
-    /// ONE OFFICE'S OFFICE-WIDE DECLARATION, counting while the weave that sent it holds the
-    /// office at the incarnation that sent it, and the revision last handed to its holder.
-    struct OfficeDeclaration {
-        std::string office;
-        std::vector<v2::PaneSettingRow> rows;
-        loom::WeaveId from{};
-        std::int64_t incarnation = 0;
-        std::int64_t handed = 0; ///< the revision last handed to the holder; 0 for none
-    };
-    std::vector<OfficeDeclaration> office_declarations_;
-    /// WHAT EACH OFFICE'S REVISION WAS MINTED FOR, the mint shared with the rows' (from one, never
-    /// reused); never persisted.
-    struct OfficeRevision {
-        std::string office;
-        std::int64_t revision = 0;
-        std::vector<v2::PaneSettingRow> rows;
-        std::vector<PaneSetting> settings;
-        loom::WeaveId holder{};
-    };
-    std::vector<OfficeRevision> office_revisions_;
+    /// THE LAYOUTS' STORE, and what its host is handed from this one's at each ask.
+    LayoutsHost layouts_host_;
+    LayoutStore store_{layouts_host_};
 
     /// What this weave last said about what is true: its own last utterance, not a cache of the
     /// conditions, so the publication is silent when nothing changed.

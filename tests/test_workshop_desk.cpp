@@ -248,7 +248,7 @@ TEST_CASE("the desk says which pane is selected and holds the keys, and a pane p
 
     // A PLACE PAST THE CANVAS'S RIGHT EDGE: the intent is kept and said; nothing of it is visible.
     const Screen sc = screen_of(d.r.session());
-    REQUIRE(place_at_canvas(d.r.session(), PaneRef{kAlphaOffice, "alpha"}, sc.w + 240, sc.room_y + 24)
+    REQUIRE(place_at_canvas(d.r, PaneRef{kAlphaOffice, "alpha"}, sc.w + 240, sc.room_y + 24)
                 .accepted);
     d.r.extent(150, 60);
     desk = d.desk();
@@ -733,12 +733,14 @@ TEST_CASE("a held press keeps a canvas pane's room only from its title row: a pa
           "is held is granted its new room at once, and the press is lost") {
     SketchRig d;
     const auto author = [&](std::int64_t y, std::int64_t h) {
-        for (auto& p : d.r.session().setup.active.panes) {
-            if (p.ref.provider != kCanvasOffice || p.ref.pane != kCanvasPane) continue;
-            p.place = {pane_unit::kPixels, 4 * gfx::kCellPx, y * gfx::kCellPx};
-            p.width = {pane_unit::kPixels, 60 * gfx::kCellPx};
-            p.height = {pane_unit::kPixels, h * gfx::kCellPx};
-        }
+        stage_desk(d.r, [&](Setup& staged) {
+            for (auto& p : staged.panes) {
+                if (p.ref.provider != kCanvasOffice || p.ref.pane != kCanvasPane) continue;
+                p.place = {pane_unit::kPixels, 4 * gfx::kCellPx, y * gfx::kCellPx};
+                p.width = {pane_unit::kPixels, 60 * gfx::kCellPx};
+                p.height = {pane_unit::kPixels, h * gfx::kCellPx};
+            }
+        });
         d.r.extent(149, 60); // a same-size extent reseats nothing: the desk re-seats every pane
         d.r.extent(150, 60);
     };
@@ -774,12 +776,14 @@ TEST_CASE("a canvas pane whose title waits for a held press, moved while it wait
     d.r.text("t");
     REQUIRE_FALSE(d.r.session().pane_titles);
     const auto author = [&](std::int64_t y, std::int64_t h) {
-        for (auto& p : d.r.session().setup.active.panes) {
-            if (p.ref.provider != kCanvasOffice || p.ref.pane != kCanvasPane) continue;
-            p.place = {pane_unit::kPixels, 4 * gfx::kCellPx, y * gfx::kCellPx};
-            p.width = {pane_unit::kPixels, 60 * gfx::kCellPx};
-            p.height = {pane_unit::kPixels, h * gfx::kCellPx};
-        }
+        stage_desk(d.r, [&](Setup& staged) {
+            for (auto& p : staged.panes) {
+                if (p.ref.provider != kCanvasOffice || p.ref.pane != kCanvasPane) continue;
+                p.place = {pane_unit::kPixels, 4 * gfx::kCellPx, y * gfx::kCellPx};
+                p.width = {pane_unit::kPixels, 60 * gfx::kCellPx};
+                p.height = {pane_unit::kPixels, h * gfx::kCellPx};
+            }
+        });
         d.r.extent(149, 60); // a same-size extent reseats nothing: the desk re-seats every pane
         d.r.extent(150, 60);
     };
@@ -821,12 +825,14 @@ TEST_CASE("a pane moved one title row's height while a press is held, its title 
                 REQUIRE_FALSE(d.r.session().pane_titles);
             }
             const auto author = [&](std::int64_t y, std::int64_t h) {
-                for (auto& p : d.r.session().setup.active.panes) {
-                    if (p.ref.provider != kCanvasOffice || p.ref.pane != kCanvasPane) continue;
-                    p.place = {pane_unit::kPixels, 4 * gfx::kCellPx, y};
-                    p.width = {pane_unit::kPixels, 60 * gfx::kCellPx};
-                    p.height = {pane_unit::kPixels, h};
-                }
+                stage_desk(d.r, [&](Setup& staged) {
+                    for (auto& p : staged.panes) {
+                        if (p.ref.provider != kCanvasOffice || p.ref.pane != kCanvasPane) continue;
+                        p.place = {pane_unit::kPixels, 4 * gfx::kCellPx, y};
+                        p.width = {pane_unit::kPixels, 60 * gfx::kCellPx};
+                        p.height = {pane_unit::kPixels, h};
+                    }
+                });
                 // a same-size extent reseats nothing: the desk re-seats every pane
                 if (window) {
                     d.r.extent_on_window(149, 60);
@@ -2455,13 +2461,14 @@ TEST_CASE("a covered pane says its visible words only, and what covers it: a pan
     // and sizes in canvas cells, laid out again by a new extent.
     const auto put = [&d](const char* office, const char* pane, std::int64_t x, std::int64_t y,
                           std::int64_t w, std::int64_t h) {
-        Setup& desk = d.r.session().setup.active;
         const PaneRef ref{office, pane};
-        REQUIRE(author_pane_place(desk, ref, x * gfx::kCellPx, y * gfx::kCellPx)
-                    .accepted);
-        REQUIRE(author_pane_size(desk, ref, PaneSize{pane_unit::kPixels, w * gfx::kCellPx},
-                                 PaneSize{pane_unit::kPixels, h * gfx::kCellPx})
-                    .accepted);
+        stage_desk(d.r, [&](Setup& desk) {
+            REQUIRE(author_pane_place(desk, ref, x * gfx::kCellPx, y * gfx::kCellPx)
+                        .accepted);
+            REQUIRE(author_pane_size(desk, ref, PaneSize{pane_unit::kPixels, w * gfx::kCellPx},
+                                     PaneSize{pane_unit::kPixels, h * gfx::kCellPx})
+                        .accepted);
+        });
     };
     put(kAlphaOffice, "alpha", 4, 5, 40, 12);
     put(kFrontOffice, "front", 30, 0, 40, 10);
@@ -2622,15 +2629,17 @@ TEST_CASE("Layouts and the band are read as Workshop draws them: tabs as named p
     DeskRig d;
     // LAYOUTS NAMED WITH A SPACE, TWO ALIKE, ONE WITH BYTES PAST ASCII, ONE WITH A PERCENT SIGN AND
     // ONE NAMED AS THE CREATE TAB IS, painted again by a new extent.
-    SetupState& setup = d.r.session().setup;
-    for (const char* name : {"my desk", "twin", "twin", "caf\xC3\xA9", "100%", "+"}) {
-        setup.shelved.push_back(Layout{Setup{name, {}}, SetupLink{}});
-    }
+    stage_run(*d.r.w, [](SetupState& setup) {
+        for (const char* name : {"my desk", "twin", "twin", "caf\xC3\xA9", "100%", "+"}) {
+            setup.shelved.push_back(Layout{Setup{name, {}}, SetupLink{}});
+        }
+    });
     d.r.extent(149, 60);
     d.r.extent(150, 60);
     const std::vector<std::string> expected{"layout:Default", "layout:my desk",   "layout:twin#3",
                                             "layout:twin#4",  "layout:caf%C3%A9", "layout:100%25",
                                             "layout:%2B"};
+    const SetupState& setup = d.r.run();
     REQUIRE(layout_count(setup) == expected.size());
     const Session& s = d.r.session();
     const Screen sc = screen_of(s);
@@ -2696,13 +2705,15 @@ TEST_CASE("Layouts and the band are read as Workshop draws them: tabs as named p
 
     // LAYOUTS PLACED LOW, reaching under the foot band: the band is drawn over it as over any pane,
     // and what the band hides is not said.
-    Setup& desk = d.r.session().setup.active;
     const PaneRef layouts_ref{kWorkshopProvider, pane_key::kLayouts};
     const std::int64_t room_h = sc.notice_y - sc.room_y;
-    REQUIRE(author_pane_place(desk, layouts_ref, 0, room_h - gfx::kCellPx).accepted);
-    REQUIRE(author_pane_size(desk, layouts_ref, PaneSize{pane_unit::kPixels, 100 * gfx::kCellPx},
-                             PaneSize{pane_unit::kPixels, 4 * gfx::kCellPx})
-                .accepted);
+    stage_desk(d.r, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, layouts_ref, 0, room_h - gfx::kCellPx).accepted);
+        REQUIRE(author_pane_size(desk, layouts_ref,
+                                 PaneSize{pane_unit::kPixels, 100 * gfx::kCellPx},
+                                 PaneSize{pane_unit::kPixels, 4 * gfx::kCellPx})
+                    .accepted);
+    });
     d.r.extent(149, 60);
     d.r.extent(150, 60);
     const Screen low_sc = screen_of(s);

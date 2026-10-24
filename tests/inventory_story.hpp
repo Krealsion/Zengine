@@ -142,42 +142,50 @@ struct InventoryStory {
             // Powers below Info: its rows are what a hand drags from.
             r.pick({intro::kIntrospectionRole, intro::kPowersPane});
             powers = r.session().panes.runtime.find(intro::kIntrospectionRole, intro::kPowersPane)->kind;
-            for (auto& pane : r.session().setup.active.panes) {
-                if (pane.ref.provider != intro::kIntrospectionRole) continue;
-                pane.place = {pane_unit::kPixels, 85 * gfx::kCellPx, 30 * gfx::kCellPx};
-                pane.width = {pane_unit::kPixels, 80 * gfx::kCellPx};
-                pane.height = {pane_unit::kPixels, 24 * gfx::kCellPx};
-            }
+            stage_desk(r, [&](Setup& staged) {
+                for (auto& pane : staged.panes) {
+                    if (pane.ref.provider != intro::kIntrospectionRole) continue;
+                    pane.place = {pane_unit::kPixels, 85 * gfx::kCellPx, 30 * gfx::kCellPx};
+                    pane.width = {pane_unit::kPixels, 80 * gfx::kCellPx};
+                    pane.height = {pane_unit::kPixels, 24 * gfx::kCellPx};
+                }
+            });
         }
         if (with_flow) {
             // Flow below Info, wide enough for its rail and a graph.
             r.pick({"zengine.flow", "flow"});
             flow = r.session().panes.runtime.find("zengine.flow", "flow")->kind;
-            for (auto& pane : r.session().setup.active.panes) {
-                if (pane.ref.provider != "zengine.flow") continue;
-                pane.place = {pane_unit::kPixels, 85 * gfx::kCellPx, 30 * gfx::kCellPx};
-                pane.width = {pane_unit::kPixels, 92 * gfx::kCellPx};
-                pane.height = {pane_unit::kPixels, 28 * gfx::kCellPx};
-            }
+            stage_desk(r, [&](Setup& staged) {
+                for (auto& pane : staged.panes) {
+                    if (pane.ref.provider != "zengine.flow") continue;
+                    pane.place = {pane_unit::kPixels, 85 * gfx::kCellPx, 30 * gfx::kCellPx};
+                    pane.width = {pane_unit::kPixels, 92 * gfx::kCellPx};
+                    pane.height = {pane_unit::kPixels, 28 * gfx::kCellPx};
+                }
+            });
         }
         if (with_builder) {
             // The View Builder beside Flow, under Inventory.
             r.pick({"zengine.view.builder", "view-builder"});
             builder = r.session().panes.runtime.find("zengine.view.builder", "view-builder")->kind;
-            for (auto& pane : r.session().setup.active.panes) {
-                if (pane.ref.provider != "zengine.view.builder") continue;
-                pane.place = {pane_unit::kPixels, 2 * gfx::kCellPx, 30 * gfx::kCellPx};
+            stage_desk(r, [&](Setup& staged) {
+                for (auto& pane : staged.panes) {
+                    if (pane.ref.provider != "zengine.view.builder") continue;
+                    pane.place = {pane_unit::kPixels, 2 * gfx::kCellPx, 30 * gfx::kCellPx};
+                    pane.width = {pane_unit::kPixels, 80 * gfx::kCellPx};
+                    pane.height = {pane_unit::kPixels, 28 * gfx::kCellPx};
+                }
+            });
+        }
+        stage_desk(r, [&](Setup& staged) {
+            for (auto& pane : staged.panes) {
+                if (pane.ref.provider != "zengine.info" && pane.ref.provider != "zengine.inventory-pane") continue;
+                pane.place = {pane_unit::kPixels,
+                    (pane.ref.provider == "zengine.info" ? 85 : 2) * gfx::kCellPx, 4 * gfx::kCellPx};
                 pane.width = {pane_unit::kPixels, 80 * gfx::kCellPx};
-                pane.height = {pane_unit::kPixels, 28 * gfx::kCellPx};
+                pane.height = {pane_unit::kPixels, 24 * gfx::kCellPx};
             }
-        }
-        for (auto& pane : r.session().setup.active.panes) {
-            if (pane.ref.provider != "zengine.info" && pane.ref.provider != "zengine.inventory-pane") continue;
-            pane.place = {pane_unit::kPixels,
-                (pane.ref.provider == "zengine.info" ? 85 : 2) * gfx::kCellPx, 4 * gfx::kCellPx};
-            pane.width = {pane_unit::kPixels, 80 * gfx::kCellPx};
-            pane.height = {pane_unit::kPixels, 24 * gfx::kCellPx};
-        }
+        });
         r.extent(180, 60);
         using Input = input::InputWeaveT<QuietReader>;
         auto reader = std::make_unique<Input>(QuietReader{physical});

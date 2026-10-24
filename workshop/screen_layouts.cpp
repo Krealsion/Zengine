@@ -44,21 +44,21 @@ std::int64_t setup_name_columns(const Session& s, const Screen& sc) {
 // ---- THE `setup:` SLOT: what the ACTIVE layout's association is --------------------------
 
 // WL-TAB-02, WL-TAB-03 -- agents/workshop/tab-run.md
-std::string setup_link_text(const SetupState& setup, std::int64_t path_columns) {
-    const std::int64_t status = link_status(setup.active, setup.active_link);
+std::string setup_link_text(const LiveDesk& setup, std::int64_t path_columns) {
+    const std::int64_t status = setup.link;
     std::string line = kSetupSlot;
     if (status == setup_link::kNone) {
         line += kSetupLinkNone;
         return line;
     }
-    line += detail::fit_path(setup.active_link.path, path_columns);
+    line += detail::fit_path(setup.link_path, path_columns);
     line += kStatusJoin;
     line += status == setup_link::kCurrent ? kSetupLinkCurrent : kSetupLinkModified;
     return line;
 }
 
 // WL-TAB-03 -- agents/workshop/tab-run.md
-std::string setup_rest_text(const SetupState& setup, const Panes& panes,
+std::string setup_rest_text(const LiveDesk& setup, const Panes& panes,
                             const Keymap& keymap, KeySpelling spelling) {
     std::string line;
     // The session's whole resolution table is asked: a pane a weaver can see must never be counted
@@ -95,11 +95,11 @@ std::string layouts_omitted_text(std::size_t how_many, bool ahead) {
     return ahead ? " " + std::to_string(how_many) + ">" : "<" + std::to_string(how_many);
 }
 
-std::string layout_tab_text(const SetupState& setup, std::size_t at) {
+std::string layout_tab_text(const LiveDesk& setup, std::size_t at) {
     const bool live = at == setup.active_at;
     std::string tab;
     tab += live ? kLayoutLiveOpen : kLayoutTabPad;
-    tab += layout_at(setup, at).name;
+    tab += layout_name_at(setup, at);
     tab += live ? kLayoutLiveClose : kLayoutTabPad;
     return tab;
 }
@@ -110,7 +110,7 @@ std::int64_t layout_tab_columns(std::int64_t row_columns) noexcept {
 }
 
 // WL-TAB-05, WL-TAB-08 -- agents/workshop/tab-run.md
-LayoutTabRun layout_tab_run(const SetupState& setup, std::int64_t columns) {
+LayoutTabRun layout_tab_run(const LiveDesk& setup, std::int64_t columns) {
     LayoutTabRun run;
     const std::size_t n = layout_count(setup);
     if (columns <= 0) {

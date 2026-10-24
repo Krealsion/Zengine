@@ -43,6 +43,7 @@
 #include "workshop/guest_door.hpp"
 #include "workshop/guide_vocabulary.hpp"
 #include "workshop/keymap_persist.hpp"
+#include "workshop/layouts/vocabulary.hpp"
 #include "workshop/load_execute.hpp"
 #include "workshop/load_persist.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
@@ -126,6 +127,16 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::view::detail::ViewHostState>(), // ViewHostState v1
         shape<::zengine::view::detail::ViewRedraw>(), // ViewRedraw v1
         shape<::zengine::view::detail::ViewStart>(), // ViewStart v2
+        shape<::zengine::workshop::LiveTab>(), // LiveTab v1
+        shape<::zengine::workshop::RowRevision>(), // RowRevision v1
+        shape<::zengine::workshop::LiveLayout>(), // LiveLayout v1
+        shape<::zengine::workshop::LayoutEdit>(), // LayoutEdit v1
+        shape<::zengine::workshop::LayoutEditRequested>(), // LayoutEditRequested v1
+        shape<::zengine::workshop::LayoutEditAnswered>(), // LayoutEditAnswered v1
+        shape<::zengine::workshop::SessionSaveRequested>(), // SessionSaveRequested v1
+        shape<::zengine::workshop::SessionSaveAnswered>(), // SessionSaveAnswered v1
+        shape<::zengine::workshop::WeaversActRequested>(), // WeaversActRequested v1
+        shape<::zengine::workshop::WeaversActAnswered>(), // WeaversActAnswered v1
         shape<::zengine::workshop::ArrangementDoorState>(), // ArrangementDoorState v2
         shape<::zengine::workshop::EditorSwitchState>(), // EditorSwitchState v1
         shape<::zengine::workshop::EditorSwitchAnswered>(), // EditorSwitchAnswered v1

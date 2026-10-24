@@ -2067,7 +2067,9 @@ TEST_CASE("the launcher's cursor is an identity: rows moving under it do not ret
     load_real_desktop(r);
     Session& s = const_cast<Session&>(r.session());
     for (const char* ghost : {"g1", "g2", "g3"}) {
-        REQUIRE(add_pane(s.setup.active, PaneRef{"zengine.test.ghost", ghost}));
+        stage_desk(r, [&](Setup& desk) {
+            REQUIRE(add_pane(desk, PaneRef{"zengine.test.ghost", ghost}));
+        });
     }
     manager_here(r);
     std::vector<CatalogRow> inventory = inventory_rows(s.setup.active, s.panes);
@@ -2082,7 +2084,9 @@ TEST_CASE("the launcher's cursor is an identity: rows moving under it do not ret
     REQUIRE(marked_row(r).find("g2") != std::string::npos);
 
     // THE ROW ABOVE LEAVES THE LIST: g2 now has g1's index, and the marker follows g2.
-    REQUIRE(remove_pane(s.setup.active, PaneRef{"zengine.test.ghost", "g1"}));
+    stage_desk(r, [&](Setup& desk) {
+        REQUIRE(remove_pane(desk, PaneRef{"zengine.test.ghost", "g1"}));
+    });
     manager_here(r); // a gesture: the changed inventory is said
     CHECK(marked_row(r).find("g2") != std::string::npos);
     CHECK(marked_row(r).find("g3") == std::string::npos);
@@ -2090,7 +2094,9 @@ TEST_CASE("the launcher's cursor is an identity: rows moving under it do not ret
     CHECK(r.last_notice().find("g2 is not available") != std::string::npos); // g2, by identity
 
     // ...AND THE ROW THE MARKER HOLDS LEAVES: said, and Return waits for a choice.
-    REQUIRE(remove_pane(s.setup.active, PaneRef{"zengine.test.ghost", "g2"}));
+    stage_desk(r, [&](Setup& desk) {
+        REQUIRE(remove_pane(desk, PaneRef{"zengine.test.ghost", "g2"}));
+    });
     manager_here(r);
     CHECK(marked_row(r).rfind("? ", 0) == 0);
     CHECK(launcher_text(r).find("g2 left the list") != std::string::npos);
@@ -2403,7 +2409,8 @@ TEST_CASE("a choice whose row left stays unchosen across a desktop replacement a
     Session& s = const_cast<Session&>(r.session());
     const PaneRef info{"zengine.info", "info"};
     const PaneRef ghost{"zengine.test.ghost", "removed-pane"};
-    REQUIRE(add_pane(s.setup.active, ghost)); // authored, and offered by nobody: unresolved
+    // authored, and offered by nobody: unresolved
+    stage_desk(r, [&](Setup& desk) { REQUIRE(add_pane(desk, ghost)); });
 
     // THE WEAVER CHOOSES THE UNRESOLVED ROW AND CLOSES IT WITH THE ORDINARY `x`, which takes it off
     // the desk -- and, since nothing offers it, out of the list.
@@ -2689,7 +2696,7 @@ TEST_CASE("WL-KEY-08: shown in a POSIX terminal's terminal window, a row's POSIX
         // THE HOTKEYS PANE, the default first and the POSIX key beside it, made tall enough to
         // hold every row.
         r.key(sc::kK, input::mod::kCtrl);
-        const Written tall = author_pane_size(r.session().setup.active,
+        const Written tall = staged_author_pane_size(r,
                                               PaneRef{kDesktopRole, dp::kHotkeysPane},
                                               PaneSize{pane_unit::kPixels, cells_px(180)},
                                               PaneSize{pane_unit::kPixels, cells_px(140)});
@@ -2731,7 +2738,7 @@ TEST_CASE("the band and the Hotkeys pane teach the application's keys as they ar
     // THE HOTKEYS PANE, LAUNCHED BY ITS OWN APPLICATION ROW, lists the same truth -- with the
     // weaver's two authored rows marked, and where to move one. Made tall, as a weaver would.
     r.key(input::scan::kK, input::mod::kCtrl);
-    const Written tall = author_pane_size(r.session().setup.active,
+    const Written tall = staged_author_pane_size(r,
                                           PaneRef{kDesktopRole, dp::kHotkeysPane},
                                           PaneSize{pane_unit::kPixels, cells_px(180)},
                                           PaneSize{pane_unit::kPixels, cells_px(40)});
@@ -2797,7 +2804,7 @@ TEST_CASE("the Hotkeys pane names a keymap file whose path a canvas cannot draw 
     r.extent(160, 60);
     load_real_desktop(r);
     r.key(input::scan::kK, input::mod::kCtrl);
-    const Written tall = author_pane_size(r.session().setup.active,
+    const Written tall = staged_author_pane_size(r,
                                           PaneRef{kDesktopRole, dp::kHotkeysPane},
                                           PaneSize{pane_unit::kPixels, cells_px(180)},
                                           PaneSize{pane_unit::kPixels, cells_px(40)});
@@ -2824,7 +2831,7 @@ TEST_CASE("the Hotkeys pane declares its `help` setting, and a layout keeping it
     load_real_desktop(r);
     r.key(input::scan::kK, input::mod::kCtrl);
     const PaneRef hotkeys{kDesktopRole, dp::kHotkeysPane};
-    const Written tall = author_pane_size(r.session().setup.active, hotkeys,
+    const Written tall = staged_author_pane_size(r, hotkeys,
                                           PaneSize{pane_unit::kPixels, cells_px(180)},
                                           PaneSize{pane_unit::kPixels, cells_px(40)});
     REQUIRE_MESSAGE(tall.accepted, tall.refusal);
@@ -2890,7 +2897,7 @@ TEST_CASE("the Hotkeys pane's example row names a chord no pane on the desk decl
     r.extent(200, 60);
     // THE HOTKEYS PANE, MADE TALL, so its footer's example is on it.
     r.key(input::scan::kK, input::mod::kCtrl);
-    REQUIRE(author_pane_size(r.session().setup.active, PaneRef{kDesktopRole, dp::kHotkeysPane},
+    REQUIRE(staged_author_pane_size(r, PaneRef{kDesktopRole, dp::kHotkeysPane},
                              PaneSize{pane_unit::kPixels, cells_px(180)},
                              PaneSize{pane_unit::kPixels, cells_px(40)})
                 .accepted);

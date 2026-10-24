@@ -119,7 +119,7 @@ struct TerminalRig {
     /// pressing into the pane is the one every case here already makes.
     void give_rows(std::int64_t rows) {
         const Written wrote =
-            author_pane_size(r.session().setup.active, pane_terminal_ref(), PaneSize{},
+            staged_author_pane_size(r, pane_terminal_ref(), PaneSize{},
                              PaneSize{pane_unit::kPixels, cells_px(rows + 3)});
         REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
         focus();
@@ -131,7 +131,7 @@ struct TerminalRig {
     /// ...AND A WIDTH, the same way: a pane's side chrome is two cells of the authored box.
     void give_room(std::int64_t rows, std::int64_t columns) {
         const Written wrote =
-            author_pane_size(r.session().setup.active, pane_terminal_ref(),
+            staged_author_pane_size(r, pane_terminal_ref(),
                              PaneSize{pane_unit::kPixels, cells_px(columns + 2)},
                              PaneSize{pane_unit::kPixels, cells_px(rows + 3)});
         REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
@@ -982,7 +982,7 @@ TEST_CASE("the selection survives a recomputation and not a change of question")
     t.open(240, 100, /*shapes=*/6);
     // THE PANE NEEDS ROOM FOR A LIST WITH TWO ROWS IN IT, and a weaver gives a pane room by
     // arranging it.
-    const Written taller = author_pane_size(t.r.session().setup.active, pane_terminal_ref(),
+    const Written taller = staged_author_pane_size(t.r, pane_terminal_ref(),
                                            PaneSize{}, PaneSize{pane_unit::kPixels, cells_px(24)});
     REQUIRE_MESSAGE(taller.accepted, taller.refusal);
     t.r.extent(240, 100);

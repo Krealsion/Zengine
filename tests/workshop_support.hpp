@@ -538,6 +538,89 @@ inline std::int64_t live_status(const SetupState& s) {
     return link_status(s.active, s.active_link);
 }
 
+/// ...AS THE LIVE COPY A SESSION PRESENTS SAYS IT.
+inline std::int64_t live_status(const LiveDesk& d) { return d.link; }
+
+/// THE COPY A SESSION PRESENTS OF `run`, as the layouts' store would send it: for the cases that
+/// paint a session of several layouts and stage no store.
+inline LiveDesk live_copy_of(const SetupState& run) {
+    LiveDesk d;
+    d.active = run.active;
+    d.owned = run.active;
+    d.id = run.active_id;
+    d.active_at = run.active_at;
+    d.tabs.clear();
+    for (const Layout& l : layout_run(run)) {
+        d.tabs.push_back(LiveTab{l.id, l.desk.name, link_status(l.desk, l.link)});
+    }
+    d.link_path = run.active_link.path;
+    d.link = link_status(run.active, run.active_link);
+    d.put_live = run.put_live;
+    return d;
+}
+
+/// THE TAB RUN AND ONE TAB OF A RUN, as the copy a session presents of it paints them.
+inline LayoutTabRun layout_tab_run(const SetupState& run, std::int64_t columns) {
+    return layout_tab_run(live_copy_of(run), columns);
+}
+inline std::string layout_tab_text(const SetupState& run, std::size_t at) {
+    return layout_tab_text(live_copy_of(run), at);
+}
+
+/// STAGE THE RUN A LIVE WORKSHOP'S STORE HOLDS, changed by `f`: presented at Workshop's next
+/// delivery, as a run the store put in place is.
+template <class F>
+void stage_run(WorkshopWeave& w, F&& f) {
+    SetupState run = w.layouts().run();
+    f(run);
+    w.store().put_run(std::move(run));
+    // ...AND THE COPY WORKSHOP PRESENTS IS THE STORE'S AT ONCE, as a write past the doors showed it:
+    // nothing is reconciled until Workshop's next delivery presents the store's run.
+    LiveDesk& d = const_cast<Session&>(w.session()).setup;
+    LayoutNaming naming = std::move(d.naming);
+    const LiveLayout live = w.store().live_layout();
+    d = live_copy_of(w.layouts().run());
+    d.naming = std::move(naming);
+    d.revision = live.revision;
+    d.revisions = live.revisions;
+}
+
+/// ...ONLY ITS LIVE DESK, for the cases that write one desk past the doors.
+template <class Rig, class F>
+void stage_desk(Rig& r, F&& f) {
+    stage_run(*r.w, [&](SetupState& run) { f(run.active); });
+}
+
+/// ...AND ONE ROW OF IT, as a case authors past the doors: the setter's own answer.
+template <class Rig>
+Written staged_author_pane_size(Rig& r, const PaneRef& ref, const PaneSize& width,
+                                const PaneSize& height) {
+    Written out = Written::ok();
+    stage_desk(r, [&](Setup& desk) { out = author_pane_size(desk, ref, width, height); });
+    return out;
+}
+template <class Rig>
+Written staged_author_pane_place(Rig& r, const PaneRef& ref, std::int64_t x, std::int64_t y) {
+    Written out = Written::ok();
+    stage_desk(r, [&](Setup& desk) { out = author_pane_place(desk, ref, x, y); });
+    return out;
+}
+template <class Rig> bool staged_add_pane(Rig& r, const PaneRef& ref) {
+    bool out = false;
+    stage_desk(r, [&](Setup& desk) { out = add_pane(desk, ref); });
+    return out;
+}
+template <class Rig> bool staged_remove_pane(Rig& r, const PaneRef& ref) {
+    bool out = false;
+    stage_desk(r, [&](Setup& desk) { out = remove_pane(desk, ref); });
+    return out;
+}
+template <class Rig> bool staged_reset_pane_place(Rig& r, const PaneRef& ref) {
+    bool out = false;
+    stage_desk(r, [&](Setup& desk) { out = reset_pane_place(desk, ref); });
+    return out;
+}
+
 /// RELATE THE LIVE LAYOUT TO `path`, WITH ITS CURRENT DESK AS THE KNOWN VALUE -- the state a
 /// successful `s` leaves behind, staged directly for the cases that are about something
 /// else.
@@ -1161,6 +1244,8 @@ struct Live {
     }
 
     const Session& session() const { return w->session(); }
+    /// EVERY LAYOUT OF THE RUN, as the layouts' store keeps it.
+    const SetupState& run() const { return w->layouts().run(); }
     std::string notice() const { return w->session().notice; }
 
     /// THE GLANCE A PRESENTER OF WHAT IS TRUE LEADS WITH, from what this Workshop last said
@@ -2325,18 +2410,21 @@ inline void keep_settings(Rig& t, const PaneRef& ref, std::vector<PaneSetting> s
               [](const PaneSetting& a, const PaneSetting& b) { return a.key < b.key; });
     const Written legal = check_pane_settings(ref, settings);
     REQUIRE_MESSAGE(legal.accepted, legal.refusal);
-    SetupPane* row = pane_of(const_cast<Session&>(t.session()).setup.active, ref);
-    REQUIRE_MESSAGE(row != nullptr, "the live layout keeps no row for ", ref_text(ref));
-    row->settings = std::move(settings);
+    stage_desk(t, [&](Setup& desk) {
+        SetupPane* row = pane_of(desk, ref);
+        REQUIRE_MESSAGE(row != nullptr, "the live layout keeps no row for ", ref_text(ref));
+        row->settings = std::move(settings);
+    });
     t.key(input::scan::kUnknown);
 }
 
-/// WHAT A PANE'S COUNTED DECLARATION TAKES, as Workshop holds it.
+/// WHAT A PANE'S COUNTED DECLARATION TAKES, as the layouts' store counts it; none for none.
 template <class Rig>
 inline std::vector<v2::PaneSettingRow> declared_settings(Rig& t, const PaneRef& ref) {
     const RuntimePane* row = t.session().panes.runtime.find(ref.provider, ref.pane);
     REQUIRE_MESSAGE(row != nullptr, "nothing offers ", ref_text(ref));
-    return row->settings_rows_v2;
+    const std::vector<v2::PaneSettingRow>* counted = t.w->layouts().counted(ref);
+    return counted != nullptr ? *counted : std::vector<v2::PaneSettingRow>{};
 }
 
 /// ...AND WHAT ITS HOLDER SAID IT CANNOT USE, each `<key>: <why>`, kept only against the revision
@@ -3737,6 +3825,8 @@ struct PaneRig {
     load::BootAnswers plan_answers;
 
     Session& session() { return const_cast<Session&>(w->session()); }
+    /// EVERY LAYOUT OF THE RUN, as the layouts' store keeps it.
+    const SetupState& run() const { return w->layouts().run(); }
     /// THE NOTICE LINE, READ WHERE IT LIVES: `Session::notice` is drawn in the desk's band.
     const std::string& last_notice() const { return w->session().notice; }
 
@@ -3828,6 +3918,15 @@ inline Session& live(Live& t) { return const_cast<Session&>(t.session()); }
 /// authored place is measured from.
 inline Written place_at_canvas(Session& s, const PaneRef& ref, std::int64_t x, std::int64_t y) {
     return author_pane_place(s.setup.active, ref, x, y - screen_of(s).room_y);
+}
+
+/// ...ON A LIVE WORKSHOP'S STORE, staged as a case writes past the doors.
+template <class Rig>
+inline Written place_at_canvas(Rig& r, const PaneRef& ref, std::int64_t x, std::int64_t y) {
+    const std::int64_t room_y = screen_of(r.session()).room_y;
+    Written out = Written::ok();
+    stage_desk(r, [&](Setup& desk) { out = author_pane_place(desk, ref, x, y - room_y); });
+    return out;
 }
 
 /// The kinds a setup AUTHORS, in the order the file holds them: the BASE, not what a weaver sees
@@ -3958,11 +4057,13 @@ inline void open_pane(Live& t, const PaneRef& ref) {
 inline void open_at_right_column(Live& t, std::int64_t kind) {
     pick(t, kind);
     REQUIRE(t.session().panes.has(kind));
-    for (SetupPane& row : live(t).setup.active.panes) {
-        if (row.ref == ref_of(kind)) {
-            row.place.mode = pane_unit::kRightColumn;
+    stage_desk(t, [&](Setup& desk) {
+        for (SetupPane& row : desk.panes) {
+            if (row.ref == ref_of(kind)) {
+                row.place.mode = pane_unit::kRightColumn;
+            }
         }
-    }
+    });
     REQUIRE(bounds_of(t.session().panes, t.session().setup.active, kind,
                       screen_of(t.session()))
                 .placed_in == placement::kSideRegion);
@@ -5280,7 +5381,7 @@ inline std::int64_t chrome_column(PaneRig& r, std::int64_t kind, const std::stri
 /// could not show and gives the weaver a pane that grows.
 inline void make_taller(PaneRig& r, const char* pane, std::int64_t cells) {
     const Written wrote =
-        author_pane_size(r.session().setup.active, PaneRef{kIntroOffice, pane}, PaneSize{},
+        staged_author_pane_size(r, PaneRef{kIntroOffice, pane}, PaneSize{},
                          PaneSize{pane_unit::kPixels, cells_px(cells)});
     REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
     // A REPAINT, WHICH IS A ROOM GRANT, WHICH IS THIS TOOL'S ONE BEAT.
@@ -5369,12 +5470,14 @@ struct Keyed : Live {
 template<class Rig>
 void author_test_pane_room(Rig& r, std::int64_t kind, std::int64_t rows, std::int64_t columns) {
     bool found = false;
-    for (auto& row : r.session().setup.active.panes) {
-        if (resolve_pane(row.ref, r.session().panes) != kind) continue;
-        row.width = {pane_unit::kPixels, cells_px(columns + 2)};
-        row.height = {pane_unit::kPixels, cells_px(rows + 3)};
-        found = true;
-    }
+    stage_desk(r, [&](Setup& staged) {
+        for (auto& row : staged.panes) {
+            if (resolve_pane(row.ref, r.session().panes) != kind) continue;
+            row.width = {pane_unit::kPixels, cells_px(columns + 2)};
+            row.height = {pane_unit::kPixels, cells_px(rows + 3)};
+            found = true;
+        }
+    });
     REQUIRE(found);
 }
 

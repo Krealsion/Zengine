@@ -389,7 +389,7 @@ inline std::vector<std::string> admitted_and_painted(InfoRig& f) {
 
 /// WHAT ONE DESK OF THE RUN AUTHORS FOR THE LAYOUTS PANE'S WIDTH -- the live one or a shelved one.
 inline bool layouts_width_default_on_every_desk(InfoRig& f) {
-    const SetupState& run = f.r.session().setup;
+    const SetupState& run = f.r.run();
     for (std::size_t at = 0; at < layout_count(run); ++at) {
         const SetupPane* row = pane_of(layout_at(run, at), layouts_ref());
         if (row == nullptr || row->width.mode != pane_unit::kDefault) {
@@ -1649,8 +1649,10 @@ TEST_CASE("text typed after an Info commit was sent outlives that commit's answe
         REQUIRE(f.declared() == kDrafting);
         // THE WEAVER'S OWN WINDOW FOR THE PANE ON BOTH DESKS, through the setup's authoring doors,
         // and a new room -- which keeps the draft.
-        widen(f.r.session().setup.active);
-        widen(f.r.session().setup.shelved.front().desk);
+        stage_run(*f.r.w, [&](SetupState& run) {
+            widen(run.active);
+            widen(run.shelved.front().desk);
+        });
         f.r.extent(150, 44);
         const ExternalPane* seat = f.r.session().panes.external_pane(f.kind);
         REQUIRE(seat != nullptr);
@@ -1666,7 +1668,7 @@ TEST_CASE("text typed after an Info commit was sent outlives that commit's answe
             INFO("row: ", one);
             CHECK(one.find("nothing was") == std::string::npos);
         }
-        const SetupPane* first = pane_of(layout_at(f.r.session().setup, 0), layouts_ref());
+        const SetupPane* first = pane_of(layout_at(f.r.run(), 0), layouts_ref());
         REQUIRE(first != nullptr);
         CHECK(first->width.amount == cells_px(77)); // the write stands on the desk it was typed for
     }
@@ -1866,7 +1868,7 @@ TEST_CASE("an Info commit that reaches the owner before another desk is put live
     f.settle();
     CHECK(asks.subjects == std::vector<std::int64_t>{typed_for});
     REQUIRE(layout_count(f.r.session().setup) == 2);
-    const SetupPane* first = pane_of(layout_at(f.r.session().setup, 0), layouts_ref());
+    const SetupPane* first = pane_of(layout_at(f.r.run(), 0), layouts_ref());
     REQUIRE(first != nullptr);
     CHECK(first->width.amount == cells_px(77));
     CHECK(f.layouts_width() == "-"); // the new desk

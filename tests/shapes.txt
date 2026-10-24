@@ -261,6 +261,9 @@ KeymapShown v4 0x1a38f103558d350e
 Launch v1 0x264acc9298caf3f0
 Launched v1 0x038a9ec908caf910
 LauncherState v1 0x77d638e6de58fe46
+LayoutEdit v1 0xb3e469eb94a46b29
+LayoutEditAnswered v1 0xa39b9f5b6c7ff9ed
+LayoutEditRequested v1 0x641eec1d88e4e214
 LayoutPaneSettings v1 0x5bda473ede871192
 LayoutSettings v1 0x474f9e044edb9766
 LayoutSettingsRequested v1 0x913e2e891bf53d60
@@ -269,6 +272,8 @@ LayoutTheme v1 0x4852412d225837d0
 LayoutThemeWrite v1 0xb22438913ce4983a
 LineArgs v1 0xd5cddde3b357431f
 ListRowFace v1 0x1bb72dc45bde118a
+LiveLayout v1 0x54987cd6ac7cd501
+LiveTab v1 0xdca1dc89d23d7704
 LoadedSelected v1 0x014167e0a0600f00
 LookAtBuilds v1 0x6c73869dadfb0a65
 ManagedOpenProgress v1 0x2bca6433e225c0dd
@@ -443,6 +448,7 @@ ResolvedThemeKey v1 0x9849ec598371c0c0
 ResolvedThemeSetting v1 0x875d49cfd72c5c00
 RevertArtifact v1 0x0d34897e85f478d4
 RoomAsked v1 0x32f9e73dd294ff95
+RowRevision v1 0xa8d691eb2469c568
 RunBuild v2 0x49fcd7f7816295fc
 RunnerState v2 0xad71e1a017392225
 SampleDoorState v1 0x7f0334531407024f
@@ -452,6 +458,8 @@ SavedView v1 0x16bedef2a254852f
 SchemaIdentity v1 0xd6ff55096a9d98d2
 ScoreState v1 0x2a0e436c6672fb9d
 ScrollBarFace v1 0x444bc6439b4e716f
+SessionSaveAnswered v1 0xeb10d850cb281e8d
+SessionSaveRequested v1 0x0ffb525d9db60315
 SettingLock v1 0x5f8be7c8d3208026
 SettingLockShown v1 0x7e176756b72d1997
 SettingWrite v1 0xaefdd3d8f4627f21
@@ -555,6 +563,8 @@ ViewRetire v1 0x6a71f8f583882355
 ViewRun v1 0xed2c4ab0b0598981
 ViewStart v2 0x89d8495312d2c751
 ViewStop v1 0x1e90d056a56b777c
+WeaversActAnswered v1 0xc7eff665a85bc677
+WeaversActRequested v1 0xc198b7fb0e6b666c
 WinArea v9 0x36f52a2c62fb9090
 WindowOffered v3 0x0426f2eb5138d05b
 WindowShaped v1 0x65fc824d06476f98

@@ -400,7 +400,7 @@ TEST_CASE("an Info commit queued behind a layout switch is refused, and neither 
     CHECK_FALSE(answered.front().accepted);
     CHECK(answered.front().refusal == WorkshopWeave::kPaneCommitSubjectGone);
     CHECK(t.r.last_notice().find("committed") == std::string::npos);
-    for (const Layout& layout : t.r.session().setup.shelved) {
+    for (const Layout& layout : t.r.run().shelved) {
         CHECK(terminal_settings(layout.desk).empty());
     }
     CHECK(terminal_settings(t.r.session().setup.active).empty());
@@ -479,8 +479,9 @@ TEST_CASE("the Terminal's settings rows appear the moment its image declares, an
     t.r.ready();
     t.r.extent(160, 48);
     // THE DESK NAMES THE TERMINAL BEFORE ANY IMAGE OFFERS IT, and the inspector names it too.
-    Session& s = const_cast<Session&>(t.r.session());
-    REQUIRE(add_pane(s.setup.active, terminal_ref()));
+    stage_desk(t.r, [&](Setup& desk) {
+        REQUIRE(add_pane(desk, terminal_ref()));
+    });
     REQUIRE(hand_inspect(t.r, terminal_ref()).accepted);
     CHECK(subject_row(t.r.session(), tp::kSettingLegend, "SETTINGS") == nullptr);
     t.load_images();

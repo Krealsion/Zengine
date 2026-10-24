@@ -383,12 +383,14 @@ std::int64_t compose_at_notes(InventoryStory& s, const char* office = kNotesOffi
     const RuntimePane* row = r.session().panes.runtime.find(kComposerOffice, kComposePane);
     REQUIRE(row != nullptr);
     const std::int64_t compose = row->kind;
-    for (auto& p : r.session().setup.active.panes) {
-        if (p.ref.provider != kComposerOffice) continue;
-        p.place = {pane_unit::kPixels, 85 * gfx::kCellPx, 4 * gfx::kCellPx};
-        p.width = {pane_unit::kPixels, 80 * gfx::kCellPx};
-        p.height = {pane_unit::kPixels, 24 * gfx::kCellPx};
-    }
+    stage_desk(r, [&](Setup& staged) {
+        for (auto& p : staged.panes) {
+            if (p.ref.provider != kComposerOffice) continue;
+            p.place = {pane_unit::kPixels, 85 * gfx::kCellPx, 4 * gfx::kCellPx};
+            p.width = {pane_unit::kPixels, 80 * gfx::kCellPx};
+            p.height = {pane_unit::kPixels, 24 * gfx::kCellPx};
+        }
+    });
     // An unchanged room repaints nothing, so the room moves and comes back.
     r.extent(180, 59);
     r.extent(180, 60);
@@ -436,7 +438,7 @@ struct HotkeysDesk {
         REQUIRE(r.load_refusals.empty());
         REQUIRE(r.load_presenter(WORKSHOP_SO_MENU_PRESENTER).valid());
         r.key(input::scan::kK, input::mod::kCtrl);
-        const Written tall = author_pane_size(r.session().setup.active,
+        const Written tall = staged_author_pane_size(r,
                                               PaneRef{kDesktopRole, dp::kHotkeysPane},
                                               PaneSize{pane_unit::kPixels, cells_px(120)},
                                               PaneSize{pane_unit::kPixels, cells_px(40)});
@@ -1269,9 +1271,12 @@ TEST_CASE("a guest whose row has `settings` reads and writes a pane's settings; 
     r.ready();
     r.extent(160, 48);
     const PaneRef dial{"test.dial", "dial"};
-    Session& s = const_cast<Session&>(r.session());
-    REQUIRE(add_pane(s.setup.active, dial));
-    pane_of(s.setup.active, dial)->settings = {PaneSetting{"step", {}, 4, {}}};
+    stage_desk(r, [&](Setup& desk) {
+        REQUIRE(add_pane(desk, dial));
+    });
+    stage_desk(r, [&](Setup& desk) {
+        pane_of(desk, dial)->settings = {PaneSetting{"step", {}, 4, {}}};
+    });
 
     guests::GuestRow settings_row;
     settings_row.name = "agent";
@@ -1312,7 +1317,9 @@ TEST_CASE("a guest whose row has `settings` reads and writes a pane's settings; 
     CHECK(pane_of(r.session().setup.active, dial)->settings.empty());
 
     // WITHOUT IT: Loom's grant refuses the ask, and Workshop never hears it.
-    pane_of(s.setup.active, dial)->settings = {PaneSetting{"step", {}, 4, {}}};
+    stage_desk(r, [&](Setup& desk) {
+        pane_of(desk, dial)->settings = {PaneSetting{"step", {}, 4, {}}};
+    });
     std::size_t refused = 0, heard = 0;
     const loom::ObserverId tap = r.bus.add_observer([&](const loom::BusEvent& ev) {
         if (ev.sender != without.id) return;
@@ -1350,9 +1357,12 @@ TEST_CASE("a guest whose row has `settings` locks a setting, reads every layout 
     r.ready();
     r.extent(160, 48);
     const PaneRef dial{"test.dial", "dial"};
-    Session& s = const_cast<Session&>(r.session());
-    REQUIRE(add_pane(s.setup.active, dial));
-    pane_of(s.setup.active, dial)->settings = {PaneSetting{"step", {}, 4, {}}};
+    stage_desk(r, [&](Setup& desk) {
+        REQUIRE(add_pane(desk, dial));
+    });
+    stage_desk(r, [&](Setup& desk) {
+        pane_of(desk, dial)->settings = {PaneSetting{"step", {}, 4, {}}};
+    });
     guests::GuestRow settings_row;
     settings_row.name = "agent";
     settings_row.may = {guests::kPowerSettings};
