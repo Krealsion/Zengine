@@ -151,10 +151,12 @@ It is a Release build with GCC or Clang, refused otherwise at configure, install
   dispatch that is not asked publish nothing. The workflow's own token alone does it:
   - `attest`, holding `id-token` and `attestations: write` alone, attests each archive and
     `SHA256SUMS`;
-  - `publish`, holding `contents: write` alone, makes the tag `v0.1.N` on the packaged commit and
-    refuses a name that already exists. It opens a draft with the notes
-    (`workshop/package/release-notes.md`, each `@NAME@` the night's), downloads its assets back
-    and matches their sums, then publishes it.
+  - `publish`, holding `contents: write` alone, refuses a tag `v0.1.N` that already exists and
+    takes down a draft of that name a failed night left. It opens a draft with the notes
+    (`workshop/package/release-notes.md`, each `@NAME@` the night's), aimed at the packaged
+    commit, downloads its assets back and matches their sums, then publishes it. Publishing
+    makes the tag, so a night that fails before then leaves no tag naming no release; the tag is
+    read back on the packaged commit before anything else is put down.
   - Then every other release is deleted, and its tag stays: the Releases page holds one package,
     and a tag still finds the commit a stranger ran.
 
