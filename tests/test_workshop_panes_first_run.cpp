@@ -150,14 +150,14 @@ const CensusDriverOf kFirstRunCensus{fr::kFirstRunRole, [] {
 
 /// THE QUICK SETUP'S PRESSES: each row on a quick setup made afresh.
 const PressDriverOf kFirstRunPresses{fr::kFirstRunRole, [](PressWitness& w) {
-    std::vector<v3::PaneActionRow> rows;
+    std::vector<v4::PaneActionRow> rows;
     {
         TempDir dir("first-run-rows");
         PaneRig r;
         (void)start(r, dir.file("prefs.json"));
         rows = r.session().panes.runtime.find(fr::kFirstRunRole, fr::kSetupPane)->actions;
     }
-    for (const v3::PaneActionRow& row : rows) {
+    for (const v4::PaneActionRow& row : rows) {
         TempDir dir("first-run-press");
         PaneRig r;
         (void)start(r, dir.file("prefs.json"));

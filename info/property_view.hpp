@@ -266,11 +266,11 @@ public:
     /// AND A MODE IS NOT A SECOND ONE (WL-FILES-16): while a weaver types a value this view
     /// declares two rows and no more, and every other key reaches it as an ordinary `PaneKey` for
     /// the line to consume, so Backspace deletes a character rather than meaning anything here.
-    std::vector<workshop::v3::PaneActionRow> action_rows() const {
-        std::vector<workshop::v3::PaneActionRow> rows;
+    std::vector<workshop::v4::PaneActionRow> action_rows() const {
+        std::vector<workshop::v4::PaneActionRow> rows;
         const auto row = [&rows](const char* id, const char* label, std::int64_t sc,
                                  std::vector<workshop::ActionCause> causes = {}) {
-            rows.push_back(workshop::v3::PaneActionRow{id, label, sc, input::mod::kNone, {},
+            rows.push_back(workshop::v4::PaneActionRow{id, label, sc, input::mod::kNone, {},
                                                        std::move(causes)});
         };
         if (draft_.open) {
@@ -286,7 +286,7 @@ public:
     }
 
     bool answers(const std::string& id) const {
-        for (const workshop::v3::PaneActionRow& row : action_rows()) {
+        for (const workshop::v4::PaneActionRow& row : action_rows()) {
             if (row.id == id) {
                 return true;
             }

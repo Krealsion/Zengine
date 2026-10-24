@@ -362,7 +362,7 @@ const RuntimePane* flow_rows(PaneRig& r) {
 /// WHETHER THE ROWS HELD DECLARE ONE ID.
 bool declares(const RuntimePane& held, const std::string& id) {
     return std::any_of(held.actions.begin(), held.actions.end(),
-                       [&](const v3::PaneActionRow& a) { return a.id == id; });
+                       [&](const v4::PaneActionRow& a) { return a.id == id; });
 }
 
 /// EACH STATE FLOW DECLARES ITS ROWS IN, each pressed into as Workshop presses an action: none
@@ -397,10 +397,10 @@ const CensusDriverOf kFlowCensus{zengine::flow_pane::kRole, [] {
         CHECK(held.mode.empty()); // Flow declares its rows in no mode
         if (taken.empty()) {
             census_take(census, zengine::flow_pane::kRole, held);
-            for (const v3::PaneActionRow& a : held.actions) taken.insert(a.id);
+            for (const v4::PaneActionRow& a : held.actions) taken.insert(a.id);
             return;
         }
-        for (const v3::PaneActionRow& a : held.actions) {
+        for (const v4::PaneActionRow& a : held.actions) {
             if (taken.insert(a.id).second) {
                 census.lines.push_back(census_line(zengine::flow_pane::kRole, held.mode, a));
             }
@@ -426,7 +426,7 @@ TEST_CASE("the manual Flow answers names exactly the commands it declares, with 
     ManualReader reader(s.r, zengine::flow_pane::kRole);
     std::set<std::string> declared;
     each_flow_state(s, [&](const RuntimePane& held) {
-        for (const v3::PaneActionRow& a : held.actions) declared.insert(a.id);
+        for (const v4::PaneActionRow& a : held.actions) declared.insert(a.id);
     });
     CHECK(declared == census_ids(census_pinned_of(zengine::flow_pane::kRole)));
     check_answered_manual(reader, zengine::flow_pane::kPane, declared);

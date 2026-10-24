@@ -2153,7 +2153,7 @@ TEST_CASE("the manual Compose answers names exactly the commands it declares, wi
     ComposeRig r;
     std::set<std::string> declared;
     const auto take = [&] {
-        for (const v3::PaneActionRow& a : compose_held(r).actions) declared.insert(a.id);
+        for (const v4::PaneActionRow& a : compose_held(r).actions) declared.insert(a.id);
     };
     take();
     r.with_timer();
@@ -3878,9 +3878,11 @@ TEST_CASE("the focus actions move with a weaver's keymap, and focus.leave's chor
         if (key == "unbound") {
             continue;
         }
-        const ParsedGesture g = parse_gesture(key);
-        REQUIRE_MESSAGE(g.accepted, line);
-        CHECK_MESSAGE(!(g.gesture == leave), line);
+        for (const std::string& each : census_keys(key)) { // the default, and a POSIX key
+            const ParsedGesture g = parse_gesture(each);
+            REQUIRE_MESSAGE(g.accepted, line);
+            CHECK_MESSAGE(!(g.gesture == leave), line);
+        }
         ++read;
     }
     CHECK(read > 100);

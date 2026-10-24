@@ -84,9 +84,13 @@ WHY — `agents/decisions/one-binding-truth.md`
 LAW — Refused: a gesture outside the grammar, one gesture twice for an action, `none` beside a key, a same-context collision over every key in force, a bare printable or component chord above every mode.
 
 MEANS
-- several rows for one id are several keys: dispatch answers to any, the legend spells the first;
-- an unknown action's row is preserved unjudged;
-- a known POSIX-gap gesture is accepted, bound as written, and its gap said once (`posix_gap`): a file's at load, a pane row's when it comes into force.
+- several rows for one id are several keys, the legend spelling the first; an unknown action's row is preserved unjudged;
+- every shipped action has a default key, or a POSIX key beside it, a POSIX terminal delivers; a known gap is bound as written and said once (`posix_gap`): a file's at load, a pane row's in force;
+- a pane row's POSIX key (`v4::PaneActionRow`), one that terminal delivers, stands in place of its default where the keys come from it, covering the default's gap; a weaver's file moves both.
+
+DOES NOT MEAN
+- a second action for a POSIX key: one action keeps one id, and the Hotkeys pane spells the POSIX key beside the default;
+- that a pane detects its terminal: Workshop puts the layer in force from the window it is shown in, and judges a declaration in both layers.
 
 WHY — `agents/decisions/one-binding-truth.md`
 
@@ -229,8 +233,11 @@ authored_gestures_for join_app_rows join_pane_rows
 `workshop/keymap_persist.hpp` from_text
 `workshop/screen_hotkeys.cpp` keymap_shown
 `workshop/weave_handlers.cpp` load_keymap
-`workshop/weave.hpp` WorkshopWeave::unsaid_gaps
-`workshop/weave_seam.cpp` unsaid_gaps declare_pane_actions rejoin_pane_rows
+`workshop/weave.hpp` WorkshopWeave::unsaid_gaps WorkshopWeave::set_posix_layer HostContext::posix_terminal
+`workshop/weave_seam.cpp` unsaid_gaps declare_pane_actions rejoin_pane_rows set_posix_layer
+`workshop/pane_vocabulary.hpp` v4::PaneActionRow v4::PaneActions
+`workshop/keymap.hpp` Keymap::posix_layer PaneRow::posix
+`workshop/desktop-pane/hotkeys_view.hpp` key_cell
 `tests/test_workshop_document.cpp` "a same-context collision is refused naming both actions and the
 gesture" "a gesture outside the grammar on a KNOWN action is refused in words" "a known backend gap
 is accepted and said, never silently rewritten" "ctrl on a key that is neither a letter nor an editing key is a POSIX
@@ -239,6 +246,13 @@ gap, said"
 bare printable or a chord the text box owns, whoever wrote it" "WL-KEY-08: a pane row on a gesture the
 terminal cannot produce is joined as it stands, and its gap is kept once" "WL-KEY-08: a pane's row the
 terminal cannot produce is admitted, acts, and is said once, whichever path brought it into force"
+"WL-KEY-08: a row's POSIX key stands in place of its default in the POSIX layer alone; it covers the
+default's gap, must itself arrive, collides in either layer, and yields to the weaver's file"
+"WL-KEY-08: shown in a POSIX terminal's terminal window, a row's POSIX key is in force and the band
+spells it; anywhere else its default is; the Hotkeys pane spells the POSIX key beside the default in
+both"
+`tests/test_workshop_panes_builder.cpp` "every shipped action has a default key, or a POSIX key beside
+it, a POSIX terminal delivers"
 
 ### WL-KEY-09
 `workshop/screen_compose.cpp` band_region

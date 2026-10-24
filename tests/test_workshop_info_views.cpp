@@ -136,7 +136,7 @@ struct Views : InventoryStory {
         const auto row = where(source, label).first;
         REQUIRE_MESSAGE(row >= 0, "no entry " << label << " in:\n" << shown(source));
         click(source, row);
-        key(input::scan::kL, input::mod::kCtrl);
+        key(input::scan::kReturn, input::mod::kCtrl);
         click(view, 3);
     }
     /// EDIT THE FIELD WHOSE ROW SHOWS `label:` in a view.
@@ -391,7 +391,7 @@ const RuntimePane* info_rows(ScriptedViews& s, const std::string& key, const cha
     const RuntimePane* held = s.r.session().panes.runtime.find(info::kInfoPaneRole, key);
     REQUIRE_MESSAGE(held != nullptr, "Info offers no `" << key << "`");
     const bool declares = std::any_of(held->actions.begin(), held->actions.end(),
-                                      [id](const v3::PaneActionRow& a) { return a.id == id; });
+                                      [id](const v4::PaneActionRow& a) { return a.id == id; });
     REQUIRE_MESSAGE(declares, "`" << key << "` does not declare `" << id << "`");
     return held;
 }
@@ -432,7 +432,7 @@ void each_info_state(ScriptedViews& s, At&& at) {
     s.key(input::scan::kReturn);
     at(info::kInfoPane, info::kActionFieldAccept);
     s.key(input::scan::kEscape);
-    s.key(input::scan::kHome, input::mod::kAlt);
+    s.key(input::scan::kM, input::mod::kCtrl);
     at(info::kInfoPane, info::kActionRenameAccept);
     s.key(input::scan::kEscape);
     // ...WAITING ON AN ENTRY THAT DOES NOT ANSWER, until the weaver stops waiting.
@@ -728,7 +728,7 @@ TEST_CASE("info views: a watch needs the actor's own read authority and each obs
         (void)b;
         // THE HOST'S WEAVER LINKS THE ENTRY; the injected actor, lacking read authority, asks to watch.
         s.physical_press(s.source, s.where(s.source, "Watched").first, 2);
-        s.physical_key(input::scan::kL, input::mod::kCtrl);
+        s.physical_key(input::scan::kReturn, input::mod::kCtrl);
         s.physical_press(a, 3, 2);
         REQUIRE_MESSAGE(s.shows(a, "LINKED 'Watched'"), s.shown(a));
         s.button(a, "Watch");
@@ -1319,7 +1319,7 @@ TEST_CASE("info views: a view's line being typed shows its caret on its canvas, 
     CHECK(caret().row == zengine::workshop::kNoCaret);
     CHECK(caret().sel_begin_row == zengine::workshop::kNoSelection);
     // THE VIEW'S TITLE BEING RENAMED shows its caret after the title, the same way.
-    s.key(input::scan::kHome, input::mod::kAlt);
+    s.key(input::scan::kM, input::mod::kCtrl);
     REQUIRE_MESSAGE(s.shows(a, "View title"), s.shown(a));
     const std::string title = pane_rows(s.r, a)[static_cast<std::size_t>(line().first)];
     REQUIRE(title.rfind("> ", 0) == 0);
@@ -1412,7 +1412,7 @@ TEST_CASE("info views: a field copy placed on Info's pane-property view fills no
     REQUIRE_MESSAGE(s.r.last_notice().rfind("Carrying ", 0) == 0, s.r.last_notice());
     s.click_at(s.info, name.first, name.second);
     // The properties number no meaning of their own: the place is not a field of the value held.
-    s.key(input::scan::kRight, input::mod::kAlt); // back to the value
+    s.key(input::scan::kI, input::mod::kCtrl); // back to the value
     CHECK_MESSAGE(s.shows(s.info, "name: dst"), s.shown(s.info));
     CHECK_FALSE(s.shows(s.info, "name: src"));
 }
@@ -1471,7 +1471,7 @@ TEST_CASE("info views: a press on Info's pane-property view arms no field pickup
     REQUIRE_MESSAGE(s.shows(s.info, "name: dst"), s.shown(s.info));
     const auto name = s.field_at(s.info, "name");
     s.press_at(s.info, name.first, name.second); // a field press, released where it was: armed
-    s.key(input::scan::kLeft, input::mod::kAlt);   // the properties again, by key: no press disarms it
+    s.key(input::scan::kI, input::mod::kCtrl);   // the properties again, by key: no press disarms it
     REQUIRE_MESSAGE(s.shows(s.info, "PROPERTIES"), s.shown(s.info));
     const ExternalPane held = *s.r.session().panes.external_pane(s.info);
     REQUIRE(shows_canvas(held));
@@ -1481,7 +1481,7 @@ TEST_CASE("info views: a press on Info's pane-property view arms no field pickup
     // that press's motion across the rows: the earlier field press's pickup stays unasked.
     as_window(s.r, s.info, gfx::AreaButtonChanged{area, 1, true, 3 * lattice.advance + lattice.advance / 2,
                                                   2 * lattice.line + lattice.line / 2, 0}, 88);
-    s.key(input::scan::kRight, input::mod::kAlt);
+    s.key(input::scan::kI, input::mod::kCtrl);
     REQUIRE_MESSAGE(s.shows(s.info, "name: dst"), s.shown(s.info));
     s.watch();
     as_window(s.r, s.info, gfx::AreaPointerMoved{area, 5 * lattice.advance + lattice.advance / 2,
@@ -1547,7 +1547,7 @@ TEST_CASE("info views: an incomplete preset is finished from a sample in another
     s.drag_between(s.source, {row, 2}, compose, {0, 2});
     REQUIRE_MESSAGE(s.shown(compose).find("Copied data into form") != std::string::npos, s.shown(compose));
     const auto before = s.saved_entries().size();
-    s.key(input::scan::kE, input::mod::kCtrl);
+    s.key(input::scan::kReturn, input::mod::kCtrl);
     CHECK_MESSAGE(s.saved_entries().size() == before + 1, s.shown(compose));
     CHECK(s.entry("Workbench result").revision == 1);
 }
@@ -2075,7 +2075,7 @@ TEST_CASE("the manual Info answers for each of its panes names exactly the comma
     ManualReader reader(s.r, info::kInfoPaneRole);
     std::set<std::string> declared;
     each_info_state(s, [&](const std::string& key, const char* id) {
-        for (const v3::PaneActionRow& a : info_rows(s, key, id)->actions) declared.insert(a.id);
+        for (const v4::PaneActionRow& a : info_rows(s, key, id)->actions) declared.insert(a.id);
     });
     // THE WHOLE PAGE IS THE WEAVE'S, answered for every pane key it offers, used or not yet.
     for (std::size_t slot = 1; slot <= info::kMaxInfoViews; ++slot) {

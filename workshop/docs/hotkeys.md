@@ -296,8 +296,15 @@ The honest example: a plain POSIX terminal reports `shift` only on letters, neve
 digits; it cannot produce `ctrl+h/i/j/m` distinctly from backspace, tab, newline and return, nor
 `ctrl+2` from `ctrl+space`, which send one byte; `ctrl` arrives on the letters, `space` and the
 editing keys only; `alt` arrives only on the editing keys and `super` never. A graphical window has
-none of these limits. Workshop cannot see which backend feeds it, so it applies what you authored
-and tells you which terminals cannot say it.
+none of these limits. Workshop applies what you authored as you wrote it, in every window, and
+tells you which terminals cannot say it.
+
+**A POSIX terminal's keys:** a pane may name a second key for an action whose default a POSIX
+terminal cannot deliver. Shown in the terminal window on a system other than Windows, whose keys
+come from a POSIX terminal, Workshop puts that key in force in place of the default; everywhere
+else the default stands. The band spells the key in force, and the Hotkeys pane shows the default
+with the POSIX key beside it, as `ctrl+shift+s  posix alt+end`. A row your file names moves in
+every window, and the POSIX key goes with it.
 
 **Resetting** is `Reset to default` on the row in the Hotkeys pane, or deleting the file, or the
 rows you regret. An absent file *is* the defaults; nothing is stored anywhere else.

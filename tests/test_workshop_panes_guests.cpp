@@ -694,7 +694,7 @@ TEST_CASE("on a weaver's host a guest's carried item rests in no pane: its carry
         CHECK_MESSAGE(s.shown(s.info).find("story.RuntimeItem") == std::string::npos, s.shown(s.info));
         // THE ONE CARRY IS THE WEAVER'S TO TAKE: the same item, carried by the weaver, lands.
         weaver.click(s.source, 0);
-        weaver.key(input::scan::kL, input::mod::kCtrl);
+        weaver.key(input::scan::kReturn, input::mod::kCtrl);
         REQUIRE_MESSAGE(carrying(s.r), s.r.last_notice());
         weaver.click(s.info, 0);
         CHECK_MESSAGE(s.shown(s.info).find("story.RuntimeItem") != std::string::npos,

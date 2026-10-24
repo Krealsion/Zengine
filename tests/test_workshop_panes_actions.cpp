@@ -84,7 +84,7 @@ void redeclare(PaneRig& r, ProviderSeat* seat, const char* pane,
     });
 }
 
-const std::vector<v3::PaneActionRow>& retained(PaneRig& r, std::int64_t kind) {
+const std::vector<v4::PaneActionRow>& retained(PaneRig& r, std::int64_t kind) {
     const RuntimePane* row = r.session().panes.runtime.of_kind(kind);
     REQUIRE(row != nullptr);
     return row->actions;
@@ -916,6 +916,102 @@ std::size_t times_in(const std::string& text, const std::string& part) {
 
 } // namespace
 
+/// A FOURTH-VERSION ROW: a default, and a key for a POSIX terminal (`kUnknown` for none).
+static v4::PaneActionRow posix_row(const char* id, const char* label, std::int64_t scancode,
+                                   std::int64_t modifiers, std::int64_t posix_scancode = 0,
+                                   std::int64_t posix_modifiers = 0) {
+    return v4::PaneActionRow{id, label, scancode, modifiers, {}, {}, {}, posix_scancode,
+                             posix_modifiers};
+}
+
+TEST_CASE("WL-KEY-08: a row's POSIX key stands in place of its default in the POSIX layer alone; it "
+          "covers the default's gap, must itself arrive, collides in either layer, and yields to "
+          "the weaver's file") {
+    namespace sc = input::scan;
+    const std::int64_t kCtrlShift = input::mod::kCtrl | input::mod::kShift;
+    const Gesture natural{sc::kS, kCtrlShift};
+    const Gesture posix{sc::kEnd, input::mod::kAlt};
+    const v4::PaneActionRow copy = posix_row("x.copy", "copy", sc::kS, kCtrlShift, sc::kEnd,
+                                             input::mod::kAlt);
+    const v4::PaneActionRow shifted = posix_row("x.r", "row", sc::k1, input::mod::kShift);
+    const Gesture shift_one{sc::k1, input::mod::kShift};
+    const std::vector<std::string> only_shifted{
+        gap_sentence("shift+1", "x.r", posix_gap(shift_one))};
+    REQUIRE(posix_gap(natural) != nullptr);
+    Keymap k;
+
+    SUBCASE("the default where the layer is down, the POSIX key where it is up, and no gap said "
+            "for the default it covers") {
+        REQUIRE(join_pane_rows(k, kSomePane, {copy, shifted}).accepted);
+        REQUIRE(k.pane_action_for(kSomePane, sc::kS, kCtrlShift) != nullptr);
+        CHECK(k.pane_action_for(kSomePane, sc::kS, kCtrlShift)->id == "x.copy");
+        CHECK(k.pane_action_for(kSomePane, sc::kEnd, input::mod::kAlt) == nullptr);
+        CHECK(k.pane_rows(kSomePane)->gaps == only_shifted);
+        CHECK(k.pane_rows(kSomePane)->rows[0].declared == natural);
+        CHECK(k.pane_rows(kSomePane)->rows[0].posix == posix);
+        k.posix_layer = true;
+        REQUIRE(join_pane_rows(k, kSomePane, {copy, shifted}).accepted);
+        REQUIRE(k.pane_action_for(kSomePane, sc::kEnd, input::mod::kAlt) != nullptr);
+        CHECK(k.pane_action_for(kSomePane, sc::kEnd, input::mod::kAlt)->id == "x.copy");
+        CHECK(k.pane_action_for(kSomePane, sc::kS, kCtrlShift) == nullptr);
+        CHECK(k.pane_rows(kSomePane)->gaps == only_shifted);
+        // ...a row naming none keeps its default in both.
+        CHECK(k.pane_rows(kSomePane)->rows[1].gesture == shift_one);
+    }
+    SUBCASE("a POSIX key a POSIX terminal does not deliver is refused, naming its gap") {
+        const Written w = join_pane_rows(
+            k, kSomePane,
+            {posix_row("x.go", "go", sc::kG, input::mod::kCtrl, sc::kReturn, input::mod::kCtrl)});
+        REQUIRE_FALSE(w.accepted);
+        CHECK(w.refusal.find("`x.go`: its POSIX key `ctrl+return` does not arrive") !=
+              std::string::npos);
+        CHECK(k.pane_rows(kSomePane) == nullptr);
+    }
+    SUBCASE("a POSIX key on a row with no default is refused") {
+        const Written w = join_pane_rows(
+            k, kSomePane, {posix_row("x.go", "go", sc::kUnknown, 0, sc::kEnd, input::mod::kAlt)});
+        REQUIRE_FALSE(w.accepted);
+        CHECK(w.refusal.find("has none") != std::string::npos);
+    }
+    SUBCASE("a POSIX key on another row's default collides, in either layer") {
+        for (const bool layer : {false, true}) {
+            CAPTURE(layer);
+            Keymap candidate;
+            candidate.posix_layer = layer;
+            const Written w = join_pane_rows(
+                candidate, kSomePane,
+                {copy, posix_row("x.end", "to the end", sc::kEnd, input::mod::kAlt)});
+            REQUIRE_FALSE(w.accepted);
+            CHECK(w.refusal.find("x.copy") != std::string::npos);
+            CHECK(w.refusal.find("x.end") != std::string::npos);
+        }
+    }
+    SUBCASE("the weaver's file moves the row in both layers, and its POSIX key with it") {
+        k.authored = {AuthoredOverride{"x.copy", "ctrl+g"}};
+        for (const bool layer : {false, true}) {
+            CAPTURE(layer);
+            k.posix_layer = layer;
+            REQUIRE(join_pane_rows(k, kSomePane, {copy}).accepted);
+            REQUIRE(k.pane_action_for(kSomePane, sc::kG, input::mod::kCtrl) != nullptr);
+            CHECK(k.pane_action_for(kSomePane, sc::kG, input::mod::kCtrl)->id == "x.copy");
+            CHECK(k.pane_action_for(kSomePane, sc::kS, kCtrlShift) == nullptr);
+            CHECK(k.pane_action_for(kSomePane, sc::kEnd, input::mod::kAlt) == nullptr);
+            CHECK_FALSE(is_bound(k.pane_rows(kSomePane)->rows[0].posix));
+        }
+    }
+    SUBCASE("an earlier version's row names no POSIX key: its default stands in the POSIX layer") {
+        k.posix_layer = true;
+        REQUIRE(join_pane_rows(k, kSomePane,
+                               {declared("x.copy", "copy", sc::kS, kCtrlShift)})
+                    .accepted);
+        CHECK(k.pane_rows(kSomePane)->rows[0].gesture == natural);
+        CHECK_FALSE(is_bound(k.pane_rows(kSomePane)->rows[0].posix));
+        CHECK(k.pane_rows(kSomePane)->gaps ==
+              std::vector<std::string>{
+                  gap_sentence("ctrl+shift+s", "x.copy", posix_gap(natural))});
+    }
+}
+
 TEST_CASE("WL-KEY-08: a pane row on a gesture the terminal cannot produce is joined as it stands, "
           "and its gap is kept once") {
     const Gesture shift_one{input::scan::k1, input::mod::kShift};
@@ -1146,7 +1242,7 @@ TEST_CASE("Powers declares its actions, acts on the resolved id, and its typing 
                                        intro::kPowersActionSources, intro::kPowersActionOperators,
                                        intro::kPowersActionComposite};
     std::vector<std::string> declared;
-    for (const v3::PaneActionRow& row : retained(r, kind)) declared.push_back(row.id);
+    for (const v4::PaneActionRow& row : retained(r, kind)) declared.push_back(row.id);
     CHECK(declared == ids);
     for (const char* pane : {intro::kLoadedPane, intro::kArrangementPane}) {
         const RuntimePane* row = intro_row(r, pane);
@@ -1380,7 +1476,7 @@ TEST_CASE("a pane provider built as its own image against the published protocol
         zengine::editor_pane::kEditorPaneRole, zengine::editor_pane::kEditorPane);
     REQUIRE_MESSAGE(editor != nullptr, "the Editor image's offer was not admitted");
     bool owns = false;
-    for (const v3::PaneActionRow& row : editor->actions) {
+    for (const v4::PaneActionRow& row : editor->actions) {
         owns = owns || row.supersedes == kOwnableDocumentSave;
     }
     CHECK(owns); // the version-two declaration, admitted in the same session
@@ -2538,6 +2634,72 @@ std::string desktop_spelling(const std::string& text) {
 }
 
 } // namespace
+
+TEST_CASE("WL-KEY-08: shown in a POSIX terminal's terminal window, a row's POSIX key is in force and "
+          "the band spells it; anywhere else its default is; the Hotkeys pane spells the POSIX "
+          "key beside the default in both") {
+    namespace sc = input::scan;
+    const std::int64_t kCtrlShift = input::mod::kCtrl | input::mod::kShift;
+    for (const bool posix_terminal : {false, true}) {
+        CAPTURE(posix_terminal);
+        PaneRig r;
+        r.host.posix_terminal = posix_terminal; // the rig shows the desk in the terminal window
+        r.mount_workshop();
+        r.ready();
+        r.extent(200, 60);
+        load_real_desktop(r);
+        ProviderSeat* seat = r.mount_provider(kHelloOffice);
+        const v4::PaneActions declared{
+            kHelloPane,
+            {},
+            {posix_row("hello.copy", "save a new copy", sc::kS, kCtrlShift, sc::kEnd,
+                       input::mod::kAlt),
+             posix_row("hello.down", "row down", sc::kDown, input::mod::kNone)},
+            {}};
+        r.drive(seat, [&declared](ProviderSeat& s, loom::Mail& m) {
+            s.offer(m, PaneOffered{kHelloPane, "Seat", "a recording provider"});
+            s.declare_v4(m, declared);
+        });
+        CHECK(r.session().keymap.posix_layer == posix_terminal);
+        // NO GAP SAID: the default's is covered by the POSIX key.
+        CHECK(r.last_notice().find("hello.copy") == std::string::npos);
+        r.pick(PaneRef{kHelloOffice, kHelloPane});
+        const std::int64_t kind = r.session().panes.runtime.find(kHelloOffice, kHelloPane)->kind;
+        press_body(r, kind);
+        const Gesture in_force = posix_terminal ? Gesture{sc::kEnd, input::mod::kAlt}
+                                                : Gesture{sc::kS, kCtrlShift};
+        const Gesture other = posix_terminal ? Gesture{sc::kS, kCtrlShift}
+                                             : Gesture{sc::kEnd, input::mod::kAlt};
+        // THE KEY IN FORCE ACTS, THE OTHER IS THE PANE'S OWN KEY AND ACTS ON NOTHING DECLARED.
+        REQUIRE(r.session().keymap.pane_rows(kind) != nullptr);
+        CHECK(r.session().keymap.pane_rows(kind)->rows[0].gesture == in_force);
+        r.key(other.scancode, other.modifiers);
+        CHECK(seat->actions.empty());
+        CHECK(r.session().panes.keyboard == kind);
+        r.key(in_force.scancode, in_force.modifiers);
+        REQUIRE(seat->actions.size() == 1);
+        CHECK(seat->actions[0].id == "hello.copy");
+        // THE BAND SPELLS THE KEY IN FORCE, and never the other.
+        const std::vector<std::string> band = band_lines(r);
+        std::string all;
+        for (const std::string& line : band) all += line + "\n";
+        CAPTURE(all);
+        CHECK(all.find(gesture_word(in_force) + " save a new copy") != std::string::npos);
+        CHECK(all.find(gesture_word(other)) == std::string::npos);
+        // THE HOTKEYS PANE, the default first and the POSIX key beside it, made tall enough to
+        // hold every row.
+        r.key(sc::kK, input::mod::kCtrl);
+        const Written tall = author_pane_size(r.session().setup.active,
+                                              PaneRef{kDesktopRole, dp::kHotkeysPane},
+                                              PaneSize{pane_unit::kPixels, cells_px(180)},
+                                              PaneSize{pane_unit::kPixels, cells_px(140)});
+        REQUIRE_MESSAGE(tall.accepted, tall.refusal);
+        r.extent(200, 150);
+        const std::string keys = hotkeys_pane_text(r);
+        CAPTURE(keys);
+        CHECK(keys.find("ctrl+shift+s  posix alt+end") != std::string::npos);
+    }
+}
 
 TEST_CASE("the band and the Hotkeys pane teach the application's keys as they are in force: a "
           "moved row where it moved, a disabled one as having no key") {

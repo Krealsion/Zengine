@@ -118,7 +118,7 @@ TEST_CASE("the pane declares the nine ids a weaver's keymap file already names")
     const RuntimePane* seat = b.row();
     REQUIRE(seat != nullptr);
     std::vector<std::string> declared;
-    for (const v3::PaneActionRow& row : seat->actions) {
+    for (const v4::PaneActionRow& row : seat->actions) {
         declared.push_back(row.id);
     }
     for (const std::string& want : kBrowsingIds) {
@@ -3065,10 +3065,12 @@ TEST_CASE("the action census: the rows the Builder declares in each mode, with w
     }
 }
 
-TEST_CASE("every shipped action has a default key a POSIX terminal delivers") {
-    // EACH SHIPPED ACTION IS PRESSABLE FROM EVERY BACKEND: at least one of its default rows lies in
-    // no gap `posix_gap` names (WL-KEY-08). The pane rows are read from the census, the
-    // application's from the catalog. An action whose every row lies in a gap passes only as a
+TEST_CASE("every shipped action has a default key, or a POSIX key beside it, a POSIX terminal "
+          "delivers") {
+    // EACH SHIPPED ACTION IS PRESSABLE FROM EVERY BACKEND: at least one of its default rows, or the
+    // POSIX key a row names beside its default, lies in no gap `posix_gap` names (WL-KEY-08). The
+    // pane rows are read from the census, a POSIX key after its default and a `~`; the
+    // application's from the catalog. An action whose every key lies in a gap passes only as a
     // second key for what another action of its office already does from a terminal: the same
     // causes, the mode it enters and the label.
     struct Row {
@@ -3092,9 +3094,12 @@ TEST_CASE("every shipped action has a default key a POSIX terminal delivers") {
     REQUIRE(actions.size() > 100); // the census's offices and the catalog, read
     const auto arrives = [](const Row& r) {
         if (r.key == "unbound") return false;
-        const ParsedGesture parsed = parse_gesture(r.key);
-        REQUIRE_MESSAGE(parsed.accepted, "`" << r.key << "`: " << parsed.refusal);
-        return posix_gap(parsed.gesture) == nullptr;
+        for (const std::string& key : census_keys(r.key)) {
+            const ParsedGesture parsed = parse_gesture(key);
+            REQUIRE_MESSAGE(parsed.accepted, "`" << key << "`: " << parsed.refusal);
+            if (posix_gap(parsed.gesture) == nullptr) return true;
+        }
+        return false;
     };
     std::vector<std::string> unreachable;
     for (const auto& [action, rows] : actions) {
@@ -3202,7 +3207,7 @@ void builder_in(BuilderRig& b, const std::string& mode, Standing standing) {
 
 /// PRESS ONE DECLARED ACTION AS A WEAVER DOES: its default key, else the control the pane draws
 /// for it. False when it has neither -- an action the witness cannot drive.
-bool press_action(BuilderRig& b, const v3::PaneActionRow& row) {
+bool press_action(BuilderRig& b, const v4::PaneActionRow& row) {
     if (is_bound(Gesture{row.scancode, row.modifiers})) {
         b.r.key(row.scancode, row.modifiers);
         return true;
@@ -3237,7 +3242,7 @@ const PressDriverOf kBuilderPresses{pane::kBuilderPaneRole, [](PressWitness& w) 
         for (std::size_t i = 0; i < rows; ++i) {
             BuilderRig b("bld-press");
             builder_in(b, drive.mode, drive.standing);
-            const v3::PaneActionRow row = b.row()->actions[i];
+            const v4::PaneActionRow row = b.row()->actions[i];
             w.judge(b.r.bus, b.r.bus.role_holder(pane::kBuilderPaneRole), drive.mode, row.id,
                     row.causes, [&] {
                         REQUIRE_MESSAGE(press_action(b, row),
@@ -3387,7 +3392,7 @@ TEST_CASE("the manual the Builder answers is the page its build embedded, and na
     // EVERY ID THE PANE DECLARES, IN EVERY MODE, IS ANSWERED BY ITS OWN SECTION...
     std::set<std::string> declared;
     each_builder_mode(b, [&](const char* mode) {
-        for (const v3::PaneActionRow& a : b.row()->actions) {
+        for (const v4::PaneActionRow& a : b.row()->actions) {
             declared.insert(a.id);
             const PaneDocumentShown one = reader.ask(pane::kBuilderPane, a.id);
             INFO("mode ", mode, ", id ", a.id);

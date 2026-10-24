@@ -415,6 +415,11 @@ struct PaneRow {
     /// The `kUnlessOwned` action id this row stands in for while its pane holds the
     /// keyboard, or empty (`PaneActionRow::supersedes`, WL-KEY-15).
     std::string supersedes;
+    /// The row's default as declared, and its key for a POSIX terminal: unbound where it names
+    /// none or the weaver's file moved the row. `gesture` is the one in force
+    /// (`Keymap::posix_layer`, WL-KEY-08).
+    Gesture declared = {};
+    Gesture posix = {};
 };
 
 /// THE ROWS OF ONE PANE, keyed by the runtime handle Workshop minted for it -- the
@@ -497,6 +502,11 @@ struct Keymap {
     /// and nothing compiled in stands behind them.
     // WL-DESK-07 -- agents/workshop/desktop.md
     std::vector<AppRow> app;
+    /// WHERE THE KEYS COME FROM A POSIX TERMINAL: a pane row's POSIX key stands in force in place
+    /// of its default. Workshop sets it from the window it is shown in and re-joins the rows; it
+    /// is never saved.
+    // WL-KEY-08 -- agents/workshop/keyboard.md
+    bool posix_layer = false;
 
     /// The rows one pane holds in force, or nullptr for a pane that declared none.
     const PaneRows* pane_rows(std::int64_t pane) const noexcept {

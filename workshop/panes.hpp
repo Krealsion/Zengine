@@ -228,9 +228,10 @@ struct RuntimePane {
     std::string summary;                   ///< one line, beside the name
     /// The actions this pane declared, as admitted; what is in force is `Keymap::panes`.
     // WL-KEY-15 -- agents/workshop/keyboard.md
-    /// Held as v3 whichever version was declared: a v1 or v2 row is widened at the door with no
-    /// causes, so admission, legends, dispatch and every reader read one population.
-    std::vector<v3::PaneActionRow> actions;
+    /// Held as v4 whichever version was declared: a v1 to v3 row is widened at the door with no
+    /// causes it did not say and no POSIX key, so admission, legends, dispatch and every reader
+    /// read one population.
+    std::vector<v4::PaneActionRow> actions;
     /// THE MODE THOSE ROWS ARE IN FORCE FOR, AND WHAT EACH OTHER MODE MAY CAUSE, as declared with
     /// them and replaced with them; empty for a declaration that names none.
     // WL-CAUSE-02 -- agents/workshop/action-causes.md
