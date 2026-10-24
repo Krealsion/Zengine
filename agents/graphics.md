@@ -110,6 +110,11 @@ keeps, is [surface](surface.md); where the two meet is the last section here.
   place, and any area that meets it, and an ask `since` the version still standing is answered
   `same`, with nothing else. `waiting` says the owner owes a whole drawing for the room it was told.
 - Past `kMaxAreaWords` runs of text a reading is refused whole, in words, rather than said in part.
+- **What a window says of an area unasked goes to an arranger that follows it**
+  (`AreaPlaced::followed`): where a press there landed while another office owns it, a hold
+  ended, the pointer left, and what it shows settled (`AreaSettled`, at each showing its version
+  moved). An arranger that takes none of these places its areas without, and is told none, so no
+  showing refuses a word on its bus.
 
 ## Colour, pixels and operands
 

@@ -32,12 +32,12 @@ window -> the owner          DrawnRefused (why, in words), ActionRequested
 window -> pointer's owners   AreaButtonChanged, AreaPointerMoved, AreaWheelTurned
                              (at the area's own point, a press's moments under its number, a
                              button's with what the window drew under the hand)
-window -> an area's arranger AreaPressed (where a press in an area another office owns landed),
-                             AreaHandRefused (an injected hand refused in an area the weaver's alone),
-                             AreaShown (what the area shows, asked by AreaShowAsked),
+window -> an area's arranger AreaHandRefused (an injected hand refused in an area the weaver's alone),
+                             AreaShown (what the area shows, asked by AreaShowAsked)
+window -> its follower       AreaPressed (where a press in an area another office owns landed),
                              AreaSettled (unasked: what the area shows settled, by its version)
 input office -> a window     AttributedInput (a participant's moment, landed as that hand's)
-window -> owner, arranger    AreaHoldEnded, AreaPointerLeft (to the arranger when another office)
+window -> owner, follower    AreaHoldEnded, AreaPointerLeft (to the follower when another office)
 window -> the keys' owners   KeyPressed, KeyReleased, TextEntered
 arranger -> directory        AreaPlaced, SkinOffered, SkinChosen, ElementCodeOffered
 arranger -> its window       WindowShaped (its title and size, from an office arranging there)
@@ -65,17 +65,18 @@ holds every point inside it, painted or not, and hears, at its own point in pixe
 moment there as the moment it was: a button pressed or let go, a part's or not
 (`AreaButtonChanged`), a move (`AreaPointerMoved`), the wheel (`AreaWheelTurned`). A press holds its
 button for the area until its release, so its moves and its release reach the area wherever the
-pointer goes, all three under the press's number; the area's arranger, when another office, hears
-where each press and release landed (`AreaPressed`), as a desktop raises what was clicked. A
-button's moment says what the window drew under the hand when it landed: the area that showed it,
-the part named there, and that area's drawing as its owner numbered it (`Drawn::number`), so the
-owner acts on the element the press landed on, and refuses it only where its newest drawing shows
-another there ([a pane may be pressed](../../workshop/docs/workshop-panes.md#a-pane-may-be-pressed)).
-An area placed without the pointer takes only the points where what it drew names an action or
-presents an element, and lets the pointer through to the areas behind it everywhere else. Each time
-the window shows, it tells an area's arranger, unasked, of each area whose version moved
-(`AreaSettled`). Either window,
-terminal or OS, routes them alike ([`zengine.window.terminal`](zengine.window.terminal.md#use)).
+pointer goes, all three under the press's number; the area's arranger, when another office that
+follows the area (`AreaPlaced::followed`), hears where each press and release landed
+(`AreaPressed`), as a desktop raises what was clicked. A button's moment says what the window drew
+under the hand when it landed: the area that showed it, the part named there, and that area's
+drawing as its owner numbered it (`Drawn::number`), so the owner acts on the element the press
+landed on, and refuses it only where its newest drawing shows another there ([a pane may be
+pressed](../../workshop/docs/workshop-panes.md#a-pane-may-be-pressed)). An area placed without the
+pointer takes only the points where what it drew names an action or presents an element, and lets
+the pointer through to the areas behind it everywhere else. Each time the window shows, it tells the
+arranger following an area, unasked, when the area's version moved (`AreaSettled`); of an area its
+arranger does not follow, it tells the arranger none of this. Either window, terminal or OS, routes
+them alike ([`zengine.window.terminal`](zengine.window.terminal.md#use)).
 
 A window also answers for its platform, in the shapes Surface's Skin answers too, spelled here
 (`graphics/vocabulary.hpp`): a copy, a paste's read of the clipboard, its place on the desktop and a

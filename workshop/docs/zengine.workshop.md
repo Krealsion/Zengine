@@ -987,10 +987,10 @@ it, by the hand it names.
 
 ### `AreaHoldEnded`
 
-`AreaHoldEnded` v1, from that window, to Workshop as its own area's owner and as each pane area's
-arranger: a press held there ended with no release. In its own area every gesture that button holds
-ends, and a pane Workshop draws there that the press reached hears it lost. In a pane's area the
-pane's room no longer waits for that press.
+`AreaHoldEnded` v1, from that window, to Workshop as its own area's owner and as the arranger
+following each pane's area: a press held there ended with no release. In its own area every gesture
+that button holds ends, and a pane Workshop draws there that the press reached hears it lost. In a
+pane's area the pane's room no longer waits for that press.
 
 ### `AreaPointerLeft`
 
@@ -1022,10 +1022,10 @@ reading moved. A refusal is kept as the pane's, and said to its readers.
 
 ### `AreaSettled`
 
-`AreaSettled` v1, from the window that shows the desk, unasked: what an area Workshop placed shows
-settled at a version. For a presented pane's area or the menu's, past the version Workshop took of
-it, Workshop asks it again (`AreaShowAsked`), one ask an area at a time; a late or repeated one
-asks nothing.
+`AreaSettled` v1, from the window that shows the desk, unasked: what an area Workshop placed and
+follows -- each pane's, and the menu's -- shows settled at a version. For a presented pane's area or
+the menu's, past the version Workshop took of it, Workshop asks it again (`AreaShowAsked`), one ask
+an area at a time; a late or repeated one asks nothing.
 
 ## Follow
 

@@ -223,11 +223,11 @@ struct AreaWheelTurned {
               ZEN_FIELD(y), ZEN_FIELD(modifiers), ZEN_FIELD(local), ZEN_FIELD(actor));
 };
 
-/// Window -> the arranger of an area placed to hear the pointer, when another office owns it: a
-/// button pressed or let go in that area, at the window's own point in pixels, under the press's
-/// number, whose hand pressed it, and what the window drew under the hand, as the owner is told
-/// it (`AreaButtonChanged`). Where presses land is the arranger's to know, as a desktop raises what
-/// was clicked; the moment itself is the owner's.
+/// Window -> the arranger following an area placed to hear the pointer (`AreaPlaced::followed`),
+/// when another office owns it: a button pressed or let go in that area, at the window's own point
+/// in pixels, under the press's number, whose hand pressed it, and what the window drew under the
+/// hand, as the owner is told it (`AreaButtonChanged`). Where presses land is the arranger's to
+/// know, as a desktop raises what was clicked; the moment itself is the owner's.
 struct AreaPressed {
     std::string window;
     std::string area;
@@ -256,11 +256,11 @@ struct AreaHandRefused {
               ZEN_FIELD(x), ZEN_FIELD(y));
 };
 
-/// A window, as its office, to the area's owner and to its arranger when another office: the press
-/// held for `area` ended with no release, because the area was withdrawn or handed to another
-/// owner, or an area placed to hear the pointer now stands in front of it where the press was
-/// made. Its button's release, when it comes, goes where it lands. No other office hears it, and an
-/// office that keeps no gesture need not accept it.
+/// A window, as its office, to the area's owner and to its arranger when another office following
+/// it: the press held for `area` ended with no release, because the area was withdrawn or handed to
+/// another owner, or an area placed to hear the pointer now stands in front of it where the press
+/// was made. Its button's release, when it comes, goes where it lands. No other office hears it,
+/// and an office that keeps no gesture need not accept it.
 struct AreaHoldEnded {
     std::string area;
     std::int64_t button = 0;
@@ -316,9 +316,12 @@ struct WindowShaped {
 /// its order among the window's areas (a higher order stands in front), whether the window gives
 /// its keys to the owner, whether it gives the owner its pointer (`AreaButtonChanged` and the
 /// rest), whether the weaver's own hand alone reaches it: a guest's press there is refused
-/// (`AreaHandRefused`), and whether an area that hears the pointer hears the wheel and the third
+/// (`AreaHandRefused`), whether an area that hears the pointer hears the wheel and the third
 /// button too: one that does not lets them through to the area behind it that does, and stands in
-/// front of no third-button press held there.
+/// front of no third-button press held there, and whether its arranger follows it: told where each
+/// press and release there landed while another office owns it (`AreaPressed`), that a hold ended
+/// or the pointer left (`AreaHoldEnded`, `AreaPointerLeft`), and each time what it shows settles
+/// (`AreaSettled`). An arranger that takes none of these places its areas without.
 struct AreaPlaced {
     std::string area;
     std::string window;
@@ -330,9 +333,11 @@ struct AreaPlaced {
     bool weaver_only = false;
     bool wheel = true;
     bool right = true;
-    ZEN_SHAPE(AreaPlaced, 5, ZEN_FIELD(area), ZEN_FIELD(window), ZEN_FIELD(owner), ZEN_FIELD(x),
+    bool followed = false;
+    ZEN_SHAPE(AreaPlaced, 6, ZEN_FIELD(area), ZEN_FIELD(window), ZEN_FIELD(owner), ZEN_FIELD(x),
               ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h), ZEN_FIELD(order), ZEN_FIELD(keys),
-              ZEN_FIELD(pointer), ZEN_FIELD(weaver_only), ZEN_FIELD(wheel), ZEN_FIELD(right));
+              ZEN_FIELD(pointer), ZEN_FIELD(weaver_only), ZEN_FIELD(wheel), ZEN_FIELD(right),
+              ZEN_FIELD(followed));
 };
 
 /// The arranger -> the directory: a skin is painter code in this library, from the load plan.
@@ -359,9 +364,9 @@ struct ElementCodeOffered {
 
 /// The directory -> a window: this area is yours, drawn by `owner`, here, painted by the skin in
 /// `library`; `arranger` is the office that placed it, as its placing was authored, empty for
-/// personal speech; `weaver_only`, `wheel` and `right` as it was placed. Said again whenever any of it
-/// changes, to a window that offers itself again, and when the owner asks its room; the window
-/// answers each with the owner's room.
+/// personal speech; `weaver_only`, `wheel`, `right` and `followed` as it was placed. Said again
+/// whenever any of it changes, to a window that offers itself again, and when the owner asks its
+/// room; the window answers each with the owner's room.
 struct AreaIntroduced {
     std::string area;
     std::string owner;
@@ -375,10 +380,11 @@ struct AreaIntroduced {
     bool weaver_only = false;
     bool wheel = true;
     bool right = true;
-    ZEN_SHAPE(AreaIntroduced, 6, ZEN_FIELD(area), ZEN_FIELD(owner), ZEN_FIELD(arranger),
+    bool followed = false;
+    ZEN_SHAPE(AreaIntroduced, 7, ZEN_FIELD(area), ZEN_FIELD(owner), ZEN_FIELD(arranger),
               ZEN_FIELD(x), ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h), ZEN_FIELD(order),
               ZEN_FIELD(keys), ZEN_FIELD(pointer), ZEN_FIELD(skin), ZEN_FIELD(library),
-              ZEN_FIELD(weaver_only), ZEN_FIELD(wheel), ZEN_FIELD(right));
+              ZEN_FIELD(weaver_only), ZEN_FIELD(wheel), ZEN_FIELD(right), ZEN_FIELD(followed));
 };
 
 /// The directory -> a window: this area is no longer yours.
@@ -512,9 +518,9 @@ struct AreaShown {
               ZEN_FIELD(line), ZEN_FIELD(words), ZEN_FIELD(parts));
 };
 
-/// Window -> the office that placed an area, unasked: what the area shows settled at `version`
-/// (`AreaShown::version`), told once each time the window shows with the version moved since it
-/// last told. A late or repeated one names a version already read.
+/// Window -> the office that placed an area and follows it (`AreaPlaced::followed`), unasked: what
+/// the area shows settled at `version` (`AreaShown::version`), told once each time the window shows
+/// with the version moved since it last told. A late or repeated one names a version already read.
 struct AreaSettled {
     std::string window;
     std::string area;
