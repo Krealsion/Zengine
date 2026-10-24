@@ -109,11 +109,12 @@ bool carries_the_desk(const std::string& shape) {
 // does, so it is observed under the same power.
 bool follows_the_desk(const std::string& shape) { return shape == DeskStamps::zen_name; }
 
-// THE WEAVER'S INPUT AS IT HAPPENS, from whichever office says it: every key, typed text and press,
-// a window's keys among them, heard only with `keystrokes`.
+// THE WEAVER'S INPUT AS IT HAPPENS, from whichever office says it: every key, its release, typed
+// text and press, a window's keys among them, heard only with `keystrokes`.
 bool carries_the_keys(const std::string& shape) {
     for (const char* name : {input::AttributedInput::zen_name, input::KeyPressed::zen_name,
-                             input::TextEntered::zen_name, graphics::AreaKeyPressed::zen_name,
+                             input::KeyReleased::zen_name, input::TextEntered::zen_name,
+                             graphics::AreaKeyPressed::zen_name,
                              graphics::AreaKeyReleased::zen_name,
                              graphics::AreaTextEntered::zen_name}) {
         if (shape == name) return true;
