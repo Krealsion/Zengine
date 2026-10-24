@@ -147,14 +147,22 @@ TEST_CASE("what the plan could not load and gave way from is said on the desk as
           "nothing is said of it where every row loaded its own") {
     // ⚔ MUTATION: the startup notes leaving out `HostContext::passed_over` -- the desk comes up
     // in the terminal window and never says the OS window could not open.
-    const std::string gave_way = "`zengine-window-sdl` did not load, so `zengine-window-terminal` "
+    const std::string said = "`zengine-window-sdl` did not load, so `zengine-window-terminal` "
                                  "stands in its row -- it would not start here, and what it said "
                                  "is on standard error (weave load refused: library create() "
                                  "returned null)";
     Live t;
-    t.host.passed_over = [&gave_way] { return std::vector<std::string>{gave_way}; };
+    t.host.passed_over = [&said] { return std::vector<std::string>{said}; };
+    // ...AND IT STANDS FOR THE RUN, as the host keeps it (`gave_way`), so a sentence said
+    // after the note leaves it where a weaver reads it.
+    t.host.standing_conditions.push_back(
+        gave_way("zengine-window-sdl", "zengine-window-terminal", "it would not start"));
     t.ready();
-    CHECK(t.notice().find(gave_way) != std::string::npos);
+    CHECK(t.notice().find(said) != std::string::npos);
+    const Condition* stands = t.session().conditions.find("load.gave-way/zengine-window-sdl");
+    REQUIRE(stands != nullptr);
+    CHECK(stands->compact ==
+          "zengine-window-sdl did not load; zengine-window-terminal stands in its row");
 
     Live quiet;
     quiet.host.passed_over = [] { return std::vector<std::string>{}; };

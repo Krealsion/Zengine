@@ -967,10 +967,23 @@ int main(int argc, char** argv) {
             const auto line = [&said](const std::string& text) {
                 said += "zengine-workshop - " + text + "\n";
             };
-            if (say) {
-                for (const load::PassedOver& gone : done.passed_over) {
+            // What a row could not load and gave way from stands too, for the run (the desk said
+            // it once as it came up): the OS window that could not open here, and why.
+            for (const load::PassedOver& gone : done.passed_over) {
+                if (say) {
                     line(gone.sentence());
                 }
+                bool kept = false;
+                for (const Condition& c : host.standing_conditions) {
+                    kept = kept || c.key == zengine::workshop::kGaveWayKeyPrefix + gone.stem;
+                }
+                if (!kept) {
+                    host.standing_conditions.push_back(
+                        zengine::workshop::gave_way(gone.stem, gone.next, gone.why));
+                    ++host.conditions_generation;
+                }
+            }
+            if (say) {
                 for (const load::ResolvedArtifact& row : done.resolved) {
                     std::string loaded = row.stem;
                     if (row.provider_mounted) {

@@ -164,7 +164,7 @@ WHY — `agents/decisions/a-reload-lands-off-the-loaded-path.md`
 
 ## WL-PROJ-17 — The launch opens the plan's first window that loads, or `--tui`'s terminal window
 
-LAW — A row's `otherwise` loads in order where its own artifact cannot: a refused one gives way, said once on the desk, one not installed unsaid; `--tui` takes the terminal window alone.
+LAW — A row's `otherwise` loads in order where its own artifact cannot: a refused one gives way, said once, kept on Attention, one not installed unsaid; `--tui` takes the terminal window alone.
 
 MEANS
 - the shipped window row is the OS window, otherwise the terminal window, in every build;
@@ -316,6 +316,7 @@ PlanExecutor::passed_over
 `workshop/workshop.cpp` Arguments::tui
 `workshop/weave.hpp` HostContext::passed_over
 `workshop/weave_handlers.cpp` speak_startup_notes
+`workshop/attention.hpp` gave_way kGaveWayKeyPrefix
 `graphics/window/window_sdl_backend.hpp` ProcessSdlBackend
 `workshop/default-load-plan.json` zengine-window-sdl zengine-window-terminal
 `tests/test_workshop_load.cpp` "the shipped plan's window row is the OS window, otherwise the
