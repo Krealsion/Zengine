@@ -2021,9 +2021,9 @@ struct ScopeTurn {
     ZEN_SHAPE(ScopeTurn, 1);
 };
 
-/// WORKSHOP'S OFFICE, as far as asking the door about a sender goes: on each turn it asks the one
-/// question it holds, as `zengine.workshop` or, when `anonymous`, as no office, and keeps every
-/// answer Loom says is the answer to its ask.
+/// AN OWNER'S OFFICE, as far as asking the door about a sender goes: on each turn it asks the one
+/// question it holds, in the name of the office it was registered under or, when `anonymous`, of
+/// none, and keeps every answer Loom says is the answer to its ask.
 class ScopeAsker
     : public loom::WeaveBase<ScopeAsker, EarsState, loom::Accept<ScopeTurn, ws::ActorScopeJudged>,
                              loom::Emit<ws::ActorScopeRequested>> {
@@ -2033,7 +2033,7 @@ public:
         if (anonymous) {
             (void)mail.send_to_role(ws::kGuestsRole, question);
         } else {
-            (void)mail.as_role("zengine.workshop").send_to_role(ws::kGuestsRole, question);
+            (void)mail.as_role(office).send_to_role(ws::kGuestsRole, question);
         }
     }
     void on(const ws::ActorScopeJudged& judged, loom::Mail& mail) {
@@ -2043,6 +2043,7 @@ public:
     }
 
     ws::ActorScopeRequested question;
+    std::string office;
     bool anonymous = false;
 
 private:
@@ -2051,7 +2052,7 @@ private:
 
 } // namespace
 
-TEST_CASE("door: asked by Workshop's office, the door judges a sender by the row it admitted it under, and narrows neither the weaver nor a participant it never admitted") {
+TEST_CASE("door: asked in an owner's office -- the Inventory pane's, Workshop's -- the door judges a sender by the row it admitted it under, and narrows neither the weaver nor a participant it never admitted") {
     Scratch f("scope");
     f.write(R"({"version":"2","guests":[)"
             R"({"name":"plain","credential":"one","may":["input"]},)"
@@ -2067,19 +2068,27 @@ TEST_CASE("door: asked by Workshop's office, the door judges a sender by the row
         builder.poll();
         return plain.client->admitted() && builder.client->admitted();
     }));
-    // THE ASKER HOLDS WORKSHOP'S OFFICE and the one rule Workshop's grant carries for this question.
+    // EACH ASKER HOLDS ITS OFFICE and the one rule this question needs: the Inventory pane's, which
+    // asks before a toolbox save sent straight to it, and Workshop's.
     std::vector<ws::ActorScopeJudged> told;
-    auto made = std::make_unique<ScopeAsker>(told);
-    ScopeAsker* asker = made.get();
-    loom::Grant grant;
-    grant.allow_to_role(ws::ActorScopeRequested::zen_name, ws::ActorScopeRequested::zen_version,
-                        ws::kGuestsRole);
-    const loom::WeaveId asker_id =
-        r.bus.register_weave(std::move(made), std::move(grant), std::string("zengine.workshop"));
-    asker->zen_set_self(asker_id);
+    const auto asker_in = [&](const char* office) {
+        auto made = std::make_unique<ScopeAsker>(told);
+        ScopeAsker* raw = made.get();
+        raw->office = office;
+        loom::Grant grant;
+        grant.allow_to_role(ws::ActorScopeRequested::zen_name, ws::ActorScopeRequested::zen_version,
+                            ws::kGuestsRole);
+        const loom::WeaveId id = r.bus.register_weave(std::move(made), std::move(grant), std::string(office));
+        raw->zen_set_self(id);
+        return std::make_pair(raw, id);
+    };
+    const auto [pane_asker, pane_id] = asker_in(zengine::inventory_pane::kRole);
+    const auto [workshop_asker, workshop_id] = asker_in("zengine.workshop");
+    ScopeAsker* asker = pane_asker;
+    loom::WeaveId asker_id = pane_id;
     // ONE QUESTION IN FLIGHT AT A TIME, so each answer is the one to the question just asked.
     const auto ask = [&](std::int64_t session, std::vector<std::string> classes) {
-        asker->question = ws::ActorScopeRequested{session, "inventory", std::move(classes), "toolbox.save"};
+        asker->question = ws::ActorScopeRequested{session, "inventory", std::move(classes), "InventoryToolboxSave"};
         const std::size_t before = told.size();
         (void)r.bus.send(asker_id, loom::Message(loom::to_value(ScopeTurn{})));
         r.bus.drain_until_idle();
@@ -2104,6 +2113,15 @@ TEST_CASE("door: asked by Workshop's office, the door judges a sender by the row
     CHECK_FALSE(judged.allowed);
     CHECK(judged.refusal.find("this is a weaver's host: only the weaver's hand writes a file here") !=
           std::string::npos);
+    // ...AND THE SAME, ASKED IN WORKSHOP'S OFFICE.
+    asker = workshop_asker;
+    asker_id = workshop_id;
+    judged = ask(session_of(plain), {zengine::workshop::scope::kBuild});
+    CHECK_FALSE(judged.allowed);
+    CHECK(judged.refusal.find("has no `build`") != std::string::npos);
+    CHECK(ask(session_of(builder), {zengine::workshop::scope::kBuild}).allowed);
+    asker = pane_asker;
+    asker_id = pane_id;
     // A session this door never admitted -- one of this host's own, or no weave at all -- is not
     // narrowed.
     judged = ask(static_cast<std::int64_t>(r.input_id.value), {zengine::workshop::scope::kWrite});
@@ -2122,9 +2140,9 @@ TEST_CASE("door: asked by Workshop's office, the door judges a sender by the row
     judged = ask(gone, {zengine::workshop::scope::kBuild});
     CHECK_FALSE(judged.allowed);
     CHECK(judged.refusal.find("has no `build`") != std::string::npos);
-    // ONLY WORKSHOP'S OFFICE IS ANSWERED: the same question in no office's name hears nothing.
+    // ONLY AN OFFICE IS ANSWERED: the same question in no office's name hears nothing.
     asker->anonymous = true;
-    asker->question = ws::ActorScopeRequested{session_of(builder), "inventory", {"build"}, "toolbox.save"};
+    asker->question = ws::ActorScopeRequested{session_of(builder), "inventory", {"build"}, "InventoryToolboxSave"};
     const std::size_t before = told.size();
     (void)r.bus.send(asker_id, loom::Message(loom::to_value(ScopeTurn{})));
     r.bus.drain_until_idle();

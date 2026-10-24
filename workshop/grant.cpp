@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2026 Joshua DeMoss
 #include "workshop/grant.hpp"
-#include "workshop/guest_seam_vocabulary.hpp" // the guest door's office
 #include "workshop/weave.hpp"
 
 namespace zengine::workshop {
@@ -51,9 +50,6 @@ loom::Grant workshop_grant() {
     }
     speak.allow_to_any(PaneObservationAnswered::zen_name, PaneObservationAnswered::zen_version);
     speak.allow_to_any(PaneOperationAnswered::zen_name, PaneOperationAnswered::zen_version);
-    speak.allow_to_any(ActorScopeJudged::zen_name, ActorScopeJudged::zen_version);
-    // ...and the same question, asked of the guest door, which judges it from the rows it admitted.
-    speak.allow_to_role(ActorScopeRequested::zen_name, ActorScopeRequested::zen_version, kGuestsRole);
     speak.allow_to_any(PaneCarryAnswered::zen_name, PaneCarryAnswered::zen_version);
     speak.allow_to_any(PaneCanvasValueDrop::zen_name, PaneCanvasValueDrop::zen_version);
     speak.allow_to_any(PaneCanvasDrop::zen_name, PaneCanvasDrop::zen_version);

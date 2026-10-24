@@ -86,8 +86,8 @@ public:
     /// THE PANES WHOSE MANUAL IS THIS WEAVE'S, main Inventory and any view it offers: one page for
     /// every pane, from the page this image was built with.
     bool known_pane(const std::string& id) const { return known(id); }
-    // SENT STRAIGHT HERE, past Workshop's dispatch: no gesture crossed, so Workshop judges the
-    // sender's class `write` before the toolbox reads or writes anything.
+    // SENT STRAIGHT HERE, past Workshop's dispatch: no gesture crossed, so the guest door judges
+    // the sender's class `write` before the toolbox reads or writes anything.
     void on(const slots::InventoryToolboxSave& request, loom::Mail& m) {
         if (busy() || editing_ != Editing::none) { (void)m.answer(loom::Refused{"Finish the current Inventory operation or editor first"}); return; }
         toolbox_.begin_sent_save(request.path, state_.layout, m, asks_, m.defer_answer(), pane);
@@ -415,7 +415,7 @@ public:
         const auto matches=[&](loom::Ticket t,const char* role,const std::string& shape,std::uint32_t version=1) {
             return t.valid() && a.refused_attempt().seq==t.seq && a.role==role && a.shape==shape && a.version==version && a.target.empty();
         };
-        if(toolbox_.hear(a,m)) notice_=toolbox_.notice;
+        if(toolbox_.hear(a,m,asks_)) notice_=toolbox_.notice;
         else if(matches(list_,inv::kInventoryRole,inv::v2::InventoryList::zen_name,2)) { list_={}; notice_="Inventory list unavailable: "+a.reason; }
         else if(matches(carry_,ws::pane_menu::kWorkshopRole,carry_shape_,carry_version_)) { carry_={}; notice_="Pickup refused: "+a.reason; }
         else if(read_ && matches(read_->ticket,inv::kInventoryRole,inv::InventoryRead::zen_name)) { read_.reset(); notice_="Entry read refused: "+a.reason; }

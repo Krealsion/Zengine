@@ -277,21 +277,6 @@ the approval a pane asks before an act a hand caused ([`pane_operation.hpp`](../
 - **Example:** on `PaneActionRequested` under correlation 12, ask v2 `{pane: "builder", gesture:
   12, classes: ["build"]}`, then build.
 
-### `ActorScopeRequested`
-
-`ActorScopeRequested` asks what one sender may do, for a message an owner received directly, past
-any gesture.
-
-- **Takes:** `session`, the sender's weave; `pane`; `classes`; `id`, the act.
-- **Answers:** `ActorScopeJudged{allowed, refusal}`, to the asker alone: a guest session judged as a
-  gesture's actor is, from the row its door admitted; any other participant is not narrowed.
-  Nothing is remembered. A pane that relays a message as its own office -- the Composer's Submit
-  -- is not the guest: the relayed send is judged at its approval, as the classes its shape is
-  (`scope::classes_of_send`, [`actor_scope.hpp`](../actor_scope.hpp)).
-- **Refuses:** `the question names no action class`, and each class refusal
-  [`PaneOperationRequested`](#paneoperationrequested) words.
-- **Example:** the Inventory pane asks it before a toolbox save a guest sent it.
-
 ### `PaneObservationRequested`
 
 `PaneObservationRequested` asks for a lease: one gesture approving repeated reads of one shape at
