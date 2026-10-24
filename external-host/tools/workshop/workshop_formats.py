@@ -15,10 +15,15 @@ way: the version a launcher writes into the guests file of the Workshop it start
 row reads only the panes its `capture` field names and points only within its `guide` field, so a
 launcher's row that may capture or guide names every pane, `*`, written and never assumed."""
 import copy
+import json
 
 SETUP_VERSION = 5
-SESSION_VERSION = 10
+SESSION_VERSION = 11
 GUESTS_VERSION = 3
+
+# The shape of each layout line in a session file, `WorkshopLayout` v3: a shape's identity, frozen
+# once published, which the session's lines carry as they are.
+LAYOUT_VERSION = 3
 
 # The guests file's `host`: a weaver's, where a guest writes no file, types into no pane and
 # reaches none of the editor, the Terminal and the Hotkeys pane; or a development host, an
@@ -102,15 +107,19 @@ def guests(rows, host, listen="127.0.0.1:0", port_file=None):
 
 
 def session(desk, viewport, link=""):
-    """A WorkshopSession file at SESSION_VERSION holding one layout: `desk`, lifted to SETUP_VERSION;
+    """A session file's text at SESSION_VERSION holding one layout: `desk`, lifted to SETUP_VERSION;
     the room `viewport`, (width, height) in canvas pixels; and the Setup file `link` names, if
-    any, with the desk it was last known to hold. It keeps no placement and no OS window's room."""
+    any, with the desk it was last known to hold. It keeps no placement and no OS window's room.
+    The file is a WorkshopSessionHeader line, then a WorkshopLayout line for each layout, each
+    line one JSON value; write the text as it is."""
     fields = current(desk)["fields"]
     known = fields if link else setup("", [])["fields"]
     width, height = viewport
-    return {"zen": 1, "schema": "WorkshopSession", "version": SESSION_VERSION, "fields": {
+    header = {"zen": 1, "schema": "WorkshopSessionHeader", "version": SESSION_VERSION, "fields": {
         "format": SESSION_FORMAT, "format_version": str(SESSION_VERSION),
-        "viewport": {"width": str(width), "height": str(height)}, "active": "0",
-        "placement": {"mode": "none", "x": "0", "y": "0", "window": "normal"},
-        "layouts": [{"desk": fields, "link": {"path": str(link), "known": known}}],
+        "viewport": {"width": str(width), "height": str(height)}, "layout_count": "1",
+        "active": "0", "placement": {"mode": "none", "x": "0", "y": "0", "window": "normal"},
         "choices": [], "window_room": {"width": "0", "height": "0"}}}
+    layout = {"zen": 1, "schema": "WorkshopLayout", "version": LAYOUT_VERSION, "fields": {
+        "desk": fields, "link": {"path": str(link), "known": known}}}
+    return "".join(json.dumps(value) + "\n" for value in (header, layout))

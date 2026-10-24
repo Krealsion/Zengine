@@ -98,8 +98,12 @@ class Unresolved(Exception):
 
 
 def save(path, value):
+    save_text(path, json.dumps(value, indent=1) + "\n")
+
+
+def save_text(path, text):
     temporary = Path(str(path) + ".new")
-    temporary.write_text(json.dumps(value, indent=1) + "\n", encoding="utf-8")
+    temporary.write_text(text, encoding="utf-8")
     temporary.replace(path)
 
 
@@ -863,7 +867,7 @@ def launch(runtime, game, wdir, sdir, tools, env, viewport, plan, extra=()):
          "width": {"mode": "default", "amount": "0"},
          "height": {"mode": "default", "amount": "0"}, "front": "1"}])
     # A guest cannot size the window: a session file's viewport does, beside Workshop's first desk.
-    save(wdir / "session.json", formats.session(desk, (width * 12, height * 12)))
+    save_text(wdir / "session.json", formats.session(desk, (width * 12, height * 12)))
     credential = secrets.token_urlsafe(32)
     # The story's Workshop is the agent's own development host: its guest builds, types into the
     # Editor and Neovim, and writes recipes, plans and the desk, as the weaver would.

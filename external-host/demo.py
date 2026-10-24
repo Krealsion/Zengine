@@ -27,7 +27,7 @@ EXAMPLES = HERE.parent / "examples"
 ROOTS = [EXAMPLES] + sorted(HERE.parent.glob("*/docs/tutorials"))
 sys.path.insert(0, str(PACKAGE))
 import setups as described  # noqa: E402
-from demo_setup import save_json  # noqa: E402
+from demo_setup import save_json, save_text  # noqa: E402
 import workshop_formats as formats  # noqa: E402
 
 EXE, LIB = (".exe", ".dll") if os.name == "nt" else ("", ".so")
@@ -207,7 +207,7 @@ def first_files(setup, wdir):
     first = setup.without(setup.desk(), providers)
     save_json(wdir / "setup.json", first)
     columns, rows = setup.get("medium")["viewport"]
-    save_json(wdir / "session.json",
+    save_text(wdir / "session.json",
               formats.session(first, (columns * 12, rows * 12), wdir / "setup.json"))
     return first
 
