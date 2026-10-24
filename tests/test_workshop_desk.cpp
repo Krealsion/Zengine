@@ -948,7 +948,7 @@ TEST_CASE("a held press a menu takes ends its canvas pane's wait in that same re
     REQUIRE(d.r.session().panes.external_pane(d.sketch_kind)->title_waits);
     // ...AND A RIGHT PRESS ON THE ROOM BELOW IT, the first still held: the room's menu opens and
     // takes the hold, and in that repaint the wait is over -- no press holds the room.
-    const ui::Rect pane_rect = cells_covered(external_pane_rect(d.r.session(), d.sketch_kind));
+    const CellRect pane_rect = cells_covered(external_pane_rect(d.r.session(), d.sketch_kind));
     d.r.hand_moment(input::PointerButton{3, true, pane_rect.x + 1,
                                                     pane_rect.y + pane_rect.h + 1,
                                                     input::space::kCells, input::mod::kNone});
@@ -2556,7 +2556,7 @@ TEST_CASE("a covered pane says its visible words only, and what covers it: a pan
 
     // WORKSHOP'S MENU, opened by a right press on alpha's title row, over alpha's words.
     press_outside(d.r, d.alpha_kind); // the keys are Workshop's
-    const ui::Rect title = cells_covered(alpha_at.rect);
+    const CellRect title = cells_covered(alpha_at.rect);
     d.r.hand_moment(input::PointerButton{3, true, title.x + 2,
                                                     title.y,
                                                     input::space::kCells, input::mod::kNone});
@@ -2875,7 +2875,7 @@ TEST_CASE("the desk number moves when anything the desk says moves, and holds wh
     press_outside(d.r, d.alpha_kind); // the keys are Workshop's
     const std::int64_t keys_back = number();
     CHECK(number() == keys_back);
-    const ui::Rect title = cells_covered(external_pane_rect(d.r.session(), d.alpha_kind));
+    const CellRect title = cells_covered(external_pane_rect(d.r.session(), d.alpha_kind));
     d.r.hand_moment(input::PointerButton{3, true, title.x + 2,
                                                     title.y,
                                                     input::space::kCells, input::mod::kNone});
@@ -4549,7 +4549,7 @@ TEST_CASE("a value the weaver drags out of a pane is carried under the hand in W
     }
     // THE WEAVER'S OWN HAND, as the input office says it: each moment attributed to the local
     // hand, at a terminal cell.
-    const ui::Rect body = external_body_rect(s, kind);
+    const CellRect body = external_body_rect(s, kind);
     const std::int64_t x = body.x + 1, y = body.y + kExternalHeaderRows;
 
     // THE PRESS IN THE PANE'S AREA TAKES HOLD OF ITS ROW, the window telling Workshop where it

@@ -53,7 +53,7 @@ struct AttentionRig {
 
     /// PRESS INTO THE PANE: its rows are active only while it holds the keyboard.
     void focus() {
-        const ui::Rect body = external_body_rect(r.session(), kind);
+        const CellRect body = external_body_rect(r.session(), kind);
         r.press_cell(body.x, body.y);
         REQUIRE(r.session().panes.keyboard == kind);
     }
@@ -893,13 +893,13 @@ TEST_CASE("the Connections pane draws the guest door's reading as its own pictur
     CHECK(held_parts(r.session(), kind).empty());
 
     // A PRIMARY PRESS ON A ROW MEANS NOTHING: the rows stand and no menu opens...
-    const ui::Rect body = external_body_rect(r.session(), kind);
+    const CellRect body = external_body_rect(r.session(), kind);
     r.press_cell(body.x + 4, body.y + 1);
     r.release_cell(body.x + 4, body.y + 1);
     CHECK(pane_rows(r, kind) == shown);
     CHECK_FALSE(r.session().context.open);
     // ...AND A RIGHT PRESS IS HANDED BACK: the host's own pane menu opens, about this pane.
-    const ui::Rect now = external_body_rect(r.session(), kind);
+    const CellRect now = external_body_rect(r.session(), kind);
     r.right_press_cell(now.x + 4, now.y + 1);
     REQUIRE(r.session().context.open);
     CHECK(r.session().context.subject == context_subject::kPane);

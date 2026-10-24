@@ -547,10 +547,10 @@ inline void link_live_setup(SetupState& s, std::string path) {
 
 /// THE CELLS A PUBLISHED RECTANGLE COVERS, as a terminal floors it -- what a case that thinks in
 /// cells compares a picture's rectangles by.
-inline ui::Rect covered_cells(const ScreenRect& r) {
+inline CellRect covered_cells(const ScreenRect& r) {
     return cells_covered(PixelRect{r.x, r.y, r.w, r.h});
 }
-inline ui::Rect covered_cells(const ScreenRegion& r) {
+inline CellRect covered_cells(const ScreenRegion& r) {
     return cells_covered(PixelRect{r.x, r.y, r.w, r.h});
 }
 
@@ -558,7 +558,7 @@ inline ui::Rect covered_cells(const ScreenRegion& r) {
 inline bool has_rect(const ScreenCanvas& c, std::int64_t x, std::int64_t y, std::int64_t w,
                      std::int64_t h, std::int64_t role) {
     for (const ScreenRect& r : all_rects(c)) {
-        if (covered_cells(r) == ui::Rect{x, y, w, h} && r.role == role) {
+        if (covered_cells(r) == CellRect{x, y, w, h} && r.role == role) {
             return true;
         }
     }
@@ -1404,7 +1404,7 @@ inline ToolSeat* mount_tool(Live& t, const std::string& recipe) {
 /// for every kind, asked of the window: each line of its face inside the rectangle, cut to the
 /// rectangle's width, a line that shows nothing there left out. The window composes front areas
 /// over the ones behind, so what a row says is what a weaver reads there.
-inline std::string rect_text(const DeskShown& s, const ui::Rect& b) {
+inline std::string rect_text(const DeskShown& s, const CellRect& b) {
     std::string out;
     const std::int64_t top = gfx::px_of_cells(b.y);
     const std::int64_t bottom = gfx::px_of_cells(b.y + b.h);
@@ -1425,13 +1425,13 @@ inline std::string rect_text(const DeskShown& s, const ui::Rect& b) {
 /// coverage) wants the outer rectangle `bounds_of` answers. It asks the character medium's
 /// question, in canvas CELLS, subtracting the chrome a cell-projected interior leaves
 /// (`kChromePx`); a case about a FACE's own boundary takes the overload below with its screen.
-inline ui::Rect pane_body_cells(const PixelRect& outer) {
+inline CellRect pane_body_cells(const PixelRect& outer) {
     return cells_covered(pane_interior(outer, kChromePx));
 }
-inline ui::Rect pane_body_cells(const ui::Rect& outer) {
+inline CellRect pane_body_cells(const CellRect& outer) {
     return pane_body_cells(pixels_of_cells(outer));
 }
-inline ui::Rect pane_body_cells(const PixelRect& outer, const Screen& sc) {
+inline CellRect pane_body_cells(const PixelRect& outer, const Screen& sc) {
     return cells_covered(pane_interior(outer, sc));
 }
 
@@ -1481,7 +1481,7 @@ inline void release_keys(Live& t) {
 inline bool first_slot_shows_stock(Live& t) {
     const Screen sc = screen_of(t.session());
     const PaneBounds at = bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc);
-    const ui::Rect cells = pane_body_cells(at.rect);
+    const CellRect cells = pane_body_cells(at.rect);
     return at.open && at.rect == placement_bounds(placement::kOverlayStack, 0, sc) &&
            label_at(t.shown(), cells.x, cells.y).find(stock::kName) != std::string::npos;
 }
@@ -3765,7 +3765,7 @@ struct PaneRig {
 /// 0: each line of the window's face inside the body's cells, cut to its width, "" where a line
 /// shows nothing, as far as the last line that shows something. The window composes front areas
 /// over the ones behind, so a row is what a weaver reads there, whatever covers the pane.
-inline std::vector<std::string> external_region_rows(const DeskShown& s, const ui::Rect& body) {
+inline std::vector<std::string> external_region_rows(const DeskShown& s, const CellRect& body) {
     std::vector<std::string> out;
     const std::int64_t columns = s.advance > 0 ? gfx::px_of_cells(body.w) / s.advance : 0;
     const std::int64_t bottom = gfx::px_of_cells(body.y + body.h);
@@ -3780,7 +3780,7 @@ inline std::vector<std::string> external_region_rows(const DeskShown& s, const u
 /// body -- never off the session, so a case reads what a weaver sees. Workshop's own header, row 0
 /// of the body, is dropped: it is Workshop's sentence, and every case here asks what the PROVIDER
 /// said.
-inline std::vector<std::string> external_rows(const DeskShown& s, const ui::Rect& body) {
+inline std::vector<std::string> external_rows(const DeskShown& s, const CellRect& body) {
     std::vector<std::string> out = external_region_rows(s, body);
     const std::size_t header = static_cast<std::size_t>(kExternalHeaderRows);
     out.erase(out.begin(), out.begin() + static_cast<std::ptrdiff_t>(
@@ -3795,7 +3795,7 @@ inline std::string bytes(std::size_t n, char c) { return std::string(n, c); }
 /// The body bounds an open external pane resolves to, in the cells they cover -- read through
 /// the very functions the painter and the pointer use, so a case cannot measure a rectangle
 /// nothing draws in.
-inline ui::Rect external_body_rect(const Session& s, std::int64_t kind) {
+inline CellRect external_body_rect(const Session& s, std::int64_t kind) {
     const Screen sc = screen_of(s);
     const ExternalBodyPlace body =
         external_body_place(bounds_of(s.panes, s.setup.active, kind, sc).rect, sc,
@@ -4837,13 +4837,13 @@ inline std::int64_t seat_pane_open(PaneRig& r, ProviderSeat* seat, const char* o
 
 /// Press the first prose row of an external pane's body, in cells.
 inline void press_body(PaneRig& r, std::int64_t kind) {
-    const ui::Rect body = external_body_rect(r.session(), kind);
+    const CellRect body = external_body_rect(r.session(), kind);
     r.press_cell(body.x + 1, body.y + kExternalHeaderRows);
 }
 /// ...AND LET GO THERE: the press ended, so the area a held press kept where it was aimed
 /// (WL-FOCUS-11) is placed under the title rows the keys brought.
 inline void click_body(PaneRig& r, std::int64_t kind) {
-    const ui::Rect body = external_body_rect(r.session(), kind);
+    const CellRect body = external_body_rect(r.session(), kind);
     r.press_cell(body.x + 1, body.y + kExternalHeaderRows);
     r.release_cell(body.x + 1, body.y + kExternalHeaderRows);
 }
@@ -4853,7 +4853,7 @@ inline void click_body(PaneRig& r, std::int64_t kind) {
 /// pane's own rectangle: an overlay slot starts at the canvas's top-left, so a literal `(1, 1)`
 /// is inside the pane it was meant to be outside of, a mistake that reads as a routing defect.
 inline void press_outside(PaneRig& r, std::int64_t kind) {
-    const ui::Rect pane_rect = cells_covered(external_pane_rect(r.session(), kind));
+    const CellRect pane_rect = cells_covered(external_pane_rect(r.session(), kind));
     r.press_cell(pane_rect.x + 1, pane_rect.y + pane_rect.h + 1);
 }
 
@@ -5162,7 +5162,7 @@ inline void press_pane(PaneRig& r, std::int64_t kind, std::int64_t row, std::int
                           fit.line_px / 2);
         return;
     }
-    const ui::Rect body = external_body_rect(r.session(), kind);
+    const CellRect body = external_body_rect(r.session(), kind);
     r.press_cell(body.x + pane_cell_of(r.session(), kind, row, column),
                  body.y + kExternalHeaderRows + row);
 }
@@ -5224,7 +5224,7 @@ inline void press_as_drawn(PaneRig& r, std::int64_t kind, std::int64_t row, std:
     const RuntimePane* pane = r.session().panes.runtime.of_kind(kind);
     REQUIRE(pane != nullptr);
     const std::string area = pane_window_area(r.session().panes, *pane);
-    const ui::Rect body = external_body_rect(r.session(), kind);
+    const CellRect body = external_body_rect(r.session(), kind);
     gfx::AreaButtonChanged b{area, button, true, column * gfx::kCellPx + gfx::kCellPx / 2,
                              row * gfx::kCellPx + gfx::kCellPx / 2, 0, true, 0, area, part, drawing};
     // ONE NUMBER FOR THE PRESS AND ITS RELEASE, past any the window mints, told the owner and, as

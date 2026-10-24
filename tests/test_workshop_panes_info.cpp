@@ -611,7 +611,7 @@ TEST_CASE("what the body cannot show, it counts -- on the side it left it out") 
     all = f.text();
     CHECK(all.find(" earlier") != std::string::npos);
     // AND THE PANE NEVER PUBLISHED MORE ROWS THAN THE ROOM IT WAS GRANTED.
-    const ui::Rect body = external_body_rect(f.r.session(), f.kind);
+    const CellRect body = external_body_rect(f.r.session(), f.kind);
     CHECK(static_cast<std::int64_t>(f.shown().size()) <= body.h);
 }
 
@@ -926,7 +926,7 @@ TEST_CASE("a room too short for the body invents none of it") {
 
     author_test_pane_room(f.r, f.kind, 3, 58);
     f.r.extent(160, 22);
-    const ui::Rect body = external_body_rect(f.r.session(), f.kind);
+    const CellRect body = external_body_rect(f.r.session(), f.kind);
     CHECK(static_cast<std::int64_t>(f.shown().size()) <= body.h);
     CHECK(static_cast<std::int64_t>(f.shown().size()) < tall);
     // AND EVERY ROW FITS THE COLUMNS IT WAS GRANTED -- the other half of `judge_content`,

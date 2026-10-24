@@ -171,7 +171,7 @@ struct Weaver {
     /// ...at column `column` of an external pane's body row `row`, the place the story's hand
     /// would aim at.
     void click(std::int64_t kind, std::int64_t row, std::int64_t column = 1) {
-        const ui::Rect body = external_body_rect(r.session(), kind);
+        const CellRect body = external_body_rect(r.session(), kind);
         click_cell(body.x + pane_cell_of(r.session(), kind, row, column),
                    body.y + row +
                        external_title_rows(r.session().panes, kind, r.session().pane_titles));
@@ -474,7 +474,7 @@ struct HotkeysDesk {
     }
     /// The cell a press on body row `row` aims at, past the row's mark.
     std::pair<std::int64_t, std::int64_t> cell(std::int64_t row) {
-        const ui::Rect body = external_body_rect(r.session(), hotkeys);
+        const CellRect body = external_body_rect(r.session(), hotkeys);
         return {body.x + 4, body.y + kExternalHeaderRows + row};
     }
     /// THE WEAVER'S RIGHT PRESS ON A ROW, which offers that binding's edits.
@@ -559,7 +559,7 @@ TEST_CASE("on a weaver's host a guest's keys and presses toward the Terminal are
         }
         if (seen.schema_name == EditorSwitchRequested::zen_name) ++switches;
     })};
-    const ui::Rect body = external_body_rect(t.r.session(), t.kind);
+    const CellRect body = external_body_rect(t.r.session(), t.kind);
     const auto [room_x, room_y] = free_room_cell(t.r);
     g.weaver_press_cell(room_x, room_y);
     REQUIRE(t.r.session().panes.keyboard != t.kind);
@@ -1162,7 +1162,7 @@ TEST_CASE("on a development host the same guest types into the Editor and saves,
     SUBCASE("the Terminal") {
         TerminalDesk t;
         guest_hand::GuestHand g(t.r, {"input"}, /*development=*/true);
-        const ui::Rect body = external_body_rect(t.r.session(), t.kind);
+        const CellRect body = external_body_rect(t.r.session(), t.kind);
         g.press_cell(body.x, body.y);
         REQUIRE(t.r.session().panes.keyboard == t.kind);
         g.text(switch_line("guest"));

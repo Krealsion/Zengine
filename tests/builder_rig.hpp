@@ -194,7 +194,7 @@ struct BuilderRig {
     /// gesture below is a weaver who has pointed at the Builder first. Row 0 of the room is the
     /// pane's own first row.
     void focus() {
-        const ui::Rect body = external_body_rect(r.session(), kind);
+        const CellRect body = external_body_rect(r.session(), kind);
         r.press_cell(body.x, body.y);
         REQUIRE(r.session().panes.keyboard == kind);
     }

@@ -296,7 +296,7 @@ const std::vector<std::string> kStandardLines = {"  arrange", "  Order >", "  Re
                                                  "  edit code", "  hide pane"};
 
 /// The canvas cell of prose row `row`, column `col` of a pane's BODY (under its header).
-ui::Rect body_of(PaneRig& r, std::int64_t kind) { return external_body_rect(r.session(), kind); }
+CellRect body_of(PaneRig& r, std::int64_t kind) { return external_body_rect(r.session(), kind); }
 std::int64_t body_x(PaneRig& r, std::int64_t kind, std::int64_t col) { return body_of(r, kind).x + col; }
 std::int64_t body_y(PaneRig& r, std::int64_t kind, std::int64_t row) {
     return body_of(r, kind).y + kExternalHeaderRows + row;
@@ -328,7 +328,7 @@ struct Rigged {
         presenter = r.load_presenter(presenter_image);
     }
 
-    ui::Rect hello_body() { return pane_body_cells(external_pane_rect(r.session(), hello_kind)); }
+    CellRect hello_body() { return pane_body_cells(external_pane_rect(r.session(), hello_kind)); }
     void right_in_guard(bool pressed = true) {
         button_cell(r, 3, pressed, body_x(r, guard_kind, 1), body_y(r, guard_kind, 0));
     }
@@ -408,7 +408,7 @@ TEST_CASE("WL-PRESS-06: a right press over a pane whose holder hears the window 
 
     // THE CHROME IS NEVER THE PANE'S: a right press on the title row opens the host's menu.
     button_cell(t.r, 3, false, body_x(t.r, t.guard_kind, 2), body_y(t.r, t.guard_kind, 1));
-    const ui::Rect body = body_of(t.r, t.guard_kind);
+    const CellRect body = body_of(t.r, t.guard_kind);
     button_cell(t.r, 3, true, body.x + 2, body.y); // the header row
     CHECK(t.menu_open());
     CHECK_FALSE(t.foreign_open());
@@ -451,7 +451,7 @@ TEST_CASE("WL-PRESS-06: a right press in a doorless pane's body opens the host's
     REQUIRE_FALSE(holder_accepts_on(t.r.bus, kHelloOffice, *loom::schema_of<PanePassRequested>()));
     const std::int64_t keyboard_before = t.r.session().panes.keyboard;
     const std::int64_t selected_before = t.r.session().panes.selected;
-    const ui::Rect body = external_body_rect(t.r.session(), t.hello_kind);
+    const CellRect body = external_body_rect(t.r.session(), t.hello_kind);
     // NEVER LOST: a holder that cannot hand a press back keeps none, and the press opens
     // the host's pane menu about that pane, beside the hand. Pointing moves no keys and no
     // selection, and the provider hears nothing pointer-shaped (WL-CTX-08).
@@ -486,7 +486,7 @@ TEST_CASE("WL-PRESS-06: the release is the pressing pane's wherever the pointer 
     t.right_in_guard();
     REQUIRE(t.guard->buttons.size() == 1);
     const std::int64_t hello_said_before = t.hello->said;
-    const ui::Rect hello = t.hello_body();
+    const CellRect hello = t.hello_body();
     button_cell(t.r, 3, false, hello.x + 1, hello.y + 2);
     REQUIRE(t.guard->buttons.size() == 2);
     CHECK_FALSE(t.guard->buttons[1].pressed);
@@ -505,7 +505,7 @@ TEST_CASE("WL-PRESS-06: the release is the pressing pane's wherever the pointer 
 TEST_CASE("WL-CTX-08: a further right press while the host's menu is open asks again -- a pane with the door is offered it first, and a doorless body opens the host's menu where it landed") {
     Rigged t;
     t.guard->menu_on_press = true;
-    const ui::Rect hello = t.hello_body();
+    const CellRect hello = t.hello_body();
     t.r.right_press_cell(hello.x + 1, hello.y + 1);
     REQUIRE(t.r.session().context.open);
     REQUIRE(t.r.session().context.pane == hello_ref());
@@ -705,7 +705,7 @@ TEST_CASE("WL-PRESS-06: a holder replaced while the button is down -- the releas
 
 TEST_CASE("WL-CTX-09: a menu requested on the press's own turn is granted to the presenter and opens beside the press with the pane's rows, moves no keys and no selection, and Return returns the first row -- answered by the presenter") {
     Rigged t;
-    const ui::Rect hello = t.hello_body();
+    const CellRect hello = t.hello_body();
     t.r.press_cell(hello.x + 1, hello.y + 2);
     REQUIRE(t.r.session().panes.keyboard == t.hello_kind);
     t.guard->menu_on_press = true;
@@ -778,7 +778,7 @@ TEST_CASE("WL-CTX-09: an outside press dismisses the menu, is spent on dismissin
     t.right_in_guard(false);
     REQUIRE(t.foreign_open());
     const std::int64_t keyboard_before = t.r.session().panes.keyboard;
-    const ui::Rect hello = t.hello_body();
+    const CellRect hello = t.hello_body();
     t.r.press_cell(hello.x + 1, hello.y + 2);
     CHECK_FALSE(t.menu_open());
     REQUIRE(t.guard->answers.size() == 1);
@@ -1143,7 +1143,7 @@ TEST_CASE("WL-CTX-09: a standard row is spent only while its choosing act is the
 TEST_CASE("WL-CTX-09: a late request is refused where the menu opens -- a newer primary press elsewhere keeps the keys it took; the review's second integration finding") {
     Rigged t;
     t.guard->menu_on_press = true;
-    const ui::Rect hello = t.hello_body();
+    const CellRect hello = t.hello_body();
     // BOTH PRESSES READ ON ONE BEAT OF THE WINDOW, as a quick hand makes them: the right press's
     // delivery to the guard is queued, and the window's word of the primary press into Hello
     // beside it, so the guard's request arrives AFTER the weaver's newer act.
@@ -1328,7 +1328,7 @@ TEST_CASE("WL-CTX-09: a chosen row that begins an edit may take the keyboard -- 
     t.guard->menu_on_press = true;
     t.guard->keys_on_choice = true;
     // THE KEYS ARE SOMEBODY ELSE'S FIRST -- a weaver looking at one pane and pointing at another.
-    const ui::Rect hello = t.hello_body();
+    const CellRect hello = t.hello_body();
     button_cell(t.r, 1, true, hello.x + 1, hello.y + 1);
     button_cell(t.r, 1, false, hello.x + 1, hello.y + 1);
     REQUIRE(t.r.session().panes.keyboard == t.hello_kind);
@@ -1426,7 +1426,7 @@ TEST_CASE("WL-CTX-10: a requester's record of its ask settles on the presenter's
     const loom::WeaveId stranger_id = mount_button_seat(t.r, stranger, kGuardTwoOffice, kGuardTwoPane);
     t.guard->menu_on_press = true;
     // THE HOST'S REFUSAL SETTLES THE ASK: a request made late is answered by the host, unchosen.
-    const ui::Rect hello = t.hello_body();
+    const CellRect hello = t.hello_body();
     queue_button(t.r, 3, true, body_x(t.r, t.guard_kind, 1), body_y(t.r, t.guard_kind, 0),
                  /*beat=*/false);
     queue_button(t.r, 1, true, hello.x + 1, hello.y + 2);
@@ -1624,7 +1624,7 @@ TEST_CASE("WL-CTX-10: a refused act settles its withdrawn menu, though the withd
                                                                  WORKSHOP_SO_MENU_PRESENTER,
                                                                  kPresenterRole}),
                                   booter, booter, 0));
-    const ui::Rect hello = t.hello_body();
+    const CellRect hello = t.hello_body();
     {
         const RuntimePane* row = t.r.session().panes.runtime.of_kind(t.hello_kind);
         REQUIRE(row != nullptr);
@@ -1834,7 +1834,7 @@ TEST_CASE("WL-CTX-10: a refusal notice anyone could send settles no menu, open o
     REQUIRE(t.foreign_open());
     CHECK(t.guard->answers.empty());
     // ...AND ONE NAMING A WITHDRAWN MENU'S OWN WITHDRAWAL, while its record is kept.
-    const ui::Rect hello = t.hello_body();
+    const CellRect hello = t.hello_body();
     queue_button(t.r, 3, true, hello.x + 1, hello.y + 1);
     (void)t.r.bus.pump_pending(); // the window lands the press
     (void)t.r.bus.pump_pending(); // the host hears where it landed and withdraws the menu
@@ -1853,7 +1853,7 @@ TEST_CASE("WL-CTX-10: a refusal notice anyone could send settles no menu, open o
 TEST_CASE("WL-CTX-10: a withdrawn menu's record is forgotten when its fence comes round twice, and ordinary use keeps none") {
     Rigged t;
     t.guard->menu_on_press = true;
-    const ui::Rect hello = t.hello_body();
+    const CellRect hello = t.hello_body();
     for (std::size_t round = 1; round <= 3; ++round) {
         t.right_in_guard();
         t.right_in_guard(false);
@@ -1932,7 +1932,7 @@ TEST_CASE("WL-CTX-10: a withdrawal a fresh holder does not carry is given back, 
     // THE HOLDER LEAVES WITH THE MENU OPEN: the requester is alive and still owed an answer.
     REQUIRE(t.r.unload("zengine-menu-presenter"));
     RefusalTap tap(t.r.bus);
-    const ui::Rect hello = t.hello_body();
+    const CellRect hello = t.hello_body();
     std::size_t answered_at = 0;
     std::size_t forgotten_at = 0;
     if (ready_first) {
@@ -2048,7 +2048,7 @@ TEST_CASE("WL-CTX-10: a menu its image answered is not reopened by a give-back b
     // (opening the host's own there).
     // The image chooses and answers on the act, then meets a withdrawal for a menu it no longer
     // holds -- work it finished, not work abandoned.
-    const ui::Rect hello = t.hello_body();
+    const CellRect hello = t.hello_body();
     queue_key(t.r, input::scan::kReturn);
     queue_button(t.r, 3, true, hello.x + 1, hello.y + 1);
     t.r.bus.drain_until_idle();
@@ -2206,7 +2206,7 @@ TEST_CASE("the guard example blocks while the right button is held, lowers on th
     CHECK(first_row().find("GUARD UP") != std::string::npos);
     CHECK_FALSE(r.session().context.open);
     // RELEASED OVER HELLO: the guard hears it, Hello does not.
-    const ui::Rect hb = pane_body_cells(external_pane_rect(r.session(), hello_kind));
+    const CellRect hb = pane_body_cells(external_pane_rect(r.session(), hello_kind));
     button_cell(r, 3, false, hb.x + 1, hb.y + 2);
     CHECK(first_row().find("guard down") != std::string::npos);
     CHECK(hello->presses.empty());
@@ -2218,7 +2218,7 @@ TEST_CASE("the guard example blocks while the right button is held, lowers on th
     CHECK(first_row().find("guard dropped") != std::string::npos);
     CHECK_FALSE(r.session().context.open);
     // THE CHROME IS STILL THE HOST'S ROUTE to its own menu.
-    const ui::Rect body = external_body_rect(r.session(), kind);
+    const CellRect body = external_body_rect(r.session(), kind);
     button_cell(r, 3, true, body.x + 2, body.y);
     CHECK(r.session().context.open);
     CHECK(r.session().context.pane == guard);

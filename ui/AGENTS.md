@@ -17,8 +17,7 @@ practices are. It states no law. The repository's own rules are the root [AGENTS
 ## Law
 
 No register of its own. Its law is its reference page,
-[The UI package — authored and resolved](docs/ui.md). Workshop's whole-pixel law, WL-GEO-06 in
-`agents/workshop/geometry.md` (which `workshop/` routes), names `ui/layout.hpp`'s `Rect`.
+[The UI package — authored and resolved](docs/ui.md).
 
 ## Suites
 
@@ -33,16 +32,14 @@ No register of its own. Its law is its reference page,
 
 The three fixtures are `zengine-cn-ui-*` in `tests/compile_negative/CMakeLists.txt`. In a shared
 suite: `workshop_shapes` (`tests/test_shapes_census.cpp`, through `tests/census_headers.hpp`)
-counts `Element` and `Extent`. Workshop's suites read cell rectangles as `ui::Rect`
-(`tests/workshop_support.hpp`). Outside CTest, `tests/package/run.cmake` builds
+counts `Element` and `Extent`. Outside CTest, `tests/package/run.cmake` builds
 `tests/package/public_surface.cpp` against the installed headers.
 
 ## Host side
 
 - `workshop/CMakeLists.txt` links `zengine-ui-vocabulary` into `zengine-workshop-vocabulary`
   and the `zengine-workshop` host.
-- `workshop/screen.hpp` turns a cell `ui::Rect` into a `PixelRect` and back (`pixels_of_cells`,
-  `cells_covered`); `workshop/setup.hpp` builds `kPanePxMin` from `ui::kMinCells`.
+- `workshop/setup.hpp` builds `kPanePxMin` from `ui::kMinCells`.
 - `cmake/ZengineInstall.cmake` installs `vocabulary.hpp` and `layout.hpp` and exports
   `zengine::ui`.
 

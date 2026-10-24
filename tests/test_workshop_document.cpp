@@ -477,7 +477,7 @@ TEST_CASE("the real Composer's fields speak the vocabulary across the seam") {
             }
         }
         REQUIRE(which >= 0);
-        const ui::Rect intro_body = external_body_rect(r.session(), intro_kind);
+        const CellRect intro_body = external_body_rect(r.session(), intro_kind);
         r.press_cell(intro_body.x + 1, intro_body.y + kExternalHeaderRows + which);
     }
 
@@ -486,7 +486,7 @@ TEST_CASE("the real Composer's fields speak the vocabulary across the seam") {
     press_body(r, compose_kind);
     bool form_open = false;
     {
-        const ui::Rect body = external_body_rect(r.session(), compose_kind);
+        const CellRect body = external_body_rect(r.session(), compose_kind);
         const std::vector<std::string> rows = pane_rows(r, compose_kind);
         for (std::size_t i = 0; i < rows.size() && !form_open; ++i) {
             r.press_cell(body.x + 1, body.y + kExternalHeaderRows + static_cast<std::int64_t>(i));
@@ -1705,7 +1705,7 @@ TEST_CASE("the press lattice follows the reserved rows, titles hidden or shown")
     r.ready();
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
-    const ui::Rect body = external_body_rect(r.session(), kind);
+    const CellRect body = external_body_rect(r.session(), kind);
 
     // Titles shown: the first body row is one cell under the pane's top.
     const std::size_t presses_before = seat->presses.size();
