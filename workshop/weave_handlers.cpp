@@ -113,37 +113,14 @@ void WorkshopWeave::load_keymap(loom::Mail& mail) {
 
 // WL-FOCUS-11 -- agents/workshop/focus.md
 void WorkshopWeave::load_prefs() {
-    if (prefs_loaded_) {
-        return;
+    // READ ONCE, by the store that keeps the file; what it keeps for Workshop is applied here, and
+    // a file it would not read is a standing wall.
+    store().load_prefs();
+    if (const std::string& refused = store_.prefs_refusal(); !refused.empty()) {
+        session_.conditions.establish(Condition{kPrefsWallKey,
+                                                "preferences refused -- defaults stand", refused,
+                                                graphics::role::kAlert, std::string()});
     }
-    prefs_loaded_ = true;
-    if (host_->prefs_path.empty()) {
-        return;
-    }
-    if (!std::filesystem::exists(host_->prefs_path)) {
-        return;
-    }
-    // READ ONCE, AND THE BYTES KEPT: the baseline a write compares the file against, as the
-    // keymap's are, so a change by another hand since this read is seen rather than overwritten.
-    const persist::FileText read = persist::read_file(
-        host_->prefs_path, prefs_persist::kMaxPrefsBytes, "a Workshop prefs file");
-    if (read.outcome.accepted) {
-        prefs_bytes_ = read.text;
-        prefs_file_present_ = true;
-    }
-    const prefs_persist::LoadedPrefs loaded =
-        read.outcome.accepted ? prefs_persist::from_text(read.text)
-                              : prefs_persist::LoadedPrefs{read.outcome, {}, {}};
-    if (!loaded.outcome.accepted) {
-        // The keymap wall's twin: `prefs_bad_` blocks every later write. The condition is the
-        // standing half; a toggle's refusal stays an event about the press.
-        prefs_bad_ = true;
-        session_.conditions.establish(
-            Condition{kPrefsWallKey, "preferences refused -- defaults stand",
-                      loaded.outcome.refusal, graphics::role::kAlert, std::string()});
-        return;
-    }
-    prefs_ = loaded.kept;
     apply_workshop_settings();
 }
 
@@ -520,7 +497,7 @@ void WorkshopWeave::on(const graphics::AreaHoldEnded& e, loom::Mail& mail) {
         // ITS RELEASE GOES WHERE IT LANDS, so whatever the button holds in Workshop's own area
         // ends here.
         if (slot == 0) {
-            (void)end_held_gestures();
+            (void)end_held_gestures(mail);
         }
         repaint(mail);
         return;

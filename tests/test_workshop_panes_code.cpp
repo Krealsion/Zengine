@@ -223,7 +223,7 @@ struct CodeRig {
     /// whole; a new surface extent is the repaint that grants the pane its new room.
     void widen_builder(std::int64_t cells) {
         const Written wrote =
-            author_pane_size(r.session().setup.active, builder_ref(),
+            staged_author_pane_size(r, builder_ref(),
                              PaneSize{pane_unit::kPixels, cells_px(cells)}, PaneSize{});
         REQUIRE_MESSAGE(wrote.accepted, wrote.refusal);
         r.extent(cells + 60, 64);
@@ -599,7 +599,7 @@ TEST_CASE("a pointed pane that left the setup before Edit Code was chosen is ref
     const std::int64_t committed_before = c.r.opening->state().committed;
     const std::int64_t refused_before = c.r.opening->state().refused;
     c.point_at(tally_ref());
-    REQUIRE(remove_pane(c.r.session().setup.active, tally_ref()));
+    REQUIRE(staged_remove_pane(c.r, tally_ref()));
     c.choose_edit_code();
     CHECK(c.r.session().notice_is_bad);
     CHECK(c.notice().find("no longer in this setup") != std::string::npos);

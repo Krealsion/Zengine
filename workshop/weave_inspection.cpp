@@ -7,6 +7,7 @@
 
 #include "weave.hpp"
 
+#include <memory>
 #include <optional>
 #include <string>
 #include <utility>
@@ -25,11 +26,18 @@ void WorkshopWeave::refresh_inspected() {
     // the rows read fresh -- a row leaving or rejoining the desk is one, so a draft never lands on
     // a row made afresh, and a provider arriving or leaving is one only as its declaration starts
     // or stops counting.
-    const RuntimePane* offered = session_.panes.runtime.find(in.ref.provider, in.ref.pane);
-    const SettingsSubject settings =
-        settings_subject(session_, in.ref,
-                         offered != nullptr ? counted_settings(*offered) : nullptr,
-                         locked_keys(in.ref), layout_locked_keys(in.ref));
+    const PaneSettingsShown read = store().read_pane(std::string(), PaneSettingsRequested{
+                                                                     in.ref.provider, in.ref.pane});
+    std::vector<std::string> locked;
+    std::vector<std::string> locked_here;
+    for (const SettingLockShown& l : read.locks) {
+        locked.push_back(l.key);
+        if (l.scope == kLockScopeLayout) {
+            locked_here.push_back(l.key);
+        }
+    }
+    const SettingsSubject settings = settings_subject(session_, in.ref, store_.counted_v1(in.ref),
+                                                      std::move(locked), std::move(locked_here));
     const bool member = has_pane(session_.setup.active, in.ref);
     if (in.name != 0 && in.desk == session_.setup.put_live && in.member == member &&
         in.settings == settings) {
@@ -121,10 +129,8 @@ std::string WorkshopWeave::settings_handed(const PaneRef& ref) const {
     const SetupPane* seat = pane_of(session_.setup.active, ref);
     // HANDED AT THE ROW'S REVISION, when the holder is handed one: settings equal to an earlier
     // revision's are not what this row was last minted for.
-    bool current = pane->settings_revision == 0;
-    for (const SettingsRevision& r : settings_revisions_) {
-        current = current || (r.ref == ref && r.revision == pane->settings_revision);
-    }
+    const bool current =
+        pane->settings_revision == 0 || pane->settings_revision == settings_revision(ref);
     if (seat == nullptr || !pane->settings_heard ||
         *pane->settings_heard != pane_held_settings(seat->settings) || !current) {
         return "stored; not handed: the hand-off was not queued";
@@ -161,127 +167,32 @@ std::string WorkshopWeave::settings_asker_refused(const loom::Mail& mail) const 
 
 // WL-SETTING-07 -- agents/workshop/settings.md
 void WorkshopWeave::on(const PaneSettingsRequested& asked, loom::Mail& mail) {
-    PaneSettingsShown shown;
-    shown.provider = asked.provider;
-    shown.pane = asked.pane;
-    if (const std::string refused = settings_asker_refused(mail); !refused.empty()) {
-        shown.said = "settings withheld: " + refused;
-        (void)mail.answer(std::move(shown));
-        return;
+    const std::string refused = settings_asker_refused(mail);
+    PaneSettingsShown shown = store().read_pane(refused, asked);
+    take_store(mail);
+    if (refused.empty() && shown.said.empty()) {
+        // WHAT THE STORE KEEPS, and how far its hand-off got, which is this desk's to say.
+        shown.said = settings_handed(PaneRef{asked.provider, asked.pane});
     }
-    const PaneRef ref{asked.provider, asked.pane};
-    const RuntimePane* offered = session_.panes.runtime.find(ref.provider, ref.pane);
-    load_prefs();
-    if (const std::vector<v2::PaneSettingRow>* rows =
-            offered != nullptr ? counted_settings_v2(*offered) : nullptr) {
-        shown.rows = *rows;
-    }
-    shown.pins = effective_pins(ref);
-    shown.locks = locks_on(ref, session_.setup.active_at);
-    const SetupPane* seat = pane_of(session_.setup.active, ref);
-    if (seat == nullptr) {
-        shown.said = ref_text(ref) + " has no row on the live layout";
-        (void)mail.answer(std::move(shown));
-        return;
-    }
-    shown.revision = settings_revision(ref);
-    shown.settings = seat->settings;
-    shown.said = settings_handed(ref);
     (void)mail.answer(std::move(shown));
 }
 
 // WL-SETTING-07 -- agents/workshop/settings.md
 void WorkshopWeave::on(const PaneSettingCommitRequested& asked, loom::Mail& mail) {
-    const auto refuse = [&mail](std::string why, std::int64_t revision) {
-        (void)mail.answer(PaneSettingActed{false, std::move(why), revision, std::string()});
-    };
-    // IN ORDER, EACH REFUSAL WRITING NOTHING: the asker, the row, the revision, then the value.
-    if (const std::string refused = settings_asker_refused(mail); !refused.empty()) {
-        refuse("settings commit withheld: " + refused, 0);
-        return;
+    PaneSettingActed acted = store().commit_pane(settings_asker_refused(mail), asked);
+    const StoreEffects fx = store_.take_effects();
+    if (fx.live_moved) {
+        install_live(store_.live_layout(), mail);
     }
-    const PaneRef ref{asked.provider, asked.pane};
-    if (pane_of(session_.setup.active, ref) == nullptr) {
-        refuse(ref_text(ref) + " has no row on the live layout -- open it first", 0);
-        return;
-    }
-    const std::int64_t current = settings_revision(ref);
-    if (asked.revision != current) {
-        refuse("stale revision " + std::to_string(asked.revision) + " -- the row of " +
-                   ref_text(ref) + " stands at " + std::to_string(current) + "; read it again",
-               current);
-        return;
-    }
-    const RuntimePane* offered = session_.panes.runtime.find(ref.provider, ref.pane);
-    const std::string name = offered != nullptr ? offered->name : ref_text(ref);
-    const std::vector<PaneSetting> before = pane_of(session_.setup.active, ref)->settings;
-    const int fields = (asked.flag ? 1 : 0) + (asked.number ? 1 : 0) + (asked.text ? 1 : 0);
-    // A LOCK HOLDS ITS KEY against every write, a clear included.
-    load_prefs();
-    for (const std::string& key : locked_keys(ref)) {
-        if (key == asked.key) {
-            refuse(locked_setting_refusal(asked.key), current);
-            return;
+    hand_office_settings(mail);
+    if (acted.accepted) {
+        // A SETTING'S WRITE IS HANDED NOW, at the revision it minted, and said with how far it got.
+        acted.handed = settings_handed(PaneRef{asked.provider, asked.pane});
+        if (!fx.said.empty()) {
+            say(fx.said + "; " + acted.handed, false);
         }
     }
-    std::string written;
-    if (asked.clear) {
-        // A CLEAR NAMES A KEY ALONE, declared or kept, and clearing an absent key changes nothing.
-        if (fields != 0) {
-            refuse("a clear takes no value -- name the key alone", current);
-            return;
-        }
-        if (find_pane_setting(before, asked.key) != nullptr) {
-            const Written w = author_pane_setting(session_.setup.active, ref, asked.key,
-                                                  std::nullopt, std::nullopt);
-            if (!w.accepted) {
-                refuse(w.refusal, current);
-                return;
-            }
-        }
-        written = "cleared " + asked.key + " of " + name;
-    } else {
-        const std::vector<PaneSettingRow>* rows =
-            offered != nullptr ? counted_settings(*offered) : nullptr;
-        const PaneSettingRow* declared = nullptr;
-        for (std::size_t i = 0; rows != nullptr && i < rows->size(); ++i) {
-            declared = (*rows)[i].key == asked.key ? &(*rows)[i] : declared;
-        }
-        // WORKSHOP'S OWN WORD FOR THE PANE'S AREA, whatever the pane declares.
-        const PaneSettingRow skin_row = narrow_setting_row(workshop_skin_setting_row());
-        if (asked.key == kWorkshopSkinKey) {
-            declared = &skin_row;
-        }
-        if (declared == nullptr) {
-            refuse(ref_text(ref) + " has no counted setting `" + asked.key +
-                       "` -- a key no declaration takes is only cleared",
-                   current);
-            return;
-        }
-        const PaneSetting candidate{asked.key, asked.flag, asked.number, asked.text};
-        if (const std::string wrong = pane_setting_refused_by(*declared, candidate);
-            !wrong.empty()) {
-            refuse(wrong, current);
-            return;
-        }
-        const Written w = author_pane_setting(session_.setup.active, ref, asked.key, candidate,
-                                              row_setting_absence(*declared));
-        if (!w.accepted) {
-            refuse(w.refusal, current);
-            return;
-        }
-        written = "committed " + asked.key + " of " + name + " = " + setting_value_text(candidate);
-    }
-    if (pane_of(session_.setup.active, ref)->settings == before) {
-        // NOTHING MOVED, so nothing is minted or handed: the asker's revision still stands.
-        (void)mail.answer(PaneSettingActed{true, std::string(), current, settings_handed(ref)});
-        return;
-    }
-    // A SETTING'S WRITE IS HANDED NOW, at the revision it mints, and said with how far it got.
-    hand_settings(mail);
-    const std::string handed = settings_handed(ref);
-    say(written + "; " + handed, false);
-    (void)mail.answer(PaneSettingActed{true, std::string(), settings_revision(ref), handed});
+    (void)mail.answer(std::move(acted));
     repaint(mail);
 }
 
@@ -364,9 +275,8 @@ void WorkshopWeave::on(const PaneCommitRequested& asked, loom::Mail& mail) {
                                     "authored value");
         return;
     }
-    const SetupPane* before_row = pane_of(session_.setup.active, in.ref);
-    const std::vector<PaneSetting> before =
-        before_row != nullptr ? before_row->settings : std::vector<PaneSetting>{};
+    session_.pending_edit.reset();
+    session_.pending_setting.reset();
     const Commit result = row.commit_text(asked.text);
     if (result != Commit::Accepted) {
         // THE OWNER'S OWN WORDS: an amount the face does not read, a pane that is not in this
@@ -374,24 +284,70 @@ void WorkshopWeave::on(const PaneCommitRequested& asked, loom::Mail& mail) {
         answer(false, row.label() + ": " + row.refusal());
         return;
     }
-    // SAID WITH WHAT WAS WRITTEN, TO WHICH PANE, read before the reseat below touches anything.
-    std::string written = "committed " + row.label() + " of " +
-                          pane_subject_shown(session_).name + " = " + row.value();
-    const SetupPane* after_row = pane_of(session_.setup.active, in.ref);
-    const bool settings_moved = after_row != nullptr && after_row->settings != before;
-    // A PLACEMENT WRITE IS RECONCILED as the hand's is (`arrange_place`): an authored place
-    // takes the pane out of the stack, and `apply_setup` is the one door that opens or closes a
-    // pane -- for a place, with no room rationing the stack, it opens and closes nothing.
-    apply_setup(mail);
-    if (settings_moved) {
+    const std::string label = row.label();
+    const std::string name = pane_subject_shown(session_).name;
+    const PaneRef ref = in.ref;
+    // WHAT THE ROW'S SETTER ASKED, asked of the store: the row's window, or one of its settings.
+    if (session_.pending_setting) {
+        PaneSettingCommitRequested commit = *session_.pending_setting;
+        session_.pending_setting.reset();
+        // JUDGED NOW: the subject's own number already said the weaver saw this row as it stands.
+        commit.revision = settings_revision(ref);
+        const PaneSettingActed acted = store().commit_pane(std::string(), commit);
+        (void)store_.take_effects().said; // the sentence is this door's, below
+        install_live(store_.live_layout(), mail);
+        hand_office_settings(mail);
+        if (!acted.accepted) {
+            answer(false, label + ": " + acted.refusal);
+            repaint(mail);
+            return;
+        }
         // A SETTING'S WRITE IS HANDED NOW, before the room this repaint may grant, and the
         // sentence says how far it got: stored is not handed, and handed is not used.
-        hand_settings(mail);
-        written += "; " + settings_handed(in.ref);
+        refresh_inspected();
+        const std::string value = row_value_of(label);
+        say("committed " + label + " of " + name + " = " + value + "; " + settings_handed(ref),
+            false);
+        answer(true, std::string());
+        repaint(mail);
+        return;
     }
-    say(written, false);
-    answer(true, std::string());
-    repaint(mail);
+    if (!session_.pending_edit) {
+        answer(true, std::string());
+        return;
+    }
+    const LayoutEdit edit = *session_.pending_edit;
+    session_.pending_edit.reset();
+    // A PLACEMENT WRITE IS RECONCILED as the hand's is: the live layout the store sends back is
+    // presented, which opens and closes what it seats.
+    loom::DeferredAnswer owed = mail.defer_answer();
+    auto held = std::make_shared<loom::DeferredAnswer>(std::move(owed));
+    ask_layout({edit},
+               [this, held, label, name](const LayoutEditAnswered& answered, loom::Mail& m) {
+                   if (!answered.accepted) {
+                       (void)loom::answer_deferred(*held, m,
+                                                   PaneSubjectActed{false, label + ": " +
+                                                                               answered.refusal});
+                       repaint(m);
+                       return;
+                   }
+                   refresh_inspected();
+                   say("committed " + label + " of " + name + " = " + row_value_of(label), false);
+                   (void)loom::answer_deferred(*held, m, PaneSubjectActed{true, std::string()});
+                   repaint(m);
+               },
+               mail);
+}
+
+// The value the subject's row `label` shows now, or empty.
+std::string WorkshopWeave::row_value_of(const std::string& label) const {
+    for (const Row& row : session_.inspected.rows) {
+        if (row.label() == label) {
+            return row.value();
+        }
+    }
+    // A ROW THE WRITE TOOK AWAY -- a kept key cleared, which nothing declares -- holds nothing now.
+    return "--";
 }
 
 } // namespace zengine::workshop

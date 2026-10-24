@@ -419,7 +419,7 @@ void WorkshopWeave::quit(loom::Mail& mail) {
         return;
     }
     if (asked.recipients == 0) {
-        finish_quit();
+        finish_quit(mail);
         return;
     }
     quitting_ = true;
@@ -430,10 +430,10 @@ void WorkshopWeave::quit(loom::Mail& mail) {
 }
 
 // WL-SESSION-13 -- agents/workshop/session.md
-void WorkshopWeave::finish_quit() {
+void WorkshopWeave::finish_quit(loom::Mail& mail) {
     quitting_ = false;
     held_input_.clear();
-    save_last_session();
+    save_last_session(mail);
     host_->quit = true;
     if (host_->request_stop) {
         host_->request_stop();
@@ -497,7 +497,7 @@ void WorkshopWeave::on(const PaneQuitAnswered& said, loom::Mail& mail) {
     if (quit_refusals_.empty()) {
         quitting_ = false;
         answer_quit_ask({}, mail);
-        finish_quit();
+        finish_quit(mail);
         return;
     }
     std::string why;

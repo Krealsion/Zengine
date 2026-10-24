@@ -18,6 +18,7 @@
 #include "property.hpp"
 #include "settings_seam_vocabulary.hpp" // where a lock holds a setting
 #include "setup.hpp"
+#include "live_desk.hpp" // the live layout as the layouts' owner last sent it
 #include "vocabulary.hpp"
 
 #include "component/text_box.hpp" // the editable line, the caret in it, and its window
@@ -751,7 +752,7 @@ struct InspectedPane {
     std::vector<Row> rows;     ///< the owner's rows over it (`pane_subject_rows`)
     std::int64_t name = 0;     ///< what the picture carries and a commit returns; 0 is unnamed
     std::int64_t minted = 0;   ///< the last name handed out; names are never handed out twice
-    std::uint64_t desk = 0;    ///< `SetupState::put_live` when `name` was given
+    std::uint64_t desk = 0;    ///< `LiveDesk::put_live` when `name` was given
     bool member = false;       ///< whether that desk held the pane's row when `name` was given
     SettingsSubject settings;  ///< the settings rows `name` was given over
 
@@ -851,10 +852,15 @@ struct Session {
     PresentedMenu presented;
     /// THE DYNAMIC PANES a weaver has opened (panes.hpp).
     Panes panes;
-    /// THE AUTHORED SETUP THIS SESSION IS SHOWING, its copy of the one in its file, and the
-    /// one-line editor over its name (setup.hpp).
+    /// THE LIVE LAYOUT THIS SESSION IS SHOWING, as the store last gave it, and the one-line editor
+    /// over its name (live_desk.hpp).
     // WL-LAYOUT-01 -- agents/workshop/layouts.md
-    SetupState setup;
+    LiveDesk setup;
+    /// AN INSPECTOR'S COMMIT OF A ROW, as the row's setter left it: the edit of the live layout it
+    /// asks, or the setting it writes, for the commit's door to ask of the store.
+    // WL-INFO-15 -- agents/workshop/info-body.md
+    std::optional<LayoutEdit> pending_edit;
+    std::optional<PaneSettingCommitRequested> pending_setting;
     /// WHICH SCOPE A WEAVER IS ARRANGING AND WHICH PANE THE VOCABULARY ADDRESSES.
     // WL-ARR-07 -- agents/workshop/arrangement.md
     PaneArrange arrange;
@@ -1574,10 +1580,10 @@ inline constexpr std::int64_t kStatusJoinCols =
 
 /// THE ACTIVE LAYOUT'S ASSOCIATION, AS THE ROW SAYS IT -- the standing half of the status,
 /// composed against a budget for the PATH alone.
-std::string setup_link_text(const SetupState& setup, std::int64_t path_columns);
+std::string setup_link_text(const LiveDesk& setup, std::int64_t path_columns);
 
 /// WHAT THE ROW SAYS AFTER THE ASSOCIATION: the unresolved count, then the two gestures.
-std::string setup_rest_text(const SetupState& setup, const Panes& panes,
+std::string setup_rest_text(const LiveDesk& setup, const Panes& panes,
                                    const Keymap& keymap, KeySpelling spelling);
 
 /// The workspace's extent as the band states it: a status fact, beside the setup identity.
@@ -1618,7 +1624,7 @@ inline constexpr char kLayoutTabPad = ' ';
 
 /// What ONE layout contributes to the run: its two marker cells and the AUTHORED name between
 /// them, bare. No quoting, no escaping and no substitution -- the bytes a weaver typed.
-std::string layout_tab_text(const SetupState& setup, std::size_t at);
+std::string layout_tab_text(const LiveDesk& setup, std::size_t at);
 
 /// The room the ACTIVE LAYOUT'S ASSOCIATION must keep whatever the tab run wants.
 // WL-TAB-03 -- agents/workshop/tab-run.md
@@ -1645,7 +1651,7 @@ inline constexpr char kLayoutCreate = '+';
 inline constexpr std::int64_t kLayoutCreateCols = 2; // one pad cell and the mark
 
 /// THE VISIBLE TAB WINDOW, DERIVED AT EVERY PAINT AND STORED NOWHERE.
-LayoutTabRun layout_tab_run(const SetupState& setup, std::int64_t columns);
+LayoutTabRun layout_tab_run(const LiveDesk& setup, std::int64_t columns);
 
 /// THE BAND'S STATUS ROW, WHOLE: the tabs on the left, the status on the right, and where
 /// every painted tab's bytes are.
@@ -1752,13 +1758,6 @@ Written write_kept_setting(Session& s, const PaneRef& ref, const std::string& ke
 std::vector<Row> pane_subject_rows(Session& s, const PaneRef& ref,
                                    const SettingsSubject& settings = {});
 
-/// Where a lock holds a setting, as a row says it, and the refusal of a write it holds.
-inline constexpr const char* kLockedEverywhere = kLockScopeEverywhere;
-inline constexpr const char* kLockedInLayout = "in this layout";
-inline std::string locked_setting_refusal(const std::string& key) {
-    return key + " is locked -- nothing writes it while the lock stands, and only the weaver "
-                 "unlocks it";
-}
 
 /// THE INSPECTOR'S SUBJECT AS THE SEAM CARRIES IT: the reference, the inventory's name for it,
 /// the name of the rows and every row read fresh. Pure over the session.

@@ -35,10 +35,12 @@ struct Deliveries {
 /// Seat a portable view away from Inventory and Info. A same-size extent reseats nothing, so the
 /// room is changed and changed back (the Info views suite's technique).
 void place(InventoryStory& s, const std::string& key) {
-    for (auto& p : s.r.session().setup.active.panes) if (p.ref.pane == key) {
-        p.place = {pane_unit::kPixels, 2 * gfx::kCellPx, 34 * gfx::kCellPx};
-        p.width = {pane_unit::kPixels, 72 * gfx::kCellPx}; p.height = {pane_unit::kPixels, 10 * gfx::kCellPx};
-    }
+    stage_desk(s.r, [&](Setup& staged) {
+        for (auto& p : staged.panes) if (p.ref.pane == key) {
+            p.place = {pane_unit::kPixels, 2 * gfx::kCellPx, 34 * gfx::kCellPx};
+            p.width = {pane_unit::kPixels, 72 * gfx::kCellPx}; p.height = {pane_unit::kPixels, 10 * gfx::kCellPx};
+        }
+    });
     s.r.extent(179, 60); s.r.extent(180, 60);
 }
 std::string create_folder(InventoryStory& s, const std::string& name) {

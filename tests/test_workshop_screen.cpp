@@ -813,7 +813,9 @@ TEST_CASE("an overlapping pane is painted where it is hit, in both front orders"
 TEST_CASE("the close door can reach and remove an unresolved row") {
     Live t;
     t.extent_px(cells_px(160), cells_px(44), 0, 0);
-    REQUIRE(add_pane(live(t).setup.active, stranger()));
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(add_pane(desk, stranger()));
+    });
     // THE ROW IS IN THE ONE INVENTORY, SO WHATEVER LISTS IT CAN NAME IT TO THE DOOR. A
     // population listed from one source and removed through another is a row a weaver can see
     // and cannot touch.
@@ -840,7 +842,7 @@ TEST_CASE("a clipped default resize begins from the full resolved size") {
         t.extent_px(cells_px(160), cells_px(44), 0, 0);
         open_pane(t, ref_of(stock::kKind));
         const PaneRef builder = ref_of(stock::kKind);
-        REQUIRE(place_at_canvas(live(t), builder, cells_px(156), cells_px(2))
+        REQUIRE(place_at_canvas(t, builder, cells_px(156), cells_px(2))
                     .accepted);
 
         const Screen sc = screen_of(t.session());
@@ -870,7 +872,9 @@ TEST_CASE("a clipped default resize begins from the full resolved size") {
         // size. THE PRESS RECORDS THAT BASE AND THE MOTION SPENDS IT, and both halves are
         // asserted: a case that stopped at `base_w` would witness what the gesture
         // remembered rather than what it authored, which is the half a weaver actually sees.
-        REQUIRE(reset_pane_width(live(t).setup.active, builder));
+        stage_desk(t, [&](Setup& desk) {
+            REQUIRE(reset_pane_width(desk, builder));
+        });
         const CellRect vis =
 cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                       screen_of(t.session())).rect);
@@ -899,7 +903,7 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKin
         t.extent_px(cells_px(160), cells_px(44), 0, 0);
         open_pane(t, ref_of(stock::kKind));
         const PaneRef builder = ref_of(stock::kKind);
-        REQUIRE(place_at_canvas(live(t), builder, 0, cells_px(42)).accepted);
+        REQUIRE(place_at_canvas(t, builder, 0, cells_px(42)).accepted);
 
         const Screen sc = screen_of(t.session());
         const PaneBounds where =
@@ -918,7 +922,9 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKin
         CHECK(row->width.mode == pane_unit::kDefault);
         CHECK(row->width.amount == 0);
 
-        REQUIRE(reset_pane_height(live(t).setup.active, builder));
+        stage_desk(t, [&](Setup& desk) {
+            REQUIRE(reset_pane_height(desk, builder));
+        });
         const CellRect vis =
 cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                       screen_of(t.session())).rect);
@@ -1069,7 +1075,9 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKin
     REQUIRE_FALSE(t.session().pane_drag.sizing);
 
     // THE TARGET LEAVES THE SETUP UNDER THE HAND.
-    REQUIRE(remove_pane(live(t).setup.active, builder));
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(remove_pane(desk, builder));
+    });
     t.hand_moment(input::PointerMoved{rect.x + 4,
                                                  rect.y + 4, 0, 0,
                                                  input::space::kCells, input::mod::kNone});
@@ -1082,7 +1090,9 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKin
 
     // AND AN UNRESOLVED ADDRESS IS KEPT, because unresolved is recoverable and still
     // authored -- membership, not presentation, is what clears one.
-    REQUIRE(add_pane(live(t).setup.active, stranger()));
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(add_pane(desk, stranger()));
+    });
     for (std::size_t guard = 0; guard < 8; ++guard) {
         if (t.session().arrange.pane == stranger()) {
             break;
@@ -1657,7 +1667,9 @@ TEST_CASE("the pane composes as an ordinary saved setup row") {
     // away out of somebody else's file.
     PaneRig fresh;
     fresh.mount_workshop();
-    fresh.session().setup.active = authored;
+    stage_desk(fresh, [&](Setup& desk) {
+        desk = authored;
+    });
     CHECK_FALSE(resolve_pane(intro_ref(), fresh.session().panes).has_value());
     CHECK(has_pane(fresh.session().setup.active, intro_ref()));
 }
@@ -1930,15 +1942,16 @@ SnapMarks snap_marks(Live& t) {
 struct TwoPaneRig : FineRig {
     explicit TwoPaneRig(const std::string& prefs = std::string()) : FineRig(prefs) {
         open_pane(*this, ref_of(second::kKind));
-        Setup& s = live(*this).setup.active;
-        REQUIRE(author_pane_place(s, ref_of(stock::kKind), 100, 100).accepted);
-        REQUIRE(author_pane_size(s, ref_of(stock::kKind), PaneSize{pane_unit::kPixels, 300},
-                                 PaneSize{pane_unit::kPixels, 120})
-                    .accepted);
-        REQUIRE(author_pane_place(s, ref_of(second::kKind), 600, 200).accepted);
-        REQUIRE(author_pane_size(s, ref_of(second::kKind), PaneSize{pane_unit::kPixels, 200},
-                                 PaneSize{pane_unit::kDefault, 0})
-                    .accepted);
+        stage_desk(*this, [&](Setup& s) {
+            REQUIRE(author_pane_place(s, ref_of(stock::kKind), 100, 100).accepted);
+            REQUIRE(author_pane_size(s, ref_of(stock::kKind), PaneSize{pane_unit::kPixels, 300},
+                                     PaneSize{pane_unit::kPixels, 120})
+                        .accepted);
+            REQUIRE(author_pane_place(s, ref_of(second::kKind), 600, 200).accepted);
+            REQUIRE(author_pane_size(s, ref_of(second::kKind), PaneSize{pane_unit::kPixels, 200},
+                                     PaneSize{pane_unit::kDefault, 0})
+                        .accepted);
+        });
         key(input::scan::kUnknown); // a delivery, so the picture is the desk as authored
         select_pane(*this, ref_of(stock::kKind));
     }
@@ -2150,7 +2163,9 @@ TEST_CASE("the arrow keys and a typed value place exactly, near an edge or not")
     Live t;
     t.extent_on_window(160, 44);
     open_pane(t, ref_of(stock::kKind));
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), 20, 100).accepted);
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, ref_of(stock::kKind), 20, 100).accepted);
+    });
     enter_arrange_desk(t);
     select_pane(t, ref_of(stock::kKind));
     t.key(input::scan::kLeft); // one cell: 20 - 12
@@ -2167,11 +2182,12 @@ TEST_CASE("in a terminal a hand moving by cells meets an edge between them, and 
     Live t;
     t.extent_px(cells_px(120), cells_px(40), 0, 0);
     open_pane(t, ref_of(stock::kKind));
-    Setup& s = live(t).setup.active;
-    REQUIRE(author_pane_place(s, ref_of(stock::kKind), cells_px(10), cells_px(10)).accepted);
-    REQUIRE(author_pane_size(s, ref_of(stock::kKind), PaneSize{pane_unit::kPixels, 500},
-                             PaneSize{pane_unit::kDefault, 0})
-                .accepted);
+    stage_desk(t, [&](Setup& s) {
+        REQUIRE(author_pane_place(s, ref_of(stock::kKind), cells_px(10), cells_px(10)).accepted);
+        REQUIRE(author_pane_size(s, ref_of(stock::kKind), PaneSize{pane_unit::kPixels, 500},
+                                 PaneSize{pane_unit::kDefault, 0})
+                    .accepted);
+    });
     enter_arrange_desk(t);
     select_pane(t, ref_of(stock::kKind));
     const Screen sc = screen_of(t.session());
@@ -2246,9 +2262,11 @@ TEST_CASE("a pane dragged out of the stack meets the desk as its move leaves it,
 TEST_CASE("a one-pixel drag moves a pane by exactly one pixel of lattice") {
     FineRig t;
     // IN THE OPEN, away from every line a snap could meet, so the hand alone moves it.
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), cells_px(6),
-                              cells_px(6))
-                .accepted);
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, ref_of(stock::kKind), cells_px(6),
+                                  cells_px(6))
+                    .accepted);
+    });
     const PixelRect at = t.builder_rect();
     // PRESS THE BODY, midway in, in window pixels: a place is said in those same pixels, so
     // the grab offset is exact too.
@@ -2304,9 +2322,11 @@ TEST_CASE("every edge resizes pixel-fine and preserves its opposite anchor") {
         CAPTURE(std::string(pane_edge_name(pull.edge)));
         FineRig t;
         // AWAY FROM EVERY WALL, so no pull below meets a refusal.
-        REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), cells_px(6),
-                                  cells_px(6))
-                    .accepted);
+        stage_desk(t, [&](Setup& desk) {
+            REQUIRE(author_pane_place(desk, ref_of(stock::kKind), cells_px(6),
+                                      cells_px(6))
+                        .accepted);
+        });
         const PixelRect base = t.builder_rect();
         const std::int64_t left = base.x;
         const std::int64_t top = base.y;
@@ -2373,8 +2393,10 @@ TEST_CASE("the reported top-edge defect is dead -- the bottom edge holds still")
     // anchored (height 9 -> 10 with y fixed at 20, bottom 29 -> 30). This is that scenario,
     // asserting the law that makes it unsayable.
     FineRig t;
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), 0, cells_px(20))
-                .accepted);
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, ref_of(stock::kKind), 0, cells_px(20))
+                    .accepted);
+    });
     const PixelRect base = t.builder_rect();
     REQUIRE(base.y == cells_px(20) + t.room_y());
     REQUIRE(base.h == cells_px(9));
@@ -2406,9 +2428,11 @@ TEST_CASE("a refused anchored resize writes neither the place nor the size") {
     // height is exactly what `author_pane_window` makes unsayable -- and with no other axis
     // proposed, the whole gesture is a refusal.
     FineRig t;
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), cells_px(4),
-                              cells_px(20))
-                .accepted);
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, ref_of(stock::kKind), cells_px(4),
+                                  cells_px(20))
+                    .accepted);
+    });
     const SetupPane before = *t.builder_row();
     const PixelRect base = t.builder_rect();
     const PixelRect mark = pane_edge_cell(base, pane_edge::kTop);
@@ -2425,9 +2449,11 @@ TEST_CASE("a refused anchored resize writes neither the place nor the size") {
     // AND THE PLACE WALL HOLDS THE WHOLE AXIS TOO: pulling the LEFT edge past the
     // canvas's own origin proposes a negative x beside a legal width — one horizontal
     // transaction — and neither member lands.
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), cells_px(1),
-                              cells_px(20))
-                .accepted);
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, ref_of(stock::kKind), cells_px(1),
+                                  cells_px(20))
+                    .accepted);
+    });
     t.release(0, 0);
     const SetupPane at_wall = *t.builder_row();
     const PixelRect wall_base = t.builder_rect();
@@ -2480,8 +2506,10 @@ TEST_CASE("a move blocked at the left wall still follows the hand down") {
     // clamping to the wall, which staging the pane five pixels off the wall distinguishes
     // (a clamp would write 0 here).
     FineRig t;
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), 5, cells_px(20))
-                .accepted);
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, ref_of(stock::kKind), 5, cells_px(20))
+                    .accepted);
+    });
     const PixelRect at = t.builder_rect();
     REQUIRE(at.x == 5);
     const std::int64_t press_x = at.x + 30;
@@ -2507,8 +2535,10 @@ TEST_CASE("a move blocked at the left wall still follows the hand down") {
 TEST_CASE("a move blocked at the top wall still follows the hand sideways") {
     // THE MIRROR ORIENTATION: y refused, x lands.
     FineRig t;
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), cells_px(20), 5)
-                .accepted);
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, ref_of(stock::kKind), cells_px(20), 5)
+                    .accepted);
+    });
     const PixelRect at = t.builder_rect();
     REQUIRE(at.y == t.room_y() + 5); // five pixels below the room's top, its wall
     const std::int64_t press_x = at.x + 30;
@@ -2532,8 +2562,10 @@ TEST_CASE("a move past two walls at once writes nothing") {
     // BOTH AXES REFUSED is the one case a move gesture is still refused WHOLE: authored
     // geometry is untouched, byte for byte, and the refusal is said as an alert.
     FineRig t;
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), 5, 5)
-                .accepted);
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, ref_of(stock::kKind), 5, 5)
+                    .accepted);
+    });
     const SetupPane before = *t.builder_row();
     const PixelRect at = t.builder_rect();
     const std::int64_t press_x = at.x + 30;
@@ -2581,11 +2613,15 @@ TEST_CASE("a corner resize blocked on one axis still resizes the other") {
     {
         CAPTURE("top-left: horizontal blocked at the canvas origin");
         FineRig t;
-        REQUIRE(author_pane_place(live(t).setup.active, builder, 5, cells_px(20)).accepted);
-        REQUIRE(author_pane_size(live(t).setup.active, builder,
-                                 PaneSize{pane_unit::kPixels, cells_px(9)},
-                                 PaneSize{pane_unit::kPixels, cells_px(9)})
-                    .accepted);
+        stage_desk(t, [&](Setup& desk) {
+            REQUIRE(author_pane_place(desk, builder, 5, cells_px(20)).accepted);
+        });
+        stage_desk(t, [&](Setup& desk) {
+            REQUIRE(author_pane_size(desk, builder,
+                                     PaneSize{pane_unit::kPixels, cells_px(9)},
+                                     PaneSize{pane_unit::kPixels, cells_px(9)})
+                        .accepted);
+        });
         const PixelRect base = t.builder_rect();
         const PixelRect mark = pane_edge_cell(base, pane_edge::kTopLeft);
         const std::int64_t px = mark.x + 2;
@@ -2608,11 +2644,15 @@ TEST_CASE("a corner resize blocked on one axis still resizes the other") {
     {
         CAPTURE("bottom-left: horizontal blocked at the canvas origin");
         FineRig t;
-        REQUIRE(author_pane_place(live(t).setup.active, builder, 5, cells_px(20)).accepted);
-        REQUIRE(author_pane_size(live(t).setup.active, builder,
-                                 PaneSize{pane_unit::kPixels, cells_px(9)},
-                                 PaneSize{pane_unit::kPixels, cells_px(9)})
-                    .accepted);
+        stage_desk(t, [&](Setup& desk) {
+            REQUIRE(author_pane_place(desk, builder, 5, cells_px(20)).accepted);
+        });
+        stage_desk(t, [&](Setup& desk) {
+            REQUIRE(author_pane_size(desk, builder,
+                                     PaneSize{pane_unit::kPixels, cells_px(9)},
+                                     PaneSize{pane_unit::kPixels, cells_px(9)})
+                        .accepted);
+        });
         const PixelRect base = t.builder_rect();
         const PixelRect mark = pane_edge_cell(base, pane_edge::kBottomLeft);
         const std::int64_t px = mark.x + 2;
@@ -2633,12 +2673,16 @@ TEST_CASE("a corner resize blocked on one axis still resizes the other") {
     {
         CAPTURE("top-right: vertical blocked at the one-cell minimum");
         FineRig t;
-        REQUIRE(author_pane_place(live(t).setup.active, builder, cells_px(6), cells_px(20))
-                    .accepted);
-        REQUIRE(author_pane_size(live(t).setup.active, builder,
-                                 PaneSize{pane_unit::kPixels, cells_px(9)},
-                                 PaneSize{pane_unit::kPixels, cells_px(9)})
-                    .accepted);
+        stage_desk(t, [&](Setup& desk) {
+            REQUIRE(author_pane_place(desk, builder, cells_px(6), cells_px(20))
+                        .accepted);
+        });
+        stage_desk(t, [&](Setup& desk) {
+            REQUIRE(author_pane_size(desk, builder,
+                                     PaneSize{pane_unit::kPixels, cells_px(9)},
+                                     PaneSize{pane_unit::kPixels, cells_px(9)})
+                        .accepted);
+        });
         const PixelRect base = t.builder_rect();
         const PixelRect mark = pane_edge_cell(base, pane_edge::kTopRight);
         const std::int64_t px = mark.x + 2;
@@ -2659,12 +2703,16 @@ TEST_CASE("a corner resize blocked on one axis still resizes the other") {
     {
         CAPTURE("bottom-right: vertical blocked at the one-cell minimum");
         FineRig t;
-        REQUIRE(author_pane_place(live(t).setup.active, builder, cells_px(6), cells_px(20))
-                    .accepted);
-        REQUIRE(author_pane_size(live(t).setup.active, builder,
-                                 PaneSize{pane_unit::kPixels, cells_px(9)},
-                                 PaneSize{pane_unit::kPixels, cells_px(9)})
-                    .accepted);
+        stage_desk(t, [&](Setup& desk) {
+            REQUIRE(author_pane_place(desk, builder, cells_px(6), cells_px(20))
+                        .accepted);
+        });
+        stage_desk(t, [&](Setup& desk) {
+            REQUIRE(author_pane_size(desk, builder,
+                                     PaneSize{pane_unit::kPixels, cells_px(9)},
+                                     PaneSize{pane_unit::kPixels, cells_px(9)})
+                        .accepted);
+        });
         const PixelRect base = t.builder_rect();
         const PixelRect mark = pane_edge_cell(base, pane_edge::kBottomRight);
         const std::int64_t px = mark.x + 2;
@@ -2691,9 +2739,11 @@ TEST_CASE("the hand meets exactly the pixels and cells a pane paints") {
     // measured through the real routing path.
     FineRig t;
     // x = 6 cells + 3 pixels: the window paints from pixel 75, a terminal from cell 6.
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), cells_px(6) + 3,
-                              cells_px(6))
-                .accepted);
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, ref_of(stock::kKind), cells_px(6) + 3,
+                                  cells_px(6))
+                    .accepted);
+    });
     const PixelRect at = t.builder_rect();
     REQUIRE(at.x == cells_px(6) + 3);
     const std::int64_t left_px = at.x;
@@ -2740,13 +2790,15 @@ TEST_CASE("the TUI projects a pane onto its covered cells and rewrites nothing")
     // however many frames are drawn.
     Live t; // a character medium: no text metric
     open_pane(t, ref_of(stock::kKind));
-    REQUIRE(place_at_canvas(live(t), ref_of(stock::kKind), cells_px(6) + 6,
+    REQUIRE(place_at_canvas(t, ref_of(stock::kKind), cells_px(6) + 6,
                               cells_px(6) + 10)
                 .accepted);
-    REQUIRE(author_pane_size(live(t).setup.active, ref_of(stock::kKind),
-                             PaneSize{pane_unit::kPixels, cells_px(20) + 8},
-                             PaneSize{pane_unit::kPixels, cells_px(5) + 5})
-                .accepted);
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_size(desk, ref_of(stock::kKind),
+                                 PaneSize{pane_unit::kPixels, cells_px(20) + 8},
+                                 PaneSize{pane_unit::kPixels, cells_px(5) + 5})
+                    .accepted);
+    });
     const std::string authored_before = setup_persist::to_text(t.session().setup.active);
 
     const Screen sc = screen_of(t.session());
@@ -2786,13 +2838,15 @@ TEST_CASE("the TUI projects a pane onto its covered cells and rewrites nothing")
 
     // AND EXACT-CELL VALUES STAY EXACT: reauthor on the boundary and the covered cells are the
     // authored cells, byte for byte the whole-cell picture of the same desk.
-    REQUIRE(place_at_canvas(live(t), ref_of(stock::kKind), cells_px(6),
+    REQUIRE(place_at_canvas(t, ref_of(stock::kKind), cells_px(6),
                               cells_px(6))
                 .accepted);
-    REQUIRE(author_pane_size(live(t).setup.active, ref_of(stock::kKind),
-                             PaneSize{pane_unit::kPixels, cells_px(20)},
-                             PaneSize{pane_unit::kPixels, cells_px(5)})
-                .accepted);
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_size(desk, ref_of(stock::kKind),
+                                 PaneSize{pane_unit::kPixels, cells_px(20)},
+                                 PaneSize{pane_unit::kPixels, cells_px(5)})
+                    .accepted);
+    });
     const PixelRect exact = bounds_of(t.session().panes, t.session().setup.active,
                                      stock::kKind, screen_of(t.session()))
                                .rect;
@@ -3418,9 +3472,11 @@ TEST_CASE("entering a group stays at the anchor, and the popup resizes to it") {
     t.extent_px(cells_px(160), cells_px(44), 0, 0);
     open_pane(t, ref_of(stock::kKind));
     // Author the pane somewhere unmistakably far from any fixed column, and ask beside it.
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), cells_px(90),
-                              cells_px(20))
-                .accepted);
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, ref_of(stock::kKind), cells_px(90),
+                                  cells_px(20))
+                    .accepted);
+    });
     const CellRect slot = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
@@ -3608,11 +3664,13 @@ TEST_CASE("selecting a pane lifts it, in the picture and under the hand at once"
     const Screen sc = screen_of(t.session());
     const CellRect side = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, second::kKind, sc).rect);
-    REQUIRE(place_at_canvas(live(t), ref_of(stock::kKind),
+    REQUIRE(place_at_canvas(t, ref_of(stock::kKind),
                               gfx::px_of_cells(side.x - 4),
                               gfx::px_of_cells(side.y + 2))
                 .accepted);
-    REQUIRE(send_to_back(live(t).setup.active, ref_of(stock::kKind)));
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(send_to_back(desk, ref_of(stock::kKind)));
+    });
     const std::int64_t at_x = side.x + 1;
     const std::int64_t at_y = side.y + 3;
 
@@ -4216,11 +4274,13 @@ TEST_CASE("contextual Arrange lifts the pane it addressed, not the one in front"
     const Screen sc = screen_of(t.session());
     const CellRect side = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, second::kKind, sc).rect);
-    REQUIRE(place_at_canvas(live(t), ref_of(stock::kKind),
+    REQUIRE(place_at_canvas(t, ref_of(stock::kKind),
                               gfx::px_of_cells(side.x - 4),
                               gfx::px_of_cells(side.y + 2))
                 .accepted);
-    REQUIRE(send_to_back(live(t).setup.active, ref_of(stock::kKind)));
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(send_to_back(desk, ref_of(stock::kKind)));
+    });
 
     // BEFORE: the right-column pane owns the overlap, and a press there would reach it.
     const std::int64_t over_x = side.x + 1;
@@ -4327,9 +4387,11 @@ TEST_CASE("every pane a weaver can point at can be arranged, and the refusals ar
 
     // TWO: A PANE SIZED IN PIXELS IS A PANE LIKE ANY OTHER. Its pixels are presented, so its
     // cells answer the hand that reaches them.
-    REQUIRE(author_pane_size(live(t).setup.active, ref_of(second::kKind),
-                             PaneSize{pane_unit::kPixels, 300}, PaneSize{pane_unit::kDefault, 0})
-                .accepted);
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_size(desk, ref_of(second::kKind),
+                                 PaneSize{pane_unit::kPixels, 300}, PaneSize{pane_unit::kDefault, 0})
+                    .accepted);
+    });
     const Screen sc = screen_of(t.session());
     const PaneBounds sized =
         bounds_of(t.session().panes, t.session().setup.active, second::kKind, sc);
@@ -4353,7 +4415,7 @@ TEST_CASE("the arrangement desk's pointer takes what is visibly in front") {
     // THE SECOND PANE LEAVES THE STACK FIRST, and only then is the other pane's rectangle read:
     // a pane taken out of the composition lets the ones under it move up, so a rectangle
     // read before that is a rectangle about a desk that no longer exists.
-    REQUIRE(place_at_canvas(live(t), ref_of(second::kKind),
+    REQUIRE(place_at_canvas(t, ref_of(second::kKind),
                               gfx::px_of_cells(1), gfx::px_of_cells(30))
                 .accepted);
     const PaneBounds second_at = bounds_of(t.session().panes, t.session().setup.active,
@@ -4361,11 +4423,13 @@ TEST_CASE("the arrangement desk's pointer takes what is visibly in front") {
     REQUIRE(second_at.open);
     const CellRect files = cells_covered(second_at.rect);
     REQUIRE(files.w > 4);
-    REQUIRE(place_at_canvas(live(t), ref_of(second::kKind),
+    REQUIRE(place_at_canvas(t, ref_of(second::kKind),
                               gfx::px_of_cells(files.x + 2),
                               gfx::px_of_cells(files.y + 2))
                 .accepted);
-    REQUIRE(send_to_back(live(t).setup.active, ref_of(second::kKind)));
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(send_to_back(desk, ref_of(second::kKind)));
+    });
 
     // AUTHORED: the second pane owns the overlap.
     const std::int64_t ox = files.x + 3;
@@ -4420,6 +4484,11 @@ SetupState shelf_of(const std::vector<std::string>& names, std::size_t live) {
         }
     }
     return s;
+}
+
+/// ...AS THE COPY A SESSION PRESENTS OF IT.
+LiveDesk live_copy_of_shelf(const std::vector<std::string>& names, std::size_t live) {
+    return live_copy_of(shelf_of(names, live));
 }
 
 /// The weaver's order, read back out of the run -- the one thing switching may never move.
@@ -4941,7 +5010,7 @@ TEST_CASE("the live tab is cut rather than dropped when even it will not fit") {
 
 TEST_CASE("the status row is tabs on the left and the existing status right") {
     Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
-    s.setup = shelf_of({"Code", "Build"}, 0);
+    s.setup = live_copy_of_shelf({"Code", "Build"}, 0);
     const Screen sc = screen_of(s);
     const BandStatus row = band_status(s, sc);
 
@@ -4968,7 +5037,7 @@ TEST_CASE("the status row is tabs on the left and the existing status right") {
     // THE ASSOCIATION IS STILL ABOUT THE LIVE LAYOUT, and it survives a run of names long
     // enough to want the whole row.
     Session crowded = screen_session(kScreenMinW, kScreenMinH, 0, 0);
-    crowded.setup = shelf_of({std::string(20, 'a'), std::string(20, 'b'),
+    crowded.setup = live_copy_of_shelf({std::string(20, 'a'), std::string(20, 'b'),
                               std::string(20, 'c'), std::string(20, 'd')},
                              0);
     const BandStatus tight = band_status(crowded, screen_of(crowded));
@@ -4995,22 +5064,23 @@ TEST_CASE("the association's verdict survives the row's cut, at every width") {
                 CAPTURE(len);
                 CAPTURE(live);
                 Session none = screen_session(kScreenMinW, kScreenMinH, 0, 0);
-                none.setup = shelf_of(names, live);
+                none.setup = live_copy_of_shelf(names, live);
                 const BandStatus bare = band_status(none, screen_of(none));
                 REQUIRE(bare.text.find("setup: none") != std::string::npos);
                 REQUIRE(static_cast<std::int64_t>(bare.text.size()) <= cells_of(kMinScreen).w);
 
                 // ...and the two associated verdicts, whose sentence is the longer one.
                 Session live_current = none;
-                live_current.setup.active_link =
-                    SetupLink{artifact, live_current.setup.active};
+                live_current.setup.link_path = artifact;
+                live_current.setup.link = setup_link::kCurrent;
                 const BandStatus fresh = band_status(live_current, screen_of(live_current));
                 REQUIRE(fresh.text.find("setup: ") != std::string::npos);
                 REQUIRE(fresh.text.find("| current") != std::string::npos);
                 REQUIRE(static_cast<std::int64_t>(fresh.text.size()) <= cells_of(kMinScreen).w);
 
                 Session diverged = none;
-                diverged.setup.active_link = SetupLink{artifact, setup_of("other", {})};
+                diverged.setup.link_path = artifact;
+                diverged.setup.link = setup_link::kModified;
                 const BandStatus moved = band_status(diverged, screen_of(diverged));
                 REQUIRE(moved.text.find("setup: ") != std::string::npos);
                 REQUIRE(moved.text.find("| modified") != std::string::npos);
@@ -5022,7 +5092,7 @@ TEST_CASE("the association's verdict survives the row's cut, at every width") {
 
 TEST_CASE("a press answers a painted tab and nothing else on the band") {
     Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
-    s.setup = shelf_of({"Code", "Build", "Inspect"}, 0);
+    s.setup = live_copy_of_shelf({"Code", "Build", "Inspect"}, 0);
     const Screen sc = screen_of(s);
     const BandStatus row = band_status(s, sc);
     // ⚠ THE TOP BAND, because that is where the run is painted. A press resolved against the
@@ -5081,11 +5151,12 @@ TEST_CASE("a press answers a painted tab and nothing else on the band") {
 
 TEST_CASE("an omitted tab has no span and cannot be pressed") {
     Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
-    s.setup = shelf_of({"A", "B", "C", "D", "E", "F", "G", "H"}, 0);
+    SetupState eight = shelf_of({"A", "B", "C", "D", "E", "F", "G", "H"}, 0);
     // Names long enough that the reserved row cannot hold all eight.
-    for (std::size_t i = 0; i < s.setup.shelved.size(); ++i) {
-        s.setup.shelved[i].desk.name = std::string(12, static_cast<char>('a' + i));
+    for (std::size_t i = 0; i < eight.shelved.size(); ++i) {
+        eight.shelved[i].desk.name = std::string(12, static_cast<char>('a' + i));
     }
+    s.setup = live_copy_of(eight);
     const Screen sc = screen_of(s);
     const BandStatus row = band_status(s, sc);
     REQUIRE(row.after > 0);
@@ -5120,9 +5191,9 @@ TEST_CASE("the tab run is one composition on both media") {
     // the run is composed against that number rather than against canvas cells, and the
     // press inverse resolves through the same `prose_at` every other region press does.
     Session cells = screen_session(kScreenMinW, kScreenMinH, 0, 0);
-    cells.setup = shelf_of({"Code", "Build"}, 1);
+    cells.setup = live_copy_of_shelf({"Code", "Build"}, 1);
     Session face = screen_session(kScreenMinW, kScreenMinH, 8, 18);
-    face.setup = shelf_of({"Code", "Build"}, 1);
+    face.setup = live_copy_of_shelf({"Code", "Build"}, 1);
 
     const BandStatus cell_row = band_status(cells, screen_of(cells));
     const BandStatus face_row = band_status(face, screen_of(face));
@@ -5194,7 +5265,7 @@ TEST_CASE("the layout selector is the first Workshop row, on both media") {
     for (const std::int64_t line : {std::int64_t{0}, std::int64_t{18}}) {
         CAPTURE(line);
         Session s = screen_session(kScreenMinW, kScreenMinH, line == 0 ? 0 : 8, line);
-        s.setup = shelf_of({"Code", "Build"}, 0);
+        s.setup = live_copy_of_shelf({"Code", "Build"}, 0);
         const Screen sc = screen_of(s);
 
         // THE BAND IS AT THE CANVAS'S OWN ORIGIN, and the run is inside it.
@@ -5342,7 +5413,7 @@ TEST_CASE("switching the live layout moves nothing to the right of it") {
     for (std::size_t live = 0; live < names.size(); ++live) {
         CAPTURE(live);
         Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
-        s.setup = shelf_of(names, live);
+        s.setup = live_copy_of_shelf(names, live);
         const BandStatus row = band_status(s, screen_of(s));
         REQUIRE(row.tabs.size() == names.size());
         REQUIRE(row.before == 0);
@@ -5373,7 +5444,7 @@ TEST_CASE("the closing marker belongs to the layout it closes") {
     // the first of its neighbour; an inverse that handed either one to the wrong layout would
     // be a press that disagrees with the paint.
     Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
-    s.setup = shelf_of({"Home", "Code", "Art"}, 1);
+    s.setup = live_copy_of_shelf({"Home", "Code", "Art"}, 1);
     const Screen sc = screen_of(s);
     const BandStatus row = band_status(s, sc);
     REQUIRE(row.tabs.size() == 3);
@@ -5411,7 +5482,7 @@ TEST_CASE("the weaver reads `Home >Code< Art` on Workshop's first row") {
     for (const std::size_t live : {std::size_t{0}, std::size_t{1}, std::size_t{2}}) {
         CAPTURE(live);
         Session s;
-        s.setup = shelf_of({"Home", "Code", "Art"}, live);
+        s.setup = live_copy_of_shelf({"Home", "Code", "Art"}, live);
         const std::vector<std::string> rows = rasterized(paint(s));
         REQUIRE(rows.size() == static_cast<std::size_t>(cells_of(kMinScreen).h));
         CHECK(rows[0].rfind(live == 0   ? ">Home< Code  Art "
@@ -5422,7 +5493,7 @@ TEST_CASE("the weaver reads `Home >Code< Art` on Workshop's first row") {
     }
     // A MULTI-WORD NAME IS STILL ONE TAB, and reads as one without a quotation mark.
     Session wordy;
-    wordy.setup = shelf_of({"Home", "My Layout", "Art"}, 1);
+    wordy.setup = live_copy_of_shelf({"Home", "My Layout", "Art"}, 1);
     const std::vector<std::string> rows = rasterized(paint(wordy));
     CHECK(rows[0].rfind(" Home >My Layout< Art ", 0) == 0);
 }
@@ -5432,7 +5503,7 @@ TEST_CASE("no press outside the painted run reaches a layout") {
     // the only ones that answer are cells of a tab the composition actually painted -- on row
     // 0 and nowhere else.
     Session s = screen_session(kScreenMinW, kScreenMinH, 0, 0);
-    s.setup = shelf_of({"Code", "Build", "Inspect"}, 1);
+    s.setup = live_copy_of_shelf({"Code", "Build", "Inspect"}, 1);
     const Screen sc = screen_of(s);
     const BandStatus row = band_status(s, sc);
     REQUIRE(row.tabs.size() == 3);
@@ -5546,11 +5617,13 @@ TEST_CASE("authored geometry moves the Layouts pane, and the tabs with it") {
     REQUIRE(bounds_of(t.session().panes, t.session().setup.active, pane_kind::kLayouts, sc)
                 .rect == top_band_bounds(sc));
 
-    REQUIRE(place_at_canvas(live(t), layouts, cells_px(10), cells_px(20)).accepted);
-    REQUIRE(author_pane_size(live(t).setup.active, layouts,
-                             PaneSize{pane_unit::kPixels, cells_px(40)},
-                             PaneSize{pane_unit::kPixels, cells_px(4)})
-                .accepted);
+    REQUIRE(place_at_canvas(t, layouts, cells_px(10), cells_px(20)).accepted);
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_size(desk, layouts,
+                                 PaneSize{pane_unit::kPixels, cells_px(40)},
+                                 PaneSize{pane_unit::kPixels, cells_px(4)})
+                    .accepted);
+    });
     const CellRect moved = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, pane_kind::kLayouts, sc).rect);
     CHECK(moved == CellRect{10, 20, 40, 4});
@@ -5598,15 +5671,21 @@ TEST_CASE("a pane in front of the Layouts pane takes the press") {
     // The Builder is already front-most -- the launch door appends the front-most rank --
     // which is why `send_to_front` would answer "already".
     const Screen sc = screen_of(t.session());
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(pane_kind::kLayouts), 0,
-                              cells_px(5))
-                .accepted);
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), 0, cells_px(5))
-                .accepted);
-    REQUIRE(author_pane_size(live(t).setup.active, ref_of(stock::kKind),
-                             PaneSize{pane_unit::kPixels, sc.w},
-                             PaneSize{pane_unit::kPixels, gfx::px_of_cells(kTopRows)})
-                .accepted);
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, ref_of(pane_kind::kLayouts), 0,
+                                  cells_px(5))
+                    .accepted);
+    });
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, ref_of(stock::kKind), 0, cells_px(5))
+                    .accepted);
+    });
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_size(desk, ref_of(stock::kKind),
+                                 PaneSize{pane_unit::kPixels, sc.w},
+                                 PaneSize{pane_unit::kPixels, gfx::px_of_cells(kTopRows)})
+                    .accepted);
+    });
     REQUIRE(index_of(authored_order(t.session()), stock::kKind) >
             index_of(authored_order(t.session()), pane_kind::kLayouts));
 
@@ -5635,7 +5714,9 @@ TEST_CASE("a pane in front of the Layouts pane takes the press") {
     // of the right column, not at the room's edge, which is under the pane standing there.
     t.press_canvas(cells_of(sc).side_x - 1, cells_of(sc).h - kBottomRows - 1); // bare workspace: selects nothing
     REQUIRE(t.session().panes.selected == kNoPaneKind);
-    REQUIRE(send_to_front(live(t).setup.active, ref_of(pane_kind::kLayouts)));
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(send_to_front(desk, ref_of(pane_kind::kLayouts)));
+    });
     CHECK(occupied_at(t.session().panes, t.session().setup.active, sc, at_x, at_y).kind ==
           pane_kind::kLayouts);
     t.press_canvas(at_x, at_y);
@@ -5655,13 +5736,17 @@ TEST_CASE("the reservation does not follow the Layouts pane") {
     const PaneRef layouts = ref_of(pane_kind::kLayouts);
     // MOVED, RESIZED, AND THEN REMOVED ALTOGETHER -- three presentation changes, one
     // unchanged basis.
-    REQUIRE(author_pane_place(live(t).setup.active, layouts, cells_px(20), cells_px(30)).accepted);
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, layouts, cells_px(20), cells_px(30)).accepted);
+    });
     CHECK(screen_of(t.session()).room_w == before.room_w);
     CHECK(screen_of(t.session()).room_h == before.room_h);
-    REQUIRE(author_pane_size(live(t).setup.active, layouts,
-                             PaneSize{pane_unit::kPixels, cells_px(9)},
-                             PaneSize{pane_unit::kPixels, cells_px(9)})
-                .accepted);
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_size(desk, layouts,
+                                 PaneSize{pane_unit::kPixels, cells_px(9)},
+                                 PaneSize{pane_unit::kPixels, cells_px(9)})
+                    .accepted);
+    });
     CHECK(screen_of(t.session()).room_w == before.room_w);
     CHECK(screen_of(t.session()).room_h == before.room_h);
     pick(t, pane_kind::kLayouts);

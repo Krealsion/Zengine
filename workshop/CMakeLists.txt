@@ -117,6 +117,8 @@ add_library(zengine-workshop-logic STATIC
     # A pane's Edit Code: the host's answer about its code spent, the managed open asked for,
     # and the Builder told which recipe the opened source belongs to.
     weave_code.cpp
+    # The layouts' store (`layouts/`): every layout, what each keeps, and the files they live in.
+    layouts/store.cpp
 )
 target_sources(zengine-workshop-logic PRIVATE grant.cpp)
 

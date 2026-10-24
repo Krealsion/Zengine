@@ -170,18 +170,18 @@ void WorkshopWeave::spend_context_choice(Act a, const ContextMenu& spent, loom::
     // spend, so a run that changed while the menu was open refuses.
     case Act::kLayoutRename: open_layout_rename(spent.layout); break;
     case Act::kLayoutDuplicate: duplicate_layout(spent.layout, mail); break;
-    case Act::kLayoutMoveLeft: shift_layout(spent.layout, -1); break;
-    case Act::kLayoutMoveRight: shift_layout(spent.layout, +1); break;
+    case Act::kLayoutMoveLeft: shift_layout(spent.layout, -1, mail); break;
+    case Act::kLayoutMoveRight: shift_layout(spent.layout, +1, mail); break;
     case Act::kLayoutRemove: drop_layout(spent.layout, mail); break;
     // -- the room -----------------------------------------------------------------
     case Act::kArrangeDesk: open_arrange_desk(); break;
-    case Act::kSetupSave: save_setup(); break;
+    case Act::kSetupSave: save_setup(mail); break;
     case Act::kSetupRestore: restore_setup(mail); break;
-    case Act::kManageResetOrder: reset_front_order(); break;
+    case Act::kManageResetOrder: reset_front_order(mail); break;
     // -- the presentation, from a pane's Settings ---------------------------------
     case Act::kPaneTitles:
     case Act::kBandKeys:
-    case Act::kHotkeysKeys: state_presentation(a); break;
+    case Act::kHotkeysKeys: state_presentation(a, mail); break;
     default: break;
     }
 }
@@ -291,12 +291,14 @@ void WorkshopWeave::on(const zengine::input::TextEntered& t, loom::Mail& mail) {
 }
 
 // WL-ARR-02 -- agents/workshop/arrangement.md; WL-TAB-11 -- agents/workshop/tab-run.md
-WorkshopWeave::GesturesEnded WorkshopWeave::end_held_gestures() {
+WorkshopWeave::GesturesEnded WorkshopWeave::end_held_gestures(loom::Mail& mail) {
     GesturesEnded out;
     if (session_.pane_drag.active) {
         out.pane_held = true;
         out.pane = session_.pane_drag.pane;
         session_.pane_drag = PaneGesture{};
+        // WHAT THE HAND PROPOSED IS ASKED OF THE STORE, now the hand has let go.
+        commit_drag(out.pane, mail);
     }
     // The tab drag ends silently: the run's new order is on screen, narrated a step at a time.
     session_.tab_drag = LayoutTabDrag{};
@@ -316,7 +318,7 @@ void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom:
     // A press puts a carried item's hover down: the gesture it begins owns the pointer.
     if (b.pressed) leave_carry_hover(mail);
     if (!b.pressed && release_value_drag(b, mail)) {
-        (void)end_held_gestures(); repaint(mail); return;
+        (void)end_held_gestures(mail); repaint(mail); return;
     }
     // A press begins a gesture; its release completes that one and begins none, so the release of
     // a choosing click does not defeat its own continuation, and a newer key, character, press or
@@ -343,7 +345,7 @@ void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom:
             return;
         }
         if (!b.pressed) {
-            const GesturesEnded done = end_held_gestures();
+            const GesturesEnded done = end_held_gestures(mail);
             if (done.pane_held) {
                 // A RELEASE ENDS THE GESTURE WHEREVER THE HAND LANDS, and it is not asked
                 // where that is -- the position is not part of ending something.
@@ -390,7 +392,7 @@ void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom:
             if (!b.pressed) {
                 // A release still ends a gesture that began before the surface opened: a right
                 // press can arrive mid-drag.
-                (void)end_held_gestures();
+                (void)end_held_gestures(mail);
                 return;
             }
             if (!where.understood) {
@@ -497,7 +499,7 @@ void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom:
         // A release is not asked the same question, which is why no capture state exists: a
         // gesture owns the pointer until it ends, so its release ends it wherever the hand is,
         // through the one owner (`end_held_gestures`); a press that began none leaves none.
-        (void)end_held_gestures();
+        (void)end_held_gestures(mail);
     }
     repaint(mail);
 }
@@ -527,9 +529,18 @@ void WorkshopWeave::pointer_moved(const zengine::input::PointerMoved& m, loom::M
         leave_carry_hover(mail);
         const LayoutTabPress over =
             band_tab_at(session_, screen_of(session_), m.space, m.x, m.y);
-        if (over.hit && !over.create &&
-            move_layout(session_.setup, session_.setup.active_at, over.at)) {
-            repaint(mail);
+        if (over.hit && !over.create && over.at != session_.setup.active_at &&
+            over.at < layout_count(session_.setup)) {
+            LayoutEdit move;
+            move.op = layout_op::kMove;
+            move.by = static_cast<std::int64_t>(over.at);
+            ask_layout({move},
+                       [this](const LayoutEditAnswered& answered, loom::Mail& later) {
+                           if (answered.accepted) {
+                               repaint(later);
+                           }
+                       },
+                       mail);
         }
         return;
     }

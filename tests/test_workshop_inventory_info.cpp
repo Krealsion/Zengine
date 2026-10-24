@@ -776,11 +776,13 @@ TEST_CASE("Compose drops are data and submission spends the input actor's exact 
         r.pick({"zengine.info", "info"}); // give Compose the right-hand area
         r.pick(composer_ref());
         const auto compose_kind = r.session().panes.runtime.find(kComposerOffice, "compose")->kind;
-        for (auto& p : r.session().setup.active.panes) if (p.ref.provider == kComposerOffice) {
-            p.place = {pane_unit::kPixels, 85*gfx::kCellPx, 4*gfx::kCellPx};
-            p.width = {pane_unit::kPixels, 80*gfx::kCellPx};
-            p.height = {pane_unit::kPixels, 24*gfx::kCellPx};
-        }
+        stage_desk(r, [&](Setup& staged) {
+            for (auto& p : staged.panes) if (p.ref.provider == kComposerOffice) {
+                p.place = {pane_unit::kPixels, 85*gfx::kCellPx, 4*gfx::kCellPx};
+                p.width = {pane_unit::kPixels, 80*gfx::kCellPx};
+                p.height = {pane_unit::kPixels, 24*gfx::kCellPx};
+            }
+        });
         r.extent(180, 60);
         REQUIRE(shows_canvas(*r.session().panes.external_pane(compose_kind)));
         // What the window showed of Compose before it had a target.
@@ -856,11 +858,13 @@ static std::int64_t compose_on_canvas_for_inventory(InventoryStory& s) {
     r.pick({"zengine.info", "info"}); // give Compose the right-hand area
     r.pick(composer_ref());
     const auto compose_kind = r.session().panes.runtime.find(kComposerOffice, "compose")->kind;
-    for (auto& p : r.session().setup.active.panes) if (p.ref.provider == kComposerOffice) {
-        p.place = {pane_unit::kPixels, 85*gfx::kCellPx, 4*gfx::kCellPx};
-        p.width = {pane_unit::kPixels, 80*gfx::kCellPx};
-        p.height = {pane_unit::kPixels, 24*gfx::kCellPx};
-    }
+    stage_desk(r, [&](Setup& staged) {
+        for (auto& p : staged.panes) if (p.ref.provider == kComposerOffice) {
+            p.place = {pane_unit::kPixels, 85*gfx::kCellPx, 4*gfx::kCellPx};
+            p.width = {pane_unit::kPixels, 80*gfx::kCellPx};
+            p.height = {pane_unit::kPixels, 24*gfx::kCellPx};
+        }
+    });
     r.extent(180, 60);
     auto selector = std::make_unique<InventoryHand>(); auto* raw = selector.get();
     loom::Grant grant; grant.allow_to_any(intro::LoadedSelected::zen_name, 1);
@@ -936,11 +940,13 @@ TEST_CASE("a drop whose pane leaves before it is delivered is said not delivered
         REQUIRE(s.r.run_plan(plan).ok);
         s.r.pick({"zengine.terminal", "terminal"});
         const auto kind = s.r.session().panes.runtime.find("zengine.terminal", "terminal")->kind;
-        for (auto& p : s.r.session().setup.active.panes) if (p.ref.provider == "zengine.terminal") {
-            p.place = {pane_unit::kPixels, 2 * gfx::kCellPx, 31 * gfx::kCellPx};
-            p.width = {pane_unit::kPixels, 80 * gfx::kCellPx};
-            p.height = {pane_unit::kPixels, 24 * gfx::kCellPx};
-        }
+        stage_desk(s.r, [&](Setup& staged) {
+            for (auto& p : staged.panes) if (p.ref.provider == "zengine.terminal") {
+                p.place = {pane_unit::kPixels, 2 * gfx::kCellPx, 31 * gfx::kCellPx};
+                p.width = {pane_unit::kPixels, 80 * gfx::kCellPx};
+                p.height = {pane_unit::kPixels, 24 * gfx::kCellPx};
+            }
+        });
         s.r.bus.send(terminal->id(), loom::Message(loom::to_value(loom::Ack{})));
         s.r.extent(181, 60);
         const std::int64_t at = row_saying(s, kind, "zen.Ack");
@@ -1193,11 +1199,13 @@ TEST_CASE("presets are independent partial data until filled and explicitly auth
         const auto compose = r.session().panes.runtime.find(kComposerOffice, "compose")->kind;
         REQUIRE(r.session().keymap.app_row_of_id("desktop.deselect") != nullptr);
         REQUIRE(r.session().keymap.app_row_of_id("desktop.panes") != nullptr);
-        for (auto& p : r.session().setup.active.panes) if (p.ref.provider == kComposerOffice) {
-            p.place = {pane_unit::kPixels, 85*gfx::kCellPx, 32*gfx::kCellPx};
-            p.width = {pane_unit::kPixels, 80*gfx::kCellPx};
-            p.height = {pane_unit::kPixels, 24*gfx::kCellPx};
-        }
+        stage_desk(r, [&](Setup& staged) {
+            for (auto& p : staged.panes) if (p.ref.provider == kComposerOffice) {
+                p.place = {pane_unit::kPixels, 85*gfx::kCellPx, 32*gfx::kCellPx};
+                p.width = {pane_unit::kPixels, 80*gfx::kCellPx};
+                p.height = {pane_unit::kPixels, 24*gfx::kCellPx};
+            }
+        });
         r.extent(180, 60);
         auto selector = std::make_unique<InventoryHand>(); auto* raw = selector.get();
         loom::Grant grant; grant.allow_to_any(intro::LoadedSelected::zen_name, 1);
@@ -1302,11 +1310,13 @@ TEST_CASE("terminal capture: primary drag stores exact authored content and name
     REQUIRE(s.r.run_plan(plan).ok);
     s.r.pick({"zengine.terminal", "terminal"});
     const auto kind = s.r.session().panes.runtime.find("zengine.terminal", "terminal")->kind;
-    for (auto& p : s.r.session().setup.active.panes) if (p.ref.provider == "zengine.terminal") {
-        p.place = {pane_unit::kPixels, 2 * gfx::kCellPx, 31 * gfx::kCellPx};
-        p.width = {pane_unit::kPixels, 80 * gfx::kCellPx};
-        p.height = {pane_unit::kPixels, 24 * gfx::kCellPx};
-    }
+    stage_desk(s.r, [&](Setup& staged) {
+        for (auto& p : staged.panes) if (p.ref.provider == "zengine.terminal") {
+            p.place = {pane_unit::kPixels, 2 * gfx::kCellPx, 31 * gfx::kCellPx};
+            p.width = {pane_unit::kPixels, 80 * gfx::kCellPx};
+            p.height = {pane_unit::kPixels, 24 * gfx::kCellPx};
+        }
+    });
     const auto sent = terminal->send(loom::Address::to_role(kRigBoard),
         RigNote::zen_name, 1, {{std::string("slot"), loom::FieldValue{std::string("score")}}, {std::string("text"), loom::FieldValue{std::string("captured original")}}});
     REQUIRE(sent);
@@ -1383,11 +1393,13 @@ TEST_CASE("terminal capture: wrapped rows and context pickup preserve identity w
     plan.artifacts.push_back(artifact); REQUIRE(s.r.run_plan(plan).ok);
     s.r.pick({"zengine.terminal", "terminal"});
     const auto kind = s.r.session().panes.runtime.find("zengine.terminal", "terminal")->kind;
-    for (auto& pane : s.r.session().setup.active.panes) if (pane.ref.provider == "zengine.terminal") {
-        pane.place = {pane_unit::kPixels, 2 * gfx::kCellPx, 31 * gfx::kCellPx};
-        pane.width = {pane_unit::kPixels, 24 * gfx::kCellPx};
-        pane.height = {pane_unit::kPixels, 26 * gfx::kCellPx};
-    }
+    stage_desk(s.r, [&](Setup& staged) {
+        for (auto& pane : staged.panes) if (pane.ref.provider == "zengine.terminal") {
+            pane.place = {pane_unit::kPixels, 2 * gfx::kCellPx, 31 * gfx::kCellPx};
+            pane.width = {pane_unit::kPixels, 24 * gfx::kCellPx};
+            pane.height = {pane_unit::kPixels, 26 * gfx::kCellPx};
+        }
+    });
     REQUIRE(terminal->send(loom::Address::to_role(kRigBoard), RigNote::zen_name, 1,
         {{"slot", loom::FieldValue{std::string("score")}}, {"text", loom::FieldValue{std::string("wrapped")}}}));
     s.r.extent(181, 60);
@@ -2031,11 +2043,13 @@ TEST_CASE("portable slots: an entry's transfer placed where the window drew a vi
     const auto a = s.entry("A").reference;
     const auto row = s.create("row");
     const auto kind = s.r.session().panes.runtime.find(slots::kRole, row)->kind;
-    for (auto& p : s.r.session().setup.active.panes) if (p.ref.pane == row) {
-        p.place = {pane_unit::kPixels, 2 * gfx::kCellPx, 34 * gfx::kCellPx};
-        p.width = {pane_unit::kPixels, 72 * gfx::kCellPx};
-        p.height = {pane_unit::kPixels, 10 * gfx::kCellPx};
-    }
+    stage_desk(s.r, [&](Setup& staged) {
+        for (auto& p : staged.panes) if (p.ref.pane == row) {
+            p.place = {pane_unit::kPixels, 2 * gfx::kCellPx, 34 * gfx::kCellPx};
+            p.width = {pane_unit::kPixels, 72 * gfx::kCellPx};
+            p.height = {pane_unit::kPixels, 10 * gfx::kCellPx};
+        }
+    });
     s.r.extent(179, 60); s.r.extent(180, 60); // a same-size extent reseats nothing: the view is placed now
     // What the window showed of the row view while it held nothing, then B moved into it.
     const auto first = held_reading(kind).parts;

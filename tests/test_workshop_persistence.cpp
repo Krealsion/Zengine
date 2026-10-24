@@ -859,7 +859,7 @@ TEST_CASE("a fresh Workshop's active setup and its open panes agree from the fir
           std::vector<std::int64_t>{pane_kind::kLayouts});
     // UNSAVED, and structurally so: nothing has been written, and the copy the
     // comparison is made against has an empty name no legal setup can equal.
-    CHECK_FALSE((live_status(t.session().setup) == setup_link::kCurrent));
+    CHECK_FALSE((live_status(t.run()) == setup_link::kCurrent));
 }
 
 TEST_CASE("opening a pane through the launch door moves the setup's intent, not only the screen") {
@@ -904,24 +904,24 @@ TEST_CASE("a pane change makes the setup UNSAVED, and changing it back makes it 
     (void)mount_tool(t, "zengine-snake");
 
     name_setup(t, "Working");
-    REQUIRE((live_status(t.session().setup) == setup_link::kCurrent));
+    REQUIRE((live_status(t.run()) == setup_link::kCurrent));
     CHECK(t.session().setup.active.name == "Working");
     CHECK(t.notice().find("saved setup \"Working\"") == 0);
 
     open_stock_pane(t);
-    CHECK_FALSE((live_status(t.session().setup) == setup_link::kCurrent));
+    CHECK_FALSE((live_status(t.run()) == setup_link::kCurrent));
 
     // OPENING THEN CLOSING BACK TO THE SAVED INTENT SAYS SAVED AGAIN, which is
     // what a comparison buys and a dirty flag could not: there is no hand to
     // forget to unset.
     pick(t, stock::kKind);
-    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
+    CHECK((live_status(t.run()) == setup_link::kCurrent));
 
     // A rename with no pane moved is still a change, because the name is part of
     // the value.
     Setup renamed = t.session().setup.active;
     renamed.name = "Other";
-    CHECK_FALSE(renamed == t.session().setup.active_link.known);
+    CHECK_FALSE(renamed == t.run().active_link.known);
 }
 
 TEST_CASE("the rename editor opens on the tab's own name and writes nothing") {
@@ -990,7 +990,7 @@ TEST_CASE("a name the law refuses leaves the editor open over what was typed") {
     // A RENAME WRITES NO SETUP ARTIFACT. The layout is named and the file the host configured
     // was never opened, in either direction.
     CHECK_FALSE(std::filesystem::exists(t.host.setup_path));
-    CHECK(live_status(t.session().setup) == setup_link::kNone);
+    CHECK(live_status(t.run()) == setup_link::kNone);
 }
 
 TEST_CASE("with no setup file, saving and restoring say so and change nothing") {
@@ -1021,11 +1021,11 @@ TEST_CASE("restoring a setup returns the intent that was saved") {
 
     open_stock_pane(t); // the stand-in open beside the Layouts pane
     name_setup(t, "Build only");
-    REQUIRE((live_status(t.session().setup) == setup_link::kCurrent));
+    REQUIRE((live_status(t.run()) == setup_link::kCurrent));
 
     // Wander away from it.
     pick(t, stock::kKind);
-    REQUIRE_FALSE((live_status(t.session().setup) == setup_link::kCurrent));
+    REQUIRE_FALSE((live_status(t.run()) == setup_link::kCurrent));
     REQUIRE(open_kinds(t.session().panes) ==
             std::vector<std::int64_t>{pane_kind::kLayouts});
 
@@ -1033,7 +1033,7 @@ TEST_CASE("restoring a setup returns the intent that was saved") {
     CHECK(t.session().setup.active.name == "Build only");
     CHECK(open_kinds(t.session().panes) ==
           std::vector<std::int64_t>{pane_kind::kLayouts, stock::kKind});
-    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
+    CHECK((live_status(t.run()) == setup_link::kCurrent));
     CHECK(t.notice().find("restored setup \"Build only\"") == 0);
     CHECK(t.notice().find(t.host.setup_path) != std::string::npos);
 }
@@ -1200,7 +1200,7 @@ TEST_CASE("the same setup resolves to different bounds under a different extent"
     open_pane(t, ref_of(second::kKind));
     REQUIRE(t.session().panes.has(second::kKind));
     name_setup(t, "Both");
-    REQUIRE((live_status(t.session().setup) == setup_link::kCurrent));
+    REQUIRE((live_status(t.run()) == setup_link::kCurrent));
     const std::string bytes = slurp(t.host.setup_path);
     const Setup authored = t.session().setup.active;
 
@@ -1228,7 +1228,7 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKin
     // still saved -- which is the control that makes this a claim about
     // persisted geometry rather than about recomposition.
     CHECK(t.session().setup.active == authored);
-    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
+    CHECK((live_status(t.run()) == setup_link::kCurrent));
     CHECK(slurp(t.host.setup_path) == bytes);
 
     // Restoring under the new extent produces the same intent and the current
@@ -1242,7 +1242,7 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKin
     // A text metric moves the same picture again, and the setup is untouched.
     t.extent_px(cells_px(140), cells_px(44), 8, 18);
     CHECK(t.session().setup.active == authored);
-    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
+    CHECK((live_status(t.run()) == setup_link::kCurrent));
     CHECK(slurp(t.host.setup_path) == bytes);
 
     // And no RESOLVED rectangle, placement, column, row or metric is in the file at all.
@@ -1289,7 +1289,7 @@ TEST_CASE("a weaver names a setup, leaves, and gets it back in a fresh Workshop"
         open_stock_pane(a);
         name_setup(a, "Morning build");
 
-        REQUIRE((live_status(a.session().setup) == setup_link::kCurrent));
+        REQUIRE((live_status(a.run()) == setup_link::kCurrent));
         REQUIRE(open_kinds(a.session().panes) ==
                 std::vector<std::int64_t>{pane_kind::kLayouts, stock::kKind});
         bytes = slurp(path);
@@ -1312,7 +1312,7 @@ TEST_CASE("a weaver names a setup, leaves, and gets it back in a fresh Workshop"
         CHECK(b.session().setup.active.name == "Morning build");
         CHECK(b.session().panes.has(stock::kKind));
         CHECK_FALSE(b.session().panes.has(second::kKind));
-        CHECK((live_status(b.session().setup) == setup_link::kCurrent));
+        CHECK((live_status(b.run()) == setup_link::kCurrent));
 
         // NO COPY OF ANYBODY ELSE'S FACTS RODE THE FILE, which is what the tool's own
         // counter still says: the setup carries panes and places, and a participant's state
@@ -1613,7 +1613,7 @@ TEST_CASE("a name that could impersonate the setup line is one SPAN on it") {
     REQUIRE(check_setup_name(authored).accepted);
     name_setup(t, authored);
     REQUIRE(t.session().setup.active.name == authored);
-    REQUIRE((live_status(t.session().setup) == setup_link::kCurrent));
+    REQUIRE((live_status(t.run()) == setup_link::kCurrent));
 
     const Screen sc = screen_of(t.session());
     const std::string row = setup_row(t.shown(), sc);
@@ -1662,7 +1662,7 @@ TEST_CASE("a name that could impersonate the setup line is one SPAN on it") {
     // AND THE AUTHORED BYTES NEVER MOVED. The presentation is prose and reaches neither
     // the live setup nor the copy `saved()` compares against; the FILE still escapes.
     CHECK(t.session().setup.active.name == authored);
-    CHECK(t.session().setup.active_link.known.name == authored);
+    CHECK(t.run().active_link.known.name == authored);
     CHECK(slurp(t.host.setup_path).find("\\\" UNSAVED") != std::string::npos);
 }
 
@@ -1745,7 +1745,7 @@ TEST_CASE("the name editor edits the authored bytes, never the escaped spelling"
     t.key(input::scan::kEscape);
     CHECK_FALSE(t.session().setup.naming.open);
     CHECK(t.session().setup.active.name == authored);
-    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
+    CHECK((live_status(t.run()) == setup_link::kCurrent));
 
     // AND ENTER RENAMES TO THE AUTHORED BYTES, not to the spelling they are presented with
     // -- then `s` writes exactly those bytes: two gestures, one value.
@@ -1810,7 +1810,7 @@ TEST_CASE("a bare name at the bound is its own length, and the row is still cut"
     REQUIRE(check_setup_name(authored).accepted);
     name_setup(t, authored);
     REQUIRE(t.session().setup.active.name == authored);
-    REQUIRE((live_status(t.session().setup) == setup_link::kCurrent));
+    REQUIRE((live_status(t.run()) == setup_link::kCurrent));
 
     const std::string cut = setup_row(t.shown(), screen_of(t.session()));
     INFO(cut);
@@ -1827,7 +1827,7 @@ TEST_CASE("a bare name at the bound is its own length, and the row is still cut"
     // file are all untouched by it, and a wider surface spends the room on the rest of
     // the same sentence.
     CHECK(t.session().setup.active.name == authored);
-    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
+    CHECK((live_status(t.run()) == setup_link::kCurrent));
     CHECK(setup_persist::load_file(t.host.setup_path).setup.name == authored);
 
     t.extent_px(cells_px(240), cells_px(40), 0, 0);
@@ -1838,7 +1838,7 @@ TEST_CASE("a bare name at the bound is its own length, and the row is still cut"
     CHECK(roomy.find("s save") != std::string::npos);
     // ...and the extent changed what fits, never the setup or its saved status.
     CHECK(t.session().setup.active.name == authored);
-    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
+    CHECK((live_status(t.run()) == setup_link::kCurrent));
 }
 
 TEST_CASE("a name carrying a quote and a backslash survives its file exactly") {
@@ -2102,8 +2102,8 @@ TEST_CASE("the second session replaces the first, room and desk both") {
         // rather than on whatever `--setup` this run names: an association is what a weaver
         // related this desk to, and the configured path is only the door a layout with NO
         // association acquires one through. So the file rewritten is the one the layout names.
-        REQUIRE(t.session().setup.active_link.path == dir.file("first-setup.json"));
-        REQUIRE(setup_persist::save_file(t.session().setup.active_link.path, second).accepted);
+        REQUIRE(t.run().active_link.path == dir.file("first-setup.json"));
+        REQUIRE(setup_persist::save_file(t.run().active_link.path, second).accepted);
         t.extent_px(cells_px(140), cells_px(50));
         t.key(input::scan::kR);
         REQUIRE_MESSAGE(t.session().setup.active == second, t.notice());
@@ -2376,7 +2376,7 @@ TEST_CASE("a restored session never touches the file a weaver named, either") {
     // file over the restored session; `s` writes the named file and nothing else.
     t.key(input::scan::kR);
     CHECK(t.session().setup.active == named);
-    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
+    CHECK((live_status(t.run()) == setup_link::kCurrent));
     const std::string session_bytes = slurp(session);
     name_setup(t, "Renamed");
     CHECK(setup_persist::load_file(setup).setup.name == "Renamed");
@@ -3492,7 +3492,9 @@ TEST_CASE("a read-only visit through the other medium writes the SAME BYTES") {
         t.host.session_path = never;
         t.ready();
         t.extent_px(cells_px(140), cells_px(44), 0, 0, 0);
-        live(t).setup.active = hostile_desk();
+        stage_desk(t, [&](Setup& desk) {
+            desk = hostile_desk();
+        });
         t.key(input::scan::kQ);
     }
     {
@@ -3500,7 +3502,9 @@ TEST_CASE("a read-only visit through the other medium writes the SAME BYTES") {
         t.host.session_path = crossed;
         t.ready();
         t.extent_px(cells_px(140), cells_px(44), 0, 0, 0);
-        live(t).setup.active = hostile_desk();
+        stage_desk(t, [&](Setup& desk) {
+            desk = hostile_desk();
+        });
 
         // LOOK AT IT IN CELLS. Every number is a projection this medium cannot say.
         enter_arrange_desk(t);
@@ -3563,7 +3567,9 @@ TEST_CASE("the medium's device unit reaches no durable file") {
         t.ready();
         t.extent_px(cells_px(140), cells_px(44), 8, 18, gfx::kCellPx);
         REQUIRE(t.session().cell_px == gfx::kCellPx);
-        live(t).setup.active = hostile_desk();
+        stage_desk(t, [&](Setup& desk) {
+            desk = hostile_desk();
+        });
         t.key(input::scan::kQ);
     }
     const std::string text = slurp(path);
@@ -3628,7 +3634,7 @@ void layout_new(Live& t) {
 std::vector<Setup> shelf_of(const Live& t) {
     std::vector<Setup> out;
     for (std::size_t i = 0; i < layout_count(t.session().setup); ++i) {
-        out.push_back(layout_at(t.session().setup, i));
+        out.push_back(layout_at(t.run(), i));
     }
     return out;
 }
@@ -3641,7 +3647,9 @@ TEST_CASE("`s` writes the live layout and leaves the shelf alone") {
     t.host.setup_path = dir.file("s.json");
 
     layout_new(t);
-    REQUIRE(add_pane(live(t).setup.active, ref_of(stock::kKind)));
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(add_pane(desk, ref_of(stock::kKind)));
+    });
     REQUIRE(layout_count(t.session().setup) == 2);
     const std::vector<Setup> before = shelf_of(t);
 
@@ -3660,12 +3668,12 @@ TEST_CASE("`s` writes the live layout and leaves the shelf alone") {
     REQUIRE(after.size() == before.size());
     CHECK(after[0] == before[0]);
     // The verdict is about the LIVE layout against its own artifact, and says so.
-    CHECK((live_status(t.session().setup) == setup_link::kCurrent));
+    CHECK((live_status(t.run()) == setup_link::kCurrent));
     CHECK(setup_row(t.shown(), screen_of(t.session())).find("| current") !=
           std::string::npos);
     // ...AND THE SHELVED LAYOUT GAINED NO ASSOCIATION: saving one desk is not a
     // reason for an unrelated one to acquire a relationship to that file.
-    CHECK(link_at(t.session().setup, 0).path.empty());
+    CHECK(link_at(t.run(), 0).path.empty());
 }
 
 TEST_CASE("`r` restores into the live layout and clears no shelf") {
@@ -3676,9 +3684,11 @@ TEST_CASE("`r` restores into the live layout and clears no shelf") {
     Live t;
     t.host.setup_path = dir.file("s.json");
     layout_new(t);
-    live(t).setup.active.name = "Scratch";
+    stage_desk(t, [&](Setup& desk) {
+        desk.name = "Scratch";
+    });
     REQUIRE(layout_count(t.session().setup) == 2);
-    const Setup shelved = layout_at(t.session().setup, 0);
+    const Setup shelved = layout_at(t.run(), 0);
     const std::size_t at = t.session().setup.active_at;
 
     t.key(input::scan::kR);
@@ -3690,7 +3700,7 @@ TEST_CASE("`r` restores into the live layout and clears no shelf") {
     CHECK(layout_count(t.session().setup) == 2);
     // ...AND NOTHING ELSE ON THE SHELF MOVED. A restore that replaced the run would be
     // one file quietly deciding how many desks a weaver has.
-    CHECK(layout_at(t.session().setup, 0) == shelved);
+    CHECK(layout_at(t.run(), 0) == shelved);
 
     // A REFUSED RESTORE COSTS THE NOTICE AND NOTHING ELSE, shelf included.
     REQUIRE(persist::write_file(dir.file("s.json"), "{ not a setup").accepted);
@@ -3719,12 +3729,20 @@ TEST_CASE("the whole layout run rides the session, and comes back") {
         t.ready();
         t.extent_px(cells_px(120), cells_px(44));
 
-        live(t).setup.active.name = "First";
+        stage_desk(t, [&](Setup& desk) {
+            desk.name = "First";
+        });
         layout_new(t);
-        live(t).setup.active.name = "Second";
-        REQUIRE(add_pane(live(t).setup.active, ref_of(stock::kKind)));
+        stage_desk(t, [&](Setup& desk) {
+            desk.name = "Second";
+        });
+        stage_desk(t, [&](Setup& desk) {
+            REQUIRE(add_pane(desk, ref_of(stock::kKind)));
+        });
         layout_new(t);
-        live(t).setup.active.name = "Third";
+        stage_desk(t, [&](Setup& desk) {
+            desk.name = "Third";
+        });
         REQUIRE(layout_count(t.session().setup) == 3);
         // Stand on the middle one, so what returns is neither the first nor the last -- and
         // `active_at == shelved.size()` (where `layout.new` leaves a weaver) cannot pass for
@@ -3761,8 +3779,8 @@ TEST_CASE("the whole layout run rides the session, and comes back") {
     CHECK(layout_count(back.session().setup) == 3);
     CHECK(back.session().setup.active_at == 1);
     CHECK(back.session().setup.active == second_authored);
-    CHECK(layout_at(back.session().setup, 0).name == "First");
-    CHECK(layout_at(back.session().setup, 2).name == "Third");
+    CHECK(layout_at(back.run(), 0).name == "First");
+    CHECK(layout_at(back.run(), 2).name == "Third");
     // ...and the notice says so, counting the tabs the way a weaver counts them.
     CHECK(back.notice().find("reopened your last desk") == 0);
     CHECK(back.notice().find("(2 of 3 layouts)") != std::string::npos);
@@ -3782,23 +3800,37 @@ TEST_CASE("crossing media never writes a device value into any layout") {
     // TWO LAYOUTS WITH DISTINCT FINE-LATTICE GEOMETRY -- one of them deliberately NOT on
     // a cell boundary, which is the value a character medium cannot say and must not
     // round on its way through.
-    REQUIRE(add_pane(live(t).setup.active, ref_of(second::kKind)));
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(second::kKind),
-                              gfx::px_of_cells(3) + 17, gfx::px_of_cells(4) + 5)
-                .accepted);
-    REQUIRE(author_pane_size(live(t).setup.active, ref_of(second::kKind),
-                             PaneSize{pane_unit::kPixels, gfx::px_of_cells(20) + 11},
-                             PaneSize{pane_unit::kPixels, gfx::px_of_cells(9) + 23})
-                .accepted);
-    live(t).setup.active.name = "Fine";
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(add_pane(desk, ref_of(second::kKind)));
+    });
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, ref_of(second::kKind),
+                                  gfx::px_of_cells(3) + 17, gfx::px_of_cells(4) + 5)
+                    .accepted);
+    });
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_size(desk, ref_of(second::kKind),
+                                 PaneSize{pane_unit::kPixels, gfx::px_of_cells(20) + 11},
+                                 PaneSize{pane_unit::kPixels, gfx::px_of_cells(9) + 23})
+                    .accepted);
+    });
+    stage_desk(t, [&](Setup& desk) {
+        desk.name = "Fine";
+    });
     const Setup fine = t.session().setup.active;
 
     layout_new(t);
-    live(t).setup.active.name = "Whole";
-    REQUIRE(add_pane(live(t).setup.active, ref_of(second::kKind)));
-    REQUIRE(author_pane_place(live(t).setup.active, ref_of(second::kKind),
-                              gfx::px_of_cells(6), gfx::px_of_cells(2))
-                .accepted);
+    stage_desk(t, [&](Setup& desk) {
+        desk.name = "Whole";
+    });
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(add_pane(desk, ref_of(second::kKind)));
+    });
+    stage_desk(t, [&](Setup& desk) {
+        REQUIRE(author_pane_place(desk, ref_of(second::kKind),
+                                  gfx::px_of_cells(6), gfx::px_of_cells(2))
+                    .accepted);
+    });
     const Setup whole = t.session().setup.active;
     REQUIRE(fine != whole);
 
@@ -3820,13 +3852,13 @@ TEST_CASE("crossing media never writes a device value into any layout") {
 
     // EVERY LAYOUT'S AUTHORED NUMBERS ARE THE ONES THAT WENT IN. Looking is not
     // authoring, and a switch is not a geometry conversion.
-    CHECK(layout_at(t.session().setup, 0) == fine);
-    CHECK(layout_at(t.session().setup, 1) == whole);
+    CHECK(layout_at(t.run(), 0) == fine);
+    CHECK(layout_at(t.run(), 1) == whole);
 
     // ...AND SAVING EACH ONE WRITES THE SAME BYTES AS A RUN THAT NEVER CROSSED.
-    CHECK(setup_persist::to_text(layout_at(t.session().setup, 0)) ==
+    CHECK(setup_persist::to_text(layout_at(t.run(), 0)) ==
           setup_persist::to_text(fine));
-    CHECK(setup_persist::to_text(layout_at(t.session().setup, 1)) ==
+    CHECK(setup_persist::to_text(layout_at(t.run(), 1)) ==
           setup_persist::to_text(whole));
     // No projected spelling reached the bytes: a device unit has no field in this format.
     CHECK(setup_persist::to_text(fine).find("px") == std::string::npos);
@@ -4793,12 +4825,8 @@ TEST_CASE("installing a run touches nothing else the session owns") {
     // IN the run, so what is asserted is that the run's own contents arrive whole and that
     // nothing beside them was reached for.
     SetupState state;
-    state.naming.open = true;
-    state.naming.at = 7;
 
     REQUIRE(install_layout_run(state, three_layouts(), 2));
-    CHECK(state.naming.open);
-    CHECK(state.naming.at == 7);
     CHECK(live_status(state) == setup_link::kNone);
 
     // AND THE TYPE'S OWN FLOOR IS KEPT WHATEVER THE CALLER SAYS: a run this could not lift
@@ -4966,18 +4994,28 @@ TEST_CASE("three layouts, closed on the middle, come back and stay separate") {
         t.ready();
         t.extent_px(cells_px(120), cells_px(44));
 
-        live(t).setup.active = materialized(layout_of("Home", 7));
+        stage_desk(t, [&](Setup& desk) {
+            desk = materialized(layout_of("Home", 7));
+        });
         layout_new(t);
-        live(t).setup.active = materialized(layout_of("Code", 19));
-        REQUIRE(send_to_front(live(t).setup.active, ref_of(second::kKind)));
+        stage_desk(t, [&](Setup& desk) {
+            desk = materialized(layout_of("Code", 19));
+        });
+        stage_desk(t, [&](Setup& desk) {
+            REQUIRE(send_to_front(desk, ref_of(second::kKind)));
+        });
         layout_new(t);
-        live(t).setup.active = materialized(layout_of("Art", 31));
-        REQUIRE(remove_pane(live(t).setup.active, ref_of(stock::kKind)));
+        stage_desk(t, [&](Setup& desk) {
+            desk = materialized(layout_of("Art", 31));
+        });
+        stage_desk(t, [&](Setup& desk) {
+            REQUIRE(remove_pane(desk, ref_of(stock::kKind)));
+        });
         REQUIRE(layout_count(t.session().setup) == 3);
         layout_next(t);
         layout_next(t);
         REQUIRE(t.session().setup.active.name == "Code");
-        authored = layout_run(t.session().setup);
+        authored = layout_run(t.run());
 
         t.key(input::scan::kQ);
         REQUIRE(t.host.quit);
@@ -4991,7 +5029,7 @@ TEST_CASE("three layouts, closed on the middle, come back and stay separate") {
 
     // ALL THREE, IN ORDER, WITH THEIR NAMES AND THEIR EXACT AUTHORED VALUES.
     REQUIRE(layout_count(back.session().setup) == 3);
-    CHECK(layout_run(back.session().setup) == authored);
+    CHECK(layout_run(back.run()) == authored);
     CHECK(back.session().setup.active_at == 1);
     CHECK(back.session().setup.active.name == "Code");
     // EACH ONE RETURNS ITS AUTHORED VALUE WHEN ACTIVATED, through the shipped gesture.
@@ -5011,10 +5049,12 @@ TEST_CASE("three layouts, closed on the middle, come back and stay separate") {
     while (back.session().setup.active_at != 0) {
         layout_next(back);
     }
-    REQUIRE(add_pane(live(back).setup.active, stranger()));
-    CHECK(layout_at(back.session().setup, 1) == authored[1].desk);
-    CHECK(layout_at(back.session().setup, 2) == authored[2].desk);
-    CHECK(setup_persist::to_text(layout_at(back.session().setup, 1)) ==
+    stage_desk(back, [&](Setup& desk) {
+        REQUIRE(add_pane(desk, stranger()));
+    });
+    CHECK(layout_at(back.run(), 1) == authored[1].desk);
+    CHECK(layout_at(back.run(), 2) == authored[2].desk);
+    CHECK(setup_persist::to_text(layout_at(back.run(), 1)) ==
           setup_persist::to_text(authored[1].desk));
 }
 
@@ -5032,11 +5072,17 @@ TEST_CASE("the position that comes back is the one the weaver stood on") {
             t.host.setup_path = dir.file("s.json");
             t.ready();
             if (layout_count(t.session().setup) == 1) {
-                live(t).setup.active.name = "Home";
+                stage_desk(t, [&](Setup& desk) {
+                    desk.name = "Home";
+                });
                 layout_new(t);
-                live(t).setup.active.name = "Code";
+                stage_desk(t, [&](Setup& desk) {
+                    desk.name = "Code";
+                });
                 layout_new(t);
-                live(t).setup.active.name = "Art";
+                stage_desk(t, [&](Setup& desk) {
+                    desk.name = "Art";
+                });
             }
             REQUIRE(layout_count(t.session().setup) == 3);
             while (t.session().setup.active_at != stand_on) {
@@ -5070,16 +5116,22 @@ TEST_CASE("`s` and `r` still mean the live layout, across a save and a restart")
         t.host.session_path = session;
         t.host.setup_path = setup;
         t.ready();
-        live(t).setup.active = materialized(layout_of("Home", 7));
+        stage_desk(t, [&](Setup& desk) {
+            desk = materialized(layout_of("Home", 7));
+        });
         layout_new(t);
-        live(t).setup.active = materialized(layout_of("Code", 19));
+        stage_desk(t, [&](Setup& desk) {
+            desk = materialized(layout_of("Code", 19));
+        });
         layout_new(t);
-        live(t).setup.active = materialized(layout_of("Art", 31));
+        stage_desk(t, [&](Setup& desk) {
+            desk = materialized(layout_of("Art", 31));
+        });
         layout_next(t); // wrap to Home
         REQUIRE(t.session().setup.active_at == 0);
 
         name_setup(t, "Kept");
-        after_save = layout_run(t.session().setup);
+        after_save = layout_run(t.run());
         t.key(input::scan::kQ);
         REQUIRE(t.host.quit);
     }
@@ -5106,15 +5158,15 @@ TEST_CASE("`s` and `r` still mean the live layout, across a save and a restart")
     REQUIRE(layout_count(back.session().setup) == 3);
     layout_next(back);
     REQUIRE(back.session().setup.active_at == 1);
-    const Setup untouched_before = layout_at(back.session().setup, 0);
-    const Setup untouched_after_two = layout_at(back.session().setup, 2);
+    const Setup untouched_before = layout_at(back.run(), 0);
+    const Setup untouched_after_two = layout_at(back.run(), 2);
     back.key(input::scan::kR);
     CHECK(back.notice().find("restored setup \"Kept\"") == 0);
     CHECK(back.session().setup.active.name == "Kept");
     CHECK(back.session().setup.active_at == 1);
     CHECK(layout_count(back.session().setup) == 3);
-    CHECK(layout_at(back.session().setup, 0) == untouched_before);
-    CHECK(layout_at(back.session().setup, 2) == untouched_after_two);
+    CHECK(layout_at(back.run(), 0) == untouched_before);
+    CHECK(layout_at(back.run(), 2) == untouched_after_two);
 }
 
 TEST_CASE("crossing media never rewrites a persisted layout's geometry") {
@@ -5132,7 +5184,7 @@ TEST_CASE("crossing media never rewrites a persisted layout's geometry") {
     t.host.setup_path = dir.file("s.json");
     t.ready();
     t.extent_px(cells_px(120), cells_px(44));
-    REQUIRE(install_layout_run(live(t).setup, authored, 1));
+    stage_run(*t.w, [&](SetupState& run) { REQUIRE(install_layout_run(run, authored, 1)); });
 
     // LOOK AT EVERY LAYOUT, on a medium whose cells cannot say a sub-cell remainder.
     for (std::size_t i = 0; i < authored.size() * 2; ++i) {
@@ -5158,8 +5210,8 @@ TEST_CASE("`s` establishes the association only after a successful write") {
     (void)first_frame(t);
 
     // A FRESH LAYOUT IS `none`, and that is not "unsaved": the session remembers it.
-    REQUIRE(live_status(t.session().setup) == setup_link::kNone);
-    REQUIRE(t.session().setup.active_link.path.empty());
+    REQUIRE(live_status(t.run()) == setup_link::kNone);
+    REQUIRE(t.run().active_link.path.empty());
 
     // A REFUSED WRITE ADVANCES NOTHING. The destination is a DIRECTORY, so the writer
     // cannot open it -- and a failed save may not leave a layout claiming a relationship
@@ -5171,25 +5223,25 @@ TEST_CASE("`s` establishes the association only after a successful write") {
     const Setup was = blocked.session().setup.active;
     blocked.key(input::scan::kS);
     CHECK(blocked.session().notice_is_bad);
-    CHECK(live_status(blocked.session().setup) == setup_link::kNone);
-    CHECK(blocked.session().setup.active_link.path.empty());
+    CHECK(live_status(blocked.run()) == setup_link::kNone);
+    CHECK(blocked.run().active_link.path.empty());
     CHECK(blocked.session().setup.active == was); // and the live desk is untouched
 
     // A SUCCESSFUL ONE ESTABLISHES IT, at the host's configured path -- the acquisition
     // door for a layout that had none.
     save_setup(t);
     CHECK_FALSE(t.session().notice_is_bad);
-    CHECK(t.session().setup.active_link.path == t.host.setup_path);
-    CHECK(live_status(t.session().setup) == setup_link::kCurrent);
-    CHECK(t.session().setup.active_link.known == t.session().setup.active);
+    CHECK(t.run().active_link.path == t.host.setup_path);
+    CHECK(live_status(t.run()) == setup_link::kCurrent);
+    CHECK(t.run().active_link.known == t.session().setup.active);
 
     // MUTATING THE DESK MAKES IT `modified`, DERIVED and never flagged...
     pick(t, stock::kKind);
-    CHECK(live_status(t.session().setup) == setup_link::kModified);
+    CHECK(live_status(t.run()) == setup_link::kModified);
     // ...and saving again re-establishes `current` on the SAME artifact.
     save_setup(t);
-    CHECK(t.session().setup.active_link.path == t.host.setup_path);
-    CHECK(live_status(t.session().setup) == setup_link::kCurrent);
+    CHECK(t.run().active_link.path == t.host.setup_path);
+    CHECK(live_status(t.run()) == setup_link::kCurrent);
 }
 
 TEST_CASE("`r` establishes on success and changes nothing on refusal") {
@@ -5199,16 +5251,16 @@ TEST_CASE("`r` establishes on success and changes nothing on refusal") {
     const Setup authored = arranged_desk("Restored");
     REQUIRE(setup_persist::save_file(t.host.setup_path, authored).accepted);
     (void)first_frame(t);
-    REQUIRE(live_status(t.session().setup) == setup_link::kNone);
+    REQUIRE(live_status(t.run()) == setup_link::kNone);
 
     // A SUCCESSFUL RESTORE INSTALLS THE DESK AND ESTABLISHES THE ASSOCIATION, whose known
     // value is exactly what was admitted.
     t.key(input::scan::kR);
     CHECK_FALSE(t.session().notice_is_bad);
     CHECK(t.session().setup.active == authored);
-    CHECK(t.session().setup.active_link.path == t.host.setup_path);
-    CHECK(t.session().setup.active_link.known == authored);
-    CHECK(live_status(t.session().setup) == setup_link::kCurrent);
+    CHECK(t.run().active_link.path == t.host.setup_path);
+    CHECK(t.run().active_link.known == authored);
+    CHECK(live_status(t.run()) == setup_link::kCurrent);
 
     // A REFUSED RESTORE LEAVES THE DESK AND THE ASSOCIATION EXACTLY AS THEY WERE. The
     // loader RETURNS a candidate, so there is no path by which half a desk is installed --
@@ -5217,9 +5269,9 @@ TEST_CASE("`r` establishes on success and changes nothing on refusal") {
     t.key(input::scan::kR);
     CHECK(t.session().notice_is_bad);
     CHECK(t.session().setup.active == authored);
-    CHECK(t.session().setup.active_link.path == t.host.setup_path);
-    CHECK(t.session().setup.active_link.known == authored);
-    CHECK(live_status(t.session().setup) == setup_link::kCurrent);
+    CHECK(t.run().active_link.path == t.host.setup_path);
+    CHECK(t.run().active_link.known == authored);
+    CHECK(live_status(t.run()) == setup_link::kCurrent);
 
     // A LAYOUT WITH NO ASSOCIATION SURVIVES A REFUSAL AS `none`, which is the other half:
     // a failed acquisition is not an acquisition.
@@ -5231,8 +5283,8 @@ TEST_CASE("`r` establishes on success and changes nothing on refusal") {
     bad.key(input::scan::kR);
     CHECK(bad.session().notice_is_bad);
     CHECK(bad.session().setup.active == before);
-    CHECK(live_status(bad.session().setup) == setup_link::kNone);
-    CHECK(bad.session().setup.active_link.path.empty());
+    CHECK(live_status(bad.run()) == setup_link::kNone);
+    CHECK(bad.run().active_link.path.empty());
 }
 
 TEST_CASE("two layouts sharing one artifact cannot both claim `current`") {
@@ -5244,32 +5296,32 @@ TEST_CASE("two layouts sharing one artifact cannot both claim `current`") {
     (void)first_frame(t);
 
     save_setup(t); // the first layout acquires the artifact
-    REQUIRE(t.session().setup.active_link.path == t.host.setup_path);
+    REQUIRE(t.run().active_link.path == t.host.setup_path);
     // A SECOND LAYOUT ON THE SAME FILE: made blank, then saved to the same configured path.
     layout_new(t);
-    REQUIRE(live_status(t.session().setup) == setup_link::kNone);
+    REQUIRE(live_status(t.run()) == setup_link::kNone);
     pick(t, stock::kKind); // make it a genuinely different desk
     save_setup(t);
-    REQUIRE(t.session().setup.active_link.path == t.host.setup_path);
+    REQUIRE(t.run().active_link.path == t.host.setup_path);
     REQUIRE(layout_count(t.session().setup) == 2);
 
     // THE ONE THAT JUST WROTE IT SAYS `current`; the one whose value it replaced says
     // `modified`. Updating only the saving layout's baseline is the defect this refuses.
-    CHECK(live_status(t.session().setup) == setup_link::kCurrent);
-    CHECK(link_at(t.session().setup, 0).path == t.host.setup_path);
-    CHECK(link_status(layout_at(t.session().setup, 0), link_at(t.session().setup, 0)) ==
+    CHECK(live_status(t.run()) == setup_link::kCurrent);
+    CHECK(link_at(t.run(), 0).path == t.host.setup_path);
+    CHECK(link_status(layout_at(t.run(), 0), link_at(t.run(), 0)) ==
           setup_link::kModified);
     // ...and both baselines are the SAME value, which is what the file now holds.
-    CHECK(link_at(t.session().setup, 0).known == t.session().setup.active_link.known);
+    CHECK(link_at(t.run(), 0).known == t.run().active_link.known);
     CHECK(setup_persist::load_file(t.host.setup_path).setup ==
-          t.session().setup.active_link.known);
+          t.run().active_link.known);
 
     // AND READING IT BACK FROM THE OTHER SIDE TEACHES BOTH TOO.
     layout_next(t);
     REQUIRE(t.session().setup.active_at == 0);
     t.key(input::scan::kR);
-    CHECK(live_status(t.session().setup) == setup_link::kCurrent);
-    CHECK(link_status(layout_at(t.session().setup, 1), link_at(t.session().setup, 1)) ==
+    CHECK(live_status(t.run()) == setup_link::kCurrent);
+    CHECK(link_status(layout_at(t.run(), 1), link_at(t.run(), 1)) ==
           setup_link::kCurrent);
 }
 
@@ -5283,7 +5335,7 @@ TEST_CASE("the standing verdict performs no filesystem read") {
     t.host.setup_path = dir.file("gone.json");
     (void)first_frame(t);
     save_setup(t);
-    REQUIRE(live_status(t.session().setup) == setup_link::kCurrent);
+    REQUIRE(live_status(t.run()) == setup_link::kCurrent);
 
     std::error_code ec;
     std::filesystem::remove(t.host.setup_path, ec);
@@ -5292,7 +5344,7 @@ TEST_CASE("the standing verdict performs no filesystem read") {
     const Screen sc = screen_of(t.session());
     for (int again = 0; again < 3; ++again) {
         CHECK(band_status(t.session(), sc).text.find("| current") != std::string::npos);
-        CHECK(link_status(t.session().setup.active, t.session().setup.active_link) ==
+        CHECK(link_status(t.session().setup.active, t.run().active_link) ==
               setup_link::kCurrent);
     }
     // ...AND THE MISSING FILE IS DISCOVERED ONLY WHEN A WEAVER ASKS FOR IT, which is the
@@ -5322,23 +5374,23 @@ TEST_CASE("the whole run and every association come back after a restart") {
         // it last matches it, and the one whose value it replaced does not.
         rename_live_layout(t, "Home");
         save_setup(t);
-        REQUIRE(live_status(t.session().setup) == setup_link::kCurrent);
+        REQUIRE(live_status(t.run()) == setup_link::kCurrent);
 
         layout_new(t);
         rename_live_layout(t, "Code");
         pick(t, stock::kKind); // a genuinely different desk
         save_setup(t); // Code: associated and current; Home: associated and MODIFIED
-        REQUIRE(live_status(t.session().setup) == setup_link::kCurrent);
-        REQUIRE(link_status(layout_at(t.session().setup, 0),
-                            link_at(t.session().setup, 0)) == setup_link::kModified);
+        REQUIRE(live_status(t.run()) == setup_link::kCurrent);
+        REQUIRE(link_status(layout_at(t.run(), 0),
+                            link_at(t.run(), 0)) == setup_link::kModified);
 
         layout_new(t);
         rename_live_layout(t, "Art"); // Art: no association at all
-        REQUIRE(live_status(t.session().setup) == setup_link::kNone);
+        REQUIRE(live_status(t.run()) == setup_link::kNone);
 
         layout_next(t); // wrap to Home, and close standing on it
         REQUIRE(t.session().setup.active_at == 0);
-        authored = layout_run(t.session().setup);
+        authored = layout_run(t.run());
         t.key(input::scan::kQ);
         REQUIRE(t.host.quit);
     }
@@ -5359,17 +5411,17 @@ TEST_CASE("the whole run and every association come back after a restart") {
     back.extent_px(cells_px(120), cells_px(44));
 
     REQUIRE(layout_count(back.session().setup) == 3);
-    CHECK(layout_run(back.session().setup) == authored);
+    CHECK(layout_run(back.run()) == authored);
     CHECK(back.session().setup.active_at == 0);
     CHECK(back.session().setup.active.name == "Home"); // the rename survived
-    CHECK(link_status(layout_at(back.session().setup, 0), link_at(back.session().setup, 0)) ==
+    CHECK(link_status(layout_at(back.run(), 0), link_at(back.run(), 0)) ==
           setup_link::kModified);
-    CHECK(link_status(layout_at(back.session().setup, 1), link_at(back.session().setup, 1)) ==
+    CHECK(link_status(layout_at(back.run(), 1), link_at(back.run(), 1)) ==
           setup_link::kCurrent);
-    CHECK(link_status(layout_at(back.session().setup, 2), link_at(back.session().setup, 2)) ==
+    CHECK(link_status(layout_at(back.run(), 2), link_at(back.run(), 2)) ==
           setup_link::kNone);
-    CHECK(link_at(back.session().setup, 0).path == artifact);
-    CHECK(link_at(back.session().setup, 2).path.empty());
+    CHECK(link_at(back.run(), 0).path == artifact);
+    CHECK(link_at(back.run(), 2).path.empty());
     // ...and the standing row says the one a weaver is standing on, and only that one.
     CHECK(band_status(back.session(), screen_of(back.session())).text.find("| modified") !=
           std::string::npos);
@@ -5976,7 +6028,7 @@ TEST_CASE("the weaver sees no loss, and the next run spends no conversion") {
         // THE RUN IS BACK, standing where the weaver left it.
         CHECK(layout_count(t.session().setup) == 3);
         CHECK(t.session().setup.active_at == 1);
-        CHECK(layout_at(t.session().setup, 1).name == three_desks()[1].name);
+        CHECK(layout_at(t.run(), 1).name == three_desks()[1].name);
 
         // ...AND THE TAB SURFACE IS THERE, at the rectangle it always occupied, saying what it
         // always said, and answering a press: no apparent loss of the weaver's tab surface.
@@ -5985,13 +6037,13 @@ TEST_CASE("the weaver sees no loss, and the next run spends no conversion") {
         CHECK(bounds_of(t.session().panes, t.session().setup.active, pane_kind::kLayouts, sc)
                   .rect == top_band_bounds(sc));
         const BandStatus row = band_status(t.session(), sc);
-        CHECK(row.text.find(">" + layout_at(t.session().setup, 1).name + "<") !=
+        CHECK(row.text.find(">" + layout_at(t.run(), 1).name + "<") !=
               std::string::npos);
         REQUIRE(row.tabs.size() == 3);
         press_tab(t, 0);
         CHECK(t.session().setup.active_at == 0);
 
-        after_open = layout_run(t.session().setup);
+        after_open = layout_run(t.run());
         t.key(input::scan::kQ);
         REQUIRE(t.host.quit);
     }

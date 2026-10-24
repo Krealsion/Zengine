@@ -224,13 +224,15 @@ struct ReadRig {
     /// THE PANE AUTHORED AT (`x`, `y`), `w` BY `h`, in canvas cells from the room's corner.
     void place(std::size_t at, std::int64_t x, std::int64_t y, std::int64_t w, std::int64_t h) {
         std::size_t placed = 0;
-        for (SetupPane& p : r.session().setup.active.panes) {
-            if (p.ref.provider != canvases.at(at).office || p.ref.pane != kReadPane) continue;
-            p.place = {pane_unit::kPixels, x * gfx::kCellPx, y * gfx::kCellPx};
-            p.width = {pane_unit::kPixels, w * gfx::kCellPx};
-            p.height = {pane_unit::kPixels, h * gfx::kCellPx};
-            ++placed;
-        }
+        stage_desk(r, [&](Setup& staged) {
+            for (SetupPane& p : staged.panes) {
+                if (p.ref.provider != canvases.at(at).office || p.ref.pane != kReadPane) continue;
+                p.place = {pane_unit::kPixels, x * gfx::kCellPx, y * gfx::kCellPx};
+                p.width = {pane_unit::kPixels, w * gfx::kCellPx};
+                p.height = {pane_unit::kPixels, h * gfx::kCellPx};
+                ++placed;
+            }
+        });
         REQUIRE(placed == 1);
     }
 
@@ -1437,7 +1439,9 @@ TEST_CASE("Layouts' stamp names what it shows: a new layout's tab and the naming
     ReadRig d;
     const PaneRef layouts{kWorkshopProvider, pane_key::kLayouts};
     // TWO LAYOUTS, so the tab row is presented.
-    d.r.session().setup.shelved.push_back(Layout{Setup{"second", {}}, SetupLink{}});
+    stage_run(*d.r.w, [](SetupState& run) {
+        run.shelved.push_back(Layout{Setup{"second", {}}, SetupLink{}});
+    });
     d.reseat();
     DeskRead was;
     REQUIRE(d.read(was).empty());
@@ -1450,7 +1454,9 @@ TEST_CASE("Layouts' stamp names what it shows: a new layout's tab and the naming
     CHECK(same_stamp(stamp_for(again.stamps, layouts.provider, layouts.pane), first));
     // A NEW LAYOUT: its tab is said, so a notice names Layouts' moved stamp.
     d.ear->heard.clear();
-    d.r.session().setup.shelved.push_back(Layout{Setup{"third", {}}, SetupLink{}});
+    stage_run(*d.r.w, [](SetupState& run) {
+        run.shelved.push_back(Layout{Setup{"third", {}}, SetupLink{}});
+    });
     d.reseat();
     REQUIRE_FALSE(d.ear->heard.empty());
     const PaneStamp tabbed = stamp_for(d.ear->heard.back().panes, layouts.provider, layouts.pane);

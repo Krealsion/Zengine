@@ -11,6 +11,8 @@
 #include "persist.hpp"
 #include "setup.hpp"
 
+#include "graphics/pixels.hpp" // a retired file's sub-units landed on pixels
+
 #include <zen/admission.hpp>
 #include <zen/schema.hpp>
 #include <zen/serialize.hpp>

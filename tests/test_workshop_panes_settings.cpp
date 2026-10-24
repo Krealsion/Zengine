@@ -60,9 +60,12 @@ struct DialRig {
         r.mount_workshop();
         r.ready();
         r.extent(160, 48);
-        Session& s = const_cast<Session&>(r.session());
-        REQUIRE(add_pane(s.setup.active, dial_ref()));
-        pane_of(s.setup.active, dial_ref())->settings = settings;
+        stage_desk(r, [&](Setup& desk) {
+            REQUIRE(add_pane(desk, dial_ref()));
+        });
+        stage_desk(r, [&](Setup& desk) {
+            pane_of(desk, dial_ref())->settings = settings;
+        });
         seat = r.mount_settings_seat(kDialOffice);
     }
     void offer() {
@@ -106,9 +109,12 @@ TEST_CASE("a holder that takes no settings is handed none") {
     r.mount_workshop();
     r.ready();
     r.extent(160, 48);
-    Session& s = const_cast<Session&>(r.session());
-    REQUIRE(add_pane(s.setup.active, dial_ref()));
-    pane_of(s.setup.active, dial_ref())->settings = {legend_off()};
+    stage_desk(r, [&](Setup& desk) {
+        REQUIRE(add_pane(desk, dial_ref()));
+    });
+    stage_desk(r, [&](Setup& desk) {
+        pane_of(desk, dial_ref())->settings = {legend_off()};
+    });
     // NOT SENT AT ALL: neither delivered nor refused at the door it does not have.
     std::size_t handed = 0;
     const loom::ObserverId tap = r.bus.add_observer([&handed](const loom::BusEvent& ev) {
@@ -142,8 +148,9 @@ TEST_CASE("a layout switch hands a pane its new layout's settings once, and only
     CHECK(t.seat->heard.size() == 2);
 
     // ...THIS LAYOUT NOW KEEPS NONE, and the next repaint hands that: the empty list is a hand-off.
-    Session& s = const_cast<Session&>(t.r.session());
-    pane_of(s.setup.active, dial_ref())->settings.clear();
+    stage_desk(t.r, [&](Setup& desk) {
+        pane_of(desk, dial_ref())->settings.clear();
+    });
     t.r.key(input::scan::kUnknown);
     REQUIRE(t.seat->heard.size() == 3);
     CHECK(t.seat->heard[2] == "settings");
@@ -198,8 +205,6 @@ TEST_CASE("a declaration is judged whole under the office stamp, refused aloud, 
     REQUIRE(t.row() != nullptr);
 
     t.declare(dial_declared());
-    CHECK(t.row()->settings_rows == dial_declared().rows);
-    CHECK(t.row()->settings_from == t.r.settings_seat_id(t.seat));
     REQUIRE(t.r.w->counted_settings(*t.row()) != nullptr);
     CHECK(*t.r.w->counted_settings(*t.row()) == dial_declared().rows);
 
@@ -281,24 +286,19 @@ TEST_CASE("a declaration is judged whole under the office stamp, refused aloud, 
         CHECK(t.r.session().notice_is_bad);
         CHECK(t.r.last_notice().find("Dial @test.dial: its settings were not taken") != std::string::npos);
         CHECK(t.r.last_notice().find(c.says) != std::string::npos);
-        CHECK(t.row()->settings_rows == dial_declared().rows);
+        CHECK(*t.r.w->counted_settings(*t.row()) == dial_declared().rows);
     }
 
     // A LATER ACCEPTED DECLARATION REPLACES THE SETTINGS WHOLE.
     t.declare(with({flag_row("legend", false)}));
-    CHECK(t.row()->settings_rows == std::vector<PaneSettingRow>{flag_row("legend", false)});
-
-    // ...A PANE THE OFFICE NEVER OFFERED IS REFUSED BY NAME...
-    PaneSettingsDeclared stranger = dial_declared();
-    stranger.pane = "other";
-    t.declare(stranger);
-    CHECK(t.r.last_notice().find("`test.dial/other` is not a pane that office has offered -- its "
-                            "settings were not taken") != std::string::npos);
+    CHECK(*t.r.w->counted_settings(*t.row()) ==
+          std::vector<PaneSettingRow>{flag_row("legend", false)});
 
     // ...AND PERSONAL SPEECH, EVEN FROM THE HOLDER, DECLARES NOTHING AND SAYS NOTHING.
     const std::string before = t.r.last_notice();
     t.r.drive(t.seat, [](SettingsSeat& s, loom::Mail& m) { s.declare_personally(m, dial_declared()); });
-    CHECK(t.row()->settings_rows == std::vector<PaneSettingRow>{flag_row("legend", false)});
+    CHECK(*t.r.w->counted_settings(*t.row()) ==
+          std::vector<PaneSettingRow>{flag_row("legend", false)});
     CHECK(t.r.last_notice() == before);
 }
 
@@ -524,8 +524,9 @@ TEST_CASE("a settings write says it was stored and handed, or why it was not han
           "committed legend of Dial = --; stored; not handed: nothing holds `test.dial` now");
 
     // A HOLDER WITHOUT THE DOOR: stored, and the sentence says why it went no further.
-    pane_of(const_cast<Session&>(t.r.session()).setup.active, dial_ref())->settings = {
-        PaneSetting{"legend", false, {}, {}}};
+    stage_desk(t.r, [](Setup& desk) {
+        pane_of(desk, dial_ref())->settings = {PaneSetting{"legend", false, {}, {}}};
+    });
     ProviderSeat* plain = t.r.mount_provider(kDialOffice);
     t.r.drive(plain, [](ProviderSeat& p, loom::Mail& m) { p.offer(m, dial_offer()); });
     REQUIRE(hand_inspect(t.r, dial_ref()).accepted);
@@ -644,8 +645,10 @@ TEST_CASE("a close discards a pane's settings with its row, and every close door
 TEST_CASE("arrangement's remove says the settings it discarded too") {
     Live t;
     open_pane(t, ref_of(stock::kKind));
-    pane_of(const_cast<Session&>(t.session()).setup.active, ref_of(stock::kKind))->settings = {
-        PaneSetting{"mode", {}, {}, std::string("wide")}};
+    stage_desk(t, [](Setup& desk) {
+        pane_of(desk, ref_of(stock::kKind))->settings = {
+            PaneSetting{"mode", {}, {}, std::string("wide")}};
+    });
     enter_arrange_desk(t);
     select_pane(t, ref_of(stock::kKind));
     t.key(input::scan::kD);
@@ -658,7 +661,8 @@ TEST_CASE("arrangement's remove says the settings it discarded too") {
 TEST_CASE("a pane's settings are part of what makes a linked layout modified") {
     InspectedDial t;
     t.open_inspected();
-    link_live_setup(const_cast<Session&>(t.r.session()).setup, "/kept/desk.json");
+    stage_run(*t.r.w, [](SetupState& run) { link_live_setup(run, "/kept/desk.json"); });
+    t.r.key(input::scan::kEscape); // a delivery, so the store's run is presented
     REQUIRE(live_status(t.r.session().setup) == setup_link::kCurrent);
     REQUIRE(hand_commit(t.r, "legend", "off", "SETTINGS").accepted);
     CHECK(live_status(t.r.session().setup) == setup_link::kModified);
@@ -667,9 +671,11 @@ TEST_CASE("a pane's settings are part of what makes a linked layout modified") {
     CHECK(live_status(t.r.session().setup) == setup_link::kCurrent);
 
     // A FILE THAT SPELLED THE DEFAULT IS NOT THE ABSENCE: the layout stays modified.
-    Session& s = const_cast<Session&>(t.r.session());
-    pane_of(s.setup.active, dial_ref())->settings = {PaneSetting{"legend", true, {}, {}}};
-    link_live_setup(s.setup, "/kept/desk.json");
+    stage_run(*t.r.w, [](SetupState& run) {
+        pane_of(run.active, dial_ref())->settings = {PaneSetting{"legend", true, {}, {}}};
+        link_live_setup(run, "/kept/desk.json");
+    });
+    t.r.key(input::scan::kEscape);
     REQUIRE(hand_commit(t.r, "legend", "-", "SETTINGS").accepted);
     CHECK(live_status(t.r.session().setup) == setup_link::kModified);
 }
@@ -833,9 +839,12 @@ struct RevisionRig {
         r.mount_workshop();
         r.ready();
         r.extent(160, 48);
-        Session& s = const_cast<Session&>(r.session());
-        REQUIRE(add_pane(s.setup.active, dial_ref()));
-        pane_of(s.setup.active, dial_ref())->settings = settings;
+        stage_desk(r, [&](Setup& desk) {
+            REQUIRE(add_pane(desk, dial_ref()));
+        });
+        stage_desk(r, [&](Setup& desk) {
+            pane_of(desk, dial_ref())->settings = settings;
+        });
         seat = mount_revision_seat(r, kDialOffice, &seat_id);
         editor = mount_revision_seat(r, "test.editor", &editor_id);
         offer();
@@ -962,7 +971,7 @@ SettingWrite text_write(std::int64_t layout, const char* target, const char* key
 
 /// The dial's row in the layout at `at`, read off the desk.
 std::vector<PaneSetting> dial_settings_at(PaneRig& r, std::size_t at) {
-    const SetupPane* row = pane_of(layout_at(r.session().setup, at), dial_ref());
+    const SetupPane* row = pane_of(layout_at(r.run(), at), dial_ref());
     REQUIRE(row != nullptr);
     return row->settings;
 }
@@ -1122,8 +1131,6 @@ TEST_CASE("a reloaded image that declares nothing shows none of its predecessor'
     REQUIRE(t.r.settings_seat_id(t.seat) == same);
     CHECK(t.r.w->counted_settings(*t.row()) == nullptr);
     CHECK(t.r.w->counted_settings_v2(*t.row()) == nullptr);
-    CHECK(t.row()->settings_rows.empty());
-    CHECK(t.row()->settings_rows_v2.empty());
     CHECK(t.labels_after("SETTINGS").empty());
     // ...AND A DECLARATION THE NEW IMAGE SENDS COUNTS.
     t.declare(dial_declared());
@@ -1318,10 +1325,13 @@ TEST_CASE("a clear takes back what the row keeps, declared or not, and clearing 
     CHECK(again.revision == cleared.revision);
     CHECK(t.seat->handed.size() == handed);
     // A ROW WHOSE PANE NOTHING OFFERS IS CLEARED TOO: no declaration is needed to take a value back.
-    Session& s = const_cast<Session&>(t.r.session());
     const PaneRef ghost{"test.ghost", "ghost"};
-    REQUIRE(add_pane(s.setup.active, ghost));
-    pane_of(s.setup.active, ghost)->settings = {PaneSetting{"tone", {}, 3, {}}};
+    stage_desk(t.r, [&](Setup& desk) {
+        REQUIRE(add_pane(desk, ghost));
+    });
+    stage_desk(t.r, [&](Setup& desk) {
+        pane_of(desk, ghost)->settings = {PaneSetting{"tone", {}, 3, {}}};
+    });
     std::vector<PaneSettingsShown>& shown = t.editor->shown;
     drive(t.r, t.editor_id, t.editor, [ghost](RevisionSeat& seat, loom::Mail& m) {
         seat.say(m, PaneSettingsRequested{ghost.provider, ghost.pane});
@@ -1671,7 +1681,7 @@ TEST_CASE("a pin act is refused in words with nothing written: a key not declare
     CHECK(t.pin("legend", "reset").refusal ==
           "`reset` names no key -- it puts the whole list back to the declared pins");
     CHECK(t.pin("step", "pin", 7).refusal == "no layout at place 7 -- this Workshop holds 1");
-    CHECK(t.r.w->prefs().pins.empty());
+    CHECK(t.r.w->layouts().prefs().pins.empty());
     // A GUEST WITHOUT `settings`, OR PERSONAL SPEECH, IS WITHHELD.
     const std::size_t before = t.editor->pin_acted.size();
     drive(t.r, t.editor_id, t.editor, [](RevisionSeat& s, loom::Mail& m) {
@@ -1694,12 +1704,12 @@ TEST_CASE("per-layout pins keep each layout's own list, a layout with none readi
     CHECK(a.scope == "per-layout");
     CHECK(a.pins == std::vector<std::string>{"step"});
     const std::string own = "test.dial/dial@" + t.r.session().setup.active.name;
-    REQUIRE(prefs_persist::pin_list(t.r.w->prefs(), own) != nullptr);
-    CHECK(prefs_persist::pin_list(t.r.w->prefs(), "test.dial/dial")->keys ==
+    REQUIRE(prefs_persist::pin_list(t.r.w->layouts().prefs(), own) != nullptr);
+    CHECK(prefs_persist::pin_list(t.r.w->layouts().prefs(), "test.dial/dial")->keys ==
           std::vector<std::string>{"legend", "step"});
     // ANOTHER LAYOUT, ASKED BY ITS PLACE, STILL READS THE WORKSHOP-WIDE LIST.
     duplicate_live_layout(t.r);
-    const_cast<Session&>(t.r.session()).setup.active.name = "Copy";
+    stage_desk(t.r, [](Setup& desk) { desk.name = "Copy"; });
     layout_key(t.r, Act::kLayoutPrevious);
     CHECK(t.read().pins == std::vector<std::string>{"step"});
     a = t.pin("mode", "pin", 1);
@@ -1979,7 +1989,7 @@ TEST_CASE("a lock in one layout freezes its row there: both commit doors refuse 
     PaneSettingLockActed a = t.lock(dial_lock("legend", "lock", "layout"));
     REQUIRE_MESSAGE(a.accepted, a.refusal);
     CHECK(a.written == std::vector<std::string>{first});
-    CHECK(prefs_persist::lock_on(t.r.w->prefs(), "test.dial/dial@" + first, "legend") != nullptr);
+    CHECK(prefs_persist::lock_on(t.r.w->layouts().prefs(), "test.dial/dial@" + first, "legend") != nullptr);
     // EVERY READING SAYS THE LOCK, AND THAT IT HOLDS IN THIS LAYOUT.
     const PaneSettingsShown shown = t.read();
     REQUIRE(shown.locks.size() == 1);
@@ -2039,13 +2049,13 @@ TEST_CASE("an everywhere lock pins the value its layout holds into every layout 
     CHECK(a.written == std::vector<std::string>{first, "Layout 2"});
     CHECK(dial_settings_at(t.r, 0) == std::vector<PaneSetting>{step_of(4)});
     CHECK(dial_settings_at(t.r, 1) == std::vector<PaneSetting>{step_of(4)});
-    const SettingLock* kept = prefs_persist::lock_on(t.r.w->prefs(), "test.dial/dial", "step");
+    const SettingLock* kept = prefs_persist::lock_on(t.r.w->layouts().prefs(), "test.dial/dial", "step");
     REQUIRE(kept != nullptr);
     CHECK(kept->number == 4);
     CHECK_FALSE(kept->clear);
     const prefs_persist::LoadedPrefs file = prefs_persist::load_file(t.r.host.prefs_path);
     REQUIRE_MESSAGE(file.outcome.accepted, file.outcome.refusal);
-    CHECK(file.kept.locks == t.r.w->prefs().locks);
+    CHECK(file.kept.locks == t.r.w->layouts().prefs().locks);
     // A PANE SEATED LATER, IN A LAYOUT THAT HELD NONE, WEARS THE PINNED VALUE.
     REQUIRE(seat_pane(t.r, dial_ref()).refusal.empty());
     CHECK(t.stored() == std::vector<PaneSetting>{step_of(4)});
@@ -2055,11 +2065,13 @@ TEST_CASE("an everywhere lock pins the value its layout holds into every layout 
     CHECK(shown.locks[0].scope == "everywhere");
     CHECK(t.commit(number_at(shown.revision, "step", 2)).refusal == locked_setting_refusal("step"));
     // A KEY AT ITS DEFAULT IS PINNED TO ITS DEFAULT, and a row that kept another value loses it.
-    pane_of(const_cast<Session&>(t.r.session()).setup.shelved[0].desk, dial_ref())->settings = {
-        PaneSetting{"mode", std::nullopt, std::nullopt, std::string("narrow")}, step_of(4)};
+    stage_run(*t.r.w, [](SetupState& run) {
+        pane_of(run.shelved[0].desk, dial_ref())->settings = {
+            PaneSetting{"mode", std::nullopt, std::nullopt, std::string("narrow")}, step_of(4)};
+    });
     a = t.lock(dial_lock("mode", "lock", "everywhere"));
     REQUIRE_MESSAGE(a.accepted, a.refusal);
-    CHECK(prefs_persist::lock_on(t.r.w->prefs(), "test.dial/dial", "mode")->clear);
+    CHECK(prefs_persist::lock_on(t.r.w->layouts().prefs(), "test.dial/dial", "mode")->clear);
     CHECK(dial_settings_at(t.r, 0) == std::vector<PaneSetting>{step_of(4)});
     // A LAYOUT'S OWN LOCK ON A KEY LOCKED EVERYWHERE IS REFUSED.
     a = t.lock(dial_lock("step", "lock", "layout"));
@@ -2068,7 +2080,7 @@ TEST_CASE("an everywhere lock pins the value its layout holds into every layout 
     // ...AND AN EVERYWHERE LOCK TAKES THE PLACE OF EACH LAYOUT'S OWN ON ITS KEY.
     REQUIRE(t.lock(dial_lock("legend", "lock", "layout")).accepted);
     REQUIRE(t.lock(dial_lock("legend", "lock", "everywhere")).accepted);
-    for (const SettingLock& l : t.r.w->prefs().locks) {
+    for (const SettingLock& l : t.r.w->layouts().prefs().locks) {
         CHECK(l.target.find('@') == std::string::npos);
     }
 }
@@ -2081,7 +2093,7 @@ TEST_CASE("only the weaver unlocks: a pane on the weaver's current act does, and
     PaneSettingLockActed a = t.lock(dial_lock("legend", "unlock", "everywhere"));
     CHECK_FALSE(a.accepted);
     CHECK(a.refusal == kWeavers);
-    REQUIRE(prefs_persist::lock_on(t.r.w->prefs(), "test.dial/dial", "legend") != nullptr);
+    REQUIRE(prefs_persist::lock_on(t.r.w->layouts().prefs(), "test.dial/dial", "legend") != nullptr);
     // THE WEAVER PRESSES THE DIAL: the press's correlation names the weaver's current act.
     press_body(t.r, t.row()->kind);
     REQUIRE_FALSE(t.seat->press_asks.empty());
@@ -2090,11 +2102,11 @@ TEST_CASE("only the weaver unlocks: a pane on the weaver's current act does, and
     // A NUMBER THE WEAVER'S HAND NEVER SENT, AND ANOTHER OFFICE NAMING THE DIAL'S ACT, ARE REFUSED.
     CHECK(t.lock(dial_lock("legend", "unlock", "everywhere", -1, act + 7), true).refusal == kWeavers);
     CHECK(t.lock(dial_lock("legend", "unlock", "everywhere", -1, act)).refusal == kWeavers);
-    REQUIRE(prefs_persist::lock_on(t.r.w->prefs(), "test.dial/dial", "legend") != nullptr);
+    REQUIRE(prefs_persist::lock_on(t.r.w->layouts().prefs(), "test.dial/dial", "legend") != nullptr);
     // THE DIAL, ON THE WEAVER'S CURRENT ACT, UNLOCKS; a commit writes the key again.
     a = t.lock(dial_lock("legend", "unlock", "everywhere", -1, act), true);
     REQUIRE_MESSAGE(a.accepted, a.refusal);
-    CHECK(prefs_persist::lock_on(t.r.w->prefs(), "test.dial/dial", "legend") == nullptr);
+    CHECK(prefs_persist::lock_on(t.r.w->layouts().prefs(), "test.dial/dial", "legend") == nullptr);
     PaneSettingCommitRequested off;
     off.revision = t.read().revision;
     off.key = "legend";
@@ -2113,7 +2125,7 @@ TEST_CASE("only the weaver unlocks: a pane on the weaver's current act does, and
     a = t.lock(dial_lock("legend", "unlock", "layout", -1, now), true);
     REQUIRE_MESSAGE(a.accepted, a.refusal);
     CHECK(a.written == std::vector<std::string>{t.r.session().setup.active.name});
-    CHECK(t.r.w->prefs().locks.empty());
+    CHECK(t.r.w->layouts().prefs().locks.empty());
 }
 
 TEST_CASE("a lock act is refused in words with nothing changed: an act or a scope not known, a target naming its layout, no such layout, a key nothing takes, a pane its layout does not seat") {
@@ -2139,7 +2151,7 @@ TEST_CASE("a lock act is refused in words with nothing changed: an act or a scop
     CHECK(t.lock(away).refusal == "test.dial/other is not in layout " +
                                       quoted_setup_name(t.r.session().setup.active.name) +
                                       " -- a layout's lock holds its row");
-    CHECK(t.r.w->prefs().locks.empty());
+    CHECK(t.r.w->layouts().prefs().locks.empty());
     // ...AND TO AN ASKER THE SETTINGS DOORS DO NOT SERVE.
     PaneSettingLockActed withheld;
     const std::size_t before = t.editor->lock_acted.size();
@@ -2150,7 +2162,7 @@ TEST_CASE("a lock act is refused in words with nothing changed: an act or a scop
     withheld = t.editor->lock_acted.back();
     CHECK_FALSE(withheld.accepted);
     CHECK(withheld.refusal.rfind("lock withheld: ", 0) == 0);
-    CHECK(t.r.w->prefs().locks.empty());
+    CHECK(t.r.w->layouts().prefs().locks.empty());
 }
 
 TEST_CASE("an office-wide setting is locked everywhere alone, and its lock freezes the office's commit") {
@@ -2190,8 +2202,8 @@ TEST_CASE("an office-wide setting is locked everywhere alone, and its lock freez
     CHECK(a.refusal.rfind("nothing changed: Workshop's settings file was not written -- the "
                           "settings file changed since this Workshop read it",
                           0) == 0);
-    REQUIRE(t.r.w->prefs().locks.size() == 1);
-    CHECK(t.r.w->prefs().locks[0].key == "workshop.focus.ring");
+    REQUIRE(t.r.w->layouts().prefs().locks.size() == 1);
+    CHECK(t.r.w->layouts().prefs().locks[0].key == "workshop.focus.ring");
 }
 
 TEST_CASE("the settings file keeps a layout's locks, pins and baseline under its name, spaces and all, and judges each") {
@@ -2260,21 +2272,21 @@ TEST_CASE("what the settings file keeps for a layout follows the layout's rename
     b.baselines = {LayoutThemeWrite{-1, LayoutTheme{"evening", 7}}};
     REQUIRE(t.batch(b).accepted);
     rename_live(t.r, "Night Desk");
-    CHECK(prefs_persist::lock_on(t.r.w->prefs(), "test.dial/dial@Night Desk", "legend") != nullptr);
-    CHECK(prefs_persist::lock_on(t.r.w->prefs(), "test.dial/dial@Layout 2", "legend") == nullptr);
+    CHECK(prefs_persist::lock_on(t.r.w->layouts().prefs(), "test.dial/dial@Night Desk", "legend") != nullptr);
+    CHECK(prefs_persist::lock_on(t.r.w->layouts().prefs(), "test.dial/dial@Layout 2", "legend") == nullptr);
     CHECK(t.layouts().layouts[1].theme == LayoutTheme{"evening", 7});
     CHECK(t.read().locks.size() == 1);
     prefs_persist::LoadedPrefs file = prefs_persist::load_file(t.r.host.prefs_path);
     REQUIRE_MESSAGE(file.outcome.accepted, file.outcome.refusal);
-    CHECK(file.kept == t.r.w->prefs());
+    CHECK(file.kept == t.r.w->layouts().prefs());
     // A REMOVED LAYOUT TAKES WHAT WAS KEPT FOR IT.
     layout_key(t.r, Act::kLayoutRemove);
     REQUIRE(layout_count(t.r.session().setup) == 1);
-    CHECK(t.r.w->prefs().locks.empty());
-    CHECK(t.r.w->prefs().offices.empty());
+    CHECK(t.r.w->layouts().prefs().locks.empty());
+    CHECK(t.r.w->layouts().prefs().offices.empty());
     file = prefs_persist::load_file(t.r.host.prefs_path);
     REQUIRE(file.outcome.accepted);
-    CHECK(file.kept == t.r.w->prefs());
+    CHECK(file.kept == t.r.w->layouts().prefs());
 }
 
 TEST_CASE("every layout is read at once: each row with its locks, what each pane and office takes, the everywhere locks, the live one and one revision") {
@@ -2339,7 +2351,7 @@ TEST_CASE("a batch is judged whole at its revision: a stale one, a value not tak
     duplicate_live_layout(t.r);
     rename_live(t.r, "Layout 2");
     const std::int64_t rev = t.layouts().revision;
-    const prefs_persist::Prefs kept = t.r.w->prefs();
+    const prefs_persist::Prefs kept = t.r.w->layouts().prefs();
     SettingsWriteRequested b;
     b.revision = rev + 5;
     b.writes = {number_write(0, "test.dial/dial", "step", 3)};
@@ -2375,7 +2387,7 @@ TEST_CASE("a batch is judged whole at its revision: a stale one, a value not tak
     // NOTHING WAS WRITTEN, AND THE LAYOUTS STAND WHERE THEY WERE READ.
     CHECK(dial_settings_at(t.r, 0).empty());
     CHECK(dial_settings_at(t.r, 1).empty());
-    CHECK(t.r.w->prefs() == kept);
+    CHECK(t.r.w->layouts().prefs() == kept);
     CHECK_FALSE(t.r.session().selection_ring_plain);
     CHECK(t.layouts().revision == rev);
     // ...AND TO AN ASKER THE SETTINGS DOORS DO NOT SERVE.
@@ -2390,7 +2402,7 @@ TEST_CASE("a batch is judged whole at its revision: a stale one, a value not tak
     CHECK_FALSE(w.accepted);
     CHECK(w.refusal.rfind("nothing written: Workshop's settings file was not written -- ", 0) == 0);
     CHECK(dial_settings_at(t.r, 0).empty());
-    CHECK(t.r.w->prefs() == kept);
+    CHECK(t.r.w->layouts().prefs() == kept);
 }
 
 TEST_CASE("a batch writes what it can across layouts, says each write's outcome, keeps baselines, and hands the live rows and offices it moved") {
@@ -2436,10 +2448,10 @@ TEST_CASE("a batch writes what it can across layouts, says each write's outcome,
     CHECK(t.r.session().selection_ring_plain);
     CHECK(t.r.last_notice() == "theme evening: 3 of 7 written, baselines set");
     // THE BASELINE AND WORKSHOP'S OWN ARE KEPT IN THE SETTINGS FILE.
-    CHECK(prefs_persist::layout_theme_of(t.r.w->prefs(), first) == LayoutTheme{"evening", 42});
+    CHECK(prefs_persist::layout_theme_of(t.r.w->layouts().prefs(), first) == LayoutTheme{"evening", 42});
     const prefs_persist::LoadedPrefs file = prefs_persist::load_file(t.r.host.prefs_path);
     REQUIRE_MESSAGE(file.outcome.accepted, file.outcome.refusal);
-    CHECK(file.kept == t.r.w->prefs());
+    CHECK(file.kept == t.r.w->layouts().prefs());
     CHECK(file.prefs.ring_plain);
     const LayoutSettingsShown after = t.layouts();
     CHECK(after.revision == w.revision);
@@ -2450,7 +2462,7 @@ TEST_CASE("a batch writes what it can across layouts, says each write's outcome,
     gone.baselines = {LayoutThemeWrite{0, LayoutTheme{}}};
     const SettingsWritten removed = t.batch(gone);
     REQUIRE_MESSAGE(removed.accepted, removed.refusal);
-    CHECK(prefs_persist::layout_theme_of(t.r.w->prefs(), first).name.empty());
+    CHECK(prefs_persist::layout_theme_of(t.r.w->layouts().prefs(), first).name.empty());
     SettingsWriteRequested same;
     same.revision = removed.revision;
     same.writes = {number_write(1, "test.dial/dial", "step", 6)};

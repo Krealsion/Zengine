@@ -110,25 +110,29 @@ Written write_pane_axis(Session& s, const PaneRef& ref, std::size_t axis,
     while (!body.empty() && body.back() == ' ') {
         body.remove_suffix(1);
     }
+    // THE EDIT IS JUDGED ON A COPY OF THE LIVE DESK, and the row it makes is what the commit asks
+    // the store to write.
+    Setup desk = s.setup.active;
     if (body == "-") {
-        if (!has_pane(s.setup.active, ref)) {
+        if (!has_pane(desk, ref)) {
             return Written::no(ref_text(ref) + " is not in this layout -- open it first");
         }
         bool moved = false;
         const char* what = "";
         if (axis < 2) {
-            moved = reset_pane_place(s.setup.active, ref);
+            moved = reset_pane_place(desk, ref);
             what = "place";
         } else if (axis == 2) {
-            moved = reset_pane_width(s.setup.active, ref);
+            moved = reset_pane_width(desk, ref);
             what = "width";
         } else {
-            moved = reset_pane_height(s.setup.active, ref);
+            moved = reset_pane_height(desk, ref);
             what = "height";
         }
         if (!moved) {
             return Written::no(ref_text(ref) + " already takes the developer's " + what);
         }
+        s.pending_edit = window_edit(*pane_of(desk, ref));
         return Written::ok();
     }
     const Written ready = pane_geometry_typeable(s, ref);
@@ -150,7 +154,11 @@ Written write_pane_axis(Session& s, const PaneRef& ref, std::size_t axis,
     case 2: horizontal.extent = PaneSize{pane_unit::kPixels, typed.px}; break;
     default: vertical.extent = PaneSize{pane_unit::kPixels, typed.px}; break;
     }
-    return author_pane_window(s.setup.active, ref, horizontal, vertical).written;
+    const Written written = author_pane_window(desk, ref, horizontal, vertical).written;
+    if (written.accepted) {
+        s.pending_edit = window_edit(*pane_of(desk, ref));
+    }
+    return written;
 }
 
 // ---- A PANE'S SETTINGS AS ROWS OF ITS SUBJECT ---------------------------------------------
@@ -222,9 +230,22 @@ Written write_pane_setting(Session& s, const PaneRef& ref, const PaneSettingRow&
     // `-` CLEARS, AS IT RESETS EVERY ROW INFO EDITS; a flag or a number is read from what stands
     // between the spaces, and a text is the text as typed, its spaces part of it.
     const std::string_view body = without_edge_spaces(text);
-    const std::optional<PaneSetting> fallback = row_setting_absence(row);
+    PaneSettingCommitRequested commit;
+    commit.provider = ref.provider;
+    commit.pane = ref.pane;
+    commit.revision = row_revision(s.setup, ref);
+    commit.key = row.key;
     if (body == "-") {
-        return author_pane_setting(s.setup.active, ref, row.key, std::nullopt, fallback);
+        if (!has_pane(s.setup.active, ref)) {
+            return Written::no(ref_text(ref) + " is not in this layout -- open it first");
+        }
+        const SetupPane* seat = pane_of(s.setup.active, ref);
+        if (find_pane_setting(seat->settings, row.key) == nullptr) {
+            return Written::no(row.key + " already takes its default -- nothing is stored to clear");
+        }
+        commit.clear = true;
+        s.pending_setting = commit;
+        return Written::ok();
     }
     if (!has_pane(s.setup.active, ref)) {
         return Written::no(ref_text(ref) + " is not in this layout -- open it first");
@@ -250,7 +271,11 @@ Written write_pane_setting(Session& s, const PaneRef& ref, const PaneSettingRow&
     if (setting_kind(typed) == SettingKind::kNone || !pane_setting_refused_by(row, typed).empty()) {
         return Written::no(refused);
     }
-    return author_pane_setting(s.setup.active, ref, row.key, typed, fallback);
+    commit.flag = typed.flag;
+    commit.number = typed.number;
+    commit.text = typed.text;
+    s.pending_setting = commit;
+    return Written::ok();
 }
 
 std::string kept_setting_text(const Session& s, const PaneRef& ref, const std::string& key) {
@@ -268,7 +293,18 @@ Written write_kept_setting(Session& s, const PaneRef& ref, const std::string& ke
     if (without_edge_spaces(text) != "-") {
         return Written::no("kept for a pane that declares it -- it takes only `-`, which clears it");
     }
-    return author_pane_setting(s.setup.active, ref, key, std::nullopt, std::nullopt);
+    const SetupPane* seat = pane_of(s.setup.active, ref);
+    if (seat == nullptr || find_pane_setting(seat->settings, key) == nullptr) {
+        return Written::no(key + " already takes its default -- nothing is stored to clear");
+    }
+    PaneSettingCommitRequested commit;
+    commit.provider = ref.provider;
+    commit.pane = ref.pane;
+    commit.revision = row_revision(s.setup, ref);
+    commit.key = key;
+    commit.clear = true;
+    s.pending_setting = commit;
+    return Written::ok();
 }
 
 // WL-INFO-14 -- agents/workshop/info-body.md

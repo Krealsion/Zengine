@@ -136,6 +136,15 @@ struct Setup {
     friend bool operator==(const Setup&, const Setup&) = default;
 };
 
+/// What a layout's link to its setup file says: derived from the desk and what the file was last
+/// known to hold, stored nowhere.
+// WL-LAYOUT-02 -- agents/workshop/layouts.md
+namespace setup_link {
+inline constexpr std::int64_t kNone = 0;     ///< no artifact is associated
+inline constexpr std::int64_t kCurrent = 1;  ///< the desk equals the last known value
+inline constexpr std::int64_t kModified = 2; ///< it is associated and differs from it
+} // namespace setup_link
+
 // ---- The reference a built-in kind carries, and the kind a reference names ---
 
 /// THE DURABLE REFERENCE FOR AN INTERNAL KIND.
@@ -814,9 +823,8 @@ inline Setup default_setup() {
 
 } // namespace zengine::workshop
 
-// What the live panes make of a setup, and the layouts a session holds: parts of this
-// header, which need the whole setup value before them.
+// What the live panes make of a setup: a part of this header, which needs the whole setup value
+// before it.
 #include "setup_reconcile.hpp"
-#include "layout_shelf.hpp"
 
 #endif // ZENGINE_WORKSHOP_SETUP_HPP

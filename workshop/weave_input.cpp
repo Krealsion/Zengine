@@ -15,7 +15,7 @@ namespace zengine::workshop {
 // three walls: no path is live-only, a refused file is never overwritten (`prefs_bad_`), and a
 // failed write says so.
 // WL-KEY-16 -- agents/workshop/key-spelling.md
-void WorkshopWeave::state_presentation(Act a) {
+void WorkshopWeave::state_presentation(Act a, loom::Mail& mail) {
     const char* what = a == Act::kPaneTitles ? "pane titles were not toggled"
                        : a == Act::kBandKeys ? "the band's keys were not respelled"
                                              : "the Hotkeys view's keys were not respelled";
@@ -25,7 +25,7 @@ void WorkshopWeave::state_presentation(Act a) {
         say(std::string(what) + " -- " + refused, true);
         return;
     }
-    load_prefs(); // a toggle before any surface exists still toggles the truth
+    store().load_prefs(); // a toggle before any surface exists still toggles the truth
     const auto other = [](KeySpelling s) {
         return s == KeySpelling::kFull ? KeySpelling::kShort : KeySpelling::kFull;
     };
@@ -48,17 +48,41 @@ void WorkshopWeave::state_presentation(Act a) {
                    : "the Hotkeys view and a pane's manual spell keys short";
     }
     // THE TOGGLE IS WORKSHOP'S OWN SETTING STATED: kept where the settings door keeps it, so the
-    // file holds one truth.
-    prefs_persist::Presentation said = prefs_persist::presentation_of(prefs_);
-    said.titles_shown = session_.pane_titles;
-    said.band_keys = session_.band_keys;
-    said.hotkeys_keys = session_.hotkeys_keys;
-    prefs_persist::put_presentation(prefs_, said);
+    // file holds one truth; it stands for the run whatever the store answers.
+    OfficeSettingCommitRequested commit;
+    commit.office = kWorkshopProvider;
+    commit.revision = store_.office_revision(kWorkshopProvider);
+    if (a == Act::kPaneTitles) {
+        commit.key = prefs_persist::kPaneTitlesKey;
+        commit.flag = session_.pane_titles;
+    } else {
+        const KeySpelling now = a == Act::kBandKeys ? session_.band_keys : session_.hotkeys_keys;
+        commit.key = a == Act::kBandKeys ? prefs_persist::kBandKeysKey
+                                         : prefs_persist::kHotkeysKeysKey;
+        commit.text = std::string(spelling_word(now));
+    }
+    const PaneSettingActed acted = store_.commit_office(std::string(), commit);
+    (void)store_.take_effects().said; // the toggle's own sentence is said below
+    hand_office_settings(mail);
     bool bad = false;
     if (!host_->prefs_path.empty()) {
-        if (const std::string not_written = write_prefs(); !not_written.empty()) {
-            note += "; not saved: " + not_written;
+        const std::string written_word = "; written";
+        if (!acted.accepted) {
+            // A FILE THE STORE COULD NOT READ IS NEVER WRITTEN OVER, and the toggle stands for the
+            // run.
+            note += "; not saved: " +
+                    (store_.prefs_refusal().empty()
+                         ? acted.refusal
+                         : host_->prefs_path + " could not be read and will not be overwritten");
             bad = true;
+        } else if (acted.handed.size() < written_word.size() ||
+                   acted.handed.compare(acted.handed.size() - written_word.size(),
+                                        written_word.size(), written_word) != 0) {
+            if (const std::size_t at = acted.handed.find("not written: ");
+                at != std::string::npos) {
+                note += "; not saved: " + acted.handed.substr(at + 13);
+                bad = true;
+            }
         }
     }
     say(note, bad);
@@ -88,7 +112,7 @@ void WorkshopWeave::command(const zengine::input::KeyPressed& k, loom::Mail& mai
     switch (a) {
     // The two setup gestures, ordinary commands: `s` writes the setup file and `r` reads it;
     // naming a layout is `layout.rename`'s.
-    case Act::kSetupSave: save_setup(); break;
+    case Act::kSetupSave: save_setup(mail); break;
     case Act::kSetupRestore: restore_setup(mail); break;
     // The layout shelf: stepping is over the whole population, painted or not. The four that take
     // a position reach the keyboard only through the live layout: without a captured subject, a
@@ -101,8 +125,8 @@ void WorkshopWeave::command(const zengine::input::KeyPressed& k, loom::Mail& mai
     case Act::kLayoutDuplicate:
         duplicate_layout(session_.setup.active_at, mail);
         break;
-    case Act::kLayoutMoveLeft: shift_layout(session_.setup.active_at, -1); break;
-    case Act::kLayoutMoveRight: shift_layout(session_.setup.active_at, +1); break;
+    case Act::kLayoutMoveLeft: shift_layout(session_.setup.active_at, -1, mail); break;
+    case Act::kLayoutMoveRight: shift_layout(session_.setup.active_at, +1, mail); break;
     // Arrange the desk: a printable trigger pays the swallow rule and buys a mode whose own keys
     // need no modifier.
     case Act::kArrangeDesk: open_arrange_desk(); break;
@@ -111,7 +135,7 @@ void WorkshopWeave::command(const zengine::input::KeyPressed& k, loom::Mail& mai
     case Act::kContextOpen: open_context_ambient(); break;
     case Act::kPaneTitles:
     case Act::kBandKeys:
-    case Act::kHotkeysKeys: state_presentation(a); break;
+    case Act::kHotkeysKeys: state_presentation(a, mail); break;
     case Act::kQuit: quit(mail); break;
     // THE KEYBOARD'S WAY TO A PANE: the selection moves, lifting the pane it reaches as a press
     // would, and writes the keys nowhere; only `focus.enter` gives a pane the keys, and it sends

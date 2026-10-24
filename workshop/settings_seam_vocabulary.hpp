@@ -27,6 +27,14 @@ namespace zengine::workshop {
 inline constexpr const char* kLockScopeLayout = "layout";
 inline constexpr const char* kLockScopeEverywhere = "everywhere";
 
+/// Where a lock holds a setting, as a row says it, and the refusal of a write it holds.
+inline constexpr const char* kLockedEverywhere = kLockScopeEverywhere;
+inline constexpr const char* kLockedInLayout = "in this layout";
+inline std::string locked_setting_refusal(const std::string& key) {
+    return key + " is locked -- nothing writes it while the lock stands, and only the weaver "
+                 "unlocks it";
+}
+
 /// ONE KEY A LOCK HOLDS, and where the lock holds it: `layout` or `everywhere`.
 struct SettingLockShown {
     std::string key;
