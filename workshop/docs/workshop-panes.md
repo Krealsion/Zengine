@@ -806,6 +806,26 @@ view runs in a 680 by 360 room.
 Keep measured sizes out of saved authoring data: they describe the current room, not a document or
 graph's durable coordinates.
 
+### Text inside a picture
+
+A pane's picture is free: whatever shapes and colours it draws, where it puts them. Rows of text are
+a helper inside it, never the picture's limit ([`workshop/pane_rows_block.hpp`](../pane_rows_block.hpp)):
+
+- **`RowsBlock<Meaning>`** holds the row tools for a room of rows and columns: rows pushed with what
+  each row and run of columns means (`component::RowMap`), a control strip (`push_controls`), a
+  list through its window (`push_window`), the caret and the selection. `draw` puts them into the
+  pane's picture as a group at a place of its choosing, a row a line of the window's text, on their
+  own ground or on what the picture drew beneath them; `take` gives the rows and their parts for a
+  picture of rows alone.
+- **A press read back to a row.** Each meaning's part is named, and the window lands a press on the
+  element it drew over that element's whole face (WL-PRESS-07); `named(part)` gives back what the
+  part the press reached means, so a pane never reads a cell to find it.
+- **`place_rows`** puts any `rows_drawing` into a picture the same way.
+
+[The tally pane](../../examples/tally-pane/tally.cpp) draws a card, a badge and a button where it
+puts it, and says its words as rows standing on the card. A pane on `PaneRowsFacet` holds one
+`RowsBlock` for its whole area.
+
 ## A pane may be pressed
 
 > **Selection is a fact, not a command.**

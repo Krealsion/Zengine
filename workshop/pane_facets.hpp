@@ -22,6 +22,7 @@
 #include "pane_operation.hpp"
 #include "pane_parts.hpp"
 #include "pane_rows.hpp"
+#include "pane_rows_block.hpp"
 #include "pane_text.hpp"
 #include "pane_vocabulary.hpp"
 
@@ -236,7 +237,7 @@ public:
         if (p->button != 3) {
             return;
         }
-        const Meaning* meant = p->at.shown ? map_.at(p->at.row, p->at.column) : nullptr;
+        const Meaning* meant = p->at.shown ? block_.map().at(p->at.row, p->at.column) : nullptr;
         if constexpr (requires { self.right_press(*meant, press, mail); }) {
             if (meant != nullptr && self.right_press(*meant, press, mail)) {
                 return;
@@ -280,110 +281,44 @@ public:
     /// THAT PRESS WAS NOT THE PANE'S: Workshop's own pane menu opens where it was made.
     void pass_back(loom::Mail& mail) { (void)pane_menu::pass_back(mail, Office, Pane); }
 
-    /// BEGIN A PICTURE: no rows, no meanings, no caret. What the last picture meant is kept aside
-    /// until `publish` compares the two.
-    void begin() {
-        map_.begin();
-        composing_.clear();
-        caret_ = RowsCaret{};
-    }
-    /// ONE ROW, while the room has one for it, and what it means when it means something. False,
-    /// recording nothing, once the room has run out: a row nobody can see names nothing.
+    /// BEGIN A PICTURE: no rows, no meanings, no caret, in the room the window gave. What the last
+    /// picture meant is kept aside until `publish` compares the two. The row tools are a
+    /// `RowsBlock`'s, the area's whole room its room (workshop/pane_rows_block.hpp).
+    void begin() { block_.begin(this->rows(), this->columns()); }
     bool push(TextRow row, std::optional<Meaning> meaning = std::nullopt) {
-        if (next_row() >= this->rows()) {
-            return false;
-        }
-        if (meaning) {
-            map_.row(next_row(), std::move(*meaning));
-        }
-        composing_.push_back(std::move(row));
-        return true;
+        return block_.push(std::move(row), std::move(meaning));
     }
-    /// The row the next `push` lands on.
-    std::int64_t next_row() const noexcept { return static_cast<std::int64_t>(composing_.size()); }
-    std::vector<TextRow>& composing() noexcept { return composing_; }
-    component::RowMap<Meaning>& map() noexcept { return map_; }
-    const component::RowMap<Meaning>& map() const noexcept { return map_; }
-    /// Where the caret and the selection stand in the rows being composed; none by default.
-    RowsCaret& caret() noexcept { return caret_; }
-
-    /// HOW MANY ROWS A STRIP OF THESE CONTROLS WOULD TAKE in this room, at most `max_rows`
-    /// (`component::strip_budget`): asked before the body is laid out, so the body is given what
-    /// is genuinely left and the strip is never the row that falls off the end.
+    std::int64_t next_row() const noexcept { return block_.next_row(); }
+    std::vector<TextRow>& composing() noexcept { return block_.composing(); }
+    component::RowMap<Meaning>& map() noexcept { return block_.map(); }
+    const component::RowMap<Meaning>& map() const noexcept { return block_.map(); }
+    RowsCaret& caret() noexcept { return block_.caret(); }
     template <class Row>
     std::int64_t strip_rows(const std::vector<Row>& controls,
                             std::int64_t max_rows = component::kMaxStripRows) const {
-        return component::strip_rows_for(controls, this->columns(),
-                                         component::strip_budget(this->rows(), max_rows));
+        return block_.strip_rows(controls, max_rows);
     }
-
-    /// THE CONTROL STRIP, ITS FACES RECORDED AS TARGETS: each packed row fitted by `fit_row` and
-    /// pushed, and each face it seats a span meaning `meaning_of(control)`. What did not fit is
-    /// counted on the last strip row, and the route to it is the pane's menu, never only a key.
-    /// A face the fit cut is not recorded (`RowMap::span` refuses it), and nothing is once the
-    /// room runs out: a press on what a weaver cannot read must not operate a control.
     template <class Row, class FitRow, class MeaningOf>
     void push_controls(const std::vector<Row>& controls, FitRow&& fit_row, MeaningOf&& meaning_of,
                        std::int64_t max_rows = component::kMaxStripRows) {
-        const component::ControlStrip strip = component::pack_controls(
-            controls, this->columns(), component::strip_budget(this->rows(), max_rows));
-        for (std::size_t i = 0; i < strip.rows.size(); ++i) {
-            std::string text = strip.rows[i];
-            if (i + 1 == strip.rows.size() && strip.dropped > 0) {
-                text += "  +" + std::to_string(strip.dropped) + " in menu";
-            }
-            const std::int64_t row = next_row();
-            if (!push(TextRow{fit_row(text), graphics::role::kFill})) {
-                return;
-            }
-            const std::int64_t solid = component::solid_columns(
-                composing_[static_cast<std::size_t>(row)].text, text.size());
-            for (const component::PlacedControl& placed : strip.placed) {
-                if (placed.row == static_cast<std::int64_t>(i)) {
-                    map_.span(row, placed.first, placed.width, solid,
-                              meaning_of(controls[placed.index]));
-                }
-            }
-        }
+        block_.push_controls(controls, std::forward<FitRow>(fit_row),
+                             std::forward<MeaningOf>(meaning_of), max_rows);
     }
-
-    /// A LIST THROUGH ITS WINDOW: the row saying what the window left out above, `emit_entry(i)`
-    /// for each member it shows, and the row saying what it left out below -- each marker said
-    /// only where the window reserved it a row (`component::earlier_marker`), fitted by
-    /// `fit_row`. Returns the rows it asked for, markers included.
     template <class FitRow, class EmitEntry>
     std::int64_t push_window(const component::ListWindow& win, FitRow&& fit_row,
                              EmitEntry&& emit_entry) {
-        std::int64_t asked = 0;
-        const auto marker = [&](std::size_t omitted, const char* which) {
-            if (omitted > 0) {
-                (void)push(TextRow{fit_row("  " + pane_text::omitted_text(omitted, which)),
-                                   graphics::role::kMuted});
-                ++asked;
-            }
-        };
-        marker(component::earlier_marker(win), "earlier");
-        for (std::size_t i = win.first; i < win.end(); ++i) {
-            emit_entry(i);
-            ++asked;
-        }
-        marker(component::more_marker(win), "more");
-        return asked;
+        return block_.push_window(win, std::forward<FitRow>(fit_row),
+                                  std::forward<EmitEntry>(emit_entry));
     }
-
-    /// NOTHING IS SAID THIS BEAT, so no row of it names anything.
-    void hold() { (void)map_.settle(); }
+    void hold() { block_.hold(); }
 
     /// THE ROWS COMPOSED, each part named `name_of(meaning)` and available as
     /// `available_of(meaning)` says, the caret in them when `with_caret`.
     template <class NameOf, class AvailableOf>
     void publish(loom::Mail& mail, NameOf&& name_of, AvailableOf&& available_of,
                  bool with_caret = true) {
-        (void)map_.settle();
-        std::vector<RowPart> parts = row_parts(map_, this->columns(), name_of, available_of);
-        std::vector<TextRow> rows = std::move(composing_);
-        composing_.clear();
-        send(mail, std::move(rows), std::move(parts), with_caret);
+        ComposedRows rows = block_.take(name_of, available_of);
+        send(mail, std::move(rows.rows), std::move(rows.parts), with_caret);
     }
 
     /// ...or rows composed elsewhere, with their parts: to the window that shows the area as what
@@ -393,10 +328,10 @@ public:
         ++published_;
         if (window_.shown()) {
             RowsDrawing drawn = rows_drawing(rows, parts, window_.rows_room(), this->columns(),
-                                             with_caret ? caret_ : RowsCaret{});
+                                             with_caret ? block_.caret() : RowsCaret{});
             // NUMBERED BY WHAT ITS ROWS MEAN (`component::RowMap`), so a press on a row no part
             // names is read against the meaning it was drawn under.
-            drawn.sketch.number(map_.picture());
+            drawn.sketch.number(block_.map().picture());
             window_places_ = std::move(drawn.places);
             window_rows_ = static_cast<std::int64_t>(rows.size());
             window_.draw(drawn.sketch, mail);
@@ -437,9 +372,7 @@ public:
     }
 
 private:
-    std::vector<TextRow> composing_;
-    component::RowMap<Meaning> map_;
-    RowsCaret caret_;
+    RowsBlock<Meaning> block_;
     std::uint64_t published_ = 0;
     WindowDrawing window_{Office, Office};
     std::map<std::string, RowCell> window_places_; ///< where each part of the rows last sent lands

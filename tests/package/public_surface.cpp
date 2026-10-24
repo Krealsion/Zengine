@@ -65,6 +65,7 @@
 #include "workshop/pane_facets.hpp"
 #include "workshop/pane_picture.hpp"
 #include "workshop/pane_rows.hpp"
+#include "workshop/pane_rows_block.hpp"
 #include "manual/manual.hpp"
 #include "workshop/setup_control.hpp"
 
