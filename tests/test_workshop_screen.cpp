@@ -2908,8 +2908,8 @@ TEST_CASE("a version-1 session restores a whole-cell desk through a conversion")
     // different number, and a search for the bare field would find that one.
     const std::string saved = session_persist::to_text(read.layouts, read.active, read.viewport_w,
                                                        read.viewport_h, read.placement);
-    CHECK(saved.find("\"version\":9") != std::string::npos);
-    CHECK(saved.find("\"format\":\"zengine-workshop-session\",\"format_version\":\"9\"") !=
+    CHECK(saved.find("\"version\":10") != std::string::npos);
+    CHECK(saved.find("\"format\":\"zengine-workshop-session\",\"format_version\":\"10\"") !=
           std::string::npos);
     const session_persist::LoadedSession back = session_persist::from_text(saved);
     REQUIRE(back.outcome.accepted);

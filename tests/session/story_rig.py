@@ -93,7 +93,8 @@ class Rig:
         record = {"root": str(root), "runtime": str(self.runtime), "game": str(game), "session": str(sdir),
                   "build": "", "loom_prefix": "", "zengine_prefix": "", "loom_python": self.tools["loom_python"],
                   "toolchain_bin": ""}
-        record.update(self.story.launch(self.runtime, game, wdir, sdir, self.tools, self.env, "180x80", plan))
+        record.update(self.story.launch(self.runtime, game, wdir, sdir, self.tools, self.env, "180x80", plan,
+                                        ["--tui"]))
         self.story.save(root / "story.json", record)
         NOTES[name] = dict((k, record[k]) for k in ("workshop_process", "host_process", "lifetime"))
         # ...AT REST BEFORE ITS FIRST STEP: Workshop's guest door listens before its plan is loaded,

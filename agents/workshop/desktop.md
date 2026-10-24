@@ -166,8 +166,8 @@ WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 `workshop/desktop-pane/vocabulary.hpp` kDesktopRole kLauncherPane kLauncherName kLauncherSummary
 kDesktopStem DesktopState
 `workshop/desktop-pane/pane.cpp` DesktopWeave
-`tests/test_workshop_load.cpp` "the shipped default plan is a legal plan, and it is the terminal
-arrangement"
+`tests/test_workshop_load.cpp` "the shipped default plan is a legal plan, and it opens the OS
+window, else the terminal window"
 `tests/test_workshop_files.cpp` "the development catalog this tree generated names every shipped
 pane by its own target, build directory and weave source, each one the Editor opens, and nothing
 else"

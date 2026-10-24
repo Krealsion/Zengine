@@ -1,10 +1,10 @@
 {
   "zen": 1,
   "schema": "WorkshopLoadFile",
-  "version": 3,
+  "version": 4,
   "fields": {
     "format": "zengine-workshop-load-plan",
-    "format_version": "3",
+    "format_version": "4",
     "artifacts": [
       {
         "artifact": "zengine-operators-basic",
@@ -14,7 +14,8 @@
           }
         ],
         "weave": [],
-        "optional": false
+        "optional": false,
+        "otherwise": []
       },
       {
         "artifact": "zengine-workshop-session-history",
@@ -24,7 +25,8 @@
           }
         ],
         "weave": [],
-        "optional": false
+        "optional": false,
+        "otherwise": []
       },
       {
         "artifact": "zengine-graphics",
@@ -34,17 +36,28 @@
             "role": "zengine.graphics"
           }
         ],
-        "optional": false
+        "optional": false,
+        "otherwise": []
       },
       {
-        "artifact": "zengine-window-terminal",
+        "artifact": "zengine-window-sdl",
         "provider": [],
         "weave": [
           {
-            "role": "zengine.window.terminal"
+            "role": "zengine.window.sdl"
           }
         ],
-        "optional": false
+        "optional": false,
+        "otherwise": [
+          {
+            "artifact": "zengine-window-terminal",
+            "weave": [
+              {
+                "role": "zengine.window.terminal"
+              }
+            ]
+          }
+        ]
       },
       {
         "artifact": "zengine-input",
@@ -54,7 +67,8 @@
             "role": "zengine.input"
           }
         ],
-        "optional": false
+        "optional": false,
+        "otherwise": []
       },
       {
         "artifact": "zengine-timer",
@@ -68,7 +82,8 @@
             "role": "zengine.timer"
           }
         ],
-        "optional": false
+        "optional": false,
+        "otherwise": []
       },
       {
         "artifact": "zengine-introspection",
@@ -78,7 +93,8 @@
             "role": "zengine.introspection"
           }
         ],
-        "optional": true
+        "optional": true,
+        "otherwise": []
       },
       {
         "artifact": "zengine-composer",
@@ -88,7 +104,8 @@
             "role": "zengine.composer"
           }
         ],
-        "optional": true
+        "optional": true,
+        "otherwise": []
       },
       {
         "artifact": "zengine-desktop-pane",
@@ -98,7 +115,8 @@
             "role": "zengine.desktop"
           }
         ],
-        "optional": true
+        "optional": true,
+        "otherwise": []
       },
       {
         "artifact": "zengine-files",
@@ -108,7 +126,8 @@
             "role": "zengine.files"
           }
         ],
-        "optional": true
+        "optional": true,
+        "otherwise": []
       },
       {
         "artifact": "zengine-builder-pane",
@@ -118,7 +137,8 @@
             "role": "zengine.builder-pane"
           }
         ],
-        "optional": true
+        "optional": true,
+        "otherwise": []
       },
       {
         "artifact": "zengine-attention-pane",
@@ -128,7 +148,8 @@
             "role": "zengine.attention"
           }
         ],
-        "optional": true
+        "optional": true,
+        "otherwise": []
       },
       {
         "artifact": "zengine-connections-pane",
@@ -138,7 +159,8 @@
             "role": "zengine.connections"
           }
         ],
-        "optional": true
+        "optional": true,
+        "otherwise": []
       },
       {
         "artifact": "zengine-info-pane",
@@ -148,7 +170,8 @@
             "role": "zengine.info"
           }
         ],
-        "optional": true
+        "optional": true,
+        "otherwise": []
       },
       {
         "artifact": "zengine-terminal-pane",
@@ -158,7 +181,8 @@
             "role": "zengine.terminal"
           }
         ],
-        "optional": true
+        "optional": true,
+        "otherwise": []
       },
       {
         "artifact": "zengine-editor-pane",
@@ -168,7 +192,8 @@
             "role": "zengine.editor"
           }
         ],
-        "optional": true
+        "optional": true,
+        "otherwise": []
       },
       {
         "artifact": "zengine-menu-presenter",
@@ -178,7 +203,8 @@
             "role": "zengine.presenter"
           }
         ],
-        "optional": true
+        "optional": true,
+        "otherwise": []
       },
       {
         "artifact": "zengine-flow-pane",
@@ -188,7 +214,8 @@
             "role": "zengine.flow"
           }
         ],
-        "optional": true
+        "optional": true,
+        "otherwise": []
       },
       {
         "artifact": "zengine-view-builder",
@@ -198,7 +225,8 @@
             "role": "zengine.view.builder"
           }
         ],
-        "optional": true
+        "optional": true,
+        "otherwise": []
       },
       {
         "artifact": "zengine-inventory",
@@ -208,7 +236,8 @@
             "role": "zengine.inventory"
           }
         ],
-        "optional": true
+        "optional": true,
+        "otherwise": []
       },
       {
         "artifact": "zengine-inventory-pane",
@@ -218,7 +247,8 @@
             "role": "zengine.inventory-pane"
           }
         ],
-        "optional": true
+        "optional": true,
+        "otherwise": []
       },
       {
         "artifact": "zengine-launcher",
@@ -228,7 +258,8 @@
             "role": "zengine.launcher"
           }
         ],
-        "optional": true
+        "optional": true,
+        "otherwise": []
       },
       {
         "artifact": "zengine-palette",
@@ -238,7 +269,8 @@
             "role": "zengine.palette"
           }
         ],
-        "optional": true
+        "optional": true,
+        "otherwise": []
       },
       {
         "artifact": "zengine-first-run",
@@ -248,7 +280,8 @@
             "role": "zengine.first-run"
           }
         ],
-        "optional": true
+        "optional": true,
+        "otherwise": []
       }
     ],
     "choices": [

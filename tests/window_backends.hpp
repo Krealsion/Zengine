@@ -110,11 +110,16 @@ struct LightLog {
     bool holds_copies = false; ///< true: a copy is what its clipboard holds after, as a platform's
     int reads = 0;                            ///< how often its clipboard was read
     std::optional<gw::WindowPlacementValue> placement;
+    /// A placement its next poll brings, as SDL's queue brings a window's state: its size is read
+    /// at once, its maximized state only with the queue.
+    std::optional<gw::WindowPlacementValue> placement_at_poll;
     std::vector<gw::WindowPlacementValue> placed;
     std::vector<gw::PixelSize> grown;         ///< each size it was asked to grow toward
     bool grows = false; ///< true: a growth asked takes its size, as a platform with room does
     /// Each title and size it was shaped to; a side asked it takes, as a platform with room does.
     std::vector<std::pair<std::string, gw::PixelSize>> shaped;
+    /// What it was asked to do to its window, in the order asked: `shape` and `place`.
+    std::vector<std::string> acts;
     int maximized = 0;
 
     static Frame kept_of(const gw::ComposedLightFrame& frame) {
@@ -182,6 +187,9 @@ public:
     gw::PixelPolled poll() {
         gw::PixelPolled out = std::move(log_->queued);
         log_->queued = {};
+        if (log_->placement_at_poll) {
+            log_->placement = std::exchange(log_->placement_at_poll, std::nullopt);
+        }
         return out;
     }
     void clipboard_copy(std::string_view text) {
@@ -195,7 +203,10 @@ public:
         return log_->clipboard;
     }
     std::optional<gw::WindowPlacementValue> placement() { return log_->placement; }
-    void place(const gw::WindowPlacementValue& want) { log_->placed.push_back(want); }
+    void place(const gw::WindowPlacementValue& want) {
+        log_->placed.push_back(want);
+        log_->acts.emplace_back("place");
+    }
     void grow(const gw::PixelSize& want) {
         log_->grown.push_back(want);
         if (log_->grows) {
@@ -205,6 +216,7 @@ public:
     }
     void shape(const std::string& title, const gw::PixelSize& want) {
         log_->shaped.emplace_back(title, want);
+        log_->acts.emplace_back("shape");
         log_->size = gw::PixelSize{want.width > 0 ? want.width : log_->size.width,
                                    want.height > 0 ? want.height : log_->size.height};
     }

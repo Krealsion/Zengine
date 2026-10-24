@@ -6,7 +6,7 @@ that built it.
 
     python -I first_start.py <package folder> <program> [--seconds N] [--home <empty folder>]
                              [--cwd <folder>] [--env NAME=VALUE]... [--needle <text>]...
-                             [-- <program arguments>...]
+                             [--expect <text>]... [-- <program arguments>...]
 
 The program (a path under the package folder) runs with PATH naming only the system and every
 per-user folder under --home; --env adds a variable (SDL_VIDEO_DRIVER=offscreen, say). After
@@ -15,9 +15,11 @@ per-user folder under --home; --env adds a variable (SDL_VIDEO_DRIVER=offscreen,
   system    Windows: under %SystemRoot%, not a redistributable (pe_imports.REDISTRIBUTABLE);
             elsewhere: under /usr, /lib or /lib64
   FOREIGN   anything else
-and what it printed is read for each --needle. It is then ended. Exit 0 when it stayed up and
-nothing was FOREIGN or named; 1 on a FOREIGN module or a needle; 3 when it ended before the look;
-2 on a usage error, an empty population or its own samples misread, which it reads first.
+and what it printed is read for each --needle, and for each --expect it must say (Workshop's
+`loaded: zengine-window-sdl`, say: the window a start means). It is then ended. Exit 0 when it
+stayed up, nothing was FOREIGN or named and everything expected was said; 1 on a FOREIGN module,
+a needle or a text it did not say; 3 when it ended before the look; 2 on a usage error, an empty
+population or its own samples misread, which it reads first.
 """
 import os
 import subprocess
@@ -147,6 +149,7 @@ def main(argv):
     home = os.path.abspath((opts("--home") or [tempfile.mkdtemp(prefix="first-start-home-")])[-1])
     cwd = os.path.abspath((opts("--cwd") or [home])[-1])
     needles = [n for n in opts("--needle") if n]
+    expected = [e for e in opts("--expect") if e]
     if not os.path.isfile(program) or classify(program, package, "") != "package":
         print("first_start: %s is no program in the package %s: an empty population is red" % (program, package))
         return 2
@@ -183,6 +186,10 @@ def main(argv):
         if n.lower() in said.lower():
             bad += 1
             print("NAMED    its output names %s" % n)
+    for e in expected:
+        if e not in said:
+            bad += 1
+            print("MISSING  its output does not say %s" % e)
     print("first_start: %s stayed up %gs; %d module(s) by kind %s; %d problem(s)"
           % (os.path.relpath(program, package), seconds, len(mods), tally, bad))
     return 1 if bad else 0

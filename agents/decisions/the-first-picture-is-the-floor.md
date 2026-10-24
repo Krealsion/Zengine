@@ -40,4 +40,5 @@ a want rather than a floor. A maximized close writes the room the weaver chose w
 beside it, and a flag merely restored never gates a placement-less run's tracking.
 
 **Laws supported.** [WL-SESSION-07](../workshop/session-restore.md),
-[WL-SESSION-08](../workshop/session-restore.md), [WL-SESSION-09](../workshop/session-restore.md).
+[WL-SESSION-08](../workshop/session-restore.md), [WL-SESSION-09](../workshop/session-restore.md),
+[WL-SESSION-20](../workshop/session-restore.md).

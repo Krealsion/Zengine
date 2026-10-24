@@ -39,8 +39,7 @@ a Compose target picked on the Loaded pane).
 
 ## Host side
 
-- Booted by `workshop/default-load-plan.json` and `workshop/graphical-load-plan.json` (an
-  optional row, office `zengine.introspection`); staged and listed as a pane weave in
+- Booted by `workshop/default-load-plan.json` (an optional row, office `zengine.introspection`); staged and listed as a pane weave in
   `workshop/CMakeLists.txt`.
 - Its panes cross the external pane protocol: `workshop/pane_vocabulary.hpp` and the
   `workshop/pane_*.hpp` parts `introspection.cpp` includes.

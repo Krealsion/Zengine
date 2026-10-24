@@ -28,22 +28,23 @@ Workshop needs a terminal at least **78 columns by 22 rows**. That is not a pref
 78x22 every piece of its furniture is exactly on screen with nothing overlapping, and it is
 the composition every other size is measured against.
 
-For a real window instead of a terminal, pass the graphical plan:
+It opens in an OS window where one can open, and in the terminal you started it from where none
+can (it says why, once, on the desk). In the terminal by choice:
 
 ```sh
-build/workshop/zengine-workshop --load-plan workshop/graphical-load-plan.json
+build/workshop/zengine-workshop --tui
 ```
 
-Both are shipped files. They differ in exactly two rows — which window shows the desk, and
-which input backend serves input sessions — and Workshop's own code is identical under both.
-See [load plans](load-plans.md).
+Both are the one shipped plan: its window row loads the OS window, otherwise the terminal window,
+and `--tui` takes the terminal window alone. Workshop's own code is identical in both. See
+[load plans](load-plans.md#the-window-the-os-window-else-the-terminal-window).
 
 **From a package** ([download and run](../../README.md#download-and-run)), the launchers in its
-folder start Workshop for you: `Workshop.cmd` or `./workshop.sh` in a window,
-`Workshop-terminal.cmd` or `./workshop-terminal.sh` in the console or terminal that ran it. Each
-starts in your project, `%USERPROFILE%\Zengine` or `~/Zengine` (`terminal/` inside it for the
-terminal's), made at the first start and kept when a newer package replaces the old one; a
-`workshop-plan.json` there starts instead of the shipped plan. Each start also writes
+folder start Workshop for you: `Workshop.cmd` or `./workshop.sh` in a window (in the console or
+terminal that ran it where no window can open), `Workshop-terminal.cmd` or
+`./workshop-terminal.sh` in that console or terminal (`--tui`). Both start in your project,
+`%USERPROFILE%\Zengine` or `~/Zengine`, made at the first start and kept when a newer package
+replaces the old one; a `workshop-plan.json` there starts instead of the shipped plan. Each start also writes
 `zengine-app.path` there, the package's `zengine-app`, which the apps you export start
 ([which `zengine-app`](../../app/docs/app.md#which-zengine-app-the-launchers-start)).
 

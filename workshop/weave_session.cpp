@@ -372,15 +372,33 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
                       graphics::role::kAlert, std::string()});
         return;
     }
-    // ---- The viewport, then the desk into it ------------
-    // The medium's own facts (the face metric, the device unit) are handed back unchanged: a
-    // restore replaces only the room.
-    if (last.honoured && adopt_screen(session_, last.viewport_w, last.viewport_h,
-                                      session_.text_advance_px, session_.text_line_px,
-                                      session_.cell_px)) {
-        // The restored viewport IS the normal window's room -- the save wrote it from
-        // exactly that -- so the remembered pair starts equal to it rather
-        // than waiting for the first extent to arrive.
+    // ---- The OS window's own room, kept whichever window this is ------------
+    // A run in another window writes it back as it read it, as it does the placement.
+    session_.window_room_w = last.placement.room_w;
+    session_.window_room_h = last.placement.room_h;
+    // ---- The room, then the desk into it ------------
+    // In the OS window, its own room where one was kept: judged by the screen's band, adopted, and
+    // the window asked to take it once the desk's area is there (`shape_restored_window`). Else the
+    // viewport, as the desk last had it. The medium's own facts (the face metric, the device unit)
+    // are handed back unchanged: a restore replaces only the room.
+    std::string declined = last.declined;
+    std::int64_t room_w = last.viewport_w;
+    std::int64_t room_h = last.viewport_h;
+    bool honoured = last.honoured;
+    if (window_name_ == graphics::kSdlWindow && last.placement.room_w > 0 &&
+        last.placement.room_h > 0) {
+        room_w = last.placement.room_w;
+        room_h = last.placement.room_h;
+        honoured = session_persist::viewport_honoured(room_w, room_h);
+        declined = honoured ? std::string() : session_persist::declined_viewport(room_w, room_h);
+        if (honoured) {
+            restored_window_ = RestoredWindow{room_w, room_h, std::nullopt};
+        }
+    }
+    if (honoured && adopt_screen(session_, room_w, room_h, session_.text_advance_px,
+                                 session_.text_line_px, session_.cell_px)) {
+        // The restored room IS the normal window's room -- the save wrote it from exactly that --
+        // so the remembered pair starts equal to it rather than waiting for the first extent.
         session_.normal_w = session_.screen_w;
         session_.normal_h = session_.screen_h;
     }
@@ -393,10 +411,12 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
         session_.place_x = last.placement.x;
         session_.place_y = last.placement.y;
         session_.place_maximized = last.placement.maximized;
-        if (const std::string office = medium_office(); !office.empty()) {
-            mail.send_to_role(office, zengine::graphics::SurfacePlacementRemembered{
-                                          last.placement.x, last.placement.y,
-                                          last.placement.maximized});
+        const zengine::graphics::SurfacePlacementRemembered place{
+            last.placement.x, last.placement.y, last.placement.maximized};
+        if (restored_window_) {
+            restored_window_->place = place; // after the shaping, which waits for the desk's area
+        } else if (const std::string office = medium_office(); !office.empty()) {
+            mail.send_to_role(office, place);
         }
     }
     // ---- ...and then the desks, into the room they asked for ---------------
@@ -417,10 +437,10 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
     }
     notice.w = session_.screen_w;
     notice.h = session_.screen_h;
-    if (!last.declined.empty()) {
+    if (!declined.empty()) {
         // AND IT NEVER CLAIMS THE SIZE CAME BACK WHEN IT DID NOT. The desk did; the
         // window did not; a weaver is told which, with the value that was declined.
-        notice.tail += "; " + last.declined;
+        notice.tail += "; " + declined;
     }
     // ...and once, if a pane in it changed hands (`workshop/pane_migration.hpp`): the count is the
     // whole run's.
@@ -431,7 +451,7 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
     if (!host_->choice_note.empty()) {
         notice.tail += "; " + host_->choice_note;
     }
-    notice.bad = !last.declined.empty();
+    notice.bad = !declined.empty();
     say(restore_notice_text(notice, session_.cell_px), notice.bad);
     // SPELLED IN THE UNIT THE DESK HOLDS NOW, and again in the window's own once its offer is
     // taken, unless something was said between.
@@ -440,6 +460,23 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
     // THE SECOND PICTURE OF THE RUN, and the one that asks for the room -- see `start_desk` for
     // why it cannot be the first.
     repaint(mail);
+}
+
+// WL-SESSION-20 -- agents/workshop/session-restore.md
+void WorkshopWeave::shape_restored_window(loom::Mail& mail) {
+    if (!restored_window_ || window_name_ != graphics::kSdlWindow) {
+        return;
+    }
+    const RestoredWindow held = std::move(*restored_window_);
+    restored_window_.reset();
+    const std::string office = medium_office();
+    // An empty title keeps the window's own: the room is the restore's, the title is not.
+    mail.as_role(kWorkshopProvider)
+        .send_to_role(office, zengine::graphics::WindowShaped{graphics::kSdlWindow, std::string(),
+                                                              held.w, held.h});
+    if (held.place) {
+        mail.send_to_role(office, *held.place);
+    }
 }
 
 // WL-SESSION-14 -- agents/workshop/session-restore.md
@@ -474,12 +511,16 @@ void WorkshopWeave::save_last_session() {
     }
     // The viewport written is the normal window's, so a maximized close remembers the room the
     // weaver chose, with the maximized state beside it. The placement rides along as last reported,
-    // or as the file carried it.
+    // or as the file carried it; and the OS window's own room is this run's where the desk is in
+    // the OS window, else the one the file carried.
     session_persist::Placement place;
     place.known = session_.placement_known;
     place.x = session_.place_x;
     place.y = session_.place_y;
     place.maximized = session_.place_maximized;
+    const bool os_window = window_name_ == graphics::kSdlWindow;
+    place.room_w = os_window ? session_.normal_w : session_.window_room_w;
+    place.room_h = os_window ? session_.normal_h : session_.window_room_h;
     // The whole run in weaver order, with the position they stand on: `layout_run` answers with a
     // new vector, so saving cannot reorder what it saves.
     const Written written = session_persist::save_file(

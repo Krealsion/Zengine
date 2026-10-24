@@ -1205,11 +1205,11 @@ class Recipes(unittest.TestCase):
 
     # ---- a package in place of a build and a Loom prefix ----------------------------------------------------
     def package(self, name="pkg"):
-        """A package folder's files demo.py reads: Workshop, the plans and the demo control in bin/,
+        """A package folder's files demo.py reads: Workshop, its plan and the demo control in bin/,
         the guest vocabulary in lib/zengine/, Loom's host, run manager and Python runtime."""
         exe, lib = launcher.EXE, launcher.LIB
         package = Path(self.tmp) / name
-        for f in ("bin/zengine-workshop" + exe, "bin/zengine-demo-control" + lib, "bin/graphical-load-plan.json",
+        for f in ("bin/zengine-workshop" + exe, "bin/zengine-demo-control" + lib,
                   "bin/default-load-plan.json", "lib/zengine/zengine-guest-vocabulary" + lib,
                   "bin/loom-host" + exe, "lib/loom/loom-runs" + lib):
             (package / f).parent.mkdir(parents=True, exist_ok=True)

@@ -56,8 +56,10 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -5249,6 +5251,23 @@ TEST_CASE("the OS window's clipboard and its place on the desktop are its backen
         CHECK(placed_at(ask.heard.placements.back(), 300, 200, true));
         CHECK(ask.heard.closes == 0);
     }
+    SUBCASE("maximized and restored down from outside, as a desktop's shell does it: its size is "
+            "the platform's at once, its state comes with its queue, and the state is said first") {
+        LitWindow b(nullptr, true, gw::WindowPlacementValue{40, 30, false});
+        PlatformAsker& ask = b.platform;
+        for (const auto& [maximized, wide, tall] :
+             {std::tuple{true, 1920, 1009}, std::tuple{false, 1200, 600}}) {
+            b.light.size = gw::PixelSize{wide, tall};
+            b.light.placement_at_poll = gw::WindowPlacementValue{40, 30, maximized};
+            const std::size_t at = ask.heard.order.size();
+            b.pump();
+            REQUIRE(ask.heard.order.size() == at + 2);
+            CHECK(ask.heard.order[at] == "SurfacePlacement");
+            CHECK(ask.heard.order[at + 1] == "WindowOffered");
+            CHECK(placed_at(ask.heard.placements.back(), 40, 30, maximized));
+            CHECK(ask.heard.offers.back().width == wide);
+        }
+    }
 }
 
 TEST_CASE("an OS window a weaver made narrower and a pixel taller is not grown back while its "
@@ -5902,21 +5921,16 @@ TEST_CASE("the OS window opens one window on the desktop, draws in it, keeps tha
     CHECK(SDL_WasInit(SDL_INIT_VIDEO) == 0); // and SDL is given back whole
 }
 
-TEST_CASE("the OS window with no display to open on keeps and composes its picture, and holds no "
-          "SDL and no claim on SDL's queue") {
+TEST_CASE("the OS window SDL cannot open, told a video driver it lacks, is refused at its load and "
+          "leaves no window, no SDL, no office held and no claim on SDL's queue") {
     sdl_video_driver("zengine-no-such-driver");
     {
-        SdlWeave w;
-        const gfx::WindowShown s = w.shown();
-        CHECK(s.window == gfx::kSdlWindow);
-        CHECK(any_row_has(s, "lit"));
-        // ITS FACE MEASURED with no window to draw in: the embedded face's, not SDL's debug face.
-        REQUIRE_FALSE(w.heard.rooms.empty());
-        const gfx::TextMeasure face = w.heard.rooms.back().measure();
-        CHECK(face.advance > 0);
-        CHECK_FALSE(face == gw::kDebugFace);
-        CHECK(s.rows.size() == static_cast<std::size_t>(gw::kDefaultHeight / face.line));
-        CHECK(s.showings == 0); // nothing was drawn, so nothing was shown
+        Rig r;
+        REQUIRE(r.load("zengine-graphics", GRAPHICS_SO, gfx::kGraphicsRole).valid());
+        const auto loaded =
+            r.command(loom::LoadWeave{"zengine-window-sdl", WINDOW_SDL_SO, sdl_office()});
+        CHECK(loaded.kind == 2); // refused: the weave would not be made
+        CHECK_FALSE(r.bus.role_holder(sdl_office()).valid());
         CHECK(os_windows().empty());
         CHECK(SDL_WasInit(SDL_INIT_VIDEO) == 0);
         // With no window to read for, the queue is left to an SDL Input reader beside it.
@@ -6167,21 +6181,20 @@ TEST_CASE("the OS window over SDL copies to SDL's clipboard and reads it only wh
     CHECK(t.shown().showings == showings); // read back, not shown again
 }
 
-TEST_CASE("the OS window over SDL with no display has no clipboard to read, no placement, nothing "
-          "to move and no picture to read back") {
+TEST_CASE("the OS window over SDL that cannot open is refused at its making, in SDL's words, "
+          "holding no window, no SDL and no claim on SDL's queue") {
     sdl_video_driver("zengine-no-such-driver");
-    {
-        RealLit t;
-        t.place_area(0, 0, 400, 200);
-        t.instance->clipboard_copy("soup");
-        CHECK_FALSE(t.instance->clipboard_text().has_value());
-        CHECK_FALSE(t.instance->placement().has_value());
-        t.instance->place(gw::WindowPlacementValue{10, 20, true});
-        CHECK_FALSE(t.instance->placement().has_value());
-        CHECK_FALSE(t.instance->capture().has_value());
-        CHECK(os_windows().empty());
-        CHECK(SDL_WasInit(SDL_INIT_VIDEO) == 0);
+    std::string said;
+    try {
+        const RealSdlWindow made;
+        FAIL("an OS window was made with no video driver SDL can use");
+    } catch (const std::runtime_error& refused) {
+        said = refused.what();
     }
+    CHECK(said.rfind("zengine-window-sdl: SDL_Init(SDL_INIT_VIDEO) failed: ", 0) == 0);
+    CHECK(os_windows().empty());
+    CHECK(SDL_WasInit(SDL_INIT_VIDEO) == 0);
+    CHECK_FALSE(zengine::input::window_holds_sdl_input());
     sdl_video_driver("dummy");
 }
 

@@ -477,8 +477,8 @@ No parent/child, no widget kinds, no colour, no z. Full reference:
 ## Workshop
 
 ```sh
-build/workshop/zengine-workshop                              # terminal window, needs >= 78x22
-build/workshop/zengine-workshop --load-plan workshop/graphical-load-plan.json   # OS window
+build/workshop/zengine-workshop                # OS window, else the terminal window (>= 78x22)
+build/workshop/zengine-workshop --tui          # the terminal window
 ```
 
 | argument | default | is |
@@ -698,9 +698,10 @@ no reordering, no retry, no deadline — and while one is outstanding the rest o
 running. There is no turn budget anywhere: an unanswered load stays unanswered rather than
 becoming a refusal somebody made up.
 
-Shipped plans: [`workshop/default-load-plan.json`](workshop/default-load-plan.json) (terminal
-window) and [`workshop/graphical-load-plan.json`](workshop/graphical-load-plan.json) (OS window).
-A plan naming a retired Skin or `zengine-input-sdl` is refused by name, with its fix.
+The shipped plan: [`workshop/default-load-plan.json`](workshop/default-load-plan.json), the OS
+window, otherwise the terminal window; `--tui` takes the terminal window alone. A plan naming a
+retired Skin or `zengine-input-sdl`, or a launch naming the retired `graphical-load-plan.json`, is
+refused by name, with its fix.
 Reference: [workshop/docs/load-plan.md](workshop/docs/load-plan.md).
 
 ---

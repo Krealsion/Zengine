@@ -5,15 +5,18 @@ An alpha. Interfaces change without deprecation cycles.
 START
   Windows  Workshop.cmd opens Workshop in a window; Workshop-terminal.cmd runs it in the console.
   Linux    ./workshop.sh opens Workshop in a window; ./workshop-terminal.sh runs it in a terminal.
+  Where no window can open (no display, no video driver), the window's launcher goes on in the
+  terminal it was started from and says why once there.
   Nothing else needs installing, and this folder may stand anywhere: a newer package replaces it
   whole, and nothing of yours is kept in it.
 
 YOUR PROJECT
-  Workshop's project is a folder of your own, made at the first start and kept across packages:
-    Windows  %USERPROFILE%\Zengine        (the terminal launcher's: %USERPROFILE%\Zengine\terminal)
-    Linux    ~/Zengine                    (the terminal launcher's: ~/Zengine/terminal)
+  Workshop's project is a folder of your own, made at the first start and kept across packages,
+  and both launchers share it:
+    Windows  %USERPROFILE%\Zengine
+    Linux    ~/Zengine
   Saved views, flows, setups, a project plan (workshop-plan.json, which then starts instead of the
-  shipped one) and the apps you export (apps/<name>/) go there.
+  shipped one, in either launcher's window) and the apps you export (apps/<name>/) go there.
 
   Each start writes zengine-app.path in the project: the zengine-app of the package that started
   it. An exported app's run.cmd and run.sh start that one, so an app runs with the newest package
