@@ -1476,7 +1476,12 @@ TEST_CASE("grant: a row that reads by pane is granted the newest reads, the keym
     CHECK(whole.permits_role(ws::PaneDocumentRequested::zen_name, 1, "zengine.editor"));
 }
 
-TEST_CASE("observation: the weaver's input is heard only with keystrokes, no guest observes the connections, and a row that reads by pane is refused what carries every pane") {
+namespace {
+/// The terminal window's office, which gives the weaver's keys to the owners of its key areas.
+const char* const kWindowTerminalOffice = "zengine.window.terminal";
+} // namespace
+
+TEST_CASE("observation: the weaver's input, a window's keys among it, is heard only with keystrokes, no guest observes the connections, and a row that reads by pane is refused what carries every pane") {
     guests::GuestsFile file;
     file.version = 3;
     guests::GuestRow keys;
@@ -1495,6 +1500,10 @@ TEST_CASE("observation: the weaver's input is heard only with keystrokes, no gue
         for (const char* shape : {input::AttributedInput::zen_name, input::KeyPressed::zen_name,
                                   input::TextEntered::zen_name}) {
             row->observe.push_back({input::kInputRole, shape, 1});
+        }
+        for (const char* shape : {gfx::AreaKeyPressed::zen_name, gfx::AreaKeyReleased::zen_name,
+                                  gfx::AreaTextEntered::zen_name}) {
+            row->observe.push_back({kWindowTerminalOffice, shape, 1});
         }
         for (const char* shape : {gfx::WindowShown::zen_name, ws::KeymapShown::zen_name,
                                   ws::StandingConditions::zen_name, ws::DeskStamps::zen_name}) {
@@ -1520,12 +1529,23 @@ TEST_CASE("observation: the weaver's input is heard only with keystrokes, no gue
         CHECK(said.reason.find("which a row hears only with `keystrokes`") != std::string::npos);
         CHECK_FALSE(ask(0, "zengine.somewhere-else", shape, 1).allowed);
     }
+    // ...THE KEYS A WINDOW GIVES among it...
+    for (const char* shape : {gfx::AreaKeyPressed::zen_name, gfx::AreaKeyReleased::zen_name,
+                              gfx::AreaTextEntered::zen_name}) {
+        CAPTURE(shape);
+        const auto said = ask(0, kWindowTerminalOffice, shape, 1);
+        CHECK_FALSE(said.allowed);
+        CHECK(said.reason.find("which a row hears only with `keystrokes`") != std::string::npos);
+    }
     // ...AND HEARD WITH IT.
     file.rows[0].may.push_back(guests::kPowerKeystrokes);
     const auto heard =
         guests::observation_of(file, [&](loom::WeaveId) -> std::optional<std::size_t> { return 0; });
     CHECK(heard(loom::observe::ObserveRequest{loom::WeaveId{5}, input::kInputRole,
                                               {{input::AttributedInput::zen_name, 1}}, "suite"})
+              .allowed);
+    CHECK(heard(loom::observe::ObserveRequest{loom::WeaveId{5}, kWindowTerminalOffice,
+                                              {{gfx::AreaKeyPressed::zen_name, 1}}, "suite"})
               .allowed);
     // THE CONNECTIONS, at every version, to no guest.
     for (std::size_t row = 0; row < 3; ++row) {

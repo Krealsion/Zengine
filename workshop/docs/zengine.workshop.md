@@ -849,24 +849,25 @@ the line that asked, if that draft still stands.
 
 ### `KeyPressed`
 
-`KeyPressed`, from input ([`input/vocabulary.hpp`](../../input/vocabulary.hpp)), or from the
-graphics window that shows Workshop's area: resolved once -- the application's rows above every
-mode, then a menu, arranging, a naming line, the focused pane, command mode -- and spent there. A
-pane holding the keys hears `PaneKey`, or `PaneActionRequested` for a row it declared.
+`KeyPressed`, from input ([`input/vocabulary.hpp`](../../input/vocabulary.hpp)): resolved once --
+the application's rows above every mode, then a menu, arranging, a naming line, the focused pane,
+command mode -- and spent there. A pane holding the keys hears `PaneKey`, or `PaneActionRequested`
+for a row it declared. It names no hand: a send its gesture asks is refused (`this operation needs
+a current attributed input gesture`).
 
 ### `KeyReleased`
 
-`KeyReleased`, from input or from that window: heard for Shift alone, per hand, to tell a tap from
-a hold. Shift pressed alone and released with no repeat is a tap, and a second lone Shift press
-within the double-click time is the key `double-shift`, resolved as `KeyPressed` is where a row in
-force answers to it ([`desktop.palette-shift`](zengine.desktop.md#desktoppalette-shift)). Any other release is passed
+`KeyReleased`, from input: heard for Shift alone, per hand, to tell a tap from a hold. Shift pressed
+alone and released with no repeat is a tap, and a second lone Shift press within the double-click
+time is the key `double-shift`, resolved as `KeyPressed` is where a row in force answers to it
+([`desktop.palette-shift`](zengine.desktop.md#desktoppalette-shift)). Any other release is passed
 over.
 
 ### `TextEntered`
 
-`TextEntered`, from input or from that window: a character goes where a key goes, so a pane
-holding the keys hears `PaneTextInput`; the character a binding's key produced is that binding's.
-On a weaver's host a guest's text rests nowhere:
+`TextEntered`, from input: a character goes where a key goes, so a pane holding the keys hears
+`PaneTextInput`; the character a binding's key produced is that binding's. On a weaver's host a
+guest's text rests nowhere:
 `this is a weaver's host: a guest's typed text rests in no pane, ...`.
 
 ### `AttributedInput`
@@ -955,6 +956,21 @@ made there is held, as `PointerMoved` takes it, by the hand it names.
 
 `AreaWheelTurned` v2, from that window: the wheel in Workshop's own area, as `PointerWheel` takes
 it, by the hand it names.
+
+### `AreaKeyPressed`
+
+`AreaKeyPressed` v1, from the window that shows `zengine.workshop`, naming that area: a key, by the
+hand it names, as `KeyPressed` takes one, so the weaver's own key asks a send as the weaver's.
+
+### `AreaKeyReleased`
+
+`AreaKeyReleased` v1, from that window, naming that area: a release, by the hand it names, as
+`KeyReleased` takes one.
+
+### `AreaTextEntered`
+
+`AreaTextEntered` v1, from that window, naming that area: typed text, by the hand it names, as
+`TextEntered` takes it.
 
 ### `AreaHoldEnded`
 

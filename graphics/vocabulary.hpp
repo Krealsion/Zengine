@@ -275,6 +275,48 @@ struct AreaPointerLeft {
     ZEN_SHAPE(AreaPointerLeft, 1, ZEN_FIELD(area));
 };
 
+// ---- the keys in an area ------------------------------------------------------------------
+//
+// A window gives every key it reads, its release and the text it types to the owner of each area
+// placed to hear keys, front to back, naming that area and the hand, as a pointer moment does:
+// `local` for the weaver's own, which the window reads from its platform. A guest's keys reach no
+// window: the input office says them, attributed (`input::AttributedInput`). `scancode`, `name`,
+// `modifiers` and `text` are the input vocabulary's (`input::KeyPressed`, `input::TextEntered`).
+
+/// Window -> the owner of an area placed to hear keys: a key went down.
+struct AreaKeyPressed {
+    std::string area;
+    std::int64_t scancode = 0;
+    std::string name;
+    std::int64_t modifiers = 0;
+    bool local = true;
+    std::int64_t actor = 0;
+    ZEN_SHAPE(AreaKeyPressed, 1, ZEN_FIELD(area), ZEN_FIELD(scancode), ZEN_FIELD(name),
+              ZEN_FIELD(modifiers), ZEN_FIELD(local), ZEN_FIELD(actor));
+};
+
+/// Window -> the owner of an area placed to hear keys: a key came up.
+struct AreaKeyReleased {
+    std::string area;
+    std::int64_t scancode = 0;
+    std::string name;
+    std::int64_t modifiers = 0;
+    bool local = true;
+    std::int64_t actor = 0;
+    ZEN_SHAPE(AreaKeyReleased, 1, ZEN_FIELD(area), ZEN_FIELD(scancode), ZEN_FIELD(name),
+              ZEN_FIELD(modifiers), ZEN_FIELD(local), ZEN_FIELD(actor));
+};
+
+/// Window -> the owner of an area placed to hear keys: the text a key typed, as UTF-8.
+struct AreaTextEntered {
+    std::string area;
+    std::string text;
+    bool local = true;
+    std::int64_t actor = 0;
+    ZEN_SHAPE(AreaTextEntered, 1, ZEN_FIELD(area), ZEN_FIELD(text), ZEN_FIELD(local),
+              ZEN_FIELD(actor));
+};
+
 // ---- the directory ------------------------------------------------------------------------
 
 /// A window, as its own office, to whoever follows it -- the directory, and an arranger laying out

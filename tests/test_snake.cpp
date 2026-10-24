@@ -1101,8 +1101,8 @@ TEST_CASE("a pilot steers through the world's door while the world's own keys ar
     REQUIRE(r.poke(world, loom::PokeWrite{"keys", "false"}).kind == 1);
 
     // A player's key reaches the world and moves nothing: its keys are off.
-    r.bus.send_to_role(kWorldRole, loom::Message(loom::to_value(
-                                       zengine::input::KeyPressed{zengine::input::scan::kW, "W"})));
+    r.bus.send_to_role(kWorldRole, loom::Message(loom::to_value(zengine::graphics::AreaKeyPressed{
+                                       kWorldArea, zengine::input::scan::kW, "W"})));
     r.tick();
     (void)step(local);
     CHECK(same_visual(r.rec.visuals.back(), visual_of(local)));

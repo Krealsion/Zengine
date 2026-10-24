@@ -1680,7 +1680,8 @@ TEST_CASE("the input .so answers what each shape it accepts does, from its offic
               .group == "Hears");
 }
 
-TEST_CASE("keys become turns: KeyPressed steers the real world through its own keys") {
+TEST_CASE("keys become turns: a key its window gives steers the real world through its own keys, "
+          "and nothing the input office publishes reaches it") {
     using namespace zengine::snake;
     Rig r;
     const loom::WeaveId world = r.load("snake-world-v1", WORLD_V1_SO, kWorldRole);
@@ -1693,24 +1694,25 @@ TEST_CASE("keys become turns: KeyPressed steers the real world through its own k
     CHECK(r.seen.visuals.back().snake.front().x == 12);
     CHECK(r.seen.visuals.back().snake.front().y == 8);
 
-    // W arrives as a published message — the producer's stand-in is the root,
-    // speaking the exact shape the input weave publishes (tier 3 pinned that
-    // emission; the pty run drives the whole chain live). Exactly ONE accepter
-    // exists: the world, whose keys are its own. It turns up on the next tick.
-    CHECK(r.publish_root(loom::to_value(KeyPressed{scan::kW, "W"})) == 1);
+    // W arrives as the window gives it, naming the world's area -- the window's stand-in is the
+    // root (the pty run drives the whole chain live). Exactly ONE accepter exists: the world,
+    // whose keys are its own. It turns up on the next tick.
+    namespace gfx = zengine::graphics;
+    CHECK(r.publish_root(loom::to_value(gfx::AreaKeyPressed{kWorldArea, scan::kW, "W"})) == 1);
     r.tick();
     CHECK(r.seen.visuals.back().snake.front().x == 12);
     CHECK(r.seen.visuals.back().snake.front().y == 7);
 
-    // A non-steering key is delivered (the world accepts every KeyPressed)
-    // and correctly does nothing: still climbing.
-    CHECK(r.publish_root(loom::to_value(KeyPressed{scan::kX, "X"})) == 1);
+    // A non-steering key is delivered (the world accepts every key its window gives) and
+    // correctly does nothing: still climbing.
+    CHECK(r.publish_root(loom::to_value(gfx::AreaKeyPressed{kWorldArea, scan::kX, "X"})) == 1);
     r.tick();
     CHECK(r.seen.visuals.back().snake.front().y == 6);
 
-    // The doors snake deliberately does not open: releases, text and the
-    // pointer have ZERO accepters in this game — published, delivered to
-    // nobody, and that is legal (the recipient count is the pin).
+    // The doors snake deliberately does not open: the input office's keys, releases, text and
+    // pointer have ZERO accepters in this game -- published, delivered to nobody, and that is
+    // legal (the recipient count is the pin).
+    CHECK(r.publish_root(loom::to_value(KeyPressed{scan::kW, "W"})) == 0);
     CHECK(r.publish_root(loom::to_value(KeyReleased{scan::kW, "W"})) == 0);
     CHECK(r.publish_root(loom::to_value(TextEntered{"w"})) == 0);
     CHECK(r.publish_root(loom::to_value(PointerMoved{1, 2, 1, 2, space::kCells})) == 0);
