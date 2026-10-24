@@ -46,22 +46,34 @@ inline std::string census_causes(const std::vector<ActionCause>& causes) {
 }
 
 /// ONE CENSUS LINE: `<office> <mode> <id> <default key, as a keymap file spells it> <causes>
-/// <enters> <label>`, the mode `-` for a pane that declares none.
+/// <enters> <label>`, the mode `-` for a pane that declares none, and a row's key for a POSIX
+/// terminal after its default, joined by `~` (no key's name holds one).
 inline std::string census_line(const std::string& office, const std::string& mode,
                                const std::string& id, std::int64_t scancode,
                                std::int64_t modifiers, const std::vector<ActionCause>& causes,
-                               const std::string& enters, const std::string& label) {
+                               const std::string& enters, const std::string& label,
+                               std::int64_t posix_scancode = 0, std::int64_t posix_modifiers = 0) {
     const Gesture g{scancode, modifiers};
+    const Gesture posix{posix_scancode, posix_modifiers};
     return office + " " + (mode.empty() ? std::string("-") : mode) + " " + id + " " +
-           (is_bound(g) ? gesture_word(g) : std::string("unbound")) + " " +
+           (is_bound(g) ? gesture_word(g) : std::string("unbound")) +
+           (is_bound(posix) ? "~" + gesture_word(posix) : std::string()) + " " +
            census_causes(causes) + " " + (enters.empty() ? std::string("-") : enters) + " " +
            label;
 }
 
 /// ...A HELD ROW'S, read from what Workshop holds of the declaration.
 inline std::string census_line(const std::string& office, const std::string& mode,
-                               const v3::PaneActionRow& a) {
-    return census_line(office, mode, a.id, a.scancode, a.modifiers, a.causes, a.enters, a.label);
+                               const v4::PaneActionRow& a) {
+    return census_line(office, mode, a.id, a.scancode, a.modifiers, a.causes, a.enters, a.label,
+                       a.posix_scancode, a.posix_modifiers);
+}
+
+/// THE KEYS A CENSUS LINE'S KEY WORD NAMES: its default, then a POSIX key after a `~`, if any.
+inline std::vector<std::string> census_keys(const std::string& word) {
+    const std::size_t tilde = word.find('~');
+    if (tilde == std::string::npos) return {word};
+    return {word.substr(0, tilde), word.substr(tilde + 1)};
 }
 
 /// THE OFFICE A CENSUS LINE IS ABOUT: its first word.
@@ -184,7 +196,7 @@ struct OfficeCensus {
 
 /// ...AND A HELD PANE'S ROWS ADDED IN ITS MODE, with what that mode says of the pane's others.
 inline void census_take(OfficeCensus& into, const std::string& office, const RuntimePane& held) {
-    for (const v3::PaneActionRow& a : held.actions) {
+    for (const v4::PaneActionRow& a : held.actions) {
         into.lines.push_back(census_line(office, held.mode, a));
     }
     into.elsewhere[held.pane][held.mode] = held.elsewhere;
@@ -380,7 +392,7 @@ public:
     /// ...PRESSED AS WORKSHOP SAYS A RESOLVED KEY: the row's id, to `pane` of this office, as
     /// Workshop's own office -- the press a pane hears whatever gesture made it.
     void judge(PaneRig& r, const std::string& pane, const std::string& mode,
-               const v3::PaneActionRow& row) {
+               const v4::PaneActionRow& row) {
         judge(r.bus, r.bus.role_holder(office_), mode, row.id, row.causes, [&] {
             CHECK(r.workshop_action(office_, pane, row.id).delivered);
         });
@@ -449,7 +461,7 @@ void press_each_state(PressWitness& w, const std::function<std::unique_ptr<Rig>(
                 walk(*rig, [&](const RuntimePane& held) {
                     if (at++ != state) return;
                     REQUIRE(held.actions.size() == rows[state]);
-                    const v3::PaneActionRow row = held.actions[i];
+                    const v4::PaneActionRow row = held.actions[i];
                     const std::string pane = held.pane;
                     const std::string mode = held.mode;
                     w.judge(pane_rig(*rig), pane, mode, row);

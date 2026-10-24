@@ -179,7 +179,7 @@ std::set<std::string> declared_ids(SwitchRig& s) {
     const RuntimePane* row = s.r.session().panes.runtime.find(pane::kEditorPaneRole, pane::kEditorPane);
     REQUIRE(row != nullptr);
     std::set<std::string> ids;
-    for (const v3::PaneActionRow& a : row->actions) ids.insert(a.id);
+    for (const v4::PaneActionRow& a : row->actions) ids.insert(a.id);
     return ids;
 }
 

@@ -127,6 +127,15 @@ public:
 
     /// THE LAYOUT'S `help` SETTING: whether the footer's help lines show, their rows the list's
     /// when they do not. True when it moved.
+    /// A BINDING'S KEY CELL: its key, or `(no key)`; and for a row that names a key for a POSIX
+    /// terminal, its default with that key beside it, whichever is in force (WL-KEY-08).
+    static std::string key_cell(const ws::ShownBinding& b) {
+        if (!b.posix_shown.empty()) {
+            return b.default_shown + "  posix " + b.posix_shown;
+        }
+        return b.shown.empty() ? std::string("(no key)") : b.shown;
+    }
+
     bool show_help(bool shown) {
         const bool moved = help_shown_ != shown;
         help_shown_ = shown;
@@ -451,10 +460,7 @@ public:
             return w;
         }();
         const std::vector<component::Column> asks = {
-            component::Column{component::widest(keymap_.rows, [](const ws::ShownBinding& b) {
-                                  return b.shown.empty() ? std::string("(no key)") : b.shown;
-                              }),
-                              6},
+            component::Column{component::widest(keymap_.rows, key_cell), 6},
             component::Column{component::widest(keymap_.rows,
                                                 [](const ws::ShownBinding& b) { return b.label; }),
                               8},
@@ -484,8 +490,7 @@ public:
             const ws::ShownBinding& b = keymap_.rows[line.shown];
             const bool here = i == keys_choice_.at;
             const std::string cells = component::table_line(
-                {b.shown.empty() ? std::string("(no key)") : b.shown, b.label, b.id,
-                 marks_of(b)},
+                {key_cell(b), b.label, b.id, marks_of(b)},
                 widths, [](const std::string& text, std::int64_t width) { return fit(text, width); },
                 [](std::string text, std::size_t width) { return pad(std::move(text), width); });
             const std::int64_t at = static_cast<std::int64_t>(out.size());

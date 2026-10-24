@@ -76,8 +76,8 @@ Acts on the row under the cursor: in the list, opens the form on that message; i
 Sends the message the form composes to the office it is addressed to. Every required field must be
 present and every value must fit its field's type; an optional field left absent is left out.
 
-- **Takes:** the open form. Default key <!-- key compose.submit -->`ctrl+e`<!-- /key -->; a press
-  on `[ Submit ]`.
+- **Takes:** the open form. Default key <!-- key compose.submit -->`ctrl+return`<!-- /key -->
+  (`ctrl+e` from a POSIX terminal); a press on `[ Submit ]`.
 - **Answers:** first `Checking submission authority`, while Workshop judges whether your gesture's
   actor may send that shape to that office. Then the message goes, sent as `zengine.composer`, and
   the notice is `SUBMITTED -- queued; outcome belongs to the receiver`. The message is the shape you
@@ -88,7 +88,7 @@ present and every value must fit its field's type; an optional field left absent
   other reason; `Permission request could not be queued`. After: `Submission could not be queued`;
   `Submission was not delivered: ` and Loom's reason; `Receiver refused: ` and the receiver's.
 - **Example:** fill `id` with `tick` and `delay_ms` with `1000`, Tab `repeat` to `false`, press
-  <!-- key compose.submit -->`ctrl+e`<!-- /key -->.
+  <!-- key compose.submit -->`ctrl+return`<!-- /key -->.
 
 ### `compose.store`
 

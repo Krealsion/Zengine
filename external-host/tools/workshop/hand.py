@@ -613,6 +613,17 @@ class Hand:
         self.actions["key"] += 1
         self.inject(chord_moments(self.ctx, chord))
 
+    def press(self, action):
+        """Press the key Workshop has in force for the action `action`, as its keymap says it
+        (KeymapShown version 4): the weaver's key where the keymap file moved the row, the POSIX
+        terminal's where Workshop put that layer in force, the default everywhere else. An action
+        no row in force answers to by a key raises ValueError."""
+        shown = self.ask("zengine.workshop", "KeymapRequested", {})
+        keys = [r["gesture"] for r in shown["rows"] if r["id"] == action and r["gesture"]]
+        if not keys:
+            raise ValueError("no row in force answers to %s by a key" % action)
+        self.key(keys[0])
+
     def text(self, text):
         self.actions["text"] += 1
         self.inject(clear_moments(self.ctx) + [moment(self.ctx, "TextEntered", text=text)])

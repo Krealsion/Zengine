@@ -60,8 +60,8 @@ namespace pane = zengine::info_pane;
 
 using ws::InspectPaneRequested;
 using ws::PaneActionRequested;
-using ws::v3::PaneActionRow;
-using ws::v3::PaneActions;
+using ws::v4::PaneActionRow;
+using ws::v4::PaneActions;
 using ws::PaneCommitRequested;
 using ws::PaneInventory;
 using ws::PaneInventoryRequested;
@@ -553,7 +553,7 @@ private:
         std::vector<PaneActionRow> rows = properties_.action_rows();
         if (properties_.drafting()) return rows;
         if (views_.front().has_entry()) rows.push_back({pane::kActionInventory, "inventory entry",
-            input::scan::kRight, input::mod::kAlt});
+            input::scan::kI, input::mod::kCtrl, {}, {}, {}, input::scan::kRight, input::mod::kAlt});
         rows.push_back({pane::kActionViewNew, "new value view", input::scan::kN, input::mod::kCtrl,
             {}, {ws::cause_of<ws::PaneLaunchRequested>()}});
         return rows;

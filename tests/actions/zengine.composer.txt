@@ -1,6 +1,6 @@
 # The action census's rows for zengine.composer; the form is tests/actions.txt's. ASCII only.
 zengine.composer - compose.enter return - - choose
-zengine.composer - compose.submit ctrl+e - - submit
+zengine.composer - compose.submit ctrl+return~ctrl+e - - submit
 zengine.composer - compose.store ctrl+s InventoryAdd/1 - store command
 zengine.composer - compose.preset ctrl+b InventoryAdd/1 - store preset (may be incomplete)
 zengine.composer - compose.unset ctrl+u - - unset field and discard value

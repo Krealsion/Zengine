@@ -116,8 +116,9 @@ inline std::string action_causes_problem(const std::vector<ActionCause>& causes,
 /// most `kMaxPaneModes` other modes, each named once and never the mode in force, each with its
 /// causes in form, and every row's `enters` one of them.
 // WL-CAUSE-01, WL-CAUSE-02 -- agents/workshop/action-causes.md
-inline std::string pane_declaration_problem(const v3::PaneActions& d) {
-    for (const v3::PaneActionRow& row : d.rows) {
+template <class Declaration> // `v3::PaneActions` or `v4::PaneActions`
+std::string pane_declaration_problem(const Declaration& d) {
+    for (const auto& row : d.rows) {
         if (std::string wrong = action_causes_problem(row.causes, kMaxActionCauses);
             !wrong.empty()) {
             return "`" + row.id + "`: " + wrong;
@@ -148,7 +149,7 @@ inline std::string pane_declaration_problem(const v3::PaneActions& d) {
             return "mode `" + other.mode + "`: " + wrong;
         }
     }
-    for (const v3::PaneActionRow& row : d.rows) {
+    for (const auto& row : d.rows) {
         if (row.enters.empty()) continue;
         bool named = false;
         for (const ModeCauses& other : d.elsewhere) named = named || other.mode == row.enters;
@@ -190,7 +191,7 @@ std::vector<ModeCauses> causes_elsewhere(const std::vector<std::string>& modes,
     for (const std::string& mode : modes) {
         if (mode == in_force) continue;
         ModeCauses other{mode, {}};
-        for (const v3::PaneActionRow& row : rows_of(mode)) {
+        for (const auto& row : rows_of(mode)) {
             for (const ActionCause& c : row.causes) {
                 bool seen = false;
                 for (const ActionCause& had : other.causes) {
@@ -205,12 +206,16 @@ std::vector<ModeCauses> causes_elsewhere(const std::vector<std::string>& modes,
     return out;
 }
 
-/// Earlier rows as the third version says them: no causes, no mode entered.
-inline v3::PaneActionRow action_row_of(const PaneActionRow& r) {
-    return v3::PaneActionRow{r.id, r.label, r.scancode, r.modifiers, std::string(), {}, {}};
+/// Earlier rows as the fourth version says them: no causes, no mode entered, no POSIX key.
+inline v4::PaneActionRow action_row_of(const PaneActionRow& r) {
+    return v4::PaneActionRow{r.id, r.label, r.scancode, r.modifiers, std::string(), {}, {}};
 }
-inline v3::PaneActionRow action_row_of(const v2::PaneActionRow& r) {
-    return v3::PaneActionRow{r.id, r.label, r.scancode, r.modifiers, r.supersedes, {}, {}};
+inline v4::PaneActionRow action_row_of(const v2::PaneActionRow& r) {
+    return v4::PaneActionRow{r.id, r.label, r.scancode, r.modifiers, r.supersedes, {}, {}};
+}
+inline v4::PaneActionRow action_row_of(const v3::PaneActionRow& r) {
+    return v4::PaneActionRow{r.id,         r.label,  r.scancode, r.modifiers,
+                             r.supersedes, r.causes, r.enters};
 }
 
 } // namespace zengine::workshop

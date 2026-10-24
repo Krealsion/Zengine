@@ -256,9 +256,18 @@ struct ShownBinding {
     bool remappable = true;
     std::vector<ActionCause> causes = {}; ///< as its declarer declared them
     std::string enters = {};              ///< the mode a press leaves its pane in, or empty
-    ZEN_SHAPE(ShownBinding, 3, ZEN_FIELD(group), ZEN_FIELD(office), ZEN_FIELD(pane), ZEN_FIELD(id),
+    /// A pane row's default and its key for a POSIX terminal, spelled as `gesture` and `shown` are,
+    /// one of them the key in force (WL-KEY-08); all four empty for a row that names no POSIX key,
+    /// and for a row the weaver's file moved.
+    std::string default_gesture = {};
+    std::string default_shown = {};
+    std::string posix_gesture = {};
+    std::string posix_shown = {};
+    ZEN_SHAPE(ShownBinding, 4, ZEN_FIELD(group), ZEN_FIELD(office), ZEN_FIELD(pane), ZEN_FIELD(id),
               ZEN_FIELD(label), ZEN_FIELD(gesture), ZEN_FIELD(shown), ZEN_FIELD(authored),
-              ZEN_FIELD(remappable), ZEN_FIELD(causes), ZEN_FIELD(enters));
+              ZEN_FIELD(remappable), ZEN_FIELD(causes), ZEN_FIELD(enters),
+              ZEN_FIELD(default_gesture), ZEN_FIELD(default_shown), ZEN_FIELD(posix_gesture),
+              ZEN_FIELD(posix_shown));
 };
 
 /// One pane's modes as its declaration in force says them: the mode its rows are in force for,
@@ -285,7 +294,7 @@ struct KeymapShown {
     std::vector<ShownBinding> moved;
     std::string spelling;
     std::vector<ShownModes> modes = {};
-    ZEN_SHAPE(KeymapShown, 3, ZEN_FIELD(rows), ZEN_FIELD(file), ZEN_FIELD(word),
+    ZEN_SHAPE(KeymapShown, 4, ZEN_FIELD(rows), ZEN_FIELD(file), ZEN_FIELD(word),
               ZEN_FIELD(moved), ZEN_FIELD(spelling), ZEN_FIELD(modes));
 };
 

@@ -20,7 +20,7 @@ def run(ctx):
     hand.click(hand.part("zengine.introspection", "loaded", "weave:zengine-inventory", scroll=True))
     hand.click(hand.row(*comp, "InventoryRename v1", scroll=True))
     hand.click(hand.row(*inv, label, scroll=True))
-    hand.key("ctrl+l")
+    hand.press("inventory.live")
     hand.click(hand.row(*comp, "reference:"))
     hand.click(hand.row(*comp, "revision:")); hand.text(str(source["revision"]))
     hand.click(hand.row(*comp, "label:")); hand.text(renamed)
@@ -46,7 +46,7 @@ def run(ctx):
     ctx.check(any(r["reference"] == source["reference"] and r["label"] == label for r in still),
                "drop unexpectedly executed the command")
     picture(ctx, link, "dropped")
-    hand.key("ctrl+e")
+    hand.press("compose.submit")
     final = hand.ask("zengine.inventory", "InventoryList", {})["entries"]
     ctx.check(any(r["reference"] == source["reference"] and r["label"] == renamed and
                   r["revision"] == source["revision"]+1 for r in final), "explicit submission did not rename the intended entry")

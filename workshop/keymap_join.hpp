@@ -326,14 +326,14 @@ inline bool superseded_here(const std::vector<PaneRow>& rows, const std::string&
 }
 
 /// Join one pane's declared rows into a keymap, or say why not -- over a value, so a suite asks it
-/// with no bus. In order: the row count; each id and label; each default gesture (an unbound row
-/// carries `kUnknown`); no id twice and none of Workshop's own; then the weaver's overrides by id;
-/// then the collision law against the host rows active while a pane holds the keys and this
-/// pane's own rows. Atomic: a refusal writes nothing, so the previous rows stand. It reads a row's
-/// keys alone; what a press causes is judged beside it (`pane_declaration_problem`).
-// WL-KEY-15 -- agents/workshop/keyboard.md
+/// with no bus. In order: the row count; each id and label; each default (`kUnknown` for none)
+/// and POSIX key; no id twice and none of Workshop's own; the weaver's overrides by id; then the
+/// collision law against the host rows active while a pane holds the keys and this pane's own, in
+/// both layers. Atomic: a refusal writes nothing, so the previous rows stand. It reads a row's keys
+/// alone; what a press causes is judged beside it (`pane_declaration_problem`).
+// WL-KEY-15, WL-KEY-08 -- agents/workshop/keyboard.md
 inline Written join_pane_rows(Keymap& k, std::int64_t pane,
-                              const std::vector<v3::PaneActionRow>& declared) {
+                              const std::vector<v4::PaneActionRow>& declared) {
     if (declared.size() > kMaxPaneActionRows) {
         return Written::no("a pane declares at most " + std::to_string(kMaxPaneActionRows) +
                            " actions -- this one declared " + std::to_string(declared.size()));
@@ -341,7 +341,14 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane,
     constexpr std::int64_t kKnownModifiers = mod::kCtrl | mod::kShift | mod::kAlt | mod::kSuper;
     std::vector<PaneRow> rows;
     rows.reserve(declared.size());
-    for (const v3::PaneActionRow& d : declared) {
+    // A ROW IN FORCE: its POSIX key where the layer is on and it names one, its default otherwise.
+    const auto row_of = [&k](const v4::PaneActionRow& d, std::string supersedes) {
+        const Gesture declared_key{d.scancode, d.modifiers};
+        const Gesture posix{d.posix_scancode, d.posix_modifiers};
+        return PaneRow{d.id, d.label, k.posix_layer && is_bound(posix) ? posix : declared_key,
+                       std::move(supersedes), declared_key, posix};
+    };
+    for (const v4::PaneActionRow& d : declared) {
         const Written id = check_pane_action_text(d.id, "id", kMaxPaneActionIdLen, false);
         if (!id.accepted) {
             return id;
@@ -379,6 +386,33 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane,
             return Written::no("`" + d.id + "`: scancode " + std::to_string(d.scancode) +
                                " is not a key this keymap can name");
         }
+        // ...AND ITS POSIX KEY: one a POSIX terminal delivers, standing in for a default.
+        if (d.posix_scancode == scan::kUnknown) {
+            if (d.posix_modifiers != mod::kNone) {
+                return Written::no("`" + d.id +
+                                   "`: a row with no POSIX key cannot carry its modifiers");
+            }
+        } else {
+            const Gesture posix{d.posix_scancode, d.posix_modifiers};
+            if (d.scancode == scan::kUnknown) {
+                return Written::no("`" + d.id +
+                                   "`: a POSIX key stands in place of a default, and this row "
+                                   "has none");
+            }
+            if ((d.posix_modifiers & ~kKnownModifiers) != 0) {
+                return Written::no("`" + d.id +
+                                   "`: POSIX key modifier bits this keymap does not know");
+            }
+            if (key_name_of(d.posix_scancode) == nullptr) {
+                return Written::no("`" + d.id + "`: POSIX key scancode " +
+                                   std::to_string(d.posix_scancode) +
+                                   " is not a key this keymap can name");
+            }
+            if (const char* gap = posix_gap(posix)) {
+                return Written::no("`" + d.id + "`: its POSIX key `" + gesture_word(posix) +
+                                   "` does not arrive from a POSIX terminal: " + gap);
+            }
+        }
         if (!d.supersedes.empty()) {
             const ActionRow* stands_for = row_of_id(d.supersedes);
             // ...or an above-the-modes application row (WL-DESK-07), which would otherwise take a
@@ -389,16 +423,14 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane,
             // host row for it to stand down. A pane built before the retirement keeps its keys.
             if (stands_for == nullptr && app_stands_for == nullptr &&
                 retired_with(d.supersedes) != nullptr) {
-                rows.push_back(
-                    PaneRow{d.id, d.label, Gesture{d.scancode, d.modifiers}, std::string()});
+                rows.push_back(row_of(d, std::string()));
                 continue;
             }
             // ...AND AN APPLICATION ROW NO WEAVE DECLARES NOW stands down for nobody yet: the row
             // keeps its claim, which stands the application row down once one declares it.
             if (stands_for == nullptr && app_stands_for == nullptr &&
                 d.supersedes.rfind(kApplicationIdPrefix, 0) == 0) {
-                rows.push_back(
-                    PaneRow{d.id, d.label, Gesture{d.scancode, d.modifiers}, d.supersedes});
+                rows.push_back(row_of(d, d.supersedes));
                 continue;
             }
             if (stands_for == nullptr && app_stands_for == nullptr) {
@@ -417,7 +449,7 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane,
                                    "Workshop declares a pane can stand in for");
             }
         }
-        rows.push_back(PaneRow{d.id, d.label, Gesture{d.scancode, d.modifiers}, d.supersedes});
+        rows.push_back(row_of(d, d.supersedes));
     }
     // The weaver's own file, applied to the ids it names: several authored rows for one id repeat
     // the pane's row once per gesture, so dispatch answers to any and a legend spells the first.
@@ -433,59 +465,78 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane,
                 widened.push_back(row);
                 continue;
             }
+            // ...IN BOTH WINDOWS: the weaver's key wins over the default and the POSIX key alike.
             for (const Gesture& g : set.gestures) {
                 PaneRow moved = row;
                 moved.gesture = g;
+                moved.posix = Gesture{};
                 widened.push_back(std::move(moved));
             }
         }
         rows = std::move(widened);
     }
     // THE COLLISION LAW, over the effective map: the built-in rows active in a pane's
-    // context, and this pane's own rows against each other. Same words as the file's.
-    for (std::size_t i = 0; i < rows.size(); ++i) {
-        if (!is_bound(rows[i].gesture)) {
-            continue;
-        }
-        for (const ActionRow& host : kActionCatalog) {
-            if (!contexts_intersect(host.context, KeyContext::kPane)) {
+    // context, and this pane's own rows against each other. Same words as the file's. It is
+    // asked of the rows in force and of the rows the other layer would put in force.
+    const auto collision = [&k](const std::vector<PaneRow>& held) -> Written {
+        for (std::size_t i = 0; i < held.size(); ++i) {
+            if (!is_bound(held[i].gesture)) {
                 continue;
             }
-            // ...except the ones this pane stands in for: a superseded row is not requestable
-            // anywhere in the pane, so it is judged for the pane, never per row.
-            if (superseded_here(rows, host.id)) {
-                continue;
+            for (const ActionRow& host : kActionCatalog) {
+                if (!contexts_intersect(host.context, KeyContext::kPane)) {
+                    continue;
+                }
+                // ...except the ones this pane stands in for: a superseded row is not requestable
+                // anywhere in the pane, so it is judged for the pane, never per row.
+                if (superseded_here(held, host.id)) {
+                    continue;
+                }
+                if (k.row_answers(host, held[i].gesture)) {
+                    return Written::no(collision_sentence(held[i].gesture, host.id, held[i].id));
+                }
             }
-            if (k.row_answers(host, rows[i].gesture)) {
-                return Written::no(collision_sentence(rows[i].gesture, host.id, rows[i].id));
+            for (std::size_t j = i + 1; j < held.size(); ++j) {
+                if (held[j].id != held[i].id && held[j].gesture == held[i].gesture) {
+                    return Written::no(
+                        collision_sentence(held[i].gesture, held[i].id, held[j].id));
+                }
+            }
+            // ...and against the application rows (WL-DESK-07): active in every context, they
+            // meet every pane's rows as a `kUnlessOwned` host row does, and stand down only for a
+            // pane that declares `supersedes`.
+            for (const AppRow& row : k.app) {
+                // A default-class row is asked only where the keys did not cross to this pane, so
+                // it and this pane's row can never both fire.
+                if (row.precedence != 0 || !is_bound(row.gesture) ||
+                    superseded_here(held, row.id)) {
+                    continue;
+                }
+                if (row.gesture == held[i].gesture) {
+                    return Written::no(collision_sentence(held[i].gesture, row.id, held[i].id));
+                }
             }
         }
-        for (std::size_t j = i + 1; j < rows.size(); ++j) {
-            if (rows[j].id != rows[i].id && rows[j].gesture == rows[i].gesture) {
-                return Written::no(collision_sentence(rows[i].gesture, rows[i].id, rows[j].id));
-            }
-        }
-        // ...and against the application rows (WL-DESK-07): active in every context, they meet
-        // every pane's rows as a `kUnlessOwned` host row does, and stand down only for a pane that
-        // declares `supersedes`.
-        for (const AppRow& row : k.app) {
-            // A default-class row is asked only where the keys did not cross to this pane, so it
-            // and this pane's row can never both fire.
-            if (row.precedence != 0 || !is_bound(row.gesture) ||
-                superseded_here(rows, row.id)) {
-                continue;
-            }
-            if (row.gesture == rows[i].gesture) {
-                return Written::no(collision_sentence(rows[i].gesture, row.id, rows[i].id));
-            }
+        return Written::ok();
+    };
+    if (const Written in_force = collision(rows); !in_force.accepted) {
+        return in_force;
+    }
+    std::vector<PaneRow> other_layer = rows;
+    for (PaneRow& row : other_layer) {
+        if (is_bound(row.posix)) {
+            row.gesture = k.posix_layer ? row.declared : row.posix;
         }
     }
-    // ...AND WHAT THE TERMINAL CANNOT PRODUCE, judged on the rows in force, the weaver's
-    // overrides included, as the file's own rows are: each row stays bound as it stands, and is
-    // said (WL-KEY-08).
+    if (const Written other = collision(other_layer); !other.accepted) {
+        return other;
+    }
+    // ...AND WHAT THE TERMINAL CANNOT PRODUCE, judged on the keys a POSIX terminal puts in force,
+    // the weaver's overrides included, as the file's own rows are: a row whose POSIX key covers
+    // its default has no gap, and any other stays bound as it stands, and is said (WL-KEY-08).
     std::vector<std::string> gaps;
     for (const PaneRow& row : rows) {
-        if (!is_bound(row.gesture)) {
+        if (!is_bound(row.gesture) || is_bound(row.posix)) {
             continue;
         }
         if (const char* gap = posix_gap(row.gesture)) {
@@ -503,15 +554,25 @@ inline Written join_pane_rows(Keymap& k, std::int64_t pane,
     return Written::ok();
 }
 
-/// The same join over second-version rows, widened with no causes.
+/// The same join over earlier rows, widened with no causes they did not say and no POSIX key.
 // WL-KEY-15 -- agents/workshop/keyboard.md
 inline Written join_pane_rows(Keymap& k, std::int64_t pane,
+                              const std::vector<v3::PaneActionRow>& declared) {
+    std::vector<v4::PaneActionRow> widened;
+    widened.reserve(declared.size());
+    for (const v3::PaneActionRow& d : declared) {
+        widened.push_back(v4::PaneActionRow{d.id, d.label, d.scancode, d.modifiers,
+                                            d.supersedes, d.causes, d.enters});
+    }
+    return join_pane_rows(k, pane, widened);
+}
+inline Written join_pane_rows(Keymap& k, std::int64_t pane,
                               const std::vector<v2::PaneActionRow>& declared) {
-    std::vector<v3::PaneActionRow> widened;
+    std::vector<v4::PaneActionRow> widened;
     widened.reserve(declared.size());
     for (const v2::PaneActionRow& d : declared) {
         widened.push_back(
-            v3::PaneActionRow{d.id, d.label, d.scancode, d.modifiers, d.supersedes, {}, {}});
+            v4::PaneActionRow{d.id, d.label, d.scancode, d.modifiers, d.supersedes, {}, {}});
     }
     return join_pane_rows(k, pane, widened);
 }

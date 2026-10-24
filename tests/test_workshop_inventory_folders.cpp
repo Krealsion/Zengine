@@ -548,7 +548,7 @@ TEST_CASE("inventory folders: organizing keeps a linked Info draft and a portabl
     s.bind(command.reference); s.context(row, true);
     // A linked draft of Sample with an unsaved edit.
     s.click(s.source, s.row_of(s.source, " Sample : "));
-    s.key(input::scan::kL, input::mod::kCtrl); s.place();
+    s.key(input::scan::kReturn, input::mod::kCtrl); s.place();
     s.edit("42");
     REQUIRE(s.shown(s.info).find("LINKED") != std::string::npos);
     // Organize: folders, filing both entries, a rename and a folder move by pick and paste.

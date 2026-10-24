@@ -211,7 +211,7 @@ struct InfoRig {
         const RuntimePane* seat = row();
         REQUIRE(seat != nullptr);
         std::vector<std::string> ids;
-        for (const v3::PaneActionRow& a : seat->actions) {
+        for (const v4::PaneActionRow& a : seat->actions) {
             ids.push_back(a.id);
         }
         std::sort(ids.begin(), ids.end());
