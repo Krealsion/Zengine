@@ -218,10 +218,9 @@ screen's extent is TOTAL over whatever a medium published" "the notice is a band
 SENTENCE is never shortened"
 
 ### WL-GEO-06
-`workshop/screen.hpp` PixelRect pixels_of_cells cells_covered
+`workshop/screen.hpp` PixelRect CellRect pixels_of_cells cells_covered
 `workshop/screen_chrome.cpp` project_pane
 `graphics/vocabulary.hpp` kCellPx
-`ui/layout.hpp` Rect
 `workshop/setup.hpp` kPixels kPanePxMin
 `tests/test_workshop_screen.cpp` "a one-pixel drag moves a pane by exactly one pixel of lattice"
 "pixel geometry survives the setup file without losing a pixel"

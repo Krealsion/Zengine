@@ -1141,7 +1141,7 @@ TEST_CASE("a setup naming a pane this build has never heard of loads, keeps it, 
     // ...and the slot a placeholder would have taken is not occupied by anything:
     // a hand reaching into it meets the workspace, not a pane painted on behalf
     // of a reference nothing could resolve.
-    const ui::Rect second = cells_covered(placement_bounds(placement::kOverlayStack, 1, sc));
+    const CellRect second = cells_covered(placement_bounds(placement::kOverlayStack, 1, sc));
     CHECK_FALSE(occupied_at(t.session().panes, t.session().setup.active, sc, second.x + 1, second.y + 1).occupied);
 
     // The notice says UNRESOLVED and names the reference, and never says
@@ -1205,17 +1205,17 @@ TEST_CASE("the same setup resolves to different bounds under a different extent"
     const Setup authored = t.session().setup.active;
 
     const Screen small = screen_of(t.session());
-    const ui::Rect info_small =
+    const CellRect info_small =
 cells_covered(bounds_of(t.session().panes, t.session().setup.active, second::kKind, small).rect);
-    const ui::Rect builder_small =
+    const CellRect builder_small =
 cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKind, small).rect);
 
     t.extent_px(cells_px(140), cells_px(44), 0, 0);
 
     const Screen large = screen_of(t.session());
-    const ui::Rect info_large =
+    const CellRect info_large =
 cells_covered(bounds_of(t.session().panes, t.session().setup.active, second::kKind, large).rect);
-    const ui::Rect builder_large =
+    const CellRect builder_large =
 cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKind, large).rect);
 
     // THE RESOLVED GEOMETRY MOVED...

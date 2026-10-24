@@ -39,7 +39,7 @@ TEST_CASE("a press in the body names the row under the header, in both media") {
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
 
     SUBCASE("a character medium") {
-        const ui::Rect pane_rect = pane_body_cells(external_pane_rect(r.session(), kind));
+        const CellRect pane_rect = pane_body_cells(external_pane_rect(r.session(), kind));
         const ExternalBodyPlace body = external_body_of(r.session(), kind);
         REQUIRE(body.present);
         REQUIRE(body.rows >= 3);
@@ -255,7 +255,7 @@ TEST_CASE("every press a pane reads on its rows is inside the room its area was 
         if (graphical) {
             r.extent(1000, 700, 8, 18);
         }
-        const ui::Rect pane_rect = pane_body_cells(external_pane_rect(r.session(), kind));
+        const CellRect pane_rect = pane_body_cells(external_pane_rect(r.session(), kind));
         const ExternalBodyPlace body = external_body_of(r.session(), kind);
         REQUIRE(body.present);
         seat->presses.clear();
@@ -290,7 +290,7 @@ TEST_CASE("a press is authored as the window showing the pane and told the offer
     });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
-    const ui::Rect pane_rect = pane_body_cells(external_pane_rect(r.session(), kind));
+    const CellRect pane_rect = pane_body_cells(external_pane_rect(r.session(), kind));
 
     seat->presses.clear();
     other->presses.clear();
@@ -313,7 +313,7 @@ TEST_CASE("management chrome gets first refusal, and a mode takes the press whol
     r.drive(seat, [](ProviderSeat& s, loom::Mail& m) { s.offer(m, good_offer()); });
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
-    const ui::Rect pane_rect = pane_body_cells(external_pane_rect(r.session(), kind));
+    const CellRect pane_rect = pane_body_cells(external_pane_rect(r.session(), kind));
     const std::int64_t body_y = pane_rect.y + kExternalHeaderRows;
 
     // THE CONTROL: with nothing over it, this exact press reaches the provider. Every
@@ -381,7 +381,7 @@ TEST_CASE("Workshop says nothing of what a pane's rows mean") {
     r.ready();
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
-    const ui::Rect pane_rect = pane_body_cells(external_pane_rect(r.session(), kind));
+    const CellRect pane_rect = pane_body_cells(external_pane_rect(r.session(), kind));
     seat->presses.clear();
     for (std::int64_t row = 0; row < 3; ++row) {
         r.press_cell(pane_rect.x + row, pane_rect.y + kExternalHeaderRows + row);
@@ -429,7 +429,7 @@ TEST_CASE("a press names WHICH pane, when one provider offers two") {
 
     for (const RuntimePane& row : r.session().panes.runtime.entries) {
         CAPTURE(row.pane);
-        const ui::Rect pane_rect = pane_body_cells(external_pane_rect(r.session(), row.kind));
+        const CellRect pane_rect = pane_body_cells(external_pane_rect(r.session(), row.kind));
         REQUIRE(pane_rect.w > 0);
         seat->presses.clear();
         r.press_cell(pane_rect.x + 1, pane_rect.y + kExternalHeaderRows);
@@ -656,7 +656,7 @@ TEST_CASE("pressing a loaded row selects the entry that row actually showed") {
     r.pick(intro_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     r.extent(140, 40); // a room grant, which is this tool's one beat: two weaves now
-    const ui::Rect body = external_body_rect(r.session(), kind);
+    const CellRect body = external_body_rect(r.session(), kind);
     std::vector<std::string> shown = loaded_rows(r, kind);
     REQUIRE(shown.size() >= 3);
     REQUIRE(shown[0] == "loaded weaves -- 3");
@@ -722,7 +722,7 @@ TEST_CASE("heading, caveat, source note and blank select nothing") {
     (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
     r.pick(intro_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
-    const ui::Rect body = external_body_rect(r.session(), kind);
+    const CellRect body = external_body_rect(r.session(), kind);
     const std::vector<std::string> shown = loaded_rows(r, kind);
     REQUIRE(shown.size() >= 4);
 
@@ -788,7 +788,7 @@ TEST_CASE("a press is read against the snapshot the weaver saw, not a fresh one"
     r.pick(intro_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     r.extent(140, 40);
-    const ui::Rect body = external_body_rect(r.session(), kind);
+    const CellRect body = external_body_rect(r.session(), kind);
     const std::vector<std::string> shown = loaded_rows(r, kind);
     REQUIRE(shown[0] == "loaded weaves -- 3");
 
@@ -845,7 +845,7 @@ TEST_CASE("interpreting a press asks the Weave Manager nothing") {
     r.ready();
     r.pick(intro_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
-    const ui::Rect body = external_body_rect(r.session(), kind);
+    const CellRect body = external_body_rect(r.session(), kind);
     const std::ptrdiff_t asks_before =
         std::count(said.begin(), said.end(), std::string("zen.ListLoaded"));
     REQUIRE(asks_before >= 1); // the room grant did ask, once
@@ -989,7 +989,7 @@ TEST_CASE("a selection is held while its entry is windowed out, and returns with
     r.pick(intro_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     r.extent(140, 40);
-    const ui::Rect wide_body = external_body_rect(r.session(), kind);
+    const CellRect wide_body = external_body_rect(r.session(), kind);
     const std::vector<std::string> shown = loaded_rows(r, kind);
     REQUIRE(shown.size() >= 3);
     REQUIRE(is_entry_row(shown[2]));
@@ -1027,7 +1027,7 @@ TEST_CASE("a selected library that goes away clears its mark when the absence is
     r.pick(intro_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     r.extent(140, 40);
-    const ui::Rect body = external_body_rect(r.session(), kind);
+    const CellRect body = external_body_rect(r.session(), kind);
     const std::vector<std::string> shown = loaded_rows(r, kind);
     std::size_t which = 0;
     for (std::size_t i = 1; i < shown.size(); ++i) {
@@ -1077,7 +1077,7 @@ TEST_CASE("the fact travels as data and moves no authority with it") {
     REQUIRE(who.valid());
     r.pick(intro_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
-    const ui::Rect body = external_body_rect(r.session(), kind);
+    const CellRect body = external_body_rect(r.session(), kind);
     // ITS OWN ROW, the second: the window's directory is the other weave loaded, named first.
     r.press_cell(body.x + 1, body.y + kExternalHeaderRows + 2);
     REQUIRE(ears.heard.size() == 1);
@@ -1121,7 +1121,7 @@ TEST_CASE("the same gesture in a terminal names the same row of the same room") 
     (void)cells.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
     cells.pick(intro_ref());
     const std::int64_t kind = cells.session().panes.runtime.entries[0].kind;
-    const ui::Rect body = external_body_rect(cells.session(), kind);
+    const CellRect body = external_body_rect(cells.session(), kind);
     cells.press_cell(body.x + 1, body.y + kExternalHeaderRows + 1);
     REQUIRE(by_cell.heard.size() == 1);
 
@@ -1159,7 +1159,7 @@ TEST_CASE("nothing in this build reacts to a selection") {
     (void)r.load(intro::kIntrospectionStem, WORKSHOP_SO_INTROSPECTION, kIntroOffice);
     r.pick(intro_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
-    const ui::Rect body = external_body_rect(r.session(), kind);
+    const CellRect body = external_body_rect(r.session(), kind);
 
     const std::size_t panes_before = r.session().panes.open.size();
     const std::string notice_before = r.last_notice();
@@ -1287,7 +1287,7 @@ TEST_CASE("a press anywhere else takes the keyboard away again") {
     // The cell is derived from the pane's OWN rectangle rather than spelled: an
     // overlay slot starts at the canvas's top-left corner, so a literal `(1, 1)` is
     // inside the pane it is meant to be outside of.
-    const ui::Rect pane_rect = pane_body_cells(external_pane_rect(r.session(), kind));
+    const CellRect pane_rect = pane_body_cells(external_pane_rect(r.session(), kind));
     const std::int64_t below = pane_rect.y + pane_rect.h + 1;
     REQUIRE_FALSE(occupied_at(r.session().panes, r.session().setup.active,
                               screen_of(r.session()), pane_rect.x + 1, below)
@@ -1404,7 +1404,7 @@ TEST_CASE("the keys that mean the same thing in every mode still outrank a pane"
 
     // ...AND QUIT COMES BACK WITH THE KEYBOARD. A press outside the pane clears the
     // candidate, and the same chord is the application's again.
-    const ui::Rect pane_rect = pane_body_cells(external_pane_rect(r.session(), kind));
+    const CellRect pane_rect = pane_body_cells(external_pane_rect(r.session(), kind));
     r.press_cell(pane_rect.x + 1, pane_rect.y + pane_rect.h + 1);
     REQUIRE(r.session().panes.keyboard == kNoPaneKind);
     r.key(input::scan::kC, input::mod::kCtrl);
@@ -1425,7 +1425,7 @@ TEST_CASE("every Workshop mode owns the keyboard above a focused pane") {
     // a subject and moves no candidate (WL-CTX-01), and the surface owns the keys while it is
     // open. The chrome (the title row) opens the host surface; a pane's body is empty by
     // default, so the host menu is reached on the title, not in the content (WL-CTX-08).
-    const ui::Rect head = external_body_rect(r.session(), kind);
+    const CellRect head = external_body_rect(r.session(), kind);
     r.right_press_cell(head.x + 1, head.y);
     REQUIRE(r.session().context.open);
     REQUIRE(r.session().panes.keyboard == kind);
@@ -1498,7 +1498,7 @@ TEST_CASE("a press on a pane's header claims the keyboard and names no row") {
     r.ready();
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
-    const ui::Rect body = external_body_rect(r.session(), kind);
+    const CellRect body = external_body_rect(r.session(), kind);
 
     r.press_cell(body.x + 1, body.y); // the header row
     CHECK(seat->presses.empty());     // no row was named
@@ -1579,7 +1579,7 @@ TEST_CASE("a provider that never asked for keys is unchanged") {
     REQUIRE(id.valid());
     r.pick(PaneRef{kHelloOffice, kHelloPane});
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
-    const ui::Rect body = external_body_rect(r.session(), kind);
+    const CellRect body = external_body_rect(r.session(), kind);
     const std::vector<std::string> before = external_rows(r.shown(), body);
     REQUIRE_FALSE(before.empty());
 
@@ -1615,7 +1615,7 @@ TEST_CASE("the screen says which pane the keys are going to, in two places") {
     (void)mount_desktop(r);
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
-    const ui::Rect body = external_body_rect(r.session(), kind);
+    const CellRect body = external_body_rect(r.session(), kind);
 
     const auto header = [&]() { return external_region_rows(r.shown(), body).at(0); };
     // The band is one region and its legend rows are the last two of the five-cell budget;
@@ -1994,7 +1994,7 @@ struct ComposeRig {
     }
     /// A press and its release on a row of the body, through the window that shows the desk.
     void press_row(std::int64_t row) {
-        const ui::Rect body = external_body_rect(r.session(), kind);
+        const CellRect body = external_body_rect(r.session(), kind);
         r.press_cell(body.x + 1, body.y + kExternalHeaderRows + row);
         r.release_cell(body.x + 1, body.y + kExternalHeaderRows + row);
     }
@@ -2003,7 +2003,7 @@ struct ComposeRig {
     /// window shows, and Compose hears the press after it drew the new target's rows.
     void select_under_press(const std::string& role, const std::string& library,
                             std::int64_t row) {
-        const ui::Rect body = external_body_rect(r.session(), kind);
+        const CellRect body = external_body_rect(r.session(), kind);
         const std::int64_t x = body.x + 1, y = body.y + kExternalHeaderRows + row;
         r.windows.queue({input::PointerButton{1, true, x, y, input::space::kCells, 0},
                          input::PointerButton{1, false, x, y, input::space::kCells, 0}});
@@ -2598,7 +2598,7 @@ TEST_CASE("a right press on Compose's canvas is handed back, and Workshop's own 
     REQUIRE(r.reach("CancelTimer v1"));
     const std::int64_t row = r.row_of("CancelTimer v1");
     REQUIRE_FALSE(r.r.session().context.open);
-    const ui::Rect body = external_body_rect(r.r.session(), r.kind);
+    const CellRect body = external_body_rect(r.r.session(), r.kind);
     const std::int64_t y = body.y + kExternalHeaderRows + row;
     r.input(input::PointerButton{3, true, body.x + 1, y, input::space::kCells, 0});
     r.input(input::PointerButton{3, false, body.x + 1, y, input::space::kCells, 0});
@@ -2940,7 +2940,7 @@ TEST_CASE("selecting a weave in the real Loaded pane retargets the real Composer
         }
     }
     REQUIRE(which >= 0);
-    const ui::Rect intro_body = external_body_rect(r.session(), intro_kind);
+    const CellRect intro_body = external_body_rect(r.session(), intro_kind);
     r.press_cell(intro_body.x + 1, intro_body.y + kExternalHeaderRows + which);
 
     const std::vector<std::string> shown = pane_rows(r, compose_kind);
@@ -3012,7 +3012,7 @@ TEST_CASE("a wheel over an external pane's body reaches it unchanged from the wi
     r.ready();
     ProviderSeat* seat = r.mount_provider(kHelloOffice);
     const std::int64_t kind = seat_pane_open(r, seat, kHelloOffice, kHelloPane);
-    const ui::Rect body = external_body_rect(r.session(), kind);
+    const CellRect body = external_body_rect(r.session(), kind);
     REQUIRE(body.h > kExternalHeaderRows + 1);
 
     // NOBODY HAS THE KEYBOARD, and the wheel still crosses: it follows the pointer, as a
@@ -3039,7 +3039,7 @@ TEST_CASE("a wheel over an external pane's body reaches it unchanged from the wi
     r.wheel_cell(-1.0, body.x + 2, body.y);
     CHECK(seat->wheels.size() == 2);
     // AND NEITHER IS THE WORKSPACE BESIDE IT.
-    const ui::Rect pane_rect = cells_covered(external_pane_rect(r.session(), kind));
+    const CellRect pane_rect = cells_covered(external_pane_rect(r.session(), kind));
     r.wheel_cell(-1.0, pane_rect.x + 1, pane_rect.y + pane_rect.h + 1);
     CHECK(seat->wheels.size() == 2);
     // A KEY IS STILL NOT SENT BY A WHEEL, and no press was manufactured out of one.
@@ -3071,13 +3071,13 @@ TEST_CASE("a wheel in an overlap reaches only the pane visibly in front, and the
     REQUIRE(second_kind != kNoPaneKind);
 
     // PUT `second` OVER `hello`, offset so a strip of `hello` stays uncovered.
-    const ui::Rect hello = cells_covered(external_pane_rect(r.session(), hello_kind));
+    const CellRect hello = cells_covered(external_pane_rect(r.session(), hello_kind));
     REQUIRE(place_at_canvas(const_cast<Session&>(r.session()), second_ref,
                               gfx::px_of_cells(hello.x + 4),
                               gfx::px_of_cells(hello.y + 3))
                 .accepted);
     r.extent(160, 61); // reseat at the authored place
-    const ui::Rect second = cells_covered(external_pane_rect(r.session(), second_kind));
+    const CellRect second = cells_covered(external_pane_rect(r.session(), second_kind));
     REQUIRE(second.x == hello.x + 4);
     REQUIRE(second.y == hello.y + 3);
     // A CELL INSIDE BOTH BODIES, below both headers.
@@ -3102,8 +3102,8 @@ TEST_CASE("a wheel in an overlap reaches only the pane visibly in front, and the
 
     // SELECTING THE COVERED PANE LIFTS IT, and the same cell is then its own. A press on a
     // strip of the back pane the front one does not cover.
-    const ui::Rect back_rect = cells_covered(external_pane_rect(r.session(), back));
-    const ui::Rect front_rect = cells_covered(external_pane_rect(r.session(), front));
+    const CellRect back_rect = cells_covered(external_pane_rect(r.session(), back));
+    const CellRect front_rect = cells_covered(external_pane_rect(r.session(), front));
     std::int64_t px = -1;
     std::int64_t py = -1;
     for (std::int64_t y = back_rect.y; y < back_rect.y + back_rect.h && px < 0; ++y) {
@@ -3162,7 +3162,7 @@ TEST_CASE("a focused external pane keeps Escape; a press on a pane that takes no
     // desk -- and Escape is then nothing more specific's. A weave's pane TAKES the keyboard,
     // the opposite of what this half of the case needs.
     const Screen sc = screen_of(r.session());
-    const ui::Rect band =
+    const CellRect band =
         cells_covered(bounds_of(r.session().panes, r.session().setup.active, pane_kind::kLayouts, sc).rect);
     r.press_cell(band.x + band.w - 1, band.y);
     REQUIRE(r.session().panes.selected == pane_kind::kLayouts);
@@ -3196,7 +3196,7 @@ TEST_CASE("the Composer's windowed catalog is reached by the wheel") {
     REQUIRE(r.shows("..."));
     REQUIRE_FALSE(r.shows("zen.PokeResetState v1")); // the last root, hidden below
 
-    const ui::Rect body = external_body_rect(r.r.session(), r.kind);
+    const CellRect body = external_body_rect(r.r.session(), r.kind);
     const std::int64_t cx = body.x + 2;
     const std::int64_t cy = body.y + kExternalHeaderRows + 1;
     // NOBODY HAS THE KEYBOARD, and the wheel still moves the list: pointer, not keys.
@@ -3816,7 +3816,7 @@ TEST_CASE("ctrl+q leaves every Workshop mode over a pane, and the pane with them
     TwoSeats t;
     press_body(t.r, t.a);
     REQUIRE(t.r.session().panes.keyboard == t.a);
-    const ui::Rect head = external_body_rect(t.r.session(), t.a);
+    const CellRect head = external_body_rect(t.r.session(), t.a);
     t.r.right_press_cell(head.x + 1, head.y);
     REQUIRE(t.r.session().context.open);
     t.r.key(input::scan::kQ, input::mod::kCtrl);

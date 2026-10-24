@@ -707,10 +707,10 @@ TEST_CASE("the overlay floor is the workspace's own bottom, which is the band's 
         CHECK(kRoomCellY + cells_of(sc).room_h == cells_of(sc).notice_y);
         const std::size_t fits = stack_slots_that_fit(sc);
         for (std::size_t slot = 0; slot < fits; ++slot) {
-            const ui::Rect b = cells_covered(placement_bounds(placement::kOverlayStack, slot, sc));
+            const CellRect b = cells_covered(placement_bounds(placement::kOverlayStack, slot, sc));
             CHECK(b.y + b.h <= kRoomCellY + cells_of(sc).room_h);
         }
-        const ui::Rect over = cells_covered(placement_bounds(placement::kOverlayStack, fits, sc));
+        const CellRect over = cells_covered(placement_bounds(placement::kOverlayStack, fits, sc));
         CHECK(over.y + over.h > kRoomCellY + cells_of(sc).room_h);
     }
     CHECK(stack_slots_that_fit(kMinScreen) == 1);
@@ -765,7 +765,7 @@ TEST_CASE("a pane launched when the stack's column is spent lands at the column'
     CHECK(state_of(other_ref) == "open");
     // NO PANE INTERSECTS THE SETUP ROW OR THE BOTTOM BAND.
     for (const OpenPane& p : r.session().panes.open) {
-        const ui::Rect b =
+        const CellRect b =
 cells_covered(bounds_of(r.session().panes, r.session().setup.active, p.kind, sc).rect);
         INFO("kind ", p.kind);
         CHECK(b.y + b.h <= kRoomCellY + cells_of(sc).room_h);
@@ -888,17 +888,17 @@ TEST_CASE("opening an external pane gives its area exactly the fit_region room, 
     // two spellings answer the same number: nine cells of slot is nine rows, less the header.
     const Screen sc = screen_of(r.session());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
-    const ui::Rect pane_rect =
+    const CellRect pane_rect =
 cells_covered(bounds_of(r.session().panes, r.session().setup.active, kind, sc).rect);
-    CHECK(pane_rect == ui::Rect{0, 2, 63, 9});
+    CHECK(pane_rect == CellRect{0, 2, 63, 9});
     const ExternalBodyPlace body = external_body_place(
         pixels_of_cells(pane_rect), sc,
         external_title_rows(r.session().panes, kind, r.session().pane_titles));
     // THE ROOM IS THE PANE'S INTERIOR: the rectangle the placement path gives it is unchanged,
     // and the one cell of visible boundary on every side comes off before the provider is told
     // what it has -- the same reservation the header is.
-    const ui::Rect inside = pane_body_cells(pane_rect);
-    CHECK(inside == ui::Rect{1, 3, 61, 7});
+    const CellRect inside = pane_body_cells(pane_rect);
+    CHECK(inside == CellRect{1, 3, 61, 7});
     CHECK(cells_covered(PixelRect{body.region_x, body.region_y, body.region_w, body.region_h}) ==
           inside);
     const RegionFit fit = fit_region(cells_px(inside.x), cells_px(inside.y), cells_px(inside.w), cells_px(inside.h),
@@ -939,7 +939,7 @@ TEST_CASE("an unchanged prose capacity sends no second room; a changed one sends
     r.extent(100, 40);
     CHECK(screen_of(r.session()).w == cells_px(100));
     CHECK(bounds_of(r.session().panes, r.session().setup.active, kind, screen_of(r.session())).rect ==
-          pixels_of_cells(ui::Rect{0, 2, 74, 9}));
+          pixels_of_cells(CellRect{0, 2, 74, 9}));
     REQUIRE(seat->rooms.size() == 2);
     CHECK(seat->rooms[1].rows == 6);       // unchanged: the rows are the slot's interior's
     CHECK(seat->rooms[1].columns == 72);   // moved: the columns are the room's share, inside
@@ -956,7 +956,7 @@ TEST_CASE("an unchanged prose capacity sends no second room; a changed one sends
     // does.
     r.extent(100, 52);
     CHECK(bounds_of(r.session().panes, r.session().setup.active, kind, screen_of(r.session())).rect ==
-          pixels_of_cells(ui::Rect{0, 2, 74, 9}));
+          pixels_of_cells(CellRect{0, 2, 74, 9}));
     CHECK(seat->rooms.size() == 2);
 
     // A TEXT METRIC MOVES IT TOO: the same cells, set in a real face, hold fewer rows and
@@ -1068,7 +1068,7 @@ TEST_CASE("a pane's rows are shown in its area at the exact body bounds") {
 
     // BEFORE ANYTHING ARRIVES the pane says it is waiting -- a fact about this PANE,
     // never about the provider.
-    const ui::Rect body = external_body_rect(r.session(), kind);
+    const CellRect body = external_body_rect(r.session(), kind);
     std::vector<std::string> shown = external_rows(r.shown(), body);
     REQUIRE(shown.size() == 1);
     CHECK(shown[0] == std::string(kExternalWaiting) + "Hello");
@@ -1109,7 +1109,7 @@ TEST_CASE("an external pane's own text cannot bury the surface that recovers it"
     // THE PROVIDER FILLS EVERY ROW OF ITS ROOM, so there is no gap for a recovery row to
     // survive in by luck. Every row is a distinctive byte a case can look for.
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
-    const ui::Rect body = external_body_rect(r.session(), kind);
+    const CellRect body = external_body_rect(r.session(), kind);
     // EVERY ROW OF ITS ROOM, and the room is what the window gave its area -- the body's rows
     // below Workshop's own header row, not the region's cell height.
     const std::int64_t granted = seat->room_rows(kHelloPane);
@@ -1191,7 +1191,7 @@ TEST_CASE("an external pane occupies its whole rectangle, and takes hold of noth
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
     const Screen sc = screen_of(r.session());
-    const ui::Rect pane_rect =
+    const CellRect pane_rect =
 cells_covered(bounds_of(r.session().panes, r.session().setup.active, kind, sc).rect);
 
     // THE SAME RECTANGLE THE PAINTER WAS HANDED. One geometry, and the occupancy
@@ -1235,7 +1235,7 @@ TEST_CASE("a read-only pane that ignores presses is unchanged when the window la
     (void)r.load("zengine-workshop-hello", WORKSHOP_SO_HELLO, kHelloOffice);
     r.pick(hello_ref());
     const std::int64_t kind = r.session().panes.runtime.entries[0].kind;
-    const ui::Rect body = external_body_rect(r.session(), kind);
+    const CellRect body = external_body_rect(r.session(), kind);
     const std::vector<std::string> before = external_rows(r.shown(), body);
     REQUIRE_FALSE(before.empty());
 
@@ -1319,7 +1319,7 @@ TEST_CASE("silence is waiting, and Workshop never says unavailable") {
         r.key(input::scan::kP);
         r.key(input::scan::kEscape);
     }
-    const ui::Rect body = external_body_rect(r.session(), kind);
+    const CellRect body = external_body_rect(r.session(), kind);
     CHECK(external_rows(r.shown(), body)[0] == std::string(kExternalWaiting) + "Hello");
     CHECK(r.session().panes.runtime.entries.size() == 1);
     CHECK(has_pane(r.session().setup.active, hello_ref()));

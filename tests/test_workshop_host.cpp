@@ -515,9 +515,9 @@ TEST_CASE("a stacked pane covers the workspace, and may reach the right column")
     // THE BOUNDS THE PLACEMENT PATH GIVES IT, and the rows are read against those rather than
     // against a column this case knows independently -- through the cell projection every
     // character medium draws a region with.
-    const ui::Rect stack =
+    const CellRect stack =
 cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc).rect);
-    const ui::Rect inside = pane_body_cells(stack);
+    const CellRect inside = pane_body_cells(stack);
     std::size_t stacked_rows = 0;
     for (const ScreenLabel& l : cell_text_of(with)) {
         const std::int64_t lx = gfx::cell_of_pixel(l.x), ly = gfx::cell_of_pixel(l.y);
@@ -568,10 +568,10 @@ TEST_CASE("a pane kind declares its place, and the place resolves to bounds") {
     // THE BOUNDS ARE RESOLVED AGAINST A SCREEN, and the side region resolves to a rectangle
     // WITH NO KIND DECLARING IT -- which is the whole of what makes it a place rather than a
     // pane's private constant. A desk row spelled `right-column` lands here.
-    const ui::Rect side = cells_covered(placement_bounds(placement::kSideRegion, 0, kMinScreen));
-    const ui::Rect stack = cells_covered(placement_bounds(placement::kOverlayStack, 0, kMinScreen));
-    CHECK(side == ui::Rect{50, 2, 28, 16});
-    CHECK(stack == ui::Rect{0, 2, 63, 9}); // 48 + (78 - 48)/2, over a room that is the surface
+    const CellRect side = cells_covered(placement_bounds(placement::kSideRegion, 0, kMinScreen));
+    const CellRect stack = cells_covered(placement_bounds(placement::kOverlayStack, 0, kMinScreen));
+    CHECK(side == CellRect{50, 2, 28, 16});
+    CHECK(stack == CellRect{0, 2, 63, 9}); // 48 + (78 - 48)/2, over a room that is the surface
 
     // AND THEY OVERLAP AT THE SMALLEST SCREEN: the stack's half-share is measured against a
     // room that runs under the right column, so its slot runs to 62 and the column begins at
@@ -611,7 +611,7 @@ TEST_CASE("each pane is painted where the placement path says it is") {
     // BUILDER'S REGION COMES FROM THE PATH, at the first slot of the stack. ...AND ITS ROWS
     // ARE INSIDE ITS OWN CHROME: the rectangle the path hands it is unchanged, and the
     // boundary it draws is subtracted from it once.
-    const ui::Rect builder_cells = pane_body_cells(builder.rect);
+    const CellRect builder_cells = pane_body_cells(builder.rect);
     CHECK(label_at(t.shown(), builder_cells.x, builder_cells.y).find("Editor") > 0);
     CHECK(builder.rect == placement_bounds(placement::kOverlayStack, 0, sc));
 
@@ -667,7 +667,7 @@ TEST_CASE("a slot is earned by being in the stack, not by being early in the lis
     admit_stock(builder_first); // the stand-in, first (stock)
     builder_first.open = {OpenPane{stock::kKind}, OpenPane{pane_kind::kLayouts}};
 
-    const ui::Rect first_slot = cells_covered(placement_bounds(placement::kOverlayStack, 0, sc));
+    const CellRect first_slot = cells_covered(placement_bounds(placement::kOverlayStack, 0, sc));
     CHECK(bounds_of(band_first, setup_for(band_first), stock::kKind, sc).rect ==
           pixels_of_cells(first_slot));
     CHECK(bounds_of(builder_first, setup_for(builder_first), stock::kKind, sc).rect ==
@@ -681,8 +681,8 @@ TEST_CASE("the stack has a second slot, and the minimum screen has no room for i
     // WHAT A THIRD KIND WOULD FIND IF IT DECLARED THE STACK. The path answers for
     // slot 1 without anything being added to it: same column, same width, one
     // blank row below the first.
-    const ui::Rect first = cells_covered(placement_bounds(placement::kOverlayStack, 0, kMinScreen));
-    const ui::Rect second = cells_covered(placement_bounds(placement::kOverlayStack, 1, kMinScreen));
+    const CellRect first = cells_covered(placement_bounds(placement::kOverlayStack, 0, kMinScreen));
+    const CellRect second = cells_covered(placement_bounds(placement::kOverlayStack, 1, kMinScreen));
     CHECK(second.x == first.x);
     CHECK(second.w == first.w);
     CHECK(second.h == first.h);
@@ -694,7 +694,7 @@ TEST_CASE("the stack has a second slot, and the minimum screen has no room for i
     // three rows taller than the minimum before the stack can hold two panes.
     CHECK(second.y + second.h > cells_of(kMinScreen).notice_y);
     const Screen tall = screen_of(kScreenMinW, cells_px(25));
-    const ui::Rect on_tall = cells_covered(placement_bounds(placement::kOverlayStack, 1, tall));
+    const CellRect on_tall = cells_covered(placement_bounds(placement::kOverlayStack, 1, tall));
     CHECK(on_tall.y + on_tall.h <= cells_of(tall).notice_y);
     // Nothing here clamps, refuses or rearranges. The model SAYS where a second slot is; a pane
     // the column has no room left for begins it again at its top instead (`bounds_of`).
@@ -708,8 +708,8 @@ TEST_CASE("the right column keeps its width and the stack takes half the surplus
     // clamped width domain, because a table of six extents cannot tell a half-share from
     // another curve.
     const Screen big = screen_of(cells_px(100), cells_px(30));
-    const ui::Rect side = cells_covered(placement_bounds(placement::kSideRegion, 0, big));
-    const ui::Rect stack = cells_covered(placement_bounds(placement::kOverlayStack, 0, big));
+    const CellRect side = cells_covered(placement_bounds(placement::kSideRegion, 0, big));
+    const CellRect stack = cells_covered(placement_bounds(placement::kOverlayStack, 0, big));
     CHECK(side.x == cells_of(big).side_x);
     CHECK(side.w == kSideCols);
     CHECK(side.x + side.w == cells_of(big).w);
@@ -718,7 +718,7 @@ TEST_CASE("the right column keeps its width and the stack takes half the surplus
     CHECK(side.w == cells_covered(placement_bounds(placement::kSideRegion, 0, kMinScreen)).w);
     // The stack is not. Its column, rows and height are; its width follows the room: 100
     // columns of surface is a room of 100, a surplus of 52 over the slot's floor, half of it 26.
-    const ui::Rect min_stack = cells_covered(placement_bounds(placement::kOverlayStack, 0, kMinScreen));
+    const CellRect min_stack = cells_covered(placement_bounds(placement::kOverlayStack, 0, kMinScreen));
     CHECK(stack.x == min_stack.x);
     CHECK(stack.y == min_stack.y);
     CHECK(stack.h == min_stack.h);
@@ -737,7 +737,7 @@ TEST_CASE("the right column keeps its width and the stack takes half the surplus
             CAPTURE(w);
             CAPTURE(h);
             const Screen sc = screen_of(cells_px(w), cells_px(h));
-            const ui::Rect b = cells_covered(placement_bounds(placement::kOverlayStack, 0, sc));
+            const CellRect b = cells_covered(placement_bounds(placement::kOverlayStack, 0, sc));
             CHECK(b.w == kStackW + (w - kStackW) / 2);
             CHECK(b.x == kRoomCellX);
             CHECK(b.h == kStackRows);
@@ -773,7 +773,7 @@ TEST_CASE("the right column keeps its width and the stack takes half the surplus
         CAPTURE(row.w);
         CAPTURE(row.h);
         const Screen sc = screen_of(cells_px(row.w), cells_px(row.h));
-        const ui::Rect b = cells_covered(placement_bounds(placement::kOverlayStack, 0, sc));
+        const CellRect b = cells_covered(placement_bounds(placement::kOverlayStack, 0, sc));
         CHECK(cells_of(sc).room_w == row.room);
         CHECK(b.w == row.width);
         CHECK(cells_of(sc).room_w - (b.x + b.w) == row.free);
@@ -788,9 +788,9 @@ TEST_CASE("the half-share pays at the bottom of the range too, and buys no slot"
     // THE HALF-SHARE AT THE BOTTOM OF THE RANGE: the room is the surface, so the surplus at
     // the smallest screen is thirty and the slot takes fifteen of it -- a column of the
     // pane's rows stays reachable even there.
-    CHECK(cells_covered(kMinStack) == ui::Rect{0, 2, 63, 9});
+    CHECK(cells_covered(kMinStack) == CellRect{0, 2, 63, 9});
     CHECK(cells_covered(placement_bounds(placement::kOverlayStack, 0, kMinScreen)) ==
-          ui::Rect{0, 2, 63, 9});
+          CellRect{0, 2, 63, 9});
     CHECK(kMinStack.x + kMinStack.w < kMinScreen.room_w);
     CHECK(kMinScreen.room_w - (kMinStack.x + kMinStack.w) == cells_px(15));
     CHECK(kMinStack.y + kMinStack.h <= kMinScreen.notice_y);
@@ -820,7 +820,7 @@ TEST_CASE("the half-share pays at the bottom of the range too, and buys no slot"
     const Screen tall = screen_of(cells_px(200), cells_px(60));
     for (std::size_t slot = 0; slot < 4; ++slot) {
         CAPTURE(slot);
-        const ui::Rect b = cells_covered(placement_bounds(placement::kOverlayStack, slot, tall));
+        const CellRect b = cells_covered(placement_bounds(placement::kOverlayStack, slot, tall));
         CHECK(b.w == cells_covered(placement_bounds(placement::kOverlayStack, 0, tall)).w);
         CHECK(b.x == kRoomCellX);
         CHECK(b.y == kRoomCellY + static_cast<std::int64_t>(slot) * (kStackRows + kStackGap));
@@ -1520,7 +1520,7 @@ TEST_CASE("a right press captures a subject and selects nothing") {
 
     SUBCASE("on a pane: the durable reference, and no selection of any kind") {
         open_pane(t, ref_of(stock::kKind));
-        const ui::Rect slot = cells_covered(
+        const CellRect slot = cells_covered(
             bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                       screen_of(t.session()))
                 .rect);
@@ -1542,7 +1542,7 @@ TEST_CASE("a right press captures a subject and selects nothing") {
     SUBCASE("a further right press re-targets instead of toggling") {
         open_pane(t, ref_of(stock::kKind));
         const Screen sc = screen_of(t.session());
-        const ui::Rect slot = cells_covered(
+        const CellRect slot = cells_covered(
             bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc).rect);
         // A ROOM CELL THE PANE DOES NOT COVER: right of it and below it, inside the room.
         const std::int64_t bare_x = slot.x + slot.w + 1;
@@ -1617,7 +1617,7 @@ TEST_CASE("a contextual action acts on the pointed pane, not the selection") {
     REQUIRE(ranks_of(t.session().setup.active) == std::vector<std::int64_t>{0, 1, 2});
 
     // Point at the BUILDER and send it to the back through the Order group.
-    const ui::Rect slot = cells_covered(
+    const CellRect slot = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
@@ -1655,7 +1655,7 @@ TEST_CASE("contextual Arrange admission precedes binding") {
         // -- absent, unresolved, sized in pixels, or off the screen -- so none can be reached
         // by pointing. The subject is captured and only then made unreachable: the very hazard
         // the captured subject exists for.
-        const ui::Rect side = cells_covered(
+        const CellRect side = cells_covered(
             bounds_of(t.session().panes, t.session().setup.active, second::kKind,
                       screen_of(t.session()))
                 .rect);
@@ -1674,7 +1674,7 @@ TEST_CASE("contextual Arrange admission precedes binding") {
     }
     SUBCASE("an accepted entry binds exactly the pointed pane, and one state carries "
             "both manipulations") {
-        const ui::Rect slot = cells_covered(
+        const CellRect slot = cells_covered(
             bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                       screen_of(t.session()))
                 .rect);
@@ -1701,7 +1701,7 @@ TEST_CASE("contextual Arrange admission precedes binding") {
 TEST_CASE("a captured pane that left the setup is refused truthfully") {
     Live t;
     open_pane(t, ref_of(stock::kKind));
-    const ui::Rect slot = cells_covered(
+    const CellRect slot = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
@@ -1753,7 +1753,7 @@ TEST_CASE("manage.remove removes the addressed pane by its own key") {
 TEST_CASE("a contextual remove removes the pointed pane") {
     Live t;
     open_pane(t, ref_of(stock::kKind));
-    const ui::Rect slot = cells_covered(
+    const CellRect slot = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
@@ -1775,7 +1775,7 @@ TEST_CASE("a contextual remove removes the pointed pane") {
 TEST_CASE("navigation backtracks cleanly and every way out closes") {
     Live t;
     open_pane(t, ref_of(stock::kKind));
-    const ui::Rect slot = cells_covered(
+    const CellRect slot = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
@@ -1878,7 +1878,7 @@ TEST_CASE("a mode that owns the pointer answers a right press its own way") {
 TEST_CASE("one right press exits Arrange; only the NEXT one opens context") {
     Live t;
     open_pane(t, ref_of(stock::kKind));
-    const ui::Rect slot = cells_covered(
+    const CellRect slot = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
@@ -1934,7 +1934,7 @@ TEST_CASE("every arrangement level claims the press; the menu keeps its own") {
         t.right_press(40, 15); // empty workspace, below the slot the Builder occupies
         REQUIRE(t.menu().open);
         REQUIRE(t.menu().subject == context_subject::kRoot);
-        const ui::Rect slot = cells_covered(
+        const CellRect slot = cells_covered(
             bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                       screen_of(t.session()))
                 .rect);
@@ -2071,7 +2071,7 @@ TEST_CASE("a switch touches no Workshop-global fact") {
     const LayoutKeys k = layout_keys(t);
     open_stock_pane(t);
     // A SELECTION AND A KEYBOARD CANDIDATE, made by a press exactly as a weaver makes them.
-    const ui::Rect builder = cells_covered(
+    const CellRect builder = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
@@ -2158,7 +2158,7 @@ TEST_CASE("a tab press IS a press on the Layouts pane, and still switches") {
     t.host.setup_path = "workshop-setup.json";
     const LayoutKeys k = layout_keys(t);
     open_stock_pane(t);
-    const ui::Rect builder = cells_covered(
+    const CellRect builder = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
@@ -2942,7 +2942,7 @@ TEST_CASE("Escape clears the ordinary selection last, and the inspected subject 
 
     // THE PROMPT'S OWN CASE: the subject is Layouts, the ordinary selection is another pane.
     open_pane(t, ref_of(stock::kKind));
-    const ui::Rect builder = cells_covered(
+    const CellRect builder = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                   screen_of(t.session()))
             .rect);
@@ -2969,7 +2969,7 @@ TEST_CASE("Escape clears the ordinary selection last, and the inspected subject 
 
     // THE SAME WITH THE SUBJECT ITSELF SELECTED: Layouts takes no keys, so the selection is
     // what Escape sheds -- and the subject stands.
-    const ui::Rect band = cells_covered(bounds_of(t.session().panes, t.session().setup.active,
+    const CellRect band = cells_covered(bounds_of(t.session().panes, t.session().setup.active,
                                                   pane_kind::kLayouts, screen_of(t.session()))
                                             .rect);
     t.press_canvas(band.x + band.w - 1, band.y);
@@ -2998,7 +2998,7 @@ TEST_CASE("every more-specific Escape meaning answers first, and deselection wai
     // still reaches command mode -- the Layouts band, which the catalog says does not take the
     // keyboard.
     const Screen sc = screen_of(t.session());
-    const ui::Rect band = cells_covered(
+    const CellRect band = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, pane_kind::kLayouts, sc).rect);
     t.press_canvas(band.x + band.w - 1, band.y);
     REQUIRE(t.session().panes.selected == pane_kind::kLayouts);
@@ -3043,7 +3043,7 @@ TEST_CASE("a desk with no unoccupied cell still reaches selection = none") {
     }
     REQUIRE(unoccupied == 0); // the desk is covered: top band's Layouts pane, then the Builder
 
-    const ui::Rect builder = cells_covered(
+    const CellRect builder = cells_covered(
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind, now).rect);
     t.press_canvas(builder.x + 3, builder.y + 3);
     REQUIRE(t.session().panes.selected == stock::kKind);

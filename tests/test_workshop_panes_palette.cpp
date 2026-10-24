@@ -93,7 +93,7 @@ std::int64_t kind_of(PaneRig& r, const char* office, const char* pane) {
 /// A PRESS INTO A PANE'S BODY, which gives it the keys.
 void focus(PaneRig& r, const char* office, const char* pane) {
     r.pick(PaneRef{office, pane});
-    const ui::Rect body = external_body_rect(r.session(), kind_of(r, office, pane));
+    const CellRect body = external_body_rect(r.session(), kind_of(r, office, pane));
     r.press_cell(body.x + 1, body.y);
 }
 

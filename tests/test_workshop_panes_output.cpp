@@ -208,7 +208,7 @@ struct OutputRig {
         REQUIRE(pane != nullptr);
         REQUIRE(held_canvas_rows(*pane).columns >= 140);
         REQUIRE(held_canvas_rows(*pane).rows >= 20);
-        const ui::Rect body = external_body_rect(r.session(), kind);
+        const CellRect body = external_body_rect(r.session(), kind);
         r.press_cell(body.x, body.y);
         REQUIRE(r.session().panes.keyboard == kind);
     }

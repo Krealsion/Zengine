@@ -357,7 +357,7 @@ struct CodeRig {
     /// host's always; a press in the BODY is the pane's and empty by default, so the host menu
     /// for a doorless pane is reached here, not in its content (WL-CTX-08, empty by default).
     void point_at(const PaneRef& ref) {
-        const ui::Rect body = external_body_rect(r.session(), kind_of(ref));
+        const CellRect body = external_body_rect(r.session(), kind_of(ref));
         r.right_press_cell(body.x + 1, body.y);
         REQUIRE(r.session().context.open);
         REQUIRE(r.session().context.subject == context_subject::kPane);
@@ -681,7 +681,7 @@ TEST_CASE("code that cannot be named is said in words -- no recipe, several, a C
             c.r.pick(layouts);
         }
         REQUIRE(c.r.session().panes.has(c.kind_of(layouts)));
-        const ui::Rect slot = cells_covered(bounds_of(c.r.session().panes,
+        const CellRect slot = cells_covered(bounds_of(c.r.session().panes,
                                                       c.r.session().setup.active,
                                                       c.kind_of(layouts),
                                                       screen_of(c.r.session()))
@@ -1275,7 +1275,7 @@ struct OpensAsked {
 /// THE GUEST POINTS AT A PANE'S CHROME WITH THE SECOND BUTTON AND WALKS THE HOST'S MENU TO
 /// `edit code` -- `CodeRig::point_at` and `choose_edit_code`, every moment the guest's own.
 void guest_chooses_edit_code(CodeRig& c, guest_hand::GuestHand& g, const PaneRef& ref) {
-    const ui::Rect body = external_body_rect(c.r.session(), c.kind_of(ref));
+    const CellRect body = external_body_rect(c.r.session(), c.kind_of(ref));
     g.press_cell(body.x + 1, body.y, 3);
     REQUIRE(c.r.session().context.open);
     REQUIRE(c.r.session().context.subject == context_subject::kPane);

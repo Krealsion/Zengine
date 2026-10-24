@@ -1969,7 +1969,7 @@ TEST_CASE("opening a pane asks ONCE, and a quiet bus asks nothing") {
         // A WINDOW CARRIES NO DRAG: Workshop's hand pressing a control and moving after the
         // window's press carries no power.
         const RowPart ops = held_parts(r.session(), powers).at("control:powers.operators");
-        const ui::Rect body = external_body_rect(r.session(), powers);
+        const CellRect body = external_body_rect(r.session(), powers);
         const std::int64_t x = body.x + ops.column, y = body.y + kExternalHeaderRows + ops.row;
         r.press_cell(x, y);
         r.motion_cell(x, y + 2);

@@ -352,7 +352,7 @@ struct FilesRig {
     /// beat asked for on the bus: `press_pane`'s arithmetic against the picture as it stands when
     /// the press is queued, landed when the beat comes round.
     void enqueue_press(std::int64_t row) {
-        const ui::Rect body = external_body_rect(r.session(), kind);
+        const CellRect body = external_body_rect(r.session(), kind);
         r.window_queue_button(body.x, body.y + kExternalHeaderRows + row, true);
         (void)r.bus.send(r.windows.id(), loom::Message(loom::to_value(gfx::PumpSurface{})));
     }
@@ -964,7 +964,7 @@ TEST_CASE("the wheel moves the cursor, and a header press names no entry") {
     f.open(160, 14);
 
     const std::string was = f.at_cursor();
-    const ui::Rect body = external_body_rect(f.r.session(), f.kind);
+    const CellRect body = external_body_rect(f.r.session(), f.kind);
     f.r.wheel_cell(-1.0, body.x + 1, body.y + 2);
     CHECK(f.at_cursor() != was);
     // ...AND A HEADER PRESS SELECTS NOTHING, in both places a header is. Workshop's title row sits
@@ -1005,7 +1005,7 @@ TEST_CASE("Files declares its wheel and its listing's bound as settings, and a l
                                     "the most entries one directory listing holds"};
     CHECK(declared_settings(f.r, files_ref()) == std::vector<v2::PaneSettingRow>{wheel, listed});
 
-    const ui::Rect body = external_body_rect(f.r.session(), f.kind);
+    const CellRect body = external_body_rect(f.r.session(), f.kind);
     // ONE NOTCH FROM THE TOP OF THE LIST, walked there as a weaver walks.
     const auto notch = [&] {
         for (int i = 0; i < 160; ++i) {
@@ -1303,7 +1303,7 @@ TEST_CASE("a press on Files' selected row opens it when the keys were already Fi
         f.r.key(input::scan::kReturn);
         REQUIRE(keyboard_pane(f.r.session().panes) == f.editor_kind());
         SeamTap tap(f.r.bus, f.files_id(), f.keys_here());
-        const ui::Rect body = external_body_rect(f.r.session(), f.kind);
+        const CellRect body = external_body_rect(f.r.session(), f.kind);
         f.r.press_cell(body.x, body.y);
         CHECK(tap.pressed.empty());
         REQUIRE(keyboard_pane(f.r.session().panes) == f.kind);
@@ -1378,7 +1378,7 @@ TEST_CASE("with pane titles hidden, a first press on the row painted gamma selec
     REQUIRE(external_title_rows(f.r.session().panes, f.kind, f.r.session().pane_titles) == 0);
 
     // THE COORDINATES ARE THE PICTURE'S: its rows as painted, with no title row above them.
-    const ui::Rect body = external_body_rect(f.r.session(), f.kind);
+    const CellRect body = external_body_rect(f.r.session(), f.kind);
     const std::vector<std::string> painted = f.shown();
     const std::string seen = picture(painted);
     INFO("painted with titles hidden and the keys elsewhere:\n", seen);
@@ -1438,7 +1438,7 @@ TEST_CASE("a press into Files while the layout name line has the keys never open
     REQUIRE(f.r.session().setup.naming.open);
 
     // AN ENTRY ROW OF FILES, found by the walk a press spends.
-    const ui::Rect body = external_body_rect(f.r.session(), f.kind);
+    const CellRect body = external_body_rect(f.r.session(), f.kind);
     const std::vector<std::string> rows = pane_rows(f.r, f.kind);
     std::int64_t row = -1;
     for (std::int64_t i = static_cast<std::int64_t>(rows.size()) - 1; i >= 0 && row < 0; --i) {
@@ -2876,7 +2876,7 @@ namespace bld = zengine::builder;
 /// A POINTER BUTTON AT A PLACE IN THIS PANE'S OWN ROOM, as the terminal medium reports it.
 void files_button(PaneRig& r, std::int64_t kind, std::int64_t button, bool pressed,
                   std::int64_t row, std::int64_t column) {
-    const ui::Rect body = external_body_rect(r.session(), kind);
+    const CellRect body = external_body_rect(r.session(), kind);
     r.hand_button(body.x + column, body.y + kExternalHeaderRows + row, input::space::kCells, pressed,
                   button);
 }
@@ -3699,7 +3699,7 @@ void guest_point_at(guest_hand::GuestHand& g, FilesRig& f, const std::string& na
 void guest_press_face(guest_hand::GuestHand& g, FilesRig& f, const std::string& face) {
     const FaceAt at = face_at(f.shown(), face);
     REQUIRE_MESSAGE(at.row >= 0, "no control read `", face, "` in\n", picture(f.shown()));
-    const ui::Rect body = external_body_rect(f.r.session(), f.kind);
+    const CellRect body = external_body_rect(f.r.session(), f.kind);
     g.press_cell(body.x + at.column + 1, body.y + kExternalHeaderRows + at.row);
 }
 
