@@ -1019,6 +1019,42 @@ TEST_CASE("on a development host the guest door lets a guest's toolbox save sent
     CHECK(std::filesystem::exists(path));
 }
 
+namespace {
+
+struct DeafDoorState {
+    ZEN_SHAPE(DeafDoorState, 1);
+};
+struct DeafDoorTurn {
+    ZEN_SHAPE(DeafDoorTurn, 1);
+};
+
+/// AN OFFICE HOLDING `zengine.guests` THAT TAKES NOT THE QUESTION: there is a door's office, so
+/// the ask is refused rather than told no one holds it.
+class DeafDoor : public loom::WeaveBase<DeafDoor, DeafDoorState, loom::Accept<DeafDoorTurn>> {
+public:
+    void on(const DeafDoorTurn&, loom::Mail&) {}
+};
+
+} // namespace
+
+TEST_CASE("a toolbox save sent straight to the Inventory pane is refused in words when its ask of the guest door's office is refused, and no file is written") {
+    TempDir files("guest-toolbox-refused-ask");
+    InventoryStory s(191 | 512, true);
+    {
+        auto deaf = std::make_unique<DeafDoor>();
+        DeafDoor* raw = deaf.get();
+        const loom::WeaveId id = s.r.bus.register_weave(std::move(deaf), loom::Grant{}, std::string(kGuestsRole));
+        raw->zen_set_self(id);
+    }
+    const std::string path = files.file("refused.toolbox");
+    s.hand->expect_refusal = true;
+    s.act([&](loom::Mail& m) { m.send_to_role(slots::kRole, slots::InventoryToolboxSave{path}); });
+    REQUIRE(s.hand->refusals.size() == 1);
+    CHECK_MESSAGE(holds_words(s.hand->refusals[0], "Toolbox request refused: NotAccepted"), s.hand->refusals[0]);
+    CHECK(s.hand->toolboxes.empty());
+    CHECK_FALSE(std::filesystem::exists(path));
+}
+
 TEST_CASE("on a weaver's host a guest's Submit of a toolbox save in the Composer is refused, and no file is written") {
     // A RELAY SENDS AS ITS OWN OFFICE: the Inventory pane would ask the guest door about the
     // Composer, no guest, so the send is judged at the Submit's approval, for the guest's hand, as the class its
