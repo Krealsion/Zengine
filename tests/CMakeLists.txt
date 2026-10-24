@@ -413,7 +413,8 @@ execute_process(
             ${zengine_cn_args}
             "-DZENGINE_COMPILE_FIXTURES=ON"
             "-DZENGINE_SANITIZE=${ZENGINE_SANITIZE}"
-            "-DZENGINE_SDL_SKIN=OFF"
+            "-UZENGINE_SDL_SKIN" # a fixture tree an earlier configure made may keep the retired switch
+            "-DZENGINE_TUI_ONLY=ON"
             "-DZENGINE_INSTALL=OFF"
             "-DBUILD_TESTING=OFF"
             "-DCMAKE_SUPPRESS_REGENERATION=ON"
@@ -1783,6 +1784,9 @@ foreach(zengine_text_check IN LISTS ZEN_TEXT_CHECKS)
     zengine_script_test(${zengine_text_check}
                         ${CMAKE_CURRENT_SOURCE_DIR}/check_${zengine_text_check}.cmake)
 endforeach()
+# ...and one that configures the source tree: a retired switch refused by name, before a compiler
+# is sought.
+zengine_script_test(configure_switches ${CMAKE_CURRENT_SOURCE_DIR}/check_configure_switches.cmake)
 
 # ---- longest first under a parallel CTest -----------------------------------------------
 # At -j<n> CTest starts entries in descending COST, and a declared COST outranks the one it

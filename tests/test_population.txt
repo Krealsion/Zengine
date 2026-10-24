@@ -107,6 +107,7 @@ source_comments                   script            always
 code_values                       script            always
 folder_map                        script            always
 manual                            script            always
+configure_switches                script            always
 flow                              doctest           always  61
 
 message_draft                     doctest           always  11

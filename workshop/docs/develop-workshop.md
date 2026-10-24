@@ -215,7 +215,7 @@ Every refusal copies nothing, starts nothing, and leaves the runtime as it was.
 | `… made from the build tree …, not from …` | the directory is another build tree's runtime, or this tree moved | another directory |
 | `… is not empty and is not a development runtime …` | `--runtime` names a directory of other files | an empty or new directory |
 | `… is not there -- build the tree first` | the tree has not built what a runtime copies | build, then Run |
-| `… staged no graphical load plan …` | the tree was configured with `-DZENGINE_SDL_SKIN=OFF` | configure with SDL |
+| `… staged no graphical load plan …` | the tree was configured with `-DZENGINE_TUI_ONLY=ON` | configure with SDL |
 
 ## The loop: point, change, build, reload
 

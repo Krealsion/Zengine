@@ -30,7 +30,7 @@ cmake -DZEN_BUILD_DIR=build -P tests/verify.cmake
 | I want | flag |
 |---|---|
 | sibling Loom source instead of an installed one | `-DZEN_LOOM_DEV=ON` |
-| no SDL window skin (no SDL3 fetch) | `-DZENGINE_SDL_SKIN=OFF` |
+| no SDL: the terminal window alone (no SDL3 fetch) | `-DZENGINE_TUI_ONLY=ON` |
 | ASan + UBSan over the same suites | `-DZENGINE_SANITIZE=ON` (use build dir `build-san`) |
 | extra CTest flags through the lane | `-DZEN_CTEST_ARGS=-V` |
 | the Windows kernel backend (dev/demo only, **no isolation**) | `-DLOOM_ENABLE_WINDOWS_KERNEL=ON` (implied by `ZEN_LOOM_DEV=ON` on Windows) |
@@ -52,7 +52,7 @@ Ninja, Debug, SDL off:
 ```powershell
 cmake -S . -B build-win -G Ninja -DCMAKE_BUILD_TYPE=Debug `
       -DCMAKE_C_COMPILER=<mingw>/bin/gcc.exe -DCMAKE_CXX_COMPILER=<mingw>/bin/g++.exe `
-      "-DCMAKE_PREFIX_PATH=<loom prefix>" -DZEN_LOOM_DEV=OFF -DBUILD_TESTING=ON -DZENGINE_SDL_SKIN=OFF
+      "-DCMAKE_PREFIX_PATH=<loom prefix>" -DZEN_LOOM_DEV=OFF -DBUILD_TESTING=ON -DZENGINE_TUI_ONLY=ON
 cmake --build build-win
 cmake -DZEN_BUILD_DIR=build-win -P tests/verify.cmake
 ```

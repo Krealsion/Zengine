@@ -313,7 +313,7 @@ endif()
 if(ZENGINE_PACKAGE)
     if(NOT TARGET zengine-workshop OR NOT TARGET zengine-window-sdl)
         message(FATAL_ERROR "zengine: ZENGINE_PACKAGE needs the Workshop host and the OS window "
-                            "(a Loom with loom::kernel, ZENGINE_SDL_SKIN=ON)")
+                            "(a Loom with loom::kernel, and no ZENGINE_TUI_ONLY)")
     endif()
     if(NOT zengine_sdl_fetched OR NOT zengine_sdl_ttf_fetched)
         message(FATAL_ERROR "zengine: ZENGINE_PACKAGE carries the SDL it built; this configuration "
