@@ -2585,7 +2585,7 @@ TEST_CASE("Compose draws the edited value's caret in its own picture, on the cel
     r.key(input::scan::kLeft);
     CHECK(caret().column == static_cast<std::int64_t>(value) + 3);
     r.key(input::scan::kDown);
-    CHECK(caret().row == surface::kNoCaret);
+    CHECK(caret().row == kNoCaret);
 }
 
 TEST_CASE("a right press on Compose's canvas is handed back, and Workshop's own pane menu opens") {

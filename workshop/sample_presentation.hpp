@@ -77,7 +77,7 @@ inline std::string spell_float(double v) {
 }
 
 /// Text, quoted and escaped: the quotes are how a weaver tells "6" from 6, and the escaping keeps
-/// every byte reported while the row stays the printable ASCII a `SurfaceTextRow` must be (a
+/// every byte reported while the row stays the printable ASCII a `TextRow` must be (a
 /// refused row would take the whole update with it).
 inline std::string spell_text(const std::string& raw) {
     std::string out = "\"";

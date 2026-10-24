@@ -571,8 +571,8 @@ TEST_CASE("a wholly off-room pane is off-room, recoverable, and painted by nobod
 
     // NOTHING IS PAINTED AND NOTHING IS MET, and neither needed a branch of its own: an
     // empty rectangle contains nothing and is drawn by nobody.
-    const surface::SurfaceCanvas c = paint(s);
-    for (const surface::SurfaceRect& r : all_rects(c)) {
+    const ScreenCanvas c = paint(s);
+    for (const ScreenRect& r : all_rects(c)) {
         CHECK_FALSE((r.x == cells_of(sc).w + 40 && r.y == cells_of(sc).h + 40));
     }
     CHECK_FALSE(occupied_at(s.panes, s.setup.active, sc, cells_of(sc).w + 40, cells_of(sc).h + 40).occupied);
@@ -2240,20 +2240,20 @@ TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot mo
     // jump under the hand. So this pane's published region is compared where it is, to the
     // pixel, searched BACK TO FRONT as `context_rows_on` searches: the pane's own
     // plane is published after what it covers, and the topmost region inside it is its body.
-    const auto published = [&](const surface::SurfaceCanvas& c) {
+    const auto published = [&](const ScreenCanvas& c) {
         for (std::size_t li = c.layers.size(); li > 0; --li) {
-            const surface::SurfaceLayer& l = c.layers[li - 1];
+            const ScreenPlane& l = c.layers[li - 1];
             for (std::size_t ri = l.texts.size(); ri > 0; --ri) {
-                const surface::SurfaceTextRegion& reg = l.texts[ri - 1];
+                const ScreenRegion& reg = l.texts[ri - 1];
                 if (reg.x >= outer.x && reg.x < outer.x + outer.w && reg.y >= outer.y &&
                     reg.y < outer.y + outer.h) {
                     return reg;
                 }
             }
         }
-        return surface::SurfaceTextRegion{};
+        return ScreenRegion{};
     };
-    const surface::SurfaceTextRegion chosen_picture = published(paint(r.session()));
+    const ScreenRegion chosen_picture = published(paint(r.session()));
     REQUIRE(chosen_picture.w > 0);
     CHECK(chosen_picture.x == on_window.region_x);
     CHECK(chosen_picture.y == on_window.region_y);
@@ -2266,7 +2266,7 @@ TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot mo
     CHECK(after.rows == on_window.rows);
     CHECK(after.columns == on_window.columns);
     CHECK(after.fit == on_window.fit);
-    const surface::SurfaceTextRegion plain_picture = published(paint(r.session()));
+    const ScreenRegion plain_picture = published(paint(r.session()));
     REQUIRE(plain_picture.w > 0);
     CHECK(plain_picture.x == chosen_picture.x);
     CHECK(plain_picture.y == chosen_picture.y);

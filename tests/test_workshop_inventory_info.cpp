@@ -1020,7 +1020,7 @@ TEST_CASE("Inventory draws its rows on its canvas on the medium's own ground, an
     CHECK(held_caret(held()).sel_begin_col == 2);
     CHECK(held_caret(held()).sel_end_col == 3);
     s.key(input::scan::kEscape); // the edit ends, and its caret with it
-    CHECK(held_caret(held()).row == surface::kNoCaret);
+    CHECK(held_caret(held()).row == kNoCaret);
     CHECK(s.row_of(s.source, "Name:") < 0);
 }
 

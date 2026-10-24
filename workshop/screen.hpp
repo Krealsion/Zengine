@@ -25,9 +25,8 @@
 #include "graphics/pixels.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"  // `space` -- which medium's numbers a pointer reported in
-#include "surface/pointing.hpp"  // and what that medium's layout makes of them
-#include "surface/region.hpp"    // and how much prose a bounded region of it holds
-#include "surface/vocabulary.hpp"
+#include "workshop/screen_planes.hpp"
+#include "workshop/pane_text_fit.hpp"
 #include "ui/layout.hpp"
 #include "ui/vocabulary.hpp"
 #include "pane_text_fit.hpp"
@@ -258,10 +257,10 @@ inline constexpr ui::Rect cells_covered(const PixelRect& f) noexcept {
                     graphics::cell_of_pixel(graphics::add_cells(f.y, f.h)) - y0};
 }
 
-/// A pixel rectangle as a published `SurfaceRect`; a negative extent publishes as none.
-inline constexpr surface::SurfaceRect wire_rect_of(const PixelRect& f,
-                                                   std::int64_t role) noexcept {
-    return surface::SurfaceRect{f.x, f.y, f.w > 0 ? f.w : 0, f.h > 0 ? f.h : 0, role};
+/// A pixel rectangle as a plane's `ScreenRect`; a negative extent draws as none.
+inline constexpr ScreenRect wire_rect_of(const PixelRect& f,
+                                         std::int64_t role) noexcept {
+    return ScreenRect{f.x, f.y, f.w > 0 ? f.w : 0, f.h > 0 ? f.h : 0, role};
 }
 
 /// AN AUTHORED PLACE ON THE CANVAS: a place is measured from the room's top-left, which stands
@@ -1093,7 +1092,7 @@ std::string omitted_text(std::size_t how_many, const char* which);
 // ---- The dynamic panes, painted -------------------------------------------------------
 
 /// THE BACKDROP OF A PANE: its whole bounds, in one rect.
-void paint_pane_frame(surface::SurfaceLayer& layer, const PixelRect& b,
+void paint_pane_frame(ScreenPlane& layer, const PixelRect& b,
                               std::int64_t role);
 
 /// THE POPUP'S OR A PANE'S BODY AS ONE BOUNDED REGION OF PROSE, RESOLVED ONCE.
@@ -1114,7 +1113,7 @@ struct ProsePlace {
 ProsePlace prose_place(const PixelRect& b, const Screen& sc);
 
 /// The region a `ProsePlace` was resolved for, empty and ready for its rows.
-surface::SurfaceTextRegion prose_region(const ProsePlace& place);
+ScreenRegion prose_region(const ProsePlace& place);
 
 // ---- WHAT STATE ONE PANE IS IN -- the recovery invariant, as one word -----------------
 // WL-PANE-10 -- agents/workshop/panes-and-windows.md
@@ -1311,7 +1310,7 @@ inline constexpr std::size_t context_cursor_bound(std::size_t cursor,
     return population == 0 ? 0 : population - 1;
 }
 
-void paint_context(surface::SurfaceLayer& layer, const Session& s, const Screen& sc);
+void paint_context(ScreenPlane& layer, const Session& s, const Screen& sc);
 
 /// THE NAME OF EACH LINE `paint_context` PAINTS, in its order: the id of the action a line shows,
 /// or the name of the group it opens, and "" for a marker.
@@ -1354,7 +1353,7 @@ std::string presented_menu_area(std::int64_t menu);
 
 /// THE PRESENTED MENU'S FRAME, which the presenter's area stands inside.
 // WL-CTX-09 -- agents/workshop/pane-menu.md
-void paint_presented(surface::SurfaceLayer& layer, const Session& s, const Screen& sc);
+void paint_presented(ScreenPlane& layer, const Session& s, const Screen& sc);
 
 /// WHETHER A PRESS THIS HOST HEARD LANDED ON THE PRESENTED MENU'S FRAME: inside the popup, where
 /// the presenter's area does not reach.
@@ -1457,7 +1456,7 @@ std::int64_t chrome_mark_at(const Panes& panes, const Setup& setup, const Screen
 
 /// ONE EXTERNAL PANE'S FRAME: Workshop's backdrop, Workshop's header, and in its body the words
 /// that stand behind the pane's own area (`external_body_words`).
-void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64_t kind,
+void paint_external(ScreenPlane& layer, const Panes& panes, std::int64_t kind,
                     const PixelRect& b, const Screen& sc, bool titles,
                     std::int64_t chrome = kPaneChrome);
 
@@ -1467,10 +1466,10 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
 /// where text is a cell, rings outside its edge where an edge is finer, so a selection the keys
 /// have not entered is told from the pane that has them.
 // WL-FOCUS-12 -- agents/workshop/focus.md
-void paint_selection_ring(surface::SurfaceLayer& layer, const Session& s, const Screen& sc);
+void paint_selection_ring(ScreenPlane& layer, const Session& s, const Screen& sc);
 
 /// THE AFFORDANCE RINGS ARE THE ARRANGEMENT STATE MADE VISIBLE.
-void paint_pane_affordances(surface::SurfaceLayer& layer, const Session& s,
+void paint_pane_affordances(ScreenPlane& layer, const Session& s,
                                    const Screen& sc);
 
 namespace detail {
@@ -1479,10 +1478,10 @@ namespace detail {
 /// presentation turns out to draw nothing.
 // WL-FRONT-01 -- agents/workshop/planes.md
 template <typename Paint>
-inline void on_own_layer(surface::SurfaceCanvas& c, Paint&& paint_it) {
+inline void on_own_layer(ScreenCanvas& c, Paint&& paint_it) {
     c.layers.emplace_back();
     paint_it(c.layers.back());
-    const surface::SurfaceLayer& drawn = c.layers.back();
+    const ScreenPlane& drawn = c.layers.back();
     if (drawn.rects.empty() && drawn.labels.empty() && drawn.texts.empty()) {
         c.layers.pop_back();
     }
@@ -1664,7 +1663,7 @@ LayoutTabPress band_tab_at(const Session& s, const Screen& sc, std::int64_t spac
 /// THE LAYOUTS PANE, PAINTED: the layout selector and the standing identity beside
 /// it, the workspace fact under them where the medium fits a second row, and the setup-name
 /// editor's caret and selection while a weaver is typing a name.
-void paint_layouts(surface::SurfaceLayer& layer, const Session& s, const PixelRect& b,
+void paint_layouts(ScreenPlane& layer, const Session& s, const PixelRect& b,
                           const Screen& sc, std::int64_t chrome = kPaneChrome);
 
 // ---- A PANE'S INTERIOR, CAPTURED ----------------------------------------------------------
@@ -1746,16 +1745,16 @@ bool same_pane_subject(const PaneSubjectShown& a, const PaneSubjectShown& b);
 // ---- THE COMPOSITION: every pane back to front, the bottom band, and the screen as planes ----
 
 /// Every presented pane, back to front, one complete layer each.
-void paint_panes(surface::SurfaceCanvas& c, const Session& s,
+void paint_panes(ScreenCanvas& c, const Session& s,
                          const Screen& sc);
 
 /// THE BOTTOM BAND AS ONE PUBLISHED REGION: what the tool just said, and what the keys mean
 /// right now.
-surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc);
+ScreenRegion band_region(const Session& s, const Screen& sc);
 
 /// The whole screen as one published canvas, an ordered list of planes: a pure projection of the
 /// session and the screen.
-surface::SurfaceCanvas paint(const Session& s);
+ScreenCanvas paint(const Session& s);
 
 // ---- THE DESK IN A GRAPHICS WINDOW: each pane's own area, and Workshop's behind them ----------
 
@@ -1801,7 +1800,7 @@ WorkshopFrameDrawing workshop_frame_drawing(const Session& s, std::int64_t kind)
 /// THE PLANES A REPAINT LAYS ABOVE THE PICTURE -- the carried value, the guide marks -- as the
 /// overlay a graphics window shows in front of every pane's area (`kWorkshopOverlayArea`).
 graphics::Sketch workshop_overlay_drawing(const Session& s,
-                                          const std::vector<surface::SurfaceLayer>& overlays);
+                                          const std::vector<ScreenPlane>& overlays);
 
 } // namespace zengine::workshop
 

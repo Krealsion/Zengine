@@ -12,7 +12,7 @@ namespace zengine::workshop {
 // WL-ARR-17 -- agents/workshop/arrangement-snap.md
 // WL-PANE-01 -- agents/workshop/panes-and-windows.md
 // WL-FRONT-01 -- agents/workshop/planes.md
-void paint_pane_affordances(surface::SurfaceLayer& layer, const Session& s,
+void paint_pane_affordances(ScreenPlane& layer, const Session& s,
                             const Screen& sc) {
     if (!s.arrange.open) {
         return;
@@ -51,7 +51,7 @@ void paint_pane_affordances(surface::SurfaceLayer& layer, const Session& s,
         for (std::int64_t edge = 0; edge < pane_edge::kCount; ++edge) {
             const PixelRect at = pane_edge_cell(where.rect, edge);
             const bool chosen = held ? s.pane_drag.edge == edge : emphasized;
-            layer.labels.push_back(surface::SurfaceLabel{
+            layer.labels.push_back(ScreenLabel{
                 at.x, at.y, std::string(pane_edge_glyph(edge)),
                 chosen ? graphics::role::kAccent : graphics::role::kMuted});
         }

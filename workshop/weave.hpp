@@ -44,7 +44,7 @@
 #include "pane_parts.hpp" // the form a pane's names are admitted in
 #include "pane_causes.hpp" // the form a declaration's causes and modes are admitted in
 #include "operator/catalog.hpp" // the conversions this run has, looked up at a load
-#include "surface/vocabulary.hpp"
+#include "workshop/screen_planes.hpp"
 #include "graphics/vocabulary.hpp"
 #include "terminal/door.hpp" // the door onto the terminal participant, composed below
 
@@ -1659,13 +1659,13 @@ private:
         bool shown = false;
         bool labelled = false;
         PixelRect drawn{};
-        std::vector<surface::SurfaceRect> rects;
-        std::vector<surface::SurfaceLabel> labels;
+        std::vector<ScreenRect> rects;
+        std::vector<ScreenLabel> labels;
     };
     GuideDrawing guide_drawing(const GuideMark& mark) const;
     /// The marks as one layer above the panes, each judged again against what the desk shows now:
     /// a mark whose session, holder or part is gone ends, and its guest is told.
-    surface::SurfaceLayer guide_layer(loom::Mail& mail);
+    ScreenPlane guide_layer(loom::Mail& mail);
     /// Whether any mark would stand otherwise than it was last drawn: its part gone from a settled
     /// picture, or drawn elsewhere.
     bool guide_marks_moved() const;
@@ -1714,7 +1714,7 @@ private:
     std::pair<std::int64_t, std::int64_t> area_origin(const std::string& area) const;
     /// The planes the last repaint laid above the picture -- the carried value, the guide marks
     /// -- drawn in the overlay there.
-    std::vector<surface::SurfaceLayer> window_overlays_;
+    std::vector<ScreenPlane> window_overlays_;
     /// Every area placed with the directory now, as placed, and the panes among them.
     std::map<std::string, graphics::AreaPlaced> areas_placed_;
     std::set<std::int64_t> placed_kinds_;

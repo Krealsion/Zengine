@@ -58,17 +58,17 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     // hand...
     window_overlays_.clear();
     if (carried_.drag && value_drag_.moved && !value_drag_.released && drag_pointer_.understood) {
-        surface::SurfaceLayer overlay;
+        ScreenPlane overlay;
         const auto rect = wire_rect_of(PixelRect{drag_pointer_.px.x, drag_pointer_.px.y,
             12 * graphics::kCellPx, graphics::kCellPx}, graphics::role::kAccent);
         overlay.rects.push_back(rect);
         overlay.labels.push_back(
-            surface::SurfaceLabel{rect.x, rect.y, "[value]", graphics::role::kFill});
+            ScreenLabel{rect.x, rect.y, "[value]", graphics::role::kFill});
         window_overlays_.push_back(std::move(overlay));
     }
     // ...and EVERY GUEST'S GUIDE MARK, each judged against what shows now.
     if (!guide_marks_.empty()) {
-        surface::SurfaceLayer marks = guide_layer(mail);
+        ScreenPlane marks = guide_layer(mail);
         if (!marks.rects.empty() || !marks.labels.empty()) {
             window_overlays_.push_back(std::move(marks));
         }

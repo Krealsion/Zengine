@@ -68,6 +68,7 @@
 #include "workshop/sample_presentation.hpp"
 #include "workshop/sample_vocabulary.hpp"
 #include "surface/skin_sdl_plan.hpp"
+#include "workshop/screen_planes.hpp"
 #include "timer/vocabulary.hpp"
 #include "surface/skin_tui.hpp"
 #include "surface/vocabulary.hpp"
@@ -229,25 +230,25 @@ inline component::TextBox box_of(std::size_t length, std::size_t caret, std::siz
 /// walks them -- the right shape for "was this drawn" and "which of two same-kind primitives is
 /// later" -- and none is a visibility oracle: what is SEEN at a cell is `cell_text_of` below
 /// (text) and `rasterized` (the whole picture), which run the Skin's own two-level order.
-inline std::vector<surface::SurfaceRect> all_rects(const surface::SurfaceCanvas& c) {
-    std::vector<surface::SurfaceRect> out;
-    for (const surface::SurfaceLayer& l : c.layers) {
+inline std::vector<ScreenRect> all_rects(const ScreenCanvas& c) {
+    std::vector<ScreenRect> out;
+    for (const ScreenPlane& l : c.layers) {
         out.insert(out.end(), l.rects.begin(), l.rects.end());
     }
     return out;
 }
 
-inline std::vector<surface::SurfaceLabel> all_labels(const surface::SurfaceCanvas& c) {
-    std::vector<surface::SurfaceLabel> out;
-    for (const surface::SurfaceLayer& l : c.layers) {
+inline std::vector<ScreenLabel> all_labels(const ScreenCanvas& c) {
+    std::vector<ScreenLabel> out;
+    for (const ScreenPlane& l : c.layers) {
         out.insert(out.end(), l.labels.begin(), l.labels.end());
     }
     return out;
 }
 
-inline std::vector<surface::SurfaceTextRegion> all_texts(const surface::SurfaceCanvas& c) {
-    std::vector<surface::SurfaceTextRegion> out;
-    for (const surface::SurfaceLayer& l : c.layers) {
+inline std::vector<ScreenRegion> all_texts(const ScreenCanvas& c) {
+    std::vector<ScreenRegion> out;
+    for (const ScreenPlane& l : c.layers) {
         out.insert(out.end(), l.texts.begin(), l.texts.end());
     }
     return out;
@@ -259,8 +260,8 @@ inline std::vector<surface::SurfaceTextRegion> all_texts(const surface::SurfaceC
 /// chrome's regions or indexing a pane's projected rows asks about the planes after it. A plane
 /// and not a predicate, because `paint` writes the workspace whole into `layers.front()` before
 /// any pane exists; cases about the names themselves read `object_names`.
-inline surface::SurfaceCanvas without_workspace(const surface::SurfaceCanvas& c) {
-    surface::SurfaceCanvas out = c;
+inline ScreenCanvas without_workspace(const ScreenCanvas& c) {
+    ScreenCanvas out = c;
     if (!out.layers.empty()) {
         out.layers.erase(out.layers.begin());
     }
@@ -268,15 +269,15 @@ inline surface::SurfaceCanvas without_workspace(const surface::SurfaceCanvas& c)
 }
 
 /// THE AUTHORED OBJECTS' NAMES, as the workspace plane published them.
-inline std::vector<surface::SurfaceTextRegion> object_names(const surface::SurfaceCanvas& c) {
-    return c.layers.empty() ? std::vector<surface::SurfaceTextRegion>{} : c.layers.front().texts;
+inline std::vector<ScreenRegion> object_names(const ScreenCanvas& c) {
+    return c.layers.empty() ? std::vector<ScreenRegion>{} : c.layers.front().texts;
 }
 
 /// WHAT A TERMINAL WITH NO USEFUL COLOUR SHOWS -- the canvas's characters with every SGR
 /// sequence removed. A role is ink, and ink is the half of a medium's answer a monochrome
 /// terminal does not receive; `glyph_for_role` is the other half, so this string is exactly what
 /// survives without the first. `\x1b[2K` goes with the rest -- it is an erase, not a character.
-inline std::string plain_cells(const surface::SurfaceCanvas& c) {
+inline std::string plain_cells(const ScreenCanvas& c) {
     const std::string body = surface::canvas_body(c);
     std::string out;
     for (std::size_t i = 0; i < body.size(); ++i) {
@@ -327,7 +328,7 @@ inline std::int64_t help_row(const Screen& sc) { return gfx::cell_of_pixel(sc.no
 
 /// THE PLANE A CASE THAT BUILDS ITS OWN CANVAS BY HAND WORKS ON, created on first use.
 /// A case exercising ONE painter is asking about one presentation, which is one plane.
-inline surface::SurfaceLayer& plane(surface::SurfaceCanvas& c) {
+inline ScreenPlane& plane(ScreenCanvas& c) {
     if (c.layers.empty()) {
         c.layers.emplace_back();
     }
@@ -338,9 +339,9 @@ inline surface::SurfaceLayer& plane(surface::SurfaceCanvas& c) {
 /// presentation and nothing else on the screen. A fresh canvas, not the published one with a
 /// plane overwritten: a Workshop canvas carries a plane per presentation, so replacing one
 /// plane's regions would leave every other plane's on it.
-inline surface::SurfaceCanvas canvas_of_region(const surface::SurfaceCanvas& like,
-                                               const surface::SurfaceTextRegion& r) {
-    surface::SurfaceCanvas out;
+inline ScreenCanvas canvas_of_region(const ScreenCanvas& like,
+                                     const ScreenRegion& r) {
+    ScreenCanvas out;
     out.width = like.width;
     out.height = like.height;
     out.layers.emplace_back();
@@ -353,11 +354,11 @@ inline surface::SurfaceCanvas canvas_of_region(const surface::SurfaceCanvas& lik
 /// region in exactly one of the two lists", "how many rows did the pane get"), not for order:
 /// `test_surface` states the ordering law over planes built for it, and `rasterized` says what is
 /// actually on top.
-inline std::vector<surface::PlanTextRegion> plan_regions_of(const surface::SurfaceCanvas& c,
+inline std::vector<surface::PlanTextRegion> plan_regions_of(const ScreenCanvas& c,
                                                             const surface::SurfaceExtent& metric,
                                                             const surface::PlanSize& size) {
     std::vector<surface::PlanTextRegion> out;
-    for (const surface::SurfaceLayer& l : c.layers) {
+    for (const ScreenPlane& l : c.layers) {
         for (surface::PlanTextRegion& r : surface::plan_layer_regions(l, metric, size)) {
             out.push_back(std::move(r));
         }
@@ -365,9 +366,9 @@ inline std::vector<surface::PlanTextRegion> plan_regions_of(const surface::Surfa
     return out;
 }
 
-inline std::vector<surface::ProjectedRow> projected_of(const surface::SurfaceCanvas& c) {
+inline std::vector<surface::ProjectedRow> projected_of(const ScreenCanvas& c) {
     std::vector<surface::ProjectedRow> out;
-    for (const surface::SurfaceLayer& l : c.layers) {
+    for (const ScreenPlane& l : c.layers) {
         for (surface::ProjectedRow& r : surface::project_text_regions(l)) {
             out.push_back(std::move(r));
         }
@@ -375,10 +376,10 @@ inline std::vector<surface::ProjectedRow> projected_of(const surface::SurfaceCan
     return out;
 }
 
-inline std::vector<surface::ProjectedRow> projected_of(const surface::SurfaceCanvas& c,
+inline std::vector<surface::ProjectedRow> projected_of(const ScreenCanvas& c,
                                                        const surface::SurfaceExtent& metric) {
     std::vector<surface::ProjectedRow> out;
-    for (const surface::SurfaceLayer& l : c.layers) {
+    for (const ScreenPlane& l : c.layers) {
         for (surface::ProjectedRow& r : surface::project_text_regions(l, metric)) {
             out.push_back(std::move(r));
         }
@@ -392,9 +393,9 @@ inline std::vector<surface::ProjectedRow> projected_of(const surface::SurfaceCan
 /// these assertions describe the picture the golden-byte suite pins in test_surface.cpp. It is
 /// `canvas_body`'s order, so the LAST entry at a cell is the topmost text there. Text only: a
 /// later plane's rect over a label is a question for `rasterized`.
-inline std::vector<surface::SurfaceLabel> cell_text_of(const surface::SurfaceCanvas& c) {
-    std::vector<surface::SurfaceLabel> out;
-    for (const surface::SurfaceLayer& l : c.layers) {
+inline std::vector<ScreenLabel> cell_text_of(const ScreenCanvas& c) {
+    std::vector<ScreenLabel> out;
+    for (const ScreenPlane& l : c.layers) {
         out.insert(out.end(), l.labels.begin(), l.labels.end());
         for (surface::ProjectedRow& p : surface::project_text_regions(l)) {
             out.push_back(std::move(p.label));
@@ -405,8 +406,8 @@ inline std::vector<surface::SurfaceLabel> cell_text_of(const surface::SurfaceCan
 
 /// Find a label's text at a canvas cell, or "" -- how the screen tier asks what
 /// a weaver would see at a place: a label's pixel anchor lands on the cell a terminal floors it to.
-inline std::string label_at(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y) {
-    for (const surface::SurfaceLabel& l : cell_text_of(c)) {
+inline std::string label_at(const ScreenCanvas& c, std::int64_t x, std::int64_t y) {
+    for (const ScreenLabel& l : cell_text_of(c)) {
         if (gfx::cell_of_pixel(l.x) == x && gfx::cell_of_pixel(l.y) == y) {
             return l.text;
         }
@@ -417,8 +418,8 @@ inline std::string label_at(const surface::SurfaceCanvas& c, std::int64_t x, std
 /// The byte of the row at a canvas cell that a region's caret stands on, or -1: the cell a medium
 /// whose character is a cell shows inverted, read through the real cell projection as `label_at`
 /// reads the row's text.
-inline std::int64_t caret_at(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y) {
-    for (const surface::SurfaceLayer& l : c.layers) {
+inline std::int64_t caret_at(const ScreenCanvas& c, std::int64_t x, std::int64_t y) {
+    for (const ScreenPlane& l : c.layers) {
         for (const surface::ProjectedRow& p : surface::project_text_regions(l)) {
             if (gfx::cell_of_pixel(p.label.x) == x && gfx::cell_of_pixel(p.label.y) == y) {
                 return p.caret;
@@ -433,7 +434,7 @@ inline std::int64_t caret_at(const surface::SurfaceCanvas& c, std::int64_t x, st
 /// region's full width; that padding erases what was underneath and is noise in an assertion
 /// about what a row SAYS, so this trims it. Through `label_at` and the real cell projection, so a
 /// row cut at the body's width is still cut.
-inline std::string inspector_row(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y) {
+inline std::string inspector_row(const ScreenCanvas& c, std::int64_t x, std::int64_t y) {
     std::string text = label_at(c, x, y);
     while (!text.empty() && text.back() == ' ') {
         text.pop_back();
@@ -443,7 +444,7 @@ inline std::string inspector_row(const surface::SurfaceCanvas& c, std::int64_t x
 
 /// THE SENTENCE THE TOOL IS SAYING, as a weaver reads it: the bottom band's first row, read
 /// through the cell projection with the region's padding trimmed, as the Inspector's rows are.
-inline std::string notice_line(const surface::SurfaceCanvas& c, const Screen& sc) {
+inline std::string notice_line(const ScreenCanvas& c, const Screen& sc) {
     return inspector_row(c, 0, gfx::cell_of_pixel(sc.notice_y));
 }
 
@@ -453,9 +454,9 @@ inline std::string notice_line(const surface::SurfaceCanvas& c, const Screen& sc
 /// way. `label_at` above answers with the first, which is the bottom of the
 /// stack -- fine everywhere nothing overlaps, and exactly wrong for asking
 /// whether an overlay covered what is under it.
-inline std::string topmost_at(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y) {
+inline std::string topmost_at(const ScreenCanvas& c, std::int64_t x, std::int64_t y) {
     std::string seen;
-    for (const surface::SurfaceLabel& l : cell_text_of(c)) {
+    for (const ScreenLabel& l : cell_text_of(c)) {
         if (gfx::cell_of_pixel(l.x) == x && gfx::cell_of_pixel(l.y) == y) {
             seen = l.text;
         }
@@ -586,17 +587,17 @@ inline void link_live_setup(SetupState& s, std::string path) {
 
 /// THE CELLS A PUBLISHED RECTANGLE COVERS, as a terminal floors it -- what a case that thinks in
 /// cells compares a picture's rectangles by.
-inline ui::Rect covered_cells(const surface::SurfaceRect& r) {
+inline ui::Rect covered_cells(const ScreenRect& r) {
     return cells_covered(PixelRect{r.x, r.y, r.w, r.h});
 }
-inline ui::Rect covered_cells(const surface::SurfaceTextRegion& r) {
+inline ui::Rect covered_cells(const ScreenRegion& r) {
     return cells_covered(PixelRect{r.x, r.y, r.w, r.h});
 }
 
 /// IS THERE A RECTANGLE OF THIS ROLE COVERING EXACTLY THESE CELLS?
-inline bool has_rect(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y, std::int64_t w,
+inline bool has_rect(const ScreenCanvas& c, std::int64_t x, std::int64_t y, std::int64_t w,
                      std::int64_t h, std::int64_t role) {
-    for (const surface::SurfaceRect& r : all_rects(c)) {
+    for (const ScreenRect& r : all_rects(c)) {
         if (covered_cells(r) == ui::Rect{x, y, w, h} && r.role == role) {
             return true;
         }
@@ -606,7 +607,7 @@ inline bool has_rect(const surface::SurfaceCanvas& c, std::int64_t x, std::int64
 
 /// One canvas as the terminal medium's own pure function draws it, one string per screen row,
 /// with the SGR and erase escapes taken out so what is left is the picture.
-inline std::vector<std::string> rasterized(const surface::SurfaceCanvas& canvas) {
+inline std::vector<std::string> rasterized(const ScreenCanvas& canvas) {
     const std::string body = surface::canvas_body(canvas);
     std::vector<std::string> rows;
     std::size_t at = 0;
@@ -643,7 +644,7 @@ struct SeenState {
 /// is as much about SILENCE as about content. Of the picture Workshop still publishes for a Skin it
 /// keeps only the count and each one's room: the desk is read from the window (`DeskShown`).
 class Painter : public loom::WeaveBase<Painter, SeenState,
-                                       loom::Accept<surface::SurfaceCanvas, surface::SurfaceText,
+                                       loom::Accept<ScreenCanvas, surface::SurfaceText,
                                                     StandingConditions, TranscriptShown,
                                                     PaneSubjectShown>,
                                        loom::Emit<>> {
@@ -656,7 +657,7 @@ public:
             std::vector<PaneSubjectShown>& subjects)
         : pictures_(&pictures), rooms_(&rooms), notes_(&notes), conditions_(&conditions),
           transcripts_(&transcripts), subjects_(&subjects) {}
-    void on(const surface::SurfaceCanvas& c, loom::Mail&) {
+    void on(const ScreenCanvas& c, loom::Mail&) {
         ++state_.frames;
         ++*pictures_;
         rooms_->emplace_back(c.width, c.height);
@@ -1932,12 +1933,12 @@ inline std::string workspace_row(const DeskShown& c, const Session& s, const Scr
 /// `layouts_body`'s own answer, so a case cannot pass while reading a region the painter did not
 /// write. Not the top band's whole rectangle: the pane's interior is inset by one device unit on
 /// a face that can draw one.
-inline const surface::SurfaceTextRegion* layouts_region_on(const surface::SurfaceCanvas& c,
-                                                           const Session& s,
-                                                           const Screen& sc) {
+inline const ScreenRegion* layouts_region_on(const ScreenCanvas& c,
+                                             const Session& s,
+                                             const Screen& sc) {
     const ExternalBodyPlace place = layouts_body(s, sc);
-    for (const surface::SurfaceLayer& layer : c.layers) {
-        for (const surface::SurfaceTextRegion& r : layer.texts) {
+    for (const ScreenPlane& layer : c.layers) {
+        for (const ScreenRegion& r : layer.texts) {
             if (r.x == place.region_x && r.y == place.region_y && r.h == place.region_h) {
                 return &r;
             }
@@ -3943,7 +3944,7 @@ inline bool menu_shown(const Session& s) {
 inline std::vector<std::string> context_rows_on(const DeskShown& shown, const Session& s) {
     const Screen sc = screen_of(s);
     const PixelRect popup = menu_bounds(s);
-    const surface::SurfaceTextRegion want = prose_region(prose_place(popup, sc));
+    const ScreenRegion want = prose_region(prose_place(popup, sc));
     std::vector<std::string> out;
     const std::int64_t columns = shown.advance > 0 ? want.w / shown.advance : 0;
     for (std::int64_t y = want.y; shown.line > 0 && y < want.y + want.h; y += shown.line) {
@@ -4072,10 +4073,10 @@ inline std::vector<intro::LoadedWeave> loaded_population(std::size_t n) {
 }
 
 /// Every region on a canvas whose upper-left corner is in this cell.
-inline std::vector<surface::SurfaceTextRegion> regions_at(const surface::SurfaceCanvas& c,
-                                                          std::int64_t x, std::int64_t y) {
-    std::vector<surface::SurfaceTextRegion> out;
-    for (const surface::SurfaceTextRegion& r : all_texts(c)) {
+inline std::vector<ScreenRegion> regions_at(const ScreenCanvas& c,
+                                            std::int64_t x, std::int64_t y) {
+    std::vector<ScreenRegion> out;
+    for (const ScreenRegion& r : all_texts(c)) {
         if (gfx::cell_of_pixel(r.x) == x && gfx::cell_of_pixel(r.y) == y) {
             out.push_back(r);
         }

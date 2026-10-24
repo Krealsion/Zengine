@@ -101,7 +101,7 @@ TEST_CASE("a refusal longer than the notice line says so, and the session keeps 
     s.notice = refusal;
     s.notice_is_bad = true;
 
-    const surface::SurfaceCanvas c = paint(s);
+    const ScreenCanvas c = paint(s);
     const std::string shown = label_at(c, 0, cells_of(kMinScreen).notice_y);
     CHECK(shown.size() == static_cast<std::size_t>(cells_of(kMinScreen).w)); // it fits the line it has
     CHECK(shown.compare(shown.size() - 3, 3, "...") == 0);     // and says it did not fit
@@ -113,7 +113,7 @@ TEST_CASE("a refusal longer than the notice line says so, and the session keeps 
     CHECK(s.notice == refusal);
     CHECK(s.notice.size() > shown.size());
     // The role is untouched: fitting a refusal does not make it less of one.
-    for (const surface::SurfaceLabel& l : all_labels(c)) {
+    for (const ScreenLabel& l : all_labels(c)) {
         if (gfx::cell_of_pixel(l.y) == cells_of(kMinScreen).notice_y) {
             CHECK(l.role == gfx::role::kAlert);
         }
@@ -353,12 +353,12 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKin
     // bounds, which is also its visible boundary in the ordinary pane chrome, and every row of
     // the INTERIOR padded to the interior's width, so a character medium's spaces erase what is
     // under them.
-    const surface::SurfaceCanvas c = paint(t.session());
+    const ScreenCanvas c = paint(t.session());
     CHECK(has_rect(c, pane_rect.x, pane_rect.y, pane_rect.w, pane_rect.h, kPaneChrome));
     CHECK_FALSE(has_rect(c, pane_rect.x, pane_rect.y, kStackW, pane_rect.h, kPaneChrome));
     const ui::Rect body = pane_body_cells(pane_rect);
     std::size_t padded = 0;
-    for (const surface::SurfaceLabel& l : cell_text_of(c)) {
+    for (const ScreenLabel& l : cell_text_of(c)) {
         const std::int64_t lx = gfx::cell_of_pixel(l.x), ly = gfx::cell_of_pixel(l.y);
         if (lx == body.x && ly >= body.y && ly < body.y + body.h) {
             CHECK(l.text.size() == static_cast<std::size_t>(body.w));
@@ -416,10 +416,10 @@ TEST_CASE("what a pane is painted at and what it occupies are one resolved truth
     // AND WHAT THE PAINTERS ACTUALLY WROTE IS INSIDE THE SPACE THAT IS OCCUPIED --
     // painted through the same one call the screen makes, into a canvas holding
     // nothing else.
-    surface::SurfaceCanvas only_panes;
+    ScreenCanvas only_panes;
     paint_panes(only_panes, t.session(), sc);
     REQUIRE_FALSE(cell_text_of(only_panes).empty());
-    for (const surface::SurfaceLabel& l : cell_text_of(only_panes)) {
+    for (const ScreenLabel& l : cell_text_of(only_panes)) {
         CHECK(occupied_at(panes, setup_for(panes), sc, gfx::cell_of_pixel(l.x),
                           gfx::cell_of_pixel(l.y))
                   .occupied);
@@ -433,7 +433,7 @@ TEST_CASE("what a pane is painted at and what it occupies are one resolved truth
 cells_covered(bounds_of(panes, setup_for(panes), p.kind, sc).rect);
         CHECK(has_rect(only_panes, pb.x, pb.y, pb.w, pb.h, kPaneChrome));
     }
-    for (const surface::SurfaceRect& r : all_rects(only_panes)) {
+    for (const ScreenRect& r : all_rects(only_panes)) {
         const ui::Rect cells = covered_cells(r);
         CHECK(occupied_at(panes, setup_for(panes), sc, cells.x, cells.y).occupied);
         CHECK(occupied_at(panes, setup_for(panes), sc, cells.x + cells.w - 1,
@@ -679,7 +679,7 @@ namespace {
 
 /// The character a weaver reads at one canvas cell, whatever painted it -- the medium's own
 /// answer, read back off the raster rather than off the layer that claims the cell.
-char cell_seen_at(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y) {
+char cell_seen_at(const ScreenCanvas& c, std::int64_t x, std::int64_t y) {
     const std::vector<std::string> rows = rasterized(c);
     if (y < 0 || static_cast<std::size_t>(y) >= rows.size()) {
         return '\0';
@@ -703,7 +703,7 @@ TEST_CASE("nothing is painted behind the panes: where no pane stands, the room i
     s.screen_h = cells_px(40);
     s.setup.active = two_overlays();
     s.panes.open = {OpenPane{stock::kKind}};
-    const surface::SurfaceCanvas c = paint(s);
+    const ScreenCanvas c = paint(s);
     const Screen sc = screen_of(s);
     std::vector<PixelRect> owned{band_bounds(sc)};
     for (const std::int64_t kind : effective_pane_order(s.setup.active, s.panes)) {
@@ -722,16 +722,16 @@ TEST_CASE("nothing is painted behind the panes: where no pane stands, the room i
         return false;
     };
     std::size_t marks = 0;
-    for (const surface::SurfaceLayer& layer : c.layers) {
-        for (const surface::SurfaceRect& r : layer.rects) {
+    for (const ScreenPlane& layer : c.layers) {
+        for (const ScreenRect& r : layer.rects) {
             CHECK_MESSAGE(inside(r.x, r.y, r.w, r.h), r.x << "," << r.y << " " << r.w << "x" << r.h);
             ++marks;
         }
-        for (const surface::SurfaceLabel& l : layer.labels) {
+        for (const ScreenLabel& l : layer.labels) {
             CHECK_MESSAGE(inside(l.x, l.y, 1, 1), l.x << "," << l.y << " " << l.text);
             ++marks;
         }
-        for (const surface::SurfaceTextRegion& t : layer.texts) {
+        for (const ScreenRegion& t : layer.texts) {
             CHECK_MESSAGE(inside(t.x, t.y, t.w, t.h), t.x << "," << t.y << " " << t.w << "x" << t.h);
             ++marks;
         }
@@ -1663,8 +1663,8 @@ TEST_CASE("the pane composes as an ordinary saved setup row") {
 }
 
 // ---- WHICH TEXT IS SEMANTIC, AND WHICH TEXT IS CELLS ------------------------------------
-// Does a text name MEANING inside room it owns (a `SurfaceTextRegion`, whose interior a medium
-// may set in its own face) or glyphs at cells something else owns (a `SurfaceLabel`, one cell
+// Does a text name MEANING inside room it owns (a `ScreenRegion`, whose interior a medium
+// may set in its own face) or glyphs at cells something else owns (a `ScreenLabel`, one cell
 // per byte in every medium, right for a mark ON something)? A one-cell row stays a label: this
 // face's 18-pixel line fits ZERO rows in a region one `kCellPx` cell tall, so
 // `fit_region` hands it back to the cell projection.
@@ -1686,8 +1686,8 @@ TEST_CASE("the arrangement's visible statement is the ring on the pane itself") 
         // catches a construction that stays green while every mark paints off the canvas.
         const PixelRect cell = pane_edge_cell(at, edge);
         std::vector<std::int64_t> roles;
-        for (const surface::SurfaceLayer& l : paint(t.session()).layers) {
-            for (const surface::SurfaceLabel& g : l.labels) {
+        for (const ScreenPlane& l : paint(t.session()).layers) {
+            for (const ScreenLabel& g : l.labels) {
                 if (g.x == cell.x && g.y == cell.y &&
                     g.text == std::string(pane_edge_glyph(edge))) {
                     roles.push_back(g.role);
@@ -1712,8 +1712,8 @@ TEST_CASE("the arrangement's visible statement is the ring on the pane itself") 
     // AND NO REGION OPENED OVER THE STACK'S FIRST SLOT: the statement is on the pane, not in a
     // pane covering another one.
     const ui::Rect box = cells_covered(placement_bounds(placement::kOverlayStack, 0, screen_of(t.session())));
-    for (const surface::SurfaceLayer& l : paint(t.session()).layers) {
-        for (const surface::SurfaceTextRegion& r : l.texts) {
+    for (const ScreenPlane& l : paint(t.session()).layers) {
+        for (const ScreenRegion& r : l.texts) {
             const bool roster_region = covered_cells(r).x == box.x &&
                                        covered_cells(r).y == box.y && !r.rows.empty() &&
                                       r.rows[0].text.rfind("+ WINDOW", 0) == 0;
@@ -1736,7 +1736,7 @@ TEST_CASE("the notice is a band row, and the SENTENCE is never shortened") {
     // not there is a notice; an empty notice is a blank ROW of it, not a missing region,
     // because the band owns its rectangle in every state. The notice is its FIRST row; the
     // identity has a band of its own at the top of the screen.
-    const std::vector<surface::SurfaceTextRegion> quiet =
+    const std::vector<ScreenRegion> quiet =
         regions_at(paint(s), 0, cells_of(sc).notice_y);
     REQUIRE(quiet.size() == 1);
     CHECK(quiet.front().rows.size() >= 1);
@@ -1744,11 +1744,11 @@ TEST_CASE("the notice is a band row, and the SENTENCE is never shortened") {
 
     // A SENTENCE THAT FITS: one prose row of the band, whole.
     s.notice = "created #1 -- a new identity, not a new name";
-    const surface::SurfaceCanvas said = paint(s);
-    const std::vector<surface::SurfaceTextRegion> at_band =
+    const ScreenCanvas said = paint(s);
+    const std::vector<ScreenRegion> at_band =
         regions_at(said, 0, cells_of(sc).notice_y);
     REQUIRE(at_band.size() == 1);
-    const surface::SurfaceTextRegion& band = at_band.front();
+    const ScreenRegion& band = at_band.front();
     CHECK(band.w == sc.w);
     CHECK(band.y == sc.notice_y);
     CHECK(band.y + band.h == sc.h); // the band ends at the screen's own foot
@@ -1764,8 +1764,8 @@ TEST_CASE("the notice is a band row, and the SENTENCE is never shortened") {
 
     // A BAD ONE WEARS THE ALERT ROLE, which is the second signal and not a second sentence.
     s.notice_is_bad = true;
-    const surface::SurfaceCanvas bad = paint(s);
-    const std::vector<surface::SurfaceTextRegion> at_bad =
+    const ScreenCanvas bad = paint(s);
+    const std::vector<ScreenRegion> at_bad =
         regions_at(bad, 0, cells_of(sc).notice_y);
     REQUIRE(at_bad.size() == 1);
     CHECK(at_bad.front().rows[0].role == gfx::role::kAlert);
@@ -1774,11 +1774,11 @@ TEST_CASE("the notice is a band row, and the SENTENCE is never shortened") {
     // IT. What a weaver sees is bounded; what Workshop knows is not.
     s.notice = std::string(400, 'x') + "-END";
     s.notice_is_bad = false;
-    const surface::SurfaceCanvas cut = paint(s);
-    const std::vector<surface::SurfaceTextRegion> at_cut =
+    const ScreenCanvas cut = paint(s);
+    const std::vector<ScreenRegion> at_cut =
         regions_at(cut, 0, cells_of(sc).notice_y);
     REQUIRE(at_cut.size() == 1);
-    const surface::SurfaceTextRow& row = at_cut.front().rows[0];
+    const TextRow& row = at_cut.front().rows[0];
     CHECK(static_cast<std::int64_t>(row.text.size()) == fit.columns);
     CHECK(row.text.find(detail::kElided) != std::string::npos);
     CHECK(row.text.find("-END") == std::string::npos);
@@ -1790,11 +1790,11 @@ TEST_CASE("the notice is a band row, and the SENTENCE is never shortened") {
     cell.text_advance_px = 0;
     cell.text_line_px = 0;
     const Screen cell_sc = screen_of(cell);
-    const surface::SurfaceCanvas in_cells = paint(cell);
-    const std::vector<surface::SurfaceTextRegion> at_cells =
+    const ScreenCanvas in_cells = paint(cell);
+    const std::vector<ScreenRegion> at_cells =
         regions_at(in_cells, 0, cells_of(cell_sc).notice_y);
     REQUIRE(at_cells.size() == 1);
-    const surface::SurfaceTextRow& cell_row = at_cells.front().rows[0];
+    const TextRow& cell_row = at_cells.front().rows[0];
     CHECK(static_cast<std::int64_t>(cell_row.text.size()) == cells_of(cell_sc).w);
     CHECK(cell_row.text.find(detail::kElided) != std::string::npos);
     CHECK(cell_row.text.size() < row.text.size()); // fewer cells than the face has columns
@@ -1825,10 +1825,10 @@ TEST_CASE("a pane with room for the header and nothing else still says whose it 
     CHECK_FALSE(body.present); // no room was granted, and none is invented
     CHECK(body.rows == 0);
 
-    surface::SurfaceCanvas c;
+    ScreenCanvas c;
     paint_external(plane(c), panes, kFirstRuntimeKind, pixels_of_cells(tiny), sc,
                    /*titles=*/true);
-    const std::vector<surface::SurfaceTextRegion> at =
+    const std::vector<ScreenRegion> at =
         regions_at(c, tiny.x + kChromeCells, tiny.y + kChromeCells);
     REQUIRE(at.size() == 1);
     REQUIRE(at.front().rows.size() == 1);
@@ -1841,7 +1841,7 @@ TEST_CASE("a pane with room for the header and nothing else still says whose it 
     // into a rectangle that cannot hold one.
     const ui::Rect none{0, 1, 48, 1};
     CHECK(fit_region(cells_px(none.x), cells_px(none.y), cells_px(none.w), cells_px(none.h), 8, 18).graphical() == false);
-    surface::SurfaceCanvas flat;
+    ScreenCanvas flat;
     paint_external(plane(flat), panes, kFirstRuntimeKind, PixelRect{}, sc,
                    /*titles=*/true);
     CHECK(all_texts(flat).empty());
@@ -1910,8 +1910,8 @@ SnapMarks snap_marks(Live& t) {
     const std::int64_t grain = chrome_grain(sc);
     SnapMarks out;
     REQUIRE_FALSE((t.pictures == 0));
-    for (const surface::SurfaceLayer& layer : paint(t.session()).layers) {
-        for (const surface::SurfaceRect& r : layer.rects) {
+    for (const ScreenPlane& layer : paint(t.session()).layers) {
+        for (const ScreenRect& r : layer.rects) {
             if (r.role != gfx::role::kAccent) {
                 continue;
             }
@@ -2763,7 +2763,7 @@ TEST_CASE("the TUI projects a pane onto its covered cells and rewrites nothing")
     // THE PAINTED BYTES SIT ON EXACTLY THOSE CELLS: the pane's backdrop begins at the
     // covered corner in the cell rasterization, and the column before it is not the
     // pane's.
-    const surface::SurfaceCanvas c = paint(t.session());
+    const ScreenCanvas c = paint(t.session());
     // ...and the pane's own prose begins one cell inside that corner, where its visible
     // boundary is. The corner cell itself is the boundary's.
     CHECK_FALSE(
@@ -2782,7 +2782,7 @@ TEST_CASE("the TUI projects a pane onto its covered cells and rewrites nothing")
     // PROJECTION IS PURE: paint it again — twice more, through the same one function —
     // and the authored bytes and the picture are identical. The TUI quantizes at ITS
     // boundary and writes nothing back.
-    const surface::SurfaceCanvas again = paint(t.session());
+    const ScreenCanvas again = paint(t.session());
     CHECK(surface::canvas_body(c) == surface::canvas_body(again));
     CHECK(setup_persist::to_text(t.session().setup.active) == authored_before);
 
@@ -3572,11 +3572,11 @@ TEST_CASE("the border a weaver sees and the room a pane spends are one subtracti
     REQUIRE_FALSE(outer.empty());
 
     // WHAT IS PAINTED: one rect at the OUTER bounds, and the region inside it.
-    const surface::SurfaceCanvas c = paint(t.session());
+    const ScreenCanvas c = paint(t.session());
     const ui::Rect cells = cells_covered(outer);
     CHECK(has_rect(c, cells.x, cells.y, cells.w, cells.h, kPaneChrome));
     const ui::Rect inside = pane_body_cells(outer);
-    const std::vector<surface::SurfaceTextRegion> at = regions_at(c, inside.x, inside.y);
+    const std::vector<ScreenRegion> at = regions_at(c, inside.x, inside.y);
     REQUIRE(at.size() == 1);
     CHECK(covered_cells(at.front()) == inside);
 
@@ -3648,11 +3648,11 @@ TEST_CASE("selecting a pane lifts it, in the picture and under the hand at once"
         cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKind,
                                 screen_of(t.session()))
                           .rect);
-    const surface::SurfaceCanvas painted = paint(t.session());
+    const ScreenCanvas painted = paint(t.session());
     std::int64_t last_info = -1;
     std::int64_t last_builder = -1;
     for (std::size_t li = 0; li < painted.layers.size(); ++li) {
-        for (const surface::SurfaceRect& r : painted.layers[li].rects) {
+        for (const ScreenRect& r : painted.layers[li].rects) {
             const ui::Rect at = covered_cells(r);
             if (at.x == side.x && at.y == side.y && at.w == side.w) {
                 last_info = static_cast<std::int64_t>(li);
@@ -3687,7 +3687,7 @@ TEST_CASE("the selected pane wears its own chrome, and only it") {
             cells_covered(bounds_of(t.session().panes, t.session().setup.active, kind,
                                     screen_of(t.session()))
                               .rect);
-        for (const surface::SurfaceRect& r : all_rects(paint(t.session()))) {
+        for (const ScreenRect& r : all_rects(paint(t.session()))) {
             if (covered_cells(r) == at) {
                 return r.role;
             }
@@ -3771,11 +3771,11 @@ TEST_CASE("a transient surface stays over the pane it covers, selected or not") 
     t.right_press_canvas(builder.x + 2, builder.y);
     REQUIRE(t.menu().open);
     const ui::Rect popup = cells_covered(context_bounds(t.session(), screen_of(t.session())));
-    const surface::SurfaceCanvas c = paint(t.session());
+    const ScreenCanvas c = paint(t.session());
     std::int64_t last_pane = -1;
     std::int64_t last_popup = -1;
     for (std::size_t li = 0; li < c.layers.size(); ++li) {
-        for (const surface::SurfaceRect& r : c.layers[li].rects) {
+        for (const ScreenRect& r : c.layers[li].rects) {
             const ui::Rect at = covered_cells(r);
             if (at.x == builder.x && at.y == builder.y && at.w == builder.w) {
                 last_pane = static_cast<std::int64_t>(li);
@@ -4051,14 +4051,14 @@ TEST_CASE("the ring IS the backdrop the interior did not cover, on both faces") 
         bounds_of(t.session().panes, t.session().setup.active, stock::kKind, tui).rect;
     REQUIRE_FALSE(outer.empty());
 
-    const surface::SurfaceCanvas c = paint(t.session());
+    const ScreenCanvas c = paint(t.session());
     const ui::Rect box = cells_covered(outer);
     CHECK(has_rect(c, box.x, box.y, box.w, box.h, kPaneChrome)); // the whole pane, once
 
     // ON A TERMINAL the interior it publishes leaves a one-CELL ring...
     const ui::Rect body = pane_body_cells(outer);
     CHECK(body == ui::Rect{box.x + 1, box.y + 1, box.w - 2, box.h - 2});
-    const std::vector<surface::SurfaceTextRegion> at = regions_at(c, body.x, body.y);
+    const std::vector<ScreenRegion> at = regions_at(c, body.x, body.y);
     REQUIRE(at.size() == 1);
     CHECK(covered_cells(at.front()) == body);
 
@@ -4067,7 +4067,7 @@ TEST_CASE("the ring IS the backdrop the interior did not cover, on both faces") 
     // medium clips and fills to (`fit_region`), so this is the ring a weaver sees.
     const Screen sdl = sdl_screen();
     const PaneInside on_sdl = pane_inside(outer, sdl);
-    const surface::SurfaceRect wire = wire_rect_of(on_sdl.rect, gfx::role::kFill);
+    const ScreenRect wire = wire_rect_of(on_sdl.rect, gfx::role::kFill);
     CHECK((wire.x) ==
           outer.x + 1);
     CHECK(on_sdl.fit.view.x == outer.x + 1);
@@ -4095,22 +4095,22 @@ TEST_CASE("selected and ordinary differ in INK, and in nothing else") {
     const ui::Rect box = cells_covered(outer);
     const ui::Rect body = pane_body_cells(outer, sc);
 
-    const auto picture = [&](const surface::SurfaceCanvas& c) {
+    const auto picture = [&](const ScreenCanvas& c) {
         // `regions_at` keys on the region's own published corner, which on this face is the
         // pane's cell with a sub-cell remainder -- the cell the thin boundary shares with the
         // body it does not displace.
-        const std::vector<surface::SurfaceTextRegion> at = regions_at(c, body.x, body.y);
+        const std::vector<ScreenRegion> at = regions_at(c, body.x, body.y);
         REQUIRE_FALSE(at.empty());
         return at.front();
     };
 
     REQUIRE(t.session().panes.selected == kNoPaneKind);
-    const surface::SurfaceTextRegion ordinary = picture(paint(t.session()));
+    const ScreenRegion ordinary = picture(paint(t.session()));
     CHECK(has_rect(paint(t.session()), box.x, box.y, box.w, box.h, kPaneChrome));
 
     t.press_canvas(box.x, box.y); // the pane's own border cell: choosing it, nothing else
     REQUIRE(t.session().panes.selected == stock::kKind);
-    const surface::SurfaceTextRegion chosen = picture(paint(t.session()));
+    const ScreenRegion chosen = picture(paint(t.session()));
 
     // THE INK CHANGED...
     CHECK(has_rect(paint(t.session()), box.x, box.y, box.w, box.h, kPaneChromeSelected));
@@ -5211,10 +5211,10 @@ TEST_CASE("the layout selector is the first Workshop row, on both media") {
         CHECK(band_bounds(sc).y == sc.notice_y);
         CHECK(band_bounds(sc).y + band_bounds(sc).h == sc.h);
         CHECK(band_bounds(sc).y > top_band_bounds(sc).y + top_band_bounds(sc).h);
-        const surface::SurfaceCanvas c = paint(s);
-        for (const surface::SurfaceTextRegion& r : all_texts(c)) {
+        const ScreenCanvas c = paint(s);
+        for (const ScreenRegion& r : all_texts(c)) {
             if (r.y == band_bounds(sc).y) {
-                for (const surface::SurfaceTextRow& row : r.rows) {
+                for (const TextRow& row : r.rows) {
                     CAPTURE(row.text);
                     // ⚠ ASKED BY THE TAB'S OWN SPELLING, because a bare name is an ordinary
                     // word: the foot's legend may honestly say `build`, and only `>Code<` /
@@ -5908,13 +5908,13 @@ TEST_CASE("command mode marks the selected pane, with brackets where text is a c
     PlacedDesk d({PixelRect{0, 0, 30 * kCell, 10 * kCell},
                   PixelRect{40 * kCell, 0, 30 * kCell, 10 * kCell}});
     const Screen sc = screen_of(d.s);
-    surface::SurfaceLayer none;
+    ScreenPlane none;
     paint_selection_ring(none, d.s, sc);
     CHECK(none.labels.empty()); // nothing selected, nothing marked
 
     d.s.panes.selected = d.kinds[1];
     REQUIRE(keyboard_context(d.s) == KeyContext::kCommand);
-    surface::SurfaceLayer ring;
+    ScreenPlane ring;
     paint_selection_ring(ring, d.s, sc);
     REQUIRE(ring.labels.size() == 4);
     const PixelRect b = d.rect(1);
@@ -5926,15 +5926,15 @@ TEST_CASE("command mode marks the selected pane, with brackets where text is a c
     CHECK(ring.labels[3].x == br.x);
     CHECK(ring.labels[3].y == br.y);
     CHECK(ring.labels[3].text == "]");
-    for (const surface::SurfaceLabel& l : ring.labels) {
+    for (const ScreenLabel& l : ring.labels) {
         CHECK(l.role == gfx::role::kAccent);
         CHECK(l.text != std::string(kHandleGlyph)); // not an arrangement handle
     }
     // ...ON THE CANVAS AND IN A WINDOW ALIKE.
-    const surface::SurfaceCanvas c = paint(d.s);
+    const ScreenCanvas c = paint(d.s);
     std::size_t brackets = 0;
-    for (const surface::SurfaceLayer& layer : c.layers) {
-        for (const surface::SurfaceLabel& l : layer.labels) {
+    for (const ScreenPlane& layer : c.layers) {
+        for (const ScreenLabel& l : layer.labels) {
             if (l.text == "[" || l.text == "]") {
                 ++brackets;
             }
@@ -5958,12 +5958,12 @@ TEST_CASE("command mode marks the selected pane, with brackets where text is a c
     fine.cell_px = gfx::kCellPx;
     const Screen fine_sc = screen_of(fine);
     REQUIRE(chrome_grain(fine_sc) < gfx::kCellPx);
-    surface::SurfaceLayer fine_ring;
+    ScreenPlane fine_ring;
     paint_selection_ring(fine_ring, fine, fine_sc);
     CHECK(fine_ring.labels.empty());
     REQUIRE(fine_ring.rects.size() == 8);
     const PixelRect fb = bounds_of(fine.panes, fine.setup.active, d.kinds[1], fine_sc).rect;
-    for (const surface::SurfaceRect& side : fine_ring.rects) {
+    for (const ScreenRect& side : fine_ring.rects) {
         CHECK(side.role == gfx::role::kAccent);
         // Every side lies outside the pane: wholly left, right, above or below its rectangle.
         CHECK((side.x + side.w <= fb.x || side.x >= fb.x + fb.w || side.y + side.h <= fb.y ||
@@ -5975,7 +5975,7 @@ TEST_CASE("command mode marks the selected pane, with brackets where text is a c
     REQUIRE(pane != nullptr);
     d.s.panes.keyboard = d.kinds[1];
     REQUIRE(keyboard_context(d.s) == KeyContext::kPane);
-    surface::SurfaceLayer held;
+    ScreenPlane held;
     paint_selection_ring(held, d.s, sc);
     CHECK(held.labels.empty());
     CHECK(window_selection_rings(d.s).empty());
@@ -5987,10 +5987,10 @@ TEST_CASE("`workshop.focus.ring` plain marks the selection in the chrome's ink, 
     d.s.panes.selected = d.kinds[1];
     d.s.selection_ring_plain = true;
     const Screen sc = screen_of(d.s);
-    surface::SurfaceLayer corners;
+    ScreenPlane corners;
     paint_selection_ring(corners, d.s, sc);
     REQUIRE(corners.labels.size() == 4);
-    for (const surface::SurfaceLabel& l : corners.labels) {
+    for (const ScreenLabel& l : corners.labels) {
         CHECK(l.role == kPaneChrome);
     }
     // ...ONE RING IN A WINDOW, and one ring of sides where the canvas's edges are a device unit.
@@ -5998,10 +5998,10 @@ TEST_CASE("`workshop.focus.ring` plain marks the selection in the chrome's ink, 
     Session fine = d.s;
     fine.cell_px = gfx::kCellPx;
     const Screen fine_sc = screen_of(fine);
-    surface::SurfaceLayer fine_ring;
+    ScreenPlane fine_ring;
     paint_selection_ring(fine_ring, fine, fine_sc);
     REQUIRE(fine_ring.rects.size() == 4);
-    for (const surface::SurfaceRect& side : fine_ring.rects) {
+    for (const ScreenRect& side : fine_ring.rects) {
         CHECK(side.role == kPaneChrome);
     }
 }
