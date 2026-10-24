@@ -2299,7 +2299,7 @@ struct RuntimeTree {
         put("workshop/zengine-workshop.exe", "host one");
         put("examples/snake/zengine-timer.dll", "service one");
         put("attention/zengine-attention-pane.dll", "pane one", true);
-        put("workshop/graphical-load-plan.json", "plan one");
+        put("workshop/default-load-plan.json", "plan one");
         put("workshop/development-build-recipes.json", "catalog one");
     }
 
@@ -2346,7 +2346,7 @@ TEST_CASE("a development runtime is made whole into an absent directory, then re
     CHECK(made.output.find("development runtime made at") != std::string::npos);
     // EVERY COPY, BYTE FOR BYTE, AND THE MANIFEST -- written last, and nothing else.
     CHECK(entries_of(runtime) ==
-          std::vector<std::string>{"development-build-recipes.json", "graphical-load-plan.json",
+          std::vector<std::string>{"default-load-plan.json", "development-build-recipes.json",
                                    "zengine-attention-pane.dll", "zengine-development-runtime.txt",
                                    "zengine-timer.dll", "zengine-workshop.exe"});
     CHECK(slurp((runtime / "zengine-workshop.exe").string()) == "host one");
@@ -2460,11 +2460,11 @@ TEST_CASE("a development runtime that is stale, incomplete, or made for another 
     REQUIRE(tree.prepare(runtime).status == 0);
 
     // INCOMPLETE: a copy is gone from the runtime, and nothing is copied into it again.
-    std::filesystem::remove(runtime / "graphical-load-plan.json");
+    std::filesystem::remove(runtime / "default-load-plan.json");
     const auto without_plan = contents_of(runtime);
     const zengine::builder::RunResult incomplete = tree.prepare(runtime);
     CHECK(incomplete.status != 0);
-    CHECK(incomplete.output.find("is incomplete: graphical-load-plan.json is not there") !=
+    CHECK(incomplete.output.find("is incomplete: default-load-plan.json is not there") !=
           std::string::npos);
     CHECK(contents_of(runtime) == without_plan);
 }
@@ -2524,7 +2524,7 @@ inline zengine::workshop::develop::Facts launch_facts() {
     facts.runtime = "/tree/workshop-runtime";
     facts.project = "/tree/workshop-project";
     facts.host = "zengine-workshop";
-    facts.plan = "graphical-load-plan.json";
+    facts.plan = "default-load-plan.json";
     facts.catalog = "development-build-recipes.json";
     return facts;
 }
@@ -2587,7 +2587,7 @@ struct LaunchDoors {
     }
 };
 
-TEST_CASE("the development launch claims its runtime, prepares it through the runtime script, then starts only that runtime's host, with its graphical plan and development catalog, in a project directory of its own, and lets the claim go only after that host exits") {
+TEST_CASE("the development launch claims its runtime, prepares it through the runtime script, then starts only that runtime's host, with its own plan and development catalog, in a project directory of its own, and lets the claim go only after that host exits") {
     namespace develop = zengine::workshop::develop;
     const develop::Facts facts = launch_facts();
     LaunchDoors doors;
@@ -2606,7 +2606,7 @@ TEST_CASE("the development launch claims its runtime, prepares it through the ru
                                                         "/tree/workshop/development-runtime.cmake"});
     CHECK(doors.ran[1].program == "/tree/workshop-runtime/zengine-workshop");
     CHECK(doors.ran[1].args ==
-          std::vector<std::string>{"--load-plan", "/tree/workshop-runtime/graphical-load-plan.json",
+          std::vector<std::string>{"--load-plan", "/tree/workshop-runtime/default-load-plan.json",
                                    "--recipes", "/tree/workshop-runtime/development-build-recipes.json"});
     CHECK(doors.ran[1].dir == "/tree/workshop-project");
     CHECK(doors.said_words("Workshop exited with 7"));
@@ -2630,21 +2630,21 @@ TEST_CASE("the development launch claims its runtime, prepares it through the ru
     CHECK(std::filesystem::path(develop::choose({"--project", "here"}, facts).project).is_absolute());
 }
 
-TEST_CASE("a development launch that is refused starts nothing and holds nothing after: no graphical plan, a runtime another launch holds or that could not be claimed, a runtime whose host is running, a runtime script that refused or never ran, a project path that is no directory, an argument it does not know") {
+TEST_CASE("a development launch that is refused starts nothing and holds nothing after: no OS window, a runtime another launch holds or that could not be claimed, a runtime whose host is running, a runtime script that refused or never ran, a project path that is no directory, an argument it does not know") {
     namespace develop = zengine::workshop::develop;
     const develop::Facts facts = launch_facts();
     const develop::Choice usual = develop::choose({}, facts);
     const std::string claim = "claim /tree/workshop-runtime";
     const std::string in_use = "in use? /tree/workshop-runtime/zengine-workshop";
 
-    // A TREE CONFIGURED WITHOUT THE SDL SKIN has no graphical Workshop to launch.
+    // A TREE CONFIGURED WITHOUT THE OS WINDOW has no window to open Workshop in.
     develop::Facts plain = facts;
     plain.plan.clear();
     LaunchDoors unplanned;
     CHECK(develop::launch(plain, usual, unplanned.world()) == 1);
     CHECK(unplanned.asked.empty());
     CHECK(unplanned.ran.empty());
-    CHECK(unplanned.said_words("staged no graphical load plan"));
+    CHECK(unplanned.said_words("has no OS window to open Workshop in"));
 
     // ANOTHER LAUNCH HOLDS THE RUNTIME, or its claim could not be asked for: nothing more is asked.
     LaunchDoors elsewhere;

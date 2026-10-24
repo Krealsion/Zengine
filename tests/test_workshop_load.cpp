@@ -51,6 +51,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -58,6 +59,7 @@
 #include <string>
 #include <utility>
 #include <memory>
+#include <optional>
 #include <string_view>
 #include <vector>
 
@@ -111,6 +113,10 @@ struct Stage {
         // the input weave after them.
         put("zengine-graphics", GRAPHICS_SO);
         put("zengine-window-terminal", WINDOW_TERMINAL_SO);
+#ifdef WINDOW_SDL_SO
+        // ...and the OS window the shipped window row loads first, where this build made one.
+        put("zengine-window-sdl", WINDOW_SDL_SO);
+#endif
         put("zengine-input", INPUT_SO);
         put("zengine-provider-min", PROVIDER_MIN_SO);
         put("zengine-plain-weave", PLAIN_WEAVE_SO);
@@ -171,6 +177,44 @@ const Stage& stage() {
     static const Stage one;
     return one;
 }
+
+#ifdef WINDOW_SDL_SO
+/// SDL'S VIDEO DRIVER, NAMED FOR THIS PROCESS while this lives, as a weaver's environment names
+/// it, and given back as it was after: an OS window told a driver SDL lacks cannot open.
+struct VideoDriver {
+    static constexpr const char* kNames[] = {"SDL_VIDEO_DRIVER", "SDL_VIDEODRIVER"};
+    std::optional<std::string> was[2];
+
+    explicit VideoDriver(const char* driver) {
+        for (int i = 0; i < 2; ++i) {
+            if (const char* v = std::getenv(kNames[i])) {
+                was[i] = v;
+            }
+            put(kNames[i], driver);
+        }
+    }
+    ~VideoDriver() {
+        for (int i = 0; i < 2; ++i) {
+            put(kNames[i], was[i] ? was[i]->c_str() : nullptr);
+        }
+    }
+    VideoDriver(const VideoDriver&) = delete;
+    VideoDriver& operator=(const VideoDriver&) = delete;
+
+    /// `value` for `name`, or `name` removed when there is none.
+    static void put(const char* name, const char* value) {
+#if defined(_WIN32)
+        ::_putenv_s(name, value != nullptr ? value : "");
+#else
+        if (value != nullptr) {
+            ::setenv(name, value, 1);
+        } else {
+            ::unsetenv(name);
+        }
+#endif
+    }
+};
+#endif
 
 // ---- what a running Timer STORED, read off a real letter ----------------------
 // `zen.PrepareShutdown` asks the Timer to describe itself and changes nothing; each entry
@@ -324,11 +368,24 @@ struct PlanRig {
     Heard heard;
     loom::WeaveId witness;
 
-    /// DECLARED AFTER THE KERNEL, exactly as `main()` declares it.
-    load::PlanExecutor executor{bus,    catalog, operators, voice,
-                                manager, answers, [](const std::string& stem) {
-                                    return stage().so(stem);
-                                }};
+    /// DECLARED AFTER THE KERNEL, exactly as `main()` declares it, and asking whether an artifact
+    /// is held as `main()` asks: its file in the stage, by the one stem-to-file rule.
+    load::PlanExecutor executor{
+        bus,
+        catalog,
+        operators,
+        voice,
+        manager,
+        answers,
+        [](const std::string& stem) { return stage().so(stem); },
+        load::PlanExecutor::Settled(),
+        load::PlanExecutor::AwaitingBuild(),
+        load::PlanExecutor::StageArtifact(),
+        load::PlanExecutor::PromoteImage(),
+        [](const std::string& stem) {
+            std::error_code ec;
+            return std::filesystem::exists(std::filesystem::path(stage().so(stem)), ec) && !ec;
+        }};
 
     PlanRig() {
         loom::Grant reach;
@@ -1043,11 +1100,11 @@ TEST_CASE("a field the shape does not declare is refused rather than ignored") {
 
 TEST_CASE("a file from another version is refused by ITS NUMBER, before its rows are judged") {
     const load_persist::LoadedPlan no = load_persist::from_text(
-        R"({"zen":1,"schema":"WorkshopLoadFile","version":4,"fields":{)"
-        R"("format":"zengine-workshop-load-plan","format_version":"4","artifacts":[]}})");
+        R"({"zen":1,"schema":"WorkshopLoadFile","version":5,"fields":{)"
+        R"("format":"zengine-workshop-load-plan","format_version":"5","artifacts":[]}})");
     CHECK_FALSE(no.outcome.accepted);
-    CHECK(no.outcome.refusal.find("load plan version 4") != std::string::npos);
-    CHECK(no.outcome.refusal.find("reads versions 1, 2 and 3") != std::string::npos);
+    CHECK(no.outcome.refusal.find("load plan version 5") != std::string::npos);
+    CHECK(no.outcome.refusal.find("reads versions 1, 2, 3 and 4") != std::string::npos);
 }
 
 TEST_CASE("a forged file whose envelope is this version and whose FIELD is not still refuses") {
@@ -1105,7 +1162,8 @@ TEST_CASE("a plan file saved and loaded again is the same plan") {
 // 3. THE SHIPPED PLANS — the files this repository installs, read as files
 // =============================================================================
 
-TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arrangement") {
+TEST_CASE("the shipped default plan is a legal plan, and it opens the OS window, else the "
+          "terminal window") {
     const load_persist::LoadedPlan got = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
     REQUIRE_MESSAGE(got.outcome.accepted, got.outcome.refusal);
     const load::LoadPlan& p = got.plan;
@@ -1139,7 +1197,9 @@ TEST_CASE("the shipped default plan is a legal plan, and it is the terminal arra
     CHECK(p.artifacts[0].stem == "zengine-operators-basic");
     CHECK(p.artifacts[1].stem == "zengine-workshop-session-history");
     CHECK(p.artifacts[2].stem == "zengine-graphics");
-    CHECK(p.artifacts[3].stem == "zengine-window-terminal");
+    CHECK(p.artifacts[3].stem == "zengine-window-sdl");
+    REQUIRE(p.artifacts[3].otherwise.size() == 1);
+    CHECK(p.artifacts[3].otherwise[0].stem == "zengine-window-terminal");
     CHECK(p.artifacts[4].stem == "zengine-input");
     CHECK(p.artifacts[5].stem == "zengine-timer");
     CHECK(p.artifacts[6].stem == "zengine-introspection");
@@ -1264,8 +1324,8 @@ TEST_CASE("the Timer appears exactly ONCE in the shipped plan, participating in 
     CHECK(seen == 1);
 }
 
-TEST_CASE("the shipped plans carry no operator identity, no suffix and no path") {
-    for (const char* path : {WORKSHOP_DEFAULT_PLAN, WORKSHOP_GRAPHICAL_PLAN}) {
+TEST_CASE("the shipped plan carries no operator identity, no suffix and no path") {
+    for (const char* path : {WORKSHOP_DEFAULT_PLAN}) {
         const std::string text = file_text(path);
         REQUIRE_MESSAGE(!text.empty(), path, " is a shipped plan");
         // PROVIDERS OWN THE VOCABULARY. A plan that copied an operator identity into
@@ -1281,35 +1341,40 @@ TEST_CASE("the shipped plans carry no operator identity, no suffix and no path")
     }
 }
 
-TEST_CASE("the graphical plan differs from the default in exactly the window's row") {
-    for (const auto& [terminal, graphical] :
-         {std::pair<const char*, const char*>{WORKSHOP_DEFAULT_PLAN, WORKSHOP_GRAPHICAL_PLAN}}) {
-        CAPTURE(graphical);
-        const load_persist::LoadedPlan tui = load_persist::from_text(file_text(terminal));
-        const load_persist::LoadedPlan sdl = load_persist::from_text(file_text(graphical));
-        REQUIRE(tui.outcome.accepted);
-        REQUIRE_MESSAGE(sdl.outcome.accepted, sdl.outcome.refusal);
-        REQUIRE(tui.plan.artifacts.size() == sdl.plan.artifacts.size());
-        int different = 0;
-        for (std::size_t i = 0; i < tui.plan.artifacts.size(); ++i) {
-            if (!(tui.plan.artifacts[i] == sdl.plan.artifacts[i])) {
-                ++different;
-                // ...and what differs is the STEM, and a window's office, which is its own. The
-                // input row beside it is the same in both: one reader beside either window.
-                const std::string& role = tui.plan.artifacts[i].weave->role;
-                const std::string& other = sdl.plan.artifacts[i].weave->role;
-                const std::string window = zengine::graphics::kWindowOfficePrefix;
-                CHECK((role == other ||
-                       (role.rfind(window, 0) == 0 && other.rfind(window, 0) == 0)));
-                CHECK(tui.plan.artifacts[i].stem != sdl.plan.artifacts[i].stem);
-            }
+TEST_CASE("the shipped plan's window row is the OS window, otherwise the terminal window, and no "
+          "other row names anything in its place") {
+    const load_persist::LoadedPlan got = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
+    REQUIRE_MESSAGE(got.outcome.accepted, got.outcome.refusal);
+    const std::string window = zengine::graphics::kWindowOfficePrefix;
+    for (std::size_t i = 0; i < got.plan.artifacts.size(); ++i) {
+        const load::ArtifactIntent& row = got.plan.artifacts[i];
+        CAPTURE(row.stem);
+        if (i == 3) {
+            continue;
         }
-        CHECK(different == 1);
+        CHECK(row.otherwise.empty());
+        // ...and no other row loads a window.
+        CHECK_FALSE((row.weave.has_value() && row.weave->role.rfind(window, 0) == 0));
     }
+    const load::ArtifactIntent& os = got.plan.artifacts[3];
+    CHECK(os.stem == "zengine-window-sdl");
+    CHECK_FALSE(os.provider.has_value());
+    REQUIRE(os.weave.has_value());
+    CHECK(os.weave->role == window + zengine::graphics::kSdlWindow);
+    CHECK_FALSE(os.optional);
+    REQUIRE(os.otherwise.size() == 1);
+    CHECK(os.otherwise[0] ==
+          load::AlternativeIntent{"zengine-window-terminal",
+                                  load::WeaveIntent{window + zengine::graphics::kTerminalWindow}});
+    // WRITTEN AS VERSION 4, the smallest that says it, and read back as the plan it is.
+    CHECK(load_persist::version_for(got.plan) == load_persist::kFormatVersion);
+    const load_persist::LoadedPlan again = load_persist::from_text(load_persist::to_text(got.plan));
+    REQUIRE_MESSAGE(again.outcome.accepted, again.outcome.refusal);
+    CHECK(again.plan == got.plan);
 }
 
-TEST_CASE("the default plan's medium is two rows, the directory and the terminal window, and they "
-          "realize beside the input weave") {
+TEST_CASE("the default plan's medium is two rows, the directory and the window, and with the "
+          "terminal window taken alone they realize beside the input weave") {
     const load_persist::LoadedPlan win = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
     REQUIRE_MESSAGE(win.outcome.accepted, win.outcome.refusal);
     const auto& rows = win.plan.artifacts;
@@ -1332,19 +1397,22 @@ TEST_CASE("the default plan's medium is two rows, the directory and the terminal
     REQUIRE(directory.weave.has_value());
     CHECK(directory.weave->role == zengine::graphics::kGraphicsRole);
     CHECK_FALSE(directory.optional);
-    CHECK(window.stem == "zengine-window-terminal");
+    CHECK(window.stem == "zengine-window-sdl");
     CHECK_FALSE(window.provider.has_value());
     REQUIRE(window.weave.has_value());
-    CHECK(window.weave->role == std::string(zengine::graphics::kWindowOfficePrefix) +
-                                    zengine::graphics::kTerminalWindow);
     CHECK_FALSE(window.optional);
 
-    // ...AND THEY REALIZE AS THE PLAN NAMES THEM, between the basic provider before them and the
-    // input weave and the Timer after them, whose beat the window reads its terminal on: four
-    // weaves loaded, at their offices, by the real Kernel from the staged artifacts.
+    // ...AND WITH THE TERMINAL WINDOW TAKEN ALONE, as `--tui` takes it (`take_role`), THEY REALIZE
+    // AS THE PLAN NAMES THEM, between the basic provider before them and the input weave and the
+    // Timer after them, whose beat the window reads its terminal on: four weaves loaded, at their
+    // offices, by the real Kernel from the staged artifacts.
+    const std::string terminal =
+        std::string(zengine::graphics::kWindowOfficePrefix) + zengine::graphics::kTerminalWindow;
+    load::LoadPlan taken = plan_of({rows[0], directory, window, rows[4], rows[5]});
+    REQUIRE(load::take_role(taken, terminal).accepted);
+    CHECK(taken.artifacts[2] == weaves("zengine-window-terminal", terminal.c_str()));
     PlanRig rig;
-    const load::Executed done = rig.realize(plan_of(
-        {rows[0], directory, window, rows[4], rows[5]}));
+    const load::Executed done = rig.realize(taken);
     REQUIRE_MESSAGE(done.ok, done.refusal);
     REQUIRE(done.resolved.size() == 5);
     for (std::size_t i : {std::size_t{1}, std::size_t{2}, std::size_t{3}, std::size_t{4}}) {
@@ -1366,27 +1434,224 @@ TEST_CASE("the default plan's medium is two rows, the directory and the terminal
     CHECK(done.resolved[3].role == "zengine.input");
     CHECK(done.resolved[4].stem == "zengine-timer");
     CHECK(done.resolved[4].role == tmr::kTimerRole);
+    CHECK(done.passed_over.empty()); // nothing was tried in the terminal window's place
+}
 
-    // THE OS WINDOW'S PLAN is this one with the OS window where the terminal window stands, the
-    // same input row beside it.
-    const load_persist::LoadedPlan os = load_persist::from_text(file_text(WORKSHOP_GRAPHICAL_PLAN));
-    REQUIRE_MESSAGE(os.outcome.accepted, os.outcome.refusal);
-    REQUIRE(os.plan.artifacts.size() == win.plan.artifacts.size());
-    CHECK(os.plan.choices == win.plan.choices);
-    for (std::size_t i = 0; i < win.plan.artifacts.size(); ++i) {
-        CAPTURE(win.plan.artifacts[i].stem);
-        if (i != 3) {
-            CHECK(os.plan.artifacts[i] == win.plan.artifacts[i]);
-        }
+TEST_CASE("a row's artifact whose load is refused gives way to the next it names, said once in "
+          "Loom's words; one this installation lacks gives way unsaid; the first that loads "
+          "stands in the row") {
+    // ⚔ MUTATION: `answered` failing the row on its first refusal -- the plan stops at the
+    // provider-only image, and the alternative never loads.
+    const char* role = "zengine.test.window";
+    load::ArtifactIntent row = weaves("zengine-operators-basic", role);
+    row.otherwise = {load::AlternativeIntent{"zengine-plain-weave", load::WeaveIntent{role}}};
+    PlanRig rig;
+    const load::Executed done = rig.realize(plan_of({row, both("zengine-timer", "zengine.timer")}));
+    REQUIRE_MESSAGE(done.ok, done.refusal);
+    REQUIRE(done.resolved.size() == 2);
+    CHECK(done.resolved[0].stem == "zengine-plain-weave");
+    CHECK(done.resolved[0].role == role);
+    CHECK(done.resolved[0].weave_loaded);
+    CHECK_FALSE(rig.kernel.is_loaded("zengine-operators-basic"));
+    // THE ROW IS THE ONE THAT LOADED, for the run: what the projection and a reload name.
+    CHECK(rig.executor.plan().artifacts[0].stem == "zengine-plain-weave");
+    CHECK(rig.executor.plan().artifacts[0].otherwise.empty());
+    CHECK(rig.executor.state_of("zengine-plain-weave") == load::RowState::Resolved);
+    REQUIRE(done.passed_over.size() == 1);
+    CHECK(done.passed_over[0].stem == "zengine-operators-basic");
+    CHECK(done.passed_over[0].next == "zengine-plain-weave");
+    CHECK(done.passed_over[0].why.rfind("it did not load (", 0) == 0);
+    CHECK(done.passed_over[0].sentence() ==
+          "`zengine-operators-basic` did not load, so `zengine-plain-weave` stands in its row -- " +
+              done.passed_over[0].why);
+
+    // AN ARTIFACT THIS INSTALLATION DOES NOT HOLD gives way unsaid: it is not one that failed.
+    load::ArtifactIntent absent = weaves("zengine-no-such-window", role);
+    absent.otherwise = {load::AlternativeIntent{"zengine-plain-weave", load::WeaveIntent{role}}};
+    PlanRig quiet;
+    const load::Executed none = quiet.realize(plan_of({absent}));
+    REQUIRE_MESSAGE(none.ok, none.refusal);
+    REQUIRE(none.resolved.size() == 1);
+    CHECK(none.resolved[0].stem == "zengine-plain-weave");
+    CHECK(none.passed_over.empty());
+
+    // ...AND WHERE NOTHING IT NAMES LOADS, the row refuses as any row does, naming the last tried,
+    // and what gave way before it is still said.
+    load::ArtifactIntent hopeless = weaves("zengine-operators-basic", role);
+    hopeless.otherwise = {load::AlternativeIntent{"zengine-provider-min", load::WeaveIntent{role}}};
+    PlanRig stopped;
+    const load::Executed refused = stopped.realize(plan_of({hopeless}));
+    CHECK_FALSE(refused.ok);
+    CHECK(refused.refusal.rfind("artifact 'zengine-provider-min': weave load refused: ", 0) == 0);
+    REQUIRE(refused.passed_over.size() == 1);
+    CHECK(refused.passed_over[0].stem == "zengine-operators-basic");
+}
+
+TEST_CASE("the shipped window row in the OS window's absence: told a driver it lacks, the OS "
+          "window gives way to the terminal window, said once, and leaves nothing loaded; in a "
+          "build without it, the terminal window loads unsaid") {
+    const load_persist::LoadedPlan got = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
+    REQUIRE_MESSAGE(got.outcome.accepted, got.outcome.refusal);
+    const load::ArtifactIntent& directory = got.plan.artifacts[2];
+    const load::ArtifactIntent& window = got.plan.artifacts[3];
+    REQUIRE(window.stem == "zengine-window-sdl");
+    PlanRig rig;
+    load::Executed done;
+    {
+#ifdef WINDOW_SDL_SO
+        // ⚔ MUTATION: the OS window's backend keeping a window it could not open -- its load is
+        // answered, nothing gives way, and the desk would go to a window nothing shows.
+        const VideoDriver lacking("zengine-no-such-driver");
+#endif
+        done = rig.realize(plan_of({directory, window}));
     }
-    const load::ArtifactIntent& os_window = os.plan.artifacts[3];
-    CHECK(os_window.stem == "zengine-window-sdl");
-    CHECK_FALSE(os_window.provider.has_value());
-    REQUIRE(os_window.weave.has_value());
-    CHECK(os_window.weave->role == std::string(zengine::graphics::kWindowOfficePrefix) +
-                                       zengine::graphics::kSdlWindow);
-    CHECK_FALSE(os_window.optional);
-    CHECK(os.plan.artifacts[4].stem == "zengine-input");
+    REQUIRE_MESSAGE(done.ok, done.refusal);
+    REQUIRE(done.resolved.size() == 2);
+    CHECK(done.resolved[1].stem == "zengine-window-terminal");
+    CHECK(done.resolved[1].role == "zengine.window.terminal");
+    CHECK_FALSE(rig.kernel.is_loaded("zengine-window-sdl"));
+#ifdef WINDOW_SDL_SO
+    REQUIRE(done.passed_over.size() == 1);
+    CHECK(done.passed_over[0].stem == "zengine-window-sdl");
+    CHECK(done.passed_over[0].next == "zengine-window-terminal");
+    CHECK(done.passed_over[0].why.rfind("it would not start here, and what it said is on "
+                                        "standard error (", 0) == 0);
+#else
+    CHECK(done.passed_over.empty());
+#endif
+}
+
+TEST_CASE("the terminal window taken alone: the row loading it keeps it, a row naming it in its "
+          "place loads it and tries nothing else, and a plan offering none is refused, unchanged") {
+    const std::string terminal = "zengine.window.terminal";
+    load::ArtifactIntent os = weaves("zengine-window-sdl", "zengine.window.sdl");
+    os.otherwise = {load::AlternativeIntent{"zengine-window-terminal", load::WeaveIntent{terminal}}};
+    load::LoadPlan plan = plan_of({provides("zengine-operators-basic"), os,
+                                   weaves("zengine-input", "zengine.input")});
+    REQUIRE(load::check_plan(plan).accepted);
+    load::LoadPlan taken = plan;
+    REQUIRE(load::take_role(taken, terminal).accepted);
+    CHECK(taken.artifacts[1] == weaves("zengine-window-terminal", terminal.c_str()));
+    CHECK(taken.artifacts[0] == plan.artifacts[0]);
+    CHECK(taken.artifacts[2] == plan.artifacts[2]);
+
+    // A ROW LOADING IT ITSELF keeps it, and names nothing in its place any more.
+    load::ArtifactIntent own = weaves("zengine-window-terminal", terminal.c_str());
+    own.otherwise = {load::AlternativeIntent{"zengine-window-sdl",
+                                             load::WeaveIntent{"zengine.window.sdl"}}};
+    load::LoadPlan itself = plan_of({own});
+    REQUIRE(load::take_role(itself, terminal).accepted);
+    CHECK(itself.artifacts[0] == weaves("zengine-window-terminal", terminal.c_str()));
+
+    // A PLAN OFFERING NONE -- the OS window alone -- is refused, and left as it was.
+    load::LoadPlan alone = plan_of({weaves("zengine-window-sdl", "zengine.window.sdl")});
+    const load::LoadPlan before = alone;
+    const Written refused = load::take_role(alone, terminal);
+    CHECK_FALSE(refused.accepted);
+    CHECK(refused.refusal == "no row of this plan loads anything into `zengine.window.terminal`");
+    CHECK(alone == before);
+}
+
+TEST_CASE("what a row loads in its place is a weave, named once, into an office no other row and "
+          "no choice holds") {
+    const auto with = [](load::ArtifactIntent row, const char* stem, const char* role) {
+        row.otherwise.push_back(load::AlternativeIntent{stem, load::WeaveIntent{role}});
+        return row;
+    };
+    const auto refused = [](const load::LoadPlan& plan, const std::string& words) {
+        const Written w = load::check_plan(plan);
+        CHECK_FALSE(w.accepted);
+        CHECK_MESSAGE(w.refusal.find(words) != std::string::npos, w.refusal);
+    };
+    const load::ArtifactIntent os = weaves("zengine-window-sdl", "zengine.window.sdl");
+    CHECK(load::check_plan(plan_of({with(os, "zengine-window-terminal", "zengine.window.terminal")}))
+              .accepted);
+    refused(plan_of({with(both("zengine-timer", "zengine.timer"), "zengine-plain-weave", "x.y")}),
+            "only a row loading a weave and supplying no operators may");
+    refused(plan_of({with(provides("zengine-operators-basic"), "zengine-plain-weave", "x.y")}),
+            "only a row loading a weave and supplying no operators may");
+    refused(plan_of({with(os, "zengine-window-sdl", "x.y")}), "names itself");
+    refused(plan_of({with(with(os, "zengine-plain-weave", "x.y"), "zengine-plain-weave", "x.z")}),
+            "twice to load in its place");
+    load::ArtifactIntent many = os;
+    for (const char* stem : {"a-1", "a-2", "a-3", "a-4", "a-5"}) {
+        many = with(many, stem, "x.y");
+    }
+    refused(plan_of({many}), "more than 4 artifacts");
+    refused(plan_of({with(os, "zengine-input", "x.y"), weaves("zengine-input", "zengine.input")}),
+            "is a row of its own");
+    refused(plan_of({with(os, "zengine-window-terminal", "zengine.input"),
+                     weaves("zengine-input", "zengine.input")}),
+            "which `zengine-input` loads into");
+    refused(plan_of({with(os, "zengine-window-terminal", "x.y"),
+                     with(weaves("zengine-plain-weave", "p.q"), "zengine-window-terminal", "x.z")}),
+            "is named to load in the place of both");
+    refused(plan_of({with(os, "zengine-window-terminal", "x.y"),
+                     with(weaves("zengine-plain-weave", "p.q"), "zengine-legacy-pane", "x.y")}),
+            "each name an artifact to load into `x.y`");
+    load::LoadPlan chosen = plan_of({with(os, "zengine-window-terminal", "x.y")});
+    chosen.choices.push_back(load::ChoiceIntent{"x.y", "standard", "zengine-editor-pane"});
+    refused(chosen, "has choices");
+}
+
+TEST_CASE("a plan naming a row's alternatives is written as version 4 and read back the plan it "
+          "is; one naming none is written as before, and a version-4 file naming none is refused") {
+    load::ArtifactIntent os = weaves("zengine-window-sdl", "zengine.window.sdl");
+    os.otherwise = {load::AlternativeIntent{"zengine-window-terminal",
+                                            load::WeaveIntent{"zengine.window.terminal"}}};
+    load::ArtifactIntent optional_row = weaves("zengine-plain-weave", "p.q");
+    optional_row.optional = true;
+    const load::LoadPlan plan = plan_of({provides("zengine-operators-basic"), os, optional_row});
+    CHECK(load_persist::version_for(plan) == load_persist::kFormatVersion);
+    const std::string text = load_persist::to_text(plan);
+    CHECK(text.find("otherwise") != std::string::npos);
+    const load_persist::LoadedPlan back = load_persist::from_text(text);
+    REQUIRE_MESSAGE(back.outcome.accepted, back.outcome.refusal);
+    CHECK(back.plan == plan);
+
+    // ONE NAMING NONE IS WRITTEN AS BEFORE: optional rows as version 3, with no `otherwise`.
+    const load::LoadPlan before = plan_of({provides("zengine-operators-basic"), optional_row});
+    CHECK(load_persist::version_for(before) == load_persist::kFormatVersionV3);
+    const std::string old = load_persist::to_text(before);
+    CHECK(old.find("otherwise") == std::string::npos);
+    const load_persist::LoadedPlan old_back = load_persist::from_text(old);
+    REQUIRE_MESSAGE(old_back.outcome.accepted, old_back.outcome.refusal);
+    CHECK(old_back.plan == before);
+
+    // A FILE OF THE NEWEST VERSION NAMING NO ROW'S ALTERNATIVES is one plan with two spellings,
+    // and refused.
+    const load_persist::LoadedPlan larger = load_persist::from_text(
+        R"({"zen":1,"schema":"WorkshopLoadFile","version":4,"fields":{)"
+        R"("format":"zengine-workshop-load-plan","format_version":"4","artifacts":[)"
+        R"({"artifact":"zengine-plain-weave","provider":[],"weave":[{"role":"p.q"}],)"
+        R"("optional":true,"otherwise":[]}],"choices":[]}})");
+    CHECK_FALSE(larger.outcome.accepted);
+    CHECK(larger.outcome.refusal == "a version-4 load plan names what a row loads in its place; a "
+                                    "plan naming none is written as version 3");
+
+    // ...AND WHAT A ROW LOADS IN ITS PLACE NAMES ITS WEAVE ONCE.
+    const load_persist::LoadedPlan unnamed = load_persist::from_text(
+        R"({"zen":1,"schema":"WorkshopLoadFile","version":4,"fields":{)"
+        R"("format":"zengine-workshop-load-plan","format_version":"4","artifacts":[)"
+        R"({"artifact":"zengine-window-sdl","provider":[],"weave":[{"role":"zengine.window.sdl"}],)"
+        R"("optional":false,"otherwise":[{"artifact":"zengine-window-terminal","weave":[]}]}],)"
+        R"("choices":[]}})");
+    CHECK_FALSE(unnamed.outcome.accepted);
+    CHECK(unnamed.outcome.refusal.find("names its weave once") != std::string::npos);
+}
+
+TEST_CASE("a launch naming the retired graphical plan where it is gone is told the fix; a file of "
+          "that name that is there, and every other path, is a plan like any other") {
+    const auto present = [](const std::string& path) { return path == "/kept/graphical-load-plan.json"; };
+    const std::string told =
+        load_persist::retired_plan("/opt/zengine/bin/graphical-load-plan.json", present);
+    CHECK(told == "graphical-load-plan.json is retired: the shipped default-load-plan.json opens "
+                  "the OS window, else the terminal window -- start without --load-plan, or with "
+                  "--tui for the terminal window (workshop/docs/load-plans.md)");
+    CHECK(load_persist::retired_plan("graphical-load-plan.json", present) == told);
+    CHECK(load_persist::retired_plan("/kept/graphical-load-plan.json", present).empty());
+    CHECK(load_persist::retired_plan("/opt/zengine/bin/default-load-plan.json", present).empty());
+    CHECK(load_persist::retired_plan("", present).empty());
 }
 
 TEST_CASE("a settled project's medium holds the terminal only when a terminal medium loaded on a "
@@ -1449,13 +1714,15 @@ TEST_CASE("a settled project's medium holds the terminal only when a terminal me
 
 TEST_CASE("a plan naming a retired artifact is refused by name, with its fix, before any row "
           "opens") {
+    constexpr const char* kMediumFix =
+        "put the default plan's zengine-graphics row and its window row, zengine-window-sdl "
+        "otherwise zengine-window-terminal, where it stands";
     // ⚔ MUTATION: `begin` walking the plan with no look at its stems -- the retired row opens and
     // fails to load, naming no fix, and the rows before it are loaded.
     for (const auto& [stem, fix] : {
-             std::pair<const char*, const char*>{"zengine-skin-tui-classic",
-                                                 "put the default plan's two medium rows where it stands"},
-             {"zengine-skin-tui-block", "put the default plan's two medium rows where it stands"},
-             {"zengine-skin-sdl", "put the graphical plan's two medium rows where it stands"},
+             std::pair<const char*, const char*>{"zengine-skin-tui-classic", kMediumFix},
+             {"zengine-skin-tui-block", kMediumFix},
+             {"zengine-skin-sdl", kMediumFix},
              {"zengine-input-sdl", "put zengine-input where it stands"}}) {
         CAPTURE(stem);
         PlanRig rig;
@@ -1470,6 +1737,15 @@ TEST_CASE("a plan naming a retired artifact is refused by name, with its fix, be
         CHECK_FALSE(rig.kernel.is_loaded("zengine-operators-basic"));
         CHECK_FALSE(rig.kernel.is_loaded("zengine-timer"));
     }
+    // A ROW NAMING ONE IN ITS PLACE is refused the same way, though it may never be tried.
+    load::ArtifactIntent os = weaves("zengine-window-sdl", "zengine.window.sdl");
+    os.otherwise = {load::AlternativeIntent{"zengine-skin-tui-classic",
+                                            load::WeaveIntent{"zengine.window.terminal"}}};
+    PlanRig alternative;
+    const load::Executed instead = alternative.realize(plan_of({os}));
+    CHECK_FALSE(instead.ok);
+    CHECK(instead.refusal.find("artifact 'zengine-skin-tui-classic' is retired") == 0);
+    CHECK(instead.resolved.empty());
     // A CHOICE NAMING ONE is refused the same way, though nothing loads a choice at startup.
     load::LoadPlan with_choice = plan_of({provides("zengine-operators-basic")});
     with_choice.choices.push_back(load::ChoiceIntent{"zengine.input", "sdl", "zengine-input-sdl"});
@@ -5826,6 +6102,44 @@ TEST_CASE("`append` is refused mid-row and after a refusal, and a duplicate stem
         CHECK(after.refusal.find("stopped at a refusal") != std::string::npos);
         CHECK_FALSE(rig.catalog.mounted("zengine.operators.basic"));
     }
+}
+
+TEST_CASE("the project plan `load it` writes carries the window row as it was read, `otherwise` "
+          "and all, never the window that opened") {
+    // ⚔ MUTATION: the author seeded from the plan as run -- the file names the terminal window
+    // alone, and the next launch in that project never tries the OS window.
+    const load_persist::LoadedPlan shipped =
+        load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
+    REQUIRE_MESSAGE(shipped.outcome.accepted, shipped.outcome.refusal);
+    const load::LoadPlan read = plan_of({shipped.plan.artifacts[2], shipped.plan.artifacts[3]});
+    REQUIRE(read.artifacts[1].stem == "zengine-window-sdl");
+    PlanRig rig;
+    {
+#ifdef WINDOW_SDL_SO
+        const VideoDriver lacking("zengine-no-such-driver");
+#endif
+        REQUIRE(rig.realize(read).ok);
+    }
+    // THE RUN stands in the terminal window...
+    REQUIRE(rig.executor.plan().artifacts[1].stem == "zengine-window-terminal");
+    const std::filesystem::path dir = stage().dir / "loadit-window-project";
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    REQUIRE(!ec);
+    const std::filesystem::path plan_file = dir / load_persist::kProjectLoadPlanName;
+    std::filesystem::remove(plan_file, ec);
+    // ...AND THE AUTHOR IS SEEDED FROM THE PLAN AS READ, as the host seeds it (`main`).
+    workshop::authoring::PlanAuthor author{plan_file.generic_string(), read, &rig.executor};
+    const workshop::HostContext::PlanAppend done = workshop::authoring::append_plan_row(
+        author, "zengine-plain-weave", "zen.plain", "recipe-zengine-plain-weave");
+    REQUIRE_MESSAGE(done.accepted, done.refusal);
+    rig.drain(16);
+    const load_persist::LoadedPlan written = load_persist::load_file(plan_file.generic_string());
+    REQUIRE_MESSAGE(written.outcome.accepted, written.outcome.refusal);
+    REQUIRE(written.plan.artifacts.size() == 3);
+    CHECK(written.plan.artifacts[1] == read.artifacts[1]);
+    CHECK(written.plan.artifacts[2].stem == "zengine-plain-weave");
+    CHECK(load_persist::version_for(written.plan) == load_persist::kFormatVersion);
 }
 
 TEST_CASE("the minimum row is written as authored, the plan round-trips byte for byte, and a "

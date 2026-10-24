@@ -50,8 +50,7 @@ headers.
   (`workshop/host_sources.hpp`) and offers it through an `op::OperatorHostSurface`.
 - `workshop/load_execute.hpp` mounts each plan provider (`op::mount_provider`) and scopes an
   `op::OperatorOffer` around a load; `workshop/load_plan.hpp` spells `op::MountMode`.
-- `workshop/default-load-plan.json` and `workshop/graphical-load-plan.json` name
-  `zengine-operators-basic`; `workshop/CMakeLists.txt` stages it; `cmake/ZengineInstall.cmake`
+- `workshop/default-load-plan.json` names `zengine-operators-basic`; `workshop/CMakeLists.txt` stages it; `cmake/ZengineInstall.cmake`
   installs it and the headers.
 - Doors over the catalog: `zengine.powers` (`workshop/powers_door.hpp`) and `zengine.sources`
   (`workshop/sample_door.hpp`). `workshop/session_persist.hpp` looks conversions up, and

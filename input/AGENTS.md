@@ -36,8 +36,8 @@ is Workshop's side, a press and a key reaching a pane.
 ## Host side
 
 - Staging: `workshop/CMakeLists.txt` stages `zengine-input`.
-- Loading: `workshop/default-load-plan.json` and `workshop/graphical-load-plan.json` load
-  `zengine-input` as `zengine.input`; a plan naming the retired `zengine-input-sdl` is refused by
+- Loading: `workshop/default-load-plan.json` loads `zengine-input` as `zengine.input`, beside
+  either window; a plan naming the retired `zengine-input-sdl` is refused by
   name (`workshop/load_execute.hpp`).
 - Guests: `workshop/guests.cpp` lets a guest with the `input` power send the session shapes to
   `kInputRole`; `workshop/guest_door.hpp` closes a gone guest's session on its behalf.

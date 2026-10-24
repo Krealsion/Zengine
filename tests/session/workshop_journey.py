@@ -22,9 +22,9 @@ own decision and is never reported as anybody's outcome.
 The three Loom paths are what an installed Loom's package names (`LOOM_HOST_PROGRAM`,
 `LOOM_RUNS_ARTIFACT`, `LOOM_SESSION_RUNTIME`); tests/CMakeLists.txt passes them.
 
-With a headless plan the terminal window's pictures are its cells (`text/cells`); with `--graphical` and the
-graphical plan they are the window's pixels (`image/bmp`), and the pictures are kept for a person
-to look at. Exit 0 only when every check held.
+Workshop starts in the terminal window (`--tui`), whose pictures are its cells (`text/cells`); with
+`--graphical` it starts with no flag, in the OS window, whose pictures are its pixels (`image/bmp`), kept
+for a person to look at. Exit 0 only when every check held.
 """
 
 import argparse
@@ -171,7 +171,8 @@ def main():
         env[var] = os.path.join(wdir, "profile", var.lower())
         os.makedirs(env[var], exist_ok=True)
     wout = open(os.path.join(wdir, "workshop.out"), "wb")
-    workshop = subprocess.Popen([args.workshop, "--isolated", "--load-plan", args.plan,
+    window = [] if args.graphical else ["--tui"]
+    workshop = subprocess.Popen([args.workshop, "--isolated", "--load-plan", args.plan, *window,
                                  "--guests", "guests.json", "--log", "workshop.log"],
                                 cwd=wdir, env=env, stdin=subprocess.DEVNULL, stdout=wout,
                                 stderr=subprocess.STDOUT)

@@ -143,6 +143,25 @@ TEST_CASE("an old object document is left exactly as it is: a launch names it on
     CHECK_FALSE(session_persist::from_text(kRetiredObjectDocument).outcome.accepted);
 }
 
+TEST_CASE("what the plan could not load and gave way from is said on the desk as it comes up, and "
+          "nothing is said of it where every row loaded its own") {
+    // ⚔ MUTATION: the startup notes leaving out `HostContext::passed_over` -- the desk comes up
+    // in the terminal window and never says the OS window could not open.
+    const std::string gave_way = "`zengine-window-sdl` did not load, so `zengine-window-terminal` "
+                                 "stands in its row -- it would not start here, and what it said "
+                                 "is on standard error (weave load refused: library create() "
+                                 "returned null)";
+    Live t;
+    t.host.passed_over = [&gave_way] { return std::vector<std::string>{gave_way}; };
+    t.ready();
+    CHECK(t.notice().find(gave_way) != std::string::npos);
+
+    Live quiet;
+    quiet.host.passed_over = [] { return std::vector<std::string>{}; };
+    quiet.ready();
+    CHECK(quiet.notice().find("did not load") == std::string::npos);
+}
+
 // ============================================================================
 // Tier 13 — the SETUP: a weaver names the arrangement they are working in
 // ============================================================================

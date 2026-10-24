@@ -2,8 +2,8 @@
 
 **Manual.** Input: the weave that turns the keyboard and the pointer into messages, answering to the
 office `zengine.input` (an office is the name a weave answers to). `zengine-input` holds it: it
-reads the terminal, or the console on Windows. Workshop's two plans load it beside either window
-([the shipped plans](../../workshop/docs/load-plans.md#the-shipped-plans)); a program of your own
+reads the terminal, or the console on Windows. Workshop's plan loads it beside either window
+([the shipped plan](../../workshop/docs/load-plans.md#the-shipped-plan)); a program of your own
 loads it in that office. Your weave hears a person by accepting what it publishes; an
 agent or a test speaks for one through an input session, by the messages below.
 

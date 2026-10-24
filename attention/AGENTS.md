@@ -31,8 +31,7 @@ and `attention/pane.cpp` are also sample artifact and source in `workshop_load`
 
 ## Host side
 
-- Plan rows: `workshop/default-load-plan.json`, `workshop/graphical-load-plan.json` (optional,
-  office `zengine.attention`); staged beside the host and listed as a development pane in
+- Plan row: `workshop/default-load-plan.json` (optional, office `zengine.attention`); staged beside the host and listed as a development pane in
   `workshop/CMakeLists.txt`.
 - The seam it hears: `workshop/attention_seam_vocabulary.hpp` (`StandingConditions`,
   `attention_glance`); Workshop's grant to say it, `workshop/grant.cpp`; counted as the desk a

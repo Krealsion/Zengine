@@ -75,6 +75,33 @@ struct ResolvedArtifact {
     std::string switched_to;
 };
 
+/// AN ARTIFACT A ROW COULD NOT LOAD, AND WHAT IT TRIED NEXT: the row's own artifact or an
+/// alternative before the next, that next artifact, and why the first did not load in a weaver's
+/// words (`passed_over_words`).
+struct PassedOver {
+    std::string stem;
+    std::string next;
+    std::string why;
+
+    /// What the desk and the banner say of it, once.
+    std::string sentence() const {
+        return "`" + stem + "` did not load, so `" + next + "` stands in its row -- " + why;
+    }
+};
+
+/// WHY AN ARTIFACT A ROW NAMES ANOTHER IN PLACE OF DID NOT LOAD, in a weaver's words, the
+/// refusing layer's beside them: one that would not be made (an OS window with no display it can
+/// open on), one whose file would not open, or another refusal.
+inline std::string passed_over_words(const std::string& refused) {
+    if (refused.find("create() returned null") != std::string::npos) {
+        return "it would not start here, and what it said is on standard error (" + refused + ")";
+    }
+    if (refused.find("open failed") != std::string::npos) {
+        return "its file would not open (" + refused + ")";
+    }
+    return "it did not load (" + refused + ")";
+}
+
 /// What executing a whole plan produced, or where it stopped. A refusal names the artifact, the
 /// step and the refusing layer's own sentence.
 struct Executed {
@@ -91,6 +118,9 @@ struct Executed {
     /// ...AND EACH ONE'S ARTIFACT, in the same order: the name a weaver builds. A condition keyed
     /// and named by it says WHICH tool is missing on a row no tool paints (`unavailable_tool`).
     std::vector<std::string> unavailable_stems;
+
+    /// The artifacts rows could not load and gave way from, in the order met.
+    std::vector<PassedOver> passed_over;
 
     explicit operator bool() const noexcept { return ok; }
 };
@@ -119,14 +149,21 @@ struct RetiredArtifact {
     const char* fix;
 };
 inline constexpr RetiredArtifact kRetiredArtifacts[] = {
-    {"zengine-skin-tui-classic", "put the default plan's two medium rows where it stands"},
-    {"zengine-skin-tui-block", "put the default plan's two medium rows where it stands"},
-    {"zengine-skin-sdl", "put the graphical plan's two medium rows where it stands"},
+    {"zengine-skin-tui-classic",
+     "put the default plan's zengine-graphics row and its window row, zengine-window-sdl "
+     "otherwise zengine-window-terminal, where it stands"},
+    {"zengine-skin-tui-block",
+     "put the default plan's zengine-graphics row and its window row, zengine-window-sdl "
+     "otherwise zengine-window-terminal, where it stands"},
+    {"zengine-skin-sdl",
+     "put the default plan's zengine-graphics row and its window row, zengine-window-sdl "
+     "otherwise zengine-window-terminal, where it stands"},
     {"zengine-input-sdl", "put zengine-input where it stands"},
 };
 
-/// The first row or choice of `plan` naming a retired artifact, as its index among the rows (the
-/// rows' count for a choice) and the sentence refusing the plan; an empty sentence for none.
+/// The first row, alternative or choice of `plan` naming a retired artifact, as its index among
+/// the rows (its row's for an alternative, the rows' count for a choice) and the sentence refusing
+/// the plan; an empty sentence for none.
 struct RetiredRow {
     std::size_t row = 0;
     std::string stem;
@@ -145,6 +182,11 @@ inline RetiredRow retired_row(const LoadPlan& plan) {
     for (std::size_t i = 0; i < plan.artifacts.size(); ++i) {
         if (RetiredRow r = refuse(i, plan.artifacts[i].stem); !r.refusal.empty()) {
             return r;
+        }
+        for (const AlternativeIntent& alt : plan.artifacts[i].otherwise) {
+            if (RetiredRow r = refuse(i, alt.stem); !r.refusal.empty()) {
+                return r;
+            }
         }
     }
     for (const ChoiceIntent& c : plan.choices) {
@@ -486,16 +528,23 @@ public:
     /// builds and asks. A notice, not a policy: what a host does about it is the host's.
     using Settled = std::function<void(const Executed&)>;
 
+    /// Does this installation hold the artifact? A predicate the host owns, asked of a row that
+    /// names something in its place: one it does not hold gives way unsaid, since a build without
+    /// an artifact is not one where it failed. Empty means every artifact is held.
+    using Installed = std::function<bool(const std::string& stem)>;
+
     /// The booter as an object: this sends as its id and wires the answer path through it.
     PlanExecutor(loom::Switchboard& bus, op::Catalog& catalog,
                  const op::OperatorHostSurface& operators, PlanBooter& voice,
                  loom::WeaveId manager, BootAnswers& answers, ArtifactPath path_of,
                  Settled settled = Settled(), AwaitingBuild awaiting = AwaitingBuild(),
-                 StageArtifact stage = StageArtifact(), PromoteImage promote = PromoteImage())
+                 StageArtifact stage = StageArtifact(), PromoteImage promote = PromoteImage(),
+                 Installed installed = Installed())
         : bus_(&bus), catalog_(&catalog), operators_(&operators), voice_(&voice),
           manager_(manager), answers_(&answers), path_of_(std::move(path_of)),
           settled_(std::move(settled)), awaiting_(std::move(awaiting)),
-          stage_(std::move(stage)), promote_(std::move(promote)) {
+          stage_(std::move(stage)), promote_(std::move(promote)),
+          installed_(std::move(installed)) {
         voice_->wakes(this);
     }
 
@@ -559,6 +608,12 @@ public:
         offer_.reset();
         if (answers_->refused) {
             fail("weave load refused: " + answers_->reason);
+            // A row that gave way tries its next artifact, on the same row.
+            if (gave_way_) {
+                gave_way_ = false;
+                advance();
+                return;
+            }
             // An optional row that refused leaves the owner advancing: resume the walk here.
             if (state_ == Realization::Advancing) {
                 ++cursor_;
@@ -981,8 +1036,12 @@ public:
         for (const SteppedOver& gone : stepped_over_) {
             out.unavailable_stems.push_back(gone.stem);
         }
+        out.passed_over = passed_over_;
         return out;
     }
+
+    /// The artifacts rows could not load and gave way from, in the order met; never cleared.
+    const std::vector<PassedOver>& passed_over() const noexcept { return passed_over_; }
 
     /// The optional rows this run could not perform, in the order met, as the banner says them.
     /// Never cleared; the structured answer per row is `state_of` and `reason_of`.
@@ -1011,6 +1070,12 @@ private:
     /// and a waiting row stops the walk.
     void advance() {
         while (state_ == Realization::Advancing && cursor_ < plan_.artifacts.size()) {
+            // A ROW'S ARTIFACT THIS INSTALLATION DOES NOT HOLD gives way to the next it names,
+            // unsaid, before anything is asked of it.
+            ArtifactIntent& row = plan_.artifacts[cursor_];
+            while (installed_ && !row.otherwise.empty() && !installed_(row.stem)) {
+                take_next_alternative(row);
+            }
             // Asked before anything is mounted or commanded. A yes stops the walk: the rows behind
             // stay `Authored`, and `realize` is the only door past this line.
             if (awaiting_ && awaiting_(plan_.artifacts[cursor_].stem)) {
@@ -1020,6 +1085,10 @@ private:
                 return;
             }
             perform_row(cursor_);
+            if (gave_way_) {
+                gave_way_ = false; // the row's next artifact, on the same row
+                continue;
+            }
             if (state_ == Realization::Advancing) {
                 ++cursor_;
             }
@@ -1239,6 +1308,20 @@ private:
     /// frontier goes back to `Waiting`, where a corrected build can reach it.
     void fail(const std::string& why) {
         (void)unmount(current_);
+        // A ROW'S ARTIFACT THAT WOULD NOT LOAD gives way to the next the row names, said once: the
+        // refused one left nothing loaded, and the row is the next one's for this run. The walker
+        // tries it on the same row (`gave_way_`). A row a weaver asked for answers as any row does.
+        if (!on_demand_ && cursor_ < plan_.artifacts.size() &&
+            !plan_.artifacts[cursor_].otherwise.empty()) {
+            ArtifactIntent& row = plan_.artifacts[cursor_];
+            passed_over_.push_back(
+                PassedOver{row.stem, row.otherwise.front().stem, passed_over_words(why)});
+            take_next_alternative(row);
+            current_ = ResolvedArtifact{};
+            state_ = Realization::Advancing;
+            gave_way_ = true;
+            return;
+        }
         const std::string said = "artifact '" + current_.stem + "': " + why;
         // An optional row that refused is an unavailable tool, not a refused project: record it
         // and step over it. The caller moves the frontier; moving it here too would skip the next
@@ -1294,6 +1377,8 @@ private:
     /// refuse in words.
     StageArtifact stage_;
     PromoteImage promote_;
+    /// Whether this installation holds an artifact a row names something in place of.
+    Installed installed_;
 
     // ---- the walk's own state ------------------------------------------------------------------
 
@@ -1307,6 +1392,10 @@ private:
         std::string why;
     };
     std::vector<SteppedOver> stepped_over_;
+    /// The artifacts rows could not load and gave way from.
+    std::vector<PassedOver> passed_over_;
+    /// The row in hand gave way and is to be tried again with its next artifact, not stepped past.
+    bool gave_way_ = false;
     /// The refusing layer's sentence for the row that stopped the plan; `refusal_` prefixes it.
     std::string refused_why_;
     /// The row being built.

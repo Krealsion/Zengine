@@ -168,9 +168,10 @@ weave" "unmounting the artifact takes the conversion with it"
 
 ### WL-MIG-09
 `workshop/load_execute.hpp` PlanExecutor PlanExecutor::begin
-`workshop/graphical-load-plan.json` zengine-workshop-session-history
+`workshop/default-load-plan.json` zengine-workshop-session-history
 `tests/test_workshop_load.cpp` "a plan of provider-only rows finishes inside begin(), turning
-nothing" "the shipped default plan is a legal plan, and it is the terminal arrangement"
+nothing" "the shipped default plan is a legal plan, and it opens the OS window, else the terminal
+window"
 
 ### WL-MIG-10
 `workshop/weave_session.cpp` save_last_session restore_last_session

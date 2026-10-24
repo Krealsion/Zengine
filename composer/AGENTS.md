@@ -33,8 +33,8 @@ action census driver, `tests/actions/zengine.composer.txt`, and its manual witne
 
 ## Host side
 
-- Boot: the optional `zengine.composer` row in `workshop/default-load-plan.json` and
-  `workshop/graphical-load-plan.json`; `workshop/CMakeLists.txt` stages it and lists it among
+- Boot: the optional `zengine.composer` row in `workshop/default-load-plan.json`;
+  `workshop/CMakeLists.txt` stages it and lists it among
   the development setup's pane weaves.
 - Seam: no seam vocabulary of its own; the pane protocol `workshop/pane_vocabulary.hpp` and the
   pane parts it includes (`workshop/pane_parts.hpp`, `pane_menu.hpp`, `pane_carry.hpp`, ...).

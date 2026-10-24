@@ -80,13 +80,11 @@ namespace zengine::graphics::window {
 /// The backend `zengine-window-sdl` runs over: one OS window and its renderer, for its life.
 class ProcessSdlBackend {
 public:
-    /// SDL's queue claimed from the start, so a reload in place, which makes the next instance
-    /// before it ends this one, never leaves the queue unclaimed. With SDL's video up already, an
-    /// instance before this one may hold a window to leave it, and this one is counted among the
-    /// living. Otherwise SDL's video is taken and the window and its renderer open here; where they
-    /// cannot -- no display, no driver SDL can use -- this one is refused whole: it says why on
-    /// standard error, gives back SDL and the claim, and throws, so a load of it fails and nothing
-    /// of it stays loaded.
+    /// SDL's queue claimed from the start, so a reload in place never leaves it unclaimed. With
+    /// SDL's video up already, an instance before this one may hold a window to leave it, and this
+    /// one is counted among the living. Otherwise the window and its renderer open here; where they
+    /// cannot -- no display, no driver SDL can use -- this one says why on standard error, gives
+    /// back SDL and the claim, and throws, so its load fails and nothing of it stays loaded.
     ProcessSdlBackend() {
         zengine::input::claim_window_sdl_input();
         input_claimed_ = true;

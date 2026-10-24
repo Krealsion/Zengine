@@ -147,7 +147,7 @@ def prerequisites(args, setup):
         wanted = [host_dir / ("zengine-workshop" + EXE),
                   guest_dir / ("zengine-guest-vocabulary" + LIB),
                   host_dir / ("zengine-demo-control" + LIB),
-                  host_dir / setup.load_plan(args.tui)]
+                  host_dir / setup.load_plan()]
         wanted += [host_dir / (a + LIB) for a in (setup.get("requires") or {}).get("artifacts", [])]
         if project.get("runtime") == "development" and not args.package:
             wanted.append(host_dir / "development-runtime.cmake")
@@ -241,9 +241,16 @@ def launch(args, source, root):
     has_project = project.get("recipes") or project.get("files")
     cwd = make_project(args, setup, root, build, prefix) if has_project else wdir
     first_files(setup, wdir)
-    plan = json.loads((host_dir / setup.load_plan(args.tui)).read_text(encoding="utf-8"))
-    plan["fields"]["artifacts"].append({"artifact": "zengine-demo-control", "provider": [],
-                                        "weave": [{"role": "zengine.demo"}], "optional": False})
+    plan = json.loads((host_dir / setup.load_plan()).read_text(encoding="utf-8"))
+
+    def weave_row(artifact, role):
+        """A required weave row, in the shipped plan's own version: one naming what a row loads in
+        its place says `otherwise` on every row."""
+        row = {"artifact": artifact, "provider": [], "weave": [{"role": role}], "optional": False}
+        if "otherwise" in plan["fields"]["artifacts"][0]:
+            row["otherwise"] = []
+        return row
+    plan["fields"]["artifacts"].append(weave_row("zengine-demo-control", "zengine.demo"))
     if args.neovim:
         # THE PLAN'S OWN SECOND CHOICE for the Editor's office holds it from the start.
         for row in plan["fields"]["artifacts"]:
@@ -251,8 +258,7 @@ def launch(args, source, root):
                 row["artifact"] = "zengine-neovim-editor"
     # A row the setup builds comes last: until it is built the project waits there (its frontier).
     for row in project.get("plan", []):
-        plan["fields"]["artifacts"].append({"artifact": row["artifact"], "provider": [],
-                                            "weave": [{"role": row["role"]}], "optional": False})
+        plan["fields"]["artifacts"].append(weave_row(row["artifact"], row["role"]))
     save_json(wdir / "load-plan.json", plan)
     authority = setup.get("authority")
     credential = secrets.token_urlsafe(32)
@@ -287,6 +293,7 @@ def launch(args, source, root):
     try:
         workshop = spawn("workshop", [host_dir / ("zengine-workshop" + EXE), "--isolated", "--setup", wdir / "setup.json",
                           "--session", wdir / "session.json", "--load-plan", wdir / "load-plan.json",
+                          *(["--tui"] if args.tui else []),
                           "--guests", wdir / "guests.json", "--log", wdir / "workshop.log",
                           "--log-refusals", "--demo-history", "--dump", wdir / "history.txt"]
                          , cwd, wdir / "process.log")
@@ -422,7 +429,8 @@ def main():
     parser.add_argument("--package", help="an extracted package a stranger downloads, in place of --build and --loom-prefix")
     parser.add_argument("--zengine-prefix", help="installed Zengine prefix, for a setup whose project builds against it")
     parser.add_argument("--toolchain-bin", help="a directory put first on PATH for Workshop and the Loom host")
-    parser.add_argument("--tui", action="store_true", help="use the classic terminal medium")
+    parser.add_argument("--tui", action="store_true",
+                        help="Workshop in the terminal window (its own --tui), not the OS window")
     parser.add_argument("--neovim", help="a Neovim program: the Neovim-backed Editor holds the Editor's office from the start")
     parser.add_argument("--wait", type=float, default=900, help="seconds start/status wait for readiness, or walk for its run, before answering")
     parser.add_argument("--pictures", type=Path, help="walk: a new or empty folder for the walk's pictures, rows and steps.json")

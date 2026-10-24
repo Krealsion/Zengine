@@ -162,7 +162,15 @@ void WorkshopWeave::speak_startup_notes(loom::Mail& mail) {
             : "object document " + host_->retired_document +
                   " left as it is -- the object canvas retired, and nothing here reads or "
                   "writes it";
-    const std::string* parts[] = {&keymap_word_, &host_->transition_note, &retired};
+    // ...AND WHAT THE PLAN COULD NOT LOAD AND GAVE WAY FROM, said once: the OS window that could
+    // not open here, so the desk is in the terminal window, and why.
+    std::string gave_way;
+    if (host_->passed_over) {
+        for (const std::string& gone : host_->passed_over()) {
+            gave_way += (gave_way.empty() ? "" : "; ") + gone;
+        }
+    }
+    const std::string* parts[] = {&gave_way, &keymap_word_, &host_->transition_note, &retired};
     for (const std::string* part : parts) {
         if (part->empty()) {
             continue;

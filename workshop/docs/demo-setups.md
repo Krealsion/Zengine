@@ -66,7 +66,7 @@ seconds is named in the note and in `not_showing`, since the rest of the desk is
 first task, the hotkeys, the guide's path and the
 preparation's own request counts. The default medium is the OS window; `--tui` uses the
 terminal window. A setup names the media it supports and refuses the others by name
-([the shipped plans](load-plans.md#the-shipped-plans)).
+([the shipped plan](load-plans.md#the-window-the-os-window-else-the-terminal-window)).
 
 What each answer means, and what to do:
 

@@ -42,7 +42,7 @@ zengine-workshop-develop - build tree: …/cmake-build-debug
 zengine-workshop-develop - runtime: …/cmake-build-debug/workshop-runtime
 -- zengine: development runtime made at …/cmake-build-debug/workshop-runtime
 zengine-workshop-develop - project: …/cmake-build-debug/workshop-project (Workshop's project files)
-zengine-workshop-develop - launching …/workshop-runtime/zengine-workshop --load-plan …/workshop-runtime/graphical-load-plan.json --recipes …/workshop-runtime/development-build-recipes.json
+zengine-workshop-develop - launching …/workshop-runtime/zengine-workshop --load-plan …/workshop-runtime/default-load-plan.json --recipes …/workshop-runtime/development-build-recipes.json
 ```
 
 and Workshop's window opens with the development catalog in force: the Builder's header names
@@ -215,7 +215,7 @@ Every refusal copies nothing, starts nothing, and leaves the runtime as it was.
 | `… made from the build tree …, not from …` | the directory is another build tree's runtime, or this tree moved | another directory |
 | `… is not empty and is not a development runtime …` | `--runtime` names a directory of other files | an empty or new directory |
 | `… is not there -- build the tree first` | the tree has not built what a runtime copies | build, then Run |
-| `… staged no graphical load plan …` | the tree was configured with `-DZENGINE_TUI_ONLY=ON` | configure with SDL |
+| `… has no OS window to open Workshop in …` | the tree was configured with `-DZENGINE_TUI_ONLY=ON` | configure with SDL |
 
 ## The loop: point, change, build, reload
 

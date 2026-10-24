@@ -50,8 +50,8 @@ row); `workshop_files` (`tests/test_workshop_files.cpp`, the development catalog
 - The door `door.hpp`, composed onto Workshop's weave in `workshop/weave.hpp`; the picture
   `transcript.hpp`; the completer `complete.hpp`. A record's value is captured for a gesture in
   `workshop/weave_operation.cpp` (`TerminalValueRequested`).
-- Staged and catalogued in `workshop/CMakeLists.txt`; its plan rows in
-  `workshop/default-load-plan.json` and `workshop/graphical-load-plan.json`.
+- Staged and catalogued in `workshop/CMakeLists.txt`; its plan row in
+  `workshop/default-load-plan.json`.
 - A guest's hand toward it: `workshop/weave_operation.cpp` (`refused_toward`); `Ctrl`+`t`: the
   desktop's `desktop.terminal` row, `workshop/desktop-pane/pane.cpp`.
 
