@@ -10,17 +10,13 @@ neovim_live                       doctest           neovim  21
 # Tripwires in this suite read examples/snake/play.cpp and examples/snake/world.cpp as text (VM-WALL-11).
 snake                             doctest           always  26
 timer                             doctest           always  85
-# Tripwires in this suite read the SDL queue's readers as text: input/input_sdl.cpp,
-# input/translate_sdl.hpp, input/translate_sdl_core.hpp and graphics/window/window_sdl_backend.hpp
-# (VM-WALL-11).
+# Tripwires in this suite read the SDL queue's reader as text: input/translate_sdl_core.hpp and
+# graphics/window/window_sdl_backend.hpp (VM-WALL-11).
 input                             doctest           always  56
 # A case rides a gate only when it cannot exist without what the gate opens: arithmetic about a
 # medium counts in `always`, where every lane proves it.
-input                             doctest           sdl     5
-surface                           doctest           always  113
-surface                           doctest           sdl     8
 # A tripwire in this suite reads graphics/ as text (VM-WALL-11).
-graphics                          doctest           always  85
+graphics                          doctest           always  89
 graphics                          doctest           sdl     7
 ui                                doctest           always  22
 component                         doctest           always  48
@@ -52,7 +48,7 @@ neovim_journey                    program           session-neovim
 
 # A case in this suite reads the keymap example in workshop/docs/hotkeys.md, as a weaver copies it.
 workshop_document                 doctest           always  48
-workshop_screen                   doctest           always  147
+workshop_screen                   doctest           always  153
 workshop_desk                     doctest           always  79
 # Tripwires in this suite read workshop/attention.hpp as text (VM-WALL-11).
 workshop_host                   doctest           always  78
@@ -107,6 +103,7 @@ source_comments                   script            always
 code_values                       script            always
 folder_map                        script            always
 manual                            script            always
+configure_switches                script            always
 flow                              doctest           always  61
 
 message_draft                     doctest           always  11

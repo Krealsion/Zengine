@@ -8,11 +8,11 @@ supports is in [document](../workshop/document.md) and
 **What this record governs.** The object canvas it decided — the prototype canvas's rectangles,
 their identities and frames, the hands that moved and sized them, the file that kept them and the
 `^s`/`^o` that wrote and read it — is not in Workshop, and what follows is that decision as it
-was made. A weaver arranges desks, layouts and panes, and Info inspects a pane (WL-INFO-14). Four
+was made. A weaver arranges desks, layouts and panes, and Info inspects a pane (WL-INFO-14). Three
 laws stand on this record: the typed property connection every editable row is built on
-(WL-DOC-02), the file doors every durable artifact shares (WL-DOC-15), what a weaver's old
+(WL-DOC-02), the file doors every durable artifact shares (WL-DOC-15), and what a weaver's old
 document meets (WL-DOC-22: named once at startup, never read, rewritten or deleted, and never
-taken for another kind of file) and the status line that names it (WL-DOC-23).
+taken for another kind of file). The status line that named it went with the status line.
 *Alternatives considered at the retirement:* converting old documents into panes or desks was
 refused, because an authored rectangle has no pane, provider or desk to become and a guess would
 reinterpret a weaver's bytes; reading the file to validate it before saying so was refused,
@@ -92,5 +92,5 @@ The safe write's rename replaces an existing destination on both lanes, measured
 `"a detected write failure leaves the last good save readable and unchanged"`).
 
 **Laws supported.** [WL-DOC-15](../workshop/document-file.md),
-[WL-DOC-22](../workshop/document-file.md), [WL-DOC-23](../workshop/document-file.md),
+[WL-DOC-22](../workshop/document-file.md),
 [WL-DOC-02](../workshop/document.md).

@@ -15,7 +15,6 @@
 #include "component/text_box.hpp"
 #include "graphics/pixels.hpp"
 #include "graphics/vocabulary.hpp"
-#include "surface/pointing.hpp"
 #include "workshop/pane_canvas_text.hpp"
 #include "workshop/pane_picture.hpp"
 #include "workshop/pane_parts.hpp"

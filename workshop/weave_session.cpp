@@ -331,16 +331,16 @@ std::string WorkshopWeave::unresolved_note(const Setup& s) const {
 
 // ---- THE LAST SESSION: the desk that comes back on its own ----------------
 
-// WL-SESSION-11, WL-SESSION-14, WL-SESSION-16, WL-SESSION-17 -- agents/workshop/session-restore.md
+// WL-SESSION-14, WL-SESSION-16, WL-SESSION-17 -- agents/workshop/session-restore.md
 // WL-MIG-10 -- agents/workshop/migration.md
 void WorkshopWeave::restore_last_session(loom::Mail& mail) {
     if (restored_) {
         return;
     }
-    // ONCE PER PROCESS, and the guard is HERE rather than at the caller because
-    // `SurfaceReady` is not a once-per-process fact: a Skin replacement announces itself
-    // again, and a weaver whose afternoon of arranging was silently thrown back to a file
-    // written last night would have met a continuity feature that loses work.
+    // ONCE PER PROCESS, and the guard is HERE rather than at the caller because a window's
+    // offer is not a once-per-process fact: a window started again offers itself again, and a
+    // weaver whose afternoon of arranging was silently thrown back to a file written last night
+    // would have met a continuity feature that loses work.
     restored_ = true;
     if (host_->session_path.empty()) {
         return; // no session file was chosen: restore nothing, and say nothing about it
@@ -385,19 +385,19 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
         session_.normal_h = session_.screen_h;
     }
     // ---- The desktop placement, remembered and offered back --------------------
-    // Remembered first, so the next save carries it whether or not a medium acts on it, then
-    // offered to the medium holding the surface, the window or the Skin (`medium_office`): a want,
-    // not an instruction, since only the medium sees the displays
-    // (`graphics::SurfacePlacementRemembered`, `placement_within`).
+    // Remembered first, so the next save carries it whether or not a window acts on it, then
+    // offered to the window holding the platform (`medium_office`): a want, not an instruction,
+    // since only the window sees the displays (`graphics::SurfacePlacementRemembered`).
     if (last.placement.known) {
         session_.placement_known = true;
         session_.place_x = last.placement.x;
         session_.place_y = last.placement.y;
         session_.place_maximized = last.placement.maximized;
-        mail.send_to_role(medium_office(),
-                          zengine::graphics::SurfacePlacementRemembered{
-                              last.placement.x, last.placement.y,
-                              last.placement.maximized});
+        if (const std::string office = medium_office(); !office.empty()) {
+            mail.send_to_role(office, zengine::graphics::SurfacePlacementRemembered{
+                                          last.placement.x, last.placement.y,
+                                          last.placement.maximized});
+        }
     }
     // ---- ...and then the desks, into the room they asked for ---------------
     // The whole run comes back and exactly one is lifted live (`install_layout_run`, the inverse
@@ -433,14 +433,12 @@ void WorkshopWeave::restore_last_session(loom::Mail& mail) {
     }
     notice.bad = !last.declined.empty();
     say(restore_notice_text(notice, session_.cell_px), notice.bad);
-    // A MEDIUM THAT HAS NAMED NO UNIT YET was spelled the cell; the first `SurfaceExtent` says
-    // which unit it is, and the sentence is spelled again then.
-    if (!medium_unit_known_) {
-        notice.said = notices_said_;
-        restore_notice_ = std::move(notice);
-    }
-    // THE SECOND PICTURE OF THE RUN, and the one that asks for the room -- see
-    // `on(SurfaceReady)` for why it cannot be the first.
+    // SPELLED IN THE UNIT THE DESK HOLDS NOW, and again in the window's own once its offer is
+    // taken, unless something was said between.
+    notice.said = notices_said_;
+    restore_notice_ = std::move(notice);
+    // THE SECOND PICTURE OF THE RUN, and the one that asks for the room -- see `start_desk` for
+    // why it cannot be the first.
     repaint(mail);
 }
 
@@ -453,13 +451,6 @@ std::string WorkshopWeave::restore_notice_text(const RestoreNotice& n, std::int6
         said += kProjectedNote;
     }
     return said + n.tail;
-}
-
-// WL-SESSION-14 -- agents/workshop/session-restore.md
-bool WorkshopWeave::respell_restore_notice(std::int64_t cell_px) {
-    medium_unit_known_ = true;
-    note_medium();
-    return spell_restore_notice(cell_px);
 }
 
 bool WorkshopWeave::spell_restore_notice(std::int64_t cell_px) {

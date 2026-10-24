@@ -21,18 +21,18 @@ NAMED.update(dict(("f%d" % (i + 1), 58 + i) for i in range(12)))
 NAMED.update({"-": 45, "minus": 45, "=": 46, "equals": 46, "[": 47, "]": 48, ";": 51, "'": 52,
               "`": 53, ",": 54, "comma": 54, ".": 55, "period": 55, "/": 56, "slash": 56})
 MODIFIERS = {"shift": 1, "ctrl": 2, "control": 2, "alt": 4}
-# zengine/input/vocabulary.hpp space::: the two terminal skins report cells, the SDL skin pixels.
+# zengine/input/vocabulary.hpp space::: the terminal window reports cells, the OS window pixels.
 SPACE_CELLS = 1
 SPACE_PIXELS = 2
-# The offices that hold Workshop's picture, in the order a first picture asks them: the Skin, the
-# OS window and the terminal window (graphics/vocabulary.hpp kWindowOfficePrefix). A far Workshop
-# loads one of them; the others are no office there.
-CAPTURE_OFFICES = ("zengine.skin", "zengine.window.sdl", "zengine.window.terminal")
+# The offices that hold Workshop's picture, in the order a first picture asks them: the OS window
+# and the terminal window (graphics/vocabulary.hpp kWindowOfficePrefix). A far Workshop loads one
+# of them; the other is no office there.
+CAPTURE_OFFICES = ("zengine.window.sdl", "zengine.window.terminal")
 
 
 def capture_office(ctx):
-    """The office that answered this run's first picture, or the Skin before one has."""
-    return getattr(ctx, "_capture_office", "zengine.skin")
+    """The office that answered this run's first picture, or the first asked before one has."""
+    return getattr(ctx, "_capture_office", CAPTURE_OFFICES[0])
 
 
 def chord(spelling):
@@ -130,33 +130,21 @@ def clear_moments(ctx):
             moment(ctx, "KeyReleased", scancode=erase_code, modifiers=erase_mods)]
 
 
-# The console rows a terminal skin spends above its canvas (surface/pointing.hpp kTuiCanvasTopRow):
-# a canvas cell's row is that many console rows higher. The terminal window spends none.
-CANVAS_TOP_ROW = 2
+# A terminal cell, spelled as the terminal's console counts it or as a pane's place and the desk
+# count it: the terminal window draws canvas row 0 on the console's row 0, so the two are one cell.
 CELLS = ("console", "canvas")
 
 
-def rows_above(ctx, link):
-    """The console rows above the canvas in the medium that shows the desk: a terminal skin's
-    ``CANVAS_TOP_ROW``, none in a window -- read off the office that holds the picture, asked for
-    one first when this run has not."""
-    office = getattr(ctx, "_capture_office", None) or ask_picture(ctx, link)[0]
-    return CANVAS_TOP_ROW if office == "zengine.skin" else 0
-
-
 def cells_point(ctx, link, spelling):
-    """``point`` for a spelling a run was given, the medium's rows above the canvas learned only
-    for a point spelled in canvas cells."""
-    canvas = spelling.partition("@")[2] == "canvas"
-    return point(spelling, rows_above(ctx, link) if canvas else CANVAS_TOP_ROW)
+    """``point`` for a spelling a run was given."""
+    return point(spelling)
 
 
-def point(spelling, canvas_rows=CANVAS_TOP_ROW):
-    """``(x, y, space)`` for a point spelled ``"126,42"`` (a window's pixels, the SDL skin's own
-    unit) or a terminal cell that says which cells it means: ``"10,3@console"`` (the terminal's own
-    cell, counted as its console counts rows) or ``"10,3@canvas"`` (a canvas cell, as a pane's
-    place and the desk count it -- the same column, ``canvas_rows`` console rows lower: a terminal
-    skin's ``CANVAS_TOP_ROW``, the terminal window's none). A bare ``"10,3c"`` names neither and is
+def point(spelling):
+    """``(x, y, space)`` for a point spelled ``"126,42"`` (the OS window's pixels) or a terminal
+    cell that says which cells it means: ``"10,3@console"`` (the terminal's own cell, counted as
+    its console counts rows) or ``"10,3@canvas"`` (a canvas cell, as a pane's place and the desk
+    count it), the same cell in the terminal window. A bare ``"10,3c"`` names neither and is
     refused. Empty means an empty point, for callers that make one optional."""
     if not spelling:
         raise ValueError("an empty point")
@@ -176,7 +164,7 @@ def point(spelling, canvas_rows=CANVAS_TOP_ROW):
     except ValueError:
         raise ValueError(spelled)
     if at:
-        return x, y + (canvas_rows if cells == "canvas" else 0), SPACE_CELLS
+        return x, y, SPACE_CELLS
     return x, y, SPACE_PIXELS
 
 
@@ -276,7 +264,7 @@ def fetch_picture(ctx, link, captured, office=None):
 def check_picture(ctx, captured, data, office=None):
     """A picture is what its format says it is, whole."""
     ctx.check(captured["ok"], "%s refused the picture: %s"
-              % (office or "zengine.skin", captured.get("refusal")))
+              % (office or capture_office(ctx), captured.get("refusal")))
     ctx.check(len(data) == captured["bytes"], "the picture is %d bytes, not the %d described"
               % (len(data), captured["bytes"]))
     if captured["format"] == "image/bmp":
@@ -329,7 +317,7 @@ def picture(ctx, link, name, after_frame=-1, pending=None):
 
 
 def png_of(bmp, crop=None):
-    """A PNG of an uncompressed 24/32-bit BMP picture (what the SDL skin hands back), standard
+    """A PNG of an uncompressed 24/32-bit BMP picture (what the OS window hands back), standard
     library only, optionally cropped to [x0, y0, x1, y1] in the picture's pixels: small enough to
     keep as evidence or put in a document, where the BMP is megabytes."""
     import struct

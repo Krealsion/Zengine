@@ -7,7 +7,7 @@ if(NOT TARGET loom::kernel)
 "WHAT IS MISSING\n"
 "  The installed/consumed Loom does not export loom::kernel, so nothing here can load a\n"
 "  weave. Every Zengine suite but the smoke test drives real weave libraries through the\n"
-"  real kernel: snake, timer (plus its four compile-negative cases), input, surface and\n"
+"  real kernel: snake, timer (plus its four compile-negative cases), input, graphics and\n"
 "  the audit probes. None of them can be built.\n"
 "WHY THIS IS AN ERROR AND NOT A SKIP\n"
 "  Configuring anyway would leave one CTest entry standing in for the whole suite, and\n"
@@ -22,7 +22,7 @@ if(NOT TARGET loom::kernel)
 "          Zengine with -DZEN_LOOM_DEV=ON, which turns it on for you.\n"
 "IF YOU ONLY WANT THE LIBRARY\n"
 "  Configure with -DBUILD_TESTING=OFF. Zengine's kernel-independent surface (the activation\n"
-"  cursor and the timer/input/surface vocabularies) builds fine against a kernel-less Loom.\n"
+"  cursor and the timer/input/graphics vocabularies) builds fine against a kernel-less Loom.\n"
 "  The kernel is a requirement of the TESTS, not of the package.")
 endif()
 
@@ -213,9 +213,13 @@ foreach(mig_name mig_flag IN ZIP_LISTS ZENGINE_MIG_NAMES ZENGINE_MIG_FLAGS)
     zengine_test_definitions(zengine-provider-mig-${mig_name} ${mig_flag}=1)
 endforeach()
 
+# A weave that writes its standard output when asked: the snake suite's negative control.
+zengine_weave(zengine-test-stdout-painter weavelib/stdout_painter.cpp)
+target_link_libraries(zengine-test-stdout-painter PRIVATE zengine-warnings zengine-sanitize)
+
 zengine_weave(zengine-workshop-hello weavelib/workshop_hello.cpp)
 target_link_libraries(zengine-workshop-hello
-    PRIVATE zengine-workshop-vocabulary zengine-surface-vocabulary zengine-activation
+    PRIVATE zengine-workshop-vocabulary zengine-graphics-vocabulary zengine-activation
             zengine-warnings zengine-sanitize)
 
 # THE WEAVER'S EXAMPLE PANE, compiled here so it cannot rot (examples are compiled,
@@ -225,7 +229,7 @@ target_link_libraries(zengine-workshop-hello
 # vocabulary, so a header it needed from outside that set would fail here first.
 zengine_weave(zengine-example-tally ${CMAKE_SOURCE_DIR}/examples/tally-pane/tally.cpp)
 target_link_libraries(zengine-example-tally
-    PRIVATE zengine-pane-vocabulary zengine-surface-vocabulary zengine-input-vocabulary
+    PRIVATE zengine-pane-vocabulary zengine-graphics-vocabulary zengine-input-vocabulary
             zengine-activation zengine-warnings zengine-sanitize)
 
 # ...AND THE SECOND EXAMPLE, THE GUARD: the game-like consumer of the second button, which
@@ -234,7 +238,7 @@ target_link_libraries(zengine-example-tally
 # exercised from a pane that links only what a stranger's recipe links.
 zengine_weave(zengine-example-guard ${CMAKE_SOURCE_DIR}/examples/guard-pane/guard.cpp)
 target_link_libraries(zengine-example-guard
-    PRIVATE zengine-pane-vocabulary zengine-surface-vocabulary zengine-input-vocabulary
+    PRIVATE zengine-pane-vocabulary zengine-graphics-vocabulary zengine-input-vocabulary
             zengine-activation zengine-warnings zengine-sanitize)
 
 # ...AND THE THIRD, A SECOND PRESENTER: the ordinary replacement of the shipped one. It holds
@@ -256,7 +260,7 @@ target_link_libraries(zengine-example-numbered-presenter
 # real Workshop) and the load suite (through the real reload).
 zengine_weave(zengine-legacy-pane weavelib/legacy_pane.cpp)
 target_link_libraries(zengine-legacy-pane
-    PRIVATE zengine-surface-vocabulary zengine-input-vocabulary zengine-activation
+    PRIVATE zengine-graphics-vocabulary zengine-input-vocabulary zengine-activation
             zengine-warnings zengine-sanitize)
 
 # A loaded stand-in for the Editor that cannot apply a published claim (WL-OPEN-02): it holds
@@ -265,7 +269,7 @@ target_link_libraries(zengine-legacy-pane
 # what the real manager and Workshop do when a real loaded owner fails through the real ABI.
 zengine_weave(zengine-failing-editor weavelib/failing_editor.cpp)
 target_link_libraries(zengine-failing-editor
-    PRIVATE zengine-workshop-vocabulary zengine-surface-vocabulary zengine-activation
+    PRIVATE zengine-workshop-vocabulary zengine-graphics-vocabulary zengine-activation
             zengine-warnings zengine-sanitize)
 
 # The real Editor built once more with one deliberate throw (WL-OPEN-02): the exact source of
@@ -312,7 +316,7 @@ zengine_test_definitions(zengine-editor-pane-losing ZENGINE_EDITOR_TEST_LOSSES=1
 # test cases, which stock doctest calls a success (VM-POP-04).
 add_executable(zengine-tests test_snake.cpp doctest_main.cpp)
 target_link_libraries(zengine-tests
-    PRIVATE loom::kernel loom::switchboard loom::core zengine-surface-vocabulary
+    PRIVATE loom::kernel loom::switchboard loom::core
             zengine-graphics-vocabulary zengine-input-vocabulary zengine-timer-vocabulary
             zengine-warnings zengine-sanitize)
 target_include_directories(zengine-tests PRIVATE
@@ -326,7 +330,7 @@ zengine_test_definitions(zengine-tests
     "SNAKE_SO_WORLD_V2=\"$<TARGET_FILE:snake-world-v2>\""
     "SNAKE_SO_SCORE=\"$<TARGET_FILE:snake-score>\""
     "SNAKE_SO_BOARD=\"$<TARGET_FILE:snake-board>\""
-    "SKIN_SO_TUI_CLASSIC=\"$<TARGET_FILE:zengine-skin-tui-classic>\""
+    "STDOUT_PAINTER_SO=\"$<TARGET_FILE:zengine-test-stdout-painter>\""
     "GRAPHICS_SO=\"$<TARGET_FILE:zengine-graphics>\""
     "WINDOW_SO=\"$<TARGET_FILE:zengine-window-terminal>\""
     "PAINT_CLASSIC_SO=\"$<TARGET_FILE:zengine-paint-classic>\""
@@ -343,12 +347,12 @@ zengine_test_definitions(zengine-tests
 zengine_doctest_test(snake zengine-tests)
 
 # The Timer suite: the contract pins, every schedule over a fake clock, the real library
-# re-winding itself on the real clock, and the world, the input weave and the skin kept moving
+# re-winding itself on the real clock, and the world, the input weave and the window kept moving
 # with nobody pumping them.
 add_executable(zengine-timer-tests test_timer.cpp doctest_main.cpp)
 target_link_libraries(zengine-timer-tests
     PRIVATE loom::kernel loom::switchboard loom::core zengine-timer-vocabulary
-            zengine-input-vocabulary zengine-surface-vocabulary zengine-operator
+            zengine-input-vocabulary zengine-graphics-vocabulary zengine-operator
             zengine-operator-stranger zengine-warnings zengine-sanitize)
 target_include_directories(zengine-timer-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
@@ -358,8 +362,10 @@ zengine_test_definitions(zengine-timer-tests
     "TIMER_SO=\"$<TARGET_FILE:zengine-timer>\""
     "WORLD_V1_SO=\"$<TARGET_FILE:snake-world-v1>\""
     "INPUT_SO=\"$<TARGET_FILE:zengine-input>\""
-    "SKIN_SO_TUI_CLASSIC=\"$<TARGET_FILE:zengine-skin-tui-classic>\""
-    "SKIN_SO_TUI_BLOCK=\"$<TARGET_FILE:zengine-skin-tui-block>\""
+    "GRAPHICS_SO=\"$<TARGET_FILE:zengine-graphics>\""
+    "WINDOW_SO=\"$<TARGET_FILE:zengine-window-terminal>\""
+    "PAINT_CLASSIC_SO=\"$<TARGET_FILE:zengine-paint-classic>\""
+    "PAINT_BLOCK_SO=\"$<TARGET_FILE:zengine-paint-block>\""
     # The continuity cases: virtual time, real everything else.
     "TIMER_VIRTUAL_SO=\"$<TARGET_FILE:zengine-timer-virtual>\""
     "PROBE_ONESHOT_SO=\"$<TARGET_FILE:zengine-probe-oneshot>\""
@@ -413,7 +419,8 @@ execute_process(
             ${zengine_cn_args}
             "-DZENGINE_COMPILE_FIXTURES=ON"
             "-DZENGINE_SANITIZE=${ZENGINE_SANITIZE}"
-            "-DZENGINE_SDL_SKIN=OFF"
+            "-UZENGINE_SDL_SKIN" # a fixture tree an earlier configure made may keep the retired switch
+            "-DZENGINE_TUI_ONLY=ON"
             "-DZENGINE_INSTALL=OFF"
             "-DBUILD_TESTING=OFF"
             "-DCMAKE_SUPPRESS_REGENERATION=ON"
@@ -476,34 +483,14 @@ zengine_manual(zengine-input-tests PRIVATE ${PROJECT_SOURCE_DIR}/input/docs/zeng
 zengine_test_definitions(zengine-input-tests
     "INPUT_SO=\"$<TARGET_FILE:zengine-input>\""
     "WORLD_V1_SO=\"$<TARGET_FILE:snake-world-v1>\""
-    # The SDL queue's readers' own sources, for the tripwire that they never touch the clipboard:
+    # The SDL queue's reader's own sources, for the tripwire that it never touches the clipboard:
     # a claim about what code does not contain holds on every lane, those without SDL included,
     # and running the code cannot prove it (VM-WALL-11).
-    "INPUT_SDL_READER_CPP=\"${CMAKE_SOURCE_DIR}/input/input_sdl.cpp\""
-    "INPUT_SDL_TRANSLATE_HPP=\"${CMAKE_SOURCE_DIR}/input/translate_sdl.hpp\""
     "INPUT_SDL_TRANSLATE_CORE_HPP=\"${CMAKE_SOURCE_DIR}/input/translate_sdl_core.hpp\""
     "WINDOW_SDL_BACKEND_HPP=\"${CMAKE_SOURCE_DIR}/graphics/window/window_sdl_backend.hpp\"")
 
 zengine_doctest_test(input zengine-input-tests)
 
-# The SDL reader is a conditional subpopulation (VM-POP-08). The SDL translation is pure and
-# counts in the always row; what rides `sdl` is the one case that cannot be pure: the process
-# pushes events into a real SDL queue and a separately loaded zengine-input-sdl polls them out,
-# the evidence that the two SDL weaves share one SDL. So the suite links SDL itself.
-if(TARGET zengine-input-sdl)
-    zengine_test_definitions(zengine-input-tests
-        INPUT_HAS_SDL=1
-        "INPUT_SDL_SO=\"$<TARGET_FILE:zengine-input-sdl>\""
-        # The window Skin too: one of the cases runs BOTH SDL weaves at once and
-        # pumps the Skin between a push and a read, which is the interleaving that
-        # would prove the queue has two owners if it had.
-        "SKIN_SO_SDL=\"$<TARGET_FILE:zengine-skin-sdl>\"")
-    target_link_libraries(zengine-input-tests PRIVATE zengine-surface-vocabulary
-                                                      ${ZENGINE_SDL_LIB})
-    set_tests_properties(input PROPERTIES
-        ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_VIDEODRIVER=dummy")
-    set_property(GLOBAL APPEND PROPERTY ZENGINE_ACTIVE_GATES "sdl")
-endif()
 
 # ---- the Neovim hosting library ----------------------------------------------------------
 # Two suites, split as `sdl` splits: `neovim` is the arithmetic, framing and custody, and the
@@ -539,47 +526,6 @@ if(ZENGINE_NEOVIM_PROGRAM)
         "NEOVIM_PROGRAM=\"${ZENGINE_NEOVIM_PROGRAM}\"")
     zengine_doctest_test(neovim_live zengine-neovim-live-tests)
     set_property(GLOBAL APPEND PROPERTY ZENGINE_ACTIVE_GATES "neovim")
-endif()
-
-# The Surface suite: the skin pattern — golden terminal bytes, the pure SDL
-# plan (pinned on every lane, SDL built or not), the hello handshake, surface
-# ownership, and the linkage pins riding the skin pair. Where the SDL skin is
-# built, the same intent drives it under SDL's dummy video driver (set both
-# here and in the process, belt to braces).
-add_executable(zengine-surface-tests test_surface.cpp doctest_main.cpp)
-target_link_libraries(zengine-surface-tests
-    PRIVATE loom::kernel loom::switchboard loom::core zengine-surface-vocabulary
-            zengine-timer-vocabulary zengine-warnings zengine-sanitize)
-target_include_directories(zengine-surface-tests PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
-
-zengine_test_definitions(zengine-surface-tests
-    "WORLD_V1_SO=\"$<TARGET_FILE:snake-world-v1>\""
-    "SKIN_SO_TUI_CLASSIC=\"$<TARGET_FILE:zengine-skin-tui-classic>\""
-    "SKIN_SO_TUI_BLOCK=\"$<TARGET_FILE:zengine-skin-tui-block>\"")
-zengine_doctest_test(surface zengine-surface-tests)
-# ...and the Skin's page, which every Skin the suite mounts carries and its office witness reads.
-zengine_manual(zengine-surface-tests PRIVATE ${PROJECT_SOURCE_DIR}/surface/docs/zengine.skin.md)
-
-# The SDL skin's cases are a conditional subpopulation, declared, not absorbed (VM-POP-08):
-# test_surface.cpp holds them behind SURFACE_HAS_SDL, and the Windows stranger lane builds no SDL
-# skin. One `if` sets the compile definition that admits them, the environment they need and the
-# gate their floor hangs on, so the three cannot disagree about whether SDL is here: a second way
-# of asking would be a second thing that can be wrong, silently downward.
-if(TARGET zengine-skin-sdl)
-    zengine_test_definitions(zengine-surface-tests
-        SURFACE_HAS_SDL=1
-        "SKIN_SO_SDL=\"$<TARGET_FILE:zengine-skin-sdl>\"")
-    # THE SUITE REACHES THE SAME SDL THE SKIN DOES, and that is a measurement rather than a
-    # convenience. SDL's event queue is process-global with exactly one owner, and the whole
-    # reason cmake/ZengineSdl.cmake fetches a SHARED SDL3 is that a weave loaded with
-    # RTLD_LOCAL and an archived copy would be talking to a different queue. Linking the suite
-    # to the same shared library is what lets a case put events on THE queue and then ask
-    # whether the skin took any -- which cannot be asked from outside SDL at all.
-    target_link_libraries(zengine-surface-tests PRIVATE ${ZENGINE_SDL_LIB})
-    set_tests_properties(surface PROPERTIES
-        ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_VIDEODRIVER=dummy")
-    set_property(GLOBAL APPEND PROPERTY ZENGINE_ACTIVE_GATES "sdl")
 endif()
 
 # The UI suite: the authored/resolved distinction with no application around it, in its own
@@ -951,7 +897,7 @@ set(ZENGINE_WORKSHOP_LIBS
     # The vocabulary is the headers and the logic their bodies, compiled once
     # (workshop/CMakeLists.txt): a suite that included the bodies would emit them all again.
     zengine-workshop-vocabulary zengine-workshop-logic zengine-workshop-load
-    zengine-surface-vocabulary zengine-ui-vocabulary
+    zengine-graphics-vocabulary zengine-ui-vocabulary
     zengine-introspection-view zengine-composer-vocabulary
     zengine-timer-vocabulary zengine-warnings
     zengine-sanitize)
@@ -1412,9 +1358,7 @@ zengine_workshop_suite(load SOURCES test_workshop_load.cpp
                 # The plan files this repository SHIPS, read as files rather than as a
                 # description of files.
                 "WORKSHOP_DEFAULT_PLAN=\"${CMAKE_SOURCE_DIR}/workshop/default-load-plan.json\""
-                "WORKSHOP_GRAPHICAL_PLAN=\"${CMAKE_SOURCE_DIR}/workshop/graphical-load-plan.json\""
-                "WORKSHOP_SKIN_PLAN=\"${CMAKE_SOURCE_DIR}/workshop/skin-load-plan.json\""
-                "WORKSHOP_SDL_SKIN_PLAN=\"${CMAKE_SOURCE_DIR}/workshop/sdl-skin-load-plan.json\"")
+                "WORKSHOP_GRAPHICAL_PLAN=\"${CMAKE_SOURCE_DIR}/workshop/graphical-load-plan.json\"")
 # The panes suite (above) also embeds the Connections pane's page and the Demo controls', whose
 # weave it compiles in, which their answers are compared to.
 zengine_manual(zengine-workshop-panes-tests PRIVATE ${PROJECT_SOURCE_DIR}/external-host/docs/zengine.connections.md)
@@ -1504,13 +1448,11 @@ zengine_doctest_test(builder zengine-builder-tests)
 add_executable(zengine-workshop-guests-tests test_workshop_guests.cpp doctest_main.cpp)
 target_link_libraries(zengine-workshop-guests-tests
     PRIVATE loom::bridge loom::switchboard loom::core zengine-workshop-guests
-            zengine-input-vocabulary zengine-surface-vocabulary zengine-timer-vocabulary
+            zengine-input-vocabulary zengine-graphics-vocabulary zengine-timer-vocabulary
             zengine::inventory zengine-warnings zengine-sanitize)
 target_include_directories(zengine-workshop-guests-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 zengine_doctest_test(workshop_guests zengine-workshop-guests-tests)
-# ...and the Skin's page, which the Skin its order cases mount carries.
-zengine_manual(zengine-workshop-guests-tests PRIVATE ${PROJECT_SOURCE_DIR}/surface/docs/zengine.skin.md)
 
 # ---- THE GUEST VOCABULARY SUITE: what an external host boots to speak Workshop's guest shapes --
 #
@@ -1519,7 +1461,7 @@ zengine_manual(zengine-workshop-guests-tests PRIVATE ${PROJECT_SOURCE_DIR}/surfa
 # the wall; unregistered, it takes the shapes with it. Header-only, so it needs no kernel.
 add_executable(zengine-guest-vocabulary-tests test_guest_vocabulary.cpp doctest_main.cpp)
 target_link_libraries(zengine-guest-vocabulary-tests
-    PRIVATE loom::switchboard loom::core zengine-input-vocabulary zengine-surface-vocabulary
+    PRIVATE loom::switchboard loom::core zengine-input-vocabulary zengine-graphics-vocabulary
             zengine-warnings zengine-sanitize)
 target_include_directories(zengine-guest-vocabulary-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party ${CMAKE_SOURCE_DIR})
@@ -1529,12 +1471,12 @@ zengine_doctest_test(guest_vocabulary zengine-guest-vocabulary-tests)
 # The real probe weave (examples/workshop-probe) on one bus, with the real Input weave behind a
 # scripted link that keeps the link's contract: when the probe may say PASS, which answers may
 # move it, what it closes before it stops, and which inventory row is its session. The crossing
-# is Loom's `bridge` suite's; the door, the Skin and the socket are `workshop_guests`' and the
+# is Loom's `bridge` suite's; the door, the window and the socket are `workshop_guests`' and the
 # journey's.
 add_executable(zengine-workshop-probe-tests test_workshop_probe.cpp doctest_main.cpp)
 target_link_libraries(zengine-workshop-probe-tests
     PRIVATE loom::kernel loom::bridge loom::switchboard loom::core zengine-workshop-guests
-            zengine-input-vocabulary zengine-surface-vocabulary zengine-timer-vocabulary
+            zengine-input-vocabulary zengine-graphics-vocabulary zengine-timer-vocabulary
             zengine-warnings zengine-sanitize)
 target_include_directories(zengine-workshop-probe-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
@@ -1544,12 +1486,12 @@ zengine_doctest_test(workshop_probe zengine-workshop-probe-tests)
 # A real `zengine-workshop` launched with a guests file and the shipped terminal plan beside it,
 # and this program as the other host: admitted by credential, refused by a wrong one, an input
 # session, the desktop's chord injected, the desktop asked what it accepts, and a picture of the
-# real terminal Skin read for the Pane Manager the chord opened; then a Workshop whose roots and
+# real terminal window read for the Pane Manager the chord opened; then a Workshop whose roots and
 # keymap stand in a folder named beyond ASCII, saving its session there and reopening it.
 add_executable(zengine-guest-journey guest_journey.cpp)
 target_link_libraries(zengine-guest-journey
     PRIVATE loom::bridge loom::switchboard loom::core
-            zengine-input-vocabulary zengine-surface-vocabulary
+            zengine-input-vocabulary zengine-graphics-vocabulary
             zengine-warnings zengine-sanitize)
 add_dependencies(zengine-guest-journey zengine-workshop)
 zengine_program_test(guest_journey zengine-guest-journey
@@ -1783,6 +1725,9 @@ foreach(zengine_text_check IN LISTS ZEN_TEXT_CHECKS)
     zengine_script_test(${zengine_text_check}
                         ${CMAKE_CURRENT_SOURCE_DIR}/check_${zengine_text_check}.cmake)
 endforeach()
+# ...and one that configures the source tree: a retired switch refused by name, before a compiler
+# is sought.
+zengine_script_test(configure_switches ${CMAKE_CURRENT_SOURCE_DIR}/check_configure_switches.cmake)
 
 # ---- longest first under a parallel CTest -----------------------------------------------
 # At -j<n> CTest starts entries in descending COST, and a declared COST outranks the one it
@@ -1806,7 +1751,6 @@ foreach(zengine_cost_row IN ITEMS
         "workshop_shapes:72"
         "workshop_persistence:50"
         "workshop_journey:48"
-        "surface:47"
         "builder:41"
         "tutorial_walks:40"
         "source_comments:40"

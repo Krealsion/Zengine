@@ -93,7 +93,7 @@ public:
     /// window's drawing a weaver would see, so the room contract is observed through the real
     /// presentation, not a test-only hook.
     void on(const gfx::AreaRoom& room, loom::Mail& mail) {
-        if (room.area != kHelloRole) {
+        if (room.area != window_.area()) {
             return; // a room for an area this provider does not draw in
         }
         if (!mail.authored_from_role(std::string(gfx::kWindowOfficePrefix) + room.window)) {
@@ -166,7 +166,7 @@ private:
         return text;
     }
 
-    ws::WindowDrawing window_{kHelloRole, kHelloRole};
+    ws::WindowDrawing window_{kHelloRole, ws::pane_area(kHelloRole, kPaneKey)};
     bool asked_ = false;
     zengine::ActivationCursor activation_;
 };

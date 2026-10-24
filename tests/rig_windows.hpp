@@ -104,6 +104,9 @@ public:
     /// ...queued and not read: the window's next beat (`pump`) reads every moment queued since,
     /// in order, together.
     void queue(const std::vector<zengine::input::InputEvent>& moments);
+    /// THE WINDOW UP OFFERS ANOTHER ROOM, `width_px` by `height_px`, queued and not delivered, as
+    /// its beat publishes an offer: its last offer at that room, its platform holding it from now.
+    void queue_offer(std::int64_t width_px, std::int64_t height_px);
 
     /// THE PICTURE AS THE WINDOW'S DEVICE IS HANDED IT, for a case about what is drawn rather than
     /// what is said: every cell the terminal window shows with the ink it wrote it in, and the
@@ -126,6 +129,10 @@ public:
     int clipboard_reads() const;
     void set_placement(std::optional<Placement> at);
     std::vector<Placement> placed() const;
+
+    /// THE WINDOW UP STARTED AGAIN IN PLACE, as a reload in place starts it: activated anew, so it
+    /// offers itself again.
+    void restart();
 
     /// The directory's office holder, once loaded.
     loom::WeaveId directory() const;

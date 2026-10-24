@@ -25,7 +25,7 @@
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/persist.hpp"
 
-#include "surface/vocabulary.hpp"
+#include "graphics/vocabulary.hpp"
 
 #include <zen/weave.hpp>
 
@@ -36,7 +36,6 @@
 
 namespace {
 
-namespace surface = zengine::surface;
 namespace ws = zengine::workshop;
 namespace pane = zengine::editor_pane;
 namespace st = zengine::source_transfer;

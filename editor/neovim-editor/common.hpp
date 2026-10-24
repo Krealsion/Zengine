@@ -23,7 +23,7 @@
 #include "workshop/pane_vocabulary.hpp"
 #include "workshop/persist.hpp"
 
-#include "surface/vocabulary.hpp"
+#include "graphics/vocabulary.hpp"
 
 #include <zen/weave.hpp>
 
@@ -50,7 +50,6 @@ namespace zengine::neovim_editor::detail {
 namespace nv = zengine::neovim;
 namespace mp = zengine::neovim::msgpack;
 namespace st = zengine::source_transfer;
-namespace surface = zengine::surface;
 namespace ws = zengine::workshop;
 
 using ws::EditorDocument;

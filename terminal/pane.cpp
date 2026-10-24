@@ -56,7 +56,6 @@ namespace {
 
 namespace component = zengine::component;
 namespace input = zengine::input;
-namespace surface = zengine::surface;
 namespace gfx = zengine::graphics;
 namespace ws = zengine::workshop;
 namespace pane = zengine::terminal_pane;
@@ -480,7 +479,7 @@ public:
         clip_.text = said.text;
     }
 
-    /// The Skin's answer to a paste this pane asked for: the one road foreign clipboard text has
+    /// The window's answer to a paste this pane asked for: the one road foreign clipboard text has
     /// into this line, under a weaver's own gesture. The correlation says which ask, not that the
     /// line that asked still exists: text asked for by a draft that has ended lands nowhere
     /// (WL-TEXT-09). It goes in through `TextBox::paste` -- one undo entry, `pasteable_line`

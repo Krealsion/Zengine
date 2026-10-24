@@ -44,6 +44,8 @@ constexpr const char* kPane = "tally";
 constexpr const char* kWindowName = "w1";
 constexpr const char* kWindowOffice = "zengine.window.w1";
 constexpr const char* kForger = "stranger.forger";
+/// The pane's area in a window, `<office>.<pane>`, as every pane's is.
+const std::string kArea = ws::pane_area(kOffice, kPane);
 
 /// THE PANE'S MANUAL: a page with no section, which the facet answers a document request from.
 constexpr zengine::manual::Manual kManual{kOffice, "Tally", "stranger.tally", nullptr, 0};
@@ -95,7 +97,7 @@ class Window : public loom::WeaveBase<Window, Nothing, loom::Accept<gfx::Drawn, 
 public:
     /// WHAT THE PANE DREW in its area: the words of every text node put, the parts it names.
     void on(const gfx::Drawn& d, loom::Mail& mail) {
-        if (mail.authored_role() != kOffice || d.area != kOffice) {
+        if (mail.authored_role() != kOffice || d.area != kArea) {
             return;
         }
         ++drawings;
@@ -117,7 +119,7 @@ public:
     void on(const Poke& p, loom::Mail& mail) {
         if (!p.press) {
             gfx::AreaRoom r;
-            r.area = kOffice;
+            r.area = kArea;
             r.window = kWindowName;
             r.epoch = 1;
             r.w = 400;
@@ -129,9 +131,9 @@ public:
             return;
         }
         (void)mail.as_role(kWindowOffice)
-            .send_to_role(kOffice, gfx::AreaButtonChanged{kOffice, 1, true, p.x, p.y, 0, true, 0});
+            .send_to_role(kOffice, gfx::AreaButtonChanged{kArea, 1, true, p.x, p.y, 0, true, 0});
         (void)mail.as_role(kWindowOffice)
-            .send_to_role(kOffice, gfx::AreaButtonChanged{kOffice, 1, false, p.x, p.y, 0, true, 0});
+            .send_to_role(kOffice, gfx::AreaButtonChanged{kArea, 1, false, p.x, p.y, 0, true, 0});
     }
     int drawings = 0;
     bool whole = false;
@@ -145,7 +147,7 @@ class Forger : public loom::WeaveBase<Forger, Nothing, loom::Accept<Poke>, loom:
 public:
     void on(const Poke&, loom::Mail& mail) {
         gfx::AreaRoom r;
-        r.area = kOffice;
+        r.area = kArea;
         r.window = kWindowName;
         r.epoch = 2;
         r.w = 800;

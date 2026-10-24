@@ -883,9 +883,9 @@ TEST_CASE("WL-HAND-06: Files names its entries by name and its controls by opera
     SUBCASE("in a graphics window, under the same names, a press selects an entry and never "
             "activates it, since Workshop reported no keys there; its control does, and an open "
             "Workshop must approve is refused, since no Workshop gesture made the press") {
-        const char* area = files::kFilesRole;
+        const std::string area = pane_area(files::kFilesRole, files::kProjectFilesPane);
         zengine::testing::pane_window::Window window(f.r.bus);
-        window.room(area, area, 160, 48);
+        window.room(area, files::kFilesRole, 160, 48);
         REQUIRE_FALSE(window.weave().heard.empty());
         CHECK(window.weave().refusals.empty());
         const auto window_says = [&](const std::string& words) {
@@ -916,11 +916,11 @@ TEST_CASE("WL-HAND-06: Files names its entries by name and its controls by opera
     }
     SUBCASE("in a graphics window that gives Files its pointer, a press on the selected entry "
             "activates it only where Workshop last said the keys were already Files'") {
-        const char* area = files::kFilesRole;
+        const std::string area = pane_area(files::kFilesRole, files::kProjectFilesPane);
         zengine::testing::pane_window::Window window(f.r.bus);
-        window.room(area, area, 160, 48);
+        window.room(area, files::kFilesRole, 160, 48);
         const auto keys = [&](bool here) {
-            f.r.bus.office_send_to_role_as(f.r.workshop_id, kWorkshopProvider, area,
+            f.r.bus.office_send_to_role_as(f.r.workshop_id, kWorkshopProvider, files::kFilesRole,
                                            loom::Message(loom::to_value(
                                                PaneKeys{files::kProjectFilesPane, here})));
             f.r.bus.drain_until_idle();
@@ -944,7 +944,7 @@ TEST_CASE("WL-HAND-06: Files names its entries by name and its controls by opera
         std::vector<std::uint64_t> passed;
         const loom::ObserverId tap = f.r.bus.add_observer([&](const loom::BusEvent& e) {
             if (e.kind == loom::EventKind::Delivered &&
-                e.schema_name == PanePassRequested::zen_name && e.authored_role == area) {
+                e.schema_name == PanePassRequested::zen_name && e.authored_role == files::kFilesRole) {
                 passed.push_back(e.correlation);
             }
         });
@@ -1501,7 +1501,7 @@ TEST_CASE("Files takes a press only from the window that shows it and in its own
     REQUIRE(f.r.load(files::kFilesStem, WORKSHOP_SO_FILES, files::kFilesRole).valid());
     namespace pw = zengine::testing::pane_window;
     pw::Window window(f.r.bus);
-    const std::string area = files::kFilesRole;
+    const std::string area = pane_area(files::kFilesRole, files::kProjectFilesPane);
     window.room(area, files::kFilesRole, 60, 8);
     REQUIRE(window.rows(area).size() >= 3);
     REQUIRE(window.rows(area)[1].rfind("> alpha.cpp", 0) == 0);
@@ -2103,41 +2103,37 @@ TEST_CASE("the authoring line's caret is the medium's, where the line's is, and 
     CHECK(held_caret(*pane).column == prompt + 1);
     // OUTSIDE THE LINE THERE IS NONE.
     f.r.key(input::scan::kEscape);
-    CHECK(held_caret(*pane).row == surface::kNoCaret);
+    CHECK(held_caret(*pane).row == kNoCaret);
 }
 
-TEST_CASE("the authoring line asks the window that shows Files for a paste, the OS window or the terminal's, and the Skin only while none shows it") {
-    // ⚔ MUTATION: Files' paste asked of the Skin wherever its area is shown.
+TEST_CASE("the authoring line asks the window that shows Files for a paste, the OS window or the terminal's") {
+    // ⚔ MUTATION: Files' paste asked of another office than the window showing its area.
     namespace gfx = zengine::graphics;
-    namespace pw = zengine::testing::pane_window;
     for (const char* window : {gfx::kSdlWindow, gfx::kTerminalWindow}) {
         CAPTURE(window);
+        const bool os = std::string(window) == gfx::kSdlWindow;
         FilesRig f("files-paste-window");
         put_file(f.root / "oven.cpp", "// a weaver's weave\n");
-        SkinStandIn* skin = mount_skin_stand_in(f.r);
+        if (os) f.r.on_os_window();
         f.open();
-        skin->platform = "ov";
-        // THE WINDOW SHOWS THE PANE'S AREA, so the pane has a room to compose its line in, and the
-        // paste is that window's and never the Skin's. (With no window the pane draws nowhere and
-        // composes no line, so a paste of the Skin's cannot be asked.)
-        pw::Window shown(f.r.bus, window);
-        const auto window_shows = [&shown](const std::string& area, const std::string& words) {
-            for (const std::string& row : shown.rows(area)) {
-                if (row.find(words) != std::string::npos) return true;
-            }
-            return false;
-        };
-        shown.weave().platform = "oven";
-        shown.room(files::kFilesRole, files::kFilesRole, 60, 20);
+        std::int64_t asks = 0;
+        const loom::ObserverId tap =
+            count_paste_asks(f.r.bus, std::string(gfx::kWindowOfficePrefix) + window, asks);
+        if (os) f.r.windows.set_clipboard("oven");
         f.letter(input::scan::kA, "a");
         f.r.key(input::scan::kReturn); // choose the one candidate
         for (int i = 0; i < 64; ++i) {
             f.r.key(input::scan::kBackspace);
         }
         f.r.key(input::scan::kV, input::mod::kCtrl);
-        CHECK(shown.weave().clipboard_reads == 1);
-        CHECK(skin->clipboard_reads == 0);
-        CHECK(window_shows(files::kFilesRole, "recipe name> oven"));
+        f.r.bus.remove_observer(tap);
+        CHECK(asks == 1);
+        if (os) {
+            CHECK(f.r.windows.clipboard_reads() == 1);
+            bool shows = false;
+            for (const std::string& row : f.shown()) shows = shows || row.find("recipe name> oven") != std::string::npos;
+            CHECK(shows);
+        }
     }
 }
 

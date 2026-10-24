@@ -121,7 +121,7 @@ one device pixel, drawn INSIDE the pane"
 `workshop/setup_persist.hpp` kFormatVersion
 `tests/test_workshop_panes_window.cpp` "the thinner boundary rewrites no authored value and no
 foreground law"
-`tests/test_surface.cpp` "the smallest span a medium can SHOW is one of its own device units"
+`tests/test_graphics.cpp` "the smallest span a medium can SHOW is one of its own device units"
 
 ### WL-CHROME-03
 `workshop/screen_chrome.cpp` pane_inside detail::pane_inside_at
@@ -132,7 +132,7 @@ two-cell pane keeps its content and drops its boundary"
 ### WL-CHROME-04
 `workshop/screen_chrome.cpp` pane_inside
 `workshop/screen_pane_state.cpp` paint_pane_frame
-`surface/vocabulary.hpp` kGroundOwn
+`workshop/screen_planes.hpp` kGroundOwn
 `tests/test_workshop_screen.cpp` "the ring IS the backdrop the interior did not cover, on both
 faces" "the border a weaver sees and the room a pane spends are one subtraction"
 

@@ -194,7 +194,8 @@ Per-subject design detail lives with the subject:
   two of them deliberately disagree.
 - [Pointer spaces](../../workshop/docs/pointer-spaces.md) — where a reported position lands, and which
   package owns each step.
-- [The Surface package](../../surface/docs/surface.md) — the depth model, and the two kinds of text.
+- [The Graphics package](../../graphics/docs/graphics.md) — who says what to a window, and an area
+  drawn by its owner alone.
 - [The UI package](../../ui/docs/ui.md) — the authored/resolved fence.
 
 Frozen material describing an earlier tree is in [`docs/history/`](../history/pre-r2c/README.md)

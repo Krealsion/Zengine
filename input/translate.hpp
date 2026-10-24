@@ -24,8 +24,9 @@
 //     Alt            not for ordinary keys (the ESC prefix is byte-identical to Escape then a
 //                    key, and Escape is load-bearing); measured on the CSI keys.
 //     Super          never: xterm's Meta bit is not read as kSuper.
-//     pointer        once the Skin turns reporting on (surface/skin_tui.hpp): SGR reports
-//                    (ESC [ < b ; x ; y M/m) with position and modifiers, 1-based on the wire.
+//     pointer        once the terminal window turns reporting on
+//                    (graphics/window/terminal_io.hpp): SGR reports (ESC [ < b ; x ; y M/m)
+//                    with position and modifiers, 1-based on the wire.
 //
 //   Win32 console (INPUT_RECORD)
 //     key identity   wVirtualKeyCode; entered text from uChar.UnicodeChar, the layout's own

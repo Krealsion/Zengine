@@ -14,6 +14,9 @@
 namespace zengine::view {
 
 inline constexpr const char* kViewHostRole = "zengine.view.host";
+/// The key of the one pane a view offers in its own office: a running view draws in that pane's
+/// area, `<name>.view`.
+inline constexpr const char* kPane = "view";
 
 /// Register a view from its description's bytes, as its own participant; its pane asks to be
 /// shown.

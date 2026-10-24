@@ -1,11 +1,10 @@
 # zengine.input -- Input
 
 **Manual.** Input: the weave that turns the keyboard and the pointer into messages, answering to the
-office `zengine.input` (an office is the name a weave answers to). Two weaves hold it, one in any
-run: `zengine-input` reads the terminal, or the console on Windows, and `zengine-input-sdl` reads an
-SDL window. Workshop's default plan loads the first and its graphical plan the second
-([the shipped plans](../../workshop/docs/load-plans.md#the-shipped-plans)); a program of
-your own loads one in that office. Your weave hears a person by accepting what it publishes; an
+office `zengine.input` (an office is the name a weave answers to). `zengine-input` holds it: it
+reads the terminal, or the console on Windows. Workshop's two plans load it beside either window
+([the shipped plans](../../workshop/docs/load-plans.md#the-shipped-plans)); a program of your own
+loads it in that office. Your weave hears a person by accepting what it publishes; an
 agent or a test speaks for one through an input session, by the messages below.
 
 ## About
@@ -16,21 +15,15 @@ text arrived as the keyboard layout typed it; the pointer moved, a button change
 turned, each with where the pointer was. A drag or a selection is yours to make of them. What each
 shape carries, and what each platform can vouch for, is [the Input package](input.md).
 
-The weave is the only code reading the platform's input, and it never writes to the screen. Where
-the two weaves differ:
-
-- **`zengine-input`** says pointer positions in terminal cells. On a POSIX terminal it reads its
-  standard input in raw mode, and says a key's release right after its press, since a terminal
-  reports whole keystrokes; pointer reports arrive only once the terminal Skin has turned them on.
-  On Windows it reads the console's records, releases included. With no terminal (a pipe, a test
-  run) it reads nothing, and says nothing. When a terminal window
-  (`zengine.window.terminal`) holds the process's terminal in the same run, it leaves the
-  terminal's input to the window and serves input sessions alone.
-- **`zengine-input-sdl`** says pointer positions in window pixels, and a pointer moment carries no
-  modifiers. It reads SDL's event queue, beside the window Skin, and the window's close box reaches
-  you as `SurfaceCloseRequested`, never as a key. It reads none of the queue an OS window holds.
-  With no display it reads nothing, and says so once on standard error:
-  `zengine-input-sdl: SDL_Init(SDL_INIT_VIDEO) failed: <SDL's reason>`.
+The weave never writes to the screen. It says pointer positions in terminal cells. On a POSIX
+terminal it reads its standard input in raw mode, and says a key's release right after its press,
+since a terminal reports whole keystrokes; pointer reports arrive only once whatever shows the
+terminal has turned them on, as the terminal window does. On Windows it reads the console's
+records, releases included. With no terminal (a pipe, a test run) it reads nothing, and says
+nothing. When a terminal window (`zengine.window.terminal`) holds the process's terminal in the
+same run, it leaves the terminal's input to the window and serves input sessions alone. Beside the
+OS window ([`zengine.window.sdl`](../../graphics/docs/zengine.window.sdl.md)), which reads its own
+events, it reads the terminal the run was started from, if any.
 
 A reload in place keeps the open session, which its holder goes on using and whose held keys are
 released when it closes; the last session number, so none is given twice; and the counters a poke
@@ -60,10 +53,6 @@ the Timer for a repeating beat, `zengine.input.pump`, every `kPumpBeatMs` millis
 (`EnsureRoleTimer`, addressed to its office, so a successor inherits it), and each beat polls the
 platform once ([the Timer binding](../../timer/docs/timer-binding.md)).
 
-The OS window ([`zengine.window.sdl`](../../graphics/docs/zengine.window.sdl.md)) reads SDL's queue
-itself, and while it is loaded it claims the queue (`ZENGINE_WINDOW_SDL_INPUT_PID` in the process's
-environment, `input/window_claim.hpp`): `zengine-input-sdl` beside it reads none of the queue and
-serves input sessions alone, as `zengine-input` does beside a terminal window.
 
 ## Commands
 
@@ -173,10 +162,8 @@ The weave publishes each moment as it happens, in the platform's order: `KeyPres
 `KeyReleased` v2, `TextEntered` v1, `PointerMoved` v1, `PointerButton` v1 and `PointerWheel` v1,
 in its own name. Just before each, it publishes `AttributedInput` v1 as `zengine.input`, carrying the
 same moment: `local` true and `actor` 0 for the platform's, `local` false and `actor` the holder's
-weave id for a session's. Follow one of the two, not both, or you hear each moment twice.
-`zengine-input-sdl` also publishes `SurfaceCloseRequested` v1 when the window is asked to close,
-with no `AttributedInput`. Nothing else is said unasked, and there is no state to read but its two
-counters, by poke.
+weave id for a session's. Follow one of the two, not both, or you hear each moment twice. Nothing
+else is said unasked, and there is no state to read but its two counters, by poke.
 
 ## See also
 

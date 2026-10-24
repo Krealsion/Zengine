@@ -194,13 +194,13 @@ From any other office it is ignored.
 
 ### `ClipboardCopy`
 
-`ClipboardCopy` v1 ([`surface/vocabulary.hpp`](../../surface/vocabulary.hpp)): a copy made anywhere
+`ClipboardCopy` v1 ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): a copy made anywhere
 in Workshop, kept so that a paste into a field has it.
 
 ### `ClipboardText`
 
-`ClipboardText` v1, from the Skin, `zengine.skin`: the text a paste into a field asked for. It lands
-in the field that asked, and nowhere once that form or field has changed.
+`ClipboardText` v1, from the window that shows the pane: the text a paste into a field asked for. It
+lands in the field that asked, and nowhere once that form or field has changed.
 
 ### `InventoryEntry`
 

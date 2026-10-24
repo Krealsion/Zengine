@@ -1306,7 +1306,7 @@ TEST_CASE("Text is quoted and made safe for the row it will become") {
     const std::vector<std::string> lines = render_value(v);
     REQUIRE(lines.size() == 2);
 
-    // THESE LINES BECOME `SurfaceTextRow`s, whose contract is plain printable ASCII -- one canvas
+    // THESE LINES BECOME `TextRow`s, whose contract is plain printable ASCII -- one canvas
     // cell per BYTE -- and Workshop refuses a whole update for one byte it cannot draw. So every
     // byte is still REPORTED, in the one notation a reader already knows, rather than filtered
     // away or left to poison the pane.
@@ -2077,8 +2077,8 @@ TEST_CASE("a host with no doors leaves the Project and Powers panes WAITING") {
     // WHAT WORKSHOP PAINTS UNDER A PANE'S HEADER, each row's trailing blanks cut.
     const auto painted_under = [&r](const std::string& header) {
         std::vector<std::string> out;
-        for (const surface::SurfaceLayer& layer : paint(r.session()).layers) {
-            for (const surface::SurfaceTextRegion& region : layer.texts) {
+        for (const ScreenPlane& layer : paint(r.session()).layers) {
+            for (const ScreenRegion& region : layer.texts) {
                 if (region.rows.empty() || region.rows[0].text.find(header) == std::string::npos) {
                     continue;
                 }
@@ -2310,36 +2310,31 @@ TEST_CASE("the browser this host used to compile is named by no presentation sou
     }
 }
 
-TEST_CASE("Powers asks the window that shows it for a paste into its query, the OS window or the terminal's, and the Skin only while none shows it") {
-    // ⚔ MUTATION: Powers' paste asked of the Skin wherever its area is shown.
+TEST_CASE("Powers asks the window that shows it for a paste into its query, the OS window or the terminal's") {
+    // ⚔ MUTATION: Powers' paste asked of another office than the window showing its area.
     namespace gfx = zengine::graphics;
-    namespace pw = zengine::testing::pane_window;
     for (const char* window : {gfx::kSdlWindow, gfx::kTerminalWindow}) {
         CAPTURE(window);
+        const bool os = std::string(window) == gfx::kSdlWindow;
         PaneRig r;
-        SkinStandIn* skin = mount_skin_stand_in(r);
+        if (os) r.on_os_window();
         const std::int64_t kind = open_powers(r);
         make_taller(r, intro::kPowersPane, 18);
-        press_pane(r, kind, 0, 0); // the keys, by Workshop's own reading of a press on the Skin
+        press_pane(r, kind, 0, 0); // the keys, by the weaver's press on the pane
         REQUIRE(r.session().panes.keyboard == kind);
-        skin->platform = "rec";
-        // THE WINDOW SHOWS THE PANE'S AREA, so the pane has a room to compose its query in, and the
-        // paste is that window's and never the Skin's. (With no window the pane draws nowhere and
-        // composes no query, so a paste of the Skin's cannot be asked.)
-        pw::Window shown(r.bus, window);
-        const auto window_shows = [&shown](const std::string& area, const std::string& words) {
-            for (const std::string& row : shown.rows(area)) {
-                if (row.find(words) != std::string::npos) return true;
-            }
-            return false;
-        };
-        const std::string area = std::string(kIntroOffice) + "." + intro::kPowersPane;
-        shown.weave().platform = "recipe";
-        shown.room(area, kIntroOffice, 120, 40);
+        std::int64_t asks = 0;
+        const loom::ObserverId tap =
+            count_paste_asks(r.bus, std::string(gfx::kWindowOfficePrefix) + window, asks);
+        if (os) r.windows.set_clipboard("recipe");
         r.key(input::scan::kV, input::mod::kCtrl);
-        CHECK(shown.weave().clipboard_reads == 1);
-        CHECK(skin->clipboard_reads == 0);
-        CHECK(window_shows(area, "find:recipe"));
+        r.bus.remove_observer(tap);
+        CHECK(asks == 1);
+        if (os) {
+            CHECK(r.windows.clipboard_reads() == 1);
+            bool shows = false;
+            for (const std::string& row : pane_rows(r, kind)) shows = shows || row.find("find:recipe") != std::string::npos;
+            CHECK(shows);
+        }
     }
 }
 

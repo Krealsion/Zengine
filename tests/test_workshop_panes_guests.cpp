@@ -255,13 +255,10 @@ struct TerminalDesk {
     TerminalDesk() {
         r.mount_workshop();
         loom::TerminalVocabulary vocab;
-        vocab.knows(loom::schema_of<surface::SurfaceText>())
-            .accepts(loom::schema_of<loom::Ack>())
+        vocab.accepts(loom::schema_of<loom::Ack>())
             .accepts(loom::schema_of<loom::Result>())
             .accepts(loom::schema_of<loom::Refused>());
         loom::Grant grant;
-        grant.allow_to_role(surface::SurfaceText::zen_name, surface::SurfaceText::zen_version,
-                            surface::kSkinRole);
         let_terminal_switch_editors(vocab, grant);
         const loom::MountedTerminal mounted = loom::host_mount_terminal(
             r.bus, std::make_unique<loom::TerminalSession>("workshop", std::move(vocab)),

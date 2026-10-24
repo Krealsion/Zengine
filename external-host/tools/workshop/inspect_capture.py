@@ -6,7 +6,7 @@ this file is the order and the checks).
 
 WHAT MOVES THE JOURNEY: only each owner's own answer to this run's own ask, through the link --
 the Input owner's session and injection answers, the guest door's inventory, the pictures of the
-medium that shows the desk (the Skin or a window).
+window that shows the desk.
 Nothing is inferred from a picture or from having been admitted.
 
 `chord` IS OPTIONAL, AND OFTEN SHOULD BE LEFT EMPTY WITH A CLICK. A click alone is a whole,

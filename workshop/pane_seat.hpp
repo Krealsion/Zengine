@@ -54,7 +54,7 @@ public:
     /// A graphics window shows the pane's area, and gave it a room.
     bool granted() const noexcept { return in_window(); }
     bool in_window() const noexcept { return window_.shown(); }
-    /// The office a paste is asked of: the window showing the area, else the Skin.
+    /// The office a paste is asked of: the window showing the area, none while no window does.
     std::string clipboard_office() const { return window_.clipboard_office(); }
     /// The rows and columns the pane composes for: the window room's.
     std::int64_t rows() const noexcept { return rows_; }

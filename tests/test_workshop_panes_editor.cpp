@@ -252,13 +252,14 @@ struct EditorRig {
         seat.stem = stem;
         seat.weave = load::WeaveIntent{pane::kEditorPaneRole};
         plan.artifacts.push_back(seat);
+        // THE WINDOW AND THE DIRECTORY FIRST, as a plan's medium rows stand before its panes.
+        r.ready();
+        r.extent(width, height);
         const load::Executed done = r.run_plan(plan);
         REQUIRE_MESSAGE(done.ok, done.refusal);
         image = r.kernel.weave_id(stem);
         REQUIRE(image.value != 0);
         mount_poke_seat();
-        r.ready();
-        r.extent(width, height);
         REQUIRE_MESSAGE(row() != nullptr, "the loaded image offered no `editor` pane");
         kind = row()->kind;
         if (pick_it) {
@@ -369,7 +370,7 @@ struct EditorRig {
     };
     Aim aim() {
         const ui::Rect body = external_body_rect(r.session(), kind);
-        return Aim{body.x, body.y + kExternalHeaderRows + r.console_rows(), chrome()};
+        return Aim{body.x, body.y + kExternalHeaderRows, chrome()};
     }
     void enqueue_press_doc(const Aim& at, std::int64_t row, std::int64_t col) {
         const std::int64_t x = at.x + pane_cell_of(r.session(), kind, at.above + row, col);
@@ -399,7 +400,7 @@ struct EditorRig {
     /// oracle that watched only the row let a draining helper through.
     std::pair<std::int64_t, std::int64_t> admitted_caret() {
         const ExternalPane* seated = seat();
-        if (seated == nullptr) return {surface::kNoCaret, 0};
+        if (seated == nullptr) return {kNoCaret, 0};
         const RowsCaret held = held_caret(*seated);
         return {held.row, held.column};
     }
@@ -449,7 +450,6 @@ struct EditorRig {
         // prove the HOST's refusal and not the bus's: a stray reveal and a stray quit answer
         // must reach Workshop to be dropped by it. Without the grant both cases are vacuous.
         grant.allow_to_any(PaneRevealRequested::zen_name, PaneRevealRequested::zen_version);
-        grant.allow_to_any(surface::SurfaceExtent::zen_name, surface::SurfaceExtent::zen_version);
         grant.allow_to_any(PaneQuitAnswered::zen_name, PaneQuitAnswered::zen_version);
         // ...and the managed opening's own sentences, for the same reason -- a forged
         // settlement, preparation, admission or dispatch refusal must reach its party to be
@@ -874,21 +874,22 @@ TEST_CASE("the Editor is an ordinary arranged pane, offered by an office") {
             "nowhere, composed for the window's room, and Workshop is told none of it") {
         namespace gfx = zengine::graphics;
         namespace pw = zengine::testing::pane_window;
-        const char* area = pane::kEditorPaneRole;
+        const char* office = pane::kEditorPaneRole;
+        const std::string area = pane_area(office, pane::kEditorPane);
         std::size_t to_workshop = 0; // outlives the rig, whose bus the tap is on
         EditorRig u("edit-offer-window");
         const loom::ObserverId tap = u.r.bus.add_observer([&](const loom::BusEvent& ev) {
-            if (ev.authored_role == area && ev.kind == loom::EventKind::Delivered &&
+            if (ev.authored_role == office && ev.kind == loom::EventKind::Delivered &&
                 ev.schema_name == gfx::Drawn::zen_name && ev.addressed_role == kWorkshopProvider) {
                 ++to_workshop;
             }
         });
-        pw::PaneDirectory* directory = pw::mount_directory(u.r.bus);
+        RoomAsks directory(u.r.bus);
         u.open(160, 48, /*pick_it=*/false);
         REQUIRE_FALSE(u.r.session().panes.has(u.kind));
-        CHECK(directory->times(area, area) == 1);
+        CHECK(directory.times(area, office) == 1);
         pw::Window window(u.r.bus);
-        window.room(area, area, 30, 6);
+        window.room(area, office, 30, 6);
         REQUIRE(window.weave().heard.size() == 1);
         const gfx::Drawn& first = window.weave().heard[0];
         CHECK(first.whole);
@@ -1563,7 +1564,7 @@ TEST_CASE("an orderly quit refuses while source is unsaved, and proceeds once it
     CHECK(e.r.session().notice.find("a.cpp") != std::string::npos);
     CHECK(e.r.session().notice.find("Workshop stays open") != std::string::npos);
     // THE SAME DOOR FROM THE NATIVE CLOSE BOX.
-    e.r.publish(loom::to_value(gfx::SurfaceCloseRequested{}));
+    e.r.close_requested();
     CHECK_FALSE(e.r.host.quit);
     // SAVE, AND THE NEXT `q` ENDS THE PROCESS WITHOUT CEREMONY.
     e.focus();
@@ -1765,12 +1766,13 @@ TEST_CASE("in a graphics window that gives the Editor its pointer, a press there
           "its number and its release sweep a selection as on Workshop's canvas, and a hold the "
           "window ends is the press lost") {
     namespace pw = zengine::testing::pane_window;
-    const char* area = pane::kEditorPaneRole;
+    const char* office = pane::kEditorPaneRole;
+        const std::string area = pane_area(office, pane::kEditorPane);
     EditorRig w("edit-window-sweep");
     w.open();
     (void)w.open_file("w.cpp", "one\ntwo\nthree\n");
     pw::Window window(w.r.bus);
-    window.room(area, area, 40, 10);
+    window.room(area, office, 40, 10);
     const std::int64_t first = w.chrome();
     // PRESSED ON THE FIRST LINE, MOVED TO THE SECOND'S THIRD COLUMN: swept from where it pressed.
     const std::uint64_t n = window.next_press();
@@ -1802,12 +1804,13 @@ TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by
             "until the rows change") {
         namespace gfx = zengine::graphics;
         namespace pw = zengine::testing::pane_window;
-        const char* area = pane::kEditorPaneRole;
+        const char* office = pane::kEditorPaneRole;
+        const std::string area = pane_area(office, pane::kEditorPane);
         EditorRig w("edit-names-window");
-        pw::PaneDirectory* directory = pw::mount_directory(w.r.bus);
+        RoomAsks directory(w.r.bus);
         w.open();
         // THE ROOM IS ASKED ONCE, on the activation, as the office.
-        CHECK(directory->times(area, area) == 1);
+        CHECK(directory.times(area, office) == 1);
         (void)w.open_file("w.cpp", "one\ntwo\nthree\n");
         pw::Window window(w.r.bus);
         pw::PaneWindow& seen = window.weave();
@@ -1818,7 +1821,7 @@ TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by
             }
             return nullptr;
         };
-        window.room(area, area, 40, 10);
+        window.room(area, office, 40, 10);
         REQUIRE(seen.heard.size() == 1);
         CHECK(seen.heard[0].whole);
         CHECK(seen.refusals.empty());
@@ -1898,7 +1901,7 @@ TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by
         // ...AND A REFUSED WHOLE BY NOTHING, until the rows change.
         seen.refuse_next = true;
         mark = seen.heard.size();
-        window.room(area, area, 40, 10, 2); // the window started again, holding nothing
+        window.room(area, office, 40, 10, 2); // the window started again, holding nothing
         REQUIRE(seen.heard.size() == mark + 1);
         CHECK(seen.heard[mark].whole);
         CHECK(seen.refusals.size() == 2);
@@ -1922,7 +1925,7 @@ TEST_CASE("WL-HAND-06: the Editor names its status row and each document line by
         CHECK(seen.strangers == 0);
 
         // A WINDOW SHORTER THAN THE ROWS WORKSHOP IS TOLD is drawn as many of them as it holds.
-        window.room(area, area, 40, 3, 3);
+        window.room(area, office, 40, 3, 3);
         const gfx::window::WinArea* held = seen.find(area);
         REQUIRE(held != nullptr);
         std::size_t texts = 0;
@@ -2178,7 +2181,7 @@ TEST_CASE("a drag sweeps a multiline selection, and the selection survives relea
     CHECK(e.doc_row(1) == "three");
     // ...AND A MOTION WITH THE BUTTON UP SWEEPS NOTHING.
     e.motion_doc(1, 3);
-    CHECK(e.caret().sel_begin_row == surface::kNoSelection);
+    CHECK(e.caret().sel_begin_row == kNoSelection);
 }
 
 TEST_CASE("in a terminal, a press on a character past the caret puts the caret before that character, and a sweep ends before the character under the hand") {
@@ -2257,7 +2260,7 @@ TEST_CASE("a drag past the body's bottom edge steps the window, one row per moti
     CHECK(e.caret().sel_begin_col == 0);
     CHECK(e.caret().sel_end_row == 5);
     CHECK(e.caret().sel_end_col == static_cast<std::int64_t>(e.doc_row(5 - above).size()));
-    CHECK(e.caret().row == surface::kNoCaret);
+    CHECK(e.caret().row == kNoCaret);
 }
 
 TEST_CASE("a selection that runs above the window is clipped, and one wholly out of it "
@@ -2288,15 +2291,15 @@ TEST_CASE("a selection that runs above the window is clipped, and one wholly out
     e.wheel(-1.0);
     e.wheel(-1.0);
     e.wheel(-1.0);
-    CHECK(e.caret().row == surface::kNoCaret);
-    CHECK(e.caret().sel_begin_row == surface::kNoSelection);
+    CHECK(e.caret().row == kNoCaret);
+    CHECK(e.caret().sel_begin_row == kNoSelection);
     // ...and scrolling back up brings the range back with the caret out of the window: a
     // selection may stand with no caret.
     for (int i = 0; i < 9; ++i) {
         e.wheel(1.0);
     }
-    CHECK(e.caret().row == surface::kNoCaret);
-    CHECK(e.caret().sel_begin_row != surface::kNoSelection);
+    CHECK(e.caret().row == kNoCaret);
+    CHECK(e.caret().sel_begin_row != kNoSelection);
 }
 
 TEST_CASE("the wheel scrolls the body, moves no caret, and elsewhere reaches nothing") {
@@ -2311,7 +2314,7 @@ TEST_CASE("the wheel scrolls the body, moves no caret, and elsewhere reaches not
     e.press_doc(0, 0);
     e.wheel(-1.0); // away from the weaver: the document scrolls up by kEditorWheelLines
     CHECK(e.doc_row(0) == "line " + std::to_string(1 + kEditorWheelLines));
-    CHECK(e.caret().row == surface::kNoCaret); // the caret stayed on line 1, off screen
+    CHECK(e.caret().row == kNoCaret); // the caret stayed on line 1, off screen
     CHECK(e.status().rfind("saved L1:C1", 0) == 0);
     e.wheel(1.0);
     CHECK(e.doc_row(0) == "line 1");
@@ -2388,7 +2391,7 @@ TEST_CASE("a resize reconciles the viewport and does not strand the caret") {
     e.give_rows(4);
     // Three document rows, and the caret's line is one of them.
     REQUIRE(held_canvas_rows(*e.seat()).rows == 4);
-    CHECK(e.caret().row != surface::kNoCaret);
+    CHECK(e.caret().row != kNoCaret);
     CHECK(e.doc_row(e.caret().row - 1) == "line 21");
 }
 
@@ -2415,7 +2418,7 @@ TEST_CASE("in a room too small for both, the document keeps its rows and a notic
     // ONE ROW: the standing notice, and nothing else -- the caret has no row to be on.
     e.give_rows(1);
     CHECK(e.shown().size() == 1);
-    CHECK(e.caret().row == surface::kNoCaret);
+    CHECK(e.caret().row == kNoCaret);
     e.type("z"); // ...and typing into it still edits the document, and clears the notice
     CHECK(e.shown().size() == 1);
     CHECK(e.shown()[0].rfind("UNSAVED", 0) == 0);
@@ -2476,7 +2479,7 @@ TEST_CASE("a press begins a sweep only where it named a row of the body") {
     CHECK(e.r.session().panes.keyboard == e.kind);
     e.motion_doc(1, 2); // held over the document's rows: a header press swept nothing
     e.release_doc(1, 2);
-    CHECK(e.caret().sel_begin_row == surface::kNoSelection);
+    CHECK(e.caret().sel_begin_row == kNoSelection);
     e.press_doc(0, 0);
     e.motion_doc(1, 2); // ...and one on a row of the body sweeps
     CHECK(e.caret().sel_begin_row == e.chrome());
@@ -2746,17 +2749,17 @@ TEST_CASE("a press that only focuses begins no sweep, and a gesture keeps the ge
         e.open_file("a.cpp", "one\ntwo\nthree\n");
         e.press_doc(1, 1); // a real caret, somewhere to sweep from
         REQUIRE(e.seat() != nullptr);
-        CHECK(e.caret().sel_begin_row == surface::kNoSelection);
+        CHECK(e.caret().sel_begin_row == kNoSelection);
         e.release_doc(1, 1);
         // ...AND A PRESS THAT MEANS FOCUS AND NOTHING ELSE.
         press_pane(e.r, e.kind, 0, 0);
         CHECK(e.r.session().panes.keyboard == e.kind);
         e.motion_doc(2, 4);
         e.motion_doc(2, 5);
-        CHECK(e.caret().sel_begin_row == surface::kNoSelection);
+        CHECK(e.caret().sel_begin_row == kNoSelection);
         CHECK(e.caret().row == e.chrome() + 1); // the caret did not move either
         e.release_doc(2, 5);
-        CHECK(e.caret().sel_begin_row == surface::kNoSelection);
+        CHECK(e.caret().sel_begin_row == kNoSelection);
         // A REAL SWEEP STILL SWEEPS, from a press that named a document row.
         e.press_doc(0, 0);
         e.motion_doc(1, 3);
@@ -3077,7 +3080,7 @@ TEST_CASE("a clipboard answer refuses the open wherever it lands, and A keeps it
         const std::string a_path = e.open_file("a.cpp", "one\n");
         e.slow->platform = "PASTED"; // what the platform answers with, when it is let go
         e.press_doc(0, 3);
-        e.key(input::scan::kV, input::mod::kCtrl); // a paste, held by the slow Skin
+        e.key(input::scan::kV, input::mod::kCtrl); // a paste, held by the slow window
         REQUIRE(e.slow->held);
         // THE PANE IS TAKEN OFF THE DESK: the document is the weave's and stays.
         e.unfocus();
@@ -3176,8 +3179,8 @@ TEST_CASE("a clipboard answer refuses the open wherever it lands, and A keeps it
 // ============================================================================
 
 TEST_CASE("room lost before the commitment refuses the open, and nothing is authored or moved") {
-    // A real `SurfaceExtent` lands between the manager's binding of the desk and the desk's
-    // trial and takes the Editor's place off the screen, so the trial finds no row for it and
+    // The window's real offer of a smaller room lands between the manager's binding of the desk
+    // and the desk's trial and takes the Editor's place off the screen, so the trial finds no row for it and
     // refuses in words. The document that was open stands, the requester is told, nothing was
     // offered or published, and the room the Editor lost it lost to the weaver's own shrink.
     EditorRig e("edit-shrink-before");
@@ -3201,9 +3204,7 @@ TEST_CASE("room lost before the commitment refuses the open, and nothing is auth
     REQUIRE(e.r.bus.pump_pending() == 1);
     // THE SHRINK, queued behind the request -- and therefore AHEAD of the ask the pane will
     // send when it handles that request.
-    (void)e.r.bus.publish(loom::Message(
-        loom::to_value(surface::SurfaceExtent{cells_px(160), kMinScreen.h, 0, 0}), loom::WeaveId{},
-        loom::WeaveId{}, 0));
+    e.r.windows.queue_offer(cells_px(160), kMinScreen.h);
     // MILESTONE 2: one turn delivers the request (the manager binds the Editor and the desk as
     // they are, and asks the desk for a trial) and then the shrink (the Editor's place is off the
     // room now). The trial is queued behind both, so this is the desk it will be judged on.
@@ -3226,7 +3227,8 @@ TEST_CASE("room lost before the commitment refuses the open, and nothing is auth
     CHECK(e.read("text") == "one\n");
     // ...AND A WINDOW BIG ENOUGH SHOWS THE DOCUMENT THAT WAS THERE, not the one refused: the
     // medium that shrank grows back, as it said the room before.
-    e.r.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(48), 0, 0}));
+    e.r.windows.queue_offer(cells_px(160), cells_px(48));
+    e.r.bus.drain_until_idle();
     REQUIRE(in_sight());
     CHECK(e.doc_row(0) == "one");
 }
@@ -3234,7 +3236,7 @@ TEST_CASE("room lost before the commitment refuses the open, and nothing is auth
 TEST_CASE("a resize after the commitment is an ordinary presentation change") {
     // THE CONTROL: weaver actions after a commitment may change presentation. The commitment is
     // the bus's joint publication inside the manager's delivery of the desk's admission; each
-    // owner is shown its claim before it runs again. A `SurfaceExtent` after it moves the Editor
+    // owner is shown its claim before it runs again. The window's smaller room after it moves the Editor
     // as a shrink moves any stacked pane -- its column begins again at its top -- and the open
     // still completes with B in sight. Two interleavings, one with the shrink between the two
     // owners' showings.
@@ -3257,9 +3259,7 @@ TEST_CASE("a resize after the commitment is an ordinary presentation change") {
     const std::size_t before = e.asker->opens.size();
     const std::int64_t committed = e.opening().committed;
     const auto shrink = [&e] {
-        (void)e.r.bus.publish(loom::Message(
-            loom::to_value(surface::SurfaceExtent{cells_px(160), kMinScreen.h, 0, 0}), loom::WeaveId{},
-            loom::WeaveId{}, 0));
+        e.r.windows.queue_offer(cells_px(160), kMinScreen.h);
     };
     const auto after = [&e, &before, &b_path, &a_path, &committed, &top] {
         REQUIRE(e.asker->opens.size() == before + 1);
@@ -3274,7 +3274,8 @@ TEST_CASE("a resize after the commitment is an ordinary presentation change") {
         CHECK(top()); // the shrink's doing, after the commitment
         CHECK(keyboard_pane(e.r.session().panes) == e.kind);
         // ...AND A WINDOW BIG ENOUGH STACKS IT BEHIND THE OTHER AGAIN, WITH NO SECOND REQUEST.
-        e.r.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(48), 0, 0}));
+        e.r.windows.queue_offer(cells_px(160), cells_px(48));
+        e.r.bus.drain_until_idle();
         CHECK_FALSE(top());
         CHECK(e.doc_row(0) == "two");
         CHECK(e.doc_row(0) != a_path);
@@ -5244,11 +5245,9 @@ inline void hold_the_editor(EditorRig& e) {
     REQUIRE(e.r.bus.has_failed_application(e.image));
 }
 
-/// THE MEDIUM'S CLOSE BOX: while a quit is in flight it says what the quit is waiting for, and
+/// THE WINDOW'S CLOSE BOX: while a quit is in flight it says what the quit is waiting for, and
 /// otherwise it asks afresh -- the one door that can tell the two apart without a key.
-inline void close_box(EditorRig& e) {
-    e.r.publish(loom::to_value(gfx::SurfaceCloseRequested{}));
-}
+inline void close_box(EditorRig& e) { e.r.close_requested(); }
 
 /// THE HOST'S WAKE-UP, sent the way the watch sends it: a root delivery that carries nothing.
 inline void wake_workshop(EditorRig& e) {
@@ -5498,8 +5497,7 @@ TEST_CASE("a Workshop that does not hold its office says so and starts no quit, 
     auto weave = std::make_unique<WorkshopWeave>(r.host);
     r.w = weave.get();
     loom::Grant speak;
-    speak.allow_to_any(surface::SurfaceCanvas::zen_name, surface::SurfaceCanvas::zen_version);
-    speak.allow_to_any(surface::SurfaceText::zen_name, surface::SurfaceText::zen_version);
+    speak.allow_to_any(gfx::Drawn::zen_name, gfx::Drawn::zen_version);
     speak.allow_to_any(PaneQuitRequested::zen_name, PaneQuitRequested::zen_version);
     r.workshop_id = r.bus.register_weave(std::move(weave), std::move(speak)); // no office
     r.w->zen_set_self(r.workshop_id);

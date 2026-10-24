@@ -13,7 +13,6 @@
 
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
 
 #include <zen/bridge/link.hpp>
@@ -33,11 +32,10 @@
 
 namespace zengine::workshop_probe {
 
-/// THE OFFICES THAT HOLD WORKSHOP'S PICTURE, in the order a run asks them: the Skin, the OS window
-/// and the terminal window (`graphics/vocabulary.hpp`'s `kWindowOfficePrefix`, `kSdlWindow`,
-/// `kTerminalWindow`). A far Workshop loads one of them; the others are no office there.
-inline constexpr std::array<const char*, 3> kCaptureOffices = {
-    zengine::surface::kSkinRole,
+/// THE OFFICES THAT HOLD WORKSHOP'S PICTURE, in the order a run asks them: the OS window and the
+/// terminal window (`graphics/vocabulary.hpp`'s `kWindowOfficePrefix`, `kSdlWindow`,
+/// `kTerminalWindow`). A far Workshop loads one of them; the other is no office there.
+inline constexpr std::array<const char*, 2> kCaptureOffices = {
     "zengine.window.sdl",
     "zengine.window.terminal",
 };

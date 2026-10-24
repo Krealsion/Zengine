@@ -561,7 +561,7 @@ TEST_CASE("the query is typed, edited, copied and pasted through the shipped sea
     // place a copy can honestly be said to have landed.
     CHECK(r.windows.clipboard() == std::optional<std::string>("rec"));
 
-    // AND A PASTE IS A READ PERFORMED BECAUSE THE WEAVER ASKED: the Skin is asked once, at the
+    // AND A PASTE IS A READ PERFORMED BECAUSE THE WEAVER ASKED: the window is asked once, at the
     // paste, and is never watched.
     const int reads_before = r.windows.clipboard_reads();
     r.key(input::scan::kEnd);

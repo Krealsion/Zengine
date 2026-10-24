@@ -11,7 +11,7 @@
 // (Loom GATE-04), so this file's version one is the host's. Only the shapes the legacy image
 // speaks or hears; the protocol's law is agents/panes.md.
 
-#include "surface/vocabulary.hpp"
+#include "graphics/role.hpp"
 
 #include <zen/weave/shape.hpp>
 
@@ -20,6 +20,15 @@
 #include <vector>
 
 namespace legacy_protocol {
+
+/// One row of a pane's text as that protocol carried it: its words, the role they were drawn in,
+/// and a ground beneath them.
+struct SurfaceTextRow {
+    std::string text;
+    std::int64_t role = zengine::graphics::role::kFill;
+    std::int64_t background = zengine::graphics::role::kNone;
+    ZEN_SHAPE(SurfaceTextRow, 2, ZEN_FIELD(text), ZEN_FIELD(role), ZEN_FIELD(background));
+};
 
 struct PaneCatalogRequested {
     ZEN_SHAPE(PaneCatalogRequested, 1);
@@ -41,7 +50,7 @@ struct PaneRoom {
 
 struct PaneContent {
     std::string pane;
-    std::vector<zengine::surface::SurfaceTextRow> rows;
+    std::vector<SurfaceTextRow> rows;
     ZEN_SHAPE(PaneContent, 1, ZEN_FIELD(pane), ZEN_FIELD(rows));
 };
 

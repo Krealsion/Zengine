@@ -5,7 +5,7 @@ layouts and their associations, the room and the window, the restore that runs o
 heading; cite by ID. The files and their domains are in [`session.md`](session.md). Router:
 [`../workshop.md`](../workshop.md).
 
-Retired: WL-SESSION-12.
+Retired: WL-SESSION-11, WL-SESSION-12.
 
 ## WL-SESSION-05 — The session holds the run of layouts with their associations
 
@@ -59,23 +59,14 @@ MEANS
 
 WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 
-## WL-SESSION-11 — The first picture of a run is Workshop's floor
-
-LAW — The SDL medium makes a run's first picture the window's minimum, once, so `on(SurfaceReady)` repaints at the minimum extent and then takes the session back.
-
-MEANS
-- seeding the extent before the first canvas would leave a weaver unable to shrink the window.
-
-WHY — `agents/decisions/the-first-picture-is-the-floor.md`
-
 ## WL-SESSION-14 — The restore runs once per process, and answers four things
 
-LAW — The restore runs once per process, guarded by a flag, because the surface's hello arrives again when a Skin is replaced; the answer carries present, outcome, honoured and declined.
+LAW — The restore runs once per process, guarded by a flag, because a window offers itself again when it is started again; the answer carries present, outcome, honoured and declined.
 
 MEANS
 - the flag is set before the file is opened, so a refusal is final too;
 - `load_file` asks `exists` first, so a first launch is not an error and stays silent;
-- its sentence takes the unit the first `SurfaceExtent` names, unless another was said since.
+- its sentence takes the unit the first window's offer names, unless another was said since.
 
 WHY — `agents/decisions/three-ownership-domains.md`
 
@@ -123,14 +114,15 @@ and the room, and nothing runtime"
 `workshop/weave.hpp` SurfacePlacementRemembered SurfacePlacement
 `workshop/weave_handlers.cpp` on(SurfacePlacement)
 `graphics/vocabulary.hpp` SurfacePlacement SurfacePlacementRemembered
-`surface/skin_sdl_plan.hpp` placement_within
+`graphics/window/window_sdl.hpp` placement_within
 `workshop/session_persist.hpp` kPlacementNone WorkshopPlacement Placement
 `workshop/screen.hpp` Session::placement_known Session::place_x Session::place_y
 Session::place_maximized
 `tests/test_workshop_persistence.cpp` "a session with a placement round-trips byte-identically" "the
 placement's words are judged; its coordinates are not" "the desk remembers where its window sat, and
 offers it back" "a run whose medium reports no placement RETAINS the remembered one"
-`tests/test_surface.cpp` "placement is reported BEFORE the extent, at every door"
+`tests/test_graphics.cpp` "the OS window's clipboard and its place on the desktop are its backend's: a
+copy handed on, the clipboard read only when asked, its placement read, and a remembered place"
 
 ### WL-SESSION-09
 `workshop/screen.hpp` Session::normal_w
@@ -140,21 +132,14 @@ offers it back" "a run whose medium reports no placement RETAINS the remembered 
 maximized state" "unmaximizing reopens the gate, and the normal room tracks again" "a restored
 maximized flag alone does not gate this run's viewport"
 
-### WL-SESSION-11
-`workshop/weave_session.cpp` restore_last_session
-`workshop/weave_run.cpp` repaint
-`surface/skin_sdl.cpp` SDL_SetWindowMinimumSize
-`tests/test_workshop_persistence.cpp` "the FIRST picture of a run is the floor, and the room is the
-second"
-
 ### WL-SESSION-14
-`workshop/weave_session.cpp` restore_last_session restore_notice_text respell_restore_notice
+`workshop/weave_session.cpp` restore_last_session restore_notice_text spell_restore_notice
 `workshop/weave.hpp` WorkshopWeave::restored_
 `workshop/session_persist.hpp` LoadedSession::present LoadedSession::outcome LoadedSession load_file
 LoadedSession::honoured LoadedSession::declined
-`surface/vocabulary.hpp` SurfaceReady
-`tests/test_workshop_persistence.cpp` "the room is taken back only ONCE, however often a surface
-says hello" "a first launch is not an error, and needs no file to exist" "a malformed session costs
+`graphics/vocabulary.hpp` WindowOffered
+`tests/test_workshop_persistence.cpp` "the room is taken back only ONCE, however often a window
+offers itself" "a first launch is not an error, and needs no file to exist" "a malformed session costs
 the desk and nothing else" "the restore notice says the room in the unit the medium names: pixels in
 a window, cells in a terminal"
 

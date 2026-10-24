@@ -167,12 +167,11 @@ struct GuestHand {
         weaver->push_back(input::TextEntered{text});
         pump();
     }
+    /// ...and the weaver's press, through the window showing the desk, which reads its own
+    /// platform's pointer: no reader's pointer moment reaches a pane.
     void weaver_press_cell(std::int64_t cx, std::int64_t cy, std::int64_t button = 1) {
-        weaver->push_back(input::PointerButton{button, true, cx, cy,
-                                               input::space::kCells, input::mod::kNone});
-        weaver->push_back(input::PointerButton{button, false, cx, cy,
-                                               input::space::kCells, input::mod::kNone});
-        pump();
+        r.hand_button(cx, cy, input::space::kCells, true, button);
+        r.hand_button(cx, cy, input::space::kCells, false, button);
     }
 
     /// THE WEAVER'S MOMENTS AND THEN THE GUEST'S, queued before either is delivered: Workshop

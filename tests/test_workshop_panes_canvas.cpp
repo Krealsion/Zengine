@@ -435,7 +435,8 @@ TEST_CASE("a described view offers its own pane through the view host, Workshop 
         if (e.kind == loom::EventKind::Delivered && e.payload != nullptr &&
             e.schema_name == zengine::graphics::AreaPlaced::zen_name) {
             const auto p = loom::from_value<zengine::graphics::AreaPlaced>(*e.payload);
-            if (p.area == "tally.panel") placed.push_back(p);
+            if (p.area == zengine::workshop::pane_area("tally.panel", view::kPane))
+                placed.push_back(p);
         }
     });
     view::Host views(r.bus);

@@ -7,7 +7,7 @@
 // Workshop's guest vocabulary, declared on another Loom host. An external host's link re-admits a
 // far answer, and encodes a Python tool's JSON request, against shapes its own registry resolves
 // (the Loom's bridge reference page); a Python tool is no participant there, so this weave declares
-// them: Input's session, the Skin's picture, the desk read whole, the pane inventory, the keymap,
+// them: Input's session, the window's picture, the desk read whole, the pane inventory, the keymap,
 // the door's inventory, the asker's row, the plan, the opening, the Builder's read, the settings.
 // Reference: external-host/docs/external-host.md.
 

@@ -40,10 +40,6 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     // reading of the living realization owner — never a member, never a field of the
     // session, never yesterday's answer.
     const ProjectFrontier frontier = frontier_now();
-    // The status slot, then the picture. What is true and worth a glance is the Attention pane's
-    // to show, in its own room: no slot carries it.
-    mail.publish(
-        zengine::surface::SurfaceText{zengine::surface::kSlotStatus, status_line()});
     // WHAT IS TRUE, TO WHOEVER IS PRESENTING IT: one sentence per condition, in the host's own
     // order, said only when it changed. Derived at every repaint and held nowhere, so a resolved
     // condition is gone because it stopped being returned.
@@ -58,28 +54,25 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     // ...and what the terminal participant's record holds, to whoever is presenting it.
     // Same beat, same rule, same silence when nothing changed.
     facet<TerminalDoorFacet>().say_transcript(mail);
-    auto canvas = paint(session_);
-    // THE PLANES ABOVE THE PICTURE, kept for the window's drawing of the desk too: the carried
-    // value under the hand...
+    // THE PLANES ABOVE THE DESK, which the window's overlay draws: the carried value under the
+    // hand...
     window_overlays_.clear();
     if (carried_.drag && value_drag_.moved && !value_drag_.released && drag_pointer_.understood) {
-        surface::SurfaceLayer overlay;
+        ScreenPlane overlay;
         const auto rect = wire_rect_of(PixelRect{drag_pointer_.px.x, drag_pointer_.px.y,
             12 * graphics::kCellPx, graphics::kCellPx}, graphics::role::kAccent);
         overlay.rects.push_back(rect);
         overlay.labels.push_back(
-            surface::SurfaceLabel{rect.x, rect.y, "[value]", graphics::role::kFill});
+            ScreenLabel{rect.x, rect.y, "[value]", graphics::role::kFill});
         window_overlays_.push_back(std::move(overlay));
     }
     // ...and EVERY GUEST'S GUIDE MARK, each judged against what shows now.
     if (!guide_marks_.empty()) {
-        surface::SurfaceLayer marks = guide_layer(mail);
+        ScreenPlane marks = guide_layer(mail);
         if (!marks.rects.empty() || !marks.labels.empty()) {
             window_overlays_.push_back(std::move(marks));
         }
     }
-    canvas.layers.insert(canvas.layers.end(), window_overlays_.begin(), window_overlays_.end());
-    mail.publish(std::move(canvas));
     stamps_owed_ = desk_owed_ = true; // the desk may have moved: looked at once, at the delivery's end
     // ...and the same desk in a graphics window, where a directory places its areas.
     show_in_graphics(mail);
@@ -160,7 +153,7 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         const PaneBounds framed = bounds_of(session_.panes, session_.setup.active, order[i], sc);
         if (framed.open && !framed.rect.empty() &&
             (order[i] == pane_kind::kLayouts || (is_runtime_kind(order[i]) && row != nullptr))) {
-            const std::string frame = pane_frame_area(order[i]);
+            const std::string frame = pane_frame_area(session_.panes, order[i]);
             next[frame] = graphics::AreaPlaced{
                 frame, window_name_, kWorkshopProvider, framed.rect.x, framed.rect.y,
                 framed.rect.w, framed.rect.h, 2 * static_cast<std::int64_t>(i) + 1, false, true};
@@ -169,8 +162,8 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         ExternalPane* ext = session_.panes.external_pane(order[i]);
         if (!is_runtime_kind(order[i]) || row == nullptr || ext == nullptr ||
             !accepts(row->provider, *loom::schema_of<graphics::AreaRoom>())) {
-            if (frames.count(pane_frame_area(order[i])) != 0) {
-                skins[pane_frame_area(order[i])] = session_.skin;
+            if (frames.count(pane_frame_area(session_.panes, order[i])) != 0) {
+                skins[pane_frame_area(session_.panes, order[i])] = session_.skin;
             }
             continue;
         }
@@ -213,8 +206,9 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         skins[area] = own != nullptr && own->text && is_workshop_skin_choice(*own->text)
                           ? *own->text
                           : session_.skin;
-        if (frames.count(pane_frame_area(order[i])) != 0) {
-            skins[pane_frame_area(order[i])] = skins[area]; // its frame wears its skin
+        if (frames.count(pane_frame_area(session_.panes, order[i])) != 0) {
+            // its frame wears its skin
+            skins[pane_frame_area(session_.panes, order[i])] = skins[area];
         }
         kinds.insert(order[i]);
     }
@@ -591,9 +585,9 @@ void WorkshopWeave::replay_held(loom::Mail& mail) {
         switch (held.kind) {
         case HeldInput::Kind::kKey: on(held.key, mail); break;
         case HeldInput::Kind::kText: on(held.text, mail); break;
-        case HeldInput::Kind::kButton: on(held.button, mail); break;
-        case HeldInput::Kind::kMoved: on(held.moved, mail); break;
-        case HeldInput::Kind::kWheel: on(held.wheel, mail); break;
+        case HeldInput::Kind::kButton: pointer_button(held.button, mail); break;
+        case HeldInput::Kind::kMoved: pointer_moved(held.moved, mail); break;
+        case HeldInput::Kind::kWheel: pointer_wheel(held.wheel, mail); break;
         case HeldInput::Kind::kAreaPress: area_pressed(held.area_press, held.press, mail); break;
         }
     }

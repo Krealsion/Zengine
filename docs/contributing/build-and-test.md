@@ -52,11 +52,11 @@ cmake -DZEN_BUILD_DIR=build-dev -P tests/verify.cmake
 
 A dependency's proof rides its version, so the sibling build contributes its libraries and
 nothing else: its tests and examples are forced off, as is its own SDL2 UI-tree renderer (which
-is a different thing from Zengine's SDL3 skin).
+is a different thing from Zengine's OS window).
 
 ### Where a fetched dependency goes, and that nothing prunes it
 
-The SDL skin fetches SDL3, SDL_ttf and FreeType at configure time
+The OS window fetches SDL3, SDL_ttf and FreeType at configure time
 ([supported toolchains](supported-toolchains.md#sdl)). Under WSL, building from a
 Windows-mounted checkout, those trees cannot live in the build directory — that filesystem cannot
 hold the symlinks inside SDL's tarball — so the build sends them to
@@ -105,7 +105,7 @@ host that loads it is an installed Loom session host, which is uninstrumented an
 instrumented image. It only declares shapes, and Workshop on the far side of `workshop_journey`
 stays instrumented.
 
-The lane runs the **full** population, the SDL skin included — the verifier prints
+The lane runs the **full** population, the OS window included — the verifier prints
 `gates active: always;sdl`, and every entry the ordinary lane declares is here at the same
 floor. No floor is lowered and no gate is turned off to buy the instrumentation.
 
@@ -243,10 +243,9 @@ their diagnostics, plus script entries.
 | `graphics` | the window, the directory, the skins and the snake's board through the real kernel: said once, one change a tick shown once, each participant replaced or reloaded, the room naming what the window holds, a drawing weave shown once a beat, presses and keys, every bound refused in words |
 | `timer` | the Timer contract by content-id; every schedule over a fake clock through a real bus; the activation law (premature, duplicate, foreign, stale and replayed activations establishing nothing); the shipped clock's grain and what its nap asks of Windows; a real `.so` re-seeding its chain on the real clock; the load-order matrix; and the continuity lane over a *virtual* clock, so "a five-second one-shot had two seconds remaining and the successor fired it two seconds later" is an exact integer nobody had to sleep for |
 | `input` | the locked contract and SDL-scancode identity by content-id and literal value; both backends' translations as pure math on every lane; the weave's publish path and self-arranged beat through a real bus |
-| `surface` | the contract by content-id; terminal skins as golden bytes; the SDL frame plan as pure math; the hello handshake and the one-owner rule through the real kernel; the general canvas as golden bytes; and, where built, the SDL skin under SDL's dummy video driver |
 | `ui`, `component`, `operator`, `composer` | those packages' own contracts |
-| `workshop_document` | the typed property connection every editable row is built on, including both ways a commit can fail; the quit policy and the status line; editable text as a component; and the keymap that says which gesture a key is. (The name is the object document's, whose cases it held until the prototype canvas retired.) |
-| `workshop_screen` | whole screens asserted as `SurfaceCanvas` values; what a press reaches — a pane, the room, a mode — and what a hand can and cannot reach; and the whole pixels a pane arrangement is authored in |
+| `workshop_document` | the typed property connection every editable row is built on, including both ways a commit can fail; the quit policy; editable text as a component; and the keymap that says which gesture a key is. (The name is the object document's, whose cases it held until the prototype canvas retired.) |
+| `workshop_screen` | whole screens asserted as Workshop's composed planes; what a press reaches — a pane, the room, a mode — and what a hand can and cannot reach; and the whole pixels a pane arrangement is authored in |
 | `workshop_host` | what Workshop itself presents around the panes: placement and the stack, the Layouts pane and its tab run, the contextual menu, a pane's subject rows, the Terminal line's completion vocabulary, Escape's order, and the surface that says what is currently true. (The terminal, the Builder and Info had cases here as built-ins until each became a loaded pane.) |
 | `workshop_panes_seam`, `_hand`, `_inspect`, `_info`, `_settings`, `_terminal`, `_project`, `_editor` | the external pane seam from both sides: an office authors a pane, Workshop grants the room, and a press inside that room reaches the office that owns it — against real loaded libraries through the real kernel. One program, `zengine-workshop-panes-tests`, run as eight entries by subject, each selecting its own sources' cases |
 | `workshop_persistence` | what survives a process and what deliberately does not: an old object document left exactly as it is, the named arrangement, the desk that comes back on its own, a saved desk naming a retired built-in read as its successor, and the installed application's per-user roots |

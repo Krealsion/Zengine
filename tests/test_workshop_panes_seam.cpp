@@ -578,15 +578,15 @@ TEST_CASE("a forged room grants the provider nothing") {
     zengine::testing::pane_window::Window window(r.bus);
     const std::size_t before = window.weave().heard.size();
 
-    r.bus.send(hello, loom::Message(loom::to_value(gfx::AreaRoom{kHelloOffice, window.name(), 1, 20 * gfx::kCellPx,
-                                                                 4 * gfx::kCellPx, {}, true}),
-                                    loom::WeaveId{}, loom::WeaveId{}, 0));
+    const gfx::AreaRoom unsaid{pane_area(kHelloOffice, kHelloPane), window.name(), 1,
+                               20 * gfx::kCellPx, 4 * gfx::kCellPx, {}, true};
+    r.bus.send(hello, loom::Message(loom::to_value(unsaid), loom::WeaveId{}, loom::WeaveId{}, 0));
     r.bus.drain_until_idle();
     CHECK(window.weave().heard.size() == before); // no room was believed, so nothing was drawn
 
-    window.room(kHelloOffice, kHelloOffice, 20, 4);
+    window.room(pane_area(kHelloOffice, kHelloPane), kHelloOffice, 20, 4);
     r.bus.drain_until_idle();
-    const std::vector<std::string> rows = window.rows(kHelloOffice);
+    const std::vector<std::string> rows = window.rows(pane_area(kHelloOffice, kHelloPane));
     REQUIRE(rows.size() == 4);
     CHECK(rows[0] == "hello -- 4x20");
 }
@@ -1216,11 +1216,7 @@ cells_covered(bounds_of(r.session().panes, r.session().setup.active, kind, sc).r
               .kind == kNoKind);
 
     // THE PRESS IS THE PANE'S, WHATEVER ELSE HAPPENS TO IT: it selects the pane, and nothing
-    // behind the pane is reached. ⚠ THE POSITION IS A TERMINAL POSITION: `{pane_rect.x,
-    // pane_rect.y}` in `space::kCells` is read by the medium's inverse as canvas row `pane_rect.y -
-    // kTuiCanvasTopRow`
-    // -- two rows ABOVE the pane -- so a press published that way never touches the pane, and
-    // an assertion about it holds for a reason that has nothing to do with the claim.
+    // behind the pane is reached. The press is the window's, at the canvas cell the pane covers.
     r.press_cell(pane_rect.x, pane_rect.y);
     CHECK(r.session().panes.selected == kind);
     CHECK(r.session().notice != "nothing there");
@@ -1330,9 +1326,6 @@ TEST_CASE("silence is waiting, and Workshop never says unavailable") {
     CHECK(r.session().panes.has(kind));
 
     // THE WORD IS NEVER SAID, on the pane or on the setup line.
-    for (const surface::SurfaceText& note : r.notes) {
-        CHECK(note.text.find("unavailable") == std::string::npos);
-    }
     CHECK(stack_text(r.shown()).find("unavailable") == std::string::npos);
     CHECK(setup_rest_text(r.session().setup, r.session().panes,
                             r.session().keymap, KeySpelling::kShort)
@@ -1413,7 +1406,7 @@ TEST_CASE("the off-screen sentence fits a hundred-column terminal whole, both wa
         CHECK(said.find("Reset > place") != std::string::npos);
         CHECK(said.find("hide and show") != std::string::npos);
         // ...AND THE BAND A HUNDRED COLUMNS WIDE PAINTS IT WHOLE, no elision mark at its end.
-        const surface::SurfaceTextRegion band = band_region(r.session(), screen_of(r.session()));
+        const ScreenRegion band = band_region(r.session(), screen_of(r.session()));
         REQUIRE_FALSE(band.rows.empty());
         CHECK(band.rows[0].text == said);
     }

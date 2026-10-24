@@ -12,7 +12,7 @@ or connections from other machines.
 ```
 Workshop (--guests file)  <--- loopback socket --->  loom-host (a `links` row + the probe weave)
     zengine.input  an input session, injected moments
-    zengine.skin   a picture of the surface, fetched by chunk
+    zengine.window.<name>  a picture of the window that shows the desk, fetched by chunk
     zengine.guests the connection inventory (and the Connections pane)
 ```
 
@@ -187,7 +187,7 @@ set a pane's settings by message:
   pane inventory, the keymap rows of its own panes and the rows above every pane, and the manual of
   each office its doors name; any other pane is said by its place, its name and its holder, with no
   word, part or fingerprint, and the desk is said to it with no band, status or desk number, which
-  move with every pane's words. It is refused the Skin's picture, the publications that carry
+  move with every pane's words. It is refused the window's picture, the publications that carry
   every pane at once, and `DeskStamps`, which names every pane's picture:
   it follows its panes by reading them.
 - **`guide`**, a power and a field: a mark the weaver sees on one control, asked as
@@ -246,7 +246,7 @@ Both paths below need this step and nothing more from each other — pick one:
 |---|---|
 | **Start or return to work** | § 1 above (admission, done once), then [§ 3](#3-from-a-loom-session-journeys-as-python-tools) for the session path's own setup, or [§ 4](#4-link-a-host-to-it) for the probe's |
 | **Find an existing capability** | [§ 3](#3-from-a-loom-session-journeys-as-python-tools) — `loom-session tools`/`describe` reads the `workshop` and `desk` packages' own tools from their manifests, never by running one |
-| **Act on Workshop** | Either path uses the owner doors (`zengine.input`, `zengine.skin`, `zengine.guests`, `zengine.inventory`) admitted by § 1's file; [§ 3](#3-from-a-loom-session-journeys-as-python-tools) speaks them as a tool's `ctx.ask`, [§ 5](#5-run-the-journey) as console `send` |
+| **Act on Workshop** | Either path uses the owner doors (`zengine.input`, the window's office, `zengine.guests`, `zengine.inventory`) admitted by § 1's file; [§ 3](#3-from-a-loom-session-journeys-as-python-tools) speaks them as a tool's `ctx.ask`, [§ 5](#5-run-the-journey) as console `send` |
 | **Understand the result** | [§ 3](#3-from-a-loom-session-journeys-as-python-tools)'s own run/crossings account (a session's general answer, [Loom's session guide](https://github.com/Krealsion/Loom/blob/main/docs/guides/sessions.md)), or [§ 6](#6-read-what-happened-from-the-agents-side) for the probe's `history`/`log` console commands |
 | **Recover or finish** | [§ 3](#3-from-a-loom-session-journeys-as-python-tools)'s "What a person meets on this route" and "Giving Workshop's input session back", or [§ 7](#7-refusals-and-the-connections-end) for the probe's own refusal words |
 | **Extend the harness** | [§ 3](#3-from-a-loom-session-journeys-as-python-tools) — a small editable Python tool, its own `loom-tool.json` manifest, and [Loom's own generic map of this](https://github.com/Krealsion/Loom/blob/main/docs/guides/session-tools-map.md) for the mechanics a new tool shares with every other session's |
@@ -504,11 +504,11 @@ run 00cc5c97/look -- passed (live)
   ask 4 loom.link.StatusRequested v1 -> loom.link.workshop: answer loom.link.Status
   ask 7 GuestConnectionsRequested v1 -> zengine.guests via workshop: answer GuestConnections
   ask 11 InputSessionRequested v1 -> zengine.input via workshop: answer InputSessionOpened
-  ask 14 SurfaceCaptureRequested v1 -> zengine.skin via workshop: answer SurfaceCaptured
-  ask 16..60 SurfaceCaptureChunkRequested v1 -> zengine.skin via workshop: answer SurfaceCaptureChunk (23 asks)
+  ask 14 SurfaceCaptureRequested v1 -> zengine.window.sdl via workshop: answer SurfaceCaptured
+  ask 16..60 SurfaceCaptureChunkRequested v1 -> zengine.window.sdl via workshop: answer SurfaceCaptureChunk (23 asks)
   ask 64 InjectInput v1 -> zengine.input via workshop: answer InputInjected
-  ask 67 SurfaceCaptureRequested v1 -> zengine.skin via workshop: answer SurfaceCaptured
-  ask 69..113 SurfaceCaptureChunkRequested v1 -> zengine.skin via workshop: answer SurfaceCaptureChunk (23 asks)
+  ask 67 SurfaceCaptureRequested v1 -> zengine.window.sdl via workshop: answer SurfaceCaptured
+  ask 69..113 SurfaceCaptureChunkRequested v1 -> zengine.window.sdl via workshop: answer SurfaceCaptureChunk (23 asks)
   ask 117 InputSessionClosed v1 -> zengine.input via workshop: answer zen.Ack
   note: cleanup close input session 1: done
 $ loom-session crossings work look
@@ -590,7 +590,7 @@ names — one entry per office, shape and version, the version written as Zen's 
   (`BuildStatusRequested`), answered to it alone — the baseline a returning observer joins. A row
   naming another version is shown nothing of that picture, and may not ask for it either.
 - **What carries the desk's words needs `capture` too.** A publication carrying a pane's or
-  Workshop's words or the picture -- `SurfaceCanvas`, `SurfaceText`, `TranscriptShown`,
+  Workshop's words or the picture -- `TranscriptShown`,
   `PaneSubjectShown`, `PaneInventory`, `KeymapShown` and `StandingConditions`, from whichever
   office publishes it -- is refused, in words, to a row without `capture`, whatever its `observe`
   list names; a row with `capture` still observes only what that list names. So is `DeskStamps`,
@@ -646,27 +646,27 @@ and `cancel` reach it by name. Nothing here wakes an agent; the run's ending is 
 client reads.
 
 `tests/session/workshop_journey.py` is this whole route as a test, behind the `session` gate
-([build and test](../../docs/contributing/build-and-test.md)): a run left pending at Workshop's Skin while
-no client is attached, found finished by a new one; an edit rerun; two runs against one input
-holder, on one link and on two; a tool bug and its cleanup; a run CANCELLED while it owns the
+([build and test](../../docs/contributing/build-and-test.md)): a run left pending at Workshop's
+window while no client is attached, found finished by a new one; an edit rerun; two runs against one
+input holder, on one link and on two; a tool bug and its cleanup; a run CANCELLED while it owns the
 input session, whose cleanup closes it and whose successor on the same link opens one again;
-Workshop killed while a capture is open; a new session lifetime refusing the old handles. Before
-its processes start it runs the tools' own checks against scripted panes, `builder`'s completion
-and `nvim-edit`'s confirmation among them, and `desk/read`'s against a scripted Workshop
+Workshop killed while a capture is open; a new session lifetime refusing the old handles. Before its
+processes start it runs the tools' own checks against scripted panes, `builder`'s completion and
+`nvim-edit`'s confirmation among them, and `desk/read`'s against a scripted Workshop
 (`tests/session/desk_read_checks.py`): `AGENTS.md` written first, each word and part where its
 reading says, and an `out` inside a checkout refused with nothing written; and `desk/watch`'s
-against a scripted desk that moves between notices (`tests/session/desk_watch_checks.py`): only
-what moved read again, the ring bounded, two watches of different panes each writing their own;
-and `desk/resolve`'s against a scripted desk (`tests/session/desk_resolve_checks.py`): the route
-through the Pane Manager, another mode, the case for a tool only for a row reading every pane.
+against a scripted desk that moves between notices (`tests/session/desk_watch_checks.py`): only what
+moved read again, the ring bounded, two watches of different panes each writing their own; and
+`desk/resolve`'s against a scripted desk (`tests/session/desk_resolve_checks.py`): the route through
+the Pane Manager, another mode, the case for a tool only for a row reading every pane.
 `tests/session/tutor_walk.py`, behind `session-pty` (the session tooling and a POSIX
 pseudo-terminal), walks a Tutor through a terminal Workshop on a weaver's host whose weaver is the
-pseudo-terminal it holds. Beside it, `tests/session/story_journey.py` holds [the
-tower defense story](../../examples/tower-defense/README.md)'s own custody to the same processes
--- runs its wait gave up on, a Workshop and session host it must see end, and a watcher's session
-it reuses while it runs and replaces only once it is seen to end -- and
-`tests/session/neovim_journey.py`, behind `session-neovim` (the session tooling and a named
-Neovim at once), drives `workshop/nvim-edit` against a real Neovim.
+pseudo-terminal it holds. Beside it, `tests/session/story_journey.py` holds
+[the tower defense story](../../examples/tower-defense/README.md)'s own custody to the same
+processes -- runs its wait gave up on, a Workshop and session host it must see end, and a watcher's
+session it reuses while it runs and replaces only once it is seen to end -- and
+`tests/session/neovim_journey.py`, behind `session-neovim` (the session tooling and a named Neovim
+at once), drives `workshop/nvim-edit` against a real Neovim.
 
 ## 4. Link a host to it
 
@@ -739,8 +739,8 @@ defaults): `scancode=19 modifiers=2` is Ctrl+P, `scancode=81 modifiers=0` a bare
 `text=hello` types after the chord, `picture=<file>` says where the picture lands. The answer
 arrives when the journey settles, on a later console turn. Every step in that line is what
 the far **owner** answered — the Input weave's `InputInjected`, the guest door's inventory, the
-Skin's `SurfaceCaptured` — never something the probe inferred from a picture or from being
-admitted. Open `workshop-probe.bmp`: it is what the graphical Skin presented, read back from
+window's `SurfaceCaptured` — never something the probe inferred from a picture or from being
+admitted. Open `workshop-probe.bmp`: it is what the OS window presented, read back from
 its own renderer after the frame that followed the chord — the Pane Manager the chord opened is
 in it.
 
@@ -753,8 +753,8 @@ including the consumer's repaint. Only then does the probe request the current p
 This is a causal ordering guarantee for that bus work, not a delay or an assumption about FIFO.
 It does not wait for timers, asynchronous child-process replies, another host, or all background
 work, and settlement alone does not say whether the intended application operation succeeded.
-Those owners still need their own completion answers. A terminal Skin hands back its cells
-(`text/cells`), a window its pixels (`image/bmp`); either is what that medium itself drew.
+Those owners still need their own completion answers. The terminal window hands back its cells
+(`text/cells`), the OS window its pixels (`image/bmp`); either is what that window itself drew.
 
 **What injection tests, and what it does not.** An injected moment enters at the Input weave
 and is published as the same `KeyPressed`, `TextEntered` and `PointerButton` every consumer
@@ -861,7 +861,7 @@ late answer to the old one reaches nobody.
 - **One picture retained** at a time, fetched by chunk; a picture over 32 MiB is refused, never
   cut.
 
-Everything a stranger needs is published: `zengine::input` and `zengine::surface` for the
+Everything a stranger needs is published: `zengine::input` and `zengine::graphics` for the
 shapes, `workshop/guest_seam_vocabulary.hpp` for the inventory, and Loom's
 `zen/bridge/link.hpp` for the envelope. Nothing in `workshop/` beyond those is reached.
 
@@ -947,9 +947,8 @@ inventory and the keymap -- and Workshop says so beside each such row, at launch
 ![Two overlapping buttons pressed by name in a 1440 by 900 window, each where its pane gives it the press: above, button2 lies over button1's centre and the View Builder selects button1 when element:button1 is pressed, on the part of it button2 leaves; below, the running view my.view says button1 says nothing yet when its element:button1 is pressed](images/overlapping-parts-pressed-by-name.png)
 
 Every place is in canvas pixels: a window's pixel is one, a terminal's cell is `kCellPx`
-(<!-- value kCellPx -->12<!-- /value -->), and a terminal Skin's console counts
-`kTuiCanvasTopRow` (<!-- value kTuiCanvasTopRow -->2<!-- /value -->) rows above the canvas, the
-terminal window's none. A point to press is in the space the medium reads input in, which the
+(<!-- value kCellPx -->12<!-- /value -->), and the terminal window draws canvas row 0 on its
+console's row 0. A point to press is in the space the medium reads input in, which the
 answer names. This reads presentation; it does not select, activate, grant authority or expose
 arbitrary state. A later gesture can still encounter a changed picture; the query is not an
 interaction lease. Receivers must fence their own drops. `hand.words`, `hand.word_point` and

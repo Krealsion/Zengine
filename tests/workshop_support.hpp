@@ -67,11 +67,10 @@
 #include "workshop/sample_door.hpp"
 #include "workshop/sample_presentation.hpp"
 #include "workshop/sample_vocabulary.hpp"
-#include "surface/skin_sdl_plan.hpp"
+#include "workshop/screen_planes.hpp"
 #include "timer/vocabulary.hpp"
-#include "surface/skin_tui.hpp"
-#include "surface/vocabulary.hpp"
 #include "graphics/vocabulary.hpp"
+#include "screen_cells.hpp"
 #include "ui/layout.hpp"
 #include "ui/vocabulary.hpp"
 
@@ -98,6 +97,7 @@
 #include <cstdlib> // std::system, for the junction `make_linked_directory` makes on Windows
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <ios>
 #include <iterator>
 #include <memory>
@@ -107,6 +107,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -115,7 +116,6 @@ using loom::schema_of;
 namespace component = zengine::component;
 namespace input = zengine::input;
 namespace op = zengine::op;
-namespace surface = zengine::surface;
 namespace gfx = zengine::graphics;
 namespace ui = zengine::ui;
 namespace load = zengine::workshop::load;
@@ -228,26 +228,26 @@ inline component::TextBox box_of(std::size_t length, std::size_t caret, std::siz
 /// A canvas is a list of planes. These concatenate one KIND across them, in the order a medium
 /// walks them -- the right shape for "was this drawn" and "which of two same-kind primitives is
 /// later" -- and none is a visibility oracle: what is SEEN at a cell is `cell_text_of` below
-/// (text) and `rasterized` (the whole picture), which run the Skin's own two-level order.
-inline std::vector<surface::SurfaceRect> all_rects(const surface::SurfaceCanvas& c) {
-    std::vector<surface::SurfaceRect> out;
-    for (const surface::SurfaceLayer& l : c.layers) {
+/// (text) and `rasterized` (the whole picture), which run the planes' own two-level order.
+inline std::vector<ScreenRect> all_rects(const ScreenCanvas& c) {
+    std::vector<ScreenRect> out;
+    for (const ScreenPlane& l : c.layers) {
         out.insert(out.end(), l.rects.begin(), l.rects.end());
     }
     return out;
 }
 
-inline std::vector<surface::SurfaceLabel> all_labels(const surface::SurfaceCanvas& c) {
-    std::vector<surface::SurfaceLabel> out;
-    for (const surface::SurfaceLayer& l : c.layers) {
+inline std::vector<ScreenLabel> all_labels(const ScreenCanvas& c) {
+    std::vector<ScreenLabel> out;
+    for (const ScreenPlane& l : c.layers) {
         out.insert(out.end(), l.labels.begin(), l.labels.end());
     }
     return out;
 }
 
-inline std::vector<surface::SurfaceTextRegion> all_texts(const surface::SurfaceCanvas& c) {
-    std::vector<surface::SurfaceTextRegion> out;
-    for (const surface::SurfaceLayer& l : c.layers) {
+inline std::vector<ScreenRegion> all_texts(const ScreenCanvas& c) {
+    std::vector<ScreenRegion> out;
+    for (const ScreenPlane& l : c.layers) {
         out.insert(out.end(), l.texts.begin(), l.texts.end());
     }
     return out;
@@ -259,8 +259,8 @@ inline std::vector<surface::SurfaceTextRegion> all_texts(const surface::SurfaceC
 /// chrome's regions or indexing a pane's projected rows asks about the planes after it. A plane
 /// and not a predicate, because `paint` writes the workspace whole into `layers.front()` before
 /// any pane exists; cases about the names themselves read `object_names`.
-inline surface::SurfaceCanvas without_workspace(const surface::SurfaceCanvas& c) {
-    surface::SurfaceCanvas out = c;
+inline ScreenCanvas without_workspace(const ScreenCanvas& c) {
+    ScreenCanvas out = c;
     if (!out.layers.empty()) {
         out.layers.erase(out.layers.begin());
     }
@@ -268,25 +268,17 @@ inline surface::SurfaceCanvas without_workspace(const surface::SurfaceCanvas& c)
 }
 
 /// THE AUTHORED OBJECTS' NAMES, as the workspace plane published them.
-inline std::vector<surface::SurfaceTextRegion> object_names(const surface::SurfaceCanvas& c) {
-    return c.layers.empty() ? std::vector<surface::SurfaceTextRegion>{} : c.layers.front().texts;
+inline std::vector<ScreenRegion> object_names(const ScreenCanvas& c) {
+    return c.layers.empty() ? std::vector<ScreenRegion>{} : c.layers.front().texts;
 }
 
-/// WHAT A TERMINAL WITH NO USEFUL COLOUR SHOWS -- the canvas's characters with every SGR
-/// sequence removed. A role is ink, and ink is the half of a medium's answer a monochrome
-/// terminal does not receive; `glyph_for_role` is the other half, so this string is exactly what
-/// survives without the first. `\x1b[2K` goes with the rest -- it is an erase, not a character.
-inline std::string plain_cells(const surface::SurfaceCanvas& c) {
-    const std::string body = surface::canvas_body(c);
+/// WHAT WORKSHOP'S PLANES SHOW AS CELLS, no ink: each row of the canvas's cells, ended as a
+/// terminal's lines are (`screen_cells::rows_of`).
+inline std::string plain_cells(const ScreenCanvas& c) {
     std::string out;
-    for (std::size_t i = 0; i < body.size(); ++i) {
-        if (body[i] == '\x1b') {
-            while (i < body.size() && body[i] != 'm' && body[i] != 'K') {
-                ++i;
-            }
-            continue; // the terminator itself is consumed by the loop's own ++i
-        }
-        out += body[i];
+    for (const std::string& row : zengine::testing::screen_cells::rows_of(c)) {
+        out += row;
+        out += "\r\n";
     }
     return out;
 }
@@ -327,7 +319,7 @@ inline std::int64_t help_row(const Screen& sc) { return gfx::cell_of_pixel(sc.no
 
 /// THE PLANE A CASE THAT BUILDS ITS OWN CANVAS BY HAND WORKS ON, created on first use.
 /// A case exercising ONE painter is asking about one presentation, which is one plane.
-inline surface::SurfaceLayer& plane(surface::SurfaceCanvas& c) {
+inline ScreenPlane& plane(ScreenCanvas& c) {
     if (c.layers.empty()) {
         c.layers.emplace_back();
     }
@@ -338,9 +330,9 @@ inline surface::SurfaceLayer& plane(surface::SurfaceCanvas& c) {
 /// presentation and nothing else on the screen. A fresh canvas, not the published one with a
 /// plane overwritten: a Workshop canvas carries a plane per presentation, so replacing one
 /// plane's regions would leave every other plane's on it.
-inline surface::SurfaceCanvas canvas_of_region(const surface::SurfaceCanvas& like,
-                                               const surface::SurfaceTextRegion& r) {
-    surface::SurfaceCanvas out;
+inline ScreenCanvas canvas_of_region(const ScreenCanvas& like,
+                                     const ScreenRegion& r) {
+    ScreenCanvas out;
     out.width = like.width;
     out.height = like.height;
     out.layers.emplace_back();
@@ -348,55 +340,25 @@ inline surface::SurfaceCanvas canvas_of_region(const surface::SurfaceCanvas& lik
     return out;
 }
 
-/// EVERY REGION THIS MEDIUM SETS IN REAL TYPE, and every region it draws as cells, gathered
-/// across the planes in the order a medium walks them -- for the PARTITION questions ("is this
-/// region in exactly one of the two lists", "how many rows did the pane get"), not for order:
-/// `test_surface` states the ordering law over planes built for it, and `rasterized` says what is
-/// actually on top.
-inline std::vector<surface::PlanTextRegion> plan_regions_of(const surface::SurfaceCanvas& c,
-                                                            const surface::SurfaceExtent& metric,
-                                                            const surface::PlanSize& size) {
-    std::vector<surface::PlanTextRegion> out;
-    for (const surface::SurfaceLayer& l : c.layers) {
-        for (surface::PlanTextRegion& r : surface::plan_layer_regions(l, metric, size)) {
+/// EVERY REGION'S ROWS AS CELLS, across the planes in their order (`screen_cells::region_rows`).
+inline std::vector<zengine::testing::screen_cells::CellRow> projected_of(const ScreenCanvas& c) {
+    std::vector<zengine::testing::screen_cells::CellRow> out;
+    for (const ScreenPlane& l : c.layers) {
+        for (auto& r : zengine::testing::screen_cells::region_rows(l)) {
             out.push_back(std::move(r));
         }
     }
     return out;
 }
 
-inline std::vector<surface::ProjectedRow> projected_of(const surface::SurfaceCanvas& c) {
-    std::vector<surface::ProjectedRow> out;
-    for (const surface::SurfaceLayer& l : c.layers) {
-        for (surface::ProjectedRow& r : surface::project_text_regions(l)) {
-            out.push_back(std::move(r));
-        }
-    }
-    return out;
-}
-
-inline std::vector<surface::ProjectedRow> projected_of(const surface::SurfaceCanvas& c,
-                                                       const surface::SurfaceExtent& metric) {
-    std::vector<surface::ProjectedRow> out;
-    for (const surface::SurfaceLayer& l : c.layers) {
-        for (surface::ProjectedRow& r : surface::project_text_regions(l, metric)) {
-            out.push_back(std::move(r));
-        }
-    }
-    return out;
-}
-
-/// EVERYTHING ON A CANVAS THAT A CELL MEDIUM WOULD SHOW AS TEXT, in painter's order: per plane,
-/// its labels and then its text regions projected onto cells -- through the projection the
-/// terminal Skins use (`surface::project_text_regions`), never a second reading invented here, so
-/// these assertions describe the picture the golden-byte suite pins in test_surface.cpp. It is
-/// `canvas_body`'s order, so the LAST entry at a cell is the topmost text there. Text only: a
-/// later plane's rect over a label is a question for `rasterized`.
-inline std::vector<surface::SurfaceLabel> cell_text_of(const surface::SurfaceCanvas& c) {
-    std::vector<surface::SurfaceLabel> out;
-    for (const surface::SurfaceLayer& l : c.layers) {
+/// EVERYTHING ON A CANVAS SHOWN AS TEXT IN CELLS, in painter's order: per plane, its labels and
+/// then its regions' rows as cells, so the LAST entry at a cell is the topmost text there. Text
+/// only: a later plane's rect over a label is a question for `rasterized`.
+inline std::vector<ScreenLabel> cell_text_of(const ScreenCanvas& c) {
+    std::vector<ScreenLabel> out;
+    for (const ScreenPlane& l : c.layers) {
         out.insert(out.end(), l.labels.begin(), l.labels.end());
-        for (surface::ProjectedRow& p : surface::project_text_regions(l)) {
+        for (auto& p : zengine::testing::screen_cells::region_rows(l)) {
             out.push_back(std::move(p.label));
         }
     }
@@ -405,8 +367,8 @@ inline std::vector<surface::SurfaceLabel> cell_text_of(const surface::SurfaceCan
 
 /// Find a label's text at a canvas cell, or "" -- how the screen tier asks what
 /// a weaver would see at a place: a label's pixel anchor lands on the cell a terminal floors it to.
-inline std::string label_at(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y) {
-    for (const surface::SurfaceLabel& l : cell_text_of(c)) {
+inline std::string label_at(const ScreenCanvas& c, std::int64_t x, std::int64_t y) {
+    for (const ScreenLabel& l : cell_text_of(c)) {
         if (gfx::cell_of_pixel(l.x) == x && gfx::cell_of_pixel(l.y) == y) {
             return l.text;
         }
@@ -414,12 +376,11 @@ inline std::string label_at(const surface::SurfaceCanvas& c, std::int64_t x, std
     return {};
 }
 
-/// The byte of the row at a canvas cell that a region's caret stands on, or -1: the cell a medium
-/// whose character is a cell shows inverted, read through the real cell projection as `label_at`
-/// reads the row's text.
-inline std::int64_t caret_at(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y) {
-    for (const surface::SurfaceLayer& l : c.layers) {
-        for (const surface::ProjectedRow& p : surface::project_text_regions(l)) {
+/// The byte of the row at a canvas cell that a region's caret stands on, or -1, read through the
+/// cell projection as `label_at` reads the row's text.
+inline std::int64_t caret_at(const ScreenCanvas& c, std::int64_t x, std::int64_t y) {
+    for (const ScreenPlane& l : c.layers) {
+        for (const auto& p : zengine::testing::screen_cells::region_rows(l)) {
             if (gfx::cell_of_pixel(p.label.x) == x && gfx::cell_of_pixel(p.label.y) == y) {
                 return p.caret;
             }
@@ -433,7 +394,7 @@ inline std::int64_t caret_at(const surface::SurfaceCanvas& c, std::int64_t x, st
 /// region's full width; that padding erases what was underneath and is noise in an assertion
 /// about what a row SAYS, so this trims it. Through `label_at` and the real cell projection, so a
 /// row cut at the body's width is still cut.
-inline std::string inspector_row(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y) {
+inline std::string inspector_row(const ScreenCanvas& c, std::int64_t x, std::int64_t y) {
     std::string text = label_at(c, x, y);
     while (!text.empty() && text.back() == ' ') {
         text.pop_back();
@@ -443,19 +404,19 @@ inline std::string inspector_row(const surface::SurfaceCanvas& c, std::int64_t x
 
 /// THE SENTENCE THE TOOL IS SAYING, as a weaver reads it: the bottom band's first row, read
 /// through the cell projection with the region's padding trimmed, as the Inspector's rows are.
-inline std::string notice_line(const surface::SurfaceCanvas& c, const Screen& sc) {
+inline std::string notice_line(const ScreenCanvas& c, const Screen& sc) {
     return inspector_row(c, 0, gfx::cell_of_pixel(sc.notice_y));
 }
 
 
 /// What is actually SEEN at a cell where several labels landed: the LAST one
-/// written, because painter's order is list order and every Skin draws it that
+/// written, because painter's order is list order and Workshop's planes draw it that
 /// way. `label_at` above answers with the first, which is the bottom of the
 /// stack -- fine everywhere nothing overlaps, and exactly wrong for asking
 /// whether an overlay covered what is under it.
-inline std::string topmost_at(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y) {
+inline std::string topmost_at(const ScreenCanvas& c, std::int64_t x, std::int64_t y) {
     std::string seen;
-    for (const surface::SurfaceLabel& l : cell_text_of(c)) {
+    for (const ScreenLabel& l : cell_text_of(c)) {
         if (gfx::cell_of_pixel(l.x) == x && gfx::cell_of_pixel(l.y) == y) {
             seen = l.text;
         }
@@ -586,17 +547,17 @@ inline void link_live_setup(SetupState& s, std::string path) {
 
 /// THE CELLS A PUBLISHED RECTANGLE COVERS, as a terminal floors it -- what a case that thinks in
 /// cells compares a picture's rectangles by.
-inline ui::Rect covered_cells(const surface::SurfaceRect& r) {
+inline ui::Rect covered_cells(const ScreenRect& r) {
     return cells_covered(PixelRect{r.x, r.y, r.w, r.h});
 }
-inline ui::Rect covered_cells(const surface::SurfaceTextRegion& r) {
+inline ui::Rect covered_cells(const ScreenRegion& r) {
     return cells_covered(PixelRect{r.x, r.y, r.w, r.h});
 }
 
 /// IS THERE A RECTANGLE OF THIS ROLE COVERING EXACTLY THESE CELLS?
-inline bool has_rect(const surface::SurfaceCanvas& c, std::int64_t x, std::int64_t y, std::int64_t w,
+inline bool has_rect(const ScreenCanvas& c, std::int64_t x, std::int64_t y, std::int64_t w,
                      std::int64_t h, std::int64_t role) {
-    for (const surface::SurfaceRect& r : all_rects(c)) {
+    for (const ScreenRect& r : all_rects(c)) {
         if (covered_cells(r) == ui::Rect{x, y, w, h} && r.role == role) {
             return true;
         }
@@ -604,31 +565,10 @@ inline bool has_rect(const surface::SurfaceCanvas& c, std::int64_t x, std::int64
     return false;
 }
 
-/// One canvas as the terminal medium's own pure function draws it, one string per screen row,
-/// with the SGR and erase escapes taken out so what is left is the picture.
-inline std::vector<std::string> rasterized(const surface::SurfaceCanvas& canvas) {
-    const std::string body = surface::canvas_body(canvas);
-    std::vector<std::string> rows;
-    std::size_t at = 0;
-    while (at < body.size()) {
-        const std::size_t end = body.find("\r\n", at);
-        if (end == std::string::npos) {
-            break;
-        }
-        std::string row;
-        for (std::size_t i = at; i < end; ++i) {
-            if (body[i] == '\x1b') { // skip the SGR/erase escapes; keep the picture
-                while (i < end && body[i] != 'm' && body[i] != 'K') {
-                    ++i;
-                }
-                continue;
-            }
-            row += body[i];
-        }
-        rows.push_back(row);
-        at = end + 2;
-    }
-    return rows;
+/// One canvas as cells, one string per screen row: the glyphs Workshop's planes put on the cells
+/// they cover, a rectangle's ink told by its glyph.
+inline std::vector<std::string> rasterized(const ScreenCanvas& canvas) {
+    return zengine::testing::screen_cells::rows_of(canvas);
 }
 
 struct SeenState {
@@ -637,89 +577,99 @@ struct SeenState {
 };
 
 /// The rig's ears on Workshop's publications, kept as values: the conditions, transcripts and pane
-/// subjects it said, and the status slot. The publication is `to_any` and a load plan names who
-/// presents it, so a host-side case can only ask "did Workshop say anything, and what" by having
-/// somebody on the bus listening. Every utterance is kept in order, because the claim under test
-/// is as much about SILENCE as about content. Of the picture Workshop still publishes for a Skin it
-/// keeps only the count and each one's room: the desk is read from the window (`DeskShown`).
+/// subjects it said. The publication is `to_any` and a load plan names who presents it, so a
+/// host-side case can only ask "did Workshop say anything, and what" by having somebody on the bus
+/// listening. Every utterance is kept in order, because the claim under test is as much about
+/// SILENCE as about content. The desk is read from the window (`DeskShown`).
 class Painter : public loom::WeaveBase<Painter, SeenState,
-                                       loom::Accept<surface::SurfaceCanvas, surface::SurfaceText,
-                                                    StandingConditions, TranscriptShown,
+                                       loom::Accept<StandingConditions, TranscriptShown,
                                                     PaneSubjectShown>,
                                        loom::Emit<>> {
 public:
-    Painter(std::size_t& pictures,
-            std::vector<std::pair<std::int64_t, std::int64_t>>& rooms,
-            std::vector<surface::SurfaceText>& notes,
-            std::vector<StandingConditions>& conditions,
+    Painter(std::vector<StandingConditions>& conditions,
             std::vector<TranscriptShown>& transcripts,
             std::vector<PaneSubjectShown>& subjects)
-        : pictures_(&pictures), rooms_(&rooms), notes_(&notes), conditions_(&conditions),
-          transcripts_(&transcripts), subjects_(&subjects) {}
-    void on(const surface::SurfaceCanvas& c, loom::Mail&) {
-        ++state_.frames;
-        ++*pictures_;
-        rooms_->emplace_back(c.width, c.height);
-    }
-    void on(const surface::SurfaceText& t, loom::Mail&) { notes_->push_back(t); }
+        : conditions_(&conditions), transcripts_(&transcripts), subjects_(&subjects) {}
     void on(const StandingConditions& c, loom::Mail&) { conditions_->push_back(c); }
     void on(const TranscriptShown& t, loom::Mail&) { transcripts_->push_back(t); }
     void on(const PaneSubjectShown& s, loom::Mail&) { subjects_->push_back(s); }
 
 private:
-    std::size_t* pictures_;
-    std::vector<std::pair<std::int64_t, std::int64_t>>* rooms_;
-    std::vector<surface::SurfaceText>* notes_;
     std::vector<StandingConditions>* conditions_;
     std::vector<TranscriptShown>* transcripts_;
     std::vector<PaneSubjectShown>* subjects_;
 };
 
+/// A SHAPE THE RIG'S TERMINAL SPEAKS, to whoever holds `kRigBoard`: a slot and a line of text, a
+/// sample of ordinary speech for the cases about the Terminal's sending, completion and refusals.
+struct RigNote {
+    std::string slot;
+    std::string text;
+    ZEN_SHAPE(RigNote, 1, ZEN_FIELD(slot), ZEN_FIELD(text));
+};
+inline constexpr const char* kRigBoard = "zengine.test.board";
 
-/// A SKIN'S PLATFORM, for the cases whose claim is the Skin path's own -- who is asked for a paste
-/// while no window shows the asker, what a Skin is offered at restore: an ordinary weave holding
-/// `zengine.skin` that answers a paste as a Skin does (the medium's current value, or the honest
-/// cannot-say), takes a copy where it can read, counts each read, and keeps each remembered place
-/// offered it. A rig that seats it shows no desk in its own window (`own_medium`).
-class SkinStandIn : public loom::WeaveBase<SkinStandIn, SeenState,
-                                           loom::Accept<gfx::ClipboardCopy,
-                                                        gfx::ClipboardTextRequested,
-                                                        gfx::SurfacePlacementRemembered>,
-                                           loom::Emit<gfx::ClipboardText>> {
-public:
-    void on(const gfx::ClipboardCopy& c, loom::Mail&) {
-        if (readable_medium) {
-            platform = c.text;
+/// THE ROOMS ASKED OF THE DIRECTORY on `bus`, by area and by the office that asked, counted from
+/// each ask's fate on the bus: delivered to the rig's own directory, or refused while none holds
+/// its office yet.
+struct RoomAsks {
+    explicit RoomAsks(loom::Switchboard& bus) : bus_(bus) {
+        tap_ = bus_.add_observer([this](const loom::BusEvent& ev) {
+            if ((ev.kind == loom::EventKind::Delivered || ev.kind == loom::EventKind::Refused) &&
+                ev.payload != nullptr &&
+                ev.schema_name == gfx::RoomAsked::zen_name) {
+                asked_.emplace_back(loom::from_value<gfx::RoomAsked>(*ev.payload).area,
+                                    std::string(ev.authored_role));
+            }
+        });
+    }
+    ~RoomAsks() { bus_.remove_observer(tap_); }
+    RoomAsks(const RoomAsks&) = delete;
+    RoomAsks& operator=(const RoomAsks&) = delete;
+    /// How many times `office` asked the room of `area`.
+    std::size_t times(const std::string& area, const std::string& office) const {
+        std::size_t n = 0;
+        for (const auto& [a, o] : asked_) {
+            n += a == area && o == office ? std::size_t{1} : std::size_t{0};
         }
+        return n;
     }
-    void on(const gfx::ClipboardTextRequested&, loom::Mail& mail) {
-        ++state_.frames;
-        ++clipboard_reads;
-        (void)mail.answer(gfx::ClipboardText{readable_medium, readable_medium ? platform
-                                                                                  : std::string()});
-    }
-    void on(const gfx::SurfacePlacementRemembered& p, loom::Mail&) { offered.push_back(p); }
 
-    std::vector<gfx::SurfacePlacementRemembered> offered; ///< placement offers at restore
-    bool readable_medium = true; ///< false = the terminal's standing truth
-    std::string platform;        ///< what "the platform clipboard" holds, when readable
-    int clipboard_reads = 0;
+private:
+    loom::Switchboard& bus_;
+    loom::ObserverId tap_{};
+    std::vector<std::pair<std::string, std::string>> asked_;
 };
 
-/// SEAT THE SKIN'S PLATFORM ON A RIG, before its window came up, and keep its window down.
-template <class Rig>
-inline SkinStandIn* mount_skin_stand_in(Rig& r) {
-    REQUIRE_MESSAGE(!r.windows.up(), "a Skin is seated only where no window shows the desk");
-    r.in_window = false;
-    auto seat = std::make_unique<SkinStandIn>();
-    SkinStandIn* raw = seat.get();
-    loom::Grant grant;
-    grant.allow_to_any(gfx::ClipboardText::zen_name, gfx::ClipboardText::zen_version);
-    const loom::WeaveId id =
-        r.bus.register_weave(std::move(seat), std::move(grant), surface::kSkinRole);
-    raw->zen_set_self(id);
-    return raw;
+/// HOW MANY PASTES WERE ASKED of the office `window` names, counted on `bus` from the delivery of
+/// each to its holder: the terminal window reads no clipboard and keeps no count of its own.
+inline loom::ObserverId count_paste_asks(loom::Switchboard& bus, std::string window,
+                                         std::int64_t& asks) {
+    return bus.add_observer([&bus, window = std::move(window), &asks](const loom::BusEvent& ev) {
+        if (ev.kind == loom::EventKind::Delivered &&
+            ev.schema_name == gfx::ClipboardTextRequested::zen_name &&
+            ev.target == bus.role_holder(window)) {
+            ++asks;
+        }
+    });
 }
+
+/// HOW MANY DRAWINGS OF ITS DESK WORKSHOP SENT the window that shows it, counted on `bus` from
+/// the delivery of each: a repaint that moved nothing on the desk sends none.
+inline loom::ObserverId count_desk_drawings(loom::Switchboard& bus, const loom::WeaveId& workshop,
+                                            std::size_t& drawings) {
+    return bus.add_observer([&bus, &workshop, &drawings](const loom::BusEvent& ev) {
+        (void)bus;
+        if (ev.kind != loom::EventKind::Delivered || ev.sender != workshop || ev.payload == nullptr ||
+            ev.schema_name != gfx::Drawn::zen_name) {
+            return;
+        }
+        if (loom::from_value<gfx::Drawn>(*ev.payload).area == kWorkshopProvider) {
+            ++drawings;
+        }
+    });
+}
+
 
 /// One participant's own record, filtered -- the transcript is a MODEL, so a test asks it
 /// structured questions rather than grepping rendered prose.
@@ -844,11 +794,9 @@ struct Live {
     bool in_window = true;
     InteractionClock clock;
     HostContext host;
-    /// HOW MANY PICTURES WORKSHOP PUBLISHED for a Skin -- a repaint's count, never a desk to read --
-    /// and the room each was published at, width and height.
+    /// HOW MANY DRAWINGS OF ITS DESK WORKSHOP SENT the window (`count_desk_drawings`) -- a
+    /// repaint that moved the desk's count, never a desk to read.
     std::size_t pictures = 0;
-    std::vector<std::pair<std::int64_t, std::int64_t>> picture_rooms;
-    std::vector<surface::SurfaceText> notes;
     /// EVERY `StandingConditions` THIS WORKSHOP HAS SAID, in order -- so a case can ask how
     /// MANY times it spoke and not only what it last said.
     std::vector<StandingConditions> said_conditions;
@@ -907,9 +855,8 @@ struct Live {
         w->zen_set_self(id);
         workshop_id = id;
         quit_watch = std::make_unique<QuitDeliveryWatch>(bus, id, host.undelivered_quits);
-        (void)loom::mount<Painter>(bus, pictures, picture_rooms, notes, said_conditions,
-                                   said_transcripts,
-                                   said_subjects);
+        (void)loom::mount<Painter>(bus, said_conditions, said_transcripts, said_subjects);
+        (void)count_desk_drawings(bus, workshop_id, pictures);
         // THE STACK'S STAND-IN, FIRST (see `stock` above) -- through the same door the seam
         // spends, before any offer a case might make, so its handle is the constant.
         admit_stock(const_cast<Session&>(w->session()).panes);
@@ -917,13 +864,13 @@ struct Live {
     }
 
     /// MOUNT THE PARTICIPANT THE WAY THE HOST DOES -- on this bus, beside Workshop's own weave,
-    /// handed over as `request_stop` is -- with this rig's one rule, SurfaceText to whoever holds
-    /// `zengine.skin`. `widen` is the canary lever, Workshop's own `to_any` rule, without which "a
+    /// handed over as `request_stop` is -- with this rig's one rule, `RigNote` to whoever holds
+    /// `kRigBoard`. `widen` is the canary lever, Workshop's own `to_any` rule, without which "a
     /// pane's publication reaches nobody" measures nothing. `shapes` mounts extra declared shapes,
     /// so a completion list can outgrow its room.
     loom::TerminalSession* mount_terminal(bool widen = false, int shapes = 0) {
         loom::TerminalVocabulary vocab;
-        vocab.knows(loom::schema_of<surface::SurfaceText>())
+        vocab.knows(loom::schema_of<RigNote>())
             .accepts(loom::schema_of<loom::Ack>())
             .accepts(loom::schema_of<loom::Refused>());
         for (int i = 0; i < shapes; ++i) {
@@ -932,11 +879,9 @@ struct Live {
                             .build());
         }
         loom::Grant grant;
-        grant.allow_to_role(surface::SurfaceText::zen_name, surface::SurfaceText::zen_version,
-                            surface::kSkinRole);
+        grant.allow_to_role(RigNote::zen_name, RigNote::zen_version, kRigBoard);
         if (widen) {
-            grant.allow_to_any(surface::SurfaceText::zen_name,
-                               surface::SurfaceText::zen_version);
+            grant.allow_to_any(RigNote::zen_name, RigNote::zen_version);
         }
         const loom::MountedTerminal mounted = loom::host_mount_terminal(
             bus, std::make_unique<loom::TerminalSession>("workshop", std::move(vocab)),
@@ -948,11 +893,10 @@ struct Live {
 
     /// THE DESK STARTED: the window brought up at the room Workshop holds, so it offers itself
     /// and Workshop starts on that offer, as a run's first showing starts it. A case that seated a
-    /// medium of its own (`own_medium`) is started as a Skin starts it, by its hello.
+    /// window of its own (`own_medium`) is started by that window's offer.
     void ready() {
         if (own_medium()) {
-            publish(loom::to_value(surface::SurfaceReady{}));
-            return;
+            return; // the case's own window starts the desk by its offer
         }
         come_up();
     }
@@ -968,10 +912,8 @@ struct Live {
     /// ...and a room in canvas pixels, which a cell medium holds in whole cells.
     void extent_px(std::int64_t width, std::int64_t height, std::int64_t adv = 0,
                    std::int64_t line = 0, std::int64_t cell = 0) {
-        if (own_medium()) {
-            publish(loom::to_value(surface::SurfaceExtent{width, height, adv, line, cell}));
-            return;
-        }
+        REQUIRE_MESSAGE(!own_medium(), "a case that seated a window of its own sizes it there");
+        (void)cell;
         const auto [a, l] = face_for(adv, line);
         windows.room(width, height, a, l);
     }
@@ -1048,8 +990,8 @@ struct Live {
     }
 
     /// WHETHER THIS CASE SEATED A MEDIUM OF ITS OWN -- a directory or a window in its office --
-    /// before the rig's came up: then the rig's never does, and the room and the hello are said
-    /// as a Skin says them, for the claims that are the Skin path's own.
+    /// before the rig's came up: then the rig's never does, and the case's own window offers the
+    /// room and starts the desk.
     bool own_medium() {
         if (in_window && !windows.up() &&
             (bus.role_holder(gfx::kGraphicsRole).valid() ||
@@ -1060,9 +1002,6 @@ struct Live {
         return !in_window;
     }
 
-    /// THE CONSOLE ROWS ABOVE THE CANVAS on the medium this rig shows its desk on, which a point
-    /// in cells counts: none in a window, a Skin's two slot rows where the case seated its own.
-    std::int64_t console_rows() { return own_medium() ? surface::kTuiCanvasTopRow : 0; }
 
     /// The window comes up, if it is not up, at the room and face Workshop holds now.
     void come_up() {
@@ -1101,11 +1040,11 @@ struct Live {
     /// weave's own, done here so every case below reads in the coordinates a weaver thinks in.
     std::int64_t term_x(std::int64_t wx) const { return wx; }
     std::int64_t term_y(std::int64_t wy) {
-        return wy + gfx::cell_of_pixel(screen_of(w->session()).room_y) + console_rows();
+        return wy + gfx::cell_of_pixel(screen_of(w->session()).room_y);
     }
 
     /// The same workspace cell, as the WINDOW would report it: the pixel at the
-    /// cell's top-left corner. Deliberately the inverse of the graphical Skin's
+    /// cell's top-left corner. Deliberately the inverse of the OS window's
     /// own layout and not of the terminal's -- the two media report different
     /// numbers for one place (workshop/docs/pointer-spaces.md).
     std::int64_t px_x(std::int64_t wx) const { return wx * gfx::kCellPx; }
@@ -1113,102 +1052,117 @@ struct Live {
         return screen_of(w->session()).room_y + wy * gfx::kCellPx;
     }
 
+    /// THE WEAVER'S OWN POINTER MOMENT, through the window showing the desk, landed in whatever
+    /// area stands there as a weaver's hand is.
+    template <class Moment>
+    void hand_moment(const Moment& moment) {
+        come_up();
+        REQUIRE_MESSAGE(windows.up(), "no window shows this desk");
+        windows.hand({moment});
+        bus.drain_until_idle();
+    }
+
     /// A PRESS AT AN EXACT POSITION IN THE MEDIUM'S OWN NUMBERS -- a window pixel or a terminal
     /// cell, untranslated. Every other helper speaks the WORKSPACE cells a weaver thinks in for
     /// the document; the Terminal's interior is finer than a cell, so its cases must say a pixel.
     void press_at(std::int64_t x, std::int64_t y, std::int64_t space,
                   std::int64_t mods = input::mod::kNone) {
-        publish(loom::to_value(input::PointerButton{1, true, x, y, space, mods}));
+        hand_moment(input::PointerButton{1, true, x, y, space, mods});
     }
     /// A MOTION at a raw position -- the one gesture hover reveal is about.
     void motion_at(std::int64_t x, std::int64_t y, std::int64_t space) {
-        publish(loom::to_value(input::PointerMoved{x, y, 0, 0, space, input::mod::kNone}));
+        hand_moment(input::PointerMoved{x, y, 0, 0, space, input::mod::kNone});
     }
 
     void press(std::int64_t wx, std::int64_t wy, std::int64_t mods = input::mod::kNone) {
-        publish(loom::to_value(input::PointerButton{1, true, term_x(wx), term_y(wy),
-                                                    input::space::kCells, mods}));
+        hand_moment(input::PointerButton{1, true, term_x(wx), term_y(wy),
+                                                    input::space::kCells, mods});
     }
     void release(std::int64_t wx, std::int64_t wy) {
-        publish(loom::to_value(input::PointerButton{1, false, term_x(wx), term_y(wy),
-                                                    input::space::kCells, input::mod::kNone}));
+        hand_moment(input::PointerButton{1, false, term_x(wx), term_y(wy),
+                                                    input::space::kCells, input::mod::kNone});
     }
     /// A SECOND-BUTTON press at a workspace cell -- the same translation `press` uses, for the
     /// button that asks a question instead of taking hold.
     void right_press(std::int64_t wx, std::int64_t wy) {
-        publish(loom::to_value(input::PointerButton{3, true, term_x(wx), term_y(wy),
-                                                    input::space::kCells, input::mod::kNone}));
+        hand_moment(input::PointerButton{3, true, term_x(wx), term_y(wy),
+                                                    input::space::kCells, input::mod::kNone});
     }
     /// The same two gestures at a CANVAS cell -- for presses on Workshop's own furniture
     /// (a pane's slot, the contextual surface), which is placed on the canvas and never
     /// in the document's room.
     void press_canvas(std::int64_t cx, std::int64_t cy) {
-        publish(loom::to_value(input::PointerButton{1, true, cx, cy + console_rows(),
-                                                    input::space::kCells, input::mod::kNone}));
+        hand_moment(input::PointerButton{1, true, cx, cy,
+                                                    input::space::kCells, input::mod::kNone});
     }
     void release_canvas(std::int64_t cx, std::int64_t cy) {
-        publish(loom::to_value(input::PointerButton{1, false, cx, cy + console_rows(),
-                                                    input::space::kCells, input::mod::kNone}));
+        hand_moment(input::PointerButton{1, false, cx, cy,
+                                                    input::space::kCells, input::mod::kNone});
     }
     void motion_canvas(std::int64_t cx, std::int64_t cy) {
-        publish(loom::to_value(input::PointerMoved{cx, cy + console_rows(), 0, 0,
-                                                   input::space::kCells, input::mod::kNone}));
+        hand_moment(input::PointerMoved{cx, cy, 0, 0,
+                                                   input::space::kCells, input::mod::kNone});
     }
     void right_press_canvas(std::int64_t cx, std::int64_t cy) {
-        publish(loom::to_value(input::PointerButton{3, true, cx, cy + console_rows(),
-                                                    input::space::kCells, input::mod::kNone}));
+        hand_moment(input::PointerButton{3, true, cx, cy,
+                                                    input::space::kCells, input::mod::kNone});
     }
     /// The contextual-action surface's state, as every contextual-menu case reads it.
     const ContextMenu& menu() const { return w->session().context; }
     void motion(std::int64_t wx, std::int64_t wy) {
-        publish(loom::to_value(input::PointerMoved{term_x(wx), term_y(wy), 0, 0,
-                                                   input::space::kCells, input::mod::kNone}));
+        hand_moment(input::PointerMoved{term_x(wx), term_y(wy), 0, 0,
+                                                   input::space::kCells, input::mod::kNone});
     }
     /// THE WHEEL, AT A CANVAS CELL -- `press_canvas`'s translation for the one event the
     /// editor's viewport consumes. `dy` is notches, +1 away from the weaver (the wire's
     /// own convention), fractional exactly as a high-resolution wheel reports.
     void wheel_canvas(double dy, std::int64_t cx, std::int64_t cy) {
-        publish(loom::to_value(input::PointerWheel{0.0, dy, cx, cy + console_rows(),
-                                                   input::space::kCells, input::mod::kNone}));
+        hand_moment(input::PointerWheel{0.0, dy, cx, cy,
+                                                   input::space::kCells, input::mod::kNone});
     }
 
-    /// The same three gestures, arriving from the graphical Skin's window. The
+    /// The same three gestures, arriving from the OS window. The
     /// `+ cell/2` puts the event in the MIDDLE of the cell rather than on its
     /// corner, which is where a weaver's pointer actually is and is what makes a
     /// truncating (rather than flooring) projection visible.
     static std::int64_t mid(std::int64_t p) { return p + gfx::kCellPx / 2; }
     void press_px(std::int64_t wx, std::int64_t wy) {
-        publish(loom::to_value(input::PointerButton{1, true, mid(px_x(wx)), mid(px_y(wy)),
-                                                    input::space::kPixels, input::mod::kNone}));
+        hand_moment(input::PointerButton{1, true, mid(px_x(wx)), mid(px_y(wy)),
+                                                    input::space::kPixels, input::mod::kNone});
     }
     void release_px(std::int64_t wx, std::int64_t wy) {
-        publish(loom::to_value(input::PointerButton{1, false, mid(px_x(wx)), mid(px_y(wy)),
-                                                    input::space::kPixels, input::mod::kNone}));
+        hand_moment(input::PointerButton{1, false, mid(px_x(wx)), mid(px_y(wy)),
+                                                    input::space::kPixels, input::mod::kNone});
     }
     void motion_px(std::int64_t wx, std::int64_t wy) {
-        publish(loom::to_value(input::PointerMoved{mid(px_x(wx)), mid(px_y(wy)), 0, 0,
-                                                   input::space::kPixels, input::mod::kNone}));
+        hand_moment(input::PointerMoved{mid(px_x(wx)), mid(px_y(wy)), 0, 0,
+                                                   input::space::kPixels, input::mod::kNone});
     }
 
-    /// The window manager asked the surface to close.
-    void close_requested() { publish(loom::to_value(gfx::SurfaceCloseRequested{})); }
+    /// THE WINDOW'S BEATS UNTIL ITS ROOM STANDS: the OS window grows to the reach of the areas it
+    /// shows on one beat and offers its new room on the next.
+    void window_settles() {
+        for (int beat = 0; beat < 4; ++beat) {
+            const std::int64_t was_w = session().screen_w, was_h = session().screen_h;
+            windows.pump();
+            windows.pump();
+            if (session().screen_w == was_w && session().screen_h == was_h) {
+                return;
+            }
+        }
+    }
+    /// THE WEAVER CLOSED THE WINDOW THAT SHOWS THE DESK: its close, said as that window's office.
+    void close_requested() {
+        come_up();
+        REQUIRE_MESSAGE(windows.up(), "no window shows this desk");
+        (void)bus.office_publish_as(windows.id(), windows.office(),
+                                    loom::Message(loom::to_value(gfx::SurfaceCloseRequested{})));
+        bus.drain_until_idle();
+    }
 
     const Session& session() const { return w->session(); }
     std::string notice() const { return w->session().notice; }
 
-    /// THE FRESHEST TEXT ON ONE SLOT -- asked BY SLOT, because a repaint publishes two (`status`
-    /// and `score`) and `notes.back()` means "whichever this repaint said last", a fact about
-    /// publication order rather than about the screen. The medium keeps them apart by name; a
-    /// case must too.
-    std::string note_on(const char* slot) const {
-        for (std::size_t i = notes.size(); i > 0; --i) {
-            if (notes[i - 1].slot == slot) {
-                return notes[i - 1].text;
-            }
-        }
-        return std::string();
-    }
-    std::string status_note() const { return note_on(surface::kSlotStatus); }
     /// THE GLANCE A PRESENTER OF WHAT IS TRUE LEADS WITH, from what this Workshop last said
     /// (`attention_glance`). Empty is the honest answer: nothing is true.
     std::string glance() const {
@@ -1834,7 +1788,7 @@ inline void open_rename_on_live_tab(Rig& r) {
     r.clock.together();
     // The band's row, the canvas's first, on the console row the medium puts it on; in a medium
     // that sets type, the middle of the tab's first character, in pixels.
-    std::int64_t x = column, y = r.session().console_rows_above;
+    std::int64_t x = column, y = 0;
     std::int64_t space = input::space::kCells;
     const Screen sc = screen_of(r.session());
     if (sc.text_advance_px > 0) {
@@ -1845,8 +1799,8 @@ inline void open_rename_on_live_tab(Rig& r) {
         space = input::space::kPixels;
     }
     for (int press = 0; press < 2; ++press) {
-        r.publish(loom::to_value(input::PointerButton{1, true, x, y, space, input::mod::kNone}));
-        r.publish(loom::to_value(input::PointerButton{1, false, x, y, space, input::mod::kNone}));
+        r.hand_moment(input::PointerButton{1, true, x, y, space, input::mod::kNone});
+        r.hand_moment(input::PointerButton{1, false, x, y, space, input::mod::kNone});
     }
     r.clock.apart();
 }
@@ -1863,8 +1817,8 @@ inline void duplicate_live_layout(Rig& r) {
         }
     }
     REQUIRE(column >= 0);
-    r.publish(loom::to_value(input::PointerButton{3, true, column, r.console_rows(),
-                                                  input::space::kCells, input::mod::kNone}));
+    r.hand_moment(input::PointerButton{3, true, column, 0,
+                                                  input::space::kCells, input::mod::kNone});
     REQUIRE(r.session().context.open);
     REQUIRE(r.session().context.subject == context_subject::kLayout);
     for (int guard = 0; guard < 32 && r.session().context.open; ++guard) {
@@ -1932,12 +1886,12 @@ inline std::string workspace_row(const DeskShown& c, const Session& s, const Scr
 /// `layouts_body`'s own answer, so a case cannot pass while reading a region the painter did not
 /// write. Not the top band's whole rectangle: the pane's interior is inset by one device unit on
 /// a face that can draw one.
-inline const surface::SurfaceTextRegion* layouts_region_on(const surface::SurfaceCanvas& c,
-                                                           const Session& s,
-                                                           const Screen& sc) {
+inline const ScreenRegion* layouts_region_on(const ScreenCanvas& c,
+                                             const Session& s,
+                                             const Screen& sc) {
     const ExternalBodyPlace place = layouts_body(s, sc);
-    for (const surface::SurfaceLayer& layer : c.layers) {
-        for (const surface::SurfaceTextRegion& r : layer.texts) {
+    for (const ScreenPlane& layer : c.layers) {
+        for (const ScreenRegion& r : layer.texts) {
             if (r.x == place.region_x && r.y == place.region_y && r.h == place.region_h) {
                 return &r;
             }
@@ -1996,7 +1950,6 @@ class DoorAsker
                                         RecipeAuthorRequested, PlanRowRequested,
                                         OpenSourceRequested, RecipeSourceRequested,
                                         PaneRevealRequested, PaneQuitAnswered,
-                                        surface::SurfaceExtent,
                                         // ...and the four
                                         // sentences a stranger might forge at the managed
                                         // opening's three parties, so the forgery cases prove
@@ -2488,8 +2441,8 @@ struct SeatWheel {
 };
 
 /// A NATIVE PROVIDER SEAT: a weave that holds an office, can be made to say anything, deliberately
-/// or personally, and draws its rows in an area of its own in the window that shows it --
-/// `<office>` for its one pane, `<office>.<pane>` once it offers several. The `.so` fixture proves
+/// or personally, and draws its rows in each pane's area in the window that shows it,
+/// `<office>.<pane>`. The `.so` fixture proves
 /// the real ABI and load path; this proves the AUTHORITY cases, which need the exact wrong sentence
 /// at the exact wrong moment, as no shipped fixture could be talked into.
 class ProviderSeat
@@ -2677,9 +2630,7 @@ public:
     }
 
     /// The area one of its panes draws in.
-    std::string area_for(const std::string& pane) const {
-        return offered_.size() > 1 ? office_ + "." + pane : office_;
-    }
+    std::string area_for(const std::string& pane) const { return pane_area(office_, pane); }
     /// The face the window last set that pane's area in, a cell before one.
     gfx::TextMeasure room_text(const std::string& pane) const {
         const auto d = drawings_.find(area_for(pane));
@@ -2727,13 +2678,10 @@ private:
             offered_.push_back(pane);
         }
     }
-    /// The pane an area of its own shows: `<office>.<pane>`, or its first pane for `<office>`.
+    /// The pane an area of its own shows: `<office>.<pane>`.
     std::string pane_of(const std::string& area) const {
         const std::string prefix = office_ + ".";
-        if (area.rfind(prefix, 0) == 0) {
-            return area.substr(prefix.size());
-        }
-        return offered_.empty() ? std::string() : offered_.front();
+        return area.rfind(prefix, 0) == 0 ? area.substr(prefix.size()) : std::string();
     }
     WindowDrawing& drawing_of(const std::string& area) {
         return drawings_.try_emplace(area, office_, area).first->second;
@@ -2949,11 +2897,9 @@ struct PaneRig {
     bool in_window = true;
     InteractionClock clock;
     HostContext host;
-    /// HOW MANY PICTURES WORKSHOP PUBLISHED for a Skin -- a repaint's count, never a desk to read --
-    /// and the room each was published at, width and height.
+    /// HOW MANY DRAWINGS OF ITS DESK WORKSHOP SENT the window (`count_desk_drawings`) -- a
+    /// repaint that moved the desk's count, never a desk to read.
     std::size_t pictures = 0;
-    std::vector<std::pair<std::int64_t, std::int64_t>> picture_rooms;
-    std::vector<surface::SurfaceText> notes;
     /// EVERY `StandingConditions` THIS WORKSHOP HAS SAID, in order -- so a case can ask how
     /// MANY times it spoke and not only what it last said.
     std::vector<StandingConditions> said_conditions;
@@ -2981,9 +2927,8 @@ struct PaneRig {
         host.interaction_now = [this] { return clock.read(); };
         // THE PAINTERS' DIRECTORY, where Workshop offers the window's skins from, as the host's own.
         host.dir = WORKSHOP_SKINS_DIR;
-        painter_id = loom::mount<Painter>(bus, pictures, picture_rooms, notes, said_conditions,
-                                          said_transcripts,
-                                          said_subjects);
+        painter_id = loom::mount<Painter>(bus, said_conditions, said_transcripts, said_subjects);
+        (void)count_desk_drawings(bus, workshop_id, pictures);
     }
 
 
@@ -3093,12 +3038,12 @@ struct PaneRig {
 
     /// THE TERMINAL PARTICIPANT, MOUNTED THE WAY THE HOST MOUNTS IT -- owned by the bus, handed to
     /// Workshop as a non-owning pointer, and out of the pane's reach, so every case drives the pane
-    /// and asks THIS object what it heard. Its grant is this rig's, SurfaceText to whoever holds
-    /// `zengine.skin`; `widen` lets it say that to any target, so a case can address a weave by id
+    /// and asks THIS object what it heard. Its grant is this rig's, `RigNote` to whoever holds
+    /// `kRigBoard`; `widen` lets it say that to any target, so a case can address a weave by id
     /// and measure what the BUS says about the target rather than what the grant does.
     loom::TerminalSession* mount_terminal(int shapes = 0, bool widen = false) {
         loom::TerminalVocabulary vocab;
-        vocab.knows(loom::schema_of<surface::SurfaceText>())
+        vocab.knows(loom::schema_of<RigNote>())
             .accepts(loom::schema_of<loom::Ack>())
             .accepts(loom::schema_of<loom::Refused>());
         for (int i = 0; i < shapes; ++i) {
@@ -3107,11 +3052,9 @@ struct PaneRig {
                             .build());
         }
         loom::Grant grant;
-        grant.allow_to_role(surface::SurfaceText::zen_name, surface::SurfaceText::zen_version,
-                            surface::kSkinRole);
+        grant.allow_to_role(RigNote::zen_name, RigNote::zen_version, kRigBoard);
         if (widen) {
-            grant.allow_to_any(surface::SurfaceText::zen_name,
-                               surface::SurfaceText::zen_version);
+            grant.allow_to_any(RigNote::zen_name, RigNote::zen_version);
         }
         // ...ITS ORDINARY VERB, the discovery door's find, by the host's own grant (WL-TERM-18)...
         let_terminal_find_powers(vocab, grant);
@@ -3217,7 +3160,7 @@ struct PaneRig {
     /// LOAD A REAL SHARED LIBRARY THROUGH THE REAL KERNEL AND MANAGER, exactly as a
     /// host does: an ordinary `LoadWeave` command sent as a weave that can hear the
     /// answer. There is no direct `Kernel::load` here and no test-only door -- the
-    /// artifact goes through the same path `zengine-workshop` sends its Skin through,
+    /// artifact goes through the same path `zengine-workshop` sends its window through,
     /// and the activation the loaded weave receives is Loom's own, attested.
 #ifdef WORKSHOP_SO_MENU_PRESENTER
     /// LOAD A PRESENTER INTO `zengine.presenter` THROUGH THE REAL MANAGER -- the shipped one by
@@ -3351,11 +3294,10 @@ struct PaneRig {
 
     /// THE DESK STARTED: the window brought up at the room Workshop holds, so it offers itself
     /// and Workshop starts on that offer -- where it asks the room who has panes. A case that
-    /// seated a medium of its own (`own_medium`) is started as a Skin starts it, by its hello.
+    /// seated a window of its own (`own_medium`) is started by that window's offer.
     void ready() {
         if (own_medium()) {
-            publish(loom::to_value(surface::SurfaceReady{}));
-            return;
+            return; // the case's own window starts the desk by its offer
         }
         come_up();
     }
@@ -3374,10 +3316,8 @@ struct PaneRig {
     /// number of cells; a cell medium holds it in whole cells.
     void extent_px(std::int64_t width, std::int64_t height, std::int64_t adv = 0,
                    std::int64_t line = 0, std::int64_t cell = 0) {
-        if (own_medium()) {
-            publish(loom::to_value(surface::SurfaceExtent{width, height, adv, line, cell}));
-            return;
-        }
+        REQUIRE_MESSAGE(!own_medium(), "a case that seated a window of its own sizes it there");
+        (void)cell;
         const auto [a, l] = face_for(adv, line);
         windows.room(width, height, a, l);
     }
@@ -3456,8 +3396,8 @@ struct PaneRig {
     }
 
     /// WHETHER THIS CASE SEATED A MEDIUM OF ITS OWN -- a directory or a window in its office --
-    /// before the rig's came up: then the rig's never does, and the room and the hello are said
-    /// as a Skin says them, for the claims that are the Skin path's own.
+    /// before the rig's came up: then the rig's never does, and the case's own window offers the
+    /// room and starts the desk.
     bool own_medium() {
         if (in_window && !windows.up() &&
             (bus.role_holder(gfx::kGraphicsRole).valid() ||
@@ -3468,9 +3408,6 @@ struct PaneRig {
         return !in_window;
     }
 
-    /// THE CONSOLE ROWS ABOVE THE CANVAS on the medium this rig shows its desk on, which a point
-    /// in cells counts: none in a window, a Skin's two slot rows where the case seated its own.
-    std::int64_t console_rows() { return own_medium() ? surface::kTuiCanvasTopRow : 0; }
 
     /// The window comes up, if it is not up and Workshop is mounted, at the room and face
     /// Workshop holds now.
@@ -3492,30 +3429,56 @@ struct PaneRig {
     /// backend makes it pay: the key transition AND the text, in the order they arrive.
     void text(const std::string& s) { publish(loom::to_value(input::TextEntered{s})); }
 
-    /// THE WEAVER'S OWN POINTER MOMENT: through the window showing the desk, landed in whatever
-    /// area stands there as a weaver's hand is, where a window shows it; else said to Workshop as
-    /// its own medium reports one.
+    /// THE WEAVER'S OWN POINTER MOMENT, through the window showing the desk, landed in whatever
+    /// area stands there as a weaver's hand is -- or, where a case seated a window of its own, a
+    /// button through that window's hand (`own_hand`).
     template <class Moment>
     void hand_moment(const Moment& moment) {
-        come_up();
-        if (windows.up()) {
-            windows.hand({moment});
-            bus.drain_until_idle();
-            return;
+        if constexpr (std::is_same_v<Moment, input::PointerButton>) {
+            if (own_medium() && own_hand) {
+                own_hand(moment);
+                bus.drain_until_idle();
+                return;
+            }
         }
-        publish(loom::to_value(moment));
+        come_up();
+        REQUIRE_MESSAGE(windows.up(), "no window shows this desk");
+        windows.hand({moment});
+        bus.drain_until_idle();
+    }
+    /// A CASE'S OWN WINDOW'S HAND for a button, set by the case that seated it.
+    std::function<void(const input::PointerButton&)> own_hand;
+    /// THE WINDOW'S BEATS UNTIL ITS ROOM STANDS: the OS window grows to the reach of the areas it
+    /// shows on one beat and offers its new room on the next.
+    void window_settles() {
+        for (int beat = 0; beat < 4; ++beat) {
+            const std::int64_t was_w = session().screen_w, was_h = session().screen_h;
+            windows.pump();
+            windows.pump();
+            if (session().screen_w == was_w && session().screen_h == was_h) {
+                return;
+            }
+        }
+    }
+    /// THE WEAVER CLOSED THE WINDOW THAT SHOWS THE DESK: its close, said as that window's office.
+    void close_requested() {
+        come_up();
+        REQUIRE_MESSAGE(windows.up(), "no window shows this desk");
+        (void)bus.office_publish_as(windows.id(), windows.office(),
+                                    loom::Message(loom::to_value(gfx::SurfaceCloseRequested{})));
+        bus.drain_until_idle();
     }
     /// A PRIMARY PRESS AT A CANVAS CELL, as the terminal window reports it. These cases speak
     /// canvas cells, not workspace cells, because a pane is placed on the canvas and never in the
     /// document's room -- `Live::term_x/y` is the other conversation's inverse.
     void press_cell(std::int64_t cx, std::int64_t cy) {
-        hand_moment(input::PointerButton{1, true, cx, cy + console_rows(), input::space::kCells,
+        hand_moment(input::PointerButton{1, true, cx, cy, input::space::kCells,
                                          input::mod::kNone});
     }
     /// THE WHEEL AT A CANVAS CELL, as the terminal window reports it. `dy` is notches, +1 away
     /// from the weaver, fractional as a precise wheel reports.
     void wheel_cell(double dy, std::int64_t cx, std::int64_t cy) {
-        hand_moment(input::PointerWheel{0.0, dy, cx, cy + console_rows(), input::space::kCells,
+        hand_moment(input::PointerWheel{0.0, dy, cx, cy, input::space::kCells,
                                         input::mod::kNone});
     }
     /// The same gesture as the WINDOW reports it: an exact device pixel, untranslated.
@@ -3525,17 +3488,17 @@ struct PaneRig {
     }
     /// A SECOND-BUTTON press at a canvas cell, `press_cell`'s own translation.
     void right_press_cell(std::int64_t cx, std::int64_t cy) {
-        hand_moment(input::PointerButton{3, true, cx, cy + console_rows(), input::space::kCells,
+        hand_moment(input::PointerButton{3, true, cx, cy, input::space::kCells,
                                          input::mod::kNone});
     }
     void release_cell(std::int64_t cx, std::int64_t cy) {
-        hand_moment(input::PointerButton{1, false, cx, cy + console_rows(), input::space::kCells,
+        hand_moment(input::PointerButton{1, false, cx, cy, input::space::kCells,
                                          input::mod::kNone});
     }
     /// THE HAND MOVING AT A CANVAS CELL, as the terminal window reports it -- what a sweep is
     /// made of between its press and its release.
     void motion_cell(std::int64_t cx, std::int64_t cy) {
-        hand_moment(input::PointerMoved{cx, cy + console_rows(), 0, 0, input::space::kCells,
+        hand_moment(input::PointerMoved{cx, cy, 0, 0, input::space::kCells,
                                         input::mod::kNone});
     }
 
@@ -3768,8 +3731,7 @@ struct PaneRig {
     load::BootAnswers plan_answers;
 
     Session& session() { return const_cast<Session&>(w->session()); }
-    /// THE NOTICE LINE, READ WHERE IT LIVES. `Session::notice` is painted onto the canvas, not
-    /// published as a `SurfaceText`: the published text is the status slot.
+    /// THE NOTICE LINE, READ WHERE IT LIVES: `Session::notice` is drawn in the desk's band.
     const std::string& last_notice() const { return w->session().notice; }
 
     /// WHAT IS CURRENTLY TRUE OF THIS WORKSHOP, through the same projection the
@@ -3943,7 +3905,7 @@ inline bool menu_shown(const Session& s) {
 inline std::vector<std::string> context_rows_on(const DeskShown& shown, const Session& s) {
     const Screen sc = screen_of(s);
     const PixelRect popup = menu_bounds(s);
-    const surface::SurfaceTextRegion want = prose_region(prose_place(popup, sc));
+    const ScreenRegion want = prose_region(prose_place(popup, sc));
     std::vector<std::string> out;
     const std::int64_t columns = shown.advance > 0 ? want.w / shown.advance : 0;
     for (std::int64_t y = want.y; shown.line > 0 && y < want.y + want.h; y += shown.line) {
@@ -4072,10 +4034,10 @@ inline std::vector<intro::LoadedWeave> loaded_population(std::size_t n) {
 }
 
 /// Every region on a canvas whose upper-left corner is in this cell.
-inline std::vector<surface::SurfaceTextRegion> regions_at(const surface::SurfaceCanvas& c,
-                                                          std::int64_t x, std::int64_t y) {
-    std::vector<surface::SurfaceTextRegion> out;
-    for (const surface::SurfaceTextRegion& r : all_texts(c)) {
+inline std::vector<ScreenRegion> regions_at(const ScreenCanvas& c,
+                                            std::int64_t x, std::int64_t y) {
+    std::vector<ScreenRegion> out;
+    for (const ScreenRegion& r : all_texts(c)) {
         if (gfx::cell_of_pixel(r.x) == x && gfx::cell_of_pixel(r.y) == y) {
             out.push_back(r);
         }
@@ -4925,7 +4887,8 @@ inline ws::ResolvedArrangement shaped_arrangement() {
     said.artifacts.push_back(resolved_provider(
         participation("zengine-operators-basic", "normal", ""), "zengine.operators.basic", 2));
     said.artifacts.push_back(resolved_weave(
-        participation("zengine-skin-tui-classic", "", "zengine.skin"), 4, "not-a-consumer"));
+        participation("zengine-window-terminal", "", "zengine.window.terminal"), 4,
+        "not-a-consumer"));
     said.artifacts.push_back(resolved_weave(
         resolved_provider(participation("zengine-timer", "normal", "zengine.timer"),
                           "zengine.timer", 1),
@@ -5121,7 +5084,7 @@ inline std::vector<std::string> pane_rows(PaneRig& r, std::int64_t kind) {
     const ExternalPane* pane = r.session().panes.external_pane(kind);
     // A PANE WINDOW OF THE CASE'S OWN (`pane_window.hpp`, in `zengine.window.panes` or `.other`)
     // takes a pane's drawing from the rig's window once it tells the pane a room, so the rig's
-    // shows that pane no longer: its rows are read as Workshop holds them, as on a Skin.
+    // shows that pane no longer: its rows are read as Workshop holds them.
     const bool drawn_elsewhere =
         r.bus.role_holder(std::string(gfx::kWindowOfficePrefix) + "panes").valid() ||
         r.bus.role_holder(std::string(gfx::kWindowOfficePrefix) + "other").valid();

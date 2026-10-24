@@ -50,8 +50,8 @@ manager's slot to differ, because the manager's rows change with the subject by 
 
 ## VM-WIT-22 — Read a medium fact out of the medium's own bytes
 
-METHOD — Read a medium fact out of the medium's own bytes (the mouse mode a skin asks for) rather than asserting it.
-BECAUSE — the skin asks for button events and never for every motion, so an idle pointer is
+METHOD — Read a medium fact out of the medium's own bytes (the mouse mode the terminal window asks for) rather than asserting it.
+BECAUSE — the terminal window asks for button events and never for every motion, so an idle pointer is
 reported to nobody there; the bytes it sends say so and an assertion would only repeat them.
 
 ## Seen

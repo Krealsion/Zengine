@@ -1,5 +1,1 @@
-zengine.workshop -> painter  SurfaceText v1  {slot: "status", text: "[workshop] layout "Default" | 4 panes"}
-zengine.workshop -> painter  SurfaceCanvas v9  {width: 1800, height: 720, layers: [4]}
 zengine.workshop -> zengine.test.desk-alpha as zengine.workshop  PaneKeys v1  {pane: "alpha", here: true}
-zengine.workshop -> painter  SurfaceText v1  {slot: "status", text: "[workshop] layout "Default" | 4 panes"}
-zengine.workshop -> painter  SurfaceCanvas v9  {width: 1800, height: 720, layers: [4]}

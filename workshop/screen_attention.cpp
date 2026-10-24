@@ -210,7 +210,7 @@ PixelRect context_bounds(const Session& s, const Screen& sc) {
     return fitted;
 }
 
-void paint_context(surface::SurfaceLayer& layer, const Session& s, const Screen& sc) {
+void paint_context(ScreenPlane& layer, const Session& s, const Screen& sc) {
     if (!s.context.open) {
         return;
     }
@@ -220,9 +220,9 @@ void paint_context(surface::SurfaceLayer& layer, const Session& s, const Screen&
     if (!place.present) {
         return; // a popup with no room for a row says nothing rather than lying about the room
     }
-    surface::SurfaceTextRegion region = prose_region(place);
+    ScreenRegion region = prose_region(place);
     const auto say = [&region, &place](const std::string& text, std::int64_t role) {
-        region.rows.push_back(surface::SurfaceTextRow{detail::fit(text, place.columns), role});
+        region.rows.push_back(TextRow{detail::fit(text, place.columns), role});
     };
     // THE FIRST ROW IS AN ACTION. Nothing announces that a menu of actions
     // contains actions, and nothing restates the two gestures the band's legend is
@@ -292,7 +292,7 @@ ContextPressAt context_press_at(const Session& s, const Screen& sc, std::int64_t
     if (!place.present) {
         return out;
     }
-    const ProseAt where = prose_at(space, x, y, place.fit, sc.rows_above);
+    const ProseAt where = prose_at(space, x, y, place.fit);
     if (!where.understood || where.column < 0 || where.column >= place.columns ||
         where.row < 0 || where.row >= place.rows) {
         return out;
@@ -370,7 +370,7 @@ std::string presented_menu_area(std::int64_t menu) {
 }
 
 // WL-CTX-09 -- agents/workshop/pane-menu.md
-void paint_presented(surface::SurfaceLayer& layer, const Session& s, const Screen& sc) {
+void paint_presented(ScreenPlane& layer, const Session& s, const Screen& sc) {
     const PixelRect b = presented_bounds(s, sc);
     if (b.empty()) {
         return; // granted and not yet shown: nothing is drawn until the presenter says how much

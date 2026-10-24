@@ -81,13 +81,11 @@ kMaxProviderShortcuts           workshop/desktop-pane/shortcuts.hpp             
 kMaxAppActionRows               workshop/keymap.hpp                       kMaxAppActionRows
 kMaxPaneActionRows              workshop/keymap.hpp                       kMaxPaneActionRows
 
-# ---- the surface and input
-kNoCaret                        surface/vocabulary.hpp                    kNoCaret
-kNoSelection                    surface/vocabulary.hpp                    kNoSelection
+# ---- the panes' rows, the pixels and input
+kNoCaret                        workshop/pane_rows.hpp                    kNoCaret
+kNoSelection                    workshop/pane_rows.hpp                    kNoSelection
 kCellGrainPx                    graphics/pixels.hpp                       kCellGrainPx
 kPixelGrainPx                   graphics/pixels.hpp                       kPixelGrainPx
-kTuiCanvasTopRow                surface/pointing.hpp                      kTuiCanvasTopRow
-kTuiReservedRows                surface/skin_tui.hpp                      kTuiReservedRows
 kTextInsetPx                    workshop/pane_text_fit.hpp                kTextInsetPx
 kMaxScancode                    input/vocabulary.hpp                      kMaxScancode
 kMaxHeldKeys                    input/vocabulary.hpp                      kMaxHeldKeys

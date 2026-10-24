@@ -253,25 +253,25 @@ struct InfoRig {
     }
     bool wide_ = true;
 
-    /// A KEY OR TYPED TEXT QUEUED AND NOT DRAINED, so a case places a real gesture at an exact
-    /// interval of a conversation; `settle` drains. `r.key` and `r.text` drain, so a burst built
-    /// from them is several polls rather than one.
+    /// A KEY OR TYPED TEXT QUEUED ON THE WINDOW'S PLATFORM AND NOT DRAINED, its beat asked for, so
+    /// a case places a real gesture at an exact interval of a conversation; `settle` drains.
+    /// Moments queued before a beat is delivered are read together, as one poll; `r.key` and
+    /// `r.text` drain, so a burst built from them is several polls rather than one.
     void enqueue_key(std::int64_t sc, std::int64_t mods = input::mod::kNone) {
-        (void)r.bus.publish(loom::Message(loom::to_value(input::KeyPressed{sc, "", mods}),
-                                          loom::WeaveId{}, loom::WeaveId{}, 0));
+        r.window_queue_key(sc, mods);
+        beat();
     }
     void enqueue_text(const std::string& typed) {
-        (void)r.bus.publish(loom::Message(loom::to_value(input::TextEntered{typed}),
-                                          loom::WeaveId{}, loom::WeaveId{}, 0));
+        r.windows.queue({input::TextEntered{typed}});
+        beat();
     }
-    /// ...AND A PRESS ON THE BAND, queued: the keys leave the pane for command mode.
+    /// ...AND A PRESS ON THE BAND: the keys leave the pane for command mode.
     void enqueue_unfocus() {
-        (void)r.bus.publish(loom::Message(
-            loom::to_value(input::PointerButton{1, true, 0,
-                                                gfx::cell_of_pixel(screen_of(r.session()).h) - 1,
-                                                input::space::kCells, input::mod::kNone}),
-            loom::WeaveId{}, loom::WeaveId{}, 0));
+        r.window_queue_button(0, gfx::cell_of_pixel(screen_of(r.session()).h) - 1, true);
+        beat();
     }
+    /// The window's beat, asked for at this place among the queued deliveries.
+    void beat() { (void)r.bus.send(r.windows.id(), loom::Message(loom::to_value(gfx::PumpSurface{}))); }
     void settle() { r.bus.drain_until_idle(); }
 
     /// A SENTENCE SAID AS WORKSHOP'S OWN OFFICE, QUEUED AND NOT DRAINED -- `PaneRig::workshop_action`'s
@@ -2572,8 +2572,8 @@ TEST_CASE("Info draws its properties on its canvas on the medium's own ground, a
     selected();
     bar_at(10);
     f.r.key(input::scan::kEscape); // the draft ends, and its caret with it
-    CHECK(held_caret(held()).row == surface::kNoCaret);
-    CHECK(held_caret(held()).sel_begin_row == surface::kNoSelection);
+    CHECK(held_caret(held()).row == kNoCaret);
+    CHECK(held_caret(held()).sel_begin_row == kNoSelection);
     CHECK(marks() == 0);
 }
 

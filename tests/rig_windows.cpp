@@ -17,6 +17,7 @@
 #include <zen/serialize.hpp>
 
 #include <algorithm>
+#include <map>
 #include <utility>
 
 namespace zengine::testing::rig_windows {
@@ -119,6 +120,9 @@ struct Windows::Impl {
     std::vector<std::vector<std::int64_t>> inks;
     bool watching = false;
     std::vector<Shown> watched;
+    // EACH WINDOW'S LAST OFFER, as delivered: what a queued offer repeats at another room.
+    std::map<std::string, gfx::WindowOffered> offers;
+    loom::ObserverId offers_tap{};
 
     Impl(loom::Switchboard& b, loom::WeaveId m, std::string so)
         : bus(b), manager(m), directory_so(std::move(so)) {
@@ -127,6 +131,7 @@ struct Windows::Impl {
         light.keeps_last = true;
         light.clipboard = std::string();
         light.holds_copies = true;
+        light.grows = true; // the OS window grows to the reach of the areas it shows
         auto made = std::make_unique<Ears>();
         ears = made.get();
         loom::Grant grant;
@@ -135,9 +140,17 @@ struct Windows::Impl {
         grant.allow_to_any(gfx::PumpSurface::zen_name, gfx::PumpSurface::zen_version);
         ears_id = bus.register_weave(std::move(made), std::move(grant));
         ears->zen_set_self(ears_id);
+        offers_tap = bus.add_observer([this](const loom::BusEvent& ev) {
+            if (ev.kind == loom::EventKind::Delivered && ev.payload != nullptr &&
+                ev.schema_name == gfx::WindowOffered::zen_name) {
+                const gfx::WindowOffered said = loom::from_value<gfx::WindowOffered>(*ev.payload);
+                offers[said.window] = said;
+            }
+        });
     }
 
     ~Impl() {
+        bus.remove_observer(offers_tap);
         // The windows go before the logs their devices write to.
         for (const loom::WeaveId id : {terminal_id, sdl_id, ears_id}) {
             if (id.valid()) {
@@ -392,6 +405,34 @@ void Windows::room(std::int64_t width_px, std::int64_t height_px, std::int64_t a
         m.activate(m.sdl_id, m.sdl_lives);
     } else {
         m.pump(gfx::kSdlWindow);
+    }
+}
+
+void Windows::queue_offer(std::int64_t width_px, std::int64_t height_px) {
+    Impl& m = *impl_;
+    REQUIRE_MESSAGE(!m.up.empty(), "no window is up to offer another room");
+    const auto last = m.offers.find(m.up);
+    REQUIRE_MESSAGE(last != m.offers.end(), "the window up has offered no room yet");
+    gfx::WindowOffered offer = last->second;
+    if (m.up == gfx::kTerminalWindow) {
+        m.term.size = gfx::window::TerminalSize{width_px / gfx::kCellPx, height_px / gfx::kCellPx};
+        offer.width = m.term.size.cols * gfx::kCellPx;
+        offer.height = m.term.size.rows * gfx::kCellPx;
+    } else {
+        m.light.size = gfx::window::PixelSize{width_px, height_px};
+        offer.width = width_px;
+        offer.height = height_px;
+    }
+    (void)m.bus.office_publish_as(id(), office(), loom::Message(loom::to_value(offer)));
+}
+
+void Windows::restart() {
+    Impl& m = *impl_;
+    REQUIRE_MESSAGE(!m.up.empty(), "no window is up to start again");
+    if (m.up == gfx::kTerminalWindow) {
+        m.activate(m.terminal_id, m.terminal_lives);
+    } else {
+        m.activate(m.sdl_id, m.sdl_lives);
     }
 }
 

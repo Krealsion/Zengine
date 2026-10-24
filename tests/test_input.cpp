@@ -16,14 +16,14 @@
 #include "input/input_weave.hpp"
 #include "input/terminal_reader.hpp"
 #include "input/translate.hpp"
-#include "input/translate_sdl.hpp"
+#include "input/translate_sdl_core.hpp"
 #include "input/vocabulary.hpp"
 
 #include "lifecycle_door.hpp"
 #include "manuals/zengine.input.hpp" // the office's page, as the suite carries it
 #include "office_manual.hpp"
 
-#include "surface/vocabulary.hpp" // the canvas that makes the SDL Skin open its window
+#include "graphics/vocabulary.hpp" // the one lifecycle fact a reader of SDL's queue could hand on
 #include "timer/vocabulary.hpp" // the weave's own beat is part of its contract
 #include "vocabulary.hpp"       // snake's — the chain lane speaks both packages
 
@@ -1183,10 +1183,41 @@ TEST_CASE("terminal SGR: malformed reports fail explicitly and leak no keys") {
 // Tier 2e — SDL, as pure translation
 // ============================================================================
 // No SDL headers here, as for the Win32 paths, so the WSL lane and the Windows stranger (which
-// builds no SDL) both pin the SDL translation. The local constants ARE SDL's: input_sdl.cpp,
-// where both spellings exist, static_asserts them against the real headers.
+// builds no SDL) both pin the SDL translation. The local constants ARE SDL's: the OS window's
+// backend, where both spellings exist, static_asserts them against the real headers.
 
 namespace {
+
+/// THE MOMENTS A READER OF SDL'S QUEUE HANDS ITS WEAVE, and one fact beside them that is no input
+/// moment, a close: what the cases below read the shared translation through.
+using SdlEvent = std::variant<KeyPressed, KeyReleased, TextEntered, PointerMoved, PointerButton,
+                              PointerWheel, zengine::graphics::SurfaceCloseRequested>;
+
+inline std::vector<SdlEvent> sdl_events_of(std::vector<InputEvent> moments) {
+    std::vector<SdlEvent> out;
+    for (InputEvent& m : moments) {
+        std::visit([&out](auto& moment) { out.emplace_back(std::move(moment)); }, m);
+    }
+    return out;
+}
+inline std::vector<SdlEvent> sdl_key_to_events(std::int64_t scancode, std::uint16_t keymod,
+                                               bool down, bool repeat) {
+    return sdl_events_of(sdl_key_moments(scancode, keymod, down, repeat));
+}
+inline std::vector<SdlEvent> sdl_text_to_events(const char* text) {
+    return sdl_events_of(sdl_text_moments(text));
+}
+inline std::vector<SdlEvent> sdl_mouse_motion_to_events(float x, float y, float xrel, float yrel) {
+    return sdl_events_of(sdl_mouse_motion_moments(x, y, xrel, yrel));
+}
+inline std::vector<SdlEvent> sdl_mouse_button_to_events(std::int64_t button, bool down, float x,
+                                                        float y) {
+    return sdl_events_of(sdl_mouse_button_moments(button, down, x, y));
+}
+inline std::vector<SdlEvent> sdl_mouse_wheel_to_events(float dx, float dy, std::uint32_t direction,
+                                                       float mouse_x, float mouse_y) {
+    return sdl_events_of(sdl_mouse_wheel_moments(dx, dy, direction, mouse_x, mouse_y));
+}
 
 /// The SDL event at [i], REQUIRE'd to hold shape E.
 template <class E>
@@ -1385,19 +1416,6 @@ TEST_CASE("sdl: the wheel keeps its fraction, and FLIPPED is put back") {
     CHECK(sdl_at<PointerWheel>(e, 0).dy == doctest::Approx(-1.0));
     e = sdl_mouse_wheel_to_events(-2.0f, 0.0f, sdl::kWheelFlipped, 0, 0);
     CHECK(sdl_at<PointerWheel>(e, 0).dx == doctest::Approx(2.0));
-}
-
-TEST_CASE("sdl: a close request is LIFECYCLE, and it is not any kind of key") {
-    // The mandatory separation. SDL happens to report window lifecycle and input
-    // on one queue; that does not make them one semantic population, and the
-    // cheapest wrong answer here -- synthesizing KeyPressed{Q} because Workshop
-    // already knows how to quit from a key -- is exactly what this asserts is
-    // not happening.
-    const std::vector<SdlEvent> e = sdl_close_to_events();
-    REQUIRE(e.size() == 1);
-    CHECK(std::holds_alternative<zengine::graphics::SurfaceCloseRequested>(e[0]));
-    CHECK_FALSE(std::holds_alternative<KeyPressed>(e[0]));
-    CHECK_FALSE(std::holds_alternative<PointerButton>(e[0]));
 }
 
 TEST_CASE("sdl: the translated populations are exactly the ones with an obligation") {
@@ -1707,291 +1725,6 @@ TEST_CASE("keys become turns: KeyPressed steers the real world through its own k
 }
 
 // ============================================================================
-// Tier 5 — the REAL SDL event queue, through the real weave library
-// ============================================================================
-// This test process pushes events into SDL and a separately dlopen'ed weave library polls them
-// out, which works only with ONE SDL in the process: a static SDL would give the library its
-// own queue that nothing pushes to (cmake/ZengineSdl.cmake requires a shared SDL3 for that).
-
-#if defined(INPUT_HAS_SDL)
-
-#include <SDL3/SDL.h>
-
-TEST_CASE("the SDL reader owns the real queue: pushed events come out as Zen messages") {
-    // The dummy video driver: a real SDL, a real queue, no display. Set in the
-    // environment by tests/CMakeLists.txt and here as well, belt to braces.
-    SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "dummy");
-    REQUIRE(SDL_Init(SDL_INIT_VIDEO));
-
-    // A real window, so this is not merely "a queue exists": the reader is the
-    // ear for a window somebody else owns, which is the whole arrangement.
-    SDL_Window* window = SDL_CreateWindow("zengine-input-sdl test", 96, 48, 0);
-    REQUIRE(window != nullptr);
-    const SDL_WindowID window_id = SDL_GetWindowID(window);
-
-    Rig r;
-    const loom::WeaveId reader = r.load("zengine-input-sdl", INPUT_SDL_SO, kInputRole);
-
-    // Drain anything the window's own creation queued (shown, exposed, focus
-    // gained...), so the assertions below are about what THIS case pushed. Those
-    // are precisely the events the reader ignores, and this proves it ignores
-    // them rather than turning them into messages.
-    r.pump_input_by_role();
-    std::vector<SdlEvent> heard;
-    const loom::WeaveId ears = loom::mount<SdlEars>(r.bus, heard);
-    (void)ears;
-
-    const auto push = [](SDL_Event e) { REQUIRE(SDL_PushEvent(&e)); };
-
-    // The typed-character sequence, in the order SDL queues it.
-    SDL_Event down{};
-    down.type = SDL_EVENT_KEY_DOWN;
-    down.key.windowID = window_id;
-    down.key.scancode = SDL_SCANCODE_5;
-    down.key.mod = SDL_KMOD_LSHIFT;
-    down.key.down = true;
-    push(down);
-
-    SDL_Event text{};
-    text.type = SDL_EVENT_TEXT_INPUT;
-    text.text.windowID = window_id;
-    text.text.text = "%";
-    push(text);
-
-    SDL_Event up = down;
-    up.type = SDL_EVENT_KEY_UP;
-    up.key.down = false;
-    push(up);
-
-    SDL_Event motion{};
-    motion.type = SDL_EVENT_MOUSE_MOTION;
-    motion.motion.windowID = window_id;
-    motion.motion.x = 36.0f;
-    motion.motion.y = 24.0f;
-    motion.motion.xrel = 4.0f;
-    motion.motion.yrel = -1.0f;
-    push(motion);
-
-    SDL_Event click{};
-    click.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
-    click.button.windowID = window_id;
-    click.button.button = SDL_BUTTON_LEFT;
-    click.button.down = true;
-    click.button.clicks = 1;
-    click.button.x = 37.0f;
-    click.button.y = 25.0f;
-    push(click);
-
-    // ONE pump drains everything pending, in order.
-    r.pump_input_by_role();
-
-    REQUIRE(heard.size() == 5);
-    CHECK(sdl_at<KeyPressed>(heard, 0).scancode == scan::k5);
-    CHECK(sdl_at<KeyPressed>(heard, 0).modifiers == mod::kShift);
-    // TEXT IS TEXT: the `%` came out of SDL's own text population, and nothing
-    // anywhere computed it from `Shift+5`.
-    CHECK(sdl_at<TextEntered>(heard, 1).text == "%");
-    CHECK(sdl_at<KeyReleased>(heard, 2).scancode == scan::k5);
-    CHECK(sdl_at<PointerMoved>(heard, 3).x == 36);
-    CHECK(sdl_at<PointerMoved>(heard, 3).dx == 4);
-    CHECK(sdl_at<PointerMoved>(heard, 3).space == space::kPixels);
-    // THE EVENT-TIME POSITION. The button is at (37,25) and the last motion was
-    // at (36,24); the published press says 37,25.
-    CHECK(sdl_at<PointerButton>(heard, 4).x == 37);
-    CHECK(sdl_at<PointerButton>(heard, 4).y == 25);
-    CHECK(sdl_at<PointerButton>(heard, 4).space == space::kPixels);
-
-    // The reader's own honest counters, through the ordinary poke door.
-    CHECK(r.poke(reader, loom::PokeRead{"emitted"}).text == "5");
-
-    // ---- the native close, end to end -------------------------------------
-    heard.clear();
-    SDL_Event close{};
-    close.type = SDL_EVENT_WINDOW_CLOSE_REQUESTED;
-    close.window.windowID = window_id;
-    push(close);
-    r.pump_input_by_role();
-
-    REQUIRE(heard.size() == 1);
-    CHECK(std::holds_alternative<zengine::graphics::SurfaceCloseRequested>(heard[0]));
-
-    // SDL_EVENT_QUIT is the same lifecycle fact by another path -- some
-    // platforms deliver an application quit that way and never as a window
-    // event -- and it must not be the one that goes missing.
-    heard.clear();
-    SDL_Event quit{};
-    quit.type = SDL_EVENT_QUIT;
-    push(quit);
-    r.pump_input_by_role();
-    REQUIRE(heard.size() == 1);
-    CHECK(std::holds_alternative<zengine::graphics::SurfaceCloseRequested>(heard[0]));
-
-    // ---- the ignored classes really are ignored ----------------------------
-    heard.clear();
-    SDL_Event shown{};
-    shown.type = SDL_EVENT_WINDOW_FOCUS_GAINED;
-    shown.window.windowID = window_id;
-    push(shown);
-    SDL_Event editing{};
-    editing.type = SDL_EVENT_TEXT_EDITING;
-    editing.edit.windowID = window_id;
-    editing.edit.text = "";
-    editing.edit.start = 0;
-    editing.edit.length = 0;
-    push(editing);
-    SDL_Event thumb{};
-    thumb.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
-    thumb.button.windowID = window_id;
-    thumb.button.button = SDL_BUTTON_X1;
-    thumb.button.down = true;
-    thumb.button.x = 1.0f;
-    thumb.button.y = 1.0f;
-    push(thumb);
-    r.pump_input_by_role();
-    CHECK(heard.empty());
-
-    SDL_DestroyWindow(window);
-    SDL_QuitSubSystem(SDL_INIT_VIDEO);
-}
-
-TEST_CASE("the SDL reader leaves SDL's queue to an OS window that claims it, and drains it again "
-          "once the claim is given back") {
-    SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "dummy");
-    REQUIRE(SDL_Init(SDL_INIT_VIDEO));
-    Rig r;
-    (void)r.load("zengine-input-sdl", INPUT_SDL_SO, kInputRole);
-    r.pump_input_by_role();
-    std::vector<SdlEvent> heard;
-    (void)loom::mount<SdlEars>(r.bus, heard);
-
-    // While a window holds the queue, a key pushed into it stays there for the window to take.
-    claim_window_sdl_input();
-    SDL_Event down{};
-    down.type = SDL_EVENT_KEY_DOWN;
-    down.key.scancode = SDL_SCANCODE_Q;
-    down.key.down = true;
-    const bool pushed = SDL_PushEvent(&down);
-    r.pump_input_by_role();
-    const bool yielded = heard.empty();
-    const int left =
-        SDL_PeepEvents(nullptr, 0, SDL_PEEKEVENT, SDL_EVENT_KEY_DOWN, SDL_EVENT_KEY_DOWN);
-    release_window_sdl_input(); // given back before any check, so no case after inherits it
-    REQUIRE(pushed);
-    CHECK(yielded);
-    CHECK(left == 1);
-
-    r.pump_input_by_role();
-    REQUIRE(heard.size() == 1);
-    CHECK(sdl_at<KeyPressed>(heard, 0).scancode == scan::kQ);
-    SDL_QuitSubSystem(SDL_INIT_VIDEO);
-}
-
-
-TEST_CASE("both SDL weaves live: the Skin services its window and takes NOTHING off the queue") {
-    // THE ONE-OWNER PROPERTY, with the exact interleaving that breaks it: SDL_PollEvent REMOVES
-    // what it returns, so a Skin that drained the queue every beat would be a thief, not a
-    // second poller. A real Skin and a real reader run side by side, the SKIN pumped between the
-    // push and the read, and the events must survive. Not asserted: that the Skin is idle -- it
-    // owns the window and runs on its own beat; what it may not do is consume.
-    SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "dummy");
-
-    Rig r;
-    const loom::WeaveId skin = r.load("zengine-skin-sdl", SKIN_SO_SDL, "zengine.skin");
-    (void)r.load("zengine-input-sdl", INPUT_SDL_SO, kInputRole);
-
-    // A canvas, so the Skin actually creates its window: an idle Skin with no
-    // window would prove nothing about a Skin with one.
-    zengine::surface::SurfaceCanvas canvas;
-    canvas.width = 8;
-    canvas.height = 4;
-    canvas.layers.emplace_back();
-    canvas.layers.back().rects.push_back(zengine::surface::SurfaceRect{0, 0, 2, 2, 0});
-    r.publish_root(loom::to_value(canvas));
-    CHECK(r.poke(skin, loom::PokeRead{"frames"}).text == "1");
-
-    std::vector<SdlEvent> heard;
-    (void)loom::mount<SdlEars>(r.bus, heard);
-
-    SDL_Event down{};
-    down.type = SDL_EVENT_KEY_DOWN;
-    down.key.scancode = SDL_SCANCODE_Q;
-    down.key.down = true;
-    REQUIRE(SDL_PushEvent(&down));
-    SDL_Event close{};
-    close.type = SDL_EVENT_WINDOW_CLOSE_REQUESTED;
-    REQUIRE(SDL_PushEvent(&close));
-
-    // The Skin is given its hands FIRST -- twice -- which is precisely when the
-    // old code would have swallowed both events.
-    r.bus.send_to_role("zengine.skin",
-                       loom::Message(loom::to_value(zengine::graphics::PumpSurface{})));
-    r.bus.drain_until_idle();
-    r.bus.send_to_role("zengine.skin",
-                       loom::Message(loom::to_value(zengine::graphics::PumpSurface{})));
-    r.bus.drain_until_idle();
-    CHECK(r.poke(skin, loom::PokeRead{"pumps"}).text == "2"); // it really did run
-
-    // ...and the reader still finds everything, in order.
-    r.pump_input_by_role();
-    REQUIRE(heard.size() == 2);
-    CHECK(sdl_at<KeyPressed>(heard, 0).scancode == scan::kQ);
-    CHECK(std::holds_alternative<zengine::graphics::SurfaceCloseRequested>(heard[1]));
-}
-
-TEST_CASE("ambient clipboard text cannot reach the bus — seeded, changed, never seen") {
-    // Text seeded before the reader existed must not arrive on the bus, and neither may an
-    // external change -- in the strongest form: not "nobody listened" but "nothing was said".
-    // The ears hear every shape the reader can emit and a bus tap watches every delivery and
-    // refusal by schema name; neither sees a clipboard.
-    SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "dummy");
-    REQUIRE(SDL_Init(SDL_INIT_VIDEO));
-    // A payload some unrelated application left on the platform clipboard BEFORE this
-    // process's reader existed.
-    REQUIRE(SDL_SetClipboardText("EXTERNAL-SECRET"));
-
-    Rig r;
-    (void)r.load("zengine-input-sdl", INPUT_SDL_SO, kInputRole);
-    std::vector<SdlEvent> heard;
-    (void)loom::mount<SdlEars>(r.bus, heard);
-    std::vector<std::string> schemas;
-    r.bus.add_observer([&schemas](const loom::BusEvent& e) {
-        if (e.kind == loom::EventKind::Delivered || e.kind == loom::EventKind::Refused) {
-            schemas.push_back(e.schema_name);
-        }
-    });
-
-    // No weaver gesture of any kind: the first poll, then an external change while the
-    // application idles (its update event drained by the next poll, ignored).
-    r.pump_input_by_role();
-    REQUIRE(SDL_SetClipboardText("CHANGED-BEHIND"));
-    r.pump_input_by_role();
-
-    CHECK(heard.empty());
-    for (const std::string& name : schemas) {
-        CAPTURE(name);
-        CHECK(name.find("Clipboard") == std::string::npos);
-    }
-    SDL_QuitSubSystem(SDL_INIT_VIDEO);
-}
-
-TEST_CASE("the SDL input .so answers what each shape it accepts does, from the same page") {
-    // The office's other weave, the same witness: one page is true of both, and its gate (the
-    // terminal weave's doors, the close request emitted beside them) is described by it.
-    SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "dummy");
-    Rig r;
-    (void)r.load("zengine-input-sdl", INPUT_SDL_SO, kInputRole);
-    const std::vector<std::string> described =
-        described_shapes_of(r.bus, r.bus.role_holder(kInputRole));
-    CHECK(check_office_manual(r.bus, kInputRole) >= described.size());
-    check_page_names_accepted(zengine::manual::pages::zengine_input::kManual, described);
-    ShapeDocumentReader reader(r.bus, kInputRole);
-    CHECK(reader.ask(InjectInput::zen_name, InjectInput::zen_version).page ==
-          std::string(zengine::manual::pages::zengine_input::kManual.content_id));
-}
-
-#endif // INPUT_HAS_SDL
-
-// ============================================================================
 // The editing keys every backend produces: Home, End and Delete
 // ============================================================================
 // The POSIX parser names their CSI spellings -- bare, tilde-numbered and `1;m`-modified -- and
@@ -2175,8 +1908,7 @@ TEST_CASE("the clipboard event class is IGNORED, and the reader's sources are cl
         }
         return code;
     };
-    for (const char* path : {INPUT_SDL_READER_CPP, INPUT_SDL_TRANSLATE_HPP,
-                             INPUT_SDL_TRANSLATE_CORE_HPP}) {
+    for (const char* path : {INPUT_SDL_TRANSLATE_CORE_HPP}) {
         const std::string code = code_of(path);
         CAPTURE(path);
         CHECK(code.find("SDL_GetClipboardText") == std::string::npos);

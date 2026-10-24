@@ -23,20 +23,9 @@ if(NOT TARGET loom::kernel)
     return()
 endif()
 
-# The weave arranges its own heartbeat now: it accepts the Timer package's
-# hello and beat, so it speaks that vocabulary too. Both weaves hold one office, and each carries
-# its manual and answers from it (office_page.hpp).
+# The weave arranges its own heartbeat: it accepts the Timer package's hello and beat, so it
+# speaks that vocabulary too. It holds one office, carries its manual and answers from it
+# (office_page.hpp). It loads beside either window, and reads the terminal's input where no
+# window holds it.
 zengine_weave(zengine-input input.cpp MANUAL docs/zengine.input.md)
 target_link_libraries(zengine-input PRIVATE zengine-timer-vocabulary zengine-activation)
-
-# The SDL Input reader: a second artifact, since which surface a run is shown on is a launch
-# decision (`--input <stem>`), not a platform fact; the terminal/console reader builds everywhere.
-# It is the only Input weave linking the Surface vocabulary (a close request rides SDL's one
-# queue, forwarded as the surface fact it is), and it shares SDL with the window Skin:
-# cmake/ZengineSdl.cmake requires a shared SDL3 and owns the staging half (`zengine_sdl_weave`).
-if(ZENGINE_SDL_LIB)
-    zengine_weave(zengine-input-sdl input_sdl.cpp MANUAL docs/zengine.input.md)
-    target_link_libraries(zengine-input-sdl PRIVATE zengine-timer-vocabulary zengine-activation
-                                                    zengine-surface-vocabulary)
-    zengine_sdl_weave(zengine-input-sdl)
-endif()

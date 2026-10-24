@@ -4,12 +4,11 @@
 #ifndef ZENGINE_INPUT_TRANSLATE_SDL_CORE_HPP
 #define ZENGINE_INPUT_TRANSLATE_SDL_CORE_HPP
 
-// SDL native events -> Input's moments, as pure code with no SDL headers and nothing of Surface:
-// a reader passes an event's fields as plain values and SDL's constants are spelled locally, so
-// the lane that never opens a window pins the whole translation, and an SDL-gated build pins the
-// constants against the real headers. Both readers of SDL's queue translate here: the SDL Input
-// reader (input_sdl.cpp, through translate_sdl.hpp) and the OS window's backend
-// (graphics/window/window_sdl_backend.hpp). Reference: input/docs/input.md.
+// SDL native events -> Input's moments, as pure code with no SDL headers: a reader passes an
+// event's fields as plain values and SDL's constants are spelled locally, so the lane that never
+// opens a window pins the whole translation, and the OS window's backend, which reads SDL's queue
+// and translates here (graphics/window/window_sdl_backend.hpp), pins the constants against the
+// real headers. Reference: input/docs/input.md.
 
 // What SDL 3 knows (source-traced against 3.4.12): the key identity is SDL's scancode, the
 // wire's own space, so it passes through; entered text arrives committed (layout, dead keys,

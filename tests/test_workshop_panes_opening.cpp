@@ -240,7 +240,7 @@ public:
     }
 
 private:
-    WindowDrawing window_{kEditorRole, kEditorRole};
+    WindowDrawing window_{kEditorRole, pane_area(kEditorRole, "editor")};
     loom::DeferredAnswer held_;
     v3::SourcePrepared held_said_;
 };

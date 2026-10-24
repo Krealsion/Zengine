@@ -378,9 +378,6 @@ TEST_CASE("an Info commit queued behind a layout switch is refused, and neither 
     duplicate_live_layout(t.r);
     t.inspect_terminal();
     t.draft(tp::kSettingLegend, "off");
-    const auto enqueue = [&t](const loom::Value& v) {
-        (void)t.r.bus.publish(loom::Message(v, loom::WeaveId{}, loom::WeaveId{}, 0));
-    };
     // WHAT INFO WAS ANSWERED, read off the bus: the commit it sent, and the refusal.
     std::vector<PaneSubjectActed> answered;
     const loom::ObserverId tap = t.r.bus.add_observer([&t, &answered](const loom::BusEvent& ev) {
@@ -391,12 +388,13 @@ TEST_CASE("an Info commit queued behind a layout switch is refused, and neither 
         }
     });
     const Gesture next = t.r.session().keymap.gesture_of(Act::kLayoutNext);
-    enqueue(loom::to_value(input::KeyPressed{input::scan::kReturn, "", input::mod::kNone}));
-    enqueue(loom::to_value(input::PointerButton{1, true, 0,
-                                                gfx::cell_of_pixel(screen_of(t.r.session()).h) - 1,
-                                                input::space::kCells, input::mod::kNone}));
-    enqueue(loom::to_value(input::KeyPressed{next.scancode, "", next.modifiers}));
-    t.r.bus.drain_until_idle();
+    // ONE POLL OF THE WINDOW'S PLATFORM: the three moments read together on its next beat.
+    t.r.windows.queue({input::KeyPressed{input::scan::kReturn, "", input::mod::kNone},
+                       input::PointerButton{1, true, 0,
+                                            gfx::cell_of_pixel(screen_of(t.r.session()).h) - 1,
+                                            input::space::kCells, input::mod::kNone},
+                       input::KeyPressed{next.scancode, "", next.modifiers}});
+    t.r.windows.pump();
     t.r.bus.remove_observer(tap);
     REQUIRE(answered.size() == 1);
     CHECK_FALSE(answered.front().accepted);

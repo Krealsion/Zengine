@@ -13,7 +13,7 @@
 #include <zen/switchboard/message.hpp>
 
 #include "builder/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
+#include "graphics/vocabulary.hpp"
 
 #include <cstddef>
 #include <cstdint>

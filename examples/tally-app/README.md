@@ -19,8 +19,8 @@ by hand.
 
 A build stages a copy of this folder beside `zengine-app`, in `app/apps/tally/` of the build tree,
 with two launchers: `run.cmd` starts the app in a console of its own on Windows, and `run.sh` in
-the terminal it is run from. Its plan's window is the OS window, which a build with the SDL skin on
-builds; without it, the console says the window's artifact cannot be read.
+the terminal it is run from. Its plan's window is the OS window, which every build but a
+`ZENGINE_TUI_ONLY` one builds; without it, the console says the window's artifact cannot be read.
 
 On its first start the console asks about each of the five artifacts in turn; answer each with the
 line it gives, `authority trust <artifact>`. Then the window shows the panel:
