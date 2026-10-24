@@ -535,9 +535,9 @@ class Recipes(unittest.TestCase):
         written = json.loads((wdir / "setup.json").read_text(encoding="utf-8"))
         self.assertEqual((written["version"], written["fields"]["format_version"]),
                          (setup_version, str(setup_version)))
-        session = json.loads((wdir / "session.json").read_text(encoding="utf-8"))
-        self.assertEqual((session["version"], session["fields"]["format_version"]),
-                         (session_version, str(session_version)))
+        header = json.loads((wdir / "session.json").read_text(encoding="utf-8").splitlines()[0])
+        self.assertEqual((header["schema"], header["version"], header["fields"]["format_version"]),
+                         ("WorkshopSessionHeader", session_version, str(session_version)))
 
     def test_an_older_desk_is_lifted_or_refused_naming_how_to_save_it_again(self):
         # A DESK SAVED AT SETUP VERSION 4, AS THE SHIPPED ONES ARE: lifted, its rows keeping none.

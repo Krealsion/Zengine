@@ -9,7 +9,7 @@ Retired: WL-SESSION-11, WL-SESSION-12.
 
 ## WL-SESSION-05 — The session holds the run of layouts with their associations
 
-LAW — Version <!-- value session_persist::kFormatVersion -->10<!-- /value --> holds the weaver's order whole, the live layout in it and its position beside it, each entry a desk plus its link; position is a layout's whole identity, and no id is minted.
+LAW — Version <!-- value session_persist::kFormatVersion -->11<!-- /value --> holds the weaver's order whole, the live layout in it and its position beside it, each entry a desk plus its link; position is a layout's whole identity, and no id is minted.
 
 MEANS
 - an empty path is the absence with exactly one spelling; `link_in` refuses the half-association;
@@ -22,9 +22,9 @@ WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 LAW — Admitting a run is four questions plus the link: non-empty, within the ceiling, the live one in range, every desk and link legal by its own law; refusals of current data, never a conversion search.
 
 MEANS
-- the ceiling is `kMaxLayouts` * (2 * `kMaxSetupBytes` + `kMaxLinkPathBytes`): two desks, a path;
-- a session this build writes is never one it refuses to read;
-- in decoded cells too: `kMaxPaneSettingsPerDesk` keeps a full one inside Loom's `kMaxDecodedCells`.
+- the file is a header line and a line per layout, each its own decode; a line refused, or lines not the header's count, refuse it whole;
+- the ceiling is `kMaxHeaderLineBytes` and `kMaxLayouts` lines of `kMaxLayoutLineBytes`, two desks and a path: what this build writes it reads;
+- each line decodes inside Loom's `kMaxDecodedCells`, and `kMaxPaneSettingsPerDesk` leaves a layout's room for a field on every row.
 
 WHY — `agents/decisions/a-layout-is-a-lifted-value.md`
 
@@ -105,18 +105,26 @@ WHY — `agents/decisions/the-first-picture-is-the-floor.md`
 ### WL-SESSION-05
 `workshop/session_persist.hpp` WorkshopSession::layouts WorkshopSession::active kFormatVersion
 WorkshopLayout WorkshopSetupLink link_in layouts_in WorkshopSession to_link in_layout half_a_link
+WorkshopSessionHeader header_of to_text
 `tests/test_workshop_persistence.cpp` "a whole layout run round-trips exactly, active in the middle"
 "every position and every association combination round-trips" "a current-version session with half
-an association is refused"
+an association is refused" "a session's file is a header line and a line for each layout, each
+decoded alone"
 
 ### WL-SESSION-06
 `workshop/session_persist.hpp` WorkshopSession::active link_in layouts_in kMaxSessionBytes
-kMaxLinkPathBytes kMaxLayouts no_layouts
+kMaxLinkPathBytes kMaxLayoutLineBytes kMaxHeaderLineBytes lines_of lines_in count_disagrees one_value
+WorkshopSessionHeader::layout_count no_layouts too_many_layouts
 `workshop/setup_persist.hpp` setup_in kMaxSetupBytes kMaxPaneSettingSpelledBytes
-`workshop/setup.hpp` kMaxPaneSettingsPerDesk
+`workshop/setup.hpp` kMaxPaneSettingsPerDesk kMaxLayouts
+`workshop/decoded_cells.hpp` kDecodedCellBudget decoded_cells
 `tests/test_workshop_persistence.cpp` "a current run this Workshop could not have made is refused as
 CURRENT data" "a maximal legal session is still one this build can read back" "a session may hold as
-much as it may hold, and be read back"
+much as it may hold, and be read back" "a session's file is refused whole where a line is refused or
+the lines are not the header's count" "a maximal session decodes a line at a time, each line with
+room for a field on every row" "a version-11 session written as one value is refused, its file being
+a line a layout" "a header counting more layouts than a Workshop keeps is refused before a line is
+read"
 
 ### WL-SESSION-07
 `workshop/session_persist.hpp` WorkshopLayout::desk viewport_honoured WorkshopViewport LoadedSession
