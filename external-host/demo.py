@@ -155,6 +155,9 @@ def prerequisites(args, setup):
                                     "a package holds it" if args.package else "build the tree")
                     for p in wanted if not p.is_file()]
     if args.loom_prefix or args.package:
+        for p in (guest_dir, prefix):
+            if '"' in str(p):
+                missing.append("%s holds a double quote, which Loom's console cannot take in a path" % p)
         for p in (prefix / "bin" / ("loom-host" + EXE), prefix / "lib" / "loom" / ("loom-runs" + LIB),
                   prefix / "lib" / "loom" / "python" / "loom_session"):
             if not p.exists():
@@ -301,7 +304,9 @@ def launch(args, source, root):
                       for s in ("Tools", "ToolDescription", "Run", "RunList", "Directive")]
         approvals += ["authority allow runs loom.link.%s v1 -> role loom.link.workshop" % s
                       for s in ("Ask", "StatusRequested")]
-        approvals += ["start vocab %s" % vocab, "start runs %s loom.runs" % runs]
+        # QUOTED, as the console keeps a quoted word whole: a package a stranger puts under a folder
+        # with a space in its name is otherwise read only up to that space.
+        approvals += ['start vocab "%s"' % vocab, 'start runs "%s" loom.runs' % runs]
         host = spawn("host", [prefix / "bin" / ("loom-host" + EXE), "--serve", sdir], sdir, sdir / "process.log", approvals)
 
         def admitted():
