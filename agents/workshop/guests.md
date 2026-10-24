@@ -311,10 +311,10 @@ picture never acts on the row's next occupant"
 `tests/test_graphics.cpp` "a participant's press the input office injects lands in the window as
 that hand's: its owner and its arranger hear the hand, its release ends its own hold, the weaver's
 press beside it holds its own, and a moment the platform gave or another office said is not taken"
-"what a key types goes with the key and its release from the window to the owner of each area placed
-to hear keys, and to no other, each naming that area and the weaver's own hand; an owner that takes
-no text or release refuses it on the bus" "keys, their text and their releases go from the OS window
-to the owner of each area placed to hear them, and to no other, each naming that area and the
+"a key, its release and the text it types go from the window to the owner of each area placed to
+hear that moment, and to no other, each naming that area and the weaver's own hand; an owner placed
+for keys alone is given nothing else, and nothing is refused" "keys, their text and their releases
+go from the OS window to the owner of each area placed to hear them, and to no other, each naming that area and the
 weaver's own hand" "an area placed for the weaver's hand alone refuses a participant's press and
 wheel, its arranger told, drops the moves and the release after, and takes the weaver's own"
 `tests/test_workshop_editor_transfers.cpp` "on a weaver's host a guest's wheel and value drop toward

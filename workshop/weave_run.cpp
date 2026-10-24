@@ -96,7 +96,8 @@ bool same_place(const graphics::AreaPlaced& a, const graphics::AreaPlaced& b) {
     return a.area == b.area && a.window == b.window && a.owner == b.owner && a.x == b.x &&
            a.y == b.y && a.w == b.w && a.h == b.h && a.order == b.order && a.keys == b.keys &&
            a.pointer == b.pointer && a.weaver_only == b.weaver_only && a.wheel == b.wheel &&
-           a.right == b.right && a.followed == b.followed;
+           a.right == b.right && a.followed == b.followed && a.releases == b.releases &&
+           a.text == b.text;
 }
 
 } // namespace
@@ -225,6 +226,8 @@ void WorkshopWeave::arrange_graphics(loom::Mail& mail) {
         kWorkshopProvider, window_name_, kWorkshopProvider, 0, 0, sc.w, sc.h,
         desk_in_front_of_panes() ? panes_order + 1 : 0, true, true, false,
         desk_in_front(session_) || carried_.data.empty(), !menu_alone};
+    next[kWorkshopProvider].releases = true; // a shift tapped alone is read at its release
+    next[kWorkshopProvider].text = true;
     skins[kWorkshopProvider] = session_.skin;
     const PixelRect menu = presented_area_place(session_, sc);
     const bool menu_placed = session_.presented.open && !menu.empty();

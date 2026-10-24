@@ -44,8 +44,8 @@ struct Presented {
 };
 
 /// One area as its window keeps it: where the directory placed it, who draws in it and who placed
-/// it, whose hands reach it, whether the wheel stops there and its arranger follows it, which skin
-/// paints it, and what was drawn there.
+/// it, which of its key moments and whose hands reach it, whether the wheel stops there and its
+/// arranger follows it, which skin paints it, and what was drawn there.
 struct WinArea {
     std::string area;
     std::string owner;
@@ -57,6 +57,8 @@ struct WinArea {
     bool wheel = true;
     bool right = true;
     bool followed = false;
+    bool releases = false;
+    bool text = false;
     std::string skin;
     std::string library;
     std::int64_t next_rank = 1;
@@ -65,10 +67,10 @@ struct WinArea {
     std::vector<Presented> presented;
     /// The owner's number for the drawing it last sent (`Drawn::number`).
     std::int64_t drawing = 0;
-    ZEN_SHAPE(WinArea, 8, ZEN_FIELD(area), ZEN_FIELD(owner), ZEN_FIELD(arranger), ZEN_FIELD(x),
+    ZEN_SHAPE(WinArea, 9, ZEN_FIELD(area), ZEN_FIELD(owner), ZEN_FIELD(arranger), ZEN_FIELD(x),
               ZEN_FIELD(y), ZEN_FIELD(w), ZEN_FIELD(h), ZEN_FIELD(order), ZEN_FIELD(keys),
               ZEN_FIELD(pointer), ZEN_FIELD(weaver_only), ZEN_FIELD(wheel), ZEN_FIELD(right),
-              ZEN_FIELD(followed), ZEN_FIELD(skin),
+              ZEN_FIELD(followed), ZEN_FIELD(releases), ZEN_FIELD(text), ZEN_FIELD(skin),
               ZEN_FIELD(library),
               ZEN_FIELD(next_rank), ZEN_FIELD(nodes), ZEN_FIELD(records), ZEN_FIELD(presented),
               ZEN_FIELD(drawing));

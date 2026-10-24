@@ -221,8 +221,10 @@ private:
         const std::int64_t line = window_.text_line_px > 0 ? window_.text_line_px : gfx::kCellPx;
         std::vector<std::string> areas;
         for (const Placed& v : views_) {
-            to_directory(gfx::AreaPlaced{v.area, window_.window, v.view, v.x, v.y, v.w,
-                                         v.h + v.notice_rows * line, 1, true, true});
+            gfx::AreaPlaced view{v.area, window_.window, v.view, v.x, v.y, v.w,
+                                 v.h + v.notice_rows * line, 1, true, true};
+            view.text = true; // a view takes a key and its text, and no release
+            to_directory(view);
             areas.push_back(v.area);
         }
         to_directory(gfx::AreaPlaced{kStatusArea, window_.window, app::kAppRole, 0,

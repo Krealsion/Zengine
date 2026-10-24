@@ -47,21 +47,21 @@ from the window's own office, and `RoomAsked` only from the area's owner.
 
 ### `AreaPlaced`
 
-`AreaPlaced` v6 says where an area stands, in which window, and who draws in it.
+`AreaPlaced` v7 says where an area stands, in which window, and who draws in it.
 
 - **Takes:** `area`, the area's name; `window`, the window's name (`terminal`); `owner`, the
   office that draws in it; `x`, `y`, `w`, `h`, its place and size in the window's pixels; `order`,
-  its place among the window's areas, a higher order in front; `keys`, true for the window to give
-  the owner its keys and their text; `pointer`, true for the window to give the owner every
-  pointer moment in the area, the area holding every point inside it (else only a press on a part
-  naming an action reaches the owner, as that action); `weaver_only`, true for the window to land
-  no injected hand there, only the weaver's own; `wheel` and `right`, false for an area hearing the
-  pointer to let the wheel and the third button through to the area behind it; `followed`, true for
-  the arranger to follow the area. The office the placing is authored as is kept as the area's
-  arranger; following an area, it is told where presses land there while another office owns it,
-  that a hold there ended or the pointer left, and each time what it shows settled. An arranger
-  that takes none of these places its areas without `followed`. A placing spoken personally names
-  no arranger.
+  its place among the window's areas, a higher order in front; `keys`, `releases` and `text`, true
+  for the window to give the owner each key, its release and the text it types, as the owner takes
+  them; `pointer`, true for the window to give the owner every pointer moment in the area, the area
+  holding every point inside it (else only a press on a part naming an action reaches the owner, as
+  that action); `weaver_only`, true for the window to land no injected hand there, only the
+  weaver's own; `wheel` and `right`, false for an area hearing the pointer to let the wheel and the
+  third button through to the area behind it; `followed`, true for the arranger to follow the
+  area. The office the placing is authored as is kept as the area's arranger; following an area,
+  it is told where presses land there while another office owns it, that a hold there ended or the
+  pointer left, and each time what it shows settled. An arranger that takes none of these places
+  its areas without `followed`. A placing spoken personally names no arranger.
 - **Answers:** nothing to the sender. Once the window has offered itself and the area's chosen
   skin is offered, `AreaIntroduced` goes to the window's office, and the window tells the owner its
   room. An area already placed in another window is first withdrawn from it (`AreaWithdrawn`). An
@@ -134,9 +134,9 @@ office is ignored.
 
 The directory publishes `GraphicsReady` v1 as `zengine.graphics` each time it starts: everyone
 offers, places and chooses again. Everything else it says goes to one window's office alone:
-`AreaIntroduced` v7 (an area, its owner, its arranger, place, order, keys, pointer, whether it is
-the weaver's hand's alone, the wheel and third button it hears, whether its arranger follows it,
-skin and the skin's library),
+`AreaIntroduced` v8 (an area, its owner, its arranger, place, order, the key moments and pointer it
+hears, whether it is the weaver's hand's alone, the wheel and third button it hears, whether its
+arranger follows it, skin and the skin's library),
 `AreaWithdrawn` v1 (an area no longer that window's) and `ElementCodeOffered` v1. It never
 answers its senders; an owner learns its area is shown when its window tells it its room.
 

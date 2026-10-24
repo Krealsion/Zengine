@@ -52,7 +52,7 @@ drawing weave ([the Graphics package](graphics.md#a-drawing-weave)), which draw 
 window, incarnation, size or measure, or an empty area. To read what it shows, ask
 [`WindowShowAsked`](#windowshowasked), or, as an area's arranger, [`AreaShowAsked`](#areashowasked).
 
-Keys go to each owner placed to hear them: each key, its text and its release. An owner placed to
+A key, its text and its release go to each owner placed to hear that moment. An owner placed to
 hear the pointer is given each pointer moment in its area as it was, in the area's pixels
 (`AreaButtonChanged`, `AreaPointerMoved`, `AreaWheelTurned`); moves read in one beat go as one. A
 press holds its button for its area until its release, under one number; its arranger hears where it
@@ -246,9 +246,9 @@ judged against the displays there are now.
 
 ### `AreaIntroduced`
 
-`AreaIntroduced` v7, from the directory: an area, its owner, its arranger, place, order, keys,
-pointer, skin, `weaver_only` and `followed`. The window keeps it, paints it again where another skin or
-library paints it, draws its picture again where it moved, empties it when another owner draws in
+`AreaIntroduced` v8, from the directory: an area, its owner, its arranger, place, order, the key
+moments and pointer it hears, skin, `weaver_only` and `followed`. The window keeps it, repaints it
+under another skin or library, redraws it where it moved, empties it when another owner draws in
 it, ends a press held for it or now covered by it, and tells the owner its room (`AreaRoom`). Past
 `kMaxAreas` it is not shown, and `WindowShown` reports `the window shows <bound> areas: '<area>'
 is not shown`.
@@ -307,8 +307,8 @@ face's measure; the directory keeps it. It publishes `SurfacePlacement` v1 when 
 before `WindowOffered` when both did; and `SurfaceCloseRequested` v1 for each close asked. To an
 area's owner: `AreaRoom` v4 (with its face); `DrawnRefused` v1; `ActionRequested` v1;
 `AreaButtonChanged` v3, `AreaPointerMoved`, `AreaWheelTurned` v2, `AreaHoldEnded`, `AreaPointerLeft`
-v1 when placed to hear the pointer; `AreaKeyPressed`, `AreaKeyReleased`, `AreaTextEntered` v1 when
-placed to hear keys. To an arranger following an area not its own: `AreaPressed` v3,
+v1 when placed to hear the pointer; `AreaKeyPressed`, `AreaKeyReleased`, `AreaTextEntered` v1 as
+placed to hear each. To an arranger following an area not its own: `AreaPressed` v3,
 `AreaHoldEnded`, `AreaPointerLeft` v1; following one, `AreaSettled` v1; to any arranger,
 `AreaHandRefused`. To an asker: `WindowShown`, `AreaShown`, `ClipboardText`, `SurfaceCaptured`,
 `SurfaceCaptureChunk` v1 and `zen.Refused`. To the Timer, its beat's order.
