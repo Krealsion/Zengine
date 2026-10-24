@@ -283,10 +283,8 @@ class Setup:
         return path.exists() and contents(path) == loaded
 
     def load_plan(self, tui):
-        """The shipped plan this setup's Workshop loads in the terminal (`tui`) or in a window: a
-        Skin's where the setup's medium names one (`skin`), else a window's."""
-        if (self.data.get("medium") or {}).get("skin"):
-            return "skin-load-plan.json" if tui else "sdl-skin-load-plan.json"
+        """The shipped plan this setup's Workshop loads: the terminal window's (`tui`) or the OS
+        window's."""
         return "default-load-plan.json" if tui else "graphical-load-plan.json"
 
     # ---- validation -------------------------------------------------------------------------------
@@ -306,8 +304,8 @@ class Setup:
         view = medium.get("viewport")
         if not (isinstance(view, list) and len(view) == 2 and all(isinstance(v, int) for v in view)):
             out.append("medium.viewport is [columns, rows]")
-        if not isinstance(medium.get("skin", False), bool):
-            out.append("medium.skin is true or false")
+        if "skin" in medium:
+            out.append("medium.skin is retired: a setup's desk is shown in a window; drop the field")
         may = (d.get("authority") or {}).get("may", [])
         unknown = [p for p in may if p not in POWERS]
         if unknown:
@@ -383,8 +381,7 @@ class Setup:
         if d.get("prepares"):
             lines += ["Prepares:"] + ["  - " + p for p in d["prepares"]]
         medium = d["medium"]
-        lines.append("Media:       %s at %dx%d cells%s" % (", ".join(medium["supports"]), *medium["viewport"],
-                     ", in a Skin" if medium.get("skin") else ""))
+        lines.append("Media:       %s at %dx%d cells" % (", ".join(medium["supports"]), *medium["viewport"]))
         requires = d.get("requires") or {}
         needs = ["a built Zengine (--build) and an installed Loom (--loom-prefix)" +
                  ("" if (d.get("project") or {}).get("runtime") == "development"

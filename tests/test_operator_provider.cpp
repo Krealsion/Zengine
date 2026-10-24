@@ -1131,7 +1131,7 @@ TEST_CASE("the production host mounts providers, and does it before it offers or
     // ---- NO ARTIFACT STEM APPEARS IN THIS FILE AT ALL ---------------------------
     // A load list names what runs, so the host knows none of it -- no stem, and neither verb
     // that could turn one into a running thing. A ROLE is deliberately not on the list:
-    // `surface::kSkinRole` and `timer::kTimerRole` appear in `workshop.cpp` inside GRANTS, which
+    // `timer::kTimerRole` appears in `workshop.cpp` inside GRANTS, which
     // say who may be spoken to and are the host's to make. A role cannot become a load; only a
     // stem can.
     for (const char* forbidden : {"zengine-operators-basic", "zengine-timer", "zengine-input",

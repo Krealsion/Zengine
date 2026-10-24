@@ -473,7 +473,7 @@ TEST_CASE("a copy to + is heard, and a paste Neovim asks for is answered late an
     nv::Observed asked;
     REQUIRE(host.input("\"+P"));
     REQUIRE(until(host, [&asked] { return !asked.paste_requests.empty(); }, 10000, &asked));
-    // THE ANSWER COMES LATER, as the Skin's does: nothing is waited on meanwhile.
+    // THE ANSWER COMES LATER, as a window's does: nothing is waited on meanwhile.
     for (int i = 0; i < 5; ++i) {
         (void)host.pump();
         (void)host.wait(20);

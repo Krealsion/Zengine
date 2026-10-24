@@ -209,7 +209,7 @@ private:
         window_.draw(sketch, mail);
     }
 
-    ws::WindowDrawing window_{kOffice, kOffice}; // not state: a reload is told its room afresh
+    ws::WindowDrawing window_{kOffice, ws::pane_area(kOffice, kPane)}; // told its room afresh
     bool asked_ = false;
     zengine::ActivationCursor activation_;
 };

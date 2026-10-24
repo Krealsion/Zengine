@@ -4,7 +4,7 @@
 // The Workshop screen suite: composition and geometry -- what is painted where, and what a hand
 // can reach, asserted as one canvas value. The geometry claims are integration claims: these prove
 // that a pane's painted rectangle and the cells a press meets it on both derive from one placement,
-// `bounds_of`. A Skin carrying the canvas to a human's eyes is the Surface suite's;
+// `bounds_of`. A window carrying the desk to a human's eyes is the graphics suite's;
 // `doctest_main.cpp` refuses a run selecting no case.
 
 #include "workshop_support.hpp"
@@ -174,8 +174,8 @@ Sweep sweep_canvas(const Panes& panes, const Screen& sc) {
 
 } // namespace
 
-// ---- tier 7: the surface's own extent ----------------------------------------------------
-// A canvas publisher learns how much room its medium has from the Surface package; below is
+// ---- tier 7: the medium's own extent -----------------------------------------------------
+// A canvas publisher learns how much room its medium has from the window that shows it; below is
 // what a Workshop makes of the answer: where the extra columns and rows go, what a weaver's
 // authored work does while they arrive, and what a pane does with the room.
 
@@ -514,7 +514,7 @@ TEST_CASE("a closed pane occupies nothing, and neither does a screen with none o
 }
 
 TEST_CASE("the window's pixels meet the same pane the terminal's cells do") {
-    // THE OTHER MEDIUM, through the graphical Skin's own projection. Occupancy is
+    // THE OTHER MEDIUM, through the OS window's own projection. Occupancy is
     // asked in CANVAS cells, so both media arrive at the same question -- and the
     // case is worth having because the two report different numbers for one place,
     // which is exactly where a second geometry would hide.
@@ -879,9 +879,9 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKin
         REQUIRE(t.session().pane_drag.active);
         REQUIRE(t.session().pane_drag.sizing);
         CHECK(t.session().pane_drag.base_w == where.resolved.w);
-        t.publish(loom::to_value(input::PointerMoved{
+        t.hand_moment(input::PointerMoved{
             vis.x + vis.w, vis.y + vis.h - 1, 0, 0,
-            input::space::kCells, input::mod::kNone}));
+            input::space::kCells, input::mod::kNone});
         t.release(0, 0);
         const SetupPane* pulled = pane_of(t.session().setup.active, builder);
         REQUIRE(pulled != nullptr);
@@ -931,9 +931,9 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKin
         REQUIRE(t.session().pane_drag.sizing);
         REQUIRE(t.session().pane_drag.edge == pane_edge::kBottom);
         CHECK(t.session().pane_drag.base_h == where.resolved.h);
-        t.publish(loom::to_value(input::PointerMoved{cx, cy + 1, 0,
+        t.hand_moment(input::PointerMoved{cx, cy + 1, 0,
                                                      0, input::space::kCells,
-                                                     input::mod::kNone}));
+                                                     input::mod::kNone});
         t.release(0, 0);
         const SetupPane* pulled = pane_of(t.session().setup.active, builder);
         REQUIRE(pulled != nullptr);
@@ -973,10 +973,10 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKin
 
         // ONE CELL OUT AND A WHOLE HEIGHT UP: a width of ninety, which is legal and changed,
         // beside a height of zero, which is not a size at all.
-        t.publish(loom::to_value(input::PointerMoved{
+        t.hand_moment(input::PointerMoved{
             vis_cells.x + vis_cells.w,
             vis_cells.y + vis_cells.h - 1 - (where.resolved.h / gfx::kCellPx),
-            0, 0, input::space::kCells, input::mod::kNone}));
+            0, 0, input::space::kCells, input::mod::kNone});
 
         // THE LEGAL AXIS LANDED AND THE ILLEGAL ONE HELD: the width is authored one cell
         // out, the height keeps its default mode untouched, and the place — a trailing
@@ -1070,9 +1070,9 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKin
 
     // THE TARGET LEAVES THE SETUP UNDER THE HAND.
     REQUIRE(remove_pane(live(t).setup.active, builder));
-    t.publish(loom::to_value(input::PointerMoved{rect.x + 4,
+    t.hand_moment(input::PointerMoved{rect.x + 4,
                                                  rect.y + 4, 0, 0,
-                                                 input::space::kCells, input::mod::kNone}));
+                                                 input::space::kCells, input::mod::kNone});
     CHECK_FALSE(t.session().pane_drag.active);
     // MEMBERSHIP IS THE LAW: the pane is not in the setup, so nothing addresses it -- and the
     // DESK stays open, because its subject is the desk.
@@ -1323,7 +1323,7 @@ TEST_CASE("every projection fits the room it was given, over the whole domain") 
                         REQUIRE(byte < 0x7Fu);
                     }
                     // A blank separator is `role::kFill`, never `role::kNone` -- that
-                    // value is the absence of a BACKGROUND and is not a Skin ink.
+                    // value is the absence of a BACKGROUND and is not a window's ink.
                     REQUIRE(r.role != gfx::role::kNone);
                 }
             }
@@ -1587,7 +1587,7 @@ TEST_CASE("adding this tool widens nothing -- it says three shapes and no more")
     // a grant is per (shape, version, target), and none of these was ever spoken.
     for (const char* forbidden : {"zen.LoadWeave", "zen.SwapWeave", "zen.ReloadWeave",
                                   "zen.UnloadLibrary", "zen.UnloadRole", "zen.LoadLibrary",
-                                  "SurfaceCanvas", "BuildRequested"}) {
+                                  "BuildRequested"}) {
         CHECK(std::find(said.begin(), said.end(), std::string(forbidden)) == said.end());
     }
 }
@@ -1858,20 +1858,19 @@ namespace {
 /// A Live Workshop on a graphical medium: a real text metric, so pointer events arrive
 /// in window pixels and the fine lattice is reachable at its pixel grain.
 struct FineRig : Live {
-    /// `prefs`, when named: a settings file this Workshop reads as its surface comes up.
+    /// `prefs`, when named: a settings file this Workshop reads as its desk starts.
     explicit FineRig(const std::string& prefs = std::string()) {
         if (!prefs.empty()) {
             host.prefs_path = prefs;
-            publish(loom::to_value(surface::SurfaceReady{}));
         }
-        publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(44), 8, 18}));
+        extent_on_window(160, 44);
         open_pane(*this, ref_of(stock::kKind));
         enter_arrange_desk(*this);
         select_pane(*this, ref_of(stock::kKind));
     }
 
     void motion_at(std::int64_t x, std::int64_t y, std::int64_t space) {
-        publish(loom::to_value(input::PointerMoved{x, y, 0, 0, space, input::mod::kNone}));
+        hand_moment(input::PointerMoved{x, y, 0, 0, space, input::mod::kNone});
     }
 
     const SetupPane* builder_row() {
@@ -1890,12 +1889,12 @@ struct FineRig : Live {
 
 /// A MOTION WITH MODIFIERS HELD, as a backend reports Alt during a drag.
 void motion_with(Live& t, std::int64_t x, std::int64_t y, std::int64_t space, std::int64_t mods) {
-    t.publish(loom::to_value(input::PointerMoved{x, y, 0, 0, space, mods}));
+    t.hand_moment(input::PointerMoved{x, y, 0, 0, space, mods});
 }
 
 /// The primary button let go at a raw position.
 void release_at(Live& t, std::int64_t x, std::int64_t y, std::int64_t space) {
-    t.publish(loom::to_value(input::PointerButton{1, false, x, y, space, input::mod::kNone}));
+    t.hand_moment(input::PointerButton{1, false, x, y, space, input::mod::kNone});
 }
 
 /// THE LINES A HELD SNAP MARKED ON THE LATEST PICTURE, in the room: accent rectangles one device
@@ -2149,8 +2148,7 @@ TEST_CASE("the arrow keys and a typed value place exactly, near an edge or not")
     // ⚔ MUTATION: the keys or a typed value snapped -- eight would come to the room's edge at
     // zero, five likewise.
     Live t;
-    t.publish(loom::to_value(surface::SurfaceExtent{cells_px(160), cells_px(44), 8, 18,
-                                                    gfx::kCellPx}));
+    t.extent_on_window(160, 44);
     open_pane(t, ref_of(stock::kKind));
     REQUIRE(author_pane_place(live(t).setup.active, ref_of(stock::kKind), 20, 100).accepted);
     enter_arrange_desk(t);
@@ -2705,12 +2703,12 @@ TEST_CASE("the hand meets exactly the pixels and cells a pane paints") {
     const Screen sc = screen_of(t.session());
     const Occupancy on = occupied_at(
         t.session().panes, t.session().setup.active, sc,
-        canvas_point_of(input::space::kPixels, left_px, mid_y, sc.rows_above));
+        canvas_point_of(input::space::kPixels, left_px, mid_y));
     CHECK(on.occupied);
     CHECK(on.kind == stock::kKind);
     const Occupancy off = occupied_at(
         t.session().panes, t.session().setup.active, sc,
-        canvas_point_of(input::space::kPixels, left_px - 1, mid_y, sc.rows_above));
+        canvas_point_of(input::space::kPixels, left_px - 1, mid_y));
     CHECK_FALSE(off.occupied);
 
     // AND THE RIGHT EDGE, half-open exactly as painted: the last painted pixel answers,
@@ -2718,21 +2716,21 @@ TEST_CASE("the hand meets exactly the pixels and cells a pane paints") {
     const std::int64_t right_px = (gfx::add_cells(at.x, at.w));
     const Occupancy inside = occupied_at(
         t.session().panes, t.session().setup.active, sc,
-        canvas_point_of(input::space::kPixels, right_px - 1, mid_y, sc.rows_above));
+        canvas_point_of(input::space::kPixels, right_px - 1, mid_y));
     CHECK(inside.occupied);
     const Occupancy past = occupied_at(
         t.session().panes, t.session().setup.active, sc,
-        canvas_point_of(input::space::kPixels, right_px, mid_y, sc.rows_above));
+        canvas_point_of(input::space::kPixels, right_px, mid_y));
     CHECK_FALSE(past.occupied);
 
     // A TERMINAL'S HAND: cell 6 holds the pane's first painted cell and answers; cell 5 is
     // before it and does not.
     const std::int64_t mid_row = gfx::cell_of_pixel(mid_y);
     CHECK(occupied_at(t.session().panes, t.session().setup.active, sc,
-                      canvas_point_of(input::space::kCells, 6, mid_row, sc.rows_above))
+                      canvas_point_of(input::space::kCells, 6, mid_row))
               .kind == stock::kKind);
     CHECK_FALSE(occupied_at(t.session().panes, t.session().setup.active, sc,
-                            canvas_point_of(input::space::kCells, 5, mid_row, sc.rows_above))
+                            canvas_point_of(input::space::kCells, 5, mid_row))
                     .occupied);
 }
 
@@ -2783,7 +2781,7 @@ TEST_CASE("the TUI projects a pane onto its covered cells and rewrites nothing")
     // and the authored bytes and the picture are identical. The TUI quantizes at ITS
     // boundary and writes nothing back.
     const ScreenCanvas again = paint(t.session());
-    CHECK(surface::canvas_body(c) == surface::canvas_body(again));
+    CHECK(rasterized(c) == rasterized(again));
     CHECK(setup_persist::to_text(t.session().setup.active) == authored_before);
 
     // AND EXACT-CELL VALUES STAY EXACT: reauthor on the boundary and the covered cells are the
@@ -3123,8 +3121,8 @@ TEST_CASE("one authored value, spelled in whatever unit the active face reported
 }
 
 TEST_CASE("the canvas's device unit is the medium's answer, never Workshop's") {
-    // `surface/pointing.hpp` forbids an application to HOLD one Skin's layout number: it
-    // is correct only for as long as there is one medium. So this number is only ever the
+    // An application HOLDS no medium's layout number: one is correct only for as long as there
+    // is one medium. So this number is only ever the
     // one a medium reported, it arrives on the same message the room and the face metric
     // do, and a run nobody has spoken to reads as the character medium it has always been.
     Session s;
@@ -3154,7 +3152,7 @@ TEST_CASE("the canvas's device unit is the medium's answer, never Workshop's") {
 
     // THE FACE METRIC AND THE CANVAS UNIT ARE DIFFERENT FACTS. A window whose font failed
     // to open sets no type and still lays its canvas out in pixels; reading the metric as
-    // "am I graphical" is the near-miss agents/surface.md names.
+    // "am I graphical" is a near miss: the device unit is a fact of its own.
     REQUIRE(adopt_screen(s, cells_px(100), cells_px(33), 0, 0, gfx::kCellPx));
     CHECK(s.text_advance_px == 0);
     CHECK(s.cell_px == gfx::kCellPx);
@@ -3707,7 +3705,8 @@ TEST_CASE("the selected pane wears its own chrome, and only it") {
     CHECK(kPaneChromeSelected != kPaneChrome); // the two roles are two roles
 
     // A PRESS ON NOBODY'S PANE CLEARS IT, by the same one line that set it.
-    t.press_canvas(kRoomCellX + 1, kRoomCellY + screen_of(t.session()).room_h - 1);
+    t.press_canvas(kRoomCellX + 1,
+                   kRoomCellY + gfx::cell_of_pixel(screen_of(t.session()).room_h) - 1);
     CHECK(t.session().panes.selected == kNoPaneKind);
     CHECK(chrome_of(stock::kKind) == kPaneChrome);
 }
@@ -4084,8 +4083,7 @@ TEST_CASE("selected and ordinary differ in INK, and in nothing else") {
     // is the one thing a selection must never do. The picture is compared field by field:
     // same backdrop rectangle, same published region, different ROLE.
     Live t;
-    t.publish(loom::to_value(
-        surface::SurfaceExtent{cells_px(160), cells_px(60), 8, 18, gfx::kCellPx}));
+    t.extent_on_window(160, 60);
     open_pane(t, ref_of(stock::kKind));
     const Screen sc = screen_of(t.session());
     REQUIRE(sc.cell_px == gfx::kCellPx);
@@ -5036,7 +5034,7 @@ TEST_CASE("a press answers a painted tab and nothing else on the band") {
 
     const auto press = [&](std::int64_t column, std::int64_t band_row) {
         return band_tab_at(s, sc, input::space::kCells,
-                           b.x + column, b.y + band_row + surface::kTuiCanvasTopRow);
+                           b.x + column, b.y + band_row);
     };
 
     // EVERY CELL OF EVERY PAINTED TAB ANSWERS THAT TAB -- the span the composition wrote,
@@ -5077,7 +5075,7 @@ TEST_CASE("a press answers a painted tab and nothing else on the band") {
     naming.setup.naming.open = true;
     CHECK(band_tab_row(naming, sc) == kNoBandRow);
     CHECK_FALSE(band_tab_at(naming, sc, input::space::kCells,
-                            b.x + row.tabs[1].column, b.y + surface::kTuiCanvasTopRow)
+                            b.x + row.tabs[1].column, b.y)
                     .hit);
 }
 
@@ -5109,7 +5107,7 @@ TEST_CASE("an omitted tab has no span and cannot be pressed") {
     for (std::int64_t c = 0; c < cells_of(sc).w; ++c) {
         const LayoutTabPress hit =
             band_tab_at(s, sc, input::space::kCells, b.x + c,
-                        b.y + surface::kTuiCanvasTopRow);
+                        b.y);
         if (hit.hit) {
             CAPTURE(c);
             CHECK(hit.at < layout_count(s.setup) - row.after);
@@ -5386,7 +5384,7 @@ TEST_CASE("the closing marker belongs to the layout it closes") {
     const ui::Rect b = cells_covered(top_band_bounds(sc));
     const auto press = [&](std::int64_t column) {
         return band_tab_at(s, sc, input::space::kCells, b.x + column,
-                           b.y + surface::kTuiCanvasTopRow);
+                           b.y);
     };
     const std::int64_t opens = row.tabs[1].column;
     const std::int64_t closes = row.tabs[1].column + row.tabs[1].columns - 1;
@@ -5444,7 +5442,7 @@ TEST_CASE("no press outside the painted run reaches a layout") {
         for (std::int64_t x = 0; x < cells_of(sc).w; ++x) {
             const LayoutTabPress hit =
                 band_tab_at(s, sc, input::space::kCells, x,
-                            y + surface::kTuiCanvasTopRow);
+                            y);
             if (!hit.hit) {
                 continue;
             }
@@ -6005,3 +6003,235 @@ TEST_CASE("`workshop.focus.ring` plain marks the selection in the chrome's ink, 
         CHECK(side.role == kPaneChrome);
     }
 }
+
+// ---- A REGION'S FIT (workshop/pane_text_fit.hpp) -----------------------------------------------
+// How many rows and columns of a measure a rectangle holds, read both ways, where a press lands in
+// its prose, and the span a selection covers on a row: the one fitting Workshop's screen and every
+// pane set their rows by.
+namespace region_fitting {
+
+using zengine::graphics::kCellPx;
+
+TEST_CASE("region: with no text metric a region is exactly its own cells") {
+    // THE HINGE OF A REGION'S HONESTY. A window that measures no face has said "text is a
+    // cell", and this is what that resolves to: the region's own bounds, no inset, no pixel
+    // arithmetic anybody has to trust. The terminal window lives here, and so does the OS window
+    // before its face opens and after a face has failed to open.
+    const RegionFit f = fit_region(cells_px(3), cells_px(4), cells_px(20), cells_px(6), 0, 0);
+    CHECK(f.columns == 20);
+    CHECK(f.rows == 6);
+    CHECK(f.origin_x == 0);
+    CHECK(f.origin_y == 0);
+    CHECK_FALSE(f.graphical());
+    CHECK(f.view == RegionViewport{3 * kCellPx, 4 * kCellPx, 20 * kCellPx,
+                                   6 * kCellPx});
+
+    // A metric is two numbers or it is none: half an answer describes half a line
+    // of text, so either missing half means cells.
+    CHECK_FALSE(fit_region(0, 0, cells_px(20), cells_px(6), 8, 0).graphical());
+    CHECK_FALSE(fit_region(0, 0, cells_px(20), cells_px(6), 0, 18).graphical());
+    CHECK(fit_region(0, 0, cells_px(20), cells_px(6), 8, 0).columns == 20);
+    CHECK(fit_region(0, 0, cells_px(20), cells_px(6), 0, 18).rows == 6);
+
+    // A negative advance is not a size. It is a number off the wire, and it means
+    // the same thing zero does rather than meaning an error.
+    CHECK_FALSE(fit_region(0, 0, cells_px(20), cells_px(6), -8, -18).graphical());
+    CHECK(fit_region(0, 0, cells_px(20), cells_px(6), -8, -18).columns == 20);
+}
+
+TEST_CASE("region: a real metric divides the region's pixels, inset and all") {
+    // The minimum Terminal pane, at the shipped face: 56x13 cells is 672x156 device pixels, and
+    // an 8px advance with an 18px line divides what is left after the inset comes off BOTH sides.
+    const RegionFit f = fit_region(cells_px(22), cells_px(9), cells_px(56), cells_px(13), 8, 18);
+    REQUIRE(f.graphical());
+    CHECK(f.view == RegionViewport{22 * 12, 9 * 12, 672, 156});
+    CHECK(f.origin_x == kTextInsetPx);
+    CHECK(f.origin_y == kTextInsetPx);
+    CHECK(f.columns == (672 - 2 * kTextInsetPx) / 8);
+    CHECK(f.rows == (156 - 2 * kTextInsetPx) / 18);
+    CHECK(f.advance_px == 8);
+    CHECK(f.line_px == 18);
+
+    // THE INSET IS IN THE CAPACITY, WHICH IS THE WHOLE POINT OF IT LIVING HERE.
+    // Padding a renderer consumed privately would leave a publisher wrapping
+    // against 84 columns and a medium drawing 83 of them, and the difference
+    // would appear as the last character of every long row falling off the edge.
+    CHECK(f.columns == 83);
+    CHECK(f.columns < 672 / 8);
+}
+
+TEST_CASE("region: a metric off the wire cannot make the arithmetic misbehave") {
+    constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
+    constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
+
+    // A LINE TALLER THAN THE REGION, OR A CHARACTER WIDER THAN IT, IS A CELL REGION. Zero,
+    // "nothing fits", was reachable in a running application: a region ONE CELL TALL holds
+    // (12 - 2*inset) / 18 = no rows of this repository's own face (the Inspector's editable
+    // row), and a fit with no rows draws nothing. So the fit falls back to what a zero metric
+    // already means: text is a cell here.
+    for (const RegionFit& f : {fit_region(0, 0, cells_px(4), cells_px(2), 8, 4000),
+                              fit_region(0, 0, cells_px(4), cells_px(2), 4000, 18),
+                              fit_region(0, 0, cells_px(4), cells_px(2), kMax, kMax)}) {
+        CHECK_FALSE(f.graphical());   // this medium cannot set THIS region in its own type
+        CHECK(f.advance_px == 0);     // ...and says so in the same words a faceless one does
+        CHECK(f.line_px == 0);
+        CHECK(f.columns == 4);        // the region's own cell bounds, exactly
+        CHECK(f.rows == 2);
+        CHECK(f.origin_x == 0);       // no inset: a cell projection has none
+        CHECK(f.origin_y == 0);
+    }
+
+    // IT IS THE SAME ANSWER A ZERO METRIC GIVES, byte for byte, which is what makes the
+    // fallback a sentence this vocabulary already knows how to say rather than a fourth state.
+    CHECK(fit_region(0, 0, cells_px(4), cells_px(2), 8, 4000) == fit_region(0, 0, cells_px(4), cells_px(2), 0, 0));
+    CHECK(fit_region(0, 0, cells_px(1), cells_px(1), 8, 18) == fit_region(0, 0, cells_px(1), cells_px(1), 0, 0));
+
+    // A region with no bounds, or bounds off the number line: still an answer.
+    CHECK(fit_region(0, 0, cells_px(-5), cells_px(-5), 8, 18).columns == 0);
+    CHECK(fit_region(0, 0, cells_px(-5), cells_px(-5), 0, 0).columns == 0);
+    CHECK(fit_region(gfx::px_of_cells(kMax), gfx::px_of_cells(kMax), gfx::px_of_cells(kMax),
+                     gfx::px_of_cells(kMax), 8, 18)
+              .view.w > 0);
+    CHECK(fit_region(gfx::px_of_cells(kMin), gfx::px_of_cells(kMin), gfx::px_of_cells(kMin),
+                     gfx::px_of_cells(kMin), 8, 18)
+              .view.w == 0);
+
+    // A REGION BIG ENOUGH FOR ONE ROW OF TYPE STILL GETS IT, so the fallback is a floor and
+    // not a ceiling: two cells is 24 pixels, which holds this face's 18-pixel line.
+    const RegionFit two = fit_region(0, 0, cells_px(4), cells_px(2), 8, 18);
+    CHECK(two.graphical());
+    CHECK(two.rows == (2 * 12 - 2 * kTextInsetPx) / 18);
+    CHECK(two.rows == 1);
+    CHECK(two.columns == (4 * 12 - 2 * kTextInsetPx) / 8);
+
+    // The inset can be larger than the region itself, and a region so small that the inset
+    // eats it answers zero -- never a negative width.
+    CHECK(fit_region(0, 0, cells_px(1), cells_px(1), 8, 18).columns == 1); // one cell, as cells
+    CHECK(fit_region(0, 0, cells_px(1), cells_px(1), 8, 18).rows == 1);
+    CHECK(fit_region(0, 0, 0, 0, 8, 18).columns == 0);
+    CHECK(fit_region(0, 0, 0, 0, 8, 18).rows == 0);
+}
+
+TEST_CASE("pointing: a pixel inside a region lands on a prose column and row") {
+    // The same floored division `cell_of_pixel` performs, one step finer, and
+    // resolved with the fit the rows were DRAWN with rather than with a metric
+    // read separately.
+    const RegionFit fit = fit_region(cells_px(22), cells_px(9), cells_px(56), cells_px(13), 8, 18);
+    const std::int64_t x0 = 22 * kCellPx + kTextInsetPx;
+    const std::int64_t y0 = 9 * kCellPx + kTextInsetPx;
+
+    CHECK(prose_column_of_pixel(x0, fit) == 0);
+    CHECK(prose_column_of_pixel(x0 + 7, fit) == 0);
+    CHECK(prose_column_of_pixel(x0 + 8, fit) == 1);
+    CHECK(prose_row_of_pixel(y0, fit) == 0);
+    CHECK(prose_row_of_pixel(y0 + 17, fit) == 0);
+    CHECK(prose_row_of_pixel(y0 + 18, fit) == 1);
+
+    // FLOORED, so a pixel to the LEFT of the region's prose is column -1 and not
+    // column 0. Truncating division would put a press just outside the pane onto
+    // its first character.
+    CHECK(prose_column_of_pixel(x0 - 1, fit) == -1);
+    CHECK(prose_row_of_pixel(y0 - 1, fit) == -1);
+
+    // A PROJECTION, NOT A HIT TEST: past the region is an answer, not an error.
+    CHECK(prose_column_of_pixel(x0 + 8 * 500, fit) == 500);
+    CHECK(prose_column_of_pixel(x0 + 8 * 500, fit) > fit.columns);
+
+    // Under a cell-projection fit it degrades to the cell answer, which is the
+    // truthful one for a medium whose character IS a cell.
+    const RegionFit cells = fit_region(cells_px(22), cells_px(9), cells_px(56), cells_px(13), 0, 0);
+    CHECK(prose_column_of_pixel(22 * kCellPx + 5, cells) == 0);
+    CHECK(prose_column_of_pixel(23 * kCellPx, cells) == 1);
+    CHECK(prose_row_of_pixel(10 * kCellPx, cells) == 1);
+
+    // Total over the number line, both fits: these are wire values on both sides.
+    constexpr std::int64_t kMin = (std::numeric_limits<std::int64_t>::min)();
+    constexpr std::int64_t kMax = (std::numeric_limits<std::int64_t>::max)();
+    CHECK(prose_column_of_pixel(kMin, fit) < 0);
+    CHECK(prose_column_of_pixel(kMax, fit) > 0);
+    CHECK(prose_row_of_pixel(kMin, cells) < 0);
+    CHECK(prose_row_of_pixel(kMax, cells) > 0);
+}
+
+TEST_CASE("selection_span_of_row is one rule, total over garbage") {
+    ScreenRegion r;
+    r.sel_begin_row = 0;
+    r.sel_begin_col = 2;
+    r.sel_end_row = 2;
+    r.sel_end_col = 3;
+
+    // The three row kinds: begin row to its own end, middle rows whole, end row to the col.
+    CHECK(selection_span_of_row(r, 0, 6).begin == 2);
+    CHECK(selection_span_of_row(r, 0, 6).end == 6);
+    CHECK(selection_span_of_row(r, 1, 4).begin == 0);
+    CHECK(selection_span_of_row(r, 1, 4).end == 4);
+    CHECK(selection_span_of_row(r, 2, 6).begin == 0);
+    CHECK(selection_span_of_row(r, 2, 6).end == 3);
+    // Rows outside the range, and rows with no text, cover nothing.
+    CHECK_FALSE(selection_span_of_row(r, 3, 6).present());
+    CHECK_FALSE(selection_span_of_row(r, 1, 0).present());
+    // Clamped into the text that exists: a position past a short row covers what is there.
+    CHECK(selection_span_of_row(r, 2, 2).end == 2);
+    CHECK(selection_span_of_row(ScreenRegion{}, 0, 6).present() == false);
+
+    // GARBAGE IS THE ABSENCE, NEVER A GUESS: absent, reversed rows, reversed columns on one
+    // row, and an empty range all answer nothing for every row.
+    ScreenRegion bad;
+    bad.sel_begin_row = 2;
+    bad.sel_end_row = 0;
+    CHECK_FALSE(selection_span_of_row(bad, 1, 6).present());
+    bad.sel_begin_row = 1;
+    bad.sel_end_row = 1;
+    bad.sel_begin_col = 4;
+    bad.sel_end_col = 2;
+    CHECK_FALSE(selection_span_of_row(bad, 1, 6).present());
+    bad.sel_end_col = 4; // empty
+    CHECK_FALSE(selection_span_of_row(bad, 1, 6).present());
+    // ...and a begin column off the row's left is clamped, not refused.
+    ScreenRegion wide;
+    wide.sel_begin_row = 0;
+    wide.sel_begin_col = -3;
+    wide.sel_end_row = 0;
+    wide.sel_end_col = 2;
+    CHECK(selection_span_of_row(wide, 0, 6).begin == 0);
+    CHECK(selection_span_of_row(wide, 0, 6).end == 2);
+}
+
+TEST_CASE("region_px_for is fit_region read backwards, and minimal") {
+    // THE ONE MEASURER, BOTH DIRECTIONS: a publisher that wants a region sized to its
+    // content asks THIS function, so the inset, the division and the cell fallback stay
+    // one arithmetic. The property, swept over metrics a real medium reports and asks a
+    // real level makes: the answer satisfies the forward read, and one unit less on either
+    // axis -- a pixel where the medium sets type, a cell where text is a cell -- no longer does.
+    const std::int64_t metrics[][2] = {{8, 18}, {7, 15}, {9, 21}, {0, 0}};
+    for (const auto& m : metrics) {
+        const std::int64_t less = m[0] > 0 ? 1 : kCellPx;
+        for (std::int64_t columns = 1; columns <= 48; columns += 7) {
+            for (std::int64_t rows = 1; rows <= 20; rows += 3) {
+                CAPTURE(m[0]);
+                CAPTURE(columns);
+                CAPTURE(rows);
+                const RegionPixels px = region_px_for(columns, rows, m[0], m[1]);
+                const RegionFit forward = fit_region(0, 0, px.w, px.h, m[0], m[1]);
+                CHECK(forward.columns >= columns);
+                CHECK(forward.rows >= rows);
+                // MINIMAL WITHIN ITS OWN PROJECTION: one unit less no longer holds the ask. (A
+                // region that small may instead FALL BACK to the cell projection, a different
+                // honest presentation, not a smaller version of this one.)
+                const RegionFit less_w = fit_region(0, 0, px.w - less, px.h, m[0], m[1]);
+                if (less_w.graphical() == forward.graphical()) {
+                    CHECK(less_w.columns < columns);
+                }
+                const RegionFit less_h = fit_region(0, 0, px.w, px.h - less, m[0], m[1]);
+                if (less_h.graphical() == forward.graphical()) {
+                    CHECK(less_h.rows < rows);
+                }
+            }
+        }
+    }
+    // A NON-POSITIVE ASK IS AN EMPTY EXTENT, never a negative one.
+    CHECK(region_px_for(0, 5, 8, 18) == RegionPixels{});
+    CHECK(region_px_for(5, -1, 8, 18) == RegionPixels{});
+}
+
+} // namespace region_fitting

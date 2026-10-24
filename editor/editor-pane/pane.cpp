@@ -44,7 +44,6 @@
 #include "component/text_box.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
 
 #include "manuals/zengine.editor.hpp" // the Editor's manual, compiled in from its page
 
@@ -288,7 +287,7 @@ public:
         notice_.clear();
         e_.follow_caret = true;
         if (clip_.writes != copied_before) {
-            // A COPY IS SAID TO THE PROCESS ONCE: the Skin offers it to the platform's
+            // A COPY IS SAID TO THE PROCESS ONCE: the OS window offers it to the platform's
             // clipboard and every other text-holding participant mirrors it.
             mail.publish(graphics::ClipboardCopy{clip_.text});
         }
@@ -419,7 +418,7 @@ public:
         clip_.text = said.text;
     }
 
-    /// The Skin's answer to a paste this pane asked for (WL-EDIT-11, WL-TEXT-09). The correlation
+    /// The window's answer to a paste this pane asked for (WL-EDIT-11, WL-TEXT-09). The correlation
     /// says which ask, not that the document still stands where it asked: a replaced or closed
     /// document strands the payload silently, and one that moved gets a sentence instead of a
     /// paste. The outstanding paste is cleared the moment its authenticated answer is consumed,
@@ -1115,7 +1114,7 @@ private:
     std::int64_t held_ = 0;
 
     /// THE GRAPHICS WINDOW THAT SHOWS THE OFFICE'S AREA, and the rows drawn there. Not reload state.
-    office::EditorWindow window_{pane::kEditorPaneRole};
+    office::EditorWindow window_{pane::kEditorPaneRole, pane::kEditorPane};
 
     /// THE SWITCH HOLDING THIS EDITOR STILL, while one does (`Holding`).
     Holding holding_;

@@ -31,6 +31,49 @@
 #include <string_view>
 #include <vector>
 
+// The local constants in input/translate_sdl_core.hpp are SDL's, checked by the compiler against
+// the real headers here, where both spellings meet: the pure translator includes no SDL. SDL's
+// scancode space is the wire's, so a key is translated not at all, and a renumbered key stops
+// compiling here.
+namespace sdl_constants {
+namespace sdl = zengine::input::sdl;
+namespace scan = zengine::input::scan;
+static_assert(sdl::kEventQuit == SDL_EVENT_QUIT);
+static_assert(sdl::kEventWindowCloseRequested == SDL_EVENT_WINDOW_CLOSE_REQUESTED);
+static_assert(sdl::kEventKeyDown == SDL_EVENT_KEY_DOWN);
+static_assert(sdl::kEventKeyUp == SDL_EVENT_KEY_UP);
+static_assert(sdl::kEventTextEditing == SDL_EVENT_TEXT_EDITING);
+static_assert(sdl::kEventTextInput == SDL_EVENT_TEXT_INPUT);
+static_assert(sdl::kEventMouseMotion == SDL_EVENT_MOUSE_MOTION);
+static_assert(sdl::kEventMouseButtonDown == SDL_EVENT_MOUSE_BUTTON_DOWN);
+static_assert(sdl::kEventMouseButtonUp == SDL_EVENT_MOUSE_BUTTON_UP);
+static_assert(sdl::kEventMouseWheel == SDL_EVENT_MOUSE_WHEEL);
+static_assert(sdl::kModLShift == SDL_KMOD_LSHIFT);
+static_assert(sdl::kModRShift == SDL_KMOD_RSHIFT);
+static_assert(sdl::kModLCtrl == SDL_KMOD_LCTRL);
+static_assert(sdl::kModRCtrl == SDL_KMOD_RCTRL);
+static_assert(sdl::kModLAlt == SDL_KMOD_LALT);
+static_assert(sdl::kModRAlt == SDL_KMOD_RALT);
+static_assert(sdl::kModLGui == SDL_KMOD_LGUI);
+static_assert(sdl::kModRGui == SDL_KMOD_RGUI);
+static_assert(sdl::kButtonLeft == SDL_BUTTON_LEFT);
+static_assert(sdl::kButtonMiddle == SDL_BUTTON_MIDDLE);
+static_assert(sdl::kButtonRight == SDL_BUTTON_RIGHT);
+static_assert(sdl::kWheelNormal == SDL_MOUSEWHEEL_NORMAL);
+static_assert(sdl::kWheelFlipped == SDL_MOUSEWHEEL_FLIPPED);
+static_assert(scan::kQ == SDL_SCANCODE_Q);
+static_assert(scan::kReturn == SDL_SCANCODE_RETURN);
+static_assert(scan::kEscape == SDL_SCANCODE_ESCAPE);
+static_assert(scan::kBackspace == SDL_SCANCODE_BACKSPACE);
+static_assert(scan::kTab == SDL_SCANCODE_TAB);
+static_assert(scan::kLeftBracket == SDL_SCANCODE_LEFTBRACKET);
+static_assert(scan::kUp == SDL_SCANCODE_UP);
+static_assert(scan::kHome == SDL_SCANCODE_HOME);
+static_assert(scan::kDelete == SDL_SCANCODE_DELETE);
+static_assert(scan::kEnd == SDL_SCANCODE_END);
+static_assert(scan::kDown == SDL_SCANCODE_DOWN);
+} // namespace sdl_constants
+
 namespace zengine::graphics::window {
 
 /// The backend `zengine-window-sdl` runs over: one OS window and its renderer, for its life.
@@ -382,7 +425,7 @@ private:
     }
 
     /// Give back this instance's hold on SDL's video, and shut SDL down only if nobody else holds
-    /// it, as the SDL Skin and the SDL Input reader do: two libraries cannot share a private count.
+    /// it: two libraries in one process cannot share a private count.
     static void release_sdl() {
         SDL_QuitSubSystem(SDL_INIT_VIDEO);
         if (SDL_WasInit(0) == 0) {

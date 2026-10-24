@@ -29,7 +29,7 @@ namespace zengine::builder {
 
 /// The office the TOOL holds. Workshop's grant names this role rather than a
 /// WeaveId, so who answers for it can change without Workshop's authority being
-/// rewritten -- the same reason `zengine.skin` is a role.
+/// rewritten -- the same reason `zengine.input` is a role.
 inline constexpr const char* kBuilderRole = "zengine.builder";
 
 /// The office the RUNNER holds -- the only holder of process authority in this

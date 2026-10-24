@@ -17,7 +17,7 @@
 namespace zengine::inventory {
 
 /// The office this weave holds, so a caller addresses it by role rather than by WeaveId --
-/// `zengine.input`, `zengine.skin` and `zengine.guests`' own convention.
+/// `zengine.input` and `zengine.guests`' own convention.
 inline constexpr const char* kInventoryRole = "zengine.inventory";
 
 /// Replace the slot's pair with `pair` -- the whole encoded envelope `codec.hpp` produces.

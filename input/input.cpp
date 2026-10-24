@@ -5,11 +5,11 @@
 // reader (terminal_reader.hpp) fetches native events and hands them to the pure translators in
 // translate.hpp; the weave (input_weave.hpp) publishes what comes back. A reader owns the
 // platform's input-side state for exactly the weave's lifetime: construction engages it,
-// destruction restores it. Surface law: agents/surface.md
+// destruction restores it. Reference: input/docs/input.md
 
-// The output side (alternate screen, VT processing) is the Skin's ground. With no console
-// (redirected stdin, headless ctest, a pipe) the reader stays disabled and poll() yields nothing.
-// The SDL reader is a separate artifact (input_sdl.cpp).
+// The output side (alternate screen, VT processing) is the terminal window's ground. With no
+// console (redirected stdin, headless ctest, a pipe) the reader stays disabled and poll() yields
+// nothing.
 
 #include "input_weave.hpp"
 #include "office_page.hpp"

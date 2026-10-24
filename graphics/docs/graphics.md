@@ -78,11 +78,11 @@ arranger following an area, unasked, when the area's version moved (`AreaSettled
 arranger does not follow, it tells the arranger none of this. Either window, terminal or OS, routes
 them alike ([`zengine.window.terminal`](zengine.window.terminal.md#use)).
 
-A window also answers for its platform, in the shapes Surface's Skin answers too, spelled here
-(`graphics/vocabulary.hpp`): a copy, a paste's read of the clipboard, its place on the desktop and a
-place offered back, a close its desktop asked for, the beat's work on request, and the picture it
-last presented, retained one at a time and fetched by chunk. What each window does with them is its
-manual's; a terminal reads no clipboard and has no place or close box, so it says none.
+A window also answers for its platform, in shapes spelled here (`graphics/vocabulary.hpp`): a
+copy, a paste's read of the clipboard, its place on the desktop and a place offered back, a close
+its desktop asked for, the beat's work on request, and the picture it last presented, retained one
+at a time and fetched by chunk. What each window does with them is its manual's; a terminal reads
+no clipboard and has no place or close box, so it says none.
 
 ## A node, and an element's record beside it
 

@@ -4,7 +4,7 @@
 // `zengine::graphics` alone, as a stranger links it: an owner's picture painted for light by the
 // installed painter, read back and pressed, and the terminal's ink, size and copy sequence from the
 // installed claim -- with no other Zengine target on the link line, so a graphics header that needs
-// Surface, or another package, stops this compiling.
+// another package stops this compiling.
 
 #include "graphics/canvas.hpp"
 #include "graphics/light_paint.hpp"

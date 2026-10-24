@@ -90,8 +90,8 @@ CTest entry keeps the retired spellings from coming back — it owns the list of
 page does not spell them.
 
 **What is deliberately out of the developer package, and why** (each is a limit, not an
-oversight): the SDL skin, the SDL input reader and the OS window (`zengine-window-sdl`), because a
-fetched SDL is a build-tree library the developer package does not carry; Workshop, because a
+oversight): the OS window (`zengine-window-sdl`), because a fetched SDL is a build-tree library
+the developer package does not carry; Workshop, because a
 build's executable carries `ZENGINE_BUILDER_CMAKE`, the absolute path of the cmake that configured
 it, so installing it would ship one machine's layout -- the package below carries both;
 the implementation in `flow/flow-host/runtime.hpp` and the Flow pane model/view,

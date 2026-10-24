@@ -331,16 +331,16 @@ std::string WorkshopWeave::unresolved_note(const Setup& s) const {
 
 // ---- THE LAST SESSION: the desk that comes back on its own ----------------
 
-// WL-SESSION-11, WL-SESSION-14, WL-SESSION-16, WL-SESSION-17 -- agents/workshop/session-restore.md
+// WL-SESSION-14, WL-SESSION-16, WL-SESSION-17 -- agents/workshop/session-restore.md
 // WL-MIG-10 -- agents/workshop/migration.md
 void WorkshopWeave::restore_last_session(loom::Mail& mail) {
     if (restored_) {
         return;
     }
-    // ONCE PER PROCESS, and the guard is HERE rather than at the caller because
-    // `SurfaceReady` is not a once-per-process fact: a Skin replacement announces itself
-    // again, and a weaver whose afternoon of arranging was silently thrown back to a file
-    // written last night would have met a continuity feature that loses work.
+    // ONCE PER PROCESS, and the guard is HERE rather than at the caller because a window's
+    // offer is not a once-per-process fact: a window started again offers itself again, and a
+    // weaver whose afternoon of arranging was silently thrown back to a file written last night
+    // would have met a continuity feature that loses work.
     restored_ = true;
     if (host_->session_path.empty()) {
         return; // no session file was chosen: restore nothing, and say nothing about it

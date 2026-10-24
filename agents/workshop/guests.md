@@ -124,7 +124,7 @@ WHY — `agents/decisions/the-desk-is-said-whole-on-the-agents-host.md`
 LAW — A row without `capture` is refused, in words, every observed publication carrying the desk's words or picture, and every row `ClipboardCopy`; what `capture` reads past its first reach is said.
 
 MEANS
-- the desk's words and picture are `SurfaceCanvas`, `SurfaceText`, `TranscriptShown`, `PaneSubjectShown`, `PaneInventory`, `KeymapShown` and `StandingConditions`, from any producer;
+- the desk's words and picture are `TranscriptShown`, `PaneSubjectShown`, `PaneInventory`, `KeymapShown` and `StandingConditions`, from any producer;
 - `capture` reads the desk said whole, the inventory and the keymap; it is said at launch and on Attention;
 - `DeskStamps`, the notice that the desk moved, says no word but follows them, so needs `capture` too, and so do a window's `WindowShown` and `AreaShown`.
 
@@ -227,7 +227,7 @@ when another hand acts between, and chooses the row its press armed"
 `workshop/weave_handlers.cpp` on(AreaHandRefused)
 `workshop/actor_scope.hpp` refuse_toward refuse_text refuse_carry
 `workshop/weave_external.cpp` external_key
-`workshop/weave_pointer.cpp` on(TextEntered) on(PointerButton) on(PointerWheel)
+`workshop/weave_pointer.cpp` on(TextEntered) pointer_button pointer_wheel
 `workshop/pane_seam_vocabulary.hpp` kEditorRole kTerminalRole kHotkeysPane
 `workshop/first-run/setup.hpp` kFirstRunRole
 `tests/test_workshop_panes_guests.cpp` "on a weaver's host a guest's keys, text, save and presses

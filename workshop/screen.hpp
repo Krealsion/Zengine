@@ -1773,8 +1773,9 @@ std::string pane_window_area(const Panes& panes, const RuntimePane& row);
 bool desk_in_front(const Session& s) noexcept;
 
 /// THE AREA OF WORKSHOP'S OWN A GRAPHICS WINDOW SHOWS A PANE'S FRAME IN, at the pane's own depth:
-/// its edge, its header and the words its body says, just behind the pane's own area.
-std::string pane_frame_area(std::int64_t kind);
+/// its edge, its header and the words its body says, just behind the pane's own area. It is named
+/// by the pane's reference, `zengine.workshop.frame.<office>.<pane>`, as the pane's own area is.
+std::string pane_frame_area(const Panes& panes, std::int64_t kind);
 
 /// WORKSHOP'S DESK AS A GRAPHICS WINDOW DRAWS IT: what stands about the panes -- the arrangement's
 /// rings, the selection's, a menu, the band -- each pane's frame standing at its depth in an area
@@ -1786,10 +1787,10 @@ struct WorkshopWindowDrawing {
 
 WorkshopWindowDrawing workshop_window_drawing(const Session& s);
 
-/// ONE PANE'S FRAME AS A GRAPHICS WINDOW DRAWS IT in `pane_frame_area(kind)`, placed over the
-/// pane's bounds (`at`): its edge and header over its ground, and the words its body says behind
-/// the pane's own area (`external_body_words`), as the desk draws them. Empty for a pane the desk
-/// does not show.
+/// ONE PANE'S FRAME AS A GRAPHICS WINDOW DRAWS IT in `pane_frame_area(panes, kind)`, placed over
+/// the pane's bounds (`at`): its edge and header over its ground, and the words its body says
+/// behind the pane's own area (`external_body_words`), as the desk draws them. Empty for a pane
+/// the desk does not show.
 struct WorkshopFrameDrawing {
     graphics::Sketch sketch;
     PixelRect at;

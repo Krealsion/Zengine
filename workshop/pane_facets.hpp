@@ -356,7 +356,7 @@ public:
         }
     }
 
-    /// The office a paste is asked of: the window showing the area, else the Skin.
+    /// The office a paste is asked of: the window showing the area, none while no window does.
     std::string clipboard_office() const { return window_.clipboard_office(); }
     /// The area the pane draws its rows in, and where a point of it falls on the rows last drawn
     /// there: a drop's place.
@@ -374,7 +374,7 @@ public:
 private:
     RowsBlock<Meaning> block_;
     std::uint64_t published_ = 0;
-    WindowDrawing window_{Office, Office};
+    WindowDrawing window_{Office, pane_area(Office, Pane)};
     std::map<std::string, RowCell> window_places_; ///< where each part of the rows last sent lands
     std::int64_t window_rows_ = 0;                 ///< how many rows were last sent there
     bool keys_here_ = false;                       ///< the keys reach the pane, as Workshop last said
@@ -493,7 +493,7 @@ public:
     /// THAT PRESS WAS NOT THE PANE'S: Workshop's own pane menu opens where it was made.
     void pass_back(loom::Mail& mail) { (void)pane_menu::pass_back(mail, Office, Pane); }
 
-    /// The office a paste is asked of: the window showing the area, else the Skin.
+    /// The office a paste is asked of: the window showing the area, none while no window does.
     std::string clipboard_office() const { return window_.clipboard_office(); }
 
     /// How the picture being drawn sets its text: the window's measure for the window that shows
@@ -531,7 +531,7 @@ private:
         }
     }
 
-    WindowDrawing window_{Office, Office};
+    WindowDrawing window_{Office, pane_area(Office, Pane)};
     std::set<std::string> window_actions_; ///< the actions the picture last sent the window names
     graphics::TextMeasure text_;           ///< how the picture being drawn sets its text
     bool asked_ = false;                   ///< the room asked in this life

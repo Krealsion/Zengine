@@ -21,8 +21,7 @@ is the normal window's. A maximized restore repositions, re-grows through the ca
 conversation, then re-maximizes, one beat after the picture that supplies the room.
 
 **Alternatives considered.**
-- *Seeding the remembered extent first* — measured against a real window (`fba0dc2`); pinned by
-  case `"the FIRST picture of a run is the floor, and the room is the second"`.
+- *Seeding the remembered extent first* — measured against a real window (`fba0dc2`).
 - *Applying the desk before the viewport* — measured red while the room's height rationed the
   stack (`fba0dc2`); since no room rations it
   ([the stack begins again](the-stack-begins-again.md)), the order changes no seating.
@@ -41,5 +40,4 @@ a want rather than a floor. A maximized close writes the room the weaver chose w
 beside it, and a flag merely restored never gates a placement-less run's tracking.
 
 **Laws supported.** [WL-SESSION-07](../workshop/session-restore.md),
-[WL-SESSION-08](../workshop/session-restore.md), [WL-SESSION-09](../workshop/session-restore.md),
-[WL-SESSION-11](../workshop/session-restore.md).
+[WL-SESSION-08](../workshop/session-restore.md), [WL-SESSION-09](../workshop/session-restore.md).

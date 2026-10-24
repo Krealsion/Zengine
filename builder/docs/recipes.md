@@ -40,11 +40,11 @@ a target in it, and the build is the command you would type: `cmake --build <tre
 <target>`, with `--config <config>` when the recipe names one.
 
 ```json
-{ "recipe": "skin-tui-block",
-  "artifact": "zengine-skin-tui-block",
+{ "recipe": "snake-world-v2",
+  "artifact": "snake-world-v2",
   "artifact_dir": "/path/to/build/examples/snake",
   "cmake_target": [ { "build_dir": "/path/to/build",
-                      "target": "zengine-skin-tui-block",
+                      "target": "snake-world-v2",
                       "config": "",
                       "entry": "" } ],
   "single_source": [] }

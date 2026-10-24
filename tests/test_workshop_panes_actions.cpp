@@ -773,7 +773,7 @@ TEST_CASE("an override authored before the pane arrives is applied when it does,
         r.mount_workshop();
         ProviderSeat* seat = r.mount_provider(kHelloOffice);
         // Offered and declared BEFORE any surface exists, as a provider loaded before
-        // the Skin is: joined under the defaults for now.
+        // the window is: joined under the defaults for now.
         r.drive(seat, [](ProviderSeat& s, loom::Mail& m) {
             s.offer(m, PaneOffered{kHelloPane, "Seat", "a recording provider"});
             s.declare(m, actions_for(kHelloPane, {declared("hello.up", "row up", input::scan::kUp)}));
@@ -2086,8 +2086,6 @@ TEST_CASE("a withdrawal naming a predecessor's declaration does not reach the su
                   std::filesystem::path(WORKSHOP_SO_DESKTOP_PANE).extension().string())
                      .c_str());
     std::filesystem::copy_file(WORKSHOP_SO_DESKTOP_PANE, image);
-    (void)r.bus.publish(loom::Message(loom::to_value(surface::SurfaceReady{}), loom::WeaveId{},
-                                      loom::WeaveId{}, 0));
     r.enqueue_reload(dp::kDesktopStem, image);
     r.bus.drain_until_idle();
     REQUIRE(r.load_refusals.empty());

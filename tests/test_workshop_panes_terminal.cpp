@@ -52,10 +52,11 @@ struct TerminalRig {
         seat.stem = pane::kTerminalPaneStem;
         seat.weave = load::WeaveIntent{pane::kTerminalPaneRole};
         plan.artifacts.push_back(seat);
-        const load::Executed done = r.run_plan(plan);
-        REQUIRE_MESSAGE(done.ok, done.refusal);
+        // THE WINDOW AND THE DIRECTORY FIRST, as a plan's medium rows stand before its panes.
         r.ready();
         r.extent(width, height);
+        const load::Executed done = r.run_plan(plan);
+        REQUIRE_MESSAGE(done.ok, done.refusal);
         REQUIRE_MESSAGE(row() != nullptr, "the loaded image offered no `terminal` pane");
         kind = row()->kind;
         if (!pick) {
@@ -359,11 +360,11 @@ TEST_CASE("nothing global opens it, and no key acts on it from anywhere else") {
             "drawn for the window's room, Workshop told none of it, the room asked once a life, "
             "and only the window's own word heard") {
         namespace gfx = zengine::graphics;
-        const char* area = pane::kTerminalPaneRole;
+        const std::string area = pane_area(pane::kTerminalPaneRole, pane::kTerminalPane);
         std::size_t to_workshop = 0, room_asked = 0; // outlive the rig, whose bus the tap is on
         TerminalRig u;
         const loom::ObserverId tap = u.r.bus.add_observer([&](const loom::BusEvent& ev) {
-            if (ev.authored_role != area || (ev.kind != loom::EventKind::Delivered &&
+            if (ev.authored_role != pane::kTerminalPaneRole || (ev.kind != loom::EventKind::Delivered &&
                                              ev.kind != loom::EventKind::Refused)) {
                 return;
             }
@@ -375,7 +376,7 @@ TEST_CASE("nothing global opens it, and no key acts on it from anywhere else") {
         u.open(160, 48, 0, true, false, /*pick=*/false);
         REQUIRE_FALSE(u.r.session().panes.has(u.kind));
         zengine::testing::pane_window::Window window(u.r.bus);
-        window.room(area, area, 40, 10);
+        window.room(area, pane::kTerminalPaneRole, 40, 10);
         REQUIRE(window.weave().heard.size() == 1);
         CHECK(window.weave().heard[0].whole);
         const std::vector<std::string> shown = window.rows(area);
@@ -421,13 +422,13 @@ TEST_CASE("nothing global opens it, and no key acts on it from anywhere else") {
             "its words are shown") {
         namespace gfx = zengine::graphics;
         namespace gw = zengine::graphics::window;
-        const char* area = pane::kTerminalPaneRole;
+        const std::string area = pane_area(pane::kTerminalPaneRole, pane::kTerminalPane);
         TerminalRig u;
         u.open(160, 48, 0, true, false, /*pick=*/false);
         zengine::testing::pane_window::Window window(u.r.bus);
         const gfx::TextMeasure face{8, 18};
         window.set_measure(face);
-        window.room(area, area, 40, 10);
+        window.room(area, pane::kTerminalPaneRole, 40, 10);
         REQUIRE(window.weave().heard.size() == 1);
         const gw::WinArea* a = window.weave().find(area);
         REQUIRE(a != nullptr);
@@ -553,11 +554,10 @@ TEST_CASE("the record crosses as a picture, said only when the reading changed")
     t.open();
     const std::size_t said_before = t.r.said_transcripts.size();
     REQUIRE(said_before > 0); // the first reading is news
-    // ⚠ THE REPAINTS HERE ARE RESIZES AND NOT SKIN HELLOS, and the difference is real: a
-    // fresh skin's hello makes this host ask the catalog again, every office re-offers, and
-    // an OFFER deliberately un-says the pictures so a listener that has just arrived hears
-    // them (`on(PaneOffered)`; TERM-W6b). A resize is an ordinary repaint with no new
-    // listener in it, which is the beat this law is about.
+    // ⚠ THE REPAINTS HERE ARE RESIZES AND NOT OFFERS, and the difference is real: an OFFER
+    // deliberately un-says the pictures so a listener that has just arrived hears them
+    // (`on(PaneOffered)`; TERM-W6b). A resize is an ordinary repaint with no new listener in it,
+    // which is the beat this law is about.
     t.r.extent(160, 48);
     t.r.extent(160, 48);
     CHECK(t.r.said_transcripts.size() == said_before);
@@ -653,7 +653,7 @@ TEST_CASE("a Workshop with no participant says so, and authors nothing") {
     t.open(160, 48, 0, /*participant=*/false);
     CHECK(t.text().find("no participant was mounted on this bus") != std::string::npos);
     t.focus();
-    t.type("send @zengine.skin SurfaceText 1 slot=a text=b");
+    t.type("send @zengine.test.board RigNote 1 slot=a text=b");
     t.submit();
     // The refusal is the DOOR's -- there is nowhere to record the attempt, because the
     // participant IS the transcript.
@@ -836,7 +836,7 @@ TEST_CASE("WL-HAND-06: the Terminal names the line being typed and each candidat
 
     SUBCASE("a graphics window shows the same rows under the same names, and a press there is the "
             "press Workshop's canvas makes, but never a pickup") {
-        const char* area = pane::kTerminalPaneRole;
+        const std::string area = pane_area(pane::kTerminalPaneRole, pane::kTerminalPane);
         const auto row_at = [](const std::vector<std::string>& rows, std::int64_t row) {
             const auto at = static_cast<std::size_t>(row);
             std::string text = at < rows.size() ? rows[at] : std::string();
@@ -844,7 +844,7 @@ TEST_CASE("WL-HAND-06: the Terminal names the line being typed and each candidat
             return text;
         };
         zengine::testing::pane_window::Window window(t.r.bus);
-        window.room(area, area, 160, 48);
+        window.room(area, pane::kTerminalPaneRole, 160, 48);
         REQUIRE_FALSE(window.weave().heard.empty());
         CHECK(window.weave().heard.front().whole);
         CHECK(window.weave().refusals.empty());
@@ -961,12 +961,12 @@ TEST_CASE("WL-HAND-06: the Terminal names the line being typed and each candidat
         const std::size_t refusals = window.weave().refusals.size();
         window.weave().refuse_next = true;
         drawn = window.weave().heard.size();
-        window.room(area, area, 160, 48, 2);
+        window.room(area, pane::kTerminalPaneRole, 160, 48, 2);
         REQUIRE(window.weave().heard.size() == drawn + 1);
         CHECK(window.weave().heard.back().whole);
         CHECK(window.weave().refusals.size() == refusals + 1);
         CHECK(window.rows(area).empty());
-        window.room(area, area, 160, 48, 3);
+        window.room(area, pane::kTerminalPaneRole, 160, 48, 3);
         REQUIRE(window.weave().heard.size() == drawn + 2);
         CHECK(window.weave().heard.back().whole);
         CHECK(window.weave().refusals.size() == refusals + 1);
@@ -1066,9 +1066,9 @@ TEST_CASE("the state a same-shape reload keeps is the LINE, and only the line") 
     TerminalRig t;
     t.open();
     t.focus();
-    t.type("send @zengine.skin SurfaceText 1 slot=a");
+    t.type("send @zengine.test.board RigNote 1 slot=a");
     const std::vector<std::string> rows = t.shown();
-    CHECK(rows[static_cast<std::size_t>(t.input_row())].rfind("> send @zengine.skin", 0) == 0);
+    CHECK(rows[static_cast<std::size_t>(t.input_row())].rfind("> send @zengine.test.board", 0) == 0);
 }
 
 // ============================================================================
@@ -1086,7 +1086,7 @@ TEST_CASE("a refusal is said BESIDE the line it is about, never in place of it")
     TerminalRig t;
     t.open(160, 48, /*shapes=*/0, /*participant=*/false);
     t.focus();
-    t.type("send #1 SurfaceText 1");
+    t.type("send #1 RigNote 1");
     t.submit();
 
     // THE DOOR'S OWN WORDS ARE ON THE PANE...
@@ -1119,7 +1119,7 @@ TEST_CASE("in a room too small for both, the LINE is what survives") {
         TerminalRig t;
         t.open(160, 48, /*shapes=*/0, /*participant=*/false);
         t.give_rows(2);
-        t.type("send #1 SurfaceText 1");
+        t.type("send #1 RigNote 1");
         t.submit();
         const std::vector<std::string> rows = t.shown();
         REQUIRE(rows.size() == 2);
@@ -1134,7 +1134,7 @@ TEST_CASE("in a room too small for both, the LINE is what survives") {
         TerminalRig t;
         t.open(160, 48, /*shapes=*/0, /*participant=*/false);
         t.give_rows(1);
-        t.type("send #1 SurfaceText 1");
+        t.type("send #1 RigNote 1");
         t.submit();
         const std::vector<std::string> rows = t.shown();
         REQUIRE(rows.size() == 1);
@@ -1153,7 +1153,7 @@ TEST_CASE("an id the Terminal never declared is no act: the refusal stands throu
     TerminalRig t;
     t.open(160, 48, /*shapes=*/0, /*participant=*/false);
     t.focus();
-    t.type("send #1 SurfaceText 1");
+    t.type("send #1 RigNote 1");
     t.submit();
     REQUIRE(t.text().find("nothing was authored") != std::string::npos);
     const std::string line = t.input_text();
@@ -1502,7 +1502,7 @@ TEST_CASE("Tab on a recalled line locks it in with no candidate taken and no lis
     t.r.key(input::scan::kTab); // the lock
     CHECK(commands_run(t) == before);
     CHECK(t.input_text() == "> send #1 ");
-    CHECK(t.text().find("SurfaceText v1") == std::string::npos);
+    CHECK(t.text().find("RigNote v1") == std::string::npos);
 
     t.r.key(input::scan::kUp); // the same rule after a Tab lock: no recall, no browsing
     CHECK(t.input_text() == "> send #1 ");
@@ -1510,11 +1510,11 @@ TEST_CASE("Tab on a recalled line locks it in with no candidate taken and no lis
 
     t.r.key(input::scan::kTab); // nothing on screen: ask
     CHECK(t.input_text() == "> send #1 ");
-    CHECK(t.row_of("> SurfaceText v1") >= 0);
+    CHECK(t.row_of("> RigNote v1") >= 0);
     t.r.key(input::scan::kUp); // a list on screen: the arrows are its cursor
     CHECK(t.input_text() == "> send #1 ");
     t.r.key(input::scan::kTab); // a list on screen: accept
-    CHECK(t.input_text().rfind("> send #1 SurfaceText 1 ", 0) == 0);
+    CHECK(t.input_text().rfind("> send #1 RigNote 1 ", 0) == 0);
     CHECK(commands_run(t) == before);
 }
 
@@ -2064,17 +2064,17 @@ TEST_CASE("reading keys leave a recall and the line as they were") {
 
 namespace {
 
-/// A WEAVE THAT RECORDS EVERY `SurfaceText` THAT REACHES IT, and who sent it -- the shape the rig's
+/// A WEAVE THAT RECORDS EVERY `RigNote` THAT REACHES IT, and who sent it -- the shape the rig's
 /// terminal is granted, so a line a case types can be measured arriving.
 class TextRecorder : public loom::WeaveBase<TextRecorder, SeenState,
-                                            loom::Accept<surface::SurfaceText>, loom::Emit<>> {
+                                            loom::Accept<RigNote>, loom::Emit<>> {
 public:
-    void on(const surface::SurfaceText& t, loom::Mail& mail) {
+    void on(const RigNote& t, loom::Mail& mail) {
         ++state_.frames;
         heard.push_back(t);
         from.push_back(mail.sender());
     }
-    std::vector<surface::SurfaceText> heard;
+    std::vector<RigNote> heard;
     std::vector<loom::WeaveId> from;
 };
 
@@ -2097,7 +2097,7 @@ Probe mount_probe(TerminalRig& t, const std::string& office) {
 }
 
 bool heard_slot(const TextRecorder& seat, const std::string& slot) {
-    for (const surface::SurfaceText& one : seat.heard) {
+    for (const RigNote& one : seat.heard) {
         if (one.slot == slot) {
             return true;
         }
@@ -2159,7 +2159,7 @@ TEST_CASE("an id chosen from the list and gone before the line is sent leaves th
     REQUIRE(t.input_text() == "> send #" + id + " ");
 
     (void)t.r.bus.unregister_weave(gone.id);
-    t.type("SurfaceText 1 slot=gone text=x");
+    t.type("RigNote 1 slot=gone text=x");
     t.submit();
 
     // NOT RETARGETED: no weave heard the slot, and the office it held is empty rather than moved.
@@ -2172,7 +2172,7 @@ TEST_CASE("an id chosen from the list and gone before the line is sent leaves th
     const loom::TranscriptEntry& back = record.back();
     REQUIRE(back.dispatch_refusal != nullptr);
     CHECK(back.dispatch_refusal->send.target == id);
-    CHECK(back.dispatch_refusal->send.shape == "SurfaceText");
+    CHECK(back.dispatch_refusal->send.shape == "RigNote");
     CHECK(back.dispatch_refusal->send.reason == "NoSuchTarget");
 }
 
@@ -2190,7 +2190,7 @@ TEST_CASE("an office chosen from the list reaches whoever holds it at delivery a
     // it reaches whoever holds it when sent, and it does: the new holder, never the old weave.
     (void)t.r.bus.unregister_weave(old_holder.id);
     const Probe new_holder = mount_probe(t, "zengine.probe");
-    t.type("SurfaceText 1 slot=turnover text=x");
+    t.type("RigNote 1 slot=turnover text=x");
     t.submit();
     CHECK(heard_slot(*new_holder.seat, "turnover"));
 
@@ -2198,7 +2198,7 @@ TEST_CASE("an office chosen from the list reaches whoever holds it at delivery a
     // that used to hold it hears nothing.
     (void)t.r.bus.unregister_weave(new_holder.id);
     const Probe elsewhere = mount_probe(t, "zengine.elsewhere");
-    run(t, "send @zengine.probe SurfaceText 1 slot=vacated text=x");
+    run(t, "send @zengine.probe RigNote 1 slot=vacated text=x");
     CHECK_FALSE(heard_slot(*elsewhere.seat, "vacated"));
     const loom::TranscriptEntry back = t.record().back();
     REQUIRE(back.dispatch_refusal != nullptr);

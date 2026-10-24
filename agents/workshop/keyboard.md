@@ -74,7 +74,7 @@ WHY — `agents/decisions/one-binding-truth.md`
 LAW — `zengine-workshop-keymap` version <!-- value keymap_persist::kFormatVersion -->2<!-- /value --> (`--keymap`, default `workshop-keymap.json`): defaults in code, authored differences only, absent ≡ defaults; read once, written by the edit door alone.
 
 MEANS
-- read once at the first `SurfaceReady`, bytes kept; a version-1 file is imported, written as 2;
+- read once as the desk starts, bytes kept; a version-1 file is imported, written as 2;
 - `Keymap::authored` is what a write writes back: rows as values, in order; layout not promised.
 
 WHY — `agents/decisions/one-binding-truth.md`

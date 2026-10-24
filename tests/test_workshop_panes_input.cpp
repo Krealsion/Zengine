@@ -346,15 +346,15 @@ TEST_CASE("management chrome gets first refusal, and a mode takes the press whol
     }
     SUBCASE("a second button is not the primary one") {
         seat->presses.clear();
-        r.publish(loom::to_value(input::PointerButton{3, true, pane_rect.x + 1,
+        r.hand_moment(input::PointerButton{3, true, pane_rect.x + 1,
                                                       body_y,
-                                                      input::space::kCells, input::mod::kNone}));
+                                                      input::space::kCells, input::mod::kNone});
         CHECK(seat->presses.empty());
     }
     SUBCASE("a position in a space this application does not recognise") {
         seat->presses.clear();
-        r.publish(loom::to_value(input::PointerButton{
-            1, true, pane_rect.x + 1, body_y, 4242, input::mod::kNone}));
+        r.hand_moment(input::PointerButton{
+            1, true, pane_rect.x + 1, body_y, 4242, input::mod::kNone});
         CHECK(seat->presses.empty());
     }
 }
@@ -397,8 +397,7 @@ TEST_CASE("Workshop says nothing of what a pane's rows mean") {
                                            "PaneCatalogRequested", "PaneKeys",
                                            "PaneLaunchAnswered",   "RoomAsked",
                                            "SkinChosen",           "SkinOffered",
-                                           "StandingConditions",   "SurfaceCanvas",
-                                           "SurfaceText",          "TranscriptShown"};
+                                           "StandingConditions",   "TranscriptShown"};
     CHECK(distinct == allowed);
 
     // AND THE PANE READ EACH PRESS ITSELF: three presses on three different rows, landed by the
@@ -869,11 +868,10 @@ TEST_CASE("interpreting a press asks the Weave Manager nothing") {
     CHECK(distinct == allowed);
     // NAMED NEGATIVELY, because the interesting half of an authority audit is what is
     // ABSENT. Being able to say which weave a weaver pointed at is not being able to
-    // reach it: no lifecycle command, no message addressed to the selected library, and
-    // no Surface canvas of its own was ever spoken.
+    // reach it: no lifecycle command and no message addressed to the selected library was ever
+    // spoken.
     for (const char* forbidden : {"zen.LoadWeave", "zen.SwapWeave", "zen.ReloadWeave",
-                                  "zen.UnloadLibrary", "zen.UnloadRole", "zen.QueryRole",
-                                  "SurfaceCanvas"}) {
+                                  "zen.UnloadLibrary", "zen.UnloadRole", "zen.QueryRole"}) {
         CHECK(std::find(said.begin(), said.end(), std::string(forbidden)) == said.end());
     }
 }
@@ -1112,7 +1110,7 @@ TEST_CASE("the fact travels as data and moves no authority with it") {
 
 TEST_CASE("the same gesture in a terminal names the same row of the same room") {
     // MEDIUM-INDEPENDENT BY CONSTRUCTION, and this is the witness. The TUI's mouse
-    // reporting is already live (DECSET 1002+1006, claimed by the terminal Skin), the
+    // reporting is already live (DECSET 1002+1006, claimed by the terminal window), the
     // wire already carries a `space`, and Workshop reads it into the pane's own canvas place
     // rather than branching on a backend -- so a terminal press reaches the same row of
     // Loaded's lattice (`row_cell_at`) with no parity work and no new protocol.
@@ -1838,6 +1836,11 @@ struct ComposeRig {
     std::shared_ptr<std::vector<input::InputEvent>> physical =
         std::make_shared<std::vector<input::InputEvent>>();
     void input(input::InputEvent event) {
+        // A PRESS IS THE WINDOW'S, which reads its own platform's pointer; the reader's are keys.
+        if (const auto* press = std::get_if<input::PointerButton>(&event)) {
+            r.hand_moment(*press);
+            return;
+        }
         physical->push_back(std::move(event));
         r.bus.send_to_role(input::kInputRole, loom::Message(loom::to_value(input::PumpInput{})));
         r.bus.drain_until_idle();
@@ -3492,7 +3495,7 @@ public:
     std::vector<PaneKey> keys;
 
 private:
-    WindowDrawing window_{"example.mute", "example.mute"};
+    WindowDrawing window_{"example.mute", pane_area("example.mute", "pane")};
 };
 
 } // namespace

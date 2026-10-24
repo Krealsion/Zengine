@@ -488,7 +488,7 @@ int main(int argc, char** argv) {
                                     ")");
         std::ofstream out(work + "/journey-capture.txt", std::ios::binary | std::ios::trunc);
         out << picture;
-        // THE PICTURE IS WHAT THE TERMINAL SKIN PRESENTED: the Pane Manager the chord opened is in
+        // THE PICTURE IS WHAT THE TERMINAL WINDOW PRESENTED: the Pane Manager the chord opened is in
         // it, and the Connections pane names this session by the host's word for it.
         check(picture.find("Pane Manager @zengine.desktop") != std::string::npos,
               "the picture shows the Pane Manager the injected chord opened");

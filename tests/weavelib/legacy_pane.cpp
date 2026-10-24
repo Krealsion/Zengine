@@ -13,7 +13,7 @@
 #include "activation/activation.hpp"
 #include "graphics/role.hpp"
 #include "input/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
+#include "graphics/role.hpp"
 
 #include <zen/kernel/export.hpp>
 #include <zen/weave.hpp>
@@ -24,7 +24,6 @@
 
 namespace {
 
-namespace surface = zengine::surface;
 namespace gfx = zengine::graphics;
 namespace input = zengine::input;
 using legacy_protocol::PaneActionRequested;
@@ -119,11 +118,11 @@ private:
         }
         PaneContent said;
         said.pane = kPaneKey;
-        said.rows.push_back(surface::SurfaceTextRow{
+        said.rows.push_back(legacy_protocol::SurfaceTextRow{
             fitted("an old pane -- " + std::to_string(rows_) + "x" + std::to_string(columns_)),
             gfx::role::kFill});
         if (rows_ > 1) {
-            said.rows.push_back(surface::SurfaceTextRow{
+            said.rows.push_back(legacy_protocol::SurfaceTextRow{
                 fitted(state_.acted == 0 ? std::string("acted 0")
                                          : "acted " + std::to_string(state_.acted) + ": " +
                                                state_.last_action),

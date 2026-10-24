@@ -40,7 +40,7 @@
 #include "graphics/window/terminal_io.hpp"
 #include "operator/catalog.hpp"
 #include "operator/host_surface.hpp"
-#include "surface/vocabulary.hpp"
+#include "graphics/vocabulary.hpp"
 #include "timer/vocabulary.hpp"
 
 #include <zen/bridge/channel.hpp>
@@ -87,7 +87,6 @@ using namespace zengine::workshop;
 namespace builder = zengine::builder;
 namespace manual = zengine::manual;
 namespace op = zengine::op;
-namespace surface = zengine::surface;
 namespace gfx = zengine::graphics;
 namespace timer = zengine::timer;
 
@@ -325,14 +324,10 @@ int main(int argc, char** argv) {
                     "                        [--log <path>] [--log-refusals] [--dump <path>] [--demo-history]\n"
                     "                        [--guests <file>]\n"
                     "       zengine-workshop --read-log <path>\n"
-                    "the desk in the OS window where it was built, in the terminal Skin, and\n"
-                    "in the SDL Skin where it was built, are the other plans shipped beside\n"
-                    "this binary:\n"
-                    "  zengine-workshop --load-plan <workshop dir>/%s\n"
-                    "  zengine-workshop --load-plan <workshop dir>/%s\n"
+                    "the desk in the OS window, where it was built, is the other plan shipped\n"
+                    "beside this binary:\n"
                     "  zengine-workshop --load-plan <workshop dir>/%s\n",
-                    args.complaint.c_str(), load_persist::kGraphicalLoadPlanName,
-                    load_persist::kSkinLoadPlanName, load_persist::kSdlSkinLoadPlanName);
+                    args.complaint.c_str(), load_persist::kGraphicalLoadPlanName);
         return 2;
     }
 
@@ -559,7 +554,7 @@ int main(int argc, char** argv) {
     // The drawings, and the notice that the desk moved: remembered as events, not bytes; the
     // notice, as a beat is, outside recent context -- the newest stands for each before it.
     history_policy.rules.push_back(loom::RetentionRule{
-        std::string(graphics::Drawn::zen_name), 1, true, false});
+        std::string(gfx::Drawn::zen_name), 1, true, false});
     history_policy.rules.push_back(loom::RetentionRule{
         std::string(DeskStamps::zen_name), 1, false, false});
     // The build: rare, bursty and what a weaver looks for -- a deep slot of its own, and its place

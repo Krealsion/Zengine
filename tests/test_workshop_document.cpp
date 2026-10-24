@@ -256,6 +256,54 @@ TEST_CASE("the native close request reaches the quit policy `q` already had") {
     CHECK(stopped);
 }
 
+namespace {
+
+struct CloserState {
+    std::int64_t closes = 0;
+    ZEN_SHAPE(CloserState, 1, ZEN_FIELD(closes));
+};
+
+/// A WEAVE IN AN OFFICE OF ITS OWN that can say a close, as that office.
+class Closer : public loom::WeaveBase<Closer, CloserState, loom::Accept<>,
+                                      loom::Emit<gfx::SurfaceCloseRequested>> {};
+
+} // namespace
+
+TEST_CASE("a close is the window's that shows the desk: one said by anyone else ends nothing") {
+    // ⚔ MUTATION: Workshop quitting on any `SurfaceCloseRequested`, whoever said it.
+    Live t;
+    bool stopped = false;
+    t.host.request_stop = [&stopped] { stopped = true; };
+    t.ready();
+    REQUIRE(t.windows.window() == gfx::kTerminalWindow);
+    const auto say_as = [&t](const std::string& office) {
+        loom::Grant grant;
+        grant.allow_to_any(gfx::SurfaceCloseRequested::zen_name,
+                           gfx::SurfaceCloseRequested::zen_version);
+        const loom::WeaveId id =
+            t.bus.register_weave(std::make_unique<Closer>(), std::move(grant), office);
+        REQUIRE(id.valid());
+        (void)t.bus.office_publish_as(id, office,
+                                      loom::Message(loom::to_value(gfx::SurfaceCloseRequested{})));
+        t.bus.drain_until_idle();
+        (void)t.bus.unregister_weave(id);
+    };
+    // UNSIGNED, AS NO OFFICE...
+    t.publish(loom::to_value(gfx::SurfaceCloseRequested{}));
+    CHECK_FALSE(t.host.quit);
+    // ...AS THE OTHER WINDOW'S OFFICE, which shows no desk here...
+    say_as(std::string(gfx::kWindowOfficePrefix) + gfx::kSdlWindow);
+    CHECK_FALSE(t.host.quit);
+    // ...AND AS ANOTHER OFFICE ALTOGETHER.
+    say_as("zengine.test.closer");
+    CHECK_FALSE(t.host.quit);
+    CHECK_FALSE(stopped);
+    // THE WINDOW THAT SHOWS THE DESK ENDS IT.
+    t.close_requested();
+    CHECK(t.host.quit);
+    CHECK(stopped);
+}
+
 TEST_CASE("Ctrl+C quits by MODIFIER, and a bare c does not") {
     Live t;
     bool stopped = false;
@@ -269,28 +317,6 @@ TEST_CASE("Ctrl+C quits by MODIFIER, and a bare c does not") {
     t.key(input::scan::kC, input::mod::kCtrl);
     CHECK(t.host.quit);
     CHECK(stopped);
-}
-
-TEST_CASE("the status line names the live layout and its panes, and claims no file") {
-    // A MEDIUM'S OWN STATUS LINE SAYS WHICH DESK IS LIVE AND HOW MANY PANES IT NAMES; whether
-    // that desk is saved is the layout band's to say, so this line claims nothing about a file.
-    Live t;
-    t.key(input::scan::kTab); // any turn: a status note goes out with every frame
-    REQUIRE_FALSE(t.notes.empty());
-    const std::size_t named = t.session().setup.active.panes.size();
-    CHECK(t.status_note() == "[workshop] layout " +
-                                 quoted_setup_name(t.session().setup.active.name) + " | " +
-                                 std::to_string(named) + (named == 1 ? " pane" : " panes"));
-    CHECK(t.status_note().find("saved") == std::string::npos);
-    CHECK(t.status_note().find("UNSAVED") == std::string::npos);
-
-    // ...AND IT FOLLOWS THE DESK: a pane taken off it is a pane fewer on the line.
-    pick(t, pane_kind::kLayouts);
-    const std::size_t now = t.session().setup.active.panes.size();
-    REQUIRE(now + 1 == named);
-    CHECK(t.status_note() == "[workshop] layout " +
-                                 quoted_setup_name(t.session().setup.active.name) + " | " +
-                                 std::to_string(now) + (now == 1 ? " pane" : " panes"));
 }
 
 TEST_CASE("a notice a weaver's own path makes too long is marked on screen, not cut in the session") {
@@ -636,14 +662,11 @@ TEST_CASE("paste reads the platform current, not the mirror stale") {
     CHECK(t.windows.clipboard_reads() == 2);
 }
 
-TEST_CASE("with nobody at the skin role, paste inserts nothing and breaks nothing") {
-    // The honest degradation: the ask has no respondent (the send is refused as a tap
-    // event; no message returns; Loom has no unanswerability notice), so the paste simply
-    // does not happen -- consumed, so it cannot fall through to an application binding --
-    // and pressing it past the book's capacity stays quiet rather than becoming a crash
-    // or a queue.
+TEST_CASE("in the terminal window, which reads no clipboard, paste inserts nothing and breaks nothing") {
+    // The honest degradation: the window says it can read no clipboard, so the paste simply
+    // does not happen -- consumed, so it cannot fall through to an application binding -- and
+    // pressing it past the book's capacity stays quiet rather than becoming a crash or a queue.
     Live t;
-    t.in_window = false; // no window shows this desk, and nobody holds the Skin's office
     open_rename_on_tab(t, t.session().setup.active_at); // the host's own box
     REQUIRE(t.session().setup.naming.open);
     t.key(input::scan::kA, input::mod::kCtrl);
@@ -1403,7 +1426,7 @@ TEST_CASE("the shipped face reads every Workshop-owned sentence as real type") {
     for (const ScreenRegion& r : all_texts(c)) {
         CAPTURE(r.x);
         CAPTURE(r.y);
-        CHECK(surface::fit_region(r, surface::SurfaceExtent{cells_px(0), cells_px(0), 8, 18}).graphical());
+        CHECK(fit_region(r.x, r.y, r.w, r.h, 8, 18).graphical());
     }
     CHECK(band_on(c, sc) != nullptr);
 }

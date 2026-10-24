@@ -6,7 +6,6 @@ Bundled third-party material actually present in this repository:
 |---|---|---|---|---|
 | doctest | `tests/third_party/doctest.h` | Copyright (c) 2016-2023 Viktor Kirilov | MIT | stated in the file's own header; canonical text at <https://opensource.org/licenses/MIT> |
 | JetBrains Mono 2.304, Regular | `graphics/window/fonts/JetBrainsMono-Regular.ttf` | Copyright 2020 The JetBrains Mono Project Authors | SIL Open Font License 1.1 (no Reserved Font Name declared) | `graphics/window/fonts/OFL.txt`, verbatim from upstream |
-| JetBrains Mono 2.304, Regular (the same bytes) | `surface/fonts/JetBrainsMono-Regular.ttf` | Copyright 2020 The JetBrains Mono Project Authors | SIL Open Font License 1.1 (no Reserved Font Name declared) | `surface/fonts/OFL.txt`, verbatim from upstream |
 | Airstream font | `quarry/Resources/TTFs/Airstream.ttf` | Nick's Fonts | Nick's Fonts freeware EULA | `quarry/Resources/TTFs/Nick's Fonts License.txt` |
 | Basic font | `quarry/Resources/TTFs/Basic-Regular.ttf` | its original authors (unverified) | no adjacent notice; terms unverified | — |
 | Elounda font | `quarry/Resources/TTFs/Elounda-Regular.otf` | its original authors (unverified) | no adjacent notice; terms unverified | — |
@@ -16,15 +15,13 @@ they are excluded from the repository's first-party MPL-2.0 claim, and their
 provenance is recorded as unresolved in [LICENSING.md](LICENSING.md).
 
 **JetBrains Mono is different in kind from those three, and deliberately so.** It
-is the face the OS window and the graphical Skin set their text in, it is
-unmodified upstream bytes, its provenance is written down in full beside each copy
-([graphics/window/fonts/PROVENANCE.md](graphics/window/fonts/PROVENANCE.md),
-[surface/fonts/PROVENANCE.md](surface/fonts/PROVENANCE.md) — upstream release,
-SHA-256, size), and it is **distributed by this repository**: the build compiles
-its bytes into `zengine-window-sdl` and `zengine-skin-sdl`, so a copy of either
-weave carries a copy of the font. The OFL permits exactly that and asks that the
-copyright notice and the licence travel with it; the `OFL.txt` beside each copy is
-that, and these rows are the notice.
+is the face the OS window sets its text in, it is unmodified upstream bytes, its
+provenance is written down in full beside it
+([graphics/window/fonts/PROVENANCE.md](graphics/window/fonts/PROVENANCE.md) — upstream
+release, SHA-256, size), and it is **distributed by this repository**: the build compiles
+its bytes into `zengine-window-sdl`, so a copy of that weave carries a copy of the font.
+The OFL permits exactly that and asks that the copyright notice and the licence travel with
+it; the `OFL.txt` beside it is that, and this row is the notice.
 
 Not bundled, fetched at build time only (and therefore not distributed by
 this repository) — all three used unless `ZENGINE_TUI_ONLY=ON`, all three fetched
@@ -37,6 +34,6 @@ its own license in its own distribution:
 | SDL_ttf | 3.2.2 | Zlib |
 | FreeType | 2.14.3 | FreeType License (BSD-style with attribution) or GPLv2, at the recipient's choice — SDL_ttf builds it as SDL_ttf's vendored dependency |
 
-A binary built from this repository with the SDL skin enabled therefore links
+A binary built from this repository with SDL (any build but `ZENGINE_TUI_ONLY`) therefore links
 FreeType, whose license asks that its use be acknowledged in the documentation of
 such a binary. This paragraph is that acknowledgement for anything built here.

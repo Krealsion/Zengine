@@ -13,7 +13,6 @@
 
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
 #include "workshop/guest_seam_vocabulary.hpp"
 
 #include <zen/bridge/link.hpp>

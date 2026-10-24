@@ -69,8 +69,8 @@ and the load says so once, naming the rename to make. The file is not rewritten.
 Workshop's own condition row names it for the whole run — `zengine-desktop-pane is not in this
 Workshop` — the empty room is blank, and you have no application defaults and no Pane Manager
 until you build it and launch again. Workshop's own keys (`w`, `a`, the layout keys, `q`) still
-work. A graphical launch also prints the refusal on its console; in a terminal Workshop the skin
-owns the terminal by then, so the condition row is where it is said.
+work. A graphical launch also prints the refusal on its console; in a terminal Workshop the
+terminal window owns the terminal by then, so the condition row is where it is said.
 
 ## The Hotkeys pane — `Ctrl`+`k`
 

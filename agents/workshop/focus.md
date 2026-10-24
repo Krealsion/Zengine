@@ -155,7 +155,7 @@ them"
 `tests/test_workshop_panes_files.cpp` "the pane lists the place this run began, asked of the host"
 
 ### WL-FOCUS-03
-`workshop/weave_pointer.cpp` kind_takes_keyboard on(PointerButton)
+`workshop/weave_pointer.cpp` kind_takes_keyboard pointer_button
 `workshop/screen_chrome.cpp` occupied_at
 `workshop/panes.hpp` Panes::keyboard
 `tests/test_workshop_panes_input.cpp` "a press anywhere else takes the keyboard away again"

@@ -168,7 +168,7 @@ private:
         window_.draw(drawn.sketch, mail);
     }
 
-    ws::WindowDrawing window_{kOffice, kOffice}; // not state: a reload is told its room afresh
+    ws::WindowDrawing window_{kOffice, ws::pane_area(kOffice, kPane)}; // told its room afresh
     Hold guard_;                                 // not state either: see GuardState
     bool asked_ = false;
     zengine::ActivationCursor activation_;

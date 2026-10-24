@@ -6,7 +6,7 @@
 // credential admits AS THE ROW, an "ask" row waits for the host's decision, a grant reaches
 // exactly its powers, and a session ends with its socket. The crossing is Loom's (suite
 // `bridge`); here is the Workshop side, over a REAL loopback socket and the real Input weave.
-// The capture door is the surface suite's; here, only that `capture` reaches the Skin's office.
+// The capture door is the windows'; here, only that `capture` reaches a window's office.
 
 #include "doctest.h"
 #include "office_manual.hpp"
@@ -32,8 +32,6 @@
 #include "input/vocabulary.hpp"
 #include "inventory/inventory-pane/vocabulary.hpp"
 #include "inventory/vocabulary.hpp"
-#include "surface/skin.hpp"
-#include "surface/vocabulary.hpp"
 #include "timer/vocabulary.hpp"
 
 #include <zen/bridge/client.hpp>
@@ -66,7 +64,6 @@ namespace {
 namespace builder = zengine::builder;
 namespace input = zengine::input;
 namespace inv = zengine::inventory;
-namespace surface = zengine::surface;
 namespace gfx = zengine::graphics;
 namespace ws = zengine::workshop;
 namespace guests = zengine::workshop::guests;
@@ -526,7 +523,6 @@ TEST_CASE("toolbox file access is an explicit power separate from inventory inpu
     CHECK_FALSE(files.permits_role("InventoryRestore", 1, inv::kInventoryRole));
     CHECK_FALSE(files.permits_role("InventoryViewEdit", 1, "zengine.inventory-pane"));
     CHECK_FALSE(files.permits_role("InjectInput", 1, input::kInputRole));
-    CHECK_FALSE(files.permits_role("SurfaceText", 1, surface::kSkinRole));
     // Organizing folders is inventory authority; a whole-collection restore is not, in either version.
     for (const char* shape : {"InventoryFile", "InventoryFolderCreate", "InventoryFolderRename",
                               "InventoryFolderMove", "InventoryFolderRemove"}) {
@@ -566,17 +562,15 @@ TEST_CASE("guests file: each power is exactly its grant, and a row with none may
     CHECK(in.permits_role(input::InputSessionRequested::zen_name, 1, input::kInputRole));
     CHECK(in.permits_role(input::InjectInput::zen_name, 1, input::kInputRole));
     CHECK(in.permits_role(input::InputSessionClosed::zen_name, 1, input::kInputRole));
-    CHECK_FALSE(in.permits_role(input::InjectInput::zen_name, 1, surface::kSkinRole));
-    CHECK_FALSE(in.permits_role(gfx::SurfaceCaptureRequested::zen_name, 1, surface::kSkinRole));
     CHECK_FALSE(in.permits(loom::DescribeAccepted::zen_name, 1, loom::WeaveId{7}));
 
     row.may = {guests::kPowerCapture};
     const loom::Grant cap = guests::grant_for(row);
-    // THE PICTURE, of whichever medium shows the desk: the Skin, the OS window or the terminal
-    // window -- and of no other window.
+    // THE PICTURE, of whichever window shows the desk: the OS window or the terminal window -- and
+    // of no other window.
     const std::string window_office = zengine::graphics::kWindowOfficePrefix;
     for (const std::string& medium :
-         {std::string(surface::kSkinRole), window_office + zengine::graphics::kSdlWindow,
+         {window_office + zengine::graphics::kSdlWindow,
           window_office + zengine::graphics::kTerminalWindow}) {
         CAPTURE(medium);
         CHECK(cap.permits_role(gfx::SurfaceCaptureRequested::zen_name, 1, medium));
@@ -626,7 +620,8 @@ TEST_CASE("guests file: each power is exactly its grant, and a row with none may
     CHECK(stow.permits_role(inv::InventoryCaptureDescribe::zen_name, 1, inv::kInventoryRole));
     CHECK_FALSE(stow.permits(loom::DescribeAccepted::zen_name, 1, loom::WeaveId{7}));
     CHECK_FALSE(stow.permits_role(input::InjectInput::zen_name, 1, input::kInputRole));
-    CHECK_FALSE(stow.permits_role(gfx::SurfaceCaptureRequested::zen_name, 1, surface::kSkinRole));
+    CHECK_FALSE(stow.permits_role(gfx::SurfaceCaptureRequested::zen_name, 1,
+                                  std::string(gfx::kWindowOfficePrefix) + gfx::kTerminalWindow));
     // ...and whatever its powers, a row may ask for its own, and where the plan is.
     for (const loom::Grant& any : {none, in, cap, look, stow}) {
         CHECK(any.permits_role(ws::GuestRowDescribedRequested::zen_name,
@@ -844,39 +839,45 @@ TEST_CASE("door: a guest injects through the real Input weave, and its socket's 
 // =============================================================================
 // Presentation after input: WHEN may an agent take the picture of what its input did?
 // =============================================================================
-// One bus, the real Input weave and the real Skin shell over a recording medium, and an input
-// consumer that paints several deliveries after the key, as a desk asking a pane for rows
+// One bus, the real Input weave, the window that shows the desk as the suite stands it in, and
+// an input consumer that paints several deliveries after the key, as a desk asking a pane for rows
 // does. The agent asks for a picture the moment the Input weave says its moments are published.
 
 namespace {
 
-/// A medium that remembers the width of the last canvas it painted and hands that back as
-/// its picture -- enough to tell which paint a capture saw.
-struct WidthMedium {
+/// THE WINDOW THAT SHOWS THE DESK, as the suite stands it in: it keeps the width of the last
+/// paint it was handed, numbers each paint a frame, and answers a capture with the frame it holds.
+struct DeskPaint {
     std::int64_t width = 0;
-    std::int64_t painted = 0;
-    void canvas(const surface::SurfaceCanvas& c, bool) {
-        width = c.width;
-        ++painted;
+    ZEN_SHAPE(DeskPaint, 1, ZEN_FIELD(width));
+};
+inline const std::string kSeatOffice =
+    std::string(gfx::kWindowOfficePrefix) + gfx::kTerminalWindow;
+
+class WindowSeat : public loom::WeaveBase<WindowSeat, EarsState,
+                                          loom::Accept<DeskPaint, gfx::SurfaceCaptureRequested>,
+                                          loom::Emit<gfx::SurfaceCaptured>> {
+public:
+    std::int64_t width = 0;
+    std::int64_t frames = 0;
+    void on(const DeskPaint& paint, loom::Mail&) {
+        width = paint.width;
+        ++frames;
     }
-    void note(std::string_view, std::string_view) {}
-    void pump() {}
-    void clipboard_copy(const std::string&) {}
-    std::optional<std::string> clipboard_text() { return std::nullopt; }
-    surface::SurfaceExtent extent() const { return {}; }
-    std::optional<gfx::SurfacePlacement> placement() { return std::nullopt; }
-    void place(const gfx::SurfacePlacementRemembered&) {}
-    std::optional<surface::CapturedPicture> capture() {
-        if (painted == 0) {
-            return std::nullopt;
-        }
-        surface::CapturedPicture p;
-        p.width = width;
-        p.height = 1;
-        p.format = "text/cells";
-        p.bytes = std::string(static_cast<std::size_t>(width), '#') + "\n";
-        return p;
+    void on(const gfx::SurfaceCaptureRequested&, loom::Mail& mail) {
+        gfx::SurfaceCaptured shot;
+        shot.ok = frames > 0;
+        shot.capture = ++captures_;
+        shot.frame = frames;
+        shot.width = width;
+        shot.height = 1;
+        shot.format = "text/cells";
+        shot.bytes = width + 1;
+        (void)mail.answer(shot);
     }
+
+private:
+    std::int64_t captures_ = 0;
 };
 
 struct DeskStep {
@@ -887,7 +888,7 @@ struct DeskStep {
 /// An ordinary consumer of input: a key starts `steps` deliveries of its own, and only the
 /// last one paints -- at `width_`, which the case sets per run.
 class SlowDesk : public loom::WeaveBase<SlowDesk, EarsState, loom::Accept<input::KeyPressed, DeskStep>,
-                                        loom::Emit<DeskStep, surface::SurfaceCanvas>> {
+                                        loom::Emit<DeskStep, DeskPaint>> {
 public:
     std::int64_t steps = 3;
     std::int64_t width_ = 20;
@@ -900,10 +901,7 @@ public:
             (void)mail.send(this->self_, DeskStep{s.left - 1});
             return;
         }
-        surface::SurfaceCanvas c;
-        c.width = width_;
-        c.height = 1;
-        mail.publish(c);
+        (void)mail.send_to_role(kSeatOffice, DeskPaint{width_});
     }
 };
 
@@ -937,7 +935,7 @@ public:
         }
         said.push_back("injected " + std::to_string(i.admitted));
         if (capture_on_admission) {
-            (void)mail.send_to_role(surface::kSkinRole, gfx::SurfaceCaptureRequested{});
+            (void)mail.send_to_role(kSeatOffice, gfx::SurfaceCaptureRequested{});
         }
     }
     void on(const loom::Ack&, loom::Mail&) {}
@@ -953,8 +951,8 @@ struct OrderRig {
     loom::Switchboard bus;
     std::vector<std::vector<InputEvent>> feed;
     loom::WeaveId input_id{};
-    loom::WeaveId skin_id{};
-    surface::SkinT<WidthMedium>* skin = nullptr;
+    loom::WeaveId seat_id{};
+    WindowSeat* seat = nullptr;
     SlowDesk* desk = nullptr;
     OrderAgent* agent = nullptr;
     loom::WeaveId agent_id{};
@@ -970,22 +968,17 @@ struct OrderRig {
             raw->zen_set_self(input_id);
         }
         {
-            auto w = std::make_unique<surface::SkinT<WidthMedium>>();
-            skin = w.get();
-            loom::Grant grant = loom::emit_default_grant(*skin);
-            loom::allow_poke_answers(grant);
-            skin_id = bus.register_weave(std::move(w), std::move(grant),
-                                         std::string(surface::kSkinRole));
-            skin->zen_set_self(skin_id);
+            auto w = std::make_unique<WindowSeat>();
+            seat = w.get();
+            loom::Grant grant = loom::emit_default_grant(*seat);
+            seat_id = bus.register_weave(std::move(w), std::move(grant), kSeatOffice);
+            seat->zen_set_self(seat_id);
         }
         const loom::WeaveId desk_id = loom::mount<SlowDesk>(bus);
         desk = static_cast<SlowDesk*>(bus.weave(desk_id));
         agent_id = loom::mount<OrderAgent>(bus);
         agent = static_cast<OrderAgent*>(bus.weave(agent_id));
-        surface::SurfaceCanvas first;
-        first.width = 10;
-        first.height = 1;
-        (void)bus.send(skin_id, loom::Message(loom::to_value(first)));
+        (void)bus.send(seat_id, loom::Message(loom::to_value(DeskPaint{10})));
         bus.drain_until_idle();
     }
     void act(std::function<void(loom::Mail&)> f) {
@@ -1024,10 +1017,10 @@ TEST_CASE("order: a picture taken on the injection's answer can miss what the in
     REQUIRE(r.agent->pictures.size() == 1);
     const gfx::SurfaceCaptured& shot = r.agent->pictures[0];
     INFO("the picture: width " << shot.width << " at frame " << shot.frame << "; the medium then "
-                               << "shows width " << r.skin->medium().width << " at frame "
-                               << r.skin->frames());
+                               << "shows width " << r.seat->width << " at frame "
+                               << r.seat->frames);
     CHECK(shot.width == 10);                  // the canvas from before the key
-    CHECK(r.skin->medium().width == 20);      // ...which the key's own paint replaced afterwards
+    CHECK(r.seat->width == 20);               // ...which the key's own paint replaced afterwards
 }
 
 TEST_CASE("order: a picture asked for after the injection SETTLES shows what the input painted, every run") {
@@ -1052,16 +1045,13 @@ TEST_CASE("order: a picture asked for after the injection SETTLES shows what the
                     .valid());
         // ...and somebody else paints in the middle of the input's work: a frame newer than
         // the last one the agent saw, which is not the input's.
-        surface::SurfaceCanvas unrelated;
-        unrelated.width = 30;
-        unrelated.height = 1;
-        (void)r.bus.send(r.skin_id, loom::Message(loom::to_value(unrelated)));
+        (void)r.bus.send(r.seat_id, loom::Message(loom::to_value(DeskPaint{30})));
         int turns = 0;
         bool newer_before_settled = false;
         while (r.bus.fence_state(fence) == loom::FenceState::Open && turns < 50) {
             (void)r.bus.pump_pending();
             ++turns;
-            if (r.bus.fence_state(fence) == loom::FenceState::Open && r.skin->frames() > seen_frame) {
+            if (r.bus.fence_state(fence) == loom::FenceState::Open && r.seat->frames > seen_frame) {
                 newer_before_settled = true; // "a later frame" arrived before the input was done
             }
         }
@@ -1070,7 +1060,7 @@ TEST_CASE("order: a picture asked for after the injection SETTLES shows what the
         CHECK(newer_before_settled);
         // THE PICTURE, ASKED FOR NOW: after everything the injection set in motion.
         r.act([](loom::Mail& m) {
-            (void)m.send_to_role(surface::kSkinRole, gfx::SurfaceCaptureRequested{});
+            (void)m.send_to_role(kSeatOffice, gfx::SurfaceCaptureRequested{});
         });
         REQUIRE(r.agent->pictures.size() == shots + 1);
         const gfx::SurfaceCaptured& shot = r.agent->pictures.back();
@@ -1078,7 +1068,7 @@ TEST_CASE("order: a picture asked for after the injection SETTLES shows what the
                               << shot.frame);
         CHECK(shot.ok);
         CHECK(shot.width == width);
-        CHECK(shot.frame == r.skin->frames());
+        CHECK(shot.frame == r.seat->frames);
         seen_frame = shot.frame;
     }
 }
@@ -1091,24 +1081,19 @@ TEST_CASE("order: through the real door, a settle-requested injection is told Se
     agent.may = {guests::kPowerInput, guests::kPowerCapture};
     file.rows.push_back(agent);
     Rig r(file);
-    // The desk and the Skin, beside the door and the Input weave.
+    // The desk and the window it paints, beside the door and the Input weave.
     const loom::WeaveId desk_id = loom::mount<SlowDesk>(r.bus);
     (void)desk_id;
-    surface::SkinT<WidthMedium>* skin = nullptr;
-    loom::WeaveId skin_id{};
+    WindowSeat* seat = nullptr;
+    loom::WeaveId seat_id{};
     {
-        auto w = std::make_unique<surface::SkinT<WidthMedium>>();
-        skin = w.get();
-        loom::Grant grant = loom::emit_default_grant(*skin);
-        loom::allow_poke_answers(grant);
-        skin_id = r.bus.register_weave(std::move(w), std::move(grant),
-                                       std::string(surface::kSkinRole));
-        skin->zen_set_self(skin_id);
+        auto w = std::make_unique<WindowSeat>();
+        seat = w.get();
+        loom::Grant grant = loom::emit_default_grant(*seat);
+        seat_id = r.bus.register_weave(std::move(w), std::move(grant), kSeatOffice);
+        seat->zen_set_self(seat_id);
     }
-    surface::SurfaceCanvas first;
-    first.width = 10;
-    first.height = 1;
-    (void)r.bus.send(skin_id, loom::Message(loom::to_value(first)));
+    (void)r.bus.send(seat_id, loom::Message(loom::to_value(DeskPaint{10})));
     r.bus.drain_until_idle();
     Guest g(r.port, "agent", "open-sesame");
     REQUIRE(r.beat_until([&] {
@@ -1138,8 +1123,8 @@ TEST_CASE("order: through the real door, a settle-requested injection is told Se
         return false;
     }));
     CHECK(answered_first);
-    CHECK(skin->medium().width == 20); // the desk's paint is done by the time Settled is told
-    g.ask(surface::kSkinRole, 3, gfx::SurfaceCaptureRequested{});
+    CHECK(seat->width == 20); // the desk's paint is done by the time Settled is told
+    g.ask(kSeatOffice.c_str(), 3, gfx::SurfaceCaptureRequested{});
     REQUIRE(r.beat_until([&] {
         g.poll();
         return g.answered<gfx::SurfaceCaptured>(3).has_value();
@@ -1439,7 +1424,7 @@ TEST_CASE("guests file: the tutor role is capture and guide, a row adds to it, a
     CHECK_MESSAGE(why.find("names the role 'teacher', which this host does not know (tutor)") != std::string::npos, why);
 }
 
-TEST_CASE("grant: a row that reads by pane is granted the newest reads, the keymap, the inventory and its doors' manuals as Loom door rules, and never the older reads or the Skin's picture") {
+TEST_CASE("grant: a row that reads by pane is granted the newest reads, the keymap, the inventory and its doors' manuals as Loom door rules, and never the older reads or the window's picture") {
     guests::GuestRow row;
     row.name = "tutor";
     row.credential = "x";
@@ -1479,12 +1464,13 @@ TEST_CASE("grant: a row that reads by pane is granted the newest reads, the keym
     CHECK(g.permits_role(ws::PaneDocumentRequested::zen_name, 1, "zengine.desktop"));
     CHECK_FALSE(g.permits_role(ws::PaneDocumentRequested::zen_name, 1, "zengine.editor"));
     // ...AND NOT WHAT CARRIES EVERY PANE: the picture.
-    CHECK_FALSE(g.permits_role(gfx::SurfaceCaptureRequested::zen_name, 1, surface::kSkinRole));
+    const std::string terminal = std::string(gfx::kWindowOfficePrefix) + gfx::kTerminalWindow;
+    CHECK_FALSE(g.permits_role(gfx::SurfaceCaptureRequested::zen_name, 1, terminal));
     // A ROW THAT READS EVERY PANE keeps the whole desk, the picture, and every pane's manual.
     row.capture = {"*"};
     row.guide = {"*"};
     const loom::Grant whole = guests::grant_for(row);
-    CHECK(whole.permits_role(gfx::SurfaceCaptureRequested::zen_name, 1, surface::kSkinRole));
+    CHECK(whole.permits_role(gfx::SurfaceCaptureRequested::zen_name, 1, terminal));
     CHECK(whole.permits_role(ws::DeskReadRequested::zen_name, ws::DeskReadRequested::zen_version,
                            "zengine.workshop"));
     CHECK(whole.permits_role(ws::PaneDocumentRequested::zen_name, 1, "zengine.editor"));
@@ -1510,7 +1496,7 @@ TEST_CASE("observation: the weaver's input is heard only with keystrokes, no gue
                                   input::TextEntered::zen_name}) {
             row->observe.push_back({input::kInputRole, shape, 1});
         }
-        for (const char* shape : {surface::SurfaceCanvas::zen_name, ws::KeymapShown::zen_name,
+        for (const char* shape : {gfx::WindowShown::zen_name, ws::KeymapShown::zen_name,
                                   ws::StandingConditions::zen_name, ws::DeskStamps::zen_name}) {
             row->observe.push_back({"zengine.workshop", shape, 1});
         }
@@ -1547,7 +1533,7 @@ TEST_CASE("observation: the weaver's input is heard only with keystrokes, no gue
     }
     // WHAT CARRIES EVERY PANE, and the notice that any moved: refused to the row that reads by
     // pane, observed by the whole reader.
-    for (const char* shape : {surface::SurfaceCanvas::zen_name, ws::KeymapShown::zen_name,
+    for (const char* shape : {gfx::WindowShown::zen_name, ws::KeymapShown::zen_name,
                               ws::StandingConditions::zen_name, ws::DeskStamps::zen_name}) {
         CAPTURE(shape);
         const auto scoped = ask(1, "zengine.workshop", shape, 1);
@@ -1860,7 +1846,7 @@ namespace {
 /// each ask it hears, and declares the picture, so that a guest may ask to observe it.
 class DeskOffice
     : public loom::WeaveBase<DeskOffice, EarsState, loom::Accept<ws::DeskReadRequested>,
-                             loom::Emit<ws::DeskRead, surface::SurfaceCanvas>> {
+                             loom::Emit<ws::DeskRead, gfx::WindowShown>> {
 public:
     explicit DeskOffice(std::int64_t& asked) : asked_(&asked) {}
     void on(const ws::DeskReadRequested&, loom::Mail& mail) {
@@ -2133,8 +2119,8 @@ TEST_CASE("door: asked by Workshop's office, the door judges a sender by the row
 
 TEST_CASE("door: of two rows of one name, the session admitted under the one without capture is refused a capture read and observation") {
     const std::string canvas = std::string(R"({"producer":"zengine.workshop","shape":")") +
-                               surface::SurfaceCanvas::zen_name + R"(","version":")" +
-                               std::to_string(surface::SurfaceCanvas::zen_version) + R"("})";
+                               gfx::WindowShown::zen_name + R"(","version":")" +
+                               std::to_string(gfx::WindowShown::zen_version) + R"("})";
     Scratch f("capture-twins");
     f.write(R"({"version":"2","guests":[)"
             R"({"name":"agent","credential":"plain","may":["input"],"observe":[)" + canvas +
@@ -2181,8 +2167,7 @@ TEST_CASE("door: of two rows of one name, the session admitted under the one wit
     namespace ob = loom::observe;
     ob::Subscribe picture;
     picture.producer = "zengine.workshop";
-    picture.shapes = {ob::ShapeRef{surface::SurfaceCanvas::zen_name,
-                                   surface::SurfaceCanvas::zen_version}};
+    picture.shapes = {ob::ShapeRef{gfx::WindowShown::zen_name, gfx::WindowShown::zen_version}};
     picture.encoding = ob::kEncodingNative;
     picture.label = "suite";
     plain.ask(ob::kObserveRole, 2, picture);
@@ -2194,8 +2179,8 @@ TEST_CASE("door: of two rows of one name, the session admitted under the one wit
                sees.answered<ob::Subscribed>(2).has_value();
     }));
     const std::string refused = plain.answered<loom::Refused>(2)->reason;
-    CHECK_MESSAGE(refused.find("may not observe SurfaceCanvas v" +
-                               std::to_string(surface::SurfaceCanvas::zen_version)) !=
+    CHECK_MESSAGE(refused.find("may not observe WindowShown v" +
+                               std::to_string(gfx::WindowShown::zen_version)) !=
                       std::string::npos,
                   refused);
     CHECK_MESSAGE(refused.find("only with `capture`") != std::string::npos, refused);
@@ -2208,11 +2193,11 @@ TEST_CASE("observation: the desk's words and pictures need capture, every row is
         std::int64_t version;
     };
     // EVERY PUBLICATION CARRYING A PANE'S OR WORKSHOP'S WORDS, OR THE PICTURE, by its owner's own
-    // name; the status slot's words from another office too, since the rule reads no producer.
+    // name; what an area shows from another office too, since the rule reads no producer.
     const std::vector<Asked> words = {
-        {"zengine.workshop", surface::SurfaceCanvas::zen_name, surface::SurfaceCanvas::zen_version},
-        {"zengine.workshop", surface::SurfaceText::zen_name, surface::SurfaceText::zen_version},
-        {"td.game", surface::SurfaceText::zen_name, surface::SurfaceText::zen_version},
+        {"zengine.workshop", gfx::WindowShown::zen_name, gfx::WindowShown::zen_version},
+        {"zengine.workshop", gfx::AreaShown::zen_name, gfx::AreaShown::zen_version},
+        {"td.game", gfx::AreaShown::zen_name, gfx::AreaShown::zen_version},
         {"zengine.workshop", ws::TranscriptShown::zen_name, ws::TranscriptShown::zen_version},
         {"zengine.workshop", ws::PaneSubjectShown::zen_name, ws::PaneSubjectShown::zen_version},
         {"zengine.workshop", ws::PaneInventory::zen_name, ws::PaneInventory::zen_version},

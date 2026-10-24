@@ -220,7 +220,7 @@ migration moved is where they are painted from; what a weaver sees at boot is by
 
 What can be built is an **authored file** now, not a target compiled into the executable
 ([Builder](../../builder/docs/zengine.builder-pane.md)); what this Workshop ships is a recipe for
-`zengine-skin-tui-block`, in Zengine's own build tree. That target is deliberately not one of
+`snake-world-v2`, in Zengine's own build tree. That target is deliberately not one of
 the artifacts this running Workshop has loaded — building one of those would overwrite a shared
 library the process has mapped — and `zengine-workshop` rebuilding itself is the same hazard
 aimed at the host binary, which stays out of scope: nothing here reloads a live artifact, and
@@ -324,7 +324,7 @@ Setup
 - **No resolved rectangle, no metric, and no session interaction state is persisted** in a setup
   file. A list's cursor, the Terminal's draft, the Builder's copied status and the selection
   are all session; so is the workspace extent, which no setup file carries — the same setup
-  restored under a different `SurfaceExtent` yields the same references and different bounds,
+  restored under a different window's room yields the same references and different bounds,
   which is the setup's authored/resolved proof. (A row's authored *place* and *size* are intent
   rather than a rectangle; the extent is durable one level **above** a setup, in the
   last-session file — see the final section.)
@@ -531,9 +531,10 @@ PaneEscapeUnspent      provider  ->  Workshop   "the Escape you sent me was unsp
   This protocol makes none of those claims and adds no mechanism that could grow into one.
 - **Discovery converges in either load order**, with no polling and no timer. A provider loaded
   *first* announces on its attested `zen.Activated` to an office nobody holds yet, and that
-  sentence is simply gone; Workshop then office-publishes `PaneCatalogRequested` on `SurfaceReady`
-  — its ordinary startup hook, because Loom deliberately sends no `zen.Activated` to a *native*
-  mount and inventing one would be a fake lifecycle event — and every provider that verifies the
+  sentence is simply gone; Workshop then office-publishes `PaneCatalogRequested` on the first
+  window's offer (`WindowOffered`) — its ordinary startup hook, because Loom deliberately sends no
+  `zen.Activated` to a *native* mount and inventing one would be a fake lifecycle event — and
+  every provider that verifies the
   authorship re-offers. Repetition is harmless: identity de-duplicates, so a re-offer refreshes a
   descriptor in place and grows the catalog by nothing.
 - **Everything a live message can make Workshop retain is bounded before a byte is kept.** A
@@ -1124,37 +1125,33 @@ directory they happened to be browsing when they quit is deliberately not rememb
 - **The viewport is one level above the desk**, and that is the whole reason the session is not
   simply a second setup: the same desk is worth having in a big window and in a small one, so how
   much room the surface had describes the *application* rather than the arrangement. It is
-  `{width, height}` in canvas pixels, its own shape rather than `surface::SurfaceExtent` — that is
-  a message free to grow a field whenever a medium has something new to say, and the text metric
+  `{width, height}` in canvas pixels, its own shape rather than the window's `WindowOffered` — that
+  is a message free to grow a field whenever a window has something new to say, and the text metric
   in particular would be a stale claim about a font the moment it was written down.
-- **Pixels, because the room crosses the seam in pixels.** The window belongs to whichever Skin
-  holds `zengine.skin`, behind a C ABI; the only thing it publishes about its room is
-  `SurfaceExtent`, in canvas pixels, and the only thing Workshop says back is how large a picture
-  it would like to paint. So the durable number is the one that crosses that seam, and a restored
-  window is the weaver's chosen size, to the pixel; a terminal keeps its own. The restore's
-  notice says the room in the unit the medium names — pixels in a window, cells in a terminal —
-  and since a window names its unit only after its first picture, the notice is spelled again
-  then.
+- **Pixels, because the room crosses the seam in pixels.** The window is its own weave; the only
+  thing it says about its room is its offer (`WindowOffered`), in canvas pixels, and Workshop lays
+  its desk out in an area of that room. So the durable number is the one that crosses that seam:
+  the OS window grows to the room the desk is laid out in, so a restored window is the weaver's
+  chosen size, to the pixel, where the display holds it; it never shrinks to a smaller one, and a
+  terminal keeps its own. The restore's notice says the room in the unit the window names —
+  pixels in the OS window, cells in a terminal — and since a window names its unit when it
+  offers itself, the notice is spelled again then.
 - **Position and maximized state ARE persisted, opaquely, and the medium is the
-  judge.** The Surface vocabulary's placement pair closed the old deliberate omission: the
+  judge.** The graphics vocabulary's placement pair closed the old deliberate omission: the
   medium reports where its *normal* window sits (its own desktop units, maximized state
   beside it), Workshop remembers the last report in the session — coordinates it cannot
   interpret and does not try to — and offers it back once at restore. The medium then
   validates against the displays that exist *now*: a position wholly on a display restores
   verbatim, any other moves in only until the whole window is on one, and with no display
-  truth nothing moves (`surface/agents` law; the arithmetic is `placement_within`). A
-  terminal run reports no placement, applies none, and *retains* the remembered value
+  truth nothing moves (the arithmetic is `placement_within`). A terminal run reports no
+  placement, applies none, and *retains* the remembered value
   rather than erasing it. The saved viewport is the **normal** window's room, so a
   maximized close restores as a maximized window that unmaximizes to the size you chose.
-- **The first picture of a run is Workshop's floor, and the restored room is the second.** A
-  medium that has been told nothing has only a run's first picture to size itself from, and a
-  graphical one makes that size the smallest the window may ever be dragged to. So
-  `on(SurfaceReady)` paints once at the minimum extent and *then* takes the session back — asking
-  for the remembered room first would leave a weaver unable to shrink their own window.
 - **The room, and then the desk into it.** The viewport is adopted before the desk is applied.
   The order changes no seating: every resolved pane is seated, whatever the room.
-- **Written on an orderly close, by the one door.** `q`, `Ctrl`+`c` and `SurfaceCloseRequested`
-  all reach `quit()`, which writes the session before it stops the bus. No autosave, no dirty
+- **Written on an orderly close, by the one door.** `q`, `Ctrl`+`c` and the close the window that
+  shows the desk says (`SurfaceCloseRequested`, as that window's office) all reach `quit()`,
+  which writes the session before it stops the bus. No autosave, no dirty
   tracking, no background writer — and no crash durability, which is not claimed here or in
   `persist::write_file`.
 - **Four distinct answers, not one boolean.** No previous session (silent — a first launch is

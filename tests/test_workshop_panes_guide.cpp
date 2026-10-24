@@ -5,7 +5,7 @@
 // and marks the control it wants the weaver to press, and the weaver presses. Driven through the real
 // `zengine-builder-pane` and desktop images over the real pane protocol, with the guest a participant
 // holding exactly the grant its guests-file row compiles to (`guests::grant_for`), its doors Loom door
-// rules Workshop asks about at each read and mark, on a weaver's host. Pictures are read as each Skin
+// rules Workshop asks about at each read and mark, on a weaver's host. Pictures are read as each window
 // draws them: the terminal's raster and the window's plan.
 
 // main() and the framework live in doctest_main.cpp -- the shared one that
@@ -15,6 +15,7 @@
 
 #include "builder/builder-pane/vocabulary.hpp"
 #include "graphics/light_paint.hpp"
+#include "graphics/window/terminal_io.hpp"
 #include "input/vocabulary.hpp"
 #include "workshop/desktop-pane/vocabulary.hpp"
 #include "workshop/guests.hpp"
@@ -333,7 +334,7 @@ TEST_CASE("the Tutor's walk on a weaver's host, in a terminal and in a window: i
 }
 
 // ============================================================================
-// THE MARK'S FORM, as each Skin draws it
+// THE MARK'S FORM, as each window draws it
 // ============================================================================
 
 TEST_CASE("a mark in a terminal is its part's own cells in the guide role: every row of the pane reads as before, and its label stands on a body row wholly free or is not drawn, the guest told which") {

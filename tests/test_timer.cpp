@@ -4,7 +4,7 @@
 // The Timer suite -- the Timer package proven headless: the vocabulary pinned by content id; the
 // service over a fake clock through a real bus; the real library through the real Kernel on the
 // real clock, its chain run from its own activation; and the chains that tick the world, poll
-// input and service the skin with nobody pumping them. The chain never quiesces, so every pump
+// input and beat the window with nobody pumping them. The chain never quiesces, so every pump
 // carries a stop plan (a beat budget, a stop-on-fire, a stopwatch) and a stopped pump PARKS the
 // queue mid-chain: an ask or cancel behind a parked beat lands one firing late, pinned twice.
 
@@ -29,7 +29,7 @@
 #include "probe_vocabulary.hpp"
 #include "lifecycle_door.hpp"
 #include "examples/snake/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
+#include "graphics/window/window.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -422,7 +422,6 @@ struct Seen {
     std::vector<Answer> answers;
     std::vector<std::string> fired;
     std::int64_t ready = 0;
-    std::int64_t hellos = 0; ///< SurfaceReady (the skin lane)
     std::vector<zengine::snake::SnakeVisual> visuals;
     std::vector<zengine::probe::ProbeReport> reports; ///< the continuity lane's answers
     std::vector<TimerResolution> receipts; ///< the keystone lane's own order receipts
@@ -455,7 +454,7 @@ struct WitnessState {
 class Witness
     : public loom::WeaveBase<Witness, WitnessState,
                              loom::Accept<loom::Result, loom::Ack, loom::Refused, TimerFired,
-                                          TimerReady, zengine::surface::SurfaceReady,
+                                          TimerReady,
                                           zengine::snake::SnakeVisual,
                                           zengine::probe::ProbeReport, loom::Bequest,
                                           TimerResolution, TimerCandidateDeclined>,
@@ -485,7 +484,6 @@ public:
         }
     }
     void on(const TimerReady&, loom::Mail&) { ++seen_->ready; }
-    void on(const zengine::surface::SurfaceReady&, loom::Mail&) { ++seen_->hellos; }
     void on(const zengine::snake::SnakeVisual& v, loom::Mail&) { seen_->visuals.push_back(v); }
 
 private:
@@ -1644,7 +1642,7 @@ TEST_CASE("a root Drive establishes nothing: the boot ordering hazard is gone wi
 }
 
 // ============================================================================
-// Tier 4 — the migration chains: the world, input and skin beats, asked for
+// Tier 4 — the migration chains: the world, input and window beats, asked for
 // ============================================================================
 
 TEST_CASE("world time comes from the timer path: ticks with nobody sending SnakeTick") {
@@ -1671,69 +1669,83 @@ TEST_CASE("world time comes from the timer path: ticks with nobody sending Snake
 // a consumer AFTER the timer is served by its own activation; a consumer BEFORE
 // it is served by the retry.
 
-TEST_CASE("consumer BEFORE the timer: its ask goes nowhere, and TimerReady "
+namespace {
+
+/// THE WINDOW'S OWN BEAT, counted off the bus: each delivery of its pump's firing, to whichever
+/// weave holds the window's office then.
+struct WindowBeats {
+    std::int64_t fired = 0;
+    loom::Switchboard& bus;
+    loom::ObserverId tap;
+    explicit WindowBeats(loom::Switchboard& b) : bus(b) {
+        tap = bus.add_observer([this](const loom::BusEvent& ev) {
+            if (ev.kind == loom::EventKind::Delivered && ev.payload != nullptr &&
+                ev.schema_name == TimerFired::zen_name &&
+                loom::from_value<TimerFired>(*ev.payload).id ==
+                    zengine::graphics::window::kPumpTimerId) {
+                ++fired;
+            }
+        });
+    }
+    ~WindowBeats() { bus.remove_observer(tap); }
+    WindowBeats(const WindowBeats&) = delete;
+    WindowBeats& operator=(const WindowBeats&) = delete;
+};
+
+constexpr const char* kTerminalWindowOffice = "zengine.window.terminal";
+
+} // namespace
+
+TEST_CASE("consumer BEFORE the timer: its declared beat waits, and TimerReady "
           "is what rescues it") {
     Rig r;
-    // The skin is loaded into a world with NO timer service: it announces and asks for its pump
-    // beat, and the ask goes NOWHERE -- earlier than "refused by an unheld role": a loaded weave's
-    // send crosses the library seam as bytes, and with nobody accepting StartRoleTimer the shape
-    // is not registered, so the send is rejected at the seam with no envelope, delivery or
-    // refusal. The skin cannot tell and could not retry alone, which is why TimerReady matters.
-    const loom::WeaveId skin_so =
-        r.load("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC,
-               zengine::surface::kSkinRole);
+    WindowBeats beats(r.bus);
+    // The terminal window is loaded into a world with NO timer service: it declares its pump
+    // beat, and nothing serves it. It could not retry alone, which is why TimerReady matters.
+    (void)r.load("zengine-window-terminal", WINDOW_SO, kTerminalWindowOffice);
     r.bus.drain_until_idle(); // nothing is alive; this drains
     CHECK(r.bus.pending() == 0);
+    // Measured, not assumed: it is being beaten by nothing.
+    CHECK(beats.fired == 0);
 
-    // Measured, not assumed: it is being serviced by nothing.
-    const std::uint64_t before_corr = r.next_corr++;
-    r.bus.send(skin_so, loom::Message(loom::to_value(loom::PokeRead{"pumps"}), loom::WeaveId{},
-                                      r.witness, before_corr));
-    r.bus.drain_until_idle();
-    const Seen::Answer* before = r.seen.find(before_corr);
-    REQUIRE(before != nullptr);
-    CHECK(before->text == "0");
-
-    // Now the timer arrives. Its activation publishes TimerReady, the skin asks AGAIN -- the ask
-    // kept apart from the once-only hello -- and from then on it is serviced.
+    // Now the timer arrives. Its activation publishes TimerReady, the window's binding asks
+    // AGAIN, and from then on it is served.
     const loom::WeaveId timer_so = r.load("zengine-timer", TIMER_SO, kTimerRole);
     r.pump_for(timer_so, 60);
     CHECK(r.seen.ready >= 1);
-    const Seen::Answer pumps = r.poke_timed(timer_so, skin_so, loom::PokeRead{"pumps"});
-    CHECK(pumps.kind == 0);
-    CHECK(std::stoll(pumps.text) > 0); // it is being serviced, with nobody pumping it
+    CHECK(beats.fired > 0); // it is being served, with nobody pumping it
 }
 
-TEST_CASE("a swapped-in skin asks from its own activation and does NOT double the role beat") {
+TEST_CASE("a window reloaded in place asks from its own activation and does NOT double its beat") {
     Rig r;
+    WindowBeats beats(r.bus);
     const loom::WeaveId timer_so = r.load("zengine-timer", TIMER_SO, kTimerRole);
-    (void)r.load("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC,
-                 zengine::surface::kSkinRole);
+    const loom::WeaveId first = r.load("zengine-window-terminal", WINDOW_SO, kTerminalWindowOffice);
     r.pump_for(timer_so, 60);
     const std::int64_t standing_before =
         std::stoll(r.poke_timed(timer_so, timer_so, loom::PokeRead{"active"}).text);
-    CHECK(standing_before >= 1); // the skin's beat is standing
+    CHECK(standing_before >= 1); // the window's beat is standing
 
-    // Replace the painter. The successor's own activation makes it ask.
+    // Replace the window in place. The successor's own activation makes it ask.
     const std::uint64_t corr = r.next_corr++;
     r.bus.send_as(r.witness, r.manager,
-                  loom::Message(loom::to_value(loom::SwapWeave{
-                                    zengine::surface::kSkinRole, "zengine-skin-tui-block",
-                                    SKIN_SO_TUI_BLOCK, /*graceful=*/false}),
+                  loom::Message(loom::to_value(loom::ReloadWeave{"zengine-window-terminal",
+                                                                 WINDOW_SO}),
                                 r.witness, r.witness, corr));
-    // Unloading one library and loading the other takes what the machine gives it: wait for the
-    // answer rather than a fixed window, then give the successor beats of its own.
-    const Seen::Answer swapped = r.wait_answer(timer_so, corr, "skin swap");
-    REQUIRE_MESSAGE(swapped.kind == 0, "skin swap refused: ", swapped.text);
-    const loom::WeaveId block{static_cast<std::uint64_t>(std::stoll(swapped.text))};
-    r.pump_for(timer_so, 60); // due after at least one skin beat (`kPumpBeatMs`)
+    // A reload takes what the machine gives it: wait for the answer rather than a fixed window,
+    // then give the successor beats of its own.
+    const Seen::Answer reloaded = r.wait_answer(timer_so, corr, "window reload");
+    REQUIRE_MESSAGE(reloaded.kind != 2, "window reload refused: ", reloaded.text);
+    const loom::WeaveId successor = r.bus.role_holder(kTerminalWindowOffice);
+    REQUIRE(successor.valid());
+    CHECK(successor == first); // a reload in place keeps the weave's id; its incarnation is new
+    const std::int64_t fired_before = beats.fired;
+    r.pump_for(timer_so, 60); // due after at least one beat (`kPumpBeatMs`)
 
-    // The successor is serviced...
-    const Seen::Answer pumps = r.poke_timed(timer_so, block, loom::PokeRead{"pumps"});
-    CHECK(std::stoll(pumps.text) > 0);
-    // ...and the beat was REPLACED, not added: the role-timer upsert keys on
-    // (role, id) ACROSS requesters, so the successor's ask takes the incumbent's
-    // schedule instead of standing a second one beside it.
+    // The successor is served...
+    CHECK(beats.fired > fired_before);
+    // ...and the beat was REPLACED, not added: the successor's declaration takes the
+    // incumbent's schedule instead of standing a second one beside it.
     const std::int64_t standing_after =
         std::stoll(r.poke_timed(timer_so, timer_so, loom::PokeRead{"active"}).text);
     CHECK(standing_after == standing_before);
@@ -1758,21 +1770,17 @@ TEST_CASE("the input package arranges its own execution: it polls with nobody pu
     CHECK(a.text == "0");
 }
 
-TEST_CASE("the skin keeps itself serviced: hello and beats with nobody pumping") {
+TEST_CASE("the window keeps itself served: beats with nobody pumping") {
     Rig r;
+    WindowBeats beats(r.bus);
     const loom::WeaveId timer_so = r.load("zengine-timer", TIMER_SO, kTimerRole);
-    const loom::WeaveId skin_so =
-        r.load("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC, zengine::surface::kSkinRole);
+    (void)r.load("zengine-window-terminal", WINDOW_SO, kTerminalWindowOffice);
 
     r.pump_for(timer_so, 80);
 
-    // The service's hello was the skin's first breath: it said ITS hello and
-    // asked for the role beat, which has been servicing its medium since —
-    // and not one PumpSurface was sent in this entire lane.
-    CHECK(r.seen.hellos == 1);
-    const Seen::Answer a = r.poke_timed(timer_so, skin_so, loom::PokeRead{"pumps"});
-    CHECK(a.kind == 0);
-    CHECK(std::stoll(a.text) >= 3);
+    // Its activation declared the beat, which has been beating its medium since -- and not one
+    // PumpSurface was sent in this entire lane.
+    CHECK(beats.fired >= 3);
 }
 
 // ============================================================================

@@ -373,7 +373,7 @@ TEST_CASE("the app's weave runs its flow and its view, and its panel is drawn in
     run.mount_window();
 
     // DRAWN in its area, placed where app.json says, painted by the skin it names.
-    const LightLog::Area* panel = run.light.area("tally.panel");
+    const LightLog::Area* panel = run.light.area("tally.panel.view");
     REQUIRE(panel != nullptr);
     CHECK(panel->x == 8);
     CHECK(panel->y == 8);
@@ -486,7 +486,7 @@ TEST_CASE("an app.json the app's weave cannot read is said on the app's own line
     const std::string shown = run.shown();
     CHECK(has(shown, "[app] app.json is not an app"));
     CHECK_FALSE(has(shown, "skin"));
-    CHECK(run.light.area("tally.panel") == nullptr);
+    CHECK(run.light.area("tally.panel.view") == nullptr);
     const LightLog::Area* line = run.light.area(app::kAppRole);
     REQUIRE(line != nullptr);
     CHECK(line->y > 0);

@@ -379,7 +379,7 @@ inline int launch(const Facts& facts, const Choice& choice, const World& world) 
     }
     if (facts.plan.empty()) {
         world.say("the build tree " + facts.build + " staged no graphical load plan (it was "
-                  "configured without the SDL skin) -- nothing was prepared or launched");
+                  "configured with ZENGINE_TUI_ONLY) -- nothing was prepared or launched");
         return 1;
     }
     const builder::BuildCommand host = host_command(facts, choice);

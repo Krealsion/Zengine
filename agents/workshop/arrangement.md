@@ -178,7 +178,7 @@ WHY — `agents/decisions/escape-is-back.md`
 `workshop/screen.hpp` PaneGesture Session::pane_drag kPaneEdgeBandPx
 `workshop/screen_arrange.cpp` pane_edge_at
 `workshop/weave_arrange.cpp` take_pane_hold arrange_motion
-`workshop/weave_pointer.cpp` on(PointerMoved)
+`workshop/weave_pointer.cpp` pointer_moved
 `tests/test_workshop_panes_window.cpp` "one press claims one gesture, and crossing anything does not
 move it" "outside arrangement, an addressed pane behind another clicks through nothing" "unchanged
 arrangement motion retains its gesture without another picture" "repeated refused arrangement motion

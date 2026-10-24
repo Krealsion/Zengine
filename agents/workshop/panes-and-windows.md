@@ -201,7 +201,7 @@ surplus" "the half-share pays at the bottom of the range too, and buys no slot"
 `workshop/screen_pane_state.cpp` paint_pane_frame
 `workshop/screen_chrome.cpp` occupied_at
 `workshop/screen.hpp` kNoKind Occupancy::what
-`workshop/weave_pointer.cpp` on(PointerMoved)
+`workshop/weave_pointer.cpp` pointer_moved
 `tests/test_workshop_screen.cpp` "the columns the pane took are its own, and the band is the
 weaver's" "a press that lands on a pane begins nothing, so a hand that leaves it drags nothing" "a
 visible pane occupies the pointer space it covers"

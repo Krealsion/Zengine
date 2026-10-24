@@ -190,8 +190,8 @@ void WorkshopWeave::take_host_conditions() {
 void WorkshopWeave::start_desk(loom::Mail& mail) {
     desk_started_ = true;
     (void)mail.as_role(kWorkshopProvider).publish(PaneCatalogRequested{});
-    // The first picture of a run is Workshop's floor: the smallest room it is honest in comes
-    // first and the room it wants back second, so a weaver can always shrink the window.
+    // The desk's first picture is at its floor, the smallest room it is honest in, and the room the
+    // last session restores comes after it.
     load_keymap(mail);
     // The prefs beside it, BEFORE the first paint: the first band and the
     // first pane headers a weaver reads are already wearing their own preference.
@@ -543,8 +543,15 @@ void WorkshopWeave::on(const zengine::graphics::SurfacePlacement& p, loom::Mail&
     session_.place_maximized = p.maximized;
 }
 
+// THE CLOSE IS THE WINDOW'S: a close said as the office of the window that shows the desk, or
+// before it shows it of the one that offered itself, is the weaver closing that window, and
+// reaches the quit. A close any other office says, or one said with no office, ends nothing.
 // WL-SESSION-13 -- agents/workshop/session.md
 void WorkshopWeave::on(const zengine::graphics::SurfaceCloseRequested&, loom::Mail& mail) {
+    const std::string window = medium_office();
+    if (window.empty() || !mail.authored_from_role(window)) {
+        return;
+    }
     quit(mail);
 }
 
@@ -660,7 +667,7 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
     }
     // The chain is `keyboard_context`'s answer; this switch names the owner it resolved. A copy or
     // paste anywhere below is noticed once, here, by comparing the clipboard's counters around the
-    // chain: a copy publishes `ClipboardCopy`, a paste asks the Skin for the current value
+    // chain: a copy publishes `ClipboardCopy`, a paste asks the window for the current value
     // (`begin_clipboard_paste`). The application's own rows come first, above every mode and
     // below this host's own above-mode rows; a pane keeps a gesture only by declaring it owns
     // it (the laws WL-DESK-07 and WL-ARR-15), never by silence.

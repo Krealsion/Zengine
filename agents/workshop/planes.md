@@ -89,7 +89,7 @@ recovers it"
 `workshop/screen_compose.cpp` band_region
 `workshop/screen.hpp` band_bounds
 `workshop/screen_chrome.cpp` occupied_at
-`surface/vocabulary.hpp` kGroundOwn
+`workshop/screen_planes.hpp` kGroundOwn
 `tests/test_workshop_screen.cpp` "a pane in front of the Layouts pane takes the press"
 `tests/test_workshop_document.cpp` "two bands compose their budgets, and the selector is row 0"
 

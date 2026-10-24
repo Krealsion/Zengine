@@ -432,7 +432,7 @@ private:
     bool in_flight_ = false;
     std::uint64_t asked_ = 0;
     std::string running_;
-    ws::WindowDrawing window_{kOffice, kOffice};
+    ws::WindowDrawing window_{kOffice, ws::pane_area(kOffice, kPane)};
     zengine::ActivationCursor activation_;
 };
 

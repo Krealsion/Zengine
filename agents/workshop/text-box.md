@@ -99,7 +99,7 @@ WHY — `agents/decisions/a-paste-is-a-conversation.md`
 LAW — On a medium that answers `readable=false` the paste falls back to the in-process mirror; an ask with nobody at the medium's office stays open, bounded by the book, and inserts nothing.
 
 MEANS
-- the medium's office is the graphics window that shows the area, else the Skin (`medium_office`).
+- the medium's office is the graphics window that shows the area, else the one that offered itself (`medium_office`).
 
 WHY — `agents/decisions/a-paste-is-a-conversation.md`
 
@@ -163,7 +163,6 @@ aimed"
 `component/text_box.hpp` character_boundary_at_or_after
 `workshop/screen_bindings.cpp` detail::fit
 `workshop/screen_layouts.cpp` setup_name_columns
-`surface/region.hpp` project_text_regions
 `tests/test_component.cpp` "component: the window never begins inside a character, at any capacity"
 "the window never begins inside a character"
 
@@ -196,7 +195,6 @@ forgets its far past first" "component: undo restores text, caret and selection;
 `terminal/pane.cpp` begin_paste on(ClipboardText) Paste
 `files/files.cpp` paste_epoch_
 `info/pane.cpp` begin_paste on(ClipboardText) Paste::epoch
-`surface/vocabulary.hpp` kSkinRole
 `graphics/vocabulary.hpp` ClipboardTextRequested
 `tests/test_workshop_document.cpp` "paste reads the platform current, not the mirror stale" "an
 unsolicited ClipboardText enters no box and no mirror"
@@ -213,9 +211,10 @@ lands in no later draft, and one asked for by the draft still standing lands in 
 `workshop/weave_pointer.cpp` answers_ask on(ClipboardText)
 `workshop/weave_seam.cpp` begin_clipboard_paste
 `graphics/vocabulary.hpp` ClipboardText::readable
-`tests/test_workshop_document.cpp` "with nobody at the skin role, paste inserts nothing and breaks
-nothing"
-`tests/test_surface.cpp` "the terminal medium answers a clipboard read with its standing truth"
+`tests/test_workshop_document.cpp` "in the terminal window, which reads no clipboard, paste inserts
+nothing and breaks nothing"
+`tests/test_graphics.cpp` "the terminal window copies by OSC 52, reads no clipboard, has no placement to
+say or take, and reads back the cells it last showed, at the size it showed them, none before"
 `workshop/weave.hpp` WorkshopWeave::medium_office
 
 ### WL-TEXT-11

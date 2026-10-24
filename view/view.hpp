@@ -10,13 +10,13 @@
 // its process may pair a `Presenter`. Law: agents/view.md.
 
 #include "view/description.hpp"
+#include "view/vocabulary.hpp"
 
 #include "component/text_box.hpp"
 #include "graphics/canvas.hpp"
 #include "graphics/pixels.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
-#include "surface/pointing.hpp"
 #include "workshop/pane_canvas_drawing.hpp"
 #include "workshop/pane_canvas_text.hpp"
 #include "workshop/pane_picture.hpp"
@@ -52,9 +52,8 @@ namespace zengine::view {
 namespace ws = zengine::workshop;
 namespace ink = zengine::graphics::role;
 
-/// The office every pane answers, and the key of the one pane a view offers in its own office.
+/// The office every pane answers.
 inline constexpr const char* kWorkshopRole = "zengine.workshop";
-inline constexpr const char* kPane = "view";
 /// The intents a view remembers, to know a refusal answered to one of them.
 inline constexpr std::size_t kRememberedIntents = 16;
 
@@ -463,12 +462,13 @@ private:
 
 /// ONE VIEW, registered by the view host. Its accept-set is the shapes it is told, the pane
 /// conversation and a window's; its emit-set is its intents and those conversations. It speaks to
-/// Workshop and to the window that shows its area as its office, the view's name, which is that
-/// area's name too, and says its intents by publication: whoever accepts one hears it.
+/// Workshop and to the window that shows its area as its office, the view's name; its area is its
+/// pane's, `<name>.view`. It says its intents by publication: whoever accepts one hears it.
 class View final : public loom::Weave {
 public:
     explicit View(Description description, std::shared_ptr<Presenter> presenter = {})
-        : description_(std::move(description)), window_(description_.name, description_.name) {
+        : description_(std::move(description)),
+          window_(description_.name, ws::pane_area(description_.name, kPane)) {
         pair(std::move(presenter));
     }
     ~View() override {

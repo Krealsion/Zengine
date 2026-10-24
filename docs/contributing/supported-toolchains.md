@@ -61,8 +61,8 @@ It keeps what the toolchain's own manifest says:
   toolchain that links no default gets the code page alone.
 
 A doctest program that finds itself in any other code page refuses to run (exit 71), so the
-Windows lanes test the narrow strings that ship. The console keeps its own code page: Workshop's
-terminal Skin sets its output to UTF-8 while it draws, and a line printed to a console before
+Windows lanes test the narrow strings that ship. The console keeps its own code page: the
+terminal window sets its output to UTF-8 while it draws, and a line printed to a console before
 that is shown in the console's page.
 
 ### The paths the build tools carry
@@ -211,7 +211,7 @@ the fix.
 
 Licences and provenance for all of it are in
 [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md) and
-[surface/fonts/PROVENANCE.md](../../surface/fonts/PROVENANCE.md).
+[graphics/window/fonts/PROVENANCE.md](../../graphics/window/fonts/PROVENANCE.md).
 
 ## Terminals
 

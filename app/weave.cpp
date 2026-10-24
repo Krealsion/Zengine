@@ -59,7 +59,8 @@ struct AppWeaveState {
 
 /// One view the app runs, as it stands in the window.
 struct Placed {
-    std::string area; ///< the view's name, which is its office and its area
+    std::string view; ///< the view's name, which is its office
+    std::string area; ///< the area it draws in, its pane's: `<name>.view`
     std::int64_t x = 0, y = 0, w = 0, h = 0;
     std::int64_t notice_rows = 0;
 };
@@ -187,8 +188,8 @@ private:
                 continue;
             }
             const view::Description& d = described.description;
-            views_.push_back(Placed{d.name, v.x, v.y, d.width, d.height,
-                                    static_cast<std::int64_t>(view::kNoticeRows)});
+            views_.push_back(Placed{d.name, d.name + "." + view::kPane, v.x, v.y, d.width,
+                                    d.height, static_cast<std::int64_t>(view::kNoticeRows)});
             (void)mail.as_role(app::kAppRole)
                 .send_to_role(view::kViewHostRole, view::ViewRun{v.session, bytes.bytes});
         }
@@ -220,7 +221,7 @@ private:
         const std::int64_t line = window_.text_line_px > 0 ? window_.text_line_px : gfx::kCellPx;
         std::vector<std::string> areas;
         for (const Placed& v : views_) {
-            to_directory(gfx::AreaPlaced{v.area, window_.window, v.area, v.x, v.y, v.w,
+            to_directory(gfx::AreaPlaced{v.area, window_.window, v.view, v.x, v.y, v.w,
                                          v.h + v.notice_rows * line, 1, true, true});
             areas.push_back(v.area);
         }

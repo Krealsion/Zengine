@@ -1521,9 +1521,9 @@ TEST_CASE("the Builder's controls perform the operations its keys perform") {
     SUBCASE("a control pressed in a graphics window is the press of its face in Workshop: one "
             "drawn unavailable answers in its own words, and an act Workshop must approve is "
             "refused, since no Workshop gesture made the press") {
-        const char* area = pane::kBuilderPaneRole;
+        const std::string area = pane_area(pane::kBuilderPaneRole, pane::kBuilderPane);
         zengine::testing::pane_window::Window window(b.r.bus);
-        window.room(area, area, 160, 48);
+        window.room(area, pane::kBuilderPaneRole, 160, 48);
         REQUIRE_FALSE(window.weave().heard.empty());
         CHECK(window.weave().refusals.empty());
         const auto window_says = [&](const std::string& words) {
@@ -2398,35 +2398,29 @@ TEST_CASE("the wheel walks the Builder's recipe list, three rows a notch, and me
     CHECK_MESSAGE(bp_row(b.shown(), "> one -> a") >= 0, b.text());
 }
 
-TEST_CASE("the Builder's role line asks the window that shows the pane for a paste, the OS window or the terminal's, and the Skin only while none shows it") {
-    // ⚔ MUTATION: the Builder's paste asked of the Skin wherever its area is shown.
+TEST_CASE("the Builder's role line asks the window that shows the pane for a paste, the OS window or the terminal's") {
+    // ⚔ MUTATION: the Builder's paste asked of another office than the window showing its area.
     namespace gfx = zengine::graphics;
-    namespace pw = zengine::testing::pane_window;
     for (const char* window : {gfx::kSdlWindow, gfx::kTerminalWindow}) {
         CAPTURE(window);
+        const bool os = std::string(window) == gfx::kSdlWindow;
         BuilderRig b("bld-paste-window");
         b.tool->catalog = catalog_of({{"one", "a"}});
-        SkinStandIn* skin = mount_skin_stand_in(b.r);
+        if (os) b.r.on_os_window();
         b.open();
-        skin->platform = "zengine.";
-        // THE WINDOW SHOWS THE PANE'S AREA, so the pane has a room to compose its line in, and the
-        // paste is that window's and never the Skin's. (With no window the pane draws nowhere and
-        // composes no line, so a paste of the Skin's cannot be asked.)
-        pw::Window shown(b.r.bus, window);
-        const auto window_shows = [&shown](const std::string& area, const std::string& words) {
-            for (const std::string& row : shown.rows(area)) {
-                if (row.find(words) != std::string::npos) return true;
-            }
-            return false;
-        };
-        shown.weave().platform = "oven";
-        shown.room(pane::kBuilderPaneRole, pane::kBuilderPaneRole, 60, 20);
+        std::int64_t asks = 0;
+        const loom::ObserverId tap =
+            count_paste_asks(b.r.bus, std::string(gfx::kWindowOfficePrefix) + window, asks);
+        if (os) b.r.windows.set_clipboard("oven");
         b.r.key(input::scan::kO);
-        REQUIRE(window_shows(pane::kBuilderPaneRole, "type the role"));
+        REQUIRE(b.text().find("type the role") != std::string::npos);
         b.r.key(input::scan::kV, input::mod::kCtrl);
-        CHECK(shown.weave().clipboard_reads == 1);
-        CHECK(skin->clipboard_reads == 0);
-        CHECK(window_shows(pane::kBuilderPaneRole, "role for a> oven"));
+        b.r.bus.remove_observer(tap);
+        CHECK(asks == 1);
+        if (os) {
+            CHECK(b.r.windows.clipboard_reads() == 1);
+            CHECK(b.text().find("role for a> oven") != std::string::npos);
+        }
     }
 }
 

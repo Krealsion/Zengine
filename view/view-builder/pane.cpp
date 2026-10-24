@@ -1400,7 +1400,7 @@ private:
     bool kept_ = false;
     std::optional<vb::Picture> window_shown_; ///< the picture last drawn in the window, and its room
     ws::CanvasRoom window_room_;
-    ws::WindowDrawing window_{vb::kRole, vb::kRole}; ///< its area in the window that shows it
+    ws::WindowDrawing window_{vb::kRole, ws::pane_area(vb::kRole, vb::kPane)}; ///< its area
     std::map<std::string, vb::Hit> window_parts_;   ///< the parts the picture last sent there names
     bool room_asked_ = false;                       ///< its area's room asked in this life
     zengine::component::Clipboard clipboard_;

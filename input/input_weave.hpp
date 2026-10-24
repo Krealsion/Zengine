@@ -72,9 +72,8 @@ template <class Reader>
 using ReaderEvent = typename std::decay_t<decltype(std::declval<Reader&>().poll())>::value_type;
 
 /// That variant's alternatives, as the weave's Emit set: derived, not spelled, so each weave
-/// declares exactly what its reader can hand it -- the SDL reader adds the surface close request
-/// without the Input package depending on Surface -- plus the answers the session doors give,
-/// which are this weave's own for every backend.
+/// declares exactly what its reader can hand it, plus the answers the session doors give, which
+/// are this weave's own for every backend.
 template <class V>
 struct EmitsOf;
 template <class... Ts>
