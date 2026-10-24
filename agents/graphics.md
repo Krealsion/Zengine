@@ -12,7 +12,7 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
   composes the areas front to back by their order, and shows only what changed: a terminal window
   writes the cells whose picture changed, as runs; an OS window draws its whole picture once a
   showing. It judges a press against what it painted and routes it, and gives keys, their releases
-  and the text they type to the owners of the areas placed to hear them (`AreaKeyPressed`,
+  and the text they type to the owners of the areas placed to hear each (`AreaKeyPressed`,
   `AreaKeyReleased`, `AreaTextEntered`), naming the area.
 - **One window, many media.** The store, the judge, the element seam, the directory's words, keys
   and presses are one class over its medium (`graphics/window/window.hpp`); what a medium keeps
@@ -119,6 +119,9 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
   ended, the pointer left, and what it shows settled (`AreaSettled`, at each showing its version
   moved). An arranger that takes none of these places its areas without, and is told none, so no
   showing refuses a word on its bus.
+- **A window gives a key moment only to an owner placed to hear it**: a key (`AreaPlaced::keys`),
+  its release (`releases`), the text it types (`text`). An owner places its areas for the moments
+  it takes, and is given no other, so no key refuses a word on its bus.
 
 ## Colour, pixels and operands
 

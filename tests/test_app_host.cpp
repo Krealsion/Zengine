@@ -201,8 +201,10 @@ struct Run {
         return out;
     }
 
+    /// A key pressed and let go, as a keyboard gives it.
     void key(std::int64_t scancode) {
         light.queued.events.emplace_back(in::KeyPressed{scancode, "", in::mod::kNone});
+        light.queued.events.emplace_back(in::KeyReleased{scancode, "", in::mod::kNone});
         pump();
     }
     void text(const std::string& typed) {
@@ -418,10 +420,11 @@ TEST_CASE("a field of the app's view is clicked into in its window and typed int
     CHECK(has(run.shown(), "Total: 20"));
 }
 
-TEST_CASE("the app's window tells the app's weave nothing it does not take: its showings, a press and "
-          "typing put no refused notice on the bus") {
+TEST_CASE("the app's window tells the app's weave and its views nothing they do not take: its "
+          "showings, a press and typing put no refused notice on the bus") {
     // MUTATION: the window telling every arranger what an area shows settled -- the app's weave,
-    // which places its areas and takes no such word, refuses it at each showing.
+    // which places its areas and takes no such word, refuses it at each showing. And every key
+    // moment to each area placed to hear keys -- a view, which takes no release, refuses each.
     AppFolder folder("quiet");
     Run run(folder);
     REQUIRE(run.open());
@@ -431,9 +434,10 @@ TEST_CASE("the app's window tells the app's weave nothing it does not take: its 
     REQUIRE(run.host->executor().state() == zengine::workshop::load::Realization::Complete);
     std::vector<std::string> refused;
     const loom::ObserverId tap = run.bus.add_observer([&](const loom::BusEvent& ev) {
+        // The suite loads no Timer, so the window's ask for its beat finds no taker there.
         if (ev.kind == loom::EventKind::Refused && run.window.valid() && ev.sender == run.window &&
-            ev.addressed_role == app::kAppRole)
-            refused.push_back(ev.schema_name);
+            ev.addressed_role != zengine::timer::kTimerRole)
+            refused.push_back(ev.addressed_role + " " + ev.schema_name);
     });
     run.mount_window();
     REQUIRE(has(run.shown(), "Total: waiting"));

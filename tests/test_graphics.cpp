@@ -1702,12 +1702,21 @@ TEST_CASE("the new-game button is the world's action, and a new game reaches the
     CHECK(t.r.heard.visuals.back().snake.front().x == 12); // seeded afresh
 }
 
-TEST_CASE("keys go from the window to the owner of each area placed to hear them") {
+TEST_CASE("keys go from the window to the owner of each area placed to hear them, and snake's world, "
+          "placed for keys alone, refuses nothing on the bus") {
     Typed t;
     t.r.tick();
-    t.type("w"); // the world's own up key
+    std::vector<std::string> refused;
+    const loom::ObserverId tap = t.r.bus.add_observer([&refused](const loom::BusEvent& e) {
+        if (e.kind == loom::EventKind::Refused) refused.push_back(e.schema_name);
+    });
+    t.type("w"); // the world's own up key, its text and its release
+    t.r.bus.remove_observer(tap);
     t.r.tick();
     CHECK(t.r.heard.visuals.back().snake.front().y == 7);
+    std::string said;
+    for (const std::string& r : refused) said += r + "\n";
+    CHECK_MESSAGE(refused.empty(), said);
 }
 
 namespace {
@@ -1764,30 +1773,34 @@ private:
 
 } // namespace
 
-TEST_CASE("what a key types goes with the key and its release from the window to the owner of each "
-          "area placed to hear keys, and to no other, each naming that area and the weaver's own "
-          "hand; an owner that takes no text or release refuses it on the bus") {
+TEST_CASE("a key, its release and the text it types go from the window to the owner of each area "
+          "placed to hear that moment, and to no other, each naming that area and the weaver's own "
+          "hand; an owner placed for keys alone is given nothing else, and nothing is refused") {
+    // MUTATION: every key moment to each area placed to hear keys -- the owner that takes keys
+    // alone refuses each release and each text on the bus.
     TypedWindow t;
     t.r.to_role(gfx::kGraphicsRole, gfx::SkinOffered{"classic", PAINT_CLASSIC_SO});
     t.r.drain();
-    const auto mount = [&t](auto made, const char* office, bool keys, std::int64_t y) {
+    const auto mount = [&t](auto made, const char* office, bool keys, bool more, std::int64_t y) {
         auto* raw = made.get();
         loom::Grant g = loom::emit_default_grant(*raw);
         const loom::WeaveId id = t.r.bus.register_weave(std::move(made), std::move(g), office);
         raw->zen_set_self(id);
-        t.r.to_role(gfx::kGraphicsRole, gfx::AreaPlaced{office, gfx::kTerminalWindow, office, 0, y,
-                                                        10 * gfx::kCellPx, 2 * gfx::kCellPx, 1,
-                                                        keys});
+        gfx::AreaPlaced placed{office, gfx::kTerminalWindow, office, 0, y, 10 * gfx::kCellPx,
+                               2 * gfx::kCellPx, 1, keys};
+        placed.releases = more;
+        placed.text = more;
+        t.r.to_role(gfx::kGraphicsRole, placed);
         t.r.to_role(gfx::kGraphicsRole, gfx::SkinChosen{office, "classic"});
         t.r.drain();
         return id;
     };
     KeysHeard typing, deaf, keys_only;
     const loom::WeaveId typing_id =
-        mount(std::make_unique<TextOwner>(typing), "test.typing", true, 0);
-    (void)mount(std::make_unique<TextOwner>(deaf), "test.deaf", false, 3 * gfx::kCellPx);
-    const loom::WeaveId keys_id =
-        mount(std::make_unique<KeysOwner>(keys_only), "test.keys-only", true, 6 * gfx::kCellPx);
+        mount(std::make_unique<TextOwner>(typing), "test.typing", true, true, 0);
+    (void)mount(std::make_unique<TextOwner>(deaf), "test.deaf", false, false, 3 * gfx::kCellPx);
+    (void)mount(std::make_unique<KeysOwner>(keys_only), "test.keys-only", true, false,
+                6 * gfx::kCellPx);
     std::vector<std::pair<std::uint64_t, std::string>> refused;
     const loom::ObserverId tap = t.r.bus.add_observer([&refused](const loom::BusEvent& e) {
         if (e.kind == loom::EventKind::Refused) refused.emplace_back(e.target.value, e.schema_name);
@@ -1795,8 +1808,8 @@ TEST_CASE("what a key types goes with the key and its release from the window to
     const std::size_t mark = t.r.log.size();
     t.type("hi");
     t.r.bus.remove_observer(tap);
-    // EACH KEY, THE CHARACTER IT TYPED, AND ITS RELEASE, to the owner placed to hear keys, as the
-    // window's office, to that owner alone...
+    // EACH KEY, THE CHARACTER IT TYPED, AND ITS RELEASE, to the owner placed to hear all three, as
+    // the window's office, to that owner alone...
     CHECK(typing.said == std::vector<std::string>{"key H", "text h", "up H", "key I", "text i",
                                                   "up I"});
     CHECK(typing.named == std::vector<std::string>(6, "test.typing local"));
@@ -1810,15 +1823,11 @@ TEST_CASE("what a key types goes with the key and its release from the window to
     CHECK(text_delivered == 2);
     // ...NOTHING TO ONE PLACED WITHOUT THEM...
     CHECK(deaf.said.empty());
-    // ...AND TO AN OWNER THAT TAKES KEYS ALONE, its keys, the bus refusing the text and the
-    // releases it does not take, and nothing else refused.
+    // ...AND TO AN OWNER PLACED FOR KEYS ALONE, its keys and nothing else: no text or release is
+    // given it, and nothing is refused on the bus.
     CHECK(keys_only.said == std::vector<std::string>{"key H", "key I"});
     CHECK(keys_only.named == std::vector<std::string>(2, "test.keys-only local"));
-    CHECK(refused == std::vector<std::pair<std::uint64_t, std::string>>{
-                         {keys_id.value, gfx::AreaTextEntered::zen_name},
-                         {keys_id.value, gfx::AreaKeyReleased::zen_name},
-                         {keys_id.value, gfx::AreaTextEntered::zen_name},
-                         {keys_id.value, gfx::AreaKeyReleased::zen_name}});
+    CHECK(refused.empty());
 }
 
 namespace {
@@ -4595,6 +4604,8 @@ struct LitWindow {
         raw->zen_set_self(id);
         owners.emplace_back(office, id);
         gfx::AreaPlaced placed{office, gfx::kSdlWindow, office, x, y, w, h, order, keys};
+        placed.releases = keys; // the owner takes every key moment
+        placed.text = keys;
         placed.pointer = pointer;
         r.to_role(gfx::kGraphicsRole, placed);
         r.to_role(gfx::kGraphicsRole, gfx::SkinChosen{office, skin});
@@ -5855,6 +5866,8 @@ struct SdlWeave {
         r.to_role(gfx::kGraphicsRole, gfx::SkinOffered{"day", PAINT_DAY_SO});
         gfx::AreaPlaced placed{"test.lit", gfx::kSdlWindow, "test.lit", 0,
                                0, 40 * gfx::kCellPx, 4 * gfx::kCellPx, 0, keys};
+        placed.releases = keys; // the owner takes every key moment
+        placed.text = keys;
         placed.pointer = pointer;
         r.to_role(gfx::kGraphicsRole, placed);
         r.to_role(gfx::kGraphicsRole, gfx::SkinChosen{"test.lit", "day"});
