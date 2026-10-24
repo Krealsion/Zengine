@@ -31,8 +31,8 @@ using zengine::timer::MonotonicClock;
 /// The shipped Timer: the service over the real clock, spending whatever authority this load was
 /// offered -- a constructor and nothing else, since `ZEN_EXPORT_WEAVE` builds with `new S()`. It
 /// may refuse to exist: an offer that cannot serve `timer.normalize_delay` at this Timer's
-/// signature throws, the reason goes to stderr (a null from `create()` carries none), and the
-/// Kernel refuses the load.
+/// signature throws, the reason goes to stderr, and the Kernel refuses the load in the throw's
+/// words.
 class TimerService : public zengine::timer::TimerServiceT<MonotonicClock> {
 public:
     TimerService()

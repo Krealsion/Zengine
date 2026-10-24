@@ -92,11 +92,12 @@ Read it as: the OS window, otherwise the terminal window. At each launch:
   keeps it for the run:
 
   ```text
-  `zengine-window-sdl` did not load, so `zengine-window-terminal` stands in its row -- it would not start here, and what it said is on standard error (weave load refused: library create() returned null)
+  `zengine-window-sdl` did not load, so `zengine-window-terminal` stands in its row -- it would not start here: zengine-window-sdl: SDL_Init(SDL_INIT_VIDEO) failed: No available video device
   ```
 
-  SDL's own words are on standard error, which the terminal window covers while it runs and gives
-  back when Workshop ends.
+  The words after `start here:` are SDL's own, which the OS window refused to be made in. It says
+  them on standard error too, which the terminal window covers while it runs and gives back when
+  Workshop ends.
 - **A build without the OS window** (configured with `ZENGINE_TUI_ONLY=ON`) holds no
   `zengine-window-sdl`, and the terminal window loads with nothing said.
 - **`--tui`** opens the terminal window, of the windows the plan offers, and tries no other: the

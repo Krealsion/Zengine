@@ -148,9 +148,8 @@ TEST_CASE("what the plan could not load and gave way from is said on the desk as
     // ⚔ MUTATION: the startup notes leaving out `HostContext::passed_over` -- the desk comes up
     // in the terminal window and never says the OS window could not open.
     const std::string said = "`zengine-window-sdl` did not load, so `zengine-window-terminal` "
-                                 "stands in its row -- it would not start here, and what it said "
-                                 "is on standard error (weave load refused: library create() "
-                                 "returned null)";
+                             "stands in its row -- it would not start here: zengine-window-sdl: "
+                             "SDL_Init(SDL_INIT_VIDEO) failed: No available video device";
     Live t;
     t.host.passed_over = [&said] { return std::vector<std::string>{said}; };
     // ...AND IT STANDS FOR THE RUN, as the host keeps it (`gave_way`), so a sentence said

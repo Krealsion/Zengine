@@ -769,7 +769,7 @@ provider-aware artifact hot reload; they are different things.
 
 | symptom | first thing to check |
 |---|---|
-| `library create() returned null` on load | your weave's constructor threw — a duplicate binding id, an empty id, an empty role on a `*_to_role` binding |
+| `library create() refused: …` on load | your weave's constructor threw, and what follows is what it threw — a duplicate binding id, an empty id, an empty role on a `*_to_role` binding |
 | `open failed: … cannot open shared object file` | the artifact is not at the path the plan/host spelled |
 | the weave loads and **nothing happens** | no holder for the role you send to; or the shape is unknown to the host process |
 | `RefusalReason::SeamUnresolved` | a loaded weave **addressed** something with a shape **nothing in this process ever declared** — usually the service you are talking to is not loaded. The event's `addressed_role` names the office it was reaching for |

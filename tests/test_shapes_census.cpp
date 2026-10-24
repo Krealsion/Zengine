@@ -3,17 +3,19 @@
 
 // THE CENSUS OF SHAPES: every shape this tree publishes, nested ones included, pinned by content
 // id under its name and version in tests/shapes.txt. A weave library publishes what its manifest
-// declares -- its doors, state, claims and sentences, and every shape they nest -- and a header
-// publishes the shapes no library declares (a file's format, a value carried inside another).
-// A change that moves a content id under the same name and version fails here, naming the shape;
-// a new version is a new pin, and the pins' diff names every enclosing shape the change touched.
+// declares, read through Loom's C ABI (`zen/kernel/abi.h`) as the Kernel reads it, so a change to
+// that ABI reaches here; a header publishes the shapes no library declares. A content id that
+// moves under the same name and version fails here, naming the shape; a new version is a new pin,
+// and the pins' diff names every enclosing shape the change touched.
 
 #include "doctest.h"
 
 #include "census_headers.hpp"
 #include "operator/image.hpp"
+#include "video_driver.hpp"
 
 #include <zen/kernel/abi.h>
+#include <zen/kernel/making_words.hpp>
 #include <zen/kernel/schema_codec.hpp>
 #include <zen/registry.hpp>
 #include <zen/schema.hpp>
@@ -97,7 +99,8 @@ void sink_write(void* ctx, const std::uint8_t* data, std::size_t len) {
 }
 
 /// ONE WEAVE LIBRARY'S MANIFEST, read as the Kernel reads it at load: its doors, state, claims
-/// and sentences, and the referenced shapes they nest. Empty, with `why`, when it cannot be read.
+/// and sentences, and the referenced shapes they nest. Empty, with `why`, when it cannot be read:
+/// a weave that makes nothing is named in the words it refused in, as the Kernel's load says them.
 std::vector<Shape> manifest_shapes(const std::string& path, std::string& why) {
     zengine::op::ImageShare image{path};
     if (!image.open()) {
@@ -111,9 +114,10 @@ std::vector<Shape> manifest_shapes(const std::string& path, std::string& why) {
         why = "exports no zen_weave_abi";
         return {};
     }
-    void* instance = abi->create();
+    loom::MakingWords words;
+    void* instance = abi->create(words.sink());
     if (instance == nullptr) {
-        why = "creates no weave to describe";
+        why = "creates no weave to describe: " + loom::making_refused(words);
         return {};
     }
     std::string bytes;
@@ -235,4 +239,29 @@ TEST_CASE("every shape this tree publishes is pinned by content id under its nam
     }
     MESSAGE("census: " << census.size() << " shapes from " << libraries << " libraries; as it stands: "
                        << ZENGINE_CENSUS_NOW);
+}
+
+TEST_CASE("a weave the census cannot make is named in the words it refused to be made in") {
+    // ⚔ MUTATION: the census handing `create` no sink -- the OS window told a driver SDL lacks is
+    // named as making nothing, and SDL's words are lost.
+    std::string window;
+    for (const std::string& path : lines_of(ZENGINE_CENSUS_WEAVES)) {
+        if (std::filesystem::path(path).filename().string().find("zengine-window-sdl") !=
+            std::string::npos) {
+            window = path;
+        }
+    }
+    if (window.empty()) {
+        MESSAGE("this build holds no OS window, so no weave the census reads refuses to be made");
+        return;
+    }
+    std::string why;
+    {
+        const zengine::testing::VideoDriver lacking("zengine-no-such-driver");
+        CHECK(manifest_shapes(window, why).empty());
+    }
+    CHECK_MESSAGE(why.rfind("creates no weave to describe: library create() refused: "
+                            "zengine-window-sdl: SDL_Init(",
+                            0) == 0,
+                  why);
 }
