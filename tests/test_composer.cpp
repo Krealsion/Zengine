@@ -708,14 +708,14 @@ TEST_CASE("every row of every projection fits the room it was granted") {
                 for (const cmp::RenderedRow& r : v.rows) {
                     REQUIRE(static_cast<std::int64_t>(r.row.text.size()) <= cols);
                     for (const char ch : r.row.text) {
-                        // `SurfaceTextRow`'s plain-ASCII contract, which is the third
+                        // `TextRow`'s plain-ASCII contract, which is the third
                         // rule Workshop judges an update by.
                         const unsigned char byte = static_cast<unsigned char>(ch);
                         REQUIRE(byte >= 0x20u);
                         REQUIRE(byte < 0x7Fu);
                     }
                     // A blank row is `role::kFill`, never `role::kNone` -- that value
-                    // is the absence of a BACKGROUND and is not a Skin ink.
+                    // is the absence of a BACKGROUND and is not a window's ink.
                     REQUIRE(r.row.role != gfx::role::kNone);
                 }
             }

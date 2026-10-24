@@ -63,7 +63,6 @@ namespace {
 
 namespace component = zengine::component;
 namespace input = zengine::input;
-namespace surface = zengine::surface;
 namespace gfx = zengine::graphics;
 namespace ws = zengine::workshop;
 namespace files = zengine::files;
@@ -1435,7 +1434,7 @@ private:
         return true;
     }
 
-    /// A paste is asked of the window that shows the pane's area, else the Skin.
+    /// A paste is asked of the window that shows the pane's area, and of nobody while none does.
     void begin_paste(loom::Mail& mail) {
         const std::string office = room().clipboard_office();
         const loom::AskOpened opened = clip_asks_.open_to_role(

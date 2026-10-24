@@ -44,6 +44,8 @@ namespace {
 namespace vb = zengine::view_builder;
 namespace view = zengine::view;
 namespace ws = zengine::workshop;
+/// The View Builder's area in a window (D12).
+const std::string kBuilderArea = ws::pane_area(vb::kRole, vb::kPane);
 namespace shape = zengine::flow::shape;
 namespace gfx = zengine::graphics;
 namespace pw = zengine::testing::pane_window;
@@ -536,7 +538,7 @@ struct Rig {
         } else {
             window.set_cells();
         }
-        window.room_px(vb::kRole, vb::kRole, r.width, r.height, r.grant);
+        window.room_px(kBuilderArea, vb::kRole, r.width, r.height, r.grant);
         shown = &window;
         pump();
     }
@@ -558,7 +560,7 @@ struct Rig {
     /// holds the same drawing -- and every one names only controls its rows in force declare
     /// (WL-HAND-07).
     const ws::CanvasPicture& picture() const {
-        const gfx::window::WinArea* a = shown->held(vb::kRole);
+        const gfx::window::WinArea* a = shown->held(kBuilderArea);
         REQUIRE(a != nullptr);
         const auto key = std::make_tuple(static_cast<const void*>(shown), shown->weave().heard.size(), a->w,
                                          a->h, a->nodes.size());
@@ -600,12 +602,12 @@ struct Rig {
         const auto at = presses.find(gesture);
         const std::uint64_t n = at == presses.end() ? 0 : at->second;
         if (phase == ws::canvas_pointer::kPress || phase == ws::canvas_pointer::kRelease) {
-            shown->tell(vb::kRole, gfx::AreaButtonChanged{vb::kRole, button, phase == ws::canvas_pointer::kPress,
+            shown->tell(kBuilderArea, gfx::AreaButtonChanged{kBuilderArea, button, phase == ws::canvas_pointer::kPress,
                                                           x, y, modifiers}, n);
         } else if (phase == ws::canvas_pointer::kMove) {
-            shown->tell(vb::kRole, gfx::AreaPointerMoved{vb::kRole, x, y, 0, 0, modifiers}, n);
+            shown->tell(kBuilderArea, gfx::AreaPointerMoved{kBuilderArea, x, y, 0, 0, modifiers}, n);
         } else if (phase == ws::canvas_pointer::kLost) {
-            shown->hold_ended(vb::kRole, button);
+            shown->hold_ended(kBuilderArea, button);
         }
         pump();
     }
@@ -613,12 +615,12 @@ struct Rig {
     /// window does -- a move with no press held, or the pointer leaving the area.
     void hover(std::int64_t x, std::int64_t y, bool over = true, bool carrying = false) {
         if (carrying) {
-            host(ws::PaneCanvasHover{vb::kPane, vb::kRole, x, y, over});
+            host(ws::PaneCanvasHover{vb::kPane, kBuilderArea, x, y, over});
         } else if (over) {
-            shown->tell(vb::kRole, gfx::AreaPointerMoved{vb::kRole, x, y, 0, 0, 0});
+            shown->tell(kBuilderArea, gfx::AreaPointerMoved{kBuilderArea, x, y, 0, 0, 0});
             pump();
         } else {
-            shown->left(vb::kRole);
+            shown->left(kBuilderArea);
             pump();
         }
     }
@@ -671,7 +673,7 @@ struct Rig {
         const auto* t = text(start);
         REQUIRE_MESSAGE(t != nullptr, start);
         const auto bytes = zengine::inventory::encode_pair(value, {});
-        host(ws::PaneCanvasValueDrop{vb::kPane, vb::kRole, t->x + 4, t->y + 4,
+        host(ws::PaneCanvasValueDrop{vb::kPane, kBuilderArea, t->x + 4, t->y + 4,
                                      loom::Bytes(bytes.begin(), bytes.end()), "zengine.flow", "flow", ""});
     }
 
@@ -801,10 +803,10 @@ TEST_CASE("a press the window landed on the View Builder where it now draws anot
     const std::int64_t x = chip->x + 8, y = chip->y + 8;
     const auto landed = [&](const std::string& part, std::uint64_t press) {
         for (const bool down : {true, false}) {
-            gfx::AreaButtonChanged b{vb::kRole, 1, down, x, y, 0};
-            b.under = vb::kRole;
+            gfx::AreaButtonChanged b{kBuilderArea, 1, down, x, y, 0};
+            b.under = kBuilderArea;
             b.part = part;
-            rig.shown->tell(vb::kRole, b, press);
+            rig.shown->tell(kBuilderArea, b, press);
             rig.pump();
         }
     };
@@ -1201,7 +1203,7 @@ TEST_CASE("the middle button pans the design canvas: an element past its edge is
     // A VALUE DROPPED on a label while panned binds the label it was dropped on.
     const auto made = vb::element_area(placed, rig.now().elements[6]);
     const auto bytes = zengine::inventory::encode_pair(loom::encode_schema(*total_shape()), {});
-    rig.host(ws::PaneCanvasValueDrop{vb::kPane, vb::kRole, made.x + made.w / 2, made.y + made.h / 2,
+    rig.host(ws::PaneCanvasValueDrop{vb::kPane, kBuilderArea, made.x + made.w / 2, made.y + made.h / 2,
                                      loom::Bytes(bytes.begin(), bytes.end()), "zengine.flow", "flow", ""});
     CHECK(rig.now().shown("label1") != nullptr);
     // THE PAN IS NEVER SAVED: the far button put back and the label removed, the file is the
@@ -1765,7 +1767,7 @@ TEST_CASE("a value dropped on no label is refused in words whatever is selected;
     const auto total = loom::encode_schema(*total_shape());
     const auto drop_at = [&](std::int64_t x, std::int64_t y) {
         const auto bytes = zengine::inventory::encode_pair(total, {});
-        rig.host(ws::PaneCanvasValueDrop{vb::kPane, vb::kRole, x, y,
+        rig.host(ws::PaneCanvasValueDrop{vb::kPane, kBuilderArea, x, y,
                                          loom::Bytes(bytes.begin(), bytes.end()), "zengine.flow", "flow", ""});
     };
     const std::string refused = "Not shown: drop a shape or a field on a label, on the canvas or in the list";
@@ -1801,7 +1803,7 @@ TEST_CASE("a label bound to a shape named beyond plain ASCII leaves the builder'
     const auto bytes = zengine::inventory::encode_pair(loom::encode_schema(*grosse), {});
     // ON THE LABEL ON THE CANVAS: bound.
     auto [x, y] = rig.middle(rig.now().elements[4]);
-    rig.host(ws::PaneCanvasValueDrop{vb::kPane, vb::kRole, x, y,
+    rig.host(ws::PaneCanvasValueDrop{vb::kPane, kBuilderArea, x, y,
                                      loom::Bytes(bytes.begin(), bytes.end()), "zengine.flow", "flow", ""});
     const auto d = rig.now();
     REQUIRE(d.shows.size() == 1);
@@ -2184,7 +2186,7 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
             "element marks it until it leaves the area, and an element pressed there and moved "
             "under the press's number moves by whole cells, as on Workshop's canvas") {
         pw::Window window(rig.bus, "builder");
-        window.room(vb::kRole, vb::kRole, 110, 30);
+        window.room(kBuilderArea, vb::kRole, 110, 30);
         rig.pump();
         rig.shown = &window;
         // RESTING ON AN ELEMENT NOT SELECTED MARKS IT; the pointer leaving the area puts it down.
@@ -2194,10 +2196,10 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
         };
         REQUIRE_FALSE(marked());
         const auto [mx, my] = rig.middle(rig.now().elements[1]);
-        window.move(vb::kRole, mx / gfx::kCellPx, my / gfx::kCellPx);
+        window.move(kBuilderArea, mx / gfx::kCellPx, my / gfx::kCellPx);
         rig.pump();
         CHECK(marked());
-        window.left(vb::kRole);
+        window.left(kBuilderArea);
         rig.pump();
         CHECK_FALSE(marked());
         // AN ELEMENT PRESSED, MOVED UNDER ITS NUMBER AND LET GO MOVES WITH THE HAND.
@@ -2205,9 +2207,9 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
         const auto place = vb::element_area(rig.design(), before);
         const std::int64_t col = (place.x + unit) / gfx::kCellPx, row = place.y / gfx::kCellPx;
         const std::uint64_t n = window.next_press();
-        window.button(vb::kRole, col, row, true, n);
-        window.move(vb::kRole, col + 2, row + 1, n);
-        window.button(vb::kRole, col + 2, row + 1, false, n);
+        window.button(kBuilderArea, col, row, true, n);
+        window.move(kBuilderArea, col + 2, row + 1, n);
+        window.button(kBuilderArea, col + 2, row + 1, false, n);
         rig.pump();
         CHECK(rig.now().elements[0].x > before.x);
         CHECK(rig.now().elements[0].y > before.y);
@@ -2217,10 +2219,10 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
             "whole and then as what changed, under the names Workshop's parts carry; a press there "
             "is that press let go without moving, and a refused change is drawn whole again once "
             "while a refused whole picture is only said") {
-        CHECK(rig.directory->times(vb::kRole, vb::kRole) == 1);
+        CHECK(rig.directory->times(kBuilderArea, vb::kRole) == 1);
         zengine::testing::order_activation(rig.bus, rig.door, rig.pane, ++rig.activation);
         rig.pump(); // activated again in the same life, before any window: no second ask
-        CHECK(rig.directory->times(vb::kRole, vb::kRole) == 1);
+        CHECK(rig.directory->times(kBuilderArea, vb::kRole) == 1);
         pw::Window window(rig.bus, "builder");
         const auto& seen = window.weave();
         // A ROOM OF THE TERMINAL'S SIZE, so the window's picture is the rig's terminal's.
@@ -2229,7 +2231,7 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
             for (const auto& p : rig.picture().parts) out.insert(p.name);
             return out;
         }();
-        window.room(vb::kRole, vb::kRole, 110, 30);
+        window.room(kBuilderArea, vb::kRole, 110, 30);
         rig.pump();
         rig.shown = &window;
         REQUIRE(seen.heard.size() == 1);
@@ -2243,11 +2245,11 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
         names.erase(std::string());
         for (const auto& r : first.said) recorded.insert(r.action);
         CHECK(recorded == names);
-        for (const auto& action : window.actions(vb::kRole)) CHECK(names.count(action) == 1);
+        for (const auto& action : window.actions(kBuilderArea)) CHECK(names.count(action) == 1);
 
         // A PRESS ON A KIND makes one, as a click on it does, and the window shows it.
         const auto made = rig.now().elements.size();
-        REQUIRE(window.press(vb::kRole, "kind:label"));
+        REQUIRE(window.press(kBuilderArea, "kind:label"));
         rig.pump();
         CHECK(rig.now().elements.size() == made + 1);
         CHECK(rig.text("Elements (" + std::to_string(made + 1) + ")") != nullptr);
@@ -2255,21 +2257,21 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
         CHECK_FALSE(seen.heard.back().whole);
         CHECK(seen.refusals.empty());
         // ...a button brings a rectangle more, painted in its place among the picture's.
-        REQUIRE(window.press(vb::kRole, "kind:button"));
+        REQUIRE(window.press(kBuilderArea, "kind:button"));
         rig.pump();
         CHECK(rig.now().elements.size() == made + 2);
         CHECK_FALSE(seen.heard.back().whole);
         // ...ON AN ELEMENT selects it and begins no drag, and on its handle nothing moves.
         const auto element = rig.now().elements[0];
-        REQUIRE(window.press(vb::kRole, "element:" + element.id));
+        REQUIRE(window.press(kBuilderArea, "element:" + element.id));
         rig.pump();
         const std::string handle = "handle:" + element.id + ".1,1";
-        REQUIRE(window.press(vb::kRole, handle));
+        REQUIRE(window.press(kBuilderArea, handle));
         rig.pump();
         const auto still = rig.now().elements[0];
         CHECK((still.x == element.x && still.y == element.y && still.w == element.w && still.h == element.h));
         // ...ON A BOX opens it on its value with the caret after it, where Workshop's typing lands.
-        REQUIRE(window.press(vb::kRole, "box:name"));
+        REQUIRE(window.press(kBuilderArea, "box:name"));
         rig.pump();
         rig.host(ws::PaneTextInput{vb::kPane, "x"});
         rig.host(ws::PaneKey{vb::kPane, zengine::input::scan::kReturn, 0});
@@ -2278,8 +2280,8 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
         const auto heard = seen.heard.size();
         const auto elements = rig.now().elements.size();
         pw::Window other(rig.bus, "other");
-        other.ask(vb::kRole, "kind:label", vb::kRole);
-        window.ask(vb::kRole, "kind:nothing");
+        other.ask(kBuilderArea, "kind:label", vb::kRole);
+        window.ask(kBuilderArea, "kind:nothing");
         rig.pump();
         CHECK(rig.now().elements.size() == elements);
         CHECK(seen.heard.size() == heard);
@@ -2287,7 +2289,7 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
 
         // A REFUSED CHANGE IS DRAWN AGAIN WHOLE AT ONCE...
         window.weave().refuse_next = true;
-        REQUIRE(window.press(vb::kRole, "kind:number"));
+        REQUIRE(window.press(kBuilderArea, "kind:number"));
         rig.pump();
         REQUIRE(seen.heard.size() == heard + 2);
         CHECK_FALSE(seen.heard[heard].whole);
@@ -2297,7 +2299,7 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
         // ...AND A REFUSED WHOLE PICTURE IS SAID in the picture drawn next, once, and nothing
         // more is drawn until the next change.
         window.weave().refuse_next = true;
-        window.room(vb::kRole, vb::kRole, 110, 30, 2);
+        window.room(kBuilderArea, vb::kRole, 110, 30, 2);
         rig.pump();
         REQUIRE(seen.heard.size() == heard + 4);
         CHECK(seen.heard[heard + 2].whole);
@@ -2312,7 +2314,7 @@ TEST_CASE("in a terminal the builder's picture and its drags are floored to cell
 
         // ONCE A LIFE: a reloaded builder asks its room afresh.
         rig.reload();
-        CHECK(rig.directory->times(vb::kRole, vb::kRole) == 2);
+        CHECK(rig.directory->times(kBuilderArea, vb::kRole) == 2);
     }
 }
 

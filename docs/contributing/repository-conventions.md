@@ -65,7 +65,7 @@ spell them identically and the two cannot drift into meaning different things. A
 target keeps its plain hyphenated name, and a link line therefore reads as a boundary:
 
 ```cmake
-target_link_libraries(zengine-workshop PRIVATE zengine::surface            # exported
+target_link_libraries(zengine-workshop PRIVATE zengine::graphics           # exported
                                                zengine-workshop-vocabulary) # internal
 ```
 

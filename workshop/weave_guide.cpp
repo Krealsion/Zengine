@@ -262,7 +262,7 @@ WorkshopWeave::GuideDrawing WorkshopWeave::guide_drawing(const GuideMark& mark) 
         const std::int64_t fits = own.w / graphics::kCellPx;
         std::string text = found->text.substr(0, static_cast<std::size_t>(std::max<std::int64_t>(fits, 0)));
         if (static_cast<std::int64_t>(text.size()) < fits) text.append(static_cast<std::size_t>(fits) - text.size(), ' ');
-        if (own.w > 0) out.labels.push_back(surface::SurfaceLabel{own.x, own.y, text, role});
+        if (own.w > 0) out.labels.push_back(ScreenLabel{own.x, own.y, text, role});
     } else {
         // AN OUTLINE ONE GRAIN WIDE AROUND THE PART, inside the body.
         out.drawn = clipped(PixelRect{r.x - g, r.y - g, r.w + 2 * g, r.h + 2 * g}, body);
@@ -288,7 +288,7 @@ WorkshopWeave::GuideDrawing WorkshopWeave::guide_drawing(const GuideMark& mark) 
         for (const PaneWord& w : words) free = free && !meets(spot, w.place);
         for (const PanePart& p : parts) free = free && !meets(spot, p.place);
         if (!free) continue;
-        out.labels.push_back(surface::SurfaceLabel{x, y, label, role});
+        out.labels.push_back(ScreenLabel{x, y, label, role});
         out.labelled = true;
         break;
     }
@@ -311,8 +311,8 @@ void WorkshopWeave::end_guide(loom::Mail& mail, std::uint64_t session, const std
 // EVERY MARK, JUDGED AGAIN AT EVERY PICTURE: its session, its pane's holder and incarnation, and its
 // part in a settled picture; a mark whose pane is not settled and uncovered now is kept, not drawn.
 // WL-GUIDE-06 -- agents/workshop/guide.md
-surface::SurfaceLayer WorkshopWeave::guide_layer(loom::Mail& mail) {
-    surface::SurfaceLayer layer;
+ScreenPlane WorkshopWeave::guide_layer(loom::Mail& mail) {
+    ScreenPlane layer;
     std::vector<std::pair<std::uint64_t, std::string>> ended;
     for (auto& [session, mark] : guide_marks_) {
         // ITS SESSION IS GONE when the host mints nothing for it: nobody to tell.
@@ -341,8 +341,8 @@ surface::SurfaceLayer WorkshopWeave::guide_layer(loom::Mail& mail) {
         }
         mark.drawn = drawing.drawn;
         mark.labelled = drawing.labelled;
-        for (const surface::SurfaceRect& r : drawing.rects) layer.rects.push_back(r);
-        for (const surface::SurfaceLabel& l : drawing.labels) layer.labels.push_back(l);
+        for (const ScreenRect& r : drawing.rects) layer.rects.push_back(r);
+        for (const ScreenLabel& l : drawing.labels) layer.labels.push_back(l);
     }
     for (const auto& [session, why] : ended) {
         if (why.empty()) guide_marks_.erase(session);

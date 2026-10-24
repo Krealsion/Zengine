@@ -22,7 +22,6 @@
 #include "operator/host_surface.hpp"
 #include "operator/provider_host.hpp"
 
-#include "surface/vocabulary.hpp"
 
 #include <zen/kernel/manager.hpp>
 #include <zen/switchboard.hpp>
@@ -96,9 +95,9 @@ struct Executed {
     explicit operator bool() const noexcept { return ok; }
 };
 
-/// Whether a realized project's medium -- `zengine.window.terminal` or a terminal Skin -- holds the
-/// process's measured terminal, so the host does not print the settled banner over it. A refused
-/// project's medium holds it too until it is unloaded, and its host says why it is leaving then.
+/// Whether a realized project's medium -- `zengine.window.terminal` -- holds the process's measured
+/// terminal, so the host does not print the settled banner over it. A refused project's medium
+/// holds it too until it is unloaded, and its host says why it is leaving then.
 inline bool medium_holds_terminal(const Executed& done, bool terminal_measured) {
     if (!terminal_measured) {
         return false;
@@ -106,15 +105,54 @@ inline bool medium_holds_terminal(const Executed& done, bool terminal_measured) 
     const std::string window =
         std::string(zengine::graphics::kWindowOfficePrefix) + zengine::graphics::kTerminalWindow;
     for (const ResolvedArtifact& row : done.resolved) {
-        if (!row.weave_loaded) {
-            continue;
-        }
-        if (row.role == window ||
-            (row.role == zengine::surface::kSkinRole && row.stem != "zengine-skin-sdl")) {
+        if (row.weave_loaded && row.role == window) {
             return true;
         }
     }
     return false;
+}
+
+/// AN ARTIFACT NO PLAN MAY NAME NOW, and what a weaver puts where it stood: a Skin, whose medium
+/// a window is, or the SDL Input reader, whose office `zengine-input` holds beside either window.
+struct RetiredArtifact {
+    const char* stem;
+    const char* fix;
+};
+inline constexpr RetiredArtifact kRetiredArtifacts[] = {
+    {"zengine-skin-tui-classic", "put the default plan's two medium rows where it stands"},
+    {"zengine-skin-tui-block", "put the default plan's two medium rows where it stands"},
+    {"zengine-skin-sdl", "put the graphical plan's two medium rows where it stands"},
+    {"zengine-input-sdl", "put zengine-input where it stands"},
+};
+
+/// The first row or choice of `plan` naming a retired artifact, as its index among the rows (the
+/// rows' count for a choice) and the sentence refusing the plan; an empty sentence for none.
+struct RetiredRow {
+    std::size_t row = 0;
+    std::string stem;
+    std::string refusal;
+};
+inline RetiredRow retired_row(const LoadPlan& plan) {
+    const auto refuse = [](std::size_t at, const std::string& stem) -> RetiredRow {
+        for (const RetiredArtifact& r : kRetiredArtifacts) {
+            if (stem == r.stem) {
+                return RetiredRow{at, stem, "artifact '" + stem + "' is retired: " + r.fix +
+                                                " (workshop/docs/load-plans.md)"};
+            }
+        }
+        return RetiredRow{};
+    };
+    for (std::size_t i = 0; i < plan.artifacts.size(); ++i) {
+        if (RetiredRow r = refuse(i, plan.artifacts[i].stem); !r.refusal.empty()) {
+            return r;
+        }
+    }
+    for (const ChoiceIntent& c : plan.choices) {
+        if (RetiredRow r = refuse(plan.artifacts.size(), c.stem); !r.refusal.empty()) {
+            return r;
+        }
+    }
+    return RetiredRow{};
 }
 
 // ---- Where realization is, and what it has made of one authored row ------------
@@ -489,6 +527,18 @@ public:
             return;
         }
         plan_ = std::move(plan);
+        // A PLAN NAMING A RETIRED ARTIFACT IS REFUSED BEFORE ANY ROW OPENS, by name and with its
+        // fix, optional or not: what it names cannot stand in this project at all.
+        if (RetiredRow retired = retired_row(plan_); !retired.refusal.empty()) {
+            cursor_ = retired.row;
+            current_ = ResolvedArtifact{};
+            current_.stem = retired.stem;
+            refusal_ = std::move(retired.refusal);
+            refused_why_ = "is retired";
+            state_ = Realization::Failed;
+            announce();
+            return;
+        }
         state_ = Realization::Advancing;
         advance();
     }

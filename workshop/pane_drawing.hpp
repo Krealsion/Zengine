@@ -18,7 +18,6 @@
 #include "graphics/pixels.hpp"
 #include "graphics/term_paint.hpp"
 #include "graphics/vocabulary.hpp"
-#include "surface/vocabulary.hpp" // the Skin's office, where no window shows a pane's area
 #include "pane_text_fit.hpp"
 #include "workshop/pane_rows.hpp"
 #include "workshop/pane_vocabulary.hpp"
@@ -31,6 +30,7 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -447,6 +447,14 @@ struct WindowPointer {
     std::int64_t drawing = 0;
 };
 
+/// THE AREA A PANE DRAWS IN: `<office>.<pane>`, for every pane, whatever else its office offers.
+inline std::string pane_area(std::string_view office, std::string_view pane) {
+    std::string area(office);
+    area += '.';
+    area += pane;
+    return area;
+}
+
 /// THE GRAPHICS WINDOW THAT SHOWS A PANE'S AREA, as the office drawing there keeps it: the canvas
 /// it draws with (`graphics::Canvas`) and the drawing it last sent. A drawing the window refused
 /// leaves what it shows as it was. A refused change was read against a drawing the window does not
@@ -462,9 +470,10 @@ public:
     bool shown() const noexcept { return !canvas_.window().empty(); }
     /// The office of the window that shows the area, which a drawing sent there addresses.
     std::string window_office() const { return canvas_.window_office(); }
-    /// The office that answers a paste asked from the area: the window showing it, else the Skin.
+    /// The office that answers a paste asked from the area: the window showing it, none while none
+    /// does.
     std::string clipboard_office() const {
-        return shown() ? canvas_.window_office() : std::string(surface::kSkinRole);
+        return shown() ? canvas_.window_office() : std::string();
     }
     /// The room that window gives the area, in pixels, and how it sets text there.
     std::int64_t width() const noexcept { return canvas_.width(); }

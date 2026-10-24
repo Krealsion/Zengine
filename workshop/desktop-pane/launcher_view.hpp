@@ -26,7 +26,7 @@
 #include "component/row_map.hpp"
 #include "graphics/role.hpp"
 #include "input/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
+#include "graphics/vocabulary.hpp"
 
 #include <zen/weave.hpp>
 

@@ -93,7 +93,7 @@ WHY — `agents/decisions/the-whole-pixel.md`
 
 ## WL-GEO-08 — The room and the unit are the medium's answer, never Workshop's
 
-LAW — `SurfaceExtent` says the room in canvas pixels and `cell_px` the device unit; zero means the cell, a terminal's room is its cells times twelve, and Workshop derives neither.
+LAW — The window's offer (`WindowOffered`) says the room in canvas pixels and `cell_px` the device unit; zero means the cell, a terminal's room is its cells times twelve, and Workshop derives neither.
 
 MEANS
 - every terminal, and any run no medium has spoken to, reads cells;
@@ -101,7 +101,7 @@ MEANS
 - a change of unit alone is a change: a window opened late does not leave a weaver in cells.
 
 DOES NOT MEAN
-- that Workshop may hold one Skin's layout number — correct only while there is one medium.
+- that Workshop may hold one window's layout number — correct only while there is one window.
 
 WHY — `agents/decisions/the-face-reports-the-unit.md`
 
@@ -227,26 +227,24 @@ SENTENCE is never shortened"
 "pixel geometry survives the setup file without losing a pixel"
 `tests/test_workshop_panes_window.cpp` "an axis in pixels is presented at exactly its pixels, on
 every medium"
-`tests/test_surface.cpp` "the pixel and cell conversions are exact, floored, and total"
+`tests/test_graphics.cpp` "the pixel and cell conversions are exact, floored, and total"
 
 ### WL-GEO-07
 `workshop/screen.hpp` PixelRect::contains_at PointedAt PointedAt::px
 `workshop/screen_arrange.cpp` pane_edge_at
-`surface/skin_tui.hpp` canvas_body
 `graphics/pixels.hpp` px_span_contains kPixelGrainPx kCellGrainPx
 `tests/test_workshop_screen.cpp` "the hand meets exactly the pixels and cells a pane paints" "the
 TUI projects a pane onto its covered cells and rewrites nothing"
-`tests/test_surface.cpp` "one quantization law -- a span lands on device units by flooring both
+`tests/test_graphics.cpp` "one quantization law -- a span lands on device units by flooring both
 edges"
 
 ### WL-GEO-08
 `workshop/screen_bindings.cpp` adopt_screen
 `workshop/screen.hpp` Session::cell_px Session::text_advance_px Session::screen_w Session::screen_h
 Screen::cell_px Screen::text_advance_px
-`surface/vocabulary.hpp` SurfaceExtent
-`workshop/weave_handlers.cpp` on(SurfaceExtent)
+`graphics/vocabulary.hpp` WindowOffered
+`workshop/weave_handlers.cpp` on(WindowOffered)
 `tests/test_workshop_screen.cpp` "the canvas's device unit is the medium's answer, never Workshop's"
-`tests/test_surface.cpp` "each medium reports the device unit its own canvas is laid out at"
 
 ### WL-GEO-09
 `workshop/screen_pane_state.cpp` geometry_unit geometry_spelling geometry_amount_text
@@ -255,7 +253,7 @@ pixel_rect_text pane_window_text
 `graphics/pixels.hpp` device_of_px
 `tests/test_workshop_screen.cpp` "one authored value, spelled in whatever unit the active face
 reported"
-`tests/test_surface.cpp` "a medium's own device unit, and whether it can say a value exactly"
+`tests/test_graphics.cpp` "a medium's own device unit, and whether it can say a value exactly"
 
 ### WL-GEO-10
 `workshop/screen_pane_state.cpp` geometry_spelling geometry_amount_text pixel_rect_text

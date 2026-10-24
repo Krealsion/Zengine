@@ -128,6 +128,9 @@ struct SwitchRig {
         plan.artifacts.push_back(seat);
         plan.choices = choices;
         REQUIRE(load::check_plan(plan).accepted);
+        // THE WINDOW AND THE DIRECTORY FIRST, as a plan's medium rows stand before its panes.
+        r.ready();
+        r.extent(160, 48);
         if (before_plan) {
             before_plan();
         }
@@ -139,8 +142,6 @@ struct SwitchRig {
         reader = probe.get();
         reader_id = r.bus.register_weave(std::move(probe), loom::Grant{}, std::string());
         reader->zen_set_self(reader_id);
-        r.ready();
-        r.extent(160, 48);
         const RuntimePane* row = r.session().panes.runtime.find(pane::kEditorPaneRole, pane::kEditorPane);
         REQUIRE_MESSAGE(row != nullptr, "the loaded image offered no `editor` pane");
         kind = row->kind;
@@ -298,13 +299,12 @@ struct SwitchRig {
     loom::TerminalSession* terminal = nullptr;
     void mount_terminal() {
         loom::TerminalVocabulary vocab;
-        vocab.knows(loom::schema_of<surface::SurfaceText>())
+        vocab.knows(loom::schema_of<RigNote>())
             .accepts(loom::schema_of<loom::Ack>())
             .accepts(loom::schema_of<loom::Result>())
             .accepts(loom::schema_of<loom::Refused>());
         loom::Grant grant;
-        grant.allow_to_role(surface::SurfaceText::zen_name, surface::SurfaceText::zen_version,
-                            surface::kSkinRole);
+        grant.allow_to_role(RigNote::zen_name, RigNote::zen_version, kRigBoard);
         let_terminal_switch_editors(vocab, grant);
         const loom::MountedTerminal mounted = loom::host_mount_terminal(
             r.bus, std::make_unique<loom::TerminalSession>("workshop", std::move(vocab)),

@@ -2,8 +2,7 @@
 
 Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks touching
 `graphics/` or a participant that draws into a window. Public reference:
-[`graphics/docs/graphics.md`](../graphics/docs/graphics.md). Surface's law, which a Skin weave
-keeps, is [surface](surface.md); where the two meet is the last section here.
+[`graphics/docs/graphics.md`](../graphics/docs/graphics.md).
 
 ## The window is a compositor above its medium
 
@@ -147,18 +146,14 @@ keeps, is [surface](surface.md); where the two meet is the last section here.
   version may keep the state in the code by that handle.
 - A skin's or an element code's crash or stall is its window's: both run in its handler.
 
-## Where Graphics and Surface meet
+## The terminal's claim and the input edge
 
-- A Skin weave (`surface/`) paints whole canvases a publisher sends and composes nothing; a
-  window (`graphics/`) composes areas and writes runs of changed cells. Neither paints the
-  other's vocabulary: no Skin accepts a node, and no window accepts a `SurfaceCanvas`.
 - The terminal's claim (`graphics/window/terminal_io.hpp`) and its input edge
   (`input/terminal_reader.hpp`) are shared: whichever participant owns the terminal in a process
   takes both, for exactly its life. Two owners of one terminal in one process is not a supported
-  arrangement. A window claims the input edge it shares with an Input reader for its life
-  (`input/window_claim.hpp`), and a reader beside it reads none of it: the terminal window the
-  terminal's input, the OS window SDL's one queue.
-- Graphics includes nothing of Surface: its roles, the terminal's claim, the platform's shapes
-  (the clipboard, the place, the close, the pump and the capture) and the pixel arithmetic
-  (`graphics/pixels.hpp`) are its own, and the Skins spell them by their graphics names. A window
-  and a Skin both hear every copy published, so a process shows through one of them.
+  arrangement. The terminal window claims the terminal's input for its life
+  (`input/window_claim.hpp`), and the Input reader beside it reads none of it; the OS window reads
+  SDL's one queue itself.
+- The roles, the platform's shapes (the clipboard, the place, the close, the pump and the capture)
+  and the pixel arithmetic (`graphics/pixels.hpp`) are Graphics' own, and every drawer spells them
+  by their graphics names.

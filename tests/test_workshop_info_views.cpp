@@ -1316,8 +1316,8 @@ TEST_CASE("info views: a view's line being typed shows its caret on its canvas, 
     CHECK(caret().sel_begin_col == 3);
     CHECK(caret().sel_end_col == 4);
     s.key(input::scan::kEscape); // the edit ends, and its caret with it
-    CHECK(caret().row == surface::kNoCaret);
-    CHECK(caret().sel_begin_row == surface::kNoSelection);
+    CHECK(caret().row == zengine::workshop::kNoCaret);
+    CHECK(caret().sel_begin_row == zengine::workshop::kNoSelection);
     // THE VIEW'S TITLE BEING RENAMED shows its caret after the title, the same way.
     s.key(input::scan::kHome, input::mod::kAlt);
     REQUIRE_MESSAGE(s.shows(a, "View title"), s.shown(a));
@@ -1326,7 +1326,7 @@ TEST_CASE("info views: a view's line being typed shows its caret on its canvas, 
     CHECK(caret().row == line().first);
     CHECK(caret().column == static_cast<std::int64_t>(title.size()));
     s.key(input::scan::kEscape);
-    CHECK(caret().row == surface::kNoCaret);
+    CHECK(caret().row == zengine::workshop::kNoCaret);
 }
 
 TEST_CASE("info views: a right press the window landed on a view's rows before their meaning changed opens no menu and says why, and one landed on the field drawn there now opens its menu") {

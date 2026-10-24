@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // Guard: a small Workshop pane that blocks while the right mouse button is held on it -- a right
-// press that is ordinary input, opening no menu. It draws its rows in its office's area of the
+// press that is ordinary input, opening no menu. It draws its rows in its pane's area of the
 // graphics window that shows it and hears the pointer there. Walkthrough: workshop/docs/panes.md
 // ("The second button"). One source file: a single-source recipe links zengine::pane,
 // zengine::graphics, zengine::activation, zengine::input and loom::switchboard, and a load-plan
@@ -33,7 +33,7 @@ namespace gfx = zengine::graphics;
 
 // The office this weave speaks as. It must be the role its load-plan row gives it: Workshop
 // knows a pane by the office that offered it, and a weave can only speak as an office it holds.
-// The office's one pane draws in the area of the same name.
+// Its one pane, kPane, draws in the area `<office>.<pane>`: "example.guard.guard".
 constexpr const char* kOffice = "example.guard";
 constexpr const char* kPane = "guard";
 
@@ -168,7 +168,7 @@ private:
         window_.draw(drawn.sketch, mail);
     }
 
-    ws::WindowDrawing window_{kOffice, kOffice}; // not state: a reload is told its room afresh
+    ws::WindowDrawing window_{kOffice, ws::pane_area(kOffice, kPane)}; // told its room afresh
     Hold guard_;                                 // not state either: see GuardState
     bool asked_ = false;
     zengine::ActivationCursor activation_;

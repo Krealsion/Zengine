@@ -256,6 +256,54 @@ TEST_CASE("the native close request reaches the quit policy `q` already had") {
     CHECK(stopped);
 }
 
+namespace {
+
+struct CloserState {
+    std::int64_t closes = 0;
+    ZEN_SHAPE(CloserState, 1, ZEN_FIELD(closes));
+};
+
+/// A WEAVE IN AN OFFICE OF ITS OWN that can say a close, as that office.
+class Closer : public loom::WeaveBase<Closer, CloserState, loom::Accept<>,
+                                      loom::Emit<gfx::SurfaceCloseRequested>> {};
+
+} // namespace
+
+TEST_CASE("a close is the window's that shows the desk: one said by anyone else ends nothing") {
+    // ⚔ MUTATION: Workshop quitting on any `SurfaceCloseRequested`, whoever said it.
+    Live t;
+    bool stopped = false;
+    t.host.request_stop = [&stopped] { stopped = true; };
+    t.ready();
+    REQUIRE(t.windows.window() == gfx::kTerminalWindow);
+    const auto say_as = [&t](const std::string& office) {
+        loom::Grant grant;
+        grant.allow_to_any(gfx::SurfaceCloseRequested::zen_name,
+                           gfx::SurfaceCloseRequested::zen_version);
+        const loom::WeaveId id =
+            t.bus.register_weave(std::make_unique<Closer>(), std::move(grant), office);
+        REQUIRE(id.valid());
+        (void)t.bus.office_publish_as(id, office,
+                                      loom::Message(loom::to_value(gfx::SurfaceCloseRequested{})));
+        t.bus.drain_until_idle();
+        (void)t.bus.unregister_weave(id);
+    };
+    // UNSIGNED, AS NO OFFICE...
+    t.publish(loom::to_value(gfx::SurfaceCloseRequested{}));
+    CHECK_FALSE(t.host.quit);
+    // ...AS THE OTHER WINDOW'S OFFICE, which shows no desk here...
+    say_as(std::string(gfx::kWindowOfficePrefix) + gfx::kSdlWindow);
+    CHECK_FALSE(t.host.quit);
+    // ...AND AS ANOTHER OFFICE ALTOGETHER.
+    say_as("zengine.test.closer");
+    CHECK_FALSE(t.host.quit);
+    CHECK_FALSE(stopped);
+    // THE WINDOW THAT SHOWS THE DESK ENDS IT.
+    t.close_requested();
+    CHECK(t.host.quit);
+    CHECK(stopped);
+}
+
 TEST_CASE("Ctrl+C quits by MODIFIER, and a bare c does not") {
     Live t;
     bool stopped = false;
@@ -269,28 +317,6 @@ TEST_CASE("Ctrl+C quits by MODIFIER, and a bare c does not") {
     t.key(input::scan::kC, input::mod::kCtrl);
     CHECK(t.host.quit);
     CHECK(stopped);
-}
-
-TEST_CASE("the status line names the live layout and its panes, and claims no file") {
-    // A MEDIUM'S OWN STATUS LINE SAYS WHICH DESK IS LIVE AND HOW MANY PANES IT NAMES; whether
-    // that desk is saved is the layout band's to say, so this line claims nothing about a file.
-    Live t;
-    t.key(input::scan::kTab); // any turn: a status note goes out with every frame
-    REQUIRE_FALSE(t.notes.empty());
-    const std::size_t named = t.session().setup.active.panes.size();
-    CHECK(t.status_note() == "[workshop] layout " +
-                                 quoted_setup_name(t.session().setup.active.name) + " | " +
-                                 std::to_string(named) + (named == 1 ? " pane" : " panes"));
-    CHECK(t.status_note().find("saved") == std::string::npos);
-    CHECK(t.status_note().find("UNSAVED") == std::string::npos);
-
-    // ...AND IT FOLLOWS THE DESK: a pane taken off it is a pane fewer on the line.
-    pick(t, pane_kind::kLayouts);
-    const std::size_t now = t.session().setup.active.panes.size();
-    REQUIRE(now + 1 == named);
-    CHECK(t.status_note() == "[workshop] layout " +
-                                 quoted_setup_name(t.session().setup.active.name) + " | " +
-                                 std::to_string(now) + (now == 1 ? " pane" : " panes"));
 }
 
 TEST_CASE("a notice a weaver's own path makes too long is marked on screen, not cut in the session") {
@@ -346,10 +372,10 @@ TEST_CASE("the name editor selects with the same keys and says it in characters"
     // with a real region caret at its active end.
     t.key(input::scan::kA, input::mod::kCtrl);
     CHECK(t.session().setup.naming.line.selected_text() == "Default");
-    const std::vector<surface::SurfaceTextRegion> at_bands =
+    const std::vector<ScreenRegion> at_bands =
         regions_at(paint(t.session()), 0, 0);
     REQUIRE(at_bands.size() == 1);
-    const surface::SurfaceTextRegion& editor = at_bands.front();
+    const ScreenRegion& editor = at_bands.front();
     REQUIRE_FALSE(editor.rows.empty());
     CHECK(editor.rows[0].text.find("layout name> Default") == 0);
     const std::int64_t prompt =
@@ -636,14 +662,11 @@ TEST_CASE("paste reads the platform current, not the mirror stale") {
     CHECK(t.windows.clipboard_reads() == 2);
 }
 
-TEST_CASE("with nobody at the skin role, paste inserts nothing and breaks nothing") {
-    // The honest degradation: the ask has no respondent (the send is refused as a tap
-    // event; no message returns; Loom has no unanswerability notice), so the paste simply
-    // does not happen -- consumed, so it cannot fall through to an application binding --
-    // and pressing it past the book's capacity stays quiet rather than becoming a crash
-    // or a queue.
+TEST_CASE("in the terminal window, which reads no clipboard, paste inserts nothing and breaks nothing") {
+    // The honest degradation: the window says it can read no clipboard, so the paste simply
+    // does not happen -- consumed, so it cannot fall through to an application binding -- and
+    // pressing it past the book's capacity stays quiet rather than becoming a crash or a queue.
     Live t;
-    t.in_window = false; // no window shows this desk, and nobody holds the Skin's office
     open_rename_on_tab(t, t.session().setup.active_at); // the host's own box
     REQUIRE(t.session().setup.naming.open);
     t.key(input::scan::kA, input::mod::kCtrl);
@@ -1355,10 +1378,10 @@ TEST_CASE("a written gesture is modifier words in one order out, any order in, a
 namespace {
 
 /// The band region a canvas actually published, or nullptr -- by its place.
-const surface::SurfaceTextRegion* band_on(const surface::SurfaceCanvas& c, const Screen& sc) {
+const ScreenRegion* band_on(const ScreenCanvas& c, const Screen& sc) {
     const PixelRect b = band_bounds(sc);
-    for (const surface::SurfaceLayer& layer : c.layers) {
-        for (const surface::SurfaceTextRegion& r : layer.texts) {
+    for (const ScreenPlane& layer : c.layers) {
+        for (const ScreenRegion& r : layer.texts) {
             if (r.x == b.x && r.y == b.y && r.h == b.h) {
                 return &r;
             }
@@ -1368,13 +1391,13 @@ const surface::SurfaceTextRegion* band_on(const surface::SurfaceCanvas& c, const
 }
 
 /// The TOP band region a canvas published, or nullptr -- by its place.
-const surface::SurfaceTextRegion* top_band_on(const surface::SurfaceCanvas& c,
-                                              const Session& s, const Screen& sc) {
+const ScreenRegion* top_band_on(const ScreenCanvas& c,
+                                const Session& s, const Screen& sc) {
     return layouts_region_on(c, s, sc);
 }
 
 /// A region row's text -- "" for a row the composition left unsaid.
-std::string band_row(const surface::SurfaceTextRegion* band, std::size_t i) {
+std::string band_row(const ScreenRegion* band, std::size_t i) {
     if (band == nullptr || i >= band->rows.size()) {
         return {};
     }
@@ -1386,12 +1409,12 @@ std::string band_row(const surface::SurfaceTextRegion* band, std::size_t i) {
 TEST_CASE("the shipped face reads every Workshop-owned sentence as real type") {
     // THE TARGET LAW, as one sweep: at the shipped metric, a full screen -- Info open and the
     // stand-in open -- publishes its prose as regions the graphical medium sets in type, and
-    // no `SurfaceLabel` is left: a label is kept only where its CELL is the meaning.
+    // no `ScreenLabel` is left: a label is kept only where its CELL is the meaning.
     Session s = screen_session(kScreenMinW, kScreenMinH, 8, 18);
     (void)open_kind(s.panes, stock::kKind);
-    const surface::SurfaceCanvas c = paint(s);
+    const ScreenCanvas c = paint(s);
 
-    for (const surface::SurfaceLabel& l : all_labels(c)) {
+    for (const ScreenLabel& l : all_labels(c)) {
         CAPTURE(l.text);
         CHECK(l.text == std::string(kHandleGlyph));
     }
@@ -1400,10 +1423,10 @@ TEST_CASE("the shipped face reads every Workshop-owned sentence as real type") {
     // ...and every published region's bounds hold at least one row of the face, so none
     // of them falls back to the cell voice: the band and every pane's region.
     const Screen sc = screen_of(s);
-    for (const surface::SurfaceTextRegion& r : all_texts(c)) {
+    for (const ScreenRegion& r : all_texts(c)) {
         CAPTURE(r.x);
         CAPTURE(r.y);
-        CHECK(surface::fit_region(r, surface::SurfaceExtent{cells_px(0), cells_px(0), 8, 18}).graphical());
+        CHECK(fit_region(r.x, r.y, r.w, r.h, 8, 18).graphical());
     }
     CHECK(band_on(c, sc) != nullptr);
 }
@@ -1415,9 +1438,9 @@ TEST_CASE("two bands compose their budgets, and the selector is row 0") {
     Session cells = screen_session(kScreenMinW, kScreenMinH, 0, 0);
     cells.notice = "a notice";
     const Screen csc = screen_of(cells);
-    const surface::SurfaceCanvas cell_canvas = paint(cells);
+    const ScreenCanvas cell_canvas = paint(cells);
 
-    const surface::SurfaceTextRegion* ctop = top_band_on(cell_canvas, cells, csc);
+    const ScreenRegion* ctop = top_band_on(cell_canvas, cells, csc);
     REQUIRE(ctop != nullptr);
     CHECK(ctop->y == 0); // THE FIRST WORKSHOP ROW IS THE LAYOUT SELECTOR
     CHECK(layouts_body(cells, csc).rows == kTopRows);
@@ -1426,7 +1449,7 @@ TEST_CASE("two bands compose their budgets, and the selector is row 0") {
     CHECK(band_row(ctop, 0).find("setup: none") != std::string::npos);
     CHECK(band_row(ctop, 1) == "workspace 78x16 cells");
 
-    const surface::SurfaceTextRegion* cband = band_on(cell_canvas, csc);
+    const ScreenRegion* cband = band_on(cell_canvas, csc);
     REQUIRE(cband != nullptr);
     CHECK(band_fit(csc).rows == kBottomRows);
     REQUIRE(cband->rows.size() == 4);
@@ -1446,9 +1469,9 @@ TEST_CASE("two bands compose their budgets, and the selector is row 0") {
     Session sdl = screen_session(kScreenMinW, kScreenMinH, 8, 18, gfx::kCellPx);
     sdl.notice = "a notice";
     const Screen ssc = screen_of(sdl);
-    const surface::SurfaceCanvas sdl_canvas = paint(sdl);
-    const surface::SurfaceTextRegion* stop = top_band_on(sdl_canvas, sdl, ssc);
-    const surface::SurfaceTextRegion* sband = band_on(sdl_canvas, ssc);
+    const ScreenCanvas sdl_canvas = paint(sdl);
+    const ScreenRegion* stop = top_band_on(sdl_canvas, sdl, ssc);
+    const ScreenRegion* sband = band_on(sdl_canvas, ssc);
     REQUIRE(stop != nullptr);
     REQUIRE(sband != nullptr);
     CHECK(layouts_body(sdl, ssc).rows == kTopRows);
@@ -1467,9 +1490,9 @@ TEST_CASE("two bands compose their budgets, and the selector is row 0") {
     // the foot, while the identity keeps its band at the top.
     Session one = screen_session(kScreenMinW, kScreenMinH, 8, 40); // 44/40 = 1 band row
     one.notice = "a notice";
-    const surface::SurfaceCanvas one_canvas = paint(one);
-    const surface::SurfaceTextRegion* oband = band_on(one_canvas, screen_of(one));
-    const surface::SurfaceTextRegion* otop = top_band_on(one_canvas, one, screen_of(one));
+    const ScreenCanvas one_canvas = paint(one);
+    const ScreenRegion* oband = band_on(one_canvas, screen_of(one));
+    const ScreenRegion* otop = top_band_on(one_canvas, one, screen_of(one));
     REQUIRE(oband != nullptr);
     REQUIRE(oband->rows.size() == 1);
     CHECK(band_row(oband, 0) == "a notice"); // the tool's voice wins the one row
@@ -1481,8 +1504,8 @@ TEST_CASE("two bands compose their budgets, and the selector is row 0") {
     CHECK(band_row(otop, 0).rfind(">Default<", 0) == 0);
 
     one.notice.clear();
-    const surface::SurfaceCanvas quiet_canvas = paint(one);
-    const surface::SurfaceTextRegion* qband = band_on(quiet_canvas, screen_of(one));
+    const ScreenCanvas quiet_canvas = paint(one);
+    const ScreenRegion* qband = band_on(quiet_canvas, screen_of(one));
     REQUIRE(qband != nullptr);
     REQUIRE(qband->rows.size() == 1);
     CHECK(qband->rows[0].text.rfind("q quit", 0) == 0); // the legend, with nothing said
@@ -1499,14 +1522,14 @@ TEST_CASE("the legend modes move only the legend rows, in both budgets") {
         const std::size_t legend_at = 1;
 
         s.keymap.legend = legend_mode::kFull;
-        const surface::SurfaceCanvas full_c = paint(s);
-        const surface::SurfaceTextRegion* full_b = band_on(full_c, sc);
+        const ScreenCanvas full_c = paint(s);
+        const ScreenRegion* full_b = band_on(full_c, sc);
         REQUIRE(full_b != nullptr);
         CHECK(band_row(full_b, legend_at).rfind("q quit", 0) == 0);
 
         s.keymap.legend = legend_mode::kCompact;
-        const surface::SurfaceCanvas compact_c = paint(s);
-        const surface::SurfaceTextRegion* compact_b = band_on(compact_c, sc);
+        const ScreenCanvas compact_c = paint(s);
+        const ScreenRegion* compact_b = band_on(compact_c, sc);
         REQUIRE(compact_b != nullptr);
         // COMPACT IS THE APPLICATION'S ROWS ABOVE EVERY MODE; with no desktop, there are none.
         CHECK(band_row(compact_b, legend_at).empty());
@@ -1517,12 +1540,12 @@ TEST_CASE("the legend modes move only the legend rows, in both budgets") {
                                                                  input::mod::kCtrl},
                                                          app_precedence::kAboveModes}})
                     .accepted);
-        const surface::SurfaceCanvas compact_d = paint(with_desktop);
+        const ScreenCanvas compact_d = paint(with_desktop);
         CHECK(band_row(band_on(compact_d, sc), legend_at) == "ctrl+k hotkeys");
 
         s.keymap.legend = legend_mode::kHidden;
-        const surface::SurfaceCanvas hidden_c = paint(s);
-        const surface::SurfaceTextRegion* hidden_b = band_on(hidden_c, sc);
+        const ScreenCanvas hidden_c = paint(s);
+        const ScreenRegion* hidden_b = band_on(hidden_c, sc);
         REQUIRE(hidden_b != nullptr);
         CHECK(band_row(hidden_b, legend_at).empty());
 

@@ -25,9 +25,8 @@
 #include "graphics/pixels.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"  // `space` -- which medium's numbers a pointer reported in
-#include "surface/pointing.hpp"  // and what that medium's layout makes of them
-#include "surface/region.hpp"    // and how much prose a bounded region of it holds
-#include "surface/vocabulary.hpp"
+#include "workshop/screen_planes.hpp"
+#include "workshop/pane_text_fit.hpp"
 #include "ui/layout.hpp"
 #include "ui/vocabulary.hpp"
 #include "pane_text_fit.hpp"
@@ -117,9 +116,6 @@ struct Screen {
     /// ...AND HOW BIG ONE CANVAS CELL OF THAT MEDIUM IS, in its own device pixels.
     // WL-GEO-08 -- agents/workshop/geometry.md
     std::int64_t cell_px = 0;
-    /// ...AND THE CONSOLE ROWS A TERMINAL MEDIUM SPENDS ABOVE THE CANVAS, which a point in cells
-    /// counts: a terminal Skin's slots, none in a terminal window.
-    std::int64_t rows_above = surface::kTuiCanvasTopRow;
     /// The right column's width and the overlay stack's fallback height, in cells, as the
     /// session's settings choose them.
     // WL-GEO-03 -- agents/workshop/geometry.md
@@ -144,10 +140,8 @@ inline constexpr Screen screen_of(std::int64_t want_w, std::int64_t want_h,
                                   std::int64_t text_line_px = 0,
                                   std::int64_t cell_px = 0,
                                   std::int64_t side_cols = kSideCols,
-                                  std::int64_t stack_rows = kStackRows,
-                                  std::int64_t rows_above = surface::kTuiCanvasTopRow) noexcept {
+                                  std::int64_t stack_rows = kStackRows) noexcept {
     Screen s;
-    s.rows_above = rows_above;
     // The medium's device unit is taken as reported: non-positive already means "my device unit
     // is the cell".
     s.cell_px = cell_px > 0 ? cell_px : 0;
@@ -263,10 +257,10 @@ inline constexpr ui::Rect cells_covered(const PixelRect& f) noexcept {
                     graphics::cell_of_pixel(graphics::add_cells(f.y, f.h)) - y0};
 }
 
-/// A pixel rectangle as a published `SurfaceRect`; a negative extent publishes as none.
-inline constexpr surface::SurfaceRect wire_rect_of(const PixelRect& f,
-                                                   std::int64_t role) noexcept {
-    return surface::SurfaceRect{f.x, f.y, f.w > 0 ? f.w : 0, f.h > 0 ? f.h : 0, role};
+/// A pixel rectangle as a plane's `ScreenRect`; a negative extent draws as none.
+inline constexpr ScreenRect wire_rect_of(const PixelRect& f,
+                                         std::int64_t role) noexcept {
+    return ScreenRect{f.x, f.y, f.w > 0 ? f.w : 0, f.h > 0 ? f.h : 0, role};
 }
 
 /// AN AUTHORED PLACE ON THE CANVAS: a place is measured from the room's top-left, which stands
@@ -557,21 +551,29 @@ static_assert(stack_slots_that_fit(kMinScreen) == 1,
 /// with a kind, and a consumer that forgot to test it falls outside every lookup.
 inline constexpr std::int64_t kNoKind = -1;
 
-/// The canvas pixel a reported pointer position lands on, whatever medium reported it, and the
-/// cell that pixel is in -- or nothing, for a space this application cannot place.
+/// A position on the canvas, in canvas pixels or in cells as the function that made it says. It
+/// may be outside the canvas: a projection, not a hit test.
+struct CanvasPoint {
+    std::int64_t x = 0;
+    std::int64_t y = 0;
+    friend bool operator==(const CanvasPoint&, const CanvasPoint&) = default;
+};
+
+/// The canvas pixel a reported pointer position lands on, in pixels or a window's cells, the canvas
+/// starting at the window's origin, and the cell that pixel is in -- or nothing, for a space this
+/// application cannot place.
 // WL-GEO-07 -- agents/workshop/geometry.md
 struct PointedAt {
     bool understood = false;
-    surface::CanvasPoint cell;
+    CanvasPoint cell;
     /// The same moment in canvas pixels, and the grain the reporting medium can honestly
     /// distinguish (one window pixel or one terminal cell).
     // WL-GEO-07 -- agents/workshop/geometry.md
-    surface::CanvasPoint px;
+    CanvasPoint px;
     std::int64_t grain = graphics::kCellGrainPx;
 };
 
-PointedAt canvas_point_of(std::int64_t space, std::int64_t x, std::int64_t y,
-                          std::int64_t rows_above) noexcept;
+PointedAt canvas_point_of(std::int64_t space, std::int64_t x, std::int64_t y) noexcept;
 
 /// WHAT A WEAVER'S HAND MEETS AT A CANVAS CELL: nothing, or the presentation occupying it.
 struct Occupancy {
@@ -797,9 +799,6 @@ struct Session {
     /// the medium's answer about GEOMETRY, beside its answer about type.
     // WL-GEO-08 -- agents/workshop/geometry.md
     std::int64_t cell_px = 0;
-    /// ...AND THE CONSOLE ROWS IT SPENDS ABOVE THE CANVAS, which a point in cells counts: a
-    /// terminal Skin's slots, none in the terminal window (`WorkshopWeave::note_medium`).
-    std::int64_t console_rows_above = surface::kTuiCanvasTopRow;
     /// THE NORMAL WINDOW'S ROOM -- what a session save remembers as the viewport.
     // WL-SESSION-09 -- agents/workshop/session-restore.md
     std::int64_t normal_w = kScreenMinW;
@@ -885,7 +884,7 @@ struct Session {
 // WL-GEO-02, WL-GEO-03, WL-GEO-04, WL-GEO-05 -- agents/workshop/geometry.md
 inline constexpr Screen screen_of(const Session& s) noexcept {
     return screen_of(s.screen_w, s.screen_h, s.text_advance_px, s.text_line_px, s.cell_px,
-                     s.side_cols, s.stack_rows, s.console_rows_above);
+                     s.side_cols, s.stack_rows);
 }
 
 /// THE CHAIN BELOW THE CONTEXTUAL SURFACE -- the branches a key falls to once no mode above
@@ -1068,8 +1067,7 @@ struct ProseAt {
 };
 
 ProseAt prose_at(std::int64_t space, std::int64_t x, std::int64_t y,
-                 const RegionFit& fit,
-                 std::int64_t rows_above) noexcept;
+                 const RegionFit& fit) noexcept;
 
 // ---- A bounded list: what it shows, and what it must say it cannot ---------------------------
 // WL-INFO-03 -- agents/workshop/info-body.md
@@ -1094,7 +1092,7 @@ std::string omitted_text(std::size_t how_many, const char* which);
 // ---- The dynamic panes, painted -------------------------------------------------------
 
 /// THE BACKDROP OF A PANE: its whole bounds, in one rect.
-void paint_pane_frame(surface::SurfaceLayer& layer, const PixelRect& b,
+void paint_pane_frame(ScreenPlane& layer, const PixelRect& b,
                               std::int64_t role);
 
 /// THE POPUP'S OR A PANE'S BODY AS ONE BOUNDED REGION OF PROSE, RESOLVED ONCE.
@@ -1115,7 +1113,7 @@ struct ProsePlace {
 ProsePlace prose_place(const PixelRect& b, const Screen& sc);
 
 /// The region a `ProsePlace` was resolved for, empty and ready for its rows.
-surface::SurfaceTextRegion prose_region(const ProsePlace& place);
+ScreenRegion prose_region(const ProsePlace& place);
 
 // ---- WHAT STATE ONE PANE IS IN -- the recovery invariant, as one word -----------------
 // WL-PANE-10 -- agents/workshop/panes-and-windows.md
@@ -1312,7 +1310,7 @@ inline constexpr std::size_t context_cursor_bound(std::size_t cursor,
     return population == 0 ? 0 : population - 1;
 }
 
-void paint_context(surface::SurfaceLayer& layer, const Session& s, const Screen& sc);
+void paint_context(ScreenPlane& layer, const Session& s, const Screen& sc);
 
 /// THE NAME OF EACH LINE `paint_context` PAINTS, in its order: the id of the action a line shows,
 /// or the name of the group it opens, and "" for a marker.
@@ -1355,7 +1353,7 @@ std::string presented_menu_area(std::int64_t menu);
 
 /// THE PRESENTED MENU'S FRAME, which the presenter's area stands inside.
 // WL-CTX-09 -- agents/workshop/pane-menu.md
-void paint_presented(surface::SurfaceLayer& layer, const Session& s, const Screen& sc);
+void paint_presented(ScreenPlane& layer, const Session& s, const Screen& sc);
 
 /// WHETHER A PRESS THIS HOST HEARD LANDED ON THE PRESENTED MENU'S FRAME: inside the popup, where
 /// the presenter's area does not reach.
@@ -1458,7 +1456,7 @@ std::int64_t chrome_mark_at(const Panes& panes, const Setup& setup, const Screen
 
 /// ONE EXTERNAL PANE'S FRAME: Workshop's backdrop, Workshop's header, and in its body the words
 /// that stand behind the pane's own area (`external_body_words`).
-void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64_t kind,
+void paint_external(ScreenPlane& layer, const Panes& panes, std::int64_t kind,
                     const PixelRect& b, const Screen& sc, bool titles,
                     std::int64_t chrome = kPaneChrome);
 
@@ -1468,10 +1466,10 @@ void paint_external(surface::SurfaceLayer& layer, const Panes& panes, std::int64
 /// where text is a cell, rings outside its edge where an edge is finer, so a selection the keys
 /// have not entered is told from the pane that has them.
 // WL-FOCUS-12 -- agents/workshop/focus.md
-void paint_selection_ring(surface::SurfaceLayer& layer, const Session& s, const Screen& sc);
+void paint_selection_ring(ScreenPlane& layer, const Session& s, const Screen& sc);
 
 /// THE AFFORDANCE RINGS ARE THE ARRANGEMENT STATE MADE VISIBLE.
-void paint_pane_affordances(surface::SurfaceLayer& layer, const Session& s,
+void paint_pane_affordances(ScreenPlane& layer, const Session& s,
                                    const Screen& sc);
 
 namespace detail {
@@ -1480,10 +1478,10 @@ namespace detail {
 /// presentation turns out to draw nothing.
 // WL-FRONT-01 -- agents/workshop/planes.md
 template <typename Paint>
-inline void on_own_layer(surface::SurfaceCanvas& c, Paint&& paint_it) {
+inline void on_own_layer(ScreenCanvas& c, Paint&& paint_it) {
     c.layers.emplace_back();
     paint_it(c.layers.back());
-    const surface::SurfaceLayer& drawn = c.layers.back();
+    const ScreenPlane& drawn = c.layers.back();
     if (drawn.rects.empty() && drawn.labels.empty() && drawn.texts.empty()) {
         c.layers.pop_back();
     }
@@ -1665,7 +1663,7 @@ LayoutTabPress band_tab_at(const Session& s, const Screen& sc, std::int64_t spac
 /// THE LAYOUTS PANE, PAINTED: the layout selector and the standing identity beside
 /// it, the workspace fact under them where the medium fits a second row, and the setup-name
 /// editor's caret and selection while a weaver is typing a name.
-void paint_layouts(surface::SurfaceLayer& layer, const Session& s, const PixelRect& b,
+void paint_layouts(ScreenPlane& layer, const Session& s, const PixelRect& b,
                           const Screen& sc, std::int64_t chrome = kPaneChrome);
 
 // ---- A PANE'S INTERIOR, CAPTURED ----------------------------------------------------------
@@ -1747,16 +1745,16 @@ bool same_pane_subject(const PaneSubjectShown& a, const PaneSubjectShown& b);
 // ---- THE COMPOSITION: every pane back to front, the bottom band, and the screen as planes ----
 
 /// Every presented pane, back to front, one complete layer each.
-void paint_panes(surface::SurfaceCanvas& c, const Session& s,
+void paint_panes(ScreenCanvas& c, const Session& s,
                          const Screen& sc);
 
 /// THE BOTTOM BAND AS ONE PUBLISHED REGION: what the tool just said, and what the keys mean
 /// right now.
-surface::SurfaceTextRegion band_region(const Session& s, const Screen& sc);
+ScreenRegion band_region(const Session& s, const Screen& sc);
 
 /// The whole screen as one published canvas, an ordered list of planes: a pure projection of the
 /// session and the screen.
-surface::SurfaceCanvas paint(const Session& s);
+ScreenCanvas paint(const Session& s);
 
 // ---- THE DESK IN A GRAPHICS WINDOW: each pane's own area, and Workshop's behind them ----------
 
@@ -1775,8 +1773,9 @@ std::string pane_window_area(const Panes& panes, const RuntimePane& row);
 bool desk_in_front(const Session& s) noexcept;
 
 /// THE AREA OF WORKSHOP'S OWN A GRAPHICS WINDOW SHOWS A PANE'S FRAME IN, at the pane's own depth:
-/// its edge, its header and the words its body says, just behind the pane's own area.
-std::string pane_frame_area(std::int64_t kind);
+/// its edge, its header and the words its body says, just behind the pane's own area. It is named
+/// by the pane's reference, `zengine.workshop.frame.<office>.<pane>`, as the pane's own area is.
+std::string pane_frame_area(const Panes& panes, std::int64_t kind);
 
 /// WORKSHOP'S DESK AS A GRAPHICS WINDOW DRAWS IT: what stands about the panes -- the arrangement's
 /// rings, the selection's, a menu, the band -- each pane's frame standing at its depth in an area
@@ -1788,10 +1787,10 @@ struct WorkshopWindowDrawing {
 
 WorkshopWindowDrawing workshop_window_drawing(const Session& s);
 
-/// ONE PANE'S FRAME AS A GRAPHICS WINDOW DRAWS IT in `pane_frame_area(kind)`, placed over the
-/// pane's bounds (`at`): its edge and header over its ground, and the words its body says behind
-/// the pane's own area (`external_body_words`), as the desk draws them. Empty for a pane the desk
-/// does not show.
+/// ONE PANE'S FRAME AS A GRAPHICS WINDOW DRAWS IT in `pane_frame_area(panes, kind)`, placed over
+/// the pane's bounds (`at`): its edge and header over its ground, and the words its body says
+/// behind the pane's own area (`external_body_words`), as the desk draws them. Empty for a pane
+/// the desk does not show.
 struct WorkshopFrameDrawing {
     graphics::Sketch sketch;
     PixelRect at;
@@ -1802,7 +1801,7 @@ WorkshopFrameDrawing workshop_frame_drawing(const Session& s, std::int64_t kind)
 /// THE PLANES A REPAINT LAYS ABOVE THE PICTURE -- the carried value, the guide marks -- as the
 /// overlay a graphics window shows in front of every pane's area (`kWorkshopOverlayArea`).
 graphics::Sketch workshop_overlay_drawing(const Session& s,
-                                          const std::vector<surface::SurfaceLayer>& overlays);
+                                          const std::vector<ScreenPlane>& overlays);
 
 } // namespace zengine::workshop
 

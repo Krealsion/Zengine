@@ -80,7 +80,7 @@ WHY — `agents/decisions/neovim-holds-the-editor-office.md`
 
 ## WL-NVIM-07 — The clipboard crosses through the medium, both ways
 
-LAW — A copy Neovim makes to `+` or `*` is published as the process's clipboard; a paste Neovim asks for is asked of its medium, a graphics window or the Skin, and answered to the request it waits on.
+LAW — A copy Neovim makes to `+` or `*` is published as the process's clipboard; a paste Neovim asks for is asked of the window that shows it, and answered to the request it waits on.
 
 MEANS
 - a linewise copy is its lines and one newline; text ending in a newline pastes linewise;

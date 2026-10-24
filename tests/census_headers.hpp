@@ -274,7 +274,7 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::settings::ThemeProvenanceRequested>(), // ThemeProvenanceRequested v1
         shape<::zengine::settings::ThemeProvenanceEntry>(), // ThemeProvenanceEntry v1
         shape<::zengine::settings::ThemeProvenanceShown>(), // ThemeProvenanceShown v1
-        // Declared by the SDL skin alone, which a build without SDL has no manifest of.
+        // Said by the OS window, which a build without SDL has no manifest of.
         shape<zengine::graphics::SurfaceCloseRequested>(), // SurfaceCloseRequested v1
     };
 }

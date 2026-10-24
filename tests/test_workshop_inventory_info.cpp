@@ -31,9 +31,9 @@ namespace inv = zengine::inventory;
 using namespace inventory_story;
 struct CapturedCommandSinkState { ZEN_SHAPE(CapturedCommandSinkState, 1); };
 class CapturedCommandSink : public loom::WeaveBase<CapturedCommandSink, CapturedCommandSinkState,
-    loom::Accept<surface::SurfaceText>, loom::Emit<loom::Ack>> {
+    loom::Accept<RigNote>, loom::Emit<loom::Ack>> {
 public:
-    void on(const surface::SurfaceText&, loom::Mail& mail) { (void)mail.answer(loom::Ack{}); }
+    void on(const RigNote&, loom::Mail& mail) { (void)mail.answer(loom::Ack{}); }
 };
 class MissingReplyProbe : public loom::WeaveBase<MissingReplyProbe, InventoryHandState,
     loom::Accept<InventoryHandDo, TerminalValueAnswered>, loom::Emit<TerminalValueRequested>> {
@@ -1020,7 +1020,7 @@ TEST_CASE("Inventory draws its rows on its canvas on the medium's own ground, an
     CHECK(held_caret(held()).sel_begin_col == 2);
     CHECK(held_caret(held()).sel_end_col == 3);
     s.key(input::scan::kEscape); // the edit ends, and its caret with it
-    CHECK(held_caret(held()).row == surface::kNoCaret);
+    CHECK(held_caret(held()).row == kNoCaret);
     CHECK(s.row_of(s.source, "Name:") < 0);
 }
 
@@ -1261,7 +1261,7 @@ TEST_CASE("terminal capture: primary drag stores exact authored content and name
     InventoryStory s(191 | 256, true);
     auto sink = std::make_unique<CapturedCommandSink>(); auto* receiver = sink.get();
     const auto grant = loom::emit_default_grant(*sink);
-    const auto receiver_id = s.r.bus.register_weave(std::move(sink), grant, surface::kSkinRole);
+    const auto receiver_id = s.r.bus.register_weave(std::move(sink), grant, kRigBoard);
     receiver->zen_set_self(receiver_id);
 
     auto* terminal = s.r.mount_terminal();
@@ -1277,19 +1277,19 @@ TEST_CASE("terminal capture: primary drag stores exact authored content and name
         p.width = {pane_unit::kPixels, 80 * gfx::kCellPx};
         p.height = {pane_unit::kPixels, 24 * gfx::kCellPx};
     }
-    const auto sent = terminal->send(loom::Address::to_role("zengine.skin"),
-        surface::SurfaceText::zen_name, 1, {{std::string("slot"), loom::FieldValue{std::string("score")}}, {std::string("text"), loom::FieldValue{std::string("captured original")}}});
+    const auto sent = terminal->send(loom::Address::to_role(kRigBoard),
+        RigNote::zen_name, 1, {{std::string("slot"), loom::FieldValue{std::string("score")}}, {std::string("text"), loom::FieldValue{std::string("captured original")}}});
     REQUIRE(sent);
     s.r.extent(181, 60);
     const auto rows = pane_rows(s.r, kind);
     std::int64_t at = -1;
     for (std::size_t i = 0; i < rows.size(); ++i) if (rows[i].find("SUBMITTED") != std::string::npos || rows[i].find(" -> ") != std::string::npos) at = static_cast<std::int64_t>(i);
-    if (at < 0) for (std::size_t i=0;i<rows.size();++i) if(rows[i].find(surface::SurfaceText::zen_name)!=std::string::npos) { at=static_cast<std::int64_t>(i); break; }
+    if (at < 0) for (std::size_t i=0;i<rows.size();++i) if(rows[i].find(RigNote::zen_name)!=std::string::npos) { at=static_cast<std::int64_t>(i); break; }
     REQUIRE_MESSAGE(at >= 0, s.shown(kind));
     // Capture alone never replays the command. A configured shortcut still needs its actor.
     int delivered = 0;
     const auto observer = s.r.bus.add_observer([&](const loom::BusEvent& e) {
-        if (e.kind == loom::EventKind::Delivered && e.schema_name == surface::SurfaceText::zen_name && e.payload &&
+        if (e.kind == loom::EventKind::Delivered && e.schema_name == RigNote::zen_name && e.payload &&
             e.payload->get("text")->as_text() == "captured original")
             ++delivered;
     });
@@ -1307,7 +1307,7 @@ TEST_CASE("terminal capture: primary drag stores exact authored content and name
     CHECK(s.entry("My captured command").revision == 2);
     REQUIRE(terminal->transcript().retained_value(sent.entry));
     CHECK(terminal->transcript().retained_value(sent.entry)->get("text")->as_text() == "captured original");
-    s.bind(s.entry("My captured command").reference, surface::kSkinRole);
+    s.bind(s.entry("My captured command").reference, kRigBoard);
     s.context("inventory", true);
     s.key(30, input::mod::kAlt);
     CHECK(delivered == 0);
@@ -1358,13 +1358,13 @@ TEST_CASE("terminal capture: wrapped rows and context pickup preserve identity w
         pane.width = {pane_unit::kPixels, 24 * gfx::kCellPx};
         pane.height = {pane_unit::kPixels, 26 * gfx::kCellPx};
     }
-    REQUIRE(terminal->send(loom::Address::to_role(surface::kSkinRole), surface::SurfaceText::zen_name, 1,
+    REQUIRE(terminal->send(loom::Address::to_role(kRigBoard), RigNote::zen_name, 1,
         {{"slot", loom::FieldValue{std::string("score")}}, {"text", loom::FieldValue{std::string("wrapped")}}}));
     s.r.extent(181, 60);
     auto rows = pane_rows(s.r, kind); std::int64_t at = -1;
-    for (std::size_t i=0;i<rows.size();++i) if(rows[i].rfind("^ SurfaceText",0)==0) at=static_cast<std::int64_t>(i);
+    for (std::size_t i=0;i<rows.size();++i) if(rows[i].rfind("^ RigNote",0)==0) at=static_cast<std::int64_t>(i);
     REQUIRE_MESSAGE(at>=0, s.shown(kind));
-    REQUIRE(rows[static_cast<std::size_t>(at+1)].find("zengine.skin") != std::string::npos);
+    REQUIRE(rows[static_cast<std::size_t>(at+1)].find(kRigBoard) != std::string::npos);
     auto press=s.button_at(kind,at+1,true), release=s.button_at(s.source,0,false);
     auto move=release; move.kind="PointerMoved"; move.dx=release.x-press.x; move.dy=release.y-press.y;
     s.batch({press,move,release});

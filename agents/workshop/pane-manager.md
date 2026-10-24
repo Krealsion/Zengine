@@ -41,7 +41,7 @@ WHY — `agents/decisions/a-subject-is-not-a-selection.md`
 
 - That a pane's subject is the selected pane, or that naming a subject selects it: neither
   (WL-INFO-14).
-- That the rows are a document editor, a Surface primitive, a general property inspector, a
+- That the rows are a document editor, a graphics primitive, a general property inspector, a
   wiring editor or a safe mode. Recovery is the desktop's Pane Manager (`desktop.panes`), `-` in
   a row or `0` in the arrangement, the default desk and `--isolated`.
 

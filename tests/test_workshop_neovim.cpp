@@ -403,15 +403,14 @@ TEST_CASE("WL-HAND-06: the Neovim editor names its own status row, and nothing o
             "until the rows change") {
         namespace gfx = zengine::graphics;
         namespace pw = zengine::testing::pane_window;
-        const char* area = nve::kEditorOffice;
+        const char* office = nve::kEditorOffice;
+        const std::string area = pane_area(office, nve::kEditorPane);
         SwitchRig w("nvim-names-window");
         NeovimEnvironment env(w.root, (w.root / "no-such-dir" / "nvim").string());
-        pw::PaneDirectory* directory = nullptr;
-        w.before_plan = [&] { directory = pw::mount_directory(w.r.bus); };
+        RoomAsks directory(w.r.bus);
         w.open(standard_and_neovim(), nve::kNeovimEditorStem);
-        REQUIRE(directory != nullptr);
         // THE ROOM IS ASKED ONCE, on the holder's activation, as the office.
-        CHECK(directory->times(area, area) == 1);
+        CHECK(directory.times(area, office) == 1);
         // A NOTICE THE PANE SAYS, as a refused beat makes one: each reason a change of its rows.
         const auto refuse_beat = [&w](const std::string& why) {
             (void)w.r.bus.send(w.holder(), loom::Message(loom::to_value(zengine::timer::TimerResolution{
@@ -422,7 +421,7 @@ TEST_CASE("WL-HAND-06: the Neovim editor names its own status row, and nothing o
         };
         pw::Window window(w.r.bus);
         pw::PaneWindow& seen = window.weave();
-        window.room(area, area, 60, 8);
+        window.room(area, office, 60, 8);
         REQUIRE(seen.heard.size() == 1);
         CHECK(seen.heard[0].whole);
         CHECK(seen.refusals.empty());
@@ -455,7 +454,7 @@ TEST_CASE("WL-HAND-06: the Neovim editor names its own status row, and nothing o
         // ...AND A REFUSED WHOLE BY NOTHING, until the rows change.
         seen.refuse_next = true;
         mark = seen.heard.size();
-        window.room(area, area, 60, 8, 2); // the window started again, holding nothing
+        window.room(area, office, 60, 8, 2); // the window started again, holding nothing
         REQUIRE(seen.heard.size() == mark + 1);
         CHECK(seen.heard[mark].whole);
         CHECK(seen.refusals.size() == 2);

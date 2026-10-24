@@ -213,7 +213,7 @@ endfunction()
 
 # ---- the Workshop probe, the reusable consumer, as a stranger builds it -----------------
 # `examples/workshop-probe/` is the loadable weave an agent's own `loom-host` mounts to drive
-# Workshop (external-host/docs/external-host.md), reaching Loom and Zengine's Input and Surface
+# Workshop (external-host/docs/external-host.md), reaching Loom and Zengine's Input and Graphics
 # vocabularies by find_package alone: a header it needs that is not installed fails here.
 set(probe_src "${work}/probe")
 file(REMOVE_RECURSE "${probe_src}")

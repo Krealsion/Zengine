@@ -5,7 +5,7 @@ is presented in. It holds the desk -- which panes are on it, where each stands a
 the room each is granted, where the keys go and what a press reaches -- and the files that bring a
 desk back. Workshop mounts it in its own process; it is not a file you load. A pane's office and
 every other weave reach it by the messages below, which are the pane protocol: what a pane, a
-presenter, a skin or an input producer says to Workshop, and what Workshop does with it.
+presenter, a window or an input producer says to Workshop, and what Workshop does with it.
 
 ## About
 
@@ -36,7 +36,7 @@ the band.
 A weave joins the desk as a pane in five steps, each a message sent as its office
 (`mail.as_role(office)`, never personal speech, which Workshop ignores):
 
-1. **Offer.** When the surface is ready Workshop publishes `PaneCatalogRequested`; answer it, and
+1. **Offer.** When the desk starts Workshop publishes `PaneCatalogRequested`; answer it, and
    your own activation, with [`PaneOffered`](#paneoffered). Repeating it refreshes in place.
 2. **Declare.** Say the rows a weaver's keys reach with [`PaneActions`](#paneactions) and the
    settings you take with [`PaneSettingsDeclared`](#panesettingsdeclared).
@@ -825,28 +825,17 @@ requester told `the presenter was replaced`.
 `WithdrawalFence`, from Workshop to its own office behind a menu it withdrew: when it comes round,
 the withdrawn menu's record is forgotten, every refusal of its sentences delivered before it.
 
-### `SurfaceReady`
-
-`SurfaceReady`, from the skin ([`surface/vocabulary.hpp`](../../surface/vocabulary.hpp)): Workshop
-publishes `PaneCatalogRequested`, reads the keymap and preferences, paints its floor, restores the
-last session and says its startup notes.
-
-### `SurfaceExtent`
-
-`SurfaceExtent`, from the skin: the room in canvas pixels and the medium's text metric. Workshop
-lays the same panes out in it; a new room opens and closes nothing, and each pane whose room moved
-is granted a new one.
-
 ### `SurfacePlacement`
 
-`SurfacePlacement`, from the skin or a graphics window: where the window sits, and whether it is
+`SurfacePlacement`, from a graphics window: where the window sits, and whether it is
 maximized. Workshop keeps it, opaque, for the session file, and offers it back at a restore
 (`SurfacePlacementRemembered`) to the medium that holds the desk.
 
 ### `SurfaceCloseRequested`
 
-`SurfaceCloseRequested`, from the skin or a graphics window: the window was asked to close.
-Workshop quits as a weaver's quit does, asking its panes first.
+`SurfaceCloseRequested`, from the window that shows the desk, as that window's office: the window
+was asked to close. Workshop quits as a weaver's quit does, asking its panes first. A close said by
+anyone else ends nothing.
 
 ### `ClipboardCopy`
 
@@ -855,9 +844,8 @@ Workshop quits as a weaver's quit does, asking its panes first.
 ### `ClipboardText`
 
 `ClipboardText`, answering Workshop's `ClipboardTextRequested`, which it asks of the graphics
-window that shows its area, else the window that offered itself while no skin has said its
-extent, else the skin: the platform's text, pasted into the line that asked, if that draft still
-stands.
+window that shows its area, else the window that offered itself: the platform's text, pasted into
+the line that asked, if that draft still stands.
 
 ### `KeyPressed`
 
@@ -880,24 +868,6 @@ over.
 holding the keys hears `PaneTextInput`; the character a binding's key produced is that binding's.
 On a weaver's host a guest's text rests nowhere:
 `this is a weaver's host: a guest's typed text rests in no pane, ...`.
-
-### `PointerButton`
-
-`PointerButton`, from input: a press on what Workshop draws itself -- the band, a frame, Layouts,
-its menu -- is its own; a press on a pane's area reaches the pane from the window that shows it,
-never from here (`AreaPressed` tells Workshop where it landed). A position in a space Workshop does
-not know is ignored ([pointer spaces](pointer-spaces.md)).
-
-### `PointerMoved`
-
-`PointerMoved`, from input: carries a held gesture of Workshop's own -- an arrangement, a carried
-value -- and tells a pane that accepts it where a carried value would land (`PaneCanvasHover`); a
-pane hears the pointer in its area from the window.
-
-### `PointerWheel`
-
-`PointerWheel`, from input: the notches Workshop's own surfaces take; a pane hears its own wheel
-in its area from the window. Nothing hears it while a menu or arranging is open.
 
 ### `AttributedInput`
 
@@ -940,19 +910,20 @@ its outcome is said on the band, `editor switch <op>: <outcome>`.
 
 ### `GraphicsReady`
 
-`GraphicsReady`, from `zengine.graphics` ([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)):
-a directory started afresh. Workshop, its arranger, offers the four skins, chooses each area's
-(`workshop.skin`), and places each open pane's frame (`zengine.workshop.pane.<kind>`) at its depth
-with the pane's own area over its body in front where its office draws there; its own area,
-taking the keys; and `zengine.workshop.overlay` in front, deaf. It asks its rooms.
+`GraphicsReady`, from `zengine.graphics`
+([`graphics/vocabulary.hpp`](../../graphics/vocabulary.hpp)): a directory started afresh. Workshop,
+its arranger, offers the four skins, chooses each area's (`workshop.skin`), and places each open
+pane's frame (`zengine.workshop.frame.<office>.<pane>`) at its depth with the pane's own area over
+its body in front where its office draws there; its own area, taking the keys; and
+`zengine.workshop.overlay` in front, deaf. It asks its rooms.
 
 ### `WindowOffered`
 
 `WindowOffered` v3, from the terminal or OS window as its own office (`zengine.window.terminal`,
-`zengine.window.sdl`): its pixels, unit and text; Workshop's areas go on it. With no skin up,
-Workshop comes up in it; while no skin has said `SurfaceExtent`, it lays the panes out in the
-window's room, unit and text, again at each new size, and keeps its room for an offer of none. A
-skin's extent then owns the room. An offer from any other office or window is ignored.
+`zengine.window.sdl`): its pixels, unit and text; Workshop's areas go on it. The first offer
+starts the desk: `PaneCatalogRequested`, the keymap and preferences, the floor painted, the last
+session and the startup notes. The panes are laid out in the window's room, again at each new
+size; an offer of none keeps the room. An offer from any other office or window is ignored.
 
 ### `AreaRoom`
 
@@ -1030,13 +1001,12 @@ an area at a time; a late or repeated one asks nothing.
 ## Follow
 
 Workshop publishes as `zengine.workshop`, to whoever follows it, each only when it differs from
-what it last said: `PaneCatalogRequested` when the surface is ready; `PaneInventory` and
+what it last said: `PaneCatalogRequested` when the desk starts; `PaneInventory` and
 `KeymapShown`; `StandingConditions`, every condition true now; `DeskStamps` v3 when the desk or a
 pane's stamp moved, the newest standing for all before it
 ([the desk, said whole](workshop-panes.md#the-desk-said-whole)); `PaneSubjectShown` once a pane is
 inspected; `TranscriptShown`, the terminal's record; `PaneSourceOpened` after an Edit Code open;
-and `PaneQuitRequested`, the question a quit asks. To the skin it says `SurfaceCanvas` and
-`SurfaceText`, the picture and the band. To a graphics directory it says `SkinOffered`,
+and `PaneQuitRequested`, the question a quit asks. To a graphics directory it says `SkinOffered`,
 `AreaPlaced`, `SkinChosen` and `RoomAsked`, each only when it moved, and to the window that shows
 its area, `Drawn`, and `AreaShowAsked` for each pane's area that settled. To a pane's office it
 says `PaneKeys` when the keys come or go, and after each primary press in its area.
@@ -1050,7 +1020,7 @@ says `PaneKeys` when the keys come or go, and after each primary press in its ar
   quit and read at launch ([the desk comes back on its
   own](workshop-panes.md#the-desk-comes-back-on-its-own)).
 - **The keymap file**, `--keymap <path>`, by default `workshop-keymap.json` in the per-user config
-  folder: read when the surface is ready, written by an accepted `KeymapEditRequested`
+  folder: read when the desk starts, written by an accepted `KeymapEditRequested`
   ([Hotkeys and the keymap](hotkeys.md)).
 - **The settings file**, `--prefs <path>`, by default `workshop-prefs.json` beside the keymap:
   every office's office-wide settings (Workshop's own among them), the pin lists, the locks and

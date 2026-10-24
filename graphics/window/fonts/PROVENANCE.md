@@ -22,8 +22,7 @@ and a line's height in pixels, which it offers with its room so every owner plac
 them. SDL's own debug face is eight pixels of a debugging letterform; this one was drawn for
 reading code at small sizes. Its advance is uniform at every point size measured, so a row of
 it holds exactly as many characters as its width over the advance, which is how every owner
-counts them. The SDL Skin sets its text in the same face, from its own copy in
-[`surface/fonts/`](../../../surface/fonts/PROVENANCE.md).
+counts them.
 
 ## How the runtime gets it
 

@@ -2,8 +2,8 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The loadable weave `zengine-window-terminal`: the terminal window over the process's own
-// terminal. It takes the terminal when it is activated -- its output side as a terminal Skin takes
-// it (graphics/window/terminal_io.hpp), its input side as the Input weave reads it
+// terminal. It takes the terminal when it is activated -- its output side through the terminal's
+// claim (graphics/window/terminal_io.hpp), its input side as the Input weave reads it
 // (input/terminal_reader.hpp) -- and gives both back when it goes. While it is loaded it claims the
 // terminal's input, so an Input weave beside it leaves the terminal to it. With no terminal (a
 // pipe, a suite) it writes nothing and reads nothing, and still keeps and composes its picture.

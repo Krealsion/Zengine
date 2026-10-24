@@ -571,8 +571,8 @@ TEST_CASE("a wholly off-room pane is off-room, recoverable, and painted by nobod
 
     // NOTHING IS PAINTED AND NOTHING IS MET, and neither needed a branch of its own: an
     // empty rectangle contains nothing and is drawn by nobody.
-    const surface::SurfaceCanvas c = paint(s);
-    for (const surface::SurfaceRect& r : all_rects(c)) {
+    const ScreenCanvas c = paint(s);
+    for (const ScreenRect& r : all_rects(c)) {
         CHECK_FALSE((r.x == cells_of(sc).w + 40 && r.y == cells_of(sc).h + 40));
     }
     CHECK_FALSE(occupied_at(s.panes, s.setup.active, sc, cells_of(sc).w + 40, cells_of(sc).h + 40).occupied);
@@ -1279,12 +1279,12 @@ cells_covered(bounds_of(handed.session().panes, handed.session().setup.active,
     const std::int64_t gx = rect.x + rect.w / 2;
     const std::int64_t gy = rect.y + rect.h / 2;
     handed.press_at(gx, gy, input::space::kCells);
-    handed.publish(loom::to_value(input::PointerMoved{gx + 3, gy + 2,
+    handed.hand_moment(input::PointerMoved{gx + 3, gy + 2,
                                                       0, 0, input::space::kCells,
-                                                      input::mod::kNone}));
-    handed.publish(loom::to_value(input::PointerButton{1, false, gx + 3,
+                                                      input::mod::kNone});
+    handed.hand_moment(input::PointerButton{1, false, gx + 3,
                                                        gy + 2,
-                                                       input::space::kCells, input::mod::kNone}));
+                                                       input::space::kCells, input::mod::kNone});
     const PanePlace by_hand =
         pane_of(handed.session().setup.active, ref_of(stock::kKind))->place;
 
@@ -1316,23 +1316,23 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active, second::kKi
                                     sc).rect);
     // ...kept in the room, where a place is measured from.
     const std::int64_t room_row = gfx::cell_of_pixel(sc.room_y);
-    t.publish(loom::to_value(input::PointerMoved{side.x + 1,
+    t.hand_moment(input::PointerMoved{side.x + 1,
                                                  room_row + side.y + 3, 0, 0,
-                                                 input::space::kCells, input::mod::kNone}));
+                                                 input::space::kCells, input::mod::kNone});
     CHECK(t.session().pane_drag.pane == ref_of(stock::kKind));
     CHECK(pane_of(t.session().setup.active, ref_of(stock::kKind))->place.mode ==
           pane_unit::kPixels);
 
     // AN ORDERING CHANGE MID-DRAG DOES NOT TRANSFER CUSTODY EITHER.
     REQUIRE(send_to_back(live(t).setup.active, ref_of(stock::kKind)));
-    t.publish(loom::to_value(input::PointerMoved{side.x + 2,
+    t.hand_moment(input::PointerMoved{side.x + 2,
                                                  room_row + side.y + 4, 0, 0,
-                                                 input::space::kCells, input::mod::kNone}));
+                                                 input::space::kCells, input::mod::kNone});
     CHECK(t.session().pane_drag.pane == ref_of(stock::kKind));
 
     // AND THE RELEASE ENDS IT WHEREVER THE HAND LANDS.
-    t.publish(loom::to_value(input::PointerButton{1, false, 0, 0,
-                                                  input::space::kCells, input::mod::kNone}));
+    t.hand_moment(input::PointerButton{1, false, 0, 0,
+                                                  input::space::kCells, input::mod::kNone});
     CHECK_FALSE(t.session().pane_drag.active);
 }
 
@@ -1431,9 +1431,9 @@ cells_covered(bounds_of(t.session().panes, t.session().setup.active,
     // THE TARGET LEAVES THE SETUP UNDER THE HAND. A motion then ends the gesture rather than
     // writing to a row that is no longer there.
     REQUIRE(remove_pane(live(t).setup.active, ref_of(stock::kKind)));
-    t.publish(loom::to_value(input::PointerMoved{rect.x + 4,
+    t.hand_moment(input::PointerMoved{rect.x + 4,
                                                  rect.y + 4, 0, 0,
-                                                 input::space::kCells, input::mod::kNone}));
+                                                 input::space::kCells, input::mod::kNone});
     CHECK_FALSE(t.session().pane_drag.active);
     CHECK_FALSE(has_pane(t.session().setup.active, ref_of(stock::kKind)));
 }
@@ -1496,8 +1496,7 @@ TEST_CASE("the arrangement notice speaks the unit the FACE reported") {
 
     // THE SAME DESK ON THE SHIPPED WINDOW: pixels, exactly, with nothing marked -- these
     // are the numbers a hand at that face's own grain would have authored.
-    t.publish(loom::to_value(
-        surface::SurfaceExtent{cells_px(200), cells_px(60), 8, 18, gfx::kCellPx}));
+    t.extent_on_window(200, 60);
     t.key(input::scan::kTab);
     step_to(t, builder);
     const std::string in_px = t.notice();
@@ -1521,8 +1520,7 @@ TEST_CASE("the notice says where a pane the weaver did not place actually is") {
     // So a window still partly the code's answer -- which every pane on a fresh desk is --
     // is followed by where it currently resolves, in the same unit, marked `now`.
     Live t;
-    t.publish(loom::to_value(
-        surface::SurfaceExtent{cells_px(200), cells_px(60), 8, 18, gfx::kCellPx}));
+    t.extent_on_window(200, 60);
     open_pane(t, ref_of(second::kKind));
     enter_arrange_desk(t);
     step_to(t, ref_of(second::kKind));
@@ -2080,10 +2078,7 @@ TEST_CASE("on the shipped face the border is chrome and the first body pixel is 
     // 5. THE HAND STILL MEETS THE WHOLE PANE. The boundary is INSIDE the pane, so the
     // border pixel is the pane's even though it is not the provider's.
     const Screen sc = screen_of(r.session());
-    const PointedAt on_border{true,
-                              surface::canvas_of_window_pixels(left, body_y(0)),
-                              surface::canvas_px_of_window_pixels(left, body_y(0)),
-                              gfx::kPixelGrainPx};
+    const PointedAt on_border = canvas_point_of(input::space::kPixels, left, body_y(0));
     CHECK(occupied_at(r.session().panes, r.session().setup.active, sc, on_border).kind == kind);
 }
 
@@ -2091,43 +2086,16 @@ namespace {
 
 namespace gfx = zengine::graphics;
 
-struct PasteWindowState {
-    std::int64_t drawn = 0;
-    ZEN_SHAPE(PasteWindowState, 1, ZEN_FIELD(drawn));
-};
-
-/// A GRAPHICS WINDOW THAT HOLDS THE PLATFORM'S CLIPBOARD, in `zengine.window.<name>`: it tells an
-/// area its room as its office, keeps nothing drawn there but a count, and answers a paste with
-/// what its platform holds, counting each read.
-class PasteWindow
-    : public loom::WeaveBase<PasteWindow, PasteWindowState,
-                             loom::Accept<gfx::Drawn, gfx::ClipboardTextRequested, SeatDo>,
-                             loom::Emit<gfx::AreaRoom, gfx::ClipboardText>> {
-public:
-    void on(const gfx::Drawn&, loom::Mail&) { ++state_.drawn; }
-    void on(const gfx::ClipboardTextRequested&, loom::Mail& mail) {
-        ++reads;
-        (void)mail.answer(gfx::ClipboardText{true, platform});
-    }
-    void on(const SeatDo&, loom::Mail& mail) {
-        auto run = std::move(next);
-        next = {};
-        if (run) run(mail);
-    }
-    std::function<void(loom::Mail&)> next;
-    std::string platform;
-    int reads = 0;
-};
-
 } // namespace
 
 TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot move it") {
     SUBCASE("a pane a graphics window shows asks that window for a paste, the OS window or the "
-            "terminal's, and the Skin only while none shows it") {
-        // ⚔ MUTATION: the Terminal pane's paste asked of the Skin wherever its area is shown.
+            "terminal's") {
+        // ⚔ MUTATION: the Terminal pane's paste asked of another office than the window showing it.
         namespace term = zengine::terminal_pane;
         for (const char* window : {gfx::kSdlWindow, gfx::kTerminalWindow}) {
             CAPTURE(window);
+            const bool os = std::string(window) == gfx::kSdlWindow;
             PaneRig p;
             p.mount_workshop();
             (void)p.mount_terminal();
@@ -2138,7 +2106,7 @@ TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot mo
             plan.artifacts.push_back(row);
             const load::Executed done = p.run_plan(plan);
             REQUIRE_MESSAGE(done.ok, done.refusal);
-            SkinStandIn* skin = mount_skin_stand_in(p);
+            if (os) p.on_os_window();
             p.ready();
             p.extent(160, 48);
             const PaneRef ref{term::kTerminalPaneRole, term::kTerminalPane};
@@ -2148,41 +2116,25 @@ TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot mo
             REQUIRE(offered != nullptr);
             const std::int64_t kind = offered->kind;
             REQUIRE(p.session().panes.has(kind));
-            skin->platform = "SKIN";
             const ui::Rect body = external_body_rect(p.session(), kind);
             p.press_cell(body.x, body.y); // the keys go to the pane
             REQUIRE(p.session().panes.keyboard == kind);
-
-            // NO WINDOW SHOWS IT YET: the paste is the Skin's.
+            // THE WINDOW THAT SHOWS THE PANE'S AREA IS ASKED, and only it.
+            std::int64_t asks = 0;
+            const loom::ObserverId tap =
+                count_paste_asks(p.bus, std::string(gfx::kWindowOfficePrefix) + window, asks);
+            if (os) p.windows.set_clipboard("WINDOW");
             p.key(input::scan::kV, input::mod::kCtrl);
-            CHECK(skin->clipboard_reads == 1);
-
-            // THE WINDOW TELLS THE PANE'S AREA ITS ROOM, and from then on asks it, not the Skin.
-            const std::string office = std::string(gfx::kWindowOfficePrefix) + window;
-            auto made = std::make_unique<PasteWindow>();
-            PasteWindow* shown = made.get();
-            loom::Grant says;
-            says.allow_to_any(gfx::AreaRoom::zen_name, gfx::AreaRoom::zen_version);
-            says.allow_to_any(gfx::ClipboardText::zen_name,
-                              gfx::ClipboardText::zen_version);
-            const loom::WeaveId id = p.bus.register_weave(std::move(made), std::move(says), office);
-            shown->zen_set_self(id);
-            shown->platform = "WINDOW";
-            shown->next = [office, window](loom::Mail& m) {
-                (void)m.as_role(office).send_to_role(
-                    term::kTerminalPaneRole,
-                    gfx::AreaRoom{term::kTerminalPaneRole, window, 1, 480, 120, {}});
-            };
-            (void)p.bus.send(id, loom::Message(loom::to_value(SeatDo{}), {}, {}, 0));
-            p.bus.drain_until_idle();
-            p.key(input::scan::kV, input::mod::kCtrl);
-            CHECK(shown->reads == 1);
-            CHECK(skin->clipboard_reads == 1);
-            std::string rows;
-            for (const std::string& one : pane_rows(p, kind)) {
-                rows += one + "\n";
+            p.bus.remove_observer(tap);
+            CHECK(asks == 1);
+            if (os) {
+                CHECK(p.windows.clipboard_reads() == 1);
+                std::string rows;
+                for (const std::string& one : pane_rows(p, kind)) {
+                    rows += one + "\n";
+                }
+                CHECK(rows.find("WINDOW") != std::string::npos);
             }
-            CHECK(rows.find("WINDOW") != std::string::npos);
         }
     }
 
@@ -2240,20 +2192,20 @@ TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot mo
     // jump under the hand. So this pane's published region is compared where it is, to the
     // pixel, searched BACK TO FRONT as `context_rows_on` searches: the pane's own
     // plane is published after what it covers, and the topmost region inside it is its body.
-    const auto published = [&](const surface::SurfaceCanvas& c) {
+    const auto published = [&](const ScreenCanvas& c) {
         for (std::size_t li = c.layers.size(); li > 0; --li) {
-            const surface::SurfaceLayer& l = c.layers[li - 1];
+            const ScreenPlane& l = c.layers[li - 1];
             for (std::size_t ri = l.texts.size(); ri > 0; --ri) {
-                const surface::SurfaceTextRegion& reg = l.texts[ri - 1];
+                const ScreenRegion& reg = l.texts[ri - 1];
                 if (reg.x >= outer.x && reg.x < outer.x + outer.w && reg.y >= outer.y &&
                     reg.y < outer.y + outer.h) {
                     return reg;
                 }
             }
         }
-        return surface::SurfaceTextRegion{};
+        return ScreenRegion{};
     };
-    const surface::SurfaceTextRegion chosen_picture = published(paint(r.session()));
+    const ScreenRegion chosen_picture = published(paint(r.session()));
     REQUIRE(chosen_picture.w > 0);
     CHECK(chosen_picture.x == on_window.region_x);
     CHECK(chosen_picture.y == on_window.region_y);
@@ -2266,7 +2218,7 @@ TEST_CASE("the graphical room is the post-chrome pixels, and selection cannot mo
     CHECK(after.rows == on_window.rows);
     CHECK(after.columns == on_window.columns);
     CHECK(after.fit == on_window.fit);
-    const surface::SurfaceTextRegion plain_picture = published(paint(r.session()));
+    const ScreenRegion plain_picture = published(paint(r.session()));
     REQUIRE(plain_picture.w > 0);
     CHECK(plain_picture.x == chosen_picture.x);
     CHECK(plain_picture.y == chosen_picture.y);
@@ -2534,10 +2486,10 @@ TEST_CASE("unchanged arrangement motion retains its gesture without another pict
     const std::string notice = t.session().notice;
     const auto painted = t.pictures;
     for (int i = 0; i < 32; ++i) {
-        (void)t.bus.publish(loom::Message(loom::to_value(input::PointerMoved{
-            x + 4, y + 2, 0, 0, input::space::kPixels, input::mod::kNone}), {}, {}, 0));
+        t.windows.queue({input::PointerMoved{
+            x + 4, y + 2, 0, 0, input::space::kPixels, input::mod::kNone}});
     }
-    t.bus.drain_until_idle();
+    t.windows.pump();
     CHECK(t.pictures == painted);
     CHECK(*pane_of(t.session().setup.active, ref_of(stock::kKind)) == arranged);
     CHECK(t.session().arrange.pane == ref_of(stock::kKind));
@@ -2546,17 +2498,19 @@ TEST_CASE("unchanged arrangement motion retains its gesture without another pict
     CHECK(t.session().notice == notice);
     CHECK_FALSE(t.session().notice_is_bad);
 
-    // Identical coordinates do not justify skipping semantic notice recovery.
+    // Identical coordinates do not justify skipping semantic notice recovery. The intervening
+    // notice was never drawn, so the recovered desk is the one the window shows and no drawing
+    // goes.
     live(t).notice = "an intervening notice";
     live(t).notice_is_bad = true;
     t.motion_at(x + 4, y + 2, input::space::kPixels);
-    CHECK(t.pictures == painted + 1);
+    CHECK(t.pictures == painted);
     CHECK(t.session().notice == notice);
     CHECK_FALSE(t.session().notice_is_bad);
-    t.publish(loom::to_value(input::PointerButton{
-        1, false, x + 4, y + 2, input::space::kPixels, input::mod::kNone}));
+    t.hand_moment(input::PointerButton{
+        1, false, x + 4, y + 2, input::space::kPixels, input::mod::kNone});
     CHECK_FALSE(t.session().pane_drag.active);
-    CHECK(t.pictures == painted + 2);
+    CHECK(t.pictures == painted + 1);
 }
 
 TEST_CASE("repeated refused arrangement motion retains the refusal and can recover") {
@@ -2606,19 +2560,21 @@ TEST_CASE("queued arrangement motions retain order through release") {
     REQUIRE(t.session().pane_drag.sizing);
     const auto painted = t.pictures;
     for (int i = 1; i <= 8; ++i) {
-        (void)t.bus.publish(loom::Message(loom::to_value(input::PointerMoved{
-            x + i, y + i, 1, 1, input::space::kPixels, input::mod::kNone}), {}, {}, 0));
+        t.windows.queue({input::PointerMoved{
+            x + i, y + i, 1, 1, input::space::kPixels, input::mod::kNone}});
     }
-    (void)t.bus.publish(loom::Message(loom::to_value(input::PointerButton{
-        1, false, x + 8, y + 8, input::space::kPixels, input::mod::kNone}), {}, {}, 0));
-    (void)t.bus.publish(loom::Message(loom::to_value(input::PointerMoved{
-        x + 80, y + 80, 72, 72, input::space::kPixels, input::mod::kNone}), {}, {}, 0));
-    t.bus.drain_until_idle();
+    t.windows.queue({input::PointerButton{
+        1, false, x + 8, y + 8, input::space::kPixels, input::mod::kNone}});
+    t.windows.queue({input::PointerMoved{
+        x + 80, y + 80, 72, 72, input::space::kPixels, input::mod::kNone}});
+    t.windows.pump();
     CHECK_FALSE(t.session().pane_drag.active);
     const auto* row = pane_of(t.session().setup.active, ref_of(stock::kKind));
     REQUIRE(row != nullptr);
     CHECK(row->width.amount == bounds.resolved.w + 8 * gfx::kPixelGrainPx);
     CHECK(row->height.amount == bounds.resolved.h + 8 * gfx::kPixelGrainPx);
-    CHECK(t.pictures == painted + 9);
+    // The window reads the eight motions in one beat as one; it and the release each draw once,
+    // and the motion after the release moves nothing.
+    CHECK(t.pictures == painted + 2);
     CHECK(t.bus.pending() == 0);
 }

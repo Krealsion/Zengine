@@ -286,7 +286,7 @@ LayoutTabPress band_tab_at(const Session& s, const Screen& sc, std::int64_t spac
     // interior, from the same `layouts_body` the painter publishes at. A pane-local inverse:
     // ordinary occupancy answers `Layouts` first, so a pane in front takes the press.
     const ExternalBodyPlace place = layouts_body(s, sc);
-    const ProseAt at = prose_at(space, x, y, place.fit, sc.rows_above);
+    const ProseAt at = prose_at(space, x, y, place.fit);
     if (!at.understood || at.row != row) {
         return {};
     }
@@ -307,11 +307,11 @@ LayoutTabPress band_tab_at(const Session& s, const Screen& sc, std::int64_t spac
 
 // WL-TAB-01 -- agents/workshop/tab-run.md
 // WL-TAB-01, WL-TAB-05 -- agents/workshop/tab-run.md
-void paint_layouts(surface::SurfaceLayer& layer, const Session& s, const PixelRect& b,
+void paint_layouts(ScreenPlane& layer, const Session& s, const PixelRect& b,
                    const Screen& sc, std::int64_t chrome) {
     paint_pane_frame(layer, b, chrome);
     const ExternalBodyPlace place = external_body_place(b, sc, 0);
-    surface::SurfaceTextRegion band;
+    ScreenRegion band;
     band.x = place.region_x;
     band.y = place.region_y;
     band.w = place.region_w;
@@ -324,7 +324,7 @@ void paint_layouts(surface::SurfaceLayer& layer, const Session& s, const PixelRe
 
     const bool naming = s.setup.naming.open;
     std::string identity;
-    std::int64_t caret_col = surface::kNoCaret;
+    std::int64_t caret_col = kNoCaret;
     std::int64_t sel_begin = 0;
     std::int64_t sel_end = 0;
     if (naming) {
@@ -355,8 +355,8 @@ void paint_layouts(surface::SurfaceLayer& layer, const Session& s, const PixelRe
         identity = band_status(s, place).text;
     }
 
-    band.rows.push_back(surface::SurfaceTextRow{std::move(identity), graphics::role::kMuted});
-    if (caret_col != surface::kNoCaret) {
+    band.rows.push_back(TextRow{std::move(identity), graphics::role::kMuted});
+    if (caret_col != kNoCaret) {
         band.caret_row = 0;
         band.caret_col = caret_col;
     }
@@ -371,8 +371,8 @@ void paint_layouts(surface::SurfaceLayer& layer, const Session& s, const PixelRe
     // it has always yielded: a weaver mid-name is reading their own words.
     if (budget >= 2 && !naming) {
         band.rows.push_back(
-            surface::SurfaceTextRow{detail::fit(workspace_text(s), columns),
-                                    graphics::role::kMuted});
+            TextRow{detail::fit(workspace_text(s), columns),
+                    graphics::role::kMuted});
     }
     layer.texts.push_back(std::move(band));
 }

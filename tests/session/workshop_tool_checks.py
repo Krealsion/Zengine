@@ -1328,9 +1328,8 @@ def run_checks(tools, runtime):
         def test_a_cell_point_says_which_cells_and_a_bare_one_is_refused(self):
             self.assertEqual(steps.point("126,42"), (126, 42, steps.SPACE_PIXELS))
             self.assertEqual(steps.point("2,3@console"), (2, 3, steps.SPACE_CELLS))
-            self.assertEqual(steps.point("2,3@canvas"), (2, 3 + steps.CANVAS_TOP_ROW, steps.SPACE_CELLS))
+            self.assertEqual(steps.point("2,3@canvas"), (2, 3, steps.SPACE_CELLS))
             # ...and in the terminal window, which spends no console row above the canvas.
-            self.assertEqual(steps.point("2,3@canvas", 0), (2, 3, steps.SPACE_CELLS))
             for bad in ("2,3c", "2,3@screen", "2,3@", "2@canvas"):
                 with self.subTest(bad=bad):
                     with self.assertRaisesRegex(ValueError, "@console"):
@@ -1741,7 +1740,7 @@ def run_checks(tools, runtime):
         # Each stand-in below answers PaneView version 7 and PanePointRequested version 4 for such
         # a pane; any other version fails the check that asked it.
         LOADED = ("zengine.introspection", "loaded")
-        WEAVES = [("zengine-input", "zengine.input"), ("zengine-skin-sdl", "zengine.skin"),
+        WEAVES = [("zengine-input", "zengine.input"), ("zengine-window-sdl", "zengine.window.sdl"),
                   ("zengine-inventory-pane", "zengine.inventory-pane"),
                   ("zengine-composer", "zengine.composer"), ("zengine-inventory", "zengine.inventory"),
                   ("zengine-info", "zengine.info")]
@@ -1781,7 +1780,7 @@ def run_checks(tools, runtime):
             ctx = CanvasWorkshop(steps, {self.LOADED: loaded})
             held = hand.Hand(ctx, "workshop")
             try:
-                at = held.row(*self.LOADED, "zengine-skin-", scroll=True)
+                at = held.row(*self.LOADED, "zengine-window-", scroll=True)
                 held.click(at)
                 with self.assertRaisesRegex(CheckFailed, "ambiguous visible row: zengine-"):
                     held.row(*self.LOADED, "zengine-")
@@ -1793,10 +1792,10 @@ def run_checks(tools, runtime):
                 named = json.loads(ctx.kept["last-view.json"])["parts"]
             finally:
                 held.close()
-            # Word 1 is the skin's row, the lattice's row 2: its third character is where it is pressed.
-            self.assertEqual(at, {"row": 1, "text": "  zengine-skin-sdl @zengine.skin",
+            # Word 1 is the window's row, the lattice's row 2: its third character is where it is pressed.
+            self.assertEqual(at, {"row": 1, "text": "  zengine-window-sdl @zengine.window.sdl",
                                   "x": loaded.column_x(2) + 3, "y": loaded.row_y(2) + 7, "space": 2})
-            self.assertEqual(loaded.chosen, ["zengine-skin-sdl"])
+            self.assertEqual(loaded.chosen, ["zengine-window-sdl"])
             self.assertEqual(kept["rows"][0]["text"], "loaded weaves -- 6")
             self.assertEqual(named, ["weave:zengine-composer", "weave:zengine-inventory",
                                      "weave:zengine-info"])
@@ -2082,7 +2081,7 @@ def run_checks(tools, runtime):
             ctx = CanvasWorkshop(steps, {self.LOADED: loaded}, act_steps=[
                 {"wheel": list(self.LOADED), "dy": -1},
                 {"expect": list(self.LOADED) + ["1 earlier"], "seconds": 0},
-                {"wheel": list(self.LOADED) + ["weave:zengine-skin-sdl"], "dy": 1},
+                {"wheel": list(self.LOADED) + ["weave:zengine-window-sdl"], "dy": 1},
                 {"absent": list(self.LOADED) + ["1 earlier"], "seconds": 0}])
             self.act(ctx)
             wheels = [(e["x"], e["y"], e["wheel_dy"]) for e in ctx.events if e["kind"] == "PointerWheel"]

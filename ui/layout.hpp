@@ -18,9 +18,9 @@
 
 namespace zengine::ui {
 
-/// The root frame's size, in cells: the square unit `zengine::surface::SurfaceCanvas` paints in,
-/// so a scene lands on a canvas without conversion. The unit is shared; nothing here depends on
-/// the surface package. Plain numbers, because a viewport is measured, not authored.
+/// The root frame's size, in cells: the square unit of `graphics::kCellPx` pixels a window's
+/// canvas is counted in, so a scene lands on a canvas without conversion. Plain numbers, because a
+/// viewport is measured, not authored.
 struct Viewport {
     std::int64_t cells_w = 0;
     std::int64_t cells_h = 0;

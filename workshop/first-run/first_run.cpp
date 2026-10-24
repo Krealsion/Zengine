@@ -407,7 +407,7 @@ private:
                   status_ask_ = 0, switch_ask_ = 0;
     std::int64_t op_ = 0;
     std::string consent_;
-    ws::WindowDrawing window_{kOffice, kOffice};
+    ws::WindowDrawing window_{kOffice, ws::pane_area(kOffice, kPane)};
     zengine::ActivationCursor activation_;
 };
 

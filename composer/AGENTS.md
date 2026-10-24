@@ -42,7 +42,8 @@ action census driver, `tests/actions/zengine.composer.txt`, and its manual witne
   in `workshop/weave_operation.cpp` with `workshop/actor_scope.hpp`.
 - Grants: `workshop/guests.cpp` lets the `demo` power reset its pane.
 - Owners it asks: the target office (`zen.DescribeAccepted`), Introspection (`LoadedSelected`,
-  `introspection/vocabulary.hpp`), the Skin's clipboard and Inventory (`inventory/pane_client.hpp`).
+  `introspection/vocabulary.hpp`), the window's clipboard and Inventory
+  (`inventory/pane_client.hpp`).
 
 ## Pages
 

@@ -30,7 +30,7 @@ cmake -DZEN_BUILD_DIR=build -P tests/verify.cmake
 | I want | flag |
 |---|---|
 | sibling Loom source instead of an installed one | `-DZEN_LOOM_DEV=ON` |
-| no SDL window skin (no SDL3 fetch) | `-DZENGINE_SDL_SKIN=OFF` |
+| no SDL: the terminal window alone (no SDL3 fetch) | `-DZENGINE_TUI_ONLY=ON` |
 | ASan + UBSan over the same suites | `-DZENGINE_SANITIZE=ON` (use build dir `build-san`) |
 | extra CTest flags through the lane | `-DZEN_CTEST_ARGS=-V` |
 | the Windows kernel backend (dev/demo only, **no isolation**) | `-DLOOM_ENABLE_WINDOWS_KERNEL=ON` (implied by `ZEN_LOOM_DEV=ON` on Windows) |
@@ -52,7 +52,7 @@ Ninja, Debug, SDL off:
 ```powershell
 cmake -S . -B build-win -G Ninja -DCMAKE_BUILD_TYPE=Debug `
       -DCMAKE_C_COMPILER=<mingw>/bin/gcc.exe -DCMAKE_CXX_COMPILER=<mingw>/bin/g++.exe `
-      "-DCMAKE_PREFIX_PATH=<loom prefix>" -DZEN_LOOM_DEV=OFF -DBUILD_TESTING=ON -DZENGINE_SDL_SKIN=OFF
+      "-DCMAKE_PREFIX_PATH=<loom prefix>" -DZEN_LOOM_DEV=OFF -DBUILD_TESTING=ON -DZENGINE_TUI_ONLY=ON
 cmake --build build-win
 cmake -DZEN_BUILD_DIR=build-win -P tests/verify.cmake
 ```
@@ -91,7 +91,7 @@ tree's own spelling: `#include "timer/vocabulary.hpp"`.
 | exported target | linking it grants |
 |---|---|
 | `zengine::timer` | order one-shots and repeats; declare an authored rhythm |
-| `zengine::surface` | publish drawing intent; cells, regions, pointing, terminal size |
+| `zengine::graphics` | draw in a window's area: the vocabulary, the canvas, the drawing facet, pixels and roles |
 | `zengine::input` | key/text/pointer moments; translate a raw byte stream |
 | `zengine::ui` | author placement and extent; read what a viewport resolved |
 | `zengine::component` | medium-independent text editing, list and table arithmetic, a control strip, motion sampling |
@@ -114,14 +114,15 @@ list holds both kinds:
 |---|---|
 | `zengine-timer` | weave — the Timer service, loaded by the Kernel |
 | `zengine-input` | weave |
-| `zengine-skin-tui-classic`, `zengine-skin-tui-block` | weave — the terminal Skin; `zengine-skin-tui-block` is the classic one built as a second library, for live replacement |
+| `zengine-graphics`, `zengine-window-terminal` | weave — the graphics directory, and the window over the process's own terminal |
+| `zengine-paint-classic`, `zengine-paint-block`, `zengine-paint-day`, `zengine-paint-night` | **provider** — painter code a window opens by path |
 | `zengine-operators-basic` | **provider** — opened by a host, never loaded onto the bus |
 | `zengine-guest-vocabulary` | weave — booted by *another* Loom host (a session) so its tools speak Workshop's guest shapes; [external host](external-host/docs/external-host.md#3-from-a-loom-session-journeys-as-python-tools) |
 
 `ZENGINE_RUNTIME_ARTIFACTS` is **empty** when the package was built against a Loom with no
 kernel.
 
-⚠ **friction** — Workshop, the SDL skin and the SDL input reader are not in the package;
+⚠ **friction** — Workshop and the OS window are not in the developer package;
 [limitations](workshop/docs/limitations.md#the-library-itself) says why for each.
 
 The witness for all of the above:
@@ -404,54 +405,34 @@ Full reference: [input/docs/input.md](input/docs/input.md) ·
 
 ## Drawing
 
-Publish intent; a **skin** (holding role `zengine.skin`) paints it. Your code names no colour
-and touches no terminal.
+Draw in your own area of a window; the window paints it with the area's skin. Your code names
+no colour and touches no terminal.
 
 ```cpp
-#include "surface/vocabulary.hpp"
-namespace surface = zengine::surface;
+#include "graphics/drawing.hpp"
+namespace graphics = zengine::graphics;
 
-surface::SurfaceCanvas canvas;
-canvas.width = 78;
-canvas.height = 22;
-surface::SurfaceLayer layer;
-layer.rects.push_back(surface::SurfaceRect{0, 0, 20, 3, graphics::role::kAccent});
-layer.labels.push_back(surface::SurfaceLabel{1, 1, "hello"});
-canvas.layers.push_back(std::move(layer));
-mail.publish(canvas);
+class ScoreWeave
+    : public graphics::With<graphics::DrawingFacet>::Weave<ScoreWeave, ScoreState,
+                                                           loom::Accept<FoodEaten>> {
+public:
+    using Weave::on;
+    ScoreWeave() : Weave("snake.score") {} // the office it draws as; its area by default
+    void on(const FoodEaten&, loom::Mail&) { ++state_.eaten; }
+    void picture(graphics::Sketch& f) const {
+        f.text("eaten", 0, 0, std::to_string(state_.eaten),
+               graphics::by_role(graphics::role::kFill));
+    }
+};
 ```
 
-| shape | for |
-|---|---|
-| `SurfaceText{slot, text}` | one plain line for a named slot ("status", "score") |
-| `SurfaceCanvas{width, height, layers}` | the general drawing: cells, ordered planes |
-| `SurfaceLayer{rects, labels, texts}` | one complete plane, painter's order within it |
-| `SurfaceRect{x, y, w, h, role}` | a filled rectangle |
-| `SurfaceLabel{x, y, text}` | one cell per byte, in every medium |
-| `SurfaceTextRegion{x, y, w, h, rows, caret_row, caret_col, ground}` | bounded prose; a graphical medium sets it in real type |
-| `SurfaceReady{}` | ← the active skin's hello; re-publish your current lines on it |
-| `SurfaceExtent{width, height, text_advance_px, text_line_px}` | ← how much room the medium has |
+The facet takes the area's room from the window (`AreaRoom`: its size and how it sets text) and
+draws `picture` at the end of every delivery, sending only what changed.
 
-**Roles, never colours:** `kFill`, `kAccent`, `kMuted`, `kAlert`. An unknown role paints as
-`kFill`. Depth is two levels and that is all of it: within a plane, rects → labels → regions;
-between planes, `layers[0]` is back-most.
+**Roles, never colours:** `kFill`, `kAccent`, `kMuted`, `kAlert` and the rest of
+`graphics/role.hpp`; a medium without colour shows the role.
 
-**Choosing a text shape** — the question is *is the rectangle mine?*
-
-| the rectangle is… | use |
-|---|---|
-| mine | `SurfaceTextRegion` with `ground = kGroundOwn` (default) |
-| somebody else's, and I write **on** it | `SurfaceTextRegion` with `ground = kGroundBeneath` |
-| not a rectangle — this **cell** is the meaning | `SurfaceLabel` |
-
-**Asking how much fits:** call `surface::fit_region(region, extent)` (from
-`surface/region.hpp`) with the last `SurfaceExtent` the skin published — the same function the
-medium calls, so publisher and medium cannot disagree. It answers a `RegionFit` carrying
-`rows`, `columns` and `graphical()`. A metric of `text_advance_px == 0 && text_line_px == 0`
-means "text is a cell" — the honest answer for every terminal, and for a window before (or
-without) a font.
-
-Full reference: [surface/docs/surface.md](surface/docs/surface.md).
+Full reference: [graphics/docs/graphics.md](graphics/docs/graphics.md).
 
 ---
 
@@ -718,9 +699,8 @@ running. There is no turn budget anywhere: an unanswered load stays unanswered r
 becoming a refusal somebody made up.
 
 Shipped plans: [`workshop/default-load-plan.json`](workshop/default-load-plan.json) (terminal
-window), [`workshop/graphical-load-plan.json`](workshop/graphical-load-plan.json) (OS window), and
-the Skins' [`workshop/skin-load-plan.json`](workshop/skin-load-plan.json) (terminal) and
-[`workshop/sdl-skin-load-plan.json`](workshop/sdl-skin-load-plan.json) (SDL).
+window) and [`workshop/graphical-load-plan.json`](workshop/graphical-load-plan.json) (OS window).
+A plan naming a retired Skin or `zengine-input-sdl` is refused by name, with its fix.
 Reference: [workshop/docs/load-plan.md](workshop/docs/load-plan.md).
 
 ---

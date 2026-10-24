@@ -61,8 +61,8 @@ It keeps what the toolchain's own manifest says:
   toolchain that links no default gets the code page alone.
 
 A doctest program that finds itself in any other code page refuses to run (exit 71), so the
-Windows lanes test the narrow strings that ship. The console keeps its own code page: Workshop's
-terminal Skin sets its output to UTF-8 while it draws, and a line printed to a console before
+Windows lanes test the narrow strings that ship. The console keeps its own code page: the
+terminal window sets its output to UTF-8 while it draws, and a line printed to a console before
 that is shown in the console's page.
 
 ### The paths the build tools carry
@@ -149,7 +149,7 @@ every weave skipped, and its `tests/` refuse to configure). Ninja, Debug, SDL of
 ```powershell
 cmake -S . -B build-win -G Ninja -DCMAKE_BUILD_TYPE=Debug `
       -DCMAKE_C_COMPILER=<mingw>/bin/gcc.exe -DCMAKE_CXX_COMPILER=<mingw>/bin/g++.exe `
-      "-DCMAKE_PREFIX_PATH=<loom prefix>" -DZEN_LOOM_DEV=OFF -DBUILD_TESTING=ON -DZENGINE_SDL_SKIN=OFF
+      "-DCMAKE_PREFIX_PATH=<loom prefix>" -DZEN_LOOM_DEV=OFF -DBUILD_TESTING=ON -DZENGINE_TUI_ONLY=ON
 cmake --build build-win
 cmake -DZEN_BUILD_DIR=build-win -P tests/verify.cmake
 ```
@@ -203,13 +203,15 @@ Inside this repository, `zengine_weave()` applies it. Outside, call it yourself;
 
 ## SDL
 
-The SDL skin is the only target that sees SDL. It fetches a **pinned** shared SDL3 (with a
+The OS window is the only weave that sees SDL. It fetches a **pinned** shared SDL3 (with a
 checksum in the build) where none is installed, along with SDL_ttf and its vendored FreeType on
-the same pinned-and-checksummed fetch. Decline the whole thing with `-DZENGINE_SDL_SKIN=OFF`.
+the same pinned-and-checksummed fetch. Decline the whole thing with `-DZENGINE_TUI_ONLY=ON`: the
+terminal window alone. `ZENGINE_SDL_SKIN` is retired, and a configure naming it is refused, with
+the fix.
 
 Licences and provenance for all of it are in
 [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md) and
-[surface/fonts/PROVENANCE.md](../../surface/fonts/PROVENANCE.md).
+[graphics/window/fonts/PROVENANCE.md](../../graphics/window/fonts/PROVENANCE.md).
 
 ## Terminals
 

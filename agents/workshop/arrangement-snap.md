@@ -31,7 +31,7 @@ WHY — `agents/decisions/a-hand-snaps-a-key-places.md`
 PaneGesture::met_x PaneGesture::met_y kMinSnapReachPx kMaxSnapReachPx Session::snap_reach_px
 `workshop/screen_gestures.cpp` pane_snap_lines snap_pane_window snap_axis pane_window_axes
 `workshop/weave_arrange.cpp` arrange_motion arrange_status
-`workshop/weave_pointer.cpp` on(PointerMoved)
+`workshop/weave_pointer.cpp` pointer_moved
 `workshop/screen_reveal.cpp` paint_pane_affordances
 `tests/test_workshop_screen.cpp` "the snap reaches as far as `workshop.snap-reach` says: eleven
 pixels meets an edge ten away, six misses one seven away" "a pane dragged near another pane's edge

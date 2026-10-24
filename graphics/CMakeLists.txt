@@ -3,8 +3,8 @@
 # window -- the directory that introduces an area to its window, and four skins as painter code a
 # window opens: two for characters, two for light.
 
-# The vocabulary and its helpers travel as a header-only interface target, as Surface's do, and
-# install with the package (cmake/ZengineInstall.cmake): consumers spell
+# The vocabulary and its helpers travel as a header-only interface target, and install with the
+# package (cmake/ZengineInstall.cmake): consumers spell
 # `#include "graphics/vocabulary.hpp"`. The seams' C headers are among them. Its link line is what
 # the headers include: the Loom's values and shapes, and the activation cursor a drawing weave
 # keeps (`drawing.hpp`); the roles and the terminal's claim are its own headers.
@@ -46,10 +46,10 @@ target_link_libraries(zengine-paint-day PRIVATE zengine-graphics-vocabulary)
 zengine_provider(zengine-paint-night paint_night.cpp)
 target_link_libraries(zengine-paint-night PRIVATE zengine-graphics-vocabulary)
 
-# The OS window, through SDL3: built where this configuration has SDL (cmake/ZengineSdl.cmake), which
-# it shares with the SDL Skin and the SDL Input reader. Its manual is compiled in, as the terminal
-# window's is, and so is its face: the font's bytes become a translation unit in the build tree,
-# nothing installed, staged or discovered at runtime (graphics/window/fonts/PROVENANCE.md).
+# The OS window, through SDL3: built where this configuration has SDL (cmake/ZengineSdl.cmake), as
+# it is by default. Its manual is compiled in, as the terminal window's is, and so is its face: the
+# font's bytes become a translation unit in the build tree, nothing installed, staged or discovered
+# at runtime (graphics/window/fonts/PROVENANCE.md).
 if(ZENGINE_SDL_LIB)
     set(zengine_window_font_unit "${CMAKE_CURRENT_BINARY_DIR}/zengine_window_font.cpp")
     add_custom_command(

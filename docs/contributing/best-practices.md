@@ -352,17 +352,16 @@ Its law, pages and suites: [`external-host/AGENTS.md`](../../external-host/AGENT
 - **Reset is no transaction**: a pending owner operation refuses it.
   [Reset and its boundary](../../workshop/docs/demo-setups.md#reset-and-its-boundary)
 
-## Surface (`surface/`)
+## Graphics (`graphics/`)
 
-Its law, pages and suites: [`surface/AGENTS.md`](../../surface/AGENTS.md).
+Its law, pages and suites: [`graphics/AGENTS.md`](../../graphics/AGENTS.md).
 
-- **Choose a text primitive by who owns the room.**
-  [Which text primitive](../../agents/surface.md#which-text-primitive-who-owns-the-room)
-- **Paint and hit share one arithmetic**, floored at each medium's grain.
-  [The canvas is pixels](../../agents/surface.md#the-canvas-is-pixels-and-each-medium-floors-at-its-own-grain)
-- **A terminal it cannot measure publishes nothing**, never a size of zero.
-  [The terminal is a medium with a size](../../agents/surface.md#the-terminal-is-a-medium-with-a-size-and-the-sink-is-what-holds-it)
-- **Read the traps before changing a medium.** [Do not assume](../../agents/surface.md#do-not-assume)
+- **A window composes; each owner draws only in its own area.**
+  [The window is a compositor above its medium](../../agents/graphics.md#the-window-is-a-compositor-above-its-medium)
+- **A colour is a role**, the one set every drawer names.
+  [Colour, pixels and operands](../../agents/graphics.md#colour-pixels-and-operands)
+- **The terminal's claim takes its input edge with it.**
+  [The terminal's claim and the input edge](../../agents/graphics.md#the-terminals-claim-and-the-input-edge)
 
 ## Input (`input/`)
 
@@ -371,7 +370,7 @@ Its law, pages and suites: [`input/AGENTS.md`](../../input/AGENTS.md).
 - **An SDL scancode is the key's identity**; its name is a convenience.
   [The Input package](../../input/docs/input.md)
 - **A scan name names a value that already arrives.**
-  [Input scan names](../../agents/surface.md#input-scan-names-are-names-for-values-that-already-arrived)
+  [Scan names](../../input/docs/input.md#scan-names-are-names-for-values-that-already-arrive)
 - **A suspect translation is bracketed by two probes.**
   [VM-PROBE-03](../../agents/verification/probes.md#vm-probe-03--bracket-a-suspect-translation-edge-with-two-probes)
 - **One poll can publish several events.**

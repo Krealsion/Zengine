@@ -144,7 +144,7 @@ own, gives a terminal Workshop the same setup.
 
 ## When the host changed: a new runtime
 
-A runtime copies the host once. When the build tree has built the host, a service (a skin, an
+A runtime copies the host once. When the build tree has built the host, a service (a window, the
 input reader, the Timer, an operator provider), a load plan or a catalog anew — after a pull, or a
 change to Workshop's own code — that runtime would still run what it copied, so the launch refuses
 and names what changed:
@@ -215,7 +215,7 @@ Every refusal copies nothing, starts nothing, and leaves the runtime as it was.
 | `… made from the build tree …, not from …` | the directory is another build tree's runtime, or this tree moved | another directory |
 | `… is not empty and is not a development runtime …` | `--runtime` names a directory of other files | an empty or new directory |
 | `… is not there -- build the tree first` | the tree has not built what a runtime copies | build, then Run |
-| `… staged no graphical load plan …` | the tree was configured with `-DZENGINE_SDL_SKIN=OFF` | configure with SDL |
+| `… staged no graphical load plan …` | the tree was configured with `-DZENGINE_TUI_ONLY=ON` | configure with SDL |
 
 ## The loop: point, change, build, reload
 
@@ -353,10 +353,10 @@ presenter:
 | `zengine-composer` | Compose | `composer/composer.cpp` |
 | `zengine-menu-presenter` | no pane of its own: every pane's menu, the way it shows them ([its manual](zengine.presenter.md), [replacing it](panes.md#replacing-the-menu-presenter)) | `workshop/menu-presenter/presenter.cpp` |
 
-**Everything else is deliberately not in it.** The host, the skins, the input readers, the Timer
-and the two operator providers are what every pane stands on, and Workshop's own pane (Layouts)
-is part of the host — `edit code` on it says so. Changing any of those is an
-ordinary rebuild, a new runtime and a relaunch.
+**Everything else is deliberately not in it.** The host, the windows and their skins, the input
+reader, the Timer and the two operator providers are what every pane stands on, and Workshop's own
+pane (Layouts) is part of the host — `edit code` on it says so. Changing any of those is an ordinary
+rebuild, a new runtime and a relaunch.
 
 **Whether a rebuilt pane reloads is decided at the reload**, by the same owner that decides it for
 any project, one row at a time: same shapes only, and never an artifact that also supplies

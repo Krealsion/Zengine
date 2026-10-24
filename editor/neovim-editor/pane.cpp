@@ -57,7 +57,6 @@
 #include "activation/activation.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
 #include "timer/vocabulary.hpp"
 
 #include "workshop/pane_settings.hpp"
@@ -88,7 +87,6 @@ namespace nv = zengine::neovim;
 namespace mp = zengine::neovim::msgpack;
 namespace nve = zengine::neovim_editor;
 namespace st = zengine::source_transfer;
-namespace surface = zengine::surface;
 namespace timer = zengine::timer;
 namespace ws = zengine::workshop;
 
@@ -1140,7 +1138,7 @@ private:
     Preview preview_;
 
     /// THE GRAPHICS WINDOW THAT SHOWS THE OFFICE'S AREA, and the rows drawn there. Not reload state.
-    office::EditorWindow window_{nve::kEditorOffice};
+    office::EditorWindow window_{nve::kEditorOffice, nve::kEditorPane};
 };
 
 } // namespace

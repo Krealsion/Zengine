@@ -22,7 +22,7 @@ own decision and is never reported as anybody's outcome.
 The three Loom paths are what an installed Loom's package names (`LOOM_HOST_PROGRAM`,
 `LOOM_RUNS_ARTIFACT`, `LOOM_SESSION_RUNTIME`); tests/CMakeLists.txt passes them.
 
-With a headless plan the Skin's pictures are its cells (`text/cells`); with `--graphical` and the
+With a headless plan the terminal window's pictures are its cells (`text/cells`); with `--graphical` and the
 graphical plan they are the window's pixels (`image/bmp`), and the pictures are kept for a person
 to look at. Exit 0 only when every check held.
 """
@@ -341,7 +341,7 @@ def main():
         until(lambda: c1.run("look")["step"] == "held: go", 60, "the run to hold")
         held = c1.run("look")
         pending = " | ".join(held["pending"])
-        check("J1 the run is held with a capture WAITING at Workshop's Skin, and says so",
+        check("J1 the run is held with a capture WAITING at Workshop's window, and says so",
               held["state"] == "running" and "SurfaceCaptureRequested" in pending and
               "via link workshop" in pending and "release gate 'go'" in pending, pending)
         link_open = dict((l["name"], l) for l in c1.describe()["links"])["workshop"]["open"]

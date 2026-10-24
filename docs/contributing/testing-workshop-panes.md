@@ -81,7 +81,7 @@ published, so beside `run_plan` use `enqueue_reload`, or a seat with a state of 
 
 ### Separate authored placement from the last arranged picture
 
-`PaneRig::extent` reports a medium's `SurfaceExtent`; it is not a force-layout command.
+`PaneRig::extent` sizes the rig's window, which offers its room; it is not a force-layout command.
 `adopt_screen` ignores an unchanged normalized extent and face metrics, so reporting the same
 dimensions after directly editing `session().setup.active` will not apply that setup.
 For a weaver-facing layout test, use the ordinary setup or pane operation. A fixture that directly

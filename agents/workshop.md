@@ -9,8 +9,8 @@ Disagreements follow
 (rule 5 below). The whole law is
 `grep -h '^LAW' agents/workshop/*.md`.
 
-What crosses the pane seam is the protocol's law, in [`panes.md`](panes.md); the Surface
-vocabulary is [`surface.md`](surface.md). These registers hold Workshop behavior and the
+What crosses the pane seam is the protocol's law, in [`panes.md`](panes.md); what crosses into
+a window is [`graphics.md`](graphics.md)'s. These registers hold Workshop behavior and the
 consumer-specific behavior of its extracted panes.
 
 ## Where the law is
@@ -39,7 +39,7 @@ consumer-specific behavior of its extracted panes.
 | several desks, the tab run, the durable files and the session, the orderly quit, an old session's conversion | [layouts](workshop/layouts.md) `WL-LAYOUT` · [tab-run](workshop/tab-run.md) `WL-TAB` · [session](workshop/session.md) · [session-restore](workshop/session-restore.md) `WL-SESSION` · [migration](workshop/migration.md) `WL-MIG` |
 | the application's defaults: their office, two precedence classes, launching and closing, the inventory said aloud, a refused declaration | [desktop](workshop/desktop.md) · [desktop-presenting](workshop/desktop-presenting.md) `WL-DESK` |
 | a pane's subject rows, a pane a weaver made from data | [pane-manager](workshop/pane-manager.md) `WL-PED` · [weaver-pane](workshop/maker-pane.md) `WL-MAKER` |
-| the typed rows a property is edited through, the file doors, an old object document, the status line | [document](workshop/document.md) · [document-file](workshop/document-file.md) `WL-DOC` |
+| the typed rows a property is edited through, the file doors, an old object document | [document](workshop/document.md) · [document-file](workshop/document-file.md) `WL-DOC` |
 | the terminal participant, its pane's seam, the completer; the pane's history and view of the record | [terminal](workshop/terminal.md) · [terminal-pane](workshop/terminal-pane.md) `WL-TERM` |
 | a guest's hand: the guests file's host, its row, action classes, what a weaver's host refuses, each hand's gestures | [guests](workshop/guests.md) `WL-GUEST` |
 | a guest that reads and points by door: the file's version 3, a role, a by-pane read, a guide mark | [guide](workshop/guide.md) `WL-GUIDE` |

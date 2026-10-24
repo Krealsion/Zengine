@@ -278,8 +278,8 @@ public:
         }
         // The field's own vocabulary first (`TextBox::consume`). A copy the field took is said
         // to the process once, from the writes comparison; a paste it requested is asked of the
-        // Skin (the component bumps `paste_requests` instead of pasting), and the answer lands
-        // in the field that asked or nowhere (`on(ClipboardText)`).
+        // window that shows the pane (the component bumps `paste_requests` instead of pasting),
+        // and the answer lands in the field that asked or nowhere (`on(ClipboardText)`).
         const std::uint64_t copied_before = clip_.writes;
         const std::uint64_t pastes_before = clip_.paste_requests;
         if (edit_field(key.scancode, key.modifiers)) {
@@ -354,7 +354,7 @@ public:
 
     /// A copy said anywhere in the process, mirrored so a weaver can copy in the Terminal and
     /// paste into a field here -- the mirror's only feed, since the platform clipboard is read at
-    /// paste time through the Skin. The writes counter is untouched: it counts this pane's
+    /// paste time through the window. The writes counter is untouched: it counts this pane's
     /// copies, so a key's publish never echoes another participant's copy.
     void on(const gfx::ClipboardCopy& copied, loom::Mail&) { clip_.text = copied.text; }
 

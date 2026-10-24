@@ -44,7 +44,7 @@ row); `workshop_files` (`tests/test_workshop_files.cpp`, the development catalog
 ## Host side
 
 - The participant (`loom::TerminalSession`) is mounted and granted in `workshop/workshop.cpp`;
-  its asks beyond the skin are added by `workshop/editor_switch.hpp` and `workshop/powers_door.hpp`.
+  its asks are added by `workshop/editor_switch.hpp` and `workshop/powers_door.hpp`.
 - The seam: `workshop/terminal_seam_vocabulary.hpp`, the office in
   `workshop/pane_seam_vocabulary.hpp`, the host's grant to say it in `workshop/grant.cpp`.
 - The door `door.hpp`, composed onto Workshop's weave in `workshop/weave.hpp`; the picture

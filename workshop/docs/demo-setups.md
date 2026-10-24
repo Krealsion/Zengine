@@ -65,9 +65,7 @@ desk pane showing its text rows or the picture it draws; a pane that has not sho
 seconds is named in the note and in `not_showing`, since the rest of the desk is usable -- with the
 first task, the hotkeys, the guide's path and the
 preparation's own request counts. The default medium is the OS window; `--tui` uses the
-terminal window. A setup names the media it supports and refuses the others by name. A setup that
-names a Skin shows its desk in the Skin's plan instead: the SDL Skin's, or with `--tui` the terminal
-Skin's
+terminal window. A setup names the media it supports and refuses the others by name
 ([the shipped plans](load-plans.md#the-shipped-plans)).
 
 What each answer means, and what to do:
@@ -282,8 +280,8 @@ and [`tower-defense`](../../examples/tower-defense/setup.json) are the two compl
 `summary`, `task`, `choose`, `prepares`, `guide`, `first_task` (`do`, `expect`), `variations`,
 `limits`, `reset` (`scope`, `keeps`); and for preparation:
 
-- `medium` -- the `supports` list (`sdl`, `tui`), the `viewport` in cells, and `skin: true` for a
-  setup whose desk a Skin shows (`sdl-skin-load-plan.json`, or `skin-load-plan.json` with `--tui`);
+- `medium` -- the `supports` list (`sdl`, `tui`) and the `viewport` in cells; a `skin` field is
+  refused, since no setup's desk is shown in a Skin;
 - `requires` -- extra `artifacts`, named `inputs` (such as `zengine_prefix`, a launcher flag) and
   `notes`;
 - `authority` -- the guest's `may` powers (always `demo`; `build` for a setup that builds) and

@@ -32,6 +32,8 @@
 
 namespace {
 namespace fp = zengine::flow_pane;
+/// The Flow pane's area in a window (D12).
+const std::string kFlowArea = zengine::workshop::pane_area(fp::kRole, fp::kPane);
 namespace fh = zengine::flow_host;
 namespace flow = zengine::flow;
 namespace ws = zengine::workshop;
@@ -202,15 +204,15 @@ struct Rig {
     /// a new one is a window started again, which holds none of Flow's picture.
     void room(std::int64_t cols = 170, std::int64_t rows = 65) {
         shown = &window;
-        window.room(fp::kRole, fp::kRole, cols, rows, grant);
+        window.room(kFlowArea, fp::kRole, cols, rows, grant);
         pump();
-        REQUIRE(window.held(fp::kRole) != nullptr);
-        REQUIRE_FALSE(window.held(fp::kRole)->nodes.empty());
+        REQUIRE(window.held(kFlowArea) != nullptr);
+        REQUIRE_FALSE(window.held(kFlowArea)->nodes.empty());
     }
     /// WHAT THE WINDOW SHOWING FLOW'S AREA SHOWS, read as its picture -- and every one Flow draws
     /// names only controls its rows in force declare (WL-HAND-07).
     ws::CanvasPicture picture() const {
-        const gfx::window::WinArea* a = shown->held(fp::kRole);
+        const gfx::window::WinArea* a = shown->held(kFlowArea);
         REQUIRE(a != nullptr);
         const ws::CanvasPicture p = zengine::testing::shown_picture(
             *a, ws::canvas_window_room(a->w, a->h, shown->cell_px(), shown->measure()));
@@ -252,9 +254,9 @@ struct Rig {
     /// part over the point, and the drawing's number. Delivered later, Flow judges it by that word.
     Moment landed(const std::string& text, bool prefix = false) {
         Moment m = press_for(text, prefix);
-        m.under = fp::kRole;
+        m.under = kFlowArea;
         m.part = part_at(m.x, m.y);
-        const gfx::window::WinArea* a = shown->held(fp::kRole);
+        const gfx::window::WinArea* a = shown->held(kFlowArea);
         REQUIRE(a != nullptr);
         m.drawing = a->drawing;
         return m;
@@ -276,26 +278,26 @@ struct Rig {
     template <class Visit>
     void as_said(const Moment& m, Visit&& visit) const {
         if (m.phase == ws::canvas_pointer::kPress || m.phase == ws::canvas_pointer::kRelease) {
-            gfx::AreaButtonChanged b{fp::kRole, m.button, m.phase == ws::canvas_pointer::kPress,
+            gfx::AreaButtonChanged b{kFlowArea, m.button, m.phase == ws::canvas_pointer::kPress,
                                      m.x, m.y, 0};
             b.under = m.under;
             b.part = m.part;
             b.drawing = m.drawing;
             visit(b);
         } else if (m.phase == ws::canvas_pointer::kMove) {
-            visit(gfx::AreaPointerMoved{fp::kRole, m.x, m.y, 0, 0, 0});
+            visit(gfx::AreaPointerMoved{kFlowArea, m.x, m.y, 0, 0, 0});
         } else {
-            visit(gfx::AreaWheelTurned{fp::kRole, 0, m.dy, m.x, m.y, 0});
+            visit(gfx::AreaWheelTurned{kFlowArea, 0, m.dy, m.x, m.y, 0});
         }
     }
     /// A MOMENT GIVEN BY THE WINDOW SHOWING FLOW'S AREA, under its press's number -- or `corr`.
     void host(const Moment& m, std::uint64_t corr = 0) {
-        as_said(m, [&](const auto& said) { shown->tell(fp::kRole, said, corr != 0 ? corr : m.gesture); });
+        as_said(m, [&](const auto& said) { shown->tell(kFlowArea, said, corr != 0 ? corr : m.gesture); });
         pump();
     }
     /// ...queued and not yet pumped.
     void post(const Moment& m, std::uint64_t corr = 0) {
-        as_said(m, [&](const auto& said) { shown->post(fp::kRole, said, corr != 0 ? corr : m.gesture); });
+        as_said(m, [&](const auto& said) { shown->post(kFlowArea, said, corr != 0 ? corr : m.gesture); });
     }
     void click(const std::string& text, bool prefix = false) { click(press_for(text, prefix)); }
     /// A press and its release, as the window landed them.
@@ -307,7 +309,7 @@ struct Rig {
     /// What Workshop delivers when a person drops a carried value at (x, y) of Flow's area.
     void drop(const loom::Value& value, std::int64_t x, std::int64_t y) {
         const auto bytes = zengine::inventory::encode_pair(value, {});
-        host(ws::PaneCanvasValueDrop{fp::kPane, fp::kRole, x, y,
+        host(ws::PaneCanvasValueDrop{fp::kPane, kFlowArea, x, y,
                                      loom::Bytes(bytes.begin(), bytes.end()),
                                      "zengine.inventory-pane", "inventory", ""});
     }
@@ -541,28 +543,28 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
             if (p.name.rfind("node:", 0) == 0) node = p.name;
         REQUIRE_FALSE(node.empty());
         pw::Window window(rig.bus, "flowtest");
-        window.room(fp::kRole, fp::kRole, 170, 65);
+        window.room(kFlowArea, fp::kRole, 170, 65);
         rig.pump();
         rig.shown = &window;
-        REQUIRE(window.press(fp::kRole, "control:page-graph"));
+        REQUIRE(window.press(kFlowArea, "control:page-graph"));
         rig.pump();
         const auto x_of = [&]() -> std::int64_t {
             for (const auto& p : rig.picture().parts)
                 if (p.name == node) return p.x;
             return -1;
         };
-        const auto cell = window.cell_of(fp::kRole, node);
+        const auto cell = window.cell_of(kFlowArea, node);
         REQUIRE(cell.has_value());
         const std::int64_t before = x_of();
         REQUIRE(before >= 0);
         const std::uint64_t n = window.next_press();
-        window.button(fp::kRole, cell->first, cell->second, true, n);
-        window.move(fp::kRole, cell->first + 6, cell->second, n);
+        window.button(kFlowArea, cell->first, cell->second, true, n);
+        window.move(kFlowArea, cell->first + 6, cell->second, n);
         rig.pump();
         const std::int64_t moved = x_of();
         CHECK(moved > before);
-        window.hold_ended(fp::kRole, 1);
-        window.move(fp::kRole, cell->first + 12, cell->second, n);
+        window.hold_ended(kFlowArea, 1);
+        window.move(kFlowArea, cell->first + 12, cell->second, n);
         rig.pump();
         CHECK(x_of() == moved);
     }
@@ -578,13 +580,13 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
         }
         REQUIRE_FALSE(node.empty());
         REQUIRE_FALSE(port.empty());
-        CHECK(rig.directory->times(fp::kRole, fp::kRole) == 1);
+        CHECK(rig.directory->times(kFlowArea, fp::kRole) == 1);
         rig.activate(); // activated again in the same life, before any window: no second ask
-        CHECK(rig.directory->times(fp::kRole, fp::kRole) == 1);
+        CHECK(rig.directory->times(kFlowArea, fp::kRole) == 1);
         pw::Window window(rig.bus, "flowtest");
         const auto& seen = window.weave();
         // A ROOM OF THE RIG'S SIZE, so the picture is the one the rig's window shows, one for one.
-        window.room(fp::kRole, fp::kRole, 170, 65);
+        window.room(kFlowArea, fp::kRole, 170, 65);
         rig.pump();
         rig.shown = &window;
         REQUIRE(seen.heard.size() == 1);
@@ -599,63 +601,63 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
             if (!p.name.empty()) names.insert(p.name);
         for (const auto& r : first.said) recorded.insert(r.action);
         CHECK(recorded == names);
-        const auto pressed = window.actions(fp::kRole);
+        const auto pressed = window.actions(kFlowArea);
         CHECK(pressed.count("control:page-state") == 1);
         CHECK(pressed.count(node) == 1);
         CHECK(pressed.count(port) == 1);
         for (const auto& action : pressed) CHECK(names.count(action) == 1);
 
         // A PRESS ON A CONTROL performs it, and the window shows what it did.
-        REQUIRE(window.press(fp::kRole, "control:page-state"));
+        REQUIRE(window.press(kFlowArea, "control:page-state"));
         rig.pump();
         (void)rig.label("[Add state field]");
         REQUIRE(seen.heard.size() == 2);
         CHECK_FALSE(seen.heard.back().whole);
         CHECK(seen.refusals.empty());
-        const auto rows = window.rows(fp::kRole);
+        const auto rows = window.rows(kFlowArea);
         CHECK(std::any_of(rows.begin(), rows.end(),
                           [](const std::string& row) { return row.find("[Add state field]") != std::string::npos; }));
         // ...A PRESS ON A NODE selects it and begins no drag, so Delete removes that node.
-        REQUIRE(window.press(fp::kRole, "control:page-graph"));
+        REQUIRE(window.press(kFlowArea, "control:page-graph"));
         rig.pump();
         for (int put_down = 0; put_down < 4 && rig.shows_part("Delete node"); ++put_down)
             rig.key(in::scan::kEscape);
         REQUIRE_FALSE(rig.shows_part("Delete node"));
-        REQUIRE(window.press(fp::kRole, node));
+        REQUIRE(window.press(kFlowArea, node));
         rig.pump();
         CHECK(rig.shows_part("Delete node"));
         rig.key(in::scan::kDelete);
         const auto after = rig.picture().parts;
         CHECK(std::none_of(after.begin(), after.end(), [&](const auto& p) { return p.name == node; }));
-        CHECK(window.actions(fp::kRole).count(node) == 0);
+        CHECK(window.actions(kFlowArea).count(node) == 0);
         // ...ANOTHER WINDOW, or an action the picture shown there does not name, does nothing.
         const auto heard = seen.heard.size();
         loom::Grant forging;
         forging.allow_to_role(gfx::AreaRoom::zen_name, gfx::AreaRoom::zen_version, fp::kRole);
         const auto forger = rig.bus.register_weave(std::make_unique<Presenter>(), std::move(forging));
         rig.bus.send_as_to_role(forger, fp::kRole,
-            loom::Message(loom::to_value(gfx::AreaRoom{fp::kRole, "flowtest", 9, 170 * unit, 65 * unit, {}}), forger));
+            loom::Message(loom::to_value(gfx::AreaRoom{kFlowArea, "flowtest", 9, 170 * unit, 65 * unit, {}}), forger));
         rig.pump();
         pw::Window other(rig.bus, "other");
-        other.ask(fp::kRole, "control:page-state", fp::kRole);
-        window.ask(fp::kRole, "control:no-such");
+        other.ask(kFlowArea, "control:page-state", fp::kRole);
+        window.ask(kFlowArea, "control:no-such");
         rig.pump();
         CHECK_FALSE(rig.shows("[Add state field]"));
         CHECK(seen.heard.size() == heard);
         CHECK(other.weave().heard.empty());
         // ...A CONFIRMED WRITE asked from the window waits, since no Workshop gesture made the press.
-        REQUIRE(window.press(fp::kRole, "control:ask-save"));
+        REQUIRE(window.press(kFlowArea, "control:ask-save"));
         rig.pump();
-        REQUIRE(window.press(fp::kRole, "control:dialog-confirm"));
+        REQUIRE(window.press(kFlowArea, "control:dialog-confirm"));
         rig.pump();
         CHECK(rig.shows_part("came under no gesture Workshop numbered, as a raw key or a press"));
-        REQUIRE(window.press(fp::kRole, "control:dialog-cancel"));
+        REQUIRE(window.press(kFlowArea, "control:dialog-cancel"));
         rig.pump();
 
         // A REFUSED CHANGE IS DRAWN AGAIN WHOLE AT ONCE...
         const auto before = seen.heard.size();
         window.weave().refuse_next = true;
-        REQUIRE(window.press(fp::kRole, "control:page-messages"));
+        REQUIRE(window.press(kFlowArea, "control:page-messages"));
         rig.pump();
         REQUIRE(seen.heard.size() == before + 2);
         CHECK_FALSE(seen.heard[before].whole);
@@ -665,7 +667,7 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
         // ...AND A REFUSED WHOLE PICTURE IS SAID in the picture drawn next, once, and nothing
         // more is drawn until the next change.
         window.weave().refuse_next = true;
-        window.room(fp::kRole, fp::kRole, 170, 65, 2);
+        window.room(kFlowArea, fp::kRole, 170, 65, 2);
         rig.pump();
         REQUIRE(seen.heard.size() == before + 4);
         CHECK(seen.heard[before + 2].whole);
@@ -680,12 +682,12 @@ TEST_CASE("WL-HAND-06: Flow names its controls, its nodes and ports by their pla
 
         // ONCE A LIFE: an activation asks no room again; a reloaded pane asks it afresh.
         rig.activate();
-        CHECK(rig.directory->times(fp::kRole, fp::kRole) == 1);
+        CHECK(rig.directory->times(kFlowArea, fp::kRole) == 1);
         const auto reload = rig.kernel.reload_from("flow-pane", FLOW_PANE_ARTIFACT);
         INFO(reload.error);
         REQUIRE(reload.ok);
         rig.activate();
-        CHECK(rig.directory->times(fp::kRole, fp::kRole) == 2);
+        CHECK(rig.directory->times(kFlowArea, fp::kRole) == 2);
     }
 }
 
@@ -739,7 +741,7 @@ TEST_CASE("loaded Flow pane ignores forged answers and personal Workshop gesture
     const auto before = rig.state().workspace;
     const auto add = rig.press_for("[Add]");
     rig.bus.send_as_to_role(impostor, fp::kRole,
-        loom::Message(loom::to_value(gfx::AreaButtonChanged{fp::kRole, 1, true, add.x, add.y, 0}), impostor, {},
+        loom::Message(loom::to_value(gfx::AreaButtonChanged{kFlowArea, 1, true, add.x, add.y, 0}), impostor, {},
                       add.gesture));
     rig.pump();
     CHECK(rig.state().workspace == before);
@@ -1192,7 +1194,7 @@ TEST_CASE("a query typed to the search line's end is drawn whole in a window, it
     rig.graph_semantically();
     pw::Window native(rig.bus, "native");
     native.set_measure(gfx::TextMeasure{9, 18});
-    native.room_px(fp::kRole, fp::kRole, 170 * 9, 65 * 22);
+    native.room_px(kFlowArea, fp::kRole, 170 * 9, 65 * 22);
     rig.pump();
     rig.shown = &native;
     rig.text("abcdefghijklmno"); // the field's fifteen columns, the caret after them
@@ -1206,7 +1208,7 @@ TEST_CASE("loaded Flow pane keeps authored layout through native text drag pan s
     rig.graph_semantically();
     pw::Window native(rig.bus, "native");
     native.set_measure(gfx::TextMeasure{9, 18});
-    native.room_px(fp::kRole, fp::kRole, 170 * 9, 65 * 22);
+    native.room_px(kFlowArea, fp::kRole, 170 * 9, 65 * 22);
     rig.pump();
     rig.shown = &native;
     rig.edit_ok("save", {files.file()});
@@ -1242,7 +1244,7 @@ TEST_CASE("loaded Flow pane keeps authored layout through native text drag pan s
     REQUIRE(reload.ok);
     REQUIRE(reload.reloaded);
     rig.activate();
-    native.room_px(fp::kRole, fp::kRole, 170 * 9, 65 * 22, 2);
+    native.room_px(kFlowArea, fp::kRole, 170 * 9, 65 * 22, 2);
     rig.pump();
     CHECK(rig.state().workspace == saved);
     CHECK_FALSE(rig.state().dirty);
@@ -1741,14 +1743,14 @@ struct WireWindow {
     pw::Window window;
     explicit WireWindow(Rig& r) : rig(r), window(r.bus, "flowtest") {
         rig.shown = &window; // the window that shows Flow's area now, which the rig reads
-        window.room(fp::kRole, fp::kRole, 170, 65);
+        window.room(kFlowArea, fp::kRole, 170, 65);
         rig.pump();
-        REQUIRE(window.press(fp::kRole, "control:page-graph"));
+        REQUIRE(window.press(kFlowArea, "control:page-graph"));
         rig.pump();
     }
     /// The first cell whose press asks `part`.
     Cell at(const std::string& part) {
-        const auto cell = window.cell_of(fp::kRole, part);
+        const auto cell = window.cell_of(kFlowArea, part);
         INFO("no cell asks " << part);
         REQUIRE(cell.has_value());
         return *cell;
@@ -1757,29 +1759,29 @@ struct WireWindow {
     Cell empty(std::int64_t c0, std::int64_t c1, std::int64_t r0, std::int64_t r1) {
         for (auto r = r0; r < r1; ++r)
             for (auto c = c0; c < c1; ++c)
-                if (window.action_at(fp::kRole, c, r).empty()) return {c, r};
+                if (window.action_at(kFlowArea, c, r).empty()) return {c, r};
         FAIL("no empty cell there");
         return {0, 0};
     }
     /// The first cell showing `words` right of the rail, where the graph and its search are; none
     /// when no row shows them there.
     std::optional<Cell> showing(const std::string& words) {
-        const auto rows = window.rows(fp::kRole);
+        const auto rows = window.rows(kFlowArea);
         for (std::size_t r = 0; r < rows.size(); ++r)
             if (const auto c = rows[r].find(words, 22); c != std::string::npos)
                 return Cell{static_cast<std::int64_t>(c), static_cast<std::int64_t>(r)};
         return std::nullopt;
     }
     void press(Cell c, std::uint64_t n) {
-        window.button(fp::kRole, c.first, c.second, true, n);
+        window.button(kFlowArea, c.first, c.second, true, n);
         rig.pump();
     }
     void move(Cell c, std::uint64_t n) {
-        window.move(fp::kRole, c.first, c.second, n);
+        window.move(kFlowArea, c.first, c.second, n);
         rig.pump();
     }
     void release(Cell c, std::uint64_t n) {
-        window.button(fp::kRole, c.first, c.second, false, n);
+        window.button(kFlowArea, c.first, c.second, false, n);
         rig.pump();
     }
     /// A WIRE DRAGGED: pressed at `from`, moved to `to`, let go there, under one number.
@@ -1789,7 +1791,7 @@ struct WireWindow {
         move(to, n);
         release(to, n);
     }
-    void click(Cell c) { window.click(fp::kRole, c.first, c.second); rig.pump(); }
+    void click(Cell c) { window.click(kFlowArea, c.first, c.second); rig.pump(); }
     /// Empty graph room, well right of the nodes the fixture places.
     Cell room() { return empty(100, 140, 25, 40); }
 };
@@ -1859,11 +1861,11 @@ TEST_CASE("a wire dragged from an output and let go on empty graph room asks wha
 
         // IN A SHORT WINDOW the list keeps to the graph's room: no row of it reaches the two
         // lines at the foot, the draft's and the notice.
-        w.window.room(fp::kRole, fp::kRole, 170, 16, 2);
+        w.window.room(kFlowArea, fp::kRole, 170, 16, 2);
         rig.pump();
         w.drag(w.at("source-field:input"), w.empty(60, 140, 4, 8));
         REQUIRE(w.showing("what takes it"));
-        const auto shown = w.window.rows(fp::kRole);
+        const auto shown = w.window.rows(kFlowArea);
         REQUIRE(shown.size() >= 2);
         for (std::size_t r = shown.size() - 2; r < shown.size(); ++r)
             CHECK(shown[r].find(" -> ") == std::string::npos);

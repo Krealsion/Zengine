@@ -1,11 +1,11 @@
 # Workshop law — the file doors, and the document file that retired
 
 Register `WL-DOC`, the file half: the doors every durable artifact reads and writes through,
-what a weaver's old object document meets now, and the status line that used to name it. The
-model's laws are in [`document.md`](document.md), and the ids are one series. One law per
-heading; cite by ID. Router: [`../workshop.md`](../workshop.md).
+and what a weaver's old object document meets now. The model's laws are in
+[`document.md`](document.md), and the ids are one series. One law per heading; cite by ID. Router:
+[`../workshop.md`](../workshop.md).
 
-Retired: WL-DOC-13, WL-DOC-14, WL-DOC-16, WL-DOC-19.
+Retired: WL-DOC-13, WL-DOC-14, WL-DOC-16, WL-DOC-19, WL-DOC-23.
 
 ## WL-DOC-15 — The file doors refuse before they harm
 
@@ -30,12 +30,6 @@ DOES NOT MEAN
 
 WHY — `agents/decisions/the-document-model.md`
 
-## WL-DOC-23 — The status line names the live layout and its panes, and claims no file
-
-LAW — The status slot says the live layout's name and how many panes its desk names; it names no document file and claims no saved state, which is the layout band's to say.
-
-WHY — `agents/decisions/the-document-model.md`
-
 ## Proven by
 
 ### WL-DOC-15
@@ -53,9 +47,3 @@ claims is refused before it is read"
 `tests/test_workshop_persistence.cpp` "an old object document is left exactly as it is: a launch
 names it once, and nothing reads, rewrites or deletes it" "an old object document's file and the
 setup's file cannot be mistaken for each other"
-
-### WL-DOC-23
-`workshop/weave_document.cpp` status_line
-`surface/vocabulary.hpp` kSlotStatus
-`tests/test_workshop_document.cpp` "the status line names the live layout and its panes, and claims
-no file"

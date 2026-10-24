@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Joshua DeMoss
 
 // The Component suite -- `TextBox`, on its own. EVERYTHING HERE IS PURE, AND THAT IS THE CLAIM:
-// no bus, weave, kernel, canvas, Skin, Workshop or Screen -- a TextBox is a std::string and a few
+// no bus, weave, kernel, canvas, window, Workshop or Screen -- a TextBox is a std::string and a few
 // indices, and if any of those had to be booted to test it, it would not be a component. The
 // suite links `zengine-component` and nothing else, not even loom::core. The window tier is the
 // largest because the viewport is what a picture cannot check: a case seeing the window only
@@ -252,7 +252,7 @@ TEST_CASE("the caret is a position in the line, and every operation keeps it in 
     CHECK(in.caret() == 0);
 
     // REPLACEMENT CANNOT LEAVE A STALE CARET, because the door takes both.
-    in.set("send * SurfaceText 1 ", 21);
+    in.set("send * WindowShown 1 ", 21);
     CHECK(in.caret() == 21);
     CHECK(in.at_end());
     in.set("hi", 900);

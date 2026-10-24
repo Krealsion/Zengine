@@ -26,7 +26,6 @@
 #include "input/vocabulary.hpp"
 #include "inventory/vocabulary.hpp"
 #include "inventory/inventory-pane/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
 
 #include <zen/schema.hpp>
 #include <zen/serialize.hpp>
@@ -97,8 +96,7 @@ bool row_may(const GuestRow& row, const char* power) {
 // WHAT CARRIES A PANE'S OR WORKSHOP'S WORDS, OR THE PICTURE, by its name and from any office: a
 // row observes it only with `capture`, whatever its observe list names.
 bool carries_the_desk(const std::string& shape) {
-    for (const char* name : {surface::SurfaceCanvas::zen_name, surface::SurfaceText::zen_name,
-                             graphics::WindowShown::zen_name, graphics::AreaShown::zen_name,
+    for (const char* name : {graphics::WindowShown::zen_name, graphics::AreaShown::zen_name,
                              TranscriptShown::zen_name, PaneSubjectShown::zen_name,
                              PaneInventory::zen_name, KeymapShown::zen_name,
                              StandingConditions::zen_name}) {
@@ -471,10 +469,9 @@ loom::Grant grant_for(const GuestRow& row) {
                             "zengine.workshop");
             g.allow_to_role(KeymapRequested::zen_name, KeymapRequested::zen_version,
                             "zengine.workshop");
-            // THE PICTURE, read from whichever medium shows the desk: the Skin or a window.
+            // THE PICTURE, read from the window that shows the desk.
             for (const std::string& medium :
-                 {std::string(surface::kSkinRole),
-                  std::string(graphics::kWindowOfficePrefix) + graphics::kTerminalWindow,
+                 {std::string(graphics::kWindowOfficePrefix) + graphics::kTerminalWindow,
                   std::string(graphics::kWindowOfficePrefix) + graphics::kSdlWindow}) {
                 g.allow_to_role(graphics::SurfaceCaptureRequested::zen_name,
                                 graphics::SurfaceCaptureRequested::zen_version, medium);

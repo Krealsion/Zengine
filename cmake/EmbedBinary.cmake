@@ -1,6 +1,6 @@
-# A file's bytes as a C++ translation unit -- run with `cmake -P`, never included. The graphical
-# Skin carries its typeface rather than finding one on the host or staging one beside the binary,
-# so a Skin has its face or does not; the script is generic, so anything carried goes through it.
+# A file's bytes as a C++ translation unit -- run with `cmake -P`, never included. The OS window
+# carries its typeface rather than finding one on the host or staging one beside the binary, so
+# it has its face or does not; the script is generic, so anything carried goes through it.
 #   cmake -DZEN_EMBED_INPUT=<file> -DZEN_EMBED_OUTPUT=<file.cpp> -DZEN_EMBED_NAME=<identifier>
 #         -DZEN_EMBED_NAMESPACE=<ns> -P cmake/EmbedBinary.cmake
 # It defines `<ns>::<name>` (unsigned char[]) and `<ns>::<name>_size`, in the build tree only.

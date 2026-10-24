@@ -91,7 +91,8 @@ class ReadCanvasSeat
                                           PaneCanvasHover, PaneKey, SeatDo>,
                              loom::Emit<v3::PaneOffered, gfx::Drawn>> {
 public:
-    explicit ReadCanvasSeat(const std::string& office) : window_(office, office) {}
+    explicit ReadCanvasSeat(const std::string& office)
+        : window_(office, pane_area(office, kReadPane)) {}
     std::vector<gfx::AreaRoom> rooms;
     std::vector<gfx::DrawnRefused> rejected;
     int drawn = 0;
@@ -836,10 +837,11 @@ loom::Grant capture_grant() {
           loom::schema_of<KeymapRequested>()}) {
         grant.allow_to_role(shape->name(), shape->version(), kWorkshopProvider);
     }
+    const std::string window = std::string(gfx::kWindowOfficePrefix) + gfx::kTerminalWindow;
     grant.allow_to_role(gfx::SurfaceCaptureRequested::zen_name,
-                        gfx::SurfaceCaptureRequested::zen_version, surface::kSkinRole);
+                        gfx::SurfaceCaptureRequested::zen_version, window);
     grant.allow_to_role(gfx::SurfaceCaptureChunkRequested::zen_name,
-                        gfx::SurfaceCaptureChunkRequested::zen_version, surface::kSkinRole);
+                        gfx::SurfaceCaptureChunkRequested::zen_version, window);
     return grant;
 }
 
@@ -1104,8 +1106,8 @@ TEST_CASE("the desk's own menu opened on a window is answered as tests/session/d
     rig.r.extent_on_window(150, 60);
     // A SECONDARY PRESS ON THE EMPTY DESK, as the window reports it: Workshop's own menu opens
     // there, its first line on the glance row of its top edge at the window's 8 x 18 text cell.
-    rig.r.publish(loom::to_value(input::PointerButton{3, true, 80, 180, input::space::kPixels,
-                                                      input::mod::kNone}));
+    rig.r.hand_moment(input::PointerButton{3, true, 80, 180, input::space::kPixels,
+                                                      input::mod::kNone});
     DeskRead read;
     REQUIRE(rig.read(read).empty());
     REQUIRE(read.desk.space == input::space::kPixels);

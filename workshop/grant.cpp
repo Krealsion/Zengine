@@ -9,13 +9,10 @@ namespace zengine::workshop {
 // role-scoped requests retain their explicit destination. No manifest-derived grants.
 loom::Grant workshop_grant() {
     loom::Grant speak;
-    speak.allow_to_any(surface::SurfaceCanvas::zen_name, surface::SurfaceCanvas::zen_version);
-    speak.allow_to_any(surface::SurfaceText::zen_name, surface::SurfaceText::zen_version);
     speak.allow_to_any(graphics::ClipboardCopy::zen_name, graphics::ClipboardCopy::zen_version);
-    // A paste and the place remembered, to the Skin or a window, whichever holds the platform.
+    // A paste and the place remembered, to the window that holds the platform.
     for (const std::string& medium :
-         {std::string(surface::kSkinRole),
-          std::string(graphics::kWindowOfficePrefix) + graphics::kTerminalWindow,
+         {std::string(graphics::kWindowOfficePrefix) + graphics::kTerminalWindow,
           std::string(graphics::kWindowOfficePrefix) + graphics::kSdlWindow}) {
         speak.allow_to_role(graphics::ClipboardTextRequested::zen_name,
                             graphics::ClipboardTextRequested::zen_version, medium);

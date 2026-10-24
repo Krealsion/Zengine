@@ -25,6 +25,16 @@ namespace gfx = zengine::graphics;
 namespace shape = zengine::flow::shape;
 using loom::WeaveId;
 
+/// THE AREA A VIEW DRAWS IN: its pane's, `<name>.view`.
+std::string area_of(const std::string& view) { return ws::pane_area(view, view::kPane); }
+/// ...and the view that owns an area of that name.
+std::string view_of(const std::string& area) {
+    const std::string tail = std::string(".") + view::kPane;
+    return area.size() > tail.size() && area.compare(area.size() - tail.size(), tail.size(), tail) == 0
+               ? area.substr(0, area.size() - tail.size())
+               : area;
+}
+
 /// `tally.panel.Count`, made through the one shape model as the View Builder makes it.
 std::shared_ptr<const loom::Schema> count_shape() {
     auto made = shape::make(shape::qualified("tally.panel", "Count"));
@@ -129,13 +139,13 @@ public:
     std::vector<gfx::Drawn> drawn;
     std::vector<std::string> refused;
     explicit Window(const std::string& view) {
-        area.area = view;
+        area.area = area_of(view);
         area.owner = view;
     }
-    /// The area `view` draws in, or none.
+    /// The area the view `view` draws in, or none.
     const gfx::window::WinArea* find(const std::string& view) const {
-        if (view == area.area) return &area;
-        const auto at = others.find(view);
+        if (area_of(view) == area.area) return &area;
+        const auto at = others.find(area_of(view));
         return at == others.end() ? nullptr : &at->second;
     }
     std::vector<std::shared_ptr<const loom::Schema>> accepted_schemas() const override {
@@ -146,7 +156,7 @@ public:
         gfx::window::WinArea& at = d.area == area.area ? area : others[d.area];
         if (at.area.empty()) {
             at.area = d.area;
-            at.owner = d.area;
+            at.owner = view_of(d.area);
         }
         auto why = in.provenance.authored_role() == at.owner
                        ? gfx::window::judge(at, gfx::window::Drawer{}, d) : "not this area's owner";
@@ -263,7 +273,8 @@ struct Rig {
     /// pixel, setting text in a face 8 by 16, or a terminal's cells.
     void room_px(const std::string& office, std::int64_t width, std::int64_t height, bool terminal = false) {
         const gfx::window::WinArea* held = window_for(office).find(office);
-        gfx::AreaRoom r{office, gfx::kTerminalWindow, 1, width, height, {}, held == nullptr || held->nodes.empty()};
+        gfx::AreaRoom r{area_of(office), gfx::kTerminalWindow, 1, width, height, {},
+                        held == nullptr || held->nodes.empty()};
         if (!terminal) {
             r.cell_px = gfx::kCellPx;
             r.text_advance_px = 8;
@@ -328,8 +339,8 @@ struct Rig {
     void press_at(const std::string& office, std::int64_t x, std::int64_t y, std::int64_t button = 1) {
         REQUIRE(latest(office) != nullptr);
         const auto number = ++correlation;
-        as_window(office, gfx::AreaButtonChanged{office, button, true, x, y, 0}, number);
-        as_window(office, gfx::AreaButtonChanged{office, button, false, x, y, 0}, number);
+        as_window(office, gfx::AreaButtonChanged{area_of(office), button, true, x, y, 0}, number);
+        as_window(office, gfx::AreaButtonChanged{area_of(office), button, false, x, y, 0}, number);
     }
     /// ...at the middle of an element.
     void press(const std::string& office, const view::Element& e, std::int64_t button = 1) {
@@ -370,7 +381,8 @@ void window_says(Rig& rig, const Shown& w, const std::string& view, const T& val
 
 /// The room the window gives a view's area, in pixels: `columns` by `rows` of its cells.
 gfx::AreaRoom area_room(const std::string& view, std::int64_t columns, std::int64_t rows, std::int64_t epoch = 1) {
-    return gfx::AreaRoom{view, gfx::kTerminalWindow, epoch, columns * gfx::kCellPx, rows * gfx::kCellPx, {}};
+    return gfx::AreaRoom{area_of(view), gfx::kTerminalWindow, epoch, columns * gfx::kCellPx,
+                         rows * gfx::kCellPx, {}};
 }
 } // namespace
 
@@ -737,7 +749,7 @@ TEST_CASE("a view says it is waiting until told, says its intent as its own part
         CHECK(w.window->action("text:increment") == "increment");
 
         // A PRESS IN THE WINDOW runs its code, and what the code set is sent there as a change.
-        window_says(owned, w, "counter.panel", gfx::ActionRequested{"counter.panel", "increment"});
+        window_says(owned, w, "counter.panel", gfx::ActionRequested{area_of("counter.panel"), "increment"});
         CHECK(pressed == 1);
         REQUIRE(w.window->drawn.size() == 2);
         const auto& change = w.window->drawn.back();
@@ -768,7 +780,7 @@ TEST_CASE("a view says it is waiting until told, says its intent as its own part
 
         // CODE THAT FAILS is said on the notice row, and nothing else is done.
         presenter->on_action("increment", [](const view::Element&, loom::Bus&) { throw std::runtime_error("no counter"); });
-        window_says(owned, w, "counter.panel", gfx::ActionRequested{"counter.panel", "increment"});
+        window_says(owned, w, "counter.panel", gfx::ActionRequested{area_of("counter.panel"), "increment"});
         CHECK(has(owned.said("counter.panel"), "`increment` failed: no counter"));
         CHECK(w.window->words("text:count") == "Count: 5");
 
@@ -784,12 +796,12 @@ TEST_CASE("a view says it is waiting until told, says its intent as its own part
         window_says(owned, w, "counter.panel", area_room("counter.panel", 20, 11));
         CHECK(w.window->drawn.back().whole);
         CHECK(w.window->words("text:count") == "Count: 5");
-        window_says(owned, w, "counter.panel", gfx::ActionRequested{"counter.panel", "increment"});
+        window_says(owned, w, "counter.panel", gfx::ActionRequested{area_of("counter.panel"), "increment"});
         CHECK(pressed == 3);
         CHECK(w.window->words("text:count") == "Count: 3");
         // ...and unpaired, a press runs nothing of the presenter's.
         owned.views.pair("counter.panel", nullptr);
-        window_says(owned, w, "counter.panel", gfx::ActionRequested{"counter.panel", "increment"});
+        window_says(owned, w, "counter.panel", gfx::ActionRequested{area_of("counter.panel"), "increment"});
         CHECK(pressed == 3);
         CHECK(has(owned.said("counter.panel"), "+1 says nothing yet"));
         CHECK(w.window->words("notice") == "+1 says nothing yet");
@@ -869,7 +881,7 @@ TEST_CASE("WL-HAND-06: a running view names each element by its id over the plac
         REQUIRE(shown.ask(view::ViewRun{"builder", bytes_of(d)}).ok);
         REQUIRE(asked->heard.size() == 1);
         CHECK(asked->heard[0].provenance.authored_role() == "tally.panel");
-        CHECK(loom::from_value<gfx::RoomAsked>(asked->heard[0].payload).area == "tally.panel");
+        CHECK(loom::from_value<gfx::RoomAsked>(asked->heard[0].payload).area == area_of("tally.panel"));
         auto ears = std::make_unique<Listener>(std::vector{hwfix::count_schema()});
         auto* counted = ears.get();
         (void)shown.bus.register_weave(std::move(ears), loom::Grant{});
@@ -894,20 +906,20 @@ TEST_CASE("WL-HAND-06: a running view names each element by its id over the plac
         CHECK(w.window->action("box:start").empty());
 
         // A PRESS THERE, asked by the window's office, uses the button as a press in Workshop does.
-        window_says(shown, w, "tally.panel", gfx::ActionRequested{"tally.panel", "count"});
+        window_says(shown, w, "tally.panel", gfx::ActionRequested{area_of("tally.panel"), "count"});
         CHECK(shown.total() == 45);
         CHECK(counted->heard.size() == 1);
         CHECK(w.window->words("text:total") == "Total: 45");
         // ...an action no button drawn there names, another area's, or one another office asks, is no act.
-        window_says(shown, w, "tally.panel", gfx::ActionRequested{"tally.panel", "total"});
-        window_says(shown, w, "tally.panel", gfx::ActionRequested{"tally.panel", "control:count"});
+        window_says(shown, w, "tally.panel", gfx::ActionRequested{area_of("tally.panel"), "total"});
+        window_says(shown, w, "tally.panel", gfx::ActionRequested{area_of("tally.panel"), "control:count"});
         window_says(shown, w, "tally.panel", gfx::ActionRequested{"other", "count"});
-        shown.tell("tally.panel", gfx::ActionRequested{"tally.panel", "count"});
+        shown.tell("tally.panel", gfx::ActionRequested{area_of("tally.panel"), "count"});
         CHECK(counted->heard.size() == 1);
         // ...nor is a button the room leaves undrawn, under the notice rows.
         window_says(shown, w, "tally.panel", area_room("tally.panel", 40, 4));
         CHECK_FALSE(w.window->holds("box:count"));
-        window_says(shown, w, "tally.panel", gfx::ActionRequested{"tally.panel", "count"});
+        window_says(shown, w, "tally.panel", gfx::ActionRequested{area_of("tally.panel"), "count"});
         CHECK(counted->heard.size() == 1);
         window_says(shown, w, "tally.panel", area_room("tally.panel", 40, 16));
         CHECK(w.window->holds("box:count"));
@@ -968,13 +980,13 @@ TEST_CASE("WL-HAND-06: a running view names each element by its id over the plac
 
         // A REFUSED CHANGE is drawn again whole at once; a refused whole drawing is said in the
         // picture drawn next, whole, once. Another office's refusal is not heard.
-        shown.tell("tally.panel", gfx::DrawnRefused{"tally.panel", "not the window's word"});
+        shown.tell("tally.panel", gfx::DrawnRefused{area_of("tally.panel"), "not the window's word"});
         CHECK(w.window->drawn.size() == before + 1);
-        window_says(shown, w, "tally.panel", gfx::DrawnRefused{"tally.panel", "a change against nothing held"});
+        window_says(shown, w, "tally.panel", gfx::DrawnRefused{area_of("tally.panel"), "a change against nothing held"});
         REQUIRE(w.window->drawn.size() == before + 2);
         CHECK(w.window->drawn.back().whole);
         CHECK_FALSE(has(shown.said("tally.panel"), "the window refused this view"));
-        window_says(shown, w, "tally.panel", gfx::DrawnRefused{"tally.panel", "too many nodes"});
+        window_says(shown, w, "tally.panel", gfx::DrawnRefused{area_of("tally.panel"), "too many nodes"});
         REQUIRE(w.window->drawn.size() == before + 3);
         CHECK(w.window->drawn.back().whole);
         CHECK(has(shown.said("tally.panel"), "the window refused this view: too many nodes"));
@@ -985,10 +997,10 @@ TEST_CASE("WL-HAND-06: a running view names each element by its id over the plac
         CHECK(w.window->words("text:total") == "Total: 7");
         // ...A WINDOW THAT KEEPS REFUSING starts no loop: the refused change is drawn whole once,
         // and that whole picture, refused, is not sent it again.
-        window_says(shown, w, "tally.panel", gfx::DrawnRefused{"tally.panel", "too many nodes"});
+        window_says(shown, w, "tally.panel", gfx::DrawnRefused{area_of("tally.panel"), "too many nodes"});
         REQUIRE(w.window->drawn.size() == before + 5);
         CHECK(w.window->drawn.back().whole);
-        window_says(shown, w, "tally.panel", gfx::DrawnRefused{"tally.panel", "too many nodes"});
+        window_says(shown, w, "tally.panel", gfx::DrawnRefused{area_of("tally.panel"), "too many nodes"});
         (void)shown.bus.publish(loom::Message(total));
         shown.pump();
         CHECK(w.window->drawn.size() == before + 5);
@@ -1046,7 +1058,7 @@ TEST_CASE("a view takes the keys and the text of the window that shows its area 
     CHECK(has(rig.words("tally.panel"), "step: -2"));
 
     // A PRESS THERE says the intent with what was typed: only typed keys make 30.
-    window_says(rig, w, "tally.panel", gfx::ActionRequested{"tally.panel", "count"});
+    window_says(rig, w, "tally.panel", gfx::ActionRequested{area_of("tally.panel"), "count"});
     CHECK(rig.total() == 30);
     CHECK(w.window->words("text:total") == "Total: 30");
 
@@ -1094,9 +1106,9 @@ TEST_CASE("a press the window landed on a view where it now draws another elemen
                                      [](const auto& e) { return e.id == "count"; });
     const auto landed = [&](const std::string& part) {
         for (const bool pressed : {true, false}) {
-            gfx::AreaButtonChanged b{"tally.panel", 1, pressed, count.x + count.w / 2,
+            gfx::AreaButtonChanged b{area_of("tally.panel"), 1, pressed, count.x + count.w / 2,
                                      count.y + count.h / 2, zengine::input::mod::kNone, true, 0};
-            b.under = "tally.panel";
+            b.under = area_of("tally.panel");
             b.part = part;
             window_says(rig, w, "tally.panel", b);
         }
@@ -1124,7 +1136,7 @@ TEST_CASE("a view hears the pointer of the window that shows its area: a field p
         return *std::find_if(d.elements.begin(), d.elements.end(), [&](const auto& e) { return e.id == id; });
     };
     const auto button = [&](std::int64_t which, bool pressed, std::int64_t x, std::int64_t y) {
-        return gfx::AreaButtonChanged{"tally.panel", which, pressed, x, y, in::mod::kNone, true, 0};
+        return gfx::AreaButtonChanged{area_of("tally.panel"), which, pressed, x, y, in::mod::kNone, true, 0};
     };
     const auto press_at = [&](std::int64_t x, std::int64_t y, std::int64_t which = 1) {
         window_says(rig, w, "tally.panel", button(which, true, x, y));
@@ -1164,9 +1176,9 @@ TEST_CASE("a view hears the pointer of the window that shows its area: a field p
     const auto drawn = w.window->drawn.size();
     const auto limit = element("limit");
     window_says(rig, w, "tally.panel",
-                gfx::AreaPointerMoved{"tally.panel", limit.x + 4, limit.y + 4, 1, 1, in::mod::kNone, true, 0});
+                gfx::AreaPointerMoved{area_of("tally.panel"), limit.x + 4, limit.y + 4, 1, 1, in::mod::kNone, true, 0});
     window_says(rig, w, "tally.panel",
-                gfx::AreaWheelTurned{"tally.panel", 0, 1, limit.x + 4, limit.y + 4, in::mod::kNone, true, 0});
+                gfx::AreaWheelTurned{area_of("tally.panel"), 0, 1, limit.x + 4, limit.y + 4, in::mod::kNone, true, 0});
     press("limit", 2);
     CHECK(w.window->drawn.size() == drawn);
 

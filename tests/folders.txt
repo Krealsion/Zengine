@@ -31,7 +31,6 @@ message-draft     library
 operator          library
 quarry            quarry
 settings          feature
-surface           library
 terminal          feature
 tests             tests
 timer             library

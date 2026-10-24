@@ -209,8 +209,7 @@ built from one authoring. A Zengine host owns ONE `op::Catalog`, and a Timer it 
   derive a six-line `TimerService` whose only member is a constructor passing
   `DelayAuthority(OperatorHost::offered())` down. It adds no state and overrides nothing. The
   refusal sentence goes to **stderr** before the throw, because `create()`'s contract is a
-  null pointer and a null pointer carries no reason — the same thing `zengine-skin-sdl` does
-  for a failed init.
+  null pointer and a null pointer carries no reason.
 - **Do not write `ZENGINE_OPERATOR_CONSUMER()` in a test binary.**
   `detail::offered_host_slot()` has default visibility, so an executable that defined it would
   sit in the lookup scope of every `.so` that also defines it. A suite drives the consumer

@@ -23,47 +23,52 @@ application meaning and is not spoken here at any version.
 | `PointerButton` v1 | button, transition, **the position it happened at**, space, modifiers. |
 | `PointerWheel` v1 | notches, position, space, modifiers. |
 
-Positions are int64 and carry a `space` (`kCells` on the two terminal backends, `kPixels` on the
-SDL one) so a terminal cell can never be mistaken for an SDL pixel. Editing controls are keys,
-never text: Backspace, Enter and Escape arrive as transitions, and what they *mean* is the
-application's.
+Positions are int64 and carry a `space` (`kCells` on the two terminal backends, `kPixels` where the
+OS window reads SDL's events) so a terminal cell can never be mistaken for a window pixel. Editing
+controls are keys, never text: Backspace, Enter and Escape arrive as transitions, and what they
+*mean* is the application's.
 
-The backends are the ones snake and Workshop run on. The **POSIX terminal** parses raw-mode
-bytes with a *stateful, incremental* parser — an OS read boundary is not an event boundary, so a
-mouse report split across reads is rejoined rather than translated into the keystrokes its bytes
-happen to spell; a lone `ESC` is held until an empty poll resolves it as the Escape key. Pointer
-reports are SGR (`ESC [ < b ; x ; y M/m`), 1-based and translated to the 0-based contract, and
-the CSI editing keys are named too: the arrows, Home, End and Delete in their
-bare, tilde-numbered and `1;m`-modified spellings, with the modifier parameter *measured* (xterm's
-1 + Shift/Alt/Ctrl bitmask; the Meta bit is deliberately not claimed). A control byte is Ctrl with
-its letter, and byte 0 is Ctrl+Space, which Ctrl+@ and Ctrl+2 send too. The **Win32 console**
-reads `INPUT_RECORD`s: `uChar.UnicodeChar` is the text, `dwControlKeyState` the modifiers,
-`dwMousePosition` the position — all present on the record and all preserved — and its VK table
-names Home, End and Delete. The SDL **Reader** drains the window's one process-global event
-queue, unless an OS window in the process claims it (`input/window_claim.hpp`) and reads it itself
-with the same translation (`input/translate_sdl_core.hpp`): SDL scancodes pass through as the wire
-identity they already are, and one fact on that queue is not an input moment and is routed in the
-Surface vocabulary instead — the close box (`SurfaceCloseRequested`). The platform's clipboard
-events are in the reader's ignored set deliberately, not from disinterest: clipboard read follows
-paste intent, so the clipboard is
-read through the Skin when a paste asks with `ClipboardTextRequested` — see
-[surface/docs/surface.md](../../surface/docs/surface.md) — and never watched; no shape leaving this reader carries clipboard
-text. Each backend's exact honest reach — which modifiers it can vouch for on which keys —
-stays documented in `input/translate.hpp`. The terminal readers (`input/terminal_reader.hpp`)
-serve any program reading a terminal, a terminal window among them, not only the Input weave.
+The backends are the ones snake and Workshop run on. The **POSIX terminal** parses raw-mode bytes
+with a *stateful, incremental* parser — an OS read boundary is not an event boundary, so a mouse
+report split across reads is rejoined rather than translated into the keystrokes its bytes happen to
+spell; a lone `ESC` is held until an empty poll resolves it as the Escape key. Pointer reports are
+SGR (`ESC [ < b ; x ; y M/m`), 1-based and translated to the 0-based contract, and the CSI editing
+keys are named too: the arrows, Home, End and Delete in their bare, tilde-numbered and
+`1;m`-modified spellings, with the modifier parameter *measured* (xterm's 1 + Shift/Alt/Ctrl
+bitmask; the Meta bit is deliberately not claimed). A control byte is Ctrl with its letter, and byte
+0 is Ctrl+Space, which Ctrl+@ and Ctrl+2 send too. The **Win32 console** reads `INPUT_RECORD`s:
+`uChar.UnicodeChar` is the text, `dwControlKeyState` the modifiers, `dwMousePosition` the position —
+all present on the record and all preserved — and its VK table names Home, End and Delete. The OS
+window reads SDL's one process-global event queue itself, with this package's translation
+(`input/translate_sdl_core.hpp`): SDL scancodes pass through as the wire identity they already are.
+The platform's clipboard events are ignored there deliberately, not from disinterest: clipboard read
+follows paste intent, so the clipboard is read through the window when a paste asks with
+`ClipboardTextRequested` ([`zengine.window.sdl`](../../graphics/docs/zengine.window.sdl.md)), and
+never watched; no moment carries clipboard text. Each backend's exact honest reach — which modifiers
+it can vouch for on which keys — stays documented in `input/translate.hpp`. The terminal readers
+(`input/terminal_reader.hpp`) serve any program reading a terminal, a terminal window among them,
+not only the Input weave.
 
-**Who turns the terminal's pointer on:** the **Skin**, because terminal modes are output and the
-output stream is already claimed and released on the Skin's own lifetime (`surface/skin_tui.hpp`).
-Input never writes a byte to the terminal; it parses SGR reports whenever they arrive, and they
-only arrive because a Skin asked. The two packages need no coordination surface between them.
+**Who turns the terminal's pointer on:** the **terminal window**, because terminal modes are
+output and the output stream is already claimed and released on the window's own lifetime
+(`graphics/window/terminal_io.hpp`). Input never writes a byte to the terminal; it parses SGR
+reports whenever they arrive, and they only arrive because the window asked. The two packages need
+no coordination surface between them.
+
+## Scan names are names for values that already arrive
+
+`scan::kHome`, `kDelete` and `kEnd` are names, not new reach. SDL's scancode passes through
+untranslated (`input/translate_sdl_core.hpp`), so the OS window has always delivered them unnamed;
+the POSIX terminal backend names their CSI sequences and the Win32 console backend their VKs. A
+constant here is not a claim that every backend can produce one: `translate.hpp` remains where each
+backend's honest reach is written.
 
 ## The weave over a reader
 
 `InputWeaveT<Reader, Facets...>` (`input/input_weave.hpp`) is the whole Input weave around a
 reader: anything with `poll()` returning a vector of a variant of the shapes it publishes. Its Emit
-set is derived from that variant, so a reader that can hand it a further shape (the SDL reader's
-`SurfaceCloseRequested`) declares it and no other weave does. It keeps the office's beat, its
-sessions and its timed motion, as [the manual](zengine.input.md) says. `Facets` compose onto it:
-the two shipped weaves name their office's page, `OfficePage`, a `manual::ManualFacet` that adds
-the door answering what each accepted shape does; with none there is no such door, as a suite's
-weave over a scripted reader is built.
+set is derived from that variant, so a reader that can hand it a further shape declares it and no
+other weave does. It keeps the office's beat, its sessions and its timed motion, as
+[the manual](zengine.input.md) says. `Facets` compose onto it: the shipped weave names its office's
+page, `OfficePage`, a `manual::ManualFacet` that adds the door answering what each accepted shape
+does; with none there is no such door, as a suite's weave over a scripted reader is built.

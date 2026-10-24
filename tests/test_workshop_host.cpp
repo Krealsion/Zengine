@@ -9,6 +9,7 @@
 #include "workshop_support.hpp"
 
 #include "workshop/guests.hpp"
+#include "graphics/window/terminal_io.hpp"
 
 // ============================================================================
 // What this terminal can say next
@@ -33,10 +34,17 @@ loom::TerminalVocabulary two_versions() {
     return v;
 }
 
+/// A SECOND SHAPE THE SUITE'S TERMINAL KNOWS, at a version of its own, so a completion lists two.
+struct RigPicture {
+    std::int64_t width = 0;
+    std::int64_t height = 0;
+    ZEN_SHAPE(RigPicture, 9, ZEN_FIELD(width), ZEN_FIELD(height));
+};
+
 loom::TerminalVocabulary workshop_vocab() {
     loom::TerminalVocabulary v;
-    v.knows(loom::schema_of<surface::SurfaceText>())
-        .knows(loom::schema_of<surface::SurfaceCanvas>())
+    v.knows(loom::schema_of<RigNote>())
+        .knows(loom::schema_of<RigPicture>())
         .accepts(loom::schema_of<loom::Ack>());
     return v;
 }
@@ -155,22 +163,22 @@ TEST_CASE("with the bus read the address offers everyone then each office held n
     const std::vector<Destination> reachable{
         Destination{7, "zengine.timer", {"TimerRequested", "TimerCancelled", "Drive", "Hello"}, true, false},
         Destination{3, "", {"Ack", "Refused"}, true, true},
-        Destination{12, "zengine.skin", {"SurfaceText"}, false, false},
+        Destination{12, "zengine.test.board", {"RigNote"}, false, false},
     };
     const Completion at = complete_line(me, "send ", &reachable);
-    CHECK(displays(at) == std::vector<std::string>{"*", "@zengine.skin", "@zengine.timer", "#3", "#7",
+    CHECK(displays(at) == std::vector<std::string>{"*", "@zengine.test.board", "@zengine.timer", "#3", "#7",
                                                    "#12"});
-    CHECK(at.candidates[1].insert == "@zengine.skin ");
+    CHECK(at.candidates[1].insert == "@zengine.test.board ");
     CHECK(at.candidates[3].insert == "#3 ");
     CHECK(at.candidates[1].detail == "held by #12 now; reaches whoever holds it when sent");
     CHECK(at.candidates[3].detail == "no office; accepts Ack, Refused (this terminal)");
     CHECK(at.candidates[4].detail == "@zengine.timer; accepts TimerRequested, TimerCancelled, Drive +1");
-    CHECK(at.candidates[5].detail == "@zengine.skin; accepts SurfaceText (dead now)");
+    CHECK(at.candidates[5].detail == "@zengine.test.board; accepts RigNote (dead now)");
     // KNOWING ONE IS NEITHER PERMISSION NOR A PROMISE, and the list says so.
     CHECK(at.heading.find("not permission, nor a promise at send") != std::string::npos);
 
     // WHAT HAS BEEN TYPED FILTERS BY THE SPELLING, SIGIL INCLUDED.
-    CHECK(displays(complete_line(me, "send @zengine.t", &reachable)) ==
+    CHECK(displays(complete_line(me, "send @zengine.ti", &reachable)) ==
           std::vector<std::string>{"@zengine.timer"});
     CHECK(displays(complete_line(me, "send #1", &reachable)) == std::vector<std::string>{"#12"});
     CHECK(displays(complete_line(me, "send #", &reachable)) ==
@@ -192,19 +200,19 @@ TEST_CASE("shape candidates are the catalog, in the host's order, and versions s
 
     // THE HOST'S DECLARED ORDER, preserved -- no ranking, no sorting, no learned order.
     const Completion all = complete_line(me, "send * ");
-    CHECK(displays(all) == std::vector<std::string>{"SurfaceText v1", "SurfaceCanvas v9",
+    CHECK(displays(all) == std::vector<std::string>{"RigNote v1", "RigPicture v9",
                                                     "zen.Ack v1"});
     // ACCEPTANCE WRITES THE VERSION TOO, because a shape without one is never a command
     // this pane can run: the grammar wants four words and the version is the fourth.
-    CHECK(all.candidates[0].insert == "SurfaceText 1 ");
+    CHECK(all.candidates[0].insert == "RigNote 1 ");
     CHECK(all.candidates[0].detail.find("slot:Text") != std::string::npos);
 
-    // CASE FOLLOWS THE WIRE. A schema name is identity; matching `surfacetext` against
-    // `SurfaceText` would offer a completion that composes to UnknownShape.
-    CHECK(displays(complete_line(me, "send * Surface")) ==
-          std::vector<std::string>{"SurfaceText v1", "SurfaceCanvas v9"});
-    CHECK(complete_line(me, "send * surface").candidates.empty());
-    CHECK(complete_line(me, "send * surface").heading.find("(3 known)") != std::string::npos);
+    // CASE FOLLOWS THE WIRE. A schema name is identity; matching `rignote` against
+    // `RigNote` would offer a completion that composes to UnknownShape.
+    CHECK(displays(complete_line(me, "send * Rig")) ==
+          std::vector<std::string>{"RigNote v1", "RigPicture v9"});
+    CHECK(complete_line(me, "send * rig").candidates.empty());
+    CHECK(complete_line(me, "send * rig").heading.find("(3 known)") != std::string::npos);
 
     // A DOOR IS THE ONE AUTHORITY-ADJACENT FACT THAT IS HONESTLY KNOWABLE, and it is
     // about the direction that cannot be mistaken for permission: `zen.Ack` may ARRIVE
@@ -232,44 +240,44 @@ TEST_CASE("shape candidates are the catalog, in the host's order, and versions s
 TEST_CASE("arguments offer field NAMES, never values, and the heading is compose()'s verdict") {
     loom::TerminalSession me("t", workshop_vocab());
 
-    const Completion fresh = complete_line(me, "send * SurfaceText 1 ");
+    const Completion fresh = complete_line(me, "send * RigNote 1 ");
     CHECK(displays(fresh) == std::vector<std::string>{"slot=", "text="});
     // NO TRAILING SEPARATOR on a field, because a value follows immediately -- the one
     // slot where the grammar's separator rule differs, honoured per slot.
     CHECK(fresh.candidates[0].insert == "slot=");
     CHECK(fresh.candidates[0].detail.find("required") != std::string::npos);
     // THE HEADING IS THE LADDER'S OWN VERDICT, run over the arguments already finished.
-    CHECK(fresh.heading == "SurfaceText v1 -- missing: slot, text");
+    CHECK(fresh.heading == "RigNote v1 -- missing: slot, text");
 
     // ONCE THERE IS AN `=` THE WEAVER IS TYPING A VALUE, and this file has nothing to say
     // about values. The preview stays; the list stops.
-    const Completion valuing = complete_line(me, "send * SurfaceText 1 slot=sc");
+    const Completion valuing = complete_line(me, "send * RigNote 1 slot=sc");
     CHECK(valuing.candidates.empty());
-    CHECK(valuing.heading == "SurfaceText v1 -- missing: slot, text");
+    CHECK(valuing.heading == "RigNote v1 -- missing: slot, text");
 
     // A FIELD ALREADY NAMED IS NOT OFFERED AGAIN: the composer refuses a double
     // assignment, and offering one would be offering a command that cannot run.
-    CHECK(displays(complete_line(me, "send * SurfaceText 1 slot=score ")) ==
+    CHECK(displays(complete_line(me, "send * RigNote 1 slot=score ")) ==
           std::vector<std::string>{"text="});
-    CHECK(complete_line(me, "send * SurfaceText 1 slot=score ").heading ==
-          "SurfaceText v1 -- missing: text");
+    CHECK(complete_line(me, "send * RigNote 1 slot=score ").heading ==
+          "RigNote v1 -- missing: text");
 
     // READY IS A REAL VERDICT AND IT MEANS WHAT SUBMISSION WILL MEAN, because it is the
     // same ladder -- `compose()` stopped one step before anything is authored.
-    CHECK(complete_line(me, "send * SurfaceText 1 slot=score text=hi ").heading ==
-          "SurfaceText v1 -- ready; Return submits it");
-    CHECK(complete_line(me, "send * SurfaceText 1 score hi ").heading ==
-          "SurfaceText v1 -- ready; Return submits it");
+    CHECK(complete_line(me, "send * RigNote 1 slot=score text=hi ").heading ==
+          "RigNote v1 -- ready; Return submits it");
+    CHECK(complete_line(me, "send * RigNote 1 score hi ").heading ==
+          "RigNote v1 -- ready; Return submits it");
 
     // ...and an ERROR is the ladder's words, not a second vocabulary invented here.
-    CHECK(complete_line(me, "send * SurfaceText 1 nope=1 ").heading.find("no field 'nope'") !=
+    CHECK(complete_line(me, "send * RigNote 1 nope=1 ").heading.find("no field 'nope'") !=
           std::string::npos);
     // A shape this terminal does not know has no fields to offer and says so.
     CHECK(complete_line(me, "send * Nothing 1 ").candidates.empty());
     CHECK(complete_line(me, "send * Nothing 1 ").heading.find("does not know Nothing v1") !=
           std::string::npos);
     // A version that is not a number never reaches the ladder at all.
-    CHECK(complete_line(me, "send * SurfaceText x ").heading.find("fourth word") !=
+    CHECK(complete_line(me, "send * RigNote x ").heading.find("fourth word") !=
           std::string::npos);
 }
 
@@ -304,16 +312,16 @@ TEST_CASE("arguments offer a shape's fields in its order, or its required fields
 
 TEST_CASE("a quoted token is left alone, because the quote is not on the line the completer sees") {
     // `loom::tokenize` drops the quote characters, so the partial this completer can see
-    // (`Sur`) is not the text on the line (`"Sur`). Replacing one with the other would
+    // (`Rig`) is not the text on the line (`"Rig`). Replacing one with the other would
     // leave a dangling quote in a line the weaver can no longer see the whole of.
     loom::TerminalSession me("t", workshop_vocab());
-    const Completion quoted = complete_line(me, "send * \"Sur");
+    const Completion quoted = complete_line(me, "send * \"Rig");
     CHECK_FALSE(quoted.open);
     CHECK(quoted.candidates.empty());
     CHECK(quoted.heading.empty());
     // ...and the same prefix unquoted is completed normally, which is what says the
     // refusal is about the quote rather than about the text.
-    CHECK(complete_line(me, "send * Sur").candidates.size() == 2);
+    CHECK(complete_line(me, "send * Rig").candidates.size() == 2);
 }
 
 
@@ -354,7 +362,7 @@ TEST_CASE("the surface says how much room it has, and Workshop paints that much"
     t.extent_px(cells_px(100), cells_px(33));
     REQUIRE(t.pictures > before);
 
-    const surface::SurfaceCanvas c = paint(t.session());
+    const ScreenCanvas c = paint(t.session());
     const Screen sc = screen_of(t.session());
     CHECK(c.width == cells_px(100));
     CHECK(c.height == cells_px(33));
@@ -378,25 +386,30 @@ TEST_CASE("the surface says how much room it has, and Workshop paints that much"
     t.extent_px(cells_px(2), cells_px(2));
     REQUIRE(t.pictures > settled);
     CHECK(paint(t.session()).width == kMinScreen.w); // back to the minimum, not to 2
+    const std::size_t clamped = t.pictures;
     t.extent_px(cells_px(1), cells_px(1));
-    CHECK(t.pictures == settled + 1);
+    CHECK(t.pictures == clamped);
 
     // An absurd one is bounded before any arithmetic touches it.
-    t.publish(loom::to_value(surface::SurfaceExtent{
-        (std::numeric_limits<std::int64_t>::max)(), (std::numeric_limits<std::int64_t>::max)()}));
+    (void)t.bus.office_publish_as(
+        t.windows.id(), t.windows.office(),
+        loom::Message(loom::to_value(gfx::WindowOffered{
+            t.windows.window(), (std::numeric_limits<std::int64_t>::max)(),
+            (std::numeric_limits<std::int64_t>::max)(), t.w->session().screen_w > 0 ? 1 : 0})));
+    t.bus.drain_until_idle();
     CHECK(paint(t.session()).width == kScreenMaxW);
     CHECK(paint(t.session()).height == kScreenMaxH);
 }
 
 TEST_CASE("a run no medium measures is exactly the run Workshop had before") {
     // THE DETERMINISTIC FALLBACK, from the application's side. A run whose output is a pipe, a
-    // file, a capture or a CI log has no terminal to measure, and `SkinT::report_extent` turns
-    // "no opinion" into SILENCE, so this Workshop paints the minimum screen -- the 78x22
+    // file, a capture or a CI log has no terminal to measure, and a window that measures nothing
+    // offers no room, so this Workshop paints the minimum screen -- the 78x22
     // composition that keeps every golden projection independent of the machine. It is not a
     // measurement and is not spelled like one: `kScreenMinW`/`kScreenMinH` (screen.hpp) stand
     // because nobody offered anything else.
     Session s;
-    const surface::SurfaceCanvas c = paint(s);
+    const ScreenCanvas c = paint(s);
     CHECK(c.width == kScreenMinW);
     CHECK(c.height == kScreenMinH);
     CHECK(cells_of(screen_of(s)).w == 78);
@@ -497,7 +510,7 @@ TEST_CASE("a stacked pane covers the workspace, and may reach the right column")
     CHECK(stack_text(t.shown()).empty());
 
     open_stock_pane(t);
-    const surface::SurfaceCanvas with = paint(t.session());
+    const ScreenCanvas with = paint(t.session());
     const Screen sc = screen_of(t.session());
     // THE BOUNDS THE PLACEMENT PATH GIVES IT, and the rows are read against those rather than
     // against a column this case knows independently -- through the cell projection every
@@ -506,7 +519,7 @@ TEST_CASE("a stacked pane covers the workspace, and may reach the right column")
 cells_covered(bounds_of(t.session().panes, t.session().setup.active, stock::kKind, sc).rect);
     const ui::Rect inside = pane_body_cells(stack);
     std::size_t stacked_rows = 0;
-    for (const surface::SurfaceLabel& l : cell_text_of(with)) {
+    for (const ScreenLabel& l : cell_text_of(with)) {
         const std::int64_t lx = gfx::cell_of_pixel(l.x), ly = gfx::cell_of_pixel(l.y);
         if (lx == inside.x && ly >= inside.y && ly < inside.y + inside.h) {
             // Every stacked row is padded to the pane's own INTERIOR width, so in a
@@ -610,9 +623,9 @@ TEST_CASE("each pane is painted where the placement path says it is") {
     // AND THE STACKED PANE PAINTS NO ROW OUTSIDE ITS OWN BOUNDS. Every row of it is padded
     // to the width its bounds gave it -- the erasing mechanism following the pane rather
     // than a constant.
-    const surface::SurfaceCanvas c = paint(t.session());
+    const ScreenCanvas c = paint(t.session());
     std::size_t seen_stack = 0;
-    for (const surface::SurfaceLabel& l : cell_text_of(c)) {
+    for (const ScreenLabel& l : cell_text_of(c)) {
         const std::int64_t lx = gfx::cell_of_pixel(l.x), ly = gfx::cell_of_pixel(l.y);
         if (lx == builder_cells.x && ly >= builder_cells.y &&
             ly < builder_cells.y + builder_cells.h) {
@@ -888,14 +901,13 @@ TEST_CASE("the terminal's own size becomes Workshop's screen, growing and shrink
     };
     // Four sizes measured on a real pty, plus one absurd one as a canary for a fixed constant
     // hiding in a responsive path.
-    for (const Want& want : {Want{120, 40, 120, 37}, Want{160, 50, 160, 47},
-                             Want{90, 28, 90, 25}, Want{240, 80, 240, 77},
-                             Want{78, 25, kScreenMinCols, kScreenMinRows}}) {
+    for (const Want& want : {Want{120, 40, 120, 40}, Want{160, 50, 160, 50},
+                             Want{90, 28, 90, 28}, Want{240, 80, 240, 80},
+                             Want{kScreenMinCols, kScreenMinRows, kScreenMinCols, kScreenMinRows}}) {
         CAPTURE(want.cols);
         CAPTURE(want.rows);
         const std::size_t before = t.pictures;
-        t.publish(loom::to_value(
-            surface::tui_canvas_extent(gfx::window::TerminalSize{want.cols, want.rows})));
+        t.extent(want.cols, want.rows);
         REQUIRE(t.pictures > before);
 
         CHECK(t.session().screen_w == cells_px(want.screen_w));
@@ -903,11 +915,11 @@ TEST_CASE("the terminal's own size becomes Workshop's screen, growing and shrink
 
         // THE CANVAS IS THE SCREEN, and the screen FITS IN THE TERMINAL: what a publisher
         // paints plus what the layout spends on itself is never more than the room there is.
-        const surface::SurfaceCanvas c = paint(t.session());
+        const ScreenCanvas c = paint(t.session());
         CHECK(c.width == cells_px(want.screen_w));
         CHECK(c.height == cells_px(want.screen_h));
         CHECK(c.width <= cells_px(want.cols));
-        CHECK(c.height + cells_px(surface::kTuiReservedRows) <= cells_px(want.rows));
+        CHECK(c.height <= cells_px(want.rows));
 
         // A CELL MEDIUM STAYS A CELL MEDIUM. No pixel is invented at any size.
         CHECK(t.session().text_advance_px == 0);
@@ -921,40 +933,30 @@ TEST_CASE("the terminal's own size becomes Workshop's screen, growing and shrink
             CHECK(row.size() == static_cast<std::size_t>(gfx::cell_of_pixel(c.width)));
         }
 
-        // AND THE SAME EXTENT AGAIN IS NOT A REPAINT. The skin already guards its publishing;
-        // this second guard is what makes a weaver dragging an edge across a clamp boundary
-        // see one screen rather than a flicker.
+        // AND THE SAME ROOM AGAIN IS NOT A REPAINT: what makes a weaver dragging an edge across
+        // a clamp boundary see one screen rather than a flicker.
         const std::size_t settled = t.pictures;
-        t.publish(loom::to_value(
-            surface::tui_canvas_extent(gfx::window::TerminalSize{want.cols, want.rows})));
+        t.extent(want.cols, want.rows);
         CHECK(t.pictures == settled);
     }
 
     // GROWING AND SHRINKING ARE ONE MECHANISM, walked as a hand on an edge would walk it.
     for (std::int64_t rows = 30; rows <= 44; ++rows) {
-        t.publish(loom::to_value(surface::tui_canvas_extent(gfx::window::TerminalSize{100, rows})));
-        CHECK(t.session().screen_h == cells_px(rows - surface::kTuiReservedRows));
+        t.extent(100, rows);
+        CHECK(t.session().screen_h == cells_px(rows));
     }
     for (std::int64_t rows = 44; rows >= 30; --rows) {
-        t.publish(loom::to_value(surface::tui_canvas_extent(gfx::window::TerminalSize{100, rows})));
-        CHECK(t.session().screen_h == cells_px(rows - surface::kTuiReservedRows));
+        t.extent(100, rows);
+        CHECK(t.session().screen_h == cells_px(rows));
     }
 }
 
 TEST_CASE("a terminal below the composition's minimum is published, not fictionalised") {
-    // The medium's job is to say what it measured; the clamp is Workshop's own policy. Keeping
-    // them separate makes the small case honest: nothing claims a 60x15 terminal is 78x22, and
+    // The window's job is to say what it measured; the clamp is Workshop's own policy. Keeping
+    // them separate makes the small case honest: nothing claims a 60x12 terminal is 78x22, and
     // a weaver sees the documented consequence of a stated minimum meeting a surface below it.
     Live t;
-    const surface::SurfaceExtent small =
-        surface::tui_canvas_extent(gfx::window::TerminalSize{60, 15});
-
-    // THE MEASUREMENT IS THE TRUTH AND IT IS SMALL. 15 rows less the layout's three is 12,
-    // and the medium says twelve rather than rounding up to a number that would fit.
-    CHECK(small.width == cells_px(60));
-    CHECK(small.height == cells_px(12));
-
-    t.publish(loom::to_value(small));
+    t.extent(60, 12);
 
     // WORKSHOP CLAMPS, VISIBLY, TO THE COMPOSITION IT IS HONEST ON. `adopt_screen` bounds an
     // extent into [minimum, maximum] and the terminal clips whatever does not fit, which is
@@ -967,26 +969,20 @@ TEST_CASE("a terminal below the composition's minimum is published, not fictiona
     // flicker, and Workshop never paints a size no medium reported.
     const std::size_t settled = t.pictures;
     for (const gfx::window::TerminalSize& tiny :
-         {gfx::window::TerminalSize{40, 10}, gfx::window::TerminalSize{78, 24},
+         {gfx::window::TerminalSize{40, 10}, gfx::window::TerminalSize{78, 21},
           gfx::window::TerminalSize{20, 5}}) {
-        t.publish(loom::to_value(surface::tui_canvas_extent(tiny)));
+        t.extent(tiny.cols, tiny.rows);
     }
     CHECK(t.pictures == settled);
     CHECK(t.session().screen_w == kScreenMinW);
 
-    // A TERMINAL WITH NO ROOM AT ALL SAYS NOTHING, and nothing is exactly what a publisher
-    // should hear: `{0,0}` off the bus is refused by `adopt_screen` for the same reason the
-    // medium never publishes it -- "there is no room" is a sentence nobody may say.
-    CHECK(surface::tui_canvas_extent(gfx::window::TerminalSize{120, 2}).height == 0);
-    t.publish(loom::to_value(surface::tui_canvas_extent(gfx::window::TerminalSize{120, 2})));
+    // A TERMINAL OF NEARLY NO ROOM is the same minimum screen, painted no again.
+    t.extent(70, 2);
     CHECK(t.pictures == settled);
     CHECK(t.session().screen_w == kScreenMinW);
 }
 
-TEST_CASE("Workshop puts nothing on the attention slot, healthy or not: what is true is said to "
-          "whoever presents it") {
-    // ⚔ MUTATION: `repaint` publishing the glance on `kSlotScore` -- the medium would draw
-    // it outside every pane, and the last check goes red.
+TEST_CASE("what is true is said to whoever presents it, healthy or not") {
     Live t;
     t.ready();
     CHECK(t.conditions().empty());
@@ -1003,10 +999,6 @@ TEST_CASE("Workshop puts nothing on the attention slot, healthy or not: what is 
                                            gfx::role::kAlert, std::string()});
     t.key(input::scan::kDown);
     CHECK(t.glance() == "a wall");
-    // ...AND STILL NOTHING ON THE SLOT: no Skin is handed it to draw outside the panes.
-    for (const surface::SurfaceText& note : t.notes) {
-        CHECK(std::string(note.slot) != surface::kSlotScore);
-    }
 }
 
 TEST_CASE("an unavailable tool is named by its artifact on the host's own condition row, which "
@@ -1905,9 +1897,9 @@ TEST_CASE("one right press exits Arrange; only the NEXT one opens context") {
 
     // THE RELEASE OF THAT SAME PRESS is a non-primary release on the ordinary path, and
     // it is dropped exactly as every second-button release always was -- nothing opens.
-    t.publish(loom::to_value(input::PointerButton{3, false, slot.x + 1,
+    t.hand_moment(input::PointerButton{3, false, slot.x + 1,
                                                   slot.y + 1,
-                                                  input::space::kCells, input::mod::kNone}));
+                                                  input::space::kCells, input::mod::kNone});
     CHECK_FALSE(t.menu().open);
     CHECK_FALSE(t.session().arrange.open);
 

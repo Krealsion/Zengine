@@ -18,7 +18,6 @@
 #include "graphics_rig.hpp"
 
 #include "graphics/elements/button.hpp"
-#include "surface/vocabulary.hpp" // a Skin's role: the negative control that does paint stdout
 #include "timer/vocabulary.hpp"
 
 #include <fstream>
@@ -119,7 +118,7 @@ private:
     Recorded* rec_;
 };
 
-/// fd-1 silencer: the real skins paint stdout, and the suite's own output must stay legible.
+/// fd-1 silencer: a library writing stdout must not garble the suite's own output.
 /// Scoped exactly around pumps. The null device and the dup spellings are the only platform
 /// seam (Windows: `NUL`, the _-prefixed CRT forms).
 class Hush {
@@ -771,7 +770,7 @@ TEST_CASE("the substrate's own reset door starts a new game") {
 namespace {
 
 /// fd-1 catcher: like Hush, but the bytes land in a file the test can weigh; a zero is a
-/// measurement only because the same catcher finds a SKINNED run's paint. Under the MSVC ABI a
+/// measurement only because the same catcher finds a painting library's bytes. Under the MSVC ABI a
 /// weave's own C runtime takes as its stdout the Windows standard handle it loads with, which
 /// _dup2 on descriptor 1 points at the file: so a catcher is made before the weaves it weighs
 /// load, and outlives them. What it caught is copied to stderr when a check throws inside it.
@@ -868,18 +867,14 @@ TEST_CASE("snake draws into its window, never onto the terminal: with no termina
     CHECK(eaten == "1");    // the game DID run
     CHECK(showings >= 6);   // and its window DID compose the picture, every tick
 
-    // The negative control: the same meter, a Skin holding a picture -- paint.
+    // The negative control: the same meter, a loaded library writing its stdout -- paint.
     {
         CatchStdout catcher("snake_painted.tmp");
         Rig r;
-        r.load_unhushed("zengine-skin-tui-classic", SKIN_SO_TUI_CLASSIC,
-                        zengine::surface::kSkinRole);
-        zengine::surface::SurfaceCanvas c;
-        c.width = 48;
-        c.height = 12;
-        c.layers.emplace_back();
-        c.layers[0].rects.push_back(zengine::surface::SurfaceRect{0, 0, 12, 12, 0});
-        r.bus.send_to_role(zengine::surface::kSkinRole, loom::Message(loom::to_value(c)));
+        r.load_unhushed("zengine-test-stdout-painter", STDOUT_PAINTER_SO, "zengine.test.painter");
+        loom::Value paint(loom::SchemaBuilder("PaintStdout", 1).field("text", loom::Kind::Text).build());
+        paint.set("text", loom::Cell::text("painted\n"));
+        r.bus.send_to_role("zengine.test.painter", loom::Message(std::move(paint)));
         r.bus.drain_until_idle();
     }
     CHECK(file_size_then_remove("snake_painted.tmp") > 0);

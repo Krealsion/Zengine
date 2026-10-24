@@ -531,8 +531,7 @@ struct AreaSettled {
 // ---- what a medium answers for its platform -------------------------------------------------
 //
 // The clipboard, the window's place on its desktop, a close its desktop asked for, and the picture
-// last presented: each medium that shows -- a window's office, or Surface's Skin, which spells
-// these same shapes as its own -- answers them as far as its platform can.
+// last presented: each window that shows answers them, as its office, as far as its platform can.
 
 /// Give the medium a turn to service its platform now, such as an OS window's event queue: the
 /// work its own beat does, on request, for suites and for hosts with no Timer.

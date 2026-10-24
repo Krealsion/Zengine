@@ -27,7 +27,6 @@
 #include "component/text_box.hpp"
 #include "graphics/vocabulary.hpp"
 #include "input/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
 
 #include <zen/weave.hpp>
 
@@ -840,7 +839,7 @@ private:
         loom::Ticket attempt{};
         std::uint64_t epoch = 0;
         bool awaiting = false;
-        std::string office = surface::kSkinRole;
+        std::string office;
     };
     Paste paste_;
 };

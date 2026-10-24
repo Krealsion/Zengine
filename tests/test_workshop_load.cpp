@@ -36,7 +36,6 @@
 #include "editor/editor-pane/editor.hpp"
 #include "editor/editor-pane/vocabulary.hpp"
 #include "graphics/vocabulary.hpp"
-#include "surface/vocabulary.hpp"
 #include "workshop/open_seam_vocabulary.hpp"
 #include "workshop/opening.hpp"
 
@@ -953,7 +952,7 @@ TEST_CASE("an EMPTY plan is legal: what a project must contain is not the format
 
 TEST_CASE("a plan round-trips through the codec, value for value") {
     const load::LoadPlan p = plan_of({provides("zengine-operators-basic"),
-                                      weaves("zengine-skin-tui-classic", "zengine.skin"),
+                                      weaves("zengine-window-terminal", "zengine.window.terminal"),
                                       both("zengine-timer", "zengine.timer"),
                                       provides("zengine-provider-min", op::MountMode::Overlay)});
     const std::string text = load_persist::to_text(p);
@@ -1266,8 +1265,7 @@ TEST_CASE("the Timer appears exactly ONCE in the shipped plan, participating in 
 }
 
 TEST_CASE("the shipped plans carry no operator identity, no suffix and no path") {
-    for (const char* path : {WORKSHOP_DEFAULT_PLAN, WORKSHOP_GRAPHICAL_PLAN, WORKSHOP_SKIN_PLAN,
-                             WORKSHOP_SDL_SKIN_PLAN}) {
+    for (const char* path : {WORKSHOP_DEFAULT_PLAN, WORKSHOP_GRAPHICAL_PLAN}) {
         const std::string text = file_text(path);
         REQUIRE_MESSAGE(!text.empty(), path, " is a shipped plan");
         // PROVIDERS OWN THE VOCABULARY. A plan that copied an operator identity into
@@ -1283,11 +1281,9 @@ TEST_CASE("the shipped plans carry no operator identity, no suffix and no path")
     }
 }
 
-TEST_CASE("the graphical plan differs from the default in exactly the two medium rows, and the "
-          "SDL Skin's plan from the terminal Skin's") {
+TEST_CASE("the graphical plan differs from the default in exactly the window's row") {
     for (const auto& [terminal, graphical] :
-         {std::pair<const char*, const char*>{WORKSHOP_DEFAULT_PLAN, WORKSHOP_GRAPHICAL_PLAN},
-          std::pair<const char*, const char*>{WORKSHOP_SKIN_PLAN, WORKSHOP_SDL_SKIN_PLAN}}) {
+         {std::pair<const char*, const char*>{WORKSHOP_DEFAULT_PLAN, WORKSHOP_GRAPHICAL_PLAN}}) {
         CAPTURE(graphical);
         const load_persist::LoadedPlan tui = load_persist::from_text(file_text(terminal));
         const load_persist::LoadedPlan sdl = load_persist::from_text(file_text(graphical));
@@ -1298,9 +1294,8 @@ TEST_CASE("the graphical plan differs from the default in exactly the two medium
         for (std::size_t i = 0; i < tui.plan.artifacts.size(); ++i) {
             if (!(tui.plan.artifacts[i] == sdl.plan.artifacts[i])) {
                 ++different;
-                // ...and what differs is the STEM, and a window's office, which is its own.
-                // Presentation and input stay two independent rows: neither is deduced from
-                // the other.
+                // ...and what differs is the STEM, and a window's office, which is its own. The
+                // input row beside it is the same in both: one reader beside either window.
                 const std::string& role = tui.plan.artifacts[i].weave->role;
                 const std::string& other = sdl.plan.artifacts[i].weave->role;
                 const std::string window = zengine::graphics::kWindowOfficePrefix;
@@ -1309,45 +1304,27 @@ TEST_CASE("the graphical plan differs from the default in exactly the two medium
                 CHECK(tui.plan.artifacts[i].stem != sdl.plan.artifacts[i].stem);
             }
         }
-        CHECK(different == 2);
+        CHECK(different == 1);
     }
 }
 
-TEST_CASE("the default plan puts the two medium rows where the terminal Skin's plan has its skin, "
-          "and they realize beside the input weave") {
-    const load_persist::LoadedPlan tui = load_persist::from_text(file_text(WORKSHOP_SKIN_PLAN));
+TEST_CASE("the default plan's medium is two rows, the directory and the terminal window, and they "
+          "realize beside the input weave") {
     const load_persist::LoadedPlan win = load_persist::from_text(file_text(WORKSHOP_DEFAULT_PLAN));
-    REQUIRE(tui.outcome.accepted);
     REQUIRE_MESSAGE(win.outcome.accepted, win.outcome.refusal);
-    // THE PALETTE AND THE QUICK SETUP ASIDE, which draw only in a window's area, so the
-    // Skin's plan loads neither.
-    auto rows = win.plan.artifacts;
-    rows.erase(std::remove_if(rows.begin(), rows.end(),
-                              [](const auto& a) {
-                                  return a.stem == "zengine-palette" ||
-                                         a.stem == "zengine-first-run";
-                              }),
-               rows.end());
-    REQUIRE(rows.size() + 2 == win.plan.artifacts.size());
-    REQUIRE(rows.size() == tui.plan.artifacts.size() + 1);
+    const auto& rows = win.plan.artifacts;
+    REQUIRE(rows.size() > 5);
+    CHECK(rows[0].stem == "zengine-operators-basic");
+    CHECK(rows[1].stem == "zengine-workshop-session-history");
     CHECK(win.plan.artifacts.back().stem == "zengine-first-run");
-    CHECK(win.plan.choices == tui.plan.choices);
-    CHECK(rows[0] == tui.plan.artifacts[0]);
-    CHECK(rows[1] == tui.plan.artifacts[1]);
-    // ...and every row from the Skin's input weave on, one row later: the reader that serves
-    // input sessions stays, and so does every pane.
-    for (std::size_t i = 3; i < tui.plan.artifacts.size(); ++i) {
-        CAPTURE(tui.plan.artifacts[i].stem);
-        CHECK(rows[i + 1] == tui.plan.artifacts[i]);
-    }
     REQUIRE(rows[4].weave.has_value());
     CHECK(rows[4].stem == "zengine-input");
     CHECK(rows[4].weave->role == "zengine.input");
     REQUIRE(rows[5].weave.has_value());
     CHECK(rows[5].weave->role == tmr::kTimerRole);
 
-    // THE MEDIUM'S TWO ROWS: the directory and the window where the skin stood, each a required
-    // weave in the office its own code answers to, and neither a provider.
+    // THE MEDIUM'S TWO ROWS: the directory and the window, each a required weave in the office
+    // its own code answers to, and neither a provider.
     const load::ArtifactIntent& directory = rows[2];
     const load::ArtifactIntent& window = rows[3];
     CHECK(directory.stem == "zengine-graphics");
@@ -1390,15 +1367,15 @@ TEST_CASE("the default plan puts the two medium rows where the terminal Skin's p
     CHECK(done.resolved[4].stem == "zengine-timer");
     CHECK(done.resolved[4].role == tmr::kTimerRole);
 
-    // THE OS WINDOW'S PLAN is this one with the OS window where the terminal window stands, and
-    // SDL's reader in the input row, which reads none of SDL's queue while the window claims it.
+    // THE OS WINDOW'S PLAN is this one with the OS window where the terminal window stands, the
+    // same input row beside it.
     const load_persist::LoadedPlan os = load_persist::from_text(file_text(WORKSHOP_GRAPHICAL_PLAN));
     REQUIRE_MESSAGE(os.outcome.accepted, os.outcome.refusal);
     REQUIRE(os.plan.artifacts.size() == win.plan.artifacts.size());
     CHECK(os.plan.choices == win.plan.choices);
     for (std::size_t i = 0; i < win.plan.artifacts.size(); ++i) {
         CAPTURE(win.plan.artifacts[i].stem);
-        if (i != 3 && i != 4) {
+        if (i != 3) {
             CHECK(os.plan.artifacts[i] == win.plan.artifacts[i]);
         }
     }
@@ -1409,12 +1386,7 @@ TEST_CASE("the default plan puts the two medium rows where the terminal Skin's p
     CHECK(os_window.weave->role == std::string(zengine::graphics::kWindowOfficePrefix) +
                                        zengine::graphics::kSdlWindow);
     CHECK_FALSE(os_window.optional);
-    const load::ArtifactIntent& reader = os.plan.artifacts[4];
-    CHECK(reader.stem == "zengine-input-sdl");
-    CHECK_FALSE(reader.provider.has_value());
-    REQUIRE(reader.weave.has_value());
-    CHECK(reader.weave->role == "zengine.input");
-    CHECK_FALSE(reader.optional);
+    CHECK(os.plan.artifacts[4].stem == "zengine-input");
 }
 
 TEST_CASE("a settled project's medium holds the terminal only when a terminal medium loaded on a "
@@ -1435,12 +1407,9 @@ TEST_CASE("a settled project's medium holds the terminal only when a terminal me
     };
     const std::string window =
         std::string(zengine::graphics::kWindowOfficePrefix) + zengine::graphics::kTerminalWindow;
-    const std::string skin = zengine::surface::kSkinRole;
 
-    // THE THREE MEDIA THAT TAKE THE TERMINAL: the terminal window and both terminal Skins.
-    for (const load::ResolvedArtifact& medium :
-         {loaded("zengine-window-terminal", window), loaded("zengine-skin-tui-classic", skin),
-          loaded("zengine-skin-tui-block", skin)}) {
+    // THE MEDIUM THAT TAKES THE TERMINAL: the terminal window.
+    for (const load::ResolvedArtifact& medium : {loaded("zengine-window-terminal", window)}) {
         CAPTURE(medium.stem);
         const load::Executed done = settled(medium);
         CHECK(load::medium_holds_terminal(done, true));
@@ -1459,9 +1428,7 @@ TEST_CASE("a settled project's medium holds the terminal only when a terminal me
     refused_bare.refusal = refused.refusal;
     CHECK_FALSE(load::medium_holds_terminal(refused_bare, true));
 
-    // THE SDL SKIN paints a window of its own and leaves the terminal it was started from alone,
-    // and so does the OS window.
-    CHECK_FALSE(load::medium_holds_terminal(settled(loaded("zengine-skin-sdl", skin)), true));
+    // THE OS WINDOW paints a window of its own and leaves the terminal it was started from alone.
     CHECK_FALSE(load::medium_holds_terminal(
         settled(loaded("zengine-window-sdl", std::string(zengine::graphics::kWindowOfficePrefix) +
                                                  zengine::graphics::kSdlWindow)),
@@ -1471,16 +1438,46 @@ TEST_CASE("a settled project's medium holds the terminal only when a terminal me
     load::ResolvedArtifact gone = loaded("zengine-window-terminal", window);
     gone.weave_loaded = false;
     CHECK_FALSE(load::medium_holds_terminal(settled(gone), true));
-    load::ResolvedArtifact unloaded_skin = loaded("zengine-skin-tui-classic", skin);
-    unloaded_skin.weave_loaded = false;
-    CHECK_FALSE(load::medium_holds_terminal(settled(unloaded_skin), true));
 
     // ...nor does a terminal-sounding stem in another office, or a project with no medium at all.
     CHECK_FALSE(load::medium_holds_terminal(
-        settled(loaded("zengine-skin-tui-classic", "zengine.input")), true));
+        settled(loaded("zengine-window-terminal", "zengine.input")), true));
     load::Executed bare;
     bare.ok = true;
     CHECK_FALSE(load::medium_holds_terminal(bare, true));
+}
+
+TEST_CASE("a plan naming a retired artifact is refused by name, with its fix, before any row "
+          "opens") {
+    // ⚔ MUTATION: `begin` walking the plan with no look at its stems -- the retired row opens and
+    // fails to load, naming no fix, and the rows before it are loaded.
+    for (const auto& [stem, fix] : {
+             std::pair<const char*, const char*>{"zengine-skin-tui-classic",
+                                                 "put the default plan's two medium rows where it stands"},
+             {"zengine-skin-tui-block", "put the default plan's two medium rows where it stands"},
+             {"zengine-skin-sdl", "put the graphical plan's two medium rows where it stands"},
+             {"zengine-input-sdl", "put zengine-input where it stands"}}) {
+        CAPTURE(stem);
+        PlanRig rig;
+        const load::Executed done = rig.realize(plan_of(
+            {provides("zengine-operators-basic"), weaves(stem, "zengine.skin"),
+             both("zengine-timer", "zengine.timer")}));
+        CHECK_FALSE(done.ok);
+        CHECK(done.refusal == std::string("artifact '") + stem + "' is retired: " + fix +
+                                  " (workshop/docs/load-plans.md)");
+        // ...BEFORE ANYTHING OPENS: not the row before it, nor the one after.
+        CHECK(done.resolved.empty());
+        CHECK_FALSE(rig.kernel.is_loaded("zengine-operators-basic"));
+        CHECK_FALSE(rig.kernel.is_loaded("zengine-timer"));
+    }
+    // A CHOICE NAMING ONE is refused the same way, though nothing loads a choice at startup.
+    load::LoadPlan with_choice = plan_of({provides("zengine-operators-basic")});
+    with_choice.choices.push_back(load::ChoiceIntent{"zengine.input", "sdl", "zengine-input-sdl"});
+    PlanRig rig;
+    const load::Executed done = rig.realize(with_choice);
+    CHECK_FALSE(done.ok);
+    CHECK(done.refusal.find("artifact 'zengine-input-sdl' is retired") == 0);
+    CHECK_FALSE(rig.kernel.is_loaded("zengine-operators-basic"));
 }
 
 // =============================================================================
@@ -4917,7 +4914,8 @@ HelloCounters hello_state(loom::Switchboard& bus, loom::WeaveId id) {
 /// freshly constructed instance would not have.
 void forge_room(loom::Switchboard& bus, loom::WeaveId id) {
     bus.send(id, loom::Message(loom::to_value(zengine::graphics::AreaRoom{
-                                   "zengine.test.workshop-hello", "forged", 1, 240, 36, {}, true}),
+                                   "zengine.test.workshop-hello.hello", "forged", 1, 240, 36, {},
+                                   true}),
                                loom::WeaveId{}, loom::WeaveId{}, 0));
     for (int i = 0; i < 8; ++i) {
         bus.pump_pending();
@@ -6157,42 +6155,10 @@ public:
     }
 };
 
-/// A SKIN STAND-IN THAT TAKES THE CLIPBOARD ANSWER AWAY WITH IT (test instrumentation,
-/// labeled as such: it stands in for the platform medium and does nothing a production
-/// participant would not -- it answers, later, exactly one ask). `defer_answer()` binds the
-/// right to the exact incarnation that asked (ANS-02/03), which is the fact the reload case
-/// below reads off the bus.
-class SkinStandIn : public loom::WeaveBase<SkinStandIn, HostSeatState,
-                                           loom::Accept<zengine::graphics::ClipboardTextRequested,
-                                                        Nudge>,
-                                           loom::Emit<zengine::graphics::ClipboardText>> {
-public:
-    std::string text;
-    bool held = false;
-    int asked = 0;
-    loom::DeferredAnswer answer;
-    loom::Ticket spent{};
-
-    void on(const zengine::graphics::ClipboardTextRequested&, loom::Mail& mail) {
-        ++asked;
-        answer = mail.defer_answer();
-        held = answer.valid();
-    }
-    void on(const Nudge&, loom::Mail& mail) {
-        if (!held) {
-            return;
-        }
-        held = false;
-        spent = loom::answer_deferred(answer, mail, zengine::graphics::ClipboardText{true, text});
-    }
-};
-
 struct EditorReloadRig {
     ReloadRig rig;
     HostSeat* host = nullptr;
     loom::WeaveId host_id{};
-    SkinStandIn* skin = nullptr;
-    loom::WeaveId skin_id{};
     loom::WeaveId editor{};
     LoadPokeSeat* poker = nullptr;
     loom::WeaveId poke_id{};
@@ -6274,29 +6240,15 @@ struct EditorReloadRig {
         rig.drain(16);
     }
 
-    /// The Skin stand-in, in `zengine.skin`.
-    void mount_skin() {
-        auto seat = std::make_unique<SkinStandIn>();
-        skin = seat.get();
-        loom::Grant grant;
-        grant.allow_to_any(zengine::graphics::ClipboardText::zen_name,
-                           zengine::graphics::ClipboardText::zen_version);
-        skin_id = rig.bus.register_weave(std::move(seat), std::move(grant),
-                                         std::string(zengine::surface::kSkinRole));
-        skin->zen_set_self(skin_id);
-    }
-
-    /// Let the held clipboard answer go, and hand back the ticket its spend returned.
-    loom::Ticket skin_answers() {
-        REQUIRE(skin != nullptr);
-        (void)rig.bus.send(skin_id, loom::Message(loom::to_value(Nudge{}), loom::WeaveId{},
-                                                  loom::WeaveId{}, 0));
+    /// Let the paste the window holds be answered, and hand back the ticket its spend returned.
+    loom::Ticket window_answers() {
+        window.answer_paste(/*queued=*/true);
         rig.drain(16);
-        return skin->spent;
+        return window.weave().spent;
     }
 
     /// The Editor loaded and offered, its area given a room in the window unless `in_window` is
-    /// false: an Editor no window shows asks its paste of the Skin.
+    /// false.
     void load_editor(bool in_window = true) {
         REQUIRE(rig.realize(plan_of({weaves("zengine-editor-pane", "zengine.editor")})).ok);
         editor = rig.kernel.weave_id("zengine-editor-pane");
@@ -6318,12 +6270,15 @@ struct EditorReloadRig {
     zengine::testing::pane_window::Window window{rig.bus};
     std::int64_t epoch = 0;
     void room(std::int64_t rows, std::int64_t columns) {
-        window.room("zengine.editor", "zengine.editor", columns, rows, ++epoch);
+        window.room(workshop::pane_area("zengine.editor", "editor"), "zengine.editor", columns,
+                    rows, ++epoch);
         rig.drain(16);
     }
     /// The rows the Editor draws in its area now, and its caret there.
-    std::vector<std::string> rows() { return window.rows("zengine.editor"); }
-    workshop::RowsCaret caret() { return window.caret("zengine.editor"); }
+    std::vector<std::string> rows() {
+        return window.rows(workshop::pane_area("zengine.editor", "editor"));
+    }
+    workshop::RowsCaret caret() { return window.caret(workshop::pane_area("zengine.editor", "editor")); }
 
     workshop::SourceOpened open(const std::string& path) {
         const std::size_t before = host->opens.size();
@@ -6351,7 +6306,7 @@ struct EditorReloadRig {
 
     /// THE WHEEL, turned over the pane's area.
     void wheel(double dy) {
-        window.wheel("zengine.editor", 0, 1, dy);
+        window.wheel(workshop::pane_area("zengine.editor", "editor"), 0, 1, dy);
         rig.drain(16);
     }
 
@@ -6598,11 +6553,11 @@ TEST_CASE("a paste outstanding across a reload of the Editor's image -- the late
     // platform, a paste. An answer belongs to the exact incarnation that asked (ANS-03), a
     // deferred right does not survive the incarnation that earned it (ANS-02), and the reloaded
     // incarnation carries NO pending-paste flag, so it refuses no quit and no open for a
-    // conversation it never had. The Skin stand-in answers one ask, later -- no window shows the
-    // Editor's area yet, so its paste is the Skin's; the seat reads.
+    // conversation it never had. The window that shows the Editor's area answers one ask, later;
+    // the seat reads.
     EditorReloadRig w;
-    w.load_editor(/*in_window=*/false);
-    w.mount_skin();
+    w.load_editor();
+    w.window.weave().hold_paste = true;
     const std::filesystem::path a = w.rig.products() / "a.txt";
     const std::filesystem::path b = w.rig.products() / "b.txt";
     {
@@ -6614,11 +6569,11 @@ TEST_CASE("a paste outstanding across a reload of the Editor's image -- the late
         out << "two\n";
     }
     REQUIRE(w.open(a.generic_string()).accepted);
-    // THE ASK THE SKIN HOLDS: a paste, asked for by THIS incarnation.
-    w.skin->text = "PASTED";
+    // THE ASK THE WINDOW HOLDS: a paste, asked for by THIS incarnation.
+    w.window.weave().platform = "PASTED";
     w.key(zengine::input::scan::kV, zengine::input::mod::kCtrl);
-    REQUIRE(w.skin->held);
-    CHECK(w.skin->asked == 1);
+    REQUIRE(w.window.weave().held);
+    CHECK(w.window.weave().clipboard_reads == 1);
     // WHILE IT IS OUTSTANDING, THE DOCUMENT'S CONVERSATION IS OPEN: the quit is refused in
     // words, and so is another source (the open would strand the weaver's own paste).
     const workshop::PaneQuitAnswered busy = w.ask_quit();
@@ -6647,9 +6602,9 @@ TEST_CASE("a paste outstanding across a reload of the Editor's image -- the late
     const workshop::PaneQuitAnswered free = w.ask_quit();
     CHECK_MESSAGE(free.permitted, free.refusal); // no orphan flag refuses the exit
 
-    // THE SKIN'S LATE ANSWER. Loom refuses to deliver it: the pane at that id is not the
+    // THE WINDOW'S LATE ANSWER. Loom refuses to deliver it: the pane at that id is not the
     // incarnation that asked. Read off the bus's own journal, by the ticket the spend returned.
-    const loom::Ticket late = w.skin_answers();
+    const loom::Ticket late = w.window_answers();
     const loom::DeliveryOutcome fate = w.rig.bus.outcome(late);
     INFO("ticket valid=", late.valid(), " disposition=", static_cast<int>(fate.disposition),
          " reason=", static_cast<int>(fate.refusal.reason));

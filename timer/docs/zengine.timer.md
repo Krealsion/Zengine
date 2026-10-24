@@ -85,8 +85,8 @@ successor inherits the beat.
   to cancel it, rather than doubling it.
 - **Refuses:** an empty `role` is no ask: dropped, and counted in `dropped`. A firing while nobody
   holds the role is refused by the bus, and the timer keeps standing.
-- **Example:** a skin asks for its pump beat at its own office,
-  `StartRoleTimer{kPumpTimerId, kPumpBeatMs, true, kSkinRole}` (`surface/skin.hpp`).
+- **Example:** a weave asks for its 10 ms beat at its own office, so its successor inherits it,
+  `StartRoleTimer{1, 10, true, "zengine.input"}`.
 
 ### `EnsureTimer`
 
