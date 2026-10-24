@@ -170,8 +170,9 @@ Routed behind [AGENTS.md](../AGENTS.md). Public contract:
   repeated restore reuses identities. Desktop cleanup follows the owner commit; a later refusal
   explicitly reports that the collection already changed. No distributed rollback is claimed.
 - Guest file access uses the separate `toolbox` power, checked for injected actors too, and a
-  save is class `write`: on a weaver's host Workshop refuses a guest's, by key or sent straight to
-  the pane (`ActorScopeRequested`, WL-GUEST-04), before anything is read or written. A file
+  save is class `write`: on a weaver's host a guest's is refused, by key (Workshop's approval) or
+  sent straight to the pane (the guest door's `ActorScopeRequested`, WL-GUEST-04), before anything
+  is read or written; with no guest door there is no guest. A file
   operation never executes stored commands. The bounded file reader and existing single-writer
   replacement helper preserve the previous completed file on failure. Tests in test_inventory.cpp
   and test_workshop_inventory_info.cpp cover files, conflicting writers, fresh references,

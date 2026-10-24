@@ -11,7 +11,6 @@
 
 #include "guest_seam_vocabulary.hpp"
 #include "guests.hpp"
-#include "pane_menu.hpp"      // the office Workshop answers to, the one asker of a scope here
 #include "pane_operation.hpp" // the question about a sender's scope, and its answer
 
 #include "input/vocabulary.hpp"
@@ -165,13 +164,14 @@ public:
         held_.push_back(HeldPlanAsk{mail.sender(), std::move(reply)});
     }
 
-    /// WHETHER A SENDER'S HAND MAY ACT IN THE CLASSES `asked` NAMES, asked by Workshop's office:
-    /// judged against the row this door admitted the session under and the file's host, as
-    /// Workshop judges it. A participant this door never admitted, the weaver's own, is not
-    /// narrowed; nothing is remembered.
+    /// WHETHER A SENDER'S HAND MAY ACT IN THE CLASSES `asked` NAMES, asked in its office's name by an
+    /// owner the sender reached directly, as the Inventory pane asks before a toolbox save: judged
+    /// against the row this door admitted the session under and the file's host, as Workshop judges
+    /// a gesture's hand. A participant this door never admitted, the weaver's own, is not narrowed;
+    /// nothing is remembered. Speech in no office's name hears nothing, and no guest holds an office.
     // WL-GUEST-04 -- agents/workshop/guests.md
     void on(const ActorScopeRequested& asked, loom::Mail& mail) {
-        if (!mail.authored_from_role(pane_menu::kWorkshopRole)) {
+        if (mail.authored_role().empty()) {
             return;
         }
         const scope::GuestRowFacts row =

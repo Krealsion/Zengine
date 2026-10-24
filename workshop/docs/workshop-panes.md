@@ -1172,8 +1172,7 @@ directory they happened to be browsing when they quit is deliberately not rememb
 ## What Workshop answers, and a pane's words
 
 What Workshop does with each shape a pane or another weave sends it -- the approval an act asks
-([`PaneOperationRequested`](zengine.workshop.md#paneoperationrequested),
-[`ActorScopeRequested`](zengine.workshop.md#actorscoperequested)), a lease for repeated reads
+([`PaneOperationRequested`](zengine.workshop.md#paneoperationrequested)), a lease for repeated reads
 ([`PaneObservationRequested`](zengine.workshop.md#paneobservationrequested)), an item carried
 ([`PaneCarryRequested`](zengine.workshop.md#panecarryrequested),
 [`PaneValueCarryRequested`](zengine.workshop.md#panevaluecarryrequested)), where a pane's words

@@ -6,6 +6,7 @@
 #include "workshop/pane_operation.hpp"
 #include "workshop/actor_scope.hpp"
 #include "workshop/desktop_seam_vocabulary.hpp"
+#include "workshop/guest_seam_vocabulary.hpp"
 #include <zen/weave/role_request.hpp>
 
 namespace zengine::inventory_pane {
@@ -47,12 +48,12 @@ public:
         } else start(mail, asks);
     }
     // A SAVE SENT STRAIGHT TO THIS OFFICE crossed no gesture: before anything is read or written,
-    // Workshop judges its sender's class `write`, and a refusal answers that sender in words.
+    // the guest door judges its sender's class `write`, and a refusal answers that sender in words.
     void begin_sent_save(std::string path, const InventoryViews& layout, loom::Mail& mail,
                          std::uint64_t& asks, loom::DeferredAnswer due, const std::string& pane) {
         prepare(std::move(path), false, false, layout, std::move(due));
         stage_ = Stage::scope;
-        if (!pending_.send_to_role(mail.as_role(kRole), "zengine.workshop", workshop::ActorScopeRequested{
+        if (!pending_.send_to_role(mail.as_role(kRole), workshop::kGuestsRole, workshop::ActorScopeRequested{
                 static_cast<std::int64_t>(mail.sender().value), pane, {workshop::scope::kWrite},
                 InventoryToolboxSave::zen_name}, ++asks))
             fail("Toolbox write check could not be queued", mail);
@@ -116,8 +117,14 @@ public:
         fail((stage_ == Stage::shortcuts ? "Entries restored with hotkeys OFF; " : "") + answer.reason, mail);
         return true;
     }
-    bool hear(const loom::DispatchRefused& answer, loom::Mail& mail) {
+    bool hear(const loom::DispatchRefused& answer, loom::Mail& mail, std::uint64_t& asks) {
         if (!busy() || !pending_.matches_refusal(answer, mail)) return false;
+        // NO ONE HOLDS THE GUEST DOOR'S OFFICE: there is no door, so the sender is no guest.
+        if (stage_ == Stage::scope && answer.reason == loom::name_of(loom::RefusalReason::NoSuchTarget)) {
+            pending_.forget();
+            start(mail, asks);
+            return true;
+        }
         fail((stage_ == Stage::shortcuts ? "Entries restored with hotkeys OFF; " : "") +
              std::string("Toolbox request refused: ") + answer.reason, mail);
         return true;
