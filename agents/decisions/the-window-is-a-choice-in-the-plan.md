@@ -28,7 +28,7 @@ project's plan carries the row as read.
   refused at its load and leaves no window, no SDL, no office held and no claim on SDL's queue"`.
 
 **Consequences.** One plan, one launcher per window, one project for both; a fallback is said
-where a weaver reads it, and SDL's own words, which a refused making cannot carry through the Loom,
-are on standard error. A plan naming one window behaves as it always has.
+where a weaver reads it, in SDL's own words, which the refused making carries through the Loom. A
+plan naming one window behaves as it always has.
 
 **Laws supported.** [WL-PROJ-17](../workshop/project.md).
