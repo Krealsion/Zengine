@@ -31,6 +31,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -225,11 +226,13 @@ public:
             return;
         }
         const Line* line = entries_.named(window_.part_at(p->x, p->y));
-        if (line == nullptr || line->listed != listed_) {
+        if (line == nullptr) {
             return;
         }
         const std::vector<std::size_t> list = visible();
-        const auto at = std::find(list.begin(), list.end(), line->entry);
+        const auto at = std::find_if(list.begin(), list.end(), [&](std::size_t i) {
+            return listing_.entries[i].address() == line->address;
+        });
         if (at != list.end()) {
             cursor_ = static_cast<std::size_t>(at - list.begin());
             show(mail);
@@ -240,14 +243,32 @@ private:
     /// The two lines above the entries: the filter, and the count or the notice.
     static constexpr std::int64_t kHead = 2;
 
-    /// WHAT AN ENTRY'S LINE MEANS: the entry, by its place in the listing, and that listing.
+    /// WHAT AN ENTRY'S LINE MEANS: the entry, by its address, and the short name its line keeps
+    /// while the entry stays -- a relist of the same entries renames nothing, so a press landed on
+    /// an entry still standing under the hand is the same element (#387's rule).
     struct Line {
-        std::size_t entry = 0;
-        std::uint64_t listed = 0;
+        std::string address;
+        std::string name;
         bool operator==(const Line&) const = default;
     };
-    static std::string part_of(const Line& line) {
-        return "entry:" + std::to_string(line.listed) + "." + std::to_string(line.entry);
+    static std::string part_of(const Line& line) { return line.name; }
+    /// THE NAME AN ENTRY'S LINE KEEPS: its address, hashed to 16 hex digits (well inside
+    /// `kMaxPanePartNameLen`), and a count past it in the rare picture where two hash alike.
+    static std::string line_name(const std::string& address, std::set<std::string>& taken) {
+        std::uint64_t h = 1469598103934665603ULL;
+        for (const char c : address) {
+            h = (h ^ static_cast<unsigned char>(c)) * 1099511628211ULL;
+        }
+        static constexpr char kHex[] = "0123456789abcdef";
+        std::string name = "entry:";
+        for (int shift = 60; shift >= 0; shift -= 4) {
+            name += kHex[(h >> shift) & 0xF];
+        }
+        std::string out = name;
+        for (int n = 2; !taken.insert(out).second; ++n) {
+            out = name + "." + std::to_string(n);
+        }
+        return out;
     }
 
     /// The palette's own colours, each with the role a window that cannot show it paints instead.
@@ -299,7 +320,6 @@ private:
 
     void relist(loom::Mail& mail) {
         listing_ = pal::entries_of(keys_, inventory_);
-        ++listed_;
         const std::size_t n = visible().size();
         cursor_ = n == 0 ? 0 : std::min(cursor_, n - 1);
         show(mail);
@@ -376,22 +396,25 @@ private:
             sketch.fill_rect("cursor", 0, y, window_.width(), text.line, cursor_bar());
         }
         entries_.begin(rows() - kHead, columns());
-        for (std::size_t i = first_; i < list.size() && i < first_ + room; ++i) {
-            const pal::Entry& e = listing_.entries[list[i]];
-            const bool here = i == cursor_;
-            (void)entries_.push({line_of(e, here, columns()),
-                                 here ? gfx::role::kAccent
-                                      : (e.off || e.gone) ? gfx::role::kMuted : gfx::role::kFill},
-                                Line{list[i], listed_});
-        }
-        (void)entries_.draw(sketch, "entries", 0, kHead * text.line, text, cells, part_of, always,
-                            false, false);
+        std::set<std::string> taken;
         // NUMBERED BY WHAT ITS ROWS MEAN: the entries shown, from the first, so a press is read
         // against the entries it was drawn with.
         std::uint64_t meaning = 1469598103934665603ULL ^ first_;
         for (std::size_t i = first_; i < list.size() && i < first_ + room; ++i) {
-            meaning = (meaning ^ (list[i] + 1)) * 1099511628211ULL;
+            const pal::Entry& e = listing_.entries[list[i]];
+            const bool here = i == cursor_;
+            Line line{e.address(), ""};
+            line.name = line_name(line.address, taken);
+            for (const char c : line.name) {
+                meaning = (meaning ^ static_cast<unsigned char>(c)) * 1099511628211ULL;
+            }
+            (void)entries_.push({line_of(e, here, columns()),
+                                 here ? gfx::role::kAccent
+                                      : (e.off || e.gone) ? gfx::role::kMuted : gfx::role::kFill},
+                                std::move(line));
         }
+        (void)entries_.draw(sketch, "entries", 0, kHead * text.line, text, cells, part_of, always,
+                            false, false);
         sketch.number(static_cast<std::int64_t>(meaning >> 1));
         window_.draw(sketch, mail);
     }
@@ -404,7 +427,6 @@ private:
     zengine::component::TextBox filter_;
     zengine::component::Clipboard clipboard_;
     std::size_t cursor_ = 0, first_ = 0;
-    std::uint64_t listed_ = 0;      ///< which listing the entries' lines were drawn from
     ws::RowsBlock<Line> entries_;   ///< the entries' lines last drawn, and what each means
     std::string notice_;
     bool in_flight_ = false;

@@ -378,6 +378,39 @@ TEST_CASE("WL-DESK-18: a press the window landed on the palette's list moves the
     CHECK_MESSAGE(rows[1].find("the list moved -- press again") != std::string::npos, rows[1]);
 }
 
+TEST_CASE("#393: a relist that leaves an entry where it stood renames none of its line, so a press "
+          "the window landed on it before the relist moves the cursor there") {
+    PaneRig r;
+    ProviderSeat* tools = nullptr;
+    start(r, tools);
+    REQUIRE(r.load("zengine-palette", WORKSHOP_SO_PALETTE, kPaletteRole).valid());
+    REQUIRE(r.load_refusals.empty());
+    r.key(input::scan::kSpace, input::mod::kCtrl);
+    REQUIRE(on_desk(r, kPaletteRole, kPalettePane));
+    const std::int64_t shown = kind_of(r, kPaletteRole, kPalettePane);
+    std::vector<std::string> rows = pane_rows(r, shown);
+    REQUIRE(rows.size() > 5);
+    const std::string count = rows[1];
+    const std::string fourth = part_drawn_at(shown, 5, 4);
+    REQUIRE(!fourth.empty());
+    // A PRESS LANDS on the fourth entry; before it is told, a pane is offered and Workshop says
+    // its inventory again: the palette lists afresh, one more entry at the end, the fourth where
+    // it stood.
+    r.drive(tools, [](ProviderSeat& s, loom::Mail& m) {
+        s.offer(m, PaneOffered{"gamma", "Gamma", "a fixture"});
+    });
+    rows = pane_rows(r, shown);
+    REQUIRE(rows.size() > 5);
+    REQUIRE_MESSAGE(rows[1] != count, rows[1]); // listed afresh
+    CHECK(part_drawn_at(shown, 5, 4) == fourth);
+    press_as_drawn(r, shown, 5, 4, fourth);
+    rows = pane_rows(r, shown);
+    REQUIRE(rows.size() > 5);
+    CHECK_MESSAGE(rows[1].find("the list moved") == std::string::npos, rows[1]);
+    CHECK_MESSAGE(rows[5].find('>') != std::string::npos, rows[5]);
+    CHECK_MESSAGE(rows[2].find('>') == std::string::npos, rows[2]);
+}
+
 TEST_CASE("WL-DESK-18: a run is refused under any number but the palette's own unspent row and "
           "from any office but the palette's, and nothing is run") {
     PaneRig r;

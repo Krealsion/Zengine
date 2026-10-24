@@ -60,7 +60,7 @@ constexpr const char* kAddOne = "tally.add";
 // The picture's own colours, each with the role a window that cannot show it paints instead.
 const gfx::Paint kCard = gfx::exact(gfx::role::kMediumGround, 0x24324A);
 const gfx::Paint kBadge = gfx::exact(gfx::role::kAccent, 0xF2A541);
-const gfx::Paint kButton = gfx::exact(gfx::role::kGuide, 0x2E7D5B);
+const gfx::Paint kButton = gfx::exact(gfx::role::kAccent, 0x2E7D5B);
 const gfx::Paint kButtonWords = gfx::exact(gfx::role::kFill, 0xFFFFFF);
 
 // What a reload in place carries across. Add, remove or retype a field and the next reload is
