@@ -157,8 +157,10 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
   (`input/terminal_reader.hpp`) are shared: whichever participant owns the terminal in a process
   takes both, for exactly its life. Two owners of one terminal in one process is not a supported
   arrangement. The terminal window claims the terminal's input for its life
-  (`input/window_claim.hpp`), and the Input reader beside it reads none of it; the OS window reads
-  SDL's one queue itself.
+  (`input/window_claim.hpp`), and the Input reader beside it reads none of it. The OS window reads
+  SDL's one queue itself and claims the process's input for its life: the Input reader beside it
+  leaves the console the run started from as it found it, read by nobody, its echo and its Ctrl+C
+  the person's.
 - The roles, the platform's shapes (the clipboard, the place, the close, the pump and the capture)
   and the pixel arithmetic (`graphics/pixels.hpp`) are Graphics' own, and every drawer spells them
   by their graphics names.
