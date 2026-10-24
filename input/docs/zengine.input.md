@@ -23,7 +23,8 @@ records, releases included. With no terminal (a pipe, a test run) it reads nothi
 nothing. When a terminal window (`zengine.window.terminal`) holds the process's terminal in the
 same run, it leaves the terminal's input to the window and serves input sessions alone. Beside the
 OS window ([`zengine.window.sdl`](../../graphics/docs/zengine.window.sdl.md)), which reads its own
-events, it reads the terminal the run was started from, if any.
+events, it serves input sessions alone and leaves the console the run was started from as it was:
+not read, what is typed there echoed, and a Ctrl+C there ending the run as it ends any program.
 
 A reload in place keeps the open session, which its holder goes on using and whose held keys are
 released when it closes; the last session number, so none is given twice; and the counters a poke

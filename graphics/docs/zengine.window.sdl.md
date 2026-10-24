@@ -67,10 +67,11 @@ judged before anything changes, and a drawing past one is refused whole, in word
 `graphics/vocabulary.hpp`'s: `kMaxNodesPerArea`, `kMaxElementsPerArea`, `kMaxPathBytes`,
 `kMaxPathDepth`, `kMaxArgsBytes`, and `kMaxAreas` areas a window.
 
-SDL has one event queue to a process, and this window empties it. Loaded, it claims the queue
-(`ZENGINE_WINDOW_SDL_INPUT_PID`, `input/window_claim.hpp`), so
-[`zengine-input`](../../input/docs/zengine.input.md)'s SDL reader may run beside it, reading none
-of the queue and serving input sessions alone. A window that cannot open gives its claim back.
+SDL has one event queue to a process, and this window empties it. Loaded, it claims the input
+(`ZENGINE_WINDOW_SDL_INPUT_PID`, `input/window_claim.hpp`):
+[`zengine-input`](../../input/docs/zengine.input.md) beside it serves input sessions alone, and
+leaves the console the run started from to the person at it. A window that cannot open gives it
+back.
 
 ## Commands
 
