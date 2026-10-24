@@ -322,6 +322,11 @@ TEST_CASE("solving is TOTAL for values no setter would have accepted") {
                     Room{kMax, 10, 1})
               .x == kMax / 4);
 
+    // A position floored to the step near int64's minimum saturates there: the step below it is not
+    // a number, and `floor(p / step) * step` would pass the end of the type.
+    CHECK(solve_one(make(1, "a", Place{kPlaceRight, kMax, {}}, share(5000), px(1)), Room{0, 10, 12})
+              .x == kMin);
+
     // A room with no span has no share to give, and a negative one is none.
     CHECK(solve_one(make(1, "a", Place{}, share(5000), px(1)), Room{0, 10, 1}).w == 0);
     CHECK(solve_one(make(1, "a", Place{}, share(5000), px(1)), Room{kMin, 10, 1}).w == 0);
