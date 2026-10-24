@@ -117,9 +117,6 @@ struct Screen {
     /// ...AND HOW BIG ONE CANVAS CELL OF THAT MEDIUM IS, in its own device pixels.
     // WL-GEO-08 -- agents/workshop/geometry.md
     std::int64_t cell_px = 0;
-    /// ...AND THE CONSOLE ROWS A TERMINAL MEDIUM SPENDS ABOVE THE CANVAS, which a point in cells
-    /// counts: a terminal Skin's slots, none in a terminal window.
-    std::int64_t rows_above = surface::kTuiCanvasTopRow;
     /// The right column's width and the overlay stack's fallback height, in cells, as the
     /// session's settings choose them.
     // WL-GEO-03 -- agents/workshop/geometry.md
@@ -144,10 +141,8 @@ inline constexpr Screen screen_of(std::int64_t want_w, std::int64_t want_h,
                                   std::int64_t text_line_px = 0,
                                   std::int64_t cell_px = 0,
                                   std::int64_t side_cols = kSideCols,
-                                  std::int64_t stack_rows = kStackRows,
-                                  std::int64_t rows_above = surface::kTuiCanvasTopRow) noexcept {
+                                  std::int64_t stack_rows = kStackRows) noexcept {
     Screen s;
-    s.rows_above = rows_above;
     // The medium's device unit is taken as reported: non-positive already means "my device unit
     // is the cell".
     s.cell_px = cell_px > 0 ? cell_px : 0;
@@ -557,21 +552,29 @@ static_assert(stack_slots_that_fit(kMinScreen) == 1,
 /// with a kind, and a consumer that forgot to test it falls outside every lookup.
 inline constexpr std::int64_t kNoKind = -1;
 
-/// The canvas pixel a reported pointer position lands on, whatever medium reported it, and the
-/// cell that pixel is in -- or nothing, for a space this application cannot place.
+/// A position on the canvas, in canvas pixels or in cells as the function that made it says. It
+/// may be outside the canvas: a projection, not a hit test.
+struct CanvasPoint {
+    std::int64_t x = 0;
+    std::int64_t y = 0;
+    friend bool operator==(const CanvasPoint&, const CanvasPoint&) = default;
+};
+
+/// The canvas pixel a reported pointer position lands on, in pixels or a window's cells, the canvas
+/// starting at the window's origin, and the cell that pixel is in -- or nothing, for a space this
+/// application cannot place.
 // WL-GEO-07 -- agents/workshop/geometry.md
 struct PointedAt {
     bool understood = false;
-    surface::CanvasPoint cell;
+    CanvasPoint cell;
     /// The same moment in canvas pixels, and the grain the reporting medium can honestly
     /// distinguish (one window pixel or one terminal cell).
     // WL-GEO-07 -- agents/workshop/geometry.md
-    surface::CanvasPoint px;
+    CanvasPoint px;
     std::int64_t grain = graphics::kCellGrainPx;
 };
 
-PointedAt canvas_point_of(std::int64_t space, std::int64_t x, std::int64_t y,
-                          std::int64_t rows_above) noexcept;
+PointedAt canvas_point_of(std::int64_t space, std::int64_t x, std::int64_t y) noexcept;
 
 /// WHAT A WEAVER'S HAND MEETS AT A CANVAS CELL: nothing, or the presentation occupying it.
 struct Occupancy {
@@ -797,9 +800,6 @@ struct Session {
     /// the medium's answer about GEOMETRY, beside its answer about type.
     // WL-GEO-08 -- agents/workshop/geometry.md
     std::int64_t cell_px = 0;
-    /// ...AND THE CONSOLE ROWS IT SPENDS ABOVE THE CANVAS, which a point in cells counts: a
-    /// terminal Skin's slots, none in the terminal window (`WorkshopWeave::note_medium`).
-    std::int64_t console_rows_above = surface::kTuiCanvasTopRow;
     /// THE NORMAL WINDOW'S ROOM -- what a session save remembers as the viewport.
     // WL-SESSION-09 -- agents/workshop/session-restore.md
     std::int64_t normal_w = kScreenMinW;
@@ -885,7 +885,7 @@ struct Session {
 // WL-GEO-02, WL-GEO-03, WL-GEO-04, WL-GEO-05 -- agents/workshop/geometry.md
 inline constexpr Screen screen_of(const Session& s) noexcept {
     return screen_of(s.screen_w, s.screen_h, s.text_advance_px, s.text_line_px, s.cell_px,
-                     s.side_cols, s.stack_rows, s.console_rows_above);
+                     s.side_cols, s.stack_rows);
 }
 
 /// THE CHAIN BELOW THE CONTEXTUAL SURFACE -- the branches a key falls to once no mode above
@@ -1068,8 +1068,7 @@ struct ProseAt {
 };
 
 ProseAt prose_at(std::int64_t space, std::int64_t x, std::int64_t y,
-                 const RegionFit& fit,
-                 std::int64_t rows_above) noexcept;
+                 const RegionFit& fit) noexcept;
 
 // ---- A bounded list: what it shows, and what it must say it cannot ---------------------------
 // WL-INFO-03 -- agents/workshop/info-body.md

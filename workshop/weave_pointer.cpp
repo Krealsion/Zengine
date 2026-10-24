@@ -305,11 +305,6 @@ WorkshopWeave::GesturesEnded WorkshopWeave::end_held_gestures() {
 
 // WL-FOCUS-03 -- agents/workshop/focus.md; WL-PRESS-04 -- agents/workshop/press-chain.md
 // WL-GUEST-06 -- agents/workshop/guests.md
-void WorkshopWeave::on(const zengine::input::PointerButton& b, loom::Mail& mail) {
-    if (duplicate_input(mail)) return;
-    pointer_button(b, mail);
-}
-
 void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom::Mail& mail) {
     if (quitting_) {
         HeldInput held;
@@ -330,7 +325,7 @@ void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom:
         count_gesture();
         // THE WEAVER'S OWN PRESS ENDS A GUIDE MARK IT LANDS IN; a guest's does not.
         if (!guide_marks_.empty() && (!input_actor_.known || input_actor_.local)) {
-            guide_pressed(mail, canvas_point_of(b.space, b.x, b.y, session_.console_rows_above));
+            guide_pressed(mail, canvas_point_of(b.space, b.x, b.y));
         }
     }
     // Arrangement is a mode and owns the pointer while open: every press is about a pane. A
@@ -338,7 +333,7 @@ void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom:
     // whole, so no context menu opens from it: a state-local reading, not a Back command. A release
     // still ends a drag that began before the mode did, so no gesture is stranded.
     if (session_.arrange.open) {
-        const PointedAt where = canvas_point_of(b.space, b.x, b.y, session_.console_rows_above);
+        const PointedAt where = canvas_point_of(b.space, b.x, b.y);
         if (b.pressed && b.button == 3) {
             close_arrange();
             repaint(mail);
@@ -378,7 +373,7 @@ void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom:
     // press outside dismisses and is consumed, so a click spent closing a menu selects, focuses and
     // sends nothing. A further right press re-targets rather than toggles.
     if (session_.context.open) {
-        const PointedAt where = canvas_point_of(b.space, b.x, b.y, session_.console_rows_above);
+        const PointedAt where = canvas_point_of(b.space, b.x, b.y);
         // A FURTHER RIGHT PRESS RE-ASKS THE QUESTION about whatever is under it now: the surface
         // closes and the press is routed afresh below, so the host's own menu opens on it -- as
         // `menu_button` does for a pane's menu.
@@ -406,7 +401,7 @@ void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom:
             return;
         }
     }
-    const PointedAt at = canvas_point_of(b.space, b.x, b.y, session_.console_rows_above);
+    const PointedAt at = canvas_point_of(b.space, b.x, b.y);
     // A RIGHT PRESS ON WORKSHOP'S OWN AREA ASKS "WHAT CAN I DO WITH THIS?" -- the host's own
     // surface, on the chrome, the room, a tab, or the frame of a pane: a press in a pane's own
     // area is the pane's, heard there (WL-PRESS-06). Only a press opens; a middle press is dropped
@@ -508,11 +503,6 @@ void WorkshopWeave::pointer_button(const zengine::input::PointerButton& b, loom:
 }
 
 // WL-PANE-05 -- agents/workshop/panes-and-windows.md; WL-ARR-01 -- agents/workshop/arrangement.md
-void WorkshopWeave::on(const zengine::input::PointerMoved& m, loom::Mail& mail) {
-    if (duplicate_input(mail)) return;
-    pointer_moved(m, mail);
-}
-
 void WorkshopWeave::pointer_moved(const zengine::input::PointerMoved& m, loom::Mail& mail) {
     if (quitting_) {
         HeldInput held;
@@ -522,7 +512,7 @@ void WorkshopWeave::pointer_moved(const zengine::input::PointerMoved& m, loom::M
         return;
     }
     // A carried value tells the pane under it, so a receiver may mark where it would land.
-    const PointedAt hand_at = canvas_point_of(m.space, m.x, m.y, session_.console_rows_above);
+    const PointedAt hand_at = canvas_point_of(m.space, m.x, m.y);
     if (move_value_drag(m, mail)) {
         carry_hover(hand_at.px.x, hand_at.px.y, mail);
         return;
@@ -547,7 +537,7 @@ void WorkshopWeave::pointer_moved(const zengine::input::PointerMoved& m, loom::M
     // motion does nothing.
     if (session_.arrange.open) {
         leave_carry_hover(mail);
-        const PointedAt here = canvas_point_of(m.space, m.x, m.y, session_.console_rows_above);
+        const PointedAt here = canvas_point_of(m.space, m.x, m.y);
         if (!here.understood || !session_.pane_drag.active) {
             return;
         }
@@ -579,11 +569,6 @@ void WorkshopWeave::pointer_moved(const zengine::input::PointerMoved& m, loom::M
 }
 
 // WL-PTR-10 -- agents/workshop/pointer.md; WL-GUEST-06 -- agents/workshop/guests.md
-void WorkshopWeave::on(const zengine::input::PointerWheel& w, loom::Mail& mail) {
-    if (duplicate_input(mail)) return;
-    pointer_wheel(w, mail);
-}
-
 void WorkshopWeave::pointer_wheel(const zengine::input::PointerWheel& w, loom::Mail& mail) {
     if (quitting_) {
         HeldInput held;

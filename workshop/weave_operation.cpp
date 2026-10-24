@@ -194,20 +194,11 @@ void WorkshopWeave::apply_attributed(const input::AttributedInput& event, loom::
         carried_ = {}; value_drag_ = {};
         say("Value drag cancelled by a new gesture", false);
     }
-    // A PARTICIPANT'S POINTER IS THE WINDOW'S TO LAND while one shows the desk: it takes the input
-    // office's moments as the hand they name, and says the hand on every moment it gives.
-    const bool pointer = e.kind == "PointerButton" || e.kind == "PointerMoved" || e.kind == "PointerWheel";
-    if (pointer && !event.local && window_.shown()) return;
+    // A PARTICIPANT'S POINTER IS THE WINDOW'S TO LAND: it takes the input office's moments as the
+    // hand they name, and says the hand on every moment it gives. Workshop takes its keys.
     if (e.kind == "KeyPressed") on(input::KeyPressed{e.scancode, e.name, e.modifiers}, mail);
     else if (e.kind == "KeyReleased") on(input::KeyReleased{e.scancode, e.name, e.modifiers}, mail);
     else if (e.kind == "TextEntered") on(input::TextEntered{e.text}, mail);
-    else if (e.kind == "PointerButton")
-        on(input::PointerButton{e.button, e.pressed, e.x, e.y, e.space, e.modifiers}, mail);
-    else if (e.kind == "PointerMoved")
-        on(input::PointerMoved{e.x, e.y, e.dx, e.dy, e.space, e.modifiers}, mail);
-    else if (e.kind == "PointerWheel")
-        on(input::PointerWheel{e.wheel_dx, e.wheel_dy, e.x, e.y, e.space, e.modifiers}, mail);
-
 }
 
 void WorkshopWeave::on(const PaneShortcutInvoked& asked, loom::Mail& mail) {
@@ -700,7 +691,7 @@ void WorkshopWeave::leave_carry_hover(loom::Mail& mail) {
 
 void WorkshopWeave::begin_value_drag(const input::PointerButton& b) {
     value_drag_ = {};
-    drag_pointer_ = canvas_point_of(b.space, b.x, b.y, session_.console_rows_above);
+    drag_pointer_ = canvas_point_of(b.space, b.x, b.y);
     value_drag_.gesture = gestures_;
     value_drag_.actor = input_actor_;
     value_drag_.x = b.x; value_drag_.y = b.y; value_drag_.space = b.space;
@@ -711,7 +702,7 @@ bool WorkshopWeave::move_value_drag(const input::PointerMoved& motion, loom::Mai
         input_actor_.local != drag.actor.local || input_actor_.participant != drag.actor.participant)
         return false;
     if (motion.space != drag.space) return false;
-    drag_pointer_ = canvas_point_of(motion.space, motion.x, motion.y, session_.console_rows_above);
+    drag_pointer_ = canvas_point_of(motion.space, motion.x, motion.y);
     const std::uint64_t threshold = motion.space == input::space::kPixels ? 4 : 1;
     const auto distance = [](std::int64_t a, std::int64_t b) -> std::uint64_t {
         return a >= b ? std::uint64_t(a) - std::uint64_t(b) : std::uint64_t(b) - std::uint64_t(a);
@@ -740,7 +731,7 @@ bool WorkshopWeave::release_value_drag(const input::PointerButton& button, loom:
     }
     // ...AND THE PANE'S AREA IT WAS LET GO OVER, and where in it, with the pane's holder then.
     if (button.space == drag.space && !session_.arrange.open && !session_.context.open && !session_.presented.open) {
-        const auto point = canvas_point_of(button.space, button.x, button.y, session_.console_rows_above);
+        const auto point = canvas_point_of(button.space, button.x, button.y);
         const AreaPoint over = point.understood ? pane_area_at(point.px.x, point.px.y) : AreaPoint{};
         const auto* pane = over.kind == kNoPaneKind ? nullptr : session_.panes.runtime.of_kind(over.kind);
         if (pane && host_->role_holder) {

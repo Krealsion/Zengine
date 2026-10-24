@@ -470,9 +470,12 @@ void WorkshopWeave::begin_clipboard_paste(loom::Mail& mail) {
         break;
     }
     }
-    // ASKED OF THE OFFICE HOLDING THE PLATFORM -- the window showing the desk, or the Skin -- and
-    // settled only by that office's answer.
+    // ASKED OF THE OFFICE HOLDING THE PLATFORM -- the window showing the desk -- and settled only
+    // by that office's answer. With no window there is no clipboard to read.
     const std::string office = medium_office();
+    if (office.empty()) {
+        return;
+    }
     const loom::AskOpened opened = paste_asks_.open_to_role(
         office, zengine::graphics::ClipboardTextRequested::zen_name,
         zengine::graphics::ClipboardTextRequested::zen_version);

@@ -358,11 +358,6 @@ class WorkshopWeave
           Weave<WorkshopWeave, WorkshopState,
                              loom::Accept<PaneShortcutInvoked, CommandRunRequested, PaneViewRequested, PanePointRequested, DeskReadRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, v2::PaneOperationRequested, ActorScopeRequested, zengine::input::KeyPressed, zengine::input::TextEntered,
                                           zengine::input::KeyReleased,
-                                          zengine::input::PointerButton,
-                                          zengine::input::PointerMoved,
-                                          zengine::input::PointerWheel,
-                                          zengine::surface::SurfaceReady,
-                                          zengine::surface::SurfaceExtent,
                                           zengine::graphics::SurfacePlacement,
                                           zengine::graphics::SurfaceCloseRequested,
                                           zengine::graphics::ClipboardText,
@@ -464,8 +459,6 @@ class WorkshopWeave
                                           zengine::graphics::AreaSettled>,
                              loom::Emit<loom::Ack, loom::Refused, GuideAnswered, PaneView, PanePoint, DeskRead, DeskStamps, zengine::graphics::AreaShowAsked, PaneObservationAnswered, PaneOperationAnswered, PaneCarryAnswered, PaneCanvasValueDrop, PaneCanvasDrop,
                                         zengine::workshop::PaneCanvasHover,
-                                        zengine::surface::SurfaceCanvas,
-                                        zengine::surface::SurfaceText,
                                         zengine::graphics::ClipboardCopy,
                                         zengine::graphics::ClipboardTextRequested,
                                         zengine::graphics::SurfacePlacementRemembered,
@@ -553,19 +546,10 @@ public:
     /// remembers is its own speech, not the truth (WL-ATTN-03).
     void say_conditions(const ProjectFrontier& frontier, loom::Mail& mail);
 
-    /// A Skin claimed the surface: give it the whole screen, and ask the room who has panes,
-    /// office-published as `zengine.workshop` so a provider can verify it. `SurfaceReady` rather
-    /// than an activation, which Loom sends no native mount. This makes discovery converge in
-    /// either load order, and repeating it is harmless: a re-offer refreshes in place.
-    void on(const zengine::surface::SurfaceReady&, loom::Mail& mail);
-    /// THE SURFACE COMES UP: the room asked who has panes, the keymap, the preferences and the
-    /// host's conditions taken, the floor painted, the last session restored and the startup
-    /// notes said. A skin's `SurfaceReady` runs it each time; a graphics window's offer, only
-    /// while nothing has.
-    void start_surface(loom::Mail& mail);
-
-    /// THE SURFACE SAID HOW MUCH ROOM IT HAS. Take it, and lay the screen out again.
-    void on(const zengine::surface::SurfaceExtent& e, loom::Mail& mail);
+    /// THE DESK COMES UP, on the first window's offer: the room asked who has panes, office-published
+    /// as `zengine.workshop` so a provider can verify it, the keymap, the preferences and the host's
+    /// conditions taken, the floor painted, the last session restored and the startup notes said.
+    void start_desk(loom::Mail& mail);
 
     /// THE MEDIUM SAID WHERE ITS WINDOW SITS. Remember it, whole and opaque.
     void on(const zengine::graphics::SurfacePlacement& p, loom::Mail&);
@@ -824,16 +808,14 @@ public:
     /// END EVERY button-1 GESTURE THIS SESSION IS HOLDING, whatever mode saw the release.
     GesturesEnded end_held_gestures();
 
-    /// A pointer button changed, AND the position it changed at.
-    void on(const zengine::input::PointerButton& b, loom::Mail& mail);
+    /// A pointer button changed in Workshop's own area, AND the position it changed at, in the
+    /// desk's pixels: the window's moment (`on(AreaButtonChanged)`), or one held and replayed.
     void pointer_button(const zengine::input::PointerButton& b, loom::Mail& mail);
 
-    /// The pointer moved; outside a drag this weave has nothing to do with it.
-    void on(const zengine::input::PointerMoved& m, loom::Mail& mail);
+    /// The pointer moved there; outside a drag this weave has nothing to do with it.
     void pointer_moved(const zengine::input::PointerMoved& m, loom::Mail& mail);
 
-    /// THE WHEEL TURNED.
-    void on(const zengine::input::PointerWheel& w, loom::Mail& mail);
+    /// THE WHEEL TURNED there.
     void pointer_wheel(const zengine::input::PointerWheel& w, loom::Mail& mail);
 
     // ---- The external pane seam: an office offers, Workshop seats, the pane draws ----------
@@ -1301,23 +1283,16 @@ private:
     void begin_clipboard_paste(loom::Mail& mail);
 
     /// THE OFFICE THAT HOLDS THE PLATFORM -- its clipboard and the window's place on the desktop:
-    /// the graphics window that shows Workshop's area; before it shows it, the window that offered
-    /// itself while no skin has named its unit; otherwise the Skin.
+    /// the window that shows Workshop's area; before it shows it, the window that offered itself;
+    /// empty while none has.
     std::string medium_office() const {
         if (window_.shown()) {
             return window_.window_office();
         }
-        if (window_offered_ && !medium_unit_known_) {
+        if (window_offered_) {
             return std::string(graphics::kWindowOfficePrefix) + window_name_;
         }
-        return surface::kSkinRole;
-    }
-
-    /// THE CONSOLE ROWS ABOVE THE CANVAS, kept with the medium that shows the desk: a terminal
-    /// Skin's slots, none in a graphics window (`Session::console_rows_above`).
-    void note_medium() {
-        session_.console_rows_above =
-            medium_office() == surface::kSkinRole ? surface::kTuiCanvasTopRow : 0;
+        return {};
     }
 
     /// The pending-paste record a settled conversation belongs to, removed and handed back; an id
@@ -1525,8 +1500,6 @@ private:
 
     void say(std::string text, bool bad);
 
-    /// The status line: which layout is live, and what the desk's file says about it.
-    std::string status_line() const;
 
     // ---- THE EXTERNAL PANE'S SETTINGS AND KEYS ------------------------------------------------
 
@@ -1897,7 +1870,7 @@ private:
     /// EVERY GESTURE THIS HOST HANDLED -- a key, text, a button PRESS, the wheel -- numbered, so a
     /// pane's word about one of them can be asked whether it is still about its hand's latest
     /// (`Hand::latest`). A button's release completes the gesture its press began and is not
-    /// counted (`on(PointerButton)`).
+    /// counted (`pointer_button`).
     std::uint64_t gestures_ = 0;
     /// A gesture sent to a pane: the pane, the gesture and the correlation it went under -- the
     /// identity an answer must echo, because current desk state cannot identify an event.
@@ -2043,14 +2016,11 @@ private:
     // WL-SESSION-15 -- agents/workshop/session.md
     bool session_refused_ = false;
 
-    /// THE RESTORE'S SENTENCE while no medium has named its unit, and whether one has. A window
-    /// names its own only after its first picture, so a restore before it spells the room in the
-    /// cell, the vocabulary's word for a medium that has said nothing, and the first
-    /// `SurfaceExtent` spells it again.
+    /// THE RESTORE'S SENTENCE, until the window's offer spells it again in its own unit: a
+    /// restore spells the room in the unit the desk holds, which before the offer is the cell.
     std::optional<RestoreNotice> restore_notice_;
-    bool medium_unit_known_ = false;
-    /// Whether the surface has come up (`start_surface`), from a skin or a graphics window.
-    bool surface_started_ = false;
+    /// Whether the desk has come up (`start_desk`), on a window's first offer.
+    bool desk_started_ = false;
 
     /// How many notices this run has said, so a sentence can tell whether another came after it.
     std::uint64_t notices_said_ = 0;

@@ -165,7 +165,7 @@ DeskView WorkshopWeave::desk_view() const {
     const surface::SurfaceTextRegion band = band_region(session_, sc);
     const RegionFit fit =
         fit_region(band.x, band.y, band.w, band.h, sc.text_advance_px, sc.text_line_px);
-    const GlyphGrid grid = glyph_grid(fit, session_.console_rows_above);
+    const GlyphGrid grid = glyph_grid(fit);
     for (std::size_t i = 0; i < band.rows.size(); ++i) {
         std::string text = without_trailing_blanks(band.rows[i].text);
         if (text.empty()) continue;
@@ -317,7 +317,6 @@ void WorkshopWeave::shown_words_and_parts(const graphics::AreaShown& shown, cons
     const std::int64_t advance = shown.advance > 0 ? shown.advance : graphics::kCellPx;
     const std::int64_t line = shown.line > 0 ? shown.line : graphics::kCellPx;
     const std::int64_t space = input_space_of(screen_of(session_));
-    const std::int64_t rows_above = session_.console_rows_above;
     for (std::size_t i = 0; i < shown.words.size(); ++i) {
         const graphics::AreaWord& said = shown.words[i];
         const auto bytes = static_cast<std::int64_t>(said.text.size());
@@ -325,7 +324,7 @@ void WorkshopWeave::shown_words_and_parts(const graphics::AreaShown& shown, cons
         w.word = static_cast<std::int64_t>(i);
         w.text = said.text;
         w.place = DeskRect{rect.x + said.x, rect.y + said.y, bytes * advance, line};
-        glyph_point(GlyphGrid{w.place.x, w.place.y, advance, line, rows_above}, 0,
+        glyph_point(GlyphGrid{w.place.x, w.place.y, advance, line}, 0,
                     bytes > 0 ? (bytes - 1) / 2 : 0, space, w.x, w.y);
         w.space = space;
         words.push_back(std::move(w));
@@ -339,7 +338,7 @@ void WorkshopWeave::shown_words_and_parts(const graphics::AreaShown& shown, cons
         if (said.pressed) {
             const std::int64_t px = rect.x + said.px, py = rect.y + said.py;
             p.x = space == input::space::kPixels ? px : graphics::cell_of_pixel(px);
-            p.y = space == input::space::kPixels ? py : graphics::cell_of_pixel(py) + rows_above;
+            p.y = space == input::space::kPixels ? py : graphics::cell_of_pixel(py);
             p.space = space;
         } else {
             no_point(p);
@@ -405,7 +404,7 @@ std::string WorkshopWeave::layouts_reading(PaneView& out) const {
     paint_layouts(layer, session_, bounds.rect, sc, kPaneChrome);
     if (layer.texts.empty()) return "pane has no visible body";
     const ExternalBodyPlace place = external_body_place(bounds.rect, sc, 0);
-    const GlyphGrid grid = glyph_grid(place.fit, session_.console_rows_above);
+    const GlyphGrid grid = glyph_grid(place.fit);
     const std::int64_t space = input_space_of(sc);
     const surface::SurfaceTextRegion& region = layer.texts.back();
     std::vector<PaneWord> words;
@@ -727,8 +726,7 @@ Said<PanePoint> WorkshopWeave::pane_point(loom::Mail& mail, loom::WeaveId asker,
     const std::int64_t bytes = static_cast<std::int64_t>(word->text.size());
     const std::int64_t advance = bytes > 0 ? word->place.w / bytes : 0;
     if (advance <= 0) return loom::Refused{"pane point unavailable: that character is not addressable"};
-    glyph_point(GlyphGrid{word->place.x, word->place.y, advance, word->place.h,
-                          session_.console_rows_above},
+    glyph_point(GlyphGrid{word->place.x, word->place.y, advance, word->place.h},
                 0, asked.column, word->space, reply.x, reply.y);
     return reply;
 }

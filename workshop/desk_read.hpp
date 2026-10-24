@@ -57,26 +57,21 @@ inline DeskRect desk_rect(const PixelRect& r) {
 }
 
 /// WHERE A FIT DRAWS ITS GLYPHS: the first glyph's corner, and one glyph's advance and line, in
-/// canvas pixels -- the face's where the fit sets type, one cell each where text is a cell -- and
-/// the console rows the medium spends above the canvas, which a point in cells counts. Every grid
-/// is told those rows, by the session that knows its medium: none in a window.
+/// canvas pixels -- the face's where the fit sets type, one cell each where text is a cell.
 struct GlyphGrid {
     std::int64_t x = 0, y = 0;
     std::int64_t advance = graphics::kCellPx, line = graphics::kCellPx;
-    std::int64_t rows_above = 0;
     constexpr GlyphGrid(std::int64_t at_x, std::int64_t at_y, std::int64_t glyph_advance,
-                        std::int64_t glyph_line, std::int64_t console_rows_above) noexcept
-        : x(at_x), y(at_y), advance(glyph_advance), line(glyph_line),
-          rows_above(console_rows_above) {}
+                        std::int64_t glyph_line) noexcept
+        : x(at_x), y(at_y), advance(glyph_advance), line(glyph_line) {}
 };
 
-inline GlyphGrid glyph_grid(const RegionFit& fit, std::int64_t rows_above) {
+inline GlyphGrid glyph_grid(const RegionFit& fit) {
     if (fit.graphical()) {
         return GlyphGrid{fit.view.x + fit.origin_x, fit.view.y + fit.origin_y, fit.advance_px,
-                         fit.line_px, rows_above};
+                         fit.line_px};
     }
-    return GlyphGrid{fit.view.x, fit.view.y, graphics::kCellPx, graphics::kCellPx,
-                     rows_above};
+    return GlyphGrid{fit.view.x, fit.view.y, graphics::kCellPx, graphics::kCellPx};
 }
 
 /// The centre of one glyph, in the input space: a window's pixel, or the terminal cell a medium
@@ -89,7 +84,7 @@ inline void glyph_point(const GlyphGrid& g, std::int64_t row, std::int64_t colum
         return;
     }
     x = graphics::cell_of_pixel(g.x + column * g.advance);
-    y = graphics::cell_of_pixel(g.y + row * g.line) + g.rows_above;
+    y = graphics::cell_of_pixel(g.y + row * g.line);
 }
 
 /// ONE RUN OF GLYPHS AS A WORD: `text` drawn from `column` of `row` over its bytes' cells of the
@@ -247,7 +242,7 @@ inline DeskMenu desk_menu(const Session& s, const Screen& sc) {
         return menu;
     }
     const ProsePlace place = prose_place(bounds, sc);
-    const GlyphGrid grid = glyph_grid(place.fit, sc.rows_above);
+    const GlyphGrid grid = glyph_grid(place.fit);
     const surface::SurfaceTextRegion& region = layer.texts.back();
     const std::int64_t space = input_space_of(sc);
     for (std::size_t i = 0; i < region.rows.size(); ++i) {

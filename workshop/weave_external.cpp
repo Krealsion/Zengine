@@ -664,7 +664,7 @@ bool WorkshopWeave::menu_button(const zengine::input::PointerButton& b, loom::Ma
         (void)end_held_gestures();
         return true;
     }
-    const PointedAt where = canvas_point_of(b.space, b.x, b.y, session_.console_rows_above);
+    const PointedAt where = canvas_point_of(b.space, b.x, b.y);
     if (!where.understood) {
         return true;
     }
@@ -689,8 +689,7 @@ void WorkshopWeave::menu_pressed(const graphics::AreaPressed& p, std::uint64_t p
     count_gesture();
     leave_carry_hover(mail);
     if (input_actor_.local && !guide_marks_.empty()) {
-        guide_pressed(mail, canvas_point_of(input::space::kPixels, p.x, p.y,
-                                            session_.console_rows_above));
+        guide_pressed(mail, canvas_point_of(input::space::kPixels, p.x, p.y));
     }
     if (p.button == 3) {
         // A RIGHT PRESS ON THE MENU ENDS IT, and asks nothing of what stands beneath.

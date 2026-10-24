@@ -52,7 +52,7 @@ ExternalPressAt external_press_at(const Panes& panes, const Setup& setup,
     if (!body.present) {
         return ExternalPressAt{};
     }
-    const ProseAt at = prose_at(space, x, y, body.fit, sc.rows_above);
+    const ProseAt at = prose_at(space, x, y, body.fit);
     if (!at.understood) {
         return ExternalPressAt{};
     }
@@ -106,7 +106,7 @@ std::int64_t chrome_mark_at(const Panes& panes, const Setup& setup, const Screen
     if (body.header_rows <= 0 || !marks_fit(pane->manual, body.columns)) {
         return chrome_mark::kNone;
     }
-    const ProseAt at = prose_at(space, x, y, body.fit, sc.rows_above);
+    const ProseAt at = prose_at(space, x, y, body.fit);
     if (!at.understood || at.row != 0) {
         return chrome_mark::kNone;
     }

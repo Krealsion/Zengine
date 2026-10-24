@@ -292,7 +292,7 @@ ContextPressAt context_press_at(const Session& s, const Screen& sc, std::int64_t
     if (!place.present) {
         return out;
     }
-    const ProseAt where = prose_at(space, x, y, place.fit, sc.rows_above);
+    const ProseAt where = prose_at(space, x, y, place.fit);
     if (!where.understood || where.column < 0 || where.column >= place.columns ||
         where.row < 0 || where.row >= place.rows) {
         return out;

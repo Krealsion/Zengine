@@ -40,10 +40,6 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     // reading of the living realization owner — never a member, never a field of the
     // session, never yesterday's answer.
     const ProjectFrontier frontier = frontier_now();
-    // The status slot, then the picture. What is true and worth a glance is the Attention pane's
-    // to show, in its own room: no slot carries it.
-    mail.publish(
-        zengine::surface::SurfaceText{zengine::surface::kSlotStatus, status_line()});
     // WHAT IS TRUE, TO WHOEVER IS PRESENTING IT: one sentence per condition, in the host's own
     // order, said only when it changed. Derived at every repaint and held nowhere, so a resolved
     // condition is gone because it stopped being returned.
@@ -58,9 +54,8 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
     // ...and what the terminal participant's record holds, to whoever is presenting it.
     // Same beat, same rule, same silence when nothing changed.
     facet<TerminalDoorFacet>().say_transcript(mail);
-    auto canvas = paint(session_);
-    // THE PLANES ABOVE THE PICTURE, kept for the window's drawing of the desk too: the carried
-    // value under the hand...
+    // THE PLANES ABOVE THE DESK, which the window's overlay draws: the carried value under the
+    // hand...
     window_overlays_.clear();
     if (carried_.drag && value_drag_.moved && !value_drag_.released && drag_pointer_.understood) {
         surface::SurfaceLayer overlay;
@@ -78,8 +73,6 @@ void WorkshopWeave::repaint(loom::Mail& mail) {
             window_overlays_.push_back(std::move(marks));
         }
     }
-    canvas.layers.insert(canvas.layers.end(), window_overlays_.begin(), window_overlays_.end());
-    mail.publish(std::move(canvas));
     stamps_owed_ = desk_owed_ = true; // the desk may have moved: looked at once, at the delivery's end
     // ...and the same desk in a graphics window, where a directory places its areas.
     show_in_graphics(mail);

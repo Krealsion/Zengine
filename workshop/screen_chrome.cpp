@@ -145,17 +145,15 @@ PaneBounds bounds_of(const Panes& panes, const Setup& setup, std::int64_t kind,
 
 // ---- PLACEMENT SPENT ON THE POINTER: a place a weaver can see is a place a hand meets ------
 
-PointedAt canvas_point_of(std::int64_t space, std::int64_t x, std::int64_t y,
-                          std::int64_t rows_above) noexcept {
+PointedAt canvas_point_of(std::int64_t space, std::int64_t x, std::int64_t y) noexcept {
     if (space == input::space::kCells) {
-        return PointedAt{true, surface::canvas_of_terminal_cells(x, y, rows_above),
-                         surface::canvas_px_of_terminal_cells(x, y, rows_above),
+        return PointedAt{true, CanvasPoint{x, y},
+                         CanvasPoint{graphics::px_of_cells(x), graphics::px_of_cells(y)},
                          graphics::kCellGrainPx};
     }
     if (space == input::space::kPixels) {
-        return PointedAt{true, surface::canvas_of_window_pixels(x, y),
-                         surface::canvas_px_of_window_pixels(x, y),
-                         graphics::kPixelGrainPx};
+        return PointedAt{true, CanvasPoint{graphics::cell_of_pixel(x), graphics::cell_of_pixel(y)},
+                         CanvasPoint{x, y}, graphics::kPixelGrainPx};
     }
     return PointedAt{};
 }
@@ -190,8 +188,8 @@ Occupancy occupied_at(const Panes& panes, const Setup& setup, const Screen& sc,
 Occupancy occupied_at(const Panes& panes, const Setup& setup, const Screen& sc,
                       std::int64_t cx, std::int64_t cy) {
     return occupied_at(panes, setup, sc,
-                       PointedAt{true, surface::CanvasPoint{cx, cy},
-                                 surface::CanvasPoint{graphics::px_of_cells(cx),
+                       PointedAt{true, CanvasPoint{cx, cy},
+                                 CanvasPoint{graphics::px_of_cells(cx),
                                                       graphics::px_of_cells(cy)},
                                  graphics::kCellGrainPx});
 }
