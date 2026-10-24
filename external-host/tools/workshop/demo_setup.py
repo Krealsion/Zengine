@@ -26,9 +26,14 @@ def layout(name, views=()):
 
 
 def save_json(path, value):
+    save_text(path, json.dumps(value, indent=2))
+
+
+def save_text(path, text):
+    """`text` written whole to `path`: beside it first, then renamed over it."""
     path = Path(path)
     temporary = path.with_suffix(path.suffix + ".new")
-    temporary.write_text(json.dumps(value, indent=2), encoding="utf-8")
+    temporary.write_text(text, encoding="utf-8")
     temporary.replace(path)
 
 

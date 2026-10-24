@@ -48,8 +48,9 @@ associations, admitted by four questions plus the link.
 - *Dropping the ninth layout, or `x` for removal* — refused: refuse rather than drop; `x` once
   closed the Builder and a hand may still mean that.
 
-**Consequences.** `kMaxSessionBytes` is `kMaxLayouts * (2 * kMaxSetupBytes + kMaxLinkPathBytes)`
-— two desks and a path — so a session this build writes is never one it refuses. A pane in
+**Consequences.** A layout's line holds two desks and a path, `kMaxLayoutLineBytes`, and
+`kMaxSessionBytes` is a header line and `kMaxLayouts` of those, so a session this build writes is
+never one it refuses. A pane in
 both layouts at unchanged capacity hears no grant across four switches, and is handed its
 settings only where the two layouts keep different ones; an inactive layout is
 an unread value with no catalog fanout. A half-association is refused. `s` and `r` still act on
