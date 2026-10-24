@@ -157,7 +157,7 @@ struct OperatorContext {
 class OperatorWeave
     : public gfx::With<gfx::ActionFacet>::Weave<
           OperatorWeave, OperatorState,
-          loom::Accept<loom::Result, loom::Ack, loom::Refused, input::KeyPressed,
+          loom::Accept<loom::Result, loom::Ack, loom::Refused, gfx::AreaKeyPressed,
                        gfx::GraphicsReady>,
           loom::Emit<loom::LoadWeave, loom::SwapWeave, loom::ReloadWeave, loom::ListLoaded,
                      loom::PokeResetState, gfx::AreaPlaced, gfx::SkinOffered, gfx::SkinChosen,
@@ -186,7 +186,7 @@ public:
     }
 
     /// The command keys. Steering is the world's, and unknown keys are nobody's error.
-    void on(const input::KeyPressed& k, loom::Mail& mail) {
+    void on(const gfx::AreaKeyPressed& k, loom::Mail& mail) {
         if (!mail.authored_from_role(kWindowRole)) {
             return;
         }

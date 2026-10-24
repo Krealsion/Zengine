@@ -37,7 +37,7 @@ WHY — `agents/decisions/a-guest-reads-and-points-by-door.md`
 LAW — On every host every guest is refused the words of Connections, the Hotkeys pane and an editor showing the guests file, every observation of the connections, and the weaver's input without `keystrokes`.
 
 MEANS
-- the weaver's input is `AttributedInput`, `KeyPressed` and `TextEntered`, from any office;
+- the weaver's input is `AttributedInput`, `KeyPressed` and `TextEntered`, and a window's `AreaKeyPressed`, `AreaKeyReleased` and `AreaTextEntered`, from any office;
 - a refusal names the pane and why, never what it shows.
 
 DOES NOT MEAN
@@ -120,8 +120,9 @@ bus"
 `workshop/guests.cpp` carries_the_keys observation_of
 `workshop/actor_scope.hpp` weaver_only_pane
 `workshop/weave_guest_read.cpp` read_withheld
-`tests/test_workshop_guests.cpp` "observation: the weaver's input is heard only with keystrokes, no guest
-observes the connections, and a row that reads by pane is refused what carries every pane"
+`tests/test_workshop_guests.cpp` "observation: the weaver's input, a window's keys among it, is heard
+only with keystrokes, no guest observes the connections, and a row that reads by pane is refused what
+carries every pane"
 `tests/test_workshop_panes_guide.cpp` "every guest is refused the words of the Hotkeys pane and of an editor
 showing the guests file, whatever it reads"
 

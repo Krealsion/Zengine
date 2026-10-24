@@ -310,6 +310,33 @@ struct WindowMoment {
 
 } // namespace
 
+// A KEY, ITS RELEASE OR ITS TEXT, FROM THE WINDOW THAT SHOWS WORKSHOP'S OWN AREA, as that window's
+// office: answered under the hand it names. A key no window named names no hand.
+// WL-GUEST-13 -- agents/workshop/guests.md
+void WorkshopWeave::on(const graphics::AreaKeyPressed& k, loom::Mail& mail) {
+    if (!window_.from_window(k.area, mail)) {
+        return;
+    }
+    const WindowMoment moment{input_actor_, k.local, k.actor};
+    on(input::KeyPressed{k.scancode, k.name, k.modifiers}, mail);
+}
+
+void WorkshopWeave::on(const graphics::AreaKeyReleased& k, loom::Mail& mail) {
+    if (!window_.from_window(k.area, mail)) {
+        return;
+    }
+    const WindowMoment moment{input_actor_, k.local, k.actor};
+    on(input::KeyReleased{k.scancode, k.name, k.modifiers}, mail);
+}
+
+void WorkshopWeave::on(const graphics::AreaTextEntered& t, loom::Mail& mail) {
+    if (!window_.from_window(t.area, mail)) {
+        return;
+    }
+    const WindowMoment moment{input_actor_, t.local, t.actor};
+    on(input::TextEntered{t.text}, mail);
+}
+
 // WL-PRESS-04 -- agents/workshop/press-chain.md
 void WorkshopWeave::on(const graphics::AreaButtonChanged& b, loom::Mail& mail) {
     if (!own_pointer_area(b.area, mail)) {
@@ -580,8 +607,8 @@ void WorkshopWeave::on(const zengine::input::KeyPressed& k, loom::Mail& mail) {
         repaint(mail);
         return;
     }
-    // ESCAPE PUTS DOWN WHAT ITS OWN HAND CARRIES: the weaver's hand is its attributed local input
-    // and its unattributed input alike, a graphics window's keys among them.
+    // ESCAPE PUTS DOWN WHAT ITS OWN HAND CARRIES: the weaver's hand is its attributed local input,
+    // a graphics window's keys among them, and its unattributed input alike.
     const Hand* carrier = carried_.data.empty() ? nullptr : find_hand(carried_.actor);
     if (carrier != nullptr && k.scancode == input::scan::kEscape &&
         find_hand(input_actor_) == carrier) {

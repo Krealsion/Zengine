@@ -61,7 +61,7 @@ workshop_panes_hand               doctest           always  211
 # operator/reference.hpp and the Introspection pane's sources and CMake file as text (VM-WALL-11).
 workshop_panes_inspect            doctest           always  112
 # Tripwires in this part read info/pane.cpp as text (VM-WALL-11).
-workshop_panes_info               doctest           always  170
+workshop_panes_info               doctest           always  179
 workshop_panes_settings           doctest           always  56
 # Tripwires in this part read the Terminal pane's source and CMake file as text (VM-WALL-11).
 workshop_panes_terminal           doctest           always  66
