@@ -109,10 +109,10 @@ using WindowBase = typename zengine::With<
                  zengine::input::AttributedInput, ClipboardCopy, ClipboardTextRequested,
                  SurfacePlacementRemembered, PumpSurface, SurfaceCaptureRequested,
                  SurfaceCaptureChunkRequested, WindowShaped>,
-    loom::Emit<DrawnRefused, WindowOffered, AreaRoom, zengine::input::KeyPressed,
-               zengine::input::KeyReleased, zengine::input::TextEntered, ActionRequested,
-               AreaButtonChanged, AreaPointerMoved, AreaWheelTurned, AreaPressed, AreaHoldEnded,
-               AreaPointerLeft, AreaHandRefused, WindowShown, AreaShown, AreaSettled,
+    loom::Emit<DrawnRefused, WindowOffered, AreaRoom, AreaKeyPressed, AreaKeyReleased,
+               AreaTextEntered, ActionRequested, AreaButtonChanged, AreaPointerMoved,
+               AreaWheelTurned, AreaPressed, AreaHoldEnded, AreaPointerLeft, AreaHandRefused,
+               WindowShown, AreaShown, AreaSettled,
                SurfaceCloseRequested, SurfacePlacement, ClipboardText, SurfaceCaptured,
                SurfaceCaptureChunk, loom::Refused>,
     zengine::timer::TimedWeave>;
@@ -557,11 +557,11 @@ private:
         for (std::size_t i = 0; i < read.size(); ++i) {
             const in::InputEvent& e = read[i];
             if (const auto* k = std::get_if<in::KeyPressed>(&e)) {
-                to_keys(mail, *k);
+                to_keys(mail, AreaKeyPressed{{}, k->scancode, k->name, k->modifiers}, Hand{});
             } else if (const auto* r = std::get_if<in::KeyReleased>(&e)) {
-                to_keys(mail, *r);
+                to_keys(mail, AreaKeyReleased{{}, r->scancode, r->name, r->modifiers}, Hand{});
             } else if (const auto* t = std::get_if<in::TextEntered>(&e)) {
-                to_keys(mail, *t);
+                to_keys(mail, AreaTextEntered{{}, t->text}, Hand{});
             } else if (const auto* b = std::get_if<in::PointerButton>(&e)) {
                 button(mail, *b, Hand{});
             } else if (const auto* m = std::get_if<in::PointerMoved>(&e)) {
@@ -589,16 +589,6 @@ private:
         settle(mail, false);
     }
 
-    /// A key, or its text, to the owner of each area placed to hear keys, front to back.
-    template <class Typed>
-    void to_keys(loom::Mail& mail, const Typed& typed) {
-        for (const WinArea* a : front_to_back(this->state_.areas)) {
-            if (a->keys && !a->owner.empty()) {
-                (void)mail.as_role(office()).send_to_role(a->owner, typed);
-            }
-        }
-    }
-
     /// A hand: the weaver's own, which the platform gives, or a participant's the input office
     /// names. Each holds its own presses and rests its own pointer.
     struct Hand {
@@ -606,6 +596,20 @@ private:
         std::int64_t actor = 0;
         std::int64_t key() const { return local ? 0 : actor; }
     };
+
+    /// A key, its release or its text, to the owner of each area placed to hear keys, front to
+    /// back, naming that area and the hand that made it.
+    template <class Typed>
+    void to_keys(loom::Mail& mail, Typed typed, const Hand& hand) {
+        typed.local = hand.local;
+        typed.actor = hand.actor;
+        for (const WinArea* a : front_to_back(this->state_.areas)) {
+            if (a->keys && !a->owner.empty()) {
+                typed.area = a->area;
+                (void)mail.as_role(office()).send_to_role(a->owner, typed);
+            }
+        }
+    }
 
     /// A button pressed where the medium lands it: the element presented there, if its code takes a
     /// left press; else, in an area not placed to hear the pointer, the action its record names, to

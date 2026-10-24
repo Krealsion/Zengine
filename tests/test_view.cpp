@@ -1035,10 +1035,11 @@ TEST_CASE("a view takes the keys and the text of the window that shows its area 
     REQUIRE(w.window->drawn.size() == 1);
     namespace in = zengine::input;
     const auto key = [&](std::int64_t scancode) {
-        window_says(rig, w, "tally.panel", in::KeyPressed{scancode, "", in::mod::kNone});
+        window_says(rig, w, "tally.panel",
+                    gfx::AreaKeyPressed{area_of("tally.panel"), scancode, "", in::mod::kNone});
     };
     const auto text = [&](const std::string& typed) {
-        window_says(rig, w, "tally.panel", in::TextEntered{typed});
+        window_says(rig, w, "tally.panel", gfx::AreaTextEntered{area_of("tally.panel"), typed});
     };
     // ...each field reached by Tab, emptied by Backspace and typed into, all from the window.
     const auto fill = [&](const std::string& typed) {
@@ -1072,8 +1073,10 @@ TEST_CASE("a view takes the keys and the text of the window that shows its area 
         rig.bus.register_weave(std::move(stranger), loom::Grant{}.allow_any(), "viewtest.stranger");
     for (const auto& [id, office] : {std::pair{other_id, sdl}, std::pair{stranger_id, std::string("viewtest.stranger")},
                                      std::pair{rig.desk_id, std::string(view::kWorkshopRole)}}) {
-        for (const auto& said : {loom::to_value(in::KeyPressed{in::scan::kBackspace, "", in::mod::kNone}),
-                                 loom::to_value(in::TextEntered{"7"})})
+        for (const auto& said : {loom::to_value(gfx::AreaKeyPressed{area_of("tally.panel"),
+                                                                    in::scan::kBackspace, "",
+                                                                    in::mod::kNone}),
+                                 loom::to_value(gfx::AreaTextEntered{area_of("tally.panel"), "7"})})
             (void)rig.bus.office_send_to_role_as(id, office, "tally.panel",
                                                  loom::Message(said, id, {}, ++rig.correlation));
         rig.pump();
@@ -1156,8 +1159,10 @@ TEST_CASE("a view hears the pointer of the window that shows its area: a field p
     press("step");
     CHECK(w.window->holds("caret"));
     for (int i = 0; i < 4; ++i)
-        window_says(rig, w, "tally.panel", in::KeyPressed{in::scan::kBackspace, "", in::mod::kNone});
-    window_says(rig, w, "tally.panel", in::TextEntered{"2"});
+        window_says(rig, w, "tally.panel", gfx::AreaKeyPressed{area_of("tally.panel"),
+                                                               in::scan::kBackspace, "",
+                                                               in::mod::kNone});
+    window_says(rig, w, "tally.panel", gfx::AreaTextEntered{area_of("tally.panel"), "2"});
     CHECK(has(w.window->words("text:step").value_or(""), "step: 2"));
     CHECK(has(rig.words("tally.panel"), "step: 2|")); // the field is the view's, not the window's
 

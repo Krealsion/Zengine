@@ -54,15 +54,15 @@ window, incarnation, size or measure, or an empty area. To read what it shows, a
 Keys go to each owner placed to hear them: each key, its text and its release. An owner placed to
 hear the pointer is given each pointer moment in its area as it was, in the area's pixels
 (`AreaButtonChanged`, `AreaPointerMoved`, `AreaWheelTurned`); moves read in one beat go as one. A
-press holds its button for its area until its release, under one number; its arranger hears where
-it landed (`AreaPressed`; [the Graphics package](graphics.md#who-says-what)). Each names its
+press holds its button for its area until its release, under one number; its arranger hears where it
+landed (`AreaPressed`; [the Graphics package](graphics.md#who-says-what)). Every moment names its
 hand ([`AttributedInput`](#attributedinput)).
 
 Who may send: whoever the host's grant lets reach the window. It takes a drawing
 or an element only from the area's owner, as that office, and refuses anyone else's; it takes the
 directory's words only from `zengine.graphics`, and ignores them from anyone else. Every bound is
 judged before anything changes, and a drawing past one is refused whole, in words, to its drawer
-(`DrawnRefused`), leaving what the window shows as it was. The bounds are
+(`DrawnRefused`), what the window shows unchanged. The bounds are
 `graphics/vocabulary.hpp`'s: `kMaxNodesPerArea`, `kMaxElementsPerArea`, `kMaxPathBytes`,
 `kMaxPathDepth`, `kMaxArgsBytes`, and `kMaxAreas` areas a window.
 
@@ -304,7 +304,7 @@ face's measure; the directory keeps it. It publishes `SurfacePlacement` v1 when 
 before `WindowOffered` when both did; and `SurfaceCloseRequested` v1 for each close asked. To an
 area's owner: `AreaRoom` v4 (with its face); `DrawnRefused` v1; `ActionRequested` v1;
 `AreaButtonChanged` v3, `AreaPointerMoved`, `AreaWheelTurned` v2, `AreaHoldEnded`, `AreaPointerLeft`
-v1 when placed to hear the pointer; `KeyPressed` v2, `KeyReleased` v2 and `TextEntered` v1 when
+v1 when placed to hear the pointer; `AreaKeyPressed`, `AreaKeyReleased`, `AreaTextEntered` v1 when
 placed to hear keys. To an arranger following an area not its own: `AreaPressed` v3,
 `AreaHoldEnded`, `AreaPointerLeft` v1; following one, `AreaSettled` v1; to any arranger,
 `AreaHandRefused`. To an asker: `WindowShown`, `AreaShown`, `ClipboardText`, `SurfaceCaptured`,

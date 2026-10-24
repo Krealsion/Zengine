@@ -51,12 +51,12 @@ class SnakeWorld
     : public gfx::With<gfx::ActionFacet>::Weave<
           SnakeWorld, State,
 #if defined(SNAKE_WORLD_V2)
-          loom::Accept<SnakeTick, SnakeTurn, input::KeyPressed, loom::PrepareShutdown,
+          loom::Accept<SnakeTick, SnakeTurn, gfx::AreaKeyPressed, loom::PrepareShutdown,
                        loom::Bequest, loom::Refused>,
           loom::Emit<SnakeVisual, FoodEaten, SnakeDied, gfx::ElementPut, gfx::ElementChange,
                      loom::Bequest, loom::ClaimBequest>,
 #else
-          loom::Accept<SnakeTick, SnakeTurn, input::KeyPressed, loom::PrepareShutdown>,
+          loom::Accept<SnakeTick, SnakeTurn, gfx::AreaKeyPressed, loom::PrepareShutdown>,
           loom::Emit<SnakeVisual, FoodEaten, SnakeDied, gfx::ElementPut, gfx::ElementChange,
                      loom::Bequest>,
 #endif
@@ -80,7 +80,7 @@ public:
 
     /// The world's own keys, from the window that shows it: the four the state names, and the
     /// arrows, while `keys` says they steer.
-    void on(const input::KeyPressed& k, loom::Mail&) {
+    void on(const gfx::AreaKeyPressed& k, loom::Mail&) {
         if (!state_.keys) {
             return;
         }

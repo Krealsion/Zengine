@@ -543,7 +543,8 @@ public:
                        loom::schema_of<ws::PaneCatalogRequested>(), loom::schema_of<ws::PaneKey>(),
                        loom::schema_of<ws::PaneTextInput>(), loom::schema_of<ws::PaneRevealAnswered>(),
                        loom::schema_of<ws::PaneActionRequested>(), loom::schema_of<ws::ActionsJudged>(),
-                       loom::schema_of<input::KeyPressed>(), loom::schema_of<input::TextEntered>(),
+                       loom::schema_of<graphics::AreaKeyPressed>(),
+                       loom::schema_of<graphics::AreaTextEntered>(),
                        loom::schema_of<graphics::AreaButtonChanged>(), loom::schema_of<graphics::AreaPointerMoved>(),
                        loom::schema_of<graphics::AreaWheelTurned>()})
             out.push_back(std::move(s));
@@ -636,15 +637,19 @@ public:
             show(bus);
             return;
         }
-        if (is(loom::schema_of<input::KeyPressed>()) || is(loom::schema_of<input::TextEntered>())) {
+        if (is(loom::schema_of<graphics::AreaKeyPressed>()) ||
+            is(loom::schema_of<graphics::AreaTextEntered>())) {
             // A KEY OR ITS TEXT FROM THE WINDOW THAT SHOWS ITS AREA, as that window's office, which
             // gives its keys only to an area placed to hear them: taken as Workshop's are.
             if (!window_.shown() || in.provenance.authored_role() != window_.window_office()) return;
-            if (is(loom::schema_of<input::KeyPressed>())) {
-                const auto k = loom::from_value<input::KeyPressed>(in.payload);
+            if (is(loom::schema_of<graphics::AreaKeyPressed>())) {
+                const auto k = loom::from_value<graphics::AreaKeyPressed>(in.payload);
+                if (k.area != window_.area()) return;
                 key(ws::PaneKey{kPane, k.scancode, k.modifiers}, in, bus, /*workshop_sent=*/false);
             } else {
-                type(loom::from_value<input::TextEntered>(in.payload).text, bus);
+                const auto t = loom::from_value<graphics::AreaTextEntered>(in.payload);
+                if (t.area != window_.area()) return;
+                type(t.text, bus);
             }
             return;
         }

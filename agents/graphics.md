@@ -11,8 +11,9 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
   changes, keeps what it painted in its MEMORY (a reload paints it again from the state, once),
   composes the areas front to back by their order, and shows only what changed: a terminal window
   writes the cells whose picture changed, as runs; an OS window draws its whole picture once a
-  showing. It judges a press against what it painted and routes it, and gives keys, and the text
-  they type, to the owners of the areas placed to hear them.
+  showing. It judges a press against what it painted and routes it, and gives keys, their releases
+  and the text they type to the owners of the areas placed to hear them (`AreaKeyPressed`,
+  `AreaKeyReleased`, `AreaTextEntered`), naming the area.
 - **One window, many media.** The store, the judge, the element seam, the directory's words, keys
   and presses are one class over its medium (`graphics/window/window.hpp`); what a medium keeps
   painted, how it shows it and what it reads are the medium's alone (`window_terminal.hpp`,
@@ -87,10 +88,14 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
 - **The window lands a participant's pointer as it lands the weaver's.** It takes
   `input::AttributedInput` from `zengine.input`'s office alone, and lands a press, a move or a wheel
   that office injected for a participant by its own judge, as one its platform gave. A moment the
-  platform gave (`local`) is the window's own to read; keys and text are not taken there.
+  platform gave (`local`) is the window's own to read. An injected key or text is not taken there:
+  a participant's keys reach their consumers from the input office, attributed.
 - **Every moment it gives names the hand**: `AreaButtonChanged`, `AreaPointerMoved`,
-  `AreaWheelTurned` and `AreaPressed` say `local`, or the `actor` the input office named. Each hand
-  holds its own presses, so a guest's press and release never end or take the weaver's.
+  `AreaWheelTurned` and `AreaPressed` say `local`, or the `actor` the input office named;
+  `AreaKeyPressed`, `AreaKeyReleased` and `AreaTextEntered` say `local`, the platform's own. An
+  owner takes a moment's hand only from the office of the window that shows its area, so a key no
+  window gave names no hand. Each hand holds its own presses, so a guest's press and release never
+  end or take the weaver's.
 - **An area placed for the weaver's hand alone refuses every injected hand**
   (`AreaPlaced::weaver_only`): a participant's press or wheel landing there reaches nobody, its
   arranger is told (`AreaHandRefused`), and the moves and the release after it are dropped. The

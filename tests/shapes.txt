@@ -23,6 +23,8 @@ AreaButtonChanged v3 0xcdf7f513e55e6201
 AreaHandRefused v1 0x4a892f6ac6208c2d
 AreaHoldEnded v1 0xa4f07cf674bfae98
 AreaIntroduced v7 0xef6db5d2c02c4190
+AreaKeyPressed v1 0x21bb10ae22fcfd3e
+AreaKeyReleased v1 0x557b16fa1df39372
 AreaPart v1 0xf04db60362845b87
 AreaPlaced v6 0xa0c38fff28daaf96
 AreaPointerLeft v1 0x65e599b7bfc67495
@@ -32,6 +34,7 @@ AreaRoom v4 0x13b64ef427486e52
 AreaSettled v1 0xb25da339d2656089
 AreaShowAsked v1 0xd54947d2e93c2fed
 AreaShown v1 0x3e05f15104f82b1c
+AreaTextEntered v1 0xeefec941d939b799
 AreaWheelTurned v2 0xc964858cfb625ed5
 AreaWithdrawn v1 0x124e9db05dd3b253
 AreaWord v1 0x70324aa17f394dff

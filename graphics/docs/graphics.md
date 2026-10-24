@@ -38,7 +38,8 @@ window -> its follower       AreaPressed (where a press in an area another offic
                              AreaSettled (unasked: what the area shows settled, by its version)
 input office -> a window     AttributedInput (a participant's moment, landed as that hand's)
 window -> owner, follower    AreaHoldEnded, AreaPointerLeft (to the follower when another office)
-window -> the keys' owners   KeyPressed, KeyReleased, TextEntered
+window -> the keys' owners   AreaKeyPressed, AreaKeyReleased, AreaTextEntered (naming the area
+                             and the hand)
 arranger -> directory        AreaPlaced, SkinOffered, SkinChosen, ElementCodeOffered
 arranger -> its window       WindowShaped (its title and size, from an office arranging there)
 window -> everyone           WindowOffered (as its own office: its pixels, incarnation and text)
@@ -60,7 +61,10 @@ out in the window's room, in its unit and its text, while no skin has said its o
 What each message does is the manual of the office that takes it: the window's for what an owner
 sends it, the directory's for what the arranger and a window send it.
 
-An area placed with `keys` hears every key, its release and its text. One placed with `pointer`
+An area placed with `keys` hears every key, its release and its text (`AreaKeyPressed`,
+`AreaKeyReleased`, `AreaTextEntered`), each naming the area and whose hand made it, as every
+pointer moment does: `local`, the weaver's own, or the participant the input office named. One
+placed with `pointer`
 holds every point inside it, painted or not, and hears, at its own point in pixels, every pointer
 moment there as the moment it was: a button pressed or let go, a part's or not
 (`AreaButtonChanged`), a move (`AreaPointerMoved`), the wheel (`AreaWheelTurned`). A press holds its
