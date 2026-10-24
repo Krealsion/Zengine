@@ -12,7 +12,7 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
   composes the areas front to back by their order, and shows only what changed: a terminal window
   writes the cells whose picture changed, as runs; an OS window draws its whole picture once a
   showing. It judges a press against what it painted and routes it, and gives keys, their releases
-  and the text they type to the owners of the areas placed to hear them (`AreaKeyPressed`,
+  and the text they type to the owners of the areas placed to hear each (`AreaKeyPressed`,
   `AreaKeyReleased`, `AreaTextEntered`), naming the area.
 - **One window, many media.** The store, the judge, the element seam, the directory's words, keys
   and presses are one class over its medium (`graphics/window/window.hpp`); what a medium keeps
@@ -119,6 +119,9 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
   ended, the pointer left, and what it shows settled (`AreaSettled`, at each showing its version
   moved). An arranger that takes none of these places its areas without, and is told none, so no
   showing refuses a word on its bus.
+- **A window gives a key moment only to an owner placed to hear it**: a key (`AreaPlaced::keys`),
+  its release (`releases`), the text it types (`text`). An owner places its areas for the moments
+  it takes, and is given no other, so no key refuses a word on its bus.
 
 ## Colour, pixels and operands
 
@@ -157,8 +160,10 @@ Routed detail behind [`graphics/AGENTS.md`](../graphics/AGENTS.md), for tasks to
   (`input/terminal_reader.hpp`) are shared: whichever participant owns the terminal in a process
   takes both, for exactly its life. Two owners of one terminal in one process is not a supported
   arrangement. The terminal window claims the terminal's input for its life
-  (`input/window_claim.hpp`), and the Input reader beside it reads none of it; the OS window reads
-  SDL's one queue itself.
+  (`input/window_claim.hpp`), and the Input reader beside it reads none of it. The OS window reads
+  SDL's one queue itself and claims the process's input for its life: the Input reader beside it
+  leaves the console the run started from as it found it, read by nobody, its echo and its Ctrl+C
+  the person's.
 - The roles, the platform's shapes (the clipboard, the place, the close, the pump and the capture)
   and the pixel arithmetic (`graphics/pixels.hpp`) are Graphics' own, and every drawer spells them
   by their graphics names.

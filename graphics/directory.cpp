@@ -32,7 +32,7 @@ struct DirectoryArea {
     gfx::AreaPlaced placed;
     std::string arranger;
     std::string skin;
-    ZEN_SHAPE(DirectoryArea, 6, ZEN_FIELD(placed), ZEN_FIELD(arranger), ZEN_FIELD(skin));
+    ZEN_SHAPE(DirectoryArea, 7, ZEN_FIELD(placed), ZEN_FIELD(arranger), ZEN_FIELD(skin));
 };
 
 struct DirectoryState {
@@ -40,7 +40,7 @@ struct DirectoryState {
     std::vector<DirectoryArea> areas;
     std::vector<gfx::SkinOffered> skins;
     std::vector<gfx::ElementCodeOffered> codes;
-    ZEN_SHAPE(DirectoryState, 8, ZEN_FIELD(windows), ZEN_FIELD(areas), ZEN_FIELD(skins),
+    ZEN_SHAPE(DirectoryState, 9, ZEN_FIELD(windows), ZEN_FIELD(areas), ZEN_FIELD(skins),
               ZEN_FIELD(codes));
 };
 
@@ -199,7 +199,7 @@ private:
                           gfx::AreaIntroduced{p.area, p.owner, a.arranger, p.x, p.y, p.w, p.h,
                                               p.order, p.keys, p.pointer, skin->skin,
                                               skin->library, p.weaver_only, p.wheel, p.right,
-                                              p.followed});
+                                              p.followed, p.releases, p.text});
     }
 
     zengine::ActivationCursor activation_;

@@ -61,9 +61,10 @@ out in the window's room, in its unit and its text, while no skin has said its o
 What each message does is the manual of the office that takes it: the window's for what an owner
 sends it, the directory's for what the arranger and a window send it.
 
-An area placed with `keys` hears every key, its release and its text (`AreaKeyPressed`,
-`AreaKeyReleased`, `AreaTextEntered`), each naming the area and whose hand made it, as every
-pointer moment does: `local`, the weaver's own, or the participant the input office named. One
+An area placed with `keys` hears every key (`AreaKeyPressed`), with `releases` its release
+(`AreaKeyReleased`), with `text` the text it types (`AreaTextEntered`): an owner places its areas
+for the moments it takes, and is given no other. Each names the area and whose hand made it, as
+every pointer moment does: `local`, the weaver's own, or the participant the input office named. One
 placed with `pointer`
 holds every point inside it, painted or not, and hears, at its own point in pixels, every pointer
 moment there as the moment it was: a button pressed or let go, a part's or not

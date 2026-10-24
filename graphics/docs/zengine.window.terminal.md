@@ -50,7 +50,7 @@ window, incarnation, size or measure, or an empty area. To read what it shows, a
 [`WindowShowAsked`](#windowshowasked), or, as an area's arranger, [`AreaShowAsked`](#areashowasked),
 told when it settled (`AreaSettled`).
 
-Keys go to each owner placed to hear them, front to back: each key, its text and its release, naming
+A key, its text and its release go to each owner placed to hear that moment, front to back, naming
 the area and the hand (`AreaKeyPressed` and its kin). An owner placed to hear the pointer is given
 each pointer moment in its area as it was, at its cell's centre in the area's pixels
 (`AreaButtonChanged`, `AreaPointerMoved`, `AreaWheelTurned`); moves read in one beat go as one. A
@@ -229,11 +229,11 @@ reading the terminal.
 
 ### `AreaIntroduced`
 
-`AreaIntroduced` v7, from the directory: an area, its owner, its arranger, place, order, keys,
-pointer, skin, `weaver_only` and `followed`. The window keeps it, paints it again where it moved or another
-skin paints it, empties it when another owner draws in it, ends a press held for it or now covered
-by it, and tells the owner its room (`AreaRoom`). Past `kMaxAreas` it is not shown, and
-`WindowShown` reports `the window shows <bound> areas: '<area>' is not shown`.
+`AreaIntroduced` v8, from the directory: an area, its owner, its arranger, place, order, the key
+moments and pointer it hears, skin, `weaver_only` and `followed`. The window keeps it, paints it
+again where it moved or another skin paints it, empties it when another owner draws in it, ends a
+press held for it or now covered by it, and tells the owner its room (`AreaRoom`). Past `kMaxAreas`
+it is not shown, and `WindowShown` reports `the window shows <bound> areas: '<area>' is not shown`.
 
 ### `AreaWithdrawn`
 
@@ -288,11 +288,11 @@ incarnation, its unit the cell and text a cell; the directory keeps it. It never
 `SurfacePlacement` or `SurfaceCloseRequested`. To an area's owner: `AreaRoom` v4 for each
 introduction; `DrawnRefused` v1; `ActionRequested` v1; `AreaButtonChanged` v3, `AreaPointerMoved`,
 `AreaWheelTurned` v2, `AreaHoldEnded`, `AreaPointerLeft` v1 when placed to hear the pointer;
-`AreaKeyPressed`, `AreaKeyReleased` and `AreaTextEntered` v1 when placed to hear keys, one it does
-not take refused on the bus. To an arranger following an area not its own: `AreaPressed` v3,
-`AreaHoldEnded`, `AreaPointerLeft` v1; following one, `AreaSettled` v1; to any arranger,
-`AreaHandRefused`. To an asker: `WindowShown`, `AreaShown`, `ClipboardText`, `SurfaceCaptured`,
-`SurfaceCaptureChunk` v1 and `zen.Refused`. To the Timer, its beat's order.
+`AreaKeyPressed`, `AreaKeyReleased` and `AreaTextEntered` v1 as placed to hear each. To an arranger
+following an area not its own: `AreaPressed` v3, `AreaHoldEnded`, `AreaPointerLeft` v1; following
+one, `AreaSettled` v1; to any arranger, `AreaHandRefused`. To an asker: `WindowShown`, `AreaShown`,
+`ClipboardText`, `SurfaceCaptured`, `SurfaceCaptureChunk` v1 and `zen.Refused`. To the Timer, its
+beat's order.
 
 ## Files
 
