@@ -188,10 +188,12 @@ shape<::zengine::builder::RunnerState>(), // RunnerState v2
         shape<::zengine::workshop::session_history::v7::WorkshopSetupLink>(), // WorkshopSetupLink v2
         shape<::zengine::workshop::session_history::v8::WorkshopSession>(), // WorkshopSession v8
         shape<::zengine::workshop::session_history::v9::WorkshopSession>(), // WorkshopSession v9
+        shape<::zengine::workshop::session_history::v10::WorkshopSession>(), // WorkshopSession v10
         shape<::zengine::workshop::session_persist::WorkshopChoice>(), // WorkshopChoice v1
         shape<::zengine::workshop::session_persist::WorkshopLayout>(), // WorkshopLayout v3
         shape<::zengine::workshop::session_persist::WorkshopPlacement>(), // WorkshopPlacement v1
-        shape<::zengine::workshop::session_persist::WorkshopSession>(), // WorkshopSession v10
+        shape<::zengine::workshop::session_persist::WorkshopSession>(), // WorkshopSession v11
+        shape<::zengine::workshop::session_persist::WorkshopSessionHeader>(), // WorkshopSessionHeader v11
         shape<::zengine::workshop::session_persist::WorkshopSetupLink>(), // WorkshopSetupLink v3
         shape<::zengine::workshop::session_persist::WorkshopViewport>(), // WorkshopViewport v2
         shape<::zengine::workshop::setup_persist::v2::WorkshopPanePlace>(), // WorkshopPanePlace v1

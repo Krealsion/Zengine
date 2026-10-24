@@ -242,6 +242,27 @@ struct WorkshopSession {
 
 } // namespace v9
 
+namespace v10 {
+
+/// Version 10: version 11's fields, the whole session one value in its file.
+// WL-MIG-02 -- agents/workshop/migration.md
+struct WorkshopSession {
+    std::string format;
+    std::int64_t format_version = 0;
+    session_persist::WorkshopViewport viewport;
+    std::vector<session_persist::WorkshopLayout> layouts;
+    std::int64_t active = 0;
+    session_persist::WorkshopPlacement placement;
+    std::vector<session_persist::WorkshopChoice> choices;
+    session_persist::WorkshopViewport window_room;
+
+    ZEN_SHAPE(WorkshopSession, 10, ZEN_FIELD(format), ZEN_FIELD(format_version),
+              ZEN_FIELD(viewport), ZEN_FIELD(layouts), ZEN_FIELD(active),
+              ZEN_FIELD(placement), ZEN_FIELD(choices), ZEN_FIELD(window_room));
+};
+
+} // namespace v10
+
 /// THE VERSION NUMBERS THIS FILE CONVERTS FROM. They are the edges' own, said once so the
 /// shapes above and the definitions below cannot come to disagree about which vintage each
 /// is.
@@ -254,6 +275,7 @@ inline constexpr std::int64_t kV6FormatVersion = 6;
 inline constexpr std::int64_t kV7FormatVersion = 7;
 inline constexpr std::int64_t kV8FormatVersion = 8;
 inline constexpr std::int64_t kV9FormatVersion = 9;
+inline constexpr std::int64_t kV10FormatVersion = 10;
 
 static_assert(v1::WorkshopSession::zen_version == static_cast<std::uint32_t>(kV1FormatVersion),
               "a historical session shape's envelope version and the format version it "
@@ -282,9 +304,12 @@ static_assert(v8::WorkshopSession::zen_version == static_cast<std::uint32_t>(kV8
 static_assert(v9::WorkshopSession::zen_version == static_cast<std::uint32_t>(kV9FormatVersion),
               "a historical session shape's envelope version and the format version it "
               "converts are one number, exactly as they are for the current one");
+static_assert(v10::WorkshopSession::zen_version == static_cast<std::uint32_t>(kV10FormatVersion),
+              "a historical session shape's envelope version and the format version it "
+              "converts are one number, exactly as they are for the current one");
 
 /// ...AND THE VERSION THEY ALL CONVERT TO IS THE READER'S, NEVER A NUMBER TYPED HERE.
-static_assert(session_persist::kFormatVersion > kV9FormatVersion,
+static_assert(session_persist::kFormatVersion > kV10FormatVersion,
               "every shape in this file is RETIRED: the current reader's version must be "
               "ahead of all of them, or one of these is not history");
 
@@ -650,13 +675,32 @@ inline v9::WorkshopSession session_v8_to_v9(const v8::WorkshopSession& old) {
     return out;
 }
 
-/// A SESSION OF VERSION 9 AS A CURRENT ONE: every field as it was, and no OS window's room kept,
-/// so its OS window opens and grows as it did, and the next run in it keeps one.
+/// A SESSION OF VERSION 9 AS ONE OF VERSION 10: every field as it was, and no OS window's room
+/// kept, so its OS window opens and grows as it did, and the next run in it keeps one.
 // WL-MIG-02 -- agents/workshop/migration.md
-inline session_persist::WorkshopSession session_v9_to_v10(const v9::WorkshopSession& old) {
+inline v10::WorkshopSession session_v9_to_v10(const v9::WorkshopSession& old) {
     if (old.format_version != kV9FormatVersion) {
         throw std::invalid_argument(
             mismatched_version("session", kV9FormatVersion, old.format_version));
+    }
+    v10::WorkshopSession out;
+    out.format = old.format;
+    out.format_version = kV10FormatVersion;
+    out.viewport = old.viewport;
+    out.layouts = old.layouts;
+    out.active = old.active;
+    out.placement = old.placement;
+    out.choices = old.choices;
+    return out;
+}
+
+/// A SESSION OF VERSION 10 AS A CURRENT ONE: every field as it was. Only its file's form moved,
+/// one value then and a line a layout now, so the next save writes it in lines.
+// WL-MIG-02 -- agents/workshop/migration.md
+inline session_persist::WorkshopSession session_v10_to_v11(const v10::WorkshopSession& old) {
+    if (old.format_version != kV10FormatVersion) {
+        throw std::invalid_argument(
+            mismatched_version("session", kV10FormatVersion, old.format_version));
     }
     session_persist::WorkshopSession out;
     out.format = old.format;
@@ -666,44 +710,61 @@ inline session_persist::WorkshopSession session_v9_to_v10(const v9::WorkshopSess
     out.active = old.active;
     out.placement = old.placement;
     out.choices = old.choices;
+    out.window_room = old.window_room;
     return out;
 }
 
 /// A version-1 SESSION AS A CURRENT ONE — one authored edge, whose body composes the
 /// translations above.
 // WL-MIG-02 -- agents/workshop/migration.md
-inline session_persist::WorkshopSession session_v1_to_v10(const v1::WorkshopSession& old) {
-    return session_v9_to_v10(session_v8_to_v9(session_v7_to_v8(session_v6_to_v7(
-        session_v5_to_v6(session_v4_to_v5(session_v3_to_v4(session_v1_to_v3(old))))))));
+inline session_persist::WorkshopSession session_v1_to_v11(const v1::WorkshopSession& old) {
+    return session_v10_to_v11(session_v9_to_v10(session_v8_to_v9(session_v7_to_v8(session_v6_to_v7(
+        session_v5_to_v6(session_v4_to_v5(session_v3_to_v4(session_v1_to_v3(old)))))))));
 }
 
 /// A version-2 SESSION AS A CURRENT ONE, the same way.
-inline session_persist::WorkshopSession session_v2_to_v10(const v2::WorkshopSession& old) {
-    return session_v9_to_v10(session_v8_to_v9(session_v7_to_v8(session_v6_to_v7(
-        session_v5_to_v6(session_v4_to_v5(session_v3_to_v4(session_v2_to_v3(old))))))));
+inline session_persist::WorkshopSession session_v2_to_v11(const v2::WorkshopSession& old) {
+    return session_v10_to_v11(session_v9_to_v10(session_v8_to_v9(session_v7_to_v8(session_v6_to_v7(
+        session_v5_to_v6(session_v4_to_v5(session_v3_to_v4(session_v2_to_v3(old)))))))));
 }
 
 /// A version-3 SESSION AS A CURRENT ONE, the same way.
-inline session_persist::WorkshopSession session_v3_to_v10(const v3::WorkshopSession& old) {
-    return session_v9_to_v10(session_v8_to_v9(session_v7_to_v8(
-        session_v6_to_v7(session_v5_to_v6(session_v4_to_v5(session_v3_to_v4(old)))))));
+inline session_persist::WorkshopSession session_v3_to_v11(const v3::WorkshopSession& old) {
+    return session_v10_to_v11(session_v9_to_v10(session_v8_to_v9(session_v7_to_v8(
+        session_v6_to_v7(session_v5_to_v6(session_v4_to_v5(session_v3_to_v4(old))))))));
 }
 
 /// A version-4 SESSION AS A CURRENT ONE, the same way.
-inline session_persist::WorkshopSession session_v4_to_v10(const v4::WorkshopSession& old) {
-    return session_v9_to_v10(session_v8_to_v9(
-        session_v7_to_v8(session_v6_to_v7(session_v5_to_v6(session_v4_to_v5(old))))));
+inline session_persist::WorkshopSession session_v4_to_v11(const v4::WorkshopSession& old) {
+    return session_v10_to_v11(session_v9_to_v10(session_v8_to_v9(
+        session_v7_to_v8(session_v6_to_v7(session_v5_to_v6(session_v4_to_v5(old)))))));
 }
 
 /// A version-5 SESSION AS A CURRENT ONE, the same way.
-inline session_persist::WorkshopSession session_v5_to_v10(const v5::WorkshopSession& old) {
-    return session_v9_to_v10(
-        session_v8_to_v9(session_v7_to_v8(session_v6_to_v7(session_v5_to_v6(old)))));
+inline session_persist::WorkshopSession session_v5_to_v11(const v5::WorkshopSession& old) {
+    return session_v10_to_v11(session_v9_to_v10(
+        session_v8_to_v9(session_v7_to_v8(session_v6_to_v7(session_v5_to_v6(old))))));
 }
 
 /// A version-6 SESSION AS A CURRENT ONE, the same way.
-inline session_persist::WorkshopSession session_v6_to_v10(const v6::WorkshopSession& old) {
-    return session_v9_to_v10(session_v8_to_v9(session_v7_to_v8(session_v6_to_v7(old))));
+inline session_persist::WorkshopSession session_v6_to_v11(const v6::WorkshopSession& old) {
+    return session_v10_to_v11(
+        session_v9_to_v10(session_v8_to_v9(session_v7_to_v8(session_v6_to_v7(old)))));
+}
+
+/// A version-7 SESSION AS A CURRENT ONE, the same way.
+inline session_persist::WorkshopSession session_v7_to_v11(const v7::WorkshopSession& old) {
+    return session_v10_to_v11(session_v9_to_v10(session_v8_to_v9(session_v7_to_v8(old))));
+}
+
+/// A version-8 SESSION AS A CURRENT ONE, the same way.
+inline session_persist::WorkshopSession session_v8_to_v11(const v8::WorkshopSession& old) {
+    return session_v10_to_v11(session_v9_to_v10(session_v8_to_v9(old)));
+}
+
+/// A version-9 SESSION AS A CURRENT ONE, the same way.
+inline session_persist::WorkshopSession session_v9_to_v11(const v9::WorkshopSession& old) {
+    return session_v10_to_v11(session_v9_to_v10(old));
 }
 
 // ---- ...and the two of them as ordinary contributions ---------------------------------
@@ -716,49 +777,52 @@ inline std::vector<op::OperatorDef> conversions() {
     edges.push_back(op::make_migration(
         loom::schema_of<v1::WorkshopSession>(), current, [](const loom::Value& old) {
             return loom::Cell::message(
-                loom::to_value(session_v1_to_v10(loom::from_value<v1::WorkshopSession>(old))));
+                loom::to_value(session_v1_to_v11(loom::from_value<v1::WorkshopSession>(old))));
         }));
     edges.push_back(op::make_migration(
         loom::schema_of<v2::WorkshopSession>(), current, [](const loom::Value& old) {
             return loom::Cell::message(
-                loom::to_value(session_v2_to_v10(loom::from_value<v2::WorkshopSession>(old))));
+                loom::to_value(session_v2_to_v11(loom::from_value<v2::WorkshopSession>(old))));
         }));
     edges.push_back(op::make_migration(
         loom::schema_of<v3::WorkshopSession>(), current, [](const loom::Value& old) {
             return loom::Cell::message(
-                loom::to_value(session_v3_to_v10(loom::from_value<v3::WorkshopSession>(old))));
+                loom::to_value(session_v3_to_v11(loom::from_value<v3::WorkshopSession>(old))));
         }));
     edges.push_back(op::make_migration(
         loom::schema_of<v4::WorkshopSession>(), current, [](const loom::Value& old) {
             return loom::Cell::message(
-                loom::to_value(session_v4_to_v10(loom::from_value<v4::WorkshopSession>(old))));
+                loom::to_value(session_v4_to_v11(loom::from_value<v4::WorkshopSession>(old))));
         }));
     edges.push_back(op::make_migration(
         loom::schema_of<v5::WorkshopSession>(), current, [](const loom::Value& old) {
             return loom::Cell::message(
-                loom::to_value(session_v5_to_v10(loom::from_value<v5::WorkshopSession>(old))));
+                loom::to_value(session_v5_to_v11(loom::from_value<v5::WorkshopSession>(old))));
         }));
     edges.push_back(op::make_migration(
         loom::schema_of<v6::WorkshopSession>(), current, [](const loom::Value& old) {
             return loom::Cell::message(
-                loom::to_value(session_v6_to_v10(loom::from_value<v6::WorkshopSession>(old))));
+                loom::to_value(session_v6_to_v11(loom::from_value<v6::WorkshopSession>(old))));
         }));
     edges.push_back(op::make_migration(
         loom::schema_of<v7::WorkshopSession>(), current, [](const loom::Value& old) {
             return loom::Cell::message(
-                loom::to_value(session_v9_to_v10(session_v8_to_v9(
-                    session_v7_to_v8(loom::from_value<v7::WorkshopSession>(old))))));
+                loom::to_value(session_v7_to_v11(loom::from_value<v7::WorkshopSession>(old))));
         }));
     edges.push_back(op::make_migration(
         loom::schema_of<v8::WorkshopSession>(), current, [](const loom::Value& old) {
             return loom::Cell::message(
-                loom::to_value(session_v9_to_v10(
-                    session_v8_to_v9(loom::from_value<v8::WorkshopSession>(old)))));
+                loom::to_value(session_v8_to_v11(loom::from_value<v8::WorkshopSession>(old))));
         }));
     edges.push_back(op::make_migration(
         loom::schema_of<v9::WorkshopSession>(), current, [](const loom::Value& old) {
             return loom::Cell::message(
-                loom::to_value(session_v9_to_v10(loom::from_value<v9::WorkshopSession>(old))));
+                loom::to_value(session_v9_to_v11(loom::from_value<v9::WorkshopSession>(old))));
+        }));
+    edges.push_back(op::make_migration(
+        loom::schema_of<v10::WorkshopSession>(), current, [](const loom::Value& old) {
+            return loom::Cell::message(
+                loom::to_value(session_v10_to_v11(loom::from_value<v10::WorkshopSession>(old))));
         }));
     return edges;
 }
