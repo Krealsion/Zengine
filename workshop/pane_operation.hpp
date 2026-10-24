@@ -49,8 +49,9 @@ struct PaneOperationRequested {
 
 // AN OWNER'S QUESTION ABOUT A DOOR NO GESTURE CROSSED: a message a participant sent this owner
 // directly, past Workshop's dispatch. May `session` -- that message's sender -- do the act `id` of
-// these `classes` on `pane`? Workshop judges from the session's admitted row and the guests file's
-// host, as it judges a gesture's actor; a participant no guest door admitted is not narrowed.
+// these `classes` on `pane`? The guest door (`zengine.guests`) judges from the session's admitted
+// row and the guests file's host, as Workshop judges a gesture's actor; a participant it never
+// admitted is not narrowed, and where no one holds the door there is no guest.
 struct ActorScopeRequested {
     std::int64_t session = 0;
     std::string pane;

@@ -4,8 +4,9 @@
 // The Workshop panes suite -- a guest's hand on the desk: what the keys, text and presses of a
 // participant a guest door admitted reach on a weaver's host and on a development host, through
 // the real Workshop and the real panes. A story's own injected hand is made a guest by the host
-// seam (`guest_row`, `host_fact`); a rig with no hand of its own takes `guest_hand.hpp`'s. Each
-// refusal is read in words and by the absence of its effect, beside the act that succeeds.
+// seam (`guest_row`, `host_fact`); a rig with no hand of its own takes `guest_hand.hpp`'s; a send
+// straight to an owner comes over the bridge, through Workshop's own door. Each refusal is read in
+// words and by the absence of its effect, beside the act that succeeds.
 
 #include "doctest.h"
 
@@ -19,14 +20,25 @@
 #include "workshop/actor_scope.hpp"
 #include "workshop/editor_switch.hpp"
 #include "workshop/editor_switch_vocabulary.hpp"
+#include "workshop/guest_door.hpp"
 #include "workshop/guests.hpp"
 #include "workshop/pane_operation.hpp"
 #include "workshop/terminal_seam_vocabulary.hpp"
 
+#include "timer/vocabulary.hpp"
+
+#include <zen/bridge/client.hpp>
+#include <zen/serialize.hpp>
+#include <zen/wire.hpp>
+
+#include <chrono>
 #include <cstdint>
 #include <filesystem>
+#include <functional>
+#include <map>
 #include <memory>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -884,41 +896,168 @@ TEST_CASE("on a weaver's host a guest's Flow generate and View Builder save leav
     }
 }
 
-TEST_CASE("on a weaver's host a guest's toolbox save sent to the Inventory pane is refused through ActorScopeRequested, and no file is written") {
+namespace {
+
+/// A GUEST ON THE FAR SIDE OF A SOCKET, admitted by Workshop's own guest door on the story's bus
+/// under `file`'s first row; each answer is kept by the ask it answers. The door is the bus's, so
+/// it ends with the rig.
+struct DoorGuest {
+    PaneRig& r;
+    GuestDoor* door = nullptr;
+    loom::WeaveId door_id{};
+    std::unique_ptr<loom::BridgeClient> client;
+    std::map<std::uint64_t, std::string> answers;
+
+    DoorGuest(PaneRig& rig, const guests::GuestsFile& file) : r(rig) {
+        std::string err;
+        REQUIRE(loom::bridge_net_init(&err));
+        const loom::socket_t listener = loom::bridge_listen_tcp(0, &err);
+        REQUIRE_MESSAGE(listener != loom::kInvalidSocket, err);
+        const std::uint16_t port = loom::bridge_socket_port(listener);
+        auto made = std::make_unique<GuestDoor>(r.bus, listener, "127.0.0.1:" + std::to_string(port), file);
+        door = made.get();
+        door_id = r.bus.register_weave(std::move(made), guest_door_grant(), std::string(kGuestsRole));
+        door->zen_set_self(door_id);
+        const loom::socket_t s = loom::bridge_connect_tcp("127.0.0.1", port, &err);
+        REQUIRE_MESSAGE(s != loom::kInvalidSocket, err);
+        client = std::make_unique<loom::BridgeClient>(s);
+        REQUIRE(client->hello(file.rows.front().name, file.rows.front().credential));
+        REQUIRE(until([&] { return client->admitted(); }));
+    }
+    /// The door's beat, the bus drained and the socket read, until `done` or a minute.
+    bool until(const std::function<bool()>& done) {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(60);
+        for (;;) {
+            (void)r.bus.send(door_id, loom::Message(loom::to_value(zengine::timer::TimerFired{kGuestBeatId})));
+            r.bus.drain_until_idle();
+            std::vector<loom::BridgeEvent> got;
+            client->poll(got);
+            for (loom::BridgeEvent& e : got) {
+                if (e.kind == loom::BridgeEvent::Kind::Delivered) answers[e.correlation] = std::move(e.payload);
+            }
+            if (done()) return true;
+            if (client->disconnected() || std::chrono::steady_clock::now() >= deadline) return done();
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+    }
+    /// The guest's toolbox save sent straight to the Inventory pane's office: the refusal's words,
+    /// or empty when it answered the save done (`finished`).
+    std::string save(std::uint64_t correlation, const std::string& path,
+                     slots::InventoryToolboxFinished* finished = nullptr) {
+        client->send_to_role(slots::kRole, correlation,
+                             loom::serialize(loom::to_value(slots::InventoryToolboxSave{path})));
+        client->flush();
+        REQUIRE_MESSAGE(until([&] { return answers.count(correlation) != 0; }), "the save was never answered");
+        const std::string& said = answers[correlation];
+        const loom::Admission refused = loom::admit(loom::parse(said), loom::schema_of<loom::Refused>());
+        if (refused.ok()) return loom::from_value<loom::Refused>(refused.value()).reason;
+        const loom::Admission done =
+            loom::admit(loom::parse(said), loom::schema_of<slots::InventoryToolboxFinished>());
+        REQUIRE_MESSAGE(done.ok(), "the save was answered neither done nor refused");
+        if (finished) *finished = loom::from_value<slots::InventoryToolboxFinished>(done.value());
+        return {};
+    }
+};
+
+/// A guests file of one row that may send the toolbox save, on the host `host` names.
+guests::GuestsFile toolbox_guests(const char* host) {
+    guests::GuestsFile file;
+    file.version = 2;
+    file.host = host;
+    file.rows.push_back(guests::GuestRow{"agent", "door-key", {"input", "toolbox"}, {}, false, "", false, {}, {}});
+    return file;
+}
+
+} // namespace
+
+TEST_CASE("a toolbox save sent straight to the Inventory pane asks the guest door: on a weaver's host a guest's is refused in words, and a sender that is no guest saves with a door and without one") {
     TempDir files("guest-toolbox");
-    const std::string path = files.file("guest.toolbox");
     InventoryStory s(191 | 512, true);
-    std::size_t scoped = 0;
+    std::size_t asked = 0;
     RemoveObserver watching{s.r.bus, s.r.bus.add_observer([&](const loom::BusEvent& seen) {
         if (seen.kind == loom::EventKind::Delivered && seen.schema_name == ActorScopeRequested::zen_name) {
-            ++scoped;
+            ++asked;
         }
     })};
-    admit_as_guest(s.r, s.hand_id, /*development=*/false, {"input", "toolbox"});
-    // THE SAVE CROSSES NO GESTURE: sent straight to the pane's office by the hand.
-    const auto save = [&] {
+    // THE SAVE CROSSES NO GESTURE: sent straight to the pane's office by the story's own hand.
+    const auto save_by_hand = [&](const std::string& path) {
         s.act([&](loom::Mail& m) { m.send_to_role(slots::kRole, slots::InventoryToolboxSave{path}); });
     };
-    s.hand->expect_refusal = true;
-    save();
-    REQUIRE(s.hand->refusals.size() == 1);
-    CHECK_MESSAGE(holds_words(s.hand->refusals[0], kWriteRefused), s.hand->refusals[0]);
-    CHECK(scoped == 1);
-    CHECK(s.hand->toolboxes.empty());
-    CHECK_FALSE(std::filesystem::exists(path));
-    // ON A DEVELOPMENT HOST THE SAME SAVE, asked the same way, writes the file.
-    s.r.host.host_fact.development = true;
-    s.hand->expect_refusal = false;
-    save();
+    // NO ONE HOLDS THE DOOR'S OFFICE: there is no door, so no guest, and the save writes its file.
+    const std::string alone = files.file("no-door.toolbox");
+    save_by_hand(alone);
     REQUIRE_MESSAGE(s.hand->toolboxes.size() == 1, s.shown(s.source));
     CHECK(s.hand->toolboxes.back().operation == "save");
-    CHECK(scoped == 2);
+    CHECK(std::filesystem::exists(alone));
+    CHECK(asked == 0);
+
+    // WORKSHOP'S OWN DOOR ON A WEAVER'S HOST, its one row able to send the save: the door is asked,
+    // the guest is refused in the write's words, and no file is written.
+    DoorGuest guest(s.r, toolbox_guests(guests::kHostWeaver));
+    const std::string refused_path = files.file("guest.toolbox");
+    const std::string refusal = guest.save(1, refused_path);
+    CHECK_MESSAGE(holds_words(refusal, kWriteRefused), refusal);
+    CHECK(asked == 1);
+    CHECK_FALSE(std::filesystem::exists(refused_path));
+    // ...AND THE HAND, NO GUEST, SAVES WITH THE DOOR LISTENING: asked, and not narrowed.
+    const std::string beside = files.file("with-door.toolbox");
+    save_by_hand(beside);
+    REQUIRE_MESSAGE(s.hand->toolboxes.size() == 2, s.shown(s.source));
+    CHECK(std::filesystem::exists(beside));
+    CHECK(asked == 2);
+}
+
+TEST_CASE("on a development host the guest door lets a guest's toolbox save sent straight to the Inventory pane write its file") {
+    TempDir files("guest-toolbox-development");
+    InventoryStory s(191 | 512, true);
+    DoorGuest guest(s.r, toolbox_guests(guests::kHostDevelopment));
+    const std::string path = files.file("guest.toolbox");
+    slots::InventoryToolboxFinished finished;
+    const std::string refusal = guest.save(1, path, &finished);
+    CHECK_MESSAGE(refusal.empty(), refusal);
+    CHECK(finished.operation == "save");
     CHECK(std::filesystem::exists(path));
 }
 
+namespace {
+
+struct DeafDoorState {
+    ZEN_SHAPE(DeafDoorState, 1);
+};
+struct DeafDoorTurn {
+    ZEN_SHAPE(DeafDoorTurn, 1);
+};
+
+/// AN OFFICE HOLDING `zengine.guests` THAT TAKES NOT THE QUESTION: there is a door's office, so
+/// the ask is refused rather than told no one holds it.
+class DeafDoor : public loom::WeaveBase<DeafDoor, DeafDoorState, loom::Accept<DeafDoorTurn>> {
+public:
+    void on(const DeafDoorTurn&, loom::Mail&) {}
+};
+
+} // namespace
+
+TEST_CASE("a toolbox save sent straight to the Inventory pane is refused in words when its ask of the guest door's office is refused, and no file is written") {
+    TempDir files("guest-toolbox-refused-ask");
+    InventoryStory s(191 | 512, true);
+    {
+        auto deaf = std::make_unique<DeafDoor>();
+        DeafDoor* raw = deaf.get();
+        const loom::WeaveId id = s.r.bus.register_weave(std::move(deaf), loom::Grant{}, std::string(kGuestsRole));
+        raw->zen_set_self(id);
+    }
+    const std::string path = files.file("refused.toolbox");
+    s.hand->expect_refusal = true;
+    s.act([&](loom::Mail& m) { m.send_to_role(slots::kRole, slots::InventoryToolboxSave{path}); });
+    REQUIRE(s.hand->refusals.size() == 1);
+    CHECK_MESSAGE(holds_words(s.hand->refusals[0], "Toolbox request refused: NotAccepted"), s.hand->refusals[0]);
+    CHECK(s.hand->toolboxes.empty());
+    CHECK_FALSE(std::filesystem::exists(path));
+}
+
 TEST_CASE("on a weaver's host a guest's Submit of a toolbox save in the Composer is refused, and no file is written") {
-    // A RELAY SENDS AS ITS OWN OFFICE: the Inventory pane would ask Workshop about the Composer, no
-    // guest, so the send is judged at the Submit's approval, for the guest's hand, as the class its
+    // A RELAY SENDS AS ITS OWN OFFICE: the Inventory pane would ask the guest door about the
+    // Composer, no guest, so the send is judged at the Submit's approval, for the guest's hand, as the class its
     // shape is. The weaver types the path; the act that sends it is the guest's.
     TempDir files("guest-relay");
     const std::string path = files.file("relayed.toolbox");

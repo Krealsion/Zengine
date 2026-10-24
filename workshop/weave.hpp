@@ -367,7 +367,7 @@ class WorkshopWeave
     : public zengine::With<TerminalDoorFacet,
                            manual::ManualFacet<manual::pages::zengine_workshop::kManual>>::
           Weave<WorkshopWeave, WorkshopState,
-                             loom::Accept<PaneShortcutInvoked, CommandRunRequested, PaneViewRequested, PanePointRequested, DeskReadRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, v2::PaneOperationRequested, ActorScopeRequested, zengine::input::KeyPressed, zengine::input::TextEntered,
+                             loom::Accept<PaneShortcutInvoked, CommandRunRequested, PaneViewRequested, PanePointRequested, DeskReadRequested, PaneObservationRequested, PaneObservationContinued, PaneObservationEnded, input::AttributedInput, PaneOperationRequested, PaneCarryRequested, PaneValueCarryRequested, v2::PaneValueCarryRequested, v2::PaneOperationRequested, zengine::input::KeyPressed, zengine::input::TextEntered,
                                           zengine::input::KeyReleased,
                                           zengine::graphics::SurfacePlacement,
                                           zengine::graphics::SurfaceCloseRequested,
@@ -700,7 +700,6 @@ public:
     std::string authorize_pane_operation(const PaneOperationRequested& asked, loom::Mail& mail);
     void on(const PaneOperationRequested& asked, loom::Mail& mail);
     void on(const v2::PaneOperationRequested& asked, loom::Mail& mail);
-    void on(const ActorScopeRequested& asked, loom::Mail& mail);
     /// A guest's mark on one control or part, for the weaver to see: judged against the row's
     /// `guide` and `capture` doors, then the part as the pane shows it now.
     void on(const GuideRequested& asked, loom::Mail& mail);

@@ -32,8 +32,9 @@ Then any admitted session may ask for its own row
 ([`GuestRowDescribedRequested`](#guestrowdescribedrequested)) and where the plan is
 ([`GuestPlanRequested`](#guestplanrequested)); a row with `inspect` may ask for the inventory
 ([`GuestConnectionsRequested`](#guestconnectionsrequested)), as Workshop's own participants do. A
-guest without the power is refused by the bus, before the door hears it. Workshop's office may ask
-what an admitted session's row lets it do ([`ActorScopeRequested`](#actorscoperequested)).
+guest without the power is refused by the bus, before the door hears it. An owner a session sent a
+message straight to asks, in its office's name, what that session's row lets it do
+([`ActorScopeRequested`](#actorscoperequested)).
 
 ## Commands
 
@@ -87,8 +88,10 @@ run never declares is refused in. The answer tells the two apart.
 ### `ActorScopeRequested`
 
 `ActorScopeRequested` v1 asks what one sender may do, for a message an owner received directly,
-past any gesture: the question Workshop answers at `zengine.workshop`, judged here from the rows
-this door admitted. Only Workshop's office asks it here; the door answers no one else.
+past any gesture, judged from the rows this door admitted. The door answers an ask made in an
+office's name -- the Inventory pane's before a toolbox save sent straight to it -- and nothing said
+in no office's name. Where no one holds `zengine.guests` there is no door, so the sender is no
+guest: the Inventory pane, refused `NoSuchTarget`, saves.
 
 - **Takes:** `session`, the sender's weave; `pane`; `classes`, the action classes the act is
   (`build`, `write`, `open`); `id`, the act.
@@ -99,9 +102,9 @@ this door admitted. Only Workshop's office asks it here; the door answers no one
 - **Refuses:** `the question names no action class`, and each class's refusal: `` guest '<name>'
   may not build here: its row has no `build`, ... ``, `this is a weaver's host: only the weaver's
   hand writes a file here, ...`, `this Workshop knows no action class '<class>'`.
-- **Example:** asked as `zengine.workshop` about a guest on a weaver's host, `{session: 14, pane:
-  "inventory", classes: ["write"], id: "toolbox.save"}` answers `allowed` false and the write's
-  refusal.
+- **Example:** asked as `zengine.inventory-pane` about a guest on a weaver's host, `{session: 14,
+  pane: "inventory", classes: ["write"], id: "InventoryToolboxSave"}` answers `allowed` false and the
+  write's refusal.
 
 ## Hears
 

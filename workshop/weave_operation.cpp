@@ -437,21 +437,6 @@ void WorkshopWeave::on(const v2::PaneOperationRequested& asked, loom::Mail& mail
     (void)mail.answer(PaneOperationAnswered{reason.empty(), reason});
 }
 
-// A DOOR NO GESTURE CROSSED: an owner asks about the sender of a message it received directly. The
-// session is judged as a gesture's actor is, from its admitted row; any other participant is not a
-// guest and is not narrowed. Only an office asks, and nothing is remembered.
-// WL-GUEST-04 -- agents/workshop/guests.md
-void WorkshopWeave::on(const ActorScopeRequested& asked, loom::Mail& mail) {
-    if (mail.authored_role().empty()) return;
-    InputActor actor;
-    actor.known = asked.session > 0;
-    actor.local = false;
-    actor.participant = loom::WeaveId{static_cast<std::uint64_t>(asked.session > 0 ? asked.session : 0)};
-    const std::string refusal = asked.classes.empty() ? std::string("the question names no action class")
-                                                      : judge_classes(actor, asked.classes, {});
-    (void)mail.answer(ActorScopeJudged{refusal.empty(), refusal});
-}
-
 // AN OBSERVATION LEASE: the same one-gesture approval, kept for repeated reads of one shape at one
 // role about one subject. One lease per pane (a new request replaces it), a bounded book, and no
 // authority of its own: every continuation is judged again below.
