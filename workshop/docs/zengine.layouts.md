@@ -184,7 +184,8 @@ revision the asker read.
 - **Takes:** `setup`, the text of a setup file ([Setups](setups.md)).
 - **Answers:** `loom::Ack`, once the desk is the live layout's, its id kept, every lock it held
   kept and each lock the incoming desk brings joined; the layout is no longer related to a setup
-  file, and Workshop's band says `applied setup <name>`. No file is written.
+  file, and Workshop's band says `applied setup <name>`; a menu open over the desk it replaced is
+  put down. No file is written.
 - **Refuses:** in `loom::Refused`: `setup names a pane this Workshop cannot present: <office>
   <pane>`; `the desk would change what a lock holds -- <key> of <office>/<pane>, ...; nothing was
   replaced`; and the setup reader's words, such as `not a Workshop setup: ...`.

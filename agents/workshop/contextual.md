@@ -81,7 +81,8 @@ LAW — `KeyContext::kContext` tops the modes beneath it: inside, navigate or ch
 MEANS
 - a further right press re-targets, offering a pane under it its press first -- one a graphics window shows in its own area is sent nothing;
 - a pass-back is a continuation (WL-PRESS-06): stale, zero, spent or foreign moves nothing; in a graphics window it cites the window's number;
-- a right press in a doorless body opens the same rows at the press: a body press is not lost.
+- a right press in a doorless body opens the same rows at the press: a body press is not lost; another desk going live
+closes it, as it withdraws a pane's menu (WL-CTX-09), and an edit of the same desk does not.
 
 DOES NOT MEAN
 - that a pane's rows reach this surface unasked: only by its request (WL-CTX-09);
@@ -155,6 +156,7 @@ pointed at"
 `workshop/weave_pointer.cpp` spend_context_choice choose_context_row context_press
 `workshop/weave_external.cpp` on(PanePassRequested)
 `workshop/pane_menu.hpp` pass_back
+`workshop/weave_session.cpp` install_live
 `tests/test_workshop_host.cpp` "input spent on the open surface does not leak through it"
 "navigation backtracks cleanly and every way out closes"
 `tests/test_workshop_panes_window.cpp` "a right press over a provider's pane crosses the seam not at

@@ -11,7 +11,7 @@ LAW — A pane's menu request is judged where it would open and granted to the p
 
 MEANS
 - a continuation of one gesture: a secondary press, a declared key, or a PRIMARY press -- in a graphics window numbered by the window;
-- one at a time: a newer menu, a right press, the host's menu, the pane leaving withdraw it, and none opens where no window shows the desk;
+- one at a time: a newer menu, a right press, the host's menu, the pane leaving, another desk going live withdraw it, and none opens where no window shows the desk;
 - the host keeps the keys, the popup's frame and its standard rows; the menu stands in an area of the presenter's, one a menu,
 inside the frame, for the weaver's hand alone where the pane is: a press there is the presenter's, its act the host's.
 
@@ -55,6 +55,7 @@ end_menu_unanswered about_open_menu forward_menu_input menu_key menu_button menu
 act_of_menu_press on(MenuShown) on(MenuClosed) on(PresenterReady) on(PaneManageRequested)
 on(PaneKeyboardRequested) cell_of_body_place
 `workshop/weave_handlers.cpp` on(AreaPressed) on(AreaHandRefused)
+`workshop/weave_session.cpp` install_live
 `workshop/weave_run.cpp` arrange_graphics
 `workshop/weave_pointer.cpp` context_key
 `workshop/screen.hpp` presented_room presented_bounds presented_area_place presented_menu_area
@@ -73,6 +74,8 @@ standard row is spent only while its choosing act is the weaver's latest -- a ke
 choice leaves it unspent" "WL-CTX-09: the keyboard works the menu -- Down then Return chooses the
 second row; Escape answers it unchosen; the release under it still reaches the pane" "WL-CTX-09: an
 outside press dismisses the menu, is spent on dismissing, and reaches nothing beneath it"
+"WL-CTX-09: another desk going live withdraws a pane's open menu, answered unchosen, and closes the
+host's own; an edit of the same desk leaves either open"
 "WL-CTX-09: a press on a presented row chooses it" "WL-CTX-09: a pane's menu stands in its
 presenter's own area of the window, inside the popup's frame, in front of the desk and behind the
 overlay, placed for that menu alone and withdrawn with it" "WL-CTX-09: with no window showing the
