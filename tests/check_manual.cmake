@@ -3,7 +3,8 @@
 # The `manual` entry (manual/docs/manual.md): every manual in form and carried by a target, a pane's
 # commands exactly its ids in the action census (tests/actions.txt and tests/actions/<office>.txt),
 # each command's Answers line linking exactly the shapes its rows declare a press causes, and every
-# key marker its declared default.
+# key marker in a current page its declared default, Workshop's own (tests/workshop_actions.txt)
+# beside the panes'.
 #   cmake -P tests/check_manual.cmake   (from the root, or -DZEN_REPO=)
 
 cmake_minimum_required(VERSION 3.16)
@@ -70,6 +71,64 @@ function(zen_manual_census text out)
         endif()
     endforeach()
     set(${out} "${entries}" PARENT_SCOPE)
+endfunction()
+
+# Workshop's own actions as census entries, `workshop|id|key|` (no shapes; `workshop` names no
+# manual), from the lines of tests/workshop_actions.txt: `<context> <id> <key> <label>`.
+function(zen_manual_workshop_actions text out)
+    zen_manual_swap("${text}" text)
+    string(REPLACE "\n" ";" lines "${text}")
+    set(entries "")
+    foreach(line IN LISTS lines)
+        if(line STREQUAL "" OR line MATCHES "^#")
+            continue()
+        endif()
+        if(line MATCHES "^([a-z-]+) ([A-Za-z0-9_.-]+) ([^ ]+) (.+)$")
+            list(APPEND entries "workshop|${CMAKE_MATCH_2}|${CMAKE_MATCH_3}|")
+        else()
+            list(APPEND entries "!${line}")
+        endif()
+    endforeach()
+    set(${out} "${entries}" PARENT_SCOPE)
+endfunction()
+
+# Every current-facing page under the root, relative to it: frozen history, the quarry, vendored
+# and build trees left out, each excluded directory never entered.
+set(ZEN_MANUAL_PAGE_EXCLUDE
+    "^build(-[^/]*)?/" "^cmake-build" "^_install" "^out/" "^[.]git(/|$)" "^[.]idea/" "^[.]vscode/"
+    "^[.]claude/" "^docs/history/" "^quarry/" "third_party/" "/_deps/")
+function(zen_manual_page_excluded rel out)
+    set(${out} 0 PARENT_SCOPE)
+    foreach(rx IN LISTS ZEN_MANUAL_PAGE_EXCLUDE)
+        if(rel MATCHES "${rx}" OR "${rel}/" MATCHES "${rx}")
+            set(${out} 1 PARENT_SCOPE)
+        endif()
+    endforeach()
+endfunction()
+function(zen_manual_current_pages root out)
+    set(found_pages "")
+    file(GLOB top RELATIVE "${root}" "${root}/*")
+    foreach(entry IN LISTS top)
+        zen_manual_page_excluded("${entry}" skip)
+        if(skip)
+            continue()
+        endif()
+        if(IS_DIRECTORY "${root}/${entry}")
+            file(GLOB_RECURSE inside RELATIVE "${root}" "${root}/${entry}/*.md")
+        elseif(entry MATCHES "[.]md$")
+            set(inside "${entry}")
+        else()
+            continue()
+        endif()
+        foreach(rel IN LISTS inside)
+            zen_manual_page_excluded("${rel}" skip)
+            if(NOT skip)
+                list(APPEND found_pages "${rel}")
+            endif()
+        endforeach()
+    endforeach()
+    list(SORT found_pages)
+    set(${out} "${found_pages}" PARENT_SCOPE)
 endfunction()
 
 # A command's Answers line, held to what its rows declare: the shapes it links (a link whose words are
@@ -286,6 +345,39 @@ zen_manual_judge("loose" "t.pane" "${st_good}" "" OFF st_problems)
 if(NOT st_problems MATCHES "no target carries it")
     message(FATAL_ERROR "manual: SELF-TEST FAILED -- a page no target carries passed")
 endif()
+# Workshop's own actions read as census entries, a key in a page held to them: its default passes,
+# another key or a marker on an action with no key is refused, and `workshop` names no manual.
+zen_manual_workshop_actions("# Workshop's\ncommand layout.new = new layout\ncommand workshop.quit q quit\nno-text workshop.quit ctrl+c quit\ncommand layout.rename unbound rename layout\n" st_workshop)
+if(NOT st_workshop STREQUAL "workshop|layout.new|=|;workshop|workshop.quit|q|;workshop|workshop.quit|ctrl+c|;workshop|layout.rename|unbound|")
+    message(FATAL_ERROR "manual: SELF-TEST FAILED -- Workshop's actions read as '${st_workshop}'")
+endif()
+zen_manual_markers("ws" "`=` <!-- key layout.new -->`=`<!-- /key --> and <!-- key workshop.quit -->`ctrl+c`<!-- /key -->" "${st_workshop}" st_marks)
+if(st_marks)
+    message(FATAL_ERROR "manual: SELF-TEST FAILED -- a page naming Workshop's default keys was refused: '${st_marks}'")
+endif()
+zen_manual_markers("ws" "<!-- key layout.new -->`+`<!-- /key -->" "${st_workshop}" st_marks)
+if(NOT st_marks MATCHES "the key marker for `layout.new` says '\\+', and the census declares '='")
+    message(FATAL_ERROR "manual: SELF-TEST FAILED -- a wrong key on Workshop's own action passed: '${st_marks}'")
+endif()
+zen_manual_markers("ws" "<!-- key layout.rename -->`f2`<!-- /key -->" "${st_workshop}" st_marks)
+if(NOT st_marks MATCHES "the key marker for `layout.rename`")
+    message(FATAL_ERROR "manual: SELF-TEST FAILED -- a key on an action with none passed: '${st_marks}'")
+endif()
+string(REPLACE "# t.pane --" "# zengine.workshop --" st_workshop_page "${st_good}")
+zen_manual_judge("ws-office" "zengine.workshop" "${st_workshop_page}" "${st_workshop}" ON st_problems)
+if(st_problems)
+    message(FATAL_ERROR "manual: SELF-TEST FAILED -- Workshop's own actions were asked of a manual: '${st_problems}'")
+endif()
+# The pages read for markers: a current page is, frozen history, the quarry and a build tree's are not.
+foreach(case "0|README.md" "0|workshop/docs/hotkeys.md" "0|agents/panes.md" "1|docs/history/a/b.md"
+             "1|quarry/x.md" "1|build/_deps/sdl-src/README.md" "1|build-msys/x.md" "1|.git")
+    string(REGEX MATCH "^([01])[|](.*)$" _ "${case}")
+    set(st_want "${CMAKE_MATCH_1}")
+    zen_manual_page_excluded("${CMAKE_MATCH_2}" st_skip)
+    if(NOT st_skip EQUAL st_want)
+        message(FATAL_ERROR "manual: SELF-TEST FAILED -- '${CMAKE_MATCH_2}' read as excluded=${st_skip}")
+    endif()
+endforeach()
 
 # ---- the tree ---------------------------------------------------------------------------------
 # The census: tests/actions.txt, then each office's own file in tests/actions/, by name, each of
@@ -311,6 +403,21 @@ endforeach()
 if(NOT census)
     message(FATAL_ERROR "manual: the action census holds no row; an empty census holds nothing (VM-POP-01)")
 endif()
+# ...and Workshop's own actions beside it, which a key marker in any page may name.
+file(READ "${ZEN_REPO}/tests/workshop_actions.txt" workshop_text)
+zen_manual_workshop_actions("${workshop_text}" workshop_census)
+set(workshop_rows 0)
+foreach(entry IN LISTS workshop_census)
+    if(entry MATCHES "^!(.*)$")
+        list(APPEND problems "tests/workshop_actions.txt: '${CMAKE_MATCH_1}' is not `context id key label`")
+    else()
+        math(EXPR workshop_rows "${workshop_rows} + 1")
+    endif()
+endforeach()
+if(workshop_rows EQUAL 0)
+    message(FATAL_ERROR "manual: tests/workshop_actions.txt holds no row; Workshop's own keys would go unread (VM-POP-01)")
+endif()
+list(APPEND census ${workshop_census})
 
 # The pages a target embeds: each `MANUAL <page>` and `zengine_manual(<target> <scope> <page>)`
 # in a CMakeLists.txt, relative to that file's folder or `${PROJECT_SOURCE_DIR}`.
@@ -377,16 +484,42 @@ foreach(page IN LISTS tutorials)
     zen_manual_markers("${page}" "${text}" "${census}" found)
     list(APPEND problems ${found})
 endforeach()
+# ...and every other current page, a guide's key held as a manual's is.
+zen_manual_current_pages("${ZEN_REPO}" current_pages)
+set(guides "")
+foreach(page IN LISTS current_pages)
+    if(NOT page IN_LIST pages AND NOT page IN_LIST tutorials)
+        list(APPEND guides "${page}")
+    endif()
+endforeach()
+if(NOT guides)
+    message(FATAL_ERROR "manual: no current page found beyond the manuals; an empty population is red (VM-POP-01)")
+endif()
+set(guide_marks 0)
+foreach(page IN LISTS guides)
+    file(READ "${ZEN_REPO}/${page}" text)
+    string(FIND "${text}" "<!-- key " any_key)
+    if(any_key EQUAL -1)
+        continue()
+    endif()
+    math(EXPR guide_marks "${guide_marks} + 1")
+    zen_manual_markers("${page}" "${text}" "${census}" found)
+    list(APPEND problems ${found})
+endforeach()
 # An office the census holds and no manual names is not refused here: a pane's page is held to its
 # declared ids from the day the page exists.
 
 list(LENGTH pages page_count)
 list(LENGTH tutorials tutorial_count)
+list(LENGTH guides guide_count)
 list(LENGTH census row_count)
+math(EXPR row_count "${row_count} - ${workshop_rows}")
 list(LENGTH census_files file_count)
 math(EXPR file_count "${file_count} + 1")
-message(STATUS "manual: ${page_count} manual(s) and ${tutorial_count} tutorial page(s) read against "
-               "${row_count} census row(s) in ${file_count} file(s)")
+message(STATUS "manual: ${page_count} manual(s), ${tutorial_count} tutorial page(s) and "
+               "${guide_count} other current page(s), ${guide_marks} of them with key markers, read "
+               "against ${row_count} census row(s) in ${file_count} file(s) and ${workshop_rows} of "
+               "Workshop's own actions")
 if(problems)
     list(LENGTH problems problem_count)
     string(REPLACE ";" "\n  " shown "${problems}")
