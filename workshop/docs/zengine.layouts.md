@@ -13,8 +13,9 @@ the messages below.
 Workshop presents the live layout and judges every hand; this office keeps it. Workshop draws from
 the copy this office sends it, `LiveLayout`, which every change replaces whole, and asks for every
 change its own gestures make -- a drag, a close, a layout switch, `s`, `r` -- with
-`LayoutEditRequested`. Every other asker reaches the settings doors below, and none of them is
-Workshop's: a door asked of `zengine.workshop` is refused there by Loom's grant, never forwarded.
+`LayoutEditRequested`. Every other asker reaches the settings doors below, and an office the
+close door, and none of them is Workshop's: a door asked of `zengine.workshop` is refused there by
+Loom's grant, never forwarded.
 
 A layout is named by its **id**, which this office mints for each layout of the run -- a new one,
 a copy -- and keeps in the session, never reusing one; `0` names the live layout. The id is never
@@ -193,6 +194,25 @@ revision the asker read.
   <pane>`; `the desk would change what a lock holds -- <key> of <office>/<pane>, ...; nothing was
   replaced`; and the setup reader's words, such as `not a Workshop setup: ...`.
 - **Example:** a guest with the `demo` power puts a prepared desk live.
+
+### `PaneCloseRequested`
+
+`PaneCloseRequested` takes one pane's row off the live layout. It unloads nothing: the pane's
+office keeps all it holds, so a launch finds it as it was
+([`desktop_seam_vocabulary.hpp`](../desktop_seam_vocabulary.hpp)).
+
+- **Takes:** `office` and `pane`, the row's address; asked as an office.
+- **Answers:** a `LiveLayout` to Workshop that no longer seats the row, then
+  `PaneCloseAnswered{office, pane, closed, refusal, settings, locks}` v2 to the asker alone: the
+  row went whole, with its place, its size, its pins, the `settings` it kept and the keys this
+  layout locked on it in `locks`. Workshop's band says `hid <name> -- its provider and what it
+  holds are untouched; showing it brings it back`, naming those settings and locks. A row whose pane
+  nothing offers closes the same way: the live layout is asked, not the catalog.
+- **Refuses:** in `refusal`, with nothing taken: `<name> is not on this desk -- nothing to hide, and
+  a hide shows nothing`, said on Workshop's band too; `a pane is taken off the desk by an office --
+  personal speech closes nothing`.
+- **Example:** the Pane Manager's `x` sends the row its marker holds, `{office:
+  "zengine.builder-pane", pane: "builder"}`.
 
 ### `LayoutEditRequested`
 

@@ -112,12 +112,15 @@ WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
 ## WL-DESK-12 — A close takes a pane off the desk and unloads nothing
 
-LAW — A close names a pane by its durable keys; the host takes its row off the live desk through the setup's door and reseats, refusing one that is not there; its provider and all it holds stay.
+LAW — A close names a pane by its durable keys; the layouts' owner takes its row off the live layout whole, naming its settings and locks, and refuses a row not there; its provider and all it holds stay.
 
 MEANS
 - a launch finds it as it was: an Editor's unsaved source, a Terminal's history;
-- a close never opens anything, and the launcher's Return never closes anything (`x` does);
-- the row is what goes: its place, size and settings start afresh, and the close named the settings.
+- a close never opens anything, the launcher's Return never closes anything (`x` does), and the live layout is what is asked, not the catalog: an unavailable pane's row closes;
+- the row goes whole and starts afresh; what the weaver sees after is the presenter's: the owner's sentence on its band, the palette's keys given back.
+
+DOES NOT MEAN
+- that the presenter has a close door, or forwards one: its own closes ask the owner for an unseat.
 
 WHY — `agents/decisions/the-application-defaults-are-a-participant.md`
 
@@ -248,11 +251,16 @@ collide unless the pane declares it stands in, in both arrival orders"
 
 ### WL-DESK-12
 `workshop/desktop_seam_vocabulary.hpp` PaneCloseRequested PaneCloseAnswered
-`workshop/weave.hpp` close_pane on(PaneCloseRequested)
-`workshop/weave_desktop.cpp` close_pane on(PaneCloseRequested)
+`workshop/layouts/owner.hpp` on(PaneCloseRequested)
+`workshop/layouts/owner.cpp` on(PaneCloseRequested) layouts_grant
+`workshop/layouts/store.cpp` close
+`workshop/weave_session.cpp` install_live palette_closed
 `workshop/desktop-pane/vocabulary.hpp` kActionClose
 `tests/test_workshop_panes_actions.cpp` "WL-DESK-12: a close takes a pane off the desk and leaves
-its provider holding; a close of a pane that is not there is refused and opens nothing" "the shipped
+its provider holding; a close of a pane that is not there is refused and opens nothing" "WL-DESK-12: a close is the
+layouts' owner's: the row leaves the live layout whole, its settings and this layout's locks named in the answer and on
+the band, and the presenter takes no close"
+`tests/test_workshop_screen.cpp` "the close door can reach and remove an unresolved row" "the shipped
 desktop's x closes the row its marker holds, and Return opens it again: the mark says which, and the
 provider never left"
 `tests/test_workshop_panes_editor.cpp` "the Pane Manager's close takes the Editor off the desk and
@@ -261,7 +269,8 @@ unloads nothing: a launch finds its unsaved source exactly as it was"
 ### WL-DESK-13
 `workshop/desktop_seam_vocabulary.hpp` PaneToggleRequested PaneToggleAnswered
 `workshop/weave.hpp` on(PaneToggleRequested) judge_toggle WorkshopWeave::settle_waiters_
-`workshop/weave_desktop.cpp` on(PaneToggleRequested) judge_toggle launch_pane close_pane
+`workshop/weave_desktop.cpp` on(PaneToggleRequested) judge_toggle launch_pane
+`workshop/weave_session.cpp` unseat_then
 `workshop/desktop-pane/vocabulary.hpp` kActionPanes
 `tests/test_workshop_panes_desktop.cpp` "WL-DESK-13: Ctrl+P is a strict visibility toggle judged by
 the host -- open becomes closed, closed becomes open and focused, whatever the desktop last heard"
@@ -269,11 +278,13 @@ the host -- open becomes closed, closed becomes open and focused, whatever the d
 ### WL-DESK-18
 `workshop/command_vocabulary.hpp` CommandRunRequested CommandRunAnswered
 `workshop/weave_command.cpp` on(CommandRunRequested) palette_closed
-`workshop/weave_desktop.cpp` launch_pane close_pane
+`workshop/weave_desktop.cpp` launch_pane
+`workshop/weave_session.cpp` unseat_then install_live
 `workshop/desktop-pane/vocabulary.hpp` kActionPalette
 `workshop/palette/palette.cpp` Palette
 `tests/test_workshop_panes_palette.cpp` "WL-DESK-18: ctrl+space shows the palette over the pane
 holding the keys, its Return runs the entry chosen by its key's path as that hand, and Escape puts
-it down with the keys given back"
+it down with the keys given back" "WL-DESK-18: the palette closed by an office, through the layouts'
+owner, is put down with the keys given back, as its own Escape puts it down"
 `tests/test_workshop_panes_palette.cpp` "WL-DESK-18: a run is refused under any number but the
 palette's own unspent row and from any office but the palette's, and nothing is run"

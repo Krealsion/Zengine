@@ -394,7 +394,7 @@ TEST_CASE("portable slots: invoking a configured hotkey checks current actor aut
         REQUIRE(s.layout().inventory_active);
         if (allowed) {
             s.r.bus.office_send_to_role_as(s.r.bus.role_holder(slots::kRole), slots::kRole,
-                kWorkshopProvider, loom::Message(loom::to_value(PaneCloseRequested{slots::kRole,"inventory"})));
+                kLayoutsRole, loom::Message(loom::to_value(PaneCloseRequested{slots::kRole,"inventory"})));
             s.r.bus.drain_until_idle(); REQUIRE_FALSE(s.r.session().panes.has(s.source));
         }
         s.r.pick({"zengine.info","info"}); // current actor survives the Desktop hop, including a hidden source pane

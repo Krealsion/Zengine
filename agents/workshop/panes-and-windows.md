@@ -280,7 +280,8 @@ row is untouched"
 
 ### WL-PANE-12
 `workshop/setup_reconcile.hpp` inventory_rows CatalogRow
-`workshop/weave_desktop.cpp` launch_pane close_pane
+`workshop/weave_desktop.cpp` launch_pane
+`workshop/layouts/store.cpp` close
 `workshop/weave_arrange.cpp` arrangeable
 `workshop/panes.hpp` kNoPaneKind
 `tests/test_workshop_screen.cpp` "the close door can reach and remove an unresolved row"

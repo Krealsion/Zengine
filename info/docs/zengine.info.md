@@ -415,8 +415,8 @@ one [`info.view.new`](#infoviewnew) opens. The default pane has none.
 
 - **Takes:** a value view. Default key <!-- key info.view.close -->`ctrl+shift+w`<!-- /key -->
   (`ctrl+w` from a POSIX terminal); the control `[Close]`.
-- **Answers:** asks Workshop to close the pane
-  ([`PaneCloseRequested`](../../workshop/docs/zengine.workshop.md#panecloserequested)), and a watch
+- **Answers:** asks the layouts to close the pane
+  ([`PaneCloseRequested`](../../workshop/docs/zengine.layouts.md#panecloserequested)), and a watch
   the view held ends there
   ([`PaneObservationEnded`](../../workshop/docs/zengine.workshop.md#paneobservationended)); an
   answer to the retired view's asks lands nowhere. Closing it from the desk or the Pane Manager only

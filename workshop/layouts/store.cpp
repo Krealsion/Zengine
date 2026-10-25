@@ -1744,6 +1744,11 @@ std::string LayoutStore::edit_one(SetupState& next, const LayoutEdit& e, LayoutE
             return ref_text(ref) + " is not on this desk";
         }
         out.discarded = row->settings;
+        for (const SetupLock& lock : live.locks) {
+            if (lock.ref == ref) {
+                out.unlocked.push_back(lock.key);
+            }
+        }
         (void)remove_pane(live, ref);
         return std::string();
     }
@@ -1987,6 +1992,7 @@ LayoutEditAnswered LayoutStore::edit(const LayoutEditRequested& asked) {
         out.accepted = false;
         out.refusal = why;
         out.discarded.clear();
+        out.unlocked.clear();
         out.revision = revision_;
         return out;
     };
@@ -2020,6 +2026,46 @@ LayoutEditAnswered LayoutStore::edit(const LayoutEditRequested& asked) {
     }
     out.accepted = true;
     out.revision = revision_;
+    return out;
+}
+
+// ---- A close ----------------------------------------------------------------------------------
+
+// WL-DESK-12 -- agents/workshop/desktop.md
+// WL-SETTING-06 -- agents/workshop/settings.md
+PaneCloseAnswered LayoutStore::close(const PaneRef& ref) {
+    PaneCloseAnswered out;
+    out.office = ref.provider;
+    out.pane = ref.pane;
+    const std::string name = name_of(ref);
+    // THE DESK IS WHAT IS ASKED, NOT THE CATALOG: a row the weaver authored is theirs to take off
+    // whether or not anything offers it -- an unavailable pane's row is exactly the intent a
+    // weaver closes to stop asking for it.
+    if (!has_pane(live_desk(run_), ref)) {
+        out.refusal = name + " is not on this desk -- nothing to hide, and a hide shows nothing";
+        say(out.refusal, true);
+        return out;
+    }
+    LayoutEdit unseat;
+    unseat.op = layout_op::kUnseat;
+    unseat.provider = ref.provider;
+    unseat.pane = ref.pane;
+    LayoutEditRequested asked;
+    asked.edits.push_back(std::move(unseat));
+    const LayoutEditAnswered taken = edit(asked);
+    if (!taken.accepted) {
+        out.refusal = taken.refusal;
+        say(out.refusal, true);
+        return out;
+    }
+    // THE ROW WENT WHOLE: its place, its size, its settings and this layout's locks and pins on
+    // it. Nothing behind it is touched -- a provider's lifetime is realization's, not the desk's.
+    out.closed = true;
+    out.settings = taken.discarded;
+    out.locks = taken.unlocked;
+    say("hid " + name + discarded_settings(out.settings) + discarded_locks(out.locks) +
+            " -- its provider and what it holds are untouched; showing it brings it back",
+        false);
     return out;
 }
 

@@ -656,19 +656,22 @@ TEST_CASE("a close discards a pane's settings with its row, and every close door
     CHECK(t.r.last_notice().find("hid Dial -- ") == 0);
 }
 
-TEST_CASE("arrangement's remove says the settings it discarded too") {
+TEST_CASE("arrangement's remove says the settings and locks it discarded too") {
+    // ⚔ MUTATION: the store's unseat naming no lock of the row it takes.
     Live t;
     open_pane(t, ref_of(stock::kKind));
     stage_desk(t, [](Setup& desk) {
         pane_of(desk, ref_of(stock::kKind))->settings = {
             PaneSetting{"mode", {}, {}, std::string("wide")}};
+        desk.locks.push_back(SetupLock{ref_of(stock::kKind), "mode"});
     });
     enter_arrange_desk(t);
     select_pane(t, ref_of(stock::kKind));
     t.key(input::scan::kD);
     CHECK_FALSE(has_pane(t.session().setup.active, ref_of(stock::kKind)));
     CHECK(t.notice().find("hid " + ref_text(ref_of(stock::kKind)) +
-                          " and its settings here (mode wide) -- ") == 0);
+                          " and its settings here (mode wide) and its locks here (mode) -- ") ==
+          0);
     CHECK(t.notice().find("nothing behind it was touched") != std::string::npos);
 }
 

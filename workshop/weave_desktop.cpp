@@ -374,7 +374,7 @@ void WorkshopWeave::on(const PaneLaunchRequested& asked, loom::Mail& mail) {
         mail);
 }
 
-// ---- Closing: participation, and nothing behind it ----------------------------------------
+// ---- What a pane is called, and where it stands -------------------------------------------
 
 std::string WorkshopWeave::inventory_name(const PaneRef& ref) const {
     for (const CatalogRow& row : inventory_rows(session_.setup.active, session_.panes)) {
@@ -400,68 +400,6 @@ std::string WorkshopWeave::off_this_screen(std::int64_t kind, const std::string&
     // can -- or a hide and a show seat it in the stack again.
     return name +
            " is off this screen -- Pane Manager > manage it > Reset > place, or hide and show it";
-}
-
-// WL-DESK-12 -- agents/workshop/desktop.md
-void WorkshopWeave::close_pane(const PaneRef& ref, CloseThen then, loom::Mail& mail) {
-    PaneCloseAnswered out;
-    out.office = ref.provider;
-    out.pane = ref.pane;
-    // THE DESK IS WHAT IS ASKED, NOT THE CATALOG: a row the weaver authored is theirs to take off
-    // whether or not anything offers it -- an unavailable pane's row is exactly the intent a
-    // weaver closes to stop asking for it.
-    if (!has_pane(session_.setup.active, ref)) {
-        out.refusal = inventory_name(ref) + " is not on this desk -- nothing to hide, and a "
-                                            "hide shows nothing";
-        then(out, {}, mail);
-        return;
-    }
-    LayoutEdit unseat;
-    unseat.op = layout_op::kUnseat;
-    unseat.provider = ref.provider;
-    unseat.pane = ref.pane;
-    ask_layout({unseat},
-               [this, out, ref, then](const LayoutEditAnswered& answered, loom::Mail& m) mutable {
-                   if (!answered.accepted) {
-                       out.refusal = answered.refusal;
-                       then(out, {}, m);
-                       return;
-                   }
-                   // And nothing behind it is touched: the presentation leaves with the row; the
-                   // office's holder, its state and its outstanding asks stay, since
-                   // participation is the desk's fact and a provider's lifetime is realization's.
-                   palette_closed(ref);
-                   out.closed = true;
-                   // THE ROW'S SETTINGS LEFT WITH IT, as the store says, so the sentence can say
-                   // which.
-                   then(out, answered.discarded, m);
-               },
-               mail, false);
-}
-
-// WL-DESK-12 -- agents/workshop/desktop.md
-void WorkshopWeave::on(const PaneCloseRequested& asked, loom::Mail& mail) {
-    if (mail.authored_role().empty()) {
-        return; // an office, and only an office -- the seam's rule for changing the desk
-    }
-    const PaneRef ref{asked.office, asked.pane};
-    auto held = std::make_shared<loom::DeferredAnswer>(mail.defer_answer());
-    close_pane(
-        ref,
-        [this, held, ref](const PaneCloseAnswered& answer,
-                          const std::vector<PaneSetting>& discarded, loom::Mail& m) {
-            if (!answer.refusal.empty()) {
-                say(answer.refusal, true);
-            } else {
-                say("hid " + inventory_name(ref) + discarded_settings(discarded) +
-                        " -- its provider and what it holds are untouched; showing it brings it "
-                        "back",
-                    false);
-            }
-            (void)loom::answer_deferred(*held, m, answer);
-            repaint(m);
-        },
-        mail);
 }
 
 // ---- Editing a binding: the candidate judged whole, applied live, then written -------------
@@ -755,8 +693,8 @@ void WorkshopWeave::on(const PaneToggleRequested& asked, loom::Mail& mail) {
         return; // an office, and only an office -- the seam's rule for changing the desk
     }
     // JUDGED AGAINST THE DESK NOW, not against whatever the asker last heard: on the desk means
-    // hide; off it means show and focus. Through the two doors a launch and a close already go
-    // through, so a toggle can do nothing they cannot.
+    // hide; off it means show and focus. Through the launch's own path, or this desk's own unseat
+    // as its other closes ask it, so a toggle can do nothing a launch and a close cannot.
     auto held = std::make_shared<loom::DeferredAnswer>(mail.defer_answer());
     // WHILE AN EDIT IS IN FLIGHT THE COPY IS NOT THE DESK: the toggle waits for it to settle.
     if (!edits_owed_.empty()) {
@@ -790,21 +728,22 @@ void WorkshopWeave::judge_toggle(const PaneToggleRequested& asked,
         repaint(m);
     };
     if (has_pane(session_.setup.active, ref)) {
-        close_pane(ref,
-                   [this, answer, ref, finish](const PaneCloseAnswered& closed,
-                                               const std::vector<PaneSetting>& discarded,
-                                               loom::Mail& m) mutable {
-                       answer.closed = closed.closed;
-                       answer.refusal = closed.refusal;
-                       if (closed.closed) {
-                           say("hid " + inventory_name(ref) + discarded_settings(discarded) +
-                                   " -- its provider and what it holds are untouched; showing it "
-                                   "brings it back",
-                               false);
-                       }
-                       finish(answer, m);
-                   },
-                   mail);
+        unseat_then(ref,
+                    [this, answer, ref, finish](const LayoutEditAnswered& closed,
+                                                loom::Mail& m) mutable {
+                        answer.closed = closed.accepted;
+                        answer.refusal = closed.refusal;
+                        if (closed.accepted) {
+                            say("hid " + inventory_name(ref) +
+                                    discarded_settings(closed.discarded) +
+                                    discarded_locks(closed.unlocked) +
+                                    " -- its provider and what it holds are untouched; showing it "
+                                    "brings it back",
+                                false);
+                        }
+                        finish(answer, m);
+                    },
+                    mail);
         return;
     }
     launch_pane(ref,
