@@ -227,29 +227,48 @@ std::string pixel_rect_text(const PixelRect& r, std::int64_t cell_px) {
     return text;
 }
 
-// WL-GEO-09 -- agents/workshop/geometry.md
+// WL-GEO-09, WL-GEO-12 -- agents/workshop/geometry.md
 std::string pane_window_text(const SetupPane* row, std::int64_t cell_px) {
     if (row == nullptr) {
         return "--";
     }
     bool projected = false;
-    const auto axis = [cell_px, &projected](const PaneSize& s) -> std::string {
-        if (s.mode == pane_unit::kPixels) {
-            return geometry_amount_text(s.amount, cell_px, projected);
+    bool numbered = false;
+    const auto amount = [cell_px, &projected, &numbered](std::int64_t px) {
+        numbered = true;
+        return geometry_amount_text(px, cell_px, projected);
+    };
+    // EACH AXIS IN ITS WORD: a count of the face's unit, a share, `fit`, `fill`, or `-`.
+    const auto axis = [&amount](const PaneSize& s) -> std::string {
+        switch (s.mode) {
+        case pane_unit::kPixels: return amount(s.amount);
+        case ui::kSizeShare: return share_text(s.amount);
+        case ui::kSizeFit:
+        case ui::kSizeFill: return std::string(ui::size_word(s.mode));
+        default: return std::string("-");
         }
-        return std::string("-");
     };
     std::string text;
-    if (row->place.mode == pane_unit::kPixels) {
-        text += "@" + geometry_amount_text(row->place.x, cell_px, projected) + "," +
-                geometry_amount_text(row->place.y, cell_px, projected) + " ";
+    const std::int64_t mode = row->place.mode;
+    if (mode == pane_unit::kPixels) {
+        text += "@" + amount(row->place.x) + "," + amount(row->place.y) + " ";
+    } else if (mode != pane_unit::kDefault) {
+        // A PLACE WORD, and the offsets it reads.
+        text += "@" + std::string(ui::place_word(mode));
+        const bool reads_x = ui::place_reads_x(mode);
+        const bool reads_y = ui::place_reads_y(mode);
+        if (reads_x && reads_y) {
+            text += " " + amount(row->place.x) + "," + amount(row->place.y);
+        } else if (reads_x || reads_y) {
+            text += " " + amount(reads_x ? row->place.x : row->place.y);
+        }
+        text += " ";
     }
     text += axis(row->width) + "x" + axis(row->height);
-    // THE UNIT IS SAID ONCE, AND ONLY WHERE A NUMBER IN IT WAS PRINTED. A row default
-    // on every axis has said nothing measurable, and appending `cells` to `-x-` would
-    // be naming the unit of a number that is not there.
-    if (row->place.mode == pane_unit::kPixels || row->width.mode == pane_unit::kPixels ||
-        row->height.mode == pane_unit::kPixels) {
+    // THE UNIT IS SAID ONCE, AND ONLY WHERE A NUMBER IN IT WAS PRINTED. A row of words alone
+    // has said nothing measurable, and appending `cells` to `-x-` would be naming the unit of a
+    // number that is not there.
+    if (numbered) {
         text += " " + std::string(geometry_unit(cell_px));
     }
     text += " f" + std::to_string(row->front);
@@ -260,12 +279,33 @@ std::string pane_window_text(const SetupPane* row, std::int64_t cell_px) {
 }
 
 // WL-GEO-12 -- agents/workshop/geometry.md
-bool pane_window_partly_default(const SetupPane* row) {
+bool pane_window_reads_words(const SetupPane* row) {
     if (row == nullptr) {
         return false;
     }
-    return row->place.mode == pane_unit::kDefault || row->width.mode == pane_unit::kDefault ||
-           row->height.mode == pane_unit::kDefault;
+    return row->place.mode != pane_unit::kPixels || row->width.mode != pane_unit::kPixels ||
+           row->height.mode != pane_unit::kPixels;
+}
+
+// WL-PANE-17 -- agents/workshop/panes-and-windows.md
+std::string pane_fit_note(const Session& s, const PaneRef& ref) {
+    const SetupPane* row = pane_of(s.setup.active, ref);
+    if (row == nullptr || (row->width.mode != ui::kSizeFit && row->height.mode != ui::kSizeFit)) {
+        return {};
+    }
+    const RuntimePane* pane = s.panes.runtime.find(ref.provider, ref.pane);
+    if (pane == nullptr || pane->latest == PaneOfferedBody{}) {
+        return "fit: no measure offered -- it stands at its default";
+    }
+    if (!pane->fit_held) {
+        return {};
+    }
+    const PreferredExtent now = fit_extent(pane, stack_capacity(screen_of(s)));
+    bool projected = false;
+    const std::int64_t held = row->height.mode == ui::kSizeFit ? now.height : now.width;
+    return "fit: its measure follows its room -- held at " +
+           geometry_amount_text(held, s.cell_px, projected) + " " +
+           std::string(geometry_unit(s.cell_px));
 }
 
 // ---- A SURFACE SIZED BY WHAT IT SAYS, PLACED ---------------------------------------------

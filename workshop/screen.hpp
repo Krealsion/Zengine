@@ -1220,11 +1220,17 @@ FaceAmount parse_face_amount(std::string_view text, std::int64_t cell_px);
 /// A WHOLE PIXEL RECTANGLE, IN THE ACTIVE MEDIUM'S UNIT -- `@x,y WxH unit`.
 std::string pixel_rect_text(const PixelRect& r, std::int64_t cell_px);
 
-/// WHAT A WEAVER AUTHORED FOR ONE PANE'S WINDOW, in the active medium's own unit.
+/// WHAT A WEAVER AUTHORED FOR ONE PANE'S WINDOW, each axis in its word, its numbers in the active
+/// medium's own unit.
 std::string pane_window_text(const SetupPane* row, std::int64_t cell_px);
 
-/// IS ANY PART OF THIS PANE'S WINDOW STILL THE CODE'S ANSWER RATHER THAN THE WEAVER'S?
-bool pane_window_partly_default(const SetupPane* row);
+/// IS ANY AXIS OF THIS PANE'S WINDOW SAID IN A WORD OTHER THAN PIXELS -- the code's answer, a
+/// point of the room, a share, `fit` or `fill` -- so that its numbers alone do not say where it is?
+bool pane_window_reads_words(const SetupPane* row);
+
+/// WHAT A `fit` AXIS STANDS ON, where it is not the pane's latest offer: a pane that offered
+/// nothing, or one whose measure follows its room and is held; empty otherwise.
+std::string pane_fit_note(const Session& s, const PaneRef& ref);
 
 
 // ---- A SURFACE SIZED BY WHAT IT SAYS, PLACED ---------------------------------------------
